@@ -27,14 +27,16 @@ import ProposalHelper from '@helpers/proposal'
 import { TokenVoting } from '@src/aragonContracts'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { assert } from '@errors'
+import Web3Utils from '@helpers/web3Utils'
 
-const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:ProposalHandler' })
+const llo = logger.logMeta.bind(null, { service: 'handlers:ProposalHandler' })
 export const ProposalHandler = {
   findIncrementalId: async (proposal: Partial<Proposal>): Promise<number> => {
     try {
       assert(!!proposal.pluginAddress, 'pluginAddress is required')
       assert(!!proposal.network, 'network is required')
       assert(!!proposal.proposalIndex, 'proposalIndex is required')
+      assert(!!proposal.blockNumber, 'blockNumber is required')
 
       const plugin = await Models.Plugin.findByAddress(proposal.pluginAddress, proposal.network)
       assert(!!plugin, 'plugin not found')
@@ -43,9 +45,16 @@ export const ProposalHandler = {
         return Number(proposal.proposalIndex)
       }
 
+      const lastSavedProposal = await Models.Proposal.findLastSavedProposal(
+        proposal.pluginAddress!,
+        proposal.network!,
+        proposal.blockNumber,
+      )
+
       const crawler = new BlockchainLogCrawler({
         skipLogProcessing: true,
-        fromBlock: plugin.blockNumber,
+        fromBlock: lastSavedProposal ? lastSavedProposal.blockNumber : plugin.blockNumber,
+        toBlock: proposal.blockNumber,
         logService: null,
         network: proposal.network!,
         address: proposal.pluginAddress,
@@ -67,7 +76,20 @@ export const ProposalHandler = {
       })
 
       const logs = await crawler.crawl()
-      const proposalIds = logs?.map((log: any) => log.event.args.proposalId.toString())
+
+      if (!logs || logs.length === 0) {
+        logger.error('Error findIncrementalId - no logs found', llo({ proposal }))
+        return -1
+      }
+
+      const sortedLogs = logs.sort((a, b) => {
+        if (a.info.blockNumber !== b.info.blockNumber) {
+          return a.info.blockNumber - b.info.blockNumber
+        }
+        return a.info.logIndex - b.info.logIndex
+      })
+
+      const proposalIds = sortedLogs?.map((log: any) => log.event.args.proposalId.toString())
 
       const proposalIndex = proposalIds?.findIndex((id: string) => id === proposal.proposalIndex)
 
@@ -76,7 +98,23 @@ export const ProposalHandler = {
         return -1
       }
 
-      return proposalIndex!
+      if (lastSavedProposal) {
+        const calculatedIncrementalId = Number(lastSavedProposal.incrementalId) + proposalIndex
+        const existingProposal = await Models.Proposal.findOne({
+          incrementalId: calculatedIncrementalId,
+          pluginAddress: proposal.pluginAddress,
+          network: proposal.network,
+        })
+
+        if (existingProposal) {
+          logger.error('Error findIncrementalId - incrementalId already used', llo({ existingProposal }))
+          return -1
+        }
+
+        return lastSavedProposal.incrementalId + proposalIndex
+      }
+
+      return proposalIndex
     } catch (error) {
       logger.error('Error findIncrementalId', llo({ error, proposal }))
       return -1
@@ -96,7 +134,7 @@ export const ProposalHandler = {
         }
 
         info.interfaceType = relatedPlugin.interfaceType
-        const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)!
+        const metadataUri = Web3Utils.extractMetadataUri(parsedEvent?.args.metadata)!
         const proposalIndex = parsedEvent.args?.proposalId?.toString()
         const existingLog = await Models.Proposal.findExistingLog({
           transactionHash: info.transactionHash,
@@ -197,6 +235,7 @@ export const ProposalHandler = {
           pluginAddress,
           network: info.network,
           proposalIndex,
+          blockNumber: info.blockNumber,
         })
 
         const newProposal = await Models.Proposal.create(document, { session })
@@ -506,7 +545,7 @@ export const ProposalHandler = {
   fetchProposalMetadata: async (metadataUri: string): Promise<IProposalMetadata | null> => {
     try {
       const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri, { retries: 4 })
-      return Web3Helper.parseProposalMetadata(ipfsMetadata!)
+      return Web3Utils.parseProposalMetadata(ipfsMetadata!)
     } catch (error) {
       return null
     }
@@ -890,7 +929,7 @@ export const ProposalHandler = {
           return
         }
 
-        const metadataUri = Web3Helper.extractMetadataUri(parsedEvent?.args.metadata)!
+        const metadataUri = Web3Utils.extractMetadataUri(parsedEvent?.args.metadata)!
         const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri)
 
         const rawUpdate: Partial<Proposal> = {

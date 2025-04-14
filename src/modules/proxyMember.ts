@@ -1,18 +1,19 @@
 import { Models } from '@dbModels'
 import { type HexAddress, IMetricAction, type NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
+import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import EnsHelper from '@helpers/ens'
+import DbTx from '@modules/dbTx'
 import type Member from '@models/schema/member'
 import type MemberBalance from '@models/schema/memberBalance'
 import type MemberMetrics from '@models/schema/memberMetrics'
-import DbTx from '@modules/dbTx'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:ProxyMember' })
 
 export const ProxyMember = {
   createMember: async (memberAddress: HexAddress): Promise<Member | null> => {
-    const parsedMemberAddress = Web3Helper.parseAddress(memberAddress) || memberAddress
+    const parsedMemberAddress = Web3Utils.parseAddress(memberAddress) || memberAddress
     if (!parsedMemberAddress) return null
 
     try {
@@ -248,7 +249,7 @@ export const ProxyMember = {
     tokenAddress?: HexAddress
     network: NetworksEnum
   }): Promise<Member | null> => {
-    const memberAddress = Web3Helper.parseAddress(params.memberAddress)
+    const memberAddress = Web3Utils.parseAddress(params.memberAddress)
     if (!memberAddress) return null
 
     const member = await ProxyMember.createMember(params.memberAddress)
@@ -287,7 +288,7 @@ export const ProxyMember = {
     tokenAddress?: HexAddress
     network: NetworksEnum
   }): Promise<Member | null> => {
-    const memberAddress = Web3Helper.parseAddress(params.memberAddress)
+    const memberAddress = Web3Utils.parseAddress(params.memberAddress)
     if (!memberAddress) return null
 
     const member = await ProxyMember.createMember(params.memberAddress)

@@ -287,6 +287,17 @@ const IndexerEventConfig: IIndexerConfig[] = [
     ],
   },
   {
+    event: 'NativeTokenDeposited',
+    enableHistorical: false,
+    topic: new Interface(DAO.abi).getEvent('NativeTokenDeposited')?.topicHash!,
+    config: [
+      {
+        abi: DAO.abi,
+        handler: DaoRegistryHandler.nativeTransfer,
+      },
+    ],
+  },
+  {
     event: 'Granted',
     enableHistorical: false,
     topic: new Interface(DAO.abi).getEvent('Granted')?.topicHash!,

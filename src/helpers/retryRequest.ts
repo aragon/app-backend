@@ -3,7 +3,7 @@ import Utils from '@helpers/utils'
 import { assert } from '@errors'
 import config from '@config'
 
-const llo = logger.logMeta.bind(null, { service: 'RetryRequestHelper' })
+const llo = logger.logMeta.bind(null, { service: 'helpers:RetryRequestHelper' })
 
 interface RetryOptions {
   maxRetries?: number

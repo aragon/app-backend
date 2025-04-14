@@ -47,13 +47,13 @@ class Token {
   public address!: HexAddress
 
   @prop({ type: () => String, default: null })
-  public logo!: string
+  public logo!: string | null
 
   @prop({ type: () => String, default: null })
-  public name!: string
+  public name!: string | null
 
   @prop({ type: () => String, default: null, uppercase: true })
-  public symbol!: string
+  public symbol!: string | null
 
   @prop({ type: () => Number, default: 18 })
   public decimals!: number
