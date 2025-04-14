@@ -98,7 +98,6 @@ describe('Indexer: ProposalHandler', () => {
       })
       const incrementalIdStub = sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
       const stubPair = sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
-      const stubActions = sandbox.spy(ProposalHandler, 'parseActions')
       const stubMemberMetrics = sandbox.stub(ProxyMember, 'updateMetricsByAction').resolves()
       const stubDaoMetrics = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
       const updateActivityStub = sandbox.stub(ProxyMember, 'updateActivity')
@@ -112,6 +111,7 @@ describe('Indexer: ProposalHandler', () => {
       })
 
       expect(savedProposal).to.exist
+      expect(savedProposal.decoding).to.be.eq(true)
       expect(savedProposal.daoAddress).to.eq('0xdao-address')
       expect(savedProposal.pluginAddress).to.eq('0xplugin-address')
       expect(savedProposal.rawActions[0].to).to.eq('0x0')
@@ -136,7 +136,7 @@ describe('Indexer: ProposalHandler', () => {
       ).to.be.true
 
       expect(
-        stubMemberMetrics.calledOnceWith(IMetricAction.increaseProposalCount, {
+        stubMemberMetrics.calledWith(IMetricAction.increaseProposalCount, {
           memberAddress: '0xcreator',
           pluginAddress: '0xplugin-address',
           network,
@@ -144,9 +144,11 @@ describe('Indexer: ProposalHandler', () => {
       ).to.be.true
 
       expect(stubPair.calledOnce).to.be.true
-      expect(stubActions.calledOnce).to.be.true
       expect(stubMemberMetrics.calledOnce).to.be.true
-      expect(stubDaoMetrics.calledTwice).to.be.true
+      expect(stubDaoMetrics.callCount).to.be.eq(3)
+      expect(stubDaoMetrics.args[0][0]).to.be.eq(EnumQueueName.proposalActions)
+      expect(stubDaoMetrics.args[1][0]).to.be.eq(EnumQueueName.daoMetrics)
+      expect(stubDaoMetrics.args[2][0]).to.be.eq(EnumQueueName.proposalTokenVotingMetrics)
     })
 
     it('should handle admin proposalCreated', async () => {
@@ -208,7 +210,6 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
 
       const stubPair = sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
-      const stubActions = sandbox.spy(ProposalHandler, 'parseActions')
       const stubMemberMetrics = sandbox.stub(ProxyMember, 'updateMetricsByAction').resolves()
       const stubDaoMetrics = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
       const updateActivityStub = sandbox.stub(ProxyMember, 'updateActivity')
@@ -247,8 +248,9 @@ describe('Indexer: ProposalHandler', () => {
       ).to.be.true
 
       expect(stubPair.calledOnce).to.be.true
-      expect(stubActions.calledOnce).to.be.true
-      expect(stubDaoMetrics.calledOnce).to.be.true
+      expect(stubDaoMetrics.calledTwice).to.be.true
+      expect(stubDaoMetrics.args[0][0]).to.be.eq(EnumQueueName.proposalActions)
+      expect(stubDaoMetrics.args[1][0]).to.be.eq(EnumQueueName.daoMetrics)
     })
 
     it('Plugin not found', async () => {
@@ -1800,6 +1802,7 @@ describe('Indexer: ProposalHandler', () => {
         updateDocumentSpy.calledOnceWith(
           fakeProposal,
           {
+            decoding: false,
             actions: [
               { decoded: 'decodedData' }, // From decodeData
               { decoded: 'decodedTransfer' }, // From decodeTransfer

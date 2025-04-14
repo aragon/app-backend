@@ -429,6 +429,7 @@ class BlockchainLogCrawler {
             processedTime: Date.now() - startTIme,
             toBlock,
             latestBlock,
+            transactionHash: log.transactionHash,
           }),
         )
         if (this.crawlParams.logService && log.blockNumber) {
