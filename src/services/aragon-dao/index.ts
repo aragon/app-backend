@@ -2,6 +2,7 @@ import logger from '@logger'
 import {
   EnumConnection,
   EnumQueueName,
+  type IProposalInfo,
   type IQueueAllMetrics,
   type IQueueContractInfo,
   type IQueueDao,
@@ -83,6 +84,11 @@ const AragonDaoService: IService = {
     await RabbitMQHelper.process(EnumQueueName.contractDecoder, async (job: any) => {
       const { from, to, data, value, network } = job.params as IRawAction
       return await ActionDecoder.decode({ from, to, data, value, network })
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.proposalActions, async (job: any) => {
+      const { id } = job.params as IProposalInfo
+      return await ActionDecoder.proposalActionDecoder(id)
     })
 
     const tasks = [[{ fetchRates: TokenFetcher }]]

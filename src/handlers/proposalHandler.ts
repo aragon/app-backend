@@ -199,6 +199,7 @@ export const ProposalHandler = {
             value: w.value,
             data: w.data,
           })),
+          decoding: true,
         }
 
         // in case startDate is 0 we need to fetch it from the contract
@@ -263,7 +264,10 @@ export const ProposalHandler = {
       })
 
       const allMessages: Promise<any>[] = [
-        ProposalHandler.parseActions(newProposal),
+        RabbitMQHelper.sendMessage(EnumQueueName.proposalActions, {
+          id: newProposal.id,
+          params: { id: newProposal.id, network: newProposal.network },
+        }),
         RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
           id: newProposal.daoAddress,
           params: { address: newProposal.daoAddress, network: newProposal.network },
@@ -784,7 +788,7 @@ export const ProposalHandler = {
 
       return await DbOperations.updateDocument(
         proposal,
-        { actions: rawActions },
+        { actions: rawActions, decoding: false },
         { logId: proposal.id },
         'Update proposalAction',
         llo,

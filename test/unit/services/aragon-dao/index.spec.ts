@@ -33,7 +33,7 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      expect(processStub.callCount).to.equal(10) // Total queues in the service
+      expect(processStub.callCount).to.equal(11) // Total queues in the service
       expect(processStub.calledWith(EnumQueueName.allMetrics)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoTransactions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoAssets)).to.be.true
@@ -44,6 +44,7 @@ describe('AragonDao: index', () => {
       expect(processStub.calledWith(EnumQueueName.voteInfo)).to.be.true
       expect(processStub.calledWith(EnumQueueName.memberBalance)).to.be.true
       expect(processStub.calledWith(EnumQueueName.contractDecoder)).to.be.true
+      expect(processStub.calledWith(EnumQueueName.proposalActions)).to.be.true
 
       expect(loggerStub.calledOnceWith('AragonDaoService service started' as any)).to.be.true
     })
@@ -240,6 +241,20 @@ describe('AragonDao: index', () => {
       expect(
         memberInfoStub.calledOnceWith('userAddress', 'pluginAddress', 'tokenAddress', NetworksEnum.ethereumMainnet),
       ).to.be.true
+    })
+
+    it('should handle proposal actions queue', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const decodeStub = sandbox.stub(ActionDecoder, 'proposalActionDecoder').resolves()
+
+      await AragonDaoService.start()
+
+      const handler = processStub.getCall(10).args[1]
+      const queueName = processStub.getCall(10).args[0]
+      await handler({ params: { id: 'proposalId' } } as any)
+
+      expect(queueName).to.eq(EnumQueueName.proposalActions)
+      expect(decodeStub.args[0][0]).to.deep.equal('proposalId')
     })
 
     it('should handle contractDecoder queue', async () => {
