@@ -1,16 +1,11 @@
 import { type HexAddress } from '@src/types/networks'
 import { type WebSocketProvider } from 'ethers'
+import { type ITransactionType } from '@src/types/db'
 
 export interface IWebSocketProvider extends WebSocketProvider {
   updateProvider: (newProvider: WebSocketProvider) => void
   websocket: WebSocket | any
   processQueue: any
-}
-
-export interface IAlchemyTokenBalance {
-  contractAddress?: HexAddress | undefined
-  tokenBalance: string
-  originalBalance: any
 }
 
 export enum ITransactionCategory {
@@ -31,6 +26,7 @@ export interface IAlchemyTransferOptions {
 
 export interface IAlchemyTransferResponse {
   blockNum: number // hex block number
+  blockTimestamp: number // timestamp in seconds
   uniqueId: string
   hash: HexAddress
   from: HexAddress
@@ -42,6 +38,7 @@ export interface IAlchemyTransferResponse {
   asset: string | null
   category: ITransactionCategory
   rawContract: IAlchemyRawContract
+  type?: ITransactionType
 }
 
 export interface IAlchemyERC1155Metadata {
@@ -53,4 +50,7 @@ export interface IAlchemyRawContract {
   value: HexAddress | null
   address: HexAddress | null
   decimal: HexAddress | null
+  type: string | null
+  logo: string | null
+  priceUpdatedAt: number | null
 }

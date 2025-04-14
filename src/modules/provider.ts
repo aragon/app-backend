@@ -8,7 +8,7 @@ import {
   type IRawNodeConfig,
   NetworksEnum,
 } from '@types'
-import { JsonRpcProvider, WebSocketProvider } from 'ethers'
+import { JsonRpcProvider } from 'ethers'
 import { Alchemy, type AlchemySettings, Network } from 'alchemy-sdk'
 import config from '@config'
 import logger from '@logger'
@@ -39,6 +39,7 @@ const ProviderModule = {
     ARBITRUM_MAINNET: NetworksEnum.arbitrumMainnet,
     ZKSYNC_SEPOLIA: NetworksEnum.zksyncSepolia,
     ZKSYNC_MAINNET: NetworksEnum.zksyncMainnet,
+    PEAQ_MAINNET: NetworksEnum.peaqMainnet,
   },
 
   // Converts a config key to a NetworksEnum.
@@ -75,11 +76,9 @@ const ProviderModule = {
           logger.warn(`Alchemy node for ${networkEnum} is not configured.`, llo({ network: networkEnum }))
         }
 
-        // Connect the Aragon node if both WS and RPC endpoints are provided.
-        if (rawConfig.ARAGON_WS && rawConfig.ARAGON_RPC) {
+        if (rawConfig.ARAGON_RPC) {
           const aragonConfig: IAragonNodeConfig = {
             providerType: IProviderType.ARAGON,
-            wsEndpoint: rawConfig.ARAGON_WS,
             rpcEndpoint: rawConfig.ARAGON_RPC,
             fromBlock: rawConfig.FROM_BLOCK,
             confirmationBlocks: rawConfig.CONFIRMATION_BLOCKS,
@@ -106,25 +105,14 @@ const ProviderModule = {
 
       const alchemyConnection: any = new Alchemy(alchemySettings) as IAlchemyNodeConnection
       alchemyConnection.rpc = alchemyConnection.core
-
       ProviderModule.providerProxies[network].alchemy = alchemyConnection
-
-      if (alchemyConnection.ws && typeof alchemyConnection.ws.on === 'function') {
-        ProviderModule.setupWSListeners(alchemyConnection.ws, IProviderType.ALCHEMY, network)
-      }
     } else if (nodeConfig.providerType === IProviderType.ARAGON) {
       const aragonConfig = nodeConfig as IAragonNodeConfig
-      const wsProvider = new WebSocketProvider(aragonConfig.wsEndpoint)
       const rpcProvider = new JsonRpcProvider(aragonConfig.rpcEndpoint)
       const aragonConnection: INodeConnection = {
         rpc: rpcProvider,
-        ws: wsProvider,
       }
       ProviderModule.providerProxies[network].aragon = aragonConnection
-
-      if (aragonConnection.ws && typeof aragonConnection.ws?.websocket?.on === 'function') {
-        ProviderModule.setupWSListeners(aragonConnection.ws.websocket, IProviderType.ARAGON, network)
-      }
     }
   },
 
@@ -142,87 +130,8 @@ const ProviderModule = {
     return undefined
   },
 
-  subscribeToEvent(
-    network: NetworksEnum,
-    filter: any,
-    listener: (...args: any[]) => Promise<any>,
-    providerType?: IProviderType,
-  ): void {
-    let providerConnection: { ws: { on: (arg0: any, arg1: (...args: any[]) => Promise<void>) => void } }
-    if (providerType) {
-      providerConnection = ProviderModule.providerProxies[network]?.[providerType]
-    } else {
-      // No provider type passed: try Aragon first, then Alchemy.
-      providerConnection =
-        ProviderModule.providerProxies[network]?.aragon || ProviderModule.providerProxies[network]?.alchemy
-    }
-    if (!providerConnection?.ws) {
-      throw new Error(
-        `No websocket provider available for network ${network}${providerType ? ` (provider: ${providerType})` : ''}`,
-      )
-    }
-    const wrappedListener = async (...args: any[]) => {
-      try {
-        await listener(...args)
-      } catch (error) {
-        logger.error('Error in event listener', llo({ network, error }))
-      }
-    }
-    providerConnection.ws.on(filter, wrappedListener)
-  },
-
-  subscribeToNewBlock(network: NetworksEnum, listener: (...args: any[]) => void, providerType?: IProviderType) {
-    if (providerType) {
-      // Use the specified provider type
-      const providerConnection = ProviderModule.providerProxies[network]?.[providerType]
-      if (!providerConnection?.ws) {
-        throw new Error(`Provider ${providerType} for network ${network} is not available`)
-      }
-      providerConnection.ws.on('block', listener)
-    } else {
-      // No provider type specified; try Aragon first, then Alchemy
-      const providerProxy = ProviderModule.providerProxies[network]
-      if (providerProxy?.aragon?.ws) {
-        providerProxy.aragon.ws.on('block', listener)
-      } else if (providerProxy?.alchemy?.ws) {
-        providerProxy.alchemy.ws.on('block', listener)
-      } else {
-        throw new Error(`No websocket provider available for network ${network}`)
-      }
-    }
-  },
-
-  setupWSListeners(ws: any, providerLabel: IProviderType, network: NetworksEnum) {
-    ws.on('open', () => {
-      logger.info(`WebSocket connected to ${network} (${providerLabel})`, llo({ network }))
-    })
-    ws.on('error', (error: any) => {
-      logger.error(`WebSocket error on ${network} (${providerLabel})`, llo({ network, error }))
-    })
-    ws.on('close', () => {
-      logger.error(`WebSocket connection closed for ${network} (${providerLabel})`, llo({ network }))
-    })
-  },
-
   async closeAllNetworks() {
     for (const network in ProviderModule.providerProxies) {
-      const proxy = ProviderModule.providerProxies[network as NetworksEnum]
-      if (proxy.alchemy?.ws && typeof proxy.alchemy.ws.close === 'function') {
-        try {
-          proxy.alchemy.ws.close()
-          logger.info(`Alchemy WebSocket connection closed for ${network}`, llo({ network }))
-        } catch (error) {
-          logger.error(`Error closing Alchemy WebSocket for ${network}`, llo({ network, error }))
-        }
-      }
-      if (proxy.aragon?.ws && typeof proxy.aragon.ws.destroy === 'function') {
-        try {
-          proxy.aragon.ws.destroy()
-          logger.info(`Aragon WebSocket connection closed for ${network}`, llo({ network }))
-        } catch (error) {
-          logger.error(`Error closing Aragon WebSocket for ${network}`, llo({ network, error }))
-        }
-      }
       delete ProviderModule.providerProxies[network as NetworksEnum]
     }
   },

@@ -6,11 +6,9 @@ import type Token from '@models/schema/token'
 import dayjs from '@helpers/dayjs'
 import { EnumQueueName, ITokenType, NetworksEnum } from '@types'
 import config from '@config'
-import { ProxyToken } from '@modules/proxyToken'
-
 import TokenUtils from '@helpers/tokenUtils'
-import BlockScoutHelper from '@helpers/blockScout'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import ProxyWeb3Provider from '@modules/proxyProvider'
 
 const llo = logger.logMeta.bind(null, { service: 'rates:FetchRates' })
 
@@ -49,7 +47,7 @@ export const FetchRates = {
       model: Models.Token,
       onDocument: FetchRates.onTestnetDocument,
       onError: (error: any, document: any) => {
-        logger.error('Error FetchRates', llo({ error, document }))
+        logger.error('Error FetchRates on testnet', llo({ error, document }))
       },
       where: {
         $and: [
@@ -156,20 +154,21 @@ export const FetchRates = {
 
   async onTestnetDocument(token: Token) {
     try {
-      const rawTokenUpdate = {
-        holders: 0,
-        totalSupply: '0',
+      const tokenMetrics = await ProxyWeb3Provider.fetchTokenHolderAndSupply({
+        address: token.address,
+        network: token.network,
+      })
+
+      if (!tokenMetrics?.totalHolders || !tokenMetrics?.totalSupply) {
+        return
       }
 
-      const blockScoutInfo = await BlockScoutHelper.getTokenFullDetails(token.address, token.network)
+      if (token.holders === tokenMetrics.totalHolders && token.totalSupply === tokenMetrics.totalSupply) return
 
-      if (!blockScoutInfo?.holders || !blockScoutInfo?.totalSupply) return
-      if (token.holders === blockScoutInfo.holders && token.totalSupply === blockScoutInfo.totalSupply) return
-
-      Object.assign(rawTokenUpdate, {
-        holders: blockScoutInfo.holders,
-        totalSupply: blockScoutInfo.totalSupply,
-      })
+      const rawTokenUpdate = {
+        holders: tokenMetrics.totalHolders,
+        totalSupply: tokenMetrics.totalSupply,
+      }
 
       await DbTx.executeTxFn(async ({ session }) => {
         const logDb = await token.update(
@@ -187,14 +186,28 @@ export const FetchRates = {
         )
       })
     } catch (error) {
-      logger.error('Error FetchRates on testnet', llo({ error }))
+      logger.error('Error FetchRates on testnet', llo({ error, address: token.address, network: token.network }))
     }
   },
 
   async onMainnetDocument(token: Token) {
     try {
-      const rawTokenUpdate = await TokenUtils.fetchTokenUpdate(token)
-      if (!rawTokenUpdate) return
+      const tokenUpdate = await ProxyWeb3Provider.fetchTokenPrice({
+        address: token.address,
+        network: token.network,
+      })
+
+      const tokenMetrics = await ProxyWeb3Provider.fetchTokenHolderAndSupply({
+        address: token.address,
+        network: token.network,
+      })
+      if (!tokenMetrics || !tokenUpdate) return
+
+      const rawTokenUpdate = {
+        holders: tokenMetrics.totalHolders,
+        totalSupply: tokenMetrics.totalSupply,
+        priceUsd: tokenUpdate.priceUsd,
+      }
 
       if (
         token.priceUsd === rawTokenUpdate.priceUsd &&
@@ -204,8 +217,7 @@ export const FetchRates = {
         return
       }
 
-      // check if to skip fetching rate
-      if (ProxyToken.shouldSkipFetch(token, rawTokenUpdate as any)) {
+      if (TokenUtils.shouldSkipFetch(token, rawTokenUpdate)) {
         Object.assign(rawTokenUpdate, {
           lastUpdatedAt: dayjs.utc().toDate(),
           skipFetchRate: true,
@@ -228,7 +240,7 @@ export const FetchRates = {
         )
       })
     } catch (error) {
-      logger.error('Error FetchRates', llo({ error }))
+      logger.error('Error FetchRates', llo({ error, network: token.network, tokenAddress: token.address }))
     }
   },
 }

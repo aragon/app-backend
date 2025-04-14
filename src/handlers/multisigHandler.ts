@@ -5,7 +5,7 @@ import { Models } from '@dbModels'
 import { ProxyMember } from '@modules/proxyMember'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 
-const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:MultisigHandler' })
+const llo = logger.logMeta.bind(null, { service: 'handlers:MultisigHandler' })
 
 export const MultisigHandler = {
   membersAdded: async (parsedEvent: LogDescription, info: ILogInfo) => {

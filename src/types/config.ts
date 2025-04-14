@@ -19,15 +19,17 @@ interface ITokenData {
 
 export interface IRawNodeConfig {
   ALCHEMY_API_KEY: string
-  ARAGON_WS: string
   ARAGON_RPC: string
   FROM_BLOCK: number
+  POOLING_INTERVAL: number
   CONFIRMATION_BLOCKS: number
   INTERVAL_BLOCK_TIME: number
   ETHERSCAN_API_KEY: string
   ETHERSCAN_API_URL: string
   BLOCKSCOUT_API_URL: string
   BLOCKSCOUT_API_KEY: string
+  SUBSCAN_API_KEY?: string
+  SUBSCAN_API_URL?: string
 }
 
 export interface IConfig {
@@ -47,6 +49,7 @@ export interface IConfig {
     ARBITRUM_MAINNET: IRawNodeConfig
     ZKSYNC_SEPOLIA: IRawNodeConfig
     ZKSYNC_MAINNET: IRawNodeConfig
+    PEAQ_MAINNET: IRawNodeConfig
   }
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
   SUPPORTED_NETWORKS: NetworksEnum[]
@@ -137,7 +140,18 @@ export interface IConfig {
     COUNT: number
   }
 
+  BLOCKCHAIN_LOG_CRAWLER: {
+    ONE_BLOCK_PER_TIME_MIN_THRESHOLD: number
+    DEFAULT_BATCH_SIZE: number
+    BLOCK_LOW_RANGE: number
+    BLOCK_MEDIUM_RANGE: number
+    BLOCK_HIGH_RANGE: number
+  }
+
   SERVICES: {
+    ARAGON_DAO: {
+      TOKEN_FETCH_INTERVAL: number
+    }
     ARAGON_API: {
       BASE_URL: string
       NAME: string
