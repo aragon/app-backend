@@ -67,14 +67,10 @@ class DecodeActions {
     this._setupSignatures()
   }
 
-  public filterTokenDetails(tokenDb: Token) {
-    return _.pick(tokenDb, ['address', 'name', 'symbol', 'decimals', 'logo', 'type', 'priceUsd'])
-  }
-
   public async decodeTransfer(action: IRawAction, document: Partial<Proposal>): Promise<any> {
     if (Web3Utils.isNativeTokenAction(action)) {
       const nativeToken = await Models.Token.findByTokenAddressAndNetwork(ethers.ZeroAddress, document.network!)
-      const token = this.filterTokenDetails(nativeToken)
+      const token = nativeToken.pickFields()
 
       const member = await ProxyMember.createMember(action.to)
       const dao = await Models.Dao.findByAddress(document.daoAddress, document.network)
@@ -476,7 +472,7 @@ class DecodeActions {
           minParticipation: activeSettings?.minParticipation,
           minDuration: activeSettings?.minDuration,
           minProposerVotingPower: activeSettings?.minProposerVotingPower,
-          token: this.filterTokenDetails(votingToken!),
+          token: votingToken?.pickFields(),
         }
       : {}
 
@@ -575,7 +571,7 @@ class DecodeActions {
       const token = await ProxyToken.saveAndGetToken(action.to, document.network!)
 
       if (token) {
-        metadata.token = this.filterTokenDetails(token)
+        metadata.token = token.pickFields()
         metadata.from = from
         metadata.to = to
         metadata.value = value.toString()
