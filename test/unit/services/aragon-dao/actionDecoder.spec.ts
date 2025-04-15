@@ -60,6 +60,7 @@ describe('AragonDao: actionDecoder', () => {
         address: '0x000',
         name: 'ETH',
         symbol: 'ETH',
+        pickFields: sandbox.stub(),
       })
       sandbox.stub(ProxyMember, 'createMember').resolves({
         address: '0xto',
