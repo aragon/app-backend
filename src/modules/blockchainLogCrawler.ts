@@ -8,7 +8,8 @@ import {
   type IFormattedLog,
   type IIndexerConfig,
   IProviderType,
-  type NetworksEnum,
+  ITokenVotingLogs,
+  NetworksEnum,
 } from '@types'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
@@ -408,6 +409,17 @@ class BlockchainLogCrawler {
         const { handler, event, info } = this.formatLog(log)
         if (!event) {
           continue
+        }
+
+        if (event.name === ITokenVotingLogs.ProposalCreated && this.crawlParams.network === NetworksEnum.peaqMainnet) {
+          logger.verbose(
+            'Proposal Event Peaq Debug',
+            llo({
+              event,
+              log,
+              info,
+            }),
+          )
         }
 
         await handler(event, info, this.crawlParams.onlyHistorical)
