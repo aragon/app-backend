@@ -204,4 +204,13 @@ describe('Model: Token', () => {
     const holderCount = await createdToken.countHolders()
     expect(holderCount).to.eq(0)
   })
+
+  it('should pick fields', async () => {
+    const createdToken = await Models.Token.create(rawToken)
+    const picked = createdToken.pickFields(['address', 'network'])
+    expect(picked).to.deep.equal({
+      address: createdToken.address,
+      network: createdToken.network,
+    })
+  })
 })
