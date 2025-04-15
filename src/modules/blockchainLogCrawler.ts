@@ -412,11 +412,14 @@ class BlockchainLogCrawler {
         }
 
         if (event.name === ITokenVotingLogs.ProposalCreated && this.crawlParams.network === NetworksEnum.peaqMainnet) {
-          logger.verbose({
-            event: event.name,
-            log,
-            info,
-          })
+          logger.verbose(
+            'Proposal Event Peaq Debug',
+            llo({
+              event,
+              log,
+              info,
+            }),
+          )
         }
 
         await handler(event, info, this.crawlParams.onlyHistorical)
