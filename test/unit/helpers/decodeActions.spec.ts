@@ -209,7 +209,7 @@ describe('Helpers: DecodeActions', () => {
       // findByTokenAddressAndNetwork
       const findTokenStub = sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves({
         pickFields: pickFieldsStub,
-        ...token
+        ...token,
       } as any)
 
       const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves({
@@ -883,7 +883,7 @@ describe('Helpers: DecodeActions', () => {
         decimals: 18,
         logo: 'https://plugin1.com/logo.png',
         type: 'ERC20',
-        pickFields: sandbox.stub()
+        pickFields: sandbox.stub(),
       } as any)
 
       const result = await decodeActions._parseTokenVotingSettingUpdateAction(baseAction, action, {
@@ -1036,7 +1036,7 @@ describe('Helpers: DecodeActions', () => {
         decimals: 18,
         logo: 'https://mock.com/logo.png',
         type: 'ERC20',
-        pickFields
+        pickFields,
       } as any)
       const result = await decodeActions._parseTransferAction(baseAction, action, document as any)
       expect(result?.type).to.be.eq(ProposalActionType.Transfer)
@@ -1121,7 +1121,7 @@ describe('Helpers: DecodeActions', () => {
         decimals: 18,
         logo: 'https://mock.com/logo.png',
         type: 'ERC20',
-        pickFields: pickKeys
+        pickFields: pickKeys,
       } as any)
 
       const result = await decodeActions._parseTransferAction(baseAction, action, document as any)

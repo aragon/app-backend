@@ -4,7 +4,6 @@ import {
   ICollectionNames,
   type IPaginatedResult,
   type IPaginationParams,
-  type IToken,
   type ITokenExtraParams,
   type ITokenIdParams,
   type ITokenResponse,
