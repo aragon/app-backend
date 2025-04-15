@@ -8,7 +8,7 @@ import {
   IPluginRawStatus,
   IPluginStatus,
   type IQueryGetPlugin,
-  type NetworksEnum,
+  NetworksEnum,
 } from '@types'
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
 import type Plugin from '@models/schema/plugin'
@@ -20,6 +20,7 @@ import PluginDetector from '@helpers/pluginDetector'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import { PluginSlug } from '@helpers/pluginSlug'
 import DbTx from '@modules/dbTx'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PluginHandler' })
 
@@ -278,8 +279,15 @@ export const PluginHandler = {
       tokenAddress: plugin.tokenAddress,
     }
 
-    const pluginInfo = await PluginDetector.detectPluginType(plugin.address, plugin.network)
-    document.interfaceType = pluginInfo?.type
+    let pluginInfo = await PluginDetector.detectPluginType(plugin.address, plugin.network)
+    if (
+      pluginInfo.type === IPluginInterfaceType.unknown &&
+      plugin.subdomain &&
+      plugin.network === NetworksEnum.peaqMainnet
+    ) {
+      await utils.wait(1000)
+      pluginInfo = await PluginDetector.detectPluginType(plugin.address, plugin.network)
+    }
 
     if (document.interfaceType === IPluginInterfaceType.tokenVoting) {
       // maybe the token is not a erc20 governance
