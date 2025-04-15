@@ -14,7 +14,6 @@ import {
 } from '@types'
 import { ProposalActionType } from '@src/types'
 import { Models } from '@dbModels'
-import _ from 'lodash'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
 import ProxyContract from '@helpers/proxyContract'
 import { ProxyToken } from '@modules/proxyToken'
@@ -46,8 +45,6 @@ import { ProxyMember } from '@modules/proxyMember'
 import Web3Utils from '@helpers/web3Utils'
 import { IBlockScoutAddressType } from '@src/types/blockScout'
 import ProxyWeb3Provider from '@modules/proxyProvider'
-import type Token from '@models/schema/token'
-
 const llo = logger.logMeta.bind(null, { service: 'helpers:DecodeActions' })
 
 interface Signature {
