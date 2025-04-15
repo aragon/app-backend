@@ -289,6 +289,8 @@ export const PluginHandler = {
       pluginInfo = await PluginDetector.detectPluginType(plugin.address, plugin.network)
     }
 
+    document.interfaceType = pluginInfo?.type
+
     if (document.interfaceType === IPluginInterfaceType.tokenVoting) {
       // maybe the token is not a erc20 governance
       document.tokenAddress = plugin.tokenAddress
