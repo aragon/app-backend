@@ -46,6 +46,7 @@ import { ProxyMember } from '@modules/proxyMember'
 import Web3Utils from '@helpers/web3Utils'
 import { IBlockScoutAddressType } from '@src/types/blockScout'
 import ProxyWeb3Provider from '@modules/proxyProvider'
+import type Token from '@models/schema/token'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:DecodeActions' })
 
@@ -66,10 +67,14 @@ class DecodeActions {
     this._setupSignatures()
   }
 
+  public filterTokenDetails(tokenDb: Token) {
+    return _.pick(tokenDb, ['address', 'name', 'symbol', 'decimals', 'logo', 'type', 'priceUsd'])
+  }
+
   public async decodeTransfer(action: IRawAction, document: Partial<Proposal>): Promise<any> {
     if (Web3Utils.isNativeTokenAction(action)) {
       const nativeToken = await Models.Token.findByTokenAddressAndNetwork(ethers.ZeroAddress, document.network!)
-      const token = _.pick(nativeToken, ['address', 'name', 'symbol', 'decimals', 'logo', 'type', 'priceUsd'])
+      const token = this.filterTokenDetails(nativeToken)
 
       const member = await ProxyMember.createMember(action.to)
       const dao = await Models.Dao.findByAddress(document.daoAddress, document.network)
@@ -457,6 +462,7 @@ class DecodeActions {
     if (!pluginDetails) {
       return null
     }
+    const votingToken = await ProxyToken.saveAndGetToken(pluginDetails.tokenAddress, action.network!)
 
     const activeSettings = await Models.Setting.findLastSettingByBlockNumber(
       pluginDetails.address,
@@ -470,6 +476,7 @@ class DecodeActions {
           minParticipation: activeSettings?.minParticipation,
           minDuration: activeSettings?.minDuration,
           minProposerVotingPower: activeSettings?.minProposerVotingPower,
+          token: this.filterTokenDetails(votingToken!),
         }
       : {}
 
@@ -568,7 +575,7 @@ class DecodeActions {
       const token = await ProxyToken.saveAndGetToken(action.to, document.network!)
 
       if (token) {
-        metadata.token = _.pick(token, ['address', 'name', 'symbol', 'decimals', 'logo', 'type', 'priceUsd'])
+        metadata.token = this.filterTokenDetails(token)
         metadata.from = from
         metadata.to = to
         metadata.value = value.toString()
