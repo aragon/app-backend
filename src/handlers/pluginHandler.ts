@@ -13,6 +13,7 @@ import {
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
 import type Plugin from '@models/schema/plugin'
 import Web3Helper from '@helpers/web3'
+import Web3Utils from '@helpers/web3Utils'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import DbOperations from '@models/utils/dbOperations'
 import PluginDetector from '@helpers/pluginDetector'
@@ -20,7 +21,7 @@ import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import { PluginSlug } from '@helpers/pluginSlug'
 import DbTx from '@modules/dbTx'
 
-const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:handlers:PluginHandler' })
+const llo = logger.logMeta.bind(null, { service: 'handlers:PluginHandler' })
 
 export const PluginHandler = {
   async _queryGetPlugin({
@@ -537,7 +538,7 @@ export const PluginHandler = {
       }
 
       const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, network)
-      const uninstallationAppliedLogs = Web3Helper.findLogsByName(
+      const uninstallationAppliedLogs = Web3Utils.findLogsByName(
         txReceipt!,
         'UninstallationApplied',
         PluginSetupProcessor.abi,
@@ -578,6 +579,66 @@ export const PluginHandler = {
       return uninstalledPlugin
     } catch (error) {
       logger.error('Error Uninstall Plugin', llo({ pluginAddress, daoAddress, network, info, error }))
+    }
+  },
+
+  installPluginOnPermissionGranted: async (whereAddress: HexAddress, whoAddress: HexAddress, info: ILogInfo) => {
+    try {
+      const [daoDb, pluginDb, txReceipt] = await Promise.all([
+        Models.Dao.findByAddress(whereAddress, info.network),
+        Models.Plugin.findByAddress(whoAddress, info.network),
+        Web3Helper.getTransactionReceipt(info.transactionHash, info.network),
+      ])
+
+      if (!daoDb || !pluginDb || !txReceipt) {
+        return
+      }
+
+      const installationAppliedLogs = Web3Utils.findLogsByName(
+        txReceipt,
+        IEventLogPluginType.InstallationApplied,
+        PluginSetupProcessor.abi,
+      )
+
+      if (installationAppliedLogs.length > 0) {
+        return
+      }
+
+      if (pluginDb.status === IPluginStatus.installed) {
+        return
+      }
+
+      const pluginInfo = await PluginDetector.detectPluginType(pluginDb.address, info.network)
+      if (pluginInfo.hasTarget) {
+        const targetConfig = await Web3Helper.getTargetConfig(info.network, pluginDb.address)
+        if (targetConfig && targetConfig !== daoDb.address) {
+          return
+        }
+      }
+
+      const updatedDocument = {
+        status: IPluginStatus.installed,
+        uninstalled: {
+          status: false,
+          transactionHash: info.transactionHash,
+          blockNumber: info.blockNumber,
+          blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+        },
+      }
+
+      const installedPlugin = await DbOperations.updateDocument(
+        pluginDb,
+        updatedDocument,
+        { logId: pluginDb.id, info },
+        'Installed plugin',
+        llo,
+      )
+
+      await PluginSlug.generateSlug(installedPlugin, installedPlugin.processKey)
+
+      return installedPlugin
+    } catch (error) {
+      logger.error('Error Install Plugin On Permission Granted', llo({ whereAddress, whoAddress, error }))
     }
   },
 

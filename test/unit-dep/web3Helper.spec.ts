@@ -4,8 +4,10 @@ import { expect } from 'chai'
 import { NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
 import CovalentHelper from '@helpers/covalent'
+import Web3Utils from '@helpers/web3Utils'
+import Web3Provider from '@modules/proxyProvider/web3Provider'
 
-describe('Web3Helper', () => {
+describe('ProxyWeb3 && Web3Helper', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -17,45 +19,48 @@ describe('Web3Helper', () => {
   })
 
   it('supportsInterface', async () => {
-    const tokenAddress = '0xb98c7e67f63d198BD96574073AD5B3427a835796'
-    const network = NetworksEnum.ethereumMainnet
-    const supportsERC721 = await Web3Helper.supportsInterface(tokenAddress, Web3Helper.ERC721_INTERFACE_ID, network)
+    const tokenAddress = '0x722905AF564B93D6175250Ca0316cB87Ff6F9c6A'
+    const network = NetworksEnum.ethereumSepolia
+    const supportsERC721 = await Web3Helper.supportsInterface(tokenAddress, Web3Utils.ERC721_INTERFACE_ID, network)
     expect(supportsERC721).to.be.true
   })
 
   it('getBlockNumber', async () => {
-    const network = NetworksEnum.ethereumMainnet
+    const network = NetworksEnum.ethereumSepolia
     const blockNumber = await Web3Helper.getBlockNumber('latest', network)
-    expect(blockNumber > 21833348).to.be.true
+    expect(blockNumber > 7998117).to.be.true
   })
 
   it('getBlock', async () => {
-    const blockNumber = 21833328
-    const network = NetworksEnum.ethereumMainnet
+    const blockNumber = 5963492
+    const network = NetworksEnum.ethereumSepolia
     const block = await Web3Helper.getBlock(blockNumber, network)
-    expect(block.number).to.eq(blockNumber)
+    expect(block?.number).to.eq(blockNumber)
   })
 
   it('getBlockTimestamp', async () => {
-    const blockNumber = 21833328
-    const network = NetworksEnum.ethereumMainnet
+    const blockNumber = 5963492
+    const network = NetworksEnum.ethereumSepolia
     const timestamp = await Web3Helper.getBlockTimestamp(blockNumber, network)
-    expect(timestamp).to.eq(1739398559)
+    expect(timestamp).to.eq(1716493704)
   })
 
   it('getTokenBalanceAtBlock', async () => {
-    const address = '0x2521Dd2142Ab814f8d5FEb5dF986502D2dDF4449'
-    const tokenAddress = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
-    const blockNumber = 15943429
-    const network = NetworksEnum.ethereumMainnet
+    const address = '0x268d0D66931bb3525070c01F8c29c03b23f2f058'
+    const tokenAddress = '0x722905AF564B93D6175250Ca0316cB87Ff6F9c6A'
+    const blockNumber = 7997991
+    const network = NetworksEnum.ethereumSepolia
     const value = await Web3Helper.getTokenBalanceAtBlock({ address, tokenAddress, blockNumber, network })
-    expect(value).to.eq('3825078')
+    expect(value).to.eq('4')
   })
 
-  it('getBalance', async () => {
+  it('getNativeBalance', async () => {
     const address = '0x2521Dd2142Ab814f8d5FEb5dF986502D2dDF4449'
     const network = NetworksEnum.ethereumMainnet
-    const value = await Web3Helper.getBalance(address, network)
+    const value = await Web3Provider.getNativeBalance({
+      network,
+      address,
+    })
     expect(value).to.eq('0.000118940004874')
   })
 
@@ -65,7 +70,10 @@ describe('Web3Helper', () => {
     sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves({ totalSupply: '0', totalHolders: 0 } as any)
     sandbox.stub(CovalentHelper, 'getToken').resolves(null as any)
 
-    const tokenBalances = await Web3Helper.getTokenBalances(address, network)
+    const tokenBalances = await Web3Provider.getTokenBalances({
+      address,
+      network,
+    })
 
     expect(tokenBalances.length > 0).to.be.true
     expect(tokenBalances[0].contractAddress).to.exist
@@ -73,10 +81,10 @@ describe('Web3Helper', () => {
     expect(tokenBalances[0].originalBalance).to.exist
   })
 
-  it('subdomainExists', async () => {
+  it('ensSubdomainExists', async () => {
     const ensName = 'ai'
     const network = NetworksEnum.ethereumMainnet
-    const exists = await Web3Helper.subdomainExists(ensName, network)
+    const exists = await Web3Helper.ensSubdomainExists(ensName, network)
     expect(exists).to.be.true
   })
 

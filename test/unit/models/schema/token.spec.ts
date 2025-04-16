@@ -24,7 +24,6 @@ describe('Model: Token', () => {
       decimals: 18,
       holders: 10,
       totalSupply: '100',
-      priceChangeOnDayUsd: '1',
       priceUsd: '1',
       lastUpdatedAt: dayjs.utc().toDate() as any,
     }
@@ -47,7 +46,6 @@ describe('Model: Token', () => {
     expect(createdToken.decimals).to.eq(rawToken.decimals)
     expect(createdToken.holders).to.eq(rawToken.holders)
     expect(createdToken.totalSupply).to.eq(rawToken.totalSupply)
-    expect(createdToken.priceChangeOnDayUsd).to.eq(rawToken.priceChangeOnDayUsd)
     expect(createdToken.priceUsd).to.eq(rawToken.priceUsd)
     expect(createdToken.skipFetchRate).to.eq(false)
     expect(createdToken.lastUpdatedAt.toString()).to.eq(rawToken?.lastUpdatedAt!.toString())
@@ -108,7 +106,6 @@ describe('Model: Token', () => {
           decimals: 18,
           holders: 10,
           totalSupply: '100',
-          priceChangeOnDayUsd: '1',
           priceUsd: '1',
           lastUpdatedAt: dayjs.utc().toDate() as any,
         },
@@ -122,7 +119,6 @@ describe('Model: Token', () => {
           decimals: 18,
           holders: 10,
           totalSupply: '0',
-          priceChangeOnDayUsd: '1',
           priceUsd: '1',
           lastUpdatedAt: dayjs.utc().toDate() as any,
         },

@@ -1,7 +1,6 @@
 import Runner from '@modules/runner'
 import logger from '@logger'
 import ManualSyncDaoAssets from '@tools/manualSyncDaoAssets'
-import ManualSyncDaoTransactions from '@tools/manualSyncDaoTransactions'
 import ManualSyncPluginEvents from '@tools/manualSyncPluginEvents'
 import ManualSyncProposals from '@tools/manualSyncProposals'
 import ManualSyncTokens from '@tools/manualSyncTokens'
@@ -11,12 +10,10 @@ import ManualSyncProposalType from '@tools/manualSyncProposalType'
 import ManualSyncProposalTotalSupply from '@tools/manualSyncProposalTotalSupply'
 import ToolsRevertDbAtBlock from '@tools/revertDbAtBlock'
 import ToolsManualSyncProposalIndex from '@tools/manualSyncProposalIndex'
-import ToolsMigratePluginSlug from '@tools/migratePluginSlug'
 import ToolsMemberMetrics from '@tools/memberMetrics'
 import ToolsEnsFetch from '@tools/ensFetch'
 import ToolsFixSettingIssue from '@tools/fixBrokenPluginSetting'
 import ToolsCleanDb from '@tools/cleanDb'
-import ToolsSyncCustomPlugin from '@tools/syncCustomPlugin'
 import ToolsManualSyncToken from '@tools/manualFixTokenRate'
 import ToolsFixMissingVotes from '@tools/fixMissingVotes'
 import RefetchProposalsMetrics from '@tools/refetchProposalMetrics'
@@ -27,22 +24,22 @@ import IntegrityToolProposalCheck from '@tools/integrityCheck/proposalCheck'
 import SyncMemberVP from '@tools/syncMemberVP'
 import ToolsManualSyncMultisigV2Settings from '@tools/manualSyncMultisigV2Settings'
 import ToolsMissingSlugs from '@tools/missingSlugs'
+import CreateAdminToken from '@tools/createAdminToken'
+import Queue from '@tools/queue'
 
 const { TOOL_RUN } = process.env
 const llo = logger.logMeta.bind(null, { TOOL_RUN })
 
 const runners = {
+  Queue,
   SyncMemberVP,
-  ToolsSyncCustomPlugin,
   ToolsCleanDb,
   ToolsEnsFetch,
   ToolsMemberMetrics,
-  ToolsMigratePluginSlug,
   ToolsMissingSlugs,
   ToolsManualSyncMultisigV2Settings,
   ManualSyncProposalTotalSupply,
   ManualSyncDaoAssets,
-  ManualSyncDaoTransactions,
   ManualSyncPluginEvents,
   ManualSyncProposals,
   ManualSyncTokens,
@@ -57,7 +54,7 @@ const runners = {
   RefetchProposalsMetrics,
   ManualSyncNectorDao,
   RefetchDaoMetrics,
-
+  CreateAdminToken,
   IntegrityToolMemberCheck,
   IntegrityToolProposalCheck,
 }

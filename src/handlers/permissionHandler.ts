@@ -15,7 +15,7 @@ import { IPermission } from '@src/types/permission'
 import { PluginHandler } from '@handlers/pluginHandler'
 import DbTx from '@modules/dbTx'
 
-const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:handlers:PermissionHandler' })
+const llo = logger.logMeta.bind(null, { service: 'handlers:PermissionHandler' })
 
 export const PermissionHandler = {
   /**
@@ -33,6 +33,10 @@ export const PermissionHandler = {
 
       if (permissionToCheck === permissionId) {
         await PermissionHandler.handleForAdminPlugin(address, where, network, who)
+      }
+
+      if (permissionId === ethers.id(IPermission.EXECUTE_PERMISSION)) {
+        await PluginHandler.installPluginOnPermissionGranted(where, who, info)
       }
 
       const permissionEntity = {

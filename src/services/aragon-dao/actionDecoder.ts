@@ -1,11 +1,12 @@
 import DecodeActions from '@helpers/decodeAction'
 import { type IRawAction } from '@types'
 import Web3Helper from '@helpers/web3'
+import Web3Utils from '@helpers/web3Utils'
 
 const ActionDecode = {
   decode: async (action: IRawAction) => {
     const decodeHelper = new DecodeActions()
-    if (Web3Helper.isNativeTokenAction(action)) {
+    if (Web3Utils.isNativeTokenAction(action)) {
       return decodeHelper.decodeTransfer(action, {
         network: action.network!,
         daoAddress: action.from,

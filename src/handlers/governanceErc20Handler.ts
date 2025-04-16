@@ -14,6 +14,7 @@ import { ProxyMember } from '@modules/proxyMember'
 import DbTx from '@modules/dbTx'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import Web3Helper from '@helpers/web3'
+import Web3Utils from '@helpers/web3Utils'
 import { Models } from '@dbModels'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import type Plugin from '@models/schema/plugin'
@@ -22,7 +23,7 @@ import config from '@config'
 import { ProxyToken } from '@modules/proxyToken'
 import type MemberTransaction from '@models/schema/memberTransaction'
 
-const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:GovernanceErc20Handler' })
+const llo = logger.logMeta.bind(null, { service: 'handlers:GovernanceErc20Handler' })
 
 export const GovernanceErc20Handler = {
   // is trigger once for all user - (from user increase balance and 1 user decrease balance)
@@ -402,7 +403,7 @@ export const GovernanceErc20Handler = {
     const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
 
     if (txReceipt) {
-      const delegationChangedLogs = Web3Helper.findLogsByName(
+      const delegationChangedLogs = Web3Utils.findLogsByName(
         txReceipt,
         IEventLogMember.DelegateChanged,
         GovernanceERC20.abi,

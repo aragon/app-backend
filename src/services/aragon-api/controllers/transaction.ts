@@ -6,11 +6,16 @@ import {
   type IPairParams,
   type ITransactionExtraParams,
   ITransactionIndexCheckType,
+  type ITransactionIndexingStatusResponse,
   type ITransactionResponse,
   type NetworksEnum,
 } from '@types'
 import type Transaction from '@models/schema/transaction'
 import PairDataModule from '@modules/pairData'
+import { assert } from '@errors'
+import logger from '@logger'
+
+const llo = logger.logMeta.bind(null, { service: 'TransactionController' })
 
 const TransactionController = {
   getTransactionsWithPagination: async (
@@ -30,34 +35,62 @@ const TransactionController = {
     txHash: string,
     action: ITransactionIndexCheckType,
     network: NetworksEnum,
-  ): Promise<{ isProcessed: boolean }> => {
-    const response = { isProcessed: false }
+  ): Promise<ITransactionIndexingStatusResponse> => {
+    const response: ITransactionIndexingStatusResponse = { isProcessed: false }
 
     try {
       const model = IndexCheckTypeToModel[action]
-      let queryToCheck: any
-      switch (action) {
-        case ITransactionIndexCheckType.PROPOSAL_EXECUTE:
-          queryToCheck = {
-            'executed.transactionHash': txHash,
-            network,
-          }
-          break
-        case ITransactionIndexCheckType.PROPOSAL_ADVANCE_STAGE:
-          queryToCheck = {
-            'stageExecutions.transactionHash': txHash,
-            network,
-          }
-          break
-        default:
-          queryToCheck = { transactionHash: txHash, network }
-          break
-      }
+      assert(!!model, 'action is required')
 
-      response.isProcessed = !!(await Models[model].findOne(queryToCheck))
+      const queryToCheck = TransactionController._getQueryForAction(action, txHash, network)
+      const data = await Models[model].findOne(queryToCheck)
+      response.isProcessed = Boolean(data)
+
+      if (data && action === ITransactionIndexCheckType.PROPOSAL_CREATE) {
+        let pluginAddress = data.pluginAddress
+        const plugin = await Models.Plugin.findByAddress(pluginAddress, data.network)
+
+        if (plugin.parentPlugin) {
+          const parentProposal = await Models.Proposal.findOne({
+            transactionHash: data.transactionHash,
+            network: data.network,
+            pluginAddress: plugin.parentPlugin,
+          })
+
+          if (!parentProposal) {
+            response.isProcessed = false
+            return response
+          }
+
+          pluginAddress = plugin.parentPlugin
+        }
+
+        const pluginSlug = await Models.PluginSlug.findOne({
+          pluginAddress,
+          network: data.network,
+        })
+        if (!pluginSlug) {
+          logger.error('PluginSlug not found', llo({ pluginAddress, network: data.network }))
+        } else {
+          response.slug = `${pluginSlug.slug}-${data.incrementalId}`
+        }
+      }
       return response
     } catch (error) {
       return response
+    }
+  },
+
+  _getQueryForAction(action: ITransactionIndexCheckType, txHash: string, network: NetworksEnum): Record<string, any> {
+    switch (action) {
+      case ITransactionIndexCheckType.PROPOSAL_CREATE:
+        return { transactionHash: txHash, network }
+      case ITransactionIndexCheckType.PROPOSAL_EXECUTE:
+        return { 'executed.transactionHash': txHash, network }
+      case ITransactionIndexCheckType.PROPOSAL_ADVANCE_STAGE:
+        return { 'stageExecutions.transactionHash': txHash, network }
+      default:
+        return { transactionHash: txHash, network }
     }
   },
 }

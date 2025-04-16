@@ -4,7 +4,6 @@ import ProviderModule from '@modules/provider'
 import { ITokenType, NetworksEnum } from '@types'
 import { ProxyToken } from '@modules/proxyToken'
 import { expect } from 'chai'
-import logger from '@logger'
 import { FetchRates } from '@rates/fetchRates'
 
 describe.skip('Manual: Token and Rates', () => {
