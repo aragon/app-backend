@@ -14,6 +14,7 @@ import { MetadataHandler } from '@handlers/metadataHandler'
 import { ProxyMember } from '@modules/proxyMember'
 import Utils from '@helpers/utils'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import Web3Utils from '@helpers/web3Utils'
 
 describe('Indexer: DaoRegistryHandler', () => {
   let sandbox: SinonSandbox
@@ -51,7 +52,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       const findTxHashSpy = sandbox.spy(Models.Dao, 'findExistingLog')
       const loggerStub = sandbox.stub(logger, 'verbose')
       const proxyUtils = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves('0x123')
-      const subdomainExistsStub = sandbox.stub(Web3Helper, 'subdomainExists').resolves(true)
+      const subdomainExistsStub = sandbox.stub(Web3Helper, 'ensSubdomainExists').resolves(true)
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1123213)
       const getDaoOsVersionStub = sandbox.stub(Web3Helper, 'getDaoOsVersion').resolves('1.0.0')
       const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves()
@@ -199,7 +200,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       }
 
       const stubMetadata = sandbox.stub(MetadataHandler, 'metadataSet').resolves()
-      const stubFind = sandbox.stub(Web3Helper, 'findLogsByName').returns([
+      const stubFind = sandbox.stub(Web3Utils, 'findLogsByName').returns([
         {
           parsed: 'test',
           txLog: {
@@ -241,7 +242,7 @@ describe('Indexer: DaoRegistryHandler', () => {
 
       const stubLogger = sandbox.stub(Logger, 'warn')
       const stubMetadata = sandbox.stub(MetadataHandler, 'metadataSet')
-      const stubFind = sandbox.stub(Web3Helper, 'findLogsByName').returns([])
+      const stubFind = sandbox.stub(Web3Utils, 'findLogsByName').returns([])
 
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
@@ -259,5 +260,24 @@ describe('Indexer: DaoRegistryHandler', () => {
       expect(stubFind.calledOnce).to.be.true
       expect(stubLogger.calledOnce).to.be.true
     })
+  })
+
+  it('should call nativeTransfer', async () => {
+    sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0x', network: NetworksEnum.ethereumMainnet } as any)
+    const stubRabbitMQ = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+    const logInfo = {
+      network: NetworksEnum.ethereumMainnet,
+      transactionIndex: 1,
+      logIndex: 1,
+      blockNumber: 3,
+      transactionHash: '0x0123123',
+      address: '0x0000000000000000000000000000000000000000',
+      eventName: 'test',
+    }
+
+    await DaoRegistryHandler.nativeTransfer({} as any, logInfo)
+
+    expect(stubRabbitMQ.calledThrice).to.be.true
   })
 })

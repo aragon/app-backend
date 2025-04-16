@@ -37,10 +37,6 @@ describe('Manual: Token', () => {
       isGovernance: true,
       implementationAddress: null,
     } as any)
-    sandbox.stub(RateModule, 'fetchRate').resolves({
-      priceUsd: '1',
-      priceChangeOnDayUsd: '1',
-    } as any)
     sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves({
       totalHolders: 1,
       totalSupply: '1',

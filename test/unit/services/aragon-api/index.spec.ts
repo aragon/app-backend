@@ -6,7 +6,7 @@ import Koa from 'koa'
 import logger from '@logger'
 import config from '@config'
 
-describe('AragonApi: index', () => {
+describe('AragonAPI: index', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {

@@ -5,9 +5,9 @@ import TransactionController from '@services/aragon-api/controllers/transaction'
 import { ITokenType, ITransactionCategory, ITransactionIndexCheckType, ITransactionType, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import Transaction from '@models/schema/transaction'
-import PairDataModule from '@modules/pairData'
 import { DaoList } from '@test/mock/fakeDao'
 import { ProposalList } from '@test/mock/fakeProposal'
+import logger from '@logger'
 
 describe('Controller: Transaction', () => {
   let sandbox: SinonSandbox
@@ -58,169 +58,6 @@ describe('Controller: Transaction', () => {
     sandbox?.restore()
   })
 
-  describe('getTransactionsWithPagination', () => {
-    it('should get transactions with pagination - all params', async () => {
-      const paginationParams = {
-        search: '',
-        pageSize: 10,
-        page: 1,
-        order: 'asc',
-        sort: 'createdAt',
-      }
-
-      const filterParams: any = {
-        network: rawTransaction.daos?.[0].network,
-        daoAddress: rawTransaction.daos?.[0].daoAddress,
-        pluginAddress: rawTransaction.daos?.[0].pluginAddress,
-      }
-
-      const spyReq = sandbox.spy(Models.Transaction, 'findWithPagination')
-
-      const response = await TransactionController.getTransactionsWithPagination(paginationParams, filterParams)
-
-      expect(spyReq.calledOnce).to.be.true
-      expect(
-        spyReq.calledWith({
-          extraParams: filterParams,
-          paginationParams: {
-            search: '',
-            pageSize: 10,
-            page: 1,
-            order: 'asc',
-            sort: 'createdAt',
-          },
-        }),
-      ).to.be.true
-
-      expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].transactionHash).to.eq(rawTransaction.transactionHash)
-      expect(response.data[0].category).to.eq(rawTransaction.category)
-      expect(response.data[0].network).to.eq(rawTransaction.network)
-      expect(response.data[0].token.type).to.eq(rawTransaction.token?.type)
-      expect(response.data[0].token.address).to.eq(rawTransaction.token?.address)
-      expect(response.metadata.page).to.eq(1)
-      expect(response.metadata.totalPages).to.eq(1)
-      expect(response.metadata.totalRecords).to.eq(1)
-    })
-
-    it('should get transactions no params', async () => {
-      const paginationParams = {
-        search: '',
-        pageSize: 10,
-        page: 1,
-        order: 'asc',
-        sort: 'createdAt',
-      }
-
-      const filterParams: any = {}
-
-      const spyReq = sandbox.spy(Models.Transaction, 'findWithPagination')
-
-      const response = await TransactionController.getTransactionsWithPagination(paginationParams, filterParams)
-
-      expect(spyReq.calledOnce).to.be.true
-      expect(
-        spyReq.calledWith({
-          extraParams: filterParams,
-          paginationParams: {
-            search: '',
-            pageSize: 10,
-            page: 1,
-            order: 'asc',
-            sort: 'createdAt',
-          },
-        }),
-      ).to.be.true
-
-      expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].transactionHash).to.eq(rawTransaction.transactionHash)
-      expect(response.data[0].category).to.eq(rawTransaction.category)
-      expect(response.data[0].network).to.eq(rawTransaction.network)
-      expect(response.data[0].token.address).to.eq(rawTransaction.token?.address)
-      expect(response.metadata.page).to.eq(1)
-      expect(response.metadata.totalPages).to.eq(1)
-      expect(response.metadata.totalRecords).to.eq(1)
-    })
-
-    it('should get transactions with pagination - daoId', async () => {
-      const paginationParams = {
-        search: '',
-        pageSize: 10,
-        page: 1,
-        order: 'asc',
-        sort: 'createdAt',
-      }
-
-      const filterParams: any = {}
-      const pairParams: any = {
-        daoId: `${rawTransaction.network}-${rawTransaction.daoAddress}`,
-      }
-      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({
-        daoAddress: rawTransaction.daoAddress,
-        network: rawTransaction.network,
-      })
-      const spyReq = sandbox.spy(Models.Transaction, 'findWithPagination')
-
-      const response = await TransactionController.getTransactionsWithPagination(
-        paginationParams,
-        filterParams,
-        pairParams,
-      )
-
-      expect(spyReq.calledOnce).to.be.true
-      expect(
-        spyReq.calledWith({
-          extraParams: {
-            daoAddress: rawTransaction.daoAddress,
-            network: rawTransaction.network,
-          },
-          paginationParams: {
-            search: '',
-            pageSize: 10,
-            page: 1,
-            order: 'asc',
-            sort: 'createdAt',
-          },
-        }),
-      ).to.be.true
-
-      expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].transactionHash).to.eq(rawTransaction.transactionHash)
-      expect(response.data[0].category).to.eq(rawTransaction.category)
-      expect(response.data[0].network).to.eq(rawTransaction.network)
-      expect(response.data[0].token.address).to.eq(rawTransaction.token?.address)
-      expect(response.metadata.page).to.eq(1)
-      expect(response.metadata.totalPages).to.eq(1)
-      expect(response.metadata.totalRecords).to.eq(1)
-    })
-
-    it('should get transactions with pagination - daoId not found', async () => {
-      const paginationParams = {
-        search: '',
-        pageSize: 10,
-        page: 1,
-        order: 'asc',
-        sort: 'createdAt',
-      }
-
-      const filterParams: any = {}
-      const pairParams: any = {
-        daoId: `${rawTransaction.network}-${rawTransaction.daoAddress}`,
-      }
-      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
-      const spyReq = sandbox.spy(Models.Transaction, 'findWithPagination')
-
-      const response = await TransactionController.getTransactionsWithPagination(
-        paginationParams,
-        filterParams,
-        pairParams,
-      )
-
-      expect(spyReq.calledOnce).to.be.true
-      expect(response).to.have.property('data').with.lengthOf(1)
-    })
-  })
-
   describe('getTransactionIndexingStatus', () => {
     it('should get transaction indexing status', async () => {
       const fakeDao = DaoList[0]
@@ -268,7 +105,7 @@ describe('Controller: Transaction', () => {
       await Models.Proposal.create({
         ...ProposalList[0],
         executed: {
-          transactionHash: '0x123',
+          transactionHash: '0x124',
         },
       })
 
@@ -276,7 +113,7 @@ describe('Controller: Transaction', () => {
       const spyReq = sandbox.spy(Models.Proposal, 'findOne')
 
       const response = await TransactionController.getTransactionIndexingStatus(
-        '0x123',
+        '0x124',
         ITransactionIndexCheckType.PROPOSAL_EXECUTE,
         network!,
       )
@@ -286,8 +123,119 @@ describe('Controller: Transaction', () => {
       })
     })
 
+    it('should get transaction indexing status - proposal created and return slug', async () => {
+      await Models.Proposal.create({
+        ...ProposalList[0],
+        transactionHash: '0x125',
+      })
+
+      await Models.PluginSlug.create({
+        daoAddress: ProposalList[0].daoAddress,
+        pluginAddress: ProposalList[0].pluginAddress,
+        network: ProposalList[0].network,
+        slug: 'test-slug',
+      })
+
+      const network = ProposalList[0].network
+      const spyProposalReq = sandbox.spy(Models.Proposal, 'findOne')
+      const spyPluginSlugReq = sandbox.spy(Models.PluginSlug, 'findOne')
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({})
+
+      const response = await TransactionController.getTransactionIndexingStatus(
+        '0x125',
+        ITransactionIndexCheckType.PROPOSAL_CREATE,
+        network!,
+      )
+
+      expect(spyProposalReq.calledOnce).to.be.true
+      expect(spyPluginSlugReq.calledOnce).to.be.true
+      expect(response).to.deep.eq({
+        isProcessed: true,
+        slug: 'test-slug-0',
+      })
+    })
+
+    it('should get transaction indexing status - proposal created and return slug when is sub-proposal', async () => {
+      await Models.Proposal.create({
+        daoAddress: ProposalList[0].daoAddress,
+        proposalIndex: '0',
+        incrementalId: 0,
+        transactionHash: '0x126',
+        pluginAddress: ProposalList[0].pluginAddress,
+        network: ProposalList[0].network,
+        endDate: 1,
+        blockNumber: 1,
+        startDate: 1,
+        creatorAddress: '0xcreator',
+      })
+
+      await Models.Proposal.create({
+        daoAddress: ProposalList[0].daoAddress,
+        proposalIndex: '7',
+        incrementalId: 7,
+        blockNumber: 1,
+        pluginAddress: '0xplugin2',
+        transactionHash: '0x126',
+        network: ProposalList[0].network,
+        endDate: 1,
+        startDate: 1,
+        creatorAddress: '0xcreator',
+      })
+
+      await Models.PluginSlug.create({
+        daoAddress: ProposalList[0].daoAddress,
+        pluginAddress: ProposalList[0].pluginAddress,
+        network: ProposalList[0].network,
+        slug: 'test-slug',
+      })
+
+      const network = ProposalList[0].network
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ parentPlugin: ProposalList[0].pluginAddress })
+
+      const spyPluginSlugReq = sandbox.spy(Models.PluginSlug, 'findOne')
+
+      const response = await TransactionController.getTransactionIndexingStatus(
+        '0x126',
+        ITransactionIndexCheckType.PROPOSAL_CREATE,
+        network!,
+      )
+
+      expect(spyPluginSlugReq.calledOnce).to.be.true
+      expect(response).to.deep.eq({
+        isProcessed: true,
+        slug: 'test-slug-0',
+      })
+    })
+
+    it('should get transaction indexing status - proposal created but plugin slug not found', async () => {
+      const logError = sandbox.stub(logger, 'error')
+
+      await Models.Proposal.create({
+        ...ProposalList[0],
+        transactionHash: '0x127',
+      })
+
+      const network = ProposalList[0].network
+      const spyProposalReq = sandbox.spy(Models.Proposal, 'findOne')
+      const spyPluginSlugReq = sandbox.spy(Models.PluginSlug, 'findOne')
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({})
+
+      const response = await TransactionController.getTransactionIndexingStatus(
+        '0x127',
+        ITransactionIndexCheckType.PROPOSAL_CREATE,
+        network!,
+      )
+
+      expect(spyProposalReq.calledOnce).to.be.true
+      expect(spyPluginSlugReq.calledOnce).to.be.true
+      expect(logError.calledOnce).to.be.true
+      expect(response).to.deep.eq({
+        isProcessed: true,
+      })
+    })
+
     it('should get transaction indexing status - not found', async () => {
-      const txHash = '0x123'
+      const txHash = '0x128'
       const network = rawTransaction.network
       const spyReq = sandbox.spy(Models.Proposal, 'findOne')
 
@@ -315,6 +263,44 @@ describe('Controller: Transaction', () => {
       expect(response).to.deep.eq({
         isProcessed: false,
       })
+    })
+  })
+
+  describe('_getQueryForAction', () => {
+    it('should return correct query for PROPOSAL_CREATE', () => {
+      const query = TransactionController._getQueryForAction(
+        ITransactionIndexCheckType.PROPOSAL_CREATE,
+        '0x128',
+        NetworksEnum.ethereumMainnet,
+      )
+      expect(query).to.deep.equal({ transactionHash: '0x128', network: NetworksEnum.ethereumMainnet })
+    })
+
+    it('should return correct query for PROPOSAL_EXECUTE', () => {
+      const query = TransactionController._getQueryForAction(
+        ITransactionIndexCheckType.PROPOSAL_EXECUTE,
+        '0x129',
+        NetworksEnum.ethereumMainnet,
+      )
+      expect(query).to.deep.equal({ 'executed.transactionHash': '0x129', network: NetworksEnum.ethereumMainnet })
+    })
+
+    it('should return correct query for PROPOSAL_ADVANCE_STAGE', () => {
+      const query = TransactionController._getQueryForAction(
+        ITransactionIndexCheckType.PROPOSAL_ADVANCE_STAGE,
+        '0x130',
+        NetworksEnum.ethereumMainnet,
+      )
+      expect(query).to.deep.equal({ 'stageExecutions.transactionHash': '0x130', network: NetworksEnum.ethereumMainnet })
+    })
+
+    it('should return default query for unknown action', () => {
+      const query = TransactionController._getQueryForAction(
+        'UNKNOWN_ACTION' as ITransactionIndexCheckType,
+        '0x131',
+        NetworksEnum.ethereumMainnet,
+      )
+      expect(query).to.deep.equal({ transactionHash: '0x131', network: NetworksEnum.ethereumMainnet })
     })
   })
 })

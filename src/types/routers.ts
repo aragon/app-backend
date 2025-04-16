@@ -6,6 +6,7 @@ import { type ITransferSide, type ITransferType } from '@src/types/transfer'
 export interface IStatusResponse {
   status: string
   appName: string
+  service: string
   nodeVersion: string
   environment: string
   supportedNetworks: NetworksEnum[]
@@ -242,7 +243,6 @@ export interface IAssetResponse {
     type: string
     logo: string
     decimals: number
-    priceChangeOnDayUsd: string
     priceUsd: string
   }
   amountUsd: string
@@ -268,7 +268,6 @@ export interface ITransactionResponse {
     type: string
     logo: string
     decimals: number
-    priceChangeOnDayUsd: string
     priceUsd: string
   }
 }
@@ -285,7 +284,11 @@ export interface ITokenResponse {
   decimals: number
   holders: number
   totalSupply: string
-  priceChangeOnDayUsd: string
   priceUsd: string
   lastUpdatedAt: string
+}
+
+export interface ITransactionIndexingStatusResponse {
+  isProcessed: boolean
+  slug?: string
 }

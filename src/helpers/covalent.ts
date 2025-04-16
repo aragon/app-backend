@@ -14,8 +14,8 @@ import dayjs from '@helpers/dayjs'
 import axios from 'axios'
 import logger from '@logger'
 import utils from '@helpers/utils'
+import Web3Utils from '@helpers/web3Utils'
 import { assert } from '@errors'
-import Web3Helper from '@helpers/web3'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
 
@@ -124,20 +124,17 @@ const CovalentHelper = {
     const validPrices = token.prices?.filter(price => price.price !== null)
 
     const mostRecentPrice = validPrices?.[0]?.price ?? 0
-    const dayBeforePrice = validPrices?.[1]?.price ?? mostRecentPrice
-    const priceChangeOnDayUsd = mostRecentPrice - dayBeforePrice
     const type = CovalentHelper.getTokenType(token)
 
     return {
-      address: isNativeToken ? utils.zeroAddress : Web3Helper.parseAddress(token.contract_address)!,
+      address: isNativeToken ? utils.zeroAddress : Web3Utils.parseAddress(token.contract_address)!,
       network,
       type,
       logo: token.logo_url,
       name: token.contract_name,
       symbol: token.contract_ticker_symbol,
-      decimals: token.contract_decimals || type === ITokenType.ERC20 ? 18 : 0,
+      decimals: token.contract_decimals || (type === ITokenType.ERC20 ? 18 : 0),
       priceUsd: mostRecentPrice.toString(),
-      priceChangeOnDayUsd,
       lastUpdatedAt: dayjs().utc().toDate(),
     }
   },

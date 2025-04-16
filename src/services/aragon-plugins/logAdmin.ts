@@ -6,6 +6,7 @@ import configIndexer from '@indexer/configIndexer'
 import { DAO } from '@artifacts/dao'
 import { Interface } from 'ethers'
 import Web3Helper from '@helpers/web3'
+import Web3Utils from '@helpers/web3Utils'
 import { PermissionHandler } from '@src/handlers/permissionHandler'
 import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
 
@@ -64,8 +65,8 @@ export const LogAdmin = {
 
     for (const log of events) {
       const iFace = new Interface(DAO.abi)
-      const event = Web3Helper.parseLog(log, iFace)!
-      const info = Web3Helper.parseInfoLog(log, event.name, plugin.network)
+      const event = Web3Utils.parseLog(log, iFace)!
+      const info = Web3Utils.parseInfoLog(log, event.name, plugin.network)
       await PermissionHandler.handleGrantOnDao(event, info)
     }
 

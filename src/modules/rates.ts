@@ -18,7 +18,6 @@ export const RateModule = {
       name: null,
       symbol: null,
       priceUsd: '0',
-      priceChangeOnDayUsd: '0',
       type: ITokenType.unknown,
       logo: null,
       lastUpdatedAt: null,
@@ -28,7 +27,6 @@ export const RateModule = {
 
     if (token) {
       tokenRate.priceUsd = token.priceUsd?.toString() ?? '0'
-      tokenRate.priceChangeOnDayUsd = token.priceChangeOnDayUsd?.toString() ?? '0'
       tokenRate.decimals = token.decimals
       tokenRate.symbol = token.symbol
       tokenRate.name = token.name

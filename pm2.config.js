@@ -37,17 +37,6 @@ module.exports = {
       },
     },
     {
-      name: 'aragon-transactions',
-      cwd: path.resolve(__dirname, ''),
-      script: 'yarn',
-      args: 'service:aragon-transactions',
-      autorestart: true,
-      env: {
-        INSTANCE_ID: 'aragon-transactions',
-        ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-transactions') }).parsed,
-      },
-    },
-    {
       name: 'aragon-plugins',
       cwd: path.resolve(__dirname, ''),
       script: 'yarn',
@@ -69,6 +58,17 @@ module.exports = {
       env: {
         INSTANCE_ID: 'aragon-rates',
         ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-rates') }).parsed,
+      },
+    },
+    {
+      name: 'aragon-admin-api',
+      cwd: path.resolve(__dirname, ''),
+      script: 'yarn',
+      args: 'service:aragon-admin-api',
+      autorestart: false,
+      env: {
+        INSTANCE_ID: 'aragon-admin-api',
+        ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-admin-api') }).parsed,
       },
     },
     {
