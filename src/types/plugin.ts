@@ -53,6 +53,13 @@ export enum IPluginInterfaceType {
   unknown = 'unknown',
 }
 
+export enum IWhiteListedPluginSubdomain {
+  tokenVoting = 'token-voting',
+  multisig = 'multisig',
+  admin = 'admin',
+  spp = 'spp',
+}
+
 export enum ISettingStatus {
   active = 'active',
   inactive = 'inactive',
