@@ -8,6 +8,7 @@ import {
   IPluginRawStatus,
   IPluginStatus,
   type IQueryGetPlugin,
+  IWhiteListedPluginSubdomain,
   type NetworksEnum,
 } from '@types'
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
@@ -197,49 +198,6 @@ export const PluginHandler = {
           },
         },
       },
-
-      // uninstall
-      //        {
-      //            $group: {
-      //                _id: {
-      //                    address: "$address",
-      //                    network: "$network",
-      //                },
-      //                documents: { $push: "$$ROOT" },
-      //                hasUninstall: {
-      //                    $max: {
-      //                        $cond: [{ $eq: ["$action", "uninstall"] }, 1, 0],
-      //                    },
-      //                },
-      //                maxBlockNumber: { $max: "$blockNumber" },
-      //            },
-      //        },
-      //        {
-      //            $match: {
-      //                hasUninstall: 0, // Exclude groups that have an uninstall action
-      //            },
-      //        },
-      //        {
-      //            $project: {
-      //                document: {
-      //                    $filter: {
-      //                        input: "$documents",
-      //                        as: "doc",
-      //                        cond: {
-      //                            $eq: ["$$doc.blockNumber", "$maxBlockNumber"],
-      //                        },
-      //                    },
-      //                },
-      //            },
-      //        },
-      //        {
-      //            $unwind: "$document",
-      //        },
-      //        {
-      //            $replaceRoot: {
-      //                newRoot: "$document",
-      //            },
-      //        },
     ]
     const plugins = await Models.LogPluginSetupProcessor.aggregate(query)
 
@@ -248,6 +206,12 @@ export const PluginHandler = {
     }
 
     return plugins[0]
+  },
+
+  _checkIfIncompletedPlugin: (interfaceType: IPluginInterfaceType, subdomain: IWhiteListedPluginSubdomain) => {
+    return (
+      interfaceType === IPluginInterfaceType.unknown && Object.values(IWhiteListedPluginSubdomain).includes(subdomain)
+    )
   },
 
   _createPlugin: async (plugin: IQueryGetPlugin): Promise<Plugin | undefined> => {
@@ -305,7 +269,15 @@ export const PluginHandler = {
       transactionHash: plugin.transactionHash,
       address: plugin.address,
     }
-    return await DbOperations.createDocument(Models.Plugin, document, info, 'New Create Plugin', llo)
+    const dbPlugin = await DbOperations.createDocument(Models.Plugin, document, info, 'New Create Plugin', llo)
+    if (
+      pluginInfo.type === IPluginInterfaceType.unknown &&
+      Object.values(IWhiteListedPluginSubdomain).includes(plugin.subdomain as IWhiteListedPluginSubdomain)
+    ) {
+      logger.error('RPC call to detect plugin type failed', llo({ txHash: plugin.transactionHash }))
+    }
+
+    return dbPlugin
   },
 
   preInstallPlugin: async (pluginLog: LogPluginSetupProcessor) => {
@@ -385,6 +357,16 @@ export const PluginHandler = {
           'Created new document - New PreInstall Plugin',
           llo({ info, documentId: logDb.id, pluginId: pluginLog.id }),
         )
+
+        if (
+          PluginHandler._checkIfIncompletedPlugin(logDb.interfaceType, logDb.subdomain as IWhiteListedPluginSubdomain)
+        ) {
+          logger.error('RPC call to detect plugin type failed', llo({ txHash: logDb.id, address: logDb.address }))
+        }
+
+        if (pluginInfo.type === IPluginInterfaceType.unknown) {
+          logger.error('RPC call to detect plugin type failed', llo({ txHash: logDb.id, address: logDb.address }))
+        }
       })
     } catch (error) {
       logger.error('Error PreInstall Plugin', llo({ pluginId: pluginLog.id, error }))
@@ -418,6 +400,15 @@ export const PluginHandler = {
         if (preInstalledPlugin.status !== IPluginStatus.preInstall) {
           logger.warn('Plugin not in preInstall status', llo({ pluginLog, pluginStatus: preInstalledPlugin.status }))
           return
+        }
+
+        if (
+          PluginHandler._checkIfIncompletedPlugin(
+            preInstalledPlugin.interfaceType,
+            preInstalledPlugin.subdomain as IWhiteListedPluginSubdomain,
+          )
+        ) {
+          logger.error('RPC call to detect plugin type failed', llo({ txHash: preInstalledPlugin.id }))
         }
 
         const document = {
@@ -481,6 +472,10 @@ export const PluginHandler = {
           const updateParams: any = {}
           if (plugin.isSupported !== existingPlugin.isSupported) {
             updateParams.isSupported = existingPlugin.isSupported
+          }
+
+          if (plugin.interfaceType === IPluginInterfaceType.unknown) {
+            updateParams.interfaceType = existingPlugin.interfaceType
           }
 
           if (
