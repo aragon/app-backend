@@ -138,6 +138,64 @@ describe('Controller: Asset', () => {
       expect(response.metadata.totalRecords).to.eq(1)
     })
 
+    it('should call getAssetsWithPagination with no arguments (default parameters)', async () => {
+      const spyReq = sandbox.spy(Models.Asset, 'findWithPagination')
+
+      const response = await AssetController.getAssetsWithPagination()
+
+      expect(spyReq.calledOnce).to.be.true
+      expect(
+        spyReq.calledWith({
+          extraParams: {},
+          paginationParams: {},
+        }),
+      ).to.be.true
+
+      expect(response).to.have.property('data')
+    })
+
+    it('should handle when findWithPagination returns empty results', async () => {
+      sandbox.stub(Models.Asset, 'findWithPagination').resolves({
+        data: [],
+        metadata: {
+          page: 1,
+          totalPages: 0,
+          totalRecords: 0,
+        },
+      })
+
+      const response = await AssetController.getAssetsWithPagination()
+
+      expect(response).to.have.property('data').with.lengthOf(0)
+      expect(response.metadata.page).to.eq(1)
+      expect(response.metadata.totalPages).to.eq(0)
+      expect(response.metadata.totalRecords).to.eq(0)
+    })
+
+    it('should handle when findWithPagination throws an error', async () => {
+      sandbox.stub(Models.Asset, 'findWithPagination').rejects(new Error('DB connection error'))
+
+      try {
+        await AssetController.getAssetsWithPagination()
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error).to.be.an('error')
+        expect(error.message).to.equal('DB connection error')
+      }
+    })
+
+    it('should handle when pairFromExtraParams throws an error', async () => {
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').rejects(new Error('Invalid pair params'))
+
+      try {
+        await AssetController.getAssetsWithPagination({}, {}, { daoId: 'invalid-id' })
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error).to.be.an('error')
+        expect(error.message).to.equal('Invalid pair params')
+      }
+    })
+
     it('should get proposals with pagination - daoId', async () => {
       const paginationParams = {
         search: '',
@@ -213,6 +271,28 @@ describe('Controller: Asset', () => {
 
       expect(spyReq.calledOnce).to.be.true
       expect(response).to.have.property('data').with.lengthOf(1)
+    })
+
+    it('should handle invalid pagination parameters', async () => {
+      const invalidPaginationParams = {
+        page: -1,
+        pageSize: -10,
+        order: 'invalid',
+      }
+      let response: any
+
+      try {
+        response = await AssetController.getAssetsWithPagination(invalidPaginationParams as any)
+      } catch (e: any) {
+        // Handle the error if necessary
+        expect(e).to.be.an('error')
+        expect(e.message).to.include('invalid argument to $skip')
+      }
+
+      // We'll let the controller handle invalid params - this test ensures we exercise that code path
+
+      // The response should still be structured correctly
+      expect(response).be.undefined
     })
   })
 })
