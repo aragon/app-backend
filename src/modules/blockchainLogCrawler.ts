@@ -647,6 +647,7 @@ class BlockchainLogCrawler {
   isBatchSizeError(error: any): boolean {
     const messages = [
       'The query timed out',
+      'timeout',
       'Response size is larger than 150MB limit',
       'Log response size exceeded',
       'Consider reducing your block range',

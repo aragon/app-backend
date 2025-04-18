@@ -196,6 +196,7 @@ export default class MemberBalance extends Model {
 
     if (extraParams?.tokenAddress) {
       filter.tokenAddress = extraParams.tokenAddress
+      filter.network = extraParams.network
     }
 
     const searchFilter = ModelUtils.createFilter(paginationParams, ['memberInfo.ens', 'memberInfo.address'])
