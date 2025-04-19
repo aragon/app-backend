@@ -100,7 +100,6 @@ describe('Helpers: Covalent', () => {
         priceUsd: '4021.0115',
         holders: 0,
         totalSupply: '0',
-        priceChangeOnDayUsd: 42.428699999999935,
         lastUpdatedAt: '2024-03-13T02:45:39.390Z',
       }
       const mockResponse = [TokenList[1]]

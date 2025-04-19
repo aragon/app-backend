@@ -1,6 +1,6 @@
 import * as sinon from 'sinon'
 import { SinonSandbox, SinonStub } from 'sinon'
-import { EnumQueueName, ILogInfo, IMetricAction, ITokenType, ITransferSide, ITransferType, NetworksEnum } from '@types'
+import { EnumQueueName, ILogInfo, ITokenType, ITransferSide, ITransferType, NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
 import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 import utils from '@helpers/utils'
@@ -18,6 +18,7 @@ import logger from '@logger'
 import EnsHelper from '@helpers/ens'
 import { expect } from 'chai'
 import Logger from '@logger'
+import Web3Utils from '@helpers/web3Utils'
 
 describe('GovernanceErc20Handler', () => {
   let sandbox: SinonSandbox
@@ -35,7 +36,7 @@ describe('GovernanceErc20Handler', () => {
       type: ITokenType.ERC20,
       isGovernance: true,
     })
-    sandbox.stub(Web3Helper, 'parseAddress').callsFake((address: string) => address)
+    sandbox.stub(Web3Utils, 'parseAddress').callsFake((address: string) => address)
     sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').callsFake(async (_address: string) => 'test.eth')
   })
 
@@ -1266,7 +1267,7 @@ describe('GovernanceErc20Handler', () => {
         }
 
         sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
-        sandbox.stub(Web3Helper, 'findLogsByName').returns([delegateChangedLog as any])
+        sandbox.stub(Web3Utils, 'findLogsByName').returns([delegateChangedLog as any])
 
         const result = await GovernanceErc20Handler._findDelegatorsFromReceipt(parsedEvent, info)
 
@@ -1309,7 +1310,7 @@ describe('GovernanceErc20Handler', () => {
         }
 
         sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
-        sandbox.stub(Web3Helper, 'findLogsByName').returns([delegateChangedLog as any])
+        sandbox.stub(Web3Utils, 'findLogsByName').returns([delegateChangedLog as any])
 
         const result = await GovernanceErc20Handler._findDelegatorsFromReceipt(parsedEvent, info)
 
@@ -1352,7 +1353,7 @@ describe('GovernanceErc20Handler', () => {
         }
 
         sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
-        sandbox.stub(Web3Helper, 'findLogsByName').returns([delegateChangedLog as any])
+        sandbox.stub(Web3Utils, 'findLogsByName').returns([delegateChangedLog as any])
 
         const result = await GovernanceErc20Handler._findDelegatorsFromReceipt(parsedEvent, info)
 

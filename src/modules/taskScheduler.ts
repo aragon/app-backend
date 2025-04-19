@@ -2,6 +2,7 @@ import logger from '@logger'
 import { Models } from '@dbModels'
 import { IEnumTaskStatus } from '@types'
 import dayjs from '@helpers/dayjs'
+import { throwError } from '@errors'
 
 const llo = logger.logMeta.bind(null, { service: 'service:TaskScheduler' })
 
@@ -115,6 +116,7 @@ class TaskScheduler {
               (task, index) =>
                 ({
                   taskName: Object.keys(task)[0],
+                  params: task.params,
                   status: IEnumTaskStatus.PENDING,
                   position: index,
                   batchSize: task[Object.keys(task)[0]].batchSize,
@@ -142,7 +144,13 @@ class TaskScheduler {
               )
 
               try {
-                await serviceInstance.start()
+                if (typeof serviceInstance?.start === 'function') {
+                  await serviceInstance.start(task?.params)
+                } else if (typeof serviceInstance === 'function') {
+                  await serviceInstance(task?.params)
+                } else {
+                  throwError('Invalid task instance', { taskName, serviceInstance })
+                }
 
                 const taskEndTime = dayjs().utc()
                 await Models.TaskRun.updateOne(

@@ -1,11 +1,14 @@
 import DecodeActions from '@helpers/decodeAction'
 import { type IRawAction } from '@types'
 import Web3Helper from '@helpers/web3'
+import Web3Utils from '@helpers/web3Utils'
+import { ProposalHandler } from '@handlers/proposalHandler'
+import { Models } from '@dbModels'
 
 const ActionDecode = {
   decode: async (action: IRawAction) => {
     const decodeHelper = new DecodeActions()
-    if (Web3Helper.isNativeTokenAction(action)) {
+    if (Web3Utils.isNativeTokenAction(action)) {
       return decodeHelper.decodeTransfer(action, {
         network: action.network!,
         daoAddress: action.from,
@@ -26,6 +29,14 @@ const ActionDecode = {
     }
 
     return decodedData
+  },
+  proposalActionDecoder: async (id: string) => {
+    const proposal = await Models.Proposal.findByEntityId(id)
+    if (!proposal) {
+      return null
+    }
+
+    await ProposalHandler.parseActions(proposal)
   },
 }
 

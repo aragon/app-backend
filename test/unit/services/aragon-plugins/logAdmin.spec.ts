@@ -10,6 +10,7 @@ import { DAO } from '@artifacts/dao'
 import Web3Helper from '@helpers/web3'
 import { PermissionHandler } from '@handlers/permissionHandler'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
+import Web3Utils from '@helpers/web3Utils'
 
 describe('AragonPlugins: LogAdmin', () => {
   let sandbox: SinonSandbox
@@ -95,7 +96,7 @@ describe('AragonPlugins: LogAdmin', () => {
         ],
       } as any)
 
-      const parseLogStub = sandbox.stub(Web3Helper, 'parseLog').returns({
+      const parseLogStub = sandbox.stub(Web3Utils, 'parseLog').returns({
         name: 'Granted',
       } as any)
 
@@ -105,7 +106,7 @@ describe('AragonPlugins: LogAdmin', () => {
         network: NetworksEnum.ethereumSepolia,
       }
 
-      const parseInfoLogStub = sandbox.stub(Web3Helper, 'parseInfoLog').returns(txInfoLog as any)
+      const parseInfoLogStub = sandbox.stub(Web3Utils, 'parseInfoLog').returns(txInfoLog as any)
 
       const handleGrantOnDaoStub = sandbox.stub(PermissionHandler, 'handleGrantOnDao').resolves()
       const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()

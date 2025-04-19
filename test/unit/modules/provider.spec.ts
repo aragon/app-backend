@@ -89,7 +89,6 @@ describe('Module: provider', () => {
     const rawNodes = {
       ETHEREUM_MAINNET: {
         ALCHEMY_API_KEY: 'test-alchemy-key',
-        ARAGON_WS: 'ws://localhost:8545',
         ARAGON_RPC: 'http://localhost:8545',
         FROM_BLOCK: 0,
         CONFIRMATION_BLOCKS: 12,
@@ -101,7 +100,6 @@ describe('Module: provider', () => {
       },
       POLYGON_MAINNET: {
         ALCHEMY_API_KEY: 'test-alchemy-key2',
-        ARAGON_WS: 'ws://localhost:8546',
         ARAGON_RPC: 'http://localhost:8546',
         FROM_BLOCK: 0,
         CONFIRMATION_BLOCKS: 12,
@@ -138,8 +136,6 @@ describe('Module: provider', () => {
       }
       const fakeAlchemy = {
         core: {},
-        ws: { on: sandbox.stub() },
-        nft: {},
       }
       const alchemyStub = sandbox.stub().returns(fakeAlchemy)
       sandbox.replace(require('alchemy-sdk'), 'Alchemy', alchemyStub)
@@ -148,12 +144,10 @@ describe('Module: provider', () => {
       const proxy = ProviderModule.providerProxies[network]
       expect(proxy.alchemy).to.exist
       expect(alchemyStub.calledOnce).to.be.true
-      expect(fakeAlchemy.ws.on.callCount).to.equal(3)
     })
 
     it('connectToNetwork should configure an Aragon connection', async () => {
       const providerStub = { on: sandbox.stub(), websocket: { on: sandbox.stub() } }
-      const setupWSListenersStub = sandbox.stub()
       const { default: ProviderModule } = proxyquire.noCallThru()('@modules/provider', {
         ethers: {
           WebSocketProvider: function () {
@@ -164,12 +158,10 @@ describe('Module: provider', () => {
           },
         },
       })
-      ProviderModule.setupWSListeners = setupWSListenersStub
 
       const network = NetworksEnum.ethereumMainnet
       const aragonConfig = {
         providerType: IProviderType.ARAGON,
-        wsEndpoint: 'ws://localhost:8545',
         rpcEndpoint: 'http://localhost:8545',
         fromBlock: 0,
         confirmationBlocks: 12,
@@ -180,14 +172,13 @@ describe('Module: provider', () => {
 
       const proxy = ProviderModule.providerProxies[network]
       expect(proxy.aragon).to.exist
-      expect(setupWSListenersStub.calledOnce).to.be.true
     })
   })
 
   describe('getProvider', () => {
     it('getProvider should return the requested provider connection', () => {
       const network = NetworksEnum.ethereumMainnet
-      const fakeConnection = { rpc: {}, ws: {} }
+      const fakeConnection = { rpc: {} }
       ProviderModule.providerProxies[network] = { [IProviderType.ALCHEMY]: fakeConnection }
       const provider = ProviderModule.getProvider(network, IProviderType.ALCHEMY)
       expect(provider).to.equal(fakeConnection)
@@ -198,8 +189,8 @@ describe('Module: provider', () => {
       const fakeAragonRpc = {}
       const fakeAlchemyRpc = {}
       ProviderModule.providerProxies[network] = {
-        aragon: { rpc: fakeAragonRpc, ws: {} },
-        alchemy: { rpc: fakeAlchemyRpc, ws: {} },
+        aragon: { rpc: fakeAragonRpc },
+        alchemy: { rpc: fakeAlchemyRpc },
       }
       expect(ProviderModule.getAnyRpcProvider(network)).to.equal(fakeAragonRpc)
       ProviderModule.providerProxies[network].aragon = undefined
@@ -207,171 +198,14 @@ describe('Module: provider', () => {
     })
   })
 
-  describe('subscribeToEvent', () => {
-    it('subscribeToEvent should attach listener to fallback websocket when providerType not specified', () => {
-      const network = NetworksEnum.ethereumMainnet
-      const wsOnStub = sandbox.stub()
-      ProviderModule.providerProxies[network] = {
-        aragon: { rpc: {}, ws: { on: wsOnStub } },
-        alchemy: { rpc: {}, ws: { on: sandbox.stub() } },
-      }
-      const filter = 'eventFilter'
-      const listener = sandbox.stub().resolves()
-      ProviderModule.subscribeToEvent(network, filter, listener)
-      expect(wsOnStub.calledOnce).to.be.true
-      expect(wsOnStub.calledWith(filter, sinon.match.func)).to.be.true
-    })
-
-    it('subscribeToEvent should attach listener to specified provider websocket', () => {
-      const network = NetworksEnum.ethereumMainnet
-      const wsOnStub = sandbox.stub()
-      ProviderModule.providerProxies[network] = {
-        alchemy: { rpc: {}, ws: { on: wsOnStub } },
-      }
-      const filter = 'eventFilter'
-      const listener = sandbox.stub().resolves()
-      ProviderModule.subscribeToEvent(network, filter, listener, IProviderType.ALCHEMY)
-      expect(wsOnStub.calledOnce).to.be.true
-      expect(wsOnStub.calledWith(filter, sinon.match.func)).to.be.true
-    })
-  })
-
-  describe('subscribeToNewBlock', () => {
-    it('subscribeToNewBlock should attach listener using fallback when providerType not specified', () => {
-      const network = NetworksEnum.ethereumMainnet
-      const wsOnStub = sandbox.stub()
-      ProviderModule.providerProxies[network] = {
-        aragon: { rpc: {}, ws: { on: wsOnStub } },
-        alchemy: { rpc: {}, ws: { on: sandbox.stub() } },
-      }
-      const listener = sandbox.stub()
-      ProviderModule.subscribeToNewBlock(network, listener)
-      expect(wsOnStub.calledOnce).to.be.true
-      expect(wsOnStub.calledWith('block', listener)).to.be.true
-    })
-
-    it('subscribeToNewBlock should attach listener using specified providerType', () => {
-      const network = NetworksEnum.ethereumMainnet
-      const wsOnStub = sandbox.stub()
-      ProviderModule.providerProxies[network] = {
-        alchemy: { rpc: {}, ws: { on: wsOnStub } },
-      }
-      const listener = sandbox.stub()
-      ProviderModule.subscribeToNewBlock(network, listener, IProviderType.ALCHEMY)
-      expect(wsOnStub.calledOnce).to.be.true
-      expect(wsOnStub.calledWith('block', listener)).to.be.true
-    })
-  })
-
-  describe('setupWSListeners', () => {
-    it('should attach event listeners via setupWSListeners and call logger methods accordingly', () => {
-      const ws = { on: sandbox.stub() }
-
-      ProviderModule.setupWSListeners(ws, IProviderType.ARAGON, NetworksEnum.ethereumMainnet)
-
-      expect(ws.on.callCount).to.equal(3)
-
-      const openCallback = ws.on.getCall(0).args[1]
-      const errorCallback = ws.on.getCall(1).args[1]
-      const closeCallback = ws.on.getCall(2).args[1]
-
-      const infoStub = sandbox.stub(logger, 'info')
-      const errorStub = sandbox.stub(logger, 'error')
-
-      openCallback()
-      expect(infoStub.calledOnce).to.be.true
-      expect(
-        infoStub.calledWithMatch(
-          `WebSocket connected to ${NetworksEnum.ethereumMainnet} (${IProviderType.ARAGON})` as any,
-        ),
-      ).to.be.true
-
-      const testError = new Error('Test error')
-      errorCallback(testError)
-      expect(
-        errorStub.calledWithMatch(
-          `WebSocket error on ${NetworksEnum.ethereumMainnet} (${IProviderType.ARAGON})` as any,
-        ),
-      ).to.be.true
-
-      closeCallback()
-      expect(
-        errorStub.calledWithMatch(
-          `WebSocket connection closed for ${NetworksEnum.ethereumMainnet} (${IProviderType.ARAGON})` as any,
-        ),
-      ).to.be.true
-    })
-  })
-
   describe('closeAllNetworks', () => {
     it('closeAllNetworks should close all websocket connections', async () => {
-      const loggerInfoStub = sandbox.stub(logger, 'info')
-      const fakeAlchemyWs = { close: sandbox.stub(), on: sandbox.stub() }
-      const fakeAragonWs = { destroy: sandbox.stub(), on: sandbox.stub() }
-
       ProviderModule.providerProxies[NetworksEnum.ethereumMainnet] = {
-        alchemy: { rpc: {}, ws: fakeAlchemyWs, nft: {} },
-        aragon: { rpc: {}, ws: fakeAragonWs },
+        alchemy: { rpc: {} },
+        aragon: { rpc: {} },
       }
       await ProviderModule.closeAllNetworks()
-      expect(fakeAlchemyWs.close.calledOnce).to.be.true
-      expect(fakeAragonWs.destroy.calledOnce).to.be.true
-      expect(loggerInfoStub.calledTwice).to.be.true
-    })
-
-    it('should log an error when alchemy ws.close throws an error', async () => {
-      const errorMsg = 'alchemy close error'
-      const fakeAlchemyWs = { close: sandbox.stub().throws(new Error(errorMsg)), on: sandbox.stub() }
-      const fakeAragonWs = { destroy: sandbox.stub(), on: sandbox.stub() }
-
-      const loggerErrorStub = sandbox.stub(logger, 'error')
-      const loggerInfoStub = sandbox.stub(logger, 'info')
-
-      ProviderModule.providerProxies[NetworksEnum.ethereumMainnet] = {
-        alchemy: { rpc: {}, ws: fakeAlchemyWs, nft: {} },
-        aragon: { rpc: {}, ws: fakeAragonWs },
-      }
-
-      await ProviderModule.closeAllNetworks()
-
-      expect(
-        loggerErrorStub.calledWithMatch(`Error closing Alchemy WebSocket for ${NetworksEnum.ethereumMainnet}` as any),
-      ).to.be.true
-      expect(fakeAragonWs.destroy.calledOnce).to.be.true
-      expect(
-        loggerInfoStub.calledWithMatch(`Aragon WebSocket connection closed for ${NetworksEnum.ethereumMainnet}` as any),
-      ).to.be.true
-    })
-
-    it('should log an error when aragon ws.destroy throws an error', async () => {
-      const errorMsg = 'aragon destroy error'
-      // Fake Aragon ws.destroy throws an error.
-      const fakeAragonWs = { destroy: sandbox.stub().throws(new Error(errorMsg)), on: sandbox.stub() }
-      // Fake Alchemy ws.close works fine.
-      const fakeAlchemyWs = { close: sandbox.stub(), on: sandbox.stub() }
-
-      // Stub logger.error and logger.info.
-      const loggerErrorStub = sandbox.stub(logger, 'error')
-      const loggerInfoStub = sandbox.stub(logger, 'info')
-
-      ProviderModule.providerProxies[NetworksEnum.ethereumMainnet] = {
-        alchemy: { rpc: {}, ws: fakeAlchemyWs, nft: {} },
-        aragon: { rpc: {}, ws: fakeAragonWs },
-      }
-
-      await ProviderModule.closeAllNetworks()
-
-      // Expect error log for aragon ws.destroy error.
-      expect(
-        loggerErrorStub.calledWithMatch(`Error closing Aragon WebSocket for ${NetworksEnum.ethereumMainnet}` as any),
-      ).to.be.true
-      // Alchemy should close successfully.
-      expect(fakeAlchemyWs.close.calledOnce).to.be.true
-      expect(
-        loggerInfoStub.calledWithMatch(
-          `Alchemy WebSocket connection closed for ${NetworksEnum.ethereumMainnet}` as any,
-        ),
-      ).to.be.true
+      expect(ProviderModule.providerProxies[NetworksEnum.ethereumMainnet]).to.be.undefined
     })
   })
 })
