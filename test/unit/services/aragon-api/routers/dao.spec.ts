@@ -19,7 +19,7 @@ describe('Router: Dao', () => {
   describe('getWithPagination', async () => {
     it('Should get dao with pagination - all params', async () => {
       const filterParams = {
-        network: NetworksEnum.ethereumMainnet,
+        networks: [NetworksEnum.ethereumMainnet, NetworksEnum.ethereumSepolia],
         address: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
         pluginAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
       }
@@ -54,7 +54,7 @@ describe('Router: Dao', () => {
 
     it('Should get dao with pagination - missing pagination params', async () => {
       const filterParams = {
-        network: NetworksEnum.ethereumMainnet,
+        networks: NetworksEnum.ethereumMainnet,
       }
       const paginationParams = {
         sort: 'createdAt',
@@ -82,7 +82,13 @@ describe('Router: Dao', () => {
         pageSize: 10,
       }
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
-      expect(stubCtrl.args[0][1]).to.deep.eq({ ...filterParams, ...{ address: undefined, pluginAddress: undefined } })
+      expect(stubCtrl.args[0][1]).to.deep.eq({
+        ...{ networks: [filterParams.networks] },
+        ...{
+          address: undefined,
+          pluginAddress: undefined,
+        },
+      })
     })
   })
 
