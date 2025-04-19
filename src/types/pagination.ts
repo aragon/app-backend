@@ -59,7 +59,7 @@ export interface IAssetExtraParams {
 
 export interface IDaoExtraParams {
   address?: HexAddress | undefined
-  network?: NetworksEnum | undefined
+  networks?: [NetworksEnum] | [] | undefined
   pluginAddress?: HexAddress | undefined
   memberAddress?: HexAddress | undefined
   excludedDao?:
