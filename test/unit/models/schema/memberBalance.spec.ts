@@ -272,6 +272,7 @@ describe('Model: MemberBalance', () => {
 
       const extraParams = {
         tokenAddress: rawMemberBalance.tokenAddress,
+        network: rawMemberBalance.network,
       }
 
       const response = await Models.MemberBalance.findAndPaginate({
@@ -330,6 +331,7 @@ describe('Model: MemberBalance', () => {
 
       const extraParams = {
         tokenAddress: rawMemberBalance.tokenAddress,
+        network: rawMemberBalance.network,
       }
 
       const response = await Models.MemberBalance.findAndPaginate({
@@ -363,6 +365,7 @@ describe('Model: MemberBalance', () => {
 
       const extraParams = {
         tokenAddress: rawMemberBalance.tokenAddress,
+        network: rawMemberBalance.network,
       }
 
       const paginateEmptyResponseSpy = sandbox.spy(ModelUtils, 'paginateEmptyResponse')
@@ -432,6 +435,7 @@ describe('Model: MemberBalance', () => {
 
       const extraParams = {
         tokenAddress: rawMemberBalance.tokenAddress,
+        network: rawMemberBalance.network,
       }
 
       const ascResponse = await Models.MemberBalance.findAndPaginate({

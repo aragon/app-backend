@@ -16,6 +16,7 @@ import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import { Stages } from '@models/schema/setting'
+import { Models } from '@dbModels'
 
 const customName = ICollectionNames.Proposal
 
@@ -275,6 +276,9 @@ export default class Proposal extends Model {
   @prop({ type: () => Schema.Types.Mixed, _id: false, default: [] })
   public actions!: any[]
 
+  @prop({ type: () => Boolean, default: false })
+  public decoding!: boolean
+
   @prop({ type: () => Media, _id: false })
   public media!: Media
 
@@ -352,6 +356,23 @@ export default class Proposal extends Model {
     tOpts?: SaveOptions,
   ) {
     return await this.findOne({ proposalIndex, pluginAddress, network }, null, tOpts)
+  }
+
+  static async findLastSavedProposal(
+    pluginAddress: HexAddress,
+    network: NetworksEnum,
+    blockNumber?: number,
+    tOpts?: SaveOptions,
+  ) {
+    return Models.Proposal.findOne({
+      pluginAddress,
+      network,
+      blockNumber: { $lt: blockNumber },
+    })
+      .sort({ incrementalId: -1 })
+      .limit(1)
+      .lean()
+      .exec(tOpts)
   }
 
   static async findByProposalIncrementalId(
@@ -617,6 +638,7 @@ export default class Proposal extends Model {
           resources: 1,
           executed: 1,
           actions: 1,
+          decoding: 1,
           stageExecutions: 1,
           media: 1,
           settings: {
@@ -917,6 +939,7 @@ export default class Proposal extends Model {
           resources: 1,
           executed: 1,
           actions: 1,
+          decoding: 1,
           media: 1,
           stageExecutions: 1,
           settings: {

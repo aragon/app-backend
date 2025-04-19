@@ -1,5 +1,5 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { Model, type SaveOptions } from 'mongoose'
+import { Model, type SaveOptions, Schema } from 'mongoose'
 import * as _ from 'lodash'
 import { ICollectionNames, IEnumTaskStatus } from '@types'
 import { v4 as uuidv4 } from 'uuid'
@@ -9,6 +9,9 @@ const customName = ICollectionNames.TaskRun
 class Task {
   @prop({ type: () => String, required: true })
   public taskName!: string
+
+  @prop({ type: () => Schema.Types.Mixed, _id: false, default: null })
+  public params?: any
 
   @prop({ type: () => Date })
   public startAt!: Date

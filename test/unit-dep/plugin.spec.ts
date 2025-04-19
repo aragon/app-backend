@@ -144,7 +144,6 @@ describe('Integration: Plugin Setup SPP', () => {
       name: 'Wrapped Ether',
       symbol: 'WETH',
       priceUsd: '1000',
-      priceChangeOnDayUsd: '0',
       type: ITokenType.ERC20,
       logo: 'https://example.com/logo.png',
       lastUpdatedAt: new Date(),

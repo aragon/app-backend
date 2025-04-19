@@ -4,7 +4,6 @@ import {
   ICollectionNames,
   type IPaginatedResult,
   type IPaginationParams,
-  type IToken,
   type ITokenExtraParams,
   type ITokenIdParams,
   type ITokenResponse,
@@ -32,6 +31,7 @@ const customName = ICollectionNames.Token
   },
 })
 @index({ id: 1 }, { unique: true })
+@index({ name: -1 })
 @index({ address: 1, network: 1 })
 @index({ lastUpdatedAt: 1, network: 1, skipFetchRate: 1 })
 export default class Token extends Model {
@@ -63,7 +63,7 @@ export default class Token extends Model {
   public implementationAddress!: HexAddress
 
   @prop({ type: () => String, default: null })
-  public logo!: string
+  public logo!: string | null
 
   @prop({ type: () => Boolean, default: false })
   public skipFetchRate!: boolean
@@ -72,10 +72,10 @@ export default class Token extends Model {
   public isGovernance!: boolean
 
   @prop({ type: () => String, default: null })
-  public name!: string
+  public name!: string | null
 
   @prop({ type: () => String, default: null, uppercase: true })
-  public symbol!: string
+  public symbol!: string | null
 
   @prop({ type: () => Number, default: 18 })
   public decimals!: number
@@ -88,9 +88,6 @@ export default class Token extends Model {
 
   @prop({ type: () => String, default: '0' })
   public totalSupply!: string
-
-  @prop({ type: () => String, default: '0' })
-  public priceChangeOnDayUsd!: string
 
   @prop({ type: () => String, default: '0' })
   public priceUsd!: string
@@ -118,6 +115,9 @@ export default class Token extends Model {
 
   @prop({ type: () => Boolean, default: false })
   public hasTotalSupply!: boolean
+
+  @prop({ type: () => Boolean, default: false })
+  public refetch!: boolean
 
   static async create(rawData: Partial<Token>, tOpts?: SaveOptions) {
     if (!rawData.id) {
@@ -209,9 +209,14 @@ export default class Token extends Model {
     return this.model(customName).findById(this._id, tOpts)
   }
 
-  filterKeys() {
+  filterKeys(keys: string[] = []) {
     const obj = this.toObject()
     const filtered = _.omit(obj, '_id', '__v', 'createdAt', 'skipFetchRate', 'updatedAt')
-    return filtered as IToken
+    return keys.length ? _.pick(filtered, keys) : filtered
+  }
+
+  pickFields(fields: string[] = []) {
+    fields = fields.length === 0 ? ['address', 'name', 'symbol', 'decimals', 'logo', 'type', 'priceUsd'] : fields
+    return this.filterKeys(fields)
   }
 }

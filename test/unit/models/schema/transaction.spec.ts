@@ -46,7 +46,7 @@ describe('Model: Transaction', () => {
     expect(createdToken.daoAddress).to.eq(rawTransaction.daoAddress)
     expect(createdToken.proposalId).to.eq(rawTransaction.proposalId)
     expect(createdToken.token.address).to.eq(rawTransaction.token?.address)
-    expect(createdToken.token.symbol).to.eq(rawTransaction.token?.symbol.toUpperCase())
+    expect(createdToken.token.symbol).to.eq(rawTransaction.token?.symbol!.toUpperCase())
     expect(createdToken.token.name).to.eq(rawTransaction.token?.name)
     expect(createdToken.token.type).to.eq(rawTransaction.token?.type)
     expect(createdToken.token.logo).to.eq(rawTransaction.token?.logo)

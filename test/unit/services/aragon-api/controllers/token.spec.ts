@@ -26,7 +26,6 @@ describe('Controller: Token', () => {
       decimals: 18,
       holders: 10,
       totalSupply: '100',
-      priceChangeOnDayUsd: '1',
       priceUsd: '1',
       lastUpdatedAt: dayjs.utc().toDate() as any,
     }
@@ -139,7 +138,6 @@ describe('Controller: Token', () => {
         priceUsd: '4086.604',
         holders: 0,
         totalSupply: '0',
-        priceChangeOnDayUsd: '22.262699999999768',
         lastUpdatedAt: dayjs().toISOString(),
         filterKeys: function () {
           return this
@@ -166,7 +164,6 @@ describe('Controller: Token', () => {
       expect(token.priceUsd).to.eq(fakeRes.priceUsd)
       expect(token.holders).to.eq(fakeRes.holders)
       expect(token.totalSupply).to.eq(fakeRes.totalSupply)
-      expect(token.priceChangeOnDayUsd).to.eq(fakeRes.priceChangeOnDayUsd)
       expect(dayjs(token.lastUpdatedAt).format('YYYY-MM-DDTHH:mm:ss')).to.eq(
         dayjs(fakeRes.lastUpdatedAt).format('YYYY-MM-DDTHH:mm:ss'),
       )
@@ -187,7 +184,6 @@ describe('Controller: Token', () => {
         priceUsd: '4086.604',
         holders: 0,
         totalSupply: '0',
-        priceChangeOnDayUsd: '22.262699999999768',
         lastUpdatedAt: '2024-03-12T00:28:29.991Z',
       }
 
@@ -210,7 +206,6 @@ describe('Controller: Token', () => {
       expect(dbToken.priceUsd).to.eq(rawToken.priceUsd)
       expect(dbToken.holders).to.eq(rawToken.holders)
       expect(dbToken.totalSupply).to.eq(rawToken.totalSupply)
-      expect(dbToken.priceChangeOnDayUsd).to.eq(rawToken.priceChangeOnDayUsd)
       expect(dayjs(dbToken.lastUpdatedAt).format('YYYY-MM-DDTHH:mm:ss')).to.eq(
         dayjs(rawToken.lastUpdatedAt).format('YYYY-MM-DDTHH:mm:ss'),
       )

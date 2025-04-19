@@ -4,6 +4,7 @@ import logger from '@logger'
 import Web3Helper from '@helpers/web3'
 import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import utils from '@helpers/utils'
+import Web3Utils from '@helpers/web3Utils'
 
 const llo = logger.logMeta.bind(null, { service: 'service:ToolsManualSyncProposalType' })
 
@@ -23,11 +24,11 @@ export const ToolsManualSyncProposalType: IService = {
           return
         }
 
-        const sppSettings = Web3Helper.findLogsByName(txReceipt, 'StagesUpdated', StagedProposalProcessor.abi)
+        const sppSettings = Web3Utils.findLogsByName(txReceipt, 'StagesUpdated', StagedProposalProcessor.abi)
 
         if (sppSettings?.length > 0) {
           for (const sppSetting of sppSettings) {
-            const info = Web3Helper.parseInfoLog(sppSetting.txLog, 'StagesUpdated', network)
+            const info = Web3Utils.parseInfoLog(sppSetting.txLog, 'StagesUpdated', network)
             const parsedEvent = sppSetting.parsed!
             const relatedPlugin = await Models.Plugin.findByAddress(info.address, network)
 

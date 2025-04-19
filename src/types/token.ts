@@ -18,7 +18,6 @@ export interface ITokenInfo {
 export interface ITokenRate {
   priceUsd: string
   address: HexAddress
-  priceChangeOnDayUsd: string
   type: ITokenType
   logo: string
   decimals: number
@@ -26,6 +25,19 @@ export interface ITokenRate {
   name: string
   lastUpdatedAt: Date
   skipFetchRate?: boolean
+}
+
+export interface ITokenDetails {
+  address: HexAddress
+  name: string
+  symbol: string
+  decimals: number
+  logo?: string | undefined
+  priceUsd?: string
+  type?: ITokenType
+  totalSupply?: string
+  totalHolders?: number
+  lastUpdatedAt?: any
 }
 
 export interface IToken {
@@ -38,7 +50,6 @@ export interface IToken {
   decimals: number
   holders: number
   totalSupply: string
-  priceChangeOnDayUsd: string
   priceUsd: string
   lastUpdatedAt: string
   createdAt: string
@@ -80,8 +91,7 @@ export interface ITokenMetadata {
 
 export interface ITokenUpdate {
   priceUsd: string
-  priceChangeOnDayUsd: string
-  holders: number
+  totalHolders: number
   totalSupply: string
 }
 

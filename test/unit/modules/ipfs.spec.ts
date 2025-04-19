@@ -6,6 +6,7 @@ import axios from 'axios'
 import logger from '@logger'
 import PinataHelper from '@helpers/pinata'
 import config from '@config'
+import Web3Utils from '@helpers/web3Utils'
 
 describe('Modules: IPFS', () => {
   let sandbox: SinonSandbox
@@ -64,29 +65,6 @@ describe('Modules: IPFS', () => {
     expect(IPFSModule.isValidIpfsUrl(null as any)).to.be.false
   })
 
-  it('_parseMetadata', () => {
-    const metadata = {}
-    const resp = IPFSModule._parseDaoMetadata(metadata)
-
-    expect(resp.name).to.eq(null)
-    expect(resp.description).to.eq(null)
-    expect(resp.avatar).to.eq(null)
-    expect(resp.links?.length).to.eq(0)
-
-    const metadata2 = {
-      name: 'test',
-      description: 'test',
-      avatar: 'test',
-      links: ['test'],
-    }
-    const resp2 = IPFSModule._parseDaoMetadata(metadata2 as any)
-
-    expect(resp2.name).to.eq('test')
-    expect(resp2.description).to.eq('test')
-    expect(resp2.avatar).to.eq('test')
-    expect(resp2.links![0]).to.eq('test')
-  })
-
   describe('_fetchMetadata', function () {
     it('should _fetchMetadata', async () => {
       const stubReq = sandbox.stub(global, 'fetch').resolves({
@@ -94,7 +72,7 @@ describe('Modules: IPFS', () => {
         json: async () => 'ok',
       } as any)
 
-      const stubParseMetadata = sandbox.stub(IPFSModule, '_parseDaoMetadata').returns(true as any)
+      const stubParseMetadata = sandbox.stub(Web3Utils, 'parseDaoMetadata').returns(true as any)
       const cid = 'bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme'
 
       const metadata = await IPFSModule._fetchMetadata(cid)
