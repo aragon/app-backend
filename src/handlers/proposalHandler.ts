@@ -561,6 +561,51 @@ export const ProposalHandler = {
     }
   },
 
+  proposalResultReport: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    try {
+      const proposalIndex = parsedEvent.args.proposalId
+      const stage = parsedEvent.args.stageId
+      const pluginAddress = info.address
+      const subPluginAddress = parsedEvent.args.body
+      const network = info.network
+
+      const proposal = await Models.Proposal.findByProposalIndex(parsedEvent.args.proposalId, pluginAddress, network)
+
+      if (!proposal) {
+        logger.warn('Proposal not found', llo(info))
+        return
+      }
+
+      const sppPlugin = await Models.Plugin.findByAddress(pluginAddress, network)
+      assert(sppPlugin?.interfaceType === IPluginInterfaceType.spp, 'Plugin is not SPP')
+
+      const resultType = await ProposalHelper.getBodyResult(
+        proposalIndex,
+        stage,
+        pluginAddress,
+        subPluginAddress,
+        network,
+      )
+
+      if (resultType == null) return
+
+      await DbTx.executeTxFn(async ({ session }) => {
+        await Models.Proposal.updateOne(
+          { _id: proposal._id },
+          {
+            $push: { externalBodyResults: { pluginAddress: subPluginAddress, resultType } },
+          },
+          { session },
+        )
+        await session.commitTransaction()
+        await session.endSession()
+      })
+      logger.verbose('Updated proposal - result report', llo({ logDb: proposal.id, info }))
+    } catch (error) {
+      logger.error('Error reportProposalResult', llo({ ...info, error, parsedEvent }))
+    }
+  },
+
   proposalAdvanced: async (parsedEvent: LogDescription, info: ILogInfo): Promise<void> => {
     try {
       const proposal = await Models.Proposal.findByProposalIndex(
