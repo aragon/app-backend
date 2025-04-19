@@ -4,11 +4,11 @@ import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
 import { NetworksEnum } from '@types'
 import Utils from '@helpers/utils'
 import Logger from '@logger'
-import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
 import config from '@config'
 import { UnitTestUtils } from '@test/lib/utils'
 import ProviderModule from '@modules/provider'
+import Web3Utils from '@helpers/web3Utils'
 
 describe('Modules:BlockchainTransferCrawler', () => {
   let sandbox: sinon.SinonSandbox
@@ -221,7 +221,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
         getBlockNumber: getBlockNumberStub,
         send: sandbox.stub().resolves({ transfers: [] }),
       }
-      const convertToHexNumberStub = sandbox.spy(Web3Helper, 'convertToHexNumber')
+      const convertToHexNumberStub = sandbox.spy(Web3Utils, 'convertToHexNumber')
       sandbox.stub(ProviderModule, 'getProvider').callsFake(_network => providerStub as any)
 
       const crawler = new BlockchainTransferCrawler({
@@ -246,7 +246,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
         getBlockNumber: getBlockNumberStub,
         send: sandbox.stub().resolves({ transfers: [] }),
       }
-      const convertToHexNumberStub = sandbox.spy(Web3Helper, 'convertToHexNumber')
+      const convertToHexNumberStub = sandbox.spy(Web3Utils, 'convertToHexNumber')
       sandbox.stub(ProviderModule, 'getProvider').callsFake(_network => providerStub as any)
 
       const crawler = new BlockchainTransferCrawler({

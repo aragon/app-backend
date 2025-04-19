@@ -2,7 +2,6 @@ import logger from '@logger'
 import { type ILogInfo, type IMetadata, IMetadataType, IPluginInterfaceType, IPluginStatus } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
-import Web3Helper from '@helpers/web3'
 import IPFSModule from '@modules/ipfs'
 import type LogMetadata from '@models/schema/logMetadata'
 import DbOperations from '@models/utils/dbOperations'
@@ -11,8 +10,9 @@ import type Plugin from '@models/schema/plugin'
 import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
 import { PluginSlug } from '@helpers/pluginSlug'
 import Utils from '@helpers/utils'
+import Web3Utils from '@helpers/web3Utils'
 
-const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:MetadataHandler' })
+const llo = logger.logMeta.bind(null, { service: 'handlers:MetadataHandler' })
 
 export const MetadataHandler = {
   metadataSet: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -32,7 +32,7 @@ export const MetadataHandler = {
     if (existingDaoMetadata) return
 
     try {
-      const metadataUri = Web3Helper.extractMetadataUri(parsedEvent.args.metadata)
+      const metadataUri = Web3Utils.extractMetadataUri(parsedEvent.args.metadata)
       const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, { retries: 4 })
 
       const logMetadata = {

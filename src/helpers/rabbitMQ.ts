@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { Mutex } from 'async-mutex'
 import config from '@config'
 
-const llo = logger.logMeta.bind(null, { service: 'RabbitMQHelper' })
+const llo = logger.logMeta.bind(null, { service: 'helpers:RabbitMQHelper' })
 
 export interface ISendOptions {
   waitResponse?: boolean

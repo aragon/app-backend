@@ -77,7 +77,6 @@ export interface IAggTokenProjectFields {
   underlying?: 1
   holders?: 1
   totalSupply?: 1
-  priceChangeOnDayUsd?: 1
   priceUsd?: 1
   lastUpdatedAt?: 1
   mintableByDao?: 1

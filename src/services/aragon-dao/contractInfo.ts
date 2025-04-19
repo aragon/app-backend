@@ -1,7 +1,7 @@
 import { type IContractAbi, type NetworksEnum } from '@types'
 import ProxyContract from '@helpers/proxyContract'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
-import DecodeActions from '@helpers/decodeAction'
+import ProxyWeb3Provider from '@modules/proxyProvider'
 
 export const ContractInfo = {
   getContractInfo: async (network: NetworksEnum, address: string): Promise<IContractAbi | null> => {
@@ -17,7 +17,7 @@ export const ContractInfo = {
 
     const functions = [...(mainData?.functions || []), ...(implementationData?.functions || [])]
 
-    const name = implementationData?.name || mainData?.name || ''
+    const name = implementationData?.name || mainData?.name || null
 
     return {
       implementationAddress: isProxy ? implementationAddress : null,
@@ -33,9 +33,10 @@ export const ContractInfo = {
     network: NetworksEnum,
     contractAddress: string,
   ): Promise<{ name: string; functions: any[] } | null> => {
-    const decodeAction = new DecodeActions()
-
-    const contractDetails = await decodeAction._fetchContractSourceCode(contractAddress, network)
+    const contractDetails = await ProxyWeb3Provider.fetchContractSourceCode({
+      network,
+      address: contractAddress,
+    })
 
     if (!contractDetails?.length || !contractDetails[0].SourceCode) return null
 

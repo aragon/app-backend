@@ -8,6 +8,7 @@ const Utils = {
   noop: (): number => 0,
   wait: async (time: number) => await new Promise(resolve => setTimeout(resolve, time)),
   zeroAddress: '0x0000000000000000000000000000000000000000' as HexAddress,
+  emptyData: '0x0000000000000000000000000000000000000000000000000000000000000000' as HexAddress,
 
   aragonNetworkMap: {
     [NetworksEnum.ethereumMainnet]: 'ETHEREUM_MAINNET',
@@ -17,6 +18,7 @@ const Utils = {
     [NetworksEnum.arbitrumMainnet]: 'ARBITRUM_MAINNET',
     [NetworksEnum.zksyncSepolia]: 'ZKSYNC_SEPOLIA',
     [NetworksEnum.zksyncMainnet]: 'ZKSYNC_MAINNET',
+    [NetworksEnum.peaqMainnet]: 'PEAQ_MAINNET',
   },
 
   networkToAragon: (network: NetworksEnum) => Utils.aragonNetworkMap[network],
@@ -30,13 +32,6 @@ const Utils = {
 
   parseAvatar(avatar: any): string | null {
     return typeof avatar === 'string' ? avatar : null
-  },
-
-  getProtocolPrefixes(ssl: boolean): { wsPrefix: string; httpPrefix: string } {
-    return {
-      wsPrefix: ssl ? 'wss://' : 'ws://',
-      httpPrefix: ssl ? 'https://' : 'http://',
-    }
   },
 
   extractAdditionalParams: (

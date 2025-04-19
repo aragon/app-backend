@@ -5,7 +5,7 @@ import ProviderModule from '@modules/provider'
 import utils from '@helpers/utils'
 import logger from '@logger'
 
-const llo = logger.logMeta.bind(null, { service: 'helper:TokenDetector' })
+const llo = logger.logMeta.bind(null, { service: 'helpers:TokenDetector' })
 
 const TokenDetector = {
   HAS_NAME: ['name()'],

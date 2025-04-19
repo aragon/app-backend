@@ -20,6 +20,7 @@ import { PluginList } from '@test/mock/fakePlugins'
 import { Interface } from 'ethers'
 import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { MetadataHandler } from '@handlers/metadataHandler'
+import Web3Utils from '@helpers/web3Utils'
 
 describe('Indexer: PluginSetupProcessorHandler', () => {
   let sandbox: SinonSandbox
@@ -672,8 +673,8 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       } as any
 
       const metadataHandlerStub = sandbox.stub(MetadataHandler, 'metadataSet')
-      const web3HelperStub = sandbox.stub(Web3Helper, 'parseLog').returns(log as any)
-      const parseLogInfo = sandbox.stub(Web3Helper, 'parseInfoLog').returns({
+      const web3HelperStub = sandbox.stub(Web3Utils, 'parseLog').returns(log as any)
+      const parseLogInfo = sandbox.stub(Web3Utils, 'parseInfoLog').returns({
         ...txInfo,
         address: '0xmetadataPlugin',
       })
@@ -709,7 +710,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       const metadataHandlerStub = sandbox.stub(MetadataHandler, 'metadataSet')
       const stubLogger = sandbox.stub(logger, 'error')
-      const web3HelperStub = sandbox.stub(Web3Helper, 'parseLog').throws(new Error('Handler error'))
+      const web3HelperStub = sandbox.stub(Web3Utils, 'parseLog').throws(new Error('Handler error'))
 
       await PluginSetupProcessorHandler.updateMetadataOnPreInstall(logDb, txReceipt)
 

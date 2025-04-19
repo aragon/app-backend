@@ -243,7 +243,6 @@ export interface IAssetResponse {
     type: string
     logo: string
     decimals: number
-    priceChangeOnDayUsd: string
     priceUsd: string
   }
   amountUsd: string
@@ -269,7 +268,6 @@ export interface ITransactionResponse {
     type: string
     logo: string
     decimals: number
-    priceChangeOnDayUsd: string
     priceUsd: string
   }
 }
@@ -286,7 +284,6 @@ export interface ITokenResponse {
   decimals: number
   holders: number
   totalSupply: string
-  priceChangeOnDayUsd: string
   priceUsd: string
   lastUpdatedAt: string
 }

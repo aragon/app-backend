@@ -292,4 +292,26 @@ describe('Model: Proposal', () => {
       expect(proposal).to.be.not.null
     })
   })
+
+  describe('lastSavedProposal', () => {
+    it('Should find lastSavedProposal', async () => {
+      await Promise.all(ProposalList.map(proposalListItem => Models.Proposal.create(proposalListItem)))
+
+      await Models.Proposal.create({
+        ...ProposalList[0],
+        id: '0x00123123-0x00123123-123213',
+        proposalIndex: 123213,
+        blockNumber: ProposalList[0].blockNumber + 10,
+        transactionHash: '0x00',
+        incrementalId: 3,
+      })
+
+      const proposal = await Models.Proposal.findLastSavedProposal(
+        ProposalList[0].pluginAddress!,
+        ProposalList[0].network!,
+        ProposalList[0].blockNumber + 10,
+      )
+      expect(proposal).to.be.not.null
+    })
+  })
 })

@@ -11,6 +11,7 @@ import type Dao from '@models/schema/dao'
 import { expect } from 'chai'
 import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
+import Web3Utils from '@helpers/web3Utils'
 
 describe('Manual: DbTx', () => {
   let sandbox: SinonSandbox
@@ -101,12 +102,12 @@ describe('Manual: DbTx', () => {
     sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1)
     sandbox.stub(RateModule, 'fetchRate').resolves({ priceUsd: '20' } as any)
     sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({ logs: fakeLogs } as any)
-    sandbox.stub(Web3Helper, 'findLogsByName').returns([{ txLog: fakeLogs[0] }] as any)
+    sandbox.stub(Web3Utils, 'findLogsByName').returns([{ txLog: fakeLogs[0] }] as any)
 
     const [result1, result2, result3] = (await Promise.all([
-      DaoTransactions.saveTransaction(tx, expectedTransaction.type, daoRegistry as any),
-      DaoTransactions.saveTransaction(tx, expectedTransaction.type, daoRegistry as any),
-      DaoTransactions.saveTransaction(tx, expectedTransaction.type, daoRegistry as any),
+      DaoTransactions.saveTransaction(tx, expectedTransaction.type, daoRegistry.address!, daoRegistry.network!),
+      DaoTransactions.saveTransaction(tx, expectedTransaction.type, daoRegistry.address!, daoRegistry.network!),
+      DaoTransactions.saveTransaction(tx, expectedTransaction.type, daoRegistry.address!, daoRegistry.network!),
     ])) as any
 
     expect(result1).to.exist

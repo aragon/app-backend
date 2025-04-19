@@ -1,14 +1,15 @@
-import { type HexAddress, type IAlchemyTokenBalance, type NetworksEnum } from '@types'
+import { type HexAddress, type IWeb3TokenBalance, type NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Asset from '@models/schema/asset'
-import Web3Helper from '@helpers/web3'
 import utils from '@helpers/utils'
 import { ProxyToken } from '@modules/proxyToken'
-import type Dao from '@models/schema/dao'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import TokenUtils from '@helpers/tokenUtils'
+import Web3Utils from '@helpers/web3Utils'
+import type Dao from '@models/schema/dao'
+import ProxyWeb3Provider from '@modules/proxyProvider'
 
 const llo = logger.logMeta.bind(null, { service: 'service:dao:DaoAssets' })
 
@@ -54,7 +55,7 @@ export const DaoAssets = {
           network: document.network,
           daoAddress: document.address,
           tokenAddress: utils.zeroAddress, // native token
-          amountUsd: Web3Helper.convertBalanceToUsd(ethBalance, token?.priceUsd || '0', token?.decimals || 0),
+          amountUsd: Web3Utils.convertBalanceToUsd(ethBalance, token?.priceUsd || '0', token?.decimals || 0),
         }
 
         let logDb: any
@@ -75,14 +76,14 @@ export const DaoAssets = {
     }
   },
 
-  _handleErc20Token: async (document: Dao, tokenBalance: IAlchemyTokenBalance) => {
+  _handleErc20Token: async (document: Dao, tokenBalance: IWeb3TokenBalance) => {
     try {
-      const isSyncableToken = await TokenUtils.isTokenSyncable(tokenBalance.contractAddress!, document.network)
+      const isSyncableToken = await TokenUtils.isTokenSyncable(tokenBalance.contractAddress, document.network)
       if (!isSyncableToken) {
         logger.warn('Skip Token Asset: Marked as spam', llo({ tokenAddress: tokenBalance.contractAddress }))
         return
       }
-      const tokenDb = await ProxyToken.saveAndGetToken(tokenBalance?.contractAddress!, document.network)
+      const tokenDb = await ProxyToken.saveAndGetToken(tokenBalance.contractAddress, document.network)
 
       if (!tokenDb) {
         logger.error('tokenBalances token not found', llo({ logId: document?.id }))
@@ -95,7 +96,7 @@ export const DaoAssets = {
           network: document.network,
           daoAddress: document.address,
           tokenAddress: tokenBalance.contractAddress,
-          amountUsd: Web3Helper.convertBalanceToUsd(
+          amountUsd: Web3Utils.convertBalanceToUsd(
             tokenBalance.tokenBalance,
             tokenDb?.priceUsd || '0',
             tokenDb?.decimals || 0,
@@ -130,18 +131,44 @@ export const DaoAssets = {
   assets: async (document: Dao) => {
     try {
       const [ethBalance, tokenBalances] = await Promise.all([
-        Web3Helper.getBalance(document.address, document.network),
-        Web3Helper.getTokenBalances(document.address, document.network),
+        ProxyWeb3Provider.getNativeBalance({ address: document.address, network: document.network }),
+        ProxyWeb3Provider.getTokenBalances({ address: document.address, network: document.network }),
       ])
 
       if (Number(ethBalance) > 0) {
         await DaoAssets._handleNativeToken(document, ethBalance)
       }
 
+      const activeTokenAddresses = tokenBalances.map(token => token.contractAddress)
+
+      await DbTx.executeTxFn(async ({ session }) => {
+        const existingAssets = await Models.Asset.find(
+          {
+            daoAddress: document.address,
+            network: document.network,
+            tokenAddress: { $ne: utils.zeroAddress },
+          },
+          {},
+          { session },
+        )
+
+        const staleAssets = existingAssets.filter((asset: any) => !activeTokenAddresses.includes(asset.tokenAddress))
+
+        await Promise.all(
+          staleAssets.map(async (stale: any) => {
+            await stale.deleteOne({ session })
+            logger.verbose('Deleted stale token asset', llo({ logId: stale.id }))
+          }),
+        )
+
+        await session.commitTransaction()
+        await session.endSession()
+      })
+
       await Promise.all(
         tokenBalances
           .filter(token => Number(token.tokenBalance) > 0)
-          .map(async (tokenBalance: IAlchemyTokenBalance) => {
+          .map(async (tokenBalance: IWeb3TokenBalance) => {
             await DaoAssets._handleErc20Token(document, tokenBalance)
           }),
       )
