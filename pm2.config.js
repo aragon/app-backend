@@ -99,21 +99,5 @@ module.exports = {
         ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-admin-api') }).parsed,
       },
     },
-    {
-      name: 'aragon-tools',
-      cwd: path.resolve(__dirname, ''),
-      script: './runners/aragon-tools.ts',
-      interpreter: 'ts-node',
-      interpreter_args: '-r tsconfig-paths/register',
-      autorestart: true,
-      watch: false,
-      exec_mode: 'fork',
-      min_uptime: '5s',
-      restart_delay: 2000,
-      env: {
-        INSTANCE_ID: 'aragon-tools',
-        ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-tools') }).parsed,
-      },
-    },
   ],
 }
