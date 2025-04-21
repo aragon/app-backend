@@ -1,3 +1,10 @@
+## [0.4.1](https://github.com/aragon/app-backend/compare/v0.4.0...v0.4.1) (2025-04-21)
+
+
+### Bug Fixes
+
+* **hotfix:** rabbitmq heartbeat, refactor parse transfer logs, pm2 restart on crash ([#516](https://github.com/aragon/app-backend/issues/516)) ([4ad6723](https://github.com/aragon/app-backend/commit/4ad672387303022e4ffcf875fd439063f095bbac))
+
 # [0.4.0](https://github.com/aragon/app-backend/compare/v0.3.0...v0.4.0) (2025-04-18)
 
 
