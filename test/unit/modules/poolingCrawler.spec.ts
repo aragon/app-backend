@@ -107,7 +107,7 @@ describe('Module: PoolingCrawler', () => {
     })
   })
 
-  describe.only('_getToAddress', () => {
+  describe('_getToAddress', () => {
     const govTokenInterface = new Interface(GovernanceERC20.abi)
     const transferTopic = govTokenInterface.getEvent('Transfer')?.topicHash!
 
