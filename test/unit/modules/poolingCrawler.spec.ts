@@ -105,6 +105,11 @@ describe('Module: PoolingCrawler', () => {
       const result = await PoolingCrawler.filterLogs([], NetworksEnum.ethereumMainnet)
       expect(result).to.be.an('array').that.is.empty
     })
+  })
+
+  describe.only('_getToAddress', () => {
+    const govTokenInterface = new Interface(GovernanceERC20.abi)
+    const transferTopic = govTokenInterface.getEvent('Transfer')?.topicHash!
 
     it('should properly decode transfer logs', () => {
       const mockLog = {
@@ -115,6 +120,26 @@ describe('Module: PoolingCrawler', () => {
       const result = PoolingCrawler._getReceiverAddress(mockLog as any)
       expect(result).to.be.a('string')
       expect(result).to.equal('0x74B7da0c6D1C063aB31c09A1D899AbbAFbA2612b')
+    })
+
+    it('should return null if log is has not proper topics', () => {
+      const mockLog = {
+        topics: ['0xInvalidTopic'],
+        data: '0xData',
+      }
+
+      const result = PoolingCrawler._getReceiverAddress(mockLog as any)
+      expect(result).to.be.null
+    })
+
+    it('should catch error when the eth gethAddress fails', async () => {
+      const mockLog = {
+        topics: [transferTopic, '0xTopic2', '0x000000000000000000000000InvalidAddress'],
+        data: '0xData',
+      }
+
+      const result = PoolingCrawler._getReceiverAddress(mockLog as any)
+      expect(result).to.be.null
     })
   })
 })
