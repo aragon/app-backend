@@ -9,6 +9,7 @@ const llo = logger.logMeta.bind(null, { service: 'rabbitmq' })
 const RabbitMQ = {
   connection: null as AmqpConnectionManager | null,
   channelsMap: new Map<EnumQueueName, ChannelWrapper>(),
+  noopInterval: null as NodeJS.Timeout | null,
 
   async connect(): Promise<boolean> {
     return await new Promise((resolve, _reject) => {
@@ -16,16 +17,24 @@ const RabbitMQ = {
       if (RabbitMQ.connection) resolve(true)
 
       RabbitMQ.connection = connect([config.RABBITMQ.URI], {
-        heartbeatIntervalInSeconds: 10,
-        reconnectTimeInSeconds: 5,
+        heartbeatIntervalInSeconds: config.RABBITMQ.HEARTBEAT_INTERVAL_SECONDS,
+        reconnectTimeInSeconds: config.RABBITMQ.RECONNECT_TIME_SECONDS,
+        connectionOptions: {
+          noDelay: true,
+          keepAlive: true,
+          keepAliveDelay: 60000,
+          timeout: 10000,
+        },
       })
 
       RabbitMQ.connection.on('connect', () => {
         logger.info('RabbitMQ connected', llo({ uri: config.RABBITMQ.URI }))
+        RabbitMQ.startNoopInterval()
         resolve(true)
       })
       RabbitMQ.connection.on('disconnect', err => {
         logger.error('RabbitMQ disconnected', llo({ reason: err }))
+        RabbitMQ.stopNoopInterval()
         resolve(false)
       })
 
@@ -64,6 +73,7 @@ const RabbitMQ = {
   async close(): Promise<void> {
     if (RabbitMQ.connection) {
       try {
+        RabbitMQ.stopNoopInterval()
         await RabbitMQ.connection.close()
         logger.verbose('RabbitMQ connection closed', llo({}))
       } catch (err) {
@@ -72,6 +82,43 @@ const RabbitMQ = {
         RabbitMQ.connection = null
       }
     }
+  },
+
+  stopNoopInterval(): void {
+    if (RabbitMQ.noopInterval) {
+      clearInterval(RabbitMQ.noopInterval)
+      RabbitMQ.noopInterval = null
+      logger.verbose('Stopped noop interval', llo({}))
+    }
+  },
+
+  /**
+   * Starts a noop interval to keep the RabbitMQ connection alive.
+   */
+
+  startNoopInterval(): void {
+    if (RabbitMQ.noopInterval) {
+      clearInterval(RabbitMQ.noopInterval)
+      RabbitMQ.noopInterval = null
+    }
+
+    const intervalMs = (config.RABBITMQ.HEARTBEAT_INTERVAL_SECONDS * 1000) / 2
+
+    logger.info('Starting noop interval', llo({ intervalMs }))
+
+    RabbitMQ.noopInterval = setInterval(async () => {
+      try {
+        const firstChannel = Array.from(RabbitMQ.channelsMap.values())[0]
+        if (firstChannel) {
+          await firstChannel.addSetup(async (channel: ConfirmChannel) => {
+            const firstQueue = Array.from(RabbitMQ.channelsMap.keys())[0]
+            await channel.checkQueue(firstQueue)
+          })
+        }
+      } catch (err) {
+        logger.error('Noop operation failed', llo({ error: err }))
+      }
+    }, intervalMs)
   },
 }
 
