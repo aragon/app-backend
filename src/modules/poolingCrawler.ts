@@ -1,7 +1,6 @@
 import { ethers, Interface, type Log } from 'ethers'
 import { DAO } from '@artifacts/dao'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
-import { ERC721 } from '@artifacts/ERC721'
 import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
@@ -15,7 +14,6 @@ const llo = logger.logMeta.bind(null, { service: 'module:PoolingFilter' })
 
 const daoInterface = new Interface(DAO.abi)
 const govTokenInterface = new Interface(GovernanceERC20.abi)
-const erc721Interface = new Interface(ERC721.abi)
 
 const nativeTokenDepositedTopic = daoInterface.getEvent('NativeTokenDeposited')?.topicHash!
 const transferTopic = govTokenInterface.getEvent('Transfer')?.topicHash!
