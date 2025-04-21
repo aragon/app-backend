@@ -82,7 +82,7 @@ describe('Module: PoolingCrawler', () => {
         { topics: ['0xDelegateVotesChangedTopi'], address: '0x4838b106fce9647bdf1e7877bf73ce8b0bad5f91' }, // Empty topics
       ]
 
-      sandbox.stub(PoolingCrawler, '_decodeTransferLogs').returns('0xDecodedAddress')
+      sandbox.stub(PoolingCrawler, '_getReceiverAddress').returns('0xDecodedAddress')
 
       sandbox.stub(Models.Dao, 'distinct').resolves(['0x4838b106fce9647bdf1e7877bf73ce8b0bad5f94'])
       sandbox.stub(Models.Plugin, 'distinct').resolves(['0x4838b106fce9647bdf1e7877bf73ce8b0bad5f95'])
@@ -108,37 +108,13 @@ describe('Module: PoolingCrawler', () => {
 
     it('should properly decode transfer logs', () => {
       const mockLog = {
-        topics: [transferTopic, '0xTopic2', '0xTopic3'],
+        topics: [transferTopic, '0xTopic2', '0x00000000000000000000000074b7da0c6d1c063ab31c09a1d899abbafba2612b'],
         data: '0xData',
       }
 
-      const interfaceStub = sandbox
-        .stub(Interface.prototype, 'parseLog')
-        .onFirstCall()
-        .throws()
-        .onSecondCall()
-        .returns({
-          args: { to: '0xRecipient' },
-        } as any)
-      const result = PoolingCrawler._decodeTransferLogs(mockLog as any)
-
-      expect(result).to.equal('0xRecipient')
-      expect(interfaceStub.calledTwice).to.be.true
+      const result = PoolingCrawler._getReceiverAddress(mockLog as any)
       expect(result).to.be.a('string')
-      expect(result).to.equal('0xRecipient')
-    })
-
-    it('should return null when both decoders fail', () => {
-      const mockLog = {
-        topics: [transferTopic, '0xTopic2', '0xTopic3'],
-        data: '0xData',
-      }
-
-      const interfaceStub = sandbox.stub(Interface.prototype, 'parseLog').onFirstCall().throws()
-      const result = PoolingCrawler._decodeTransferLogs(mockLog as any)
-
-      expect(result).to.be.null
-      expect(interfaceStub.calledTwice).to.be.true
+      expect(result).to.equal('0x74B7da0c6D1C063aB31c09A1D899AbbAFbA2612b')
     })
   })
 })
