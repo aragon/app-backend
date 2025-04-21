@@ -45,6 +45,11 @@ const PoolingCrawler = {
     }
   },
 
+  _getUniqueArrayItems: (array: any[]) => {
+    const uniqueArray = new Set(array)
+    return Array.from(uniqueArray)
+  },
+
   async filterLogs(logs: Log[], network: NetworksEnum) {
     try {
       const topicsToFilterOut = new Set([nativeTokenDepositedTopic, transferTopic, delegateVotesChangedTopic])
@@ -68,19 +73,33 @@ const PoolingCrawler = {
       }
 
       const transferLogCache = new Map<Log, string | null>()
+
       const getDecodedTransferAddresses = (logs: Log[]): string[] =>
         logs
-          .map(log =>
-            transferLogCache.has(log)
-              ? transferLogCache.get(log)
-              : transferLogCache.set(log, PoolingCrawler._getReceiverAddress(log)) && transferLogCache.get(log),
-          )
+          .map(log => {
+            if (transferLogCache.has(log)) return transferLogCache.get(log)
+            const address = PoolingCrawler._getReceiverAddress(log)
+            if (!address) return false
+            transferLogCache.set(log, address)
+            return transferLogCache.get(log)
+          })
           .filter(Boolean) as string[]
 
-      const tokenTransferReceiverAddresses = getDecodedTransferAddresses(transferLogs)
-      const nativeTransferReceiverAddresses = nativeTokenDepositedLogs.map(log => ethers.getAddress(log.address))
-      const delegateVotesChangedTokenAddresses = delegateVotesChangedLogs.map(log => ethers.getAddress(log.address))
-      const transferTokenAddresses = transferLogs.map(log => ethers.getAddress(log.address))
+      const tokenTransferReceiverAddresses = PoolingCrawler._getUniqueArrayItems(
+        getDecodedTransferAddresses(transferLogs),
+      )
+
+      const nativeTransferReceiverAddresses = PoolingCrawler._getUniqueArrayItems(
+        nativeTokenDepositedLogs.map(log => ethers.getAddress(log.address)),
+      )
+
+      const delegateVotesChangedTokenAddresses = PoolingCrawler._getUniqueArrayItems(
+        delegateVotesChangedLogs.map(log => ethers.getAddress(log.address)),
+      )
+
+      const transferTokenAddresses = PoolingCrawler._getUniqueArrayItems(
+        transferLogs.map(log => ethers.getAddress(log.address)),
+      )
 
       const [daoAddresses, tokenAddresses] = await Promise.all([
         Models.Dao.distinct('address', {
@@ -120,7 +139,9 @@ const PoolingCrawler = {
   },
 
   _getReceiverAddress: (log: Log) => {
-    return ethers.getAddress(`0x${log.topics[2].slice(-40)}`)
+    if (log.topics.length === 3) {
+      return ethers.getAddress(`0x${log.topics[2].slice(-40)}`)
+    }
   },
 }
 
