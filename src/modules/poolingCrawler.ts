@@ -139,9 +139,12 @@ const PoolingCrawler = {
   },
 
   _getReceiverAddress: (log: Log) => {
-    if (log.topics.length === 3) {
-      return ethers.getAddress(`0x${log.topics[2].slice(-40)}`)
-    }
+    try {
+      if (log.topics.length === 3) {
+        return ethers.getAddress(`0x${log.topics[2].slice(-40)}`)
+      }
+    } catch (error) {}
+    return null
   },
 }
 
