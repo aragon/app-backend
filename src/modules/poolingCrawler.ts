@@ -75,7 +75,7 @@ const PoolingCrawler = {
           .map(log =>
             transferLogCache.has(log)
               ? transferLogCache.get(log)
-              : transferLogCache.set(log, PoolingCrawler._decodeTransferLogs(log)) && transferLogCache.get(log),
+              : transferLogCache.set(log, PoolingCrawler._getReceiverAddress(log)) && transferLogCache.get(log),
           )
           .filter(Boolean) as string[]
 
@@ -121,18 +121,8 @@ const PoolingCrawler = {
     }
   },
 
-  _decodeTransferLogs: (log: Log) => {
-    let decoded: any = null
-    try {
-      decoded = govTokenInterface.parseLog(log)
-    } catch (e) {
-      try {
-        decoded = erc721Interface.parseLog(log)
-      } catch (e) {
-        // skip
-      }
-    }
-    return decoded ? decoded.args.to : null
+  _getReceiverAddress: (log: Log) => {
+    return ethers.getAddress(`0x${log.topics[2].slice(-40)}`)
   },
 }
 
