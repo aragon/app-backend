@@ -117,7 +117,7 @@ describe('Module: PoolingCrawler', () => {
       expect(result).to.equal('0x74B7da0c6D1C063aB31c09A1D899AbbAFbA2612b')
     })
 
-    it('should return null if log is has not proper topics', () => {
+    it('should return null if log does not have proper topics', () => {
       const mockLog = {
         topics: ['0xInvalidTopic'],
         data: '0xData',
