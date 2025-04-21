@@ -60,8 +60,9 @@ export interface IConfig {
     URI: string
     TIMEOUT: number
     DEFAULT_CONCURRENCY: number
-    RECONNECT_TIME: number
+    RECONNECT_TIME_SECONDS: number
     CLEAN_QUEUE: boolean
+    HEARTBEAT_INTERVAL_SECONDS: number
   }
   NODE_CONFIG: {
     MAX_RECONNECT_ATTEMPTS: number
