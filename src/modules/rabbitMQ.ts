@@ -16,8 +16,14 @@ const RabbitMQ = {
       if (RabbitMQ.connection) resolve(true)
 
       RabbitMQ.connection = connect([config.RABBITMQ.URI], {
-        heartbeatIntervalInSeconds: 10,
+        heartbeatIntervalInSeconds: 5,
         reconnectTimeInSeconds: 5,
+        connectionOptions: {
+          noDelay: true, // disable Nagle
+          keepAlive: true, // socket.setKeepAlive(true,…)
+          keepAliveDelay: 60000,
+          timeout: 10000,
+        },
       })
 
       RabbitMQ.connection.on('connect', () => {
