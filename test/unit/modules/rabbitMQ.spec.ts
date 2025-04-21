@@ -48,6 +48,12 @@ describe('Modules: RabbitMQ', () => {
         connectStub.calledOnceWith([config.RABBITMQ.URI], {
           heartbeatIntervalInSeconds: 10,
           reconnectTimeInSeconds: 5,
+          connectionOptions: {
+            noDelay: true, // disable Nagle
+            keepAlive: true, // socket.setKeepAlive(true,…)
+            keepAliveDelay: 60000,
+            timeout: 10000,
+          },
         }),
       ).to.be.true
     })
