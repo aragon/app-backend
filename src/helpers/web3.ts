@@ -38,7 +38,7 @@ const Web3Helper = {
   },
 
   async getBlockNumber(blockNumber: string | number | undefined | BlockTag, network: NetworksEnum): Promise<number> {
-    if (blockNumber === 'latest' || blockNumber === undefined) {
+    if (blockNumber === 'finalized' || blockNumber === 'latest' || blockNumber === undefined) {
       try {
         const provider = ProviderModule.getAnyRpcProvider(network)
         return await retryRequest(async () =>
