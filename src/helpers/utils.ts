@@ -23,15 +23,6 @@ const Utils = {
 
   networkToAragon: (network: NetworksEnum) => Utils.aragonNetworkMap[network],
 
-  getLastBlockStrategy(network: NetworksEnum): string {
-    switch (network) {
-      case NetworksEnum.peaqMainnet:
-        return 'finalized'
-      default:
-        return 'latest'
-    }
-  },
-
   validateString(input: string | null | undefined): string | null {
     if (typeof input === 'string' && input.trim() !== '') {
       return input
