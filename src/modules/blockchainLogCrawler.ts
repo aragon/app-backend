@@ -55,7 +55,7 @@ class BlockchainLogCrawler {
       filter: {
         address: opts.address,
         fromBlock: opts.fromBlock || 0,
-        toBlock: opts.toBlock || 'latest',
+        toBlock: opts.toBlock || utils.getLastBlockStrategy(opts.network),
         topics: this.buildTopics(opts.events),
       },
       nbSuccess: 0,
