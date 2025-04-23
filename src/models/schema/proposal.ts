@@ -27,6 +27,12 @@ export class ExternalBodyResult {
 
   @prop({ type: () => Number, enum: IReportResultType, required: true })
   public resultType!: IReportResultType
+
+  @prop({ type: () => String, required: true })
+  public transactionHash!: HexAddress
+
+  @prop({ type: () => Number })
+  public blockNumber!: number
 }
 
 export class SubProposal {

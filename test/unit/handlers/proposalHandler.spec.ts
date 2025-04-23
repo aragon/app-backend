@@ -2,7 +2,15 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import logger from '@logger'
-import { EnumQueueName, ILogInfo, IMetricAction, IPluginInterfaceType, IProposalMetadata, NetworksEnum } from '@types'
+import {
+  EnumQueueName,
+  ILogInfo,
+  IMetricAction,
+  IPluginInterfaceType,
+  IProposalMetadata,
+  IReportResultType,
+  NetworksEnum,
+} from '@types'
 import { beforeEach } from 'mocha'
 import { ProposalHandler } from '@handlers/proposalHandler'
 import Web3Helper from '@helpers/web3'
@@ -38,6 +46,135 @@ describe('Indexer: ProposalHandler', () => {
   afterEach(() => {
     sandbox.restore()
     config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME = intervalTime
+  })
+
+  describe('proposalResultReport', () => {
+    it('skip if proposal is not found', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0xTxHash',
+        address: '0xplugin-address',
+        blockNumber: 100,
+        network: NetworksEnum.ethereumSepolia,
+        eventName: 'ProposalExecuted',
+        transactionIndex: 1,
+        logIndex: 2,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: 1n,
+          stageId: 2n,
+          body: '0xSubPluginAddress',
+        },
+      }
+
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(null)
+      const warnLoggerStub = sandbox.stub(logger, 'warn')
+
+      await ProposalHandler.proposalResultReport(fakeEvent as any, info)
+
+      expect(warnLoggerStub.calledOnceWith('Proposal not found' as any)).to.be.true
+    })
+
+    it('getBodyResult returns null', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0xTxHash',
+        address: '0xplugin-address',
+        blockNumber: 100,
+        network: NetworksEnum.ethereumSepolia,
+        eventName: 'ProposalExecuted',
+        transactionIndex: 1,
+        logIndex: 2,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: 1n,
+          stageId: 2n,
+          body: '0xSubPluginAddress',
+        },
+      }
+
+      const proposal = {
+        _id: 'proposal-id',
+        pluginAddress: '0xplugin-address',
+        network: 'ethereumMainnet',
+      }
+
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
+      sandbox.stub(ProposalHelper, 'getBodyResult').resolves(null)
+      const updateOneStub = sandbox.stub(Models.Proposal, 'updateOne')
+
+      await ProposalHandler.proposalResultReport(fakeEvent as any, info)
+
+      expect(updateOneStub.called).to.be.false
+    })
+
+    it('should update proposal with ResultType', async () => {
+      const proposal = await Models.Proposal.create({
+        ...ProposalList[0],
+      })
+
+      const info: ILogInfo = {
+        transactionHash: '0xTxHash',
+        address: proposal.pluginAddress,
+        blockNumber: 100,
+        network: proposal.network,
+        eventName: 'ProposalResultReported',
+        transactionIndex: 1,
+        logIndex: 2,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: proposal.proposalIndex,
+          stageId: 2n,
+          body: '0xSubPluginAddress',
+        },
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ interfaceType: IPluginInterfaceType.spp })
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
+      sandbox.stub(ProposalHelper, 'getBodyResult').resolves(IReportResultType.Approval)
+      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
+
+      await ProposalHandler.proposalResultReport(fakeEvent as any, info)
+
+      const reloadProposal = await proposal.reload()
+      expect(reloadProposal.externalBodyResults[0].resultType).to.be.eq(IReportResultType.Approval)
+      expect(reloadProposal.externalBodyResults[0].pluginAddress).to.be.eq(fakeEvent.args.body)
+      expect(reloadProposal.externalBodyResults[0].transactionHash).to.be.eq(info.transactionHash)
+      expect(reloadProposal.externalBodyResults[0].blockNumber).to.be.eq(info.blockNumber)
+      expect(verboseLoggerStub.calledOnceWith('Updated proposal - result report' as any)).to.be.true
+    })
+
+    it('should log an error if an exception occurs', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0xTxHash',
+        address: '0xplugin-address',
+        blockNumber: 100,
+        network: NetworksEnum.ethereumSepolia,
+        eventName: 'ProposalExecuted',
+        transactionIndex: 1,
+        logIndex: 2,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: 1n,
+          stageId: 2n,
+          body: '0xSubPluginAddress',
+        },
+      }
+
+      const error = new Error('Database error')
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').rejects(error)
+      const errorLoggerStub = sandbox.stub(logger, 'error')
+
+      await ProposalHandler.proposalResultReport(fakeEvent as any, info)
+
+      expect(errorLoggerStub.calledOnceWith('Error reportProposalResult' as any)).to.be.true
+    })
   })
 
   describe('proposalCreated', () => {
