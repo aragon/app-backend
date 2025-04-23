@@ -21,6 +21,7 @@ export interface IRawNodeConfig {
   ALCHEMY_API_KEY: string
   ARAGON_RPC: string
   FROM_BLOCK: number
+  OFFSET_TO_BLOCK: number
   POOLING_INTERVAL: number
   CONFIRMATION_BLOCKS: number
   INTERVAL_BLOCK_TIME: number

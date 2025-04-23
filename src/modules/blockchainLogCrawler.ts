@@ -86,7 +86,9 @@ class BlockchainLogCrawler {
     }
 
     let currentBlock = await Web3Helper.getBlockNumber(this.crawlSetting.filter.fromBlock, this.crawlParams.network)
-    const latestBlock = await Web3Helper.getBlockNumber(this.crawlSetting.filter.toBlock, this.crawlParams.network)
+    let latestBlock = await Web3Helper.getBlockNumber(this.crawlSetting.filter.toBlock, this.crawlParams.network)
+    latestBlock = this.getOffsetToBlockNumber(latestBlock)
+
     const rawLogs: IFormattedLog[] = []
     let allLogs: Log[] = []
 
@@ -667,6 +669,12 @@ class BlockchainLogCrawler {
     ]
 
     return messages.some(msg => error.message?.includes(msg))
+  }
+
+  getOffsetToBlockNumber(blockNumber: number): number {
+    const network = ProviderModule.parseNetwork(this.crawlParams.network)
+    const offset = network ? config.NODES[network]?.OFFSET_TO_BLOCK : 0
+    return blockNumber - offset
   }
 
   parseCrawlerInfoLog() {
