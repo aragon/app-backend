@@ -45,7 +45,6 @@ import { ProxyMember } from '@modules/proxyMember'
 import Web3Utils from '@helpers/web3Utils'
 import { IBlockScoutAddressType } from '@src/types/blockScout'
 import ProxyWeb3Provider from '@modules/proxyProvider'
-
 const llo = logger.logMeta.bind(null, { service: 'helpers:DecodeActions' })
 
 interface Signature {
