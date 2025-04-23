@@ -8,7 +8,8 @@ import {
   type IFormattedLog,
   type IIndexerConfig,
   IProviderType,
-  type NetworksEnum,
+  ITokenVotingLogs,
+  NetworksEnum,
 } from '@types'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
@@ -85,7 +86,9 @@ class BlockchainLogCrawler {
     }
 
     let currentBlock = await Web3Helper.getBlockNumber(this.crawlSetting.filter.fromBlock, this.crawlParams.network)
-    const latestBlock = await Web3Helper.getBlockNumber(this.crawlSetting.filter.toBlock, this.crawlParams.network)
+    let latestBlock = await Web3Helper.getBlockNumber(this.crawlSetting.filter.toBlock, this.crawlParams.network)
+    latestBlock = this.getOffsetToBlockNumber(latestBlock)
+
     const rawLogs: IFormattedLog[] = []
     let allLogs: Log[] = []
 
@@ -410,6 +413,17 @@ class BlockchainLogCrawler {
           continue
         }
 
+        if (event.name === ITokenVotingLogs.ProposalCreated && this.crawlParams.network === NetworksEnum.peaqMainnet) {
+          logger.verbose(
+            'Proposal Event Peaq Debug',
+            llo({
+              event,
+              log,
+              info,
+            }),
+          )
+        }
+
         await handler(event, info, this.crawlParams.onlyHistorical)
 
         this.crawlSetting.nbSuccess++
@@ -429,6 +443,7 @@ class BlockchainLogCrawler {
             processedTime: Date.now() - startTIme,
             toBlock,
             latestBlock,
+            transactionHash: log.transactionHash,
           }),
         )
         if (this.crawlParams.logService && log.blockNumber) {
@@ -654,6 +669,13 @@ class BlockchainLogCrawler {
     ]
 
     return messages.some(msg => error.message?.includes(msg))
+  }
+
+  getOffsetToBlockNumber(blockNumber: number): number {
+    if (!this.crawlParams.filterLogs) return blockNumber
+    const networkName = utils.networkToAragon(this.crawlParams.network)
+    const offset = networkName ? config.NODES[networkName]?.OFFSET_TO_BLOCK : 0
+    return blockNumber - offset
   }
 
   parseCrawlerInfoLog() {
