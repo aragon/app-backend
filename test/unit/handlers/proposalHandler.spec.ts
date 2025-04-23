@@ -148,6 +148,50 @@ describe('Indexer: ProposalHandler', () => {
       expect(verboseLoggerStub.calledOnceWith('Updated proposal - result report' as any)).to.be.true
     })
 
+    it('should skip if duplicate data is already in externalBodyResults', async () => {
+      const proposal = await Models.Proposal.create({
+        ...ProposalList[0],
+        externalBodyResults: [
+          {
+            pluginAddress: '0xSubPluginAddress',
+            resultType: IReportResultType.Approval,
+            transactionHash: '0xTxHash',
+            blockNumber: 100,
+          },
+        ],
+      })
+
+      const info: ILogInfo = {
+        transactionHash: '0xTxHash',
+        address: proposal.pluginAddress,
+        blockNumber: 100,
+        network: proposal.network,
+        eventName: 'ProposalResultReported',
+        transactionIndex: 1,
+        logIndex: 2,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: proposal.proposalIndex,
+          stageId: 2n,
+          body: '0xSubPluginAddress',
+        },
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ interfaceType: IPluginInterfaceType.spp })
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
+      sandbox.stub(ProposalHelper, 'getBodyResult').resolves(IReportResultType.Approval)
+      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
+
+      await ProposalHandler.proposalResultReport(fakeEvent as any, info)
+
+      const reloadProposal = await proposal.reload()
+
+      expect(reloadProposal.externalBodyResults).to.have.lengthOf(1)
+      expect(verboseLoggerStub.calledOnceWith('Proposal result already exists, skipping update' as any)).to.be.true
+    })
+
     it('should log an error if an exception occurs', async () => {
       const info: ILogInfo = {
         transactionHash: '0xTxHash',
