@@ -62,3 +62,9 @@ export enum IMetadataType {
   plugin = 'plugin',
   dao = 'dao',
 }
+
+export enum IReportResultType {
+  None,
+  Approval,
+  Veto,
+}
