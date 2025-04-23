@@ -151,17 +151,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     ],
   },
   {
-    event: 'ProposalResultReported',
-    enableHistorical: false,
-    topic: new Interface(StagedProposalProcessor.abi).getEvent('ProposalResultReported')?.topicHash!,
-    config: [
-      {
-        abi: StagedProposalProcessor.abi,
-        handler: ProposalHandler.proposalResultReport,
-      },
-    ],
-  },
-  {
     event: 'MembersAdded',
     enableHistorical: false,
     topic: new Interface(Multisig.abi).getEvent('MembersAdded')?.topicHash!,
