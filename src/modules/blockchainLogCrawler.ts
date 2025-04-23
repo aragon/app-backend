@@ -672,6 +672,7 @@ class BlockchainLogCrawler {
   }
 
   getOffsetToBlockNumber(blockNumber: number): number {
+    if (!this.crawlParams.filterLogs) return blockNumber
     const networkName = utils.networkToAragon(this.crawlParams.network)
     const offset = networkName ? config.NODES[networkName]?.OFFSET_TO_BLOCK : 0
     return blockNumber - offset
