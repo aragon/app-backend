@@ -8,7 +8,6 @@ import {
   type IProposalExtraParams,
   type IProposalIdParams,
   type IProposalsResponse,
-  IReportResultType,
   NetworksEnum,
 } from '@types'
 import { Model, type SaveOptions, Schema } from 'mongoose'
