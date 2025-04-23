@@ -2,14 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import logger from '@logger'
-import {
-  EnumQueueName,
-  ILogInfo,
-  IMetricAction,
-  IPluginInterfaceType,
-  IProposalMetadata,
-  NetworksEnum,
-} from '@types'
+import { EnumQueueName, ILogInfo, IMetricAction, IPluginInterfaceType, IProposalMetadata, NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
 import { ProposalHandler } from '@handlers/proposalHandler'
 import Web3Helper from '@helpers/web3'
