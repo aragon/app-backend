@@ -589,6 +589,19 @@ export const ProposalHandler = {
 
       if (!resultType) return
 
+      const existingResult = proposal.externalBodyResults.find(
+        (result: any) =>
+          result.pluginAddress === subPluginAddress &&
+          result.resultType === resultType &&
+          result.transactionHash === info.transactionHash &&
+          result.blockNumber === info.blockNumber,
+      )
+
+      if (existingResult) {
+        logger.verbose('Proposal result already exists, skipping update', llo({ logDb: proposal.id, info }))
+        return
+      }
+
       await DbTx.executeTxFn(async ({ session }) => {
         await Models.Proposal.updateOne(
           { _id: proposal._id },
