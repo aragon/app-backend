@@ -3,7 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import DaoRouter from '@services/aragon-api/routers/dao'
 import DaoController from '@services/aragon-api/controllers/dao'
-import { NetworksEnum } from '@types'
+import { ErrorKeyEnum, NetworksEnum } from '@types'
 
 describe('Router: Dao', () => {
   let sandbox: SinonSandbox
@@ -87,6 +87,29 @@ describe('Router: Dao', () => {
       expect(stubCtrl.args[0][1]?.networks?.toString()).to.eq(filterParams.networks)
       expect(stubCtrl.args[0][1]?.address).to.eq(filterParams.address)
       expect(stubCtrl.args[0][1]?.pluginAddress).to.eq(filterParams.pluginAddress)
+    })
+
+    it('Should get dao with pagination - wrong string params', async () => {
+      const filterParams = {
+        networks: 'ethereum-mainnet,ethereum-test',
+        address: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
+        pluginAddress: '0xf2d594F3C93C19D7B1a6F15B5489FFcE4B01f7dA',
+      }
+      const paginationParams = {
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const stubCtrl = sandbox.stub(DaoController, 'getDaosWithPagination').returns(true as any)
+
+      const ctx: any = {
+        query: { ...filterParams, ...paginationParams },
+      }
+
+      await expect(DaoRouter.getWithPagination(ctx)).to.be.rejectedWith(Error, ErrorKeyEnum.badParams)
+      expect(stubCtrl.notCalled).to.be.true
     })
 
     it('Should get dao with pagination - missing pagination params', async () => {
