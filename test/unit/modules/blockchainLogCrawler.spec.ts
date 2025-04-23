@@ -1483,4 +1483,29 @@ describe('Module: blockchainLogCrawler', () => {
       expect(strategy).to.equal(ICrawStrategy.getLogsWithoutTopics)
     })
   })
+
+  describe('getOffsetToBlockNumber', () => {
+    it('should return the offset to block number if we meet the conditions', () => {
+      const crawler = new BlockchainLogCrawler({
+        ...crawlerConfig,
+        network: NetworksEnum.peaqMainnet,
+        filterLogs: sandbox.stub().returns(true),
+      })
+
+      const offset = crawler.getOffsetToBlockNumber(100)
+
+      expect(offset).to.equal(96)
+    })
+
+    it('should return block as it is if no filterLogs is passed', () => {
+      const crawler = new BlockchainLogCrawler({
+        ...crawlerConfig,
+        network: NetworksEnum.peaqMainnet,
+      })
+
+      const offset = crawler.getOffsetToBlockNumber(200)
+
+      expect(offset).to.equal(200)
+    })
+  })
 })

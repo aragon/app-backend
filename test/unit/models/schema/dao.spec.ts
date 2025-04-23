@@ -223,7 +223,7 @@ describe('Model: Dao', () => {
         metadata: { totalRecords, page, pageSize, totalPages },
       } = await Models.Dao.findWithPagination({
         extraParams: {
-          network: NetworksEnum.polygonMainnet,
+          networks: [NetworksEnum.polygonMainnet],
           pluginAddress: PluginList[0].address,
         },
         paginationParams: {},
@@ -347,7 +347,7 @@ describe('Model: Dao', () => {
 
     it('Should not add excluded keys to the filter', async () => {
       const extraParams = {
-        network: NetworksEnum.polygonMainnet,
+        networks: [NetworksEnum.polygonMainnet],
         pluginAddress: '0xPluginAddress',
         memberAddress: '0xMemberAddress',
         excludeDaoId: '0xExcludedDaoId',

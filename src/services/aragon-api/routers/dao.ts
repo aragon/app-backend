@@ -11,7 +11,7 @@ const DaoRouter = {
   getWithPagination: async function (ctx: RouterContext) {
     const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'metrics.tvlUSD' })
     const extraParams: IDaoExtraParams = {
-      network: ctx.query.network as NetworksEnum,
+      networks: ctx.query.networks as [NetworksEnum],
       address: ctx.query.address as HexAddress,
       pluginAddress: ctx.query.pluginAddress as HexAddress,
     }

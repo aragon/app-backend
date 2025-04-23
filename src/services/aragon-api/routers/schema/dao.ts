@@ -4,8 +4,24 @@ import { NetworksEnum } from '@types'
 
 const DaoSchema = {
   getExtraParams: Joi.object({
-    network: Joi.string()
-      .valid(...Object.values(NetworksEnum))
+    networks: Joi.alternatives()
+      .try(
+        // handle an actual array
+        Joi.array()
+          .items(Joi.string().valid(...Object.values(NetworksEnum)))
+          .single(),
+
+        // or a CSV string that we split
+        Joi.string().custom((value, helpers) => {
+          const parts = value.split(',').map((v: string) => v.trim())
+          // validate each part
+          const invalid = parts.find(p => !Object.values(NetworksEnum).includes(p))
+          if (invalid) {
+            return helpers.error('any.invalid', { invalid })
+          }
+          return parts
+        }),
+      )
       .optional(),
     pluginAddress: ValidationSchema.joiAddress.optional(),
     address: ValidationSchema.joiAddress.optional(),
