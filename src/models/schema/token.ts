@@ -4,7 +4,6 @@ import {
   ICollectionNames,
   type IPaginatedResult,
   type IPaginationParams,
-  type IToken,
   type ITokenExtraParams,
   type ITokenIdParams,
   type ITokenResponse,
@@ -210,9 +209,14 @@ export default class Token extends Model {
     return this.model(customName).findById(this._id, tOpts)
   }
 
-  filterKeys() {
+  filterKeys(keys: string[] = []) {
     const obj = this.toObject()
     const filtered = _.omit(obj, '_id', '__v', 'createdAt', 'skipFetchRate', 'updatedAt')
-    return filtered as IToken
+    return keys.length ? _.pick(filtered, keys) : filtered
+  }
+
+  pickFields(fields: string[] = []) {
+    fields = fields.length === 0 ? ['address', 'name', 'symbol', 'decimals', 'logo', 'type', 'priceUsd'] : fields
+    return this.filterKeys(fields)
   }
 }

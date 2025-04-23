@@ -23,7 +23,7 @@ describe('Model/Utils: models', () => {
       expect(result).to.deep.equal({
         limit: 10,
         skip: 0,
-        sort: { createdAt: -1 },
+        sort: { createdAt: -1, id: -1 },
       })
     })
 
@@ -33,7 +33,7 @@ describe('Model/Utils: models', () => {
       expect(result).to.deep.equal({
         limit: 20,
         skip: 20,
-        sort: { date: 1 },
+        sort: { date: 1, id: 1 },
       })
     })
   })

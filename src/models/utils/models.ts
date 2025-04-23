@@ -29,8 +29,9 @@ const ModelUtils = {
     paginationAndSorting.limit = Math.max(1, parseInt(String(pageSize)))
     paginationAndSorting.skip = (page - 1) * paginationAndSorting.limit
 
+    const orderDirection = order === 'desc' ? -1 : 1
     // Sorting
-    paginationAndSorting.sort = { [sort]: order === 'desc' ? -1 : 1 }
+    paginationAndSorting.sort = { [sort]: orderDirection, id: orderDirection }
 
     return paginationAndSorting
   },
@@ -81,13 +82,15 @@ const ModelUtils = {
       } catch (_) {}
     }
 
+    const pageSize = Number(ctx.query.pageSize ?? 10)
+
     return {
       search: searchAddress,
       startDateProp,
       endDateProp,
       startDate: ctx.query.startDate ? Number(ctx.query.startDate) : undefined,
       endDate: ctx.query.endDate ? Number(ctx.query.endDate) : undefined,
-      pageSize: Number(ctx.query.pageSize ?? 10),
+      pageSize: pageSize > 100 ? 100 : pageSize,
       page: Number(ctx.query.page ?? 1),
       sort: (ctx.query.sort as string) ?? defaultSort,
       order: (ctx.query.order as 'asc' | 'desc') ?? defaultOrder,

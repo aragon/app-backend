@@ -5,6 +5,7 @@ import Proposal from '@models/schema/proposal'
 import { Models } from '@dbModels'
 import { beforeEach } from 'mocha'
 import { ProposalList } from '@test/mock/fakeProposal'
+
 describe('Model: Proposal', () => {
   let sandbox: SinonSandbox
   let rawProposalMultisig: Partial<Proposal>
