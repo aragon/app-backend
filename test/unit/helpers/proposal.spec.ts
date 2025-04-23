@@ -2,11 +2,11 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import proxyquire from 'proxyquire'
-import { NetworksEnum, IPluginInterfaceType } from '@types'
+import { NetworksEnum, IPluginInterfaceType, IReportResultType } from '@types'
 import logger from '@logger'
 import ProposalHelper from '@helpers/proposal'
 
-describe('Helpers: ProposalHelper', () => {
+describe.only('Helpers: ProposalHelper', () => {
   let sandbox: SinonSandbox
   let providerStub: any
   let contractStub: any
@@ -22,6 +22,7 @@ describe('Helpers: ProposalHelper', () => {
     contractStub = {
       getProposal: sandbox.stub(),
       getBodyProposalId: sandbox.stub(),
+      getBodyResult: sandbox.stub(),
     }
 
     sandbox.stub(require('@modules/provider').default, 'getProvider').returns(providerStub)
@@ -78,6 +79,76 @@ describe('Helpers: ProposalHelper', () => {
 
       await ProposalHelper.getProposal(mockParams as any)
       expect(getSppSubPluginProposalsStub.calledOnce).to.be.true
+    })
+  })
+
+  describe('getBodyResult', () => {
+    it('should return Approval when getBodyResult resolves successfully', async () => {
+      const mockParams = {
+        proposalIndex: '1',
+        stage: 1,
+        sppPluginAddress: '0xpluginAddress',
+        subPluginAddress: '0xsubPluginAddress',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      contractStub.getBodyResult.resolves(IReportResultType.Approval)
+
+      const { default: ProposalHelper } = proxyquire.noCallThru()('@helpers/proposal', {
+        '@helpers/retryRequest': {
+          retryRequest: (fn: any) => fn(),
+        },
+        ethers: {
+          Contract: function () {
+            return contractStub
+          },
+        },
+      })
+
+      const result = await ProposalHelper.getBodyResult(
+        mockParams.proposalIndex,
+        mockParams.stage,
+        mockParams.sppPluginAddress,
+        mockParams.subPluginAddress,
+        mockParams.network,
+      )
+
+      expect(result).to.eq(IReportResultType.Approval)
+      expect(contractStub.getBodyResult.calledOnce).to.be.true
+    })
+
+    it('should return null and log an error when getBodyResult fails', async () => {
+      const mockParams = {
+        proposalIndex: '1',
+        stage: 1,
+        sppPluginAddress: '0xpluginAddress',
+        subPluginAddress: '0xsubPluginAddress',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      contractStub.getBodyResult.resolves(IReportResultType.Approval).rejects(new Error('Provider failure'))
+
+      const { default: ProposalHelper } = proxyquire.noCallThru()('@helpers/proposal', {
+        '@helpers/retryRequest': {
+          retryRequest: (fn: any) => fn(),
+        },
+        ethers: {
+          Contract: function () {
+            return contractStub
+          },
+        },
+      })
+
+      const result = await ProposalHelper.getBodyResult(
+        mockParams.proposalIndex,
+        mockParams.stage,
+        mockParams.sppPluginAddress,
+        mockParams.subPluginAddress,
+        mockParams.network,
+      )
+
+      expect(result).to.be.null
+      expect(loggerStub.calledOnceWith('Error getting body result SPP')).to.be.true
     })
   })
 
