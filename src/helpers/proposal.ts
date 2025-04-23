@@ -5,7 +5,6 @@ import {
   type IProposalOnChain,
   type IProposalSPPOnChain,
   type IProposalTokenVotingOnChain,
-  type IReportResultType,
   type NetworksEnum,
 } from '@types'
 import { Contract } from 'ethers'
@@ -37,30 +36,6 @@ const ProposalHelper = {
     } else if (plugin.interfaceType === IPluginInterfaceType.spp) {
       return await ProposalHelper.getProposalSpp({ proposalIndex, pluginAddress: plugin.address, network })
     } else {
-      return null
-    }
-  },
-
-  async getBodyResult(
-    proposalIndex: string,
-    stage: number,
-    sppPluginAddress: HexAddress,
-    subPluginAddress: HexAddress,
-    network: NetworksEnum,
-  ): Promise<IReportResultType | null> {
-    const provider = ProviderModule.getAnyRpcProvider(network)
-    const contract = new Contract(sppPluginAddress, StagedProposalProcessor.abi, provider)
-    try {
-      return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network).schedule(async () =>
-          contract.getBodyResult(proposalIndex, stage, subPluginAddress),
-        ),
-      )
-    } catch (error) {
-      logger.error(
-        'Error getting body result SPP',
-        llo({ proposalIndex, sppPluginAddress, subPluginAddress, network, error }),
-      )
       return null
     }
   },

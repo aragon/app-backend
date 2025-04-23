@@ -8,7 +8,6 @@ import {
   type IProposalExtraParams,
   type IProposalIdParams,
   type IProposalsResponse,
-  IReportResultType,
   NetworksEnum,
 } from '@types'
 import { Model, type SaveOptions, Schema } from 'mongoose'
@@ -20,20 +19,6 @@ import { Stages } from '@models/schema/setting'
 import { Models } from '@dbModels'
 
 const customName = ICollectionNames.Proposal
-
-export class ExternalBodyResult {
-  @prop({ type: () => String, required: true })
-  public pluginAddress!: HexAddress
-
-  @prop({ type: () => Number, enum: IReportResultType, required: true })
-  public resultType!: IReportResultType
-
-  @prop({ type: () => String, required: true })
-  public transactionHash!: HexAddress
-
-  @prop({ type: () => Number })
-  public blockNumber!: number
-}
 
 export class SubProposal {
   @prop({ type: () => String })
@@ -334,9 +319,6 @@ export default class Proposal extends Model {
 
   @prop({ type: () => [StageExecuted], _id: false })
   public stageExecutions!: StageExecuted[]
-
-  @prop({ type: () => [ExternalBodyResult], _id: false, default: [] })
-  public externalBodyResults!: ExternalBodyResult[]
 
   static async create(rawData: Partial<Proposal>, tOpts?: SaveOptions) {
     if (!rawData.id) {
@@ -658,7 +640,6 @@ export default class Proposal extends Model {
           actions: 1,
           decoding: 1,
           stageExecutions: 1,
-          externalBodyResults: 1,
           media: 1,
           settings: {
             $mergeObjects: [
@@ -961,7 +942,6 @@ export default class Proposal extends Model {
           decoding: 1,
           media: 1,
           stageExecutions: 1,
-          externalBodyResults: 1,
           settings: {
             $mergeObjects: [
               '$settings',
