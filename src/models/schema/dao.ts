@@ -180,6 +180,7 @@ export default class Dao extends Model {
       Object.entries(extraParams).filter(
         ([key, value]) =>
           value !== undefined &&
+          key !== 'networks' &&
           key !== 'pluginAddress' &&
           key !== 'memberAddress' &&
           key !== 'excludeDaoId' &&
@@ -209,6 +210,10 @@ export default class Dao extends Model {
     if (extraParams.memberAddress && extraQueryData.daoAddresses?.length === 0) {
       // no dao for member
       return ModelUtils.paginateEmptyResponse(request.limit)
+    }
+
+    if (extraParams.networks?.length! > 0) {
+      filter.network = { $in: extraParams.networks }
     }
 
     const aggQuery = [
