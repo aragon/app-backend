@@ -587,13 +587,20 @@ export const ProposalHandler = {
         network,
       )
 
-      if (resultType == null) return
+      if (!resultType) return
 
       await DbTx.executeTxFn(async ({ session }) => {
         await Models.Proposal.updateOne(
           { _id: proposal._id },
           {
-            $push: { externalBodyResults: { pluginAddress: subPluginAddress, resultType } },
+            $push: {
+              externalBodyResults: {
+                pluginAddress: subPluginAddress,
+                resultType,
+                transactionHash: info.transactionHash,
+                blockNumber: info.blockNumber,
+              },
+            },
           },
           { session },
         )
