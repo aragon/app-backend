@@ -28,6 +28,7 @@ const MainRouter = {
     const mainRouter = new Router()
 
     mainRouter.use(statusRouter.routes(), statusRouter.allowedMethods())
+    mainRouter.get('/health', ctx => (ctx.status = 200))
 
     mainRouter.use('/assets', assetRouter.routes(), assetRouter.allowedMethods())
     mainRouter.use('/daos', daoRouter.routes(), daoRouter.allowedMethods())

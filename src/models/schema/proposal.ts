@@ -276,6 +276,9 @@ export default class Proposal extends Model {
   @prop({ type: () => Schema.Types.Mixed, _id: false, default: [] })
   public actions!: any[]
 
+  @prop({ type: () => Boolean, default: false })
+  public decoding!: boolean
+
   @prop({ type: () => Media, _id: false })
   public media!: Media
 
@@ -635,6 +638,7 @@ export default class Proposal extends Model {
           resources: 1,
           executed: 1,
           actions: 1,
+          decoding: 1,
           stageExecutions: 1,
           media: 1,
           settings: {
@@ -935,6 +939,7 @@ export default class Proposal extends Model {
           resources: 1,
           executed: 1,
           actions: 1,
+          decoding: 1,
           media: 1,
           stageExecutions: 1,
           settings: {
