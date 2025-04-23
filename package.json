@@ -68,7 +68,7 @@
     "@typegoose/typegoose": "^12.1.0",
     "alchemy-sdk": "^3.4.2",
     "amqp-connection-manager": "^4.1.14",
-    "amqplib": "^0.10.4",
+    "amqplib": "^0.10.7",
     "async": "^3.2.5",
     "axios": "^1.8.3",
     "bignumber.js": "^9.1.2",
