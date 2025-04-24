@@ -30,7 +30,7 @@ export const LogTokenVoting = {
     })
 
     const crawlerToken = new BlockchainLogCrawler({
-      onlyHistorical: token?.blockNumber < plugin?.blockNumber ? true : isHistorical,
+      onlyHistorical: token?.blockNumber && token.blockNumber < plugin?.blockNumber ? true : isHistorical,
       network: plugin.network,
       events: [...configGovLogs],
       address: [plugin.tokenAddress],
