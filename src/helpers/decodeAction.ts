@@ -14,7 +14,6 @@ import {
 } from '@types'
 import { ProposalActionType } from '@src/types'
 import { Models } from '@dbModels'
-import _ from 'lodash'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
 import ProxyContract from '@helpers/proxyContract'
 import { ProxyToken } from '@modules/proxyToken'
@@ -46,7 +45,6 @@ import { ProxyMember } from '@modules/proxyMember'
 import Web3Utils from '@helpers/web3Utils'
 import { IBlockScoutAddressType } from '@src/types/blockScout'
 import ProxyWeb3Provider from '@modules/proxyProvider'
-
 const llo = logger.logMeta.bind(null, { service: 'helpers:DecodeActions' })
 
 interface Signature {
@@ -69,7 +67,7 @@ class DecodeActions {
   public async decodeTransfer(action: IRawAction, document: Partial<Proposal>): Promise<any> {
     if (Web3Utils.isNativeTokenAction(action)) {
       const nativeToken = await Models.Token.findByTokenAddressAndNetwork(ethers.ZeroAddress, document.network!)
-      const token = _.pick(nativeToken, ['address', 'name', 'symbol', 'decimals', 'logo', 'type', 'priceUsd'])
+      const token = nativeToken.pickFields()
 
       const member = await ProxyMember.createMember(action.to)
       const dao = await Models.Dao.findByAddress(document.daoAddress, document.network)
@@ -457,6 +455,7 @@ class DecodeActions {
     if (!pluginDetails) {
       return null
     }
+    const votingToken = await ProxyToken.saveAndGetToken(pluginDetails.tokenAddress, action.network!)
 
     const activeSettings = await Models.Setting.findLastSettingByBlockNumber(
       pluginDetails.address,
@@ -470,6 +469,7 @@ class DecodeActions {
           minParticipation: activeSettings?.minParticipation,
           minDuration: activeSettings?.minDuration,
           minProposerVotingPower: activeSettings?.minProposerVotingPower,
+          token: votingToken?.pickFields(),
         }
       : {}
 
@@ -568,7 +568,7 @@ class DecodeActions {
       const token = await ProxyToken.saveAndGetToken(action.to, document.network!)
 
       if (token) {
-        metadata.token = _.pick(token, ['address', 'name', 'symbol', 'decimals', 'logo', 'type', 'priceUsd'])
+        metadata.token = token.pickFields()
         metadata.from = from
         metadata.to = to
         metadata.value = value.toString()
