@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import logger from '@logger'
-import { NetworksEnum } from '@types'
+import { IClockMode, NetworksEnum } from '@types'
 import proxyquire from 'proxyquire'
 import Web3Helper from '@helpers/web3'
 
@@ -25,11 +25,15 @@ describe('Helpers: GovernanceErc20', () => {
 
       const getPastVotesStub = sandbox.stub().resolves(1)
       const getChainAdjustedBlockNumberStub = sandbox.stub(Web3Helper, 'getChainAdjustedBlockNumber').resolves(1)
+      const getClockModeStub = sandbox.stub().resolves(IClockMode.BlockNumber)
 
       const { default: MockedGoveranceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
         ethers: {
           Contract: function () {
-            return { getPastVotes: getPastVotesStub }
+            return {
+              getPastVotes: getPastVotesStub,
+              CLOCK_MODE: getClockModeStub,
+            }
           },
         },
         '@state/configState': {
@@ -42,6 +46,7 @@ describe('Helpers: GovernanceErc20', () => {
       expect(getChainAdjustedBlockNumberStub.calledWith(1, NetworksEnum.ethereumMainnet)).to.be.true
       expect(getPastVotesStub.calledWith('0x123', 1)).to.be.true
       expect(result).to.eq('1')
+      expect(getClockModeStub.calledOnce).to.be.true
     })
 
     it('should handle errors in getPastVotes', async () => {
@@ -61,9 +66,8 @@ describe('Helpers: GovernanceErc20', () => {
 
       const result = await MockedGoveranceErc20Helper.getPastVotes('0x123', '0x123', 1, 1, NetworksEnum.ethereumMainnet)
       expect(result).to.eq('0')
-      expect(loggerStub.calledTwice).to.be.true
-      expect(loggerStub.calledWith('Error getting past votes - blockNumber' as any)).to.be.true
-      expect(loggerStub.calledWith('Error getting past votes - blockTimestamp' as any)).to.be.true
+      expect(loggerStub.calledOnce).to.be.true
+      expect(loggerStub.calledWith('Error getting past votes' as any)).to.be.true
     })
 
     it('should return past votes as a string when call is successful', async () => {
@@ -107,9 +111,8 @@ describe('Helpers: GovernanceErc20', () => {
       const result = await MockedGoveranceErc20Helper.getPastVotes('0x123', '0x123', 1, 1, NetworksEnum.ethereumMainnet)
 
       expect(result).to.eq('0')
-      expect(loggerStub.calledTwice).to.be.true
-      expect(loggerStub.calledWithMatch('Error getting past votes - blockNumber' as any)).to.be.true
-      expect(loggerStub.calledWithMatch('Error getting past votes - blockTimestamp' as any)).to.be.true
+      expect(loggerStub.calledOnce).to.be.true
+      expect(loggerStub.calledWithMatch('Error getting past votes' as any)).to.be.true
     })
 
     it('Should getPastVotes using blockTimestamp', async () => {
@@ -117,14 +120,15 @@ describe('Helpers: GovernanceErc20', () => {
         getConfigItem: sandbox.stub().returns({}),
       }
 
+      const getClockModeStub = sandbox.stub().resolves(IClockMode.Timestamp)
+
       const getPastVotesStub = sandbox.stub()
-      getPastVotesStub.onFirstCall().resolves(0)
-      getPastVotesStub.onSecondCall().resolves(1)
+      getPastVotesStub.onFirstCall().resolves(1)
 
       const { default: MockedGoveranceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
         ethers: {
           Contract: function () {
-            return { getPastVotes: getPastVotesStub }
+            return { getPastVotes: getPastVotesStub, CLOCK_MODE: getClockModeStub }
           },
         },
         '@state/configState': {
@@ -140,6 +144,8 @@ describe('Helpers: GovernanceErc20', () => {
         NetworksEnum.ethereumMainnet,
       )
       expect(result).to.eq('1')
+      expect(getPastVotesStub.calledWith('0x123', 2)).to.be.true
+      expect(getClockModeStub.calledOnce).to.be.true
     })
   })
 
@@ -277,6 +283,70 @@ describe('Helpers: GovernanceErc20', () => {
       expect(result).to.be.null
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.calledWithMatch('Error getting delegate' as any)).to.be.true
+    })
+  })
+
+  describe('getClockMode', () => {
+    it('Should return BlockNumber when CLOCK_MODE returns blockNumber string', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const clockModeStub = sandbox.stub().resolves('blocknumber&123')
+
+      const { default: MockedGoveranceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
+        ethers: {
+          Contract: function () {
+            return { CLOCK_MODE: clockModeStub }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedGoveranceErc20Helper.getClockMode('0x123', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.eq(IClockMode.BlockNumber)
+    })
+
+    it('should return defaulty BlockNumber when CLOCK_MODE fails', async () => {
+      const clockModeStub = sandbox.stub().rejects(new Error('RPC Call Failed'))
+
+      const { default: MockedGoveranceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
+        ethers: {
+          Contract: function () {
+            return { CLOCK_MODE: clockModeStub }
+          },
+        },
+      })
+
+      const result = await MockedGoveranceErc20Helper.getClockMode('0x123', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.eq(IClockMode.BlockNumber)
+    })
+
+    it('should return Timestamp when CLOCK_MODE returns timestamp string', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const clockModeStub = sandbox.stub().resolves('timestamp&123')
+
+      const { default: MockedGoveranceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
+        ethers: {
+          Contract: function () {
+            return { CLOCK_MODE: clockModeStub }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedGoveranceErc20Helper.getClockMode('0x123', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.eq(IClockMode.Timestamp)
     })
   })
 })

@@ -6,7 +6,7 @@ import { NetworksEnum, IPluginInterfaceType, IReportResultType } from '@types'
 import logger from '@logger'
 import ProposalHelper from '@helpers/proposal'
 
-describe.only('Helpers: ProposalHelper', () => {
+describe('Helpers: ProposalHelper', () => {
   let sandbox: SinonSandbox
   let providerStub: any
   let contractStub: any
