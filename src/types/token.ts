@@ -100,3 +100,8 @@ export interface IMemberTokenInfo {
   votingPower: string
   currentDelegate: HexAddress | null
 }
+
+export enum IClockMode {
+  BlockNumber = 'blocknumber',
+  Timestamp = 'timestamp',
+}
