@@ -41,7 +41,13 @@ describe('Helpers: GovernanceErc20', () => {
         },
       })
 
-      const result = await MockedGovernanceErc20Helper.getPastVotes('0x123', '0x123', 1, 2, NetworksEnum.ethereumMainnet)
+      const result = await MockedGovernanceErc20Helper.getPastVotes(
+        '0x123',
+        '0x123',
+        1,
+        2,
+        NetworksEnum.ethereumMainnet,
+      )
 
       expect(getChainAdjustedBlockNumberStub.calledWith(1, NetworksEnum.ethereumMainnet)).to.be.true
       expect(getPastVotesStub.calledWith('0x123', 1)).to.be.true
@@ -64,7 +70,13 @@ describe('Helpers: GovernanceErc20', () => {
 
       const loggerStub = sandbox.stub(logger, 'warn')
 
-      const result = await MockedGovernanceErc20Helper.getPastVotes('0x123', '0x123', 1, 1, NetworksEnum.ethereumMainnet)
+      const result = await MockedGovernanceErc20Helper.getPastVotes(
+        '0x123',
+        '0x123',
+        1,
+        1,
+        NetworksEnum.ethereumMainnet,
+      )
       expect(result).to.eq('0')
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.calledWith('Error getting past votes' as any)).to.be.true
@@ -89,7 +101,13 @@ describe('Helpers: GovernanceErc20', () => {
         },
       })
 
-      const result = await MockedGovernanceErc20Helper.getPastVotes('0x123', '0x123', 1, 1, NetworksEnum.ethereumMainnet)
+      const result = await MockedGovernanceErc20Helper.getPastVotes(
+        '0x123',
+        '0x123',
+        1,
+        1,
+        NetworksEnum.ethereumMainnet,
+      )
 
       expect(result).to.eq('10')
       expect(pastVotesStub.calledOnce).to.be.true
@@ -108,7 +126,13 @@ describe('Helpers: GovernanceErc20', () => {
 
       const loggerStub = sandbox.stub(logger, 'warn')
 
-      const result = await MockedGovernanceErc20Helper.getPastVotes('0x123', '0x123', 1, 1, NetworksEnum.ethereumMainnet)
+      const result = await MockedGovernanceErc20Helper.getPastVotes(
+        '0x123',
+        '0x123',
+        1,
+        1,
+        NetworksEnum.ethereumMainnet,
+      )
 
       expect(result).to.eq('0')
       expect(loggerStub.calledOnce).to.be.true
