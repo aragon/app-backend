@@ -23,6 +23,10 @@ export interface IRawAction {
   network?: NetworksEnum
 }
 
+export interface IProposalInfo {
+  id: string
+}
+
 export enum KnownActionSignature {
   Transfer = 'transfer(address,uint256)',
   TransferFrom = 'transferFrom(address,address,uint256)',

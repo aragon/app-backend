@@ -8,6 +8,7 @@ import Web3Helper from '@helpers/web3'
 import { ProxyMember } from '@modules/proxyMember'
 import { Models } from '@dbModels'
 import BlockScoutHelper from '@helpers/blockScout'
+import { ProposalHandler } from '@handlers/proposalHandler'
 
 describe('AragonDao: actionDecoder', () => {
   let sandbox: SinonSandbox
@@ -59,6 +60,7 @@ describe('AragonDao: actionDecoder', () => {
         address: '0x000',
         name: 'ETH',
         symbol: 'ETH',
+        pickFields: sandbox.stub(),
       })
       sandbox.stub(ProxyMember, 'createMember').resolves({
         address: '0xto',
@@ -101,6 +103,32 @@ describe('AragonDao: actionDecoder', () => {
         ),
       ).to.be.true
       expect(response).to.be.null
+    })
+  })
+
+  describe('proposalActionDecoder', () => {
+    it('should return null if proposal not found', async () => {
+      const id = '123'
+      sandbox.stub(Models.Proposal, 'findByEntityId').resolves(null)
+
+      const response = await ActionDecoder.proposalActionDecoder(id)
+
+      expect(response).to.be.null
+    })
+
+    it('should call parseActions if proposal found', async () => {
+      const id = '123'
+      const proposal = {
+        id,
+        actions: [],
+        entityId: id,
+      }
+      sandbox.stub(Models.Proposal, 'findByEntityId').resolves(proposal)
+      const parseActionsStub = sandbox.stub(ProposalHandler, 'parseActions').resolves()
+
+      await ActionDecoder.proposalActionDecoder(id)
+
+      expect(parseActionsStub.calledOnceWith(proposal)).to.be.true
     })
   })
 })

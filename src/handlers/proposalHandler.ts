@@ -31,7 +31,7 @@ import Web3Utils from '@helpers/web3Utils'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:ProposalHandler' })
 export const ProposalHandler = {
-  findIncrementalId: async (proposal: Partial<Proposal>): Promise<number> => {
+  findIncrementalId: async (proposal: Partial<Proposal>): Promise<number | null> => {
     try {
       assert(!!proposal.pluginAddress, 'pluginAddress is required')
       assert(!!proposal.network, 'network is required')
@@ -79,7 +79,7 @@ export const ProposalHandler = {
 
       if (!logs || logs.length === 0) {
         logger.error('Error findIncrementalId - no logs found', llo({ proposal }))
-        return -1
+        return null
       }
 
       const sortedLogs = logs.sort((a, b) => {
@@ -90,12 +90,11 @@ export const ProposalHandler = {
       })
 
       const proposalIds = sortedLogs?.map((log: any) => log.event.args.proposalId.toString())
-
       const proposalIndex = proposalIds?.findIndex((id: string) => id === proposal.proposalIndex)
 
       if (proposalIndex === -1) {
         logger.error('Error findIncrementalId not found', llo({ proposal }))
-        return -1
+        return null
       }
 
       if (lastSavedProposal) {
@@ -108,7 +107,7 @@ export const ProposalHandler = {
 
         if (existingProposal) {
           logger.error('Error findIncrementalId - incrementalId already used', llo({ existingProposal }))
-          return -1
+          return null
         }
 
         return lastSavedProposal.incrementalId + proposalIndex
@@ -117,7 +116,7 @@ export const ProposalHandler = {
       return proposalIndex
     } catch (error) {
       logger.error('Error findIncrementalId', llo({ error, proposal }))
-      return -1
+      return null
     }
   },
 
@@ -199,6 +198,7 @@ export const ProposalHandler = {
             value: w.value,
             data: w.data,
           })),
+          decoding: true,
         }
 
         // in case startDate is 0 we need to fetch it from the contract
@@ -231,12 +231,19 @@ export const ProposalHandler = {
           }
         }
 
-        document.incrementalId = await ProposalHandler.findIncrementalId({
+        const incrementalId = await ProposalHandler.findIncrementalId({
           pluginAddress,
           network: info.network,
           proposalIndex,
           blockNumber: info.blockNumber,
         })
+
+        if (incrementalId === null) {
+          logger.error('Error findIncrementalId - incrementalId is null', llo({ ...info, parsedEvent }))
+          return { newProposal: undefined, relatedPlugin: undefined }
+        }
+
+        document.incrementalId = incrementalId
 
         const newProposal = await Models.Proposal.create(document, { session })
         await session.commitTransaction()
@@ -263,7 +270,10 @@ export const ProposalHandler = {
       })
 
       const allMessages: Promise<any>[] = [
-        ProposalHandler.parseActions(newProposal),
+        RabbitMQHelper.sendMessage(EnumQueueName.proposalActions, {
+          id: newProposal.id,
+          params: { id: newProposal.id, network: newProposal.network },
+        }),
         RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
           id: newProposal.daoAddress,
           params: { address: newProposal.daoAddress, network: newProposal.network },
@@ -784,7 +794,7 @@ export const ProposalHandler = {
 
       return await DbOperations.updateDocument(
         proposal,
-        { actions: rawActions },
+        { actions: rawActions, decoding: false },
         { logId: proposal.id },
         'Update proposalAction',
         llo,

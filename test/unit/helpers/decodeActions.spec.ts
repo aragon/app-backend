@@ -197,14 +197,19 @@ describe('Helpers: DecodeActions', () => {
         network: NetworksEnum.ethereumSepolia,
       }
 
-      // findByTokenAddressAndNetwork
-      const findTokenStub = sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves({
+      const token = {
         address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         name: 'MockToken',
         symbol: 'MOCK',
         decimals: 18,
         logo: 'https://mock.com/logo.png',
         type: 'ERC20',
+      }
+      const pickFieldsStub = sandbox.stub().returns(token)
+      // findByTokenAddressAndNetwork
+      const findTokenStub = sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves({
+        pickFields: pickFieldsStub,
+        ...token,
       } as any)
 
       const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves({
@@ -234,6 +239,8 @@ describe('Helpers: DecodeActions', () => {
       expect(createMemberStub.calledOnce).to.be.true
       expect(findByAddressDaoStub.calledOnce).to.be.true
       expect(findAddressDetailsStub.calledOnceWith(action.to, NetworksEnum.ethereumSepolia)).to.be.true
+      expect(pickFieldsStub.calledOnce).to.be.true
+      expect(result.token.address).to.be.eq(token.address)
     })
 
     it('Should decodeTransfer when the reciever is wallet', async () => {
@@ -252,6 +259,7 @@ describe('Helpers: DecodeActions', () => {
         network: NetworksEnum.ethereumSepolia,
       }
 
+      const pickFieldsStub = sandbox.stub()
       // findByTokenAddressAndNetwork
       const findTokenStub = sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves({
         address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
@@ -260,6 +268,7 @@ describe('Helpers: DecodeActions', () => {
         decimals: 18,
         logo: 'https://mock.com/logo.png',
         type: 'ERC20',
+        pickFields: pickFieldsStub,
       } as any)
 
       const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves({
@@ -289,6 +298,7 @@ describe('Helpers: DecodeActions', () => {
       expect(createMemberStub.calledOnce).to.be.true
       expect(findByAddressDaoStub.calledOnce).to.be.true
       expect(findAddressDetailsStub.calledOnceWith(action.to, NetworksEnum.ethereumSepolia)).to.be.true
+      expect(pickFieldsStub.calledOnce).to.be.true
     })
 
     it('Should not decodeData if not native', async () => {
@@ -866,6 +876,16 @@ describe('Helpers: DecodeActions', () => {
       })
       const getExistingSettingStub = sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(null)
 
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        address: '0xplugin1',
+        name: 'Plugin 1',
+        symbol: 'P1',
+        decimals: 18,
+        logo: 'https://plugin1.com/logo.png',
+        type: 'ERC20',
+        pickFields: sandbox.stub(),
+      } as any)
+
       const result = await decodeActions._parseTokenVotingSettingUpdateAction(baseAction, action, {
         blockNumber: 123,
       })
@@ -1008,6 +1028,7 @@ describe('Helpers: DecodeActions', () => {
         to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         value: '0x40c10f19',
       }
+      const pickFields = sandbox.stub()
       const saveAndGetStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         name: 'MockToken',
@@ -1015,10 +1036,12 @@ describe('Helpers: DecodeActions', () => {
         decimals: 18,
         logo: 'https://mock.com/logo.png',
         type: 'ERC20',
+        pickFields,
       } as any)
       const result = await decodeActions._parseTransferAction(baseAction, action, document as any)
       expect(result?.type).to.be.eq(ProposalActionType.Transfer)
       expect(saveAndGetStub.calledOnce).to.be.true
+      expect(pickFields.calledOnce).to.be.true
     })
 
     it('should return null when the signature is not correct for transfer', async () => {
@@ -1089,6 +1112,8 @@ describe('Helpers: DecodeActions', () => {
         value: '0x40c10f19',
       }
 
+      const pickKeys = sandbox.stub()
+
       const saveAndGetStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         name: 'MockToken',
@@ -1096,11 +1121,13 @@ describe('Helpers: DecodeActions', () => {
         decimals: 18,
         logo: 'https://mock.com/logo.png',
         type: 'ERC20',
+        pickFields: pickKeys,
       } as any)
 
       const result = await decodeActions._parseTransferAction(baseAction, action, document as any)
       expect(result?.type).to.be.eq(ProposalActionType.Transfer)
       expect(saveAndGetStub.calledOnce).to.be.true
+      expect(pickKeys.calledOnce).to.be.true
     })
 
     it('should parse the transfer when the action is safeTransfer From', async () => {
@@ -1147,6 +1174,7 @@ describe('Helpers: DecodeActions', () => {
         decimals: 18,
         logo: 'https://mock.com/logo.png',
         type: 'ERC20',
+        pickFields: sandbox.stub(),
       } as any)
 
       const result = await decodeActions._parseTransferAction(baseAction, action, document as any)
