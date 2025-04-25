@@ -564,7 +564,7 @@ export const ProposalHandler = {
   proposalResultReport: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
       const proposalIndex = parsedEvent.args.proposalId
-      const stage = parsedEvent.args.stageId
+      const stage = Number(parsedEvent.args.stageId)
       const pluginAddress = info.address
       const subPluginAddress = parsedEvent.args.body
       const network = info.network
@@ -609,9 +609,9 @@ export const ProposalHandler = {
           {
             $push: {
               results: {
-                // result
                 pluginAddress: subPluginAddress,
                 resultType,
+                stage,
                 transactionHash: info.transactionHash,
                 blockNumber: info.blockNumber,
               },
