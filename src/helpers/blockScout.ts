@@ -287,7 +287,7 @@ const BlockScoutHelper = {
             hasMoreData = false
           }
         } catch (error) {
-          logger.warn('Error fetching token holders', llo({ error, page, tokenAddress }))
+          logger.error('Error fetching token holders', llo({ error, page, tokenAddress }))
           hasMoreData = false
         }
       }
@@ -298,7 +298,7 @@ const BlockScoutHelper = {
         hasMore: page > options.maxPages && hasMoreData,
       }
     } catch (error) {
-      logger.warn('Error getAllTokenHolders', llo({ error, tokenAddress }))
+      logger.error('Error getAllTokenHolders', llo({ error, tokenAddress }))
       return { holders: [], total: 0, hasMore: false }
     }
   },
