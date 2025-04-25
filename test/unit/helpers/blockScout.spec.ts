@@ -517,7 +517,7 @@ describe('Helpers: BlockScout', () => {
     })
   })
 
-  describe.only('getAllTokenHolders', () => {
+  describe('getAllTokenHolders', () => {
     const tokenAddress = '0x1111111111166b7FE7bd91427724B487980aFc69'
     const network = NetworksEnum.baseMainnet
 
