@@ -46,71 +46,7 @@ describe('Integration: Proposal', () => {
       release: '1',
       build: '1',
       subdomain: 'spp',
-      permissions: [
-        {
-          operation: 0,
-          where: '0x86313457a83Ad93e01a620Cd91A28808b2A048fc',
-          who: '0xfd05BC8ec5774751F908A3b430F0c0D1382ad8b2',
-          condition: '0x0000000000000000000000000000000000000000',
-          permissionId: '0x6f36f8bf0398781285f5a40c489dbf3268ce3e205aba87f21e49e6805391b5a1',
-        },
-        {
-          operation: 0,
-          where: '0x86313457a83Ad93e01a620Cd91A28808b2A048fc',
-          who: '0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF',
-          condition: '0x0000000000000000000000000000000000000000',
-          permissionId: '0xf281525e53675515a6ba7cc7bea8a81e649b3608423ee2d73be1752cea887889',
-        },
-        {
-          operation: 0,
-          where: '0x86313457a83Ad93e01a620Cd91A28808b2A048fc',
-          who: '0xfd05BC8ec5774751F908A3b430F0c0D1382ad8b2',
-          condition: '0x0000000000000000000000000000000000000000',
-          permissionId: '0x06d294bc8cbad2e393408b20dd019a772661f60b8d633e56761157cb1ec85f8c',
-        },
-        {
-          operation: 0,
-          where: '0x86313457a83Ad93e01a620Cd91A28808b2A048fc',
-          who: '0xfd05BC8ec5774751F908A3b430F0c0D1382ad8b2',
-          condition: '0x0000000000000000000000000000000000000000',
-          permissionId: '0x568cc693d84eb1901f8bcecba154cbdef23ca3cf67efc0a0b698528a06c660f7',
-        },
-        {
-          operation: 0,
-          where: '0x86313457a83Ad93e01a620Cd91A28808b2A048fc',
-          who: '0xfd05BC8ec5774751F908A3b430F0c0D1382ad8b2',
-          condition: '0x0000000000000000000000000000000000000000',
-          permissionId: '0x4707e94b25cfce1a7c363508fbb838c35864388ad77284b248282b9746982b9b',
-        },
-        {
-          operation: 2,
-          where: '0x86313457a83Ad93e01a620Cd91A28808b2A048fc',
-          who: '0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF',
-          condition: '0xAA0ff5cD7A0238079F433492eb3773c3790e1360',
-          permissionId: '0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90',
-        },
-        {
-          operation: 0,
-          where: '0x86313457a83Ad93e01a620Cd91A28808b2A048fc',
-          who: '0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF',
-          condition: '0x0000000000000000000000000000000000000000',
-          permissionId: '0xb014ce248804cab6a144581acce1eeb70ce5d54f08433b989d73bb0ccee3d3f9',
-        },
-        {
-          operation: 0,
-          where: '0xfd05BC8ec5774751F908A3b430F0c0D1382ad8b2',
-          who: '0x86313457a83Ad93e01a620Cd91A28808b2A048fc',
-          condition: '0x0000000000000000000000000000000000000000',
-          permissionId: '0xbf04b4486c9663d805744005c3da000eda93de6e3308a4a7a812eb565327b78d',
-        },
-        {
-          operation: 0,
-          where: '0xAA0ff5cD7A0238079F433492eb3773c3790e1360',
-          who: '0xfd05BC8ec5774751F908A3b430F0c0D1382ad8b2',
-          condition: '0x0000000000000000000000000000000000000000',
-          permissionId: '0xd3d98e95f3486fc234d80c098cf0d2a0a3fb187833d7e9cc930f8c4f8335a0e7',
-        },
-      ],
+      permissions: [],
       uninstalled: {
         status: false,
         transactionHash: null,
@@ -258,5 +194,6 @@ describe('Integration: Proposal', () => {
     expect(updatedProposal.results[0].transactionHash).to.eq(txHash)
     expect(updatedProposal.results[0].blockNumber).to.eq(8186186)
     expect(updatedProposal.results[0].resultType).to.eq(2)
+    expect(updatedProposal.results[0].stage).to.eq(2)
   })
 })

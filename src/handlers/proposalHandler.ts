@@ -593,6 +593,7 @@ export const ProposalHandler = {
         (result: any) =>
           result.pluginAddress === subPluginAddress &&
           result.resultType === resultType &&
+          result.stage === stage &&
           result.transactionHash === info.transactionHash &&
           result.blockNumber === info.blockNumber,
       )
