@@ -28,6 +28,9 @@ export class ExternalBodyResult {
   @prop({ type: () => Number, enum: IReportResultType, required: true })
   public resultType!: IReportResultType
 
+  @prop({ type: () => Number, required: true })
+  public stage!: number
+
   @prop({ type: () => String, required: true })
   public transactionHash!: HexAddress
 

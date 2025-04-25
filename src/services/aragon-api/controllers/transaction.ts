@@ -1,5 +1,6 @@
 import { Models } from '@dbModels'
 import {
+  ErrorKeyEnum,
   IndexCheckTypeToModel,
   type IPaginatedResult,
   type IPaginationParams,
@@ -14,6 +15,7 @@ import type Transaction from '@models/schema/transaction'
 import PairDataModule from '@modules/pairData'
 import { assert } from '@errors'
 import logger from '@logger'
+import { type ExternalBodyResult } from '@models/schema/proposal'
 
 const llo = logger.logMeta.bind(null, { service: 'TransactionController' })
 
@@ -74,6 +76,13 @@ const TransactionController = {
         } else {
           response.slug = `${pluginSlug.slug}-${data.incrementalId}`
         }
+      } else if (data && action === ITransactionIndexCheckType.PROPOSAL_REPORT_RESULTS) {
+        const result: ExternalBodyResult = data.results.find(
+          (result: ExternalBodyResult) => result.transactionHash === txHash,
+        )
+        assert(!!result, ErrorKeyEnum.unknownError)
+        response.stage = result.stage
+        response.resultType = result.resultType
       }
       return response
     } catch (error) {
@@ -89,6 +98,8 @@ const TransactionController = {
         return { 'executed.transactionHash': txHash, network }
       case ITransactionIndexCheckType.PROPOSAL_ADVANCE_STAGE:
         return { 'stageExecutions.transactionHash': txHash, network }
+      case ITransactionIndexCheckType.PROPOSAL_REPORT_RESULTS:
+        return { 'results.transactionHash': txHash, network }
       default:
         return { transactionHash: txHash, network }
     }
