@@ -590,29 +590,29 @@ describe('Helpers: BlockScout', () => {
       }
 
       const axiosStub = sandbox.stub(axios, 'get').resolves(page1Response)
-      
+
       // Create a spy callback function
       const callbackSpy = sandbox.spy()
 
       const result = await BlockScoutHelper.getAllTokenHolders(
-        tokenAddress, 
-        network, 
+        tokenAddress,
+        network,
         { pageSize: 10, maxPages: 1, delayMs: 0 },
-        callbackSpy
+        callbackSpy,
       )
 
       expect(axiosStub.callCount).to.equal(1)
       expect(result.holders.length).to.equal(2)
-      
+
       // Verify callback was called for each holder
       expect(callbackSpy.callCount).to.equal(2)
       expect(callbackSpy.firstCall.args[0]).to.deep.equal({
         address: '0xaddress1',
-        value: '1000000000000000000'
+        value: '1000000000000000000',
       })
       expect(callbackSpy.secondCall.args[0]).to.deep.equal({
         address: '0xaddress2',
-        value: '2000000000000000000'
+        value: '2000000000000000000',
       })
     })
 
@@ -620,18 +620,17 @@ describe('Helpers: BlockScout', () => {
       const apiError = new Error('API failure')
       const axiosStub = sandbox.stub(axios, 'get').rejects(apiError)
       const logErrorStub = sandbox.stub(logger, 'error')
-      
+
       const result = await BlockScoutHelper.getAllTokenHolders(tokenAddress, network)
-      
+
       expect(axiosStub.callCount).to.equal(1)
       expect(result.holders.length).to.equal(0)
       expect(result.total).to.equal(0)
       expect(result.hasMore).to.be.false
-      
+
       // Verify that the error is logged with the correct message and details
       expect(logErrorStub.calledOnce).to.be.true
       expect(logErrorStub.firstCall.args[0]).to.equal('Error fetching token holders')
-      
     })
 
     it('should return empty results when BlockScout API is not configured', async () => {
