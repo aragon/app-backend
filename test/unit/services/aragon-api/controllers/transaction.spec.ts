@@ -77,163 +77,6 @@ describe('Controller: Transaction', () => {
       })
     })
 
-    it('should get transaction indexing status - proposal advance', async () => {
-      await Models.Proposal.create({
-        ...ProposalList[0],
-        stageExecutions: [
-          {
-            transactionHash: '0x123',
-          },
-        ],
-      })
-
-      const network = ProposalList[0].network
-      const spyReq = sandbox.spy(Models.Proposal, 'findOne')
-
-      const response = await TransactionController.getTransactionIndexingStatus(
-        '0x123',
-        ITransactionIndexCheckType.PROPOSAL_ADVANCE_STAGE,
-        network!,
-      )
-      expect(spyReq.calledOnce).to.be.true
-      expect(response).to.deep.eq({
-        isProcessed: true,
-      })
-    })
-
-    it('should get transaction indexing status - proposal executed', async () => {
-      await Models.Proposal.create({
-        ...ProposalList[0],
-        executed: {
-          transactionHash: '0x124',
-        },
-      })
-
-      const network = ProposalList[0].network
-      const spyReq = sandbox.spy(Models.Proposal, 'findOne')
-
-      const response = await TransactionController.getTransactionIndexingStatus(
-        '0x124',
-        ITransactionIndexCheckType.PROPOSAL_EXECUTE,
-        network!,
-      )
-      expect(spyReq.calledOnce).to.be.true
-      expect(response).to.deep.eq({
-        isProcessed: true,
-      })
-    })
-
-    it('should get transaction indexing status - proposal created and return slug', async () => {
-      await Models.Proposal.create({
-        ...ProposalList[0],
-        transactionHash: '0x125',
-      })
-
-      await Models.PluginSlug.create({
-        daoAddress: ProposalList[0].daoAddress,
-        pluginAddress: ProposalList[0].pluginAddress,
-        network: ProposalList[0].network,
-        slug: 'test-slug',
-      })
-
-      const network = ProposalList[0].network
-      const spyProposalReq = sandbox.spy(Models.Proposal, 'findOne')
-      const spyPluginSlugReq = sandbox.spy(Models.PluginSlug, 'findOne')
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves({})
-
-      const response = await TransactionController.getTransactionIndexingStatus(
-        '0x125',
-        ITransactionIndexCheckType.PROPOSAL_CREATE,
-        network!,
-      )
-
-      expect(spyProposalReq.calledOnce).to.be.true
-      expect(spyPluginSlugReq.calledOnce).to.be.true
-      expect(response).to.deep.eq({
-        isProcessed: true,
-        slug: 'test-slug-0',
-      })
-    })
-
-    it('should get transaction indexing status - proposal created and return slug when is sub-proposal', async () => {
-      await Models.Proposal.create({
-        daoAddress: ProposalList[0].daoAddress,
-        proposalIndex: '0',
-        incrementalId: 0,
-        transactionHash: '0x126',
-        pluginAddress: ProposalList[0].pluginAddress,
-        network: ProposalList[0].network,
-        endDate: 1,
-        blockNumber: 1,
-        startDate: 1,
-        creatorAddress: '0xcreator',
-      })
-
-      await Models.Proposal.create({
-        daoAddress: ProposalList[0].daoAddress,
-        proposalIndex: '7',
-        incrementalId: 7,
-        blockNumber: 1,
-        pluginAddress: '0xplugin2',
-        transactionHash: '0x126',
-        network: ProposalList[0].network,
-        endDate: 1,
-        startDate: 1,
-        creatorAddress: '0xcreator',
-      })
-
-      await Models.PluginSlug.create({
-        daoAddress: ProposalList[0].daoAddress,
-        pluginAddress: ProposalList[0].pluginAddress,
-        network: ProposalList[0].network,
-        slug: 'test-slug',
-      })
-
-      const network = ProposalList[0].network
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ parentPlugin: ProposalList[0].pluginAddress })
-
-      const spyPluginSlugReq = sandbox.spy(Models.PluginSlug, 'findOne')
-
-      const response = await TransactionController.getTransactionIndexingStatus(
-        '0x126',
-        ITransactionIndexCheckType.PROPOSAL_CREATE,
-        network!,
-      )
-
-      expect(spyPluginSlugReq.calledOnce).to.be.true
-      expect(response).to.deep.eq({
-        isProcessed: true,
-        slug: 'test-slug-0',
-      })
-    })
-
-    it('should get transaction indexing status - proposal created but plugin slug not found', async () => {
-      const logError = sandbox.stub(logger, 'error')
-
-      await Models.Proposal.create({
-        ...ProposalList[0],
-        transactionHash: '0x127',
-      })
-
-      const network = ProposalList[0].network
-      const spyProposalReq = sandbox.spy(Models.Proposal, 'findOne')
-      const spyPluginSlugReq = sandbox.spy(Models.PluginSlug, 'findOne')
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves({})
-
-      const response = await TransactionController.getTransactionIndexingStatus(
-        '0x127',
-        ITransactionIndexCheckType.PROPOSAL_CREATE,
-        network!,
-      )
-
-      expect(spyProposalReq.calledOnce).to.be.true
-      expect(spyPluginSlugReq.calledOnce).to.be.true
-      expect(logError.calledOnce).to.be.true
-      expect(response).to.deep.eq({
-        isProcessed: true,
-      })
-    })
-
     it('should get transaction indexing status - not found', async () => {
       const txHash = '0x128'
       const network = rawTransaction.network
@@ -262,6 +105,238 @@ describe('Controller: Transaction', () => {
       )
       expect(response).to.deep.eq({
         isProcessed: false,
+      })
+    })
+
+    describe('proposal advance', () => {
+      it('proposal advance', async () => {
+        await Models.Proposal.create({
+          ...ProposalList[0],
+          stageExecutions: [
+            {
+              transactionHash: '0x123',
+            },
+          ],
+        })
+
+        const network = ProposalList[0].network
+        const spyReq = sandbox.spy(Models.Proposal, 'findOne')
+
+        const response = await TransactionController.getTransactionIndexingStatus(
+          '0x123',
+          ITransactionIndexCheckType.PROPOSAL_ADVANCE_STAGE,
+          network!,
+        )
+        expect(spyReq.calledOnce).to.be.true
+        expect(response).to.deep.eq({
+          isProcessed: true,
+        })
+      })
+    })
+
+    describe('proposal executed', () => {
+      it('proposal executed', async () => {
+        await Models.Proposal.create({
+          ...ProposalList[0],
+          executed: {
+            transactionHash: '0x124',
+          },
+        })
+
+        const network = ProposalList[0].network
+        const spyReq = sandbox.spy(Models.Proposal, 'findOne')
+
+        const response = await TransactionController.getTransactionIndexingStatus(
+          '0x124',
+          ITransactionIndexCheckType.PROPOSAL_EXECUTE,
+          network!,
+        )
+        expect(spyReq.calledOnce).to.be.true
+        expect(response).to.deep.eq({
+          isProcessed: true,
+        })
+      })
+    })
+
+    describe('proposal created', () => {
+      it('proposal created and return slug', async () => {
+        await Models.Proposal.create({
+          ...ProposalList[0],
+          transactionHash: '0x125',
+        })
+
+        await Models.PluginSlug.create({
+          daoAddress: ProposalList[0].daoAddress,
+          pluginAddress: ProposalList[0].pluginAddress,
+          network: ProposalList[0].network,
+          slug: 'test-slug',
+        })
+
+        const network = ProposalList[0].network
+        const spyProposalReq = sandbox.spy(Models.Proposal, 'findOne')
+        const spyPluginSlugReq = sandbox.spy(Models.PluginSlug, 'findOne')
+        sandbox.stub(Models.Plugin, 'findByAddress').resolves({})
+
+        const response = await TransactionController.getTransactionIndexingStatus(
+          '0x125',
+          ITransactionIndexCheckType.PROPOSAL_CREATE,
+          network!,
+        )
+
+        expect(spyProposalReq.calledOnce).to.be.true
+        expect(spyPluginSlugReq.calledOnce).to.be.true
+        expect(response).to.deep.eq({
+          isProcessed: true,
+          slug: 'test-slug-0',
+        })
+      })
+
+      it('proposal created and return slug when is sub-proposal', async () => {
+        await Models.Proposal.create({
+          daoAddress: ProposalList[0].daoAddress,
+          proposalIndex: '0',
+          incrementalId: 0,
+          transactionHash: '0x126',
+          pluginAddress: ProposalList[0].pluginAddress,
+          network: ProposalList[0].network,
+          endDate: 1,
+          blockNumber: 1,
+          startDate: 1,
+          creatorAddress: '0xcreator',
+        })
+
+        await Models.Proposal.create({
+          daoAddress: ProposalList[0].daoAddress,
+          proposalIndex: '7',
+          incrementalId: 7,
+          blockNumber: 1,
+          pluginAddress: '0xplugin2',
+          transactionHash: '0x126',
+          network: ProposalList[0].network,
+          endDate: 1,
+          startDate: 1,
+          creatorAddress: '0xcreator',
+        })
+
+        await Models.PluginSlug.create({
+          daoAddress: ProposalList[0].daoAddress,
+          pluginAddress: ProposalList[0].pluginAddress,
+          network: ProposalList[0].network,
+          slug: 'test-slug',
+        })
+
+        const network = ProposalList[0].network
+        sandbox.stub(Models.Plugin, 'findByAddress').resolves({ parentPlugin: ProposalList[0].pluginAddress })
+
+        const spyPluginSlugReq = sandbox.spy(Models.PluginSlug, 'findOne')
+
+        const response = await TransactionController.getTransactionIndexingStatus(
+          '0x126',
+          ITransactionIndexCheckType.PROPOSAL_CREATE,
+          network!,
+        )
+
+        expect(spyPluginSlugReq.calledOnce).to.be.true
+        expect(response).to.deep.eq({
+          isProcessed: true,
+          slug: 'test-slug-0',
+        })
+      })
+
+      it('proposal created but plugin slug not found', async () => {
+        const logError = sandbox.stub(logger, 'error')
+
+        await Models.Proposal.create({
+          ...ProposalList[0],
+          transactionHash: '0x127',
+        })
+
+        const network = ProposalList[0].network
+        const spyProposalReq = sandbox.spy(Models.Proposal, 'findOne')
+        const spyPluginSlugReq = sandbox.spy(Models.PluginSlug, 'findOne')
+        sandbox.stub(Models.Plugin, 'findByAddress').resolves({})
+
+        const response = await TransactionController.getTransactionIndexingStatus(
+          '0x127',
+          ITransactionIndexCheckType.PROPOSAL_CREATE,
+          network!,
+        )
+
+        expect(spyProposalReq.calledOnce).to.be.true
+        expect(spyPluginSlugReq.calledOnce).to.be.true
+        expect(logError.calledOnce).to.be.true
+        expect(response).to.deep.eq({
+          isProcessed: true,
+        })
+      })
+    })
+
+    describe('proposal report results', () => {
+      it('proposal report results not exists', async () => {
+        await Models.Proposal.create({
+          ...ProposalList[0],
+        })
+
+        const network = ProposalList[0].network
+        const spyProposalReq = sandbox.spy(Models.Proposal, 'findOne')
+
+        const response = await TransactionController.getTransactionIndexingStatus(
+          ProposalList[0].transactionHash,
+          ITransactionIndexCheckType.PROPOSAL_REPORT_RESULTS,
+          network!,
+        )
+
+        expect(spyProposalReq.calledOnce).to.be.true
+        expect(response.isProcessed).to.be.false
+      })
+
+      it('proposal report results', async () => {
+        await Models.Proposal.create({
+          ...ProposalList[0],
+          ...{
+            stageIndex: 0,
+            totalStages: 1,
+            subProposals: [
+              {
+                pluginAddress: '0x92e9d0Cd7f5E87a2B2b19661aAa4C2e6D019472F',
+                proposalIndex: '0',
+                stageIndex: 0,
+                transactionHash: '0xb28a2e8a6bab79da7bd74ddad069ec31ba0200019b0ee31cc720496365e9df7f',
+                blockNumber: 8185135,
+              },
+              {
+                pluginAddress: '0x45B7de03cbFc5163446557B2FF209a0aFfcbDC5E',
+                proposalIndex: '59638062734096546706360171231707009963581720596085250721272336933311096790965',
+                stageIndex: 0,
+                transactionHash: '0xb28a2e8a6bab79da7bd74ddad069ec31ba0200019b0ee31cc720496365e9df7f',
+                blockNumber: 8185135,
+              },
+            ],
+          },
+          results: [
+            {
+              resultType: 2,
+              stage: 0,
+              pluginAddress: '0x92e9d0Cd7f5E87a2B2b19661aAa4C2e6D019472F',
+              transactionHash: '0xb28a2e8a6bab79da7bd74ddad069ec31ba0200019b0ee31cc720496365e9df7f',
+              blockNumber: 8185135,
+            },
+          ],
+        })
+
+        const network = ProposalList[0].network
+        const spyProposalReq = sandbox.spy(Models.Proposal, 'findOne')
+
+        const response = await TransactionController.getTransactionIndexingStatus(
+          '0xb28a2e8a6bab79da7bd74ddad069ec31ba0200019b0ee31cc720496365e9df7f',
+          ITransactionIndexCheckType.PROPOSAL_REPORT_RESULTS,
+          network!,
+        )
+
+        expect(spyProposalReq.calledOnce).to.be.true
+        expect(response.isProcessed).to.be.true
+        expect(response.resultType).to.eq(2)
+        expect(response.stage).to.eq(0)
       })
     })
   })

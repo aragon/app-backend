@@ -6,7 +6,7 @@ import DBCrawler from '@models/utils/crawler'
 import type Dao from '@models/schema/dao'
 import logger from '@logger'
 
-export const ToolsManualSyncDaoAssets: IService = {
+export const SyncDaoAssets: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
 
   start: async () => {
@@ -30,4 +30,4 @@ export const ToolsManualSyncDaoAssets: IService = {
   stop: async () => {},
 }
 
-export default ToolsManualSyncDaoAssets
+export default SyncDaoAssets

@@ -564,7 +564,7 @@ export const ProposalHandler = {
   proposalResultReport: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
       const proposalIndex = parsedEvent.args.proposalId
-      const stage = parsedEvent.args.stageId
+      const stage = Number(parsedEvent.args.stageId)
       const pluginAddress = info.address
       const subPluginAddress = parsedEvent.args.body
       const network = info.network
@@ -587,12 +587,13 @@ export const ProposalHandler = {
         network,
       )
 
-      if (!resultType) return
+      if (typeof resultType !== 'number' || isNaN(resultType)) return
 
-      const existingResult = proposal.externalBodyResults.find(
+      const existingResult = proposal.results.find(
         (result: any) =>
           result.pluginAddress === subPluginAddress &&
           result.resultType === resultType &&
+          result.stage === stage &&
           result.transactionHash === info.transactionHash &&
           result.blockNumber === info.blockNumber,
       )
@@ -607,9 +608,10 @@ export const ProposalHandler = {
           { _id: proposal._id },
           {
             $push: {
-              externalBodyResults: {
+              results: {
                 pluginAddress: subPluginAddress,
                 resultType,
+                stage,
                 transactionHash: info.transactionHash,
                 blockNumber: info.blockNumber,
               },
