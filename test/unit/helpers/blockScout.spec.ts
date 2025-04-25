@@ -8,7 +8,7 @@ import logger from '@logger'
 import config from '@config'
 import utils from '@helpers/utils'
 
-describe.only('Helpers: BlockScout', () => {
+describe('Helpers: BlockScout', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
