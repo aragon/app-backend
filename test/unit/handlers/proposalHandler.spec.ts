@@ -156,6 +156,7 @@ describe('Indexer: ProposalHandler', () => {
             pluginAddress: '0xSubPluginAddress',
             resultType: IReportResultType.Approval,
             transactionHash: '0xTxHash',
+            stage: 0,
             blockNumber: 100,
           },
         ],
@@ -174,7 +175,7 @@ describe('Indexer: ProposalHandler', () => {
       const fakeEvent = {
         args: {
           proposalId: proposal.proposalIndex,
-          stageId: 2n,
+          stageId: 0,
           body: '0xSubPluginAddress',
         },
       }

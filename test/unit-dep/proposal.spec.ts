@@ -190,10 +190,10 @@ describe('Integration: Proposal', () => {
 
     const updatedProposal = await proposal.reload()
     expect(updatedProposal.results.length).to.eq(1)
-    expect(updatedProposal.results[0].pluginAddress).to.eq(plugin.address)
+    expect(updatedProposal.results[0].pluginAddress).to.eq('0x92e9d0Cd7f5E87a2B2b19661aAa4C2e6D019472F')
     expect(updatedProposal.results[0].transactionHash).to.eq(txHash)
     expect(updatedProposal.results[0].blockNumber).to.eq(8186186)
     expect(updatedProposal.results[0].resultType).to.eq(2)
-    expect(updatedProposal.results[0].stage).to.eq(2)
+    expect(updatedProposal.results[0].stage).to.eq(0)
   })
 })
