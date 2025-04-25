@@ -67,27 +67,22 @@ describe.skip('BlockScout Integration Tests - getAllTokenHolders', function () {
 
     // Keep track of processed holders
     const processedHolders: Array<{ address: string; value: string }> = []
-    
+
     // Create a callback that adds each holder to our tracking array
     const callback = (holder: { address: string; value: string }) => {
       processedHolders.push(holder)
       logger.info(`Processing holder: ${holder.address}`)
     }
 
-    const result = await BlockScoutHelper.getAllTokenHolders(
-      testTokens.token1,
-      network, 
-      options,
-      callback
-    )
+    const result = await BlockScoutHelper.getAllTokenHolders(testTokens.token1, network, options, callback)
 
     expect(result).to.be.an('object')
     expect(result.holders).to.be.an('array').that.is.not.empty
-    
+
     // Verify all holders were processed through the callback
     expect(processedHolders.length).to.equal(result.holders.length)
     expect(processedHolders[0]).to.deep.equal(result.holders[0])
-    
+
     logger.info(`Processed ${processedHolders.length} holders through callback`)
   })
 
