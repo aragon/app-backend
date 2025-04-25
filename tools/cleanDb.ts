@@ -2,9 +2,9 @@ import { EnumConnection, type IService, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
 
-const llo = logger.logMeta.bind(null, { service: 'Tools: ToolsCleanDb' })
+const llo = logger.logMeta.bind(null, { service: 'Tools: CleanDb' })
 
-export const ToolsCleanDb: IService = {
+export const CleanDb: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
 
   start: async () => {
@@ -36,4 +36,4 @@ export const ToolsCleanDb: IService = {
   stop: async () => {},
 }
 
-export default ToolsCleanDb
+export default CleanDb

@@ -51,11 +51,13 @@ const ProposalHelper = {
     const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(sppPluginAddress, StagedProposalProcessor.abi, provider)
     try {
-      return await retryRequest(async () =>
+      const resultType = await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network).schedule(async () =>
           contract.getBodyResult(proposalIndex, stage, subPluginAddress),
         ),
       )
+
+      return Number(resultType)
     } catch (error) {
       logger.error(
         'Error getting body result SPP',
