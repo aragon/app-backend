@@ -233,6 +233,7 @@ const BlockScoutHelper = {
       maxPages: 100, // Limit the number of pages to avoid infinite loops
       delayMs: 500, // Delay between requests in milliseconds
     },
+    callback?: (holder: { address: string; value: string }) => Promise<void> | void,
   ) {
     try {
       const networkConfig = BlockScoutHelper._parseNetworkToConfig(network)
@@ -268,12 +269,29 @@ const BlockScoutHelper = {
           const data = response?.data
 
           if (data?.message === 'OK' && Array.isArray(data?.result) && data.result.length > 0) {
-            allHolders.push(
-              ...data.result.map((item: any) => ({
-                address: item.address,
-                value: item.value,
-              })),
-            )
+            // Process each holder immediately via the callback if provided
+            if (callback) {
+              for (const item of data.result) {
+                const holder = {
+                  address: item.address,
+                  value: item.value,
+                }
+
+                // Execute callback for each holder
+                await Promise.resolve(callback(holder))
+
+                // Still collect all holders for the return value
+                allHolders.push(holder)
+              }
+            } else {
+              // If no callback provided, just collect the holders
+              allHolders.push(
+                ...data.result.map((item: any) => ({
+                  address: item.address,
+                  value: item.value,
+                })),
+              )
+            }
 
             // If we got fewer results than pageSize, we've reached the end
             if (data.result.length < options.pageSize) {
