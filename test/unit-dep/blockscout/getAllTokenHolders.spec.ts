@@ -9,7 +9,7 @@ describe.skip('BlockScout Integration Tests - getAllTokenHolders', function () {
 
   // Example tokens for testing on Base network
   const testTokens = {
-    // 1 inch token on Base
+    // 1inch token on Base
     token1: '0x1111111111166b7FE7bd91427724B487980aFc69',
     // USDC on Base
     token2: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
@@ -47,7 +47,7 @@ describe.skip('BlockScout Integration Tests - getAllTokenHolders', function () {
     expect(firstHolder).to.have.property('address').that.is.a('string')
     expect(firstHolder).to.have.property('value').that.is.a('string')
 
-    // Since we're limiting to 2 pages with 10 items each, we expect at most 20 holders
+    // Since we're limiting to 10 pages with 10 items each, we expect at most 100 holders
     expect(result.holders.length).to.be.at.most(100)
 
     // Log some information about the result
@@ -55,6 +55,40 @@ describe.skip('BlockScout Integration Tests - getAllTokenHolders', function () {
       hasMore: result.hasMore,
       sampleHolder: firstHolder,
     })
+  })
+
+  it('should process each holder with callback function', async () => {
+    // Use very small limits to avoid too many calls for testing
+    const options = {
+      pageSize: 5,
+      maxPages: 1,
+      delayMs: 500,
+    }
+
+    // Keep track of processed holders
+    const processedHolders: Array<{ address: string; value: string }> = []
+    
+    // Create a callback that adds each holder to our tracking array
+    const callback = (holder: { address: string; value: string }) => {
+      processedHolders.push(holder)
+      logger.info(`Processing holder: ${holder.address}`)
+    }
+
+    const result = await BlockScoutHelper.getAllTokenHolders(
+      testTokens.token1,
+      network, 
+      options,
+      callback
+    )
+
+    expect(result).to.be.an('object')
+    expect(result.holders).to.be.an('array').that.is.not.empty
+    
+    // Verify all holders were processed through the callback
+    expect(processedHolders.length).to.equal(result.holders.length)
+    expect(processedHolders[0]).to.deep.equal(result.holders[0])
+    
+    logger.info(`Processed ${processedHolders.length} holders through callback`)
   })
 
   it('should fetch token holders for USDC token', async () => {
