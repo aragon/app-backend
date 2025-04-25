@@ -5,6 +5,7 @@ import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
 import { type HexAddress, ITokenType, type NetworksEnum } from '@types'
 import { type ITokenFullDetails } from '@src/types/blockScout'
+import Utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:BlockScoutHelper' })
 
@@ -221,6 +222,84 @@ const BlockScoutHelper = {
       }
     } catch (error) {
       logger.warn('Error getTransactionOfAnAddress', llo({ error }))
+    }
+  },
+
+  async getAllTokenHolders(
+    tokenAddress: HexAddress,
+    network: NetworksEnum,
+    options = {
+      pageSize: 100,
+      maxPages: 100, // Limit the number of pages to avoid infinite loops
+      delayMs: 500, // Delay between requests in milliseconds
+    },
+  ) {
+    try {
+      const networkConfig = BlockScoutHelper._parseNetworkToConfig(network)
+      if (!networkConfig?.BLOCKSCOUT_API_URL) {
+        logger.warn('BlockScout API is not configured', llo({ network }))
+        return { holders: [], total: 0, hasMore: false }
+      }
+
+      // Extract base URL without '/api' at the end if it exists
+      const baseUrl = networkConfig.BLOCKSCOUT_API_URL.replace(/\/api\/?$/, '')
+
+      const allHolders: Array<{ address: string; value: string }> = []
+      let page = 1
+      let hasMoreData = true
+
+      while (hasMoreData && page <= options.maxPages) {
+        const params = {
+          module: 'token',
+          action: 'getTokenHolders',
+          contractaddress: tokenAddress,
+          page,
+          offset: options.pageSize,
+          apikey: networkConfig.BLOCKSCOUT_API_KEY,
+        }
+
+        try {
+          // Use the standard axios instance with the query parameters
+          const url = `${baseUrl}/api`
+          const response = await retryRequest(async () =>
+            BottleneckModule.getBlockScoutLimiter(network).schedule(async () => axios.get(url, { params })),
+          )
+
+          const data = response?.data
+
+          if (data?.message === 'OK' && Array.isArray(data?.result) && data.result.length > 0) {
+            allHolders.push(
+              ...data.result.map((item: any) => ({
+                address: item.address,
+                value: item.value,
+              })),
+            )
+
+            // If we got fewer results than pageSize, we've reached the end
+            if (data.result.length < options.pageSize) {
+              hasMoreData = false
+            } else {
+              page++
+              // Wait between requests to avoid rate limiting
+              await Utils.wait(options.delayMs)
+            }
+          } else {
+            hasMoreData = false
+          }
+        } catch (error) {
+          logger.warn('Error fetching token holders', llo({ error, page, tokenAddress }))
+          hasMoreData = false
+        }
+      }
+
+      return {
+        holders: allHolders,
+        total: allHolders.length,
+        hasMore: page > options.maxPages && hasMoreData,
+      }
+    } catch (error) {
+      logger.warn('Error getAllTokenHolders', llo({ error, tokenAddress }))
+      return { holders: [], total: 0, hasMore: false }
     }
   },
 }
