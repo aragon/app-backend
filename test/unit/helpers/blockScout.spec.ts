@@ -329,7 +329,6 @@ describe('Helpers: BlockScout', () => {
       const loggerStub = sandbox.stub(logger, 'warn')
 
       const result = await BlockScoutHelper.getContractSourceCode('0x1234567890', NetworksEnum.ethereumMainnet)
-      // We expect the function to catch and log the error, returning null instead of re-throwing
       expect(result).to.be.null
       expect(rpCallStub.calledOnce).to.be.true
       expect(loggerStub.calledOnce).to.be.true
@@ -337,11 +336,8 @@ describe('Helpers: BlockScout', () => {
     })
 
     it('should call searchDetails and re-fetch if the initial source_code is null and the contract is verified', async () => {
-      // 1st call to _rpCall returns no source_code
       const initialResponse = { source_code: null, name: '' }
-      // searchDetails indicates a verified contract
       const searchDetailsResponse = { is_smart_contract_verified: true, name: 'PluginRepo' }
-      // 2nd call to _rpCall (after the search) returns a proper response
       const verifiedResponse = { source_code: '<<>>', name: 'PluginRepo', abi: [{ constant: 1 }] }
 
       const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall')
@@ -354,7 +350,7 @@ describe('Helpers: BlockScout', () => {
 
       expect(searchDetailsStub.calledOnce).to.be.true
       expect(searchDetailsStub.calledWith('0x1234567890', NetworksEnum.ethereumMainnet)).to.be.true
-      expect(rpCallStub.callCount).to.equal(2) // Called twice: initial fetch and re-fetch
+      expect(rpCallStub.callCount).to.equal(2)
       expect(result).to.deep.eq([
         {
           SourceCode: '<<>>',
@@ -365,9 +361,7 @@ describe('Helpers: BlockScout', () => {
     })
 
     it('should return null if search indicates no verified contract', async () => {
-      // 1st call to _rpCall returns no source_code
       const initialResponse = { source_code: null, name: '' }
-      // searchDetails says it's NOT verified
       const searchDetailsResponse = { is_smart_contract_verified: false, name: '' }
 
       const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(initialResponse)
@@ -526,7 +520,6 @@ describe('Helpers: BlockScout', () => {
     })
 
     it('should fetch token holders successfully', async () => {
-      // Mock successful responses for multiple pages
       const page1Response = {
         data: {
           message: 'OK',
@@ -547,7 +540,6 @@ describe('Helpers: BlockScout', () => {
         },
       }
 
-      // Last page with fewer results (to test the end of pagination)
       const page3Response = {
         data: {
           message: 'OK',
@@ -571,14 +563,12 @@ describe('Helpers: BlockScout', () => {
       expect(result.total).to.equal(5)
       expect(result.hasMore).to.be.false
 
-      // Verify the holders were mapped correctly
       expect(result.holders[0].address).to.equal('0xaddress1')
       expect(result.holders[0].value).to.equal('1000000000000000000')
       expect(result.holders[4].address).to.equal('0xaddress5')
     })
 
     it('should use callback function when provided', async () => {
-      // Mock successful response for a single page
       const page1Response = {
         data: {
           message: 'OK',
@@ -590,8 +580,6 @@ describe('Helpers: BlockScout', () => {
       }
 
       const axiosStub = sandbox.stub(axios, 'get').resolves(page1Response)
-
-      // Create a spy callback function
       const callbackSpy = sandbox.spy()
 
       const result = await BlockScoutHelper.getAllTokenHolders(
@@ -604,7 +592,6 @@ describe('Helpers: BlockScout', () => {
       expect(axiosStub.callCount).to.equal(1)
       expect(result.holders.length).to.equal(2)
 
-      // Verify callback was called for each holder
       expect(callbackSpy.callCount).to.equal(2)
       expect(callbackSpy.firstCall.args[0]).to.deep.equal({
         address: '0xaddress1',
@@ -628,13 +615,11 @@ describe('Helpers: BlockScout', () => {
       expect(result.total).to.equal(0)
       expect(result.hasMore).to.be.false
 
-      // Verify that the error is logged with the correct message and details
       expect(logErrorStub.calledOnce).to.be.true
       expect(logErrorStub.firstCall.args[0]).to.equal('Error fetching token holders')
     })
 
     it('should return empty results when BlockScout API is not configured', async () => {
-      // Force the network config to not have a BlockScout URL
       const loggerStub = sandbox.stub(logger, 'warn')
       sandbox.stub(BlockScoutHelper, '_parseNetworkToConfig').returns({
         BLOCKSCOUT_API_KEY: 'some-key',
@@ -649,7 +634,6 @@ describe('Helpers: BlockScout', () => {
     })
 
     it('should handle empty or invalid responses', async () => {
-      // Empty result array
       const emptyResponse = {
         data: {
           message: 'OK',
@@ -668,7 +652,6 @@ describe('Helpers: BlockScout', () => {
     })
 
     it('should stop fetching when max pages limit is reached', async () => {
-      // Create mock responses for maxPages+1 pages (all with full results)
       const fullPageResponse = {
         data: {
           message: 'OK',
@@ -683,17 +666,15 @@ describe('Helpers: BlockScout', () => {
 
       const axiosStub = sandbox.stub(axios, 'get').resolves(fullPageResponse)
 
-      // Set maxPages to 3
       const result = await BlockScoutHelper.getAllTokenHolders(tokenAddress, network, {
         pageSize: 10,
         maxPages: 3,
         delayMs: 0,
       })
 
-      // Should stop after 3 pages
       expect(axiosStub.callCount).to.equal(3)
-      expect(result.holders.length).to.equal(30) // 3 pages × 10 results
-      expect(result.hasMore).to.be.true // Indicates there might be more data
+      expect(result.holders.length).to.equal(30)
+      expect(result.hasMore).to.be.true
     })
   })
 })

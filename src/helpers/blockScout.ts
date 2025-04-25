@@ -103,11 +103,6 @@ const BlockScoutHelper = {
     return { transfers: 0, holders: '0' }
   },
 
-  /**
-   * Given a query, it will return the details of the address/symbol/token
-   * @param query
-   * @param network
-   */
   searchDetails: async (
     query: string,
     network: NetworksEnum,
@@ -146,9 +141,6 @@ const BlockScoutHelper = {
       }
 
       if (response?.source_code) {
-        /**
-         * Similar to Etherscan, we are returning an array of objects
-         */
         return [
           {
             SourceCode: response!.source_code || '',
@@ -230,8 +222,8 @@ const BlockScoutHelper = {
     network: NetworksEnum,
     options = {
       pageSize: 100,
-      maxPages: 100, // Limit the number of pages to avoid infinite loops
-      delayMs: 500, // Delay between requests in milliseconds
+      maxPages: 100,
+      delayMs: 500,
     },
     callback?: (holder: { address: string; value: string }) => Promise<void> | void,
   ) {
@@ -242,9 +234,7 @@ const BlockScoutHelper = {
         return { holders: [], total: 0, hasMore: false }
       }
 
-      // Extract base URL without '/api' at the end if it exists
       const baseUrl = networkConfig.BLOCKSCOUT_API_URL.replace(/\/api\/?$/, '')
-
       const allHolders: Array<{ address: string; value: string }> = []
       let page = 1
       let hasMoreData = true
@@ -260,7 +250,6 @@ const BlockScoutHelper = {
         }
 
         try {
-          // Use the standard axios instance with the query parameters
           const url = `${baseUrl}/api`
           const response = await retryRequest(async () =>
             BottleneckModule.getBlockScoutLimiter(network).schedule(async () => axios.get(url, { params })),
@@ -269,7 +258,6 @@ const BlockScoutHelper = {
           const data = response?.data
 
           if (data?.message === 'OK' && Array.isArray(data?.result) && data.result.length > 0) {
-            // Process each holder immediately via the callback if provided
             if (callback) {
               for (const item of data.result) {
                 const holder = {
@@ -277,14 +265,10 @@ const BlockScoutHelper = {
                   value: item.value,
                 }
 
-                // Execute callback for each holder
-                await Promise.resolve(callback(holder))
-
-                // Still collect all holders for the return value
+                await callback(holder)
                 allHolders.push(holder)
               }
             } else {
-              // If no callback provided, just collect the holders
               allHolders.push(
                 ...data.result.map((item: any) => ({
                   address: item.address,
@@ -293,12 +277,10 @@ const BlockScoutHelper = {
               )
             }
 
-            // If we got fewer results than pageSize, we've reached the end
             if (data.result.length < options.pageSize) {
               hasMoreData = false
             } else {
               page++
-              // Wait between requests to avoid rate limiting
               await Utils.wait(options.delayMs)
             }
           } else {
