@@ -49,6 +49,7 @@ export enum ICollectionNames {
 export enum ITransactionIndexCheckType {
   DAO_CREATE = 'daoCreate',
   PROPOSAL_CREATE = 'proposalCreate',
+  PROPOSAL_REPORT_RESULTS = 'proposalReportResults',
   PROPOSAL_ADVANCE_STAGE = 'proposalAdvanceStage',
   PROPOSAL_VOTE = 'proposalVote',
   PROPOSAL_EXECUTE = 'proposalExecute',
@@ -60,6 +61,7 @@ export const IndexCheckTypeToModel: Record<ITransactionIndexCheckType, ICollecti
   [ITransactionIndexCheckType.PROPOSAL_ADVANCE_STAGE]: ICollectionNames.Proposal,
   [ITransactionIndexCheckType.PROPOSAL_VOTE]: ICollectionNames.Vote,
   [ITransactionIndexCheckType.PROPOSAL_EXECUTE]: ICollectionNames.Proposal,
+  [ITransactionIndexCheckType.PROPOSAL_REPORT_RESULTS]: ICollectionNames.Proposal,
 }
 
 export interface IMongoModel {
