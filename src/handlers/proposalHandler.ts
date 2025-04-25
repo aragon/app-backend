@@ -587,9 +587,9 @@ export const ProposalHandler = {
         network,
       )
 
-      if (!resultType) return
+      if (typeof resultType !== 'number' || isNaN(resultType)) return
 
-      const existingResult = proposal.externalBodyResults.find(
+      const existingResult = proposal.results.find(
         (result: any) =>
           result.pluginAddress === subPluginAddress &&
           result.resultType === resultType &&
@@ -607,7 +607,8 @@ export const ProposalHandler = {
           { _id: proposal._id },
           {
             $push: {
-              externalBodyResults: {
+              results: {
+                // result
                 pluginAddress: subPluginAddress,
                 resultType,
                 transactionHash: info.transactionHash,

@@ -141,17 +141,17 @@ describe('Indexer: ProposalHandler', () => {
       await ProposalHandler.proposalResultReport(fakeEvent as any, info)
 
       const reloadProposal = await proposal.reload()
-      expect(reloadProposal.externalBodyResults[0].resultType).to.be.eq(IReportResultType.Approval)
-      expect(reloadProposal.externalBodyResults[0].pluginAddress).to.be.eq(fakeEvent.args.body)
-      expect(reloadProposal.externalBodyResults[0].transactionHash).to.be.eq(info.transactionHash)
-      expect(reloadProposal.externalBodyResults[0].blockNumber).to.be.eq(info.blockNumber)
+      expect(reloadProposal.results[0].resultType).to.be.eq(IReportResultType.Approval)
+      expect(reloadProposal.results[0].pluginAddress).to.be.eq(fakeEvent.args.body)
+      expect(reloadProposal.results[0].transactionHash).to.be.eq(info.transactionHash)
+      expect(reloadProposal.results[0].blockNumber).to.be.eq(info.blockNumber)
       expect(verboseLoggerStub.calledOnceWith('Updated proposal - result report' as any)).to.be.true
     })
 
     it('should skip if duplicate data is already in externalBodyResults', async () => {
       const proposal = await Models.Proposal.create({
         ...ProposalList[0],
-        externalBodyResults: [
+        results: [
           {
             pluginAddress: '0xSubPluginAddress',
             resultType: IReportResultType.Approval,
@@ -188,7 +188,7 @@ describe('Indexer: ProposalHandler', () => {
 
       const reloadProposal = await proposal.reload()
 
-      expect(reloadProposal.externalBodyResults).to.have.lengthOf(1)
+      expect(reloadProposal.results).to.have.lengthOf(1)
       expect(verboseLoggerStub.calledOnceWith('Proposal result already exists, skipping update' as any)).to.be.true
     })
 
