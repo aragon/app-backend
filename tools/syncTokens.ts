@@ -5,7 +5,7 @@ import type Token from '@models/schema/token'
 import logger from '@logger'
 import DBCrawler from '@models/utils/crawler'
 
-export const ToolsManualSyncTokens: IService = {
+export const SyncTokens: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
 
   start: async () => {
@@ -34,4 +34,4 @@ export const ToolsManualSyncTokens: IService = {
   stop: async () => {},
 }
 
-export default ToolsManualSyncTokens
+export default SyncTokens

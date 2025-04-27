@@ -2,7 +2,7 @@ import { EnumConnection, type IService } from '@types'
 import { Models } from '@dbModels'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 
-export const ToolsManualSyncProposals: IService = {
+export const SyncProposals: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
 
   start: async () => {
@@ -25,4 +25,4 @@ export const ToolsManualSyncProposals: IService = {
   stop: async () => {},
 }
 
-export default ToolsManualSyncProposals
+export default SyncProposals
