@@ -6,9 +6,9 @@ import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import utils from '@helpers/utils'
 import Web3Utils from '@helpers/web3Utils'
 
-const llo = logger.logMeta.bind(null, { service: 'service:ToolsManualSyncProposalType' })
+const llo = logger.logMeta.bind(null, { service: 'service:SyncProposalType' })
 
-export const ToolsManualSyncProposalType: IService = {
+export const SyncProposalType: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
 
   start: async () => {
@@ -78,4 +78,4 @@ export const ToolsManualSyncProposalType: IService = {
   stop: async () => {},
 }
 
-export default ToolsManualSyncProposalType
+export default SyncProposalType

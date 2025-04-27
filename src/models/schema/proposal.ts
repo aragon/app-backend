@@ -28,6 +28,9 @@ export class ExternalBodyResult {
   @prop({ type: () => Number, enum: IReportResultType, required: true })
   public resultType!: IReportResultType
 
+  @prop({ type: () => Number, required: true })
+  public stage!: number
+
   @prop({ type: () => String, required: true })
   public transactionHash!: HexAddress
 
@@ -336,7 +339,7 @@ export default class Proposal extends Model {
   public stageExecutions!: StageExecuted[]
 
   @prop({ type: () => [ExternalBodyResult], _id: false, default: [] })
-  public externalBodyResults!: ExternalBodyResult[]
+  public results!: ExternalBodyResult[]
 
   static async create(rawData: Partial<Proposal>, tOpts?: SaveOptions) {
     if (!rawData.id) {
@@ -658,7 +661,7 @@ export default class Proposal extends Model {
           actions: 1,
           decoding: 1,
           stageExecutions: 1,
-          externalBodyResults: 1,
+          results: 1,
           media: 1,
           settings: {
             $mergeObjects: [
@@ -961,7 +964,7 @@ export default class Proposal extends Model {
           decoding: 1,
           media: 1,
           stageExecutions: 1,
-          externalBodyResults: 1,
+          results: 1,
           settings: {
             $mergeObjects: [
               '$settings',
