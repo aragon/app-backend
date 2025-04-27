@@ -498,6 +498,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       // RATES
       TOKEN_RATES_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_TOKEN_RATES_BATCH_SIZE', 1000),
       TOKEN_RATES_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'INDEXER_CONFIG_TOKEN_RATES_CONCURRENCY', 1),
+      TOKEN_HOLDERS_THRESHOLD: utils.configParser(
+        sourceConfig,
+        'number',
+        'INDEXER_CONFIG_TOKEN_HOLDERS_THRESHOLD',
+        100,
+      ),
     },
   }
 }
