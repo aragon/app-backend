@@ -183,5 +183,6 @@ export interface IConfig {
   CRAWLER_CONFIG: {
     TOKEN_RATES_BATCH_SIZE: number
     TOKEN_RATES_CONCURRENCY: number
+    TOKEN_HOLDERS_THRESHOLD: number
   }
 }
