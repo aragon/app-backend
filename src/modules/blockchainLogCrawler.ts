@@ -8,8 +8,7 @@ import {
   type IFormattedLog,
   type IIndexerConfig,
   IProviderType,
-  ITokenVotingLogs,
-  NetworksEnum,
+  type NetworksEnum,
 } from '@types'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
@@ -97,6 +96,14 @@ class BlockchainLogCrawler {
       return rawLogs
     }
 
+    logger.verbose(
+      'Starting crawling logs',
+      llo({
+        currentBlock,
+        latestBlock,
+      }),
+    )
+
     this.crawlParams.strategy = this.getStrategyBySituation(currentBlock, latestBlock)
 
     let retryCount = 0
@@ -154,7 +161,6 @@ class BlockchainLogCrawler {
       return rawLogs
     }
 
-    this.crawlSetting.runCount = 0
     this.crawlSetting.crawling = false
     if (!this.crawlParams.filterLogs) {
       logger.verbose('Finished crawling logs', llo({ ...this.parseCrawlerInfoLog() }))
@@ -424,17 +430,6 @@ class BlockchainLogCrawler {
         const { handler, event, info } = this.formatLog(log)
         if (!event) {
           continue
-        }
-
-        if (event.name === ITokenVotingLogs.ProposalCreated && this.crawlParams.network === NetworksEnum.peaqMainnet) {
-          logger.verbose(
-            'Proposal Event Peaq Debug',
-            llo({
-              event,
-              log,
-              info,
-            }),
-          )
         }
 
         await handler(event, info, this.crawlParams.onlyHistorical)
