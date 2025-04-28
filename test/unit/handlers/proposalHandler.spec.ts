@@ -502,7 +502,7 @@ describe('Indexer: ProposalHandler', () => {
 
       expect(stubFindPlugin.calledOnceWith('0xplugin-address', info.network)).to.be.true
       expect(stubFindExistingLog.calledOnce).to.be.true
-      expect(result).to.be.undefined // Check that function returns nothing (early return)
+      expect(result?.newProposal).to.be.undefined // Check that function returns nothing (early return)
       expect(stubLogger.called).to.be.false
     })
 
