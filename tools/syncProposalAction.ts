@@ -6,7 +6,7 @@ import logger from '@logger'
 
 const llo = logger.logMeta.bind(null, { service: 'Tools' })
 
-export const ToolsManualSyncProposalAction: IService = {
+export const SyncProposalAction: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
 
   start: async () => {
@@ -34,4 +34,4 @@ export const ToolsManualSyncProposalAction: IService = {
   stop: async () => {},
 }
 
-export default ToolsManualSyncProposalAction
+export default SyncProposalAction
