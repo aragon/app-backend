@@ -6,7 +6,7 @@ import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import { Models } from '@dbModels'
 import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
 
-export const ToolsFixMissingVotes: IService | any = {
+export const FixMissingVotes: IService | any = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
 
   transactions: ['0x344c0b2ab27b2b96192a83aa7214e0f939ddc78ab629e18214a4ac5778c98013'],
@@ -14,7 +14,7 @@ export const ToolsFixMissingVotes: IService | any = {
   start: async () => {
     const network = NetworksEnum.ethereumSepolia
     await Promise.all(
-      ToolsFixMissingVotes.transactions.map(async (txHash: string) => {
+      FixMissingVotes.transactions.map(async (txHash: string) => {
         const tx = await UnitDepUtils.getData(TokenVoting.abi, ITokenVotingLogs.VoteCast, txHash, network)
 
         for (const { event, logInfo } of tx) {
@@ -38,4 +38,4 @@ export const ToolsFixMissingVotes: IService | any = {
   stop: async () => {},
 }
 
-export default ToolsFixMissingVotes
+export default FixMissingVotes

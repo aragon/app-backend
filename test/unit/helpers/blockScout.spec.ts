@@ -6,6 +6,7 @@ import { ITokenType, NetworksEnum } from '@types'
 import axios from 'axios'
 import logger from '@logger'
 import config from '@config'
+import utils from '@helpers/utils'
 
 describe('Helpers: BlockScout', () => {
   let sandbox: SinonSandbox
@@ -82,7 +83,7 @@ describe('Helpers: BlockScout', () => {
   })
 
   describe('getTokenFullDetails', () => {
-    let tokenDetails
+    let tokenDetails: any
     beforeEach(() => {
       tokenDetails = {
         address: '0x1234567890',
@@ -328,7 +329,6 @@ describe('Helpers: BlockScout', () => {
       const loggerStub = sandbox.stub(logger, 'warn')
 
       const result = await BlockScoutHelper.getContractSourceCode('0x1234567890', NetworksEnum.ethereumMainnet)
-      // We expect the function to catch and log the error, returning null instead of re-throwing
       expect(result).to.be.null
       expect(rpCallStub.calledOnce).to.be.true
       expect(loggerStub.calledOnce).to.be.true
@@ -336,11 +336,8 @@ describe('Helpers: BlockScout', () => {
     })
 
     it('should call searchDetails and re-fetch if the initial source_code is null and the contract is verified', async () => {
-      // 1st call to _rpCall returns no source_code
       const initialResponse = { source_code: null, name: '' }
-      // searchDetails indicates a verified contract
       const searchDetailsResponse = { is_smart_contract_verified: true, name: 'PluginRepo' }
-      // 2nd call to _rpCall (after the search) returns a proper response
       const verifiedResponse = { source_code: '<<>>', name: 'PluginRepo', abi: [{ constant: 1 }] }
 
       const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall')
@@ -353,7 +350,7 @@ describe('Helpers: BlockScout', () => {
 
       expect(searchDetailsStub.calledOnce).to.be.true
       expect(searchDetailsStub.calledWith('0x1234567890', NetworksEnum.ethereumMainnet)).to.be.true
-      expect(rpCallStub.callCount).to.equal(2) // Called twice: initial fetch + re-fetch
+      expect(rpCallStub.callCount).to.equal(2)
       expect(result).to.deep.eq([
         {
           SourceCode: '<<>>',
@@ -364,9 +361,7 @@ describe('Helpers: BlockScout', () => {
     })
 
     it('should return null if search indicates no verified contract', async () => {
-      // 1st call to _rpCall returns no source_code
       const initialResponse = { source_code: null, name: '' }
-      // searchDetails says it's NOT verified
       const searchDetailsResponse = { is_smart_contract_verified: false, name: '' }
 
       const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(initialResponse)
@@ -513,6 +508,173 @@ describe('Helpers: BlockScout', () => {
         ),
       ).to.be.true
       expect(loggerStub.calledWith('Error getTransactionOfAnAddress' as any)).to.be.true
+    })
+  })
+
+  describe('getAllTokenHolders', () => {
+    const tokenAddress = '0x1111111111166b7FE7bd91427724B487980aFc69'
+    const network = NetworksEnum.baseMainnet
+
+    beforeEach(() => {
+      sandbox.stub(utils, 'wait').resolves()
+    })
+
+    it('should fetch token holders successfully', async () => {
+      const page1Response = {
+        data: {
+          message: 'OK',
+          result: [
+            { address: '0xaddress1', value: '1000000000000000000' },
+            { address: '0xaddress2', value: '2000000000000000000' },
+          ],
+        },
+      }
+
+      const page2Response = {
+        data: {
+          message: 'OK',
+          result: [
+            { address: '0xaddress3', value: '3000000000000000000' },
+            { address: '0xaddress4', value: '4000000000000000000' },
+          ],
+        },
+      }
+
+      const page3Response = {
+        data: {
+          message: 'OK',
+          result: [{ address: '0xaddress5', value: '5000000000000000000' }],
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get')
+      axiosStub.onCall(0).resolves(page1Response)
+      axiosStub.onCall(1).resolves(page2Response)
+      axiosStub.onCall(2).resolves(page3Response)
+
+      const result = await BlockScoutHelper.getAllTokenHolders(tokenAddress, network, {
+        pageSize: 2,
+        maxPages: 10,
+        delayMs: 0,
+      })
+
+      expect(axiosStub.callCount).to.equal(3)
+      expect(result.holders.length).to.equal(5)
+      expect(result.total).to.equal(5)
+      expect(result.hasMore).to.be.false
+
+      expect(result.holders[0].address).to.equal('0xaddress1')
+      expect(result.holders[0].value).to.equal('1000000000000000000')
+      expect(result.holders[4].address).to.equal('0xaddress5')
+    })
+
+    it('should use callback function when provided', async () => {
+      const page1Response = {
+        data: {
+          message: 'OK',
+          result: [
+            { address: '0xaddress1', value: '1000000000000000000' },
+            { address: '0xaddress2', value: '2000000000000000000' },
+          ],
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(page1Response)
+      const callbackSpy = sandbox.spy()
+
+      const result = await BlockScoutHelper.getAllTokenHolders(
+        tokenAddress,
+        network,
+        { pageSize: 10, maxPages: 1, delayMs: 0 },
+        callbackSpy,
+      )
+
+      expect(axiosStub.callCount).to.equal(1)
+      expect(result.holders.length).to.equal(2)
+
+      expect(callbackSpy.callCount).to.equal(2)
+      expect(callbackSpy.firstCall.args[0]).to.deep.equal({
+        address: '0xaddress1',
+        value: '1000000000000000000',
+      })
+      expect(callbackSpy.secondCall.args[0]).to.deep.equal({
+        address: '0xaddress2',
+        value: '2000000000000000000',
+      })
+    })
+
+    it('should handle API errors gracefully', async () => {
+      const apiError = new Error('API failure')
+      const axiosStub = sandbox.stub(axios, 'get').rejects(apiError)
+      const logErrorStub = sandbox.stub(logger, 'error')
+
+      const result = await BlockScoutHelper.getAllTokenHolders(tokenAddress, network)
+
+      expect(axiosStub.callCount).to.equal(1)
+      expect(result.holders.length).to.equal(0)
+      expect(result.total).to.equal(0)
+      expect(result.hasMore).to.be.false
+
+      expect(logErrorStub.calledOnce).to.be.true
+      expect(logErrorStub.firstCall.args[0]).to.equal('Error fetching token holders')
+    })
+
+    it('should return empty results when BlockScout API is not configured', async () => {
+      const loggerStub = sandbox.stub(logger, 'warn')
+      sandbox.stub(BlockScoutHelper, '_parseNetworkToConfig').returns({
+        BLOCKSCOUT_API_KEY: 'some-key',
+      })
+
+      const result = await BlockScoutHelper.getAllTokenHolders(tokenAddress, network)
+
+      expect(loggerStub.calledOnce).to.be.true
+      expect(result.holders.length).to.equal(0)
+      expect(result.total).to.equal(0)
+      expect(result.hasMore).to.be.false
+    })
+
+    it('should handle empty or invalid responses', async () => {
+      const emptyResponse = {
+        data: {
+          message: 'OK',
+          result: [],
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(emptyResponse)
+
+      const result = await BlockScoutHelper.getAllTokenHolders(tokenAddress, network)
+
+      expect(axiosStub.callCount).to.equal(1)
+      expect(result.holders.length).to.equal(0)
+      expect(result.total).to.equal(0)
+      expect(result.hasMore).to.be.false
+    })
+
+    it('should stop fetching when max pages limit is reached', async () => {
+      const fullPageResponse = {
+        data: {
+          message: 'OK',
+          result: Array(10)
+            .fill(0)
+            .map((_, i) => ({
+              address: `0xaddress${i}`,
+              value: `${i}000000000000000000`,
+            })),
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(fullPageResponse)
+
+      const result = await BlockScoutHelper.getAllTokenHolders(tokenAddress, network, {
+        pageSize: 10,
+        maxPages: 3,
+        delayMs: 0,
+      })
+
+      expect(axiosStub.callCount).to.equal(3)
+      expect(result.holders.length).to.equal(30)
+      expect(result.hasMore).to.be.true
     })
   })
 })

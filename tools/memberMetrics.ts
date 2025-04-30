@@ -15,7 +15,7 @@ export interface IExtendedService extends IService {
   setActivity: (member: Member, plugin: Plugin, blockTimestamp: number) => Promise<void>
 }
 
-export const ToolsMemberMetrics: IExtendedService = {
+export const MemberMetrics: IExtendedService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
 
   start: async () => {
@@ -25,11 +25,11 @@ export const ToolsMemberMetrics: IExtendedService = {
     // delegate received
     await Promise.all(
       members.map(async (member: Member) => {
-        await ToolsMemberMetrics.delegationCount(member)
+        await MemberMetrics.delegationCount(member)
 
-        await ToolsMemberMetrics.proposalCount(member)
+        await MemberMetrics.proposalCount(member)
 
-        await ToolsMemberMetrics.voteCount(member)
+        await MemberMetrics.voteCount(member)
         count++
         logger.info(`Member ${count} of ${members.length}`, llo())
       }),
@@ -56,7 +56,7 @@ export const ToolsMemberMetrics: IExtendedService = {
           tokenAddress: transaction.tokenAddress,
           network: plugin.network,
         })
-        await ToolsMemberMetrics.setActivity(member, plugin, transaction.blockTimestamp)
+        await MemberMetrics.setActivity(member, plugin, transaction.blockTimestamp)
       }
     }
   },
@@ -72,7 +72,7 @@ export const ToolsMemberMetrics: IExtendedService = {
         pluginAddress: plugin.address,
         network: plugin.network,
       })
-      await ToolsMemberMetrics.setActivity(member, plugin, proposal.blockTimestamp)
+      await MemberMetrics.setActivity(member, plugin, proposal.blockTimestamp)
     }
   },
 
@@ -91,7 +91,7 @@ export const ToolsMemberMetrics: IExtendedService = {
         pluginAddress: plugin.address,
         network: plugin.network,
       })
-      await ToolsMemberMetrics.setActivity(member, plugin, vote.blockTimestamp)
+      await MemberMetrics.setActivity(member, plugin, vote.blockTimestamp)
     }
   },
 
@@ -131,4 +131,4 @@ export const ToolsMemberMetrics: IExtendedService = {
   stop: async () => {},
 }
 
-export default ToolsMemberMetrics
+export default MemberMetrics

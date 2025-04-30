@@ -4,8 +4,9 @@ import logger from '@logger'
 import BlockScout from '@helpers/blockScout'
 import { RateModule } from '@modules/rates'
 
-const llo = logger.logMeta.bind(null, { service: 'tools:ToolsManualSyncToken' })
-export const ToolsManualSyncToken: IService = {
+const llo = logger.logMeta.bind(null, { service: 'tools:SyncToken' })
+
+export const SyncToken: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
 
   start: async () => {
@@ -63,4 +64,4 @@ export const ToolsManualSyncToken: IService = {
   stop: async () => {},
 }
 
-export default ToolsManualSyncToken
+export default SyncToken

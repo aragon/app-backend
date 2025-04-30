@@ -8,6 +8,7 @@ import {
   type IPairParams,
   type ITransactionCategory,
   type ITransactionExtraParams,
+  type ITransactionIndexCheckType,
   type NetworksEnum,
 } from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
@@ -50,7 +51,7 @@ const TransactionRouter = {
     const params = {
       transactionHash: ctx.params.txHash,
       network: ctx.params.network,
-      type: ctx.query.type,
+      type: ctx.query.type as ITransactionIndexCheckType,
     }
 
     const formattedParams = await ValidationSchema.validateParams(

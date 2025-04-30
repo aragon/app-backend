@@ -6,9 +6,9 @@ import TokenDetector from '@helpers/tokenDetector'
 import Web3Helper from '@helpers/web3'
 import { LogTokenVoting } from '@plugins/logTokenVoting'
 
-const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
+const llo = logger.logMeta.bind(null, { service: 'service:SyncNectorDao' })
 
-export const ManualSyncNectorDao: IService = {
+export const SyncNectorDao: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
 
   start: async () => {
@@ -51,4 +51,4 @@ export const ManualSyncNectorDao: IService = {
   stop: async () => {},
 }
 
-export default ManualSyncNectorDao
+export default SyncNectorDao
