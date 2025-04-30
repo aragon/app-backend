@@ -14,9 +14,16 @@ describe('EnsHelper', () => {
     sandbox && sandbox.restore()
   })
 
-  it.skip('getEnsWithUniversalResolver', async () => {
-    const memberAddress = '0xD70aa9d7280E6FEe89B86f53c0B2A363478D5e94'
+  it('getEnsWithUniversalResolver', async () => {
+    const memberAddress = '0x42E6DD8D517abB3E4f6611Ca53a8D1243C183fB0'
     const ens = await EnsHelper.getEnsWithUniversalResolver(memberAddress)
     expect(ens).to.eq('amiru.eth')
+
+  })
+
+  it.only('getEnsAvatar', async () => {
+    const memberAvatar = 'amiru.eth'
+    const avatar = await EnsHelper.getEnsAvatar(memberAvatar)
+    expect(avatar).to.eq('amiru.eth')
   })
 })
