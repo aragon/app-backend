@@ -5,6 +5,7 @@ import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
 import { type HexAddress, ITokenType, type NetworksEnum } from '@types'
 import { type ITokenFullDetails } from '@src/types/blockScout'
+import Utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:BlockScoutHelper' })
 
@@ -102,11 +103,6 @@ const BlockScoutHelper = {
     return { transfers: 0, holders: '0' }
   },
 
-  /**
-   * Given a query, it will return the details of the address/symbol/token
-   * @param query
-   * @param network
-   */
   searchDetails: async (
     query: string,
     network: NetworksEnum,
@@ -145,9 +141,6 @@ const BlockScoutHelper = {
       }
 
       if (response?.source_code) {
-        /**
-         * Similar to Etherscan, we are returning an array of objects
-         */
         return [
           {
             SourceCode: response!.source_code || '',
@@ -221,6 +214,92 @@ const BlockScoutHelper = {
       }
     } catch (error) {
       logger.warn('Error getTransactionOfAnAddress', llo({ error }))
+    }
+  },
+
+  async getAllTokenHolders(
+    tokenAddress: HexAddress,
+    network: NetworksEnum,
+    options = {
+      pageSize: 100,
+      maxPages: 100,
+      delayMs: 500,
+    },
+    callback?: (holder: { address: string; value: string }) => Promise<void> | void,
+  ) {
+    try {
+      const networkConfig = BlockScoutHelper._parseNetworkToConfig(network)
+      if (!networkConfig?.BLOCKSCOUT_API_URL) {
+        logger.warn('BlockScout API is not configured', llo({ network }))
+        return { holders: [], total: 0, hasMore: false }
+      }
+
+      const baseUrl = networkConfig.BLOCKSCOUT_API_URL.replace(/\/api\/?$/, '')
+      const allHolders: Array<{ address: string; value: string }> = []
+      let page = 1
+      let hasMoreData = true
+
+      while (hasMoreData && page <= options.maxPages) {
+        const params = {
+          module: 'token',
+          action: 'getTokenHolders',
+          contractaddress: tokenAddress,
+          page,
+          offset: options.pageSize,
+          apikey: networkConfig.BLOCKSCOUT_API_KEY,
+        }
+
+        try {
+          const url = `${baseUrl}/api`
+          const response = await retryRequest(async () =>
+            BottleneckModule.getBlockScoutLimiter(network).schedule(async () => axios.get(url, { params })),
+          )
+
+          const data = response?.data
+
+          if (data?.message === 'OK' && Array.isArray(data?.result) && data.result.length > 0) {
+            if (callback) {
+              for (const item of data.result) {
+                const holder = {
+                  address: item.address,
+                  value: item.value,
+                }
+
+                await callback(holder)
+                allHolders.push(holder)
+              }
+            } else {
+              allHolders.push(
+                ...data.result.map((item: any) => ({
+                  address: item.address,
+                  value: item.value,
+                })),
+              )
+            }
+
+            if (data.result.length < options.pageSize) {
+              hasMoreData = false
+            } else {
+              page++
+              await Utils.wait(options.delayMs)
+            }
+          } else {
+            hasMoreData = false
+          }
+        } catch (error) {
+          logger.error('Error fetching token holders', llo({ error, page, tokenAddress }))
+          hasMoreData = false
+        }
+      }
+
+      return {
+        holders: allHolders,
+        total: allHolders.length,
+        hasMore: page > options.maxPages && hasMoreData,
+      }
+    } catch (error) {
+      logger.error('Error getAllTokenHolders', llo({ error, tokenAddress }))
+      return { holders: [], total: 0, hasMore: false }
     }
   },
 }
