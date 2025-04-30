@@ -10,7 +10,13 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogTokenVoting
 
 export const LogTokenVoting = {
   start: async (plugin: Plugin, token: Token, isHistorical?: boolean) => {
-    logger.verbose('Start LogTokenVoting', llo({ network: plugin.network, pluginAddress: plugin.address }))
+    const infoLogs = {
+      network: plugin.network,
+      daoAddress: plugin.daoAddress,
+      pluginAddress: plugin.address,
+      tokenAddress: token?.address,
+    }
+    logger.verbose('Start LogTokenVoting', llo(infoLogs))
 
     const configTVLogs = configIndexer.filter((item: IIndexerConfig) =>
       Object.values(ITokenVotingLogs).includes(item.event as any),
@@ -32,6 +38,7 @@ export const LogTokenVoting = {
 
     const optimizedFlowNeeded = await TokenHolderSync.isOptimizedFlowNeeded(token, plugin)
     if (!optimizedFlowNeeded) {
+      logger.verbose('Start Token Sync', llo({ ...infoLogs, ...{ syncStrategy: 'BlockchainLogCrawler' } }))
       const tokenCrawler = new BlockchainLogCrawler({
         onlyHistorical: isHistorical,
         network: plugin.network,
@@ -47,9 +54,8 @@ export const LogTokenVoting = {
       logger.verbose(
         'End LogTokenVoting',
         llo({
-          network: plugin.network,
-          pluginAddress: plugin.address,
-          tokenAddress: token?.address,
+          ...infoLogs,
+          syncStrategy: 'BlockchainLogCrawler',
           lastTokenSyncBlock: tokenCrawler.crawlSetting.lastSync,
           lastPluginSyncBlock: pluginCrawler.crawlSetting.lastSync,
         }),
@@ -57,6 +63,8 @@ export const LogTokenVoting = {
       return
     }
 
+    const startTime = Date.now()
+    logger.verbose('Start Token Sync', llo({ ...infoLogs, ...{ syncStrategy: 'BlockScout', startTime } }))
     await TokenHolderSync.syncHoldersFromBlockScout(plugin, token)
 
     await Promise.all([
@@ -64,6 +72,16 @@ export const LogTokenVoting = {
       TokenHolderSync.syncDelegationEvents(plugin, token),
       TokenHolderSync.syncTransfersEvents(plugin, token),
     ])
+
+    logger.verbose(
+      'End LogTokenVoting',
+      llo({
+        ...infoLogs,
+        syncStrategy: 'BlockScout',
+        startTime,
+        endTime: Date.now(),
+      }),
+    )
   },
 
   processError: async (error: any, plugin: Plugin, log: any) => {
