@@ -671,7 +671,7 @@ class BlockchainLogCrawler {
     const messages = [
       'The query timed out',
       'timeout',
-      'th_getLogs is limited to a 10,000 rang',
+      'eth_getLogs is limited',
       'Response size is larger than 150MB limit',
       'Log response size exceeded',
       'Consider reducing your block range',
