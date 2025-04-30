@@ -29,6 +29,7 @@ const customName = ICollectionNames.DaoMemberMapping
   },
 })
 @index({ tokenAddress: 1 })
+@index({ daoAddress: 1 })
 @index({ memberAddress: 1 })
 @index({ memberAddress: 1, pluginAddress: 1 })
 @index({ network: 1, pluginAddress: 1 })
