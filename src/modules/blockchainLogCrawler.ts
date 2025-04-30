@@ -8,8 +8,7 @@ import {
   type IFormattedLog,
   type IIndexerConfig,
   IProviderType,
-  ITokenVotingLogs,
-  NetworksEnum,
+  type NetworksEnum,
 } from '@types'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
@@ -96,6 +95,15 @@ class BlockchainLogCrawler {
       this.crawlSetting.crawling = false
       return rawLogs
     }
+
+    logger.verbose(
+      'Starting crawling logs',
+      llo({
+        ...this.parseCrawlerInfoLog(),
+        currentBlock,
+        latestBlock,
+      }),
+    )
 
     this.crawlParams.strategy = this.getStrategyBySituation(currentBlock, latestBlock)
 
@@ -199,7 +207,9 @@ class BlockchainLogCrawler {
           }
 
           this.crawlSetting.nbTotal += allLogs.length
-          this.crawlSetting.batchSize = this.crawlSetting.originalBatchSize
+          if (this.crawlSetting.runCount <= 2) {
+            this.crawlSetting.batchSize = this.crawlSetting.originalBatchSize
+          }
           success = true
           break
         }
@@ -209,6 +219,16 @@ class BlockchainLogCrawler {
           if (this.crawlSetting.batchSize > 1) {
             this.crawlSetting.batchSize = Math.max(1, Math.floor(this.crawlSetting.batchSize / 3))
             toBlock = this.resizeToBlock(currentBlock, latestBlock)
+            logger.verbose(
+              'Trying to cut after failure',
+              llo({
+                currentBlock,
+                toBlock,
+                latestBlock,
+                batchSize: this.crawlSetting.batchSize,
+                runCount: this.crawlSetting.runCount,
+              }),
+            )
           } else {
             const error = batchSizeErrors[0].error
             logger.error('Batch size too small, stopping crawl', llo({ ...this.parseCrawlerInfoLog(), error }))
@@ -411,17 +431,6 @@ class BlockchainLogCrawler {
         const { handler, event, info } = this.formatLog(log)
         if (!event) {
           continue
-        }
-
-        if (event.name === ITokenVotingLogs.ProposalCreated && this.crawlParams.network === NetworksEnum.peaqMainnet) {
-          logger.verbose(
-            'Proposal Event Peaq Debug',
-            llo({
-              event,
-              log,
-              info,
-            }),
-          )
         }
 
         await handler(event, info, this.crawlParams.onlyHistorical)
@@ -663,6 +672,7 @@ class BlockchainLogCrawler {
     const messages = [
       'The query timed out',
       'timeout',
+      'eth_getLogs is limited',
       'Response size is larger than 150MB limit',
       'Log response size exceeded',
       'Consider reducing your block range',

@@ -4,7 +4,7 @@ import { LogTokenVoting } from '@services/aragon-plugins/logTokenVoting'
 import { LogMultiSig } from '@services/aragon-plugins/logMultisig'
 import { IPluginActionType } from '@types'
 
-export const ToolsManualSyncDaoPluginEvents: IService = {
+export const SyncDaoPluginEvents: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
 
   start: async () => {
@@ -37,4 +37,4 @@ export const ToolsManualSyncDaoPluginEvents: IService = {
   stop: async () => {},
 }
 
-export default ToolsManualSyncDaoPluginEvents
+export default SyncDaoPluginEvents

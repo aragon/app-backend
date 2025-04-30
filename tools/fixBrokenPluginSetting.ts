@@ -11,7 +11,7 @@ interface IServiceExtended extends IService {
   fixProposals: (proposal: Proposal, settings: any) => Promise<void>
 }
 
-export const ToolsFixSettingIssue: IServiceExtended = {
+export const FixSettingIssue: IServiceExtended = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
 
   start: async () => {
@@ -114,7 +114,7 @@ export const ToolsFixSettingIssue: IServiceExtended = {
         })
 
         for (const prop of proposal) {
-          await ToolsFixSettingIssue.fixProposals(prop, fixedSettings)
+          await FixSettingIssue.fixProposals(prop, fixedSettings)
         }
       }
     }
@@ -136,4 +136,4 @@ export const ToolsFixSettingIssue: IServiceExtended = {
   stop: async () => {},
 }
 
-export default ToolsFixSettingIssue
+export default FixSettingIssue
