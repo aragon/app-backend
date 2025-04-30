@@ -99,6 +99,7 @@ class BlockchainLogCrawler {
     logger.verbose(
       'Starting crawling logs',
       llo({
+        ...this.parseCrawlerInfoLog(),
         currentBlock,
         latestBlock,
       }),
@@ -671,6 +672,7 @@ class BlockchainLogCrawler {
     const messages = [
       'The query timed out',
       'timeout',
+      'eth_getLogs is limited',
       'Response size is larger than 150MB limit',
       'Log response size exceeded',
       'Consider reducing your block range',
