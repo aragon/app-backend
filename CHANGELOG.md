@@ -1,3 +1,24 @@
+# [0.5.0](https://github.com/aragon/app-backend/compare/v0.4.1...v0.5.0) (2025-04-30)
+
+
+### Bug Fixes
+
+* format ([14ca2fd](https://github.com/aragon/app-backend/commit/14ca2fd412cbba5ad3dfa770b485910af9a36140))
+* **memberEndpoint:** member balance model pagination was lacking network filter ([#502](https://github.com/aragon/app-backend/issues/502)) ([f38aa79](https://github.com/aragon/app-backend/commit/f38aa791ea61f052f25403997705e4105a0619f0))
+* pm2 refactor ([#508](https://github.com/aragon/app-backend/issues/508)) ([6628109](https://github.com/aragon/app-backend/commit/6628109bf1947e4f80a92d6d617c9bf8ec2fd9a5))
+* **proposal:** expose decoding in proposal endpoints ([#495](https://github.com/aragon/app-backend/issues/495)) ([bb51c1d](https://github.com/aragon/app-backend/commit/bb51c1d943071f9c1de08623a628865c781ffe75))
+
+
+### Features
+
+* **crawler:** removed parselog for transfer event with manual topic checking ([#515](https://github.com/aragon/app-backend/issues/515)) ([78ef87f](https://github.com/aragon/app-backend/commit/78ef87f31384620d176f5f15dd683a5e6fd03292))
+* expose externalBodyResults  ([#524](https://github.com/aragon/app-backend/issues/524)) ([0372d91](https://github.com/aragon/app-backend/commit/0372d913fcc494d80ab60a4905dec0dcb192ec2a))
+* heath endpoint ([#523](https://github.com/aragon/app-backend/issues/523)) ([0a4181a](https://github.com/aragon/app-backend/commit/0a4181ad59abc3f160dee80d8e9db13f64afac5c))
+* **pagination:** fix pagination and decode action ([#497](https://github.com/aragon/app-backend/issues/497)) ([62c9ae3](https://github.com/aragon/app-backend/commit/62c9ae33be778ab7d4b432b1d8e46eb5b7e4bca9))
+* peaq rpc timeout ([#505](https://github.com/aragon/app-backend/issues/505)) ([e637056](https://github.com/aragon/app-backend/commit/e6370562d6422342893d482aa70b5a22662a8dd5))
+* **peaq:** debug peaq network ([#498](https://github.com/aragon/app-backend/issues/498)) ([10499fe](https://github.com/aragon/app-backend/commit/10499fe46e80945f6fc1171595d581bb922dd044))
+* **rabbitmq:** more config and noop operation to keep alive connection ([#514](https://github.com/aragon/app-backend/issues/514)) ([e5d902a](https://github.com/aragon/app-backend/commit/e5d902a0700e4be161b1d3a1b9d100a19df1b4b5))
+
 ## [0.4.1](https://github.com/aragon/app-backend/compare/v0.4.0...v0.4.1) (2025-04-21)
 
 
