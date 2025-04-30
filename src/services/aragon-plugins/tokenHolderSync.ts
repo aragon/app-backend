@@ -8,11 +8,25 @@ import BlockScoutHelper from '@helpers/blockScout'
 import config from '@config'
 import { ProxyMember } from '@modules/proxyMember'
 import DbTx from '@modules/dbTx'
+import { Models } from '@dbModels'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-plugins:tokenHolderSync' })
 
 export const TokenHolderSync = {
   isOptimizedFlowNeeded: async (token: Token, plugin: Plugin) => {
+    const service = token?.address
+      ? `${plugin.interfaceType}-${plugin.network}-${plugin.address}-${token.address}`
+      : `${plugin.interfaceType}-${plugin.network}-${plugin.address}}`
+
+    const existingConfig = await Models.ConfigIndexer.findExistingLog({
+      network: plugin.network,
+      service,
+    })
+
+    if (existingConfig) {
+      return false
+    }
+
     const isCustomToken = token?.blockNumber !== 0 && token.blockNumber < plugin?.blockNumber
 
     if (!isCustomToken) {
