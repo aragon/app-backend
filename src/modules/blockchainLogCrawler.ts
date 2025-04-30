@@ -99,6 +99,7 @@ class BlockchainLogCrawler {
     logger.verbose(
       'Starting crawling logs',
       llo({
+        ...this.parseCrawlerInfoLog(),
         currentBlock,
         latestBlock,
       }),
