@@ -352,6 +352,90 @@ const SubscanApiHelper = {
     }
     return '0'
   },
+
+  async getAllTokenHolders(
+    tokenAddress: HexAddress,
+    network: NetworksEnum,
+    options = {
+      pageSize: 100,
+      maxPages: 100,
+      delayMs: 500,
+    },
+    callback?: (holder: { address: string; value: string }) => Promise<void> | void,
+  ) {
+    try {
+      const networkConfig = SubscanApiHelper._parseNetworkToConfig(network)
+      if (!networkConfig?.SUBSCAN_API_URL) {
+        logger.warn('Subscan API is not configured', llo({ network }))
+        return { holders: [], total: 0, hasMore: false }
+      }
+
+      const allHolders: Array<{ address: string; value: string }> = []
+      let page = 0
+      let hasMoreData = true
+      let totalItems = 0
+
+      while (hasMoreData && page < options.maxPages) {
+        const params = {
+          contract: tokenAddress,
+          page,
+          row: options.pageSize,
+        }
+
+        try {
+          const response = await SubscanApiHelper._rpCall('evm/token/holders', params, network)
+
+          if (response?.code === 0 && Array.isArray(response?.data?.list) && response.data.list.length > 0) {
+            // Get total on first page
+            if (page === 0) {
+              totalItems = response.data.count || 0
+            }
+
+            if (callback) {
+              for (const item of response.data.list) {
+                const holder = {
+                  address: item.holder,
+                  value: item.balance,
+                }
+
+                await callback(holder)
+                allHolders.push(holder)
+              }
+            } else {
+              allHolders.push(
+                ...response.data.list.map((item: any) => ({
+                  address: item.holder,
+                  value: item.balance,
+                })),
+              )
+            }
+
+            if (response.data.list.length < options.pageSize) {
+              hasMoreData = false
+            } else {
+              page++
+              await utils.wait(options.delayMs)
+            }
+          } else {
+            hasMoreData = false
+          }
+        } catch (error) {
+          logger.error('Error fetching token holders', llo({ error, page, tokenAddress }))
+          hasMoreData = false
+          throw error // Re-throw the error to be caught by the outer catch block
+        }
+      }
+
+      return {
+        holders: allHolders,
+        total: totalItems,
+        hasMore: page >= options.maxPages && hasMoreData,
+      }
+    } catch (error) {
+      logger.error('Error getAllTokenHolders', llo({ error, tokenAddress }))
+      return { holders: [], total: 0, hasMore: false }
+    }
+  },
 }
 
 export default SubscanApiHelper
