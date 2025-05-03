@@ -80,6 +80,9 @@ export const TokenHolderSync = {
       token.network,
       { pageSize: 100, maxPages: 1000, delayMs: 500 },
       async holder => {
+        const balanceAmount = holder.value.toString()
+        if (balanceAmount === '0') return
+
         const member = await ProxyMember.createMember(holder.address)
 
         const memberBalanceDb = await ProxyMember.getBalances({
@@ -93,7 +96,7 @@ export const TokenHolderSync = {
         await DbTx.executeTxFn(async ({ session }) => {
           await memberBalanceDb?.increaseBalance(
             {
-              amount: holder.value.toString(),
+              amount: balanceAmount,
               blockNumber: plugin.blockNumber,
             },
             { session },
