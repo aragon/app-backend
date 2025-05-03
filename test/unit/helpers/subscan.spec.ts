@@ -611,14 +611,27 @@ describe('Helpers:Subscan', () => {
       expect(result.holders.length).to.equal(2)
       expect(result.total).to.equal(2)
 
+      // Update to handle concurrent callbacks - don't rely on call order
       expect(callbackSpy.callCount).to.equal(2)
-      expect(callbackSpy.firstCall.args[0]).to.deep.equal({
-        address: '0xaddress1',
-        value: '1000000000000000000',
-      })
-      expect(callbackSpy.secondCall.args[0]).to.deep.equal({
-        address: '0xaddress2',
-        value: '2000000000000000000',
+
+      // Check that both expected callbacks were made with the correct arguments
+      // but don't assume any specific order
+      const expectedCallArgs = [
+        {
+          address: '0xaddress1',
+          value: '1000000000000000000',
+        },
+        {
+          address: '0xaddress2',
+          value: '2000000000000000000',
+        },
+      ]
+
+      const actualCallArgs = callbackSpy.getCalls().map(call => call.args[0])
+
+      // Verify all expected arguments were used in the callbacks
+      expectedCallArgs.forEach(expected => {
+        expect(actualCallArgs).to.deep.include(expected)
       })
     })
 
