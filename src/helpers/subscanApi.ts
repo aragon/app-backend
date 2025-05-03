@@ -386,21 +386,19 @@ const SubscanApiHelper = {
           const response = await SubscanApiHelper._rpCall('evm/token/holders', params, network)
 
           if (response?.code === 0 && Array.isArray(response?.data?.list) && response.data.list.length > 0) {
-            // Get total on first page
             if (page === 0) {
               totalItems = response.data.count || 0
             }
 
             if (callback) {
-              for (const item of response.data.list) {
-                const holder = {
-                  address: item.holder,
-                  value: item.balance,
-                }
+              const holders = response.data.list.map((item: any) => ({
+                address: item.holder,
+                value: item.balance,
+              }))
 
-                await callback(holder)
-                allHolders.push(holder)
-              }
+              await Promise.all(holders.map(async (holder: any) => callback(holder)))
+
+              allHolders.push(...holders)
             } else {
               allHolders.push(
                 ...response.data.list.map((item: any) => ({
@@ -422,7 +420,7 @@ const SubscanApiHelper = {
         } catch (error) {
           logger.error('Error fetching token holders', llo({ error, page, tokenAddress }))
           hasMoreData = false
-          throw error // Re-throw the error to be caught by the outer catch block
+          throw error
         }
       }
 
