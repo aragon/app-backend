@@ -176,6 +176,51 @@ describe('AragonPlugins: TokenHolderSync', () => {
       expect(dbTxExecuteTxFnStub.called).to.be.false
       expect(proxyMemberAddToDaoStub.called).to.be.false
     })
+
+    it('should skip holders with zero balance', async () => {
+      const mockHolders = [
+        { address: '0xHolder1', value: '100' },
+        { address: '0xHolder2', value: '0' }, // Zero balance holder
+        { address: '0xHolder3', value: '200' },
+      ]
+
+      const mockMember = { id: 'member-1' }
+      const mockBalance = {
+        id: 'balance-1',
+        increaseBalance: sandbox.stub().resolves({ id: 'updated-balance-1' }),
+      }
+
+      blockScoutGetAllTokenHoldersStub.callsFake(async (_address, _network, _options, callback) => {
+        if (callback) {
+          for (const holder of mockHolders) {
+            await callback(holder)
+          }
+        }
+        return { holders: mockHolders, total: mockHolders.length, hasMore: false }
+      })
+
+      proxyMemberCreateMemberStub.resolves(mockMember)
+      proxyMemberGetBalancesStub.resolves(mockBalance)
+      dbTxExecuteTxFnStub.callsFake(
+        async fn => await fn({ session: { commitTransaction: () => {}, endSession: () => {} } }),
+      )
+      proxyMemberAddToDaoStub.resolves(mockMember)
+
+      await TokenHolderSync.syncHoldersFromBlockScout(mockPlugin, mockToken)
+
+      // Verify only two holders with non-zero balance were processed
+      expect(proxyMemberCreateMemberStub.calledTwice).to.be.true
+      expect(proxyMemberCreateMemberStub.firstCall.args[0]).to.equal('0xHolder1')
+      expect(proxyMemberCreateMemberStub.secondCall.args[0]).to.equal('0xHolder3')
+
+      // Verify zero balance holder was skipped
+      expect(proxyMemberCreateMemberStub.neverCalledWith('0xHolder2')).to.be.true
+
+      expect(proxyMemberGetBalancesStub.calledTwice).to.be.true
+      expect(dbTxExecuteTxFnStub.calledTwice).to.be.true
+      expect(proxyMemberAddToDaoStub.calledTwice).to.be.true
+      expect(mockBalance.increaseBalance.calledTwice).to.be.true
+    })
   })
 
   describe('syncDelegationEvents', () => {
