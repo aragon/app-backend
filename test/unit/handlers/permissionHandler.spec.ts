@@ -45,8 +45,8 @@ describe('Indexer: Permission Handler', () => {
 
       await PermissionHandler.handleGrantOnDao(parsedEvent, info)
 
-      expect(handleForAdminPlugin.calledOnce).to.be.true
       expect(findExistingLog.callCount).to.eq(1)
+      expect(handleForAdminPlugin.calledOnce).to.be.true
       expect(loggerVerbose.calledOnce).to.be.true
     })
 
@@ -75,8 +75,8 @@ describe('Indexer: Permission Handler', () => {
 
       await PermissionHandler.handleGrantOnDao(parsedEvent, info)
 
-      expect(handleForAdminPlugin.calledOnce).to.be.true
       expect(findExistingLog.called).to.be.true
+      expect(handleForAdminPlugin.calledOnce).to.be.true
       expect(loggerVerbose.calledOnce).to.be.true
     })
 
@@ -105,8 +105,8 @@ describe('Indexer: Permission Handler', () => {
 
       await PermissionHandler.handleGrantOnDao(parsedEvent, info)
 
-      expect(handleForAdminPlugin.calledOnce).to.be.true
       expect(findExistingLog.callCount).to.eq(1)
+      expect(handleForAdminPlugin.calledOnce).to.be.false
       expect(loggerVerbose.notCalled).to.be.true
     })
 
@@ -135,7 +135,7 @@ describe('Indexer: Permission Handler', () => {
 
       await PermissionHandler.handleGrantOnDao(parsedEvent, info)
 
-      expect(handleForAdminPlugin.calledOnce).to.be.true
+      expect(handleForAdminPlugin.calledOnce).to.be.false
       expect(loggerError.calledOnce).to.be.true
     })
 
@@ -165,8 +165,8 @@ describe('Indexer: Permission Handler', () => {
       await PermissionHandler.handleGrantOnDao(parsedEvent, info)
 
       expect(verboseStub.calledOnce).to.be.true
-      expect(handleForAdminPlugin.calledOnce).to.be.false
       expect(findExistingLog.called).to.be.true
+      expect(handleForAdminPlugin.calledOnce).to.be.false
       expect(installPluginWithPermissionGrant.calledOnce).to.be.true
       expect(installPluginWithPermissionGrant.args[0][0]).to.be.eq('where')
       expect(installPluginWithPermissionGrant.args[0][1]).to.be.eq('who')
@@ -200,8 +200,8 @@ describe('Indexer: Permission Handler', () => {
 
       await PermissionHandler.handleRevokeOnDao(parsedEvent, info)
 
-      expect(handleForAdminPlugin.calledOnce).to.be.false
       expect(findExistingLog.called).to.be.true
+      expect(handleForAdminPlugin.calledOnce).to.be.false
       expect(loggerVerbose.calledOnce).to.be.true
     })
 
@@ -230,8 +230,8 @@ describe('Indexer: Permission Handler', () => {
 
       await PermissionHandler.handleRevokeOnDao(parsedEvent, info)
 
-      expect(handleForAdminPlugin.calledOnce).to.be.true
       expect(findExistingLog.called).to.be.true
+      expect(handleForAdminPlugin.calledOnce).to.be.true
       expect(loggerVerbose.calledOnce).to.be.true
     })
 
@@ -261,8 +261,8 @@ describe('Indexer: Permission Handler', () => {
       await PermissionHandler.handleRevokeOnDao(parsedEvent, info)
 
       expect(verboseStub.calledOnce).to.be.true
-      expect(handleForAdminPlugin.calledOnce).to.be.false
       expect(findExistingLog.called).to.be.true
+      expect(handleForAdminPlugin.calledOnce).to.be.false
       expect(uninstallPluginWithPermissionRevoke.calledOnce).to.be.true
       expect(uninstallPluginWithPermissionRevoke.args[0][0]).to.be.eq('who')
       expect(uninstallPluginWithPermissionRevoke.args[0][1]).to.be.eq('where')
@@ -293,8 +293,8 @@ describe('Indexer: Permission Handler', () => {
 
       await PermissionHandler.handleRevokeOnDao(parsedEvent, info)
 
-      expect(handleForAdminPlugin.calledOnce).to.be.false
       expect(findExistingLog.called).to.be.true
+      expect(handleForAdminPlugin.calledOnce).to.be.false
       expect(loggerVerbose.notCalled).to.be.true
     })
 
