@@ -394,12 +394,13 @@ describe('Model: Dao', () => {
   })
 
   it('should getDaoDetails', async () => {
-    const aggregateStub = sandbox.stub(Models.Dao, 'aggregate').returns([{ a: 1 }])
-    await Models.Dao.getDaoDetails('0x17366cae2b9c6c3055e9e3c78936a69006be5409')
+    const aggregateStub = sandbox.stub(Models.Dao, 'aggregate').returns([{ a: 1 }] as any)
+    await Models.Dao.getDaoDetails('0x17366cae2b9c6c3055e9e3c78936a69006be5409', NetworksEnum.polygonMainnet)
 
     expect(aggregateStub.calledOnce).to.be.true
     expect(aggregateStub.args[0][0][0].$match).to.deep.eq({
       address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+      network: NetworksEnum.polygonMainnet,
       isActive: {
         $eq: true,
       },
