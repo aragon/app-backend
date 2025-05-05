@@ -75,6 +75,16 @@ const ProposalRouter = {
     ctx.body = await ProposalController.getProposalById(formattedValues.id)
   },
 
+  getProposalDecodedActions: async function (ctx: RouterContext) {
+    const params = {
+      id: ctx.params.id,
+    }
+
+    const formattedValues = await ValidationSchema.validateParams(ProposalSchema.getProposalById, params)
+
+    ctx.body = await ProposalController.getProposalDecodedActions(formattedValues.id)
+  },
+
   canCreateProposal: async function (ctx: RouterContext) {
     const params: ICanCreateProposalParams = {
       memberAddress: ctx.query.memberAddress as HexAddress,
@@ -171,6 +181,16 @@ const ProposalRouter = {
      * @apiSampleRequest /:Slug
      */
     router.get('/slug/:slug', ProposalRouter.getProposalBySlug)
+
+    /**
+     * @api {get} /:id/actions Get Decoded Actions for a Proposal
+     * @apiName ProposalActions
+     * @apiGroup Proposals
+     * @apiDescription Get decoded actions for a proposal when rawActions array length is more than zero
+     *
+     * @apiSampleRequest /:id/actions
+     */
+    router.get('/:id/actions', ProposalRouter.getProposalDecodedActions)
 
     return router
   },

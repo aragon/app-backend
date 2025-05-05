@@ -3,7 +3,7 @@ import ValidationSchema from '@helpers/validationSchema'
 import GenericSchema from '@admin-api/routers/schema/generic'
 import QueueAdminController from '@admin-api/controllers/queue'
 import AuthMiddleware from '@middlewares/auth'
-import { type IAQueueDao, type IAQueueProposal } from '@types'
+import { type IAQueueDao, type IAQueueProposal, type NetworksEnum } from '@types'
 
 const QueueAdminRouter = {
   queueDaoPlugins: async function (ctx: RouterContext) {
@@ -62,6 +62,18 @@ const QueueAdminRouter = {
     ctx.body = await QueueAdminController.queueProposalMetrics(formattedValues)
   },
 
+  recalculateProposalActions: async function (ctx: RouterContext) {
+    const params = {
+      incrementalId: parseInt(ctx.query.incrementalId as string),
+      pluginAddress: ctx.query.pluginAddress as string,
+      network: ctx.query.network as NetworksEnum,
+    }
+
+    const formattedValues = await ValidationSchema.validateParams(GenericSchema.recalculateProposalActions, params)
+
+    ctx.body = await QueueAdminController.recalculateProposalActions(formattedValues)
+  },
+
   router() {
     const router = new Router()
     const authedAdmin = AuthMiddleware.authAssertAdmin()
@@ -75,6 +87,7 @@ const QueueAdminRouter = {
       authedAdmin,
       QueueAdminRouter.queueProposalMetrics,
     )
+    router.post('/proposals/decode', authedAdmin, QueueAdminRouter.recalculateProposalActions)
 
     return router
   },
