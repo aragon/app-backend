@@ -1,7 +1,7 @@
 {
   "name": "aragon-backend",
   "description": "OpenSource backend services",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "main": "index.ts",
   "license": "AGPL-3.0",
   "author": "Aragon Development Team",
