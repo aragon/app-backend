@@ -170,12 +170,13 @@ export const ProxyToken = {
       }
     }
 
-    const tokenRate = CovalentHelper.skipTestNetworks.includes(network)
-      ? { priceUsd: '0' }
-      : await ProxyWeb3Provider.fetchTokenPrice({
-          address: tokenAddress,
-          network,
-        })
+    const tokenRate =
+      CovalentHelper.skipTestNetworks.includes(network) || rawToken.isGovernance
+        ? { priceUsd: '0' }
+        : await ProxyWeb3Provider.fetchTokenPrice({
+            address: tokenAddress,
+            network,
+          })
     rawToken.priceUsd = TokenUtils.firstValid(tokenRate.priceUsd, tokenDetails?.priceUsd) || '0'
     rawToken.skipFetchRate = TokenUtils.shouldSkipFetch(rawToken, tokenRate)
 
