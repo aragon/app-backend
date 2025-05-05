@@ -658,7 +658,7 @@ export default class Proposal extends Model {
           summary: 1,
           resources: 1,
           executed: 1,
-          actions: 1,
+          // actions: 1,
           decoding: 1,
           stageExecutions: 1,
           results: 1,
@@ -960,11 +960,11 @@ export default class Proposal extends Model {
           summary: 1,
           resources: 1,
           executed: 1,
-          actions: 1,
+          // actions: 1,
           decoding: 1,
-          media: 1,
           stageExecutions: 1,
           results: 1,
+          media: 1,
           settings: {
             $mergeObjects: [
               '$settings',

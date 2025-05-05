@@ -164,8 +164,15 @@ describe('Controller: Dao', () => {
   describe('getDaoById', () => {
     it('should getDaoById', async () => {
       const daoDb = await Models.Dao.create(DaoList[1])
+
+      // Add stub for getDaoDetails to verify it's called with correct parameters
+      const getDaoDetailsStub = sandbox.stub(Models.Dao, 'getDaoDetails').resolves({ id: daoDb.id } as any)
+
       const dao = await DaoController.getDaoById(daoDb.id)
+
       expect(dao.id).to.eq(daoDb.id)
+      expect(getDaoDetailsStub.calledOnce).to.be.true
+      expect(getDaoDetailsStub.calledWith(daoDb.address, daoDb.network)).to.be.true
     })
 
     it('should fail to getDaoById', async () => {
@@ -179,8 +186,14 @@ describe('Controller: Dao', () => {
     it('should getDaoByAddress', async () => {
       const daoDB = await Models.Dao.create(DaoList[1])
 
+      // Add stub for getDaoDetails to verify it's called with correct parameters
+      const getDaoDetailsStub = sandbox.stub(Models.Dao, 'getDaoDetails').resolves({ id: daoDB.id } as any)
+
       const daoDb = await DaoController.getDaoByAddress(daoDB.address, daoDB.network)
+
       expect(daoDb.id).to.eq(daoDB.id)
+      expect(getDaoDetailsStub.calledOnce).to.be.true
+      expect(getDaoDetailsStub.calledWith(daoDB.address, daoDB.network)).to.be.true
     })
 
     it('should fail to getDaoByAddress', async () => {
