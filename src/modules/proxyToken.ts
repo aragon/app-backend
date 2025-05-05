@@ -177,6 +177,7 @@ export const ProxyToken = {
           network,
         })
     rawToken.priceUsd = TokenUtils.firstValid(tokenRate.priceUsd, tokenDetails?.priceUsd) || '0'
+    rawToken.skipFetchRate = TokenUtils.shouldSkipFetch(rawToken, tokenRate)
 
     // Save token and commit transaction
     const savedToken = await Models.Token.create(rawToken, { session })
