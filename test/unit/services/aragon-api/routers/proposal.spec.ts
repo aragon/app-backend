@@ -184,6 +184,24 @@ describe('Router: Proposal', () => {
     expect(stubCtrl.calledWith(params.slug, ctx.query)).to.be.true
   })
 
+  it('Should getProposalDecodedActions', async () => {
+    const params = {
+      id: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+    }
+
+    const stubCtrl = sandbox.stub(ProposalController, 'getProposalDecodedActions').returns(true as any)
+
+    const ctx: any = {
+      params,
+    }
+
+    await ProposalRouter.getProposalDecodedActions(ctx)
+
+    expect(ctx.body).to.eq(true)
+    expect(stubCtrl.calledOnce).to.be.true
+    expect(stubCtrl.calledWith(getAddress(params.id) as any)).to.be.true
+  })
+
   it('should canCastVote', async () => {
     const ctx: any = {
       query: { userAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2' },
@@ -196,6 +214,27 @@ describe('Router: Proposal', () => {
 
     await ProposalRouter.canCastVote(ctx)
     expect(ctx.body).to.eq(true)
+    expect(stubCtrl.calledOnce).to.be.true
+    expect(
+      stubCtrl.calledWith({
+        proposalId: ctx.params.proposalId,
+        userAddress: ctx.query.userAddress,
+      }),
+    ).to.be.true
+  })
+
+  it('should canCastVote2', async () => {
+    const ctx: any = {
+      query: { userAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2' },
+      params: {
+        proposalId: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+      },
+    }
+
+    const stubCtrl = sandbox.stub(ProposalController, 'canCastVote').returns(true as any)
+
+    await ProposalRouter.canCastVote2(ctx)
+    expect(ctx.body).to.deep.eq({ status: true })
     expect(stubCtrl.calledOnce).to.be.true
     expect(
       stubCtrl.calledWith({
@@ -231,5 +270,33 @@ describe('Router: Proposal', () => {
 
     expect(stubCtrl.calledOnceWith(ctx.query)).to.be.true
     expect(ctx.body).to.eq(true)
+  })
+
+  it('Should check if a member can create a proposal with canCreateProposal2', async () => {
+    const ctx: any = {
+      query: {
+        memberAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+        pluginAddress: '0xPluginAddress123',
+        network: NetworksEnum.ethereumMainnet,
+      },
+    }
+
+    const validateParamsStub = sandbox.stub(ValidationSchema, 'validateParams').resolves(ctx.query)
+
+    const stubCtrl = sandbox.stub(ProposalController, 'canCreateProposal').resolves(true as any)
+
+    await ProposalRouter.canCreateProposal2(ctx)
+
+    expect(validateParamsStub.calledOnce).to.be.true
+    expect(
+      validateParamsStub.calledWith(ProposalSchema.canCreateProposal, {
+        memberAddress: ctx.query.memberAddress,
+        pluginAddress: ctx.query.pluginAddress,
+        network: ctx.query.network,
+      }),
+    ).to.be.true
+
+    expect(stubCtrl.calledOnceWith(ctx.query)).to.be.true
+    expect(ctx.body).to.deep.eq({ status: true })
   })
 })
