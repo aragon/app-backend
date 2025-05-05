@@ -1,3 +1,10 @@
+## [0.5.1](https://github.com/aragon/app-backend/compare/v0.5.0...v0.5.1) (2025-05-05)
+
+
+### Bug Fixes
+
+* **proxyToken:** skip if goveranance token staging ([#551](https://github.com/aragon/app-backend/issues/551)) ([#553](https://github.com/aragon/app-backend/issues/553)) ([6abeb21](https://github.com/aragon/app-backend/commit/6abeb217e309a931c3602a8c38d616e524007229))
+
 # [0.5.0](https://github.com/aragon/app-backend/compare/v0.4.1...v0.5.0) (2025-04-30)
 
 
