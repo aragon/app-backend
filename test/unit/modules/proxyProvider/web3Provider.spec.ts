@@ -503,4 +503,99 @@ describe('Web3Provider', () => {
       expect(result).to.equal(searchDetails)
     })
   })
+
+  describe('getAllTokenHolders', () => {
+    it('should forward to BlockScoutHelper.getAllTokenHolders with correct parameters', async () => {
+      // Arrange
+      const address = '0xtoken'
+      const network = NetworksEnum.ethereumMainnet
+      const mockCallback = sandbox.stub()
+      const mockHolders = [
+        { address: '0xholder1', value: '100' },
+        { address: '0xholder2', value: '200' },
+      ]
+      const mockResponse = {
+        holders: mockHolders,
+        total: mockHolders.length,
+        hasMore: false,
+      }
+
+      const getAllTokenHoldersStub = sandbox.stub(BlockScoutHelper, 'getAllTokenHolders').resolves(mockResponse)
+
+      // Act
+      const result = await Web3Provider.getAllTokenHolders({
+        address,
+        network,
+        callback: mockCallback,
+      })
+
+      // Assert
+      expect(getAllTokenHoldersStub.calledOnce).to.be.true
+      expect(
+        getAllTokenHoldersStub.calledWith(
+          address,
+          network,
+          { pageSize: 100, maxPages: 1000, delayMs: 500 },
+          mockCallback,
+        ),
+      ).to.be.true
+      expect(result).to.equal(mockResponse)
+    })
+
+    it('should handle callbacks for each token holder', async () => {
+      // Arrange
+      const address = '0xtoken'
+      const network = NetworksEnum.ethereumMainnet
+      const mockCallback = sandbox.stub()
+      const mockHolders = [
+        { address: '0xholder1', value: '100' },
+        { address: '0xholder2', value: '200' },
+      ]
+
+      // Simulate the behavior where BlockScoutHelper calls callback for each holder
+      const getAllTokenHoldersStub = sandbox
+        .stub(BlockScoutHelper, 'getAllTokenHolders')
+        .callsFake(async (_address, _network, _options, callback) => {
+          if (callback) {
+            for (const holder of mockHolders) {
+              await callback(holder)
+            }
+          }
+          return {
+            holders: mockHolders,
+            total: mockHolders.length,
+            hasMore: false,
+          }
+        })
+
+      const result = await Web3Provider.getAllTokenHolders({
+        address,
+        network,
+        callback: mockCallback,
+      })
+      expect(getAllTokenHoldersStub.calledOnce).to.be.true
+      expect(mockCallback.calledTwice).to.be.true
+      expect(mockCallback.firstCall.args[0]).to.deep.equal(mockHolders[0])
+      expect(mockCallback.secondCall.args[0]).to.deep.equal(mockHolders[1])
+      expect(result.holders).to.deep.equal(mockHolders)
+    })
+
+    it('should handle errors from BlockScoutHelper', async () => {
+      const address = '0xtoken'
+      const network = NetworksEnum.ethereumMainnet
+      const errorMessage = 'BlockScout API error'
+
+      const getAllTokenHoldersStub = sandbox
+        .stub(BlockScoutHelper, 'getAllTokenHolders')
+        .rejects(new Error(errorMessage))
+
+      try {
+        await Web3Provider.getAllTokenHolders({ address, network, callback: () => {} })
+        expect.fail('Expected an error to be thrown')
+      } catch (error: any) {
+        expect(error.message).to.equal(errorMessage)
+        expect(getAllTokenHoldersStub.calledOnce).to.be.true
+      }
+    })
+  })
 })

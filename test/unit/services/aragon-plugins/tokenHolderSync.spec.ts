@@ -4,12 +4,12 @@ import { expect } from 'chai'
 import { TokenHolderSync } from '@plugins/tokenHolderSync'
 import BlockScoutHelper from '@helpers/blockScout'
 import { ProxyMember } from '@modules/proxyMember'
-import DbTx from '@modules/dbTx'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
-import { IGovernanceErc20Logs, NetworksEnum } from '@types'
+import { IGovernanceErc20Logs, NetworksEnum, TokenSyncTagName } from '@types'
 import configIndexer from '@indexer/configIndexer'
 import config from '@config'
 import logger from '@logger'
+import { Models } from '@dbModels'
 
 describe('AragonPlugins: TokenHolderSync', () => {
   let sandbox: SinonSandbox
@@ -18,7 +18,6 @@ describe('AragonPlugins: TokenHolderSync', () => {
   let proxyMemberCreateMemberStub: SinonStub
   let proxyMemberGetBalancesStub: SinonStub
   let proxyMemberAddToDaoStub: SinonStub
-  let dbTxExecuteTxFnStub: SinonStub
   let crawlerCrawlStub: SinonStub
   let loggerVerboseStub: SinonStub
   let loggerErrorStub: SinonStub
@@ -49,9 +48,6 @@ describe('AragonPlugins: TokenHolderSync', () => {
     proxyMemberCreateMemberStub = sandbox.stub(ProxyMember, 'createMember')
     proxyMemberGetBalancesStub = sandbox.stub(ProxyMember, 'getBalances')
     proxyMemberAddToDaoStub = sandbox.stub(ProxyMember, 'addToDao')
-
-    // Stub DbTx
-    dbTxExecuteTxFnStub = sandbox.stub(DbTx, 'executeTxFn')
 
     // Stub BlockchainLogCrawler
     crawlerCrawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl')
@@ -118,7 +114,7 @@ describe('AragonPlugins: TokenHolderSync', () => {
     })
   })
 
-  describe('syncHoldersFromBlockScout', () => {
+  describe('syncAllTokenHolders', () => {
     it('should correctly process token holders from BlockScout', async () => {
       const mockHolders = [
         { address: '0xHolder1', value: '100' },
@@ -142,17 +138,13 @@ describe('AragonPlugins: TokenHolderSync', () => {
 
       proxyMemberCreateMemberStub.resolves(mockMember)
       proxyMemberGetBalancesStub.resolves(mockBalance)
-      dbTxExecuteTxFnStub.callsFake(
-        async fn => await fn({ session: { commitTransaction: () => {}, endSession: () => {} } }),
-      )
       proxyMemberAddToDaoStub.resolves(mockMember)
 
-      await TokenHolderSync.syncHoldersFromBlockScout(mockPlugin, mockToken)
+      await TokenHolderSync.syncAllTokenHolders(mockPlugin, mockToken)
 
       expect(blockScoutGetAllTokenHoldersStub.calledOnce).to.be.true
       expect(proxyMemberCreateMemberStub.calledTwice).to.be.true
       expect(proxyMemberGetBalancesStub.calledTwice).to.be.true
-      expect(dbTxExecuteTxFnStub.calledTwice).to.be.true
       expect(proxyMemberAddToDaoStub.calledTwice).to.be.true
       expect(mockBalance.increaseBalance.calledTwice).to.be.true
     })
@@ -168,12 +160,11 @@ describe('AragonPlugins: TokenHolderSync', () => {
       proxyMemberCreateMemberStub.resolves(null) // Member creation fails
       proxyMemberGetBalancesStub.resolves(null) // Balance retrieval fails
 
-      await TokenHolderSync.syncHoldersFromBlockScout(mockPlugin, mockToken)
+      await TokenHolderSync.syncAllTokenHolders(mockPlugin, mockToken)
 
       expect(blockScoutGetAllTokenHoldersStub.calledOnce).to.be.true
       expect(proxyMemberCreateMemberStub.calledOnce).to.be.true
       expect(proxyMemberGetBalancesStub.calledOnce).to.be.true
-      expect(dbTxExecuteTxFnStub.called).to.be.false
       expect(proxyMemberAddToDaoStub.called).to.be.false
     })
 
@@ -201,12 +192,9 @@ describe('AragonPlugins: TokenHolderSync', () => {
 
       proxyMemberCreateMemberStub.resolves(mockMember)
       proxyMemberGetBalancesStub.resolves(mockBalance)
-      dbTxExecuteTxFnStub.callsFake(
-        async fn => await fn({ session: { commitTransaction: () => {}, endSession: () => {} } }),
-      )
       proxyMemberAddToDaoStub.resolves(mockMember)
 
-      await TokenHolderSync.syncHoldersFromBlockScout(mockPlugin, mockToken)
+      await TokenHolderSync.syncAllTokenHolders(mockPlugin, mockToken)
 
       // Verify only two holders with non-zero balance were processed
       expect(proxyMemberCreateMemberStub.calledTwice).to.be.true
@@ -217,9 +205,198 @@ describe('AragonPlugins: TokenHolderSync', () => {
       expect(proxyMemberCreateMemberStub.neverCalledWith('0xHolder2')).to.be.true
 
       expect(proxyMemberGetBalancesStub.calledTwice).to.be.true
-      expect(dbTxExecuteTxFnStub.calledTwice).to.be.true
       expect(proxyMemberAddToDaoStub.calledTwice).to.be.true
       expect(mockBalance.increaseBalance.calledTwice).to.be.true
+    })
+
+    it('should skip sync if BlockScout sync was already completed', async () => {
+      // Setup
+      const hasCompletedSyncStub = sandbox.stub(TokenHolderSync, 'hasCompletedHolderSync').resolves(true)
+      // Act
+      await TokenHolderSync.syncAllTokenHolders(mockPlugin, mockToken)
+
+      // Assert
+      expect(hasCompletedSyncStub.calledOnce).to.be.true
+      expect(loggerVerboseStub.calledWith('TokenHolderSync - BlockScout sync already completed, skipping' as any)).to.be
+        .true
+      expect(blockScoutGetAllTokenHoldersStub.called).to.be.false
+    })
+  })
+
+  describe('getTagName', () => {
+    it('should return correct tag name for default type', () => {
+      const plugin = {
+        interfaceType: 'tokenVoting',
+        network: NetworksEnum.ethereumSepolia,
+        address: '0xPlugin123',
+      } as any
+
+      const token = {
+        address: '0xToken456',
+      } as any
+
+      const result = TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Default)
+
+      expect(result).to.equal('tokenVoting-ethereum-sepolia-0xPlugin123-0xToken456')
+    })
+
+    it('should return correct tag name for non-default type', () => {
+      const plugin = {
+        interfaceType: 'tokenVoting',
+        network: NetworksEnum.ethereumSepolia,
+        address: '0xPlugin123',
+      } as any
+
+      const token = {
+        address: '0xToken456',
+      } as any
+
+      const result = TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.BlockScout)
+
+      expect(result).to.equal('tokenVoting-ethereum-sepolia-0xPlugin123-0xToken456-blockScout')
+    })
+  })
+
+  describe('hasCompletedHolderSync', () => {
+    let modelsConfigIndexerFindExistingLogStub: SinonStub
+
+    beforeEach(() => {
+      // Mock Models.ConfigIndexer.findExistingLog
+      modelsConfigIndexerFindExistingLogStub = sandbox.stub()
+      sandbox.stub(Models, 'ConfigIndexer').value({ findExistingLog: modelsConfigIndexerFindExistingLogStub })
+    })
+
+    it('should return true if sync record exists', async () => {
+      // Setup
+      modelsConfigIndexerFindExistingLogStub.resolves({ service: 'test-service' })
+
+      // Act
+      const result = await TokenHolderSync.hasCompletedHolderSync(mockPlugin, mockToken)
+
+      // Assert
+      expect(result).to.be.true
+      expect(modelsConfigIndexerFindExistingLogStub.calledOnce).to.be.true
+      const expectedTagName = TokenHolderSync.getTagName(mockPlugin, mockToken, TokenSyncTagName.BlockScout)
+      expect(modelsConfigIndexerFindExistingLogStub.firstCall.args[0]).to.deep.equal({
+        network: mockPlugin.network,
+        service: expectedTagName,
+      })
+    })
+
+    it('should return false if sync record does not exist', async () => {
+      // Setup
+      modelsConfigIndexerFindExistingLogStub.resolves(null)
+
+      // Act
+      const result = await TokenHolderSync.hasCompletedHolderSync(mockPlugin, mockToken)
+
+      // Assert
+      expect(result).to.be.false
+      expect(modelsConfigIndexerFindExistingLogStub.calledOnce).to.be.true
+    })
+  })
+
+  describe('markHolderSyncCompleted', () => {
+    let modelsConfigIndexerCreateStub: SinonStub
+
+    beforeEach(() => {
+      // Mock Models.ConfigIndexer.create
+      modelsConfigIndexerCreateStub = sandbox.stub()
+      sandbox.stub(Models, 'ConfigIndexer').value({ create: modelsConfigIndexerCreateStub })
+    })
+
+    it('should create ConfigIndexer record with correct parameters', async () => {
+      // Setup
+      modelsConfigIndexerCreateStub.resolves({ service: 'test-service' })
+
+      // Act
+      await TokenHolderSync.markHolderSyncCompleted(mockPlugin, mockToken)
+
+      // Assert
+      expect(modelsConfigIndexerCreateStub.calledOnce).to.be.true
+
+      const expectedTagName = TokenHolderSync.getTagName(mockPlugin, mockToken, TokenSyncTagName.BlockScout)
+      expect(modelsConfigIndexerCreateStub.firstCall.args[0]).to.deep.equal({
+        network: mockPlugin.network,
+        service: expectedTagName,
+        lastSync: mockPlugin.blockNumber,
+      })
+    })
+  })
+
+  describe('convertToStandardSync', () => {
+    let modelsConfigIndexerFindStub: SinonStub
+    let modelsConfigIndexerDeleteManyStub: SinonStub
+    let modelsConfigIndexerCreateStub: SinonStub
+
+    beforeEach(() => {
+      // Mock Models.ConfigIndexer methods
+      modelsConfigIndexerFindStub = sandbox.stub()
+      modelsConfigIndexerDeleteManyStub = sandbox.stub()
+      modelsConfigIndexerCreateStub = sandbox.stub()
+      sandbox.stub(Models, 'ConfigIndexer').value({
+        find: modelsConfigIndexerFindStub,
+        deleteMany: modelsConfigIndexerDeleteManyStub,
+        create: modelsConfigIndexerCreateStub,
+      })
+    })
+
+    it('should convert optimized sync tags to standard sync', async () => {
+      // Setup
+      const mockSyncTags = [
+        { service: 'delegation-tag', lastSync: 1200 },
+        { service: 'transfer-tag', lastSync: 1500 },
+      ]
+      modelsConfigIndexerFindStub.resolves(mockSyncTags)
+
+      // Act
+      await TokenHolderSync.convertToStandardSync(mockPlugin, mockToken)
+
+      // Assert
+      expect(modelsConfigIndexerFindStub.calledOnce).to.be.true
+
+      const delegationTagName = TokenHolderSync.getTagName(mockPlugin, mockToken, TokenSyncTagName.Delegation)
+      const transferTagName = TokenHolderSync.getTagName(mockPlugin, mockToken, TokenSyncTagName.Transfer)
+
+      expect(modelsConfigIndexerFindStub.firstCall.args[0]).to.deep.equal({
+        network: mockPlugin.network,
+        service: {
+          $in: [delegationTagName, transferTagName],
+        },
+      })
+
+      expect(modelsConfigIndexerDeleteManyStub.calledOnce).to.be.true
+      expect(modelsConfigIndexerDeleteManyStub.firstCall.args[0]).to.deep.equal({
+        network: mockPlugin.network,
+        service: {
+          $in: [delegationTagName, transferTagName],
+        },
+      })
+
+      expect(modelsConfigIndexerCreateStub.calledOnce).to.be.true
+      const defaultTagName = TokenHolderSync.getTagName(mockPlugin, mockToken, TokenSyncTagName.Default)
+      expect(modelsConfigIndexerCreateStub.firstCall.args[0]).to.deep.equal({
+        network: mockPlugin.network,
+        service: defaultTagName,
+        lastSync: 1500, // Max of sync blocks
+      })
+    })
+
+    it('should use plugin block number when no sync tags exist', async () => {
+      // Setup
+      modelsConfigIndexerFindStub.resolves([])
+
+      // Act
+      await TokenHolderSync.convertToStandardSync(mockPlugin, mockToken)
+
+      // Assert
+      expect(modelsConfigIndexerCreateStub.calledOnce).to.be.true
+      const defaultTagName = TokenHolderSync.getTagName(mockPlugin, mockToken, TokenSyncTagName.Default)
+      expect(modelsConfigIndexerCreateStub.firstCall.args[0]).to.deep.equal({
+        network: mockPlugin.network,
+        service: defaultTagName,
+        lastSync: mockPlugin.blockNumber,
+      })
     })
   })
 

@@ -4,10 +4,10 @@ import ProviderModule from '@modules/provider'
 import { ITokenType, NetworksEnum } from '@types'
 import { ProxyToken } from '@modules/proxyToken'
 import TokenDetector from '@helpers/tokenDetector'
-import { RateModule } from '@modules/rates'
 import CovalentHelper from '@helpers/covalent'
 import { Models } from '@dbModels'
 import { expect } from 'chai'
+import ProxyProvider from '@modules/proxyProvider'
 
 describe('Manual: Token', () => {
   let sandbox: SinonSandbox
@@ -41,7 +41,7 @@ describe('Manual: Token', () => {
       totalHolders: 1,
       totalSupply: '1',
     } as any)
-    sandbox.stub(ProxyToken, 'getContractCreationInfo').resolves({
+    sandbox.stub(ProxyProvider, 'fetchContractCreation').resolves({
       blockNumber: 100,
       transactionHash: '0x000',
       address: tokenAddress,

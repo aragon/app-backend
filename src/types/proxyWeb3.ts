@@ -11,6 +11,7 @@ export enum IWeb3ProxyMethod {
   fetchAddressTxns = 'fetchAddressTxns',
   fetchTokenPrice = 'fetchTokenPrice',
   searchDetailsOfContract = 'searchDetailsOfContract',
+  getAllTokenHolders = 'getAllTokenHolders',
 }
 
 export interface IWeb3Provider {
@@ -45,6 +46,15 @@ export interface IWeb3Provider {
     pastDays?: number
   }) => Promise<any>
   searchDetailsOfContract: ({ address, network }: { address: string; network: NetworksEnum }) => Promise<any>
+  getAllTokenHolders: ({
+    address,
+    network,
+    callback,
+  }: {
+    address: string
+    network: NetworksEnum
+    callback?: (holder: { address: string; value: string }) => Promise<void> | void
+  }) => Promise<any>
 }
 
 export interface IWeb3TokenBalance {

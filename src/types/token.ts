@@ -105,3 +105,10 @@ export enum IClockMode {
   BlockNumber = 'blocknumber',
   Timestamp = 'timestamp',
 }
+
+export enum TokenSyncTagName {
+  Default = 'default',
+  Delegation = 'delegation-events',
+  Transfer = 'transfer-events',
+  BlockScout = 'blockScout',
+}
