@@ -149,8 +149,7 @@ export default class Dao extends Model {
   }
 
   static getEntityId(params: IDaoIdParams) {
-    const entityId = `${params.network}-${params.address}`
-    return entityId
+    return `${params.network}-${params.address}`
   }
 
   static async findExistingLog(params: IDaoIdParams, tOpts?: SaveOptions) {
@@ -502,11 +501,12 @@ export default class Dao extends Model {
   }
 
   // INFO: for multiple plugins we cannot extract the voting power and balance of the members
-  static async getDaoDetails(address: HexAddress) {
+  static async getDaoDetails(address: HexAddress, network: NetworksEnum) {
     const query = [
       {
         $match: {
           address,
+          network,
           isHidden: { $ne: true },
           isActive: { $eq: true },
         },
@@ -740,78 +740,6 @@ export default class Dao extends Model {
       {
         $addFields: {
           pluginTokenAddress: { $arrayElemAt: ['$plugin.tokenAddress', 0] },
-        },
-      },
-      {
-        $lookup: {
-          from: 'DaoMemberMapping',
-          let: { daoAddr: '$address', network: '$network', pluginTokenAddress: '$pluginTokenAddress' },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [{ $eq: ['$$daoAddr', '$daoAddress'] }, { $eq: ['$$network', '$network'] }],
-                },
-              },
-            },
-            AggregationQueryHelper.member(
-              {
-                memberAddress: '$memberAddress',
-              },
-              'info',
-              {
-                address: 1,
-                ens: 1,
-                avatar: 1,
-              },
-            ),
-            {
-              $addFields: {
-                info: { $arrayElemAt: ['$info', 0] },
-              },
-            },
-            AggregationQueryHelper.memberBalance(
-              {
-                tokenAddress: '$$pluginTokenAddress',
-                network: '$network',
-                memberAddress: '$memberAddress',
-              },
-              'memberBalance',
-              {
-                amount: 1,
-                votingPower: 1,
-              },
-            ),
-            {
-              $addFields: {
-                memberBalance: {
-                  $cond: [
-                    { $gt: [{ $size: '$memberBalance' }, 0] },
-                    { $arrayElemAt: ['$memberBalance', 0] },
-                    { amount: null, votingPower: null },
-                  ],
-                },
-              },
-            },
-          ],
-          as: 'members',
-        },
-      },
-      {
-        $addFields: {
-          members: {
-            $map: {
-              input: '$members',
-              as: 'member',
-              in: {
-                address: '$$member.info.address',
-                ens: '$$member.info.ens',
-                avatar: '$$member.info.avatar',
-                votingPower: '$$member.memberBalance.votingPower',
-                balance: '$$member.memberBalance.amount',
-              },
-            },
-          },
         },
       },
       {
