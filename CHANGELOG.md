@@ -1,3 +1,10 @@
+## [0.5.2](https://github.com/aragon/app-backend/compare/v0.5.1...v0.5.2) (2025-05-05)
+
+
+### Bug Fixes
+
+* **govHandler:** Remove waiting time in case of realtime during handling transfer events ([#555](https://github.com/aragon/app-backend/issues/555)) ([37bb9d1](https://github.com/aragon/app-backend/commit/37bb9d1d2ce26b7fe1fd05adb1c11728a1e00c8e)), closes [#551](https://github.com/aragon/app-backend/issues/551) [#554](https://github.com/aragon/app-backend/issues/554)
+
 ## [0.5.1](https://github.com/aragon/app-backend/compare/v0.5.0...v0.5.1) (2025-05-05)
 
 
