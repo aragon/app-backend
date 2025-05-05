@@ -43,9 +43,10 @@ describe('AragonPlugins: LogTokenVoting', () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
       const verboseStub = sandbox.stub(logger, 'verbose')
       const isOptimizedFlowNeededStub = sandbox.stub(TokenHolderSync, 'isOptimizedFlowNeeded').resolves(true)
-      const syncHoldersStub = sandbox.stub(TokenHolderSync, 'syncHoldersFromBlockScout').resolves()
+      const syncHoldersStub = sandbox.stub(TokenHolderSync, 'syncAllTokenHolders').resolves()
       const syncDelegationStub = sandbox.stub(TokenHolderSync, 'syncDelegationEvents').resolves()
       const syncTransfersStub = sandbox.stub(TokenHolderSync, 'syncTransfersEvents').resolves()
+      const convertToStandardSyncStub = sandbox.stub(TokenHolderSync, 'convertToStandardSync').resolves()
 
       const token = {
         address: '0x123',
@@ -66,7 +67,44 @@ describe('AragonPlugins: LogTokenVoting', () => {
       expect(syncDelegationStub.calledOnce).to.be.true
       expect(syncTransfersStub.calledOnce).to.be.true
       expect(crawlStub.calledOnce).to.be.true // Only the plugin crawler
+      expect(convertToStandardSyncStub.calledOnce).to.be.true
       expect(verboseStub.calledWith('Start LogTokenVoting' as any)).to.be.true
+      expect(verboseStub.calledWith('End LogTokenVoting' as any)).to.be.true
+    })
+
+    it('should complete the optimized flow by converting to standard sync', async () => {
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      const verboseStub = sandbox.stub(logger, 'verbose')
+      const isOptimizedFlowNeededStub = sandbox.stub(TokenHolderSync, 'isOptimizedFlowNeeded').resolves(true)
+      const syncHoldersStub = sandbox.stub(TokenHolderSync, 'syncAllTokenHolders').resolves()
+      const syncDelegationStub = sandbox.stub(TokenHolderSync, 'syncDelegationEvents').resolves()
+      const syncTransfersStub = sandbox.stub(TokenHolderSync, 'syncTransfersEvents').resolves()
+      const convertToStandardSyncStub = sandbox.stub(TokenHolderSync, 'convertToStandardSync').resolves()
+
+      const token = {
+        address: '0x123',
+        network: NetworksEnum.ethereumSepolia,
+        blockNumber: 100,
+      } as any
+      const plugin = {
+        address: '0x456',
+        tokenAddress: token.address,
+        network: token.network,
+        blockNumber: 200,
+        interfaceType: 'tokenVoting',
+      } as any
+
+      await LogTokenVoting.start(plugin, token)
+
+      expect(isOptimizedFlowNeededStub.calledOnce).to.be.true
+      expect(syncHoldersStub.calledOnce).to.be.true
+      expect(syncDelegationStub.calledOnce).to.be.true
+      expect(syncTransfersStub.calledOnce).to.be.true
+      expect(convertToStandardSyncStub.calledOnce).to.be.true
+      expect(convertToStandardSyncStub.calledWith(plugin, token)).to.be.true
+
+      // Verify end log contains timing information
+      expect(verboseStub.calledWith('End LogTokenVoting' as any)).to.be.true
     })
 
     it('should handle errors during crawling for the plugin crawler', async () => {
@@ -157,9 +195,10 @@ describe('AragonPlugins: LogTokenVoting', () => {
       } as any
 
       sandbox.stub(TokenHolderSync, 'isOptimizedFlowNeeded').resolves(true)
-      sandbox.stub(TokenHolderSync, 'syncHoldersFromBlockScout').resolves()
+      sandbox.stub(TokenHolderSync, 'syncAllTokenHolders').resolves()
       sandbox.stub(TokenHolderSync, 'syncDelegationEvents').resolves()
       sandbox.stub(TokenHolderSync, 'syncTransfersEvents').resolves()
+      sandbox.stub(TokenHolderSync, 'convertToStandardSync').resolves()
 
       sandbox.stub(logger, 'verbose')
       const error = new Error('Test error from optimized flow')

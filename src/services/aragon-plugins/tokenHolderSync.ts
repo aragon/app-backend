@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { IGovernanceErc20Logs, type IIndexerConfig } from '@types'
+import { type IEnumIndexerServiceStatic, TokenSyncTagName, IGovernanceErc20Logs, type IIndexerConfig } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Plugin from '@models/schema/plugin'
 import type Token from '@models/schema/token'
@@ -9,27 +9,27 @@ import config from '@config'
 import { ProxyMember } from '@modules/proxyMember'
 import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
+import ProxyWeb3Provider from '@modules/proxyProvider'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-plugins:tokenHolderSync' })
 
 export const TokenHolderSync = {
+  getTagName: (plugin: Plugin, token: Token, type: TokenSyncTagName): IEnumIndexerServiceStatic => {
+    return `${plugin.interfaceType}-${plugin.network}-${plugin.address}-${token?.address}${type === TokenSyncTagName.Default ? '' : `-${type}`}`
+  },
   isOptimizedFlowNeeded: async (token: Token, plugin: Plugin) => {
-    const service = token?.address
-      ? `${plugin.interfaceType}-${plugin.network}-${plugin.address}-${token.address}`
-      : `${plugin.interfaceType}-${plugin.network}-${plugin.address}}`
-
-    const existingConfig = await Models.ConfigIndexer.findExistingLog({
-      network: plugin.network,
-      service,
-    })
-
-    if (existingConfig) {
-      return false
-    }
-
     const isCustomToken = token?.blockNumber !== 0 && token.blockNumber < plugin?.blockNumber
 
     if (!isCustomToken) {
+      return false
+    }
+
+    const hasDefaultTag = await Models.ConfigIndexer.findOne({
+      network: plugin.network,
+      service: TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Default),
+    })
+
+    if (hasDefaultTag) {
       return false
     }
 
@@ -74,12 +74,24 @@ export const TokenHolderSync = {
     return configGovLogs.filter((item: IIndexerConfig) => item.event === governanceLogTopic)
   },
 
-  syncHoldersFromBlockScout: async (plugin: Plugin, token: Token) => {
-    await BlockScoutHelper.getAllTokenHolders(
-      token.address,
-      token.network,
-      { pageSize: 100, maxPages: 1000, delayMs: 500 },
-      async holder => {
+  syncAllTokenHolders: async (plugin: Plugin, token: Token) => {
+    const alreadyCompleted = await TokenHolderSync.hasCompletedHolderSync(plugin, token)
+    if (alreadyCompleted) {
+      logger.verbose(
+        'TokenHolderSync - BlockScout sync already completed, skipping',
+        llo({
+          network: plugin.network,
+          tokenAddress: token.address,
+          pluginAddress: plugin.address,
+        }),
+      )
+      return
+    }
+
+    await ProxyWeb3Provider.getAllTokenHolders({
+      address: token.address,
+      network: token.network,
+      callback: async holder => {
         const balanceAmount = holder.value.toString()
         if (balanceAmount === '0') return
 
@@ -111,7 +123,9 @@ export const TokenHolderSync = {
           network: plugin.network,
         })
       },
-    )
+    })
+
+    await TokenHolderSync.markHolderSyncCompleted(plugin, token)
   },
 
   syncDelegationEvents: async (plugin: Plugin, token: Token) => {
@@ -135,7 +149,7 @@ export const TokenHolderSync = {
           }),
         )
       },
-      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}-${token?.address}-delegation-only`,
+      logService: TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Delegation),
       stopOnError: true,
     })
 
@@ -161,10 +175,80 @@ export const TokenHolderSync = {
           }),
         )
       },
-      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}-${token?.address}-transfers-only`,
+      logService: TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Transfer),
       stopOnError: true,
     })
 
     await crawlerTokenTransfers.crawl()
+  },
+
+  markHolderSyncCompleted: async (plugin: Plugin, token: Token) => {
+    const blockScoutSyncKey = TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.BlockScout)
+    await DbTx.executeTxFn(async ({ session }) => {
+      await Models.ConfigIndexer.create(
+        {
+          network: plugin.network,
+          service: blockScoutSyncKey,
+          lastSync: plugin.blockNumber,
+        },
+        { session },
+      )
+      await session.commitTransaction()
+      await session.endSession()
+    })
+  },
+
+  hasCompletedHolderSync: async (plugin: Plugin, token: Token) => {
+    const blockScoutSyncKey = TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.BlockScout)
+
+    const existingConfig = await Models.ConfigIndexer.findExistingLog({
+      network: plugin.network,
+      service: blockScoutSyncKey,
+    })
+
+    return !!existingConfig
+  },
+
+  convertToStandardSync: async (plugin: Plugin, token: Token) => {
+    const delegationTagName = TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Delegation)
+    const transferTagName = TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Transfer)
+
+    await DbTx.executeTxFn(async ({ session }) => {
+      const syncTags = await Models.ConfigIndexer.find(
+        {
+          network: plugin.network,
+          service: {
+            $in: [delegationTagName, transferTagName],
+          },
+        },
+        { session },
+      )
+
+      const syncStatBlocks = syncTags.length > 0 ? syncTags.map((tag: any) => tag.lastSync) : [plugin.blockNumber]
+
+      const syncStatBlock = Math.max(...syncStatBlocks)
+
+      await Models.ConfigIndexer.deleteMany(
+        {
+          network: plugin.network,
+          service: {
+            $in: [delegationTagName, transferTagName],
+          },
+        },
+        { session },
+      )
+
+      await Models.ConfigIndexer.create(
+        {
+          network: plugin.network,
+          service: TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Default),
+          lastSync: syncStatBlock,
+        },
+        { session },
+      )
+
+      await session.commitTransaction()
+      await session.endSession()
+    })
   },
 }

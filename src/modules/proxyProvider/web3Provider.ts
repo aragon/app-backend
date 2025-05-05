@@ -186,6 +186,14 @@ const Web3Provider: IWeb3Provider = {
   searchDetailsOfContract: async ({ address, network }) => {
     return await BlockScoutHelper.searchDetails(address, network)
   },
+  getAllTokenHolders: async ({ address, network, callback }) => {
+    return BlockScoutHelper.getAllTokenHolders(
+      address,
+      network,
+      { pageSize: 100, maxPages: 1000, delayMs: 500 },
+      callback,
+    )
+  },
 }
 
 export default Web3Provider

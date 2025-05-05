@@ -139,6 +139,26 @@ const PeaqProvider: Omit<IWeb3Provider, 'getNativeBalance'> = {
       type: ITokenType.unknown,
     }
   },
+  getAllTokenHolders: async ({
+    address,
+    network,
+    callback,
+  }: {
+    address: string
+    network: NetworksEnum
+    callback?: (data: any) => void
+  }) => {
+    return SubscanApi.getAllTokenHolders(
+      address,
+      network,
+      {
+        pageSize: 100,
+        maxPages: 100,
+        delayMs: 500,
+      },
+      callback,
+    )
+  },
 }
 
 export default PeaqProvider
