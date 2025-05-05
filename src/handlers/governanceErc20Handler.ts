@@ -86,10 +86,6 @@ export const GovernanceErc20Handler = {
         )
       }
 
-      if (!isHistorical) {
-        await GovernanceErc20Handler.waitForNonHistorical(info.network)
-      }
-
       const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
 
       let tokenBalanceDb = await ProxyMember.getBalances({
