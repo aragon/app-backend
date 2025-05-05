@@ -17,6 +17,14 @@ const GenericSchema = {
     pluginAddress: ValidationSchema.joiAddress.required(),
     proposalIndex: Joi.string().required(),
   }),
+
+  recalculateProposalActions: Joi.object({
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
+    pluginAddress: ValidationSchema.joiAddress.required(),
+    incrementalId: Joi.number().required(),
+  }),
 }
 
 export default GenericSchema
