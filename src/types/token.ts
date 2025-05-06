@@ -108,7 +108,7 @@ export enum IClockMode {
 
 export enum TokenSyncTagName {
   Default = 'default',
-  Delegation = 'delegation-event',
-  Transfer = 'transfer-event',
+  Delegation = 'delegation-events',
+  Transfer = 'transfer-events',
   BlockScout = 'blockScout',
 }
