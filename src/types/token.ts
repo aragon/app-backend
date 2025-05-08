@@ -110,5 +110,5 @@ export enum TokenSyncTagName {
   Default = 'default',
   Delegation = 'delegation-event',
   Transfer = 'transfer-event',
-  BlockScout = 'blockScouts',
+  TokenHolders = 'token-holders',
 }

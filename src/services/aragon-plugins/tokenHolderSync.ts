@@ -24,6 +24,12 @@ export const TokenHolderSync = {
       return false
     }
 
+    /**
+     * After all the sync are done, we basically remove from configIndexer the progress
+     * of the sync, (transfers, delegation)
+     * Then we create a new entry with the default tag name which we use for normal token voting
+     */
+
     const hasDefaultTag = await Models.ConfigIndexer.findOne({
       network: plugin.network,
       service: TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Default),
@@ -75,8 +81,14 @@ export const TokenHolderSync = {
   },
 
   syncAllTokenHolders: async (plugin: Plugin, token: Token) => {
-    const alreadyCompleted = await TokenHolderSync.hasCompletedHolderSync(plugin, token)
-    if (alreadyCompleted) {
+    const blockScoutSyncKey = TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.TokenHolders)
+
+    const existingSync = await Models.ConfigIndexer.findExistingLog({
+      network: plugin.network,
+      service: blockScoutSyncKey,
+    })
+
+    if (existingSync?.end) {
       logger.verbose(
         'TokenHolderSync - BlockScout sync already completed, skipping',
         llo({
@@ -88,9 +100,20 @@ export const TokenHolderSync = {
       return
     }
 
-    await ProxyWeb3Provider.getAllTokenHolders({
+    logger.verbose(
+      'TokenHolderSync - Starting/Resuming BlockScout sync',
+      llo({
+        network: plugin.network,
+        tokenAddress: token.address,
+        pluginAddress: plugin.address,
+        lastSync: existingSync?.lastSync || 0,
+      }),
+    )
+
+    const result = await ProxyWeb3Provider.getAllTokenHolders({
       address: token.address,
       network: token.network,
+      syncKey: blockScoutSyncKey,
       callback: async holder => {
         const balanceAmount = holder.value.toString()
         if (balanceAmount === '0') return
@@ -125,7 +148,15 @@ export const TokenHolderSync = {
       },
     })
 
-    await TokenHolderSync.markHolderSyncCompleted(plugin, token)
+    logger.verbose(
+      'TokenHolderSync - Sync completed or suspended',
+      llo({
+        network: plugin.network,
+        tokenAddress: token.address,
+        hasMore: result.hasMore,
+        lastPage: result.lastPage,
+      }),
+    )
   },
 
   syncDelegationEvents: async (plugin: Plugin, token: Token) => {
@@ -164,7 +195,7 @@ export const TokenHolderSync = {
       network: plugin.network,
       events: [...configTransferOnly],
       address: [plugin.tokenAddress],
-      fromBlock: plugin?.blockNumber, // Only from plugin creation, not token creation
+      fromBlock: plugin?.blockNumber,
       onError: async (error: any, log: any) => {
         logger.error(
           'Error TokenHolderSync - Transfers',
@@ -180,33 +211,6 @@ export const TokenHolderSync = {
     })
 
     await crawlerTokenTransfers.crawl()
-  },
-
-  markHolderSyncCompleted: async (plugin: Plugin, token: Token) => {
-    const blockScoutSyncKey = TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.BlockScout)
-    await DbTx.executeTxFn(async ({ session }) => {
-      await Models.ConfigIndexer.create(
-        {
-          network: plugin.network,
-          service: blockScoutSyncKey,
-          lastSync: plugin.blockNumber,
-        },
-        { session },
-      )
-      await session.commitTransaction()
-      await session.endSession()
-    })
-  },
-
-  hasCompletedHolderSync: async (plugin: Plugin, token: Token) => {
-    const blockScoutSyncKey = TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.BlockScout)
-
-    const existingConfig = await Models.ConfigIndexer.findExistingLog({
-      network: plugin.network,
-      service: blockScoutSyncKey,
-    })
-
-    return !!existingConfig
   },
 
   convertToStandardSync: async (plugin: Plugin, token: Token) => {

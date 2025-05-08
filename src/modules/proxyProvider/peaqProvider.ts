@@ -13,8 +13,8 @@ import logger from '@logger'
 import { ethers } from 'ethers'
 import { ProxyToken } from '@modules/proxyToken'
 import TokenUtils from '@helpers/tokenUtils'
+import ProxyUtils from '@modules/proxyProvider/utils'
 
-// eslint-disable-next-line no-unused-vars,@typescript-eslint/no-unused-vars
 const llo = logger.logMeta.bind(null, { service: 'provider:PeaqTokenProvider' })
 
 const PeaqProvider: Omit<IWeb3Provider, 'getNativeBalance'> = {
@@ -143,21 +143,35 @@ const PeaqProvider: Omit<IWeb3Provider, 'getNativeBalance'> = {
     address,
     network,
     callback,
+    syncKey,
   }: {
     address: string
     network: NetworksEnum
-    callback?: (data: any) => void
+    callback: ({ address, value }: { address: string; value: string }) => Promise<void> | void
+    syncKey?: string
   }) => {
-    return SubscanApi.getAllTokenHolders(
-      address,
-      network,
-      {
-        pageSize: 100,
-        maxPages: 100,
-        delayMs: 500,
-      },
-      callback,
-    )
+    const syncProgress = await ProxyUtils.getProgressFromConfigIndexer(network, syncKey)
+    if (syncProgress?.end) {
+      return
+    }
+    const initialPage = syncProgress ? syncProgress.lastSync + 1 : 0
+
+    try {
+      return await SubscanApi.getAllTokenHolders(
+        address,
+        network,
+        { pageSize: 100, delayMs: 500, startPage: initialPage },
+        async (holders, pageInfo) => {
+          await Promise.all(holders.map(async holder => await callback(holder)))
+
+          if (syncKey) {
+            await ProxyUtils.updateProgressInConfigIndexer(network, syncKey, pageInfo.currentPage, pageInfo.isLastPage)
+          }
+        },
+      )
+    } catch (error) {
+      logger.error('Error in getAllTokenHolders', llo({ error, address, network }))
+    }
   },
 }
 

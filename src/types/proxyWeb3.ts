@@ -50,10 +50,12 @@ export interface IWeb3Provider {
     address,
     network,
     callback,
+    syncKey,
   }: {
     address: string
     network: NetworksEnum
-    callback?: (holder: { address: string; value: string }) => Promise<void> | void
+    callback: (holder: { address: string; value: string }) => Promise<void> | void
+    syncKey: any
   }) => Promise<any>
 }
 
