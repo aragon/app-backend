@@ -8,7 +8,6 @@ import { RateModule } from '@modules/rates'
 import CovalentHelper from '@helpers/covalent'
 import { Models } from '@dbModels'
 import { expect } from 'chai'
-import ProxyProvider from '@modules/proxyProvider'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 
 describe('Manual: Token', () => {
