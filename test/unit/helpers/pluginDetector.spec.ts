@@ -160,7 +160,7 @@ describe.only('Helper: PluginDetector', () => {
 
     it('should return SAFE for Safe wallet contract', async () => {
       const safeWalletBytecode = '0x' + PluginDetector._generateFunctionHash(PluginDetector.SAFE_WALLET).substring(2)
-      
+
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
         getCode: sandbox.stub().resolves(safeWalletBytecode),
       } as any)
