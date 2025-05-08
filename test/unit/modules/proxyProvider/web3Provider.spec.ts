@@ -15,6 +15,7 @@ import { RateModule } from '@modules/rates'
 import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
 import { UnitTestUtils } from '@test/lib/utils'
 import ProviderModule from '@modules/provider'
+import ProxyUtils from '@modules/proxyProvider/utils'
 
 describe('Web3Provider', () => {
   let sandbox: any
@@ -505,21 +506,116 @@ describe('Web3Provider', () => {
   })
 
   describe('getAllTokenHolders', () => {
-    it('should forward to BlockScoutHelper.getAllTokenHolders with correct parameters', async () => {
+    it('should forward to BlockScoutHelper.getAllTokenHolders with correct parameters and trigger callback', async () => {
       // Arrange
       const address = '0xtoken'
       const network = NetworksEnum.ethereumMainnet
-      const mockCallback = sandbox.stub()
+      const syncKey = 'test-sync-key'
+
       const mockHolders = [
         { address: '0xholder1', value: '100' },
         { address: '0xholder2', value: '200' },
       ]
+
       const mockResponse = {
         holders: mockHolders,
         total: mockHolders.length,
         hasMore: false,
+        lastPage: 1,
       }
 
+      const mockCallback = sinon.stub()
+
+      // Set up stubs
+      const getProgressStub = sandbox.stub(ProxyUtils, 'getProgressFromConfigIndexer').resolves(null)
+      const updateProgressStub = sandbox.stub(ProxyUtils, 'updateProgressInConfigIndexer').resolves()
+
+      // Use callsFake to create a fake implementation that triggers the callback
+      const getAllTokenHoldersStub = sandbox
+        .stub(BlockScoutHelper, 'getAllTokenHolders')
+        .callsFake(async (tokenAddr, net, opts, callback) => {
+          // Verify the arguments passed to getAllTokenHolders
+          expect(tokenAddr).to.equal(address)
+          expect(net).to.equal(network)
+          expect(opts.startPage).to.equal(0)
+
+          // Simulate API call processing by triggering callback with sample data
+          if (callback) {
+            await callback(mockHolders, {
+              currentPage: 0,
+              isLastPage: true,
+              total: mockHolders.length,
+            })
+          }
+
+          return mockResponse
+        })
+
+      // Act
+      const result = await Web3Provider.getAllTokenHolders({
+        address,
+        network,
+        callback: mockCallback,
+        syncKey,
+      })
+
+      // Assert
+      expect(getProgressStub.calledOnceWith(network, syncKey)).to.be.true
+      expect(getAllTokenHoldersStub.calledOnce).to.be.true
+
+      // Verify callback was called for each holder
+      expect(mockCallback.callCount).to.equal(mockHolders.length)
+      expect(mockCallback.firstCall.args[0]).to.deep.equal(mockHolders[0])
+      expect(mockCallback.secondCall.args[0]).to.deep.equal(mockHolders[1])
+
+      // Verify progress was updated
+      expect(updateProgressStub.calledOnce).to.be.true
+      expect(updateProgressStub.firstCall.args[0]).to.equal(network)
+      expect(updateProgressStub.firstCall.args[1]).to.equal(syncKey)
+      expect(updateProgressStub.firstCall.args[2]).to.equal(0) // currentPage
+      expect(updateProgressStub.firstCall.args[3]).to.equal(true) // isLastPage
+
+      expect(result).to.equal(mockResponse)
+    })
+
+    it('should return early when sync is already completed', async () => {
+      // Arrange
+      const address = '0xtoken'
+      const network = NetworksEnum.ethereumMainnet
+      const syncKey = 'test-sync-key'
+      const syncProgress = { lastSync: 5, end: true }
+
+      const getProgressStub = sandbox.stub(ProxyUtils, 'getProgressFromConfigIndexer').resolves(syncProgress)
+      const getAllTokenHoldersStub = sandbox.stub(BlockScoutHelper, 'getAllTokenHolders')
+      sandbox.stub(logger, 'verbose')
+      // Act
+      await Web3Provider.getAllTokenHolders({
+        address,
+        network,
+        callback: () => {},
+        syncKey,
+      })
+
+      // Assert
+      expect(getProgressStub.calledOnceWith(network, syncKey)).to.be.true
+      expect(getAllTokenHoldersStub.notCalled).to.be.true
+    })
+
+    it('should continue from last page when sync was interrupted', async () => {
+      // Arrange
+      const address = '0xtoken'
+      const network = NetworksEnum.ethereumMainnet
+      const syncKey = 'test-sync-key'
+      const syncProgress = { lastSync: 3, end: false }
+      const mockCallback = sinon.stub()
+      const mockResponse = {
+        holders: [],
+        total: 0,
+        hasMore: false,
+        lastPage: 4,
+      }
+
+      const getProgressStub = sandbox.stub(ProxyUtils, 'getProgressFromConfigIndexer').resolves(syncProgress)
       const getAllTokenHoldersStub = sandbox.stub(BlockScoutHelper, 'getAllTokenHolders').resolves(mockResponse)
 
       // Act
@@ -527,75 +623,38 @@ describe('Web3Provider', () => {
         address,
         network,
         callback: mockCallback,
+        syncKey,
       })
 
       // Assert
+      expect(getProgressStub.calledOnceWith(network, syncKey)).to.be.true
       expect(getAllTokenHoldersStub.calledOnce).to.be.true
-      expect(
-        getAllTokenHoldersStub.calledWith(
-          address,
-          network,
-          { pageSize: 100, maxPages: 1000, delayMs: 500 },
-          mockCallback,
-        ),
-      ).to.be.true
+      expect(getAllTokenHoldersStub.firstCall.args[2].startPage).to.equal(4) // startPage = lastSync + 1
       expect(result).to.equal(mockResponse)
     })
 
-    it('should handle callbacks for each token holder', async () => {
+    it('should handle errors gracefully', async () => {
       // Arrange
       const address = '0xtoken'
       const network = NetworksEnum.ethereumMainnet
-      const mockCallback = sandbox.stub()
-      const mockHolders = [
-        { address: '0xholder1', value: '100' },
-        { address: '0xholder2', value: '200' },
-      ]
+      const syncKey = 'test-sync-key'
+      const error = new Error('API error')
 
-      // Simulate the behavior where BlockScoutHelper calls callback for each holder
-      const getAllTokenHoldersStub = sandbox
-        .stub(BlockScoutHelper, 'getAllTokenHolders')
-        .callsFake(async (_address, _network, _options, callback) => {
-          if (callback) {
-            for (const holder of mockHolders) {
-              await callback(holder)
-            }
-          }
-          return {
-            holders: mockHolders,
-            total: mockHolders.length,
-            hasMore: false,
-          }
-        })
+      const getProgressStub = sandbox.stub(ProxyUtils, 'getProgressFromConfigIndexer').resolves(null)
+      const getAllTokenHoldersStub = sandbox.stub(BlockScoutHelper, 'getAllTokenHolders').rejects(error)
 
+      // Act
       const result = await Web3Provider.getAllTokenHolders({
         address,
         network,
-        callback: mockCallback,
+        callback: () => {},
+        syncKey,
       })
+
+      // Assert
+      expect(getProgressStub.calledOnceWith(network, syncKey)).to.be.true
       expect(getAllTokenHoldersStub.calledOnce).to.be.true
-      expect(mockCallback.calledTwice).to.be.true
-      expect(mockCallback.firstCall.args[0]).to.deep.equal(mockHolders[0])
-      expect(mockCallback.secondCall.args[0]).to.deep.equal(mockHolders[1])
-      expect(result.holders).to.deep.equal(mockHolders)
-    })
-
-    it('should handle errors from BlockScoutHelper', async () => {
-      const address = '0xtoken'
-      const network = NetworksEnum.ethereumMainnet
-      const errorMessage = 'BlockScout API error'
-
-      const getAllTokenHoldersStub = sandbox
-        .stub(BlockScoutHelper, 'getAllTokenHolders')
-        .rejects(new Error(errorMessage))
-
-      try {
-        await Web3Provider.getAllTokenHolders({ address, network, callback: () => {} })
-        expect.fail('Expected an error to be thrown')
-      } catch (error: any) {
-        expect(error.message).to.equal(errorMessage)
-        expect(getAllTokenHoldersStub.calledOnce).to.be.true
-      }
+      expect(loggerStub.calledOnce).to.be.true
     })
   })
 })

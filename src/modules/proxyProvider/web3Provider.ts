@@ -5,6 +5,7 @@ import {
   ITransactionType,
   type IWeb3Provider,
   type IWeb3TokenBalance,
+  type NetworksEnum,
 } from '@types'
 import { ProxyToken } from '@modules/proxyToken'
 import utils from '@helpers/utils'
@@ -17,6 +18,7 @@ import CovalentHelper from '@helpers/covalent'
 import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
 import { RateModule } from '@modules/rates'
 import TokenUtils from '@helpers/tokenUtils'
+import ProxyUtils from '@modules/proxyProvider/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ProxyWeb3' })
 
@@ -186,13 +188,56 @@ const Web3Provider: IWeb3Provider = {
   searchDetailsOfContract: async ({ address, network }) => {
     return await BlockScoutHelper.searchDetails(address, network)
   },
-  getAllTokenHolders: async ({ address, network, callback }) => {
-    return BlockScoutHelper.getAllTokenHolders(
-      address,
-      network,
-      { pageSize: 100, maxPages: 1000, delayMs: 500 },
-      callback,
-    )
+  getAllTokenHolders: async ({
+    address,
+    network,
+    callback,
+    syncKey,
+  }: {
+    address: string
+    network: NetworksEnum
+    callback: ({ address, value }: { address: string; value: string }) => Promise<void> | void
+    syncKey?: string
+  }) => {
+    const syncProgress = await ProxyUtils.getProgressFromConfigIndexer(network, syncKey)
+
+    if (syncProgress?.end) {
+      logger.verbose('Token holder sync already completed', llo({ address, network, syncKey }))
+      return
+    }
+
+    const initialPage = syncProgress ? syncProgress.lastSync + 1 : 0
+
+    try {
+      return await BlockScoutHelper.getAllTokenHolders(
+        address,
+        network,
+        { pageSize: 1000, delayMs: 500, startPage: initialPage },
+        async (holders, pageInfo) => {
+          await Promise.all(holders.map(async holder => await callback(holder)))
+
+          if (syncKey) {
+            logger.verbose(
+              'Update progress in config indexer',
+              llo({
+                page: pageInfo.currentPage,
+                address,
+                network,
+                syncKey,
+              }),
+            )
+            await ProxyUtils.updateProgressInConfigIndexer(
+              network,
+              syncKey,
+              pageInfo.currentPage,
+              pageInfo.isLastPage || false,
+            )
+          }
+        },
+      )
+    } catch (error) {
+      logger.error('Error in getAllTokenHolders', llo({ error, address, network }))
+    }
   },
 }
 
