@@ -204,6 +204,33 @@ describe('Controller: Dao', () => {
     })
   })
 
+  describe('getDaoByEns', () => {
+    it('should getDaoByEns', async () => {
+      // Create a DAO with ENS
+      const daoWithEns = {
+        ...DaoList[1],
+        ens: 'test-dao.eth',
+      }
+      const daoDB = await Models.Dao.create(daoWithEns)
+
+      // Add stub for getDaoDetails to verify it's called with correct parameters
+      const getDaoDetailsStub = sandbox.stub(Models.Dao, 'getDaoDetails').resolves({ id: daoDB.id } as any)
+
+      const dao = await DaoController.getDaoByEns(daoDB.ens, daoDB.network)
+
+      expect(dao.id).to.eq(daoDB.id)
+      expect(getDaoDetailsStub.calledOnce).to.be.true
+      expect(getDaoDetailsStub.calledWith(daoDB.address, daoDB.network)).to.be.true
+    })
+
+    it('should fail to getDaoByEns', async () => {
+      sandbox.stub(Models.Dao, 'findOne').resolves(null)
+      const ens = 'non-existent-dao.eth'
+      const network = NetworksEnum.baseMainnet
+      await expect(DaoController.getDaoByEns(ens, network)).to.be.rejectedWith(ErrorKeyEnum.notFound)
+    })
+  })
+
   describe('getDaosByMember', () => {
     it('should getDaosByMember', async () => {
       const paginationParams = {

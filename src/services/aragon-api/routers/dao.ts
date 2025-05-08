@@ -74,6 +74,21 @@ const DaoRouter = {
     ctx.body = await DaoController.getDaoByAddress(formattedValues.address, formattedValues.network)
   },
 
+  getDaoByEns: async function (ctx: RouterContext) {
+    const params = {
+      network: ctx.params.network,
+      ens: ctx.params.ens,
+    }
+    const anyInvalidParams = Utils.extractAdditionalParams({}, ctx.query)
+
+    const [formattedValues] = await Promise.all([
+      ValidationSchema.validateParams(DaoSchema.getDaoByEns, params),
+      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
+    ])
+
+    ctx.body = await DaoController.getDaoByEns(formattedValues.ens, formattedValues.network)
+  },
+
   router() {
     const router = new Router()
 
@@ -118,6 +133,16 @@ const DaoRouter = {
      * @apiSampleRequest /:network/:address
      */
     router.get('/:network/:address', DaoRouter.getDaoByAddress)
+
+    /**
+     * @api {get} /:network/ens/:ens Get Dao by ENS
+     * @apiName Daos
+     * @apiGroup Daos
+     * @apiDescription Get Dao by ENS
+     *
+     * @apiSampleRequest /:network/ens/:ens
+     */
+    router.get('/:network/ens/:ens', DaoRouter.getDaoByEns)
 
     return router
   },
