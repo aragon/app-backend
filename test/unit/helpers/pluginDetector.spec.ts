@@ -2,13 +2,14 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import PluginDetector from '@helpers/pluginDetector'
 import { beforeEach } from 'mocha'
-import { IPluginInterfaceType, NetworksEnum } from '@types'
+import { IPluginInterfaceType, IBodyAddressType, NetworksEnum } from '@types'
 import { ZeroAddress } from 'ethers'
 import { expect } from 'chai'
 import ProxyContractHelper from '@helpers/proxyContract'
 import ProviderModule from '@modules/provider'
+import logger from '@logger'
 
-describe('Helper: PluginDetector', () => {
+describe.only('Helper: PluginDetector', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -140,5 +141,50 @@ describe('Helper: PluginDetector', () => {
     expect(result.proxy).to.be.false
     expect(result.implementationAddress).to.be.null
     expect(getImplementationAddressStub.calledOnce).to.be.true
+  })
+
+  describe('detectAddressType', () => {
+    it('should return EOA for ZeroAddress', async () => {
+      const result = await PluginDetector.detectAddressType(ZeroAddress, NetworksEnum.ethereumMainnet)
+      expect(result).to.equal(IBodyAddressType.EOA)
+    })
+
+    it('should return EOA for address with no code', async () => {
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+        getCode: sandbox.stub().resolves('0x'),
+      } as any)
+
+      const result = await PluginDetector.detectAddressType('0xAddress', NetworksEnum.ethereumMainnet)
+      expect(result).to.equal(IBodyAddressType.EOA)
+    })
+
+    it('should return SAFE for Safe wallet contract', async () => {
+      const safeWalletBytecode = '0x' + PluginDetector._generateFunctionHash(PluginDetector.SAFE_WALLET).substring(2)
+      
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+        getCode: sandbox.stub().resolves(safeWalletBytecode),
+      } as any)
+
+      const result = await PluginDetector.detectAddressType('0xSafeAddress', NetworksEnum.ethereumMainnet)
+      expect(result).to.equal(IBodyAddressType.SAFE)
+    })
+
+    it('should return OTHER for contract that is not a Safe wallet', async () => {
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+        getCode: sandbox.stub().resolves('0xSomeContractBytecode'),
+      } as any)
+
+      const result = await PluginDetector.detectAddressType('0xContractAddress', NetworksEnum.ethereumMainnet)
+      expect(result).to.equal(IBodyAddressType.OTHER)
+    })
+
+    it('should handle an error when fetching code', async () => {
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+        getCode: sandbox.stub().rejects(new Error('Failed to fetch code')),
+      } as any)
+
+      const result = await PluginDetector.detectAddressType('0xAddress', NetworksEnum.ethereumMainnet)
+      expect(result).to.equal(IBodyAddressType.OTHER)
+    })
   })
 })
