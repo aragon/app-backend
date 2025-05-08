@@ -33,6 +33,12 @@ const DaoController = {
     return await Models.Dao.getDaoDetails(dao.address, dao.network)
   },
 
+  getDaoByEns: async (ens: string, network: NetworksEnum): Promise<IDaoResponse> => {
+    const dao = await Models.Dao.findOne({ ens, network, isHidden: { $ne: true }, isActive: { $eq: true } })
+    assertExposable(dao, ErrorKeyEnum.notFound)
+    return await Models.Dao.getDaoDetails(dao.address, dao.network)
+  },
+
   getDaosByMember: async (paginationParams: IPaginationParams = {}, extraParams: IDaoExtraParams = {}) => {
     paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
     extraParams.memberAddress = await PairDataModule.checkIFEns(extraParams.memberAddress!)
