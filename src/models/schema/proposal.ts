@@ -357,8 +357,7 @@ export default class Proposal extends Model {
   }
 
   static getEntityId(params: IProposalIdParams) {
-    const entityId = `${params.transactionHash}-${params.pluginAddress}-${params.proposalIndex}`
-    return entityId
+    return `${params.transactionHash}-${params.pluginAddress}-${params.proposalIndex}`
   }
 
   static async findExistingLog(params: IProposalIdParams, tOpts?: SaveOptions) {
