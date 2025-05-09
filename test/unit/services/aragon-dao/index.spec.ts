@@ -294,8 +294,10 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(11).args[1]
-      const queueName = processStub.getCall(11).args[0]
+      const callIndex = processStub.args.findIndex(call => call[0] === EnumQueueName.canCreateProposal)
+      const handler = processStub.getCall(callIndex).args[1]
+      const queueName = processStub.getCall(callIndex).args[0]
+
       await handler({
         params: {
           pluginAddress: '0xPluginAddress',
@@ -305,9 +307,7 @@ describe('AragonDao: index', () => {
       } as any)
 
       expect(queueName).to.eq(EnumQueueName.canCreateProposal)
-      expect(
-        memberInfoStub.calledOnceWith('0xPluginAddress', '0xUserAddress', NetworksEnum.ethereumMainnet),
-      ).to.be.true
+      expect(memberInfoStub.calledOnceWith('0xPluginAddress', '0xUserAddress', NetworksEnum.ethereumMainnet)).to.be.true
     })
   })
 
@@ -318,38 +318,38 @@ describe('AragonDao: index', () => {
       const mockScheduler = {
         startTask: sandbox.stub().resolves(),
       }
-      
+
       const getInstanceStub = sandbox.stub(TaskSchedulerState, 'getInstance').returns(mockScheduler as any)
-      
+
       sandbox.stub(config, 'SERVICES').value({
         ARAGON_DAO: {
-          TOKEN_FETCH_INTERVAL: 60000
-        }
+          TOKEN_FETCH_INTERVAL: 60000,
+        },
       })
 
       const loggerInfoStub = sandbox.stub(logger, 'info')
       const loggerErrorStub = sandbox.stub(logger, 'error')
-      
+
       await AragonDaoService.start()
-      
+
       expect(getInstanceStub.calledOnce).to.be.true
-      
+
       expect(mockScheduler.startTask.calledOnce).to.be.true
       expect(mockScheduler.startTask.args[0][0]).to.equal('token-re-fetch')
-      
+
       const taskOptions = mockScheduler.startTask.args[0][1]
-      
+
       expect(taskOptions).to.have.property('fn')
       expect(taskOptions).to.have.property('interval', 60000)
       expect(taskOptions).to.have.property('checkInterval', 30000)
       expect(taskOptions).to.have.property('runNow', true)
       expect(taskOptions).to.have.property('stopOnError', false)
       expect(taskOptions).to.have.property('onError')
-      
+
       const fnResult = taskOptions.fn()
       expect(fnResult).to.be.an('array')
       expect(fnResult[0][0]).to.have.property('fetchRates')
-      
+
       taskOptions.onError(new Error('Test error'))
       expect(loggerErrorStub.calledOnce).to.be.true
       expect(loggerErrorStub.args[0][0]).to.equal('Token Fetcher task error')

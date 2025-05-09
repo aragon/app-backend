@@ -228,13 +228,13 @@ describe('AragonDao: memberInfo', () => {
   describe('canCreateProposal', () => {
     it('should return false when plugin is not found', async () => {
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
-      
+
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
         '0xMemberAddress',
-        NetworksEnum.ethereumSepolia
+        NetworksEnum.ethereumSepolia,
       )
-      
+
       expect(pluginStub.calledOnce).to.be.true
       expect(result).to.be.false
     })
@@ -243,17 +243,17 @@ describe('AragonDao: memberInfo', () => {
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
         daoAddress: '0xDaoAddress',
         address: '0xPluginAddress',
-        network: NetworksEnum.ethereumSepolia
+        network: NetworksEnum.ethereumSepolia,
       } as any)
-      
+
       const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves(null)
-      
+
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
         '0xMemberAddress',
-        NetworksEnum.ethereumSepolia
+        NetworksEnum.ethereumSepolia,
       )
-      
+
       expect(pluginStub.calledOnce).to.be.true
       expect(settingsStub.calledOnce).to.be.true
       expect(result).to.be.false
@@ -264,17 +264,17 @@ describe('AragonDao: memberInfo', () => {
         daoAddress: '0xDaoAddress',
         address: '0xPluginAddress',
         network: NetworksEnum.ethereumSepolia,
-        interfaceType: 'unsupported'
+        interfaceType: 'unsupported',
       } as any)
-      
+
       const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
-      
+
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
         '0xMemberAddress',
-        NetworksEnum.ethereumSepolia
+        NetworksEnum.ethereumSepolia,
       )
-      
+
       expect(pluginStub.calledOnce).to.be.true
       expect(settingsStub.calledOnce).to.be.true
       expect(result).to.be.false
@@ -286,17 +286,17 @@ describe('AragonDao: memberInfo', () => {
         address: '0xPluginAddress',
         network: NetworksEnum.ethereumSepolia,
         interfaceType: IPluginInterfaceType.tokenVoting,
-        tokenAddress: null
+        tokenAddress: null,
       } as any)
-      
+
       const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
-      
+
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
         '0xMemberAddress',
-        NetworksEnum.ethereumSepolia
+        NetworksEnum.ethereumSepolia,
       )
-      
+
       expect(pluginStub.calledOnce).to.be.true
       expect(settingsStub.calledOnce).to.be.true
       expect(result).to.be.false
@@ -308,21 +308,21 @@ describe('AragonDao: memberInfo', () => {
         address: '0xPluginAddress',
         network: NetworksEnum.ethereumSepolia,
         interfaceType: IPluginInterfaceType.tokenVoting,
-        tokenAddress: '0xTokenAddress'
+        tokenAddress: '0xTokenAddress',
       } as any)
-      
+
       const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({
-        minParticipation: 100
+        minParticipation: 100,
       } as any)
-      
+
       const getVotesStub = sandbox.stub(GovernanceErc20Helper, 'getVotes').resolves(0n)
-      
+
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
         '0xMemberAddress',
-        NetworksEnum.ethereumSepolia
+        NetworksEnum.ethereumSepolia,
       )
-      
+
       expect(pluginStub.calledOnce).to.be.true
       expect(settingsStub.calledOnce).to.be.true
       expect(getVotesStub.calledOnce).to.be.true
@@ -336,21 +336,21 @@ describe('AragonDao: memberInfo', () => {
         address: '0xPluginAddress',
         network: NetworksEnum.ethereumSepolia,
         interfaceType: IPluginInterfaceType.tokenVoting,
-        tokenAddress: '0xTokenAddress'
+        tokenAddress: '0xTokenAddress',
       } as any)
-      
+
       const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({
-        minParticipation: 100
+        minParticipation: 100,
       } as any)
-      
+
       const getVotesStub = sandbox.stub(GovernanceErc20Helper, 'getVotes').resolves(50n)
-      
+
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
         '0xMemberAddress',
-        NetworksEnum.ethereumSepolia
+        NetworksEnum.ethereumSepolia,
       )
-      
+
       expect(pluginStub.calledOnce).to.be.true
       expect(settingsStub.calledOnce).to.be.true
       expect(getVotesStub.calledOnce).to.be.true
@@ -363,21 +363,21 @@ describe('AragonDao: memberInfo', () => {
         address: '0xPluginAddress',
         network: NetworksEnum.ethereumSepolia,
         interfaceType: IPluginInterfaceType.tokenVoting,
-        tokenAddress: '0xTokenAddress'
+        tokenAddress: '0xTokenAddress',
       } as any)
-      
+
       const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({
-        minParticipation: 100
+        minParticipation: 100,
       } as any)
-      
+
       const getVotesStub = sandbox.stub(GovernanceErc20Helper, 'getVotes').resolves(150n)
-      
+
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
         '0xMemberAddress',
-        NetworksEnum.ethereumSepolia
+        NetworksEnum.ethereumSepolia,
       )
-      
+
       expect(pluginStub.calledOnce).to.be.true
       expect(settingsStub.calledOnce).to.be.true
       expect(getVotesStub.calledOnce).to.be.true
@@ -389,21 +389,21 @@ describe('AragonDao: memberInfo', () => {
         daoAddress: '0xDaoAddress',
         address: '0xPluginAddress',
         network: NetworksEnum.ethereumSepolia,
-        interfaceType: IPluginInterfaceType.multisig
+        interfaceType: IPluginInterfaceType.multisig,
       } as any)
-      
+
       const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({
-        onlyListed: false
+        onlyListed: false,
       } as any)
-      
+
       const isMemberStub = sandbox.stub(Web3Helper, 'isMember').resolves(false)
-      
+
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
         '0xMemberAddress',
-        NetworksEnum.ethereumSepolia
+        NetworksEnum.ethereumSepolia,
       )
-      
+
       expect(pluginStub.calledOnce).to.be.true
       expect(settingsStub.calledOnce).to.be.true
       expect(isMemberStub.called).to.be.false
@@ -415,21 +415,21 @@ describe('AragonDao: memberInfo', () => {
         daoAddress: '0xDaoAddress',
         address: '0xPluginAddress',
         network: NetworksEnum.ethereumSepolia,
-        interfaceType: IPluginInterfaceType.multisig
+        interfaceType: IPluginInterfaceType.multisig,
       } as any)
-      
+
       const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({
-        onlyListed: true
+        onlyListed: true,
       } as any)
-      
+
       const isMemberStub = sandbox.stub(Web3Helper, 'isMember').resolves(false)
-      
+
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
         '0xMemberAddress',
-        NetworksEnum.ethereumSepolia
+        NetworksEnum.ethereumSepolia,
       )
-      
+
       expect(pluginStub.calledOnce).to.be.true
       expect(settingsStub.calledOnce).to.be.true
       expect(isMemberStub.calledOnce).to.be.true
@@ -442,21 +442,21 @@ describe('AragonDao: memberInfo', () => {
         daoAddress: '0xDaoAddress',
         address: '0xPluginAddress',
         network: NetworksEnum.ethereumSepolia,
-        interfaceType: IPluginInterfaceType.multisig
+        interfaceType: IPluginInterfaceType.multisig,
       } as any)
-      
+
       const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({
-        onlyListed: true
+        onlyListed: true,
       } as any)
-      
+
       const isMemberStub = sandbox.stub(Web3Helper, 'isMember').resolves(true)
-      
+
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
         '0xMemberAddress',
-        NetworksEnum.ethereumSepolia
+        NetworksEnum.ethereumSepolia,
       )
-      
+
       expect(pluginStub.calledOnce).to.be.true
       expect(settingsStub.calledOnce).to.be.true
       expect(isMemberStub.calledOnce).to.be.true
@@ -468,31 +468,33 @@ describe('AragonDao: memberInfo', () => {
         daoAddress: '0xDaoAddress',
         address: '0xPluginAddress',
         network: NetworksEnum.ethereumSepolia,
-        interfaceType: IPluginInterfaceType.admin
+        interfaceType: IPluginInterfaceType.admin,
       } as any)
-      
+
       const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
-      
+
       const daoMemberMappingStub = sandbox.stub(Models.DaoMemberMapping, 'findOne').resolves({
         daoAddress: '0xDaoAddress',
         memberAddress: '0xMemberAddress',
-        network: NetworksEnum.ethereumSepolia
+        network: NetworksEnum.ethereumSepolia,
       } as any)
-      
+
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
         '0xMemberAddress',
-        NetworksEnum.ethereumSepolia
+        NetworksEnum.ethereumSepolia,
       )
-      
+
       expect(pluginStub.calledOnce).to.be.true
       expect(settingsStub.calledOnce).to.be.true
       expect(daoMemberMappingStub.calledOnce).to.be.true
-      expect(daoMemberMappingStub.calledWith({
-        daoAddress: '0xDaoAddress',
-        memberAddress: '0xMemberAddress',
-        network: NetworksEnum.ethereumSepolia
-      })).to.be.true
+      expect(
+        daoMemberMappingStub.calledWith({
+          daoAddress: '0xDaoAddress',
+          memberAddress: '0xMemberAddress',
+          network: NetworksEnum.ethereumSepolia,
+        }),
+      ).to.be.true
       expect(result).to.be.true
     })
 
@@ -501,19 +503,19 @@ describe('AragonDao: memberInfo', () => {
         daoAddress: '0xDaoAddress',
         address: '0xPluginAddress',
         network: NetworksEnum.ethereumSepolia,
-        interfaceType: IPluginInterfaceType.admin
+        interfaceType: IPluginInterfaceType.admin,
       } as any)
-      
+
       const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
-      
+
       const daoMemberMappingStub = sandbox.stub(Models.DaoMemberMapping, 'findOne').resolves(null)
-      
+
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
         '0xMemberAddress',
-        NetworksEnum.ethereumSepolia
+        NetworksEnum.ethereumSepolia,
       )
-      
+
       expect(pluginStub.calledOnce).to.be.true
       expect(settingsStub.calledOnce).to.be.true
       expect(daoMemberMappingStub.calledOnce).to.be.true
@@ -522,13 +524,13 @@ describe('AragonDao: memberInfo', () => {
 
     it('should return false on error', async () => {
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').rejects(new Error('Test error'))
-      
+
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
         '0xMemberAddress',
-        NetworksEnum.ethereumSepolia
+        NetworksEnum.ethereumSepolia,
       )
-      
+
       expect(pluginStub.calledOnce).to.be.true
       expect(result).to.be.false
     })

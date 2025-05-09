@@ -87,7 +87,7 @@ export const MemberInfo = {
   _checkForTokenVoting: async (plugin: Plugin, setting: PluginSetting, memberAddress: HexAddress) => {
     if (!setting || !plugin.tokenAddress) return false
     const votingPower = await GovernanceErc20Helper.getVotes(memberAddress, plugin.tokenAddress, plugin.network)
-    return Number(votingPower) > 0 && Number(votingPower) >= setting.minParticipation
+    return Number(votingPower) > 0 && Number(votingPower) >= Number(setting.minParticipation)
   },
   _checkForMultiSig: async (plugin: Plugin, setting: PluginSetting, memberAddress: HexAddress) => {
     if (!setting) return false
