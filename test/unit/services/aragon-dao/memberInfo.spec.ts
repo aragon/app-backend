@@ -224,4 +224,313 @@ describe('AragonDao: memberInfo', () => {
       })
     })
   })
+
+  describe('canCreateProposal', () => {
+    it('should return false when plugin is not found', async () => {
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+      
+      const result = await MemberInfo.canCreateProposal(
+        '0xPluginAddress',
+        '0xMemberAddress',
+        NetworksEnum.ethereumSepolia
+      )
+      
+      expect(pluginStub.calledOnce).to.be.true
+      expect(result).to.be.false
+    })
+
+    it('should return false when settings are not found', async () => {
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumSepolia
+      } as any)
+      
+      const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves(null)
+      
+      const result = await MemberInfo.canCreateProposal(
+        '0xPluginAddress',
+        '0xMemberAddress',
+        NetworksEnum.ethereumSepolia
+      )
+      
+      expect(pluginStub.calledOnce).to.be.true
+      expect(settingsStub.calledOnce).to.be.true
+      expect(result).to.be.false
+    })
+
+    it('should return false for unsupported plugin interface type', async () => {
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: 'unsupported'
+      } as any)
+      
+      const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
+      
+      const result = await MemberInfo.canCreateProposal(
+        '0xPluginAddress',
+        '0xMemberAddress',
+        NetworksEnum.ethereumSepolia
+      )
+      
+      expect(pluginStub.calledOnce).to.be.true
+      expect(settingsStub.calledOnce).to.be.true
+      expect(result).to.be.false
+    })
+
+    it('should return false for tokenVoting when tokenAddress is missing', async () => {
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: null
+      } as any)
+      
+      const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
+      
+      const result = await MemberInfo.canCreateProposal(
+        '0xPluginAddress',
+        '0xMemberAddress',
+        NetworksEnum.ethereumSepolia
+      )
+      
+      expect(pluginStub.calledOnce).to.be.true
+      expect(settingsStub.calledOnce).to.be.true
+      expect(result).to.be.false
+    })
+
+    it('should return false for tokenVoting when voting power is 0', async () => {
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xTokenAddress'
+      } as any)
+      
+      const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({
+        minParticipation: 100
+      } as any)
+      
+      const getVotesStub = sandbox.stub(GovernanceErc20Helper, 'getVotes').resolves(0n)
+      
+      const result = await MemberInfo.canCreateProposal(
+        '0xPluginAddress',
+        '0xMemberAddress',
+        NetworksEnum.ethereumSepolia
+      )
+      
+      expect(pluginStub.calledOnce).to.be.true
+      expect(settingsStub.calledOnce).to.be.true
+      expect(getVotesStub.calledOnce).to.be.true
+      expect(getVotesStub.calledWith('0xMemberAddress', '0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be.true
+      expect(result).to.be.false
+    })
+
+    it('should return false for tokenVoting when voting power is less than minimum participation', async () => {
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xTokenAddress'
+      } as any)
+      
+      const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({
+        minParticipation: 100
+      } as any)
+      
+      const getVotesStub = sandbox.stub(GovernanceErc20Helper, 'getVotes').resolves(50n)
+      
+      const result = await MemberInfo.canCreateProposal(
+        '0xPluginAddress',
+        '0xMemberAddress',
+        NetworksEnum.ethereumSepolia
+      )
+      
+      expect(pluginStub.calledOnce).to.be.true
+      expect(settingsStub.calledOnce).to.be.true
+      expect(getVotesStub.calledOnce).to.be.true
+      expect(result).to.be.false
+    })
+
+    it('should return true for tokenVoting when voting power is greater than minimum participation', async () => {
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xTokenAddress'
+      } as any)
+      
+      const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({
+        minParticipation: 100
+      } as any)
+      
+      const getVotesStub = sandbox.stub(GovernanceErc20Helper, 'getVotes').resolves(150n)
+      
+      const result = await MemberInfo.canCreateProposal(
+        '0xPluginAddress',
+        '0xMemberAddress',
+        NetworksEnum.ethereumSepolia
+      )
+      
+      expect(pluginStub.calledOnce).to.be.true
+      expect(settingsStub.calledOnce).to.be.true
+      expect(getVotesStub.calledOnce).to.be.true
+      expect(result).to.be.true
+    })
+
+    it('should return true for multisig when onlyListed is false', async () => {
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.multisig
+      } as any)
+      
+      const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({
+        onlyListed: false
+      } as any)
+      
+      const isMemberStub = sandbox.stub(Web3Helper, 'isMember').resolves(false)
+      
+      const result = await MemberInfo.canCreateProposal(
+        '0xPluginAddress',
+        '0xMemberAddress',
+        NetworksEnum.ethereumSepolia
+      )
+      
+      expect(pluginStub.calledOnce).to.be.true
+      expect(settingsStub.calledOnce).to.be.true
+      expect(isMemberStub.called).to.be.false
+      expect(result).to.be.true
+    })
+
+    it('should return false for multisig when onlyListed is true and member is not listed', async () => {
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.multisig
+      } as any)
+      
+      const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({
+        onlyListed: true
+      } as any)
+      
+      const isMemberStub = sandbox.stub(Web3Helper, 'isMember').resolves(false)
+      
+      const result = await MemberInfo.canCreateProposal(
+        '0xPluginAddress',
+        '0xMemberAddress',
+        NetworksEnum.ethereumSepolia
+      )
+      
+      expect(pluginStub.calledOnce).to.be.true
+      expect(settingsStub.calledOnce).to.be.true
+      expect(isMemberStub.calledOnce).to.be.true
+      expect(isMemberStub.calledWith('0xPluginAddress', '0xMemberAddress', NetworksEnum.ethereumSepolia)).to.be.true
+      expect(result).to.be.false
+    })
+
+    it('should return true for multisig when onlyListed is true and member is listed', async () => {
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.multisig
+      } as any)
+      
+      const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({
+        onlyListed: true
+      } as any)
+      
+      const isMemberStub = sandbox.stub(Web3Helper, 'isMember').resolves(true)
+      
+      const result = await MemberInfo.canCreateProposal(
+        '0xPluginAddress',
+        '0xMemberAddress',
+        NetworksEnum.ethereumSepolia
+      )
+      
+      expect(pluginStub.calledOnce).to.be.true
+      expect(settingsStub.calledOnce).to.be.true
+      expect(isMemberStub.calledOnce).to.be.true
+      expect(result).to.be.true
+    })
+
+    it('should return true for admin when daoMemberMapping exists', async () => {
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.admin
+      } as any)
+      
+      const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
+      
+      const daoMemberMappingStub = sandbox.stub(Models.DaoMemberMapping, 'findOne').resolves({
+        daoAddress: '0xDaoAddress',
+        memberAddress: '0xMemberAddress',
+        network: NetworksEnum.ethereumSepolia
+      } as any)
+      
+      const result = await MemberInfo.canCreateProposal(
+        '0xPluginAddress',
+        '0xMemberAddress',
+        NetworksEnum.ethereumSepolia
+      )
+      
+      expect(pluginStub.calledOnce).to.be.true
+      expect(settingsStub.calledOnce).to.be.true
+      expect(daoMemberMappingStub.calledOnce).to.be.true
+      expect(daoMemberMappingStub.calledWith({
+        daoAddress: '0xDaoAddress',
+        memberAddress: '0xMemberAddress',
+        network: NetworksEnum.ethereumSepolia
+      })).to.be.true
+      expect(result).to.be.true
+    })
+
+    it('should return false for admin when daoMemberMapping does not exist', async () => {
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.admin
+      } as any)
+      
+      const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
+      
+      const daoMemberMappingStub = sandbox.stub(Models.DaoMemberMapping, 'findOne').resolves(null)
+      
+      const result = await MemberInfo.canCreateProposal(
+        '0xPluginAddress',
+        '0xMemberAddress',
+        NetworksEnum.ethereumSepolia
+      )
+      
+      expect(pluginStub.calledOnce).to.be.true
+      expect(settingsStub.calledOnce).to.be.true
+      expect(daoMemberMappingStub.calledOnce).to.be.true
+      expect(result).to.be.false
+    })
+
+    it('should return false on error', async () => {
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').rejects(new Error('Test error'))
+      
+      const result = await MemberInfo.canCreateProposal(
+        '0xPluginAddress',
+        '0xMemberAddress',
+        NetworksEnum.ethereumSepolia
+      )
+      
+      expect(pluginStub.calledOnce).to.be.true
+      expect(result).to.be.false
+    })
+  })
 })

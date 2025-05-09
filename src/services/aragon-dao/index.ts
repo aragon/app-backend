@@ -4,6 +4,7 @@ import {
   EnumQueueName,
   type IProposalInfo,
   type IQueueAllMetrics,
+  type IQueueCanCreateProposal,
   type IQueueContractInfo,
   type IQueueDao,
   type IQueueMemberBalanceInfo,
@@ -89,6 +90,11 @@ const AragonDaoService: IService = {
     await RabbitMQHelper.process(EnumQueueName.proposalActions, async (job: any) => {
       const { id } = job.params as IProposalInfo
       return await ActionDecoder.proposalActionDecoder(id)
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.canCreateProposal, async (job: any) => {
+      const { pluginAddress, userAddress, network } = job.params as IQueueCanCreateProposal
+      return await MemberInfo.canCreateProposal(pluginAddress, userAddress, network)
     })
 
     const tasks = [[{ fetchRates: TokenFetcher }]]
