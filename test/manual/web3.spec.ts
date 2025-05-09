@@ -36,10 +36,7 @@ describe('Manual: Web3', () => {
     for (const testCase of testCases) {
       const { address, network } = testCase
       try {
-        const balance = await Web3Provider.getNativeBalance({
-          address,
-          network,
-        })
+        const balance = await Web3Provider.getNativeBalance({ address, network })
         console.log(`Balance for ${address} on ${network}:`, balance)
       } catch (error) {
         console.error(`Error fetching balance for ${address} on ${network}:`, error)

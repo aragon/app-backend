@@ -561,6 +561,7 @@ export default class Dao extends Model {
           links: 1,
           isSupported: 1,
           interfaceType: 1,
+          metadataIpfs: 1,
           // status: 1,
           release: 1,
           build: 1,

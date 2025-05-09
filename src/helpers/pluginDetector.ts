@@ -1,5 +1,5 @@
 import { keccak256, ZeroAddress } from 'ethers'
-import { type IPluginInfo, IPluginInterfaceType, type NetworksEnum } from '@types'
+import { IBodyAddressType, type IPluginInfo, IPluginInterfaceType, type NetworksEnum } from '@types'
 import ProxyContractHelper from '@helpers/proxyContract'
 import ProviderModule from '@modules/provider'
 import logger from '@logger'
@@ -23,6 +23,7 @@ const PluginDetector = {
     'epochVoteEnd()',
   ],
   HAS_TARGET: ['getTargetConfig()'],
+  SAFE_WALLET: 'masterCopy()',
 
   _generateFunctionHash(functionSignature: string): string {
     return keccak256(Buffer.from(functionSignature)).slice(0, 10)
@@ -89,6 +90,30 @@ const PluginDetector = {
     } catch (error) {
       logger.error('Error detecting plugin type', llo({ address, error }))
       return pluginDetails
+    }
+  },
+
+  async detectAddressType(address: string, network: NetworksEnum): Promise<IBodyAddressType> {
+    try {
+      if (address === ZeroAddress) {
+        return IBodyAddressType.EOA
+      }
+
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      const code = await provider.getCode(address)
+
+      if (!code || code === '0x') {
+        return IBodyAddressType.EOA
+      }
+
+      const signature = PluginDetector._generateFunctionHash(PluginDetector.SAFE_WALLET)
+      if (code.includes(signature.replace('0x', ''))) {
+        return IBodyAddressType.SAFE
+      }
+
+      return IBodyAddressType.OTHER
+    } catch (error: any) {
+      return IBodyAddressType.OTHER
     }
   },
 }
