@@ -308,199 +308,43 @@ describe('Controller: Proposal', () => {
   })
 
   describe('canCreateProposal', () => {
-    it('should return true as member can create proposal when the plugin has token address associated', async () => {
+    it('should call rabbitMq to check if the user can create proposal', async () => {
       const params = {
+        pluginAddress: '0xPluginAddress',
         memberAddress: rawMember.address,
-        pluginAddress: rawProposal.pluginAddress,
-        network: rawProposal.network,
+        network: rawProposal.network!,
       }
 
-      const findMappingSpy = sandbox.spy(Models.DaoMemberMapping, 'findMapping')
-      const findActiveSettingSpy = sandbox.spy(Models.Setting, 'findActive')
-      const findByAddressAndTokenSpy = sandbox.spy(Models.MemberBalance, 'findByAddressAndToken')
+      const rabbitmQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(true as any)
 
-      const response = await ProposalController.canCreateProposal(params as any)
+      const response = await ProposalController.canCreateProposal(params)
+
       expect(response).to.be.true
-      expect(findMappingSpy.calledOnce).to.be.true
-      expect(findActiveSettingSpy.calledOnce).to.be.true
-      expect(findByAddressAndTokenSpy.calledOnce).to.be.true
-
-      expect(
-        findMappingSpy.calledWith({
-          memberAddress: rawMember.address,
-          daoAddress: rawProposal.daoAddress,
-          pluginAddress: rawProposal.pluginAddress,
-          network: rawProposal.network,
-        }),
-      ).to.be.true
-
-      expect(
-        findActiveSettingSpy.calledWith({
-          daoAddress: rawProposal.daoAddress,
-          pluginAddress: rawProposal.pluginAddress,
-          network: rawProposal.network,
-        }),
-      ).to.be.true
-
-      expect(
-        findByAddressAndTokenSpy.calledWith({
-          address: rawMember.address,
-          tokenAddress: rawToken.address,
-          network: rawProposal.network,
-        }),
-      ).to.be.true
+      expect(rabbitmQStub.calledOnce).to.be.true
+      expect(rabbitmQStub.args[0][1]).to.deep.eq({
+        id: `canCreateProposal-${params.pluginAddress}-${params.memberAddress}-${params.network}`,
+        params: {
+          pluginAddress: params.pluginAddress,
+          memberAddress: params.memberAddress,
+          network: params.network,
+        },
+      })
     })
 
-    it('should return true as member can create proposal when plugin is multisig and onlyListed is false', async () => {
-      const plugin = await Models.Plugin.findByAddress(rawProposal.pluginAddress, rawProposal.network)
-      plugin.tokenAddress = null
-      await plugin.save()
-
+    it('should return false when there is an error', async () => {
       const params = {
+        pluginAddress: '0xPluginAddress',
         memberAddress: rawMember.address,
-        pluginAddress: rawProposal.pluginAddress,
-        network: rawProposal.network,
+        network: rawProposal.network!,
       }
 
-      const findMappingSpy = sandbox.spy(Models.DaoMemberMapping, 'findMapping')
-      const findActiveSettingSpy = sandbox.spy(Models.Setting, 'findActive')
-      const findByAddressAndTokenSpy = sandbox.spy(Models.MemberBalance, 'findByAddressAndToken')
+      sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('test'))
+      const loggerStub = sandbox.stub(Logger, 'warn')
 
-      const response = await ProposalController.canCreateProposal(params as any)
-      expect(response).to.be.true
-      expect(findMappingSpy.calledOnce).to.be.true
-      expect(findActiveSettingSpy.calledOnce).to.be.true
-      expect(findByAddressAndTokenSpy.calledOnce).to.be.false
-
-      expect(
-        findMappingSpy.calledWith({
-          memberAddress: rawMember.address,
-          daoAddress: rawProposal.daoAddress,
-          pluginAddress: rawProposal.pluginAddress,
-          network: rawProposal.network,
-        }),
-      ).to.be.true
-
-      expect(
-        findActiveSettingSpy.calledWith({
-          daoAddress: rawProposal.daoAddress,
-          pluginAddress: rawProposal.pluginAddress,
-          network: rawProposal.network,
-        }),
-      ).to.be.true
-    })
-
-    it('should return true as member can create proposal when plugin is multisig and onlyListed is true', async () => {
-      const plugin = await Models.Plugin.findByAddress(rawProposal.pluginAddress, rawProposal.network)
-      plugin.tokenAddress = null
-      await plugin.save()
-
-      const settings = await Models.Setting.findActive({
-        daoAddress: rawProposal.daoAddress,
-        pluginAddress: rawProposal.pluginAddress,
-        network: rawProposal.network,
-      } as any)
-      settings.onlyListed = true
-      await settings.save()
-
-      const params = {
-        memberAddress: rawMember.address,
-        pluginAddress: rawProposal.pluginAddress,
-        network: rawProposal.network,
-      }
-
-      const findMappingSpy = sandbox.spy(Models.DaoMemberMapping, 'findMapping')
-      const findActiveSettingSpy = sandbox.spy(Models.Setting, 'findActive')
-      const findByAddressAndTokenSpy = sandbox.spy(Models.MemberBalance, 'findByAddressAndToken')
-
-      const response = await ProposalController.canCreateProposal(params as any)
-      expect(response).to.be.true
-      expect(findMappingSpy.calledOnce).to.be.true
-      expect(findActiveSettingSpy.calledOnce).to.be.true
-      expect(findByAddressAndTokenSpy.calledOnce).to.be.false
-
-      expect(
-        findMappingSpy.calledWith({
-          memberAddress: rawMember.address,
-          daoAddress: rawProposal.daoAddress,
-          pluginAddress: rawProposal.pluginAddress,
-          network: rawProposal.network,
-        }),
-      ).to.be.true
-
-      expect(
-        findActiveSettingSpy.calledWith({
-          daoAddress: rawProposal.daoAddress,
-          pluginAddress: rawProposal.pluginAddress,
-          network: rawProposal.network,
-        }),
-      ).to.be.true
-    })
-
-    it('should return false if member is not found', async () => {
-      const params = {
-        memberAddress: '0xmember',
-        pluginAddress: rawProposal.pluginAddress,
-        network: rawProposal.network,
-      }
-
-      const findMappingSpy = sandbox.spy(Models.Member, 'findByAddress')
-
-      const response = await ProposalController.canCreateProposal(params as any)
+      const response = await ProposalController.canCreateProposal(params)
 
       expect(response).to.be.false
-
-      expect(findMappingSpy.calledOnce).to.be.true
-
-      expect(findMappingSpy.calledWith('0xmember')).to.be.true
-    })
-
-    it('should return false if plugin is not found', async () => {
-      const params = {
-        memberAddress: rawMember.address,
-        pluginAddress: '0xplugin',
-        network: rawProposal.network,
-      }
-
-      const findMappingSpy = sandbox.spy(Models.Plugin, 'findByAddress')
-
-      const response = await ProposalController.canCreateProposal(params as any)
-
-      expect(response).to.be.false
-
-      expect(findMappingSpy.calledOnce).to.be.true
-
-      expect(findMappingSpy.calledWith('0xplugin', rawProposal.network)).to.be.true
-    })
-
-    it('should return false if active settings are not found', async () => {
-      const params = {
-        memberAddress: rawMember.address,
-        pluginAddress: rawProposal.pluginAddress,
-        network: rawProposal.network,
-      }
-
-      const settings = await Models.Setting.findActive({
-        daoAddress: rawProposal.daoAddress,
-        pluginAddress: rawProposal.pluginAddress,
-        network: rawProposal.network,
-      } as any)
-      settings.pluginAddress = '0x00'
-      await settings.save()
-
-      const findActiveSettingSpy = sandbox.spy(Models.Setting, 'findActive')
-
-      const response = await ProposalController.canCreateProposal(params as any)
-
-      expect(response).to.be.false
-
-      expect(
-        findActiveSettingSpy.calledWith({
-          daoAddress: rawProposal.daoAddress,
-          pluginAddress: rawProposal.pluginAddress,
-          network: rawProposal.network,
-        }),
-      ).to.be.true
+      expect(loggerStub.calledOnceWith('Error while checking if user can create proposal' as any)).to.be.true
     })
   })
 

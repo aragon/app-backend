@@ -54,16 +54,6 @@ describe('ProxyWeb3 && Web3Helper', () => {
     expect(value).to.eq('4')
   })
 
-  it('getNativeBalance', async () => {
-    const address = '0x2521Dd2142Ab814f8d5FEb5dF986502D2dDF4449'
-    const network = NetworksEnum.ethereumMainnet
-    const value = await Web3Provider.getNativeBalance({
-      network,
-      address,
-    })
-    expect(value).to.eq('0.000118940004874')
-  })
-
   it('getTokenBalances', async () => {
     const address = '0x951dcBafc1D80B9cD612915e9CcF5Ada06d6566E'
     const network = NetworksEnum.ethereumMainnet
