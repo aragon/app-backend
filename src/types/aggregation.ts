@@ -166,6 +166,7 @@ export interface IAggPluginProjectFields {
   isSupported: 1
   interfaceType: 1
   tokenAddress?: 1
+  metadataIpfs?: 1
   release?: 1
   build?: 1
   subdomain?: 1
