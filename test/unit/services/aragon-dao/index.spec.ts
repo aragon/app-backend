@@ -14,6 +14,8 @@ import { MemberInfo } from '@services/aragon-dao/memberInfo'
 import { VoteInfo } from '@services/aragon-dao/voteInfo'
 import ActionDecoder from '@services/aragon-dao/actionDecoder'
 import { AllMetrics } from '@services/aragon-dao/allMetrics'
+import { TaskSchedulerState } from '@state/taskSchedulerState'
+import config from '@config'
 
 describe('AragonDao: index', () => {
   let sandbox: SinonSandbox
@@ -33,7 +35,7 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      expect(processStub.callCount).to.equal(11) // Total queues in the service
+      expect(processStub.callCount).to.equal(12) // Total queues in the service
       expect(processStub.calledWith(EnumQueueName.allMetrics)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoTransactions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoAssets)).to.be.true
@@ -45,6 +47,7 @@ describe('AragonDao: index', () => {
       expect(processStub.calledWith(EnumQueueName.memberBalance)).to.be.true
       expect(processStub.calledWith(EnumQueueName.contractDecoder)).to.be.true
       expect(processStub.calledWith(EnumQueueName.proposalActions)).to.be.true
+      expect(processStub.calledWith(EnumQueueName.canCreateProposal)).to.be.true
 
       expect(loggerStub.calledOnceWith('AragonDaoService service started' as any)).to.be.true
     })
@@ -283,6 +286,73 @@ describe('AragonDao: index', () => {
         value: 1,
         network: NetworksEnum.ethereumMainnet,
       })
+    })
+
+    it('should handle canCreateProposal queue', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const memberInfoStub = sandbox.stub(MemberInfo, 'canCreateProposal').resolves()
+
+      await AragonDaoService.start()
+
+      const handler = processStub.getCall(11).args[1]
+      const queueName = processStub.getCall(11).args[0]
+      await handler({
+        params: {
+          pluginAddress: '0xPluginAddress',
+          userAddress: '0xUserAddress',
+          network: NetworksEnum.ethereumMainnet,
+        },
+      } as any)
+
+      expect(queueName).to.eq(EnumQueueName.canCreateProposal)
+      expect(
+        memberInfoStub.calledOnceWith('0xPluginAddress', '0xUserAddress', NetworksEnum.ethereumMainnet),
+      ).to.be.true
+    })
+  })
+
+  describe('Task Scheduler', () => {
+    it('should initialize the token fetcher task scheduler', async () => {
+      sandbox.stub(RabbitMQHelper, 'process').resolves()
+
+      const mockScheduler = {
+        startTask: sandbox.stub().resolves(),
+      }
+      
+      const getInstanceStub = sandbox.stub(TaskSchedulerState, 'getInstance').returns(mockScheduler as any)
+      
+      sandbox.stub(config, 'SERVICES').value({
+        ARAGON_DAO: {
+          TOKEN_FETCH_INTERVAL: 60000
+        }
+      })
+
+      const loggerInfoStub = sandbox.stub(logger, 'info')
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+      
+      await AragonDaoService.start()
+      
+      expect(getInstanceStub.calledOnce).to.be.true
+      
+      expect(mockScheduler.startTask.calledOnce).to.be.true
+      expect(mockScheduler.startTask.args[0][0]).to.equal('token-re-fetch')
+      
+      const taskOptions = mockScheduler.startTask.args[0][1]
+      
+      expect(taskOptions).to.have.property('fn')
+      expect(taskOptions).to.have.property('interval', 60000)
+      expect(taskOptions).to.have.property('checkInterval', 30000)
+      expect(taskOptions).to.have.property('runNow', true)
+      expect(taskOptions).to.have.property('stopOnError', false)
+      expect(taskOptions).to.have.property('onError')
+      
+      const fnResult = taskOptions.fn()
+      expect(fnResult).to.be.an('array')
+      expect(fnResult[0][0]).to.have.property('fetchRates')
+      
+      taskOptions.onError(new Error('Test error'))
+      expect(loggerErrorStub.calledOnce).to.be.true
+      expect(loggerErrorStub.args[0][0]).to.equal('Token Fetcher task error')
     })
   })
 })
