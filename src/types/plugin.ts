@@ -68,3 +68,9 @@ export enum IReportResultType {
   Approval,
   Veto,
 }
+
+export enum IBodyAddressType {
+  EOA = 'eoa',
+  SAFE = 'safe',
+  OTHER = 'other',
+}

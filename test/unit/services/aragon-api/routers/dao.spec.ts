@@ -206,4 +206,41 @@ describe('Router: Dao', () => {
     expect(ctx.body).to.eq(true)
     expect(stubCtrl.calledOnce).to.be.true
   })
+
+  it('Should getDaoByEns', async () => {
+    const params = {
+      network: NetworksEnum.ethereumMainnet,
+      ens: 'test-dao.eth',
+    }
+
+    const stubCtrl = sandbox.stub(DaoController, 'getDaoByEns').returns(true as any)
+
+    const ctx: any = {
+      params,
+      query: {},
+    }
+
+    await DaoRouter.getDaoByEns(ctx)
+
+    expect(ctx.body).to.eq(true)
+    expect(stubCtrl.calledOnce).to.be.true
+    expect(stubCtrl.calledWith(params.ens, params.network)).to.be.true
+  })
+
+  it('should throw an error for invalid ENS format', async () => {
+    const params = {
+      network: NetworksEnum.ethereumMainnet,
+      ens: 'invalid-ens', // Missing .eth suffix
+    }
+
+    const stubCtrl = sandbox.stub(DaoController, 'getDaoByEns').returns(true as any)
+
+    const ctx: any = {
+      params,
+      query: {},
+    }
+
+    await expect(DaoRouter.getDaoByEns(ctx)).to.be.rejectedWith(Error, ErrorKeyEnum.badParams)
+    expect(stubCtrl.notCalled).to.be.true
+  })
 })
