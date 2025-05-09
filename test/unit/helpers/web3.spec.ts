@@ -1310,7 +1310,7 @@ describe('Helpers:Web3', () => {
         getConfigItem: sandbox.stub().returns({}),
       }
       const stubIsMember = sandbox.stub().resolves(true)
-      
+
       const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
         ethers: {
           Contract: function () {
@@ -1338,7 +1338,7 @@ describe('Helpers:Web3', () => {
         getConfigItem: sandbox.stub().returns({}),
       }
       const stubIsMember = sandbox.stub().resolves(false)
-      
+
       const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
         ethers: {
           Contract: function () {
@@ -1367,7 +1367,7 @@ describe('Helpers:Web3', () => {
       }
       const stubIsMember = sandbox.stub().rejects(new Error('Contract call failed'))
       const stubLogger = sandbox.stub(logger, 'error')
-      
+
       const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
         ethers: {
           Contract: function () {

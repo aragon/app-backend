@@ -312,7 +312,7 @@ describe('Controller: Proposal', () => {
       const params = {
         pluginAddress: '0xPluginAddress',
         memberAddress: rawMember.address,
-        network: rawProposal.network!
+        network: rawProposal.network!,
       }
 
       const rabbitmQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(true as any)
@@ -326,16 +326,16 @@ describe('Controller: Proposal', () => {
         params: {
           pluginAddress: params.pluginAddress,
           memberAddress: params.memberAddress,
-          network: params.network
-        }
+          network: params.network,
+        },
       })
     })
-    
+
     it('should return false when there is an error', async () => {
       const params = {
         pluginAddress: '0xPluginAddress',
         memberAddress: rawMember.address,
-        network: rawProposal.network!
+        network: rawProposal.network!,
       }
 
       sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('test'))
