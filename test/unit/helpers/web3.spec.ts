@@ -1303,4 +1303,92 @@ describe('Helpers:Web3', () => {
       expect(stubLockToken.calledOnce).to.be.true
     })
   })
+
+  describe('isMember', () => {
+    it('should return true when address is a member of the plugin', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubIsMember = sandbox.stub().resolves(true)
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { isListed: stubIsMember }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const pluginAddress = '0xPluginAddress'
+      const memberAddress = '0xMemberAddress'
+      const network = NetworksEnum.ethereumMainnet
+
+      const result = await MockedWeb3Helper.isMember(pluginAddress, memberAddress, network)
+
+      expect(result).to.be.true
+      expect(stubIsMember.calledOnce).to.be.true
+      expect(stubIsMember.calledWith(memberAddress)).to.be.true
+    })
+
+    it('should return false when address is not a member of the plugin', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubIsMember = sandbox.stub().resolves(false)
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { isListed: stubIsMember }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const pluginAddress = '0xPluginAddress'
+      const memberAddress = '0xMemberAddress'
+      const network = NetworksEnum.ethereumMainnet
+
+      const result = await MockedWeb3Helper.isMember(pluginAddress, memberAddress, network)
+
+      expect(result).to.be.false
+      expect(stubIsMember.calledOnce).to.be.true
+      expect(stubIsMember.calledWith(memberAddress)).to.be.true
+    })
+
+    it('should return false when an error occurs', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubIsMember = sandbox.stub().rejects(new Error('Contract call failed'))
+      const stubLogger = sandbox.stub(logger, 'error')
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { isListed: stubIsMember }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const pluginAddress = '0xPluginAddress'
+      const memberAddress = '0xMemberAddress'
+      const network = NetworksEnum.ethereumMainnet
+
+      const result = await MockedWeb3Helper.isMember(pluginAddress, memberAddress, network)
+
+      expect(result).to.be.false
+      expect(stubIsMember.calledOnce).to.be.true
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubLogger.calledWith('Error isMember' as any)).to.be.true
+    })
+  })
 })
