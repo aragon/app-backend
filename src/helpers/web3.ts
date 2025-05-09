@@ -567,6 +567,19 @@ const Web3Helper = {
 
     return token
   },
+  async isMember(pluginAddress: HexAddress, memberAddress: HexAddress, network: NetworksEnum) {
+    try {
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      const pluginInstance = new Contract(pluginAddress, Multisig.abi, provider)
+      const isListed = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => pluginInstance.isListed(memberAddress)),
+      )
+      return Boolean(isListed)
+    } catch (error) {
+      logger.error('Error isMember', llo({ pluginAddress, memberAddress, network, error }))
+      return false
+    }
+  },
 }
 
 export default Web3Helper
