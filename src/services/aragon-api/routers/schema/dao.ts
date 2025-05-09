@@ -45,6 +45,13 @@ const DaoSchema = {
       .required(),
     address: ValidationSchema.joiAddress.required(),
   }),
+
+  getDaoByEns: Joi.object({
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
+    ens: ValidationSchema.joiEns.required(),
+  }),
 }
 
 export default DaoSchema
