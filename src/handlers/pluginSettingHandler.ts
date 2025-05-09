@@ -14,6 +14,7 @@ import utils from '@helpers/utils'
 import MultisigHelper from '@helpers/multisig'
 import { Multisig2 } from '@artifacts/Multisig2'
 import Web3Utils from '@helpers/web3Utils'
+import PluginDetector from '@helpers/pluginDetector'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PluginSettingHandler' })
 
@@ -251,6 +252,17 @@ export const PluginSettingHandler = {
       pluginAddress,
     })
 
+    // Format SPP settings
+    const formattedStages = PluginSettingHandler.formatSppSetings(parsedEvent.args.stages)
+
+    // Detect address type for each plugin in each stage
+    for (const stage of formattedStages) {
+      for (const plugin of stage.plugins) {
+        // Detect address type for each plugin
+        plugin.type = await PluginDetector.detectAddressType(plugin.address, network)
+      }
+    }
+
     const settingLog = {
       blockNumber,
       blockTimestamp: (await Web3Helper.getBlockTimestamp(blockNumber, network)) || undefined,
@@ -261,7 +273,7 @@ export const PluginSettingHandler = {
       pluginSubdomain: relatedPlugin.subdomain,
       tokenAddress: relatedPlugin.tokenAddress,
       network,
-      stages: PluginSettingHandler.formatSppSetings(parsedEvent.args.stages),
+      stages: formattedStages,
     }
 
     const sppMetadata = await Models.LogMetadata.getLatestMetadata(network, pluginAddress)

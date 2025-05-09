@@ -2,7 +2,7 @@ import { EnumConnection, type IService, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import { NetworkHelper } from '@helpers/network'
 
-export const ToolsRevertDbAtBlock: IService = {
+export const RevertDbAtBlock: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
 
   start: async () => {
@@ -63,4 +63,4 @@ export const ToolsRevertDbAtBlock: IService = {
   stop: async () => {},
 }
 
-export default ToolsRevertDbAtBlock
+export default RevertDbAtBlock

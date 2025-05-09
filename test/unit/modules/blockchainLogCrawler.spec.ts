@@ -401,7 +401,54 @@ describe('Module: blockchainLogCrawler', () => {
       expect(errorStub.calledOnce).to.be.true
       expect(result.logs).to.be.empty
     })
-    //
+
+    it('should reset batch size to original value only when runCount <= 2', async () => {
+      const crawler = new BlockchainLogCrawler({
+        ...crawlerConfig,
+        events: [
+          { topic: '0xTopic', event: 'Test', config: [{ abi: ['event Test()'], handler: sandbox.stub().resolves() }] },
+        ],
+      })
+
+      // Set initial values
+      crawler['crawlSetting'].originalBatchSize = 100
+      crawler['crawlSetting'].batchSize = 30 // Simulates already reduced batch size
+
+      // Case 1: runCount = 2 - should reset batch size
+      crawler['crawlSetting'].runCount = 2
+
+      // Mock successful response from executeBatchRequest
+      const mockLogs = [{ blockNumber: '0x65', transactionIndex: '0x1', logIndex: '0x0' }]
+      sandbox.stub(crawler, 'executeBatchRequest').resolves([{ result: mockLogs }])
+
+      await crawler.getLogsByBatch(100, 200)
+
+      // Batch size should be reset to original
+      expect(crawler['crawlSetting'].batchSize).to.equal(100)
+
+      // Reset stubs
+      sandbox.restore()
+
+      // Case 2: runCount = 3 - should NOT reset batch size
+      const crawler2 = new BlockchainLogCrawler({
+        ...crawlerConfig,
+        events: [
+          { topic: '0xTopic', event: 'Test', config: [{ abi: ['event Test()'], handler: sandbox.stub().resolves() }] },
+        ],
+      })
+
+      crawler2['crawlSetting'].originalBatchSize = 100
+      crawler2['crawlSetting'].batchSize = 30
+      crawler2['crawlSetting'].runCount = 3
+
+      sandbox.stub(crawler2, 'executeBatchRequest').resolves([{ result: mockLogs }])
+
+      await crawler2.getLogsByBatch(100, 200)
+
+      // Batch size should remain unchanged
+      expect(crawler2['crawlSetting'].batchSize).to.equal(30)
+    })
+
     it('should handle non-batch size errors by stopping the crawl', async () => {
       const crawler = new BlockchainLogCrawler({
         ...crawlerConfig,
@@ -1481,6 +1528,31 @@ describe('Module: blockchainLogCrawler', () => {
       const strategy = crawler.getStrategyBySituation(100, 115)
 
       expect(strategy).to.equal(ICrawStrategy.getLogsWithoutTopics)
+    })
+  })
+
+  describe('getOffsetToBlockNumber', () => {
+    it('should return the offset to block number if we meet the conditions', () => {
+      const crawler = new BlockchainLogCrawler({
+        ...crawlerConfig,
+        network: NetworksEnum.peaqMainnet,
+        filterLogs: sandbox.stub().returns(true),
+      })
+
+      const offset = crawler.getOffsetToBlockNumber(100)
+
+      expect(offset).to.equal(96)
+    })
+
+    it('should return block as it is if no filterLogs is passed', () => {
+      const crawler = new BlockchainLogCrawler({
+        ...crawlerConfig,
+        network: NetworksEnum.peaqMainnet,
+      })
+
+      const offset = crawler.getOffsetToBlockNumber(200)
+
+      expect(offset).to.equal(200)
     })
   })
 })

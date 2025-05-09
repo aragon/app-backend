@@ -55,47 +55,20 @@ const ProposalController = {
 
   canCreateProposal: async (params: ICanCreateProposal) => {
     try {
-      const [member, plugin] = await Promise.all([
-        Models.Member.findByAddress(params.memberAddress),
-        Models.Plugin.findByAddress(params.pluginAddress, params.network),
-      ])
-
-      assertExposable(member && plugin, ErrorKeyEnum.notFound)
-
-      const [daoMappings, activeSettings] = await Promise.all([
-        Models.DaoMemberMapping.findMapping({
-          memberAddress: member.address,
-          daoAddress: plugin.daoAddress,
-          pluginAddress: plugin.address,
-          network: plugin.network,
-        }),
-        Models.Setting.findActive({
-          daoAddress: plugin.daoAddress,
-          pluginAddress: plugin.address,
-          network: plugin.network,
-        }),
-      ])
-
-      assertExposable(activeSettings, ErrorKeyEnum.notFound)
-
-      if (!plugin.tokenAddress) {
-        if (!activeSettings.onlyListed) {
-          return true
-        }
-
-        return !!daoMappings
-      }
-
-      if (plugin.tokenAddress) {
-        const userVotingPower = await Models.MemberBalance.findByAddressAndToken({
-          address: member.address,
-          tokenAddress: plugin.tokenAddress,
-          network: plugin.network,
-        })
-
-        return !!daoMappings && Number(userVotingPower.votingPower) > Number(activeSettings.minProposerVotingPower)
-      }
-    } catch (e) {
+      return await RabbitMQHelper.sendMessage(
+        EnumQueueName.canCreateProposal,
+        {
+          id: `canCreateProposal-${params.pluginAddress}-${params.memberAddress}-${params.network}`,
+          params: {
+            pluginAddress: params.pluginAddress,
+            memberAddress: params.memberAddress,
+            network: params.network,
+          },
+        },
+        { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
+      )
+    } catch (error) {
+      logger.warn('Error while checking if user can create proposal', llo({ error, ...params }))
       return false
     }
   },
@@ -113,6 +86,21 @@ const ProposalController = {
     } catch (error) {
       logger.warn('Error while checking if user can cast vote', llo({ error, userAddress, proposalId }))
       return false
+    }
+  },
+
+  getProposalDecodedActions: async (id: string): Promise<any> => {
+    const proposal = await Models.Proposal.findByEntityId(id)
+    assertExposable(proposal, ErrorKeyEnum.notFound)
+
+    if (!proposal.rawActions || proposal.rawActions.length === 0) {
+      return { actions: [], decoding: proposal.decoding }
+    }
+
+    return {
+      decoding: proposal.decoding,
+      actions: proposal.actions || [],
+      rawActions: proposal.rawActions || [],
     }
   },
 }

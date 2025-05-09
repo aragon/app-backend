@@ -16,8 +16,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - host: 'https://api.aragon-backend.com'
-            env_name: 'App Backend Testing (AWS)'
           - host: 'https://stg.backend.aragon.in'
             env_name: 'App Backend Staging'
           - host: 'https://backend.aragon.in'
@@ -136,7 +134,7 @@ jobs:
           test_result_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           test_error_message="API Monitoring failed"
           env_host="${{ matrix.host }}"
-          
+
 
           EOF
 

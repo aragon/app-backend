@@ -3,9 +3,9 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import { PluginSlug } from '@helpers/pluginSlug'
 
-const llo = logger.logMeta.bind(null, { service: 'Tools: ToolsMissingSlugs' })
+const llo = logger.logMeta.bind(null, { service: 'Tools: MissingSlugs' })
 
-export const ToolsMissingSlugs: IService = {
+export const MissingSlugs: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
 
   start: async () => {
@@ -49,10 +49,10 @@ export const ToolsMissingSlugs: IService = {
         }
       }),
     )
-    logger.info('ToolsMissingSlugs End', llo({ length: plugins.length }))
+    logger.info('MissingSlugs End', llo({ length: plugins.length }))
   },
 
   stop: async () => {},
 }
 
-export default ToolsMissingSlugs
+export default MissingSlugs
