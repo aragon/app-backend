@@ -19,12 +19,12 @@ import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import GaugeHelper from '@helpers/gauge'
 import type Plugin from '@models/schema/plugin'
-
 import { MetadataHandler } from '@handlers/metadataHandler'
 import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import DbTx from '@modules/dbTx'
+import Web3Utils from '@helpers/web3Utils'
 
-const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:pluginSetupProcessorHandler' })
+const llo = logger.logMeta.bind(null, { service: 'handlers:pluginSetupProcessorHandler' })
 
 export const PluginSetupProcessorHandler = {
   pluginHandler: async (action: IPluginActionType, logDb: LogPluginSetupProcessor) => {
@@ -122,9 +122,9 @@ export const PluginSetupProcessorHandler = {
 
     if (metadataLog) {
       try {
-        const parsedEvent = Web3Helper.parseLog(metadataLog, iFace)
+        const parsedEvent = Web3Utils.parseLog(metadataLog, iFace)
         if (parsedEvent) {
-          const logInfo = Web3Helper.parseInfoLog(metadataLog, ISPPLogs.MetadataSet, plugin.network)
+          const logInfo = Web3Utils.parseInfoLog(metadataLog, ISPPLogs.MetadataSet, plugin.network)
 
           await MetadataHandler.metadataSet(parsedEvent, logInfo)
         }

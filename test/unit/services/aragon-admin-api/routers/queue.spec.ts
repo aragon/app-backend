@@ -8,7 +8,7 @@ import { NetworksEnum } from '@types'
 describe('Router: QueueAdmin', () => {
   let sandbox: SinonSandbox
 
-  beforeEach(async () => {
+  beforeEach(() => {
     sandbox = sinon.createSandbox()
   })
 
@@ -116,5 +116,56 @@ describe('Router: QueueAdmin', () => {
     expect(stubCtrl.args[0][0].proposalIndex).to.eq(params.proposalIndex)
     expect(stubCtrl.args[0][0].pluginAddress).to.eq(params.pluginAddress)
     expect(stubCtrl.args[0][0].network).to.eq(params.network)
+  })
+
+  describe('recalculateProposalActions', () => {
+    it('should validate and call controller with query parameters', async () => {
+      const query = {
+        pluginAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        incrementalId: '1',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const controllerResponse = {
+        success: true,
+        message: 'Proposal actions recalculated successfully',
+        data: {
+          proposalId: 'proposal123',
+          actionsCount: 2,
+        },
+      }
+
+      const stubCtrl = sandbox.stub(QueueAdminController, 'recalculateProposalActions').resolves(controllerResponse)
+
+      const ctx: any = {
+        query,
+      }
+
+      await QueueAdminRouter.recalculateProposalActions(ctx)
+
+      expect(ctx.body).to.deep.equal(controllerResponse)
+      expect(stubCtrl.calledOnce).to.be.true
+    })
+
+    it('should handle validation errors', async () => {
+      const query = {
+        pluginAddress: 'invlidaddress', // Invalid
+        incrementalId: '1', // Invalid
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const stubCtrl = sandbox.stub(QueueAdminController, 'recalculateProposalActions')
+
+      const ctx: any = {
+        query,
+      }
+
+      try {
+        await QueueAdminRouter.recalculateProposalActions(ctx)
+        expect.fail('Should have thrown an error')
+      } catch (error) {
+        expect(stubCtrl.called).to.be.false
+      }
+    })
   })
 })

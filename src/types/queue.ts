@@ -14,6 +14,8 @@ export enum EnumQueueName {
   memberBalance = 'member.balance',
   contractDecoder = 'contract.decoder',
   tokenInfo = 'token.info',
+  proposalActions = 'proposal.actions',
+  canCreateProposal = 'can.create.proposal',
 }
 
 export interface IQueueAllMetrics {
@@ -42,6 +44,12 @@ export interface IQueueVoteInfo {
   userAddress: string
 }
 
+export interface IQueueCanCreateProposal {
+  memberAddress: HexAddress
+  pluginAddress: HexAddress
+  network: NetworksEnum
+}
+
 export interface IQueueMemberBalanceInfo {
   userAddress: HexAddress
   tokenAddress: HexAddress
@@ -58,6 +66,12 @@ export interface IQueueProposalMetrics {
 export interface IQueueMessage {
   id: string
   params: IQueueProposalMetrics | IQueueDao | any
+}
+
+export interface IQueueRealtimeTransactions {
+  daoAddresses: HexAddress[]
+  network: NetworksEnum
+  transactionHash: HexAddress
 }
 
 export interface ISendOptions {

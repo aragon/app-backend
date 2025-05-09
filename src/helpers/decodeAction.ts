@@ -14,9 +14,7 @@ import {
 } from '@types'
 import { ProposalActionType } from '@src/types'
 import { Models } from '@dbModels'
-import _ from 'lodash'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
-import Etherscan from '@helpers/etherscan'
 import ProxyContract from '@helpers/proxyContract'
 import { ProxyToken } from '@modules/proxyToken'
 import Covalent from '@helpers/covalent'
@@ -44,11 +42,10 @@ import { ERC721 } from '@artifacts/ERC721'
 import { ERC1155 } from '@artifacts/ERC1155'
 import Utils from '@helpers/utils'
 import { ProxyMember } from '@modules/proxyMember'
-import BlockScoutHelper from '@helpers/blockScout'
-
+import Web3Utils from '@helpers/web3Utils'
 import { IBlockScoutAddressType } from '@src/types/blockScout'
-
-const llo = logger.logMeta.bind(null, { service: 'DecodeActions' })
+import ProxyWeb3Provider from '@modules/proxyProvider'
+const llo = logger.logMeta.bind(null, { service: 'helpers:DecodeActions' })
 
 interface Signature {
   method: string
@@ -68,13 +65,16 @@ class DecodeActions {
   }
 
   public async decodeTransfer(action: IRawAction, document: Partial<Proposal>): Promise<any> {
-    if (Web3Helper.isNativeTokenAction(action)) {
+    if (Web3Utils.isNativeTokenAction(action)) {
       const nativeToken = await Models.Token.findByTokenAddressAndNetwork(ethers.ZeroAddress, document.network!)
-      const token = _.pick(nativeToken, ['address', 'name', 'symbol', 'decimals', 'logo', 'type', 'priceUsd'])
+      const token = nativeToken.pickFields()
 
       const member = await ProxyMember.createMember(action.to)
       const dao = await Models.Dao.findByAddress(document.daoAddress, document.network)
-      const toInfo = await BlockScoutHelper.searchDetails(action.to, document.network!)
+      const toInfo = await ProxyWeb3Provider.searchDetailsOfContract({
+        address: action.to,
+        network: document.network!,
+      })
 
       return {
         from: document.daoAddress,
@@ -192,7 +192,10 @@ class DecodeActions {
     const receiver = decodedData.parameters[0].value
     const tokenAddress = action.to
 
-    const tokenDetails = await BlockScoutHelper.searchDetails(tokenAddress, document.network!)
+    const tokenDetails = await ProxyWeb3Provider.searchDetailsOfContract({
+      address: tokenAddress,
+      network: document.network!,
+    })
 
     const member = await ProxyMember.createMember(receiver)
 
@@ -341,7 +344,7 @@ class DecodeActions {
       metadataOriginKey,
     )
 
-    const ipfsUrl = Web3Helper.extractMetadataUri(decodedData.parameters[0].value)
+    const ipfsUrl = Web3Utils.extractMetadataUri(decodedData.parameters[0].value)
     if (!ipfsUrl) {
       return null
     }
@@ -452,6 +455,7 @@ class DecodeActions {
     if (!pluginDetails) {
       return null
     }
+    const votingToken = await ProxyToken.saveAndGetToken(pluginDetails.tokenAddress, action.network!)
 
     const activeSettings = await Models.Setting.findLastSettingByBlockNumber(
       pluginDetails.address,
@@ -465,6 +469,7 @@ class DecodeActions {
           minParticipation: activeSettings?.minParticipation,
           minDuration: activeSettings?.minDuration,
           minProposerVotingPower: activeSettings?.minProposerVotingPower,
+          token: votingToken?.pickFields(),
         }
       : {}
 
@@ -563,7 +568,7 @@ class DecodeActions {
       const token = await ProxyToken.saveAndGetToken(action.to, document.network!)
 
       if (token) {
-        metadata.token = _.pick(token, ['address', 'name', 'symbol', 'decimals', 'logo', 'type', 'priceUsd'])
+        metadata.token = token.pickFields()
         metadata.from = from
         metadata.to = to
         metadata.value = value.toString()
@@ -645,19 +650,6 @@ class DecodeActions {
     }
   }
 
-  async _fetchContractSourceCode(contractAddress: string, network: NetworksEnum) {
-    let contractDetails = await Etherscan.fetchContractSourceCode({
-      contractAddress,
-      network,
-    })
-
-    if (!contractDetails) {
-      contractDetails = await BlockScoutHelper.getContractSourceCode(contractAddress, network)
-    }
-
-    return contractDetails
-  }
-
   async parseContractNetspec(functionName: string, rawAction: IRawAction, network: NetworksEnum) {
     let implementationAddress = await ProxyContract.getImplementationAddress(rawAction.to, network)
 
@@ -665,11 +657,17 @@ class DecodeActions {
       implementationAddress = rawAction.to
     }
 
-    const contractDetails = await this._fetchContractSourceCode(implementationAddress, network)
+    const contractDetails = await ProxyWeb3Provider.fetchContractSourceCode({
+      address: implementationAddress,
+      network,
+    })
 
     let proxyDetails: any = null
     if (implementationAddress !== rawAction.to) {
-      proxyDetails = await this._fetchContractSourceCode(rawAction.to, network)
+      proxyDetails = await ProxyWeb3Provider.fetchContractSourceCode({
+        address: rawAction.to,
+        network,
+      })
     }
 
     if (contractDetails && contractDetails.length > 0 && contractDetails[0].SourceCode !== '') {

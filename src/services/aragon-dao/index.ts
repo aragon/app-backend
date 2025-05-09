@@ -2,7 +2,9 @@ import logger from '@logger'
 import {
   EnumConnection,
   EnumQueueName,
+  type IProposalInfo,
   type IQueueAllMetrics,
+  type IQueueCanCreateProposal,
   type IQueueContractInfo,
   type IQueueDao,
   type IQueueMemberBalanceInfo,
@@ -20,8 +22,10 @@ import { ContractInfo } from '@services/aragon-dao/contractInfo'
 import { VoteInfo } from '@services/aragon-dao/voteInfo'
 import { MemberInfo } from '@services/aragon-dao/memberInfo'
 import ActionDecoder from '@services/aragon-dao/actionDecoder'
-import TokenInfo from '@services/aragon-dao/tokenInfo'
 import { AllMetrics } from '@services/aragon-dao/allMetrics'
+import config from '@config'
+import { TaskSchedulerState } from '@state/taskSchedulerState'
+import TokenFetcher from '@services/aragon-dao/tokenFetcher'
 
 const llo = logger.logMeta.bind(null, { service: 'service:DaoService' })
 
@@ -83,10 +87,31 @@ const AragonDaoService: IService = {
       return await ActionDecoder.decode({ from, to, data, value, network })
     })
 
-    await RabbitMQHelper.process(EnumQueueName.tokenInfo, async (job: any) => {
-      const { address, network } = job.params as IQueueContractInfo
-      await TokenInfo.update(address, network)
+    await RabbitMQHelper.process(EnumQueueName.proposalActions, async (job: any) => {
+      const { id } = job.params as IProposalInfo
+      return await ActionDecoder.proposalActionDecoder(id)
     })
+
+    await RabbitMQHelper.process(EnumQueueName.canCreateProposal, async (job: any) => {
+      const { pluginAddress, memberAddress, network } = job.params as IQueueCanCreateProposal
+      return await MemberInfo.canCreateProposal(pluginAddress, memberAddress, network)
+    })
+
+    const tasks = [[{ fetchRates: TokenFetcher }]]
+
+    const taskOptions = {
+      fn: () => [...tasks],
+      interval: config.SERVICES.ARAGON_DAO.TOKEN_FETCH_INTERVAL,
+      checkInterval: config.SERVICES.ARAGON_DAO.TOKEN_FETCH_INTERVAL / 2,
+      runNow: true,
+      stopOnError: false,
+      onError: (error: any) => {
+        logger.error('Token Fetcher task error', llo({ error }))
+      },
+    }
+
+    const scheduler = TaskSchedulerState.getInstance()
+    await scheduler.startTask('token-re-fetch', taskOptions)
 
     logger.info('AragonDaoService service started', llo({}))
   },

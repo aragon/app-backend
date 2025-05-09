@@ -6,11 +6,11 @@ import { beforeEach } from 'mocha'
 import { MetadataHandler } from '@handlers/metadataHandler'
 import { Models } from '@dbModels'
 import IPFSModule from '@modules/ipfs'
-import Web3Helper from '@helpers/web3'
 import Logger from '@logger'
 import DbOperations from '@models/utils/dbOperations'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import { PluginSlug } from '@helpers/pluginSlug'
+import Web3Utils from '@helpers/web3Utils'
 
 describe('Indexer: MetadataHandler', () => {
   let sandbox: SinonSandbox
@@ -47,7 +47,7 @@ describe('Indexer: MetadataHandler', () => {
         network: NetworksEnum.ethereumMainnet,
       } as any)
 
-      const decodeHelper = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('ipfs://fake-uri')
+      const decodeHelper = sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://fake-uri')
       const fetchHelper = sandbox.stub(IPFSModule, 'fetchMetadata').resolves(fakeMetadata)
 
       await MetadataHandler.metadataSet(fakeEvent as any, logInfo)
@@ -83,7 +83,7 @@ describe('Indexer: MetadataHandler', () => {
         network: NetworksEnum.ethereumMainnet,
       } as any)
 
-      const decodeHelper = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('ipfs://fake-uri')
+      const decodeHelper = sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://fake-uri')
       const fetchHelper = sandbox.stub(IPFSModule, 'fetchMetadata').resolves(fakeMetadata)
       const verboseStub = sandbox.stub(Logger, 'verbose')
 
@@ -125,7 +125,7 @@ describe('Indexer: MetadataHandler', () => {
         } as any)
       })
 
-      const decodeHelper = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('ipfs://fake-uri')
+      const decodeHelper = sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://fake-uri')
       const fetchHelper = sandbox.stub(IPFSModule, 'fetchMetadata').resolves(fakeMetadata)
 
       await MetadataHandler.metadataSet(fakeEvent as any, logInfo)
@@ -161,7 +161,7 @@ describe('Indexer: MetadataHandler', () => {
         network: NetworksEnum.ethereumMainnet,
       } as any)
 
-      const decodeHelper = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('ipfs://fake-uri')
+      const decodeHelper = sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://fake-uri')
       const fetchHelper = sandbox.stub(IPFSModule, 'fetchMetadata').resolves(fakeMetadata)
       const verboseStub = sandbox.stub(Logger, 'verbose')
       const createDocumentStub = sandbox.spy(DbOperations, 'createDocument')
@@ -219,7 +219,7 @@ describe('Indexer: MetadataHandler', () => {
 
       sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(true)
-      const extractMetadataUriStub = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('ipfs://fake-uri')
+      const extractMetadataUriStub = sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://fake-uri')
       const findExistingStub = sandbox.stub(Models.LogMetadata, 'findExistingLog').resolves(true)
 
       await MetadataHandler.metadataSet(fakeEvent as any, logInfo)
@@ -270,9 +270,8 @@ describe('Indexer: MetadataHandler', () => {
 
       sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(true)
-      const stubLogger = sandbox.stub(Logger, 'error')
       const findExistingStub = sandbox.stub(Models.LogMetadata, 'findExistingLog').resolves(null)
-      sandbox.stub(Web3Helper, 'extractMetadataUri').rejects(new Error('fake-error'))
+      sandbox.stub(Web3Utils, 'extractMetadataUri').rejects(new Error('fake-error'))
 
       await MetadataHandler.metadataSet(fakeEvent as any, logInfo)
       expect(findExistingStub.calledOnce).to.be.true

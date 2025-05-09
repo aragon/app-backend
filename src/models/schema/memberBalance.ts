@@ -31,6 +31,7 @@ const customName = ICollectionNames.MemberBalance
 })
 @index({ id: 1 }, { unique: true })
 @index({ address: 1 })
+@index({ network: 1, tokenAddress: 1, amount: 1 })
 export default class MemberBalance extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -196,6 +197,7 @@ export default class MemberBalance extends Model {
 
     if (extraParams?.tokenAddress) {
       filter.tokenAddress = extraParams.tokenAddress
+      filter.network = extraParams.network
     }
 
     const searchFilter = ModelUtils.createFilter(paginationParams, ['memberInfo.ens', 'memberInfo.address'])

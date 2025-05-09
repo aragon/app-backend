@@ -13,8 +13,10 @@ import { ProxyToken } from '@modules/proxyToken'
 import utils from '@helpers/utils'
 import MultisigHelper from '@helpers/multisig'
 import { Multisig2 } from '@artifacts/Multisig2'
+import Web3Utils from '@helpers/web3Utils'
+import PluginDetector from '@helpers/pluginDetector'
 
-const llo = logger.logMeta.bind(null, { service: 'service:indexer:handlers:PluginSettingHandler' })
+const llo = logger.logMeta.bind(null, { service: 'handlers:PluginSettingHandler' })
 
 // Note about plugin settings
 // ADMIN: have no setting (isSupported needs to be set somewhere else)
@@ -49,14 +51,14 @@ export const PluginSettingHandler = {
         return
     }
 
-    let settingLogs = Web3Helper.findLogsByName(txReceipt, eventName, abi)
+    let settingLogs = Web3Utils.findLogsByName(txReceipt, eventName, abi)
     if (settingLogs?.length === 0 && abi2) {
-      settingLogs = Web3Helper.findLogsByName(txReceipt, eventName, abi2)
+      settingLogs = Web3Utils.findLogsByName(txReceipt, eventName, abi2)
     }
     const settingLog = settingLogs?.find(log => log?.txLog?.address === plugin.address)
 
     if (settingLog) {
-      const infoPluginSetup = Web3Helper.parseInfoLog(settingLog.txLog, eventName, info.network)
+      const infoPluginSetup = Web3Utils.parseInfoLog(settingLog.txLog, eventName, info.network)
       const plugin = await handler(settingLog.parsed!, infoPluginSetup)
       if (plugin) return plugin
     }
@@ -250,6 +252,17 @@ export const PluginSettingHandler = {
       pluginAddress,
     })
 
+    // Format SPP settings
+    const formattedStages = PluginSettingHandler.formatSppSetings(parsedEvent.args.stages)
+
+    // Detect address type for each plugin in each stage
+    for (const stage of formattedStages) {
+      for (const plugin of stage.plugins) {
+        // Detect address type for each plugin
+        plugin.type = await PluginDetector.detectAddressType(plugin.address, network)
+      }
+    }
+
     const settingLog = {
       blockNumber,
       blockTimestamp: (await Web3Helper.getBlockTimestamp(blockNumber, network)) || undefined,
@@ -260,7 +273,7 @@ export const PluginSettingHandler = {
       pluginSubdomain: relatedPlugin.subdomain,
       tokenAddress: relatedPlugin.tokenAddress,
       network,
-      stages: PluginSettingHandler.formatSppSetings(parsedEvent.args.stages),
+      stages: formattedStages,
     }
 
     const sppMetadata = await Models.LogMetadata.getLatestMetadata(network, pluginAddress)

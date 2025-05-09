@@ -223,7 +223,8 @@ export const AggregationQueryHelper = {
         summary: 1,
         resources: 1,
         executed: 1,
-        actions: 1,
+        hasActions: AggregationQueryHelper.computeHasActions(),
+        decoding: 1,
         media: 1,
         metrics: 1,
         settings: 1,
@@ -867,4 +868,5 @@ export const AggregationQueryHelper = {
       },
     }
   },
+  computeHasActions: () => ({ $cond: [{ $gt: [{ $size: { $ifNull: ['$rawActions', []] } }, 0] }, true, false] }),
 }

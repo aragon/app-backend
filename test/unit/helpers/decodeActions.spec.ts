@@ -16,8 +16,10 @@ import IPFSModule from '@modules/ipfs'
 import { Models } from '@dbModels'
 import { ProxyMember } from '@modules/proxyMember'
 import BlockScoutHelper from '@helpers/blockScout'
-import EtherscanHelper from '@helpers/etherscan'
 import { IBlockScoutAddressType } from '@src/types/blockScout'
+import Web3Utils from '@helpers/web3Utils'
+import ProxyProvider from '@modules/proxyProvider'
+import ProxyWeb3Provider from '@modules/proxyProvider'
 
 describe('Helpers: DecodeActions', () => {
   let sandbox: SinonSandbox
@@ -195,14 +197,19 @@ describe('Helpers: DecodeActions', () => {
         network: NetworksEnum.ethereumSepolia,
       }
 
-      // findByTokenAddressAndNetwork
-      const findTokenStub = sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves({
+      const token = {
         address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         name: 'MockToken',
         symbol: 'MOCK',
         decimals: 18,
         logo: 'https://mock.com/logo.png',
         type: 'ERC20',
+      }
+      const pickFieldsStub = sandbox.stub().returns(token)
+      // findByTokenAddressAndNetwork
+      const findTokenStub = sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves({
+        pickFields: pickFieldsStub,
+        ...token,
       } as any)
 
       const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves({
@@ -232,6 +239,8 @@ describe('Helpers: DecodeActions', () => {
       expect(createMemberStub.calledOnce).to.be.true
       expect(findByAddressDaoStub.calledOnce).to.be.true
       expect(findAddressDetailsStub.calledOnceWith(action.to, NetworksEnum.ethereumSepolia)).to.be.true
+      expect(pickFieldsStub.calledOnce).to.be.true
+      expect(result.token.address).to.be.eq(token.address)
     })
 
     it('Should decodeTransfer when the reciever is wallet', async () => {
@@ -250,6 +259,7 @@ describe('Helpers: DecodeActions', () => {
         network: NetworksEnum.ethereumSepolia,
       }
 
+      const pickFieldsStub = sandbox.stub()
       // findByTokenAddressAndNetwork
       const findTokenStub = sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves({
         address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
@@ -258,6 +268,7 @@ describe('Helpers: DecodeActions', () => {
         decimals: 18,
         logo: 'https://mock.com/logo.png',
         type: 'ERC20',
+        pickFields: pickFieldsStub,
       } as any)
 
       const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves({
@@ -287,6 +298,7 @@ describe('Helpers: DecodeActions', () => {
       expect(createMemberStub.calledOnce).to.be.true
       expect(findByAddressDaoStub.calledOnce).to.be.true
       expect(findAddressDetailsStub.calledOnceWith(action.to, NetworksEnum.ethereumSepolia)).to.be.true
+      expect(pickFieldsStub.calledOnce).to.be.true
     })
 
     it('Should not decodeData if not native', async () => {
@@ -754,7 +766,7 @@ describe('Helpers: DecodeActions', () => {
       const network = NetworksEnum.ethereumMainnet
 
       const getImplementationAddressStub = sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
-      const getContractSourceCode = sandbox.stub(decodeActions, '_fetchContractSourceCode').resolves([
+      const getContractSourceCode = sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves([
         {
           SourceCode: 'contract IERC20MintableUpgradeable { function mint(address to, uint256 amount) public { } }',
           ContractName: 'IERC20MintableUpgradeable',
@@ -816,7 +828,7 @@ describe('Helpers: DecodeActions', () => {
       const network = NetworksEnum.ethereumMainnet
 
       const getImplementationAddressStub = sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
-      const getContractSourceCode = sandbox.stub(decodeActions, '_fetchContractSourceCode').resolves(null)
+      const getContractSourceCode = sandbox.stub(ProxyProvider, 'fetchContractSourceCode').resolves(null)
       const result = await decodeActions.parseContractNetspec(
         'mint',
         {
@@ -829,48 +841,6 @@ describe('Helpers: DecodeActions', () => {
       expect(result).to.be.null
       expect(getImplementationAddressStub.calledOnce).to.be.true
       expect(getContractSourceCode.calledOnce).to.be.true
-    })
-  })
-
-  describe('_fetchContractSourceCode', () => {
-    it('should fetch contract source code', async () => {
-      const decodeActions = new DecodeActions()
-
-      const getContractSourceCode = sandbox.stub(EtherscanHelper, 'fetchContractSourceCode').resolves([
-        {
-          SourceCode: 'contract IERC20MintableUpgradeable { function mint(address to, uint256 amount) public { } }',
-          ContractName: 'IERC20MintableUpgradeable',
-          ABI: '[]',
-        },
-      ])
-
-      const blockScoutStub = sandbox.stub(BlockScoutHelper, 'getContractSourceCode')
-
-      await decodeActions._fetchContractSourceCode('0xto', NetworksEnum.ethereumMainnet)
-
-      expect(getContractSourceCode.calledOnce).to.be.true
-      expect(getContractSourceCode.args[0][0].contractAddress).to.be.eq('0xto')
-      expect(blockScoutStub.calledOnce).to.be.false
-    })
-
-    it('should fetch contract source code from blockscout if not found', async () => {
-      const decodeActions = new DecodeActions()
-
-      const getContractSourceCode = sandbox.stub(EtherscanHelper, 'fetchContractSourceCode').resolves(null)
-      const blockScoutStub = sandbox.stub(BlockScoutHelper, 'getContractSourceCode').resolves([
-        {
-          SourceCode: 'contract IERC20MintableUpgradeable { function mint(address to, uint256 amount) public { } }',
-          ContractName: 'IERC20MintableUpgradeable',
-          ABI: '[]',
-        },
-      ])
-
-      await decodeActions._fetchContractSourceCode('0xto', NetworksEnum.ethereumMainnet)
-
-      expect(getContractSourceCode.calledOnce).to.be.true
-      expect(blockScoutStub.calledOnce).to.be.true
-      expect(blockScoutStub.args[0][0]).to.be.eq('0xto')
-      expect(blockScoutStub.args[0][1]).to.be.eq(NetworksEnum.ethereumMainnet)
     })
   })
 
@@ -905,6 +875,16 @@ describe('Helpers: DecodeActions', () => {
         address: action.to,
       })
       const getExistingSettingStub = sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(null)
+
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        address: '0xplugin1',
+        name: 'Plugin 1',
+        symbol: 'P1',
+        decimals: 18,
+        logo: 'https://plugin1.com/logo.png',
+        type: 'ERC20',
+        pickFields: sandbox.stub(),
+      } as any)
 
       const result = await decodeActions._parseTokenVotingSettingUpdateAction(baseAction, action, {
         blockNumber: 123,
@@ -1048,6 +1028,7 @@ describe('Helpers: DecodeActions', () => {
         to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         value: '0x40c10f19',
       }
+      const pickFields = sandbox.stub()
       const saveAndGetStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         name: 'MockToken',
@@ -1055,10 +1036,12 @@ describe('Helpers: DecodeActions', () => {
         decimals: 18,
         logo: 'https://mock.com/logo.png',
         type: 'ERC20',
+        pickFields,
       } as any)
       const result = await decodeActions._parseTransferAction(baseAction, action, document as any)
       expect(result?.type).to.be.eq(ProposalActionType.Transfer)
       expect(saveAndGetStub.calledOnce).to.be.true
+      expect(pickFields.calledOnce).to.be.true
     })
 
     it('should return null when the signature is not correct for transfer', async () => {
@@ -1129,6 +1112,8 @@ describe('Helpers: DecodeActions', () => {
         value: '0x40c10f19',
       }
 
+      const pickKeys = sandbox.stub()
+
       const saveAndGetStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         name: 'MockToken',
@@ -1136,11 +1121,13 @@ describe('Helpers: DecodeActions', () => {
         decimals: 18,
         logo: 'https://mock.com/logo.png',
         type: 'ERC20',
+        pickFields: pickKeys,
       } as any)
 
       const result = await decodeActions._parseTransferAction(baseAction, action, document as any)
       expect(result?.type).to.be.eq(ProposalActionType.Transfer)
       expect(saveAndGetStub.calledOnce).to.be.true
+      expect(pickKeys.calledOnce).to.be.true
     })
 
     it('should parse the transfer when the action is safeTransfer From', async () => {
@@ -1187,6 +1174,7 @@ describe('Helpers: DecodeActions', () => {
         decimals: 18,
         logo: 'https://mock.com/logo.png',
         type: 'ERC20',
+        pickFields: sandbox.stub(),
       } as any)
 
       const result = await decodeActions._parseTransferAction(baseAction, action, document as any)
@@ -1479,14 +1467,13 @@ describe('Helpers: DecodeActions', () => {
 
       const covalentTokenInfo = sandbox.stub(Covalent, 'getTokenSupplyAndHolders')
 
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves({
-        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
-        ens: 'abc.eth',
-      } as any)
+      const loggerStub = sandbox.stub(Logger, 'error')
+
+      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(null)
 
       const tokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock')
       const result = await decodeActions._parseMintAction(baseAction, action, document as any)
-
+      expect(loggerStub.calledOnce).to.be.true
       expect(createMemberStub.calledOnce).to.be.true
       expect(result?.type).to.be.eq(ProposalActionType.Mint)
       expect(saveAndGetTokenStub.calledOnce).to.be.false
@@ -1560,7 +1547,7 @@ describe('Helpers: DecodeActions', () => {
       const getMetadataAtBlockNumberStub = sandbox.stub(Models.LogMetadata, 'getMetadataAtBlockNumber').resolves({
         name: 'MockDao',
       })
-      const stubExtractMetadataUri = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('https://link')
+      const stubExtractMetadataUri = sandbox.stub(Web3Utils, 'extractMetadataUri').returns('https://link')
       const ipfsFetchStubb = sandbox.stub(Ipfs, 'fetchMetadata').resolves({
         name: 'Updated Dao',
       })
@@ -1599,7 +1586,7 @@ describe('Helpers: DecodeActions', () => {
         value: '0x40c10f19',
       }
 
-      const stubExtractMetadataUri = sandbox.stub(Web3Helper, 'extractMetadataUri').returns(null)
+      const stubExtractMetadataUri = sandbox.stub(Web3Utils, 'extractMetadataUri').returns(null)
       const decodeActions = new DecodeActions()
       const result = await decodeActions._parseUpdateDaoMetadata(baseAction, action, document as any)
       expect(result).to.be.null
@@ -1633,7 +1620,7 @@ describe('Helpers: DecodeActions', () => {
         value: '0x40c10f19',
       }
 
-      const stubExtractMetadataUri = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('https://link')
+      const stubExtractMetadataUri = sandbox.stub(Web3Utils, 'extractMetadataUri').returns('https://link')
       const ipfsFetchStubb = sandbox.stub(Ipfs, 'fetchMetadata').resolves(null)
       const decodeActions = new DecodeActions()
 
@@ -1671,7 +1658,7 @@ describe('Helpers: DecodeActions', () => {
         value: '0x40c10f19',
       }
 
-      const stubExtractMetadataUri = sandbox.stub(Web3Helper, 'extractMetadataUri').returns('https://link')
+      const stubExtractMetadataUri = sandbox.stub(Web3Utils, 'extractMetadataUri').returns('https://link')
       const ipfsFetchStubb = sandbox.stub(Ipfs, 'fetchMetadata').rejects(new Error('fake-error'))
 
       const decodeActions = new DecodeActions()
@@ -1774,7 +1761,7 @@ describe('Helpers: DecodeActions', () => {
         name: 'old',
       })
       sandbox.stub(IPFSModule, 'fetchMetadata').resolves(mockMetadata)
-      sandbox.stub(Web3Helper, 'extractMetadataUri').returns('https://link')
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns('https://link')
       const parseContractNetspecStub = sandbox.stub(actionDecode, 'parseContractNetspec').resolves({
         functionName: 'setMetadata(bytes)',
         notice: 'notice',

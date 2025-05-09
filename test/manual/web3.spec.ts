@@ -3,7 +3,8 @@ import { SinonSandbox } from 'sinon'
 import ProviderModule from '@modules/provider'
 import EnsHelper from '@helpers/ens'
 import Web3Helper from '@helpers/web3'
-import { type IAlchemyTokenBalance, NetworksEnum } from '@types'
+import { type IWeb3TokenBalance, NetworksEnum } from '@types'
+import Web3Provider from '@modules/proxyProvider/web3Provider'
 
 describe('Manual: Web3', () => {
   let sandbox: SinonSandbox
@@ -35,7 +36,7 @@ describe('Manual: Web3', () => {
     for (const testCase of testCases) {
       const { address, network } = testCase
       try {
-        const balance = await Web3Helper.getBalance(address, network)
+        const balance = await Web3Provider.getNativeBalance({ address, network })
         console.log(`Balance for ${address} on ${network}:`, balance)
       } catch (error) {
         console.error(`Error fetching balance for ${address} on ${network}:`, error)
@@ -64,7 +65,7 @@ describe('Manual: Web3', () => {
       try {
         const balances = await Web3Helper.getTokenBalances(address, network)
 
-        balances.map((tk: IAlchemyTokenBalance) => {
+        balances.map((tk: IWeb3TokenBalance) => {
           console.log(
             `Balance for ${address} of ${tk.contractAddress} on ${network}:`,
             tk.originalBalance,

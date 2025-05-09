@@ -10,6 +10,7 @@ const MainAdminRouter = {
     const mainAdminRouter = new Router()
 
     mainAdminRouter.use(statusAdminRouter.routes(), statusAdminRouter.allowedMethods())
+    mainAdminRouter.get('/health', ctx => (ctx.status = 200))
     mainAdminRouter.use('/queue', syncAdminRouter.routes(), syncAdminRouter.allowedMethods())
 
     return mainAdminRouter

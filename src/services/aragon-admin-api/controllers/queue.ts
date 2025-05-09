@@ -1,4 +1,4 @@
-import { type IAQueueDao, type IAQueueProposal, IPluginInterfaceType } from '@src/types'
+import { type IAQueueDao, type IAQueueProposal, IPluginInterfaceType, type NetworksEnum } from '@src/types'
 import { Models } from '@dbModels'
 import { EnumQueueName, ErrorKeyEnum, IPluginStatus } from '@types'
 import { assertExposable } from '@errors'
@@ -6,6 +6,7 @@ import type Plugin from '@models/schema/plugin'
 import { PluginSlug } from '@helpers/pluginSlug'
 import logger from '@logger'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import { ProposalHandler } from '@handlers/proposalHandler'
 
 const llo = logger.logMeta.bind(null, { service: 'QueueAdminController' })
 
@@ -95,7 +96,7 @@ const QueueAdminController = {
 
     assertExposable(plugin, ErrorKeyEnum.notFound)
 
-    const proposal = await Models.Plugin.findOne({
+    const proposal = await Models.Proposal.findOne({
       proposalIndex: params.proposalIndex,
       pluginAddress: params.pluginAddress,
       network: params.network,
@@ -124,6 +125,50 @@ const QueueAdminController = {
       llo({ proposalIndex: params.proposalIndex, pluginAddress: params.pluginAddress, network: params.network }),
     )
     return true
+  },
+
+  recalculateProposalActions: async (params: {
+    pluginAddress: string
+    incrementalId: number
+    network: NetworksEnum
+  }): Promise<any> => {
+    try {
+      logger.info('Recalculating proposal actions', llo(params))
+
+      const plugin = await Models.Plugin.findByAddress(params.pluginAddress, params.network)
+      assertExposable(plugin, ErrorKeyEnum.notFound)
+
+      const proposal = await Models.Proposal.findByProposalIncrementalId(
+        params.incrementalId,
+        params.pluginAddress,
+        params.network,
+      )
+      assertExposable(proposal, ErrorKeyEnum.notFound)
+
+      await proposal.update({ decoding: true })
+
+      const result = await ProposalHandler.parseActions(proposal)
+
+      if (!result) {
+        return false
+      }
+
+      return {
+        success: true,
+        message: 'Proposal actions recalculated successfully',
+        data: {
+          proposalId: proposal.id,
+          incrementalId: proposal.incrementalId,
+          daoAddress: proposal.daoAddress,
+          network: proposal.network,
+          pluginAddress: proposal.pluginAddress,
+          actionsCount: result.actions?.length || 0,
+        },
+      }
+    } catch (error) {
+      logger.error('Error recalculating proposal actions', llo({ error, params }))
+      return false
+    }
   },
 }
 

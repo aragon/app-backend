@@ -42,13 +42,6 @@ services:
       - ./.env
     command: bash -c 'yarn service:aragon-admin-api'
 
-  service-aragon-transactions:
-    build:
-      context: ./
-    env_file:
-      - ./.env
-    command: bash -c 'yarn service:aragon-transactions'
-
   service-aragon-plugins:
     build:
       context: ./

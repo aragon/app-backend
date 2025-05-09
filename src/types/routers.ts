@@ -2,6 +2,7 @@ import { type ENS, type HexAddress, type NetworksEnum } from './networks'
 import { type ITokenType } from '@src/types/token'
 import { type IActionMetadata } from '@src/types/proposalAction'
 import { type ITransferSide, type ITransferType } from '@src/types/transfer'
+import { type IReportResultType } from '@src/types/plugin'
 
 export interface IStatusResponse {
   status: string
@@ -243,7 +244,6 @@ export interface IAssetResponse {
     type: string
     logo: string
     decimals: number
-    priceChangeOnDayUsd: string
     priceUsd: string
   }
   amountUsd: string
@@ -269,7 +269,6 @@ export interface ITransactionResponse {
     type: string
     logo: string
     decimals: number
-    priceChangeOnDayUsd: string
     priceUsd: string
   }
 }
@@ -286,7 +285,6 @@ export interface ITokenResponse {
   decimals: number
   holders: number
   totalSupply: string
-  priceChangeOnDayUsd: string
   priceUsd: string
   lastUpdatedAt: string
 }
@@ -294,4 +292,7 @@ export interface ITokenResponse {
 export interface ITransactionIndexingStatusResponse {
   isProcessed: boolean
   slug?: string
+  stage?: number
+  pluginAddress?: string
+  resultType?: IReportResultType
 }

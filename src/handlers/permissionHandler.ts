@@ -15,7 +15,7 @@ import { IPermission } from '@src/types/permission'
 import { PluginHandler } from '@handlers/pluginHandler'
 import DbTx from '@modules/dbTx'
 
-const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:handlers:PermissionHandler' })
+const llo = logger.logMeta.bind(null, { service: 'handlers:PermissionHandler' })
 
 export const PermissionHandler = {
   /**
@@ -29,6 +29,17 @@ export const PermissionHandler = {
       const { address, network } = info
       const { where, who, permissionId } = parsedEvent.args
 
+      const permissionEntity = {
+        network,
+        transactionHash: info.transactionHash,
+        transactionIndex: info.transactionIndex,
+        logIndex: info.logIndex,
+        daoAddress: address,
+      }
+
+      const existingLog = await Models.DaoPermission.findExistingLog(permissionEntity)
+      if (existingLog) return
+
       const permissionToCheck = ethers.id(IPermission.EXECUTE_PROPOSAL_PERMISSION)
 
       if (permissionToCheck === permissionId) {
@@ -39,18 +50,7 @@ export const PermissionHandler = {
         await PluginHandler.installPluginOnPermissionGranted(where, who, info)
       }
 
-      const permissionEntity = {
-        network,
-        transactionHash: info.transactionHash,
-        transactionIndex: info.transactionIndex,
-        logIndex: info.logIndex,
-        daoAddress: address,
-      }
-
       await DbTx.executeTxFn(async ({ session }) => {
-        const existingLog = await Models.DaoPermission.findExistingLog(permissionEntity, { session })
-        if (existingLog) return
-
         const document = {
           whoAddress: who,
           whereAddress: where,
@@ -75,16 +75,6 @@ export const PermissionHandler = {
       const { address, network } = info
       const { who, where, permissionId } = parsedEvent.args
 
-      const permissionToCheck = ethers.id(IPermission.EXECUTE_PROPOSAL_PERMISSION)
-
-      if (permissionToCheck === permissionId) {
-        await PermissionHandler.handleForAdminPlugin(address, where, network, who, false)
-      }
-
-      if (permissionId === ethers.id(IPermission.EXECUTE_PERMISSION)) {
-        await PluginHandler.uninstallPluginWithPermissionRevoke(who, where, network, info)
-      }
-
       const permissionEntity = {
         network,
         transactionHash: info.transactionHash,
@@ -95,10 +85,20 @@ export const PermissionHandler = {
 
       const entityId = Models.DaoPermission.getEntityId(permissionEntity)
 
-      await DbTx.executeTxFn(async ({ session }) => {
-        const existingLog = await Models.DaoPermission.findExistingLog(entityId, { session })
-        if (existingLog) return
+      const existingLog = await Models.DaoPermission.findExistingLog(entityId)
+      if (existingLog) return
 
+      const permissionToCheck = ethers.id(IPermission.EXECUTE_PROPOSAL_PERMISSION)
+
+      if (permissionToCheck === permissionId) {
+        await PermissionHandler.handleForAdminPlugin(address, where, network, who, false)
+      }
+
+      if (permissionId === ethers.id(IPermission.EXECUTE_PERMISSION)) {
+        await PluginHandler.uninstallPluginWithPermissionRevoke(who, where, network, info)
+      }
+
+      await DbTx.executeTxFn(async ({ session }) => {
         const document = {
           whoAddress: who,
           whereAddress: where,

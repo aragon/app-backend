@@ -3,7 +3,7 @@ import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 
 export enum ProposalActionType {
   Transfer = 'Transfer',
-  TransferNative = 'Transfer (Native)',
+  TransferNative = 'TransferNative',
   Unknown = 'Unknown',
   Mint = 'Mint',
   MultisigAddMembers = 'MultisigAddMembers',
@@ -21,6 +21,10 @@ export interface IRawAction {
   value: any
   from?: string
   network?: NetworksEnum
+}
+
+export interface IProposalInfo {
+  id: string
 }
 
 export enum KnownActionSignature {

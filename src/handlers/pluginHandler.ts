@@ -13,6 +13,7 @@ import {
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
 import type Plugin from '@models/schema/plugin'
 import Web3Helper from '@helpers/web3'
+import Web3Utils from '@helpers/web3Utils'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import DbOperations from '@models/utils/dbOperations'
 import PluginDetector from '@helpers/pluginDetector'
@@ -20,7 +21,7 @@ import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import { PluginSlug } from '@helpers/pluginSlug'
 import DbTx from '@modules/dbTx'
 
-const llo = logger.logMeta.bind(null, { service: 'indexer:aggregator:handlers:PluginHandler' })
+const llo = logger.logMeta.bind(null, { service: 'handlers:PluginHandler' })
 
 export const PluginHandler = {
   async _queryGetPlugin({
@@ -537,7 +538,7 @@ export const PluginHandler = {
       }
 
       const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, network)
-      const uninstallationAppliedLogs = Web3Helper.findLogsByName(
+      const uninstallationAppliedLogs = Web3Utils.findLogsByName(
         txReceipt!,
         'UninstallationApplied',
         PluginSetupProcessor.abi,
@@ -593,7 +594,7 @@ export const PluginHandler = {
         return
       }
 
-      const installationAppliedLogs = Web3Helper.findLogsByName(
+      const installationAppliedLogs = Web3Utils.findLogsByName(
         txReceipt,
         IEventLogPluginType.InstallationApplied,
         PluginSetupProcessor.abi,

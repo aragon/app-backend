@@ -35,6 +35,7 @@ export const CustomInstall = {
       logger.info('Custom install is disabled')
       return
     }
+    logger.info('CustomInstall start', llo({}))
 
     await Promise.all(
       CustomInstall.daos.map(async dao => {
@@ -67,6 +68,8 @@ export const CustomInstall = {
         }
       }),
     )
+
+    logger.info('CustomInstall end', llo({}))
   },
 
   pluginEvents: async (dao: any) => {
@@ -115,7 +118,7 @@ export const CustomInstall = {
         logService: null,
         stopOnError: true,
         onlyHistorical: true,
-        isCustomTopics: true,
+        isTopicObject: true,
         skipLogProcessing: false,
       })
       await crawler.crawl()
