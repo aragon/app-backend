@@ -301,7 +301,7 @@ describe('AragonDao: index', () => {
       await handler({
         params: {
           pluginAddress: '0xPluginAddress',
-          userAddress: '0xUserAddress',
+          memberAddress: '0xUserAddress',
           network: NetworksEnum.ethereumMainnet,
         },
       } as any)
