@@ -228,7 +228,7 @@ describe('AggregationQueryHelper', () => {
                 summary: 1,
                 resources: 1,
                 executed: 1,
-                actions: 1,
+                hasActions: AggregationQueryHelper.computeHasActions(),
                 decoding: 1,
                 media: 1,
                 metrics: 1,
