@@ -93,8 +93,8 @@ const AragonDaoService: IService = {
     })
 
     await RabbitMQHelper.process(EnumQueueName.canCreateProposal, async (job: any) => {
-      const { pluginAddress, userAddress, network } = job.params as IQueueCanCreateProposal
-      return await MemberInfo.canCreateProposal(pluginAddress, userAddress, network)
+      const { pluginAddress, memberAddress, network } = job.params as IQueueCanCreateProposal
+      return await MemberInfo.canCreateProposal(pluginAddress, memberAddress, network)
     })
 
     const tasks = [[{ fetchRates: TokenFetcher }]]
