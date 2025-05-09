@@ -327,7 +327,7 @@ describe('AragonDao: index', () => {
         },
       })
 
-      const loggerInfoStub = sandbox.stub(logger, 'info')
+      sandbox.stub(logger, 'info')
       const loggerErrorStub = sandbox.stub(logger, 'error')
 
       await AragonDaoService.start()
