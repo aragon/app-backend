@@ -16,6 +16,7 @@ import ActionDecoder from '@services/aragon-dao/actionDecoder'
 import { AllMetrics } from '@services/aragon-dao/allMetrics'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import config from '@config'
+import Plugin from '@src/services/aragon-dao/plugin'
 
 describe('AragonDao: index', () => {
   let sandbox: SinonSandbox
@@ -35,7 +36,7 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      expect(processStub.callCount).to.equal(12) // Total queues in the service
+      expect(processStub.callCount).to.equal(13) // Total queues in the service
       expect(processStub.calledWith(EnumQueueName.allMetrics)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoTransactions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoAssets)).to.be.true
@@ -48,6 +49,7 @@ describe('AragonDao: index', () => {
       expect(processStub.calledWith(EnumQueueName.contractDecoder)).to.be.true
       expect(processStub.calledWith(EnumQueueName.proposalActions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.canCreateProposal)).to.be.true
+      expect(processStub.calledWith(EnumQueueName.pluginInstallationData)).to.be.true
 
       expect(loggerStub.calledOnceWith('AragonDaoService service started' as any)).to.be.true
     })
@@ -308,6 +310,29 @@ describe('AragonDao: index', () => {
 
       expect(queueName).to.eq(EnumQueueName.canCreateProposal)
       expect(memberInfoStub.calledOnceWith('0xPluginAddress', '0xUserAddress', NetworksEnum.ethereumMainnet)).to.be.true
+    })
+
+    it('should handle pluginInstallationData queue', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const pluginInstallationStub = sandbox.stub(Plugin, 'getInstallationData').resolves('{"installationData":"test"}')
+
+      await AragonDaoService.start()
+
+      // Find the pluginInstallationData handler
+      const callIndex = processStub.args.findIndex(call => call[0] === EnumQueueName.pluginInstallationData)
+      const handler = processStub.getCall(callIndex).args[1]
+      const queueName = processStub.getCall(callIndex).args[0]
+
+      const result = await handler({
+        params: {
+          address: '0xPluginAddress',
+          network: NetworksEnum.ethereumMainnet,
+        },
+      } as any)
+
+      expect(queueName).to.eq(EnumQueueName.pluginInstallationData)
+      expect(pluginInstallationStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(result).to.equal('{"installationData":"test"}')
     })
   })
 
