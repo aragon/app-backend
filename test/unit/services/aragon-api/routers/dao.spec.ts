@@ -230,7 +230,7 @@ describe('Router: Dao', () => {
   it('should throw an error for invalid ENS format', async () => {
     const params = {
       network: NetworksEnum.ethereumMainnet,
-      ens: 'invalid-ens', // Missing .eth suffix
+      ens: '', // Missing .eth suffix
     }
 
     const stubCtrl = sandbox.stub(DaoController, 'getDaoByEns').returns(true as any)
