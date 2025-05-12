@@ -85,7 +85,7 @@
     "koa-bodyparser": "^4.4.1",
     "koa-jwt": "^4.0.4",
     "lodash": "^4.17.21",
-    "logzio-nodejs": "^2.1.7",
+    "logzio-nodejs": "^2.4.0",
     "mongoose": "^8.2.1",
     "speakeasy": "^2.0.0",
     "toobusy-js": "^0.5.1",
