@@ -34,7 +34,7 @@ const DaoController = {
   },
 
   getDaoByEns: async (ens: string, network: NetworksEnum): Promise<IDaoResponse> => {
-    const dao = await Models.Dao.findOne({ ens, network, isHidden: { $ne: true }, isActive: { $eq: true } })
+    const dao = await Models.Dao.findOne({ subdomain: ens, network, isHidden: { $ne: true }, isActive: { $eq: true } })
     assertExposable(dao, ErrorKeyEnum.notFound)
     return await Models.Dao.getDaoDetails(dao.address, dao.network)
   },

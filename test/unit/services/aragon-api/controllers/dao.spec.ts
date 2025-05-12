@@ -209,14 +209,14 @@ describe('Controller: Dao', () => {
       // Create a DAO with ENS
       const daoWithEns = {
         ...DaoList[1],
-        ens: 'test-dao.eth',
+        subdomain: 'test-dao',
       }
       const daoDB = await Models.Dao.create(daoWithEns)
 
       // Add stub for getDaoDetails to verify it's called with correct parameters
       const getDaoDetailsStub = sandbox.stub(Models.Dao, 'getDaoDetails').resolves({ id: daoDB.id } as any)
 
-      const dao = await DaoController.getDaoByEns(daoDB.ens, daoDB.network)
+      const dao = await DaoController.getDaoByEns(daoDB.subdomain, daoDB.network)
 
       expect(dao.id).to.eq(daoDB.id)
       expect(getDaoDetailsStub.calledOnce).to.be.true

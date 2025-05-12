@@ -50,7 +50,7 @@ const DaoSchema = {
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
       .required(),
-    ens: ValidationSchema.joiEns.required(),
+    ens: Joi.string().required(),
   }),
 }
 
