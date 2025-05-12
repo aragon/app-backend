@@ -79,7 +79,7 @@ describe('ProxyWeb3 && Web3Helper', () => {
   })
 
   it('getTransaction', async () => {
-    const txHash = '0x179d3ab9e36fdf4cbbba323b1234917b7a76839d65a6fefb4ddcbbfbf7923959'
+    const txHash = '0x068fa9df63090ccdc25b34b23ba535038ebd44b834564374c4285d58b4f2d53d'
     const network = NetworksEnum.ethereumSepolia
     const tx = await Web3Helper.getTransaction(txHash, network)
     expect(tx).to.be.an('object')
@@ -87,7 +87,7 @@ describe('ProxyWeb3 && Web3Helper', () => {
   })
 
   it('getTransactionReceipt', async () => {
-    const txHash = '0x179d3ab9e36fdf4cbbba323b1234917b7a76839d65a6fefb4ddcbbfbf7923959'
+    const txHash = '0x068fa9df63090ccdc25b34b23ba535038ebd44b834564374c4285d58b4f2d53d'
     const network = NetworksEnum.ethereumSepolia
     const tx = await Web3Helper.getTransactionReceipt(txHash, network)
     expect(tx).to.be.an('object')
@@ -113,7 +113,7 @@ describe('ProxyWeb3 && Web3Helper', () => {
   })
 
   it('getDataFromTxReceipt', async () => {
-    const txHash = '0x179d3ab9e36fdf4cbbba323b1234917b7a76839d65a6fefb4ddcbbfbf7923959'
+    const txHash = '0x068fa9df63090ccdc25b34b23ba535038ebd44b834564374c4285d58b4f2d53d'
     const network = NetworksEnum.ethereumSepolia
     const tx = await Web3Helper.getTransactionReceipt(txHash, network)
     expect(tx).to.be.an('object')
