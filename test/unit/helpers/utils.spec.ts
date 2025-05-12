@@ -889,4 +889,113 @@ describe('Helpers:Utils', () => {
       expect(result).to.deep.include({ address: '0xPlugin1', name: 'Plugin A' })
     })
   })
+
+  describe('deepConvertToObject', () => {
+    it('should return primitive values as-is', () => {
+      expect(Utils.deepConvertToObject(123)).to.equal(123)
+      expect(Utils.deepConvertToObject('test')).to.equal('test')
+      expect(Utils.deepConvertToObject(true)).to.equal(true)
+      expect(Utils.deepConvertToObject(null)).to.be.null
+      expect(Utils.deepConvertToObject(undefined)).to.be.undefined
+    })
+
+    it('should convert plain objects to plain objects', () => {
+      const obj = { a: 1, b: 'test', c: true }
+      const result = Utils.deepConvertToObject(obj)
+      expect(result).to.deep.equal(obj)
+    })
+
+    it('should convert objects with toObject method', () => {
+      const obj = {
+        toObject: () => ({ a: 1, b: 'test' }),
+        c: 'should not be included',
+      }
+      const result = Utils.deepConvertToObject(obj)
+      expect(result).to.deep.equal({ a: 1, b: 'test' })
+    })
+
+    it('should convert objects with toArray method', () => {
+      const obj = {
+        toArray: () => [1, 2, 3],
+        items: 'should not be included',
+      }
+      const result = Utils.deepConvertToObject(obj)
+      expect(result).to.deep.equal([1, 2, 3])
+    })
+
+    it('should handle nested objects recursively', () => {
+      const obj = {
+        a: 1,
+        b: {
+          c: 2,
+          d: {
+            e: 3,
+          },
+        },
+      }
+      const result = Utils.deepConvertToObject(obj)
+      expect(result).to.deep.equal(obj)
+    })
+
+    it('should handle arrays recursively', () => {
+      const obj = {
+        items: [
+          { id: 1, name: 'Item 1' },
+          { id: 2, name: 'Item 2' },
+        ],
+      }
+      const result = Utils.deepConvertToObject(obj)
+      expect(result).to.deep.equal(obj)
+    })
+
+    it('should skip function properties and properties starting with underscore', () => {
+      const obj = {
+        a: 1,
+        _private: 'private',
+        func: () => 'function',
+        b: 2,
+      }
+      const result = Utils.deepConvertToObject(obj)
+      expect(result).to.deep.equal({ a: 1, b: 2 })
+    })
+
+    it('should handle complex nested structures', () => {
+      const nestedObj = {
+        toObject: () => ({
+          items: [
+            { id: 1, toObject: () => ({ name: 'Item 1' }) },
+            { id: 2, toObject: () => ({ name: 'Item 2' }) },
+          ],
+        }),
+      }
+      const result = Utils.deepConvertToObject(nestedObj)
+      expect(result).to.deep.equal({
+        items: [{ name: 'Item 1' }, { name: 'Item 2' }],
+      })
+    })
+
+    it('should gracefully handle circular references', () => {
+      const circular: any = { a: 1 }
+      circular.self = circular
+      circular.b = { parent: circular }
+
+      const result = Utils.deepConvertToObject(circular)
+      expect(result).to.have.property('a', 1)
+      expect(result).to.have.property('self')
+      expect(result).to.have.property('b')
+      expect(result.b).to.have.property('parent')
+    })
+
+    it('should handle failed toObject/toArray calls', () => {
+      const obj = {
+        toObject: () => {
+          throw new Error('Failed conversion')
+        },
+        a: 1,
+        b: 2,
+      }
+      const result = Utils.deepConvertToObject(obj)
+      expect(result).to.deep.equal({ a: 1, b: 2 })
+    })
+  })
 })
