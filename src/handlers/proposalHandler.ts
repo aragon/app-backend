@@ -166,7 +166,7 @@ export const ProposalHandler = {
           minParticipation: settings?.minParticipation,
           minDuration: settings?.minDuration,
           minProposerVotingPower: settings?.minProposerVotingPower,
-          stages: settings?.stages.toObject(), // spp settings
+          stages: settings?.stages?.toObject(), // spp settings
         }
       }
 

@@ -697,9 +697,9 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(savedSettings.stages).to.have.length(1)
       expect(savedSettings.stages[0].plugins).to.have.length(3)
 
-      expect(savedSettings.stages[0].plugins[0].type).to.equal(VotingBodyBrandIdentity.SAFE)
-      expect(savedSettings.stages[0].plugins[1].type).to.equal(VotingBodyBrandIdentity.EOA)
-      expect(savedSettings.stages[0].plugins[2].type).to.equal(VotingBodyBrandIdentity.OTHER)
+      expect(savedSettings.stages[0].plugins[0].brandId).to.equal(VotingBodyBrandIdentity.SAFE)
+      expect(savedSettings.stages[0].plugins[1].brandId).to.equal(VotingBodyBrandIdentity.EOA)
+      expect(savedSettings.stages[0].plugins[2].brandId).to.equal(VotingBodyBrandIdentity.OTHER)
     })
   })
 
