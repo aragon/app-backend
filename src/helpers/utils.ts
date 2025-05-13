@@ -337,13 +337,9 @@ const Utils = {
       return result
     }
 
-    // Handle circular references
     if (visited.has(result)) {
       return visited.get(result)
     }
-
-    // Mark this object as visited with a temporary placeholder
-    // that will be replaced with the final result
     const placeholder = Array.isArray(result) ? [] : {}
     visited.set(result, placeholder)
 
@@ -381,12 +377,10 @@ const Utils = {
       }
     }
 
-    // Check if the object appears to be array-like
     const numericKeys = Object.keys(result).filter(key => !isNaN(parseInt(key, 10)))
     if (Object.keys(plainObject).length === 0 && numericKeys.length > 0 && 'length' in result) {
       const arr: any[] = []
 
-      // Sort the numeric keys to ensure correct order
       numericKeys
         .sort((a, b) => parseInt(a, 10) - parseInt(b, 10))
         .forEach(key => {
