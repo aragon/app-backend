@@ -1,5 +1,5 @@
 import { keccak256, ZeroAddress } from 'ethers'
-import { IBodyAddressType, type IPluginInfo, IPluginInterfaceType, type NetworksEnum } from '@types'
+import { VotingBodyBrandIdentity, type IPluginInfo, IPluginInterfaceType, type NetworksEnum } from '@types'
 import ProxyContractHelper from '@helpers/proxyContract'
 import ProviderModule from '@modules/provider'
 import logger from '@logger'
@@ -93,27 +93,27 @@ const PluginDetector = {
     }
   },
 
-  async detectAddressType(address: string, network: NetworksEnum): Promise<IBodyAddressType> {
+  async detectAddressType(address: string, network: NetworksEnum): Promise<VotingBodyBrandIdentity> {
     try {
       if (address === ZeroAddress) {
-        return IBodyAddressType.EOA
+        return VotingBodyBrandIdentity.EOA
       }
 
       const provider = ProviderModule.getAnyRpcProvider(network)
       const code = await provider.getCode(address)
 
       if (!code || code === '0x') {
-        return IBodyAddressType.EOA
+        return VotingBodyBrandIdentity.EOA
       }
 
       const signature = PluginDetector._generateFunctionHash(PluginDetector.SAFE_WALLET)
       if (code.includes(signature.replace('0x', ''))) {
-        return IBodyAddressType.SAFE
+        return VotingBodyBrandIdentity.SAFE
       }
 
-      return IBodyAddressType.OTHER
+      return VotingBodyBrandIdentity.OTHER
     } catch (error: any) {
-      return IBodyAddressType.OTHER
+      return VotingBodyBrandIdentity.OTHER
     }
   },
 }

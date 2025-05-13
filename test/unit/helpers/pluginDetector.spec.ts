@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import PluginDetector from '@helpers/pluginDetector'
 import { beforeEach } from 'mocha'
-import { IPluginInterfaceType, IBodyAddressType, NetworksEnum } from '@types'
+import { IPluginInterfaceType, VotingBodyBrandIdentity, NetworksEnum } from '@types'
 import { ZeroAddress } from 'ethers'
 import { expect } from 'chai'
 import ProxyContractHelper from '@helpers/proxyContract'
@@ -145,7 +145,7 @@ describe('Helper: PluginDetector', () => {
   describe('detectAddressType', () => {
     it('should return EOA for ZeroAddress', async () => {
       const result = await PluginDetector.detectAddressType(ZeroAddress, NetworksEnum.ethereumMainnet)
-      expect(result).to.equal(IBodyAddressType.EOA)
+      expect(result).to.equal(VotingBodyBrandIdentity.EOA)
     })
 
     it('should return EOA for address with no code', async () => {
@@ -154,7 +154,7 @@ describe('Helper: PluginDetector', () => {
       } as any)
 
       const result = await PluginDetector.detectAddressType('0xAddress', NetworksEnum.ethereumMainnet)
-      expect(result).to.equal(IBodyAddressType.EOA)
+      expect(result).to.equal(VotingBodyBrandIdentity.EOA)
     })
 
     it('should return SAFE for Safe wallet contract', async () => {
@@ -165,7 +165,7 @@ describe('Helper: PluginDetector', () => {
       } as any)
 
       const result = await PluginDetector.detectAddressType('0xSafeAddress', NetworksEnum.ethereumMainnet)
-      expect(result).to.equal(IBodyAddressType.SAFE)
+      expect(result).to.equal(VotingBodyBrandIdentity.SAFE)
     })
 
     it('should return OTHER for contract that is not a Safe wallet', async () => {
@@ -174,7 +174,7 @@ describe('Helper: PluginDetector', () => {
       } as any)
 
       const result = await PluginDetector.detectAddressType('0xContractAddress', NetworksEnum.ethereumMainnet)
-      expect(result).to.equal(IBodyAddressType.OTHER)
+      expect(result).to.equal(VotingBodyBrandIdentity.OTHER)
     })
 
     it('should handle an error when fetching code', async () => {
@@ -183,7 +183,7 @@ describe('Helper: PluginDetector', () => {
       } as any)
 
       const result = await PluginDetector.detectAddressType('0xAddress', NetworksEnum.ethereumMainnet)
-      expect(result).to.equal(IBodyAddressType.OTHER)
+      expect(result).to.equal(VotingBodyBrandIdentity.OTHER)
     })
   })
 })

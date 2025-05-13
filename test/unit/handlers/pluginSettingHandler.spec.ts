@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import logger from '@logger'
-import { IBodyAddressType, IPluginInterfaceType, ISettingStatus, ITokenType, NetworksEnum } from '@types'
+import { VotingBodyBrandIdentity, IPluginInterfaceType, ISettingStatus, ITokenType, NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import { Models } from '@dbModels'
@@ -680,9 +680,9 @@ describe('Indexer: PluginSettingHandler', () => {
       sandbox.stub(Models.LogMetadata, 'getLatestMetadata').resolves(null)
 
       const detectAddressTypeStub = sandbox.stub(PluginDetector, 'detectAddressType')
-      detectAddressTypeStub.withArgs('0xsafe-address', info.network).resolves(IBodyAddressType.SAFE)
-      detectAddressTypeStub.withArgs('0xeoa-address', info.network).resolves(IBodyAddressType.EOA)
-      detectAddressTypeStub.withArgs('0xother-address', info.network).resolves(IBodyAddressType.OTHER)
+      detectAddressTypeStub.withArgs('0xsafe-address', info.network).resolves(VotingBodyBrandIdentity.SAFE)
+      detectAddressTypeStub.withArgs('0xeoa-address', info.network).resolves(VotingBodyBrandIdentity.EOA)
+      detectAddressTypeStub.withArgs('0xother-address', info.network).resolves(VotingBodyBrandIdentity.OTHER)
 
       const createDocumentStub = sandbox.stub(DbOperations, 'createDocument')
       sandbox.stub(PluginSettingHandler, 'pairSppPlugins').resolves()
@@ -697,9 +697,9 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(savedSettings.stages).to.have.length(1)
       expect(savedSettings.stages[0].plugins).to.have.length(3)
 
-      expect(savedSettings.stages[0].plugins[0].type).to.equal(IBodyAddressType.SAFE)
-      expect(savedSettings.stages[0].plugins[1].type).to.equal(IBodyAddressType.EOA)
-      expect(savedSettings.stages[0].plugins[2].type).to.equal(IBodyAddressType.OTHER)
+      expect(savedSettings.stages[0].plugins[0].type).to.equal(VotingBodyBrandIdentity.SAFE)
+      expect(savedSettings.stages[0].plugins[1].type).to.equal(VotingBodyBrandIdentity.EOA)
+      expect(savedSettings.stages[0].plugins[2].type).to.equal(VotingBodyBrandIdentity.OTHER)
     })
   })
 
