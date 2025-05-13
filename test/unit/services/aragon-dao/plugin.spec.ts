@@ -111,33 +111,95 @@ describe('Plugin', () => {
       }
 
       const txReceipt = { logs: [] }
-      const logArgs = {
+
+      // Create mock args with toObject and toArray methods
+      const mockVersionTag = {
+        toArray: () => [1, 2],
+      }
+
+      const mockHelpers = {
+        toArray: () => ['0xhelper1', '0xhelper2'],
+      }
+
+      const mockPermissions = {
+        toArray: () => ['permission1', 'permission2'],
+      }
+
+      const mockPreparedSetupData = {
+        toObject: () => ({
+          helpers: mockHelpers,
+          permissions: mockPermissions,
+        }),
+        helpers: mockHelpers,
+        permissions: mockPermissions,
+      }
+
+      const mockArgs = {
         plugin: pluginAddress,
         dao: '0xdaoAddress',
         preparedSetupId: '0xsetupId',
-        versionTag: { release: 1, build: 2 },
+        versionTag: mockVersionTag,
+        preparedSetupData: mockPreparedSetupData,
+        toObject: () => ({
+          plugin: pluginAddress,
+          dao: '0xdaoAddress',
+          preparedSetupId: '0xsetupId',
+          versionTag: mockVersionTag,
+          preparedSetupData: mockPreparedSetupData,
+        }),
       }
 
       const parsedLog = {
         parsed: {
-          args: logArgs,
+          args: mockArgs,
         },
       }
 
-      const expectedJson = '{"plugin":"0x1234567890123456789012345678901234567890"}'
+      const expectedResult = '{"plugin":"0x1234567890123456789012345678901234567890"}'
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves({})
       sandbox.stub(Models.LogPluginSetupProcessor, 'findOne').resolves(installationLog)
       sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
       sandbox.stub(Web3Utils, 'findLogsByName').returns([parsedLog as any])
-      sandbox.stub(Utils, 'JSONStringifyCircular').returns(expectedJson)
-      sandbox.stub(Utils, 'deepConvertToObject').returns(logArgs)
+      sandbox.stub(Utils, 'JSONStringifyCircular').returns(expectedResult)
 
       const result = await Plugin.getInstallationData(pluginAddress, network)
 
-      expect(result).to.equal(expectedJson)
-      expect(Utils.deepConvertToObject.calledWith(logArgs)).to.be.true
+      expect(result).to.deep.equal(JSON.parse(expectedResult))
       expect(Utils.JSONStringifyCircular.calledOnce).to.be.true
+    })
+
+    it('should return null when there is an error processing the plugin data', async () => {
+      const installationLog = {
+        transactionHash,
+        network,
+        event: IEventLogPluginType.InstallationPrepared,
+      }
+
+      const txReceipt = { logs: [] }
+
+      // Create mock args that will throw an error
+      const mockArgs = {
+        plugin: pluginAddress,
+        toObject: () => {
+          throw new Error('Conversion error')
+        },
+      }
+
+      const parsedLog = {
+        parsed: {
+          args: mockArgs,
+        },
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({})
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findOne').resolves(installationLog)
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
+      sandbox.stub(Web3Utils, 'findLogsByName').returns([parsedLog as any])
+
+      const result = await Plugin.getInstallationData(pluginAddress, network)
+
+      expect(result).to.be.null
     })
   })
 })

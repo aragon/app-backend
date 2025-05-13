@@ -39,7 +39,18 @@ const Plugin = {
       return null
     }
 
-    return Utils.JSONStringifyCircular(Utils.deepConvertToObject(pluginLog.parsed!.args))
+    try {
+      const rawPluginData = pluginLog.parsed!.args.toObject()
+      rawPluginData.versionTag = rawPluginData.versionTag.toArray()
+      rawPluginData.preparedSetupData = rawPluginData.preparedSetupData.toObject()
+      rawPluginData.preparedSetupData.helpers = rawPluginData.preparedSetupData.helpers.toArray()
+      rawPluginData.preparedSetupData.permissions = rawPluginData.preparedSetupData.permissions.toArray()
+
+      const serialize = Utils.JSONStringifyCircular(rawPluginData)
+      return JSON.parse(serialize)
+    } catch (_error: any) {
+      return null
+    }
   },
 }
 
