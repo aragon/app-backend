@@ -69,7 +69,7 @@ export enum IReportResultType {
   Veto,
 }
 
-export enum IBodyAddressType {
+export enum VotingBodyBrandIdentity {
   EOA = 'eoa',
   SAFE = 'safe',
   OTHER = 'other',
