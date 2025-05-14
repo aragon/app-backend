@@ -645,7 +645,9 @@ describe('Indexer:Plugin', () => {
       })
       expect(newPlugin.update.args[0][0]).to.not.have.property('tokenAddress')
 
-      const updated = await Models.Plugin.findById(existingPlugin.id)
+      const updated = await Models.Plugin.find({
+        id: existingPlugin.id,
+      })
       expect(updated?.status).to.equal(IPluginStatus.deprecated)
     })
 
