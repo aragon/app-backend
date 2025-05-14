@@ -195,7 +195,7 @@ const UnitDepUtils = {
 
         const plugin = await Models.Plugin.findByAddress(address, network)
         if (!plugin?.interfaceType) {
-          console.log('PluginSyncService: plugin not found', { address, network })
+          logger.error('PluginSyncService: plugin not found', { address, network })
           return
         }
 
