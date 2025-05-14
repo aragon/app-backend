@@ -150,7 +150,7 @@ export const DaoRegistryHandler = {
     }
 
     await DbOperations.updateDocument(
-      Models.Dao,
+      daoDb,
       { version: newVersion, implementationAddress: newImplementationAddress },
       info,
       'DaoVersion Upgraded',
