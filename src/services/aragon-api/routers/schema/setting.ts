@@ -13,6 +13,7 @@ const SettingSchema = {
 
   getDaoById: Joi.object({
     id: ValidationSchema.joiDaoId.optional(),
+    pluginAddress: ValidationSchema.joiAddress.optional(),
   }),
 
   getSettingById: Joi.object({
@@ -24,6 +25,7 @@ const SettingSchema = {
     network: Joi.required()
       .valid(...Object.values(NetworksEnum))
       .optional(),
+    pluginAddress: ValidationSchema.joiAddress.optional(),
   }),
 }
 
