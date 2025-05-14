@@ -503,6 +503,7 @@ export const PluginHandler = {
 
           const document = {
             status: IPluginStatus.deprecated,
+            isSupported: false,
             uninstalled: {
               status: true,
               blockNumber: plugin.blockNumber,
