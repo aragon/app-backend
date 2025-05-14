@@ -215,7 +215,7 @@ const UnitDepUtils = {
             })
 
             if (token?.type === ITokenType.ERC20 && token.isGovernance) {
-              logger.info('Sync plugin: token is ERC721')
+              logger.info('Sync plugin: token is ERC20')
 
               await LogTokenVoting.start(plugin, token, isHistorical)
             } else {
