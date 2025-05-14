@@ -20,6 +20,7 @@ import PluginDetector from '@helpers/pluginDetector'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import { PluginSlug } from '@helpers/pluginSlug'
 import DbTx from '@modules/dbTx'
+import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PluginHandler' })
 
@@ -457,9 +458,13 @@ export const PluginHandler = {
       const plugin = await PluginHandler._createPlugin(rawPlugin as any)
       if (!plugin) return
 
+      await DaoRegistryHandler.handleVersionUpgrade(plugin.daoAddress, {
+        network: plugin.network,
+        transactionHash: plugin.transactionHash,
+        blockNumber: plugin.blockNumber,
+      })
+
       await DbTx.executeTxFn(async ({ session }) => {
-        // we should be able to find out the plugin that was updated
-        // newPlugin.release > actualPlugin.release | newPlugin.build > actualPlugin.build
         const existingPlugin = await Models.Plugin.findOne(
           {
             network: pluginLog.network,
@@ -467,6 +472,7 @@ export const PluginHandler = {
             pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
             address: rawPlugin.address,
             status: IPluginStatus.installed,
+            blockNumber: { $lt: plugin.blockNumber },
           },
           null,
           { session },
