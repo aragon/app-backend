@@ -633,6 +633,8 @@ describe('Indexer:Plugin', () => {
         update: sandbox.stub().resolves({}),
       }
 
+      sandbox.stub(logger, 'verbose').resolves()
+
       sandbox.stub(PluginHandler, '_createPlugin').resolves(newPlugin as any)
 
       await PluginHandler.updatePlugin(eventUpdateApplied as any)
@@ -645,7 +647,7 @@ describe('Indexer:Plugin', () => {
       })
       expect(newPlugin.update.args[0][0]).to.not.have.property('tokenAddress')
 
-      const updated = await Models.Plugin.find({
+      const updated = await Models.Plugin.findOne({
         id: existingPlugin.id,
       })
       expect(updated?.status).to.equal(IPluginStatus.deprecated)
