@@ -1,9 +1,22 @@
-import { type IIndexerConfig, NetworksEnum } from '@types'
+import {
+  EnumQueueName,
+  type IIndexerConfig,
+  IPluginInterfaceType,
+  type IQueuePlugin,
+  ITokenType,
+  NetworksEnum,
+} from '@types'
 import Web3Helper from '@helpers/web3'
 import { Interface, Log, type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import configIndexer from '@indexer/configIndexer'
 import Web3Utils from '@helpers/web3Utils'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import { LogAdmin } from '@plugins/logAdmin'
+import { LogMultiSig } from '@plugins/logMultisig'
+import logger from '@logger'
+import { LogTokenVoting } from '@plugins/logTokenVoting'
+import { LogSpp } from '@plugins/logSPP'
 
 const UnitDepUtils = {
   getData: async (
@@ -173,6 +186,52 @@ const UnitDepUtils = {
     ]
 
     await Promise.all(repos.map(async repo => await Models.PluginRepo.create(repo)))
+  },
+
+  stubRabbitmqSend: (sandbox: any) => {
+    sandbox.stub(RabbitMQHelper, 'sendMessage').callsFake(async (queue: string, job: any) => {
+      if (queue === EnumQueueName.plugins) {
+        const { address, network, isHistorical } = job.params as IQueuePlugin
+
+        const plugin = await Models.Plugin.findByAddress(address, network)
+        if (!plugin?.interfaceType) {
+          console.log('PluginSyncService: plugin not found', { address, network })
+          return
+        }
+
+        switch (plugin.interfaceType) {
+          case IPluginInterfaceType.admin: {
+            await LogAdmin.start(plugin)
+            break
+          }
+          case IPluginInterfaceType.multisig: {
+            await LogMultiSig.start(plugin)
+            break
+          }
+          case IPluginInterfaceType.tokenVoting: {
+            const token = await Models.Token.findOne({
+              address: plugin.tokenAddress,
+              network: plugin.network,
+            })
+
+            if (token?.type === ITokenType.ERC20 && token.isGovernance) {
+              logger.info('Sync plugin: token is ERC721')
+
+              await LogTokenVoting.start(plugin, token, isHistorical)
+            } else {
+              logger.warn('Sync plugin: token not governance erc20')
+            }
+            break
+          }
+          case IPluginInterfaceType.spp: {
+            await LogSpp.start(plugin)
+            break
+          }
+          default:
+            break
+        }
+      }
+    })
   },
 }
 

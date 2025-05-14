@@ -15,6 +15,7 @@ import { ProxyMember } from '@modules/proxyMember'
 import Utils from '@helpers/utils'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Utils from '@helpers/web3Utils'
+import DbOperations from '@models/utils/dbOperations'
 
 describe('Indexer: DaoRegistryHandler', () => {
   let sandbox: SinonSandbox
@@ -301,6 +302,176 @@ describe('Indexer: DaoRegistryHandler', () => {
       await DaoRegistryHandler.nativeTransfer({} as any, logInfo)
 
       expect(stubRabbitMQ.notCalled).to.be.true
+    })
+  })
+
+  describe('handleVersionUpgrade', () => {
+    it('should update dao version on upgrade', async () => {
+      const daoAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+      const mockDao = {
+        id: 'dao-id-123',
+        address: daoAddress,
+        network,
+        version: '1.0.0',
+        implementationAddress: '0xoldImplementation',
+      }
+
+      const mockTxReceipt = {
+        logs: [
+          { address: '0xotherAddress', topics: ['0x123'] },
+          { address: daoAddress, topics: ['0x456'] },
+        ],
+      }
+
+      const mockUpgradeLogs = [
+        {
+          txLog: { address: daoAddress },
+          parsed: { args: { implementation: '0xnewImplementation' } },
+        },
+      ]
+
+      const findByAddressStub = sandbox.stub(Models.Dao, 'findByAddress').resolves(mockDao)
+      const getReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(mockTxReceipt as any)
+      const findLogsStub = sandbox.stub(Web3Utils, 'findLogsByName').returns(mockUpgradeLogs as any)
+      const getVersionStub = sandbox.stub(Web3Helper, 'getDaoOsVersion').resolves('2.0.0')
+      const updateStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+
+      const info = {
+        network,
+        transactionHash: '0xtxhash',
+        blockNumber: 123456,
+      }
+
+      await DaoRegistryHandler.handleVersionUpgrade(daoAddress, info)
+
+      expect(findByAddressStub.calledWith(daoAddress, network)).to.be.true
+      expect(getReceiptStub.calledWith(info.transactionHash, network)).to.be.true
+      expect(findLogsStub.calledOnce).to.be.true
+      expect(getVersionStub.calledWith('0xnewImplementation', network)).to.be.true
+      expect(updateStub.calledOnce).to.be.true
+      expect(updateStub.firstCall.args[1]).to.deep.equal({
+        version: '2.0.0',
+        implementationAddress: '0xnewImplementation',
+      })
+    })
+
+    it('should not update if dao not found', async () => {
+      const findByAddressStub = sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
+      const getReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({} as any)
+      const loggerStub = sandbox.stub(logger, 'warn')
+
+      await DaoRegistryHandler.handleVersionUpgrade('0xdao', { network: NetworksEnum.ethereumMainnet })
+
+      expect(findByAddressStub.calledOnce).to.be.true
+      expect(loggerStub.calledOnce).to.be.true
+      expect(loggerStub.calledWith('Dao not found or tx receipt not found' as any)).to.be.true
+    })
+
+    it('should not update if transaction receipt not found', async () => {
+      const findByAddressStub = sandbox.stub(Models.Dao, 'findByAddress').resolves({} as any)
+      const getReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
+      const loggerStub = sandbox.stub(logger, 'warn')
+
+      await DaoRegistryHandler.handleVersionUpgrade('0xdao', {
+        network: NetworksEnum.ethereumMainnet,
+        transactionHash: '0xtxhash',
+      })
+
+      expect(findByAddressStub.calledOnce).to.be.true
+      expect(getReceiptStub.calledOnce).to.be.true
+      expect(loggerStub.calledOnce).to.be.true
+    })
+
+    it('should not update if no upgrade logs are found', async () => {
+      const daoAddress = '0x123456789abcdef'
+      const mockDao = { version: '1.0.0', implementationAddress: '0xoldImpl' }
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(mockDao as any)
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({} as any)
+      sandbox.stub(Web3Utils, 'findLogsByName').returns([])
+
+      const updateStub = sandbox.stub(DbOperations, 'updateDocument')
+
+      await DaoRegistryHandler.handleVersionUpgrade(daoAddress, {
+        network: NetworksEnum.ethereumMainnet,
+        transactionHash: '0xtxhash',
+      })
+
+      expect(updateStub.called).to.be.false
+    })
+
+    it('should not update if upgrade log does not match dao address', async () => {
+      const daoAddress = '0x123456789abcdef'
+      const mockDao = { version: '1.0.0', implementationAddress: '0xoldImpl' }
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(mockDao as any)
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({} as any)
+      sandbox.stub(Web3Utils, 'findLogsByName').returns([{ txLog: { address: '0xdifferentAddress' } }] as any)
+
+      const updateStub = sandbox.stub(DbOperations, 'updateDocument')
+
+      await DaoRegistryHandler.handleVersionUpgrade(daoAddress, {
+        network: NetworksEnum.ethereumMainnet,
+        transactionHash: '0xtxhash',
+      })
+
+      expect(updateStub.called).to.be.false
+    })
+
+    it('should not update if version is the same', async () => {
+      const daoAddress = '0x123456789abcdef'
+      const mockDao = {
+        version: '1.0.0',
+        implementationAddress: '0xoldImplementation',
+      }
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(mockDao as any)
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({} as any)
+      sandbox.stub(Web3Utils, 'findLogsByName').returns([
+        {
+          txLog: { address: daoAddress },
+          parsed: { args: { implementation: '0xnewImplementation' } },
+        },
+      ] as any)
+      sandbox.stub(Web3Helper, 'getDaoOsVersion').resolves('1.0.0')
+
+      const updateStub = sandbox.stub(DbOperations, 'updateDocument')
+
+      await DaoRegistryHandler.handleVersionUpgrade(daoAddress, {
+        network: NetworksEnum.ethereumMainnet,
+        transactionHash: '0xtxhash',
+      })
+
+      expect(updateStub.called).to.be.false
+    })
+
+    it('should not update if implementation address is the same', async () => {
+      const daoAddress = '0x123456789abcdef'
+      const implementationAddress = '0xsameImplementation'
+      const mockDao = {
+        version: '1.0.0',
+        implementationAddress,
+      }
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(mockDao as any)
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({} as any)
+      sandbox.stub(Web3Utils, 'findLogsByName').returns([
+        {
+          txLog: { address: daoAddress },
+          parsed: { args: { implementation: implementationAddress } },
+        },
+      ] as any)
+      sandbox.stub(Web3Helper, 'getDaoOsVersion').resolves('2.0.0')
+
+      const updateStub = sandbox.stub(DbOperations, 'updateDocument')
+
+      await DaoRegistryHandler.handleVersionUpgrade(daoAddress, {
+        network: NetworksEnum.ethereumMainnet,
+        transactionHash: '0xtxhash',
+      })
+
+      expect(updateStub.called).to.be.false
     })
   })
 })
