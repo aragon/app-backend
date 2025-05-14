@@ -3,7 +3,14 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { PluginHandler } from '@handlers/pluginHandler'
 import { Models } from '@dbModels'
-import { IEventLogPluginType, IPluginInterfaceType, IPluginRawStatus, IPluginStatus, NetworksEnum } from '@types'
+import {
+  IEventLogPluginType,
+  IPluginInterfaceType,
+  IPluginRawStatus,
+  IPluginStatus,
+  NetworksEnum,
+  IMetadataTargetField,
+} from '@types'
 import { ListLogPluginSetupProcessor } from '@test/mock/fakeLogPluginSetupProcessor'
 import { ListLogPluginRepo } from '@test/mock/fakeLogPluginRepo'
 import DbOperations from '@models/utils/dbOperations'
@@ -16,6 +23,7 @@ import { PluginSlug } from '@helpers/pluginSlug'
 import DbTx from '@modules/dbTx'
 import Web3Utils from '@helpers/web3Utils'
 import { DaoRegistryHandler } from '@src/handlers/daoRegistryHandler'
+import { MetadataHandler } from '@handlers/metadataHandler'
 
 describe('Indexer:Plugin', () => {
   let sandbox: SinonSandbox
@@ -375,6 +383,125 @@ describe('Indexer:Plugin', () => {
       expect(loggerVerboseStub.calledOnce).to.be.true
     })
 
+    it('should update plugin metadata when metadata exists', async () => {
+      rawPlugin.daoAddress = '0xdaoAddress'
+
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.tokenVoting,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+      })
+
+      const handleVersionUpgradeStub = sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
+
+      // Create logs
+      await Models.LogPluginSetupProcessor.create({
+        ...ListLogPluginSetupProcessor[2],
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      })
+      const eventUpdateApplied = await Models.LogPluginSetupProcessor.create({
+        ...ListLogPluginSetupProcessor[3],
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      })
+
+      // Setup metadata stubs
+      const mockMetadata = {
+        id: 'metadata-123',
+        network: NetworksEnum.ethereumMainnet,
+        pluginAddress: rawPlugin.address,
+        metadataUri: 'ipfs://metadata-uri',
+        name: 'Plugin Name',
+        description: 'Plugin Description',
+      }
+
+      const getLatestMetadataStub = sandbox.stub(Models.LogMetadata, 'getLatestMetadata').resolves(mockMetadata)
+      const updatePluginMetadataStub = sandbox.stub(MetadataHandler, '_updatePluginMetadata').resolves()
+
+      // Create plugin
+      const newPlugin = {
+        id: 'new-plugin-id',
+        address: rawPlugin.address,
+        blockNumber: 2000,
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        transactionHash: '0xnewtx',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        update: sandbox.stub().resolves({}),
+      }
+
+      sandbox.stub(PluginHandler, '_createPlugin').resolves(newPlugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(null)
+      sandbox.stub(logger, 'verbose').resolves()
+
+      await PluginHandler.updatePlugin(eventUpdateApplied as any)
+
+      // Assertions
+      expect(getLatestMetadataStub.calledOnce).to.be.true
+      expect(getLatestMetadataStub.calledWith(newPlugin.network, newPlugin.address, IMetadataTargetField.pluginAddress))
+        .to.be.true
+
+      expect(updatePluginMetadataStub.calledOnce).to.be.true
+      expect(updatePluginMetadataStub.calledWith(mockMetadata)).to.be.true
+      expect(handleVersionUpgradeStub.calledOnce).to.be.true
+    })
+
+    it('should not update plugin metadata when no metadata exists', async () => {
+      rawPlugin.daoAddress = '0xdaoAddress'
+
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.tokenVoting,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+      })
+
+      const handleVersionUpgradeStub = sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
+
+      // Create logs
+      await Models.LogPluginSetupProcessor.create({
+        ...ListLogPluginSetupProcessor[2],
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      })
+      const eventUpdateApplied = await Models.LogPluginSetupProcessor.create({
+        ...ListLogPluginSetupProcessor[3],
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      })
+
+      // Setup metadata stubs to return null (no metadata)
+      const getLatestMetadataStub = sandbox.stub(Models.LogMetadata, 'getLatestMetadata').resolves(null)
+      const updatePluginMetadataStub = sandbox.stub(MetadataHandler, '_updatePluginMetadata').resolves()
+
+      // Create plugin
+      const newPlugin = {
+        id: 'new-plugin-id',
+        address: rawPlugin.address,
+        blockNumber: 2000,
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        transactionHash: '0xnewtx',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        update: sandbox.stub().resolves({}),
+      }
+
+      sandbox.stub(PluginHandler, '_createPlugin').resolves(newPlugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(null)
+      sandbox.stub(logger, 'verbose').resolves()
+
+      await PluginHandler.updatePlugin(eventUpdateApplied as any)
+
+      // Assertions
+      expect(getLatestMetadataStub.calledOnce).to.be.true
+      expect(updatePluginMetadataStub.called).to.be.false
+      expect(handleVersionUpgradeStub.calledOnce).to.be.true
+    })
+
     it('should log warning if rawPlugin is not found', async () => {
       const warnStub = sandbox.stub(logger, 'warn')
       sandbox.stub(PluginHandler, '_queryGetPlugin').resolves(null as any)
@@ -559,6 +686,7 @@ describe('Indexer:Plugin', () => {
         pluginAddress: rawPlugin.address,
       })
 
+      sandbox.stub(MetadataHandler, '_updatePluginMetadata')
       const findOneStub = sandbox.stub(Models.Plugin, 'findOne').resolves(null)
 
       const newPlugin = {

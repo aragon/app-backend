@@ -74,3 +74,8 @@ export enum VotingBodyBrandIdentity {
   SAFE = 'safe',
   OTHER = 'other',
 }
+
+export enum IMetadataTargetField {
+  daoAddress = 'daoAddress',
+  pluginAddress = 'pluginAddress',
+}
