@@ -252,14 +252,11 @@ export const PluginSettingHandler = {
       pluginAddress,
     })
 
-    // Format SPP settings
     const formattedStages = PluginSettingHandler.formatSppSetings(parsedEvent.args.stages)
 
-    // Detect address type for each plugin in each stage
     for (const stage of formattedStages) {
       for (const plugin of stage.plugins) {
-        // Detect address type for each plugin
-        plugin.type = await PluginDetector.detectAddressType(plugin.address, network)
+        plugin.brandId = await PluginDetector.detectAddressType(plugin.address, network)
       }
     }
 
