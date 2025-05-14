@@ -16,6 +16,7 @@ import Utils from '@helpers/utils'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Utils from '@helpers/web3Utils'
 import DbOperations from '@models/utils/dbOperations'
+import { DaoList } from '@test/mock/fakeDao'
 
 describe('Indexer: DaoRegistryHandler', () => {
   let sandbox: SinonSandbox
@@ -472,6 +473,49 @@ describe('Indexer: DaoRegistryHandler', () => {
       })
 
       expect(updateStub.called).to.be.false
+    })
+
+    it('should update dao version and implementation without stubbing database operations', async () => {
+      const daoAddress = '0x123456789abcdef123456'
+      const oldImplementation = '0xoldImplementation123'
+      const newImplementation = '0xnewImplementation456'
+      const newVersion = '2.0.0'
+
+      await Models.Dao.create({
+        ...DaoList[0],
+        network: NetworksEnum.ethereumMainnet,
+        address: daoAddress,
+        implementationAddress: oldImplementation,
+        version: '1.0.0',
+      })
+
+      const stubLogger = sandbox.stub(logger, 'verbose')
+
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
+        logs: [{ address: daoAddress }],
+      } as any)
+
+      sandbox.stub(Web3Utils, 'findLogsByName').returns([
+        {
+          txLog: { address: daoAddress },
+          parsed: { args: { implementation: newImplementation } },
+        },
+      ] as any)
+
+      sandbox.stub(Web3Helper, 'getDaoOsVersion').resolves(newVersion)
+
+      await DaoRegistryHandler.handleVersionUpgrade(daoAddress, {
+        network: NetworksEnum.ethereumMainnet,
+        transactionHash: '0xupgradetxhash',
+      })
+
+      const updatedDao = await Models.Dao.findByAddress(daoAddress, NetworksEnum.ethereumMainnet)
+
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubLogger.calledWith('Updated document - DaoVersion Upgraded' as any)).to.be.true
+      expect(updatedDao).to.not.be.null
+      expect(updatedDao?.version).to.equal(newVersion)
+      expect(updatedDao?.implementationAddress).to.equal(newImplementation)
     })
   })
 })
