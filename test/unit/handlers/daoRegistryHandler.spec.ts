@@ -359,7 +359,7 @@ describe('Indexer: DaoRegistryHandler', () => {
 
     it('should not update if dao not found', async () => {
       const findByAddressStub = sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
-      const getReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({} as any)
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({} as any)
       const loggerStub = sandbox.stub(logger, 'warn')
 
       await DaoRegistryHandler.handleVersionUpgrade('0xdao', { network: NetworksEnum.ethereumMainnet })
