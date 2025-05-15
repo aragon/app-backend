@@ -824,6 +824,7 @@ class DecodeActions {
     )
 
     this.allSignatures = [
+      { contractName: 'DAO', signatures: daoSignatures, abi: DAO.abi },
       { contractName: 'TokenVoting', signatures: tokenVotingSignatures, abi: TokenVoting.abi },
       { contractName: 'MajorityVotingBase', signatures: majorityVotingBaseSignatures, abi: MajorityVotingBase.abi },
       { contractName: 'DaoFactory', signatures: daoFactorySignatures, abi: DAOFactory.abi },
@@ -832,7 +833,6 @@ class DecodeActions {
       { contractName: 'ERC721', signatures: erc721Signatures, abi: ERC721.abi },
       { contractName: 'ERC1155', signatures: erc1155Signatures, abi: ERC1155.abi },
       { contractName: 'GovernanceERC20', signatures: governanceSignatures, abi: GoveranceERC20.abi },
-      { contractName: 'DAO', signatures: daoSignatures, abi: DAO.abi },
       { contractName: 'PluginRepo', signatures: pluginRepoSignatures, abi: PluginRepo.abi },
       { contractName: 'PluginRepoFactory', signatures: pluginRepoFactorySignatures, abi: PluginRepoFactory.abi },
       { contractName: 'PluginRepoRegistry', signatures: pluginRepoRegistrySignatures, abi: PluginRepoRegistry.abi },
