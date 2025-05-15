@@ -4,6 +4,7 @@ import {
   type HexAddress,
   IEventLogPluginType,
   type ILogInfo,
+  IMetadataTargetField,
   IPluginInterfaceType,
   IPluginRawStatus,
   IPluginStatus,
@@ -21,6 +22,7 @@ import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import { PluginSlug } from '@helpers/pluginSlug'
 import DbTx from '@modules/dbTx'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
+import { MetadataHandler } from '@handlers/metadataHandler'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PluginHandler' })
 
@@ -458,11 +460,27 @@ export const PluginHandler = {
       const plugin = await PluginHandler._createPlugin(rawPlugin as any)
       if (!plugin) return
 
+      /**
+       * If the dao itself is updated, we need to update the dao version and implementation
+       */
       await DaoRegistryHandler.handleVersionUpgrade(plugin.daoAddress, {
         network: plugin.network,
         transactionHash: plugin.transactionHash,
         blockNumber: plugin.blockNumber,
       })
+
+      /**
+       * If the plugin has metadata, we need to update the metadata to the new plugin
+       */
+      const lastSavedMetadata = await Models.LogMetadata.getLatestMetadata(
+        plugin.network,
+        plugin.address,
+        IMetadataTargetField.pluginAddress,
+      )
+
+      if (lastSavedMetadata) {
+        await MetadataHandler._updatePluginMetadata(lastSavedMetadata)
+      }
 
       await DbTx.executeTxFn(async ({ session }) => {
         const existingPlugin = await Models.Plugin.findOne(
@@ -503,6 +521,7 @@ export const PluginHandler = {
 
           const document = {
             status: IPluginStatus.deprecated,
+            isSupported: false,
             uninstalled: {
               status: true,
               blockNumber: plugin.blockNumber,
