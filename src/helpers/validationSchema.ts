@@ -44,20 +44,11 @@ const ValidationSchema = {
     }),
   joiEns: Joi.string()
     .custom((value, helpers) => {
-      // If it's already a valid ENS with .eth extension
       const ensRegex = /^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.eth$/
-      if (ensRegex.test(value)) {
-        return value
+      if (!ensRegex.test(value)) {
+        return helpers.error('string.invalid', { value })
       }
-
-      // If it's a plain name without extensions, append .dao.eth
-      const plainNameRegex = /^[a-zA-Z0-9-]+$/
-      if (plainNameRegex.test(value)) {
-        return `${value}.dao.eth`
-      }
-
-      // Invalid format
-      return helpers.error('string.invalid', { value })
+      return value
     }, 'ENS Validation')
     .messages({
       'string.invalid': '{{#label}} is not a valid ENS',
