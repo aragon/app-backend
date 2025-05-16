@@ -103,7 +103,7 @@ export const ProxyToken = {
       symbol: tokenDetails?.symbol,
       decimals: tokenDetails?.decimals,
       logo: tokenDetails?.logo,
-      type: tokenDetails?.type,
+      type: tokenDetails?.type || tokenTypeInfo.type,
       holders: tokenDetails?.totalHolders,
       totalSupply: tokenDetails?.totalSupply,
       isGovernance: tokenTypeInfo.isGovernance,

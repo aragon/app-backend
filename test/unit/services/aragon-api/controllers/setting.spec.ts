@@ -214,8 +214,9 @@ describe('Controller: Setting', () => {
         network: rawSetting.network,
         address: rawSetting.daoAddress,
       })
+      const pluginAddress = rawSetting.pluginAddress as HexAddress
 
-      const response = await SettingController.getActiveSettingByDaoId(daoId)
+      const response = await SettingController.getActiveSettingByDaoId(daoId, pluginAddress)
 
       expect(response.votingMode).to.eq(rawSetting.votingMode)
       expect(response.supportThreshold).to.eq(rawSetting.supportThreshold)
@@ -225,9 +226,12 @@ describe('Controller: Setting', () => {
     })
 
     it('should get active setting by daoAddress', async () => {
+      const pluginAddress = rawSetting.pluginAddress as HexAddress
+
       const response = await SettingController.getActiveSettingByDaoAddress(
         rawSetting.daoAddress as HexAddress,
         rawSetting.network as NetworksEnum,
+        pluginAddress,
       )
 
       expect(response.votingMode).to.eq(rawSetting.votingMode)
@@ -242,17 +246,22 @@ describe('Controller: Setting', () => {
         network: rawSetting.network,
         address: '0xfakeDao',
       })
+      const pluginAddress = rawSetting.pluginAddress as HexAddress
 
-      await expect(SettingController.getActiveSettingByDaoId(daoId)).to.be.rejectedWith(ErrorKeyEnum.notFound)
+      await expect(SettingController.getActiveSettingByDaoId(daoId, pluginAddress)).to.be.rejectedWith(
+        ErrorKeyEnum.notFound,
+      )
     })
 
     it('should fail when setting not found', async () => {
       await Models.Setting.deleteMany({})
+      const pluginAddress = rawSetting.pluginAddress as HexAddress
 
       await expect(
         SettingController.getActiveSettingByDaoAddress(
           rawSetting.daoAddress as HexAddress,
           rawSetting.network as NetworksEnum,
+          pluginAddress,
         ),
       ).to.be.rejectedWith(ErrorKeyEnum.notFound)
     })
