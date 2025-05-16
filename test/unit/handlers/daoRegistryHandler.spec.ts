@@ -17,6 +17,7 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Utils from '@helpers/web3Utils'
 import DbOperations from '@models/utils/dbOperations'
 import { DaoList } from '@test/mock/fakeDao'
+import EnsHelper from '@helpers/ens'
 
 describe('Indexer: DaoRegistryHandler', () => {
   let sandbox: SinonSandbox
@@ -54,7 +55,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       const findTxHashSpy = sandbox.spy(Models.Dao, 'findExistingLog')
       const loggerStub = sandbox.stub(logger, 'verbose')
       const proxyUtils = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves('0x123')
-      const subdomainExistsStub = sandbox.stub(Web3Helper, 'ensSubdomainExists').resolves(true)
+      const getSubdomainEnsStub = sandbox.stub(EnsHelper, 'getDaoEns').resolves('test.dao.eth')
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1123213)
       const getDaoOsVersionStub = sandbox.stub(Web3Helper, 'getDaoOsVersion').resolves('1.0.0')
       const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves()
@@ -80,12 +81,18 @@ describe('Indexer: DaoRegistryHandler', () => {
       expect(savedDaoLog.address).to.eq(fakeEvent.args.dao)
       expect(savedDaoLog.creatorAddress).to.eq(fakeEvent.args.creator)
       expect(savedDaoLog.subdomain).to.eq(fakeEvent.args.subdomain)
+      expect(savedDaoLog.ens).to.eq(`test.dao.eth`)
       expect(savedDaoLog.blockNumber).to.eq(logInfo.blockNumber)
       expect(savedDaoLog.transactionHash).to.eq(logInfo.transactionHash)
       expect(initNewDaoStub.calledOnce).to.be.true
       expect(initNewDaoStub.calledWith(logInfo)).to.be.true
       expect(proxyUtils.calledWith(fakeEvent.args.dao, network)).to.be.true
-      expect(subdomainExistsStub.calledWith(fakeEvent.args.subdomain, network)).to.be.true
+      expect(
+        getSubdomainEnsStub.calledWith({
+          daoAddress: fakeEvent.args.dao,
+          subdomain: fakeEvent.args.subdomain,
+        }),
+      ).to.be.true
       expect(getBlockTimestampStub.calledWith(logInfo.blockNumber, network)).to.be.true
       expect(getDaoOsVersionStub.calledWith(fakeEvent.args.dao, network)).to.be.true
       expect(createMemberStub.calledWith(fakeEvent.args.creator)).to.be.true

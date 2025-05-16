@@ -11,6 +11,7 @@ import { ProxyMember } from '@modules/proxyMember'
 import DbOperations from '@models/utils/dbOperations'
 import Utils from '@helpers/utils'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import EnsHelper from '@helpers/ens'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:DaoRegistryHandler' })
 
@@ -18,6 +19,7 @@ export const DaoRegistryHandler = {
   daoRegistered: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const { network, transactionHash, blockNumber } = info
     const daoAddress = parsedEvent.args.dao
+    const subdomain = parsedEvent.args.subdomain
 
     const existingLog = await Models.Dao.findExistingLog({
       network,
@@ -26,7 +28,8 @@ export const DaoRegistryHandler = {
     if (existingLog) return
 
     const implementationAddress = await ProxyContractHelper.getImplementationAddress(daoAddress, network)
-    const isValid = await Web3Helper.ensSubdomainExists(parsedEvent.args.subdomain, network)
+    const validSubdomain = Utils.validateString(subdomain)
+    const ens = validSubdomain ? await EnsHelper.getDaoEns({ daoAddress, subdomain }) : null
 
     const document = {
       network,
@@ -38,8 +41,8 @@ export const DaoRegistryHandler = {
       blockTimestamp: (await Web3Helper.getBlockTimestamp(blockNumber, network)) || undefined,
       address: daoAddress,
       implementationAddress: implementationAddress!,
-      ens: isValid ? Web3Utils.parseSubdomainToEns(parsedEvent.args.subdomain) : null,
-      subdomain: Utils.validateString(parsedEvent.args.subdomain),
+      ens,
+      subdomain: validSubdomain,
       version: await Web3Helper.getDaoOsVersion(daoAddress, network),
       creatorAddress: parsedEvent.args.creator,
     }

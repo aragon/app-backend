@@ -59,17 +59,36 @@ describe('Helpers:ValidationSchema', () => {
     })
 
     it('joiEns', async () => {
+      // Case 1: Standard .eth domain
       const ens = 'test.eth'
       const res = await ValidationSchema.joiEns.validateAsync(ens)
       expect(res).to.eq(ens)
 
+      // Case 2: Subdomain with .dao.eth
       const ens2 = 'test.dao.eth'
       const res2 = await ValidationSchema.joiEns.validateAsync(ens2)
       expect(res2).to.eq(ens2)
 
-      await expect(ValidationSchema.joiEns.validateAsync('test')).to.be.rejectedWith(
+      // Case 3: Plain name without extension should append .dao.eth
+      const plainName = 'aragon'
+      const res3 = await ValidationSchema.joiEns.validateAsync(plainName)
+      expect(res3).to.eq('aragon.dao.eth')
+
+      // Case 4: Multiple level subdomains should be allowed
+      const ens4 = 'test.subdomain.dao.eth'
+      const res4 = await ValidationSchema.joiEns.validateAsync(ens4)
+      expect(res4).to.eq(ens4)
+
+      // Case 5: Invalid ENS should be rejected
+      await expect(ValidationSchema.joiEns.validateAsync('test!')).to.be.rejectedWith(
         Error,
         '"value" is not a valid ENS',
+      )
+
+      // Case 6: Empty string should be rejected
+      await expect(ValidationSchema.joiEns.validateAsync('')).to.be.rejectedWith(
+        Error,
+        '"value" is not allowed to be empty',
       )
     })
 
