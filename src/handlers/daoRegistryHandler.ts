@@ -124,4 +124,37 @@ export const DaoRegistryHandler = {
     const infoMetadata = Web3Utils.parseInfoLog(metadataLogs[0].txLog, 'MetadataSet', info.network)
     await MetadataHandler.metadataSet(metadataLogs[0].parsed!, infoMetadata)
   },
+
+  handleVersionUpgrade: async (daoAddress: HexAddress, info: Partial<ILogInfo>) => {
+    const [daoDb, txReceipt] = await Promise.all([
+      Models.Dao.findByAddress(daoAddress, info.network),
+      Web3Helper.getTransactionReceipt(info.transactionHash!, info.network!),
+    ])
+
+    if (!daoDb || !txReceipt) {
+      logger.warn('Dao not found or tx receipt not found', llo(info))
+      return
+    }
+
+    const versionUpgradeLogs = Web3Utils.findLogsByName(txReceipt, 'Upgraded', DAO.abi)
+    const daoUpgradeLog = versionUpgradeLogs.find(event => event.txLog.address === daoAddress)
+    if (!daoUpgradeLog) {
+      return
+    }
+
+    const newImplementationAddress = daoUpgradeLog.parsed!.args.implementation
+    const newVersion = await Web3Helper.getDaoOsVersion(newImplementationAddress, info.network!)
+
+    if (!newVersion || newVersion === daoDb.version || daoDb.implementationAddress === newImplementationAddress) {
+      return
+    }
+
+    await DbOperations.updateDocument(
+      daoDb,
+      { version: newVersion, implementationAddress: newImplementationAddress },
+      info,
+      'DaoVersion Upgraded',
+      llo,
+    )
+  },
 }
