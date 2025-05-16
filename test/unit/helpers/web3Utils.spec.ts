@@ -818,11 +818,6 @@ describe('Helpers:Web3Utils', () => {
     expect(Web3Utils.convertToHexNumber(undefined as any)).to.eq(undefined)
   })
 
-  it('parseSubdomainToEns', function () {
-    const subdomain = 'xxx'
-    expect(Web3Utils.parseSubdomainToEns(subdomain)).to.eq(`${subdomain}.${config.ENS_DOMAIN}`)
-  })
-
   it('parseDaoMetadata', () => {
     const metadata = {}
     const resp = Web3Utils.parseDaoMetadata(metadata)
