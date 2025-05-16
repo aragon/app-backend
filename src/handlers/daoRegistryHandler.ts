@@ -29,7 +29,7 @@ export const DaoRegistryHandler = {
 
     const implementationAddress = await ProxyContractHelper.getImplementationAddress(daoAddress, network)
     const validSubdomain = Utils.validateString(subdomain)
-    const ens = validSubdomain ? await EnsHelper.getDaoEns({ daoAddress, subdomain }) : null
+    const ens = validSubdomain ? await EnsHelper.getDaoEns({ daoAddress, subdomain: validSubdomain }) : null
 
     const document = {
       network,
