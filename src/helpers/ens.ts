@@ -1,5 +1,5 @@
 import { Contract, hexlify, keccak256, toUtf8Bytes } from 'ethers'
-import { type ENS, NetworksEnum } from '@types'
+import { type DAO_ENS, type ENS, NetworksEnum } from '@types'
 import BottleneckModule from '@modules/bottleneck'
 import { UniversalResolver } from '@artifacts/UniversalResolver'
 import logger from '@logger'
@@ -25,7 +25,13 @@ const EnsHelper = {
   DAO_ETH_NODE: '0x07e52dde31bd8c3670cb40a6f5491766acfda440926cc88a6b31f3e98fc9bd00', // namehash of 'dao.eth'
   DAO_ETH_MANAGER: '0xfb633F47A84a1450EE0413f2C32dC1772CcAea3e', // Manager for dao.eth
 
-  async getDaoEns({ daoAddress, subdomain }: { daoAddress: string; subdomain: string | null }): Promise<ENS | null> {
+  async getDaoEns({
+    daoAddress,
+    subdomain,
+  }: {
+    daoAddress: string
+    subdomain: string | null
+  }): Promise<DAO_ENS | null> {
     if (!subdomain) return null
 
     const ensSubDomain = await EnsHelper.getDaoEthSubdomain(subdomain)
@@ -63,7 +69,7 @@ const EnsHelper = {
   /**
    * Get specific subdomain exists under dao.eth
    */
-  async getDaoEthSubdomain(subdomain: string): Promise<ENS | null> {
+  async getDaoEthSubdomain(subdomain: string): Promise<DAO_ENS | null> {
     const provider = ProviderModule.getAnyRpcProvider(NetworksEnum.ethereumMainnet)
 
     try {
@@ -71,7 +77,7 @@ const EnsHelper = {
       const cleanSubdomain = subdomain.replace(/\.dao\.eth$/i, '')
 
       const registry = new Contract(EnsHelper.ENS_REGISTRY, ENS_REGISTRY_ABI, provider)
-      const fullName = `${cleanSubdomain}.${config.ENS_DOMAIN}` as ENS
+      const fullName = `${cleanSubdomain}.${config.ENS_DOMAIN}` as DAO_ENS
       const node = EnsHelper._namehash(fullName)
 
       // Check if this node has an owner
