@@ -1,4 +1,4 @@
-import { Contract, hexlify, keccak256, toUtf8Bytes } from 'ethers'
+import { Contract, ethers, hexlify, keccak256, toUtf8Bytes } from 'ethers'
 import { type DAO_ENS, type ENS, NetworksEnum } from '@types'
 import BottleneckModule from '@modules/bottleneck'
 import { UniversalResolver } from '@artifacts/UniversalResolver'
@@ -83,7 +83,7 @@ const EnsHelper = {
       // Check if this node has an owner
       const owner = await registry.owner(node)
 
-      if (owner && owner !== '0x0000000000000000000000000000000000000000') {
+      if (owner && owner !== ethers.ZeroAddress) {
         return fullName
       }
 
@@ -123,7 +123,7 @@ const EnsHelper = {
       // Get the resolver for this node
       const resolverAddress = await registry.resolver(node)
 
-      if (resolverAddress && resolverAddress !== '0x0000000000000000000000000000000000000000') {
+      if (resolverAddress && resolverAddress !== ethers.ZeroAddress) {
         // Create resolver contract instance
         const resolver = new Contract(resolverAddress, RESOLVER_ABI, provider)
 
