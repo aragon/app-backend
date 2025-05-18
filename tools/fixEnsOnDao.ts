@@ -1,7 +1,6 @@
-import { EnumConnection, type IService } from '@types'
+import { EnumConnection, type IService, NetworksEnum } from '@types'
 import logger from '@logger'
 import { Models } from '@dbModels'
-// import DbOperations from '@models/utils/dbOperations'
 import DBCrawler from '@models/utils/crawler'
 import Utils from '@helpers/utils'
 import EnsHelper from '@helpers/ens'
@@ -15,6 +14,7 @@ export const FixEnsOnDao: IService & { onDocument: any } = {
     const daoCrawler = new DBCrawler({
       model: Models.Dao,
       where: {
+        network: NetworksEnum.ethereumMainnet,
         ens: { $eq: null },
         subdomain: { $ne: null },
       },
