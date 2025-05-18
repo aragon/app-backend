@@ -42,7 +42,19 @@ export const FixEnsOnDao: IService & { onDocument: any } = {
       : null
     if (ens) {
       await DbOperations.updateDocument(dao, { ens }, { dao: dao.id, ens }, 'FixEnsOnDao', llo)
+    } else {
+      logger.error(
+        'Error Dao Fix Ens',
+        llo({
+          message: 'No ens found',
+          dao: dao.address,
+          subdomain: dao.subdomain,
+          validSubdomain,
+        }),
+      )
     }
+
+    await Utils.wait(500)
   },
 
   stop: () => {},
