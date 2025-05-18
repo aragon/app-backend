@@ -27,6 +27,7 @@ import CreateAdminToken from '@tools/createAdminToken'
 import Queue from '@tools/queue'
 import FixProposalResult from '@tools/fixProposalResult'
 import { AddSafeWalletSetting } from '@tools/addSafeWalletSetting'
+import { FixEnsOnDao } from '@tools/fixEnsOnDao'
 
 const { TOOL_RUN } = process.env
 const llo = logger.logMeta.bind(null, { TOOL_RUN })
@@ -59,6 +60,7 @@ const runners = {
   IntegrityToolProposalCheck,
   FixProposalResult,
   AddSafeWalletSetting,
+  FixEnsOnDao,
 }
 
 const appToRun = runners[TOOL_RUN!]

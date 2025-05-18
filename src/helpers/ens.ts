@@ -104,33 +104,23 @@ const EnsHelper = {
     const provider = ProviderModule.getAnyRpcProvider(NetworksEnum.ethereumMainnet)
 
     try {
-      // Clean the input - remove .dao.eth if it was included
       const cleanSubdomain = subdomain.replace(/\.dao\.eth$/i, '')
       const fullName = `${cleanSubdomain}.${config.ENS_DOMAIN}`
       const node = EnsHelper._namehash(fullName)
 
-      // Get the registry contract
       const registry = new Contract(EnsHelper.ENS_REGISTRY, ENS_REGISTRY_ABI, provider)
-
-      // First, check if the address is the direct owner of the subdomain
       const owner = await registry.owner(node)
 
       if (owner && owner.toLowerCase() === address.toLowerCase()) {
         return true
       }
 
-      // If not the direct owner, check if the address is the resolved address
-      // Get the resolver for this node
       const resolverAddress = await registry.resolver(node)
 
       if (resolverAddress && resolverAddress !== ZeroAddress) {
-        // Create a resolver contract instance
         const resolver = new Contract(resolverAddress, RESOLVER_ABI, provider)
-
         try {
-          // Check if this subdomain resolves to our address
           const resolvedAddress = await resolver.addr(node)
-
           if (resolvedAddress && resolvedAddress.toLowerCase() === address.toLowerCase()) {
             return true
           }
@@ -138,7 +128,6 @@ const EnsHelper = {
           logger.silly('Error checking resolver', llo({ fullName, error: resolverError }))
         }
       }
-
       return false
     } catch (error) {
       logger.error('Error checking if address owns subdomain', llo({ address, subdomain, error }))
