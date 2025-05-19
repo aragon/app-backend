@@ -512,4 +512,167 @@ describe('Helpers:Subscan', () => {
       expect(rpCallStub.calledOnce).to.be.true
     })
   })
+
+  describe('getAllTokenHolders', () => {
+    const tokenAddress = '0x5c3126bfb9a68a7021d461230127470b3824886b'
+    const network = NetworksEnum.peaqMainnet
+
+    beforeEach(() => {
+      sandbox.stub(utils, 'wait').resolves()
+    })
+
+    it('should fetch token holders successfully', async () => {
+      // Stub the getTokenHoldersPage method
+      const getPageStub = sandbox.stub(Subscan, 'getTokenHoldersPage')
+      getPageStub.onCall(0).resolves({
+        holders: [
+          { address: '0xaddress1', value: '1000000000000000000' },
+          { address: '0xaddress2', value: '2000000000000000000' },
+        ],
+        total: 5,
+      })
+      getPageStub.onCall(1).resolves({
+        holders: [
+          { address: '0xaddress3', value: '3000000000000000000' },
+          { address: '0xaddress4', value: '4000000000000000000' },
+        ],
+        total: 5,
+      })
+      getPageStub.onCall(2).resolves({
+        holders: [{ address: '0xaddress5', value: '5000000000000000000' }],
+        total: 5,
+      })
+
+      const result = await Subscan.getAllTokenHolders(tokenAddress, network, {
+        pageSize: 2,
+        delayMs: 0,
+        startPage: 0,
+      })
+
+      expect(getPageStub.callCount).to.equal(3)
+      expect(result.holders.length).to.equal(5)
+      expect(result.total).to.equal(5)
+      expect(result.hasMore).to.be.false
+
+      expect(result.holders[0].address).to.equal('0xaddress1')
+      expect(result.holders[0].value).to.equal('1000000000000000000')
+      expect(result.holders[4].address).to.equal('0xaddress5')
+    })
+
+    it('should use callback function with page info when provided', async () => {
+      const pageResult = {
+        holders: [
+          { address: '0xaddress1', value: '1000000000000000000' },
+          { address: '0xaddress2', value: '2000000000000000000' },
+        ],
+        total: 2,
+      }
+
+      const getPageStub = sandbox.stub(Subscan, 'getTokenHoldersPage').resolves(pageResult)
+      const callbackSpy = sandbox.spy()
+
+      const result = await Subscan.getAllTokenHolders(
+        tokenAddress,
+        network,
+        { pageSize: 10, delayMs: 0, startPage: 0 },
+        callbackSpy,
+      )
+
+      expect(getPageStub.callCount).to.equal(1)
+      expect(result.holders.length).to.equal(2)
+
+      expect(callbackSpy.callCount).to.equal(1)
+      expect(callbackSpy.firstCall.args[0]).to.deep.equal(pageResult.holders)
+      expect(callbackSpy.firstCall.args[1]).to.have.property('currentPage')
+      expect(callbackSpy.firstCall.args[1]).to.have.property('isLastPage')
+      expect(callbackSpy.firstCall.args[1]).to.have.property('total')
+    })
+
+    it('should respect the startPage parameter', async () => {
+      const getPageStub = sandbox.stub(Subscan, 'getTokenHoldersPage')
+      getPageStub
+        .onCall(0)
+        .resolves({
+          holders: [
+            { address: '0xaddress1', value: '1000000000000000000' },
+            { address: '0xaddress2', value: '2000000000000000000' },
+          ],
+          total: 2,
+        })
+        .onCall(1)
+        .resolves({
+          holders: [{ address: '0xaddress3', value: '300000000000000000' }],
+          total: 1,
+        })
+
+      const result = await Subscan.getAllTokenHolders(tokenAddress, network, {
+        startPage: 5,
+        delayMs: 0,
+        pageSize: 2,
+      })
+
+      expect(getPageStub.firstCall.args[2]).to.equal(5)
+      expect(result.lastPage).to.equal(6)
+    })
+  })
+
+  describe('getTokenHoldersPage', () => {
+    const tokenAddress = '0x5c3126bfb9a68a7021d461230127470b3824886b'
+    const network = NetworksEnum.peaqMainnet
+
+    it('should fetch a single page of token holders', async () => {
+      const response = {
+        code: 0,
+        message: 'Success',
+        data: {
+          count: 2,
+          list: [
+            { holder: '0xaddress1', balance: '1000000000000000000' },
+            { holder: '0xaddress2', balance: '2000000000000000000' },
+          ],
+        },
+      }
+
+      const rpCallStub = sandbox.stub(Subscan, '_rpCall').resolves(response)
+
+      const result = await Subscan.getTokenHoldersPage(tokenAddress, network, 0, 2)
+
+      expect(rpCallStub.callCount).to.equal(1)
+      expect(result.holders.length).to.equal(2)
+      expect(result.total).to.equal(2)
+      expect(result.holders[0].address).to.equal('0xaddress1')
+    })
+
+    it('should handle empty results', async () => {
+      const response = {
+        code: 0,
+        message: 'Success',
+        data: {
+          count: 0,
+          list: [],
+        },
+      }
+
+      const rpCallStub = sandbox.stub(Subscan, '_rpCall').resolves(response)
+
+      const result = await Subscan.getTokenHoldersPage(tokenAddress, network, 0, 10)
+
+      expect(rpCallStub.callCount).to.equal(1)
+      expect(result.holders.length).to.equal(0)
+      expect(result.total).to.equal(0)
+    })
+
+    it('should handle API errors', async () => {
+      const apiError = new Error('API failure')
+      const rpCallStub = sandbox.stub(Subscan, '_rpCall').rejects(apiError)
+      const logErrorStub = sandbox.stub(logger, 'error')
+
+      const result = await Subscan.getTokenHoldersPage(tokenAddress, network, 0, 10)
+
+      expect(rpCallStub.callCount).to.equal(1)
+      expect(result.holders.length).to.equal(0)
+      expect(result.total).to.equal(0)
+      expect(logErrorStub.called).to.be.true
+    })
+  })
 })

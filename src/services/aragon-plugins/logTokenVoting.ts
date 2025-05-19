@@ -65,13 +65,15 @@ export const LogTokenVoting = {
 
     const startTime = Date.now()
     logger.verbose('Start Token Sync', llo({ ...infoLogs, ...{ syncStrategy: 'BlockScout', startTime } }))
-    await TokenHolderSync.syncHoldersFromBlockScout(plugin, token)
+    await TokenHolderSync.syncAllTokenHolders(plugin, token)
 
     await Promise.all([
       pluginCrawler.crawl(),
       TokenHolderSync.syncDelegationEvents(plugin, token),
       TokenHolderSync.syncTransfersEvents(plugin, token),
     ])
+
+    await TokenHolderSync.convertToStandardSync(plugin, token)
 
     logger.verbose(
       'End LogTokenVoting',
