@@ -1,8 +1,8 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
-  type ENS,
   HexAddress,
   ICollectionNames,
+  type DAO_ENS,
   type IDaoExtraParams,
   type IDaoIdParams,
   type IDaoResponse,
@@ -109,7 +109,7 @@ export default class Dao extends Model {
   public creatorAddress!: HexAddress
 
   @prop({ type: () => String, default: null })
-  public ens?: ENS | null
+  public ens?: DAO_ENS | null
 
   @prop({ type: () => String, default: null })
   public subdomain!: string

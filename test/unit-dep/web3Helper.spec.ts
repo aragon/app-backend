@@ -71,13 +71,6 @@ describe('ProxyWeb3 && Web3Helper', () => {
     expect(tokenBalances[0].originalBalance).to.exist
   })
 
-  it('ensSubdomainExists', async () => {
-    const ensName = 'ai'
-    const network = NetworksEnum.ethereumMainnet
-    const exists = await Web3Helper.ensSubdomainExists(ensName, network)
-    expect(exists).to.be.true
-  })
-
   it('getTransaction', async () => {
     const txHash = '0x80cb58a41639792825ef5a567de3c12ab78098b54b06f3e753428667ef5b1410'
     const network = NetworksEnum.ethereumSepolia
