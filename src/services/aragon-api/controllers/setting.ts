@@ -25,15 +25,24 @@ const SettingController = {
     return result
   },
 
-  getActiveSettingByDaoId: async (daoId: HexAddress): Promise<ISettingResponse> => {
+  getActiveSettingByDaoId: async (daoId: HexAddress, pluginAddress: HexAddress): Promise<ISettingResponse> => {
     const daoDb = await Models.Dao.findByEntityId(daoId)
     assertExposable(daoDb, ErrorKeyEnum.notFound)
 
-    return SettingController.getActiveSettingByDaoAddress(daoDb.address, daoDb.network)
+    return SettingController.getActiveSettingByDaoAddress(daoDb.address, daoDb.network, pluginAddress)
   },
 
-  getActiveSettingByDaoAddress: async (daoAddress: HexAddress, network: NetworksEnum): Promise<ISettingResponse> => {
-    const setting = await Models.Setting.findSetting({ daoAddress, network, status: ISettingStatus.active })
+  getActiveSettingByDaoAddress: async (
+    daoAddress: HexAddress,
+    network: NetworksEnum,
+    pluginAddress: HexAddress,
+  ): Promise<ISettingResponse> => {
+    const setting = await Models.Setting.findSetting({
+      daoAddress,
+      network,
+      status: ISettingStatus.active,
+      pluginAddress,
+    })
     assertExposable(setting, ErrorKeyEnum.notFound)
     return setting
   },

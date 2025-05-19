@@ -520,45 +520,33 @@ describe('Helpers: BlockScout', () => {
     })
 
     it('should fetch token holders successfully', async () => {
-      const page1Response = {
-        data: {
-          message: 'OK',
-          result: [
-            { address: '0xaddress1', value: '1000000000000000000' },
-            { address: '0xaddress2', value: '2000000000000000000' },
-          ],
-        },
-      }
-
-      const page2Response = {
-        data: {
-          message: 'OK',
-          result: [
-            { address: '0xaddress3', value: '3000000000000000000' },
-            { address: '0xaddress4', value: '4000000000000000000' },
-          ],
-        },
-      }
-
-      const page3Response = {
-        data: {
-          message: 'OK',
-          result: [{ address: '0xaddress5', value: '5000000000000000000' }],
-        },
-      }
-
-      const axiosStub = sandbox.stub(axios, 'get')
-      axiosStub.onCall(0).resolves(page1Response)
-      axiosStub.onCall(1).resolves(page2Response)
-      axiosStub.onCall(2).resolves(page3Response)
+      const getPageStub = sandbox.stub(BlockScoutHelper, 'getTokenHoldersPage')
+      getPageStub.onCall(0).resolves({
+        holders: [
+          { address: '0xaddress1', value: '1000000000000000000' },
+          { address: '0xaddress2', value: '2000000000000000000' },
+        ],
+        total: 2,
+      })
+      getPageStub.onCall(1).resolves({
+        holders: [
+          { address: '0xaddress3', value: '3000000000000000000' },
+          { address: '0xaddress4', value: '4000000000000000000' },
+        ],
+        total: 2,
+      })
+      getPageStub.onCall(2).resolves({
+        holders: [{ address: '0xaddress5', value: '5000000000000000000' }],
+        total: 1,
+      })
 
       const result = await BlockScoutHelper.getAllTokenHolders(tokenAddress, network, {
         pageSize: 2,
-        maxPages: 10,
         delayMs: 0,
+        startPage: 1,
       })
 
-      expect(axiosStub.callCount).to.equal(3)
+      expect(getPageStub.callCount).to.equal(3)
       expect(result.holders.length).to.equal(5)
       expect(result.total).to.equal(5)
       expect(result.hasMore).to.be.false
@@ -568,8 +556,69 @@ describe('Helpers: BlockScout', () => {
       expect(result.holders[4].address).to.equal('0xaddress5')
     })
 
-    it('should use callback function when provided', async () => {
-      const page1Response = {
+    it('should use callback function with page info when provided', async () => {
+      const pageResult = {
+        holders: [
+          { address: '0xaddress1', value: '1000000000000000000' },
+          { address: '0xaddress2', value: '2000000000000000000' },
+        ],
+        total: 2,
+      }
+
+      const getPageStub = sandbox.stub(BlockScoutHelper, 'getTokenHoldersPage').resolves(pageResult)
+      const callbackSpy = sandbox.spy()
+
+      const result = await BlockScoutHelper.getAllTokenHolders(
+        tokenAddress,
+        network,
+        { pageSize: 10, delayMs: 0, startPage: 1 },
+        callbackSpy,
+      )
+
+      expect(getPageStub.callCount).to.equal(1)
+      expect(result.holders.length).to.equal(2)
+
+      expect(callbackSpy.callCount).to.equal(1)
+      expect(callbackSpy.firstCall.args[0]).to.deep.equal(pageResult.holders)
+      expect(callbackSpy.firstCall.args[1]).to.have.property('currentPage')
+      expect(callbackSpy.firstCall.args[1]).to.have.property('isLastPage')
+      expect(callbackSpy.firstCall.args[1]).to.have.property('total')
+    })
+
+    it('should respect the startPage parameter', async () => {
+      const getPageStub = sandbox.stub(BlockScoutHelper, 'getTokenHoldersPage')
+      getPageStub
+        .onCall(0)
+        .resolves({
+          holders: [
+            { address: '0xaddress1', value: '1000000000000000000' },
+            { address: '0xaddress2', value: '2000000000000000000' },
+          ],
+          total: 2,
+        })
+        .onCall(1)
+        .resolves({
+          holders: [{ address: '0xaddress3', value: '3000000000000000000' }],
+          total: 1,
+        })
+
+      const result = await BlockScoutHelper.getAllTokenHolders(tokenAddress, network, {
+        startPage: 5,
+        delayMs: 0,
+        pageSize: 2,
+      })
+
+      expect(getPageStub.firstCall.args[2]).to.equal(5)
+      expect(result.lastPage).to.equal(6)
+    })
+  })
+
+  describe('getTokenHoldersPage', () => {
+    const tokenAddress = '0x1111111111166b7FE7bd91427724B487980aFc69'
+    const network = NetworksEnum.baseMainnet
+
+    it('should fetch a single page of token holders', async () => {
+      const response = {
         data: {
           message: 'OK',
           result: [
@@ -579,102 +628,44 @@ describe('Helpers: BlockScout', () => {
         },
       }
 
-      const axiosStub = sandbox.stub(axios, 'get').resolves(page1Response)
-      const callbackSpy = sandbox.spy()
+      const axiosStub = sandbox.stub(axios, 'get').resolves(response)
 
-      const result = await BlockScoutHelper.getAllTokenHolders(
-        tokenAddress,
-        network,
-        { pageSize: 10, maxPages: 1, delayMs: 0 },
-        callbackSpy,
-      )
+      const result = await BlockScoutHelper.getTokenHoldersPage(tokenAddress, network, 1, 2)
 
       expect(axiosStub.callCount).to.equal(1)
       expect(result.holders.length).to.equal(2)
-
-      expect(callbackSpy.callCount).to.equal(2)
-      expect(callbackSpy.firstCall.args[0]).to.deep.equal({
-        address: '0xaddress1',
-        value: '1000000000000000000',
-      })
-      expect(callbackSpy.secondCall.args[0]).to.deep.equal({
-        address: '0xaddress2',
-        value: '2000000000000000000',
-      })
+      expect(result.total).to.equal(2)
+      expect(result.holders[0].address).to.equal('0xaddress1')
     })
 
-    it('should handle API errors gracefully', async () => {
-      const apiError = new Error('API failure')
-      const axiosStub = sandbox.stub(axios, 'get').rejects(apiError)
-      const logErrorStub = sandbox.stub(logger, 'error')
-
-      const result = await BlockScoutHelper.getAllTokenHolders(tokenAddress, network)
-
-      expect(axiosStub.callCount).to.equal(1)
-      expect(result.holders.length).to.equal(0)
-      expect(result.total).to.equal(0)
-      expect(result.hasMore).to.be.false
-
-      expect(logErrorStub.calledOnce).to.be.true
-      expect(logErrorStub.firstCall.args[0]).to.equal('Error fetching token holders')
-    })
-
-    it('should return empty results when BlockScout API is not configured', async () => {
-      const loggerStub = sandbox.stub(logger, 'warn')
-      sandbox.stub(BlockScoutHelper, '_parseNetworkToConfig').returns({
-        BLOCKSCOUT_API_KEY: 'some-key',
-      })
-
-      const result = await BlockScoutHelper.getAllTokenHolders(tokenAddress, network)
-
-      expect(loggerStub.calledOnce).to.be.true
-      expect(result.holders.length).to.equal(0)
-      expect(result.total).to.equal(0)
-      expect(result.hasMore).to.be.false
-    })
-
-    it('should handle empty or invalid responses', async () => {
-      const emptyResponse = {
+    it('should handle empty results', async () => {
+      const response = {
         data: {
           message: 'OK',
           result: [],
         },
       }
 
-      const axiosStub = sandbox.stub(axios, 'get').resolves(emptyResponse)
+      const axiosStub = sandbox.stub(axios, 'get').resolves(response)
 
-      const result = await BlockScoutHelper.getAllTokenHolders(tokenAddress, network)
+      const result = await BlockScoutHelper.getTokenHoldersPage(tokenAddress, network, 1, 10)
 
       expect(axiosStub.callCount).to.equal(1)
       expect(result.holders.length).to.equal(0)
       expect(result.total).to.equal(0)
-      expect(result.hasMore).to.be.false
     })
 
-    it('should stop fetching when max pages limit is reached', async () => {
-      const fullPageResponse = {
-        data: {
-          message: 'OK',
-          result: Array(10)
-            .fill(0)
-            .map((_, i) => ({
-              address: `0xaddress${i}`,
-              value: `${i}000000000000000000`,
-            })),
-        },
-      }
+    it('should handle API errors', async () => {
+      const apiError = new Error('API failure')
+      const axiosStub = sandbox.stub(axios, 'get').rejects(apiError)
+      const logErrorStub = sandbox.stub(logger, 'error')
 
-      const axiosStub = sandbox.stub(axios, 'get').resolves(fullPageResponse)
+      const result = await BlockScoutHelper.getTokenHoldersPage(tokenAddress, network, 1, 10)
 
-      const result = await BlockScoutHelper.getAllTokenHolders(tokenAddress, network, {
-        pageSize: 10,
-        maxPages: 3,
-        delayMs: 0,
-      })
-
-      expect(axiosStub.callCount).to.equal(3)
-      expect(result.holders.length).to.equal(30)
-      expect(result.hasMore).to.be.true
+      expect(axiosStub.callCount).to.equal(1)
+      expect(result.holders.length).to.equal(0)
+      expect(result.total).to.equal(0)
+      expect(logErrorStub.called).to.be.true
     })
   })
 })

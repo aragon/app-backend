@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { IGovernanceErc20Logs, type IIndexerConfig } from '@types'
+import { type IEnumIndexerServiceStatic, TokenSyncTagName, IGovernanceErc20Logs, type IIndexerConfig } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Plugin from '@models/schema/plugin'
 import type Token from '@models/schema/token'
@@ -9,27 +9,33 @@ import config from '@config'
 import { ProxyMember } from '@modules/proxyMember'
 import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
+import ProxyWeb3Provider from '@modules/proxyProvider'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-plugins:tokenHolderSync' })
 
 export const TokenHolderSync = {
+  getTagName: (plugin: Plugin, token: Token, type: TokenSyncTagName): IEnumIndexerServiceStatic => {
+    return `${plugin.interfaceType}-${plugin.network}-${plugin.address}-${token?.address}${type === TokenSyncTagName.Default ? '' : `-${type}`}`
+  },
   isOptimizedFlowNeeded: async (token: Token, plugin: Plugin) => {
-    const service = token?.address
-      ? `${plugin.interfaceType}-${plugin.network}-${plugin.address}-${token.address}`
-      : `${plugin.interfaceType}-${plugin.network}-${plugin.address}}`
-
-    const existingConfig = await Models.ConfigIndexer.findExistingLog({
-      network: plugin.network,
-      service,
-    })
-
-    if (existingConfig) {
-      return false
-    }
-
     const isCustomToken = token?.blockNumber !== 0 && token.blockNumber < plugin?.blockNumber
 
     if (!isCustomToken) {
+      return false
+    }
+
+    /**
+     * After all the sync are done, we basically remove from configIndexer the progress
+     * of the sync, (transfers, delegation)
+     * Then we create a new entry with the default tag name which we use for normal token voting
+     */
+
+    const hasDefaultTag = await Models.ConfigIndexer.findOne({
+      network: plugin.network,
+      service: TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Default),
+    })
+
+    if (hasDefaultTag) {
       return false
     }
 
@@ -74,12 +80,44 @@ export const TokenHolderSync = {
     return configGovLogs.filter((item: IIndexerConfig) => item.event === governanceLogTopic)
   },
 
-  syncHoldersFromBlockScout: async (plugin: Plugin, token: Token) => {
-    await BlockScoutHelper.getAllTokenHolders(
-      token.address,
-      token.network,
-      { pageSize: 100, maxPages: 1000, delayMs: 500 },
-      async holder => {
+  syncAllTokenHolders: async (plugin: Plugin, token: Token) => {
+    const blockScoutSyncKey = TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.TokenHolders)
+
+    const existingSync = await Models.ConfigIndexer.findExistingLog({
+      network: plugin.network,
+      service: blockScoutSyncKey,
+    })
+
+    if (existingSync?.end) {
+      logger.verbose(
+        'TokenHolderSync - BlockScout sync already completed, skipping',
+        llo({
+          network: plugin.network,
+          tokenAddress: token.address,
+          pluginAddress: plugin.address,
+        }),
+      )
+      return
+    }
+
+    logger.verbose(
+      'TokenHolderSync - Starting/Resuming BlockScout sync',
+      llo({
+        network: plugin.network,
+        tokenAddress: token.address,
+        pluginAddress: plugin.address,
+        lastSync: existingSync?.lastSync || 0,
+      }),
+    )
+
+    const result = await ProxyWeb3Provider.getAllTokenHolders({
+      address: token.address,
+      network: token.network,
+      syncKey: blockScoutSyncKey,
+      callback: async holder => {
+        const balanceAmount = holder.value.toString()
+        if (balanceAmount === '0') return
+
         const member = await ProxyMember.createMember(holder.address)
 
         const memberBalanceDb = await ProxyMember.getBalances({
@@ -93,7 +131,7 @@ export const TokenHolderSync = {
         await DbTx.executeTxFn(async ({ session }) => {
           await memberBalanceDb?.increaseBalance(
             {
-              amount: holder.value.toString(),
+              amount: balanceAmount,
               blockNumber: plugin.blockNumber,
             },
             { session },
@@ -108,6 +146,16 @@ export const TokenHolderSync = {
           network: plugin.network,
         })
       },
+    })
+
+    logger.verbose(
+      'TokenHolderSync - Sync completed or suspended',
+      llo({
+        network: plugin.network,
+        tokenAddress: token.address,
+        hasMore: result.hasMore,
+        lastPage: result.lastPage,
+      }),
     )
   },
 
@@ -132,7 +180,7 @@ export const TokenHolderSync = {
           }),
         )
       },
-      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}-${token?.address}-delegation-only`,
+      logService: TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Delegation),
       stopOnError: true,
     })
 
@@ -147,7 +195,7 @@ export const TokenHolderSync = {
       network: plugin.network,
       events: [...configTransferOnly],
       address: [plugin.tokenAddress],
-      fromBlock: plugin?.blockNumber, // Only from plugin creation, not token creation
+      fromBlock: plugin?.blockNumber,
       onError: async (error: any, log: any) => {
         logger.error(
           'Error TokenHolderSync - Transfers',
@@ -158,10 +206,53 @@ export const TokenHolderSync = {
           }),
         )
       },
-      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}-${token?.address}-transfers-only`,
+      logService: TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Transfer),
       stopOnError: true,
     })
 
     await crawlerTokenTransfers.crawl()
+  },
+
+  convertToStandardSync: async (plugin: Plugin, token: Token) => {
+    const delegationTagName = TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Delegation)
+    const transferTagName = TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Transfer)
+
+    await DbTx.executeTxFn(async ({ session }) => {
+      const syncTags = await Models.ConfigIndexer.find(
+        {
+          network: plugin.network,
+          service: {
+            $in: [delegationTagName, transferTagName],
+          },
+        },
+        { session },
+      )
+
+      const syncStatBlocks = syncTags.length > 0 ? syncTags.map((tag: any) => tag.lastSync) : [plugin.blockNumber]
+
+      const syncStatBlock = Math.max(...syncStatBlocks)
+
+      await Models.ConfigIndexer.deleteMany(
+        {
+          network: plugin.network,
+          service: {
+            $in: [delegationTagName, transferTagName],
+          },
+        },
+        { session },
+      )
+
+      await Models.ConfigIndexer.create(
+        {
+          network: plugin.network,
+          service: TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Default),
+          lastSync: syncStatBlock,
+        },
+        { session },
+      )
+
+      await session.commitTransaction()
+      await session.endSession()
+    })
   },
 }

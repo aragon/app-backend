@@ -6,12 +6,10 @@ import {
   type IWeb3TokenBalance,
   NetworksEnum,
 } from '@types'
-import { type Block, Contract, Interface, namehash, type TransactionReceipt } from 'ethers'
+import { type Block, Contract, Interface, type TransactionReceipt } from 'ethers'
 import logger from '@logger'
-import config from '@config'
 import { ERC20 } from '@artifacts/ERC20'
 import BottleneckModule from '@modules/bottleneck'
-import { ENSRegistry } from '@artifacts/ENSRegistry'
 import { retryRequest } from '@helpers/retryRequest'
 import ProviderModule from '@modules/provider'
 import { Multisig } from '@artifacts/Multisig'
@@ -186,36 +184,6 @@ const Web3Helper = {
     } catch (error) {
       logger.error('Error getTokenBalances', llo({ address, network, error }))
       return []
-    }
-  },
-
-  async ensSubdomainExists(ensName: string, network: NetworksEnum): Promise<boolean> {
-    if (!config.SUPPORTED_ENS_NETWORKS.includes(network as any)) {
-      return false
-    }
-
-    const provider = ProviderModule.getAnyRpcProvider(network)
-
-    try {
-      const ensContract = new Contract(config.CONTRACTS.ENS_REGISTRY, ENSRegistry.abi, provider)
-
-      const nameHashed = namehash(ensName)
-
-      const recordExists = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network).schedule(async () => ensContract.recordExists(nameHashed)),
-      )
-
-      return recordExists
-    } catch (error) {
-      logger.warn(
-        'Error ensSubdomainExists',
-        llo({
-          error,
-          ensName,
-          network,
-        }),
-      )
-      return false
     }
   },
 

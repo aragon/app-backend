@@ -8,6 +8,7 @@ import { ProxyToken } from '@modules/proxyToken'
 import utils from '@helpers/utils'
 import TokenUtils from '@helpers/tokenUtils'
 import PeaqProvider from '@modules/proxyProvider/peaqProvider'
+import ProxyUtils from '@modules/proxyProvider/utils'
 
 describe('PeaqProvider', () => {
   let sandbox: any
@@ -589,6 +590,148 @@ describe('PeaqProvider', () => {
         name: null,
         type: ITokenType.unknown,
       })
+    })
+  })
+
+  describe('getAllTokenHolders', () => {
+    it('should forward to SubscanApi.getAllTokenHolders with correct parameters and trigger callback', async () => {
+      // Arrange
+      const address = '0xtoken'
+      const network = NetworksEnum.peaqMainnet
+      const syncKey = 'test-sync-key'
+
+      const mockHolders = [
+        { address: '0xholder1', value: '100' },
+        { address: '0xholder2', value: '200' },
+      ]
+
+      const mockResponse = {
+        holders: mockHolders,
+        total: mockHolders.length,
+        hasMore: true,
+        lastPage: 1,
+      }
+
+      const mockCallback = sinon.stub()
+
+      // Set up stubs
+      const getProgressStub = sandbox.stub(ProxyUtils, 'getProgressFromConfigIndexer').resolves(null)
+      const updateProgressStub = sandbox.stub(ProxyUtils, 'updateProgressInConfigIndexer').resolves()
+
+      let capturedCallback: Function | undefined
+      const getAllTokenHoldersStub = sandbox
+        .stub(SubscanApi, 'getAllTokenHolders')
+        .callsFake(async (tokenAddr, net, opts, callback) => {
+          capturedCallback = callback
+
+          if (callback && typeof callback === 'function') {
+            await callback(mockHolders, {
+              currentPage: 0,
+              isLastPage: true,
+              total: mockHolders.length,
+            })
+          }
+
+          return mockResponse
+        })
+
+      // Act
+      const result = await PeaqProvider.getAllTokenHolders({
+        address,
+        network,
+        callback: mockCallback,
+        syncKey,
+      })
+
+      expect(getProgressStub.calledOnceWith(network, syncKey)).to.be.true
+      expect(getAllTokenHoldersStub.calledOnce).to.be.true
+      expect(getAllTokenHoldersStub.firstCall.args[0]).to.equal(address)
+      expect(getAllTokenHoldersStub.firstCall.args[1]).to.equal(network)
+
+      expect(capturedCallback).to.be.a('function')
+
+      expect(mockCallback.callCount).to.be.eq(2)
+      expect(mockCallback.firstCall.args[0]).to.deep.equal(mockHolders[0])
+
+      expect(result).to.deep.equal(mockResponse)
+      expect(updateProgressStub.calledOnce).to.be.true
+      expect(updateProgressStub.args[0][0]).to.equal(network)
+      expect(updateProgressStub.args[0][1]).to.equal(syncKey)
+      expect(updateProgressStub.args[0][2]).to.equal(0)
+      expect(updateProgressStub.args[0][3]).to.equal(true)
+    })
+
+    it('should return early when sync is already completed', async () => {
+      // Arrange
+      const address = '0xtoken'
+      const network = NetworksEnum.peaqMainnet
+      const syncKey = 'test-sync-key'
+      const syncProgress = { lastSync: 5, end: true }
+
+      const getProgressStub = sandbox.stub(ProxyUtils, 'getProgressFromConfigIndexer').resolves(syncProgress)
+      const getAllTokenHoldersStub = sandbox.stub(SubscanApi, 'getAllTokenHolders')
+
+      await PeaqProvider.getAllTokenHolders({
+        address,
+        network,
+        callback: () => {},
+        syncKey,
+      })
+
+      expect(getProgressStub.calledOnceWith(network, syncKey)).to.be.true
+      expect(getAllTokenHoldersStub.called).to.be.false
+    })
+
+    it('should continue from last page when sync was interrupted', async () => {
+      // Arrange
+      const address = '0xtoken'
+      const network = NetworksEnum.peaqMainnet
+      const syncKey = 'test-sync-key'
+      const syncProgress = { lastSync: 3, end: false }
+      const mockCallback = sinon.stub()
+      const mockResponse = {
+        holders: [],
+        total: 0,
+        hasMore: false,
+        lastPage: 4,
+      }
+
+      const getProgressStub = sandbox.stub(ProxyUtils, 'getProgressFromConfigIndexer').resolves(syncProgress)
+      const getAllTokenHoldersStub = sandbox.stub(SubscanApi, 'getAllTokenHolders').resolves(mockResponse)
+
+      // Act
+      const result = await PeaqProvider.getAllTokenHolders({
+        address,
+        network,
+        callback: mockCallback,
+        syncKey,
+      })
+
+      expect(getProgressStub.calledOnceWith(network, syncKey)).to.be.true
+      expect(getAllTokenHoldersStub.calledOnce).to.be.true
+      expect(getAllTokenHoldersStub.firstCall.args[2].startPage).to.equal(4)
+      expect(result).to.equal(mockResponse)
+    })
+
+    it('should handle errors gracefully', async () => {
+      const address = '0xtoken'
+      const network = NetworksEnum.peaqMainnet
+      const syncKey = 'test-sync-key'
+      const error = new Error('API error')
+
+      const getProgressStub = sandbox.stub(ProxyUtils, 'getProgressFromConfigIndexer').resolves(null)
+      const getAllTokenHoldersStub = sandbox.stub(SubscanApi, 'getAllTokenHolders').rejects(error)
+
+      const result = await PeaqProvider.getAllTokenHolders({
+        address,
+        network,
+        callback: () => {},
+        syncKey,
+      })
+
+      expect(getProgressStub.calledOnceWith(network, syncKey)).to.be.true
+      expect(getAllTokenHoldersStub.calledOnce).to.be.true
+      expect(loggerStub.calledOnce).to.be.true
     })
   })
 })
