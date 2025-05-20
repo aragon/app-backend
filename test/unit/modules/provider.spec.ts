@@ -27,6 +27,7 @@ describe('Module: provider', () => {
     expect(ProviderModule.networksMap.BASE_MAINNET).to.equal(NetworksEnum.baseMainnet)
     expect(ProviderModule.networksMap.ZKSYNC_SEPOLIA).to.equal(NetworksEnum.zksyncSepolia)
     expect(ProviderModule.networksMap.ZKSYNC_MAINNET).to.equal(NetworksEnum.zksyncMainnet)
+    expect(ProviderModule.networksMap.OPTIMISM_MAINNET).to.equal(NetworksEnum.optimismMainnet)
   })
 
   it('alchemyNetworksMap', () => {
@@ -37,6 +38,7 @@ describe('Module: provider', () => {
     expect(ProviderModule.alchemyNetworksMap[NetworksEnum.arbitrumMainnet]).to.equal(Network.ARB_MAINNET)
     expect(ProviderModule.alchemyNetworksMap[NetworksEnum.zksyncSepolia]).to.equal(Network.ZKSYNC_SEPOLIA)
     expect(ProviderModule.alchemyNetworksMap[NetworksEnum.zksyncMainnet]).to.equal(Network.ZKSYNC_MAINNET)
+    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.optimismMainnet]).to.equal(Network.OPT_MAINNET)
   })
 
   it('should correctly parseNetwork', () => {
@@ -60,6 +62,9 @@ describe('Module: provider', () => {
 
     const result7 = ProviderModule.parseNetwork('ZKSYNC_MAINNET')
     expect(result7).to.equal(NetworksEnum.zksyncMainnet)
+
+    const result8 = ProviderModule.parseNetwork('OPTIMISM_MAINNET')
+    expect(result8).to.equal(NetworksEnum.optimismMainnet)
   })
 
   it('should correctly parseAlchemyNetwork', () => {
