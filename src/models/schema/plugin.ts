@@ -242,6 +242,7 @@ export default class Plugin extends Model {
         $match: {
           daoAddress,
           network,
+          isSupported: true,
         },
       },
       {

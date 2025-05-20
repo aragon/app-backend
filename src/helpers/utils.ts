@@ -328,6 +328,75 @@ const Utils = {
   getUniqueValuesByKey(arr: Array<any>, columnKey: string) {
     return [...new Set(arr.map(item => item[columnKey]))]
   },
+  deepConvertToObject(result: any, visited = new WeakMap()): any {
+    if (result === null || result === undefined) {
+      return result
+    }
+
+    if (typeof result !== 'object') {
+      return result
+    }
+
+    if (visited.has(result)) {
+      return visited.get(result)
+    }
+    const placeholder = Array.isArray(result) ? [] : {}
+    visited.set(result, placeholder)
+
+    if (typeof result.toObject === 'function') {
+      try {
+        const converted = Utils.deepConvertToObject(result.toObject(), visited)
+        visited.set(result, converted)
+        return converted
+      } catch (error) {}
+    }
+
+    if (typeof result.toArray === 'function') {
+      try {
+        const converted = Utils.deepConvertToObject(result.toArray(), visited)
+        visited.set(result, converted)
+        return converted
+      } catch (error) {}
+    }
+
+    if (Array.isArray(result)) {
+      const array = result.map(item => Utils.deepConvertToObject(item, visited))
+      visited.set(result, array)
+      return array
+    }
+
+    const plainObject = {}
+
+    for (const key in result) {
+      if (typeof result[key] === 'function' || key.startsWith('_')) {
+        continue
+      }
+
+      if (Object.prototype.hasOwnProperty.call(result, key)) {
+        plainObject[key] = Utils.deepConvertToObject(result[key], visited)
+      }
+    }
+
+    const numericKeys = Object.keys(result).filter(key => !isNaN(parseInt(key, 10)))
+    if (Object.keys(plainObject).length === 0 && numericKeys.length > 0 && 'length' in result) {
+      const arr: any[] = []
+
+      numericKeys
+        .sort((a, b) => parseInt(a, 10) - parseInt(b, 10))
+        .forEach(key => {
+          const index = parseInt(key, 10)
+          if (index < result.length) {
+            arr[index] = Utils.deepConvertToObject(result[key], visited)
+          }
+        })
+
+      visited.set(result, arr)
+      return arr
+    }
+
+    visited.set(result, plainObject)
+    return plainObject
+  },
 }
 
 export default Utils

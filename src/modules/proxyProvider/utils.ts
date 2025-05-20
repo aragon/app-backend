@@ -1,0 +1,50 @@
+import type { NetworksEnum } from '@types'
+import DbTx from '@modules/dbTx'
+import { Models } from '@dbModels'
+
+const ProxyUtils = {
+  updateProgressInConfigIndexer: async (network: NetworksEnum, service: any, lastSync: number, finished: boolean) => {
+    await DbTx.executeTxFn(async ({ session }) => {
+      const existingConfig = await Models.ConfigIndexer.findExistingLog(
+        {
+          network,
+          service,
+        },
+        { session },
+      )
+
+      if (existingConfig) {
+        await existingConfig.update(
+          {
+            lastSync,
+            end: finished,
+          },
+          { session },
+        )
+      } else {
+        await Models.ConfigIndexer.create(
+          {
+            network,
+            service,
+            lastSync,
+            end: finished,
+          },
+          { session },
+        )
+      }
+    })
+  },
+
+  getProgressFromConfigIndexer: async (network: NetworksEnum, service: any) => {
+    const existingConfig = await Models.ConfigIndexer.findExistingLog({
+      network,
+      service,
+    })
+    if (existingConfig) {
+      return existingConfig
+    }
+    return null
+  },
+}
+
+export default ProxyUtils

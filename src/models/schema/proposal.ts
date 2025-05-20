@@ -357,8 +357,7 @@ export default class Proposal extends Model {
   }
 
   static getEntityId(params: IProposalIdParams) {
-    const entityId = `${params.transactionHash}-${params.pluginAddress}-${params.proposalIndex}`
-    return entityId
+    return `${params.transactionHash}-${params.pluginAddress}-${params.proposalIndex}`
   }
 
   static async findExistingLog(params: IProposalIdParams, tOpts?: SaveOptions) {
@@ -658,7 +657,7 @@ export default class Proposal extends Model {
           summary: 1,
           resources: 1,
           executed: 1,
-          actions: 1,
+          hasActions: AggregationQueryHelper.computeHasActions(),
           decoding: 1,
           stageExecutions: 1,
           results: 1,
@@ -960,11 +959,11 @@ export default class Proposal extends Model {
           summary: 1,
           resources: 1,
           executed: 1,
-          actions: 1,
+          hasActions: AggregationQueryHelper.computeHasActions(),
           decoding: 1,
-          media: 1,
           stageExecutions: 1,
           results: 1,
+          media: 1,
           settings: {
             $mergeObjects: [
               '$settings',
