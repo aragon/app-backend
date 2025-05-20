@@ -45,7 +45,14 @@ export interface IQueueVoteInfo {
   userAddress: string
 }
 
+export interface IQueueCanCreateProposal {
+  memberAddress: HexAddress
+  pluginAddress: HexAddress
+  network: NetworksEnum
+}
+
 export interface IQueueMemberBalanceInfo {
+  userAddress: HexAddress
   tokenAddress: HexAddress
   pluginAddress: HexAddress
   network: NetworksEnum
