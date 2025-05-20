@@ -50,6 +50,7 @@ export interface IConfig {
     ARBITRUM_MAINNET: IRawNodeConfig
     ZKSYNC_SEPOLIA: IRawNodeConfig
     ZKSYNC_MAINNET: IRawNodeConfig
+    OPTIMISM_MAINNET: IRawNodeConfig
     PEAQ_MAINNET: IRawNodeConfig
   }
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
