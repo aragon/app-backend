@@ -88,6 +88,21 @@ const ProposalController = {
       return false
     }
   },
+
+  getProposalDecodedActions: async (id: string): Promise<any> => {
+    const proposal = await Models.Proposal.findByEntityId(id)
+    assertExposable(proposal, ErrorKeyEnum.notFound)
+
+    if (!proposal.rawActions || proposal.rawActions.length === 0) {
+      return { actions: [], decoding: proposal.decoding }
+    }
+
+    return {
+      decoding: proposal.decoding,
+      actions: proposal.actions || [],
+      rawActions: proposal.rawActions || [],
+    }
+  },
 }
 
 export default ProposalController

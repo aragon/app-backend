@@ -16,6 +16,7 @@ export enum EnumQueueName {
   tokenInfo = 'token.info',
   proposalActions = 'proposal.actions',
   canCreateProposal = 'can.create.proposal',
+  pluginInstallationData = 'plugin.installation.data',
 }
 
 export interface IQueueAllMetrics {
@@ -44,14 +45,7 @@ export interface IQueueVoteInfo {
   userAddress: string
 }
 
-export interface IQueueCanCreateProposal {
-  memberAddress: HexAddress
-  pluginAddress: HexAddress
-  network: NetworksEnum
-}
-
 export interface IQueueMemberBalanceInfo {
-  userAddress: HexAddress
   tokenAddress: HexAddress
   pluginAddress: HexAddress
   network: NetworksEnum

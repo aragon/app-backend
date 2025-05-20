@@ -10,6 +10,7 @@ import TransactionRouter from './transaction'
 import DelegateRouter from './delegate'
 import VoteRouter from '@api/routers/vote'
 import ContractRouter from '@api/routers/contract'
+import PluginRouter from '@api/routers/plugins'
 
 const MainRouter = {
   router() {
@@ -24,6 +25,7 @@ const MainRouter = {
     const delegateRouter = DelegateRouter.router()
     const voteRouter = VoteRouter.router()
     const contractRouter = ContractRouter.router()
+    const pluginRouter = PluginRouter.router()
 
     const mainRouter = new Router()
 
@@ -40,6 +42,7 @@ const MainRouter = {
     mainRouter.use('/delegates', delegateRouter.routes(), delegateRouter.allowedMethods())
     mainRouter.use('/votes', voteRouter.routes(), voteRouter.allowedMethods())
     mainRouter.use('/contract', contractRouter.routes(), contractRouter.allowedMethods())
+    mainRouter.use('/plugins', pluginRouter.routes(), pluginRouter.allowedMethods())
 
     return mainRouter
   },

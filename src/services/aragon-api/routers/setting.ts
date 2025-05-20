@@ -40,30 +40,46 @@ const SettingRouter = {
   getActiveSettingByDaoId: async function (ctx: RouterContext) {
     const params = {
       id: ctx.params.daoId,
+      pluginAddress: ctx.query.pluginAddress as HexAddress,
     }
-    const anyInvalidParams = Utils.extractAdditionalParams({}, ctx.query)
+    const anyInvalidParams = Utils.extractAdditionalParams(
+      {
+        pluginAddress: ctx.query.pluginAddress,
+      },
+      ctx.query,
+    )
 
     const [formattedValues] = await Promise.all([
       ValidationSchema.validateParams(SettingSchema.getDaoById, params),
       ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
     ])
 
-    ctx.body = await SettingController.getActiveSettingByDaoId(formattedValues.id)
+    ctx.body = await SettingController.getActiveSettingByDaoId(formattedValues.id, formattedValues.pluginAddress)
   },
 
   getActiveSettingByDaoAddress: async function (ctx: RouterContext) {
     const params = {
       network: ctx.params.network as NetworksEnum,
       daoAddress: ctx.params.daoAddress,
+      pluginAddress: ctx.query.pluginAddress as HexAddress,
     }
-    const anyInvalidParams = Utils.extractAdditionalParams({}, ctx.query)
+    const anyInvalidParams = Utils.extractAdditionalParams(
+      {
+        pluginAddress: ctx.query.pluginAddress,
+      },
+      ctx.query,
+    )
 
     const [formattedValues] = await Promise.all([
       ValidationSchema.validateParams(SettingSchema.getSettingByDaoAddress, params),
       ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
     ])
 
-    ctx.body = await SettingController.getActiveSettingByDaoAddress(formattedValues.daoAddress, formattedValues.network)
+    ctx.body = await SettingController.getActiveSettingByDaoAddress(
+      formattedValues.daoAddress,
+      formattedValues.network,
+      formattedValues.pluginAddress,
+    )
   },
 
   router() {
