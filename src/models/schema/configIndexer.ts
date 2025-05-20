@@ -4,7 +4,7 @@ import * as _ from 'lodash'
 import { ICollectionNames, type IConfigIndexerIdParams, NetworksEnum } from '@types'
 import { assert } from '@errors'
 
-const customName = ICollectionNames.ConfigIndexer1
+const customName = ICollectionNames.ConfigIndexer
 
 @modelOptions({
   schemaOptions: {
