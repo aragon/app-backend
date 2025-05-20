@@ -28,6 +28,7 @@ const ProviderModule = {
     [NetworksEnum.arbitrumMainnet]: Network.ARB_MAINNET,
     [NetworksEnum.zksyncSepolia]: Network.ZKSYNC_SEPOLIA,
     [NetworksEnum.zksyncMainnet]: Network.ZKSYNC_MAINNET,
+    [NetworksEnum.optimismMainnet]: Network.OPT_MAINNET,
   },
 
   // Maps raw config keys to your NetworksEnum.
@@ -39,6 +40,7 @@ const ProviderModule = {
     ARBITRUM_MAINNET: NetworksEnum.arbitrumMainnet,
     ZKSYNC_SEPOLIA: NetworksEnum.zksyncSepolia,
     ZKSYNC_MAINNET: NetworksEnum.zksyncMainnet,
+    OPTIMISM_MAINNET: NetworksEnum.optimismMainnet,
     PEAQ_MAINNET: NetworksEnum.peaqMainnet,
   },
 

@@ -139,6 +139,7 @@ describe('Helpers:Utils', () => {
       'arbitrum-mainnet': 'ARBITRUM_MAINNET',
       'zksync-sepolia': 'ZKSYNC_SEPOLIA',
       'zksync-mainnet': 'ZKSYNC_MAINNET',
+      'optimism-mainnet': 'OPTIMISM_MAINNET',
       'peaq-mainnet': 'PEAQ_MAINNET',
     }
 
