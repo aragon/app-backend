@@ -6,6 +6,8 @@ import { assert } from '@errors'
 
 const customName = ICollectionNames.ConfigIndexer
 
+if (a === 'a') true
+
 @modelOptions({
   schemaOptions: {
     id: false,
