@@ -12,9 +12,9 @@
 </p>
 <br/>
 
-## Aragon App Backend
+## AragonX App Backend
 
-The Aragon App Backend is a core component of the Aragon ecosystem, designed to index data from blockchain events, emitted by Aragon smart contracts. It provides an API service that enables fast and easy access to this data, facilitating efficient data retrieval for Aragon App and external applications.
+The AragonX App Backend is a core component of the Aragon ecosystem, designed to index data from blockchain events, emitted by Aragon smart contracts. It provides an API service that enables fast and easy access to this data, facilitating efficient data retrieval for Aragon App and external applications.
 
 ## Prerequisites
 
