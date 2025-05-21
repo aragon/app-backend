@@ -45,6 +45,6 @@ describe('Router: Vote', () => {
     ).to.be.true
 
     expect(stubCtrl.calledOnceWith(ctx.query)).to.be.true
-    expect(ctx.body).to.eq(true)
+    expect(ctx.body.status).to.eq(true)
   })
 })

@@ -40,6 +40,6 @@ describe('Router: Member', () => {
     expect(validateParamsStub.calledWith(PaginationSchema.getNotAllowedParams, {})).to.be.true
 
     expect(stubCtrl.calledOnceWith(params.memberAddress, params.pluginAddress)).to.be.true // Ensure the controller is called correctly
-    expect(ctx.body).to.eq(true)
+    expect(ctx.body.status).to.eq(true)
   })
 })
