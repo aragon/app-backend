@@ -1,9 +1,8 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-
-import MemberRouter from '@services/aragon-api/routers/member'
-import MemberController from '@services/aragon-api/controllers/member'
+import MemberRouter from '@api/routers/v1/member'
+import MemberController from '@api/controllers/member'
 import { NetworksEnum } from '@types'
 import { getAddress } from 'ethers'
 import MemberSchema from '@api/routers/schema/member'
