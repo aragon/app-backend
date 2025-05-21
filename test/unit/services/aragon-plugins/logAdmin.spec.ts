@@ -102,8 +102,8 @@ describe('AragonPlugins: LogAdmin', () => {
           permissionId: '0xf281525e53675515a6ba7cc7bea8a81e649b3608423ee2d73be1752cea887889',
           event: 'Granted',
           where: '0xdao',
-          who: '0xplugin'
-        }
+          who: '0xplugin',
+        },
       } as any)
 
       const txInfoLog = {
