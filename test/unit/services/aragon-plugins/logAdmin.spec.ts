@@ -98,17 +98,24 @@ describe('AragonPlugins: LogAdmin', () => {
 
       const parseLogStub = sandbox.stub(Web3Utils, 'parseLog').returns({
         name: 'Granted',
+        args: {
+          permissionId: '0xf281525e53675515a6ba7cc7bea8a81e649b3608423ee2d73be1752cea887889',
+          event: 'Granted',
+          where: '0xdao',
+          who: '0xplugin',
+        },
       } as any)
 
       const txInfoLog = {
         transactionHash: '0x123',
+        address: '0xplugin',
         transactionIndex: 1,
         network: NetworksEnum.ethereumSepolia,
       }
 
       const parseInfoLogStub = sandbox.stub(Web3Utils, 'parseInfoLog').returns(txInfoLog as any)
 
-      const handleGrantOnDaoStub = sandbox.stub(PermissionHandler, 'handleGrantOnDao').resolves()
+      const handleAdminSupportedStub = sandbox.stub(PermissionHandler, 'handleForAdminPlugin').resolves()
       const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
 
       await LogAdmin._syncAdminMember(plugin)
@@ -117,9 +124,11 @@ describe('AragonPlugins: LogAdmin', () => {
       expect(getTransactionReceiptStub.calledWith(plugin.transactionHash, plugin.network)).to.be.true
       expect(parseLogStub.calledOnce).to.be.true
       expect(parseInfoLogStub.calledOnce).to.be.true
-      expect(handleGrantOnDaoStub.calledOnce).to.be.true
-      expect(handleGrantOnDaoStub.args[0][0]).to.deep.eq({ name: 'Granted' })
-      expect(handleGrantOnDaoStub.args[0][1]).to.be.eq(txInfoLog)
+      expect(handleAdminSupportedStub.calledOnce).to.be.true
+      expect(handleAdminSupportedStub.args[0][0]).to.be.eq('0xplugin')
+      expect(handleAdminSupportedStub.args[0][1]).to.be.eq('0xdao')
+      expect(handleAdminSupportedStub.args[0][2]).to.be.eq(plugin.network)
+      expect(handleAdminSupportedStub.args[0][3]).to.be.eq('0xplugin')
       expect(isSupportedStub.calledOnce).to.be.true
     })
   })
