@@ -12,7 +12,7 @@ import { PermissionHandler } from '@handlers/permissionHandler'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import Web3Utils from '@helpers/web3Utils'
 
-describe.only('AragonPlugins: LogAdmin', () => {
+describe('AragonPlugins: LogAdmin', () => {
   let sandbox: SinonSandbox
   let verboseStub: sinon.SinonStub
 
