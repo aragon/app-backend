@@ -4,7 +4,7 @@ import { expect } from 'chai'
 import Koa from 'koa'
 import supertest from 'supertest'
 import MainMiddleware from '@src/middlewares'
-import MainRouter from '@api/routers'
+import MainRouter from '@api/routers/v1'
 import JwtHelper from '@helpers/jwt'
 import { ErrorKeyEnum } from '@types'
 

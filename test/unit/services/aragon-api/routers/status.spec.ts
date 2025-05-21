@@ -1,8 +1,8 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import StatusRouter from '@services/aragon-api/routers/status'
-import StatusController from '@services/aragon-api/controllers/status'
+import StatusRouter from '@api/routers/status'
+import StatusController from '@api/controllers/status'
 import { NetworksEnum } from '@types'
 
 describe('Router: Status', () => {

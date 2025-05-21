@@ -2,7 +2,14 @@ import { type ENS, type HexAddress, type NetworksEnum } from './networks'
 import { type ITokenType } from '@src/types/token'
 import { type IActionMetadata } from '@src/types/proposalAction'
 import { type ITransferSide, type ITransferType } from '@src/types/transfer'
-import { type IPluginInterfaceType, type IReportResultType } from '@src/types/plugin'
+import { type IReportResultType } from '@src/types/plugin'
+import type Router from '@koa/router'
+
+export interface VersionedRouter {
+  v1: Router
+  v2?: Router
+  latest: Router
+}
 
 export interface IStatusResponse {
   status: string
