@@ -7,3 +7,6 @@
 .env.*
 .idea
 .DS_Store
+environments
+aws-new
+remote

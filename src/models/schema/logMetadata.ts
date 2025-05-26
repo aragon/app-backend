@@ -1,5 +1,12 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, ICollectionNames, type ILogMetadataIdParams, IMetadataType, NetworksEnum } from '@types'
+import {
+  HexAddress,
+  ICollectionNames,
+  type ILogMetadataIdParams,
+  IMetadataTargetField,
+  IMetadataType,
+  NetworksEnum,
+} from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
@@ -142,7 +149,11 @@ export default class LogMetadata extends Model {
     return await this.model(customName).findById(this._id, tOpts)
   }
 
-  static async getLatestMetadata(network: NetworksEnum, address: HexAddress, key: string = 'pluginAddress') {
+  static async getLatestMetadata(
+    network: NetworksEnum,
+    address: HexAddress,
+    key: string = IMetadataTargetField.pluginAddress,
+  ) {
     const response = await this.aggregate([
       {
         $match: {

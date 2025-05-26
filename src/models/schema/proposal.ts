@@ -8,6 +8,7 @@ import {
   type IProposalExtraParams,
   type IProposalIdParams,
   type IProposalsResponse,
+  IReportResultType,
   NetworksEnum,
 } from '@types'
 import { Model, type SaveOptions, Schema } from 'mongoose'
@@ -19,6 +20,23 @@ import { Stages } from '@models/schema/setting'
 import { Models } from '@dbModels'
 
 const customName = ICollectionNames.Proposal
+
+export class ExternalBodyResult {
+  @prop({ type: () => String, required: true })
+  public pluginAddress!: HexAddress
+
+  @prop({ type: () => Number, enum: IReportResultType, required: true })
+  public resultType!: IReportResultType
+
+  @prop({ type: () => Number, required: true })
+  public stage!: number
+
+  @prop({ type: () => String, required: true })
+  public transactionHash!: HexAddress
+
+  @prop({ type: () => Number })
+  public blockNumber!: number
+}
 
 export class SubProposal {
   @prop({ type: () => String })
@@ -320,6 +338,9 @@ export default class Proposal extends Model {
   @prop({ type: () => [StageExecuted], _id: false })
   public stageExecutions!: StageExecuted[]
 
+  @prop({ type: () => [ExternalBodyResult], _id: false, default: [] })
+  public results!: ExternalBodyResult[]
+
   static async create(rawData: Partial<Proposal>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
@@ -336,8 +357,7 @@ export default class Proposal extends Model {
   }
 
   static getEntityId(params: IProposalIdParams) {
-    const entityId = `${params.transactionHash}-${params.pluginAddress}-${params.proposalIndex}`
-    return entityId
+    return `${params.transactionHash}-${params.pluginAddress}-${params.proposalIndex}`
   }
 
   static async findExistingLog(params: IProposalIdParams, tOpts?: SaveOptions) {
@@ -637,9 +657,10 @@ export default class Proposal extends Model {
           summary: 1,
           resources: 1,
           executed: 1,
-          actions: 1,
+          hasActions: AggregationQueryHelper.computeHasActions(),
           decoding: 1,
           stageExecutions: 1,
+          results: 1,
           media: 1,
           settings: {
             $mergeObjects: [
@@ -938,10 +959,11 @@ export default class Proposal extends Model {
           summary: 1,
           resources: 1,
           executed: 1,
-          actions: 1,
+          hasActions: AggregationQueryHelper.computeHasActions(),
           decoding: 1,
-          media: 1,
           stageExecutions: 1,
+          results: 1,
+          media: 1,
           settings: {
             $mergeObjects: [
               '$settings',

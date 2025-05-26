@@ -11,6 +11,7 @@ import { ProxyMember } from '@modules/proxyMember'
 import DbOperations from '@models/utils/dbOperations'
 import Utils from '@helpers/utils'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import EnsHelper from '@helpers/ens'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:DaoRegistryHandler' })
 
@@ -18,6 +19,7 @@ export const DaoRegistryHandler = {
   daoRegistered: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const { network, transactionHash, blockNumber } = info
     const daoAddress = parsedEvent.args.dao
+    const subdomain = parsedEvent.args.subdomain
 
     const existingLog = await Models.Dao.findExistingLog({
       network,
@@ -26,7 +28,8 @@ export const DaoRegistryHandler = {
     if (existingLog) return
 
     const implementationAddress = await ProxyContractHelper.getImplementationAddress(daoAddress, network)
-    const isValid = await Web3Helper.ensSubdomainExists(parsedEvent.args.subdomain, network)
+    const validSubdomain = Utils.validateString(subdomain)
+    const ens = validSubdomain ? await EnsHelper.getDaoEns({ daoAddress, subdomain: validSubdomain }) : null
 
     const document = {
       network,
@@ -38,8 +41,8 @@ export const DaoRegistryHandler = {
       blockTimestamp: (await Web3Helper.getBlockTimestamp(blockNumber, network)) || undefined,
       address: daoAddress,
       implementationAddress: implementationAddress!,
-      ens: isValid ? Web3Utils.parseSubdomainToEns(parsedEvent.args.subdomain) : null,
-      subdomain: Utils.validateString(parsedEvent.args.subdomain),
+      ens,
+      subdomain: validSubdomain,
       version: await Web3Helper.getDaoOsVersion(daoAddress, network),
       creatorAddress: parsedEvent.args.creator,
     }
@@ -123,5 +126,38 @@ export const DaoRegistryHandler = {
 
     const infoMetadata = Web3Utils.parseInfoLog(metadataLogs[0].txLog, 'MetadataSet', info.network)
     await MetadataHandler.metadataSet(metadataLogs[0].parsed!, infoMetadata)
+  },
+
+  handleVersionUpgrade: async (daoAddress: HexAddress, info: Partial<ILogInfo>) => {
+    const [daoDb, txReceipt] = await Promise.all([
+      Models.Dao.findByAddress(daoAddress, info.network),
+      Web3Helper.getTransactionReceipt(info.transactionHash!, info.network!),
+    ])
+
+    if (!daoDb || !txReceipt) {
+      logger.warn('Dao not found or tx receipt not found', llo(info))
+      return
+    }
+
+    const versionUpgradeLogs = Web3Utils.findLogsByName(txReceipt, 'Upgraded', DAO.abi)
+    const daoUpgradeLog = versionUpgradeLogs.find(event => event.txLog.address === daoAddress)
+    if (!daoUpgradeLog) {
+      return
+    }
+
+    const newImplementationAddress = daoUpgradeLog.parsed!.args.implementation
+    const newVersion = await Web3Helper.getDaoOsVersion(newImplementationAddress, info.network!)
+
+    if (!newVersion || newVersion === daoDb.version || daoDb.implementationAddress === newImplementationAddress) {
+      return
+    }
+
+    await DbOperations.updateDocument(
+      daoDb,
+      { version: newVersion, implementationAddress: newImplementationAddress },
+      info,
+      'DaoVersion Upgraded',
+      llo,
+    )
   },
 }

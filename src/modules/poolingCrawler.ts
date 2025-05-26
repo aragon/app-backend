@@ -1,7 +1,6 @@
 import { ethers, Interface, type Log } from 'ethers'
 import { DAO } from '@artifacts/dao'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
-import { ERC721 } from '@artifacts/ERC721'
 import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
@@ -15,7 +14,6 @@ const llo = logger.logMeta.bind(null, { service: 'module:PoolingFilter' })
 
 const daoInterface = new Interface(DAO.abi)
 const govTokenInterface = new Interface(GovernanceERC20.abi)
-const erc721Interface = new Interface(ERC721.abi)
 
 const nativeTokenDepositedTopic = daoInterface.getEvent('NativeTokenDeposited')?.topicHash!
 const transferTopic = govTokenInterface.getEvent('Transfer')?.topicHash!
@@ -47,6 +45,11 @@ const PoolingCrawler = {
     }
   },
 
+  _getUniqueArrayItems: (array: any[]) => {
+    const uniqueArray = new Set(array)
+    return Array.from(uniqueArray)
+  },
+
   async filterLogs(logs: Log[], network: NetworksEnum) {
     try {
       const topicsToFilterOut = new Set([nativeTokenDepositedTopic, transferTopic, delegateVotesChangedTopic])
@@ -70,19 +73,33 @@ const PoolingCrawler = {
       }
 
       const transferLogCache = new Map<Log, string | null>()
+
       const getDecodedTransferAddresses = (logs: Log[]): string[] =>
         logs
-          .map(log =>
-            transferLogCache.has(log)
-              ? transferLogCache.get(log)
-              : transferLogCache.set(log, PoolingCrawler._decodeTransferLogs(log)) && transferLogCache.get(log),
-          )
+          .map(log => {
+            if (transferLogCache.has(log)) return transferLogCache.get(log)
+            const address = PoolingCrawler._getReceiverAddress(log)
+            if (!address) return false
+            transferLogCache.set(log, address)
+            return transferLogCache.get(log)
+          })
           .filter(Boolean) as string[]
 
-      const tokenTransferReceiverAddresses = getDecodedTransferAddresses(transferLogs)
-      const nativeTransferReceiverAddresses = nativeTokenDepositedLogs.map(log => ethers.getAddress(log.address))
-      const delegateVotesChangedTokenAddresses = delegateVotesChangedLogs.map(log => ethers.getAddress(log.address))
-      const transferTokenAddresses = transferLogs.map(log => ethers.getAddress(log.address))
+      const tokenTransferReceiverAddresses = PoolingCrawler._getUniqueArrayItems(
+        getDecodedTransferAddresses(transferLogs),
+      )
+
+      const nativeTransferReceiverAddresses = PoolingCrawler._getUniqueArrayItems(
+        nativeTokenDepositedLogs.map(log => ethers.getAddress(log.address)),
+      )
+
+      const delegateVotesChangedTokenAddresses = PoolingCrawler._getUniqueArrayItems(
+        delegateVotesChangedLogs.map(log => ethers.getAddress(log.address)),
+      )
+
+      const transferTokenAddresses = PoolingCrawler._getUniqueArrayItems(
+        transferLogs.map(log => ethers.getAddress(log.address)),
+      )
 
       const [daoAddresses, tokenAddresses] = await Promise.all([
         Models.Dao.distinct('address', {
@@ -121,18 +138,13 @@ const PoolingCrawler = {
     }
   },
 
-  _decodeTransferLogs: (log: Log) => {
-    let decoded: any = null
+  _getReceiverAddress: (log: Log) => {
     try {
-      decoded = govTokenInterface.parseLog(log)
-    } catch (e) {
-      try {
-        decoded = erc721Interface.parseLog(log)
-      } catch (e) {
-        // skip
+      if (log.topics.length === 3) {
+        return ethers.getAddress(`0x${log.topics[2].slice(-40)}`)
       }
-    }
-    return decoded ? decoded.args.to : null
+    } catch (error) {}
+    return null
   },
 }
 

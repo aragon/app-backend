@@ -4,11 +4,12 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Plugin from '@models/schema/plugin'
 import configIndexer from '@indexer/configIndexer'
 import { DAO } from '@artifacts/dao'
-import { Interface } from 'ethers'
+import { Interface, ethers } from 'ethers'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import { PermissionHandler } from '@src/handlers/permissionHandler'
 import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
+import { IPermission } from '@src/types/permission'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogAdmin' })
 
@@ -67,7 +68,13 @@ export const LogAdmin = {
       const iFace = new Interface(DAO.abi)
       const event = Web3Utils.parseLog(log, iFace)!
       const info = Web3Utils.parseInfoLog(log, event.name, plugin.network)
-      await PermissionHandler.handleGrantOnDao(event, info)
+
+      const permissionId = event.args.permissionId
+      const permissionToCheck = ethers.id(IPermission.EXECUTE_PROPOSAL_PERMISSION)
+
+      if (permissionToCheck === permissionId) {
+        await PermissionHandler.handleForAdminPlugin(info.address, event.args.where, info.network, event.args.who)
+      }
     }
 
     await PluginSettingHandler.isSupported(plugin, {

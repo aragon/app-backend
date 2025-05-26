@@ -100,3 +100,15 @@ export interface IMemberTokenInfo {
   votingPower: string
   currentDelegate: HexAddress | null
 }
+
+export enum IClockMode {
+  BlockNumber = 'blocknumber',
+  Timestamp = 'timestamp',
+}
+
+export enum TokenSyncTagName {
+  Default = 'default',
+  Delegation = 'delegation-event',
+  Transfer = 'transfer-event',
+  TokenHolders = 'token-holders',
+}

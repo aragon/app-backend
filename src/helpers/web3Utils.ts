@@ -1,5 +1,4 @@
 import {
-  type ENS,
   type HexAddress,
   type ILogInfo,
   type IMetadata,
@@ -395,10 +394,6 @@ const Web3Utils = {
       return
     }
     return '0x' + number?.toString(16)
-  },
-
-  parseSubdomainToEns(subdomain: string): ENS | undefined {
-    return `${subdomain}.${config.ENS_DOMAIN}` as ENS
   },
 }
 

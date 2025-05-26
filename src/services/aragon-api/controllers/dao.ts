@@ -18,21 +18,25 @@ const DaoController = {
   ): Promise<IPaginatedResult<IDaoResponse>> => {
     paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
     const extraQueryData = await PairDataModule.pairExtraQueryData(extraParams)
-    const result = await Models.Dao.findWithPagination({ extraParams, paginationParams, extraQueryData })
-
-    return result
+    return await Models.Dao.findWithPagination({ extraParams, paginationParams, extraQueryData })
   },
 
   getDaoById: async (id: string): Promise<IDaoResponse> => {
     const dao = await Models.Dao.findByEntityId(id)
     assertExposable(dao, ErrorKeyEnum.notFound)
-    return await Models.Dao.getDaoDetails(dao.address)
+    return await Models.Dao.getDaoDetails(dao.address, dao.network)
   },
 
   getDaoByAddress: async (address: HexAddress, network: NetworksEnum): Promise<IDaoResponse> => {
     const dao = await Models.Dao.findByAddress(address, network)
     assertExposable(dao, ErrorKeyEnum.notFound)
-    return await Models.Dao.getDaoDetails(dao.address)
+    return await Models.Dao.getDaoDetails(dao.address, dao.network)
+  },
+
+  getDaoByEns: async (ens: string, network: NetworksEnum): Promise<IDaoResponse> => {
+    const dao = await Models.Dao.findOne({ ens, network, isHidden: { $ne: true }, isActive: { $eq: true } })
+    assertExposable(dao, ErrorKeyEnum.notFound)
+    return await Models.Dao.getDaoDetails(dao.address, dao.network)
   },
 
   getDaosByMember: async (paginationParams: IPaginationParams = {}, extraParams: IDaoExtraParams = {}) => {
@@ -52,13 +56,11 @@ const DaoController = {
       .map(m => m.daoAddress)
       .filter((daoAddress: HexAddress) => daoAddress !== extraParams?.excludedDao?.daoAddress)
 
-    const result = await Models.Dao.findWithPagination({
+    return await Models.Dao.findWithPagination({
       extraParams,
       paginationParams,
       extraQueryData: { daoAddresses },
     })
-
-    return result
   },
 }
 

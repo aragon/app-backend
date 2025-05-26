@@ -6,6 +6,8 @@ import logger from '@logger'
 import RabbitMQ from '@modules/rabbitMQ'
 import { EnumQueueName } from '@types'
 import proxyquire from 'proxyquire'
+import { ConfirmChannel } from 'amqplib'
+import Utils from '@helpers/utils'
 
 describe('Modules: RabbitMQ', () => {
   let sandbox: SinonSandbox
@@ -36,6 +38,7 @@ describe('Modules: RabbitMQ', () => {
         'amqp-connection-manager': { connect: connectStub },
       }).default
 
+      const startNoopIntervalStub = sandbox.stub(RabbitMQWrapper, 'startNoopInterval')
       // Simulate the 'connect' event being emitted
       setTimeout(() => {
         connectionStub.on.getCall(0).args[1]()
@@ -46,10 +49,17 @@ describe('Modules: RabbitMQ', () => {
       expect(RabbitMQWrapper.channelsMap.size).to.eq(Object.values(EnumQueueName).length)
       expect(
         connectStub.calledOnceWith([config.RABBITMQ.URI], {
-          heartbeatIntervalInSeconds: 10,
-          reconnectTimeInSeconds: 5,
+          heartbeatIntervalInSeconds: config.RABBITMQ.HEARTBEAT_INTERVAL_SECONDS,
+          reconnectTimeInSeconds: config.RABBITMQ.RECONNECT_TIME_SECONDS,
+          connectionOptions: {
+            noDelay: true,
+            keepAlive: true,
+            keepAliveDelay: 60000,
+            timeout: 10000,
+          },
         }),
       ).to.be.true
+      expect(startNoopIntervalStub.calledOnce).to.be.true
     })
 
     it('should handle disconnection and log an error', async () => {
@@ -145,6 +155,87 @@ describe('Modules: RabbitMQ', () => {
 
       expect(mockLoggerWarn.calledWith('Error closing RabbitMQ connection' as any)).to.be.true
       expect(RabbitMQ.connection).to.be.null
+    })
+  })
+
+  describe('startNoopInterval', () => {
+    it('should create an interval and perform noop operations', async () => {
+      const oldConfig = config.RABBITMQ.HEARTBEAT_INTERVAL_SECONDS
+
+      config.RABBITMQ.HEARTBEAT_INTERVAL_SECONDS = 1
+      const intervalMs = (config.RABBITMQ.HEARTBEAT_INTERVAL_SECONDS * 1000) / 2
+      const addSetupStub = sandbox.stub().resolves()
+      const checkQueueStub = sandbox.stub().resolves()
+      const mockChannel = {
+        addSetup: addSetupStub,
+      } as unknown as ChannelWrapper
+
+      const mockConfirmChannel = {
+        checkQueue: checkQueueStub,
+      } as unknown as ConfirmChannel
+
+      // Set up channelsMap with a test channel
+      RabbitMQ.channelsMap.set(EnumQueueName.contractInfo, mockChannel)
+
+      sandbox.stub(logger, 'info')
+
+      RabbitMQ.startNoopInterval()
+      await Utils.wait(intervalMs)
+
+      expect(RabbitMQ.noopInterval).to.not.be.null
+      // Verify that checkQueue is called via addSetup
+      expect(addSetupStub.calledOnce).to.be.true
+      const setupFn = addSetupStub.getCall(0).args[0]
+      await setupFn(mockConfirmChannel, () => {})
+      expect(checkQueueStub.calledOnceWith(EnumQueueName.contractInfo)).to.be.true
+      config.RABBITMQ.HEARTBEAT_INTERVAL_SECONDS = oldConfig
+    })
+
+    it('should handle errors during noop operation', async () => {
+      const oldConfig = config.RABBITMQ.HEARTBEAT_INTERVAL_SECONDS
+      config.RABBITMQ.HEARTBEAT_INTERVAL_SECONDS = 1
+      const intervalMs = (config.RABBITMQ.HEARTBEAT_INTERVAL_SECONDS * 1000) / 2
+      const errorStub = sandbox.stub(logger, 'error')
+      sandbox.stub(logger, 'info')
+      const mockChannel = {
+        addSetup: sandbox.stub().rejects(new Error('Noop error')),
+      } as unknown as ChannelWrapper
+
+      RabbitMQ.channelsMap.set(EnumQueueName.contractInfo, mockChannel)
+
+      RabbitMQ.startNoopInterval()
+
+      await Utils.wait(intervalMs)
+
+      expect(errorStub.calledOnce).to.be.true
+      expect(errorStub.calledWith('Noop operation failed' as any)).to.be.true
+      config.RABBITMQ.HEARTBEAT_INTERVAL_SECONDS = oldConfig
+    })
+
+    it('should clear existing interval before creating a new one', () => {
+      sandbox.stub(logger, 'info')
+
+      RabbitMQ.noopInterval = setInterval(() => {}, 1000) as unknown as NodeJS.Timeout
+
+      RabbitMQ.startNoopInterval()
+
+      expect(RabbitMQ.noopInterval).to.be.not.eq(null)
+
+      RabbitMQ.stopNoopInterval()
+    })
+  })
+
+  describe('stopNoopInterval', () => {
+    it('should clear interval and log verbose message', () => {
+      RabbitMQ.noopInterval = setInterval(() => {}, 1000) as unknown as NodeJS.Timeout
+
+      const verboseStub = sandbox.stub(logger, 'verbose')
+      RabbitMQ.noopInterval = {} as NodeJS.Timeout
+
+      RabbitMQ.stopNoopInterval()
+
+      expect(RabbitMQ.noopInterval).to.be.null
+      expect(verboseStub.calledWith('Stopped noop interval' as any)).to.be.true
     })
   })
 })

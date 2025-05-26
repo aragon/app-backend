@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import logger from '@logger'
-import { IPluginInterfaceType, ISettingStatus, ITokenType, NetworksEnum } from '@types'
+import { VotingBodyBrandIdentity, IPluginInterfaceType, ISettingStatus, ITokenType, NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import { Models } from '@dbModels'
@@ -11,6 +11,7 @@ import { ProxyToken } from '@modules/proxyToken'
 import DbOperations from '@models/utils/dbOperations'
 import MultisigHelper from '@helpers/multisig'
 import Web3Utils from '@helpers/web3Utils'
+import PluginDetector from '@helpers/pluginDetector'
 
 describe('Indexer: PluginSettingHandler', () => {
   let sandbox: SinonSandbox
@@ -636,6 +637,69 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(pairSppPluginsStub.calledOnce).to.be.true
       expect(isSupportedStub.calledOnce).to.be.true
       expect(result).to.deep.equal(plugin)
+    })
+
+    it('should detect and add address type to plugins in SPP stages', async () => {
+      const parsedEvent = {
+        args: {
+          stages: [
+            {
+              minAdvance: 10,
+              maxAdvance: 20,
+              approvalThreshold: 50,
+              vetoThreshold: 60,
+              cancelable: true,
+              plugins: [
+                { pluginAddress: '0xsafe-address', isManual: false, allowedBody: true, proposalType: 1 },
+                { pluginAddress: '0xeoa-address', isManual: true, allowedBody: false, proposalType: 2 },
+                { pluginAddress: '0xother-address', isManual: false, allowedBody: true, proposalType: 3 },
+              ],
+            },
+          ],
+        },
+      } as any
+
+      const info = {
+        address: '0xplugin',
+        transactionHash: '0x123',
+        blockNumber: 1,
+        network: NetworksEnum.ethereumMainnet,
+      } as any
+
+      const plugin = {
+        address: '0xplugin',
+        daoAddress: '0xdao',
+        subdomain: 'sub.plugin',
+        tokenAddress: '0xtoken',
+      } as any
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin)
+      sandbox.stub(Models.Setting, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findActive').resolves(null)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1620000000)
+      sandbox.stub(Models.LogMetadata, 'getLatestMetadata').resolves(null)
+
+      const detectAddressTypeStub = sandbox.stub(PluginDetector, 'detectAddressType')
+      detectAddressTypeStub.withArgs('0xsafe-address', info.network).resolves(VotingBodyBrandIdentity.SAFE)
+      detectAddressTypeStub.withArgs('0xeoa-address', info.network).resolves(VotingBodyBrandIdentity.EOA)
+      detectAddressTypeStub.withArgs('0xother-address', info.network).resolves(VotingBodyBrandIdentity.OTHER)
+
+      const createDocumentStub = sandbox.stub(DbOperations, 'createDocument')
+      sandbox.stub(PluginSettingHandler, 'pairSppPlugins').resolves()
+      sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
+
+      await PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)
+
+      expect(detectAddressTypeStub.callCount).to.equal(3)
+
+      expect(createDocumentStub.calledOnce).to.be.true
+      const savedSettings = createDocumentStub.firstCall.args[1]
+      expect(savedSettings.stages).to.have.length(1)
+      expect(savedSettings.stages[0].plugins).to.have.length(3)
+
+      expect(savedSettings.stages[0].plugins[0].brandId).to.equal(VotingBodyBrandIdentity.SAFE)
+      expect(savedSettings.stages[0].plugins[1].brandId).to.equal(VotingBodyBrandIdentity.EOA)
+      expect(savedSettings.stages[0].plugins[2].brandId).to.equal(VotingBodyBrandIdentity.OTHER)
     })
   })
 
