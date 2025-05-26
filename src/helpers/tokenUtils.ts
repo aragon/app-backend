@@ -73,6 +73,7 @@ const TokenUtils = {
       case NetworksEnum.zksyncSepolia:
       case NetworksEnum.arbitrumMainnet:
       case NetworksEnum.zksyncMainnet:
+      case NetworksEnum.optimismMainnet:
         return category.filter(cat => cat !== ITransactionCategory.Internal)
       default:
         return category
