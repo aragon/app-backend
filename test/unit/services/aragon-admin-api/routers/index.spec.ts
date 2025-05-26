@@ -5,6 +5,7 @@ import Router from '@koa/router'
 import MainAdminRouter from '@admin-api/routers/index'
 import StatusAdminRouter from '@admin-api/routers/status'
 import QueueAdminRouter from '@admin-api/routers/queue'
+import DaoAdminRouter from '@admin-api/routers/dao'
 import utils from '@helpers/utils'
 import Koa from 'koa'
 import supertest from 'supertest'
@@ -32,13 +33,14 @@ describe('Router: MainAdminRouter', () => {
 
     stubRouter(StatusAdminRouter, 'status')
     stubRouter(QueueAdminRouter, 'queue')
+    stubRouter(DaoAdminRouter, 'dao')
 
     await utils.wait(1000)
 
     const mainRouter = MainAdminRouter.router()
     expect(mainRouter instanceof Router).to.be.true
 
-    expect(use.callCount).to.be.eq(2)
+    expect(use.callCount).to.be.eq(3)
     expect(use.calledWith(`statusRoutes`, `statusAllowedMethod`)).to.be.true
 
     function expectRouter(name: string) {

@@ -10,6 +10,14 @@ const GenericSchema = {
     address: ValidationSchema.joiAddress.required(),
   }),
 
+  setDaoVisibilityStatusParams: Joi.object({
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
+    address: ValidationSchema.joiAddress.required(),
+    status: Joi.boolean().required(),
+  }),
+
   queueProposalMetrics: Joi.object({
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
