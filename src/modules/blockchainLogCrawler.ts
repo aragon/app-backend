@@ -26,6 +26,9 @@ class BlockchainLogCrawler {
   private readonly crawlParams: ICrawlParam
   public readonly crawlSetting: ICrawlSetting
 
+  private lastProcessedBlockNumber: number | null = null
+  private lastProcessedBlockHash: string | null = null
+
   constructor(opts: ICrawlParam) {
     this.crawlParams = {
       network: opts.network,
@@ -96,6 +99,10 @@ class BlockchainLogCrawler {
       return rawLogs
     }
 
+    this.crawlParams.strategy = this.getStrategyBySituation(currentBlock, latestBlock)
+
+    await this.checkForReorg(currentBlock)
+
     logger.verbose(
       'Starting crawling logs',
       llo({
@@ -104,8 +111,6 @@ class BlockchainLogCrawler {
         latestBlock,
       }),
     )
-
-    this.crawlParams.strategy = this.getStrategyBySituation(currentBlock, latestBlock)
 
     let retryCount = 0
     while (await this.updateAndCheckConditions(currentBlock, latestBlock)) {
@@ -148,6 +153,8 @@ class BlockchainLogCrawler {
         if (this.crawlParams.logService) {
           await this.onSaveProgress(toBlock)
         }
+        await this.updateLastProcessedBlock(toBlock)
+
         if (this.crawlSetting.shutdown) break
         currentBlock = toBlock + 1
         if (currentBlock >= latestBlock) break
@@ -165,6 +172,91 @@ class BlockchainLogCrawler {
     this.crawlSetting.crawling = false
     if (!this.crawlParams.filterLogs) {
       logger.verbose('Finished crawling logs', llo({ ...this.parseCrawlerInfoLog() }))
+    }
+  }
+
+  async updateLastProcessedBlock(blockNumber: number): Promise<void> {
+    try {
+      const blockData = await Web3Helper.getBlock(blockNumber, this.crawlParams.network)
+      this.lastProcessedBlockNumber = blockNumber
+      this.lastProcessedBlockHash = blockData?.hash!
+
+      logger.verbose(
+        'Updated last processed block for re-org detection',
+        llo({
+          ...this.parseCrawlerInfoLog(),
+          blockNumber,
+          blockHash: blockData?.hash,
+        }),
+      )
+    } catch (error: any) {
+      logger.error(
+        'Error updating last processed block',
+        llo({
+          ...this.parseCrawlerInfoLog(),
+          error: error.message,
+          blockNumber,
+        }),
+      )
+    }
+  }
+
+  async checkForReorg(currentBlock: number): Promise<void> {
+    if (
+      this.crawlParams.strategy !== ICrawStrategy.getBlockReceipts &&
+      this.crawlParams.strategy !== ICrawStrategy.getLogsWithoutTopics
+    ) {
+      return
+    }
+
+    if (!this.lastProcessedBlockNumber || !this.lastProcessedBlockHash) {
+      logger.verbose(
+        'No previous block data for re-org check',
+        llo({
+          ...this.parseCrawlerInfoLog(),
+          currentBlock,
+        }),
+      )
+      return
+    }
+
+    if (currentBlock === this.lastProcessedBlockNumber) {
+      try {
+        const currentBlockData = await Web3Helper.getBlock(currentBlock, this.crawlParams.network)
+        if (!currentBlockData) {
+          return
+        }
+
+        if (currentBlockData.hash !== this.lastProcessedBlockHash) {
+          logger.warn(
+            'Re-org detected!',
+            llo({
+              ...this.parseCrawlerInfoLog(),
+              reorgAtBlock: currentBlock,
+              expectedHash: this.lastProcessedBlockHash,
+              actualHash: currentBlockData.hash,
+            }),
+          )
+        } else {
+          logger.verbose(
+            'Block hash verified - no re-org',
+            llo({
+              ...this.parseCrawlerInfoLog(),
+              blockNumber: currentBlock,
+              hash: currentBlockData.hash,
+            }),
+          )
+        }
+      } catch (error: any) {
+        logger.error(
+          'Error checking for re-org',
+          llo({
+            ...this.parseCrawlerInfoLog(),
+            error: error.message,
+            blockNumber: currentBlock,
+          }),
+        )
+      }
     }
   }
 
