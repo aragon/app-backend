@@ -36,6 +36,7 @@ const CovalentHelper = {
     [NetworksEnum.ethereumMainnet]: 'eth-mainnet',
     [NetworksEnum.baseMainnet]: 'base-mainnet',
     [NetworksEnum.arbitrumMainnet]: 'arbitrum-mainnet',
+    [NetworksEnum.optimismMainnet]: 'optimism-mainnet',
     [NetworksEnum.ethereumSepolia]: 'eth-sepolia',
     [NetworksEnum.zksyncSepolia]: 'zksync-sepolia-testnet',
     [NetworksEnum.zksyncMainnet]: 'zksync-mainnet',
@@ -51,6 +52,7 @@ const CovalentHelper = {
     [NetworksEnum.baseMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
     [NetworksEnum.zksyncMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
     [NetworksEnum.zksyncSepolia]: '0x000000000000000000000000000000000000800a',
+    [NetworksEnum.optimismMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
   },
 
   networkToCovalent: (network: NetworksEnum) => {
