@@ -302,6 +302,18 @@ describe('TokenUtils', () => {
       expect(result).to.not.include(ITransactionCategory.Internal)
     })
 
+    it('should return correct number of categories for optimismMainnet', () => {
+      const result = TokenUtils.getCategories(NetworksEnum.optimismMainnet)
+      expect(result).to.be.an('array').with.lengthOf(4)
+      expect(result).to.include.members([
+        ITransactionCategory.ERC20,
+        ITransactionCategory.ERC721,
+        ITransactionCategory.ERC1155,
+        ITransactionCategory.External,
+      ])
+      expect(result).to.not.include(ITransactionCategory.Internal)
+    })
+
     it('should return default categories for an unsupported network', () => {
       const result = TokenUtils.getCategories('unsupportedNetwork' as NetworksEnum)
       expect(result).to.include.members([
