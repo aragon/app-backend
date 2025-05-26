@@ -4,6 +4,7 @@ import {
   EnumQueueName,
   type IProposalInfo,
   type IQueueAllMetrics,
+  type IQueueCanCreateProposal,
   type IQueueContractInfo,
   type IQueueDao,
   type IQueueMemberBalanceInfo,
@@ -25,6 +26,7 @@ import { AllMetrics } from '@services/aragon-dao/allMetrics'
 import config from '@config'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import TokenFetcher from '@services/aragon-dao/tokenFetcher'
+import Plugin from '@services/aragon-dao/plugin'
 
 const llo = logger.logMeta.bind(null, { service: 'service:DaoService' })
 
@@ -89,6 +91,16 @@ const AragonDaoService: IService = {
     await RabbitMQHelper.process(EnumQueueName.proposalActions, async (job: any) => {
       const { id } = job.params as IProposalInfo
       return await ActionDecoder.proposalActionDecoder(id)
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.canCreateProposal, async (job: any) => {
+      const { pluginAddress, memberAddress, network } = job.params as IQueueCanCreateProposal
+      return await MemberInfo.canCreateProposal(pluginAddress, memberAddress, network)
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.pluginInstallationData, async (job: any) => {
+      const { address, network } = job.params as IQueueContractInfo
+      return await Plugin.getInstallationData(address, network)
     })
 
     const tasks = [[{ fetchRates: TokenFetcher }]]

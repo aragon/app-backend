@@ -15,6 +15,22 @@ describe('ProposalHelper', () => {
     sandbox && sandbox.restore()
   })
 
+  it('getBodyResult', async () => {
+    const proposalIndex = '39086013580276791839085490461993454292970741380284618386117700367461939173604'
+    const stage = 0
+    const subPluginAddress = '0x92e9d0Cd7f5E87a2B2b19661aAa4C2e6D019472F'
+    const sppPluginAddress = '0x86313457a83Ad93e01a620Cd91A28808b2A048fc'
+    const network = NetworksEnum.ethereumSepolia
+    const resultType = await ProposalHelper.getBodyResult(
+      proposalIndex,
+      stage,
+      sppPluginAddress,
+      subPluginAddress,
+      network,
+    )
+    expect(resultType).to.eq(2)
+  })
+
   it('getSppSubPluginProposals', async () => {
     const proposalIndex = '112752888644088828421229102301752525246334728812632346860355098309410146772331'
     const stage = 0

@@ -1,6 +1,7 @@
 import { type WebSocketProvider } from 'ethers'
 export type HexAddress = `0x${string}` | string
 export type ENS = `${string}.eth`
+export type DAO_ENS = `${string}.dao.eth`
 
 export enum IWebSocketStatus {
   CONNECTING = 0,
@@ -26,6 +27,7 @@ export enum NetworksEnum {
   arbitrumMainnet = 'arbitrum-mainnet',
   zksyncSepolia = 'zksync-sepolia',
   zksyncMainnet = 'zksync-mainnet',
+  optimismMainnet = 'optimism-mainnet',
   peaqMainnet = 'peaq-mainnet',
 }
 

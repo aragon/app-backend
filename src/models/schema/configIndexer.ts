@@ -34,6 +34,9 @@ export default class ConfigIndexer extends Model {
   @prop({ type: () => Number, default: 0 })
   public lastSync!: number
 
+  @prop({ type: () => Boolean, default: false })
+  public end!: boolean
+
   static async create(rawData: Partial<ConfigIndexer>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')

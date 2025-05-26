@@ -21,6 +21,7 @@ export interface IRawNodeConfig {
   ALCHEMY_API_KEY: string
   ARAGON_RPC: string
   FROM_BLOCK: number
+  OFFSET_TO_BLOCK: number
   POOLING_INTERVAL: number
   CONFIRMATION_BLOCKS: number
   INTERVAL_BLOCK_TIME: number
@@ -49,6 +50,7 @@ export interface IConfig {
     ARBITRUM_MAINNET: IRawNodeConfig
     ZKSYNC_SEPOLIA: IRawNodeConfig
     ZKSYNC_MAINNET: IRawNodeConfig
+    OPTIMISM_MAINNET: IRawNodeConfig
     PEAQ_MAINNET: IRawNodeConfig
   }
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
@@ -60,8 +62,9 @@ export interface IConfig {
     URI: string
     TIMEOUT: number
     DEFAULT_CONCURRENCY: number
-    RECONNECT_TIME: number
+    RECONNECT_TIME_SECONDS: number
     CLEAN_QUEUE: boolean
+    HEARTBEAT_INTERVAL_SECONDS: number
   }
   NODE_CONFIG: {
     MAX_RECONNECT_ATTEMPTS: number
@@ -181,5 +184,6 @@ export interface IConfig {
   CRAWLER_CONFIG: {
     TOKEN_RATES_BATCH_SIZE: number
     TOKEN_RATES_CONCURRENCY: number
+    TOKEN_HOLDERS_THRESHOLD: number
   }
 }

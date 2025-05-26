@@ -133,18 +133,22 @@ describe('Router: Setting', () => {
     const params = {
       daoId: `${NetworksEnum.baseMainnet}-0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2`,
     }
+    const query = {
+      pluginAddress: '0x5EAd86cc058881EB1e8Ec023781AbbBB7d111bbD',
+    }
 
     const stubCtrl = sandbox.stub(SettingController, 'getActiveSettingByDaoId').returns(true as any)
 
     const ctx: any = {
       params,
+      query,
     }
 
     await SettingRouter.getActiveSettingByDaoId(ctx)
 
     expect(ctx.body).to.eq(true)
     expect(stubCtrl.calledOnce).to.be.true
-    expect(stubCtrl.calledWith(params.daoId)).to.be.true
+    expect(stubCtrl.calledWith(params.daoId, query.pluginAddress)).to.be.true
   })
 
   it('Should getActiveSettingByDaoAddress', async () => {
@@ -152,17 +156,21 @@ describe('Router: Setting', () => {
       network: NetworksEnum.baseMainnet,
       daoAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
     }
+    const query = {
+      pluginAddress: '0x5EAd86cc058881EB1e8Ec023781AbbBB7d111bbD',
+    }
 
     const stubCtrl = sandbox.stub(SettingController, 'getActiveSettingByDaoAddress').returns(true as any)
 
     const ctx: any = {
       params,
+      query,
     }
 
     await SettingRouter.getActiveSettingByDaoAddress(ctx)
 
     expect(ctx.body).to.eq(true)
     expect(stubCtrl.calledOnce).to.be.true
-    expect(stubCtrl.calledWith(params.daoAddress, params.network)).to.be.true
+    expect(stubCtrl.calledWith(params.daoAddress, params.network, query.pluginAddress)).to.be.true
   })
 })

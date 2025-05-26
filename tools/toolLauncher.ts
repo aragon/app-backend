@@ -1,31 +1,33 @@
 import Runner from '@modules/runner'
 import logger from '@logger'
-import ManualSyncDaoAssets from '@tools/manualSyncDaoAssets'
-import ManualSyncPluginEvents from '@tools/manualSyncPluginEvents'
-import ManualSyncProposals from '@tools/manualSyncProposals'
-import ManualSyncTokens from '@tools/manualSyncTokens'
-import ManualSyncProposalAction from '@tools/manualSyncProposalAction'
-import ManualTrigger from '@tools/manualTrigger'
-import ManualSyncProposalType from '@tools/manualSyncProposalType'
-import ManualSyncProposalTotalSupply from '@tools/manualSyncProposalTotalSupply'
-import ToolsRevertDbAtBlock from '@tools/revertDbAtBlock'
-import ToolsManualSyncProposalIndex from '@tools/manualSyncProposalIndex'
-import ToolsMemberMetrics from '@tools/memberMetrics'
-import ToolsEnsFetch from '@tools/ensFetch'
-import ToolsFixSettingIssue from '@tools/fixBrokenPluginSetting'
-import ToolsCleanDb from '@tools/cleanDb'
-import ToolsManualSyncToken from '@tools/manualFixTokenRate'
-import ToolsFixMissingVotes from '@tools/fixMissingVotes'
+import SyncDaoAssets from '@tools/syncDaoAssets'
+import SyncPluginEvents from '@tools/syncPluginEvents'
+import ManualSyncProposals from '@tools/syncProposals'
+import SyncTokens from '@tools/syncTokens'
+import SyncProposalAction from '@tools/syncProposalAction'
+import SyncProposalType from '@tools/syncProposalType'
+import SyncProposalTotalSupply from '@tools/syncProposalTotalSupply'
+import RevertDbAtBlock from '@tools/revertDbAtBlock'
+import SyncProposalIndex from '@tools/syncProposalIndex'
+import MemberMetrics from '@tools/memberMetrics'
+import EnsFetch from '@tools/ensFetch'
+import FixSettingIssue from '@tools/fixBrokenPluginSetting'
+import CleanDb from '@tools/cleanDb'
+import ManualSyncToken from '@tools/fixTokenRate'
+import FixMissingVotes from '@tools/fixMissingVotes'
 import RefetchProposalsMetrics from '@tools/refetchProposalMetrics'
-import ManualSyncNectorDao from '@tools/manualSyncNectar'
+import SyncNectorDao from '@tools/syncNectar'
 import RefetchDaoMetrics from '@tools/refetchDaoMetrics'
 import IntegrityToolMemberCheck from '@tools/integrityCheck/memberCheck'
 import IntegrityToolProposalCheck from '@tools/integrityCheck/proposalCheck'
 import SyncMemberVP from '@tools/syncMemberVP'
-import ToolsManualSyncMultisigV2Settings from '@tools/manualSyncMultisigV2Settings'
+import ToolsManualSyncMultisigV2Settings from '@tools/syncMultisigV2Settings'
 import ToolsMissingSlugs from '@tools/missingSlugs'
 import CreateAdminToken from '@tools/createAdminToken'
 import Queue from '@tools/queue'
+import FixProposalResult from '@tools/fixProposalResult'
+import { AddSafeWalletSetting } from '@tools/addSafeWalletSetting'
+import { FixEnsOnDao } from '@tools/fixEnsOnDao'
 
 const { TOOL_RUN } = process.env
 const llo = logger.logMeta.bind(null, { TOOL_RUN })
@@ -33,30 +35,32 @@ const llo = logger.logMeta.bind(null, { TOOL_RUN })
 const runners = {
   Queue,
   SyncMemberVP,
-  ToolsCleanDb,
-  ToolsEnsFetch,
-  ToolsMemberMetrics,
+  CleanDb,
+  EnsFetch,
+  MemberMetrics,
   ToolsMissingSlugs,
   ToolsManualSyncMultisigV2Settings,
-  ManualSyncProposalTotalSupply,
-  ManualSyncDaoAssets,
-  ManualSyncPluginEvents,
+  SyncProposalTotalSupply,
+  SyncDaoAssets,
+  SyncPluginEvents,
   ManualSyncProposals,
-  ManualSyncTokens,
-  ManualSyncProposalAction,
-  ManualTrigger,
-  ManualSyncProposalType,
-  ToolsRevertDbAtBlock,
-  ToolsManualSyncProposalIndex,
-  ToolsFixSettingIssue,
-  ToolsManualSyncToken,
-  ToolsFixMissingVotes,
+  SyncTokens,
+  SyncProposalAction,
+  SyncProposalType,
+  RevertDbAtBlock,
+  SyncProposalIndex,
+  FixSettingIssue,
+  ManualSyncToken,
+  FixMissingVotes,
   RefetchProposalsMetrics,
-  ManualSyncNectorDao,
+  SyncNectorDao,
   RefetchDaoMetrics,
   CreateAdminToken,
   IntegrityToolMemberCheck,
   IntegrityToolProposalCheck,
+  FixProposalResult,
+  AddSafeWalletSetting,
+  FixEnsOnDao,
 }
 
 const appToRun = runners[TOOL_RUN!]

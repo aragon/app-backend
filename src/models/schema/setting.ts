@@ -1,6 +1,7 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
+  VotingBodyBrandIdentity,
   ICollectionNames,
   type IPaginationParams,
   type ISettingExtraParams,
@@ -28,6 +29,9 @@ export class PluginSetting {
 
   @prop({ type: () => Number })
   public proposalType!: number
+
+  @prop({ type: () => String, enum: VotingBodyBrandIdentity, default: VotingBodyBrandIdentity.OTHER })
+  public brandId!: VotingBodyBrandIdentity
 }
 
 export class Stages {

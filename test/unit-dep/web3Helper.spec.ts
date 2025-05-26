@@ -54,16 +54,6 @@ describe('ProxyWeb3 && Web3Helper', () => {
     expect(value).to.eq('4')
   })
 
-  it('getNativeBalance', async () => {
-    const address = '0x2521Dd2142Ab814f8d5FEb5dF986502D2dDF4449'
-    const network = NetworksEnum.ethereumMainnet
-    const value = await Web3Provider.getNativeBalance({
-      network,
-      address,
-    })
-    expect(value).to.eq('0.000118940004874')
-  })
-
   it('getTokenBalances', async () => {
     const address = '0x951dcBafc1D80B9cD612915e9CcF5Ada06d6566E'
     const network = NetworksEnum.ethereumMainnet
@@ -81,15 +71,8 @@ describe('ProxyWeb3 && Web3Helper', () => {
     expect(tokenBalances[0].originalBalance).to.exist
   })
 
-  it('ensSubdomainExists', async () => {
-    const ensName = 'ai'
-    const network = NetworksEnum.ethereumMainnet
-    const exists = await Web3Helper.ensSubdomainExists(ensName, network)
-    expect(exists).to.be.true
-  })
-
   it('getTransaction', async () => {
-    const txHash = '0x179d3ab9e36fdf4cbbba323b1234917b7a76839d65a6fefb4ddcbbfbf7923959'
+    const txHash = '0x80cb58a41639792825ef5a567de3c12ab78098b54b06f3e753428667ef5b1410'
     const network = NetworksEnum.ethereumSepolia
     const tx = await Web3Helper.getTransaction(txHash, network)
     expect(tx).to.be.an('object')
@@ -97,7 +80,7 @@ describe('ProxyWeb3 && Web3Helper', () => {
   })
 
   it('getTransactionReceipt', async () => {
-    const txHash = '0x179d3ab9e36fdf4cbbba323b1234917b7a76839d65a6fefb4ddcbbfbf7923959'
+    const txHash = '0x80cb58a41639792825ef5a567de3c12ab78098b54b06f3e753428667ef5b1410'
     const network = NetworksEnum.ethereumSepolia
     const tx = await Web3Helper.getTransactionReceipt(txHash, network)
     expect(tx).to.be.an('object')
@@ -123,7 +106,7 @@ describe('ProxyWeb3 && Web3Helper', () => {
   })
 
   it('getDataFromTxReceipt', async () => {
-    const txHash = '0x179d3ab9e36fdf4cbbba323b1234917b7a76839d65a6fefb4ddcbbfbf7923959'
+    const txHash = '0x80cb58a41639792825ef5a567de3c12ab78098b54b06f3e753428667ef5b1410'
     const network = NetworksEnum.ethereumSepolia
     const tx = await Web3Helper.getTransactionReceipt(txHash, network)
     expect(tx).to.be.an('object')

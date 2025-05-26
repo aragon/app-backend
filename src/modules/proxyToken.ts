@@ -12,6 +12,7 @@ import { IPermission } from '@src/types/permission'
 import { type ClientSession, type SaveOptions } from 'mongoose'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 import TokenUtils from '@helpers/tokenUtils'
+import CovalentHelper from '@helpers/covalent'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:ProxyToken' })
 
@@ -102,7 +103,7 @@ export const ProxyToken = {
       symbol: tokenDetails?.symbol,
       decimals: tokenDetails?.decimals,
       logo: tokenDetails?.logo,
-      type: tokenDetails?.type,
+      type: tokenDetails?.type || tokenTypeInfo.type,
       holders: tokenDetails?.totalHolders,
       totalSupply: tokenDetails?.totalSupply,
       isGovernance: tokenTypeInfo.isGovernance,
@@ -169,10 +170,13 @@ export const ProxyToken = {
       }
     }
 
-    const tokenRate = await ProxyWeb3Provider.fetchTokenPrice({
-      address: tokenAddress,
-      network,
-    })
+    const tokenRate =
+      CovalentHelper.skipTestNetworks.includes(network) || rawToken.isGovernance
+        ? { priceUsd: '0' }
+        : await ProxyWeb3Provider.fetchTokenPrice({
+            address: tokenAddress,
+            network,
+          })
     rawToken.priceUsd = TokenUtils.firstValid(tokenRate.priceUsd, tokenDetails?.priceUsd) || '0'
     rawToken.skipFetchRate = TokenUtils.shouldSkipFetch(rawToken, tokenRate)
 
