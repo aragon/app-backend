@@ -68,7 +68,6 @@ const TokenUtils = {
 
     switch (network) {
       case NetworksEnum.ethereumSepolia:
-        return category.filter(cat => cat !== ITransactionCategory.Internal)
       case NetworksEnum.baseMainnet:
       case NetworksEnum.zksyncSepolia:
       case NetworksEnum.arbitrumMainnet:

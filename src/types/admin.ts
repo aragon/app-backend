@@ -3,6 +3,12 @@ export interface IAQueueDao {
   network: string
 }
 
+export interface IAVisibilityStatusParams {
+  address: string
+  network: string
+  status: boolean
+}
+
 export interface IAQueueProposal {
   pluginAddress: string
   proposalIndex: string
