@@ -40,6 +40,27 @@ describe('Module: provider', () => {
     expect(ProviderModule.alchemyNetworksMap[NetworksEnum.zksyncMainnet]).to.equal(Network.ZKSYNC_MAINNET)
     expect(ProviderModule.alchemyNetworksMap[NetworksEnum.optimismMainnet]).to.equal(Network.OPT_MAINNET)
   })
+  
+  it('should correctly parseNetworkChain', () => { 
+    const result = ProviderModule.getChainId(NetworksEnum.ethereumMainnet)
+    expect(result).to.equal(1)
+    const result1 = ProviderModule.getChainId(NetworksEnum.ethereumSepolia)
+    expect(result1).to.equal(11155111)
+    const result2 = ProviderModule.getChainId(NetworksEnum.polygonMainnet)
+    expect(result2).to.equal(137)
+    const result3 = ProviderModule.getChainId(NetworksEnum.baseMainnet)
+    expect(result3).to.equal(8453)
+    const result4 = ProviderModule.getChainId(NetworksEnum.arbitrumMainnet)
+    expect(result4).to.equal(42161)
+    const result5 = ProviderModule.getChainId(NetworksEnum.zksyncSepolia)
+    expect(result5).to.equal(300)
+    const result6 = ProviderModule.getChainId(NetworksEnum.zksyncMainnet)
+    expect(result6).to.equal(324)
+    const result7 = ProviderModule.getChainId(NetworksEnum.optimismMainnet)
+    expect(result7).to.equal(10)
+    const result8 = ProviderModule.getChainId(NetworksEnum.peaqMainnet)
+    expect(result8).to.equal(3338)
+  })
 
   it('should correctly parseNetwork', () => {
     const result = ProviderModule.parseNetwork('ETHEREUM_MAINNET')
