@@ -209,7 +209,7 @@ class BlockchainLogCrawler {
       return
     }
 
-    if (!this.lastProcessedBlockNumber || !this.lastProcessedBlockHash) {
+    if (this.lastProcessedBlockNumber === null || this.lastProcessedBlockNumber === undefined || !this.lastProcessedBlockHash) {
       logger.verbose(
         'No previous block data for re-org check',
         llo({
