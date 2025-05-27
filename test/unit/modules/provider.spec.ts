@@ -5,7 +5,6 @@ import ProviderModule from '@modules/provider'
 import { IProviderType, NetworksEnum } from '@types'
 import config from '@config'
 import { Network } from 'alchemy-sdk'
-import logger from '@logger'
 import proxyquire from 'proxyquire'
 
 describe('Module: provider', () => {

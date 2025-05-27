@@ -64,8 +64,7 @@ const EtherscanHelper = {
     }
 
     try {
-      const result = await EtherscanHelper._rpCall(params, network)
-      return result
+      return await EtherscanHelper._rpCall(params, network)
     } catch (error) {
       return []
     }
