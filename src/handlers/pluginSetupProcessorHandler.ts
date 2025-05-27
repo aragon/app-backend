@@ -6,6 +6,7 @@ import {
   IPluginActionType,
   IPluginInterfaceType,
   ISPPLogs,
+  type HexAddress,
 } from '@types'
 import { Interface, type LogDescription, type TransactionReceipt } from 'ethers'
 import { Models } from '@dbModels'
@@ -80,6 +81,7 @@ export const PluginSetupProcessorHandler = {
           build: parsedEvent.args.versionTag.build,
           blockNumber: info.blockNumber,
           tokenAddress: undefined,
+          customData: PluginSetupProcessorHandler.findCustomDataFromHelpers(parsedEvent),
         }
 
         const logDb = await Models.LogPluginSetupProcessor.create(rawPluginLog, { session })
@@ -380,5 +382,28 @@ export const PluginSetupProcessorHandler = {
       await DbOperations.updateDocument(pluginDb, { tokenAddress }, info, 'Update Voting plugin token', llo)
       await ProxyToken.saveAndGetToken(tokenAddress, info.network)
     }
+  },
+
+  findCustomDataFromHelpers: async (parsedEvent: LogDescription) => {
+    const helpers = parsedEvent.args.helpers
+
+    if (Array.isArray(helpers) && helpers.length === 6) {
+      const [curve, exitQueue, escrow, clock, nftLock, ivotesAdapter] = helpers
+
+      const allValid = [curve, exitQueue, escrow, clock, nftLock, ivotesAdapter].every(Boolean)
+
+      if (allValid) {
+        return {
+          curveAddress: curve,
+          exitQueueAddress: exitQueue,
+          escrowAddress: escrow,
+          clockAddress: clock,
+          nftLockAddress: nftLock,
+          votesAdapterAddress: ivotesAdapter,
+        } satisfies Record<string, HexAddress>
+      }
+    }
+
+    return null
   },
 }
