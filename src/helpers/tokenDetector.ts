@@ -123,7 +123,7 @@ const TokenDetector = {
 
       return contractDetails
     } catch (error) {
-      logger.error('Error detecting token type', llo({ address, error }))
+      logger.error('Error detecting token type', llo({ address, network, error }))
       return contractDetails
     }
   },

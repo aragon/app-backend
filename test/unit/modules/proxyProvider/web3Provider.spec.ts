@@ -451,9 +451,24 @@ describe('Web3Provider', () => {
       fakeProviders.send = sandbox.stub().resolves({ transfers: [txLog] })
       sandbox.stub(ProviderModule, 'getProvider').callsFake((network: NetworksEnum) => fakeProviders[network])
 
+      let callCount = 0
+
       const crawlStub = sandbox.stub(BlockchainTransferCrawler.prototype, 'crawl').callsFake(async function (
         this: any,
       ) {
+        if (callCount === 0) {
+          // First call: deposit
+          expect(this.filter.fromAddress).to.be.undefined
+          expect(this.filter.toAddress).to.equal(daoRegistry.address)
+        } else if (callCount === 1) {
+          // Second call: withdraw
+          expect(this.filter.toAddress).to.be.undefined
+          expect(this.filter.fromAddress).to.equal(daoRegistry.address)
+        } else {
+          throw new Error('Unexpected crawl call')
+        }
+
+        callCount++
         await this.onTx(txLog)
       })
 
@@ -463,7 +478,8 @@ describe('Web3Provider', () => {
         blockNumber: 1,
       })
 
-      expect(response).to.be.an('array').that.have.lengthOf(2)
+      expect(response).to.be.an('array').with.lengthOf(2)
+      expect(response.map((tx: any) => tx.type)).to.include.members(['deposit', 'withdraw'])
       expect(crawlStub.calledTwice).to.be.true
     })
   })
