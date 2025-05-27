@@ -14,7 +14,7 @@ describe.skip('etherscan helper v2 migration test', () => {
     sandbox.restore()
   })
 
-  describe('test getTokenInfo', function ()  {
+  describe('test getTokenInfo', function () {
     this.timeout(10000000)
     const tokens = {
       [NetworksEnum.ethereumMainnet]: {
@@ -52,7 +52,6 @@ describe.skip('etherscan helper v2 migration test', () => {
     }
 
     for (const network in tokens) {
-
       it(`getTokenInfo ${network}`, async () => {
         const token = tokens[network as NetworksEnum]
         const result = await EtherscanHelper.fetchContractCreation({
@@ -68,16 +67,11 @@ describe.skip('etherscan helper v2 migration test', () => {
         expect(resultItem.blockNumber).to.be.not.null
         expect(resultItem.txHash).to.be.not.null
 
-        const txReceipt = await Web3Helper.getTransactionReceipt(
-          resultItem.txHash,
-          network as NetworksEnum
-        )
+        const txReceipt = await Web3Helper.getTransactionReceipt(resultItem.txHash, network as NetworksEnum)
 
         expect(txReceipt).to.be.not.null
         expect(txReceipt).to.have.property('blockNumber')
-        expect(txReceipt!.blockNumber).to.be.eq(
-          parseInt(resultItem.blockNumber)
-        )
+        expect(txReceipt!.blockNumber).to.be.eq(parseInt(resultItem.blockNumber))
 
         await Utils.wait(1000)
       })

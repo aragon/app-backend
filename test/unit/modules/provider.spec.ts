@@ -39,8 +39,8 @@ describe('Module: provider', () => {
     expect(ProviderModule.alchemyNetworksMap[NetworksEnum.zksyncMainnet]).to.equal(Network.ZKSYNC_MAINNET)
     expect(ProviderModule.alchemyNetworksMap[NetworksEnum.optimismMainnet]).to.equal(Network.OPT_MAINNET)
   })
-  
-  it('should correctly parseNetworkChain', () => { 
+
+  it('should correctly parseNetworkChain', () => {
     const result = ProviderModule.getChainId(NetworksEnum.ethereumMainnet)
     expect(result).to.equal(1)
     const result1 = ProviderModule.getChainId(NetworksEnum.ethereumSepolia)
