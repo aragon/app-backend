@@ -11,13 +11,13 @@ import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
 import Web3Helper from '@helpers/web3'
 import TokenUtils from '@helpers/tokenUtils'
 import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
-const llo = logger.logMeta.bind(null, { service: 'Tools: FixBokenTx' })
+const llo = logger.logMeta.bind(null, { service: 'Tools: FixBrokenTx' })
 
 export const ToolsFixBrokenTx = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
 
   start: async () => {
-    logger.info('End fixBrokenTx', llo())
+    logger.info('Start fixBrokenTx', llo())
     const daos = await Models.Transaction.aggregate([
       {
         $match: {
@@ -30,7 +30,7 @@ export const ToolsFixBrokenTx = {
               NetworksEnum.baseMainnet,
               NetworksEnum.arbitrumMainnet,
               NetworksEnum.zksyncMainnet,
-              NetworksEnum.zksyncMainnet,
+              NetworksEnum.zksyncSepolia,
               NetworksEnum.optimismMainnet,
             ],
           },
