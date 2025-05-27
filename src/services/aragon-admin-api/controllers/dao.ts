@@ -8,7 +8,8 @@ const DaoAdminController = {
     const dao = await Models.Dao.findByAddress(params.address, params.network)
     assertExposable(dao, ErrorKeyEnum.notFound)
 
-    await dao.save({ isHidden: !params.status })
+    dao.isHidden = !params.status
+    await dao.save()
 
     return true
   },
