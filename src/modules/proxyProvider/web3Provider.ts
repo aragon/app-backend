@@ -153,7 +153,7 @@ const Web3Provider: IWeb3Provider = {
     const withdrawTxCrawler = new BlockchainTransferCrawler({
       network,
       filter: {
-        toAddress: address,
+        fromAddress: address,
         fromBlock: blockNumber,
         category,
       },
