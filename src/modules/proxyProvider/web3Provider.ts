@@ -241,6 +241,14 @@ const Web3Provider: IWeb3Provider = {
       logger.error('Error in getAllTokenHolders', llo({ error, address, network }))
     }
   },
+  fetchHistoricalTokenPrice: async ({ symbol, address, network, date }) => {
+    return await RateModule.fetchHistoricalRate({
+      address,
+      network,
+      symbol,
+      timestamp: date,
+    })
+  },
 }
 
 export default Web3Provider
