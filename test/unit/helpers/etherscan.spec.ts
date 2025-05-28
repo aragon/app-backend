@@ -3,9 +3,9 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import EtherscanHelper from '@helpers/etherscan'
 import logger from '@logger'
-import config from '@config'
 import { NetworksEnum } from '@types'
 import axios from 'axios'
+import config from '@config'
 
 describe('Helpers: Etherscan', () => {
   let sandbox: SinonSandbox
@@ -20,7 +20,7 @@ describe('Helpers: Etherscan', () => {
 
   it('axiosInstance', async () => {
     const stubAxios = sandbox.stub(axios, 'create')
-    EtherscanHelper.axiosInstance(NetworksEnum.ethereumMainnet)
+    EtherscanHelper.axiosInstance()
     expect(stubAxios.calledOnce).to.be.true
   })
 
@@ -32,11 +32,15 @@ describe('Helpers: Etherscan', () => {
         get: getCall,
       } as any)
 
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+
       const result = await EtherscanHelper._rpCall(
         {
           module: 'account',
           action: 'txlist',
-          apikey: 'valid-api-key',
         },
         NetworksEnum.ethereumMainnet,
       )
@@ -44,11 +48,14 @@ describe('Helpers: Etherscan', () => {
       expect(result).to.eq(1)
       expect(axiosInstanceStub.calledOnce).to.be.true
       expect(getCall.calledOnce).to.be.true
-      expect(
-        getCall.calledWith('', {
-          params: { module: 'account', action: 'txlist', apikey: 'valid-api-key' },
-        }),
-      ).to.be.true
+      expect(getCall.firstCall.args[1]).to.be.deep.equal({
+        params: {
+          module: 'account',
+          action: 'txlist',
+          apikey: 'test-api-key',
+          chainid: 1,
+        },
+      })
     })
 
     it('Should handle errors in _rpCall', async () => {
@@ -64,7 +71,6 @@ describe('Helpers: Etherscan', () => {
           {
             module: 'account',
             action: 'txlist',
-            apikey: 'valid-api-key',
           },
           NetworksEnum.ethereumMainnet,
         ),
@@ -95,7 +101,6 @@ describe('Helpers: Etherscan', () => {
         startblock: 100,
         endblock: 'latest',
         sort: 'asc',
-        apikey: config.NODES.ETHEREUM_MAINNET.ETHERSCAN_API_KEY,
       })
     })
 
@@ -137,7 +142,6 @@ describe('Helpers: Etherscan', () => {
         module: 'contract',
         action: 'getsourcecode',
         address: '0xf96e6FD76BD0A15580604e1Ea5818D448b1041C0',
-        apikey: config.NODES.ETHEREUM_SEPOLIA.ETHERSCAN_API_KEY,
       })
     })
 
@@ -183,7 +187,6 @@ describe('Helpers: Etherscan', () => {
         module: 'token',
         action: 'tokensupply',
         contractaddress: '0x123',
-        apikey: config.NODES.ETHEREUM_MAINNET.ETHERSCAN_API_KEY,
       })
     })
 
@@ -237,7 +240,6 @@ describe('Helpers: Etherscan', () => {
         module: 'contract',
         action: 'getcontractcreation',
         contractaddresses: '0x123',
-        apikey: config.NODES.ETHEREUM_SEPOLIA.ETHERSCAN_API_KEY,
       })
     })
 

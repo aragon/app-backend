@@ -52,6 +52,11 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       BLOCK_HIGH_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_HIGH_RANGE', 40),
     },
 
+    ETHERSCAN_API: {
+      BASE_URI: utils.configParser(sourceConfig, 'string', 'ETHERSCAN_API_BASE_URL', 'https://api.etherscan.io/v2/api'),
+      API_KEY: utils.configParser(sourceConfig, 'string', 'ETHERSCAN_API_KEY', null),
+    },
+
     NODES: {
       ETHEREUM_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_MAINNET_ALCHEMY_API_KEY', null),
@@ -75,13 +80,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'number',
           'NODES_ETHEREUM_MAINNET_INTERVAL_BLOCK_TIME',
           14,
-        ),
-        ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_MAINNET_ETHERSCAN_API_KEY', null),
-        ETHERSCAN_API_URL: utils.configParser(
-          sourceConfig,
-          'string',
-          'NODES_ETHEREUM_MAINNET_ETHERSCAN_API_URL',
-          'https://api.etherscan.io/api',
         ),
         BLOCKSCOUT_API_URL: utils.configParser(
           sourceConfig,
@@ -119,13 +117,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'NODES_ETHEREUM_SEPOLIA_INTERVAL_BLOCK_TIME',
           14,
         ),
-        ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_SEPOLIA_ETHERSCAN_API_KEY', null),
-        ETHERSCAN_API_URL: utils.configParser(
-          sourceConfig,
-          'string',
-          'NODES_ETHEREUM_SEPOLIA_ETHERSCAN_API_URL',
-          'https://api-sepolia.etherscan.io/api',
-        ),
         BLOCKSCOUT_API_URL: utils.configParser(
           sourceConfig,
           'string',
@@ -152,13 +143,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         ), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_MAINNET_INTERVAL_BLOCK_TIME', 2),
-        ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_POLYGON_MAINNET_ETHERSCAN_API_KEY', null),
-        ETHERSCAN_API_URL: utils.configParser(
-          sourceConfig,
-          'string',
-          'NODES_POLYGON_MAINNET_ETHERSCAN_API_URL',
-          'https://api.polygonscan.com/api',
-        ),
         BLOCKSCOUT_API_URL: utils.configParser(
           sourceConfig,
           'string',
@@ -180,13 +164,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_POOLING_INTERVAL', 5 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_INTERVAL_BLOCK_TIME', 12),
-        ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_ETHERSCAN_API_KEY', null),
-        ETHERSCAN_API_URL: utils.configParser(
-          sourceConfig,
-          'string',
-          'NODES_BASE_MAINNET_ETHERSCAN_API_URL',
-          'https://api.basescan.org/api',
-        ),
         BLOCKSCOUT_API_URL: utils.configParser(
           sourceConfig,
           'string',
@@ -218,13 +195,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'NODES_ARBITRUM_MAINNET_INTERVAL_BLOCK_TIME',
           2,
         ),
-        ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ARBITRUM_MAINNET_ETHERSCAN_API_KEY', null),
-        ETHERSCAN_API_URL: utils.configParser(
-          sourceConfig,
-          'string',
-          'NODES_ARBITRUM_MAINNET_ETHERSCAN_API_URL',
-          'https://api.arbiscan.io/api',
-        ),
         BLOCKSCOUT_API_URL: utils.configParser(
           sourceConfig,
           'string',
@@ -246,13 +216,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_POOLING_INTERVAL', 5 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_INTERVAL_BLOCK_TIME', 3),
-        ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_ETHERSCAN_API_KEY', null),
-        ETHERSCAN_API_URL: utils.configParser(
-          sourceConfig,
-          'string',
-          'NODES_ZKSYNC_SEPOLIA_ETHERSCAN_API_URL',
-          'https://block-explorer-api.sepolia.zksync.dev/api',
-        ),
         BLOCKSCOUT_API_URL: utils.configParser(
           sourceConfig,
           'string',
@@ -269,13 +232,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_POOLING_INTERVAL', 5 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_INTERVAL_BLOCK_TIME', 5),
-        ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_ETHERSCAN_API_KEY', null),
-        ETHERSCAN_API_URL: utils.configParser(
-          sourceConfig,
-          'string',
-          'NODES_ZKSYNC_MAINNET_ETHERSCAN_API_URL',
-          'https://block-explorer-api.mainnet.zksync.io/api',
-        ),
         BLOCKSCOUT_API_URL: utils.configParser(
           sourceConfig,
           'string',
@@ -292,8 +248,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_POOLING_INTERVAL', 5 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_INTERVAL_BLOCK_TIME', 5),
-        ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_ETHERSCAN_API_KEY', null),
-        ETHERSCAN_API_URL: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_ETHERSCAN_API_URL', null),
         BLOCKSCOUT_API_URL: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_BLOCKSCOUT_API_URL', null),
         BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_BLOCKSCOUT_API_KEY', null),
         SUBSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_SUBSCAN_API_KEY', null),
@@ -326,13 +280,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'number',
           'NODES_OPTIMISM_MAINNET_INTERVAL_BLOCK_TIME',
           5,
-        ),
-        ETHERSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_OPTIMISM_MAINNET_ETHERSCAN_API_KEY', null),
-        ETHERSCAN_API_URL: utils.configParser(
-          sourceConfig,
-          'string',
-          'NODES_OPTIMISM_MAINNET_ETHERSCAN_API_URL',
-          'https://api-optimistic.etherscan.io/api',
         ),
         BLOCKSCOUT_API_URL: utils.configParser(
           sourceConfig,

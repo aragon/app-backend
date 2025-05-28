@@ -25,8 +25,6 @@ export interface IRawNodeConfig {
   POOLING_INTERVAL: number
   CONFIRMATION_BLOCKS: number
   INTERVAL_BLOCK_TIME: number
-  ETHERSCAN_API_KEY: string
-  ETHERSCAN_API_URL: string
   BLOCKSCOUT_API_URL: string
   BLOCKSCOUT_API_KEY: string
   SUBSCAN_API_KEY?: string
@@ -42,6 +40,10 @@ export interface IConfig {
   PROXY: string | null
   ENS_DOMAIN: string
   CONFIRMATION_BLOCKS: number
+  ETHERSCAN_API: {
+    BASE_URI: string
+    API_KEY: string
+  }
   NODES: {
     ETHEREUM_MAINNET: IRawNodeConfig
     ETHEREUM_SEPOLIA: IRawNodeConfig

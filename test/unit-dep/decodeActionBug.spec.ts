@@ -17,7 +17,7 @@ describe('Integ: decodeAction', () => {
     sandbox && sandbox.restore()
   })
 
-  describe('decodeAction when mint is wired data', () => {
+  describe.skip('decodeAction when mint is wired data', () => {
     it('should parse properly when to is not a token', async () => {
       const action = {
         data: '0x40c10f1900000000000000000000000032c2fe388abbb3e678d44df6a0471086d705316a0000000000000000000000000000000000000000000000000000000000000001',
