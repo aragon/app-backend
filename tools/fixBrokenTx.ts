@@ -28,12 +28,12 @@ export const ToolsFixBrokenTx = {
         model: Models.Dao,
         where: {
           network,
-          isAragonDao: true,
+          isActive: true,
         },
         onError: (error: any, document: any) => {
           logger.error('Error Dao Fix', { document, error })
         },
-        batchSize: 2000,
+        batchSize: 100,
         concurrency: 10,
         onDocument: async (dao: any) => {
           await ToolsFixBrokenTx.onDocument(dao)
