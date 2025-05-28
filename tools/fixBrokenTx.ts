@@ -1,8 +1,8 @@
 import { Models } from '@dbModels'
 import logger from '@logger'
-import { EnumConnection, type HexAddress, IEnumIndexerService, NetworksEnum } from '@src/types'
+import { EnumConnection, IEnumIndexerService, NetworksEnum } from '@src/types'
 import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
-import fs from 'fs'
+
 const llo = logger.logMeta.bind(null, { service: 'Tools: FixBrokenTx' })
 
 export const ToolsFixBrokenTx = {
@@ -52,14 +52,6 @@ export const ToolsFixBrokenTx = {
       logger.info('Found DAOs with broken transactions', llo({ daosCount: daos.length, network }))
 
       for (const dao of daos) {
-        const progress = await ToolsFixBrokenTx.loadProgress()
-        const progressKey = `${dao.network}-${dao.daoAddress}`
-
-        if (progress.includes(progressKey)) {
-          logger.info('Skipping already processed DAO', llo({ daoAddress: dao.daoAddress, network: dao.network }))
-          continue
-        }
-
         const daoDb = await Models.Dao.findOne({
           address: dao.daoAddress,
           network: dao.network,
@@ -76,8 +68,6 @@ export const ToolsFixBrokenTx = {
             remaining: daos.length - counter,
           }),
         )
-
-        await ToolsFixBrokenTx.saveProgress(dao.network, dao.daoAddress)
       }
     }
   },
@@ -129,21 +119,5 @@ export const ToolsFixBrokenTx = {
 
   stop: async () => {
     logger.info('End fixBrokenTx', llo())
-  },
-
-  loadProgress: async () => {
-    logger.info('Loading progress for fixBrokenTx', llo({}))
-    if (!fs.existsSync('progressTxn.json')) {
-      fs.writeFileSync('progressTxn.json', '[]')
-      return []
-    }
-    return JSON.parse(fs.readFileSync('progressTxn.json', 'utf8'))
-  },
-
-  saveProgress: async (network: NetworksEnum, daoAddress: HexAddress) => {
-    logger.info('Saving progress for fixBrokenTx', llo({ network, daoAddress }))
-    const progress = await ToolsFixBrokenTx.loadProgress()
-    progress.push(`${network}-${daoAddress}`)
-    fs.writeFileSync('progressTxn.json', JSON.stringify(progress, null, 2))
   },
 }
