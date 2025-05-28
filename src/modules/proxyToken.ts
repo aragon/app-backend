@@ -77,11 +77,12 @@ export const ProxyToken = {
           lastUpdatedAt: dayjs.utc().toDate(),
         }
       } else {
+        const tokenDetails = await ProxyWeb3Provider.fetchTokenPrice({
+          address: tokenAddress,
+          network,
+        })
         updates = {
-          priceUsd: await ProxyWeb3Provider.fetchTokenPrice({
-            address: tokenAddress,
-            network,
-          }),
+          priceUsd: tokenDetails.priceUsd,
           lastUpdatedAt: dayjs.utc().toDate(),
         }
       }
