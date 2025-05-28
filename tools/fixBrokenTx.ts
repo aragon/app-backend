@@ -29,7 +29,6 @@ export const ToolsFixBrokenTx = {
         where: {
           network,
           isActive: true,
-          address: '0x788838cEc9F0DC3BcB57FA7a72cD3112b923547D',
         },
         onError: (error: any, document: any) => {
           logger.error('Error Dao Fix', { document, error })
