@@ -10,7 +10,7 @@ import TokenUtils from '@helpers/tokenUtils'
 import PeaqProvider from '@modules/proxyProvider/peaqProvider'
 import ProxyUtils from '@modules/proxyProvider/utils'
 
-describe.only('PeaqProvider', () => {
+describe('PeaqProvider', () => {
   let sandbox: any
   let loggerStub: any
 
