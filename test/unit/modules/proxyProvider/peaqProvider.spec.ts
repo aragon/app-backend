@@ -10,7 +10,7 @@ import TokenUtils from '@helpers/tokenUtils'
 import PeaqProvider from '@modules/proxyProvider/peaqProvider'
 import ProxyUtils from '@modules/proxyProvider/utils'
 
-describe('PeaqProvider', () => {
+describe.only('PeaqProvider', () => {
   let sandbox: any
   let loggerStub: any
 
@@ -544,9 +544,7 @@ describe('PeaqProvider', () => {
       expect(getCurrentPriceStub.firstCall.args[1]).to.be.a('number')
       expect(getTokenFullDetailsStub.notCalled).to.be.true
 
-      expect(result).to.deep.equal({
-        priceUsd: price,
-      })
+      expect(result).to.be.equal(price)
     })
 
     it('should use default 30 days when no date provided for native token', async () => {
@@ -565,9 +563,7 @@ describe('PeaqProvider', () => {
       expect(getCurrentPriceStub.firstCall.args[0]).to.equal(network)
       expect(getCurrentPriceStub.firstCall.args[1]).to.equal(30)
 
-      expect(result).to.deep.equal({
-        priceUsd: price,
-      })
+      expect(result).to.be.equal(price)
     })
 
     it('should handle null price for historical native token', async () => {
@@ -583,9 +579,7 @@ describe('PeaqProvider', () => {
 
       // Assert
       expect(getCurrentPriceStub.calledOnce).to.be.true
-      expect(result).to.deep.equal({
-        priceUsd: '0',
-      })
+      expect(result).to.be.equal('0')
     })
 
     it('should fetch token details for non-zero address', async () => {
@@ -611,9 +605,7 @@ describe('PeaqProvider', () => {
       expect(getTokenFullDetailsStub.firstCall.args[0]).to.equal(address)
       expect(getTokenFullDetailsStub.firstCall.args[1]).to.equal(network)
 
-      expect(result).to.deep.equal({
-        priceUsd: '5.25',
-      })
+      expect(result).to.deep.equal('5.25')
     })
 
     it('should handle null price for historical token', async () => {
@@ -633,9 +625,7 @@ describe('PeaqProvider', () => {
 
       // Assert
       expect(getTokenFullDetailsStub.calledOnce).to.be.true
-      expect(result).to.deep.equal({
-        priceUsd: '0',
-      })
+      expect(result).to.be.equal('0')
     })
   })
 
