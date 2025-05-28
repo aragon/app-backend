@@ -177,8 +177,10 @@ const Web3Provider: IWeb3Provider = {
     await Promise.all([depositTxCrawler.crawl(), withdrawTxCrawler.crawl()])
 
     return txLogs.sort((a, b) => {
-      if (a.blockNum !== b.blockNum) return a.blockNum - b.blockNum
-      return a.blockNum - b.blockNum
+      const aBlockNum = Number(a.blockNum)
+      const bBlockNum = Number(b.blockNum)
+      if (aBlockNum !== bBlockNum) return a.blockNum - bBlockNum
+      return aBlockNum - bBlockNum
     })
   },
 
