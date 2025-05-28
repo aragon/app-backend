@@ -19,7 +19,8 @@ describe('Controller: DaoAdmin', () => {
   describe('setVisibilityStatus', () => {
     it('should set isHidden to false if status is true (visible)', async () => {
       const saveStub = sandbox.stub().resolves(true)
-      sandbox.stub(Models.Dao, 'findByAddress').resolves({ save: saveStub })
+      const fakeDao = { isHidden: true, save: saveStub }
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(fakeDao)
 
       const result = await DaoAdminController.setVisibilityStatus({
         address: '0x123',
@@ -28,12 +29,14 @@ describe('Controller: DaoAdmin', () => {
       })
 
       expect(result).to.be.true
-      expect(saveStub.calledOnceWith({ isHidden: false })).to.be.true
+      expect(fakeDao.isHidden).to.be.false
+      expect(saveStub.calledOnce).to.be.true
     })
 
     it('should set isHidden to true if status is false (hidden)', async () => {
       const saveStub = sandbox.stub().resolves(true)
-      sandbox.stub(Models.Dao, 'findByAddress').resolves({ save: saveStub })
+      const fakeDao = { isHidden: false, save: saveStub }
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(fakeDao)
 
       const result = await DaoAdminController.setVisibilityStatus({
         address: '0x123',
@@ -42,7 +45,8 @@ describe('Controller: DaoAdmin', () => {
       })
 
       expect(result).to.be.true
-      expect(saveStub.calledOnceWith({ isHidden: true })).to.be.true
+      expect(fakeDao.isHidden).to.be.true
+      expect(saveStub.calledOnce).to.be.true
     })
 
     it('should throw error if DAO is not found', async () => {
