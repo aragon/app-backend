@@ -179,7 +179,7 @@ const Web3Provider: IWeb3Provider = {
     return txLogs.sort((a, b) => {
       const aBlockNum = Number(a.blockNum)
       const bBlockNum = Number(b.blockNum)
-      if (aBlockNum !== bBlockNum) return a.blockNum - bBlockNum
+      if (aBlockNum !== bBlockNum) return aBlockNum - bBlockNum
       return aBlockNum - bBlockNum
     })
   },
