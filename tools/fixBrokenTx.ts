@@ -51,6 +51,16 @@ export const ToolsFixBrokenTx = {
 
     logger.info('Fixing transactions for DAO', llo({ daoAddress, network }))
 
+    const transactionsCount = await Models.Transaction.countDocuments({
+      daoAddress,
+      network,
+    })
+
+    if (transactionsCount === 0) {
+      logger.info('No transactions found for DAO', llo({ daoAddress, network }))
+      return
+    }
+
     await Models.ConfigIndexer.deleteOne({
       service: `withdraw-${daoAddress}-${IEnumIndexerService.withdrawTxs}`,
       network,
