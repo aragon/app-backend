@@ -178,15 +178,11 @@ const PeaqProvider: Omit<IWeb3Provider, 'getNativeBalance'> = {
     if (address === utils.zeroAddress) {
       const pastDays = date ? Math.round(dayjs.utc().diff(dayjs.utc(date), 'days')) : 30
       const price = await SubscanApi.getCurrentPrice(network, pastDays)
-      return {
-        priceUsd: price || '0',
-      }
+      return price || '0'
     }
 
     const tokenInfo = await SubscanApi.getTokenFullDetails(address, network)
-    return {
-      priceUsd: tokenInfo.priceUsd || '0',
-    }
+    return tokenInfo.priceUsd || '0'
   },
 }
 
