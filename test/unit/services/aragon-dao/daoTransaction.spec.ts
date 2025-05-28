@@ -193,6 +193,7 @@ describe('AragonDao: DaoTransactions', () => {
       ] as any)
 
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(mockToken as any)
+      const fetchHistoricalTokenPriceStub = sandbox.stub(ProxyWeb3Provider, 'fetchHistoricalTokenPrice').resolves('2.5')
 
       const verboseLoggerStub = sandbox.stub(logger, 'verbose')
 
@@ -202,6 +203,7 @@ describe('AragonDao: DaoTransactions', () => {
       expect(getTransactionReceiptStub.calledOnce).to.be.true
       expect(findLogsByNameStub.calledTwice).to.be.true
       expect(saveAndGetTokenStub.calledOnce).to.be.true
+      expect(fetchHistoricalTokenPriceStub.calledOnce).to.be.true
       expect(verboseLoggerStub.calledWithMatch('New Transaction' as any as any)).to.be.true
 
       const dbTxs = await Models.Transaction.find({})
@@ -275,6 +277,7 @@ describe('AragonDao: DaoTransactions', () => {
         logs: [],
       } as any)
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
+      const fetchHistoricalTokenPriceStub = sandbox.stub(ProxyWeb3Provider, 'fetchHistoricalTokenPrice')
       const dbTxStub = sandbox.stub(DbTx, 'executeTxFn')
 
       // Execute
@@ -284,6 +287,7 @@ describe('AragonDao: DaoTransactions', () => {
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(getTransactionReceiptStub.calledOnce).to.be.true
       expect(saveAndGetTokenStub.calledOnce).to.be.true
+      expect(fetchHistoricalTokenPriceStub.notCalled).to.be.true
       expect(dbTxStub.notCalled).to.be.true
     })
 
@@ -323,6 +327,7 @@ describe('AragonDao: DaoTransactions', () => {
 
       sandbox.stub(Web3Utils, 'findLogsByName').returns([])
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(mockToken as any)
+      const fetchHistoricalTokenPriceStub = sandbox.stub(ProxyWeb3Provider, 'fetchHistoricalTokenPrice').resolves('0')
 
       await DaoTransactions.saveTransaction(mockTx, ITransactionType.deposit, mockDao.address, mockDao.network)
 
@@ -331,6 +336,7 @@ describe('AragonDao: DaoTransactions', () => {
       expect(getTransactionReceiptStub.calledOnce).to.be.true
       expect(saveAndGetTokenStub.calledOnce).to.be.true
       expect(saveAndGetTokenStub.calledWith(utils.zeroAddress, mockDao.network)).to.be.true
+      expect(fetchHistoricalTokenPriceStub.calledOnce).to.be.true
     })
 
     it('should handle error during transaction save', async () => {
@@ -410,6 +416,7 @@ describe('AragonDao: DaoTransactions', () => {
       } as any)
       sandbox.stub(Web3Utils, 'findLogsByName').returns([])
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(mockToken as any)
+      const fetchHistoricalTokenPriceStub = sandbox.stub(ProxyWeb3Provider, 'fetchHistoricalTokenPrice').resolves('0')
 
       await DaoTransactions.saveTransaction(mockTx, ITransactionType.deposit, mockDao.address, mockDao.network)
 
@@ -417,6 +424,7 @@ describe('AragonDao: DaoTransactions', () => {
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(getTransactionReceiptStub.calledOnce).to.be.true
       expect(saveAndGetTokenStub.calledOnce).to.be.true
+      expect(fetchHistoricalTokenPriceStub.calledOnce).to.be.true
       const dbTxs = await Models.Transaction.find({})
       expect(dbTxs.length).to.equal(1)
       expect(dbTxs[0].transactionHash).to.equal(mockTx.hash)
@@ -475,6 +483,7 @@ describe('AragonDao: DaoTransactions', () => {
       } as any)
       sandbox.stub(Web3Utils, 'findLogsByName').returns([])
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(mockToken as any)
+      const fetchHistoricalTokenPriceStub = sandbox.stub(ProxyWeb3Provider, 'fetchHistoricalTokenPrice').resolves('0')
 
       // Execute
       await DaoTransactions.saveTransaction(mockTx, ITransactionType.deposit, mockDao.address, mockDao.network)
@@ -483,6 +492,7 @@ describe('AragonDao: DaoTransactions', () => {
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(getTransactionReceiptStub.calledOnce).to.be.true
       expect(saveAndGetTokenStub.calledOnce).to.be.true
+      expect(fetchHistoricalTokenPriceStub.calledOnce).to.be.true
 
       const dbTxs = await Models.Transaction.find({})
       expect(dbTxs.length).to.equal(1)
@@ -538,6 +548,7 @@ describe('AragonDao: DaoTransactions', () => {
       } as any)
       const findLogsByNameStub = sandbox.stub(Web3Utils, 'findLogsByName').returns([])
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(mockToken as any)
+      const fetchHistoricalTokenPriceStub = sandbox.stub(ProxyWeb3Provider, 'fetchHistoricalTokenPrice').resolves('0')
 
       // Execute
       await DaoTransactions.saveTransaction(mockTx, ITransactionType.deposit, mockDao.address, mockDao.network)
@@ -546,6 +557,7 @@ describe('AragonDao: DaoTransactions', () => {
       expect(getTransactionReceiptStub.calledOnce).to.be.true
       expect(findLogsByNameStub.calledOnce).to.be.true
       expect(saveAndGetTokenStub.calledOnce).to.be.true
+      expect(fetchHistoricalTokenPriceStub.calledOnce).to.be.true
     })
 
     it('should extract proposal information from transaction logs', async () => {
@@ -603,6 +615,7 @@ describe('AragonDao: DaoTransactions', () => {
       ] as any)
 
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(mockToken as any)
+      const fetchHistoricalTokenPriceStub = sandbox.stub(ProxyWeb3Provider, 'fetchHistoricalTokenPrice').resolves('0')
       // Execute
       await DaoTransactions.saveTransaction(mockTx, ITransactionType.deposit, mockDao.address, mockDao.network)
 
@@ -610,6 +623,7 @@ describe('AragonDao: DaoTransactions', () => {
       expect(getTransactionReceiptStub.calledOnce).to.be.true
       expect(findLogsByNameStub.calledTwice).to.be.true
       expect(saveAndGetTokenStub.calledOnce).to.be.true
+      expect(fetchHistoricalTokenPriceStub.calledOnce).to.be.true
 
       const dbTxs = await Models.Transaction.find({})
       expect(dbTxs.length).to.equal(1)

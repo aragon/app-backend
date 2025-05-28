@@ -1,4 +1,4 @@
-import { type HexAddress, type ITransactionType, type NetworksEnum } from '@types'
+import { type HexAddress, ITokenType, type ITransactionType, type NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
@@ -6,10 +6,10 @@ import type Transaction from '@models/schema/transaction'
 import Web3Helper from '@helpers/web3'
 import { DAO } from '@artifacts/dao'
 import { Multisig } from '@artifacts/Multisig'
-import ProxyWeb3Provider from '@modules/proxyProvider'
 import Web3Utils from '@helpers/web3Utils'
 import { ProxyToken } from '@modules/proxyToken'
 import utils from '@helpers/utils'
+import ProxyProvider from '@modules/proxyProvider'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:DaoTransactions' })
 
@@ -26,7 +26,7 @@ export const DaoTransactions = {
       const daoDb = await Models.Dao.findByAddress(daoAddress, network)
       if (!daoDb) return
 
-      const txns = await ProxyWeb3Provider.fetchAddressTxns({
+      const txns = await ProxyProvider.fetchAddressTxns({
         address: daoDb.address,
         network: daoDb.network,
         blockNumber: daoDb.blockNumber,
@@ -118,6 +118,14 @@ export const DaoTransactions = {
 
       rawTx.tokenAddress = token.address
 
+      const params = {
+        ...(token.type === ITokenType.native ? { symbol: token.symbol || undefined } : { address: token.address }),
+        network,
+        date: tx.blockTimestamp,
+      }
+
+      const tokenPrice = await ProxyProvider.fetchHistoricalTokenPrice(params)
+
       rawTx.token = {
         network,
         address: token.address,
@@ -127,8 +135,8 @@ export const DaoTransactions = {
         logo: token.logo,
         decimals: token.decimals,
         snapshot: {
-          priceUsd: tx.rawContract?.priceUsd?.toString() || '0',
-          priceUpdatedAt: tx.rawContract?.priceUpdatedAt,
+          priceUsd: tokenPrice,
+          priceUpdatedAt: tx.blockTimestamp,
         },
       }
 
