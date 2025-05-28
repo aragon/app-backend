@@ -140,6 +140,8 @@ export const DaoTransactions = {
         },
       }
 
+      rawTx.amountUsd = (parseFloat(rawTx.value || '0') * parseFloat(tokenPrice)).toFixed(2)
+
       return await DbTx.executeTxFn(async ({ session }) => {
         const logDb = await Models.Transaction.create(rawTx, { session } as any)
         await session.commitTransaction()

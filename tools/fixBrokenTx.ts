@@ -12,13 +12,13 @@ export const ToolsFixBrokenTx = {
     logger.info('Start fixBrokenTx', llo())
     const networks = [
       NetworksEnum.ethereumMainnet,
-      NetworksEnum.ethereumSepolia,
-      NetworksEnum.polygonMainnet,
-      NetworksEnum.baseMainnet,
-      NetworksEnum.arbitrumMainnet,
-      NetworksEnum.zksyncMainnet,
-      NetworksEnum.zksyncSepolia,
-      NetworksEnum.optimismMainnet,
+      // NetworksEnum.ethereumSepolia,
+      // NetworksEnum.polygonMainnet,
+      // NetworksEnum.baseMainnet,
+      // NetworksEnum.arbitrumMainnet,
+      // NetworksEnum.zksyncMainnet,
+      // NetworksEnum.zksyncSepolia,
+      // NetworksEnum.optimismMainnet,
     ]
 
     for (const network of networks) {
@@ -29,6 +29,7 @@ export const ToolsFixBrokenTx = {
         where: {
           network,
           isActive: true,
+          address: '0x788838cEc9F0DC3BcB57FA7a72cD3112b923547D',
         },
         onError: (error: any, document: any) => {
           logger.error('Error Dao Fix', { document, error })
@@ -50,12 +51,6 @@ export const ToolsFixBrokenTx = {
     const network = dao.network as NetworksEnum
 
     logger.info('Fixing transactions for DAO', llo({ daoAddress, network }))
-    const hasAssets = await Models.Asset.countDocuments({ daoAddress, network })
-
-    if (!hasAssets) {
-      logger.warn('No assets found for DAO, skipping', llo({ daoAddress, network }))
-      return
-    }
 
     await Models.ConfigIndexer.deleteOne({
       service: `withdraw-${daoAddress}-${IEnumIndexerService.withdrawTxs}`,
