@@ -12,13 +12,13 @@ export const ToolsFixBrokenTx = {
     logger.info('Start fixBrokenTx', llo())
     const networks = [
       NetworksEnum.ethereumMainnet,
-      // NetworksEnum.ethereumSepolia,
-      // NetworksEnum.polygonMainnet,
-      // NetworksEnum.baseMainnet,
-      // NetworksEnum.arbitrumMainnet,
-      // NetworksEnum.zksyncMainnet,
-      // NetworksEnum.zksyncSepolia,
-      // NetworksEnum.optimismMainnet,
+      NetworksEnum.ethereumSepolia,
+      NetworksEnum.polygonMainnet,
+      NetworksEnum.baseMainnet,
+      NetworksEnum.arbitrumMainnet,
+      NetworksEnum.zksyncMainnet,
+      NetworksEnum.zksyncSepolia,
+      NetworksEnum.optimismMainnet,
     ]
 
     for (const network of networks) {
