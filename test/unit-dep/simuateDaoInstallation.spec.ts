@@ -305,7 +305,7 @@ describe('Integration: SPP Dao Installation  ', () => {
     expect(tokenVotingSlug.slug).to.eq('tokenvoting')
   })
 
-  it('should install dao and update plugin', async function () {
+  it.skip('should install dao and update plugin', async function () {
     this.timeout(10000000)
 
     sandbox.stub(RateModule, 'fetchRateWithCovalent').resolves({

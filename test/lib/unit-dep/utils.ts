@@ -26,6 +26,7 @@ const UnitDepUtils = {
     network: NetworksEnum,
   ): Promise<{ event: any; logInfo: any }[]> => {
     const txReceipt = await Web3Helper.getTransactionReceipt(txHash, network)
+    //strange, this is coming as null in some cases, but txHash is valid
 
     const eventLogs = Web3Utils.findLogsByName(txReceipt!, eventName, abi)
 
