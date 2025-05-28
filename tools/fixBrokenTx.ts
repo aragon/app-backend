@@ -1,8 +1,8 @@
 import { Models } from '@dbModels'
 import logger from '@logger'
-import { EnumConnection, IEnumIndexerService, NetworksEnum } from '@src/types'
+import { EnumConnection, type HexAddress, IEnumIndexerService, NetworksEnum } from '@src/types'
 import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
-import DBCrawler from '@models/utils/crawler'
+import fs from 'fs'
 const llo = logger.logMeta.bind(null, { service: 'Tools: FixBrokenTx' })
 
 export const ToolsFixBrokenTx = {
@@ -24,25 +24,61 @@ export const ToolsFixBrokenTx = {
     for (const network of networks) {
       logger.info('Start fixBrokenTx for network', llo({ network }))
 
-      const dbCrawler = new DBCrawler({
-        model: Models.Dao,
-        where: {
-          network,
-          isActive: true,
-        },
-        onError: (error: any, document: any) => {
-          logger.error('Error Dao Fix', { document, error })
-        },
-        batchSize: 100,
-        concurrency: 10,
-        onDocument: async (dao: any) => {
-          await ToolsFixBrokenTx.onDocument(dao)
-        },
-      })
+      let counter = 0
 
-      await dbCrawler.crawl()
+      const daos = await Models.Transaction.aggregate([
+        {
+          $match: {
+            network,
+            daoAddress: { $exists: true, $ne: null },
+          },
+        },
+        {
+          $group: {
+            _id: {
+              network: '$network',
+              daoAddress: '$daoAddress',
+            },
+          },
+        },
+        {
+          $project: {
+            network: '$_id.network',
+            daoAddress: '$_id.daoAddress',
+          },
+        },
+      ])
 
-      logger.info('End fixBrokenTx for network', llo({ network }))
+      logger.info('Found DAOs with broken transactions', llo({ daosCount: daos.length, network }))
+
+      for (const dao of daos) {
+        const progress = await ToolsFixBrokenTx.loadProgress()
+        const progressKey = `${dao.network}-${dao.daoAddress}`
+
+        if (progress.includes(progressKey)) {
+          logger.info('Skipping already processed DAO', llo({ daoAddress: dao.daoAddress, network: dao.network }))
+          continue
+        }
+
+        const daoDb = await Models.Dao.findOne({
+          address: dao.daoAddress,
+          network: dao.network,
+        })
+
+        await ToolsFixBrokenTx.onDocument(daoDb)
+
+        counter = counter + 1
+        logger.info(
+          'Processed DAO',
+          llo({
+            daoAddress: dao.daoAddress,
+            network: dao.network,
+            remaining: daos.length - counter,
+          }),
+        )
+
+        await ToolsFixBrokenTx.saveProgress(dao.network, dao.daoAddress)
+      }
     }
   },
   onDocument: async (dao: any) => {
@@ -93,5 +129,21 @@ export const ToolsFixBrokenTx = {
 
   stop: async () => {
     logger.info('End fixBrokenTx', llo())
+  },
+
+  loadProgress: async () => {
+    logger.info('Loading progress for fixBrokenTx', llo({}))
+    if (!fs.existsSync('progressTxn.json')) {
+      fs.writeFileSync('progressTxn.json', '[]')
+      return []
+    }
+    return JSON.parse(fs.readFileSync('progressTxn.json', 'utf8'))
+  },
+
+  saveProgress: async (network: NetworksEnum, daoAddress: HexAddress) => {
+    logger.info('Saving progress for fixBrokenTx', llo({ network, daoAddress }))
+    const progress = await ToolsFixBrokenTx.loadProgress()
+    progress.push(`${network}-${daoAddress}`)
+    fs.writeFileSync('progressTxn.json', JSON.stringify(progress, null, 2))
   },
 }
