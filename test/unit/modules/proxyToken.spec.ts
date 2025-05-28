@@ -239,7 +239,9 @@ describe('Modules: ProxyToken', () => {
       } as any
 
       const tokenPrice = '1500.50'
-      sandbox.stub(ProxyWeb3Provider, 'fetchTokenPrice').resolves(tokenPrice)
+      sandbox.stub(ProxyWeb3Provider, 'fetchTokenPrice').resolves({
+        priceUsd: tokenPrice,
+      })
 
       // These should not be called for native tokens
       const fetchBasicTokenInfoStub = sandbox.stub(ProxyWeb3Provider, 'fetchBasicTokenInfo')
