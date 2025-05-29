@@ -65,7 +65,6 @@ export const ProposalList = [
     },
   },
   {
-    id: '0x6d79cc4818d901eb29a0c2b1fcbffec734ed92a2db355606e3b15a18e66edb2c-1',
     transactionHash: '0x6d79cc4818d901eb29a0c2b1fcbffec734ed92a2db355606e3b15a18e66edb2c',
     blockNumber: 40942213,
     blockTimestamp: 1680187116,
