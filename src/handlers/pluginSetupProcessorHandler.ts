@@ -24,6 +24,7 @@ import { MetadataHandler } from '@handlers/metadataHandler'
 import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import DbTx from '@modules/dbTx'
 import Web3Utils from '@helpers/web3Utils'
+import VotingEscrowDetector from '@helpers/votingEscrowDetector'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:pluginSetupProcessorHandler' })
 
@@ -81,7 +82,7 @@ export const PluginSetupProcessorHandler = {
           build: parsedEvent.args.versionTag.build,
           blockNumber: info.blockNumber,
           tokenAddress: undefined,
-          customData: PluginSetupProcessorHandler.findCustomDataFromHelpers(parsedEvent),
+          votingEscrow: await PluginSetupProcessorHandler.findVotingEscrowFromHelpers(parsedEvent, info),
         }
 
         const logDb = await Models.LogPluginSetupProcessor.create(rawPluginLog, { session })
@@ -384,7 +385,7 @@ export const PluginSetupProcessorHandler = {
     }
   },
 
-  findCustomDataFromHelpers: async (parsedEvent: LogDescription) => {
+  findVotingEscrowFromHelpers: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const helpers = parsedEvent.args.helpers
 
     if (Array.isArray(helpers) && helpers.length === 6) {
@@ -393,14 +394,17 @@ export const PluginSetupProcessorHandler = {
       const allValid = [curve, exitQueue, escrow, clock, nftLock, ivotesAdapter].every(Boolean)
 
       if (allValid) {
-        return {
-          curveAddress: curve,
-          exitQueueAddress: exitQueue,
-          escrowAddress: escrow,
-          clockAddress: clock,
-          nftLockAddress: nftLock,
-          votesAdapterAddress: ivotesAdapter,
-        } satisfies Record<string, HexAddress>
+        const result = await VotingEscrowDetector.isVotingEscrow(escrow, info.network)
+        if (result.status) {
+          return {
+            curveAddress: curve,
+            exitQueueAddress: exitQueue,
+            escrowAddress: escrow,
+            clockAddress: clock,
+            nftLockAddress: nftLock,
+            votesAdapterAddress: ivotesAdapter,
+          } satisfies Record<string, HexAddress>
+        }
       }
     }
 

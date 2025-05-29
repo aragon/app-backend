@@ -12,6 +12,22 @@ export interface IVoteIdParams {
   logIndex: number
 }
 
+export interface ILockFindMemberParams {
+  network: NetworksEnum
+  pluginAddress: HexAddress
+  memberAddress: HexAddress
+  tokenId: string
+}
+
+export interface ILockIdParams {
+  network: NetworksEnum
+  transactionHash: HexAddress
+  transactionIndex: number
+  logIndex: number
+  tokenAddress: HexAddress
+  memberAddress: HexAddress
+}
+
 export interface IAssetIdParams {
   network: NetworksEnum
   daoAddress: HexAddress

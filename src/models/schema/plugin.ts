@@ -13,7 +13,7 @@ import { assert } from '@errors'
 
 const customName = ICollectionNames.Plugin
 
-export class CustomData {
+export class VotingEscrow {
   @prop({ type: () => String, default: null })
   public curveAddress!: HexAddress
 
@@ -197,8 +197,8 @@ export default class Plugin extends Model {
   @prop({ type: () => [Link], _id: false, default: [] })
   public links?: Link[]
 
-  @prop({ type: () => CustomData, _id: false, default: null })
-  public customData?: CustomData
+  @prop({ type: () => VotingEscrow, _id: false, default: null })
+  public votingEscrow?: VotingEscrow
 
   static async create(rawData: Partial<Plugin>, tOpts?: SaveOptions) {
     if (!rawData.id) {
