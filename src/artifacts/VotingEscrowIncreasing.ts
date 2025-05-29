@@ -180,6 +180,13 @@ export const VotingEscrowIncreasing = {
     },
     {
       type: 'function',
+      name: 'minDeposit',
+      inputs: [],
+      outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }],
+      stateMutability: 'view',
+    },
+    {
+      type: 'function',
       name: 'votingPowerForAccount',
       inputs: [{ name: '_account', type: 'address', internalType: 'address' }],
       outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }],

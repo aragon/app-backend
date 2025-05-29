@@ -17,6 +17,14 @@ describe('Model: Plugin', () => {
       ...PluginList[0],
       interfaceType: IPluginInterfaceType.multisig,
       hasTarget: true,
+      votingEscrow: {
+        curveAddress: '0xCurveAddress',
+        exitQueueAddress: '0xExitQueueAddress',
+        escrowAddress: '0xEscrowAddress',
+        clockAddress: '0xClockAddress',
+        nftLockAddress: '0xNftLockAddress',
+        votesAdapterAddress: '0xVotesAdapterAddress',
+      },
     }
   })
 
@@ -36,6 +44,12 @@ describe('Model: Plugin', () => {
       expect(plugin.transactionHash).to.equal(rawPlugin.transactionHash)
       expect(plugin.address).to.equal(rawPlugin.address)
       expect(plugin.network).to.equal(rawPlugin.network)
+      expect(plugin.votingEscrow.curveAddress).to.equal(rawPlugin?.votingEscrow?.curveAddress)
+      expect(plugin.votingEscrow.exitQueueAddress).to.equal(rawPlugin?.votingEscrow?.exitQueueAddress)
+      expect(plugin.votingEscrow.escrowAddress).to.equal(rawPlugin?.votingEscrow?.escrowAddress)
+      expect(plugin.votingEscrow.clockAddress).to.equal(rawPlugin?.votingEscrow?.clockAddress)
+      expect(plugin.votingEscrow.nftLockAddress).to.equal(rawPlugin?.votingEscrow?.nftLockAddress)
+      expect(plugin.votingEscrow.votesAdapterAddress).to.equal(rawPlugin?.votingEscrow?.votesAdapterAddress)
       expect(plugin.hasTarget).to.be.true
     })
 
