@@ -1,3 +1,47 @@
+# [0.6.0](https://github.com/aragon/app-backend/compare/v0.5.2...v0.6.0) (2025-05-29)
+
+
+### Bug Fixes
+
+* conflicts fix ([e61e88a](https://github.com/aragon/app-backend/commit/e61e88abc92a2756bff06735e75005a2b783aed9))
+* dao ens subdomain ([#576](https://github.com/aragon/app-backend/issues/576)) ([4869799](https://github.com/aragon/app-backend/commit/48697999df66ca32b205584bfa32f2e0df3f9ab3))
+* **dao:** update document reference in Dao version upgrade logic ([#572](https://github.com/aragon/app-backend/issues/572)) ([719d323](https://github.com/aragon/app-backend/commit/719d3236afa8d9b910da6d33b306015b7ccf9a46))
+* file ([#605](https://github.com/aragon/app-backend/issues/605)) ([5298dde](https://github.com/aragon/app-backend/commit/5298dde772dbe420905ed0661324b2672b29087a))
+* **logAdmin:** update admin plugin handling and tests ([#593](https://github.com/aragon/app-backend/issues/593)) ([e99edd9](https://github.com/aragon/app-backend/commit/e99edd964233c7d7a5246a7310bb58d0357cd945))
+* **logTokenVoting:** adjust onlyHistorical condition based on token block number ([#531](https://github.com/aragon/app-backend/issues/531)) ([54c9169](https://github.com/aragon/app-backend/commit/54c9169f63ce45af3fdb62a584ff39d11ffb5e71))
+* mongodb save isHidden status ([#609](https://github.com/aragon/app-backend/issues/609)) ([1290ab4](https://github.com/aragon/app-backend/commit/1290ab43906e7a379625c340a08ac2cd8d52b1b0))
+* **permissionHandler:** reorganize permission handling logic and update tests ([#546](https://github.com/aragon/app-backend/issues/546)) ([fa932c5](https://github.com/aragon/app-backend/commit/fa932c59f2932f3767882576da06a472af0f4bab))
+* **proxyToken:** fallback to tokenTypeInfo.type for token type ([#574](https://github.com/aragon/app-backend/issues/574)) ([ab32186](https://github.com/aragon/app-backend/commit/ab32186c4fb5c2955fa73135b6c597f4baeba8c5))
+* **proxyToken:** skip if goverance token ([#550](https://github.com/aragon/app-backend/issues/550)) ([6b8f48d](https://github.com/aragon/app-backend/commit/6b8f48d285961bddc9547553ada10038b23d8bfc))
+* **proxyToken:** skip if goverance token staging ([#551](https://github.com/aragon/app-backend/issues/551)) ([d01d8fc](https://github.com/aragon/app-backend/commit/d01d8fc27970549914fd64f2888c999665cd3650))
+* revert replace ens ([#575](https://github.com/aragon/app-backend/issues/575)) ([69acb53](https://github.com/aragon/app-backend/commit/69acb5341dd6d2564c553b0d6f15b23b6ad74006))
+* **token:** ignore price fetching for testnet ([#547](https://github.com/aragon/app-backend/issues/547)) ([3dc6f54](https://github.com/aragon/app-backend/commit/3dc6f54b276cf0ab312329347985b60f520b23d5))
+
+
+### Features
+
+* admin api to set dao status ([#604](https://github.com/aragon/app-backend/issues/604)) ([12ca4fd](https://github.com/aragon/app-backend/commit/12ca4fd13a52222b4eff5dea29c4b947250ddbec))
+* **aggregation:** add metadataIpfs field to aggregation and dao structures ([#558](https://github.com/aragon/app-backend/issues/558)) ([dc65481](https://github.com/aragon/app-backend/commit/dc654818f1e5f4be6771c393d665787d6e13da8c))
+* **blockScout:** implement getAllTokenHolders method for fetching token holders with pagination ([#532](https://github.com/aragon/app-backend/issues/532)) ([45aa331](https://github.com/aragon/app-backend/commit/45aa331f7179bb0a7e44578ef2f6cd8661b6eb39))
+* **crawler:** reset batch size based on run count in getLogsByBatch method ([#535](https://github.com/aragon/app-backend/issues/535)) ([bd5ffbc](https://github.com/aragon/app-backend/commit/bd5ffbcc61ba1a14f6531be8d64760dec24e15fb))
+* **dao:** implement getDaoByEns endpoint and associated tests ([#556](https://github.com/aragon/app-backend/issues/556)) ([1eb6654](https://github.com/aragon/app-backend/commit/1eb6654f452ef606348de29466ed6cd44a06958b))
+* **dao:** update getDaoDetails to accept network parameter and enhance tests ([#544](https://github.com/aragon/app-backend/issues/544)) ([2424a6d](https://github.com/aragon/app-backend/commit/2424a6d0362b7f588afd85ddb60e1e054e6778e9))
+* heath endpoint ([827812b](https://github.com/aragon/app-backend/commit/827812b06d946f07caeade53f87b21fbb5304ad4))
+* **memberInfo:** canCreateProposal check on chain ([#560](https://github.com/aragon/app-backend/issues/560)) ([371463c](https://github.com/aragon/app-backend/commit/371463c67426993f583f3fbf5057452cb33a07f0))
+* **metadata:** Update existing metadata to the new active plugin and mark old one unsupported  ([#573](https://github.com/aragon/app-backend/issues/573)) ([a59a890](https://github.com/aragon/app-backend/commit/a59a8900b6e788a6159691fe0d9cb18539eb4e52))
+* opt covalent token ([#602](https://github.com/aragon/app-backend/issues/602)) ([cdb3168](https://github.com/aragon/app-backend/commit/cdb31680ddaf8a57fcc3b61999b44d15e0c97e5f))
+* opt tx category ([#603](https://github.com/aragon/app-backend/issues/603)) ([caa979d](https://github.com/aragon/app-backend/commit/caa979daa5e522073cd5a27a8daa0725d1107260))
+* optimism config ([#581](https://github.com/aragon/app-backend/issues/581)) ([1707b99](https://github.com/aragon/app-backend/commit/1707b99d9e60e11c07f855b4f7edd876ada786ff))
+* **plugin:** add plugin installation data handling api and tests ([#564](https://github.com/aragon/app-backend/issues/564)) ([d4f615d](https://github.com/aragon/app-backend/commit/d4f615df94b6841da55fa0e30829a8a4d3c54b9f))
+* **plugin:** enhance installation data, improved error handling, serialization manually ([#569](https://github.com/aragon/app-backend/issues/569)) ([86f19bb](https://github.com/aragon/app-backend/commit/86f19bb4658c9480b28de15e3f9a0450054b8627))
+* **plugin:** implement handleVersionUpgrade for DAO version management ([#571](https://github.com/aragon/app-backend/issues/571)) ([221b194](https://github.com/aragon/app-backend/commit/221b194eabbdcaa92ad3ae0cf98a9bbb490cba4c))
+* **proposal:** getProposalDecodedActions endpoint + admin router recalculate actions ([#538](https://github.com/aragon/app-backend/issues/538)) ([11a2819](https://github.com/aragon/app-backend/commit/11a2819c40d608fcc91cf9a7a3be81792710dbed))
+* **proposal:** implement canCreateProposal queue handling and related logic ([#562](https://github.com/aragon/app-backend/issues/562)) ([3766929](https://github.com/aragon/app-backend/commit/37669292b803a0fdf755d3cbcbb9c8444f496680))
+* **subscan:** implement getAllTokenHolders ([#543](https://github.com/aragon/app-backend/issues/543)) ([94b3590](https://github.com/aragon/app-backend/commit/94b35903bad067c4590f0e9c23780d4bf4fbdcb9))
+* **token:** add getClockMode method and integrate CLOCK_MODE handling in getPastVotes ([#529](https://github.com/aragon/app-backend/issues/529)) ([9f8c689](https://github.com/aragon/app-backend/commit/9f8c6892732da3bc54aac70c7443f46c6733107a))
+* **tool:** add tool to fix broken transactions for DAOs ([#607](https://github.com/aragon/app-backend/issues/607)) ([13cadfc](https://github.com/aragon/app-backend/commit/13cadfc5dd8002126670a677d13c3b5d7cc152a5))
+* **wallet:** safe wallet type return in proposal setting and general setting ([#570](https://github.com/aragon/app-backend/issues/570)) ([9cfea8f](https://github.com/aragon/app-backend/commit/9cfea8f76bc352a6c7990fd1eb9a69e6abf69c77))
+
 ## [0.5.2](https://github.com/aragon/app-backend/compare/v0.5.1...v0.5.2) (2025-05-05)
 
 
