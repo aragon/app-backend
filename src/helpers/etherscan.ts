@@ -4,27 +4,28 @@ import config from '@config'
 import { type HexAddress, type IEtherScanSource, type NetworksEnum } from '@types'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
+import ProviderModule from '@modules/provider'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:EtherscanHelper' })
 
 const EtherscanHelper = {
-  axiosInstance: (network: NetworksEnum) =>
+  axiosInstance: () =>
     axios.create({
-      baseURL: EtherscanHelper._parseNetworkToConfig(network).ETHERSCAN_API_URL,
+      baseURL: config.ETHERSCAN_API.BASE_URI,
       headers: { 'Content-Type': 'application/json' },
     }),
 
-  _parseNetworkToConfig: (network: NetworksEnum) => {
-    const networkConfigKey = network.replace('-', '_').toUpperCase()
-    const etherscanConfig = config.NODES[networkConfigKey]
-    return etherscanConfig
-  },
-
   _rpCall: async (params: object, network: NetworksEnum) => {
     try {
+      params = {
+        ...params,
+        apikey: config.ETHERSCAN_API.API_KEY,
+        chainid: ProviderModule.getChainId(network),
+      }
+
       const response = await retryRequest(async () =>
         BottleneckModule.getEtherScanLimiter(network).schedule(async () =>
-          EtherscanHelper.axiosInstance(network).get('', { params }),
+          EtherscanHelper.axiosInstance().get('', { params }),
         ),
       )
       return response?.data?.result
@@ -35,7 +36,6 @@ const EtherscanHelper = {
   },
 
   fetchAllTransactions: async ({ contractAddress, startBlock = 0, endBlock = 'latest', network }) => {
-    const apiKey = EtherscanHelper._parseNetworkToConfig(network).ETHERSCAN_API_KEY
     const params = {
       module: 'account',
       action: 'txlist',
@@ -43,7 +43,6 @@ const EtherscanHelper = {
       startblock: startBlock,
       endblock: endBlock,
       sort: 'asc',
-      apikey: apiKey,
     }
 
     try {
@@ -58,29 +57,24 @@ const EtherscanHelper = {
     contractAddress,
     network,
   }): Promise<[{ address: HexAddress; txHash: HexAddress }] | []> => {
-    const apiKey = EtherscanHelper._parseNetworkToConfig(network).ETHERSCAN_API_KEY
     const params = {
       module: 'contract',
       action: 'getcontractcreation',
       contractaddresses: contractAddress,
-      apikey: apiKey,
     }
 
     try {
-      const result = await EtherscanHelper._rpCall(params, network)
-      return result
+      return await EtherscanHelper._rpCall(params, network)
     } catch (error) {
       return []
     }
   },
 
   fetchContractSourceCode: async ({ contractAddress, network }): Promise<IEtherScanSource[] | null> => {
-    const apiKey = EtherscanHelper._parseNetworkToConfig(network).ETHERSCAN_API_KEY
     const params = {
       module: 'contract',
       action: 'getsourcecode',
       address: contractAddress,
-      apikey: apiKey,
     }
 
     try {
@@ -92,12 +86,10 @@ const EtherscanHelper = {
   },
 
   getTokenMetrics: async (address: HexAddress, network: NetworksEnum) => {
-    const apiKey = EtherscanHelper._parseNetworkToConfig(network).ETHERSCAN_API_KEY
     const params = {
       module: 'token',
       action: 'tokensupply',
       contractaddress: address,
-      apikey: apiKey,
     }
 
     try {
