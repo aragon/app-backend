@@ -43,6 +43,17 @@ const ProviderModule = {
     OPTIMISM_MAINNET: NetworksEnum.optimismMainnet,
     PEAQ_MAINNET: NetworksEnum.peaqMainnet,
   },
+  networkChainMap: {
+    [NetworksEnum.ethereumMainnet]: 1,
+    [NetworksEnum.ethereumSepolia]: 11155111,
+    [NetworksEnum.polygonMainnet]: 137,
+    [NetworksEnum.baseMainnet]: 8453,
+    [NetworksEnum.arbitrumMainnet]: 42161,
+    [NetworksEnum.zksyncSepolia]: 300,
+    [NetworksEnum.zksyncMainnet]: 324,
+    [NetworksEnum.optimismMainnet]: 10,
+    [NetworksEnum.peaqMainnet]: 3338,
+  },
 
   // Converts a config key to a NetworksEnum.
   parseNetwork: (network: string): NetworksEnum | undefined => {
@@ -52,6 +63,10 @@ const ProviderModule = {
   // Converts a NetworksEnum to the corresponding Alchemy SDK Network.
   parseAlchemyNetwork: (network: NetworksEnum): Network => {
     return ProviderModule.alchemyNetworksMap[network]
+  },
+
+  getChainId: (network: NetworksEnum): number => {
+    return ProviderModule.networkChainMap[network]
   },
 
   async connectToAllNetworks() {
