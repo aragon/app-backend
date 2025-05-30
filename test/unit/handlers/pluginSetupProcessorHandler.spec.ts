@@ -22,6 +22,7 @@ import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { MetadataHandler } from '@handlers/metadataHandler'
 import Web3Utils from '@helpers/web3Utils'
 import VotingEscrowDetector from '@helpers/votingEscrowDetector'
+import GovernanceVeHelper from '@helpers/governanceVe'
 
 describe('Indexer: PluginSetupProcessorHandler', () => {
   let sandbox: SinonSandbox
@@ -765,11 +766,13 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(true as any)
       const getVotingTokenStub = sandbox.stub(Web3Helper, 'getVotingToken').resolves('0xToken')
+      const findVotingEscrowStub = sandbox.stub(PluginSetupProcessorHandler, 'findVotingEscrow').resolves(null)
       await PluginSetupProcessorHandler.findAndUpdateTokenAddress(plugin, logInfo)
 
       expect(proxyTokenStub.calledOnce).to.be.true
       const reloadedPlugin = await Models.Plugin.findOne({ address: plugin.address })
       expect(reloadedPlugin.tokenAddress).to.eq('0xToken')
+      expect(findVotingEscrowStub.calledOnce).to.be.true
       expect(getVotingTokenStub.calledOnce).to.be.true
       expect(getVotingTokenStub.calledWith(plugin.address, logInfo.network)).to.be.true
       expect(proxyTokenStub.calledWith('0xToken', logInfo.network)).to.be.true
@@ -793,12 +796,14 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       }
 
       const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(true as any)
+      const findVotingEscrowStub = sandbox.stub(PluginSetupProcessorHandler, 'findVotingEscrow').resolves(null)
       const getGaugeTokenStub = sandbox.stub(GaugeHelper, 'getTokenAddress').resolves('0xToken')
       await PluginSetupProcessorHandler.findAndUpdateTokenAddress(plugin, logInfo)
 
       expect(proxyTokenStub.calledOnce).to.be.true
       const reloadedPlugin = await Models.Plugin.findOne({ address: plugin.address })
       expect(reloadedPlugin.tokenAddress).to.eq('0xToken')
+      expect(findVotingEscrowStub.calledOnce).to.be.true
       expect(getGaugeTokenStub.calledOnce).to.be.true
       expect(getGaugeTokenStub.calledWith(plugin.address, logInfo.network)).to.be.true
       expect(proxyTokenStub.calledWith('0xToken', logInfo.network)).to.be.true
@@ -1359,310 +1364,149 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     })
   })
 
-  describe('findVotingEscrowFromHelpers', () => {
-    it('should return voting escrow object when helpers array has 6 valid addresses and escrow is valid', async () => {
-      const helpers = [
-        '0x1111111111111111111111111111111111111111', // curve
-        '0x2222222222222222222222222222222222222222', // exitQueue
-        '0x3333333333333333333333333333333333333333', // escrow
-        '0x4444444444444444444444444444444444444444', // clock
-        '0x5555555555555555555555555555555555555555', // nftLock
-        '0x6666666666666666666666666666666666666666', // ivotesAdapter
-      ]
-
-      const parsedEvent = {
-        args: {
-          helpers,
-        },
-      } as any
-
+  describe('findVotingEscrow', () => {
+    it('should return voting escrow object when all addresses are valid and escrow is valid', async () => {
+      const tokenAddress = '0x1111111111111111111111111111111111111111'
       const info = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
         transactionHash: '0x123',
       } as ILogInfo
 
+      const escrowAddress = '0x3333333333333333333333333333333333333333'
+      const curveAddress = '0x4444444444444444444444444444444444444444'
+      const exitQueueAddress = '0x5555555555555555555555555555555555555555'
+      const clockAddress = '0x6666666666666666666666666666666666666666'
+      const nftLockAddress = '0x7777777777777777777777777777777777777777'
+
+      const getEscrowAddressStub = sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(escrowAddress)
       const votingEscrowDetectorStub = sandbox.stub(VotingEscrowDetector, 'isVotingEscrow').resolves({
         status: true,
       } as any)
+      const getClockAddressStub = sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves(clockAddress)
+      const getCurveAddressStub = sandbox.stub(GovernanceVeHelper, 'getCurveAddress').resolves(curveAddress)
+      const getExitQueueAddressStub = sandbox.stub(GovernanceVeHelper, 'getExitQueueAddress').resolves(exitQueueAddress)
+      const getNftLockAddressStub = sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(nftLockAddress)
 
-      const result = await PluginSetupProcessorHandler.findVotingEscrowFromHelpers(parsedEvent, info)
+      const result = await PluginSetupProcessorHandler.findVotingEscrow(tokenAddress, info)
 
-      expect(votingEscrowDetectorStub.calledOnceWith(helpers[2], info.network)).to.be.true
+      expect(getEscrowAddressStub.calledOnceWith(tokenAddress, info.network)).to.be.true
+      expect(votingEscrowDetectorStub.calledOnceWith(escrowAddress, info.network)).to.be.true
+      expect(getClockAddressStub.calledOnceWith(tokenAddress, info.network)).to.be.true
+      expect(getCurveAddressStub.calledOnceWith(escrowAddress, info.network)).to.be.true
+      expect(getExitQueueAddressStub.calledOnceWith(escrowAddress, info.network)).to.be.true
+      expect(getNftLockAddressStub.calledOnceWith(escrowAddress, info.network)).to.be.true
+
       expect(result).to.deep.equal({
-        curveAddress: helpers[0],
-        exitQueueAddress: helpers[1],
-        escrowAddress: helpers[2],
-        clockAddress: helpers[3],
-        nftLockAddress: helpers[4],
-        votesAdapterAddress: helpers[5],
+        curveAddress,
+        exitQueueAddress,
+        escrowAddress,
+        clockAddress,
+        nftLockAddress,
       })
     })
 
-    it('should return null when helpers array has 6 addresses but escrow is not valid', async () => {
-      const helpers = [
-        '0x1111111111111111111111111111111111111111',
-        '0x2222222222222222222222222222222222222222',
-        '0x3333333333333333333333333333333333333333',
-        '0x4444444444444444444444444444444444444444',
-        '0x5555555555555555555555555555555555555555',
-        '0x6666666666666666666666666666666666666666',
-      ]
-
-      const parsedEvent = {
-        args: {
-          helpers,
-        },
-      } as any
-
+    it('should return null when escrow address is not found', async () => {
+      const tokenAddress = '0x1111111111111111111111111111111111111111'
       const info = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
         transactionHash: '0x123',
       } as ILogInfo
 
+      const getEscrowAddressStub = sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(null)
+      const votingEscrowDetectorStub = sandbox.stub(VotingEscrowDetector, 'isVotingEscrow')
+
+      const result = await PluginSetupProcessorHandler.findVotingEscrow(tokenAddress, info)
+
+      expect(getEscrowAddressStub.calledOnceWith(tokenAddress, info.network)).to.be.true
+      expect(votingEscrowDetectorStub.notCalled).to.be.true
+      expect(result).to.be.null
+    })
+
+    it('should return null when escrow is not valid', async () => {
+      const tokenAddress = '0x1111111111111111111111111111111111111111'
+      const escrowAddress = '0x3333333333333333333333333333333333333333'
+      const info = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionHash: '0x123',
+      } as ILogInfo
+
+      const getEscrowAddressStub = sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(escrowAddress)
       const votingEscrowDetectorStub = sandbox.stub(VotingEscrowDetector, 'isVotingEscrow').resolves({
         status: false,
       } as any)
+      const getClockAddressStub = sandbox.stub(GovernanceVeHelper, 'getClockAddress')
 
-      const result = await PluginSetupProcessorHandler.findVotingEscrowFromHelpers(parsedEvent, info)
+      const result = await PluginSetupProcessorHandler.findVotingEscrow(tokenAddress, info)
 
-      expect(votingEscrowDetectorStub.calledOnceWith(helpers[2], info.network)).to.be.true
+      expect(getEscrowAddressStub.calledOnceWith(tokenAddress, info.network)).to.be.true
+      expect(votingEscrowDetectorStub.calledOnceWith(escrowAddress, info.network)).to.be.true
+      expect(getClockAddressStub.notCalled).to.be.true
       expect(result).to.be.null
     })
 
-    it('should return null when helpers array has less than 6 elements', async () => {
-      const helpers = [
-        '0x1111111111111111111111111111111111111111',
-        '0x2222222222222222222222222222222222222222',
-        '0x3333333333333333333333333333333333333333',
-        '0x4444444444444444444444444444444444444444',
-        '0x5555555555555555555555555555555555555555',
-        // Missing 6th element
-      ]
-
-      const parsedEvent = {
-        args: {
-          helpers,
-        },
-      } as any
-
+    it('should return null when one of the required addresses is missing', async () => {
+      const tokenAddress = '0x1111111111111111111111111111111111111111'
+      const escrowAddress = '0x3333333333333333333333333333333333333333'
       const info = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
         transactionHash: '0x123',
       } as ILogInfo
 
-      const votingEscrowDetectorStub = sandbox.stub(VotingEscrowDetector, 'isVotingEscrow')
+      const curveAddress = '0x4444444444444444444444444444444444444444'
+      const exitQueueAddress = '0x5555555555555555555555555555555555555555'
+      const clockAddress = '0x6666666666666666666666666666666666666666'
+      // nftLockAddress will be null
 
-      const result = await PluginSetupProcessorHandler.findVotingEscrowFromHelpers(parsedEvent, info)
-
-      expect(votingEscrowDetectorStub.notCalled).to.be.true
-      expect(result).to.be.null
-    })
-
-    it('should return null when helpers array has more than 6 elements', async () => {
-      const helpers = [
-        '0x1111111111111111111111111111111111111111',
-        '0x2222222222222222222222222222222222222222',
-        '0x3333333333333333333333333333333333333333',
-        '0x4444444444444444444444444444444444444444',
-        '0x5555555555555555555555555555555555555555',
-        '0x6666666666666666666666666666666666666666',
-        '0x7777777777777777777777777777777777777777', // Extra element
-      ]
-
-      const parsedEvent = {
-        args: {
-          helpers,
-        },
-      } as any
-
-      const info = {
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 1,
-        transactionHash: '0x123',
-      } as ILogInfo
-
-      const votingEscrowDetectorStub = sandbox.stub(VotingEscrowDetector, 'isVotingEscrow')
-
-      const result = await PluginSetupProcessorHandler.findVotingEscrowFromHelpers(parsedEvent, info)
-
-      expect(votingEscrowDetectorStub.notCalled).to.be.true
-      expect(result).to.be.null
-    })
-
-    it('should return null when helpers is not an array', async () => {
-      const parsedEvent = {
-        args: {
-          helpers: 'not-an-array',
-        },
-      } as any
-
-      const info = {
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 1,
-        transactionHash: '0x123',
-      } as ILogInfo
-
-      const votingEscrowDetectorStub = sandbox.stub(VotingEscrowDetector, 'isVotingEscrow')
-
-      const result = await PluginSetupProcessorHandler.findVotingEscrowFromHelpers(parsedEvent, info)
-
-      expect(votingEscrowDetectorStub.notCalled).to.be.true
-      expect(result).to.be.null
-    })
-
-    it('should return null when helpers is undefined', async () => {
-      const parsedEvent = {
-        args: {
-          helpers: undefined,
-        },
-      } as any
-
-      const info = {
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 1,
-        transactionHash: '0x123',
-      } as ILogInfo
-
-      const votingEscrowDetectorStub = sandbox.stub(VotingEscrowDetector, 'isVotingEscrow')
-
-      const result = await PluginSetupProcessorHandler.findVotingEscrowFromHelpers(parsedEvent, info)
-
-      expect(votingEscrowDetectorStub.notCalled).to.be.true
-      expect(result).to.be.null
-    })
-
-    it('should return null when one of the helper addresses is falsy', async () => {
-      const helpers = [
-        '0x1111111111111111111111111111111111111111',
-        '0x2222222222222222222222222222222222222222',
-        null, // falsy value
-        '0x4444444444444444444444444444444444444444',
-        '0x5555555555555555555555555555555555555555',
-        '0x6666666666666666666666666666666666666666',
-      ]
-
-      const parsedEvent = {
-        args: {
-          helpers,
-        },
-      } as any
-
-      const info = {
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 1,
-        transactionHash: '0x123',
-      } as ILogInfo
-
-      const votingEscrowDetectorStub = sandbox.stub(VotingEscrowDetector, 'isVotingEscrow')
-
-      const result = await PluginSetupProcessorHandler.findVotingEscrowFromHelpers(parsedEvent, info)
-
-      expect(votingEscrowDetectorStub.notCalled).to.be.true
-      expect(result).to.be.null
-    })
-
-    it('should return null when multiple helper addresses are falsy', async () => {
-      const helpers = [
-        '0x1111111111111111111111111111111111111111',
-        '', // falsy
-        undefined, // falsy
-        '0x4444444444444444444444444444444444444444',
-        '0x5555555555555555555555555555555555555555',
-        '0x6666666666666666666666666666666666666666',
-      ]
-
-      const parsedEvent = {
-        args: {
-          helpers,
-        },
-      } as any
-
-      const info = {
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 1,
-        transactionHash: '0x123',
-      } as ILogInfo
-
-      const votingEscrowDetectorStub = sandbox.stub(VotingEscrowDetector, 'isVotingEscrow')
-
-      const result = await PluginSetupProcessorHandler.findVotingEscrowFromHelpers(parsedEvent, info)
-
-      expect(votingEscrowDetectorStub.notCalled).to.be.true
-      expect(result).to.be.null
-    })
-
-    it('should handle VotingEscrowDetector throwing an error', async () => {
-      const helpers = [
-        '0x1111111111111111111111111111111111111111',
-        '0x2222222222222222222222222222222222222222',
-        '0x3333333333333333333333333333333333333333',
-        '0x4444444444444444444444444444444444444444',
-        '0x5555555555555555555555555555555555555555',
-        '0x6666666666666666666666666666666666666666',
-      ]
-
-      const parsedEvent = {
-        args: {
-          helpers,
-        },
-      } as any
-
-      const info = {
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 1,
-        transactionHash: '0x123',
-      } as ILogInfo
-
-      const votingEscrowDetectorStub = sandbox
-        .stub(VotingEscrowDetector, 'isVotingEscrow')
-        .rejects(new Error('Network error'))
-
-      await expect(PluginSetupProcessorHandler.findVotingEscrowFromHelpers(parsedEvent, info)).to.be.rejectedWith(
-        'Network error',
-      )
-      expect(votingEscrowDetectorStub.calledOnceWith(helpers[2], info.network)).to.be.true
-    })
-
-    it('should work with different network types', async () => {
-      const helpers = [
-        '0x1111111111111111111111111111111111111111',
-        '0x2222222222222222222222222222222222222222',
-        '0x3333333333333333333333333333333333333333',
-        '0x4444444444444444444444444444444444444444',
-        '0x5555555555555555555555555555555555555555',
-        '0x6666666666666666666666666666666666666666',
-      ]
-
-      const parsedEvent = {
-        args: {
-          helpers,
-        },
-      } as any
-
-      const info = {
-        network: NetworksEnum.polygonMainnet,
-        blockNumber: 1,
-        transactionHash: '0x123',
-      } as ILogInfo
-
+      const getEscrowAddressStub = sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(escrowAddress)
       const votingEscrowDetectorStub = sandbox.stub(VotingEscrowDetector, 'isVotingEscrow').resolves({
         status: true,
       } as any)
+      const getClockAddressStub = sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves(clockAddress)
+      const getCurveAddressStub = sandbox.stub(GovernanceVeHelper, 'getCurveAddress').resolves(curveAddress)
+      const getExitQueueAddressStub = sandbox.stub(GovernanceVeHelper, 'getExitQueueAddress').resolves(exitQueueAddress)
+      const getNftLockAddressStub = sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(null) // Missing address
 
-      const result = await PluginSetupProcessorHandler.findVotingEscrowFromHelpers(parsedEvent, info)
+      const result = await PluginSetupProcessorHandler.findVotingEscrow(tokenAddress, info)
 
-      expect(votingEscrowDetectorStub.calledOnceWith(helpers[2], NetworksEnum.polygonMainnet)).to.be.true
-      expect(result).to.deep.equal({
-        curveAddress: helpers[0],
-        exitQueueAddress: helpers[1],
-        escrowAddress: helpers[2],
-        clockAddress: helpers[3],
-        nftLockAddress: helpers[4],
-        votesAdapterAddress: helpers[5],
-      })
+      expect(getEscrowAddressStub.calledOnceWith(tokenAddress, info.network)).to.be.true
+      expect(votingEscrowDetectorStub.calledOnceWith(escrowAddress, info.network)).to.be.true
+      expect(getClockAddressStub.calledOnceWith(tokenAddress, info.network)).to.be.true
+      expect(getCurveAddressStub.calledOnceWith(escrowAddress, info.network)).to.be.true
+      expect(getExitQueueAddressStub.calledOnceWith(escrowAddress, info.network)).to.be.true
+      expect(getNftLockAddressStub.calledOnceWith(escrowAddress, info.network)).to.be.true
+
+      expect(result).to.be.null
+    })
+
+    it('should return null when clockAddress is missing', async () => {
+      const tokenAddress = '0x1111111111111111111111111111111111111111'
+      const escrowAddress = '0x3333333333333333333333333333333333333333'
+      const info = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionHash: '0x123',
+      } as ILogInfo
+
+      const curveAddress = '0x4444444444444444444444444444444444444444'
+      const exitQueueAddress = '0x5555555555555555555555555555555555555555'
+      const nftLockAddress = '0x7777777777777777777777777777777777777777'
+
+      const getEscrowAddressStub = sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(escrowAddress)
+      const votingEscrowDetectorStub = sandbox.stub(VotingEscrowDetector, 'isVotingEscrow').resolves({
+        status: true,
+      } as any)
+      const getClockAddressStub = sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves(null) // Missing clockAddress
+      const getCurveAddressStub = sandbox.stub(GovernanceVeHelper, 'getCurveAddress').resolves(curveAddress)
+      const getExitQueueAddressStub = sandbox.stub(GovernanceVeHelper, 'getExitQueueAddress').resolves(exitQueueAddress)
+      const getNftLockAddressStub = sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(nftLockAddress)
+
+      const result = await PluginSetupProcessorHandler.findVotingEscrow(tokenAddress, info)
+
+      expect(result).to.be.null
     })
   })
 })

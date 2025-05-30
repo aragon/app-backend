@@ -8,6 +8,71 @@ import { ExitQueue } from '@artifacts/ExitQueue'
 import { LinearIncreasingCurve } from '@artifacts/LinearIncreasingCurve'
 
 const GovernanceVeHelper = {
+  async getEscrowAddress(voterAdapter: HexAddress, network: NetworksEnum): Promise<HexAddress | null> {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const abi = ['function escrow() view returns (address)']
+    const contract = new Contract(voterAdapter, abi, provider)
+    try {
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.escrow()),
+      )
+    } catch (error) {
+      return null
+    }
+  },
+
+  async getClockAddress(voterAdapter: HexAddress, network: NetworksEnum): Promise<HexAddress | null> {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const abi = ['function clock() view returns (address)']
+    const contract = new Contract(voterAdapter, abi, provider)
+    try {
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.clock()),
+      )
+    } catch (error) {
+      return null
+    }
+  },
+
+  async getCurveAddress(votingEscrowAddress: HexAddress, network: NetworksEnum): Promise<HexAddress | null> {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const abi = ['function curve() view returns (address)']
+    const contract = new Contract(votingEscrowAddress, abi, provider)
+    try {
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.curve()),
+      )
+    } catch (error) {
+      return null
+    }
+  },
+
+  async getExitQueueAddress(votingEscrowAddress: HexAddress, network: NetworksEnum): Promise<HexAddress | null> {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const abi = ['function queue() view returns (address)']
+    const contract = new Contract(votingEscrowAddress, abi, provider)
+    try {
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.queue()),
+      )
+    } catch (error) {
+      return null
+    }
+  },
+
+  async getNftLockAddress(votingEscrowAddress: HexAddress, network: NetworksEnum): Promise<HexAddress | null> {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const abi = ['function lockNFT() view returns (address)']
+    const contract = new Contract(votingEscrowAddress, abi, provider)
+    try {
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.lockNFT()),
+      )
+    } catch (error) {
+      return null
+    }
+  },
+
   async getMinDeposit(votingEscrowAddress: HexAddress, network: NetworksEnum): Promise<bigint> {
     const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(votingEscrowAddress, VotingEscrowIncreasing.abi, provider)

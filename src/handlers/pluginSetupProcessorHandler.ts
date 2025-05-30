@@ -25,6 +25,7 @@ import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import DbTx from '@modules/dbTx'
 import Web3Utils from '@helpers/web3Utils'
 import VotingEscrowDetector from '@helpers/votingEscrowDetector'
+import GovernanceVeHelper from '@helpers/governanceVe'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:pluginSetupProcessorHandler' })
 
@@ -82,7 +83,6 @@ export const PluginSetupProcessorHandler = {
           build: parsedEvent.args.versionTag.build,
           blockNumber: info.blockNumber,
           tokenAddress: undefined,
-          votingEscrow: await PluginSetupProcessorHandler.findVotingEscrowFromHelpers(parsedEvent, info),
         }
 
         const logDb = await Models.LogPluginSetupProcessor.create(rawPluginLog, { session })
@@ -380,30 +380,50 @@ export const PluginSetupProcessorHandler = {
     }
 
     if (tokenAddress) {
-      await DbOperations.updateDocument(pluginDb, { tokenAddress }, info, 'Update Voting plugin token', llo)
+      const result = await PluginSetupProcessorHandler.findVotingEscrow(tokenAddress, info)
+      const votingEscrow = result || null
+
+      await DbOperations.updateDocument(
+        pluginDb,
+        { tokenAddress, votingEscrow },
+        info,
+        'Update Voting plugin token',
+        llo,
+      )
       await ProxyToken.saveAndGetToken(tokenAddress, info.network)
     }
   },
 
-  findVotingEscrowFromHelpers: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const helpers = parsedEvent.args.helpers
+  findVotingEscrow: async (
+    tokenAddress: HexAddress,
+    info: ILogInfo,
+  ): Promise<{
+    curveAddress: HexAddress
+    exitQueueAddress: HexAddress
+    escrowAddress: HexAddress
+    clockAddress: HexAddress
+    nftLockAddress: HexAddress
+  } | null> => {
+    // check if the token is a ivoteradapter
+    const escrowAddress = await GovernanceVeHelper.getEscrowAddress(tokenAddress, info.network)
 
-    if (Array.isArray(helpers) && helpers.length === 6) {
-      const [curve, exitQueue, escrow, clock, nftLock, ivotesAdapter] = helpers
+    if (escrowAddress) {
+      // check if the escrowAddress is following our spec
+      const result = await VotingEscrowDetector.isVotingEscrow(escrowAddress, info.network)
+      if (result.status) {
+        const clockAddress = await GovernanceVeHelper.getClockAddress(tokenAddress, info.network)
+        const curveAddress = await GovernanceVeHelper.getCurveAddress(escrowAddress, info.network)
+        const exitQueueAddress = await GovernanceVeHelper.getExitQueueAddress(escrowAddress, info.network)
+        const nftLockAddress = await GovernanceVeHelper.getNftLockAddress(escrowAddress, info.network)
 
-      const allValid = [curve, exitQueue, escrow, clock, nftLock, ivotesAdapter].every(Boolean)
-
-      if (allValid) {
-        const result = await VotingEscrowDetector.isVotingEscrow(escrow, info.network)
-        if (result.status) {
+        if (clockAddress && curveAddress && exitQueueAddress && nftLockAddress) {
           return {
-            curveAddress: curve,
-            exitQueueAddress: exitQueue,
-            escrowAddress: escrow,
-            clockAddress: clock,
-            nftLockAddress: nftLock,
-            votesAdapterAddress: ivotesAdapter,
-          } satisfies Record<string, HexAddress>
+            curveAddress,
+            exitQueueAddress,
+            escrowAddress,
+            clockAddress,
+            nftLockAddress,
+          }
         }
       }
     }
