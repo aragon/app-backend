@@ -392,8 +392,8 @@ describe('Controller: Member', () => {
       metadata: {
         page: 1,
         totalPages: 0,
-        totalRecords: 0
-      }
+        totalRecords: 0,
+      },
     }
 
     const lockSpy = sandbox.stub(Models.Lock, 'findWithPagination').resolves(expectedResponse)
@@ -401,10 +401,12 @@ describe('Controller: Member', () => {
     const response = await MemberController.getMemberLocks()
 
     expect(lockSpy.calledOnce).to.be.true
-    expect(lockSpy.calledWith({
-      extraParams: {},
-      paginationParams: {}
-    })).to.be.true
+    expect(
+      lockSpy.calledWith({
+        extraParams: {},
+        paginationParams: {},
+      }),
+    ).to.be.true
 
     expect(response).to.deep.equal(expectedResponse)
   })

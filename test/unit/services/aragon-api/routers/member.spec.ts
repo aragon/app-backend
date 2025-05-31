@@ -200,8 +200,8 @@ describe('Router: Member', () => {
         metadata: {
           page: 2,
           totalPages: 1,
-          totalRecords: 0
-        }
+          totalRecords: 0,
+        },
       }
 
       const stubCtrl = sandbox.stub(MemberController, 'getMemberLocks').resolves(expectedResponse as any)
@@ -252,8 +252,8 @@ describe('Router: Member', () => {
         metadata: {
           page: 1,
           totalPages: 0,
-          totalRecords: 0
-        }
+          totalRecords: 0,
+        },
       }
 
       const stubCtrl = sandbox.stub(MemberController, 'getMemberLocks').resolves(expectedResponse as any)
@@ -307,14 +307,14 @@ describe('Router: Member', () => {
             id: '1',
             memberAddress,
             amount: '1000',
-            isActive: false
-          }
+            isActive: false,
+          },
         ],
         metadata: {
           page: 1,
           totalPages: 1,
-          totalRecords: 1
-        }
+          totalRecords: 1,
+        },
       }
 
       const stubCtrl = sandbox.stub(MemberController, 'getMemberLocks').resolves(expectedResponse as any)
@@ -380,10 +380,14 @@ describe('Router: Member', () => {
         search: undefined,
       }
 
-      const validateParamsStub = sandbox.stub(ValidationSchema, 'validateParams')
-        .onFirstCall().resolves(formattedExtraParams)
-        .onSecondCall().resolves(formattedPaginationParams)
-        .onThirdCall().resolves({})
+      const validateParamsStub = sandbox
+        .stub(ValidationSchema, 'validateParams')
+        .onFirstCall()
+        .resolves(formattedExtraParams)
+        .onSecondCall()
+        .resolves(formattedPaginationParams)
+        .onThirdCall()
+        .resolves({})
 
       const expectedResponse = { data: [], metadata: { page: 1, totalPages: 0, totalRecords: 0 } }
       const stubCtrl = sandbox.stub(MemberController, 'getMemberLocks').resolves(expectedResponse as any)
