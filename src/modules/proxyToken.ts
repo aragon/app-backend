@@ -153,8 +153,8 @@ export const ProxyToken = {
 
       if (rawToken.isGovernance || Web3Utils.isWhitelistedToken(tokenAddress, network)) {
         const infoCreation = await ProxyWeb3Provider.fetchContractCreation({ address: tokenAddress, network })
-        rawToken.blockNumber = infoCreation.blockNumber
-        rawToken.transactionHash = infoCreation.transactionHash
+        rawToken.blockNumber = infoCreation?.blockNumber
+        rawToken.transactionHash = infoCreation?.transactionHash
       }
 
       if (rawToken.type !== ITokenType.unknown && !rawToken.holders && rawToken.holders === 0) {

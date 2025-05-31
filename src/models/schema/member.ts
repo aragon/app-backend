@@ -70,12 +70,12 @@ export default class Member extends Model {
     return await this.findOne({ id: entityId }, null, tOpts)
   }
 
-  static async findByEns(ens: ENS) {
-    return await this.findOne({ ens })
+  static async findByEns(ens: ENS, tOpts?: SaveOptions) {
+    return await this.findOne({ ens }, null, tOpts)
   }
 
-  static async findByAddress(address: HexAddress) {
-    return await this.findOne({ address })
+  static async findByAddress(address: HexAddress, tOpts?: SaveOptions) {
+    return await this.findOne({ address }, null, tOpts)
   }
 
   static async findPaginatedMembersOnly({
