@@ -15,7 +15,6 @@ import MemberBalance from '@models/schema/memberBalance'
 import { HexAddress, IPluginInterfaceType } from '@types'
 import { NetworksEnum } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
-import ModelUtils from '@models/utils/models'
 
 describe('Controller: Member', () => {
   let sandbox: SinonSandbox
@@ -385,5 +384,28 @@ describe('Controller: Member', () => {
     expect(response.ens).to.eq(rawMember.ens)
     expect(response.votingPower).to.be.null
     expect(response.currentDelegate).to.be.undefined
+  })
+
+  it('should call getMemberLocks', async () => {
+    const expectedResponse = {
+      data: [],
+      metadata: {
+        page: 1,
+        totalPages: 0,
+        totalRecords: 0
+      }
+    }
+
+    const lockSpy = sandbox.stub(Models.Lock, 'findWithPagination').resolves(expectedResponse)
+
+    const response = await MemberController.getMemberLocks()
+
+    expect(lockSpy.calledOnce).to.be.true
+    expect(lockSpy.calledWith({
+      extraParams: {},
+      paginationParams: {}
+    })).to.be.true
+
+    expect(response).to.deep.equal(expectedResponse)
   })
 })

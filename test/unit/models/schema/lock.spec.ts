@@ -4,11 +4,15 @@ import Lock from '@models/schema/lock'
 import { afterEach, beforeEach } from 'mocha'
 import { expect } from 'chai'
 import { Models } from '@dbModels'
-import { NetworksEnum } from '@types'
+import { ITokenType, NetworksEnum } from '@types'
+import { FakeToken } from '@test/mock/fakeToken'
+import Token from '@models/schema/token'
 
-describe('Model: Lock', () => {
+describe.only('Model: Lock', () => {
   let sandbox: SinonSandbox
   let rawLock: Partial<Lock>
+  let fakeToken: Partial<Token>
+  let lockToken: Partial<Token>
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
@@ -45,6 +49,20 @@ describe('Model: Lock', () => {
         epochEndAt: null,
       },
     }
+    fakeToken = await Models.Token.create({
+      ...FakeToken,
+      id: undefined,
+      network: NetworksEnum.ethereumMainnet,
+      type: ITokenType.ERC20,
+      isGovernance: true,
+    })
+    lockToken = await Models.Token.create({
+      ...FakeToken,
+      id: undefined,
+      network: NetworksEnum.ethereumMainnet,
+      address: '0x1234567890abcdef1234567890abcdef12345600',
+      type: ITokenType.ERC721,
+    })
   })
 
   afterEach(() => {
@@ -264,6 +282,79 @@ describe('Model: Lock', () => {
       const entityId = Models.Lock.getEntityId(params)
       const expectedId = `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}-${params.tokenAddress}-${params.memberAddress}`
       expect(entityId).to.eq(expectedId)
+    })
+  })
+
+  describe('findWithPagination', () => {
+    it('should return 2 locks when 2 locks are created', async () => {
+      const memberAddress = '0xmember1111111111111111111111111111111111'
+      const tokenAddress = fakeToken.address
+      const lockTokenAddress = lockToken.address
+      const pluginAddress = '0xplugin1111111111111111111111111111111110'
+      const lock1Data = {
+        ...rawLock,
+        transactionHash: '0x1111111111111111111111111111111111111111',
+        blockNumber: 18000001,
+        memberAddress,
+        tokenAddress,
+        pluginAddress,
+        nftAddress: lockTokenAddress,
+      }
+      const lock1 = await Models.Lock.create(lock1Data)
+
+      const lock2Data = {
+        ...rawLock,
+        transactionHash: '0x2222222222222222222222222222222222222222',
+        blockNumber: 18000002,
+        memberAddress,
+        tokenAddress,
+        pluginAddress,
+        transactionIndex: 2,
+        logIndex: 2,
+        nftAddress: lockTokenAddress,
+      }
+      const lock2 = await Models.Lock.create(lock2Data)
+
+      const lock3Data = {
+        ...rawLock,
+        transactionHash: '0x3333333333333333333333333333333333333333',
+        blockNumber: 18000003,
+        memberAddress,
+        tokenAddress,
+        pluginAddress,
+        nftAddress: lockTokenAddress,
+        lockWithdraw: {
+          status: true,
+        },
+      }
+      await Models.Lock.create(lock3Data)
+
+      const result = await Models.Lock.findWithPagination({
+        extraParams: {
+          pluginAddress,
+          memberAddress,
+          onlyActive: true,
+        },
+        paginationParams: {
+          pageSize: 10,
+          page: 1,
+          order: 'desc',
+          sort: 'blockNumber',
+        },
+      })
+
+      expect(result.data).to.have.length(2)
+      expect(result.metadata.totalRecords).to.eq(2)
+      expect(result.metadata.totalPages).to.eq(1)
+      expect(result.metadata.page).to.eq(1)
+
+      const lockIds = result.data.map((lock: any) => lock.id)
+      expect(lockIds).to.include(lock1.id)
+      expect(lockIds).to.include(lock2.id)
+
+      // test sort
+      expect(result.data[0].blockNumber).to.eq(18000002)
+      expect(result.data[1].blockNumber).to.eq(18000001)
     })
   })
 })
