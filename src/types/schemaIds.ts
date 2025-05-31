@@ -12,6 +12,13 @@ export interface IVoteIdParams {
   logIndex: number
 }
 
+export interface ILockExtraParams {
+  network?: NetworksEnum
+  pluginAddress?: HexAddress
+  memberAddress?: HexAddress
+  onlyActive?: boolean
+}
+
 export interface ILockFindMemberParams {
   network: NetworksEnum
   pluginAddress: HexAddress

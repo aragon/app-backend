@@ -1387,9 +1387,11 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const getCurveAddressStub = sandbox.stub(GovernanceVeHelper, 'getCurveAddress').resolves(curveAddress)
       const getExitQueueAddressStub = sandbox.stub(GovernanceVeHelper, 'getExitQueueAddress').resolves(exitQueueAddress)
       const getNftLockAddressStub = sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(nftLockAddress)
+      const fetchLockTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
 
       const result = await PluginSetupProcessorHandler.findVotingEscrow(tokenAddress, info)
 
+      expect(fetchLockTokenStub.calledOnceWith(nftLockAddress, info.network)).to.be.true
       expect(getEscrowAddressStub.calledOnceWith(tokenAddress, info.network)).to.be.true
       expect(votingEscrowDetectorStub.calledOnceWith(escrowAddress, info.network)).to.be.true
       expect(getClockAddressStub.calledOnceWith(tokenAddress, info.network)).to.be.true

@@ -417,6 +417,8 @@ export const PluginSetupProcessorHandler = {
         const nftLockAddress = await GovernanceVeHelper.getNftLockAddress(escrowAddress, info.network)
 
         if (clockAddress && curveAddress && exitQueueAddress && nftLockAddress) {
+          await ProxyToken.saveAndGetToken(nftLockAddress, info.network)
+
           return {
             curveAddress,
             exitQueueAddress,
