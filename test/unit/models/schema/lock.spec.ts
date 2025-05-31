@@ -8,7 +8,7 @@ import { ITokenType, NetworksEnum } from '@types'
 import { FakeToken } from '@test/mock/fakeToken'
 import Token from '@models/schema/token'
 
-describe.only('Model: Lock', () => {
+describe('Model: Lock', () => {
   let sandbox: SinonSandbox
   let rawLock: Partial<Lock>
   let fakeToken: Partial<Token>
