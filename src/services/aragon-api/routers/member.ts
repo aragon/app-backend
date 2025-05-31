@@ -148,7 +148,7 @@ const MemberRouter = {
     router.get('/:address', MemberRouter.getMemberByAddress)
 
     /**
-     * @api {get} /:address Get Locks Member by address
+     * @api {get} /member/:address/locks Get Locks Member by address
      * @apiName Members
      * @apiGroup Members
      * @apiDescription Get Locks Member by address

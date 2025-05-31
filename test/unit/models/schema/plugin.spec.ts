@@ -23,7 +23,6 @@ describe('Model: Plugin', () => {
         escrowAddress: '0xEscrowAddress',
         clockAddress: '0xClockAddress',
         nftLockAddress: '0xNftLockAddress',
-        votesAdapterAddress: '0xVotesAdapterAddress',
       },
     }
   })
@@ -49,7 +48,6 @@ describe('Model: Plugin', () => {
       expect(plugin.votingEscrow.escrowAddress).to.equal(rawPlugin?.votingEscrow?.escrowAddress)
       expect(plugin.votingEscrow.clockAddress).to.equal(rawPlugin?.votingEscrow?.clockAddress)
       expect(plugin.votingEscrow.nftLockAddress).to.equal(rawPlugin?.votingEscrow?.nftLockAddress)
-      expect(plugin.votingEscrow.votesAdapterAddress).to.equal(rawPlugin?.votingEscrow?.votesAdapterAddress)
       expect(plugin.hasTarget).to.be.true
     })
 
