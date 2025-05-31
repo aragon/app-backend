@@ -129,9 +129,14 @@ export default class LogPluginSetupProcessor extends Model {
     return await this.findOne({ tokenAddress, network })
   }
 
-  static async findByPluginAddress(pluginAddress: HexAddress, network: NetworksEnum, event?: IEventLogPluginType) {
+  static async findByPluginAddress(
+    pluginAddress: HexAddress,
+    network: NetworksEnum,
+    event?: IEventLogPluginType,
+    tOpts?: SaveOptions,
+  ) {
     const params = { pluginAddress, network, ...(event && { event }) }
-    return await this.findOne(params)
+    return await this.findOne(params, null, tOpts)
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
