@@ -374,7 +374,7 @@ const IndexerEventConfig: IIndexerConfig[] = [
     topic: new Interface(ExitQueue.abi).getEvent('ExitQueued')?.topicHash!,
     config: [
       {
-        abi: VotingEscrowIncreasing.abi,
+        abi: ExitQueue.abi,
         handler: GovernanceVeHandler.exitQueued,
       },
     ],
@@ -385,7 +385,7 @@ const IndexerEventConfig: IIndexerConfig[] = [
     topic: new Interface(ExitQueue.abi).getEvent('MinLockSet')?.topicHash!,
     config: [
       {
-        abi: VotingEscrowIncreasing.abi,
+        abi: ExitQueue.abi,
         handler: GovernanceVeHandler.minLockSet,
       },
     ],
