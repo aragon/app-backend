@@ -121,13 +121,16 @@ const GovernanceVeHelper = {
     }
   },
 
-  async getSlope(curveAddress: HexAddress, network: NetworksEnum): Promise<bigint> {
+  async getSlopeFromCoefficients(curveAddress: HexAddress, network: NetworksEnum): Promise<bigint> {
     const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(curveAddress, LinearIncreasingCurve.abi, provider)
     try {
-      return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.slope()),
+      const coefficients = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () =>
+          contract.getCoefficients(BigInt('1000000000000000000')),
+        ),
       )
+      return coefficients[1] as bigint
     } catch (error) {
       return 0n
     }
