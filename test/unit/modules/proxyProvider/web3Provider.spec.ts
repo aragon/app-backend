@@ -673,4 +673,22 @@ describe('Web3Provider', () => {
       expect(loggerStub.calledOnce).to.be.true
     })
   })
+
+  describe('getTokenCounters', () => {
+    it('should return token counters from blockscout', async () => {
+      const address = '0xtoken'
+      const network = NetworksEnum.ethereumMainnet
+      const expectedCounters = {
+        holders: 100,
+        transfers: 200,
+      }
+
+      const getTokenCountersStub = sandbox.stub(BlockScoutHelper, 'getTokenCounters').resolves(expectedCounters)
+
+      const result = await Web3Provider.getTokenCounters({ address, network })
+
+      expect(getTokenCountersStub.calledOnceWith(address, network)).to.be.true
+      expect(result).to.deep.equal(expectedCounters)
+    })
+  })
 })
