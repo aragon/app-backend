@@ -38,7 +38,6 @@ describe('Manual: Etherscan', () => {
       return contract.address
     })
 
-    config.NODES.ETHEREUM_SEPOLIA.ETHERSCAN_API_KEY = ''
     config.NODES.ETHEREUM_SEPOLIA.ALCHEMY_API_KEY = ''
 
     await ProviderModule.connectToAllNetworks()
