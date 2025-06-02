@@ -294,6 +294,17 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           null,
         ),
       },
+      CHILIZ_MAINNET: {
+        ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_CHILIZ_MAINNET_ALCHEMY_API_KEY', null),
+        ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_CHILIZ_MAINNET_ARAGON_RPC', null),
+        FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_CHILIZ_MAINNET_FROM_BLOCK', 0),
+        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_CHILIZ_MAINNET_OFFSET_TO_BLOCK', 0),
+        POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_CHILIZ_MAINNET_POOLING_INTERVAL', 5 * 1000), // 5 seconds
+        CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_CHILIZ_MAINNET_CONFIRMATION_BLOCKS', 1),
+        INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_CHILIZ_MAINNET_INTERVAL_BLOCK_TIME', 5),
+        BLOCKSCOUT_API_URL: utils.configParser(sourceConfig, 'string', 'NODES_CHILIZ_MAINNET_BLOCKSCOUT_API_URL', null),
+        BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_CHILIZ_MAINNET_BLOCKSCOUT_API_KEY', null),
+      },
     },
 
     BOTTLENECK: {
@@ -352,6 +363,8 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'BOTTLENECK_ALCHEMY_API_KEY_BATCH_REQUEST_MIN_TIME',
         100,
       ),
+      CHILIZ_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_CHILIZ_MAX_CONCURRENT', 1),
+      CHILIZ_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_CHILIZ_MIN_TIME', 5000),
     },
 
     MONGO_DB: {

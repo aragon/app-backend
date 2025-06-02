@@ -42,6 +42,7 @@ const ProviderModule = {
     ZKSYNC_MAINNET: NetworksEnum.zksyncMainnet,
     OPTIMISM_MAINNET: NetworksEnum.optimismMainnet,
     PEAQ_MAINNET: NetworksEnum.peaqMainnet,
+    CHILIZ_MAINNET: NetworksEnum.chilizMainnet,
   },
   networkChainMap: {
     [NetworksEnum.ethereumMainnet]: 1,
@@ -53,6 +54,7 @@ const ProviderModule = {
     [NetworksEnum.zksyncMainnet]: 324,
     [NetworksEnum.optimismMainnet]: 10,
     [NetworksEnum.peaqMainnet]: 3338,
+    [NetworksEnum.chilizMainnet]: 88888,
   },
 
   // Converts a config key to a NetworksEnum.

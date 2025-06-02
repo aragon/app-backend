@@ -173,6 +173,9 @@ const PeaqProvider: Omit<IWeb3Provider, 'getNativeBalance'> = {
       logger.error('Error in getAllTokenHolders', llo({ error, address, network }))
     }
   },
+  getTokenCounters: async ({ address, network }) => {
+    return await SubscanApi.getTokenCounters(address, network)
+  },
 }
 
 export default PeaqProvider
