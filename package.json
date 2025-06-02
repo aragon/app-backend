@@ -64,7 +64,7 @@
     "@ethersproject/constants": "^5.7.0",
     "@koa/router": "^12.0.1",
     "@pinata/sdk": "^2.1.0",
-    "@sentry/node": "^7.102.1",
+    "@sentry/node": "^9.24.0",
     "@typegoose/typegoose": "^12.1.0",
     "alchemy-sdk": "^3.4.2",
     "amqp-connection-manager": "^4.1.14",
