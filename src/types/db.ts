@@ -44,6 +44,7 @@ export enum ICollectionNames {
   Vote = 'Vote',
   DaoPermission = 'DaoPermission',
   Jwt = 'Jwt',
+  Lock = 'Lock',
 }
 
 export enum ITransactionIndexCheckType {
