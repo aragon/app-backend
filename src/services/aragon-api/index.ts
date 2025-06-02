@@ -3,7 +3,8 @@ import { EnumConnection, type IService } from '@types'
 import App from '@services/aragon-api/app'
 
 const AragonAPIService: IService = {
-  NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.RABBITMQ],
+  // NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.RABBITMQ],
+  NEED_CONNECTIONS: [EnumConnection.MONGODB],
 
   async start() {
     return await App()
