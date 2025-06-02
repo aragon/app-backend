@@ -393,18 +393,18 @@ describe('Helpers: GovernanceVe', () => {
     })
   })
 
-  describe('getSlope', () => {
-    it('Should make a successful getSlope call', async () => {
+  describe('getSlopeFromCoefficients', () => {
+    it('Should make a successful getSlopeFromCoefficients call', async () => {
       const stubConfigState = {
         getConfigItem: sandbox.stub().returns({}),
       }
 
-      const getSlopeStub = sandbox.stub().resolves(1000000000000000000n)
+      const getCoefficientsStub = sandbox.stub().resolves([0n, 1000000000000000000n, 0n])
 
       const { default: MockedGovernanceVeHelper } = proxyquire.noCallThru()('@helpers/governanceVe', {
         ethers: {
           Contract: function () {
-            return { slope: getSlopeStub }
+            return { getCoefficients: getCoefficientsStub }
           },
         },
         '@state/configState': {
@@ -412,26 +412,26 @@ describe('Helpers: GovernanceVe', () => {
         },
       })
 
-      const result = await MockedGovernanceVeHelper.getSlope('0x123', NetworksEnum.ethereumMainnet)
+      const result = await MockedGovernanceVeHelper.getSlopeFromCoefficients('0x123', NetworksEnum.ethereumMainnet)
       expect(result).to.eq(1000000000000000000n)
-      expect(getSlopeStub.calledOnce).to.be.true
+      expect(getCoefficientsStub.calledOnce).to.be.true
     })
 
-    it('should handle errors in getSlope', async () => {
+    it('should handle errors in getSlopeFromCoefficients', async () => {
       const expectedResult = new Error('RPC Call Failed')
-      const getSlopeStub = sandbox.stub().rejects(expectedResult)
+      const getCoefficientsStub = sandbox.stub().rejects(expectedResult)
 
       const { default: MockedGovernanceVeHelper } = proxyquire.noCallThru()('@helpers/governanceVe', {
         ethers: {
           Contract: function () {
-            return { slope: getSlopeStub }
+            return { getCoefficients: getCoefficientsStub }
           },
         },
       })
 
-      const result = await MockedGovernanceVeHelper.getSlope('0x123', NetworksEnum.ethereumMainnet)
+      const result = await MockedGovernanceVeHelper.getSlopeFromCoefficients('0x123', NetworksEnum.ethereumMainnet)
       expect(result).to.eq(0n)
-      expect(getSlopeStub.calledOnce).to.be.true
+      expect(getCoefficientsStub.calledOnce).to.be.true
     })
   })
 })
