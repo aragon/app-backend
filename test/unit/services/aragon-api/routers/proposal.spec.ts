@@ -27,6 +27,7 @@ describe('Router: Proposal', () => {
         pluginAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         creatorAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         daoInfo: false,
+        isExecuted: false,
         proposalIndex: '1',
         incrementalId: 1,
       }
@@ -97,6 +98,7 @@ describe('Router: Proposal', () => {
         pluginAddress: undefined,
         creatorAddress: undefined,
         daoInfo: false,
+        isExecuted: undefined,
         incrementalId: undefined,
         proposalIndex: undefined,
       })
@@ -140,6 +142,7 @@ describe('Router: Proposal', () => {
           daoAddress: undefined,
           pluginAddress: undefined,
           creatorAddress: undefined,
+          isExecuted: undefined,
           proposalIndex: undefined,
           incrementalId: undefined,
         },
