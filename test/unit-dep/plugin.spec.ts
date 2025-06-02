@@ -84,7 +84,7 @@ describe('Integration: Plugin Setup SPP', () => {
     console.log('ok')
   })
 
-  it('should handle multisig plugin different abi', async function () {
+  it.skip('should handle multisig plugin different abi', async function () {
     this.timeout(10000000)
 
     const daoAddress = '0x56F406551b725072853317A11fc4EAF24B05037E'

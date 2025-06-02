@@ -417,4 +417,77 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stubLogger.calledOnce).to.be.true
     })
   })
+
+  describe('MinDepositSetHandler', () => {
+    it('should log error if plugin not found', async () => {
+      const stubLogger = sandbox.stub(logger, 'error')
+
+      const mockInfo = {
+        address: '0x001DdEdc2139d9948e8dcC936C1Ab2314D9181E8',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+        transactionHash: '0xhash',
+      } as any
+
+      const mockEvent = {
+        args: {
+          minDeposit: 5000n,
+        },
+      } as any
+
+      await GovernanceVeHandler.minDepositSet(mockEvent, mockInfo)
+
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubLogger.calledOnceWith('Plugin not found for minDepositSet event' as any)).to.be.true
+    })
+
+    it('should log error if active plugin setting not found', async () => {
+      const stubLogger = sandbox.stub(logger, 'error')
+
+      const mockInfo = {
+        address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+        transactionHash: '0xhash',
+      } as any
+
+      const mockEvent = {
+        args: {
+          minDeposit: 5000n,
+        },
+      } as any
+
+      await Models.Setting.deleteMany({})
+
+      await GovernanceVeHandler.minDepositSet(mockEvent, mockInfo)
+
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubLogger.calledOnceWith('Active plugin setting not found for minDepositSet event' as any)).to.be.true
+    })
+
+    it('should update activePluginSetting minDeposit and call logger on success', async () => {
+      const stubLogger = sandbox.stub(logger, 'verbose')
+
+      const mockInfo = {
+        address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+        transactionHash: '0xminDepositHash',
+      }
+
+      const mockEvent = {
+        args: {
+          minDeposit: 5000n,
+        },
+      } as any
+
+      await GovernanceVeHandler.minDepositSet(mockEvent, mockInfo as any)
+
+      const updatedSetting = await Models.Setting.findById(activePluginSetting._id)
+
+      expect(updatedSetting).to.exist
+      expect(updatedSetting?.votingEscrow?.minDeposit).to.equal('5000')
+      expect(stubLogger.calledOnce).to.be.true
+    })
+  })
 })

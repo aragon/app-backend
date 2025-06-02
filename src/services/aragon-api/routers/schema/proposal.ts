@@ -13,6 +13,7 @@ const ProposalSchema = {
     pluginAddress: ValidationSchema.joiAddress.optional(),
     creatorAddress: ValidationSchema.joiAddress.optional(),
     daoInfo: Joi.boolean().optional(),
+    isExecuted: Joi.boolean().optional(),
   }),
 
   getProposalById: Joi.object({
