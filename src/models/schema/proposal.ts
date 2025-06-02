@@ -1037,6 +1037,6 @@ export default class Proposal extends Model {
   }
 
   async reload(tOpts?: SaveOptions) {
-    return await this.model(customName).findById(this._id, tOpts)
+    return await this.model(customName).findById(this._id, null, tOpts)
   }
 }
