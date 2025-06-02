@@ -239,6 +239,9 @@ const Web3Provider: IWeb3Provider = {
       logger.error('Error in getAllTokenHolders', llo({ error, address, network }))
     }
   },
+  getTokenCounters: async ({ address, network }) => {
+    return await BlockScoutHelper.getTokenCounters(address, network)
+  },
 }
 
 export default Web3Provider

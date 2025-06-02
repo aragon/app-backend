@@ -461,6 +461,34 @@ const SubscanApiHelper = {
       return { holders: [], total: 0, hasMore: false, lastPage: options.startPage }
     }
   },
+  getTokenCounters: async (
+    address: HexAddress,
+    network: NetworksEnum,
+  ): Promise<{ transfers: number; holders: number }> => {
+    const tokenCounter = {
+      transfers: 0,
+      holders: 0,
+    }
+
+    try {
+      const tokenFullInfo = await SubscanApiHelper.getTokenFullDetails(address, network)
+      const params = {
+        page: 0,
+        row: 10,
+        contract: '0x5c3126bfb9a68a7021d461230127470b3824886b',
+      }
+
+      const response = await SubscanApiHelper._rpCall('evm/token/transfer', params, network)
+      if (response?.code === 0 && response?.data?.list?.length > 0) {
+        tokenCounter.transfers = response?.data?.count
+        tokenCounter.holders = tokenFullInfo.totalHolders
+        return tokenCounter
+      }
+    } catch (error) {
+      logger.warn('SubscanApi getTokenCounters', llo({ error, address }))
+    }
+    return tokenCounter
+  },
 }
 
 export default SubscanApiHelper

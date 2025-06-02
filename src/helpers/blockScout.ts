@@ -82,7 +82,7 @@ const BlockScoutHelper = {
   getTokenCounters: async (
     address: HexAddress,
     network: NetworksEnum,
-  ): Promise<{ transfers: number; holders: string }> => {
+  ): Promise<{ transfers: number; holders: number }> => {
     const params = {
       apikey: BlockScoutHelper._parseNetworkToConfig(network).BLOCKSCOUT_API_KEY,
     }
@@ -92,15 +92,15 @@ const BlockScoutHelper = {
       const response = await BlockScoutHelper._rpCall(path, params, network)
       if (response) {
         return {
-          transfers: response.transfers_count,
-          holders: response.token_holders_count,
+          transfers: Number(response.transfers_count),
+          holders: Number(response.token_holders_count),
         }
       }
     } catch (error) {
       logger.warn('Error getTokenCounters', llo({ error }))
     }
 
-    return { transfers: 0, holders: '0' }
+    return { transfers: 0, holders: 0 }
   },
 
   searchDetails: async (
