@@ -734,4 +734,26 @@ describe('PeaqProvider', () => {
       expect(loggerStub.calledOnce).to.be.true
     })
   })
+
+  describe('getTokenCounters', () => {
+    it('should return token counters from SubscanApi', async () => {
+      // Arrange
+      const address = '0xtoken'
+      const network = NetworksEnum.peaqMainnet
+      const counters = {
+        holders: 100,
+        transfers: 200,
+      }
+
+      const getTokenCountersStub = sandbox.stub(SubscanApi, 'getTokenCounters').resolves(counters as any)
+      const result = await PeaqProvider.getTokenCounters({ address, network })
+
+      // Assert
+      expect(getTokenCountersStub.calledOnce).to.be.true
+      expect(getTokenCountersStub.firstCall.args[0]).to.equal(address)
+      expect(getTokenCountersStub.firstCall.args[1]).to.equal(network)
+
+      expect(result).to.deep.equal(counters)
+    })
+  })
 })
