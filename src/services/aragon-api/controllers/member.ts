@@ -3,7 +3,9 @@ import {
   EnumQueueName,
   ErrorKeyEnum,
   type HexAddress,
+  type ILockExtraParams,
   type IMemberExtraParams,
+  type IMemberLockResponse,
   type IMembersResponse,
   type IPaginatedResult,
   type IPaginationParams,
@@ -93,6 +95,13 @@ const MemberController = {
     })
 
     return !!member
+  },
+
+  getMemberLocks: async (
+    extraParams: ILockExtraParams = {},
+    paginationParams: IPaginationParams = {},
+  ): Promise<IPaginatedResult<IMemberLockResponse>> => {
+    return await Models.Lock.findWithPagination({ extraParams, paginationParams })
   },
 }
 
