@@ -177,8 +177,10 @@ const Web3Provider: IWeb3Provider = {
     await Promise.all([depositTxCrawler.crawl(), withdrawTxCrawler.crawl()])
 
     return txLogs.sort((a, b) => {
-      if (a.blockNum !== b.blockNum) return a.blockNum - b.blockNum
-      return a.blockNum - b.blockNum
+      const aBlockNum = Number(a.blockNum)
+      const bBlockNum = Number(b.blockNum)
+      if (aBlockNum !== bBlockNum) return aBlockNum - bBlockNum
+      return aBlockNum - bBlockNum
     })
   },
 
@@ -238,6 +240,14 @@ const Web3Provider: IWeb3Provider = {
     } catch (error) {
       logger.error('Error in getAllTokenHolders', llo({ error, address, network }))
     }
+  },
+  fetchHistoricalTokenPrice: async ({ symbol, address, network, date }) => {
+    return await RateModule.fetchHistoricalRate({
+      address,
+      network,
+      symbol,
+      timestamp: date,
+    })
   },
 }
 
