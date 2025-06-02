@@ -126,7 +126,9 @@ const GovernanceVeHelper = {
     const contract = new Contract(curveAddress, LinearIncreasingCurve.abi, provider)
     try {
       const coefficients = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.getCoefficients(BigInt('1000000000000000000'))),
+        BottleneckModule.getNodeLimiter(network).schedule(async () =>
+          contract.getCoefficients(BigInt('1000000000000000000')),
+        ),
       )
       return coefficients[1] as bigint
     } catch (error) {
