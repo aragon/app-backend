@@ -223,6 +223,83 @@ describe('Modules: ProxyToken', () => {
       expect(token.update.called).to.be.false
       expect(result).to.equal(token)
     })
+
+    it('should update native token with only price information', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      const token = {
+        id: 'token-123',
+        address: tokenAddress,
+        network,
+        type: ITokenType.native,
+        skipFetchRate: false,
+        lastUpdatedAt: dayjs().subtract(10, 'hour').toDate(),
+        update: sandbox.stub(),
+      } as any
+
+      const tokenPrice = '1500.50'
+      sandbox.stub(ProxyWeb3Provider, 'fetchTokenPrice').resolves({
+        priceUsd: tokenPrice,
+      })
+
+      // These should not be called for native tokens
+      const fetchBasicTokenInfoStub = sandbox.stub(ProxyWeb3Provider, 'fetchBasicTokenInfo')
+      const fetchTokenHolderAndSupplyStub = sandbox.stub(ProxyWeb3Provider, 'fetchTokenHolderAndSupply')
+
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
+
+      const result = await ProxyToken.updateTokenMetrics(token, tokenAddress, network, false)
+
+      expect(fetchBasicTokenInfoStub.called).to.be.false
+      expect(fetchTokenHolderAndSupplyStub.called).to.be.false
+      expect(token.update.calledOnce).to.be.true
+      expect(token.update.firstCall.args[0]).to.deep.include({
+        priceUsd: tokenPrice,
+      })
+      expect(token.update.firstCall.args[0]).to.not.have.property('holders')
+      expect(token.update.firstCall.args[0]).to.not.have.property('totalSupply')
+      expect(loggerVerboseStub.calledWith('Updated Token Metrics' as any)).to.be.true
+      expect(result).to.equal(token)
+    })
+
+    it('should update non-native token with price, holders and total supply', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      const token = {
+        id: 'token-123',
+        address: tokenAddress,
+        network,
+        type: ITokenType.ERC20,
+        skipFetchRate: false,
+        lastUpdatedAt: dayjs().subtract(10, 'hour').toDate(),
+        update: sandbox.stub(),
+      } as any
+
+      const tokenDetails = { priceUsd: '1234.56' }
+      const tokenMetrics = { totalHolders: 1000, totalSupply: '1000000000000000000000' }
+
+      sandbox.stub(ProxyWeb3Provider, 'fetchBasicTokenInfo').resolves(tokenDetails)
+      sandbox.stub(ProxyWeb3Provider, 'fetchTokenHolderAndSupply').resolves(tokenMetrics)
+
+      // This should not be called for non-native tokens
+      const fetchTokenPriceStub = sandbox.stub(ProxyWeb3Provider, 'fetchTokenPrice')
+
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
+
+      const result = await ProxyToken.updateTokenMetrics(token, tokenAddress, network, false)
+
+      expect(fetchTokenPriceStub.called).to.be.false
+      expect(token.update.calledOnce).to.be.true
+      expect(token.update.firstCall.args[0]).to.deep.include({
+        priceUsd: '1234.56',
+        holders: 1000,
+        totalSupply: '1000000000000000000000',
+      })
+      expect(loggerVerboseStub.calledWith('Updated Token Metrics' as any)).to.be.true
+      expect(result).to.equal(token)
+    })
   })
 
   describe('createNewToken', () => {

@@ -29,6 +29,7 @@ describe('Model: Transaction', () => {
       category: rawTransaction.category!,
       network: rawTransaction.network!,
       uniqueId: rawTransaction.uniqueId!,
+      daoAddress: rawTransaction.daoAddress!,
     })
     const createdToken = await Models.Transaction.create(rawTransaction)
 
@@ -60,8 +61,9 @@ describe('Model: Transaction', () => {
     const uniqueId = '0X123'
     const category = ITransactionCategory.ERC20
     const network = NetworksEnum.ethereumMainnet
-    const entityId = Models.Transaction.getEntityId({ transactionHash, category, network, uniqueId })
-    expect(entityId).to.eq(`${transactionHash}-${uniqueId}-${category}-${network}`)
+    const daoAddress = '0xdao'
+    const entityId = Models.Transaction.getEntityId({ transactionHash, category, network, uniqueId, daoAddress })
+    expect(entityId).to.eq(`${transactionHash}-${uniqueId}-${category}-${daoAddress}-${network}`)
   })
 
   it('Should findExistingLog', async () => {
@@ -71,6 +73,7 @@ describe('Model: Transaction', () => {
       category: createdLogDao.category,
       network: createdLogDao.network,
       uniqueId: createdLogDao.uniqueId,
+      daoAddress: createdLogDao.daoAddress,
     })
     expect(foundLogDao?.id).to.eq(createdLogDao.id)
   })
