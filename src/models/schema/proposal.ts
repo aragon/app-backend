@@ -716,10 +716,6 @@ export default class Proposal extends Model {
       filter['executed.status'] = true
     }
 
-    if (extraParams.isSubProposal) {
-      filter.isSubProposal = false
-    }
-
     const query: any = [
       AggregationQueryHelper.member(
         {
