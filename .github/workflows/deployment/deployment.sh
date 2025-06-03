@@ -168,14 +168,16 @@ start_app_first_time() {
 
     echo "Waiting for migrations to complete..."
 
-    # Monitor logs for completion instead of checking status
+    # Monitor logs for completion
     local counter=0
     local max_attempts=150  # 150 * 2 seconds = 5 minutes
+    local migration_completed=false
 
     while [ $counter -lt $max_attempts ]; do
         # Check if migration logs contain completion message
         if pm2 logs migration --lines 50 --nostream 2>&1 | grep -q "Migration Service completed"; then
             echo "Migration completed successfully!"
+            migration_completed=true
             break
         fi
 
@@ -189,6 +191,7 @@ start_app_first_time() {
         # Also check PM2 status as backup
         if pm2 list 2>&1 | grep migration | grep -q stopped; then
             echo "Migration stopped (detected via PM2 status)"
+            migration_completed=true
             break
         fi
 
@@ -197,7 +200,8 @@ start_app_first_time() {
         sleep 2
     done
 
-    if [ $counter -eq $max_attempts ]; then
+    # Only trigger timeout if migration didn't complete
+    if [ "$migration_completed" = false ]; then
         echo "Migration timed out!"
         pm2 logs migration --lines 100 --nostream
         exit 1
