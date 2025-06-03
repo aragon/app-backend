@@ -212,7 +212,8 @@ start_app_first_time() {
 
     echo "Starting all other services..."
     # Start all services (migration won't start as it has autorestart: false)
-    pm2 start "$REMOTE_DIR/$TARGET_DIR/pm2.config.js" --update-env
+    pm2 start "$REMOTE_DIR/$TARGET_DIR/pm2.config.js" \
+        --only "aragon-api,aragon-indexer,aragon-dao,aragon-plugins,aragon-rates,aragon-admin-api"
 
     # Show final status
     echo "All services started:"

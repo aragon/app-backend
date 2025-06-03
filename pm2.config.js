@@ -109,11 +109,13 @@ module.exports = {
       watch: false,
       exec_mode: 'fork',
       max_restarts: 0,
+      min_uptime: 0,
+      stop_exit_codes: [0, 1, 2],
       env: {
         INSTANCE_ID: 'migration',
         NODE_ENV: 'production',
         ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-indexer') }).parsed,
       },
-    }
+    },
   ],
 }
