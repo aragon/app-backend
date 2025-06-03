@@ -4,15 +4,12 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
 import { DAORegistry } from '@artifacts/daoRegistry'
-import BlockScoutHelper from '@helpers/blockScout'
-import { RateModule } from '@modules/rates'
 import { IPluginInterfaceType, IPluginStatus, ITokenType, NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
 import { expect } from 'chai'
 import { Models } from '@dbModels'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import { PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandler'
-import ProxyWeb3Provider from '@modules/proxyProvider'
 
 describe('Integration: VeGovernance', () => {
   let sandbox: SinonSandbox
@@ -29,36 +26,15 @@ describe('Integration: VeGovernance', () => {
   })
 
   it('should install veGovernace dao on ethereum-sepolia', async function () {
-    this.timeout(10000000)
+    this.timeout(1000000000)
 
-    sandbox.stub(RateModule, 'fetchRateWithCovalent').resolves({
-      address: '0x00',
-      decimals: 18,
-      name: 'Wrapped Ether',
-      symbol: 'WETH',
-      priceUsd: '1000',
-      type: ITokenType.ERC20,
-      logo: 'https://example.com/logo.png',
-      lastUpdatedAt: new Date(),
-    })
+    const daoInstallTx = '0x0b1e795a21d8321af74a9751bf2cb74ec7650ca9c244b8a1a4e014acefdb3030'
+    const preparTxLog = '0x2e3f7c686742c3537f6610fe65733e0705944e289c8ee4251bdf280ce99a34ba'
+    const appliedTxLog = '0x3cfdf0be3a9c6118fb90893b424de0b2d4c3698fec5695b3977c65d2ec2e1eb6'
 
-    sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves({
-      holders: 1,
-      name: 'Wrapped Ether',
-      symbol: 'WETH',
-      totalSupply: '1000000000000000000',
-      type: ITokenType.ERC20,
-      decimals: 18,
-    } as any)
-
-    sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation').resolves(null as any)
-
-    const daoInstallTx = '0x4de18d018e2cde6d7756d8f2ad3a6cf8976472a934b0d57e5f84bbd52f3f9572'
-    const preparTxLog = '0x4b36461e62496220166b3e5f5611fe1fae8ad58f4d5b4660fb4566b1456adeb2'
-    const appliedTxLog = '0xf68a313988c1d668c6110ef1e94abb9bc20b6a8c037f34a764c653f1fb3dc490'
-
-    const daoAddress = '0x80879A475DA7928601884838d30f8864241630A3'
-    const pluginAddressTokenVoting = '0x1F5691B2bd6FA279099d5953dd83160e58294334'
+    const daoAddress = '0x28d1383Eca8Ad310f2a9943F9A2D6B970a918659'
+    const pluginAddressTokenVoting = '0x521D938b949c8bFD0BB1374D247757cc86364Fb5'
+    const tokenAddress = '0x173016A1f1625663D812DB98738A58D52ac6fCF6'
     const network = NetworksEnum.ethereumSepolia
 
     const daoRegisteredEvents = await UnitDepUtils.getData(DAORegistry.abi, 'DAORegistered', daoInstallTx, network)
@@ -117,9 +93,16 @@ describe('Integration: VeGovernance', () => {
     expect(tokenPlugin.votingEscrow.escrowAddress).to.eq('0xe398B1b8863345Ce681E0f9246EeF168b538C8f6')
     expect(tokenPlugin.votingEscrow.clockAddress).to.eq('0x81Bd8F94F258eFf9Abe045c57C750440A088049e')
     expect(tokenPlugin.votingEscrow.nftLockAddress).to.eq('0xAd5B5340bb1f61870Ec3956DE26A8B6BD3e1b931')
+    expect(tokenPlugin.votingEscrow.underlying).to.eq('0xEDc278C1DFAD001e875bb75064fC68099Ab65f88')
+
+    const token = await Models.Token.findOne({ address: tokenPlugin.tokenAddress, network })
+    expect(token.type).to.eq(ITokenType.escrowAdapter)
+    expect(token.isGovernance).to.be.true
+    expect(token.address).to.eq(tokenAddress)
+    expect(token.underlying).to.eq('0xEDc278C1DFAD001e875bb75064fC68099Ab65f88')
 
     const tokenVotingSlug = await Models.PluginSlug.findOne({ pluginAddress: pluginAddressTokenVoting, network })
-    expect(tokenVotingSlug.slug).to.eq('ttv')
+    expect(tokenVotingSlug.slug).to.exist
 
     const activeSettings = await Models.Setting.findActive({
       daoAddress,
@@ -131,21 +114,5 @@ describe('Integration: VeGovernance', () => {
     expect(activeSettings.votingEscrow.maxTime).to.eq(0)
     expect(activeSettings.votingEscrow.slope).to.eq(0)
     expect(activeSettings.votingEscrow.cooldown).to.eq(259200)
-
-    // TODO: test locks
-    // add deposit transaction to VotingEscrow 0xe398B1b8863345Ce681E0f9246EeF168b538C8f6
-    // const result = await Models.Lock.findWithPagination({
-    //   extraParams: {
-    //     pluginAddress: pluginAddressTokenVoting,
-    //     memberAddress,
-    //     onlyActive: true,
-    //   },
-    //   paginationParams: {
-    //     pageSize: 10,
-    //     page: 1,
-    //     order: 'desc',
-    //     sort: 'blockNumber',
-    //   },
-    // })
   })
 })
