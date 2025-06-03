@@ -21,8 +21,10 @@ describe('Model: Plugin', () => {
         curveAddress: '0xCurveAddress',
         exitQueueAddress: '0xExitQueueAddress',
         escrowAddress: '0xEscrowAddress',
+        escrowVotesAdapter: '0xEscrowVotesAdapter',
         clockAddress: '0xClockAddress',
         nftLockAddress: '0xNftLockAddress',
+        tokenAddress: '0xTokenAddress',
       },
     }
   })
