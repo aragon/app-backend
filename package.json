@@ -53,6 +53,8 @@
       "src/**"
     ],
     "exclude": [
+      "scripts/**",
+      "src/aragonContracts/**",
       "src/artifacts/**"
     ],
     "reporter": [
