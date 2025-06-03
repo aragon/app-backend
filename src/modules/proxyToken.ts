@@ -145,9 +145,7 @@ export const ProxyToken = {
       }
 
       const isTokenSyncable = await TokenUtils.isTokenSyncable(tokenAddress, network)
-
-      const allowOverride = rawToken.type === ITokenType.escrowAdapter && rawToken.isGovernance
-      if (!isTokenSyncable && !allowOverride) {
+      if (!isTokenSyncable) {
         return null
       }
 
