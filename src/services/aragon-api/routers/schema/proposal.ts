@@ -14,6 +14,7 @@ const ProposalSchema = {
     creatorAddress: ValidationSchema.joiAddress.optional(),
     daoInfo: Joi.boolean().optional(),
     isExecuted: Joi.boolean().optional(),
+    isSubProposal: Joi.boolean().optional(),
   }),
 
   getProposalById: Joi.object({

@@ -714,6 +714,9 @@ export default class Proposal extends Model {
 
     if (extraParams.isExecuted) {
       filter['executed.status'] = true
+    }
+
+    if (extraParams.isSubProposal) {
       filter.isSubProposal = false
     }
 

@@ -4,15 +4,12 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
 import { DAORegistry } from '@artifacts/daoRegistry'
-import BlockScoutHelper from '@helpers/blockScout'
-import { RateModule } from '@modules/rates'
 import { IPluginInterfaceType, IPluginStatus, ITokenType, NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
 import { expect } from 'chai'
 import { Models } from '@dbModels'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import { PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandler'
-import ProxyWeb3Provider from '@modules/proxyProvider'
 
 describe('Integration: VeGovernance', () => {
   let sandbox: SinonSandbox
@@ -31,34 +28,12 @@ describe('Integration: VeGovernance', () => {
   it('should install veGovernace dao on ethereum-sepolia', async function () {
     this.timeout(10000000)
 
-    sandbox.stub(RateModule, 'fetchRateWithCovalent').resolves({
-      address: '0x00',
-      decimals: 18,
-      name: 'Wrapped Ether',
-      symbol: 'WETH',
-      priceUsd: '1000',
-      type: ITokenType.ERC20,
-      logo: 'https://example.com/logo.png',
-      lastUpdatedAt: new Date(),
-    })
+    const daoInstallTx = '0x87a6fb27a21b7e9bb9939538f833f7e8b16d4aa25843d82a1e0a6f32b39cdb85'
+    const preparTxLog = '0xf01734063133bbd90e90ce1d4ddc7b3225ec7a967b2368ff5053a7a8316a5bf1'
+    const appliedTxLog = '0x3eb83755de968d65c02587e0f4b49d1443e17a03ed39441f9bb3d64e4f04ea05'
 
-    sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves({
-      holders: 1,
-      name: 'Wrapped Ether',
-      symbol: 'WETH',
-      totalSupply: '1000000000000000000',
-      type: ITokenType.ERC20,
-      decimals: 18,
-    } as any)
-
-    sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation').resolves(null as any)
-
-    const daoInstallTx = '0x4de18d018e2cde6d7756d8f2ad3a6cf8976472a934b0d57e5f84bbd52f3f9572'
-    const preparTxLog = '0x4b36461e62496220166b3e5f5611fe1fae8ad58f4d5b4660fb4566b1456adeb2'
-    const appliedTxLog = '0xf68a313988c1d668c6110ef1e94abb9bc20b6a8c037f34a764c653f1fb3dc490'
-
-    const daoAddress = '0x80879A475DA7928601884838d30f8864241630A3'
-    const pluginAddressTokenVoting = '0x1F5691B2bd6FA279099d5953dd83160e58294334'
+    const daoAddress = '0x5810b858A6d6b4F5F570932FD31F2eA087f29109'
+    const pluginAddressTokenVoting = '0x2455D92D9f773E8bb9e6bcaD66D96De5222F9E6F'
     const network = NetworksEnum.ethereumSepolia
 
     const daoRegisteredEvents = await UnitDepUtils.getData(DAORegistry.abi, 'DAORegistered', daoInstallTx, network)
@@ -118,8 +93,12 @@ describe('Integration: VeGovernance', () => {
     expect(tokenPlugin.votingEscrow.clockAddress).to.eq('0x81Bd8F94F258eFf9Abe045c57C750440A088049e')
     expect(tokenPlugin.votingEscrow.nftLockAddress).to.eq('0xAd5B5340bb1f61870Ec3956DE26A8B6BD3e1b931')
 
+    const token = await Models.Token.findOne({ address: tokenPlugin.tokenAddress, network })
+    expect(token.type).to.eq(ITokenType.escrowAdapter)
+    expect(token.isGovernance).to.be.true
+
     const tokenVotingSlug = await Models.PluginSlug.findOne({ pluginAddress: pluginAddressTokenVoting, network })
-    expect(tokenVotingSlug.slug).to.eq('ttv')
+    expect(tokenVotingSlug.slug).to.eq('lock')
 
     const activeSettings = await Models.Setting.findActive({
       daoAddress,
@@ -131,21 +110,5 @@ describe('Integration: VeGovernance', () => {
     expect(activeSettings.votingEscrow.maxTime).to.eq(0)
     expect(activeSettings.votingEscrow.slope).to.eq(0)
     expect(activeSettings.votingEscrow.cooldown).to.eq(259200)
-
-    // TODO: test locks
-    // add deposit transaction to VotingEscrow 0xe398B1b8863345Ce681E0f9246EeF168b538C8f6
-    // const result = await Models.Lock.findWithPagination({
-    //   extraParams: {
-    //     pluginAddress: pluginAddressTokenVoting,
-    //     memberAddress,
-    //     onlyActive: true,
-    //   },
-    //   paginationParams: {
-    //     pageSize: 10,
-    //     page: 1,
-    //     order: 'desc',
-    //     sort: 'blockNumber',
-    //   },
-    // })
   })
 })
