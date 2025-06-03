@@ -370,8 +370,8 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
         address,
         network,
         { pageSize: 100, delayMs: 500, startPage: initialPage },
-        async (holders, pageInfo) => {
-          await Promise.all(holders.map(async holder => await callback(holder)))
+        async (holders: any, pageInfo: any) => {
+          await Promise.all(holders.map(async (holder: any) => await callback(holder)))
 
           if (syncKey) {
             await ProxyUtils.updateProgressInConfigIndexer(network, syncKey, pageInfo.currentPage, pageInfo.isLastPage)
@@ -516,6 +516,9 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
       transfers: 0,
       holders: 0,
     }
+  },
+  fetchHistoricalTokenPrice: async () => {
+    return '0'
   },
 }
 
