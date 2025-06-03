@@ -156,8 +156,68 @@ install_dependencies() {
 start_app_first_time() {
     echo "Starting application with PM2..."
     pm2 kill || true
-    pm2 start "$REMOTE_DIR/$TARGET_DIR/pm2.config.js" --update-env
 
+    echo "Running migrations first..."
+    # Flush logs for clean output
+    pm2 flush
+
+    # Start only the migration app
+    pm2 start "$REMOTE_DIR/$TARGET_DIR/pm2.config.js" --only migration
+
+    # Give it a moment to start
+    sleep 2
+
+    # Wait for migration to complete
+    echo "Waiting for migrations to complete..."
+    local max_wait=300  # 5 minutes timeout
+    local waited=0
+
+    while [ $waited -lt $max_wait ]; do
+        # Check PM2 list for migration status
+        pm2_output=$(pm2 list 2>/dev/null || true)
+
+        # Check if migration process is stopped (completed)
+        if echo "$pm2_output" | grep -q "migration.*stopped"; then
+            echo "Migration process completed successfully!"
+            break
+        fi
+
+        # Check if migration is in error state
+        if echo "$pm2_output" | grep -q "migration.*errored"; then
+            echo "ERROR: Migration failed!"
+            pm2 logs migration --lines 50 --nostream
+            exit 1
+        fi
+
+        sleep 2
+        waited=$((waited + 2))
+        printf "\rWaited %ds..." "$waited"
+    done
+
+    echo # New line after waiting
+
+    if [ $waited -ge $max_wait ]; then
+        echo "ERROR: Migration timed out after ${max_wait} seconds!"
+        pm2 logs migration --lines 50 --nostream
+        exit 1
+    fi
+
+    # Show migration summary
+    echo "Migration summary:"
+    pm2 logs migration --lines 30 --nostream 2>/dev/null | grep -E "(Executing migration|Migration completed successfully|Migration failed|No pending migrations)" || echo "No migration logs found"
+
+    # Delete the migration app from PM2
+    echo "Cleaning up migration process..."
+    pm2 delete migration 2>/dev/null || true
+
+    echo "Starting all other services..."
+    # Start all services (migration won't start as it has autorestart: false)
+    pm2 start "$REMOTE_DIR/$TARGET_DIR/pm2.config.js" \
+        --only "aragon-api,aragon-indexer,aragon-dao,aragon-plugins,aragon-rates,aragon-admin-api"
+
+    # Show final status
+    echo "All services started:"
+    pm2 list
 }
 
 main() {
