@@ -99,5 +99,23 @@ module.exports = {
         ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-admin-api') }).parsed,
       },
     },
+    {
+      name: 'migration',
+      cwd: path.resolve(__dirname, ''),
+      script: './runners/migration.ts',
+      interpreter: 'node',
+      interpreter_args: ['-r ts-node/register/transpile-only', '-r tsconfig-paths/register'].join(' '),
+      autorestart: false,
+      watch: false,
+      exec_mode: 'fork',
+      max_restarts: 0,
+      min_uptime: 0,
+      stop_exit_codes: [0, 1, 2],
+      env: {
+        INSTANCE_ID: 'migration',
+        NODE_ENV: 'production',
+        ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-indexer') }).parsed,
+      },
+    },
   ],
 }

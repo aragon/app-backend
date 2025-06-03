@@ -44,6 +44,10 @@ export interface IConfig {
     BASE_URI: string
     API_KEY: string
   }
+  ALCHEMY_PRICE_API: {
+    URI: string
+    API_KEY: string
+  }
   NODES: {
     ETHEREUM_MAINNET: IRawNodeConfig
     ETHEREUM_SEPOLIA: IRawNodeConfig

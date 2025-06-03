@@ -223,6 +223,83 @@ describe('Modules: ProxyToken', () => {
       expect(token.update.called).to.be.false
       expect(result).to.equal(token)
     })
+
+    it('should update native token with only price information', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      const token = {
+        id: 'token-123',
+        address: tokenAddress,
+        network,
+        type: ITokenType.native,
+        skipFetchRate: false,
+        lastUpdatedAt: dayjs().subtract(10, 'hour').toDate(),
+        update: sandbox.stub(),
+      } as any
+
+      const tokenPrice = '1500.50'
+      sandbox.stub(ProxyWeb3Provider, 'fetchTokenPrice').resolves({
+        priceUsd: tokenPrice,
+      })
+
+      // These should not be called for native tokens
+      const fetchBasicTokenInfoStub = sandbox.stub(ProxyWeb3Provider, 'fetchBasicTokenInfo')
+      const fetchTokenHolderAndSupplyStub = sandbox.stub(ProxyWeb3Provider, 'fetchTokenHolderAndSupply')
+
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
+
+      const result = await ProxyToken.updateTokenMetrics(token, tokenAddress, network, false)
+
+      expect(fetchBasicTokenInfoStub.called).to.be.false
+      expect(fetchTokenHolderAndSupplyStub.called).to.be.false
+      expect(token.update.calledOnce).to.be.true
+      expect(token.update.firstCall.args[0]).to.deep.include({
+        priceUsd: tokenPrice,
+      })
+      expect(token.update.firstCall.args[0]).to.not.have.property('holders')
+      expect(token.update.firstCall.args[0]).to.not.have.property('totalSupply')
+      expect(loggerVerboseStub.calledWith('Updated Token Metrics' as any)).to.be.true
+      expect(result).to.equal(token)
+    })
+
+    it('should update non-native token with price, holders and total supply', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      const token = {
+        id: 'token-123',
+        address: tokenAddress,
+        network,
+        type: ITokenType.ERC20,
+        skipFetchRate: false,
+        lastUpdatedAt: dayjs().subtract(10, 'hour').toDate(),
+        update: sandbox.stub(),
+      } as any
+
+      const tokenDetails = { priceUsd: '1234.56' }
+      const tokenMetrics = { totalHolders: 1000, totalSupply: '1000000000000000000000' }
+
+      sandbox.stub(ProxyWeb3Provider, 'fetchBasicTokenInfo').resolves(tokenDetails)
+      sandbox.stub(ProxyWeb3Provider, 'fetchTokenHolderAndSupply').resolves(tokenMetrics)
+
+      // This should not be called for non-native tokens
+      const fetchTokenPriceStub = sandbox.stub(ProxyWeb3Provider, 'fetchTokenPrice')
+
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
+
+      const result = await ProxyToken.updateTokenMetrics(token, tokenAddress, network, false)
+
+      expect(fetchTokenPriceStub.called).to.be.false
+      expect(token.update.calledOnce).to.be.true
+      expect(token.update.firstCall.args[0]).to.deep.include({
+        priceUsd: '1234.56',
+        holders: 1000,
+        totalSupply: '1000000000000000000000',
+      })
+      expect(loggerVerboseStub.calledWith('Updated Token Metrics' as any)).to.be.true
+      expect(result).to.equal(token)
+    })
   })
 
   describe('createNewToken', () => {
@@ -581,5 +658,131 @@ describe('Modules: ProxyToken', () => {
 
       expect(result).to.be.false
     })
+  })
+
+  it('should allow escrowAdapter token with governance to be saved even if not syncable', async () => {
+    const tokenAddress = '0x123456789abcdef'
+    const network = NetworksEnum.ethereumMainnet
+
+    const tokenTypeInfo = {
+      type: ITokenType.escrowAdapter,
+      isGovernance: true,
+      hasDelegate: true,
+      hasBalanceOfERC20: true,
+      hasBalanceOfERC777: false,
+      hasName: true,
+      hasSymbol: true,
+      hasDecimals: true,
+      hasTotalSupply: true,
+      proxy: false,
+      implementationAddress: null,
+      hasUnderlying: false,
+    }
+
+    const tokenDetails = {
+      name: 'Escrow Adapter Token',
+      symbol: 'ESCROW',
+      decimals: 18,
+      logo: 'escrow-logo',
+      type: ITokenType.escrowAdapter,
+      totalHolders: 100,
+      totalSupply: '1000000000000000000000',
+    }
+
+    sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo)
+    sandbox.stub(ProxyWeb3Provider, 'fetchBasicTokenInfo').resolves(tokenDetails)
+    sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
+
+    // This is the key part - token is NOT syncable normally
+    sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(false)
+
+    // But it should still be saved because it's an escrowAdapter with governance
+    sandbox.stub(Web3Helper, 'getTokenName').resolves('Escrow Adapter Token')
+    sandbox.stub(Web3Helper, 'getTokenSymbol').resolves('ESCROW')
+    sandbox.stub(Web3Helper, 'getTokenDecimals').resolves(18)
+    sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(1000000000000000000000n)
+    sandbox.stub(Web3Utils, 'isWhitelistedToken').returns(true)
+    sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation').resolves({
+      blockNumber: 123456,
+      transactionHash: '0xtransactionhash',
+      address: tokenAddress,
+    })
+    sandbox.stub(ProxyWeb3Provider, 'fetchTokenHolderAndSupply').resolves({
+      totalHolders: 100,
+      totalSupply: '1000000000000000000000',
+    })
+    sandbox.stub(ProxyWeb3Provider, 'fetchTokenPrice').resolves({
+      priceUsd: '10.5',
+    })
+    sandbox.stub(TokenUtils, 'firstValid').returns('10.5')
+    sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
+
+    const createStub = sandbox.stub(Models.Token, 'create').resolves({
+      id: 'new-escrow-token-123',
+      address: tokenAddress,
+      network,
+      type: ITokenType.escrowAdapter,
+      isGovernance: true,
+    } as any)
+
+    const loggerVerboseStub = sandbox.stub(logger, 'verbose')
+
+    const result = await ProxyToken.createNewToken(tokenAddress, network)
+
+    // The key assertion - the token should be created despite not being syncable
+    expect(result).to.not.be.null
+    expect(createStub.calledOnce).to.be.true
+    expect(loggerVerboseStub.calledWith('New Token Created' as any)).to.be.true
+
+    const createArgs = createStub.firstCall.args[0]
+    expect(createArgs.type).to.equal(ITokenType.escrowAdapter)
+    expect(createArgs.isGovernance).to.equal(true)
+    expect(createArgs.address).to.equal(tokenAddress)
+    expect(createArgs.name).to.equal('Escrow Adapter Token')
+    expect(createArgs.symbol).to.equal('ESCROW')
+  })
+
+  it('should return null for escrowAdapter token without governance if not syncable', async () => {
+    const tokenAddress = '0x123456789abcdef'
+    const network = NetworksEnum.ethereumMainnet
+
+    const tokenTypeInfo = {
+      type: ITokenType.escrowAdapter,
+      isGovernance: false, // Not a governance token
+      hasDelegate: false,
+      hasBalanceOfERC20: true,
+      hasBalanceOfERC777: false,
+      hasName: true,
+      hasSymbol: true,
+      hasDecimals: true,
+      hasTotalSupply: true,
+      proxy: false,
+      implementationAddress: null,
+      hasUnderlying: false,
+    }
+
+    const tokenDetails = {
+      name: 'Escrow Adapter Token',
+      symbol: 'ESCROW',
+      decimals: 18,
+      logo: 'escrow-logo',
+      type: ITokenType.escrowAdapter,
+      totalHolders: 100,
+      totalSupply: '1000000000000000000000',
+    }
+
+    sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo)
+    sandbox.stub(ProxyWeb3Provider, 'fetchBasicTokenInfo').resolves(tokenDetails)
+
+    // Token is NOT syncable
+    sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(false)
+
+    const createStub = sandbox.stub(Models.Token, 'create')
+
+    const result = await ProxyToken.createNewToken(tokenAddress, network)
+
+    // Should return null because it's not a governance escrowAdapter
+    expect(result).to.be.null
+    expect(createStub.called).to.be.false
   })
 })

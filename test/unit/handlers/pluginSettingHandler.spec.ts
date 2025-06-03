@@ -1059,7 +1059,7 @@ describe('Indexer: PluginSettingHandler', () => {
       const getMinLockStub = sandbox.stub(GovernanceVeHelper, 'getMinLock').resolves(BigInt('86400')) // 1 day in seconds
       const getCooldownStub = sandbox.stub(GovernanceVeHelper, 'getCooldown').resolves(BigInt('3600')) // 1 hour in seconds
       const getMaxTimeStub = sandbox.stub(GovernanceVeHelper, 'getMaxTime').resolves(BigInt('31536000')) // 1 year in seconds
-      const getSlopeStub = sandbox.stub(GovernanceVeHelper, 'getSlope').resolves(BigInt('100')) // slope value
+      const getSlopeStub = sandbox.stub(GovernanceVeHelper, 'getSlopeFromCoefficients').resolves(BigInt('100')) // slope value
 
       const result = await PluginSettingHandler.votingEscrowSettings(plugin, info)
 
