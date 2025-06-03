@@ -73,6 +73,19 @@ const GovernanceVeHelper = {
     }
   },
 
+  async getErc20TokenAddress(votingEscrowAddress: HexAddress, network: NetworksEnum): Promise<HexAddress | null> {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const abi = ['function token() view returns (address)']
+    const contract = new Contract(votingEscrowAddress, abi, provider)
+    try {
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.token()),
+      )
+    } catch (error) {
+      return null
+    }
+  },
+
   async getMinDeposit(votingEscrowAddress: HexAddress, network: NetworksEnum): Promise<bigint> {
     const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(votingEscrowAddress, VotingEscrowIncreasing.abi, provider)
