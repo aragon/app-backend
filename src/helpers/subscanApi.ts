@@ -475,7 +475,7 @@ const SubscanApiHelper = {
       const params = {
         page: 0,
         row: 10,
-        contract: '0x5c3126bfb9a68a7021d461230127470b3824886b',
+        contract: address,
       }
 
       const response = await SubscanApiHelper._rpCall('evm/token/transfer', params, network)
