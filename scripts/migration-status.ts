@@ -15,20 +15,20 @@ async function showMigrationStatus() {
     const status = await MigrationService.getMigrationStatus()
 
     // Display status
-    console.log('\n📊 Migration Status:')
-    console.log('─'.repeat(40))
-    console.log(`Total migrations:     ${status.total}`)
-    console.log(`✅ Completed:         ${status.completed}`)
-    console.log(`❌ Failed:            ${status.failed}`)
-    console.log(`⏳ Pending:           ${status.pending}`)
+    console.log('\n📊 Migration Status:') // eslint-disable-line no-console
+    console.log('─'.repeat(40)) // eslint-disable-line no-console
+    console.log(`Total migrations:     ${status.total}`) // eslint-disable-line no-console
+    console.log(`✅ Completed:         ${status.completed}`) // eslint-disable-line no-console
+    console.log(`❌ Failed:            ${status.failed}`) // eslint-disable-line no-console
+    console.log(`⏳ Pending:           ${status.pending}`) // eslint-disable-line no-console
 
     if (status.lastExecuted) {
-      console.log('\n📅 Last executed:')
-      console.log(`   ${status.lastExecuted.filename}`)
-      console.log(`   ${status.lastExecuted.executedAt.toLocaleString()}`)
+      console.log('\n📅 Last executed:') // eslint-disable-line no-console
+      console.log(`   ${status.lastExecuted.filename}`) // eslint-disable-line no-console
+      console.log(`   ${status.lastExecuted.executedAt.toLocaleString()}`) // eslint-disable-line no-console
     }
 
-    console.log('─'.repeat(40))
+    console.log('─'.repeat(40)) // eslint-disable-line no-console
 
     // Close connections
     await Connections.close()
