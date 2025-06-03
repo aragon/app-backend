@@ -1,10 +1,10 @@
 import logger from '@logger'
 import {
+  IEventLogPluginSettings,
   type ILogInfo,
   IPluginInterfaceType,
-  ISettingStatus,
-  IEventLogPluginSettings,
   IPluginStatus,
+  ISettingStatus,
   type ISettingVotingEscrow,
 } from '@types'
 import { Models } from '@dbModels'
@@ -140,7 +140,7 @@ export const PluginSettingHandler = {
       logger.error('votingSettingsUpdated token not found', llo({ info }))
     }
 
-    if (tokenDb?.isGovernance || settingLog.votingEscrow) {
+    if (tokenDb?.isGovernance) {
       await PluginSettingHandler.isSupported(relatedPlugin, info)
 
       const sppPlugin = await Models.Plugin.findOne({

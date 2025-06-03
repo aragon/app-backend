@@ -1,6 +1,6 @@
 import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
-import { type HexAddress, ITokenType, type NetworksEnum } from '@types'
+import { type HexAddress, type ITokenDetails, ITokenType, type NetworksEnum } from '@types'
 import TokenDetector from '@helpers/tokenDetector'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
@@ -102,10 +102,14 @@ export const ProxyToken = {
     session?: ClientSession,
   ): Promise<Token | null> => {
     const tokenTypeInfo = await TokenDetector.detectTokenType(tokenAddress, network)
-    const tokenDetails = await ProxyWeb3Provider.fetchBasicTokenInfo({
-      address: tokenAddress,
-      network,
-    })
+    let tokenDetails: ITokenDetails | null = null
+
+    if (tokenTypeInfo.type !== ITokenType.escrowAdapter) {
+      tokenDetails = await ProxyWeb3Provider.fetchBasicTokenInfo({
+        address: tokenAddress,
+        network,
+      })
+    }
 
     const rawToken: Partial<Token & { isScamToken: boolean }> = {
       network,
@@ -145,7 +149,7 @@ export const ProxyToken = {
       }
 
       const isTokenSyncable = await TokenUtils.isTokenSyncable(tokenAddress, network)
-      if (!isTokenSyncable) {
+      if (!isTokenSyncable && rawToken.type !== ITokenType.escrowAdapter) {
         return null
       }
 
@@ -160,6 +164,11 @@ export const ProxyToken = {
 
       if (tokenTypeInfo.hasUnderlying) {
         rawToken.underlying = await Web3Helper.getUnderlying(tokenAddress, network)
+      } else if (tokenTypeInfo.type === ITokenType.escrowAdapter) {
+        const plugin = await Models.Plugin.findByTokenAddress(rawToken.address, rawToken.network!)
+        if (plugin) {
+          rawToken.underlying = plugin.votingEscrow?.underlying || null
+        }
       }
 
       if (rawToken.isGovernance || Web3Utils.isWhitelistedToken(tokenAddress, network)) {
