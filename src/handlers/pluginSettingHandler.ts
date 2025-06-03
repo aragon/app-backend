@@ -140,7 +140,7 @@ export const PluginSettingHandler = {
       logger.error('votingSettingsUpdated token not found', llo({ info }))
     }
 
-    if (tokenDb?.isGovernance) {
+    if (tokenDb?.isGovernance || settingLog.votingEscrow) {
       await PluginSettingHandler.isSupported(relatedPlugin, info)
 
       const sppPlugin = await Models.Plugin.findOne({
