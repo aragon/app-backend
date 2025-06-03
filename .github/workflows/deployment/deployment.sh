@@ -223,7 +223,6 @@ start_app_first_time() {
     pm2 delete migration 2>/dev/null || true
 
     echo "Starting all other services..."
-    # Start all services (migration won't start as it has autorestart: false)
     pm2 start "$REMOTE_DIR/$TARGET_DIR/pm2.config.js" \
         --only "aragon-api,aragon-indexer,aragon-dao,aragon-plugins,aragon-rates,aragon-admin-api"
 
