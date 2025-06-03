@@ -173,20 +173,32 @@ start_app_first_time() {
     local waited=0
 
     while [ $waited -lt $max_wait ]; do
-        # Check PM2 list for migration status
-        pm2_output=$(pm2 list 2>/dev/null || true)
+        # Use pm2 describe to get more reliable status
+        migration_status=$(pm2 describe migration 2>/dev/null | grep "status" | awk '{print $NF}' || echo "unknown")
+
+        # Alternative: Use pm2 jlist for JSON output (more reliable)
+        # migration_status=$(pm2 jlist 2>/dev/null | jq -r '.[] | select(.name == "migration") | .pm2_env.status' || echo "unknown")
 
         # Check if migration process is stopped (completed)
-        if echo "$pm2_output" | grep -q "migration.*stopped"; then
+        if [ "$migration_status" = "stopped" ]; then
             echo "Migration process completed successfully!"
             break
         fi
 
         # Check if migration is in error state
-        if echo "$pm2_output" | grep -q "migration.*errored"; then
+        if [ "$migration_status" = "errored" ]; then
             echo "ERROR: Migration failed!"
             pm2 logs migration --lines 50 --nostream
             exit 1
+        fi
+
+        # Check if migration doesn't exist (might have been deleted)
+        if [ "$migration_status" = "unknown" ] || [ -z "$migration_status" ]; then
+            # Double check with pm2 list
+            if ! pm2 list 2>/dev/null | grep -q "migration"; then
+                echo "Migration process not found - may have completed already"
+                break
+            fi
         fi
 
         sleep 2
@@ -206,7 +218,7 @@ start_app_first_time() {
     echo "Migration summary:"
     pm2 logs migration --lines 30 --nostream 2>/dev/null | grep -E "(Executing migration|Migration completed successfully|Migration failed|No pending migrations)" || echo "No migration logs found"
 
-    # Delete the migration app from PM2
+    # Delete the migration app from PM2 (optional - since it's stopped anyway)
     echo "Cleaning up migration process..."
     pm2 delete migration 2>/dev/null || true
 
