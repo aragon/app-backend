@@ -158,82 +158,64 @@ start_app_first_time() {
     pm2 kill || true
 
     echo "Running migrations first..."
-    # Flush logs for clean output
     pm2 flush
 
     # Start only the migration app
     pm2 start "$REMOTE_DIR/$TARGET_DIR/pm2.config.js" --only migration
 
-    # Give it a moment to start
-    sleep 3
+    # Give it time to start properly
+    sleep 5
 
-    # Wait for migration to complete
     echo "Waiting for migrations to complete..."
-    local max_wait=300  # 5 minutes timeout
-    local waited=0
 
-    while [ $waited -lt $max_wait ]; do
-        # Use Python to parse PM2 JSON output (most reliable)
-        migration_status=$(pm2 jlist 2>/dev/null | python3 -c "
-import sys, json
-try:
-    data = json.load(sys.stdin)
-    for app in data:
-        if app.get('name') == 'migration':
-            print(app.get('pm2_env', {}).get('status', 'unknown'))
+    # Simple loop - check every 2 seconds for up to 5 minutes
+    local counter=0
+    while true; do
+        # Save pm2 list output to a variable
+        PM2_LIST=$(pm2 list 2>&1)
+
+        # Debug: show what we're checking
+        echo "Checking migration status (attempt $counter)..."
+
+        # Check if the output contains both "migration" and "stopped"
+        if echo "$PM2_LIST" | grep "migration" | grep -q "stopped"; then
+            echo "✓ Migration completed successfully!"
             break
-    else:
-        print('not_found')
-except:
-    print('error')
-" 2>/dev/null || echo "parse_error")
+        fi
 
-        echo "Migration status: $migration_status"
+        # Check for error
+        if echo "$PM2_LIST" | grep "migration" | grep -q "errored"; then
+            echo "✗ Migration failed!"
+            pm2 logs migration --lines 50 --nostream
+            exit 1
+        fi
 
-        # Check status
-        case "$migration_status" in
-            "stopped")
-                echo -e "\nMigration process completed successfully!"
-                break
-                ;;
-            "errored")
-                echo -e "\nERROR: Migration failed!"
-                pm2 logs migration --lines 50 --nostream
-                exit 1
-                ;;
-            "not_found")
-                echo -e "\nMigration process not found - may have completed"
-                break
-                ;;
-        esac
+        # Timeout check
+        counter=$((counter + 1))
+        if [ $counter -gt 150 ]; then  # 150 * 2 seconds = 300 seconds = 5 minutes
+            echo "✗ Migration timed out!"
+            pm2 logs migration --lines 50 --nostream
+            exit 1
+        fi
 
         sleep 2
-        waited=$((waited + 2))
-        printf "\rWaited %ds..." "$waited"
     done
 
-    echo # New line after waiting
+    echo ""
+    echo "Migration logs:"
+    pm2 logs migration --lines 20 --nostream | grep -E "(Executing|completed|failed|No pending)" || true
 
-    if [ $waited -ge $max_wait ]; then
-        echo "ERROR: Migration timed out after ${max_wait} seconds!"
-        pm2 logs migration --lines 50 --nostream
-        exit 1
-    fi
+    echo ""
+    echo "Removing migration from PM2..."
+    pm2 delete migration || true
 
-    # Show migration summary
-    echo -e "\nMigration summary:"
-    pm2 logs migration --lines 30 --nostream 2>/dev/null | grep -E "(Executing migration|Migration completed successfully|Migration failed|No pending migrations)" || echo "No migration logs found"
-
-    # Delete the migration app from PM2
-    echo -e "\nCleaning up migration process..."
-    pm2 delete migration 2>/dev/null || true
-
-    echo -e "\nStarting all other services..."
+    echo ""
+    echo "Starting all other services..."
     pm2 start "$REMOTE_DIR/$TARGET_DIR/pm2.config.js" \
         --only "aragon-api,aragon-indexer,aragon-dao,aragon-plugins,aragon-rates,aragon-admin-api"
 
-    # Show final status
-    echo -e "\nAll services started:"
+    echo ""
+    echo "Final status:"
     pm2 list
 }
 
