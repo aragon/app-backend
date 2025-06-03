@@ -225,6 +225,48 @@ describe('Helpers: GovernanceVe', () => {
     })
   })
 
+  describe('getErc20TokenAddress', () => {
+    it('Should make a successful getErc20TokenAddress call', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const getTokenStub = sandbox.stub().resolves('0x1234567890123456789012345678901234567890')
+
+      const { default: MockedGovernanceVeHelper } = proxyquire.noCallThru()('@helpers/governanceVe', {
+        ethers: {
+          Contract: function () {
+            return { token: getTokenStub }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedGovernanceVeHelper.getErc20TokenAddress('0x123', NetworksEnum.ethereumMainnet)
+      expect(result).to.eq('0x1234567890123456789012345678901234567890')
+      expect(getTokenStub.calledOnce).to.be.true
+    })
+
+    it('should handle errors in getErc20TokenAddress', async () => {
+      const expectedResult = new Error('RPC Call Failed')
+      const getTokenStub = sandbox.stub().rejects(expectedResult)
+
+      const { default: MockedGovernanceVeHelper } = proxyquire.noCallThru()('@helpers/governanceVe', {
+        ethers: {
+          Contract: function () {
+            return { token: getTokenStub }
+          },
+        },
+      })
+
+      const result = await MockedGovernanceVeHelper.getErc20TokenAddress('0x123', NetworksEnum.ethereumMainnet)
+      expect(result).to.be.null
+      expect(getTokenStub.calledOnce).to.be.true
+    })
+  })
+
   describe('getMinDeposit', () => {
     it('Should make a successful getMinDeposit call', async () => {
       const stubConfigState = {

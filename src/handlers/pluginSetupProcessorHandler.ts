@@ -383,6 +383,11 @@ export const PluginSetupProcessorHandler = {
       const result = await PluginSetupProcessorHandler.findVotingEscrow(tokenAddress, info)
       const votingEscrow = result || null
 
+      if (votingEscrow?.tokenAddress) {
+        // replace with the real erc20 token address from the voting escrow
+        tokenAddress = votingEscrow.tokenAddress
+      }
+
       await DbOperations.updateDocument(
         pluginDb,
         { tokenAddress, votingEscrow },
@@ -402,7 +407,9 @@ export const PluginSetupProcessorHandler = {
     exitQueueAddress: HexAddress
     escrowAddress: HexAddress
     clockAddress: HexAddress
+    tokenAddress: HexAddress
     nftLockAddress: HexAddress
+    escrowVotesAdapter: HexAddress
   } | null> => {
     // check if the token is a ivoteradapter
     const escrowAddress = await GovernanceVeHelper.getEscrowAddress(tokenAddress, info.network)
@@ -415,8 +422,9 @@ export const PluginSetupProcessorHandler = {
         const curveAddress = await GovernanceVeHelper.getCurveAddress(escrowAddress, info.network)
         const exitQueueAddress = await GovernanceVeHelper.getExitQueueAddress(escrowAddress, info.network)
         const nftLockAddress = await GovernanceVeHelper.getNftLockAddress(escrowAddress, info.network)
+        const erc20TokenAddress = await GovernanceVeHelper.getErc20TokenAddress(escrowAddress, info.network)
 
-        if (clockAddress && curveAddress && exitQueueAddress && nftLockAddress) {
+        if (clockAddress && curveAddress && exitQueueAddress && nftLockAddress && erc20TokenAddress) {
           await ProxyToken.saveAndGetToken(nftLockAddress, info.network)
 
           return {
@@ -425,6 +433,8 @@ export const PluginSetupProcessorHandler = {
             escrowAddress,
             clockAddress,
             nftLockAddress,
+            tokenAddress: erc20TokenAddress, // take the real erc20 token address from the voting escrow
+            escrowVotesAdapter: tokenAddress, // this is the ivoteradapter address
           }
         }
       }

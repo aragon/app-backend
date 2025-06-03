@@ -24,10 +24,16 @@ export class VotingEscrow {
   public escrowAddress!: HexAddress
 
   @prop({ type: () => String, default: null })
+  public escrowVotesAdapter!: HexAddress
+
+  @prop({ type: () => String, default: null })
   public clockAddress!: HexAddress
 
   @prop({ type: () => String, default: null })
   public nftLockAddress!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public tokenAddress!: HexAddress
 }
 
 export class SubPlugin {
