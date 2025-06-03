@@ -23,6 +23,7 @@ const ProposalRouter = {
       creatorAddress: ctx.query.creatorAddress as HexAddress,
       daoInfo: Utils.parseBoolean(ctx.query.daoInfo),
       isExecuted: Utils.parseBoolean(ctx.query.isExecuted),
+      isSubProposal: Utils.parseBoolean(ctx.query.isSubProposal),
       proposalIndex: ctx.query.proposalIndex?.toString(),
       incrementalId: ctx.query.incrementalId !== undefined ? Number(ctx.query.incrementalId || 0) : undefined,
     }
