@@ -57,6 +57,11 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       API_KEY: utils.configParser(sourceConfig, 'string', 'ETHERSCAN_API_KEY', null),
     },
 
+    ALCHEMY_PRICE_API: {
+      URI: utils.configParser(sourceConfig, 'string', 'ALCHEMY_PRICE_API_URI', 'https://api.g.alchemy.com/prices/v1'),
+      API_KEY: utils.configParser(sourceConfig, 'string', 'ALCHEMY_PRICE_API_KEY', null),
+    },
+
     NODES: {
       ETHEREUM_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_MAINNET_ALCHEMY_API_KEY', null),

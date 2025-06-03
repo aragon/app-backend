@@ -503,6 +503,35 @@ describe('Web3Provider', () => {
     })
   })
 
+  describe('fetchHistoricalTokenPrice', () => {
+    it('should forward to RateModule.fetchHistoricalRate', async () => {
+      // Arrange
+      const address = '0xtoken'
+      const network = NetworksEnum.ethereumMainnet
+      const symbol = 'TKN'
+      const date = '2023-01-01'
+      const historicalRateData = { priceUsd: '15.25' }
+
+      const fetchHistoricalRateStub = sandbox
+        .stub(RateModule, 'fetchHistoricalRate')
+        .resolves(historicalRateData as any)
+
+      // Act
+      const result = await Web3Provider.fetchHistoricalTokenPrice({ address, network, symbol, date })
+
+      // Assert
+      expect(
+        fetchHistoricalRateStub.calledOnceWith({
+          address,
+          network,
+          symbol,
+          timestamp: date,
+        }),
+      ).to.be.true
+      expect(result).to.equal(historicalRateData)
+    })
+  })
+
   describe('searchDetailsOfContract', () => {
     it('should forward to BlockScoutHelper.searchDetails', async () => {
       // Arrange

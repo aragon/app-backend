@@ -224,6 +224,7 @@ class TxInfo {
 @index({ 'rawActions.data': 1 })
 @index({ transactionHash: 1 })
 @index({ network: 1 })
+@index({ isSubProposal: 1, 'executed.status': 1 })
 export default class Proposal extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -696,7 +697,7 @@ export default class Proposal extends Model {
   }): Promise<IPaginatedResult<IProposalsResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const dynamicFilter = Object.fromEntries(
-      Object.entries(extraParams).filter(([key, v]) => v !== undefined && key !== 'daoInfo'),
+      Object.entries(extraParams).filter(([key, v]) => v !== undefined && key !== 'daoInfo' && key !== 'isExecuted'),
     )
     const filter = {
       ...ModelUtils.createFilter(paginationParams, [
@@ -710,6 +711,11 @@ export default class Proposal extends Model {
     }
 
     const currentPage = request.skip / request.limit + 1
+
+    if (extraParams.isExecuted) {
+      filter['executed.status'] = true
+      filter.isSubProposal = false
+    }
 
     const query: any = [
       AggregationQueryHelper.member(
@@ -1037,6 +1043,6 @@ export default class Proposal extends Model {
   }
 
   async reload(tOpts?: SaveOptions) {
-    return await this.model(customName).findById(this._id, tOpts)
+    return await this.model(customName).findById(this._id, null, tOpts)
   }
 }

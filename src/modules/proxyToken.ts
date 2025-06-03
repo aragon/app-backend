@@ -59,21 +59,32 @@ export const ProxyToken = {
     let updates: Partial<Token> = {}
 
     if (shouldUpdate || forceUpdate) {
-      const tokenDetails = await ProxyWeb3Provider.fetchBasicTokenInfo({
-        address: tokenAddress,
-        network,
-      })
+      if (token.type !== ITokenType.native) {
+        const tokenDetails = await ProxyWeb3Provider.fetchBasicTokenInfo({
+          address: tokenAddress,
+          network,
+        })
 
-      const tokenMetrics = await ProxyWeb3Provider.fetchTokenHolderAndSupply({
-        address: tokenAddress,
-        network,
-      })
+        const tokenMetrics = await ProxyWeb3Provider.fetchTokenHolderAndSupply({
+          address: tokenAddress,
+          network,
+        })
 
-      updates = {
-        priceUsd: tokenDetails.priceUsd,
-        holders: tokenMetrics.totalHolders,
-        totalSupply: tokenMetrics.totalSupply,
-        lastUpdatedAt: dayjs.utc().toDate(),
+        updates = {
+          priceUsd: tokenDetails.priceUsd,
+          holders: tokenMetrics.totalHolders,
+          totalSupply: tokenMetrics.totalSupply,
+          lastUpdatedAt: dayjs.utc().toDate(),
+        }
+      } else {
+        const tokenDetails = await ProxyWeb3Provider.fetchTokenPrice({
+          address: tokenAddress,
+          network,
+        })
+        updates = {
+          priceUsd: tokenDetails.priceUsd,
+          lastUpdatedAt: dayjs.utc().toDate(),
+        }
       }
 
       await token.update(updates, { session })
@@ -134,7 +145,9 @@ export const ProxyToken = {
       }
 
       const isTokenSyncable = await TokenUtils.isTokenSyncable(tokenAddress, network)
-      if (!isTokenSyncable) {
+
+      const allowOverride = rawToken.type === ITokenType.escrowAdapter && rawToken.isGovernance
+      if (!isTokenSyncable && !allowOverride) {
         return null
       }
 

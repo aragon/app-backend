@@ -63,6 +63,9 @@ const ProxyWeb3Provider: IWeb3Provider & { forward: any; getProvider: any; getDe
   getAllTokenHolders: async function (params) {
     return ProxyWeb3Provider.forward(IWeb3ProxyMethod.getAllTokenHolders)(params)
   },
+  fetchHistoricalTokenPrice: async function (params) {
+    return ProxyWeb3Provider.forward(IWeb3ProxyMethod.fetchHistoricalTokenPrice)(params)
+  },
   getTokenCounters: async function (params) {
     return ProxyWeb3Provider.forward(IWeb3ProxyMethod.getTokenCounters)(params)
   },
