@@ -1378,7 +1378,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const exitQueueAddress = '0x5555555555555555555555555555555555555555'
       const clockAddress = '0x6666666666666666666666666666666666666666'
       const nftLockAddress = '0x7777777777777777777777777777777777777777'
-      const erc20TokenAddress = '0x8888888888888888888888888888888888888888' // The real ERC20
+      const underlyingAddress = '0x8888888888888888888888888888888888888888'
 
       const getEscrowAddressStub = sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(escrowAddress)
       const votingEscrowDetectorStub = sandbox.stub(VotingEscrowDetector, 'isVotingEscrow').resolves({
@@ -1390,7 +1390,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const getNftLockAddressStub = sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(nftLockAddress)
       const getErc20TokenAddressStub = sandbox
         .stub(GovernanceVeHelper, 'getErc20TokenAddress')
-        .resolves(erc20TokenAddress)
+        .resolves(underlyingAddress)
       const fetchLockTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
 
       const result = await PluginSetupProcessorHandler.findVotingEscrow(tokenAddress, info)
@@ -1410,8 +1410,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         escrowAddress,
         clockAddress,
         nftLockAddress,
-        tokenAddress: erc20TokenAddress, // The real ERC20 token
-        escrowVotesAdapter: tokenAddress, // The IVoterAdapter address
+        underlying: underlyingAddress, // The real ERC20 token
       })
     })
 
@@ -1468,7 +1467,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const curveAddress = '0x4444444444444444444444444444444444444444'
       const exitQueueAddress = '0x5555555555555555555555555555555555555555'
       const clockAddress = '0x6666666666666666666666666666666666666666'
-      const erc20TokenAddress = '0x8888888888888888888888888888888888888888'
+      const underlyingAddress = '0x8888888888888888888888888888888888888888'
       // nftLockAddress will be null
 
       const getEscrowAddressStub = sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(escrowAddress)
@@ -1481,7 +1480,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const getNftLockAddressStub = sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(null) // Missing address
       const getErc20TokenAddressStub = sandbox
         .stub(GovernanceVeHelper, 'getErc20TokenAddress')
-        .resolves(erc20TokenAddress)
+        .resolves(underlyingAddress)
 
       const result = await PluginSetupProcessorHandler.findVotingEscrow(tokenAddress, info)
 
@@ -1508,7 +1507,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const curveAddress = '0x4444444444444444444444444444444444444444'
       const exitQueueAddress = '0x5555555555555555555555555555555555555555'
       const nftLockAddress = '0x7777777777777777777777777777777777777777'
-      const erc20TokenAddress = '0x8888888888888888888888888888888888888888'
+      const underlyingAddress = '0x8888888888888888888888888888888888888888'
 
       const getEscrowAddressStub = sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(escrowAddress)
       const votingEscrowDetectorStub = sandbox.stub(VotingEscrowDetector, 'isVotingEscrow').resolves({
@@ -1520,7 +1519,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const getNftLockAddressStub = sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(nftLockAddress)
       const getErc20TokenAddressStub = sandbox
         .stub(GovernanceVeHelper, 'getErc20TokenAddress')
-        .resolves(erc20TokenAddress)
+        .resolves(underlyingAddress)
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
 
       const result = await PluginSetupProcessorHandler.findVotingEscrow(tokenAddress, info)
