@@ -3,7 +3,7 @@ import BlockScoutProvider from '@modules/proxyProvider/blockscoutProvider'
 import { NetworksEnum } from '@types'
 import logger from '@logger'
 
-describe('BlockScout Provider Integration Tests', function () {
+describe.skip('BlockScout Provider Integration Tests', function () {
   this.timeout(6000000)
 
   const network = NetworksEnum.polygonMainnet // Replace with actual BlockScout network

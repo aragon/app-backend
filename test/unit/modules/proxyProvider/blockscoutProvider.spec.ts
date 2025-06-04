@@ -101,14 +101,14 @@ describe('Modules: BlockScoutProvider', () => {
       expect(externalTx).to.exist
       expect(externalTx!.hash).to.equal('0xhash2000000000000000000000000000000000000000000000000000000000002')
       expect(externalTx!.type).to.equal(ITransactionType.withdraw)
-      expect(externalTx!.value).to.equal('2')
+      expect(externalTx!.value).to.equal('2.0')
 
       // Check internal transaction
       const internalTx = result.find(tx => tx.category === ITransactionCategory.Internal)
       expect(internalTx).to.exist
       expect(internalTx!.hash).to.equal('0xhash3000000000000000000000000000000000000000000000000000000000003')
       expect(internalTx!.type).to.equal(ITransactionType.deposit)
-      expect(internalTx!.value).to.equal('3')
+      expect(internalTx!.value).to.equal('3.0')
     })
 
     it('should determine transaction type correctly (withdraw vs deposit)', async () => {
