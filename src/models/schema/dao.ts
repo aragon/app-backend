@@ -253,6 +253,7 @@ export default class Dao extends Model {
           subPlugins: 1,
           stageIndex: 1,
           parentPlugin: 1,
+          votingEscrow: 1,
         },
         {
           settings: true,
@@ -367,6 +368,7 @@ export default class Dao extends Model {
           subPlugins: 1,
           stageIndex: 1,
           parentPlugin: 1,
+          votingEscrow: 1,
         },
       ),
       {
@@ -573,6 +575,7 @@ export default class Dao extends Model {
           subPlugins: 1,
           stageIndex: 1,
           parentPlugin: 1,
+          votingEscrow: 1,
         },
         { settings: true, token: true },
       ),
@@ -642,6 +645,7 @@ export default class Dao extends Model {
           subPlugins: 1,
           stageIndex: 1,
           parentPlugin: 1,
+          votingEscrow: 1,
         },
       ),
       {
