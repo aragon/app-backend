@@ -3,10 +3,9 @@ import axios from 'axios'
 import config from '@config'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
-import { ErrorKeyEnum, type HexAddress, ITokenType, type NetworksEnum } from '@types'
+import { type HexAddress, ITokenType, type NetworksEnum } from '@types'
 import { type ITokenFullDetails } from '@src/types/blockScout'
 import Utils from '@helpers/utils'
-import { assertExposable } from '@errors'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:BlockScoutHelper' })
 

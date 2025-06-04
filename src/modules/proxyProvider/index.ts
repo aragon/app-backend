@@ -22,7 +22,7 @@ const ProxyWeb3Provider: IWeb3Provider & { forward: any; getProvider: any; getDe
   },
 
   forward<K extends keyof IWeb3ProxyMethod>(method: K | any) {
-    return async ({ network, ...args }: { network: NetworksEnum; [key: string]: any }) => {
+    return async ({ network, ...args }: { network: NetworksEnum; [_key: string]: any }) => {
       const provider = ProxyWeb3Provider.getProvider(network)
       const fallback = ProxyWeb3Provider.getDefaultProvider()
       const fn = provider?.[method] ?? fallback?.[method]
