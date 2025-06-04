@@ -365,7 +365,7 @@ describe('ChilizProvider', () => {
           hash: '0xtx3',
           contractAddress: null,
           category: 'external',
-          transactionIndex: '1'
+          transactionIndex: '1',
         },
       ]
 
@@ -484,7 +484,6 @@ describe('ChilizProvider', () => {
 
       await ChilizProvider.fetchAddressTxns({ address, network })
 
-      const expectedBlockFilter = { startBlock: 0, endBlock: 100 }
       expect(getProgressStub.calledOnce).to.be.true
       expect(getBlockNumberStub.calledOnce).to.be.true
       expect(updateProgressStub.calledOnce).to.be.true
@@ -886,7 +885,6 @@ describe('ChilizProvider', () => {
     })
 
     it('should properly test pagination with 3 calls when needed', async () => {
-
       const address = '0x123'
       const network = NetworksEnum.chilizMainnet
       const blockFilter = { startBlock: 0, endBlock: 100 }
@@ -1435,9 +1433,8 @@ describe('ChilizProvider', () => {
         result: [],
       }
 
-      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(mockResponse)
+      sandbox.stub(ChilizProvider, '_rpcCall').resolves(mockResponse)
 
-      // Act
       const result = await ChilizProvider.getTokenHoldersPage(tokenAddress, network)
 
       // Assert
@@ -1457,9 +1454,8 @@ describe('ChilizProvider', () => {
         result: null,
       }
 
-      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(mockResponse)
+      sandbox.stub(ChilizProvider, '_rpcCall').resolves(mockResponse)
 
-      // Act
       const result = await ChilizProvider.getTokenHoldersPage(tokenAddress, network)
 
       // Assert

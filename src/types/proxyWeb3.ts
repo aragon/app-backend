@@ -95,3 +95,7 @@ export interface ITxFilterBlockArgs {
   startBlock: number
   endBlock: number
 }
+
+export interface ITransactionFetchFunction {
+  (address: string, network: NetworksEnum, blockFilter: ITxFilterBlockArgs): Promise<any[]>
+}
