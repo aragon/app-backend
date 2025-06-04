@@ -90,3 +90,8 @@ export interface IWeb3ContractCreation {
   transactionHash: HexAddress | null
   address: HexAddress
 }
+
+export interface ITxFilterBlockArgs {
+  startBlock: number
+  endBlock: number
+}

@@ -8,6 +8,7 @@ import utils from '@helpers/utils'
 import TokenUtils from '@helpers/tokenUtils'
 import ChilizProvider from '@modules/proxyProvider/chilizProvider'
 import ProxyUtils from '@modules/proxyProvider/utils'
+import Web3Helper from '@helpers/web3'
 
 describe('ChilizProvider', () => {
   let sandbox: any
@@ -336,7 +337,7 @@ describe('ChilizProvider', () => {
   })
 
   describe('fetchAddressTxns', () => {
-    it('should process and filter valid transactions', async () => {
+    it('should process and filter valid transactions with block filtering', async () => {
       const address = '0x7287715c632e32b415b172A978B18f4bFba7997c'
       const network = NetworksEnum.chilizMainnet
 
@@ -354,6 +355,20 @@ describe('ChilizProvider', () => {
         },
       ]
 
+      const mockExternalTxs = [
+        {
+          from: address,
+          to: '0x53175D75A0b0937268f9a0EfD2217e6a99a4E5A7',
+          value: '1500000000000000000',
+          blockNumber: '102',
+          timeStamp: '1622345720',
+          hash: '0xtx3',
+          contractAddress: null,
+          category: 'external',
+          transactionIndex: '1'
+        },
+      ]
+
       const mockInternalTxs = [
         {
           from: address,
@@ -361,8 +376,10 @@ describe('ChilizProvider', () => {
           value: '2000000000000000000',
           blockNumber: '101',
           timeStamp: '1622345700',
-          transactionHash: '0xtx2',
+          hash: '0xtx2',
           index: '0',
+          contractAddress: null,
+          category: 'internal',
         },
       ]
 
@@ -384,7 +401,12 @@ describe('ChilizProvider', () => {
         type: ITokenType.native,
       }
 
+      const getProgressStub = sandbox.stub(ProxyUtils, 'getProgressFromConfigIndexer').resolves({ lastSync: 50 })
+      const updateProgressStub = sandbox.stub(ProxyUtils, 'updateProgressInConfigIndexer').resolves()
+      const getBlockNumberStub = sandbox.stub(Web3Helper, 'getBlockNumber').resolves(150)
+
       const fetchERC20TransfersStub = sandbox.stub(ChilizProvider, '_fetchERC20Transfers').resolves(mockERC20Transfers)
+      const fetchTxListStub = sandbox.stub(ChilizProvider, '_fetchTxList').resolves(mockExternalTxs)
       const fetchInternalTxsStub = sandbox.stub(ChilizProvider, '_fetchInternalTxs').resolves(mockInternalTxs)
 
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken')
@@ -395,14 +417,24 @@ describe('ChilizProvider', () => {
 
       const formatUnitsStub = sandbox.stub(ethers, 'formatUnits')
       formatUnitsStub.withArgs('1000000000000000000', 18).returns('1.0')
+      formatUnitsStub.withArgs('1500000000000000000', 18).returns('1.5')
       formatUnitsStub.withArgs('2000000000000000000', 18).returns('2.0')
 
       const result = await ChilizProvider.fetchAddressTxns({ address, network })
 
+      expect(getProgressStub.calledOnce).to.be.true
+      expect(getBlockNumberStub.calledOnce).to.be.true
       expect(fetchERC20TransfersStub.calledOnce).to.be.true
+      expect(fetchTxListStub.calledOnce).to.be.true
       expect(fetchInternalTxsStub.calledOnce).to.be.true
 
-      expect(result).to.have.lengthOf(2)
+      // Verify block filter arguments
+      const expectedBlockFilter = { startBlock: 51, endBlock: 150 }
+      expect(fetchERC20TransfersStub.firstCall.args[2]).to.deep.equal(expectedBlockFilter)
+      expect(fetchTxListStub.firstCall.args[2]).to.deep.equal(expectedBlockFilter)
+      expect(fetchInternalTxsStub.firstCall.args[2]).to.deep.equal(expectedBlockFilter)
+
+      expect(result).to.have.lengthOf(3)
 
       expect(result[0]).to.include({
         from: '0xcd3352Bf093328A4aC7A54710c23c6342eaC4A39',
@@ -412,6 +444,7 @@ describe('ChilizProvider', () => {
         hash: '0xtx1',
         type: ITransactionType.deposit,
         category: ITransactionCategory.ERC20,
+        uniqueId: '0xtx1-undefined-1-0',
       })
 
       expect(result[1]).to.include({
@@ -420,111 +453,159 @@ describe('ChilizProvider', () => {
         blockNum: 101,
         value: '2.0',
         type: ITransactionType.withdraw,
+        category: ITransactionCategory.Internal,
+        uniqueId: '0xtx2-internal-0',
+      })
+
+      expect(result[2]).to.include({
+        from: '0x7287715c632e32b415b172A978B18f4bFba7997c',
+        to: '0x53175D75A0b0937268f9a0EfD2217e6a99a4E5A7',
+        blockNum: 102,
+        value: '1.5',
+        type: ITransactionType.withdraw,
         category: ITransactionCategory.External,
+        uniqueId: '0xtx3-external-1',
+      })
+
+      expect(updateProgressStub.calledOnce).to.be.true
+    })
+
+    it('should handle case when no sync progress exists', async () => {
+      const address = '0xaddress'
+      const network = NetworksEnum.chilizMainnet
+
+      const getProgressStub = sandbox.stub(ProxyUtils, 'getProgressFromConfigIndexer').resolves(null)
+      const getBlockNumberStub = sandbox.stub(Web3Helper, 'getBlockNumber').resolves(100)
+      const updateProgressStub = sandbox.stub(ProxyUtils, 'updateProgressInConfigIndexer').resolves()
+
+      sandbox.stub(ChilizProvider, '_fetchERC20Transfers').resolves([])
+      sandbox.stub(ChilizProvider, '_fetchTxList').resolves([])
+      sandbox.stub(ChilizProvider, '_fetchInternalTxs').resolves([])
+
+      await ChilizProvider.fetchAddressTxns({ address, network })
+
+      const expectedBlockFilter = { startBlock: 0, endBlock: 100 }
+      expect(getProgressStub.calledOnce).to.be.true
+      expect(getBlockNumberStub.calledOnce).to.be.true
+      expect(updateProgressStub.calledOnce).to.be.true
+    })
+  })
+
+  describe('_fetchTxList', () => {
+    it('should fetch external transactions with pagination and filter valid ones', async () => {
+      const address = '0x7287715c632e32b415b172A978B18f4bFba7997c'
+      const network = NetworksEnum.chilizMainnet
+      const blockFilter = { startBlock: 100, endBlock: 200 }
+
+      const page1Response = {
+        message: 'OK',
+        result: [
+          {
+            from: address,
+            to: '0xrecipient1',
+            value: '1000000000000000000',
+            blockNumber: '150',
+            timeStamp: '1622345678',
+            hash: '0xtx1',
+          },
+          {
+            from: address,
+            to: '0xrecipient2',
+            value: '0',
+            blockNumber: '151',
+            timeStamp: '1622345700',
+            hash: '0xtx2',
+          },
+          {
+            from: address,
+            to: '0xrecipient3',
+            value: '2000000000000000000',
+            blockNumber: '152',
+            timeStamp: '1622345720',
+            hash: '0xtx3',
+          },
+        ],
+      }
+
+      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall')
+      rpcCallStub.onCall(0).resolves(page1Response)
+
+      const result = await ChilizProvider._fetchTxList(address, network, blockFilter)
+
+      expect(rpcCallStub.callCount).to.equal(1)
+
+      expect(rpcCallStub.firstCall.args[1]).to.deep.equal({
+        module: 'account',
+        action: 'txlist',
+        address,
+        page: 1,
+        offset: 100,
+        startblock: 100,
+        endblock: 200,
+      })
+
+      // Should filter out zero value transaction and add contractAddress: null and category: 'external'
+      expect(result).to.have.lengthOf(2)
+      expect(result[0]).to.deep.equal({
+        from: address,
+        to: '0xrecipient1',
+        value: '1000000000000000000',
+        blockNumber: '150',
+        timeStamp: '1622345678',
+        hash: '0xtx1',
+        contractAddress: null,
+        category: 'external',
+      })
+      expect(result[1]).to.deep.equal({
+        from: address,
+        to: '0xrecipient3',
+        value: '2000000000000000000',
+        blockNumber: '152',
+        timeStamp: '1622345720',
+        hash: '0xtx3',
+        contractAddress: null,
+        category: 'external',
       })
     })
 
-    it('should filter out transactions with scam tokens', async () => {
-      const address = '0xaddress'
+    it('should handle API errors gracefully', async () => {
+      const address = '0x123'
       const network = NetworksEnum.chilizMainnet
+      const blockFilter = { startBlock: 0, endBlock: 100 }
 
-      const mockERC20Transfers = [
-        {
-          from: '0xsender',
-          to: address,
-          value: '1000000000000000000',
-          blockNumber: '100',
-          timeStamp: '1622345678',
-          hash: '0xtx1',
-          contractAddress: '0xscamtoken',
-          logIndex: '0',
-          transactionIndex: '1',
-        },
-      ]
+      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').rejects(new Error('API Error'))
 
-      const scamToken = {
-        address: '0xscamtoken',
-        decimals: 18,
-        name: 'SCAM Airdrop',
-        symbol: 'SCAM',
-        priceUsd: '0.000001',
-        type: ITokenType.ERC20,
+      const result = await ChilizProvider._fetchTxList(address, network, blockFilter)
+
+      expect(rpcCallStub.calledOnce).to.be.true
+      expect(loggerStub.calledOnce).to.be.true
+      expect(result).to.be.an('array').that.is.empty
+    })
+
+    it('should stop pagination when response is not OK', async () => {
+      const address = '0x123'
+      const network = NetworksEnum.chilizMainnet
+      const blockFilter = { startBlock: 0, endBlock: 100 }
+
+      const errorResponse = {
+        message: 'NOTOK',
+        result: [],
       }
 
-      const fetchERC20TransfersStub = sandbox.stub(ChilizProvider, '_fetchERC20Transfers').resolves(mockERC20Transfers)
-      const fetchInternalTxsStub = sandbox.stub(ChilizProvider, '_fetchInternalTxs').resolves([])
-      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(scamToken)
-      const analyzeIfScamTokenStub = sandbox.stub(TokenUtils, 'analyzeIfScamToken').returns(true)
+      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(errorResponse)
 
-      // Act
-      const result = await ChilizProvider.fetchAddressTxns({ address, network })
+      const result = await ChilizProvider._fetchTxList(address, network, blockFilter)
 
-      expect(saveAndGetTokenStub.calledOnce).to.be.true
-      expect(fetchERC20TransfersStub.calledOnce).to.be.true
-      expect(fetchInternalTxsStub.calledOnce).to.be.true
-      expect(analyzeIfScamTokenStub.calledOnce).to.be.true
-
-      expect(result).to.be.an('array').that.is.empty
-    })
-
-    it('should filter if the proxyToken did not save', async () => {
-      // Arrange
-      const address = '0xaddress'
-      const network = NetworksEnum.chilizMainnet
-
-      const mockERC20Transfers = [
-        {
-          from: '0xsender',
-          to: address,
-          value: '1000000000000000000',
-          blockNumber: '100',
-          timeStamp: '1622345678',
-          hash: '0xtx1',
-          contractAddress: '0xtoken1',
-          logIndex: '0',
-          transactionIndex: '1',
-        },
-      ]
-
-      const mockInternalTxs = []
-
-      const fetchERC20TransfersStub = sandbox.stub(ChilizProvider, '_fetchERC20Transfers').resolves(mockERC20Transfers)
-      const fetchInternalTxsStub = sandbox.stub(ChilizProvider, '_fetchInternalTxs').resolves(mockInternalTxs)
-      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
-
-      // Act
-      const result = await ChilizProvider.fetchAddressTxns({ address, network })
-
-      // Assert
-      expect(fetchERC20TransfersStub.calledOnce).to.be.true
-      expect(fetchInternalTxsStub.calledOnce).to.be.true
-      expect(saveAndGetTokenStub.calledOnce).to.be.true
-
-      expect(result).to.be.an('array').that.is.empty
-    })
-
-    it('should handle errors gracefully', async () => {
-      // Arrange
-      const address = '0xaddress'
-      const network = NetworksEnum.chilizMainnet
-
-      sandbox.stub(ChilizProvider, '_fetchERC20Transfers').rejects(new Error('API Error'))
-      sandbox.stub(ChilizProvider, '_fetchInternalTxs').resolves([])
-
-      // Act
-      const result = await ChilizProvider.fetchAddressTxns({ address, network })
-
-      // Assert
-      expect(loggerStub.calledOnce).to.be.true
+      expect(rpcCallStub.calledOnce).to.be.true
       expect(result).to.be.an('array').that.is.empty
     })
   })
 
   describe('_fetchERC20Transfers', () => {
-    it('should fetch ERC20 transfers with pagination', async () => {
-      // Arrange
+    it('should fetch ERC20 transfers with pagination and block filtering', async () => {
       const address = '0x7287715c632e32b415b172A978B18f4bFba7997c'
       const network = NetworksEnum.chilizMainnet
+      const blockFilter = { startBlock: 100, endBlock: 200 }
 
       const page1Response = {
         message: 'OK',
@@ -562,10 +643,8 @@ describe('ChilizProvider', () => {
       rpcCallStub.onCall(0).resolves(page1Response)
       rpcCallStub.onCall(1).resolves(page2Response)
 
-      // Act
-      const result = await ChilizProvider._fetchERC20Transfers(address, network)
+      const result = await ChilizProvider._fetchERC20Transfers(address, network, blockFilter)
 
-      // Assert
       expect(rpcCallStub.callCount).to.equal(2)
 
       expect(rpcCallStub.firstCall.args[1]).to.deep.equal({
@@ -574,6 +653,8 @@ describe('ChilizProvider', () => {
         address,
         page: 1,
         offset: 100,
+        startblock: 100,
+        endblock: 200,
       })
 
       expect(rpcCallStub.secondCall.args[1]).to.deep.equal({
@@ -582,6 +663,8 @@ describe('ChilizProvider', () => {
         address,
         page: 2,
         offset: 100,
+        startblock: 100,
+        endblock: 200,
       })
 
       expect(result).to.have.lengthOf(101)
@@ -593,6 +676,7 @@ describe('ChilizProvider', () => {
       // Arrange
       const address = '0x123'
       const network = NetworksEnum.chilizMainnet
+      const blockFilter = { startBlock: 0, endBlock: 100 }
 
       const errorResponse = {
         message: 'NOTOK',
@@ -602,7 +686,7 @@ describe('ChilizProvider', () => {
       const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(errorResponse)
 
       // Act
-      const result = await ChilizProvider._fetchERC20Transfers(address, network)
+      const result = await ChilizProvider._fetchERC20Transfers(address, network, blockFilter)
 
       // Assert
       expect(rpcCallStub.calledOnce).to.be.true
@@ -613,6 +697,7 @@ describe('ChilizProvider', () => {
       // Arrange
       const address = '0x123'
       const network = NetworksEnum.chilizMainnet
+      const blockFilter = { startBlock: 0, endBlock: 100 }
 
       const emptyResponse = {
         message: 'OK',
@@ -622,7 +707,7 @@ describe('ChilizProvider', () => {
       const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(emptyResponse)
 
       // Act
-      const result = await ChilizProvider._fetchERC20Transfers(address, network)
+      const result = await ChilizProvider._fetchERC20Transfers(address, network, blockFilter)
 
       // Assert
       expect(rpcCallStub.calledOnce).to.be.true
@@ -633,6 +718,7 @@ describe('ChilizProvider', () => {
       // Arrange
       const address = '0x123'
       const network = NetworksEnum.chilizMainnet
+      const blockFilter = { startBlock: 0, endBlock: 100 }
 
       const partialResponse = {
         message: 'OK',
@@ -654,7 +740,7 @@ describe('ChilizProvider', () => {
       const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(partialResponse)
 
       // Act
-      const result = await ChilizProvider._fetchERC20Transfers(address, network)
+      const result = await ChilizProvider._fetchERC20Transfers(address, network, blockFilter)
 
       // Assert
       expect(rpcCallStub.calledOnce).to.be.true
@@ -666,11 +752,12 @@ describe('ChilizProvider', () => {
       // Arrange
       const address = '0x123'
       const network = NetworksEnum.chilizMainnet
+      const blockFilter = { startBlock: 0, endBlock: 100 }
 
       const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').rejects(new Error('API Error'))
 
       // Act
-      const result = await ChilizProvider._fetchERC20Transfers(address, network)
+      const result = await ChilizProvider._fetchERC20Transfers(address, network, blockFilter)
 
       // Assert
       expect(rpcCallStub.calledOnce).to.be.true
@@ -682,6 +769,7 @@ describe('ChilizProvider', () => {
       // Arrange
       const address = '0x123'
       const network = NetworksEnum.chilizMainnet
+      const blockFilter = { startBlock: 0, endBlock: 100 }
 
       const invalidResponse = {
         message: 'OK',
@@ -690,7 +778,7 @@ describe('ChilizProvider', () => {
       const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(invalidResponse)
 
       // Act
-      const result = await ChilizProvider._fetchERC20Transfers(address, network)
+      const result = await ChilizProvider._fetchERC20Transfers(address, network, blockFilter)
 
       // Assert
       expect(rpcCallStub.calledOnce).to.be.true
@@ -700,56 +788,62 @@ describe('ChilizProvider', () => {
 
   describe('_fetchInternalTxs', () => {
     it('should fetch internal transactions with pagination and filter valid ones', async () => {
-      // Arrange
       const address = '0x7287715c632e32b415b172A978B18f4bFba7997c'
       const network = NetworksEnum.chilizMainnet
+      const blockFilter = { startBlock: 100, endBlock: 200 }
 
       const page1Response = {
         message: 'OK',
-        result: Array.from({ length: 100 }, (_, i) => ({
-          from: address,
-          to: `0xrecipient${i}`,
-          value: '1000000000000000000',
-          blockNumber: `${100 + i}`,
-          timeStamp: `${1622345678 + i}`,
-          transactionHash: `0xtx${i}`,
-          index: `${i}`,
-        })),
-      }
-
-      const page2Response = {
-        message: 'OK',
         result: [
           {
-            from: '0xsender2',
-            to: address,
-            value: '2000000000000000000',
-            blockNumber: '102',
-            timeStamp: '1622345800',
-            transactionHash: '0xtx3',
+            from: address,
+            to: '0xrecipient1',
+            value: '1000000000000000000',
+            blockNumber: '150',
+            timeStamp: '1622345678',
+            transactionHash: '0xtx1',
             index: '0',
+            type: 'call',
           },
           {
-            from: '0xsender1',
-            to: address,
+            from: address,
+            to: '0xrecipient2',
             value: '0',
-            blockNumber: '101',
+            blockNumber: '151',
             timeStamp: '1622345700',
             transactionHash: '0xtx2',
             index: '1',
+            type: 'call',
+          },
+          {
+            from: address,
+            to: '0xrecipient3',
+            value: '2000000000000000000',
+            blockNumber: '152',
+            timeStamp: '1622345720',
+            transactionHash: '0xtx3',
+            index: '2',
+            type: 'delegatecall',
+          },
+          {
+            from: address,
+            to: '0xrecipient4',
+            value: '3000000000000000000',
+            blockNumber: '153',
+            timeStamp: '1622345740',
+            transactionHash: '0xtx4',
+            index: '3',
+            type: 'call',
           },
         ],
       }
 
       const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall')
       rpcCallStub.onCall(0).resolves(page1Response)
-      rpcCallStub.onCall(1).resolves(page2Response)
 
-      // Act
-      const result = await ChilizProvider._fetchInternalTxs(address, network)
+      const result = await ChilizProvider._fetchInternalTxs(address, network, blockFilter)
 
-      // Assert
-      expect(rpcCallStub.callCount).to.equal(2)
+      expect(rpcCallStub.callCount).to.equal(1)
 
       expect(rpcCallStub.firstCall.args[1]).to.deep.equal({
         module: 'account',
@@ -757,32 +851,46 @@ describe('ChilizProvider', () => {
         address,
         page: 1,
         offset: 100,
+        startblock: 100,
+        endblock: 200,
       })
 
-      // Should filter out the zero value transaction and add contractAddress: null
-      expect(result).to.have.lengthOf(101) // 100 from page1 + 1 valid from page2
+      // Should filter out zero value transaction, non-call type, and add contractAddress: null and category: 'internal'
+      expect(result).to.have.lengthOf(2)
       expect(result[0]).to.deep.equal({
-        ...page1Response.result[0],
-        contractAddress: null,
-      })
-      expect(result[100]).to.deep.equal({
-        from: '0xsender2',
-        to: address,
-        value: '2000000000000000000',
-        blockNumber: '102',
-        timeStamp: '1622345800',
-        transactionHash: '0xtx3',
+        from: address,
+        to: '0xrecipient1',
+        value: '1000000000000000000',
+        blockNumber: '150',
+        timeStamp: '1622345678',
+        transactionHash: '0xtx1',
         index: '0',
+        type: 'call',
         contractAddress: null,
+        category: 'internal',
+        hash: '0xtx1',
+      })
+      expect(result[1]).to.deep.equal({
+        from: address,
+        to: '0xrecipient4',
+        value: '3000000000000000000',
+        blockNumber: '153',
+        timeStamp: '1622345740',
+        transactionHash: '0xtx4',
+        index: '3',
+        type: 'call',
+        contractAddress: null,
+        category: 'internal',
+        hash: '0xtx4',
       })
     })
 
     it('should properly test pagination with 3 calls when needed', async () => {
-      // Arrange
+
       const address = '0x123'
       const network = NetworksEnum.chilizMainnet
+      const blockFilter = { startBlock: 0, endBlock: 100 }
 
-      // Page 1: Full 100 results
       const page1Response = {
         message: 'OK',
         result: Array.from({ length: 100 }, (_, i) => ({
@@ -793,6 +901,7 @@ describe('ChilizProvider', () => {
           timeStamp: `${1622345678 + i}`,
           transactionHash: `0xtx${i}`,
           index: `${i}`,
+          type: 'call',
         })),
       }
 
@@ -807,6 +916,7 @@ describe('ChilizProvider', () => {
           timeStamp: `${1622345778 + i}`,
           transactionHash: `0xtx${i + 100}`,
           index: `${i}`,
+          type: 'call',
         })),
       }
 
@@ -822,7 +932,7 @@ describe('ChilizProvider', () => {
       rpcCallStub.onCall(2).resolves(page3Response)
 
       // Act
-      const result = await ChilizProvider._fetchInternalTxs(address, network)
+      const result = await ChilizProvider._fetchInternalTxs(address, network, blockFilter)
 
       // Assert
       expect(rpcCallStub.callCount).to.equal(3)
@@ -838,6 +948,7 @@ describe('ChilizProvider', () => {
       // Arrange
       const address = '0x123'
       const network = NetworksEnum.chilizMainnet
+      const blockFilter = { startBlock: 0, endBlock: 100 }
 
       const errorResponse = {
         message: 'NOTOK',
@@ -847,7 +958,7 @@ describe('ChilizProvider', () => {
       const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(errorResponse)
 
       // Act
-      const result = await ChilizProvider._fetchInternalTxs(address, network)
+      const result = await ChilizProvider._fetchInternalTxs(address, network, blockFilter)
 
       // Assert
       expect(rpcCallStub.calledOnce).to.be.true
@@ -858,6 +969,7 @@ describe('ChilizProvider', () => {
       // Arrange
       const address = '0x123'
       const network = NetworksEnum.chilizMainnet
+      const blockFilter = { startBlock: 0, endBlock: 100 }
 
       const partialResponse = {
         message: 'OK',
@@ -870,6 +982,7 @@ describe('ChilizProvider', () => {
             timeStamp: '1622345678',
             transactionHash: '0xtx1',
             index: '0',
+            type: 'call',
           },
         ],
       }
@@ -877,7 +990,7 @@ describe('ChilizProvider', () => {
       const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(partialResponse)
 
       // Act
-      const result = await ChilizProvider._fetchInternalTxs(address, network)
+      const result = await ChilizProvider._fetchInternalTxs(address, network, blockFilter)
 
       // Assert
       expect(rpcCallStub.calledOnce).to.be.true
@@ -885,6 +998,8 @@ describe('ChilizProvider', () => {
       expect(result[0]).to.deep.equal({
         ...partialResponse.result[0],
         contractAddress: null,
+        category: 'internal',
+        hash: '0xtx1',
       })
     })
 
@@ -892,11 +1007,12 @@ describe('ChilizProvider', () => {
       // Arrange
       const address = '0x123'
       const network = NetworksEnum.chilizMainnet
+      const blockFilter = { startBlock: 0, endBlock: 100 }
 
       const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').rejects(new Error('API Error'))
 
       // Act
-      const result = await ChilizProvider._fetchInternalTxs(address, network)
+      const result = await ChilizProvider._fetchInternalTxs(address, network, blockFilter)
 
       // Assert
       expect(rpcCallStub.calledOnce).to.be.true
@@ -908,6 +1024,7 @@ describe('ChilizProvider', () => {
       // Arrange
       const address = '0x123'
       const network = NetworksEnum.chilizMainnet
+      const blockFilter = { startBlock: 0, endBlock: 100 }
 
       const invalidResponse = {
         message: 'OK',
@@ -916,7 +1033,7 @@ describe('ChilizProvider', () => {
       const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(invalidResponse)
 
       // Act
-      const result = await ChilizProvider._fetchInternalTxs(address, network)
+      const result = await ChilizProvider._fetchInternalTxs(address, network, blockFilter)
 
       // Assert
       expect(rpcCallStub.calledOnce).to.be.true
@@ -927,6 +1044,7 @@ describe('ChilizProvider', () => {
       // Arrange
       const address = '0x123'
       const network = NetworksEnum.chilizMainnet
+      const blockFilter = { startBlock: 0, endBlock: 100 }
 
       // Create 100 valid transactions for first page (full page)
       const fullPageTransactions = Array.from({ length: 100 }, (_, i) => ({
@@ -937,6 +1055,7 @@ describe('ChilizProvider', () => {
         timeStamp: `${1622345678 + i}`,
         transactionHash: `0xtx${i}`,
         index: `${i}`,
+        type: 'call',
       }))
 
       const page1Response = {
@@ -954,7 +1073,7 @@ describe('ChilizProvider', () => {
       rpcCallStub.onCall(1).resolves(page2Response)
 
       // Act
-      const result = await ChilizProvider._fetchInternalTxs(address, network)
+      const result = await ChilizProvider._fetchInternalTxs(address, network, blockFilter)
 
       // Assert
       expect(rpcCallStub.callCount).to.equal(2)

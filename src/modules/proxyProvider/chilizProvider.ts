@@ -1,5 +1,12 @@
 import logger from '@logger'
-import { type ISubScanTokenInfo, type ITokenMetrics, ITokenType, type IWeb3Provider, type NetworksEnum } from '@types'
+import {
+  type ISubScanTokenInfo,
+  type ITokenMetrics,
+  ITokenType,
+  type ITxFilterBlockArgs,
+  type IWeb3Provider,
+  type NetworksEnum,
+} from '@types'
 import utils from '@helpers/utils'
 import axios from 'axios'
 import { retryRequest } from '@helpers/retryRequest'
@@ -10,12 +17,14 @@ import { ProxyToken } from '@modules/proxyToken'
 import TokenUtils from '@helpers/tokenUtils'
 import { ITransactionCategory, ITransactionType } from '@types'
 import ProxyUtils from '@modules/proxyProvider/utils'
+import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'provider:ChilizProvider' })
 
 const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
   _rpcCall: any
   _fetchInternalTxs: any
+  _fetchTxList: any
   _fetchERC20Transfers: any
   getTokenHoldersPage: any
   _getAllTokenHolders: any
@@ -158,12 +167,20 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
 
   fetchAddressTxns: async ({ address, network }) => {
     try {
-      const [erc20Transfers, internalTxs] = await Promise.all([
-        ChilizProvider._fetchERC20Transfers(address, network),
-        ChilizProvider._fetchInternalTxs(address, network),
+      const lastSyncStat = await ProxyUtils.getProgressFromConfigIndexer(network, `transferList-${address}-${network}`)
+      const latestBlock = await Web3Helper.getBlockNumber(undefined, network)
+      const blockFilter: ITxFilterBlockArgs = {
+        startBlock: lastSyncStat?.lastSync ? lastSyncStat.lastSync + 1 : 0,
+        endBlock: latestBlock,
+      }
+
+      const [erc20Transfers, externalTransfers, internalTxs] = await Promise.all([
+        ChilizProvider._fetchERC20Transfers(address, network, blockFilter),
+        ChilizProvider._fetchTxList(address, network, blockFilter),
+        ChilizProvider._fetchInternalTxs(address, network, blockFilter),
       ])
 
-      const allTransactions = [...erc20Transfers, ...internalTxs]
+      const allTransactions = [...erc20Transfers, ...externalTransfers, ...internalTxs]
 
       const parsedTransfers = await Promise.all(
         allTransactions.map(async tx => {
@@ -178,17 +195,19 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
             return
           }
 
-          const transferLog = {
+          return {
             from: ethers.getAddress(tx.from),
             to: ethers.getAddress(tx.to),
             value: ethers.formatUnits(tx.value, tokenInfo.decimals),
             blockNum: parseInt(tx.blockNumber),
             blockTimestamp: parseInt(tx.timeStamp),
-            hash: tx.hash || tx.transactionHash,
-            category: tx.contractAddress ? ITransactionCategory.ERC20 : ITransactionCategory.External,
-            uniqueId: tx.contractAddress
-              ? `${tx.hash}-${tx.logIndex}-${tx.transactionIndex}`
-              : `${tx.transactionHash}-${tx.index}`,
+            hash: tx.hash,
+            category: tx.contractAddress
+              ? ITransactionCategory.ERC20
+              : tx.category === 'external'
+                ? ITransactionCategory.External
+                : ITransactionCategory.Internal,
+            uniqueId: `${tx.hash}-${tx.category}-${tx.index || tx.transactionIndex}${tx.logIndex ? `-${tx.logIndex}` : ''}`,
             rawContract: {
               address: contractAddress,
               decimals: tokenInfo.decimals,
@@ -201,19 +220,23 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
             type:
               tx.from.toLowerCase() === address.toLowerCase() ? ITransactionType.withdraw : ITransactionType.deposit,
           }
-
-          return transferLog
         }),
       )
 
-      return parsedTransfers.filter(Boolean).sort((a: any, b: any) => a.blockNum - b.blockNum)
+      const sortedTxList = parsedTransfers.filter(Boolean).sort((a: any, b: any) => a.blockNum - b.blockNum)
+      await ProxyUtils.updateProgressInConfigIndexer(
+        network,
+        `transferList-${address}-${network}`,
+        sortedTxList[sortedTxList.length - 1]?.blockNum || 0,
+      )
+      return sortedTxList
     } catch (error) {
       logger.error('Error in fetchAddressTxns', llo({ error, address, network }))
       return []
     }
   },
 
-  _fetchERC20Transfers: async (address: string, network: NetworksEnum) => {
+  _fetchERC20Transfers: async (address: string, network: NetworksEnum, blockFilter: ITxFilterBlockArgs) => {
     const allTransactions: any[] = []
     let page = 1
     const offset = 100
@@ -227,6 +250,8 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
           address,
           page,
           offset,
+          startblock: blockFilter.startBlock,
+          endblock: blockFilter.endBlock,
         }
 
         const response = await ChilizProvider._rpcCall(path, params, network)
@@ -250,8 +275,57 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
       return []
     }
   },
+  _fetchTxList: async (address: string, network: NetworksEnum, blockFilter: ITxFilterBlockArgs) => {
+    const allTransactions: any[] = []
+    let page = 1
+    const offset = 100
 
-  _fetchInternalTxs: async (address: string, network: NetworksEnum) => {
+    try {
+      while (true) {
+        const path = 'api'
+        const params = {
+          module: 'account',
+          action: 'txlist',
+          address,
+          page,
+          offset,
+          startblock: blockFilter.startBlock,
+          endblock: blockFilter.endBlock,
+        }
+
+        const response = await ChilizProvider._rpcCall(path, params, network)
+
+        if (response?.message !== 'OK' || !response?.result || response.result.length === 0) {
+          break
+        }
+
+        const validTransactions = response.result.filter(
+          (tx: any) => tx.value && tx.value !== '0' && parseInt(tx.value) > 0,
+        )
+
+        const processedTxs = validTransactions.map((tx: any) => ({
+          ...tx,
+          contractAddress: null,
+          category: 'external',
+        }))
+
+        allTransactions.push(...processedTxs)
+
+        if (response.result.length < offset) {
+          break
+        }
+
+        page++
+      }
+
+      return allTransactions
+    } catch (error) {
+      logger.error('Error fetching external transactions', llo({ error, address, network }))
+      return []
+    }
+  },
+
+  _fetchInternalTxs: async (address: string, network: NetworksEnum, blockFilter: ITxFilterBlockArgs) => {
     const allInternalTxs: any[] = []
     let page = 1
     const offset = 100
@@ -265,6 +339,8 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
           address,
           page,
           offset,
+          startblock: blockFilter.startBlock,
+          endblock: blockFilter.endBlock,
         }
 
         const response = await ChilizProvider._rpcCall(path, params, network)
@@ -274,12 +350,14 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
         }
 
         const validInternalTxs = response.result.filter(
-          (tx: any) => tx.value && tx.value !== '0' && parseInt(tx.value) > 0,
+          (tx: any) => tx.type === 'call' && tx.value && tx.value !== '0' && parseInt(tx.value) > 0,
         )
 
         const processedTxs = validInternalTxs.map((tx: any) => ({
           ...tx,
           contractAddress: null,
+          category: 'internal',
+          hash: tx.transactionHash,
         }))
 
         allInternalTxs.push(...processedTxs)
