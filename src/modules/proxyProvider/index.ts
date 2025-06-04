@@ -10,6 +10,8 @@ const ProxyWeb3Provider: IWeb3Provider & { forward: any; getProvider: any; getDe
         return PeaqProvider
       case NetworksEnum.chilizMainnet:
         return ChilizProvider
+      // case NetworksEnum.someOtherNetwork:
+      //   return BlockScoutProvider
       default:
         return Web3Provider
     }
