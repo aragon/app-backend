@@ -6,6 +6,7 @@ import {
   type ITxFilterBlockArgs,
   type IWeb3Provider,
   type NetworksEnum,
+  type ITransactionFetchFunction,
 } from '@types'
 import utils from '@helpers/utils'
 import axios from 'axios'
@@ -23,9 +24,9 @@ const llo = logger.logMeta.bind(null, { service: 'provider:ChilizProvider' })
 
 const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
   _rpcCall: any
-  _fetchInternalTxs: any
-  _fetchTxList: any
-  _fetchERC20Transfers: any
+  _fetchInternalTxs: ITransactionFetchFunction
+  _fetchTxList: ITransactionFetchFunction
+  _fetchERC20Transfers: ITransactionFetchFunction
   getTokenHoldersPage: any
   _getAllTokenHolders: any
 } = {
