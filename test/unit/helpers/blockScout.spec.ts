@@ -732,7 +732,7 @@ describe('Helpers: BlockScout', () => {
         next_page_params: null,
       }
 
-      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(mockResponse)
+      sandbox.stub(BlockScoutHelper, '_rpCall').resolves(mockResponse)
 
       const result = await BlockScoutHelper._fetchERC20Transfers(address, network)
 
@@ -785,7 +785,7 @@ describe('Helpers: BlockScout', () => {
     })
 
     it('should handle errors gracefully', async () => {
-      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').rejects(new Error('API Error'))
+      sandbox.stub(BlockScoutHelper, '_rpCall').rejects(new Error('API Error'))
       const loggerStub = sandbox.stub(logger, 'error')
 
       const result = await BlockScoutHelper._fetchERC20Transfers(address, network)
@@ -849,7 +849,7 @@ describe('Helpers: BlockScout', () => {
         next_page_params: null,
       }
 
-      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(mockResponse)
+      sandbox.stub(BlockScoutHelper, '_rpCall').resolves(mockResponse)
 
       const result = await BlockScoutHelper._fetchTxList(address, network)
 
@@ -857,7 +857,7 @@ describe('Helpers: BlockScout', () => {
     })
 
     it('should handle errors gracefully', async () => {
-      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').rejects(new Error('API Error'))
+      sandbox.stub(BlockScoutHelper, '_rpCall').rejects(new Error('API Error'))
       const loggerStub = sandbox.stub(logger, 'error')
 
       const result = await BlockScoutHelper._fetchTxList(address, network)
@@ -924,7 +924,7 @@ describe('Helpers: BlockScout', () => {
         next_page_params: null,
       }
 
-      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(mockResponse)
+      sandbox.stub(BlockScoutHelper, '_rpCall').resolves(mockResponse)
 
       const result = await BlockScoutHelper._fetchInternalTxs(address, network)
 
@@ -932,7 +932,7 @@ describe('Helpers: BlockScout', () => {
     })
 
     it('should handle errors gracefully', async () => {
-      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').rejects(new Error('API Error'))
+      sandbox.stub(BlockScoutHelper, '_rpCall').rejects(new Error('API Error'))
       const loggerStub = sandbox.stub(logger, 'error')
 
       const result = await BlockScoutHelper._fetchInternalTxs(address, network)
