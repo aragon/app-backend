@@ -75,7 +75,7 @@ describe.skip('Chiliz Provider Integration Tests', function () {
     })
   })
 
-  describe.only('Address Transactions', function () {
+  describe('Address Transactions', function () {
     it('should fetch address transactions (ERC20 + Internal)', async () => {
       const transactions = await ChilizProvider.fetchAddressTxns({
         address: testAddresses.userAddress,
