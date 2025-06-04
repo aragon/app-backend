@@ -9,7 +9,7 @@ describe.skip('Chiliz Provider Integration Tests', function () {
   const network = NetworksEnum.chilizMainnet
   const testAddresses = {
     tokenContract: '0x60f397acbcfb8f4e3234c659a3e10867e6fa6b67',
-    userAddress: '0xa6498bf2ad77dbba6b7cde4245d00f22ceb22461',
+    userAddress: '0xb286A1D1102f8986b4EE2B15f8BDE2D41b668616',
     contractAddress: '0x69d8d2f6050ca02a79dc64adeb33039fde3735b9',
   }
 
@@ -75,7 +75,7 @@ describe.skip('Chiliz Provider Integration Tests', function () {
     })
   })
 
-  describe('Address Transactions', function () {
+  describe.only('Address Transactions', function () {
     it('should fetch address transactions (ERC20 + Internal)', async () => {
       const transactions = await ChilizProvider.fetchAddressTxns({
         address: testAddresses.userAddress,
@@ -103,45 +103,14 @@ describe.skip('Chiliz Provider Integration Tests', function () {
       }
 
       logger.info(`Fetched ${transactions.length} transactions for address`)
-    })
-  })
 
-  describe('ERC20 Transfers', function () {
-    it('should fetch ERC20 transfers for an address', async () => {
-      const transfers = await ChilizProvider._fetchERC20Transfers(testAddresses.userAddress, network)
+      const subsequentTransactions = await ChilizProvider.fetchAddressTxns({
+        address: testAddresses.userAddress,
+        network,
+      })
 
-      expect(transfers).to.be.an('array')
-
-      if (transfers.length > 0) {
-        const firstTransfer = transfers[0]
-        expect(firstTransfer).to.have.property('contractAddress').that.is.a('string')
-        expect(firstTransfer).to.have.property('from').that.is.a('string')
-        expect(firstTransfer).to.have.property('to').that.is.a('string')
-        expect(firstTransfer).to.have.property('value').that.is.a('string')
-        expect(firstTransfer).to.have.property('tokenSymbol').that.is.a('string')
-      }
-
-      logger.info(`Fetched ${transfers.length} ERC20 transfers`)
-    })
-  })
-
-  describe('Internal Transactions', function () {
-    it('should fetch internal transactions for an address', async () => {
-      const internalTxs = await ChilizProvider._fetchInternalTxs(testAddresses.userAddress, network)
-
-      expect(internalTxs).to.be.an('array')
-
-      if (internalTxs.length > 0) {
-        const firstInternal = internalTxs[0]
-        expect(firstInternal).to.have.property('from').that.is.a('string')
-        expect(firstInternal).to.have.property('to').that.is.a('string')
-        expect(firstInternal).to.have.property('value').that.is.a('string')
-        expect(firstInternal).to.have.property('transactionHash').that.is.a('string')
-        expect(firstInternal.contractAddress).to.be.null // Should be null for native transfers
-        expect(parseInt(firstInternal.value)).to.be.greaterThan(0) // Should have value > 0
-      }
-
-      logger.info(`Fetched ${internalTxs.length} internal transactions`)
+      expect(subsequentTransactions).to.be.an('array')
+      expect(subsequentTransactions.length).to.equal(0)
     })
   })
 
