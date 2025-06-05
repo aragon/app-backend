@@ -328,7 +328,9 @@ describe('Modules: ProxyToken', () => {
         totalSupply: '1000000',
       }
 
-      const fetchBasicTokenInfoStub = sandbox.stub(ProxyWeb3Provider, 'fetchBasicTokenInfo').resolves(expectedTokenDetails)
+      const fetchBasicTokenInfoStub = sandbox
+        .stub(ProxyWeb3Provider, 'fetchBasicTokenInfo')
+        .resolves(expectedTokenDetails)
 
       const result = await ProxyToken.wrapTokenDetails(tokenTypeInfo as any, tokenAddress, network)
 
