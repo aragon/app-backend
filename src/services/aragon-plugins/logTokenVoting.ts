@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { IGovernanceErc20Logs, type IIndexerConfig, ITokenVotingLogs } from '@types'
+import { IGovernanceErc20Logs, type IIndexerConfig, ITokenVotingLogs, IVeGovernanceLogs } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Plugin from '@models/schema/plugin'
 import configIndexer from '@indexer/configIndexer'
@@ -25,6 +25,10 @@ export const LogTokenVoting = {
       Object.values(IGovernanceErc20Logs).includes(item.event as any),
     )
 
+    const configVeGovLogs = configIndexer.filter((item: IIndexerConfig) =>
+      Object.values(IVeGovernanceLogs).includes(item.event as any),
+    )
+
     const pluginCrawler = new BlockchainLogCrawler({
       onlyHistorical: isHistorical,
       network: plugin.network,
@@ -42,7 +46,7 @@ export const LogTokenVoting = {
       const tokenCrawler = new BlockchainLogCrawler({
         onlyHistorical: isHistorical,
         network: plugin.network,
-        events: [...configGovLogs],
+        events: [...configGovLogs, ...configVeGovLogs],
         address: [plugin.tokenAddress],
         fromBlock: token?.blockNumber || plugin?.blockNumber,
         onError: async (error: any, log: any) => LogTokenVoting.processError(error, plugin, log),

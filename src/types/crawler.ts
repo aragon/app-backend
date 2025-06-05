@@ -99,3 +99,11 @@ export enum IDaoLogs {
   Granted = 'Granted',
   Revoked = 'Revoked',
 }
+
+export enum IVeGovernanceLogs {
+  Deposit = 'Deposit',
+  Withdraw = 'Withdraw',
+  MinDepositSet = 'MinDepositSet',
+  ExitQueued = 'ExitQueued',
+  MinLockSet = 'MinLockSet',
+}
