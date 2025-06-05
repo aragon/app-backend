@@ -108,7 +108,7 @@ export const GovernanceVeHandler = {
     })
 
     if (!plugin) {
-      logger.error('Plugin not found for deposit event', llo({ info }))
+      logger.error('Plugin not found for exitQueued event', llo({ info }))
       return
     }
 
