@@ -4,9 +4,7 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
 import { DAORegistry } from '@artifacts/daoRegistry'
-import BlockScoutHelper from '@helpers/blockScout'
-import { RateModule } from '@modules/rates'
-import { IPluginInterfaceType, IPluginStatus, ITokenType, NetworksEnum } from '@types'
+import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
 import { expect } from 'chai'
 import { Models } from '@dbModels'
@@ -30,26 +28,6 @@ describe('Integration: VeGovernance', () => {
 
   it('should install veGovernace dao on ethereum-sepolia', async function () {
     this.timeout(10000000)
-
-    sandbox.stub(RateModule, 'fetchRateWithCovalent').resolves({
-      address: '0x00',
-      decimals: 18,
-      name: 'Wrapped Ether',
-      symbol: 'WETH',
-      priceUsd: '1000',
-      type: ITokenType.ERC20,
-      logo: 'https://example.com/logo.png',
-      lastUpdatedAt: new Date(),
-    })
-
-    sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves({
-      holders: 1,
-      name: 'Wrapped Ether',
-      symbol: 'WETH',
-      totalSupply: '1000000000000000000',
-      type: ITokenType.ERC20,
-      decimals: 18,
-    } as any)
 
     sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation').resolves(null as any)
 

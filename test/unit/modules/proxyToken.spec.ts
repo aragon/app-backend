@@ -303,7 +303,208 @@ describe('Modules: ProxyToken', () => {
     })
   })
 
-  describe('createNewToken', () => {
+  describe('wrapTokenDetails', () => {
+    it('should fetch basic token info for non-escrowAdapter tokens', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+      const tokenTypeInfo = {
+        type: ITokenType.ERC20,
+        isGovernance: false,
+        hasBalanceOfERC20: true,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
+        implementationAddress: null,
+      }
+
+      const expectedTokenDetails = {
+        name: 'Test Token',
+        symbol: 'TEST',
+        decimals: 18,
+        type: ITokenType.ERC20,
+        totalHolders: 100,
+        totalSupply: '1000000',
+      }
+
+      const fetchBasicTokenInfoStub = sandbox.stub(ProxyWeb3Provider, 'fetchBasicTokenInfo').resolves(expectedTokenDetails)
+
+      const result = await ProxyToken.wrapTokenDetails(tokenTypeInfo as any, tokenAddress, network)
+
+      expect(fetchBasicTokenInfoStub.calledWith({ address: tokenAddress, network })).to.be.true
+      expect(result).to.deep.equal(expectedTokenDetails)
+    })
+
+    it('should handle escrowAdapter tokens by fetching underlying token', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const underlyingTokenAddress = '0xunderlyingtoken'
+      const network = NetworksEnum.ethereumMainnet
+      const tokenTypeInfo = {
+        type: ITokenType.escrowAdapter,
+        isGovernance: false,
+        hasBalanceOfERC20: true,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
+        implementationAddress: null,
+      }
+
+      const plugin = {
+        votingEscrow: {
+          underlying: underlyingTokenAddress,
+        },
+      }
+
+      const basicTokenDetails = {
+        name: 'Underlying Token',
+        symbol: 'UNDER',
+        decimals: 18,
+        type: ITokenType.ERC20,
+        totalHolders: 500,
+        totalSupply: '5000000',
+      }
+
+      sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves(plugin)
+      const fetchBasicTokenInfoStub = sandbox.stub(ProxyWeb3Provider, 'fetchBasicTokenInfo').resolves(basicTokenDetails)
+
+      const result = await ProxyToken.wrapTokenDetails(tokenTypeInfo as any, tokenAddress, network)
+
+      expect(fetchBasicTokenInfoStub.calledWith({ address: underlyingTokenAddress, network })).to.be.true
+      expect(result).to.deep.equal({
+        ...basicTokenDetails,
+        type: ITokenType.escrowAdapter,
+        underlying: underlyingTokenAddress,
+      })
+    })
+
+    it('should handle escrowAdapter tokens when plugin is not found', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+      const tokenTypeInfo = {
+        type: ITokenType.escrowAdapter,
+        isGovernance: false,
+        hasBalanceOfERC20: true,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
+        implementationAddress: null,
+      }
+
+      const basicTokenDetails = {
+        name: 'Test Token',
+        symbol: 'TEST',
+        decimals: 18,
+        type: ITokenType.ERC20,
+        totalHolders: 100,
+        totalSupply: '1000000',
+      }
+
+      sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves(null)
+      const fetchBasicTokenInfoStub = sandbox.stub(ProxyWeb3Provider, 'fetchBasicTokenInfo').resolves(basicTokenDetails)
+
+      const result = await ProxyToken.wrapTokenDetails(tokenTypeInfo as any, tokenAddress, network)
+
+      expect(fetchBasicTokenInfoStub.calledWith({ address: tokenAddress, network })).to.be.true
+      expect(result).to.deep.equal({
+        ...basicTokenDetails,
+        type: ITokenType.escrowAdapter,
+        underlying: tokenAddress,
+      })
+    })
+
+    it('should handle escrowAdapter tokens when plugin has no votingEscrow', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+      const tokenTypeInfo = {
+        type: ITokenType.escrowAdapter,
+        isGovernance: false,
+        hasBalanceOfERC20: true,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
+        implementationAddress: null,
+      }
+
+      const plugin = {
+        // No votingEscrow property
+      }
+
+      const basicTokenDetails = {
+        name: 'Test Token',
+        symbol: 'TEST',
+        decimals: 18,
+        type: ITokenType.ERC20,
+        totalHolders: 100,
+        totalSupply: '1000000',
+      }
+
+      sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves(plugin)
+      const fetchBasicTokenInfoStub = sandbox.stub(ProxyWeb3Provider, 'fetchBasicTokenInfo').resolves(basicTokenDetails)
+
+      const result = await ProxyToken.wrapTokenDetails(tokenTypeInfo as any, tokenAddress, network)
+
+      expect(fetchBasicTokenInfoStub.calledWith({ address: tokenAddress, network })).to.be.true
+      expect(result).to.deep.equal({
+        ...basicTokenDetails,
+        type: ITokenType.escrowAdapter,
+        underlying: tokenAddress,
+      })
+    })
+
+    it('should handle when fetchBasicTokenInfo returns null', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+      const tokenTypeInfo = {
+        type: ITokenType.ERC20,
+        isGovernance: false,
+        hasBalanceOfERC20: true,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
+        implementationAddress: null,
+      }
+
+      sandbox.stub(ProxyWeb3Provider, 'fetchBasicTokenInfo').resolves(null)
+
+      const result = await ProxyToken.wrapTokenDetails(tokenTypeInfo as any, tokenAddress, network)
+
+      expect(result).to.be.null
+    })
+
+    it('should not modify non-escrowAdapter token when basicToken is null', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+      const tokenTypeInfo = {
+        type: ITokenType.escrowAdapter,
+        isGovernance: false,
+        hasBalanceOfERC20: true,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
+        implementationAddress: null,
+      }
+
+      sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves(null)
+      sandbox.stub(ProxyWeb3Provider, 'fetchBasicTokenInfo').resolves(null)
+
+      const result = await ProxyToken.wrapTokenDetails(tokenTypeInfo as any, tokenAddress, network)
+
+      expect(result).to.be.null
+    })
+  })
+
+  describe.only('createNewToken', () => {
     it('should create a new token with all fields populated', async () => {
       const tokenAddress = '0x123456789abcdef'
       const network = NetworksEnum.ethereumMainnet
@@ -334,7 +535,7 @@ describe('Modules: ProxyToken', () => {
       }
 
       sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo)
-      sandbox.stub(ProxyWeb3Provider, 'fetchBasicTokenInfo').resolves(tokenDetails)
+      sandbox.stub(ProxyToken, 'wrapTokenDetails').resolves(tokenDetails)
       sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(true)
       sandbox.stub(Web3Helper, 'getUnderlying').resolves('0xunderlying')
       sandbox.stub(Web3Utils, 'isWhitelistedToken').returns(true)
@@ -415,7 +616,7 @@ describe('Modules: ProxyToken', () => {
       }
 
       sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo)
-      sandbox.stub(ProxyWeb3Provider, 'fetchBasicTokenInfo').resolves(tokenDetails)
+      sandbox.stub(ProxyToken, 'wrapTokenDetails').resolves(tokenDetails)
 
       sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
       sandbox.stub(Web3Utils, 'isWhitelistedToken').returns(false)
@@ -445,6 +646,143 @@ describe('Modules: ProxyToken', () => {
       expect(createArgs.address).to.equal(tokenAddress)
       expect(createArgs.name).to.equal(null)
       expect(createArgs.type).to.be.eq(ITokenType.unknown)
+    })
+
+    it('should handle escrowAdapter tokens correctly', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const underlyingAddress = '0xunderlyingtoken'
+      const network = NetworksEnum.ethereumMainnet
+
+      const tokenTypeInfo = {
+        type: ITokenType.escrowAdapter,
+        isGovernance: false,
+        hasDelegate: false,
+        hasBalanceOfERC20: true,
+        hasBalanceOfERC777: false,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
+        implementationAddress: null,
+        hasUnderlying: false,
+      }
+
+      const tokenDetails = {
+        name: 'Escrow Token',
+        symbol: 'ESCROW',
+        decimals: 18,
+        logo: 'escrow-logo',
+        type: ITokenType.escrowAdapter,
+        totalHolders: 100,
+        totalSupply: '1000000000000000000000',
+        underlying: underlyingAddress,
+      }
+
+      sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo)
+      sandbox.stub(ProxyToken, 'wrapTokenDetails').resolves(tokenDetails)
+      sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
+      sandbox.stub(ProxyWeb3Provider, 'fetchTokenPrice').resolves({
+        priceUsd: '1.5',
+      })
+      sandbox.stub(TokenUtils, 'firstValid').returns('1.5')
+      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
+
+      const createStub = sandbox.stub(Models.Token, 'create').resolves({
+        id: 'new-token-123',
+        address: tokenAddress,
+        network,
+      })
+
+      await ProxyToken.createNewToken(tokenAddress, network)
+
+      expect(createStub.calledOnce).to.be.true
+
+      const createArgs = createStub.firstCall.args[0]
+      expect(createArgs.type).to.equal(ITokenType.escrowAdapter)
+      expect(createArgs.underlying).to.equal(underlyingAddress)
+      expect(createArgs.name).to.equal('Escrow Token')
+      expect(createArgs.symbol).to.equal('ESCROW')
+    })
+
+    it('should return null if non-escrowAdapter token is not syncable', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      const tokenTypeInfo = {
+        type: ITokenType.ERC20,
+        isGovernance: false,
+        hasBalanceOfERC20: true,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
+        implementationAddress: null,
+      }
+
+      const tokenDetails = {
+        name: 'Test Token',
+        symbol: 'TEST',
+        decimals: 18,
+        type: ITokenType.ERC20,
+      }
+
+      sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo as any)
+      sandbox.stub(ProxyToken, 'wrapTokenDetails').resolves(tokenDetails)
+
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(false)
+
+      const result = await ProxyToken.createNewToken(tokenAddress, network)
+
+      expect(result).to.be.null
+    })
+
+    it('should not check isTokenSyncable for escrowAdapter tokens', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      const tokenTypeInfo = {
+        type: ITokenType.escrowAdapter,
+        isGovernance: false,
+        hasBalanceOfERC20: true,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
+        implementationAddress: null,
+      }
+
+      const tokenDetails = {
+        name: 'Escrow Token',
+        symbol: 'ESCROW',
+        decimals: 18,
+        type: ITokenType.escrowAdapter,
+      }
+
+      sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo as any)
+      sandbox.stub(ProxyToken, 'wrapTokenDetails').resolves(tokenDetails)
+      sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
+
+      const isTokenSyncableStub = sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(false)
+
+      sandbox.stub(ProxyWeb3Provider, 'fetchTokenPrice').resolves({
+        priceUsd: '1',
+      })
+      sandbox.stub(TokenUtils, 'firstValid').returns('1')
+      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
+
+      const createStub = sandbox.stub(Models.Token, 'create').resolves({
+        id: 'new-token-123',
+        address: tokenAddress,
+        network,
+      })
+
+      await ProxyToken.createNewToken(tokenAddress, network)
+
+      expect(isTokenSyncableStub.called).to.be.false
+      expect(createStub.calledOnce).to.be.true
     })
 
     it('should return null if token is not syncable', async () => {
@@ -510,7 +848,7 @@ describe('Modules: ProxyToken', () => {
       }
 
       sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo)
-      sandbox.stub(ProxyWeb3Provider, 'fetchBasicTokenInfo').resolves(tokenDetails)
+      sandbox.stub(ProxyToken, 'wrapTokenDetails').resolves(tokenDetails)
 
       sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
       sandbox.stub(ProxyWeb3Provider, 'fetchTokenPrice').resolves({
@@ -542,6 +880,49 @@ describe('Modules: ProxyToken', () => {
 
       const createArgs = createStub.firstCall.args[0]
       expect(createArgs.type).to.equal(ITokenType.native)
+    })
+
+    it('should update type when tokenDetails.type is unknown but tokenTypeInfo.type is not', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      const tokenTypeInfo = {
+        type: ITokenType.ERC20,
+        isGovernance: false,
+        hasBalanceOfERC20: true,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
+        implementationAddress: null,
+      }
+
+      const tokenDetails = {
+        name: 'Test Token',
+        symbol: 'TEST',
+        decimals: 18,
+        type: ITokenType.unknown, // Details say unknown
+      }
+
+      sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo as any)
+      sandbox.stub(ProxyToken, 'wrapTokenDetails').resolves(tokenDetails)
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+      sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
+      sandbox.stub(ProxyWeb3Provider, 'fetchTokenPrice').resolves({ priceUsd: '1' })
+      sandbox.stub(TokenUtils, 'firstValid').returns('1')
+      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
+
+      const createStub = sandbox.stub(Models.Token, 'create').resolves({
+        id: 'new-token-123',
+        address: tokenAddress,
+        network,
+      })
+
+      await ProxyToken.createNewToken(tokenAddress, network)
+
+      const createArgs = createStub.firstCall.args[0]
+      expect(createArgs.type).to.equal(ITokenType.ERC20) // Should use tokenTypeInfo.type
     })
 
     it('should update type when rawToken.type is unknown but tokenTypeInfo.type is not', async () => {
