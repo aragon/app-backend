@@ -32,6 +32,9 @@ const ProxyUtils = {
           { session },
         )
       }
+
+      await session.commitTransaction()
+      await session.endSession()
     })
   },
 
