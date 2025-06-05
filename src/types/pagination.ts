@@ -50,6 +50,7 @@ export interface IProposalExtraParams {
   incrementalId?: number
   daoInfo?: boolean
   isExecuted?: boolean
+  isSubProposal?: boolean
 }
 
 export interface IAssetExtraParams {
