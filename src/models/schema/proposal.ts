@@ -714,7 +714,6 @@ export default class Proposal extends Model {
 
     if (extraParams.isExecuted) {
       filter['executed.status'] = true
-      filter.isSubProposal = false
     }
 
     const query: any = [
