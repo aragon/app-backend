@@ -4,7 +4,7 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
 import { DAORegistry } from '@artifacts/daoRegistry'
-import { IPluginInterfaceType, IPluginStatus, ITokenType, NetworksEnum } from '@types'
+import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
 import { expect } from 'chai'
 import { Models } from '@dbModels'
@@ -27,6 +27,8 @@ describe('Integration: VeGovernance', () => {
 
   it('should install veGovernace dao on ethereum-sepolia', async function () {
     this.timeout(10000000)
+
+    sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation').resolves(null as any)
 
     const daoInstallTx = '0x87a6fb27a21b7e9bb9939538f833f7e8b16d4aa25843d82a1e0a6f32b39cdb85'
     const preparTxLog = '0xf01734063133bbd90e90ce1d4ddc7b3225ec7a967b2368ff5053a7a8316a5bf1'
