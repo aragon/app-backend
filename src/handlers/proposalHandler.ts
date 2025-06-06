@@ -82,7 +82,9 @@ export const ProposalHandler = {
         return null
       }
 
-      const sortedLogs = logs.sort((a, b) => {
+      const formattedLogs = logs.map(log => crawler.formatLog(log))
+
+      const sortedLogs = formattedLogs.sort((a, b) => {
         if (a.info.blockNumber !== b.info.blockNumber) {
           return a.info.blockNumber - b.info.blockNumber
         }
