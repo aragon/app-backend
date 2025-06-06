@@ -1,5 +1,11 @@
 import logger from '@logger'
-import { IGovernanceErc20Logs, type IIndexerConfig, ITokenVotingLogs, IVeGovernanceLogs } from '@types'
+import {
+  IGovernanceErc20Logs,
+  type IIndexerConfig,
+  ITokenVotingLogs,
+  IExitQueueLogs,
+  IVotingEscrowIncreasingLogs,
+} from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Plugin from '@models/schema/plugin'
 import configIndexer from '@indexer/configIndexer'
@@ -24,9 +30,11 @@ export const LogTokenVoting = {
     const configGovLogs = configIndexer.filter((item: IIndexerConfig) =>
       Object.values(IGovernanceErc20Logs).includes(item.event as any),
     )
-
-    const configVeGovLogs = configIndexer.filter((item: IIndexerConfig) =>
-      Object.values(IVeGovernanceLogs).includes(item.event as any),
+    const configExitQueueLogs = configIndexer.filter((item: IIndexerConfig) =>
+      Object.values(IExitQueueLogs).includes(item.event as any),
+    )
+    const configEscrowILogs = configIndexer.filter((item: IIndexerConfig) =>
+      Object.values(IVotingEscrowIncreasingLogs).includes(item.event as any),
     )
 
     const pluginCrawler = new BlockchainLogCrawler({
@@ -40,13 +48,41 @@ export const LogTokenVoting = {
       stopOnError: true,
     })
 
+    let escrowCrawler: BlockchainLogCrawler | null = null
+    if (plugin.votingEscrow?.exitQueueAddress) {
+      escrowCrawler = new BlockchainLogCrawler({
+        onlyHistorical: isHistorical,
+        network: plugin.network,
+        events: [...configEscrowILogs],
+        address: [plugin.votingEscrow?.escrowAddress],
+        fromBlock: plugin?.blockNumber,
+        onError: async (error: any, log: any) => LogTokenVoting.processError(error, plugin, log),
+        logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}-${plugin.votingEscrow?.escrowAddress}`,
+        stopOnError: true,
+      })
+    }
+
+    let exitQueueCrawler: BlockchainLogCrawler | null = null
+    if (plugin.votingEscrow?.exitQueueAddress) {
+      exitQueueCrawler = new BlockchainLogCrawler({
+        onlyHistorical: isHistorical,
+        network: plugin.network,
+        events: [...configExitQueueLogs],
+        address: [plugin.votingEscrow?.exitQueueAddress],
+        fromBlock: plugin?.blockNumber,
+        onError: async (error: any, log: any) => LogTokenVoting.processError(error, plugin, log),
+        logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}-${plugin.votingEscrow?.exitQueueAddress}`,
+        stopOnError: true,
+      })
+    }
+
     const optimizedFlowNeeded = await TokenHolderSync.isOptimizedFlowNeeded(token, plugin)
     if (!optimizedFlowNeeded) {
       logger.verbose('Start Token Sync', llo({ ...infoLogs, ...{ syncStrategy: 'BlockchainLogCrawler' } }))
       const tokenCrawler = new BlockchainLogCrawler({
         onlyHistorical: isHistorical,
         network: plugin.network,
-        events: [...configGovLogs, ...configVeGovLogs],
+        events: [...configGovLogs],
         address: [plugin.tokenAddress],
         fromBlock: token?.blockNumber || plugin?.blockNumber,
         onError: async (error: any, log: any) => LogTokenVoting.processError(error, plugin, log),
@@ -54,7 +90,18 @@ export const LogTokenVoting = {
         stopOnError: true,
       })
 
-      await Promise.all([pluginCrawler.crawl(), tokenCrawler.crawl()])
+      const crawlers: any = [pluginCrawler.crawl(), tokenCrawler.crawl()]
+
+      if (escrowCrawler) {
+        crawlers.push(escrowCrawler.crawl())
+      }
+
+      if (exitQueueCrawler) {
+        crawlers.push(exitQueueCrawler.crawl())
+      }
+
+      await Promise.all(crawlers)
+
       logger.verbose(
         'End LogTokenVoting',
         llo({

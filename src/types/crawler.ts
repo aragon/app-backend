@@ -100,10 +100,13 @@ export enum IDaoLogs {
   Revoked = 'Revoked',
 }
 
-export enum IVeGovernanceLogs {
+export enum IVotingEscrowIncreasingLogs {
   Deposit = 'Deposit',
   Withdraw = 'Withdraw',
   MinDepositSet = 'MinDepositSet',
+}
+
+export enum IExitQueueLogs {
   ExitQueued = 'ExitQueued',
   MinLockSet = 'MinLockSet',
 }

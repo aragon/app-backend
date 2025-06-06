@@ -1,5 +1,6 @@
 import { type ITokenMetadata } from '@src/types/token'
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
+import type { ILockIdParams } from '@src/types/schemaIds'
 
 export enum ProposalActionType {
   Transfer = 'Transfer',
@@ -13,6 +14,10 @@ export enum ProposalActionType {
   UpdateVoteSettings = 'UpdateVoteSettings',
   StagesUpdated = 'StagesUpdated',
   MetadataPluginUpdate = 'MetadataPluginUpdate',
+}
+
+export interface ILockVotingPowerAt {
+  lockId: ILockIdParams
 }
 
 export interface IRawAction {
