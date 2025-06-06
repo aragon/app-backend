@@ -112,8 +112,8 @@ describe('Module: PoolingCrawler', () => {
 
       sandbox.stub(PoolingCrawler, '_getReceiverAddress').returns('0xDecodedAddress')
 
-      sandbox.stub(Models.Dao, 'distinct').resolves(['0x4838b106fce9647bdf1e7877bf73ce8b0bad5f94'])
-      sandbox.stub(Models.Plugin, 'distinct').resolves(['0x4838b106fce9647bdf1e7877bf73ce8b0bad5f95'])
+      sandbox.stub(Models.Dao, 'distinct').resolves([ethers.getAddress('0x4838b106fce9647bdf1e7877bf73ce8b0bad5f94')])
+      sandbox.stub(Models.Plugin, 'distinct').resolves([ethers.getAddress('0x4838b106fce9647bdf1e7877bf73ce8b0bad5f95')])
 
       const nativeTransferStub = sandbox.stub(DaoRegistryHandler, 'nativeTransfer').resolves()
 
