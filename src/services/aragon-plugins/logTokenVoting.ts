@@ -49,7 +49,7 @@ export const LogTokenVoting = {
     })
 
     let escrowCrawler: BlockchainLogCrawler | null = null
-    if (plugin.votingEscrow?.exitQueueAddress) {
+    if (plugin.votingEscrow?.escrowAddress) {
       escrowCrawler = new BlockchainLogCrawler({
         onlyHistorical: isHistorical,
         network: plugin.network,
