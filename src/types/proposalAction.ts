@@ -1,6 +1,5 @@
 import { type ITokenMetadata } from '@src/types/token'
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
-import type { ILockIdParams } from '@src/types/schemaIds'
 
 export enum ProposalActionType {
   Transfer = 'Transfer',
@@ -17,7 +16,7 @@ export enum ProposalActionType {
 }
 
 export interface ILockVotingPowerAt {
-  lockId: ILockIdParams
+  lockId: string
 }
 
 export interface IRawAction {

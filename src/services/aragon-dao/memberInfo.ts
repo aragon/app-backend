@@ -1,6 +1,6 @@
 import Web3Helper from '@helpers/web3'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
-import { type HexAddress, type ILockIdParams, IPluginInterfaceType, type NetworksEnum } from '@types'
+import { type HexAddress, IPluginInterfaceType, type NetworksEnum } from '@types'
 import { ProxyToken } from '@modules/proxyToken'
 import { Models } from '@dbModels'
 import type Plugin from '@models/schema/plugin'
@@ -57,7 +57,7 @@ export const MemberInfo = {
     }
   },
 
-  getLockVotingPower: async (lockId: ILockIdParams) => {
+  getLockVotingPower: async (lockId: string) => {
     const lock = await Models.Lock.findOne({ id: lockId })
     if (!lock) return false
 
