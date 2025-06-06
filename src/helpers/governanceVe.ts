@@ -148,6 +148,26 @@ const GovernanceVeHelper = {
       return 0n
     }
   },
+
+  async getLockVotingPowerAt(
+    curveAddress: HexAddress,
+    tokenId: string,
+    ts: number,
+    network: NetworksEnum,
+  ): Promise<bigint> {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const contract = new Contract(curveAddress, LinearIncreasingCurve.abi, provider)
+    try {
+      const votingPower = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () =>
+          contract.votingPowerAt(BigInt(tokenId), BigInt(ts)),
+        ),
+      )
+      return votingPower as bigint
+    } catch (error) {
+      return 0n
+    }
+  },
 }
 
 export default GovernanceVeHelper

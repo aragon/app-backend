@@ -2,6 +2,7 @@ import logger from '@logger'
 import {
   EnumConnection,
   EnumQueueName,
+  type ILockVotingPowerAt,
   type IProposalInfo,
   type IQueueAllMetrics,
   type IQueueCanCreateProposal,
@@ -81,6 +82,11 @@ const AragonDaoService: IService = {
     await RabbitMQHelper.process(EnumQueueName.memberBalance, async (job: any) => {
       const { userAddress, tokenAddress, network, pluginAddress } = job.params as IQueueMemberBalanceInfo
       return await MemberInfo.getByTokenAddress(userAddress, pluginAddress, tokenAddress, network)
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.votingPowerAt, async (job: any) => {
+      const { lockId } = job.params as ILockVotingPowerAt
+      return await MemberInfo.getLockVotingPower(lockId)
     })
 
     await RabbitMQHelper.process(EnumQueueName.contractDecoder, async (job: any) => {
