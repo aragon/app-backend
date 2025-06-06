@@ -279,14 +279,13 @@ describe('AragonPlugins: LogTokenVoting', () => {
         blockNumber: 200,
         votingEscrow: {
           escrowAddress: '0xEscrowAddress',
-          exitQueueAddress: null,
         },
       } as any
 
       await LogTokenVoting.start(plugin, token)
 
       expect(isOptimizedFlowNeededStub.calledOnce).to.be.true
-      expect(crawlStub.callCount).to.equal(2) // only plugin and token crawlers (no exit queue)
+      expect(crawlStub.callCount).to.equal(3)
       expect(verboseStub.calledWith('Start LogTokenVoting' as any)).to.be.true
     })
 
