@@ -15,7 +15,6 @@ import { IPermission } from '@src/types/permission'
 import logger from '@logger'
 import TokenUtils from '@helpers/tokenUtils'
 import ProxyWeb3Provider from '@modules/proxyProvider'
-import Web3 from '@helpers/web3'
 
 describe('Modules: ProxyToken', () => {
   let sandbox: SinonSandbox

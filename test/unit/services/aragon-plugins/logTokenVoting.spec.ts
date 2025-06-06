@@ -73,13 +73,13 @@ describe('AragonPlugins: LogTokenVoting', () => {
     })
 
     it('should complete the optimized flow by converting to standard sync', async () => {
-      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
       const verboseStub = sandbox.stub(logger, 'verbose')
       const isOptimizedFlowNeededStub = sandbox.stub(TokenHolderSync, 'isOptimizedFlowNeeded').resolves(true)
       const syncHoldersStub = sandbox.stub(TokenHolderSync, 'syncAllTokenHolders').resolves()
       const syncDelegationStub = sandbox.stub(TokenHolderSync, 'syncDelegationEvents').resolves()
       const syncTransfersStub = sandbox.stub(TokenHolderSync, 'syncTransfersEvents').resolves()
       const convertToStandardSyncStub = sandbox.stub(TokenHolderSync, 'convertToStandardSync').resolves()
+      sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
 
       const token = {
         address: '0x123',
