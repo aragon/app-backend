@@ -59,6 +59,7 @@ export interface IConfig {
     OPTIMISM_MAINNET: IRawNodeConfig
     PEAQ_MAINNET: IRawNodeConfig
     CHILIZ_MAINNET?: IRawNodeConfig
+    CORN_MAINNET?: IRawNodeConfig
   }
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
   SUPPORTED_NETWORKS: NetworksEnum[]

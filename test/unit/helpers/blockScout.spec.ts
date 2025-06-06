@@ -941,4 +941,217 @@ describe('Helpers: BlockScout', () => {
       expect(loggerStub.calledOnce).to.be.true
     })
   })
+
+  describe('getTokenBalances', () => {
+    const address = '0x1234567890abcdef'
+    const network = NetworksEnum.ethereumMainnet
+
+    it('should fetch token balances successfully', async () => {
+      const mockResponse = {
+        items: [
+          {
+            token: {
+              address: '0xtoken1',
+              name: 'Test Token 1',
+              symbol: 'TT1',
+              decimals: '18',
+              type: 'ERC-20',
+            },
+            value: '1000000000000000000',
+          },
+          {
+            token: {
+              address: '0xtoken2',
+              name: 'Test Token 2',
+              symbol: 'TT2',
+              decimals: '6',
+              type: 'ERC-20',
+            },
+            value: '500000',
+          },
+        ],
+        next_page_params: null,
+      }
+
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(mockResponse)
+
+      const result = await BlockScoutHelper.getTokenBalances(address, network)
+
+      expect(rpCallStub.calledOnce).to.be.true
+      expect(rpCallStub.calledWith(`addresses/${address}/tokens`, sinon.match.object, network)).to.be.true
+      expect(result).to.have.length(2)
+      expect(result[0]).to.deep.include({
+        contractAddress: '0xtoken1',
+        tokenBalance: '1000000000000000000',
+        tokenName: 'Test Token 1',
+        tokenSymbol: 'TT1',
+        tokenDecimals: '18',
+        tokenType: 'ERC-20',
+      })
+      expect(result[1]).to.deep.include({
+        contractAddress: '0xtoken2',
+        tokenBalance: '500000',
+        tokenName: 'Test Token 2',
+        tokenSymbol: 'TT2',
+        tokenDecimals: '6',
+        tokenType: 'ERC-20',
+      })
+    })
+
+    it('should filter out zero balance tokens', async () => {
+      const mockResponse = {
+        items: [
+          {
+            token: {
+              address: '0xtoken1',
+              name: 'Test Token 1',
+              symbol: 'TT1',
+              decimals: '18',
+              type: 'ERC-20',
+            },
+            value: '0',
+          },
+          {
+            token: {
+              address: '0xtoken2',
+              name: 'Test Token 2',
+              symbol: 'TT2',
+              decimals: '6',
+              type: 'ERC-20',
+            },
+            value: '500000',
+          },
+        ],
+        next_page_params: null,
+      }
+
+      sandbox.stub(BlockScoutHelper, '_rpCall').resolves(mockResponse)
+
+      const result = await BlockScoutHelper.getTokenBalances(address, network)
+
+      expect(result).to.have.length(1)
+      expect(result[0].contractAddress).to.equal('0xtoken2')
+    })
+
+    it('should handle pagination', async () => {
+      const firstResponse = {
+        items: [
+          {
+            token: {
+              address: '0xtoken1',
+              name: 'Test Token 1',
+              symbol: 'TT1',
+              decimals: '18',
+              type: 'ERC-20',
+            },
+            value: '1000000000000000000',
+          },
+        ],
+        next_page_params: { page: 2 },
+      }
+
+      const secondResponse = {
+        items: [
+          {
+            token: {
+              address: '0xtoken2',
+              name: 'Test Token 2',
+              symbol: 'TT2',
+              decimals: '6',
+              type: 'ERC-20',
+            },
+            value: '500000',
+          },
+        ],
+        next_page_params: null,
+      }
+
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall')
+      rpCallStub.onFirstCall().resolves(firstResponse)
+      rpCallStub.onSecondCall().resolves(secondResponse)
+
+      const result = await BlockScoutHelper.getTokenBalances(address, network)
+
+      expect(rpCallStub.callCount).to.equal(2)
+      expect(result).to.have.length(2)
+      expect(result[0].contractAddress).to.equal('0xtoken1')
+      expect(result[1].contractAddress).to.equal('0xtoken2')
+    })
+
+    it('should handle empty results', async () => {
+      const mockResponse = {
+        items: [],
+        next_page_params: null,
+      }
+
+      sandbox.stub(BlockScoutHelper, '_rpCall').resolves(mockResponse)
+
+      const result = await BlockScoutHelper.getTokenBalances(address, network)
+
+      expect(result).to.be.an('array').that.is.empty
+    })
+
+    it('should handle ERC-721 and ERC-1155 tokens', async () => {
+      const mockResponse = {
+        items: [
+          {
+            token: {
+              address: '0xnft1',
+              name: 'NFT Collection',
+              symbol: 'NFT',
+              decimals: '0',
+              type: 'ERC-721',
+            },
+            value: '1',
+          },
+          {
+            token: {
+              address: '0xnft2',
+              name: 'Multi Token',
+              symbol: 'MT',
+              decimals: '0',
+              type: 'ERC-1155',
+            },
+            value: '5',
+          },
+        ],
+        next_page_params: null,
+      }
+
+      sandbox.stub(BlockScoutHelper, '_rpCall').resolves(mockResponse)
+
+      const result = await BlockScoutHelper.getTokenBalances(address, network)
+
+      expect(result).to.have.length(2)
+      expect(result[0].tokenType).to.equal('ERC-721')
+      expect(result[1].tokenType).to.equal('ERC-1155')
+    })
+
+    it('should handle errors gracefully', async () => {
+      sandbox.stub(BlockScoutHelper, '_rpCall').rejects(new Error('API Error'))
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      const result = await BlockScoutHelper.getTokenBalances(address, network)
+
+      expect(result).to.be.an('array').that.is.empty
+      expect(loggerStub.calledOnce).to.be.true
+      expect(loggerStub.calledWith('Error fetching token balances with native API' as any)).to.be.true
+    })
+
+    it('should include correct API parameters', async () => {
+      const mockResponse = { items: [], next_page_params: null }
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(mockResponse)
+
+      await BlockScoutHelper.getTokenBalances(address, network)
+
+      expect(rpCallStub.calledOnce).to.be.true
+      const callArgs = rpCallStub.firstCall.args
+      expect(callArgs[0]).to.equal(`addresses/${address}/tokens`)
+      expect(callArgs[1]).to.deep.include({
+        type: 'ERC-20,ERC-721,ERC-1155',
+        apikey: config.NODES.ETHEREUM_MAINNET.BLOCKSCOUT_API_KEY,
+      })
+      expect(callArgs[2]).to.equal(network)
+    })
+  })
 })

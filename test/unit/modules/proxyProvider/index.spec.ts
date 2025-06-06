@@ -4,7 +4,8 @@ import { NetworksEnum, IWeb3ProxyMethod } from '@types'
 import Web3Provider from '@modules/proxyProvider/web3Provider'
 import PeaqProvider from '@modules/proxyProvider/peaqProvider'
 import ProxyWeb3Provider from '@modules/proxyProvider'
-import ChilizProvider from '@modules/proxyProvider/chilizProvider' // Adjust import path as needed
+import ChilizProvider from '@modules/proxyProvider/chilizProvider'
+import BlockscoutProvider from '@modules/proxyProvider/blockscoutProvider' // Adjust import path as needed
 
 describe('ProxyWeb3Provider', () => {
   let sandbox
@@ -31,6 +32,11 @@ describe('ProxyWeb3Provider', () => {
     it('should return ChillizProvider for chilizMainnet network', () => {
       const provider = ProxyWeb3Provider.getProvider(NetworksEnum.chilizMainnet)
       expect(provider).to.equal(ChilizProvider)
+    })
+
+    it('should return BlockScoutProvider for cornMainnet network', () => {
+      const provider = ProxyWeb3Provider.getProvider(NetworksEnum.cornMainnet)
+      expect(provider).to.equal(BlockscoutProvider)
     })
   })
 
