@@ -260,7 +260,7 @@ describe('Handler:GovernanceVeHandler', () => {
       await GovernanceVeHandler.exitQueued(mockEvent, mockInfo)
 
       expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledOnceWith('Plugin not found for deposit event' as any)).to.be.true
+      expect(stubLogger.calledOnceWith('Plugin not found for exitQueued event' as any)).to.be.true
     })
 
     it('should log error if lock not found', async () => {

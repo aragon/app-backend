@@ -3,6 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { MemberInfo } from '@services/aragon-dao/memberInfo'
 import Web3Helper from '@helpers/web3'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
+import GovernanceVeHelper from '@helpers/governanceVe'
 import { IPluginInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { ProxyToken } from '@modules/proxyToken'
@@ -533,6 +534,83 @@ describe('AragonDao: memberInfo', () => {
 
       expect(pluginStub.calledOnce).to.be.true
       expect(result).to.be.false
+    })
+  })
+
+  describe('getLockVotingPower', () => {
+    it('should return false when lock is not found', async () => {
+      const lockStub = sandbox.stub(Models.Lock, 'findOne').resolves(null)
+      const governanceVeStub = sandbox.stub(GovernanceVeHelper, 'getLockVotingPowerAt')
+
+      const result = await MemberInfo.getLockVotingPower('lock-123')
+
+      expect(lockStub.calledOnce).to.be.true
+      expect(lockStub.calledWith({ id: 'lock-123' })).to.be.true
+      expect(governanceVeStub.called).to.be.false
+      expect(result).to.be.false
+    })
+
+    it('should return voting power when lock is found', async () => {
+      const mockLock = {
+        id: 'lock-123',
+        memberAddress: '0xMemberAddress',
+        tokenId: '456',
+        epochStartAt: 1640995200,
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const lockStub = sandbox.stub(Models.Lock, 'findOne').resolves(mockLock as any)
+      const governanceVeStub = sandbox.stub(GovernanceVeHelper, 'getLockVotingPowerAt').resolves(500000000000000000n)
+
+      const result = await MemberInfo.getLockVotingPower('lock-123')
+
+      expect(lockStub.calledOnce).to.be.true
+      expect(lockStub.calledWith({ id: 'lock-123' })).to.be.true
+      expect(governanceVeStub.calledOnce).to.be.true
+      expect(
+        governanceVeStub.calledWith(mockLock.memberAddress, mockLock.tokenId, mockLock.epochStartAt, mockLock.network),
+      ).to.be.true
+      expect(result).to.equal(500000000000000000)
+    })
+
+    it('should return 0 when getLockVotingPowerAt returns 0n', async () => {
+      const mockLock = {
+        id: 'lock-123',
+        memberAddress: '0xMemberAddress',
+        tokenId: '456',
+        epochStartAt: 1640995200,
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const lockStub = sandbox.stub(Models.Lock, 'findOne').resolves(mockLock as any)
+      const governanceVeStub = sandbox.stub(GovernanceVeHelper, 'getLockVotingPowerAt').resolves(0n)
+
+      const result = await MemberInfo.getLockVotingPower('lock-123')
+
+      expect(lockStub.calledOnce).to.be.true
+      expect(governanceVeStub.calledOnce).to.be.true
+      expect(result).to.equal(0)
+    })
+
+    it('should handle large voting power values correctly', async () => {
+      const mockLock = {
+        id: 'lock-123',
+        memberAddress: '0xMemberAddress',
+        tokenId: '456',
+        epochStartAt: 1640995200,
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const lockStub = sandbox.stub(Models.Lock, 'findOne').resolves(mockLock as any)
+      const governanceVeStub = sandbox
+        .stub(GovernanceVeHelper, 'getLockVotingPowerAt')
+        .resolves(1000000000000000000000n)
+
+      const result = await MemberInfo.getLockVotingPower('lock-123')
+
+      expect(lockStub.calledOnce).to.be.true
+      expect(governanceVeStub.calledOnce).to.be.true
+      expect(result).to.equal(1000000000000000000000)
     })
   })
 })

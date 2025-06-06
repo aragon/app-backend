@@ -348,6 +348,7 @@ export const AggregationQueryHelper = {
             minDuration: 1,
             minProposerVotingPower: 1,
             stages: 1,
+            votingEscrow: 1,
           },
         ),
         // Fetch token only if settings are included and plugin has tokenAddress

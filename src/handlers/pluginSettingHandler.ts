@@ -1,10 +1,10 @@
 import logger from '@logger'
 import {
+  IEventLogPluginSettings,
   type ILogInfo,
   IPluginInterfaceType,
-  ISettingStatus,
-  IEventLogPluginSettings,
   IPluginStatus,
+  ISettingStatus,
   type ISettingVotingEscrow,
 } from '@types'
 import { Models } from '@dbModels'
