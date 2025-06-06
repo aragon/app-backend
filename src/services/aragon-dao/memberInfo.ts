@@ -1,10 +1,11 @@
 import Web3Helper from '@helpers/web3'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
-import { type HexAddress, IPluginInterfaceType, type NetworksEnum } from '@types'
+import { type HexAddress, type ILockIdParams, IPluginInterfaceType, type NetworksEnum } from '@types'
 import { ProxyToken } from '@modules/proxyToken'
 import { Models } from '@dbModels'
 import type Plugin from '@models/schema/plugin'
 import type PluginSetting from '@models/schema/setting'
+import GovernanceVeHelper from '@helpers/governanceVe'
 
 export const MemberInfo = {
   getByTokenAddress: async (
@@ -56,6 +57,19 @@ export const MemberInfo = {
     }
   },
 
+  getLockVotingPower: async (lockId: ILockIdParams) => {
+    const lock = await Models.Lock.findOne({ id: lockId })
+    if (!lock) return false
+
+    const votingPower = await GovernanceVeHelper.getLockVotingPowerAt(
+      lock.memberAddress,
+      lock.tokenId,
+      lock.epochStartAt,
+      lock.network,
+    )
+    return Number(votingPower)
+  },
+
   canCreateProposal: async (pluginAddress: HexAddress, memberAddress: HexAddress, network: NetworksEnum) => {
     try {
       const plugin = await Models.Plugin.findByAddress(pluginAddress, network)
@@ -89,6 +103,7 @@ export const MemberInfo = {
     const votingPower = await GovernanceErc20Helper.getVotes(memberAddress, plugin.tokenAddress, plugin.network)
     return Number(votingPower) > 0 && Number(votingPower) >= Number(setting.minParticipation)
   },
+
   _checkForMultiSig: async (plugin: Plugin, setting: PluginSetting, memberAddress: HexAddress) => {
     if (!setting) return false
 
