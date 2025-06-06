@@ -43,6 +43,7 @@ const ProviderModule = {
     OPTIMISM_MAINNET: NetworksEnum.optimismMainnet,
     PEAQ_MAINNET: NetworksEnum.peaqMainnet,
     CHILIZ_MAINNET: NetworksEnum.chilizMainnet,
+    CORN_MAINNET: NetworksEnum.cornMainnet,
   },
   networkChainMap: {
     [NetworksEnum.ethereumMainnet]: 1,
@@ -55,6 +56,7 @@ const ProviderModule = {
     [NetworksEnum.optimismMainnet]: 10,
     [NetworksEnum.peaqMainnet]: 3338,
     [NetworksEnum.chilizMainnet]: 88888,
+    [NetworksEnum.cornMainnet]: 21000000,
   },
 
   // Converts a config key to a NetworksEnum.

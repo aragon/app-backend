@@ -490,6 +490,52 @@ const BlockScoutHelper = {
       return []
     }
   },
+
+  /**
+   * Fetch token balances using Blockscout's native API v2
+   * Supports ERC-20, ERC-721, ERC-1155 in a single call
+   */
+  async getTokenBalances(address: HexAddress, network: NetworksEnum): Promise<any[]> {
+    const allTokens: any[] = []
+    let nextPageParams: any = null
+
+    try {
+      const path = `addresses/${address}/tokens`
+
+      do {
+        const params = {
+          type: 'ERC-20,ERC-721,ERC-1155',
+          ...(nextPageParams || {}),
+          apikey: BlockScoutHelper._parseNetworkToConfig(network).BLOCKSCOUT_API_KEY,
+        }
+
+        const response = await BlockScoutHelper._rpCall(path, params, network)
+
+        if (!response?.items || response.items.length === 0) {
+          break
+        }
+
+        const validTokens = response.items
+          .filter((item: any) => item.value && item.value !== '0' && parseFloat(item.value) > 0)
+          .map((item: any) => ({
+            contractAddress: item.token.address,
+            tokenBalance: item.value,
+            tokenName: item.token.name,
+            tokenSymbol: item.token.symbol,
+            tokenDecimals: item.token.decimals,
+            tokenType: item.token.type,
+          }))
+
+        allTokens.push(...validTokens)
+        nextPageParams = response.next_page_params
+      } while (nextPageParams)
+
+      return allTokens
+    } catch (error) {
+      logger.error('Error fetching token balances with native API', llo({ error, address, network }))
+      return []
+    }
+  },
 }
 
 export default BlockScoutHelper

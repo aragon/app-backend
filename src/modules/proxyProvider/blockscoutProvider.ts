@@ -9,7 +9,37 @@ import BlockScoutHelper from '@helpers/blockScout'
 
 const llo = logger.logMeta.bind(null, { service: 'provider:BlockScoutProvider' })
 
-const BlockScoutProvider: Pick<any, 'fetchAddressTxns'> = {
+const BlockScoutProvider: Pick<any, 'fetchAddressTxns' | 'getTokenBalances'> = {
+  getTokenBalances: async ({ address, network }: { address: string; network: NetworksEnum }) => {
+    try {
+      const tokenBalances = await BlockScoutHelper.getTokenBalances(address, network)
+
+      const parsedBalances = await Promise.all(
+        tokenBalances.map(async (tokenBalance: any) => {
+          if (tokenBalance.tokenBalance === utils.emptyData) return null
+
+          const token = await ProxyToken.saveAndGetToken(tokenBalance.contractAddress, network)
+          if (!token) return null
+
+          if (TokenUtils.analyzeIfScamToken(token?.name || '', token?.symbol || '')) {
+            return null
+          }
+
+          return {
+            contractAddress: ethers.getAddress(tokenBalance.contractAddress),
+            tokenBalance: ethers.formatUnits(tokenBalance.tokenBalance, token.decimals),
+            originalBalance: tokenBalance.tokenBalance,
+          }
+        }),
+      )
+
+      return parsedBalances.filter(Boolean)
+    } catch (error) {
+      logger.error('Error in getTokenBalances', llo({ error, address, network }))
+      return []
+    }
+  },
+
   fetchAddressTxns: async ({ address, network }: { address: string; network: NetworksEnum }) => {
     try {
       const [erc20Transfers, externalTransfers, internalTxs] = await Promise.all([

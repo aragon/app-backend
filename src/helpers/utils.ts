@@ -21,6 +21,7 @@ const Utils = {
     [NetworksEnum.optimismMainnet]: 'OPTIMISM_MAINNET',
     [NetworksEnum.peaqMainnet]: 'PEAQ_MAINNET',
     [NetworksEnum.chilizMainnet]: 'CHILIZ_MAINNET',
+    [NetworksEnum.cornMainnet]: 'CORN_MAINNET',
   },
 
   networkToAragon: (network: NetworksEnum) => Utils.aragonNetworkMap[network],
