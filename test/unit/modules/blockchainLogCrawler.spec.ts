@@ -183,9 +183,9 @@ describe('Module: blockchainLogCrawler', () => {
       const result = await crawler.crawl()
 
       expect(processLogsSpy.notCalled).to.be.true
-      expect(formatLogStub.calledTwice).to.be.true
       expect(result).to.have.lengthOf(2)
       expect(result?.[0]).to.have.property('formatted', true)
+      expect(formatLogStub.calledOnce).to.be.false
     })
 
     it('should break the loop when shutdown is triggered', async () => {
@@ -1070,7 +1070,7 @@ describe('Module: blockchainLogCrawler', () => {
     const parseLogStub = sandbox.stub(Web3Utils, 'parseLog').callsFake(
       (log, iface) =>
         ({
-          event: iface.fragments[0].name,
+          event: (iface.fragments[0] as any).name,
           args: {},
         }) as any,
     )

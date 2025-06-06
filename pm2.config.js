@@ -100,6 +100,22 @@ module.exports = {
       },
     },
     {
+      name: 'aragon-transfers',
+      cwd: path.resolve(__dirname, ''),
+      script: './runners/aragon-transfers.ts',
+      interpreter: 'node',
+      interpreter_args: ['-r ts-node/register/transpile-only', '-r tsconfig-paths/register'].join(' '),
+      autorestart: true,
+      watch: false,
+      exec_mode: 'fork',
+      min_uptime: '5s',
+      restart_delay: 2000,
+      env: {
+        INSTANCE_ID: 'aragon-transfers',
+        ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-transfers') }).parsed,
+      },
+    },
+    {
       name: 'migration',
       cwd: path.resolve(__dirname, ''),
       script: './runners/migration.ts',
