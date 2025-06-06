@@ -32,6 +32,7 @@ describe('Module: PoolingCrawler', () => {
       await PoolingCrawler.start({
         logService: 'test-service',
         network: NetworksEnum.ethereumMainnet,
+        topics: [{ event: 'Transfer', topic: '0xTransferTopic' } as any],
       })
 
       expect(crawlStub.calledOnce).to.be.true
@@ -45,6 +46,7 @@ describe('Module: PoolingCrawler', () => {
       await PoolingCrawler.start({
         logService: 'test-service',
         network: NetworksEnum.ethereumMainnet,
+        topics: [{ event: 'Transfer', topic: '0xTransferTopic' } as any],
       })
 
       expect(PoolingCrawler.instances.size).to.equal(1)
@@ -58,6 +60,7 @@ describe('Module: PoolingCrawler', () => {
       await PoolingCrawler.start({
         logService: 'test-service',
         network: NetworksEnum.ethereumMainnet,
+        topics: [{ event: 'Transfer', topic: '0xTransferTopic' } as any],
       })
 
       const crawlerInstance = PoolingCrawler.instances.get(NetworksEnum.ethereumMainnet)
