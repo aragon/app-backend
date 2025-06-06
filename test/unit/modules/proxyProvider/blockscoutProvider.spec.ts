@@ -123,13 +123,9 @@ describe('Modules: BlockScoutProvider', () => {
     })
 
     it('should filter out transactions with no token info', async () => {
-      sandbox.restore()
-      sandbox.stub(BlockScoutHelper, '_fetchERC20Transfers').resolves([mockERC20Transfer])
-      sandbox.stub(BlockScoutHelper, '_fetchTxList').resolves([])
-      sandbox.stub(BlockScoutHelper, '_fetchInternalTxs').resolves([])
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
-      sandbox.stub(TokenUtils, 'analyzeIfScamToken').returns(false)
-      sandbox.stub(ProxyUtils, 'updateProgressInConfigIndexer').resolves()
+      // Remove duplicate stubs - they're already created in beforeEach
+      const saveAndGetTokenStub = ProxyToken.saveAndGetToken as sinon.SinonStub
+      saveAndGetTokenStub.resolves(null)
 
       const result = await BlockScoutProvider.fetchAddressTxns({ address, network })
 
@@ -137,13 +133,9 @@ describe('Modules: BlockScoutProvider', () => {
     })
 
     it('should filter out scam tokens', async () => {
-      sandbox.restore()
-      sandbox.stub(BlockScoutHelper, '_fetchERC20Transfers').resolves([mockERC20Transfer])
-      sandbox.stub(BlockScoutHelper, '_fetchTxList').resolves([])
-      sandbox.stub(BlockScoutHelper, '_fetchInternalTxs').resolves([])
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(mockTokenInfo as any)
-      sandbox.stub(TokenUtils, 'analyzeIfScamToken').returns(true)
-      sandbox.stub(ProxyUtils, 'updateProgressInConfigIndexer').resolves()
+      // Remove duplicate stubs - they're already created in beforeEach
+      const analyzeIfScamTokenStub = TokenUtils.analyzeIfScamToken as sinon.SinonStub
+      analyzeIfScamTokenStub.returns(true)
 
       const result = await BlockScoutProvider.fetchAddressTxns({ address, network })
 
@@ -186,11 +178,14 @@ describe('Modules: BlockScoutProvider', () => {
     })
 
     it('should handle empty transaction lists', async () => {
-      sandbox.restore()
-      sandbox.stub(BlockScoutHelper, '_fetchERC20Transfers').resolves([])
-      sandbox.stub(BlockScoutHelper, '_fetchTxList').resolves([])
-      sandbox.stub(BlockScoutHelper, '_fetchInternalTxs').resolves([])
-      sandbox.stub(ProxyUtils, 'updateProgressInConfigIndexer').resolves()
+      // Reset existing stubs instead of creating new ones
+      const fetchERC20Stub = BlockScoutHelper._fetchERC20Transfers as sinon.SinonStub
+      const fetchTxListStub = BlockScoutHelper._fetchTxList as sinon.SinonStub
+      const fetchInternalStub = BlockScoutHelper._fetchInternalTxs as sinon.SinonStub
+      
+      fetchERC20Stub.resolves([])
+      fetchTxListStub.resolves([])
+      fetchInternalStub.resolves([])
 
       const result = await BlockScoutProvider.fetchAddressTxns({ address, network })
 
@@ -198,10 +193,15 @@ describe('Modules: BlockScoutProvider', () => {
     })
 
     it('should handle errors gracefully', async () => {
-      sandbox.restore()
-      sandbox.stub(BlockScoutHelper, '_fetchERC20Transfers').rejects(new Error('API Error'))
-      sandbox.stub(BlockScoutHelper, '_fetchTxList').resolves([])
-      sandbox.stub(BlockScoutHelper, '_fetchInternalTxs').resolves([])
+      // Reset existing stubs instead of creating new ones
+      const fetchERC20Stub = BlockScoutHelper._fetchERC20Transfers as sinon.SinonStub
+      const fetchTxListStub = BlockScoutHelper._fetchTxList as sinon.SinonStub
+      const fetchInternalStub = BlockScoutHelper._fetchInternalTxs as sinon.SinonStub
+      
+      fetchERC20Stub.rejects(new Error('API Error'))
+      fetchTxListStub.resolves([])
+      fetchInternalStub.resolves([])
+      
       const loggerStub = sandbox.stub(logger, 'error')
 
       const result = await BlockScoutProvider.fetchAddressTxns({ address, network })
@@ -212,13 +212,19 @@ describe('Modules: BlockScoutProvider', () => {
     })
 
     it('should handle partial failures (some APIs succeed, others fail)', async () => {
-      sandbox.restore()
-      sandbox.stub(BlockScoutHelper, '_fetchERC20Transfers').resolves([mockERC20Transfer])
-      sandbox.stub(BlockScoutHelper, '_fetchTxList').rejects(new Error('External TX API Error'))
-      sandbox.stub(BlockScoutHelper, '_fetchInternalTxs').resolves([mockInternalTx])
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(mockTokenInfo as any)
-      sandbox.stub(TokenUtils, 'analyzeIfScamToken').returns(false)
-      sandbox.stub(ProxyUtils, 'updateProgressInConfigIndexer').resolves()
+      // Reset existing stubs instead of creating new ones
+      const fetchERC20Stub = BlockScoutHelper._fetchERC20Transfers as sinon.SinonStub
+      const fetchTxListStub = BlockScoutHelper._fetchTxList as sinon.SinonStub
+      const fetchInternalStub = BlockScoutHelper._fetchInternalTxs as sinon.SinonStub
+      const saveAndGetTokenStub = ProxyToken.saveAndGetToken as sinon.SinonStub
+      const analyzeIfScamTokenStub = TokenUtils.analyzeIfScamToken as sinon.SinonStub
+      
+      fetchERC20Stub.resolves([mockERC20Transfer])
+      fetchTxListStub.rejects(new Error('External TX API Error'))
+      fetchInternalStub.resolves([mockInternalTx])
+      saveAndGetTokenStub.resolves(mockTokenInfo as any)
+      analyzeIfScamTokenStub.returns(false)
+      
       const loggerStub = sandbox.stub(logger, 'error')
 
       const result = await BlockScoutProvider.fetchAddressTxns({ address, network })
@@ -236,13 +242,17 @@ describe('Modules: BlockScoutProvider', () => {
         decimals: 18,
       }
 
-      sandbox.restore()
-      sandbox.stub(BlockScoutHelper, '_fetchERC20Transfers').resolves([])
-      sandbox.stub(BlockScoutHelper, '_fetchTxList').resolves([mockExternalTx])
-      sandbox.stub(BlockScoutHelper, '_fetchInternalTxs').resolves([])
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(mockEthTokenInfo as any)
-      sandbox.stub(TokenUtils, 'analyzeIfScamToken').returns(false)
-      sandbox.stub(ProxyUtils, 'updateProgressInConfigIndexer').resolves()
+      const fetchERC20Stub = BlockScoutHelper._fetchERC20Transfers as sinon.SinonStub
+      const fetchTxListStub = BlockScoutHelper._fetchTxList as sinon.SinonStub
+      const fetchInternalStub = BlockScoutHelper._fetchInternalTxs as sinon.SinonStub
+      const saveAndGetTokenStub = ProxyToken.saveAndGetToken as sinon.SinonStub
+      const analyzeIfScamTokenStub = TokenUtils.analyzeIfScamToken as sinon.SinonStub
+      
+      fetchERC20Stub.resolves([])
+      fetchTxListStub.resolves([mockExternalTx])
+      fetchInternalStub.resolves([])
+      saveAndGetTokenStub.resolves(mockEthTokenInfo as any)
+      analyzeIfScamTokenStub.returns(false)
 
       const result = await BlockScoutProvider.fetchAddressTxns({ address, network })
 
@@ -320,12 +330,15 @@ describe('Modules: BlockScoutProvider', () => {
         type: ITokenType.ERC20,
       }
 
-      sandbox.restore()
-      sandbox.stub(BlockScoutHelper, 'getTokenBalances').resolves(mockTokenBalances)
-      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken')
+      // Reset existing stubs instead of creating new ones
+      const getTokenBalancesStub = BlockScoutHelper.getTokenBalances as sinon.SinonStub
+      const saveAndGetTokenStub = ProxyToken.saveAndGetToken as sinon.SinonStub
+      const analyzeIfScamTokenStub = TokenUtils.analyzeIfScamToken as sinon.SinonStub
+      
+      getTokenBalancesStub.resolves(mockTokenBalances)
       saveAndGetTokenStub.onFirstCall().resolves(mockTokenInfo as any)
       saveAndGetTokenStub.onSecondCall().resolves(mockTokenInfo2 as any)
-      sandbox.stub(TokenUtils, 'analyzeIfScamToken').returns(false)
+      analyzeIfScamTokenStub.returns(false)
 
       const result = await BlockScoutProvider.getTokenBalances({ address, network })
 
@@ -340,10 +353,14 @@ describe('Modules: BlockScoutProvider', () => {
         tokenBalance: '0x',
       }
 
-      sandbox.restore()
-      sandbox.stub(BlockScoutHelper, 'getTokenBalances').resolves([mockTokenBalanceWithEmptyData])
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(mockTokenInfo as any)
-      sandbox.stub(TokenUtils, 'analyzeIfScamToken').returns(false)
+      // Reset existing stubs instead of creating new ones
+      const getTokenBalancesStub = BlockScoutHelper.getTokenBalances as sinon.SinonStub
+      const saveAndGetTokenStub = ProxyToken.saveAndGetToken as sinon.SinonStub
+      const analyzeIfScamTokenStub = TokenUtils.analyzeIfScamToken as sinon.SinonStub
+      
+      getTokenBalancesStub.resolves([mockTokenBalanceWithEmptyData])
+      saveAndGetTokenStub.resolves(mockTokenInfo as any)
+      analyzeIfScamTokenStub.returns(false)
       sandbox.stub(utils, 'emptyData').value('0x')
 
       const result = await BlockScoutProvider.getTokenBalances({ address, network })
@@ -352,10 +369,14 @@ describe('Modules: BlockScoutProvider', () => {
     })
 
     it('should filter out tokens that are not found in database', async () => {
-      sandbox.restore()
-      sandbox.stub(BlockScoutHelper, 'getTokenBalances').resolves([mockTokenBalance])
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
-      sandbox.stub(TokenUtils, 'analyzeIfScamToken').returns(false)
+      // Reset existing stubs instead of creating new ones
+      const getTokenBalancesStub = BlockScoutHelper.getTokenBalances as sinon.SinonStub
+      const saveAndGetTokenStub = ProxyToken.saveAndGetToken as sinon.SinonStub
+      const analyzeIfScamTokenStub = TokenUtils.analyzeIfScamToken as sinon.SinonStub
+      
+      getTokenBalancesStub.resolves([mockTokenBalance])
+      saveAndGetTokenStub.resolves(null)
+      analyzeIfScamTokenStub.returns(false)
 
       const result = await BlockScoutProvider.getTokenBalances({ address, network })
 
@@ -363,10 +384,13 @@ describe('Modules: BlockScoutProvider', () => {
     })
 
     it('should filter out scam tokens', async () => {
-      sandbox.restore()
-      sandbox.stub(BlockScoutHelper, 'getTokenBalances').resolves([mockTokenBalance])
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(mockTokenInfo as any)
-      sandbox.stub(TokenUtils, 'analyzeIfScamToken').returns(true)
+      const getTokenBalancesStub = BlockScoutHelper.getTokenBalances as sinon.SinonStub
+      const saveAndGetTokenStub = ProxyToken.saveAndGetToken as sinon.SinonStub
+      const analyzeIfScamTokenStub = TokenUtils.analyzeIfScamToken as sinon.SinonStub
+      
+      getTokenBalancesStub.resolves([mockTokenBalance])
+      saveAndGetTokenStub.resolves(mockTokenInfo as any)
+      analyzeIfScamTokenStub.returns(true)
 
       const result = await BlockScoutProvider.getTokenBalances({ address, network })
 
@@ -392,10 +416,14 @@ describe('Modules: BlockScoutProvider', () => {
         type: ITokenType.ERC721,
       }
 
-      sandbox.restore()
-      sandbox.stub(BlockScoutHelper, 'getTokenBalances').resolves([mockNFTBalance])
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(mockNFTInfo as any)
-      sandbox.stub(TokenUtils, 'analyzeIfScamToken').returns(false)
+      // Reset existing stubs instead of creating new ones
+      const getTokenBalancesStub = BlockScoutHelper.getTokenBalances as sinon.SinonStub
+      const saveAndGetTokenStub = ProxyToken.saveAndGetToken as sinon.SinonStub
+      const analyzeIfScamTokenStub = TokenUtils.analyzeIfScamToken as sinon.SinonStub
+      
+      getTokenBalancesStub.resolves([mockNFTBalance])
+      saveAndGetTokenStub.resolves(mockNFTInfo as any)
+      analyzeIfScamTokenStub.returns(false)
 
       const result = await BlockScoutProvider.getTokenBalances({ address, network })
 
@@ -404,8 +432,9 @@ describe('Modules: BlockScoutProvider', () => {
     })
 
     it('should handle empty token balance list', async () => {
-      sandbox.restore()
-      sandbox.stub(BlockScoutHelper, 'getTokenBalances').resolves([])
+      // Reset existing stub instead of creating new one
+      const getTokenBalancesStub = BlockScoutHelper.getTokenBalances as sinon.SinonStub
+      getTokenBalancesStub.resolves([])
 
       const result = await BlockScoutProvider.getTokenBalances({ address, network })
 
@@ -413,8 +442,10 @@ describe('Modules: BlockScoutProvider', () => {
     })
 
     it('should handle errors gracefully', async () => {
-      sandbox.restore()
-      sandbox.stub(BlockScoutHelper, 'getTokenBalances').rejects(new Error('API Error'))
+      // Reset existing stub instead of creating new one
+      const getTokenBalancesStub = BlockScoutHelper.getTokenBalances as sinon.SinonStub
+      getTokenBalancesStub.rejects(new Error('API Error'))
+      
       const loggerStub = sandbox.stub(logger, 'error')
 
       const result = await BlockScoutProvider.getTokenBalances({ address, network })
@@ -435,6 +466,272 @@ describe('Modules: BlockScoutProvider', () => {
 
       expect(result[0].originalBalance).to.equal('1000000000000000000')
       expect(result[0].tokenBalance).to.equal('1.0')
+    })
+  })
+
+  describe('fetchBasicTokenInfo', () => {
+    const address = '0x1234567890abcdef1234567890abcdef12345678'
+    const network = NetworksEnum.cornMainnet
+
+    describe('native token handling', () => {
+      it('should return native token info for zero address on corn mainnet', async () => {
+        const result = await BlockScoutProvider.fetchBasicTokenInfo({
+          address: utils.zeroAddress,
+          network: NetworksEnum.cornMainnet,
+        })
+
+        expect(result).to.deep.include({
+          address: utils.zeroAddress,
+          name: 'Corn',
+          symbol: 'CORN',
+          decimals: 18,
+          type: ITokenType.native,
+          logo: null,
+          priceUsd: '0',
+          totalSupply: '0',
+          totalHolders: '0',
+        })
+      })
+
+      it('should return default native token info for unsupported networks', async () => {
+        const result = await BlockScoutProvider.fetchBasicTokenInfo({
+          address: utils.zeroAddress,
+          network: 'unsupported-network' as NetworksEnum,
+        })
+
+        expect(result).to.deep.include({
+          address: utils.zeroAddress,
+          name: 'Native Token',
+          symbol: 'NATIVE',
+          decimals: 18,
+          type: ITokenType.native,
+          logo: null,
+          priceUsd: '0',
+          totalSupply: '0',
+          totalHolders: '0',
+        })
+      })
+    })
+
+    describe('ERC20 token handling', () => {
+      const mockTokenDetails = {
+        address: '0x1234567890abcdef1234567890abcdef12345678',
+        name: 'Test Token',
+        symbol: 'TT',
+        decimals: 18,
+        type: ITokenType.ERC20,
+        logo: 'https://example.com/logo.png',
+        priceUsd: '1.50',
+        totalSupply: '1000000000000000000000',
+        totalHolders: 150,
+      }
+
+      it('should fetch and return ERC20 token details successfully', async () => {
+
+        sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves(mockTokenDetails)
+
+        const result = await BlockScoutProvider.fetchBasicTokenInfo({ address, network })
+
+        expect(result).to.deep.include({
+          address,
+          name: 'Test Token',
+          symbol: 'TT',
+          decimals: 18,
+          type: ITokenType.ERC20,
+          logo: 'https://example.com/logo.png',
+          priceUsd: '1.50',
+          totalSupply: '1000000000000000000000',
+          totalHolders: '150',
+        })
+      })
+
+      it('should handle ERC721 tokens', async () => {
+        const mockNFTDetails = {
+          ...mockTokenDetails,
+          name: 'NFT Collection',
+          symbol: 'NFT',
+          decimals: 0,
+          type: ITokenType.ERC721,
+          totalSupply: '10000',
+          totalHolders: 500,
+        }
+
+        sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves(mockNFTDetails)
+
+        const result = await BlockScoutProvider.fetchBasicTokenInfo({ address, network })
+
+        expect(result).to.deep.include({
+          name: 'NFT Collection',
+          symbol: 'NFT',
+          decimals: 0,
+          type: ITokenType.ERC721,
+          totalHolders: '500',
+        })
+      })
+
+      it('should handle ERC1155 tokens', async () => {
+        const mockMultiTokenDetails = {
+          ...mockTokenDetails,
+          name: 'Multi Token',
+          symbol: 'MT',
+          decimals: 0,
+          type: ITokenType.ERC1155,
+        }
+
+        sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves(mockMultiTokenDetails)
+
+        const result = await BlockScoutProvider.fetchBasicTokenInfo({ address, network })
+
+        expect(result).to.deep.include({
+          name: 'Multi Token',
+          symbol: 'MT',
+          decimals: 0,
+          type: ITokenType.ERC1155,
+        })
+      })
+
+      it('should handle missing token details gracefully', async () => {
+        sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves(null)
+
+        const result = await BlockScoutProvider.fetchBasicTokenInfo({ address, network })
+
+        expect(result).to.deep.include({
+          address,
+          name: null,
+          symbol: null,
+          decimals: 0,
+          type: ITokenType.unknown,
+          logo: null,
+          priceUsd: '0',
+          totalSupply: '0',
+          totalHolders: '0',
+        })
+      })
+
+      it('should handle partial token details', async () => {
+        const partialTokenDetails = {
+          address,
+          name: 'Partial Token',
+          symbol: null, // missing symbol
+          decimals: null, // missing decimals
+          type: ITokenType.ERC20,
+          logo: null,
+          priceUsd: null, // missing price
+          totalSupply: null, // missing supply
+          totalHolders: null, // missing holders
+        }
+
+        sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves(partialTokenDetails as any)
+
+        const result = await BlockScoutProvider.fetchBasicTokenInfo({ address, network })
+
+        expect(result).to.deep.include({
+          address,
+          name: 'Partial Token',
+          symbol: null,
+          decimals: 0,
+          type: ITokenType.ERC20,
+          logo: null,
+          priceUsd: '0',
+          totalSupply: '0',
+          totalHolders: '0',
+        })
+      })
+
+      it('should handle BlockScout API errors gracefully', async () => {
+        sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').rejects(new Error('API Error'))
+        const loggerStub = sandbox.stub(logger, 'warn')
+
+        const result = await BlockScoutProvider.fetchBasicTokenInfo({ address, network })
+
+        expect(result).to.deep.include({
+          address,
+          name: null,
+          symbol: null,
+          decimals: 0,
+          type: ITokenType.unknown,
+          logo: null,
+          priceUsd: '0',
+          totalSupply: '0',
+          totalHolders: '0',
+        })
+
+        expect(loggerStub.calledOnce).to.be.true
+        expect(loggerStub.calledWith('BlockScout Provider basic token info failed' as any)).to.be.true
+      })
+
+      it('should convert totalHolders number to string', async () => {
+        const tokenDetailsWithNumberHolders = {
+          ...mockTokenDetails,
+          totalHolders: 999, // number instead of string
+        }
+
+        sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves(tokenDetailsWithNumberHolders)
+
+        const result = await BlockScoutProvider.fetchBasicTokenInfo({ address, network })
+
+        expect(result.totalHolders).to.equal('999')
+        expect(typeof result.totalHolders).to.equal('string')
+      })
+
+      it('should preserve unknown token type when API returns unknown type', async () => {
+        const unknownTokenDetails = {
+          ...mockTokenDetails,
+          type: ITokenType.unknown,
+        }
+
+        sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves(unknownTokenDetails)
+
+        const result = await BlockScoutProvider.fetchBasicTokenInfo({ address, network })
+
+        expect(result.type).to.equal(ITokenType.unknown)
+      })
+
+      it('should call BlockScoutHelper.getTokenFullDetails with correct parameters', async () => {
+        const getTokenFullDetailsStub = sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves(mockTokenDetails)
+
+        await BlockScoutProvider.fetchBasicTokenInfo({ address, network })
+
+        expect(getTokenFullDetailsStub.calledOnce).to.be.true
+        expect(getTokenFullDetailsStub.calledWith(address, network)).to.be.true
+      })
+    })
+
+    describe('edge cases', () => {
+      it('should handle empty string address', async () => {
+        sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves(null)
+
+        const result = await BlockScoutProvider.fetchBasicTokenInfo({
+          address: '',
+          network,
+        })
+
+        expect(result).to.deep.include({
+          address: '',
+          name: null,
+          symbol: null,
+          decimals: 0,
+          type: ITokenType.unknown,
+        })
+      })
+
+      it('should handle malformed address', async () => {
+        const malformedAddress = '0xinvalid'
+        sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves(null)
+
+        const result = await BlockScoutProvider.fetchBasicTokenInfo({
+          address: malformedAddress,
+          network,
+        })
+
+        expect(result).to.deep.include({
+          address: malformedAddress,
+          name: null,
+          symbol: null,
+          decimals: 0,
+          type: ITokenType.unknown,
+        })
+      })
     })
   })
 })
