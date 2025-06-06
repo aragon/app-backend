@@ -1,5 +1,5 @@
 import async from 'async'
-import { type Log, ethers, Interface } from 'ethers'
+import { ethers, Interface, type Log } from 'ethers'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import logger from '@logger'
 import BlockchainLogCrawler from '@src/modules/blockchainLogCrawler'
@@ -326,15 +326,18 @@ const TransferCrawler = {
         return
       }
 
+      const startTime = Date.now()
+
       await GovernanceErc20Handler.transfer(event, info)
 
-      logger.debug(
+      logger.verbose(
         'Processing transfer',
         llo({
           network,
           tokenAddress: info.address,
-          blockNumber: log.blockNumber,
+          blockNumber: Number(log.blockNumber),
           txHash: log.transactionHash,
+          timeTaken: Date.now() - startTime,
         }),
       )
     } catch (error) {
@@ -362,15 +365,18 @@ const TransferCrawler = {
         return
       }
 
+      const startTime = Date.now()
+
       await GovernanceErc20Handler.delegateVotesChanged(event, info)
 
-      logger.debug(
+      logger.verbose(
         'Processing delegate votes changed',
         llo({
           network,
           tokenAddress: log.address,
-          blockNumber: log.blockNumber,
+          blockNumber: Number(log.blockNumber),
           txHash: log.transactionHash,
+          timeTaken: Date.now() - startTime,
         }),
       )
     } catch (error) {
