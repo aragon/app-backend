@@ -158,11 +158,11 @@ class BlockchainLogCrawler {
       }
     }
 
+    this.crawlSetting.crawling = false
     if (this.crawlParams.skipLogProcessing) {
       return rawLogs
     }
 
-    this.crawlSetting.crawling = false
     if (!this.crawlParams.filterLogs) {
       logger.verbose('Finished crawling logs', llo({ ...this.parseCrawlerInfoLog() }))
     }

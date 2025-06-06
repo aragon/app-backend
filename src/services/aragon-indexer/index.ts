@@ -59,14 +59,8 @@ const AragonIndexerService: IService & { repeaters: any } = {
         // realtime after sync
         logger.info('PoolingCrawler start', llo({ networkName }))
 
-        const aragonTopics = configIndexer.filter(
-          config => !Object.values(IGovernanceErc20Logs).includes(config.event as IGovernanceErc20Logs),
-        )
-
         const taskOptions = {
-          fn: () => [
-            [{ poolingCrawler: PoolingCrawler, params: { logService, network: networkName, topics: aragonTopics } }],
-          ],
+          fn: () => [[{ poolingCrawler: PoolingCrawler, params: { logService, network: networkName } }]],
           interval: config.NODES[utils.networkToAragon(networkName)].POOLING_INTERVAL,
           checkInterval: config.NODES[utils.networkToAragon(networkName)].POOLING_INTERVAL / 2,
           runNow: true,

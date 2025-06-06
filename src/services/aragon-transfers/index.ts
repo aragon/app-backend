@@ -39,14 +39,8 @@ const AragonTransferService: IService & { repeaters: any } = {
           })
         }
 
-        const transferLogs = configIndexer.filter(config =>
-          Object.values(IGovernanceErc20Logs).includes(config.event as IGovernanceErc20Logs),
-        )
-
         const taskOptions = {
-          fn: () => [
-            [{ poolingCrawler: TransferCrawler, params: { logService, network: networkName, topics: transferLogs } }],
-          ],
+          fn: () => [[{ poolingCrawler: TransferCrawler, params: { logService, network: networkName } }]],
           interval: config.NODES[utils.networkToAragon(networkName)].POOLING_INTERVAL,
           checkInterval: config.NODES[utils.networkToAragon(networkName)].POOLING_INTERVAL / 2,
           runNow: true,
