@@ -386,6 +386,49 @@ describe('Controller: Member', () => {
     expect(response.currentDelegate).to.be.undefined
   })
 
+  it('should throw an error when member is not found', async () => {
+    try {
+      await MemberController.getMemberByAddress('0xnonexistent' as HexAddress, {}, {})
+      expect.fail('Expected an error to be thrown')
+    } catch (err: any) {
+      expect(err.message).to.include('notFound')
+    }
+  })
+
+  it('should get member by address when only pluginAddress is provided (without tokenAddress)', async () => {
+    const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').returns({
+      votingPower: '2',
+      balance: '2',
+      currentDelegate: null,
+    } as any)
+
+    const response = await MemberController.getMemberByAddress(
+      rawMember.address as HexAddress,
+      {
+        daoAddress: rawDaoMemberMapping.daoAddress,
+        network: rawDaoMemberMapping.network,
+        pluginAddress: rawDaoMemberMapping.pluginAddress,
+      },
+      {},
+    )
+
+    expect(rabbitMqStub.calledOnce).to.be.true
+    expect(rabbitMqStub.args[0][1]).to.deep.eq({
+      id: `memberBalance-${rawMember.address}-${rawDaoMemberMapping.pluginAddress}-${rawDaoMemberMapping.network}`,
+      params: {
+        userAddress: rawMember.address,
+        tokenAddress: undefined,
+        network: rawDaoMemberMapping.network,
+        pluginAddress: rawDaoMemberMapping.pluginAddress,
+      },
+    })
+    expect(response.address).to.eq(rawMember.address)
+    expect(response.ens).to.eq(rawMember.ens)
+    expect(response.tokenBalance).to.eq('2')
+    expect(response.votingPower).to.eq('2')
+    expect(response.currentDelegate).to.be.null
+  })
+
   it('should call getMemberLocks', async () => {
     const expectedResponse = {
       data: [],
@@ -409,5 +452,53 @@ describe('Controller: Member', () => {
     ).to.be.true
 
     expect(response).to.deep.equal(expectedResponse)
+  })
+
+  it('should call getMemberLocks with voting power calculation when locks exist', async () => {
+    const mockLock = {
+      id: 'lock-123',
+      memberAddress: rawMember.address,
+      amount: '1000000000000000000',
+    }
+
+    const expectedResponse = {
+      data: [mockLock],
+      metadata: {
+        page: 1,
+        totalPages: 1,
+        totalRecords: 1,
+      },
+    }
+
+    const lockSpy = sandbox.stub(Models.Lock, 'findWithPagination').resolves(expectedResponse)
+    const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').returns('500000000000000000' as any)
+
+    const extraParams = { memberAddress: rawMember.address }
+    const paginationParams = { page: 1, pageSize: 10 }
+
+    const response = await MemberController.getMemberLocks(extraParams, paginationParams)
+
+    expect(lockSpy.calledOnce).to.be.true
+    expect(
+      lockSpy.calledWith({
+        extraParams,
+        paginationParams,
+      }),
+    ).to.be.true
+
+    // Since the method maps over locks asynchronously, we need to await the promises
+    const resolvedData = await Promise.all(response.data)
+
+    expect(rabbitMqStub.calledOnce).to.be.true
+    expect(rabbitMqStub.args[0][1]).to.deep.eq({
+      id: mockLock.id,
+      params: { lockId: mockLock.id },
+    })
+
+    expect(resolvedData[0]).to.deep.equal({
+      ...mockLock,
+      votingPower: '500000000000000000',
+    })
+    expect(response.metadata).to.deep.equal(expectedResponse.metadata)
   })
 })
