@@ -203,7 +203,7 @@ class TaskScheduler {
     this.tasks[key].running = true
 
     this.tasks[key].intervalId = setInterval(async () => {
-      await this.checkAndRunTasks()
+      await this.checkAndRunTasks(key)
     }, checkInterval)
   }
 
@@ -216,12 +216,10 @@ class TaskScheduler {
     }
   }
 
-  public async checkAndRunTasks() {
-    for (const key of Object.keys(this.tasks)) {
-      const shouldRun = await this.shouldRunTask(key)
-      if (shouldRun) {
-        await this.runTaskNow(key)
-      }
+  public async checkAndRunTasks(key: string) {
+    const shouldRun = await this.shouldRunTask(key)
+    if (shouldRun) {
+      await this.runTaskNow(key)
     }
   }
 
