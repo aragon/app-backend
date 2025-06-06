@@ -12,6 +12,7 @@ export enum EnumQueueName {
   contractInfo = 'contract.info',
   voteInfo = 'vote.info',
   memberBalance = 'member.balance',
+  votingPowerAt = 'contract.votingPowerAt',
   contractDecoder = 'contract.decoder',
   tokenInfo = 'token.info',
   proposalActions = 'proposal.actions',

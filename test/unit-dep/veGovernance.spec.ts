@@ -4,12 +4,13 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
 import { DAORegistry } from '@artifacts/daoRegistry'
-import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
+import { IPluginInterfaceType, IPluginStatus, ITokenType, NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
 import { expect } from 'chai'
 import { Models } from '@dbModels'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import { PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandler'
+import ProxyWeb3Provider from '@modules/proxyProvider'
 
 describe('Integration: VeGovernance', () => {
   let sandbox: SinonSandbox
