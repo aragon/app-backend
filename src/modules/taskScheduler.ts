@@ -217,11 +217,10 @@ class TaskScheduler {
   }
 
   public async checkAndRunTasks() {
-    const services = await Models.TaskService.find({})
-    for (const service of services) {
-      const shouldRun = await this.shouldRunTask(service.serviceName)
+    for (const key of Object.keys(this.tasks)) {
+      const shouldRun = await this.shouldRunTask(key)
       if (shouldRun) {
-        await this.runTaskNow(service.serviceName)
+        await this.runTaskNow(key)
       }
     }
   }

@@ -3,11 +3,12 @@ import { type Log, ethers, Interface } from 'ethers'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import logger from '@logger'
 import BlockchainLogCrawler from '@src/modules/blockchainLogCrawler'
-import { IGovernanceErc20Logs, type IIndexerConfig, type NetworksEnum } from '@types'
+import { IGovernanceErc20Logs, type NetworksEnum } from '@types'
 import PoolingCrawler from '@modules/poolingCrawler'
 import { ERC721 } from '@artifacts/ERC721'
 import Web3Utils from '@src/helpers/web3Utils'
 import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
+import configIndexer from '@indexer/configIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'module:TransferCrawler' })
 
@@ -30,15 +31,19 @@ const TransferCrawler = {
     shardCount: 150,
   },
 
-  async start({ logService, network, topics }: { logService: any; network: NetworksEnum; topics: IIndexerConfig[] }) {
+  async start({ logService, network }: { logService: any; network: NetworksEnum }) {
     try {
       if (this.instances.has(network)) {
         return this.instances.get(network)!.crawl()
       }
 
+      const transferLogs = configIndexer.filter(config =>
+        Object.values(IGovernanceErc20Logs).includes(config.event as IGovernanceErc20Logs),
+      )
+
       const transferCrawler = new BlockchainLogCrawler({
         network,
-        events: topics,
+        events: transferLogs,
         onError: async (error: any) => logger.error('Error Transfer Crawler', llo({ network, error })),
         logService,
         stopOnError: true,
@@ -46,6 +51,7 @@ const TransferCrawler = {
         skipLogProcessing: true,
         filterLogs: async (logs: Log[]) => {
           const filteredLogs = await PoolingCrawler.filterLogs(logs, network)
+          if (filteredLogs.length === 0) return []
           await this.parseAndProcessTransferLogs(filteredLogs, network)
           return filteredLogs
         },

@@ -1,13 +1,14 @@
 import { ethers, Interface, type Log } from 'ethers'
 import { DAO } from '@artifacts/dao'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
-import { type IIndexerConfig, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
+import { IGovernanceErc20Logs, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import logger from '@logger'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import utils from '@helpers/utils'
 import config from '@config'
+import configIndexer from '@indexer/configIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'module:PoolingFilter' })
 
@@ -21,15 +22,19 @@ const delegateVotesChangedTopic = govTokenInterface.getEvent('DelegateVotesChang
 const PoolingCrawler = {
   instances: new Map<NetworksEnum, BlockchainLogCrawler>(),
 
-  async start({ logService, network, topics }: { logService: any; network: NetworksEnum; topics: IIndexerConfig[] }) {
+  async start({ logService, network }: { logService: any; network: NetworksEnum }) {
     try {
       if (this.instances.has(network)) {
         return this.instances.get(network)!.crawl()
       }
 
+      const aragonTopics = configIndexer.filter(
+        config => !Object.values(IGovernanceErc20Logs).includes(config.event as IGovernanceErc20Logs),
+      )
+
       const poolingCrawler = new BlockchainLogCrawler({
         network,
-        events: topics,
+        events: aragonTopics,
         filterLogs: async (logs: any) => PoolingCrawler.filterLogs(logs, network),
         onError: async (error: any) => logger.error('Error Indexer', llo({ network, error })),
         logService,
