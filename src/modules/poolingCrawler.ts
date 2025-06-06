@@ -1,10 +1,9 @@
 import { ethers, Interface, type Log } from 'ethers'
 import { DAO } from '@artifacts/dao'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
-import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
+import { type IIndexerConfig, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
-import configIndexer from '@indexer/configIndexer'
 import logger from '@logger'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import utils from '@helpers/utils'
@@ -22,7 +21,7 @@ const delegateVotesChangedTopic = govTokenInterface.getEvent('DelegateVotesChang
 const PoolingCrawler = {
   instances: new Map<NetworksEnum, BlockchainLogCrawler>(),
 
-  async start({ logService, network }: { logService: any; network: NetworksEnum }) {
+  async start({ logService, network, topics }: { logService: any; network: NetworksEnum; topics: IIndexerConfig[] }) {
     try {
       if (this.instances.has(network)) {
         return this.instances.get(network)!.crawl()
@@ -30,7 +29,7 @@ const PoolingCrawler = {
 
       const poolingCrawler = new BlockchainLogCrawler({
         network,
-        events: configIndexer,
+        events: topics,
         filterLogs: async (logs: any) => PoolingCrawler.filterLogs(logs, network),
         onError: async (error: any) => logger.error('Error Indexer', llo({ network, error })),
         logService,

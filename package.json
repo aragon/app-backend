@@ -12,6 +12,7 @@
     "service:aragon-rates": "ts-node -r tsconfig-paths/register runners/aragon-rates.ts",
     "service:aragon-dao": "ts-node -r tsconfig-paths/register runners/aragon-dao.ts",
     "service:aragon-plugins": "ts-node -r tsconfig-paths/register runners/aragon-plugins.ts",
+    "service:aragon-transfers": "ts-node -r tsconfig-paths/register runners/aragon-transfers.ts",
     "service:aragon-admin-api": "ts-node -r tsconfig-paths/register runners/aragon-admin-api.ts",
     "tool": "ts-node -r tsconfig-paths/register tools/toolLauncher.ts",
     "mig:create": "ts-node -r tsconfig-paths/register scripts/create-migration.ts",

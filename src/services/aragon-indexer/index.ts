@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { EnumConnection, EnumQueueName, type IService } from '@types'
+import { EnumConnection, EnumQueueName, IGovernanceErc20Logs, type IService } from '@types'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import { NetworkHelper } from '@helpers/network'
 import configIndexer from '@indexer/configIndexer'
@@ -59,8 +59,14 @@ const AragonIndexerService: IService & { repeaters: any } = {
         // realtime after sync
         logger.info('PoolingCrawler start', llo({ networkName }))
 
+        const aragonTopics = configIndexer.filter(config =>
+          Object.values(IGovernanceErc20Logs).includes(config.event as IGovernanceErc20Logs),
+        )
+
         const taskOptions = {
-          fn: () => [[{ poolingCrawler: PoolingCrawler, params: { logService, network: networkName } }]],
+          fn: () => [
+            [{ poolingCrawler: PoolingCrawler, params: { logService, network: networkName, topics: aragonTopics } }],
+          ],
           interval: config.NODES[utils.networkToAragon(networkName)].POOLING_INTERVAL,
           checkInterval: config.NODES[utils.networkToAragon(networkName)].POOLING_INTERVAL / 2,
           runNow: true,

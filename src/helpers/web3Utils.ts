@@ -247,7 +247,7 @@ const Web3Utils = {
     }
   },
 
-  parseLog(txLog: Log, iFace: any): LogDescription | null {
+  parseLog(txLog: Log, iFace: Interface): LogDescription | null {
     let event = null as any
     try {
       event = iFace.parseLog(txLog)
