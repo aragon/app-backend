@@ -11,6 +11,7 @@ import {
   type IPaginationParams,
   type IPairParams,
 } from '@types'
+import type Lock from '@models/schema/lock'
 import { assertExposable } from '@errors'
 import PairDataModule from '@modules/pairData'
 import RabbitMQHelper from '@helpers/rabbitMQ'
@@ -101,7 +102,27 @@ const MemberController = {
     extraParams: ILockExtraParams = {},
     paginationParams: IPaginationParams = {},
   ): Promise<IPaginatedResult<IMemberLockResponse>> => {
-    return await Models.Lock.findWithPagination({ extraParams, paginationParams })
+    const response = await Models.Lock.findWithPagination({ extraParams, paginationParams })
+
+    if (response.data.length > 0) {
+      response.data = response.data.map(async (lock: Lock) => {
+        const votingPower = await RabbitMQHelper.sendMessage(
+          EnumQueueName.contractDecoder,
+          {
+            id: lock.id,
+            params: { lockId: lock.id },
+          },
+          { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
+        )
+
+        return {
+          ...lock,
+          votingPower,
+        }
+      })
+    }
+
+    return response
   },
 }
 

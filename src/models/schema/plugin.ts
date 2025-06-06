@@ -28,6 +28,9 @@ export class VotingEscrow {
 
   @prop({ type: () => String, default: null })
   public nftLockAddress!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public underlying!: HexAddress
 }
 
 export class SubPlugin {

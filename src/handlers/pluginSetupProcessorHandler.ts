@@ -403,8 +403,9 @@ export const PluginSetupProcessorHandler = {
     escrowAddress: HexAddress
     clockAddress: HexAddress
     nftLockAddress: HexAddress
+    underlying: HexAddress
   } | null> => {
-    // check if the token is a ivoteradapter
+    // check if the token is a tokenVotesAdapter
     const escrowAddress = await GovernanceVeHelper.getEscrowAddress(tokenAddress, info.network)
 
     if (escrowAddress) {
@@ -415,8 +416,9 @@ export const PluginSetupProcessorHandler = {
         const curveAddress = await GovernanceVeHelper.getCurveAddress(escrowAddress, info.network)
         const exitQueueAddress = await GovernanceVeHelper.getExitQueueAddress(escrowAddress, info.network)
         const nftLockAddress = await GovernanceVeHelper.getNftLockAddress(escrowAddress, info.network)
+        const erc20TokenAddress = await GovernanceVeHelper.getErc20TokenAddress(escrowAddress, info.network)
 
-        if (clockAddress && curveAddress && exitQueueAddress && nftLockAddress) {
+        if (clockAddress && curveAddress && exitQueueAddress && nftLockAddress && erc20TokenAddress) {
           await ProxyToken.saveAndGetToken(nftLockAddress, info.network)
 
           return {
@@ -425,6 +427,7 @@ export const PluginSetupProcessorHandler = {
             escrowAddress,
             clockAddress,
             nftLockAddress,
+            underlying: erc20TokenAddress, // take the real erc20 token address from the voting escrow
           }
         }
       }

@@ -138,6 +138,8 @@ export const TokenHolderSync = {
             },
             { session },
           )
+          await session.commitTransaction()
+          await session.endSession()
         })
 
         await ProxyMember.addToDao({

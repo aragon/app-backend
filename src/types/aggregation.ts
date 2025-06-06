@@ -122,6 +122,7 @@ export interface IAggSettingProjectFields {
   minDuration?: 1
   minProposerVotingPower?: 1
   stages?: 1
+  votingEscrow?: 1
 }
 
 export interface IAggMemberParams {
@@ -181,6 +182,7 @@ export interface IAggPluginProjectFields {
   uninstalled?: 1
   createdAt?: 1
   updatedAt?: 1
+  votingEscrow?: 1
 }
 
 export interface IAggMemberTransactionProjectFields {

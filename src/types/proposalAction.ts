@@ -15,6 +15,10 @@ export enum ProposalActionType {
   MetadataPluginUpdate = 'MetadataPluginUpdate',
 }
 
+export interface ILockVotingPowerAt {
+  lockId: string
+}
+
 export interface IRawAction {
   to: string
   data: string
