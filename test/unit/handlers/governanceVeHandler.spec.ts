@@ -53,6 +53,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
   describe('DepositHandler', () => {
     it('should log error if plugin not found', async () => {
+      const stubAddToDao = sandbox.stub(ProxyMember, 'addToDao').resolves()
       const stubLogger = sandbox.stub(logger, 'error')
 
       const mockInfo = {
@@ -74,10 +75,12 @@ describe('Handler:GovernanceVeHandler', () => {
       await GovernanceVeHandler.deposit(mockEvent, mockInfo)
 
       expect(stubLogger.calledOnce).to.be.true
+      expect(stubAddToDao.notCalled).to.be.true
       expect(stubLogger.calledOnceWith('Plugin not found for deposit event' as any)).to.be.true
     })
 
     it('should create Lock and call logger/ProxyMember on success', async () => {
+      const stubAddToDao = sandbox.stub(ProxyMember, 'addToDao').resolves()
       sandbox.stub(ProxyMember, 'createMember').resolves()
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       const stubLogger = sandbox.stub(logger, 'verbose')
@@ -122,11 +125,13 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stored?.lockExit.status).to.be.false
       expect(stored?.lockWithdraw.status).to.be.false
       expect(stubLogger.calledOnce).to.be.true
+      expect(stubAddToDao.calledOnce).to.be.true
     })
   })
 
   describe('WithdrawHandler', () => {
     it('should log error if plugin not found', async () => {
+      const stubRemoveFromDao = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
       const stubLogger = sandbox.stub(logger, 'error')
 
       const mockInfo = {
@@ -148,10 +153,12 @@ describe('Handler:GovernanceVeHandler', () => {
       await GovernanceVeHandler.withdraw(mockEvent, mockInfo)
 
       expect(stubLogger.calledOnce).to.be.true
+      expect(stubRemoveFromDao.calledOnce).to.be.false
       expect(stubLogger.calledOnceWith('Plugin not found for withdraw event' as any)).to.be.true
     })
 
     it('should log error if lock not found', async () => {
+      const stubRemoveFromDao = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       const stubLogger = sandbox.stub(logger, 'error')
 
@@ -176,10 +183,12 @@ describe('Handler:GovernanceVeHandler', () => {
       await GovernanceVeHandler.withdraw(mockEvent, mockInfo as any)
 
       expect(stubLogger.calledOnce).to.be.true
+      expect(stubRemoveFromDao.calledOnce).to.be.false
       expect(stubLogger.calledOnceWith('Lock not found for withdraw event' as any)).to.be.true
     })
 
     it('should update existing lock with withdraw info and call logger on success', async () => {
+      const stubRemoveFromDao = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       const stubLogger = sandbox.stub(logger, 'verbose')
 
@@ -236,6 +245,7 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(updatedLock?.lockWithdraw.amount).to.equal(mockEvent.args.value.toString())
       expect(updatedLock?.lockWithdraw.epochEndAt).to.equal(Number(mockEvent.args.ts))
       expect(stubLogger.calledOnce).to.be.true
+      expect(stubRemoveFromDao.calledOnce).to.be.true
     })
   })
 
