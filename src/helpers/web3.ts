@@ -19,6 +19,7 @@ import { TokenVoting } from '@artifacts/TokenVoting'
 import { type BlockTag } from 'ethers/src.ts/providers/provider'
 import Web3Utils from '@helpers/web3Utils'
 import { ERC721 } from '@artifacts/ERC721'
+import axios from 'axios'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
@@ -546,6 +547,85 @@ const Web3Helper = {
     } catch (error) {
       logger.error('Error isMember', llo({ pluginAddress, memberAddress, network, error }))
       return false
+    }
+  },
+
+  /**
+   * Get block timestamps in batch using JSON-RPC batch requests
+   */
+  async getBlocksTimestamps(from: number, to: number, network: NetworksEnum): Promise<Record<string, number>> {
+    if (from > to) {
+      logger.warn('Invalid block range', llo({ from, to, network }))
+      return {}
+    }
+
+    try {
+      const providerUrl = await ProviderModule.getProviderUrl(network)
+      const blockNumbers: number[] = []
+
+      for (let blockNum = from; blockNum <= to; blockNum++) {
+        blockNumbers.push(blockNum)
+      }
+
+      const batchRequests = blockNumbers.map(blockNumber => {
+        const requestId = `block-${blockNumber}-${Math.random().toString(36).substring(2, 8)}`
+        return {
+          jsonrpc: '2.0',
+          id: requestId,
+          method: 'eth_getBlockByNumber',
+          params: [`0x${blockNumber.toString(16)}`, false],
+        }
+      })
+
+      logger.debug(
+        'Sending batch block request',
+        llo({
+          network,
+          blockRange: `${from}-${to}`,
+          totalBlocks: blockNumbers.length,
+        }),
+      )
+
+      const response = await axios.post(providerUrl!, batchRequests, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        timeout: 30000,
+      })
+
+      if (!response.data || !Array.isArray(response.data)) {
+        return {}
+      }
+
+      const timestampMap: Record<string, number> = {}
+
+      for (const result of response.data) {
+        try {
+          if (result.error) {
+            continue
+          }
+
+          if (result.result?.timestamp) {
+            const blockNumber = parseInt(result.result.number, 16)
+            const timestamp = parseInt(result.result.timestamp, 16)
+            const key = `${network}-${blockNumber}`
+            timestampMap[key] = timestamp
+          }
+        } catch (parseError) {
+          logger.warn(
+            'Failed to parse block result',
+            llo({
+              network,
+              requestId: result.id,
+              error: parseError,
+            }),
+          )
+        }
+      }
+
+      return timestampMap
+    } catch (error) {
+      return {}
     }
   },
 }

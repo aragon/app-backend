@@ -1,14 +1,6 @@
 import logger from '@logger'
 import { type LogDescription } from 'ethers'
-import {
-  EnumQueueName,
-  IEventLogMember,
-  type ILogInfo,
-  ITokenType,
-  ITransferSide,
-  ITransferType,
-  type NetworksEnum,
-} from '@types'
+import { EnumQueueName, IEventLogMember, type ILogInfo, ITokenType, ITransferSide, ITransferType } from '@types'
 import utils from '@helpers/utils'
 import { ProxyMember } from '@modules/proxyMember'
 import DbTx from '@modules/dbTx'
@@ -19,7 +11,6 @@ import { Models } from '@dbModels'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import type Plugin from '@models/schema/plugin'
 import RabbitMQHelper from '@helpers/rabbitMQ'
-import config from '@config'
 import { ProxyToken } from '@modules/proxyToken'
 import type MemberTransaction from '@models/schema/memberTransaction'
 
@@ -27,28 +18,39 @@ const llo = logger.logMeta.bind(null, { service: 'handlers:GovernanceErc20Handle
 
 export const GovernanceErc20Handler = {
   // is trigger once for all user - (from user increase balance and 1 user decrease balance)
-  transfer: async (parsedEvent: LogDescription, info: ILogInfo, isHistorical?: boolean) => {
+  transfer: async (
+    parsedEvent: LogDescription,
+    info: ILogInfo,
+    isHistorical?: boolean,
+    timestamps?: Record<string, number> | undefined,
+  ) => {
     // when realtime the plugin is undefined, check if related to aragon dao
     const plugins = await Models.Plugin.findAllByTokenAddress(info.address, info.network)
     if (!plugins || plugins.length === 0) return
 
     // outgoing transfer for 'from' user
     if (parsedEvent.args.from !== utils.zeroAddress) {
-      await GovernanceErc20Handler._handleTransfer(parsedEvent, info, ITransferSide.outgoing, plugins, isHistorical)
+      await GovernanceErc20Handler._handleTransfer(
+        parsedEvent,
+        info,
+        ITransferSide.outgoing,
+        plugins,
+        isHistorical,
+        timestamps || {},
+      )
     }
 
     // incoming transfer for 'to' user
     if (parsedEvent.args.to !== utils.zeroAddress) {
-      await GovernanceErc20Handler._handleTransfer(parsedEvent, info, ITransferSide.incoming, plugins, isHistorical)
+      await GovernanceErc20Handler._handleTransfer(
+        parsedEvent,
+        info,
+        ITransferSide.incoming,
+        plugins,
+        isHistorical,
+        timestamps || {},
+      )
     }
-  },
-
-  async waitForNonHistorical(network: NetworksEnum) {
-    await utils.wait(
-      config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME *
-        1000 *
-        config.NODES[utils.networkToAragon(network)].CONFIRMATION_BLOCKS,
-    )
   },
 
   _handleTransfer: async (
@@ -57,6 +59,7 @@ export const GovernanceErc20Handler = {
     transferType: ITransferSide,
     plugins: Plugin[],
     isHistorical?: boolean,
+    timestamps?: Record<string, number>,
   ) => {
     try {
       const memberAddress = transferType === ITransferSide.incoming ? parsedEvent.args.to : parsedEvent.args.from
@@ -86,7 +89,9 @@ export const GovernanceErc20Handler = {
         )
       }
 
-      const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
+      const blockTimestamp =
+        timestamps?.[`${info.network}-${info.blockNumber}`] ||
+        (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network))
 
       let tokenBalanceDb = await ProxyMember.getBalances({
         address: memberAddress,
@@ -221,7 +226,12 @@ export const GovernanceErc20Handler = {
   },
 
   // it triggers for each user the previous and new votingPower
-  delegateVotesChanged: async (parsedEvent: LogDescription, info: ILogInfo, isHistorical?: boolean) => {
+  delegateVotesChanged: async (
+    parsedEvent: LogDescription,
+    info: ILogInfo,
+    isHistorical?: boolean,
+    timestamps?: any,
+  ) => {
     const plugins = await Models.Plugin.findAllByTokenAddress(info.address, info.network)
     if (!plugins || plugins.length === 0) return
 
@@ -295,7 +305,6 @@ export const GovernanceErc20Handler = {
       const { from, to, delegator } = await GovernanceErc20Handler._findDelegatorsFromReceipt(parsedEvent, info)
 
       if ((from === utils.zeroAddress && to === utils.zeroAddress) || from === to) {
-        // Note we skip all delegation happened on transfer, mint, burn, etc
         logger.warn('Skip from and to address', llo({ from, to, info }))
         return
       }
@@ -311,6 +320,10 @@ export const GovernanceErc20Handler = {
         return
       }
 
+      const timestamp =
+        timestamps[`${info.network}-${info.blockNumber}`] ||
+        (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network))
+
       // save member transaction
       await DbTx.executeTxFn(async ({ session }) => {
         const logDb = await Models.MemberTransaction.create(
@@ -320,7 +333,7 @@ export const GovernanceErc20Handler = {
             transactionIndex: info.transactionIndex,
             logIndex: info.logIndex,
             blockNumber: info.blockNumber,
-            blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+            blockTimestamp: timestamp,
             address: memberAddress,
             delegator,
             type: ITransferType.delegate,
@@ -354,36 +367,6 @@ export const GovernanceErc20Handler = {
             blockNumber: info.blockNumber,
             network,
           })
-
-          // if (side === ITransferSide.outgoing) {
-          //   // decrease received delegation
-          //   await ProxyMember.updateMetricsByAction(IMetricAction.decreaseDelegateReceivedCount, {
-          //     memberAddress,
-          //     pluginAddress: plg.address,
-          //     network: plg.network,
-          //   })
-          //
-          //   await ProxyMember.updateActivity({
-          //     memberAddress,
-          //     pluginAddress: plg.address,
-          //     network: info.network,
-          //     blockNumber: info.blockNumber,
-          //   })
-          // } else if (side === ITransferSide.incoming) {
-          //   // increase received delegation
-          //   await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateReceivedCount, {
-          //     memberAddress,
-          //     pluginAddress: plg.address,
-          //     network: plg.network,
-          //   })
-          //
-          //   await ProxyMember.updateActivity({
-          //     memberAddress,
-          //     pluginAddress: plg.address,
-          //     network: info.network,
-          //     blockNumber: info.blockNumber,
-          //   })
-          // }
         }),
       )
     } catch (error) {
