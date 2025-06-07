@@ -105,21 +105,27 @@ const MemberController = {
     const response = await Models.Lock.findWithPagination({ extraParams, paginationParams })
 
     if (response.data.length > 0) {
-      response.data = response.data.map(async (lock: Lock) => {
-        const votingPower = await RabbitMQHelper.sendMessage(
-          EnumQueueName.contractDecoder,
-          {
-            id: lock.id,
-            params: { lockId: lock.id },
-          },
-          { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
-        )
+      response.data = await Promise.all(
+        response.data.map(async (lock: Lock) => {
+          const votingPower = await RabbitMQHelper.sendMessage(
+            EnumQueueName.getVotingPower,
+            {
+              id: lock.id,
+              params: {
+                userAddress: lock.memberAddress,
+                tokenAddress: lock.tokenAddress,
+                network: lock.network,
+              },
+            },
+            { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
+          )
 
-        return {
-          ...lock,
-          votingPower,
-        }
-      })
+          return {
+            ...lock,
+            votingPower,
+          }
+        }),
+      )
     }
 
     return response

@@ -11,8 +11,8 @@ export enum EnumQueueName {
   logDao = 'log.dao',
   contractInfo = 'contract.info',
   voteInfo = 'vote.info',
+  getVotingPower = 'member.votingPower',
   memberBalance = 'member.balance',
-  votingPowerAt = 'contract.votingPowerAt',
   contractDecoder = 'contract.decoder',
   tokenInfo = 'token.info',
   proposalActions = 'proposal.actions',
@@ -34,6 +34,12 @@ export interface IQueuePlugin {
   address: HexAddress
   network: NetworksEnum
   isHistorical?: boolean
+}
+
+export interface IGetVotingPower {
+  userAddress: HexAddress
+  tokenAddress: HexAddress
+  network: NetworksEnum
 }
 
 export interface IQueueContractInfo {

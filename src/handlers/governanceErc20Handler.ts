@@ -1,14 +1,6 @@
 import logger from '@logger'
 import { type LogDescription } from 'ethers'
-import {
-  EnumQueueName,
-  IEventLogMember,
-  type ILogInfo,
-  ITokenType,
-  ITransferSide,
-  ITransferType,
-  type NetworksEnum,
-} from '@types'
+import { EnumQueueName, IEventLogMember, type ILogInfo, ITokenType, ITransferSide, ITransferType } from '@types'
 import utils from '@helpers/utils'
 import { ProxyMember } from '@modules/proxyMember'
 import DbTx from '@modules/dbTx'
@@ -41,14 +33,6 @@ export const GovernanceErc20Handler = {
     if (parsedEvent.args.to !== utils.zeroAddress) {
       await GovernanceErc20Handler._handleTransfer(parsedEvent, info, ITransferSide.incoming, plugins, isHistorical)
     }
-  },
-
-  async waitForNonHistorical(network: NetworksEnum) {
-    await utils.wait(
-      config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME *
-        1000 *
-        config.NODES[utils.networkToAragon(network)].CONFIRMATION_BLOCKS,
-    )
   },
 
   _handleTransfer: async (

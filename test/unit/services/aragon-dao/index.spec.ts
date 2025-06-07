@@ -36,7 +36,7 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      expect(processStub.callCount).to.equal(14) // Updated count to include votingPowerAt queue
+      expect(processStub.callCount).to.equal(14)
       expect(processStub.calledWith(EnumQueueName.allMetrics)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoTransactions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoAssets)).to.be.true
@@ -46,7 +46,7 @@ describe('AragonDao: index', () => {
       expect(processStub.calledWith(EnumQueueName.contractInfo)).to.be.true
       expect(processStub.calledWith(EnumQueueName.voteInfo)).to.be.true
       expect(processStub.calledWith(EnumQueueName.memberBalance)).to.be.true
-      expect(processStub.calledWith(EnumQueueName.votingPowerAt)).to.be.true
+      expect(processStub.calledWith(EnumQueueName.getVotingPower)).to.be.true
       expect(processStub.calledWith(EnumQueueName.contractDecoder)).to.be.true
       expect(processStub.calledWith(EnumQueueName.proposalActions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.canCreateProposal)).to.be.true
@@ -249,9 +249,9 @@ describe('AragonDao: index', () => {
       ).to.be.true
     })
 
-    it('should handle votingPowerAt queue', async () => {
+    it('should handle getVotingPower queue', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
-      const memberInfoStub = sandbox.stub(MemberInfo, 'getLockVotingPower').resolves(500000000000000000)
+      const memberInfoStub = sandbox.stub(MemberInfo, 'getVotingPower').resolves('5000')
 
       await AragonDaoService.start()
 
@@ -259,13 +259,15 @@ describe('AragonDao: index', () => {
       const queueName = processStub.getCall(9).args[0]
       const result = await handler({
         params: {
-          lockId: 'lock-123',
+          userAddress: '0x0User',
+          tokenAddress: '0x0Token',
+          network: NetworksEnum.ethereumMainnet
         },
       } as any)
 
-      expect(queueName).to.eq(EnumQueueName.votingPowerAt)
-      expect(memberInfoStub.calledOnceWith('lock-123')).to.be.true
-      expect(result).to.equal(500000000000000000)
+      expect(queueName).to.eq(EnumQueueName.getVotingPower)
+      expect(memberInfoStub.calledOnceWith('0x0User', '0x0Token', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(result).to.equal('5000')
     })
 
     it('should handle proposal actions queue', async () => {
