@@ -8,6 +8,10 @@ import Web3Helper from '@helpers/web3'
 const llo = logger.logMeta.bind(null, { service: 'handlers:GovernanceVeHandler' })
 
 export const GovernanceVeHandler = {
+  delegateTokens: async (parsedEvent: LogDescription, info: ILogInfo) => {},
+
+  unDelegateTokens: async (parsedEvent: LogDescription, info: ILogInfo) => {},
+
   deposit: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const plugin = await Models.Plugin.findOne({
       'votingEscrow.escrowAddress': info.address,

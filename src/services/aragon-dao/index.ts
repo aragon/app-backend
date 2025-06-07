@@ -1,7 +1,8 @@
 import logger from '@logger'
 import {
   EnumConnection,
-  EnumQueueName, IGetVotingPower,
+  EnumQueueName,
+  type IGetVotingPower,
   type IProposalInfo,
   type IQueueAllMetrics,
   type IQueueCanCreateProposal,
