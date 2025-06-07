@@ -44,6 +44,7 @@ export const GovernanceVeHandler = {
       epochStartAt,
       totalLocked,
     })
+    await ProxyMember.addToDao(memberAddress)
 
     logger.verbose('Deposit VeGovernance', llo({ info, memberAddress, tokenId }))
   },
@@ -97,6 +98,7 @@ export const GovernanceVeHandler = {
         epochEndAt,
       },
     })
+    await ProxyMember.removeFromDao(memberAddress)
 
     logger.verbose('Withdraw VeGovernance', llo({ info, memberAddress, tokenId }))
   },
