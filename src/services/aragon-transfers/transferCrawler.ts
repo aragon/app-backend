@@ -9,11 +9,12 @@ import Web3Utils from '@src/helpers/web3Utils'
 import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 import configIndexer from '@indexer/configIndexer'
 import Web3Helper from '@helpers/web3'
+import { pLimit } from 'plimit-lit'
 
 const llo = logger.logMeta.bind(null, { service: 'module:TransferCrawler' })
 
 // Interface for GovernanceERC20 events
-// It is outside because creating a new Interface is expensive and we want to reuse it
+// It is outside because creating a new Interface is expensive, and we want to reuse it
 
 const govTokenInterface = new Interface(GovernanceERC20.abi)
 const transferTopic = govTokenInterface.getEvent('Transfer')?.topicHash!
@@ -23,6 +24,9 @@ const governanceEventNames = Object.values(IGovernanceErc20Logs)
 const abi = GovernanceERC20.abi.filter(
   (item: any) => item.type === 'event' && governanceEventNames.includes(item.name as IGovernanceErc20Logs),
 )
+
+const CONCURRENCY = 5
+const BATCH_SIZE = 100
 
 const erc721abi = ERC721.abi.filter((item: any) => item.type === 'event' && item.name === IGovernanceErc20Logs.Transfer)
 
@@ -76,23 +80,29 @@ const TransferCrawler = {
     try {
       const startTime = Date.now()
 
-      const deduplicatedLogs = this._deduplicateTransferLogs(logs, network)
+      for (let i = 0; i < logs.length; i += BATCH_SIZE) {
+        const batch = logs.slice(i, i + BATCH_SIZE)
+        const deduplicatedBatch = this._deduplicateTransferLogs(batch)
 
-      logger.info(
-        'Starting mixed events processing with address sharding',
-        llo({
-          network,
-          totalLogs: logs.length,
-        }),
-      )
+        if (deduplicatedBatch.length === 0) continue
 
-      const timestampCache = await this._collectTimestamps(deduplicatedLogs, network)
+        const timestampCache = await this._collectTimestamps(deduplicatedBatch, network)
 
-      for (const log of deduplicatedLogs) {
-        await this._processEventLog(log, network, timestampCache)
+        await this._processLogsConcurrently(deduplicatedBatch, network, timestampCache)
+
+        logger.info(
+          'Batch processed',
+          llo({
+            network,
+            processed: Math.min(i + BATCH_SIZE, logs.length),
+            total: logs.length,
+            percentage: Math.round((Math.min(i + BATCH_SIZE, logs.length) / logs.length) * 100),
+          }),
+        )
       }
 
       const duration = Date.now() - startTime
+
       logger.info(
         'Events processing completed',
         llo({
@@ -107,10 +117,33 @@ const TransferCrawler = {
     }
   },
 
-  _deduplicateTransferLogs(logs: Log[], network: NetworksEnum): Log[] {
+  async _processLogsConcurrently(logs: Log[], network: NetworksEnum, timestampCache: any) {
+    const limit = pLimit(CONCURRENCY)
+
+    const promises = logs.map(async log =>
+      limit(async () => {
+        try {
+          await this._processEventLog(log, network, timestampCache)
+        } catch (error: any) {
+          logger.error(
+            'Log processing failed in concurrent batch',
+            llo({
+              network,
+              txHash: log.transactionHash,
+              logIndex: log.index,
+              error: error.message,
+            }),
+          )
+        }
+      }),
+    )
+
+    await Promise.all(promises)
+  },
+
+  _deduplicateTransferLogs(logs: Log[]): Log[] {
     const transferMap = new Map<string, Log>()
     const nonTransferLogs: Log[] = []
-    let duplicatesRemoved = 0
 
     for (const log of logs) {
       if (log.topics[0] !== transferTopic) {
@@ -132,10 +165,7 @@ const TransferCrawler = {
         const existingLog = transferMap.get(transferKey)
 
         if (!existingLog || this._isLogLater(log, existingLog)) {
-          if (existingLog) duplicatesRemoved++
           transferMap.set(transferKey, log)
-        } else {
-          duplicatesRemoved++
         }
       } catch (error) {
         nonTransferLogs.push(log)
@@ -149,17 +179,6 @@ const TransferCrawler = {
       if (a.transactionIndex !== b.transactionIndex) return a.transactionIndex - b.transactionIndex
       return a.index - b.index
     })
-
-    logger.info(
-      'Deduplication completed',
-      llo({
-        originalLogs: logs.length,
-        finalLogs: result.length,
-        duplicatesRemoved,
-        reduction: `${Math.round((duplicatesRemoved / logs.length) * 100)}%`,
-        network,
-      }),
-    )
 
     return result
   },
