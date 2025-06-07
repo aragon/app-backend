@@ -23,13 +23,19 @@ interface ShardedEvents {
   involvedAddresses: Set<string>
 }
 
+interface AddressGroup {
+  address: string
+  logs: Log[]
+}
+
 const TransferCrawler = {
   instances: new Map<NetworksEnum, BlockchainLogCrawler>(),
   timestampsCache: {},
   config: {
-    concurrency: 10,
-    batchSize: 50,
-    shardCount: 30,
+    concurrency: 50, // ⬆️ Much higher shard concurrency
+    batchSize: 100, // ⬆️ Larger batches
+    shardCount: 100, // ⬆️ More shards for better distribution
+    addressConcurrency: 20, // ⬆️ High concurrency within shards
   },
 
   async start({ logService, network }: { logService: any; network: NetworksEnum }) {
@@ -72,38 +78,47 @@ const TransferCrawler = {
       const deduplicatedLogs = this._deduplicateTransferLogs(logs, network)
 
       logger.info(
-        'Starting mixed events processing with address sharding',
+        'Starting high-concurrency events processing',
         llo({
           network,
-          totalLogs: logs.length,
+          originalLogs: logs.length,
+          deduplicatedLogs: deduplicatedLogs.length,
           shardCount: this.config.shardCount,
-          concurrency: this.config.concurrency,
+          shardConcurrency: this.config.concurrency,
+          addressConcurrency: this.config.addressConcurrency,
         }),
       )
 
-      const blockNumbers = deduplicatedLogs.map(deduplicatedLog => deduplicatedLog.blockNumber)
+      if (deduplicatedLogs.length === 0) {
+        logger.info('No logs to process after deduplication', llo({ network }))
+        return
+      }
+
+      // Batch fetch all timestamps
+      const blockNumbers = deduplicatedLogs.map(log => log.blockNumber)
       const minBlock = Math.min(...blockNumbers)
       const maxBlock = Math.max(...blockNumbers)
-
       this.timestampsCache = await Web3Helper.getBlocksTimestamps(minBlock, maxBlock, network)
 
       const shardedEvents = this._shardEventsByAddress(deduplicatedLogs)
-
-      await this._processShardedEvents(shardedEvents, network)
+      await this._processShardedEventsHighConcurrency(shardedEvents, network)
 
       const duration = Date.now() - startTime
+      const totalEvents = shardedEvents.reduce((sum, shard) => sum + shard.logs.length, 0)
+
       logger.info(
-        'Events processing completed',
+        'High-concurrency processing completed',
         llo({
           network,
-          totalEvents: shardedEvents.length,
           totalShards: shardedEvents.length,
+          totalEvents,
           duration: `${duration}ms`,
-          eventsPerSecond: Math.round(shardedEvents.length / (duration / 1000)),
+          eventsPerSecond: Math.round(totalEvents / (duration / 1000)),
+          averageEventsPerShard: Math.round(totalEvents / shardedEvents.length),
         }),
       )
     } catch (error) {
-      logger.error('Mixed events processing failed', llo({ network, error }))
+      logger.error('High-concurrency processing failed', llo({ network, error }))
       throw error
     }
   },
@@ -154,11 +169,11 @@ const TransferCrawler = {
     logger.info(
       'Deduplication completed',
       llo({
+        network,
         originalLogs: logs.length,
         finalLogs: result.length,
         duplicatesRemoved,
         reduction: `${Math.round((duplicatesRemoved / logs.length) * 100)}%`,
-        network,
       }),
     )
 
@@ -260,34 +275,52 @@ const TransferCrawler = {
   },
 
   /**
-   * Process sharded events using async queue
+   * Process sharded events with ultra-high concurrency
    */
-  async _processShardedEvents(shardedEvents: ShardedEvents[], network: NetworksEnum): Promise<void> {
+  async _processShardedEventsHighConcurrency(shardedEvents: ShardedEvents[], network: NetworksEnum): Promise<void> {
     return new Promise((resolve, reject) => {
       let processedShards = 0
       let processedEvents = 0
+      const totalShards = shardedEvents.length
+      const totalEvents = shardedEvents.reduce((sum, shard) => sum + shard.logs.length, 0)
+
+      logger.info(
+        'Starting ultra-high concurrency processing',
+        llo({
+          network,
+          totalShards,
+          totalEvents,
+          maxConcurrentShards: this.config.concurrency,
+        }),
+      )
 
       const queue = async.queue(async (shard: ShardedEvents) => {
+        const shardStartTime = Date.now()
+
         try {
-          await this._processShardBatches(shard, network, {
-            processedShards,
-            processedEvents,
-          })
+          await this._processShardWithAddressGrouping(shard, network)
 
           processedShards++
           processedEvents += shard.logs.length
 
-          logger.debug(
-            'Shard processed',
-            llo({
-              network,
-              shardKey: shard.shardKey,
-              eventCount: shard.logs.length,
-              involvedAddresses: shard.involvedAddresses.size,
-              progress: `${processedShards}/${shardedEvents.length} shards`,
-              totalEvents: processedEvents,
-            }),
-          )
+          const shardDuration = Date.now() - shardStartTime
+          const progressPercent = Math.round((processedEvents / totalEvents) * 100)
+
+          // Log progress every 10% or every 10 shards
+          if (processedShards % 10 === 0 || [25, 50, 75, 90].includes(progressPercent)) {
+            logger.info(
+              'Processing progress',
+              llo({
+                network,
+                progress: `${progressPercent}%`,
+                shardsCompleted: `${processedShards}/${totalShards}`,
+                eventsCompleted: `${processedEvents}/${totalEvents}`,
+                queueLength: queue.length(),
+                activeWorkers: queue.running(),
+                avgShardTime: `${shardDuration}ms`,
+              }),
+            )
+          }
         } catch (error) {
           logger.error(
             'Shard processing failed',
@@ -300,11 +333,11 @@ const TransferCrawler = {
           )
           throw error
         }
-      }, this.config.concurrency)
+      }, this.config.concurrency) // High shard concurrency
 
       queue.drain(() => {
         logger.info(
-          'All shards processed',
+          'All shards processed successfully',
           llo({
             network,
             totalShards: processedShards,
@@ -326,35 +359,122 @@ const TransferCrawler = {
   },
 
   /**
-   * Process events within a shard in batches
+   * Process shard with address-based grouping for maximum parallelism
    */
-  async _processShardBatches(shard: ShardedEvents, network: NetworksEnum, progressInfo: any): Promise<void> {
+  async _processShardWithAddressGrouping(shard: ShardedEvents, network: NetworksEnum): Promise<void> {
     const { shardKey, logs } = shard
 
-    // Process logs in batches within the shard
-    for (let i = 0; i < logs.length; i += this.config.batchSize) {
-      const batch = logs.slice(i, i + this.config.batchSize)
+    // Group logs by actual addresses they affect
+    const addressGroups = this._groupLogsByActualAddress(logs)
 
-      logger.debug(
-        'Processing shard batch',
-        llo({
-          network,
-          shardKey,
-          batchIndex: Math.floor(i / this.config.batchSize),
-          batchSize: batch.length,
-          progress: `${i + batch.length}/${logs.length}`,
-        }),
-      )
-      let remainingLogs = batch.length
-      for (const log of batch) {
-        const info = {
-          ...progressInfo,
-          network,
-          shardKey,
-          remainingLogs: remainingLogs--,
-          totalLogs: logs.length,
+    logger.debug(
+      'Processing shard with address grouping',
+      llo({
+        network,
+        shardKey,
+        totalLogs: logs.length,
+        addressGroups: addressGroups.length,
+        parallelism: `${addressGroups.length} address groups`,
+      }),
+    )
+
+    // Process all address groups in parallel (no conflicts between different addresses)
+    const results = await Promise.allSettled(
+      addressGroups.map(async addressGroup => this._processAddressGroupSequentially(addressGroup, network, shardKey)),
+    )
+
+    const failures = results.filter(r => r.status === 'rejected')
+    if (failures.length > 0) {
+      logger.warn(`Shard ${shardKey} had ${failures.length}/${addressGroups.length} address group failures`)
+
+      failures.slice(0, 3).forEach((failure, i) => {
+        logger.error(`Address group failure ${i + 1}:`, {
+          error: failure.status === 'rejected' ? failure.reason : 'Unknown error',
+        })
+      })
+    }
+  },
+
+  /**
+   * Group logs by the actual addresses they affect to avoid write conflicts
+   */
+  _groupLogsByActualAddress(logs: Log[]): AddressGroup[] {
+    const addressToLogs = new Map<string, Log[]>()
+
+    for (const log of logs) {
+      const affectedAddresses = this._getAffectedAddresses(log)
+
+      for (const address of affectedAddresses) {
+        if (!addressToLogs.has(address)) {
+          addressToLogs.set(address, [])
         }
-        await this._processEventLog(log, network, info)
+        addressToLogs.get(address)!.push(log)
+      }
+    }
+
+    return Array.from(addressToLogs.entries()).map(([address, logs]) => ({
+      address,
+      logs: logs.sort((a, b) => {
+        // Maintain chronological order for same address
+        if (a.blockNumber !== b.blockNumber) return a.blockNumber - b.blockNumber
+        if (a.transactionIndex !== b.transactionIndex) return a.transactionIndex - b.transactionIndex
+        return a.index - b.index
+      }),
+    }))
+  },
+
+  /**
+   * Get all addresses affected by a log
+   */
+  _getAffectedAddresses(log: Log): string[] {
+    const addresses: string[] = []
+
+    if (log.topics[0] === transferTopic) {
+      const from = log.topics[1] ? ethers.getAddress(`0x${log.topics[1].slice(-40)}`) : null
+      const to = log.topics[2] ? ethers.getAddress(`0x${log.topics[2].slice(-40)}`) : null
+
+      if (from && from !== ethers.ZeroAddress) addresses.push(from)
+      if (to && to !== ethers.ZeroAddress) addresses.push(to)
+    } else if (log.topics[0] === delegateVotesChangedTopic) {
+      const delegate = log.topics[1] ? ethers.getAddress(`0x${log.topics[1].slice(-40)}`) : null
+      if (delegate) addresses.push(delegate)
+    }
+
+    return addresses
+  },
+
+  /**
+   * Process events for one address sequentially (to avoid write conflicts)
+   * These MUST be sequential since they affect the same address
+   */
+  async _processAddressGroupSequentially(
+    addressGroup: AddressGroup,
+    network: NetworksEnum,
+    shardKey: string,
+  ): Promise<void> {
+    const { address, logs } = addressGroup
+
+    for (const log of logs) {
+      try {
+        await this._processEventLog(log, network, {
+          shardKey,
+          address,
+          groupSize: logs.length,
+        })
+      } catch (error) {
+        logger.error(
+          'Failed processing event in address group',
+          llo({
+            network,
+            address,
+            shardKey,
+            txHash: log.transactionHash,
+            logIndex: log.index,
+            error,
+          }),
+        )
+        // Continue processing other events for this address
+        // Don't throw to avoid failing the entire address group
       }
     }
   },
@@ -377,6 +497,7 @@ const TransferCrawler = {
           eventType: log.topics[0] === transferTopic ? 'Transfer' : 'DelegateVotesChanged',
           txHash: log.transactionHash,
           logIndex: log.index,
+          shardInfo: info,
           error,
         }),
       )
@@ -418,17 +539,22 @@ const TransferCrawler = {
 
       await GovernanceErc20Handler.transfer(event, info, false, this.timestampsCache)
 
-      logger.verbose(
-        'Processing transfer',
-        llo({
-          ..._info,
-          network,
-          tokenAddress: info.address,
-          blockNumber: Number(log.blockNumber),
-          txHash: log.transactionHash,
-          timeTaken: Date.now() - startTime,
-        }),
-      )
+      const timeTaken = Date.now() - startTime
+
+      // Only log slow transfers (> 1 second)
+      if (timeTaken > 1000) {
+        logger.warn(
+          'Slow transfer processing detected',
+          llo({
+            ..._info,
+            network,
+            tokenAddress: info.address,
+            blockNumber: Number(log.blockNumber),
+            txHash: log.transactionHash,
+            timeTaken: `${timeTaken}ms`,
+          }),
+        )
+      }
     } catch (error) {
       logger.error(
         'Transfer processing failed',
@@ -458,17 +584,22 @@ const TransferCrawler = {
 
       await GovernanceErc20Handler.delegateVotesChanged(event, info, false, this.timestampsCache)
 
-      logger.verbose(
-        'Processing delegate votes changed',
-        llo({
-          ..._info,
-          network,
-          tokenAddress: log.address,
-          blockNumber: Number(log.blockNumber),
-          txHash: log.transactionHash,
-          timeTaken: Date.now() - startTime,
-        }),
-      )
+      const timeTaken = Date.now() - startTime
+
+      // Only log slow delegate processing (> 1 second)
+      if (timeTaken > 1000) {
+        logger.warn(
+          'Slow delegate processing detected',
+          llo({
+            ..._info,
+            network,
+            tokenAddress: log.address,
+            blockNumber: Number(log.blockNumber),
+            txHash: log.transactionHash,
+            timeTaken: `${timeTaken}ms`,
+          }),
+        )
+      }
     } catch (error) {
       logger.error(
         'DelegateVotesChanged processing failed',
