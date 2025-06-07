@@ -11,7 +11,6 @@ import { Models } from '@dbModels'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import type Plugin from '@models/schema/plugin'
 import RabbitMQHelper from '@helpers/rabbitMQ'
-import { ProxyToken } from '@modules/proxyToken'
 import type MemberTransaction from '@models/schema/memberTransaction'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:GovernanceErc20Handler' })
@@ -73,7 +72,10 @@ export const GovernanceErc20Handler = {
         address: memberAddress,
       })
 
-      const token = await ProxyToken.saveAndGetToken(info.address, info.network)
+      const token = await Models.Token.findExistingLog({
+        address: info.address,
+        network: info.network,
+      })
       if (!token) {
         logger.error('handleTransfer token not found', llo({ info }))
       }
@@ -81,8 +83,8 @@ export const GovernanceErc20Handler = {
       if (existingLog) {
         return await GovernanceErc20Handler._handleDaoMemberShip(
           existingLog,
-          token?.type!,
-          token?.isGovernance!,
+          token?.type,
+          token?.isGovernance,
           plugins,
           info,
           isHistorical,
@@ -157,8 +159,8 @@ export const GovernanceErc20Handler = {
 
       await GovernanceErc20Handler._handleDaoMemberShip(
         memberTransaction,
-        token?.type!,
-        token?.isGovernance!,
+        token?.type,
+        token?.isGovernance,
         plugins,
         info,
         isHistorical,
