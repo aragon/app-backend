@@ -12,13 +12,24 @@ import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'module:TransferCrawler' })
 
+// Interface for GovernanceERC20 events
+// It is outside because creating a new Interface is expensive and we want to reuse it
+
 const govTokenInterface = new Interface(GovernanceERC20.abi)
 const transferTopic = govTokenInterface.getEvent('Transfer')?.topicHash!
 const delegateVotesChangedTopic = govTokenInterface.getEvent('DelegateVotesChanged')?.topicHash!
 
+const governanceEventNames = Object.values(IGovernanceErc20Logs)
+const abi = GovernanceERC20.abi.filter(
+  (item: any) => item.type === 'event' && governanceEventNames.includes(item.name as IGovernanceErc20Logs),
+)
+
+const erc721abi = ERC721.abi.filter((item: any) => item.type === 'event' && item.name === IGovernanceErc20Logs.Transfer)
+
+const iFace = new Interface([...abi, ...erc721abi])
+
 const TransferCrawler = {
   instances: new Map<NetworksEnum, BlockchainLogCrawler>(),
-  timestampsCache: {},
 
   async start({ logService, network }: { logService: any; network: NetworksEnum }) {
     try {
@@ -75,10 +86,10 @@ const TransferCrawler = {
         }),
       )
 
-      this.timestampsCache = await this._collectTimestamps(deduplicatedLogs, network)
+      const timestampCache = await this._collectTimestamps(deduplicatedLogs, network)
 
       for (const log of deduplicatedLogs) {
-        await this._processEventLog(log, network, {})
+        await this._processEventLog(log, network, timestampCache)
       }
 
       const duration = Date.now() - startTime
@@ -169,12 +180,12 @@ const TransferCrawler = {
   /**
    * Process individual event log based on type
    */
-  async _processEventLog(log: Log, network: NetworksEnum, info: any = {}): Promise<void> {
+  async _processEventLog(log: Log, network: NetworksEnum, timestampCache: any): Promise<void> {
     try {
       if (log.topics[0] === transferTopic) {
-        await this._processTransferLog(log, network, info)
+        await this._processTransferLog(log, network, timestampCache)
       } else if (log.topics[0] === delegateVotesChangedTopic) {
-        await this._processDelegateVotesChangedLog(log, network, info)
+        await this._processDelegateVotesChangedLog(log, network, timestampCache)
       }
     } catch (error) {
       logger.error(
@@ -192,16 +203,6 @@ const TransferCrawler = {
   },
 
   _parseLogArguments: (log: Log, network: NetworksEnum) => {
-    const governanceEventNames = Object.values(IGovernanceErc20Logs)
-    const abi = GovernanceERC20.abi.filter(
-      (item: any) => item.type === 'event' && governanceEventNames.includes(item.name as IGovernanceErc20Logs),
-    )
-
-    const erc721abi = ERC721.abi.filter(
-      (item: any) => item.type === 'event' && item.name === IGovernanceErc20Logs.Transfer,
-    )
-
-    const iFace = new Interface([...abi, ...erc721abi])
     const decoded = Web3Utils.parseLog(log, iFace)
     const iLogInfo = Web3Utils.parseInfoLog(log, decoded?.name!, network)
 
@@ -214,7 +215,7 @@ const TransferCrawler = {
   /**
    * Process Transfer event log
    */
-  async _processTransferLog(log: Log, network: NetworksEnum, _info: any): Promise<void> {
+  async _processTransferLog(log: Log, network: NetworksEnum, timestampCache: any): Promise<void> {
     try {
       const { event, info } = this._parseLogArguments(log, network)
       if (!event || !info) {
@@ -223,12 +224,11 @@ const TransferCrawler = {
 
       const startTime = Date.now()
 
-      await GovernanceErc20Handler.transfer(event, info, false, this.timestampsCache)
+      await GovernanceErc20Handler.transfer(event, info, false, timestampCache)
 
       logger.verbose(
         'Processing transfer',
         llo({
-          ..._info,
           network,
           tokenAddress: info.address,
           blockNumber: Number(log.blockNumber),
@@ -253,7 +253,7 @@ const TransferCrawler = {
   /**
    * Process DelegateVotesChanged event log
    */
-  async _processDelegateVotesChangedLog(log: Log, network: NetworksEnum, _info: any): Promise<void> {
+  async _processDelegateVotesChangedLog(log: Log, network: NetworksEnum, timestampCache: any): Promise<void> {
     try {
       const { event, info } = this._parseLogArguments(log, network)
 
@@ -263,12 +263,11 @@ const TransferCrawler = {
 
       const startTime = Date.now()
 
-      await GovernanceErc20Handler.delegateVotesChanged(event, info, false, this.timestampsCache)
+      await GovernanceErc20Handler.delegateVotesChanged(event, info, false, timestampCache)
 
       logger.verbose(
         'Processing delegate votes changed',
         llo({
-          ..._info,
           network,
           tokenAddress: log.address,
           blockNumber: Number(log.blockNumber),
