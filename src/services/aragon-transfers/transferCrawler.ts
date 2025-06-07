@@ -20,13 +20,15 @@ const govTokenInterface = new Interface(GovernanceERC20.abi)
 const transferTopic = govTokenInterface.getEvent('Transfer')?.topicHash!
 const delegateVotesChangedTopic = govTokenInterface.getEvent('DelegateVotesChanged')?.topicHash!
 
+// Parse Log also cost the time so only filter events that we need
+
 const governanceEventNames = Object.values(IGovernanceErc20Logs)
 const abi = GovernanceERC20.abi.filter(
   (item: any) => item.type === 'event' && governanceEventNames.includes(item.name as IGovernanceErc20Logs),
 )
 
-const CONCURRENCY = 5
-const BATCH_SIZE = 100
+const CONCURRENCY = 10
+const BATCH_SIZE = 200
 
 const erc721abi = ERC721.abi.filter((item: any) => item.type === 'event' && item.name === IGovernanceErc20Logs.Transfer)
 
