@@ -258,14 +258,21 @@ const TransferCrawler = {
     const { event, info } = this._parseLogArguments(log, network)
     if (!event || !info) return
 
+    const timeStart = Date.now()
+
     await GovernanceErc20Handler.transfer(event, info, false, timestampCache)
+
+    logger.info('Transfer log processed', llo({ network, time: `${Date.now() - timeStart}ms` }))
   },
 
   async _processDelegateVotesChangedLog(log: Log, network: NetworksEnum, timestampCache: any): Promise<void> {
     const { event, info } = this._parseLogArguments(log, network)
     if (!event || !info) return
 
+    const timeStart = Date.now()
     await GovernanceErc20Handler.delegateVotesChanged(event, info, false, timestampCache)
+
+    logger.info('DelegateVotesChanged log processed', llo({ network, time: `${Date.now() - timeStart}ms` }))
   },
 }
 
