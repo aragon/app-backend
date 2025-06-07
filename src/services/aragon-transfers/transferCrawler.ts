@@ -9,6 +9,7 @@ import { ERC721 } from '@artifacts/ERC721'
 import Web3Utils from '@src/helpers/web3Utils'
 import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 import configIndexer from '@indexer/configIndexer'
+import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'module:TransferCrawler' })
 
@@ -24,7 +25,7 @@ interface ShardedEvents {
 
 const TransferCrawler = {
   instances: new Map<NetworksEnum, BlockchainLogCrawler>(),
-
+  timestampsCache: {},
   config: {
     concurrency: 10,
     batchSize: 50,
@@ -79,6 +80,12 @@ const TransferCrawler = {
           concurrency: this.config.concurrency,
         }),
       )
+
+      const blockNumbers = deduplicatedLogs.map(deduplicatedLog => deduplicatedLog.blockNumber)
+      const minBlock = Math.min(...blockNumbers)
+      const maxBlock = Math.max(...blockNumbers)
+
+      this.timestampsCache = await Web3Helper.getBlocksTimestamps(minBlock, maxBlock, network)
 
       const shardedEvents = this._shardEventsByAddress(deduplicatedLogs)
 
@@ -409,7 +416,7 @@ const TransferCrawler = {
 
       const startTime = Date.now()
 
-      await GovernanceErc20Handler.transfer(event, info)
+      await GovernanceErc20Handler.transfer(event, info, false, this.timestampsCache)
 
       logger.verbose(
         'Processing transfer',
@@ -449,7 +456,7 @@ const TransferCrawler = {
 
       const startTime = Date.now()
 
-      await GovernanceErc20Handler.delegateVotesChanged(event, info)
+      await GovernanceErc20Handler.delegateVotesChanged(event, info, false, this.timestampsCache)
 
       logger.verbose(
         'Processing delegate votes changed',
