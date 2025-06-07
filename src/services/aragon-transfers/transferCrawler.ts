@@ -26,9 +26,9 @@ const TransferCrawler = {
   instances: new Map<NetworksEnum, BlockchainLogCrawler>(),
 
   config: {
-    concurrency: 20,
-    batchSize: 500,
-    shardCount: 150,
+    concurrency: 10,
+    batchSize: 50,
+    shardCount: 30,
   },
 
   async start({ logService, network }: { logService: any; network: NetworksEnum }) {
@@ -190,7 +190,10 @@ const TransferCrawler = {
 
       const queue = async.queue(async (shard: ShardedEvents) => {
         try {
-          await this._processShardBatches(shard, network)
+          await this._processShardBatches(shard, network, {
+            processedShards,
+            processedEvents,
+          })
 
           processedShards++
           processedEvents += shard.logs.length
@@ -246,7 +249,7 @@ const TransferCrawler = {
   /**
    * Process events within a shard in batches
    */
-  async _processShardBatches(shard: ShardedEvents, network: NetworksEnum): Promise<void> {
+  async _processShardBatches(shard: ShardedEvents, network: NetworksEnum, progressInfo: any): Promise<void> {
     const { shardKey, logs } = shard
 
     // Process logs in batches within the shard
@@ -263,10 +266,16 @@ const TransferCrawler = {
           progress: `${i + batch.length}/${logs.length}`,
         }),
       )
-
-      // Process each log in the batch sequentially (maintains chronological order)
+      let remainingLogs = batch.length
       for (const log of batch) {
-        await this._processEventLog(log, network)
+        const info = {
+          ...progressInfo,
+          network,
+          shardKey,
+          remainingLogs: remainingLogs--,
+          totalLogs: logs.length,
+        }
+        await this._processEventLog(log, network, info)
       }
     }
   },
@@ -274,12 +283,12 @@ const TransferCrawler = {
   /**
    * Process individual event log based on type
    */
-  async _processEventLog(log: Log, network: NetworksEnum): Promise<void> {
+  async _processEventLog(log: Log, network: NetworksEnum, info: any = {}): Promise<void> {
     try {
       if (log.topics[0] === transferTopic) {
-        await this._processTransferLog(log, network)
+        await this._processTransferLog(log, network, info)
       } else if (log.topics[0] === delegateVotesChangedTopic) {
-        await this._processDelegateVotesChangedLog(log, network)
+        await this._processDelegateVotesChangedLog(log, network, info)
       }
     } catch (error) {
       logger.error(
@@ -319,7 +328,7 @@ const TransferCrawler = {
   /**
    * Process Transfer event log
    */
-  async _processTransferLog(log: Log, network: NetworksEnum): Promise<void> {
+  async _processTransferLog(log: Log, network: NetworksEnum, _info: any): Promise<void> {
     try {
       const { event, info } = this._parseLogArguments(log, network)
       if (!event || !info) {
@@ -333,6 +342,7 @@ const TransferCrawler = {
       logger.verbose(
         'Processing transfer',
         llo({
+          ..._info,
           network,
           tokenAddress: info.address,
           blockNumber: Number(log.blockNumber),
@@ -357,7 +367,7 @@ const TransferCrawler = {
   /**
    * Process DelegateVotesChanged event log
    */
-  _processDelegateVotesChangedLog: async function (log: Log, network: NetworksEnum): Promise<void> {
+  _processDelegateVotesChangedLog: async function (log: Log, network: NetworksEnum, _info: any): Promise<void> {
     try {
       const { event, info } = this._parseLogArguments(log, network)
 
@@ -372,6 +382,7 @@ const TransferCrawler = {
       logger.verbose(
         'Processing delegate votes changed',
         llo({
+          ..._info,
           network,
           tokenAddress: log.address,
           blockNumber: Number(log.blockNumber),
