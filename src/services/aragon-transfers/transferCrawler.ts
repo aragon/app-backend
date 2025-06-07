@@ -12,7 +12,9 @@ import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'module:TransferCrawler' })
 
-// Interface for GovernanceERC20 events - REUSE THESE, DON'T RECREATE
+// Interface for GovernanceERC20 events
+// It is outside because creating a new Interface is expensive and we want to reuse it
+
 const govTokenInterface = new Interface(GovernanceERC20.abi)
 const transferTopic = govTokenInterface.getEvent('Transfer')?.topicHash!
 const delegateVotesChangedTopic = govTokenInterface.getEvent('DelegateVotesChanged')?.topicHash!
@@ -23,6 +25,7 @@ const abi = GovernanceERC20.abi.filter(
 )
 
 const erc721abi = ERC721.abi.filter((item: any) => item.type === 'event' && item.name === IGovernanceErc20Logs.Transfer)
+
 const iFace = new Interface([...abi, ...erc721abi])
 
 const TransferCrawler = {
@@ -49,9 +52,7 @@ const TransferCrawler = {
         filterLogs: async (logs: Log[]) => {
           const filteredLogs = await PoolingCrawler.filterLogs(logs, network)
           if (filteredLogs.length === 0) return []
-
-          // Use the optimized version
-          await this.parseAndProcessTransferLogsOptimized(filteredLogs, network)
+          await this.parseAndProcessTransferLogs(filteredLogs, network)
           return filteredLogs
         },
       })
@@ -71,100 +72,42 @@ const TransferCrawler = {
     return await Web3Helper.getBlocksTimestamps(minBlock, maxBlock, network)
   },
 
-  async parseAndProcessTransferLogsOptimized(logs: Log[], network: NetworksEnum) {
+  async parseAndProcessTransferLogs(logs: Log[], network: NetworksEnum) {
     try {
       const startTime = Date.now()
 
+      const deduplicatedLogs = this._deduplicateTransferLogs(logs, network)
+
       logger.info(
-        'Starting memory-optimized sequential processing',
+        'Starting mixed events processing with address sharding',
         llo({
           network,
           totalLogs: logs.length,
         }),
       )
 
-      const CHUNK_SIZE = 20
-      let processedCount = 0
+      const timestampCache = await this._collectTimestamps(deduplicatedLogs, network)
 
-      for (let i = 0; i < logs.length; i += CHUNK_SIZE) {
-        const chunk = logs.slice(i, i + CHUNK_SIZE)
-
-        await this._processChunkSequentially(chunk, network)
-
-        processedCount += chunk.length
-
-        if (processedCount % 100 === 0) {
-          if (global.gc) {
-            global.gc()
-          }
-
-          if (processedCount % 200 === 0) {
-            logger.info(
-              'Processing progress',
-              llo({
-                network,
-                processed: processedCount,
-                total: logs.length,
-                percentage: Math.round((processedCount / logs.length) * 100),
-                memoryUsage: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
-              }),
-            )
-          }
-        }
+      for (const log of deduplicatedLogs) {
+        await this._processEventLog(log, network, timestampCache)
       }
 
       const duration = Date.now() - startTime
       logger.info(
-        'Optimized sequential processing completed',
+        'Events processing completed',
         llo({
           network,
           duration: `${duration}ms`,
           totalLogs: logs.length,
-          avgTimePerLog: `${Math.round(duration / logs.length)}ms`,
         }),
       )
     } catch (error) {
-      logger.error('Optimized sequential processing failed', llo({ network, error }))
+      logger.error('Mixed events processing failed', llo({ network, error }))
       throw error
     }
   },
 
-  async _processChunkSequentially(logs: Log[], network: NetworksEnum): Promise<void> {
-    const deduplicatedLogs = this._deduplicateTransferLogs(logs, network)
-
-    if (deduplicatedLogs.length === 0) return
-
-    let timestampCache: any = null
-    try {
-      timestampCache = await this._collectTimestamps(deduplicatedLogs, network)
-    } catch (error) {
-      logger.error('Failed to collect timestamps for chunk', llo({ network, error }))
-      return
-    }
-
-    for (let i = 0; i < deduplicatedLogs.length; i++) {
-      const log = deduplicatedLogs[i]
-
-      try {
-        await this._processEventLog(log, network, timestampCache)
-      } catch (error: any) {
-        logger.error(
-          'Log processing failed, continuing',
-          llo({
-            network,
-            txHash: log.transactionHash,
-            error: error.message,
-          }),
-        )
-      }
-    }
-
-    timestampCache = null
-  },
-
   _deduplicateTransferLogs(logs: Log[], network: NetworksEnum): Log[] {
-    if (logs.length === 0) return []
-
     const transferMap = new Map<string, Log>()
     const nonTransferLogs: Log[] = []
     let duplicatesRemoved = 0
@@ -184,7 +127,8 @@ const TransferCrawler = {
           continue
         }
 
-        const transferKey = `${log.address.toLowerCase()}:${from.toLowerCase()}->${to.toLowerCase()}`
+        const transferKey = ethers.id(`${log.address.toLowerCase()}:${from.toLowerCase()}->${to.toLowerCase()}`)
+
         const existingLog = transferMap.get(transferKey)
 
         if (!existingLog || this._isLogLater(log, existingLog)) {
@@ -199,28 +143,30 @@ const TransferCrawler = {
     }
 
     const result = [...Array.from(transferMap.values()), ...nonTransferLogs]
+
     result.sort((a, b) => {
       if (a.blockNumber !== b.blockNumber) return a.blockNumber - b.blockNumber
       if (a.transactionIndex !== b.transactionIndex) return a.transactionIndex - b.transactionIndex
       return a.index - b.index
     })
 
-    // Only log deduplication for larger chunks
-    if (logs.length > 50) {
-      logger.verbose(
-        'Chunk deduplication',
-        llo({
-          originalLogs: logs.length,
-          finalLogs: result.length,
-          duplicatesRemoved,
-          network,
-        }),
-      )
-    }
+    logger.info(
+      'Deduplication completed',
+      llo({
+        originalLogs: logs.length,
+        finalLogs: result.length,
+        duplicatesRemoved,
+        reduction: `${Math.round((duplicatesRemoved / logs.length) * 100)}%`,
+        network,
+      }),
+    )
 
     return result
   },
 
+  /**
+   * Compare which log is later (higher block, tx index, log index)
+   */
   _isLogLater(logA: Log, logB: Log): boolean {
     if (logA.blockNumber !== logB.blockNumber) {
       return logA.blockNumber > logB.blockNumber
@@ -231,48 +177,116 @@ const TransferCrawler = {
     return logA.index > logB.index
   },
 
+  /**
+   * Process individual event log based on type
+   */
   async _processEventLog(log: Log, network: NetworksEnum, timestampCache: any): Promise<void> {
-    if (log.topics[0] === transferTopic) {
-      await this._processTransferLog(log, network, timestampCache)
-    } else if (log.topics[0] === delegateVotesChangedTopic) {
-      await this._processDelegateVotesChangedLog(log, network, timestampCache)
+    try {
+      if (log.topics[0] === transferTopic) {
+        await this._processTransferLog(log, network, timestampCache)
+      } else if (log.topics[0] === delegateVotesChangedTopic) {
+        await this._processDelegateVotesChangedLog(log, network, timestampCache)
+      }
+    } catch (error) {
+      logger.error(
+        'Event log processing failed',
+        llo({
+          network,
+          eventType: log.topics[0] === transferTopic ? 'Transfer' : 'DelegateVotesChanged',
+          txHash: log.transactionHash,
+          logIndex: log.index,
+          error,
+        }),
+      )
+      throw error
     }
   },
 
   _parseLogArguments: (log: Log, network: NetworksEnum) => {
-    try {
-      const decoded = Web3Utils.parseLog(log, iFace)
-      const iLogInfo = Web3Utils.parseInfoLog(log, decoded?.name!, network)
+    const decoded = Web3Utils.parseLog(log, iFace)
+    const iLogInfo = Web3Utils.parseInfoLog(log, decoded?.name!, network)
 
-      return {
-        event: decoded,
-        info: iLogInfo,
-      }
-    } catch (error) {
-      logger.error('Log parsing failed', llo({ network, txHash: log.transactionHash, error }))
-      return { event: null, info: null }
+    return {
+      event: decoded,
+      info: iLogInfo,
     }
   },
 
+  /**
+   * Process Transfer event log
+   */
   async _processTransferLog(log: Log, network: NetworksEnum, timestampCache: any): Promise<void> {
-    const { event, info } = this._parseLogArguments(log, network)
-    if (!event || !info) return
+    try {
+      const { event, info } = this._parseLogArguments(log, network)
+      if (!event || !info) {
+        return
+      }
 
-    const timeStart = Date.now()
+      const startTime = Date.now()
 
-    await GovernanceErc20Handler.transfer(event, info, false, timestampCache)
+      await GovernanceErc20Handler.transfer(event, info, false, timestampCache)
 
-    logger.info('Transfer log processed', llo({ network, time: `${Date.now() - timeStart}ms` }))
+      logger.verbose(
+        'Processing transfer',
+        llo({
+          network,
+          tokenAddress: info.address,
+          blockNumber: Number(log.blockNumber),
+          txHash: log.transactionHash,
+          timeTaken: Date.now() - startTime,
+        }),
+      )
+    } catch (error) {
+      logger.error(
+        'Transfer processing failed',
+        llo({
+          network,
+          txHash: log.transactionHash,
+          logIndex: log.index,
+          error,
+        }),
+      )
+      throw error
+    }
   },
 
+  /**
+   * Process DelegateVotesChanged event log
+   */
   async _processDelegateVotesChangedLog(log: Log, network: NetworksEnum, timestampCache: any): Promise<void> {
-    const { event, info } = this._parseLogArguments(log, network)
-    if (!event || !info) return
+    try {
+      const { event, info } = this._parseLogArguments(log, network)
 
-    const timeStart = Date.now()
-    await GovernanceErc20Handler.delegateVotesChanged(event, info, false, timestampCache)
+      if (!event || !info) {
+        return
+      }
 
-    logger.info('DelegateVotesChanged log processed', llo({ network, time: `${Date.now() - timeStart}ms` }))
+      const startTime = Date.now()
+
+      await GovernanceErc20Handler.delegateVotesChanged(event, info, false, timestampCache)
+
+      logger.verbose(
+        'Processing delegate votes changed',
+        llo({
+          network,
+          tokenAddress: log.address,
+          blockNumber: Number(log.blockNumber),
+          txHash: log.transactionHash,
+          timeTaken: Date.now() - startTime,
+        }),
+      )
+    } catch (error) {
+      logger.error(
+        'DelegateVotesChanged processing failed',
+        llo({
+          network,
+          txHash: log.transactionHash,
+          logIndex: log.index,
+          error,
+        }),
+      )
+      throw error
+    }
   },
 }
 
