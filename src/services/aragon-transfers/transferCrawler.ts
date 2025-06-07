@@ -12,7 +12,7 @@ import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'module:TransferCrawler' })
 
-// Interface for GovernanceERC20 events
+// Interface for GovernanceERC20 events - REUSE THESE, DON'T RECREATE
 const govTokenInterface = new Interface(GovernanceERC20.abi)
 const transferTopic = govTokenInterface.getEvent('Transfer')?.topicHash!
 const delegateVotesChangedTopic = govTokenInterface.getEvent('DelegateVotesChanged')?.topicHash!
@@ -27,14 +27,6 @@ const iFace = new Interface([...abi, ...erc721abi])
 
 const TransferCrawler = {
   instances: new Map<NetworksEnum, BlockchainLogCrawler>(),
-
-  // Configuration for event loop optimization
-  config: {
-    yieldInterval: 10, // Yield to event loop every N logs
-    yieldDelay: 0, // ms to yield (0 = setImmediate, >0 = setTimeout)
-    batchSize: 100, // Logs to process before yielding
-    logProgressInterval: 50, // Log progress every N logs
-  },
 
   async start({ logService, network }: { logService: any; network: NetworksEnum }) {
     try {
@@ -57,7 +49,9 @@ const TransferCrawler = {
         filterLogs: async (logs: Log[]) => {
           const filteredLogs = await PoolingCrawler.filterLogs(logs, network)
           if (filteredLogs.length === 0) return []
-          await this.parseAndProcessTransferLogsSequential(filteredLogs, network)
+
+          // Use the optimized version
+          await this.parseAndProcessTransferLogsOptimized(filteredLogs, network)
           return filteredLogs
         },
       })
@@ -77,305 +71,100 @@ const TransferCrawler = {
     return await Web3Helper.getBlocksTimestamps(minBlock, maxBlock, network)
   },
 
-  // STRATEGY 1: Sequential processing with event loop yielding
-  async parseAndProcessTransferLogsSequential(logs: Log[], network: NetworksEnum) {
+  async parseAndProcessTransferLogsOptimized(logs: Log[], network: NetworksEnum) {
     try {
       const startTime = Date.now()
-      const deduplicatedLogs = this._deduplicateTransferLogs(logs, network)
 
       logger.info(
-        'Starting sequential processing with event loop optimization',
+        'Starting memory-optimized sequential processing',
         llo({
           network,
           totalLogs: logs.length,
-          deduplicatedLogs: deduplicatedLogs.length,
-          yieldInterval: this.config.yieldInterval,
         }),
       )
 
-      // Pre-fetch all timestamps once
-      const timestampCache = await this._collectTimestamps(deduplicatedLogs, network)
+      const CHUNK_SIZE = 20
+      let processedCount = 0
 
-      // Process logs sequentially but yield to event loop periodically
-      await this._processLogsWithYielding(deduplicatedLogs, network, timestampCache)
+      for (let i = 0; i < logs.length; i += CHUNK_SIZE) {
+        const chunk = logs.slice(i, i + CHUNK_SIZE)
 
-      const duration = Date.now() - startTime
-      logger.info(
-        'Sequential processing completed',
-        llo({
-          network,
-          duration: `${duration}ms`,
-          totalLogs: deduplicatedLogs.length,
-          avgTimePerLog: `${Math.round(duration / deduplicatedLogs.length)}ms`,
-        }),
-      )
-    } catch (error) {
-      logger.error('Sequential processing failed', llo({ network, error }))
-      throw error
-    }
-  },
+        await this._processChunkSequentially(chunk, network)
 
-  // STRATEGY 2: Process with periodic yielding to event loop
-  async _processLogsWithYielding(logs: Log[], network: NetworksEnum, timestampCache: any): Promise<void> {
-    for (let i = 0; i < logs.length; i++) {
-      const log = logs[i]
+        processedCount += chunk.length
 
-      try {
-        await this._processEventLog(log, network, timestampCache)
+        if (processedCount % 100 === 0) {
+          if (global.gc) {
+            global.gc()
+          }
 
-        // Yield to event loop periodically to prevent blocking
-        if ((i + 1) % this.config.yieldInterval === 0) {
-          await this._yieldToEventLoop()
-
-          // Log progress periodically
-          if ((i + 1) % this.config.logProgressInterval === 0) {
+          if (processedCount % 200 === 0) {
             logger.info(
               'Processing progress',
               llo({
                 network,
-                processed: i + 1,
+                processed: processedCount,
                 total: logs.length,
-                percentage: Math.round(((i + 1) / logs.length) * 100),
+                percentage: Math.round((processedCount / logs.length) * 100),
+                memoryUsage: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
               }),
             )
           }
         }
-      } catch (error) {
-        logger.error(
-          'Log processing failed, continuing with next log',
-          llo({
-            network,
-            logIndex: i,
-            txHash: log.transactionHash,
-            error,
-          }),
-        )
-        // Continue processing next logs instead of failing completely
-      }
-    }
-  },
-
-  // STRATEGY 3: Batch processing while maintaining order within batches
-  async parseAndProcessTransferLogsBatched(logs: Log[], network: NetworksEnum) {
-    try {
-      const startTime = Date.now()
-      const deduplicatedLogs = this._deduplicateTransferLogs(logs, network)
-      const timestampCache = await this._collectTimestamps(deduplicatedLogs, network)
-
-      logger.info(
-        'Starting batched sequential processing',
-        llo({
-          network,
-          totalLogs: deduplicatedLogs.length,
-          batchSize: this.config.batchSize,
-        }),
-      )
-
-      // Process in batches to allow yielding between batches
-      const batches = this._createBatches(deduplicatedLogs, this.config.batchSize)
-
-      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-        const batch = batches[batchIndex]
-        const batchStartTime = Date.now()
-
-        // Process batch sequentially
-        for (let i = 0; i < batch.length; i++) {
-          const log = batch[i]
-          try {
-            await this._processEventLog(log, network, timestampCache)
-          } catch (error) {
-            logger.error(
-              'Log processing failed in batch',
-              llo({
-                network,
-                batchIndex,
-                logIndex: i,
-                txHash: log.transactionHash,
-                error,
-              }),
-            )
-          }
-        }
-
-        // Yield to event loop between batches
-        await this._yieldToEventLoop()
-
-        logger.verbose(
-          `Batch ${batchIndex + 1}/${batches.length} completed`,
-          llo({
-            network,
-            batchIndex: batchIndex + 1,
-            totalBatches: batches.length,
-            logsInBatch: batch.length,
-            batchDuration: `${Date.now() - batchStartTime}ms`,
-          }),
-        )
       }
 
       const duration = Date.now() - startTime
       logger.info(
-        'Batched sequential processing completed',
+        'Optimized sequential processing completed',
         llo({
           network,
           duration: `${duration}ms`,
-          totalLogs: deduplicatedLogs.length,
-          batchesProcessed: batches.length,
+          totalLogs: logs.length,
+          avgTimePerLog: `${Math.round(duration / logs.length)}ms`,
         }),
       )
     } catch (error) {
-      logger.error('Batched sequential processing failed', llo({ network, error }))
+      logger.error('Optimized sequential processing failed', llo({ network, error }))
       throw error
     }
   },
 
-  // STRATEGY 4: Stream-like processing with backpressure handling
-  async parseAndProcessTransferLogsStreamed(logs: Log[], network: NetworksEnum) {
+  async _processChunkSequentially(logs: Log[], network: NetworksEnum): Promise<void> {
+    const deduplicatedLogs = this._deduplicateTransferLogs(logs, network)
+
+    if (deduplicatedLogs.length === 0) return
+
+    let timestampCache: any = null
     try {
-      const startTime = Date.now()
-      const deduplicatedLogs = this._deduplicateTransferLogs(logs, network)
-      const timestampCache = await this._collectTimestamps(deduplicatedLogs, network)
-
-      logger.info(
-        'Starting streamed processing',
-        llo({
-          network,
-          totalLogs: deduplicatedLogs.length,
-        }),
-      )
-
-      // Create an async iterator for sequential processing
-      await this._processLogsAsyncIterator(deduplicatedLogs, network, timestampCache)
-
-      const duration = Date.now() - startTime
-      logger.info(
-        'Streamed processing completed',
-        llo({
-          network,
-          duration: `${duration}ms`,
-          totalLogs: deduplicatedLogs.length,
-        }),
-      )
+      timestampCache = await this._collectTimestamps(deduplicatedLogs, network)
     } catch (error) {
-      logger.error('Streamed processing failed', llo({ network, error }))
-      throw error
+      logger.error('Failed to collect timestamps for chunk', llo({ network, error }))
+      return
     }
-  },
 
-  async *_createLogAsyncIterator(logs: Log[]): AsyncIterableIterator<Log> {
-    for (const log of logs) {
-      yield log
-      // Small delay to prevent overwhelming the event loop
-      await this._yieldToEventLoop()
-    }
-  },
+    for (let i = 0; i < deduplicatedLogs.length; i++) {
+      const log = deduplicatedLogs[i]
 
-  async _processLogsAsyncIterator(logs: Log[], network: NetworksEnum, timestampCache: any): Promise<void> {
-    let processedCount = 0
-
-    for await (const log of this._createLogAsyncIterator(logs)) {
       try {
         await this._processEventLog(log, network, timestampCache)
-        processedCount++
-
-        if (processedCount % this.config.logProgressInterval === 0) {
-          logger.info(
-            'Stream processing progress',
-            llo({
-              network,
-              processed: processedCount,
-              total: logs.length,
-              percentage: Math.round((processedCount / logs.length) * 100),
-            }),
-          )
-        }
-      } catch (error) {
+      } catch (error: any) {
         logger.error(
-          'Stream log processing failed',
+          'Log processing failed, continuing',
           llo({
             network,
-            processedCount,
             txHash: log.transactionHash,
-            error,
+            error: error.message,
           }),
         )
       }
     }
-  },
 
-  // Helper method to yield control back to the event loop
-  async _yieldToEventLoop(): Promise<void> {
-    if (this.config.yieldDelay === 0) {
-      // Use setImmediate for fastest yielding
-      return new Promise(resolve => setImmediate(resolve))
-    } else {
-      // Use setTimeout with specified delay
-      return new Promise(resolve => setTimeout(resolve, this.config.yieldDelay))
-    }
-  },
-
-  // Helper method to create batches
-  _createBatches<T>(array: T[], batchSize: number): T[][] {
-    const batches: T[][] = []
-    for (let i = 0; i < array.length; i += batchSize) {
-      batches.push(array.slice(i, i + batchSize))
-    }
-    return batches
-  },
-
-  // STRATEGY 5: Memory-efficient processing for very large datasets
-  async parseAndProcessTransferLogsMemoryEfficient(logs: Log[], network: NetworksEnum) {
-    try {
-      const startTime = Date.now()
-
-      logger.info(
-        'Starting memory-efficient processing',
-        llo({
-          network,
-          totalLogs: logs.length,
-        }),
-      )
-
-      // Process in smaller chunks to avoid memory issues
-      const chunkSize = 1000 // Adjust based on available memory
-
-      for (let i = 0; i < logs.length; i += chunkSize) {
-        const chunk = logs.slice(i, i + chunkSize)
-        const deduplicatedChunk = this._deduplicateTransferLogs(chunk, network)
-        const timestampCache = await this._collectTimestamps(deduplicatedChunk, network)
-
-        // Process chunk sequentially
-        await this._processLogsWithYielding(deduplicatedChunk, network, timestampCache)
-
-        // Yield between chunks
-        await this._yieldToEventLoop()
-
-        logger.info(
-          'Chunk processed',
-          llo({
-            network,
-            chunkStart: i,
-            chunkEnd: Math.min(i + chunkSize, logs.length),
-            totalLogs: logs.length,
-          }),
-        )
-      }
-
-      const duration = Date.now() - startTime
-      logger.info(
-        'Memory-efficient processing completed',
-        llo({
-          network,
-          duration: `${duration}ms`,
-          totalLogs: logs.length,
-        }),
-      )
-    } catch (error) {
-      logger.error('Memory-efficient processing failed', llo({ network, error }))
-      throw error
-    }
+    timestampCache = null
   },
 
   _deduplicateTransferLogs(logs: Log[], network: NetworksEnum): Log[] {
+    if (logs.length === 0) return []
+
     const transferMap = new Map<string, Log>()
     const nonTransferLogs: Log[] = []
     let duplicatesRemoved = 0
@@ -416,16 +205,18 @@ const TransferCrawler = {
       return a.index - b.index
     })
 
-    logger.info(
-      'Deduplication completed',
-      llo({
-        originalLogs: logs.length,
-        finalLogs: result.length,
-        duplicatesRemoved,
-        reduction: `${Math.round((duplicatesRemoved / logs.length) * 100)}%`,
-        network,
-      }),
-    )
+    // Only log deduplication for larger chunks
+    if (logs.length > 50) {
+      logger.verbose(
+        'Chunk deduplication',
+        llo({
+          originalLogs: logs.length,
+          finalLogs: result.length,
+          duplicatesRemoved,
+          network,
+        }),
+      )
+    }
 
     return result
   },
@@ -441,104 +232,40 @@ const TransferCrawler = {
   },
 
   async _processEventLog(log: Log, network: NetworksEnum, timestampCache: any): Promise<void> {
-    try {
-      if (log.topics[0] === transferTopic) {
-        await this._processTransferLog(log, network, timestampCache)
-      } else if (log.topics[0] === delegateVotesChangedTopic) {
-        await this._processDelegateVotesChangedLog(log, network, timestampCache)
-      }
-    } catch (error) {
-      logger.error(
-        'Event log processing failed',
-        llo({
-          network,
-          eventType: log.topics[0] === transferTopic ? 'Transfer' : 'DelegateVotesChanged',
-          txHash: log.transactionHash,
-          logIndex: log.index,
-          error,
-        }),
-      )
-      throw error
+    if (log.topics[0] === transferTopic) {
+      await this._processTransferLog(log, network, timestampCache)
+    } else if (log.topics[0] === delegateVotesChangedTopic) {
+      await this._processDelegateVotesChangedLog(log, network, timestampCache)
     }
   },
 
   _parseLogArguments: (log: Log, network: NetworksEnum) => {
-    const decoded = Web3Utils.parseLog(log, iFace)
-    const iLogInfo = Web3Utils.parseInfoLog(log, decoded?.name!, network)
+    try {
+      const decoded = Web3Utils.parseLog(log, iFace)
+      const iLogInfo = Web3Utils.parseInfoLog(log, decoded?.name!, network)
 
-    return {
-      event: decoded,
-      info: iLogInfo,
+      return {
+        event: decoded,
+        info: iLogInfo,
+      }
+    } catch (error) {
+      logger.error('Log parsing failed', llo({ network, txHash: log.transactionHash, error }))
+      return { event: null, info: null }
     }
   },
 
   async _processTransferLog(log: Log, network: NetworksEnum, timestampCache: any): Promise<void> {
-    try {
-      const { event, info } = this._parseLogArguments(log, network)
-      if (!event || !info) {
-        return
-      }
+    const { event, info } = this._parseLogArguments(log, network)
+    if (!event || !info) return
 
-      const startTime = Date.now()
-      await GovernanceErc20Handler.transfer(event, info, false, timestampCache)
-
-      logger.verbose(
-        'Processing transfer',
-        llo({
-          network,
-          tokenAddress: info.address,
-          blockNumber: Number(log.blockNumber),
-          txHash: log.transactionHash,
-          timeTaken: Date.now() - startTime,
-        }),
-      )
-    } catch (error) {
-      logger.error(
-        'Transfer processing failed',
-        llo({
-          network,
-          txHash: log.transactionHash,
-          logIndex: log.index,
-          error,
-        }),
-      )
-      throw error
-    }
+    await GovernanceErc20Handler.transfer(event, info, false, timestampCache)
   },
 
   async _processDelegateVotesChangedLog(log: Log, network: NetworksEnum, timestampCache: any): Promise<void> {
-    try {
-      const { event, info } = this._parseLogArguments(log, network)
+    const { event, info } = this._parseLogArguments(log, network)
+    if (!event || !info) return
 
-      if (!event || !info) {
-        return
-      }
-
-      const startTime = Date.now()
-      await GovernanceErc20Handler.delegateVotesChanged(event, info, false, timestampCache)
-
-      logger.verbose(
-        'Processing delegate votes changed',
-        llo({
-          network,
-          tokenAddress: log.address,
-          blockNumber: Number(log.blockNumber),
-          txHash: log.transactionHash,
-          timeTaken: Date.now() - startTime,
-        }),
-      )
-    } catch (error) {
-      logger.error(
-        'DelegateVotesChanged processing failed',
-        llo({
-          network,
-          txHash: log.transactionHash,
-          logIndex: log.index,
-          error,
-        }),
-      )
-      throw error
-    }
+    await GovernanceErc20Handler.delegateVotesChanged(event, info, false, timestampCache)
   },
 }
 
