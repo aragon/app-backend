@@ -8,9 +8,13 @@ import Web3Helper from '@helpers/web3'
 const llo = logger.logMeta.bind(null, { service: 'handlers:GovernanceVeHandler' })
 
 export const GovernanceVeHandler = {
-  delegateTokens: async (parsedEvent: LogDescription, info: ILogInfo) => {},
+  delegateTokens: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    // event TokensDelegated(address indexed sender, address indexed delegatee, uint256[] tokenIds);
+  },
 
-  unDelegateTokens: async (parsedEvent: LogDescription, info: ILogInfo) => {},
+  unDelegateTokens: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    // event TokensUndelegated(address indexed sender, address indexed delegatee, uint256[] tokenIds);
+  },
 
   deposit: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const plugin = await Models.Plugin.findOne({
