@@ -106,6 +106,11 @@ export enum IVotingEscrowIncreasingLogs {
   MinDepositSet = 'MinDepositSet',
 }
 
+export enum IVotingEscrowAdapterLogs {
+  TokensUndelegated = 'TokensUndelegated',
+  TokensDelegated = 'TokensDelegated',
+}
+
 export enum IExitQueueLogs {
   ExitQueued = 'ExitQueued',
   MinLockSet = 'MinLockSet',

@@ -75,7 +75,6 @@ export enum ITokenType {
   ERC721 = 'ERC721',
   ERC1155 = 'ERC1155',
   ERC777 = 'ERC777',
-  GovernanceERC20 = 'GovernanceERC20',
   escrowAdapter = 'escrowAdapter',
   native = 'native',
   unknown = 'unknown',

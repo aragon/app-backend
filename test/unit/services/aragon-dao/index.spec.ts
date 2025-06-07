@@ -261,7 +261,7 @@ describe('AragonDao: index', () => {
         params: {
           userAddress: '0x0User',
           tokenAddress: '0x0Token',
-          network: NetworksEnum.ethereumMainnet
+          network: NetworksEnum.ethereumMainnet,
         },
       } as any)
 
