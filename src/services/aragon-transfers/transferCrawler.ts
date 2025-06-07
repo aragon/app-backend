@@ -68,6 +68,8 @@ const TransferCrawler = {
     try {
       const startTime = Date.now()
 
+      const deduplicatedLogs = this._deduplicateTransferLogs(logs, network)
+
       logger.info(
         'Starting mixed events processing with address sharding',
         llo({
@@ -78,7 +80,7 @@ const TransferCrawler = {
         }),
       )
 
-      const shardedEvents = this._shardEventsByAddress(logs)
+      const shardedEvents = this._shardEventsByAddress(deduplicatedLogs)
 
       await this._processShardedEvents(shardedEvents, network)
 
@@ -97,6 +99,63 @@ const TransferCrawler = {
       logger.error('Mixed events processing failed', llo({ network, error }))
       throw error
     }
+  },
+
+  _deduplicateTransferLogs(logs: Log[], network: NetworksEnum): Log[] {
+    const transferMap = new Map<string, Log>()
+    const nonTransferLogs: Log[] = []
+    let duplicatesRemoved = 0
+
+    for (const log of logs) {
+      if (log.topics[0] !== transferTopic) {
+        nonTransferLogs.push(log)
+        continue
+      }
+
+      try {
+        const from = log.topics[1] ? ethers.getAddress(`0x${log.topics[1].slice(-40)}`) : null
+        const to = log.topics[2] ? ethers.getAddress(`0x${log.topics[2].slice(-40)}`) : null
+
+        if (!from || !to) {
+          nonTransferLogs.push(log)
+          continue
+        }
+
+        const transferKey = `${log.address.toLowerCase()}:${from.toLowerCase()}->${to.toLowerCase()}`
+
+        const existingLog = transferMap.get(transferKey)
+
+        if (!existingLog || this._isLogLater(log, existingLog)) {
+          if (existingLog) duplicatesRemoved++
+          transferMap.set(transferKey, log)
+        } else {
+          duplicatesRemoved++
+        }
+      } catch (error) {
+        nonTransferLogs.push(log)
+      }
+    }
+
+    const result = [...Array.from(transferMap.values()), ...nonTransferLogs]
+
+    result.sort((a, b) => {
+      if (a.blockNumber !== b.blockNumber) return a.blockNumber - b.blockNumber
+      if (a.transactionIndex !== b.transactionIndex) return a.transactionIndex - b.transactionIndex
+      return a.index - b.index
+    })
+
+    logger.info(
+      'Deduplication completed',
+      llo({
+        originalLogs: logs.length,
+        finalLogs: result.length,
+        duplicatesRemoved,
+        reduction: `${Math.round((duplicatesRemoved / logs.length) * 100)}%`,
+        network,
+      }),
+    )
+
+    return result
   },
 
   /**
@@ -178,6 +237,19 @@ const TransferCrawler = {
       hash = hash & hash // Convert to 32-bit integer
     }
     return Math.abs(hash)
+  },
+
+  /**
+   * Compare which log is later (higher block, tx index, log index)
+   */
+  _isLogLater(logA: Log, logB: Log): boolean {
+    if (logA.blockNumber !== logB.blockNumber) {
+      return logA.blockNumber > logB.blockNumber
+    }
+    if (logA.transactionIndex !== logB.transactionIndex) {
+      return logA.transactionIndex > logB.transactionIndex
+    }
+    return logA.index > logB.index
   },
 
   /**
