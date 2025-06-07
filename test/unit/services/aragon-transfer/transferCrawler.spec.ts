@@ -8,8 +8,10 @@ import BlockchainLogCrawler from '@src/modules/blockchainLogCrawler'
 import { NetworksEnum } from '@types'
 import PoolingCrawler from '@modules/poolingCrawler'
 import Web3Utils from '@src/helpers/web3Utils'
+import Web3Helper from '@helpers/web3'
 import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 import TransferCrawler from '@services/aragon-transfers/transferCrawler'
+import configIndexer from '@indexer/configIndexer'
 
 describe('Module: TransferCrawler', () => {
   let sandbox: SinonSandbox
@@ -37,7 +39,6 @@ describe('Module: TransferCrawler', () => {
       const result = await TransferCrawler.start({
         logService: 'test-service',
         network: NetworksEnum.ethereumMainnet,
-        topics: [],
       })
 
       expect(crawlStub.calledOnce).to.be.true
@@ -47,15 +48,13 @@ describe('Module: TransferCrawler', () => {
     it('should create new crawler instance with correct configuration', async () => {
       const crawlStub = sandbox.stub().resolves()
       sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(crawlStub)
+      sandbox.stub(configIndexer, 'filter').returns([])
       sandbox.stub(PoolingCrawler, 'filterLogs').resolves([])
       sandbox.stub(TransferCrawler, 'parseAndProcessTransferLogs').resolves()
-
-      const topics = [{ event: 'Transfer' }, { event: 'DelegateVotesChanged' }] as any[]
 
       await TransferCrawler.start({
         logService: 'test-service',
         network: NetworksEnum.ethereumMainnet,
-        topics,
       })
 
       expect(TransferCrawler.instances.size).to.equal(1)
@@ -63,118 +62,40 @@ describe('Module: TransferCrawler', () => {
       expect(crawlStub.calledOnce).to.be.true
     })
 
-    it('should configure filterLogs callback correctly', async () => {
-      const mockLogs = [{ topics: [transferTopic] }] as any[]
-      const filteredLogs = [{ topics: [transferTopic] }] as any[]
+    it('should handle errors gracefully', async () => {
+      sandbox.stub(configIndexer, 'filter').throws(new Error('Config error'))
+      const loggerErrorStub = sandbox.stub(logger, 'error')
 
-      const poolingFilterStub = sandbox.stub(PoolingCrawler, 'filterLogs').resolves(filteredLogs)
-      const parseAndProcessStub = sandbox.stub(TransferCrawler, 'parseAndProcessTransferLogs').resolves()
-      sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
-
-      await TransferCrawler.start({
+      const result = await TransferCrawler.start({
         logService: 'test-service',
         network: NetworksEnum.ethereumMainnet,
-        topics: [],
       })
 
-      // Get the filterLogs callback from BlockchainLogCrawler constructor
-      const crawlerInstance = TransferCrawler.instances.get(NetworksEnum.ethereumMainnet) as any
-      expect(crawlerInstance).to.exist
-
-      // Simulate calling the filterLogs callback
-      const filterLogsCallback = crawlerInstance.crawlParams?.filterLogs || (() => {})
-      await filterLogsCallback(mockLogs)
-
-      expect(poolingFilterStub.calledWith(mockLogs, NetworksEnum.ethereumMainnet)).to.be.true
-      expect(parseAndProcessStub.calledWith(filteredLogs, NetworksEnum.ethereumMainnet)).to.be.true
+      expect(result).to.be.undefined
+      expect(loggerErrorStub.calledWith('TransferCrawler start' as any)).to.be.true
     })
   })
 
-  describe('_extractAddressesFromLog', () => {
-    it('should extract addresses from Transfer event', () => {
-      const mockLog: Log = {
-        topics: [
-          transferTopic,
-          '0x000000000000000000000000742d35cc6ad3c0532f747c0c5f4a5ae2e8a1b71a',
-          '0x000000000000000000000000742d35cc6ad3c0532f747c0c5f4a5ae2e8a1b71b',
-        ],
-        data: '0x',
-        address: '0x123',
-        blockNumber: 1,
-        transactionIndex: 0,
-        index: 0,
-        blockHash: '0x',
-        transactionHash: '0x',
-      } as any
+  describe('_collectTimestamps', () => {
+    it('should collect timestamps for block range', async () => {
+      const mockLogs: Log[] = [
+        { blockNumber: 100 } as any,
+        { blockNumber: 102 } as any,
+        { blockNumber: 101 } as any,
+      ]
 
-      const addresses = TransferCrawler._extractAddressesFromLog(mockLog)
+      const mockTimestamps = { 100: 1000, 101: 1001, 102: 1002 }
+      const web3HelperStub = sandbox.stub(Web3Helper, 'getBlocksTimestamps').resolves(mockTimestamps)
 
-      expect(addresses).to.have.lengthOf(2)
-      // Use lowercase comparison since ethers.getAddress() may return different casing
-      expect(addresses[0].toLowerCase()).to.equal('0x742d35cc6ad3c0532f747c0c5f4a5ae2e8a1b71a')
-      expect(addresses[1].toLowerCase()).to.equal('0x742d35cc6ad3c0532f747c0c5f4a5ae2e8a1b71b')
-    })
+      const result = await TransferCrawler._collectTimestamps(mockLogs, NetworksEnum.ethereumMainnet)
 
-    it('should extract address from DelegateVotesChanged event', () => {
-      const mockLog: Log = {
-        topics: [delegateVotesChangedTopic, '0x000000000000000000000000742d35cc6ad3c0532f747c0c5f4a5ae2e8a1b71a'],
-        data: '0x',
-        address: '0x123',
-        blockNumber: 1,
-        transactionIndex: 0,
-        index: 0,
-        blockHash: '0x',
-        transactionHash: '0x',
-      } as any
-
-      const addresses = TransferCrawler._extractAddressesFromLog(mockLog)
-
-      expect(addresses).to.have.lengthOf(1)
-      expect(addresses[0].toLowerCase()).to.equal('0x742d35cc6ad3c0532f747c0c5f4a5ae2e8a1b71a')
-    })
-
-    it('should handle zero addresses in Transfer events', () => {
-      const mockLog: Log = {
-        topics: [
-          transferTopic,
-          '0x0000000000000000000000000000000000000000000000000000000000000000',
-          '0x000000000000000000000000742d35cc6ad3c0532f747c0c5f4a5ae2e8a1b71b',
-        ],
-        data: '0x',
-        address: '0x123',
-        blockNumber: 1,
-        transactionIndex: 0,
-        index: 0,
-        blockHash: '0x',
-        transactionHash: '0x',
-      } as any
-
-      const addresses = TransferCrawler._extractAddressesFromLog(mockLog)
-
-      expect(addresses).to.have.lengthOf(1)
-      expect(addresses[0].toLowerCase()).to.equal('0x742d35cc6ad3c0532f747c0c5f4a5ae2e8a1b71b')
-    })
-
-    it('should handle invalid addresses gracefully', () => {
-      const mockLog: Log = {
-        topics: [transferTopic, '0xinvalid', '0xinvalid'],
-        data: '0x',
-        address: '0x123',
-        blockNumber: 1,
-        transactionIndex: 0,
-        index: 0,
-        blockHash: '0x',
-        transactionHash: '0x',
-      } as any
-
-      const addresses = TransferCrawler._extractAddressesFromLog(mockLog)
-
-      expect(addresses).to.be.an('array').that.is.empty
+      expect(result).to.equal(mockTimestamps)
+      expect(web3HelperStub.calledWith(100, 102, NetworksEnum.ethereumMainnet)).to.be.true
     })
   })
 
-  describe('_shardEventsByAddress', () => {
-    it('should shard events by address and maintain chronological order', () => {
+  describe('_deduplicateTransferLogs', () => {
+    it('should deduplicate Transfer logs by from->to key', () => {
       const mockLogs: Log[] = [
         {
           topics: [
@@ -182,184 +103,150 @@ describe('Module: TransferCrawler', () => {
             '0x000000000000000000000000742d35cc6ad3c0532f747c0c5f4a5ae2e8a1b71a',
             '0x000000000000000000000000742d35cc6ad3c0532f747c0c5f4a5ae2e8a1b71b',
           ],
+          address: '0x123',
           blockNumber: 100,
           transactionIndex: 0,
           index: 0,
-          address: '0x123',
         },
         {
           topics: [
             transferTopic,
             '0x000000000000000000000000742d35cc6ad3c0532f747c0c5f4a5ae2e8a1b71a',
-            '0x000000000000000000000000742d35cc6ad3c0532f747c0c5f4a5ae2e8a1b71c',
+            '0x000000000000000000000000742d35cc6ad3c0532f747c0c5f4a5ae2e8a1b71b',
           ],
+          address: '0x123',
           blockNumber: 101,
-          transactionIndex: 1,
-          index: 1,
-          address: '0x124',
+          transactionIndex: 0,
+          index: 0,
         },
       ] as any[]
 
-      const shardedEvents = TransferCrawler._shardEventsByAddress(mockLogs)
+      const result = TransferCrawler._deduplicateTransferLogs(mockLogs)
 
-      expect(shardedEvents).to.be.an('array')
-      expect(shardedEvents.length).to.be.greaterThan(0)
-
-      shardedEvents.forEach(shard => {
-        expect(shard).to.have.property('shardKey')
-        expect(shard).to.have.property('logs')
-        expect(shard).to.have.property('involvedAddresses')
-        expect(shard.logs).to.be.an('array')
-        expect(shard.involvedAddresses).to.be.an.instanceOf(Set)
-      })
+      expect(result).to.have.lengthOf(1)
+      expect(result[0].blockNumber).to.equal(101) // Should keep the later one
     })
 
-    it('should skip logs with no extractable addresses', () => {
+    it('should keep non-Transfer logs without deduplication', () => {
       const mockLogs: Log[] = [
         {
-          topics: ['0xinvalidtopic'],
+          topics: [delegateVotesChangedTopic, '0x000000000000000000000000742d35cc6ad3c0532f747c0c5f4a5ae2e8a1b71a'],
+          address: '0x123',
           blockNumber: 100,
           transactionIndex: 0,
           index: 0,
+        },
+        {
+          topics: [delegateVotesChangedTopic, '0x000000000000000000000000742d35cc6ad3c0532f747c0c5f4a5ae2e8a1b71a'],
           address: '0x123',
+          blockNumber: 101,
+          transactionIndex: 0,
+          index: 1,
         },
       ] as any[]
 
-      const shardedEvents = TransferCrawler._shardEventsByAddress(mockLogs)
+      const result = TransferCrawler._deduplicateTransferLogs(mockLogs)
 
-      expect(shardedEvents).to.be.an('array').that.is.empty
+      expect(result).to.have.lengthOf(2)
+    })
+
+    it('should handle invalid transfer topics gracefully', () => {
+      const mockLogs: Log[] = [
+        {
+          topics: [transferTopic, '0xinvalid', '0xinvalid'],
+          address: '0x123',
+          blockNumber: 100,
+          transactionIndex: 0,
+          index: 0,
+        },
+      ] as any[]
+
+      const result = TransferCrawler._deduplicateTransferLogs(mockLogs)
+
+      expect(result).to.have.lengthOf(1) // Should keep the log even if addresses are invalid
     })
   })
 
-  describe('_getShardKey', () => {
-    it('should generate consistent shard keys for same addresses', () => {
-      const addr1 = '0x742d35Cc6Ad3c0532f747c0C5f4a5aE2e8a1B71a'
-      const addr2 = '0x742d35Cc6Ad3c0532f747c0C5f4a5aE2e8a1B71b'
+  describe('_isLogLater', () => {
+    it('should return true when logA has higher block number', () => {
+      const logA = { blockNumber: 101, transactionIndex: 0, index: 0 } as any
+      const logB = { blockNumber: 100, transactionIndex: 0, index: 0 } as any
 
-      const key1 = TransferCrawler._getShardKey(addr1, addr2)
-      const key2 = TransferCrawler._getShardKey(addr1, addr2)
-
-      expect(key1).to.equal(key2)
-      expect(key1).to.match(/^shard-\d{3}$/)
+      expect(TransferCrawler._isLogLater(logA, logB)).to.be.true
     })
 
-    it('should distribute addresses across shards', () => {
-      const addresses = [
-        '0x742d35Cc6Ad3c0532f747c0C5f4a5aE2e8a1B71a',
-        '0x742d35Cc6Ad3c0532f747c0C5f4a5aE2e8a1B71b',
-        '0x742d35Cc6Ad3c0532f747c0C5f4a5aE2e8a1B71c',
-        '0x742d35Cc6Ad3c0532f747c0C5f4a5aE2e8a1B71d',
-      ]
+    it('should return true when logA has higher transaction index in same block', () => {
+      const logA = { blockNumber: 100, transactionIndex: 1, index: 0 } as any
+      const logB = { blockNumber: 100, transactionIndex: 0, index: 0 } as any
 
-      const shardKeys = new Set()
-      addresses.forEach((addr1, i) => {
-        addresses.forEach((addr2, j) => {
-          if (i !== j) {
-            shardKeys.add(TransferCrawler._getShardKey(addr1, addr2))
-          }
-        })
-      })
+      expect(TransferCrawler._isLogLater(logA, logB)).to.be.true
+    })
 
-      expect(shardKeys.size).to.be.greaterThan(1)
+    it('should return true when logA has higher log index in same transaction', () => {
+      const logA = { blockNumber: 100, transactionIndex: 0, index: 1 } as any
+      const logB = { blockNumber: 100, transactionIndex: 0, index: 0 } as any
+
+      expect(TransferCrawler._isLogLater(logA, logB)).to.be.true
+    })
+
+    it('should return false when logA is earlier than logB', () => {
+      const logA = { blockNumber: 100, transactionIndex: 0, index: 0 } as any
+      const logB = { blockNumber: 101, transactionIndex: 0, index: 0 } as any
+
+      expect(TransferCrawler._isLogLater(logA, logB)).to.be.false
     })
   })
 
   describe('parseAndProcessTransferLogs', () => {
-    it('should process logs with address sharding', async () => {
-      const mockLogs: Log[] = [
-        {
-          topics: [
-            transferTopic,
-            '0x000000000000000000000000742d35cc6ad3c0532f747c0c5f4a5ae2e8a1b71a',
-            '0x000000000000000000000000742d35cc6ad3c0532f747c0c5f4a5ae2e8a1b71b',
-          ],
-          blockNumber: 100,
-          transactionIndex: 0,
-          index: 0,
-          address: '0x123',
-        },
-      ] as any[]
+    it('should process logs in batches', async () => {
+      const mockLogs: Log[] = Array(250).fill({
+        topics: [transferTopic],
+        blockNumber: 100,
+        transactionIndex: 0,
+        index: 0,
+        address: '0x123',
+      }) as any[]
 
-      sandbox.stub(TransferCrawler, '_processShardedEvents').resolves()
+      sandbox.stub(TransferCrawler, '_deduplicateTransferLogs').returns(mockLogs)
+      sandbox.stub(TransferCrawler, '_collectTimestamps').resolves({})
+      sandbox.stub(TransferCrawler, '_processLogsConcurrently').resolves()
       const loggerInfoStub = sandbox.stub(logger, 'info')
 
       await TransferCrawler.parseAndProcessTransferLogs(mockLogs, NetworksEnum.ethereumMainnet)
 
-      expect(loggerInfoStub.calledWith('Starting mixed events processing with address sharding' as any)).to.be.true
       expect(loggerInfoStub.calledWith('Events processing completed' as any)).to.be.true
     })
-
-    it('should handle processing errors', async () => {
-      const mockLogs: Log[] = []
-      sandbox.stub(TransferCrawler, '_processShardedEvents').rejects(new Error('Processing error'))
-      const loggerErrorStub = sandbox.stub(logger, 'error')
-
-      try {
-        await TransferCrawler.parseAndProcessTransferLogs(mockLogs, NetworksEnum.ethereumMainnet)
-      } catch (error: any) {
-        expect(error.message).to.equal('Processing error')
-      }
-
-      expect(loggerErrorStub.calledWith('Mixed events processing failed' as any)).to.be.true
-    })
   })
 
-  describe('_processShardedEvents', () => {
-    it('should process sharded events using async queue', async () => {
-      const mockShardedEvents = [
-        {
-          shardKey: 'shard-001',
-          logs: [{ topics: [transferTopic] }] as any[],
-          involvedAddresses: new Set(['0x123']),
-        },
+  describe('_processLogsConcurrently', () => {
+    it('should process logs with concurrency limit', async () => {
+      const mockLogs: Log[] = [
+        { topics: [transferTopic], transactionHash: '0x1', index: 0 } as any,
+        { topics: [transferTopic], transactionHash: '0x2', index: 1 } as any,
       ]
-
-      const processShardBatchesStub = sandbox.stub(TransferCrawler, '_processShardBatches').resolves()
-      const loggerInfoStub = sandbox.stub(logger, 'info')
-
-      await TransferCrawler._processShardedEvents(mockShardedEvents, NetworksEnum.ethereumMainnet)
-
-      expect(processShardBatchesStub.calledOnce).to.be.true
-      expect(loggerInfoStub.calledWith('All shards processed' as any)).to.be.true
-    })
-
-    it('should handle queue processing errors', async () => {
-      const mockShardedEvents = [
-        {
-          shardKey: 'shard-001',
-          logs: [{ topics: [transferTopic] }] as any[],
-          involvedAddresses: new Set(['0x123']),
-        },
-      ]
-
-      sandbox.stub(TransferCrawler, '_processShardBatches').rejects(new Error('Shard error'))
-      const loggerErrorStub = sandbox.stub(logger, 'error')
-
-      try {
-        await TransferCrawler._processShardedEvents(mockShardedEvents, NetworksEnum.ethereumMainnet)
-      } catch (error: any) {
-        expect(error.message).to.equal('Shard error')
-      }
-
-      expect(loggerErrorStub.calledWith('Shard processing failed' as any)).to.be.true
-    })
-  })
-
-  describe('_processShardBatches', () => {
-    it('should process logs in batches within a shard', async () => {
-      const mockShard = {
-        shardKey: 'shard-001',
-        logs: Array(1200).fill({ topics: [transferTopic] }) as any[], // More than batchSize
-        involvedAddresses: new Set(['0x123']),
-      }
 
       const processEventLogStub = sandbox.stub(TransferCrawler, '_processEventLog').resolves()
-      const loggerDebugStub = sandbox.stub(logger, 'debug')
 
-      await TransferCrawler._processShardBatches(mockShard, NetworksEnum.ethereumMainnet)
+      await TransferCrawler._processLogsConcurrently(mockLogs, NetworksEnum.ethereumMainnet, {})
 
-      expect(processEventLogStub.callCount).to.equal(1200)
-      expect(loggerDebugStub.calledWith('Processing shard batch' as any)).to.be.true
+      expect(processEventLogStub.callCount).to.equal(2)
+    })
+
+    it('should handle individual log processing errors without stopping batch', async () => {
+      const mockLogs: Log[] = [
+        { topics: [transferTopic], transactionHash: '0x1', index: 0 } as any,
+        { topics: [transferTopic], transactionHash: '0x2', index: 1 } as any,
+      ]
+
+      sandbox.stub(TransferCrawler, '_processEventLog')
+        .onFirstCall().rejects(new Error('Processing error'))
+        .onSecondCall().resolves()
+
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+
+      await TransferCrawler._processLogsConcurrently(mockLogs, NetworksEnum.ethereumMainnet, {})
+
+      expect(loggerErrorStub.calledWith('Log processing failed in concurrent batch' as any)).to.be.true
     })
   })
 
@@ -374,10 +261,10 @@ describe('Module: TransferCrawler', () => {
 
       const processTransferStub = sandbox.stub(TransferCrawler, '_processTransferLog').resolves()
 
-      await TransferCrawler._processEventLog(mockLog, NetworksEnum.ethereumMainnet)
+      await TransferCrawler._processEventLog(mockLog, NetworksEnum.ethereumMainnet, {})
 
       expect(processTransferStub.calledOnce).to.be.true
-      expect(processTransferStub.calledWith(mockLog, NetworksEnum.ethereumMainnet)).to.be.true
+      expect(processTransferStub.calledWith(mockLog, NetworksEnum.ethereumMainnet, {})).to.be.true
     })
 
     it('should process DelegateVotesChanged event log', async () => {
@@ -390,10 +277,10 @@ describe('Module: TransferCrawler', () => {
 
       const processDelegateStub = sandbox.stub(TransferCrawler, '_processDelegateVotesChangedLog').resolves()
 
-      await TransferCrawler._processEventLog(mockLog, NetworksEnum.ethereumMainnet)
+      await TransferCrawler._processEventLog(mockLog, NetworksEnum.ethereumMainnet, {})
 
       expect(processDelegateStub.calledOnce).to.be.true
-      expect(processDelegateStub.calledWith(mockLog, NetworksEnum.ethereumMainnet)).to.be.true
+      expect(processDelegateStub.calledWith(mockLog, NetworksEnum.ethereumMainnet, {})).to.be.true
     })
 
     it('should handle processing errors', async () => {
@@ -408,7 +295,8 @@ describe('Module: TransferCrawler', () => {
       const loggerErrorStub = sandbox.stub(logger, 'error')
 
       try {
-        await TransferCrawler._processEventLog(mockLog, NetworksEnum.ethereumMainnet)
+        await TransferCrawler._processEventLog(mockLog, NetworksEnum.ethereumMainnet, {})
+        expect.fail('Should have thrown an error')
       } catch (error: any) {
         expect(error.message).to.equal('Handler error')
       }
@@ -435,13 +323,13 @@ describe('Module: TransferCrawler', () => {
       } as any)
 
       const transferStub = sandbox.stub(GovernanceErc20Handler, 'transfer').resolves()
-      const loggerDebugStub = sandbox.stub(logger, 'debug')
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
 
-      await TransferCrawler._processTransferLog(mockLog, NetworksEnum.ethereumMainnet)
+      await TransferCrawler._processTransferLog(mockLog, NetworksEnum.ethereumMainnet, {})
 
       expect(transferStub.calledOnce).to.be.true
-      expect(transferStub.calledWith(mockEvent, mockInfo)).to.be.true
-      expect(loggerDebugStub.calledWith('Processing transfer' as any)).to.be.true
+      expect(transferStub.calledWith(mockEvent, mockInfo, false, {})).to.be.true
+      expect(loggerVerboseStub.calledWith('Processing transfer' as any)).to.be.true
     })
 
     it('should return early if parsing fails', async () => {
@@ -457,38 +345,9 @@ describe('Module: TransferCrawler', () => {
 
       const transferStub = sandbox.stub(GovernanceErc20Handler, 'transfer').resolves()
 
-      await TransferCrawler._processTransferLog(mockLog, NetworksEnum.ethereumMainnet)
+      await TransferCrawler._processTransferLog(mockLog, NetworksEnum.ethereumMainnet, {})
 
       expect(transferStub.called).to.be.false
-    })
-
-    it('should handle transfer processing errors', async () => {
-      const mockLog: Log = {
-        topics: [transferTopic],
-        address: '0x123',
-        blockNumber: 100,
-        transactionHash: '0xhash',
-        index: 0,
-      } as any
-
-      const mockEvent = { name: 'Transfer', args: {} }
-      const mockInfo = { address: '0x123', blockNumber: 100 }
-
-      sandbox.stub(TransferCrawler, '_parseLogArguments').returns({
-        event: mockEvent,
-        info: mockInfo,
-      } as any)
-
-      sandbox.stub(GovernanceErc20Handler, 'transfer').rejects(new Error('Handler error'))
-      const loggerErrorStub = sandbox.stub(logger, 'error')
-
-      try {
-        await TransferCrawler._processTransferLog(mockLog, NetworksEnum.ethereumMainnet)
-      } catch (error: any) {
-        expect(error.message).to.equal('Handler error')
-      }
-
-      expect(loggerErrorStub.calledWith('Transfer processing failed' as any)).to.be.true
     })
   })
 
@@ -510,13 +369,13 @@ describe('Module: TransferCrawler', () => {
       } as any)
 
       const delegateStub = sandbox.stub(GovernanceErc20Handler, 'delegateVotesChanged').resolves()
-      const loggerDebugStub = sandbox.stub(logger, 'debug')
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
 
-      await TransferCrawler._processDelegateVotesChangedLog(mockLog, NetworksEnum.ethereumMainnet)
+      await TransferCrawler._processDelegateVotesChangedLog(mockLog, NetworksEnum.ethereumMainnet, {})
 
       expect(delegateStub.calledOnce).to.be.true
-      expect(delegateStub.calledWith(mockEvent, mockInfo)).to.be.true
-      expect(loggerDebugStub.calledWith('Processing delegate votes changed' as any)).to.be.true
+      expect(delegateStub.calledWith(mockEvent, mockInfo, false, {})).to.be.true
+      expect(loggerVerboseStub.calledWith('Processing delegate votes changed' as any)).to.be.true
     })
 
     it('should return early if parsing fails', async () => {
@@ -532,38 +391,9 @@ describe('Module: TransferCrawler', () => {
 
       const delegateStub = sandbox.stub(GovernanceErc20Handler, 'delegateVotesChanged').resolves()
 
-      await TransferCrawler._processDelegateVotesChangedLog(mockLog, NetworksEnum.ethereumMainnet)
+      await TransferCrawler._processDelegateVotesChangedLog(mockLog, NetworksEnum.ethereumMainnet, {})
 
       expect(delegateStub.called).to.be.false
-    })
-
-    it('should handle delegate processing errors', async () => {
-      const mockLog: Log = {
-        topics: [delegateVotesChangedTopic],
-        address: '0x123',
-        blockNumber: 100,
-        transactionHash: '0xhash',
-        index: 0,
-      } as any
-
-      const mockEvent = { name: 'DelegateVotesChanged', args: {} }
-      const mockInfo = { address: '0x123', blockNumber: 100 }
-
-      sandbox.stub(TransferCrawler, '_parseLogArguments').returns({
-        event: mockEvent,
-        info: mockInfo,
-      } as any)
-
-      sandbox.stub(GovernanceErc20Handler, 'delegateVotesChanged').rejects(new Error('Handler error'))
-      const loggerErrorStub = sandbox.stub(logger, 'error')
-
-      try {
-        await TransferCrawler._processDelegateVotesChangedLog(mockLog, NetworksEnum.ethereumMainnet)
-      } catch (error: any) {
-        expect(error.message).to.equal('Handler error')
-      }
-
-      expect(loggerErrorStub.calledWith('DelegateVotesChanged processing failed' as any)).to.be.true
     })
   })
 
@@ -584,36 +414,6 @@ describe('Module: TransferCrawler', () => {
 
       expect(result.event).to.equal(mockDecoded)
       expect(result.info).to.equal(mockInfo)
-    })
-  })
-
-  describe('_simpleHash', () => {
-    it('should generate consistent hash for same input', () => {
-      const input = 'test-string'
-
-      const hash1 = TransferCrawler._simpleHash(input)
-      const hash2 = TransferCrawler._simpleHash(input)
-
-      expect(hash1).to.equal(hash2)
-      expect(hash1).to.be.a('number')
-      expect(hash1).to.be.greaterThan(0)
-    })
-
-    it('should generate different hashes for different inputs', () => {
-      const hash1 = TransferCrawler._simpleHash('input1')
-      const hash2 = TransferCrawler._simpleHash('input2')
-
-      expect(hash1).to.not.equal(hash2)
-    })
-  })
-
-  describe('config', () => {
-    it('should have correct default configuration', () => {
-      expect(TransferCrawler.config).to.deep.equal({
-        concurrency: 20,
-        batchSize: 500,
-        shardCount: 150,
-      })
     })
   })
 })

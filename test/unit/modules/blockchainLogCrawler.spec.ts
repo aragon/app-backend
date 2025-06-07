@@ -176,7 +176,7 @@ describe('Module: blockchainLogCrawler', () => {
 
       sandbox.stub(crawler, 'updateAndCheckConditions').onFirstCall().resolves(true).onSecondCall().resolves(false)
 
-      const formatLogStub = sandbox.stub(crawler, 'formatLog').callsFake(log => ({ ...log, formatted: true }) as any)
+      const formatLogStub = sandbox.stub(crawler, 'formatLog')
 
       const processLogsSpy = sandbox.spy(crawler, 'processLogs')
 
@@ -184,7 +184,7 @@ describe('Module: blockchainLogCrawler', () => {
 
       expect(processLogsSpy.notCalled).to.be.true
       expect(result).to.have.lengthOf(2)
-      expect(result?.[0]).to.have.property('formatted', true)
+      expect(result?.[0]).to.have.property('transactionHash', '0x1')
       expect(formatLogStub.calledOnce).to.be.false
     })
 
