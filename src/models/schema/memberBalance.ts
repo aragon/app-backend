@@ -184,6 +184,32 @@ export default class MemberBalance extends Model {
     return await this.save(tOpts)
   }
 
+  async updateBalance(
+    {
+      amount,
+      blockNumber,
+      tokenId,
+    }: {
+      amount: string
+      blockNumber: number
+      tokenId?: number
+    },
+    tOpts?: SaveOptions,
+  ) {
+    this.amount = amount.toString()
+    this.lastSyncAmountBlockNumber = blockNumber
+
+    if (!this.tokenIds) {
+      this.tokenIds = []
+    }
+
+    if (tokenId !== undefined && this.tokenIds.includes(tokenId)) {
+      this.tokenIds = this.tokenIds.filter(id => id !== tokenId)
+    }
+
+    return await this.save(tOpts)
+  }
+
   static async findAndPaginate({
     paginationParams = {},
     extraParams = {},
