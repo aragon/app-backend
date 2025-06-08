@@ -7,9 +7,9 @@ import PoolingCrawler from '@modules/poolingCrawler'
 import { ERC721 } from '@artifacts/ERC721'
 import Web3Utils from '@src/helpers/web3Utils'
 import configIndexer from '@indexer/configIndexer'
-import Web3Helper from '@helpers/web3'
 import config from '@config'
 import { BatchTransfersHandler } from './batchTransfersHandler'
+import Web3BatchHelper from '@helpers/web3BatchHelper'
 
 const llo = logger.logMeta.bind(null, { service: 'module:TransferCrawler' })
 
@@ -49,7 +49,7 @@ const TransferCrawler = {
         onError: async (error: any) => logger.error('Error Transfer Crawler', llo({ network, error })),
         logService,
         stopOnError: true,
-        batchSize: 0.01,
+        batchSize: 0.015,
         skipLogProcessing: true,
         filterLogs: async (logs: Log[]) => {
           const filteredLogs = await PoolingCrawler.filterLogs(logs, network)
@@ -165,7 +165,7 @@ const TransferCrawler = {
         const startBlock = batch[0].info.blockNumber
         const endBlock = batch[batch.length - 1].info.blockNumber
 
-        const timestamps = await this._collectTimestamps(startBlock, endBlock, network)
+        const timestamps = await Web3BatchHelper.getBlocksTimestamps(startBlock, endBlock, network)
         processor.setTimestampCache(timestamps)
 
         await processor.processEvents(batch)
@@ -190,10 +190,6 @@ const TransferCrawler = {
         }),
       )
     }
-  },
-
-  async _collectTimestamps(startBlock: number, endBlock: number, network: NetworksEnum) {
-    return await Web3Helper.getBlocksTimestamps(startBlock, endBlock, network)
   },
 
   /**

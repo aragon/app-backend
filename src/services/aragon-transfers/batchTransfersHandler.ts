@@ -52,12 +52,9 @@ export class BatchTransfersHandler {
   private readonly network: NetworksEnum
   public readonly tokenAddress: HexAddress
   private plugins: any[] = []
-  private token: any = null
   private readonly options: TransferProcessorOptions
   private initialized = false
   private timestampCache: Record<string, number> = {}
-  private readonly web3BatchHelper: Web3BatchHelper
-
   /**
    * Create a new TransferProcessor
    * @param network The blockchain network
@@ -73,7 +70,6 @@ export class BatchTransfersHandler {
       updateDaoMetrics: true,
       ...options,
     }
-    this.web3BatchHelper = new Web3BatchHelper()
   }
 
   /**
@@ -208,7 +204,6 @@ export class BatchTransfersHandler {
       }
 
       this.plugins = plugins
-      this.token = token
       this.initialized = true
       return true
     } catch (error) {
@@ -376,11 +371,9 @@ export class BatchTransfersHandler {
     tokenId?: number,
   ): Promise<MemberBalance> {
     try {
-      // Get the timestamp for this block
       const blockTimestamp = await this.getBlockTimestamp(this.network, blockNumber)
 
-      // Use the batch helper to get voting power and balance
-      const batchResult = await this.web3BatchHelper.getVotingPowerAndBalancesInBatch(
+      const batchResult = await Web3BatchHelper.getVotingPowerAndBalancesInBatch(
         [
           {
             memberAddress: address,
@@ -465,7 +458,7 @@ export class BatchTransfersHandler {
         }),
       )
 
-      const batchResults = await this.web3BatchHelper.getVotingPowerAndBalancesInBatch(batchParams, this.network)
+      const batchResults = await Web3BatchHelper.getVotingPowerAndBalancesInBatch(batchParams, this.network)
 
       const balanceMap = new Map<string, MemberBalance>()
       await Promise.all(
