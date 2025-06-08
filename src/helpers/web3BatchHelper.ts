@@ -8,7 +8,7 @@ import Web3Helper from './web3'
 interface BatchRequestItem {
   method: string
   params: any[]
-  identifier: any // For tracking which request is which
+  identifier: any
 }
 
 interface BatchResponse<T> {
@@ -20,7 +20,7 @@ interface BatchResponse<T> {
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3BatchHelper' })
 
-class Web3BatchHelper {
+const Web3BatchHelper = {
   /**
    * Execute a batch of JSON-RPC requests
    */
@@ -79,7 +79,7 @@ class Web3BatchHelper {
         error,
       }))
     }
-  }
+  },
 
   /**
    * Helper method for encoding function calls
@@ -89,14 +89,14 @@ class Web3BatchHelper {
     const encodedParams = ethers.AbiCoder.defaultAbiCoder().encode(paramTypes, paramValues)
 
     return functionSelector + encodedParams.slice(2)
-  }
+  },
 
   /**
    * Helper method for decoding results
    */
   decodeResult<T>(types: string[], data: string): T {
     return ethers.AbiCoder.defaultAbiCoder().decode(types, data) as unknown as T
-  }
+  },
 
   /**
    * Convenience method for batch eth_call requests
@@ -123,7 +123,7 @@ class Web3BatchHelper {
     }))
 
     return this.executeBatch<T>(requests, network)
-  }
+  },
 
   /**
    * Example method for getting voting power in batch
@@ -170,13 +170,12 @@ class Web3BatchHelper {
         }
       })
     } catch (error) {
-      // Fallback or return zero values
       return batchParams.map(param => ({
         tokenId: param.tokenId,
         votingPower: 0n,
       }))
     }
-  }
+  },
 
   /**
    * Generic method for any batch RPC call
@@ -193,7 +192,7 @@ class Web3BatchHelper {
     }))
 
     return this.executeBatch<T>(requests, network)
-  }
+  },
 
   /**
    * Get block timestamps in batch using JSON-RPC batch requests
@@ -238,11 +237,11 @@ class Web3BatchHelper {
       logger.error('Error in getBlocksTimestamps', llo({ from, to, network, error }))
       return {}
     }
-  }
+  },
 
   async parseBlockNumber(network: NetworksEnum, blockNumber: number): Promise<number> {
     return await Web3Helper.getChainAdjustedBlockNumber(blockNumber, network)
-  }
+  },
 
   /**
    * Get voting power and token balances for multiple addresses in batch
@@ -382,7 +381,7 @@ class Web3BatchHelper {
 
       return results
     }
-  }
+  },
 }
 
 export default Web3BatchHelper
