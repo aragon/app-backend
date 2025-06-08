@@ -500,6 +500,10 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         100,
       ),
     },
+    TRANSFER_CRAWLER_CONFIG: {
+      BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'TRANSFER_CRAWLER_CONFIG_BATCH_SIZE', 200),
+      CONCURRENCY: utils.configParser(sourceConfig, 'number', 'TRANSFER_CRAWLER_CONFIG_CONCURRENCY', 10),
+    },
   }
 }
 
