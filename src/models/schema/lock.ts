@@ -266,6 +266,7 @@ export default class Lock extends Model {
           amount: 1,
           epochStartAt: 1,
           lockExit: 1,
+          escrowAddress: 1,
           lockWithdraw: {
             status: 1,
             transactionHash: 1,
