@@ -7,7 +7,7 @@ import {
   NetworksEnum,
 } from '@types'
 import Web3Helper from '@helpers/web3'
-import { Interface, Log, type LogDescription } from 'ethers'
+import { ethers, Interface, Log, type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import configIndexer from '@indexer/configIndexer'
 import Web3Utils from '@helpers/web3Utils'
@@ -233,6 +233,35 @@ const UnitDepUtils = {
         }
       }
     })
+  },
+
+  /**
+   * Get raw transfer logs from transaction receipt for testing batch processor
+   * Filters only Transfer and DelegateVotesChanged events
+   */
+  async getTokenLogsFromReceipt(
+    transactionHash: string,
+    network: NetworksEnum,
+  ): Promise<Log[]> {
+    try {
+      const receipt = await Web3Helper.getTransactionReceipt(transactionHash, network)
+      if (!receipt || !receipt.logs) {
+        return []
+      }
+
+       const tokenTopcis = [
+        ethers.id('Transfer(address,address,uint256)'),
+        ethers.id('DelegateVotesChanged(address,uint256,uint256)'), 
+      ]
+
+      return receipt.logs.filter(log => 
+        tokenTopcis.includes(log.topics[0])
+      )
+
+     
+    } catch (error) {
+      return []
+    }
   },
 }
 
