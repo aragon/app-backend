@@ -262,8 +262,6 @@ const Web3BatchHelper = {
         blockNumbers.push(blockNum)
       }
 
-      logger.info(`Getting timestamps for ${blockNumbers.length} blocks`, llo({ network, from, to }))
-
       const results = await this.callRpcMethod<any>(
         'eth_getBlockByNumber',
         blockNumbers.map(blockNumber => ({
@@ -288,7 +286,6 @@ const Web3BatchHelper = {
         }
       }
 
-      logger.info(`Successfully retrieved ${Object.keys(timestampMap).length} timestamps`, llo({ network }))
       return timestampMap
     } catch (error) {
       logger.error('Error in getBlocksTimestamps', llo({ from, to, network, error }))
@@ -316,8 +313,6 @@ const Web3BatchHelper = {
     if (params.length === 0) return {}
 
     try {
-      logger.info(`Getting voting power and balances for ${params.length} addresses`, llo({ network }))
-
       const votingPowerCalls: Array<{
         to: HexAddress
         data: string
