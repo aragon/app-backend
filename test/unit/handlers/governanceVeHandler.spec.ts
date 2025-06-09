@@ -12,6 +12,7 @@ import { PluginSetting } from '@models/schema/setting'
 import { ProxyToken } from '@modules/proxyToken'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import DbTx from '@modules/dbTx'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 
 describe('Handler:GovernanceVeHandler', () => {
   let sandbox: SinonSandbox
@@ -20,6 +21,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
     plugin = await Models.Plugin.create({
       id: 'test-plugin-1',
       address: '0x121',
@@ -54,7 +56,7 @@ describe('Handler:GovernanceVeHandler', () => {
     sandbox?.restore()
   })
 
-  describe('DepositHandler', () => {
+  describe('deposit', () => {
     it('should log error if plugin not found', async () => {
       const stubAddToDao = sandbox.stub(ProxyMember, 'addToDao').resolves()
       const stubLogger = sandbox.stub(logger, 'error')
@@ -121,6 +123,7 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stored?.memberAddress).to.equal(mockEvent.args.depositor)
       expect(stored?.tokenAddress).to.equal(plugin.tokenAddress)
       expect(stored?.nftAddress).to.equal(plugin?.votingEscrow?.nftLockAddress)
+      expect(stored?.escrowAddress).to.equal(plugin?.votingEscrow?.escrowAddress)
       expect(stored?.tokenId).to.equal(mockEvent.args.tokenId.toString())
       expect(stored?.amount).to.equal(mockEvent.args.value.toString())
       expect(stored?.epochStartAt).to.equal(Number(mockEvent.args.startTs))
@@ -132,7 +135,7 @@ describe('Handler:GovernanceVeHandler', () => {
     })
   })
 
-  describe('WithdrawHandler', () => {
+  describe('withdraw', () => {
     it('should log error if plugin not found', async () => {
       const stubRemoveFromDao = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
       const stubLogger = sandbox.stub(logger, 'error')
@@ -206,6 +209,7 @@ describe('Handler:GovernanceVeHandler', () => {
         pluginAddress: plugin.address,
         daoAddress: plugin.daoAddress,
         memberAddress: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+        escrowAddress: plugin?.votingEscrow?.escrowAddress,
         nftAddress: plugin?.votingEscrow?.nftLockAddress,
         tokenAddress: plugin.tokenAddress,
         tokenId: '123',
@@ -252,7 +256,7 @@ describe('Handler:GovernanceVeHandler', () => {
     })
   })
 
-  describe('ExitQueuedHandler', () => {
+  describe('exitQueued', () => {
     it('should log error if plugin not found', async () => {
       const stubLogger = sandbox.stub(logger, 'error')
 
@@ -317,6 +321,7 @@ describe('Handler:GovernanceVeHandler', () => {
         pluginAddress: plugin.address,
         daoAddress: plugin.daoAddress,
         memberAddress: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+        escrowAddress: plugin?.votingEscrow?.escrowAddress,
         nftAddress: plugin?.votingEscrow?.nftLockAddress,
         tokenAddress: plugin.tokenAddress,
         tokenId: '123',
@@ -358,7 +363,7 @@ describe('Handler:GovernanceVeHandler', () => {
     })
   })
 
-  describe('MinLockSetHandler', () => {
+  describe('minLockSet', () => {
     it('should log error if plugin not found', async () => {
       const stubLogger = sandbox.stub(logger, 'error')
 
@@ -431,7 +436,7 @@ describe('Handler:GovernanceVeHandler', () => {
     })
   })
 
-  describe('MinDepositSetHandler', () => {
+  describe('minDepositSet', () => {
     it('should log error if plugin not found', async () => {
       const stubLogger = sandbox.stub(logger, 'error')
 
@@ -504,7 +509,7 @@ describe('Handler:GovernanceVeHandler', () => {
     })
   })
 
-  describe('DelegateTokensHandler', () => {
+  describe('delegateTokens', () => {
     it('should return early if no plugins found', async () => {
       const stubLogger = sandbox.stub(logger, 'verbose')
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([])
@@ -611,7 +616,7 @@ describe('Handler:GovernanceVeHandler', () => {
     })
   })
 
-  describe('UnDelegateTokensHandler', () => {
+  describe('unDelegateTokens', () => {
     it('should return early if no plugins found', async () => {
       const stubLogger = sandbox.stub(logger, 'verbose')
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([])
@@ -725,6 +730,7 @@ describe('Handler:GovernanceVeHandler', () => {
       } as any)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('0')
       sandbox.stub(ProxyMember, 'getBalances').resolves({
+        increaseBalance: sandbox.stub().resolves({ amount: '1' }), // Add this
         decreaseBalance: sandbox.stub().resolves({ amount: '0' }),
       } as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
