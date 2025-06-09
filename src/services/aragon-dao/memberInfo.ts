@@ -140,6 +140,13 @@ export const MemberInfo = {
       const network = locks[0].network
       const results = await Web3BatchHelper.getLockVotingPowerAtInBatch(batchParams, network)
 
+      if (!results || !Array.isArray(results)) {
+        return locks.map(lock => ({
+          tokenId: lock.tokenId,
+          votingPower: '0',
+        }))
+      }
+
       return results.map(result => ({
         tokenId: result.tokenId,
         votingPower: result.votingPower.toString(),

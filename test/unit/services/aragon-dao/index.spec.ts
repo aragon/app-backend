@@ -36,7 +36,7 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      expect(processStub.callCount).to.equal(14)
+      expect(processStub.callCount).to.equal(15)
       expect(processStub.calledWith(EnumQueueName.allMetrics)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoTransactions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoAssets)).to.be.true
@@ -51,6 +51,7 @@ describe('AragonDao: index', () => {
       expect(processStub.calledWith(EnumQueueName.proposalActions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.canCreateProposal)).to.be.true
       expect(processStub.calledWith(EnumQueueName.pluginInstallationData)).to.be.true
+      expect(processStub.calledWith(EnumQueueName.getLockVotingPowerBatch)).to.be.true
 
       expect(loggerStub.calledOnceWith('AragonDaoService service started' as any)).to.be.true
     })
@@ -355,6 +356,26 @@ describe('AragonDao: index', () => {
       expect(queueName).to.eq(EnumQueueName.pluginInstallationData)
       expect(pluginInstallationStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
       expect(result).to.equal('{"installationData":"test"}')
+    })
+
+    it('should handle getLockVotingPowerBatch queue', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const memberInfoStub = sandbox.stub(MemberInfo, 'getLockVotingPowerBatch').resolves([])
+
+      await AragonDaoService.start()
+
+      const callIndex = processStub.args.findIndex(call => call[0] === EnumQueueName.getLockVotingPowerBatch)
+      const handler = processStub.getCall(callIndex).args[1]
+      const queueName = processStub.getCall(callIndex).args[0]
+
+      await handler({
+        params: {
+          locks: [{ lockId: 'lock1', network: NetworksEnum.ethereumMainnet }],
+        },
+      } as any)
+
+      expect(queueName).to.eq(EnumQueueName.getLockVotingPowerBatch)
+      expect(memberInfoStub.calledOnceWith([{ lockId: 'lock1', network: NetworksEnum.ethereumMainnet }])).to.be.true
     })
   })
 

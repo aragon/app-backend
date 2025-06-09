@@ -23,7 +23,7 @@ import { LockERC721 } from '@artifacts/LockERC721'
 import { VotingEscrowIncreasing } from '@artifacts/VotingEscrowIncreasing'
 import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
 import { ExitQueue } from '@artifacts/ExitQueue'
-import { VotingEscrowAdapter } from '@artifacts/VotingEscrowAdapter'
+import { VotingEscrow } from '@artifacts/VotingEscrow'
 
 const IndexerEventConfig: IIndexerConfig[] = [
   // historical and realtime on startup
@@ -394,10 +394,10 @@ const IndexerEventConfig: IIndexerConfig[] = [
   {
     event: 'TokensDelegated',
     enableHistorical: false,
-    topic: new Interface(VotingEscrowAdapter.abi).getEvent('TokensDelegated')?.topicHash!,
+    topic: new Interface(VotingEscrow.abi).getEvent('TokensDelegated')?.topicHash!,
     config: [
       {
-        abi: VotingEscrowAdapter.abi,
+        abi: VotingEscrow.abi,
         handler: GovernanceVeHandler.delegateTokens,
       },
     ],
@@ -405,10 +405,10 @@ const IndexerEventConfig: IIndexerConfig[] = [
   {
     event: 'TokensUndelegated',
     enableHistorical: false,
-    topic: new Interface(VotingEscrowAdapter.abi).getEvent('TokensUndelegated')?.topicHash!,
+    topic: new Interface(VotingEscrow.abi).getEvent('TokensUndelegated')?.topicHash!,
     config: [
       {
-        abi: VotingEscrowAdapter.abi,
+        abi: VotingEscrow.abi,
         handler: GovernanceVeHandler.unDelegateTokens,
       },
     ],

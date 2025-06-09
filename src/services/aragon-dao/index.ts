@@ -13,7 +13,7 @@ import {
   type IQueueVoteInfo,
   type IRawAction,
   type IService,
-  type IGetLockVotingPowerBatch
+  type IGetLockVotingPowerBatch,
 } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { DaoAssets } from '@services/aragon-dao/daoAssets'

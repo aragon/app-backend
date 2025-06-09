@@ -12,7 +12,7 @@ import DaoMemberMapping from '@models/schema/daoMemberMapping'
 import type Dao from '@models/schema/dao'
 import { fakeMemberBalance } from '@test/mock/fakeMemberBalance'
 import MemberBalance from '@models/schema/memberBalance'
-import { HexAddress, IPluginInterfaceType } from '@types'
+import { EnumQueueName, HexAddress, IPluginInterfaceType } from '@types'
 import { NetworksEnum } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 
@@ -457,8 +457,12 @@ describe('Controller: Member', () => {
   it('should call getMemberLocks with voting power calculation when locks exist', async () => {
     const mockLock = {
       id: 'lock-123',
+      tokenId: 'token-456',
       memberAddress: rawMember.address,
       amount: '1000000000000000000',
+      pluginAddress: rawDaoMemberMapping.pluginAddress,
+      network: rawDaoMemberMapping.network,
+      blockTimestamp: 1234567890,
     }
 
     const expectedResponse = {
@@ -470,8 +474,22 @@ describe('Controller: Member', () => {
       },
     }
 
+    const mockPlugin = {
+      votingEscrow: {
+        escrowAddress: '0xEscrowAddress',
+      },
+    }
+
+    const batchResult = [
+      {
+        tokenId: 'token-456',
+        votingPower: '500000000000000000',
+      },
+    ]
+
     const lockSpy = sandbox.stub(Models.Lock, 'findWithPagination').resolves(expectedResponse)
-    const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').returns('500000000000000000' as any)
+    const pluginSpy = sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin)
+    const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').returns(batchResult as any)
 
     const extraParams = { memberAddress: rawMember.address }
     const paginationParams = { page: 1, pageSize: 10 }
@@ -479,23 +497,21 @@ describe('Controller: Member', () => {
     const response = await MemberController.getMemberLocks(extraParams, paginationParams)
 
     expect(lockSpy.calledOnce).to.be.true
-    expect(
-      lockSpy.calledWith({
-        extraParams,
-        paginationParams,
-      }),
-    ).to.be.true
-
-    // Since the method maps over locks asynchronously, we need to await the promises
-    const resolvedData = await Promise.all(response.data)
-
+    expect(pluginSpy.calledOnce).to.be.true
     expect(rabbitMqStub.calledOnce).to.be.true
-    expect(rabbitMqStub.args[0][1]).to.deep.eq({
-      id: mockLock.id,
-      params: { lockId: mockLock.id },
-    })
 
-    expect(resolvedData[0]).to.deep.equal({
+    expect(rabbitMqStub.args[0][0]).to.equal(EnumQueueName.getLockVotingPowerBatch)
+    expect(rabbitMqStub.args[0][1].params).to.deep.equal([
+      {
+        lockId: mockLock.id,
+        tokenId: mockLock.tokenId,
+        network: mockLock.network,
+        escrowAddress: mockPlugin.votingEscrow.escrowAddress,
+        timestamp: mockLock.blockTimestamp,
+      },
+    ])
+
+    expect(response.data[0]).to.deep.include({
       ...mockLock,
       votingPower: '500000000000000000',
     })
