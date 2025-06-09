@@ -562,6 +562,56 @@ export const VotingEscrow = {
       stateMutability: 'nonpayable',
       type: 'function',
     },
+    {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: true,
+          internalType: 'address',
+          name: 'sender',
+          type: 'address',
+        },
+        {
+          indexed: true,
+          internalType: 'address',
+          name: 'delegatee',
+          type: 'address',
+        },
+        {
+          indexed: false,
+          internalType: 'uint256[]',
+          name: 'tokenIds',
+          type: 'uint256[]',
+        },
+      ],
+      name: 'TokensDelegated',
+      type: 'event',
+    },
+    {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: true,
+          internalType: 'address',
+          name: 'sender',
+          type: 'address',
+        },
+        {
+          indexed: true,
+          internalType: 'address',
+          name: 'delegatee',
+          type: 'address',
+        },
+        {
+          indexed: false,
+          internalType: 'uint256[]',
+          name: 'tokenIds',
+          type: 'uint256[]',
+        },
+      ],
+      name: 'TokensUndelegated',
+      type: 'event',
+    },
   ],
   bytecode: '0x',
   deployedBytecode: '0x',

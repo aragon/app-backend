@@ -11,11 +11,11 @@ import {
   type IPaginationParams,
   type IPairParams,
 } from '@types'
-import type Lock from '@models/schema/lock'
 import { assertExposable } from '@errors'
 import PairDataModule from '@modules/pairData'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import config from '@config'
+import type Lock from '@models/schema/lock'
 
 const MemberController = {
   getMembersWithPagination: async (
@@ -104,23 +104,37 @@ const MemberController = {
   ): Promise<IPaginatedResult<IMemberLockResponse>> => {
     const response = await Models.Lock.findWithPagination({ extraParams, paginationParams })
 
-    if (response.data.length > 0) {
-      response.data = response.data.map(async (lock: Lock) => {
-        const votingPower = await RabbitMQHelper.sendMessage(
-          EnumQueueName.contractDecoder,
-          {
-            id: lock.id,
-            params: { lockId: lock.id },
-          },
-          { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
-        )
-
-        return {
-          ...lock,
-          votingPower,
-        }
-      })
+    if (response.data.length === 0) {
+      return response
     }
+
+    const batchParams = response.data.map((lock: Lock) => ({
+      lockId: lock.id,
+      tokenId: lock.tokenId,
+      network: lock.network,
+      escrowAddress: lock.escrowAddress,
+      timestamp: lock.blockTimestamp || Math.floor(Date.now() / 1000),
+    }))
+
+    const batchResults = await RabbitMQHelper.sendMessage(
+      EnumQueueName.getLockVotingPowerBatch,
+      {
+        id: `lockVotingPowerBatch-${Date.now()}`,
+        params: batchParams,
+      },
+      { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
+    )
+
+    // Create a map for quick lookup
+    const votingPowerMap = new Map(
+      batchResults.map((result: { tokenId: string; votingPower: string }) => [result.tokenId, result.votingPower]),
+    )
+
+    // Update voting power
+    response.data = response.data.map((lock: Lock) => ({
+      ...lock,
+      votingPower: votingPowerMap.get(lock.tokenId) || '0',
+    }))
 
     return response
   },
