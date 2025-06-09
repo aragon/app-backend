@@ -26,6 +26,7 @@ describe('Model: Lock', () => {
       pluginAddress: '0xplugin1234567890abcdef1234567890abcdef12',
       daoAddress: '0xdao1234567890abcdef1234567890abcdef1234',
       memberAddress: '0xmember1234567890abcdef1234567890abcdef1',
+      escrowAddress: '0xescrow1234567890abcdef1234567890abcdef1',
       tokenAddress: '0xtoken1234567890abcdef1234567890abcdef12',
       nftAddress: '0xnft1234567890abcdef1234567890abcdef123',
       tokenId: '123',

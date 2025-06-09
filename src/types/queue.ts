@@ -11,8 +11,9 @@ export enum EnumQueueName {
   logDao = 'log.dao',
   contractInfo = 'contract.info',
   voteInfo = 'vote.info',
+  getVotingPower = 'member.votingPower',
+  getLockVotingPowerBatch = 'member.lockVotingPowerBatch',
   memberBalance = 'member.balance',
-  votingPowerAt = 'contract.votingPowerAt',
   contractDecoder = 'contract.decoder',
   tokenInfo = 'token.info',
   proposalActions = 'proposal.actions',
@@ -34,6 +35,12 @@ export interface IQueuePlugin {
   address: HexAddress
   network: NetworksEnum
   isHistorical?: boolean
+}
+
+export interface IGetVotingPower {
+  userAddress: HexAddress
+  tokenAddress: HexAddress
+  network: NetworksEnum
 }
 
 export interface IQueueContractInfo {
@@ -79,4 +86,14 @@ export interface IQueueRealtimeTransactions {
 export interface ISendOptions {
   waitResponse?: boolean
   timeout?: number // reject response after timeout
+}
+
+export interface IGetLockVotingPowerBatch {
+  locks: Array<{
+    lockId: string
+    tokenId: string
+    escrowAddress: HexAddress
+    timestamp: number
+    network: NetworksEnum
+  }>
 }
