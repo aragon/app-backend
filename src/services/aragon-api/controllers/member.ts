@@ -142,7 +142,6 @@ const MemberController = {
         })
       }
 
-      // Ensure all locks have a votingPower property, defaulting to '0'
       response.data = response.data.map(lock => ({
         ...lock,
         votingPower: lock.votingPower || '0',

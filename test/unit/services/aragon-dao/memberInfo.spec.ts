@@ -2,8 +2,8 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { MemberInfo } from '@services/aragon-dao/memberInfo'
 import Web3Helper from '@helpers/web3'
+import Web3BatchHelper from '@helpers/web3BatchHelper'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
-import GovernanceVeHelper from '@helpers/governanceVe'
 import { IPluginInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { ProxyToken } from '@modules/proxyToken'
@@ -534,6 +534,124 @@ describe('AragonDao: memberInfo', () => {
 
       expect(pluginStub.calledOnce).to.be.true
       expect(result).to.be.false
+    })
+  })
+
+  describe('getVotingPower', () => {
+    it('should return 0 when token is not found', async () => {
+      const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
+      const getVotesStub = sandbox.stub(GovernanceErc20Helper, 'getVotes').resolves(0n)
+
+      const result = await MemberInfo.getVotingPower('0xUserAddress', '0xTokenAddress', NetworksEnum.ethereumSepolia)
+
+      expect(proxyTokenStub.calledOnce).to.be.true
+      expect(proxyTokenStub.calledWith('0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be.true
+      expect(getVotesStub.called).to.be.false
+      expect(result).to.equal('0')
+    })
+
+    it('should return voting power when token is found', async () => {
+      const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ address: '0xTokenAddress' } as any)
+      const getVotesStub = sandbox.stub(GovernanceErc20Helper, 'getVotes').resolves(200n)
+
+      const result = await MemberInfo.getVotingPower('0xUserAddress', '0xTokenAddress', NetworksEnum.ethereumSepolia)
+
+      expect(proxyTokenStub.calledOnce).to.be.true
+      expect(getVotesStub.calledOnce).to.be.true
+      expect(getVotesStub.calledWith('0xUserAddress', '0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be.true
+      expect(result).to.equal('200')
+    })
+
+    it('should return 0 when an error occurs', async () => {
+      const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ address: '0xTokenAddress' } as any)
+      const getVotesStub = sandbox.stub(GovernanceErc20Helper, 'getVotes').rejects(new Error('Test error'))
+
+      const result = await MemberInfo.getVotingPower('0xUserAddress', '0xTokenAddress', NetworksEnum.ethereumSepolia)
+
+      expect(proxyTokenStub.calledOnce).to.be.true
+      expect(getVotesStub.calledOnce).to.be.true
+      expect(result).to.equal('0')
+    })
+  })
+
+  describe('getLockVotingPowerBatch', () => {
+    it('should return empty array when locks array is empty', async () => {
+      const web3BatchHelperStub = sandbox.stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch')
+
+      const result = await MemberInfo.getLockVotingPowerBatch([])
+
+      expect(web3BatchHelperStub.called).to.be.false
+      expect(result).to.deep.equal([])
+    })
+
+    it('should return voting power for each lock', async () => {
+      const locks = [
+        {
+          lockId: 'lock1',
+          tokenId: 'token1',
+          escrowAddress: '0xEscrowAddress1',
+          timestamp: 123456,
+          network: NetworksEnum.ethereumSepolia,
+        },
+        {
+          lockId: 'lock2',
+          tokenId: 'token2',
+          escrowAddress: '0xEscrowAddress2',
+          timestamp: 123457,
+          network: NetworksEnum.ethereumSepolia,
+        },
+      ]
+
+      const batchResults = [
+        { tokenId: 'token1', votingPower: 100n },
+        { tokenId: 'token2', votingPower: 200n },
+      ]
+
+      const web3BatchHelperStub = sandbox.stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch').resolves(batchResults)
+
+      const result = await MemberInfo.getLockVotingPowerBatch(locks)
+
+      expect(web3BatchHelperStub.calledOnce).to.be.true
+      expect(web3BatchHelperStub.firstCall.args[0]).to.deep.equal([
+        { escrowAddress: '0xEscrowAddress1', tokenId: 'token1', ts: 123456 },
+        { escrowAddress: '0xEscrowAddress2', tokenId: 'token2', ts: 123457 },
+      ])
+      expect(web3BatchHelperStub.firstCall.args[1]).to.equal(NetworksEnum.ethereumSepolia)
+      expect(result).to.deep.equal([
+        { tokenId: 'token1', votingPower: '100' },
+        { tokenId: 'token2', votingPower: '200' },
+      ])
+    })
+
+    it('should return zero voting power when an error occurs', async () => {
+      const locks = [
+        {
+          lockId: 'lock1',
+          tokenId: 'token1',
+          escrowAddress: '0xEscrowAddress1',
+          timestamp: 123456,
+          network: NetworksEnum.ethereumSepolia,
+        },
+        {
+          lockId: 'lock2',
+          tokenId: 'token2',
+          escrowAddress: '0xEscrowAddress2',
+          timestamp: 123457,
+          network: NetworksEnum.ethereumSepolia,
+        },
+      ]
+
+      const web3BatchHelperStub = sandbox
+        .stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch')
+        .rejects(new Error('Test error'))
+
+      const result = await MemberInfo.getLockVotingPowerBatch(locks)
+
+      expect(web3BatchHelperStub.calledOnce).to.be.true
+      expect(result).to.deep.equal([
+        { tokenId: 'token1', votingPower: '0' },
+        { tokenId: 'token2', votingPower: '0' },
+      ])
     })
   })
 })
