@@ -20,6 +20,7 @@ const AragonIndexerService: IService & { repeaters: any } = {
   repeaters: {},
 
   start: async function () {
+    const startTime = Date.now()
     logger.info('IndexerService historical started', llo({}))
 
     const networks = NetworkHelper.supportedNetworks()
@@ -86,6 +87,13 @@ const AragonIndexerService: IService & { repeaters: any } = {
       }
       const scheduler = TaskSchedulerState.getInstance()
       await scheduler.startTask('allPlugins', taskOptions)
+
+      logger.info(
+        'Pooling Scheduler started',
+        llo({
+          duration: Date.now() - startTime,
+        }),
+      )
     }
   },
 
