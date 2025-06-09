@@ -58,7 +58,7 @@ describe('Module: PoolingCrawler', () => {
       await PoolingCrawler.start({
         logService: 'test-service',
         network: NetworksEnum.ethereumMainnet,
-        })
+      })
 
       const crawlerInstance = PoolingCrawler.instances.get(NetworksEnum.ethereumMainnet)
       expect(crawlerInstance).to.exist

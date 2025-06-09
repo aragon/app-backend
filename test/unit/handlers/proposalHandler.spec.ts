@@ -2199,25 +2199,25 @@ describe('Indexer: ProposalHandler', () => {
           transactionHash: '0xhash1',
           transactionIndex: 0,
           address: '0xPlugin',
-          data: '0xdata1'
+          data: '0xdata1',
         },
         {
-          topics: ['0xproposalCreatedTopic'], 
+          topics: ['0xproposalCreatedTopic'],
           blockNumber: 110,
           logIndex: 0,
           transactionHash: '0xhash2',
           transactionIndex: 0,
           address: '0xPlugin',
-          data: '0xdata2'
+          data: '0xdata2',
         },
         {
           topics: ['0xproposalCreatedTopic'],
-          blockNumber: 111, 
+          blockNumber: 111,
           logIndex: 0,
           transactionHash: '0xhash3',
           transactionIndex: 0,
           address: '0xPlugin',
-          data: '0xdata3'
+          data: '0xdata3',
         },
       ]
 
@@ -2228,13 +2228,13 @@ describe('Indexer: ProposalHandler', () => {
       const formatLogStub = sandbox.stub(BlockchainLogCrawler.prototype, 'formatLog').callsFake((log: any) => {
         const mockEventArgs = {
           '1234567890123': { toString: () => '1234567890123' },
-          '9876543210123': { toString: () => '9876543210123' }, 
-          '0123456789012345': { toString: () => '0123456789012345' }
+          '9876543210123': { toString: () => '9876543210123' },
+          '0123456789012345': { toString: () => '0123456789012345' },
         }
-        
+
         const proposalIds = ['1234567890123', '9876543210123', '0123456789012345']
         const index = rawLogs.indexOf(log)
-        
+
         return {
           event: { args: { proposalId: mockEventArgs[proposalIds[index]] } },
           info: { blockNumber: log.blockNumber, logIndex: log.logIndex },
@@ -2277,16 +2277,16 @@ describe('Indexer: ProposalHandler', () => {
           transactionHash: '0xhash1',
           transactionIndex: 0,
           address: '0xPlugin',
-          data: '0xdata1'
+          data: '0xdata1',
         },
         {
           topics: ['0xproposalCreatedTopic'],
           blockNumber: 110,
           logIndex: 2,
-          transactionHash: '0xhash2', 
+          transactionHash: '0xhash2',
           transactionIndex: 0,
           address: '0xPlugin',
-          data: '0xdata2'
+          data: '0xdata2',
         },
       ]
 
@@ -2295,7 +2295,7 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(BlockchainLogCrawler.prototype, 'formatLog').callsFake((log: any) => {
         const proposalIds = ['0123456789012345', '99999999999999999999']
         const index = rawLogs.indexOf(log)
-        
+
         return {
           event: { args: { proposalId: { toString: () => proposalIds[index] } } },
           info: { blockNumber: log.blockNumber, logIndex: log.logIndex },
@@ -2346,18 +2346,20 @@ describe('Indexer: ProposalHandler', () => {
 
       const loggerErrorStub = sandbox.stub(logger, 'error')
 
-      const rawLogs = [{
-        topics: ['0xproposalCreatedTopic'],
-        blockNumber: 110,
-        logIndex: 0,
-        transactionHash: '0xhash1',
-        transactionIndex: 0,
-        address: '0xPlugin',
-        data: '0xdata1'
-      }]
+      const rawLogs = [
+        {
+          topics: ['0xproposalCreatedTopic'],
+          blockNumber: 110,
+          logIndex: 0,
+          transactionHash: '0xhash1',
+          transactionIndex: 0,
+          address: '0xPlugin',
+          data: '0xdata1',
+        },
+      ]
 
       sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves(rawLogs as any)
-      
+
       // Mock formatLog to return a different proposalId than what we're looking for
       sandbox.stub(BlockchainLogCrawler.prototype, 'formatLog').returns({
         event: { args: { proposalId: { toString: () => '1234567890123' } } },
@@ -2390,7 +2392,7 @@ describe('Indexer: ProposalHandler', () => {
           transactionHash: '0xhash1',
           transactionIndex: 0,
           address: '0xPlugin',
-          data: '0xdata1'
+          data: '0xdata1',
         },
         {
           topics: ['0xproposalCreatedTopic'],
@@ -2399,7 +2401,7 @@ describe('Indexer: ProposalHandler', () => {
           transactionHash: '0xhash2',
           transactionIndex: 0,
           address: '0xPlugin',
-          data: '0xdata2'
+          data: '0xdata2',
         },
         {
           topics: ['0xproposalCreatedTopic'],
@@ -2408,7 +2410,7 @@ describe('Indexer: ProposalHandler', () => {
           transactionHash: '0xhash3',
           transactionIndex: 0,
           address: '0xPlugin',
-          data: '0xdata3'
+          data: '0xdata3',
         },
         {
           topics: ['0xproposalCreatedTopic'],
@@ -2417,17 +2419,17 @@ describe('Indexer: ProposalHandler', () => {
           transactionHash: '0xhash4',
           transactionIndex: 0,
           address: '0xPlugin',
-          data: '0xdata4'
+          data: '0xdata4',
         },
       ]
 
       sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves(rawLogs as any)
-      
+
       // Mock formatLog to return formatted logs in the order they appear in rawLogs
       sandbox.stub(BlockchainLogCrawler.prototype, 'formatLog').callsFake((log: any) => {
         const proposalIds = ['123', '456', '789', '12312313213212312311231231231']
         const index = rawLogs.indexOf(log)
-        
+
         return {
           event: { args: { proposalId: { toString: () => proposalIds[index] } } },
           info: { blockNumber: log.blockNumber, logIndex: log.logIndex },
@@ -2458,7 +2460,7 @@ describe('Indexer: ProposalHandler', () => {
           transactionHash: '0xhash1',
           transactionIndex: 0,
           address: '0xPlugin',
-          data: '0xdata1'
+          data: '0xdata1',
         },
         {
           topics: ['0xproposalCreatedTopic'],
@@ -2467,21 +2469,21 @@ describe('Indexer: ProposalHandler', () => {
           transactionHash: '0xhash2',
           transactionIndex: 0,
           address: '0xPlugin',
-          data: '0xdata2'
+          data: '0xdata2',
         },
       ]
 
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves(rawLogs as any)
-      
+
       // Mock formatLog to return formatted logs
       sandbox.stub(BlockchainLogCrawler.prototype, 'formatLog').callsFake((log: any) => {
         const proposalIds = ['12345678901234567890', '99999999999999999999']
         const index = rawLogs.indexOf(log)
-        
+
         return {
           event: { args: { proposalId: { toString: () => proposalIds[index] } } },
           info: { blockNumber: log.blockNumber, logIndex: log.logIndex },
-          handler: () => {}
+          handler: () => {},
         } as any
       })
 

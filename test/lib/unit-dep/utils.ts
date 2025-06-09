@@ -239,26 +239,19 @@ const UnitDepUtils = {
    * Get raw transfer logs from transaction receipt for testing batch processor
    * Filters only Transfer and DelegateVotesChanged events
    */
-  async getTokenLogsFromReceipt(
-    transactionHash: string,
-    network: NetworksEnum,
-  ): Promise<Log[]> {
+  async getTokenLogsFromReceipt(transactionHash: string, network: NetworksEnum): Promise<Log[]> {
     try {
       const receipt = await Web3Helper.getTransactionReceipt(transactionHash, network)
       if (!receipt || !receipt.logs) {
         return []
       }
 
-       const tokenTopcis = [
+      const tokenTopcis = [
         ethers.id('Transfer(address,address,uint256)'),
-        ethers.id('DelegateVotesChanged(address,uint256,uint256)'), 
+        ethers.id('DelegateVotesChanged(address,uint256,uint256)'),
       ]
 
-      return receipt.logs.filter(log => 
-        tokenTopcis.includes(log.topics[0])
-      )
-
-     
+      return receipt.logs.filter(log => tokenTopcis.includes(log.topics[0]))
     } catch (error) {
       return []
     }
