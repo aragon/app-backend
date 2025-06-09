@@ -3,7 +3,8 @@ import axios from 'axios'
 import ProviderModule from '@src/modules/provider'
 import { ethers } from 'ethers'
 import { type NetworksEnum, type HexAddress } from '@src/types'
-import Web3Helper from './web3'
+import Web3Helper from '@helpers/web3'
+import Utils from '@helpers/utils'
 
 interface BatchRequestItem {
   method: string
@@ -22,11 +23,63 @@ const llo = logger.logMeta.bind(null, { service: 'helpers:Web3BatchHelper' })
 
 const Web3BatchHelper = {
   /**
-   * Execute a batch of JSON-RPC requests
+   * Execute a batch of JSON-RPC requests with automatic chunking for large batches
    */
   async executeBatch<T>(requests: BatchRequestItem[], network: NetworksEnum): Promise<BatchResponse<T>[]> {
     if (requests.length === 0) return []
 
+    if (requests.length < 900) {
+      return this._executeSingleBatch(requests, network)
+    }
+
+    const allResults: BatchResponse<T>[] = []
+
+    await Utils.asyncBatchProcess(
+      requests,
+      async (request: any) => {
+        const result = await this._processSingleRequest(request, network)
+        allResults.push(result)
+      },
+      {
+        concurrency: 3,
+        batchSize: 900,
+        onError: (error: any, request: any) => {
+          logger.error('RPC request failed', llo({ network, error, method: request.method }))
+          allResults.push({
+            identifier: request.identifier,
+            success: false,
+            data: null,
+            error,
+          })
+        },
+        stopOnError: false,
+      },
+    )
+
+    return allResults
+  },
+
+  /**
+   * Process a single request (used by asyncBatchProcess)
+   */
+  async _processSingleRequest(request: BatchRequestItem, network: NetworksEnum): Promise<BatchResponse<any>> {
+    try {
+      const result = await this._executeSingleBatch([request], network)
+      return result[0]
+    } catch (error) {
+      return {
+        identifier: request.identifier,
+        success: false,
+        data: null,
+        error,
+      }
+    }
+  },
+
+  /**
+   * Execute a single batch (up to 1000 items)
+   */
+  async _executeSingleBatch<T>(requests: BatchRequestItem[], network: NetworksEnum): Promise<BatchResponse<T>[]> {
     try {
       const providerUrl = await ProviderModule.getProviderUrl(network)
 
@@ -196,6 +249,7 @@ const Web3BatchHelper = {
 
   /**
    * Get block timestamps in batch using JSON-RPC batch requests
+   * Now handles large ranges efficiently with asyncBatchProcess
    */
   async getBlocksTimestamps(from: number, to: number, network: NetworksEnum): Promise<Record<string, number>> {
     if (from > to) {
@@ -207,6 +261,8 @@ const Web3BatchHelper = {
       for (let blockNum = from; blockNum <= to; blockNum++) {
         blockNumbers.push(blockNum)
       }
+
+      logger.info(`Getting timestamps for ${blockNumbers.length} blocks`, llo({ network, from, to }))
 
       const results = await this.callRpcMethod<any>(
         'eth_getBlockByNumber',
@@ -232,6 +288,7 @@ const Web3BatchHelper = {
         }
       }
 
+      logger.info(`Successfully retrieved ${Object.keys(timestampMap).length} timestamps`, llo({ network }))
       return timestampMap
     } catch (error) {
       logger.error('Error in getBlocksTimestamps', llo({ from, to, network, error }))
@@ -245,9 +302,7 @@ const Web3BatchHelper = {
 
   /**
    * Get voting power and token balances for multiple addresses in batch
-   * @param params Array of objects containing memberAddress, tokenAddress, blockNumber
-   * @param network The network to use for the calls
-   * @returns Object with memberAddress as key and balance/votingPower info as value
+   * Now efficiently handles large numbers of addresses
    */
   async getVotingPowerAndBalancesInBatch(
     params: Array<{
@@ -261,6 +316,8 @@ const Web3BatchHelper = {
     if (params.length === 0) return {}
 
     try {
+      logger.info(`Getting voting power and balances for ${params.length} addresses`, llo({ network }))
+
       const votingPowerCalls: Array<{
         to: HexAddress
         data: string
@@ -360,6 +417,8 @@ const Web3BatchHelper = {
 
       return results
     } catch (error) {
+      logger.error('Error in getVotingPowerAndBalancesInBatch', llo({ network, error }))
+
       const results: Record<
         string,
         {

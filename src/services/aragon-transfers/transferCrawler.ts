@@ -2,7 +2,7 @@ import { ethers, Interface, type Log } from 'ethers'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import logger from '@logger'
 import BlockchainLogCrawler from '@src/modules/blockchainLogCrawler'
-import { IGovernanceErc20Logs, type NetworksEnum } from '@types'
+import { type HexAddress, IGovernanceErc20Logs, type NetworksEnum } from '@types'
 import PoolingCrawler from '@modules/poolingCrawler'
 import { ERC721 } from '@artifacts/ERC721'
 import Web3Utils from '@src/helpers/web3Utils'
@@ -10,12 +10,14 @@ import configIndexer from '@indexer/configIndexer'
 import config from '@config'
 import { BatchTransfersHandler } from './batchTransfersHandler'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'module:TransferCrawler' })
 
 const iFace = init()
 
 const BATCH_SIZE = config.TRANSFER_CRAWLER_CONFIG.BATCH_SIZE
+const CONCURRENCY = config.TRANSFER_CRAWLER_CONFIG.CONCURRENCY
 
 function init() {
   const governanceEventNames = Object.values(IGovernanceErc20Logs)
@@ -71,6 +73,10 @@ const TransferCrawler = {
       const startTime = Date.now()
 
       const blockNumbers = logs.map(log => log.blockNumber)
+      const fromBlock = Math.min(...blockNumbers)
+      const toBlock = Math.max(...blockNumbers)
+
+      const timestampCache = await Web3BatchHelper.getBlocksTimestamps(fromBlock, toBlock, network)
 
       const logsByToken = this._groupLogsByToken(logs)
       logger.info(
@@ -79,18 +85,27 @@ const TransferCrawler = {
           network,
           totalLogs: logs.length,
           uniqueTokens: Object.keys(logsByToken).length,
-          from: Math.min(...blockNumbers),
-          to: Math.max(...blockNumbers),
+          from: fromBlock,
+          to: toBlock,
         }),
       )
 
       const tokenAddresses = Object.keys(logsByToken)
 
-      await Promise.all(
-        tokenAddresses.map(async tokenAddress => {
+      await utils.asyncBatchProcess(
+        tokenAddresses,
+        async (tokenAddress: HexAddress) => {
           const processor = new BatchTransfersHandler(network, ethers.getAddress(tokenAddress))
-          return this._processTokenBatch(processor, logsByToken[tokenAddress], network)
-        }),
+          processor.setTimestampCache(timestampCache)
+          await this._processTokenBatch(processor, logsByToken[tokenAddress], network)
+        },
+        {
+          concurrency: CONCURRENCY,
+          batchSize: BATCH_SIZE,
+          onError: (error: any, tokenAddress: HexAddress) => {
+            logger.error('Token processing failed', llo({ network, tokenAddress, error }))
+          },
+        },
       )
 
       const duration = Date.now() - startTime
@@ -159,15 +174,7 @@ const TransferCrawler = {
 
       for (let i = 0; i < parsedEvents.length; i += BATCH_SIZE) {
         const batch: any = parsedEvents.slice(i, i + BATCH_SIZE)
-
         if (batch.length === 0) continue
-
-        const startBlock = batch[0].info.blockNumber
-        const endBlock = batch[batch.length - 1].info.blockNumber
-
-        const timestamps = await Web3BatchHelper.getBlocksTimestamps(startBlock, endBlock, network)
-        processor.setTimestampCache(timestamps)
-
         await processor.processEvents(batch)
       }
 

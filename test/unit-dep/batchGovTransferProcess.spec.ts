@@ -7,7 +7,7 @@ import UnitDepUtils from '@test/lib/unit-dep/utils'
 import utils from '@helpers/utils'
 import TransferCrawler from '@services/aragon-transfers/transferCrawler'
 
-describe.skip('Integ: Batch Transfer Processor', () => {
+describe('Integ: Batch Transfer Processor', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -88,8 +88,6 @@ describe.skip('Integ: Batch Transfer Processor', () => {
     let member1Txs = await Models.MemberTransaction.find({ address: member1 }).sort({ createdAt: -1, logIndex: -1 })
     let member1Balance = await Models.MemberBalance.findOne({ address: member1 })
     let member1Metrics = await Models.MemberMetrics.findOne({ address: member1 })
-
-    console.log(await Models.MemberTransaction.find({}))
 
     expect(member1Txs).to.have.length(2)
     const transferTx = member1Txs.find(tx => tx.type === ITransferType.tokenTransfer)
