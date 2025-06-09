@@ -349,7 +349,7 @@ describe('Module: BatchTransfersHandler', () => {
             transactionIndex: 0,
             logIndex: 1,
             network: NetworksEnum.ethereumMainnet,
-          },
+          } as any,
         },
       ] as any
 
@@ -1074,6 +1074,228 @@ describe('Module: BatchTransfersHandler', () => {
       await handler.processEvents(events)
 
       expect((logger.error as any).calledWith('Error in batch processing', sinon.match.any)).to.be.true
+    })
+  })
+
+  describe('getAndUpdateBalanceData', () => {
+    it('should get and update balance data successfully', async () => {
+      const mockBatchResults = {
+        [validUserAddress1]: { balance: '1000', votingPower: '500' },
+      }
+
+      const mockBalanceDb = {
+        updateBalance: sandbox.stub().resolves(),
+        updateVotingPower: sandbox.stub().resolves(),
+      }
+
+      sandbox.stub(handler as any, 'getBlockTimestamp').resolves(1609459200)
+      sandbox.stub(Web3BatchHelper, 'getVotingPowerAndBalancesInBatch').resolves(mockBatchResults as any)
+      sandbox.stub(ProxyMember, 'getBalances').resolves(mockBalanceDb as any)
+      sandbox.stub(DbTx, 'executeTxFn').callsFake(async (fn: any) => {
+        await fn({ session: { commitTransaction: sandbox.stub() } })
+      })
+
+      const result = await (handler as any).getAndUpdateBalanceData(validUserAddress1, 100)
+
+      expect(result).to.equal(mockBalanceDb)
+      expect(mockBalanceDb.updateBalance.calledOnce).to.be.true
+      expect(mockBalanceDb.updateVotingPower.calledOnce).to.be.true
+    })
+
+    it('should handle NFT token updates with tokenId', async () => {
+      const mockBatchResults = {
+        [validUserAddress1]: { balance: '1', votingPower: '0' },
+      }
+
+      const mockBalanceDb = {
+        updateBalance: sandbox.stub().resolves(),
+        updateVotingPower: sandbox.stub().resolves(),
+      }
+
+      sandbox.stub(handler as any, 'getBlockTimestamp').resolves(1609459200)
+      sandbox.stub(Web3BatchHelper, 'getVotingPowerAndBalancesInBatch').resolves(mockBatchResults as any)
+      sandbox.stub(ProxyMember, 'getBalances').resolves(mockBalanceDb as any)
+      sandbox.stub(DbTx, 'executeTxFn').callsFake(async (fn: any) => {
+        await fn({ session: { commitTransaction: sandbox.stub() } })
+      })
+
+      const result = await (handler as any).getAndUpdateBalanceData(validUserAddress1, 100, 123)
+
+      expect(result).to.equal(mockBalanceDb)
+      expect(
+        mockBalanceDb.updateBalance.calledWith(
+          sinon.match({
+            amount: '1',
+            blockNumber: 100,
+            tokenId: 123,
+          }),
+          sinon.match.any,
+        ),
+      ).to.be.true
+    })
+
+    it('should handle errors and return fallback balance', async () => {
+      const mockBalanceDb = {
+        updateBalance: sandbox.stub().resolves(),
+        updateVotingPower: sandbox.stub().resolves(),
+      }
+
+      sandbox.stub(handler as any, 'getBlockTimestamp').rejects(new Error('Timestamp error'))
+      sandbox.stub(ProxyMember, 'getBalances').resolves(mockBalanceDb as any)
+
+      const result = await (handler as any).getAndUpdateBalanceData(validUserAddress1, 100)
+
+      expect(result).to.equal(mockBalanceDb)
+      expect((logger.error as any).calledWith('Error getting balance data', sinon.match.any)).to.be.true
+    })
+  })
+
+  describe('processSingleDelegation - delegation side detection', () => {
+    it('should detect outgoing delegation side correctly', async () => {
+      const mockEvent = {
+        parsedEvent: {
+          args: {
+            delegate: validUserAddress1,
+            newBalance: '2000',
+          },
+        } as any,
+        info: {
+          blockNumber: 100,
+          transactionHash: '0xabcd',
+          transactionIndex: 0,
+          logIndex: 0,
+          network: NetworksEnum.ethereumMainnet,
+        },
+        dbId: 'delegation-id-1',
+      }
+
+      const mockMemberBalance = { amount: '1000' }
+      const mockPlugins = [{ address: validPluginAddress }]
+
+      sandbox.stub(handler as any, 'getBlockTimestamp').resolves(1609459200)
+      sandbox.stub(handler as any, '_findDelegatorsFromReceipt').resolves({
+        from: validUserAddress1, // User is the "from" address
+        to: validUserAddress2,
+        delegator: validUserAddress1,
+      })
+      sandbox.stub(DbTx, 'executeTxFn').callsFake(async (fn: any) => {
+        await fn({ session: { commitTransaction: sandbox.stub() } })
+      })
+      const createStub = sandbox.stub(Models.MemberTransaction, 'create').resolves()
+      sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
+      sandbox.stub(ProxyMember, 'updateActivity').resolves()
+
+      handler['plugins'] = mockPlugins
+
+      await (handler as any).processSingleDelegation(validUserAddress1, mockMemberBalance, mockEvent)
+
+      expect(
+        createStub.calledWith(
+          sinon.match({
+            type: ITransferType.delegate,
+            side: ITransferSide.outgoing,
+            from: validUserAddress1,
+            to: validUserAddress2,
+          }),
+          { session: sinon.match.any },
+        ),
+      ).to.be.true
+    })
+
+    it('should handle delegation side detection errors', async () => {
+      const mockEvent = {
+        parsedEvent: {
+          args: {
+            delegate: validUserAddress1,
+            newBalance: '2000',
+          },
+        } as any,
+        info: {
+          blockNumber: 100,
+          transactionHash: '0xabcd',
+          transactionIndex: 0,
+          logIndex: 0,
+          network: NetworksEnum.ethereumMainnet,
+        },
+        dbId: 'delegation-id-1',
+      }
+
+      const mockMemberBalance = { amount: '1000' }
+
+      sandbox.stub(handler as any, 'getBlockTimestamp').resolves(1609459200)
+      let validUserAddress3 = '0x1234567890123456789012345678901234567890'
+      sandbox.stub(handler as any, '_findDelegatorsFromReceipt').resolves({
+        from: validUserAddress2,
+        to: validUserAddress3,
+        delegator: validUserAddress2,
+      })
+
+      const createStub = sandbox.stub(Models.MemberTransaction, 'create')
+
+      await (handler as any).processSingleDelegation(validUserAddress1, mockMemberBalance, mockEvent)
+
+      expect(createStub.called).to.be.false
+      expect((logger.error as any).calledWith('Error cannot detect delegation side', sinon.match.any)).to.be.true
+    })
+  })
+
+  describe('_findDelegatorsFromReceipt - edge cases', () => {
+    it('should handle empty delegation logs', async () => {
+      const mockParsedEvent = {
+        args: { delegate: validUserAddress1 },
+      } as any
+
+      const mockInfo = {
+        transactionHash: '0xabcd',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const mockReceipt = {
+        logs: [],
+      }
+
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(mockReceipt as any)
+      sandbox.stub(Web3Utils, 'findLogsByName').returns([]) // No delegation logs found
+
+      const result = await (handler as any)._findDelegatorsFromReceipt(mockParsedEvent, mockInfo)
+
+      expect(result.from).to.equal(utils.zeroAddress)
+      expect(result.to).to.equal(utils.zeroAddress)
+      expect(result.delegator).to.equal(utils.zeroAddress)
+    })
+
+    it('should handle delegation logs without matching delegate', async () => {
+      const mockParsedEvent = {
+        args: { delegate: validUserAddress1 },
+      } as any
+
+      const mockInfo = {
+        transactionHash: '0xabcd',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const mockReceipt = {
+        logs: [],
+      }
+
+      const mockDelegationLog = {
+        parsed: {
+          args: {
+            delegator: validUserAddress2,
+            fromDelegate: validUserAddress2, // Different delegate
+            toDelegate: '0x1234567890123456789012345678901234567890', // Different delegate
+          },
+        },
+      }
+
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(mockReceipt as any)
+      sandbox.stub(Web3Utils, 'findLogsByName').returns([mockDelegationLog] as any)
+
+      const result = await (handler as any)._findDelegatorsFromReceipt(mockParsedEvent, mockInfo)
+
+      expect(result.from).to.equal(utils.zeroAddress)
+      expect(result.to).to.equal(utils.zeroAddress)
+      expect(result.delegator).to.equal(utils.zeroAddress)
     })
   })
 })

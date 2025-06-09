@@ -125,6 +125,72 @@ describe('Service: AragonTransferService', () => {
       expect(taskOptions).to.have.property('fn')
       expect(taskOptions).to.have.property('onError')
     })
+
+    it('should configure task fn callback to return correct crawler configuration', async () => {
+      const mockNetworks = [{ networkName: NetworksEnum.ethereumMainnet }]
+
+      sandbox.stub(NetworkHelper, 'supportedNetworks').returns(mockNetworks as any)
+      sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves({ lastSync: 12345 })
+      sandbox.stub(Models.ConfigIndexer, 'create').resolves()
+      sandbox.stub(configIndexer, 'filter').returns([{ event: 'Transfer' } as any])
+
+      const startTaskStub = sandbox.stub().resolves()
+      const mockScheduler = { startTask: startTaskStub }
+      sandbox.stub(TaskSchedulerState, 'getInstance').returns(mockScheduler as any)
+
+      sandbox.stub(utils, 'networkToAragon').returns('mainnet')
+      sandbox.stub(config, 'NODES').value({
+        mainnet: { POOLING_INTERVAL: 10000 },
+      })
+
+      await AragonTransferService.start()
+
+      const taskCall = startTaskStub.getCall(0)
+      const taskOptions = taskCall.args[1]
+
+      // Test the fn callback function
+      const fnResult = taskOptions.fn()
+      expect(fnResult).to.be.an('array')
+      expect(fnResult).to.have.lengthOf(1)
+      expect(fnResult[0]).to.be.an('array')
+      expect(fnResult[0][0]).to.have.property('poolingCrawler')
+      expect(fnResult[0][0]).to.have.property('params')
+      expect(fnResult[0][0].params).to.deep.include({
+        logService: `transfers-${NetworksEnum.ethereumMainnet}`,
+        network: NetworksEnum.ethereumMainnet,
+      })
+    })
+
+    it('should configure onError callback to log errors correctly', async () => {
+      const mockNetworks = [{ networkName: NetworksEnum.ethereumMainnet }]
+
+      sandbox.stub(NetworkHelper, 'supportedNetworks').returns(mockNetworks as any)
+      sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves({ lastSync: 12345 })
+      sandbox.stub(Models.ConfigIndexer, 'create').resolves()
+      sandbox.stub(configIndexer, 'filter').returns([{ event: 'Transfer' } as any])
+
+      const startTaskStub = sandbox.stub().resolves()
+      const mockScheduler = { startTask: startTaskStub }
+      sandbox.stub(TaskSchedulerState, 'getInstance').returns(mockScheduler as any)
+
+      sandbox.stub(utils, 'networkToAragon').returns('mainnet')
+      sandbox.stub(config, 'NODES').value({
+        mainnet: { POOLING_INTERVAL: 10000 },
+      })
+
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+
+      await AragonTransferService.start()
+
+      const taskCall = startTaskStub.getCall(0)
+      const taskOptions = taskCall.args[1]
+
+      // Test the onError callback function
+      const testError = new Error('Test pooling error')
+      taskOptions.onError(testError)
+
+      expect(loggerErrorStub.calledWith('Error pooling logs' as any)).to.be.true
+    })
   })
 
   describe('stop', () => {

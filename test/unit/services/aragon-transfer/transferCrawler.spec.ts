@@ -28,7 +28,6 @@ describe('Module: TransferCrawler', () => {
   beforeEach(() => {
     sandbox = sinon.createSandbox()
 
-    // Stub all logger methods to prevent actual logging during tests
     sandbox.stub(logger, 'info')
     sandbox.stub(logger, 'warn')
     sandbox.stub(logger, 'error')
@@ -59,7 +58,7 @@ describe('Module: TransferCrawler', () => {
     it('should create a new crawler instance if none exists', async () => {
       const crawlStub = sandbox.stub().resolves()
       const blockchainLogCrawlerStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(crawlStub)
-      sandbox.stub(configIndexer, 'filter').returns([])
+
       sandbox.stub(PoolingCrawler, 'filterLogs').resolves([])
       sandbox.stub(TransferCrawler, 'parseAndProcessTransferLogs').resolves()
 
@@ -75,7 +74,7 @@ describe('Module: TransferCrawler', () => {
 
     it('should initialize BlockchainLogCrawler with correct parameters', async () => {
       sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
-      sandbox.stub(configIndexer, 'filter').returns([])
+
       sandbox.stub(PoolingCrawler, 'filterLogs').resolves([])
       sandbox.stub(TransferCrawler, 'parseAndProcessTransferLogs').resolves()
 
@@ -99,6 +98,24 @@ describe('Module: TransferCrawler', () => {
 
       expect(result).to.be.undefined
       expect((logger.error as any).calledWith('TransferCrawler start', sinon.match.any)).to.be.true
+    })
+
+    it('should configure BlockchainLogCrawler with filterLogs callback that processes logs', async () => {
+      const mockLogs = [{ address: validAddress1, blockNumber: 100 }] as any
+
+      const crawlerStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+
+      sandbox.stub(PoolingCrawler, 'filterLogs').resolves(mockLogs)
+      sandbox.stub(TransferCrawler, 'parseAndProcessTransferLogs').resolves()
+
+      await TransferCrawler.start({
+        logService: 'test-service',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      expect(TransferCrawler.instances.size).to.equal(1)
+      expect(TransferCrawler.instances.has(NetworksEnum.ethereumMainnet)).to.be.true
+      expect(crawlerStub.calledOnce).to.be.true
     })
   })
 
@@ -332,6 +349,27 @@ describe('Module: TransferCrawler', () => {
       await TransferCrawler._processTokenBatch(mockProcessor, mockLogs, NetworksEnum.ethereumMainnet)
 
       expect((logger.error as any).calledWith('Error processing token batch', sinon.match.any)).to.be.true
+    })
+
+    describe('_processTokenBatch - edge cases', () => {
+      it('should handle empty batch after slicing (edge case)', async () => {
+        const mockLogs: Log[] = []
+        const mockProcessor = {
+          tokenAddress: validAddress1,
+          setTimestampCache: sandbox.stub(),
+          processEvents: sandbox.stub().resolves(),
+        }
+
+        sandbox.stub(TransferCrawler, '_parseLogArguments').returns({
+          event: { name: 'Transfer', args: {} },
+          info: { blockNumber: 100 },
+        } as any)
+        sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({})
+
+        await TransferCrawler._processTokenBatch(mockProcessor as any, mockLogs, NetworksEnum.ethereumMainnet)
+
+        expect(mockProcessor.processEvents.called).to.be.false
+      })
     })
   })
 
