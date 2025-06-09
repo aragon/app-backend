@@ -19,15 +19,15 @@ export const GovernanceVeHandler = {
     const plugins = await Models.Plugin.findAllByTokenAddress(info.address, info.network)
     if (!plugins || plugins.length === 0) return
 
-    const sender = parsedEvent.args.sender
-    const delegatee = parsedEvent.args.delegatee
+    const fromAddress = parsedEvent.args.sender
+    const toAddress = parsedEvent.args.delegatee
     const tokenIds = parsedEvent.args.tokenIds.map((id: any) => id.toString())
 
     try {
       await GovernanceVeHandler._handleTokenDelegation(
         parsedEvent,
         info,
-        sender,
+        fromAddress,
         ITransferSide.outgoing,
         plugins,
         tokenIds,
@@ -36,15 +36,15 @@ export const GovernanceVeHandler = {
       await GovernanceVeHandler._handleTokenDelegation(
         parsedEvent,
         info,
-        delegatee,
+        toAddress,
         ITransferSide.incoming,
         plugins,
         tokenIds,
       )
 
-      logger.verbose('Delegate tokens VeGovernance', llo({ info, sender, delegatee, tokenIds }))
+      logger.verbose('Delegate tokens VeGovernance', llo({ info, fromAddress, toAddress, tokenIds }))
     } catch (error) {
-      logger.error('DelegateTokens error', llo({ error, info, sender, delegatee }))
+      logger.error('DelegateTokens error', llo({ error, info, fromAddress, toAddress }))
     }
   },
 
