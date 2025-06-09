@@ -500,7 +500,7 @@ describe('Controller: Member', () => {
             escrowAddress: mockLock.escrowAddress,
             timestamp: mockLock.blockTimestamp,
           },
-        ]
+        ],
       })
 
       expect(response.data[0]).to.deep.include({
