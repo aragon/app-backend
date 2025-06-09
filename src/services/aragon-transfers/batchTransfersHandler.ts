@@ -483,9 +483,8 @@ export class BatchTransfersHandler {
                 { session },
               )
 
-              if (votingPower !== '0') {
-                await balanceDb!.updateVotingPower(votingPower, blockNumber, { session })
-              }
+              await balanceDb!.updateVotingPower(votingPower, blockNumber, { session })
+
               await session.commitTransaction()
             })
 
@@ -549,7 +548,7 @@ export class BatchTransfersHandler {
         if (event.eventType === 'transfer') {
           await this.processSingleTransaction(address, memberBalance, event)
         } else if (event.eventType === 'delegation') {
-          await this.processSingleDelegation(address, event)
+          await this.processSingleDelegation(address, memberBalance, event)
         }
       }
 
@@ -596,7 +595,7 @@ export class BatchTransfersHandler {
         if (event.eventType === 'transfer') {
           await this.processSingleTransaction(address, memberBalance, event)
         } else if (event.eventType === 'delegation') {
-          await this.processSingleDelegation(address, event)
+          await this.processSingleDelegation(address, memberBalance, event)
         }
       }
 
@@ -667,10 +666,15 @@ export class BatchTransfersHandler {
 
   /**
    * Process a single delegation event
-   * @param userData User data
+   * @param address Hex address of the user
+   * @param memberBalance Member balance data
    * @param event Event data
    */
-  private async processSingleDelegation(address: HexAddress, event: UserTransferData['events'][0]): Promise<void> {
+  private async processSingleDelegation(
+    address: HexAddress,
+    memberBalance: MemberBalance,
+    event: UserTransferData['events'][0],
+  ): Promise<void> {
     const { parsedEvent, info, dbId } = event
 
     try {
@@ -715,6 +719,7 @@ export class BatchTransfersHandler {
             amount: BigInt(parsedEvent?.args?.newBalance || 0).toString(),
             tokenAddress: this.tokenAddress,
             memberVotingPower: newVotingPower,
+            memberBalance: memberBalance.amount,
           },
           { session },
         )
