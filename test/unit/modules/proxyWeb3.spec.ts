@@ -51,16 +51,20 @@ describe('Module: ProxyWeb3', () => {
         send: sandbox.stub().resolves(fakeResponse),
       }
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
-      sandbox.stub(ProxyToken, 'saveAndGetToken').returns(false as any)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').returns(null as any) // Return null instead of false
+
+      // Create logger stub BEFORE the function call
+      const errorLoggerStub = sandbox.stub(logger, 'error')
 
       const balance = await Web3Provider.getNativeBalance({
         address: fakeAddress,
         network: fakeNetwork,
       } as any)
 
-      expect(balance).to.equal('0') // Check if conversion from wei to ether is correct
+      expect(balance).to.equal('0')
       expect(providerStub.send.calledOnce).to.be.true
       expect(providerStub.send.calledWith('eth_getBalance', [fakeAddress, 'latest'])).to.be.true
+      expect(errorLoggerStub.calledOnce).to.be.true
     })
 
     it('should return "0" on error', async () => {

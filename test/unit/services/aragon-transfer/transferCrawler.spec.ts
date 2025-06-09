@@ -8,20 +8,31 @@ import BlockchainLogCrawler from '@src/modules/blockchainLogCrawler'
 import { NetworksEnum } from '@types'
 import PoolingCrawler from '@modules/poolingCrawler'
 import Web3Utils from '@src/helpers/web3Utils'
-import Web3Helper from '@helpers/web3'
-import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
+import Web3BatchHelper from '@helpers/web3BatchHelper'
 import TransferCrawler from '@services/aragon-transfers/transferCrawler'
 import configIndexer from '@indexer/configIndexer'
+import { BatchTransfersHandler } from '@services/aragon-transfers/batchTransfersHandler'
+import config from '@config'
 
 describe('Module: TransferCrawler', () => {
   let sandbox: SinonSandbox
 
   const govTokenInterface = new Interface(GovernanceERC20.abi)
   const transferTopic = govTokenInterface.getEvent('Transfer')?.topicHash!
-  const delegateVotesChangedTopic = govTokenInterface.getEvent('DelegateVotesChanged')?.topicHash!
+
+  // Valid 20-byte addresses for testing
+  const validAddress1 = '0x742d35Cc6aD3C0532F747c0C5F4a5ae2e8a1b71a'
+  const validAddress2 = '0x4838B106FCe9647bDF1E7877BF73cE8B0BAD5f97'
+  const validAddress3 = '0x123456789abcdef123456789abcdef1234567890'
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+
+    // Stub all logger methods to prevent actual logging during tests
+    sandbox.stub(logger, 'info')
+    sandbox.stub(logger, 'warn')
+    sandbox.stub(logger, 'error')
+    sandbox.stub(logger, 'verbose')
   })
 
   afterEach(() => {
@@ -36,7 +47,7 @@ describe('Module: TransferCrawler', () => {
 
       TransferCrawler.instances.set(NetworksEnum.ethereumMainnet, mockCrawler as any)
 
-      const result = await TransferCrawler.start({
+      await TransferCrawler.start({
         logService: 'test-service',
         network: NetworksEnum.ethereumMainnet,
       })
@@ -45,9 +56,9 @@ describe('Module: TransferCrawler', () => {
       expect(TransferCrawler.instances.size).to.equal(1)
     })
 
-    it('should create new crawler instance with correct configuration', async () => {
+    it('should create a new crawler instance if none exists', async () => {
       const crawlStub = sandbox.stub().resolves()
-      sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(crawlStub)
+      const blockchainLogCrawlerStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(crawlStub)
       sandbox.stub(configIndexer, 'filter').returns([])
       sandbox.stub(PoolingCrawler, 'filterLogs').resolves([])
       sandbox.stub(TransferCrawler, 'parseAndProcessTransferLogs').resolves()
@@ -59,12 +70,27 @@ describe('Module: TransferCrawler', () => {
 
       expect(TransferCrawler.instances.size).to.equal(1)
       expect(TransferCrawler.instances.has(NetworksEnum.ethereumMainnet)).to.be.true
-      expect(crawlStub.calledOnce).to.be.true
+      expect(blockchainLogCrawlerStub.calledOnce).to.be.true
+    })
+
+    it('should initialize BlockchainLogCrawler with correct parameters', async () => {
+      sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      sandbox.stub(configIndexer, 'filter').returns([])
+      sandbox.stub(PoolingCrawler, 'filterLogs').resolves([])
+      sandbox.stub(TransferCrawler, 'parseAndProcessTransferLogs').resolves()
+
+      await TransferCrawler.start({
+        logService: 'test-service',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      const crawlerInstance = TransferCrawler.instances.get(NetworksEnum.ethereumMainnet)
+      expect(crawlerInstance).to.exist
+      expect(crawlerInstance).to.have.property('crawlParams')
     })
 
     it('should handle errors gracefully', async () => {
       sandbox.stub(configIndexer, 'filter').throws(new Error('Config error'))
-      const loggerErrorStub = sandbox.stub(logger, 'error')
 
       const result = await TransferCrawler.start({
         logService: 'test-service',
@@ -72,328 +98,240 @@ describe('Module: TransferCrawler', () => {
       })
 
       expect(result).to.be.undefined
-      expect(loggerErrorStub.calledWith('TransferCrawler start' as any)).to.be.true
+      expect((logger.error as any).calledWith('TransferCrawler start', sinon.match.any)).to.be.true
     })
   })
 
-  describe('_collectTimestamps', () => {
-    it('should collect timestamps for block range', async () => {
+  describe('_groupLogsByToken', () => {
+    it('should group logs by token address', () => {
       const mockLogs: Log[] = [
-        { blockNumber: 100 } as any,
-        { blockNumber: 102 } as any,
-        { blockNumber: 101 } as any,
+        { address: validAddress1 } as any,
+        { address: validAddress2 } as any,
+        { address: validAddress1 } as any,
       ]
 
-      const mockTimestamps = { 100: 1000, 101: 1001, 102: 1002 }
-      const web3HelperStub = sandbox.stub(Web3Helper, 'getBlocksTimestamps').resolves(mockTimestamps)
+      const result = TransferCrawler._groupLogsByToken(mockLogs)
 
-      const result = await TransferCrawler._collectTimestamps(mockLogs, NetworksEnum.ethereumMainnet)
-
-      expect(result).to.equal(mockTimestamps)
-      expect(web3HelperStub.calledWith(100, 102, NetworksEnum.ethereumMainnet)).to.be.true
+      expect(Object.keys(result)).to.have.lengthOf(2)
+      expect(result[validAddress1.toLowerCase()]).to.have.lengthOf(2)
+      expect(result[validAddress2.toLowerCase()]).to.have.lengthOf(1)
     })
-  })
 
-  describe('_deduplicateTransferLogs', () => {
-    it('should deduplicate Transfer logs by from->to key', () => {
+    it('should handle empty logs array', () => {
+      const result = TransferCrawler._groupLogsByToken([])
+
+      expect(Object.keys(result)).to.have.lengthOf(0)
+    })
+
+    it('should normalize addresses to lowercase', () => {
       const mockLogs: Log[] = [
-        {
-          topics: [
-            transferTopic,
-            '0x000000000000000000000000742d35cc6ad3c0532f747c0c5f4a5ae2e8a1b71a',
-            '0x000000000000000000000000742d35cc6ad3c0532f747c0c5f4a5ae2e8a1b71b',
-          ],
-          address: '0x123',
-          blockNumber: 100,
-          transactionIndex: 0,
-          index: 0,
-        },
-        {
-          topics: [
-            transferTopic,
-            '0x000000000000000000000000742d35cc6ad3c0532f747c0c5f4a5ae2e8a1b71a',
-            '0x000000000000000000000000742d35cc6ad3c0532f747c0c5f4a5ae2e8a1b71b',
-          ],
-          address: '0x123',
-          blockNumber: 101,
-          transactionIndex: 0,
-          index: 0,
-        },
-      ] as any[]
+        { address: validAddress1.toUpperCase() } as any,
+        { address: validAddress1.toLowerCase() } as any,
+      ]
 
-      const result = TransferCrawler._deduplicateTransferLogs(mockLogs)
+      const result = TransferCrawler._groupLogsByToken(mockLogs)
 
-      expect(result).to.have.lengthOf(1)
-      expect(result[0].blockNumber).to.equal(101) // Should keep the later one
-    })
-
-    it('should keep non-Transfer logs without deduplication', () => {
-      const mockLogs: Log[] = [
-        {
-          topics: [delegateVotesChangedTopic, '0x000000000000000000000000742d35cc6ad3c0532f747c0c5f4a5ae2e8a1b71a'],
-          address: '0x123',
-          blockNumber: 100,
-          transactionIndex: 0,
-          index: 0,
-        },
-        {
-          topics: [delegateVotesChangedTopic, '0x000000000000000000000000742d35cc6ad3c0532f747c0c5f4a5ae2e8a1b71a'],
-          address: '0x123',
-          blockNumber: 101,
-          transactionIndex: 0,
-          index: 1,
-        },
-      ] as any[]
-
-      const result = TransferCrawler._deduplicateTransferLogs(mockLogs)
-
-      expect(result).to.have.lengthOf(2)
-    })
-
-    it('should handle invalid transfer topics gracefully', () => {
-      const mockLogs: Log[] = [
-        {
-          topics: [transferTopic, '0xinvalid', '0xinvalid'],
-          address: '0x123',
-          blockNumber: 100,
-          transactionIndex: 0,
-          index: 0,
-        },
-      ] as any[]
-
-      const result = TransferCrawler._deduplicateTransferLogs(mockLogs)
-
-      expect(result).to.have.lengthOf(1) // Should keep the log even if addresses are invalid
-    })
-  })
-
-  describe('_isLogLater', () => {
-    it('should return true when logA has higher block number', () => {
-      const logA = { blockNumber: 101, transactionIndex: 0, index: 0 } as any
-      const logB = { blockNumber: 100, transactionIndex: 0, index: 0 } as any
-
-      expect(TransferCrawler._isLogLater(logA, logB)).to.be.true
-    })
-
-    it('should return true when logA has higher transaction index in same block', () => {
-      const logA = { blockNumber: 100, transactionIndex: 1, index: 0 } as any
-      const logB = { blockNumber: 100, transactionIndex: 0, index: 0 } as any
-
-      expect(TransferCrawler._isLogLater(logA, logB)).to.be.true
-    })
-
-    it('should return true when logA has higher log index in same transaction', () => {
-      const logA = { blockNumber: 100, transactionIndex: 0, index: 1 } as any
-      const logB = { blockNumber: 100, transactionIndex: 0, index: 0 } as any
-
-      expect(TransferCrawler._isLogLater(logA, logB)).to.be.true
-    })
-
-    it('should return false when logA is earlier than logB', () => {
-      const logA = { blockNumber: 100, transactionIndex: 0, index: 0 } as any
-      const logB = { blockNumber: 101, transactionIndex: 0, index: 0 } as any
-
-      expect(TransferCrawler._isLogLater(logA, logB)).to.be.false
+      expect(Object.keys(result)).to.have.lengthOf(1)
+      expect(result[validAddress1.toLowerCase()]).to.have.lengthOf(2)
     })
   })
 
   describe('parseAndProcessTransferLogs', () => {
-    it('should process logs in batches', async () => {
-      const mockLogs: Log[] = Array(250).fill({
-        topics: [transferTopic],
-        blockNumber: 100,
-        transactionIndex: 0,
-        index: 0,
-        address: '0x123',
-      }) as any[]
+    it('should process logs grouped by token using BatchTransfersHandler', async () => {
+      const mockLogs: Log[] = [
+        { address: validAddress1, blockNumber: 100 } as any,
+        { address: validAddress2, blockNumber: 101 } as any,
+      ]
 
-      sandbox.stub(TransferCrawler, '_deduplicateTransferLogs').returns(mockLogs)
-      sandbox.stub(TransferCrawler, '_collectTimestamps').resolves({})
-      sandbox.stub(TransferCrawler, '_processLogsConcurrently').resolves()
-      const loggerInfoStub = sandbox.stub(logger, 'info')
+      sandbox.stub(TransferCrawler, '_groupLogsByToken').returns({
+        [validAddress1.toLowerCase()]: [mockLogs[0]],
+        [validAddress2.toLowerCase()]: [mockLogs[1]],
+      })
+
+      const processTokenBatchStub = sandbox.stub(TransferCrawler, '_processTokenBatch').resolves()
 
       await TransferCrawler.parseAndProcessTransferLogs(mockLogs, NetworksEnum.ethereumMainnet)
 
-      expect(loggerInfoStub.calledWith('Events processing completed' as any)).to.be.true
+      expect((logger.info as any).calledWith('Processing transfer logs by token', sinon.match.any)).to.be.true
+      expect((logger.info as any).calledWith('Events processing completed', sinon.match.any)).to.be.true
+      expect(processTokenBatchStub.callCount).to.equal(2)
     })
-  })
 
-  describe('_processLogsConcurrently', () => {
-    it('should process logs with concurrency limit', async () => {
+    it('should handle multiple tokens and create separate BatchTransfersHandler instances', async () => {
       const mockLogs: Log[] = [
-        { topics: [transferTopic], transactionHash: '0x1', index: 0 } as any,
-        { topics: [transferTopic], transactionHash: '0x2', index: 1 } as any,
+        { address: validAddress1, blockNumber: 100 } as any,
+        { address: validAddress2, blockNumber: 101 } as any,
+        { address: validAddress3, blockNumber: 102 } as any,
       ]
 
-      const processEventLogStub = sandbox.stub(TransferCrawler, '_processEventLog').resolves()
+      sandbox.stub(TransferCrawler, '_groupLogsByToken').returns({
+        [validAddress1.toLowerCase()]: [mockLogs[0]],
+        [validAddress2.toLowerCase()]: [mockLogs[1]],
+        [validAddress3.toLowerCase()]: [mockLogs[2]],
+      })
 
-      await TransferCrawler._processLogsConcurrently(mockLogs, NetworksEnum.ethereumMainnet, {})
+      const processTokenBatchStub = sandbox.stub(TransferCrawler, '_processTokenBatch').resolves()
 
-      expect(processEventLogStub.callCount).to.equal(2)
+      await TransferCrawler.parseAndProcessTransferLogs(mockLogs, NetworksEnum.ethereumMainnet)
+
+      expect(processTokenBatchStub.callCount).to.equal(3)
     })
 
-    it('should handle individual log processing errors without stopping batch', async () => {
-      const mockLogs: Log[] = [
-        { topics: [transferTopic], transactionHash: '0x1', index: 0 } as any,
-        { topics: [transferTopic], transactionHash: '0x2', index: 1 } as any,
-      ]
+    it('should handle errors gracefully', async () => {
+      const mockLogs: Log[] = [{ address: validAddress1, blockNumber: 100 } as any]
 
-      sandbox.stub(TransferCrawler, '_processEventLog')
-        .onFirstCall().rejects(new Error('Processing error'))
-        .onSecondCall().resolves()
-
-      const loggerErrorStub = sandbox.stub(logger, 'error')
-
-      await TransferCrawler._processLogsConcurrently(mockLogs, NetworksEnum.ethereumMainnet, {})
-
-      expect(loggerErrorStub.calledWith('Log processing failed in concurrent batch' as any)).to.be.true
-    })
-  })
-
-  describe('_processEventLog', () => {
-    it('should process Transfer event log', async () => {
-      const mockLog: Log = {
-        topics: [transferTopic],
-        address: '0x123',
-        transactionHash: '0xhash',
-        index: 0,
-      } as any
-
-      const processTransferStub = sandbox.stub(TransferCrawler, '_processTransferLog').resolves()
-
-      await TransferCrawler._processEventLog(mockLog, NetworksEnum.ethereumMainnet, {})
-
-      expect(processTransferStub.calledOnce).to.be.true
-      expect(processTransferStub.calledWith(mockLog, NetworksEnum.ethereumMainnet, {})).to.be.true
-    })
-
-    it('should process DelegateVotesChanged event log', async () => {
-      const mockLog: Log = {
-        topics: [delegateVotesChangedTopic],
-        address: '0x123',
-        transactionHash: '0xhash',
-        index: 0,
-      } as any
-
-      const processDelegateStub = sandbox.stub(TransferCrawler, '_processDelegateVotesChangedLog').resolves()
-
-      await TransferCrawler._processEventLog(mockLog, NetworksEnum.ethereumMainnet, {})
-
-      expect(processDelegateStub.calledOnce).to.be.true
-      expect(processDelegateStub.calledWith(mockLog, NetworksEnum.ethereumMainnet, {})).to.be.true
-    })
-
-    it('should handle processing errors', async () => {
-      const mockLog: Log = {
-        topics: [transferTopic],
-        address: '0x123',
-        transactionHash: '0xhash',
-        index: 0,
-      } as any
-
-      sandbox.stub(TransferCrawler, '_processTransferLog').rejects(new Error('Handler error'))
-      const loggerErrorStub = sandbox.stub(logger, 'error')
+      sandbox.stub(TransferCrawler, '_groupLogsByToken').throws(new Error('Grouping error'))
 
       try {
-        await TransferCrawler._processEventLog(mockLog, NetworksEnum.ethereumMainnet, {})
+        await TransferCrawler.parseAndProcessTransferLogs(mockLogs, NetworksEnum.ethereumMainnet)
         expect.fail('Should have thrown an error')
       } catch (error: any) {
-        expect(error.message).to.equal('Handler error')
+        expect(error.message).to.equal('Grouping error')
       }
 
-      expect(loggerErrorStub.calledWith('Event log processing failed' as any)).to.be.true
+      expect((logger.error as any).calledWith('Mixed events processing failed', sinon.match.any)).to.be.true
     })
   })
 
-  describe('_processTransferLog', () => {
-    it('should parse and handle transfer event', async () => {
-      const mockLog: Log = {
-        topics: [transferTopic],
-        address: '0x123',
-        blockNumber: 100,
-        transactionHash: '0xhash',
-      } as any
+  describe('_processTokenBatch', () => {
+    let mockProcessor: any
 
-      const mockEvent = { name: 'Transfer', args: {} }
-      const mockInfo = { address: '0x123', blockNumber: 100 }
-
-      sandbox.stub(TransferCrawler, '_parseLogArguments').returns({
-        event: mockEvent,
-        info: mockInfo,
-      } as any)
-
-      const transferStub = sandbox.stub(GovernanceErc20Handler, 'transfer').resolves()
-      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
-
-      await TransferCrawler._processTransferLog(mockLog, NetworksEnum.ethereumMainnet, {})
-
-      expect(transferStub.calledOnce).to.be.true
-      expect(transferStub.calledWith(mockEvent, mockInfo, false, {})).to.be.true
-      expect(loggerVerboseStub.calledWith('Processing transfer' as any)).to.be.true
+    beforeEach(() => {
+      mockProcessor = {
+        tokenAddress: validAddress1,
+        setTimestampCache: sandbox.stub(),
+        processEvents: sandbox.stub().resolves(),
+      }
     })
 
-    it('should return early if parsing fails', async () => {
-      const mockLog: Log = {
-        topics: [transferTopic],
-        address: '0x123',
-      } as any
+    it('should sort logs by block number, transaction index, and log index', async () => {
+      const mockLogs: Log[] = [
+        { blockNumber: 102, transactionIndex: 1, index: 2 } as any,
+        { blockNumber: 100, transactionIndex: 0, index: 0 } as any,
+        { blockNumber: 101, transactionIndex: 2, index: 1 } as any,
+        { blockNumber: 100, transactionIndex: 1, index: 0 } as any,
+      ]
+
+      sandbox.stub(TransferCrawler, '_parseLogArguments').returns({
+        event: { name: 'Transfer', args: {} },
+        info: { blockNumber: 100 },
+      } as any)
+      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({})
+
+      await TransferCrawler._processTokenBatch(mockProcessor, mockLogs, NetworksEnum.ethereumMainnet)
+
+      expect(mockProcessor.processEvents.calledOnce).to.be.true
+      expect((logger.info as any).calledWith('Token processing completed', sinon.match.any)).to.be.true
+    })
+
+    it('should set timestamp cache and process events', async () => {
+      const mockLogs: Log[] = [{ blockNumber: 100, transactionIndex: 0, index: 0 } as any]
+
+      const mockTimestamps = { 100: 1609459200 }
+
+      sandbox.stub(TransferCrawler, '_parseLogArguments').returns({
+        event: { name: 'Transfer', args: {} },
+        info: { blockNumber: 100 },
+      } as any)
+      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves(mockTimestamps)
+
+      await TransferCrawler._processTokenBatch(mockProcessor, mockLogs, NetworksEnum.ethereumMainnet)
+
+      expect(mockProcessor.setTimestampCache.calledWith(mockTimestamps)).to.be.true
+      expect(mockProcessor.processEvents.calledOnce).to.be.true
+      expect((logger.info as any).calledWith('Token processing completed', sinon.match.any)).to.be.true
+    })
+
+    it('should process events in batches when logs exceed batch size', async () => {
+      // Get the actual batch size from config (default is 200)
+      const actualBatchSize = config.TRANSFER_CRAWLER_CONFIG.BATCH_SIZE
+
+      // Create logs that exceed the batch size
+      const mockLogs: Log[] = Array(250)
+        .fill(null)
+        .map((_, i) => ({
+          blockNumber: 100 + Math.floor(i / 50), // Vary block numbers
+          transactionIndex: i % 10,
+          index: i % 5,
+        })) as any[]
+
+      sandbox.stub(TransferCrawler, '_parseLogArguments').returns({
+        event: { name: 'Transfer', args: {} },
+        info: { blockNumber: 100 },
+      } as any)
+      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({})
+
+      await TransferCrawler._processTokenBatch(mockProcessor, mockLogs, NetworksEnum.ethereumMainnet)
+
+      // Should be called based on actual batch size (250 logs / 200 batch size = 2 calls)
+      const expectedCalls = Math.ceil(250 / actualBatchSize)
+      expect(mockProcessor.processEvents.callCount).to.equal(expectedCalls)
+      expect((logger.info as any).calledWith('Token processing completed', sinon.match.any)).to.be.true
+    })
+
+    it('should handle parsing failures gracefully and filter out invalid logs', async () => {
+      const mockLogs: Log[] = [{ blockNumber: 100 } as any, { blockNumber: 101 } as any]
+
+      sandbox
+        .stub(TransferCrawler, '_parseLogArguments')
+        .onFirstCall()
+        .returns({ event: null, info: null } as any)
+        .onSecondCall()
+        .returns({
+          event: { name: 'Transfer', args: {} },
+          info: { blockNumber: 101 },
+        } as any)
+
+      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({})
+
+      await TransferCrawler._processTokenBatch(mockProcessor, mockLogs, NetworksEnum.ethereumMainnet)
+
+      // Should still process the valid log
+      expect(mockProcessor.processEvents.calledOnce).to.be.true
+      expect((logger.info as any).calledWith('Token processing completed', sinon.match.any)).to.be.true
+    })
+
+    it('should skip processing when all logs fail to parse', async () => {
+      const mockLogs: Log[] = [{ blockNumber: 100 } as any]
 
       sandbox.stub(TransferCrawler, '_parseLogArguments').returns({
         event: null,
         info: null,
       } as any)
 
-      const transferStub = sandbox.stub(GovernanceErc20Handler, 'transfer').resolves()
+      await TransferCrawler._processTokenBatch(mockProcessor, mockLogs, NetworksEnum.ethereumMainnet)
 
-      await TransferCrawler._processTransferLog(mockLog, NetworksEnum.ethereumMainnet, {})
-
-      expect(transferStub.called).to.be.false
-    })
-  })
-
-  describe('_processDelegateVotesChangedLog', () => {
-    it('should parse and handle delegate votes changed event', async () => {
-      const mockLog: Log = {
-        topics: [delegateVotesChangedTopic],
-        address: '0x123',
-        blockNumber: 100,
-        transactionHash: '0xhash',
-      } as any
-
-      const mockEvent = { name: 'DelegateVotesChanged', args: {} }
-      const mockInfo = { address: '0x123', blockNumber: 100 }
-
-      sandbox.stub(TransferCrawler, '_parseLogArguments').returns({
-        event: mockEvent,
-        info: mockInfo,
-      } as any)
-
-      const delegateStub = sandbox.stub(GovernanceErc20Handler, 'delegateVotesChanged').resolves()
-      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
-
-      await TransferCrawler._processDelegateVotesChangedLog(mockLog, NetworksEnum.ethereumMainnet, {})
-
-      expect(delegateStub.calledOnce).to.be.true
-      expect(delegateStub.calledWith(mockEvent, mockInfo, false, {})).to.be.true
-      expect(loggerVerboseStub.calledWith('Processing delegate votes changed' as any)).to.be.true
+      expect(mockProcessor.processEvents.called).to.be.false
+      expect(mockProcessor.setTimestampCache.called).to.be.false
     })
 
-    it('should return early if parsing fails', async () => {
-      const mockLog: Log = {
-        topics: [delegateVotesChangedTopic],
-        address: '0x123',
-      } as any
+    it('should handle BatchTransfersHandler processing errors', async () => {
+      const mockLogs: Log[] = [{ blockNumber: 100, transactionIndex: 0, index: 0 } as any]
 
       sandbox.stub(TransferCrawler, '_parseLogArguments').returns({
-        event: null,
-        info: null,
+        event: { name: 'Transfer', args: {} },
+        info: { blockNumber: 100 },
       } as any)
+      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({})
+      mockProcessor.processEvents.rejects(new Error('Processing error'))
 
-      const delegateStub = sandbox.stub(GovernanceErc20Handler, 'delegateVotesChanged').resolves()
+      await TransferCrawler._processTokenBatch(mockProcessor, mockLogs, NetworksEnum.ethereumMainnet)
 
-      await TransferCrawler._processDelegateVotesChangedLog(mockLog, NetworksEnum.ethereumMainnet, {})
+      expect((logger.error as any).calledWith('Error processing token batch', sinon.match.any)).to.be.true
+    })
 
-      expect(delegateStub.called).to.be.false
+    it('should handle timestamp fetching errors', async () => {
+      const mockLogs: Log[] = [{ blockNumber: 100, transactionIndex: 0, index: 0 } as any]
+
+      sandbox.stub(TransferCrawler, '_parseLogArguments').returns({
+        event: { name: 'Transfer', args: {} },
+        info: { blockNumber: 100 },
+      } as any)
+      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').rejects(new Error('Timestamp error'))
+
+      await TransferCrawler._processTokenBatch(mockProcessor, mockLogs, NetworksEnum.ethereumMainnet)
+
+      expect((logger.error as any).calledWith('Error processing token batch', sinon.match.any)).to.be.true
     })
   })
 
@@ -401,11 +339,11 @@ describe('Module: TransferCrawler', () => {
     it('should parse log arguments using Web3Utils', () => {
       const mockLog: Log = {
         topics: [transferTopic],
-        address: '0x123',
+        address: validAddress1,
       } as any
 
       const mockDecoded = { name: 'Transfer', args: {} }
-      const mockInfo = { address: '0x123', blockNumber: 100 }
+      const mockInfo = { address: validAddress1, blockNumber: 100 }
 
       sandbox.stub(Web3Utils, 'parseLog').returns(mockDecoded as any)
       sandbox.stub(Web3Utils, 'parseInfoLog').returns(mockInfo as any)
@@ -414,6 +352,93 @@ describe('Module: TransferCrawler', () => {
 
       expect(result.event).to.equal(mockDecoded)
       expect(result.info).to.equal(mockInfo)
+    })
+
+    it('should handle parsing errors gracefully', () => {
+      const mockLog: Log = {
+        topics: [transferTopic],
+        address: validAddress1,
+      } as any
+
+      // Simulate parsing error
+      sandbox.stub(Web3Utils, 'parseLog').throws(new Error('Parse error'))
+      sandbox.stub(Web3Utils, 'parseInfoLog').returns(null as any)
+
+      const result = TransferCrawler._parseLogArguments(mockLog, NetworksEnum.ethereumMainnet)
+
+      // Should handle error gracefully and return null/undefined values
+      expect(result.event).to.be.null
+      expect(result.info).to.be.null
+    })
+  })
+
+  describe('Integration with BatchTransfersHandler', () => {
+    it('should properly instantiate BatchTransfersHandler with normalized token address', async () => {
+      const mockLogs: Log[] = [{ address: validAddress3, blockNumber: 100 } as any]
+
+      sandbox.stub(TransferCrawler, '_groupLogsByToken').returns({
+        [validAddress3.toLowerCase()]: mockLogs,
+      })
+
+      const processTokenBatchStub = sandbox.stub(TransferCrawler, '_processTokenBatch').resolves()
+
+      await TransferCrawler.parseAndProcessTransferLogs(mockLogs, NetworksEnum.ethereumMainnet)
+
+      // Verify BatchTransfersHandler was created for the token
+      expect(processTokenBatchStub.calledOnce).to.be.true
+
+      const firstCall = processTokenBatchStub.getCall(0)
+      expect(firstCall.args[0]).to.be.instanceOf(BatchTransfersHandler)
+      expect(firstCall.args[1]).to.equal(mockLogs)
+      expect(firstCall.args[2]).to.equal(NetworksEnum.ethereumMainnet)
+    })
+
+    it('should handle multiple tokens with separate BatchTransfersHandler instances', async () => {
+      const mockLogs: Log[] = [
+        { address: validAddress1, blockNumber: 100 } as any,
+        { address: validAddress2, blockNumber: 101 } as any,
+      ]
+
+      sandbox.stub(TransferCrawler, '_groupLogsByToken').returns({
+        [validAddress1.toLowerCase()]: [mockLogs[0]],
+        [validAddress2.toLowerCase()]: [mockLogs[1]],
+      })
+
+      const processTokenBatchStub = sandbox.stub(TransferCrawler, '_processTokenBatch').resolves()
+
+      await TransferCrawler.parseAndProcessTransferLogs(mockLogs, NetworksEnum.ethereumMainnet)
+
+      // Should create separate handler instances for each token
+      expect(processTokenBatchStub.callCount).to.equal(2)
+
+      // Verify correct token addresses were processed
+      const firstCall = processTokenBatchStub.getCall(0)
+      const secondCall = processTokenBatchStub.getCall(1)
+
+      expect(firstCall.args[0]).to.be.instanceOf(BatchTransfersHandler)
+      expect(secondCall.args[0]).to.be.instanceOf(BatchTransfersHandler)
+
+      // Verify different handler instances
+      expect(firstCall.args[0]).to.not.equal(secondCall.args[0])
+    })
+
+    it('should properly handle token address normalization in BatchTransfersHandler', async () => {
+      const mockLogs: Log[] = [{ address: validAddress1.toUpperCase(), blockNumber: 100 } as any]
+
+      sandbox.stub(TransferCrawler, '_groupLogsByToken').returns({
+        [validAddress1.toLowerCase()]: mockLogs, // lowercase from grouping
+      })
+
+      const processTokenBatchStub = sandbox.stub(TransferCrawler, '_processTokenBatch').resolves()
+
+      await TransferCrawler.parseAndProcessTransferLogs(mockLogs, NetworksEnum.ethereumMainnet)
+
+      expect(processTokenBatchStub.calledOnce).to.be.true
+
+      const handler = processTokenBatchStub.getCall(0).args[0]
+      expect(handler).to.be.instanceOf(BatchTransfersHandler)
+      expect(handler.tokenAddress).to.be.a('string')
+      expect(handler.tokenAddress.startsWith('0x')).to.be.true
     })
   })
 })

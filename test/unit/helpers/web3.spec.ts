@@ -651,17 +651,20 @@ describe('Helpers:Web3', () => {
           Contract: function () {
             return { name: stubName, symbol: stubSymbol, decimals: stubDecimals, totalSupply: stubTotalSupply }
           },
-          getAddress: () => '0xTokenAddress',
+          getAddress: () => '0x7eCfBaa8742fDf5756DAC92fbc8b90a19b8815bF',
         },
         '@state/configState': {
           ConfigState: { getInstance: () => stubConfigState },
         },
       })
 
-      const result = await MockedWeb3Helper.getTokenInfo('0xTokenAddress', NetworksEnum.ethereumMainnet)
+      const result = await MockedWeb3Helper.getTokenInfo(
+        '0x7eCfBaa8742fDf5756DAC92fbc8b90a19b8815bF',
+        NetworksEnum.ethereumMainnet,
+      )
 
       expect(result).to.deep.equal({
-        address: '0xTokenAddress',
+        address: '0x7eCfBaa8742fDf5756DAC92fbc8b90a19b8815bF',
         name: 'Test Token',
         symbol: 'TST',
         decimals: 18,

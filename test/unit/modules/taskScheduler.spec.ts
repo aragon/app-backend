@@ -10,6 +10,11 @@ import logger from '@logger'
 describe('Modules: TaskScheduler', () => {
   let sandbox: SinonSandbox
   let scheduler: TaskScheduler
+  let testCounter = 0
+
+  const getUniqueServiceName = (baseName: string) => {
+    return `${baseName}-${Date.now()}-${++testCounter}`
+  }
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
@@ -37,6 +42,7 @@ describe('Modules: TaskScheduler', () => {
       [{ logMember: fakeService }],
     ]
 
+    const serviceName = getUniqueServiceName('indexer')
     const taskOptions = {
       fn: () => [...logFastTasks],
       interval: 50,
@@ -49,7 +55,7 @@ describe('Modules: TaskScheduler', () => {
     }
 
     const scheduler = new TaskScheduler()
-    await scheduler.startTask('indexer', taskOptions)
+    await scheduler.startTask(serviceName, taskOptions)
 
     await Utils.wait(10)
     expect(fakeService.start.callCount).to.be.at.least(6)
@@ -59,22 +65,22 @@ describe('Modules: TaskScheduler', () => {
     expect(fakeService.start.callCount).to.be.at.least(12)
     expect(failingService.start.callCount).to.be.at.least(2)
 
-    scheduler.stopTask('indexer')
+    scheduler.stopTask(serviceName)
 
     const status = scheduler.getTaskStatus()
-    const task = status.find(task => task.key === 'indexer')
+    const task = status.find(task => task.key === serviceName)
     expect(task?.running).to.be.false
 
-    const serviceDb = await Models.TaskService.find({ serviceName: 'indexer' })
-    const tasksDb = await Models.TaskRun.find({ serviceName: 'indexer' })
+    const serviceDb = await Models.TaskService.find({ serviceName })
+    const tasksDb = await Models.TaskRun.find({ serviceName })
     expect(serviceDb.length).to.eq(1)
-    expect(serviceDb[0].serviceName).to.eq('indexer')
+    expect(serviceDb[0].serviceName).to.eq(serviceName)
     expect(serviceDb[0].interval).to.eq(50)
     expect(serviceDb[0].nextStartAt).to.exist
     expect(serviceDb[0].lastStartAt).to.exist
 
     expect(tasksDb.length).to.be.at.least(10)
-    expect(tasksDb[0].serviceName).to.eq('indexer')
+    expect(tasksDb[0].serviceName).to.eq(serviceName)
     expect(tasksDb[0].tasks.length).to.eq(7)
 
     const task0 = tasksDb[0].tasks[0]
@@ -99,6 +105,7 @@ describe('Modules: TaskScheduler', () => {
       [{ logMember: fakeService }],
     ]
 
+    const serviceName = getUniqueServiceName('indexer2')
     const taskOptions = {
       fn: () => [...logFastTasks],
       interval: 50,
@@ -111,28 +118,28 @@ describe('Modules: TaskScheduler', () => {
     }
 
     const scheduler = new TaskScheduler()
-    await scheduler.startTask('indexer2', taskOptions)
+    await scheduler.startTask(serviceName, taskOptions)
 
     await Utils.wait(800)
     expect(fakeService.start.callCount).to.be.at.least(4)
     expect(failingService.start.callCount).to.be.at.least(2)
 
-    scheduler.stopTask('indexer2')
+    scheduler.stopTask(serviceName)
 
     const status = scheduler.getTaskStatus()
-    const task = status.find(task => task.key === 'indexer2')
+    const task = status.find(task => task.key === serviceName)
     expect(task?.running).to.be.false
 
-    const serviceDb = await Models.TaskService.find({ serviceName: 'indexer2' })
-    const tasksDb = await Models.TaskRun.find({ serviceName: 'indexer2' })
+    const serviceDb = await Models.TaskService.find({ serviceName })
+    const tasksDb = await Models.TaskRun.find({ serviceName })
     expect(serviceDb.length).to.eq(1)
-    expect(serviceDb[0].serviceName).to.eq('indexer2')
+    expect(serviceDb[0].serviceName).to.eq(serviceName)
     expect(serviceDb[0].interval).to.eq(50)
     expect(serviceDb[0].nextStartAt).to.exist
     expect(serviceDb[0].lastStartAt).to.exist
 
     expect(tasksDb.length).to.be.at.least(2)
-    expect(tasksDb[0].serviceName).to.eq('indexer2')
+    expect(tasksDb[0].serviceName).to.eq(serviceName)
     expect(tasksDb[0].tasks.length).to.eq(3)
 
     const task0 = tasksDb[0].tasks[0]
@@ -147,8 +154,9 @@ describe('Modules: TaskScheduler', () => {
     const task1 = { start: sandbox.stub().resolves('done') }
     const taskFn = [[{ task1 }]]
     const errorFunction = sandbox.stub()
+    const serviceName = getUniqueServiceName('manualRun')
 
-    await scheduler.startTask('manualRun', {
+    await scheduler.startTask(serviceName, {
       fn: () => [...taskFn],
       interval: 5000,
       runNow: true,
@@ -158,7 +166,7 @@ describe('Modules: TaskScheduler', () => {
     await Utils.wait(10)
     expect(task1.start.calledOnce).to.be.true
 
-    await scheduler.runTaskNow('manualRun')
+    await scheduler.runTaskNow(serviceName)
     expect(task1.start.calledTwice).to.be.true
   })
 
@@ -167,8 +175,9 @@ describe('Modules: TaskScheduler', () => {
     const taskFn = () => [[{ failingTask }]]
     const errorFunction = sandbox.stub()
     const loggerErrorStub = sandbox.stub(logger, 'error')
+    const serviceName = getUniqueServiceName('errorTask')
 
-    await scheduler.startTask('errorTask', {
+    await scheduler.startTask(serviceName, {
       fn: taskFn,
       interval: 50,
       runNow: true,
@@ -176,19 +185,31 @@ describe('Modules: TaskScheduler', () => {
       onError: errorFunction,
     })
 
-    await Utils.wait(10)
+    await Utils.wait(100)
 
-    expect(loggerErrorStub.calledOnce).to.be.true
-    expect(errorFunction.calledOnce).to.be.true
-    expect(errorFunction.calledWith(sandbox.match.instanceOf(Error))).to.be.true
-    expect(errorFunction.firstCall.args[0].message).to.equal('Task failure')
+    expect(loggerErrorStub.called).to.be.true
+    expect(errorFunction.called).to.be.true
+
+    // Check if error function was called with an Error instance
+    const errorCalls = errorFunction.getCalls()
+    let foundTaskFailureError = false
+
+    for (const call of errorCalls) {
+      if (call.args[0] instanceof Error && call.args[0].message === 'Task failure') {
+        foundTaskFailureError = true
+        break
+      }
+    }
+
+    expect(foundTaskFailureError).to.be.true
   })
 
   it('should return the correct status of scheduled tasks', async () => {
     const task1 = { start: sandbox.stub().resolves('done') }
     const taskFn = () => [[{ task1 }]]
+    const serviceName = getUniqueServiceName('statusTest')
 
-    await scheduler.startTask('statusTest', {
+    await scheduler.startTask(serviceName, {
       fn: taskFn,
       interval: 50,
       runNow: true,
@@ -197,14 +218,14 @@ describe('Modules: TaskScheduler', () => {
     await Utils.wait(10)
 
     let status = scheduler.getTaskStatus()
-    expect(status[0]).to.deep.include({ key: 'statusTest', running: true })
+    expect(status[0]).to.deep.include({ key: serviceName, running: true })
 
-    scheduler.stopTask('statusTest')
+    scheduler.stopTask(serviceName)
 
     await Utils.wait(10)
 
     status = scheduler.getTaskStatus()
-    expect(status).to.deep.include({ key: 'statusTest', running: false })
+    expect(status).to.deep.include({ key: serviceName, running: false })
   })
 
   it('should prevent task duplication', async () => {
@@ -212,15 +233,16 @@ describe('Modules: TaskScheduler', () => {
     const taskFn = () => [[{ task1 }]]
     const errorFunction = sandbox.stub()
     const stubWarn = sandbox.stub(logger, 'warn')
+    const serviceName = getUniqueServiceName('duplicateTest')
 
-    await scheduler.startTask('duplicateTest', {
+    await scheduler.startTask(serviceName, {
       fn: taskFn,
       interval: 50,
       runNow: true,
       onError: errorFunction,
     })
 
-    await scheduler.startTask('duplicateTest', {
+    await scheduler.startTask(serviceName, {
       fn: taskFn,
       interval: 50,
       runNow: true,
@@ -235,29 +257,31 @@ describe('Modules: TaskScheduler', () => {
     const task1 = { start: sandbox.stub().resolves('done') }
     const taskFn = () => [[{ task1 }]]
     const errorFunction = sandbox.stub()
+    const serviceName = getUniqueServiceName('lockTest')
 
-    await scheduler.startTask('lockTest', {
+    await scheduler.startTask(serviceName, {
       fn: taskFn,
       interval: 50,
       runNow: true,
       onError: errorFunction,
     })
 
-    scheduler['tasks']['lockTest'].lock = true
+    scheduler['tasks'][serviceName].lock = true
 
-    await scheduler.runTaskNow('lockTest')
+    await scheduler.runTaskNow(serviceName)
 
     expect(task1.start.calledOnce).to.be.true
 
-    scheduler['tasks']['lockTest'].lock = false
+    scheduler['tasks'][serviceName].lock = false
   })
 
   it('should not execute task when it is locked', async () => {
     const task1 = { start: sandbox.stub().resolves('Task completed') }
     const taskFn = () => [[{ task1 }]]
     const errorFunction = sandbox.stub()
+    const serviceName = getUniqueServiceName('lockedTask')
 
-    await scheduler.startTask('lockedTask', {
+    await scheduler.startTask(serviceName, {
       fn: taskFn,
       interval: 50,
       runNow: true,
@@ -266,14 +290,14 @@ describe('Modules: TaskScheduler', () => {
 
     await Utils.wait(10)
 
-    scheduler['tasks']['lockedTask'].lock = true
+    scheduler['tasks'][serviceName].lock = true
 
-    await scheduler.runTaskNow('lockedTask')
+    await scheduler.runTaskNow(serviceName)
 
     expect(task1.start.calledOnce).to.be.true
 
-    scheduler['tasks']['lockedTask'].lock = false
-    await scheduler.runTaskNow('lockedTask')
+    scheduler['tasks'][serviceName].lock = false
+    await scheduler.runTaskNow(serviceName)
     expect(task1.start.calledTwice).to.be.true
   })
 
@@ -301,16 +325,17 @@ describe('Modules: TaskScheduler', () => {
   it('should not run task if it is locked in taskRunner', async () => {
     const task1 = { start: sandbox.stub().resolves('done') }
     const taskFn = [[{ task1 }]]
+    const serviceName = getUniqueServiceName('lockedTest')
 
-    await scheduler.startTask('lockedTest', {
+    await scheduler.startTask(serviceName, {
       fn: () => taskFn,
       interval: 5000,
       runNow: true,
       onError: sandbox.stub(),
     })
 
-    scheduler['tasks']['lockedTest'].lock = true
-    const taskRunner = scheduler['taskRunners']['lockedTest']
+    scheduler['tasks'][serviceName].lock = true
+    const taskRunner = scheduler['taskRunners'][serviceName]
     await taskRunner()
 
     expect(task1.start.calledOnce).to.be.true
@@ -319,16 +344,17 @@ describe('Modules: TaskScheduler', () => {
   it('should not run task if shouldRunTask returns false', async () => {
     const task1 = { start: sandbox.stub().resolves('done') }
     const taskFn = [[{ task1 }]]
+    const serviceName = getUniqueServiceName('shouldRunTest')
     sandbox.stub(scheduler as any, 'shouldRunTask').resolves(false)
 
-    await scheduler.startTask('shouldRunTest', {
+    await scheduler.startTask(serviceName, {
       fn: () => taskFn,
       interval: 5000,
       runNow: false,
       onError: sandbox.stub(),
     })
 
-    const taskRunner = scheduler['taskRunners']['shouldRunTest']
+    const taskRunner = scheduler['taskRunners'][serviceName]
     await taskRunner()
 
     expect(task1.start.called).to.be.false

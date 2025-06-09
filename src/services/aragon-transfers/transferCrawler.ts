@@ -199,12 +199,29 @@ const TransferCrawler = {
    * @returns Parsed event and info
    */
   _parseLogArguments: (log: Log, network: NetworksEnum) => {
-    const decoded = Web3Utils.parseLog(log, iFace)
-    const iLogInfo = Web3Utils.parseInfoLog(log, decoded?.name!, network)
+    try {
+      const decoded = Web3Utils.parseLog(log, iFace)
+      const iLogInfo = Web3Utils.parseInfoLog(log, decoded?.name!, network)
 
-    return {
-      event: decoded,
-      info: iLogInfo,
+      return {
+        event: decoded,
+        info: iLogInfo,
+      }
+    } catch (error) {
+      logger.warn(
+        'Failed to parse log arguments',
+        llo({
+          error,
+          network,
+          logAddress: log.address,
+          logTopics: log.topics,
+        }),
+      )
+
+      return {
+        event: null,
+        info: null,
+      }
     }
   },
 }
