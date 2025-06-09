@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { ethers, Interface, type Log } from 'ethers'
+import { Interface, type Log } from 'ethers'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import logger from '@logger'
 import BlockchainLogCrawler from '@src/modules/blockchainLogCrawler'

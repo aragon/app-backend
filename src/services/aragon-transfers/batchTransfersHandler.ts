@@ -518,61 +518,6 @@ export class BatchTransfersHandler {
   }
 
   /**
-   * Process all transactions for a user
-   * @param userData User transaction data
-   */
-  private async processUserTransactions(userData: UserTransferData): Promise<void> {
-    try {
-      const { address, events } = userData
-
-      const txIds = events.map(event => event.dbId)
-      const existingTxIds = await this.getExistingTxIds(txIds)
-
-      const newEvents = events.filter(event => !existingTxIds.has(event.dbId))
-
-      if (newEvents.length === 0) {
-        return
-      }
-
-      const latestEvent = newEvents[newEvents.length - 1]
-
-      // if the tokenId is there then it is an NFT, otherwise it is a fungible token
-      const tokenId =
-        newEvents[0]?.parsedEvent?.args?.tokenId !== undefined
-          ? Number(newEvents[0].parsedEvent.args.tokenId || 0)
-          : undefined
-
-      const memberBalance = await this.getAndUpdateBalanceData(address, latestEvent.info.blockNumber, tokenId)
-
-      for (const event of newEvents) {
-        if (event.eventType === 'transfer') {
-          await this.processSingleTransaction(address, memberBalance, event)
-        } else if (event.eventType === 'delegation') {
-          await this.processSingleDelegation(address, memberBalance, event)
-        }
-      }
-
-      const hasBalance =
-        BigInt(memberBalance.amount?.toString() || '0') > 0n ||
-        BigInt(memberBalance.votingPower?.toString() || '0') > 0n
-
-      if (hasBalance) {
-        await this.handleDaoMembership(address, memberBalance)
-      }
-    } catch (error) {
-      logger.error(
-        'Error processing user transactions',
-        llo({
-          error,
-          address: userData.address,
-          tokenAddress: this.tokenAddress,
-          network: this.network,
-        }),
-      )
-    }
-  }
-
-  /**
    * Process user transactions with a pre-fetched balance
    */
   private async processUserTransactionsWithBalance(

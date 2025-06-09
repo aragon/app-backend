@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import {ITransferSide, ITransferType, NetworksEnum} from '@types'
+import { ITransferSide, ITransferType, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
 import utils from '@helpers/utils'
@@ -64,7 +64,7 @@ describe('Integ: Batch Transfer Processor', () => {
       links: [],
     })
 
-   await Models.Token.create({
+    await Models.Token.create({
       id: `${tokenAddress}-${network}`,
       network,
       address: tokenAddress,

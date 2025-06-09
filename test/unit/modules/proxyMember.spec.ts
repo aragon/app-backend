@@ -416,7 +416,6 @@ describe('Modules:ProxyMember', () => {
         const parsedMemberAddress = '0x57e24f85ceAcDa3Ef4F0fd04005589B88dc01A19'
         const member = { id: 'member-id', address: params.memberAddress }
         const existingDaoMember = { id: 'mapping-id' }
-        const session = {}
 
         const parseAddressStub = sandbox
           .stub(Web3Utils, 'parseAddress')
@@ -596,7 +595,6 @@ describe('Modules:ProxyMember', () => {
 
         const parsedMemberAddress = '0xNonMember'
         const member: any = { id: 'member-id', address: params.memberAddress }
-        const session = {}
 
         const parseAddressStub = sandbox
           .stub(Web3Utils, 'parseAddress')
@@ -670,7 +668,6 @@ describe('Modules:ProxyMember', () => {
 
         const parsedMemberAddress = '0xConcurrentMember'
         const member: any = { id: 'member-id', address: params.memberAddress }
-        const session = {}
 
         const existingDaoMember = {
           id: 'mapping-id',
