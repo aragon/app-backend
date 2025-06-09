@@ -147,8 +147,11 @@ describe('Modules:ProxyMember', () => {
     it('should handle invalid input parameters gracefully', async () => {
       const invalidParams = { address: null, pluginAddress: '0xabc', network: NetworksEnum.ethereumMainnet } as any
 
+      const errorLoggerStub = sandbox.stub(Logger, 'error')
       const result = await ProxyMember.createMetrics(invalidParams)
 
+      expect(errorLoggerStub.calledOnce).to.be.true
+      expect(errorLoggerStub.calledWith('Error creating new member metrics' as any)).to.be.true
       expect(result).to.be.null
     })
   })

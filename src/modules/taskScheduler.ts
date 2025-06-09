@@ -28,7 +28,7 @@ class TaskScheduler {
   public getTaskStatus(): { key: string; running: boolean }[] {
     return Object.keys(this.tasks).map(key => ({
       key,
-      running: this.tasks[key].running && !this.tasks[key].lock,
+      running: this.tasks[key].running,
     }))
   }
 
@@ -66,11 +66,24 @@ class TaskScheduler {
   private async updateNextStartAt(serviceName: string, interval: number): Promise<void> {
     const now = dayjs().utc()
     const nextStartAt = now.add(interval, 'millisecond').toDate()
-    await Models.TaskService.findOneAndUpdate(
-      { serviceName },
-      { $set: { nextStartAt, lastStartAt: now.toDate() } },
-      { upsert: true, new: true },
-    )
+
+    try {
+      await Models.TaskService.findOneAndUpdate(
+        { serviceName },
+        { $set: { nextStartAt, lastStartAt: now.toDate() } },
+        { new: true, upsert: true },
+      )
+    } catch (error: any) {
+      if (error.code === 11000) {
+        await Models.TaskService.findOneAndUpdate(
+          { serviceName },
+          { $set: { nextStartAt, lastStartAt: now.toDate() } },
+          { new: true },
+        )
+      } else {
+        throw error
+      }
+    }
   }
 
   public async startTask(key: string, options: TaskOptions): Promise<void> {
@@ -210,9 +223,7 @@ class TaskScheduler {
   public async runTaskNow(key: string): Promise<void> {
     const taskRunner = this.taskRunners[key]
     if (taskRunner && !this.tasks[key].lock) {
-      this.tasks[key].running = true
       await taskRunner()
-      this.tasks[key].running = false
     }
   }
 
@@ -224,13 +235,14 @@ class TaskScheduler {
   }
 
   public stopTask(key: string): void {
-    if (this.tasks[key]?.running) {
+    if (this.tasks[key]) {
       this.tasks[key].lock = true
       this.tasks[key].running = false
       if (this.tasks[key].intervalId !== null) {
         clearInterval(this.tasks[key].intervalId)
         this.tasks[key].intervalId = null
       }
+      delete this.taskRunners[key]
       logger.info(`${key} task stopped`, llo({}))
     } else {
       logger.info(`${key} task is not running`, llo({}))
