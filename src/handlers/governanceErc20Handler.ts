@@ -11,7 +11,6 @@ import { Models } from '@dbModels'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import type Plugin from '@models/schema/plugin'
 import RabbitMQHelper from '@helpers/rabbitMQ'
-import config from '@config'
 import { ProxyToken } from '@modules/proxyToken'
 import type MemberTransaction from '@models/schema/memberTransaction'
 
