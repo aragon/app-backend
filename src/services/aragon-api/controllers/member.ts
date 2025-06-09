@@ -15,7 +15,7 @@ import { assertExposable } from '@errors'
 import PairDataModule from '@modules/pairData'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import config from '@config'
-import Lock from '@models/schema/lock'
+import type Lock from '@models/schema/lock'
 
 const MemberController = {
   getMembersWithPagination: async (
