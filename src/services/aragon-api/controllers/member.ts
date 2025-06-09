@@ -120,7 +120,7 @@ const MemberController = {
       EnumQueueName.getLockVotingPowerBatch,
       {
         id: `lockVotingPowerBatch-${Date.now()}`,
-        params: batchParams,
+        params: { locks: batchParams },
       },
       { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
     )
