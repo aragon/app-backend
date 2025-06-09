@@ -127,11 +127,11 @@ const MemberController = {
 
     // Create a map for quick lookup
     const votingPowerMap = new Map(
-      batchResults.map((result: { tokenId: any; votingPower: any }) => [result.tokenId, result.votingPower]),
+      batchResults.map((result: { tokenId: string; votingPower: string }) => [result.tokenId, result.votingPower]),
     )
 
     // Update voting power
-    response.data = response.data.map(lock => ({
+    response.data = response.data.map((lock: Lock) => ({
       ...lock,
       votingPower: votingPowerMap.get(lock.tokenId) || '0',
     }))
