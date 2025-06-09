@@ -623,7 +623,6 @@ describe('Controller: Member', () => {
         pluginAddress: rawDaoMemberMapping.pluginAddress,
         network: rawDaoMemberMapping.network,
         escrowAddress: '0xEscrowAddress123',
-        // No blockTimestamp
       }
 
       const expectedResponse = {
@@ -645,8 +644,8 @@ describe('Controller: Member', () => {
 
       await MemberController.getMemberLocks()
 
-      const sentParams = rabbitMqStub.args[0][1].params[0]
-      expect(sentParams.timestamp).to.be.closeTo(currentTimestamp, 2) // Allow 2 seconds difference
+      const sentParams = rabbitMqStub.args[0][1].params.locks[0]
+      expect(sentParams.timestamp).to.be.closeTo(currentTimestamp, 2)
     })
   })
 })
