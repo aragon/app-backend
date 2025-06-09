@@ -233,6 +233,7 @@ export const GovernanceVeHandler = {
       blockTimestamp,
       pluginAddress: plugin.address,
       daoAddress: plugin.daoAddress,
+      escrowAddress: plugin.votingEscrow.escrowAddress,
       memberAddress,
       nftAddress: plugin.votingEscrow.nftLockAddress,
       tokenAddress: plugin.tokenAddress,

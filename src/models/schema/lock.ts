@@ -103,6 +103,9 @@ export default class Lock extends Model {
   @prop({ type: () => String, required: true })
   public memberAddress!: HexAddress
 
+  @prop({ type: () => String, required: true })
+  public escrowAddress!: HexAddress
+
   // erc20 token address
   @prop({ type: () => String, required: true })
   public tokenAddress!: HexAddress

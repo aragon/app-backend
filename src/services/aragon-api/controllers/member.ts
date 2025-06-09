@@ -15,6 +15,7 @@ import { assertExposable } from '@errors'
 import PairDataModule from '@modules/pairData'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import config from '@config'
+import Lock from '@models/schema/lock'
 
 const MemberController = {
   getMembersWithPagination: async (
@@ -103,50 +104,37 @@ const MemberController = {
   ): Promise<IPaginatedResult<IMemberLockResponse>> => {
     const response = await Models.Lock.findWithPagination({ extraParams, paginationParams })
 
-    if (response.data.length > 0) {
-      const locksWithEscrow: any = []
-      const tokenIdToLockIndex = {}
-
-      for (let i = 0; i < response.data.length; i++) {
-        const lock = response.data[i]
-        const plugin = await Models.Plugin.findByAddress(lock.pluginAddress, lock.network)
-
-        if (plugin?.votingEscrow?.escrowAddress) {
-          locksWithEscrow.push({
-            lockId: lock.id,
-            tokenId: lock.tokenId,
-            network: lock.network,
-            escrowAddress: plugin.votingEscrow.escrowAddress,
-            timestamp: lock.blockTimestamp || Math.floor(Date.now() / 1000),
-          })
-
-          tokenIdToLockIndex[lock.tokenId] = i
-        }
-      }
-
-      if (locksWithEscrow.length > 0) {
-        const batchResults = await RabbitMQHelper.sendMessage(
-          EnumQueueName.getLockVotingPowerBatch,
-          {
-            id: `lockVotingPowerBatch-${Date.now()}`,
-            params: locksWithEscrow,
-          },
-          { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
-        )
-
-        batchResults.forEach(result => {
-          const index = tokenIdToLockIndex[result.tokenId]
-          if (index !== undefined) {
-            response.data[index].votingPower = result.votingPower
-          }
-        })
-      }
-
-      response.data = response.data.map(lock => ({
-        ...lock,
-        votingPower: lock.votingPower || '0',
-      }))
+    if (response.data.length === 0) {
+      return response
     }
+
+    const batchParams = response.data.map((lock: Lock) => ({
+      lockId: lock.id,
+      tokenId: lock.tokenId,
+      network: lock.network,
+      escrowAddress: lock.escrowAddress,
+      timestamp: lock.blockTimestamp || Math.floor(Date.now() / 1000),
+    }))
+
+    const batchResults = await RabbitMQHelper.sendMessage(
+      EnumQueueName.getLockVotingPowerBatch,
+      {
+        id: `lockVotingPowerBatch-${Date.now()}`,
+        params: batchParams,
+      },
+      { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
+    )
+
+    // Create a map for quick lookup
+    const votingPowerMap = new Map(
+      batchResults.map((result: { tokenId: any; votingPower: any }) => [result.tokenId, result.votingPower]),
+    )
+
+    // Update voting power
+    response.data = response.data.map(lock => ({
+      ...lock,
+      votingPower: votingPowerMap.get(lock.tokenId) || '0',
+    }))
 
     return response
   },
