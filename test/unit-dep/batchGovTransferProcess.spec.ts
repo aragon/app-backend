@@ -7,7 +7,7 @@ import UnitDepUtils from '@test/lib/unit-dep/utils'
 import utils from '@helpers/utils'
 import TransferCrawler from '@services/aragon-transfers/transferCrawler'
 
-describe('Integ: Batch Transfer Processor', () => {
+describe.only('Integ: Batch Transfer Processor', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
