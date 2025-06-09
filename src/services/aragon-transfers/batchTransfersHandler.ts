@@ -95,7 +95,6 @@ export class BatchTransfersHandler {
           network: this.network,
           tokenAddress: this.tokenAddress,
           userCount: userAddresses.length,
-          eventCount: events.length,
         }),
       )
 
