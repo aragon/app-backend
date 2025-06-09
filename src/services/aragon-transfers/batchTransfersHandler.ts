@@ -1,6 +1,5 @@
 import logger from '@logger'
 import { type LogDescription } from 'ethers'
-import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
 import {
   EnumQueueName,
@@ -19,6 +18,7 @@ import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import Web3Utils from '@helpers/web3Utils'
 import type MemberBalance from '@models/schema/memberBalance'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
+import dbTx from '@modules/dbTx'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:TransferProcessor' })
 
@@ -114,31 +114,9 @@ export class BatchTransfersHandler {
 
       const balanceMap = await this.batchProcessBalances(userBalanceParams)
 
-      const userBatches = this.chunkArray(userAddresses, this.options.parallelUsers!)
-      for (const batch of userBatches) {
-        await Promise.all(
-          batch.map(async address => {
-            try {
-              const userData = userEventMap[address]
-              const memberBalance = balanceMap.get(address)
+      await this.processUsersTxs(userEventMap, balanceMap)
 
-              await this.processUserTransactionsWithBalance(userData, memberBalance!)
-            } catch (error) {
-              logger.error(
-                'Error processing user transactions',
-                llo({
-                  error,
-                  address,
-                  network: this.network,
-                  tokenAddress: this.tokenAddress,
-                }),
-              )
-            }
-          }),
-        )
-      }
-
-      if (this.options.updateDaoMetrics && this.plugins.length > 0) {
+      if (this.plugins.length > 0) {
         await this.updateDaoMetrics()
       }
 
@@ -164,6 +142,36 @@ export class BatchTransfersHandler {
         }),
       )
     }
+  }
+
+  private async processUsersTxs(
+    eventsMap: Record<string, UserTransferData>,
+    balanceMap: Map<string, MemberBalance>,
+  ): Promise<void> {
+    await utils.asyncBatchProcess(
+      Object.keys(eventsMap),
+      async (address: HexAddress) => {
+        const userData = eventsMap[address]
+        const memberBalance = balanceMap.get(address)
+        await this.processUserTransactionsWithBalance(userData, memberBalance!)
+      },
+      {
+        concurrency: this.options.parallelUsers,
+        batchSize: this.options.batchSize,
+        stopOnError: false,
+        onError: (error: any, address: HexAddress) => {
+          logger.error(
+            'Error processing user transactions',
+            llo({
+              error,
+              address,
+              network: this.network,
+              tokenAddress: this.tokenAddress,
+            }),
+          )
+        },
+      },
+    )
   }
 
   /**
@@ -358,85 +366,6 @@ export class BatchTransfersHandler {
   }
 
   /**
-   * Get user balance data
-   * @param address User address
-   * @param blockNumber Block number for balance check
-   * @param tokenId Token ID (for NFTs)
-   * @returns Promise resolving to user balance data
-   */
-  private async getAndUpdateBalanceData(
-    address: HexAddress,
-    blockNumber: number,
-    tokenId?: number,
-  ): Promise<MemberBalance> {
-    try {
-      const blockTimestamp = await this.getBlockTimestamp(this.network, blockNumber)
-
-      const batchResult = await Web3BatchHelper.getVotingPowerAndBalancesInBatch(
-        [
-          {
-            memberAddress: address,
-            tokenAddress: this.tokenAddress,
-            blockNumber,
-            blockTimestamp,
-          },
-        ],
-        this.network,
-      )
-
-      const result = batchResult[address]
-      const balance = result?.balance || '0'
-      const votingPower = result?.votingPower || '0'
-
-      // Get or create the balance record in the database
-      const balanceDb = await ProxyMember.getBalances({
-        address,
-        tokenAddress: this.tokenAddress,
-        network: this.network,
-      })
-
-      // Update the database with the new balance and voting power
-      await DbTx.executeTxFn(async ({ session }) => {
-        await balanceDb!.updateBalance(
-          {
-            amount: balance,
-            blockNumber,
-            tokenId,
-          },
-          { session },
-        )
-
-        if (votingPower !== '0') {
-          await balanceDb!.updateVotingPower(votingPower, blockNumber, { session })
-        }
-        await session.commitTransaction()
-      })
-
-      return balanceDb!
-    } catch (error) {
-      logger.error(
-        'Error getting balance data',
-        llo({
-          error,
-          address,
-          tokenAddress: this.tokenAddress,
-          network: this.network,
-          blockNumber,
-        }),
-      )
-
-      // Fallback to existing balance or create new one
-      const balanceDb = await ProxyMember.getBalances({
-        address,
-        tokenAddress: this.tokenAddress,
-        network: this.network,
-      })
-
-      return balanceDb!
-    }
-  }
-
-  /**
    * Batch process balance data for multiple users
    * @param users Array of user data with address and block number
    * @returns Map of addresses to balance data
@@ -473,7 +402,7 @@ export class BatchTransfersHandler {
               network: this.network,
             })
 
-            await DbTx.executeTxFn(async ({ session }) => {
+            await dbTx.executeTxFn(async ({ session }) => {
               await balanceDb!.updateBalance(
                 {
                   amount: balance,
@@ -504,22 +433,23 @@ export class BatchTransfersHandler {
       )
 
       return balanceMap
-    } catch (error) {
+    } catch (e: any) {
       logger.error(
-        'Error in batch balance processing',
+        'Error in batch processing balances',
         llo({
-          error,
+          error: e,
           network: this.network,
           tokenAddress: this.tokenAddress,
         }),
       )
-      return new Map()
+      return new Map<string, MemberBalance>()
     }
   }
 
   /**
    * Process user transactions with a pre-fetched balance
    */
+
   private async processUserTransactionsWithBalance(
     userData: UserTransferData,
     memberBalance: MemberBalance,
@@ -582,7 +512,7 @@ export class BatchTransfersHandler {
     const tokenId = parsedEvent?.args.tokenId || null
     const txAmount = tokenId !== null ? 1 : parsedEvent?.args?.amount || '0'
 
-    await DbTx.executeTxFn(async ({ session }) => {
+    await dbTx.executeTxFn(async ({ session }) => {
       await Models.MemberTransaction.create(
         {
           id: dbId,
@@ -645,7 +575,7 @@ export class BatchTransfersHandler {
 
       const newVotingPower = BigInt(parsedEvent?.args?.newBalance || 0).toString()
 
-      await DbTx.executeTxFn(async ({ session }) => {
+      await dbTx.executeTxFn(async ({ session }) => {
         await Models.MemberTransaction.create(
           {
             id: dbId,

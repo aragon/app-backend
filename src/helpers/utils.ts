@@ -221,27 +221,25 @@ const Utils = {
     })
   },
 
-  asyncBatchProcess: async <T, R>(
+  asyncBatchProcess: async <T>(
     items: T[],
-    processor: (item: T, stats: { processed: number; total: number; batchIndex: number }) => Promise<R>,
+    processor: (item: T, stats: { processed: number; total: number; batchIndex: number }) => Promise<void>,
     options: {
       concurrency?: number
       batchSize?: number
       onError?: (error: Error, item: T) => void
       stopOnError?: boolean
     } = {},
-  ): Promise<{ results: R[]; errors: Array<{ error: Error; item: T }> }> => {
+  ): Promise<void> => {
     const { concurrency = 2, batchSize = 10, onError = Utils.defaultError, stopOnError = false } = options
 
     return await new Promise((resolve, reject) => {
-      const results: R[] = []
-      const errors: Array<{ error: Error; item: T }> = []
       let processed = 0
       let hasError = false
       const total = items.length
 
       if (total === 0) {
-        return resolve({ results, errors })
+        return resolve()
       }
 
       const worker = async (batch: T[], batchIndex: number): Promise<void> => {
@@ -251,11 +249,9 @@ const Utils = {
           }
 
           try {
-            const result = await processor(item, { processed: processed + 1, total, batchIndex })
-            results.push(result)
+            await processor(item, { processed: processed + 1, total, batchIndex })
             processed++
           } catch (error: any) {
-            errors.push({ error, item })
             onError(error, item)
             processed++
 
@@ -277,7 +273,7 @@ const Utils = {
       })
 
       queue.drain(() => {
-        resolve({ results, errors })
+        resolve()
       })
 
       batches.forEach((batch, index) => {
