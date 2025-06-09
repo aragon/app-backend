@@ -85,10 +85,11 @@ describe.only('Integ: Batch Transfer Processor', () => {
 
     expect(await Models.Member.findByAddress(member1)).to.exist
 
-    // test member1 have two transaction, one receiving and 1 delegate received
     let member1Txs = await Models.MemberTransaction.find({ address: member1 }).sort({ createdAt: -1, logIndex: -1 })
     let member1Balance = await Models.MemberBalance.findOne({ address: member1 })
     let member1Metrics = await Models.MemberMetrics.findOne({ address: member1 })
+
+    console.log(await Models.MemberTransaction.find({}))
 
     expect(member1Txs).to.have.length(2)
     const transferTx = member1Txs.find(tx => tx.type === ITransferType.tokenTransfer)
