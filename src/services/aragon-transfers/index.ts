@@ -31,11 +31,13 @@ const AragonTransferService: IService & { repeaters: any } = {
             service: `indexer-${networkName}`,
           })
 
-          await Models.ConfigIndexer.create({
-            network: networkName,
-            service: logService!,
-            lastSync: indexerLastSync.lastSync,
-          })
+          if (indexerLastSync) {
+            await Models.ConfigIndexer.create({
+              network: networkName,
+              service: logService!,
+              lastSync: indexerLastSync?.lastSync || 0,
+            })
+          }
         }
 
         const taskOptions = {

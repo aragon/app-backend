@@ -712,7 +712,7 @@ describe('Helpers:Utils', () => {
 
       await new Promise(resolve => {
         Utils.setImmediateAsyncArray([fn1, fn2], onError)
-        setImmediate(resolve) // Allow all setImmediate calls to complete
+        setImmediate(resolve)
       })
 
       sinon.assert.calledOnce(fn1)
@@ -997,6 +997,158 @@ describe('Helpers:Utils', () => {
       }
       const result = Utils.deepConvertToObject(obj)
       expect(result).to.deep.equal({ a: 1, b: 2 })
+    })
+  })
+
+  describe.only('asyncBatchProcess', () => {
+    it('should process all items successfully with default options', async () => {
+      const items = [1, 2, 3, 4, 5]
+      const processor = sandbox.stub().callsFake(async (item: number) => item * 2)
+
+      const { results, errors } = await Utils.asyncBatchProcess(items, processor)
+
+      expect(results).to.deep.equal([2, 4, 6, 8, 10])
+      expect(errors).to.be.empty
+      expect(processor.callCount).to.equal(5)
+    })
+
+    it('should handle custom concurrency and batch size', async () => {
+      const items = Array.from({ length: 20 }, (_, i) => i + 1)
+      const processor = sandbox.stub().callsFake(async (item: number, stats) => {
+        await Utils.wait(50)
+        return item * 2
+      })
+
+      const startTime = Date.now()
+      const { results, errors } = await Utils.asyncBatchProcess(items, processor, {
+        concurrency: 3,
+        batchSize: 5
+      })
+      const duration = Date.now() - startTime
+
+      expect(results).to.have.length(20)
+      expect(errors).to.be.empty
+      expect(processor.callCount).to.equal(20)
+      expect(duration).to.be.lessThan(20 * 50) // Much faster than sequential
+    })
+
+    it('should collect errors without stopping processing by default', async () => {
+      const items = [1, 2, 3, 4, 5]
+      const onError = sandbox.stub()
+      
+      const processor = sandbox.stub().callsFake(async (item: number) => {
+        if (item === 2 || item === 4) {
+          throw new Error(`Error processing ${item}`)
+        }
+        return item * 2
+      })
+
+      const { results, errors } = await Utils.asyncBatchProcess(items, processor, { onError })
+
+      expect(results).to.deep.equal([2, 6, 10]) // Only successful items
+      expect(errors).to.have.length(2)
+      expect(errors[0].error.message).to.equal('Error processing 2')
+      expect(errors[0].item).to.equal(2)
+      expect(errors[1].error.message).to.equal('Error processing 4')
+      expect(errors[1].item).to.equal(4)
+      expect(onError.callCount).to.equal(2)
+      expect(processor.callCount).to.equal(5) // All items were processed
+    })
+
+    it('should stop on first error when stopOnError is true', async () => {
+      const items = [1, 2, 3, 4, 5]
+      const onError = sandbox.stub()
+      
+      const processor = sandbox.stub().callsFake(async (item: number) => {
+        if (item === 3) {
+          throw new Error(`Error processing ${item}`)
+        }
+        await Utils.wait(10) // Small delay to ensure order
+        return item * 2
+      })
+
+      const { results, errors } = await Utils.asyncBatchProcess(items, processor, { 
+        onError,
+        stopOnError: true,
+        batchSize: 2,
+        concurrency: 1 // Ensure sequential processing for predictable behavior
+      })
+
+      expect(errors).to.have.length(1)
+      expect(errors[0].error.message).to.equal('Error processing 3')
+      expect(onError.callCount).to.equal(1)
+      // Should process items 1, 2 successfully and then hit error on 3
+      expect(results).to.include.members([2, 4])
+      expect(processor.callCount).to.be.at.least(3)
+    })
+
+    it('should handle empty array input', async () => {
+      const items: number[] = []
+      const processor = sandbox.stub()
+
+      const { results, errors } = await Utils.asyncBatchProcess(items, processor)
+
+      expect(results).to.be.empty
+      expect(errors).to.be.empty
+      expect(processor.callCount).to.equal(0)
+    })
+
+    it('should work with different data types', async () => {
+      const items = [
+        { id: 1, name: 'Item 1' },
+        { id: 2, name: 'Item 2' },
+        { id: 3, name: 'Item 3' }
+      ]
+      
+      const processor = sandbox.stub().callsFake(async (item: any) => ({
+        ...item,
+        processed: true
+      }))
+
+      const { results, errors } = await Utils.asyncBatchProcess(items, processor)
+
+      expect(results).to.have.length(3)
+      expect(results[0]).to.deep.equal({ id: 1, name: 'Item 1', processed: true })
+      expect(errors).to.be.empty
+    })
+
+    it('should handle async processor with varying execution times', async () => {
+      const items = [100, 50, 200, 25, 150] // Different wait times
+      
+      const processor = sandbox.stub().callsFake(async (item: number) => {
+        await Utils.wait(item) // Wait for different amounts of time
+        return item
+      })
+
+      const startTime = Date.now()
+      const { results, errors } = await Utils.asyncBatchProcess(items, processor, {
+        concurrency: 2,
+        batchSize: 3
+      })
+      const duration = Date.now() - startTime
+
+      expect(results).to.have.length(5)
+      expect(errors).to.be.empty
+      expect(processor.callCount).to.equal(5)
+      // Should be faster than sequential execution
+      expect(duration).to.be.lessThan(100 + 50 + 200 + 25 + 150)
+    })
+
+    it('should maintain batch processing order within batches', async () => {
+      const items = [1, 2, 3, 4, 5, 6]
+      const processOrder: number[] = []
+      
+      const processor = sandbox.stub().callsFake(async (item: number, stats) => {
+        processOrder.push(item)
+        return item
+      })
+
+      await Utils.asyncBatchProcess(items, processor, {
+        concurrency: 1, // Sequential batch processing
+        batchSize: 3
+      })
+
+      expect(processOrder).to.deep.equal([1, 2, 3, 4, 5, 6])
     })
   })
 })

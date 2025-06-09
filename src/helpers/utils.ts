@@ -221,6 +221,71 @@ const Utils = {
     })
   },
 
+  asyncBatchProcess: async <T, R>(
+    items: T[],
+    processor: (item: T, stats: { processed: number; total: number; batchIndex: number }) => Promise<R>,
+    options: {
+      concurrency?: number
+      batchSize?: number
+      onError?: (error: Error, item: T) => void
+      stopOnError?: boolean
+    } = {},
+  ): Promise<{ results: R[]; errors: Array<{ error: Error; item: T }> }> => {
+    const { concurrency = 2, batchSize = 10, onError = Utils.defaultError, stopOnError = false } = options
+
+    return await new Promise((resolve, reject) => {
+      const results: R[] = []
+      const errors: Array<{ error: Error; item: T }> = []
+      let processed = 0
+      let hasError = false
+      const total = items.length
+
+      if (total === 0) {
+        return resolve({ results, errors })
+      }
+
+      const worker = async (batch: T[], batchIndex: number): Promise<void> => {
+        for (const item of batch) {
+          if (hasError && stopOnError) {
+            break
+          }
+
+          try {
+            const result = await processor(item, { processed: processed + 1, total, batchIndex })
+            results.push(result)
+            processed++
+          } catch (error: any) {
+            errors.push({ error, item })
+            onError(error, item)
+            processed++
+
+            if (stopOnError) {
+              hasError = true
+              break
+            }
+          }
+        }
+      }
+
+      const batches = Utils.chunkArray(items, batchSize)
+      const queue = async.queue(async (batchData: { batch: T[]; index: number }) => {
+        await worker(batchData.batch, batchData.index)
+      }, concurrency)
+
+      queue.error((error: Error) => {
+        reject(error)
+      })
+
+      queue.drain(() => {
+        resolve({ results, errors })
+      })
+
+      batches.forEach((batch, index) => {
+        queue.push({ batch, index })
+      })
+    })
+  },
+
   generateRandomName(length = 10): string {
     const characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
     let result = ''
