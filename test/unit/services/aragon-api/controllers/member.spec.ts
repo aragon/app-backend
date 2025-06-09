@@ -491,15 +491,17 @@ describe('Controller: Member', () => {
       expect(rabbitMqStub.calledOnce).to.be.true
 
       expect(rabbitMqStub.args[0][0]).to.equal(EnumQueueName.getLockVotingPowerBatch)
-      expect(rabbitMqStub.args[0][1].params).to.deep.equal([
-        {
-          lockId: mockLock.id,
-          tokenId: mockLock.tokenId,
-          network: mockLock.network,
-          escrowAddress: mockLock.escrowAddress,
-          timestamp: mockLock.blockTimestamp,
-        },
-      ])
+      expect(rabbitMqStub.args[0][1].params).to.deep.equal({
+        locks: [
+          {
+            lockId: mockLock.id,
+            tokenId: mockLock.tokenId,
+            network: mockLock.network,
+            escrowAddress: mockLock.escrowAddress,
+            timestamp: mockLock.blockTimestamp,
+          },
+        ]
+      })
 
       expect(response.data[0]).to.deep.include({
         ...mockLock,
