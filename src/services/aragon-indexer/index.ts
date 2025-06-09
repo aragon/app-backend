@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { EnumConnection, EnumQueueName, IGovernanceErc20Logs, type IService } from '@types'
+import { EnumConnection, EnumQueueName, type IService } from '@types'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import { NetworkHelper } from '@helpers/network'
 import configIndexer from '@indexer/configIndexer'
