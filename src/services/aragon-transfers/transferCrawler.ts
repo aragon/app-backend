@@ -49,7 +49,7 @@ const TransferCrawler = {
         onError: async (error: any) => logger.error('Error Transfer Crawler', llo({ network, error })),
         logService,
         stopOnError: true,
-        batchSize: 0.015,
+        batchSize: 1,
         skipLogProcessing: true,
         filterLogs: async (logs: Log[]) => {
           const filteredLogs = await PoolingCrawler.filterLogs(logs, network)
