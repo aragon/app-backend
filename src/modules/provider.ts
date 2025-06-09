@@ -13,6 +13,7 @@ import { Alchemy, type AlchemySettings, Network } from 'alchemy-sdk'
 import config from '@config'
 import logger from '@logger'
 import { type INodeConnection } from '@src/types/node'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:Provider' })
 
@@ -151,6 +152,15 @@ const ProviderModule = {
     for (const network in ProviderModule.providerProxies) {
       delete ProviderModule.providerProxies[network as NetworksEnum]
     }
+  },
+  async getProviderUrl(network: NetworksEnum): Promise<string | undefined> {
+    const provider = await ProviderModule.getAnyRpcProvider(network)
+    if (provider.config?.getProvider) {
+      const coreProvider = await provider.config.getProvider()
+      return coreProvider.connection.url
+    }
+
+    return config.NODES[utils.networkToAragon(network)].ARAGON_RPC
   },
 }
 

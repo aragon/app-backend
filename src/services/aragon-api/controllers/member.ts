@@ -11,7 +11,6 @@ import {
   type IPaginationParams,
   type IPairParams,
 } from '@types'
-import type Lock from '@models/schema/lock'
 import { assertExposable } from '@errors'
 import PairDataModule from '@modules/pairData'
 import RabbitMQHelper from '@helpers/rabbitMQ'
@@ -105,27 +104,49 @@ const MemberController = {
     const response = await Models.Lock.findWithPagination({ extraParams, paginationParams })
 
     if (response.data.length > 0) {
-      response.data = await Promise.all(
-        response.data.map(async (lock: Lock) => {
-          const votingPower = await RabbitMQHelper.sendMessage(
-            EnumQueueName.getVotingPower,
-            {
-              id: lock.id,
-              params: {
-                userAddress: lock.memberAddress,
-                tokenAddress: lock.tokenAddress,
-                network: lock.network,
-              },
-            },
-            { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
-          )
+      const locksWithEscrow: any = []
+      const tokenIdToLockIndex = {}
 
-          return {
-            ...lock,
-            votingPower,
+      for (let i = 0; i < response.data.length; i++) {
+        const lock = response.data[i]
+        const plugin = await Models.Plugin.findByAddress(lock.pluginAddress, lock.network)
+
+        if (plugin?.votingEscrow?.escrowAddress) {
+          locksWithEscrow.push({
+            lockId: lock.id,
+            tokenId: lock.tokenId,
+            network: lock.network,
+            escrowAddress: plugin.votingEscrow.escrowAddress,
+            timestamp: lock.blockTimestamp || Math.floor(Date.now() / 1000),
+          })
+
+          tokenIdToLockIndex[lock.tokenId] = i
+        }
+      }
+
+      if (locksWithEscrow.length > 0) {
+        const batchResults = await RabbitMQHelper.sendMessage(
+          EnumQueueName.getLockVotingPowerBatch,
+          {
+            id: `lockVotingPowerBatch-${Date.now()}`,
+            params: locksWithEscrow,
+          },
+          { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
+        )
+
+        batchResults.forEach(result => {
+          const index = tokenIdToLockIndex[result.tokenId]
+          if (index !== undefined) {
+            response.data[index].votingPower = result.votingPower
           }
-        }),
-      )
+        })
+      }
+
+      // Ensure all locks have a votingPower property, defaulting to '0'
+      response.data = response.data.map(lock => ({
+        ...lock,
+        votingPower: lock.votingPower || '0',
+      }))
     }
 
     return response

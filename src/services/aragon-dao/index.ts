@@ -13,6 +13,7 @@ import {
   type IQueueVoteInfo,
   type IRawAction,
   type IService,
+  type IGetLockVotingPowerBatch
 } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { DaoAssets } from '@services/aragon-dao/daoAssets'
@@ -77,6 +78,11 @@ const AragonDaoService: IService = {
     await RabbitMQHelper.process(EnumQueueName.getVotingPower, async (job: any) => {
       const { userAddress, tokenAddress, network } = job.params as IGetVotingPower
       return await MemberInfo.getVotingPower(userAddress, tokenAddress, network)
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.getLockVotingPowerBatch, async (job: any) => {
+      const { locks } = job.params as IGetLockVotingPowerBatch
+      return await MemberInfo.getLockVotingPowerBatch(locks)
     })
 
     await RabbitMQHelper.process(EnumQueueName.voteInfo, async (job: any) => {

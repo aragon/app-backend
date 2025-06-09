@@ -1,4 +1,5 @@
 import Web3Helper from '@helpers/web3'
+import Web3BatchHelper from '@helpers/web3BatchHelper'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import { type HexAddress, IPluginInterfaceType, type NetworksEnum } from '@types'
 import { ProxyToken } from '@modules/proxyToken'
@@ -116,5 +117,38 @@ export const MemberInfo = {
     })
 
     return !!daoMemberMapping
+  },
+
+  getLockVotingPowerBatch: async (
+    locks: Array<{
+      lockId: string
+      tokenId: string
+      escrowAddress: HexAddress
+      timestamp: number
+      network: NetworksEnum
+    }>,
+  ): Promise<Array<{ tokenId: string; votingPower: string }>> => {
+    try {
+      if (locks.length === 0) return []
+
+      const batchParams = locks.map(lock => ({
+        escrowAddress: lock.escrowAddress,
+        tokenId: lock.tokenId,
+        ts: lock.timestamp,
+      }))
+
+      const network = locks[0].network
+      const results = await Web3BatchHelper.getLockVotingPowerAtInBatch(batchParams, network)
+
+      return results.map(result => ({
+        tokenId: result.tokenId,
+        votingPower: result.votingPower.toString(),
+      }))
+    } catch (e) {
+      return locks.map(lock => ({
+        tokenId: lock.tokenId,
+        votingPower: '0',
+      }))
+    }
   },
 }
