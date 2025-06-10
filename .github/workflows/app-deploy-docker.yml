@@ -1,156 +1,194 @@
-name: Deploy
+name: Deploy new version
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-      - staging
-      - development
-      - beta
+    inputs:
+      environment:
+        description: 'Select environment to deploy to'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - sandbox
+          - development
+          - staging
+          - production
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     env:
       REPO_URL: git@github.com:${{ github.repository }}.git
       BRANCH_NAME: ${{ github.ref_name }}
+      SELECTED_ENV: ${{ github.event.inputs.environment }}
 
-    steps
-    # 1) Compute DEPLOY_ENV and all vault paths+token-names
-    - name: Set variables
-      id: set-vars
-      shell: bash
-      run: |
-        BRANCH=${GITHUB_REF##*/}
-        case "$BRANCH" in
-          main)        ENV_SUFFIX=prod; VAULT_NS=apikeys_production;  SA_SERV=OP_SERVICE_ACCOUNT_TOKEN_PROD_TEMP;   ;;
-          staging)     ENV_SUFFIX=stg;  VAULT_NS=apikeys_nonprod;     SA_SERV=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP ;;
-          development) ENV_SUFFIX=dev;  VAULT_NS=apikeys_nonprod;     SA_SERV=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP ;;
-          beta)        ENV_SUFFIX=beta; VAULT_NS=apikeys_nonprod;     SA_SERV=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP ;;
-          *)           ENV_SUFFIX=dev;  VAULT_NS=apikeys_nonprod;     SA_SERV=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP ;;
-        esac
-        
-        echo "ENV_SUFFIX=${ENV_SUFFIX}"                                  >> $GITHUB_ENV
-        echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=${SA_SERV}"             >> $GITHUB_ENV
-        echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
-        
-        echo "OP_SERVER_USERNAME=op://${VAULT_NS}/backend2_server_${ENV_SUFFIX}/username" >> $GITHUB_ENV
-        echo "OP_SERVER_URL=     op://${VAULT_NS}/backend2_server_${ENV_SUFFIX}/URL"      >> $GITHUB_ENV
-        echo "OP_SERVER_CERT=    op://${VAULT_NS}/backend2_server_${ENV_SUFFIX}/deploy_backend2_${ENV_SUFFIX}" >> $GITHUB_ENV
+    steps:
+      - uses: actions/checkout@v3
 
-    # 2) Checkout code
-    - name: 📥 Checkout repository
-      uses: actions/checkout@v4
+      - name: Set variables
+        id: set-variables
+        run: |
+          # Use the selected environment from dropdown, not branch name
+          SELECTED_ENV="${{ github.event.inputs.environment }}"
+          
+          echo "🎯 Deploying branch '${{ github.ref_name }}' to '$SELECTED_ENV' environment"
+          
+          case "$SELECTED_ENV" in
+            production)
+              DEPLOY_ENV=prod
+              echo "DEPLOY_ENV=prod" >> $GITHUB_ENV
 
-    # 3) Fetch server creds (user & host) from 1Password
-    - name: Load server username & host
-      id: server-creds
-      uses: 1password/load-secrets-action@v2
-      with:
-        export-env: false
-      env:
-        OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[ env.OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS ] }}
-        SERVER_USERNAME:         ${{ env.OP_SERVER_USERNAME }}
-        SERVER_URL:              ${{ env.OP_SERVER_URL }}
+              echo "OP_SERVER_USERNAME=op://apikeys_production/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
+              echo "OP_SERVER_URL=op://apikeys_production/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
+              echo "OP_SERVER_CERT=op://apikeys_production/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> $GITHUB_ENV
+              echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_PROD_TEMP" >> $GITHUB_ENV
+              echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
+              ;;
 
-    # 4) Install the 1Password CLI
-    - name: Install 1Password CLI
-      uses: 1password/install-cli-action@v1
-      with:
-        version: latest-beta
+            staging)
+              DEPLOY_ENV=stg
+              echo "DEPLOY_ENV=stg" >> $GITHUB_ENV
 
-    # 5) Download SSH key and start ssh-agent
-    - name: Download SSH key & configure SSH
-      shell: bash
-      env:
-        OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[ env.OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS ] }}
-        SERVER_CERT:              ${{ env.OP_SERVER_CERT }}
-      run: |
-        mkdir -p ~/.ssh
-        echo "🔐 Reading SSH key from $SERVER_CERT"
-        op read "$SERVER_CERT" > ~/.ssh/id_rsa
-        chmod 400 ~/.ssh/id_rsa
-        
-        # start ssh-agent & add key
-        eval "$(ssh-agent -s)"
-        ssh-add ~/.ssh/id_rsa
-        
-        # trust the server fingerprint
-        ssh-keyscan -H "${{ steps.server-creds.outputs.SERVER_URL }}" >> ~/.ssh/known_hosts
+              echo "OP_SERVER_USERNAME=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
+              echo "OP_SERVER_URL=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
+              echo "OP_SERVER_CERT=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> $GITHUB_ENV
+              echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP" >> $GITHUB_ENV
+              echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
+              ;;
 
-    # 6) Download your service .env files (with LOGZIO tweaks)
-    - name: Download config files
-      shell: bash
-      env:
-        OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[ env.OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS ] }}
-        OP_VAULT:                 temporal_backend2
-        OP_VAULT_ITEM:            configs_app_backend2_${{ env.ENV_SUFFIX }}
-      run: |
-        echo "🔐 Fetching configs for $OP_VAULT_ITEM"
-        ITEM_JSON=$(op item get --vault "$OP_VAULT" "$OP_VAULT_ITEM" --format json)
-        
-        echo "$ITEM_JSON" \
-          | jq -c '.fields[] | select(.value? and (.value | test("APP_NAME=")))' \
-          | while read -r field; do
-              LABELS=$(jq -r '.label' <<<"$field")
-              CONFIG=$(jq -r '.value' <<<"$field")
-              IFS=';' read -ra SERVICES <<<"$LABELS"
-              for svc in "${SERVICES[@]}"; do
-                [[ -n "$svc" ]] || continue
-                f=".env.${svc}-${ENV_SUFFIX}"
-                echo "Creating $f"
-                echo "$CONFIG" > "$f"
-                UPPER=$(tr '[:lower:]' '[:upper:]' <<<"$svc" | tr '-' '_')
-                # replicate your LOGZIO sed logic
-                sed -i "s/^LOGZIO_SERVER_NAME=.*/LOGZIO_SERVER_NAME=${UPPER^^}-${ENV_SUFFIX^^} /" "$f"
-              done
-            done
+            development)
+              DEPLOY_ENV=dev
+              echo "DEPLOY_ENV=dev" >> $GITHUB_ENV
 
-    # 7) (Optional) print out the mapping
-    - name: Print branch/env map
-      run: echo "Deploying branch $BRANCH_NAME → env suffix ${{ env.ENV_SUFFIX }}"
+              echo "OP_SERVER_USERNAME=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
+              echo "OP_SERVER_URL=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
+              echo "OP_SERVER_CERT=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> $GITHUB_ENV
+              echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP" >> $GITHUB_ENV
+              echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
+              ;;
 
-    # 8) Rsync & remote deploy via your existing script
-    - name: Rsync & remote deploy
-      shell: bash
-      run: |
-        TARGET="${{ steps.server-creds.outputs.SERVER_USERNAME }}@${{ steps.server-creds.outputs.SERVER_URL }}"
-        echo "📤 Rsyncing to $TARGET:/srv/${{ env.ENV_SUFFIX }}/"
-        rsync -avz --exclude='.git' --exclude='node_modules' \
-          ./ "$TARGET:/srv/${{ env.ENV_SUFFIX }}/"
+            sandbox)
+              DEPLOY_ENV=sand
+              echo "DEPLOY_ENV=sand" >> $GITHUB_ENV
 
-        echo "🔍 Checking if RabbitMQ is healthy on remote..."
+              echo "OP_SERVER_USERNAME=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
+              echo "OP_SERVER_URL=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
+              echo "OP_SERVER_CERT=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> $GITHUB_ENV
+              echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP" >> $GITHUB_ENV
+              echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
+              ;;
 
-        ssh "$TARGET" <<EOF
-          set -e
-          cd /srv/${{ env.ENV_SUFFIX }}/
+            *)
+              DEPLOY_ENV=dev
+              echo "DEPLOY_ENV=dev" >> $GITHUB_ENV
 
-          CONTAINER_NAME="rabbitmq-${{ env.ENV_SUFFIX }}"
-          STATUS=\$(docker inspect -f '{{ .State.Health.Status }}' "\$CONTAINER_NAME" 2>/dev/null || echo "not_found")
+              echo "OP_SERVER_USERNAME=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
+              echo "OP_SERVER_URL=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
+              echo "OP_SERVER_CERT=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> $GITHUB_ENV
+              echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP" >> $GITHUB_ENV
+              echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
+              ;;
+          esac
 
-          if [ "\$STATUS" = "healthy" ]; then
-            echo "✅ RabbitMQ is healthy, deploying only services"
-            bash scripts/app-deploy.sh ${{ env.ENV_SUFFIX }} services
-          else
-            echo "⚠️ RabbitMQ is not healthy or not found (\$STATUS), deploying everything"
-            bash scripts/app-deploy.sh ${{ env.ENV_SUFFIX }} all
-          fi
-        EOF
+      - name: Checkout repository branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
 
-    # 9) Reset env vars (cleanup)
-    - name: Reset env vars
-      run: |
-        echo "OP_SERVER_USERNAME="               >> $GITHUB_ENV
-        echo "OP_SERVER_URL="                    >> $GITHUB_ENV
-        echo "OP_SERVER_CERT="                   >> $GITHUB_ENV
-        echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=" >> $GITHUB_ENV
-        echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=" >> $GITHUB_ENV
+      - name: Load secrets
+        id: op-server-secrets
+        uses: 1password/load-secrets-action@v2
+        with:
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS] }}
+          SERVER_USERNAME: ${{ env.OP_SERVER_USERNAME }}
+          SERVER_URL: ${{ env.OP_SERVER_URL }}
 
-    # 10) Dispatch E2E tests
-    - name: Dispatch E2E tests
-      uses: aragon/app-qa/.github/actions/dispatch@main
-      with:
-        opToken:   ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_PROD_TEMP }}
-        environment: ${{ env.ENV_SUFFIX }}
+      - name: Install 1Password CLI
+        uses: 1password/install-cli-action@v1
+        with:
+          version: latest-beta
+
+      - name: Download certfile
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS] }}
+          SERVER_CERT: ${{ env.OP_SERVER_CERT }}
+        run: |
+          mkdir ~/.ssh/ -p
+          op read ${{ env.SERVER_CERT }} > ~/.ssh/id_rsa
+          chmod 400 ~/.ssh/id_rsa
+
+      - name: Download config files
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS] }}
+          OP_VAULT: temporal_backend2
+          OP_VAULT_ITEM: configs_app_backend2_${{env.DEPLOY_ENV}}
+        run: |
+          ls
+          op item get --vault "${{env.OP_VAULT}}" "${{env.OP_VAULT_ITEM}}" --format json | jq -r '.fields.[].label'|sed 1d > configs
+          while IFS= read -r line; do
+          	echo -e "\n $line"
+          	op item get --vault "${{env.OP_VAULT}}" "${{env.OP_VAULT_ITEM}}" --fields "$line" | sed '1s/^"//;;$s/"$//' > temp_file
+          	IFS=';' read -ra CONFIG_FILES <<< "$line"
+
+            ## Set up specific env configs values for LOGZIO
+          	for conf_single in "${CONFIG_FILES[@]}"; do
+          		CONFIG_FILE_NAME=".env.$conf_single"
+          		cp temp_file "$CONFIG_FILE_NAME"
+          		case "${{env.DEPLOY_ENV}}" in
+              	prod)
+                	echo "Setting up ${{env.DEPLOY_ENV}} environment for $conf_single"
+          			  sed -i "s/^LOGZIO_SERVER_NAME=.*/LOGZIO_SERVER_NAME=${conf_single^^}-PRODUCTION / " "$CONFIG_FILE_NAME"
+                	;;
+          
+                stg)
+              		echo "Setting up ${{env.DEPLOY_ENV}} environment for $conf_single"
+          		    sed -i "s/^LOGZIO_SERVER_NAME=.*/LOGZIO_SERVER_NAME=${conf_single^^}-STAGING / " "$CONFIG_FILE_NAME"
+              		;;
+          
+                sand)
+          			  echo "Setting up ${{env.DEPLOY_ENV}} environment for $conf_single"
+          			  sed -i "s/^LOGZIO_SERVER_NAME=.*/LOGZIO_SERVER_NAME=${conf_single^^}-SANDBOX / " "$CONFIG_FILE_NAME"
+                  ;;
+          
+                *)
+          			  echo "Setting up ${{env.DEPLOY_ENV}} environment for $conf_single"
+          			  sed -i "s/^LOGZIO_SERVER_NAME=.*/LOGZIO_SERVER_NAME=${conf_single^^}-DEVELOPMENT / " "$CONFIG_FILE_NAME"
+                  ;;
+              esac
+          
+          		sha256sum $CONFIG_FILE_NAME
+          	done
+          
+          	rm temp_file
+          done < configs
+
+      - name: Print deployment info
+        run: |
+          echo "🚀 Deployment Information:"
+          echo "   Branch: ${{ github.ref_name }}"
+          echo "   Target Environment: ${{ github.event.inputs.environment }}"
+          echo "   Environment Suffix: ${{ env.DEPLOY_ENV }}"
+
+      - name: Execute deployment script
+        env:
+          IS_A_GITHUB_ACTION: true
+        run: |
+          cd ..
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/id_rsa
+          bash app-backend/.github/workflows/deployment/deployment.sh -u "${{ steps.op-server-secrets.outputs.SERVER_USERNAME }}" -m "${{ steps.op-server-secrets.outputs.SERVER_URL }}"
+
+      - name: Reset envs
+        run: |
+          echo "OP_SERVER_USERNAME=" >> $GITHUB_ENV
+          echo "OP_SERVER_URL=" >> $GITHUB_ENV
+          echo "OP_SERVER_CERT=" >> $GITHUB_ENV
+          echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=" >> $GITHUB_ENV
+
+      - name: Dispatch E2E tests
+        uses: aragon/app-qa/.github/actions/dispatch@main
+        with:
+          opToken: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_PROD_TEMP }}
+          environment: ${{ env.DEPLOY_ENV }}
