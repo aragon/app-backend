@@ -4,14 +4,12 @@ import { expect } from 'chai'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
-import { NetworksEnum, ITransferSide, ITransferType, EnumQueueName, IEventLogMember } from '@types'
+import { NetworksEnum, ITransferSide, ITransferType, EnumQueueName } from '@types'
 import { ProxyMember } from '@modules/proxyMember'
 import Web3Helper from '@helpers/web3'
 import utils from '@helpers/utils'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
-import Web3Utils from '@helpers/web3Utils'
-import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { type BatchEvents, type UserTransferData, type TransferProcessorOptions } from '@types'
 import { BatchTransfersHandler } from '@services/aragon-transfers/batchTransfersHandler'
 import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
@@ -1003,8 +1001,8 @@ describe('Module: BatchTransfersHandler', () => {
         await fn({ session: { commitTransaction: sandbox.stub() } })
       })
       const createStub = sandbox.stub(Models.MemberTransaction, 'create').resolves()
-      const updateDelegationMetricsStub = sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
-      const updateActivityStub = sandbox.stub(ProxyMember, 'updateActivity').resolves()
+      sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
+      sandbox.stub(ProxyMember, 'updateActivity').resolves()
 
       handler['plugins'] = mockPlugins
 
@@ -1108,13 +1106,12 @@ describe('Module: BatchTransfersHandler', () => {
 
   describe('updateDaoMetrics', () => {
     it('should send DAO metrics messages for unique DAOs', async () => {
-      const mockPlugins = [
+
+      handler['plugins'] = [
         { daoAddress: validDaoAddress },
         { daoAddress: validDaoAddress }, // Duplicate
         { daoAddress: '0x1234567890123456789012345678901234567890' },
       ]
-
-      handler['plugins'] = mockPlugins
 
       sandbox
         .stub(utils, 'getUniqueValuesByKey')
@@ -1238,7 +1235,7 @@ describe('Module: BatchTransfersHandler', () => {
 
     it('should handle missing amount and votingPower properties in balance check', async () => {
       const mockMemberBalance = {} // Empty object, no amount or votingPower
-      const mockPlugins = [
+      handler['plugins'] = [
         {
           daoAddress: validDaoAddress,
           network: NetworksEnum.ethereumMainnet,
@@ -1246,8 +1243,6 @@ describe('Module: BatchTransfersHandler', () => {
           tokenAddress: validTokenAddress,
         },
       ]
-
-      handler['plugins'] = mockPlugins
 
       sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
       const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao')

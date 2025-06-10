@@ -82,7 +82,7 @@ describe('Helpers:Web3BatchHelper', () => {
       processSingleRequestStub.onCall(1).resolves({ identifier: 'test1', success: true, data: 'result1' })
       processSingleRequestStub.onCall(2).throws(new Error('Processing failed'))
 
-      const results = await Web3BatchHelper.executeBatch(mockRequests, NetworksEnum.ethereumMainnet)
+      await Web3BatchHelper.executeBatch(mockRequests, NetworksEnum.ethereumMainnet)
 
       expect(asyncBatchProcessStub.calledOnce).to.be.true
       expect(asyncBatchProcessStub.firstCall.args[2]).to.deep.include({
