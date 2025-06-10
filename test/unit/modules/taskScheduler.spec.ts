@@ -6,8 +6,6 @@ import Utils from '@helpers/utils'
 import { Models } from '@dbModels'
 import { IEnumTaskStatus } from '@types'
 import logger from '@logger'
-import { log } from 'console'
-
 describe('Modules: TaskScheduler', () => {
   let sandbox: SinonSandbox
   let scheduler: TaskScheduler

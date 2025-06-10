@@ -124,7 +124,7 @@ describe('Module: TransferCrawler', () => {
       const filteredLogs = [mockLogs[0]] // Only first log passes filter
       const parseAndProcessStub = sandbox.stub(TransferCrawler, 'parseAndProcessTransferLogs').resolves()
 
-      sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(function (...args: any): Promise<any> {
+      sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(function (..._args: any): Promise<any> {
         parseAndProcessStub(filteredLogs, NetworksEnum.ethereumMainnet)
         return Promise.resolve()
       })
@@ -138,7 +138,6 @@ describe('Module: TransferCrawler', () => {
     })
 
     it('should configure filterLogs callback that returns empty array when no logs pass filter', async () => {
-      const mockLogs = [{ address: validAddress1, blockNumber: 100 }] as any
       const filteredLogs: any[] = [] // No logs pass filter
 
       sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()

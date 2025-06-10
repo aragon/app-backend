@@ -1017,7 +1017,7 @@ describe('Helpers:Utils', () => {
     it('should handle custom concurrency and batch size', async () => {
       const items = Array.from({ length: 20 }, (_, i) => i + 1)
       const processedItems: number[] = []
-      const processor = sandbox.stub().callsFake(async (item: number, stats) => {
+      const processor = sandbox.stub().callsFake(async (item: number, _stats) => {
         await Utils.wait(50)
         processedItems.push(item * 2)
       })
@@ -1148,7 +1148,7 @@ describe('Helpers:Utils', () => {
       const items = [1, 2, 3, 4, 5, 6]
       const processOrder: number[] = []
 
-      const processor = sandbox.stub().callsFake(async (item: number, stats) => {
+      const processor = sandbox.stub().callsFake(async (item: number, _stats) => {
         processOrder.push(item)
       })
 
