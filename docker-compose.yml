@@ -22,6 +22,25 @@ services:
       - internal-net
 
   # --------------------------------------------------
+  # Migration Service (runs once and exits)
+  # --------------------------------------------------
+  migration:
+    image: service-migration-${ENV_SUFFIX}
+    container_name: service-migration-${ENV_SUFFIX}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env.aragon-indexer-${ENV_SUFFIX} # Use the same env file as the indexer
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    command: bash -c "yarn wait:rabbitmq && yarn mig:run && echo 'Migration Service completed'"
+    restart: "no"  # Don't restart after completion
+    networks:
+      - internal-net
+
+  # --------------------------------------------------
   # Microservices
   # --------------------------------------------------
   service-aragon-api:
