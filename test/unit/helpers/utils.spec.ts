@@ -1025,7 +1025,7 @@ describe('Helpers:Utils', () => {
       const startTime = Date.now()
       await Utils.asyncBatchProcess(items, processor, {
         concurrency: 3,
-        batchSize: 5
+        batchSize: 5,
       })
       const duration = Date.now() - startTime
 
@@ -1081,7 +1081,7 @@ describe('Helpers:Utils', () => {
         onError,
         stopOnError: true,
         batchSize: 2,
-        concurrency: 1 // Ensure sequential processing for predictable behavior
+        concurrency: 1, // Ensure sequential processing for predictable behavior
       })
 
       expect(errors).to.have.length(1)
@@ -1105,14 +1105,14 @@ describe('Helpers:Utils', () => {
       const items = [
         { id: 1, name: 'Item 1' },
         { id: 2, name: 'Item 2' },
-        { id: 3, name: 'Item 3' }
+        { id: 3, name: 'Item 3' },
       ]
       const processedItems: any[] = []
 
       const processor = sandbox.stub().callsFake(async (item: any) => {
         processedItems.push({
           ...item,
-          processed: true
+          processed: true,
         })
       })
 
@@ -1134,7 +1134,7 @@ describe('Helpers:Utils', () => {
       const startTime = Date.now()
       await Utils.asyncBatchProcess(items, processor, {
         concurrency: 2,
-        batchSize: 3
+        batchSize: 3,
       })
       const duration = Date.now() - startTime
 
@@ -1154,7 +1154,7 @@ describe('Helpers:Utils', () => {
 
       await Utils.asyncBatchProcess(items, processor, {
         concurrency: 1, // Sequential batch processing
-        batchSize: 3
+        batchSize: 3,
       })
 
       expect(processOrder).to.deep.equal([1, 2, 3, 4, 5, 6])
