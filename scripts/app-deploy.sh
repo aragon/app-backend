@@ -2,36 +2,20 @@
 set -euo pipefail
 
 ENVIRONMENT="${1:-}"
-ACTION="${2:-deploy}"  # "deploy" or "stop"
-SCOPE="${3:-all}"      # "all" or "services"
 
 if [[ -z "$ENVIRONMENT" ]]; then
   echo "❌ Missing environment argument"
-  echo "Usage: bash scripts/app-deploy.sh <sand|dev|stg|prod> [deploy|stop] [all|services]"
+  echo "Usage: bash scripts/app-deploy.sh <sand|dev|stg|prod>"
   echo ""
   echo "Examples:"
-  echo "  bash scripts/app-deploy.sh dev deploy all       # Deploy all services"
-  echo "  bash scripts/app-deploy.sh dev deploy services  # Deploy microservices only"
-  echo "  bash scripts/app-deploy.sh dev stop all         # Stop all services"
-  echo "  bash scripts/app-deploy.sh dev stop services    # Stop microservices only"
+  echo "  bash scripts/app-deploy.sh dev      # Deploy to development"
+  echo "  bash scripts/app-deploy.sh prod     # Deploy to production"
   exit 1
 fi
 
 # Validate environment
 if [[ ! "$ENVIRONMENT" =~ ^(sand|dev|stg|prod)$ ]]; then
   echo "❌ Invalid environment '$ENVIRONMENT'. Must be one of: sand, dev, stg, prod"
-  exit 1
-fi
-
-# Validate action
-if [[ ! "$ACTION" =~ ^(deploy|stop)$ ]]; then
-  echo "❌ Invalid action '$ACTION'. Must be one of: deploy, stop"
-  exit 1
-fi
-
-# Validate scope
-if [[ ! "$SCOPE" =~ ^(all|services)$ ]]; then
-  echo "❌ Invalid scope '$SCOPE'. Must be one of: all, services"
   exit 1
 fi
 
@@ -52,15 +36,11 @@ export ENV_SUFFIX="$ENVIRONMENT"
 export COMPOSE_PROJECT_NAME="aragon-$ENVIRONMENT"
 
 echo "🔧 Environment: $ENVIRONMENT"
-echo "🔧 Action: $ACTION"
-echo "🔧 Scope: $SCOPE"
 echo "🔧 Project: $COMPOSE_PROJECT_NAME"
 echo "🔧 ENV_SUFFIX: $ENV_SUFFIX"
 echo "🔧 Compose file: $DOCKER_FILE"
 
 # List of microservice names (as defined in compose)
-# Note: These are service names, not container names
-# Container names will be suffixed with ENV_SUFFIX (e.g., service-aragon-api-dev)
 MICROSERVICES=(
   service-aragon-api
   service-aragon-admin-api
@@ -69,6 +49,18 @@ MICROSERVICES=(
   service-aragon-plugins
   service-aragon-rates
 )
+
+# Function to check if a container is running
+is_container_running() {
+  local service_name="$1"
+  local container_name="${service_name}-${ENV_SUFFIX}"
+
+  if docker ps --format "table {{.Names}}" | grep -q "^${container_name}$"; then
+    return 0  # Container is running
+  else
+    return 1  # Container is not running
+  fi
+}
 
 # Function to wait for migration to complete
 wait_for_migration() {
@@ -79,11 +71,22 @@ wait_for_migration() {
   local migration_completed=false
   local container_name="service-migration-${ENV_SUFFIX}"
 
+  # Give container a moment to fully start
+  sleep 2
+
   while [ $counter -lt $max_attempts ]; do
     # Check if migration container exists
-    if ! docker ps -a --format "table {{.Names}}" | grep -q "^${container_name}$"; then
-      echo "❌ Migration container not found!"
-      return 1
+    if ! docker ps -a --format "{{.Names}}" | grep -q "^${container_name}$"; then
+      # Container might have completed very quickly, check for recent exit
+      if [ $counter -lt 5 ]; then
+        echo "⏳ Waiting for container to appear..."
+        sleep 1
+        counter=$((counter + 1))
+        continue
+      else
+        echo "❌ Migration container not found after waiting!"
+        return 1
+      fi
     fi
 
     # Check container status
@@ -92,14 +95,14 @@ wait_for_migration() {
     case "$status" in
       "exited")
         # Check exit code
-        local exit_code=$(docker inspect -f '{{.State.ExitCode}}' "$container_name")
+        local exit_code=$(docker inspect -f '{{.State.ExitCode}}' "$container_name" 2>/dev/null || echo "1")
         if [ "$exit_code" -eq 0 ]; then
           echo "✅ Migration completed successfully!"
           migration_completed=true
           break
         else
           echo "❌ Migration failed with exit code $exit_code"
-          docker logs "$container_name" --tail 50
+          docker logs "$container_name" --tail 50 2>/dev/null || true
           return 1
         fi
         ;;
@@ -111,26 +114,34 @@ wait_for_migration() {
           break
         fi
         ;;
+      "unknown")
+        # Container might not exist yet or was removed
+        if [ $counter -lt 5 ]; then
+          echo "⏳ Container status unknown, waiting..."
+        fi
+        ;;
       *)
         echo "⚠️  Migration container status: $status"
         ;;
     esac
 
     counter=$((counter + 1))
-    echo "Still waiting... ($counter/$max_attempts)"
+    if [ $((counter % 10)) -eq 0 ]; then
+      echo "Still waiting... ($counter/$max_attempts)"
+    fi
     sleep 2
   done
 
   if [ "$migration_completed" = false ]; then
     echo "❌ Migration timed out!"
-    docker logs "$container_name" --tail 100
+    docker logs "$container_name" --tail 100 2>/dev/null || echo "No logs available"
     return 1
   fi
 
   # Show final migration logs
   echo ""
   echo "📋 Final migration logs:"
-  docker logs "$container_name" --tail 30
+  docker logs "$container_name" --tail 30 2>/dev/null || echo "No logs available"
 
   return 0
 }
@@ -139,63 +150,154 @@ wait_for_migration() {
 run_migration() {
   echo "🔄 Starting migration service..."
 
-  # Stop and remove any existing migration container
+  # More aggressive cleanup of any existing migration container
+  local container_name="service-migration-${ENV_SUFFIX}"
+
+  # Stop any running migration
+  docker stop "$container_name" 2>/dev/null || true
+
+  # Remove any existing container (running or stopped)
+  docker rm -f "$container_name" 2>/dev/null || true
+
+  # Also use docker-compose to ensure clean state
   docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" stop migration 2>/dev/null || true
   docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" rm -f migration 2>/dev/null || true
 
+  # Small pause to ensure cleanup is complete
+  sleep 1
+
   # Start migration service
-  docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" up -d --build migration
+  echo "📦 Starting fresh migration container..."
+  if ! docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" up -d --no-deps --force-recreate migration; then
+    echo "❌ Failed to start migration container!"
+    return 1
+  fi
 
   # Wait for migration to complete
   if ! wait_for_migration; then
     echo "❌ Migration failed!"
-    exit 1
+    # Try to show any available logs
+    docker logs "$container_name" --tail 50 2>/dev/null || echo "No migration logs available"
+    return 1
   fi
 
   # Clean up migration container
   echo "🧹 Cleaning up migration container..."
-  docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" stop migration
-  docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" rm -f migration
+  docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" stop migration 2>/dev/null || true
+  docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" rm -f migration 2>/dev/null || true
+
+  return 0
 }
 
-if [[ "$ACTION" == "deploy" ]]; then
-  if [[ "$SCOPE" == "services" ]]; then
-    echo "🧹 Cleaning up microservices only..."
-    docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" stop "${MICROSERVICES[@]}"
-    docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" rm -f "${MICROSERVICES[@]}"
+# Main deployment process
+START_TIME=$(date +%s)
+echo "🚀 Starting safe deployment with minimized downtime..."
 
-    # Run migration first
-    run_migration
+# Phase 1: Preparation (services still running)
+echo ""
+echo "📋 Phase 1: Preparation (services remain available)"
+echo "================================================="
 
-    echo "🚀 Starting microservices only (${MICROSERVICES[*]})..."
-    docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" up -d --build "${MICROSERVICES[@]}"
-  else
-    echo "🧹 Cleaning up all containers and networks..."
-    docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" down --remove-orphans
-
-    # Ensure infrastructure services are up first
-    echo "🏗️  Starting infrastructure services (RabbitMQ)..."
-    docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" up -d rabbitmq
-
-    # Run migration first
-    run_migration
-
-    ALL_SERVICES=(rabbitmq "${MICROSERVICES[@]}")
-    echo "🚀 Starting all services (except migration)..."
-    docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" up -d --build "${ALL_SERVICES[@]}"
-
-#    echo "🚀 Starting all services..."
-#    docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" up -d --build
-  fi
-
-elif [[ "$ACTION" == "stop" ]]; then
-  if [[ "$SCOPE" == "services" ]]; then
-    echo "🛑 Stopping microservices only (${MICROSERVICES[*]})..."
-    docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" stop "${MICROSERVICES[@]}"
-  else
-    echo "🛑 Stopping all services and removing containers..."
-    docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" down --remove-orphans
-  fi
+# Step 1: Ensure RabbitMQ is running
+echo "🔍 Checking RabbitMQ status..."
+if is_container_running "rabbitmq"; then
+  echo "✅ RabbitMQ is already running"
+else
+  echo "🏗️  Starting RabbitMQ..."
+  docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" up -d rabbitmq
+  echo "⏳ Waiting for RabbitMQ to be ready..."
+  sleep 10
 fi
 
-echo "✅ Operation completed successfully!"
+# Step 2: Pre-build all images while services are running
+echo "🔨 Pre-building all Docker images (services still available)..."
+docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" build --parallel migration "${MICROSERVICES[@]}"
+echo "✅ All images built and ready"
+
+# Phase 2: Quick switchover (minimal downtime)
+echo ""
+echo "📋 Phase 2: Database migration (minimal downtime)"
+echo "================================================="
+DOWNTIME_START=$(date +%s)
+
+# Step 3: Stop microservices (RabbitMQ stays running)
+echo "🛑 Stopping microservices for migration safety..."
+docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" stop "${MICROSERVICES[@]}"
+
+# Step 4: Run migration
+echo "🔄 Running database migration..."
+# Clean up any existing migration container
+docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" rm -f migration 2>/dev/null || true
+
+# Run migration
+if ! run_migration; then
+  echo "❌ Migration failed! Services remain stopped for safety."
+  echo "⚠️  Manual intervention required. Check migration logs and fix issues."
+  echo ""
+  echo "🔧 To restart services without migration:"
+  echo "   docker compose -f $DOCKER_FILE -p $COMPOSE_PROJECT_NAME up -d ${MICROSERVICES[*]}"
+  echo ""
+  echo "🔧 To retry migration:"
+  echo "   docker compose -f $DOCKER_FILE -p $COMPOSE_PROJECT_NAME up migration"
+  exit 1
+fi
+
+# Step 5: Start all microservices with pre-built images
+echo "🚀 Starting all microservices..."
+docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" up -d "${MICROSERVICES[@]}"
+
+DOWNTIME_END=$(date +%s)
+DOWNTIME=$((DOWNTIME_END - DOWNTIME_START))
+
+# Phase 3: Verification
+echo ""
+echo "📋 Phase 3: Verification"
+echo "======================="
+
+# Show deployment summary
+END_TIME=$(date +%s)
+TOTAL_TIME=$((END_TIME - START_TIME))
+
+echo ""
+echo "✅ Deployment completed successfully!"
+echo "⏱️  Total deployment time: ${TOTAL_TIME} seconds"
+echo "⏱️  Service downtime: ${DOWNTIME} seconds"
+echo ""
+echo "📊 Service status:"
+docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" ps
+
+# Wait a bit for services to fully start
+echo ""
+echo "🏥 Waiting for services to be ready..."
+sleep 5
+
+# Health check with retry
+echo "🏥 Verifying services..."
+healthy_count=0
+total_services=${#MICROSERVICES[@]}
+
+for service in "${MICROSERVICES[@]}"; do
+  # Check if container is at least created and starting
+  if docker ps --format "table {{.Names}}" | grep -q "${service}-${ENV_SUFFIX}"; then
+    ((healthy_count++))
+    echo "  ✓ $service is starting/running"
+  else
+    echo "  ✗ $service failed to start"
+  fi
+done
+
+echo ""
+echo "📊 Summary: $healthy_count/$total_services services are up"
+
+if [ "$healthy_count" -ne "${#MICROSERVICES[@]}" ]; then
+  echo ""
+  echo "⚠️  Warning: Not all services started successfully!"
+  echo "Check logs with: docker compose -f $DOCKER_FILE -p $COMPOSE_PROJECT_NAME logs [service-name]"
+  echo ""
+  echo "Failed services:"
+  for service in "${MICROSERVICES[@]}"; do
+    if ! docker ps --format "table {{.Names}}" | grep -q "${service}-${ENV_SUFFIX}"; then
+      echo "  - $service"
+    fi
+  done
+fi
