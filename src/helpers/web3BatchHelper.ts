@@ -2,22 +2,9 @@ import logger from '@logger'
 import axios from 'axios'
 import ProviderModule from '@src/modules/provider'
 import { ethers } from 'ethers'
-import { type NetworksEnum, type HexAddress } from '@src/types'
+import { type NetworksEnum, type HexAddress, type BatchRequestItem, type BatchResponse } from '@src/types'
 import Web3Helper from '@helpers/web3'
 import Utils from '@helpers/utils'
-
-interface BatchRequestItem {
-  method: string
-  params: any[]
-  identifier: any
-}
-
-interface BatchResponse<T> {
-  identifier: any
-  success: boolean
-  data: T | null
-  error?: any
-}
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3BatchHelper' })
 

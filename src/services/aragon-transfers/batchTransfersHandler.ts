@@ -9,6 +9,9 @@ import {
   ITransferSide,
   ITransferType,
   type NetworksEnum,
+  type TransferProcessorOptions,
+  type UserTransferData,
+  type BatchEvents,
 } from '@types'
 import { ProxyMember } from '@modules/proxyMember'
 import Web3Helper from '@helpers/web3'
@@ -21,28 +24,6 @@ import Web3BatchHelper from '@helpers/web3BatchHelper'
 import dbTx from '@modules/dbTx'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:TransferProcessor' })
-
-export interface BatchEvents {
-  log: LogDescription
-  info: ILogInfo
-}
-
-export interface UserTransferData {
-  address: HexAddress
-  events: {
-    parsedEvent: LogDescription
-    info: ILogInfo
-    transferSide?: ITransferSide
-    dbId: string
-    eventType: 'transfer' | 'delegation'
-  }[]
-  balance?: MemberBalance
-}
-
-export interface TransferProcessorOptions {
-  batchSize?: number
-  parallelUsers?: number
-}
 
 /**
  * Class responsible for efficiently processing token transfer events in batches
