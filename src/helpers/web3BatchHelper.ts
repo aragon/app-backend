@@ -179,8 +179,11 @@ const Web3BatchHelper = {
   },
 
   /**
-   * Example method for getting voting power in batch
+   * Get Voting power and balance of users
+   * @param batchParams
+   * @param network
    */
+
   async getLockVotingPowerAtInBatch(
     batchParams: Array<{
       escrowAddress: HexAddress
@@ -249,7 +252,6 @@ const Web3BatchHelper = {
 
   /**
    * Get block timestamps in batch using JSON-RPC batch requests
-   * Now handles large ranges efficiently with asyncBatchProcess
    */
   async getBlocksTimestamps(from: number, to: number, network: NetworksEnum): Promise<Record<string, number>> {
     if (from > to) {
@@ -299,7 +301,9 @@ const Web3BatchHelper = {
 
   /**
    * Get voting power and token balances for multiple addresses in batch
-   * Now efficiently handles large numbers of addresses
+   * @param params Array of objects containing memberAddress, tokenAddress, blockNumber
+   * @param network The network to use for the calls
+   * @returns Object with memberAddress as key and balance/votingPower info as value
    */
   async getVotingPowerAndBalancesInBatch(
     params: Array<{
