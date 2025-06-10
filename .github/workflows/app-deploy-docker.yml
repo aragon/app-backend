@@ -82,9 +82,9 @@ jobs:
               DEPLOY_ENV=sand
               echo "DEPLOY_ENV=sand" >> $GITHUB_ENV
 
-              echo "OP_SERVER_USERNAME=op://apikeys_nonprod/backend2_server_test/username" >> $GITHUB_ENV
-              echo "OP_SERVER_URL=op://apikeys_nonprod/backend2_server_test/URL" >> $GITHUB_ENV
-              echo "OP_SERVER_CERT=op://apikeys_nonprod/backend2_server_test/deploy_backend2_test" >> $GITHUB_ENV
+              echo "OP_SERVER_USERNAME=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
+              echo "OP_SERVER_URL=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
+              echo "OP_SERVER_CERT=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> $GITHUB_ENV
               echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP" >> $GITHUB_ENV
               echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
               ;;
