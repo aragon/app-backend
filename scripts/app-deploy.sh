@@ -7,7 +7,7 @@ SCOPE="${3:-all}"      # "all" or "services"
 
 if [[ -z "$ENVIRONMENT" ]]; then
   echo "❌ Missing environment argument"
-  echo "Usage: bash scripts/app-deploy.sh <beta|dev|stg|prod> [deploy|stop] [all|services]"
+  echo "Usage: bash scripts/app-deploy.sh <sand|dev|stg|prod> [deploy|stop] [all|services]"
   echo ""
   echo "Examples:"
   echo "  bash scripts/app-deploy.sh dev deploy all       # Deploy all services"
@@ -18,8 +18,8 @@ if [[ -z "$ENVIRONMENT" ]]; then
 fi
 
 # Validate environment
-if [[ ! "$ENVIRONMENT" =~ ^(beta|dev|stg|prod)$ ]]; then
-  echo "❌ Invalid environment '$ENVIRONMENT'. Must be one of: beta, dev, stg, prod"
+if [[ ! "$ENVIRONMENT" =~ ^(sand|dev|stg|prod)$ ]]; then
+  echo "❌ Invalid environment '$ENVIRONMENT'. Must be one of: sand, dev, stg, prod"
   exit 1
 fi
 
