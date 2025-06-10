@@ -18,7 +18,7 @@ import {
   type TransferProcessorOptions,
 } from '@services/aragon-transfers/batchTransfersHandler'
 
-describe.only('Module: BatchTransfersHandler', () => {
+describe('Module: BatchTransfersHandler', () => {
   let sandbox: SinonSandbox
   let handler: BatchTransfersHandler
 
