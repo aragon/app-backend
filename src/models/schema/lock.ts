@@ -103,6 +103,9 @@ export default class Lock extends Model {
   @prop({ type: () => String, required: true })
   public memberAddress!: HexAddress
 
+  @prop({ type: () => String, required: true })
+  public escrowAddress!: HexAddress
+
   // erc20 token address
   @prop({ type: () => String, required: true })
   public tokenAddress!: HexAddress
@@ -263,6 +266,7 @@ export default class Lock extends Model {
           amount: 1,
           epochStartAt: 1,
           lockExit: 1,
+          escrowAddress: 1,
           lockWithdraw: {
             status: 1,
             transactionHash: 1,
