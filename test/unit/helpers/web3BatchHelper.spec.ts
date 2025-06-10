@@ -56,7 +56,7 @@ describe.only('Helpers:Web3BatchHelper', () => {
       }))
 
       const asyncBatchProcessStub = sandbox.stub(Utils, 'asyncBatchProcess').resolves()
-      
+
       const results = await Web3BatchHelper.executeBatch(mockRequests, NetworksEnum.ethereumMainnet)
 
       expect(asyncBatchProcessStub.calledOnce).to.be.true
@@ -70,11 +70,15 @@ describe.only('Helpers:Web3BatchHelper', () => {
 
   describe('_processSingleRequest', () => {
     it('should process a single request successfully', async () => {
-      const mockRequest = { method: 'eth_call', params: [{ to: '0x123', data: '0xabc' }, 'latest'], identifier: 'test1' }
+      const mockRequest = {
+        method: 'eth_call',
+        params: [{ to: '0x123', data: '0xabc' }, 'latest'],
+        identifier: 'test1',
+      }
 
-      const executeSingleBatchStub = sandbox.stub(Web3BatchHelper, '_executeSingleBatch').resolves([
-        { identifier: 'test1', success: true, data: 'result1' },
-      ])
+      const executeSingleBatchStub = sandbox
+        .stub(Web3BatchHelper, '_executeSingleBatch')
+        .resolves([{ identifier: 'test1', success: true, data: 'result1' }])
 
       const result = await Web3BatchHelper._processSingleRequest(mockRequest, NetworksEnum.ethereumMainnet)
 
@@ -83,7 +87,11 @@ describe.only('Helpers:Web3BatchHelper', () => {
     })
 
     it('should handle errors in single request processing', async () => {
-      const mockRequest = { method: 'eth_call', params: [{ to: '0x123', data: '0xabc' }, 'latest'], identifier: 'test1' }
+      const mockRequest = {
+        method: 'eth_call',
+        params: [{ to: '0x123', data: '0xabc' }, 'latest'],
+        identifier: 'test1',
+      }
 
       const error = new Error('Processing error')
       sandbox.stub(Web3BatchHelper, '_executeSingleBatch').rejects(error)
@@ -228,9 +236,9 @@ describe.only('Helpers:Web3BatchHelper', () => {
     it('should use custom block tag', async () => {
       const mockCalls = [{ to: '0x123', data: '0xabc', identifier: 'test1' }]
 
-      const executeBatchStub = sandbox.stub(Web3BatchHelper, 'executeBatch').resolves([
-        { identifier: 'test1', success: true, data: 'result1' },
-      ])
+      const executeBatchStub = sandbox
+        .stub(Web3BatchHelper, 'executeBatch')
+        .resolves([{ identifier: 'test1', success: true, data: 'result1' }])
 
       await Web3BatchHelper.ethCall(mockCalls, NetworksEnum.ethereumMainnet, '0x123abc')
 
@@ -443,9 +451,7 @@ describe.only('Helpers:Web3BatchHelper', () => {
         { identifier: '0x123_0_ts', success: true, data: '0xdata2' },
       ])
       // Second call returns balance result
-      ethCallStub.onSecondCall().resolves([
-        { identifier: '0x123_0', success: true, data: '0xdata3' }
-      ])
+      ethCallStub.onSecondCall().resolves([{ identifier: '0x123_0', success: true, data: '0xdata3' }])
 
       const decodeResultStub = sandbox.stub(Web3BatchHelper, 'decodeResult')
 
@@ -485,9 +491,7 @@ describe.only('Helpers:Web3BatchHelper', () => {
         { identifier: '0x123_0_ts', success: false, data: null },
       ])
       // Second call returns balance result
-      ethCallStub.onSecondCall().resolves([
-        { identifier: '0x123_0', success: true, data: '0xdata3' }
-      ])
+      ethCallStub.onSecondCall().resolves([{ identifier: '0x123_0', success: true, data: '0xdata3' }])
 
       const decodeResultStub = sandbox.stub(Web3BatchHelper, 'decodeResult')
       decodeResultStub.onCall(0).returns([100n]) // block number voting power result
