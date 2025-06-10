@@ -154,13 +154,21 @@ const ProviderModule = {
     }
   },
   async getProviderUrl(network: NetworksEnum): Promise<string | undefined> {
-    const provider = await ProviderModule.getAnyRpcProvider(network)
-    if (provider.config?.getProvider) {
-      const coreProvider = await provider.config.getProvider()
-      return coreProvider.connection.url
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    if (!provider) {
+      return undefined
     }
 
-    return config.NODES[utils.networkToAragon(network)].ARAGON_RPC
+    try {
+      if (provider.config?.getProvider) {
+        const coreProvider = await provider.config.getProvider()
+        return coreProvider.connection.url
+      }
+    } catch (error) {
+      return undefined
+    }
+
+    return config.NODES[utils.networkToAragon(network)]?.ARAGON_RPC
   },
 }
 
