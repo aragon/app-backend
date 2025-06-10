@@ -1,9 +1,7 @@
 import logger from '@logger'
-import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import {
   EnumQueueName,
-  IEventLogMember,
   type HexAddress,
   type ILogInfo,
   ITransferSide,
@@ -17,8 +15,6 @@ import { ProxyMember } from '@modules/proxyMember'
 import Web3Helper from '@helpers/web3'
 import utils from '@helpers/utils'
 import RabbitMQHelper from '@helpers/rabbitMQ'
-import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
-import Web3Utils from '@helpers/web3Utils'
 import type MemberBalance from '@models/schema/memberBalance'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
 import dbTx from '@modules/dbTx'
@@ -314,7 +310,7 @@ export class BatchTransfersHandler {
       .select('id')
       .lean()
 
-    return new Set(existingTxs.map(tx => tx.id))
+    return new Set(existingTxs.map((tx: any) => tx.id))
   }
 
   /**
