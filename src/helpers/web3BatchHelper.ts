@@ -4,7 +4,6 @@ import ProviderModule from '@src/modules/provider'
 import { ethers } from 'ethers'
 import { type NetworksEnum, type HexAddress, type BatchRequestItem, type BatchResponse } from '@src/types'
 import Web3Helper from '@helpers/web3'
-import Utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3BatchHelper' })
 
@@ -17,33 +16,42 @@ const Web3BatchHelper = {
   async executeBatch<T>(requests: BatchRequestItem[], network: NetworksEnum): Promise<BatchResponse<T>[]> {
     if (requests.length === 0) return []
 
-    if (requests.length < 900) {
+    if (requests.length <= 900) {
       return this._executeSingleBatch(requests, network)
+    }
+
+    const batches: BatchRequestItem[][] = []
+    for (let i = 0; i < requests.length; i += 900) {
+      batches.push(requests.slice(i, i + 900))
     }
 
     const allResults: BatchResponse<T>[] = []
 
-    await Utils.asyncBatchProcess(
-      requests,
-      async (request: any) => {
-        const result = await this._processSingleRequest(request, network)
-        allResults.push(result)
-      },
-      {
-        concurrency: 3,
-        batchSize: 900,
-        onError: (error: any, request: any) => {
-          logger.error('RPC request failed', llo({ network, error, method: request.method }))
-          allResults.push({
-            identifier: request.identifier,
-            success: false,
-            data: null,
-            error,
-          })
-        },
-        stopOnError: false,
-      },
-    )
+    for (let i = 0; i < batches.length; i += 3) {
+      const currentBatches = batches.slice(i, Math.min(i + 3, batches.length))
+
+      const batchPromises = currentBatches.map(async batch => this._executeSingleBatch<T>(batch, network))
+
+      const batchResults = await Promise.allSettled(batchPromises)
+
+      batchResults.forEach((result, index) => {
+        const batch = currentBatches[index]
+
+        if (result.status === 'fulfilled') {
+          allResults.push(...result.value)
+        } else {
+          logger.error('Batch processing failed', llo({ network, error: result.reason, batchIndex: i + index }))
+          for (const request of batch) {
+            allResults.push({
+              identifier: request.identifier,
+              success: false,
+              data: null,
+              error: result.reason,
+            })
+          }
+        }
+      })
+    }
 
     return allResults
   },
@@ -82,21 +90,9 @@ const Web3BatchHelper = {
         params: req.params,
       }))
 
-      const startTime = Date.now()
-
       const response = await axios.post(providerUrl!, batchRequests, {
         headers: { 'Content-Type': 'application/json' },
       })
-
-      logger.info(
-        'Batch request completed',
-        llo({
-          network,
-          method: requests[0].method,
-          requestCount: requests.length,
-          duration: Date.now() - startTime,
-        }),
-      )
 
       return requests.map((req, index) => {
         const rpcResult = response.data[index]

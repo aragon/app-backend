@@ -622,8 +622,8 @@ describe('Helpers: BlockScout', () => {
         data: {
           message: 'OK',
           result: [
-            { address: '0xaddress1', value: '1000000000000000000' },
-            { address: '0xaddress2', value: '2000000000000000000' },
+            { address: '0x1234567890123456789012345678901234567890', value: '1000000000000000000' },
+            { address: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd', value: '2000000000000000000' },
           ],
         },
       }
@@ -635,7 +635,7 @@ describe('Helpers: BlockScout', () => {
       expect(axiosStub.callCount).to.equal(1)
       expect(result.holders.length).to.equal(2)
       expect(result.total).to.equal(2)
-      expect(result.holders[0].address).to.equal('0xaddress1')
+      expect(result.holders[0].address).to.equal('0x1234567890123456789012345678901234567890')
     })
 
     it('should handle empty results', async () => {

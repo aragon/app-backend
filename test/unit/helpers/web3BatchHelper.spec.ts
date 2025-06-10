@@ -4,7 +4,6 @@ import { expect } from 'chai'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
 import ProviderModule from '@modules/provider'
 import Web3Helper from '@helpers/web3'
-import Utils from '@helpers/utils'
 import logger from '@logger'
 import { NetworksEnum } from '@types'
 import axios from 'axios'
@@ -48,48 +47,89 @@ describe('Helpers:Web3BatchHelper', () => {
       expect(results[1]).to.deep.equal({ identifier: 'test2', success: true, data: 'result2' })
     })
 
-    it('should handle large batch requests using asyncBatchProcess', async () => {
-      const mockRequests = Array.from({ length: 1000 }, (_, i) => ({
+    it('should handle large batch requests using manual batching', async () => {
+      const mockRequests = Array.from({ length: 2000 }, (_, i) => ({
         method: 'eth_call',
         params: [{ to: '0x123', data: '0xabc' }, 'latest'],
         identifier: `test${i}`,
       }))
 
-      // Mock the processor function to actually execute and add results
-      const asyncBatchProcessStub = sandbox.stub(Utils, 'asyncBatchProcess').callsFake(async function (
-        this: any,
-        ...args: any[]
-      ): Promise<any[]> {
-        const [items, processor, options] = args
-        const allResults: any[] = []
-        // Simulate processing some items
-        for (let i = 0; i < 3; i++) {
-          try {
-            await processor(items[i])
-          } catch (error) {
-            // Simulate an error on the third item
-            if (i === 2 && options.onError) {
-              options.onError(error, items[i])
-            }
-          }
-        }
-        return allResults
+      // Mock _executeSingleBatch to return successful results
+      const executeSingleBatchStub = sandbox.stub(Web3BatchHelper, '_executeSingleBatch').callsFake(requests => {
+        return Promise.resolve(
+          requests.map((req: any) => ({
+            identifier: req.identifier,
+            success: true,
+            data: `result_${req.identifier}`,
+          })),
+        )
       })
 
-      // Mock _processSingleRequest to return results for first two calls and throw for third
-      const processSingleRequestStub = sandbox.stub(Web3BatchHelper, '_processSingleRequest')
-      processSingleRequestStub.onCall(0).resolves({ identifier: 'test0', success: true, data: 'result0' })
-      processSingleRequestStub.onCall(1).resolves({ identifier: 'test1', success: true, data: 'result1' })
-      processSingleRequestStub.onCall(2).throws(new Error('Processing failed'))
+      const results = await Web3BatchHelper.executeBatch(mockRequests, NetworksEnum.ethereumMainnet)
 
-      await Web3BatchHelper.executeBatch(mockRequests, NetworksEnum.ethereumMainnet)
+      // Should split 2000 requests into 3 batches: [900, 900, 200]
+      // Should process them in groups of 3 (first group has all 3 batches)
+      expect(executeSingleBatchStub.callCount).to.equal(3)
 
-      expect(asyncBatchProcessStub.calledOnce).to.be.true
-      expect(asyncBatchProcessStub.firstCall.args[2]).to.deep.include({
-        concurrency: 3,
-        batchSize: 900,
-        stopOnError: false,
+      // Verify batch sizes
+      expect(executeSingleBatchStub.getCall(0).args[0]).to.have.length(900)
+      expect(executeSingleBatchStub.getCall(1).args[0]).to.have.length(900)
+      expect(executeSingleBatchStub.getCall(2).args[0]).to.have.length(200)
+
+      // Verify all results are returned
+      expect(results).to.have.length(2000)
+      expect(results[0]).to.deep.equal({ identifier: 'test0', success: true, data: 'result_test0' })
+      expect(results[1999]).to.deep.equal({ identifier: 'test1999', success: true, data: 'result_test1999' })
+    })
+
+    it('should handle errors in manual batching', async () => {
+      const mockRequests = Array.from({ length: 1800 }, (_, i) => ({
+        method: 'eth_call',
+        params: [{ to: '0x123', data: '0xabc' }, 'latest'],
+        identifier: `test${i}`,
+      }))
+
+      // Mock _executeSingleBatch to succeed on first batch and fail on second batch
+      const executeSingleBatchStub = sandbox.stub(Web3BatchHelper, '_executeSingleBatch')
+
+      // First batch (900 items) succeeds
+      executeSingleBatchStub.onCall(0).resolves(
+        Array.from({ length: 900 }, (_, i) => ({
+          identifier: `test${i}`,
+          success: true,
+          data: `result${i}`,
+        })),
+      )
+
+      // Second batch (900 items) fails
+      executeSingleBatchStub.onCall(1).rejects(new Error('Batch failed'))
+
+      // Third batch (0 items) won't be called due to the error
+
+      const results = await Web3BatchHelper.executeBatch(mockRequests, NetworksEnum.ethereumMainnet)
+
+      // Should still return results for all requests
+      expect(results).to.have.length(1800)
+
+      // First batch should succeed
+      expect(results[0]).to.deep.equal({ identifier: 'test0', success: true, data: 'result0' })
+      expect(results[899]).to.deep.equal({ identifier: 'test899', success: true, data: 'result899' })
+
+      // Second batch should have error responses (starts at index 900)
+      expect(results[900]).to.deep.include({
+        identifier: 'test900',
+        success: false,
+        data: null,
       })
+      expect(results[900].error).to.be.an('error')
+
+      // Third batch should also have error responses (starts at index 1800, but our array only goes to 1799)
+      expect(results[1799]).to.deep.include({
+        identifier: 'test1799',
+        success: false,
+        data: null,
+      })
+      expect(results[1799].error).to.be.an('error')
     })
   })
 
