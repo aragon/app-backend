@@ -2,17 +2,12 @@ name: Deploy with docker
 
 on:
   workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Select environment to deploy to'
-        required: true
-        default: 'development'
-        type: choice
-        options:
-          - sandbox
-          - development
-          - staging
-          - production
+  push:
+    branches:
+      - main
+      - staging
+      - development
+      - sandbox
 
 jobs:
   deploy:
