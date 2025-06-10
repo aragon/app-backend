@@ -1,4 +1,4 @@
-name: Deploy new version
+name: Deploy with docker
 
 on:
   workflow_dispatch:
