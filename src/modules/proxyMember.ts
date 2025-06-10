@@ -357,6 +357,10 @@ export const ProxyMember = {
               id: address,
               address,
               ens: !isEnsSupported ? null : await EnsHelper.getEnsWithUniversalResolver(address),
+              avatar: null,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              __v: 0,
             })),
           )
 
@@ -418,6 +422,7 @@ export const ProxyMember = {
             updateData: {
               amount: param.balance,
               lastSyncAmountBlockNumber: blockNumber,
+              updatedAt: new Date(),
             },
           })
         } else {
@@ -432,6 +437,9 @@ export const ProxyMember = {
             network,
             amount: param.balance,
             lastSyncAmountBlockNumber: blockNumber,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            __v: 0,
           })
         }
       }
@@ -529,6 +537,9 @@ export const ProxyMember = {
             pluginAddress,
             tokenAddress,
             network,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            __v: 0,
           }))
 
           operations.push(
