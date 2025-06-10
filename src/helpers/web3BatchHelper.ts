@@ -23,7 +23,9 @@ const llo = logger.logMeta.bind(null, { service: 'helpers:Web3BatchHelper' })
 
 const Web3BatchHelper = {
   /**
-   * Execute a batch of JSON-RPC requests with automatic chunking for large batches
+   * Execute a batch of RPC requests
+   * @param requests
+   * @param network
    */
   async executeBatch<T>(requests: BatchRequestItem[], network: NetworksEnum): Promise<BatchResponse<T>[]> {
     if (requests.length === 0) return []
@@ -61,6 +63,8 @@ const Web3BatchHelper = {
 
   /**
    * Process a single request (used by asyncBatchProcess)
+   * @param request
+   * @param network
    */
   async _processSingleRequest(request: BatchRequestItem, network: NetworksEnum): Promise<BatchResponse<any>> {
     try {
@@ -77,7 +81,8 @@ const Web3BatchHelper = {
   },
 
   /**
-   * Execute a single batch (up to 1000 items)
+   * Execute a single batch (up to around 1000 items)
+   * This method is used internally and should not be called directly
    */
   async _executeSingleBatch<T>(requests: BatchRequestItem[], network: NetworksEnum): Promise<BatchResponse<T>[]> {
     try {
@@ -136,6 +141,9 @@ const Web3BatchHelper = {
 
   /**
    * Helper method for encoding function calls
+   * @param functionSignature - The function signature (e.g., "transfer(address,uint256)")
+   * @param paramTypes - Array of parameter types (e.g., ["address", "uint256"])
+   * @param paramValues - Array of parameter values (e.g., ["0x123...", 1000])
    */
   encodeFunction(functionSignature: string, paramTypes: string[], paramValues: any[]): string {
     const functionSelector = '0x' + ethers.keccak256(ethers.toUtf8Bytes(functionSignature)).slice(2, 10)
