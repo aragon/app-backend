@@ -55,7 +55,32 @@ describe('Helpers:Web3BatchHelper', () => {
         identifier: `test${i}`,
       }))
 
-      const asyncBatchProcessStub = sandbox.stub(Utils, 'asyncBatchProcess').resolves()
+      // Mock the processor function to actually execute and add results
+      const asyncBatchProcessStub = sandbox.stub(Utils, 'asyncBatchProcess').callsFake(async function (
+        this: any,
+        ...args: any[]
+      ): Promise<any[]> {
+        const [items, processor, options] = args
+        const allResults: any[] = []
+        // Simulate processing some items
+        for (let i = 0; i < 3; i++) {
+          try {
+            await processor(items[i])
+          } catch (error) {
+            // Simulate an error on the third item
+            if (i === 2 && options.onError) {
+              options.onError(error, items[i])
+            }
+          }
+        }
+        return allResults
+      })
+
+      // Mock _processSingleRequest to return results for first two calls and throw for third
+      const processSingleRequestStub = sandbox.stub(Web3BatchHelper, '_processSingleRequest')
+      processSingleRequestStub.onCall(0).resolves({ identifier: 'test0', success: true, data: 'result0' })
+      processSingleRequestStub.onCall(1).resolves({ identifier: 'test1', success: true, data: 'result1' })
+      processSingleRequestStub.onCall(2).throws(new Error('Processing failed'))
 
       const results = await Web3BatchHelper.executeBatch(mockRequests, NetworksEnum.ethereumMainnet)
 
@@ -292,6 +317,37 @@ describe('Helpers:Web3BatchHelper', () => {
 
       expect(results).to.deep.equal([{ tokenId: '1', votingPower: 0n }])
     })
+
+    it('should handle decode errors and return zero voting power', async () => {
+      const mockParams = [{ escrowAddress: '0x123', tokenId: '1', ts: 1000 }]
+
+      sandbox.stub(Web3BatchHelper, 'encodeFunction').returns('0xencoded')
+      sandbox.stub(Web3BatchHelper, 'ethCall').resolves([{ identifier: '1', success: true, data: '0xinvaliddata' }])
+
+      // Make decodeResult throw an error
+      sandbox.stub(Web3BatchHelper, 'decodeResult').throws(new Error('Decode error'))
+
+      const results = await Web3BatchHelper.getLockVotingPowerAtInBatch(mockParams, NetworksEnum.ethereumMainnet)
+
+      expect(results).to.deep.equal([{ tokenId: '1', votingPower: 0n }])
+    })
+
+    it('should handle overall errors and return zero voting power for all params', async () => {
+      const mockParams = [
+        { escrowAddress: '0x123', tokenId: '1', ts: 1000 },
+        { escrowAddress: '0x123', tokenId: '2', ts: 1000 },
+      ]
+
+      // Make encodeFunction throw an error to trigger the catch block
+      sandbox.stub(Web3BatchHelper, 'encodeFunction').throws(new Error('Encoding error'))
+
+      const results = await Web3BatchHelper.getLockVotingPowerAtInBatch(mockParams, NetworksEnum.ethereumMainnet)
+
+      expect(results).to.deep.equal([
+        { tokenId: '1', votingPower: 0n },
+        { tokenId: '2', votingPower: 0n },
+      ])
+    })
   })
 
   describe('callRpcMethod', () => {
@@ -347,6 +403,35 @@ describe('Helpers:Web3BatchHelper', () => {
         'ethereum-mainnet-100': 1639992672,
         'ethereum-mainnet-101': 1639992688,
       })
+    })
+
+    it('should handle failed block requests gracefully', async () => {
+      const callRpcMethodStub = sandbox.stub(Web3BatchHelper, 'callRpcMethod').resolves([
+        {
+          identifier: 100,
+          success: false,
+          data: null,
+        },
+        {
+          identifier: 101,
+          success: false,
+          data: null, // null data
+        },
+      ])
+
+      const results = await Web3BatchHelper.getBlocksTimestamps(100, 102, NetworksEnum.ethereumMainnet)
+
+      expect(callRpcMethodStub.calledOnce).to.be.true
+      expect(results).to.deep.equal({})
+    })
+
+    it('should handle errors in getBlocksTimestamps and return empty object', async () => {
+      // Make callRpcMethod throw an error
+      sandbox.stub(Web3BatchHelper, 'callRpcMethod').throws(new Error('RPC error'))
+
+      const results = await Web3BatchHelper.getBlocksTimestamps(100, 101, NetworksEnum.ethereumMainnet)
+
+      expect(results).to.deep.equal({})
     })
   })
 

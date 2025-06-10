@@ -1,4 +1,7 @@
-import type { HexAddress, NetworksEnum } from '@src/types/networks'
+import type { HexAddress } from '@src/types/networks'
+import type MemberBalance from '@models/schema/memberBalance'
+import { type LogDescription } from 'ethers'
+import { type ILogInfo } from '@src/types/eventLogs'
 
 export enum ITransferSide {
   incoming = 'incoming',
