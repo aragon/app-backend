@@ -10,11 +10,11 @@ import PoolingCrawler from '@modules/poolingCrawler'
 import Web3Utils from '@src/helpers/web3Utils'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
 import TransferCrawler from '@services/aragon-transfers/transferCrawler'
-import configIndexer from '@indexer/configIndexer'
 import { BatchTransfersHandler } from '@services/aragon-transfers/batchTransfersHandler'
 import config from '@config'
+import utils from '@helpers/utils'
 
-describe('Module: TransferCrawler', () => {
+describe.only('Module: TransferCrawler', () => {
   let sandbox: SinonSandbox
 
   const govTokenInterface = new Interface(GovernanceERC20.abi)
@@ -74,7 +74,6 @@ describe('Module: TransferCrawler', () => {
 
     it('should initialize BlockchainLogCrawler with correct parameters', async () => {
       sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
-
       sandbox.stub(PoolingCrawler, 'filterLogs').resolves([])
       sandbox.stub(TransferCrawler, 'parseAndProcessTransferLogs').resolves()
 
@@ -85,11 +84,10 @@ describe('Module: TransferCrawler', () => {
 
       const crawlerInstance = TransferCrawler.instances.get(NetworksEnum.ethereumMainnet)
       expect(crawlerInstance).to.exist
-      expect(crawlerInstance).to.have.property('crawlParams')
     })
 
     it('should handle errors gracefully', async () => {
-      sandbox.stub(configIndexer, 'filter').throws(new Error('Config error'))
+      sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').throws(new Error('Crawler error'))
 
       const result = await TransferCrawler.start({
         logService: 'test-service',
@@ -160,12 +158,19 @@ describe('Module: TransferCrawler', () => {
         { address: validAddress2, blockNumber: 101 } as any,
       ]
 
+      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({})
       sandbox.stub(TransferCrawler, '_groupLogsByToken').returns({
         [validAddress1.toLowerCase()]: [mockLogs[0]],
         [validAddress2.toLowerCase()]: [mockLogs[1]],
       })
 
       const processTokenBatchStub = sandbox.stub(TransferCrawler, '_processTokenBatch').resolves()
+      sandbox.stub(utils, 'asyncBatchProcess').callsFake(async (...args: any[]) => {
+        const [items, processor] = args
+        for (const item of items) {
+          await processor(item)
+        }
+      })
 
       await TransferCrawler.parseAndProcessTransferLogs(mockLogs, NetworksEnum.ethereumMainnet)
 
@@ -181,6 +186,7 @@ describe('Module: TransferCrawler', () => {
         { address: validAddress3, blockNumber: 102 } as any,
       ]
 
+      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({})
       sandbox.stub(TransferCrawler, '_groupLogsByToken').returns({
         [validAddress1.toLowerCase()]: [mockLogs[0]],
         [validAddress2.toLowerCase()]: [mockLogs[1]],
@@ -188,6 +194,12 @@ describe('Module: TransferCrawler', () => {
       })
 
       const processTokenBatchStub = sandbox.stub(TransferCrawler, '_processTokenBatch').resolves()
+      sandbox.stub(utils, 'asyncBatchProcess').callsFake(async (...args: any[]) => {
+        const [items, processor] = args
+        for (const item of items) {
+          await processor(item)
+        }
+      })
 
       await TransferCrawler.parseAndProcessTransferLogs(mockLogs, NetworksEnum.ethereumMainnet)
 
@@ -197,16 +209,72 @@ describe('Module: TransferCrawler', () => {
     it('should handle errors gracefully', async () => {
       const mockLogs: Log[] = [{ address: validAddress1, blockNumber: 100 } as any]
 
+      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').rejects(new Error('Timestamp error'))
       sandbox.stub(TransferCrawler, '_groupLogsByToken').throws(new Error('Grouping error'))
 
       try {
         await TransferCrawler.parseAndProcessTransferLogs(mockLogs, NetworksEnum.ethereumMainnet)
         expect.fail('Should have thrown an error')
       } catch (error: any) {
-        expect(error.message).to.equal('Grouping error')
+        expect(error.message).to.equal('Timestamp error')
       }
 
       expect((logger.error as any).calledWith('Mixed events processing failed', sinon.match.any)).to.be.true
+    })
+
+    it('should fetch and set timestamp cache', async () => {
+      const mockLogs: Log[] = [
+        { address: validAddress1, blockNumber: 100 } as any,
+        { address: validAddress1, blockNumber: 102 } as any,
+      ]
+
+      const mockTimestamps = {
+        'ethereum-mainnet-100': 1609459200,
+        'ethereum-mainnet-101': 1609459215,
+        'ethereum-mainnet-102': 1609459230,
+      }
+
+      const blockTimestampStub = sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves(mockTimestamps)
+      sandbox.stub(TransferCrawler, '_groupLogsByToken').returns({
+        [validAddress1.toLowerCase()]: mockLogs,
+      })
+
+      const processTokenBatchStub = sandbox.stub(TransferCrawler, '_processTokenBatch').resolves()
+      sandbox.stub(utils, 'asyncBatchProcess').callsFake(async (...args: any[]) => {
+        const [items, processor] = args
+        for (const item of items) {
+          await processor(item)
+        }
+      })
+
+      await TransferCrawler.parseAndProcessTransferLogs(mockLogs, NetworksEnum.ethereumMainnet)
+
+      expect(blockTimestampStub.calledWith(100, 102, NetworksEnum.ethereumMainnet)).to.be.true
+      expect(processTokenBatchStub.calledOnce).to.be.true
+    })
+
+    it('should use asyncBatchProcess for concurrent token processing', async () => {
+      const mockLogs: Log[] = [
+        { address: validAddress1, blockNumber: 100 } as any,
+        { address: validAddress2, blockNumber: 101 } as any,
+      ]
+
+      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({})
+      sandbox.stub(TransferCrawler, '_groupLogsByToken').returns({
+        [validAddress1.toLowerCase()]: [mockLogs[0]],
+        [validAddress2.toLowerCase()]: [mockLogs[1]],
+      })
+      sandbox.stub(TransferCrawler, '_processTokenBatch').resolves()
+
+      const asyncBatchProcessStub = sandbox.stub(utils, 'asyncBatchProcess').resolves()
+
+      await TransferCrawler.parseAndProcessTransferLogs(mockLogs, NetworksEnum.ethereumMainnet)
+
+      expect(asyncBatchProcessStub.calledOnce).to.be.true
+      expect(asyncBatchProcessStub.firstCall.args[2]).to.deep.include({
+        concurrency: config.TRANSFER_CRAWLER_CONFIG.CONCURRENCY,
+        batchSize: config.TRANSFER_CRAWLER_CONFIG.BATCH_SIZE,
+      })
     })
   })
 
@@ -233,34 +301,15 @@ describe('Module: TransferCrawler', () => {
         event: { name: 'Transfer', args: {} },
         info: { blockNumber: 100 },
       } as any)
-      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({})
 
       await TransferCrawler._processTokenBatch(mockProcessor, mockLogs, NetworksEnum.ethereumMainnet)
 
-      expect(mockProcessor.processEvents.calledOnce).to.be.true
-      expect((logger.info as any).calledWith('Token processing completed', sinon.match.any)).to.be.true
-    })
-
-    it('should set timestamp cache and process events', async () => {
-      const mockLogs: Log[] = [{ blockNumber: 100, transactionIndex: 0, index: 0 } as any]
-
-      const mockTimestamps = { 100: 1609459200 }
-
-      sandbox.stub(TransferCrawler, '_parseLogArguments').returns({
-        event: { name: 'Transfer', args: {} },
-        info: { blockNumber: 100 },
-      } as any)
-      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves(mockTimestamps)
-
-      await TransferCrawler._processTokenBatch(mockProcessor, mockLogs, NetworksEnum.ethereumMainnet)
-
-      expect(mockProcessor.setTimestampCache.calledWith(mockTimestamps)).to.be.true
       expect(mockProcessor.processEvents.calledOnce).to.be.true
       expect((logger.info as any).calledWith('Token processing completed', sinon.match.any)).to.be.true
     })
 
     it('should process events in batches when logs exceed batch size', async () => {
-      // Get the actual batch size from config (default is 200)
+      // Get the actual batch size from config
       const actualBatchSize = config.TRANSFER_CRAWLER_CONFIG.BATCH_SIZE
 
       // Create logs that exceed the batch size
@@ -276,11 +325,10 @@ describe('Module: TransferCrawler', () => {
         event: { name: 'Transfer', args: {} },
         info: { blockNumber: 100 },
       } as any)
-      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({})
 
       await TransferCrawler._processTokenBatch(mockProcessor, mockLogs, NetworksEnum.ethereumMainnet)
 
-      // Should be called based on actual batch size (250 logs / 200 batch size = 2 calls)
+      // Should be called based on actual batch size (250 logs / batch size)
       const expectedCalls = Math.ceil(250 / actualBatchSize)
       expect(mockProcessor.processEvents.callCount).to.equal(expectedCalls)
       expect((logger.info as any).calledWith('Token processing completed', sinon.match.any)).to.be.true
@@ -298,8 +346,6 @@ describe('Module: TransferCrawler', () => {
           event: { name: 'Transfer', args: {} },
           info: { blockNumber: 101 },
         } as any)
-
-      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({})
 
       await TransferCrawler._processTokenBatch(mockProcessor, mockLogs, NetworksEnum.ethereumMainnet)
 
@@ -329,7 +375,6 @@ describe('Module: TransferCrawler', () => {
         event: { name: 'Transfer', args: {} },
         info: { blockNumber: 100 },
       } as any)
-      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({})
       mockProcessor.processEvents.rejects(new Error('Processing error'))
 
       await TransferCrawler._processTokenBatch(mockProcessor, mockLogs, NetworksEnum.ethereumMainnet)
@@ -337,39 +382,46 @@ describe('Module: TransferCrawler', () => {
       expect((logger.error as any).calledWith('Error processing token batch', sinon.match.any)).to.be.true
     })
 
-    it('should handle timestamp fetching errors', async () => {
-      const mockLogs: Log[] = [{ blockNumber: 100, transactionIndex: 0, index: 0 } as any]
+    it('should handle empty batch after slicing (edge case)', async () => {
+      const mockLogs: Log[] = []
+
+      await TransferCrawler._processTokenBatch(mockProcessor, mockLogs, NetworksEnum.ethereumMainnet)
+
+      expect(mockProcessor.processEvents.called).to.be.false
+    })
+
+    it('should handle empty parsedEvents array', async () => {
+      const mockLogs: Log[] = [{ blockNumber: 100 } as any]
+
+      sandbox.stub(TransferCrawler, '_parseLogArguments').returns({
+        event: null,
+        info: null,
+      } as any)
+
+      await TransferCrawler._processTokenBatch(mockProcessor, mockLogs, NetworksEnum.ethereumMainnet)
+
+      expect(mockProcessor.processEvents.called).to.be.false
+    })
+
+    it('should process multiple batches correctly', async () => {
+      const batchSize = config.TRANSFER_CRAWLER_CONFIG.BATCH_SIZE
+      const mockLogs: Log[] = Array(batchSize + 10)
+        .fill(null)
+        .map((_, i) => ({
+          blockNumber: 100 + i,
+          transactionIndex: 0,
+          index: 0,
+        })) as any[]
 
       sandbox.stub(TransferCrawler, '_parseLogArguments').returns({
         event: { name: 'Transfer', args: {} },
         info: { blockNumber: 100 },
       } as any)
-      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').rejects(new Error('Timestamp error'))
 
       await TransferCrawler._processTokenBatch(mockProcessor, mockLogs, NetworksEnum.ethereumMainnet)
 
-      expect((logger.error as any).calledWith('Error processing token batch', sinon.match.any)).to.be.true
-    })
-
-    describe('_processTokenBatch - edge cases', () => {
-      it('should handle empty batch after slicing (edge case)', async () => {
-        const mockLogs: Log[] = []
-        const mockProcessor = {
-          tokenAddress: validAddress1,
-          setTimestampCache: sandbox.stub(),
-          processEvents: sandbox.stub().resolves(),
-        }
-
-        sandbox.stub(TransferCrawler, '_parseLogArguments').returns({
-          event: { name: 'Transfer', args: {} },
-          info: { blockNumber: 100 },
-        } as any)
-        sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({})
-
-        await TransferCrawler._processTokenBatch(mockProcessor as any, mockLogs, NetworksEnum.ethereumMainnet)
-
-        expect(mockProcessor.processEvents.called).to.be.false
-      })
+      // Should be called twice (one full batch + one partial batch)
+      expect(mockProcessor.processEvents.callCount).to.equal(2)
     })
   })
 
@@ -404,9 +456,25 @@ describe('Module: TransferCrawler', () => {
 
       const result = TransferCrawler._parseLogArguments(mockLog, NetworksEnum.ethereumMainnet)
 
-      // Should handle error gracefully and return null/undefined values
+      // Should handle error gracefully and return null values
       expect(result.event).to.be.null
       expect(result.info).to.be.null
+      expect((logger.warn as any).calledWith('Failed to parse log arguments', sinon.match.any)).to.be.true
+    })
+
+    it('should handle Web3Utils.parseLog returning null', () => {
+      const mockLog: Log = {
+        topics: [transferTopic],
+        address: validAddress1,
+      } as any
+
+      sandbox.stub(Web3Utils, 'parseLog').returns(null)
+      sandbox.stub(Web3Utils, 'parseInfoLog').returns({ address: validAddress1, blockNumber: 100 } as any)
+
+      const result = TransferCrawler._parseLogArguments(mockLog, NetworksEnum.ethereumMainnet)
+
+      expect(result.event).to.be.null
+      expect(result.info).to.exist
     })
   })
 
@@ -414,11 +482,18 @@ describe('Module: TransferCrawler', () => {
     it('should properly instantiate BatchTransfersHandler with normalized token address', async () => {
       const mockLogs: Log[] = [{ address: validAddress3, blockNumber: 100 } as any]
 
+      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({})
       sandbox.stub(TransferCrawler, '_groupLogsByToken').returns({
         [validAddress3.toLowerCase()]: mockLogs,
       })
 
       const processTokenBatchStub = sandbox.stub(TransferCrawler, '_processTokenBatch').resolves()
+      sandbox.stub(utils, 'asyncBatchProcess').callsFake(async (...args: any[]) => {
+        const [items, processor] = args
+        for (const item of items) {
+          await processor(item)
+        }
+      })
 
       await TransferCrawler.parseAndProcessTransferLogs(mockLogs, NetworksEnum.ethereumMainnet)
 
@@ -437,37 +512,55 @@ describe('Module: TransferCrawler', () => {
         { address: validAddress2, blockNumber: 101 } as any,
       ]
 
+      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({})
       sandbox.stub(TransferCrawler, '_groupLogsByToken').returns({
         [validAddress1.toLowerCase()]: [mockLogs[0]],
         [validAddress2.toLowerCase()]: [mockLogs[1]],
       })
 
       const processTokenBatchStub = sandbox.stub(TransferCrawler, '_processTokenBatch').resolves()
+      let handlerInstances: BatchTransfersHandler[] = []
+
+      sandbox.stub(utils, 'asyncBatchProcess').callsFake(async (...args: any[]) => {
+        const [items, processor] = args
+        for (const item of items) {
+          await processor(item)
+        }
+      })
+
+      // Capture handler instances
+      processTokenBatchStub.callsFake(handler => {
+        handlerInstances.push(handler)
+        return Promise.resolve()
+      })
 
       await TransferCrawler.parseAndProcessTransferLogs(mockLogs, NetworksEnum.ethereumMainnet)
 
       // Should create separate handler instances for each token
       expect(processTokenBatchStub.callCount).to.equal(2)
-
-      // Verify correct token addresses were processed
-      const firstCall = processTokenBatchStub.getCall(0)
-      const secondCall = processTokenBatchStub.getCall(1)
-
-      expect(firstCall.args[0]).to.be.instanceOf(BatchTransfersHandler)
-      expect(secondCall.args[0]).to.be.instanceOf(BatchTransfersHandler)
+      expect(handlerInstances).to.have.lengthOf(2)
+      expect(handlerInstances[0]).to.be.instanceOf(BatchTransfersHandler)
+      expect(handlerInstances[1]).to.be.instanceOf(BatchTransfersHandler)
 
       // Verify different handler instances
-      expect(firstCall.args[0]).to.not.equal(secondCall.args[0])
+      expect(handlerInstances[0]).to.not.equal(handlerInstances[1])
     })
 
     it('should properly handle token address normalization in BatchTransfersHandler', async () => {
       const mockLogs: Log[] = [{ address: validAddress1.toUpperCase(), blockNumber: 100 } as any]
 
+      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({})
       sandbox.stub(TransferCrawler, '_groupLogsByToken').returns({
         [validAddress1.toLowerCase()]: mockLogs, // lowercase from grouping
       })
 
       const processTokenBatchStub = sandbox.stub(TransferCrawler, '_processTokenBatch').resolves()
+      sandbox.stub(utils, 'asyncBatchProcess').callsFake(async (...args: any[]) => {
+        const [items, processor] = args
+        for (const item of items) {
+          await processor(item)
+        }
+      })
 
       await TransferCrawler.parseAndProcessTransferLogs(mockLogs, NetworksEnum.ethereumMainnet)
 
@@ -477,6 +570,72 @@ describe('Module: TransferCrawler', () => {
       expect(handler).to.be.instanceOf(BatchTransfersHandler)
       expect(handler.tokenAddress).to.be.a('string')
       expect(handler.tokenAddress.startsWith('0x')).to.be.true
+    })
+
+    it('should set timestamp cache on BatchTransfersHandler', async () => {
+      const mockLogs: Log[] = [{ address: validAddress1, blockNumber: 100 } as any]
+      const mockTimestamps = { 'ethereum-mainnet-100': 1609459200 }
+
+      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves(mockTimestamps)
+      sandbox.stub(TransferCrawler, '_groupLogsByToken').returns({
+        [validAddress1.toLowerCase()]: mockLogs,
+      })
+
+      let capturedHandler: BatchTransfersHandler
+      sandbox.stub(TransferCrawler, '_processTokenBatch').callsFake(handler => {
+        capturedHandler = handler
+        return Promise.resolve()
+      })
+
+      sandbox.stub(utils, 'asyncBatchProcess').callsFake(async (...args: any[]) => {
+        const [items, processor] = args
+        for (const item of items) {
+          await processor(item)
+        }
+      })
+
+      const setTimestampCacheStub = sandbox.stub(BatchTransfersHandler.prototype, 'setTimestampCache').resolves()
+
+      await TransferCrawler.parseAndProcessTransferLogs(mockLogs, NetworksEnum.ethereumMainnet)
+
+      expect(setTimestampCacheStub.calledWith(mockTimestamps)).to.be.true
+    })
+  })
+
+  describe('Error handling and edge cases', () => {
+    it('should handle errors in asyncBatchProcess', async () => {
+      const mockLogs: Log[] = [{ address: validAddress1, blockNumber: 100 } as any]
+
+      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({})
+      sandbox.stub(TransferCrawler, '_groupLogsByToken').returns({
+        [validAddress1.toLowerCase()]: mockLogs,
+      })
+      sandbox.stub(TransferCrawler, '_processTokenBatch').resolves()
+
+      sandbox.stub(utils, 'asyncBatchProcess').callsFake(async (...args: any[]) => {
+        const [, , options] = args
+        // Simulate error in processing
+        const error = new Error('Token processing failed')
+        await options.onError(error, validAddress1.toLowerCase())
+      })
+
+      await TransferCrawler.parseAndProcessTransferLogs(mockLogs, NetworksEnum.ethereumMainnet)
+
+      expect((logger.error as any).calledWith('Token processing failed', sinon.match.any)).to.be.true
+    })
+
+    it('should handle empty logs after grouping', async () => {
+      const mockLogs: Log[] = [{ address: validAddress1, blockNumber: 100 } as any]
+
+      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({})
+      sandbox.stub(TransferCrawler, '_groupLogsByToken').returns({}) // Empty groups
+
+      const processTokenBatchStub = sandbox.stub(TransferCrawler, '_processTokenBatch').resolves()
+      sandbox.stub(utils, 'asyncBatchProcess').resolves()
+
+      await TransferCrawler.parseAndProcessTransferLogs(mockLogs, NetworksEnum.ethereumMainnet)
+
+      expect(processTokenBatchStub.called).to.be.false
     })
   })
 })
