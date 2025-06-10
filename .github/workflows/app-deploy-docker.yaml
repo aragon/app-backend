@@ -2,12 +2,17 @@ name: Deploy with docker
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-      - staging
-      - development
-      - sandbox
+    inputs:
+      environment:
+        description: 'Select environment to deploy to'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - sandbox
+          - development
+          - staging
+          - production
 
 jobs:
   deploy:
@@ -18,7 +23,7 @@ jobs:
       SELECTED_ENV: ${{ github.event.inputs.environment }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set variables
         id: set-variables
