@@ -12,7 +12,7 @@ import ProviderModule from '@src/modules/provider'
 import logger from '@logger'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 
-describe.only('Stress Test: Large Token Transfers', () => {
+describe('Stress Test: Large Token Transfers', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {

@@ -9,7 +9,7 @@ import logger from '@logger'
 import { NetworksEnum } from '@types'
 import axios from 'axios'
 
-describe.only('Helpers:Web3BatchHelper', () => {
+describe('Helpers:Web3BatchHelper', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
