@@ -13,6 +13,9 @@ on:
           - development
           - staging
           - production
+  push:
+    branches:
+      - feat/app-deply-docker  # Your current branch
 
 jobs:
   deploy:
@@ -29,7 +32,15 @@ jobs:
         id: set-variables
         run: |
           # Use the selected environment from dropdown, not branch name
-          SELECTED_ENV="${{ github.event.inputs.environment }}"
+          # SELECTED_ENV="${{ github.event.inputs.environment }}"
+          
+          # Use the selected environment from dropdown, or default to 'development' for push events
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            SELECTED_ENV="${{ github.event.inputs.environment }}"
+          else
+            SELECTED_ENV="sandbox"  # Default for push events
+            echo "⚠️  Push event detected, using default environment: sandbox"
+          fi
           
           echo "🎯 Deploying branch '${{ github.ref_name }}' to '$SELECTED_ENV' environment"
           
