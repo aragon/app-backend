@@ -7,7 +7,7 @@ on:
       - main
       - staging
       - development
-      - test
+      - beta
 
 jobs:
   deploy:
@@ -28,7 +28,7 @@ jobs:
           main)        ENV_SUFFIX=prod; VAULT_NS=apikeys_production;  SA_SERV=OP_SERVICE_ACCOUNT_TOKEN_PROD_TEMP;   ;;
           staging)     ENV_SUFFIX=stg;  VAULT_NS=apikeys_nonprod;     SA_SERV=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP ;;
           development) ENV_SUFFIX=dev;  VAULT_NS=apikeys_nonprod;     SA_SERV=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP ;;
-          test)        ENV_SUFFIX=test; VAULT_NS=apikeys_nonprod;     SA_SERV=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP ;;
+          beta)        ENV_SUFFIX=beta; VAULT_NS=apikeys_nonprod;     SA_SERV=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP ;;
           *)           ENV_SUFFIX=dev;  VAULT_NS=apikeys_nonprod;     SA_SERV=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP ;;
         esac
         
