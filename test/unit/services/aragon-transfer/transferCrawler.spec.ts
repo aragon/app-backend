@@ -781,4 +781,262 @@ describe('Module: TransferCrawler', () => {
       expect(processTokenBatchStub.called).to.be.false
     })
   })
+
+  describe('filterLogs callback integration', () => {
+    it('should create actual BlockchainLogCrawler instance and test filterLogs callback', async () => {
+      const mockLogs = [
+        { address: validAddress1, blockNumber: 100, topics: [transferTopic] },
+        { address: validAddress2, blockNumber: 101, topics: [transferTopic] },
+      ] as any
+
+      const filteredLogs = [mockLogs[0]]
+
+      sandbox.stub(PoolingCrawler, 'filterLogs').resolves(filteredLogs)
+      const parseAndProcessStub = sandbox.stub(TransferCrawler, 'parseAndProcessTransferLogs').resolves()
+
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(async function (
+        this: BlockchainLogCrawler,
+      ) {
+        const filterLogsCallback = this['crawlParams'].filterLogs
+        expect(filterLogsCallback).to.be.a('function')
+        const result = await filterLogsCallback!(mockLogs)
+
+        expect(result).to.deep.equal(filteredLogs)
+        expect(parseAndProcessStub.calledWith(filteredLogs, NetworksEnum.ethereumMainnet)).to.be.true
+
+        return []
+      })
+
+      await TransferCrawler.start({
+        logService: 'test-service',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      expect(crawlStub.calledOnce).to.be.true
+      expect(TransferCrawler.instances.size).to.equal(1)
+
+      // Verify the actual instance is a real BlockchainLogCrawler
+      const instance = TransferCrawler.instances.get(NetworksEnum.ethereumMainnet)
+      expect(instance).to.be.instanceOf(BlockchainLogCrawler)
+    })
+
+    it('should test filterLogs callback returns empty array when no logs pass filter', async () => {
+      const mockLogs = [{ address: validAddress1, blockNumber: 100, topics: [transferTopic] }] as any
+
+      sandbox.stub(PoolingCrawler, 'filterLogs').resolves([]) // No logs pass filter
+      const parseAndProcessStub = sandbox.stub(TransferCrawler, 'parseAndProcessTransferLogs').resolves()
+
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(async function (
+        this: BlockchainLogCrawler,
+      ) {
+        const filterLogsCallback = this['crawlParams'].filterLogs
+        expect(filterLogsCallback).to.be.a('function')
+
+        const result = await filterLogsCallback!(mockLogs)
+
+        expect(result).to.deep.equal([])
+        expect(parseAndProcessStub.called).to.be.false // Should not be called for empty results
+
+        return []
+      })
+
+      await TransferCrawler.start({
+        logService: 'test-service',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      expect(crawlStub.calledOnce).to.be.true
+    })
+
+    it('should test filterLogs callback handles errors in PoolingCrawler.filterLogs', async () => {
+      const mockLogs = [{ address: validAddress1, blockNumber: 100, topics: [transferTopic] }] as any
+
+      sandbox.stub(PoolingCrawler, 'filterLogs').rejects(new Error('Filter error'))
+      sandbox.stub(TransferCrawler, 'parseAndProcessTransferLogs').resolves()
+
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(async function (
+        this: BlockchainLogCrawler,
+      ) {
+        const filterLogsCallback = this['crawlParams'].filterLogs
+        expect(filterLogsCallback).to.be.a('function')
+
+        try {
+          await filterLogsCallback!(mockLogs)
+          expect.fail('Should have thrown an error')
+        } catch (error: any) {
+          expect(error.message).to.equal('Filter error')
+        }
+
+        return []
+      })
+
+      await TransferCrawler.start({
+        logService: 'test-service',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      expect(crawlStub.calledOnce).to.be.true
+    })
+
+    it('should test filterLogs callback handles errors in parseAndProcessTransferLogs', async () => {
+      const mockLogs = [{ address: validAddress1, blockNumber: 100, topics: [transferTopic] }] as any
+
+      const filteredLogs = [mockLogs[0]]
+
+      sandbox.stub(PoolingCrawler, 'filterLogs').resolves(filteredLogs)
+      sandbox.stub(TransferCrawler, 'parseAndProcessTransferLogs').rejects(new Error('Processing error'))
+
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(async function (
+        this: BlockchainLogCrawler,
+      ) {
+        const filterLogsCallback = this['crawlParams'].filterLogs
+        expect(filterLogsCallback).to.be.a('function')
+
+        try {
+          await filterLogsCallback!(mockLogs)
+          expect.fail('Should have thrown an error')
+        } catch (error: any) {
+          expect(error.message).to.equal('Processing error')
+        }
+
+        return []
+      })
+
+      await TransferCrawler.start({
+        logService: 'test-service',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      expect(crawlStub.calledOnce).to.be.true
+    })
+
+    it('should verify crawler configuration is correct', async () => {
+      sandbox.stub(PoolingCrawler, 'filterLogs').resolves([])
+      sandbox.stub(TransferCrawler, 'parseAndProcessTransferLogs').resolves()
+
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(async function (
+        this: BlockchainLogCrawler,
+      ) {
+        // Test the actual crawler configuration
+        expect(this['crawlParams'].network).to.equal(NetworksEnum.ethereumMainnet)
+        expect(this['crawlParams'].stopOnError).to.be.true
+        expect(this['crawlParams'].batchSize).to.equal(0.01)
+        expect(this['crawlParams'].skipLogProcessing).to.be.true
+        expect(this['crawlParams'].logService).to.equal('test-service')
+        expect(this['crawlParams'].filterLogs).to.be.a('function')
+        expect(this['crawlParams'].onError).to.be.a('function')
+        expect(this['crawlParams'].events).to.be.an('array')
+
+        return []
+      })
+
+      await TransferCrawler.start({
+        logService: 'test-service',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      expect(crawlStub.calledOnce).to.be.true
+    })
+
+    it('should test onError callback configuration', async () => {
+      sandbox.stub(PoolingCrawler, 'filterLogs').resolves([])
+      sandbox.stub(TransferCrawler, 'parseAndProcessTransferLogs').resolves()
+
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(async function (
+        this: BlockchainLogCrawler,
+      ) {
+        const onErrorCallback = this['crawlParams'].onError
+        expect(onErrorCallback).to.be.a('function')
+
+        const testError = new Error('Test error')
+        await onErrorCallback(testError)
+
+        expect((logger.error as any).calledWith('Error Transfer Crawler', sinon.match.any)).to.be.true
+
+        return []
+      })
+
+      await TransferCrawler.start({
+        logService: 'test-service',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      expect(crawlStub.calledOnce).to.be.true
+    })
+  })
+
+  describe('Real crawler instance behavior', () => {
+    it('should create and store actual BlockchainLogCrawler instance', async () => {
+      sandbox.stub(PoolingCrawler, 'filterLogs').resolves([])
+      sandbox.stub(TransferCrawler, 'parseAndProcessTransferLogs').resolves()
+      sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+
+      await TransferCrawler.start({
+        logService: 'test-service',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      // Verify instance is stored and is correct type
+      expect(TransferCrawler.instances.size).to.equal(1)
+      const instance = TransferCrawler.instances.get(NetworksEnum.ethereumMainnet)
+      expect(instance).to.be.instanceOf(BlockchainLogCrawler)
+
+      // Verify we can access the actual crawler settings
+      expect(instance!['crawlParams']).to.exist
+      expect(instance!['crawlSetting']).to.exist
+    })
+
+    it('should reuse existing instance on subsequent calls', async () => {
+      const mockCrawler = new BlockchainLogCrawler({
+        network: NetworksEnum.ethereumMainnet,
+        events: [],
+        onError: () => {},
+        logService: 'test-service' as any,
+        stopOnError: true,
+        batchSize: 0.01,
+        skipLogProcessing: true,
+        filterLogs: async () => [],
+      })
+
+      const crawlStub = sandbox.stub(mockCrawler, 'crawl').resolves()
+      TransferCrawler.instances.set(NetworksEnum.ethereumMainnet, mockCrawler)
+
+      await TransferCrawler.start({
+        logService: 'test-service',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      expect(crawlStub.calledOnce).to.be.true
+      expect(TransferCrawler.instances.size).to.equal(1)
+      expect(TransferCrawler.instances.get(NetworksEnum.ethereumMainnet)).to.equal(mockCrawler)
+    })
+
+    it('should handle different networks with separate instances', async () => {
+      sandbox.stub(PoolingCrawler, 'filterLogs').resolves([])
+      sandbox.stub(TransferCrawler, 'parseAndProcessTransferLogs').resolves()
+      sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+
+      // Start crawlers for different networks
+      await TransferCrawler.start({
+        logService: 'test-service-mainnet',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      await TransferCrawler.start({
+        logService: 'test-service-polygon',
+        network: NetworksEnum.polygonMainnet,
+      })
+
+      expect(TransferCrawler.instances.size).to.equal(2)
+      expect(TransferCrawler.instances.has(NetworksEnum.ethereumMainnet)).to.be.true
+      expect(TransferCrawler.instances.has(NetworksEnum.polygonMainnet)).to.be.true
+
+      const mainnetInstance = TransferCrawler.instances.get(NetworksEnum.ethereumMainnet)
+      const polygonInstance = TransferCrawler.instances.get(NetworksEnum.polygonMainnet)
+
+      expect(mainnetInstance).to.not.equal(polygonInstance)
+      expect(mainnetInstance!['crawlParams'].network).to.equal(NetworksEnum.ethereumMainnet)
+      expect(polygonInstance!['crawlParams'].network).to.equal(NetworksEnum.polygonMainnet)
+    })
+  })
 })

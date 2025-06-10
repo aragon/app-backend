@@ -4,14 +4,17 @@ import { expect } from 'chai'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
-import { NetworksEnum, ITransferSide, ITransferType, EnumQueueName } from '@types'
+import { NetworksEnum, ITransferSide, ITransferType, EnumQueueName, IEventLogMember } from '@types'
 import { ProxyMember } from '@modules/proxyMember'
 import Web3Helper from '@helpers/web3'
 import utils from '@helpers/utils'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
+import Web3Utils from '@helpers/web3Utils'
+import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { type BatchEvents, type UserTransferData, type TransferProcessorOptions } from '@types'
 import { BatchTransfersHandler } from '@services/aragon-transfers/batchTransfersHandler'
+import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 describe('Module: BatchTransfersHandler', () => {
   let sandbox: SinonSandbox
   let handler: BatchTransfersHandler
@@ -625,7 +628,7 @@ describe('Module: BatchTransfersHandler', () => {
 
       sandbox.stub(handler as any, 'getExistingTxIds').resolves(new Set())
       const processSingleDelegationStub = sandbox.stub(handler as any, 'processSingleDelegation').resolves()
-      const handleDaoMembershipStub = sandbox.stub(handler as any, 'handleDaoMembership').resolves()
+      sandbox.stub(handler as any, 'handleDaoMembership').resolves()
 
       await (handler as any).processUserTransactionsWithBalance(mockUserData, mockMemberBalance)
 
@@ -889,7 +892,7 @@ describe('Module: BatchTransfersHandler', () => {
       const mockPlugins = [{ address: validPluginAddress }]
 
       sandbox.stub(handler as any, 'getBlockTimestamp').resolves(1609459200)
-      sandbox.stub(handler as any, '_findDelegatorsFromReceipt').resolves({
+      sandbox.stub(GovernanceErc20Handler, '_findDelegatorsFromReceipt').resolves({
         from: utils.zeroAddress,
         to: validUserAddress1,
         delegator: validUserAddress2,
@@ -935,7 +938,7 @@ describe('Module: BatchTransfersHandler', () => {
       }
 
       sandbox.stub(handler as any, 'getBlockTimestamp').resolves(1609459200)
-      sandbox.stub(handler as any, '_findDelegatorsFromReceipt').resolves({
+      sandbox.stub(GovernanceErc20Handler, '_findDelegatorsFromReceipt').resolves({
         from: validUserAddress1,
         to: validUserAddress1,
         delegator: validUserAddress2,
@@ -991,7 +994,7 @@ describe('Module: BatchTransfersHandler', () => {
       const mockPlugins = [{ address: validPluginAddress }]
 
       sandbox.stub(handler as any, 'getBlockTimestamp').resolves(1609459200)
-      sandbox.stub(handler as any, '_findDelegatorsFromReceipt').resolves({
+      sandbox.stub(GovernanceErc20Handler, '_findDelegatorsFromReceipt').resolves({
         from: validUserAddress1, // Same as address
         to: validUserAddress2,
         delegator: validUserAddress2,
@@ -1039,7 +1042,7 @@ describe('Module: BatchTransfersHandler', () => {
       const mockMemberBalance = { amount: '1000' }
 
       sandbox.stub(handler as any, 'getBlockTimestamp').resolves(1609459200)
-      sandbox.stub(handler as any, '_findDelegatorsFromReceipt').resolves({
+      sandbox.stub(GovernanceErc20Handler, '_findDelegatorsFromReceipt').resolves({
         from: validUserAddress2, // Different from address
         to: validDaoAddress, // Also different from address
         delegator: validUserAddress2,
@@ -1075,7 +1078,7 @@ describe('Module: BatchTransfersHandler', () => {
       const mockPlugins = [{ address: validPluginAddress }]
 
       sandbox.stub(handler as any, 'getBlockTimestamp').resolves(1609459200)
-      sandbox.stub(handler as any, '_findDelegatorsFromReceipt').resolves({
+      sandbox.stub(GovernanceErc20Handler, '_findDelegatorsFromReceipt').resolves({
         from: utils.zeroAddress,
         to: validUserAddress1,
         delegator: validUserAddress2,

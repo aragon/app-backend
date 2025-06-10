@@ -7,6 +7,9 @@ import UnitDepUtils from '@test/lib/unit-dep/utils'
 import utils from '@helpers/utils'
 import TransferCrawler from '@services/aragon-transfers/transferCrawler'
 
+/**
+ * TODO: In Local the test works and on CI it fails. Needs to be investigated.
+ */
 describe.skip('Integ: Batch Transfer Processor', () => {
   let sandbox: SinonSandbox
 

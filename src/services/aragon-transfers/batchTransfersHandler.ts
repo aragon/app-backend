@@ -22,6 +22,7 @@ import Web3Utils from '@helpers/web3Utils'
 import type MemberBalance from '@models/schema/memberBalance'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
 import dbTx from '@modules/dbTx'
+import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:TransferProcessor' })
 
@@ -534,7 +535,7 @@ export class BatchTransfersHandler {
     try {
       const blockTimestamp = await this.getBlockTimestamp(info.network, info.blockNumber)
 
-      const { from, to, delegator } = await this._findDelegatorsFromReceipt(parsedEvent, info)
+      const { from, to, delegator } = await GovernanceErc20Handler._findDelegatorsFromReceipt(parsedEvent, info)
 
       if ((from === utils.zeroAddress && to === utils.zeroAddress) || from === to) {
         logger.warn('Skip from and to address', llo({ from, to, info }))
