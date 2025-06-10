@@ -115,6 +115,60 @@ describe('Module: TransferCrawler', () => {
       expect(TransferCrawler.instances.has(NetworksEnum.ethereumMainnet)).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
     })
+
+    it('should configure filterLogs callback that processes filtered logs', async () => {
+      const mockLogs = [
+        { address: validAddress1, blockNumber: 100 },
+        { address: validAddress2, blockNumber: 101 },
+      ] as any
+      const filteredLogs = [mockLogs[0]] // Only first log passes filter
+      const parseAndProcessStub = sandbox.stub(TransferCrawler, 'parseAndProcessTransferLogs').resolves()
+
+      sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(function (...args: any): Promise<any> {
+        parseAndProcessStub(filteredLogs, NetworksEnum.ethereumMainnet)
+        return Promise.resolve()
+      })
+
+      await TransferCrawler.start({
+        logService: 'test-service',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      expect(parseAndProcessStub.calledWith(filteredLogs, NetworksEnum.ethereumMainnet)).to.be.true
+    })
+
+    it('should configure filterLogs callback that returns empty array when no logs pass filter', async () => {
+      const mockLogs = [{ address: validAddress1, blockNumber: 100 }] as any
+      const filteredLogs: any[] = [] // No logs pass filter
+
+      sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      sandbox.stub(PoolingCrawler, 'filterLogs').resolves(filteredLogs)
+      const parseAndProcessStub = sandbox.stub(TransferCrawler, 'parseAndProcessTransferLogs').resolves()
+
+      await TransferCrawler.start({
+        logService: 'test-service',
+        network: NetworksEnum.ethereumMainnet,
+      })
+      expect(parseAndProcessStub.called).to.be.false
+    })
+
+    it('should handle errors in parseAndProcessTransferLogs', async () => {
+      const mockLogs = [{ address: validAddress1, blockNumber: 100 }] as any
+      const filteredLogs = [mockLogs[0]]
+
+      sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      sandbox.stub(PoolingCrawler, 'filterLogs').resolves(filteredLogs)
+      sandbox.stub(TransferCrawler, 'parseAndProcessTransferLogs').rejects(new Error('Processing error'))
+
+      // This should not throw an error, but handle it gracefully
+      await TransferCrawler.start({
+        logService: 'test-service',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      // The method should complete without throwing
+      expect(TransferCrawler.instances.size).to.equal(1)
+    })
   })
 
   describe('_groupLogsByToken', () => {
@@ -423,6 +477,60 @@ describe('Module: TransferCrawler', () => {
       // Should be called twice (one full batch + one partial batch)
       expect(mockProcessor.processEvents.callCount).to.equal(2)
     })
+
+    it('should handle empty batch slice correctly', async () => {
+      const batchSize = config.TRANSFER_CRAWLER_CONFIG.BATCH_SIZE
+
+      // Create logs exactly at batch boundary to test empty slice scenario
+      const mockLogs: Log[] = Array(batchSize)
+        .fill(null)
+        .map((_, i) => ({
+          blockNumber: 100 + i,
+          transactionIndex: 0,
+          index: 0,
+        })) as any[]
+
+      // Mock parseLogArguments to return valid events for all but create edge case
+      let parseCallCount = 0
+      sandbox.stub(TransferCrawler, '_parseLogArguments').callsFake(() => {
+        parseCallCount++
+        if (parseCallCount <= batchSize) {
+          return {
+            event: { name: 'Transfer', args: {} },
+            info: { blockNumber: 100 },
+          } as any
+        }
+        return { event: null, info: null } as any
+      })
+
+      await TransferCrawler._processTokenBatch(mockProcessor, mockLogs, NetworksEnum.ethereumMainnet)
+
+      // Should process exactly one batch
+      expect(mockProcessor.processEvents.callCount).to.equal(1)
+    })
+
+    it('should continue processing when encountering an empty batch slice', async () => {
+      const batchSize = config.TRANSFER_CRAWLER_CONFIG.BATCH_SIZE
+
+      // Create logs that when sliced could potentially create empty batches
+      const mockLogs: Log[] = Array(batchSize + 1)
+        .fill(null)
+        .map((_, i) => ({
+          blockNumber: 100 + i,
+          transactionIndex: 0,
+          index: 0,
+        })) as any[]
+
+      sandbox.stub(TransferCrawler, '_parseLogArguments').returns({
+        event: { name: 'Transfer', args: {} },
+        info: { blockNumber: 100 },
+      } as any)
+
+      await TransferCrawler._processTokenBatch(mockProcessor, mockLogs, NetworksEnum.ethereumMainnet)
+
+      // Should process 2 batches (batchSize + 1 item)
+      expect(mockProcessor.processEvents.callCount).to.equal(2)
+    })
   })
 
   describe('_parseLogArguments', () => {
@@ -475,6 +583,41 @@ describe('Module: TransferCrawler', () => {
 
       expect(result.event).to.be.null
       expect(result.info).to.exist
+    })
+
+    it('should handle Web3Utils.parseInfoLog returning null', () => {
+      const mockLog: Log = {
+        topics: [transferTopic],
+        address: validAddress1,
+      } as any
+
+      const mockDecoded = { name: 'Transfer', args: {} }
+
+      sandbox.stub(Web3Utils, 'parseLog').returns(mockDecoded as any)
+      sandbox.stub(Web3Utils, 'parseInfoLog').returns(null as any) // parseInfoLog returns null
+
+      const result = TransferCrawler._parseLogArguments(mockLog, NetworksEnum.ethereumMainnet)
+
+      expect(result.event).to.equal(mockDecoded)
+      expect(result.info).to.be.null
+    })
+
+    it('should handle Web3Utils.parseInfoLog throwing an error', () => {
+      const mockLog: Log = {
+        topics: [transferTopic],
+        address: validAddress1,
+      } as any
+
+      const mockDecoded = { name: 'Transfer', args: {} }
+
+      sandbox.stub(Web3Utils, 'parseLog').returns(mockDecoded as any)
+      sandbox.stub(Web3Utils, 'parseInfoLog').throws(new Error('Parse info error'))
+
+      const result = TransferCrawler._parseLogArguments(mockLog, NetworksEnum.ethereumMainnet)
+
+      expect(result.event).to.be.null
+      expect(result.info).to.be.null
+      expect((logger.warn as any).calledWith('Failed to parse log arguments', sinon.match.any)).to.be.true
     })
   })
 

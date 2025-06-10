@@ -9,15 +9,9 @@ import { ProxyMember } from '@modules/proxyMember'
 import Web3Helper from '@helpers/web3'
 import utils from '@helpers/utils'
 import RabbitMQHelper from '@helpers/rabbitMQ'
-import Web3Utils from '@helpers/web3Utils'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
-import {
-  BatchTransfersHandler,
-  type BatchEvents,
-  type UserTransferData,
-  type TransferProcessorOptions,
-} from '@services/aragon-transfers/batchTransfersHandler'
-
+import { type BatchEvents, type UserTransferData, type TransferProcessorOptions } from '@types'
+import { BatchTransfersHandler } from '@services/aragon-transfers/batchTransfersHandler'
 describe('Module: BatchTransfersHandler', () => {
   let sandbox: SinonSandbox
   let handler: BatchTransfersHandler
@@ -342,6 +336,36 @@ describe('Module: BatchTransfersHandler', () => {
       expect(userEvents[1].parsedEvent.args.amount).to.equal('2000') // Block 100, txIndex 1, logIndex 0
       expect(userEvents[2].parsedEvent.args.amount).to.equal('1000') // Block 102, txIndex 0, logIndex 0
     })
+
+    it('should handle NFT transfers with tokenId', () => {
+      const mockEvents: BatchEvents[] = [
+        {
+          log: {
+            name: 'Transfer',
+            args: {
+              from: validUserAddress1,
+              to: validUserAddress2,
+              tokenId: 123,
+            },
+          } as any,
+          info: {
+            blockNumber: 100,
+            transactionHash: '0xabcd',
+            transactionIndex: 0,
+            logIndex: 0,
+            network: NetworksEnum.ethereumMainnet,
+          } as any,
+        },
+      ]
+
+      sandbox.stub(utils, 'zeroAddress').value('0x0000000000000000000000000000000000000000')
+
+      const result = (handler as any).groupEventsByUser(mockEvents)
+
+      expect(Object.keys(result)).to.have.lengthOf(2)
+      expect(result[validUserAddress1]).to.exist
+      expect(result[validUserAddress2]).to.exist
+    })
   })
 
   describe('generateTransactionId', () => {
@@ -487,6 +511,58 @@ describe('Module: BatchTransfersHandler', () => {
       expect(result.size).to.equal(0)
       expect((logger.error as any).calledWith('Error updating user balance', sinon.match.any)).to.be.true
     })
+
+    it('should handle missing balance and voting power results', async () => {
+      const users = [{ address: validUserAddress1, blockNumber: 100 }]
+
+      const mockBatchResults = {
+        [validUserAddress1]: {}, // Empty result object
+      }
+
+      const mockBalanceDb = {
+        updateBalance: sandbox.stub().resolves(),
+        updateVotingPower: sandbox.stub().resolves(),
+      }
+
+      sandbox.stub(handler as any, 'getBlockTimestamp').resolves(1609459200)
+      sandbox.stub(Web3BatchHelper, 'getVotingPowerAndBalancesInBatch').resolves(mockBatchResults as any)
+      sandbox.stub(ProxyMember, 'getBalances').resolves(mockBalanceDb as any)
+      sandbox.stub(DbTx, 'executeTxFn').callsFake(async (fn: any) => {
+        await fn({ session: { commitTransaction: sandbox.stub() } })
+      })
+
+      const result = await (handler as any).batchProcessBalances(users)
+
+      expect(result).to.be.instanceOf(Map)
+      expect(result.size).to.equal(1)
+      expect(mockBalanceDb.updateBalance.calledWith({ amount: '0', blockNumber: 100, tokenId: undefined })).to.be.true
+      expect(mockBalanceDb.updateVotingPower.calledWith('0')).to.be.true
+    })
+
+    it('should handle completely missing results for user', async () => {
+      const users = [{ address: validUserAddress1, blockNumber: 100 }]
+
+      const mockBatchResults = {} // No results for the user
+
+      const mockBalanceDb = {
+        updateBalance: sandbox.stub().resolves(),
+        updateVotingPower: sandbox.stub().resolves(),
+      }
+
+      sandbox.stub(handler as any, 'getBlockTimestamp').resolves(1609459200)
+      sandbox.stub(Web3BatchHelper, 'getVotingPowerAndBalancesInBatch').resolves(mockBatchResults as any)
+      sandbox.stub(ProxyMember, 'getBalances').resolves(mockBalanceDb as any)
+      sandbox.stub(DbTx, 'executeTxFn').callsFake(async (fn: any) => {
+        await fn({ session: { commitTransaction: sandbox.stub() } })
+      })
+
+      const result = await (handler as any).batchProcessBalances(users)
+
+      expect(result).to.be.instanceOf(Map)
+      expect(result.size).to.equal(1)
+      expect(mockBalanceDb.updateBalance.calledWith({ amount: '0', blockNumber: 100, tokenId: undefined })).to.be.true
+      expect(mockBalanceDb.updateVotingPower.calledWith('0')).to.be.true
+    })
   })
 
   describe('processUserTransactionsWithBalance', () => {
@@ -576,6 +652,79 @@ describe('Module: BatchTransfersHandler', () => {
 
       expect((logger.error as any).calledWith('Error processing user transactions with balance', sinon.match.any)).to.be
         .true
+    })
+
+    it('should handle zero balance and voting power correctly', async () => {
+      const mockUserData: UserTransferData = {
+        address: validUserAddress1,
+        events: [
+          {
+            parsedEvent: {
+              name: 'Transfer',
+              args: { from: validUserAddress1, to: validUserAddress2, amount: '1000' },
+            } as any,
+            info: {
+              blockNumber: 100,
+              transactionHash: '0xabcd',
+              transactionIndex: 0,
+              logIndex: 0,
+              network: NetworksEnum.ethereumMainnet,
+            } as any,
+            transferSide: ITransferSide.outgoing,
+            dbId: 'tx-id-1',
+            eventType: 'transfer' as const,
+          },
+        ],
+      }
+
+      const mockMemberBalance = {
+        amount: '0',
+        votingPower: '0',
+      }
+
+      sandbox.stub(handler as any, 'getExistingTxIds').resolves(new Set())
+      const processSingleTransactionStub = sandbox.stub(handler as any, 'processSingleTransaction').resolves()
+      const handleDaoMembershipStub = sandbox.stub(handler as any, 'handleDaoMembership').resolves()
+
+      await (handler as any).processUserTransactionsWithBalance(mockUserData, mockMemberBalance)
+
+      expect(processSingleTransactionStub.calledOnce).to.be.true
+      expect(handleDaoMembershipStub.called).to.be.false // Should not be called for zero balance
+    })
+
+    it('should handle missing amount and votingPower properties', async () => {
+      const mockUserData: UserTransferData = {
+        address: validUserAddress1,
+        events: [
+          {
+            parsedEvent: {
+              name: 'Transfer',
+              args: { from: validUserAddress1, to: validUserAddress2, amount: '1000' },
+            } as any,
+            info: {
+              blockNumber: 100,
+              transactionHash: '0xabcd',
+              transactionIndex: 0,
+              logIndex: 0,
+              network: NetworksEnum.ethereumMainnet,
+            } as any,
+            transferSide: ITransferSide.outgoing,
+            dbId: 'tx-id-1',
+            eventType: 'transfer' as const,
+          },
+        ],
+      }
+
+      const mockMemberBalance = {} // Empty object, no amount or votingPower
+
+      sandbox.stub(handler as any, 'getExistingTxIds').resolves(new Set())
+      const processSingleTransactionStub = sandbox.stub(handler as any, 'processSingleTransaction').resolves()
+      const handleDaoMembershipStub = sandbox.stub(handler as any, 'handleDaoMembership').resolves()
+
+      await (handler as any).processUserTransactionsWithBalance(mockUserData, mockMemberBalance)
+
+      expect(processSingleTransactionStub.calledOnce).to.be.true
+      expect(handleDaoMembershipStub.called).to.be.false // Should not be called for zero balance
     })
   })
 
@@ -670,6 +819,46 @@ describe('Module: BatchTransfersHandler', () => {
           sinon.match({
             amount: 1,
             tokenId: 123,
+          }),
+          { session: sinon.match.any },
+        ),
+      ).to.be.true
+    })
+
+    it('should handle missing amount in args', async () => {
+      const mockEvent = {
+        parsedEvent: {
+          args: {
+            from: validUserAddress1,
+            to: validUserAddress2,
+            // No amount property
+          },
+        } as any,
+        info: {
+          blockNumber: 100,
+          transactionHash: '0xabcd',
+          transactionIndex: 0,
+          logIndex: 0,
+          network: NetworksEnum.ethereumMainnet,
+        },
+        transferSide: ITransferSide.outgoing,
+        dbId: 'tx-id-1',
+      }
+
+      const mockMemberBalance = { amount: '2000' }
+
+      sandbox.stub(handler as any, 'getBlockTimestamp').resolves(1609459200)
+      sandbox.stub(DbTx, 'executeTxFn').callsFake(async (fn: any) => {
+        await fn({ session: { commitTransaction: sandbox.stub() } })
+      })
+      const createStub = sandbox.stub(Models.MemberTransaction, 'create').resolves()
+
+      await (handler as any).processSingleTransaction(validUserAddress1, mockMemberBalance, mockEvent)
+
+      expect(
+        createStub.calledWith(
+          sinon.match({
+            amount: '0', // Should default to '0'
           }),
           { session: sinon.match.any },
         ),
@@ -779,54 +968,138 @@ describe('Module: BatchTransfersHandler', () => {
 
       expect((logger.error as any).calledWith('Error processing delegation', sinon.match.any)).to.be.true
     })
-  })
 
-  describe('_findDelegatorsFromReceipt', () => {
-    it('should find delegators from transaction receipt', async () => {
-      const mockParsedEvent = {
-        args: { delegate: validUserAddress1 },
-      } as any
-
-      const mockInfo = {
-        transactionHash: '0xabcd',
-        network: NetworksEnum.ethereumMainnet,
-      }
-
-      const mockReceipt = {
-        logs: [],
-      }
-
-      const mockDelegationLog = {
-        parsed: {
+    it('should handle delegation where address equals from (outgoing)', async () => {
+      const mockEvent = {
+        parsedEvent: {
           args: {
-            delegator: validUserAddress2,
-            fromDelegate: utils.zeroAddress,
-            toDelegate: validUserAddress1,
+            delegate: validUserAddress1,
+            newBalance: '2000',
           },
+        } as any,
+        info: {
+          blockNumber: 100,
+          transactionHash: '0xabcd',
+          transactionIndex: 0,
+          logIndex: 0,
+          network: NetworksEnum.ethereumMainnet,
         },
+        dbId: 'delegation-id-1',
       }
 
-      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(mockReceipt as any)
-      sandbox.stub(Web3Utils, 'findLogsByName').returns([mockDelegationLog] as any)
+      const mockMemberBalance = { amount: '1000' }
+      const mockPlugins = [{ address: validPluginAddress }]
 
-      const result = await (handler as any)._findDelegatorsFromReceipt(mockParsedEvent, mockInfo)
+      sandbox.stub(handler as any, 'getBlockTimestamp').resolves(1609459200)
+      sandbox.stub(handler as any, '_findDelegatorsFromReceipt').resolves({
+        from: validUserAddress1, // Same as address
+        to: validUserAddress2,
+        delegator: validUserAddress2,
+      })
+      sandbox.stub(DbTx, 'executeTxFn').callsFake(async (fn: any) => {
+        await fn({ session: { commitTransaction: sandbox.stub() } })
+      })
+      const createStub = sandbox.stub(Models.MemberTransaction, 'create').resolves()
+      const updateDelegationMetricsStub = sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
+      const updateActivityStub = sandbox.stub(ProxyMember, 'updateActivity').resolves()
 
-      expect(result.from).to.equal(utils.zeroAddress)
-      expect(result.to).to.equal(validUserAddress1)
-      expect(result.delegator).to.equal(validUserAddress2)
+      handler['plugins'] = mockPlugins
+
+      await (handler as any).processSingleDelegation(validUserAddress1, mockMemberBalance, mockEvent)
+
+      expect(
+        createStub.calledWith(
+          sinon.match({
+            type: ITransferType.delegate,
+            side: ITransferSide.outgoing, // Should be outgoing
+          }),
+          { session: sinon.match.any },
+        ),
+      ).to.be.true
     })
 
-    it('should return zero addresses when no receipt found', async () => {
-      const mockParsedEvent = { args: { delegate: validUserAddress1 } } as any
-      const mockInfo = { transactionHash: '0xabcd', network: NetworksEnum.ethereumMainnet }
+    it('should handle delegation with neither from nor to matching address', async () => {
+      const mockEvent = {
+        parsedEvent: {
+          args: {
+            delegate: validUserAddress1,
+            newBalance: '2000',
+          },
+        } as any,
+        info: {
+          blockNumber: 100,
+          transactionHash: '0xabcd',
+          transactionIndex: 0,
+          logIndex: 0,
+          network: NetworksEnum.ethereumMainnet,
+        },
+        dbId: 'delegation-id-1',
+      }
 
-      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
+      const mockMemberBalance = { amount: '1000' }
 
-      const result = await (handler as any)._findDelegatorsFromReceipt(mockParsedEvent, mockInfo)
+      sandbox.stub(handler as any, 'getBlockTimestamp').resolves(1609459200)
+      sandbox.stub(handler as any, '_findDelegatorsFromReceipt').resolves({
+        from: validUserAddress2, // Different from address
+        to: validDaoAddress, // Also different from address
+        delegator: validUserAddress2,
+      })
 
-      expect(result.from).to.equal(utils.zeroAddress)
-      expect(result.to).to.equal(utils.zeroAddress)
-      expect(result.delegator).to.equal(utils.zeroAddress)
+      const createStub = sandbox.stub(Models.MemberTransaction, 'create')
+
+      await (handler as any).processSingleDelegation(validUserAddress1, mockMemberBalance, mockEvent)
+
+      expect(createStub.called).to.be.false
+      expect((logger.error as any).calledWith('Error cannot detect delegation side', sinon.match.any)).to.be.true
+    })
+
+    it('should handle missing newBalance in delegation args', async () => {
+      const mockEvent = {
+        parsedEvent: {
+          args: {
+            delegate: validUserAddress1,
+            // No newBalance property
+          },
+        } as any,
+        info: {
+          blockNumber: 100,
+          transactionHash: '0xabcd',
+          transactionIndex: 0,
+          logIndex: 0,
+          network: NetworksEnum.ethereumMainnet,
+        },
+        dbId: 'delegation-id-1',
+      }
+
+      const mockMemberBalance = { amount: '1000' }
+      const mockPlugins = [{ address: validPluginAddress }]
+
+      sandbox.stub(handler as any, 'getBlockTimestamp').resolves(1609459200)
+      sandbox.stub(handler as any, '_findDelegatorsFromReceipt').resolves({
+        from: utils.zeroAddress,
+        to: validUserAddress1,
+        delegator: validUserAddress2,
+      })
+      sandbox.stub(DbTx, 'executeTxFn').callsFake(async (fn: any) => {
+        await fn({ session: { commitTransaction: sandbox.stub() } })
+      })
+      const createStub = sandbox.stub(Models.MemberTransaction, 'create').resolves()
+      sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
+      sandbox.stub(ProxyMember, 'updateActivity').resolves()
+
+      handler['plugins'] = mockPlugins
+
+      await (handler as any).processSingleDelegation(validUserAddress1, mockMemberBalance, mockEvent)
+
+      expect(
+        createStub.calledWith(
+          sinon.match({
+            amount: '0', // Should default to '0'
+            memberVotingPower: '0', // Should default to '0'
+          }),
+          { session: sinon.match.any },
+        ),
+      ).to.be.true
     })
   })
 
@@ -959,6 +1232,78 @@ describe('Module: BatchTransfersHandler', () => {
 
       expect(addToDaoStub.calledOnce).to.be.true
     })
+
+    it('should handle missing amount and votingPower properties in balance check', async () => {
+      const mockMemberBalance = {} // Empty object, no amount or votingPower
+      const mockPlugins = [
+        {
+          daoAddress: validDaoAddress,
+          network: NetworksEnum.ethereumMainnet,
+          address: validPluginAddress,
+          tokenAddress: validTokenAddress,
+        },
+      ]
+
+      handler['plugins'] = mockPlugins
+
+      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
+      const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao')
+      const removeFromDaoStub = sandbox.stub(ProxyMember, 'removeFromDao')
+
+      await (handler as any).handleDaoMembership(validUserAddress1, mockMemberBalance)
+
+      expect(addToDaoStub.called).to.be.false
+      expect(removeFromDaoStub.called).to.be.false
+    })
+  })
+
+  describe('processUsersTxs error handling', () => {
+    it('should handle errors in user transaction processing', async () => {
+      const mockEventsMap = {
+        [validUserAddress1]: {
+          address: validUserAddress1,
+          events: [
+            {
+              parsedEvent: {
+                name: 'Transfer',
+                args: { from: validUserAddress1, to: validUserAddress2, amount: '1000' },
+              },
+              info: {
+                blockNumber: 100,
+                transactionHash: '0xabcd',
+                transactionIndex: 0,
+                logIndex: 0,
+                network: NetworksEnum.ethereumMainnet,
+              },
+              transferSide: ITransferSide.outgoing,
+              dbId: 'tx-id-1',
+              eventType: 'transfer' as const,
+            },
+          ],
+        },
+      }
+
+      const mockBalanceMap = new Map()
+      mockBalanceMap.set(validUserAddress1, { amount: '1000' })
+
+      // Stub the processUserTransactionsWithBalance to throw an error
+      sandbox.stub(handler as any, 'processUserTransactionsWithBalance').rejects(new Error('Processing error'))
+
+      sandbox.stub(utils, 'asyncBatchProcess').callsFake(async function (this: any, ...args: any[]): Promise<any> {
+        const [items, processor, options] = args
+        try {
+          await processor(items[0])
+        } catch (error) {
+          if (options?.onError) {
+            options.onError(error, items[0])
+          }
+        }
+      })
+
+      await (handler as any).processUsersTxs(mockEventsMap, mockBalanceMap)
+
+      expect((logger.error as any).calledWith('Error processing user transactions', sinon.match.any)).to.be.true
+    })
   })
 
   describe('Edge Cases and Error Handling', () => {
@@ -1023,6 +1368,46 @@ describe('Module: BatchTransfersHandler', () => {
       await handler.processEvents(events)
 
       expect((logger.error as any).calledWith('Error in batch processing', sinon.match.any)).to.be.true
+    })
+
+    it('should handle events with complex sorting requirements', () => {
+      const mockEvents: BatchEvents[] = [
+        {
+          log: {
+            name: 'Transfer',
+            args: { from: validUserAddress1, to: validUserAddress2, amount: '1000' },
+          } as any,
+          info: {
+            blockNumber: 100,
+            transactionHash: '0x1',
+            transactionIndex: 0,
+            logIndex: 2,
+            network: NetworksEnum.ethereumMainnet,
+          } as any,
+        },
+        {
+          log: {
+            name: 'Transfer',
+            args: { from: validUserAddress1, to: validUserAddress2, amount: '2000' },
+          } as any,
+          info: {
+            blockNumber: 100,
+            transactionHash: '0x2',
+            transactionIndex: 0,
+            logIndex: 1,
+            network: NetworksEnum.ethereumMainnet,
+          } as any,
+        },
+      ]
+
+      sandbox.stub(utils, 'zeroAddress').value('0x0000000000000000000000000000000000000000')
+
+      const result = (handler as any).groupEventsByUser(mockEvents)
+
+      const userEvents = result[validUserAddress1].events
+      // Should be sorted by logIndex when block and transaction index are the same
+      expect(userEvents[0].parsedEvent.args.amount).to.equal('2000') // logIndex 1
+      expect(userEvents[1].parsedEvent.args.amount).to.equal('1000') // logIndex 2
     })
   })
 })
