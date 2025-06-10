@@ -12,7 +12,6 @@ on:
           - sandbox
           - development
           - staging
-          - production
   push:
     branches:
       - feat/app-deply-docker  # Your current branch
