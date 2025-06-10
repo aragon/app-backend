@@ -596,6 +596,7 @@ describe('Modules:ProxyMember', () => {
       expect(result).to.be.null
       expect(parseAddressStub.calledOnceWithExactly(params.memberAddress)).to.be.true
       expect(createMemberStub.calledOnceWithExactly(params.memberAddress)).to.be.true
+      expect(executeTxFnStub.calledOnce).to.be.true
       expect(loggerErrorStub.calledOnceWith('Error in removeFromDao' as any)).to.be.true
     })
   })
@@ -1010,6 +1011,7 @@ describe('Modules:ProxyMember', () => {
         expect.fail('Should have thrown an error')
       } catch (error: any) {
         expect(error.message).to.equal('Member creation failed')
+        expect(bulkMemberCreationStub.calledOnce).to.be.true
         expect(loggerErrorStub.calledOnce).to.be.true
       }
     })
@@ -1040,6 +1042,8 @@ describe('Modules:ProxyMember', () => {
         expect.fail('Should have thrown an error')
       } catch (error: any) {
         expect(error.message).to.equal('Balance creation failed')
+        expect(bulkMemberCreationStub.calledOnce).to.be.true
+        expect(bulkBalanceCreationStub.calledOnce).to.be.true
         expect(loggerErrorStub.calledOnce).to.be.true
       }
     })
@@ -1071,6 +1075,9 @@ describe('Modules:ProxyMember', () => {
         expect.fail('Should have thrown an error')
       } catch (error: any) {
         expect(error.message).to.equal('Membership management failed')
+        expect(bulkMemberCreationStub.calledOnce).to.be.true
+        expect(bulkBalanceCreationStub.calledOnce).to.be.true
+        expect(bulkDaoMembershipManagementStub.calledOnce).to.be.true
         expect(loggerErrorStub.calledOnce).to.be.true
       }
     })
