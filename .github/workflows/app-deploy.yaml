@@ -2,26 +2,41 @@ name: Deploy new version
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-      - staging
-      - development
+    inputs:
+      environment:
+        description: 'Select environment to deploy to'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - sandbox
+          - development
+          - staging
+          - production
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      REPO_URL: git@github.com:${{ github.repository }}.git
+      BRANCH_NAME: ${{ github.ref_name }}
+      SELECTED_ENV: ${{ github.event.inputs.environment }}
+
     steps:
       - uses: actions/checkout@v3
 
       - name: Set variables
         id: set-variables
         run: |
-          BRANCH_NAME=${GITHUB_REF##*/}
-          case "$BRANCH_NAME" in
-            main)
-              DEPLOY_ENV=prd
-              echo "DEPLOY_ENV=prd" >> $GITHUB_ENV
+          # Use the selected environment from dropdown, not branch name
+          SELECTED_ENV="${{ github.event.inputs.environment }}"
+          
+          echo "🎯 Deploying branch '${{ github.ref_name }}' to '$SELECTED_ENV' environment"
+          
+          case "$SELECTED_ENV" in
+            production)
+              DEPLOY_ENV=prod
+              echo "DEPLOY_ENV=prod" >> $GITHUB_ENV
 
               echo "OP_SERVER_USERNAME=op://apikeys_production/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
               echo "OP_SERVER_URL=op://apikeys_production/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
@@ -29,7 +44,6 @@ jobs:
               echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_PROD_TEMP" >> $GITHUB_ENV
               echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
               ;;
-
 
             staging)
               DEPLOY_ENV=stg
@@ -42,6 +56,27 @@ jobs:
               echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
               ;;
 
+            development)
+              DEPLOY_ENV=dev
+              echo "DEPLOY_ENV=dev" >> $GITHUB_ENV
+
+              echo "OP_SERVER_USERNAME=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
+              echo "OP_SERVER_URL=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
+              echo "OP_SERVER_CERT=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> $GITHUB_ENV
+              echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP" >> $GITHUB_ENV
+              echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
+              ;;
+
+            sandbox)
+              DEPLOY_ENV=sand
+              echo "DEPLOY_ENV=sand" >> $GITHUB_ENV
+
+              echo "OP_SERVER_USERNAME=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
+              echo "OP_SERVER_URL=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
+              echo "OP_SERVER_CERT=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> $GITHUB_ENV
+              echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP" >> $GITHUB_ENV
+              echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
+              ;;
 
             *)
               DEPLOY_ENV=dev
@@ -102,31 +137,39 @@ jobs:
           		CONFIG_FILE_NAME=".env.$conf_single"
           		cp temp_file "$CONFIG_FILE_NAME"
           		case "${{env.DEPLOY_ENV}}" in
-              	prd)
+              	prod)
                 	echo "Setting up ${{env.DEPLOY_ENV}} environment for $conf_single"
           			  sed -i "s/^LOGZIO_SERVER_NAME=.*/LOGZIO_SERVER_NAME=${conf_single^^}-PRODUCTION / " "$CONFIG_FILE_NAME"
                 	;;
-              	
+          
                 stg)
               		echo "Setting up ${{env.DEPLOY_ENV}} environment for $conf_single"
           		    sed -i "s/^LOGZIO_SERVER_NAME=.*/LOGZIO_SERVER_NAME=${conf_single^^}-STAGING / " "$CONFIG_FILE_NAME"
               		;;
-              
+          
+                sand)
+          			  echo "Setting up ${{env.DEPLOY_ENV}} environment for $conf_single"
+          			  sed -i "s/^LOGZIO_SERVER_NAME=.*/LOGZIO_SERVER_NAME=${conf_single^^}-SANDBOX / " "$CONFIG_FILE_NAME"
+                  ;;
+          
                 *)
           			  echo "Setting up ${{env.DEPLOY_ENV}} environment for $conf_single"
           			  sed -i "s/^LOGZIO_SERVER_NAME=.*/LOGZIO_SERVER_NAME=${conf_single^^}-DEVELOPMENT / " "$CONFIG_FILE_NAME"
                   ;;
               esac
-                  
+          
           		sha256sum $CONFIG_FILE_NAME
           	done
-                  
+          
           	rm temp_file
           done < configs
 
-      - name: Print masked secret and branch variable map
+      - name: Print deployment info
         run: |
-          echo "Branch variable map: ${{ env.DEPLOY_ENV }}"
+          echo "🚀 Deployment Information:"
+          echo "   Branch: ${{ github.ref_name }}"
+          echo "   Target Environment: ${{ github.event.inputs.environment }}"
+          echo "   Environment Suffix: ${{ env.DEPLOY_ENV }}"
 
       - name: Execute deployment script
         env:
@@ -136,15 +179,14 @@ jobs:
           eval "$(ssh-agent -s)"
           ssh-add ~/.ssh/id_rsa
           bash app-backend/.github/workflows/deployment/deployment.sh -u "${{ steps.op-server-secrets.outputs.SERVER_USERNAME }}" -m "${{ steps.op-server-secrets.outputs.SERVER_URL }}"
-      
+
       - name: Reset envs
         run: |
-              echo "OP_SERVER_USERNAME=" >> $GITHUB_ENV
-              echo "OP_SERVER_URL=" >> $GITHUB_ENV
-              echo "OP_SERVER_CERT=" >> $GITHUB_ENV
-              echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=" >> $GITHUB_ENV
+          echo "OP_SERVER_USERNAME=" >> $GITHUB_ENV
+          echo "OP_SERVER_URL=" >> $GITHUB_ENV
+          echo "OP_SERVER_CERT=" >> $GITHUB_ENV
+          echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=" >> $GITHUB_ENV
 
-              
       - name: Dispatch E2E tests
         uses: aragon/app-qa/.github/actions/dispatch@main
         with:
