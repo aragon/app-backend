@@ -4,7 +4,7 @@ import { expect } from 'chai'
 import { IConnectionType, IProviderType, NetworksEnum } from '@types'
 import ProviderModule from '@modules/provider'
 
-describe.only('ProviderModule', () => {
+describe('ProviderModule', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
