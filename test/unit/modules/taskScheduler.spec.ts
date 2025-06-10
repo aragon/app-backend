@@ -6,6 +6,7 @@ import Utils from '@helpers/utils'
 import { Models } from '@dbModels'
 import { IEnumTaskStatus } from '@types'
 import logger from '@logger'
+import { log } from 'console'
 
 describe('Modules: TaskScheduler', () => {
   let sandbox: SinonSandbox
@@ -358,5 +359,92 @@ describe('Modules: TaskScheduler', () => {
     await taskRunner()
 
     expect(task1.start.called).to.be.false
+  })
+
+  describe('updateNextStartAt error handling', () => {
+    it('should handle duplicate key error (code 11000) and retry with findOneAndUpdate', async () => {
+      const task1 = { start: sandbox.stub().resolves('done') }
+      const taskFn = [[{ task1 }]]
+      const serviceName = getUniqueServiceName('duplicateKeyTest')
+
+      // First call throws duplicate key error, second call succeeds
+      const findOneAndUpdateStub = sandbox.stub(Models.TaskService, 'findOneAndUpdate')
+      findOneAndUpdateStub.onFirstCall().rejects({ code: 11000, message: 'Duplicate key error' })
+      findOneAndUpdateStub.onSecondCall().resolves({})
+
+      // Mock TaskRun.create to succeed
+      sandbox.stub(Models.TaskRun, 'create').resolves({ _id: 'mockTaskRunId' })
+      sandbox.stub(Models.TaskRun, 'updateOne').resolves({})
+
+      await scheduler.startTask(serviceName, {
+        fn: () => taskFn,
+        interval: 50,
+        runNow: true,
+        onError: sandbox.stub(),
+      })
+
+      await Utils.wait(10)
+
+      expect(findOneAndUpdateStub.calledTwice).to.be.true
+      expect(task1.start.calledOnce).to.be.true
+    })
+
+    it('should re-throw non-duplicate key errors', async () => {
+      const task1 = { start: sandbox.stub().resolves('done') }
+      const taskFn = [[{ task1 }]]
+      const serviceName = getUniqueServiceName('otherErrorTest')
+      const onErrorStub = sandbox.stub()
+
+      sandbox.stub(logger, 'error')
+
+      const otherError = new Error('Database connection failed')
+      sandbox.stub(Models.TaskService, 'findOneAndUpdate').rejects(otherError)
+
+      // Mock TaskRun.create to avoid the _id error
+      sandbox.stub(Models.TaskRun, 'create').resolves({ _id: 'mockTaskRunId' })
+      sandbox.stub(Models.TaskRun, 'updateOne').resolves({})
+
+      await scheduler.startTask(serviceName, {
+        fn: () => taskFn,
+        interval: 50,
+        runNow: true,
+        onError: onErrorStub,
+      })
+
+      await Utils.wait(10)
+
+      expect(onErrorStub.calledOnce).to.be.true
+      expect(onErrorStub.firstCall.args[0]).to.equal(otherError)
+    })
+
+    it('should handle error when retry also fails after duplicate key error', async () => {
+      const task1 = { start: sandbox.stub().resolves('done') }
+      const taskFn = [[{ task1 }]]
+      const serviceName = getUniqueServiceName('retryFailTest')
+      const onErrorStub = sandbox.stub()
+      sandbox.stub(logger, 'error')
+
+      const retryError = new Error('Retry failed')
+      const findOneAndUpdateStub = sandbox.stub(Models.TaskService, 'findOneAndUpdate')
+      findOneAndUpdateStub.onFirstCall().rejects({ code: 11000, message: 'Duplicate key error' })
+      findOneAndUpdateStub.onSecondCall().rejects(retryError)
+
+      // Mock TaskRun.create to avoid the _id error
+      sandbox.stub(Models.TaskRun, 'create').resolves({ _id: 'mockTaskRunId' })
+      sandbox.stub(Models.TaskRun, 'updateOne').resolves({})
+
+      await scheduler.startTask(serviceName, {
+        fn: () => taskFn,
+        interval: 50,
+        runNow: true,
+        onError: onErrorStub,
+      })
+
+      await Utils.wait(10)
+
+      expect(findOneAndUpdateStub.calledTwice).to.be.true
+      expect(onErrorStub.calledOnce).to.be.true
+      expect(onErrorStub.firstCall.args[0]).to.equal(retryError)
+    })
   })
 })

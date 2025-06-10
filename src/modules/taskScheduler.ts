@@ -202,8 +202,10 @@ class TaskScheduler {
       } finally {
         this.tasks[key].lock = false
 
-        const runEndTime = dayjs().utc()
-        await Models.TaskRun.updateOne({ _id: taskRun._id }, { $set: { endAt: runEndTime.toDate() } })
+        if (taskRun?._id) {
+          const runEndTime = dayjs().utc()
+          await Models.TaskRun.updateOne({ _id: taskRun._id }, { $set: { endAt: runEndTime.toDate() } })
+        }
       }
     }
 
