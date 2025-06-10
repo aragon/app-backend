@@ -14,7 +14,7 @@ import { BatchTransfersHandler } from '@services/aragon-transfers/batchTransfers
 import config from '@config'
 import utils from '@helpers/utils'
 
-describe.only('Module: TransferCrawler', () => {
+describe('Module: TransferCrawler', () => {
   let sandbox: SinonSandbox
 
   const govTokenInterface = new Interface(GovernanceERC20.abi)
