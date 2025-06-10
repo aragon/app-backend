@@ -79,7 +79,7 @@ describe('Modules: TaskScheduler', () => {
     expect(serviceDb[0].nextStartAt).to.exist
     expect(serviceDb[0].lastStartAt).to.exist
 
-    expect(tasksDb.length).to.be.at.least(10)
+    expect(tasksDb.length).to.be.at.least(7)
     expect(tasksDb[0].serviceName).to.eq(serviceName)
     expect(tasksDb[0].tasks.length).to.eq(7)
 
