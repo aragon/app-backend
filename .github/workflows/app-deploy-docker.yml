@@ -163,7 +163,7 @@ jobs:
           
           # Try to download Docker env file
           echo "📄 Attempting to download Docker env file..."
-          op item get --vault "${{env.OP_VAULT}}" "docker_env_backend2_${{env.DEPLOY_ENV}}" --fields ".env.docker" > configs/.env.docker 2>/dev/null || {
+          op item get --vault "${{env.OP_VAULT}}" "configs_docker" --fields ".env.docker" > configs/.env.docker 2>/dev/null || {
             echo "⚠️  No Docker env file found in 1Password, creating minimal version"
             echo "ENV_SUFFIX=${{env.DEPLOY_ENV}}" > configs/.env.docker
           }
@@ -199,10 +199,15 @@ jobs:
           echo "📤 Transferring configuration files..."
           scp configs.tar.gz "$REMOTE_TARGET:~/"
           
-          # Create deployment script
-          cat > deploy_script.sh << 'EOF'
+          # Create deployment script with all variables substituted
+          cat > deploy_script.sh << SCRIPT_END
           #!/bin/bash
           set -e
+          
+          # Variables set from GitHub Actions
+          BRANCH_NAME="${{ env.BRANCH_NAME }}"
+          REPO_URL="${{ env.REPO_URL }}"
+          DEPLOY_ENV="${{ env.DEPLOY_ENV }}"
           
           # Extract configs
           echo "📦 Extracting configuration files..."
@@ -214,8 +219,8 @@ jobs:
           rm -rf ~/app-backend-deploy
           
           # Clone repository
-          echo "📥 Cloning repository branch: ${{ env.BRANCH_NAME }}..."
-          git clone -b "${{ env.BRANCH_NAME }}" "${{ env.REPO_URL }}" ~/app-backend-deploy
+          echo "📥 Cloning repository branch: \$BRANCH_NAME..."
+          git clone -b "\$BRANCH_NAME" "\$REPO_URL" ~/app-backend-deploy
           
           # Copy config files into the repository
           echo "📄 Installing configuration files..."
@@ -237,15 +242,18 @@ jobs:
           chmod +x scripts/*.sh
           
           # Export environment variables
-          export ENV_SUFFIX="${{ env.DEPLOY_ENV }}"
-          export DEPLOY_ENV="${{ env.DEPLOY_ENV }}"
+          export ENV_SUFFIX="\$DEPLOY_ENV"
+          export DEPLOY_ENV="\$DEPLOY_ENV"
           
           # Run the deployment
-          echo "🎯 Executing Docker deployment for environment: $ENV_SUFFIX"
-          bash scripts/app-deploy.sh "$ENV_SUFFIX"
+          echo "🎯 Executing Docker deployment for environment: \$DEPLOY_ENV"
+          bash scripts/app-deploy.sh "\$DEPLOY_ENV"
           
           echo "✅ Deployment completed successfully!"
-          EOF
+          SCRIPT_END
+          
+          # Make script executable
+          chmod +x deploy_script.sh
           
           # Transfer and execute the script
           echo "📤 Transferring deployment script..."
