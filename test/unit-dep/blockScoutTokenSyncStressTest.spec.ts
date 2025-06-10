@@ -9,6 +9,7 @@ import { LogTokenVoting } from '@services/aragon-plugins/logTokenVoting'
 import logger from '@logger'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
+import { ProxyMember } from '@modules/proxyMember'
 
 describe.skip('Stress Test: BlockScout Token Holder Synchronization', () => {
   let sandbox: SinonSandbox
@@ -20,6 +21,50 @@ describe.skip('Stress Test: BlockScout Token Holder Synchronization', () => {
 
   afterEach(() => {
     sandbox && sandbox.restore()
+  })
+
+  it('bulkDaoMembershipManagement', async function () {
+    const network = NetworksEnum.baseMainnet
+    const daoAddress = '0x1234567890123456789012345678901234567890'
+    const pluginAddress = '0x9876543210987654321098765432109876543210'
+    const userAddress = '0x1234567890123456789012345678901234567891'
+    const tokenAddress = '0x1111111111166b7FE7bd91427724B487980aFc69'
+
+    await ProxyMember.optimizedDaoMembershipManagement(
+      [
+        {
+          address: userAddress,
+          value: '123123',
+        },
+      ],
+      daoAddress,
+      pluginAddress,
+      tokenAddress,
+      network,
+      12313,
+    )
+
+    const memberBalance = await ProxyMember.getBalances({
+      address: userAddress,
+      network,
+      tokenAddress,
+    })
+
+    expect(memberBalance?.amount).to.be.equal('123123')
+
+    await memberBalance?.increaseBalance({
+      amount: '1000',
+      blockNumber: 12314,
+    })
+
+    const updatedBalance = await ProxyMember.getBalances({
+      address: userAddress,
+      network,
+      tokenAddress,
+    })
+
+    expect(updatedBalance?.amount).to.be.equal('124123')
+    expect(updatedBalance?.lastSyncAmountBlockNumber).to.be.equal(12314)
   })
 
   it('should perform complete BlockScout token sync and transition to real-time crawling', async function () {
