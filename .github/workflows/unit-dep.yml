@@ -60,11 +60,11 @@ jobs:
 
       - name: Build & run unit-dep tests
         run: |
-          docker compose -f docker-compose.yml up \
+          docker compose -f docker-compose-test.yml up \
             --exit-code-from unit-dep \
             --abort-on-container-exit \
             --build unit-dep
 
       - name: Teardown containers
         run: |
-          docker compose -f docker-compose.yml down
+          docker compose -f docker-compose-test.yml down
