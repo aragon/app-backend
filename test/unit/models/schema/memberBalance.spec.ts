@@ -150,6 +150,48 @@ describe('Model: MemberBalance', () => {
     })
   })
 
+  describe('updateBalance', () => {
+    it('should update the balance to the specified amount', async () => {
+      rawMemberBalance.amount = '1000'
+      const createdMember = await Models.MemberBalance.create(rawMemberBalance)
+      const member = await createdMember.updateBalance({ amount: '2500', blockNumber: 1232323 })
+      expect(member?.amount).to.eq('2500')
+      expect(member?.lastSyncAmountBlockNumber).to.eq(1232323)
+    })
+
+    it('should update the balance and remove tokenId if provided', async () => {
+      rawMemberBalance.amount = '1000'
+      rawMemberBalance.tokenIds = [1, 2, 3]
+      const createdMember = await Models.MemberBalance.create(rawMemberBalance)
+      const member = await createdMember.updateBalance({ amount: '1500', blockNumber: 1232323, tokenId: 2 })
+      expect(member?.amount).to.eq('1500')
+      expect(member?.tokenIds.length).to.eq(2)
+      expect(member?.tokenIds).to.not.include(2)
+      expect(member?.tokenIds).to.include(1)
+      expect(member?.tokenIds).to.include(3)
+    })
+
+    it('should update the balance without affecting tokenIds if tokenId not provided', async () => {
+      rawMemberBalance.amount = '1000'
+      rawMemberBalance.tokenIds = [1, 2, 3]
+      const createdMember = await Models.MemberBalance.create(rawMemberBalance)
+      const member = await createdMember.updateBalance({ amount: '800', blockNumber: 1232323 })
+      expect(member?.amount).to.eq('800')
+      expect(member?.tokenIds.length).to.eq(3)
+      expect(member?.tokenIds).to.deep.equal([1, 2, 3])
+    })
+
+    it('should handle tokenId that does not exist in tokenIds array', async () => {
+      rawMemberBalance.amount = '1000'
+      rawMemberBalance.tokenIds = [1, 2, 3]
+      const createdMember = await Models.MemberBalance.create(rawMemberBalance)
+      const member = await createdMember.updateBalance({ amount: '1200', blockNumber: 1232323, tokenId: 5 })
+      expect(member?.amount).to.eq('1200')
+      expect(member?.tokenIds.length).to.eq(3)
+      expect(member?.tokenIds).to.deep.equal([1, 2, 3])
+    })
+  })
+
   it('should updateVotingPower', async () => {
     const createdMember = await Models.MemberBalance.create(rawMemberBalance)
     const member = await createdMember.updateVotingPower('1000', 1232323)

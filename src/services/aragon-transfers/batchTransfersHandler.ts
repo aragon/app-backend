@@ -615,48 +615,6 @@ export class BatchTransfersHandler {
   }
 
   /**
-   * Find delegators from transaction receipt
-   * @param parsedEvent The parsed event
-   * @param info Event info
-   * @returns Object with from, to, and delegator addresses
-   */
-  private async _findDelegatorsFromReceipt(parsedEvent: LogDescription, info: ILogInfo) {
-    let from = utils.zeroAddress
-    let to = utils.zeroAddress
-    let delegator = utils.zeroAddress
-
-    const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, this.network)
-
-    if (txReceipt) {
-      const delegationChangedLogs = Web3Utils.findLogsByName(
-        txReceipt,
-        IEventLogMember.DelegateChanged,
-        GovernanceERC20.abi,
-      )
-
-      const log = delegationChangedLogs?.find(
-        ({ parsed }: { parsed: LogDescription | null }) =>
-          parsed?.args?.fromDelegate === parsedEvent?.args?.delegate ||
-          parsed?.args?.toDelegate === parsedEvent?.args?.delegate,
-      )
-
-      if (log?.parsed?.args?.delegator) {
-        delegator = log?.parsed?.args.delegator
-      }
-
-      if (log?.parsed?.args?.fromDelegate) {
-        from = log.parsed.args.fromDelegate
-      }
-
-      if (log?.parsed?.args?.toDelegate) {
-        to = log.parsed.args.toDelegate
-      }
-    }
-
-    return { from, to, delegator }
-  }
-
-  /**
    * Update DAO metrics for all plugins
    */
   private async updateDaoMetrics(): Promise<void> {
