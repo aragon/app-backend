@@ -26,12 +26,12 @@ describe.only('Stress Test: Large Token Transfers', () => {
 
   it('should process large token transfers using direct BlockchainLogCrawler', async function () {
     this.timeout(1600000)
-    
+
     const network = NetworksEnum.baseMainnet
     const tokenAddress = '0x1111111111166b7FE7bd91427724B487980aFc69'
     const daoAddress = '0x1234567890123456789012345678901234567890'
     const pluginAddress = '0x9876543210987654321098765432109876543210'
-    
+
     await Models.Plugin.create({
       id: `${network}-0x1234567890123456789012345678901234567890-${pluginAddress}`,
       transactionHash: '0x1234567890123456789012345678901234567890123456789012345678901234',
@@ -101,7 +101,7 @@ describe.only('Stress Test: Large Token Transfers', () => {
       skipLogProcessing: true,
       filterLogs: async (logs: Log[]) => {
         const filteredLogs = await PoolingCrawler.filterLogs(logs, network)
-        
+
         if (filteredLogs.length === 0) {
           return []
         }
@@ -121,7 +121,7 @@ describe.only('Stress Test: Large Token Transfers', () => {
       transferLogsCount: transferLogs.length,
     })
 
-    await stressCrawler.crawl();
+    await stressCrawler.crawl()
 
     const totalDuration = Date.now() - startTime
 
@@ -132,15 +132,13 @@ describe.only('Stress Test: Large Token Transfers', () => {
       fromBlock,
       latestBlock,
     })
-    
+
     const memberCount = await Models.Member.countDocuments()
     const transactionCount = await Models.MemberTransaction.countDocuments()
-    
+
     console.log(`Created ${memberCount} members and ${transactionCount} transactions`)
-    
+
     expect(memberCount).to.be.greaterThan(0)
     expect(transactionCount).to.be.greaterThan(0)
   })
-
-
 })
