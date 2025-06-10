@@ -1106,7 +1106,6 @@ describe('Module: BatchTransfersHandler', () => {
 
   describe('updateDaoMetrics', () => {
     it('should send DAO metrics messages for unique DAOs', async () => {
-
       handler['plugins'] = [
         { daoAddress: validDaoAddress },
         { daoAddress: validDaoAddress }, // Duplicate
