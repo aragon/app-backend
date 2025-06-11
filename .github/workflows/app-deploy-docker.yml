@@ -191,11 +191,8 @@ jobs:
         run: |
           # Show current directory and files
           echo "📁 Current directory: $(pwd)"
-          echo "📄 Files in current directory:"
-          ls -la
-          echo ""
-          echo "📄 .env files specifically:"
-          ls -la .env.* | head -20
+          echo "📄 All .env files in current directory:"
+          ls -la .env* | head -20
           
           # Move up one directory to create tar
           cd ..
@@ -203,8 +200,8 @@ jobs:
           # Show files that will be included in tar
           echo ""
           echo "📁 Directory to be archived: ${{ github.event.repository.name }}"
-          echo "📄 Files to be included in archive:"
-          ls -la ${{ github.event.repository.name }}/.env.* | head -20
+          echo "📄 All .env files to be included in archive:"
+          ls -la ${{ github.event.repository.name }}/.env* | head -20
           
           # Create tar archive of the entire repository
           echo "📦 Creating deployment archive..."
@@ -234,9 +231,9 @@ jobs:
           # Navigate to deployment directory
           cd ~/app-backend-deploy
           
-          # List env files to verify they exist
-          echo "📄 Environment files in deployment directory:"
-          ls -la .env.* | head -20
+          # List all env files to verify they exist
+          echo "📄 All .env files in deployment directory:"
+          ls -la .env* | head -20
           
           # Make scripts executable
           chmod +x scripts/*.sh
@@ -251,7 +248,7 @@ jobs:
           
           echo "✅ Deployment completed successfully!"
           EOF
-          
+  
           # Cleanup local archive
           rm ../deploy.tar.gz
 
