@@ -1,4 +1,4 @@
-name: Production Docker Deployment
+name: Docker Deployment
 
 # WARNING: Remove the 'push' trigger before merging to main!
 # The push trigger is only for testing in feature branches.
@@ -59,8 +59,8 @@ jobs:
           fi
           
           # Production deployments must be from main/master branch
-          if [[ "$ENVIRONMENT" == "production" && "$BRANCH" != "main" && "$BRANCH" != "master" ]]; then
-            echo "❌ Production deployments must be from main or master branch"
+          if [[ "$ENVIRONMENT" == "production" && "$BRANCH" != "main" ]]; then
+            echo "❌ Production deployments must be from main"
             echo "   Requested branch: $BRANCH"
             exit 1
           fi
