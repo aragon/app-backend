@@ -167,39 +167,12 @@ jobs:
           echo "📄 Attempting to download Docker env file..."
           mkdir -p scripts
           
-          if op item get --vault "${{env.OP_VAULT}}" "configs_docker" --format json | jq -r '.fields[] | select(.label == "notesPlain") | .value' > scripts/.env.docker.tmp 2>/dev/null && [ -s scripts/.env.docker.tmp ]; then
-            echo "✅ Successfully downloaded Docker config from 1Password"
-            mv scripts/.env.docker.tmp scripts/.env.docker
-          
-            # Verify the file has content
-            if [ ! -s scripts/.env.docker ]; then
-              echo "❌ ERROR: Docker env file is empty!"
-              exit 1
-            fi
-          
-            # Show first few lines (without sensitive data)
-            echo "📋 Docker env file preview:"
-            head -n 3 scripts/.env.docker | sed 's/=.*/=***/'
+          if op item get --vault "${{env.OP_VAULT}}" "configs_docker" --format json | jq -r '.fields[] | select(.label == "notesPlain") | .value' > scripts/.env.docker 2>/dev/null && [ -s scripts/.env.docker ]; then
+            echo "✅ Docker config downloaded successfully"
           else
-            echo "❌ ERROR: Failed to download Docker env file from 1Password!"
-            echo "   Vault: ${{env.OP_VAULT}}"
-            echo "   Item: configs_docker"
-            echo ""
-            echo "📝 Please ensure:"
-            echo "   1. The item 'configs_docker' exists in vault '${{env.OP_VAULT}}'"
-            echo "   2. It's stored as a Secure Note"
-            echo "   3. The content is in the 'notesPlain' field"
-            echo ""
-            echo "💡 To create it in 1Password CLI:"
-            echo "   op item create --category='Secure Note' --vault='${{env.OP_VAULT}}' --title='configs_docker' notesPlain='<your-docker-env-content>'"
-          
-            # Clean up temp file
-            rm -f scripts/.env.docker.tmp
-          
-            # Exit with error
+            echo "❌ ERROR: Docker config not found in 1Password (vault: ${{env.OP_VAULT}}, item: configs_docker)"
             exit 1
           fi
-
 
       - name: Print deployment info
         run: |
