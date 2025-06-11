@@ -167,10 +167,8 @@ jobs:
           echo "📄 Downloading Docker env file..."
           mkdir -p scripts
           
-          if op item get --vault "${{env.OP_VAULT}}" "configs_docker" --format json | jq -r '.fields[] | select(.label == "notesPlain") | .value' > .env.docker 2>/dev/null && [ -s .env.docker ]; then
+          if op item get --vault "${{env.OP_VAULT}}" "configs_docker" --format json | jq -r '.fields[] | select(.label == "notesPlain") | .value' > scripts/.env.docker 2>/dev/null && [ -s scripts/.env.docker ]; then
             echo "✅ Docker config downloaded successfully"
-            echo "File saved to: $(pwd)/.env.docker"
-            ls -la .env.docker
           else
             echo "❌ ERROR: Docker config not found in 1Password (vault: ${{env.OP_VAULT}}, item: configs_docker)"
             exit 1
@@ -195,14 +193,18 @@ jobs:
           echo "📁 Current directory: $(pwd)"
           echo "📄 Files in current directory:"
           ls -la
+          echo ""
+          echo "📄 .env files specifically:"
+          ls -la .env.* | head -20
           
           # Move up one directory to create tar
           cd ..
           
           # Show files that will be included in tar
+          echo ""
           echo "📁 Directory to be archived: ${{ github.event.repository.name }}"
           echo "📄 Files to be included in archive:"
-          ls -la ${{ github.event.repository.name }}/ | grep -E "\.env\.|\.docker"
+          ls -la ${{ github.event.repository.name }}/.env.* | head -20
           
           # Create tar archive of the entire repository
           echo "📦 Creating deployment archive..."
@@ -234,7 +236,7 @@ jobs:
           
           # List env files to verify they exist
           echo "📄 Environment files in deployment directory:"
-          ls -la | grep -E "\.env\.|\.docker" || echo "No .env files found!"
+          ls -la .env.* | head -20
           
           # Make scripts executable
           chmod +x scripts/*.sh
@@ -249,9 +251,9 @@ jobs:
           
           echo "✅ Deployment completed successfully!"
           EOF
-
-          # Cleanup local archive
-          rm ../deploy.tar.gz
+  
+         # Cleanup local archive
+         rm ../deploy.tar.gz
 
       - name: Cleanup
         if: always()
