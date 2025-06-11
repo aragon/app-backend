@@ -10,73 +10,78 @@ services:
       - ${SERVICE_API_PORT:-3000}:${SERVICE_API_PORT:-3000}
     environment:
       PORT: ${SERVICE_API_PORT:-3000}
+      MONGO_DB_URI: mongodb://mongo1:27017,mongo2:27017,mongo3:27017/db-aragon?replicaSet=rs0&authSource=admin
+      SERVICES_ARAGON_API_BASE_URL: http://service-aragon-api:3000
     depends_on:
       - mongo1
       - mongo2
       - mongo3
       - rabbitmq
-    env_file:
-      - ./docker.env
     command: bash -c 'yarn wait:db & yarn wait:rabbitmq & wait && yarn service:aragon-api'
 
   service-aragon-indexer:
     build:
       context: ./
+    environment:
+      MONGO_DB_URI: mongodb://mongo1:27017,mongo2:27017,mongo3:27017/db-aragon?replicaSet=rs0&authSource=admin
+      SERVICES_ARAGON_API_BASE_URL: http://service-aragon-api:3000
     depends_on:
       - mongo1
       - mongo2
       - mongo3
       - rabbitmq
-    env_file:
-      - ./docker.env
     command: bash -c 'yarn wait:db & wait && yarn service:aragon-indexer'
 
   service-aragon-dao:
     build:
       context: ./
+    environment:
+      MONGO_DB_URI: mongodb://mongo1:27017,mongo2:27017,mongo3:27017/db-aragon?replicaSet=rs0&authSource=admin
+      SERVICES_ARAGON_API_BASE_URL: http://service-aragon-api:3000
     depends_on:
       - mongo1
       - mongo2
       - mongo3
       - rabbitmq
-    env_file:
-      - ./docker.env
     command: bash -c 'yarn wait:db & yarn wait:rabbitmq & wait && yarn service:aragon-dao'
 
   service-aragon-rates:
     build:
       context: ./
+    environment:
+      MONGO_DB_URI: mongodb://mongo1:27017,mongo2:27017,mongo3:27017/db-aragon?replicaSet=rs0&authSource=admin
+      SERVICES_ARAGON_API_BASE_URL: http://service-aragon-api:3000
     depends_on:
       - mongo1
       - mongo2
       - mongo3
       - rabbitmq
-    env_file:
-      - ./docker.env
     command: bash -c 'yarn wait:db & wait && yarn service:aragon-rates'
 
   service-aragon-admin-api:
     build:
       context: ./
+    environment:
+      MONGO_DB_URI: mongodb://mongo1:27017,mongo2:27017,mongo3:27017/db-aragon?replicaSet=rs0&authSource=admin
+      SERVICES_ARAGON_API_BASE_URL: http://service-aragon-api:3000
     depends_on:
       - mongo1
       - mongo2
       - mongo3
       - rabbitmq
-    env_file:
-      - ./docker.env
     command: bash -c 'yarn wait:db & wait && yarn service:aragon-admin-api'
 
   service-aragon-plugins:
     build:
       context: ./
+    environment:
+      MONGO_DB_URI: mongodb://mongo1:27017,mongo2:27017,mongo3:27017/db-aragon?replicaSet=rs0&authSource=admin
+      SERVICES_ARAGON_API_BASE_URL: http://service-aragon-api:3000
     depends_on:
       - mongo1
       - mongo2
       - mongo3
       - rabbitmq
-    env_file:
-      - ./docker.env
     command: bash -c 'yarn wait:db & wait && yarn service:aragon-plugins'
 
   ### Tests
@@ -89,6 +94,9 @@ services:
   unit-dep:
     build:
       context: ./
+    environment:
+      MONGO_DB_URI: mongodb://mongo1:27017,mongo2:27017,mongo3:27017/db-aragon?replicaSet=rs0&authSource=admin
+      SERVICES_ARAGON_API_BASE_URL: http://service-aragon-api:3000
     depends_on:
       - mongo1
       - mongo2
@@ -96,7 +104,6 @@ services:
       - mongo-init-replica
       - rabbitmq
     env_file:
-      - ./docker.env
       - ./test/test.env
     command: bash -c 'yarn wait:db & yarn wait:rabbitmq & wait && yarn test:unit-dep'
 
