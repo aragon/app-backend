@@ -165,9 +165,8 @@ jobs:
           # Download Docker env file (REQUIRED)
           echo ""
           echo "📄 Downloading Docker env file..."
-          mkdir -p scripts
           
-          if op item get --vault "${{env.OP_VAULT}}" "configs_docker" --format json | jq -r '.fields[] | select(.label == "notesPlain") | .value' > scripts/.env.docker 2>/dev/null && [ -s scripts/.env.docker ]; then
+          if op item get --vault "${{env.OP_VAULT}}" "configs_docker" --format json | jq -r '.fields[] | select(.label == "notesPlain") | .value' > .env.docker 2>/dev/null && [ -s .env.docker ]; then
             echo "✅ Docker config downloaded successfully"
           else
             echo "❌ ERROR: Docker config not found in 1Password (vault: ${{env.OP_VAULT}}, item: configs_docker)"
