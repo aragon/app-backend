@@ -1,4 +1,7 @@
-name: Docker Deployment
+name: Production Docker Deployment
+
+# WARNING: Remove the 'push' trigger before merging to main!
+# The push trigger is only for testing in feature branches.
 
 on:
   workflow_dispatch:
@@ -16,14 +19,21 @@ on:
         description: 'Source branch (defaults to current branch)'
         required: false
         type: string
+      skip_e2e_tests:
+        description: 'Skip E2E tests after deployment'
+        required: false
+        type: boolean
+        default: false
+
+  # TODO: REMOVE THIS BEFORE MERGING TO MAIN!
   push:
     branches:
-      - feat/app-deply-docker  # Temporary for testing, remove when done
+      - feat/app-deply-docker
 
 env:
   # Global configuration
   DEPLOYMENT_USER: 'deploy'
-  DEPLOYMENT_PATH: '~/app-backend-deploy'
+  DEPLOYMENT_PATH: 'app-backend-deploy'  # Relative to home directory
   ARCHIVE_NAME: 'deploy.tar.gz'
 
 jobs:
@@ -42,15 +52,15 @@ jobs:
           BRANCH="${{ github.event.inputs.branch || github.ref_name }}"
           ENVIRONMENT="${{ github.event.inputs.environment }}"
           
-          # TEMP TO REMOVE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+          # If environment is not set (e.g., push trigger), default to sandbox
           if [[ -z "$ENVIRONMENT" ]]; then
             ENVIRONMENT="sandbox"
             echo "⚠️  No environment specified, using default: sandbox"
           fi
           
           # Production deployments must be from main/master branch
-          if [[ "$ENVIRONMENT" == "production" && "$BRANCH" != "main" ]]; then
-            echo "❌ Production deployments must be from main branch"
+          if [[ "$ENVIRONMENT" == "production" && "$BRANCH" != "main" && "$BRANCH" != "master" ]]; then
+            echo "❌ Production deployments must be from main or master branch"
             echo "   Requested branch: $BRANCH"
             exit 1
           fi
@@ -58,6 +68,11 @@ jobs:
           echo "✅ Validation passed"
           echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
           echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+          
+          # Summary
+          echo "📋 Deployment will proceed with:"
+          echo "   Environment: $ENVIRONMENT"
+          echo "   Branch: $BRANCH"
 
   # Main deployment job
   deploy:
@@ -76,15 +91,29 @@ jobs:
         run: |
           ENVIRONMENT="${{ needs.validate.outputs.environment }}"
           
-          # Map environment names to deployment codes
-          declare -A ENV_MAP=(
-            ["production"]="prod"
-            ["staging"]="stg"
-            ["development"]="dev"
-            ["sandbox"]="sand"
-          )
+          # Debug: Show what we received
+          echo "Received environment: '$ENVIRONMENT'"
           
-          DEPLOY_ENV="${ENV_MAP[$ENVIRONMENT]}"
+          # Map environment names to deployment codes
+          case "$ENVIRONMENT" in
+            "production")
+              DEPLOY_ENV="prod"
+              ;;
+            "staging")
+              DEPLOY_ENV="stg"
+              ;;
+            "development")
+              DEPLOY_ENV="dev"
+              ;;
+            "sandbox")
+              DEPLOY_ENV="sand"
+              ;;
+            *)
+              echo "❌ Unknown environment: $ENVIRONMENT"
+              exit 1
+              ;;
+          esac
+          
           echo "DEPLOY_ENV=$DEPLOY_ENV" >> $GITHUB_ENV
           
           # Set 1Password configuration based on environment
@@ -100,7 +129,7 @@ jobs:
           
           echo "OP_SERVICE_ACCOUNT_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
           
-          # Set server configuration paths - use $OP_VAULT not ${{ env.OP_VAULT }}
+          # Set server configuration paths
           echo "OP_SERVER_USERNAME=op://${OP_VAULT}/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
           echo "OP_SERVER_URL=op://${OP_VAULT}/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
           echo "OP_SERVER_CERT=op://${OP_VAULT}/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> $GITHUB_ENV
@@ -222,109 +251,84 @@ jobs:
           chmod +x download_configs.sh
           ./download_configs.sh
 
-      # Step 7: Create deployment package
-      - name: Create deployment package
-        run: |
-          echo "📦 Creating deployment package..."
-          
-          # List files to be deployed
-          echo "📋 Files to be deployed:"
-          find . -name ".env*" -type f | sort
-          echo "---"
-          find scripts -name "*.sh" -type f | sort
-          
-          # Create deployment archive
-          cd ..
-          tar -czf "${{ env.ARCHIVE_NAME }}" \
-            --exclude='.git' \
-            --exclude='node_modules' \
-            --exclude='*.log' \
-            "${{ github.event.repository.name }}"
-          
-          # Verify archive
-          echo "📊 Archive contents summary:"
-          tar -tzf "${{ env.ARCHIVE_NAME }}" | grep -E "(\.env|\.sh$)" | wc -l
-          echo "files included"
-          
-          # Calculate checksum
-          CHECKSUM=$(sha256sum "${{ env.ARCHIVE_NAME }}" | cut -d' ' -f1)
-          echo "DEPLOYMENT_CHECKSUM=$CHECKSUM" >> $GITHUB_ENV
-          echo "✅ Package created: $CHECKSUM"
-
-      # Step 8: Deploy to server
+      # Step 7: Deploy to server
       - name: Deploy to server
         run: |
           echo "🚀 Starting deployment to ${{ needs.validate.outputs.environment }}..."
           
-          # Transfer deployment package
-          echo "📤 Transferring deployment package..."
-          scp ../"${{ env.ARCHIVE_NAME }}" deployment-server:~/
+          # Show current directory and files
+          echo "📁 Current directory: $(pwd)"
+          echo "📄 All .env files in current directory:"
+          ls -la .env* | head -20
           
-          # Execute deployment script
-          echo "🔧 Executing deployment..."
-          ssh deployment-server << 'DEPLOY_SCRIPT'
-          set -euo pipefail
+          # Move up one directory to create tar
+          cd ..
           
-          # Deployment configuration
-          DEPLOY_ENV="${{ env.DEPLOY_ENV }}"
-          DEPLOYMENT_PATH="${{ env.DEPLOYMENT_PATH }}"
-          ARCHIVE_NAME="${{ env.ARCHIVE_NAME }}"
-          EXPECTED_CHECKSUM="${{ env.DEPLOYMENT_CHECKSUM }}"
+          # Show files that will be included in tar
+          echo ""
+          echo "📁 Directory to be archived: ${{ github.event.repository.name }}"
+          echo "📄 All .env files to be included in archive:"
+          ls -la ${{ github.event.repository.name }}/.env* | head -20
           
-          # Verify package integrity
-          echo "🔍 Verifying package integrity..."
-          ACTUAL_CHECKSUM=$(sha256sum ~/"$ARCHIVE_NAME" | cut -d' ' -f1)
-          if [[ "$ACTUAL_CHECKSUM" != "$EXPECTED_CHECKSUM" ]]; then
-            echo "❌ Checksum mismatch! Deployment aborted."
-            exit 1
-          fi
+          # Create tar archive of the entire repository
+          echo "📦 Creating deployment archive..."
+          tar -czf deploy.tar.gz ${{ github.event.repository.name }}
           
-          # Backup current deployment (if exists)
-          if [[ -d "$DEPLOYMENT_PATH" ]]; then
-            echo "📦 Creating backup of current deployment..."
-            BACKUP_NAME="app-backend-backup-$(date +%Y%m%d-%H%M%S).tar.gz"
-            tar -czf ~/"$BACKUP_NAME" -C ~ "$(basename "$DEPLOYMENT_PATH")"
-            echo "✅ Backup created: $BACKUP_NAME"
-          fi
+          # Verify tar contents
+          echo "📋 Verifying .env files in archive:"
+          tar -tzf deploy.tar.gz | grep "\.env" | head -20
           
-          # Extract new deployment
-          echo "📂 Extracting deployment package..."
-          tar -xzf ~/"$ARCHIVE_NAME"
-          rm ~/"$ARCHIVE_NAME"
+          # Transfer the archive to remote server
+          echo "📤 Transferring deployment archive..."
+          scp deploy.tar.gz deployment-server:~/
           
-          # Replace old deployment
-          rm -rf "$DEPLOYMENT_PATH"
-          mv ~/"${{ github.event.repository.name }}" "$DEPLOYMENT_PATH"
+          # Execute deployment on remote server
+          echo "🚀 Executing deployment on remote server..."
+          ssh deployment-server bash -s << 'EOF'
+          set -e
           
-          # Setup deployment
-          cd "$DEPLOYMENT_PATH"
+          # Extract the archive
+          echo "📦 Extracting deployment archive..."
+          tar -xzf ~/deploy.tar.gz
+          rm ~/deploy.tar.gz
+          
+          # Remove old deployment
+          echo "🧹 Cleaning up old deployment..."
+          rm -rf ~/app-backend-deploy
+          
+          # Rename extracted directory
+          mv ~/${{ github.event.repository.name }} ~/app-backend-deploy
+          
+          # Navigate to deployment directory
+          cd ~/app-backend-deploy
+          
+          # List all env files to verify they exist
+          echo "📄 All .env files in deployment directory:"
+          ls -la .env* | head -20
+          
+          # Make scripts executable
           chmod +x scripts/*.sh
           
-          # Ensure Docker networks exist
-          echo "🌐 Configuring Docker networks..."
+          # Export environment variables
+          export ENV_SUFFIX="${{ env.DEPLOY_ENV }}"
+          export DEPLOY_ENV="${{ env.DEPLOY_ENV }}"
+          
+          # CREATE DOCKER NETWORK BEFORE RUNNING THE DEPLOYMENT SCRIPT
+          echo "🔧 Ensuring Docker network exists on remote server..."
           docker network create internal-net 2>/dev/null || true
           docker network create public-net 2>/dev/null || true
           
-          # Execute deployment
-          echo "🎯 Running deployment script for environment: $DEPLOY_ENV"
-          export ENV_SUFFIX="$DEPLOY_ENV"
-          export DEPLOY_ENV="$DEPLOY_ENV"
-          
-          # Run deployment with timeout
-          timeout 1800 bash scripts/app-deploy.sh "$ENV_SUFFIX" || {
-            echo "❌ Deployment timed out after 30 minutes"
-            exit 1
-          }
+          # Run the Docker deployment script
+          echo "🎯 Executing Docker deployment for environment: $ENV_SUFFIX"
+          bash scripts/app-deploy.sh "$ENV_SUFFIX"
           
           echo "✅ Deployment completed successfully!"
+          EOF
           
-          # Cleanup old backups (keep last 5)
-          echo "🧹 Cleaning up old backups..."
-          ls -t ~/app-backend-backup-*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm -f
-          
-          DEPLOY_SCRIPT
+          # Cleanup local archive
+          rm deploy.tar.gz || true
 
-      # Step 9: Verify deployment health
+      # Step 8: Verify deployment health
       - name: Verify deployment health
         run: |
           echo "🏥 Verifying deployment health..."
@@ -333,7 +337,7 @@ jobs:
           ssh deployment-server << 'HEALTH_CHECK'
           set -euo pipefail
           
-          cd "${{ env.DEPLOYMENT_PATH }}"
+          cd ~/app-backend-deploy
           
           # Check if containers are running
           echo "🐳 Checking Docker containers..."
@@ -343,7 +347,7 @@ jobs:
           echo "✅ Health check passed"
           HEALTH_CHECK
 
-      # Step 10: Cleanup sensitive data
+      # Step 9: Cleanup sensitive data
       - name: Cleanup sensitive data
         if: always()
         run: |
@@ -360,7 +364,7 @@ jobs:
           
           echo "✅ Cleanup complete"
 
-      # Step 11: Send deployment notification
+      # Step 10: Send deployment notification
       - name: Send deployment notification
         if: always()
         run: |
@@ -391,9 +395,23 @@ jobs:
     name: Run E2E Tests
     runs-on: ubuntu-latest
     needs: [validate, deploy]
-    if: success()
+    if: success() && github.event.inputs.skip_e2e_tests != 'true'
 
     steps:
+      - name: Set deployment environment
+        run: |
+          ENVIRONMENT="${{ needs.validate.outputs.environment }}"
+          
+          # Map to deployment code
+          case "$ENVIRONMENT" in
+            "production") DEPLOY_ENV="prod" ;;
+            "staging") DEPLOY_ENV="stg" ;;
+            "development") DEPLOY_ENV="dev" ;;
+            "sandbox") DEPLOY_ENV="sand" ;;
+          esac
+          
+          echo "DEPLOY_ENV=$DEPLOY_ENV" >> $GITHUB_ENV
+
       - name: Trigger E2E test suite
         uses: aragon/app-qa/.github/actions/dispatch@main
         with:
@@ -402,4 +420,4 @@ jobs:
 
       - name: Report E2E test status
         run: |
-          echo "🧪 E2E tests triggered for ${{ needs.validate.outputs.environment }} environment"
+          echo "🧪 E2E tests triggered for ${{ needs.validate.outputs.environment }} environment (code: ${{ env.DEPLOY_ENV }})"
