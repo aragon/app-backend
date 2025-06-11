@@ -19,11 +19,6 @@ on:
         description: 'Source branch (defaults to current branch)'
         required: false
         type: string
-      skip_e2e_tests:
-        description: 'Skip E2E tests after deployment'
-        required: false
-        type: boolean
-        default: false
 
 env:
   # Global configuration
@@ -392,7 +387,7 @@ jobs:
     name: Run E2E Tests
     runs-on: ubuntu-latest
     needs: [validate, deploy]
-    if: success() && github.event.inputs.skip_e2e_tests != 'true'
+    if: success()
 
     steps:
       - name: Set deployment environment
