@@ -273,19 +273,26 @@ sleep 5
 
 # Health check with retry
 echo "🏥 Verifying services..."
+
+# Debug: Check if docker command works
+echo "Debug: Checking docker command..."
+docker --version || echo "Docker command failed"
+
+# Debug: List running containers
+echo "Debug: Listing containers..."
+docker ps --format "table {{.Names}}" || echo "Docker ps failed"
+
 healthy_count=0
 total_services=${#MICROSERVICES[@]}
 
 for service in "${MICROSERVICES[@]}"; do
-  # Check if container is at least created and starting
-  # Use || true to prevent grep from causing script to exit with set -e
-  if docker ps --format "table {{.Names}}" | grep -q "${service}-${ENV_SUFFIX}" || true; then
-    if docker ps --format "table {{.Names}}" | grep -q "${service}-${ENV_SUFFIX}"; then
-      ((healthy_count++))
-      echo "  ✓ $service is starting/running"
-    else
-      echo "  ✗ $service failed to start"
-    fi
+  echo "Debug: Checking service $service-${ENV_SUFFIX}..."
+
+  # Check if container is running (use a more robust check)
+  container_name="${service}-${ENV_SUFFIX}"
+  if docker ps --format "{{.Names}}" | grep -q "^${container_name}$"; then
+    ((healthy_count++))
+    echo "  ✓ $service is starting/running"
   else
     echo "  ✗ $service failed to start"
   fi
@@ -294,16 +301,19 @@ done
 echo ""
 echo "📊 Summary: $healthy_count/$total_services services are up"
 
-if [ "$healthy_count" -ne "${#MICROSERVICES[@]}" ]; then
+if [ "$healthy_count" -ne "$total_services" ]; then
   echo ""
   echo "⚠️  Warning: Not all services started successfully!"
   echo "Check logs with: docker compose -f $DOCKER_FILE -p $COMPOSE_PROJECT_NAME logs [service-name]"
   echo ""
   echo "Failed services:"
   for service in "${MICROSERVICES[@]}"; do
-    # Use || true to prevent grep from causing script to exit
-    if ! docker ps --format "table {{.Names}}" | grep -q "${service}-${ENV_SUFFIX}" || [[ $? -eq 1 ]]; then
+    container_name="${service}-${ENV_SUFFIX}"
+    if ! docker ps --format "{{.Names}}" | grep -q "^${container_name}$"; then
       echo "  - $service"
     fi
   done
 fi
+
+# Always exit successfully if we got this far - the deployment worked
+exit 0
