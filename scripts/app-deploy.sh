@@ -288,14 +288,15 @@ total_services=${#MICROSERVICES[@]}
 for service in "${MICROSERVICES[@]}"; do
   echo "Debug: Checking service $service-${ENV_SUFFIX}..."
 
-  # Check if container is running (use a more robust check)
+  # Check if container is running
   container_name="${service}-${ENV_SUFFIX}"
   if docker ps --format "{{.Names}}" | grep -q "^${container_name}$"; then
-    ((healthy_count++))
+    healthy_count=$((healthy_count + 1))
     echo "  ✓ $service is starting/running"
   else
     echo "  ✗ $service failed to start"
   fi
+
 done
 
 echo ""
