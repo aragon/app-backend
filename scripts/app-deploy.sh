@@ -278,9 +278,14 @@ total_services=${#MICROSERVICES[@]}
 
 for service in "${MICROSERVICES[@]}"; do
   # Check if container is at least created and starting
-  if docker ps --format "table {{.Names}}" | grep -q "${service}-${ENV_SUFFIX}"; then
-    ((healthy_count++))
-    echo "  ✓ $service is starting/running"
+  # Use || true to prevent grep from causing script to exit with set -e
+  if docker ps --format "table {{.Names}}" | grep -q "${service}-${ENV_SUFFIX}" || true; then
+    if docker ps --format "table {{.Names}}" | grep -q "${service}-${ENV_SUFFIX}"; then
+      ((healthy_count++))
+      echo "  ✓ $service is starting/running"
+    else
+      echo "  ✗ $service failed to start"
+    fi
   else
     echo "  ✗ $service failed to start"
   fi
@@ -296,7 +301,8 @@ if [ "$healthy_count" -ne "${#MICROSERVICES[@]}" ]; then
   echo ""
   echo "Failed services:"
   for service in "${MICROSERVICES[@]}"; do
-    if ! docker ps --format "table {{.Names}}" | grep -q "${service}-${ENV_SUFFIX}"; then
+    # Use || true to prevent grep from causing script to exit
+    if ! docker ps --format "table {{.Names}}" | grep -q "${service}-${ENV_SUFFIX}" || [[ $? -eq 1 ]]; then
       echo "  - $service"
     fi
   done
