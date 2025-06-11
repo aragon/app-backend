@@ -207,6 +207,10 @@ jobs:
           echo "📦 Creating deployment archive..."
           tar -czf deploy.tar.gz ${{ github.event.repository.name }}
           
+          # Verify tar contents
+          echo "📋 Verifying .env files in archive:"
+          tar -tzf deploy.tar.gz | grep "\.env" | head -20
+          
           # Transfer the archive to remote server
           echo "📤 Transferring deployment archive..."
           scp deploy.tar.gz "${{ steps.op-server-secrets.outputs.SERVER_USERNAME }}@${{ steps.op-server-secrets.outputs.SERVER_URL }}:~/"
@@ -248,7 +252,7 @@ jobs:
           
           echo "✅ Deployment completed successfully!"
           EOF
-  
+          
           # Cleanup local archive
           rm ../deploy.tar.gz
 
