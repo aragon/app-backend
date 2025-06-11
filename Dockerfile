@@ -6,14 +6,11 @@ FROM node:20.12.2 AS builder
 # Create app directory
 WORKDIR /usr/src/app
 
-# Only install production dependencies
-ENV NODE_ENV=production
-
 # Copy dependency manifests
 COPY package.json yarn.lock ./
 
-# Install production dependencies based on lockfile
-RUN yarn install --production
+# Install ALL dependencies (ignore NODE_ENV for installation)
+RUN NODE_ENV=development yarn install --frozen-lockfile
 
 # Copy the rest of the application code
 COPY . .
@@ -30,12 +27,14 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /usr/src/app
+
+# Set production environment for runtime
 ENV NODE_ENV=production
 
-# Copy node_modules from the builder stage
+# Copy node_modules from the builder stage (includes ALL dependencies)
 COPY --from=builder /usr/src/app/node_modules ./node_modules
 
 # Copy application source
 COPY --from=builder /usr/src/app ./
 
-#CMD ["yarn", "start"]
+# CMD ["yarn", "start"]
