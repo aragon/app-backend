@@ -121,6 +121,7 @@ jobs:
           op read ${{ env.SERVER_CERT }} > ~/.ssh/id_rsa
           chmod 400 ~/.ssh/id_rsa
 
+
       - name: Download config files
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS] }}
@@ -165,10 +166,40 @@ jobs:
           # Try to download Docker env file
           echo "📄 Attempting to download Docker env file..."
           mkdir -p scripts
-          op item get --vault "${{env.OP_VAULT}}" "configs_docker" --fields ".env.docker" > scripts/.env.docker 2>/dev/null || {
-            echo "⚠️  No Docker env file found in 1Password, creating minimal version"
-            echo "ENV_SUFFIX=${{env.DEPLOY_ENV}}" > scripts/.env.docker
-          }
+          
+          if op item get --vault "${{env.OP_VAULT}}" "configs_docker" --format json | jq -r '.fields[] | select(.label == "notesPlain") | .value' > scripts/.env.docker.tmp 2>/dev/null && [ -s scripts/.env.docker.tmp ]; then
+            echo "✅ Successfully downloaded Docker config from 1Password"
+            mv scripts/.env.docker.tmp scripts/.env.docker
+          
+            # Verify the file has content
+            if [ ! -s scripts/.env.docker ]; then
+              echo "❌ ERROR: Docker env file is empty!"
+              exit 1
+            fi
+          
+            # Show first few lines (without sensitive data)
+            echo "📋 Docker env file preview:"
+            head -n 3 scripts/.env.docker | sed 's/=.*/=***/'
+          else
+            echo "❌ ERROR: Failed to download Docker env file from 1Password!"
+            echo "   Vault: ${{env.OP_VAULT}}"
+            echo "   Item: configs_docker"
+            echo ""
+            echo "📝 Please ensure:"
+            echo "   1. The item 'configs_docker' exists in vault '${{env.OP_VAULT}}'"
+            echo "   2. It's stored as a Secure Note"
+            echo "   3. The content is in the 'notesPlain' field"
+            echo ""
+            echo "💡 To create it in 1Password CLI:"
+            echo "   op item create --category='Secure Note' --vault='${{env.OP_VAULT}}' --title='configs_docker' notesPlain='<your-docker-env-content>'"
+          
+            # Clean up temp file
+            rm -f scripts/.env.docker.tmp
+          
+            # Exit with error
+            exit 1
+          fi
+
 
       - name: Print deployment info
         run: |
@@ -176,6 +207,7 @@ jobs:
           echo "   Branch: ${{ env.BRANCH_NAME }}"
           echo "   Target Environment: ${{ github.event.inputs.environment || 'sandbox' }}"
           echo "   Environment Suffix: ${{ env.DEPLOY_ENV }}"
+
 
       - name: Setup SSH
         run: |
