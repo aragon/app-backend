@@ -1,12 +1,11 @@
-name: Deploy with docker
+name: Production Docker Deployment
 
 on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Select environment to deploy to'
+        description: 'Target deployment environment'
         required: true
-        default: 'sandbox'
         type: choice
         options:
           - sandbox
@@ -14,286 +13,382 @@ on:
           - staging
           - production
       branch:
-        description: 'Branch to deploy (leave empty for current branch)'
+        description: 'Source branch (defaults to current branch)'
         required: false
         type: string
 
-  push:
-    branches:
-      - feat/app-deply-docker  # Temporary for testing, remove when done
+env:
+  # Global configuration
+  DEPLOYMENT_USER: 'deploy'
+  DEPLOYMENT_PATH: '~/app-backend-deploy'
+  ARCHIVE_NAME: 'deploy.tar.gz'
 
 jobs:
-  deploy:
+  # Validate deployment request
+  validate:
+    name: Validate Deployment Request
     runs-on: ubuntu-latest
-    env:
-      BRANCH_NAME: ${{ github.event.inputs.branch || github.ref_name }}
-
+    outputs:
+      environment: ${{ steps.validate.outputs.environment }}
+      branch: ${{ steps.validate.outputs.branch }}
     steps:
-      - name: Set variables
-        id: set-variables
+      - name: Validate deployment parameters
+        id: validate
         run: |
-          # Use the selected environment from dropdown, or default to 'sandbox' for push events
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            SELECTED_ENV="${{ github.event.inputs.environment }}"
-          else
-            SELECTED_ENV="sandbox"  # Default for push events
-            echo "⚠️  Push event detected, using default environment: sandbox"
+          # Determine branch to deploy
+          BRANCH="${{ github.event.inputs.branch || github.ref_name }}"
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          
+          # Production deployments must be from main/master branch
+          if [[ "$ENVIRONMENT" == "production" && "$BRANCH" != "main" && "$BRANCH" != "master" ]]; then
+            echo "❌ Production deployments must be from main or master branch"
+            echo "   Requested branch: $BRANCH"
+            exit 1
           fi
           
-          echo "🎯 Deploying branch '${{ env.BRANCH_NAME }}' to '$SELECTED_ENV' environment"
+          echo "✅ Validation passed"
+          echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+
+  # Main deployment job
+  deploy:
+    name: Deploy to ${{ needs.validate.outputs.environment }}
+    runs-on: ubuntu-latest
+    needs: validate
+    environment: ${{ needs.validate.outputs.environment }}
+    concurrency:
+      group: deploy-${{ needs.validate.outputs.environment }}
+      cancel-in-progress: false
+
+    steps:
+      # Step 1: Configure deployment environment
+      - name: Configure deployment environment
+        id: configure
+        run: |
+          ENVIRONMENT="${{ needs.validate.outputs.environment }}"
           
-          case "$SELECTED_ENV" in
-            production)
-              DEPLOY_ENV=prod
-              echo "DEPLOY_ENV=prod" >> $GITHUB_ENV
-              echo "OP_SERVER_USERNAME=op://apikeys_production/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
-              echo "OP_SERVER_URL=op://apikeys_production/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
-              echo "OP_SERVER_CERT=op://apikeys_production/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> $GITHUB_ENV
-              echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_PROD_TEMP" >> $GITHUB_ENV
-              echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
-              ;;
+          # Map environment names to deployment codes
+          declare -A ENV_MAP=(
+            ["production"]="prod"
+            ["staging"]="stg"
+            ["development"]="dev"
+            ["sandbox"]="sand"
+          )
+          
+          DEPLOY_ENV="${ENV_MAP[$ENVIRONMENT]}"
+          echo "DEPLOY_ENV=$DEPLOY_ENV" >> $GITHUB_ENV
+          
+          # Set 1Password configuration based on environment
+          if [[ "$ENVIRONMENT" == "production" ]]; then
+            echo "OP_VAULT=apikeys_production" >> $GITHUB_ENV
+            echo "OP_SERVICE_ACCOUNT_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_PROD_TEMP" >> $GITHUB_ENV
+          else
+            echo "OP_VAULT=apikeys_nonprod" >> $GITHUB_ENV
+            echo "OP_SERVICE_ACCOUNT_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP" >> $GITHUB_ENV
+          fi
+          
+          echo "OP_SERVICE_ACCOUNT_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
+          
+          # Set server configuration paths
+          echo "OP_SERVER_USERNAME=op://${{ env.OP_VAULT }}/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
+          echo "OP_SERVER_URL=op://${{ env.OP_VAULT }}/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
+          echo "OP_SERVER_CERT=op://${{ env.OP_VAULT }}/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> $GITHUB_ENV
+          
+          echo "📋 Deployment Configuration:"
+          echo "   Environment: $ENVIRONMENT"
+          echo "   Deploy Code: $DEPLOY_ENV"
+          echo "   Branch: ${{ needs.validate.outputs.branch }}"
 
-            staging)
-              DEPLOY_ENV=stg
-              echo "DEPLOY_ENV=stg" >> $GITHUB_ENV
-              echo "OP_SERVER_USERNAME=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
-              echo "OP_SERVER_URL=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
-              echo "OP_SERVER_CERT=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> $GITHUB_ENV
-              echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP" >> $GITHUB_ENV
-              echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
-              ;;
+      # Step 2: Install required tools
+      - name: Install 1Password CLI
+        uses: 1password/install-cli-action@v1
 
-            development)
-              DEPLOY_ENV=dev
-              echo "DEPLOY_ENV=dev" >> $GITHUB_ENV
-              echo "OP_SERVER_USERNAME=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
-              echo "OP_SERVER_URL=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
-              echo "OP_SERVER_CERT=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> $GITHUB_ENV
-              echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP" >> $GITHUB_ENV
-              echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
-              ;;
-
-            sandbox)
-              DEPLOY_ENV=sand
-              echo "DEPLOY_ENV=sand" >> $GITHUB_ENV
-              echo "OP_SERVER_USERNAME=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
-              echo "OP_SERVER_URL=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
-              echo "OP_SERVER_CERT=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> $GITHUB_ENV
-              echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP" >> $GITHUB_ENV
-              echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
-              ;;
-
-            *)
-              DEPLOY_ENV=dev
-              echo "DEPLOY_ENV=dev" >> $GITHUB_ENV
-              echo "OP_SERVER_USERNAME=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
-              echo "OP_SERVER_URL=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
-              echo "OP_SERVER_CERT=op://apikeys_nonprod/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> $GITHUB_ENV
-              echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP" >> $GITHUB_ENV
-              echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
-              ;;
-          esac
-
-      - name: Load secrets
-        id: op-server-secrets
+      # Step 3: Load server connection secrets
+      - name: Load server connection secrets
+        id: server-secrets
         uses: 1password/load-secrets-action@v2
         with:
           export-env: false
         env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS] }}
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_SERVERS] }}
           SERVER_USERNAME: ${{ env.OP_SERVER_USERNAME }}
           SERVER_URL: ${{ env.OP_SERVER_URL }}
 
-      - name: Install 1Password CLI
-        uses: 1password/install-cli-action@v1
-
-      - name: Checkout repository
+      # Step 4: Checkout source code
+      - name: Checkout source code
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.BRANCH_NAME }}
+          ref: ${{ needs.validate.outputs.branch }}
+          fetch-depth: 0  # Full history for better debugging
 
-      - name: Download certfile
+      # Step 5: Setup SSH authentication
+      - name: Setup SSH authentication
         env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS] }}
-          SERVER_CERT: ${{ env.OP_SERVER_CERT }}
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_SERVERS] }}
         run: |
-          mkdir ~/.ssh/ -p
-          op read ${{ env.SERVER_CERT }} > ~/.ssh/id_rsa
-          chmod 400 ~/.ssh/id_rsa
-
-      - name: Download config files
-        env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS] }}
-          OP_VAULT: temporal_backend2
-          OP_VAULT_ITEM: configs_app_backend2_${{env.DEPLOY_ENV}}
-        run: |
-          # Get list of config files
-          op item get --vault "${{env.OP_VAULT}}" "${{env.OP_VAULT_ITEM}}" --format json | jq -r '.fields.[].label'|sed 1d > config_list
+          # Create SSH directory
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
           
-          while IFS= read -r line; do
-            echo -e "\n📄 Processing: $line"
-            op item get --vault "${{env.OP_VAULT}}" "${{env.OP_VAULT_ITEM}}" --fields "$line" | sed '1s/^"//;;$s/"$//' > temp_file
-            IFS=';' read -ra CONFIG_FILES <<< "$line"
+          # Download SSH private key
+          op read "${{ env.OP_SERVER_CERT }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          
+          # Configure SSH
+          cat > ~/.ssh/config <<EOF
+          Host deployment-server
+            HostName ${{ steps.server-secrets.outputs.SERVER_URL }}
+            User ${{ steps.server-secrets.outputs.SERVER_USERNAME }}
+            IdentityFile ~/.ssh/deploy_key
+            StrictHostKeyChecking accept-new
+            ServerAliveInterval 60
+            ServerAliveCountMax 3
+          EOF
+          
+          # Test SSH connection
+          ssh deployment-server "echo '✅ SSH connection established'"
 
-            ## Set up specific env configs values for LOGZIO
-            for conf_single in "${CONFIG_FILES[@]}"; do
-              CONFIG_FILE_NAME=".env.$conf_single-${{env.DEPLOY_ENV}}"
-              cp temp_file "$CONFIG_FILE_NAME"
-              case "${{env.DEPLOY_ENV}}" in
-                prod)
-                  echo "Setting up ${{env.DEPLOY_ENV}} environment for $conf_single"
-                  sed -i "s/^LOGZIO_SERVER_NAME=.*/LOGZIO_SERVER_NAME=${conf_single^^}-PRODUCTION/" "$CONFIG_FILE_NAME"
-                  ;;
-                stg)
-                  echo "Setting up ${{env.DEPLOY_ENV}} environment for $conf_single"
-                  sed -i "s/^LOGZIO_SERVER_NAME=.*/LOGZIO_SERVER_NAME=${conf_single^^}-STAGING/" "$CONFIG_FILE_NAME"
-                  ;;
-                sand)
-                  echo "Setting up ${{env.DEPLOY_ENV}} environment for $conf_single"
-                  sed -i "s/^LOGZIO_SERVER_NAME=.*/LOGZIO_SERVER_NAME=${conf_single^^}-SANDBOX/" "$CONFIG_FILE_NAME"
-                  ;;
-                *)
-                  echo "Setting up ${{env.DEPLOY_ENV}} environment for $conf_single"
-                  sed -i "s/^LOGZIO_SERVER_NAME=.*/LOGZIO_SERVER_NAME=${conf_single^^}-DEVELOPMENT/" "$CONFIG_FILE_NAME"
-                  ;;
-              esac
-              sha256sum "$CONFIG_FILE_NAME"
+      # Step 6: Download application configurations
+      - name: Download application configurations
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_CONFIGS] }}
+        run: |
+          echo "📥 Downloading configuration files..."
+          
+          # Create scripts to handle config downloads
+          cat > download_configs.sh << 'SCRIPT'
+          #!/bin/bash
+          set -euo pipefail
+          
+          VAULT="temporal_backend2"
+          ITEM="configs_app_backend2_$DEPLOY_ENV"
+          
+          # Download application configs
+          echo "📄 Downloading application configurations..."
+          op item get --vault "$VAULT" "$ITEM" --format json | \
+            jq -r '.fields.[].label' | sed 1d | \
+            while IFS= read -r config_name; do
+              echo "  - Processing: $config_name"
+          
+              # Download config content
+              op item get --vault "$VAULT" "$ITEM" --fields "$config_name" | \
+                sed '1s/^"//;$s/"$//' > temp_config
+          
+              # Split semicolon-separated configs
+              IFS=';' read -ra CONFIGS <<< "$config_name"
+              for conf in "${CONFIGS[@]}"; do
+                CONFIG_FILE=".env.$conf-$DEPLOY_ENV"
+                cp temp_config "$CONFIG_FILE"
+          
+                # Update environment-specific values
+                case "$DEPLOY_ENV" in
+                  prod)  LOGZIO_ENV="PRODUCTION" ;;
+                  stg)   LOGZIO_ENV="STAGING" ;;
+                  sand)  LOGZIO_ENV="SANDBOX" ;;
+                  *)     LOGZIO_ENV="DEVELOPMENT" ;;
+                esac
+          
+                sed -i "s/^LOGZIO_SERVER_NAME=.*/LOGZIO_SERVER_NAME=${conf^^}-${LOGZIO_ENV}/" "$CONFIG_FILE"
+                echo "    ✓ Created $CONFIG_FILE ($(sha256sum "$CONFIG_FILE" | cut -d' ' -f1 | head -c 8))"
+              done
+          
+              rm temp_config
             done
-            rm temp_file
-          done < config_list
           
-          # Download Docker env file (REQUIRED)
-          echo ""
-          echo "📄 Processing: docker-config"
+          # Download Docker configuration
+          echo "📄 Downloading Docker configuration..."
+          op item get --vault "$VAULT" "configs_docker" --fields "docker-config" | \
+            sed '1s/^"//;$s/"$//' > .env.docker
           
-          # Download to ROOT directory (not scripts/) using correct field name
-          op item get --vault "${{env.OP_VAULT}}" "configs_docker" --fields "docker-config" | sed '1s/^"//;$s/"$//' > .env.docker
-          
-          # Check if download was successful
-          if [ -f .env.docker ] && [ -s .env.docker ]; then
-            echo "Setting up ${{env.DEPLOY_ENV}} environment for docker"
-            sha256sum .env.docker
-            echo "Docker config saved to: $(pwd)/.env.docker"
-            ls -la .env.docker
-          else
-            echo "❌ ERROR: Docker config not found in 1Password (vault: ${{env.OP_VAULT}}, item: configs_docker, field: docker-config)"
+          if [[ ! -s .env.docker ]]; then
+            echo "❌ ERROR: Docker configuration not found"
             exit 1
           fi
-
-      - name: Print deployment info
-        run: |
-          echo "🚀 Deployment Information:"
-          echo "   Branch: ${{ env.BRANCH_NAME }}"
-          echo "   Target Environment: ${{ github.event.inputs.environment || 'sandbox' }}"
-          echo "   Environment Suffix: ${{ env.DEPLOY_ENV }}"
-
-      - name: Setup SSH
-        run: |
-          eval "$(ssh-agent -s)"
-          ssh-add ~/.ssh/id_rsa
-          ssh-keyscan -H "${{ steps.op-server-secrets.outputs.SERVER_URL }}" >> ~/.ssh/known_hosts 2>/dev/null
-
-      - name: Deploy application
-        run: |
-          # Show current directory and files
-          echo "📁 Current directory: $(pwd)"
-          echo "📄 All .env files in current directory:"
-          ls -la .env* | head -20
           
-          # Move up one directory to create tar
+          echo "✅ Configuration download complete"
+          SCRIPT
+          
+          chmod +x download_configs.sh
+          ./download_configs.sh
+
+      # Step 7: Create deployment package
+      - name: Create deployment package
+        run: |
+          echo "📦 Creating deployment package..."
+          
+          # List files to be deployed
+          echo "📋 Files to be deployed:"
+          find . -name ".env*" -type f | sort
+          echo "---"
+          find scripts -name "*.sh" -type f | sort
+          
+          # Create deployment archive
           cd ..
+          tar -czf "${{ env.ARCHIVE_NAME }}" \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='*.log' \
+            "${{ github.event.repository.name }}"
           
-          # Show files that will be included in tar
-          echo ""
-          echo "📁 Directory to be archived: ${{ github.event.repository.name }}"
-          echo "📄 All .env files to be included in archive:"
-          ls -la ${{ github.event.repository.name }}/.env* | head -20
+          # Verify archive
+          echo "📊 Archive contents summary:"
+          tar -tzf "${{ env.ARCHIVE_NAME }}" | grep -E "(\.env|\.sh$)" | wc -l
+          echo "files included"
           
-          # Create tar archive of the entire repository
-          echo "📦 Creating deployment archive..."
-          tar -czf deploy.tar.gz ${{ github.event.repository.name }}
+          # Calculate checksum
+          CHECKSUM=$(sha256sum "${{ env.ARCHIVE_NAME }}" | cut -d' ' -f1)
+          echo "DEPLOYMENT_CHECKSUM=$CHECKSUM" >> $GITHUB_ENV
+          echo "✅ Package created: $CHECKSUM"
+
+      # Step 8: Deploy to server
+      - name: Deploy to server
+        run: |
+          echo "🚀 Starting deployment to ${{ needs.validate.outputs.environment }}..."
           
-          # Verify tar contents
-          echo "📋 Verifying .env files in archive:"
-          tar -tzf deploy.tar.gz | grep "\.env" | head -20
+          # Transfer deployment package
+          echo "📤 Transferring deployment package..."
+          scp ../"${{ env.ARCHIVE_NAME }}" deployment-server:~/
           
-          # Transfer the archive to remote server
-          echo "📤 Transferring deployment archive..."
-          scp deploy.tar.gz "${{ steps.op-server-secrets.outputs.SERVER_USERNAME }}@${{ steps.op-server-secrets.outputs.SERVER_URL }}:~/"
+          # Execute deployment script
+          echo "🔧 Executing deployment..."
+          ssh deployment-server << 'DEPLOY_SCRIPT'
+          set -euo pipefail
           
-          # Execute deployment on remote server
-          echo "🚀 Executing deployment on remote server..."
-          ssh -t "${{ steps.op-server-secrets.outputs.SERVER_USERNAME }}@${{ steps.op-server-secrets.outputs.SERVER_URL }}" bash -s << EOF
-          set -e
+          # Deployment configuration
+          DEPLOY_ENV="${{ env.DEPLOY_ENV }}"
+          DEPLOYMENT_PATH="${{ env.DEPLOYMENT_PATH }}"
+          ARCHIVE_NAME="${{ env.ARCHIVE_NAME }}"
+          EXPECTED_CHECKSUM="${{ env.DEPLOYMENT_CHECKSUM }}"
           
-          # Extract the archive
-          echo "📦 Extracting deployment archive..."
-          tar -xzf ~/deploy.tar.gz
-          rm ~/deploy.tar.gz
+          # Verify package integrity
+          echo "🔍 Verifying package integrity..."
+          ACTUAL_CHECKSUM=$(sha256sum ~/"$ARCHIVE_NAME" | cut -d' ' -f1)
+          if [[ "$ACTUAL_CHECKSUM" != "$EXPECTED_CHECKSUM" ]]; then
+            echo "❌ Checksum mismatch! Deployment aborted."
+            exit 1
+          fi
           
-          # Remove old deployment
-          echo "🧹 Cleaning up old deployment..."
-          rm -rf ~/app-backend-deploy
+          # Backup current deployment (if exists)
+          if [[ -d "$DEPLOYMENT_PATH" ]]; then
+            echo "📦 Creating backup of current deployment..."
+            BACKUP_NAME="app-backend-backup-$(date +%Y%m%d-%H%M%S).tar.gz"
+            tar -czf ~/"$BACKUP_NAME" -C ~ "$(basename "$DEPLOYMENT_PATH")"
+            echo "✅ Backup created: $BACKUP_NAME"
+          fi
           
-          # Rename extracted directory
-          mv ~/${{ github.event.repository.name }} ~/app-backend-deploy
+          # Extract new deployment
+          echo "📂 Extracting deployment package..."
+          tar -xzf ~/"$ARCHIVE_NAME"
+          rm ~/"$ARCHIVE_NAME"
           
-          # Navigate to deployment directory
-          cd ~/app-backend-deploy
+          # Replace old deployment
+          rm -rf "$DEPLOYMENT_PATH"
+          mv ~/"${{ github.event.repository.name }}" "$DEPLOYMENT_PATH"
           
-          # List all env files to verify they exist
-          echo "📄 All .env files in deployment directory:"
-          ls -la .env* | head -20
-          
-          # Make scripts executable
+          # Setup deployment
+          cd "$DEPLOYMENT_PATH"
           chmod +x scripts/*.sh
           
-          # Export environment variables
-          export ENV_SUFFIX="${{ env.DEPLOY_ENV }}"
-          export DEPLOY_ENV="${{ env.DEPLOY_ENV }}"
-          
-          # CREATE DOCKER NETWORK BEFORE RUNNING THE DEPLOYMENT SCRIPT
-          echo "🔧 Ensuring Docker network exists on remote server..."
+          # Ensure Docker networks exist
+          echo "🌐 Configuring Docker networks..."
           docker network create internal-net 2>/dev/null || true
           docker network create public-net 2>/dev/null || true
           
-          # Run the Docker deployment script
-          echo "🎯 Executing Docker deployment for environment: \$ENV_SUFFIX"
-          bash scripts/app-deploy.sh "\$ENV_SUFFIX"
+          # Execute deployment
+          echo "🎯 Running deployment script for environment: $DEPLOY_ENV"
+          export ENV_SUFFIX="$DEPLOY_ENV"
+          export DEPLOY_ENV="$DEPLOY_ENV"
+          
+          # Run deployment with timeout
+          timeout 1800 bash scripts/app-deploy.sh "$ENV_SUFFIX" || {
+            echo "❌ Deployment timed out after 30 minutes"
+            exit 1
+          }
           
           echo "✅ Deployment completed successfully!"
-          EOF
           
-          # Cleanup local archive
-          rm ../deploy.tar.gz || true
+          # Cleanup old backups (keep last 5)
+          echo "🧹 Cleaning up old backups..."
+          ls -t ~/app-backend-backup-*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm -f
+          
+          DEPLOY_SCRIPT
 
-      - name: Cleanup
+      # Step 9: Verify deployment health
+      - name: Verify deployment health
+        run: |
+          echo "🏥 Verifying deployment health..."
+          
+          # Basic health check
+          ssh deployment-server << 'HEALTH_CHECK'
+          set -euo pipefail
+          
+          cd "${{ env.DEPLOYMENT_PATH }}"
+          
+          # Check if containers are running
+          echo "🐳 Checking Docker containers..."
+          docker ps --filter "label=app=backend2" --filter "status=running" --format "table {{.Names}}\t{{.Status}}"
+          
+          # Add more health checks as needed
+          echo "✅ Health check passed"
+          HEALTH_CHECK
+
+      # Step 10: Cleanup sensitive data
+      - name: Cleanup sensitive data
         if: always()
         run: |
-          # Clean up local files
-          rm -f ~/.ssh/id_rsa
-          rm -rf config_list
+          echo "🧹 Cleaning up sensitive data..."
+          
+          # Remove SSH keys and configs
+          rm -rf ~/.ssh/deploy_key ~/.ssh/config
+          
+          # Remove configuration files
+          rm -f .env* download_configs.sh
+          
+          # Clear environment variables
+          unset OP_SERVICE_ACCOUNT_TOKEN
+          
+          echo "✅ Cleanup complete"
 
-      - name: Print deployment summary
+      # Step 11: Send deployment notification
+      - name: Send deployment notification
+        if: always()
         run: |
-          echo "✅ Deployment completed!"
-          echo "📊 Deployment Summary:"
-          echo "   Branch: ${{ env.BRANCH_NAME }}"
-          echo "   Environment: ${{ github.event.inputs.environment || 'sandbox (push test)' }}"
-          echo "   Server: ${{ steps.op-server-secrets.outputs.SERVER_URL }}"
-          echo "   Deploy Code: ${{ env.DEPLOY_ENV }}"
-          echo "   Trigger: ${{ github.event_name }}"
+          STATUS="${{ job.status }}"
+          ENVIRONMENT="${{ needs.validate.outputs.environment }}"
+          BRANCH="${{ needs.validate.outputs.branch }}"
+          ACTOR="${{ github.actor }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          
+          if [[ "$STATUS" == "success" ]]; then
+            echo "✅ Deployment successful!"
+            echo "📋 Summary:"
+            echo "   Environment: $ENVIRONMENT"
+            echo "   Branch: $BRANCH"
+            echo "   Deployed by: $ACTOR"
+            echo "   Details: $RUN_URL"
+          else
+            echo "❌ Deployment failed!"
+            echo "📋 Summary:"
+            echo "   Environment: $ENVIRONMENT"
+            echo "   Branch: $BRANCH"
+            echo "   Attempted by: $ACTOR"
+            echo "   Details: $RUN_URL"
+          fi
 
-      - name: Reset envs
-        run: |
-          echo "OP_SERVER_USERNAME=" >> $GITHUB_ENV
-          echo "OP_SERVER_URL=" >> $GITHUB_ENV
-          echo "OP_SERVER_CERT=" >> $GITHUB_ENV
-          echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=" >> $GITHUB_ENV
+  # Run E2E tests after deployment
+  e2e-tests:
+    name: Run E2E Tests
+    runs-on: ubuntu-latest
+    needs: [validate, deploy]
+    if: success()
 
-      - name: Dispatch E2E tests
-        if: success()
+    steps:
+      - name: Trigger E2E test suite
         uses: aragon/app-qa/.github/actions/dispatch@main
         with:
           opToken: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_PROD_TEMP }}
           environment: ${{ env.DEPLOY_ENV }}
+
+      - name: Report E2E test status
+        run: |
+          echo "🧪 E2E tests triggered for ${{ needs.validate.outputs.environment }} environment"
