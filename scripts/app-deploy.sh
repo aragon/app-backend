@@ -20,7 +20,7 @@ if [[ ! "$ENVIRONMENT" =~ ^(sand|dev|stg|prod)$ ]]; then
 fi
 
 # 📄 Single environment file
-ENV_FILE="scripts/.env.docker"
+ENV_FILE=".env.docker"
 DOCKER_FILE="docker-compose.yml"
 
 # 📦 Load environment variables from single .env.docker file

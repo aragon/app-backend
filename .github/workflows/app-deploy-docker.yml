@@ -121,7 +121,6 @@ jobs:
           op read ${{ env.SERVER_CERT }} > ~/.ssh/id_rsa
           chmod 400 ~/.ssh/id_rsa
 
-
       - name: Download config files
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS] }}
@@ -163,8 +162,9 @@ jobs:
             rm temp_file
           done < config_list
           
-          # Try to download Docker env file
-          echo "📄 Attempting to download Docker env file..."
+          # Download Docker env file (REQUIRED)
+          echo ""
+          echo "📄 Downloading Docker env file..."
           mkdir -p scripts
           
           if op item get --vault "${{env.OP_VAULT}}" "configs_docker" --format json | jq -r '.fields[] | select(.label == "notesPlain") | .value' > scripts/.env.docker 2>/dev/null && [ -s scripts/.env.docker ]; then
@@ -180,7 +180,6 @@ jobs:
           echo "   Branch: ${{ env.BRANCH_NAME }}"
           echo "   Target Environment: ${{ github.event.inputs.environment || 'sandbox' }}"
           echo "   Environment Suffix: ${{ env.DEPLOY_ENV }}"
-
 
       - name: Setup SSH
         run: |
