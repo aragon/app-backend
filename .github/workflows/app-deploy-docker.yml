@@ -189,8 +189,18 @@ jobs:
 
       - name: Deploy application
         run: |
+          # Show current directory and files
+          echo "📁 Current directory: $(pwd)"
+          echo "📄 Files in current directory:"
+          ls -la
+          
           # Move up one directory to create tar
           cd ..
+          
+          # Show files that will be included in tar
+          echo "📁 Directory to be archived: ${{ github.event.repository.name }}"
+          echo "📄 Files to be included in archive:"
+          ls -la ${{ github.event.repository.name }}/ | grep -E "\.env\.|\.docker"
           
           # Create tar archive of the entire repository
           echo "📦 Creating deployment archive..."
@@ -220,6 +230,10 @@ jobs:
           # Navigate to deployment directory
           cd ~/app-backend-deploy
           
+          # List env files to verify they exist
+          echo "📄 Environment files in deployment directory:"
+          ls -la | grep -E "\.env\.|\.docker" || echo "No .env files found!"
+          
           # Make scripts executable
           chmod +x scripts/*.sh
           
@@ -232,38 +246,38 @@ jobs:
           bash scripts/app-deploy.sh "\$ENV_SUFFIX"
           
           echo "✅ Deployment completed successfully!"
-          EOF
+  EOF
   
-          # Cleanup local archive
-          rm ../deploy.tar.gz
+  # Cleanup local archive
+  rm ../deploy.tar.gz
 
-      - name: Cleanup
-        if: always()
-        run: |
-          # Clean up local files
-          rm -f ~/.ssh/id_rsa
-          rm -rf config_list
+- name: Cleanup
+  if: always()
+  run: |
+    # Clean up local files
+    rm -f ~/.ssh/id_rsa
+    rm -rf config_list
 
-      - name: Print deployment summary
-        run: |
-          echo "✅ Deployment completed!"
-          echo "📊 Deployment Summary:"
-          echo "   Branch: ${{ env.BRANCH_NAME }}"
-          echo "   Environment: ${{ github.event.inputs.environment || 'sandbox (push test)' }}"
-          echo "   Server: ${{ steps.op-server-secrets.outputs.SERVER_URL }}"
-          echo "   Deploy Code: ${{ env.DEPLOY_ENV }}"
-          echo "   Trigger: ${{ github.event_name }}"
+- name: Print deployment summary
+  run: |
+    echo "✅ Deployment completed!"
+    echo "📊 Deployment Summary:"
+    echo "   Branch: ${{ env.BRANCH_NAME }}"
+    echo "   Environment: ${{ github.event.inputs.environment || 'sandbox (push test)' }}"
+    echo "   Server: ${{ steps.op-server-secrets.outputs.SERVER_URL }}"
+    echo "   Deploy Code: ${{ env.DEPLOY_ENV }}"
+    echo "   Trigger: ${{ github.event_name }}"
 
-      - name: Reset envs
-        run: |
-          echo "OP_SERVER_USERNAME=" >> $GITHUB_ENV
-          echo "OP_SERVER_URL=" >> $GITHUB_ENV
-          echo "OP_SERVER_CERT=" >> $GITHUB_ENV
-          echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=" >> $GITHUB_ENV
+- name: Reset envs
+  run: |
+    echo "OP_SERVER_USERNAME=" >> $GITHUB_ENV
+    echo "OP_SERVER_URL=" >> $GITHUB_ENV
+    echo "OP_SERVER_CERT=" >> $GITHUB_ENV
+    echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=" >> $GITHUB_ENV
 
-      - name: Dispatch E2E tests
-        if: success()
-        uses: aragon/app-qa/.github/actions/dispatch@main
-        with:
-          opToken: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_PROD_TEMP }}
-          environment: ${{ env.DEPLOY_ENV }}
+- name: Dispatch E2E tests
+  if: success()
+  uses: aragon/app-qa/.github/actions/dispatch@main
+  with:
+    opToken: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_PROD_TEMP }}
+    environment: ${{ env.DEPLOY_ENV }}
