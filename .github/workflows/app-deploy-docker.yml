@@ -89,19 +89,21 @@ jobs:
           
           # Set 1Password configuration based on environment
           if [[ "$ENVIRONMENT" == "production" ]]; then
+            OP_VAULT="apikeys_production"
             echo "OP_VAULT=apikeys_production" >> $GITHUB_ENV
             echo "OP_SERVICE_ACCOUNT_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_PROD_TEMP" >> $GITHUB_ENV
           else
+            OP_VAULT="apikeys_nonprod"
             echo "OP_VAULT=apikeys_nonprod" >> $GITHUB_ENV
             echo "OP_SERVICE_ACCOUNT_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP" >> $GITHUB_ENV
           fi
           
           echo "OP_SERVICE_ACCOUNT_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
           
-          # Set server configuration paths
-          echo "OP_SERVER_USERNAME=op://${{ env.OP_VAULT }}/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
-          echo "OP_SERVER_URL=op://${{ env.OP_VAULT }}/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
-          echo "OP_SERVER_CERT=op://${{ env.OP_VAULT }}/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> $GITHUB_ENV
+          # Set server configuration paths - use $OP_VAULT not ${{ env.OP_VAULT }}
+          echo "OP_SERVER_USERNAME=op://${OP_VAULT}/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
+          echo "OP_SERVER_URL=op://${OP_VAULT}/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
+          echo "OP_SERVER_CERT=op://${OP_VAULT}/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> $GITHUB_ENV
           
           echo "📋 Deployment Configuration:"
           echo "   Environment: $ENVIRONMENT"
