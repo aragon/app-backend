@@ -164,12 +164,19 @@ jobs:
           
           # Download Docker env file (REQUIRED)
           echo ""
-          echo "📄 Downloading Docker env file..."
+          echo "📄 Processing: docker-config"
           
-          if op item get --vault "${{env.OP_VAULT}}" "configs_docker" --format json | jq -r '.fields[] | select(.label == "notesPlain") | .value' > .env.docker 2>/dev/null && [ -s .env.docker ]; then
-            echo "✅ Docker config downloaded successfully"
+          # Download to ROOT directory (not scripts/) using correct field name
+          op item get --vault "${{env.OP_VAULT}}" "configs_docker" --fields "docker-config" | sed '1s/^"//;$s/"$//' > .env.docker
+          
+          # Check if download was successful
+          if [ -f .env.docker ] && [ -s .env.docker ]; then
+            echo "Setting up ${{env.DEPLOY_ENV}} environment for docker"
+            sha256sum .env.docker
+            echo "Docker config saved to: $(pwd)/.env.docker"
+            ls -la .env.docker
           else
-            echo "❌ ERROR: Docker config not found in 1Password (vault: ${{env.OP_VAULT}}, item: configs_docker)"
+            echo "❌ ERROR: Docker config not found in 1Password (vault: ${{env.OP_VAULT}}, item: configs_docker, field: docker-config)"
             exit 1
           fi
 
