@@ -48,17 +48,12 @@ jobs:
             echo "⚠️  No environment specified, using default: sandbox"
           fi
           
-          
           # Production deployments must be from main/master branch
           if [[ "$ENVIRONMENT" == "production" && "$BRANCH" != "main" ]]; then
             # echo "❌ Production deployments must be from main branch"
             # echo "   Requested branch: $BRANCH"
             # exit 1
           fi
-          
-          ENVIRONMENT="sandbox"  # Default for push events
-            echo "⚠️  Push event detected, using default environment: sandbox"
-          
           
           echo "✅ Validation passed"
           echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
