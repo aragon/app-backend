@@ -252,8 +252,8 @@ jobs:
           echo "✅ Deployment completed successfully!"
           EOF
   
-         # Cleanup local archive
-         rm ../deploy.tar.gz
+          # Cleanup local archive
+          rm ../deploy.tar.gz
 
       - name: Cleanup
         if: always()
