@@ -189,6 +189,11 @@ run_migration() {
   return 0
 }
 
+# Create Docker network if it doesn't exist (ADD THIS SECTION)
+echo "🔧 Ensuring Docker network exists..."
+# Note: Based on your error, you need to create 'internal-net', not the default network
+docker network create internal-net 2>/dev/null || true
+
 # Main deployment process
 START_TIME=$(date +%s)
 echo "🚀 Starting safe deployment with minimized downtime..."
