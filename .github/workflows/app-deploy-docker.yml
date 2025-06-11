@@ -20,13 +20,12 @@ on:
 
   push:
     branches:
-      - feat/app-deply-docker  # Your current branch
+      - feat/app-deply-docker  # Temporary for testing, remove when done
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      REPO_URL: git@github.com:${{ github.repository }}.git
       BRANCH_NAME: ${{ github.event.inputs.branch || github.ref_name }}
 
     steps:
@@ -108,6 +107,11 @@ jobs:
       - name: Install 1Password CLI
         uses: 1password/install-cli-action@v1
 
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH_NAME }}
+
       - name: Download certfile
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS] }}
@@ -123,9 +127,6 @@ jobs:
           OP_VAULT: temporal_backend2
           OP_VAULT_ITEM: configs_app_backend2_${{env.DEPLOY_ENV}}
         run: |
-          # Create configs directory
-          mkdir -p configs
-          
           # Get list of config files
           op item get --vault "${{env.OP_VAULT}}" "${{env.OP_VAULT_ITEM}}" --format json | jq -r '.fields.[].label'|sed 1d > config_list
           
@@ -136,7 +137,7 @@ jobs:
 
             ## Set up specific env configs values for LOGZIO
             for conf_single in "${CONFIG_FILES[@]}"; do
-              CONFIG_FILE_NAME="configs/.env.$conf_single"
+              CONFIG_FILE_NAME=".env.$conf_single"
               cp temp_file "$CONFIG_FILE_NAME"
               case "${{env.DEPLOY_ENV}}" in
                 prod)
@@ -163,15 +164,11 @@ jobs:
           
           # Try to download Docker env file
           echo "📄 Attempting to download Docker env file..."
-          op item get --vault "${{env.OP_VAULT}}" "configs_docker" --fields ".env.docker" > configs/.env.docker 2>/dev/null || {
+          mkdir -p scripts
+          op item get --vault "${{env.OP_VAULT}}" "configs_docker" --fields ".env.docker" > scripts/.env.docker 2>/dev/null || {
             echo "⚠️  No Docker env file found in 1Password, creating minimal version"
-            echo "ENV_SUFFIX=${{env.DEPLOY_ENV}}" > configs/.env.docker
+            echo "ENV_SUFFIX=${{env.DEPLOY_ENV}}" > scripts/.env.docker
           }
-          
-          # Create tar archive of config files
-          echo "📦 Creating config archive..."
-          tar -czf configs.tar.gz configs/
-          ls -la configs.tar.gz
 
       - name: Print deployment info
         run: |
@@ -188,52 +185,33 @@ jobs:
 
       - name: Deploy application
         run: |
-          # Define remote user and host for easier reference
-          REMOTE_USER="${{ steps.op-server-secrets.outputs.SERVER_USERNAME }}"
-          REMOTE_HOST="${{ steps.op-server-secrets.outputs.SERVER_URL }}"
-          REMOTE_TARGET="$REMOTE_USER@$REMOTE_HOST"
+          # Move up one directory to create tar
+          cd ..
           
-          echo "🚀 Starting deployment to $REMOTE_HOST..."
+          # Create tar archive of the entire repository
+          echo "📦 Creating deployment archive..."
+          tar -czf deploy.tar.gz ${{ github.event.repository.name }}
           
-          # Transfer only config files
-          echo "📤 Transferring configuration files..."
-          scp configs.tar.gz "$REMOTE_TARGET:~/"
+          # Transfer the archive to remote server
+          echo "📤 Transferring deployment archive..."
+          scp deploy.tar.gz "${{ steps.op-server-secrets.outputs.SERVER_USERNAME }}@${{ steps.op-server-secrets.outputs.SERVER_URL }}:~/"
           
-          # Create deployment script with all variables substituted
-          cat > deploy_script.sh << SCRIPT_END
-          #!/bin/bash
+          # Execute deployment on remote server
+          echo "🚀 Executing deployment on remote server..."
+          ssh -t "${{ steps.op-server-secrets.outputs.SERVER_USERNAME }}@${{ steps.op-server-secrets.outputs.SERVER_URL }}" bash -s << EOF
           set -e
           
-          # Variables set from GitHub Actions
-          BRANCH_NAME="${{ env.BRANCH_NAME }}"
-          REPO_URL="${{ env.REPO_URL }}"
-          DEPLOY_ENV="${{ env.DEPLOY_ENV }}"
+          # Extract the archive
+          echo "📦 Extracting deployment archive..."
+          tar -xzf ~/deploy.tar.gz
+          rm ~/deploy.tar.gz
           
-          # Extract configs
-          echo "📦 Extracting configuration files..."
-          tar -xzf ~/configs.tar.gz
-          rm ~/configs.tar.gz
-          
-          # Clean up old deployment
-          echo "🧹 Cleaning up previous deployment..."
+          # Remove old deployment
+          echo "🧹 Cleaning up old deployment..."
           rm -rf ~/app-backend-deploy
           
-          # Clone repository
-          echo "📥 Cloning repository branch: \$BRANCH_NAME..."
-          git clone -b "\$BRANCH_NAME" "\$REPO_URL" ~/app-backend-deploy
-          
-          # Copy config files into the repository
-          echo "📄 Installing configuration files..."
-          cp ~/configs/.env.* ~/app-backend-deploy/
-          
-          # Copy Docker env file to scripts directory if it exists
-          [ -f ~/configs/.env.docker ] && {
-            mkdir -p ~/app-backend-deploy/scripts
-            cp ~/configs/.env.docker ~/app-backend-deploy/scripts/
-          }
-          
-          # Clean up config directory
-          rm -rf ~/configs
+          # Rename extracted directory
+          mv ~/${{ github.event.repository.name }} ~/app-backend-deploy
           
           # Navigate to deployment directory
           cd ~/app-backend-deploy
@@ -242,35 +220,25 @@ jobs:
           chmod +x scripts/*.sh
           
           # Export environment variables
-          export ENV_SUFFIX="\$DEPLOY_ENV"
-          export DEPLOY_ENV="\$DEPLOY_ENV"
+          export ENV_SUFFIX="${{ env.DEPLOY_ENV }}"
+          export DEPLOY_ENV="${{ env.DEPLOY_ENV }}"
           
-          # Run the deployment
-          echo "🎯 Executing Docker deployment for environment: \$DEPLOY_ENV"
-          bash scripts/app-deploy.sh "\$DEPLOY_ENV"
+          # Run the Docker deployment script
+          echo "🎯 Executing Docker deployment for environment: \$ENV_SUFFIX"
+          bash scripts/app-deploy.sh "\$ENV_SUFFIX"
           
           echo "✅ Deployment completed successfully!"
-          SCRIPT_END
-          
-          # Make script executable
-          chmod +x deploy_script.sh
-          
-          # Transfer and execute the script
-          echo "📤 Transferring deployment script..."
-          scp deploy_script.sh "$REMOTE_TARGET:~/"
-          
-          echo "🚀 Executing deployment script..."
-          ssh -t "$REMOTE_TARGET" "bash ~/deploy_script.sh && rm ~/deploy_script.sh"
-          
-          # Clean up local script
-          rm deploy_script.sh
+          EOF
+  
+          # Cleanup local archive
+          rm ../deploy.tar.gz
 
       - name: Cleanup
         if: always()
         run: |
           # Clean up local files
           rm -f ~/.ssh/id_rsa
-          rm -rf configs config_list configs.tar.gz
+          rm -rf config_list
 
       - name: Print deployment summary
         run: |
