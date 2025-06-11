@@ -25,11 +25,6 @@ on:
         type: boolean
         default: false
 
-  # TODO: REMOVE THIS BEFORE MERGING TO MAIN!
-  push:
-    branches:
-      - feat/app-deply-docker
-
 env:
   # Global configuration
   DEPLOYMENT_USER: 'deploy'
@@ -54,8 +49,10 @@ jobs:
           
           # If environment is not set (e.g., push trigger), default to sandbox
           if [[ -z "$ENVIRONMENT" ]]; then
-            ENVIRONMENT="sandbox"
-            echo "⚠️  No environment specified, using default: sandbox"
+            # ENVIRONMENT="sandbox"
+            # echo "⚠️  No environment specified, using default: sandbox"
+            echo "❌ environment is not set"
+            exit 1
           fi
           
           # Production deployments must be from main/master branch
