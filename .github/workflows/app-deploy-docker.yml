@@ -265,7 +265,7 @@ jobs:
           EOF
           
           # Cleanup local archive
-          rm ../deploy.tar.gz
+          rm ../deploy.tar.gz || true
 
       - name: Cleanup
         if: always()
