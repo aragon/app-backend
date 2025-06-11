@@ -1,8 +1,5 @@
 name: Docker Deployment
 
-# WARNING: Remove the 'push' trigger before merging to main!
-# The push trigger is only for testing in feature branches.
-
 on:
   workflow_dispatch:
     inputs:
