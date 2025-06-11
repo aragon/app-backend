@@ -137,7 +137,7 @@ jobs:
 
             ## Set up specific env configs values for LOGZIO
             for conf_single in "${CONFIG_FILES[@]}"; do
-              CONFIG_FILE_NAME=".env.$conf_single"
+              CONFIG_FILE_NAME=".env.$conf_single-${{env.DEPLOY_ENV}}"
               cp temp_file "$CONFIG_FILE_NAME"
               case "${{env.DEPLOY_ENV}}" in
                 prod)
