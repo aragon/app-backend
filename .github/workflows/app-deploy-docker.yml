@@ -255,6 +255,7 @@ jobs:
           # CREATE DOCKER NETWORK BEFORE RUNNING THE DEPLOYMENT SCRIPT
           echo "🔧 Ensuring Docker network exists on remote server..."
           docker network create internal-net 2>/dev/null || true
+          docker network create public-net 2>/dev/null || true
           
           # Run the Docker deployment script
           echo "🎯 Executing Docker deployment for environment: \$ENV_SUFFIX"
