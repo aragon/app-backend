@@ -50,9 +50,9 @@ jobs:
           
           # Production deployments must be from main/master branch
           if [[ "$ENVIRONMENT" == "production" && "$BRANCH" != "main" ]]; then
-            # echo "❌ Production deployments must be from main branch"
-            # echo "   Requested branch: $BRANCH"
-            # exit 1
+            echo "❌ Production deployments must be from main branch"
+            echo "   Requested branch: $BRANCH"
+            exit 1
           fi
           
           echo "✅ Validation passed"
