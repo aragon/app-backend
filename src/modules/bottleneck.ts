@@ -13,6 +13,7 @@ class BottleneckModule {
   static alchemyBathRequestLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static etherScanLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static blockScoutLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
+  static chilizLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
 
   static getNodeLimiter(network: NetworksEnum) {
     if (!this.nodeLimiters[network]) {
@@ -112,6 +113,16 @@ class BottleneckModule {
       })
     }
     return this.blockScoutLimiters[network]
+  }
+
+  static getChilizLimiter(network: NetworksEnum) {
+    if (!this.chilizLimiters[network]) {
+      this.chilizLimiters[network] = new Bottleneck({
+        maxConcurrent: config.BOTTLENECK.NODE_MAX_CONCURRENT, // Maximum number of concurrent requests
+        minTime: config.BOTTLENECK.NODE_MIN_TIME, // Minimum time (ms) between requests
+      })
+    }
+    return this.chilizLimiters[network]
   }
 }
 

@@ -141,6 +141,8 @@ describe('Helpers:Utils', () => {
       'zksync-mainnet': 'ZKSYNC_MAINNET',
       'optimism-mainnet': 'OPTIMISM_MAINNET',
       'peaq-mainnet': 'PEAQ_MAINNET',
+      'chiliz-mainnet': 'CHILIZ_MAINNET',
+      'corn-mainnet': 'CORN_MAINNET',
     }
 
     Object.keys(NetworksEnum).forEach(key => {
