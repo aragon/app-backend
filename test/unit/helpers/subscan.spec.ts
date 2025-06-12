@@ -675,4 +675,140 @@ describe('Helpers:Subscan', () => {
       expect(logErrorStub.called).to.be.true
     })
   })
+
+  describe('getTokenCounters', () => {
+    const tokenAddress = '0x5c3126bfb9a68a7021d461230127470b3824886b'
+    const network = NetworksEnum.peaqMainnet
+
+    it('should return token counters on successful response', async () => {
+      const tokenFullDetails = {
+        address: tokenAddress,
+        name: 'Test Token',
+        symbol: 'TT',
+        decimals: 18,
+        type: ITokenType.ERC20,
+        logo: null,
+        priceUsd: '1',
+        totalSupply: '1000',
+        totalHolders: 50,
+        lastUpdatedAt: new Date(),
+      }
+
+      const transferResponse = {
+        code: 0,
+        data: {
+          count: 100,
+          list: [
+            {
+              hash: 'txHash1',
+              from: '0xaddress1',
+              to: '0xaddress2',
+              value: '1000',
+              contract: tokenAddress,
+            },
+          ],
+        },
+      }
+
+      const getTokenFullDetailsStub = sandbox.stub(Subscan, 'getTokenFullDetails').resolves(tokenFullDetails)
+      const rpCallStub = sandbox.stub(Subscan, '_rpCall').resolves(transferResponse)
+
+      const result = await Subscan.getTokenCounters(tokenAddress, network)
+
+      expect(result.transfers).to.eq(100)
+      expect(result.holders).to.eq(50)
+      expect(getTokenFullDetailsStub.calledOnce).to.be.true
+      expect(getTokenFullDetailsStub.calledWith(tokenAddress, network)).to.be.true
+      expect(rpCallStub.calledOnce).to.be.true
+      expect(
+        rpCallStub.calledWith(
+          'evm/token/transfer',
+          {
+            page: 0,
+            row: 10,
+            contract: tokenAddress,
+          },
+          network,
+        ),
+      ).to.be.true
+    })
+
+    it('should return zero counters when transfer response has no data', async () => {
+      const tokenFullDetails = {
+        address: tokenAddress,
+        name: 'Test Token',
+        symbol: 'TT',
+        decimals: 18,
+        type: ITokenType.ERC20,
+        logo: null,
+        priceUsd: '1',
+        totalSupply: '1000',
+        totalHolders: 25,
+        lastUpdatedAt: new Date(),
+      }
+
+      const transferResponse = {
+        code: 0,
+        data: {
+          count: 0,
+          list: [],
+        },
+      }
+
+      const getTokenFullDetailsStub = sandbox.stub(Subscan, 'getTokenFullDetails').resolves(tokenFullDetails)
+      const rpCallStub = sandbox.stub(Subscan, '_rpCall').resolves(transferResponse)
+
+      const result = await Subscan.getTokenCounters(tokenAddress, network)
+
+      expect(result.transfers).to.eq(0)
+      expect(result.holders).to.eq(0)
+      expect(getTokenFullDetailsStub.calledOnce).to.be.true
+      expect(rpCallStub.calledOnce).to.be.true
+    })
+
+    it('should return zero counters when transfer response code is not 0', async () => {
+      const tokenFullDetails = {
+        address: tokenAddress,
+        name: 'Test Token',
+        symbol: 'TT',
+        decimals: 18,
+        type: ITokenType.ERC20,
+        logo: null,
+        priceUsd: '1',
+        totalSupply: '1000',
+        totalHolders: 30,
+        lastUpdatedAt: new Date(),
+      }
+
+      const transferResponse = {
+        code: 1,
+        message: 'Error',
+        data: null,
+      }
+
+      const getTokenFullDetailsStub = sandbox.stub(Subscan, 'getTokenFullDetails').resolves(tokenFullDetails)
+      const rpCallStub = sandbox.stub(Subscan, '_rpCall').resolves(transferResponse)
+
+      const result = await Subscan.getTokenCounters(tokenAddress, network)
+
+      expect(result.transfers).to.eq(0)
+      expect(result.holders).to.eq(0)
+      expect(getTokenFullDetailsStub.calledOnce).to.be.true
+      expect(rpCallStub.calledOnce).to.be.true
+    })
+
+    it('should handle errors and return zero counters', async () => {
+      const error = new Error('API call failed')
+      const getTokenFullDetailsStub = sandbox.stub(Subscan, 'getTokenFullDetails').rejects(error)
+      const warnStub = sandbox.stub(logger, 'warn')
+
+      const result = await Subscan.getTokenCounters(tokenAddress, network)
+
+      expect(result.transfers).to.eq(0)
+      expect(result.holders).to.eq(0)
+      expect(getTokenFullDetailsStub.calledOnce).to.be.true
+      expect(warnStub.calledOnce).to.be.true
+      expect(warnStub.calledWith('SubscanApi getTokenCounters' as any)).to.be.true
+    })
+  })
 })
