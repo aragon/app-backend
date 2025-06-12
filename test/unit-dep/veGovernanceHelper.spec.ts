@@ -84,9 +84,10 @@ describe('GovernanceVeHelper', () => {
     expect(maxTime).to.eq(0n)
   })
 
-  it('getSlope', async () => {
+  it('getSettingFromCoefficients', async () => {
     const network = NetworksEnum.ethereumSepolia
-    const slope = await GovernanceVeHelper.getSlopeFromCoefficients(curveAddress, network)
-    expect(slope).to.eq(0n)
+    const result = await GovernanceVeHelper.getSettingFromCoefficients(curveAddress, network)
+    expect(result.slope).to.eq(0n)
+    expect(result.bias).to.eq(1000000000000000000n)
   })
 })

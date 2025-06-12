@@ -473,7 +473,10 @@ export const PluginSettingHandler = {
     const minLockTime = await GovernanceVeHelper.getMinLock(plugin.votingEscrow?.exitQueueAddress!, info.network)
     const cooldown = await GovernanceVeHelper.getCooldown(plugin.votingEscrow?.exitQueueAddress!, info.network)
     const maxTime = await GovernanceVeHelper.getMaxTime(plugin.votingEscrow?.curveAddress!, info.network)
-    const slope = await GovernanceVeHelper.getSlopeFromCoefficients(plugin.votingEscrow?.curveAddress!, info.network)
+    const { slope, bias } = await GovernanceVeHelper.getSettingFromCoefficients(
+      plugin.votingEscrow?.curveAddress!,
+      info.network,
+    )
 
     return {
       minDeposit: minDeposit.toString(),
@@ -481,6 +484,7 @@ export const PluginSettingHandler = {
       cooldown: Number(cooldown),
       maxTime: Number(maxTime),
       slope: Number(slope),
+      bias: Number(bias),
     }
   },
 
