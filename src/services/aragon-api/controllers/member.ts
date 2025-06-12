@@ -102,41 +102,7 @@ const MemberController = {
     extraParams: ILockExtraParams = {},
     paginationParams: IPaginationParams = {},
   ): Promise<IPaginatedResult<IMemberLockResponse>> => {
-    const response = await Models.Lock.findWithPagination({ extraParams, paginationParams })
-
-    if (response.data.length === 0) {
-      return response
-    }
-
-    const batchParams = response.data.map((lock: Lock) => ({
-      lockId: lock.id,
-      tokenId: lock.tokenId,
-      network: lock.network,
-      escrowAddress: lock.escrowAddress,
-      timestamp: lock.blockTimestamp || Math.floor(Date.now() / 1000),
-    }))
-
-    const batchResults = await RabbitMQHelper.sendMessage(
-      EnumQueueName.getLockVotingPowerBatch,
-      {
-        id: `lockVotingPowerBatch-${Date.now()}`,
-        params: { locks: batchParams },
-      },
-      { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
-    )
-
-    // Create a map for quick lookup
-    const votingPowerMap = new Map(
-      batchResults.map((result: { tokenId: string; votingPower: string }) => [result.tokenId, result.votingPower]),
-    )
-
-    // Update voting power
-    response.data = response.data.map((lock: Lock) => ({
-      ...lock,
-      votingPower: votingPowerMap.get(lock.tokenId) || '0',
-    }))
-
-    return response
+    return await Models.Lock.findWithPagination({ extraParams, paginationParams })
   },
 }
 
