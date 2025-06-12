@@ -54,7 +54,6 @@ export interface IMemberLockResponse {
   pluginAddress: HexAddress
   memberAddress: HexAddress
   escrowAddress: HexAddress
-  votingPower: string
   token: {
     network: NetworksEnum
     address: HexAddress
