@@ -25,6 +25,10 @@ jobs:
         with:
           node-version-file: '.nvmrc'
           cache: 'yarn'
+      - name: Configure Yarn
+        run: |
+          yarn config set network-timeout 300000
+          yarn config set registry https://registry.npmjs.org/
       - name: Install dependencies
         run: yarn install
       - name: Format
