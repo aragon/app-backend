@@ -281,6 +281,7 @@ describe('Indexer: PluginSettingHandler', () => {
         cooldown: 3600,
         maxTime: 7200,
         slope: 0.1,
+        bias: 1000,
       })
       const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
       await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
@@ -1059,7 +1060,9 @@ describe('Indexer: PluginSettingHandler', () => {
       const getMinLockStub = sandbox.stub(GovernanceVeHelper, 'getMinLock').resolves(BigInt('86400')) // 1 day in seconds
       const getCooldownStub = sandbox.stub(GovernanceVeHelper, 'getCooldown').resolves(BigInt('3600')) // 1 hour in seconds
       const getMaxTimeStub = sandbox.stub(GovernanceVeHelper, 'getMaxTime').resolves(BigInt('31536000')) // 1 year in seconds
-      const getSlopeStub = sandbox.stub(GovernanceVeHelper, 'getSlopeFromCoefficients').resolves(BigInt('100')) // slope value
+      const getSlopeStub = sandbox
+        .stub(GovernanceVeHelper, 'getSettingFromCoefficients')
+        .resolves({ bias: BigInt('100'), slope: BigInt('100') }) // slope value
 
       const result = await PluginSettingHandler.votingEscrowSettings(plugin, info)
 
@@ -1077,6 +1080,7 @@ describe('Indexer: PluginSettingHandler', () => {
         cooldown: 3600,
         maxTime: 31536000,
         slope: 100,
+        bias: 100,
       })
     })
   })

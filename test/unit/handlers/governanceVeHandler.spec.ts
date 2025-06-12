@@ -285,7 +285,7 @@ describe('Handler:GovernanceVeHandler', () => {
       const stubLogger = sandbox.stub(logger, 'error')
 
       const mockInfo = {
-        address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+        address: '0xExitQueue',
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 123,
         transactionHash: '0xhash',
@@ -333,7 +333,7 @@ describe('Handler:GovernanceVeHandler', () => {
       })
 
       const mockInfo = {
-        address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+        address: '0xExitQueue',
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 124,
         transactionHash: '0xexitQueuedHash',
