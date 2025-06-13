@@ -697,7 +697,9 @@ export default class Proposal extends Model {
   }): Promise<IPaginatedResult<IProposalsResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const dynamicFilter = Object.fromEntries(
-      Object.entries(extraParams).filter(([key, v]) => v !== undefined && key !== 'daoInfo' && key !== 'isExecuted'),
+      Object.entries(extraParams).filter(
+        ([key, v]) => v !== undefined && key !== 'daoInfo' && key !== 'isExecuted' && key !== 'pluginAddresses',
+      ),
     )
     const filter = {
       ...ModelUtils.createFilter(paginationParams, [
@@ -714,6 +716,10 @@ export default class Proposal extends Model {
 
     if (extraParams.isExecuted) {
       filter['executed.status'] = true
+    }
+
+    if (extraParams?.pluginAddresses?.length! > 0) {
+      filter.pluginAddress = { $in: extraParams.pluginAddresses }
     }
 
     const query: any = [

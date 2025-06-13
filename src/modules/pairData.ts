@@ -74,6 +74,7 @@ const PairDataModule = {
       memberAddress?: HexAddress
       pluginAddress?: HexAddress
       tokenAddress?: HexAddress
+      pluginAddresses?: HexAddress[]
       proposalIndex?: string
     },
   >(
@@ -86,6 +87,10 @@ const PairDataModule = {
       if (daoDb) {
         extraParams.network = daoDb.network
         extraParams.daoAddress = daoDb.address
+
+        if (pairParams?.onlyActive) {
+          extraParams.pluginAddresses = await Models.Plugin.findActivePluginsByDaoAddress(daoDb.address, daoDb.network)
+        }
       }
     }
 
