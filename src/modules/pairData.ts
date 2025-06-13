@@ -6,6 +6,7 @@ import {
   type IPairParams,
   type NetworksEnum,
 } from '@types'
+import type Plugin from '@models/schema/plugin'
 
 const PairDataModule = {
   pairExtraQueryData: async <
@@ -89,7 +90,9 @@ const PairDataModule = {
         extraParams.daoAddress = daoDb.address
 
         if (pairParams?.onlyActive) {
-          extraParams.pluginAddresses = await Models.Plugin.findActivePluginsByDaoAddress(daoDb.address, daoDb.network)
+          extraParams.pluginAddresses = (
+            await Models.Plugin.findActivePluginsByDaoAddress(daoDb.address, daoDb.network)
+          ).map((plugin: Plugin) => plugin.address)
         }
       }
     }
