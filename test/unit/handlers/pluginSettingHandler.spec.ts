@@ -280,8 +280,8 @@ describe('Indexer: PluginSettingHandler', () => {
         minLockTime: 3600,
         cooldown: 3600,
         maxTime: 7200,
-        slope: 0.1,
-        bias: 1000,
+        slope: '0.1',
+        bias: '1000',
       })
       const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
       await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
@@ -1079,8 +1079,8 @@ describe('Indexer: PluginSettingHandler', () => {
         minLockTime: 86400,
         cooldown: 3600,
         maxTime: 31536000,
-        slope: 100,
-        bias: 100,
+        slope: '100',
+        bias: '100',
       })
     })
   })
