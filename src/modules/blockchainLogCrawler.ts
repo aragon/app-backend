@@ -175,6 +175,7 @@ class BlockchainLogCrawler {
       case ICrawStrategy.getLogsWithoutTopics:
         return this.getLogsWithoutTopics(currentBlock, latestBlock)
       case ICrawStrategy.getLogsByBatch:
+        return this.getLogsByBatch(currentBlock, latestBlock)
       default:
         return this.getLogsByBatch(currentBlock, latestBlock)
     }
