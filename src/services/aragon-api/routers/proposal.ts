@@ -29,6 +29,7 @@ const ProposalRouter = {
     }
     const pairParams: IPairParams = {
       daoId: ctx.query.daoId as string,
+      onlyActive: Utils.parseBoolean(ctx.query.onlyActive),
     }
     const anyInvalidParams = Utils.extractAdditionalParams(
       { ...paginationParams, ...extraParams, ...pairParams },

@@ -5,7 +5,7 @@ import Plugin from '@models/schema/plugin'
 import { Models } from '@dbModels'
 import { beforeEach } from 'mocha'
 import { PluginList } from '@test/mock/fakePlugins'
-import { IPluginInterfaceType, IPluginSlug, NetworksEnum } from '@types'
+import { IPluginInterfaceType, IPluginSlug, IPluginStatus, NetworksEnum } from '@types'
 
 describe('Model: Plugin', () => {
   let sandbox: SinonSandbox
@@ -194,6 +194,68 @@ describe('Model: Plugin', () => {
     expect(foundPlugin.network).to.be.eq(plugin.network)
     expect(foundPlugin.transactionHash).to.be.eq(plugin.transactionHash)
     expect(foundPlugin.address).to.be.eq(plugin.address)
+  })
+
+  it('should find all active plugins for a DAO', async () => {
+    const daoAddress = '0x1234567890123456789012345678901234567890'
+    const network = NetworksEnum.ethereumMainnet
+
+    const installedPlugin1 = await Models.Plugin.create({
+      ...rawPlugin,
+      daoAddress,
+      network,
+      status: IPluginStatus.installed,
+      address: '0xPlugin1',
+    })
+
+    const installedPlugin2 = await Models.Plugin.create({
+      ...rawPlugin,
+      daoAddress,
+      network,
+      status: IPluginStatus.installed,
+      address: '0xPlugin2',
+      transactionHash: '0xDifferentTxHash2',
+    })
+
+    // Create an uninstalled plugin (should not be returned)
+    await Models.Plugin.create({
+      ...rawPlugin,
+      daoAddress,
+      network,
+      status: IPluginStatus.uninstalled,
+      address: '0xPlugin3',
+      transactionHash: '0xDifferentTxHash3',
+    })
+
+    // Create a plugin for different DAO (should not be returned)
+    await Models.Plugin.create({
+      ...rawPlugin,
+      daoAddress: '0xDifferentDao',
+      network,
+      status: IPluginStatus.installed,
+      address: '0xPlugin4',
+      transactionHash: '0xDifferentTxHash4',
+    })
+
+    // Create a plugin for different network (should not be returned)
+    await Models.Plugin.create({
+      ...rawPlugin,
+      daoAddress,
+      network: NetworksEnum.ethereumSepolia,
+      status: IPluginStatus.installed,
+      address: '0xPlugin5',
+      transactionHash: '0xDifferentTxHash5',
+    })
+
+    // Call the method
+    const activePlugins = await Models.Plugin.findActivePluginsByDaoAddress(daoAddress, network)
+
+    // Verify results
+    expect(activePlugins).to.have.lengthOf(2)
+    expect(activePlugins.map(p => p.address)).to.include.members(['0xPlugin1', '0xPlugin2'])
+    expect(activePlugins.every(p => p.status === IPluginStatus.installed)).to.be.true
+    expect(activePlugins.every(p => p.daoAddress === daoAddress)).to.be.true
+    expect(activePlugins.every(p => p.network === network)).to.be.true
   })
 
   it('should update plugin', async () => {
