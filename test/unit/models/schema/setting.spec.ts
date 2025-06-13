@@ -18,8 +18,8 @@ describe('Model: Setting', () => {
         minDeposit: '1000000000000000000',
         minLockTime: 86400,
         maxTime: 31536000,
-        slope: 1,
-        bias: 22,
+        slope: '1',
+        bias: '22',
         cooldown: 86400,
       },
     }

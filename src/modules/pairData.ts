@@ -4,6 +4,7 @@ import {
   type IExtraQueryData,
   type IPaginationParams,
   type IPairParams,
+  IPluginStatus,
   type NetworksEnum,
 } from '@types'
 
@@ -89,7 +90,11 @@ const PairDataModule = {
         extraParams.daoAddress = daoDb.address
 
         if (pairParams?.onlyActive) {
-          extraParams.pluginAddresses = await Models.Plugin.findActivePluginsByDaoAddress(daoDb.address, daoDb.network)
+          extraParams.pluginAddresses = await Models.Plugin.distinct('address', {
+            daoAddress: daoDb.address,
+            network: daoDb.network,
+            status: IPluginStatus.installed,
+          })
         }
       }
     }
@@ -151,12 +156,12 @@ const PairDataModule = {
       params.memberAddress = memberAddress
     }
 
-    if (network && (network || daoAddress || memberAddress || pluginAddress || tokenAddress)) {
+    if (network) {
       params.network = network
     }
 
     if (Object.keys(params).length > 0) {
-      const mappings = await Models.DaoMemberMapping.find(params)
+      const mappings = (await Models.DaoMemberMapping.find(params)) || []
       return mappings
     }
 
