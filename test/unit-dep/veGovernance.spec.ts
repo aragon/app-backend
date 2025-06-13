@@ -11,9 +11,16 @@ import { Models } from '@dbModels'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import { PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandler'
 import ProxyWeb3Provider from '@modules/proxyProvider'
+import { VotingEscrowIncreasing } from '@artifacts/VotingEscrowIncreasing'
+import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
+import { ExitQueue } from '@artifacts/ExitQueue'
 
 describe('Integration: VeGovernance', () => {
   let sandbox: SinonSandbox
+
+  before(async () => {
+    await UnitDepUtils.registerPluginRepos()
+  })
   beforeEach(() => {
     sandbox = sinon.createSandbox()
     sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
@@ -22,21 +29,17 @@ describe('Integration: VeGovernance', () => {
     sandbox && sandbox.restore()
   })
 
-  before(async () => {
-    await UnitDepUtils.registerPluginRepos()
-  })
-
   it('should install veGovernace dao on ethereum-sepolia', async function () {
     this.timeout(10000000)
 
     sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation').resolves(null as any)
 
-    const daoInstallTx = '0x87a6fb27a21b7e9bb9939538f833f7e8b16d4aa25843d82a1e0a6f32b39cdb85'
-    const preparTxLog = '0xf01734063133bbd90e90ce1d4ddc7b3225ec7a967b2368ff5053a7a8316a5bf1'
-    const appliedTxLog = '0x3eb83755de968d65c02587e0f4b49d1443e17a03ed39441f9bb3d64e4f04ea05'
+    const daoInstallTx = '0xe1cc02b4d2400658711f1c87ee2ce108ef2cb7862423892211eb828bfc7165f1'
+    const preparTxLog = '0xe5547f3c864ff4d2e38133ec2ea17429e73541a2d2177913705127c3ecf144e7'
+    const appliedTxLog = '0x093e19edb2f247790741fe4dc78d82389e0e330f92d51f5f3d56a29b1d33e78b'
 
-    const daoAddress = '0x5810b858A6d6b4F5F570932FD31F2eA087f29109'
-    const pluginAddressTokenVoting = '0x2455D92D9f773E8bb9e6bcaD66D96De5222F9E6F'
+    const daoAddress = '0x1EC71803dfD1e53188C7c446F171f9239C2DF073'
+    const pluginAddressTokenVoting = '0x6c543e5213da4a5B9aC3A808374ad1E17Ca3B88c'
     const network = NetworksEnum.ethereumSepolia
 
     const daoRegisteredEvents = await UnitDepUtils.getData(DAORegistry.abi, 'DAORegistered', daoInstallTx, network)
@@ -90,18 +93,19 @@ describe('Integration: VeGovernance', () => {
     expect(tokenPlugin.interfaceType).to.eq(IPluginInterfaceType.tokenVoting)
     expect(tokenPlugin.status).to.eq(IPluginStatus.installed)
     expect(tokenPlugin.isSupported).to.be.true
-    expect(tokenPlugin.votingEscrow.curveAddress).to.eq('0xA12D04De2Cc8FCCA2f2fD019a2851571b579767d')
-    expect(tokenPlugin.votingEscrow.exitQueueAddress).to.eq('0x9c1d97357B2E5Cf8428E7B7Df314b79Fd8dD7282')
-    expect(tokenPlugin.votingEscrow.escrowAddress).to.eq('0xe398B1b8863345Ce681E0f9246EeF168b538C8f6')
-    expect(tokenPlugin.votingEscrow.clockAddress).to.eq('0x81Bd8F94F258eFf9Abe045c57C750440A088049e')
-    expect(tokenPlugin.votingEscrow.nftLockAddress).to.eq('0xAd5B5340bb1f61870Ec3956DE26A8B6BD3e1b931')
+    expect(tokenPlugin.votingEscrow.curveAddress).to.eq('0x411eBcc6F366f89D2b639CFD41fDEE60151E0f0a')
+    expect(tokenPlugin.votingEscrow.exitQueueAddress).to.eq('0x334ea5a1Ec1F77C6f76962C436ca39072cd70b80')
+    expect(tokenPlugin.votingEscrow.escrowAddress).to.eq('0xC80fB31F6E83098b9240B47b377370048613C4F2')
+    expect(tokenPlugin.votingEscrow.clockAddress).to.eq('0x3121Ac3E0A21Fad090A37799D49A089B9B692322')
+    expect(tokenPlugin.votingEscrow.nftLockAddress).to.eq('0x3D2732736289341746A4C0FE32408863e9CBFf02')
+    expect(tokenPlugin.votingEscrow.underlying).to.eq('0x54686256DC19b0c07A72B5054F6F9Ec42A6e52c7')
 
     const token = await Models.Token.findOne({ address: tokenPlugin.tokenAddress, network })
     expect(token.type).to.eq(ITokenType.escrowAdapter)
     expect(token.isGovernance).to.be.true
 
     const tokenVotingSlug = await Models.PluginSlug.findOne({ pluginAddress: pluginAddressTokenVoting, network })
-    expect(tokenVotingSlug.slug).to.eq('lock')
+    expect(tokenVotingSlug.slug).to.eq('mama')
 
     const activeSettings = await Models.Setting.findActive({
       daoAddress,
@@ -109,9 +113,39 @@ describe('Integration: VeGovernance', () => {
       network,
     })
     expect(activeSettings.votingEscrow.minDeposit).to.eq('100000000000000000000')
-    expect(activeSettings.votingEscrow.minLockTime).to.eq(864000)
-    expect(activeSettings.votingEscrow.maxTime).to.eq(0)
-    expect(activeSettings.votingEscrow.slope).to.eq(0)
-    expect(activeSettings.votingEscrow.cooldown).to.eq(259200)
+    expect(activeSettings.votingEscrow.minLockTime).to.eq(60)
+    expect(activeSettings.votingEscrow.maxTime).to.eq(6048000)
+    expect(activeSettings.votingEscrow.slope.toString()).to.eq('1653439153439')
+    expect(activeSettings.votingEscrow.bias.toString()).to.eq('1000000000000000000')
+    expect(activeSettings.votingEscrow.cooldown).to.eq(60)
+
+    const depositTx = '0xd2d324dd4821354768bfbe8b9a61edc628d12e9ffbcd72f00cebb6c566aab161'
+    const depositMintNftId = '6'
+    const memberAddress = '0x6818013d7B2D49D7396BA9733b59C539A639f3ED'
+
+    const depositEvents = await UnitDepUtils.getData(VotingEscrowIncreasing.abi, 'Deposit', depositTx, network)
+
+    for (const { event, logInfo } of depositEvents) {
+      await GovernanceVeHandler.deposit(event, logInfo)
+    }
+
+    const locks = await Models.Lock.find({
+      pluginAddress: pluginAddressTokenVoting,
+      tokenAddress: tokenPlugin.tokenAddress,
+      network,
+    })
+    expect(locks[0].tokenId).to.eq(depositMintNftId)
+    expect(locks[0].memberAddress).to.eq(memberAddress)
+
+    const exitQueueTx = '0x8ce4405c3c255f5bb4de37175328f92aa14c0ade8d6361125800a49b942230c2'
+
+    const exitQueueEvents = await UnitDepUtils.getData(ExitQueue.abi, 'ExitQueued', exitQueueTx, network)
+
+    for (const { event, logInfo } of exitQueueEvents) {
+      await GovernanceVeHandler.exitQueued(event, logInfo)
+    }
+
+    const updatedLock = await locks[0].reload()
+    expect(updatedLock.lockExit.status).to.be.true
   })
 })
