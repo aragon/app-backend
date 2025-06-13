@@ -303,7 +303,7 @@ export const GovernanceVeHandler = {
 
   exitQueued: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const plugin = await Models.Plugin.findOne({
-      'votingEscrow.escrowAddress': info.address,
+      'votingEscrow.exitQueueAddress': info.address,
       network: info.network,
     })
 

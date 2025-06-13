@@ -34,6 +34,10 @@ export class VotingEscrowSetting {
   @prop({ type: () => Number, default: null })
   public slope!: number
 
+  // Coefficient used for calculating the increasing voting power (set on the curve contract)
+  @prop({ type: () => Number, default: null })
+  public bias!: number
+
   // Time in seconds between unlock and withdrawal (actually not needed as the ExitQueued event already emits when the tokens can be withdrawn through the exitDate parameter)
   @prop({ type: () => Number, default: null })
   public cooldown!: number
