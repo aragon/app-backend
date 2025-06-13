@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Target deployment environment'
+        description: 'Target deployment server'
         required: true
         type: choice
         options:
