@@ -169,4 +169,119 @@ describe('Modules:PairDataModule', () => {
       expect(extraParams.proposalIndex).to.be.eq(1)
     })
   })
+
+  // Add these tests in the existing describe('pairFromExtraParams') block
+
+  describe('pairFromExtraParams with onlyActive', () => {
+    it('should populate pluginAddresses when daoId is provided and onlyActive is true', async () => {
+      const activePluginAddresses = ['0xPlugin1', '0xPlugin2', '0xPlugin3']
+      const findActivePluginsStub = sandbox
+        .stub(Models.Plugin, 'findActivePluginsByDaoAddress')
+        .resolves(activePluginAddresses as any)
+
+      const extraParams: any = {}
+      const pairParams = {
+        daoId: Models.Dao.getEntityId({ network: rawDao.network, address: rawDao.address } as any),
+        onlyActive: true,
+      }
+
+      const result = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
+
+      expect(findActivePluginsStub.calledOnce).to.be.true
+      expect(findActivePluginsStub.calledWith(rawDao.address, rawDao.network)).to.be.true
+      expect(result.pluginAddresses).to.deep.equal(activePluginAddresses)
+      expect(result.network).to.equal(rawDao.network)
+      expect(result.daoAddress).to.equal(rawDao.address)
+    })
+
+    it('should set empty array when onlyActive is true but no active plugins found', async () => {
+      const findActivePluginsStub = sandbox.stub(Models.Plugin, 'findActivePluginsByDaoAddress').resolves([])
+
+      const extraParams: any = {}
+      const pairParams = {
+        daoId: Models.Dao.getEntityId({ network: rawDao.network, address: rawDao.address } as any),
+        onlyActive: true,
+      }
+
+      const result = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
+
+      expect(findActivePluginsStub.calledOnce).to.be.true
+      expect(result.pluginAddresses).to.deep.equal([])
+      expect(result.network).to.equal(rawDao.network)
+      expect(result.daoAddress).to.equal(rawDao.address)
+    })
+
+    it('should not populate pluginAddresses when onlyActive is false', async () => {
+      const findActivePluginsStub = sandbox.stub(Models.Plugin, 'findActivePluginsByDaoAddress')
+
+      const extraParams: any = {}
+      const pairParams = {
+        daoId: Models.Dao.getEntityId({ network: rawDao.network, address: rawDao.address } as any),
+        onlyActive: false,
+      }
+
+      const result = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
+
+      expect(findActivePluginsStub.called).to.be.false
+      expect(result.pluginAddresses).to.be.undefined
+      expect(result.network).to.equal(rawDao.network)
+      expect(result.daoAddress).to.equal(rawDao.address)
+    })
+
+    it('should not populate pluginAddresses when onlyActive is not provided', async () => {
+      const findActivePluginsStub = sandbox.stub(Models.Plugin, 'findActivePluginsByDaoAddress')
+
+      const extraParams: any = {}
+      const pairParams = {
+        daoId: Models.Dao.getEntityId({ network: rawDao.network, address: rawDao.address } as any),
+      }
+
+      const result = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
+
+      expect(findActivePluginsStub.called).to.be.false
+      expect(result.pluginAddresses).to.be.undefined
+      expect(result.network).to.equal(rawDao.network)
+      expect(result.daoAddress).to.equal(rawDao.address)
+    })
+
+    it('should not call findActivePluginsByDaoAddress when daoId is not found', async () => {
+      const findActivePluginsStub = sandbox.stub(Models.Plugin, 'findActivePluginsByDaoAddress')
+
+      const extraParams: any = {}
+      const pairParams = {
+        daoId: 'non-existent-dao-id',
+        onlyActive: true,
+      }
+
+      const result = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
+
+      expect(findActivePluginsStub.called).to.be.false
+      expect(result.pluginAddresses).to.be.undefined
+      expect(result.network).to.be.undefined
+      expect(result.daoAddress).to.be.undefined
+    })
+
+    it('should handle onlyActive along with other pairParams', async () => {
+      const activePluginAddresses = ['0xActivePlugin1', '0xActivePlugin2']
+      const findActivePluginsStub = sandbox
+        .stub(Models.Plugin, 'findActivePluginsByDaoAddress')
+        .resolves(activePluginAddresses as any)
+
+      const extraParams: any = {}
+      const pairParams = {
+        daoId: Models.Dao.getEntityId({ network: rawDao.network, address: rawDao.address } as any),
+        ens: rawMember.ens as ENS,
+        onlyActive: true,
+      }
+
+      const result = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
+
+      expect(findActivePluginsStub.calledOnce).to.be.true
+      expect(findActivePluginsStub.calledWith(rawDao.address, rawDao.network)).to.be.true
+      expect(result.pluginAddresses).to.deep.equal(activePluginAddresses)
+      expect(result.network).to.equal(rawDao.network)
+      expect(result.daoAddress).to.equal(rawDao.address)
+      expect(result.memberAddress).to.equal(rawMember.address)
+    })
+  })
 })
