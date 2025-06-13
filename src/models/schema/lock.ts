@@ -143,6 +143,7 @@ export default class Lock extends Model {
       assert(!!rawData.logIndex || rawData.logIndex === 0, 'logIndex is required')
       assert(!!rawData.tokenAddress, 'tokenAddress is required')
       assert(!!rawData.memberAddress, 'memberAddress is required')
+      assert(!!rawData.tokenId, 'tokenId is required')
       rawData.id = this.getEntityId({
         network: rawData?.network!,
         transactionHash: rawData?.transactionHash!,
@@ -150,6 +151,7 @@ export default class Lock extends Model {
         logIndex: rawData?.logIndex!,
         tokenAddress: rawData?.tokenAddress!,
         memberAddress: rawData?.memberAddress!,
+        tokenId: rawData?.tokenId!,
       })
     }
     const data = new this(rawData)
@@ -157,7 +159,7 @@ export default class Lock extends Model {
   }
 
   static getEntityId(params: ILockIdParams) {
-    const entityId = `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}-${params.tokenAddress}-${params.memberAddress}`
+    const entityId = `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}-${params.tokenAddress}-${params.memberAddress}-${params.tokenId}`
     return entityId
   }
 
