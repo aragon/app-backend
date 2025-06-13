@@ -10,6 +10,7 @@ let stopping = false
 
 export function stopApps(instances: Array<{ app: IService }>, code: number, timeToKill = 20 * 1000) {
   setTimeout(() => {
+    if (typeof code !== 'number') code = 1
     process.exit(code) // eslint-disable-line no-process-exit
   }, timeToKill) // Force exit after timeout
 
