@@ -12,17 +12,10 @@ on:
           - development
           - staging
           - production
-      branch:
-        description: 'Source branch (defaults to current branch)'
-        required: false
-        type: string
-#  push:
-#    branches:
-#      - development
 env:
   # Global configuration
   DEPLOYMENT_USER: 'deploy'
-  DEPLOYMENT_PATH: 'app-backend-deploy'  # Relative to home directory
+  DEPLOYMENT_PATH: 'app-backend-deploy'
   ARCHIVE_NAME: 'deploy.tar.gz'
 
 jobs:
@@ -37,8 +30,8 @@ jobs:
       - name: Validate deployment parameters
         id: validate
         run: |
-          # Determine branch to deploy
-          BRANCH="${{ github.event.inputs.branch || github.ref_name }}"
+          # CHANGED: Always use the current branch
+          BRANCH="${{ github.ref_name }}"
           ENVIRONMENT="${{ github.event.inputs.environment }}"
           
           # If environment is not set (e.g., push trigger), default to sandbox
@@ -52,7 +45,7 @@ jobs:
           # Production deployments must be from main/master branch
           if [[ "$ENVIRONMENT" == "production" && "$BRANCH" != "main" ]]; then
             echo "❌ Production deployments must be from main"
-            echo "   Requested branch: $BRANCH"
+            echo "   Current branch: $BRANCH"
             exit 1
           fi
           
