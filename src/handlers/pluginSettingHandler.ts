@@ -483,8 +483,8 @@ export const PluginSettingHandler = {
       minLockTime: Number(minLockTime),
       cooldown: Number(cooldown),
       maxTime: Number(maxTime),
-      slope: Number(slope),
-      bias: Number(bias),
+      slope: slope.toString(),
+      bias: bias.toString(),
     }
   },
 
