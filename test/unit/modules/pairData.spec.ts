@@ -406,4 +406,92 @@ describe('Modules:PairDataModule', () => {
       expect(result.memberAddress).to.equal(rawMember.address)
     })
   })
+
+  describe('pairFromDaoMemberMapping', () => {
+    it('should find mappings with all parameters', async () => {
+      const mappings = [{ id: 1 }, { id: 2 }]
+      const findStub = sandbox.stub(Models.DaoMemberMapping, 'find').resolves(mappings as any)
+
+      const params = {
+        daoAddress: '0xDaoAddress' as any,
+        network: NetworksEnum.ethereumSepolia,
+        pluginAddress: '0xPluginAddress' as any,
+        tokenAddress: '0xTokenAddress' as any,
+        memberAddress: '0xMemberAddress' as any,
+      }
+
+      const result = await PairDataModule.pairFromDaoMemberMapping(params)
+
+      expect(findStub.calledOnce).to.be.true
+      expect(findStub.calledWith(params)).to.be.true
+      expect(result).to.deep.equal(mappings)
+    })
+
+    it('should find mappings with partial parameters', async () => {
+      const mappings = [{ id: 1 }]
+      const findStub = sandbox.stub(Models.DaoMemberMapping, 'find').resolves(mappings as any)
+
+      const params = {
+        daoAddress: '0xDaoAddress' as any,
+        memberAddress: '0xMemberAddress' as any,
+      }
+
+      const result = await PairDataModule.pairFromDaoMemberMapping(params)
+
+      expect(findStub.calledOnce).to.be.true
+      expect(findStub.calledWith(params)).to.be.true
+      expect(result).to.deep.equal(mappings)
+    })
+
+    it('should include network when provided with other params', async () => {
+      const mappings = [{ id: 1 }]
+      const findStub = sandbox.stub(Models.DaoMemberMapping, 'find').resolves(mappings as any)
+
+      const params = {
+        network: NetworksEnum.ethereumSepolia,
+        daoAddress: '0xDaoAddress' as any,
+      }
+
+      const result = await PairDataModule.pairFromDaoMemberMapping(params)
+
+      expect(findStub.calledOnce).to.be.true
+      expect(findStub.calledWith(params)).to.be.true
+      expect(result).to.deep.equal(mappings)
+    })
+
+    it('should include network when only network is provided', async () => {
+      const findStub = sandbox.stub(Models.DaoMemberMapping, 'find').resolves([])
+
+      const params = {
+        network: NetworksEnum.ethereumSepolia,
+      }
+
+      const result = await PairDataModule.pairFromDaoMemberMapping(params)
+
+      expect(findStub.calledOnceWith(params)).to.be.true
+      expect(result.length).to.eq(0)
+    })
+
+    it('should return empty array when no parameters provided', async () => {
+      const findStub = sandbox.stub(Models.DaoMemberMapping, 'find')
+
+      const result = await PairDataModule.pairFromDaoMemberMapping({})
+
+      expect(findStub.called).to.be.false
+      expect(result).to.deep.equal([])
+    })
+
+    it('should return empty array when mappings not found', async () => {
+      const findStub = sandbox.stub(Models.DaoMemberMapping, 'find').resolves([])
+
+      const params = {
+        daoAddress: '0xNonExistentDao' as any,
+      }
+
+      const result = await PairDataModule.pairFromDaoMemberMapping(params)
+
+      expect(findStub.calledOnce).to.be.true
+      expect(result).to.deep.equal([])
+    })
+  })
 })

@@ -124,5 +124,48 @@ const PairDataModule = {
 
     return extraParams
   },
+
+  async pairFromDaoMemberMapping({
+    daoAddress,
+    network,
+    pluginAddress,
+    tokenAddress,
+    memberAddress,
+  }: {
+    daoAddress?: HexAddress
+    pluginAddress?: HexAddress
+    tokenAddress?: HexAddress
+    memberAddress?: HexAddress
+    network?: NetworksEnum
+  }) {
+    const params: any = {}
+
+    if (daoAddress) {
+      params.daoAddress = daoAddress
+    }
+
+    if (pluginAddress) {
+      params.pluginAddress = pluginAddress
+    }
+
+    if (tokenAddress) {
+      params.tokenAddress = tokenAddress
+    }
+
+    if (memberAddress) {
+      params.memberAddress = memberAddress
+    }
+
+    if (network) {
+      params.network = network
+    }
+
+    if (Object.keys(params).length > 0) {
+      const mappings = (await Models.DaoMemberMapping.find(params)) || []
+      return mappings
+    }
+
+    return []
+  },
 }
 export default PairDataModule
