@@ -79,6 +79,7 @@ describe('Model: Lock', () => {
         logIndex: rawLock.logIndex!,
         tokenAddress: rawLock.tokenAddress!,
         memberAddress: rawLock.memberAddress!,
+        tokenId: rawLock.tokenId!,
       })
 
       const lock = await Models.Lock.create(rawLock)
@@ -104,6 +105,7 @@ describe('Model: Lock', () => {
         logIndex: rawLock.logIndex!,
         tokenAddress: rawLock.tokenAddress!,
         memberAddress: rawLock.memberAddress!,
+        tokenId: rawLock.tokenId!,
       })
 
       rawLock.id = entityId
@@ -152,6 +154,7 @@ describe('Model: Lock', () => {
         logIndex: rawLock.logIndex!,
         tokenAddress: rawLock.tokenAddress!,
         memberAddress: rawLock.memberAddress!,
+        tokenId: rawLock.tokenId!,
       })
       const lockDb = await Models.Lock.create(rawLock)
       expect(entityId).to.eq(lockDb.id)
@@ -166,6 +169,7 @@ describe('Model: Lock', () => {
         logIndex: createdLock.logIndex!,
         tokenAddress: createdLock.tokenAddress!,
         memberAddress: createdLock.memberAddress!,
+        tokenId: rawLock.tokenId!,
       })
       expect(foundLock?.id).to.eq(createdLock.id)
     })
@@ -279,9 +283,10 @@ describe('Model: Lock', () => {
         logIndex: 1,
         tokenAddress: '0xtoken',
         memberAddress: '0xmember',
+        tokenId: '6',
       }
       const entityId = Models.Lock.getEntityId(params)
-      const expectedId = `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}-${params.tokenAddress}-${params.memberAddress}`
+      const expectedId = `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}-${params.tokenAddress}-${params.memberAddress}-${params.tokenId}`
       expect(entityId).to.eq(expectedId)
     })
   })
