@@ -12,7 +12,7 @@ import DaoMemberMapping from '@models/schema/daoMemberMapping'
 import type Dao from '@models/schema/dao'
 import { fakeMemberBalance } from '@test/mock/fakeMemberBalance'
 import MemberBalance from '@models/schema/memberBalance'
-import { EnumQueueName, HexAddress, IPluginInterfaceType } from '@types'
+import { HexAddress, IPluginInterfaceType } from '@types'
 import { NetworksEnum } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 
@@ -472,15 +472,7 @@ describe('Controller: Member', () => {
         },
       }
 
-      const batchResult = [
-        {
-          tokenId: 'token-456',
-          votingPower: '500000000000000000',
-        },
-      ]
-
       const lockSpy = sandbox.stub(Models.Lock, 'findWithPagination').resolves(expectedResponse)
-      const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').returns(batchResult as any)
 
       const extraParams = { memberAddress: rawMember.address }
       const paginationParams = { page: 1, pageSize: 10 }
@@ -488,61 +480,11 @@ describe('Controller: Member', () => {
       const response = await MemberController.getMemberLocks(extraParams, paginationParams)
 
       expect(lockSpy.calledOnce).to.be.true
-      expect(rabbitMqStub.calledOnce).to.be.true
-
-      expect(rabbitMqStub.args[0][0]).to.equal(EnumQueueName.getLockVotingPowerBatch)
-      expect(rabbitMqStub.args[0][1].params).to.deep.equal({
-        locks: [
-          {
-            lockId: mockLock.id,
-            tokenId: mockLock.tokenId,
-            network: mockLock.network,
-            escrowAddress: mockLock.escrowAddress,
-            timestamp: mockLock.blockTimestamp,
-          },
-        ],
-      })
 
       expect(response.data[0]).to.deep.include({
         ...mockLock,
-        votingPower: '500000000000000000',
       })
       expect(response.metadata).to.deep.equal(expectedResponse.metadata)
-    })
-
-    it('should handle locks without blockTimestamp by using current timestamp', async () => {
-      const currentTimestamp = Math.floor(Date.now() / 1000)
-      const mockLock = {
-        id: 'lock-123',
-        tokenId: 'token-456',
-        memberAddress: rawMember.address,
-        amount: '1000000000000000000',
-        pluginAddress: rawDaoMemberMapping.pluginAddress,
-        network: rawDaoMemberMapping.network,
-        escrowAddress: '0xEscrowAddress123',
-      }
-
-      const expectedResponse = {
-        data: [mockLock],
-        metadata: {
-          page: 1,
-          totalPages: 1,
-          totalRecords: 1,
-        },
-      }
-
-      sandbox.stub(Models.Lock, 'findWithPagination').resolves(expectedResponse)
-      const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').returns([
-        {
-          tokenId: 'token-456',
-          votingPower: '500000000000000000',
-        },
-      ] as any)
-
-      await MemberController.getMemberLocks()
-
-      const sentParams = rabbitMqStub.args[0][1].params.locks[0]
-      expect(sentParams.timestamp).to.be.closeTo(currentTimestamp, 2)
     })
   })
 })
