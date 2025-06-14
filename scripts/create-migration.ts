@@ -36,14 +36,13 @@ if (fs.existsSync(filepath)) {
   process.exit(1)
 }
 
-const template = `import { EnumConnection, type IService } from '@types'
+const template = `import { EnumConnection, type IMigration } from '@types'
 import logger from '@logger'
 import { Models } from '@dbModels'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: ${migrationName}' })
 
-export const ${migrationName}Migration: IService = {
-  NEED_CONNECTIONS: [EnumConnection.MONGODB],
+export const ${migrationName}Migration: IMigration = {
 
   start: async () => {
     logger.info('Starting migration', llo({ migration: '${filename}' }))
