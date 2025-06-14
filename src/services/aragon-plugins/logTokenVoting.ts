@@ -59,10 +59,10 @@ export const LogTokenVoting = {
       stopOnError: true,
     })
 
-    const escrowAdapterCrawler = new BlockchainLogCrawler({
+    const veGovernanceCrawler = new BlockchainLogCrawler({
       onlyHistorical: isHistorical,
       network: plugin.network,
-      events: [...configEscrowAdapterILogs],
+      events: [...configEscrowAdapterILogs, ...configEscrowILogs, ...configExitQueueLogs],
       address: [plugin.tokenAddress],
       fromBlock: plugin?.blockNumber,
       onError: async (error: any, log: any) => LogTokenVoting.processError(error, plugin, log),
@@ -70,36 +70,9 @@ export const LogTokenVoting = {
       stopOnError: true,
     })
 
-    const escrowCrawler = new BlockchainLogCrawler({
-      onlyHistorical: isHistorical,
-      network: plugin.network,
-      events: [...configEscrowILogs],
-      address: [plugin.votingEscrow?.escrowAddress!],
-      fromBlock: plugin?.blockNumber,
-      onError: async (error: any, log: any) => LogTokenVoting.processError(error, plugin, log),
-      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}-${plugin.votingEscrow?.escrowAddress}`,
-      stopOnError: true,
-    })
-
-    const exitQueueCrawler = new BlockchainLogCrawler({
-      onlyHistorical: isHistorical,
-      network: plugin.network,
-      events: [...configExitQueueLogs],
-      address: [plugin.votingEscrow?.exitQueueAddress!],
-      fromBlock: plugin?.blockNumber,
-      onError: async (error: any, log: any) => LogTokenVoting.processError(error, plugin, log),
-      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}-${plugin.votingEscrow?.exitQueueAddress}`,
-      stopOnError: true,
-    })
-
     logger.verbose('Start Token Sync', llo({ ...infoLogs, ...{ syncStrategy: 'BlockchainLogCrawler' } }))
 
-    const crawlers: any = [
-      pluginCrawler.crawl(),
-      escrowAdapterCrawler.crawl(),
-      escrowCrawler.crawl(),
-      exitQueueCrawler.crawl(),
-    ]
+    const crawlers: any = [pluginCrawler.crawl(), veGovernanceCrawler.crawl()]
 
     const startTime = Date.now()
     await Promise.all(crawlers)
@@ -111,9 +84,6 @@ export const LogTokenVoting = {
         syncStrategy: 'BlockchainLogCrawler',
         startTime,
         endTime: Date.now(),
-        lastExitQueueSyncBlock: exitQueueCrawler.crawlSetting.lastSync,
-        lastEscrowSyncBlock: escrowCrawler.crawlSetting.lastSync,
-        lastEscrowAdapterSyncBlock: escrowAdapterCrawler.crawlSetting.lastSync,
         lastPluginSyncBlock: pluginCrawler.crawlSetting.lastSync,
       }),
     )
