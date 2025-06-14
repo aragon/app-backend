@@ -37,6 +37,8 @@ export const lockMigration: IMigration = {
         }),
       )
 
+      if (settings.length === 0) return
+
       // remove all old locks
       await Models.Lock.deleteMany({})
 
