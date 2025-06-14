@@ -227,7 +227,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
       expect(processErrorStub.calledWith(error, pluginStub, { logIndex: 3, transactionHash: '0xhash3' })).to.be.true
     })
 
-    it('should start with escrow and exit queue crawlers when votingEscrow addresses are provided', async () => {
+    it('should start with veGovernance crawlers when votingEscrow addresses are provided', async () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
       const verboseStub = sandbox.stub(logger, 'verbose')
 
@@ -248,76 +248,11 @@ describe('AragonPlugins: LogTokenVoting', () => {
 
       await LogTokenVoting.start(plugin, token)
 
-      expect(crawlStub.callCount).to.equal(4) // plugin, escrowAdapter, escrow, and exit queue crawlers
+      expect(crawlStub.callCount).to.equal(2) // plugin, veGov crawlers
       expect(verboseStub.calledWith('Start LogTokenVoting veGovernance' as any)).to.be.true
     })
 
-    it('should start with only escrow crawler when only escrowAddress is provided', async () => {
-      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
-      const verboseStub = sandbox.stub(logger, 'verbose')
-
-      const token = {
-        address: '0x123',
-        network: NetworksEnum.ethereumSepolia,
-        type: ITokenType.escrowAdapter,
-      } as any
-      const plugin = {
-        address: '0x123',
-        tokenAddress: token.address,
-        network: token.network,
-        votingEscrow: {
-          escrowAddress: '0xEscrowAddress',
-        },
-      } as any
-
-      await LogTokenVoting.start(plugin, token)
-
-      expect(crawlStub.callCount).to.equal(4)
-      expect(verboseStub.calledWith('Start LogTokenVoting veGovernance' as any)).to.be.true
-    })
-
-    it('should handle errors from escrow crawler', async () => {
-      const pluginStub = {
-        address: '0x123',
-        tokenAddress: '0x456',
-        network: NetworksEnum.ethereumSepolia,
-        interfaceType: 'tokenVoting',
-        votingEscrow: {
-          escrowAddress: '0xEscrowAddress',
-          exitQueueAddress: '0xExitQueueAddress',
-        },
-      } as any
-
-      const tokenStub = {
-        address: '0x456',
-        network: NetworksEnum.ethereumSepolia,
-        type: ITokenType.escrowAdapter,
-      } as any
-
-      sandbox.stub(logger, 'verbose')
-      const error = new Error('Test error from escrow crawler')
-
-      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl')
-      crawlStub.onCall(0).resolves() // plugin crawler
-      crawlStub.onCall(1).resolves() // escrowAdapter crawler
-      crawlStub.onCall(2).callsFake(async function (this: BlockchainLogCrawler): Promise<any> {
-        // escrow crawler
-        if ((this as any).crawlParams.onError) {
-          await (this as any).crawlParams.onError(error, { logIndex: 3, transactionHash: '0xhash3' })
-        }
-      })
-      crawlStub.onCall(3).resolves() // exit queue crawler
-
-      const processErrorStub = sandbox.stub(LogTokenVoting, 'processError').resolves()
-
-      await LogTokenVoting.start(pluginStub, tokenStub)
-
-      expect(crawlStub.callCount).to.equal(4)
-      expect(processErrorStub.calledOnce).to.be.true
-      expect(processErrorStub.calledWith(error, pluginStub, { logIndex: 3, transactionHash: '0xhash3' })).to.be.true
-    })
-
-    it('should handle errors from exit queue crawler', async () => {
+    it('should handle errors from veGovernance crawler', async () => {
       const pluginStub = {
         address: '0x123',
         tokenAddress: '0x456',
@@ -340,10 +275,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
 
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl')
       crawlStub.onCall(0).resolves() // plugin crawler
-      crawlStub.onCall(1).resolves() // escrowAdapter crawler
-      crawlStub.onCall(2).resolves() // escrow crawler
-      crawlStub.onCall(3).callsFake(async function (this: BlockchainLogCrawler): Promise<any> {
-        // exit queue crawler
+      crawlStub.onCall(1).callsFake(async function (this: BlockchainLogCrawler): Promise<any> {
         if ((this as any).crawlParams.onError) {
           await (this as any).crawlParams.onError(error, { logIndex: 4, transactionHash: '0xhash4' })
         }
@@ -353,7 +285,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
 
       await LogTokenVoting.start(pluginStub, tokenStub)
 
-      expect(crawlStub.callCount).to.equal(4)
+      expect(crawlStub.callCount).to.equal(2)
       expect(processErrorStub.calledOnce).to.be.true
       expect(processErrorStub.calledWith(error, pluginStub, { logIndex: 4, transactionHash: '0xhash4' })).to.be.true
     })
@@ -379,7 +311,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
 
       await LogTokenVoting.start(plugin, token, true) // Pass isHistorical = true
 
-      expect(crawlStub.callCount).to.equal(4) // plugin, escrowAdapter, escrow, and exit queue crawlers
+      expect(crawlStub.callCount).to.equal(2) // plugin, escrowAdapter, escrow, and exit queue crawlers
       expect(verboseStub.calledWith('Start LogTokenVoting veGovernance' as any)).to.be.true
     })
 
@@ -450,7 +382,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
 
       await LogTokenVoting.veGovernance(plugin, token)
 
-      expect(crawlStub.callCount).to.equal(4)
+      expect(crawlStub.callCount).to.equal(2)
       expect(verboseStub.calledWith('Start LogTokenVoting veGovernance' as any)).to.be.true
       expect(verboseStub.calledWith('End LogTokenVoting veGovernance' as any)).to.be.true
     })
