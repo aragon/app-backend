@@ -7,7 +7,7 @@ import logger from '@logger'
 import { IMigrationStatus } from '@types'
 import proxyquire from 'proxyquire'
 
-describe.only('MigrationService', () => {
+describe('MigrationService', () => {
   let sandbox: SinonSandbox
   let loggerInfoStub: SinonStub
   let loggerErrorStub: SinonStub
