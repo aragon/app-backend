@@ -1041,7 +1041,7 @@ describe('Module: blockchainLogCrawler', () => {
       }
     })
 
-    it.only('should return error object when batch size error occurs', async () => {
+    it('should return error object when batch size error occurs', async () => {
       const crawler = new BlockchainLogCrawler(crawlerConfig)
 
       sandbox.stub(crawler, 'getProviderUrl').resolves('https://ethereum-rpc.com')
@@ -1064,7 +1064,7 @@ describe('Module: blockchainLogCrawler', () => {
       expect(result).to.deep.equal([{ error: batchSizeError }])
     })
 
-    it.only('should throw error when it is not a batch size error', async () => {
+    it('should throw error when it is not a batch size error', async () => {
       const crawler = new BlockchainLogCrawler(crawlerConfig)
 
       sandbox.stub(crawler, 'getProviderUrl').resolves('https://ethereum-rpc.com')
