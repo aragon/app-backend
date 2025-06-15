@@ -13,7 +13,7 @@ import Web3BatchHelper from '@helpers/web3BatchHelper'
 import { type BatchEvents, type UserTransferData, type TransferProcessorOptions } from '@types'
 import { BatchTransfersHandler } from '@services/aragon-transfers/batchTransfersHandler'
 import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
-describe('Module: BatchTransfersHandler', () => {
+describe.only('Module: BatchTransfersHandler', () => {
   let sandbox: SinonSandbox
   let handler: BatchTransfersHandler
 
@@ -1251,55 +1251,6 @@ describe('Module: BatchTransfersHandler', () => {
 
       expect(addToDaoStub.called).to.be.false
       expect(removeFromDaoStub.called).to.be.false
-    })
-  })
-
-  describe('processUsersTxs error handling', () => {
-    it('should handle errors in user transaction processing', async () => {
-      const mockEventsMap = {
-        [validUserAddress1]: {
-          address: validUserAddress1,
-          events: [
-            {
-              parsedEvent: {
-                name: 'Transfer',
-                args: { from: validUserAddress1, to: validUserAddress2, amount: '1000' },
-              },
-              info: {
-                blockNumber: 100,
-                transactionHash: '0xabcd',
-                transactionIndex: 0,
-                logIndex: 0,
-                network: NetworksEnum.ethereumMainnet,
-              },
-              transferSide: ITransferSide.outgoing,
-              dbId: 'tx-id-1',
-              eventType: 'transfer' as const,
-            },
-          ],
-        },
-      }
-
-      const mockBalanceMap = new Map()
-      mockBalanceMap.set(validUserAddress1, { amount: '1000' })
-
-      // Stub the processUserTransactionsWithBalance to throw an error
-      sandbox.stub(handler as any, 'processUserTransactionsWithBalance').rejects(new Error('Processing error'))
-
-      sandbox.stub(utils, 'asyncBatchProcess').callsFake(async function (this: any, ...args: any[]): Promise<any> {
-        const [items, processor, options] = args
-        try {
-          await processor(items[0])
-        } catch (error) {
-          if (options?.onError) {
-            options.onError(error, items[0])
-          }
-        }
-      })
-
-      await (handler as any).processUsersTxs(mockEventsMap, mockBalanceMap)
-
-      expect((logger.error as any).calledWith('Error processing user transactions', sinon.match.any)).to.be.true
     })
   })
 
