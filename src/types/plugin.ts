@@ -64,7 +64,8 @@ export interface ISettingVotingEscrow {
   minLockTime: number
   cooldown: number
   maxTime: number
-  slope: number
+  slope: string
+  bias: string
 }
 
 export enum ISettingStatus {

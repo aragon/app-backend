@@ -74,7 +74,7 @@ class BlockchainLogCrawler {
     )
   }
 
-  async crawl(): Promise<Log[] | undefined> {
+  async crawl(): Promise<IFormattedLog[] | undefined> {
     if (this.crawlSetting.crawling) {
       throw new Error('Already crawling')
     }
@@ -88,7 +88,7 @@ class BlockchainLogCrawler {
     let latestBlock = await Web3Helper.getBlockNumber(this.crawlSetting.filter.toBlock, this.crawlParams.network)
     latestBlock = this.getOffsetToBlockNumber(latestBlock)
 
-    const rawLogs: Log[] = []
+    const rawLogs: IFormattedLog[] = []
     let allLogs: Log[] = []
 
     if (currentBlock === latestBlock) {
@@ -142,7 +142,7 @@ class BlockchainLogCrawler {
         } else if (!this.crawlParams.skipLogProcessing) {
           await this.processLogs(sortedLogs, { fromBlock: currentBlock, toBlock, latestBlock })
         } else {
-          sortedLogs?.map(log => rawLogs.push(log))
+          sortedLogs?.map(log => rawLogs.push(this.formatLog(log)))
         }
 
         if (this.crawlParams.logService) {
@@ -158,11 +158,11 @@ class BlockchainLogCrawler {
       }
     }
 
-    this.crawlSetting.crawling = false
     if (this.crawlParams.skipLogProcessing) {
       return rawLogs
     }
 
+    this.crawlSetting.crawling = false
     if (!this.crawlParams.filterLogs) {
       logger.verbose('Finished crawling logs', llo({ ...this.parseCrawlerInfoLog() }))
     }
@@ -677,6 +677,7 @@ class BlockchainLogCrawler {
       'Log response size exceeded',
       'Consider reducing your block range',
       'Response is too big',
+      'Query returned more than 1000000 results',
     ]
 
     return messages.some(msg => error.message?.includes(msg))
