@@ -13,7 +13,8 @@ import Web3BatchHelper from '@helpers/web3BatchHelper'
 import { type BatchEvents, type UserTransferData, type TransferProcessorOptions } from '@types'
 import { BatchTransfersHandler } from '@services/aragon-transfers/batchTransfersHandler'
 import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
-describe.only('Module: BatchTransfersHandler', () => {
+
+describe('Module: BatchTransfersHandler', () => {
   let sandbox: SinonSandbox
   let handler: BatchTransfersHandler
 
