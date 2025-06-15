@@ -678,6 +678,7 @@ class BlockchainLogCrawler {
       'Log response size exceeded',
       'Consider reducing your block range',
       'Query returned more than 1000000 results',
+      'Cannot create a string longer',
     ]
 
     return messages.some(msg => error.message?.includes(msg))
