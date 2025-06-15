@@ -1554,5 +1554,15 @@ describe('Module: blockchainLogCrawler', () => {
 
       expect(offset).to.equal(200)
     })
+
+    it('should check if the error is batch error', async () => {
+      const crawler = new BlockchainLogCrawler(crawlerConfig)
+
+      const batchSizeError = new Error('Query returned more than 1000000 results')
+
+      const isBatchSizeError = crawler.isBatchSizeError(batchSizeError)
+
+      expect(isBatchSizeError).to.be.true
+    })
   })
 })
