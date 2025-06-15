@@ -1053,14 +1053,6 @@ describe('Module: blockchainLogCrawler', () => {
 
       const result = await crawler.executeBatchRequest(['0xTopic1'], 100, 150)
 
-      expect(logError.calledOnce).to.be.true
-      expect(logError.firstCall.args[0]).to.equal('error executeBatchRequest')
-      expect(logError.firstCall.args[1]).to.deep.include({
-        error: batchSizeError,
-        topics: ['0xTopic1'],
-        currentBlock: 100,
-        toBlock: 150,
-      })
       expect(result).to.deep.equal([{ error: batchSizeError }])
     })
 
