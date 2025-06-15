@@ -2,31 +2,88 @@ import logger from '@logger'
 import axios from 'axios'
 import ProviderModule from '@src/modules/provider'
 import { ethers } from 'ethers'
-import { type NetworksEnum, type HexAddress } from '@src/types'
-import Web3Helper from './web3'
-
-interface BatchRequestItem {
-  method: string
-  params: any[]
-  identifier: any
-}
-
-interface BatchResponse<T> {
-  identifier: any
-  success: boolean
-  data: T | null
-  error?: any
-}
+import { type NetworksEnum, type HexAddress, type BatchRequestItem, type BatchResponse } from '@src/types'
+import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3BatchHelper' })
 
 const Web3BatchHelper = {
   /**
-   * Execute a batch of JSON-RPC requests
+   * Execute a batch of RPC requests
+   * This method is designed to handle large batches efficiently
+   * The maximum allowed batch size is around 1000 items
+   * But to avoid hitting limits, we split into smaller batches of 500
+   * If we hit limit we might get the error "Response size is too large"
+   * @param requests
+   * @param network
    */
   async executeBatch<T>(requests: BatchRequestItem[], network: NetworksEnum): Promise<BatchResponse<T>[]> {
     if (requests.length === 0) return []
 
+    if (requests.length <= 500) {
+      return this._executeSingleBatch(requests, network)
+    }
+
+    const batches: BatchRequestItem[][] = []
+    for (let i = 0; i < requests.length; i += 500) {
+      batches.push(requests.slice(i, i + 500))
+    }
+
+    const allResults: BatchResponse<T>[] = []
+
+    for (let i = 0; i < batches.length; i += 3) {
+      const currentBatches = batches.slice(i, Math.min(i + 3, batches.length))
+
+      const batchPromises = currentBatches.map(async batch => this._executeSingleBatch<T>(batch, network))
+
+      const batchResults = await Promise.allSettled(batchPromises)
+
+      batchResults.forEach((result, index) => {
+        const batch = currentBatches[index]
+
+        if (result.status === 'fulfilled') {
+          allResults.push(...result.value)
+        } else {
+          logger.error('Batch processing failed', llo({ network, error: result.reason, batchIndex: i + index }))
+          for (const request of batch) {
+            allResults.push({
+              identifier: request.identifier,
+              success: false,
+              data: null,
+              error: result.reason,
+            })
+          }
+        }
+      })
+    }
+
+    return allResults
+  },
+
+  /**
+   * Process a single request (used by asyncBatchProcess)
+   * @param request
+   * @param network
+   */
+  async _processSingleRequest(request: BatchRequestItem, network: NetworksEnum): Promise<BatchResponse<any>> {
+    try {
+      const result = await this._executeSingleBatch([request], network)
+      return result[0]
+    } catch (error) {
+      return {
+        identifier: request.identifier,
+        success: false,
+        data: null,
+        error,
+      }
+    }
+  },
+
+  /**
+   * Execute a single batch (up to around 1000 items)
+   * This method is used internally and should not be called directly
+   */
+  async _executeSingleBatch<T>(requests: BatchRequestItem[], network: NetworksEnum): Promise<BatchResponse<T>[]> {
     try {
       const providerUrl = await ProviderModule.getProviderUrl(network)
 
@@ -37,21 +94,9 @@ const Web3BatchHelper = {
         params: req.params,
       }))
 
-      const startTime = Date.now()
-
       const response = await axios.post(providerUrl!, batchRequests, {
         headers: { 'Content-Type': 'application/json' },
       })
-
-      logger.info(
-        'Batch request completed',
-        llo({
-          network,
-          method: requests[0].method,
-          requestCount: requests.length,
-          duration: Date.now() - startTime,
-        }),
-      )
 
       return requests.map((req, index) => {
         const rpcResult = response.data[index]
@@ -83,6 +128,9 @@ const Web3BatchHelper = {
 
   /**
    * Helper method for encoding function calls
+   * @param functionSignature - The function signature (e.g., "transfer(address,uint256)")
+   * @param paramTypes - Array of parameter types (e.g., ["address", "uint256"])
+   * @param paramValues - Array of parameter values (e.g., ["0x123...", 1000])
    */
   encodeFunction(functionSignature: string, paramTypes: string[], paramValues: any[]): string {
     const functionSelector = '0x' + ethers.keccak256(ethers.toUtf8Bytes(functionSignature)).slice(2, 10)
@@ -126,8 +174,11 @@ const Web3BatchHelper = {
   },
 
   /**
-   * Example method for getting voting power in batch
+   * Get Voting power and balance of users
+   * @param batchParams
+   * @param network
    */
+
   async getLockVotingPowerAtInBatch(
     batchParams: Array<{
       escrowAddress: HexAddress
@@ -360,6 +411,8 @@ const Web3BatchHelper = {
 
       return results
     } catch (error) {
+      logger.error('Error in getVotingPowerAndBalancesInBatch', llo({ network, error }))
+
       const results: Record<
         string,
         {
