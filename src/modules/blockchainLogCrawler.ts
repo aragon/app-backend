@@ -677,6 +677,7 @@ class BlockchainLogCrawler {
       'Response size is larger than 150MB limit',
       'Log response size exceeded',
       'Consider reducing your block range',
+      'Query returned more than 1000000 results',
     ]
 
     return messages.some(msg => error.message?.includes(msg))
