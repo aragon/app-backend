@@ -38,11 +38,15 @@ describe('Router: Proposal', () => {
         order: 'asc',
         sort: 'createdAt',
       }
+      const pairParams = {
+        onlyActive: true,
+        daoId: '0x0',
+      }
 
       const stubCtrl = sandbox.stub(ProposalController, 'getProposalsWithPagination').returns(true as any)
 
       const ctx: any = {
-        query: { ...filterParams, ...paginationParams },
+        query: { ...filterParams, ...paginationParams, ...pairParams },
       }
 
       await ProposalRouter.getWithPagination(ctx)
@@ -59,6 +63,7 @@ describe('Router: Proposal', () => {
       }
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
       expect(stubCtrl.args[0][1]).to.deep.eq(filterParams)
+      expect(stubCtrl.args[0][2]).to.deep.eq(pairParams)
     })
 
     it('Should get proposal with pagination - daoId', async () => {

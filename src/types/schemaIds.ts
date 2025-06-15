@@ -33,6 +33,7 @@ export interface ILockIdParams {
   logIndex: number
   tokenAddress: HexAddress
   memberAddress: HexAddress
+  tokenId: string
 }
 
 export interface IAssetIdParams {

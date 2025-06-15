@@ -136,7 +136,7 @@ jobs:
           eval "$(ssh-agent -s)"
           ssh-add ~/.ssh/id_rsa
           bash app-backend/.github/workflows/deployment/deployment.sh -u "${{ steps.op-server-secrets.outputs.SERVER_USERNAME }}" -m "${{ steps.op-server-secrets.outputs.SERVER_URL }}"
-      
+
       - name: Reset envs
         run: |
               echo "OP_SERVER_USERNAME=" >> $GITHUB_ENV
@@ -144,7 +144,7 @@ jobs:
               echo "OP_SERVER_CERT=" >> $GITHUB_ENV
               echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=" >> $GITHUB_ENV
 
-              
+
       - name: Dispatch E2E tests
         uses: aragon/app-qa/.github/actions/dispatch@main
         with:

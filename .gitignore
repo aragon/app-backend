@@ -10,3 +10,4 @@
 environments
 aws-new
 remote
+.env.docker

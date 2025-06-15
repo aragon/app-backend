@@ -435,8 +435,8 @@ describe('Helpers: GovernanceVe', () => {
     })
   })
 
-  describe('getSlopeFromCoefficients', () => {
-    it('Should make a successful getSlopeFromCoefficients call', async () => {
+  describe('getSettingFromCoefficients', () => {
+    it('Should make a successful getSettingFromCoefficients call', async () => {
       const stubConfigState = {
         getConfigItem: sandbox.stub().returns({}),
       }
@@ -454,12 +454,13 @@ describe('Helpers: GovernanceVe', () => {
         },
       })
 
-      const result = await MockedGovernanceVeHelper.getSlopeFromCoefficients('0x123', NetworksEnum.ethereumMainnet)
-      expect(result).to.eq(1000000000000000000n)
+      const result = await MockedGovernanceVeHelper.getSettingFromCoefficients('0x123', NetworksEnum.ethereumMainnet)
+      expect(result.bias).to.eq(0n)
+      expect(result.slope).to.eq(1000000000000000000n)
       expect(getCoefficientsStub.calledOnce).to.be.true
     })
 
-    it('should handle errors in getSlopeFromCoefficients', async () => {
+    it('should handle errors in getSettingFromCoefficients', async () => {
       const expectedResult = new Error('RPC Call Failed')
       const getCoefficientsStub = sandbox.stub().rejects(expectedResult)
 
@@ -471,8 +472,9 @@ describe('Helpers: GovernanceVe', () => {
         },
       })
 
-      const result = await MockedGovernanceVeHelper.getSlopeFromCoefficients('0x123', NetworksEnum.ethereumMainnet)
-      expect(result).to.eq(0n)
+      const result = await MockedGovernanceVeHelper.getSettingFromCoefficients('0x123', NetworksEnum.ethereumMainnet)
+      expect(result.slope).to.eq(0n)
+      expect(result.bias).to.eq(0n)
       expect(getCoefficientsStub.calledOnce).to.be.true
     })
   })

@@ -259,6 +259,14 @@ export default class Plugin extends Model {
       .exec()
   }
 
+  static async findActivePluginsByDaoAddress(daoAddress: HexAddress, network: NetworksEnum) {
+    return await this.find({
+      daoAddress,
+      network,
+      status: IPluginStatus.installed,
+    }).exec()
+  }
+
   static async getPluginIdBySlugAndDao(slug: string, daoAddress: HexAddress, network: NetworksEnum) {
     const plugin: any = await this.aggregate([
       {
