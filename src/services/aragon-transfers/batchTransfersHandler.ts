@@ -124,29 +124,12 @@ export class BatchTransfersHandler {
     eventsMap: Record<string, UserTransferData>,
     balanceMap: Map<string, MemberBalance>,
   ): Promise<void> {
-    await utils.asyncBatchProcess(
-      Object.keys(eventsMap),
-      async (address: HexAddress) => {
+    await Promise.all(
+      Object.keys(eventsMap).map(async (address: HexAddress) => {
         const userData = eventsMap[address]
         const memberBalance = balanceMap.get(address)
         await this.processUserTransactionsWithBalance(userData, memberBalance!)
-      },
-      {
-        concurrency: this.options.parallelUsers,
-        batchSize: this.options.batchSize,
-        stopOnError: false,
-        onError: (error: any, address: HexAddress) => {
-          logger.error(
-            'Error processing user transactions',
-            llo({
-              error,
-              address,
-              network: this.network,
-              tokenAddress: this.tokenAddress,
-            }),
-          )
-        },
-      },
+      }),
     )
   }
 
