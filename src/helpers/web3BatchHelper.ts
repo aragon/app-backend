@@ -2,7 +2,13 @@ import logger from '@logger'
 import axios from 'axios'
 import ProviderModule from '@src/modules/provider'
 import { ethers } from 'ethers'
-import { type NetworksEnum, type HexAddress, type BatchRequestItem, type BatchResponse } from '@src/types'
+import {
+  type NetworksEnum,
+  type HexAddress,
+  type BatchRequestItem,
+  type BatchResponse,
+  type IWeb3TokenBalance,
+} from '@src/types'
 import Web3Helper from '@helpers/web3'
 import config from '@config'
 
@@ -380,7 +386,6 @@ const Web3BatchHelper = {
 
       return timestampMap
     } catch (error) {
-      logger.error('Error in getBlocksTimestamps', llo({ from, to, network, error }))
       return {}
     }
   },
@@ -554,9 +559,7 @@ const Web3BatchHelper = {
 
       for (const result of results) {
         if (result.success && result.data) {
-          // Convert hex to decimal string
-          const balance = BigInt(result.data).toString()
-          balances[result.identifier] = balance
+          balances[result.identifier] = BigInt(result.data).toString()
         } else {
           balances[result.identifier] = '0'
         }
@@ -564,9 +567,6 @@ const Web3BatchHelper = {
 
       return balances
     } catch (error) {
-      logger.error('Error in getNativeBalancesInBatch', llo({ addresses, network, error }))
-
-      // Return zero balances for all addresses on error
       const balances: Record<string, string> = {}
       addresses.forEach(address => {
         balances[address] = '0'
@@ -613,7 +613,6 @@ const Web3BatchHelper = {
             tokenBalances[address] = []
           }
         } catch (error) {
-          logger.error('Error fetching token balances for address', llo({ address, error }))
           tokenBalances[address] = []
         }
       })
@@ -621,8 +620,6 @@ const Web3BatchHelper = {
       await Promise.all(promises)
       return tokenBalances
     } catch (error) {
-      logger.error('Error in getTokenBalancesInBatch', llo({ addresses, network, error }))
-
       const tokenBalances: Record<string, IWeb3TokenBalance[]> = {}
       addresses.forEach(address => {
         tokenBalances[address] = []
