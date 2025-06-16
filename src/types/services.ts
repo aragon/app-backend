@@ -7,6 +7,12 @@ export enum EnumConnection {
   RABBITMQ = 'RABBITMQ',
 }
 
+export interface IMigration {
+  start: () => Promise<any>
+
+  stop: () => void | Promise<void>
+}
+
 export interface IService {
   NEED_CONNECTIONS: EnumConnection[]
 

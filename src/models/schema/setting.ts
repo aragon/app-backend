@@ -31,8 +31,12 @@ export class VotingEscrowSetting {
   public maxTime!: number
 
   // Coefficient used for calculating the increasing voting power (set on the curve contract)
-  @prop({ type: () => Number, default: null })
-  public slope!: number
+  @prop({ type: () => String, default: null })
+  public slope!: string
+
+  // Coefficient used for calculating the increasing voting power (set on the curve contract)
+  @prop({ type: () => String, default: null })
+  public bias!: string
 
   // Time in seconds between unlock and withdrawal (actually not needed as the ExitQueued event already emits when the tokens can be withdrawn through the exitDate parameter)
   @prop({ type: () => Number, default: null })
@@ -410,6 +414,10 @@ export default class Setting extends Model {
     })
 
     return await this.save(tOpts)
+  }
+
+  async getPlugin() {
+    return await this.model('Plugin').findOne({ address: this.pluginAddress, network: this.network })
   }
 
   async reload(tOpts?: SaveOptions) {

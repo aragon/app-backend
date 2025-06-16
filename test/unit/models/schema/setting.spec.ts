@@ -18,7 +18,8 @@ describe('Model: Setting', () => {
         minDeposit: '1000000000000000000',
         minLockTime: 86400,
         maxTime: 31536000,
-        slope: 1,
+        slope: '1',
+        bias: '22',
         cooldown: 86400,
       },
     }
@@ -51,6 +52,7 @@ describe('Model: Setting', () => {
       expect(createdSettings.votingEscrow.minLockTime).to.eq(rawSetting?.votingEscrow?.minLockTime)
       expect(createdSettings.votingEscrow.maxTime).to.eq(rawSetting?.votingEscrow?.maxTime)
       expect(createdSettings.votingEscrow.slope).to.eq(rawSetting?.votingEscrow?.slope)
+      expect(createdSettings.votingEscrow.bias).to.eq(rawSetting?.votingEscrow?.bias)
       expect(createdSettings.votingEscrow.cooldown).to.eq(rawSetting?.votingEscrow?.cooldown)
     })
   })

@@ -8,7 +8,7 @@ import { Models } from '@dbModels'
 const llo = logger.logMeta.bind(null, { service: 'MigrationService' })
 
 class MigrationService implements IService {
-  NEED_CONNECTIONS = [EnumConnection.MONGODB]
+  NEED_CONNECTIONS = [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ]
   private readonly migrationsPath = path.resolve(process.cwd(), 'src/migrations')
   private isRunning = false
   private onComplete?: () => void
