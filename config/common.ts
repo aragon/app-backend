@@ -252,11 +252,11 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       PEAQ_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_ALCHEMY_API_KEY', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_ARAGON_RPC', null),
-        FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_FROM_BLOCK', 0),
+        FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_FROM_BLOCK', 4032399),
         OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_OFFSET_TO_BLOCK', 4),
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_POOLING_INTERVAL', 5 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_CONFIRMATION_BLOCKS', 1),
-        INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_INTERVAL_BLOCK_TIME', 5),
+        INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_INTERVAL_BLOCK_TIME', 10),
         BLOCKSCOUT_API_URL: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_BLOCKSCOUT_API_URL', null),
         BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_BLOCKSCOUT_API_KEY', null),
         SUBSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_SUBSCAN_API_KEY', null),
@@ -302,6 +302,33 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'NODES_OPTIMISM_MAINNET_BLOCKSCOUT_API_KEY',
           null,
         ),
+      },
+      CHILIZ_MAINNET: {
+        ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_CHILIZ_MAINNET_ALCHEMY_API_KEY', null),
+        ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_CHILIZ_MAINNET_ARAGON_RPC', null),
+        FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_CHILIZ_MAINNET_FROM_BLOCK', 23759200),
+        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_CHILIZ_MAINNET_OFFSET_TO_BLOCK', 0),
+        POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_CHILIZ_MAINNET_POOLING_INTERVAL', 3 * 1000), // 5 seconds
+        CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_CHILIZ_MAINNET_CONFIRMATION_BLOCKS', 1),
+        INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_CHILIZ_MAINNET_INTERVAL_BLOCK_TIME', 5),
+        BLOCKSCOUT_API_URL: utils.configParser(sourceConfig, 'string', 'NODES_CHILIZ_MAINNET_BLOCKSCOUT_API_URL', null),
+        BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_CHILIZ_MAINNET_BLOCKSCOUT_API_KEY', null),
+      },
+      CORN_MAINNET: {
+        ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_CORN_MAINNET_ALCHEMY_API_KEY', null),
+        ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_CORN_MAINNET_ARAGON_RPC', null),
+        FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_CORN_MAINNET_FROM_BLOCK', 562229),
+        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_CORN_MAINNET_OFFSET_TO_BLOCK', 0),
+        POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_CORN_MAINNET_POOLING_INTERVAL', 20 * 1000),
+        CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_CORN_MAINNET_CONFIRMATION_BLOCKS', 1),
+        INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_CORN_MAINNET_INTERVAL_BLOCK_TIME', 19),
+        BLOCKSCOUT_API_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'NODES_CORN_MAINNET_BLOCKSCOUT_API_URL',
+          'https://explorer-corn-maizenet.t.conduit.xyz/api/',
+        ),
+        BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_CORN_MAINNET_BLOCKSCOUT_API_KEY', null),
       },
     },
 
@@ -361,6 +388,8 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'BOTTLENECK_ALCHEMY_API_KEY_BATCH_REQUEST_MIN_TIME',
         100,
       ),
+      CHILIZ_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_CHILIZ_MAX_CONCURRENT', 1),
+      CHILIZ_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_CHILIZ_MIN_TIME', 5000),
     },
 
     MONGO_DB: {

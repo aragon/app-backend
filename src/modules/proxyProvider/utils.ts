@@ -3,7 +3,7 @@ import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
 
 const ProxyUtils = {
-  updateProgressInConfigIndexer: async (network: NetworksEnum, service: any, lastSync: number, finished: boolean) => {
+  updateProgressInConfigIndexer: async (network: NetworksEnum, service: any, lastSync: number, finished?: boolean) => {
     await DbTx.executeTxFn(async ({ session }) => {
       const existingConfig = await Models.ConfigIndexer.findExistingLog(
         {
