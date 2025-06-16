@@ -167,9 +167,8 @@ describe('Modules: BlockScoutProvider', () => {
     })
 
     it('should update progress with the latest block number', async () => {
-      const result = await BlockScoutProvider.fetchAddressTxns({ address, network })
+      await BlockScoutProvider.fetchAddressTxns({ address, network })
 
-      // Verify that updateProgressInConfigIndexer was called
       const updateProgressStub = ProxyUtils.updateProgressInConfigIndexer as sinon.SinonStub
       expect(updateProgressStub.calledOnce).to.be.true
       expect(updateProgressStub.firstCall.args[0]).to.equal(network)
