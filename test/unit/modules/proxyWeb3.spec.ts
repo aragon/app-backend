@@ -53,7 +53,6 @@ describe('Module: ProxyWeb3', () => {
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
       sandbox.stub(ProxyToken, 'saveAndGetToken').returns(null as any) // Return null instead of false
 
-      // Create logger stub BEFORE the function call
       const errorLoggerStub = sandbox.stub(logger, 'error')
 
       const balance = await Web3Provider.getNativeBalance({
