@@ -2,13 +2,7 @@ import logger from '@logger'
 import axios from 'axios'
 import ProviderModule from '@src/modules/provider'
 import { ethers } from 'ethers'
-import {
-  type NetworksEnum,
-  type HexAddress,
-  type BatchRequestItem,
-  type BatchResponse,
-  type IWeb3TokenBalance,
-} from '@src/types'
+import { type NetworksEnum, type HexAddress, type BatchRequestItem, type BatchResponse } from '@src/types'
 import Web3Helper from '@helpers/web3'
 import config from '@config'
 
@@ -634,49 +628,6 @@ const Web3BatchHelper = {
         tokenBalances[address] = []
       })
       return tokenBalances
-    }
-  },
-
-  /**
-   * Get DAO assets (native balance + token balances) for multiple addresses
-   * Native balances are fetched in batch, token balances individually
-   * @param addresses Array of DAO addresses
-   * @param network The network to use
-   * @returns Object with address as key and assets info as value
-   */
-  async getDaoAssetsInBatch(
-    addresses: HexAddress[],
-    network: NetworksEnum,
-  ): Promise<Record<string, { nativeBalance: string; tokenBalances: IWeb3TokenBalance[] }>> {
-    if (addresses.length === 0) return {}
-
-    try {
-      const [nativeBalances, tokenBalances] = await Promise.all([
-        this.getNativeBalancesInBatch(addresses, network),
-        this.getTokenBalancesInBatch(addresses, network),
-      ])
-
-      const results: Record<string, { nativeBalance: string; tokenBalances: IWeb3TokenBalance[] }> = {}
-
-      addresses.forEach(address => {
-        results[address] = {
-          nativeBalance: nativeBalances[address] || '0',
-          tokenBalances: tokenBalances[address] || [],
-        }
-      })
-
-      return results
-    } catch (error) {
-      logger.error('Error in getDaoAssetsInBatch', llo({ addresses, network, error }))
-
-      const results: Record<string, { nativeBalance: string; tokenBalances: IWeb3TokenBalance[] }> = {}
-      addresses.forEach(address => {
-        results[address] = {
-          nativeBalance: '0',
-          tokenBalances: [],
-        }
-      })
-      return results
     }
   },
 }
