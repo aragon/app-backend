@@ -44,4 +44,5 @@ export enum ErrorKeyEnum {
   pluginNotFound = 'pluginNotFound',
   proposalNotFound = 'proposalNotFound',
   tokenExpired = 'tokenExpired',
+  blockscoutNotImplemented = 'blockscoutNotImplemented',
 }

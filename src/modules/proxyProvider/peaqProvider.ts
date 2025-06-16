@@ -184,6 +184,9 @@ const PeaqProvider: Omit<IWeb3Provider, 'getNativeBalance'> = {
     const tokenInfo = await SubscanApi.getTokenFullDetails(address, network)
     return tokenInfo.priceUsd || '0'
   },
+  getTokenCounters: async ({ address, network }) => {
+    return await SubscanApi.getTokenCounters(address, network)
+  },
 }
 
 export default PeaqProvider

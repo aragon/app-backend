@@ -393,6 +393,9 @@ class BlockchainLogCrawler {
 
       return response.data
     } catch (error: any) {
+      if (this.isBatchSizeError(error)) {
+        return [{ error }]
+      }
       logger.error('error executeBatchRequest', { error, topics, currentBlock, toBlock })
       throw error
     }
@@ -679,6 +682,7 @@ class BlockchainLogCrawler {
       'Consider reducing your block range',
       'Response is too big',
       'Query returned more than 1000000 results',
+      'Cannot create a string longer',
     ]
 
     return messages.some(msg => error.message?.includes(msg))

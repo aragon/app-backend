@@ -43,6 +43,8 @@ const ProviderModule = {
     ZKSYNC_MAINNET: NetworksEnum.zksyncMainnet,
     OPTIMISM_MAINNET: NetworksEnum.optimismMainnet,
     PEAQ_MAINNET: NetworksEnum.peaqMainnet,
+    CHILIZ_MAINNET: NetworksEnum.chilizMainnet,
+    CORN_MAINNET: NetworksEnum.cornMainnet,
   },
   networkChainMap: {
     [NetworksEnum.ethereumMainnet]: 1,
@@ -54,6 +56,8 @@ const ProviderModule = {
     [NetworksEnum.zksyncMainnet]: 324,
     [NetworksEnum.optimismMainnet]: 10,
     [NetworksEnum.peaqMainnet]: 3338,
+    [NetworksEnum.chilizMainnet]: 88888,
+    [NetworksEnum.cornMainnet]: 21000000,
   },
 
   // Converts a config key to a NetworksEnum.
@@ -154,21 +158,13 @@ const ProviderModule = {
     }
   },
   async getProviderUrl(network: NetworksEnum): Promise<string | undefined> {
-    const provider = ProviderModule.getAnyRpcProvider(network)
-    if (!provider) {
-      return undefined
+    const provider = await ProviderModule.getAnyRpcProvider(network)
+    if (provider.config?.getProvider) {
+      const coreProvider = await provider.config.getProvider()
+      return coreProvider.connection.url
     }
 
-    try {
-      if (provider.config?.getProvider) {
-        const coreProvider = await provider.config.getProvider()
-        return coreProvider.connection.url
-      }
-    } catch (error) {
-      return undefined
-    }
-
-    return config.NODES[utils.networkToAragon(network)]?.ARAGON_RPC
+    return config.NODES[utils.networkToAragon(network)].ARAGON_RPC
   },
 }
 

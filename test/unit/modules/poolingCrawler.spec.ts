@@ -10,6 +10,7 @@ import PoolingCrawler from '@modules/poolingCrawler'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { DAO } from '@artifacts/dao'
 import utils from '@helpers/utils'
+
 describe('Module: PoolingCrawler', () => {
   let sandbox: SinonSandbox
 
