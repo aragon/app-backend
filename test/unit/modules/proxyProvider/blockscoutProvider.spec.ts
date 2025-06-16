@@ -182,7 +182,7 @@ describe('Modules: BlockScoutProvider', () => {
       const fetchERC20Stub = BlockScoutHelper._fetchERC20Transfers as sinon.SinonStub
       const fetchTxListStub = BlockScoutHelper._fetchTxList as sinon.SinonStub
       const fetchInternalStub = BlockScoutHelper._fetchInternalTxs as sinon.SinonStub
-      
+
       fetchERC20Stub.resolves([])
       fetchTxListStub.resolves([])
       fetchInternalStub.resolves([])
@@ -197,11 +197,11 @@ describe('Modules: BlockScoutProvider', () => {
       const fetchERC20Stub = BlockScoutHelper._fetchERC20Transfers as sinon.SinonStub
       const fetchTxListStub = BlockScoutHelper._fetchTxList as sinon.SinonStub
       const fetchInternalStub = BlockScoutHelper._fetchInternalTxs as sinon.SinonStub
-      
+
       fetchERC20Stub.rejects(new Error('API Error'))
       fetchTxListStub.resolves([])
       fetchInternalStub.resolves([])
-      
+
       const loggerStub = sandbox.stub(logger, 'error')
 
       const result = await BlockScoutProvider.fetchAddressTxns({ address, network })
@@ -218,13 +218,13 @@ describe('Modules: BlockScoutProvider', () => {
       const fetchInternalStub = BlockScoutHelper._fetchInternalTxs as sinon.SinonStub
       const saveAndGetTokenStub = ProxyToken.saveAndGetToken as sinon.SinonStub
       const analyzeIfScamTokenStub = TokenUtils.analyzeIfScamToken as sinon.SinonStub
-      
+
       fetchERC20Stub.resolves([mockERC20Transfer])
       fetchTxListStub.rejects(new Error('External TX API Error'))
       fetchInternalStub.resolves([mockInternalTx])
       saveAndGetTokenStub.resolves(mockTokenInfo as any)
       analyzeIfScamTokenStub.returns(false)
-      
+
       const loggerStub = sandbox.stub(logger, 'error')
 
       const result = await BlockScoutProvider.fetchAddressTxns({ address, network })
@@ -247,7 +247,7 @@ describe('Modules: BlockScoutProvider', () => {
       const fetchInternalStub = BlockScoutHelper._fetchInternalTxs as sinon.SinonStub
       const saveAndGetTokenStub = ProxyToken.saveAndGetToken as sinon.SinonStub
       const analyzeIfScamTokenStub = TokenUtils.analyzeIfScamToken as sinon.SinonStub
-      
+
       fetchERC20Stub.resolves([])
       fetchTxListStub.resolves([mockExternalTx])
       fetchInternalStub.resolves([])
@@ -334,7 +334,7 @@ describe('Modules: BlockScoutProvider', () => {
       const getTokenBalancesStub = BlockScoutHelper.getTokenBalances as sinon.SinonStub
       const saveAndGetTokenStub = ProxyToken.saveAndGetToken as sinon.SinonStub
       const analyzeIfScamTokenStub = TokenUtils.analyzeIfScamToken as sinon.SinonStub
-      
+
       getTokenBalancesStub.resolves(mockTokenBalances)
       saveAndGetTokenStub.onFirstCall().resolves(mockTokenInfo as any)
       saveAndGetTokenStub.onSecondCall().resolves(mockTokenInfo2 as any)
@@ -357,7 +357,7 @@ describe('Modules: BlockScoutProvider', () => {
       const getTokenBalancesStub = BlockScoutHelper.getTokenBalances as sinon.SinonStub
       const saveAndGetTokenStub = ProxyToken.saveAndGetToken as sinon.SinonStub
       const analyzeIfScamTokenStub = TokenUtils.analyzeIfScamToken as sinon.SinonStub
-      
+
       getTokenBalancesStub.resolves([mockTokenBalanceWithEmptyData])
       saveAndGetTokenStub.resolves(mockTokenInfo as any)
       analyzeIfScamTokenStub.returns(false)
@@ -373,7 +373,7 @@ describe('Modules: BlockScoutProvider', () => {
       const getTokenBalancesStub = BlockScoutHelper.getTokenBalances as sinon.SinonStub
       const saveAndGetTokenStub = ProxyToken.saveAndGetToken as sinon.SinonStub
       const analyzeIfScamTokenStub = TokenUtils.analyzeIfScamToken as sinon.SinonStub
-      
+
       getTokenBalancesStub.resolves([mockTokenBalance])
       saveAndGetTokenStub.resolves(null)
       analyzeIfScamTokenStub.returns(false)
@@ -387,7 +387,7 @@ describe('Modules: BlockScoutProvider', () => {
       const getTokenBalancesStub = BlockScoutHelper.getTokenBalances as sinon.SinonStub
       const saveAndGetTokenStub = ProxyToken.saveAndGetToken as sinon.SinonStub
       const analyzeIfScamTokenStub = TokenUtils.analyzeIfScamToken as sinon.SinonStub
-      
+
       getTokenBalancesStub.resolves([mockTokenBalance])
       saveAndGetTokenStub.resolves(mockTokenInfo as any)
       analyzeIfScamTokenStub.returns(true)
@@ -420,7 +420,7 @@ describe('Modules: BlockScoutProvider', () => {
       const getTokenBalancesStub = BlockScoutHelper.getTokenBalances as sinon.SinonStub
       const saveAndGetTokenStub = ProxyToken.saveAndGetToken as sinon.SinonStub
       const analyzeIfScamTokenStub = TokenUtils.analyzeIfScamToken as sinon.SinonStub
-      
+
       getTokenBalancesStub.resolves([mockNFTBalance])
       saveAndGetTokenStub.resolves(mockNFTInfo as any)
       analyzeIfScamTokenStub.returns(false)
@@ -445,7 +445,7 @@ describe('Modules: BlockScoutProvider', () => {
       // Reset existing stub instead of creating new one
       const getTokenBalancesStub = BlockScoutHelper.getTokenBalances as sinon.SinonStub
       getTokenBalancesStub.rejects(new Error('API Error'))
-      
+
       const loggerStub = sandbox.stub(logger, 'error')
 
       const result = await BlockScoutProvider.getTokenBalances({ address, network })
@@ -527,7 +527,6 @@ describe('Modules: BlockScoutProvider', () => {
       }
 
       it('should fetch and return ERC20 token details successfully', async () => {
-
         sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves(mockTokenDetails)
 
         const result = await BlockScoutProvider.fetchBasicTokenInfo({ address, network })
