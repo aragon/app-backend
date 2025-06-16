@@ -4,9 +4,10 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - main
-      - staging
-      - development
+      - debug
+#      - main
+#      - staging
+#      - development
 
 jobs:
   deploy:
