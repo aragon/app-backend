@@ -480,8 +480,8 @@ const SubscanApiHelper = {
 
       const response = await SubscanApiHelper._rpCall('evm/token/transfer', params, network)
       if (response?.code === 0 && response?.data?.list?.length > 0) {
-        tokenCounter.transfers = response?.data?.count
-        tokenCounter.holders = tokenFullInfo.totalHolders
+        tokenCounter.transfers = Number(response?.data?.count || 0)
+        tokenCounter.holders = Number(tokenFullInfo.totalHolders)
         return tokenCounter
       }
     } catch (error) {

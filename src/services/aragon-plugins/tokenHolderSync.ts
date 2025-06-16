@@ -46,7 +46,7 @@ export const TokenHolderSync = {
         address: plugin.tokenAddress,
         network: plugin.network,
       })
-      const holderCount = tokenStats.holders
+      const holderCount = tokenStats.holders || 0
       const holderThreshold = config.CRAWLER_CONFIG.TOKEN_HOLDERS_THRESHOLD
 
       if (holderCount >= holderThreshold) {

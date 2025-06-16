@@ -148,7 +148,7 @@ describe('AragonPlugins: TokenHolderSync', () => {
     })
 
     it('should return false if token holder count is below threshold', async () => {
-      blockScoutGetTokenCountersStub.resolves({ holders: '50', transfers: 100 })
+      blockScoutGetTokenCountersStub.resolves({ holders: 50, transfers: 100 })
 
       const findOneStub = Models.ConfigIndexer.findOne as SinonStub
       findOneStub.resolves(null)
@@ -157,7 +157,12 @@ describe('AragonPlugins: TokenHolderSync', () => {
 
       expect(result).to.be.false
       expect(blockScoutGetTokenCountersStub.calledOnce).to.be.true
-      expect(blockScoutGetTokenCountersStub.calledWith(mockPlugin.tokenAddress, mockPlugin.network)).to.be.true
+      expect(
+        blockScoutGetTokenCountersStub.calledWith({
+          address: mockToken.address,
+          network: mockToken.network,
+        }),
+      ).to.be.true
       expect(findOneStub.calledOnce).to.be.true
     })
 

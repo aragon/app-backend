@@ -288,10 +288,11 @@ describe('Module: provider', () => {
       const network = NetworksEnum.ethereumMainnet
 
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(undefined)
+      sandbox.stub(utils, 'networkToAragon').returns('ETHEREUM_MAINNET')
 
       const result = await ProviderModule.getProviderUrl(network)
 
-      expect(result).to.be.undefined
+      expect(result).to.equal(config.NODES.ETHEREUM_MAINNET.ARAGON_RPC)
     })
 
     it('should handle errors from provider config gracefully', async () => {
@@ -309,7 +310,7 @@ describe('Module: provider', () => {
 
       const result = await ProviderModule.getProviderUrl(network)
 
-      expect(result).to.equal(undefined)
+      expect(result).to.equal(config.NODES.ETHEREUM_MAINNET.ARAGON_RPC)
       expect(mockProvider.config.getProvider.calledOnce).to.be.true
     })
   })
