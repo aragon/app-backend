@@ -4,7 +4,6 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Plugin from '@models/schema/plugin'
 import type Token from '@models/schema/token'
 import configIndexer from '@indexer/configIndexer'
-import BlockScoutHelper from '@helpers/blockScout'
 import config from '@config'
 import { ProxyMember } from '@modules/proxyMember'
 import DbTx from '@modules/dbTx'
@@ -40,8 +39,11 @@ export const TokenHolderSync = {
     }
 
     try {
-      const tokenStats = await BlockScoutHelper.getTokenCounters(plugin.tokenAddress, plugin.network)
-      const holderCount = parseInt(tokenStats.holders, 10) || 0
+      const tokenStats = await ProxyWeb3Provider.getTokenCounters({
+        address: plugin.tokenAddress,
+        network: plugin.network,
+      })
+      const holderCount = tokenStats.holders
       const holderThreshold = config.CRAWLER_CONFIG.TOKEN_HOLDERS_THRESHOLD
 
       if (holderCount >= holderThreshold) {
