@@ -435,7 +435,7 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
   }: {
     address: string
     network: NetworksEnum
-    callback: ({ address, value }: { address: string; value: string }) => Promise<void> | void
+    callback: (holders: Array<{ address: string; value: string }>) => Promise<void> | void
     syncKey?: string
   }) => {
     const syncProgress = await ProxyUtils.getProgressFromConfigIndexer(network, syncKey)
@@ -450,7 +450,7 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
         network,
         { pageSize: 100, delayMs: 500, startPage: initialPage },
         async (holders: any, pageInfo: any) => {
-          await Promise.all(holders.map(async (holder: any) => await callback(holder)))
+          await callback(holders)
 
           if (syncKey) {
             await ProxyUtils.updateProgressInConfigIndexer(network, syncKey, pageInfo.currentPage, pageInfo.isLastPage)
