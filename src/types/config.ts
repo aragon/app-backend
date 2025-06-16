@@ -48,6 +48,9 @@ export interface IConfig {
     URI: string
     API_KEY: string
   }
+  BATCH_REQUEST: {
+    DEFAULT_SIZE: number
+  }
   NODES: {
     ETHEREUM_MAINNET: IRawNodeConfig
     ETHEREUM_SEPOLIA: IRawNodeConfig

@@ -4,6 +4,7 @@ import ProviderModule from '@src/modules/provider'
 import { ethers } from 'ethers'
 import { type NetworksEnum, type HexAddress, type BatchRequestItem, type BatchResponse } from '@src/types'
 import Web3Helper from '@helpers/web3'
+import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3BatchHelper' })
 
@@ -17,7 +18,7 @@ const Web3BatchHelper = {
   async executeBatch<T>(requests: BatchRequestItem[], network: NetworksEnum): Promise<BatchResponse<T>[]> {
     if (requests.length === 0) return []
 
-    return this._executeAdaptiveBatch(requests, network, 500)
+    return this._executeAdaptiveBatch(requests, network, config.BATCH_REQUEST.DEFAULT_SIZE)
   },
 
   /**
