@@ -37,7 +37,7 @@ export enum StatusNetworkEnum {
   offline = 'offline',
 }
 
-export const TestNetworks = [NetworksEnum.ethereumSepolia]
+export const TestNetworks = [NetworksEnum.ethereumSepolia, NetworksEnum.zksyncSepolia]
 
 export interface IBlock {
   provider: WebSocketProvider
