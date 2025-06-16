@@ -393,6 +393,9 @@ class BlockchainLogCrawler {
 
       return response.data
     } catch (error: any) {
+      if (this.isBatchSizeError(error)) {
+        return [{ error }]
+      }
       logger.error('error executeBatchRequest', { error, topics, currentBlock, toBlock })
       throw error
     }

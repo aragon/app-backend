@@ -2,31 +2,189 @@ import logger from '@logger'
 import axios from 'axios'
 import ProviderModule from '@src/modules/provider'
 import { ethers } from 'ethers'
-import { type NetworksEnum, type HexAddress } from '@src/types'
-import Web3Helper from './web3'
-
-interface BatchRequestItem {
-  method: string
-  params: any[]
-  identifier: any
-}
-
-interface BatchResponse<T> {
-  identifier: any
-  success: boolean
-  data: T | null
-  error?: any
-}
+import { type NetworksEnum, type HexAddress, type BatchRequestItem, type BatchResponse } from '@src/types'
+import Web3Helper from '@helpers/web3'
+import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3BatchHelper' })
 
 const Web3BatchHelper = {
   /**
-   * Execute a batch of JSON-RPC requests
+   * Execute a batch of RPC requests with adaptive batching
+   * This method automatically reduces batch size when responses are too large
+   * @param requests
+   * @param network
    */
   async executeBatch<T>(requests: BatchRequestItem[], network: NetworksEnum): Promise<BatchResponse<T>[]> {
     if (requests.length === 0) return []
 
+    return this._executeAdaptiveBatch(requests, network, config.BATCH_REQUEST.DEFAULT_SIZE)
+  },
+
+  /**
+   * Execute batch with adaptive threshold reduction on errors
+   * @param requests All requests to process
+   * @param network Network to use
+   * @param initialThreshold Starting batch size
+   */
+  async _executeAdaptiveBatch<T>(
+    requests: BatchRequestItem[],
+    network: NetworksEnum,
+    initialThreshold: number,
+  ): Promise<BatchResponse<T>[]> {
+    let threshold = initialThreshold
+    const allResults: BatchResponse<T>[] = []
+    let remainingRequests = [...requests]
+    let retryCount = 0
+    const maxRetries = 5
+
+    while (remainingRequests.length > 0 && retryCount < maxRetries) {
+      const batches = this._createBatches(remainingRequests, threshold)
+      const { failedRequests, batchErrors } = await this._processBatchesSequentially(batches, network, allResults)
+
+      if (failedRequests.length === 0) {
+        break
+      }
+
+      const shouldReduceBatch = this._shouldReduceBatchSize(batchErrors, threshold)
+
+      if (shouldReduceBatch && threshold > 1) {
+        threshold = this._reduceThreshold(threshold)
+        remainingRequests = failedRequests
+        retryCount++
+      } else {
+        await this._processIndividualRequests(failedRequests, network, allResults)
+        remainingRequests = []
+      }
+    }
+
+    return allResults
+  },
+
+  /**
+   * Process failed requests individually as a final fallback
+   */
+  async _processIndividualRequests<T>(
+    requests: BatchRequestItem[],
+    network: NetworksEnum,
+    allResults: BatchResponse<T>[],
+  ): Promise<void> {
+    for (const request of requests) {
+      try {
+        const result = await this._executeSingleBatch<T>([request], network)
+        allResults.push(...result)
+      } catch (error) {
+        allResults.push({
+          identifier: request.identifier,
+          success: false,
+          data: null,
+          error,
+        } satisfies BatchResponse<T>)
+      }
+    }
+  },
+
+  /**
+   * Split requests into batches based on current threshold
+   */
+  _createBatches(requests: BatchRequestItem[], threshold: number): BatchRequestItem[][] {
+    const batches: BatchRequestItem[][] = []
+    for (let i = 0; i < requests.length; i += threshold) {
+      batches.push(requests.slice(i, i + threshold))
+    }
+    return batches
+  },
+
+  /**
+   * Process batches one by one and track results and errors
+   */
+  async _processBatchesSequentially<T>(
+    batches: BatchRequestItem[][],
+    network: NetworksEnum,
+    allResults: BatchResponse<T>[],
+  ): Promise<{ failedRequests: BatchRequestItem[]; batchErrors: Error[] }> {
+    const failedRequests: BatchRequestItem[] = []
+    const batchErrors: Error[] = []
+
+    for (const batch of batches) {
+      try {
+        const batchResults = await this._executeSingleBatch<T>(batch, network)
+        allResults.push(...batchResults)
+
+        const failedInBatch = batch.filter((_req, index) => !batchResults[index]?.success)
+        if (failedInBatch.length > 0) {
+          logger.info('Failed Batch Stats', llo({ batchSize: batch.length, failedCount: failedInBatch.length }))
+        }
+      } catch (error) {
+        failedRequests.push(...batch)
+        batchErrors.push(error as Error)
+        logger.info(
+          'Entire batch failed',
+          llo({
+            batchSize: batch.length,
+            error: (error as Error).message,
+            stack: (error as Error).stack,
+          }),
+        )
+      }
+    }
+
+    return { failedRequests, batchErrors }
+  },
+
+  /**
+   * Determine if we should reduce batch size based on error types
+   */
+  _shouldReduceBatchSize(errors: Error[], currentThreshold: number): boolean {
+    if (errors.length === 0 || currentThreshold <= 1) {
+      return false
+    }
+
+    return errors.some(error => {
+      const message = error.message
+      return [
+        'The query timed out',
+        'timeout',
+        'Response size is larger than 150MB limit',
+        'Log response size exceeded',
+        'Consider reducing your block range',
+        'Query returned more than 1000000 results',
+        'Cannot create a string longer',
+      ].includes(message)
+    })
+  },
+
+  /**
+   * Reduce the batch threshold by half
+   */
+  _reduceThreshold(currentThreshold: number): number {
+    return Math.max(Math.floor(currentThreshold / 2), 1)
+  },
+
+  /**
+   * Process a single request (used by asyncBatchProcess)
+   * @param request
+   * @param network
+   */
+  async _processSingleRequest(request: BatchRequestItem, network: NetworksEnum): Promise<BatchResponse<any>> {
+    try {
+      const result = await this._executeSingleBatch([request], network)
+      return result[0]
+    } catch (error) {
+      return {
+        identifier: request.identifier,
+        success: false,
+        data: null,
+        error,
+      }
+    }
+  },
+
+  /**
+   * Execute a single batch (up to specified size)
+   * This method is used internally and should not be called directly
+   */
+  async _executeSingleBatch<T>(requests: BatchRequestItem[], network: NetworksEnum): Promise<BatchResponse<T>[]> {
     try {
       const providerUrl = await ProviderModule.getProviderUrl(network)
 
@@ -37,26 +195,14 @@ const Web3BatchHelper = {
         params: req.params,
       }))
 
-      const startTime = Date.now()
-
       const response = await axios.post(providerUrl!, batchRequests, {
         headers: { 'Content-Type': 'application/json' },
       })
 
-      logger.info(
-        'Batch request completed',
-        llo({
-          network,
-          method: requests[0].method,
-          requestCount: requests.length,
-          duration: Date.now() - startTime,
-        }),
-      )
-
       return requests.map((req, index) => {
         const rpcResult = response.data[index]
 
-        if (rpcResult.error) {
+        if (rpcResult?.error) {
           return {
             identifier: req.identifier,
             success: false,
@@ -68,21 +214,19 @@ const Web3BatchHelper = {
         return {
           identifier: req.identifier,
           success: true,
-          data: rpcResult.result as T,
+          data: rpcResult?.result as T,
         }
       })
     } catch (error) {
-      return requests.map(req => ({
-        identifier: req.identifier,
-        success: false,
-        data: null,
-        error,
-      }))
+      throw error
     }
   },
 
   /**
    * Helper method for encoding function calls
+   * @param functionSignature - The function signature (e.g., "transfer(address,uint256)")
+   * @param paramTypes - Array of parameter types (e.g., ["address", "uint256"])
+   * @param paramValues - Array of parameter values (e.g., ["0x123...", 1000])
    */
   encodeFunction(functionSignature: string, paramTypes: string[], paramValues: any[]): string {
     const functionSelector = '0x' + ethers.keccak256(ethers.toUtf8Bytes(functionSignature)).slice(2, 10)
@@ -126,7 +270,9 @@ const Web3BatchHelper = {
   },
 
   /**
-   * Example method for getting voting power in batch
+   * Get Voting power and balance of users
+   * @param batchParams
+   * @param network
    */
   async getLockVotingPowerAtInBatch(
     batchParams: Array<{
@@ -360,6 +506,8 @@ const Web3BatchHelper = {
 
       return results
     } catch (error) {
+      logger.error('Error in getVotingPowerAndBalancesInBatch', llo({ network, error }))
+
       const results: Record<
         string,
         {
