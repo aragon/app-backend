@@ -34,6 +34,10 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       RECONNECT_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODE_CONFIG_RECONNECT_INTERVAL', 100),
     },
 
+    BATCH_REQUEST: {
+      DEFAULT_SIZE: utils.configParser(sourceConfig, 'number', 'BATCH_REQUEST_DEFAULT_SIZE', 500),
+    },
+
     CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'CONFIRMATION_BLOCKS', 3),
     WHITELIST_TOKENS: utils.configParser(sourceConfig, 'array', 'WHITELIST_TOKENS', [
       { address: '0x1b6ec227ceBeC25118270efbb4b67642fc29965E', network: NetworksEnum.ethereumMainnet },
