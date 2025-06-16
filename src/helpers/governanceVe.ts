@@ -134,7 +134,10 @@ const GovernanceVeHelper = {
     }
   },
 
-  async getSlopeFromCoefficients(curveAddress: HexAddress, network: NetworksEnum): Promise<bigint> {
+  async getSettingFromCoefficients(
+    curveAddress: HexAddress,
+    network: NetworksEnum,
+  ): Promise<{ bias: bigint; slope: bigint }> {
     const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(curveAddress, LinearIncreasingCurve.abi, provider)
     try {
@@ -143,9 +146,15 @@ const GovernanceVeHelper = {
           contract.getCoefficients(BigInt('1000000000000000000')),
         ),
       )
-      return coefficients[1] as bigint
+      return {
+        bias: coefficients[0] as bigint,
+        slope: coefficients[1] as bigint,
+      }
     } catch (error) {
-      return 0n
+      return {
+        bias: 0n,
+        slope: 0n,
+      }
     }
   },
 }
