@@ -36,7 +36,7 @@ export interface IWeb3Provider {
   }: {
     address: string
     network: NetworksEnum
-    blockNumber: number
+    blockNumber?: number
   }) => Promise<any>
   fetchTokenPrice: ({
     address,
