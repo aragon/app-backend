@@ -13,6 +13,7 @@ import { Alchemy, type AlchemySettings, Network } from 'alchemy-sdk'
 import config from '@config'
 import logger from '@logger'
 import { type INodeConnection } from '@src/types/node'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:Provider' })
 
@@ -42,6 +43,8 @@ const ProviderModule = {
     ZKSYNC_MAINNET: NetworksEnum.zksyncMainnet,
     OPTIMISM_MAINNET: NetworksEnum.optimismMainnet,
     PEAQ_MAINNET: NetworksEnum.peaqMainnet,
+    CHILIZ_MAINNET: NetworksEnum.chilizMainnet,
+    CORN_MAINNET: NetworksEnum.cornMainnet,
   },
   networkChainMap: {
     [NetworksEnum.ethereumMainnet]: 1,
@@ -53,6 +56,8 @@ const ProviderModule = {
     [NetworksEnum.zksyncMainnet]: 324,
     [NetworksEnum.optimismMainnet]: 10,
     [NetworksEnum.peaqMainnet]: 3338,
+    [NetworksEnum.chilizMainnet]: 88888,
+    [NetworksEnum.cornMainnet]: 21000000,
   },
 
   // Converts a config key to a NetworksEnum.
@@ -151,6 +156,15 @@ const ProviderModule = {
     for (const network in ProviderModule.providerProxies) {
       delete ProviderModule.providerProxies[network as NetworksEnum]
     }
+  },
+  async getProviderUrl(network: NetworksEnum): Promise<string | undefined> {
+    const provider = await ProviderModule.getAnyRpcProvider(network)
+    if (provider.config?.getProvider) {
+      const coreProvider = await provider.config.getProvider()
+      return coreProvider.connection.url
+    }
+
+    return config.NODES[utils.networkToAragon(network)].ARAGON_RPC
   },
 }
 

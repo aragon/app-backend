@@ -1,12 +1,18 @@
-import { NetworksEnum, IWeb3ProxyMethod, type IWeb3Provider } from '@types'
+import { type IWeb3Provider, IWeb3ProxyMethod, NetworksEnum } from '@types'
 import Web3Provider from '@modules/proxyProvider/web3Provider'
 import PeaqProvider from '@modules/proxyProvider/peaqProvider'
+import ChilizProvider from '@modules/proxyProvider/chilizProvider'
+import BlockScoutProvider from '@modules/proxyProvider/blockscoutProvider'
 
 const ProxyWeb3Provider: IWeb3Provider & { forward: any; getProvider: any; getDefaultProvider: any } = {
   getProvider(network: NetworksEnum) {
     switch (network) {
       case NetworksEnum.peaqMainnet:
         return PeaqProvider
+      case NetworksEnum.chilizMainnet:
+        return ChilizProvider
+      case NetworksEnum.cornMainnet:
+        return BlockScoutProvider
       default:
         return Web3Provider
     }
@@ -17,7 +23,7 @@ const ProxyWeb3Provider: IWeb3Provider & { forward: any; getProvider: any; getDe
   },
 
   forward<K extends keyof IWeb3ProxyMethod>(method: K | any) {
-    return async ({ network, ...args }: { network: NetworksEnum; [key: string]: any }) => {
+    return async ({ network, ...args }: { network: NetworksEnum; [_key: string]: any }) => {
       const provider = ProxyWeb3Provider.getProvider(network)
       const fallback = ProxyWeb3Provider.getDefaultProvider()
       const fn = provider?.[method] ?? fallback?.[method]
@@ -59,6 +65,12 @@ const ProxyWeb3Provider: IWeb3Provider & { forward: any; getProvider: any; getDe
   },
   getAllTokenHolders: async function (params) {
     return ProxyWeb3Provider.forward(IWeb3ProxyMethod.getAllTokenHolders)(params)
+  },
+  fetchHistoricalTokenPrice: async function (params) {
+    return ProxyWeb3Provider.forward(IWeb3ProxyMethod.fetchHistoricalTokenPrice)(params)
+  },
+  getTokenCounters: async function (params) {
+    return ProxyWeb3Provider.forward(IWeb3ProxyMethod.getTokenCounters)(params)
   },
 }
 

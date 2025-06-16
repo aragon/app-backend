@@ -1,4 +1,5 @@
 import Web3Helper from '@helpers/web3'
+import Web3BatchHelper from '@helpers/web3BatchHelper'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import { type HexAddress, IPluginInterfaceType, type NetworksEnum } from '@types'
 import { ProxyToken } from '@modules/proxyToken'
@@ -7,6 +8,19 @@ import type Plugin from '@models/schema/plugin'
 import type PluginSetting from '@models/schema/setting'
 
 export const MemberInfo = {
+  getVotingPower: async (userAddress: string, tokenAddress: string, network: NetworksEnum): Promise<string> => {
+    try {
+      const token = await ProxyToken.saveAndGetToken(tokenAddress, network)
+      if (!token) {
+        return '0'
+      }
+
+      return (await GovernanceErc20Helper.getVotes(userAddress, tokenAddress, network)).toString()
+    } catch (e) {
+      return '0'
+    }
+  },
+
   getByTokenAddress: async (
     userAddress: string,
     pluginAddress: string | null,
@@ -89,6 +103,7 @@ export const MemberInfo = {
     const votingPower = await GovernanceErc20Helper.getVotes(memberAddress, plugin.tokenAddress, plugin.network)
     return Number(votingPower) > 0 && Number(votingPower) >= Number(setting.minParticipation)
   },
+
   _checkForMultiSig: async (plugin: Plugin, setting: PluginSetting, memberAddress: HexAddress) => {
     if (!setting) return false
 
@@ -102,5 +117,45 @@ export const MemberInfo = {
     })
 
     return !!daoMemberMapping
+  },
+
+  getLockVotingPowerBatch: async (
+    locks: Array<{
+      lockId: string
+      tokenId: string
+      escrowAddress: HexAddress
+      timestamp: number
+      network: NetworksEnum
+    }>,
+  ): Promise<Array<{ tokenId: string; votingPower: string }>> => {
+    try {
+      if (locks.length === 0) return []
+
+      const batchParams = locks.map(lock => ({
+        escrowAddress: lock.escrowAddress,
+        tokenId: lock.tokenId,
+        ts: lock.timestamp,
+      }))
+
+      const network = locks[0].network
+      const results = await Web3BatchHelper.getLockVotingPowerAtInBatch(batchParams, network)
+
+      if (!results || !Array.isArray(results)) {
+        return locks.map(lock => ({
+          tokenId: lock.tokenId,
+          votingPower: '0',
+        }))
+      }
+
+      return results.map(result => ({
+        tokenId: result.tokenId,
+        votingPower: result.votingPower.toString(),
+      }))
+    } catch (e) {
+      return locks.map(lock => ({
+        tokenId: lock.tokenId,
+        votingPower: '0',
+      }))
+    }
   },
 }

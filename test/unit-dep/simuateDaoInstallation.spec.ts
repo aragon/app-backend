@@ -13,7 +13,7 @@ import { Models } from '@dbModels'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import { PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandler'
 
-describe('Integration: SPP Dao Installation  ', () => {
+describe('Integration: SPP Dao Installation', () => {
   let sandbox: SinonSandbox
   beforeEach(() => {
     sandbox = sinon.createSandbox()

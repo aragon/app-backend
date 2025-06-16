@@ -3,7 +3,13 @@ import ValidationSchema from '@helpers/validationSchema'
 import ModelUtils from '@models/utils/models'
 import MemberSchema from '@api/routers/schema/member'
 import MemberController from '@api/controllers/member'
-import { type HexAddress, type IMemberExtraParams, type IPairParams, type NetworksEnum } from '@types'
+import {
+  type HexAddress,
+  type ILockExtraParams,
+  type IMemberExtraParams,
+  type IPairParams,
+  type NetworksEnum,
+} from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
 import Utils from '@helpers/utils'
 
@@ -98,6 +104,26 @@ const MemberRouter = {
     ctx.body = { status }
   },
 
+  getMemberLocks: async function (ctx: RouterContext) {
+    const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'blockNumber' })
+
+    const extraParams: ILockExtraParams = {
+      memberAddress: ctx.params.address,
+      pluginAddress: ctx.query.pluginAddress as HexAddress,
+      network: ctx.query.network as NetworksEnum,
+      onlyActive: Utils.parseBoolean(ctx.query.onlyActive),
+    }
+    const anyInvalidParams = Utils.extractAdditionalParams({ ...paginationParams, ...extraParams }, ctx.query)
+
+    const [formattedExtraParams, formattedPaginationParams] = await Promise.all([
+      ValidationSchema.validateParams(MemberSchema.getMemberLocksParams, extraParams),
+      ValidationSchema.validateParams(PaginationSchema.getPagination, paginationParams),
+      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
+    ])
+
+    ctx.body = await MemberController.getMemberLocks(formattedExtraParams, formattedPaginationParams)
+  },
+
   router() {
     const router = new Router()
 
@@ -120,6 +146,16 @@ const MemberRouter = {
      * @apiSampleRequest /member/:address
      */
     router.get('/:address', MemberRouter.getMemberByAddress)
+
+    /**
+     * @api {get} /member/:address/locks Get Locks Member by address
+     * @apiName Members
+     * @apiGroup Members
+     * @apiDescription Get Locks Member by address
+     *
+     * @apiSampleRequest /member/:address/locks
+     */
+    router.get('/:address/locks', MemberRouter.getMemberLocks)
 
     /**
      * @api {get} /:memberAddress/:pluginAddress/exists isMemberOfPlugin

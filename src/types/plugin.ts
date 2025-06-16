@@ -1,3 +1,9 @@
+export interface IVotingEscrowInfo {
+  proxy: boolean
+  implementationAddress: string | null
+  status: boolean
+}
+
 export interface IPluginInfo {
   type: IPluginInterfaceType
   proxy: boolean
@@ -51,6 +57,15 @@ export enum IPluginInterfaceType {
   spp = 'spp',
   gauge = 'gauge',
   unknown = 'unknown',
+}
+
+export interface ISettingVotingEscrow {
+  minDeposit: string
+  minLockTime: number
+  cooldown: number
+  maxTime: number
+  slope: string
+  bias: string
 }
 
 export enum ISettingStatus {
