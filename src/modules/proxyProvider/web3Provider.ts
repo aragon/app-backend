@@ -95,6 +95,9 @@ const Web3Provider: IWeb3Provider = {
   },
 
   fetchBasicTokenInfo: async ({ address, network }) => {
+    if (address === utils.zeroAddress) {
+      return await CovalentHelper.getToken(address, network)
+    }
     const tokenDetails = await BlockScoutHelper.getTokenFullDetails(address, network)
     if (!tokenDetails) {
       return await CovalentHelper.getToken(address, network)
@@ -248,6 +251,9 @@ const Web3Provider: IWeb3Provider = {
       symbol,
       timestamp: date,
     })
+  },
+  getTokenCounters: async ({ address, network }) => {
+    return await BlockScoutHelper.getTokenCounters(address, network)
   },
 }
 

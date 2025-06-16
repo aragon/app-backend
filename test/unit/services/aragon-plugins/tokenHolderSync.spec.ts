@@ -47,7 +47,7 @@ describe('AragonPlugins: TokenHolderSync', () => {
     sandbox = sinon.createSandbox()
 
     // Stub BlockScout helper methods
-    blockScoutGetTokenCountersStub = sandbox.stub(BlockScoutHelper, 'getTokenCounters')
+    blockScoutGetTokenCountersStub = sandbox.stub(ProxyWeb3Provider, 'getTokenCounters')
 
     // Stub ProxyWeb3Provider methods
     proxyWeb3ProviderGetAllTokenHoldersStub = sandbox.stub(ProxyWeb3Provider, 'getAllTokenHolders')
