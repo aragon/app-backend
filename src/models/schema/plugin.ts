@@ -13,6 +13,26 @@ import { assert } from '@errors'
 
 const customName = ICollectionNames.Plugin
 
+export class VotingEscrow {
+  @prop({ type: () => String, default: null })
+  public curveAddress!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public exitQueueAddress!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public escrowAddress!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public clockAddress!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public nftLockAddress!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public underlying!: HexAddress
+}
+
 export class SubPlugin {
   @prop({ type: () => [String], default: [] })
   public addresses!: HexAddress[]
@@ -177,6 +197,9 @@ export default class Plugin extends Model {
   @prop({ type: () => [Link], _id: false, default: [] })
   public links?: Link[]
 
+  @prop({ type: () => VotingEscrow, _id: false, default: null })
+  public votingEscrow?: VotingEscrow
+
   static async create(rawData: Partial<Plugin>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
@@ -234,6 +257,14 @@ export default class Plugin extends Model {
     })
       .sort({ blockNumber: -1 })
       .exec()
+  }
+
+  static async findActivePluginsByDaoAddress(daoAddress: HexAddress, network: NetworksEnum) {
+    return await this.find({
+      daoAddress,
+      network,
+      status: IPluginStatus.installed,
+    }).exec()
   }
 
   static async getPluginIdBySlugAndDao(slug: string, daoAddress: HexAddress, network: NetworksEnum) {

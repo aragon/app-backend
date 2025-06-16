@@ -175,6 +175,7 @@ class BlockchainLogCrawler {
       case ICrawStrategy.getLogsWithoutTopics:
         return this.getLogsWithoutTopics(currentBlock, latestBlock)
       case ICrawStrategy.getLogsByBatch:
+        return this.getLogsByBatch(currentBlock, latestBlock)
       default:
         return this.getLogsByBatch(currentBlock, latestBlock)
     }
@@ -392,6 +393,9 @@ class BlockchainLogCrawler {
 
       return response.data
     } catch (error: any) {
+      if (this.isBatchSizeError(error)) {
+        return [{ error }]
+      }
       logger.error('error executeBatchRequest', { error, topics, currentBlock, toBlock })
       throw error
     }
@@ -676,6 +680,8 @@ class BlockchainLogCrawler {
       'Response size is larger than 150MB limit',
       'Log response size exceeded',
       'Consider reducing your block range',
+      'Query returned more than 1000000 results',
+      'Cannot create a string longer',
     ]
 
     return messages.some(msg => error.message?.includes(msg))

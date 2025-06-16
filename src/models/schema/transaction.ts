@@ -144,11 +144,14 @@ export default class Transaction extends Model {
       assert(!!rawData.category, 'category is required')
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.uniqueId, 'uniqueId is required')
+      assert(!!rawData.daoAddress, 'daoAddress is required')
+
       rawData.id = this.getEntityId({
         transactionHash: rawData?.transactionHash!,
         uniqueId: rawData?.uniqueId!,
         category: rawData?.category!,
         network: rawData?.network!,
+        daoAddress: rawData?.daoAddress!,
       })
     }
     const data = new this(rawData)
@@ -156,7 +159,7 @@ export default class Transaction extends Model {
   }
 
   static getEntityId(params: ITransactionIdParams) {
-    return `${params.transactionHash}-${params.uniqueId}-${params.category}-${params.network}`
+    return `${params.transactionHash}-${params.uniqueId}-${params.category}-${params.daoAddress}-${params.network}`
   }
 
   static async findExistingLog(params: ITransactionIdParams, tOpts?: SaveOptions) {

@@ -20,6 +20,10 @@ import { SharedLogs } from '@artifacts/shared'
 import { PermissionHandler } from '@src/handlers/permissionHandler'
 import { DaoRegistryHandler } from '@src/handlers/daoRegistryHandler'
 import { LockERC721 } from '@artifacts/LockERC721'
+import { VotingEscrowIncreasing } from '@artifacts/VotingEscrowIncreasing'
+import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
+import { ExitQueue } from '@artifacts/ExitQueue'
+import { VotingEscrow } from '@artifacts/VotingEscrow'
 
 const IndexerEventConfig: IIndexerConfig[] = [
   // historical and realtime on startup
@@ -327,6 +331,85 @@ const IndexerEventConfig: IIndexerConfig[] = [
       {
         abi: DAO.abi,
         handler: PermissionHandler.handleRevokeOnDao,
+      },
+    ],
+  },
+
+  // VE Governance events
+  {
+    event: 'Deposit',
+    enableHistorical: false,
+    topic: new Interface(VotingEscrowIncreasing.abi).getEvent('Deposit')?.topicHash!,
+    config: [
+      {
+        abi: VotingEscrowIncreasing.abi,
+        handler: GovernanceVeHandler.deposit,
+      },
+    ],
+  },
+  {
+    event: 'Withdraw',
+    enableHistorical: false,
+    topic: new Interface(VotingEscrowIncreasing.abi).getEvent('Withdraw')?.topicHash!,
+    config: [
+      {
+        abi: VotingEscrowIncreasing.abi,
+        handler: GovernanceVeHandler.withdraw,
+      },
+    ],
+  },
+  {
+    event: 'MinDepositSet',
+    enableHistorical: false,
+    topic: new Interface(VotingEscrowIncreasing.abi).getEvent('MinDepositSet')?.topicHash!,
+    config: [
+      {
+        abi: VotingEscrowIncreasing.abi,
+        handler: GovernanceVeHandler.minDepositSet,
+      },
+    ],
+  },
+  {
+    event: 'ExitQueued',
+    enableHistorical: false,
+    topic: new Interface(ExitQueue.abi).getEvent('ExitQueued')?.topicHash!,
+    config: [
+      {
+        abi: ExitQueue.abi,
+        handler: GovernanceVeHandler.exitQueued,
+      },
+    ],
+  },
+  {
+    event: 'MinLockSet',
+    enableHistorical: false,
+    topic: new Interface(ExitQueue.abi).getEvent('MinLockSet')?.topicHash!,
+    config: [
+      {
+        abi: ExitQueue.abi,
+        handler: GovernanceVeHandler.minLockSet,
+      },
+    ],
+  },
+  {
+    event: 'TokensDelegated',
+    enableHistorical: false,
+    topic: new Interface(VotingEscrow.abi).getEvent('TokensDelegated')?.topicHash!,
+    config: [
+      {
+        abi: VotingEscrow.abi,
+        handler: GovernanceVeHandler.delegateTokens,
+      },
+    ],
+  },
+  {
+    event: 'TokensUndelegated',
+    enableHistorical: false,
+    topic: new Interface(VotingEscrow.abi).getEvent('TokensUndelegated')?.topicHash!,
+    config: [
+      {
+        abi: VotingEscrow.abi,
+        handler: GovernanceVeHandler.unDelegateTokens,
       },
     ],
   },

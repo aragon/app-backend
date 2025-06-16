@@ -44,6 +44,13 @@ export interface IConfig {
     BASE_URI: string
     API_KEY: string
   }
+  ALCHEMY_PRICE_API: {
+    URI: string
+    API_KEY: string
+  }
+  BATCH_REQUEST: {
+    DEFAULT_SIZE: number
+  }
   NODES: {
     ETHEREUM_MAINNET: IRawNodeConfig
     ETHEREUM_SEPOLIA: IRawNodeConfig
@@ -54,6 +61,8 @@ export interface IConfig {
     ZKSYNC_MAINNET: IRawNodeConfig
     OPTIMISM_MAINNET: IRawNodeConfig
     PEAQ_MAINNET: IRawNodeConfig
+    CHILIZ_MAINNET?: IRawNodeConfig
+    CORN_MAINNET?: IRawNodeConfig
   }
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
   SUPPORTED_NETWORKS: NetworksEnum[]
@@ -93,6 +102,8 @@ export interface IConfig {
     ALCHEMY_BATCH_REQUEST_MIN_TIME: number
     ALCHEMY_BALANCE_MAX_CONCURRENT: number
     ALCHEMY_BALANCE_MIN_TIME: number
+    CHILIZ_MAX_CONCURRENT: number
+    CHILIZ_MIN_TIME: number
   }
   MONGO_DB: {
     NAME: string

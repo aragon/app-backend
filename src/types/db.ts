@@ -44,6 +44,8 @@ export enum ICollectionNames {
   Vote = 'Vote',
   DaoPermission = 'DaoPermission',
   Jwt = 'Jwt',
+  Lock = 'Lock',
+  Migration = 'Migration',
 }
 
 export enum ITransactionIndexCheckType {
@@ -118,4 +120,11 @@ export enum IEventLogMember {
 export enum IEventLogPermission {
   Granted = 'Granted',
   Revoked = 'Revoked',
+}
+
+export enum IMigrationStatus {
+  PENDING = 'PENDING',
+  RUNNING = 'RUNNING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
 }

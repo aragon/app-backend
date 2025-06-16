@@ -3,7 +3,9 @@ import sinon from 'sinon'
 import { NetworksEnum, IWeb3ProxyMethod } from '@types'
 import Web3Provider from '@modules/proxyProvider/web3Provider'
 import PeaqProvider from '@modules/proxyProvider/peaqProvider'
-import ProxyWeb3Provider from '@modules/proxyProvider' // Adjust import path as needed
+import ProxyWeb3Provider from '@modules/proxyProvider'
+import ChilizProvider from '@modules/proxyProvider/chilizProvider'
+import BlockscoutProvider from '@modules/proxyProvider/blockscoutProvider' // Adjust import path as needed
 
 describe('ProxyWeb3Provider', () => {
   let sandbox
@@ -25,6 +27,16 @@ describe('ProxyWeb3Provider', () => {
     it('should return Web3Provider for other networks', () => {
       const provider = ProxyWeb3Provider.getProvider(NetworksEnum.ethereumMainnet)
       expect(provider).to.equal(Web3Provider)
+    })
+
+    it('should return ChillizProvider for chilizMainnet network', () => {
+      const provider = ProxyWeb3Provider.getProvider(NetworksEnum.chilizMainnet)
+      expect(provider).to.equal(ChilizProvider)
+    })
+
+    it('should return BlockScoutProvider for cornMainnet network', () => {
+      const provider = ProxyWeb3Provider.getProvider(NetworksEnum.cornMainnet)
+      expect(provider).to.equal(BlockscoutProvider)
     })
   })
 
@@ -161,5 +173,7 @@ describe('ProxyWeb3Provider', () => {
     testProxyMethod('fetchTokenPrice', IWeb3ProxyMethod.fetchTokenPrice)
     testProxyMethod('searchDetailsOfContract', IWeb3ProxyMethod.searchDetailsOfContract)
     testProxyMethod('getAllTokenHolders', IWeb3ProxyMethod.getAllTokenHolders)
+    testProxyMethod('getTokenCounters', IWeb3ProxyMethod.getTokenCounters)
+    testProxyMethod('fetchHistoricalTokenPrice', IWeb3ProxyMethod.fetchHistoricalTokenPrice)
   })
 })

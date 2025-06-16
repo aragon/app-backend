@@ -45,6 +45,63 @@ export interface IDelegatesResponse {
   }
 }
 
+export interface IMemberLockResponse {
+  id: string
+  network: NetworksEnum
+  transactionHash: HexAddress
+  blockNumber: number | null
+  blockTimestamp: number | null
+  pluginAddress: HexAddress
+  memberAddress: HexAddress
+  escrowAddress: HexAddress
+  token: {
+    network: NetworksEnum
+    address: HexAddress
+    symbol: string
+    name: string
+    decimals: number
+    logo: string | null
+    isGovernance: boolean
+    hasDelegate: boolean
+    underlying: any
+    type: string
+    totalSupply: string
+    mintableByDao: boolean
+  } | null
+  nft: {
+    network: NetworksEnum
+    address: HexAddress
+    symbol: string
+    name: string
+    decimals: number
+    logo: string | null
+    isGovernance: boolean
+    hasDelegate: boolean
+    underlying: any
+    type: string
+    totalSupply: string
+    mintableByDao: boolean
+  } | null
+  tokenId: string
+  amount: string
+  epochStartAt: number
+  lockExit: {
+    status: boolean
+    transactionHash: HexAddress | null
+    blockNumber: number | null
+    blockTimestamp: number | null
+    exitDateAt: number | null
+  }
+  lockWithdraw: {
+    status: boolean
+    transactionHash: HexAddress | null
+    blockNumber: number | null
+    blockTimestamp: number | null
+    amount: string
+    epochEndAt: number | null
+  }
+}
+
 export interface IMembersResponse {
   network: NetworksEnum
   fromBlockNumber?: number
