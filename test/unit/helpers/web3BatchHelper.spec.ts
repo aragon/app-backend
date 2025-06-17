@@ -769,7 +769,7 @@ describe('Helpers:Web3BatchHelper', () => {
     })
   })
 
-  describe.only('getNativeBalancesInBatch', () => {
+  describe('getNativeBalancesInBatch', () => {
     it('should return empty object if addresses array is empty', async () => {
       const result = await Web3BatchHelper.getNativeBalancesInBatch([], NetworksEnum.ethereumMainnet)
       expect(result).to.deep.equal({})
