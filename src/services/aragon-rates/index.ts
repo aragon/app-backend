@@ -3,6 +3,7 @@ import { EnumConnection, type IService } from '@types'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import config from '@config'
 import { FetchRates } from '@services/aragon-rates/fetchRates'
+import { FetchDaoTvl } from '@rates/daoTvl'
 
 const llo = logger.logMeta.bind(null, { service: 'service:RatesService' })
 
@@ -24,8 +25,21 @@ const AragonRatesService: IService = {
       },
     }
 
+    const daoTvlOptions = {
+      fn: () => [[{ fetchDaoTvl: FetchDaoTvl }]],
+      interval: config.SERVICES.ARAGON_RATES.RATES_INTERVAL,
+      runNow: true,
+      stopOnError: false,
+      onError: (error: any) => {
+        logger.error('RatesService daoTvl task error', llo({ error }))
+      },
+    }
+
     const scheduler = TaskSchedulerState.getInstance()
-    await scheduler.startTask('rates', taskOptions)
+    await Promise.allSettled([
+      scheduler.startTask('fetchRates', taskOptions),
+      scheduler.startTask('fetchDaoTvl', daoTvlOptions),
+    ])
 
     logger.info('RatesService service sync end', llo({}))
   },

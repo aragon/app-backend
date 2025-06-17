@@ -1,4 +1,4 @@
-import { type IWeb3Provider, IWeb3ProxyMethod, NetworksEnum } from '@types'
+import { NetworksEnum, IWeb3ProxyMethod, type IWeb3Provider } from '@types'
 import Web3Provider from '@modules/proxyProvider/web3Provider'
 import PeaqProvider from '@modules/proxyProvider/peaqProvider'
 import ChilizProvider from '@modules/proxyProvider/chilizProvider'
