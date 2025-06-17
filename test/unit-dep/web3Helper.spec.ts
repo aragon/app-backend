@@ -1,14 +1,13 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { ITransactionCategory, NetworksEnum } from '@types'
+import { NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
 import CovalentHelper from '@helpers/covalent'
 import Web3Utils from '@helpers/web3Utils'
 import Web3Provider from '@modules/proxyProvider/web3Provider'
-import ProviderModule from '@modules/provider'
 
-describe.only('ProxyWeb3 && Web3Helper', () => {
+describe('ProxyWeb3 && Web3Helper', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -187,70 +186,11 @@ describe.only('ProxyWeb3 && Web3Helper', () => {
     expect(token?.symbol).to.eq('vePUFFER')
   })
 
-  it('should fetch the internal transactions of the address on different network', async function () {
-    const params = [
-      {
-        address: '0x33E6C5Df4f1b4A283a45dfD0E73bb222596EA6c8',
-        network: NetworksEnum.ethereumSepolia,
-        blockNumber: 8569603,
-      },
-      {
-        address: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 17313704,
-      },
-      {
-        address: '0x9b3d84745d750d9F3AD69393454289302337DA10',
-        network: NetworksEnum.polygonMainnet,
-        blockNumber: 41088689,
-      },
-      // {
-      //   address: '0x13FF781A1c2e37C564243730BD63F0e24f57C0Da',
-      //   network: NetworksEnum.arbitrumMainnet,
-      //   blockNumber: 203635057
-      // },
-      // {
-      //   address: '0x64Ee23C65bFBfEC35d337Ae93fcf22137c2E9c13',
-      //   network: NetworksEnum.baseMainnet,
-      //   blockNumber: 2187138,
-      // },
-      // {
-      //   address: '0x4C404965D86e6F393604FdCc556C461943937409',
-      //   network: NetworksEnum.zksyncMainnet,
-      //   blockNumber: 37637223
-      // },
-      // {
-      //   address: '0x0e0EE273d98b91c52dB6fd3C520ED792A7551cB2',
-      //   network: NetworksEnum.zksyncSepolia,
-      //   blockNumber: 3931427
-      // },
-      // {
-      //   address: '0xb2367fA60029e5157543E5c2E69A2D26cA8D140d',
-      //   network: NetworksEnum.optimismMainnet,
-      //   blockNumber: 136339676,
-      // }
-    ]
+  it('should return the adjusted block number for arbitrum', async () => {
+    const blockNumber = 348345360
+    const network = NetworksEnum.arbitrumMainnet
 
-    for (const networkInfo of params) {
-      const provider = ProviderModule.getAnyRpcProvider(networkInfo.network)
-      const param = {
-        fromBlock: Web3Utils.convertToHexNumber(networkInfo.blockNumber - 5),
-        toBlock: Web3Utils.convertToHexNumber(networkInfo.blockNumber + 5),
-        fromAddress: networkInfo.address,
-        category: [
-          ITransactionCategory.ERC20,
-          ITransactionCategory.ERC721,
-          ITransactionCategory.ERC1155,
-          ITransactionCategory.Internal,
-          ITransactionCategory.External,
-        ],
-      }
-
-      const response = await provider.send('alchemy_getAssetTransfers', [param])
-      expect(response).to.be.an('object')
-      const transfers = response.transfers || []
-      const internalTxs = transfers.filter((tx: any) => tx.category === ITransactionCategory.Internal)
-      expect(internalTxs.length).to.be.greaterThan(0)
-    }
+    const adjustedBlockNumber = await Web3Helper.getChainAdjustedBlockNumber(blockNumber, network)
+    expect(adjustedBlockNumber).to.eq(22725244)
   })
 })
