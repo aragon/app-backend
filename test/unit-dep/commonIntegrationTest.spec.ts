@@ -57,7 +57,7 @@ describe('Basic Integer Test', () => {
     const originalEthCall = Web3BatchHelper.ethCall
     const forcedBlockNumberHex = '0x' + blockNumber.toString(16)
 
-    sandbox.stub(Web3BatchHelper, 'ethCall').callsFake(async (calls, networkParam, blockTag?) => {
+    sandbox.stub(Web3BatchHelper, 'ethCall').callsFake(async (calls, networkParam, _blockTag?) => {
       return originalEthCall.call(Web3BatchHelper, calls, networkParam, forcedBlockNumberHex)
     })
 
