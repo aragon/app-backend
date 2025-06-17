@@ -2,7 +2,13 @@ import logger from '@logger'
 import axios from 'axios'
 import ProviderModule from '@src/modules/provider'
 import { ethers } from 'ethers'
-import { type NetworksEnum, type HexAddress, type BatchRequestItem, type BatchResponse } from '@src/types'
+import {
+  type NetworksEnum,
+  type HexAddress,
+  type BatchRequestItem,
+  type BatchResponse,
+  type IWeb3TokenBalance,
+} from '@src/types'
 import Web3Helper from '@helpers/web3'
 import config from '@config'
 
@@ -380,7 +386,6 @@ const Web3BatchHelper = {
 
       return timestampMap
     } catch (error) {
-      logger.error('Error in getBlocksTimestamps', llo({ from, to, network, error }))
       return {}
     }
   },
@@ -528,6 +533,98 @@ const Web3BatchHelper = {
       })
 
       return results
+    }
+  },
+
+  /**
+   * Get native balances for multiple addresses in batch
+   * @param addresses Array of addresses to get balances for
+   * @param network The network to use
+   * @returns Object with address as key and native balance as value
+   */
+  async getNativeBalancesInBatch(addresses: HexAddress[], network: NetworksEnum): Promise<Record<string, string>> {
+    if (addresses.length === 0) return {}
+
+    try {
+      const results = await this.callRpcMethod<string>(
+        'eth_getBalance',
+        addresses.map(address => ({
+          params: [address, 'latest'],
+          identifier: address,
+        })),
+        network,
+      )
+
+      const balances: Record<string, string> = {}
+
+      for (const result of results) {
+        if (result.success && result.data) {
+          balances[result.identifier] = BigInt(result.data).toString()
+        } else {
+          balances[result.identifier] = '0'
+        }
+      }
+
+      return balances
+    } catch (error) {
+      const balances: Record<string, string> = {}
+      addresses.forEach(address => {
+        balances[address] = '0'
+      })
+      return balances
+    }
+  },
+
+  /**
+   * Get token balances for multiple addresses using Alchemy's method
+   * Note: alchemy_getTokenBalances doesn't support batching, so we make individual calls
+   * @param addresses Array of addresses to get token balances for
+   * @param network The network to use
+   * @returns Object with address as key and token balances array as value
+   */
+  async getTokenBalancesInBatch(
+    addresses: HexAddress[],
+    network: NetworksEnum,
+  ): Promise<Record<string, IWeb3TokenBalance[]>> {
+    if (addresses.length === 0) return {}
+
+    try {
+      const providerUrl = await ProviderModule.getProviderUrl(network)
+      const tokenBalances: Record<string, IWeb3TokenBalance[]> = {}
+
+      const promises = addresses.map(async address => {
+        try {
+          const response = await axios.post(
+            providerUrl!,
+            {
+              jsonrpc: '2.0',
+              id: Math.random().toString(36).substring(2, 15),
+              method: 'alchemy_getTokenBalances',
+              params: [address],
+            },
+            {
+              headers: { 'Content-Type': 'application/json' },
+            },
+          )
+
+          if (response.data?.result) {
+            tokenBalances[address] = response.data.result.tokenBalances as IWeb3TokenBalance[]
+          } else {
+            tokenBalances[address] = []
+          }
+        } catch (error) {
+          tokenBalances[address] = []
+        }
+      })
+
+      await Promise.all(promises)
+      return tokenBalances
+    } catch (error) {
+      const tokenBalances: Record<string, IWeb3TokenBalance[]> = {}
+      addresses.forEach(address => {
+        tokenBalances[address] = []
+      })
+      return tokenBalances
     }
   },
 }
