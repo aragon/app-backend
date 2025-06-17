@@ -520,7 +520,7 @@ describe('Helpers:Web3Utils', () => {
         parseLog: sandbox.stub().returns(fakeEvent as any),
       }
 
-      const result = Web3Utils.parseLog(txLog as any, iFace)!
+      const result = Web3Utils.parseLog(txLog as any, iFace as any)!
 
       expect(result.name).to.eq(fakeEvent.name)
       expect(result.args).to.eq(fakeEvent.args)
@@ -540,7 +540,7 @@ describe('Helpers:Web3Utils', () => {
         parseLog: sandbox.stub().throws(new Error('fake-error')),
       }
 
-      const result = Web3Utils.parseLog(txLog as any, iFace)
+      const result = Web3Utils.parseLog(txLog as any, iFace as any)
 
       expect(loggerStub.calledOnce).to.be.true
       expect(result).to.be.null

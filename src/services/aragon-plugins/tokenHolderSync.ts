@@ -9,6 +9,9 @@ import { ProxyMember } from '@modules/proxyMember'
 import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
 import ProxyWeb3Provider from '@modules/proxyProvider'
+import { type Log } from 'ethers'
+import PoolingCrawler from '@modules/poolingCrawler'
+import TransferCrawler from '@services/aragon-transfers/transferCrawler'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-plugins:tokenHolderSync' })
 
@@ -43,7 +46,7 @@ export const TokenHolderSync = {
         address: plugin.tokenAddress,
         network: plugin.network,
       })
-      const holderCount = tokenStats.holders
+      const holderCount = tokenStats.holders || 0
       const holderThreshold = config.CRAWLER_CONFIG.TOKEN_HOLDERS_THRESHOLD
 
       if (holderCount >= holderThreshold) {
@@ -116,39 +119,29 @@ export const TokenHolderSync = {
       address: token.address,
       network: token.network,
       syncKey: blockScoutSyncKey,
-      callback: async holder => {
-        const balanceAmount = holder.value.toString()
-        if (balanceAmount === '0') return
+      callback: async (holders: Array<{ address: string; value: string }>) => {
+        if (holders.length === 0) return
 
-        const member = await ProxyMember.createMember(holder.address)
-
-        const memberBalanceDb = await ProxyMember.getBalances({
-          address: holder.address,
-          tokenAddress: token.address,
-          network: token.network,
-        })
-
-        if (!(member && memberBalanceDb)) return
-
-        await DbTx.executeTxFn(async ({ session }) => {
-          await memberBalanceDb?.increaseBalance(
-            {
-              amount: balanceAmount,
-              blockNumber: plugin.blockNumber,
-            },
-            { session },
+        try {
+          await ProxyMember.optimizedDaoMembershipManagement(
+            holders,
+            plugin.daoAddress,
+            plugin.address,
+            token.address,
+            plugin.network,
+            plugin.blockNumber,
           )
-          await session.commitTransaction()
-          await session.endSession()
-        })
-
-        await ProxyMember.addToDao({
-          memberAddress: holder.address,
-          daoAddress: plugin.daoAddress,
-          pluginAddress: plugin.address,
-          tokenAddress: plugin.tokenAddress,
-          network: plugin.network,
-        })
+        } catch (error) {
+          logger.error(
+            'TokenHolderSync - Error processing batch',
+            llo({
+              error,
+              batchSize: holders.length,
+              network: plugin.network,
+              tokenAddress: token.address,
+            }),
+          )
+        }
       },
     })
 
@@ -168,27 +161,29 @@ export const TokenHolderSync = {
       IGovernanceErc20Logs.DelegateVotesChanged,
     )
 
-    const crawlerTokenDelegationOnly = new BlockchainLogCrawler({
-      onlyHistorical: true,
+    // as we process logs in batches, it's fine to have a small batch size
+    // using the BatchTransfer Crawler to filter logs and process them so it will go faster
+    // as this is for custom tokens
+
+    const transferCrawler = new BlockchainLogCrawler({
       network: token.network,
-      events: [...configDelegationOnly],
       address: [token.address],
-      fromBlock: token?.blockNumber, // Start from token creation to get all delegation history
-      onError: async (error: any, log: any) => {
-        logger.error(
-          'Error TokenHolderSync - Delegation',
-          llo({
-            log,
-            error,
-            plugin,
-          }),
-        )
-      },
+      events: [...configDelegationOnly],
+      onError: async (error: any) => logger.error('Error Transfer Crawler', llo({ network: token.network, error })),
       logService: TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Delegation),
-      stopOnError: true,
+      stopOnError: false,
+      fromBlock: token.blockNumber || plugin?.blockNumber,
+      batchSize: 1,
+      skipLogProcessing: true,
+      filterLogs: async (logs: Log[]) => {
+        const filteredLogs = await PoolingCrawler.filterLogs(logs, token.network)
+        if (filteredLogs.length === 0) return []
+        await TransferCrawler.parseAndProcessTransferLogs(filteredLogs, token.network)
+        return filteredLogs
+      },
     })
 
-    await crawlerTokenDelegationOnly.crawl()
+    await transferCrawler.crawl()
   },
 
   syncTransfersEvents: async (plugin: Plugin, token: Token) => {

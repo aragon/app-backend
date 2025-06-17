@@ -1207,7 +1207,6 @@ describe('ChilizProvider', () => {
 
   describe('getAllTokenHolders', () => {
     it('should fetch all token holders with callback and sync tracking', async () => {
-      // Arrange
       const address = '0xtoken'
       const network = NetworksEnum.chilizMainnet
       const syncKey = 'test-sync-key'
@@ -1218,35 +1217,24 @@ describe('ChilizProvider', () => {
         { address: '0xholder2', value: '200' },
       ]
 
-      const mockResponse = {
-        holders: mockHolders,
-        total: mockHolders.length,
-        hasMore: false,
-        lastPage: 1,
-      }
-
       const getProgressStub = sandbox.stub(ProxyUtils, 'getProgressFromConfigIndexer').resolves(null)
       const updateProgressStub = sandbox.stub(ProxyUtils, 'updateProgressInConfigIndexer').resolves()
 
-      let capturedCallback: Function | undefined
-      const getAllTokenHoldersStub = sandbox
-        .stub(ChilizProvider, '_getAllTokenHolders')
-        .callsFake(async (_tokenAddr: any, _net: any, _opts: any, callback: any) => {
-          capturedCallback = callback
+      const getTokenHoldersPageStub = sandbox.stub(ChilizProvider, 'getTokenHoldersPage')
+      getTokenHoldersPageStub.onCall(0).resolves({
+        holders: Array.from({ length: 100 }, () => mockHolders[0]), // Full page
+        total: 100,
+      })
+      getTokenHoldersPageStub.onCall(1).resolves({
+        holders: [mockHolders[1]], // Partial page (< 100)
+        total: 1,
+      })
+      getTokenHoldersPageStub.onCall(2).resolves({
+        holders: [],
+        total: 0,
+      })
 
-          if (callback && typeof callback === 'function') {
-            await callback(mockHolders, {
-              currentPage: 1,
-              isLastPage: true,
-              total: mockHolders.length,
-            })
-          }
-
-          return mockResponse
-        })
-
-      // Act
-      const result = await ChilizProvider.getAllTokenHolders({
+      await ChilizProvider.getAllTokenHolders({
         address,
         network,
         callback: mockCallback,
@@ -1255,11 +1243,9 @@ describe('ChilizProvider', () => {
 
       // Assert
       expect(getProgressStub.calledOnceWith(network, syncKey)).to.be.true
-      expect(getAllTokenHoldersStub.calledOnce).to.be.true
-      expect(capturedCallback).to.be.a('function')
-      expect(mockCallback.callCount).to.be.eq(2)
-      expect(result).to.deep.equal(mockResponse)
-      expect(updateProgressStub.calledOnce).to.be.true
+      expect(getTokenHoldersPageStub.calledTwice).to.be.true
+      expect(mockCallback.callCount).to.equal(2)
+      expect(updateProgressStub.calledTwice).to.be.true
     })
 
     it('should return early when sync is already completed', async () => {

@@ -1,14 +1,14 @@
 import { ethers, Interface, type Log } from 'ethers'
 import { DAO } from '@artifacts/dao'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
-import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
+import { IGovernanceErc20Logs, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
-import configIndexer from '@indexer/configIndexer'
 import logger from '@logger'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import utils from '@helpers/utils'
 import config from '@config'
+import configIndexer from '@indexer/configIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'module:PoolingFilter' })
 
@@ -28,9 +28,13 @@ const PoolingCrawler = {
         return this.instances.get(network)!.crawl()
       }
 
+      const aragonTopics = configIndexer.filter(
+        config => !Object.values(IGovernanceErc20Logs).includes(config.event as IGovernanceErc20Logs),
+      )
+
       const poolingCrawler = new BlockchainLogCrawler({
         network,
-        events: configIndexer,
+        events: aragonTopics,
         filterLogs: async (logs: any) => PoolingCrawler.filterLogs(logs, network),
         onError: async (error: any) => logger.error('Error Indexer', llo({ network, error })),
         logService,
@@ -129,8 +133,8 @@ const PoolingCrawler = {
 
       return logs.filter(log => {
         if (!topicsToFilterOut.has(log.topics[0])) return true
-        if (log.topics[0] === transferTopic && !tokenAddressesSet.has(log.address)) return false
-        return !(log.topics[0] === delegateVotesChangedTopic && !tokenAddressesSet.has(log.address))
+        if (log.topics[0] === transferTopic && !tokenAddressesSet.has(ethers.getAddress(log.address))) return false
+        return !(log.topics[0] === delegateVotesChangedTopic && !tokenAddressesSet.has(ethers.getAddress(log.address)))
       })
     } catch (error) {
       logger.error('PoolingCrawler filterLogs', llo({ network, error }))

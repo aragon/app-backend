@@ -760,8 +760,8 @@ describe('PeaqProvider', () => {
 
       expect(capturedCallback).to.be.a('function')
 
-      expect(mockCallback.callCount).to.be.eq(2)
-      expect(mockCallback.firstCall.args[0]).to.deep.equal(mockHolders[0])
+      expect(mockCallback.callCount).to.be.eq(1)
+      expect(mockCallback.firstCall.args[0]).to.deep.equal(mockHolders)
 
       expect(result).to.deep.equal(mockResponse)
       expect(updateProgressStub.calledOnce).to.be.true

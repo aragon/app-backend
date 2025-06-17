@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { Interface } from 'ethers'
+import { ethers, Interface } from 'ethers'
 import { Models } from '@dbModels'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { NetworksEnum } from '@types'
@@ -74,6 +74,34 @@ describe('Module: PoolingCrawler', () => {
     const daoInterface = new Interface(DAO.abi)
     const nativeTokenDepositedTopic = daoInterface.getEvent('NativeTokenDeposited')?.topicHash!
 
+    it('should be able convert address to checksum format and format properly', async () => {
+      const mockLogs = [
+        {
+          topics: [transferTopic],
+          address: '0x4838b106fce9647bdf1e7877bf73ce8b0bad5f95',
+        },
+      ]
+
+      sandbox.stub(PoolingCrawler, '_getReceiverAddress').returns('0xDecodedAddress')
+
+      sandbox.stub(Models.Dao, 'distinct').resolves([ethers.getAddress('0x4838b106fce9647bdf1e7877bf73ce8b0bad5f94')])
+      sandbox
+        .stub(Models.Plugin, 'distinct')
+        .resolves([ethers.getAddress('0x4838b106fce9647bdf1e7877bf73ce8b0bad5f95')])
+
+      const nativeTransferStub = sandbox.stub(DaoRegistryHandler, 'nativeTransfer').resolves()
+
+      sandbox.stub(utils, 'wait')
+
+      const result = await PoolingCrawler.filterLogs(mockLogs as any, NetworksEnum.ethereumMainnet)
+
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      expect(nativeTransferStub.calledOnce).to.be.true
+
+      expect(result).to.have.lengthOf(1)
+    })
+
     it('should filter logs based on topics', async () => {
       const mockLogs = [
         { topics: [transferTopic], address: '0x4838b106fce9647bdf1e7877bf73ce8b0bad5f95' },
@@ -85,8 +113,10 @@ describe('Module: PoolingCrawler', () => {
 
       sandbox.stub(PoolingCrawler, '_getReceiverAddress').returns('0xDecodedAddress')
 
-      sandbox.stub(Models.Dao, 'distinct').resolves(['0x4838b106fce9647bdf1e7877bf73ce8b0bad5f94'])
-      sandbox.stub(Models.Plugin, 'distinct').resolves(['0x4838b106fce9647bdf1e7877bf73ce8b0bad5f95'])
+      sandbox.stub(Models.Dao, 'distinct').resolves([ethers.getAddress('0x4838b106fce9647bdf1e7877bf73ce8b0bad5f94')])
+      sandbox
+        .stub(Models.Plugin, 'distinct')
+        .resolves([ethers.getAddress('0x4838b106fce9647bdf1e7877bf73ce8b0bad5f95')])
 
       const nativeTransferStub = sandbox.stub(DaoRegistryHandler, 'nativeTransfer').resolves()
 

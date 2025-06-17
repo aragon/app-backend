@@ -223,6 +223,67 @@ const Utils = {
     })
   },
 
+  asyncBatchProcess: async <T>(
+    items: T[],
+    processor: (item: T, stats: { processed: number; total: number; batchIndex: number }) => Promise<void>,
+    options: {
+      concurrency?: number
+      batchSize?: number
+      onError?: (error: Error, item: T) => void
+      stopOnError?: boolean
+    } = {},
+  ): Promise<void> => {
+    const { concurrency = 2, batchSize = 10, onError = Utils.defaultError, stopOnError = false } = options
+
+    return await new Promise((resolve, reject) => {
+      let processed = 0
+      let hasError = false
+      const total = items.length
+
+      if (total === 0) {
+        return resolve()
+      }
+
+      const worker = async (batch: T[], batchIndex: number): Promise<void> => {
+        for (const item of batch) {
+          if (hasError && stopOnError) {
+            break
+          }
+
+          try {
+            await processor(item, { processed: processed + 1, total, batchIndex })
+            processed++
+          } catch (error: any) {
+            onError(error, item)
+            processed++
+
+            if (stopOnError) {
+              hasError = true
+              break
+            }
+          }
+        }
+      }
+
+      const batches = Utils.chunkArray(items, batchSize)
+      const queue = async.queue(async (batchData: { batch: T[]; index: number }) => {
+        await worker(batchData.batch, batchData.index)
+      }, concurrency)
+
+      queue.error((error: Error) => {
+        reject(error)
+      })
+
+      queue.drain(() => {
+        resolve()
+      })
+
+      batches.forEach((batch, index) => {
+        queue.push({ batch, index })
+      })
+    })
+  },
+
   generateRandomName(length = 10): string {
     const characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
     let result = ''

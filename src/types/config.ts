@@ -199,4 +199,9 @@ export interface IConfig {
     TOKEN_RATES_CONCURRENCY: number
     TOKEN_HOLDERS_THRESHOLD: number
   }
+
+  TRANSFER_CRAWLER_CONFIG: {
+    BATCH_SIZE: number
+    CONCURRENCY: number
+  }
 }

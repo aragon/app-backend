@@ -74,7 +74,7 @@ class BlockchainLogCrawler {
     )
   }
 
-  async crawl(): Promise<IFormattedLog[] | undefined> {
+  async crawl(): Promise<Log[] | undefined> {
     if (this.crawlSetting.crawling) {
       throw new Error('Already crawling')
     }
@@ -88,7 +88,7 @@ class BlockchainLogCrawler {
     let latestBlock = await Web3Helper.getBlockNumber(this.crawlSetting.filter.toBlock, this.crawlParams.network)
     latestBlock = this.getOffsetToBlockNumber(latestBlock)
 
-    const rawLogs: IFormattedLog[] = []
+    const rawLogs: Log[] = []
     let allLogs: Log[] = []
 
     if (currentBlock === latestBlock) {
@@ -142,7 +142,7 @@ class BlockchainLogCrawler {
         } else if (!this.crawlParams.skipLogProcessing) {
           await this.processLogs(sortedLogs, { fromBlock: currentBlock, toBlock, latestBlock })
         } else {
-          sortedLogs?.map(log => rawLogs.push(this.formatLog(log)))
+          sortedLogs?.map(log => rawLogs.push(log))
         }
 
         if (this.crawlParams.logService) {
@@ -158,11 +158,11 @@ class BlockchainLogCrawler {
       }
     }
 
+    this.crawlSetting.crawling = false
     if (this.crawlParams.skipLogProcessing) {
       return rawLogs
     }
 
-    this.crawlSetting.crawling = false
     if (!this.crawlParams.filterLogs) {
       logger.verbose('Finished crawling logs', llo({ ...this.parseCrawlerInfoLog() }))
     }
@@ -680,6 +680,7 @@ class BlockchainLogCrawler {
       'Response size is larger than 150MB limit',
       'Log response size exceeded',
       'Consider reducing your block range',
+      'Response is too big',
       'Query returned more than 1000000 results',
       'Cannot create a string longer',
     ]

@@ -201,7 +201,7 @@ const Web3Provider: IWeb3Provider = {
   }: {
     address: string
     network: NetworksEnum
-    callback: ({ address, value }: { address: string; value: string }) => Promise<void> | void
+    callback: (holders: Array<{ address: string; value: string }>) => Promise<void> | void
     syncKey?: string
   }) => {
     const syncProgress = await ProxyUtils.getProgressFromConfigIndexer(network, syncKey)
@@ -217,9 +217,9 @@ const Web3Provider: IWeb3Provider = {
       return await BlockScoutHelper.getAllTokenHolders(
         address,
         network,
-        { pageSize: 1000, delayMs: 500, startPage: initialPage },
+        { pageSize: 1000, delayMs: 1000, startPage: initialPage },
         async (holders, pageInfo) => {
-          await Promise.all(holders.map(async holder => await callback(holder)))
+          await callback(holders)
 
           if (syncKey) {
             logger.verbose(
