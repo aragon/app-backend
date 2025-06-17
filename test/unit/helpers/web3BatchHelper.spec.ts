@@ -768,4 +768,148 @@ describe('Helpers:Web3BatchHelper', () => {
       })
     })
   })
+
+  describe.only('getNativeBalancesInBatch', () => {
+    it('should return empty object if addresses array is empty', async () => {
+      const result = await Web3BatchHelper.getNativeBalancesInBatch([], NetworksEnum.ethereumMainnet)
+      expect(result).to.deep.equal({})
+    })
+
+    it('should get native balances in batch', async () => {
+      const mockAddresses = ['0xaddress1', '0xaddress2']
+
+      const callRpcMethodStub = sandbox.stub(Web3BatchHelper, 'callRpcMethod').resolves([
+        { identifier: '0xaddress1', success: true, data: '0x64' }, // 100 in hex
+        { identifier: '0xaddress2', success: true, data: '0xc8' }, // 200 in hex
+      ])
+
+      const results = await Web3BatchHelper.getNativeBalancesInBatch(mockAddresses, NetworksEnum.ethereumMainnet)
+
+      expect(callRpcMethodStub.calledOnce).to.be.true
+      expect(callRpcMethodStub.firstCall.args[0]).to.equal('eth_getBalance')
+      expect(callRpcMethodStub.firstCall.args[1]).to.deep.equal([
+        { params: ['0xaddress1', 'latest'], identifier: '0xaddress1' },
+        { params: ['0xaddress2', 'latest'], identifier: '0xaddress2' },
+      ])
+      expect(results).to.deep.equal({
+        '0xaddress1': '100',
+        '0xaddress2': '200',
+      })
+    })
+
+    it('should handle failed requests and return zero balances', async () => {
+      const mockAddresses = ['0xaddress1', '0xaddress2']
+
+      const callRpcMethodStub = sandbox.stub(Web3BatchHelper, 'callRpcMethod').resolves([
+        { identifier: '0xaddress1', success: true, data: '0x64' },
+        { identifier: '0xaddress2', success: false, data: null },
+      ])
+
+      const results = await Web3BatchHelper.getNativeBalancesInBatch(mockAddresses, NetworksEnum.ethereumMainnet)
+
+      expect(callRpcMethodStub.calledOnce).to.be.true
+      expect(results).to.deep.equal({
+        '0xaddress1': '100',
+        '0xaddress2': '0',
+      })
+    })
+
+    it('should handle errors and return zero balances for all addresses', async () => {
+      const mockAddresses = ['0xaddress1', '0xaddress2']
+
+      sandbox.stub(Web3BatchHelper, 'callRpcMethod').throws(new Error('RPC error'))
+
+      const results = await Web3BatchHelper.getNativeBalancesInBatch(mockAddresses, NetworksEnum.ethereumMainnet)
+
+      expect(results).to.deep.equal({
+        '0xaddress1': '0',
+        '0xaddress2': '0',
+      })
+    })
+  })
+
+  describe('getTokenBalancesInBatch', () => {
+    it('should return empty object if addresses array is empty', async () => {
+      const result = await Web3BatchHelper.getTokenBalancesInBatch([], NetworksEnum.ethereumMainnet)
+      expect(result).to.deep.equal({})
+    })
+
+    it('should get token balances for multiple addresses', async () => {
+      const mockAddresses = ['0xaddress1', '0xaddress2']
+      const mockTokenBalances1 = [
+        { contractAddress: '0xtoken1', tokenBalance: '0x64' },
+        { contractAddress: '0xtoken2', tokenBalance: '0xc8' },
+      ]
+      const mockTokenBalances2 = [{ contractAddress: '0xtoken3', tokenBalance: '0x12c' }]
+
+      sandbox.stub(ProviderModule, 'getProviderUrl').resolves('https://mock-rpc.example.com')
+
+      const axiosPostStub = sandbox.stub(axios, 'post')
+      axiosPostStub.onFirstCall().resolves({
+        data: { result: { tokenBalances: mockTokenBalances1 } },
+      })
+      axiosPostStub.onSecondCall().resolves({
+        data: { result: { tokenBalances: mockTokenBalances2 } },
+      })
+
+      const results = await Web3BatchHelper.getTokenBalancesInBatch(mockAddresses, NetworksEnum.ethereumMainnet)
+
+      expect(axiosPostStub.calledTwice).to.be.true
+
+      expect(results).to.deep.equal({
+        '0xaddress1': mockTokenBalances1,
+        '0xaddress2': mockTokenBalances2,
+      })
+    })
+
+    it('should handle RPC errors for individual addresses', async () => {
+      const mockAddresses = ['0xaddress1', '0xaddress2']
+      const mockTokenBalances = [{ contractAddress: '0xtoken1', tokenBalance: '0x64' }]
+
+      sandbox.stub(ProviderModule, 'getProviderUrl').resolves('https://mock-rpc.example.com')
+
+      const axiosPostStub = sandbox.stub(axios, 'post')
+      axiosPostStub.onFirstCall().resolves({
+        data: { result: { tokenBalances: mockTokenBalances } },
+      })
+      axiosPostStub.onSecondCall().rejects(new Error('RPC error'))
+
+      const results = await Web3BatchHelper.getTokenBalancesInBatch(mockAddresses, NetworksEnum.ethereumMainnet)
+
+      expect(results).to.deep.equal({
+        '0xaddress1': mockTokenBalances,
+        '0xaddress2': [],
+      })
+    })
+
+    it('should handle missing result in response', async () => {
+      const mockAddresses = ['0xaddress1']
+
+      sandbox.stub(ProviderModule, 'getProviderUrl').resolves('https://mock-rpc.example.com')
+
+      const axiosPostStub = sandbox.stub(axios, 'post')
+      axiosPostStub.onFirstCall().resolves({
+        data: {}, // No result field
+      })
+
+      const results = await Web3BatchHelper.getTokenBalancesInBatch(mockAddresses, NetworksEnum.ethereumMainnet)
+
+      expect(results).to.deep.equal({
+        '0xaddress1': [],
+      })
+    })
+
+    it('should handle errors and return empty arrays for all addresses', async () => {
+      const mockAddresses = ['0xaddress1', '0xaddress2']
+
+      sandbox.stub(ProviderModule, 'getProviderUrl').throws(new Error('Provider error'))
+
+      const results = await Web3BatchHelper.getTokenBalancesInBatch(mockAddresses, NetworksEnum.ethereumMainnet)
+
+      expect(results).to.deep.equal({
+        '0xaddress1': [],
+        '0xaddress2': [],
+      })
+    })
+  })
 })
