@@ -83,6 +83,9 @@ const TransactionController = {
         assert(!!result, ErrorKeyEnum.unknownError)
         response.stage = result.stage
         response.resultType = result.resultType
+      } else if (data && action === ITransactionIndexCheckType.PLUGIN_CREATE) {
+        response.isSupported = data.isSupported
+        response.interfaceType = data.interfaceType
       }
       return response
     } catch (error) {
@@ -100,6 +103,14 @@ const TransactionController = {
         return { 'stageExecutions.transactionHash': txHash, network }
       case ITransactionIndexCheckType.PROPOSAL_REPORT_RESULTS:
         return { 'results.transactionHash': txHash, network }
+      case ITransactionIndexCheckType.LOCK_CREATE:
+        return { transactionHash: txHash, network }
+      case ITransactionIndexCheckType.EXIT_CREATE:
+        return { 'lockExit.transactionHash': txHash, network, 'lockExit.status': true }
+      case ITransactionIndexCheckType.WITHDRAW_CREATE:
+        return { 'lockWithdraw.transactionHash': txHash, network, 'lockWithdraw.status': true }
+      case ITransactionIndexCheckType.PLUGIN_CREATE:
+        return { transactionHash: txHash, network }
       default:
         return { transactionHash: txHash, network }
     }
