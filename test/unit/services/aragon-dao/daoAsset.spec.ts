@@ -217,6 +217,47 @@ describe('AragonDao:Assets', () => {
     })
   })
 
+  describe('_removeStaleAssets', () => {
+    it('should remove stale assets correctly', async () => {
+      const stubLogger = sandbox.stub(Logger, 'verbose')
+      const deleteStub = sandbox.stub().resolves()
+
+      const mockAssets = [
+        { id: 'asset1', tokenAddress: '0xToken1', deleteOne: deleteStub },
+        { id: 'asset2', tokenAddress: '0xToken2', deleteOne: deleteStub },
+        { id: 'asset3', tokenAddress: '0x0000000000000000000000000000000000000000', deleteOne: deleteStub }, // Native token
+      ]
+
+      const stubFind = sandbox.stub(Models.Asset, 'find').resolves(mockAssets)
+
+      const tokenBalances = [
+        { contractAddress: '0xToken1', tokenBalance: '500' } as IWeb3TokenBalance,
+        { contractAddress: '0x0000000000000000000000000000000000000000', tokenBalance: '1' } as IWeb3TokenBalance,
+      ]
+
+      await DaoAssets._removeStaleAssets(
+        { address: '0xDao', network: NetworksEnum.ethereumMainnet, id: 'dao1' } as any,
+        tokenBalances,
+      )
+
+      expect(stubFind.calledOnce).to.be.true
+      expect(deleteStub.calledOnce).to.be.true
+      expect(stubLogger.calledWithMatch('Deleted stale token asset' as any)).to.be.true
+    })
+
+    it('should handle errors gracefully', async () => {
+      const stubLogger = sandbox.stub(Logger, 'error')
+      sandbox.stub(Models.Asset, 'find').rejects(new Error('Test error'))
+
+      await DaoAssets._removeStaleAssets(
+        { address: '0xDao', network: NetworksEnum.ethereumMainnet, id: 'dao1' } as any,
+        [],
+      )
+
+      expect(stubLogger.calledWithMatch('Error removing stale assets' as any)).to.be.true
+    })
+  })
+
   describe('assets', () => {
     it('should process DAO assets correctly', async () => {
       const stubGetBalance = sandbox.stub(ProxyWeb3Provider, 'getNativeBalance').resolves('1')
@@ -226,6 +267,7 @@ describe('AragonDao:Assets', () => {
           { contractAddress: '0xToken', tokenBalance: '500' } as IWeb3TokenBalance,
           { contractAddress: '0xToken1', tokenBalance: '0' } as IWeb3TokenBalance,
         ])
+      const stubRemoveStale = sandbox.stub(DaoAssets, '_removeStaleAssets').resolves()
       const stubHandleNative = sandbox.stub(DaoAssets, '_handleNativeToken').resolves()
       const stubHandleErc20 = sandbox.stub(DaoAssets, '_handleErc20Token').resolves()
 
@@ -233,6 +275,12 @@ describe('AragonDao:Assets', () => {
 
       expect(stubGetBalance.calledOnce).to.be.true
       expect(stubGetTokens.calledOnce).to.be.true
+      // Verify that _removeStaleAssets is called with both ERC20 and native tokens
+      expect(stubRemoveStale.calledOnce).to.be.true
+      expect(stubRemoveStale.firstCall.args[1]).to.deep.include({
+        contractAddress: '0x0000000000000000000000000000000000000000',
+        tokenBalance: '1',
+      })
       expect(stubHandleNative.calledOnce).to.be.true
       expect(stubHandleErc20.calledOnce).to.be.true
     })
@@ -244,11 +292,13 @@ describe('AragonDao:Assets', () => {
         .resolves([{ contractAddress: '0xToken', tokenBalance: '500' } as IWeb3TokenBalance])
       const stubHandleNative = sandbox.stub(DaoAssets, '_handleNativeToken')
       const stubHandleErc20 = sandbox.stub(DaoAssets, '_handleErc20Token').resolves()
+      const stubRemoveStale = sandbox.stub(DaoAssets, '_removeStaleAssets').resolves()
 
       await DaoAssets.assets({ address: '0xDao', network: NetworksEnum.ethereumMainnet } as any)
 
       expect(stubGetBalance.calledOnce).to.be.true
       expect(stubGetTokens.calledOnce).to.be.true
+      expect(stubRemoveStale.calledOnce).to.be.true
       expect(stubHandleNative.notCalled).to.be.true
       expect(stubHandleErc20.calledOnce).to.be.true
     })
@@ -256,6 +306,7 @@ describe('AragonDao:Assets', () => {
     it('should log error when processing assets fails', async () => {
       const stubLogger = sandbox.stub(Logger, 'error')
       sandbox.stub(ProxyWeb3Provider, 'getNativeBalance').rejects(new Error('Test Error'))
+      sandbox.stub(ProxyWeb3Provider, 'getTokenBalances').rejects(new Error('Test Error'))
 
       await DaoAssets.assets({ address: '0xDao', network: NetworksEnum.ethereumMainnet } as any)
 
@@ -269,13 +320,6 @@ describe('AragonDao:Assets', () => {
         .resolves([{ contractAddress: '0xToken', tokenBalance: '500' } as IWeb3TokenBalance])
       const stubHandleNative = sandbox.stub(DaoAssets, '_handleNativeToken')
       const stubHandleErc20 = sandbox.stub(DaoAssets, '_handleErc20Token').resolves()
-      const deleteStub = sandbox.stub(Models.Asset.prototype, 'deleteOne').resolves()
-      const stubFindExistingLog = sandbox.stub(Models.Asset, 'find').resolves([
-        {
-          tokenAddress: '0xToken1',
-          deleteOne: deleteStub,
-        },
-      ])
 
       await DaoAssets.assets({ address: '0xDao', network: NetworksEnum.ethereumMainnet } as any)
 
@@ -283,8 +327,6 @@ describe('AragonDao:Assets', () => {
       expect(stubGetTokens.calledOnce).to.be.true
       expect(stubHandleNative.notCalled).to.be.true
       expect(stubHandleErc20.calledOnce).to.be.true
-      expect(stubFindExistingLog.calledOnce).to.be.true
-      expect(deleteStub.calledOnce).to.be.true
     })
   })
 })

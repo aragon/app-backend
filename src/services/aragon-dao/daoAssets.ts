@@ -128,17 +128,8 @@ export const DaoAssets = {
     }
   },
 
-  assets: async (document: Dao) => {
+  _removeStaleAssets: async (document: Dao, tokenBalances: IWeb3TokenBalance[]) => {
     try {
-      const [ethBalance, tokenBalances] = await Promise.all([
-        ProxyWeb3Provider.getNativeBalance({ address: document.address, network: document.network }),
-        ProxyWeb3Provider.getTokenBalances({ address: document.address, network: document.network }),
-      ])
-
-      if (Number(ethBalance) > 0) {
-        await DaoAssets._handleNativeToken(document, ethBalance)
-      }
-
       const activeTokenAddresses = tokenBalances.map(token => token.contractAddress)
 
       await DbTx.executeTxFn(async ({ session }) => {
@@ -146,7 +137,6 @@ export const DaoAssets = {
           {
             daoAddress: document.address,
             network: document.network,
-            tokenAddress: { $ne: utils.zeroAddress },
           },
           {},
           { session },
@@ -164,6 +154,26 @@ export const DaoAssets = {
         await session.commitTransaction()
         await session.endSession()
       })
+    } catch (error) {
+      logger.error('Error removing stale assets', llo({ error, logId: document.id }))
+    }
+  },
+
+  assets: async (document: Dao) => {
+    try {
+      const [ethBalance, tokenBalances] = await Promise.all([
+        ProxyWeb3Provider.getNativeBalance({ address: document.address, network: document.network }),
+        ProxyWeb3Provider.getTokenBalances({ address: document.address, network: document.network }),
+      ])
+
+      await DaoAssets._removeStaleAssets(document, [
+        ...tokenBalances,
+        { contractAddress: utils.zeroAddress, tokenBalance: ethBalance },
+      ])
+
+      if (Number(ethBalance) > 0) {
+        await DaoAssets._handleNativeToken(document, ethBalance)
+      }
 
       await Promise.all(
         tokenBalances
