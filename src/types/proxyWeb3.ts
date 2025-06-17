@@ -56,7 +56,7 @@ export interface IWeb3Provider {
   }: {
     address: string
     network: NetworksEnum
-    callback: (holder: { address: string; value: string }) => Promise<void> | void
+    callback: (holders: Array<{ address: string; value: string }>) => Promise<void> | void
     syncKey: any
   }) => Promise<any>
   getTokenCounters: ({

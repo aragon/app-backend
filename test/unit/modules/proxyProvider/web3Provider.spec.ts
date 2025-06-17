@@ -608,10 +608,9 @@ describe('Web3Provider', () => {
       expect(getProgressStub.calledOnceWith(network, syncKey)).to.be.true
       expect(getAllTokenHoldersStub.calledOnce).to.be.true
 
-      // Verify callback was called for each holder
-      expect(mockCallback.callCount).to.equal(mockHolders.length)
-      expect(mockCallback.firstCall.args[0]).to.deep.equal(mockHolders[0])
-      expect(mockCallback.secondCall.args[0]).to.deep.equal(mockHolders[1])
+      // Verify callback was called once with all holders
+      expect(mockCallback.callCount).to.equal(1)
+      expect(mockCallback.firstCall.args[0]).to.deep.equal(mockHolders)
 
       // Verify progress was updated
       expect(updateProgressStub.calledOnce).to.be.true

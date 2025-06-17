@@ -110,6 +110,7 @@ remote_restore_envfiles_remotely() {
     cp $REMOTE_DIR/manual_envfiles/.env.aragon-rates $REMOTE_DIR/$TARGET_DIR/.env.aragon-rates
     cp $REMOTE_DIR/manual_envfiles/.env.aragon-admin-api $REMOTE_DIR/$TARGET_DIR/.env.aragon-admin-api
     cp $REMOTE_DIR/manual_envfiles/.env.aragon-tools $REMOTE_DIR/$TARGET_DIR/.env.aragon-tools
+    cp $REMOTE_DIR/manual_envfiles/.env.aragon-transfers $REMOTE_DIR/$TARGET_DIR/.env.aragon-transfers
 EOF
 }
 

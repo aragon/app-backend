@@ -5,6 +5,7 @@ import PluginController from '@services/aragon-api/controllers/plugins'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import config from '@config'
 import { NetworksEnum, EnumQueueName } from '@types'
+import logger from '@logger'
 
 describe('Controller: Plugin', () => {
   let sandbox: SinonSandbox
@@ -40,6 +41,25 @@ describe('Controller: Plugin', () => {
         timeout: config.RABBITMQ.TIMEOUT,
       })
       expect(result).to.equal(installationData)
+    })
+
+    it('should log error and re-throw when RabbitMQ fails', async () => {
+      const error = new Error('RabbitMQ connection failed')
+      const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(error)
+      const loggerStub = sandbox.stub(logger, 'warn')
+
+      try {
+        await PluginController.getInstallationData({
+          pluginAddress,
+          network,
+        })
+        expect.fail('Should have thrown an error')
+      } catch (thrownError) {
+        expect(thrownError).to.equal(error)
+        expect(rabbitMqStub.calledOnce).to.be.true
+        expect(loggerStub.calledOnce).to.be.true
+        expect(loggerStub.args[0][0]).to.equal('Error while getting plugin installation data')
+      }
     })
   })
 })

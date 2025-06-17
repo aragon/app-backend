@@ -7,6 +7,7 @@
   "author": "Aragon Development Team",
   "scripts": {
     "start": "yarn run service:aragon-api",
+    "service:aragon-transfers": "ts-node -r tsconfig-paths/register runners/aragon-transfers.ts",
     "service:aragon-api": "ts-node -r tsconfig-paths/register runners/aragon-api.ts",
     "service:aragon-admin-api": "ts-node -r tsconfig-paths/register runners/aragon-admin-api.ts",
     "service:aragon-indexer": "ts-node -r tsconfig-paths/register runners/aragon-indexer.ts",

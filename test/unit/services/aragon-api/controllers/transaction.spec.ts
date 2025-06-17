@@ -8,6 +8,7 @@ import Transaction from '@models/schema/transaction'
 import { DaoList } from '@test/mock/fakeDao'
 import { ProposalList } from '@test/mock/fakeProposal'
 import logger from '@logger'
+import PairDataModule from '@modules/pairData'
 
 describe('Controller: Transaction', () => {
   let sandbox: SinonSandbox
@@ -56,6 +57,96 @@ describe('Controller: Transaction', () => {
 
   afterEach(() => {
     sandbox?.restore()
+  })
+
+  describe('getTransactionsWithPagination', () => {
+    it('should return paginated transactions with filtered keys', async () => {
+      const paginationParams = { page: 1, limit: 10 }
+      const extraParams = { daoAddress: '0x123' }
+      const pairParams = {}
+
+      const mockTransactionData = {
+        ...rawTransaction,
+        filterKeys: sinon.stub().returns({ id: '1', transactionHash: '0x123' }),
+      }
+
+      const mockResult = {
+        data: [mockTransactionData],
+        metadata: {
+          page: 1,
+          totalPages: 1,
+          totalRecords: 1,
+        },
+      }
+
+      const pairDataModulePaginationStub = sandbox
+        .stub(PairDataModule, 'pairFromPaginationParams')
+        .resolves(paginationParams)
+      const pairDataModuleExtraStub = sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      const transactionFindStub = sandbox.stub(Models.Transaction, 'findWithPagination').resolves(mockResult)
+
+      const result = await TransactionController.getTransactionsWithPagination(
+        paginationParams,
+        extraParams,
+        pairParams,
+      )
+
+      expect(pairDataModulePaginationStub.calledOnceWith(paginationParams)).to.be.true
+      expect(pairDataModuleExtraStub.calledOnceWith(extraParams, pairParams)).to.be.true
+      expect(transactionFindStub.calledOnceWith({ extraParams, paginationParams })).to.be.true
+      expect(mockTransactionData.filterKeys.calledOnce).to.be.true
+      expect(result.data).to.deep.equal([{ id: '1', transactionHash: '0x123' }])
+      expect(result.metadata.totalRecords).to.equal(1)
+    })
+
+    it('should handle empty parameters and return default results', async () => {
+      const mockResult = {
+        data: [],
+        metadata: {
+          page: 1,
+          totalPages: 0,
+          totalRecords: 0,
+        },
+      }
+
+      const pairDataModulePaginationStub = sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves({})
+      const pairDataModuleExtraStub = sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
+      const transactionFindStub = sandbox.stub(Models.Transaction, 'findWithPagination').resolves(mockResult)
+
+      const result = await TransactionController.getTransactionsWithPagination()
+
+      expect(pairDataModulePaginationStub.calledOnceWith({})).to.be.true
+      expect(pairDataModuleExtraStub.calledOnceWith({}, {})).to.be.true
+      expect(transactionFindStub.calledOnce).to.be.true
+      expect(result.data).to.deep.equal([])
+      expect(result.metadata.totalRecords).to.equal(0)
+    })
+
+    it('should handle errors from PairDataModule', async () => {
+      const error = new Error('PairDataModule error')
+      sandbox.stub(PairDataModule, 'pairFromPaginationParams').rejects(error)
+
+      try {
+        await TransactionController.getTransactionsWithPagination()
+        expect.fail('Should have thrown an error')
+      } catch (thrownError) {
+        expect(thrownError).to.equal(error)
+      }
+    })
+
+    it('should handle errors from Models.Transaction.findWithPagination', async () => {
+      const error = new Error('Database error')
+      sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves({})
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
+      sandbox.stub(Models.Transaction, 'findWithPagination').rejects(error)
+
+      try {
+        await TransactionController.getTransactionsWithPagination()
+        expect.fail('Should have thrown an error')
+      } catch (thrownError) {
+        expect(thrownError).to.equal(error)
+      }
+    })
   })
 
   describe('getTransactionIndexingStatus', () => {

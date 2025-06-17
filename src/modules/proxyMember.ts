@@ -1,5 +1,5 @@
 import { Models } from '@dbModels'
-import { type HexAddress, IMetricAction, type NetworksEnum } from '@types'
+import { type HexAddress, IMetricAction, type NetworksEnum, SupportedEnsNetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
@@ -330,5 +330,319 @@ export const ProxyMember = {
     session?: any,
   ) => {
     return Models.DaoMemberMapping.findMapping(params, { session })
+  },
+
+  bulkMemberCreation: async (memberAddresses: HexAddress[], network: NetworksEnum) => {
+    await DbTx.executeTxFn(async ({ session }) => {
+      const parsedAddresses = [...new Set(memberAddresses.map(Web3Utils.parseAddress).filter(Boolean) as HexAddress[])]
+
+      const existingMembers = await Models.Member.find(
+        {
+          address: { $in: parsedAddresses },
+        },
+        null,
+        { session },
+      ).lean()
+
+      const existingMemberSet = new Set(existingMembers.map(m => m.address.toLowerCase()))
+      const newAddresses = parsedAddresses.filter(address => !existingMemberSet.has(address.toLowerCase()))
+
+      if (newAddresses.length > 0) {
+        const isEnsSupported = Object.values(SupportedEnsNetworksEnum).includes(network as any)
+        const chunkSize = 500
+        for (let i = 0; i < newAddresses.length; i += chunkSize) {
+          const chunk = newAddresses.slice(i, i + chunkSize)
+          const newMembersData = await Promise.all(
+            chunk.map(async address => ({
+              id: address,
+              address,
+              ens: !isEnsSupported ? null : await EnsHelper.getEnsWithUniversalResolver(address),
+              avatar: null,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              __v: 0,
+            })),
+          )
+
+          try {
+            await Models.Member.insertMany(
+              newMembersData,
+              {
+                ordered: false,
+                lean: true,
+              },
+              { session },
+            )
+          } catch (error: any) {
+            logger.warn('Some members already existed', llo({ error, duplicates: error.writeErrors?.length || 0 }))
+          }
+        }
+        await session.commitTransaction()
+        await session.endSession()
+      }
+    })
+  },
+
+  bulkBalanceCreation: async (
+    balanceParams: Array<{
+      address: HexAddress
+      balance: string
+    }>,
+    network: NetworksEnum,
+    tokenAddress: HexAddress,
+    blockNumber: number,
+  ) => {
+    await DbTx.executeTxFn(async ({ session }) => {
+      const existingBalances = await Models.MemberBalance.find(
+        {
+          $or: balanceParams.map(({ address }) => ({
+            address,
+            tokenAddress,
+            network,
+          })),
+        },
+        null,
+        { session },
+      ).lean()
+
+      const existingBalanceMap = new Map(
+        existingBalances.map(b => [`${b.address.toLowerCase()}_${b.tokenAddress.toLowerCase()}_${b.network}`, b]),
+      )
+
+      const balancesToUpdate: Array<{ id: any; updateData: any }> = []
+      const balancesToCreate: Array<any> = []
+
+      for (const param of balanceParams) {
+        const key = `${param.address.toLowerCase()}_${tokenAddress.toLowerCase()}_${network}`
+        const existingBalance: any = existingBalanceMap.get(key)
+
+        if (existingBalance) {
+          balancesToUpdate.push({
+            id: existingBalance.id!,
+            updateData: {
+              amount: param.balance,
+              lastSyncAmountBlockNumber: blockNumber,
+              updatedAt: new Date(),
+            },
+          })
+        } else {
+          balancesToCreate.push({
+            id: Models.MemberBalance.getEntityId({
+              network,
+              address: param.address,
+              tokenAddress,
+            }),
+            address: param.address,
+            tokenAddress,
+            network,
+            amount: param.balance,
+            lastSyncAmountBlockNumber: blockNumber,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            __v: 0,
+          })
+        }
+      }
+
+      if (balancesToUpdate.length > 0) {
+        const bulkOps = balancesToUpdate.map(({ id, updateData }) => ({
+          updateOne: {
+            filter: { id },
+            update: { $set: updateData },
+          },
+        }))
+
+        await Models.MemberBalance.bulkWrite(
+          bulkOps,
+          {
+            ordered: false,
+            lean: true,
+          },
+          { session },
+        )
+      }
+
+      if (balancesToCreate.length > 0) {
+        try {
+          await Models.MemberBalance.insertMany(
+            balancesToCreate,
+            {
+              ordered: false,
+              lean: true,
+            },
+            { session },
+          )
+        } catch (error: any) {
+          logger.warn('Some balances already existed', llo({ duplicates: error.writeErrors?.length || 0 }))
+        }
+      }
+
+      await session.commitTransaction()
+      await session.endSession()
+    })
+  },
+
+  /**
+   * 🔥 FIXED: DAO membership management with return values and better logging
+   */
+  bulkDaoMembershipManagement: async (
+    params: Array<{
+      memberAddress: HexAddress
+      hasBalance: boolean
+    }>,
+    daoAddress: HexAddress,
+    pluginAddress: HexAddress,
+    tokenAddress: HexAddress,
+    network: NetworksEnum,
+  ) => {
+    await DbTx.executeTxFn(async ({ session }) => {
+      try {
+        const memberAddresses = params.map(p => p.memberAddress)
+
+        const existingMemberships = await Models.DaoMemberMapping.find(
+          {
+            memberAddress: { $in: memberAddresses },
+            daoAddress,
+            pluginAddress,
+            tokenAddress,
+            network,
+          },
+          null,
+          { session },
+        ).lean()
+
+        const existingMemberSet = new Set(existingMemberships.map(m => m.memberAddress.toLowerCase()))
+
+        const membersToAdd: HexAddress[] = []
+        const membersToRemove: HexAddress[] = []
+
+        for (const param of params) {
+          const address = param.memberAddress.toLowerCase()
+          const isCurrentlyMember = existingMemberSet.has(address)
+          const shouldBeMember = param.hasBalance
+
+          if (shouldBeMember && !isCurrentlyMember) {
+            membersToAdd.push(param.memberAddress)
+          } else if (!shouldBeMember && isCurrentlyMember) {
+            membersToRemove.push(param.memberAddress)
+          }
+        }
+
+        const operations: Promise<any>[] = []
+
+        if (membersToAdd.length > 0) {
+          const membershipData = membersToAdd.map(memberAddress => ({
+            memberAddress,
+            daoAddress,
+            pluginAddress,
+            tokenAddress,
+            network,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            __v: 0,
+          }))
+
+          operations.push(
+            Models.DaoMemberMapping.insertMany(
+              membershipData,
+              {
+                ordered: false,
+                lean: true,
+              },
+              { session },
+            ).catch((error: any) => {
+              logger.warn(
+                'Some DAO memberships already exist',
+                llo({
+                  duplicateCount: error?.writeErrors?.length || 0,
+                }),
+              )
+            }),
+          )
+        }
+
+        // Remove members
+        if (membersToRemove.length > 0) {
+          operations.push(
+            Models.DaoMemberMapping.deleteMany(
+              {
+                memberAddress: { $in: membersToRemove },
+                daoAddress,
+                pluginAddress,
+                tokenAddress,
+                network,
+              },
+              { session },
+            ),
+          )
+        }
+
+        await Promise.all(operations)
+        await session.commitTransaction()
+        await session.endSession()
+      } catch (error) {
+        logger.error(
+          'Error in DAO membership management',
+          llo({
+            error,
+            memberCount: params.length,
+            daoAddress,
+            tokenAddress,
+          }),
+        )
+      }
+    })
+  },
+
+  optimizedDaoMembershipManagement: async (
+    params: Array<{
+      address: HexAddress
+      value: string
+    }>,
+    daoAddress: HexAddress,
+    pluginAddress: HexAddress,
+    tokenAddress: HexAddress,
+    network: NetworksEnum,
+    blockNumber: number,
+  ) => {
+    try {
+      await Promise.all([
+        ProxyMember.bulkMemberCreation(
+          params.map(p => p.address),
+          network,
+        ),
+        ProxyMember.bulkBalanceCreation(
+          params.map(p => ({
+            address: p.address,
+            balance: p.value,
+          })),
+          network,
+          tokenAddress,
+          blockNumber,
+        ),
+        ProxyMember.bulkDaoMembershipManagement(
+          params.map(p => ({
+            memberAddress: p.address,
+            hasBalance: p.value !== '0',
+          })),
+          daoAddress,
+          pluginAddress,
+          tokenAddress,
+          network,
+        ),
+      ])
+    } catch (error) {
+      logger.error(
+        'Error in optimized DAO membership management pipeline',
+        llo({
+          error,
+          paramCount: params.length,
+          daoAddress,
+          tokenAddress,
+          network,
+        }),
+      )
+      throw error
+    }
   },
 }
