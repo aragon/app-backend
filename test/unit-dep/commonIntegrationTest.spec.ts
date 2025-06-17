@@ -75,6 +75,8 @@ describe('Basic Integer Test', () => {
 
     const ethCallStub = Web3BatchHelper.ethCall as sinon.SinonStub
     expect(ethCallStub.callCount).to.be.eq(2)
+    console.log(ethCallStub.firstCall.args[2])
+    console.log(ethCallStub.secondCall.args[2])
     expect(ethCallStub.firstCall.args[2]).to.be.eq(forcedBlockNumberHex)
     expect(ethCallStub.secondCall.args[2]).to.be.eq(forcedBlockNumberHex)
   })
