@@ -57,6 +57,8 @@ describe('Basic Integer Test', () => {
     const originalEthCall = Web3BatchHelper.ethCall
     const forcedBlockNumberHex = '0x' + blockNumber.toString(16)
 
+    const execBatchSpy = sandbox.spy(Web3BatchHelper, 'executeBatch')
+
     sandbox.stub(Web3BatchHelper, 'ethCall').callsFake(async (calls, networkParam, _blockTag?) => {
       return originalEthCall.call(Web3BatchHelper, calls, networkParam, forcedBlockNumberHex)
     })
@@ -75,9 +77,8 @@ describe('Basic Integer Test', () => {
 
     const ethCallStub = Web3BatchHelper.ethCall as sinon.SinonStub
     expect(ethCallStub.callCount).to.be.eq(2)
-    console.log(ethCallStub.firstCall.args[2])
-    console.log(ethCallStub.secondCall.args[2])
-    expect(ethCallStub.firstCall.args[2]).to.be.eq(forcedBlockNumberHex)
-    expect(ethCallStub.secondCall.args[2]).to.be.eq(forcedBlockNumberHex)
+    expect(execBatchSpy.callCount).to.be.eq(2)
+    expect(execBatchSpy.firstCall.args[0][0].params[1]).to.be.eq(forcedBlockNumberHex)
+    expect(execBatchSpy.secondCall.args[0][0].params[1]).to.be.eq(forcedBlockNumberHex)
   })
 })
