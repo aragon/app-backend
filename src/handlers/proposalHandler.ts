@@ -524,6 +524,12 @@ export const ProposalHandler = {
 
       if (!proposal) return
 
+      /**
+       * TODO:
+       * If the native token is transfer out from the dao, we have to manually add the transaction
+       * to the database for networks that won't supports internal transactions
+       */
+
       await Promise.allSettled([
         RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
           id: proposal.daoAddress,
