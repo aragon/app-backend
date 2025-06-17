@@ -5,7 +5,7 @@ import Web3Provider from '@modules/proxyProvider/web3Provider'
 import PeaqProvider from '@modules/proxyProvider/peaqProvider'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 import ChilizProvider from '@modules/proxyProvider/chilizProvider'
-import BlockscoutProvider from '@modules/proxyProvider/blockscoutProvider' // Adjust import path as needed
+import BlockscoutProvider from '@modules/proxyProvider/blockscoutProvider'
 
 describe('ProxyWeb3Provider', () => {
   let sandbox

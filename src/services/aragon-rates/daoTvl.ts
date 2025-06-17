@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import pLimit from 'p-limit'
 import { Models } from '@dbModels'
 import logger from '@logger'
@@ -19,7 +18,9 @@ export const FetchDaoTvl = {
   progress: 0,
   start: async (): Promise<void> => {
     const startTime = Date.now()
-    const networks = (Object.keys(ProviderModule.alchemyNetworksMap) as NetworksEnum[]).filter((network: NetworksEnum) => !TestNetworks.includes(network))
+    const networks = (Object.keys(ProviderModule.alchemyNetworksMap) as NetworksEnum[]).filter(
+      (network: NetworksEnum) => !TestNetworks.includes(network),
+    )
 
     logger.verbose('Start FetchDaoTvl', llo({ startTime, networks }))
 
@@ -50,14 +51,10 @@ export const FetchDaoTvl = {
     await Promise.all(
       daoAddresses.map(async address =>
         daoProcessingLimit(async () =>
-          FetchDaoTvl.handleAssetsForEachDao(
-            address,
-            network,
-            {
-              nativeBalance: nativeBalances[address] || '0',
-              tokenBalances: allTokenBalances[address] || [],
-            },
-          ),
+          FetchDaoTvl.handleAssetsForEachDao(address, network, {
+            nativeBalance: nativeBalances[address] || '0',
+            tokenBalances: allTokenBalances[address] || [],
+          }),
         ),
       ),
     )
@@ -78,9 +75,11 @@ export const FetchDaoTvl = {
 
     const tokenBalances = assetsData.tokenBalances.filter(token => Number(token.tokenBalance) > 0)
 
-    if(tokenBalances.length) {
+    if (tokenBalances.length) {
       await Promise.all(
-        tokenBalances.map(async tokenBalance => tokenProcessingLimit(async () => DaoAssets._handleErc20Token(daoDb, tokenBalance))),
+        tokenBalances.map(async tokenBalance =>
+          tokenProcessingLimit(async () => DaoAssets._handleErc20Token(daoDb, tokenBalance)),
+        ),
       )
     }
 
