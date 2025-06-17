@@ -166,10 +166,12 @@ export const DaoAssets = {
         ProxyWeb3Provider.getTokenBalances({ address: document.address, network: document.network }),
       ])
 
-      await DaoAssets._removeStaleAssets(document, [
-        ...tokenBalances,
-        { contractAddress: utils.zeroAddress, tokenBalance: ethBalance },
-      ])
+      await DaoAssets._removeStaleAssets(
+        document,
+        Number(ethBalance) > 0
+          ? [...tokenBalances, { contractAddress: utils.zeroAddress, tokenBalance: ethBalance }]
+          : [...tokenBalances],
+      )
 
       if (Number(ethBalance) > 0) {
         await DaoAssets._handleNativeToken(document, ethBalance)
