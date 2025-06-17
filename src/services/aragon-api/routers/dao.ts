@@ -31,6 +31,7 @@ const DaoRouter = {
     const extraParams = {
       memberAddress: ctx.params.address,
       network: ctx.query.network,
+      networks: ctx.query.networks as [NetworksEnum],
       excludeDaoId: ctx.query.excludeDaoId,
     }
 
