@@ -299,34 +299,91 @@ describe('Helpers:Web3', () => {
   })
 
   describe('getChainAdjustedBlockNumber', () => {
-    it('should return the same block number if network is not Arbitrum', async () => {
+    it('should return L1 block number on Arbitrum successfully', async () => {
+      const arbBlock = 987654
+      const l1Block = 555555
+      const providerStub = {
+        send: sandbox.stub().resolves(`0x${BigInt(l1Block).toString(16)}`),
+      }
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
+
+      const result = await Web3Helper.getChainAdjustedBlockNumber(arbBlock, NetworksEnum.arbitrumMainnet)
+      expect(result).to.equal(l1Block - 1)
+      expect(providerStub.send.calledOnce).to.be.true
+      expect(providerStub.send.firstCall.args[0]).to.equal('eth_call')
+      expect(providerStub.send.firstCall.args[1][0].to).to.equal('0x7eCfBaa8742fDf5756DAC92fbc8b90a19b8815bF')
+    })
+
+    it('should return L1 block number on Cron Network successfully', async () => {
+      const cronBlock = 876543
+      const l1Block = 444444
+      const providerStub = {
+        send: sandbox.stub().resolves(`0x${BigInt(l1Block).toString(16)}`),
+      }
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
+
+      const result = await Web3Helper.getChainAdjustedBlockNumber(cronBlock, NetworksEnum.cornMainnet)
+      expect(result).to.equal(l1Block - 1)
+      expect(providerStub.send.calledOnce).to.be.true
+      expect(providerStub.send.firstCall.args[0]).to.equal('eth_call')
+      expect(providerStub.send.firstCall.args[1][0].to).to.equal('0xcA11bde05977b3631167028862bE2a173976CA11')
+    })
+
+    it('should return the original block number for other networks', async () => {
       const blockNumber = 123456
       const result = await Web3Helper.getChainAdjustedBlockNumber(blockNumber, NetworksEnum.ethereumMainnet)
       expect(result).to.equal(blockNumber)
     })
 
-    it('should return L1 block number on Arbitrum successfully', async () => {
+    it('should return the original block number and log an error if an exception occurs', async () => {
       const arbBlock = 987654
-      const l1Block = 555555
-      const iface = new Interface(['function getL1BlockNumber() view returns (uint256)'])
-      const encodedResponse = iface.encodeFunctionResult('getL1BlockNumber', [BigInt(l1Block)])
-      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({ call: sandbox.stub().resolves(encodedResponse) })
-      sandbox
-        .stub(BottleneckModule, 'getAlchemyBalanceLimiter')
-        .returns({ schedule: sandbox.stub().resolves(encodedResponse) } as any)
+      const providerStub = {
+        send: sandbox.stub().rejects(new Error('fake error')),
+      }
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
 
-      const result = await Web3Helper.getChainAdjustedBlockNumber(arbBlock, NetworksEnum.arbitrumMainnet)
-      expect(result).to.equal(l1Block - 1)
-    })
-
-    it('should return the original Arbitrum block number and log an error if an exception occurs', async () => {
-      const arbBlock = 987654
-      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(new Error('fake error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
       const result = await Web3Helper.getChainAdjustedBlockNumber(arbBlock, NetworksEnum.arbitrumMainnet)
       expect(result).to.equal(arbBlock)
-      expect(stubLogger.calledOnceWith('Error getBlockNumberOnArbitrum' as any)).to.be.true
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubLogger.firstCall.args[0]).to.equal('Error _getChainAdjustedBlockNumber')
+    })
+
+    it('should calculate the adjusted block number correctly', async () => {
+      const blockTag = '0x1000'
+      const contractAddr = '0x7eCfBaa8742fDf5756DAC92fbc8b90a19b8815bF'
+      const functionName = 'getL1BlockNumber()'
+      const network = NetworksEnum.arbitrumMainnet
+      const providerStub = {
+        send: sandbox.stub().resolves('0x2000'),
+      }
+
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
+
+      const result = await Web3Helper._getChainAdjustedBlockNumber(blockTag, contractAddr, functionName, network)
+      expect(result).to.equal(0x2000 - 1)
+      expect(providerStub.send.calledOnce).to.be.true
+    })
+
+    it('should return the blockTag number when an error occurs', async () => {
+      const blockTag = '0x1000'
+      const contractAddr = '0x7eCfBaa8742fDf5756DAC92fbc8b90a19b8815bF'
+      const functionName = 'getL1BlockNumber()'
+      const network = NetworksEnum.arbitrumMainnet
+      const providerStub = {
+        send: sandbox.stub().rejects(new Error('Provider error')),
+      }
+
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
+
+      const stubLogger = sandbox.stub(logger, 'error')
+
+      const result = await Web3Helper._getChainAdjustedBlockNumber(blockTag, contractAddr, functionName, network)
+      expect(result).to.equal(0x1000)
+      expect(providerStub.send.calledOnce).to.be.true
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubLogger.firstCall.args[0]).to.equal('Error _getChainAdjustedBlockNumber')
     })
   })
 
