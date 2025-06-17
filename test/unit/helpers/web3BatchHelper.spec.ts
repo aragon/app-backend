@@ -768,4 +768,197 @@ describe('Helpers:Web3BatchHelper', () => {
       })
     })
   })
+
+  describe('getMemberVotingPower', () => {
+    it('should get voting power from timestamp when available', async () => {
+      const parseBlockNumberStub = sandbox.stub(Web3BatchHelper, 'parseBlockNumber').resolves(12345)
+      const encodeFunctionStub = sandbox.stub(Web3BatchHelper, 'encodeFunction').returns('0xencoded')
+
+      const ethCallStub = sandbox.stub(Web3BatchHelper, 'ethCall').resolves([
+        { identifier: 'memberAddress_votingPower', success: true, data: '0xdata1' },
+        { identifier: 'memberAddress_votingPower_ts', success: true, data: '0xdata2' },
+      ])
+
+      const decodeResultStub = sandbox.stub(Web3BatchHelper, 'decodeResult')
+      decodeResultStub.onFirstCall().returns([100n]) // blockNumber result
+      decodeResultStub.onSecondCall().returns([200n]) // timestamp result (this should be used)
+
+      const result = await Web3BatchHelper.getMemberVotingPower(
+        'memberAddress',
+        'tokenAddress',
+        10000,
+        1640001888,
+        NetworksEnum.ethereumMainnet,
+      )
+
+      expect(parseBlockNumberStub.calledOnce).to.be.true
+      expect(encodeFunctionStub.calledTwice).to.be.true
+      expect(ethCallStub.calledOnce).to.be.true
+      expect(decodeResultStub.calledTwice).to.be.true
+      expect(result).to.deep.equal({ votingPower: '200', error: false })
+    })
+
+    it('should fallback to block number voting power when timestamp call fails', async () => {
+      sandbox.stub(Web3BatchHelper, 'parseBlockNumber').resolves(12345)
+      sandbox.stub(Web3BatchHelper, 'encodeFunction').returns('0xencoded')
+
+      sandbox.stub(Web3BatchHelper, 'ethCall').resolves([
+        { identifier: 'memberAddress_votingPower', success: true, data: '0xdata1' },
+        { identifier: 'memberAddress_votingPower_ts', success: false, data: null },
+      ])
+
+      const decodeResultStub = sandbox.stub(Web3BatchHelper, 'decodeResult')
+      decodeResultStub.onFirstCall().returns([100n]) // Only the block number result will be decoded
+
+      const result = await Web3BatchHelper.getMemberVotingPower(
+        'memberAddress',
+        'tokenAddress',
+        10000,
+        1640001888,
+        NetworksEnum.ethereumMainnet,
+      )
+
+      expect(decodeResultStub.calledOnce).to.be.true
+      expect(result).to.deep.equal({ votingPower: '100', error: false })
+    })
+
+    it('should handle case when both voting power calls fail', async () => {
+      sandbox.stub(Web3BatchHelper, 'parseBlockNumber').resolves(12345)
+      sandbox.stub(Web3BatchHelper, 'encodeFunction').returns('0xencoded')
+
+      sandbox.stub(Web3BatchHelper, 'ethCall').resolves([
+        { identifier: 'memberAddress_votingPower', success: false, data: null },
+        { identifier: 'memberAddress_votingPower_ts', success: false, data: null },
+      ])
+
+      const result = await Web3BatchHelper.getMemberVotingPower(
+        'memberAddress',
+        'tokenAddress',
+        10000,
+        1640001888,
+        NetworksEnum.ethereumMainnet,
+      )
+
+      expect(result).to.deep.equal({ votingPower: '0', error: true })
+    })
+
+    it('should handle decode errors for block number result', async () => {
+      sandbox.stub(Web3BatchHelper, 'parseBlockNumber').resolves(12345)
+      sandbox.stub(Web3BatchHelper, 'encodeFunction').returns('0xencoded')
+
+      sandbox.stub(Web3BatchHelper, 'ethCall').resolves([
+        { identifier: 'memberAddress_votingPower', success: true, data: '0xdata1' },
+        { identifier: 'memberAddress_votingPower_ts', success: false, data: null },
+      ])
+
+      // Make decodeResult throw an error for the block number result
+      const decodeResultStub = sandbox.stub(Web3BatchHelper, 'decodeResult')
+      decodeResultStub.onFirstCall().throws(new Error('Decode error'))
+
+      const result = await Web3BatchHelper.getMemberVotingPower(
+        'memberAddress',
+        'tokenAddress',
+        10000,
+        1640001888,
+        NetworksEnum.ethereumMainnet,
+      )
+
+      expect(result).to.deep.equal({ votingPower: '0', error: true })
+    })
+
+    it('should handle decode errors for timestamp result', async () => {
+      sandbox.stub(Web3BatchHelper, 'parseBlockNumber').resolves(12345)
+      sandbox.stub(Web3BatchHelper, 'encodeFunction').returns('0xencoded')
+
+      sandbox.stub(Web3BatchHelper, 'ethCall').resolves([
+        { identifier: 'memberAddress_votingPower', success: true, data: '0xdata1' },
+        { identifier: 'memberAddress_votingPower_ts', success: true, data: '0xdata2' },
+      ])
+
+      const decodeResultStub = sandbox.stub(Web3BatchHelper, 'decodeResult')
+      decodeResultStub.onFirstCall().returns([100n]) // block number result
+      decodeResultStub.onSecondCall().throws(new Error('Decode error')) // timestamp result throws
+
+      const result = await Web3BatchHelper.getMemberVotingPower(
+        'memberAddress',
+        'tokenAddress',
+        10000,
+        1640001888,
+        NetworksEnum.ethereumMainnet,
+      )
+
+      expect(result).to.deep.equal({ votingPower: '100', error: false }) // Should fall back to block number result
+    })
+
+    it('should handle parseBlockNumber errors', async () => {
+      sandbox.stub(Web3BatchHelper, 'parseBlockNumber').throws(new Error('Block number error'))
+
+      const result = await Web3BatchHelper.getMemberVotingPower(
+        'memberAddress',
+        'tokenAddress',
+        10000,
+        1640001888,
+        NetworksEnum.ethereumMainnet,
+      )
+
+      expect(result).to.deep.equal({ votingPower: '0', error: true })
+    })
+
+    it('should handle ethCall errors', async () => {
+      sandbox.stub(Web3BatchHelper, 'parseBlockNumber').resolves(12345)
+      sandbox.stub(Web3BatchHelper, 'encodeFunction').returns('0xencoded')
+
+      // Make ethCall throw an error
+      sandbox.stub(Web3BatchHelper, 'ethCall').throws(new Error('RPC error'))
+
+      const result = await Web3BatchHelper.getMemberVotingPower(
+        'memberAddress',
+        'tokenAddress',
+        10000,
+        1640001888,
+        NetworksEnum.ethereumMainnet,
+      )
+
+      expect(result).to.deep.equal({ votingPower: '0', error: true })
+    })
+
+    it('should call ethCall with correct parameters', async () => {
+      const parsedBlockNumber = 12345
+      sandbox.stub(Web3BatchHelper, 'parseBlockNumber').resolves(parsedBlockNumber)
+      sandbox.stub(Web3BatchHelper, 'encodeFunction').returns('0xencoded')
+
+      const ethCallStub = sandbox.stub(Web3BatchHelper, 'ethCall').resolves([
+        { identifier: 'memberAddress_votingPower', success: true, data: '0xdata1' },
+        { identifier: 'memberAddress_votingPower_ts', success: true, data: '0xdata2' },
+      ])
+
+      sandbox.stub(Web3BatchHelper, 'decodeResult').returns([500n])
+
+      // Input parameters
+      const memberAddress = 'memberAddress'
+      const tokenAddress = 'tokenAddress'
+      const blockNumber = 10000
+      const blockTimestamp = 1640001888
+      const network = NetworksEnum.ethereumMainnet
+
+      await Web3BatchHelper.getMemberVotingPower(memberAddress, tokenAddress, blockNumber, blockTimestamp, network)
+
+      // Verify ethCall was called with the correct parameters
+      expect(ethCallStub.calledOnce).to.be.true
+      expect(ethCallStub.firstCall.args[0]).to.deep.equal([
+        {
+          to: tokenAddress,
+          data: '0xencoded', // Since we stubbed encodeFunction to return this
+          identifier: `${memberAddress}_votingPower`,
+        },
+        {
+          to: tokenAddress,
+          data: '0xencoded', // Since we stubbed encodeFunction to return this
+          identifier: `${memberAddress}_votingPower_ts`,
+        },
+      ])
+      expect(ethCallStub.firstCall.args[1]).to.equal(network)
+      // No third parameter check, as we're no longer using a fixed block number
+    })
+  })
 })
