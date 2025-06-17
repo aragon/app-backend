@@ -35,6 +35,8 @@ export const FetchDaoTvl = {
         return true
       }),
     )
+
+    logger.verbose('End FetchDaoTvl', llo({ duration: `${Date.now() - startTime}ms` }))
   },
 
   fetchAndUpdateTvl: async (daoAddresses: string[], network: NetworksEnum): Promise<void> => {
