@@ -2,7 +2,7 @@ import { type IWeb3Provider, IWeb3ProxyMethod, NetworksEnum } from '@types'
 import Web3Provider from '@modules/proxyProvider/web3Provider'
 import PeaqProvider from '@modules/proxyProvider/peaqProvider'
 import ChilizProvider from '@modules/proxyProvider/chilizProvider'
-import BlockScoutProvider from '@modules/proxyProvider/blockscoutProvider'
+import CornProvider from '@modules/proxyProvider/cornProvider'
 
 const ProxyWeb3Provider: IWeb3Provider & { forward: any; getProvider: any; getDefaultProvider: any } = {
   getProvider(network: NetworksEnum) {
@@ -12,7 +12,7 @@ const ProxyWeb3Provider: IWeb3Provider & { forward: any; getProvider: any; getDe
       case NetworksEnum.chilizMainnet:
         return ChilizProvider
       case NetworksEnum.cornMainnet:
-        return BlockScoutProvider
+        return CornProvider
       default:
         return Web3Provider
     }
