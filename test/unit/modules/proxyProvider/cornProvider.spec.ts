@@ -92,4 +92,27 @@ describe('Modules: CornProvider', () => {
       expect(routeScanStub.firstCall.args[0]).to.deep.equal({ address, network })
     })
   })
+
+  describe('fetchContractCreation', () => {
+    it('should delegate to RouteScanHelper.fetchContractCreation', async () => {
+      // Arrange
+      const address = '0x1234567890abcdef1234567890abcdef12345678'
+      const network = NetworksEnum.cornMainnet
+      const expectedResult = {
+        address: '0x1234567890abcdef1234567890abcdef12345678',
+        transactionHash: '0xabcdef1234567890',
+        blockNumber: 12345,
+      }
+
+      const routeScanStub = sandbox.stub(RouteScanHelper, 'fetchContractCreation').resolves(expectedResult)
+
+      // Act
+      const result = await CornProvider.fetchContractCreation({ address, network })
+
+      // Assert
+      expect(result).to.equal(expectedResult)
+      expect(routeScanStub.calledOnce).to.be.true
+      expect(routeScanStub.firstCall.args[0]).to.deep.equal({ address, network })
+    })
+  })
 })
