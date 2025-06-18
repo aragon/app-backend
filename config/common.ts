@@ -60,6 +60,14 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       BASE_URI: utils.configParser(sourceConfig, 'string', 'ETHERSCAN_API_BASE_URL', 'https://api.etherscan.io/v2/api'),
       API_KEY: utils.configParser(sourceConfig, 'string', 'ETHERSCAN_API_KEY', null),
     },
+    ROUTESCAN_API: {
+      BASE_URI: utils.configParser(
+        sourceConfig,
+        'string',
+        'ROUTESCAN_API_BASE_URL',
+        'https://api.routescan.io/v2/network/mainnet/evm',
+      ),
+    },
 
     ALCHEMY_PRICE_API: {
       URI: utils.configParser(sourceConfig, 'string', 'ALCHEMY_PRICE_API_URI', 'https://api.g.alchemy.com/prices/v1'),

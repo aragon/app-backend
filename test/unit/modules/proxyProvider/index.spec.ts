@@ -5,10 +5,10 @@ import Web3Provider from '@modules/proxyProvider/web3Provider'
 import PeaqProvider from '@modules/proxyProvider/peaqProvider'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 import ChilizProvider from '@modules/proxyProvider/chilizProvider'
-import BlockscoutProvider from '@modules/proxyProvider/blockscoutProvider' // Adjust import path as needed
+import CornProvider from '@modules/proxyProvider/cornProvider' // Updated import
 
 describe('ProxyWeb3Provider', () => {
-  let sandbox
+  let sandbox: sinon.SinonSandbox
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
@@ -34,9 +34,9 @@ describe('ProxyWeb3Provider', () => {
       expect(provider).to.equal(ChilizProvider)
     })
 
-    it('should return BlockScoutProvider for cornMainnet network', () => {
+    it('should return CornProvider for cornMainnet network', () => {
       const provider = ProxyWeb3Provider.getProvider(NetworksEnum.cornMainnet)
-      expect(provider).to.equal(BlockscoutProvider)
+      expect(provider).to.equal(CornProvider)
     })
   })
 
