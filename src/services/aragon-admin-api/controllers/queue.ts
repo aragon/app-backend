@@ -147,22 +147,24 @@ const QueueAdminController = {
 
       await proposal.update({ decoding: true })
 
-      const result = await ProposalHandler.parseActions(proposal)
-
-      if (!result) {
-        return false
-      }
+      await RabbitMQHelper.sendMessage(EnumQueueName.proposalActions, {
+        id: proposal.id,
+        params: {
+          id: proposal.id,
+          network: proposal.network,
+        },
+      })
 
       return {
         success: true,
-        message: 'Proposal actions recalculated successfully',
+        message: 'Proposal actions recalculated in the background',
         data: {
           proposalId: proposal.id,
           incrementalId: proposal.incrementalId,
           daoAddress: proposal.daoAddress,
           network: proposal.network,
           pluginAddress: proposal.pluginAddress,
-          actionsCount: result.actions?.length || 0,
+          actionsCount: proposal.actions?.length || 0,
         },
       }
     } catch (error) {

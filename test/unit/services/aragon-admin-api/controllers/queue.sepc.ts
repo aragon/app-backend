@@ -360,23 +360,26 @@ describe('Controller: QueueAdmin', () => {
         network: NetworksEnum.ethereumMainnet,
         pluginAddress: '0x456',
         update: sandbox.stub().resolves(true),
-      }
-
-      const parseActionsResult = {
-        actions: [{ type: 'action1' }, { type: 'action2' }],
+        actions: [1, 2],
       }
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginStub)
       sandbox.stub(Models.Proposal, 'findByProposalIncrementalId').resolves(proposalStub)
       sandbox.stub(logger, 'info')
 
-      // Use the imported ProposalHandler directly
-      sandbox.stub(ProposalHandler, 'parseActions').resolves(parseActionsResult)
-
       const result = await QueueAdminController.recalculateProposalActions(params)
 
+      expect(rabbitMQ.calledOnce).to.be.true
+      expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.proposalActions)
+      expect(rabbitMQ.firstCall.args[1]).to.deep.equal({
+        id: proposalStub.id,
+        params: {
+          id: proposalStub.id,
+          network: proposalStub.network,
+        },
+      })
       expect(result.success).to.be.true
-      expect(result.message).to.equal('Proposal actions recalculated successfully')
+      expect(result.message).to.equal('Proposal actions recalculated in the background')
       expect(result.data.proposalId).to.equal('proposal123')
       expect(result.data.actionsCount).to.equal(2)
       expect(proposalStub.update.calledWith({ decoding: true })).to.be.true
@@ -399,10 +402,11 @@ describe('Controller: QueueAdmin', () => {
         update: sandbox.stub().resolves(true),
       }
 
+      rabbitMQ.rejects(new Error('RabbitMQ error'))
+
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginStub)
       sandbox.stub(Models.Proposal, 'findByProposalIncrementalId').resolves(proposalStub)
-
-      sandbox.stub(ProposalHandler, 'parseActions').resolves(null)
+      sandbox.stub(logger, 'error')
 
       const result = await QueueAdminController.recalculateProposalActions(params)
 
