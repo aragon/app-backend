@@ -8,7 +8,6 @@ import GovernanceErc20Helper from '@helpers/governanceErc20'
 import logger from '@logger'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
 import ProxyContractHelper from '@helpers/proxyContract'
-import ProviderModule from '@modules/provider'
 
 describe('Basic Integer Test', () => {
   let sandbox: sinon.SinonSandbox
