@@ -2,7 +2,14 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import logger from '@logger'
-import { VotingBodyBrandIdentity, IPluginInterfaceType, ISettingStatus, ITokenType, NetworksEnum } from '@types'
+import {
+  VotingBodyBrandIdentity,
+  IPluginInterfaceType,
+  ISettingStatus,
+  ITokenType,
+  NetworksEnum,
+  ILogInfo,
+} from '@types'
 import { beforeEach } from 'mocha'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import { Models } from '@dbModels'
@@ -12,6 +19,8 @@ import DbOperations from '@models/utils/dbOperations'
 import MultisigHelper from '@helpers/multisig'
 import Web3Utils from '@helpers/web3Utils'
 import PluginDetector from '@helpers/pluginDetector'
+import GovernanceVeHelper from '@helpers/governanceVe'
+import type Plugin from '@models/schema/plugin'
 
 describe('Indexer: PluginSettingHandler', () => {
   let sandbox: SinonSandbox
@@ -256,6 +265,7 @@ describe('Indexer: PluginSettingHandler', () => {
       const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
         interfaceType: IPluginInterfaceType.tokenVoting,
         tokenAddress: '0x123',
+        votingEscrow: {},
       })
       const stubFindExistingLog = sandbox.stub(Models.Setting, 'findExistingLog').resolves(false)
       const stubFindActive = sandbox.stub(Models.Setting, 'findActive').resolves(false)
@@ -265,6 +275,14 @@ describe('Indexer: PluginSettingHandler', () => {
         type: ITokenType.ERC20,
         isGovernance: true,
       } as any)
+      const votingEscrowSettingsStub = sandbox.stub(PluginSettingHandler, 'votingEscrowSettings').resolves({
+        minDeposit: '100',
+        minLockTime: 3600,
+        cooldown: 3600,
+        maxTime: 7200,
+        slope: '0.1',
+        bias: '1000',
+      })
       const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
       await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
 
@@ -277,6 +295,7 @@ describe('Indexer: PluginSettingHandler', () => {
           pluginAddress: '0x456',
         }),
       ).to.be.true
+      expect(votingEscrowSettingsStub.calledOnce).to.be.true
 
       expect(stubLogger.calledOnce).to.be.true
       expect(getBlockTimestampStub.calledOnce).to.be.true
@@ -1014,6 +1033,55 @@ describe('Indexer: PluginSettingHandler', () => {
       await PluginSettingHandler.isSupported(plugin, info)
 
       expect(updateDocumentStub.notCalled).to.be.true
+    })
+  })
+
+  describe('votingEscrowSettings', () => {
+    it('should return voting escrow settings with all required fields', async () => {
+      const plugin = {
+        votingEscrow: {
+          escrowAddress: '0xescrow123',
+          exitQueueAddress: '0xexitqueue456',
+          curveAddress: '0xcurve789',
+        },
+      } as unknown as Plugin
+
+      const info = {
+        network: NetworksEnum.ethereumMainnet,
+        address: '0x456',
+        transactionHash: '0x789',
+        blockNumber: 1,
+      } as ILogInfo
+
+      // Mock all the GovernanceVeHelper functions
+      const getMinDepositStub = sandbox
+        .stub(GovernanceVeHelper, 'getMinDeposit')
+        .resolves(BigInt('1000000000000000000')) // 1 ETH in wei
+      const getMinLockStub = sandbox.stub(GovernanceVeHelper, 'getMinLock').resolves(BigInt('86400')) // 1 day in seconds
+      const getCooldownStub = sandbox.stub(GovernanceVeHelper, 'getCooldown').resolves(BigInt('3600')) // 1 hour in seconds
+      const getMaxTimeStub = sandbox.stub(GovernanceVeHelper, 'getMaxTime').resolves(BigInt('31536000')) // 1 year in seconds
+      const getSlopeStub = sandbox
+        .stub(GovernanceVeHelper, 'getSettingFromCoefficients')
+        .resolves({ bias: BigInt('100'), slope: BigInt('100') }) // slope value
+
+      const result = await PluginSettingHandler.votingEscrowSettings(plugin, info)
+
+      // Verify all helper functions were called with correct parameters
+      expect(getMinDepositStub.calledOnceWith('0xescrow123', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(getMinLockStub.calledOnceWith('0xexitqueue456', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(getCooldownStub.calledOnceWith('0xexitqueue456', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(getMaxTimeStub.calledOnceWith('0xcurve789', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(getSlopeStub.calledOnceWith('0xcurve789', NetworksEnum.ethereumMainnet)).to.be.true
+
+      // Verify the returned object structure and values
+      expect(result).to.deep.equal({
+        minDeposit: '1000000000000000000',
+        minLockTime: 86400,
+        cooldown: 3600,
+        maxTime: 31536000,
+        slope: '100',
+        bias: '100',
+      })
     })
   })
 })

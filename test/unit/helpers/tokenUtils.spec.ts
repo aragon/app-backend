@@ -257,12 +257,13 @@ describe('TokenUtils', () => {
 
     it('should return correct number of categories for etheruemSepolia', () => {
       const result = TokenUtils.getCategories(NetworksEnum.ethereumSepolia)
-      expect(result).to.be.an('array').with.lengthOf(4)
+      expect(result).to.be.an('array').with.lengthOf(5)
       expect(result).to.include.members([
         ITransactionCategory.ERC20,
         ITransactionCategory.ERC721,
         ITransactionCategory.ERC1155,
         ITransactionCategory.External,
+        ITransactionCategory.Internal,
       ])
     })
 

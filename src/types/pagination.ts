@@ -39,6 +39,7 @@ export interface IPairParams {
   proposalIndex?: string
   proposalId?: string
   tokenAddress?: HexAddress
+  onlyActive?: boolean
 }
 
 export interface IProposalExtraParams {
@@ -46,9 +47,12 @@ export interface IProposalExtraParams {
   daoAddress?: HexAddress
   pluginAddress?: HexAddress
   creatorAddress?: HexAddress
+  pluginAddresses?: HexAddress[]
   proposalIndex?: string
   incrementalId?: number
   daoInfo?: boolean
+  isExecuted?: boolean
+  isSubProposal?: boolean
 }
 
 export interface IAssetExtraParams {

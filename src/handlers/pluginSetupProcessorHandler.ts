@@ -6,6 +6,7 @@ import {
   IPluginActionType,
   IPluginInterfaceType,
   ISPPLogs,
+  type HexAddress,
 } from '@types'
 import { Interface, type LogDescription, type TransactionReceipt } from 'ethers'
 import { Models } from '@dbModels'
@@ -23,6 +24,8 @@ import { MetadataHandler } from '@handlers/metadataHandler'
 import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import DbTx from '@modules/dbTx'
 import Web3Utils from '@helpers/web3Utils'
+import VotingEscrowDetector from '@helpers/votingEscrowDetector'
+import GovernanceVeHelper from '@helpers/governanceVe'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:pluginSetupProcessorHandler' })
 
@@ -377,8 +380,59 @@ export const PluginSetupProcessorHandler = {
     }
 
     if (tokenAddress) {
-      await DbOperations.updateDocument(pluginDb, { tokenAddress }, info, 'Update Voting plugin token', llo)
+      const result = await PluginSetupProcessorHandler.findVotingEscrow(tokenAddress, info)
+      const votingEscrow = result || null
+
+      await DbOperations.updateDocument(
+        pluginDb,
+        { tokenAddress, votingEscrow },
+        info,
+        'Update Voting plugin token',
+        llo,
+      )
       await ProxyToken.saveAndGetToken(tokenAddress, info.network)
     }
+  },
+
+  findVotingEscrow: async (
+    tokenAddress: HexAddress,
+    info: ILogInfo,
+  ): Promise<{
+    curveAddress: HexAddress
+    exitQueueAddress: HexAddress
+    escrowAddress: HexAddress
+    clockAddress: HexAddress
+    nftLockAddress: HexAddress
+    underlying: HexAddress
+  } | null> => {
+    // check if the token is a tokenVotesAdapter
+    const escrowAddress = await GovernanceVeHelper.getEscrowAddress(tokenAddress, info.network)
+
+    if (escrowAddress) {
+      // check if the escrowAddress is following our spec
+      const result = await VotingEscrowDetector.isVotingEscrow(escrowAddress, info.network)
+      if (result.status) {
+        const clockAddress = await GovernanceVeHelper.getClockAddress(tokenAddress, info.network)
+        const curveAddress = await GovernanceVeHelper.getCurveAddress(escrowAddress, info.network)
+        const exitQueueAddress = await GovernanceVeHelper.getExitQueueAddress(escrowAddress, info.network)
+        const nftLockAddress = await GovernanceVeHelper.getNftLockAddress(escrowAddress, info.network)
+        const erc20TokenAddress = await GovernanceVeHelper.getErc20TokenAddress(escrowAddress, info.network)
+
+        if (clockAddress && curveAddress && exitQueueAddress && nftLockAddress && erc20TokenAddress) {
+          await ProxyToken.saveAndGetToken(nftLockAddress, info.network)
+
+          return {
+            curveAddress,
+            exitQueueAddress,
+            escrowAddress,
+            clockAddress,
+            nftLockAddress,
+            underlying: erc20TokenAddress, // take the real erc20 token address from the voting escrow
+          }
+        }
+      }
+    }
+
+    return null
   },
 }

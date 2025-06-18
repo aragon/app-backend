@@ -14,6 +14,7 @@ import { ethers } from 'ethers'
 import { ProxyToken } from '@modules/proxyToken'
 import TokenUtils from '@helpers/tokenUtils'
 import ProxyUtils from '@modules/proxyProvider/utils'
+import dayjs from 'dayjs'
 
 const llo = logger.logMeta.bind(null, { service: 'provider:PeaqTokenProvider' })
 
@@ -172,6 +173,19 @@ const PeaqProvider: Omit<IWeb3Provider, 'getNativeBalance'> = {
     } catch (error) {
       logger.error('Error in getAllTokenHolders', llo({ error, address, network }))
     }
+  },
+  fetchHistoricalTokenPrice: async ({ address, network, date }: any) => {
+    if (address === utils.zeroAddress) {
+      const pastDays = date ? Math.round(dayjs.utc().diff(dayjs.utc(date), 'days')) : 30
+      const price = await SubscanApi.getCurrentPrice(network, pastDays)
+      return price || '0'
+    }
+
+    const tokenInfo = await SubscanApi.getTokenFullDetails(address, network)
+    return tokenInfo.priceUsd || '0'
+  },
+  getTokenCounters: async ({ address, network }) => {
+    return await SubscanApi.getTokenCounters(address, network)
   },
 }
 

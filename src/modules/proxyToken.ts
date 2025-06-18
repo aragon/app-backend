@@ -1,6 +1,6 @@
 import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
-import { type HexAddress, ITokenType, type NetworksEnum } from '@types'
+import { type HexAddress, type ITokenInfo, ITokenType, type NetworksEnum } from '@types'
 import TokenDetector from '@helpers/tokenDetector'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
@@ -59,21 +59,32 @@ export const ProxyToken = {
     let updates: Partial<Token> = {}
 
     if (shouldUpdate || forceUpdate) {
-      const tokenDetails = await ProxyWeb3Provider.fetchBasicTokenInfo({
-        address: tokenAddress,
-        network,
-      })
+      if (token.type !== ITokenType.native) {
+        const tokenDetails = await ProxyWeb3Provider.fetchBasicTokenInfo({
+          address: tokenAddress,
+          network,
+        })
 
-      const tokenMetrics = await ProxyWeb3Provider.fetchTokenHolderAndSupply({
-        address: tokenAddress,
-        network,
-      })
+        const tokenMetrics = await ProxyWeb3Provider.fetchTokenHolderAndSupply({
+          address: tokenAddress,
+          network,
+        })
 
-      updates = {
-        priceUsd: tokenDetails.priceUsd,
-        holders: tokenMetrics.totalHolders,
-        totalSupply: tokenMetrics.totalSupply,
-        lastUpdatedAt: dayjs.utc().toDate(),
+        updates = {
+          priceUsd: tokenDetails.priceUsd,
+          holders: tokenMetrics.totalHolders,
+          totalSupply: tokenMetrics.totalSupply,
+          lastUpdatedAt: dayjs.utc().toDate(),
+        }
+      } else {
+        const tokenDetails = await ProxyWeb3Provider.fetchTokenPrice({
+          address: tokenAddress,
+          network,
+        })
+        updates = {
+          priceUsd: tokenDetails.priceUsd,
+          lastUpdatedAt: dayjs.utc().toDate(),
+        }
       }
 
       await token.update(updates, { session })
@@ -85,16 +96,37 @@ export const ProxyToken = {
     return token
   },
 
+  wrapTokenDetails: async (tokenTypeInfo: ITokenInfo, tokenAddress: HexAddress, network: NetworksEnum) => {
+    let wrappedToken: HexAddress | null = tokenAddress
+
+    // check if its an escrow adapter then find the underlying token as it won't exit on blockscout
+    if (tokenTypeInfo.type === ITokenType.escrowAdapter) {
+      const plugin = await Models.Plugin.findByTokenAddress(tokenAddress, network)
+      if (plugin?.votingEscrow?.underlying) {
+        wrappedToken = plugin.votingEscrow.underlying
+      }
+    }
+
+    const basicToken = await ProxyWeb3Provider.fetchBasicTokenInfo({
+      address: wrappedToken!,
+      network,
+    })
+
+    if (basicToken && tokenTypeInfo.type === ITokenType.escrowAdapter) {
+      basicToken.type = tokenTypeInfo.type
+      basicToken.underlying = wrappedToken
+    }
+
+    return basicToken
+  },
+
   createNewToken: async (
     tokenAddress: HexAddress,
     network: NetworksEnum,
     session?: ClientSession,
   ): Promise<Token | null> => {
     const tokenTypeInfo = await TokenDetector.detectTokenType(tokenAddress, network)
-    const tokenDetails = await ProxyWeb3Provider.fetchBasicTokenInfo({
-      address: tokenAddress,
-      network,
-    })
+    const tokenDetails = await ProxyToken.wrapTokenDetails(tokenTypeInfo, tokenAddress, network)
 
     const rawToken: Partial<Token & { isScamToken: boolean }> = {
       network,
@@ -106,6 +138,7 @@ export const ProxyToken = {
       type: tokenDetails?.type || tokenTypeInfo.type,
       holders: tokenDetails?.totalHolders,
       totalSupply: tokenDetails?.totalSupply,
+      underlying: tokenDetails?.underlying,
       isGovernance: tokenTypeInfo.isGovernance,
       hasDelegate: tokenTypeInfo.hasDelegate,
       hasBalanceOfERC20: tokenTypeInfo.hasBalanceOfERC20,
@@ -125,6 +158,10 @@ export const ProxyToken = {
         rawToken.type = tokenTypeInfo.type
       }
 
+      if (!rawToken.underlying && tokenTypeInfo.hasUnderlying) {
+        rawToken.underlying = await Web3Helper.getUnderlying(tokenAddress, network)
+      }
+
       if (!rawToken.name && tokenTypeInfo.hasName) {
         rawToken.name = await Web3Helper.getTokenName(tokenAddress, network)
       }
@@ -133,9 +170,11 @@ export const ProxyToken = {
         rawToken.symbol = await Web3Helper.getTokenSymbol(tokenAddress, network)
       }
 
-      const isTokenSyncable = await TokenUtils.isTokenSyncable(tokenAddress, network)
-      if (!isTokenSyncable) {
-        return null
+      if (rawToken.type !== ITokenType.escrowAdapter) {
+        const isTokenSyncable = await TokenUtils.isTokenSyncable(tokenAddress, network)
+        if (!isTokenSyncable) {
+          return null
+        }
       }
 
       if (!rawToken.decimals && tokenTypeInfo.hasDecimals) {
@@ -147,14 +186,10 @@ export const ProxyToken = {
         rawToken.totalSupply = totalSupply.toString()
       }
 
-      if (tokenTypeInfo.hasUnderlying) {
-        rawToken.underlying = await Web3Helper.getUnderlying(tokenAddress, network)
-      }
-
       if (rawToken.isGovernance || Web3Utils.isWhitelistedToken(tokenAddress, network)) {
         const infoCreation = await ProxyWeb3Provider.fetchContractCreation({ address: tokenAddress, network })
-        rawToken.blockNumber = infoCreation.blockNumber
-        rawToken.transactionHash = infoCreation.transactionHash
+        rawToken.blockNumber = infoCreation?.blockNumber
+        rawToken.transactionHash = infoCreation?.transactionHash
       }
 
       if (rawToken.type !== ITokenType.unknown && !rawToken.holders && rawToken.holders === 0) {

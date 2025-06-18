@@ -36,7 +36,7 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      expect(processStub.callCount).to.equal(13) // Total queues in the service
+      expect(processStub.callCount).to.equal(15)
       expect(processStub.calledWith(EnumQueueName.allMetrics)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoTransactions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoAssets)).to.be.true
@@ -46,10 +46,12 @@ describe('AragonDao: index', () => {
       expect(processStub.calledWith(EnumQueueName.contractInfo)).to.be.true
       expect(processStub.calledWith(EnumQueueName.voteInfo)).to.be.true
       expect(processStub.calledWith(EnumQueueName.memberBalance)).to.be.true
+      expect(processStub.calledWith(EnumQueueName.getVotingPower)).to.be.true
       expect(processStub.calledWith(EnumQueueName.contractDecoder)).to.be.true
       expect(processStub.calledWith(EnumQueueName.proposalActions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.canCreateProposal)).to.be.true
       expect(processStub.calledWith(EnumQueueName.pluginInstallationData)).to.be.true
+      expect(processStub.calledWith(EnumQueueName.getLockVotingPowerBatch)).to.be.true
 
       expect(loggerStub.calledOnceWith('AragonDaoService service started' as any)).to.be.true
     })
@@ -209,14 +211,53 @@ describe('AragonDao: index', () => {
       expect(contractStub.calledOnce).to.be.true
     })
 
+    it('should handle getVotingPower queue', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const memberInfoStub = sandbox.stub(MemberInfo, 'getVotingPower').resolves('5000')
+
+      await AragonDaoService.start()
+
+      const handler = processStub.getCall(7).args[1]
+      const queueName = processStub.getCall(7).args[0]
+      const result = await handler({
+        params: {
+          userAddress: '0x0User',
+          tokenAddress: '0x0Token',
+          network: NetworksEnum.ethereumMainnet,
+        },
+      } as any)
+
+      expect(queueName).to.eq(EnumQueueName.getVotingPower)
+      expect(memberInfoStub.calledOnceWith('0x0User', '0x0Token', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(result).to.equal('5000')
+    })
+
+    it('should handle getLockVotingPowerBatch queue', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const memberInfoStub = sandbox.stub(MemberInfo, 'getLockVotingPowerBatch').resolves([])
+
+      await AragonDaoService.start()
+
+      const handler = processStub.getCall(8).args[1]
+      const queueName = processStub.getCall(8).args[0]
+      await handler({
+        params: {
+          locks: [{ lockId: 'lock1', network: NetworksEnum.ethereumMainnet }],
+        },
+      } as any)
+
+      expect(queueName).to.eq(EnumQueueName.getLockVotingPowerBatch)
+      expect(memberInfoStub.calledOnceWith([{ lockId: 'lock1', network: NetworksEnum.ethereumMainnet }])).to.be.true
+    })
+
     it('should handle voteInfo queue', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const contractStub = sandbox.stub(VoteInfo, 'getVoteInfo').resolves()
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(7).args[1]
-      const queueName = processStub.getCall(7).args[0]
+      const handler = processStub.getCall(9).args[1]
+      const queueName = processStub.getCall(9).args[0]
       await handler({ params: { proposalId: '1', userAddress: '0x' } } as any)
 
       expect(queueName).to.eq(EnumQueueName.voteInfo)
@@ -231,8 +272,8 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(8).args[1]
-      const queueName = processStub.getCall(8).args[0]
+      const handler = processStub.getCall(10).args[1]
+      const queueName = processStub.getCall(10).args[0]
       await handler({
         params: {
           userAddress: 'userAddress',
@@ -248,28 +289,14 @@ describe('AragonDao: index', () => {
       ).to.be.true
     })
 
-    it('should handle proposal actions queue', async () => {
-      const processStub = sandbox.stub(RabbitMQHelper, 'process')
-      const decodeStub = sandbox.stub(ActionDecoder, 'proposalActionDecoder').resolves()
-
-      await AragonDaoService.start()
-
-      const handler = processStub.getCall(10).args[1]
-      const queueName = processStub.getCall(10).args[0]
-      await handler({ params: { id: 'proposalId' } } as any)
-
-      expect(queueName).to.eq(EnumQueueName.proposalActions)
-      expect(decodeStub.args[0][0]).to.deep.equal('proposalId')
-    })
-
     it('should handle contractDecoder queue', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const decodeStub = sandbox.stub(ActionDecoder, 'decode').resolves()
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(9).args[1]
-      const queueName = processStub.getCall(9).args[0]
+      const handler = processStub.getCall(11).args[1]
+      const queueName = processStub.getCall(11).args[0]
       await handler({
         params: {
           from: 'userAddress1',
@@ -290,15 +317,28 @@ describe('AragonDao: index', () => {
       })
     })
 
+    it('should handle proposal actions queue', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const decodeStub = sandbox.stub(ActionDecoder, 'proposalActionDecoder').resolves()
+
+      await AragonDaoService.start()
+
+      const handler = processStub.getCall(12).args[1]
+      const queueName = processStub.getCall(12).args[0]
+      await handler({ params: { id: 'proposalId' } } as any)
+
+      expect(queueName).to.eq(EnumQueueName.proposalActions)
+      expect(decodeStub.args[0][0]).to.deep.equal('proposalId')
+    })
+
     it('should handle canCreateProposal queue', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const memberInfoStub = sandbox.stub(MemberInfo, 'canCreateProposal').resolves()
 
       await AragonDaoService.start()
 
-      const callIndex = processStub.args.findIndex(call => call[0] === EnumQueueName.canCreateProposal)
-      const handler = processStub.getCall(callIndex).args[1]
-      const queueName = processStub.getCall(callIndex).args[0]
+      const handler = processStub.getCall(13).args[1]
+      const queueName = processStub.getCall(13).args[0]
 
       await handler({
         params: {
@@ -318,10 +358,8 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      // Find the pluginInstallationData handler
-      const callIndex = processStub.args.findIndex(call => call[0] === EnumQueueName.pluginInstallationData)
-      const handler = processStub.getCall(callIndex).args[1]
-      const queueName = processStub.getCall(callIndex).args[0]
+      const handler = processStub.getCall(14).args[1]
+      const queueName = processStub.getCall(14).args[0]
 
       const result = await handler({
         params: {

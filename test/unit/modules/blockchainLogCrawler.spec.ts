@@ -1040,6 +1040,47 @@ describe('Module: blockchainLogCrawler', () => {
         expect(logError.firstCall.args[0]).to.equal('error executeBatchRequest')
       }
     })
+
+    it('should return error object when batch size error occurs', async () => {
+      const crawler = new BlockchainLogCrawler(crawlerConfig)
+
+      sandbox.stub(crawler, 'getProviderUrl').resolves('https://ethereum-rpc.com')
+      sandbox.stub(Utils, 'chunkArray').returns([['0xTopic1']])
+
+      const batchSizeError = new Error('Response size is larger than 150MB limit')
+      sandbox.stub(axios, 'post').rejects(batchSizeError)
+      sandbox.stub(crawler, 'isBatchSizeError').returns(true)
+
+      const result = await crawler.executeBatchRequest(['0xTopic1'], 100, 150)
+
+      expect(result).to.deep.equal([{ error: batchSizeError }])
+    })
+
+    it('should throw error when it is not a batch size error', async () => {
+      const crawler = new BlockchainLogCrawler(crawlerConfig)
+
+      sandbox.stub(crawler, 'getProviderUrl').resolves('https://ethereum-rpc.com')
+      sandbox.stub(Utils, 'chunkArray').returns([['0xTopic1']])
+
+      const networkError = new Error('Network connection timeout')
+      sandbox.stub(axios, 'post').rejects(networkError)
+      sandbox.stub(crawler, 'isBatchSizeError').returns(false)
+
+      try {
+        await crawler.executeBatchRequest(['0xTopic1'], 100, 150)
+        expect.fail('Should have thrown an error')
+      } catch (error) {
+        expect(error).to.equal(networkError)
+        expect(logError.calledOnce).to.be.true
+        expect(logError.firstCall.args[0]).to.equal('error executeBatchRequest')
+        expect(logError.firstCall.args[1]).to.deep.include({
+          error: networkError,
+          topics: ['0xTopic1'],
+          currentBlock: 100,
+          toBlock: 150,
+        })
+      }
+    })
   })
 
   it('should sort logs, process and parse', async () => {
@@ -1553,6 +1594,16 @@ describe('Module: blockchainLogCrawler', () => {
       const offset = crawler.getOffsetToBlockNumber(200)
 
       expect(offset).to.equal(200)
+    })
+
+    it('should check if the error is batch error', async () => {
+      const crawler = new BlockchainLogCrawler(crawlerConfig)
+
+      const batchSizeError = new Error('Query returned more than 1000000 results')
+
+      const isBatchSizeError = crawler.isBatchSizeError(batchSizeError)
+
+      expect(isBatchSizeError).to.be.true
     })
   })
 })

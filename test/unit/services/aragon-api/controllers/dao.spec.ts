@@ -300,5 +300,37 @@ describe('Controller: Dao', () => {
 
       expect(response.data.length).to.eq(0)
     })
+
+    it('should getDaosByMember with networks parameter', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const filterParams: any = {
+        networks: [NetworksEnum.ethereumMainnet, NetworksEnum.ethereumSepolia, NetworksEnum.polygonMainnet],
+        memberAddress: FakeDaoMemberMappings[0].memberAddress,
+      }
+
+      sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves(paginationParams)
+      sandbox.stub(PairDataModule, 'checkIFEns').resolves(filterParams.memberAddress)
+
+      const spyReq = sandbox.spy(Models.Dao, 'findWithPagination')
+
+      const response = await DaoController.getDaosByMember(paginationParams, filterParams)
+      expect(spyReq.calledOnce).to.be.true
+      expect(spyReq.args[0][0]).to.deep.eq({
+        extraParams: filterParams,
+        paginationParams,
+        extraQueryData: {
+          daoAddresses: ['0x19E246564b3264fed309D3D004f807D5887e5521'],
+        },
+      })
+      expect(response.data.length).to.eq(1)
+      expect(response.data[0].address).to.be.eq(rawDao.address)
+    })
   })
 })

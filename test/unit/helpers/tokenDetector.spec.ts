@@ -106,6 +106,20 @@ describe('Helper: TokenDetector', () => {
     expect(result.isGovernance).to.be.false
   })
 
+  it('should detect escrowAdapter token', async () => {
+    const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+      getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(TokenDetector.ESCROW_ADAPTER)),
+    } as any)
+
+    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
+    expect(result.type).to.equal(ITokenType.escrowAdapter)
+    expect(result.isGovernance).to.be.false
+    expect(result.hasUnderlying).to.be.false
+    expect(getImplementationAddressStub.calledOnce).to.be.true
+    expect(getImplementationAddressStub.calledWith('0xAddress', NetworksEnum.ethereumMainnet)).to.be.true
+  })
+
   it('should detect unknown token', async () => {
     sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
     sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({

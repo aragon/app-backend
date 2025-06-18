@@ -1,0 +1,1222 @@
+[
+  {
+    "_id": {
+      "$oid": "6852c56d4340762885e4e2d9"
+    },
+    "id": "corn-mainnet-0x95c832ae5a148570f57e27cf600cc0fed999c1232fadc4aa8edfe5a515a949f3-0xd1B8C76ad56045F7D4D57e3f2b201Da326D1b4A6",
+    "transactionHash": "0x95c832ae5a148570f57e27cf600cc0fed999c1232fadc4aa8edfe5a515a949f3",
+    "blockNumber": 640435,
+    "blockTimestamp": 1750254946,
+    "network": "corn-mainnet",
+    "address": "0xd1B8C76ad56045F7D4D57e3f2b201Da326D1b4A6",
+    "implementationAddress": "0x056fE3681a8Bb4De64f31cd8afEdC41664f76982",
+    "interfaceType": "admin",
+    "status": "installed",
+    "isSupported": true,
+    "daoAddress": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+    "tokenAddress": null,
+    "pluginSetupRepoAddress": "0x0658a36B1BaA6Bde43624DeA80760F5c5C78B122",
+    "sender": "0x72f635574C797Bab5eB82489Aa906cE23d9aAD6f",
+    "release": "1",
+    "build": "2",
+    "subdomain": "admin",
+    "permissions": [
+      {
+        "operation": 0,
+        "where": "0xd1B8C76ad56045F7D4D57e3f2b201Da326D1b4A6",
+        "who": "0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xf281525e53675515a6ba7cc7bea8a81e649b3608423ee2d73be1752cea887889"
+      },
+      {
+        "operation": 0,
+        "where": "0xd1B8C76ad56045F7D4D57e3f2b201Da326D1b4A6",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0x568cc693d84eb1901f8bcecba154cbdef23ca3cf67efc0a0b698528a06c660f7"
+      },
+      {
+        "operation": 0,
+        "where": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "who": "0xd1B8C76ad56045F7D4D57e3f2b201Da326D1b4A6",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xbf04b4486c9663d805744005c3da000eda93de6e3308a4a7a812eb565327b78d"
+      }
+    ],
+    "uninstalled": {
+      "status": false,
+      "transactionHash": null,
+      "blockNumber": null,
+      "blockTimestamp": null
+    },
+    "hasTarget": false,
+    "isProcess": true,
+    "isBody": true,
+    "isSubPlugin": false,
+    "metadataIpfs": null,
+    "name": null,
+    "description": null,
+    "processKey": null,
+    "votingEscrow": null,
+    "subPlugins": [],
+    "links": [],
+    "createdAt": {
+      "$date": "2025-06-18T13:55:57.009Z"
+    },
+    "updatedAt": {
+      "$date": "2025-06-18T13:55:58.882Z"
+    },
+    "__v": 0
+  },
+  {
+    "_id": {
+      "$oid": "6852c6fa4340762885e5769a"
+    },
+    "id": "corn-mainnet-0xf76e834a0e24a4ce9e775948312197bbeb3c5b624f57fd4c2687496a7b5a4d3a-0x9F674BC5a486c14e9deb8D27557300a9c0e3CBb7",
+    "transactionHash": "0xf76e834a0e24a4ce9e775948312197bbeb3c5b624f57fd4c2687496a7b5a4d3a",
+    "blockNumber": 640463,
+    "blockTimestamp": 1750255346,
+    "network": "corn-mainnet",
+    "address": "0x9F674BC5a486c14e9deb8D27557300a9c0e3CBb7",
+    "implementationAddress": "0x9c4b547ECBf710804644Fa6C7233efb43d911033",
+    "interfaceType": "spp",
+    "status": "installed",
+    "isSupported": true,
+    "daoAddress": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+    "tokenAddress": null,
+    "pluginSetupRepoAddress": "0xcb20C04b91001acB05f2A439F7a90F6411406e7E",
+    "sender": "0xCFE83d0079c9455eF1e11864D701d6e1bDf8Ff2a",
+    "release": "1",
+    "build": "1",
+    "subdomain": "spp",
+    "permissions": [
+      {
+        "operation": 0,
+        "where": "0x9F674BC5a486c14e9deb8D27557300a9c0e3CBb7",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0x6f36f8bf0398781285f5a40c489dbf3268ce3e205aba87f21e49e6805391b5a1"
+      },
+      {
+        "operation": 0,
+        "where": "0x9F674BC5a486c14e9deb8D27557300a9c0e3CBb7",
+        "who": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xf281525e53675515a6ba7cc7bea8a81e649b3608423ee2d73be1752cea887889"
+      },
+      {
+        "operation": 0,
+        "where": "0x9F674BC5a486c14e9deb8D27557300a9c0e3CBb7",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0x06d294bc8cbad2e393408b20dd019a772661f60b8d633e56761157cb1ec85f8c"
+      },
+      {
+        "operation": 0,
+        "where": "0x9F674BC5a486c14e9deb8D27557300a9c0e3CBb7",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0x568cc693d84eb1901f8bcecba154cbdef23ca3cf67efc0a0b698528a06c660f7"
+      },
+      {
+        "operation": 0,
+        "where": "0x9F674BC5a486c14e9deb8D27557300a9c0e3CBb7",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0x4707e94b25cfce1a7c363508fbb838c35864388ad77284b248282b9746982b9b"
+      },
+      {
+        "operation": 2,
+        "where": "0x9F674BC5a486c14e9deb8D27557300a9c0e3CBb7",
+        "who": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+        "condition": "0x2006C8a430988c5b6E44e2FF8a9044e6e581Bf95",
+        "permissionId": "0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90"
+      },
+      {
+        "operation": 0,
+        "where": "0x9F674BC5a486c14e9deb8D27557300a9c0e3CBb7",
+        "who": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xb014ce248804cab6a144581acce1eeb70ce5d54f08433b989d73bb0ccee3d3f9"
+      },
+      {
+        "operation": 0,
+        "where": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "who": "0x9F674BC5a486c14e9deb8D27557300a9c0e3CBb7",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xbf04b4486c9663d805744005c3da000eda93de6e3308a4a7a812eb565327b78d"
+      },
+      {
+        "operation": 0,
+        "where": "0x2006C8a430988c5b6E44e2FF8a9044e6e581Bf95",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xd3d98e95f3486fc234d80c098cf0d2a0a3fb187833d7e9cc930f8c4f8335a0e7"
+      }
+    ],
+    "uninstalled": {
+      "status": false,
+      "transactionHash": null,
+      "blockNumber": null,
+      "blockTimestamp": null
+    },
+    "hasTarget": false,
+    "isProcess": true,
+    "isBody": false,
+    "isSubPlugin": false,
+    "metadataIpfs": "ipfs://QmUq6Y3HpttsfcDzcRW7r727i4h6wjeFuDDaFQWVK5vVvU",
+    "name": "Test process",
+    "description": "Tsdaf",
+    "processKey": "TEST",
+    "votingEscrow": null,
+    "subPlugins": [
+      {
+        "addresses": [
+          "0x50b3314D6E457A6Db38070a70329f2FFd90a89Fb",
+          "0xdfc0f0fC9E8c7827269a9ec6CBD1b6008cE32292",
+          "0xD2319ADAAbE2476C036f2Fc0dF443d1e0CaeFbC7",
+          "0x649C9cc0B7FbF7ebf040644Becd0E5730fc1AB4b",
+          "0xbb6607685E27F632d585114D6B90Ec2E1c5AC4d4",
+          "0x43E3b8132c81d68E54b3198117C40D9203AFa7Bc",
+          "0xE84D66ef3f92939a2A04004A5481342D02069217",
+          "0xe9589DeEAddf591f1622BBE181909EbE7512e7CD",
+          "0x7B5a847446362Dcd9843dc3045b33311DaDd0730",
+          "0x72dAb819983E2D4cD1C7a49260F6baDf9B92f547"
+        ],
+        "stageIndex": 0
+      },
+      {
+        "addresses": ["0x56E1c8860810d06e57bd2422DF73287f0d1907Fd"],
+        "stageIndex": 1
+      }
+    ],
+    "links": [],
+    "createdAt": {
+      "$date": "2025-06-18T14:02:34.607Z"
+    },
+    "updatedAt": {
+      "$date": "2025-06-18T14:06:07.313Z"
+    },
+    "__v": 1,
+    "totalStages": 2
+  },
+  {
+    "_id": {
+      "$oid": "6852c6ff4340762885e5786e"
+    },
+    "id": "corn-mainnet-0xf76e834a0e24a4ce9e775948312197bbeb3c5b624f57fd4c2687496a7b5a4d3a-0x50b3314D6E457A6Db38070a70329f2FFd90a89Fb",
+    "transactionHash": "0xf76e834a0e24a4ce9e775948312197bbeb3c5b624f57fd4c2687496a7b5a4d3a",
+    "blockNumber": 640463,
+    "blockTimestamp": 1750255346,
+    "network": "corn-mainnet",
+    "address": "0x50b3314D6E457A6Db38070a70329f2FFd90a89Fb",
+    "implementationAddress": "0x7ab3908D556578429e9300696DB55831f3700f04",
+    "interfaceType": "multisig",
+    "status": "installed",
+    "isSupported": true,
+    "daoAddress": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+    "tokenAddress": null,
+    "pluginSetupRepoAddress": "0xf3793d55C5fef8AFB5CDF305996A93281C6Bd220",
+    "sender": "0xCFE83d0079c9455eF1e11864D701d6e1bDf8Ff2a",
+    "release": "1",
+    "build": "3",
+    "subdomain": "multisig",
+    "permissions": [
+      {
+        "operation": 0,
+        "where": "0x50b3314D6E457A6Db38070a70329f2FFd90a89Fb",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xb1750e46d35a0069c8465b8643e7838d2149a842a2db8ee233d9835590040cad"
+      },
+      {
+        "operation": 0,
+        "where": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "who": "0x50b3314D6E457A6Db38070a70329f2FFd90a89Fb",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xbf04b4486c9663d805744005c3da000eda93de6e3308a4a7a812eb565327b78d"
+      },
+      {
+        "operation": 2,
+        "where": "0x50b3314D6E457A6Db38070a70329f2FFd90a89Fb",
+        "who": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+        "condition": "0xB3d958d51E2F5Bba20a9f4DCccD018546a40536b",
+        "permissionId": "0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90"
+      },
+      {
+        "operation": 0,
+        "where": "0x50b3314D6E457A6Db38070a70329f2FFd90a89Fb",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0x568cc693d84eb1901f8bcecba154cbdef23ca3cf67efc0a0b698528a06c660f7"
+      },
+      {
+        "operation": 0,
+        "where": "0x50b3314D6E457A6Db38070a70329f2FFd90a89Fb",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0x4707e94b25cfce1a7c363508fbb838c35864388ad77284b248282b9746982b9b"
+      },
+      {
+        "operation": 0,
+        "where": "0x50b3314D6E457A6Db38070a70329f2FFd90a89Fb",
+        "who": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xf281525e53675515a6ba7cc7bea8a81e649b3608423ee2d73be1752cea887889"
+      }
+    ],
+    "uninstalled": {
+      "status": false,
+      "transactionHash": null,
+      "blockNumber": null,
+      "blockTimestamp": null
+    },
+    "hasTarget": false,
+    "isProcess": true,
+    "isBody": true,
+    "isSubPlugin": true,
+    "metadataIpfs": "ipfs://QmbrNF2U9TZEXmN34bVhZeDFdPGDkCNwAFP7uaLUAzSJPt",
+    "name": "MS1",
+    "description": "",
+    "processKey": null,
+    "votingEscrow": null,
+    "subPlugins": [],
+    "links": [],
+    "createdAt": {
+      "$date": "2025-06-18T14:02:39.533Z"
+    },
+    "updatedAt": {
+      "$date": "2025-06-18T14:06:09.965Z"
+    },
+    "__v": 0,
+    "parentPlugin": "0x9F674BC5a486c14e9deb8D27557300a9c0e3CBb7",
+    "stageIndex": 0
+  },
+  {
+    "_id": {
+      "$oid": "6852c7044340762885e57a5b"
+    },
+    "id": "corn-mainnet-0xf76e834a0e24a4ce9e775948312197bbeb3c5b624f57fd4c2687496a7b5a4d3a-0xdfc0f0fC9E8c7827269a9ec6CBD1b6008cE32292",
+    "transactionHash": "0xf76e834a0e24a4ce9e775948312197bbeb3c5b624f57fd4c2687496a7b5a4d3a",
+    "blockNumber": 640463,
+    "blockTimestamp": 1750255346,
+    "network": "corn-mainnet",
+    "address": "0xdfc0f0fC9E8c7827269a9ec6CBD1b6008cE32292",
+    "implementationAddress": "0x7ab3908D556578429e9300696DB55831f3700f04",
+    "interfaceType": "multisig",
+    "status": "installed",
+    "isSupported": true,
+    "daoAddress": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+    "tokenAddress": null,
+    "pluginSetupRepoAddress": "0xf3793d55C5fef8AFB5CDF305996A93281C6Bd220",
+    "sender": "0xCFE83d0079c9455eF1e11864D701d6e1bDf8Ff2a",
+    "release": "1",
+    "build": "3",
+    "subdomain": "multisig",
+    "permissions": [
+      {
+        "operation": 0,
+        "where": "0xdfc0f0fC9E8c7827269a9ec6CBD1b6008cE32292",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xb1750e46d35a0069c8465b8643e7838d2149a842a2db8ee233d9835590040cad"
+      },
+      {
+        "operation": 0,
+        "where": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "who": "0xdfc0f0fC9E8c7827269a9ec6CBD1b6008cE32292",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xbf04b4486c9663d805744005c3da000eda93de6e3308a4a7a812eb565327b78d"
+      },
+      {
+        "operation": 2,
+        "where": "0xdfc0f0fC9E8c7827269a9ec6CBD1b6008cE32292",
+        "who": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+        "condition": "0x4BD9f5a6AB70F1366A29F8a1AB223A77998CaEF2",
+        "permissionId": "0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90"
+      },
+      {
+        "operation": 0,
+        "where": "0xdfc0f0fC9E8c7827269a9ec6CBD1b6008cE32292",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0x568cc693d84eb1901f8bcecba154cbdef23ca3cf67efc0a0b698528a06c660f7"
+      },
+      {
+        "operation": 0,
+        "where": "0xdfc0f0fC9E8c7827269a9ec6CBD1b6008cE32292",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0x4707e94b25cfce1a7c363508fbb838c35864388ad77284b248282b9746982b9b"
+      },
+      {
+        "operation": 0,
+        "where": "0xdfc0f0fC9E8c7827269a9ec6CBD1b6008cE32292",
+        "who": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xf281525e53675515a6ba7cc7bea8a81e649b3608423ee2d73be1752cea887889"
+      }
+    ],
+    "uninstalled": {
+      "status": false,
+      "transactionHash": null,
+      "blockNumber": null,
+      "blockTimestamp": null
+    },
+    "hasTarget": false,
+    "isProcess": true,
+    "isBody": true,
+    "isSubPlugin": true,
+    "metadataIpfs": "ipfs://QmeyTYgQ3xhmXM8urnYNXQzJQCp4ubbNG5K5Bx9y7GTPZd",
+    "name": "MS2",
+    "description": "",
+    "processKey": null,
+    "votingEscrow": null,
+    "subPlugins": [],
+    "links": [],
+    "createdAt": {
+      "$date": "2025-06-18T14:02:44.126Z"
+    },
+    "updatedAt": {
+      "$date": "2025-06-18T14:06:12.732Z"
+    },
+    "__v": 0,
+    "parentPlugin": "0x9F674BC5a486c14e9deb8D27557300a9c0e3CBb7",
+    "stageIndex": 0
+  },
+  {
+    "_id": {
+      "$oid": "6852c7084340762885e57c03"
+    },
+    "id": "corn-mainnet-0xf76e834a0e24a4ce9e775948312197bbeb3c5b624f57fd4c2687496a7b5a4d3a-0xD2319ADAAbE2476C036f2Fc0dF443d1e0CaeFbC7",
+    "transactionHash": "0xf76e834a0e24a4ce9e775948312197bbeb3c5b624f57fd4c2687496a7b5a4d3a",
+    "blockNumber": 640463,
+    "blockTimestamp": 1750255346,
+    "network": "corn-mainnet",
+    "address": "0xD2319ADAAbE2476C036f2Fc0dF443d1e0CaeFbC7",
+    "implementationAddress": "0x7ab3908D556578429e9300696DB55831f3700f04",
+    "interfaceType": "multisig",
+    "status": "installed",
+    "isSupported": true,
+    "daoAddress": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+    "tokenAddress": null,
+    "pluginSetupRepoAddress": "0xf3793d55C5fef8AFB5CDF305996A93281C6Bd220",
+    "sender": "0xCFE83d0079c9455eF1e11864D701d6e1bDf8Ff2a",
+    "release": "1",
+    "build": "3",
+    "subdomain": "multisig",
+    "permissions": [
+      {
+        "operation": 0,
+        "where": "0xD2319ADAAbE2476C036f2Fc0dF443d1e0CaeFbC7",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xb1750e46d35a0069c8465b8643e7838d2149a842a2db8ee233d9835590040cad"
+      },
+      {
+        "operation": 0,
+        "where": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "who": "0xD2319ADAAbE2476C036f2Fc0dF443d1e0CaeFbC7",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xbf04b4486c9663d805744005c3da000eda93de6e3308a4a7a812eb565327b78d"
+      },
+      {
+        "operation": 2,
+        "where": "0xD2319ADAAbE2476C036f2Fc0dF443d1e0CaeFbC7",
+        "who": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+        "condition": "0xA853003C0595a8196C69515ce83611e405c61608",
+        "permissionId": "0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90"
+      },
+      {
+        "operation": 0,
+        "where": "0xD2319ADAAbE2476C036f2Fc0dF443d1e0CaeFbC7",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0x568cc693d84eb1901f8bcecba154cbdef23ca3cf67efc0a0b698528a06c660f7"
+      },
+      {
+        "operation": 0,
+        "where": "0xD2319ADAAbE2476C036f2Fc0dF443d1e0CaeFbC7",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0x4707e94b25cfce1a7c363508fbb838c35864388ad77284b248282b9746982b9b"
+      },
+      {
+        "operation": 0,
+        "where": "0xD2319ADAAbE2476C036f2Fc0dF443d1e0CaeFbC7",
+        "who": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xf281525e53675515a6ba7cc7bea8a81e649b3608423ee2d73be1752cea887889"
+      }
+    ],
+    "uninstalled": {
+      "status": false,
+      "transactionHash": null,
+      "blockNumber": null,
+      "blockTimestamp": null
+    },
+    "hasTarget": false,
+    "isProcess": true,
+    "isBody": true,
+    "isSubPlugin": true,
+    "metadataIpfs": "ipfs://QmS629Ngy2dyffMvEHRSEkrkokL4s5xeZrN9kSbtHeNMBP",
+    "name": "MS3",
+    "description": "",
+    "processKey": null,
+    "votingEscrow": null,
+    "subPlugins": [],
+    "links": [],
+    "createdAt": {
+      "$date": "2025-06-18T14:02:48.348Z"
+    },
+    "updatedAt": {
+      "$date": "2025-06-18T14:06:15.631Z"
+    },
+    "__v": 0,
+    "parentPlugin": "0x9F674BC5a486c14e9deb8D27557300a9c0e3CBb7",
+    "stageIndex": 0
+  },
+  {
+    "_id": {
+      "$oid": "6852c70b4340762885e57d54"
+    },
+    "id": "corn-mainnet-0xf76e834a0e24a4ce9e775948312197bbeb3c5b624f57fd4c2687496a7b5a4d3a-0x649C9cc0B7FbF7ebf040644Becd0E5730fc1AB4b",
+    "transactionHash": "0xf76e834a0e24a4ce9e775948312197bbeb3c5b624f57fd4c2687496a7b5a4d3a",
+    "blockNumber": 640463,
+    "blockTimestamp": 1750255346,
+    "network": "corn-mainnet",
+    "address": "0x649C9cc0B7FbF7ebf040644Becd0E5730fc1AB4b",
+    "implementationAddress": "0x7ab3908D556578429e9300696DB55831f3700f04",
+    "interfaceType": "multisig",
+    "status": "installed",
+    "isSupported": true,
+    "daoAddress": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+    "tokenAddress": null,
+    "pluginSetupRepoAddress": "0xf3793d55C5fef8AFB5CDF305996A93281C6Bd220",
+    "sender": "0xCFE83d0079c9455eF1e11864D701d6e1bDf8Ff2a",
+    "release": "1",
+    "build": "3",
+    "subdomain": "multisig",
+    "permissions": [
+      {
+        "operation": 0,
+        "where": "0x649C9cc0B7FbF7ebf040644Becd0E5730fc1AB4b",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xb1750e46d35a0069c8465b8643e7838d2149a842a2db8ee233d9835590040cad"
+      },
+      {
+        "operation": 0,
+        "where": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "who": "0x649C9cc0B7FbF7ebf040644Becd0E5730fc1AB4b",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xbf04b4486c9663d805744005c3da000eda93de6e3308a4a7a812eb565327b78d"
+      },
+      {
+        "operation": 2,
+        "where": "0x649C9cc0B7FbF7ebf040644Becd0E5730fc1AB4b",
+        "who": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+        "condition": "0x11eD246B816714C7cE8162Bf1bbAc997Adb8F2FF",
+        "permissionId": "0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90"
+      },
+      {
+        "operation": 0,
+        "where": "0x649C9cc0B7FbF7ebf040644Becd0E5730fc1AB4b",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0x568cc693d84eb1901f8bcecba154cbdef23ca3cf67efc0a0b698528a06c660f7"
+      },
+      {
+        "operation": 0,
+        "where": "0x649C9cc0B7FbF7ebf040644Becd0E5730fc1AB4b",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0x4707e94b25cfce1a7c363508fbb838c35864388ad77284b248282b9746982b9b"
+      },
+      {
+        "operation": 0,
+        "where": "0x649C9cc0B7FbF7ebf040644Becd0E5730fc1AB4b",
+        "who": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xf281525e53675515a6ba7cc7bea8a81e649b3608423ee2d73be1752cea887889"
+      }
+    ],
+    "uninstalled": {
+      "status": false,
+      "transactionHash": null,
+      "blockNumber": null,
+      "blockTimestamp": null
+    },
+    "hasTarget": false,
+    "isProcess": true,
+    "isBody": true,
+    "isSubPlugin": true,
+    "metadataIpfs": "ipfs://QmbjQSf7DGJDxiH5cKKgZLnfxy7BCzgio2S9x5YBadY6A3",
+    "name": "MS4",
+    "description": "",
+    "processKey": null,
+    "votingEscrow": null,
+    "subPlugins": [],
+    "links": [],
+    "createdAt": {
+      "$date": "2025-06-18T14:02:51.537Z"
+    },
+    "updatedAt": {
+      "$date": "2025-06-18T14:06:19.459Z"
+    },
+    "__v": 0,
+    "parentPlugin": "0x9F674BC5a486c14e9deb8D27557300a9c0e3CBb7",
+    "stageIndex": 0
+  },
+  {
+    "_id": {
+      "$oid": "6852c70e4340762885e57eb2"
+    },
+    "id": "corn-mainnet-0xf76e834a0e24a4ce9e775948312197bbeb3c5b624f57fd4c2687496a7b5a4d3a-0xbb6607685E27F632d585114D6B90Ec2E1c5AC4d4",
+    "transactionHash": "0xf76e834a0e24a4ce9e775948312197bbeb3c5b624f57fd4c2687496a7b5a4d3a",
+    "blockNumber": 640463,
+    "blockTimestamp": 1750255346,
+    "network": "corn-mainnet",
+    "address": "0xbb6607685E27F632d585114D6B90Ec2E1c5AC4d4",
+    "implementationAddress": "0x7ab3908D556578429e9300696DB55831f3700f04",
+    "interfaceType": "multisig",
+    "status": "installed",
+    "isSupported": true,
+    "daoAddress": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+    "tokenAddress": null,
+    "pluginSetupRepoAddress": "0xf3793d55C5fef8AFB5CDF305996A93281C6Bd220",
+    "sender": "0xCFE83d0079c9455eF1e11864D701d6e1bDf8Ff2a",
+    "release": "1",
+    "build": "3",
+    "subdomain": "multisig",
+    "permissions": [
+      {
+        "operation": 0,
+        "where": "0xbb6607685E27F632d585114D6B90Ec2E1c5AC4d4",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xb1750e46d35a0069c8465b8643e7838d2149a842a2db8ee233d9835590040cad"
+      },
+      {
+        "operation": 0,
+        "where": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "who": "0xbb6607685E27F632d585114D6B90Ec2E1c5AC4d4",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xbf04b4486c9663d805744005c3da000eda93de6e3308a4a7a812eb565327b78d"
+      },
+      {
+        "operation": 2,
+        "where": "0xbb6607685E27F632d585114D6B90Ec2E1c5AC4d4",
+        "who": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+        "condition": "0x9700BF6c55e006B95D3Ed37B1C14DC7Ea4a4fB11",
+        "permissionId": "0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90"
+      },
+      {
+        "operation": 0,
+        "where": "0xbb6607685E27F632d585114D6B90Ec2E1c5AC4d4",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0x568cc693d84eb1901f8bcecba154cbdef23ca3cf67efc0a0b698528a06c660f7"
+      },
+      {
+        "operation": 0,
+        "where": "0xbb6607685E27F632d585114D6B90Ec2E1c5AC4d4",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0x4707e94b25cfce1a7c363508fbb838c35864388ad77284b248282b9746982b9b"
+      },
+      {
+        "operation": 0,
+        "where": "0xbb6607685E27F632d585114D6B90Ec2E1c5AC4d4",
+        "who": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xf281525e53675515a6ba7cc7bea8a81e649b3608423ee2d73be1752cea887889"
+      }
+    ],
+    "uninstalled": {
+      "status": false,
+      "transactionHash": null,
+      "blockNumber": null,
+      "blockTimestamp": null
+    },
+    "hasTarget": false,
+    "isProcess": true,
+    "isBody": true,
+    "isSubPlugin": true,
+    "metadataIpfs": "ipfs://QmSHiq6ZMUUwH2dn4EYnSDaJAs9WTYE1BnQwXnMNd9D3EM",
+    "name": "MS5",
+    "description": "",
+    "processKey": null,
+    "votingEscrow": null,
+    "subPlugins": [],
+    "links": [],
+    "createdAt": {
+      "$date": "2025-06-18T14:02:54.962Z"
+    },
+    "updatedAt": {
+      "$date": "2025-06-18T14:06:24.292Z"
+    },
+    "__v": 0,
+    "parentPlugin": "0x9F674BC5a486c14e9deb8D27557300a9c0e3CBb7",
+    "stageIndex": 0
+  },
+  {
+    "_id": {
+      "$oid": "6852c7134340762885e58093"
+    },
+    "id": "corn-mainnet-0xf76e834a0e24a4ce9e775948312197bbeb3c5b624f57fd4c2687496a7b5a4d3a-0x43E3b8132c81d68E54b3198117C40D9203AFa7Bc",
+    "transactionHash": "0xf76e834a0e24a4ce9e775948312197bbeb3c5b624f57fd4c2687496a7b5a4d3a",
+    "blockNumber": 640463,
+    "blockTimestamp": 1750255346,
+    "network": "corn-mainnet",
+    "address": "0x43E3b8132c81d68E54b3198117C40D9203AFa7Bc",
+    "implementationAddress": "0x7ab3908D556578429e9300696DB55831f3700f04",
+    "interfaceType": "multisig",
+    "status": "installed",
+    "isSupported": true,
+    "daoAddress": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+    "tokenAddress": null,
+    "pluginSetupRepoAddress": "0xf3793d55C5fef8AFB5CDF305996A93281C6Bd220",
+    "sender": "0xCFE83d0079c9455eF1e11864D701d6e1bDf8Ff2a",
+    "release": "1",
+    "build": "3",
+    "subdomain": "multisig",
+    "permissions": [
+      {
+        "operation": 0,
+        "where": "0x43E3b8132c81d68E54b3198117C40D9203AFa7Bc",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xb1750e46d35a0069c8465b8643e7838d2149a842a2db8ee233d9835590040cad"
+      },
+      {
+        "operation": 0,
+        "where": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "who": "0x43E3b8132c81d68E54b3198117C40D9203AFa7Bc",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xbf04b4486c9663d805744005c3da000eda93de6e3308a4a7a812eb565327b78d"
+      },
+      {
+        "operation": 2,
+        "where": "0x43E3b8132c81d68E54b3198117C40D9203AFa7Bc",
+        "who": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+        "condition": "0x94aaF317F778Acc819A8c84936AD2d3Dc83BFf91",
+        "permissionId": "0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90"
+      },
+      {
+        "operation": 0,
+        "where": "0x43E3b8132c81d68E54b3198117C40D9203AFa7Bc",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0x568cc693d84eb1901f8bcecba154cbdef23ca3cf67efc0a0b698528a06c660f7"
+      },
+      {
+        "operation": 0,
+        "where": "0x43E3b8132c81d68E54b3198117C40D9203AFa7Bc",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0x4707e94b25cfce1a7c363508fbb838c35864388ad77284b248282b9746982b9b"
+      },
+      {
+        "operation": 0,
+        "where": "0x43E3b8132c81d68E54b3198117C40D9203AFa7Bc",
+        "who": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xf281525e53675515a6ba7cc7bea8a81e649b3608423ee2d73be1752cea887889"
+      }
+    ],
+    "uninstalled": {
+      "status": false,
+      "transactionHash": null,
+      "blockNumber": null,
+      "blockTimestamp": null
+    },
+    "hasTarget": false,
+    "isProcess": true,
+    "isBody": true,
+    "isSubPlugin": true,
+    "metadataIpfs": "ipfs://Qmc69BsrcgxHLPey8CNK6A1ZnX3KzBxH5sAAXksG1RrDKr",
+    "name": "MS6",
+    "description": "",
+    "processKey": null,
+    "votingEscrow": null,
+    "subPlugins": [],
+    "links": [],
+    "createdAt": {
+      "$date": "2025-06-18T14:02:59.299Z"
+    },
+    "updatedAt": {
+      "$date": "2025-06-18T14:06:27.940Z"
+    },
+    "__v": 0,
+    "parentPlugin": "0x9F674BC5a486c14e9deb8D27557300a9c0e3CBb7",
+    "stageIndex": 0
+  },
+  {
+    "_id": {
+      "$oid": "6852c7174340762885e58241"
+    },
+    "id": "corn-mainnet-0xf76e834a0e24a4ce9e775948312197bbeb3c5b624f57fd4c2687496a7b5a4d3a-0xE84D66ef3f92939a2A04004A5481342D02069217",
+    "transactionHash": "0xf76e834a0e24a4ce9e775948312197bbeb3c5b624f57fd4c2687496a7b5a4d3a",
+    "blockNumber": 640463,
+    "blockTimestamp": 1750255346,
+    "network": "corn-mainnet",
+    "address": "0xE84D66ef3f92939a2A04004A5481342D02069217",
+    "implementationAddress": "0x7ab3908D556578429e9300696DB55831f3700f04",
+    "interfaceType": "multisig",
+    "status": "installed",
+    "isSupported": true,
+    "daoAddress": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+    "tokenAddress": null,
+    "pluginSetupRepoAddress": "0xf3793d55C5fef8AFB5CDF305996A93281C6Bd220",
+    "sender": "0xCFE83d0079c9455eF1e11864D701d6e1bDf8Ff2a",
+    "release": "1",
+    "build": "3",
+    "subdomain": "multisig",
+    "permissions": [
+      {
+        "operation": 0,
+        "where": "0xE84D66ef3f92939a2A04004A5481342D02069217",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xb1750e46d35a0069c8465b8643e7838d2149a842a2db8ee233d9835590040cad"
+      },
+      {
+        "operation": 0,
+        "where": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "who": "0xE84D66ef3f92939a2A04004A5481342D02069217",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xbf04b4486c9663d805744005c3da000eda93de6e3308a4a7a812eb565327b78d"
+      },
+      {
+        "operation": 2,
+        "where": "0xE84D66ef3f92939a2A04004A5481342D02069217",
+        "who": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+        "condition": "0xe8bf666fCf6bD7ebC3d7dE7d57F86f163077e66A",
+        "permissionId": "0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90"
+      },
+      {
+        "operation": 0,
+        "where": "0xE84D66ef3f92939a2A04004A5481342D02069217",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0x568cc693d84eb1901f8bcecba154cbdef23ca3cf67efc0a0b698528a06c660f7"
+      },
+      {
+        "operation": 0,
+        "where": "0xE84D66ef3f92939a2A04004A5481342D02069217",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0x4707e94b25cfce1a7c363508fbb838c35864388ad77284b248282b9746982b9b"
+      },
+      {
+        "operation": 0,
+        "where": "0xE84D66ef3f92939a2A04004A5481342D02069217",
+        "who": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xf281525e53675515a6ba7cc7bea8a81e649b3608423ee2d73be1752cea887889"
+      }
+    ],
+    "uninstalled": {
+      "status": false,
+      "transactionHash": null,
+      "blockNumber": null,
+      "blockTimestamp": null
+    },
+    "hasTarget": false,
+    "isProcess": true,
+    "isBody": true,
+    "isSubPlugin": true,
+    "metadataIpfs": "ipfs://QmNzcmR39NT8GysWbauqcSivRBNqxwi3unki32C9w6Up4o",
+    "name": "MS7",
+    "description": "",
+    "processKey": null,
+    "votingEscrow": null,
+    "subPlugins": [],
+    "links": [],
+    "createdAt": {
+      "$date": "2025-06-18T14:03:03.205Z"
+    },
+    "updatedAt": {
+      "$date": "2025-06-18T14:06:31.271Z"
+    },
+    "__v": 0,
+    "parentPlugin": "0x9F674BC5a486c14e9deb8D27557300a9c0e3CBb7",
+    "stageIndex": 0
+  },
+  {
+    "_id": {
+      "$oid": "6852c71a4340762885e583f2"
+    },
+    "id": "corn-mainnet-0xf76e834a0e24a4ce9e775948312197bbeb3c5b624f57fd4c2687496a7b5a4d3a-0xe9589DeEAddf591f1622BBE181909EbE7512e7CD",
+    "transactionHash": "0xf76e834a0e24a4ce9e775948312197bbeb3c5b624f57fd4c2687496a7b5a4d3a",
+    "blockNumber": 640463,
+    "blockTimestamp": 1750255346,
+    "network": "corn-mainnet",
+    "address": "0xe9589DeEAddf591f1622BBE181909EbE7512e7CD",
+    "implementationAddress": "0x7ab3908D556578429e9300696DB55831f3700f04",
+    "interfaceType": "multisig",
+    "status": "installed",
+    "isSupported": true,
+    "daoAddress": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+    "tokenAddress": null,
+    "pluginSetupRepoAddress": "0xf3793d55C5fef8AFB5CDF305996A93281C6Bd220",
+    "sender": "0xCFE83d0079c9455eF1e11864D701d6e1bDf8Ff2a",
+    "release": "1",
+    "build": "3",
+    "subdomain": "multisig",
+    "permissions": [
+      {
+        "operation": 0,
+        "where": "0xe9589DeEAddf591f1622BBE181909EbE7512e7CD",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xb1750e46d35a0069c8465b8643e7838d2149a842a2db8ee233d9835590040cad"
+      },
+      {
+        "operation": 0,
+        "where": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "who": "0xe9589DeEAddf591f1622BBE181909EbE7512e7CD",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xbf04b4486c9663d805744005c3da000eda93de6e3308a4a7a812eb565327b78d"
+      },
+      {
+        "operation": 2,
+        "where": "0xe9589DeEAddf591f1622BBE181909EbE7512e7CD",
+        "who": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+        "condition": "0xb17A391BA3417d33CC95F1b149FC1437CF1c39cC",
+        "permissionId": "0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90"
+      },
+      {
+        "operation": 0,
+        "where": "0xe9589DeEAddf591f1622BBE181909EbE7512e7CD",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0x568cc693d84eb1901f8bcecba154cbdef23ca3cf67efc0a0b698528a06c660f7"
+      },
+      {
+        "operation": 0,
+        "where": "0xe9589DeEAddf591f1622BBE181909EbE7512e7CD",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0x4707e94b25cfce1a7c363508fbb838c35864388ad77284b248282b9746982b9b"
+      },
+      {
+        "operation": 0,
+        "where": "0xe9589DeEAddf591f1622BBE181909EbE7512e7CD",
+        "who": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xf281525e53675515a6ba7cc7bea8a81e649b3608423ee2d73be1752cea887889"
+      }
+    ],
+    "uninstalled": {
+      "status": false,
+      "transactionHash": null,
+      "blockNumber": null,
+      "blockTimestamp": null
+    },
+    "hasTarget": false,
+    "isProcess": true,
+    "isBody": true,
+    "isSubPlugin": true,
+    "metadataIpfs": "ipfs://QmesH8pS7BxZJZG7fEsCcoWVEH8KvxWK8PWYQhqmgUrGDN",
+    "name": "MS8",
+    "description": "",
+    "processKey": null,
+    "votingEscrow": null,
+    "subPlugins": [],
+    "links": [],
+    "createdAt": {
+      "$date": "2025-06-18T14:03:06.717Z"
+    },
+    "updatedAt": {
+      "$date": "2025-06-18T14:06:35.098Z"
+    },
+    "__v": 0,
+    "parentPlugin": "0x9F674BC5a486c14e9deb8D27557300a9c0e3CBb7",
+    "stageIndex": 0
+  },
+  {
+    "_id": {
+      "$oid": "6852c71e4340762885e58546"
+    },
+    "id": "corn-mainnet-0xf76e834a0e24a4ce9e775948312197bbeb3c5b624f57fd4c2687496a7b5a4d3a-0x7B5a847446362Dcd9843dc3045b33311DaDd0730",
+    "transactionHash": "0xf76e834a0e24a4ce9e775948312197bbeb3c5b624f57fd4c2687496a7b5a4d3a",
+    "blockNumber": 640463,
+    "blockTimestamp": 1750255346,
+    "network": "corn-mainnet",
+    "address": "0x7B5a847446362Dcd9843dc3045b33311DaDd0730",
+    "implementationAddress": "0x7ab3908D556578429e9300696DB55831f3700f04",
+    "interfaceType": "multisig",
+    "status": "installed",
+    "isSupported": true,
+    "daoAddress": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+    "tokenAddress": null,
+    "pluginSetupRepoAddress": "0xf3793d55C5fef8AFB5CDF305996A93281C6Bd220",
+    "sender": "0xCFE83d0079c9455eF1e11864D701d6e1bDf8Ff2a",
+    "release": "1",
+    "build": "3",
+    "subdomain": "multisig",
+    "permissions": [
+      {
+        "operation": 0,
+        "where": "0x7B5a847446362Dcd9843dc3045b33311DaDd0730",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xb1750e46d35a0069c8465b8643e7838d2149a842a2db8ee233d9835590040cad"
+      },
+      {
+        "operation": 0,
+        "where": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "who": "0x7B5a847446362Dcd9843dc3045b33311DaDd0730",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xbf04b4486c9663d805744005c3da000eda93de6e3308a4a7a812eb565327b78d"
+      },
+      {
+        "operation": 2,
+        "where": "0x7B5a847446362Dcd9843dc3045b33311DaDd0730",
+        "who": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+        "condition": "0x5589F170449B33D28743e88595afB45D3210368B",
+        "permissionId": "0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90"
+      },
+      {
+        "operation": 0,
+        "where": "0x7B5a847446362Dcd9843dc3045b33311DaDd0730",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0x568cc693d84eb1901f8bcecba154cbdef23ca3cf67efc0a0b698528a06c660f7"
+      },
+      {
+        "operation": 0,
+        "where": "0x7B5a847446362Dcd9843dc3045b33311DaDd0730",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0x4707e94b25cfce1a7c363508fbb838c35864388ad77284b248282b9746982b9b"
+      },
+      {
+        "operation": 0,
+        "where": "0x7B5a847446362Dcd9843dc3045b33311DaDd0730",
+        "who": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xf281525e53675515a6ba7cc7bea8a81e649b3608423ee2d73be1752cea887889"
+      }
+    ],
+    "uninstalled": {
+      "status": false,
+      "transactionHash": null,
+      "blockNumber": null,
+      "blockTimestamp": null
+    },
+    "hasTarget": false,
+    "isProcess": true,
+    "isBody": true,
+    "isSubPlugin": true,
+    "metadataIpfs": "ipfs://QmRUjTQeDBqFSbY5GYvj6pmXDicP29BBXSS1KRqp6XVmHV",
+    "name": "MS9",
+    "description": "",
+    "processKey": null,
+    "votingEscrow": null,
+    "subPlugins": [],
+    "links": [],
+    "createdAt": {
+      "$date": "2025-06-18T14:03:10.480Z"
+    },
+    "updatedAt": {
+      "$date": "2025-06-18T14:06:38.621Z"
+    },
+    "__v": 0,
+    "parentPlugin": "0x9F674BC5a486c14e9deb8D27557300a9c0e3CBb7",
+    "stageIndex": 0
+  },
+  {
+    "_id": {
+      "$oid": "6852c7224340762885e586da"
+    },
+    "id": "corn-mainnet-0xf76e834a0e24a4ce9e775948312197bbeb3c5b624f57fd4c2687496a7b5a4d3a-0x72dAb819983E2D4cD1C7a49260F6baDf9B92f547",
+    "transactionHash": "0xf76e834a0e24a4ce9e775948312197bbeb3c5b624f57fd4c2687496a7b5a4d3a",
+    "blockNumber": 640463,
+    "blockTimestamp": 1750255346,
+    "network": "corn-mainnet",
+    "address": "0x72dAb819983E2D4cD1C7a49260F6baDf9B92f547",
+    "implementationAddress": "0x7ab3908D556578429e9300696DB55831f3700f04",
+    "interfaceType": "multisig",
+    "status": "installed",
+    "isSupported": true,
+    "daoAddress": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+    "tokenAddress": null,
+    "pluginSetupRepoAddress": "0xf3793d55C5fef8AFB5CDF305996A93281C6Bd220",
+    "sender": "0xCFE83d0079c9455eF1e11864D701d6e1bDf8Ff2a",
+    "release": "1",
+    "build": "3",
+    "subdomain": "multisig",
+    "permissions": [
+      {
+        "operation": 0,
+        "where": "0x72dAb819983E2D4cD1C7a49260F6baDf9B92f547",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xb1750e46d35a0069c8465b8643e7838d2149a842a2db8ee233d9835590040cad"
+      },
+      {
+        "operation": 0,
+        "where": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "who": "0x72dAb819983E2D4cD1C7a49260F6baDf9B92f547",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xbf04b4486c9663d805744005c3da000eda93de6e3308a4a7a812eb565327b78d"
+      },
+      {
+        "operation": 2,
+        "where": "0x72dAb819983E2D4cD1C7a49260F6baDf9B92f547",
+        "who": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+        "condition": "0x9A2C747ACada97991AF8ae883b6045BF5294Fd12",
+        "permissionId": "0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90"
+      },
+      {
+        "operation": 0,
+        "where": "0x72dAb819983E2D4cD1C7a49260F6baDf9B92f547",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0x568cc693d84eb1901f8bcecba154cbdef23ca3cf67efc0a0b698528a06c660f7"
+      },
+      {
+        "operation": 0,
+        "where": "0x72dAb819983E2D4cD1C7a49260F6baDf9B92f547",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0x4707e94b25cfce1a7c363508fbb838c35864388ad77284b248282b9746982b9b"
+      },
+      {
+        "operation": 0,
+        "where": "0x72dAb819983E2D4cD1C7a49260F6baDf9B92f547",
+        "who": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xf281525e53675515a6ba7cc7bea8a81e649b3608423ee2d73be1752cea887889"
+      }
+    ],
+    "uninstalled": {
+      "status": false,
+      "transactionHash": null,
+      "blockNumber": null,
+      "blockTimestamp": null
+    },
+    "hasTarget": false,
+    "isProcess": true,
+    "isBody": true,
+    "isSubPlugin": true,
+    "metadataIpfs": "ipfs://QmNbmPkgyof2bbmf3QYapA55tfzaNxttZSnh494Nydd1jf",
+    "name": "MS10",
+    "description": "",
+    "processKey": null,
+    "votingEscrow": null,
+    "subPlugins": [],
+    "links": [],
+    "createdAt": {
+      "$date": "2025-06-18T14:03:14.306Z"
+    },
+    "updatedAt": {
+      "$date": "2025-06-18T14:06:42.860Z"
+    },
+    "__v": 0,
+    "parentPlugin": "0x9F674BC5a486c14e9deb8D27557300a9c0e3CBb7",
+    "stageIndex": 0
+  },
+  {
+    "_id": {
+      "$oid": "6852c7264340762885e58842"
+    },
+    "id": "corn-mainnet-0xf76e834a0e24a4ce9e775948312197bbeb3c5b624f57fd4c2687496a7b5a4d3a-0x56E1c8860810d06e57bd2422DF73287f0d1907Fd",
+    "transactionHash": "0xf76e834a0e24a4ce9e775948312197bbeb3c5b624f57fd4c2687496a7b5a4d3a",
+    "blockNumber": 640463,
+    "blockTimestamp": 1750255346,
+    "network": "corn-mainnet",
+    "address": "0x56E1c8860810d06e57bd2422DF73287f0d1907Fd",
+    "implementationAddress": "0x3180c7551BB65a51987743e20bA7D1A799314aD1",
+    "interfaceType": "tokenVoting",
+    "status": "installed",
+    "isSupported": true,
+    "daoAddress": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+    "tokenAddress": "0x9Aa0EC050ff566f9f939C2a41A0408db7ddBCf75",
+    "pluginSetupRepoAddress": "0x67C579fC2676a496DCE7dAB9695D323219d339EB",
+    "sender": "0xCFE83d0079c9455eF1e11864D701d6e1bDf8Ff2a",
+    "release": "1",
+    "build": "3",
+    "subdomain": "token-voting",
+    "permissions": [
+      {
+        "operation": 0,
+        "where": "0x56E1c8860810d06e57bd2422DF73287f0d1907Fd",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xbba35d41610b7d25c8e486006535c76bd423091563e694d206ae3d71ce949fe5"
+      },
+      {
+        "operation": 0,
+        "where": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "who": "0x56E1c8860810d06e57bd2422DF73287f0d1907Fd",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xbf04b4486c9663d805744005c3da000eda93de6e3308a4a7a812eb565327b78d"
+      },
+      {
+        "operation": 2,
+        "where": "0x56E1c8860810d06e57bd2422DF73287f0d1907Fd",
+        "who": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+        "condition": "0x0665EDCf9A513546e24f9A9986F6B9F2C1e3a979",
+        "permissionId": "0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90"
+      },
+      {
+        "operation": 0,
+        "where": "0x56E1c8860810d06e57bd2422DF73287f0d1907Fd",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0x568cc693d84eb1901f8bcecba154cbdef23ca3cf67efc0a0b698528a06c660f7"
+      },
+      {
+        "operation": 0,
+        "where": "0x56E1c8860810d06e57bd2422DF73287f0d1907Fd",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0x4707e94b25cfce1a7c363508fbb838c35864388ad77284b248282b9746982b9b"
+      },
+      {
+        "operation": 0,
+        "where": "0x56E1c8860810d06e57bd2422DF73287f0d1907Fd",
+        "who": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xf281525e53675515a6ba7cc7bea8a81e649b3608423ee2d73be1752cea887889"
+      },
+      {
+        "operation": 0,
+        "where": "0x9Aa0EC050ff566f9f939C2a41A0408db7ddBCf75",
+        "who": "0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43",
+        "condition": "0x0000000000000000000000000000000000000000",
+        "permissionId": "0xb737b436e6cc542520cb79ec04245c720c38eebfa56d9e2d99b043979db20e4c"
+      }
+    ],
+    "uninstalled": {
+      "status": false,
+      "transactionHash": null,
+      "blockNumber": null,
+      "blockTimestamp": null
+    },
+    "hasTarget": false,
+    "isProcess": true,
+    "isBody": true,
+    "isSubPlugin": true,
+    "metadataIpfs": "ipfs://QmUmzgNE2pyiG9eeGmFb5gP37iimf5ahu1iVfTRDPHTKwm",
+    "name": "TV",
+    "description": "",
+    "processKey": null,
+    "votingEscrow": null,
+    "subPlugins": [],
+    "links": [],
+    "createdAt": {
+      "$date": "2025-06-18T14:03:18.157Z"
+    },
+    "updatedAt": {
+      "$date": "2025-06-18T14:06:47.643Z"
+    },
+    "__v": 0,
+    "parentPlugin": "0x9F674BC5a486c14e9deb8D27557300a9c0e3CBb7",
+    "stageIndex": 1
+  }
+]

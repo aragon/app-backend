@@ -1,16 +1,8 @@
 import { Models } from '@dbModels'
 import logger from '@logger'
-import {
-  EnumConnection,
-  type IAlchemyTransferResponse,
-  IEnumIndexerService,
-  ITransactionType,
-  NetworksEnum,
-} from '@src/types'
-import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
-import Web3Helper from '@helpers/web3'
-import TokenUtils from '@helpers/tokenUtils'
+import { EnumConnection, IEnumIndexerService, NetworksEnum } from '@src/types'
 import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
+
 const llo = logger.logMeta.bind(null, { service: 'Tools: FixBrokenTx' })
 
 export const ToolsFixBrokenTx = {
@@ -18,117 +10,111 @@ export const ToolsFixBrokenTx = {
 
   start: async () => {
     logger.info('Start fixBrokenTx', llo())
-    const daos = await Models.Transaction.aggregate([
-      {
-        $match: {
-          type: 'withdraw',
-          network: {
-            $in: [
-              NetworksEnum.ethereumMainnet,
-              NetworksEnum.ethereumSepolia,
-              NetworksEnum.polygonMainnet,
-              NetworksEnum.baseMainnet,
-              NetworksEnum.arbitrumMainnet,
-              NetworksEnum.zksyncMainnet,
-              NetworksEnum.zksyncSepolia,
-              NetworksEnum.optimismMainnet,
-            ],
-          },
-        },
-      },
-      {
-        $group: {
-          _id: {
-            network: '$network',
-            daoAddress: '$daoAddress',
-          },
-        },
-      },
-      {
-        $project: {
-          network: '$_id.network',
-          daoAddress: '$_id.daoAddress',
-        },
-      },
-    ])
+    const networks = [
+      NetworksEnum.ethereumMainnet,
+      NetworksEnum.ethereumSepolia,
+      NetworksEnum.polygonMainnet,
+      NetworksEnum.baseMainnet,
+      NetworksEnum.arbitrumMainnet,
+      NetworksEnum.zksyncMainnet,
+      NetworksEnum.zksyncSepolia,
+      NetworksEnum.optimismMainnet,
+    ]
 
-    for (const dao of daos) {
-      const { daoAddress, network } = dao
-      logger.info(`Fixing transactions for DAO: ${daoAddress}`, llo({ daoAddress }))
-      const dbConfigIndexer = await Models.ConfigIndexer.findOne({
-        service: `withdraw-${daoAddress}-${IEnumIndexerService.withdrawTxs}`,
-        network,
-      })
+    for (const network of networks) {
+      logger.info('Start fixBrokenTx for network', llo({ network }))
 
-      if (dbConfigIndexer) {
-        await Models.ConfigIndexer.deleteOne({
-          _id: dbConfigIndexer._id,
-        })
-      }
+      let counter = 0
 
-      const totalWithdrawTx = await Models.Transaction.find({
-        daoAddress,
-        network,
-        type: ITransactionType.withdraw,
-      })
-
-      logger.info(
-        'Cleaning up existing withdraw transactions',
-        llo({ daoAddress, totalWithdrawTx: totalWithdrawTx.length }),
-      )
-
-      await Models.Transaction.deleteMany({
-        daoAddress,
-        network,
-        type: ITransactionType.withdraw,
-      })
-
-      const category = TokenUtils.getCategories(network)
-      const txLogs: any[] = []
-
-      const daoDb = await Models.Dao.findByAddress(daoAddress, network)
-
-      const withdrawTxCrawler = new BlockchainTransferCrawler({
-        network,
-        filter: {
-          fromAddress: daoAddress,
-          fromBlock: daoDb.blockNumber,
-          category,
-        },
-        onTx: async (txLog: IAlchemyTransferResponse) => {
-          const timestamp = await Web3Helper.getBlockTimestamp(txLog.blockNum, network)
-          txLogs.push({
-            ...txLog,
-            type: ITransactionType.withdraw,
-            blockTimestamp: timestamp,
-            address: daoAddress,
+      const daos = await Models.Transaction.aggregate([
+        {
+          $match: {
             network,
-          })
+            daoAddress: { $exists: true, $ne: null },
+          },
         },
-        onError: async (error: any) => {
-          logger.error('Error withdraw transfer', llo({ error, type: ITransactionType.withdraw, daoAddress, network }))
+        {
+          $group: {
+            _id: {
+              network: '$network',
+              daoAddress: '$daoAddress',
+            },
+          },
         },
-        logService: `withdraw-${daoAddress}-${IEnumIndexerService.withdrawTxs}` as any,
-        stopOnError: true,
-      })
+        {
+          $project: {
+            network: '$_id.network',
+            daoAddress: '$_id.daoAddress',
+          },
+        },
+      ])
 
-      await withdrawTxCrawler.crawl()
+      logger.info('Found DAOs with broken transactions', llo({ daosCount: daos.length, network }))
 
-      logger.info('Total transactions found for DAO:', llo({ daoAddress, count: txLogs.length }))
+      for (const dao of daos) {
+        const daoDb = await Models.Dao.findOne({
+          address: dao.daoAddress,
+          network: dao.network,
+        })
 
-      const sortedLogs = txLogs.sort((a, b) => {
-        if (a.blockNum !== b.blockNum) return a.blockNum - b.blockNum
-        return a.blockNum - b.blockNum
-      })
+        await ToolsFixBrokenTx.onDocument(daoDb)
 
-      await Promise.all(
-        sortedLogs.map(async (tx: any) => {
-          await DaoTransactions.saveTransaction(tx, tx.type, daoDb.address, daoDb.network)
-        }),
-      )
-
-      logger.info(`Finished fixing transactions for DAO: ${daoAddress}`, llo({ daoAddress }))
+        counter = counter + 1
+        logger.info(
+          'Processed DAO',
+          llo({
+            daoAddress: dao.daoAddress,
+            network: dao.network,
+            remaining: daos.length - counter,
+          }),
+        )
+      }
     }
+  },
+  onDocument: async (dao: any) => {
+    const daoAddress = dao.address
+    const network = dao.network as NetworksEnum
+
+    logger.info('Fixing transactions for DAO', llo({ daoAddress, network }))
+
+    const transactionsCount = await Models.Transaction.countDocuments({
+      daoAddress,
+      network,
+    })
+
+    if (transactionsCount === 0) {
+      logger.info('No transactions found for DAO', llo({ daoAddress, network }))
+      return
+    }
+
+    await Models.ConfigIndexer.deleteOne({
+      service: `withdraw-${daoAddress}-${IEnumIndexerService.withdrawTxs}`,
+      network,
+    })
+
+    await Models.ConfigIndexer.deleteOne({
+      service: `deposit-${daoAddress}-${IEnumIndexerService.depositTxs}`,
+      network,
+    })
+
+    const daoTxs = await Models.Transaction.find({
+      daoAddress,
+      network,
+    })
+
+    logger.info('Cleaning up existing transactions', llo({ daoAddress, totalTxns: daoTxs.length, network }))
+
+    await Models.Transaction.deleteMany({
+      daoAddress,
+      network,
+    })
+
+    await DaoTransactions.start({
+      daoAddress,
+      network,
+    })
+
+    logger.info('Finished fixing transactions for DAO', llo({ daoAddress, network }))
   },
 
   stop: async () => {
