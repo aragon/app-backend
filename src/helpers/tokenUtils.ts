@@ -77,6 +77,11 @@ const TokenUtils = {
         return category
     }
   },
+
+  supportsInternalTransactions: (network: NetworksEnum): boolean => {
+    const categories = TokenUtils.getCategories(network)
+    return categories.includes(ITransactionCategory.Internal)
+  },
 }
 
 export default TokenUtils
