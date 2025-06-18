@@ -6,7 +6,6 @@ import type Plugin from '@models/schema/plugin'
 import { PluginSlug } from '@helpers/pluginSlug'
 import logger from '@logger'
 import RabbitMQHelper from '@helpers/rabbitMQ'
-import { ProposalHandler } from '@handlers/proposalHandler'
 
 const llo = logger.logMeta.bind(null, { service: 'QueueAdminController' })
 

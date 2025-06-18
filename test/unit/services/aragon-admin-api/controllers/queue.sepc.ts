@@ -7,7 +7,6 @@ import { EnumQueueName, ErrorKeyEnum, IPluginInterfaceType, IPluginStatus, Netwo
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { PluginSlug } from '@helpers/pluginSlug'
 import logger from '@logger'
-import { ProposalHandler } from '@handlers/proposalHandler'
 import * as errors from '@errors'
 
 describe('Controller: QueueAdmin', () => {
