@@ -185,4 +185,12 @@ describe('ProxyWeb3 && Web3Helper', () => {
     expect(token?.name).to.eq('Voting Escrow PUFFER')
     expect(token?.symbol).to.eq('vePUFFER')
   })
+
+  it('should return the adjusted block number for arbitrum', async () => {
+    const blockNumber = 348345360
+    const network = NetworksEnum.arbitrumMainnet
+
+    const adjustedBlockNumber = await Web3Helper.getChainAdjustedBlockNumber(blockNumber, network)
+    expect(adjustedBlockNumber).to.eq(22725244)
+  })
 })

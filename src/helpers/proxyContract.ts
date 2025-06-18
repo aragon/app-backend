@@ -57,8 +57,9 @@ const ProxyContractHelper = {
     network: NetworksEnum,
   ): Promise<HexAddress | null> {
     try {
+      const method = provider.getStorageAt ? 'getStorageAt' : 'getStorage'
       const storageValue = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network).schedule(async () => provider.getStorageAt(address, slot)),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => provider[method](address, slot)),
       )
       const addressFromStorage = getAddress('0x' + storageValue.slice(-40))
       return addressFromStorage === ZeroAddress ? null : addressFromStorage
