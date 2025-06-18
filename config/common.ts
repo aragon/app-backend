@@ -327,7 +327,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_CORN_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_CORN_MAINNET_FROM_BLOCK', 562229),
         OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_CORN_MAINNET_OFFSET_TO_BLOCK', 0),
-        POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_CORN_MAINNET_POOLING_INTERVAL', 20 * 1000),
+        POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_CORN_MAINNET_POOLING_INTERVAL', 10 * 1000),
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_CORN_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_CORN_MAINNET_INTERVAL_BLOCK_TIME', 19),
         BLOCKSCOUT_API_URL: utils.configParser(

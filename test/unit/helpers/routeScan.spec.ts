@@ -7,6 +7,7 @@ import { NetworksEnum } from '@types'
 import axios from 'axios'
 import config from '@config'
 import ProviderModule from '@modules/provider'
+import Web3Helper from '@src/helpers/web3'
 
 describe('Helpers: RouteScan', () => {
   let sandbox: SinonSandbox
@@ -157,6 +158,103 @@ describe('Helpers: RouteScan', () => {
       expect(result).to.be.null
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.args[0][0]).to.include('Error fetchContractSourceCode from RouteScan')
+    })
+  })
+
+  describe('fetchContractCreation', () => {
+    it('should fetch contract creation successfully', async () => {
+      const mockResponse = {
+        status: '1',
+        message: 'OK',
+        result: [{ contractAddress: '0xf96e6FD76BD0A15580604e1Ea5818D448b1041C0', txHash: '0x123' }],
+      }
+
+      const mockTxReceipt = { blockNumber: 12345 }
+
+      const rpcCallStub = sandbox.stub(RouteScanHelper, '_rpCall').resolves(mockResponse)
+      const getTransactionStub = sandbox.stub(Web3Helper, 'getTransaction').resolves(mockTxReceipt)
+
+      const result = await RouteScanHelper.fetchContractCreation({
+        address: '0xf96e6FD76BD0A15580604e1Ea5818D448b1041C0',
+        network: NetworksEnum.ethereumSepolia,
+      })
+
+      expect(result).to.deep.equal({
+        address: '0xf96e6FD76BD0A15580604e1Ea5818D448b1041C0',
+        transactionHash: '0x123',
+        blockNumber: 12345,
+      })
+
+      expect(rpcCallStub.calledOnce).to.be.true
+      expect(rpcCallStub.firstCall.args[0]).to.deep.equal({
+        module: 'contract',
+        action: 'getcontractcreation',
+        contractaddresses: '0xf96e6FD76BD0A15580604e1Ea5818D448b1041C0',
+      })
+      expect(getTransactionStub.calledOnce).to.be.true
+      expect(getTransactionStub.firstCall.args[0]).to.equal('0x123')
+    })
+
+    it('should return default object when API status is not "1"', async () => {
+      const mockResponse = {
+        status: '0',
+        message: 'NOTOK',
+        result: [],
+      }
+
+      sandbox.stub(RouteScanHelper, '_rpCall').resolves(mockResponse)
+
+      const result = await RouteScanHelper.fetchContractCreation({
+        address: '0xf96e6FD76BD0A15580604e1Ea5818D448b1041C0',
+        network: NetworksEnum.ethereumSepolia,
+      })
+
+      expect(result).to.deep.equal({
+        address: '0xf96e6FD76BD0A15580604e1Ea5818D448b1041C0',
+        transactionHash: '',
+        blockNumber: 0,
+      })
+    })
+
+    it('should handle errors when fetching contract creation fails', async () => {
+      const expectedError = new Error('Failed to fetch contract creation')
+      sandbox.stub(RouteScanHelper, '_rpCall').rejects(expectedError)
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      const result = await RouteScanHelper.fetchContractCreation({
+        address: '0xf96e6FD76BD0A15580604e1Ea5818D448b1041C0',
+        network: NetworksEnum.ethereumSepolia,
+      })
+
+      expect(result).to.deep.equal({
+        address: '0xf96e6FD76BD0A15580604e1Ea5818D448b1041C0',
+        transactionHash: '',
+        blockNumber: 0,
+      })
+      expect(loggerStub.calledOnce).to.be.true
+      expect(loggerStub.args[0][0]).to.include('Error fetchContractCreation from RouteScan')
+    })
+
+    it('should handle null txReceipt when getting transaction', async () => {
+      const mockResponse = {
+        status: '1',
+        message: 'OK',
+        result: [{ contractAddress: '0xf96e6FD76BD0A15580604e1Ea5818D448b1041C0', txHash: '0x123' }],
+      }
+
+      sandbox.stub(RouteScanHelper, '_rpCall').resolves(mockResponse)
+      sandbox.stub(Web3Helper, 'getTransaction').resolves(null)
+
+      const result = await RouteScanHelper.fetchContractCreation({
+        address: '0xf96e6FD76BD0A15580604e1Ea5818D448b1041C0',
+        network: NetworksEnum.ethereumSepolia,
+      })
+
+      expect(result).to.deep.equal({
+        address: '0xf96e6FD76BD0A15580604e1Ea5818D448b1041C0',
+        transactionHash: '0x123',
+        blockNumber: 0,
+      })
     })
   })
 })
