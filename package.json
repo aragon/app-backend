@@ -88,7 +88,7 @@
     "dayjs-plugin-utc": "^0.1.2",
     "dot-only-hunter": "^1.0.3",
     "dotenv": "^16.5.0",
-    "ethers": "^6.11.1",
+    "ethers": "^6.14.4",
     "joi": "^17.12.2",
     "jsonwebtoken": "^9.0.2",
     "koa": "^2.16.1",
