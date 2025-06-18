@@ -1307,7 +1307,7 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(ProposalHelper, 'getSppSubPluginProposals').resolves(1)
       sandbox.stub(ProposalHelper, 'getProposal').resolves({ lastStageTransition: 1800000000 } as any)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
-      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
+      sandbox.stub(logger, 'verbose')
 
       // Execute the handler
       await ProposalHandler.proposalAdvanced(fakeEvent as any, info)
@@ -1985,7 +1985,7 @@ describe('Indexer: ProposalHandler', () => {
         .stub(DecodeActions.prototype, 'decodeTransfer')
         .resolves({ decoded: 'decodedTransfer' } as any)
       const updateDocumentSpy = sandbox.spy(DbOperations, 'updateDocument')
-      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
+      sandbox.stub(logger, 'verbose')
 
       const fakeProposal = await Models.Proposal.create({
         ...ProposalList[0],
