@@ -2522,7 +2522,7 @@ describe('Indexer: ProposalHandler', () => {
 
       sandbox.stub(ProposalHelper, 'getProposal').resolves(proposalInfo as any)
       sandbox.stub(ProposalHelper, 'getSppSubPluginProposals').resolves(2)
-
+      sandbox.stub(logger, 'verbose')
       await ProposalHandler.pairSppProposals(parentProposal, plugin as any, info as any)
 
       const updatedParentProposal = await Models.Proposal.findById(parentProposal._id)
@@ -2530,7 +2530,7 @@ describe('Indexer: ProposalHandler', () => {
       expect(updatedParentProposal.totalStages).to.equal(3)
       expect(updatedParentProposal.stageIndex).to.equal(0) // max(1-1, 0)
       expect(updatedParentProposal.lastStageTransition).to.equal(1700000000)
-      expect(updatedParentProposal.subProposals.length).to.be.greaterThan(0)
+      expect(updatedParentProposal.subProposals.length).to.be.eq(1)
       expect(updatedParentProposal.subProposals[0]).to.deep.include({
         proposalIndex: '2',
         pluginAddress: '0xSubPluginAddress',
@@ -2578,6 +2578,7 @@ describe('Indexer: ProposalHandler', () => {
 
       sandbox.stub(ProposalHelper, 'getProposal').resolves(proposalInfo as any)
       sandbox.stub(ProposalHelper, 'getSppSubPluginProposals').resolves(false) // No valid sub-proposal found
+      sandbox.stub(logger, 'verbose')
 
       await ProposalHandler.pairSppProposals(parentProposal, plugin as any, info as any)
 
@@ -2613,16 +2614,12 @@ describe('Indexer: ProposalHandler', () => {
       }
 
       sandbox.stub(ProposalHelper, 'getProposal').resolves(null) // Missing proposalInfo
-      sandbox.stub(ProposalHelper, 'getSppSubPluginProposals').resolves(2)
+      const getSppSubPluginProposalsStub = sandbox.stub(ProposalHelper, 'getSppSubPluginProposals').resolves(2)
       const errorStub = sandbox.stub(logger, 'error')
 
       await ProposalHandler.pairSppProposals(parentProposal, plugin as any, info as any)
 
-      const updatedParentProposal = await Models.Proposal.findById(parentProposal._id)
-      expect(updatedParentProposal.isSubProposal).to.be.false
-      expect(updatedParentProposal.totalStages).to.equal(3)
-      expect(updatedParentProposal.stageIndex).to.be.eq(0) // Should not be set without proposalInfo
-      expect(updatedParentProposal.lastStageTransition).to.be.undefined // Should not be set without proposalInfo
+      expect(getSppSubPluginProposalsStub.calledOnce).to.be.false
       expect(errorStub.calledWith('Error ProposalAdvanced - proposalInfo not found...' as any)).to.be.true
     })
 
@@ -2655,8 +2652,7 @@ describe('Indexer: ProposalHandler', () => {
       } as any)
       sandbox.stub(ProposalHelper, 'getSppSubPluginProposals').resolves(2)
 
-      // Force an error during the transaction
-      const saveStub = sandbox.stub(parentProposal, 'save').rejects(new Error('DB Error'))
+      const saveStub = sandbox.stub(Models.Proposal.prototype, 'save').rejects(new Error('DB Error'))
       const errorStub = sandbox.stub(logger, 'error')
 
       await ProposalHandler.pairSppProposals(parentProposal, plugin as any, info as any)

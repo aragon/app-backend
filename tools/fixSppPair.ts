@@ -1,4 +1,4 @@
-import { EnumConnection, type IService } from '@types'
+import { EnumConnection, type IService, NetworksEnum } from '@types'
 import logger from '@logger'
 import { Models } from '@dbModels'
 import { ProposalHandler } from '@handlers/proposalHandler'
@@ -10,7 +10,10 @@ export const FixSppPair: IService = {
 
   start: async () => {
     const proposalParent = await Models.Proposal.findOne({
-      id: '0x4d45ad526080d4f19c6fe4b9e959118725badeba4f1b24ae2cfd34eb4cd34a48-0x5624c480df8dBaFBcF48Bc77Bc97b0d73bFD0C82-2939695941842880050678045345409644196526541492223508073742106263045851075538',
+      daoAddress: '0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43',
+      pluginSubdomain: 'spp',
+      isSubProposal: false,
+      network: NetworksEnum.cornMainnet,
     })
 
     if (!proposalParent) {

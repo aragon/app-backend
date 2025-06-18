@@ -897,14 +897,17 @@ export const ProposalHandler = {
 
     if (!proposalInfo) {
       logger.error('Error ProposalAdvanced - proposalInfo not found...')
+      return
     }
+    const lastStageTransition = Number(proposalInfo.lastStageTransition)
+    const currentStage = Math.max(Number(proposalInfo.currentStage) - 1, 0)
 
-    const subPlugins = plugin.subPlugins?.find(sp => sp.stageIndex === proposal.stageIndex)
+    const subPlugins = plugin.subPlugins?.find(sp => sp.stageIndex === currentStage)
     const subPluginData = await Promise.all(
       subPlugins?.addresses?.map(async address => {
         const proposalIndex = await ProposalHelper.getSppSubPluginProposals(
           proposal.proposalIndex,
-          proposal.stageIndex!,
+          currentStage,
           address,
           plugin.address,
           proposal.network,
@@ -915,14 +918,13 @@ export const ProposalHandler = {
 
     await DbTx.executeTxFn(async ({ session }) => {
       try {
+        proposal = await proposal.reload({ session })
+
+        proposal.stageIndex = currentStage
+        proposal.lastStageTransition = lastStageTransition
         proposal.isSubProposal = false
         proposal.totalStages = plugin.totalStages
         proposal.subProposals = []
-
-        if (proposalInfo) {
-          proposal.stageIndex = Math.max(Number(proposalInfo.currentStage) - 1, 0)
-          proposal.lastStageTransition = Number(proposalInfo.lastStageTransition)
-        }
 
         await Promise.all(
           subPluginData.map(async ({ address, proposalIndex }) => {
@@ -963,12 +965,12 @@ export const ProposalHandler = {
         await proposal.save({ session })
         await session.commitTransaction()
         await session.endSession()
+        logger.verbose('Update proposal - pairSppProposals', llo({ logId: proposal.id, info }))
       } catch (error) {
         logger.error('Error pairSppProposals', llo({ error, network: proposal.network, proposalId: proposal.id }))
       }
     })
   },
-
   proposalCanceled: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
       const proposal = await Models.Proposal.findByProposalIndex(
