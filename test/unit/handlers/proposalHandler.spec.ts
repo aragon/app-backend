@@ -1105,7 +1105,7 @@ describe('Indexer: ProposalHandler', () => {
       expect(
         rabbitMQStub.calledWith(EnumQueueName.daoTransactions, {
           id: proposal.daoAddress,
-          params: { address: proposal.daoAddress, network },
+          params: { address: proposal.daoAddress, network, proposalId: proposal.id },
         }),
       ).to.be.true
       expect(
