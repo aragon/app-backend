@@ -2,27 +2,27 @@ import Joi from 'joi'
 import ValidationSchema from '@helpers/validationSchema'
 import { NetworksEnum } from '@types'
 
+const networksValidation = Joi.alternatives().try(
+  // handle an actual array
+  Joi.array()
+    .items(Joi.string().valid(...Object.values(NetworksEnum)))
+    .single(),
+
+  // or a CSV string that we split
+  Joi.string().custom((value, helpers) => {
+    const parts = value.split(',').map((v: string) => v.trim())
+    // validate each part
+    const invalid = parts.find(p => !Object.values(NetworksEnum).includes(p))
+    if (invalid) {
+      return helpers.error('any.invalid', { invalid })
+    }
+    return parts
+  }),
+)
+
 const DaoSchema = {
   getExtraParams: Joi.object({
-    networks: Joi.alternatives()
-      .try(
-        // handle an actual array
-        Joi.array()
-          .items(Joi.string().valid(...Object.values(NetworksEnum)))
-          .single(),
-
-        // or a CSV string that we split
-        Joi.string().custom((value, helpers) => {
-          const parts = value.split(',').map((v: string) => v.trim())
-          // validate each part
-          const invalid = parts.find(p => !Object.values(NetworksEnum).includes(p))
-          if (invalid) {
-            return helpers.error('any.invalid', { invalid })
-          }
-          return parts
-        }),
-      )
-      .optional(),
+    networks: networksValidation.optional(),
     pluginAddress: ValidationSchema.joiAddress.optional(),
     address: ValidationSchema.joiAddress.optional(),
   }),
@@ -31,6 +31,7 @@ const DaoSchema = {
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
       .optional(),
+    networks: networksValidation.optional(),
     memberAddress: Joi.alternatives().try(ValidationSchema.joiAddress.required(), ValidationSchema.joiEns.required()),
     excludeDaoId: Joi.string().optional(),
   }),

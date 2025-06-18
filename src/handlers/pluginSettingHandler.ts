@@ -1,5 +1,12 @@
 import logger from '@logger'
-import { type ILogInfo, IPluginInterfaceType, ISettingStatus, IEventLogPluginSettings, IPluginStatus } from '@types'
+import {
+  IEventLogPluginSettings,
+  type ILogInfo,
+  IPluginInterfaceType,
+  IPluginStatus,
+  ISettingStatus,
+  type ISettingVotingEscrow,
+} from '@types'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import type Plugin from '@models/schema/plugin'
@@ -15,6 +22,7 @@ import MultisigHelper from '@helpers/multisig'
 import { Multisig2 } from '@artifacts/Multisig2'
 import Web3Utils from '@helpers/web3Utils'
 import PluginDetector from '@helpers/pluginDetector'
+import GovernanceVeHelper from '@helpers/governanceVe'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PluginSettingHandler' })
 
@@ -22,6 +30,7 @@ const llo = logger.logMeta.bind(null, { service: 'handlers:PluginSettingHandler'
 // ADMIN: have no setting (isSupported needs to be set somewhere else)
 // GAUGE: have no setting (isSupported needs to be set somewhere else)
 // TokenVoting: setting is triggered on installationPrepared
+// TokenVoting + VotingEscrow: setting is triggered on installationPrepared helpers
 // Multisig: setting is triggered on installationPrepared
 // SPP: setting is triggered on installationApplied
 export const PluginSettingHandler = {
@@ -105,6 +114,9 @@ export const PluginSettingHandler = {
       minParticipation: Number(parsedEvent.args.minParticipation),
       minDuration: Number(parsedEvent.args.minDuration),
       minProposerVotingPower: parsedEvent.args.minProposerVotingPower.toString(),
+      votingEscrow: relatedPlugin.votingEscrow
+        ? await PluginSettingHandler.votingEscrowSettings(relatedPlugin, info)
+        : undefined,
     }
 
     await DbOperations.createDocument(Models.Setting, settingLog, info, 'New Setting - tokenVotingSettingsUpdated', llo)
@@ -454,6 +466,26 @@ export const PluginSettingHandler = {
         }),
       ),
     )
+  },
+
+  votingEscrowSettings: async (plugin: Plugin, info: ILogInfo): Promise<ISettingVotingEscrow> => {
+    const minDeposit = await GovernanceVeHelper.getMinDeposit(plugin.votingEscrow?.escrowAddress!, info.network)
+    const minLockTime = await GovernanceVeHelper.getMinLock(plugin.votingEscrow?.exitQueueAddress!, info.network)
+    const cooldown = await GovernanceVeHelper.getCooldown(plugin.votingEscrow?.exitQueueAddress!, info.network)
+    const maxTime = await GovernanceVeHelper.getMaxTime(plugin.votingEscrow?.curveAddress!, info.network)
+    const { slope, bias } = await GovernanceVeHelper.getSettingFromCoefficients(
+      plugin.votingEscrow?.curveAddress!,
+      info.network,
+    )
+
+    return {
+      minDeposit: minDeposit.toString(),
+      minLockTime: Number(minLockTime),
+      cooldown: Number(cooldown),
+      maxTime: Number(maxTime),
+      slope: slope.toString(),
+      bias: bias.toString(),
+    }
   },
 
   isSupported: async (plugin: Plugin, info: ILogInfo): Promise<void> => {

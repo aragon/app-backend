@@ -47,6 +47,7 @@ const TransactionRouter = {
       formattedPairParams,
     )
   },
+
   getTransactionIndexingStatus: async function (ctx: RouterContext) {
     const params = {
       transactionHash: ctx.params.txHash,

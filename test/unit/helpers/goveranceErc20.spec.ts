@@ -1,10 +1,13 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
+import config from '@config'
 import logger from '@logger'
 import { IClockMode, NetworksEnum } from '@types'
 import proxyquire from 'proxyquire'
 import Web3Helper from '@helpers/web3'
+import GovernanceErc20Helper from '@helpers/governanceErc20'
+import { expect } from 'chai'
+import Web3BatchHelper from '@helpers/web3BatchHelper'
 
 describe('Helpers: GovernanceErc20', () => {
   let sandbox: SinonSandbox
@@ -18,158 +21,93 @@ describe('Helpers: GovernanceErc20', () => {
   })
 
   describe('getPastVotes', () => {
-    it('Should make a successful getPastVotes call', async () => {
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns({}),
-      }
-
-      const getPastVotesStub = sandbox.stub().resolves(1)
-      const getChainAdjustedBlockNumberStub = sandbox.stub(Web3Helper, 'getChainAdjustedBlockNumber').resolves(1)
-      const getClockModeStub = sandbox.stub().resolves(IClockMode.BlockNumber)
-
-      const { default: MockedGovernanceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
-        ethers: {
-          Contract: function () {
-            return {
-              getPastVotes: getPastVotesStub,
-              CLOCK_MODE: getClockModeStub,
-            }
-          },
-        },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
+    it('should get getAverageBlockTime', () => {
+      sandbox.stub(config, 'NODES').value({
+        ETHEREUM_MAINNET: {
+          INTERVAL_BLOCK_TIME: 10,
         },
       })
 
-      const result = await MockedGovernanceErc20Helper.getPastVotes(
+      const blockTime = GovernanceErc20Helper.getAverageBlockTime(NetworksEnum.ethereumMainnet, 2)
+      expect(blockTime).to.equal(20)
+    })
+
+    it('should get getPastVotes with that calls for retries', async () => {
+      const _getPastVotesWithRetryStub = sandbox.stub(GovernanceErc20Helper, '_getPastVotesWithRetry').resolves('1000')
+      const result = await GovernanceErc20Helper.getPastVotes(
         '0x123',
-        '0x123',
-        1,
-        2,
+        '0x456',
+        12345678,
+        1622547800,
         NetworksEnum.ethereumMainnet,
       )
 
-      expect(getChainAdjustedBlockNumberStub.calledWith(1, NetworksEnum.ethereumMainnet)).to.be.true
-      expect(getPastVotesStub.calledWith('0x123', 1)).to.be.true
-      expect(result).to.eq('1')
-      expect(getClockModeStub.calledOnce).to.be.true
+      expect(_getPastVotesWithRetryStub.calledOnce).to.be.true
+      expect(result).to.equal('1000')
+      expect(_getPastVotesWithRetryStub.args[0]).to.deep.equal([
+        '0x123',
+        '0x456',
+        12345678,
+        1622547800,
+        NetworksEnum.ethereumMainnet,
+        { maxRetries: 3, decreasingThreshold: 2 },
+      ])
     })
 
     it('should handle errors in getPastVotes', async () => {
       const expectedResult = new Error('RPC Call Failed')
-      const getPastVotesStub = sandbox.stub().rejects(expectedResult)
-      sandbox.stub(Web3Helper, 'getChainAdjustedBlockNumber').resolves(1)
-
-      const { default: MockedGovernanceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
-        ethers: {
-          Contract: function () {
-            return { getPastVotes: getPastVotesStub }
-          },
-        },
-      })
+      sandbox.stub(GovernanceErc20Helper, '_getPastVotesWithRetry').rejects(expectedResult)
 
       const loggerStub = sandbox.stub(logger, 'warn')
 
-      const result = await MockedGovernanceErc20Helper.getPastVotes(
+      const result = await GovernanceErc20Helper.getPastVotes(
         '0x123',
-        '0x123',
-        1,
-        1,
+        '0x456',
+        12345678,
+        1622547800,
         NetworksEnum.ethereumMainnet,
       )
-      expect(result).to.eq('0')
+      expect(result).to.equal('0')
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.calledWith('Error getting past votes' as any)).to.be.true
     })
 
-    it('should return past votes as a string when call is successful', async () => {
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns({}),
-      }
+    it('should handle getPastVotesWithRetry', async () => {
+      const getMemberVotingPowerStub = sandbox.stub(Web3BatchHelper, 'getMemberVotingPower')
+      getMemberVotingPowerStub.onCall(0).resolves({ votingPower: '0', error: true })
+      getMemberVotingPowerStub.onCall(1).resolves({ votingPower: '1000', error: false })
 
-      const pastVotesStub = sandbox.stub().resolves(10n)
-      sandbox.stub(Web3Helper, 'getChainAdjustedBlockNumber').resolves(1)
-
-      const { default: MockedGovernanceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
-        ethers: {
-          Contract: function () {
-            return { getPastVotes: pastVotesStub }
-          },
-        },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
+      sandbox.stub(config, 'NODES').value({
+        ETHEREUM_MAINNET: {
+          INTERVAL_BLOCK_TIME: 10,
         },
       })
 
-      const result = await MockedGovernanceErc20Helper.getPastVotes(
+      const result = await GovernanceErc20Helper._getPastVotesWithRetry(
         '0x123',
-        '0x123',
-        1,
-        1,
+        '0x456',
+        12345678,
+        1622547800,
         NetworksEnum.ethereumMainnet,
+        { maxRetries: 3, decreasingThreshold: 2 },
       )
 
-      expect(result).to.eq('10')
-      expect(pastVotesStub.calledOnce).to.be.true
-    })
-
-    it('should return "0" when getPastVotes fails', async () => {
-      const pastVotesStub = sandbox.stub().rejects(new Error('RPC Call Failed'))
-
-      const { default: MockedGovernanceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
-        ethers: {
-          Contract: function () {
-            return { getPastVotes: pastVotesStub }
-          },
-        },
-      })
-
-      const loggerStub = sandbox.stub(logger, 'warn')
-
-      const result = await MockedGovernanceErc20Helper.getPastVotes(
+      expect(getMemberVotingPowerStub.callCount).to.equal(2)
+      expect(result).to.equal('1000')
+      expect(getMemberVotingPowerStub.args[0]).to.deep.equal([
         '0x123',
-        '0x123',
-        1,
-        1,
+        '0x456',
+        12345678,
+        1622547800,
         NetworksEnum.ethereumMainnet,
-      )
-
-      expect(result).to.eq('0')
-      expect(loggerStub.calledOnce).to.be.true
-      expect(loggerStub.calledWithMatch('Error getting past votes' as any)).to.be.true
-    })
-
-    it('Should getPastVotes using blockTimestamp', async () => {
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns({}),
-      }
-
-      const getClockModeStub = sandbox.stub().resolves(IClockMode.Timestamp)
-
-      const getPastVotesStub = sandbox.stub()
-      getPastVotesStub.onFirstCall().resolves(1)
-
-      const { default: MockedGovernanceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
-        ethers: {
-          Contract: function () {
-            return { getPastVotes: getPastVotesStub, CLOCK_MODE: getClockModeStub }
-          },
-        },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
-        },
-      })
-
-      const result = await MockedGovernanceErc20Helper.getPastVotes(
+      ])
+      expect(getMemberVotingPowerStub.args[1]).to.deep.equal([
         '0x123',
-        '0x123',
-        1, // blockNumber
-        2, // blockTimestamp
+        '0x456',
+        12345676,
+        1622547800 - 20,
         NetworksEnum.ethereumMainnet,
-      )
-      expect(result).to.eq('1')
-      expect(getPastVotesStub.calledWith('0x123', 2)).to.be.true
-      expect(getClockModeStub.calledOnce).to.be.true
+      ])
     })
   })
 

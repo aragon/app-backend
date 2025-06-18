@@ -8,10 +8,12 @@ updates:
       - "dependencies"
     reviewers:
       - "cristianizzo"
-      - "ccir105"
+      - "harryburger"
     assignees:
       - "cristianizzo"
-      - "ccir105"
+      - "harryburger"
     commit-message:
       prefix: "chore"
       include: "scope"
+    rebase-strategy: "auto" # Auto-rebase when conflicts
+    versioning-strategy: "increase"

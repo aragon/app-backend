@@ -27,6 +27,8 @@ describe('Router: Proposal', () => {
         pluginAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         creatorAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         daoInfo: false,
+        isExecuted: false,
+        isSubProposal: false,
         proposalIndex: '1',
         incrementalId: 1,
       }
@@ -36,11 +38,15 @@ describe('Router: Proposal', () => {
         order: 'asc',
         sort: 'createdAt',
       }
+      const pairParams = {
+        onlyActive: true,
+        daoId: '0x0',
+      }
 
       const stubCtrl = sandbox.stub(ProposalController, 'getProposalsWithPagination').returns(true as any)
 
       const ctx: any = {
-        query: { ...filterParams, ...paginationParams },
+        query: { ...filterParams, ...paginationParams, ...pairParams },
       }
 
       await ProposalRouter.getWithPagination(ctx)
@@ -57,6 +63,7 @@ describe('Router: Proposal', () => {
       }
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
       expect(stubCtrl.args[0][1]).to.deep.eq(filterParams)
+      expect(stubCtrl.args[0][2]).to.deep.eq(pairParams)
     })
 
     it('Should get proposal with pagination - daoId', async () => {
@@ -96,7 +103,9 @@ describe('Router: Proposal', () => {
         daoAddress: undefined,
         pluginAddress: undefined,
         creatorAddress: undefined,
+        isSubProposal: undefined,
         daoInfo: false,
+        isExecuted: undefined,
         incrementalId: undefined,
         proposalIndex: undefined,
       })
@@ -140,6 +149,8 @@ describe('Router: Proposal', () => {
           daoAddress: undefined,
           pluginAddress: undefined,
           creatorAddress: undefined,
+          isExecuted: undefined,
+          isSubProposal: undefined,
           proposalIndex: undefined,
           incrementalId: undefined,
         },

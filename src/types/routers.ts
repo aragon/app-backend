@@ -2,7 +2,7 @@ import { type ENS, type HexAddress, type NetworksEnum } from './networks'
 import { type ITokenType } from '@src/types/token'
 import { type IActionMetadata } from '@src/types/proposalAction'
 import { type ITransferSide, type ITransferType } from '@src/types/transfer'
-import { type IReportResultType } from '@src/types/plugin'
+import { type IPluginInterfaceType, type IReportResultType } from '@src/types/plugin'
 
 export interface IStatusResponse {
   status: string
@@ -42,6 +42,63 @@ export interface IDelegatesResponse {
     name: string
     decimals: number
     symbol: string
+  }
+}
+
+export interface IMemberLockResponse {
+  id: string
+  network: NetworksEnum
+  transactionHash: HexAddress
+  blockNumber: number | null
+  blockTimestamp: number | null
+  pluginAddress: HexAddress
+  memberAddress: HexAddress
+  escrowAddress: HexAddress
+  token: {
+    network: NetworksEnum
+    address: HexAddress
+    symbol: string
+    name: string
+    decimals: number
+    logo: string | null
+    isGovernance: boolean
+    hasDelegate: boolean
+    underlying: any
+    type: string
+    totalSupply: string
+    mintableByDao: boolean
+  } | null
+  nft: {
+    network: NetworksEnum
+    address: HexAddress
+    symbol: string
+    name: string
+    decimals: number
+    logo: string | null
+    isGovernance: boolean
+    hasDelegate: boolean
+    underlying: any
+    type: string
+    totalSupply: string
+    mintableByDao: boolean
+  } | null
+  tokenId: string
+  amount: string
+  epochStartAt: number
+  lockExit: {
+    status: boolean
+    transactionHash: HexAddress | null
+    blockNumber: number | null
+    blockTimestamp: number | null
+    exitDateAt: number | null
+  }
+  lockWithdraw: {
+    status: boolean
+    transactionHash: HexAddress | null
+    blockNumber: number | null
+    blockTimestamp: number | null
+    amount: string
+    epochEndAt: number | null
   }
 }
 
@@ -295,4 +352,6 @@ export interface ITransactionIndexingStatusResponse {
   stage?: number
   pluginAddress?: string
   resultType?: IReportResultType
+  isSupported?: boolean
+  interfaceType?: IPluginInterfaceType
 }

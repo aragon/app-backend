@@ -8,19 +8,21 @@ import { Models } from '@dbModels'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import Web3Helper from '@helpers/web3'
 import { IPluginInterfaceType } from '@types'
+import Proposal from '@models/schema/proposal'
 
 describe('AragonDao:VoteInfo', () => {
   let sandbox: SinonSandbox
+  let proposalDb: Proposal | null = null
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
 
-    await Models.Proposal.create({
+    proposalDb = (await Models.Proposal.create({
       ...ProposalList[1],
       endDate: Math.floor(Date.now() / 1000 + 1000e6),
       executed: {
         status: false,
       },
-    })
+    })) as Proposal
 
     await Models.Plugin.create({
       ...PluginList[0],
@@ -81,12 +83,12 @@ describe('AragonDao:VoteInfo', () => {
 
       const findVoteOnPluginStub = sandbox.stub(Models.Vote, 'findVoteOnPlugin').resolves(true)
 
-      const result = await VoteInfo.getVoteInfo({ proposalId: ProposalList[1].id!, userAddress: '0xUserAddress' })
+      const result = await VoteInfo.getVoteInfo({ proposalId: proposal.id, userAddress: '0xUserAddress' })
       expect(result).to.be.true
       expect(findVoteOnPluginStub.calledOnce).to.be.true
       expect(findVoteOnPluginStub.args[0][0].memberAddress).to.be.eq('0xUserAddress')
       expect(findVoteOnPluginStub.args[0][0].pluginAddress).to.be.eq(plugin.address)
-      expect(findVoteOnPluginStub.args[0][0].proposalIndex).to.be.eq(ProposalList[1].id)
+      expect(findVoteOnPluginStub.args[0][0].proposalIndex).to.be.eq(proposal.id)
       expect(findVoteOnPluginStub.args[0][0].network).to.be.eq(plugin.network)
     })
 
@@ -94,7 +96,7 @@ describe('AragonDao:VoteInfo', () => {
       const getPastVotesStub = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('160000')
       const plugin = await Models.Plugin.findOne({})
 
-      const result = await VoteInfo.getVoteInfo({ proposalId: ProposalList[1].id!, userAddress: '0xUserAddress' })
+      const result = await VoteInfo.getVoteInfo({ proposalId: proposalDb!.id, userAddress: '0xUserAddress' })
 
       expect(getPastVotesStub.calledOnce).to.be.true
       expect(getPastVotesStub.calledWith('0xUserAddress')).to.be.true
@@ -108,7 +110,7 @@ describe('AragonDao:VoteInfo', () => {
     it('should return false for token voting if user does not have sufficient voting power', async () => {
       const getPastVotesStub = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('0')
 
-      const result = await VoteInfo.getVoteInfo({ proposalId: ProposalList[1].id!, userAddress: '0xUserAddress' })
+      const result = await VoteInfo.getVoteInfo({ proposalId: proposalDb!.id, userAddress: '0xUserAddress' })
       expect(result).to.be.false
 
       expect(getPastVotesStub.calledOnce).to.be.true
@@ -132,7 +134,7 @@ describe('AragonDao:VoteInfo', () => {
 
       const isMultisigMemberAtBlockStub = sandbox.stub(Web3Helper, 'isMultisigMemberAtBlock').resolves(true)
 
-      const result = await VoteInfo.getVoteInfo({ proposalId: ProposalList[1].id!, userAddress: '0xUserAddress' })
+      const result = await VoteInfo.getVoteInfo({ proposalId: proposalDb!.id, userAddress: '0xUserAddress' })
 
       expect(result).to.be.true
       expect(isMultisigMemberAtBlockStub.calledOnce).to.be.true
@@ -158,7 +160,7 @@ describe('AragonDao:VoteInfo', () => {
         interfaceType: IPluginInterfaceType.spp,
       })
 
-      const result = await VoteInfo.getVoteInfo({ proposalId: ProposalList[1].id!, userAddress: '0xUserAddress' })
+      const result = await VoteInfo.getVoteInfo({ proposalId: proposalDb!.id, userAddress: '0xUserAddress' })
       expect(result).to.be.false
     })
 

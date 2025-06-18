@@ -17,6 +17,32 @@ import { AggregationQueryHelper } from '@models/utils/aggregation'
 
 const customName = ICollectionNames.Setting
 
+export class VotingEscrowSetting {
+  // Minimum amount the user can lock (set on the VE contract)
+  @prop({ type: () => String, default: null })
+  public minDeposit!: string
+
+  // Minimum amount of time the NFT needs to be locked before being able to unlock the tokens (set on the ExitQueue contract)
+  @prop({ type: () => Number, default: null })
+  public minLockTime!: number
+
+  // Maximum time the voting power can increase (set on the curve contract)
+  @prop({ type: () => Number, default: null })
+  public maxTime!: number
+
+  // Coefficient used for calculating the increasing voting power (set on the curve contract)
+  @prop({ type: () => String, default: null })
+  public slope!: string
+
+  // Coefficient used for calculating the increasing voting power (set on the curve contract)
+  @prop({ type: () => String, default: null })
+  public bias!: string
+
+  // Time in seconds between unlock and withdrawal (actually not needed as the ExitQueued event already emits when the tokens can be withdrawn through the exitDate parameter)
+  @prop({ type: () => Number, default: null })
+  public cooldown!: number
+}
+
 export class PluginSetting {
   @prop({ type: () => String, default: null })
   public address!: HexAddress
@@ -113,6 +139,9 @@ export default class Setting extends Model {
 
   @prop({ type: () => String, default: null })
   public tokenAddress!: HexAddress // voting token address
+
+  @prop({ type: () => VotingEscrowSetting, _id: false, default: undefined })
+  public votingEscrow!: VotingEscrowSetting
 
   // Multisig plugin
   @prop({ type: () => Boolean })
@@ -385,6 +414,10 @@ export default class Setting extends Model {
     })
 
     return await this.save(tOpts)
+  }
+
+  async getPlugin() {
+    return await this.model('Plugin').findOne({ address: this.pluginAddress, network: this.network })
   }
 
   async reload(tOpts?: SaveOptions) {
