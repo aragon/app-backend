@@ -80,7 +80,7 @@ describe('PairSppBug', function () {
 
     subProposals.forEach((subProposal: any) => {
       expect(subProposal.parentProposal).to.be.not.null
-      expect(subProposal.parentProposal.pluginAddress).to.be.be.eq('0x9F674BC5a486c14e9deb8D27557300a9c0e3CBb7')
+      expect(subProposal.parentProposal.pluginAddress).to.be.eq('0x9F674BC5a486c14e9deb8D27557300a9c0e3CBb7')
     })
 
     const mainProposal = await Models.Proposal.findOne({
