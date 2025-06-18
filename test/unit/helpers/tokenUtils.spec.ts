@@ -326,4 +326,34 @@ describe('TokenUtils', () => {
       ])
     })
   })
+
+  describe('supportsInternalTransactions', () => {
+    it('should return false for networks that do not support internal transactions', () => {
+      const unsupportedNetworks = [
+        NetworksEnum.baseMainnet,
+        NetworksEnum.zksyncSepolia,
+        NetworksEnum.arbitrumMainnet,
+        NetworksEnum.zksyncMainnet,
+        NetworksEnum.optimismMainnet,
+      ]
+
+      unsupportedNetworks.forEach(network => {
+        const result = TokenUtils.supportsInternalTransactions(network)
+        expect(result).to.be.false
+      })
+    })
+
+    it('should return true for networks that support internal transactions', () => {
+      const supportedNetworks = [
+        NetworksEnum.ethereumMainnet,
+        NetworksEnum.ethereumSepolia,
+        NetworksEnum.polygonMainnet,
+      ]
+
+      supportedNetworks.forEach(network => {
+        const result = TokenUtils.supportsInternalTransactions(network)
+        expect(result).to.be.true
+      })
+    })
+  })
 })
