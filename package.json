@@ -96,7 +96,7 @@
     "koa-jwt": "^4.0.4",
     "lodash": "^4.17.21",
     "logzio-nodejs": "^2.4.0",
-    "mongoose": "^8.2.1",
+    "mongoose": "^8.12.2",
     "speakeasy": "^2.0.0",
     "toobusy-js": "^0.5.1",
     "ts-node": "^10.9.2",
