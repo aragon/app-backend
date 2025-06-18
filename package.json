@@ -82,7 +82,7 @@
     "axios": "^1.8.3",
     "bignumber.js": "^9.1.2",
     "bottleneck": "^2.19.5",
-    "class-validator": "^0.14.1",
+    "class-validator": "^0.14.2",
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.10",
     "dayjs-plugin-utc": "^0.1.2",
