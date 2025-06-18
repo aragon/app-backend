@@ -24,6 +24,7 @@ import { VotingEscrowIncreasing } from '@artifacts/VotingEscrowIncreasing'
 import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
 import { ExitQueue } from '@artifacts/ExitQueue'
 import { VotingEscrow } from '@artifacts/VotingEscrow'
+import { DaoV2 } from '@artifacts/daoV2'
 
 const IndexerEventConfig: IIndexerConfig[] = [
   // historical and realtime on startup
@@ -308,6 +309,10 @@ const IndexerEventConfig: IIndexerConfig[] = [
     config: [
       {
         abi: DAO.abi,
+        handler: DaoRegistryHandler.nativeTransfer,
+      },
+      {
+        abi: DaoV2.abi,
         handler: DaoRegistryHandler.nativeTransfer,
       },
     ],

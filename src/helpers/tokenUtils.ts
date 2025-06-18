@@ -67,7 +67,6 @@ const TokenUtils = {
     ]
 
     switch (network) {
-      case NetworksEnum.ethereumSepolia:
       case NetworksEnum.baseMainnet:
       case NetworksEnum.zksyncSepolia:
       case NetworksEnum.arbitrumMainnet:

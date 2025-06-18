@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { type HexAddress, IClockMode, type NetworksEnum } from '@types'
 import { Contract } from 'ethers'
 import logger from '@logger'
@@ -6,10 +7,52 @@ import { retryRequest } from '@helpers/retryRequest'
 import ProviderModule from '@modules/provider'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import Web3Helper from '@helpers/web3'
+import Web3BatchHelper from '@helpers/web3BatchHelper'
+import config from '@config'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:GovernanceErc20Helper' })
 
 const GovernanceErc20Helper = {
+  async _getPastVotesWithRetry(
+    memberAddress: HexAddress,
+    tokenAddress: HexAddress,
+    blockNumber: number,
+    blockTimestamp: number,
+    network: NetworksEnum,
+    options: { maxRetries?: number; decreasingThreshold?: number } = {},
+  ): Promise<string> {
+    let currentBlockNumber = blockNumber
+    let currentBlockTimestamp = blockTimestamp
+    const maxRetries = options.maxRetries || 3
+    const threshold = options.decreasingThreshold || 2
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      const result = await Web3BatchHelper.getMemberVotingPower(
+        memberAddress,
+        tokenAddress,
+        currentBlockNumber,
+        currentBlockTimestamp,
+        network,
+      )
+
+      if (!result.error) {
+        return result.votingPower
+      }
+
+      if (attempt < maxRetries) {
+        currentBlockNumber -= threshold
+        currentBlockTimestamp -= this.getAverageBlockTime(network, threshold)
+      }
+    }
+
+    return '0'
+  },
+
+  getAverageBlockTime(network: NetworksEnum, threshold: number): number {
+    return config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME * threshold
+  },
+
   async getPastVotes(
     memberAddress: HexAddress,
     tokenAddress: HexAddress,
@@ -17,22 +60,18 @@ const GovernanceErc20Helper = {
     blockTimestamp: number,
     network: NetworksEnum,
   ): Promise<string> {
-    const provider = ProviderModule.getAnyRpcProvider(network)
-    const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
-
     try {
-      const clockMode = await GovernanceErc20Helper.getClockMode(tokenAddress, network)
-
-      const modeToUse =
-        clockMode === IClockMode.BlockNumber
-          ? await Web3Helper.getChainAdjustedBlockNumber(blockNumber, network)
-          : blockTimestamp
-      const pastVotes = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.getPastVotes(memberAddress, modeToUse)),
+      return await GovernanceErc20Helper._getPastVotesWithRetry(
+        memberAddress,
+        tokenAddress,
+        blockNumber,
+        blockTimestamp,
+        network,
+        {
+          maxRetries: 3,
+          decreasingThreshold: 2,
+        },
       )
-      if (pastVotes > 0n) {
-        return BigInt(pastVotes || 0)?.toString()
-      }
     } catch (error) {
       logger.warn(
         'Error getting past votes',
