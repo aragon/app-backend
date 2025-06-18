@@ -44,6 +44,9 @@ export interface IConfig {
     BASE_URI: string
     API_KEY: string
   }
+  ROUTESCAN_API: {
+    BASE_URI: string
+  }
   ALCHEMY_PRICE_API: {
     URI: string
     API_KEY: string

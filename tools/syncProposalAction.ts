@@ -1,4 +1,4 @@
-import { EnumConnection, type IService } from '@types'
+import { EnumConnection, type IService, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import { ProposalHandler } from '@src/handlers/proposalHandler'
 import ProviderModule from '@modules/provider'
@@ -11,16 +11,10 @@ export const SyncProposalAction: IService = {
 
   start: async () => {
     await ProviderModule.connectToAllNetworks()
-    // if the rawAction length is greator then 0
-    let proposals = await Models.Proposal.find({
-      actions: {
-        $elemMatch: {
-          type: { $in: ['Unknown', 'MetadataUpdate'] },
-        },
-      },
+    const proposals = await Models.Proposal.find({
+      daoAddress: '0x8112b792C31d94C186e7e3Ad2c35b07534084ce2',
+      network: NetworksEnum.cornMainnet,
     })
-
-    proposals = proposals.slice(460 + 304 + 714, proposals.length)
 
     logger.info(`Found ${proposals.length} proposals with rawActions`, llo({ proposals: proposals.length }))
     let counter = 0
