@@ -1,8 +1,8 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import DelegateRouter from '@services/aragon-api/routers/delegate'
-import DelegateController from '@services/aragon-api/controllers/delegate'
+import DelegateRouter from '@api/routers/v1/delegate'
+import DelegateController from '@api/controllers/delegate'
 import { ITransferSide, ITransferType, NetworksEnum } from '@types'
 import * as _ from 'lodash'
 
