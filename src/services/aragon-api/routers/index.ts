@@ -27,36 +27,21 @@ const MainRouter = {
    * @param v2Router - The v2 router implementation
    */
   createVersionedRootPaths(mainRouter: Router, v1Router: Router, v2Router: Router): void {
-    // Extract all unique paths from both routers
-    const v1Routes = new Set(MainRouter.getRouterPaths(v1Router))
-    const v2Routes = new Set(MainRouter.getRouterPaths(v2Router))
+    mainRouter.use(v2Router.routes())
+    mainRouter.use(v2Router.allowedMethods())
 
-    // Combine unique paths from both routers
-    const allPaths = new Set([...v1Routes, ...v2Routes])
-
-    // For each route, create appropriate handlers
-    allPaths.forEach(path => {
-      const existsInV2 = v2Routes.has(path)
-      const existsInV1 = v1Routes.has(path)
-
-      if (existsInV2) {
-        // Path exists in v2 - use v2 implementation
-        mainRouter.all(path, async (ctx, next) => {
-          await v2Router.routes()(ctx, next)
-        })
-      } else if (existsInV1) {
-        // Use v1 with deprecation warning
-        mainRouter.all(path, async (ctx, next) => {
-          if (config.SERVICES.ARAGON_API.DEPRECATION_WARNING) {
-            ctx.response.set('X-API-Warning', 'This endpoint is using v1 API. No v2 version available.')
-          }
-          await v1Router.routes()(ctx, next)
-        })
+    // Then mount v1 as fallback with deprecation warning
+    mainRouter.use(async (ctx, next) => {
+      // Only add deprecation warning if we're actually going to handle a route
+      const originalStatus = ctx.status
+      await next()
+      if (ctx.status !== originalStatus && ctx.status !== 404) {
+        if (config.SERVICES.ARAGON_API.DEPRECATION_WARNING) {
+          ctx.response.set('X-API-Warning', 'This endpoint is using v1 API. No v2 version available.')
+        }
       }
     })
-
-    // Add allowed methods middleware for both routers to handle OPTIONS requests
-    mainRouter.use(v2Router.allowedMethods())
+    mainRouter.use(v1Router.routes())
     mainRouter.use(v1Router.allowedMethods())
   },
 
