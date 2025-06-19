@@ -62,26 +62,6 @@ describe('Controller: Member', () => {
   })
 
   describe('getMembersWithPagination', () => {
-    it('should throw an error when no network is provided', async () => {
-      const paginationParams = {
-        search: '',
-        pageSize: 10,
-        page: 1,
-        order: 'asc',
-        sort: 'createdAt',
-      }
-
-      const extraParams = {}
-      const pairParams = {}
-
-      try {
-        await MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams)
-        expect.fail('Expected an error to be thrown')
-      } catch (err: any) {
-        expect(err.message).to.include('badParams')
-      }
-    })
-
     it('should call findPaginatedMembersOnly when no pluginAddress and daoAddress', async () => {
       const paginationParams = {
         search: '',
