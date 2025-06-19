@@ -30,14 +30,7 @@ const MainRouter = {
 
     // Then mount v1 as fallback with deprecation warning
     mainRouter.use(async (ctx, next) => {
-      // Only add deprecation warning if we're actually going to handle a route
-      const originalStatus = ctx.status
       await next()
-      if (ctx.status !== originalStatus && ctx.status !== 404) {
-        if (config.SERVICES.ARAGON_API.DEPRECATION_WARNING) {
-          ctx.response.set('X-API-Warning', 'This endpoint is using v1 API. No v2 version available.')
-        }
-      }
     })
     mainRouter.use(v1Router.routes())
     mainRouter.use(v1Router.allowedMethods())
