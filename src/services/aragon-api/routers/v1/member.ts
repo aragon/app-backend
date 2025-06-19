@@ -117,7 +117,7 @@ const MemberRouter = {
      * @apiGroup Members
      * @apiDescription Get Members
      *
-     * @apiSampleRequest /
+     * @apiSampleRequest /members
      */
     router.get('/', MemberRouter.getMembersWithPagination)
 
@@ -127,17 +127,17 @@ const MemberRouter = {
      * @apiGroup Members
      * @apiDescription Get Member by address
      *
-     * @apiSampleRequest /member/:address
+     * @apiSampleRequest /members/:address
      */
     router.get('/:address', MemberRouter.getMemberByAddress)
 
     /**
-     * @api {get} /member/:address/locks Get Locks Member by address
+     * @api {get} /members/:address/locks Get Locks Member by address
      * @apiName Members
      * @apiGroup Members
      * @apiDescription Get Locks Member by address
      *
-     * @apiSampleRequest /member/:address/locks
+     * @apiSampleRequest /members/:address/locks
      */
     router.get('/:address/locks', MemberRouter.getMemberLocks)
 
@@ -147,7 +147,7 @@ const MemberRouter = {
      * @apiGroup Members
      * @apiDescription isMemberOfPlugin
      *
-     * @apiSampleRequest /member/:memberAddress/:pluginAddress/exists
+     * @apiSampleRequest /members/:memberAddress/:pluginAddress/exists
      */
     router.get('/:memberAddress/:pluginAddress/exists', MemberRouter.isMemberOfPlugin)
 
