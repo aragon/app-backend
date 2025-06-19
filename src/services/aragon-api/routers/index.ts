@@ -1,7 +1,7 @@
 // src/services/aragon-api/routers/index.ts
 
 import Router from '@koa/router'
-import StatusRouter from './v1/status'
+import StatusRouter from '@api/status'
 import V1Router from './v1'
 import V2Router from './v2'
 import config from '@config'
@@ -45,13 +45,13 @@ const MainRouter = {
           await v2Router.routes()(ctx, next)
         })
       } else if (existsInV1) {
-        if (config.SERVICES.ARAGON_API.DEPRECATION_WARNING) {
-          // Use v1 with deprecation warning
-          mainRouter.all(path, async (ctx, next) => {
+        // Use v1 with deprecation warning
+        mainRouter.all(path, async (ctx, next) => {
+          if (config.SERVICES.ARAGON_API.DEPRECATION_WARNING) {
             ctx.response.set('X-API-Warning', 'This endpoint is using v1 API. No v2 version available.')
-            await v1Router.routes()(ctx, next)
-          })
-        }
+          }
+          await v1Router.routes()(ctx, next)
+        })
       }
     })
 
