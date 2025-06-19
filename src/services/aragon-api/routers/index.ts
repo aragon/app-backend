@@ -45,7 +45,7 @@ const MainRouter = {
           await v2Router.routes()(ctx, next)
         })
       } else if (existsInV1) {
-        if (config.SERVICES.ARAGON_API) {
+        if (config.SERVICES.ARAGON_API.DEPRECATION_WARNING) {
           // Use v1 with deprecation warning
           mainRouter.all(path, async (ctx, next) => {
             ctx.response.set('X-API-Warning', 'This endpoint is using v1 API. No v2 version available.')
