@@ -40,7 +40,7 @@ const ProposalRouter = {
     router.get('/can-create-proposal', ProposalRouter.canCreateProposal)
 
     /**
-     * @api {get} / Check if the user is allowed to cast vote on a proposal
+     * * @api {get} /:proposalId/can-vote Check if the user is allowed to cast vote on a proposal
      */
     router.get('/:proposalId/can-vote', ProposalRouter.canCastVote)
 
