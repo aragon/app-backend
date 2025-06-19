@@ -6,7 +6,7 @@ const MemberSchema = {
   getExtraParams: Joi.object({
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
-      .required(),
+      .optional(),
     daoAddress: ValidationSchema.joiAddress.optional(),
     pluginAddress: ValidationSchema.joiAddress.optional(),
     tokenAddress: ValidationSchema.joiAddress.optional(),
