@@ -147,7 +147,9 @@ describe('Router: Member', () => {
 
     const ctx: any = {
       params,
-      query: {},
+      query: {
+        network: NetworksEnum.ethereumMainnet,
+      },
     }
 
     await MemberRouter.getMemberByAddress(ctx)
