@@ -91,7 +91,7 @@ const SettingRouter = {
      * @apiGroup Settings
      * @apiDescription Get Settings
      *
-     * @apiSampleRequest /
+     * @apiSampleRequest /setting
      *
      */
     router.get('/', SettingRouter.getWithPagination)
@@ -102,7 +102,7 @@ const SettingRouter = {
      * @apiGroup Members
      * @apiDescription Get Active Setting by daoAddress
      *
-     * @apiSampleRequest /active/:network/:daoAddress
+     * @apiSampleRequest /setting/active/:network/:daoAddress
      */
     router.get('/active/:network/:daoAddress', SettingRouter.getActiveSettingByDaoAddress)
 
@@ -112,7 +112,7 @@ const SettingRouter = {
      * @apiGroup Members
      * @apiDescription Get Active Setting by daoId
      *
-     * @apiSampleRequest /active/:daoId
+     * @apiSampleRequest /setting/active/:daoId
      */
     router.get('/active/:daoId', SettingRouter.getActiveSettingByDaoId)
 

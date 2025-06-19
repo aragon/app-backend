@@ -478,6 +478,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
       ARAGON_API: {
         NAME: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_API_NAME', 'ARAGON-API'),
+        DEPRECATION_WARNING: utils.configParser(sourceConfig, 'bool', 'SERVICES_ARAGON_API_DEPRECATION_WARNING', false),
         BASE_URL: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_API_BASE_URL', 'http://localhost:3000'),
         PORT: utils.configParser(sourceConfig, 'number', 'SERVICES_ARAGON_API_PORT', 3000),
         TIMEOUT: utils.configParser(sourceConfig, 'number', 'SERVICES_ARAGON_API_TIMEOUT', 30), // seconds

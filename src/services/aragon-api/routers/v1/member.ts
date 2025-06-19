@@ -88,22 +88,6 @@ const MemberRouter = {
     ctx.body = await MemberController.isMemberOfPlugin(formattedParams.memberAddress, formattedParams.pluginAddress)
   },
 
-  isMemberOfPlugin2: async function (ctx: RouterContext) {
-    const params = {
-      memberAddress: ctx.params.memberAddress,
-      pluginAddress: ctx.params.pluginAddress,
-    }
-    const anyInvalidParams = Utils.extractAdditionalParams({ ...params }, ctx.query)
-
-    const [formattedParams] = await Promise.all([
-      ValidationSchema.validateParams(MemberSchema.isMemberOfPlugin, params),
-      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
-    ])
-
-    const status = await MemberController.isMemberOfPlugin(formattedParams.memberAddress, formattedParams.pluginAddress)
-    ctx.body = { status }
-  },
-
   getMemberLocks: async function (ctx: RouterContext) {
     const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'blockNumber' })
 
@@ -166,7 +150,6 @@ const MemberRouter = {
      * @apiSampleRequest /member/:memberAddress/:pluginAddress/exists
      */
     router.get('/:memberAddress/:pluginAddress/exists', MemberRouter.isMemberOfPlugin)
-    router.get('/:memberAddress/:pluginAddress/exists2', MemberRouter.isMemberOfPlugin2)
 
     return router
   },

@@ -172,6 +172,7 @@ export interface IConfig {
       TOKEN_FETCH_INTERVAL: number
     }
     ARAGON_API: {
+      DEPRECATION_WARNING: boolean
       BASE_URL: string
       NAME: string
       PORT: number
