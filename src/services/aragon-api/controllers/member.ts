@@ -24,6 +24,8 @@ const MemberController = {
   ): Promise<IPaginatedResult<IMembersResponse>> => {
     extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
 
+    assertExposable(!!extraParams.network, ErrorKeyEnum.badParams)
+
     if (!extraParams.pluginAddress && !extraParams.daoAddress) {
       return Models.Member.findPaginatedMembersOnly({ paginationParams })
     }
