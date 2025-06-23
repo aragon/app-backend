@@ -24,6 +24,7 @@ import DbTx from '@modules/dbTx'
 import Web3Utils from '@helpers/web3Utils'
 import { DaoRegistryHandler } from '@src/handlers/daoRegistryHandler'
 import { MetadataHandler } from '@handlers/metadataHandler'
+import {GovernanceVeHandler} from "@handlers/governanceVeHandler";
 
 describe('Indexer:Plugin', () => {
   let sandbox: SinonSandbox
@@ -1162,6 +1163,7 @@ describe('Indexer:Plugin', () => {
       sandbox.stub(Models.Dao, 'findByAddress').rejects(error)
       const loggerErrorStub = sandbox.stub(logger, 'error')
       sandbox.stub(Web3Helper, 'getTransactionReceipt').rejects(error)
+      sandbox.stub(GovernanceVeHandler, '_handleTokenDelegation').rejects(new Error('fake error'))
 
       const info = {
         transactionHash: '0xtxhash',
