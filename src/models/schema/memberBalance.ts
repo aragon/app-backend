@@ -222,7 +222,11 @@ export default class MemberBalance extends Model {
         },
       },
       {
-        $unwind: '$memberInfo',
+        $addFields: {
+          memberInfo: {
+            $arrayElemAt: ['$memberInfo', 0],
+          },
+        },
       },
       ...(Object.keys(searchFilter).length ? [{ $match: searchFilter }] : []),
       AggregationQueryHelper.memberMetrics(
@@ -248,7 +252,7 @@ export default class MemberBalance extends Model {
           ens: '$memberInfo.ens',
           avatar: '$memberInfo.avatar',
           tokenBalance: '$amount',
-          votingPower: '$votingPower',
+          votingPower: '$votingPowerString',
           metrics: '$memberMetrics',
         },
       },
@@ -256,6 +260,14 @@ export default class MemberBalance extends Model {
 
     const aggQuery = [
       ...query,
+      {
+        $addFields: {
+          votingPowerString: '$votingPower',
+          votingPower: {
+            $toDouble: '$votingPower',
+          },
+        },
+      },
       { $sort: request?.sort },
       { $skip: request?.skip },
       { $limit: request?.limit },
@@ -263,12 +275,7 @@ export default class MemberBalance extends Model {
     ]
 
     const [data, totalRecords] = await Promise.all([
-      this.aggregate(aggQuery, {
-        collation: {
-          locale: 'en_US',
-          numericOrdering: true,
-        },
-      }),
+      this.aggregate(aggQuery),
       this.aggregate([...query, { $count: 'totalRecords' }]).then(results =>
         results[0] ? results[0].totalRecords : 0,
       ),
