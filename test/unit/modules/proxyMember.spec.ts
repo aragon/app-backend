@@ -91,7 +91,7 @@ describe('Modules:ProxyMember', () => {
 
   describe('createMetrics', () => {
     it('should create new metrics when none exist', async () => {
-      const address = '0x123'
+      const address = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'
       const pluginAddress = '0xabc'
       const network = NetworksEnum.ethereumMainnet
 
@@ -111,7 +111,7 @@ describe('Modules:ProxyMember', () => {
     })
 
     it('should return existing metrics if they exist', async () => {
-      const address = '0x123'
+      const address = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'
       const pluginAddress = '0xabc'
       const network = NetworksEnum.ethereumMainnet
       const existingMetrics = { id: 'existing-metrics-id' }
@@ -146,16 +146,17 @@ describe('Modules:ProxyMember', () => {
 
     it('should handle invalid input parameters gracefully', async () => {
       const invalidParams = { address: null, pluginAddress: '0xabc', network: NetworksEnum.ethereumMainnet } as any
-
+      const loggerStub = sandbox.stub(Logger, 'error')
       const result = await ProxyMember.createMetrics(invalidParams)
 
       expect(result).to.be.null
+      expect(loggerStub.calledOnce).to.be.true
     })
   })
 
   describe('getBalances', () => {
     it('should return existing token balance if found', async () => {
-      const address = '0x123'
+      const address = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'
       const tokenAddress = '0xabc'
       const network = NetworksEnum.ethereumMainnet
 
@@ -170,7 +171,7 @@ describe('Modules:ProxyMember', () => {
     })
 
     it('should create new token balance if not found', async () => {
-      const address = '0x123'
+      const address = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'
       const tokenAddress = '0xabc'
       const network = NetworksEnum.ethereumMainnet
 
@@ -183,7 +184,7 @@ describe('Modules:ProxyMember', () => {
     })
 
     it('should create new token balance in parallel', async () => {
-      const address = '0x123'
+      const address = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'
       const tokenAddress = '0xabc'
       const network = NetworksEnum.ethereumMainnet
 
@@ -270,7 +271,7 @@ describe('Modules:ProxyMember', () => {
     })
 
     it('should return null if createMember fails', async () => {
-      const memberAddress = '0x123'
+      const memberAddress = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'
       const pluginAddress = '0xabc'
       const blockNumber = 100
       const network = NetworksEnum.ethereumMainnet
@@ -317,7 +318,7 @@ describe('Modules:ProxyMember', () => {
   describe('updateMetricsByAction', () => {
     it('should update metrics by valid action and return true', async () => {
       const metricAction = IMetricAction.increaseProposalCount
-      const memberAddress = '0x123'
+      const memberAddress = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'
       const pluginAddress = '0xabc'
       const network = NetworksEnum.ethereumMainnet
 
@@ -330,7 +331,7 @@ describe('Modules:ProxyMember', () => {
 
     it('should not update metrics and return false if action is invalid', async () => {
       const metricAction = 'invalidAction' as IMetricAction
-      const memberAddress = '0x123'
+      const memberAddress = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'
       const pluginAddress = '0xabc'
       const network = NetworksEnum.ethereumMainnet
 
@@ -360,7 +361,7 @@ describe('Modules:ProxyMember', () => {
 
     it('should return false if createMetrics returns null', async () => {
       const metricAction = IMetricAction.increaseVoteCount
-      const memberAddress = '0x123'
+      const memberAddress = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'
       const pluginAddress = '0xabc'
       const network = NetworksEnum.ethereumMainnet
 
@@ -413,7 +414,6 @@ describe('Modules:ProxyMember', () => {
         const parsedMemberAddress = '0x57e24f85ceAcDa3Ef4F0fd04005589B88dc01A19'
         const member = { id: 'member-id', address: params.memberAddress }
         const existingDaoMember = { id: 'mapping-id' }
-        const session = {}
 
         const parseAddressStub = sandbox
           .stub(Web3Utils, 'parseAddress')
@@ -593,7 +593,6 @@ describe('Modules:ProxyMember', () => {
 
         const parsedMemberAddress = '0xNonMember'
         const member: any = { id: 'member-id', address: params.memberAddress }
-        const session = {}
 
         const parseAddressStub = sandbox
           .stub(Web3Utils, 'parseAddress')
@@ -667,7 +666,6 @@ describe('Modules:ProxyMember', () => {
 
         const parsedMemberAddress = '0xConcurrentMember'
         const member: any = { id: 'member-id', address: params.memberAddress }
-        const session = {}
 
         const existingDaoMember = {
           id: 'mapping-id',

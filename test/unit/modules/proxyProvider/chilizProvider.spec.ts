@@ -1365,9 +1365,9 @@ describe('ChilizProvider', () => {
       const mockResponse = {
         message: 'OK',
         result: [
-          { address: '0xholder1', value: '1000000000000000000' },
-          { address: '0xholder2', value: '2000000000000000000' },
-          { address: '0xholder3', value: '3000000000000000000' },
+          { address: '0xe02f37d18a73736837f818476d48ef8db1188611', value: '1000000000000000000' },
+          { address: '0xe02f37d18a73736837f818476d48ef8db1188612', value: '2000000000000000000' },
+          { address: '0xe02f37d18a73736837f818476d48ef8db1188613', value: '3000000000000000000' },
         ],
       }
 
@@ -1390,9 +1390,9 @@ describe('ChilizProvider', () => {
 
       expect(result).to.deep.equal({
         holders: [
-          { address: '0xholder1', value: '1000000000000000000' },
-          { address: '0xholder2', value: '2000000000000000000' },
-          { address: '0xholder3', value: '3000000000000000000' },
+          { address: ethers.getAddress('0xe02f37d18a73736837f818476d48ef8db1188611'), value: '1000000000000000000' },
+          { address: ethers.getAddress('0xe02f37d18a73736837f818476d48ef8db1188612'), value: '2000000000000000000' },
+          { address: ethers.getAddress('0xe02f37d18a73736837f818476d48ef8db1188613'), value: '3000000000000000000' },
         ],
         total: 3,
       })
