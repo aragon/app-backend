@@ -483,7 +483,7 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
       if (response?.message === 'OK' && Array.isArray(response?.result) && response.result.length > 0) {
         return {
           holders: response.result.map((item: any) => ({
-            address: item.address,
+            address: ethers.getAddress(item.address),
             value: item.value,
           })),
           total: response.result.length,
