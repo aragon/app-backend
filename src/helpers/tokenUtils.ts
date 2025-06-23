@@ -25,15 +25,62 @@ const TokenUtils = {
       CovalentHelper.skipTestNetworks.includes(token.network!)) &&
     tokenRate.priceUsd === '0',
 
-  analyzeIfScamToken: (name: string, symbol: string): boolean => {
-    const formattedName = name || ''
-    const formattedSymbol = symbol || ''
-    const regex =
-      /^(?=.*(?:https?:\/\/\S+|www\.[a-z0-9-]+\.[a-z]{2,63}|[a-z0-9-]+\.[a-z]{2,63}))(?=.*(?:claim|rewards?|join|stake|swap|voucher|airdrop|bonus|free|giveaway|visit)).+$/i
-    const firstCheck = regex.test(formattedName) || regex.test(formattedSymbol)
-    const secondCheck = regex.test(formattedName + formattedSymbol)
+  analyzeIfScamToken: (name: string, symbol: string) => {
+    const formattedName = (name || '').toLowerCase()
+    const formattedSymbol = (symbol || '').toLowerCase()
 
-    return firstCheck || secondCheck
+    const suspiciousKeywords = [
+      'claim',
+      'reward',
+      'rewards',
+      'join',
+      'stake',
+      'swap',
+      'voucher',
+      'airdrop',
+      'bonus',
+      'free',
+      'giveaway',
+      'visit',
+      'casino',
+      'mystery',
+      'box',
+      'earn',
+      'official',
+      'link',
+      'ads',
+      'promotion',
+      'prize',
+      'win',
+      'lucky',
+      'gift',
+      'drop',
+      'farming',
+      'mining',
+    ]
+
+    const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+    const keywordPattern = suspiciousKeywords.map(escapeRegExp).join('|')
+    const keywordRegex = new RegExp(`\\b(${keywordPattern})\\b`, 'i')
+
+    const urlRegex = /(?:https?:\/\/|www\.)[^\s]+|[a-z0-9-]+\.[a-z]{2,63}(?:\/[^\s]*)?/i
+
+    const redFlags = [
+      /[▷►▶→]/,
+      /[^\x00-\x7F]/,
+      /\$[A-Z]+\s+.*\./,
+      /use.*official.*link/i,
+      /trust.*wallet.*mystery/i,
+      /ads:\s*/i,
+      /!\s*ads/i,
+    ]
+
+    const hasUrl = urlRegex.test(formattedName) || urlRegex.test(formattedSymbol)
+    const hasKeywords = keywordRegex.test(formattedName) || keywordRegex.test(formattedSymbol)
+    const hasRedFlags = redFlags.some(pattern => pattern.test(formattedName) || pattern.test(formattedSymbol))
+
+    return hasUrl || hasKeywords || hasRedFlags
   },
 
   isTokenSyncable: async (tokenAddress: HexAddress, network: NetworksEnum): Promise<boolean> => {
