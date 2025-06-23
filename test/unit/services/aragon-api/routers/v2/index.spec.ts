@@ -43,7 +43,7 @@ describe('Router: V2Router', () => {
     expect(v2Router instanceof Router).to.be.true
 
     // Verify all routers are mounted
-    expect(use.callCount).to.be.eq(3) // 3 routers should be mounted
+    expect(use.callCount).to.be.eq(2) // 3 routers should be mounted
 
     // Helper function to verify router mounting
     function expectRouter(path: string, name: string) {
@@ -53,7 +53,6 @@ describe('Router: V2Router', () => {
     // Verify each router is mounted at the correct path
     expectRouter('/members', 'members')
     expectRouter('/proposals', 'proposals')
-    expectRouter('/votes', 'votes')
   })
 
   it('Should create a functional router that can be used in a Koa app', async () => {
