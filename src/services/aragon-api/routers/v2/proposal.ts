@@ -18,31 +18,16 @@ const ProposalRouter = {
     ctx.body = { status }
   },
 
-  canCastVote: async function (ctx: RouterContext) {
-    const params = {
-      proposalId: ctx.params.proposalId,
-      userAddress: ctx.query.userAddress,
-    }
-
-    const formattedValues = await ValidationSchema.validateParams(ProposalSchema.canCastVote, params)
-
-    const status = await ProposalController.canCastVote(formattedValues)
-    ctx.body = { status }
-  },
-
   router() {
     const router = new Router()
 
     /**
      * @api {get} /proposal/canCreateProposal
      * @apiDescription Check if the user is allowed to create the proposal
+     *
+     *  @apiSampleRequest /proposal/can-create-proposal
      */
     router.get('/can-create-proposal', ProposalRouter.canCreateProposal)
-
-    /**
-     * * @api {get} /:proposalId/can-vote Check if the user is allowed to cast vote on a proposal
-     */
-    router.get('/:proposalId/can-vote', ProposalRouter.canCastVote)
 
     return router
   },
