@@ -529,7 +529,7 @@ export const ProposalHandler = {
       await Promise.allSettled([
         RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
           id: proposal.daoAddress,
-          params: { address: proposal.daoAddress, network: info.network },
+          params: { address: proposal.daoAddress, network: info.network, proposalId: proposal.id },
         }),
         RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
           id: proposal.daoAddress,
@@ -867,44 +867,63 @@ export const ProposalHandler = {
   },
 
   pairSppProposals: async (proposal: Proposal, plugin: Plugin, info: ILogInfo) => {
-    let hasChanges = false
+    if (!plugin.isSubPlugin && plugin.interfaceType !== IPluginInterfaceType.spp) {
+      return
+    }
+
+    if (plugin.isSubPlugin) {
+      await DbOperations.updateDocument(
+        proposal,
+        {
+          isSubProposal: true,
+          stageIndex: plugin.stageIndex,
+        },
+        info,
+        'Update proposal - Sub Proposal',
+        llo,
+      )
+      return
+    }
+
+    const proposalInfo = (await ProposalHelper.getProposal({
+      plugin,
+      proposalIndex: proposal.proposalIndex,
+      network: proposal.network,
+    })) as IProposalSPPOnChain
+
+    if (!proposalInfo) {
+      logger.error('Error ProposalAdvanced - proposalInfo not found...')
+      return
+    }
+    const lastStageTransition = Number(proposalInfo.lastStageTransition)
+    const currentStage = Math.max(Number(proposalInfo.currentStage) - 1, 0)
+
+    const subPlugins = plugin.subPlugins?.find(sp => sp.stageIndex === currentStage)
+    const subPluginData = await Promise.all(
+      subPlugins?.addresses?.map(async address => {
+        const proposalIndex = await ProposalHelper.getSppSubPluginProposals(
+          proposal.proposalIndex,
+          currentStage,
+          address,
+          plugin.address,
+          proposal.network,
+        )
+        return { address, proposalIndex }
+      }) || [],
+    )
 
     await DbTx.executeTxFn(async ({ session }) => {
       try {
         proposal = await proposal.reload({ session })
-        if (plugin.interfaceType === IPluginInterfaceType.spp) {
-          proposal.isSubProposal = false
-          proposal.totalStages = plugin.totalStages
-          proposal.subProposals = []
 
-          const proposalInfo = (await ProposalHelper.getProposal({
-            plugin,
-            proposalIndex: proposal.proposalIndex,
-            network: proposal.network,
-          })) as IProposalSPPOnChain
+        proposal.stageIndex = currentStage
+        proposal.lastStageTransition = lastStageTransition
+        proposal.isSubProposal = false
+        proposal.totalStages = plugin.totalStages
+        proposal.subProposals = []
 
-          if (!proposalInfo) {
-            logger.error(
-              'Error ProposalAdvanced - proposalInfo not found missing currentStage and lastStageTransition',
-              llo({ ...info, proposalId: proposal.id }),
-            )
-          }
-
-          if (proposalInfo) {
-            proposal.stageIndex = Math.max(Number(proposalInfo.currentStage) - 1, 0)
-            proposal.lastStageTransition = Number(proposalInfo.lastStageTransition)
-          }
-
-          const subPlugins = plugin.subPlugins?.find(async subPlugin => subPlugin.stageIndex === proposal.stageIndex)
-          for (const address of subPlugins?.addresses!) {
-            const proposalIndex = await ProposalHelper.getSppSubPluginProposals(
-              proposal.proposalIndex,
-              proposal.stageIndex as any,
-              address,
-              plugin.address,
-              proposal.network,
-            )
-
+        await Promise.all(
+          subPluginData.map(async ({ address, proposalIndex }) => {
             if (proposalIndex !== false) {
               proposal.subProposals.push({
                 proposalIndex: proposalIndex.toString(),
@@ -913,56 +932,41 @@ export const ProposalHandler = {
                 transactionHash: info.transactionHash,
                 blockNumber: info.blockNumber,
               })
+            }
 
-              const subProposalDb = await Models.Proposal.findByProposalIndex(
-                proposalIndex.toString(),
-                address,
-                plugin.network,
+            const subProposalDb = await Models.Proposal.findByProposalIndex(
+              proposalIndex.toString(),
+              address,
+              plugin.network,
+              { session },
+            )
+
+            if (subProposalDb) {
+              await subProposalDb.update(
+                {
+                  parentProposal: {
+                    pluginAddress: proposal.pluginAddress,
+                    proposalIndex: proposal.proposalIndex,
+                    stageIndex: proposal.stageIndex,
+                    transactionHash: info.transactionHash,
+                    blockNumber: info.blockNumber,
+                  },
+                },
                 { session },
               )
-
-              if (subProposalDb) {
-                await subProposalDb.update(
-                  {
-                    parentProposal: {
-                      pluginAddress: proposal.pluginAddress,
-                      proposalIndex: proposal.proposalIndex,
-                      stageIndex: proposal.stageIndex,
-                      transactionHash: info.transactionHash,
-                      blockNumber: info.blockNumber,
-                    },
-                  },
-                  { session },
-                )
-              } else {
-                logger.warn('Sub proposal not found', llo({ proposalIndex, address, plugin }))
-              }
             }
-          }
+          }),
+        )
 
-          hasChanges = true
-        }
-
-        if (plugin.isSubPlugin) {
-          proposal.isSubProposal = true
-          proposal.stageIndex = plugin.stageIndex
-          hasChanges = true
-        }
-
-        if (hasChanges) {
-          await proposal.save({
-            session,
-          })
-        }
-
+        await proposal.save({ session })
         await session.commitTransaction()
         await session.endSession()
+        logger.verbose('Update proposal - pairSppProposals', llo({ logId: proposal.id, info }))
       } catch (error) {
-        logger.error('Error pairSppProposals', llo({ error, proposalId: proposal.id }))
+        logger.error('Error pairSppProposals', llo({ error, network: proposal.network, proposalId: proposal.id }))
       }
     })
   },
-
   proposalCanceled: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
       const proposal = await Models.Proposal.findByProposalIndex(

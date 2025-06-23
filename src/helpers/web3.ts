@@ -19,6 +19,7 @@ import { TokenVoting } from '@artifacts/TokenVoting'
 import { type BlockTag } from 'ethers/src.ts/providers/provider'
 import Web3Utils from '@helpers/web3Utils'
 import { ERC721 } from '@artifacts/ERC721'
+import { ethers } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
@@ -128,28 +129,52 @@ const Web3Helper = {
     }
   },
 
-  async getChainAdjustedBlockNumber(arbBlock: number, network: NetworksEnum): Promise<number> {
-    if (network !== NetworksEnum.arbitrumMainnet) {
-      return arbBlock
-    }
-
+  async _getChainAdjustedBlockNumber(
+    blockTag: string,
+    contractAddr: HexAddress,
+    functionName: string,
+    network: NetworksEnum,
+  ): Promise<number> {
+    const functionSelector = '0x' + ethers.keccak256(ethers.toUtf8Bytes(functionName)).slice(2, 10)
+    const provider = ProviderModule.getAnyRpcProvider(network)
     try {
-      const blockTag = `0x${BigInt(arbBlock).toString(16)}`
-      const abi = ['function getL1BlockNumber() view returns (uint256)']
-      const address = '0x7eCfBaa8742fDf5756DAC92fbc8b90a19b8815bF' // static contract
-      const provider = ProviderModule.getAnyRpcProvider(network)
-      const iface = new Interface(abi)
-      const data = iface.encodeFunctionData('getL1BlockNumber', [])
-      const params = { to: address, data }
       const response = await retryRequest(async () =>
-        BottleneckModule.getAlchemyBalanceLimiter(network).schedule(async () => provider.call(params, blockTag)),
+        BottleneckModule.getAlchemyBalanceLimiter(network).schedule(async () =>
+          provider.send('eth_call', [
+            {
+              to: contractAddr,
+              data: functionSelector,
+            },
+            blockTag,
+          ]),
+        ),
       )
+      return Number(response) - 1
+    } catch (error) {
+      logger.error('Error _getChainAdjustedBlockNumber', llo({ blockTag, contractAddr, functionName, network, error }))
+      return Number(blockTag)
+    }
+  },
 
-      const blockNumberOfL1 = iface.decodeFunctionResult('getL1BlockNumber', response)[0]
-      return Number(blockNumberOfL1) - 1
-    } catch (e) {
-      logger.error('Error getBlockNumberOnArbitrum', llo({ arbBlock, network, error: e }))
-      return arbBlock
+  async getChainAdjustedBlockNumber(arbBlock: number, network: NetworksEnum) {
+    const blockTag = `0x${BigInt(arbBlock).toString(16)}`
+    switch (network) {
+      case NetworksEnum.cornMainnet:
+        return await Web3Helper._getChainAdjustedBlockNumber(
+          blockTag,
+          '0xcA11bde05977b3631167028862bE2a173976CA11',
+          'getBlockNumber()',
+          network,
+        )
+      case NetworksEnum.arbitrumMainnet:
+        return await Web3Helper._getChainAdjustedBlockNumber(
+          blockTag,
+          '0x7eCfBaa8742fDf5756DAC92fbc8b90a19b8815bF',
+          'getL1BlockNumber()',
+          network,
+        )
+      default:
+        return arbBlock
     }
   },
 

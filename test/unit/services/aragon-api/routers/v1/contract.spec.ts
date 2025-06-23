@@ -1,10 +1,10 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import ContractRouter from '@services/aragon-api/routers/contract'
-import ContractController from '@services/aragon-api/controllers/contract'
+import ContractRouter from '@api/routers/v1/contract'
+import ContractController from '@api/controllers/contract'
 import ValidationSchema from '@helpers/validationSchema'
-import ContractDetailsSchema from '@services/aragon-api/routers/schema/contract'
+import ContractDetailsSchema from '@api/routers/schema/contract'
 import { NetworksEnum } from '@types'
 
 describe('Router: Contract', () => {

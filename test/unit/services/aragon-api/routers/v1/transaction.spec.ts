@@ -1,11 +1,11 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import AssetRouter from '@services/aragon-api/routers/asset'
-import AssetController from '@services/aragon-api/controllers/asset'
-import { NetworksEnum } from '@types'
+import TransactionRouter from '@api/routers/v1/transaction'
+import TransactionController from '@api/controllers/transaction'
+import { ITransactionCategory, ITransactionIndexCheckType, NetworksEnum } from '@types'
 
-describe('Router: Asset', () => {
+describe('Router: Transaction', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -17,26 +17,25 @@ describe('Router: Asset', () => {
   })
 
   describe('getWithPagination', async () => {
-    it('Should get asset with pagination - all params', async () => {
+    it('Should get transaction with pagination - all params', async () => {
       const filterParams = {
         network: NetworksEnum.ethereumMainnet,
-        address: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
-        tokenAddress: '0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326',
+        category: ITransactionCategory.ERC20,
       }
       const paginationParams = {
         pageSize: 10,
         page: 1,
         order: 'asc',
-        sort: 'network',
+        sort: 'createdAt',
       }
 
-      const stubCtrl = sandbox.stub(AssetController, 'getAssetsWithPagination').returns(true as any)
+      const stubCtrl = sandbox.stub(TransactionController, 'getTransactionsWithPagination').returns(true as any)
 
       const ctx: any = {
         query: { ...filterParams, ...paginationParams },
       }
 
-      await AssetRouter.getWithPagination(ctx)
+      await TransactionRouter.getWithPagination(ctx)
 
       expect(ctx.body).to.eq(true)
       expect(stubCtrl.calledOnce).to.be.true
@@ -50,13 +49,16 @@ describe('Router: Asset', () => {
       }
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
       expect(stubCtrl.args[0][1]).to.deep.eq({
-        daoAddress: filterParams.address,
         network: filterParams.network,
-        tokenAddress: filterParams.tokenAddress,
+        category: filterParams.category,
+        daoAddress: undefined,
+        fromAddress: undefined,
+        toAddress: undefined,
+        tokenAddress: undefined,
       })
     })
 
-    it('Should get asset with pagination - daoId', async () => {
+    it('Should get transaction with pagination - daoId', async () => {
       const filterParams = {
         daoId: 'ethereum-mainnet-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
       }
@@ -66,13 +68,13 @@ describe('Router: Asset', () => {
         order: 'asc',
       }
 
-      const stubCtrl = sandbox.stub(AssetController, 'getAssetsWithPagination').returns(true as any)
+      const stubCtrl = sandbox.stub(TransactionController, 'getTransactionsWithPagination').returns(true as any)
 
       const ctx: any = {
         query: { ...filterParams, ...paginationParams },
       }
 
-      await AssetRouter.getWithPagination(ctx)
+      await TransactionRouter.getWithPagination(ctx)
 
       expect(ctx.body).to.eq(true)
       expect(stubCtrl.calledOnce).to.be.true
@@ -83,19 +85,22 @@ describe('Router: Asset', () => {
         endDate: undefined,
         startDate: undefined,
         search: undefined,
-        sort: 'amountUsd',
+        sort: 'blockNumber',
       }
 
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
       expect(stubCtrl.args[0][1]).to.deep.eq({
         network: undefined,
         daoAddress: undefined,
+        category: undefined,
+        fromAddress: undefined,
+        toAddress: undefined,
         tokenAddress: undefined,
       })
       expect(stubCtrl.args[0][2]).to.deep.eq(filterParams)
     })
 
-    it('Should get asset with pagination - missing pagination params', async () => {
+    it('Should get transaction with pagination - missing pagination params', async () => {
       const filterParams = {
         network: NetworksEnum.ethereumMainnet,
       }
@@ -103,13 +108,13 @@ describe('Router: Asset', () => {
         sort: 'createdAt',
       }
 
-      const stubCtrl = sandbox.stub(AssetController, 'getAssetsWithPagination').returns(true as any)
+      const stubCtrl = sandbox.stub(TransactionController, 'getTransactionsWithPagination').returns(true as any)
 
       const ctx: any = {
         query: { ...filterParams, ...paginationParams },
       }
 
-      await AssetRouter.getWithPagination(ctx)
+      await TransactionRouter.getWithPagination(ctx)
 
       expect(ctx.body).to.eq(true)
       expect(stubCtrl.calledOnce).to.be.true
@@ -125,7 +130,41 @@ describe('Router: Asset', () => {
         pageSize: 10,
       }
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
-      expect(stubCtrl.args[0][1]).to.deep.eq({ ...filterParams, ...{ daoAddress: undefined, tokenAddress: undefined } })
+      expect(stubCtrl.args[0][1]).to.deep.eq({
+        ...filterParams,
+        ...{
+          fromAddress: undefined,
+          toAddress: undefined,
+          tokenAddress: undefined,
+          daoAddress: undefined,
+          category: undefined,
+        },
+      })
+    })
+  })
+
+  describe('getTransactionIndexingStatus', async () => {
+    it('Should get transaction indexing status', async () => {
+      const stubCtrl = sandbox.stub(TransactionController, 'getTransactionIndexingStatus').returns(true as any)
+
+      const ctx: any = {
+        params: {
+          txHash: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+          network: NetworksEnum.ethereumMainnet,
+        },
+        query: {
+          type: ITransactionIndexCheckType.PROPOSAL_CREATE,
+        },
+      }
+
+      await TransactionRouter.getTransactionIndexingStatus(ctx)
+
+      expect(ctx.body).to.eq(true)
+      expect(stubCtrl.calledOnce).to.be.true
+
+      expect(stubCtrl.args[0][0]).to.eq(ctx.params.txHash)
+      expect(stubCtrl.args[0][1]).to.eq(ctx.query.type)
+      expect(stubCtrl.args[0][2]).to.eq(ctx.params.network)
     })
   })
 })

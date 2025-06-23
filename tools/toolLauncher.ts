@@ -30,6 +30,7 @@ import { AddSafeWalletSetting } from '@tools/addSafeWalletSetting'
 import { FixEnsOnDao } from '@tools/fixEnsOnDao'
 import { ToolsFixBrokenTx } from '@tools/fixBrokenTx'
 import ToolsVeGovernance from '@tools/veGovernance'
+import FixSppPair from '@tools/fixSppPair'
 
 const { TOOL_RUN } = process.env
 const llo = logger.logMeta.bind(null, { TOOL_RUN })
@@ -65,6 +66,7 @@ const runners = {
   AddSafeWalletSetting,
   FixEnsOnDao,
   ToolsFixBrokenTx,
+  FixSppPair,
 }
 
 const appToRun = runners[TOOL_RUN!]

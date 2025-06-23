@@ -67,7 +67,6 @@ const TokenUtils = {
     ]
 
     switch (network) {
-      case NetworksEnum.ethereumSepolia:
       case NetworksEnum.baseMainnet:
       case NetworksEnum.zksyncSepolia:
       case NetworksEnum.arbitrumMainnet:
@@ -77,6 +76,11 @@ const TokenUtils = {
       default:
         return category
     }
+  },
+
+  supportsInternalTransactions: (network: NetworksEnum): boolean => {
+    const categories = TokenUtils.getCategories(network)
+    return categories.includes(ITransactionCategory.Internal)
   },
 }
 
