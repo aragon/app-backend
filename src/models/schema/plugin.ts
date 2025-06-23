@@ -97,6 +97,7 @@ class Link {
 @index({ network: 1, tokenAddress: 1 })
 @index({ network: 1, status: 1, interfaceType: 1 })
 @index({ address: 1 })
+@index({ network: 1, 'votingEscrow.escrowAddress': 1 })
 export default class Plugin extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
