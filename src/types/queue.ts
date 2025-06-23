@@ -48,11 +48,6 @@ export interface IQueueContractInfo {
   network: NetworksEnum
 }
 
-export interface IQueueVoteInfo {
-  proposalId: string
-  userAddress: string
-}
-
 export interface IQueueCanCreateProposal {
   memberAddress: HexAddress
   pluginAddress: HexAddress
