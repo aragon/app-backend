@@ -5,7 +5,6 @@ import Router from '@koa/router'
 import V2Router from '@services/aragon-api/routers/v2'
 import MemberRouter from '@services/aragon-api/routers/v2/member'
 import ProposalRouter from '@services/aragon-api/routers/v2/proposal'
-import VoteRouter from '@services/aragon-api/routers/v2/vote'
 import utils from '@helpers/utils'
 import Koa from 'koa'
 import supertest from 'supertest'
@@ -34,7 +33,6 @@ describe('Router: V2Router', () => {
     // Stub all v2 routers
     stubRouter(MemberRouter, 'members')
     stubRouter(ProposalRouter, 'proposals')
-    stubRouter(VoteRouter, 'votes')
 
     await utils.wait(100) // Small wait to ensure stubs are applied
 
@@ -74,7 +72,6 @@ describe('Router: V2Router', () => {
     }
 
     emptyRouterStub(MemberRouter)
-    emptyRouterStub(VoteRouter)
 
     // Create a test Koa app with the v2 router
     const app = new Koa()
@@ -99,7 +96,6 @@ describe('Router: V2Router', () => {
 
     sandbox.stub(MemberRouter, 'router').returns(memberRouterStub)
     sandbox.stub(ProposalRouter, 'router').returns(new Router())
-    sandbox.stub(VoteRouter, 'router').returns(new Router())
 
     // Create a test Koa app with the v2 router
     const app = new Koa()
