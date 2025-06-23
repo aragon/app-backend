@@ -6,6 +6,7 @@ import BottleneckModule from '@modules/bottleneck'
 import { type HexAddress, ITokenType, type NetworksEnum } from '@types'
 import { type ITokenFullDetails } from '@src/types/blockScout'
 import Utils from '@helpers/utils'
+import { ethers } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:BlockScoutHelper' })
 
@@ -251,7 +252,7 @@ const BlockScoutHelper = {
         if (data?.message === 'OK' && Array.isArray(data?.result) && data.result.length > 0) {
           return {
             holders: data.result.map((item: any) => ({
-              address: item.address,
+              address: ethers.getAddress(item.address),
               value: item.value,
             })),
             total: data.result.length,
