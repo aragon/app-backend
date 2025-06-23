@@ -965,6 +965,7 @@ export const ProposalHandler = {
       }
     })
   },
+
   proposalCanceled: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
       const proposal = await Models.Proposal.findByProposalIndex(
