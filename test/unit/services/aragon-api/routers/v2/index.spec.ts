@@ -5,7 +5,6 @@ import Router from '@koa/router'
 import V2Router from '@services/aragon-api/routers/v2'
 import MemberRouter from '@services/aragon-api/routers/v2/member'
 import ProposalRouter from '@services/aragon-api/routers/v2/proposal'
-import VoteRouter from '@services/aragon-api/routers/v2/vote'
 import utils from '@helpers/utils'
 import Koa from 'koa'
 import supertest from 'supertest'
@@ -34,7 +33,6 @@ describe('Router: V2Router', () => {
     // Stub all v2 routers
     stubRouter(MemberRouter, 'members')
     stubRouter(ProposalRouter, 'proposals')
-    stubRouter(VoteRouter, 'votes')
 
     await utils.wait(100) // Small wait to ensure stubs are applied
 
@@ -45,7 +43,7 @@ describe('Router: V2Router', () => {
     expect(v2Router instanceof Router).to.be.true
 
     // Verify all routers are mounted
-    expect(use.callCount).to.be.eq(3) // 3 routers should be mounted
+    expect(use.callCount).to.be.eq(2) // 3 routers should be mounted
 
     // Helper function to verify router mounting
     function expectRouter(path: string, name: string) {
@@ -55,7 +53,6 @@ describe('Router: V2Router', () => {
     // Verify each router is mounted at the correct path
     expectRouter('/members', 'members')
     expectRouter('/proposals', 'proposals')
-    expectRouter('/votes', 'votes')
   })
 
   it('Should create a functional router that can be used in a Koa app', async () => {
@@ -74,7 +71,6 @@ describe('Router: V2Router', () => {
     }
 
     emptyRouterStub(MemberRouter)
-    emptyRouterStub(VoteRouter)
 
     // Create a test Koa app with the v2 router
     const app = new Koa()
@@ -99,7 +95,6 @@ describe('Router: V2Router', () => {
 
     sandbox.stub(MemberRouter, 'router').returns(memberRouterStub)
     sandbox.stub(ProposalRouter, 'router').returns(new Router())
-    sandbox.stub(VoteRouter, 'router').returns(new Router())
 
     // Create a test Koa app with the v2 router
     const app = new Koa()
