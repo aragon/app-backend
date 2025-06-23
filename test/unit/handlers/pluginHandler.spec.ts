@@ -24,11 +24,7 @@ import DbTx from '@modules/dbTx'
 import Web3Utils from '@helpers/web3Utils'
 import { DaoRegistryHandler } from '@src/handlers/daoRegistryHandler'
 import { MetadataHandler } from '@handlers/metadataHandler'
-<<<<<<< HEAD
 import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
-=======
-import {GovernanceVeHandler} from "@handlers/governanceVeHandler";
->>>>>>> d8993e16 (feat: unit test)
 
 describe('Indexer:Plugin', () => {
   let sandbox: SinonSandbox
