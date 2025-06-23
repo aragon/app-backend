@@ -88,22 +88,6 @@ const MemberRouter = {
     ctx.body = await MemberController.isMemberOfPlugin(formattedParams.memberAddress, formattedParams.pluginAddress)
   },
 
-  isMemberOfPlugin2: async function (ctx: RouterContext) {
-    const params = {
-      memberAddress: ctx.params.memberAddress,
-      pluginAddress: ctx.params.pluginAddress,
-    }
-    const anyInvalidParams = Utils.extractAdditionalParams({ ...params }, ctx.query)
-
-    const [formattedParams] = await Promise.all([
-      ValidationSchema.validateParams(MemberSchema.isMemberOfPlugin, params),
-      ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
-    ])
-
-    const status = await MemberController.isMemberOfPlugin(formattedParams.memberAddress, formattedParams.pluginAddress)
-    ctx.body = { status }
-  },
-
   getMemberLocks: async function (ctx: RouterContext) {
     const paginationParams = ModelUtils.parsePaginationParams(ctx, { defaultSort: 'blockNumber' })
 
@@ -133,7 +117,7 @@ const MemberRouter = {
      * @apiGroup Members
      * @apiDescription Get Members
      *
-     * @apiSampleRequest /
+     * @apiSampleRequest /members
      */
     router.get('/', MemberRouter.getMembersWithPagination)
 
@@ -143,17 +127,17 @@ const MemberRouter = {
      * @apiGroup Members
      * @apiDescription Get Member by address
      *
-     * @apiSampleRequest /member/:address
+     * @apiSampleRequest /members/:address
      */
     router.get('/:address', MemberRouter.getMemberByAddress)
 
     /**
-     * @api {get} /member/:address/locks Get Locks Member by address
+     * @api {get} /members/:address/locks Get Locks Member by address
      * @apiName Members
      * @apiGroup Members
      * @apiDescription Get Locks Member by address
      *
-     * @apiSampleRequest /member/:address/locks
+     * @apiSampleRequest /members/:address/locks
      */
     router.get('/:address/locks', MemberRouter.getMemberLocks)
 
@@ -163,10 +147,9 @@ const MemberRouter = {
      * @apiGroup Members
      * @apiDescription isMemberOfPlugin
      *
-     * @apiSampleRequest /member/:memberAddress/:pluginAddress/exists
+     * @apiSampleRequest /members/:memberAddress/:pluginAddress/exists
      */
     router.get('/:memberAddress/:pluginAddress/exists', MemberRouter.isMemberOfPlugin)
-    router.get('/:memberAddress/:pluginAddress/exists2', MemberRouter.isMemberOfPlugin2)
 
     return router
   },

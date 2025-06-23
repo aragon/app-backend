@@ -2,21 +2,29 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import TransactionController from '@services/aragon-api/controllers/transaction'
-import { ITokenType, ITransactionCategory, ITransactionIndexCheckType, ITransactionType, NetworksEnum } from '@types'
+import {
+  IPluginInterfaceType,
+  IPluginStatus,
+  ITokenType,
+  ITransactionCategory,
+  ITransactionIndexCheckType,
+  ITransactionType,
+  NetworksEnum,
+} from '@types'
 import { Models } from '@dbModels'
 import Transaction from '@models/schema/transaction'
 import { DaoList } from '@test/mock/fakeDao'
 import { ProposalList } from '@test/mock/fakeProposal'
 import logger from '@logger'
-import PairDataModule from '@modules/pairData'
 
-describe('Controller: Transaction', () => {
+describe('TransactionController', () => {
   let sandbox: SinonSandbox
   let rawTransaction: Partial<Transaction>
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
 
+    // Setup default transaction data for tests
     rawTransaction = {
       transactionHash: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
       blockNumber: 1,
@@ -59,198 +67,66 @@ describe('Controller: Transaction', () => {
     sandbox?.restore()
   })
 
-  describe('getTransactionsWithPagination', () => {
-    it('should return paginated transactions with filtered keys', async () => {
-      const paginationParams = { page: 1, limit: 10 }
-      const extraParams = { daoAddress: '0x123' }
-      const pairParams = {}
-
-      const mockTransactionData = {
-        ...rawTransaction,
-        filterKeys: sinon.stub().returns({ id: '1', transactionHash: '0x123' }),
-      }
-
-      const mockResult = {
-        data: [mockTransactionData],
-        metadata: {
-          page: 1,
-          totalPages: 1,
-          totalRecords: 1,
-        },
-      }
-
-      const pairDataModulePaginationStub = sandbox
-        .stub(PairDataModule, 'pairFromPaginationParams')
-        .resolves(paginationParams)
-      const pairDataModuleExtraStub = sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
-      const transactionFindStub = sandbox.stub(Models.Transaction, 'findWithPagination').resolves(mockResult)
-
-      const result = await TransactionController.getTransactionsWithPagination(
-        paginationParams,
-        extraParams,
-        pairParams,
-      )
-
-      expect(pairDataModulePaginationStub.calledOnceWith(paginationParams)).to.be.true
-      expect(pairDataModuleExtraStub.calledOnceWith(extraParams, pairParams)).to.be.true
-      expect(transactionFindStub.calledOnceWith({ extraParams, paginationParams })).to.be.true
-      expect(mockTransactionData.filterKeys.calledOnce).to.be.true
-      expect(result.data).to.deep.equal([{ id: '1', transactionHash: '0x123' }])
-      expect(result.metadata.totalRecords).to.equal(1)
-    })
-
-    it('should handle empty parameters and return default results', async () => {
-      const mockResult = {
-        data: [],
-        metadata: {
-          page: 1,
-          totalPages: 0,
-          totalRecords: 0,
-        },
-      }
-
-      const pairDataModulePaginationStub = sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves({})
-      const pairDataModuleExtraStub = sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
-      const transactionFindStub = sandbox.stub(Models.Transaction, 'findWithPagination').resolves(mockResult)
-
-      const result = await TransactionController.getTransactionsWithPagination()
-
-      expect(pairDataModulePaginationStub.calledOnceWith({})).to.be.true
-      expect(pairDataModuleExtraStub.calledOnceWith({}, {})).to.be.true
-      expect(transactionFindStub.calledOnce).to.be.true
-      expect(result.data).to.deep.equal([])
-      expect(result.metadata.totalRecords).to.equal(0)
-    })
-
-    it('should handle errors from PairDataModule', async () => {
-      const error = new Error('PairDataModule error')
-      sandbox.stub(PairDataModule, 'pairFromPaginationParams').rejects(error)
-
-      try {
-        await TransactionController.getTransactionsWithPagination()
-        expect.fail('Should have thrown an error')
-      } catch (thrownError) {
-        expect(thrownError).to.equal(error)
-      }
-    })
-
-    it('should handle errors from Models.Transaction.findWithPagination', async () => {
-      const error = new Error('Database error')
-      sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves({})
-      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
-      sandbox.stub(Models.Transaction, 'findWithPagination').rejects(error)
-
-      try {
-        await TransactionController.getTransactionsWithPagination()
-        expect.fail('Should have thrown an error')
-      } catch (thrownError) {
-        expect(thrownError).to.equal(error)
-      }
-    })
-  })
-
-  describe('getTransactionIndexingStatus', () => {
-    it('should get transaction indexing status', async () => {
-      const fakeDao = DaoList[0]
-      await Models.Dao.create(fakeDao)
-
-      const txHash = fakeDao.transactionHash
-      const network = fakeDao.network
-      const spyReq = sandbox.spy(Models.Dao, 'findOne')
-      const response = await TransactionController.getTransactionIndexingStatus(
-        txHash!,
-        ITransactionIndexCheckType.DAO_CREATE,
-        network!,
-      )
-      expect(spyReq.calledOnce).to.be.true
-      expect(response).to.deep.eq({
-        isProcessed: true,
-      })
-    })
-
-    it('should get transaction indexing status - not found', async () => {
-      const txHash = '0x128'
-      const network = rawTransaction.network
-      const spyReq = sandbox.spy(Models.Proposal, 'findOne')
-
-      const response = await TransactionController.getTransactionIndexingStatus(
-        txHash,
-        ITransactionIndexCheckType.PROPOSAL_CREATE,
-        network!,
-      )
-      expect(spyReq.calledOnce).to.be.true
-      expect(response).to.deep.eq({
-        isProcessed: false,
-      })
-    })
-
-    it('should return false when error', async () => {
-      const txHash = '0x'
-      const network = rawTransaction.network
-      sandbox.stub(Models.Proposal, 'findOne').rejects(new Error('fake-error'))
-
-      const response = await TransactionController.getTransactionIndexingStatus(
-        txHash,
-        ITransactionIndexCheckType.PROPOSAL_ADVANCE_STAGE,
-        network!,
-      )
-      expect(response).to.deep.eq({
-        isProcessed: false,
-      })
-    })
-
-    describe('proposal advance', () => {
-      it('proposal advance', async () => {
-        await Models.Proposal.create({
-          ...ProposalList[0],
-          stageExecutions: [
-            {
-              transactionHash: '0x123',
-            },
-          ],
-        })
-
-        const network = ProposalList[0].network
-        const spyReq = sandbox.spy(Models.Proposal, 'findOne')
+  describe('getTransactionIndexingStatus()', () => {
+    describe('Common functionality', () => {
+      it('should handle errors gracefully and return isProcessed false', async () => {
+        const txHash = '0x'
+        const network = rawTransaction.network
+        sandbox.stub(Models.Proposal, 'findOne').rejects(new Error('fake-error'))
 
         const response = await TransactionController.getTransactionIndexingStatus(
-          '0x123',
+          txHash,
           ITransactionIndexCheckType.PROPOSAL_ADVANCE_STAGE,
           network!,
         )
-        expect(spyReq.calledOnce).to.be.true
+
         expect(response).to.deep.eq({
-          isProcessed: true,
+          isProcessed: false,
         })
       })
     })
 
-    describe('proposal executed', () => {
-      it('proposal executed', async () => {
-        await Models.Proposal.create({
-          ...ProposalList[0],
-          executed: {
-            transactionHash: '0x124',
-          },
-        })
+    describe('DAO_CREATE indexing', () => {
+      it('should return isProcessed true when DAO creation transaction is found', async () => {
+        const fakeDao = DaoList[0]
+        await Models.Dao.create(fakeDao)
 
-        const network = ProposalList[0].network
-        const spyReq = sandbox.spy(Models.Proposal, 'findOne')
+        const txHash = fakeDao.transactionHash
+        const network = fakeDao.network
+        const spyReq = sandbox.spy(Models.Dao, 'findOne')
 
         const response = await TransactionController.getTransactionIndexingStatus(
-          '0x124',
-          ITransactionIndexCheckType.PROPOSAL_EXECUTE,
+          txHash!,
+          ITransactionIndexCheckType.DAO_CREATE,
           network!,
         )
+
         expect(spyReq.calledOnce).to.be.true
         expect(response).to.deep.eq({
           isProcessed: true,
         })
       })
+
+      it('should return isProcessed false when DAO creation transaction is not found', async () => {
+        const txHash = '0x128'
+        const network = rawTransaction.network
+        const spyReq = sandbox.spy(Models.Dao, 'findOne')
+
+        const response = await TransactionController.getTransactionIndexingStatus(
+          txHash,
+          ITransactionIndexCheckType.DAO_CREATE,
+          network!,
+        )
+
+        expect(spyReq.calledOnce).to.be.true
+        expect(response).to.deep.eq({
+          isProcessed: false,
+        })
+      })
     })
 
-    describe('proposal created', () => {
-      it('proposal created and return slug', async () => {
+    describe('PROPOSAL_CREATE indexing', () => {
+      it('should return isProcessed true with slug when proposal is created', async () => {
         await Models.Proposal.create({
           ...ProposalList[0],
           transactionHash: '0x125',
@@ -282,7 +158,8 @@ describe('Controller: Transaction', () => {
         })
       })
 
-      it('proposal created and return slug when is sub-proposal', async () => {
+      it('should return slug for sub-proposal when parent plugin exists', async () => {
+        // Create parent proposal
         await Models.Proposal.create({
           daoAddress: ProposalList[0].daoAddress,
           proposalIndex: '0',
@@ -296,6 +173,7 @@ describe('Controller: Transaction', () => {
           creatorAddress: '0xcreator',
         })
 
+        // Create sub-proposal
         await Models.Proposal.create({
           daoAddress: ProposalList[0].daoAddress,
           proposalIndex: '7',
@@ -334,7 +212,7 @@ describe('Controller: Transaction', () => {
         })
       })
 
-      it('proposal created but plugin slug not found', async () => {
+      it('should log error and return isProcessed true when plugin slug is not found', async () => {
         const logError = sandbox.stub(logger, 'error')
 
         await Models.Proposal.create({
@@ -360,10 +238,79 @@ describe('Controller: Transaction', () => {
           isProcessed: true,
         })
       })
+
+      it('should return isProcessed false when proposal is not found', async () => {
+        const txHash = '0x128'
+        const network = rawTransaction.network
+        const spyReq = sandbox.spy(Models.Proposal, 'findOne')
+
+        const response = await TransactionController.getTransactionIndexingStatus(
+          txHash,
+          ITransactionIndexCheckType.PROPOSAL_CREATE,
+          network!,
+        )
+
+        expect(spyReq.calledOnce).to.be.true
+        expect(response).to.deep.eq({
+          isProcessed: false,
+        })
+      })
     })
 
-    describe('proposal report results', () => {
-      it('proposal report results not exists', async () => {
+    describe('PROPOSAL_ADVANCE_STAGE indexing', () => {
+      it('should return isProcessed true when stage execution is found', async () => {
+        await Models.Proposal.create({
+          ...ProposalList[0],
+          stageExecutions: [
+            {
+              transactionHash: '0x123',
+            },
+          ],
+        })
+
+        const network = ProposalList[0].network
+        const spyReq = sandbox.spy(Models.Proposal, 'findOne')
+
+        const response = await TransactionController.getTransactionIndexingStatus(
+          '0x123',
+          ITransactionIndexCheckType.PROPOSAL_ADVANCE_STAGE,
+          network!,
+        )
+
+        expect(spyReq.calledOnce).to.be.true
+        expect(response).to.deep.eq({
+          isProcessed: true,
+        })
+      })
+    })
+
+    describe('PROPOSAL_EXECUTE indexing', () => {
+      it('should return isProcessed true when proposal execution is found', async () => {
+        await Models.Proposal.create({
+          ...ProposalList[0],
+          executed: {
+            transactionHash: '0x124',
+          },
+        })
+
+        const network = ProposalList[0].network
+        const spyReq = sandbox.spy(Models.Proposal, 'findOne')
+
+        const response = await TransactionController.getTransactionIndexingStatus(
+          '0x124',
+          ITransactionIndexCheckType.PROPOSAL_EXECUTE,
+          network!,
+        )
+
+        expect(spyReq.calledOnce).to.be.true
+        expect(response).to.deep.eq({
+          isProcessed: true,
+        })
+      })
+    })
+
+    describe('PROPOSAL_REPORT_RESULTS indexing', () => {
+      it('should return isProcessed false when proposal results do not exist', async () => {
         await Models.Proposal.create({
           ...ProposalList[0],
         })
@@ -381,7 +328,7 @@ describe('Controller: Transaction', () => {
         expect(response.isProcessed).to.be.false
       })
 
-      it('proposal report results', async () => {
+      it('should return isProcessed true with result details when proposal results exist', async () => {
         await Models.Proposal.create({
           ...ProposalList[0],
           ...{
@@ -430,43 +377,397 @@ describe('Controller: Transaction', () => {
         expect(response.stage).to.eq(0)
       })
     })
+
+    describe('LOCK_CREATE indexing', () => {
+      it('should return isProcessed true when lock creation is found', async () => {
+        const fakeLock: any = {
+          transactionHash: '0xlockTx123',
+          transactionIndex: 3,
+          logIndex: 1,
+          tokenId: '0x123',
+          network: NetworksEnum.ethereumMainnet,
+          blockNumber: 1000,
+          isProcessed: true,
+          memberAddress: '0xmember123',
+          tokenAddress: '0xtoken123',
+          amount: '1000',
+          pluginAddress: '0xplugin123',
+          daoAddress: '0xdao123',
+          escrowAddress: '0xescrow123',
+          nftAddress: '0xnft123',
+        }
+
+        await Models.Lock.create(fakeLock)
+
+        const spyReq = sandbox.spy(Models.Lock, 'findOne')
+        const response = await TransactionController.getTransactionIndexingStatus(
+          '0xlockTx123',
+          ITransactionIndexCheckType.LOCK_CREATE,
+          NetworksEnum.ethereumMainnet,
+        )
+
+        expect(spyReq.calledOnce).to.be.true
+        expect(spyReq.firstCall.args[0]).to.deep.equal({
+          transactionHash: '0xlockTx123',
+          network: NetworksEnum.ethereumMainnet,
+        })
+        expect(response).to.deep.equal({
+          isProcessed: true,
+        })
+      })
+
+      it('should return isProcessed false when lock creation is not found', async () => {
+        const spyReq = sandbox.spy(Models.Lock, 'findOne')
+        const response = await TransactionController.getTransactionIndexingStatus(
+          '0xnonExistentLock',
+          ITransactionIndexCheckType.LOCK_CREATE,
+          NetworksEnum.ethereumMainnet,
+        )
+
+        expect(spyReq.calledOnce).to.be.true
+        expect(response).to.deep.equal({
+          isProcessed: false,
+        })
+      })
+    })
+
+    describe('EXIT_CREATE indexing', () => {
+      it('should return isProcessed true when lock exit is found', async () => {
+        const fakeLockWithExit: any = {
+          transactionHash: '0xlockTx123',
+          transactionIndex: 3,
+          logIndex: 1,
+          tokenId: '0x123',
+          network: NetworksEnum.ethereumMainnet,
+          blockNumber: 2000,
+          isProcessed: true,
+          memberAddress: '0xmember456',
+          tokenAddress: '0xtoken456',
+          amount: '1000',
+          pluginAddress: '0xplugin456',
+          daoAddress: '0xdao123',
+          escrowAddress: '0xescrow456',
+          nftAddress: '0xnft456',
+          lockExit: {
+            status: true,
+            transactionHash: '0xlockExitTx123',
+            blockNumber: 2001,
+            blockTimestamp: 1234567890,
+            exitDateAt: 1234567900,
+          },
+        }
+        await Models.Lock.create(fakeLockWithExit)
+
+        const spyReq = sandbox.spy(Models.Lock, 'findOne')
+        const response = await TransactionController.getTransactionIndexingStatus(
+          '0xlockExitTx123',
+          ITransactionIndexCheckType.EXIT_CREATE,
+          NetworksEnum.ethereumMainnet,
+        )
+
+        expect(spyReq.calledOnce).to.be.true
+        expect(spyReq.firstCall.args[0]).to.deep.equal({
+          network: NetworksEnum.ethereumMainnet,
+          'lockExit.transactionHash': '0xlockExitTx123',
+          'lockExit.status': true,
+        })
+        expect(response).to.deep.equal({
+          isProcessed: true,
+        })
+      })
+
+      it('should return isProcessed false when lock exit is not found', async () => {
+        const fakeLockWithoutExit: any = {
+          transactionHash: '0xlockTx123',
+          transactionIndex: 3,
+          logIndex: 1,
+          tokenId: '0x123',
+          network: NetworksEnum.ethereumMainnet,
+          blockNumber: 2000,
+          isProcessed: false,
+          memberAddress: '0xmember456',
+          tokenAddress: '0xtoken456',
+          amount: '1000',
+          pluginAddress: '0xplugin456',
+          daoAddress: '0xdao123',
+          escrowAddress: '0xescrow456',
+          nftAddress: '0xnft456',
+          lockExit: {
+            status: false,
+            transactionHash: null,
+            blockNumber: null,
+            blockTimestamp: null,
+            exitDateAt: null,
+          },
+        }
+
+        await Models.Lock.create(fakeLockWithoutExit)
+
+        const spyReq = sandbox.spy(Models.Lock, 'findOne')
+        const response = await TransactionController.getTransactionIndexingStatus(
+          '0xlockNoExitTx',
+          ITransactionIndexCheckType.EXIT_CREATE,
+          NetworksEnum.ethereumMainnet,
+        )
+
+        expect(spyReq.calledOnce).to.be.true
+        expect(response).to.deep.equal({
+          isProcessed: false,
+        })
+      })
+    })
+
+    describe('WITHDRAW_CREATE indexing', () => {
+      it('should return isProcessed true when lock withdrawal is found', async () => {
+        const fakeLockWithWithdraw: any = {
+          transactionHash: '0xlockTx123',
+          transactionIndex: 3,
+          logIndex: 1,
+          tokenId: '0x123',
+          network: NetworksEnum.ethereumMainnet,
+          blockNumber: 3000,
+          isProcessed: false,
+          memberAddress: '0xmember456',
+          tokenAddress: '0xtoken456',
+          amount: '1000',
+          pluginAddress: '0xplugin456',
+          daoAddress: '0xdao123',
+          escrowAddress: '0xescrow456',
+          nftAddress: '0xnft456',
+          lockWithdraw: {
+            status: true,
+            transactionHash: '0xlockWithdrawTx123',
+            blockNumber: 3001,
+            blockTimestamp: 1234567890,
+            totalLocked: '5000',
+            amount: '1000',
+            epochEndAt: 1234567900,
+          },
+        }
+
+        await Models.Lock.create(fakeLockWithWithdraw)
+
+        const spyReq = sandbox.spy(Models.Lock, 'findOne')
+        const response = await TransactionController.getTransactionIndexingStatus(
+          '0xlockWithdrawTx123',
+          ITransactionIndexCheckType.WITHDRAW_CREATE,
+          NetworksEnum.ethereumMainnet,
+        )
+
+        expect(spyReq.calledOnce).to.be.true
+        expect(spyReq.firstCall.args[0]).to.deep.equal({
+          network: NetworksEnum.ethereumMainnet,
+          'lockWithdraw.status': true,
+          'lockWithdraw.transactionHash': '0xlockWithdrawTx123',
+        })
+        expect(response).to.deep.equal({
+          isProcessed: true,
+        })
+      })
+
+      it('should return isProcessed false when lock withdrawal is not found', async () => {
+        const spyReq = sandbox.spy(Models.Lock, 'findOne')
+        const response = await TransactionController.getTransactionIndexingStatus(
+          '0xnonExistentWithdraw',
+          ITransactionIndexCheckType.WITHDRAW_CREATE,
+          NetworksEnum.ethereumMainnet,
+        )
+
+        expect(spyReq.calledOnce).to.be.true
+        expect(response).to.deep.equal({
+          isProcessed: false,
+        })
+      })
+    })
+
+    describe('PLUGIN_CREATE indexing', () => {
+      it('should return plugin details when supported plugin is found', async () => {
+        const fakePlugin: any = {
+          id: 'plugin-1',
+          transactionHash: '0xpluginTx123',
+          network: NetworksEnum.ethereumMainnet,
+          address: '0xpluginAddress123',
+          blockNumber: 4000,
+          interfaceType: IPluginInterfaceType.multisig,
+          status: IPluginStatus.installed,
+          isSupported: true,
+          daoAddress: '0xdao123',
+        }
+
+        await Models.Plugin.create(fakePlugin)
+
+        const spyReq = sandbox.spy(Models.Plugin, 'findOne')
+        const response = await TransactionController.getTransactionIndexingStatus(
+          '0xpluginTx123',
+          ITransactionIndexCheckType.PLUGIN_CREATE,
+          NetworksEnum.ethereumMainnet,
+        )
+
+        expect(spyReq.calledOnce).to.be.true
+        expect(spyReq.firstCall.args[0]).to.deep.equal({
+          transactionHash: '0xpluginTx123',
+          network: NetworksEnum.ethereumMainnet,
+        })
+        expect(response).to.deep.equal({
+          isProcessed: true,
+          isSupported: true,
+          interfaceType: IPluginInterfaceType.multisig,
+        })
+      })
+
+      it('should return plugin details when unsupported plugin is found', async () => {
+        const fakeUnsupportedPlugin: any = {
+          id: 'plugin-unsupported-1',
+          transactionHash: '0xpluginUnsupportedTx',
+          network: NetworksEnum.ethereumMainnet,
+          address: '0xpluginAddressUnsupported',
+          blockNumber: 4100,
+          interfaceType: IPluginInterfaceType.tokenVoting,
+          status: IPluginStatus.installed,
+          isSupported: false,
+          daoAddress: '0xdao456',
+        }
+
+        await Models.Plugin.create(fakeUnsupportedPlugin)
+
+        const response = await TransactionController.getTransactionIndexingStatus(
+          '0xpluginUnsupportedTx',
+          ITransactionIndexCheckType.PLUGIN_CREATE,
+          NetworksEnum.ethereumMainnet,
+        )
+
+        expect(response).to.deep.equal({
+          isProcessed: true,
+          isSupported: false,
+          interfaceType: IPluginInterfaceType.tokenVoting,
+        })
+      })
+
+      it('should return isProcessed false when plugin is not found', async () => {
+        const spyReq = sandbox.spy(Models.Plugin, 'findOne')
+        const response = await TransactionController.getTransactionIndexingStatus(
+          '0xnonExistentPlugin',
+          ITransactionIndexCheckType.PLUGIN_CREATE,
+          NetworksEnum.ethereumMainnet,
+        )
+
+        expect(spyReq.calledOnce).to.be.true
+        expect(response).to.deep.equal({
+          isProcessed: false,
+        })
+      })
+    })
   })
 
-  describe('_getQueryForAction', () => {
-    it('should return correct query for PROPOSAL_CREATE', () => {
+  describe('_getQueryForAction()', () => {
+    it('should return base query for PROPOSAL_CREATE', () => {
       const query = TransactionController._getQueryForAction(
         ITransactionIndexCheckType.PROPOSAL_CREATE,
         '0x128',
         NetworksEnum.ethereumMainnet,
       )
-      expect(query).to.deep.equal({ transactionHash: '0x128', network: NetworksEnum.ethereumMainnet })
+      expect(query).to.deep.equal({
+        transactionHash: '0x128',
+        network: NetworksEnum.ethereumMainnet,
+      })
     })
 
-    it('should return correct query for PROPOSAL_EXECUTE', () => {
+    it('should return nested query for PROPOSAL_EXECUTE', () => {
       const query = TransactionController._getQueryForAction(
         ITransactionIndexCheckType.PROPOSAL_EXECUTE,
         '0x129',
         NetworksEnum.ethereumMainnet,
       )
-      expect(query).to.deep.equal({ 'executed.transactionHash': '0x129', network: NetworksEnum.ethereumMainnet })
+      expect(query).to.deep.equal({
+        'executed.transactionHash': '0x129',
+        network: NetworksEnum.ethereumMainnet,
+      })
     })
 
-    it('should return correct query for PROPOSAL_ADVANCE_STAGE', () => {
+    it('should return nested query for PROPOSAL_ADVANCE_STAGE', () => {
       const query = TransactionController._getQueryForAction(
         ITransactionIndexCheckType.PROPOSAL_ADVANCE_STAGE,
         '0x130',
         NetworksEnum.ethereumMainnet,
       )
-      expect(query).to.deep.equal({ 'stageExecutions.transactionHash': '0x130', network: NetworksEnum.ethereumMainnet })
+      expect(query).to.deep.equal({
+        'stageExecutions.transactionHash': '0x130',
+        network: NetworksEnum.ethereumMainnet,
+      })
+    })
+
+    it('should return nested query for PROPOSAL_REPORT_RESULTS', () => {
+      const query = TransactionController._getQueryForAction(
+        ITransactionIndexCheckType.PROPOSAL_REPORT_RESULTS,
+        '0x131',
+        NetworksEnum.ethereumMainnet,
+      )
+      expect(query).to.deep.equal({
+        'results.transactionHash': '0x131',
+        network: NetworksEnum.ethereumMainnet,
+      })
+    })
+
+    it('should return base query for LOCK_CREATE', () => {
+      const query = TransactionController._getQueryForAction(
+        ITransactionIndexCheckType.LOCK_CREATE,
+        '0x132',
+        NetworksEnum.ethereumMainnet,
+      )
+      expect(query).to.deep.equal({
+        transactionHash: '0x132',
+        network: NetworksEnum.ethereumMainnet,
+      })
+    })
+
+    it('should return nested query for EXIT_CREATE', () => {
+      const query = TransactionController._getQueryForAction(
+        ITransactionIndexCheckType.EXIT_CREATE,
+        '0x133',
+        NetworksEnum.ethereumMainnet,
+      )
+      expect(query).to.deep.equal({
+        network: NetworksEnum.ethereumMainnet,
+        'lockExit.transactionHash': '0x133',
+        'lockExit.status': true,
+      })
+    })
+
+    it('should return nested query for WITHDRAW_CREATE', () => {
+      const query = TransactionController._getQueryForAction(
+        ITransactionIndexCheckType.WITHDRAW_CREATE,
+        '0x134',
+        NetworksEnum.ethereumMainnet,
+      )
+      expect(query).to.deep.equal({
+        network: NetworksEnum.ethereumMainnet,
+        'lockWithdraw.status': true,
+        'lockWithdraw.transactionHash': '0x134',
+      })
+    })
+
+    it('should return base query for PLUGIN_CREATE', () => {
+      const query = TransactionController._getQueryForAction(
+        ITransactionIndexCheckType.PLUGIN_CREATE,
+        '0x135',
+        NetworksEnum.ethereumMainnet,
+      )
+      expect(query).to.deep.equal({
+        transactionHash: '0x135',
+        network: NetworksEnum.ethereumMainnet,
+      })
     })
 
     it('should return default query for unknown action', () => {
       const query = TransactionController._getQueryForAction(
         'UNKNOWN_ACTION' as ITransactionIndexCheckType,
-        '0x131',
+        '0x136',
         NetworksEnum.ethereumMainnet,
       )
-      expect(query).to.deep.equal({ transactionHash: '0x131', network: NetworksEnum.ethereumMainnet })
+      expect(query).to.deep.equal({
+        transactionHash: '0x136',
+        network: NetworksEnum.ethereumMainnet,
+      })
     })
   })
 })

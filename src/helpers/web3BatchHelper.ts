@@ -110,11 +110,6 @@ const Web3BatchHelper = {
       try {
         const batchResults = await this._executeSingleBatch<T>(batch, network)
         allResults.push(...batchResults)
-
-        const failedInBatch = batch.filter((_req, index) => !batchResults[index]?.success)
-        if (failedInBatch.length > 0) {
-          logger.info('Failed Batch Stats', llo({ batchSize: batch.length, failedCount: failedInBatch.length }))
-        }
       } catch (error) {
         failedRequests.push(...batch)
         batchErrors.push(error as Error)
@@ -528,6 +523,97 @@ const Web3BatchHelper = {
       })
 
       return results
+    }
+  },
+
+  /**
+   * Get voting power for a specific member at a given block number or timestamp
+   * @param memberAddress
+   * @param tokenAddress
+   * @param blockNumber
+   * @param blockTimestamp
+   * @param network
+   */
+  getMemberVotingPower: async (
+    memberAddress: HexAddress,
+    tokenAddress: HexAddress,
+    blockNumber: number,
+    blockTimestamp: number,
+    network: NetworksEnum,
+  ): Promise<{ votingPower: string; error?: boolean }> => {
+    try {
+      blockNumber = await Web3BatchHelper.parseBlockNumber(network, blockNumber)
+
+      const votingPowerCalls: Array<{
+        to: HexAddress
+        data: string
+        identifier: any
+      }> = []
+
+      votingPowerCalls.push({
+        to: tokenAddress,
+        data: Web3BatchHelper.encodeFunction(
+          'getPastVotes(address,uint256)',
+          ['address', 'uint256'],
+          [memberAddress, blockNumber],
+        ),
+        identifier: `${memberAddress}_votingPower`,
+      })
+
+      votingPowerCalls.push({
+        to: tokenAddress,
+        data: Web3BatchHelper.encodeFunction(
+          'getPastVotes(address,uint256)',
+          ['address', 'uint256'],
+          [memberAddress, blockTimestamp],
+        ),
+        identifier: `${memberAddress}_votingPower_ts`,
+      })
+
+      const votingPowerResults = await Web3BatchHelper.ethCall<string>(votingPowerCalls, network)
+      const vpBlockNumResult = votingPowerResults.find(r => r.identifier === `${memberAddress}_votingPower`)
+      const vpTimestampResult = votingPowerResults.find(r => r.identifier === `${memberAddress}_votingPower_ts`)
+
+      let votingPowerFromBlockNumber = '0'
+      let votingPowerFromTimestamp = '0'
+      let hasBlockNumberResult = false
+      let hasTimestampResult = false
+
+      if (vpBlockNumResult?.success && vpBlockNumResult.data) {
+        try {
+          const decoded = Web3BatchHelper.decodeResult<[bigint]>(['uint256'], vpBlockNumResult.data)
+          votingPowerFromBlockNumber = decoded[0].toString()
+          hasBlockNumberResult = true
+        } catch (error) {
+          hasBlockNumberResult = false
+        }
+      }
+
+      if (vpTimestampResult?.success && vpTimestampResult.data) {
+        try {
+          const decoded = Web3BatchHelper.decodeResult<[bigint]>(['uint256'], vpTimestampResult.data)
+          votingPowerFromTimestamp = decoded[0].toString()
+          hasTimestampResult = true
+        } catch (error) {
+          hasTimestampResult = false
+        }
+      }
+
+      if (!hasBlockNumberResult && !hasTimestampResult) {
+        return {
+          votingPower: '0',
+          error: true,
+        }
+      }
+
+      const votingPower = hasTimestampResult ? votingPowerFromTimestamp : votingPowerFromBlockNumber
+
+      return {
+        votingPower,
+        error: false,
+      }
+    } catch (e) {
+      return { votingPower: '0', error: true }
     }
   },
 }

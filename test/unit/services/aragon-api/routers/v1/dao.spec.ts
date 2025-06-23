@@ -1,8 +1,8 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import DaoRouter from '@services/aragon-api/routers/dao'
-import DaoController from '@services/aragon-api/controllers/dao'
+import DaoRouter from '@api/routers/v1/dao'
+import DaoController from '@api/controllers/dao'
 import { ErrorKeyEnum, NetworksEnum } from '@types'
 
 describe('Router: Dao', () => {
@@ -205,6 +205,60 @@ describe('Router: Dao', () => {
 
     expect(ctx.body).to.eq(true)
     expect(stubCtrl.calledOnce).to.be.true
+  })
+
+  it('should get daos by member address with networks filter', async () => {
+    const params = {
+      address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+    }
+    const filterParams = {
+      networks: [NetworksEnum.ethereumMainnet, NetworksEnum.ethereumSepolia],
+    }
+
+    const stubCtrl = sandbox.stub(DaoController, 'getDaosByMember').returns(true as any)
+
+    const ctx: any = {
+      params,
+      query: { ...filterParams },
+    }
+
+    await DaoRouter.getDaoByMemberAddress(ctx)
+
+    expect(ctx.body).to.eq(true)
+    expect(stubCtrl.calledOnce).to.be.true
+    expect(stubCtrl.args[0][1]).to.deep.eq({
+      network: undefined,
+      networks: filterParams.networks,
+      excludeDaoId: undefined,
+      memberAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+    })
+  })
+
+  it('should get daos by member address with networks filter in CSV format', async () => {
+    const params = {
+      address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+    }
+    const filterParams = {
+      networks: `${NetworksEnum.ethereumMainnet},${NetworksEnum.ethereumSepolia}`,
+    }
+
+    const stubCtrl = sandbox.stub(DaoController, 'getDaosByMember').returns(true as any)
+
+    const ctx: any = {
+      params,
+      query: { ...filterParams },
+    }
+
+    await DaoRouter.getDaoByMemberAddress(ctx)
+    expect(ctx.body).to.eq(true)
+    expect(stubCtrl.calledOnce).to.be.true
+    expect(stubCtrl.args[0][1]).to.deep.eq({
+      network: undefined,
+      // Joi validation turns csv string into an array!
+      networks: [NetworksEnum.ethereumMainnet, NetworksEnum.ethereumSepolia],
+      excludeDaoId: undefined,
+      memberAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+    })
   })
 
   it('Should getDaoByEns', async () => {

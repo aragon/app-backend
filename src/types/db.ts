@@ -55,6 +55,10 @@ export enum ITransactionIndexCheckType {
   PROPOSAL_ADVANCE_STAGE = 'proposalAdvanceStage',
   PROPOSAL_VOTE = 'proposalVote',
   PROPOSAL_EXECUTE = 'proposalExecute',
+  LOCK_CREATE = 'lockCreate',
+  EXIT_CREATE = 'exitCreate',
+  WITHDRAW_CREATE = 'withdrawCreate',
+  PLUGIN_CREATE = 'pluginCreate',
 }
 
 export const IndexCheckTypeToModel: Record<ITransactionIndexCheckType, ICollectionNames> = {
@@ -64,6 +68,10 @@ export const IndexCheckTypeToModel: Record<ITransactionIndexCheckType, ICollecti
   [ITransactionIndexCheckType.PROPOSAL_VOTE]: ICollectionNames.Vote,
   [ITransactionIndexCheckType.PROPOSAL_EXECUTE]: ICollectionNames.Proposal,
   [ITransactionIndexCheckType.PROPOSAL_REPORT_RESULTS]: ICollectionNames.Proposal,
+  [ITransactionIndexCheckType.LOCK_CREATE]: ICollectionNames.Lock,
+  [ITransactionIndexCheckType.EXIT_CREATE]: ICollectionNames.Lock,
+  [ITransactionIndexCheckType.WITHDRAW_CREATE]: ICollectionNames.Lock,
+  [ITransactionIndexCheckType.PLUGIN_CREATE]: ICollectionNames.Plugin,
 }
 
 export interface IMongoModel {
