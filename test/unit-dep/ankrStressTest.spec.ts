@@ -35,7 +35,14 @@ describe.only('Stress Test: Ankr Account Balances Batch', () => {
 
     const endTime = Date.now()
 
-    console.log(JSON.stringify(balances, null, 2))
+    Object.keys(balances).map(addr => {
+      const balance = balances[addr]
+      logger.info('Balance', {
+        daoAddress: addr,
+        tvl: balance.tvl,
+        tokenNames: balance.assets.map(asset => asset.tokenName).join(', '),
+      })
+    })
 
     logger.info('Processed', {
       count: balances.length,
@@ -43,7 +50,7 @@ describe.only('Stress Test: Ankr Account Balances Batch', () => {
     })
   })
 
-  it.only('testing if the ankr returns the gov token or not', async function () {
+  it('testing if the ankr returns the gov token or not', async function () {
     const network = NetworksEnum.polygonMainnet
     const address = '0x0762b99d6afDAce71f7745cAa603d88F177E994F'
 
