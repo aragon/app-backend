@@ -89,87 +89,90 @@ export const GovernanceVeHandler = {
     plugins: any[],
     tokenIds: string[],
   ) => {
-    await ProxyMember.createMember(memberAddress)
+    try {
+      await ProxyMember.createMember(memberAddress)
 
-    const token = await ProxyToken.saveAndGetToken(info.address, info.network)
-    if (!token) {
-      logger.error('handleTokenDelegation token not found', llo({ info }))
-      return
+      const token = await ProxyToken.saveAndGetToken(info.address, info.network)
+      if (!token) {
+        logger.error('handleTokenDelegation token not found', llo({ info }))
+        return
+      }
+
+      const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
+      const tokenAmount = tokenIds.length.toString()
+
+      let tokenBalanceDb = await ProxyMember.getBalances({
+        address: memberAddress,
+        tokenAddress: info.address,
+        network: info.network,
+      })
+
+      const votingPower = await GovernanceErc20Helper.getPastVotes(
+        memberAddress,
+        info.address,
+        info.blockNumber,
+        blockTimestamp || 0,
+        info.network,
+      )
+
+      const memberTransaction = await DbTx.executeTxFn(async ({ session }) => {
+        const tokenBalanceFuncName = transferSide === ITransferSide.incoming ? 'increaseBalance' : 'decreaseBalance'
+        tokenBalanceDb = await tokenBalanceDb?.[tokenBalanceFuncName](
+          {
+            amount: tokenAmount,
+            blockNumber: info.blockNumber,
+            tokenId: Number(tokenIds[0]),
+          },
+          { session },
+        )
+
+        const memberTransaction = await Models.MemberTransaction.create(
+          {
+            network: info.network,
+            transactionHash: info.transactionHash,
+            transactionIndex: info.transactionIndex,
+            logIndex: info.logIndex,
+            blockNumber: info.blockNumber,
+            blockTimestamp,
+            address: memberAddress,
+            type: ITransferType.delegate,
+            side: transferSide,
+            from: parsedEvent.args.sender,
+            to: parsedEvent.args.delegatee,
+            amount: tokenAmount,
+            tokenAddress: info.address,
+            memberBalance: tokenBalanceDb?.amount,
+            memberVotingPower: votingPower.toString(),
+          },
+          { session },
+        )
+
+        await session.commitTransaction()
+        await session.endSession()
+        return memberTransaction
+      })
+      await GovernanceVeHandler._handleDaoMemberShip(memberTransaction, plugins, info)
+
+      await Promise.all(
+        plugins.map(async (plugin: any) => {
+          await ProxyMember.updateDelegationMetrics({
+            memberAddress,
+            pluginAddress: plugin.address,
+            tokenAddress: info.address,
+            network: info.network,
+          })
+
+          await ProxyMember.updateActivity({
+            memberAddress,
+            pluginAddress: plugin.address,
+            blockNumber: info.blockNumber,
+            network: info.network,
+          })
+        }),
+      )
+    } catch (error) {
+      logger.error('Error handling token delegation', llo({ error, info, memberAddress, transferSide, tokenIds }))
     }
-
-    const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
-    const tokenAmount = tokenIds.length.toString()
-
-    let tokenBalanceDb = await ProxyMember.getBalances({
-      address: memberAddress,
-      tokenAddress: info.address,
-      network: info.network,
-    })
-
-    const votingPower = await GovernanceErc20Helper.getPastVotes(
-      memberAddress,
-      info.address,
-      info.blockNumber,
-      blockTimestamp || 0,
-      info.network,
-    )
-
-    const memberTransaction = await DbTx.executeTxFn(async ({ session }) => {
-      const tokenBalanceFuncName = transferSide === ITransferSide.incoming ? 'increaseBalance' : 'decreaseBalance'
-      tokenBalanceDb = await tokenBalanceDb?.[tokenBalanceFuncName](
-        {
-          amount: tokenAmount,
-          blockNumber: info.blockNumber,
-          tokenId: Number(tokenIds[0]),
-        },
-        { session },
-      )
-
-      const memberTransaction = await Models.MemberTransaction.create(
-        {
-          network: info.network,
-          transactionHash: info.transactionHash,
-          transactionIndex: info.transactionIndex,
-          logIndex: info.logIndex,
-          blockNumber: info.blockNumber,
-          blockTimestamp,
-          address: memberAddress,
-          type: ITransferType.delegate,
-          side: transferSide,
-          from: parsedEvent.args.sender,
-          to: parsedEvent.args.delegatee,
-          amount: tokenAmount,
-          tokenAddress: info.address,
-          memberBalance: tokenBalanceDb?.amount,
-          memberVotingPower: votingPower.toString(),
-        },
-        { session },
-      )
-
-      await session.commitTransaction()
-      await session.endSession()
-      return memberTransaction
-    })
-
-    await GovernanceVeHandler._handleDaoMemberShip(memberTransaction, plugins, info)
-
-    await Promise.all(
-      plugins.map(async (plugin: any) => {
-        await ProxyMember.updateDelegationMetrics({
-          memberAddress,
-          pluginAddress: plugin.address,
-          tokenAddress: info.address,
-          network: info.network,
-        })
-
-        await ProxyMember.updateActivity({
-          memberAddress,
-          pluginAddress: plugin.address,
-          blockNumber: info.blockNumber,
-          network: info.network,
-        })
-      }),
-    )
   },
 
   _handleDaoMemberShip: async (memberTx: any, plugins: any[], info: ILogInfo) => {

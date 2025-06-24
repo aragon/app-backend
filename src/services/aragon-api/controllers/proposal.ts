@@ -73,22 +73,6 @@ const ProposalController = {
     }
   },
 
-  async canCastVote({ userAddress, proposalId }) {
-    try {
-      return await RabbitMQHelper.sendMessage(
-        EnumQueueName.voteInfo,
-        {
-          id: `voteInfo-${proposalId}-${userAddress}`,
-          params: { proposalId, userAddress },
-        },
-        { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
-      )
-    } catch (error) {
-      logger.warn('Error while checking if user can cast vote', llo({ error, userAddress, proposalId }))
-      return false
-    }
-  },
-
   getProposalDecodedActions: async (id: string): Promise<any> => {
     const proposal = await Models.Proposal.findByEntityId(id)
     assertExposable(proposal, ErrorKeyEnum.notFound)

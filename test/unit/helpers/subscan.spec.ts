@@ -617,7 +617,7 @@ describe('Helpers:Subscan', () => {
   })
 
   describe('getTokenHoldersPage', () => {
-    const tokenAddress = '0x5c3126bfb9a68a7021d461230127470b3824886b'
+    const tokenAddress = '0x6c3126bfb9a68a7021d461230127470b3824886b'
     const network = NetworksEnum.peaqMainnet
 
     it('should fetch a single page of token holders', async () => {
@@ -627,8 +627,8 @@ describe('Helpers:Subscan', () => {
         data: {
           count: 2,
           list: [
-            { holder: '0xaddress1', balance: '1000000000000000000' },
-            { holder: '0xaddress2', balance: '2000000000000000000' },
+            { holder: '0x5c3126bfb9a68a7021d461230127470b3824886b', balance: '1000000000000000000' },
+            { holder: '0x5c3126bfb9a68a7021d461230127470b3824886e', balance: '2000000000000000000' },
           ],
         },
       }
@@ -640,7 +640,7 @@ describe('Helpers:Subscan', () => {
       expect(rpCallStub.callCount).to.equal(1)
       expect(result.holders.length).to.equal(2)
       expect(result.total).to.equal(2)
-      expect(result.holders[0].address).to.equal('0xaddress1')
+      expect(result.holders[0].address).to.equal('0x5c3126bfB9A68a7021d461230127470b3824886B')
     })
 
     it('should handle empty results', async () => {

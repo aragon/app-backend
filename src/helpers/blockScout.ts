@@ -224,43 +224,50 @@ const BlockScoutHelper = {
     page: number = 1,
     pageSize: number = 100,
   ) => {
-    const networkConfig = BlockScoutHelper._parseNetworkToConfig(network)
-    if (!networkConfig?.BLOCKSCOUT_API_URL) {
-      logger.warn('BlockScout API is not configured', llo({ network }))
-      return { holders: [], total: 0 }
-    }
-
-    const baseUrl = networkConfig.BLOCKSCOUT_API_URL.replace(/\/api\/?$/, '')
-    const params = {
-      module: 'token',
-      action: 'getTokenHolders',
-      contractaddress: tokenAddress,
-      page,
-      offset: pageSize,
-      apikey: networkConfig.BLOCKSCOUT_API_KEY,
-    }
-
     try {
-      const url = `${baseUrl}/api`
-      const response = await retryRequest(async () =>
-        BottleneckModule.getBlockScoutLimiter(network).schedule(async () => axios.get(url, { params })),
-      )
+      const networkConfig = BlockScoutHelper._parseNetworkToConfig(network)
+      if (!networkConfig?.BLOCKSCOUT_API_URL) {
+        logger.warn('BlockScout API is not configured', llo({ network }))
+        return { holders: [], total: 0 }
+      }
 
-      const data = response?.data
+      const baseUrl = networkConfig.BLOCKSCOUT_API_URL.replace(/\/api\/?$/, '')
+      const params = {
+        module: 'token',
+        action: 'getTokenHolders',
+        contractaddress: tokenAddress,
+        page,
+        offset: pageSize,
+        apikey: networkConfig.BLOCKSCOUT_API_KEY,
+      }
 
-      if (data?.message === 'OK' && Array.isArray(data?.result) && data.result.length > 0) {
-        return {
-          holders: data.result.map((item: any) => ({
-            address: ethers.getAddress(item.address),
-            value: item.value,
-          })),
-          total: data.result.length,
+      try {
+        const url = `${baseUrl}/api`
+        const response = await retryRequest(async () =>
+          BottleneckModule.getBlockScoutLimiter(network).schedule(async () => axios.get(url, { params })),
+        )
+
+        const data = response?.data
+
+        if (data?.message === 'OK' && Array.isArray(data?.result) && data.result.length > 0) {
+          return {
+            holders: data.result.map((item: any) => ({
+              address: ethers.getAddress(item.address),
+              value: item.value,
+            })),
+            total: data.result.length,
+          }
         }
+
+        return { holders: [], total: 0 }
+      } catch (error) {
+        logger.error('Error fetching token holders page', llo({ error, page, tokenAddress }))
+        throw error
       }
     } catch (error) {
-      logger.error('Error fetching token holders page', llo({ error, page, tokenAddress }))
+      logger.error('Error in getTokenHoldersPage', llo({ error, tokenAddress, page }))
+      return { holders: [], total: 0 }
     }
-    return { holders: [], total: 0 }
   },
 
   async getAllTokenHolders(
