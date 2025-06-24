@@ -14,7 +14,7 @@ import GovernanceErc20Helper from '@helpers/governanceErc20'
 import DbTx from '@modules/dbTx'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 
-describe('Handler:GovernanceVeHandler', () => {
+describe.only('Handler:GovernanceVeHandler', () => {
   let sandbox: SinonSandbox
   let plugin: Plugin
   let activePluginSetting: PluginSetting | any
@@ -275,7 +275,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
     it('should update existing lock with withdraw info and call logger on success', async () => {
       const stubRemoveFromDao = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
-      const stubIsMemberOfDao = sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(true)
+      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(true)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       const stubLogger = sandbox.stub(logger, 'verbose')
 
@@ -719,6 +719,9 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stubUpdateDelegationMetrics.calledTwice).to.be.true
       expect(stubUpdateActivity.calledTwice).to.be.true
       expect(stubLogger.calledOnce).to.be.true
+      expect(stubGetBlockTimestamp.calledTwice).to.be.true
+      expect(stubIsMemberOfDao.calledTwice).to.be.true
+      expect(stubAddToDao.calledTwice).to.be.true
     })
 
     it('should handle errors and log them', async () => {
@@ -789,7 +792,7 @@ describe('Handler:GovernanceVeHandler', () => {
       const stubUpdateDelegationMetrics = sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
       const stubUpdateActivity = sandbox.stub(ProxyMember, 'updateActivity').resolves()
       const stubIsMemberOfDao = sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(true)
-      const stubRemoveFromDao = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
+      sandbox.stub(ProxyMember, 'removeFromDao').resolves()
       const stubLogger = sandbox.stub(logger, 'verbose')
 
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
@@ -827,6 +830,8 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stubUpdateDelegationMetrics.calledTwice).to.be.true
       expect(stubUpdateActivity.calledTwice).to.be.true
       expect(stubLogger.calledOnce).to.be.true
+      expect(stubGetBlockTimestamp.calledTwice).to.be.true
+      expect(stubIsMemberOfDao.calledTwice).to.be.true
     })
 
     it('should handle errors and log them', async () => {
@@ -1101,8 +1106,7 @@ describe('Handler:GovernanceVeHandler', () => {
     })
 
     it('should handle multiple plugins in deposit', async () => {
-      // Create a second plugin
-      const plugin2 = await Models.Plugin.create({
+      await Models.Plugin.create({
         id: 'test-plugin-2',
         address: '0x122',
         daoAddress: '0xDAO2',
