@@ -847,7 +847,7 @@ describe('AragonDao: DaoTransactions', () => {
       expect(savedTx.pluginAddress).to.equal('0xplugin')
       expect(savedTx.fromAddress).to.equal('0xdao')
       expect(savedTx.toAddress).to.equal('0xrecipient2')
-      expect(savedTx.value).to.equal('2000000000000000000')
+      expect(savedTx.value).to.equal('2.0')
       expect(savedTx.category).to.equal(ITransactionCategory.Internal)
       expect(savedTx.proposalIndex).to.equal('1')
       expect(savedTx.tokenAddress).to.equal(utils.zeroAddress)
