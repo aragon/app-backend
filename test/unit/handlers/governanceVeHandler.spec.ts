@@ -14,7 +14,7 @@ import GovernanceErc20Helper from '@helpers/governanceErc20'
 import DbTx from '@modules/dbTx'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 
-describe.only('Handler:GovernanceVeHandler', () => {
+describe('Handler:GovernanceVeHandler', () => {
   let sandbox: SinonSandbox
   let plugin: Plugin
   let activePluginSetting: PluginSetting | any
