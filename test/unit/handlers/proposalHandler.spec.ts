@@ -30,7 +30,7 @@ import DbOperations from '@models/utils/dbOperations'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import Web3Utils from '@helpers/web3Utils'
 
-describe('Indexer: ProposalHandler', () => {
+describe.only('Indexer: ProposalHandler', () => {
   let sandbox: SinonSandbox
   let intervalTime: number
   let network: NetworksEnum = NetworksEnum.ethereumMainnet
@@ -331,9 +331,118 @@ describe('Indexer: ProposalHandler', () => {
       expect(stubPair.calledOnce).to.be.true
       expect(stubMemberMetrics.calledOnce).to.be.true
       expect(stubDaoMetrics.callCount).to.be.eq(3)
-      expect(stubDaoMetrics.args[0][0]).to.be.eq(EnumQueueName.proposalActions)
-      expect(stubDaoMetrics.args[1][0]).to.be.eq(EnumQueueName.daoMetrics)
+      expect(stubDaoMetrics.args[0][0]).to.be.eq(EnumQueueName.daoMetrics)
+      expect(stubDaoMetrics.args[1][0]).to.be.eq(EnumQueueName.proposalActions)
       expect(stubDaoMetrics.args[2][0]).to.be.eq(EnumQueueName.proposalTokenVotingMetrics)
+      expect(verboseLoggerStub.calledOnceWith('New Proposal' as any)).to.be.true
+    })
+
+    it('should handle tokenVoting with no actions', async () => {
+      const metadataUri = 'ipfs://metadata-uri'
+      const info: ILogInfo = {
+        transactionHash: '0x123',
+        address: '0xplugin-address',
+        blockNumber: 100,
+        network,
+        eventName: 'proposalCreated',
+        transactionIndex: 1,
+        logIndex: 1,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+      }
+
+      const fakeEvent = {
+        args: {
+          creator: '0xcreator',
+          proposalId: 1n,
+          startDate: 0n,
+          endDate: 1700000000n,
+          allowFailureMap: 1n,
+          metadata: metadataUri,
+          actions: [],
+        },
+      }
+
+      const plugin = {
+        address: '0xplugin-address',
+        daoAddress: '0xdao-address',
+        subdomain: 'dao.subdomain',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+      }
+
+      const proposalMetadata = {
+        title: 'Proposal Title',
+        description: 'Proposal Description',
+        summary: 'Proposal Summary',
+        resources: [],
+        media: {},
+      }
+
+      const settings = {
+        tokenAddress: '0xtoken-address',
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin)
+      sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(settings)
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      sandbox.stub(IPFSModule, 'fetchMetadata').resolves(proposalMetadata)
+      sandbox.stub(GovernanceErc20Helper, 'getPastTotalSupply').resolves(1000n as any)
+      sandbox.stub(ProposalHandler, 'handleStartEndDate').resolves({
+        startDate: 0,
+        endDate: 0,
+      })
+      const incrementalIdStub = sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
+      const stubPair = sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
+      const stubMemberMetrics = sandbox.stub(ProxyMember, 'updateMetricsByAction').resolves()
+      const stubDaoMetrics = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const updateActivityStub = sandbox.stub(ProxyMember, 'updateActivity')
+      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
+
+      await ProposalHandler.proposalCreated(fakeEvent as any, info)
+
+      const savedProposal = await Models.Proposal.findOne({
+        transactionHash: '0x123',
+        pluginAddress: '0xplugin-address',
+        proposalIndex: '1',
+      })
+
+      expect(savedProposal).to.exist
+      expect(savedProposal.decoding).to.be.eq(false)
+      expect(savedProposal.daoAddress).to.eq('0xdao-address')
+      expect(savedProposal.pluginAddress).to.eq('0xplugin-address')
+      expect(savedProposal.rawActions.length).to.eq(0)
+      expect(savedProposal.snapshot.totalSupply).to.eq('1000')
+      expect(incrementalIdStub.calledOnce).to.be.true
+      expect(incrementalIdStub.args[0][0]).to.deep.eq({
+        pluginAddress: '0xplugin-address',
+        network,
+        proposalIndex: '1',
+        blockNumber: 100,
+      })
+
+      expect(
+        updateActivityStub.calledWith({
+          memberAddress: '0xcreator',
+          pluginAddress: '0xplugin-address',
+          network,
+          blockNumber: 100,
+        }),
+      ).to.be.true
+
+      expect(
+        stubMemberMetrics.calledWith(IMetricAction.increaseProposalCount, {
+          memberAddress: '0xcreator',
+          pluginAddress: '0xplugin-address',
+          network,
+        }),
+      ).to.be.true
+
+      expect(stubPair.calledOnce).to.be.true
+      expect(stubMemberMetrics.calledOnce).to.be.true
+      expect(stubDaoMetrics.callCount).to.be.eq(2)
+      expect(stubDaoMetrics.args[0][0]).to.be.eq(EnumQueueName.daoMetrics)
+      expect(stubDaoMetrics.args[1][0]).to.be.eq(EnumQueueName.proposalTokenVotingMetrics)
       expect(verboseLoggerStub.calledOnceWith('New Proposal' as any)).to.be.true
     })
 
@@ -436,8 +545,8 @@ describe('Indexer: ProposalHandler', () => {
 
       expect(stubPair.calledOnce).to.be.true
       expect(stubDaoMetrics.calledTwice).to.be.true
-      expect(stubDaoMetrics.args[0][0]).to.be.eq(EnumQueueName.proposalActions)
-      expect(stubDaoMetrics.args[1][0]).to.be.eq(EnumQueueName.daoMetrics)
+      expect(stubDaoMetrics.args[0][0]).to.be.eq(EnumQueueName.daoMetrics)
+      expect(stubDaoMetrics.args[1][0]).to.be.eq(EnumQueueName.proposalActions)
       expect(verboseLoggerStub.calledOnceWith('New Proposal' as any)).to.be.true
     })
 
