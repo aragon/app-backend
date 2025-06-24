@@ -22,6 +22,7 @@ export const internalTransferMigration: IMigration = {
         },
 
         where: {
+          'executed.status': true,
           network: {
             $in: [
               NetworksEnum.baseMainnet,
@@ -31,7 +32,7 @@ export const internalTransferMigration: IMigration = {
               NetworksEnum.optimismMainnet,
             ],
           },
-          actions: { $gt: 0 },
+          rawActions: { $exists: true, $not: { $size: 0 } },
         },
         batchSize: 1000,
         concurrency: 10,
