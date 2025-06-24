@@ -845,7 +845,7 @@ describe('AragonDao: DaoTransactions', () => {
       expect(savedTx.type).to.equal(ITransactionType.withdraw)
       expect(savedTx.daoAddress).to.equal('0xdao')
       expect(savedTx.pluginAddress).to.equal('0xplugin')
-      expect(savedTx.fromAddress).to.equal('0xaction2')
+      expect(savedTx.fromAddress).to.equal('0xdao')
       expect(savedTx.toAddress).to.equal('0xrecipient2')
       expect(savedTx.value).to.equal('2000000000000000000')
       expect(savedTx.category).to.equal(ITransactionCategory.Internal)
