@@ -1,274 +1,16 @@
 import logger from '@logger'
-import axios from 'axios'
-import ProviderModule from '@src/modules/provider'
-import { ethers } from 'ethers'
-import { type NetworksEnum, type HexAddress, type BatchRequestItem, type BatchResponse } from '@src/types'
+import { type NetworksEnum, type HexAddress, type AnkrBalanceResult, type AnkrAccountBalance } from '@src/types'
+import RpcBatchManager from '@modules/rpcBatchManager'
 import Web3Helper from '@helpers/web3'
-import config from '@config'
+import ProviderModule from '@modules/provider'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3BatchHelper' })
 
 const Web3BatchHelper = {
-  /**
-   * Execute a batch of RPC requests with adaptive batching
-   * This method automatically reduces batch size when responses are too large
-   * @param requests
-   * @param network
-   */
-  async executeBatch<T>(requests: BatchRequestItem[], network: NetworksEnum): Promise<BatchResponse<T>[]> {
-    if (requests.length === 0) return []
-
-    return this._executeAdaptiveBatch(requests, network, config.BATCH_REQUEST.DEFAULT_SIZE)
+  _getManagerInstance: (url?: string) => {
+    return new RpcBatchManager(url)
   },
 
-  /**
-   * Execute batch with adaptive threshold reduction on errors
-   * @param requests All requests to process
-   * @param network Network to use
-   * @param initialThreshold Starting batch size
-   */
-  async _executeAdaptiveBatch<T>(
-    requests: BatchRequestItem[],
-    network: NetworksEnum,
-    initialThreshold: number,
-  ): Promise<BatchResponse<T>[]> {
-    let threshold = initialThreshold
-    const allResults: BatchResponse<T>[] = []
-    let remainingRequests = [...requests]
-    let retryCount = 0
-    const maxRetries = 5
-
-    while (remainingRequests.length > 0 && retryCount < maxRetries) {
-      const batches = this._createBatches(remainingRequests, threshold)
-      const { failedRequests, batchErrors } = await this._processBatchesSequentially(batches, network, allResults)
-
-      if (failedRequests.length === 0) {
-        break
-      }
-
-      const shouldReduceBatch = this._shouldReduceBatchSize(batchErrors, threshold)
-
-      if (shouldReduceBatch && threshold > 1) {
-        threshold = this._reduceThreshold(threshold)
-        remainingRequests = failedRequests
-        retryCount++
-      } else {
-        await this._processIndividualRequests(failedRequests, network, allResults)
-        remainingRequests = []
-      }
-    }
-
-    return allResults
-  },
-
-  /**
-   * Process failed requests individually as a final fallback
-   */
-  async _processIndividualRequests<T>(
-    requests: BatchRequestItem[],
-    network: NetworksEnum,
-    allResults: BatchResponse<T>[],
-  ): Promise<void> {
-    for (const request of requests) {
-      try {
-        const result = await this._executeSingleBatch<T>([request], network)
-        allResults.push(...result)
-      } catch (error) {
-        allResults.push({
-          identifier: request.identifier,
-          success: false,
-          data: null,
-          error,
-        } satisfies BatchResponse<T>)
-      }
-    }
-  },
-
-  /**
-   * Split requests into batches based on current threshold
-   */
-  _createBatches(requests: BatchRequestItem[], threshold: number): BatchRequestItem[][] {
-    const batches: BatchRequestItem[][] = []
-    for (let i = 0; i < requests.length; i += threshold) {
-      batches.push(requests.slice(i, i + threshold))
-    }
-    return batches
-  },
-
-  /**
-   * Process batches one by one and track results and errors
-   */
-  async _processBatchesSequentially<T>(
-    batches: BatchRequestItem[][],
-    network: NetworksEnum,
-    allResults: BatchResponse<T>[],
-  ): Promise<{ failedRequests: BatchRequestItem[]; batchErrors: Error[] }> {
-    const failedRequests: BatchRequestItem[] = []
-    const batchErrors: Error[] = []
-
-    for (const batch of batches) {
-      try {
-        const batchResults = await this._executeSingleBatch<T>(batch, network)
-        allResults.push(...batchResults)
-      } catch (error) {
-        failedRequests.push(...batch)
-        batchErrors.push(error as Error)
-        logger.info(
-          'Entire batch failed',
-          llo({
-            batchSize: batch.length,
-            error: (error as Error).message,
-            stack: (error as Error).stack,
-          }),
-        )
-      }
-    }
-
-    return { failedRequests, batchErrors }
-  },
-
-  /**
-   * Determine if we should reduce batch size based on error types
-   */
-  _shouldReduceBatchSize(errors: Error[], currentThreshold: number): boolean {
-    if (errors.length === 0 || currentThreshold <= 1) {
-      return false
-    }
-
-    return errors.some(error => {
-      const message = error.message
-      return [
-        'The query timed out',
-        'timeout',
-        'Response size is larger than 150MB limit',
-        'Log response size exceeded',
-        'Consider reducing your block range',
-        'Query returned more than 1000000 results',
-        'Cannot create a string longer',
-      ].includes(message)
-    })
-  },
-
-  /**
-   * Reduce the batch threshold by half
-   */
-  _reduceThreshold(currentThreshold: number): number {
-    return Math.max(Math.floor(currentThreshold / 2), 1)
-  },
-
-  /**
-   * Process a single request (used by asyncBatchProcess)
-   * @param request
-   * @param network
-   */
-  async _processSingleRequest(request: BatchRequestItem, network: NetworksEnum): Promise<BatchResponse<any>> {
-    try {
-      const result = await this._executeSingleBatch([request], network)
-      return result[0]
-    } catch (error) {
-      return {
-        identifier: request.identifier,
-        success: false,
-        data: null,
-        error,
-      }
-    }
-  },
-
-  /**
-   * Execute a single batch (up to specified size)
-   * This method is used internally and should not be called directly
-   */
-  async _executeSingleBatch<T>(requests: BatchRequestItem[], network: NetworksEnum): Promise<BatchResponse<T>[]> {
-    try {
-      const providerUrl = await ProviderModule.getProviderUrl(network)
-
-      const batchRequests = requests.map(req => ({
-        jsonrpc: '2.0',
-        id: Math.random().toString(36).substring(2, 15),
-        method: req.method,
-        params: req.params,
-      }))
-
-      const response = await axios.post(providerUrl!, batchRequests, {
-        headers: { 'Content-Type': 'application/json' },
-      })
-
-      return requests.map((req, index) => {
-        const rpcResult = response.data[index]
-
-        if (rpcResult?.error) {
-          return {
-            identifier: req.identifier,
-            success: false,
-            data: null,
-            error: rpcResult.error,
-          }
-        }
-
-        return {
-          identifier: req.identifier,
-          success: true,
-          data: rpcResult?.result as T,
-        }
-      })
-    } catch (error) {
-      throw error
-    }
-  },
-
-  /**
-   * Helper method for encoding function calls
-   * @param functionSignature - The function signature (e.g., "transfer(address,uint256)")
-   * @param paramTypes - Array of parameter types (e.g., ["address", "uint256"])
-   * @param paramValues - Array of parameter values (e.g., ["0x123...", 1000])
-   */
-  encodeFunction(functionSignature: string, paramTypes: string[], paramValues: any[]): string {
-    const functionSelector = '0x' + ethers.keccak256(ethers.toUtf8Bytes(functionSignature)).slice(2, 10)
-    const encodedParams = ethers.AbiCoder.defaultAbiCoder().encode(paramTypes, paramValues)
-
-    return functionSelector + encodedParams.slice(2)
-  },
-
-  /**
-   * Helper method for decoding results
-   */
-  decodeResult<T>(types: string[], data: string): T {
-    return ethers.AbiCoder.defaultAbiCoder().decode(types, data) as unknown as T
-  },
-
-  /**
-   * Convenience method for batch eth_call requests
-   */
-  async ethCall<T>(
-    calls: Array<{
-      to: HexAddress
-      data: string
-      identifier: any
-    }>,
-    network: NetworksEnum,
-    blockTag: string = 'latest',
-  ): Promise<BatchResponse<T>[]> {
-    const requests = calls.map(call => ({
-      method: 'eth_call',
-      params: [
-        {
-          to: call.to,
-          data: call.data,
-        },
-        blockTag,
-      ],
-      identifier: call.identifier,
-    }))
-
-    return this.executeBatch<T>(requests, network)
-  },
-
-  /**
-   * Get Voting power and balance of users
-   * @param batchParams
-   * @param network
-   */
   async getLockVotingPowerAtInBatch(
     batchParams: Array<{
       escrowAddress: HexAddress
@@ -277,11 +19,11 @@ const Web3BatchHelper = {
     }>,
     network: NetworksEnum,
   ): Promise<Array<{ tokenId: string; votingPower: bigint }>> {
-    if (batchParams.length === 0) return []
+    const manager = Web3BatchHelper._getManagerInstance()
 
     try {
       const calls = batchParams.map(param => {
-        const data = this.encodeFunction(
+        const data = manager.encodeFunction(
           'votingPowerAt(uint256,uint256)',
           ['uint256', 'uint256'],
           [BigInt(param.tokenId), BigInt(param.ts)],
@@ -294,7 +36,7 @@ const Web3BatchHelper = {
         }
       })
 
-      const results = await this.ethCall<string>(calls, network)
+      const results = await manager.ethCall<string>(calls, network)
 
       return results.map(result => {
         const tokenId = result.identifier as string
@@ -304,7 +46,7 @@ const Web3BatchHelper = {
         }
 
         try {
-          const decoded = this.decodeResult<[bigint]>(['uint256'], result.data)
+          const decoded = manager.decodeResult<[bigint]>(['uint256'], result.data)
           return { tokenId, votingPower: decoded[0] }
         } catch (error) {
           return { tokenId, votingPower: 0n }
@@ -319,23 +61,6 @@ const Web3BatchHelper = {
   },
 
   /**
-   * Generic method for any batch RPC call
-   */
-  async callRpcMethod<T>(
-    method: string,
-    batchParams: Array<{ params: any[]; identifier: any }>,
-    network: NetworksEnum,
-  ): Promise<BatchResponse<T>[]> {
-    const requests = batchParams.map(item => ({
-      method,
-      params: item.params,
-      identifier: item.identifier,
-    }))
-
-    return this.executeBatch<T>(requests, network)
-  },
-
-  /**
    * Get block timestamps in batch using JSON-RPC batch requests
    */
   async getBlocksTimestamps(from: number, to: number, network: NetworksEnum): Promise<Record<string, number>> {
@@ -343,13 +68,15 @@ const Web3BatchHelper = {
       return {}
     }
 
+    const manager = Web3BatchHelper._getManagerInstance()
+
     try {
       const blockNumbers: number[] = []
       for (let blockNum = from; blockNum <= to; blockNum++) {
         blockNumbers.push(blockNum)
       }
 
-      const results = await this.callRpcMethod<any>(
+      const results = await manager.callRpcMethod<any>(
         'eth_getBlockByNumber',
         blockNumbers.map(blockNumber => ({
           params: [`0x${blockNumber.toString(16)}`, false],
@@ -399,8 +126,7 @@ const Web3BatchHelper = {
     }>,
     network: NetworksEnum,
   ): Promise<Record<string, { balance: string; votingPower: string; blockNumber: number; blockTimestamp: number }>> {
-    if (params.length === 0) return {}
-
+    const manager = Web3BatchHelper._getManagerInstance()
     try {
       const votingPowerCalls: Array<{
         to: HexAddress
@@ -424,7 +150,7 @@ const Web3BatchHelper = {
 
           votingPowerCalls.push({
             to: param.tokenAddress,
-            data: this.encodeFunction(
+            data: manager.encodeFunction(
               'getPastVotes(address,uint256)',
               ['address', 'uint256'],
               [param.memberAddress, blockNumber],
@@ -434,7 +160,7 @@ const Web3BatchHelper = {
 
           votingPowerCalls.push({
             to: param.tokenAddress,
-            data: this.encodeFunction(
+            data: manager.encodeFunction(
               'getPastVotes(address,uint256)',
               ['address', 'uint256'],
               [param.memberAddress, param.blockTimestamp.toString()],
@@ -444,15 +170,15 @@ const Web3BatchHelper = {
 
           balanceCalls.push({
             to: param.tokenAddress,
-            data: this.encodeFunction('balanceOf(address)', ['address'], [param.memberAddress]),
+            data: manager.encodeFunction('balanceOf(address)', ['address'], [param.memberAddress]),
             identifier: balanceCallId,
           })
         }),
       )
 
       const [votingPowerResults, balanceResults] = await Promise.all([
-        this.ethCall<string>(votingPowerCalls, network),
-        this.ethCall<string>(balanceCalls, network, `0x${params[0].blockNumber.toString(16)}`),
+        manager.ethCall<string>(votingPowerCalls, network),
+        manager.ethCall<string>(balanceCalls, network, `0x${params[0].blockNumber.toString(16)}`),
       ])
 
       // Process results
@@ -479,15 +205,15 @@ const Web3BatchHelper = {
         let balance = '0'
 
         if (vpTimestampResult?.success && vpTimestampResult.data) {
-          const decoded = this.decodeResult<[bigint]>(['uint256'], vpTimestampResult.data)
+          const decoded = manager.decodeResult<[bigint]>(['uint256'], vpTimestampResult.data)
           votingPower = decoded[0].toString()
         } else if (vpBlockNumResult?.success && vpBlockNumResult.data) {
-          const decoded = this.decodeResult<[bigint]>(['uint256'], vpBlockNumResult.data)
+          const decoded = manager.decodeResult<[bigint]>(['uint256'], vpBlockNumResult.data)
           votingPower = decoded[0].toString()
         }
 
         if (balResult?.success && balResult.data) {
-          const decoded = this.decodeResult<[bigint]>(['uint256'], balResult.data)
+          const decoded = manager.decodeResult<[bigint]>(['uint256'], balResult.data)
           balance = decoded[0].toString()
         }
 
@@ -534,15 +260,16 @@ const Web3BatchHelper = {
    * @param blockTimestamp
    * @param network
    */
-  getMemberVotingPower: async (
+  async getMemberVotingPower(
     memberAddress: HexAddress,
     tokenAddress: HexAddress,
     blockNumber: number,
     blockTimestamp: number,
     network: NetworksEnum,
-  ): Promise<{ votingPower: string; error?: boolean }> => {
+  ): Promise<{ votingPower: string; error?: boolean }> {
+    const manager = Web3BatchHelper._getManagerInstance()
     try {
-      blockNumber = await Web3BatchHelper.parseBlockNumber(network, blockNumber)
+      blockNumber = await this.parseBlockNumber(network, blockNumber)
 
       const votingPowerCalls: Array<{
         to: HexAddress
@@ -552,7 +279,7 @@ const Web3BatchHelper = {
 
       votingPowerCalls.push({
         to: tokenAddress,
-        data: Web3BatchHelper.encodeFunction(
+        data: manager.encodeFunction(
           'getPastVotes(address,uint256)',
           ['address', 'uint256'],
           [memberAddress, blockNumber],
@@ -562,7 +289,7 @@ const Web3BatchHelper = {
 
       votingPowerCalls.push({
         to: tokenAddress,
-        data: Web3BatchHelper.encodeFunction(
+        data: manager.encodeFunction(
           'getPastVotes(address,uint256)',
           ['address', 'uint256'],
           [memberAddress, blockTimestamp],
@@ -570,7 +297,7 @@ const Web3BatchHelper = {
         identifier: `${memberAddress}_votingPower_ts`,
       })
 
-      const votingPowerResults = await Web3BatchHelper.ethCall<string>(votingPowerCalls, network)
+      const votingPowerResults = await manager.ethCall<string>(votingPowerCalls, network)
       const vpBlockNumResult = votingPowerResults.find(r => r.identifier === `${memberAddress}_votingPower`)
       const vpTimestampResult = votingPowerResults.find(r => r.identifier === `${memberAddress}_votingPower_ts`)
 
@@ -581,7 +308,7 @@ const Web3BatchHelper = {
 
       if (vpBlockNumResult?.success && vpBlockNumResult.data) {
         try {
-          const decoded = Web3BatchHelper.decodeResult<[bigint]>(['uint256'], vpBlockNumResult.data)
+          const decoded = manager.decodeResult<[bigint]>(['uint256'], vpBlockNumResult.data)
           votingPowerFromBlockNumber = decoded[0].toString()
           hasBlockNumberResult = true
         } catch (error) {
@@ -591,7 +318,7 @@ const Web3BatchHelper = {
 
       if (vpTimestampResult?.success && vpTimestampResult.data) {
         try {
-          const decoded = Web3BatchHelper.decodeResult<[bigint]>(['uint256'], vpTimestampResult.data)
+          const decoded = manager.decodeResult<[bigint]>(['uint256'], vpTimestampResult.data)
           votingPowerFromTimestamp = decoded[0].toString()
           hasTimestampResult = true
         } catch (error) {
@@ -614,6 +341,69 @@ const Web3BatchHelper = {
       }
     } catch (e) {
       return { votingPower: '0', error: true }
+    }
+  },
+
+  /**
+   * Get account balances from Ankr in batch
+   * @param walletAddresses Array of wallet addresses to query
+   * @param network The network to use for the calls
+   * @returns Object with walletAddress as key and balance/TVL/assets info as value
+   */
+  async getAnkrAccountBalancesInBatch(
+    walletAddresses: HexAddress[],
+    network: NetworksEnum,
+  ): Promise<Record<string, AnkrBalanceResult>> {
+    try {
+      const ankrParams = await ProviderModule.getAnkrMultichainParams(network)
+      const manager = Web3BatchHelper._getManagerInstance(ankrParams.multichainApiUrl)
+
+      const batchParams = walletAddresses.map(address => ({
+        params: [
+          {
+            blockchain: ankrParams.tagName,
+            walletAddress: address,
+            onlyWhitelisted: false,
+            nativeFirst: true,
+          },
+        ],
+        identifier: address,
+      }))
+
+      const results = await manager.callRpcMethod<AnkrAccountBalance>('ankr_getAccountBalance', batchParams, network)
+
+      const balances: Record<string, AnkrBalanceResult> = {}
+
+      for (const result of results) {
+        const address = result.identifier as HexAddress
+
+        if (!result.success || !result.data) {
+          balances[address] = { tvl: '0', assets: [], error: true }
+          continue
+        }
+
+        try {
+          balances[address] = {
+            tvl: result.data.totalBalanceUsd || '0',
+            assets: result.data.assets || [],
+            error: false,
+          }
+        } catch (error) {
+          logger.error('Error processing Ankr balance result', llo({ address, error }))
+          balances[address] = { tvl: '0', assets: [], error: true }
+        }
+      }
+
+      return balances
+    } catch (error) {
+      logger.error('Error in getAnkrAccountBalancesInBatch', llo({ network, error }))
+
+      const balances: Record<string, AnkrBalanceResult> = {}
+      walletAddresses.forEach(address => {
+        balances[address] = { tvl: '0', assets: [], error: true }
+      })
+
+      return balances
     }
   },
 }

@@ -6,6 +6,7 @@ import { IProviderType, NetworksEnum } from '@types'
 import config from '@config'
 import { Network } from 'alchemy-sdk'
 import proxyquire from 'proxyquire'
+import utils from '@helpers/utils'
 
 describe('Module: provider', () => {
   let sandbox: SinonSandbox
@@ -242,6 +243,75 @@ describe('Module: provider', () => {
       }
       await ProviderModule.closeAllNetworks()
       expect(ProviderModule.providerProxies[NetworksEnum.ethereumMainnet]).to.be.undefined
+    })
+  })
+
+  describe('getProviderUrl', () => {
+    it('should return provider URL from core provider config', async () => {
+      const network = NetworksEnum.ethereumMainnet
+      const expectedUrl = 'https://eth-mainnet.alchemyapi.io/v2/test-key'
+      const mockProvider = {
+        config: {
+          getProvider: sandbox.stub().resolves({
+            connection: { url: expectedUrl },
+          }),
+        },
+      }
+
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider)
+
+      const result = await ProviderModule.getProviderUrl(network)
+
+      expect(result).to.equal(expectedUrl)
+      expect(mockProvider.config.getProvider.calledOnce).to.be.true
+    })
+
+    it('should return ARAGON_RPC from config when provider has no config.getProvider', async () => {
+      const network = NetworksEnum.ethereumMainnet
+      const expectedUrl = 'http://localhost:8545'
+      const mockProvider = {}
+
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider)
+      sandbox.stub(config, 'NODES').value({
+        ETHEREUM_MAINNET: {
+          ARAGON_RPC: expectedUrl,
+        },
+      })
+      sandbox.stub(utils, 'networkToAragon').returns('ETHEREUM_MAINNET')
+
+      const result = await ProviderModule.getProviderUrl(network)
+
+      expect(result).to.equal(expectedUrl)
+    })
+
+    it('should return undefined when no provider is available', async () => {
+      const network = NetworksEnum.ethereumMainnet
+
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(undefined)
+      sandbox.stub(utils, 'networkToAragon').returns('ETHEREUM_MAINNET')
+
+      const result = await ProviderModule.getProviderUrl(network)
+
+      expect(result).to.equal(config.NODES.ETHEREUM_MAINNET.ARAGON_RPC)
+    })
+
+    it('should handle errors from provider config gracefully', async () => {
+      const network = NetworksEnum.ethereumMainnet
+
+      const mockProvider = {
+        config: {
+          getProvider: sandbox.stub().rejects(new Error('Provider error')),
+        },
+      }
+
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider)
+
+      sandbox.stub(utils, 'networkToAragon').returns('ETHEREUM_MAINNET')
+
+      const result = await ProviderModule.getProviderUrl(network)
+
+      expect(result).to.equal(config.NODES.ETHEREUM_MAINNET.ARAGON_RPC)
+      expect(mockProvider.config.getProvider.calledOnce).to.be.true
     })
   })
 })
