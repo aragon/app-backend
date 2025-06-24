@@ -7,6 +7,7 @@ import {
   IProviderType,
   type IRawNodeConfig,
   NetworksEnum,
+  AnkrNetworksEnum,
 } from '@types'
 import { JsonRpcProvider } from 'ethers'
 import { Alchemy, type AlchemySettings, Network } from 'alchemy-sdk'
@@ -58,6 +59,19 @@ const ProviderModule = {
     [NetworksEnum.peaqMainnet]: 3338,
     [NetworksEnum.chilizMainnet]: 88888,
     [NetworksEnum.cornMainnet]: 21000000,
+  },
+
+  ankrNetworkMap: {
+    [NetworksEnum.ethereumMainnet]: AnkrNetworksEnum.ethereumMainnet,
+    [NetworksEnum.ethereumSepolia]: AnkrNetworksEnum.ethereumSepolia,
+    [NetworksEnum.polygonMainnet]: AnkrNetworksEnum.polygonMainnet,
+    [NetworksEnum.baseMainnet]: AnkrNetworksEnum.baseMainnet,
+    [NetworksEnum.arbitrumMainnet]: AnkrNetworksEnum.arbitrumMainnet,
+    [NetworksEnum.zksyncSepolia]: AnkrNetworksEnum.zksyncSepolia,
+    [NetworksEnum.zksyncMainnet]: AnkrNetworksEnum.zksyncMainnet,
+    [NetworksEnum.optimismMainnet]: AnkrNetworksEnum.optimismMainnet,
+    [NetworksEnum.cornMainnet]: AnkrNetworksEnum.cornMainnet,
+    [NetworksEnum.chilizMainnet]: AnkrNetworksEnum.chilizMainnet,
   },
 
   // Converts a config key to a NetworksEnum.
@@ -157,14 +171,34 @@ const ProviderModule = {
       delete ProviderModule.providerProxies[network as NetworksEnum]
     }
   },
-  async getProviderUrl(network: NetworksEnum): Promise<string | undefined> {
+  async getProviderUrl(network: NetworksEnum): Promise<string> {
     const provider = await ProviderModule.getAnyRpcProvider(network)
-    if (provider.config?.getProvider) {
-      const coreProvider = await provider.config.getProvider()
-      return coreProvider.connection.url
+    if (provider?.config?.getProvider) {
+      try {
+        const coreProvider = await provider.config.getProvider()
+        return coreProvider.connection.url
+      } catch (error) {
+        return config.NODES[utils.networkToAragon(network)].ARAGON_RPC
+      }
     }
 
     return config.NODES[utils.networkToAragon(network)].ARAGON_RPC
+  },
+
+  async getAnkrMultichainParams(network: NetworksEnum): Promise<any> {
+    const ankrNetworkTagName = ProviderModule.ankrNetworkMap[network]
+    if (!ankrNetworkTagName) {
+      throw new Error(`No Ankr network mapping found for ${network}`)
+    }
+
+    const rpcUrl = config.ANKR_CONFIG.API_URL
+
+    return {
+      tagName: ankrNetworkTagName,
+      chainId: ProviderModule.getChainId(network),
+      multichainApiUrl: `${rpcUrl}/multichain/${config.ANKR_CONFIG.API_KEY}`,
+      chainUrl: `${rpcUrl}/${ankrNetworkTagName}/${config.ANKR_CONFIG.API_KEY}`,
+    }
   },
 }
 

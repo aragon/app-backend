@@ -33,6 +33,19 @@ export enum NetworksEnum {
   cornMainnet = 'corn-mainnet',
 }
 
+export enum AnkrNetworksEnum {
+  ethereumMainnet = 'eth',
+  ethereumSepolia = 'eth-sepolia',
+  polygonMainnet = 'polygon',
+  baseMainnet = 'base',
+  arbitrumMainnet = 'arbitrum',
+  zksyncSepolia = 'zksync_era-sepolia',
+  zksyncMainnet = 'zksync_era',
+  optimismMainnet = 'optimism',
+  chilizMainnet = 'chiliz',
+  cornMainnet = 'corn_maizenet',
+}
+
 export enum StatusNetworkEnum {
   healthy = 'healthy',
   maintenance = 'maintenance',
