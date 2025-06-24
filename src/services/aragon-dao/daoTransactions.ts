@@ -19,6 +19,7 @@ import utils from '@helpers/utils'
 import ProxyProvider from '@modules/proxyProvider'
 import type Proposal from '@models/schema/proposal'
 import TokenUtils from '@helpers/tokenUtils'
+import { ethers } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:DaoTransactions' })
 
@@ -109,7 +110,7 @@ export const DaoTransactions = {
           pluginAddress: proposal.pluginAddress,
           fromAddress: proposal.daoAddress,
           toAddress: action.to,
-          value: action.value?.toString() || '0',
+          value: ethers.formatEther(action.value),
           category: ITransactionCategory.Internal,
           proposalIndex: proposal.proposalIndex,
         }
@@ -142,8 +143,7 @@ export const DaoTransactions = {
             },
           }
 
-          const valueInTokenUnits = parseFloat(rawTx.value || '0') / Math.pow(10, token.decimals)
-          rawTx.amountUsd = (valueInTokenUnits * parseFloat(tokenPrice)).toFixed(2)
+          rawTx.amountUsd = (parseFloat(rawTx.value!) * parseFloat(tokenPrice)).toFixed(2)
 
           return await DbTx.executeTxFn(async ({ session }) => {
             const logDb = await Models.Transaction.create(rawTx, { session } as any)
