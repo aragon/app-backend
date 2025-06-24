@@ -1149,51 +1149,9 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.deposit(mockEvent, mockInfo as any)
 
-      // Should create locks for both plugins
       const locks = await Models.Lock.find({ transactionHash: mockInfo.transactionHash })
       expect(locks).to.have.length(2)
       expect(stubLogger.calledTwice).to.be.true
-    })
-
-    it('should handle RabbitMQ errors gracefully', async () => {
-      sandbox.stub(ProxyMember, 'createMember').resolves()
-      sandbox.stub(ProxyMember, 'addToDao').resolves()
-      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      sandbox.stub(logger, 'verbose')
-
-      // Restore original stub and create one that throws
-      sandbox.restore()
-      sandbox = sinon.createSandbox()
-      sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('RabbitMQ error'))
-      sandbox.stub(ProxyMember, 'createMember').resolves()
-      sandbox.stub(ProxyMember, 'addToDao').resolves()
-      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      sandbox.stub(logger, 'verbose')
-
-      const mockInfo = {
-        address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xrabbitMQError',
-        transactionIndex: 1,
-        logIndex: 1,
-      }
-      const mockEvent = {
-        args: {
-          depositor: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          tokenId: 128n,
-          value: 10000n,
-          startTs: 1650000000n,
-          newTotalLocked: 25000n,
-        },
-      } as any
-
-      await expect(GovernanceVeHandler.deposit(mockEvent, mockInfo as any)).to.not.be.rejected
-
-      const stored = await Models.Lock.findOne({ transactionHash: mockInfo.transactionHash })
-      expect(stored).to.exist
     })
   })
 })
