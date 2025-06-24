@@ -34,6 +34,7 @@ export interface ILockIdParams {
   tokenAddress: HexAddress
   memberAddress: HexAddress
   tokenId: string
+  pluginAddress: HexAddress
 }
 
 export interface IAssetIdParams {

@@ -133,6 +133,86 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stubLogger.calledOnce).to.be.true
       expect(stubAddToDao.calledOnce).to.be.true
     })
+
+    it('should handle existing lock and log already exists', async () => {
+      sandbox.stub(ProxyMember, 'createMember').resolves()
+      sandbox.stub(ProxyMember, 'addToDao').resolves()
+      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
+      const stubLogger = sandbox.stub(logger, 'verbose')
+
+      // First create a lock in the database
+      await Models.Lock.create({
+        network: NetworksEnum.ethereumMainnet,
+        transactionHash: '0xhash',
+        transactionIndex: 1,
+        logIndex: 1,
+        blockNumber: 100,
+        blockTimestamp: 1650000000,
+        pluginAddress: plugin.address,
+        daoAddress: plugin.daoAddress,
+        memberAddress: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+        escrowAddress: plugin?.votingEscrow?.escrowAddress,
+        nftAddress: plugin?.votingEscrow?.nftLockAddress,
+        tokenAddress: plugin.tokenAddress,
+        tokenId: '123',
+        amount: '10000',
+        epochStartAt: 1650000000,
+        totalLocked: '25000',
+      })
+
+      const mockInfo = {
+        address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+        transactionHash: '0xhash',
+        transactionIndex: 1,
+        logIndex: 1,
+      }
+      const mockEvent = {
+        args: {
+          depositor: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          tokenId: 123n,
+          value: 10000n,
+          startTs: 1650000000n,
+          newTotalLocked: 25000n,
+        },
+      } as any
+
+      await GovernanceVeHandler.deposit(mockEvent, mockInfo as any)
+
+      expect(stubLogger.calledWith('Deposit VeGovernance - Lock already exists' as any)).to.be.true
+    })
+
+    it('should skip addToDao if member is already in DAO', async () => {
+      sandbox.stub(ProxyMember, 'createMember').resolves()
+      const stubAddToDao = sandbox.stub(ProxyMember, 'addToDao').resolves()
+      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(true)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
+      sandbox.stub(logger, 'verbose')
+
+      const mockInfo = {
+        address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+        transactionHash: '0xnewDeposit',
+        transactionIndex: 1,
+        logIndex: 1,
+      }
+      const mockEvent = {
+        args: {
+          depositor: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          tokenId: 124n,
+          value: 10000n,
+          startTs: 1650000000n,
+          newTotalLocked: 25000n,
+        },
+      } as any
+
+      await GovernanceVeHandler.deposit(mockEvent, mockInfo as any)
+
+      expect(stubAddToDao.notCalled).to.be.true
+    })
   })
 
   describe('withdraw', () => {
@@ -195,6 +275,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
     it('should update existing lock with withdraw info and call logger on success', async () => {
       const stubRemoveFromDao = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
+      const stubIsMemberOfDao = sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(true)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       const stubLogger = sandbox.stub(logger, 'verbose')
 
@@ -253,6 +334,57 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(updatedLock?.lockWithdraw.epochEndAt).to.equal(Number(mockEvent.args.ts))
       expect(stubLogger.calledOnce).to.be.true
       expect(stubRemoveFromDao.calledOnce).to.be.true
+    })
+
+    it('should skip removeFromDao if member is not in DAO', async () => {
+      const stubRemoveFromDao = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
+      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
+      sandbox.stub(logger, 'verbose')
+
+      // First create a lock in the database
+      await Models.Lock.create({
+        network: NetworksEnum.ethereumMainnet,
+        transactionHash: '0xoriginalHash',
+        transactionIndex: 1,
+        logIndex: 2,
+        blockNumber: 100,
+        blockTimestamp: 1650000000,
+        pluginAddress: plugin.address,
+        daoAddress: plugin.daoAddress,
+        memberAddress: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+        escrowAddress: plugin?.votingEscrow?.escrowAddress,
+        nftAddress: plugin?.votingEscrow?.nftLockAddress,
+        tokenAddress: plugin.tokenAddress,
+        tokenId: '125',
+        amount: '10000',
+        epochStartAt: 1650000000,
+        totalLocked: '25000',
+        lockExit: { status: false },
+        lockWithdraw: { status: false },
+      })
+
+      const mockInfo = {
+        address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 124,
+        transactionHash: '0xwithdrawHash2',
+        transactionIndex: 1,
+        logIndex: 1,
+      }
+      const mockEvent = {
+        args: {
+          depositor: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          tokenId: 125n,
+          value: 5000n,
+          ts: 1650005000n,
+          newTotalLocked: 20000n,
+        },
+      } as any
+
+      await GovernanceVeHandler.withdraw(mockEvent, mockInfo as any)
+
+      expect(stubRemoveFromDao.notCalled).to.be.true
     })
   })
 
@@ -771,6 +903,293 @@ describe('Handler:GovernanceVeHandler', () => {
       await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
 
       expect(stubRemoveFromDao.called).to.be.true
+    })
+  })
+
+  describe('_handleTokenDelegation', () => {
+    it('should handle token delegation with member transaction creation', async () => {
+      const mockParsedEvent = {
+        args: {
+          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
+          tokenIds: [123n],
+        },
+      } as any
+
+      const mockInfo = {
+        address: '0xToken',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+        transactionHash: '0xhash',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+
+      const memberAddress = '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5'
+      const transferSide = 'outgoing' as any
+      const plugins = [plugin]
+      const tokenIds = ['123']
+
+      sandbox.stub(ProxyMember, 'createMember').resolves()
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        type: ITokenType.ERC721,
+        isGovernance: true,
+      } as any)
+      sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('100')
+      sandbox.stub(ProxyMember, 'getBalances').resolves({
+        decreaseBalance: sandbox.stub().resolves({ amount: '1' }),
+        increaseBalance: sandbox.stub().resolves({ amount: '0' }),
+      } as any)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
+      sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
+      sandbox.stub(ProxyMember, 'updateActivity').resolves()
+      sandbox.stub(DbTx, 'executeTxFn').callsFake(async (fn: any) => {
+        return await fn({ session: { commitTransaction: () => {}, endSession: () => {} } })
+      })
+      const stubMemberTxCreate = sandbox.stub(Models.MemberTransaction, 'create').resolves({
+        address: memberAddress,
+        memberBalance: '1',
+        votingPower: '100',
+      })
+
+      await GovernanceVeHandler._handleTokenDelegation(
+        mockParsedEvent,
+        mockInfo,
+        memberAddress,
+        transferSide,
+        plugins,
+        tokenIds,
+      )
+
+      expect(stubMemberTxCreate.calledOnce).to.be.true
+    })
+
+    it('should handle errors in token delegation', async () => {
+      const mockParsedEvent = {
+        args: {
+          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
+          tokenIds: [123n],
+        },
+      } as any
+
+      const mockInfo = {
+        address: '0xToken',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+        transactionHash: '0xhash',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+
+      const memberAddress = '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5'
+      const transferSide = 'outgoing' as any
+      const plugins = [plugin]
+      const tokenIds = ['123']
+
+      sandbox.stub(ProxyMember, 'createMember').rejects(new Error('Database error'))
+      const stubLogger = sandbox.stub(logger, 'error')
+
+      await GovernanceVeHandler._handleTokenDelegation(
+        mockParsedEvent,
+        mockInfo,
+        memberAddress,
+        transferSide,
+        plugins,
+        tokenIds,
+      )
+
+      expect(stubLogger.calledOnce).to.be.true
+    })
+  })
+
+  describe('_handleDaoMemberShip', () => {
+    it('should handle DAO membership addition when user has voting power', async () => {
+      const memberTx = {
+        address: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+        votingPower: '100',
+        memberBalance: '2',
+      }
+      const plugins = [plugin]
+      const mockInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+      } as any
+
+      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
+      const stubAddToDao = sandbox.stub(ProxyMember, 'addToDao').resolves()
+
+      await GovernanceVeHandler._handleDaoMemberShip(memberTx, plugins, mockInfo)
+
+      expect(stubAddToDao.calledOnce).to.be.true
+    })
+
+    it('should handle DAO membership removal when user has no voting power', async () => {
+      const memberTx = {
+        address: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+        votingPower: '0',
+        memberBalance: '0',
+      }
+      const plugins = [plugin]
+      const mockInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+      } as any
+
+      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(true)
+      const stubRemoveFromDao = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
+
+      await GovernanceVeHandler._handleDaoMemberShip(memberTx, plugins, mockInfo)
+
+      expect(stubRemoveFromDao.calledOnce).to.be.true
+    })
+
+    it('should skip membership operations when already in correct state', async () => {
+      const memberTx = {
+        address: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+        votingPower: '100',
+        memberBalance: '2',
+      }
+      const plugins = [plugin]
+      const mockInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+      } as any
+
+      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(true)
+      const stubAddToDao = sandbox.stub(ProxyMember, 'addToDao').resolves()
+      const stubRemoveFromDao = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
+
+      await GovernanceVeHandler._handleDaoMemberShip(memberTx, plugins, mockInfo)
+
+      expect(stubAddToDao.notCalled).to.be.true
+      expect(stubRemoveFromDao.notCalled).to.be.true
+    })
+  })
+
+  describe('Edge cases and error handling', () => {
+    it('should handle Web3Helper.getBlockTimestamp returning null', async () => {
+      sandbox.stub(ProxyMember, 'createMember').resolves()
+      sandbox.stub(ProxyMember, 'addToDao').resolves()
+      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(null as any)
+      sandbox.stub(logger, 'verbose')
+
+      const mockInfo = {
+        address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+        transactionHash: '0xnullTimestamp',
+        transactionIndex: 1,
+        logIndex: 1,
+      }
+      const mockEvent = {
+        args: {
+          depositor: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          tokenId: 126n,
+          value: 10000n,
+          startTs: 1650000000n,
+          newTotalLocked: 25000n,
+        },
+      } as any
+
+      await GovernanceVeHandler.deposit(mockEvent, mockInfo as any)
+
+      const stored = await Models.Lock.findOne({ transactionHash: mockInfo.transactionHash })
+      expect(stored).to.exist
+      expect(stored?.blockTimestamp).to.be.null
+    })
+
+    it('should handle multiple plugins in deposit', async () => {
+      // Create a second plugin
+      const plugin2 = await Models.Plugin.create({
+        id: 'test-plugin-2',
+        address: '0x122',
+        daoAddress: '0xDAO2',
+        tokenAddress: '0xToken',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabc2',
+        blockNumber: 2,
+        votingEscrow: {
+          escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+          nftLockAddress: '0xNftToken2',
+          exitQueueAddress: '0xExitQueue2',
+        },
+      })
+
+      sandbox.stub(ProxyMember, 'createMember').resolves()
+      sandbox.stub(ProxyMember, 'addToDao').resolves()
+      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
+      const stubLogger = sandbox.stub(logger, 'verbose')
+
+      const mockInfo = {
+        address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+        transactionHash: '0xmultiPlugin',
+        transactionIndex: 1,
+        logIndex: 1,
+      }
+      const mockEvent = {
+        args: {
+          depositor: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          tokenId: 127n,
+          value: 10000n,
+          startTs: 1650000000n,
+          newTotalLocked: 25000n,
+        },
+      } as any
+
+      await GovernanceVeHandler.deposit(mockEvent, mockInfo as any)
+
+      // Should create locks for both plugins
+      const locks = await Models.Lock.find({ transactionHash: mockInfo.transactionHash })
+      expect(locks).to.have.length(2)
+      expect(stubLogger.calledTwice).to.be.true
+    })
+
+    it('should handle RabbitMQ errors gracefully', async () => {
+      sandbox.stub(ProxyMember, 'createMember').resolves()
+      sandbox.stub(ProxyMember, 'addToDao').resolves()
+      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
+      sandbox.stub(logger, 'verbose')
+
+      // Restore original stub and create one that throws
+      sandbox.restore()
+      sandbox = sinon.createSandbox()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('RabbitMQ error'))
+      sandbox.stub(ProxyMember, 'createMember').resolves()
+      sandbox.stub(ProxyMember, 'addToDao').resolves()
+      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
+      sandbox.stub(logger, 'verbose')
+
+      const mockInfo = {
+        address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+        transactionHash: '0xrabbitMQError',
+        transactionIndex: 1,
+        logIndex: 1,
+      }
+      const mockEvent = {
+        args: {
+          depositor: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          tokenId: 128n,
+          value: 10000n,
+          startTs: 1650000000n,
+          newTotalLocked: 25000n,
+        },
+      } as any
+
+      await expect(GovernanceVeHandler.deposit(mockEvent, mockInfo as any)).to.not.be.rejected
+
+      const stored = await Models.Lock.findOne({ transactionHash: mockInfo.transactionHash })
+      expect(stored).to.exist
     })
   })
 })

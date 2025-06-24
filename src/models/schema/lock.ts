@@ -152,6 +152,7 @@ export default class Lock extends Model {
         tokenAddress: rawData?.tokenAddress!,
         memberAddress: rawData?.memberAddress!,
         tokenId: rawData?.tokenId!,
+        pluginAddress: rawData?.pluginAddress!,
       })
     }
     const data = new this(rawData)
@@ -159,7 +160,7 @@ export default class Lock extends Model {
   }
 
   static getEntityId(params: ILockIdParams) {
-    const entityId = `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}-${params.tokenAddress}-${params.memberAddress}-${params.tokenId}`
+    const entityId = `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}-${params.pluginAddress}-${params.tokenAddress}-${params.memberAddress}-${params.tokenId}`
     return entityId
   }
 

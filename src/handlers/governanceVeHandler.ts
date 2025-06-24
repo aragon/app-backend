@@ -229,29 +229,76 @@ export const GovernanceVeHandler = {
 
     await Promise.all(
       plugins.map(async (plugin: any) => {
-        await Models.Lock.create({
+        const lockParams = {
           network: info.network,
           transactionHash: info.transactionHash,
           transactionIndex: info.transactionIndex,
           logIndex: info.logIndex,
-          blockNumber: info.blockNumber,
-          blockTimestamp,
-          pluginAddress: plugin.address,
-          daoAddress: plugin.daoAddress,
-          escrowAddress: plugin.votingEscrow.escrowAddress,
-          memberAddress,
-          nftAddress: plugin.votingEscrow.nftLockAddress,
           tokenAddress: plugin.tokenAddress,
+          memberAddress,
           tokenId,
-          amount,
-          epochStartAt,
-          totalLocked,
-        })
-        await ProxyMember.addToDao(memberAddress)
+          pluginAddress: plugin.address,
+        }
 
-        logger.verbose('Deposit VeGovernance', llo({ info, memberAddress, tokenId }))
+        const existingLock = await Models.Lock.findExistingLog(lockParams)
+
+        if (!existingLock) {
+          await Models.Lock.create({
+            network: info.network,
+            transactionHash: info.transactionHash,
+            transactionIndex: info.transactionIndex,
+            logIndex: info.logIndex,
+            blockNumber: info.blockNumber,
+            blockTimestamp,
+            pluginAddress: plugin.address,
+            daoAddress: plugin.daoAddress,
+            escrowAddress: plugin.votingEscrow.escrowAddress,
+            memberAddress,
+            nftAddress: plugin.votingEscrow.nftLockAddress,
+            tokenAddress: plugin.tokenAddress,
+            tokenId,
+            amount,
+            epochStartAt,
+            totalLocked,
+          })
+
+          logger.verbose(
+            'Deposit VeGovernance - Lock created',
+            llo({ info, memberAddress, tokenId, pluginAddress: plugin.address }),
+          )
+        } else {
+          logger.verbose(
+            'Deposit VeGovernance - Lock already exists',
+            llo({ info, memberAddress, tokenId, pluginAddress: plugin.address }),
+          )
+        }
       }),
     )
+
+    await Promise.all(
+      plugins.map(async (plugin: any) => {
+        const memberShipParams = {
+          memberAddress,
+          daoAddress: plugin.daoAddress,
+          network: plugin.network,
+          pluginAddress: plugin.address,
+          tokenAddress: plugin.tokenAddress,
+        }
+
+        const isMember = await ProxyMember.isMemberOfDao(memberShipParams)
+        if (!isMember) {
+          await ProxyMember.addToDao(memberShipParams)
+        }
+      }),
+    )
+
+    const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
+    uniqueDaoList.map(async (daoAddress: string) => {
+      await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+        id: daoAddress,
+        params: { address: daoAddress, network: info.network },
+      })
+    })
   },
 
   withdraw: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -305,11 +352,35 @@ export const GovernanceVeHandler = {
             epochEndAt,
           },
         })
-        await ProxyMember.removeFromDao(memberAddress)
 
         logger.verbose('Withdraw VeGovernance', llo({ info, memberAddress, tokenId }))
       }),
     )
+
+    await Promise.all(
+      plugins.map(async (plugin: any) => {
+        const memberShipParams = {
+          memberAddress,
+          daoAddress: plugin.daoAddress,
+          network: plugin.network,
+          pluginAddress: plugin.address,
+          tokenAddress: plugin.tokenAddress,
+        }
+
+        const isMember = await ProxyMember.isMemberOfDao(memberShipParams)
+        if (isMember) {
+          await ProxyMember.removeFromDao(memberShipParams)
+        }
+      }),
+    )
+
+    const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
+    uniqueDaoList.map(async (daoAddress: string) => {
+      await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+        id: daoAddress,
+        params: { address: daoAddress, network: info.network },
+      })
+    })
   },
 
   exitQueued: async (parsedEvent: LogDescription, info: ILogInfo) => {
