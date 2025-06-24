@@ -170,6 +170,7 @@ describe('Modules: ProxyToken', () => {
         skipFetchRate: false,
         lastUpdatedAt: dayjs().subtract(10, 'hour').toDate(),
         update: sandbox.stub(),
+        hasDelegate: true,
       } as any
 
       const tokenDetails = { priceUsd: '1234.56' }
