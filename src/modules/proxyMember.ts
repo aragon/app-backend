@@ -22,8 +22,8 @@ export const ProxyMember = {
 
         if (!existingMember) {
           const rawMember = {
-            address: memberAddress,
-            ens: await EnsHelper.getEnsWithUniversalResolver(memberAddress),
+            address: parsedMemberAddress,
+            ens: await EnsHelper.getEnsWithUniversalResolver(parsedMemberAddress),
           }
 
           const newMember = await Models.Member.create(rawMember, { session })
@@ -36,7 +36,7 @@ export const ProxyMember = {
         return existingMember
       })
     } catch (error) {
-      logger.error('Error creating new member', llo({ error, memberAddress }))
+      logger.error('Error creating new member', llo({ error, memberAddress: parsedMemberAddress }))
       return null
     }
   },
@@ -51,14 +51,21 @@ export const ProxyMember = {
     network: NetworksEnum
   }): Promise<MemberMetrics | null> => {
     try {
+      const memberAddress = Web3Utils.parseAddress(address)
+      if (!memberAddress) {
+        return null
+      }
+
       return await DbTx.executeTxFn(async ({ session }) => {
-        const metrics = await Models.MemberMetrics.findOne({ address, pluginAddress, network }, null, { session })
+        const metrics = await Models.MemberMetrics.findOne({ address: memberAddress, pluginAddress, network }, null, {
+          session,
+        })
 
         if (metrics) {
           return metrics
         }
 
-        const rawMetrics = { address, pluginAddress, network }
+        const rawMetrics = { address: memberAddress, pluginAddress, network }
 
         const newMetrics = await Models.MemberMetrics.create(rawMetrics, { session })
         await session.commitTransaction()
@@ -82,14 +89,21 @@ export const ProxyMember = {
     network: NetworksEnum
   }): Promise<MemberBalance | null> => {
     try {
+      const memberAddress = Web3Utils.parseAddress(address)
+      if (!memberAddress) {
+        return null
+      }
       return await DbTx.executeTxFn(async ({ session }) => {
-        const token = await Models.MemberBalance.findByAddressAndToken({ address, tokenAddress, network }, { session })
+        const token = await Models.MemberBalance.findByAddressAndToken(
+          { address: memberAddress, tokenAddress, network },
+          { session },
+        )
 
         if (token) {
           return token
         }
 
-        const data = { address, tokenAddress, network }
+        const data = { address: memberAddress, tokenAddress, network }
         const memberBalance = await Models.MemberBalance.create(data, { session })
         await session.commitTransaction()
         await session.endSession()
@@ -157,9 +171,12 @@ export const ProxyMember = {
     pluginAddress: HexAddress
     tokenAddress: HexAddress
     network: NetworksEnum
-  }): Promise<MemberMetrics | undefined> => {
+  }): Promise<MemberMetrics | undefined | null> => {
+    const address = Web3Utils.parseAddress(memberAddress)
+    if (!address) return null
+
     const metrics = await ProxyMember.createMetrics({
-      address: memberAddress,
+      address,
       pluginAddress,
       network,
     })
@@ -172,7 +189,7 @@ export const ProxyMember = {
     try {
       return await DbTx.executeTxFn(async ({ session }) => {
         const delegateReceivedCount = await Models.MemberTransaction.getReceiveDelegationCount(
-          memberAddress,
+          address,
           tokenAddress,
           network,
           { session },
@@ -188,7 +205,7 @@ export const ProxyMember = {
         'Error updating delegation metrics',
         llo({
           error,
-          memberAddress,
+          address,
           pluginAddress,
           tokenAddress,
           network,
@@ -209,8 +226,11 @@ export const ProxyMember = {
       network: NetworksEnum
     },
   ) => {
+    const address = Web3Utils.parseAddress(memberAddress)
+    if (!address) return null
+
     const metrics = await ProxyMember.createMetrics({
-      address: memberAddress,
+      address,
       pluginAddress,
       network,
     })
@@ -235,10 +255,10 @@ export const ProxyMember = {
           logger.verbose('Updated Member DAO metrics', { logId: logDb.id })
         })
       } catch (error) {
-        logger.error('Error updating member metrics', llo({ error, memberAddress, pluginAddress, network }))
+        logger.error('Error updating member metrics', llo({ error, address, pluginAddress, network }))
       }
     } else {
-      logger.error('Unsupported metric action', llo({ metricAction, memberAddress, pluginAddress, network }))
+      logger.error('Unsupported metric action', llo({ metricAction, address, pluginAddress, network }))
     }
   },
 
@@ -252,7 +272,7 @@ export const ProxyMember = {
     const memberAddress = Web3Utils.parseAddress(params.memberAddress)
     if (!memberAddress) return null
 
-    const member = await ProxyMember.createMember(params.memberAddress)
+    const member = await ProxyMember.createMember(memberAddress)
     if (!member) {
       logger.error('Failed to add member to dao', llo({ params }))
       return null
@@ -261,7 +281,7 @@ export const ProxyMember = {
     try {
       return await DbTx.executeTxFn(async ({ session }) => {
         const queryParams = {
-          memberAddress: params.memberAddress,
+          memberAddress,
           daoAddress: params.daoAddress,
           pluginAddress: params.pluginAddress,
           tokenAddress: params?.tokenAddress,
@@ -291,12 +311,12 @@ export const ProxyMember = {
     const memberAddress = Web3Utils.parseAddress(params.memberAddress)
     if (!memberAddress) return null
 
-    const member = await ProxyMember.createMember(params.memberAddress)
+    const member = await ProxyMember.createMember(memberAddress)
 
     try {
       return await DbTx.executeTxFn(async ({ session }) => {
         const queryParams = {
-          memberAddress: params.memberAddress,
+          memberAddress,
           daoAddress: params.daoAddress,
           pluginAddress: params.pluginAddress,
           tokenAddress: params?.tokenAddress,

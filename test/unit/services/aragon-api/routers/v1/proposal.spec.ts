@@ -213,27 +213,6 @@ describe('Router: Proposal', () => {
     expect(stubCtrl.calledWith(getAddress(params.id) as any)).to.be.true
   })
 
-  it('should canCastVote', async () => {
-    const ctx: any = {
-      query: { userAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2' },
-      params: {
-        proposalId: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-      },
-    }
-
-    const stubCtrl = sandbox.stub(ProposalController, 'canCastVote').returns(true as any)
-
-    await ProposalRouter.canCastVote(ctx)
-    expect(ctx.body).to.eq(true)
-    expect(stubCtrl.calledOnce).to.be.true
-    expect(
-      stubCtrl.calledWith({
-        proposalId: ctx.params.proposalId,
-        userAddress: ctx.query.userAddress,
-      }),
-    ).to.be.true
-  })
-
   it('Should check if a member can create a proposal', async () => {
     const ctx: any = {
       query: {

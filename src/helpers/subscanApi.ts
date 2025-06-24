@@ -376,7 +376,7 @@ const SubscanApiHelper = {
 
       if (response?.code === 0 && Array.isArray(response?.data?.list) && response.data.list.length > 0) {
         const holders = response.data.list.map((item: any) => ({
-          address: item.holder,
+          address: ethers.getAddress(item.holder),
           value: item.balance,
         }))
 
