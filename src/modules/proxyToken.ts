@@ -59,7 +59,7 @@ export const ProxyToken = {
     let updates: Partial<Token> = {}
 
     if (shouldUpdate || forceUpdate) {
-      if (token.type !== ITokenType.native) {
+      if (token.type !== ITokenType.native && token.hasDelegate) {
         const tokenDetails = await ProxyWeb3Provider.fetchBasicTokenInfo({
           address: tokenAddress,
           network,
