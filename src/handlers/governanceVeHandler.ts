@@ -199,12 +199,14 @@ export const GovernanceVeHandler = {
     ])
 
     const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
-    uniqueDaoList.map(async (daoAddress: string) => {
-      await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-        id: daoAddress,
-        params: { address: daoAddress, network: info.network },
-      })
-    })
+    await Promise.all(
+      uniqueDaoList.map(async (daoAddress: string) => {
+        await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+          id: daoAddress,
+          params: { address: daoAddress, network: info.network },
+        })
+      }),
+    )
   },
 
   deposit: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -293,12 +295,14 @@ export const GovernanceVeHandler = {
     )
 
     const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
-    uniqueDaoList.map(async (daoAddress: string) => {
-      await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-        id: daoAddress,
-        params: { address: daoAddress, network: info.network },
-      })
-    })
+    await Promise.all(
+      uniqueDaoList.map(async (daoAddress: string) => {
+        await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+          id: daoAddress,
+          params: { address: daoAddress, network: info.network },
+        })
+      }),
+    )
   },
 
   withdraw: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -375,12 +379,15 @@ export const GovernanceVeHandler = {
     )
 
     const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
-    uniqueDaoList.map(async (daoAddress: string) => {
-      await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-        id: daoAddress,
-        params: { address: daoAddress, network: info.network },
-      })
-    })
+
+    await Promise.all(
+      uniqueDaoList.map(async (daoAddress: string) => {
+        await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+          id: daoAddress,
+          params: { address: daoAddress, network: info.network },
+        })
+      }),
+    )
   },
 
   exitQueued: async (parsedEvent: LogDescription, info: ILogInfo) => {
