@@ -22,7 +22,9 @@ export const internalTransferMigration: IMigration = {
         },
 
         where: {
-          'executed.status': true,
+          'rawActions.value': { $exists: true, $ne: '0' },
+          'rawActions.data': { $eq: '0x' },
+          rawActions: { $ne: [] },
           network: {
             $in: [
               NetworksEnum.baseMainnet,
@@ -32,7 +34,7 @@ export const internalTransferMigration: IMigration = {
               NetworksEnum.optimismMainnet,
             ],
           },
-          rawActions: { $exists: true, $not: { $size: 0 } },
+          'executed.status': true,
         },
         batchSize: 1000,
         concurrency: 10,
