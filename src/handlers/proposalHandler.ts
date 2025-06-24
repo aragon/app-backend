@@ -197,7 +197,7 @@ export const ProposalHandler = {
           value: w.value,
           data: w.data,
         })),
-        decoding: true,
+        decoding: parsedEvent.args?.actions?.length > 0,
       }
 
       // in case startDate is 0 we need to fetch it from the contract
@@ -263,15 +263,20 @@ export const ProposalHandler = {
       })
 
       const allMessages: Promise<any>[] = [
-        RabbitMQHelper.sendMessage(EnumQueueName.proposalActions, {
-          id: newProposal.id,
-          params: { id: newProposal.id, network: newProposal.network },
-        }),
         RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
           id: newProposal.daoAddress,
           params: { address: newProposal.daoAddress, network: newProposal.network },
         }),
       ]
+
+      if (parsedEvent.args?.actions?.length > 0) {
+        allMessages.push(
+          RabbitMQHelper.sendMessage(EnumQueueName.proposalActions, {
+            id: newProposal.id,
+            params: { id: newProposal.id, network: newProposal.network },
+          }),
+        )
+      }
 
       if (relatedPlugin.interfaceType === IPluginInterfaceType.tokenVoting) {
         allMessages.push(
