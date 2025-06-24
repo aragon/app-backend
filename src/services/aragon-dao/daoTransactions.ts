@@ -107,7 +107,7 @@ export const DaoTransactions = {
           type: ITransactionType.withdraw,
           daoAddress: proposal.daoAddress,
           pluginAddress: proposal.pluginAddress,
-          fromAddress: action.from,
+          fromAddress: proposal.daoAddress,
           toAddress: action.to,
           value: action.value?.toString() || '0',
           category: ITransactionCategory.Internal,
