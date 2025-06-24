@@ -910,8 +910,8 @@ export const ProposalHandler = {
       }) || [],
     )
 
-    await DbTx.executeTxFn(async ({ session }) => {
-      try {
+    try {
+      await DbTx.executeTxFn(async ({ session }) => {
         proposal = await proposal.reload({ session })
 
         proposal.stageIndex = currentStage
@@ -960,10 +960,10 @@ export const ProposalHandler = {
         await session.commitTransaction()
         await session.endSession()
         logger.verbose('Update proposal - pairSppProposals', llo({ logId: proposal.id, info }))
-      } catch (error) {
-        logger.error('Error pairSppProposals', llo({ error, network: proposal.network, proposalId: proposal.id }))
-      }
-    })
+      })
+    } catch (error) {
+      logger.error('Error pairSppProposals', llo({ error, network: proposal.network, proposalId: proposal.id }))
+    }
   },
 
   proposalCanceled: async (parsedEvent: LogDescription, info: ILogInfo) => {
