@@ -593,6 +593,7 @@ describe('Handler:GovernanceVeHandler', () => {
       const stubLogger = sandbox.stub(logger, 'error')
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
       sandbox.stub(ProxyMember, 'createMember').rejects(new Error('Database error'))
+      sandbox.stub(GovernanceVeHandler, '_handleTokenDelegation').rejects(new Error('fake error'))
 
       const mockInfo = {
         address: '0xToken',
@@ -700,6 +701,7 @@ describe('Handler:GovernanceVeHandler', () => {
       const stubLogger = sandbox.stub(logger, 'error')
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
       sandbox.stub(ProxyMember, 'createMember').rejects(new Error('Database error'))
+      sandbox.stub(GovernanceVeHandler, '_handleTokenDelegation').rejects(new Error('fake error'))
 
       const mockInfo = {
         address: '0xToken',
