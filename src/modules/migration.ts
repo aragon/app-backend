@@ -88,7 +88,7 @@ class MigrationService implements IService {
 
     return files
       .map(file => path.basename(file, '.ts'))
-      .filter(filename => /^\d{14}-[\w-]+$/.test(filename))
+      .filter(filename => /^[0-9]{6,}-[^.]+.ts$/.test(filename))
       .sort() // Sort by timestamp
   }
 
