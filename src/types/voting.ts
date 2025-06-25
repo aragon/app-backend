@@ -6,10 +6,3 @@ export interface ICanCreateProposal {
   network: NetworksEnum
   ens?: string
 }
-
-export interface ICanVote {
-  pluginAddress: HexAddress
-  memberAddress: HexAddress
-  network: NetworksEnum
-  proposalIndex: string
-}

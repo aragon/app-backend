@@ -1,4 +1,4 @@
-import { EnumQueueName } from '@types'
+import { EnumQueueName, type IPluginExtraParams } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import config from '@config'
 import logger from '@logger'
@@ -6,7 +6,7 @@ import logger from '@logger'
 const llo = logger.logMeta.bind(null, { service: 'PluginsController' })
 
 const PluginsController = {
-  getInstallationData: async ({ pluginAddress, network }) => {
+  getInstallationData: async ({ pluginAddress, network }: IPluginExtraParams) => {
     try {
       return await RabbitMQHelper.sendMessage(
         EnumQueueName.pluginInstallationData,
