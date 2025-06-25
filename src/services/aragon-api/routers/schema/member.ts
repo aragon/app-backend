@@ -12,12 +12,30 @@ const MemberSchema = {
     tokenAddress: ValidationSchema.joiAddress.optional(),
   }),
 
+  getExtraParamsV2: Joi.object({
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .optional(),
+    pluginAddress: ValidationSchema.joiAddress.optional(),
+    tokenAddress: ValidationSchema.joiAddress.optional(),
+  }),
+
   getMemberLocksParams: Joi.object({
     memberAddress: ValidationSchema.joiAddress.required(),
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
       .optional(),
     escrowAddress: ValidationSchema.joiAddress.optional(),
+    tokenAddress: ValidationSchema.joiAddress.optional(),
+    onlyActive: Joi.boolean().optional(),
+  }),
+
+  getMemberLocksParamsV2: Joi.object({
+    memberAddress: ValidationSchema.joiAddress.required(),
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
+    pluginAddress: ValidationSchema.joiAddress.optional(),
     tokenAddress: ValidationSchema.joiAddress.optional(),
     onlyActive: Joi.boolean().optional(),
   }),
@@ -31,6 +49,14 @@ const MemberSchema = {
   }),
 
   isMemberOfPlugin: Joi.object({
+    memberAddress: ValidationSchema.joiAddress.required(),
+    pluginAddress: ValidationSchema.joiAddress.required(),
+  }),
+
+  isMemberOfPluginV2: Joi.object({
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
     memberAddress: ValidationSchema.joiAddress.required(),
     pluginAddress: ValidationSchema.joiAddress.required(),
   }),
