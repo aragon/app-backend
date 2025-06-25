@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import StatusRouter from '@api/routers/v1/status'
+import StatusRouter from '@api/status'
 import StatusController from '@api/controllers/status'
 import { NetworksEnum } from '@types'
 
