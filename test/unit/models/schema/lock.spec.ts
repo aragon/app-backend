@@ -305,7 +305,6 @@ describe('Model: Lock', () => {
       const memberAddress = '0xmember1111111111111111111111111111111111'
       const tokenAddress = fakeToken.address
       const lockTokenAddress = lockToken.address
-      const pluginAddress = '0xplugin1111111111111111111111111111111110'
       const lock1Data = {
         ...rawLock,
         transactionHash: '0x1111111111111111111111111111111111111111',
