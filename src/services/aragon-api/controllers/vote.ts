@@ -5,9 +5,9 @@ import {
   type IPairParams,
   type IVoteExtraParams,
   type IVoteResponse,
+  type ICanVoteParams,
 } from '@types'
 import PairDataModule from '@modules/pairData'
-import { type ICanVote } from '@src/types/voting'
 
 const VoteController = {
   getVoteWithPagination: async (
@@ -19,7 +19,7 @@ const VoteController = {
     return await Models.Vote.findWithPagination({ extraParams, paginationParams })
   },
 
-  memberVotesInfo: async (params: ICanVote) => {
+  memberVotesInfo: async (params: ICanVoteParams) => {
     const userVotingStatus = await Models.Vote.findVoteOnPlugin({
       memberAddress: params.memberAddress,
       pluginAddress: params.pluginAddress,
