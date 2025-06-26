@@ -11,7 +11,7 @@ import { ProxyToken } from '@modules/proxyToken'
 import BottleneckModule from '@modules/bottleneck'
 import Web3Utils from '@helpers/web3Utils'
 
-describe.only('Helpers:Web3', () => {
+describe('Helpers:Web3', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -941,7 +941,7 @@ describe.only('Helpers:Web3', () => {
       } as any)
 
       // Mock the bottleneck to immediately execute
-      const scheduleStub = sandbox.stub().callsFake(async (fn) => fn())
+      const scheduleStub = sandbox.stub().callsFake(async fn => fn())
       sandbox.stub(BottleneckModule, 'getNodeLimiter').returns({
         schedule: scheduleStub,
       } as any)
