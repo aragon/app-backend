@@ -382,7 +382,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         sourceConfig,
         'number',
         'BOTTLENECK_ALCHEMY_API_KEY_BALANCE_MIN_TIME',
-        50,
+        100,
       ),
       ALCHEMY_BATCH_REQUEST_MAX_CONCURRENT: utils.configParser(
         sourceConfig,
