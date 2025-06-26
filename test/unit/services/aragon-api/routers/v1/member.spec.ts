@@ -9,7 +9,7 @@ import MemberSchema from '@api/routers/schema/member'
 import PaginationSchema from '@api/routers/schema/pagination'
 import ValidationSchema from '@helpers/validationSchema'
 
-describe('Router: Member', () => {
+describe('RouterV1: Member', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
