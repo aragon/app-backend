@@ -21,7 +21,7 @@ describe('AragonDao: actionDecoder', () => {
     sandbox?.restore()
   })
 
-  describe('decodeAction', () => {
+  describe('decodeAction test', () => {
     it('should decode action', async () => {
       const action = {
         data: '0x',
