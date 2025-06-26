@@ -18,7 +18,7 @@ import utils from '@helpers/utils'
 import Koa from 'koa'
 import supertest from 'supertest'
 
-describe('Router: V1Router', () => {
+describe('RouterV1: V1Router', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {

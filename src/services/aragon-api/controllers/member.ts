@@ -10,6 +10,7 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   type IPairParams,
+  type NetworksEnum,
 } from '@types'
 import { assertExposable } from '@errors'
 import PairDataModule from '@modules/pairData'
@@ -88,11 +89,12 @@ const MemberController = {
     return member
   },
 
-  isMemberOfPlugin: async (memberAddress: HexAddress, pluginAddress: HexAddress): Promise<boolean> => {
-    const member = await Models.DaoMemberMapping.findOne({
-      memberAddress,
-      pluginAddress,
-    })
+  isMemberOfPlugin: async (
+    memberAddress: HexAddress,
+    pluginAddress: HexAddress,
+    network?: NetworksEnum,
+  ): Promise<boolean> => {
+    const member = await Models.DaoMemberMapping.findOne({ memberAddress, pluginAddress, ...(network && { network }) })
 
     return !!member
   },

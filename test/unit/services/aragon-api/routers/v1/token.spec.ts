@@ -6,7 +6,7 @@ import { getAddress } from 'ethers'
 import TokenController from '@api/controllers/token'
 import TokenRouter from '@api/routers/v1/token'
 
-describe('Router: Token', () => {
+describe('RouterV1: Token', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {

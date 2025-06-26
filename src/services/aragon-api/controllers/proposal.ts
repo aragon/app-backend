@@ -7,10 +7,10 @@ import {
   type IProposalExtraParams,
   type IPairParams,
   EnumQueueName,
+  type ICanCreateProposalParams,
 } from '@types'
 import { assertExposable } from '@errors'
 import PairDataModule from '@modules/pairData'
-import { type ICanCreateProposal } from '@src/types/voting'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import config from '@config'
 import logger from '@logger'
@@ -53,7 +53,7 @@ const ProposalController = {
     return await Models.Proposal.findWithPagination({ extraParams, paginationParams })
   },
 
-  canCreateProposal: async (params: ICanCreateProposal) => {
+  canCreateProposal: async (params: ICanCreateProposalParams) => {
     try {
       return await RabbitMQHelper.sendMessage(
         EnumQueueName.canCreateProposal,

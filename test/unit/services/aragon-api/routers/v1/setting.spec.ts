@@ -5,7 +5,7 @@ import SettingRouter from '@api/routers/v1/setting'
 import SettingController from '@api/controllers/setting'
 import { NetworksEnum } from '@types'
 
-describe('Router: Setting', () => {
+describe('RouterV1: Setting', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {

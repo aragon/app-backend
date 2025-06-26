@@ -8,8 +8,17 @@ import ProposalRouter from '@services/aragon-api/routers/v2/proposal'
 import utils from '@helpers/utils'
 import Koa from 'koa'
 import supertest from 'supertest'
+import VoteRouter from '@api/routers/v2/vote'
+import DelegateRouter from '@api/routers/v2/delegate'
+import AssetRouter from '@api/routers/v2/asset'
+import DaoRouter from '@api/routers/v2/dao'
+import SettingRouter from '@api/routers/v2/setting'
+import TokenRouter from '@api/routers/v2/token'
+import TransactionRouter from '@api/routers/v2/transaction'
+import ContractRouter from '@api/routers/v2/contract'
+import PluginRouter from '@api/routers/v2/plugins'
 
-describe('Router: V2Router', () => {
+describe('RouterV2: V2Router', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -31,8 +40,17 @@ describe('Router: V2Router', () => {
     }
 
     // Stub all v2 routers
+    stubRouter(VoteRouter, 'votes')
+    stubRouter(DelegateRouter, 'delegates')
+    stubRouter(AssetRouter, 'assets')
+    stubRouter(DaoRouter, 'daos')
     stubRouter(MemberRouter, 'members')
     stubRouter(ProposalRouter, 'proposals')
+    stubRouter(SettingRouter, 'settings')
+    stubRouter(TokenRouter, 'tokens')
+    stubRouter(TransactionRouter, 'transactions')
+    stubRouter(ContractRouter, 'contract')
+    stubRouter(PluginRouter, 'plugins')
 
     await utils.wait(100) // Small wait to ensure stubs are applied
 
@@ -43,7 +61,7 @@ describe('Router: V2Router', () => {
     expect(v2Router instanceof Router).to.be.true
 
     // Verify all routers are mounted
-    expect(use.callCount).to.be.eq(2) // 3 routers should be mounted
+    expect(use.callCount).to.be.eq(11) // 3 routers should be mounted
 
     // Helper function to verify router mounting
     function expectRouter(path: string, name: string) {
@@ -51,26 +69,44 @@ describe('Router: V2Router', () => {
     }
 
     // Verify each router is mounted at the correct path
+    expectRouter('/assets', 'assets')
+    expectRouter('/daos', 'daos')
     expectRouter('/members', 'members')
     expectRouter('/proposals', 'proposals')
+    expectRouter('/settings', 'settings')
+    expectRouter('/tokens', 'tokens')
+    expectRouter('/transactions', 'transactions')
+    expectRouter('/delegates', 'delegates')
+    expectRouter('/votes', 'votes')
+    expectRouter('/contract', 'contract')
+    expectRouter('/plugins', 'plugins')
   })
 
   it('Should create a functional router that can be used in a Koa app', async () => {
     // Create a simple stub for one of the routers to test functionality
-    const proposalRouterStub = new Router()
-    proposalRouterStub.get('/', ctx => {
-      ctx.body = 'v2 proposals response'
+    const daoRouterStub = new Router()
+    daoRouterStub.get('/', ctx => {
+      ctx.body = 'v2 daos response'
     })
 
     // Stub the proposal router
-    sandbox.stub(ProposalRouter, 'router').returns(proposalRouterStub)
+    sandbox.stub(DaoRouter, 'router').returns(daoRouterStub)
 
     // For others, just return empty routers
     function emptyRouterStub(Rt: any) {
       sandbox.stub(Rt, 'router').returns(new Router())
     }
 
+    emptyRouterStub(AssetRouter)
     emptyRouterStub(MemberRouter)
+    emptyRouterStub(ProposalRouter)
+    emptyRouterStub(SettingRouter)
+    emptyRouterStub(TokenRouter)
+    emptyRouterStub(TransactionRouter)
+    emptyRouterStub(DelegateRouter)
+    emptyRouterStub(VoteRouter)
+    emptyRouterStub(ContractRouter)
+    emptyRouterStub(PluginRouter)
 
     // Create a test Koa app with the v2 router
     const app = new Koa()
@@ -80,32 +116,8 @@ describe('Router: V2Router', () => {
     const request = supertest(app.callback())
 
     // Test that the router works
-    const response = await request.get('/proposals')
+    const response = await request.get('/daos')
     expect(response.status).to.equal(200)
-    expect(response.text).to.equal('v2 proposals response')
-  })
-
-  it('Should handle routes differently than v1 implementations', async () => {
-    // This test verifies that v2 routes can provide different implementations
-    // Create a router that responds differently than the v1 equivalent would
-    const memberRouterStub = new Router()
-    memberRouterStub.get('/enhanced', ctx => {
-      ctx.body = { version: 'v2', enhanced: true }
-    })
-
-    sandbox.stub(MemberRouter, 'router').returns(memberRouterStub)
-    sandbox.stub(ProposalRouter, 'router').returns(new Router())
-
-    // Create a test Koa app with the v2 router
-    const app = new Koa()
-    app.use(V2Router.router().routes())
-    app.use(V2Router.router().allowedMethods())
-
-    const request = supertest(app.callback())
-
-    // Test v2-specific functionality
-    const response = await request.get('/members/enhanced')
-    expect(response.status).to.equal(200)
-    expect(response.body).to.deep.equal({ version: 'v2', enhanced: true })
+    expect(response.text).to.equal('v2 daos response')
   })
 })

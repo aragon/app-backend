@@ -8,7 +8,7 @@ import * as _ from 'lodash'
 import ValidationSchema from '@helpers/validationSchema'
 import VoteSchema from '@api/routers/schema/vote'
 
-describe('Router: Vote', () => {
+describe('RouterV1: Vote', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
