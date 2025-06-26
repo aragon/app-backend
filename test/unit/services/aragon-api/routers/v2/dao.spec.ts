@@ -1,11 +1,11 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import DaoRouter from '@api/routers/v1/dao'
+import DaoRouter from '@api/routers/v2/dao'
 import DaoController from '@api/controllers/dao'
 import { ErrorKeyEnum, NetworksEnum } from '@types'
 
-describe('RouterV1: Dao', () => {
+describe('RouterV2: Dao', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -160,6 +160,7 @@ describe('RouterV1: Dao', () => {
     const stubCtrl = sandbox.stub(DaoController, 'getDaoById').returns(true as any)
 
     const ctx: any = {
+      query: {},
       params,
     }
 
@@ -179,6 +180,7 @@ describe('RouterV1: Dao', () => {
     const stubCtrl = sandbox.stub(DaoController, 'getDaoByAddress').returns(true as any)
 
     const ctx: any = {
+      query: {},
       params,
     }
 
@@ -227,7 +229,6 @@ describe('RouterV1: Dao', () => {
     expect(ctx.body).to.eq(true)
     expect(stubCtrl.calledOnce).to.be.true
     expect(stubCtrl.args[0][1]).to.deep.eq({
-      network: undefined,
       networks: filterParams.networks,
       excludeDaoId: undefined,
       memberAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
@@ -253,7 +254,6 @@ describe('RouterV1: Dao', () => {
     expect(ctx.body).to.eq(true)
     expect(stubCtrl.calledOnce).to.be.true
     expect(stubCtrl.args[0][1]).to.deep.eq({
-      network: undefined,
       // Joi validation turns csv string into an array!
       networks: [NetworksEnum.ethereumMainnet, NetworksEnum.ethereumSepolia],
       excludeDaoId: undefined,

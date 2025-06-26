@@ -6,7 +6,7 @@ import PluginController from '@api/controllers/plugins'
 import { NetworksEnum } from '@types'
 import { getAddress } from 'ethers'
 
-describe('Router: Plugin', () => {
+describe('RouterV1: Plugin', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
