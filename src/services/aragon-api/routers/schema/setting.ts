@@ -6,6 +6,7 @@ const SettingSchema = {
   getExtraParams: Joi.object({
     daoAddress: ValidationSchema.joiAddress.optional(),
     pluginAddress: ValidationSchema.joiAddress.optional(),
+    tokenAddress: ValidationSchema.joiAddress.optional(),
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
       .optional(),
