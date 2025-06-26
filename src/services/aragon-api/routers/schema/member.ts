@@ -40,6 +40,16 @@ const MemberSchema = {
     onlyActive: Joi.boolean().optional(),
   }),
 
+  getMemberLocksParamsV2: Joi.object({
+    memberAddress: ValidationSchema.joiAddress.required(),
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
+    pluginAddress: ValidationSchema.joiAddress.optional(),
+    tokenAddress: ValidationSchema.joiAddress.optional(),
+    onlyActive: Joi.boolean().optional(),
+  }),
+
   getMemberById: Joi.object({
     id: ValidationSchema.joiAddress.optional(),
   }),
