@@ -101,7 +101,7 @@ const PoolingCrawler = {
         transferLogs.map(log => ethers.getAddress(log.address)),
       )
 
-      const [daoAddresses, tokenAddresses] = await Promise.all([
+      const [daoAddresses, pluginTokenAddresses, validTokenAddresses] = await Promise.all([
         Models.Dao.distinct('address', {
           address: { $in: [...tokenTransferReceiverAddresses, ...nativeTransferReceiverAddresses] },
           network,
@@ -113,8 +113,14 @@ const PoolingCrawler = {
           interfaceType: IPluginInterfaceType.tokenVoting,
           network,
         }),
+        Models.Token.distinct('address', {
+          address: { $in: [...new Set([...delegateVotesChangedTokenAddresses, ...transferTokenAddresses])] },
+          skipSync: { $ne: true },
+          network,
+        }),
       ])
 
+      const tokenAddresses = pluginTokenAddresses.filter(addr => validTokenAddresses.includes(addr))
       const daoAddressesSet = new Set(daoAddresses)
       const tokenAddressesSet = new Set(tokenAddresses)
 

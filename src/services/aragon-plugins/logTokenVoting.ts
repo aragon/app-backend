@@ -13,6 +13,7 @@ import type Plugin from '@models/schema/plugin'
 import configIndexer from '@indexer/configIndexer'
 import type Token from '@models/schema/token'
 import { TokenHolderSync } from './tokenHolderSync'
+import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogTokenVoting' })
 
@@ -119,6 +120,14 @@ export const LogTokenVoting = {
 
     // optimizedFlowNeeded
     const optimizedFlowNeeded = await TokenHolderSync.isOptimizedFlowNeeded(token, plugin)
+
+    if (optimizedFlowNeeded && config.SKIP_SYNC) {
+      logger.verbose('Skip sync large token', llo({ ...infoLogs }))
+      token.skipSync = true
+      await token.save()
+      return
+    }
+
     if (optimizedFlowNeeded) {
       logger.verbose('Start Token Sync', llo({ ...infoLogs, ...{ syncStrategy: 'BlockScout', startTime } }))
       await TokenHolderSync.syncAllTokenHolders(plugin, token)

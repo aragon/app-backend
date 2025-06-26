@@ -175,6 +175,7 @@ export default class Vote extends Model {
         decimals: 1,
         logo: 1,
         isGovernance: 1,
+        skipSync: 1,
         hasDelegate: 1,
         underlying: 1,
         type: 1,

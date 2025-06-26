@@ -7,12 +7,14 @@ import { NetworksEnum, ITokenType } from '@types'
 import { expect } from 'chai'
 import { ProxyToken } from '@modules/proxyToken'
 import { TokenHolderSync } from '@plugins/tokenHolderSync'
+import config from "@config";
 
 describe('AragonPlugins: LogTokenVoting', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    config.SKIP_SYNC = false
   })
 
   afterEach(() => {
@@ -358,6 +360,33 @@ describe('AragonPlugins: LogTokenVoting', () => {
       expect(verboseStub.calledWith('Start LogTokenVoting' as any)).to.be.true
       expect(verboseStub.calledWith('End LogTokenVoting' as any)).to.be.true
     })
+
+    it('should skip sync for large tokens when SKIP_SYNC is enabled', async () => {
+      config.SKIP_SYNC = true
+
+      const token = {
+        address: '0x123',
+        network: NetworksEnum.ethereumSepolia,
+        type: ITokenType.ERC20,
+        save: sandbox.stub().resolves(),
+      } as any
+
+      const plugin = {
+        address: '0x456',
+        tokenAddress: token.address,
+        network: token.network,
+        blockNumber: 200,
+      } as any
+
+      sandbox.stub(TokenHolderSync, 'isOptimizedFlowNeeded').resolves(true)
+      const verboseStub = sandbox.stub(logger, 'verbose')
+
+      await LogTokenVoting.start(plugin, token)
+
+      expect(verboseStub.calledWith('Skip sync large token' as any)).to.be.true
+      expect(token.skipSync).to.be.true
+      expect(token.save.calledOnce).to.be.true
+    })
   })
 
   describe('veGovernance', () => {
@@ -386,5 +415,21 @@ describe('AragonPlugins: LogTokenVoting', () => {
       expect(verboseStub.calledWith('Start LogTokenVoting veGovernance' as any)).to.be.true
       expect(verboseStub.calledWith('End LogTokenVoting veGovernance' as any)).to.be.true
     })
+  })
+
+  it('should process error with complete details', async () => {
+    const errorStub = sandbox.stub(logger, 'error')
+    const error = new Error('Test error')
+    const plugin = {
+      address: '0x123',
+      tokenAddress: '0xtoken',
+      network: NetworksEnum.ethereumSepolia,
+    } as any
+    const log = { logIndex: 1, transactionHash: '0xhash' }
+
+    await LogTokenVoting.processError(error, plugin, log)
+
+    expect(errorStub.calledOnce).to.be.true
+    expect(errorStub.firstCall.args[0]).to.equal('Error LogTokenVoting')
   })
 })
