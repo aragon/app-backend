@@ -9,12 +9,12 @@ export const CleanUpTasks: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
   start: async () => {
     const BATCH_SIZE = 10000
-    const DAYS_TO_KEEP = 7
+    const DAYS_TO_KEEP = 1
 
     async function cleanupOldTaskRuns() {
       const cutoffDate = dayjs().utc().subtract(DAYS_TO_KEEP, 'days').toDate()
 
-      logger.info(`Cleaning up task runs older than ${DAYS_TO_KEEP} days...`)
+      logger.info(`Cleaning up task runs older than ${DAYS_TO_KEEP} days...`, llo({ cutoffDate }))
 
       let deletedTotal = 0
 
@@ -41,14 +41,14 @@ export const CleanUpTasks: IService = {
         await new Promise(resolve => setTimeout(resolve, 100))
       }
 
-      logger.info(`Cleanup complete. Deleted ${deletedTotal} task runs.`)
+      logger.info(`Cleanup complete. Deleted ${deletedTotal} task runs.`, llo({ cutoffDate }))
     }
 
     try {
       await cleanupOldTaskRuns()
-      logger.info('Migration completed successfully')
+      logger.info('Migration completed successfully', llo({}))
     } catch (error) {
-      logger.error('Migration failed', { error })
+      logger.error('Migration failed', llo({ error }))
       throw error
     }
   },

@@ -49,8 +49,8 @@ class Task {
 })
 @index({ id: 1 }, { unique: true })
 @index({ serviceName: 1, createdAt: -1 })
-@index({ createdAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 }) // TTL index - auto delete after 30 days
-@index({ 'tasks.status': 1 }) // Index for task status queries
+@index({ createdAt: 1 })
+@index({ 'tasks.status': 1 })
 export default class TaskRun extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
