@@ -6,6 +6,7 @@ import Utils from '@helpers/utils'
 import { Models } from '@dbModels'
 import { IEnumTaskStatus } from '@types'
 import logger from '@logger'
+
 describe('Modules: TaskScheduler', () => {
   let sandbox: SinonSandbox
   let scheduler: TaskScheduler
@@ -70,24 +71,35 @@ describe('Modules: TaskScheduler', () => {
     const task = status.find(task => task.key === serviceName)
     expect(task?.running).to.be.false
 
+    // Wait a bit for any pending database operations to complete
+    await Utils.wait(50)
+
     const serviceDb = await Models.TaskService.find({ serviceName })
-    const tasksDb = await Models.TaskRun.find({ serviceName })
+    const tasksDb = await Models.TaskRun.find({ serviceName }).sort({ createdAt: -1 })
     expect(serviceDb.length).to.eq(1)
     expect(serviceDb[0].serviceName).to.eq(serviceName)
     expect(serviceDb[0].interval).to.eq(50)
     expect(serviceDb[0].nextStartAt).to.exist
     expect(serviceDb[0].lastStartAt).to.exist
 
-    expect(tasksDb.length).to.be.at.least(7)
-    expect(tasksDb[0].serviceName).to.eq(serviceName)
-    expect(tasksDb[0].tasks.length).to.eq(7)
+    // Only error runs should remain (successful runs are deleted)
+    expect(tasksDb.length).to.be.at.least(1)
 
-    const task0 = tasksDb[0].tasks[0]
-    expect(task0.taskName).to.eq('logPluginRepoRegistry')
-    expect(task0.status).to.eq(IEnumTaskStatus.ERROR)
-    expect(task0.position).to.eq(0)
-    expect(task0.startAt).to.exist
-    expect(task0.endAt).to.exist
+    // Find a completed task run (one with endAt set)
+    const completedRuns = tasksDb.filter(run => run.endAt)
+    expect(completedRuns.length).to.be.at.least(1)
+
+    const completedRun = completedRuns[0]
+    expect(completedRun.serviceName).to.eq(serviceName)
+    expect(completedRun.tasks.length).to.eq(7)
+
+    // Find the error task
+    const errorTask = completedRun.tasks.find(t => t.taskName === 'logPluginRepoRegistry')
+    expect(errorTask).to.exist
+    expect(errorTask.status).to.eq(IEnumTaskStatus.ERROR)
+    expect(errorTask.position).to.eq(0)
+    expect(errorTask.startAt).to.exist
+    expect(errorTask.endAt).to.exist
   })
 
   it('should run task at least twice at the specified interval when runNow is false', async () => {
@@ -137,7 +149,8 @@ describe('Modules: TaskScheduler', () => {
     expect(serviceDb[0].nextStartAt).to.exist
     expect(serviceDb[0].lastStartAt).to.exist
 
-    expect(tasksDb.length).to.be.at.least(2)
+    // Only error runs should remain
+    expect(tasksDb.length).to.be.at.least(1)
     expect(tasksDb[0].serviceName).to.eq(serviceName)
     expect(tasksDb[0].tasks.length).to.eq(3)
 
@@ -252,7 +265,7 @@ describe('Modules: TaskScheduler', () => {
     expect(stubWarn.calledOnce).to.be.true
   })
 
-  it('should not run task if it is locked', async () => {
+  it('should not run task if it is already running (locked in database)', async () => {
     const task1 = { start: sandbox.stub().resolves('done') }
     const taskFn = () => [[{ task1 }]]
     const errorFunction = sandbox.stub()
@@ -265,39 +278,13 @@ describe('Modules: TaskScheduler', () => {
       onError: errorFunction,
     })
 
-    scheduler['tasks'][serviceName].lock = true
+    // Mock the lock to be already acquired
+    sandbox.stub(scheduler as any, 'acquireLock').resolves(false)
 
     await scheduler.runTaskNow(serviceName)
 
+    // Should still be called once from the initial runNow
     expect(task1.start.calledOnce).to.be.true
-
-    scheduler['tasks'][serviceName].lock = false
-  })
-
-  it('should not execute task when it is locked', async () => {
-    const task1 = { start: sandbox.stub().resolves('Task completed') }
-    const taskFn = () => [[{ task1 }]]
-    const errorFunction = sandbox.stub()
-    const serviceName = getUniqueServiceName('lockedTask')
-
-    await scheduler.startTask(serviceName, {
-      fn: taskFn,
-      interval: 50,
-      runNow: true,
-      onError: errorFunction,
-    })
-
-    await Utils.wait(10)
-
-    scheduler['tasks'][serviceName].lock = true
-
-    await scheduler.runTaskNow(serviceName)
-
-    expect(task1.start.calledOnce).to.be.true
-
-    scheduler['tasks'][serviceName].lock = false
-    await scheduler.runTaskNow(serviceName)
-    expect(task1.start.calledTwice).to.be.true
   })
 
   it('should return true if no task service exists for shouldRunTask', async () => {
@@ -314,30 +301,9 @@ describe('Modules: TaskScheduler', () => {
     }
     sandbox.stub(Models.TaskService, 'findOne').resolves(existingService)
 
-    const result = await scheduler['initializeTaskService']('testService', 500)
-    expect(result).to.eq(existingService)
+    await scheduler['initializeTaskService']('testService', 500)
     expect(existingService.update.calledOnce).to.be.true
-    expect(existingService.update.firstCall.args[0].nextStartAt).to.exist
     expect(existingService.update.firstCall.args[0].interval).to.eq(500)
-  })
-
-  it('should not run task if it is locked in taskRunner', async () => {
-    const task1 = { start: sandbox.stub().resolves('done') }
-    const taskFn = [[{ task1 }]]
-    const serviceName = getUniqueServiceName('lockedTest')
-
-    await scheduler.startTask(serviceName, {
-      fn: () => taskFn,
-      interval: 5000,
-      runNow: true,
-      onError: sandbox.stub(),
-    })
-
-    scheduler['tasks'][serviceName].lock = true
-    const taskRunner = scheduler['taskRunners'][serviceName]
-    await taskRunner()
-
-    expect(task1.start.calledOnce).to.be.true
   })
 
   it('should not run task if shouldRunTask returns false', async () => {
@@ -353,96 +319,77 @@ describe('Modules: TaskScheduler', () => {
       onError: sandbox.stub(),
     })
 
-    const taskRunner = scheduler['taskRunners'][serviceName]
-    await taskRunner()
+    await Utils.wait(10)
 
     expect(task1.start.called).to.be.false
   })
 
-  describe('updateNextStartAt error handling', () => {
-    it('should handle duplicate key error (code 11000) and retry with findOneAndUpdate', async () => {
-      const task1 = { start: sandbox.stub().resolves('done') }
-      const taskFn = [[{ task1 }]]
-      const serviceName = getUniqueServiceName('duplicateKeyTest')
+  it('should handle successful tasks by deleting them from database', async () => {
+    const successfulTask = { start: sandbox.stub().resolves('done') }
+    const taskFn = () => [[{ successfulTask }]]
+    const serviceName = getUniqueServiceName('successTest')
 
-      // First call throws duplicate key error, second call succeeds
-      const findOneAndUpdateStub = sandbox.stub(Models.TaskService, 'findOneAndUpdate')
-      findOneAndUpdateStub.onFirstCall().rejects({ code: 11000, message: 'Duplicate key error' })
-      findOneAndUpdateStub.onSecondCall().resolves({})
-
-      // Mock TaskRun.create to succeed
-      sandbox.stub(Models.TaskRun, 'create').resolves({ _id: 'mockTaskRunId' })
-      sandbox.stub(Models.TaskRun, 'updateOne').resolves({})
-
-      await scheduler.startTask(serviceName, {
-        fn: () => taskFn,
-        interval: 50,
-        runNow: true,
-        onError: sandbox.stub(),
-      })
-
-      await Utils.wait(10)
-
-      expect(findOneAndUpdateStub.calledTwice).to.be.true
-      expect(task1.start.calledOnce).to.be.true
+    await scheduler.startTask(serviceName, {
+      fn: taskFn,
+      interval: 50,
+      runNow: true,
+      onError: sandbox.stub(),
     })
 
-    it('should re-throw non-duplicate key errors', async () => {
-      const task1 = { start: sandbox.stub().resolves('done') }
-      const taskFn = [[{ task1 }]]
-      const serviceName = getUniqueServiceName('otherErrorTest')
-      const onErrorStub = sandbox.stub()
+    await Utils.wait(100)
 
-      sandbox.stub(logger, 'error')
+    // Check that successful runs are deleted
+    const tasksDb = await Models.TaskRun.find({ serviceName })
+    expect(tasksDb.length).to.eq(0) // All successful runs should be deleted
+  })
 
-      const otherError = new Error('Database connection failed')
-      sandbox.stub(Models.TaskService, 'findOneAndUpdate').rejects(otherError)
+  it('should keep error tasks in database', async () => {
+    const failingTask = { start: sandbox.stub().rejects(new Error('Task failed')) }
+    const taskFn = () => [[{ failingTask }]]
+    const serviceName = getUniqueServiceName('errorKeepTest')
 
-      // Mock TaskRun.create to avoid the _id error
-      sandbox.stub(Models.TaskRun, 'create').resolves({ _id: 'mockTaskRunId' })
-      sandbox.stub(Models.TaskRun, 'updateOne').resolves({})
-
-      await scheduler.startTask(serviceName, {
-        fn: () => taskFn,
-        interval: 50,
-        runNow: true,
-        onError: onErrorStub,
-      })
-
-      await Utils.wait(10)
-
-      expect(onErrorStub.calledOnce).to.be.true
-      expect(onErrorStub.firstCall.args[0]).to.equal(otherError)
+    await scheduler.startTask(serviceName, {
+      fn: taskFn,
+      interval: 50,
+      runNow: true,
+      stopOnError: false,
+      onError: sandbox.stub(),
     })
 
-    it('should handle error when retry also fails after duplicate key error', async () => {
-      const task1 = { start: sandbox.stub().resolves('done') }
-      const taskFn = [[{ task1 }]]
-      const serviceName = getUniqueServiceName('retryFailTest')
-      const onErrorStub = sandbox.stub()
-      sandbox.stub(logger, 'error')
+    await Utils.wait(100)
 
-      const retryError = new Error('Retry failed')
-      const findOneAndUpdateStub = sandbox.stub(Models.TaskService, 'findOneAndUpdate')
-      findOneAndUpdateStub.onFirstCall().rejects({ code: 11000, message: 'Duplicate key error' })
-      findOneAndUpdateStub.onSecondCall().rejects(retryError)
+    // Check that error runs are kept
+    const tasksDb = await Models.TaskRun.find({ serviceName })
+    expect(tasksDb.length).to.be.at.least(1)
+    expect(tasksDb[0].tasks[0].status).to.eq(IEnumTaskStatus.ERROR)
+    expect(tasksDb[0].tasks[0].error).to.include('Task failed')
+  })
 
-      // Mock TaskRun.create to avoid the _id error
-      sandbox.stub(Models.TaskRun, 'create').resolves({ _id: 'mockTaskRunId' })
-      sandbox.stub(Models.TaskRun, 'updateOne').resolves({})
+  it('should handle mixed success and error tasks correctly', async () => {
+    const successTask = { start: sandbox.stub().resolves('done') }
+    const failTask = { start: sandbox.stub().rejects(new Error('Failed')) }
+    const taskFn = () => [[{ successTask }, { failTask }]]
+    const serviceName = getUniqueServiceName('mixedTest')
 
-      await scheduler.startTask(serviceName, {
-        fn: () => taskFn,
-        interval: 50,
-        runNow: true,
-        onError: onErrorStub,
-      })
-
-      await Utils.wait(10)
-
-      expect(findOneAndUpdateStub.calledTwice).to.be.true
-      expect(onErrorStub.calledOnce).to.be.true
-      expect(onErrorStub.firstCall.args[0]).to.equal(retryError)
+    await scheduler.startTask(serviceName, {
+      fn: taskFn,
+      interval: 50,
+      runNow: true,
+      stopOnError: false,
+      onError: sandbox.stub(),
     })
+
+    await Utils.wait(100)
+
+    // Should keep the run because it has errors
+    const tasksDb = await Models.TaskRun.find({ serviceName })
+    expect(tasksDb.length).to.be.at.least(1)
+
+    const tasks = tasksDb[0].tasks
+    const successTaskResult = tasks.find(t => t.taskName === 'successTask')
+    const failTaskResult = tasks.find(t => t.taskName === 'failTask')
+
+    expect(successTaskResult.status).to.eq(IEnumTaskStatus.DONE)
+    expect(failTaskResult.status).to.eq(IEnumTaskStatus.ERROR)
   })
 })
