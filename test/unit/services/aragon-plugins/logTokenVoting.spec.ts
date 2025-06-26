@@ -7,7 +7,7 @@ import { NetworksEnum, ITokenType } from '@types'
 import { expect } from 'chai'
 import { ProxyToken } from '@modules/proxyToken'
 import { TokenHolderSync } from '@plugins/tokenHolderSync'
-import config from "@config";
+import config from '@config'
 
 describe('AragonPlugins: LogTokenVoting', () => {
   let sandbox: SinonSandbox
