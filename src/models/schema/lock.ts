@@ -141,6 +141,7 @@ export default class Lock extends Model {
       assert(!!rawData.memberAddress, 'memberAddress is required')
       assert(!!rawData.tokenId, 'tokenId is required')
       assert(!!rawData.escrowAddress, 'escrowAddress is required')
+      assert(!!rawData.exitQueueAddress, 'exitQueueAddress is required')
       rawData.id = this.getEntityId({
         network: rawData?.network!,
         transactionHash: rawData?.transactionHash!,
