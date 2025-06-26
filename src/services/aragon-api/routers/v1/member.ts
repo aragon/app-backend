@@ -93,7 +93,7 @@ const MemberRouter = {
 
     const extraParams: ILockExtraParams = {
       memberAddress: ctx.params.address,
-      pluginAddress: ctx.query.pluginAddress as HexAddress,
+      escrowAddress: ctx.query.escrowAddress as HexAddress,
       network: ctx.query.network as NetworksEnum,
       onlyActive: Utils.parseBoolean(ctx.query.onlyActive),
     }
