@@ -19,10 +19,23 @@ export enum EnumQueueName {
   proposalActions = 'proposal.actions',
   canCreateProposal = 'can.create.proposal',
   pluginInstallationData = 'plugin.installation.data',
+  syncMember = 'member.sync',
 }
 
 export interface IQueueAllMetrics {
   network: NetworksEnum
+}
+
+export interface ISyncMember {
+  address: HexAddress
+  value: string
+}
+
+export interface IQueueSyncMember {
+  pluginAddress: HexAddress
+  tokenAddress: HexAddress
+  network: NetworksEnum
+  members: ISyncMember[]
 }
 
 export interface IQueueDao {
