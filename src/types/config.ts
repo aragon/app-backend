@@ -71,6 +71,7 @@ export interface IConfig {
   SUPPORTED_NETWORKS: NetworksEnum[]
   WHITELIST_TOKENS: ITokenData[]
   CUSTOM_INSTALL: boolean
+  SKIP_SYNC: boolean
   DEFAULT_CURRENCY: string
   RABBITMQ: {
     URI: string

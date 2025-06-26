@@ -13,6 +13,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     DEFAULT_CURRENCY: utils.configParser(sourceConfig, 'string', 'DEFAULT_CURRENCY', 'USD'),
     ENS_DOMAIN: utils.configParser(sourceConfig, 'string', 'ENS_DOMAIN', 'dao.eth'),
     CUSTOM_INSTALL: utils.configParser(sourceConfig, 'bool', 'CUSTOM_INSTALL', false),
+    SKIP_SYNC: utils.configParser(sourceConfig, 'bool', 'SKIP_SYNC', true),
     SUPPORTED_ENS_NETWORKS: utils.configParser(
       sourceConfig,
       'array',

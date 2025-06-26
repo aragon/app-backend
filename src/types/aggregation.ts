@@ -73,6 +73,7 @@ export interface IAggTokenProjectFields {
   symbol?: 1
   decimals?: 1
   isGovernance?: 1
+  skipSync?: 1
   hasDelegate?: 1
   underlying?: 1
   holders?: 1
