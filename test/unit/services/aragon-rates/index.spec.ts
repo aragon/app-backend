@@ -18,6 +18,8 @@ describe('AragonRates: index', () => {
 
   afterEach(() => {
     sandbox?.restore()
+    const scheduler = TaskSchedulerState.getInstance()
+    scheduler.stopAllTasks()
   })
 
   it('Should start, schedule tasks, and stop', async () => {

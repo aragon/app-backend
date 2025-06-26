@@ -11,13 +11,12 @@ interface TaskOptions {
   runNow: boolean
   stopOnError?: boolean
   interval: number
-  checkInterval?: number // The interval to check if tasks need to be run, default to 15 minutes
+  checkInterval?: number
   onError?: (error: any) => void
 }
 
 interface TaskState {
   running: boolean
-  lock: boolean
   intervalId: NodeJS.Timeout | null
 }
 
@@ -28,8 +27,49 @@ class TaskScheduler {
   public getTaskStatus(): { key: string; running: boolean }[] {
     return Object.keys(this.tasks).map(key => ({
       key,
-      running: this.tasks[key].running && !this.tasks[key].lock,
+      running: this.tasks[key].running,
     }))
+  }
+
+  private async acquireLock(serviceName: string): Promise<boolean> {
+    try {
+      const now = dayjs().utc().toDate()
+      const lockExpiresAt = dayjs().utc().add(5, 'minutes').toDate()
+
+      const result = await Models.TaskService.findOneAndUpdate(
+        {
+          serviceName,
+          $or: [{ lockedUntil: { $exists: false } }, { lockedUntil: { $lt: now } }, { lockedUntil: null }],
+        },
+        {
+          $set: {
+            lockedUntil: lockExpiresAt,
+            lockedBy: process.pid,
+          },
+        },
+        {
+          new: true,
+        },
+      )
+
+      return !!result
+    } catch (error) {
+      logger.error('Error acquiring lock', llo({ serviceName, error }))
+      return false
+    }
+  }
+
+  private async releaseLock(serviceName: string): Promise<void> {
+    try {
+      await Models.TaskService.findOneAndUpdate(
+        { serviceName },
+        {
+          $unset: { lockedUntil: 1, lockedBy: 1 },
+        },
+      )
+    } catch (error) {
+      logger.error('Error releasing lock', llo({ serviceName, error }))
+    }
   }
 
   private async shouldRunTask(serviceName: string): Promise<boolean> {
@@ -52,14 +92,12 @@ class TaskScheduler {
         nextStartAt,
         interval,
       })
-      return existingService
     } else {
-      const service = await Models.TaskService.create({
+      await Models.TaskService.create({
         serviceName,
         interval,
         nextStartAt,
       })
-      return service
     }
   }
 
@@ -85,28 +123,34 @@ class TaskScheduler {
 
     this.tasks[key] = {
       running: false,
-      lock: false,
       intervalId: null,
     }
 
     const taskRunner = async () => {
-      if (this.tasks[key].lock) {
-        return
-      }
+      // Track if lock was acquired
+      let lockAcquired = false
 
+      // Check if should run first
       const shouldRun = runNow || (await this.shouldRunTask(key))
       if (!shouldRun) {
         return
       }
 
-      this.tasks[key].lock = true
+      // Try to acquire distributed lock
+      lockAcquired = await this.acquireLock(key)
+      if (!lockAcquired) {
+        logger.debug('Could not acquire lock, task already running', llo({ key }))
+        return
+      }
 
       const runStartTime = dayjs().utc()
       let taskRun: any
+      let hasErrors = false
 
       try {
         await this.updateNextStartAt(key, interval)
 
+        // IMPORTANT: Use the same create syntax as the old version
         taskRun = await Models.TaskRun.create({
           serviceName: key,
           startAt: runStartTime.toDate(),
@@ -162,7 +206,8 @@ class TaskScheduler {
                     },
                   },
                 )
-              } catch (error) {
+              } catch (error: any) {
+                hasErrors = true
                 const taskEndTime = dayjs().utc()
                 await Models.TaskRun.updateOne(
                   { _id: taskRun._id, 'tasks.taskName': taskName },
@@ -170,8 +215,18 @@ class TaskScheduler {
                     $set: {
                       'tasks.$.status': IEnumTaskStatus.ERROR,
                       'tasks.$.endAt': taskEndTime.toDate(),
+                      'tasks.$.error': error?.message || String(error),
                     },
                   },
+                )
+
+                logger.error(
+                  'Task execution error',
+                  llo({
+                    key,
+                    taskName,
+                    error: error?.message || error,
+                  }),
                 )
 
                 if (stopOnError) {
@@ -181,16 +236,43 @@ class TaskScheduler {
             }),
           )
         }
-      } catch (error) {
+
+        if (taskRun?._id) {
+          const runEndTime = dayjs().utc()
+          await Models.TaskRun.updateOne({ _id: taskRun._id }, { $set: { endAt: runEndTime.toDate() } })
+        }
+
+        // Delete successful runs immediately
+        if (taskRun?._id && !hasErrors) {
+          await Models.TaskRun.deleteOne({ _id: taskRun._id })
+          logger.debug('Deleted successful task run', llo({ key, taskRunId: taskRun._id }))
+        } else if (hasErrors) {
+          logger.info('Keeping task run due to errors', llo({ key, taskRunId: taskRun._id }))
+        }
+      } catch (error: any) {
         logger.error('Task unexpected error', llo({ key, error }))
+
+        // Mark task run as failed if it exists
+        if (taskRun?._id) {
+          await Models.TaskRun.updateOne(
+            { _id: taskRun._id },
+            {
+              $set: {
+                endAt: dayjs().utc().toDate(),
+                error: error?.message || String(error),
+              },
+            },
+          )
+        }
+
         if (onError) {
           onError(error)
         }
       } finally {
-        this.tasks[key].lock = false
-
-        const runEndTime = dayjs().utc()
-        await Models.TaskRun.updateOne({ _id: taskRun._id }, { $set: { endAt: runEndTime.toDate() } })
+        // Release lock only if it was acquired
+        if (lockAcquired) {
+          await this.releaseLock(key)
+        }
       }
     }
 
@@ -203,37 +285,32 @@ class TaskScheduler {
     this.tasks[key].running = true
 
     this.tasks[key].intervalId = setInterval(async () => {
-      await this.checkAndRunTasks()
+      await this.checkAndRunTasks(key)
     }, checkInterval)
   }
 
   public async runTaskNow(key: string): Promise<void> {
     const taskRunner = this.taskRunners[key]
-    if (taskRunner && !this.tasks[key].lock) {
-      this.tasks[key].running = true
+    if (taskRunner) {
       await taskRunner()
-      this.tasks[key].running = false
     }
   }
 
-  public async checkAndRunTasks() {
-    const services = await Models.TaskService.find({})
-    for (const service of services) {
-      const shouldRun = await this.shouldRunTask(service.serviceName)
-      if (shouldRun) {
-        await this.runTaskNow(service.serviceName)
-      }
+  public async checkAndRunTasks(key: string) {
+    const shouldRun = await this.shouldRunTask(key)
+    if (shouldRun) {
+      await this.runTaskNow(key)
     }
   }
 
   public stopTask(key: string): void {
-    if (this.tasks[key]?.running) {
-      this.tasks[key].lock = true
+    if (this.tasks[key]) {
       this.tasks[key].running = false
       if (this.tasks[key].intervalId !== null) {
         clearInterval(this.tasks[key].intervalId)
         this.tasks[key].intervalId = null
       }
+      delete this.taskRunners[key]
       logger.info(`${key} task stopped`, llo({}))
     } else {
       logger.info(`${key} task is not running`, llo({}))
@@ -244,6 +321,10 @@ class TaskScheduler {
     for (const key of Object.keys(this.tasks)) {
       this.stopTask(key)
     }
+  }
+
+  public destroy(): void {
+    this.stopAllTasks()
   }
 }
 

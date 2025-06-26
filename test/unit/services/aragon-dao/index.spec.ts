@@ -26,6 +26,8 @@ describe('AragonDao: index', () => {
 
   afterEach(() => {
     sandbox?.restore()
+    const scheduler = TaskSchedulerState.getInstance()
+    scheduler.stopAllTasks()
   })
 
   describe('start', () => {
