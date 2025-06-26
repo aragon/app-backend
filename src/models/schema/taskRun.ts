@@ -30,6 +30,9 @@ class Task {
 
   @prop({ type: () => Number })
   public concurrency?: number
+
+  @prop({ type: () => String })
+  public error?: string
 }
 
 @modelOptions({
@@ -45,6 +48,9 @@ class Task {
   },
 })
 @index({ id: 1 }, { unique: true })
+@index({ serviceName: 1, createdAt: -1 })
+@index({ createdAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 }) // TTL index - auto delete after 30 days
+@index({ 'tasks.status': 1 }) // Index for task status queries
 export default class TaskRun extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -77,6 +83,41 @@ export default class TaskRun extends Model {
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
     return await this.findOne({ id: entityId }, null, tOpts)
+  }
+
+  static async getRecentRuns(serviceName: string, limit: number = 10, skip: number = 0) {
+    return await this.find({ serviceName }).sort({ createdAt: -1 }).limit(limit).skip(skip).select('-tasks.params')
+  }
+
+  static async getTaskStatistics(serviceName: string, days: number = 7) {
+    const startDate = new Date()
+    startDate.setDate(startDate.getDate() - days)
+
+    return await this.aggregate([
+      {
+        $match: {
+          serviceName,
+          createdAt: { $gte: startDate },
+        },
+      },
+      {
+        $unwind: '$tasks',
+      },
+      {
+        $group: {
+          _id: {
+            status: '$tasks.status',
+            taskName: '$tasks.taskName',
+          },
+          count: { $sum: 1 },
+          avgDuration: {
+            $avg: {
+              $subtract: ['$tasks.endAt', '$tasks.startAt'],
+            },
+          },
+        },
+      },
+    ])
   }
 
   async update(params: Partial<TaskRun>, tOpts?: SaveOptions) {
