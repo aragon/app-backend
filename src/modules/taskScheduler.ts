@@ -127,6 +127,9 @@ class TaskScheduler {
     }
 
     const taskRunner = async () => {
+      // Track if lock was acquired
+      let lockAcquired = false
+
       // Check if should run first
       const shouldRun = runNow || (await this.shouldRunTask(key))
       if (!shouldRun) {
@@ -134,7 +137,7 @@ class TaskScheduler {
       }
 
       // Try to acquire distributed lock
-      const lockAcquired = await this.acquireLock(key)
+      lockAcquired = await this.acquireLock(key)
       if (!lockAcquired) {
         logger.debug('Could not acquire lock, task already running', llo({ key }))
         return
@@ -266,8 +269,10 @@ class TaskScheduler {
           onError(error)
         }
       } finally {
-        // Always release lock
-        await this.releaseLock(key)
+        // Release lock only if it was acquired
+        if (lockAcquired) {
+          await this.releaseLock(key)
+        }
       }
     }
 
