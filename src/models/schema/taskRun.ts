@@ -50,7 +50,6 @@ class Task {
 @index({ id: 1 }, { unique: true })
 @index({ serviceName: 1, createdAt: -1 })
 @index({ createdAt: 1 })
-@index({ 'tasks.status': 1 })
 export default class TaskRun extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
