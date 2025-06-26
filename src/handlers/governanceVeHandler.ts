@@ -1,6 +1,6 @@
 import logger from '@logger'
 import { type LogDescription } from 'ethers'
-import { type ILogInfo } from '@types'
+import { type HexAddress, type ILogInfo } from '@types'
 import { Models } from '@dbModels'
 import { ProxyMember } from '@modules/proxyMember'
 import Web3Helper from '@helpers/web3'
@@ -10,6 +10,7 @@ import DbTx from '@modules/dbTx'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { ProxyToken } from '@modules/proxyToken'
 import GovernanceErc20Helper from '@src/helpers/governanceErc20'
+import type Plugin from '@models/schema/plugin'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:GovernanceVeHandler' })
 
@@ -199,12 +200,14 @@ export const GovernanceVeHandler = {
     ])
 
     const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
-    uniqueDaoList.map(async (daoAddress: string) => {
-      await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-        id: daoAddress,
-        params: { address: daoAddress, network: info.network },
-      })
-    })
+    await Promise.all(
+      uniqueDaoList.map(async (daoAddress: string) => {
+        await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+          id: daoAddress,
+          params: { address: daoAddress, network: info.network },
+        })
+      }),
+    )
   },
 
   deposit: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -218,6 +221,16 @@ export const GovernanceVeHandler = {
       return
     }
 
+    /**
+     * Extracting addresses from the first plugin
+     * since they are expected to be the same across all plugins
+     */
+
+    const escrowAddress = plugins[0].votingEscrow.escrowAddress
+    const tokenAddress = plugins[0].tokenAddress
+    const nftLockAddress = plugins[0].votingEscrow.nftLockAddress
+    const exitQueueAddress = plugins[0].votingEscrow.exitQueueAddress
+
     const memberAddress = parsedEvent.args.depositor
     const tokenId = parsedEvent.args.tokenId.toString()
     const amount = parsedEvent.args.value.toString()
@@ -227,31 +240,50 @@ export const GovernanceVeHandler = {
 
     await ProxyMember.createMember(memberAddress)
 
-    await Promise.all(
-      plugins.map(async (plugin: any) => {
-        await Models.Lock.create({
-          network: info.network,
-          transactionHash: info.transactionHash,
-          transactionIndex: info.transactionIndex,
-          logIndex: info.logIndex,
-          blockNumber: info.blockNumber,
-          blockTimestamp,
-          pluginAddress: plugin.address,
-          daoAddress: plugin.daoAddress,
-          escrowAddress: plugin.votingEscrow.escrowAddress,
-          memberAddress,
-          nftAddress: plugin.votingEscrow.nftLockAddress,
-          tokenAddress: plugin.tokenAddress,
-          tokenId,
-          amount,
-          epochStartAt,
-          totalLocked,
-        })
-        await ProxyMember.addToDao(memberAddress)
+    const lockParams = {
+      network: info.network,
+      transactionHash: info.transactionHash,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
+      tokenAddress: plugins[0].tokenAddress,
+      memberAddress,
+      tokenId,
+      escrowAddress,
+    }
 
-        logger.verbose('Deposit VeGovernance', llo({ info, memberAddress, tokenId }))
-      }),
-    )
+    const existingLock = await Models.Lock.findExistingLog(lockParams)
+
+    if (!existingLock) {
+      await Models.Lock.create({
+        network: info.network,
+        transactionHash: info.transactionHash,
+        transactionIndex: info.transactionIndex,
+        logIndex: info.logIndex,
+        blockNumber: info.blockNumber,
+        blockTimestamp,
+        escrowAddress,
+        memberAddress,
+        nftAddress: nftLockAddress,
+        tokenAddress,
+        tokenId,
+        amount,
+        epochStartAt,
+        totalLocked,
+        exitQueueAddress,
+      })
+
+      logger.verbose(
+        'Deposit VeGovernance - Lock created',
+        llo({ info, memberAddress, tokenId, escrow: escrowAddress }),
+      )
+    } else {
+      logger.warn(
+        'Deposit VeGovernance - Lock already exists',
+        llo({ info, memberAddress, tokenId, escrow: escrowAddress }),
+      )
+    }
+
+    await GovernanceVeHandler._handleDaoMemberShipOnLockEvents(plugins, memberAddress, info, true)
   },
 
   withdraw: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -265,6 +297,8 @@ export const GovernanceVeHandler = {
       return
     }
 
+    const escrowAddress = info.address
+
     const memberAddress = parsedEvent.args.depositor
     const tokenId = parsedEvent.args.tokenId.toString()
     const amount = parsedEvent.args.value.toString()
@@ -272,42 +306,79 @@ export const GovernanceVeHandler = {
     const blockTimestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
     const totalLocked = parsedEvent.args.newTotalLocked.toString()
 
+    const memberLockParams = {
+      escrowAddress,
+      network: info.network,
+      memberAddress,
+      tokenId,
+    }
+
+    const existingLock = await Models.Lock.findLockMember(memberLockParams)
+    if (!existingLock) {
+      logger.error(
+        'Lock not found for withdraw event',
+        llo({
+          info,
+          memberAddress,
+          tokenId,
+          escrowAddress,
+        }),
+      )
+      return
+    }
+
+    await existingLock.update({
+      lockWithdraw: {
+        status: true,
+        transactionHash: info.transactionHash,
+        blockNumber: info.blockNumber,
+        blockTimestamp,
+        totalLocked,
+        amount,
+        epochEndAt,
+      },
+    })
+
+    logger.verbose('Withdraw VeGovernance', llo({ info, memberAddress, tokenId }))
+
+    await GovernanceVeHandler._handleDaoMemberShipOnLockEvents(plugins, memberAddress, info, false)
+  },
+
+  _handleDaoMemberShipOnLockEvents: async (
+    plugins: Plugin[],
+    memberAddress: HexAddress,
+    info: ILogInfo,
+    addToDao: boolean,
+  ) => {
     await Promise.all(
       plugins.map(async (plugin: any) => {
-        const memberLock = await Models.Lock.findLockMember({
-          network: info.network,
-          pluginAddress: plugin.address,
-          tokenId,
+        const memberShipParams = {
           memberAddress,
-        })
-
-        if (!memberLock) {
-          logger.error(
-            'Lock not found for withdraw event',
-            llo({
-              info,
-              memberAddress,
-              tokenId,
-              pluginAddress: plugin.address,
-            }),
-          )
-          return
+          daoAddress: plugin.daoAddress,
+          network: plugin.network,
+          pluginAddress: plugin.address,
+          tokenAddress: plugin.tokenAddress,
         }
 
-        await memberLock.update({
-          lockWithdraw: {
-            status: true,
-            transactionHash: info.transactionHash,
-            blockNumber: info.blockNumber,
-            blockTimestamp,
-            totalLocked,
-            amount,
-            epochEndAt,
-          },
-        })
-        await ProxyMember.removeFromDao(memberAddress)
+        const isMember = await ProxyMember.isMemberOfDao(memberShipParams)
+        if (addToDao && !isMember) {
+          await ProxyMember.addToDao(memberShipParams)
+        }
 
-        logger.verbose('Withdraw VeGovernance', llo({ info, memberAddress, tokenId }))
+        if (!addToDao && isMember) {
+          await ProxyMember.removeFromDao(memberShipParams)
+        }
+      }),
+    )
+
+    const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
+
+    await Promise.all(
+      uniqueDaoList.map(async (daoAddress: string) => {
+        await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+          id: daoAddress,
+          params: { address: daoAddress, network: info.network },
+        })
       }),
     )
   },
@@ -328,41 +399,36 @@ export const GovernanceVeHandler = {
     const exitDateAt = Number(parsedEvent.args.exitDate)
     const blockTimestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
 
-    await Promise.all(
-      plugins.map(async (plugin: any) => {
-        const memberLock = await Models.Lock.findLockMember({
-          network: info.network,
-          pluginAddress: plugin.address,
-          tokenId,
+    const memberLock = await Models.Lock.findLockMember({
+      network: info.network,
+      exitQueueAddress: info.address,
+      tokenId,
+      memberAddress,
+    })
+
+    if (!memberLock) {
+      logger.error(
+        'Lock not found for exitQueued event',
+        llo({
+          info,
           memberAddress,
-        })
+          tokenId,
+        }),
+      )
+      return
+    }
 
-        if (!memberLock) {
-          logger.error(
-            'Lock not found for exitQueued event',
-            llo({
-              info,
-              memberAddress,
-              tokenId,
-              pluginAddress: plugin.address,
-            }),
-          )
-          return
-        }
+    await memberLock.update({
+      lockExit: {
+        status: true,
+        transactionHash: info.transactionHash,
+        blockNumber: info.blockNumber,
+        blockTimestamp,
+        exitDateAt,
+      },
+    })
 
-        await memberLock.update({
-          lockExit: {
-            status: true,
-            transactionHash: info.transactionHash,
-            blockNumber: info.blockNumber,
-            blockTimestamp,
-            exitDateAt,
-          },
-        })
-
-        logger.verbose('Exit queued VeGovernance', llo({ info, memberAddress, tokenId }))
-      }),
-    )
+    logger.verbose('Exit queued VeGovernance', llo({ info, memberAddress, tokenId }))
   },
 
   minDepositSet: async (parsedEvent: LogDescription, info: ILogInfo) => {

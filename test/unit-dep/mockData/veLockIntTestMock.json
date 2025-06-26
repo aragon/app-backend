@@ -1,0 +1,73 @@
+{
+  "plugin": {
+    "id": "ethereum-sepolia-0xf55e96e28d95da46aa3bfa60841b29c55502208d8a0df71cf1f05a943f0942fa-0x85Ec8454f8463Ac27A1aDCe73fc2337C860a054a",
+    "transactionHash": "0xf55e96e28d95da46aa3bfa60841b29c55502208d8a0df71cf1f05a943f0942fa",
+    "blockNumber": 8534225,
+    "blockTimestamp": 1749751032,
+    "network": "ethereum-sepolia",
+    "address": "0x85Ec8454f8463Ac27A1aDCe73fc2337C860a054a",
+    "implementationAddress": "0x3b4D91ed7F1A8a2648Cc72E8dE31f0d35A4f9A65",
+    "interfaceType": "tokenVoting",
+    "status": "installed",
+    "isSupported": true,
+    "daoAddress": "0x1EC71803dfD1e53188C7c446F171f9239C2DF073",
+    "tokenAddress": "0xf57d82a77f8179232184523B5EFD7EDB6db69981",
+    "pluginSetupRepoAddress": "0x424F4cA6FA9c24C03f2396DF0E96057eD11CF7dF",
+    "sender": "0x17366cae2b9c6C3055e9e3C78936a69006BE5409",
+    "release": "1",
+    "build": "3",
+    "subdomain": "token-voting",
+    "uninstalled": {
+      "status": false,
+      "transactionHash": null,
+      "blockNumber": null,
+      "blockTimestamp": null
+    },
+    "hasTarget": false,
+    "isProcess": true,
+    "isBody": true,
+    "isSubPlugin": false,
+    "metadataIpfs": "ipfs://QmPNPGEiLno1TdFnG6jC46XKbYMxCRx9XbjWxKHxzxKuka",
+    "name": "New Lock Delegate",
+    "description": "",
+    "processKey": "DELEG",
+    "votingEscrow": {
+      "curveAddress": "0x4277fF4833E0D1bC8Efa3A2345D953e1eD24494d",
+      "exitQueueAddress": "0x93008b28002c5a77620c2cF8548E5665326640D0",
+      "escrowAddress": "0x0753Bf4D6dCdd2e6baE8122b741213F2A7fEc707",
+      "clockAddress": "0xdfe41183f14bc4Ad705833de026d55aE4EcBE994",
+      "nftLockAddress": "0xeD13Ac563e5482c2A6aD63a950Dd003C4A2834bd",
+      "underlying": "0x200e10aadF140989b8707dA4247B0599aF17E6CD"
+    },
+    "subPlugins": [],
+    "links": []
+  },
+  "dao": {
+    "id": "ethereum-sepolia-0x1EC71803dfD1e53188C7c446F171f9239C2DF073",
+    "isActive": true,
+    "isHidden": false,
+    "network": "ethereum-sepolia",
+    "transactionHash": "0xe1cc02b4d2400658711f1c87ee2ce108ef2cb7862423892211eb828bfc7165f1",
+    "blockNumber": 8368465,
+    "blockTimestamp": 1747752504,
+    "address": "0x1EC71803dfD1e53188C7c446F171f9239C2DF073",
+    "implementationAddress": "0x824d4AAD1cbF2327c4C429E3c97F968Ee19344F8",
+    "creatorAddress": "0x17366cae2b9c6C3055e9e3C78936a69006BE5409",
+    "ens": null,
+    "subdomain": null,
+    "metadataIpfs": "ipfs://QmbKpzTFzVENWWjefGfam8L12JWdzr21s8Gf7NtZYLPH26",
+    "name": "VELock DAO",
+    "description": "Example DAO using a simple token-voting governance with a VELock smart contract set a token.\nVELock smart contract address: 0x0729658Fb93CFfF007b171869cd350F6CBDBf7E1",
+    "avatar": "ipfs://Qmcc2JKde1BSpPSFKxcsqnwpEdHosbqWuR9K8DEUksCJzP",
+    "version": "1.4.0",
+    "metrics": {
+      "tvlUSD": 0,
+      "proposalsCreated": 3,
+      "proposalsExecuted": 3,
+      "uniqueVoters": 0,
+      "votes": 0,
+      "members": 3
+    },
+    "links": []
+  }
+}

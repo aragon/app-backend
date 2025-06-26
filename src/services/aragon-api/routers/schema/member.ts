@@ -17,7 +17,7 @@ const MemberSchema = {
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
       .optional(),
-    pluginAddress: ValidationSchema.joiAddress.optional(),
+    escrowAddress: ValidationSchema.joiAddress.optional(),
     tokenAddress: ValidationSchema.joiAddress.optional(),
     onlyActive: Joi.boolean().optional(),
   }),
