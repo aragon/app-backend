@@ -19,6 +19,9 @@ const customName = ICollectionNames.TaskService
   },
 })
 @index({ id: 1 }, { unique: true })
+@index({ serviceName: 1 }, { unique: true }) // Add index for serviceName
+@index({ nextStartAt: 1 }) // Add index for nextStartAt queries
+@index({ lockedUntil: 1 }) // Add index for lock queries
 export default class TaskService extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -34,6 +37,12 @@ export default class TaskService extends Model {
 
   @prop({ type: () => Date })
   public nextStartAt!: Date
+
+  @prop({ type: () => Date })
+  public lockedUntil?: Date
+
+  @prop({ type: () => Number })
+  public lockedBy?: number
 
   static async create(rawData: Partial<TaskService>, tOpts?: SaveOptions) {
     if (!rawData.id) {
