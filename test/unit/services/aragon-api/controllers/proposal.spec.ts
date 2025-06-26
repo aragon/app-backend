@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import ProposalController from '@services/aragon-api/controllers/proposal'
-import { ErrorKeyEnum, IPluginInterfaceType } from '@types'
+import { ErrorKeyEnum, type HexAddress, IPluginInterfaceType } from '@types'
 import { Models } from '@dbModels'
 import Proposal from '@models/schema/proposal'
 import PairDataModule from '@modules/pairData'
@@ -311,7 +311,7 @@ describe('Controller: Proposal', () => {
     it('should call rabbitMq to check if the user can create proposal', async () => {
       const params = {
         pluginAddress: '0xPluginAddress',
-        memberAddress: rawMember.address,
+        memberAddress: rawMember.address as HexAddress,
         network: rawProposal.network!,
       }
 
@@ -334,7 +334,7 @@ describe('Controller: Proposal', () => {
     it('should return false when there is an error', async () => {
       const params = {
         pluginAddress: '0xPluginAddress',
-        memberAddress: rawMember.address,
+        memberAddress: rawMember.address as HexAddress,
         network: rawProposal.network!,
       }
 

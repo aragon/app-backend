@@ -24,7 +24,7 @@ export interface ICanVoteParams {
   memberAddress: HexAddress
   pluginAddress: HexAddress
   proposalIndex: string
-  network: HexAddress
+  network: NetworksEnum
 }
 
 export interface ICanCreateProposalParams {
@@ -73,6 +73,11 @@ export interface IDaoExtraParams {
         network: NetworksEnum
       }
   excludeDaoId?: string | undefined
+}
+
+export interface IPluginExtraParams {
+  network: NetworksEnum
+  pluginAddress: HexAddress
 }
 
 export interface IMemberExtraParams {

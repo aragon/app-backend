@@ -8,7 +8,7 @@ import { getAddress } from 'ethers'
 import ProposalSchema from '@api/routers/schema/proposal'
 import ValidationSchema from '@helpers/validationSchema'
 
-describe('Router: Proposal', () => {
+describe('RouterV1: Proposal', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {

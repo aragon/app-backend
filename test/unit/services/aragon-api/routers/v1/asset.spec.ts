@@ -5,7 +5,7 @@ import AssetRouter from '@api/routers/v1/asset'
 import AssetController from '@api/controllers/asset'
 import { NetworksEnum } from '@types'
 
-describe('Router: Asset', () => {
+describe('RouterV1: Asset', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {

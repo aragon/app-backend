@@ -15,6 +15,7 @@ const TransactionSchema = {
       .valid(...Object.values(ITransactionCategory))
       .optional(),
   }),
+
   getTransactionIndexingStatus: Joi.object({
     transactionHash: Joi.string().required(),
     network: Joi.string()
