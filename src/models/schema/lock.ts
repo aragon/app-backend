@@ -90,21 +90,17 @@ export default class Lock extends Model {
   @prop({ type: () => Number, default: null })
   public blockNumber!: number | null
 
-  // Timestamp of when the lock has been created (timestamp of the transaction)
   @prop({ type: () => Number, default: null })
   public blockTimestamp!: number | null
-
-  @prop({ type: () => String, required: true })
-  public pluginAddress!: HexAddress
-
-  @prop({ type: () => String, required: true })
-  public daoAddress!: HexAddress
 
   @prop({ type: () => String, required: true })
   public memberAddress!: HexAddress
 
   @prop({ type: () => String, required: true })
   public escrowAddress!: HexAddress
+
+  @prop({ type: () => String, required: true })
+  public exitQueueAddress!: HexAddress
 
   // erc20 token address
   @prop({ type: () => String, required: true })
@@ -144,6 +140,8 @@ export default class Lock extends Model {
       assert(!!rawData.tokenAddress, 'tokenAddress is required')
       assert(!!rawData.memberAddress, 'memberAddress is required')
       assert(!!rawData.tokenId, 'tokenId is required')
+      assert(!!rawData.escrowAddress, 'escrowAddress is required')
+      assert(!!rawData.exitQueueAddress, 'exitQueueAddress is required')
       rawData.id = this.getEntityId({
         network: rawData?.network!,
         transactionHash: rawData?.transactionHash!,
@@ -152,6 +150,7 @@ export default class Lock extends Model {
         tokenAddress: rawData?.tokenAddress!,
         memberAddress: rawData?.memberAddress!,
         tokenId: rawData?.tokenId!,
+        escrowAddress: rawData?.escrowAddress!,
       })
     }
     const data = new this(rawData)
@@ -159,7 +158,7 @@ export default class Lock extends Model {
   }
 
   static getEntityId(params: ILockIdParams) {
-    const entityId = `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}-${params.tokenAddress}-${params.memberAddress}-${params.tokenId}`
+    const entityId = `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}-${params.tokenAddress}-${params.escrowAddress}-${params.memberAddress}-${params.tokenId}`
     return entityId
   }
 

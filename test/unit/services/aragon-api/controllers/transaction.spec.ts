@@ -391,8 +391,7 @@ describe('TransactionController', () => {
           memberAddress: '0xmember123',
           tokenAddress: '0xtoken123',
           amount: '1000',
-          pluginAddress: '0xplugin123',
-          daoAddress: '0xdao123',
+          exitQueueAddress: '0xexitQueue123',
           escrowAddress: '0xescrow123',
           nftAddress: '0xnft123',
         }
@@ -444,8 +443,7 @@ describe('TransactionController', () => {
           memberAddress: '0xmember456',
           tokenAddress: '0xtoken456',
           amount: '1000',
-          pluginAddress: '0xplugin456',
-          daoAddress: '0xdao123',
+          exitQueueAddress: '0xexitQueue123',
           escrowAddress: '0xescrow456',
           nftAddress: '0xnft456',
           lockExit: {
@@ -488,8 +486,7 @@ describe('TransactionController', () => {
           memberAddress: '0xmember456',
           tokenAddress: '0xtoken456',
           amount: '1000',
-          pluginAddress: '0xplugin456',
-          daoAddress: '0xdao123',
+          exitQueueAddress: '0xexitQueue123',
           escrowAddress: '0xescrow456',
           nftAddress: '0xnft456',
           lockExit: {
@@ -530,8 +527,7 @@ describe('TransactionController', () => {
           memberAddress: '0xmember456',
           tokenAddress: '0xtoken456',
           amount: '1000',
-          pluginAddress: '0xplugin456',
-          daoAddress: '0xdao123',
+          exitQueueAddress: '0xexitQueue123',
           escrowAddress: '0xescrow456',
           nftAddress: '0xnft456',
           lockWithdraw: {
