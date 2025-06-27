@@ -16,6 +16,7 @@ import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
 import { UnitTestUtils } from '@test/lib/utils'
 import ProviderModule from '@modules/provider'
 import ProxyUtils from '@modules/proxyProvider/utils'
+import AnkrHelper from '@helpers/ankrHelper'
 
 describe('Web3Provider', () => {
   let sandbox: any
@@ -704,20 +705,95 @@ describe('Web3Provider', () => {
   })
 
   describe('getTokenCounters', () => {
-    it('should return token counters from blockscout', async () => {
-      const address = '0xtoken'
-      const network = NetworksEnum.ethereumMainnet
-      const expectedCounters = {
-        holders: 100,
-        transfers: 200,
+    const address = '0xtoken'
+    const network = NetworksEnum.ethereumMainnet
+
+    it('should return Ankr stats when available', async () => {
+      const ankrStats = {
+        holders: 1000,
+        transfers: 500,
       }
 
-      const getTokenCountersStub = sandbox.stub(BlockScoutHelper, 'getTokenCounters').resolves(expectedCounters)
+      const ankrStub = sandbox.stub(AnkrHelper, 'getTokenHoldersCount').resolves(ankrStats)
+      const blockScoutStub = sandbox.stub(BlockScoutHelper, 'getTokenCounters')
+      const covalentStub = sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders')
 
       const result = await Web3Provider.getTokenCounters({ address, network })
 
-      expect(getTokenCountersStub.calledOnceWith(address, network)).to.be.true
-      expect(result).to.deep.equal(expectedCounters)
+      expect(ankrStub.calledOnceWith(address, network)).to.be.true
+      expect(blockScoutStub.notCalled).to.be.true
+      expect(covalentStub.notCalled).to.be.true
+      expect(result).to.deep.equal(ankrStats)
+    })
+
+    it('should fallback to BlockScout when Ankr returns null', async () => {
+      const blockScoutStats = {
+        holders: 800,
+        transfers: 300,
+      }
+
+      const ankrStub = sandbox.stub(AnkrHelper, 'getTokenHoldersCount').resolves(null)
+      const blockScoutStub = sandbox.stub(BlockScoutHelper, 'getTokenCounters').resolves(blockScoutStats)
+      const covalentStub = sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders')
+
+      const result = await Web3Provider.getTokenCounters({ address, network })
+
+      expect(ankrStub.calledOnceWith(address, network)).to.be.true
+      expect(blockScoutStub.calledOnceWith(address, network)).to.be.true
+      expect(covalentStub.notCalled).to.be.true
+      expect(result).to.deep.equal(blockScoutStats)
+    })
+
+    it('should fallback to Covalent when BlockScout returns zero stats', async () => {
+      const blockScoutStats = {
+        holders: 0,
+        transfers: 0,
+      }
+      const covalentStats = {
+        totalHolders: 600,
+        totalSupply: '1000000',
+      }
+      const expectedResult = {
+        holders: 600,
+        transfers: 0,
+      }
+
+      const ankrStub = sandbox.stub(AnkrHelper, 'getTokenHoldersCount').resolves(null)
+      const blockScoutStub = sandbox.stub(BlockScoutHelper, 'getTokenCounters').resolves(blockScoutStats)
+      const covalentStub = sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves(covalentStats)
+
+      const result = await Web3Provider.getTokenCounters({ address, network })
+
+      expect(ankrStub.calledOnceWith(address, network)).to.be.true
+      expect(blockScoutStub.calledOnceWith(address, network)).to.be.true
+      expect(covalentStub.calledOnceWith(address, network)).to.be.true
+      expect(result).to.deep.equal(expectedResult)
+    })
+
+    it('should return default values when all services fail or return zero', async () => {
+      const blockScoutStats = {
+        holders: 0,
+        transfers: 0,
+      }
+      const covalentStats = {
+        totalHolders: 0,
+        totalSupply: '0',
+      }
+      const expectedResult = {
+        holders: 0,
+        transfers: 0,
+      }
+
+      const ankrStub = sandbox.stub(AnkrHelper, 'getTokenHoldersCount').resolves(null)
+      const blockScoutStub = sandbox.stub(BlockScoutHelper, 'getTokenCounters').resolves(blockScoutStats)
+      const covalentStub = sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves(covalentStats)
+
+      const result = await Web3Provider.getTokenCounters({ address, network })
+
+      expect(ankrStub.calledOnceWith(address, network)).to.be.true
+      expect(blockScoutStub.calledOnceWith(address, network)).to.be.true
+      expect(covalentStub.calledOnceWith(address, network)).to.be.true
+      expect(result).to.deep.equal(expectedResult)
     })
   })
 })

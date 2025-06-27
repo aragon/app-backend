@@ -101,7 +101,7 @@ const PoolingCrawler = {
         transferLogs.map(log => ethers.getAddress(log.address)),
       )
 
-      const [daoAddresses, tokenAddresses] = await Promise.all([
+      const [daoAddresses, pluginTokenAddresses, validTokenAddresses] = await Promise.all([
         Models.Dao.distinct('address', {
           address: { $in: [...tokenTransferReceiverAddresses, ...nativeTransferReceiverAddresses] },
           network,
@@ -113,8 +113,14 @@ const PoolingCrawler = {
           interfaceType: IPluginInterfaceType.tokenVoting,
           network,
         }),
+        Models.Token.distinct('address', {
+          address: { $in: [...new Set([...delegateVotesChangedTokenAddresses, ...transferTokenAddresses])] },
+          ignoreTransfer: { $ne: true },
+          network,
+        }),
       ])
 
+      const tokenAddresses = pluginTokenAddresses.filter(addr => validTokenAddresses.includes(addr))
       const daoAddressesSet = new Set(daoAddresses)
       const tokenAddressesSet = new Set(tokenAddresses)
 
@@ -129,8 +135,8 @@ const PoolingCrawler = {
 
       return logs.filter(log => {
         if (!topicsToFilterOut.has(log.topics[0])) return true
-        if (log.topics[0] === transferTopic && !tokenAddressesSet.has(log.address)) return false
-        return !(log.topics[0] === delegateVotesChangedTopic && !tokenAddressesSet.has(log.address))
+        if (log.topics[0] === transferTopic && !tokenAddressesSet.has(ethers.getAddress(log.address))) return false
+        return !(log.topics[0] === delegateVotesChangedTopic && !tokenAddressesSet.has(ethers.getAddress(log.address)))
       })
     } catch (error) {
       logger.error('PoolingCrawler filterLogs', llo({ network, error }))
