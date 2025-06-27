@@ -11,6 +11,7 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import { ProxyToken } from '@modules/proxyToken'
 import GovernanceErc20Helper from '@src/helpers/governanceErc20'
 import type Plugin from '@models/schema/plugin'
+import type MemberTransaction from '@models/schema/memberTransaction'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:GovernanceVeHandler' })
 
@@ -127,29 +128,40 @@ export const GovernanceVeHandler = {
           { session },
         )
 
-        const memberTransaction = await Models.MemberTransaction.create(
-          {
-            network: info.network,
-            transactionHash: info.transactionHash,
-            transactionIndex: info.transactionIndex,
-            logIndex: info.logIndex,
-            blockNumber: info.blockNumber,
-            blockTimestamp,
-            address: memberAddress,
-            type: ITransferType.delegate,
-            side: transferSide,
-            from: parsedEvent.args.sender,
-            to: parsedEvent.args.delegatee,
-            amount: tokenAmount,
-            tokenAddress: info.address,
-            memberBalance: tokenBalanceDb?.amount,
-            memberVotingPower: votingPower.toString(),
-          },
-          { session },
-        )
+        let memberTransaction = await Models.MemberTransaction.findExistingLog({
+          network: info.network,
+          transactionHash: info.transactionHash,
+          transactionIndex: info.transactionIndex,
+          logIndex: info.logIndex,
+          address: memberAddress,
+        })
 
-        await session.commitTransaction()
-        await session.endSession()
+        if (!memberTransaction) {
+          memberTransaction = await Models.MemberTransaction.create(
+            {
+              network: info.network,
+              transactionHash: info.transactionHash,
+              transactionIndex: info.transactionIndex,
+              logIndex: info.logIndex,
+              blockNumber: info.blockNumber,
+              blockTimestamp,
+              address: memberAddress,
+              type: ITransferType.delegate,
+              side: transferSide,
+              from: parsedEvent.args.sender,
+              to: parsedEvent.args.delegatee,
+              amount: tokenAmount,
+              tokenAddress: info.address,
+              memberBalance: tokenBalanceDb?.amount,
+              memberVotingPower: votingPower.toString(),
+            },
+            { session },
+          )
+
+          await session.commitTransaction()
+          await session.endSession()
+        }
+
         return memberTransaction
       })
       await GovernanceVeHandler._handleDaoMemberShip(memberTransaction, plugins, info)
@@ -176,8 +188,8 @@ export const GovernanceVeHandler = {
     }
   },
 
-  _handleDaoMemberShip: async (memberTx: any, plugins: any[], info: ILogInfo) => {
-    const userBalance = BigInt(memberTx.votingPower || '0')
+  _handleDaoMemberShip: async (memberTx: MemberTransaction, plugins: Plugin[], info: ILogInfo) => {
+    const userBalance = BigInt(memberTx.memberVotingPower || '0')
 
     await Promise.all([
       ...plugins.map(async (plugin: any) => {
