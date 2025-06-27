@@ -121,9 +121,9 @@ export const LogTokenVoting = {
     // optimizedFlowNeeded
     const optimizedFlowNeeded = await TokenHolderSync.isOptimizedFlowNeeded(token, plugin)
 
-    if (optimizedFlowNeeded && config.SKIP_SYNC) {
+    if (optimizedFlowNeeded && config.IGNORE_TRANSFER) {
       logger.verbose('Skip sync large token', llo({ ...infoLogs }))
-      token.skipSync = true
+      token.ignoreTransfer = true
       await token.save()
       return
     }

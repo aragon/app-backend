@@ -34,7 +34,7 @@ const customName = ICollectionNames.Token
 @index({ name: -1 })
 @index({ refetch: 1 })
 @index({ address: 1, network: 1 })
-@index({ address: 1, skipSync: 1, network: 1 })
+@index({ address: 1, ignoreTransfer: 1, network: 1 })
 @index({ lastUpdatedAt: 1, network: 1, skipFetchRate: 1 })
 export default class Token extends Model {
   @prop({ type: () => String, required: true, unique: true })
@@ -71,7 +71,7 @@ export default class Token extends Model {
   public skipFetchRate!: boolean
 
   @prop({ type: () => Boolean, default: false })
-  public skipSync!: boolean
+  public ignoreTransfer!: boolean
 
   @prop({ type: () => Boolean, default: false })
   public isGovernance!: boolean

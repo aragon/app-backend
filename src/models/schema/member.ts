@@ -232,7 +232,7 @@ export default class Member extends Model {
           {
             hasDelegate: 1,
             isGovernance: 1,
-            skipSync: 1,
+            ignoreTransfer: 1,
           },
         ),
         {
