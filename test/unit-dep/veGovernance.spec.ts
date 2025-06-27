@@ -130,7 +130,7 @@ describe('Integration: VeGovernance', () => {
     }
 
     const locks = await Models.Lock.find({
-      pluginAddress: pluginAddressTokenVoting,
+      escrowAddress: '0xC80fB31F6E83098b9240B47b377370048613C4F2',
       tokenAddress: tokenPlugin.tokenAddress,
       network,
     })
