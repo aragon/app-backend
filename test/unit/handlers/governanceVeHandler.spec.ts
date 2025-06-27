@@ -1400,7 +1400,7 @@ describe('Handler:GovernanceVeHandler', () => {
       const stubMemberTxCreate = sandbox.stub(Models.MemberTransaction, 'create').resolves({
         address: memberAddress,
         memberBalance: '1',
-        votingPower: '100',
+        memberVotingPower: '100',
       })
 
       await GovernanceVeHandler._handleTokenDelegation(
@@ -1445,7 +1445,7 @@ describe('Handler:GovernanceVeHandler', () => {
       const existingMemberTx = {
         address: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
         memberBalance: '1',
-        votingPower: '100',
+        memberVotingPower: '100',
       }
 
       sandbox.stub(ProxyMember, 'createMember').resolves()
@@ -1519,7 +1519,7 @@ describe('Handler:GovernanceVeHandler', () => {
     it('should handle DAO membership addition when user has voting power', async () => {
       const memberTx = {
         address: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-        votingPower: '100',
+        memberVotingPower: '100',
         memberBalance: '2',
       }
       const plugins = [plugin]
@@ -1539,7 +1539,7 @@ describe('Handler:GovernanceVeHandler', () => {
     it('should handle DAO membership removal when user has no voting power', async () => {
       const memberTx = {
         address: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-        votingPower: '0',
+        memberVotingPower: '0',
         memberBalance: '0',
       }
       const plugins = [plugin]
@@ -1559,7 +1559,7 @@ describe('Handler:GovernanceVeHandler', () => {
     it('should skip membership operations when already in correct state', async () => {
       const memberTx = {
         address: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-        votingPower: '100',
+        memberVotingPower: '100',
         memberBalance: '2',
       }
       const plugins = [plugin]
@@ -1754,7 +1754,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
       sandbox.stub(Models.MemberTransaction, 'create').resolves({
         address: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-        votingPower: '0',
+        memberVotingPower: '0',
       })
 
       const mockParsedEvent = {
