@@ -33,7 +33,9 @@ describe('Helpers: GovernanceErc20', () => {
     })
 
     it('should get getPastVotes with that calls for retries', async () => {
-      const _getPastVotesWithRetryStub = sandbox.stub(GovernanceErc20Helper, '_getPastVotesWithRetry').resolves('1000')
+      const _getPastVotesWithRetryStub = sandbox
+        .stub(GovernanceErc20Helper, '_getPastVotesForFallback')
+        .resolves('1000')
       const result = await GovernanceErc20Helper.getPastVotes(
         '0x123',
         '0x456',
@@ -56,7 +58,7 @@ describe('Helpers: GovernanceErc20', () => {
 
     it('should handle errors in getPastVotes', async () => {
       const expectedResult = new Error('RPC Call Failed')
-      sandbox.stub(GovernanceErc20Helper, '_getPastVotesWithRetry').rejects(expectedResult)
+      sandbox.stub(GovernanceErc20Helper, '_getPastVotesForFallback').rejects(expectedResult)
 
       const loggerStub = sandbox.stub(logger, 'warn')
 
@@ -83,7 +85,7 @@ describe('Helpers: GovernanceErc20', () => {
         },
       })
 
-      const result = await GovernanceErc20Helper._getPastVotesWithRetry(
+      const result = await GovernanceErc20Helper._getPastVotesForFallback(
         '0x123',
         '0x456',
         12345678,

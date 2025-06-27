@@ -113,6 +113,7 @@ export const GovernanceVeHandler = {
         info.blockNumber,
         blockTimestamp || 0,
         info.network,
+        token.hasClockMode,
       )
 
       const memberTransaction = await DbTx.executeTxFn(async ({ session }) => {
