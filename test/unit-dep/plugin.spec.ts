@@ -204,6 +204,11 @@ describe('Integration: Plugin Setup SPP', () => {
     )
     expect(adminPluginTxHash).to.not.be.null
 
+    // BlockScout not always returns a response
+    if (!Array.isArray(adminPluginTxHash) || adminPluginTxHash.length === 0) {
+      return
+    }
+
     rabbitMqStub.callsFake(async (queue: string, message: any) => {
       if (queue === 'log.plugins') {
         const plugin = await Models.Plugin.findOne({ address: message.params.address })
