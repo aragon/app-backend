@@ -47,6 +47,10 @@ export interface IConfig {
   ROUTESCAN_API: {
     BASE_URI: string
   }
+  ANKR_CONFIG: {
+    API_URL: string
+    API_KEY: string
+  }
   ALCHEMY_PRICE_API: {
     URI: string
     API_KEY: string
@@ -71,6 +75,7 @@ export interface IConfig {
   SUPPORTED_NETWORKS: NetworksEnum[]
   WHITELIST_TOKENS: ITokenData[]
   CUSTOM_INSTALL: boolean
+  IGNORE_TRANSFER: boolean
   DEFAULT_CURRENCY: string
   RABBITMQ: {
     URI: string

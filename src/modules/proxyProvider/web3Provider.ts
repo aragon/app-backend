@@ -19,6 +19,7 @@ import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
 import { RateModule } from '@modules/rates'
 import TokenUtils from '@helpers/tokenUtils'
 import ProxyUtils from '@modules/proxyProvider/utils'
+import AnkrHelper from '@helpers/ankrHelper'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ProxyWeb3' })
 
@@ -253,7 +254,28 @@ const Web3Provider: IWeb3Provider = {
     })
   },
   getTokenCounters: async ({ address, network }) => {
-    return await BlockScoutHelper.getTokenCounters(address, network)
+    const ankrStats = await AnkrHelper.getTokenHoldersCount(address, network)
+    if (ankrStats) {
+      return ankrStats
+    }
+
+    const blockScoutStats = await BlockScoutHelper.getTokenCounters(address, network)
+    const blockScoutAvailable = !(blockScoutStats?.holders === 0 && blockScoutStats.transfers === 0)
+    if (blockScoutAvailable) {
+      return blockScoutStats
+    }
+
+    const covalentStats = await CovalentHelper.getTokenSupplyAndHolders(address, network)
+    const covalentAvailable = !(covalentStats && covalentStats.totalHolders === 0)
+
+    if (covalentAvailable) {
+      return {
+        holders: covalentStats.totalHolders,
+        transfers: 0,
+      }
+    }
+
+    return { holders: 0, transfers: 0 }
   },
 }
 
