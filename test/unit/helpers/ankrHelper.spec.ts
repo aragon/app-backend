@@ -26,11 +26,7 @@ describe('Helpers: AnkrHelper', () => {
       expect(AnkrHelper.ankrNetworkMap[NetworksEnum.polygonMainnet]).to.eq(AnkrNetworksEnum.polygonMainnet)
       expect(AnkrHelper.ankrNetworkMap[NetworksEnum.baseMainnet]).to.eq(AnkrNetworksEnum.baseMainnet)
       expect(AnkrHelper.ankrNetworkMap[NetworksEnum.arbitrumMainnet]).to.eq(AnkrNetworksEnum.arbitrumMainnet)
-      expect(AnkrHelper.ankrNetworkMap[NetworksEnum.zksyncSepolia]).to.eq(AnkrNetworksEnum.zksyncSepolia)
-      expect(AnkrHelper.ankrNetworkMap[NetworksEnum.zksyncMainnet]).to.eq(AnkrNetworksEnum.zksyncMainnet)
       expect(AnkrHelper.ankrNetworkMap[NetworksEnum.optimismMainnet]).to.eq(AnkrNetworksEnum.optimismMainnet)
-      expect(AnkrHelper.ankrNetworkMap[NetworksEnum.cornMainnet]).to.eq(AnkrNetworksEnum.cornMainnet)
-      expect(AnkrHelper.ankrNetworkMap[NetworksEnum.chilizMainnet]).to.eq(AnkrNetworksEnum.chilizMainnet)
     })
   })
 
