@@ -9,6 +9,7 @@ import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
 import type MemberBalance from '@models/schema/memberBalance'
 import Web3Helper from '@helpers/web3'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
+import { ProxyToken } from '@modules/proxyToken'
 
 const llo = logger.logMeta.bind(null, { service: 'service:dao:DaoAssets' })
 
@@ -78,6 +79,7 @@ export const AllMetrics = {
       model: Models.MemberBalance,
       onDocument: async (doc: MemberBalance) => {
         const blockNumber = doc.lastSyncVotingPowerBlockNumber || doc.lastSyncAmountBlockNumber
+        const token = await ProxyToken.saveAndGetToken(doc.tokenAddress, doc.network, false)
         const blockTimestamp = await Web3Helper.getBlockTimestamp(blockNumber, doc.network)
         const memberVotingPower = await GovernanceErc20Helper.getPastVotes(
           doc.address,
@@ -85,6 +87,7 @@ export const AllMetrics = {
           blockNumber,
           blockTimestamp,
           doc.network,
+          token?.hasClockMode,
         )
 
         if (memberVotingPower !== doc.votingPower) {
