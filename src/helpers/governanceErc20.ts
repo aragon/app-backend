@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import { type HexAddress, IClockMode, type NetworksEnum } from '@types'
 import { Contract } from 'ethers'
 import logger from '@logger'
@@ -14,7 +13,7 @@ import utils from '@helpers/utils'
 const llo = logger.logMeta.bind(null, { service: 'helpers:GovernanceErc20Helper' })
 
 const GovernanceErc20Helper = {
-  async _getPastVotesWithRetry(
+  async _getPastVotesForFallback(
     memberAddress: HexAddress,
     tokenAddress: HexAddress,
     blockNumber: number,
@@ -59,26 +58,41 @@ const GovernanceErc20Helper = {
     blockNumber: number,
     blockTimestamp: number,
     network: NetworksEnum,
+    hasClockMode: boolean = false,
   ): Promise<string> {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
+
     try {
-      return await GovernanceErc20Helper._getPastVotesWithRetry(
-        memberAddress,
-        tokenAddress,
-        blockNumber,
-        blockTimestamp,
-        network,
-        {
-          maxRetries: 3,
-          decreasingThreshold: 2,
-        },
+      const clockMode = hasClockMode
+        ? await GovernanceErc20Helper.getClockMode(tokenAddress, network)
+        : IClockMode.BlockNumber
+
+      const modeToUse =
+        clockMode === IClockMode.BlockNumber
+          ? await Web3Helper.getChainAdjustedBlockNumber(blockNumber, network)
+          : blockTimestamp
+      const pastVotes = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.getPastVotes(memberAddress, modeToUse)),
       )
+      if (pastVotes > 0n) {
+        return BigInt(pastVotes || 0)?.toString()
+      }
     } catch (error) {
       logger.warn(
         'Error getting past votes',
         llo({ memberAddress, tokenAddress, blockNumber, blockTimestamp, network, error }),
       )
     }
-    return '0'
+
+    return await GovernanceErc20Helper._getPastVotesForFallback(
+      memberAddress,
+      tokenAddress,
+      blockNumber,
+      blockTimestamp,
+      network,
+      { maxRetries: 3, decreasingThreshold: 2 },
+    )
   },
 
   async getVotes(memberAddress: HexAddress, tokenAddress: HexAddress, network: NetworksEnum): Promise<bigint> {
