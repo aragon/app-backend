@@ -131,6 +131,16 @@ describe('GovernanceErc20Handler', () => {
       expect(saveAndGetTokenStub.calledOnceWith(info.address, info.network)).to.be.true
       expect(getPastVotesStub.calledOnce).to.be.true
       expect(
+        getPastVotesStub.calledWith(
+          members[0].address,
+          info.address,
+          info.blockNumber,
+          1630425600,
+          NetworksEnum.polygonMainnet,
+          false,
+        ),
+      ).to.be.true
+      expect(
         addMemberToDaoSpy.calledWith({
           memberAddress: parsedEvent.args.to,
           daoAddress: plugins[0].daoAddress,

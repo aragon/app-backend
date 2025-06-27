@@ -170,6 +170,7 @@ describe('Modules: ProxyToken', () => {
         skipFetchRate: false,
         lastUpdatedAt: dayjs().subtract(10, 'hour').toDate(),
         update: sandbox.stub(),
+        hasDelegate: true,
       } as any
 
       const tokenDetails = { priceUsd: '1234.56' }
@@ -524,6 +525,7 @@ describe('Modules: ProxyToken', () => {
         proxy: false,
         implementationAddress: null,
         hasUnderlying: true,
+        hasClockMode: false,
       }
 
       const tokenDetails = {
@@ -605,6 +607,7 @@ describe('Modules: ProxyToken', () => {
         proxy: false,
         implementationAddress: null,
         hasUnderlying: false,
+        hasClockMode: false,
       }
 
       const tokenDetails = {
@@ -668,6 +671,7 @@ describe('Modules: ProxyToken', () => {
         proxy: false,
         implementationAddress: null,
         hasUnderlying: false,
+        hasClockMode: false,
       }
 
       const tokenDetails = {
@@ -838,6 +842,7 @@ describe('Modules: ProxyToken', () => {
         proxy: false,
         implementationAddress: null,
         hasUnderlying: false,
+        hasClockMode: false,
       }
 
       const tokenDetails = {
@@ -848,6 +853,7 @@ describe('Modules: ProxyToken', () => {
         type: ITokenType.native,
         totalHolders: 0,
         totalSupply: '0',
+        hasClockMode: false,
       }
 
       sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo)

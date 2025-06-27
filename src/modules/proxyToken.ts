@@ -59,7 +59,7 @@ export const ProxyToken = {
     let updates: Partial<Token> = {}
 
     if (shouldUpdate || forceUpdate) {
-      if (token.type !== ITokenType.native) {
+      if (token.type !== ITokenType.native && token.hasDelegate) {
         const tokenDetails = await ProxyWeb3Provider.fetchBasicTokenInfo({
           address: tokenAddress,
           network,
@@ -147,6 +147,7 @@ export const ProxyToken = {
       hasSymbol: tokenTypeInfo.hasSymbol,
       hasDecimals: tokenTypeInfo.hasDecimals,
       hasTotalSupply: tokenTypeInfo.hasTotalSupply,
+      hasClockMode: tokenTypeInfo.hasClockMode,
       hasProxy: tokenTypeInfo.proxy,
       implementationAddress: tokenTypeInfo?.implementationAddress!,
       mintableByDao: await ProxyToken.checkPluginMintAuthorizationIsDao(tokenAddress, network, session),
