@@ -13,6 +13,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     DEFAULT_CURRENCY: utils.configParser(sourceConfig, 'string', 'DEFAULT_CURRENCY', 'USD'),
     ENS_DOMAIN: utils.configParser(sourceConfig, 'string', 'ENS_DOMAIN', 'dao.eth'),
     CUSTOM_INSTALL: utils.configParser(sourceConfig, 'bool', 'CUSTOM_INSTALL', false),
+    IGNORE_TRANSFER: utils.configParser(sourceConfig, 'bool', 'IGNORE_TRANSFER', true),
     SUPPORTED_ENS_NETWORKS: utils.configParser(
       sourceConfig,
       'array',
@@ -36,6 +37,10 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
 
     BATCH_REQUEST: {
       DEFAULT_SIZE: utils.configParser(sourceConfig, 'number', 'BATCH_REQUEST_DEFAULT_SIZE', 500),
+    },
+    ANKR_CONFIG: {
+      API_URL: utils.configParser(sourceConfig, 'string', 'ANKR_API_URL', 'https://rpc.ankr.com'),
+      API_KEY: utils.configParser(sourceConfig, 'string', 'ANKR_API_KEY', null),
     },
 
     CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'CONFIRMATION_BLOCKS', 3),
@@ -538,7 +543,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         sourceConfig,
         'number',
         'INDEXER_CONFIG_TOKEN_HOLDERS_THRESHOLD',
-        100,
+        2000,
       ),
     },
   }
