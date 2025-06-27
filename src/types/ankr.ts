@@ -1,14 +1,10 @@
 export enum AnkrNetworksEnum {
   ethereumMainnet = 'eth',
-  ethereumSepolia = 'eth-sepolia',
+  ethereumSepolia = 'eth_sepolia',
   polygonMainnet = 'polygon',
   baseMainnet = 'base',
   arbitrumMainnet = 'arbitrum',
-  zksyncSepolia = 'zksync_era-sepolia',
-  zksyncMainnet = 'zksync_era',
   optimismMainnet = 'optimism',
-  chilizMainnet = 'chiliz',
-  cornMainnet = 'corn_maizenet',
 }
 
 export interface AnkrTokenHoldersResponse {
