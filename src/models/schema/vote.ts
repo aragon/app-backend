@@ -34,6 +34,7 @@ const customName = ICollectionNames.Vote
 @index({ network: 1, pluginAddress: 1, proposalIndex: 1 })
 @index({ network: 1, pluginAddress: 1, memberAddress: 1, proposalIndex: 1, blockNumber: -1 })
 @index({ pluginAddress: 1, memberAddress: 1, proposalIndex: 1 })
+@index({ network: 1, transactionHash: 1 })
 export default class Vote extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -174,6 +175,7 @@ export default class Vote extends Model {
         decimals: 1,
         logo: 1,
         isGovernance: 1,
+        ignoreTransfer: 1,
         hasDelegate: 1,
         underlying: 1,
         type: 1,

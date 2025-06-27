@@ -13,6 +13,7 @@ import type Plugin from '@models/schema/plugin'
 import configIndexer from '@indexer/configIndexer'
 import type Token from '@models/schema/token'
 import { TokenHolderSync } from './tokenHolderSync'
+import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogTokenVoting' })
 
@@ -117,17 +118,19 @@ export const LogTokenVoting = {
     })
     const startTime = Date.now()
 
-    // optimizedFlowNeeded
-    const optimizedFlowNeeded = await TokenHolderSync.isOptimizedFlowNeeded(token, plugin)
-    if (optimizedFlowNeeded) {
-      logger.verbose('Start Token Sync', llo({ ...infoLogs, ...{ syncStrategy: 'BlockScout', startTime } }))
-      await TokenHolderSync.syncAllTokenHolders(plugin, token)
+    const isNotEligibleForSync = await TokenHolderSync.isTokenNotEligibleForSync(token, plugin)
+    const skipSync = isNotEligibleForSync && config.IGNORE_TRANSFER
 
-      await Promise.all([
-        pluginCrawler.crawl(),
-        TokenHolderSync.syncDelegationEvents(plugin, token),
-        TokenHolderSync.syncTransfersEvents(plugin, token),
-      ])
+    if (skipSync) {
+      logger.verbose('Skip sync large token', llo({ ...infoLogs }))
+      token.ignoreTransfer = true
+      await token.save()
+    }
+
+    if (isNotEligibleForSync) {
+      logger.verbose('Start Sync Only Delegates Events', llo({ ...infoLogs, skipSync }))
+
+      await Promise.all([pluginCrawler.crawl(), TokenHolderSync.syncDelegationEvents(plugin, token)])
 
       await TokenHolderSync.convertToStandardSync(plugin, token)
 

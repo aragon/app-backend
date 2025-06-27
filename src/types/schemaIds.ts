@@ -14,16 +14,17 @@ export interface IVoteIdParams {
 
 export interface ILockExtraParams {
   network?: NetworksEnum
-  pluginAddress?: HexAddress
+  escrowAddress?: HexAddress
   memberAddress?: HexAddress
   onlyActive?: boolean
 }
 
 export interface ILockFindMemberParams {
   network: NetworksEnum
-  pluginAddress: HexAddress
   memberAddress: HexAddress
+  escrowAddress?: HexAddress
   tokenId: string
+  exitQueueAddress?: HexAddress
 }
 
 export interface ILockIdParams {
@@ -34,6 +35,7 @@ export interface ILockIdParams {
   tokenAddress: HexAddress
   memberAddress: HexAddress
   tokenId: string
+  escrowAddress: HexAddress
 }
 
 export interface IAssetIdParams {

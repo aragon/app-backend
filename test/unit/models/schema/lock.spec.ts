@@ -23,10 +23,9 @@ describe('Model: Lock', () => {
       logIndex: 1,
       blockNumber: 18000000,
       blockTimestamp: 1640995200,
-      pluginAddress: '0xplugin1234567890abcdef1234567890abcdef12',
-      daoAddress: '0xdao1234567890abcdef1234567890abcdef1234',
       memberAddress: '0xmember1234567890abcdef1234567890abcdef1',
       escrowAddress: '0xescrow1234567890abcdef1234567890abcdef1',
+      exitQueueAddress: '0xexitqueue1234567890abcdef1234567890abcdef1',
       tokenAddress: '0xtoken1234567890abcdef1234567890abcdef12',
       nftAddress: '0xnft1234567890abcdef1234567890abcdef123',
       tokenId: '123',
@@ -80,6 +79,7 @@ describe('Model: Lock', () => {
         tokenAddress: rawLock.tokenAddress!,
         memberAddress: rawLock.memberAddress!,
         tokenId: rawLock.tokenId!,
+        escrowAddress: rawLock.escrowAddress!,
       })
 
       const lock = await Models.Lock.create(rawLock)
@@ -89,12 +89,12 @@ describe('Model: Lock', () => {
       expect(lock.transactionHash).to.eq(rawLock.transactionHash)
       expect(lock.transactionIndex).to.eq(rawLock.transactionIndex)
       expect(lock.logIndex).to.eq(rawLock.logIndex)
-      expect(lock.pluginAddress).to.eq(rawLock.pluginAddress)
-      expect(lock.daoAddress).to.eq(rawLock.daoAddress)
       expect(lock.memberAddress).to.eq(rawLock.memberAddress)
       expect(lock.tokenAddress).to.eq(rawLock.tokenAddress)
       expect(lock.nftAddress).to.eq(rawLock.nftAddress)
       expect(lock.amount).to.eq(rawLock.amount)
+      expect(lock.escrowAddress).to.eq(rawLock.escrowAddress)
+      expect(lock.exitQueueAddress).to.eq(rawLock.exitQueueAddress)
     })
 
     it('should save without calling getEntityId if id is present', async () => {
@@ -106,6 +106,7 @@ describe('Model: Lock', () => {
         tokenAddress: rawLock.tokenAddress!,
         memberAddress: rawLock.memberAddress!,
         tokenId: rawLock.tokenId!,
+        escrowAddress: rawLock.escrowAddress!,
       })
 
       rawLock.id = entityId
@@ -143,6 +144,11 @@ describe('Model: Lock', () => {
       delete rawLock.memberAddress
       await expect(Models.Lock.create(rawLock)).to.be.rejectedWith('memberAddress is required')
     })
+
+    it('should fail when escrowAddress is not present', async () => {
+      delete rawLock.escrowAddress
+      await expect(Models.Lock.create(rawLock)).to.be.rejectedWith('escrowAddress is required')
+    })
   })
 
   describe('static methods', () => {
@@ -155,6 +161,7 @@ describe('Model: Lock', () => {
         tokenAddress: rawLock.tokenAddress!,
         memberAddress: rawLock.memberAddress!,
         tokenId: rawLock.tokenId!,
+        escrowAddress: rawLock.escrowAddress!,
       })
       const lockDb = await Models.Lock.create(rawLock)
       expect(entityId).to.eq(lockDb.id)
@@ -170,6 +177,7 @@ describe('Model: Lock', () => {
         tokenAddress: createdLock.tokenAddress!,
         memberAddress: createdLock.memberAddress!,
         tokenId: rawLock.tokenId!,
+        escrowAddress: createdLock.escrowAddress!,
       })
       expect(foundLock?.id).to.eq(createdLock.id)
     })
@@ -284,9 +292,10 @@ describe('Model: Lock', () => {
         tokenAddress: '0xtoken',
         memberAddress: '0xmember',
         tokenId: '6',
+        escrowAddress: '0xplugin',
       }
       const entityId = Models.Lock.getEntityId(params)
-      const expectedId = `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}-${params.tokenAddress}-${params.memberAddress}-${params.tokenId}`
+      const expectedId = `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}-${params.tokenAddress}-${params.escrowAddress}-${params.memberAddress}-${params.tokenId}`
       expect(entityId).to.eq(expectedId)
     })
   })
@@ -296,14 +305,14 @@ describe('Model: Lock', () => {
       const memberAddress = '0xmember1111111111111111111111111111111111'
       const tokenAddress = fakeToken.address
       const lockTokenAddress = lockToken.address
-      const pluginAddress = '0xplugin1111111111111111111111111111111110'
       const lock1Data = {
         ...rawLock,
         transactionHash: '0x1111111111111111111111111111111111111111',
         blockNumber: 18000001,
         memberAddress,
         tokenAddress,
-        pluginAddress,
+        escrowAddress: '0xescrow1111111111111111111111111111111111',
+        exitQueueAddress: '0xexitqueue1111111111111111111111111111111',
         nftAddress: lockTokenAddress,
       }
       const lock1 = await Models.Lock.create(lock1Data)
@@ -314,7 +323,7 @@ describe('Model: Lock', () => {
         blockNumber: 18000002,
         memberAddress,
         tokenAddress,
-        pluginAddress,
+        escrowAddress: '0xescrow2222222222222222222222222222222222',
         transactionIndex: 2,
         logIndex: 2,
         nftAddress: lockTokenAddress,
@@ -327,7 +336,7 @@ describe('Model: Lock', () => {
         blockNumber: 18000003,
         memberAddress,
         tokenAddress,
-        pluginAddress,
+        escrowAddress: '0xescrow3333333333333333333333333333333333',
         nftAddress: lockTokenAddress,
         lockWithdraw: {
           status: true,
@@ -337,7 +346,6 @@ describe('Model: Lock', () => {
 
       const result = await Models.Lock.findWithPagination({
         extraParams: {
-          pluginAddress,
           memberAddress,
           onlyActive: true,
         },
