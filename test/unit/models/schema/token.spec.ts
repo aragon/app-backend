@@ -7,7 +7,7 @@ import dayjs from '@helpers/dayjs'
 import Token from '@models/schema/token'
 import utils from '@helpers/utils'
 
-describe('Model: Token', () => {
+describe.only('Model: Token', () => {
   let sandbox: SinonSandbox
   let rawToken: Partial<Token>
 
@@ -196,7 +196,7 @@ describe('Model: Token', () => {
     expect(filterToken.__v).to.be.undefined
     expect(filterToken.createdAt).to.be.undefined
     expect(filterToken.updatedAt).to.be.undefined
-    expect(Object.keys(filterToken).length).to.eq(25)
+    expect(Object.keys(filterToken).length).to.eq(26)
   })
 
   it('should get holder count', async () => {
