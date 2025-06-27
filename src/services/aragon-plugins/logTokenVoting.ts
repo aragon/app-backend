@@ -118,25 +118,19 @@ export const LogTokenVoting = {
     })
     const startTime = Date.now()
 
-    // optimizedFlowNeeded
-    const optimizedFlowNeeded = await TokenHolderSync.isOptimizedFlowNeeded(token, plugin)
+    const isNotEligibleForSync = await TokenHolderSync.isTokenNotEligibleForSync(token, plugin)
+    const skipSync = isNotEligibleForSync && config.IGNORE_TRANSFER
 
-    if (optimizedFlowNeeded && config.IGNORE_TRANSFER) {
+    if (skipSync) {
       logger.verbose('Skip sync large token', llo({ ...infoLogs }))
       token.ignoreTransfer = true
       await token.save()
-      return
     }
 
-    if (optimizedFlowNeeded) {
-      logger.verbose('Start Token Sync', llo({ ...infoLogs, ...{ syncStrategy: 'BlockScout', startTime } }))
-      await TokenHolderSync.syncAllTokenHolders(plugin, token)
+    if (isNotEligibleForSync) {
+      logger.verbose('Start Sync Only Delegates Events', llo({ ...infoLogs, skipSync }))
 
-      await Promise.all([
-        pluginCrawler.crawl(),
-        TokenHolderSync.syncDelegationEvents(plugin, token),
-        TokenHolderSync.syncTransfersEvents(plugin, token),
-      ])
+      await Promise.all([pluginCrawler.crawl(), TokenHolderSync.syncDelegationEvents(plugin, token)])
 
       await TokenHolderSync.convertToStandardSync(plugin, token)
 
