@@ -119,6 +119,8 @@ describe('Modules: TaskScheduler', () => {
 
     scheduler.stopTask('indexer2')
 
+    await Utils.wait(800)
+
     const status = scheduler.getTaskStatus()
     const task = status.find(task => task.key === 'indexer2')
     expect(task?.running).to.be.false
