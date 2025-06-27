@@ -9,7 +9,7 @@ import { TokenHolderSync } from '@plugins/tokenHolderSync'
 import { LogTokenVoting } from '@plugins/logTokenVoting'
 import { expect } from 'chai'
 
-describe.only('token holder sync case', () => {
+describe('token holder sync case', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
