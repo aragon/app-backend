@@ -54,7 +54,7 @@ describe('Helpers: GovernanceErc20', () => {
         12345678,
         1622547800,
         NetworksEnum.ethereumMainnet,
-        false
+        false,
       )
 
       expect(result).to.equal('1000')
@@ -70,15 +70,15 @@ describe('Helpers: GovernanceErc20', () => {
           Contract: function () {
             return {
               getPastVotes: getPastVotesStub,
-              CLOCK_MODE: getClockModeStub
+              CLOCK_MODE: getClockModeStub,
             }
           },
         },
         '@helpers/governanceErc20': {
           default: {
             ...GovernanceErc20Helper,
-            getClockMode: getClockModeStub
-          }
+            getClockMode: getClockModeStub,
+          },
         },
         '@state/configState': {
           ConfigState: { getInstance: () => ({ getConfigItem: sandbox.stub().returns({}) }) },
@@ -91,7 +91,7 @@ describe('Helpers: GovernanceErc20', () => {
         12345678,
         1622547800,
         NetworksEnum.ethereumMainnet,
-        true
+        true,
       )
 
       expect(result).to.equal('2000')
