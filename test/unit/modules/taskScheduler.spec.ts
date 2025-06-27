@@ -137,6 +137,8 @@ describe('Modules: TaskScheduler', () => {
 
     scheduler.stopTask(serviceName)
 
+    await Utils.wait(800)
+
     const status = scheduler.getTaskStatus()
     const task = status.find(task => task.key === serviceName)
     expect(task?.running).to.be.false
