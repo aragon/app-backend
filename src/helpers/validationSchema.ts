@@ -89,7 +89,7 @@ const ValidationSchema = {
           return value
         }
       }, 'Address or General Search Validation'),
-    pageSize: Joi.number().integer().min(1).max(50).optional().default(10),
+    pageSize: Joi.number().integer().min(1).max(100).optional().default(10),
     page: Joi.number().integer().greater(-1).min(1).optional().default(1),
     order: Joi.string().valid('asc', 'desc').optional().default('asc'),
     sort: Joi.string().optional().default('createdAt'),
