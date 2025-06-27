@@ -7,7 +7,7 @@ import dayjs from '@helpers/dayjs'
 import Token from '@models/schema/token'
 import utils from '@helpers/utils'
 
-describe.only('Model: Token', () => {
+describe('Model: Token', () => {
   let sandbox: SinonSandbox
   let rawToken: Partial<Token>
 
