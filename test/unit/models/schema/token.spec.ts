@@ -196,7 +196,7 @@ describe('Model: Token', () => {
     expect(filterToken.__v).to.be.undefined
     expect(filterToken.createdAt).to.be.undefined
     expect(filterToken.updatedAt).to.be.undefined
-    expect(Object.keys(filterToken).length).to.eq(26)
+    expect(Object.keys(filterToken).length).to.eq(27)
   })
 
   it('should get holder count', async () => {
