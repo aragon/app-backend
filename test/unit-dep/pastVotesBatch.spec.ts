@@ -60,8 +60,7 @@ describe('PastVotesBatch', () => {
       },
     ]
 
-    for(const member of members) {
-
+    for (const member of members) {
       const provider = ProviderModule.getAnyRpcProvider(member.network)
       const block = await provider.getBlock('latest')
 
@@ -70,7 +69,7 @@ describe('PastVotesBatch', () => {
         member.tokenAddress,
         block.number,
         block.timestamp,
-        member.network
+        member.network,
       )
 
       expect(result).to.be.a('string')
