@@ -524,6 +524,7 @@ describe('Modules: ProxyToken', () => {
         proxy: false,
         implementationAddress: null,
         hasUnderlying: true,
+        hasClockMode: false,
       }
 
       const tokenDetails = {
@@ -605,6 +606,7 @@ describe('Modules: ProxyToken', () => {
         proxy: false,
         implementationAddress: null,
         hasUnderlying: false,
+        hasClockMode: false,
       }
 
       const tokenDetails = {
@@ -668,6 +670,7 @@ describe('Modules: ProxyToken', () => {
         proxy: false,
         implementationAddress: null,
         hasUnderlying: false,
+        hasClockMode: false,
       }
 
       const tokenDetails = {
@@ -838,6 +841,7 @@ describe('Modules: ProxyToken', () => {
         proxy: false,
         implementationAddress: null,
         hasUnderlying: false,
+        hasClockMode: false,
       }
 
       const tokenDetails = {
@@ -848,6 +852,7 @@ describe('Modules: ProxyToken', () => {
         type: ITokenType.native,
         totalHolders: 0,
         totalSupply: '0',
+        hasClockMode: false,
       }
 
       sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo)

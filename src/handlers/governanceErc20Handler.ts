@@ -88,6 +88,7 @@ export const GovernanceErc20Handler = {
           info.blockNumber,
           blockTimestamp,
           info.network,
+          token.hasClockMode,
         )
       } else if (token?.type === ITokenType.ERC721) {
         tokenBal = BigInt(1).toString()

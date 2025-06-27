@@ -147,6 +147,7 @@ export const ProxyToken = {
       hasSymbol: tokenTypeInfo.hasSymbol,
       hasDecimals: tokenTypeInfo.hasDecimals,
       hasTotalSupply: tokenTypeInfo.hasTotalSupply,
+      hasClockMode: tokenTypeInfo.hasClockMode,
       hasProxy: tokenTypeInfo.proxy,
       implementationAddress: tokenTypeInfo?.implementationAddress!,
       mintableByDao: await ProxyToken.checkPluginMintAuthorizationIsDao(tokenAddress, network, session),
