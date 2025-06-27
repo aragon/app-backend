@@ -4,9 +4,7 @@ import { NetworksEnum } from '@types'
 import configIndexer from '@indexer/configIndexer'
 import Web3Helper from '@helpers/web3'
 import { expect } from 'chai'
-import GovernanceErc20Helper from '@helpers/governanceErc20'
 import logger from '@logger'
-import Web3BatchHelper from '@helpers/web3BatchHelper'
 import ProxyContractHelper from '@helpers/proxyContract'
 
 describe('Basic Integer Test', () => {
