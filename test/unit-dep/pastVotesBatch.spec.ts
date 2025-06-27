@@ -62,6 +62,9 @@ describe('PastVotesBatch', () => {
 
     for (const member of members) {
       const provider = ProviderModule.getAnyRpcProvider(member.network)
+      if (!provider) {
+        continue
+      }
       const block = await provider.getBlock('latest')
 
       const result = await GovernanceErc20Helper.getPastVotes(
