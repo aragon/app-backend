@@ -14,7 +14,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
-    config.SKIP_SYNC = false
+    config.IGNORE_TRANSFER = false
   })
 
   afterEach(() => {
@@ -361,8 +361,8 @@ describe('AragonPlugins: LogTokenVoting', () => {
       expect(verboseStub.calledWith('End LogTokenVoting' as any)).to.be.true
     })
 
-    it('should skip sync for large tokens when SKIP_SYNC is enabled', async () => {
-      config.SKIP_SYNC = true
+    it('should skip sync for large tokens when IGNORE_TRANSFER is enabled', async () => {
+      config.IGNORE_TRANSFER = true
 
       const token = {
         address: '0x123',
@@ -384,7 +384,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
       await LogTokenVoting.start(plugin, token)
 
       expect(verboseStub.calledWith('Skip sync large token' as any)).to.be.true
-      expect(token.skipSync).to.be.true
+      expect(token.ignoreTransfer).to.be.true
       expect(token.save.calledOnce).to.be.true
     })
   })
