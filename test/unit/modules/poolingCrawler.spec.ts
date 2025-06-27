@@ -1,15 +1,17 @@
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { Interface } from 'ethers'
+import { ethers, Interface } from 'ethers'
 import { Models } from '@dbModels'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
-import { NetworksEnum } from '@types'
+import { IPluginInterfaceType, ITokenType, NetworksEnum } from '@types'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import PoolingCrawler from '@modules/poolingCrawler'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { DAO } from '@artifacts/dao'
 import utils from '@helpers/utils'
+import { FakeToken } from '@test/mock/fakeToken'
+import { PluginList } from '@test/mock/fakePlugins'
 
 describe('Module: PoolingCrawler', () => {
   let sandbox: SinonSandbox
@@ -85,8 +87,11 @@ describe('Module: PoolingCrawler', () => {
 
       sandbox.stub(PoolingCrawler, '_getReceiverAddress').returns('0xDecodedAddress')
 
-      sandbox.stub(Models.Dao, 'distinct').resolves(['0x4838b106fce9647bdf1e7877bf73ce8b0bad5f94'])
-      sandbox.stub(Models.Plugin, 'distinct').resolves(['0x4838b106fce9647bdf1e7877bf73ce8b0bad5f95'])
+      sandbox.stub(Models.Dao, 'distinct').resolves([ethers.getAddress('0x4838b106fce9647bdf1e7877bf73ce8b0bad5f94')])
+      sandbox
+        .stub(Models.Plugin, 'distinct')
+        .resolves([ethers.getAddress('0x4838b106fce9647bdf1e7877bf73ce8b0bad5f95')])
+      sandbox.stub(Models.Token, 'distinct').resolves([ethers.getAddress('0x4838b106fce9647bdf1e7877bf73ce8b0bad5f95')])
 
       const nativeTransferStub = sandbox.stub(DaoRegistryHandler, 'nativeTransfer').resolves()
 
@@ -100,6 +105,45 @@ describe('Module: PoolingCrawler', () => {
 
       expect(result).to.have.lengthOf(4)
       expect(result).to.not.include(mockLogs[2])
+    })
+
+    it('should return only syncable tokens when filtering for transfer logs', async () => {
+      const tokenAddress = ethers.getAddress('0x4838b106fce9647bdf1e7877bf73ce8b0bad5f95')
+
+      const tokenDb = await Models.Token.create({
+        ...FakeToken,
+        address: tokenAddress,
+        ignoreTransfer: false,
+        type: ITokenType.ERC20,
+        hasDelegate: true,
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      await Models.Plugin.create({
+        ...PluginList[0],
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress,
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      const mockLogs = [{ topics: [transferTopic], address: tokenAddress }]
+
+      sandbox.stub(PoolingCrawler, '_getReceiverAddress').returns('0xDecodedAddress')
+
+      sandbox.stub(Models.Dao, 'distinct').resolves([])
+
+      sandbox.stub(utils, 'wait')
+
+      const result = await PoolingCrawler.filterLogs(mockLogs as any, NetworksEnum.ethereumMainnet)
+
+      expect(result).to.have.lengthOf(1)
+
+      await tokenDb.update({
+        ignoreTransfer: true,
+      })
+
+      const resultAfterUpdate = await PoolingCrawler.filterLogs(mockLogs as any, NetworksEnum.ethereumMainnet)
+      expect(resultAfterUpdate).to.have.lengthOf(0)
     })
 
     it('should handle empty logs array', async () => {
