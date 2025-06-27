@@ -14,6 +14,7 @@ const TokenDetector = {
   HAS_TOTAL_SUPPLY: ['totalSupply()'],
   HAS_BALANCE_OF_ERC20: ['balanceOf(address)'],
   HAS_BALANCE_OF_ERC777: ['balanceOf(address,uint256)'],
+  HAS_CLOCK_MODE: ['CLOCK_MODE()'],
   HAS_UNDERLYING: ['underlying()'],
   ERC20_VOTES: ['getVotes(address)', 'getPastVotes(address,uint256)', 'getPastTotalSupply(uint256)'],
   HAS_DELEGATE: ['delegate(address)'],
@@ -70,6 +71,7 @@ const TokenDetector = {
       hasDecimals: false,
       hasTotalSupply: false,
       hasDelegate: false,
+      hasClockMode: false,
     }
 
     if (address === ZeroAddress) {
@@ -111,6 +113,7 @@ const TokenDetector = {
       if (hasFunctions(TokenDetector.HAS_BALANCE_OF_ERC20)) contractDetails.hasBalanceOfERC20 = true
       if (hasFunctions(TokenDetector.HAS_BALANCE_OF_ERC777)) contractDetails.hasBalanceOfERC777 = true
       if (hasFunctions(TokenDetector.HAS_DELEGATE)) contractDetails.hasDelegate = true
+      if (hasFunctions(TokenDetector.HAS_CLOCK_MODE)) contractDetails.hasClockMode = true
 
       if (hasFunctions(TokenDetector.ERC20)) {
         contractDetails.type = ITokenType.ERC20
