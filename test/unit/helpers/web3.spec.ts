@@ -428,7 +428,7 @@ describe('Helpers:Web3', () => {
       const fakeAddress = '0x1234567890123456789012345678901234567890'
       const fakeNetwork = NetworksEnum.ethereumMainnet
       const providerStub = {
-        send: sandbox.stub().rejects(new Error('RPC error')),
+        send: sandbox.stub().throws(new Error('RPC error')),
       }
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
       const errorLoggerStub = sandbox.stub(logger, 'error')

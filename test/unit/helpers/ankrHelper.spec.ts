@@ -50,7 +50,7 @@ describe('Helpers: AnkrHelper', () => {
       expect(result).to.not.be.null
       expect(result!.blockchain).to.eq(AnkrNetworksEnum.ethereumMainnet)
       expect(result!.chainId).to.eq(1)
-      expect(result!.multichainApiUrl).to.eq('https://rpc.ankr.com/multichain')
+      expect(result!.multichainApiUrl).to.eq('https://rpc.ankr.com/multichain/test-api-key')
       expect(result!.chainUrl).to.eq(`https://rpc.ankr.com/${AnkrNetworksEnum.ethereumMainnet}/test-api-key`)
       expect(getChainIdStub.calledOnce).to.be.true
       expect(getChainIdStub.calledWith(NetworksEnum.ethereumMainnet)).to.be.true
