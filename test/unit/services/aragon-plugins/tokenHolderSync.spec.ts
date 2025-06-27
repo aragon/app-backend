@@ -2,7 +2,6 @@ import * as sinon from 'sinon'
 import { SinonSandbox, SinonStub } from 'sinon'
 import { expect } from 'chai'
 import { TokenHolderSync } from '@plugins/tokenHolderSync'
-import BlockScoutHelper from '@helpers/blockScout'
 import { ProxyMember } from '@modules/proxyMember'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { IGovernanceErc20Logs, NetworksEnum, TokenSyncTagName } from '@types'
@@ -22,7 +21,7 @@ describe('AragonPlugins: TokenHolderSync', () => {
   let proxyMemberAddToDaoStub: SinonStub
   let crawlerCrawlStub: SinonStub
   let loggerVerboseStub: SinonStub
-  let loggerErrorStub: SinonStub
+  let loggerWarnStub: SinonStub
   let dbTxExecuteTxFnStub: SinonStub
   let configIndexerFindExistingLogStub: SinonStub
 
@@ -75,11 +74,11 @@ describe('AragonPlugins: TokenHolderSync', () => {
 
     // Stub logger methods
     loggerVerboseStub = sandbox.stub(logger, 'verbose')
-    loggerErrorStub = sandbox.stub(logger, 'error')
+    loggerWarnStub = sandbox.stub(logger, 'warn')
 
     // Stub config
     sandbox.stub(config, 'CRAWLER_CONFIG').value({
-      TOKEN_HOLDERS_THRESHOLD: 100,
+      TOKEN_HOLDERS_THRESHOLD: 1000,
     })
 
     // Stub configIndexer
@@ -108,11 +107,11 @@ describe('AragonPlugins: TokenHolderSync', () => {
     })
   })
 
-  describe('isOptimizedFlowNeeded', () => {
+  describe('isTokenNotEligibleForSync', () => {
     it('should return false if token is not a custom token', async () => {
       const sameBlockNumberToken = { ...mockToken, blockNumber: mockPlugin.blockNumber }
 
-      const result = await TokenHolderSync.isOptimizedFlowNeeded(sameBlockNumberToken, mockPlugin)
+      const result = await TokenHolderSync.isTokenNotEligibleForSync(sameBlockNumberToken, mockPlugin)
 
       expect(result).to.be.false
       expect(blockScoutGetTokenCountersStub.called).to.be.false
@@ -122,7 +121,7 @@ describe('AragonPlugins: TokenHolderSync', () => {
       const findOneStub = Models.ConfigIndexer.findOne as SinonStub
       findOneStub.resolves({ service: 'default-tag' })
 
-      const result = await TokenHolderSync.isOptimizedFlowNeeded(mockToken, mockPlugin)
+      const result = await TokenHolderSync.isTokenNotEligibleForSync(mockToken, mockPlugin)
 
       expect(result).to.be.false
       expect(blockScoutGetTokenCountersStub.called).to.be.false
@@ -130,12 +129,12 @@ describe('AragonPlugins: TokenHolderSync', () => {
     })
 
     it('should return false if token holder count is below threshold', async () => {
-      blockScoutGetTokenCountersStub.resolves({ holders: '50', transfers: 100 })
+      blockScoutGetTokenCountersStub.resolves({ holders: 50, transfers: 100 })
 
       const findOneStub = Models.ConfigIndexer.findOne as SinonStub
       findOneStub.resolves(null)
 
-      const result = await TokenHolderSync.isOptimizedFlowNeeded(mockToken, mockPlugin)
+      const result = await TokenHolderSync.isTokenNotEligibleForSync(mockToken, mockPlugin)
 
       expect(result).to.be.false
       expect(blockScoutGetTokenCountersStub.calledOnce).to.be.true
@@ -143,34 +142,21 @@ describe('AragonPlugins: TokenHolderSync', () => {
     })
 
     it('should return true if token holder count is above threshold', async () => {
-      blockScoutGetTokenCountersStub.resolves({ holders: '150', transfers: 100 })
+      blockScoutGetTokenCountersStub.resolves({ holders: 400000, transfers: 4000 })
 
       const findOneStub = Models.ConfigIndexer.findOne as SinonStub
       findOneStub.resolves(null)
 
-      const result = await TokenHolderSync.isOptimizedFlowNeeded(mockToken, mockPlugin)
+      const result = await TokenHolderSync.isTokenNotEligibleForSync(mockToken, mockPlugin)
 
+      expect(loggerWarnStub.calledOnceWith('Token exceeds holder threshold for full sync' as any)).to.be.true
       expect(result).to.be.true
       expect(blockScoutGetTokenCountersStub.calledOnce).to.be.true
-      expect(loggerVerboseStub.calledOnce).to.be.true
-    })
-
-    it('should handle BlockScout API errors gracefully', async () => {
-      blockScoutGetTokenCountersStub.rejects(new Error('BlockScout API error'))
-
-      const findOneStub = Models.ConfigIndexer.findOne as SinonStub
-      findOneStub.resolves(null)
-
-      const result = await TokenHolderSync.isOptimizedFlowNeeded(mockToken, mockPlugin)
-
-      expect(result).to.be.false
-      expect(loggerErrorStub.calledOnce).to.be.true
     })
   })
 
   describe('syncAllTokenHolders', () => {
     it('should skip sync if it was already completed', async () => {
-      // Setup for completed sync
       configIndexerFindExistingLogStub.resolves({ end: true })
 
       // Act
