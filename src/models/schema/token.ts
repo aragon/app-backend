@@ -122,6 +122,9 @@ export default class Token extends Model {
   public hasTotalSupply!: boolean
 
   @prop({ type: () => Boolean, default: false })
+  public hasClockMode!: boolean
+
+  @prop({ type: () => Boolean, default: false })
   public refetch!: boolean
 
   static async create(rawData: Partial<Token>, tOpts?: SaveOptions) {
