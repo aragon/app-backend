@@ -187,7 +187,7 @@ describe('Router: Member', () => {
     it('Should get member locks with all parameters', async () => {
       const memberAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
       const queryParams = {
-        pluginAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        escrowAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         network: NetworksEnum.ethereumMainnet,
         onlyActive: 'true',
         pageSize: '20',
@@ -219,7 +219,7 @@ describe('Router: Member', () => {
       // Check extraParams
       const expectedExtraParams = {
         memberAddress: getAddress(memberAddress),
-        pluginAddress: getAddress(queryParams.pluginAddress),
+        escrowAddress: getAddress(queryParams.escrowAddress),
         network: queryParams.network,
         onlyActive: true,
       }
@@ -271,7 +271,7 @@ describe('Router: Member', () => {
       // Check extraParams
       const expectedExtraParams = {
         memberAddress: getAddress(memberAddress),
-        pluginAddress: undefined,
+        escrowAddress: undefined,
         network: queryParams.network,
         onlyActive: undefined,
       }
@@ -332,7 +332,7 @@ describe('Router: Member', () => {
       // Check extraParams
       const expectedExtraParams = {
         memberAddress: getAddress(memberAddress),
-        pluginAddress: undefined,
+        escrowAddress: undefined,
         network: queryParams.network,
         onlyActive: false,
       }
@@ -357,13 +357,13 @@ describe('Router: Member', () => {
     it('Should handle validation and call controller with formatted params', async () => {
       const memberAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
       const queryParams = {
-        pluginAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        escrowAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         network: NetworksEnum.ethereumMainnet,
       }
 
       const formattedExtraParams = {
         memberAddress: getAddress(memberAddress),
-        pluginAddress: getAddress(queryParams.pluginAddress),
+        escrowAddress: getAddress(queryParams.escrowAddress),
         network: queryParams.network,
         onlyActive: undefined,
       }

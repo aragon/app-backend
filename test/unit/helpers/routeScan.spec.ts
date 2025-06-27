@@ -60,11 +60,7 @@ describe('Helpers: RouteScan', () => {
     })
 
     it('Should handle errors in _rpCall', async () => {
-      const expectedResult = new Error('RPC Call Failed')
-      const getCall = sandbox.stub().rejects(expectedResult)
-      sandbox.stub(RouteScanHelper, 'axiosInstance').returns({
-        get: getCall,
-      } as any)
+      sandbox.stub(ProviderModule, 'getChainId').throws(new Error('fake-error'))
       const loggerStub = sandbox.stub(logger, 'error')
 
       await expect(
@@ -75,7 +71,7 @@ describe('Helpers: RouteScan', () => {
           },
           NetworksEnum.ethereumMainnet,
         ),
-      ).to.be.rejectedWith(expectedResult)
+      ).to.be.rejectedWith(Error, 'fake-error')
 
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.firstCall.args[0]).to.equal('Error in RouteScan API call')

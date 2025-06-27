@@ -7,6 +7,7 @@ import axios from 'axios'
 import logger from '@logger'
 import config from '@config'
 import utils from '@helpers/utils'
+import { ethers } from 'ethers'
 
 describe('Helpers: BlockScout', () => {
   let sandbox: SinonSandbox
@@ -622,8 +623,8 @@ describe('Helpers: BlockScout', () => {
         data: {
           message: 'OK',
           result: [
-            { address: '0xaddress1', value: '1000000000000000000' },
-            { address: '0xaddress2', value: '2000000000000000000' },
+            { address: '0x5c3126bfb9a68a7021d461230127470b3824886e', value: '1000000000000000000' },
+            { address: '0x6c3126bfb9a68a7021d461230127470b3824886e', value: '2000000000000000000' },
           ],
         },
       }
@@ -635,7 +636,7 @@ describe('Helpers: BlockScout', () => {
       expect(axiosStub.callCount).to.equal(1)
       expect(result.holders.length).to.equal(2)
       expect(result.total).to.equal(2)
-      expect(result.holders[0].address).to.equal('0xaddress1')
+      expect(result.holders[0].address).to.equal(ethers.getAddress('0x5c3126bfb9a68a7021d461230127470b3824886e'))
     })
 
     it('should handle empty results', async () => {

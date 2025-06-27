@@ -13,6 +13,7 @@ export interface ITokenInfo {
   hasDecimals: boolean
   hasTotalSupply: boolean
   hasDelegate: boolean
+  hasClockMode: boolean
 }
 
 export interface ITokenRate {
