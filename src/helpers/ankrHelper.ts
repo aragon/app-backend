@@ -13,11 +13,7 @@ const AnkrHelper = {
     [NetworksEnum.polygonMainnet]: AnkrNetworksEnum.polygonMainnet,
     [NetworksEnum.baseMainnet]: AnkrNetworksEnum.baseMainnet,
     [NetworksEnum.arbitrumMainnet]: AnkrNetworksEnum.arbitrumMainnet,
-    [NetworksEnum.zksyncSepolia]: AnkrNetworksEnum.zksyncSepolia,
-    [NetworksEnum.zksyncMainnet]: AnkrNetworksEnum.zksyncMainnet,
     [NetworksEnum.optimismMainnet]: AnkrNetworksEnum.optimismMainnet,
-    [NetworksEnum.cornMainnet]: AnkrNetworksEnum.cornMainnet,
-    [NetworksEnum.chilizMainnet]: AnkrNetworksEnum.chilizMainnet,
   },
 
   _constructUrl(network: NetworksEnum) {
