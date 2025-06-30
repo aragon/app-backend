@@ -15,8 +15,7 @@ import Member from '@models/schema/member'
 import DaoMemberMapping from '@models/schema/daoMemberMapping'
 import Token from '@models/schema/token'
 import { fakeSettings } from '@test/mock/fakeSettings'
-import type { IMemberVotesInfo } from '@src/types/voting'
-import { HexAddress, IPluginInterfaceType, NetworksEnum } from '@types'
+import { IPluginInterfaceType } from '@types'
 import { PluginList } from '@test/mock/fakePlugins'
 
 describe('Controller: Vote', () => {
@@ -214,129 +213,6 @@ describe('Controller: Vote', () => {
       expect(spyReq.calledOnce).to.be.true
 
       expect(response).to.have.property('data').with.lengthOf(0)
-    })
-  })
-
-  describe('memberVotesInfo', () => {
-    it('should get member votes info', async () => {
-      const params: IMemberVotesInfo = {
-        memberAddress: rawVote.memberAddress as HexAddress,
-        pluginAddress: rawVote.pluginAddress as HexAddress,
-        network: rawVote.network as NetworksEnum,
-        proposalIndex: rawVote.proposalIndex as string,
-      }
-
-      const response = await VoteController.memberVotesInfo(params)
-
-      expect(response).to.have.property('transactionHash').to.eq(rawVote.transactionHash)
-    })
-
-    it('should return false if user voting status is not exist', async () => {
-      const params: IMemberVotesInfo = {
-        memberAddress: '0x123' as HexAddress,
-        pluginAddress: rawVote.pluginAddress as HexAddress,
-        network: rawVote.network as NetworksEnum,
-        proposalIndex: rawVote.proposalIndex as string,
-      }
-
-      const response = await VoteController.memberVotesInfo(params)
-
-      expect(response).to.be.false
-    })
-  })
-
-  describe('canVote', () => {
-    it('should return true if the user can vote', async () => {
-      const params = {
-        pluginAddress: rawVote.pluginAddress as HexAddress,
-        memberAddress: rawVote.memberAddress as HexAddress,
-        network: rawVote.network as NetworksEnum,
-        proposalIndex: rawVote.proposalIndex as string,
-      }
-
-      const proposals = await Models.Proposal.find({})
-
-      const firstProposal = proposals[0]
-      firstProposal.endDate = Math.floor(Date.now() / 1000) + 10000
-      await firstProposal.save()
-
-      const activeSettings = await Models.Setting.findActive({
-        daoAddress: rawProposal.daoAddress,
-        pluginAddress: rawProposal.pluginAddress,
-        network: rawProposal.network,
-      } as any)
-
-      activeSettings.votingMode = 2
-      await activeSettings.save()
-
-      const response = await VoteController.canVote(params)
-      expect(response).to.be.true
-    })
-
-    it('should return false if the proposal is expired', async () => {
-      const params = {
-        pluginAddress: rawVote.pluginAddress as HexAddress,
-        memberAddress: rawVote.memberAddress as HexAddress,
-        network: rawVote.network as NetworksEnum,
-        proposalIndex: rawVote.proposalIndex as string,
-      }
-
-      const proposals = await Models.Proposal.find({})
-
-      const firstProposal = proposals[0]
-      firstProposal.endDate = Math.floor(Date.now() / 1000) - 10000
-      await firstProposal.save()
-
-      const response = await VoteController.canVote(params)
-      expect(response).to.be.false
-    })
-
-    it('should return false if the proposal is executed', async () => {
-      const params = {
-        pluginAddress: rawVote.pluginAddress as HexAddress,
-        memberAddress: rawVote.memberAddress as HexAddress,
-        network: rawVote.network as NetworksEnum,
-        proposalIndex: rawVote.proposalIndex as string,
-      }
-
-      const proposals = await Models.Proposal.find({})
-
-      const firstProposal = proposals[0]
-      firstProposal.executed = { status: true }
-      await firstProposal.save()
-
-      const response = await VoteController.canVote(params)
-      expect(response).to.be.false
-    })
-
-    it('should return true if the user has not voted yet', async () => {
-      const params = {
-        pluginAddress: rawVote.pluginAddress as HexAddress,
-        memberAddress: rawVote.memberAddress as HexAddress,
-        network: rawVote.network as NetworksEnum,
-        proposalIndex: '15',
-      }
-
-      const proposals = await Models.Proposal.find({})
-      const firstProposal = proposals[0]
-      firstProposal.endDate = Math.floor(Date.now() / 1000) + 10000
-      firstProposal.proposalIndex = '15'
-      await firstProposal.save()
-
-      const response = await VoteController.canVote(params)
-      expect(response).to.be.true
-    })
-
-    it('should throw error and return false if member or plugin not found', async () => {
-      const params = {
-        pluginAddress: '0x123' as HexAddress,
-        memberAddress: '0x123' as HexAddress,
-        network: rawVote.network as NetworksEnum,
-        proposalIndex: rawVote.proposalIndex as string,
-      }
-
-      const response = await VoteController.canVote(params)
-      expect(response).to.be.false
     })
   })
 })

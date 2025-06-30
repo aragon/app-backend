@@ -1,12 +1,11 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import DelegateRouter from '@services/aragon-api/routers/delegate'
-import DelegateController from '@services/aragon-api/controllers/delegate'
-import { ITransferSide, ITransferType, NetworksEnum } from '@types'
-import * as _ from 'lodash'
+import SettingRouter from '@api/routers/v1/setting'
+import SettingController from '@api/controllers/setting'
+import { NetworksEnum } from '@types'
 
-describe('Router: Delegate', () => {
+describe('RouterV1: Setting', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -18,30 +17,27 @@ describe('Router: Delegate', () => {
   })
 
   describe('getWithPagination', async () => {
-    it('Should get delegate with pagination - all params', async () => {
+    it('Should get setting with pagination - all params', async () => {
       const filterParams = {
         network: NetworksEnum.ethereumMainnet,
-        address: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
         pluginAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
-        tokenAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
-        type: ITransferType.delegate,
-        side: ITransferSide.incoming,
-        excludeZeroAddress: false,
       }
+
       const paginationParams = {
         pageSize: 10,
         page: 1,
         order: 'asc',
+        sort: 'createdAt',
       }
 
-      const stubCtrl = sandbox.stub(DelegateController, 'getDelegateWithPagination').returns(true as any)
+      const stubCtrl = sandbox.stub(SettingController, 'getSettingsWithPagination').returns(true as any)
 
       const ctx: any = {
         query: { ...filterParams, ...paginationParams },
       }
 
-      await DelegateRouter.getWithPagination(ctx)
+      await SettingRouter.getWithPagination(ctx)
 
       expect(ctx.body).to.eq(true)
       expect(stubCtrl.calledOnce).to.be.true
@@ -52,16 +48,12 @@ describe('Router: Delegate', () => {
         endDate: undefined,
         startDate: undefined,
         search: undefined,
-        sort: 'blockNumber',
       }
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
-      expect(stubCtrl.args[0][1]).to.deep.eq({
-        ..._.omit(filterParams, 'address'),
-        ...{ memberAddress: filterParams.address },
-      })
+      expect(stubCtrl.args[0][1]).to.deep.eq(filterParams)
     })
 
-    it('Should get proposal with pagination - daoId', async () => {
+    it('Should get setting with pagination - daoId', async () => {
       const filterParams = {
         daoId: 'ethereum-mainnet-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
       }
@@ -71,13 +63,13 @@ describe('Router: Delegate', () => {
         order: 'asc',
       }
 
-      const stubCtrl = sandbox.stub(DelegateController, 'getDelegateWithPagination').returns(true as any)
+      const stubCtrl = sandbox.stub(SettingController, 'getSettingsWithPagination').returns(true as any)
 
       const ctx: any = {
         query: { ...filterParams, ...paginationParams },
       }
 
-      await DelegateRouter.getWithPagination(ctx)
+      await SettingRouter.getWithPagination(ctx)
 
       expect(ctx.body).to.eq(true)
       expect(stubCtrl.calledOnce).to.be.true
@@ -96,30 +88,25 @@ describe('Router: Delegate', () => {
         network: undefined,
         daoAddress: undefined,
         pluginAddress: undefined,
-        memberAddress: undefined,
-        tokenAddress: undefined,
-        type: undefined,
-        side: undefined,
-        excludeZeroAddress: undefined,
       })
       expect(stubCtrl.args[0][2]).to.deep.eq(filterParams)
     })
 
-    it('Should get delegate with pagination - missing pagination params', async () => {
+    it('Should get setting with pagination - missing pagination params', async () => {
       const filterParams = {
-        address: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        network: NetworksEnum.ethereumMainnet,
       }
       const paginationParams = {
         sort: 'createdAt',
       }
 
-      const stubCtrl = sandbox.stub(DelegateController, 'getDelegateWithPagination').returns(true as any)
+      const stubCtrl = sandbox.stub(SettingController, 'getSettingsWithPagination').returns(true as any)
 
       const ctx: any = {
         query: { ...filterParams, ...paginationParams },
       }
 
-      await DelegateRouter.getWithPagination(ctx)
+      await SettingRouter.getWithPagination(ctx)
 
       expect(ctx.body).to.eq(true)
       expect(stubCtrl.calledOnce).to.be.true
@@ -130,24 +117,60 @@ describe('Router: Delegate', () => {
         endDate: undefined,
         startDate: undefined,
         search: undefined,
-        sort: 'createdAt',
         order: 'desc',
         page: 1,
         pageSize: 10,
       }
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
       expect(stubCtrl.args[0][1]).to.deep.eq({
-        ...{
-          memberAddress: filterParams.address,
-          daoAddress: undefined,
-          pluginAddress: undefined,
-          tokenAddress: undefined,
-          network: undefined,
-          type: undefined,
-          side: undefined,
-          excludeZeroAddress: undefined,
-        },
+        ...filterParams,
+        ...{ daoAddress: undefined, pluginAddress: undefined },
       })
     })
+  })
+
+  it('Should getActiveSettingByDaoId', async () => {
+    const params = {
+      daoId: `${NetworksEnum.baseMainnet}-0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2`,
+    }
+    const query = {
+      pluginAddress: '0x5EAd86cc058881EB1e8Ec023781AbbBB7d111bbD',
+    }
+
+    const stubCtrl = sandbox.stub(SettingController, 'getActiveSettingByDaoId').returns(true as any)
+
+    const ctx: any = {
+      params,
+      query,
+    }
+
+    await SettingRouter.getActiveSettingByDaoId(ctx)
+
+    expect(ctx.body).to.eq(true)
+    expect(stubCtrl.calledOnce).to.be.true
+    expect(stubCtrl.calledWith(params.daoId, query.pluginAddress)).to.be.true
+  })
+
+  it('Should getActiveSettingByDaoAddress', async () => {
+    const params = {
+      network: NetworksEnum.baseMainnet,
+      daoAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+    }
+    const query = {
+      pluginAddress: '0x5EAd86cc058881EB1e8Ec023781AbbBB7d111bbD',
+    }
+
+    const stubCtrl = sandbox.stub(SettingController, 'getActiveSettingByDaoAddress').returns(true as any)
+
+    const ctx: any = {
+      params,
+      query,
+    }
+
+    await SettingRouter.getActiveSettingByDaoAddress(ctx)
+
+    expect(ctx.body).to.eq(true)
+    expect(stubCtrl.calledOnce).to.be.true
+    expect(stubCtrl.calledWith(params.daoAddress, params.network, query.pluginAddress)).to.be.true
   })
 })

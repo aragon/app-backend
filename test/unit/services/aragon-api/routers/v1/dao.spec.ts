@@ -1,11 +1,11 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import DaoRouter from '@services/aragon-api/routers/dao'
-import DaoController from '@services/aragon-api/controllers/dao'
+import DaoRouter from '@api/routers/v1/dao'
+import DaoController from '@api/controllers/dao'
 import { ErrorKeyEnum, NetworksEnum } from '@types'
 
-describe('Router: Dao', () => {
+describe('RouterV1: Dao', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {

@@ -1,11 +1,11 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import SettingRouter from '@services/aragon-api/routers/setting'
-import SettingController from '@services/aragon-api/controllers/setting'
-import { NetworksEnum } from '@types'
+import TransactionRouter from '@api/routers/v1/transaction'
+import TransactionController from '@api/controllers/transaction'
+import { ITransactionCategory, ITransactionIndexCheckType, NetworksEnum } from '@types'
 
-describe('Router: Setting', () => {
+describe('RouterV1: Transaction', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -17,13 +17,11 @@ describe('Router: Setting', () => {
   })
 
   describe('getWithPagination', async () => {
-    it('Should get setting with pagination - all params', async () => {
+    it('Should get transaction with pagination - all params', async () => {
       const filterParams = {
         network: NetworksEnum.ethereumMainnet,
-        daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
-        pluginAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        category: ITransactionCategory.ERC20,
       }
-
       const paginationParams = {
         pageSize: 10,
         page: 1,
@@ -31,13 +29,13 @@ describe('Router: Setting', () => {
         sort: 'createdAt',
       }
 
-      const stubCtrl = sandbox.stub(SettingController, 'getSettingsWithPagination').returns(true as any)
+      const stubCtrl = sandbox.stub(TransactionController, 'getTransactionsWithPagination').returns(true as any)
 
       const ctx: any = {
         query: { ...filterParams, ...paginationParams },
       }
 
-      await SettingRouter.getWithPagination(ctx)
+      await TransactionRouter.getWithPagination(ctx)
 
       expect(ctx.body).to.eq(true)
       expect(stubCtrl.calledOnce).to.be.true
@@ -50,10 +48,17 @@ describe('Router: Setting', () => {
         search: undefined,
       }
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
-      expect(stubCtrl.args[0][1]).to.deep.eq(filterParams)
+      expect(stubCtrl.args[0][1]).to.deep.eq({
+        network: filterParams.network,
+        category: filterParams.category,
+        daoAddress: undefined,
+        fromAddress: undefined,
+        toAddress: undefined,
+        tokenAddress: undefined,
+      })
     })
 
-    it('Should get setting with pagination - daoId', async () => {
+    it('Should get transaction with pagination - daoId', async () => {
       const filterParams = {
         daoId: 'ethereum-mainnet-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
       }
@@ -63,13 +68,13 @@ describe('Router: Setting', () => {
         order: 'asc',
       }
 
-      const stubCtrl = sandbox.stub(SettingController, 'getSettingsWithPagination').returns(true as any)
+      const stubCtrl = sandbox.stub(TransactionController, 'getTransactionsWithPagination').returns(true as any)
 
       const ctx: any = {
         query: { ...filterParams, ...paginationParams },
       }
 
-      await SettingRouter.getWithPagination(ctx)
+      await TransactionRouter.getWithPagination(ctx)
 
       expect(ctx.body).to.eq(true)
       expect(stubCtrl.calledOnce).to.be.true
@@ -87,12 +92,15 @@ describe('Router: Setting', () => {
       expect(stubCtrl.args[0][1]).to.deep.eq({
         network: undefined,
         daoAddress: undefined,
-        pluginAddress: undefined,
+        category: undefined,
+        fromAddress: undefined,
+        toAddress: undefined,
+        tokenAddress: undefined,
       })
       expect(stubCtrl.args[0][2]).to.deep.eq(filterParams)
     })
 
-    it('Should get setting with pagination - missing pagination params', async () => {
+    it('Should get transaction with pagination - missing pagination params', async () => {
       const filterParams = {
         network: NetworksEnum.ethereumMainnet,
       }
@@ -100,13 +108,13 @@ describe('Router: Setting', () => {
         sort: 'createdAt',
       }
 
-      const stubCtrl = sandbox.stub(SettingController, 'getSettingsWithPagination').returns(true as any)
+      const stubCtrl = sandbox.stub(TransactionController, 'getTransactionsWithPagination').returns(true as any)
 
       const ctx: any = {
         query: { ...filterParams, ...paginationParams },
       }
 
-      await SettingRouter.getWithPagination(ctx)
+      await TransactionRouter.getWithPagination(ctx)
 
       expect(ctx.body).to.eq(true)
       expect(stubCtrl.calledOnce).to.be.true
@@ -124,53 +132,39 @@ describe('Router: Setting', () => {
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
       expect(stubCtrl.args[0][1]).to.deep.eq({
         ...filterParams,
-        ...{ daoAddress: undefined, pluginAddress: undefined },
+        ...{
+          fromAddress: undefined,
+          toAddress: undefined,
+          tokenAddress: undefined,
+          daoAddress: undefined,
+          category: undefined,
+        },
       })
     })
   })
 
-  it('Should getActiveSettingByDaoId', async () => {
-    const params = {
-      daoId: `${NetworksEnum.baseMainnet}-0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2`,
-    }
-    const query = {
-      pluginAddress: '0x5EAd86cc058881EB1e8Ec023781AbbBB7d111bbD',
-    }
+  describe('getTransactionIndexingStatus', async () => {
+    it('Should get transaction indexing status', async () => {
+      const stubCtrl = sandbox.stub(TransactionController, 'getTransactionIndexingStatus').returns(true as any)
 
-    const stubCtrl = sandbox.stub(SettingController, 'getActiveSettingByDaoId').returns(true as any)
+      const ctx: any = {
+        params: {
+          txHash: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+          network: NetworksEnum.ethereumMainnet,
+        },
+        query: {
+          type: ITransactionIndexCheckType.PROPOSAL_CREATE,
+        },
+      }
 
-    const ctx: any = {
-      params,
-      query,
-    }
+      await TransactionRouter.getTransactionIndexingStatus(ctx)
 
-    await SettingRouter.getActiveSettingByDaoId(ctx)
+      expect(ctx.body).to.eq(true)
+      expect(stubCtrl.calledOnce).to.be.true
 
-    expect(ctx.body).to.eq(true)
-    expect(stubCtrl.calledOnce).to.be.true
-    expect(stubCtrl.calledWith(params.daoId, query.pluginAddress)).to.be.true
-  })
-
-  it('Should getActiveSettingByDaoAddress', async () => {
-    const params = {
-      network: NetworksEnum.baseMainnet,
-      daoAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-    }
-    const query = {
-      pluginAddress: '0x5EAd86cc058881EB1e8Ec023781AbbBB7d111bbD',
-    }
-
-    const stubCtrl = sandbox.stub(SettingController, 'getActiveSettingByDaoAddress').returns(true as any)
-
-    const ctx: any = {
-      params,
-      query,
-    }
-
-    await SettingRouter.getActiveSettingByDaoAddress(ctx)
-
-    expect(ctx.body).to.eq(true)
-    expect(stubCtrl.calledOnce).to.be.true
-    expect(stubCtrl.calledWith(params.daoAddress, params.network, query.pluginAddress)).to.be.true
+      expect(stubCtrl.args[0][0]).to.eq(ctx.params.txHash)
+      expect(stubCtrl.args[0][1]).to.eq(ctx.query.type)
+      expect(stubCtrl.args[0][2]).to.eq(ctx.params.network)
+    })
   })
 })

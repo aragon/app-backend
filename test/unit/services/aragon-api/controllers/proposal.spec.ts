@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import ProposalController from '@services/aragon-api/controllers/proposal'
-import { ErrorKeyEnum, IPluginInterfaceType } from '@types'
+import { ErrorKeyEnum, type HexAddress, IPluginInterfaceType } from '@types'
 import { Models } from '@dbModels'
 import Proposal from '@models/schema/proposal'
 import PairDataModule from '@modules/pairData'
@@ -311,7 +311,7 @@ describe('Controller: Proposal', () => {
     it('should call rabbitMq to check if the user can create proposal', async () => {
       const params = {
         pluginAddress: '0xPluginAddress',
-        memberAddress: rawMember.address,
+        memberAddress: rawMember.address as HexAddress,
         network: rawProposal.network!,
       }
 
@@ -334,7 +334,7 @@ describe('Controller: Proposal', () => {
     it('should return false when there is an error', async () => {
       const params = {
         pluginAddress: '0xPluginAddress',
-        memberAddress: rawMember.address,
+        memberAddress: rawMember.address as HexAddress,
         network: rawProposal.network!,
       }
 
@@ -399,41 +399,6 @@ describe('Controller: Proposal', () => {
       const proposalId = 'nonexistent-proposal-id'
 
       await expect(ProposalController.getProposalDecodedActions(proposalId)).to.be.rejectedWith(ErrorKeyEnum.notFound)
-    })
-  })
-
-  describe('canCastVote', () => {
-    it('should call rabbitMq to get the cast vote info', async () => {
-      const params = {
-        proposalId: '0x00123213',
-        userAddress: rawMember.address,
-      }
-
-      const rabbitmQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(true as any)
-
-      const response = await ProposalController.canCastVote(params)
-
-      expect(response).to.be.true
-      expect(rabbitmQStub.calledOnce).to.be.true
-      expect(rabbitmQStub.args[0][1]).to.deep.eq({
-        id: `voteInfo-${params.proposalId}-${params.userAddress}`,
-        params,
-      })
-    })
-
-    it('should throw error to get the cast vote info', async () => {
-      const params = {
-        proposalId: '0x00123213',
-        userAddress: rawMember.address,
-      }
-
-      sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('test'))
-      const logger = sandbox.stub(Logger, 'warn')
-
-      const response = await ProposalController.canCastVote(params)
-
-      expect(response).to.be.false
-      expect(logger.calledOnceWith('Error while checking if user can cast vote' as any)).to.be.true
     })
   })
 })

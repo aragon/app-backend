@@ -197,7 +197,7 @@ export const ProposalHandler = {
           value: w.value,
           data: w.data,
         })),
-        decoding: true,
+        decoding: parsedEvent.args?.actions?.length > 0,
       }
 
       // in case startDate is 0 we need to fetch it from the contract
@@ -263,15 +263,20 @@ export const ProposalHandler = {
       })
 
       const allMessages: Promise<any>[] = [
-        RabbitMQHelper.sendMessage(EnumQueueName.proposalActions, {
-          id: newProposal.id,
-          params: { id: newProposal.id, network: newProposal.network },
-        }),
         RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
           id: newProposal.daoAddress,
           params: { address: newProposal.daoAddress, network: newProposal.network },
         }),
       ]
+
+      if (parsedEvent.args?.actions?.length > 0) {
+        allMessages.push(
+          RabbitMQHelper.sendMessage(EnumQueueName.proposalActions, {
+            id: newProposal.id,
+            params: { id: newProposal.id, network: newProposal.network },
+          }),
+        )
+      }
 
       if (relatedPlugin.interfaceType === IPluginInterfaceType.tokenVoting) {
         allMessages.push(
@@ -524,16 +529,10 @@ export const ProposalHandler = {
 
       if (!proposal) return
 
-      /**
-       * TODO:
-       * If the native token is transfer out from the dao, we have to manually add the transaction
-       * to the database for networks that won't supports internal transactions
-       */
-
       await Promise.allSettled([
         RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
           id: proposal.daoAddress,
-          params: { address: proposal.daoAddress, network: info.network },
+          params: { address: proposal.daoAddress, network: info.network, proposalId: proposal.id },
         }),
         RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
           id: proposal.daoAddress,
@@ -916,8 +915,8 @@ export const ProposalHandler = {
       }) || [],
     )
 
-    await DbTx.executeTxFn(async ({ session }) => {
-      try {
+    try {
+      await DbTx.executeTxFn(async ({ session }) => {
         proposal = await proposal.reload({ session })
 
         proposal.stageIndex = currentStage
@@ -966,11 +965,12 @@ export const ProposalHandler = {
         await session.commitTransaction()
         await session.endSession()
         logger.verbose('Update proposal - pairSppProposals', llo({ logId: proposal.id, info }))
-      } catch (error) {
-        logger.error('Error pairSppProposals', llo({ error, network: proposal.network, proposalId: proposal.id }))
-      }
-    })
+      })
+    } catch (error) {
+      logger.error('Error pairSppProposals', llo({ error, network: proposal.network, proposalId: proposal.id }))
+    }
   },
+
   proposalCanceled: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
       const proposal = await Models.Proposal.findByProposalIndex(
