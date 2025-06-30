@@ -31,6 +31,7 @@ import { FixEnsOnDao } from '@tools/fixEnsOnDao'
 import { ToolsFixBrokenTx } from '@tools/fixBrokenTx'
 import ToolsVeGovernance from '@tools/veGovernance'
 import FixSppPair from '@tools/fixSppPair'
+import { CleanUpTasks } from '@tools/cleanUpTasks'
 
 const { TOOL_RUN } = process.env
 const llo = logger.logMeta.bind(null, { TOOL_RUN })
@@ -67,6 +68,7 @@ const runners = {
   FixEnsOnDao,
   ToolsFixBrokenTx,
   FixSppPair,
+  CleanUpTasks,
 }
 
 const appToRun = runners[TOOL_RUN!]

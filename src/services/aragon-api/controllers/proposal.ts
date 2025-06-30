@@ -7,10 +7,10 @@ import {
   type IProposalExtraParams,
   type IPairParams,
   EnumQueueName,
+  type ICanCreateProposalParams,
 } from '@types'
 import { assertExposable } from '@errors'
 import PairDataModule from '@modules/pairData'
-import { type ICanCreateProposal } from '@src/types/voting'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import config from '@config'
 import logger from '@logger'
@@ -53,7 +53,7 @@ const ProposalController = {
     return await Models.Proposal.findWithPagination({ extraParams, paginationParams })
   },
 
-  canCreateProposal: async (params: ICanCreateProposal) => {
+  canCreateProposal: async (params: ICanCreateProposalParams) => {
     try {
       return await RabbitMQHelper.sendMessage(
         EnumQueueName.canCreateProposal,
@@ -69,22 +69,6 @@ const ProposalController = {
       )
     } catch (error) {
       logger.warn('Error while checking if user can create proposal', llo({ error, ...params }))
-      return false
-    }
-  },
-
-  async canCastVote({ userAddress, proposalId }) {
-    try {
-      return await RabbitMQHelper.sendMessage(
-        EnumQueueName.voteInfo,
-        {
-          id: `voteInfo-${proposalId}-${userAddress}`,
-          params: { proposalId, userAddress },
-        },
-        { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
-      )
-    } catch (error) {
-      logger.warn('Error while checking if user can cast vote', llo({ error, userAddress, proposalId }))
       return false
     }
   },

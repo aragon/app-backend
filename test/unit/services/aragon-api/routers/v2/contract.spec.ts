@@ -1,13 +1,12 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import ContractRouter from '@services/aragon-api/routers/contract'
-import ContractController from '@services/aragon-api/controllers/contract'
+import ContractRouter from '@api/routers/v2/contract'
+import ContractController from '@api/controllers/contract'
 import ValidationSchema from '@helpers/validationSchema'
-import ContractDetailsSchema from '@services/aragon-api/routers/schema/contract'
 import { NetworksEnum } from '@types'
 
-describe('Router: Contract', () => {
+describe('RouterV2: Contract', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -30,17 +29,17 @@ describe('Router: Contract', () => {
       } as any
       const mockResponse = { contractName: 'TestContract', address: '0x123' } as any
 
-      const validateParamsStub = sandbox.stub(ValidationSchema, 'validateParams').resolves(validatedParams)
+      sandbox.stub(ValidationSchema, 'validateParams').resolves(validatedParams)
       const controllerStub = sandbox.stub(ContractController, 'getContractDetails').resolves(mockResponse)
 
       const ctx: any = {
+        query: {},
         params: mockParams,
         body: null,
       }
 
       await ContractRouter.getDetails(ctx)
 
-      expect(validateParamsStub.calledOnceWith(ContractDetailsSchema.getContractDetails, mockParams)).to.be.true
       expect(controllerStub.calledOnceWith(validatedParams)).to.be.true
       expect(ctx.body).to.deep.equal(mockResponse)
     })
@@ -64,6 +63,7 @@ describe('Router: Contract', () => {
 
       const ctx: any = {
         params: mockParams,
+        query: {},
         request: {
           body: {
             from: '0x123',

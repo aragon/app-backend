@@ -3,7 +3,6 @@ import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 export enum IWeb3ProxyMethod {
   getNativeBalance = 'getNativeBalance',
   getTokenBalances = 'getTokenBalances',
-  fetchTokenDetails = 'fetchTokenDetails',
   fetchContractCreation = 'fetchContractCreation',
   fetchContractSourceCode = 'fetchContractSourceCode',
   fetchBasicTokenInfo = 'fetchBasicTokenInfo',
