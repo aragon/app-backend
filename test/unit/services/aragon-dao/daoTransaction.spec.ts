@@ -13,7 +13,7 @@ import { ProxyToken } from '@modules/proxyToken'
 import utils from '@helpers/utils'
 import { ITokenType, ITransactionCategory, ITransactionType, NetworksEnum } from '@types'
 
-describe.only('AragonDao: DaoTransactions', () => {
+describe('AragonDao: DaoTransactions', () => {
   let sandbox: sinon.SinonSandbox
 
   beforeEach(async () => {
