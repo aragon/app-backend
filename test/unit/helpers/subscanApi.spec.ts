@@ -308,8 +308,8 @@ describe('Helpers:Subscan', () => {
 
   describe('getAssetTransfer', () => {
     it('should return asset transfers from native and ERC20', async () => {
-      // Stub getAccountInfoByKey to return a substrate address.
-      const substrateAddress = 'substrateAddress'
+      const daoAddress = '0x558c9997f8d382f02dfce79e275af637d8bb19e6'
+      const substrateAddress = 'substrateAddress' // Stub getAccountInfoByKey to return a substrate address.
       const getAccountInfoByKeyStub = sandbox.stub(Subscan, 'getAccountInfoByKey').resolves(substrateAddress)
 
       // Native transfers response.
@@ -326,6 +326,17 @@ describe('Helpers:Subscan', () => {
               hash: 'txHash1',
               name: 'test',
               symbol: 'test',
+            },
+            {
+              block_num: 180,
+              from_account_display: { evm_address: daoAddress },
+              to_account_display: { evm_address: null },
+              transfer_id: 'id2',
+              block_timestamp: 'timestamp2',
+              amount: '500',
+              hash: 'txHash2',
+              name: 'ETH',
+              symbol: 'ETH',
             },
           ],
         },
@@ -354,7 +365,7 @@ describe('Helpers:Subscan', () => {
       const txInfo = { block_num: 150, block_timestamp: 'timestamp2' }
       const getTxStub = sandbox.stub(Subscan, 'getTransactionInfoByHash').resolves(txInfo)
 
-      const result = await Subscan.getAssetTransfer('0x1234567890', NetworksEnum.peaqMainnet)
+      const result = await Subscan.getAssetTransfer(daoAddress, NetworksEnum.peaqMainnet)
       expect(result[0]).to.deep.include({
         blockNum: 180,
         from: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',

@@ -57,50 +57,59 @@ const PeaqProvider: Omit<IWeb3Provider, 'getNativeBalance'> = {
   async fetchAddressTxns({ address, network }: { address: string; network: NetworksEnum }): Promise<any> {
     const assetTransfers = await SubscanApi.getAssetTransfer(address, network)
     const parsedTransfers = await Promise.all(
-      assetTransfers.map(async tx => {
-        const contractAddress = tx.rawContract?.address || utils.zeroAddress
-        const tokenInfo = await ProxyToken.saveAndGetToken(contractAddress, network)
+      assetTransfers
+        .map(async tx => {
+          const contractAddress = tx.rawContract?.address || utils.zeroAddress
+          const tokenInfo = await ProxyToken.saveAndGetToken(contractAddress, network)
 
-        if (!tokenInfo) {
-          logger.error('Token not found', llo({ address, network, contractAddress }))
-          return
-        }
+          if (!tokenInfo) {
+            logger.error('Token not found', llo({ address, network, contractAddress }))
+            return
+          }
 
-        const transferLog = {
-          from: tx.from,
-          to: tx.to,
-          value:
-            tx.category === ITransactionCategory.External
+          const type = tx.from === address ? ITransactionType.withdraw : ITransactionType.deposit
+
+          if (type === ITransactionType.withdraw && tokenInfo.type === ITokenType.native) {
+            logger.warn('Skipping native withdrawal transaction', llo({ tx, address, network }))
+            return
+          }
+
+          const transferLog = {
+            from: tx.from,
+            to: tx.to,
+            value:
+              tx.category === ITransactionCategory.External
+                ? tx.value
+                : ethers.formatUnits(tx.value!, tokenInfo.decimals),
+            blockNum: tx.blockNum,
+            blockTimestamp: tx.blockTimestamp,
+            hash: tx.hash,
+            category: tx.category,
+            uniqueId: tx.uniqueId,
+            rawContract: {
+              address: contractAddress,
+              decimals: tokenInfo.decimals,
+              name: tokenInfo.name,
+              symbol: tokenInfo.symbol,
+              priceUsd: tokenInfo.priceUsd,
+              priceUpdatedAt: tx.blockTimestamp,
+              type: tokenInfo.type,
+            },
+            type,
+          }
+
+          if (TokenUtils.analyzeIfScamToken(tokenInfo?.name || '', tokenInfo?.symbol || '')) {
+            return
+          }
+
+          transferLog.value =
+            tx.category === 'external'
               ? tx.value
-              : ethers.formatUnits(tx.value!, tokenInfo.decimals),
-          blockNum: tx.blockNum,
-          blockTimestamp: tx.blockTimestamp,
-          hash: tx.hash,
-          category: tx.category,
-          uniqueId: tx.uniqueId,
-          rawContract: {
-            address: contractAddress,
-            decimals: tokenInfo.decimals,
-            name: tokenInfo.name,
-            symbol: tokenInfo.symbol,
-            priceUsd: tokenInfo.priceUsd,
-            priceUpdatedAt: tx.blockTimestamp,
-            type: tokenInfo.type,
-          },
-          type: tx.from === address ? ITransactionType.withdraw : ITransactionType.deposit,
-        }
+              : ethers.formatUnits(tx.value!, tx?.rawContract?.decimals || 0).toString()
 
-        if (TokenUtils.analyzeIfScamToken(tokenInfo?.name || '', tokenInfo?.symbol || '')) {
-          return
-        }
-
-        transferLog.value =
-          tx.category === 'external'
-            ? tx.value
-            : ethers.formatUnits(tx.value!, tx?.rawContract?.decimals || 0).toString()
-
-        return transferLog
-      }),
+          return transferLog
+        })
+        .filter(w => w !== undefined && w !== null),
     )
 
     return parsedTransfers.filter(Boolean)
