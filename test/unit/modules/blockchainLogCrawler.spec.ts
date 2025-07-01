@@ -378,6 +378,32 @@ describe('Module: blockchainLogCrawler', () => {
       expect(result.toBlock).to.equal(133) //as divide by 3
     })
 
+    it('should handle rate limiting error', async () => {
+      const crawler = new BlockchainLogCrawler({
+        ...crawlerConfig,
+        events: [
+          { topic: '0xTopic', event: 'Test', config: [{ abi: ['event Test()'], handler: sandbox.stub().resolves() }] },
+        ],
+      })
+
+      const rateLimitError = { error: { message: 'Too many requests, reason: call rate limit exhausted' } }
+      const executeBatchStub = sandbox
+        .stub(crawler, 'executeBatchRequest')
+        .onFirstCall()
+        .resolves([rateLimitError])
+        .onSecondCall()
+        .resolves([{ result: [{ blockNumber: '0x65', transactionIndex: '0x1', logIndex: '0x0' }] }])
+
+      const utilsStub = sandbox.stub(Utils, 'wait').resolves()
+
+      const result = await crawler.getLogsByBatch(100, 200)
+
+      expect(executeBatchStub.calledTwice).to.be.true
+      expect(result.logs).to.have.lengthOf(1)
+      expect(result.toBlock).to.equal(200)
+      expect(utilsStub.calledOnce).to.be.true
+    })
+
     it('should stop crawling when batch size is already at minimum', async () => {
       const crawler = new BlockchainLogCrawler({
         ...crawlerConfig,
