@@ -9,7 +9,6 @@ import utils from '@helpers/utils'
 import TokenUtils from '@helpers/tokenUtils'
 import PeaqProvider from '@modules/proxyProvider/peaqProvider'
 import ProxyUtils from '@modules/proxyProvider/utils'
-import Logger from '@logger'
 
 describe('PeaqProvider', () => {
   let sandbox: any
@@ -377,7 +376,7 @@ describe('PeaqProvider', () => {
       const getAssetTransferStub = sandbox.stub(SubscanApi, 'getAssetTransfer').resolves([tx] as any)
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(nativeToken as any)
       const analyzeIfScamTokenStub = sandbox.stub(TokenUtils, 'analyzeIfScamToken').returns(false)
-      const stubLogger = sandbox.stub(Logger, 'warn')
+      const stubLogger = sandbox.stub(logger, 'warn')
 
       // Act
       const result = await PeaqProvider.fetchAddressTxns({ address, network, blockNumber: 12313 })

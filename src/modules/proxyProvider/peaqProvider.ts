@@ -110,8 +110,7 @@ const PeaqProvider: Omit<IWeb3Provider, 'getNativeBalance'> = {
       }),
     )
 
-    const filteredTransfers = parsedTransfers.filter(w => w !== undefined && w !== null)
-    return filteredTransfers.filter(Boolean)
+    return parsedTransfers.filter(Boolean)
   },
 
   fetchTokenPrice: async ({ address, network, pastDays }: any): Promise<any> => {
