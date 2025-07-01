@@ -127,7 +127,7 @@ const Web3Provider: IWeb3Provider = {
   },
 
   fetchAddressTxns: async ({ address, network, blockNumber }) => {
-    const category = TokenUtils.getCategories(network)
+    const category = TokenUtils.getCategories()
     const txLogs: any[] = []
     const depositTxCrawler = new BlockchainTransferCrawler({
       network,

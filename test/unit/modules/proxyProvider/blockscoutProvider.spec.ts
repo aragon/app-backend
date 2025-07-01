@@ -87,7 +87,7 @@ describe('Modules: BlockScoutProvider', () => {
     it('should fetch and parse all transaction types successfully', async () => {
       const result = await BlockScoutProvider.fetchAddressTxns({ address, network })
 
-      expect(result).to.have.length(3)
+      expect(result).to.have.length(2)
 
       // Check ERC20 transfer
       const erc20Tx = result.find(tx => tx.category === ITransactionCategory.ERC20)
@@ -103,13 +103,6 @@ describe('Modules: BlockScoutProvider', () => {
       expect(externalTx!.hash).to.equal('0xhash2000000000000000000000000000000000000000000000000000000000002')
       expect(externalTx!.type).to.equal(ITransactionType.withdraw)
       expect(externalTx!.value).to.equal('2.0')
-
-      // Check internal transaction
-      const internalTx = result.find(tx => tx.category === ITransactionCategory.Internal)
-      expect(internalTx).to.exist
-      expect(internalTx!.hash).to.equal('0xhash3000000000000000000000000000000000000000000000000000000000003')
-      expect(internalTx!.type).to.equal(ITransactionType.deposit)
-      expect(internalTx!.value).to.equal('3.0')
     })
 
     it('should determine transaction type correctly (withdraw vs deposit)', async () => {
@@ -145,6 +138,7 @@ describe('Modules: BlockScoutProvider', () => {
     it('should generate correct unique IDs for transactions', async () => {
       const result = await BlockScoutProvider.fetchAddressTxns({ address, network })
 
+      expect(result.length).to.eq(2)
       expect(result[0].uniqueId).to.include('0xhash1000000000000000000000000000000000000000000000000000000000001')
       expect(result[0].uniqueId).to.include('erc20')
       expect(result[0].uniqueId).to.include('1')
@@ -152,18 +146,13 @@ describe('Modules: BlockScoutProvider', () => {
       expect(result[1].uniqueId).to.include('0xhash2000000000000000000000000000000000000000000000000000000000002')
       expect(result[1].uniqueId).to.include('external')
       expect(result[1].uniqueId).to.include('1')
-
-      expect(result[2].uniqueId).to.include('0xhash3000000000000000000000000000000000000000000000000000000000003')
-      expect(result[2].uniqueId).to.include('internal')
-      expect(result[2].uniqueId).to.include('1')
     })
 
     it('should sort transactions by block number', async () => {
       const result = await BlockScoutProvider.fetchAddressTxns({ address, network })
 
-      expect(result).to.have.length(3)
+      expect(result).to.have.length(2)
       expect(result[0].blockNum).to.be.lessThan(result[1].blockNum)
-      expect(result[1].blockNum).to.be.lessThan(result[2].blockNum)
     })
 
     it('should update progress with the latest block number', async () => {
@@ -173,7 +162,7 @@ describe('Modules: BlockScoutProvider', () => {
       expect(updateProgressStub.calledOnce).to.be.true
       expect(updateProgressStub.firstCall.args[0]).to.equal(network)
       expect(updateProgressStub.firstCall.args[1]).to.equal(`transferList-${address}-${network}`)
-      expect(updateProgressStub.firstCall.args[2]).to.equal(18000002) // Latest block number
+      expect(updateProgressStub.firstCall.args[2]).to.equal(18000001) // Latest block number
     })
 
     it('should handle empty transaction lists', async () => {
