@@ -66,6 +66,13 @@ const PeaqProvider: Omit<IWeb3Provider, 'getNativeBalance'> = {
           return
         }
 
+        const type = tx.from === address ? ITransactionType.withdraw : ITransactionType.deposit
+
+        if (type === ITransactionType.withdraw && tokenInfo.type === ITokenType.native) {
+          logger.warn('Skipping native withdrawal transaction', llo({ tx, address, network }))
+          return
+        }
+
         const transferLog = {
           from: tx.from,
           to: tx.to,
@@ -87,7 +94,7 @@ const PeaqProvider: Omit<IWeb3Provider, 'getNativeBalance'> = {
             priceUpdatedAt: tx.blockTimestamp,
             type: tokenInfo.type,
           },
-          type: tx.from === address ? ITransactionType.withdraw : ITransactionType.deposit,
+          type,
         }
 
         if (TokenUtils.analyzeIfScamToken(tokenInfo?.name || '', tokenInfo?.symbol || '')) {

@@ -1,11 +1,11 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import AssetRouter from '@services/aragon-api/routers/asset'
-import AssetController from '@services/aragon-api/controllers/asset'
+import AssetRouter from '@api/routers/v2/asset'
+import AssetController from '@api/controllers/asset'
 import { NetworksEnum } from '@types'
 
-describe('Router: Asset', () => {
+describe('RouterV2: Asset', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -98,6 +98,7 @@ describe('Router: Asset', () => {
     it('Should get asset with pagination - missing pagination params', async () => {
       const filterParams = {
         network: NetworksEnum.ethereumMainnet,
+        daoId: 'ethereum-mainnet-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
       }
       const paginationParams = {
         sort: 'createdAt',
@@ -125,7 +126,10 @@ describe('Router: Asset', () => {
         pageSize: 10,
       }
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
-      expect(stubCtrl.args[0][1]).to.deep.eq({ ...filterParams, ...{ daoAddress: undefined, tokenAddress: undefined } })
+      expect(stubCtrl.args[0][1]).to.deep.eq({
+        ...{ daoAddress: undefined, tokenAddress: undefined, network: filterParams.network },
+      })
+      expect(stubCtrl.args[0][2]?.daoId).to.eq(filterParams.daoId)
     })
   })
 })

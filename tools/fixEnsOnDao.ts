@@ -33,6 +33,7 @@ export const FixEnsOnDao: IService & { onDocument: any } = {
     })
 
     await daoCrawler.crawl()
+    logger.info('FixEnsOnDao completed', llo())
   },
 
   onDocument: async (dao: any) => {

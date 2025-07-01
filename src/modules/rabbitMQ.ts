@@ -37,6 +37,11 @@ const RabbitMQ = {
         RabbitMQ.stopNoopInterval()
         resolve(false)
       })
+      RabbitMQ.connection.on('connectFailed', err => {
+        logger.error('RabbitMQ connect failed', llo({ reason: err }))
+        RabbitMQ.stopNoopInterval()
+        resolve(false)
+      })
 
       // For each queue in EnumQueueName, create a dedicated channel wrapper
       for (const queueName of Object.values(EnumQueueName)) {

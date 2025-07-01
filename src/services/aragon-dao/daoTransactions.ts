@@ -1,4 +1,11 @@
-import { type HexAddress, ITokenType, type ITransactionType, type NetworksEnum } from '@types'
+import {
+  type HexAddress,
+  type IRawAction,
+  ITokenType,
+  ITransactionCategory,
+  ITransactionType,
+  type NetworksEnum,
+} from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
@@ -10,6 +17,8 @@ import Web3Utils from '@helpers/web3Utils'
 import { ProxyToken } from '@modules/proxyToken'
 import utils from '@helpers/utils'
 import ProxyProvider from '@modules/proxyProvider'
+import type Proposal from '@models/schema/proposal'
+import { ethers } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:DaoTransactions' })
 
@@ -18,7 +27,15 @@ const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:DaoTransact
  * Due to a low limit on the method, the service should run alone.
  */
 export const DaoTransactions = {
-  start: async ({ daoAddress, network }: { daoAddress: HexAddress; network: NetworksEnum }) => {
+  start: async ({
+    daoAddress,
+    network,
+    proposalId,
+  }: {
+    daoAddress: HexAddress
+    network: NetworksEnum
+    proposalId?: string
+  }) => {
     try {
       const startTime = Date.now()
       logger.verbose('Start DaoTransactions', llo({ daoAddress, startTime }))
@@ -26,6 +43,18 @@ export const DaoTransactions = {
       const daoDb = await Models.Dao.findByAddress(daoAddress, network)
       if (!daoDb) return
 
+      /**
+       * on proposal execute native transfer is not supported on some networks
+       */
+      if (proposalId) {
+        const proposal = await Models.Proposal.findByEntityId(proposalId)
+
+        if (proposal) {
+          await DaoTransactions.parseTransactionFromProposalAction(proposal)
+        }
+      }
+
+      // check if network support internal transfer and proposalId
       const txns = await ProxyProvider.fetchAddressTxns({
         address: daoDb.address,
         network: daoDb.network,
@@ -48,6 +77,85 @@ export const DaoTransactions = {
     } catch (error) {
       logger.error('Error start DaoTransactions', llo({ daoAddress, error }))
     }
+  },
+
+  parseTransactionFromProposalAction: async (proposal: Proposal) => {
+    const actions: IRawAction[] = proposal.rawActions.filter(a => BigInt(a.value) > 0)
+    await Promise.all(
+      actions?.map(async (action: IRawAction, index) => {
+        const uniqueId = `${proposal.id}-${index}`
+
+        const existingTx = await Models.Transaction.findOne({ uniqueId })
+
+        if (existingTx) {
+          logger.verbose(
+            'Manual internal transaction already exists',
+            llo({
+              uniqueId,
+              logId: existingTx.id,
+            }),
+          )
+          return
+        }
+
+        const rawTx: Partial<Transaction> = {
+          transactionHash: proposal.executed.transactionHash!,
+          uniqueId,
+          blockNumber: proposal.executed.blockNumber!,
+          blockTimestamp: proposal.executed.blockTimestamp!,
+          network: proposal.network,
+          type: ITransactionType.withdraw,
+          daoAddress: proposal.daoAddress,
+          pluginAddress: proposal.pluginAddress,
+          fromAddress: proposal.daoAddress,
+          toAddress: action.to,
+          value: ethers.formatEther(action.value),
+          category: ITransactionCategory.Internal,
+          proposalIndex: proposal.proposalIndex,
+        }
+
+        const tokenAddress = utils.zeroAddress
+        const token = await ProxyToken.saveAndGetToken(tokenAddress, proposal.network)
+        if (!token) return
+        rawTx.tokenAddress = token.address
+
+        try {
+          const params = {
+            ...(token.type === ITokenType.native ? { symbol: token.symbol || undefined } : { address: token.address }),
+            network: proposal.network,
+            date: proposal.executed.blockTimestamp!,
+          }
+
+          const tokenPrice = await ProxyProvider.fetchHistoricalTokenPrice(params)
+
+          rawTx.token = {
+            network: proposal.network,
+            address: token.address,
+            symbol: token.symbol,
+            name: token?.name,
+            type: token.type,
+            logo: token.logo,
+            decimals: token.decimals,
+            snapshot: {
+              priceUsd: tokenPrice,
+              priceUpdatedAt: proposal.executed.blockTimestamp!,
+            },
+          }
+
+          rawTx.amountUsd = (parseFloat(rawTx.value!) * parseFloat(tokenPrice)).toFixed(2)
+
+          return await DbTx.executeTxFn(async ({ session }) => {
+            const logDb = await Models.Transaction.create(rawTx, { session } as any)
+            await session.commitTransaction()
+            await session.endSession()
+            logger.verbose('New Transaction', llo({ logId: logDb?.id }))
+            return logDb
+          })
+        } catch (error) {
+          logger.error('Error saveTransaction', llo({ error, uniqueId: rawTx.uniqueId }))
+        }
+      }),
+    )
   },
 
   saveTransaction: async (tx: any, type: ITransactionType, daoAddress: HexAddress, network: NetworksEnum) => {
