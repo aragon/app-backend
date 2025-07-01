@@ -9,7 +9,7 @@ import type Token from '@models/schema/token'
 import { Models } from '@dbModels'
 import logger from '@logger'
 
-describe.only('TokenUtils', () => {
+describe('TokenUtils', () => {
   let sandbox: SinonSandbox
 
   const baseToken: Token = {
