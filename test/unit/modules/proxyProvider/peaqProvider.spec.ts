@@ -9,6 +9,7 @@ import utils from '@helpers/utils'
 import TokenUtils from '@helpers/tokenUtils'
 import PeaqProvider from '@modules/proxyProvider/peaqProvider'
 import ProxyUtils from '@modules/proxyProvider/utils'
+import Logger from '@logger'
 
 describe('PeaqProvider', () => {
   let sandbox: any
@@ -347,6 +348,47 @@ describe('PeaqProvider', () => {
         name: 'Native Peaq',
         symbol: 'PEAQ',
       })
+    })
+
+    it('should filter out transactions with native token', async () => {
+      // Arrange
+      const address = '0xsender'
+      const network = NetworksEnum.peaqMainnet
+
+      const tx = {
+        from: '0xsender',
+        to: address,
+        value: '1000000000000000000',
+        blockNum: 100,
+        blockTimestamp: 1622345678,
+        hash: '0xtx1',
+        category: ITransactionCategory.External,
+        uniqueId: 'tx1',
+      }
+
+      const nativeToken = {
+        type: ITokenType.native,
+        decimals: 18,
+        name: 'ETH',
+        symbol: 'ETH',
+        priceUsd: '0.000001',
+      }
+
+      const getAssetTransferStub = sandbox.stub(SubscanApi, 'getAssetTransfer').resolves([tx] as any)
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(nativeToken as any)
+      const analyzeIfScamTokenStub = sandbox.stub(TokenUtils, 'analyzeIfScamToken').returns(false)
+      const stubLogger = sandbox.stub(Logger, 'warn')
+
+      // Act
+      const result = await PeaqProvider.fetchAddressTxns({ address, network, blockNumber: 12313 })
+
+      // Assert
+      expect(getAssetTransferStub.calledOnce).to.be.true
+      expect(saveAndGetTokenStub.calledOnce).to.be.true
+      expect(analyzeIfScamTokenStub.notCalled).to.be.true
+
+      expect(result.length).to.eq(0)
+      expect(stubLogger.calledOnceWith('Skipping native withdrawal transaction')).to.be.true
     })
 
     it('should filter out transactions with scam tokens', async () => {

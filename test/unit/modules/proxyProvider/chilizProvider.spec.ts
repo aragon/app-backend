@@ -426,15 +426,14 @@ describe('ChilizProvider', () => {
       expect(getBlockNumberStub.calledOnce).to.be.true
       expect(fetchERC20TransfersStub.calledOnce).to.be.true
       expect(fetchTxListStub.calledOnce).to.be.true
-      expect(fetchInternalTxsStub.calledOnce).to.be.true
+      expect(fetchInternalTxsStub.notCalled).to.be.true
 
       // Verify block filter arguments
       const expectedBlockFilter = { startBlock: 51, endBlock: 150 }
       expect(fetchERC20TransfersStub.firstCall.args[2]).to.deep.equal(expectedBlockFilter)
       expect(fetchTxListStub.firstCall.args[2]).to.deep.equal(expectedBlockFilter)
-      expect(fetchInternalTxsStub.firstCall.args[2]).to.deep.equal(expectedBlockFilter)
 
-      expect(result).to.have.lengthOf(3)
+      expect(result).to.have.lengthOf(2)
 
       expect(result[0]).to.include({
         from: '0xcd3352Bf093328A4aC7A54710c23c6342eaC4A39',
@@ -448,16 +447,6 @@ describe('ChilizProvider', () => {
       })
 
       expect(result[1]).to.include({
-        from: '0x7287715c632e32b415b172A978B18f4bFba7997c',
-        to: '0x53175D75A0b0937268f9a0EfD2217e6a99a4E5A7',
-        blockNum: 101,
-        value: '2.0',
-        type: ITransactionType.withdraw,
-        category: ITransactionCategory.Internal,
-        uniqueId: '0xtx2-internal-0',
-      })
-
-      expect(result[2]).to.include({
         from: '0x7287715c632e32b415b172A978B18f4bFba7997c',
         to: '0x53175D75A0b0937268f9a0EfD2217e6a99a4E5A7',
         blockNum: 102,

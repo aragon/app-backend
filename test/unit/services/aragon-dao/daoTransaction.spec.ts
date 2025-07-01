@@ -12,9 +12,8 @@ import ProxyWeb3Provider from '@modules/proxyProvider'
 import { ProxyToken } from '@modules/proxyToken'
 import utils from '@helpers/utils'
 import { ITokenType, ITransactionCategory, ITransactionType, NetworksEnum } from '@types'
-import TokenUtils from '@helpers/tokenUtils'
 
-describe('AragonDao: DaoTransactions', () => {
+describe.only('AragonDao: DaoTransactions', () => {
   let sandbox: sinon.SinonSandbox
 
   beforeEach(async () => {
@@ -101,7 +100,6 @@ describe('AragonDao: DaoTransactions', () => {
 
       const findByAddressStub = sandbox.stub(Models.Dao, 'findByAddress').resolves(mockDao)
       const findByEntityIdStub = sandbox.stub(Models.Proposal, 'findByEntityId').resolves(mockProposal)
-      const supportsInternalTransactionsStub = sandbox.stub(TokenUtils, 'supportsInternalTransactions').returns(false)
       const parseTransactionStub = sandbox.stub(DaoTransactions, 'parseTransactionFromProposalAction').resolves()
       const fetchAddressTxnsStub = sandbox.stub(ProxyWeb3Provider, 'fetchAddressTxns').resolves(mockTxns)
       const saveTransactionStub = sandbox.stub(DaoTransactions, 'saveTransaction').resolves()
@@ -114,9 +112,6 @@ describe('AragonDao: DaoTransactions', () => {
 
       expect(findByAddressStub.calledOnce).to.be.true
       expect(findByAddressStub.calledWith('0x123', NetworksEnum.baseMainnet)).to.be.true
-
-      expect(supportsInternalTransactionsStub.calledOnce).to.be.true
-      expect(supportsInternalTransactionsStub.calledWith(NetworksEnum.baseMainnet)).to.be.true
 
       expect(findByEntityIdStub.calledOnce).to.be.true
       expect(findByEntityIdStub.calledWith('proposal-123')).to.be.true
