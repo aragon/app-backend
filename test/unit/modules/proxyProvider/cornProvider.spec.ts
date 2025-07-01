@@ -122,13 +122,13 @@ describe('Modules: CornProvider', () => {
       // Arrange
       const network = NetworksEnum.cornMainnet
       const mockLimiter = { submit: () => {}, schedule: () => {} }
-      const getSlowLimiterStub = sandbox.stub(BottleneckModule, 'getSlowLimiter').returns(mockLimiter as any)
+      const getThrottledLimiterStub = sandbox.stub(BottleneckModule, 'getThrottledLimiter').returns(mockLimiter as any)
 
       // Act
       const result = CornProvider.getNetworkBottleneck(network)
 
       // Assert
-      expect(getSlowLimiterStub.calledOnceWith(network)).to.be.true
+      expect(getThrottledLimiterStub.calledOnceWith(network)).to.be.true
       expect(result).to.equal(mockLimiter)
     })
   })
