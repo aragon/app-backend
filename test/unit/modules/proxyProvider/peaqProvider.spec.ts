@@ -9,6 +9,7 @@ import utils from '@helpers/utils'
 import TokenUtils from '@helpers/tokenUtils'
 import PeaqProvider from '@modules/proxyProvider/peaqProvider'
 import ProxyUtils from '@modules/proxyProvider/utils'
+import BottleneckModule from '@src/modules/bottleneck'
 
 describe('PeaqProvider', () => {
   let sandbox: any
@@ -704,7 +705,7 @@ describe('PeaqProvider', () => {
   })
 
   describe('getAllTokenHolders', () => {
-    it('should forward to SubscanApi.getAllTokenHolders with correct parameters and trigger callback', async () => {
+    it('should fetch all token holders with callback and sync tracking', async () => {
       // Arrange
       const address = '0xtoken'
       const network = NetworksEnum.peaqMainnet
@@ -845,25 +846,19 @@ describe('PeaqProvider', () => {
     })
   })
 
-  describe('getTokenCounters', () => {
-    it('should return token counters from SubscanApi', async () => {
+  describe('getNetworkBottleneck', () => {
+    it('should return node limiter for the network', () => {
       // Arrange
-      const address = '0xtoken'
       const network = NetworksEnum.peaqMainnet
-      const counters = {
-        holders: 100,
-        transfers: 200,
-      }
+      const mockLimiter = { submit: () => {}, schedule: () => {} }
+      const getNodeLimiterStub = sandbox.stub(BottleneckModule, 'getNodeLimiter').returns(mockLimiter as any)
 
-      const getTokenCountersStub = sandbox.stub(SubscanApi, 'getTokenCounters').resolves(counters as any)
-      const result = await PeaqProvider.getTokenCounters({ address, network })
+      // Act
+      const result = PeaqProvider.getNetworkBottleneck(network)
 
       // Assert
-      expect(getTokenCountersStub.calledOnce).to.be.true
-      expect(getTokenCountersStub.firstCall.args[0]).to.equal(address)
-      expect(getTokenCountersStub.firstCall.args[1]).to.equal(network)
-
-      expect(result).to.deep.equal(counters)
+      expect(getNodeLimiterStub.calledOnceWith(network)).to.be.true
+      expect(result).to.equal(mockLimiter)
     })
   })
 })

@@ -9,6 +9,7 @@ import TokenUtils from '@helpers/tokenUtils'
 import ChilizProvider from '@modules/proxyProvider/chilizProvider'
 import ProxyUtils from '@modules/proxyProvider/utils'
 import Web3Helper from '@helpers/web3'
+import BottleneckModule from '@src/modules/bottleneck'
 
 describe('ChilizProvider', () => {
   let sandbox: any
@@ -1760,6 +1761,22 @@ describe('ChilizProvider', () => {
       expect(retryRequestStub.calledOnce).to.be.true
       expect(typeof retryFunction!).to.equal('function')
       expect(result).to.deep.equal(mockResponseData)
+    })
+  })
+
+  describe('getNetworkBottleneck', () => {
+    it('should return slow limiter for the network', () => {
+      // Arrange
+      const network = NetworksEnum.chilizMainnet
+      const mockLimiter = { submit: () => {}, schedule: () => {} }
+      const getSlowLimiterStub = sandbox.stub(BottleneckModule, 'getSlowLimiter').returns(mockLimiter as any)
+
+      // Act
+      const result = ChilizProvider.getNetworkBottleneck(network)
+
+      // Assert
+      expect(getSlowLimiterStub.calledOnceWith(network)).to.be.true
+      expect(result).to.equal(mockLimiter)
     })
   })
 })

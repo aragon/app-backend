@@ -17,6 +17,7 @@ import { UnitTestUtils } from '@test/lib/utils'
 import ProviderModule from '@modules/provider'
 import ProxyUtils from '@modules/proxyProvider/utils'
 import AnkrHelper from '@helpers/ankrHelper'
+import BottleneckModule from '@src/modules/bottleneck'
 
 describe('Web3Provider', () => {
   let sandbox: any
@@ -794,6 +795,22 @@ describe('Web3Provider', () => {
       expect(blockScoutStub.calledOnceWith(address, network)).to.be.true
       expect(covalentStub.calledOnceWith(address, network)).to.be.true
       expect(result).to.deep.equal(expectedResult)
+    })
+  })
+
+  describe('getNetworkBottleneck', () => {
+    it('should return node limiter for the network', async () => {
+      // Arrange
+      const network = NetworksEnum.ethereumMainnet
+      const mockLimiter = { submit: () => {}, schedule: () => {} }
+      const getNodeLimiterStub = sandbox.stub(BottleneckModule, 'getNodeLimiter').returns(mockLimiter as any)
+
+      // Act
+      const result = Web3Provider.getNetworkBottleneck(network)
+
+      // Assert
+      expect(getNodeLimiterStub.calledOnceWith(network)).to.be.true
+      expect(result).to.equal(mockLimiter)
     })
   })
 })
