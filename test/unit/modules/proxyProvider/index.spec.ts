@@ -175,5 +175,7 @@ describe('ProxyWeb3Provider', () => {
     testProxyMethod('getAllTokenHolders', IWeb3ProxyMethod.getAllTokenHolders)
     testProxyMethod('getTokenCounters', IWeb3ProxyMethod.getTokenCounters)
     testProxyMethod('fetchHistoricalTokenPrice', IWeb3ProxyMethod.fetchHistoricalTokenPrice)
+    testProxyMethod('getTokenCounters', IWeb3ProxyMethod.getTokenCounters)
+    testProxyMethod('getNetworkBottleneck', IWeb3ProxyMethod.getNetworkBottleneck)
   })
 })

@@ -112,6 +112,8 @@ export interface IConfig {
     ALCHEMY_BALANCE_MIN_TIME: number
     CHILIZ_MAX_CONCURRENT: number
     CHILIZ_MIN_TIME: number
+    SLOW_REQUEST_MAX_CONCURRENT: number
+    SLOW_MIN_TIME: number
   }
   MONGO_DB: {
     NAME: string

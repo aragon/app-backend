@@ -15,6 +15,7 @@ import { ProxyToken } from '@modules/proxyToken'
 import TokenUtils from '@helpers/tokenUtils'
 import ProxyUtils from '@modules/proxyProvider/utils'
 import dayjs from 'dayjs'
+import BottleneckModule from '@modules/bottleneck'
 
 const llo = logger.logMeta.bind(null, { service: 'provider:PeaqTokenProvider' })
 
@@ -184,8 +185,13 @@ const PeaqProvider: Omit<IWeb3Provider, 'getNativeBalance'> = {
     const tokenInfo = await SubscanApi.getTokenFullDetails(address, network)
     return tokenInfo.priceUsd || '0'
   },
+
   getTokenCounters: async ({ address, network }) => {
     return await SubscanApi.getTokenCounters(address, network)
+  },
+
+  getNetworkBottleneck: (network: NetworksEnum) => {
+    return BottleneckModule.getNodeLimiter(network)
   },
 }
 

@@ -5,6 +5,7 @@ import CornProvider from '@modules/proxyProvider/cornProvider'
 import BlockScoutProvider from '@modules/proxyProvider/blockscoutProvider'
 import RouteScanHelper from '@helpers/routeScanHelper'
 import { NetworksEnum } from '@types'
+import BottleneckModule from '@src/modules/bottleneck'
 
 describe('Modules: CornProvider', () => {
   let sandbox: SinonSandbox
@@ -113,6 +114,22 @@ describe('Modules: CornProvider', () => {
       expect(result).to.equal(expectedResult)
       expect(routeScanStub.calledOnce).to.be.true
       expect(routeScanStub.firstCall.args[0]).to.deep.equal({ address, network })
+    })
+  })
+
+  describe('getNetworkBottleneck', () => {
+    it('should return slow limiter for the network', () => {
+      // Arrange
+      const network = NetworksEnum.cornMainnet
+      const mockLimiter = { submit: () => {}, schedule: () => {} }
+      const getSlowLimiterStub = sandbox.stub(BottleneckModule, 'getSlowLimiter').returns(mockLimiter as any)
+
+      // Act
+      const result = CornProvider.getNetworkBottleneck(network)
+
+      // Assert
+      expect(getSlowLimiterStub.calledOnceWith(network)).to.be.true
+      expect(result).to.equal(mockLimiter)
     })
   })
 })

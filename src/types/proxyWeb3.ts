@@ -13,6 +13,7 @@ export enum IWeb3ProxyMethod {
   getAllTokenHolders = 'getAllTokenHolders',
   fetchHistoricalTokenPrice = 'fetchHistoricalTokenPrice',
   getTokenCounters = 'getTokenCounters',
+  getNetworkBottleneck = 'getNetworkBottleneck',
 }
 
 export interface IWeb3Provider {
@@ -76,6 +77,7 @@ export interface IWeb3Provider {
     date?: string | number
     symbol?: string
   }) => Promise<any>
+  getNetworkBottleneck: (network: NetworksEnum) => any
 }
 
 export interface IWeb3TokenBalance {

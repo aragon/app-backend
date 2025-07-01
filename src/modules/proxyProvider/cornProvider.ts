@@ -1,10 +1,16 @@
-import { type IWeb3Provider } from '@types'
+import { type IWeb3Provider, type NetworksEnum } from '@types'
 import BlockScoutProvider from '@modules/proxyProvider/blockscoutProvider'
 import RouteScanHelper from '@helpers/routeScanHelper'
+import BottleneckModule from '@modules/bottleneck'
 
 const CornProvider: Pick<
   IWeb3Provider,
-  'fetchAddressTxns' | 'getTokenBalances' | 'fetchBasicTokenInfo' | 'fetchContractSourceCode' | 'fetchContractCreation'
+  | 'fetchAddressTxns'
+  | 'getNetworkBottleneck'
+  | 'getTokenBalances'
+  | 'fetchBasicTokenInfo'
+  | 'fetchContractSourceCode'
+  | 'fetchContractCreation'
 > = {
   getTokenBalances: async ({ address, network }) => {
     return BlockScoutProvider.getTokenBalances({ address, network })
@@ -24,6 +30,10 @@ const CornProvider: Pick<
 
   fetchContractCreation: async ({ address, network }) => {
     return RouteScanHelper.fetchContractCreation({ address, network })
+  },
+
+  getNetworkBottleneck: (network: NetworksEnum) => {
+    return BottleneckModule.getSlowLimiter(network)
   },
 }
 

@@ -3,6 +3,7 @@ import Web3Provider from '@modules/proxyProvider/web3Provider'
 import PeaqProvider from '@modules/proxyProvider/peaqProvider'
 import ChilizProvider from '@modules/proxyProvider/chilizProvider'
 import CornProvider from '@modules/proxyProvider/cornProvider'
+import async from 'async'
 
 const ProxyWeb3Provider: IWeb3Provider & { forward: any; getProvider: any; getDefaultProvider: any } = {
   getProvider(network: NetworksEnum) {
@@ -71,6 +72,9 @@ const ProxyWeb3Provider: IWeb3Provider & { forward: any; getProvider: any; getDe
   },
   getTokenCounters: async function (params) {
     return ProxyWeb3Provider.forward(IWeb3ProxyMethod.getTokenCounters)(params)
+  },
+  getNetworkBottleneck: async function (params) {
+    return ProxyWeb3Provider.forward(IWeb3ProxyMethod.getNetworkBottleneck)(params)
   },
 }
 

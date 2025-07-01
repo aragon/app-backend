@@ -20,6 +20,7 @@ import { RateModule } from '@modules/rates'
 import TokenUtils from '@helpers/tokenUtils'
 import ProxyUtils from '@modules/proxyProvider/utils'
 import AnkrHelper from '@helpers/ankrHelper'
+import BottleneckModule from '@modules/bottleneck'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ProxyWeb3' })
 
@@ -280,6 +281,10 @@ const Web3Provider: IWeb3Provider = {
     }
 
     return { holders: 0, transfers: 0 }
+  },
+
+  getNetworkBottleneck: (network: NetworksEnum) => {
+    return BottleneckModule.getNodeLimiter(network)
   },
 }
 

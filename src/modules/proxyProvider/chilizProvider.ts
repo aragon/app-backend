@@ -599,6 +599,10 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
   fetchHistoricalTokenPrice: async () => {
     return '0'
   },
+
+  getNetworkBottleneck: (network: NetworksEnum) => {
+    return BottleneckModule.getSlowLimiter(network)
+  },
 }
 
 export default ChilizProvider
