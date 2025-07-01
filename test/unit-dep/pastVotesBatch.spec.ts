@@ -4,8 +4,11 @@ import GovernanceErc20Helper from '@helpers/governanceErc20'
 import ProviderModule from '@modules/provider'
 import { expect } from 'chai'
 import logger from '@logger'
+import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import configIndexer from '@indexer/configIndexer'
+import PoolingCrawler from '@modules/poolingCrawler'
 
-describe('PastVotesBatch', () => {
+describe.only('PastVotesBatch', () => {
   let sandbox: sinon.SinonSandbox
 
   beforeEach(() => {
@@ -16,12 +19,12 @@ describe('PastVotesBatch', () => {
     sandbox.restore()
   })
 
-  it('should return voting power for a member address', async () => {
+  it('should return voting power for a member address', async function () {
     const members = [
       {
         network: NetworksEnum.ethereumMainnet,
-        memberAddress: '0xD43904fBb5BC68ff6A7Fc855107864aEC368e2a0',
-        tokenAddress: '0x01A3a51246Bc4A34BB3018B7cd0E81F22729046F',
+        memberAddress: '0xEeA7057C33164D1D8BaDb1a91b664A78A97a6e2F',
+        tokenAddress: '0x1EDfd0d0e041df6276CAc76969b7a9E32c70ea8b',
       },
       {
         network: NetworksEnum.ethereumSepolia,
@@ -60,18 +63,17 @@ describe('PastVotesBatch', () => {
       },
     ]
 
-    for (const member of members) {
+    for (const member of [members[0]]) {
       const provider = ProviderModule.getAnyRpcProvider(member.network)
       if (!provider) {
         continue
       }
-      const block = await provider.getBlock('latest')
 
-      const result = await GovernanceErc20Helper.getPastVotes(
+      const result = await GovernanceErc20Helper._getPastVotesForFallback(
         member.memberAddress,
         member.tokenAddress,
-        block.number,
-        block.timestamp,
+        22817624,
+        1751291207,
         member.network,
       )
 
@@ -85,5 +87,30 @@ describe('PastVotesBatch', () => {
         result,
       })
     }
+  })
+
+  it.only('should debug the response.filter issue', async function () {
+    const network = NetworksEnum.chilizMainnet
+    this.timeout(1000000000)
+    const poolingCrawler = new BlockchainLogCrawler({
+      network,
+      fromBlock: 24047020,
+      events: configIndexer,
+      filterLogs: async (logs: any) => PoolingCrawler.filterLogs(logs, network),
+      onError: async (error: any) => logger.error('Error Indexer', { network, error }),
+      logService: null,
+      stopOnError: true,
+      skipLogProcessing: true,
+      batchSize: 0.01,
+    })
+
+    const logs = await poolingCrawler.crawl()
+    if (logs)
+      logger.info('Logs', {
+        network,
+        logsCount: logs.length,
+        firstLog: logs[0],
+        lastLog: logs[logs.length - 1],
+      })
   })
 })
