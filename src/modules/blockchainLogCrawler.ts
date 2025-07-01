@@ -19,6 +19,7 @@ import { retryRequest } from '@helpers/retryRequest'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import axios from 'axios'
+import BottleneckModule from '@modules/bottleneck'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:EventCrawler' })
 
@@ -216,33 +217,30 @@ class BlockchainLogCrawler {
         }
 
         const batchSizeErrors = failedRequests.filter((resp: any) => this.isBatchSizeError(resp.error))
+        const rateLimitErrors = failedRequests.filter((resp: any) => this.isRateLimited(resp.error))
+
         if (batchSizeErrors.length > 0) {
           if (this.crawlSetting.batchSize > 1) {
             this.crawlSetting.batchSize = Math.max(1, Math.floor(this.crawlSetting.batchSize / 3))
             toBlock = this.resizeToBlock(currentBlock, latestBlock)
-            logger.verbose(
-              'Trying to cut after failure',
-              llo({
-                currentBlock,
-                toBlock,
-                latestBlock,
-                batchSize: this.crawlSetting.batchSize,
-                runCount: this.crawlSetting.runCount,
-              }),
-            )
-          } else {
-            const error = batchSizeErrors[0].error
-            logger.error('Batch size too small, stopping crawl', llo({ ...this.parseCrawlerInfoLog(), error }))
-            this.crawlSetting.shutdown = true
-            this.crawlParams.onError(error)
-            break
+            continue
           }
-        } else {
-          const error = failedRequests[0].error
-          await this.handleErrors(error)
+          const error = batchSizeErrors[0].error
+          logger.error('Batch size too small, stopping crawl', llo({ ...this.parseCrawlerInfoLog(), error }))
           this.crawlSetting.shutdown = true
+          this.crawlParams.onError(error)
           break
         }
+
+        if (rateLimitErrors.length > 0) {
+          await this.handleErrors(rateLimitErrors[0].error)
+          continue
+        }
+
+        const error = failedRequests[0].error
+        await this.handleErrors(error)
+        this.crawlSetting.shutdown = true
+        break
       } catch (error) {
         await this.handleErrors(error)
         this.crawlSetting.shutdown = true
@@ -314,9 +312,13 @@ class BlockchainLogCrawler {
     }
 
     try {
-      const response: any = await axios.post(url, requests, {
-        headers: { 'Content-Type': 'application/json' },
-      })
+      const response = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(this.crawlParams.network).schedule(async () =>
+          axios.post(url, requests, {
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        ),
+      )
 
       const validResponses = response.data.filter((resp: any) => !resp.error && resp.result)
       if (validResponses.length === response.data.length) {
@@ -387,9 +389,13 @@ class BlockchainLogCrawler {
         return req
       }, [])
 
-      const response: any = await axios.post(url, batchRequests, {
-        headers: { 'Content-Type': 'application/json' },
-      })
+      const response = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(this.crawlParams.network).schedule(async () =>
+          axios.post(url, batchRequests, {
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        ),
+      )
 
       return response.data
     } catch (error: any) {
@@ -407,7 +413,8 @@ class BlockchainLogCrawler {
 
   async handleErrors(error: any) {
     if (this.isRateLimited(error)) {
-      await utils.wait(1000)
+      const backoffTime = Math.min(500 * (this.crawlSetting.runCount || 1), 10000)
+      await utils.wait(backoffTime)
     } else {
       this.crawlSetting.shutdown = true
       this.crawlParams.onError(error)
@@ -667,7 +674,10 @@ class BlockchainLogCrawler {
   }
 
   isRateLimited(error: any): boolean {
-    const messages = ['Your app has exceeded its compute units per second capacity']
+    const messages = [
+      'Your app has exceeded its compute units per second capacity',
+      'Too many requests, reason: call rate limit exhausted',
+    ]
 
     return messages.some(msg => error.message?.includes(msg))
   }
