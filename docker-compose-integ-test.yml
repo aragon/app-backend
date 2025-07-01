@@ -1,0 +1,171 @@
+version: '3.7'
+
+services:
+  ### Services
+  service-aragon-api:
+    image: aragon-api-test
+    container_name: aragon-api-test
+    build:
+      context: ./
+    ports:
+      - ${SERVICES_API_PORT:-3000}:${SERVICES_API_PORT:-3000}
+    environment:
+      NODE_ENV: test
+      PORT: ${SERVICES_API_PORT:-3000}
+      MONGO_DB_URI: mongodb://mongo1:27017,mongo2:27017,mongo3:27017/db-aragon?replicaSet=rs0&authSource=admin
+      RABBITMQ_URI: amqp://guest:guest@rabbitmq:5672
+      SERVICES_ARAGON_API_BASE_URL: http://service-aragon-api:3000
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+      - rabbitmq
+    command: bash -c 'yarn wait:db & yarn wait:rabbitmq & wait && yarn service:aragon-api'
+    healthcheck:
+      test: [ 'CMD-SHELL', 'curl -f http://localhost:${SERVICES_API_PORT}/health || exit 1' ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  service-aragon-dao:
+    image: aragon-dao-test
+    container_name: aragon-dao-test
+    build:
+      context: ./
+    environment:
+      NODE_ENV: test
+      MONGO_DB_URI: mongodb://mongo1:27017,mongo2:27017,mongo3:27017/db-aragon?replicaSet=rs0&authSource=admin
+      RABBITMQ_URI: amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+      - rabbitmq
+    command: bash -c 'yarn wait:db & yarn wait:rabbitmq & wait && yarn service:aragon-dao'
+    healthcheck:
+      test: [ 'CMD-SHELL', "pgrep -f 'service:aragon-dao' > /dev/null || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  service-aragon-rates:
+    image: aragon-rates-test
+    container_name: aragon-rates-test
+    build:
+      context: ./
+    environment:
+      NODE_ENV: test
+      MONGO_DB_URI: mongodb://mongo1:27017,mongo2:27017,mongo3:27017/db-aragon?replicaSet=rs0&authSource=admin
+      RABBITMQ_URI: amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+      - rabbitmq
+    command: bash -c 'yarn wait:db & yarn wait:rabbitmq & wait && yarn service:aragon-rates'
+    healthcheck:
+      test: [ 'CMD-SHELL', "pgrep -f 'service:aragon-rates' > /dev/null || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  service-aragon-plugins:
+    image: aragon-plugins-test
+    container_name: aragon-plugins-test
+    build:
+      context: ./
+    environment:
+      NODE_ENV: test
+      MONGO_DB_URI: mongodb://mongo1:27017,mongo2:27017,mongo3:27017/db-aragon?replicaSet=rs0&authSource=admin
+      RABBITMQ_URI: amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+      - rabbitmq
+    command: bash -c 'yarn wait:db & yarn wait:rabbitmq & wait && yarn service:aragon-plugins'
+    healthcheck:
+      test: [ 'CMD-SHELL', "pgrep -f 'service:aragon-plugins' > /dev/null || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  ### Dependencies
+  rabbitmq:
+    image: rabbitmq:3.9-management-alpine
+    container_name: rabbitmq-test
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: [ "CMD-SHELL", "rabbitmqctl status" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  mongo1:
+    image: mongo:7.0.0
+    container_name: mongo1
+    hostname: mongo1
+    command: [ "mongod", "--replSet", "rs0", "--bind_ip_all" ]
+    ports:
+      - "27017:27017"
+
+  mongo2:
+    image: mongo:7.0.0
+    container_name: mongo2
+    hostname: mongo2
+    command: [ "mongod", "--replSet", "rs0", "--bind_ip_all" ]
+    ports:
+      - "27018:27017"
+
+  mongo3:
+    image: mongo:7.0.0
+    container_name: mongo3
+    hostname: mongo3
+    command: [ "mongod", "--replSet", "rs0", "--bind_ip_all" ]
+    ports:
+      - "27019:27017"
+
+  mongo-init-replica:
+    image: mongo:7.0.0
+    container_name: mongo-init-replica
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+    entrypoint: /bin/bash
+    command: >
+      -c "
+      echo 'Waiting a few seconds for MongoDB nodes to be ready...';
+      sleep 5;
+      echo 'Initializing replica set...';
+      mongosh --host mongo1:27017 --eval '
+        rs.initiate({
+          _id: \"rs0\",
+          members: [
+            { _id: 0, host: \"mongo1:27017\" },
+            { _id: 1, host: \"mongo2:27017\" },
+            { _id: 2, host: \"mongo3:27017\" }
+          ]
+        });
+      ';
+      echo 'Replica set initialized.'
+      "
+
+
+
+
