@@ -5,7 +5,7 @@ import Web3Provider from '@modules/proxyProvider/web3Provider'
 import PeaqProvider from '@modules/proxyProvider/peaqProvider'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 import ChilizProvider from '@modules/proxyProvider/chilizProvider'
-import CornProvider from '@modules/proxyProvider/cornProvider' // Updated import
+import CornProvider from '@modules/proxyProvider/cornProvider'
 
 describe('ProxyWeb3Provider', () => {
   let sandbox: sinon.SinonSandbox
@@ -175,7 +175,6 @@ describe('ProxyWeb3Provider', () => {
     testProxyMethod('getAllTokenHolders', IWeb3ProxyMethod.getAllTokenHolders)
     testProxyMethod('getTokenCounters', IWeb3ProxyMethod.getTokenCounters)
     testProxyMethod('fetchHistoricalTokenPrice', IWeb3ProxyMethod.fetchHistoricalTokenPrice)
-    testProxyMethod('getTokenCounters', IWeb3ProxyMethod.getTokenCounters)
     testProxyMethod('getNetworkBottleneck', IWeb3ProxyMethod.getNetworkBottleneck)
   })
 })
