@@ -1,4 +1,4 @@
-import { type HexAddress, ITokenType, NetworksEnum, ITransactionCategory } from '@types'
+import { type HexAddress, ITokenType, type NetworksEnum, ITransactionCategory } from '@types'
 import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
 import logger from '@logger'
@@ -57,25 +57,16 @@ const TokenUtils = {
       return false
     }
   },
-  getCategories: (network: NetworksEnum) => {
+  getCategories: () => {
     const category = [
       ITransactionCategory.ERC20,
       ITransactionCategory.ERC721,
       ITransactionCategory.ERC1155,
-      ITransactionCategory.Internal,
+      // ITransactionCategory.Internal,
       ITransactionCategory.External,
     ]
 
-    switch (network) {
-      case NetworksEnum.baseMainnet:
-      case NetworksEnum.zksyncSepolia:
-      case NetworksEnum.arbitrumMainnet:
-      case NetworksEnum.zksyncMainnet:
-      case NetworksEnum.optimismMainnet:
-        return category.filter(cat => cat !== ITransactionCategory.Internal)
-      default:
-        return category
-    }
+    return category
   },
 }
 

@@ -10,7 +10,6 @@ import {
   type IQueueDao,
   type IQueueMemberBalanceInfo,
   type IQueueProposalMetrics,
-  type IQueueVoteInfo,
   type IRawAction,
   type IService,
   type IGetLockVotingPowerBatch,
@@ -21,7 +20,6 @@ import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
 import { ContractInfo } from '@services/aragon-dao/contractInfo'
-import { VoteInfo } from '@services/aragon-dao/voteInfo'
 import { MemberInfo } from '@services/aragon-dao/memberInfo'
 import ActionDecoder from '@services/aragon-dao/actionDecoder'
 import { AllMetrics } from '@services/aragon-dao/allMetrics'
@@ -42,9 +40,9 @@ const AragonDaoService: IService = {
     })
 
     await RabbitMQHelper.process(EnumQueueName.daoTransactions, async job => {
-      const { address, network } = job.params as IQueueDao
+      const { address, network, proposalId } = job.params as IQueueDao
 
-      await DaoTransactions.start({ daoAddress: address, network })
+      await DaoTransactions.start({ daoAddress: address, network, proposalId })
     })
 
     await RabbitMQHelper.process(EnumQueueName.daoAssets, async job => {
@@ -83,11 +81,6 @@ const AragonDaoService: IService = {
     await RabbitMQHelper.process(EnumQueueName.getLockVotingPowerBatch, async (job: any) => {
       const { locks } = job.params as IGetLockVotingPowerBatch
       return await MemberInfo.getLockVotingPowerBatch(locks)
-    })
-
-    await RabbitMQHelper.process(EnumQueueName.voteInfo, async (job: any) => {
-      const { proposalId, userAddress } = job.params as IQueueVoteInfo
-      return await VoteInfo.getVoteInfo({ proposalId, userAddress })
     })
 
     await RabbitMQHelper.process(EnumQueueName.memberBalance, async (job: any) => {

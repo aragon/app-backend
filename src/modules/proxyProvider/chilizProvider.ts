@@ -175,13 +175,12 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
         endBlock: latestBlock,
       }
 
-      const [erc20Transfers, externalTransfers, internalTxs] = await Promise.all([
+      const [erc20Transfers, externalTransfers] = await Promise.all([
         ChilizProvider._fetchERC20Transfers(address, network, blockFilter),
         ChilizProvider._fetchTxList(address, network, blockFilter),
-        ChilizProvider._fetchInternalTxs(address, network, blockFilter),
       ])
 
-      const allTransactions = [...erc20Transfers, ...externalTransfers, ...internalTxs]
+      const allTransactions = [...erc20Transfers, ...externalTransfers]
 
       const parsedTransfers = await Promise.all(
         allTransactions.map(async tx => {
@@ -196,6 +195,8 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
             return
           }
 
+          const uniqueId = `${tx.hash}-${tx.category}-${tx.index || tx.transactionIndex}${tx.logIndex ? `-${tx.logIndex}` : ''}`
+
           return {
             from: ethers.getAddress(tx.from),
             to: ethers.getAddress(tx.to),
@@ -205,10 +206,10 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
             hash: tx.hash,
             category: tx.contractAddress
               ? ITransactionCategory.ERC20
-              : tx.category === 'external'
+              : tx.category === ITransactionCategory.External
                 ? ITransactionCategory.External
                 : ITransactionCategory.Internal,
-            uniqueId: `${tx.hash}-${tx.category}-${tx.index || tx.transactionIndex}${tx.logIndex ? `-${tx.logIndex}` : ''}`,
+            uniqueId,
             rawContract: {
               address: contractAddress,
               decimals: tokenInfo.decimals,
@@ -261,7 +262,12 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
           break
         }
 
-        allTransactions.push(...response.result)
+        const processedTxs = response.result.map((tx: any) => ({
+          ...tx,
+          category: ITransactionCategory.ERC20,
+        }))
+
+        allTransactions.push(...processedTxs)
 
         if (response.result.length < offset) {
           break
@@ -307,7 +313,7 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
         const processedTxs = validTransactions.map((tx: any) => ({
           ...tx,
           contractAddress: null,
-          category: 'external',
+          category: ITransactionCategory.External,
         }))
 
         allTransactions.push(...processedTxs)
@@ -357,7 +363,7 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
         const processedTxs = validInternalTxs.map((tx: any) => ({
           ...tx,
           contractAddress: null,
-          category: 'internal',
+          category: ITransactionCategory.Internal,
           hash: tx.transactionHash,
         }))
 

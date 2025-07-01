@@ -100,42 +100,6 @@ const ProposalRouter = {
     ctx.body = await ProposalController.canCreateProposal(formattedValues)
   },
 
-  canCreateProposal2: async function (ctx: RouterContext) {
-    const params: ICanCreateProposalParams = {
-      memberAddress: ctx.query.memberAddress as HexAddress,
-      pluginAddress: ctx.query.pluginAddress as HexAddress,
-      network: ctx.query.network as NetworksEnum,
-    }
-
-    const formattedValues = await ValidationSchema.validateParams(ProposalSchema.canCreateProposal, params)
-
-    const status = await ProposalController.canCreateProposal(formattedValues)
-    ctx.body = { status }
-  },
-
-  canCastVote: async function (ctx: RouterContext) {
-    const params = {
-      proposalId: ctx.params.proposalId,
-      userAddress: ctx.query.userAddress,
-    }
-
-    const formattedValues = await ValidationSchema.validateParams(ProposalSchema.canCastVote, params)
-
-    ctx.body = await ProposalController.canCastVote(formattedValues)
-  },
-
-  canCastVote2: async function (ctx: RouterContext) {
-    const params = {
-      proposalId: ctx.params.proposalId,
-      userAddress: ctx.query.userAddress,
-    }
-
-    const formattedValues = await ValidationSchema.validateParams(ProposalSchema.canCastVote, params)
-
-    const status = await ProposalController.canCastVote(formattedValues)
-    ctx.body = { status }
-  },
-
   router() {
     const router = new Router()
 
@@ -154,16 +118,7 @@ const ProposalRouter = {
      * @api {get} /proposal/canCreateProposal
      * @apiDescription Check if the user is allowed to create the proposal
      */
-
     router.get('/can-create-proposal', ProposalRouter.canCreateProposal)
-    router.get('/can-create-proposal2', ProposalRouter.canCreateProposal2)
-
-    /**
-     * @api {get} / Check if the user is allowed to cast vote on a proposal
-     */
-
-    router.get('/:proposalId/can-vote', ProposalRouter.canCastVote)
-    router.get('/:proposalId/can-vote2', ProposalRouter.canCastVote2)
 
     /**
      * @api {get} /:id Get Proposal by Id
@@ -171,7 +126,7 @@ const ProposalRouter = {
      * @apiGroup Proposals
      * @apiDescription Get Proposal by Id
      *
-     * @apiSampleRequest /:id
+     * @apiSampleRequest /proposal/:id
      */
     router.get('/:id', ProposalRouter.getProposalById)
 
@@ -181,7 +136,7 @@ const ProposalRouter = {
      * @apiGroup Proposals
      * @apiDescription Get Proposal by Slug
      *
-     * @apiSampleRequest /:Slug
+     * @apiSampleRequest /proposal/slug/:slug
      */
     router.get('/slug/:slug', ProposalRouter.getProposalBySlug)
 
@@ -191,7 +146,7 @@ const ProposalRouter = {
      * @apiGroup Proposals
      * @apiDescription Get decoded actions for a proposal when rawActions array length is more than zero
      *
-     * @apiSampleRequest /:id/actions
+     * @apiSampleRequest /proposal/:id/actions
      */
     router.get('/:id/actions', ProposalRouter.getProposalDecodedActions)
 

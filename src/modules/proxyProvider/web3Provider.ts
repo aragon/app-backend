@@ -127,7 +127,7 @@ const Web3Provider: IWeb3Provider = {
   },
 
   fetchAddressTxns: async ({ address, network, blockNumber }) => {
-    const category = TokenUtils.getCategories(network)
+    const category = TokenUtils.getCategories()
     const txLogs: any[] = []
     const depositTxCrawler = new BlockchainTransferCrawler({
       network,
@@ -191,9 +191,11 @@ const Web3Provider: IWeb3Provider = {
   fetchTokenPrice: async ({ network, address, pastDays }: any): Promise<any> => {
     return await RateModule.fetchRate(address, network, pastDays)
   },
+
   searchDetailsOfContract: async ({ address, network }) => {
     return await BlockScoutHelper.searchDetails(address, network)
   },
+
   getAllTokenHolders: async ({
     address,
     network,
@@ -245,6 +247,7 @@ const Web3Provider: IWeb3Provider = {
       logger.error('Error in getAllTokenHolders', llo({ error, address, network }))
     }
   },
+
   fetchHistoricalTokenPrice: async ({ symbol, address, network, date }) => {
     return await RateModule.fetchHistoricalRate({
       address,
@@ -253,6 +256,7 @@ const Web3Provider: IWeb3Provider = {
       timestamp: date,
     })
   },
+
   getTokenCounters: async ({ address, network }) => {
     const ankrStats = await AnkrHelper.getTokenHoldersCount(address, network)
     if (ankrStats) {

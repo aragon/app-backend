@@ -29,6 +29,7 @@ export interface IQueueDao {
   address: HexAddress
   network: NetworksEnum
   blockNumber?: number
+  proposalId?: string
 }
 
 export interface IQueuePlugin {
@@ -46,11 +47,6 @@ export interface IGetVotingPower {
 export interface IQueueContractInfo {
   address: HexAddress
   network: NetworksEnum
-}
-
-export interface IQueueVoteInfo {
-  proposalId: string
-  userAddress: string
 }
 
 export interface IQueueCanCreateProposal {

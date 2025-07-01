@@ -25,22 +25,23 @@ const ProposalSchema = {
     slug: ValidationSchema.joiSlug.required(),
   }),
 
+  getProposalDaoId: Joi.object({
+    daoId: ValidationSchema.joiDaoId.required(),
+  }),
+
   getProposalByTransactionHash: Joi.object({
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
       .required(),
     transactionHash: ValidationSchema.joiTransactionHash.required(),
   }),
+
   canCreateProposal: Joi.object({
     pluginAddress: ValidationSchema.joiAddress.required(),
     memberAddress: ValidationSchema.joiAddress.required(),
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
       .required(),
-  }),
-  canCastVote: Joi.object({
-    proposalId: Joi.string().required(),
-    userAddress: ValidationSchema.joiAddress.required(),
   }),
 }
 

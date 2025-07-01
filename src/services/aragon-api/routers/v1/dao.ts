@@ -1,8 +1,8 @@
 import Router, { type RouterContext } from '@koa/router'
-import DaoController from '@services/aragon-api/controllers/dao'
+import DaoController from '@api/controllers/dao'
 import ValidationSchema from '@helpers/validationSchema'
 import ModelUtils from '@models/utils/models'
-import DaoSchema from '@services/aragon-api/routers/schema/dao'
+import DaoSchema from '@api/routers/schema/dao'
 import { type HexAddress, type IDaoExtraParams, type NetworksEnum } from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
 import Utils from '@helpers/utils'
@@ -99,7 +99,7 @@ const DaoRouter = {
      * @apiGroup Daos
      * @apiDescription Get Daos
      *
-     * @apiSampleRequest /
+     * @apiSampleRequest /daos
      *
      */
     router.get('/', DaoRouter.getWithPagination)
@@ -110,7 +110,7 @@ const DaoRouter = {
      * @apiGroup Daos
      * @apiDescription Get Dao by id
      *
-     * @apiSampleRequest /:id
+     * @apiSampleRequest /daos/:id
      */
     router.get('/:id', DaoRouter.getDaoById)
 
@@ -120,7 +120,7 @@ const DaoRouter = {
      * @apiGroup Daos
      * @apiDescription Get Dao By Member Address
      *
-     * @apiSampleRequest /:address/member/:address
+     * @apiSampleRequest /daos/:address/member/:address
      */
 
     router.get('/member/:address', DaoRouter.getDaoByMemberAddress)
@@ -131,7 +131,7 @@ const DaoRouter = {
      * @apiGroup Daos
      * @apiDescription Get Dao by address
      *
-     * @apiSampleRequest /:network/:address
+     * @apiSampleRequest /daos/:network/:address
      */
     router.get('/:network/:address', DaoRouter.getDaoByAddress)
 
@@ -141,7 +141,7 @@ const DaoRouter = {
      * @apiGroup Daos
      * @apiDescription Get Dao by ENS
      *
-     * @apiSampleRequest /:network/ens/:ens
+     * @apiSampleRequest /daos/:network/ens/:ens
      */
     router.get('/:network/ens/:ens', DaoRouter.getDaoByEns)
 

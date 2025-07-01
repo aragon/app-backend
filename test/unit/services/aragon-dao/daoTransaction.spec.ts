@@ -42,6 +42,7 @@ describe('AragonDao: DaoTransactions', () => {
       const findByAddressStub = sandbox.stub(Models.Dao, 'findByAddress').resolves(mockDao)
       const fetchAddressTxnsStub = sandbox.stub(ProxyWeb3Provider, 'fetchAddressTxns').resolves(mockTxns)
       const saveTransactionStub = sandbox.stub(DaoTransactions, 'saveTransaction').resolves()
+      const stubFindProposal = sandbox.stub(Models.Proposal, 'findByEntityId')
 
       // Execute
       await DaoTransactions.start({
@@ -60,7 +61,91 @@ describe('AragonDao: DaoTransactions', () => {
         }),
       ).to.be.true
 
+      expect(stubFindProposal.notCalled).to.be.true
       expect(saveTransactionStub.calledTwice).to.be.true
+      expect(verboseLoggerStub.calledWith('Start DaoTransactions' as any)).to.be.true
+      expect(verboseLoggerStub.calledWith('End DaoTransactions' as any)).to.be.true
+    })
+
+    it('should process transactions with proposalId successfully', async () => {
+      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
+      const mockDao = {
+        id: 'test-dao-id',
+        address: '0x123',
+        network: NetworksEnum.baseMainnet,
+        blockNumber: 1000,
+      }
+
+      const mockProposal = {
+        id: 'proposal-123',
+        proposalIndex: '1',
+        daoAddress: '0x123',
+        pluginAddress: '0xplugin',
+        network: NetworksEnum.baseMainnet,
+        executed: {
+          transactionHash: '0xtxhash',
+          blockNumber: 1500,
+          blockTimestamp: 1623456789,
+        },
+        rawActions: [
+          { to: '0xrecipient1', value: '1000000000000000000', from: '0xaction1' },
+          { to: '0xrecipient2', value: '2000000000000000000', from: '0xaction2' },
+        ],
+      }
+
+      const mockTxns = [
+        { hash: 'tx1', type: ITransactionType.deposit, uniqueId: 'tx1-unique' },
+        { hash: 'tx2', type: ITransactionType.withdraw, uniqueId: 'tx2-unique' },
+      ]
+
+      const findByAddressStub = sandbox.stub(Models.Dao, 'findByAddress').resolves(mockDao)
+      const findByEntityIdStub = sandbox.stub(Models.Proposal, 'findByEntityId').resolves(mockProposal)
+      const parseTransactionStub = sandbox.stub(DaoTransactions, 'parseTransactionFromProposalAction').resolves()
+      const fetchAddressTxnsStub = sandbox.stub(ProxyWeb3Provider, 'fetchAddressTxns').resolves(mockTxns)
+      const saveTransactionStub = sandbox.stub(DaoTransactions, 'saveTransaction').resolves()
+
+      await DaoTransactions.start({
+        daoAddress: '0x123',
+        network: NetworksEnum.baseMainnet,
+        proposalId: 'proposal-123',
+      })
+
+      expect(findByAddressStub.calledOnce).to.be.true
+      expect(findByAddressStub.calledWith('0x123', NetworksEnum.baseMainnet)).to.be.true
+
+      expect(findByEntityIdStub.calledOnce).to.be.true
+      expect(findByEntityIdStub.calledWith('proposal-123')).to.be.true
+
+      expect(parseTransactionStub.calledOnce).to.be.true
+      expect(parseTransactionStub.calledWith(mockProposal)).to.be.true
+
+      expect(fetchAddressTxnsStub.calledOnce).to.be.true
+      expect(
+        fetchAddressTxnsStub.calledWith({
+          address: mockDao.address,
+          network: mockDao.network,
+          blockNumber: mockDao.blockNumber,
+        }),
+      ).to.be.true
+
+      expect(saveTransactionStub.calledTwice).to.be.true
+      expect(
+        saveTransactionStub.firstCall.calledWith(
+          mockTxns[0],
+          ITransactionType.deposit,
+          mockDao.address,
+          mockDao.network,
+        ),
+      ).to.be.true
+      expect(
+        saveTransactionStub.secondCall.calledWith(
+          mockTxns[1],
+          ITransactionType.withdraw,
+          mockDao.address,
+          mockDao.network,
+        ),
+      ).to.be.true
+
       expect(verboseLoggerStub.calledWith('Start DaoTransactions' as any)).to.be.true
       expect(verboseLoggerStub.calledWith('End DaoTransactions' as any)).to.be.true
     })
@@ -639,6 +724,144 @@ describe('AragonDao: DaoTransactions', () => {
       expect(dbTxs[0].toAddress).to.equal(mockTx.to)
       expect(dbTxs[0].proposalIndex).to.equal('0x456')
       expect(dbTxs[0].tokenAddress).to.equal(utils.zeroAddress)
+    })
+  })
+
+  describe('parseTransactionFromProposalAction', () => {
+    it('should handle multiple actions: existing, new, and error cases', async () => {
+      const mockProposal = {
+        id: 'proposal-123',
+        proposalIndex: '1',
+        daoAddress: '0xdao',
+        pluginAddress: '0xplugin',
+        network: NetworksEnum.baseMainnet,
+        executed: {
+          transactionHash: '0xtxhash',
+          blockNumber: 1500,
+          blockTimestamp: 1623456789,
+        },
+        rawActions: [
+          { to: '0xrecipient1', value: '1000000000000000000', from: '0xaction1' }, // Will already exist (1 ETH)
+          { to: '0xrecipient2', value: '2000000000000000000', from: '0xaction2' }, // Will be saved (2 ETH)
+          { to: '0xrecipient3', value: '3000000000000000000', from: '0xaction3' }, // Will fail (3 ETH)
+        ],
+      }
+
+      const mockNativeToken = {
+        address: utils.zeroAddress,
+        symbol: 'ETH',
+        name: 'Ethereum',
+        type: ITokenType.native,
+        logo: null,
+        decimals: 18,
+      }
+
+      // Create an existing transaction first with the correct uniqueId pattern
+      const existingTx = await Models.Transaction.create({
+        transactionHash: '0xtxhash',
+        uniqueId: 'proposal-123-0', // Using proposal.id-index pattern
+        network: NetworksEnum.baseMainnet,
+        category: ITransactionCategory.Internal,
+        blockNumber: 1500,
+        blockTimestamp: 1623456789,
+        type: ITransactionType.withdraw,
+        daoAddress: '0xdao',
+        fromAddress: '0xaction1',
+        toAddress: '0xrecipient1',
+        value: '1000000000000000000',
+      })
+
+      // Stub for findOne - first call returns existing, others return null
+      const findOneStub = sandbox.stub(Models.Transaction, 'findOne')
+      findOneStub.withArgs({ uniqueId: 'proposal-123-0' }).resolves(existingTx) // First action already exists
+      findOneStub.withArgs({ uniqueId: 'proposal-123-1' }).resolves(null) // Second action doesn't exist
+      findOneStub.withArgs({ uniqueId: 'proposal-123-2' }).resolves(null) // Third action doesn't exist
+
+      // Token stub - always returns the native token
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(mockNativeToken as any)
+
+      // Price fetch stub - fails on second call (which is the third action)
+      const fetchHistoricalTokenPriceStub = sandbox.stub(ProxyWeb3Provider, 'fetchHistoricalTokenPrice')
+      fetchHistoricalTokenPriceStub.onFirstCall().resolves('2000') // For second action
+      fetchHistoricalTokenPriceStub.onSecondCall().rejects(new Error('Price fetch failed')) // For third action
+
+      // Logger stubs
+      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
+      const errorLoggerStub = sandbox.stub(logger, 'error')
+
+      // Execute
+      await DaoTransactions.parseTransactionFromProposalAction(mockProposal as any)
+
+      // Verify stubs were called correctly
+      expect(findOneStub.callCount).to.equal(3)
+      expect(saveAndGetTokenStub.callCount).to.equal(2) // Not called for existing transaction
+      expect(fetchHistoricalTokenPriceStub.callCount).to.equal(2) // Called for second and third actions
+
+      // Verify logger calls for first action (existing transaction)
+      const firstActionLog = verboseLoggerStub.args[0] as any
+      expect(firstActionLog[0]).to.equal('Manual internal transaction already exists')
+      expect(firstActionLog[1]).to.include({
+        uniqueId: 'proposal-123-0',
+        logId: existingTx.id,
+      })
+
+      // Verify logger calls for second action (successful save)
+      const secondActionLog = verboseLoggerStub.args[1] as any
+      expect(secondActionLog[0]).to.equal('New Transaction')
+      // The logId will be the MongoDB _id of the saved transaction
+      expect(secondActionLog[1]).to.have.property('logId')
+      expect(secondActionLog[1].logId).to.exist
+
+      // Verify error logger for third action (error case)
+      expect(errorLoggerStub.callCount).to.equal(1)
+      const errorLog = errorLoggerStub.args[0] as any
+      expect(errorLog[0]).to.equal('Error saveTransaction')
+      expect(errorLog[1]).to.include({
+        uniqueId: 'proposal-123-2',
+      })
+      expect(errorLog[1]).to.have.property('error')
+      expect(errorLog[1].error.message).to.equal('Price fetch failed')
+
+      // Verify database state - we should have 2 transactions (1 existing + 1 new)
+      const dbTxs = await Models.Transaction.find({}).sort({ uniqueId: 1 })
+      expect(dbTxs.length).to.equal(2)
+
+      // The first transaction is the existing one we created
+      expect(dbTxs[0].uniqueId).to.equal('proposal-123-0')
+      expect(dbTxs[0].toAddress).to.equal('0xrecipient1')
+
+      // Verify the newly saved transaction details (second transaction)
+      const savedTx = dbTxs[1]
+      expect(savedTx.transactionHash).to.equal('0xtxhash')
+      expect(savedTx.uniqueId).to.equal('proposal-123-1')
+      expect(savedTx.blockNumber).to.equal(1500)
+      expect(savedTx.blockTimestamp).to.equal(1623456789)
+      expect(savedTx.network).to.equal(NetworksEnum.baseMainnet)
+      expect(savedTx.type).to.equal(ITransactionType.withdraw)
+      expect(savedTx.daoAddress).to.equal('0xdao')
+      expect(savedTx.pluginAddress).to.equal('0xplugin')
+      expect(savedTx.fromAddress).to.equal('0xdao')
+      expect(savedTx.toAddress).to.equal('0xrecipient2')
+      expect(savedTx.value).to.equal('2.0')
+      expect(savedTx.category).to.equal(ITransactionCategory.Internal)
+      expect(savedTx.proposalIndex).to.equal('1')
+      expect(savedTx.tokenAddress).to.equal(utils.zeroAddress)
+
+      // Verify amountUsd calculation: (2000000000000000000 / 10^18) * 2000 = 4000.00
+      expect(savedTx.amountUsd).to.equal('4000.00')
+
+      expect(savedTx.token).to.deep.include({
+        network: NetworksEnum.baseMainnet,
+        address: utils.zeroAddress,
+        symbol: 'ETH',
+        name: 'Ethereum',
+        type: ITokenType.native,
+        decimals: 18,
+      })
+      expect(savedTx.token.snapshot).to.deep.include({
+        priceUsd: '2000',
+        priceUpdatedAt: 1623456789,
+      })
     })
   })
 })
