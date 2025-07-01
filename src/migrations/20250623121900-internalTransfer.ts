@@ -1,4 +1,4 @@
-import { type IMigration, NetworksEnum } from '@types'
+import { type IMigration } from '@types'
 import logger from '@logger'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
@@ -20,19 +20,11 @@ export const internalTransferMigration: IMigration = {
         onError: (error: any, document: any) => {
           logger.error('Error fix internal transfer on proposal', llo({ error, document }))
         },
-
         where: {
-          'rawActions.value': { $exists: true, $ne: '0' },
-          'rawActions.data': { $eq: '0x' },
-          rawActions: { $ne: [] },
-          network: {
-            $in: [
-              NetworksEnum.baseMainnet,
-              NetworksEnum.zksyncSepolia,
-              NetworksEnum.arbitrumMainnet,
-              NetworksEnum.zksyncMainnet,
-              NetworksEnum.optimismMainnet,
-            ],
+          rawActions: {
+            $elemMatch: {
+              value: { $exists: true, $ne: '0' },
+            },
           },
           'executed.status': true,
         },
