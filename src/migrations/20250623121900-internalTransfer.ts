@@ -1,4 +1,4 @@
-import { type IMigration, NetworksEnum } from '@types'
+import { type IMigration } from '@types'
 import logger from '@logger'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
