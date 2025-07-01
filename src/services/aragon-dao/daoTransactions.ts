@@ -18,7 +18,6 @@ import { ProxyToken } from '@modules/proxyToken'
 import utils from '@helpers/utils'
 import ProxyProvider from '@modules/proxyProvider'
 import type Proposal from '@models/schema/proposal'
-import TokenUtils from '@helpers/tokenUtils'
 import { ethers } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:DaoTransactions' })
@@ -47,7 +46,7 @@ export const DaoTransactions = {
       /**
        * on proposal execute native transfer is not supported on some networks
        */
-      if (proposalId && !TokenUtils.supportsInternalTransactions(network)) {
+      if (proposalId) {
         const proposal = await Models.Proposal.findByEntityId(proposalId)
 
         if (proposal) {

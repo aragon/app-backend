@@ -42,13 +42,12 @@ const BlockScoutProvider: Pick<any, 'fetchAddressTxns' | 'getTokenBalances' | 'f
 
   fetchAddressTxns: async ({ address, network }: { address: string; network: NetworksEnum }) => {
     try {
-      const [erc20Transfers, externalTransfers, internalTxs] = await Promise.all([
+      const [erc20Transfers, externalTransfers] = await Promise.all([
         BlockScoutHelper._fetchERC20Transfers(address, network),
         BlockScoutHelper._fetchTxList(address, network),
-        BlockScoutHelper._fetchInternalTxs(address, network),
       ])
 
-      const allTransactions = [...erc20Transfers, ...externalTransfers, ...internalTxs]
+      const allTransactions = [...erc20Transfers, ...externalTransfers]
 
       const parsedTransfers = await Promise.all(
         allTransactions.map(async tx => {
@@ -70,11 +69,7 @@ const BlockScoutProvider: Pick<any, 'fetchAddressTxns' | 'getTokenBalances' | 'f
             blockNum: parseInt(tx.blockNumber),
             blockTimestamp: parseInt(tx.timestamp.toString()),
             hash: tx.hash,
-            category: tx.contractAddress
-              ? ITransactionCategory.ERC20
-              : tx.category === 'external'
-                ? ITransactionCategory.External
-                : ITransactionCategory.Internal,
+            category: tx.contractAddress ? ITransactionCategory.ERC20 : ITransactionCategory.External,
             uniqueId: `${tx.hash}-${tx.category}-${tx.index || tx.transactionIndex || tx.logIndex || '0'}`,
             rawContract: {
               address: contractAddress,

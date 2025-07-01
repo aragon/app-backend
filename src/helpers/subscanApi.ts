@@ -67,7 +67,9 @@ const SubscanApiHelper = {
       network,
     )
 
-    const parsedNative = nativeTransfers.map(SubscanApiHelper._parseNativeTransfer)
+    const parsedNative = nativeTransfers
+      .map(SubscanApiHelper._parseNativeTransfer)
+      .filter(transfer => transfer.from !== ethers.getAddress(address))
     const parsedErc20 = await Promise.all(
       erc20Transfers.map(async tx => SubscanApiHelper._parseErc20Transfer(tx, network)),
     )

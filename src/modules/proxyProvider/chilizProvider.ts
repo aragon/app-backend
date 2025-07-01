@@ -175,13 +175,12 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
         endBlock: latestBlock,
       }
 
-      const [erc20Transfers, externalTransfers, internalTxs] = await Promise.all([
+      const [erc20Transfers, externalTransfers] = await Promise.all([
         ChilizProvider._fetchERC20Transfers(address, network, blockFilter),
         ChilizProvider._fetchTxList(address, network, blockFilter),
-        ChilizProvider._fetchInternalTxs(address, network, blockFilter),
       ])
 
-      const allTransactions = [...erc20Transfers, ...externalTransfers, ...internalTxs]
+      const allTransactions = [...erc20Transfers, ...externalTransfers]
 
       const parsedTransfers = await Promise.all(
         allTransactions.map(async tx => {
