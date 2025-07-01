@@ -12,6 +12,12 @@ on:
           - development
           - staging
           - production
+    push:
+      branches:
+        - sandbox
+        - development
+        - staging
+
 env:
   # Global configuration
   DEPLOYMENT_USER: 'deploy'
