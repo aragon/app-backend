@@ -29,6 +29,7 @@ export interface IQueueDao {
   address: HexAddress
   network: NetworksEnum
   blockNumber?: number
+  proposalId?: string
 }
 
 export interface IQueuePlugin {
