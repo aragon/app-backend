@@ -33,7 +33,7 @@ const CornProvider: Pick<
   },
 
   getNetworkBottleneck: (network: NetworksEnum) => {
-    return BottleneckModule.getSlowLimiter(network)
+    return BottleneckModule.getThrottledLimiter(network)
   },
 }
 

@@ -404,13 +404,18 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       CHILIZ_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_CHILIZ_MAX_CONCURRENT', 1),
       CHILIZ_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_CHILIZ_MIN_TIME', 5000),
 
-      SLOW_REQUEST_MAX_CONCURRENT: utils.configParser(
+      THROTTLED_REQUEST_MAX_CONCURRENT: utils.configParser(
         sourceConfig,
         'number',
-        'BOTTLENECK_SLOW_REQUEST_MAX_CONCURRENT',
+        'BOTTLENECK_THROTTLED_REQUEST_MAX_CONCURRENT',
         1,
       ),
-      SLOW_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_SLOW_MIN_TIME', 5000),
+      THROTTLED_REQUEST_MIN_TIME: utils.configParser(
+        sourceConfig,
+        'number',
+        'BOTTLENECK_THROTTLED_REQUEST_MIN_TIME',
+        5000,
+      ),
     },
 
     MONGO_DB: {

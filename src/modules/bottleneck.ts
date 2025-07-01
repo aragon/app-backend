@@ -14,7 +14,7 @@ class BottleneckModule {
   static etherScanLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static blockScoutLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static chilizLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
-  static slowLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
+  static throttledLimiter: { [key in NetworksEnum]?: Bottleneck } = {}
 
   static getNodeLimiter(network: NetworksEnum) {
     if (!this.nodeLimiters[network]) {
@@ -126,14 +126,14 @@ class BottleneckModule {
     return this.chilizLimiters[network]
   }
 
-  static getSlowLimiter(network: NetworksEnum) {
-    if (!this.slowLimiters[network]) {
-      this.slowLimiters[network] = new Bottleneck({
-        maxConcurrent: config.BOTTLENECK.SLOW_REQUEST_MAX_CONCURRENT,
-        minTime: config.BOTTLENECK.SLOW_MIN_TIME,
+  static getThrottledLimiter(network: NetworksEnum) {
+    if (!this.throttledLimiter[network]) {
+      this.throttledLimiter[network] = new Bottleneck({
+        maxConcurrent: config.BOTTLENECK.THROTTLED_REQUEST_MAX_CONCURRENT,
+        minTime: config.BOTTLENECK.THROTTLED_REQUEST_MIN_TIME,
       })
     }
-    return this.slowLimiters[network]
+    return this.throttledLimiter[network]
   }
 }
 

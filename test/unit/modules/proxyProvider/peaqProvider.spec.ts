@@ -851,7 +851,7 @@ describe('PeaqProvider', () => {
       // Arrange
       const network = NetworksEnum.peaqMainnet
       const mockLimiter = { submit: () => {}, schedule: () => {} }
-      const getNodeLimiterStub = sandbox.stub(BottleneckModule, 'getNodeLimiter').returns(mockLimiter as any)
+      const getNodeLimiterStub = sandbox.stub(BottleneckModule, 'getThrottledLimiter').returns(mockLimiter as any)
 
       // Act
       const result = PeaqProvider.getNetworkBottleneck(network)

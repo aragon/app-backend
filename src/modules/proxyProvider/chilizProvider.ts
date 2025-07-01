@@ -601,7 +601,7 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
   },
 
   getNetworkBottleneck: (network: NetworksEnum) => {
-    return BottleneckModule.getSlowLimiter(network)
+    return BottleneckModule.getThrottledLimiter(network)
   },
 }
 

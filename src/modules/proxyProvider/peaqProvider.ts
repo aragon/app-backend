@@ -191,7 +191,7 @@ const PeaqProvider: Omit<IWeb3Provider, 'getNativeBalance'> = {
   },
 
   getNetworkBottleneck: (network: NetworksEnum) => {
-    return BottleneckModule.getNodeLimiter(network)
+    return BottleneckModule.getThrottledLimiter(network)
   },
 }
 
