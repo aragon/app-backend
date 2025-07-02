@@ -287,13 +287,13 @@ describe('Helpers: DecodeActions', () => {
 
       const result = await decodeActions.decodeTransfer(action, document as any)
 
-      expect(result?.inputData.function).to.eq('NativeTransfer')
+      expect(result?.inputData.function).to.eq('transfer')
       expect(result?.inputData.textSignature).to.eq('Transfer (Native)')
       expect(result?.sender.address).to.eq(document.daoAddress)
       expect(result?.receiver.address).to.eq(action.to)
       expect(result?.amount).to.eq(action.value)
       expect(result?.type).to.be.eq(ProposalActionType.TransferNative)
-      expect(result?.inputData.contract).to.be.eq('Wallet Address')
+      expect(result?.inputData.contract).to.be.eq('Externally owned account')
       expect(findTokenStub.calledOnce).to.be.true
       expect(createMemberStub.calledOnce).to.be.true
       expect(findByAddressDaoStub.calledOnce).to.be.true
