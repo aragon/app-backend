@@ -36,7 +36,6 @@ describe('Simulation', () => {
 
     let dbDao: Dao | null = null
     let dbPlugins: Plugin[] | null = null
-    let memberCreator: Member | null = null
 
     for (const txHash of txHashes) {
       const txReceipts = await Web3Helper.getTransactionReceipt(txHash, network)
@@ -65,6 +64,9 @@ describe('Simulation', () => {
           expect(dbDao?.metrics?.votes).to.eq(0)
           expect(dbDao?.metrics?.members).to.eq(0)
 
+          // check creator was saved
+          const memberCreator = await Models.Member.findByAddress(dbDao?.creatorAddress)
+          expect(memberCreator).to.exist
           logger.verbose('DAO exists', { id: dbDao?.id })
         }
       }
@@ -132,14 +134,17 @@ describe('Simulation', () => {
     dbDao = await dbDao?.reload()
     expect(dbDao?.metrics?.members).to.eq(1)
 
-    memberCreator = await Models.Member.findByAddress(dbDao?.creatorAddress)
-    expect(memberCreator).to.exist
+    // check governance token
+    const token = await Models.Token.findByTokenAddressAndNetwork(tokenAddress, network)
+    expect(token).to.exist
+    expect(token.skipFetchRate).to.be.true
+    expect(token.totalSupply).to.eq('1000000000000000000')
+    expect(token.priceUsd).to.eq('0')
+    expect(token.holders).to.eq(1)
+    expect(token.blockNumber).to.not.eq(0)
+    expect(token.transactionHash).to.exist
 
     // TODO:
-    // after admin plugin installation we should have 1 member and dao metrics updated
-    // settings for each plugin and that plugin isSupported should be set to true
-    // token voting plugin should have tokenAddress set
-    // token should be saved in the database + rateUsd + holders + totalSupply should be set
     // token plugin to be sync, members to be updated + metrics to be updated
     // dao member mapping to be created for the admin member
     // we should have proposal created for the admin and other plugins
