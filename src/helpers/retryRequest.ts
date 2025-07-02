@@ -23,7 +23,12 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
       }
       return response
     } catch (error: any) {
-      if (error?.status === 429 || error?.response?.status === 429 || error?.info?.error?.code === 429) {
+      if (
+        error?.status === 429 ||
+        error?.response?.status === 429 ||
+        error?.info?.error?.code === 429 ||
+        error?.code === 'TIMEOUT'
+      ) {
         logger.warn(
           'Rate limit exceeded, retrying...',
           llo({ retryCount, wait: retryDelay(retryCount), fn: requestFunction.toString(), error }),

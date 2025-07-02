@@ -318,21 +318,21 @@ export const PluginHandler = {
       return
     }
 
+    const existingLog = await Models.Plugin.findExistingLog({
+      network: pluginLog.network,
+      transactionHash: pluginLog.transactionHash,
+      address: pluginLog.pluginAddress,
+    })
+
+    if (existingLog) {
+      return
+    }
+
+    const timestamp = (await Web3Helper.getBlockTimestamp(pluginLog.blockNumber, pluginLog.network)) || undefined
+    const pluginInfo = await PluginDetector.detectPluginType(pluginLog.pluginAddress, pluginLog.network)
+
     try {
       await DbTx.executeTxFn(async ({ session }) => {
-        const existingLog = await Models.Plugin.findExistingLog(
-          {
-            network: pluginLog.network,
-            transactionHash: pluginLog.transactionHash,
-            address: pluginLog.pluginAddress,
-          },
-          { session },
-        )
-
-        if (existingLog) {
-          return
-        }
-
         const pluginRepo = await Models.PluginRepo.findSubdomain(pluginLog.pluginSetupRepo, pluginLog.network, {
           session,
         })
@@ -340,7 +340,7 @@ export const PluginHandler = {
           status: IPluginStatus.preInstall,
           network: pluginLog.network,
           blockNumber: pluginLog.blockNumber,
-          blockTimestamp: (await Web3Helper.getBlockTimestamp(pluginLog.blockNumber, pluginLog.network)) || undefined,
+          blockTimestamp: timestamp,
           transactionHash: pluginLog.transactionHash,
           address: pluginLog.pluginAddress,
           daoAddress: pluginLog.daoAddress,
@@ -351,7 +351,6 @@ export const PluginHandler = {
           permissions: pluginLog.permissions,
           subdomain: pluginRepo?.subdomain,
         }
-        const pluginInfo = await PluginDetector.detectPluginType(pluginLog.pluginAddress, pluginLog.network)
         document.interfaceType = pluginInfo?.type
 
         if (
