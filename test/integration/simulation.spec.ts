@@ -61,6 +61,7 @@ describe('Simulation', () => {
         }
       }
 
+      // expect all plugins to be installed
       if (txHash === '0x34771a12dde0a84be07a1bbef860a8caaee8b141c5b9a0aec5b536f0da55fb33') {
         const plugins = await Models.Plugin.find({
           daoAddress,
