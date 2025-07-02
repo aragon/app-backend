@@ -8,6 +8,7 @@ import logger from '@logger'
 import ProviderModule from '@modules/provider'
 import MongoDB from '@modules/mongo'
 import SeedDb from '@test/seed'
+import RabbitMQ from "@modules/rabbitMQ";
 
 logger.transports[0].level = 'silly'
 chai.use(chaiAsPromised)
@@ -20,7 +21,7 @@ const testFolder = 'integration'
 async function runTests() {
   const mocha = new Mocha({
     ui: 'bdd',
-    timeout: 60000,
+    timeout: 120000,
     color: true,
     diff: true,
     fullTrace: true,
@@ -30,6 +31,7 @@ async function runTests() {
   console.log('Using MockDB...') // eslint-disable-line no-console
   mocha.suite.beforeAll(async () => {
     await MongoDB.connect()
+    await RabbitMQ.connect()
     await ProviderModule.connectToAllNetworks()
     await SeedDb.start()
   })
