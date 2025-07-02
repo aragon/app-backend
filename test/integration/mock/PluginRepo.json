@@ -1,0 +1,54 @@
+[
+  {
+    "id": "chiliz-mainnet-0x8db900ad2b756fbd3f03a2f5757121cd007eb72680695d68e3455241f156866e-0-18",
+    "transactionHash": "0x8db900ad2b756fbd3f03a2f5757121cd007eb72680695d68e3455241f156866e",
+    "transactionIndex": 0,
+    "logIndex": 18,
+    "blockNumber": 23759214,
+    "blockTimestamp": 1748017644,
+    "network": "chiliz-mainnet",
+    "subdomain": "admin",
+    "pluginRepo": "0x339541B013F0eDAA5e415788B094B7647B43c921",
+    "createdAt": "2025-06-16T13:14:41.446+0000",
+    "updatedAt": "2025-06-16T13:14:41.446+0000"
+  },
+  {
+    "id": "chiliz-mainnet-0x8db900ad2b756fbd3f03a2f5757121cd007eb72680695d68e3455241f156866e-0-35",
+    "transactionHash": "0x8db900ad2b756fbd3f03a2f5757121cd007eb72680695d68e3455241f156866e",
+    "transactionIndex": 0,
+    "logIndex": 35,
+    "blockNumber": 23759214,
+    "blockTimestamp": 1748017644,
+    "network": "chiliz-mainnet",
+    "subdomain": "multisig",
+    "pluginRepo": "0x60C2b0B6CB2EB83349eB770f76a1C6dF611E5f03",
+    "createdAt": "2025-06-16T13:14:42.672+0000",
+    "updatedAt": "2025-06-16T13:14:42.672+0000"
+  },
+  {
+    "id": "chiliz-mainnet-0x8db900ad2b756fbd3f03a2f5757121cd007eb72680695d68e3455241f156866e-0-55",
+    "transactionHash": "0x8db900ad2b756fbd3f03a2f5757121cd007eb72680695d68e3455241f156866e",
+    "transactionIndex": 0,
+    "logIndex": 55,
+    "blockNumber": 23759214,
+    "blockTimestamp": 1748017644,
+    "network": "chiliz-mainnet",
+    "subdomain": "token-voting",
+    "pluginRepo": "0x62c82a443692A1bE4D0421b1E4678F0dff8F3c1B",
+    "createdAt": "2025-06-16T13:14:43.607+0000",
+    "updatedAt": "2025-06-16T13:14:43.607+0000"
+  },
+  {
+    "id": "chiliz-mainnet-0x8db900ad2b756fbd3f03a2f5757121cd007eb72680695d68e3455241f156866e-0-75",
+    "transactionHash": "0x8db900ad2b756fbd3f03a2f5757121cd007eb72680695d68e3455241f156866e",
+    "transactionIndex": 0,
+    "logIndex": 75,
+    "blockNumber": 23759214,
+    "blockTimestamp": 1748017644,
+    "network": "chiliz-mainnet",
+    "subdomain": "spp",
+    "pluginRepo": "0x48CEBbc661FafCFC274Ce2034a04d459ba774E3D",
+    "createdAt": "2025-06-16T13:14:44.818+0000",
+    "updatedAt": "2025-06-16T13:14:44.818+0000"
+  }
+]

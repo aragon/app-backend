@@ -7,6 +7,7 @@ import Mocha from 'mocha'
 import logger from '@logger'
 import ProviderModule from '@modules/provider'
 import MongoDB from '@modules/mongo'
+import SeedDb from '@test/seed'
 
 logger.transports[0].level = 'silly'
 chai.use(chaiAsPromised)
@@ -30,6 +31,7 @@ async function runTests() {
   mocha.suite.beforeAll(async () => {
     await MongoDB.connect()
     await ProviderModule.connectToAllNetworks()
+    await SeedDb.start()
   })
 
   mocha.suite.beforeEach(async () => {
