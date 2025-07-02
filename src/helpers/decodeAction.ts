@@ -88,8 +88,8 @@ class DecodeActions {
         token,
         inputData: {
           textSignature: 'Transfer (Native)',
-          function: 'NativeTransfer',
-          contract: toInfo?.name || 'Wallet Address',
+          function: 'transfer',
+          contract: toInfo?.name || 'Externally owned account',
           parameters: [],
         },
       }
