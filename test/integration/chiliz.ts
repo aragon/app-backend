@@ -27,11 +27,15 @@ describe('Simulation', () => {
     const network = NetworksEnum.chilizMainnet
 
     const txHashes = [
-      '0x5e45339481b42299ed84bca76545bfd3748614da69708d3621c0519a850c19c4', //createDaoTxHash
-      '0x66af2dab0dd4135e262675ddba71de4a48bf965b2c27f19221c6021000fef665', //pluginInstallationTxHashPrepare & proposal admin
-      '0x34771a12dde0a84be07a1bbef860a8caaee8b141c5b9a0aec5b536f0da55fb33', //pluginInstallationTxHashApplied & proposal admin
-      '0xf8d82988c91f1a92d6d5ecc1fb29853a685efe8b7257e4f8d316f7f18a1e34af', //proposal spp & proposal multiSig
-      '0x02d5e3c344bf1b8be708a5f5fe0b72f860523abae85bdcb62d32cdd26778ee66', //proposal token-voting
+      '0x5e45339481b42299ed84bca76545bfd3748614da69708d3621c0519a850c19c4', // 24883132
+      '0x66af2dab0dd4135e262675ddba71de4a48bf965b2c27f19221c6021000fef665', // 24883161
+      '0x34771a12dde0a84be07a1bbef860a8caaee8b141c5b9a0aec5b536f0da55fb33', // 24883168
+      '0x7bb9a12317b8c5af349485427f3ef5a014f0671ccd2984b33fd74c41cd456482', // 24883178
+      '0xf8d82988c91f1a92d6d5ecc1fb29853a685efe8b7257e4f8d316f7f18a1e34af', // 24883228
+      '0x36df3a6a453123288a5efb682a7426905c79d37e7f4db3554e42e5785fbff28b', // 24883235
+      '0x02d5e3c344bf1b8be708a5f5fe0b72f860523abae85bdcb62d32cdd26778ee66', // 24883241
+      '0xb3fda3d5811e27fffed4e3cdfcac0b29eb5e28823df2373c4d12d3dac9ed3547', // 24883249
+      '0x357c1f2e57eee1440167682b3cad3fa77cc3d9540ada133f3b5598adc085c34d', // 24883256
     ]
 
     let dbDao: Dao | null = null
@@ -140,9 +144,9 @@ describe('Simulation', () => {
     expect(token.skipFetchRate).to.be.true
     expect(token.totalSupply).to.eq('1000000000000000000')
     expect(token.priceUsd).to.eq('0')
-    expect(token.holders).to.eq(1)
     expect(token.blockNumber).to.not.eq(0)
     expect(token.transactionHash).to.exist
+    expect(token.holders).to.eq(1)
 
     // TODO:
     // token plugin to be sync, members to be updated + metrics to be updated
