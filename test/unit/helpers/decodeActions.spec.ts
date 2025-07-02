@@ -228,7 +228,7 @@ describe('Helpers: DecodeActions', () => {
 
       const result = await decodeActions.decodeTransfer(action, document as any)
 
-      expect(result?.inputData.function).to.eq('NativeTransfer')
+      expect(result?.inputData.function).to.eq('transfer')
       expect(result?.inputData.textSignature).to.eq('Transfer (Native)')
       expect(result?.sender.address).to.eq(document.daoAddress)
       expect(result?.receiver.address).to.eq(action.to)
