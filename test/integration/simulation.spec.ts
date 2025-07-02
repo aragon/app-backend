@@ -17,7 +17,7 @@ describe('Simulation', () => {
   })
 
   it('should test', async () => {
-    const network = NetworksEnum.ethereumSepolia
+    const network = NetworksEnum.chilizMainnet
     const txHashes = [
       '0x5e45339481b42299ed84bca76545bfd3748614da69708d3621c0519a850c19c4', //createDaoTxHash
       '0x66af2dab0dd4135e262675ddba71de4a48bf965b2c27f19221c6021000fef665', //pluginInstallationTxHashPrepare & proposal admin
