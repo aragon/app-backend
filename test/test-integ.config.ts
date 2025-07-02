@@ -31,6 +31,7 @@ async function runTests() {
   console.log('Using MockDB...') // eslint-disable-line no-console
   mocha.suite.beforeAll(async () => {
     await MongoDB.connect()
+    await MongoDB.drop()
     await RabbitMQ.connect()
     await ProviderModule.connectToAllNetworks()
     await SeedDb.start()
