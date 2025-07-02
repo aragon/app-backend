@@ -77,6 +77,15 @@ describe('Simulation', () => {
 
         const daoAfterPluginInstalled = await Models.Dao.findByAddress(daoAddress, network)
         expect(daoAfterPluginInstalled.metrics.members).to.eq(1)
+
+        // TODO:
+        // after admin plugin installation we should have 1 member and dao metrics updated
+        // settings for each plugin and that plugin isSupported should be set to true
+        // token voting plugin should have tokenAddress set
+        // token should be saved in the database + rateUsd + holders + totalSupply should be set
+        // token plugin to be sync, members to be updated + metrics to be updated
+        // dao member mapping to be created for the admin member
+        // we should have proposal created for the admin and other plugins
       }
     }
   })
