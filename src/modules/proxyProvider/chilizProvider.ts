@@ -19,6 +19,7 @@ import TokenUtils from '@helpers/tokenUtils'
 import { ITransactionCategory, ITransactionType } from '@types'
 import ProxyUtils from '@modules/proxyProvider/utils'
 import Web3Helper from '@helpers/web3'
+import RouteScanHelper from '@helpers/routeScanHelper'
 
 const llo = logger.logMeta.bind(null, { service: 'provider:ChilizProvider' })
 
@@ -53,8 +54,8 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
     }
   },
 
-  fetchContractCreation: async ({ address }) => {
-    return { blockNumber: 0, transactionHash: null, address }
+  fetchContractCreation: async ({ address, network }) => {
+    return RouteScanHelper.fetchContractCreation({ address, network })
   },
 
   fetchContractSourceCode: async ({ address, network }) => {
@@ -149,7 +150,7 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
               ? ITokenType.ERC721
               : ITokenType.unknown
         tokenInfo.totalSupply = tokenResponse.result.totalSupply || '0'
-        tokenInfo.totalHolders = '0'
+        tokenInfo.totalHolders = await RouteScanHelper.fetchTokenHoldersCount({ address, network })
       }
     } catch (error) {
       logger.warn('Chiliz Provider basic token info failed', { error, address, network })
