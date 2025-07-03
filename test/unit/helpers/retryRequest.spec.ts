@@ -152,18 +152,13 @@ describe('Helpers:RetryRequest', () => {
       const waitStub = sandbox.stub(Utils, 'wait').resolves()
       const warnStub = sandbox.stub(Logger, 'warn')
 
-      // Important: stub BEFORE the function is called
-      sandbox.stub(RetryRequest, 'isErrorRelatedToServerIssue').callsFake(error => {
-        return error === timeoutError
-      })
-
       const response = await RetryRequest.retryRequest(requestFunction, { maxRetries: 2 })
 
       expect(response).to.eql(mockResponse)
       expect(requestFunction.calledTwice).to.be.true
       expect(waitStub.calledOnce).to.be.true
       expect(warnStub.calledOnce).to.be.true
-      expect(warnStub.calledWithMatch('Warn, retrying on alchemy server error...' as any)).to.be.true
+      expect(warnStub.calledWithMatch('Rate limit exceeded, retrying...' as any)).to.be.true
     })
 
     it('should throw an error after exceeding max retries', async () => {

@@ -9,6 +9,7 @@ import TokenUtils from '@helpers/tokenUtils'
 import ChilizProvider from '@modules/proxyProvider/chilizProvider'
 import ProxyUtils from '@modules/proxyProvider/utils'
 import Web3Helper from '@helpers/web3'
+import RouteScanHelper from '@helpers/routeScanHelper'
 
 describe('ChilizProvider', () => {
   let sandbox: any
@@ -111,15 +112,22 @@ describe('ChilizProvider', () => {
       // Arrange
       const address = '0xcontract'
 
+      const fetchContractCreationStub = sandbox.stub(RouteScanHelper, 'fetchContractCreation').resolves({
+        blockNumber: 1231,
+        transactionHash: '0x1231',
+        address,
+      })
       // Act
       const result = await ChilizProvider.fetchContractCreation({ address, network: NetworksEnum.chilizMainnet })
 
       // Assert
       expect(result).to.deep.equal({
-        blockNumber: 0,
-        transactionHash: null,
+        blockNumber: 1231,
+        transactionHash: '0x1231',
         address,
       })
+
+      expect(fetchContractCreationStub.calledOnce).to.be.true
     })
   })
 

@@ -57,8 +57,9 @@ describe('Modules:ProxyMember', () => {
     it('should handle errors gracefully and return null', async () => {
       const parsedMemberAddress = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'
 
-      const findExistingLogStub = sandbox.stub(Models.Member, 'findExistingLog').throws(new Error('Database error'))
+      const findExistingLogStub = sandbox.stub(Models.Member, 'findExistingLog').resolves(null)
       const loggerErrorStub = sandbox.stub(Logger, 'error')
+      sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').rejects(new Error('Database error'))
 
       const result = await ProxyMember.createMember(parsedMemberAddress)
 

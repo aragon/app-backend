@@ -22,9 +22,9 @@ export const ProxyMember = {
       return existingMember
     }
 
-    const ens = await EnsHelper.getEnsWithUniversalResolver(parsedMemberAddress)
-
     try {
+      const ens = await EnsHelper.getEnsWithUniversalResolver(parsedMemberAddress)
+
       return await DbTx.executeTxFn(async ({ session }) => {
         const rawMember = {
           address: parsedMemberAddress,

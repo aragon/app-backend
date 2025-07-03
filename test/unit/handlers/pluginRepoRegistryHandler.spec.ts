@@ -88,6 +88,7 @@ describe('Indexer: PluginRepoRegistryHandler', () => {
           subdomain: 'test',
         },
       }
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1123213)
       sandbox.stub(Models.PluginRepo, 'findExistingLog').resolves(true)
       const stubCreate = sandbox.stub(Models.PluginRepo, 'create')
 
@@ -113,7 +114,7 @@ describe('Indexer: PluginRepoRegistryHandler', () => {
         },
       }
 
-      sandbox.stub(Models.PluginRepo, 'findExistingLog').rejects(new Error('fake-error'))
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').rejects(new Error('fake-error'))
       const loggerStub = sandbox.stub(logger, 'error')
 
       await PluginRepoRegistryHandler.pluginRepoRegistered(fakeEvent as any, logInfo)
