@@ -132,10 +132,6 @@ describe('Integ: Chiliz', () => {
     const pluginSlugs = await Models.PluginSlug.find({ daoAddress, network })
     expect(pluginSlugs).to.have.lengthOf(4)
 
-    // check daos members
-    dbDao = await dbDao?.reload()
-    expect(dbDao?.metrics?.members).to.eq(1)
-
     // check governance token
     const token = await Models.Token.findByTokenAddressAndNetwork(tokenAddress, network)
     expect(token).to.exist
@@ -149,6 +145,17 @@ describe('Integ: Chiliz', () => {
     // check dao members
     const membersCount = await Models.DaoMemberMapping.countUniqueMembers(daoAddress, network)
     expect(membersCount).to.eq(1)
+
+    // we should have 2 votes: one for multisig and one for tokenVoting
+    const votes = await Models.Vote.find({ daoAddress, network })
+    expect(votes.length).to.eq(2)
+
+    const multisigVote = votes.find(v => v.pluginAddress === multisigPlugin?.address)
+    expect(multisigVote).to.exist
+
+    const tokenVotingVote = votes.find(v => v.pluginAddress === tokenVotingPlugin?.address)
+    expect(tokenVotingVote).to.exist
+    expect(tokenVotingVote.votingPower).to.eq('1000000000000000000')
 
     // check admin proposal
     const adminProposals = await Models.Proposal.find({ pluginAddress: adminPlugin?.address, network })
@@ -248,6 +255,20 @@ describe('Integ: Chiliz', () => {
 
     const assets = await Models.Asset.find({ network, daoAddress })
     expect(assets.length).to.eq(0)
+
+    // TODO:
+    // query and check all settings field for all plugins
+    // check member metrics
+    // check member balances
+
+    // check daos members
+    dbDao = await dbDao?.reload()
+    expect(dbDao?.metrics?.tvlUSD).to.eq(0)
+    expect(dbDao?.metrics?.proposalsCreated).to.eq(2)
+    expect(dbDao?.metrics?.proposalsExecuted).to.eq(2)
+    expect(dbDao?.metrics?.uniqueVoters).to.eq(2) // TODO: check if correct
+    expect(dbDao?.metrics?.votes).to.eq(2)
+    expect(dbDao?.metrics?.members).to.eq(1)
 
     logger.verbose('Chiliz end', { id: dbDao?.id })
   })
