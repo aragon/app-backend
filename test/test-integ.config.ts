@@ -8,7 +8,7 @@ import logger from '@logger'
 import ProviderModule from '@modules/provider'
 import MongoDB from '@modules/mongo'
 import SeedDb from '@test/seed'
-import RabbitMQ from "@modules/rabbitMQ";
+import RabbitMQ from '@modules/rabbitMQ'
 
 logger.transports[0].level = 'silly'
 chai.use(chaiAsPromised)
