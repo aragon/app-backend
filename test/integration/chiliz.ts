@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import {IPluginInterfaceType, IPluginStatus, ITransactionCategory, ITransactionType, NetworksEnum} from '@types'
+import { IPluginInterfaceType, IPluginStatus, ITransactionCategory, ITransactionType, NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
 import { Models } from '@dbModels'
@@ -20,7 +20,7 @@ describe('Integ: Chiliz', () => {
     sandbox?.restore()
   })
 
-  it('should test', async () => {
+  it('Chiliz full workflow', async () => {
     const daoAddress = '0x8a77f7Dc00168B162dc558659121aA31878B949F'
     const tokenAddress = '0xA15C3b8b5D43E8EFa529eb0fE873A229424f311F'
     const network = NetworksEnum.chilizMainnet
@@ -70,7 +70,6 @@ describe('Integ: Chiliz', () => {
           // check creator was saved
           const memberCreator = await Models.Member.findByAddress(dbDao?.creatorAddress)
           expect(memberCreator).to.exist
-          logger.verbose('DAO exists', { id: dbDao?.id })
         }
       }
     }
@@ -215,34 +214,41 @@ describe('Integ: Chiliz', () => {
     const transactions = await Models.Transaction.find({ network, daoAddress })
     expect(transactions.length).to.eq(4)
 
-    const depositNative = transactions.find(tx => tx.type === ITransactionType.deposit && tx.category === ITransactionCategory.External)
+    const depositNative = transactions.find(
+      tx => tx.type === ITransactionType.deposit && tx.category === ITransactionCategory.External,
+    )
     expect(depositNative.value).to.eq('1.0')
     expect(depositNative.token.snapshot.priceUsd).to.eq('0')
     expect(depositNative.token.symbol).to.eq('CHZ')
     expect(depositNative.amountUsd).to.eq('0.00')
 
-    const depositErc20 = transactions.find(tx => tx.type === ITransactionType.deposit && tx.category === ITransactionCategory.ERC20)
+    const depositErc20 = transactions.find(
+      tx => tx.type === ITransactionType.deposit && tx.category === ITransactionCategory.ERC20,
+    )
     expect(depositErc20.value).to.eq('0.1')
     expect(depositErc20.token.snapshot.priceUsd).to.eq('0')
     expect(depositErc20.token.symbol).to.eq('TV')
     expect(depositErc20.amountUsd).to.eq('0.00')
 
-    const withdrawNative = transactions.find(tx => tx.type === ITransactionType.withdraw && tx.category === ITransactionCategory.Internal)
+    const withdrawNative = transactions.find(
+      tx => tx.type === ITransactionType.withdraw && tx.category === ITransactionCategory.Internal,
+    )
     expect(withdrawNative.value).to.eq('1.0')
     expect(withdrawNative.token.snapshot.priceUsd).to.eq('0')
     expect(withdrawNative.token.symbol).to.eq('CHZ')
     expect(withdrawNative.amountUsd).to.eq('0.00')
 
-    const withdrawErc20 = transactions.find(tx => tx.type === ITransactionType.withdraw && tx.category === ITransactionCategory.ERC20)
+    const withdrawErc20 = transactions.find(
+      tx => tx.type === ITransactionType.withdraw && tx.category === ITransactionCategory.ERC20,
+    )
     expect(withdrawErc20.value).to.eq('0.1')
     expect(withdrawErc20.token.snapshot.priceUsd).to.eq('0')
     expect(withdrawErc20.token.symbol).to.eq('TV')
     expect(withdrawErc20.amountUsd).to.eq('0.00')
 
-    console.log('ok')
-    // TODO:
-    // token plugin to be sync, members to be updated + metrics to be updated
-    // dao member mapping to be created for the admin member
-    // we should have proposal created for the admin and other plugins
+    const assets = await Models.Asset.find({ network, daoAddress })
+    expect(assets.length).to.eq(0)
+
+    logger.verbose('Chiliz end', { id: dbDao?.id })
   })
 })
