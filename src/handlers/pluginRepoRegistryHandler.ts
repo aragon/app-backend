@@ -11,14 +11,18 @@ const llo = logger.logMeta.bind(null, { service: 'handlers:PluginRepoRegistryHan
 export const PluginRepoRegistryHandler = {
   pluginRepoRegistered: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
+      const timestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
       await DbTx.executeTxFn(async ({ session }) => {
         const pluginRepo = parsedEvent.args.pluginRepo
-        const existingLog = await Models.PluginRepo.findExistingLog({
-          network: info.network,
-          transactionHash: info.transactionHash,
-          transactionIndex: info.transactionIndex,
-          logIndex: info.logIndex,
-        })
+        const existingLog = await Models.PluginRepo.findExistingLog(
+          {
+            network: info.network,
+            transactionHash: info.transactionHash,
+            transactionIndex: info.transactionIndex,
+            logIndex: info.logIndex,
+          },
+          { session },
+        )
         if (existingLog) return
 
         const document: Partial<PluginRepo> = {
@@ -27,7 +31,7 @@ export const PluginRepoRegistryHandler = {
           transactionIndex: info.transactionIndex,
           logIndex: info.logIndex,
           blockNumber: info.blockNumber,
-          blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+          blockTimestamp: timestamp,
           subdomain: parsedEvent.args.subdomain,
           pluginRepo,
         }

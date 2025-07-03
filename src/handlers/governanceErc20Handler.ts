@@ -295,6 +295,7 @@ export const GovernanceErc20Handler = {
         return
       }
 
+      const timestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
       // save member transaction
       await DbTx.executeTxFn(async ({ session }) => {
         const logDb = await Models.MemberTransaction.create(
@@ -304,7 +305,7 @@ export const GovernanceErc20Handler = {
             transactionIndex: info.transactionIndex,
             logIndex: info.logIndex,
             blockNumber: info.blockNumber,
-            blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+            blockTimestamp: timestamp,
             address: memberAddress,
             delegator,
             type: ITransferType.delegate,

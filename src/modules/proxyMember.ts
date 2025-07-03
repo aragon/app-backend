@@ -16,24 +16,26 @@ export const ProxyMember = {
     const parsedMemberAddress = Web3Utils.parseAddress(memberAddress) || memberAddress
     if (!parsedMemberAddress) return null
 
+    const existingMember = await Models.Member.findExistingLog({ address: parsedMemberAddress })
+
+    if (existingMember) {
+      return existingMember
+    }
+
+    const ens = await EnsHelper.getEnsWithUniversalResolver(parsedMemberAddress)
+
     try {
       return await DbTx.executeTxFn(async ({ session }) => {
-        const existingMember = await Models.Member.findExistingLog({ address: parsedMemberAddress }, { session })
-
-        if (!existingMember) {
-          const rawMember = {
-            address: parsedMemberAddress,
-            ens: await EnsHelper.getEnsWithUniversalResolver(parsedMemberAddress),
-          }
-
-          const newMember = await Models.Member.create(rawMember, { session })
-          await session.commitTransaction()
-          await session.endSession()
-          logger.verbose('Create document - New Member', llo({ documentId: newMember.id }))
-          return newMember
+        const rawMember = {
+          address: parsedMemberAddress,
+          ens,
         }
 
-        return existingMember
+        const newMember = await Models.Member.create(rawMember, { session })
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose('Create document - New Member', llo({ documentId: newMember.id }))
+        return newMember
       })
     } catch (error) {
       logger.error('Error creating new member', llo({ error, memberAddress: parsedMemberAddress }))
