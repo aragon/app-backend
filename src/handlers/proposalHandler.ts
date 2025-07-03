@@ -497,6 +497,8 @@ export const ProposalHandler = {
         proposalIndex: parsedEvent.args.proposalId.toString(),
       }
 
+      const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
+
       const proposal = await DbTx.executeTxFn(async ({ session }) => {
         const proposal = await Models.Proposal.findByProposalIndex(
           parsedParams.proposalIndex,
@@ -516,7 +518,7 @@ export const ProposalHandler = {
             status: true,
             blockNumber: info.blockNumber,
             transactionHash: info.transactionHash,
-            blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+            blockTimestamp,
           },
         }
 
