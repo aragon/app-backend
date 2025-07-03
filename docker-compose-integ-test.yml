@@ -15,6 +15,8 @@ services:
       MONGO_DB_URI: mongodb://mongo1:27017,mongo2:27018,mongo3:27019/db-aragon?replicaSet=rs0&authSource=admin
       RABBITMQ_URI: amqp://guest:guest@rabbitmq:5672
       SERVICES_ARAGON_API_BASE_URL: http://service-aragon-api:3000
+    env_file:
+      - ./test/test-integ.env
     depends_on:
       - mongo1
       - mongo2
@@ -38,6 +40,8 @@ services:
       NODE_ENV: test
       MONGO_DB_URI: mongodb://mongo1:27017,mongo2:27018,mongo3:27019/db-aragon?replicaSet=rs0&authSource=admin
       RABBITMQ_URI: amqp://guest:guest@rabbitmq:5672
+    env_file:
+      - ./test/test-integ.env
     depends_on:
       - mongo1
       - mongo2
@@ -61,6 +65,8 @@ services:
       NODE_ENV: test
       MONGO_DB_URI: mongodb://mongo1:27017,mongo2:27018,mongo3:27019/db-aragon?replicaSet=rs0&authSource=admin
       RABBITMQ_URI: amqp://guest:guest@rabbitmq:5672
+    env_file:
+      - ./test/test-integ.env
     depends_on:
       - mongo1
       - mongo2
@@ -84,6 +90,8 @@ services:
       NODE_ENV: test
       MONGO_DB_URI: mongodb://mongo1:27017,mongo2:27018,mongo3:27019/db-aragon?replicaSet=rs0&authSource=admin
       RABBITMQ_URI: amqp://guest:guest@rabbitmq:5672
+    env_file:
+      - ./test/test-integ.env
     depends_on:
       - mongo1
       - mongo2

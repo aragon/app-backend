@@ -35,6 +35,7 @@
     "test:unit": "ts-node -r tsconfig-paths/register test/test.config.ts --unit",
     "test:unit-dep": "ts-node -r tsconfig-paths/register test/test.config.ts --unit-dep",
     "test:integ": "ts-node -r tsconfig-paths/register test/test-integ.config.ts",
+    "test:integ:services": "docker compose -f docker-compose-integ-test.yml down && docker compose -f docker-compose-integ-test.yml up -d",
     "test:unit:coverage": "rm -rf coverage .nyc_output && nyc --debug --no-clean --temp-dir=.nyc_output/ yarn test:unit",
     "test:coverage:check": "nyc check-coverage --temp-dir=.nyc_output/ --statements 97 --branches 82 --functions 97.50 --lines 97",
     "docker:test:unit-dep": "docker-compose up -d --build unit-dep",

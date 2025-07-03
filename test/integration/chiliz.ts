@@ -1,16 +1,15 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
+import {IPluginInterfaceType, IPluginStatus, ITransactionCategory, ITransactionType, NetworksEnum} from '@types'
 import Web3Helper from '@helpers/web3'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import Dao from '@models/schema/dao'
 import Plugin from '@models/schema/plugin'
-import Member from '@models/schema/member'
 
-describe('Simulation', () => {
+describe('Integ: Chiliz', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -148,6 +147,99 @@ describe('Simulation', () => {
     expect(token.transactionHash).to.exist
     expect(token.holders).to.eq(1)
 
+    // check dao members
+    const membersCount = await Models.DaoMemberMapping.countUniqueMembers(daoAddress, network)
+    expect(membersCount).to.eq(1)
+
+    // check admin proposal
+    const adminProposals = await Models.Proposal.find({ pluginAddress: adminPlugin?.address, network })
+    expect(adminProposals.length).to.eq(1)
+    const adminProposal = adminProposals[0]
+    expect(adminProposal.incrementalId).to.eq(0)
+    expect(adminProposal?.title).to.exist
+    expect(adminProposal?.metadataUri.startsWith('ipfs://')).to.be.true
+    expect(adminProposal?.isSubProposal).to.be.false
+    expect(adminProposal?.executed.status).to.be.true
+    expect(adminProposal?.snapshot.membersCount).to.eq(1)
+    expect(adminProposal?.actions.length).to.eq(adminProposal?.rawActions.length)
+
+    // check spp proposal
+    const sppProposals = await Models.Proposal.find({ pluginAddress: sppPlugin?.address, network })
+    expect(sppProposals.length).to.eq(1)
+    const sppProposal = sppProposals[0]
+    expect(sppProposal.incrementalId).to.eq(0)
+    expect(sppProposal?.metadataUri.startsWith('ipfs://')).to.be.true
+    expect(sppProposal?.title).to.exist
+    expect(sppProposal?.isSubProposal).to.be.false
+    expect(sppProposal?.executed.status).to.be.true
+    expect(sppProposal?.subProposals.length).to.eq(2)
+    expect(sppProposal?.stageExecutions[0].status).to.be.true
+    expect(sppProposal?.stageExecutions[0].stageIndex).to.eq(0)
+    expect(sppProposal?.stageIndex).to.eq(1)
+    expect(sppProposal?.totalStages).to.eq(2)
+    expect(sppProposal?.lastStageTransition).to.exist
+
+    // check multisig proposal
+    const multisigProposals = await Models.Proposal.find({ pluginAddress: multisigPlugin?.address, network })
+    expect(multisigProposals.length).to.eq(1)
+    const multisigProposal = multisigProposals[0]
+    expect(multisigProposal.incrementalId).to.eq(0)
+    expect(multisigProposal.stageIndex).to.eq(0)
+    expect(multisigProposal.parentProposal.proposalIndex).to.exist
+    expect(multisigProposal?.metadataUri).to.exist
+    expect(multisigProposal?.executed.status).to.be.true
+    expect(multisigProposal?.isSubProposal).to.be.true
+    expect(multisigProposal?.actions.length).to.eq(multisigProposal?.rawActions.length)
+    expect(multisigProposal?.settings.onlyListed).to.be.true
+    expect(multisigProposal?.settings.minApprovals).to.eq(1)
+    expect(multisigProposal?.snapshot.membersCount).to.eq(1)
+    expect(multisigProposal?.parentProposal.proposalIndex).to.eq(sppProposal?.proposalIndex)
+
+    // check tokenVoting proposal
+    const tokenVotingProposals = await Models.Proposal.find({ pluginAddress: tokenVotingPlugin?.address, network })
+    expect(tokenVotingProposals.length).to.eq(1)
+    const tokenVotingProposal = tokenVotingProposals[0]
+    expect(tokenVotingProposal.incrementalId).to.eq(0)
+    expect(tokenVotingProposal.stageIndex).to.eq(1)
+    expect(tokenVotingProposal?.executed.status).to.be.false
+    expect(tokenVotingProposal?.isSubProposal).to.be.true
+    expect(tokenVotingProposal?.snapshot.totalSupply).to.eq('1000000000000000000')
+    expect(tokenVotingProposal?.metrics.totalVotes).to.eq(1)
+    expect(tokenVotingProposal?.metrics.missingVotes).to.eq(0)
+    expect(tokenVotingProposal?.metrics.votesByOption[0].type).to.eq(2)
+    expect(tokenVotingProposal?.metrics.votesByOption[0].totalVotes).to.eq(1)
+    expect(tokenVotingProposal?.metrics.votesByOption[0].totalVotingPower).to.eq('1000000000000000000')
+    expect(tokenVotingProposal?.parentProposal.proposalIndex).to.eq(sppProposal?.proposalIndex)
+
+    // check dao transactions
+    const transactions = await Models.Transaction.find({ network, daoAddress })
+    expect(transactions.length).to.eq(4)
+
+    const depositNative = transactions.find(tx => tx.type === ITransactionType.deposit && tx.category === ITransactionCategory.External)
+    expect(depositNative.value).to.eq('1.0')
+    expect(depositNative.token.snapshot.priceUsd).to.eq('0')
+    expect(depositNative.token.symbol).to.eq('CHZ')
+    expect(depositNative.amountUsd).to.eq('0.00')
+
+    const depositErc20 = transactions.find(tx => tx.type === ITransactionType.deposit && tx.category === ITransactionCategory.ERC20)
+    expect(depositErc20.value).to.eq('0.1')
+    expect(depositErc20.token.snapshot.priceUsd).to.eq('0')
+    expect(depositErc20.token.symbol).to.eq('TV')
+    expect(depositErc20.amountUsd).to.eq('0.00')
+
+    const withdrawNative = transactions.find(tx => tx.type === ITransactionType.withdraw && tx.category === ITransactionCategory.Internal)
+    expect(withdrawNative.value).to.eq('1.0')
+    expect(withdrawNative.token.snapshot.priceUsd).to.eq('0')
+    expect(withdrawNative.token.symbol).to.eq('CHZ')
+    expect(withdrawNative.amountUsd).to.eq('0.00')
+
+    const withdrawErc20 = transactions.find(tx => tx.type === ITransactionType.withdraw && tx.category === ITransactionCategory.ERC20)
+    expect(withdrawErc20.value).to.eq('0.1')
+    expect(withdrawErc20.token.snapshot.priceUsd).to.eq('0')
+    expect(withdrawErc20.token.symbol).to.eq('TV')
+    expect(withdrawErc20.amountUsd).to.eq('0.00')
+
+    console.log('ok')
     // TODO:
     // token plugin to be sync, members to be updated + metrics to be updated
     // dao member mapping to be created for the admin member
