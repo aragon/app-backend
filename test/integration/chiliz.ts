@@ -8,8 +8,10 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import Dao from '@models/schema/dao'
 import Plugin from '@models/schema/plugin'
+import Utils from '@helpers/utils'
 
-describe('Integ: Chiliz', () => {
+describe('Integ: Chiliz', function () {
+  this.timeout(60 * 1000) // 60 seconds
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -74,6 +76,8 @@ describe('Integ: Chiliz', () => {
       }
     }
 
+    await Utils.wait(2000)
+
     // expect all plugins to be installed
     dbPlugins = await Models.Plugin.find({
       daoAddress,
@@ -89,6 +93,14 @@ describe('Integ: Chiliz', () => {
     expect(adminPlugin?.isProcess).to.be.true
     expect(adminPlugin?.isBody).to.be.true
     expect(adminPlugin?.isSubPlugin).to.be.false
+    expect(
+      (
+        await Models.DaoMemberMapping.findAllMembersOfPlugin({
+          pluginAddress: adminPlugin?.address,
+          network,
+        })
+      ).length,
+    ).to.be.eq(1)
 
     // check spp plugin
     const sppPlugin = dbPlugins?.find((plugin: any) => plugin.interfaceType === IPluginInterfaceType.spp)
@@ -112,6 +124,14 @@ describe('Integ: Chiliz', () => {
     expect(multisigPlugin?.isSubPlugin).to.be.true
     expect(multisigPlugin?.parentPlugin).to.eq(sppPlugin?.address)
     expect(multisigPlugin?.stageIndex).to.eq(0)
+    expect(
+      (
+        await Models.DaoMemberMapping.findAllMembersOfPlugin({
+          pluginAddress: multisigPlugin?.address,
+          network,
+        })
+      ).length,
+    ).to.be.eq(1)
 
     // check tokenVoting plugin
     const tokenVotingPlugin = dbPlugins?.find(
@@ -127,6 +147,14 @@ describe('Integ: Chiliz', () => {
     expect(tokenVotingPlugin?.isSubPlugin).to.be.true
     expect(tokenVotingPlugin?.parentPlugin).to.eq(sppPlugin?.address)
     expect(tokenVotingPlugin?.stageIndex).to.eq(1)
+    expect(
+      (
+        await Models.DaoMemberMapping.findAllMembersOfPlugin({
+          pluginAddress: multisigPlugin?.address,
+          network,
+        })
+      ).length,
+    ).to.be.eq(1)
 
     // check pluginSlugs created for each plugin
     const pluginSlugs = await Models.PluginSlug.find({ daoAddress, network })
@@ -258,10 +286,59 @@ describe('Integ: Chiliz', () => {
 
     // TODO:
     // query and check all settings field for all plugins
-    // check member metrics
-    // check member balances
+    const adminPluginSettings = await Models.Setting.findOne({
+      pluginAddress: adminPlugin?.address,
+    })
 
-    // check daos members
+    expect(adminPluginSettings).to.be.not.exist
+    const sppPluginSettings = await Models.Setting.findOne({
+      pluginAddress: sppPlugin?.address,
+    })
+    expect(sppPluginSettings).to.be.exist
+    // Verify SPP plugin stages
+    expect(sppPluginSettings.stages).to.be.an('array').with.lengthOf(2)
+
+    // Verify stage 0
+    expect(sppPluginSettings.stages[0].stageIndex).to.eq(0)
+    expect(sppPluginSettings.stages[0].plugins).to.be.an('array').with.lengthOf(1)
+    expect(sppPluginSettings.stages[0].plugins[0].address).to.eq(multisigPlugin?.address)
+    expect(sppPluginSettings.stages[0].plugins[0].brandId).to.eq('other')
+    expect(sppPluginSettings.stages[0].name).to.eq('Stage1')
+
+    expect(sppPluginSettings.stages[1].stageIndex).to.eq(1)
+    expect(sppPluginSettings.stages[1].plugins).to.be.an('array').with.lengthOf(1)
+    expect(sppPluginSettings.stages[1].plugins[0].address).to.eq(tokenVotingPlugin?.address)
+    expect(sppPluginSettings.stages[1].plugins[0].brandId).to.eq('other')
+    expect(sppPluginSettings.stages[1].name).to.eq('Stage2')
+
+    const multisigPluginSettings = await Models.Setting.findOne({
+      pluginAddress: multisigPlugin?.address,
+    })
+
+    expect(multisigPluginSettings).to.be.exist
+    expect(multisigPluginSettings.minApprovals).to.be.eq(1)
+    expect(multisigPluginSettings.onlyListed).to.be.true
+    expect(multisigPluginSettings.status).to.be.eq('active')
+
+    const tokenVotingPluginSettings = await Models.Setting.findOne({
+      pluginAddress: tokenVotingPlugin?.address,
+    })
+
+    expect(tokenVotingPluginSettings).to.be.exist
+    expect(tokenVotingPluginSettings.votingMode).to.be.eq(0)
+    expect(tokenVotingPluginSettings.status).to.be.eq('active')
+    expect(tokenVotingPluginSettings.minProposerVotingPower).to.be.eq('1000000000000000000')
+
+    const memberBalance = await Models.MemberBalance.findOne({
+      tokenAddress: tokenAddress,
+      network,
+    })
+
+    expect(memberBalance).to.exist
+    expect(memberBalance.amount).to.eq('1000000000000000000')
+    expect(memberBalance.votingPower).to.eq('1000000000000000000')
+
+    const memberMetrics = await Models.MemberMetrics.find({})
     dbDao = await dbDao?.reload()
     expect(dbDao?.metrics?.tvlUSD).to.eq(0)
     expect(dbDao?.metrics?.proposalsCreated).to.eq(2)

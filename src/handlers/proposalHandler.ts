@@ -249,18 +249,21 @@ export const ProposalHandler = {
       logger.verbose('New Proposal', llo({ ...info, logId: newProposal.id }))
 
       await ProposalHandler.pairSppProposals(newProposal, relatedPlugin, info)
-      await ProxyMember.updateActivity({
-        memberAddress: newProposal.creatorAddress,
-        pluginAddress: relatedPlugin.address,
-        network: newProposal.network,
-        blockNumber: newProposal.blockNumber,
-      })
 
-      await ProxyMember.updateMetricsByAction(IMetricAction.increaseProposalCount, {
-        memberAddress: newProposal.creatorAddress,
-        pluginAddress,
-        network: info.network,
-      })
+      if (!relatedPlugin.parentPlugin) {
+        await ProxyMember.updateActivity({
+          memberAddress: newProposal.creatorAddress,
+          pluginAddress: relatedPlugin.address,
+          network: newProposal.network,
+          blockNumber: newProposal.blockNumber,
+        })
+
+        await ProxyMember.updateMetricsByAction(IMetricAction.increaseProposalCount, {
+          memberAddress: newProposal.creatorAddress,
+          pluginAddress,
+          network: info.network,
+        })
+      }
 
       const allMessages: Promise<any>[] = [
         RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {

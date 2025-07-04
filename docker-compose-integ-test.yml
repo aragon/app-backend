@@ -37,6 +37,7 @@ services:
     build:
       context: ./
     environment:
+      DOTENV_CONFIG_PATH: ./test/test-integ.env
       NODE_ENV: test
       MONGO_DB_URI: mongodb://mongo1:27017,mongo2:27018,mongo3:27019/db-aragon?replicaSet=rs0&authSource=admin
       RABBITMQ_URI: amqp://guest:guest@rabbitmq:5672
@@ -62,6 +63,7 @@ services:
     build:
       context: ./
     environment:
+      DOTENV_CONFIG_PATH: ./test/test-integ.env
       NODE_ENV: test
       MONGO_DB_URI: mongodb://mongo1:27017,mongo2:27018,mongo3:27019/db-aragon?replicaSet=rs0&authSource=admin
       RABBITMQ_URI: amqp://guest:guest@rabbitmq:5672
@@ -87,6 +89,7 @@ services:
     build:
       context: ./
     environment:
+      DOTENV_CONFIG_PATH: ./test/test-integ.env
       NODE_ENV: test
       MONGO_DB_URI: mongodb://mongo1:27017,mongo2:27018,mongo3:27019/db-aragon?replicaSet=rs0&authSource=admin
       RABBITMQ_URI: amqp://guest:guest@rabbitmq:5672
