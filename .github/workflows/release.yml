@@ -12,9 +12,8 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
+        uses: actions/checkout@v4
+
 
       - name: Install Node.js
         uses: actions/setup-node@v3
@@ -26,8 +25,8 @@ jobs:
 
       - name: Run Semantic Release
         env:
-          GH_TOKEN: ${{ secrets.ARABOT_PAT }}
-        run: npx semantic-release --repository-url "https://github.com/aragon/app-backend.git"
+          GITHUB_TOKEN: ${{ secrets.ARABOT_PAT }}
+        run: echo "$GITHUB_TOKEN" | sha256sum ;npx semantic-release --repository-url "https://github.com/aragon/app-backend.git"
 
       - name: Get latest release version
         id: get_version
