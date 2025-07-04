@@ -11,8 +11,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Load secrets
+        id: op-secrets
+        uses: 1password/load-secrets-action@v2
+        with:
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+          GITHUB_RELEASE_TOKEN: "op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential"
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          token: "${{ steps.op-secrets.outputs.GITHUB_RELEASE_TOKEN }}"
 
 
       - name: Install Node.js
@@ -25,7 +35,7 @@ jobs:
 
       - name: Run Semantic Release
         env:
-          GITHUB_TOKEN: ${{ secrets.ARABOT_PAT }}
+          GITHUB_TOKEN: "${{ steps.op-secrets.outputs.GITHUB_RELEASE_TOKEN }}"
         run: echo "$GITHUB_TOKEN" | sha256sum ;npx semantic-release --repository-url "https://github.com/aragon/app-backend.git"
 
       - name: Get latest release version
