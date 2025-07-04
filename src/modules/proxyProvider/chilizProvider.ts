@@ -20,6 +20,7 @@ import { ITransactionCategory, ITransactionType } from '@types'
 import ProxyUtils from '@modules/proxyProvider/utils'
 import Web3Helper from '@helpers/web3'
 import RouteScanHelper from '@helpers/routeScanHelper'
+import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'provider:ChilizProvider' })
 
@@ -563,7 +564,7 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
   },
 
   _rpcCall: async (path: string, params: any, network: NetworksEnum) => {
-    const baseUrl = 'https://scan.chiliz.com'
+    const baseUrl = config.CHILIZ_API_URL
 
     try {
       const response = await retryRequest(async () =>
