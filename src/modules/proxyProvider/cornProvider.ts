@@ -4,7 +4,12 @@ import RouteScanHelper from '@helpers/routeScanHelper'
 
 const CornProvider: Pick<
   IWeb3Provider,
-  'fetchAddressTxns' | 'getTokenBalances' | 'fetchBasicTokenInfo' | 'fetchContractSourceCode' | 'fetchContractCreation'
+  | 'getTokenCounters'
+  | 'fetchAddressTxns'
+  | 'getTokenBalances'
+  | 'fetchBasicTokenInfo'
+  | 'fetchContractSourceCode'
+  | 'fetchContractCreation'
 > = {
   getTokenBalances: async ({ address, network }) => {
     return BlockScoutProvider.getTokenBalances({ address, network })
@@ -24,6 +29,13 @@ const CornProvider: Pick<
 
   fetchContractCreation: async ({ address, network }) => {
     return RouteScanHelper.fetchContractCreation({ address, network })
+  },
+
+  getTokenCounters: async ({ address, network }) => {
+    return {
+      holders: await RouteScanHelper.fetchTokenHoldersCount({ address, network }),
+      transfers: 0,
+    }
   },
 }
 
