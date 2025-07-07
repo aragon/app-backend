@@ -391,4 +391,124 @@ describe('AragonPlugins: TokenHolderSync', () => {
       expect(Array.isArray(result)).to.be.true
     })
   })
+
+  describe('linkPluginToExistingTokenHolders', () => {
+    beforeEach(() => {
+      sandbox.restore()
+    })
+    it('should not process anything if no token holders exist', async () => {
+      const spyDaoMemberMappingInsertMany = sandbox.spy(Models.DaoMemberMapping, 'insertMany')
+
+      await TokenHolderSync.linkPluginToExistingTokenHolders(mockPlugin, mockToken, 1000)
+
+      expect(spyDaoMemberMappingInsertMany.called).to.be.false
+    })
+
+    it('should link existing token holders to plugin and create config indexer entry', async () => {
+      const mockHolders = ['0xHolder1', '0xHolder2']
+
+      const memberFindStub = sandbox.stub(Models.Member, 'find')
+      memberFindStub.returns({
+        distinct: sandbox.stub().resolves(mockHolders),
+      })
+      const spyDaoMemberMappingInsertMany = sandbox.spy(Models.DaoMemberMapping, 'insertMany')
+      const spyMemberMetricsInsertMany = sandbox.spy(Models.MemberMetrics, 'insertMany')
+      const spyConfigIndexerCreate = sandbox.spy(Models.ConfigIndexer, 'create')
+
+      const lastSyncBlock = 1500
+
+      // Act
+      await TokenHolderSync.linkPluginToExistingTokenHolders(mockPlugin, mockToken, lastSyncBlock)
+
+      // Assert
+      expect(
+        memberFindStub.calledWith({
+          tokenAddress: mockToken.address,
+          network: mockToken.network,
+        }),
+      ).to.be.true
+
+      const daoMemberMappings = await Models.DaoMemberMapping.find({
+        pluginAddress: mockPlugin.address,
+        tokenAddress: mockToken.address,
+        network: mockPlugin.network,
+      })
+
+      expect(spyDaoMemberMappingInsertMany.calledOnce).to.be.true
+      expect(spyMemberMetricsInsertMany.calledOnce).to.be.true
+
+      expect(daoMemberMappings.length).to.equal(mockHolders.length)
+      const memberMetrics = await Models.MemberMetrics.find({
+        pluginAddress: mockPlugin.address,
+        network: mockPlugin.network,
+      })
+
+      expect(memberMetrics.length).to.equal(mockHolders.length)
+
+      expect(spyConfigIndexerCreate.calledOnce).to.be.true
+      const configIndexer = await Models.ConfigIndexer.findOne({
+        network: mockPlugin.network,
+        service: TokenHolderSync.getTagName(mockPlugin, mockToken, TokenSyncTagName.Default),
+      })
+      expect(configIndexer).to.not.be.null
+      expect(configIndexer.lastSync).to.equal(lastSyncBlock)
+    })
+
+    it('should handle errors during insertion and still create config indexer entry', async () => {
+      // Setup - mock some token holders
+      const mockHolders = ['0xHolder1', '0xHolder2']
+
+      // Stub Member.find().distinct to return our mock holders
+      const memberFindStub = sandbox.stub(Models.Member, 'find')
+      memberFindStub.returns({
+        distinct: sandbox.stub().resolves(mockHolders),
+      })
+
+      const insertManyStub = sandbox.stub(Models.DaoMemberMapping, 'insertMany')
+      insertManyStub.throws(new Error('Database error'))
+
+      // Spy on other methods
+      const spyConfigIndexerCreate = sandbox.spy(Models.ConfigIndexer, 'create')
+      const spyLoggerError = sandbox.stub(logger, 'error')
+
+      // Act
+      await TokenHolderSync.linkPluginToExistingTokenHolders(mockPlugin, mockToken, 1000)
+
+      // Assert
+      expect(spyLoggerError.calledOnce).to.be.true
+      expect(spyConfigIndexerCreate.calledOnce).to.be.false
+    })
+
+    it('should return the last sync block if config exists', async () => {
+      // Setup
+      const mockLastSync = 5000
+
+      const findOneStub = sandbox.stub(Models.ConfigIndexer, 'findOne')
+      findOneStub.resolves({ lastSync: mockLastSync })
+
+      // Act
+      const result = await TokenHolderSync.getTokenLastSyncBlock(mockToken)
+
+      // Assert
+      expect(result).to.equal(mockLastSync)
+      expect(findOneStub.calledOnce).to.be.true
+      expect(findOneStub.firstCall.args[0]).to.deep.include({
+        network: mockToken.network,
+        regex: { $regex: `${mockToken.address}$` },
+      })
+    })
+
+    it('should return 0 if no config exists', async () => {
+      // Setup
+      const findOneStub = sandbox.stub(Models.ConfigIndexer, 'findOne')
+      findOneStub.resolves(null)
+
+      // Act
+      const result = await TokenHolderSync.getTokenLastSyncBlock(mockToken)
+
+      // Assert
+      expect(result).to.equal(0)
+      expect(findOneStub.calledOnce).to.be.true
+    })
+  })
 })
