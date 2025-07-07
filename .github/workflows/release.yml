@@ -36,7 +36,7 @@ jobs:
       - name: Run Semantic Release
         env:
           GITHUB_TOKEN: "${{ steps.op-secrets.outputs.GITHUB_RELEASE_TOKEN }}"
-        run: echo "$GITHUB_TOKEN" | sha256sum ;npx semantic-release --repository-url "https://github.com/aragon/app-backend.git"
+        run: echo "$GITHUB_TOKEN" | sha256sum ;npx semantic-release --repository-url "https://github.com/aragon/app-backend.git" --branches "fix/releases-workflow"
 
       - name: Get latest release version
         id: get_version
