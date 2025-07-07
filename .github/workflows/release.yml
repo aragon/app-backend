@@ -21,6 +21,12 @@ jobs:
           GPG_PASSPHRASE: op://kv_backend2_infra/arabot-1_SIGN_CERTS/credential
           GPG_PRIVATE_KEY: op://kv_backend2_infra/arabot-1_SIGN_CERTS/private_key
           GITHUB_RELEASE_TOKEN: "op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential"
+      
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          token: "${{ steps.op-secrets.outputs.GITHUB_RELEASE_TOKEN }}"
+
       - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@v6.3.0
         with:
@@ -28,12 +34,6 @@ jobs:
           passphrase: ${{ steps.op-secrets.outputs.GPG_PASSPHRASE }}
           git_user_signingkey: true
           git_commit_gpgsign: true
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          token: "${{ steps.op-secrets.outputs.GITHUB_RELEASE_TOKEN }}"
-
-
       - name: Install Node.js
         uses: actions/setup-node@v3
         with:
