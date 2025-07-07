@@ -268,6 +268,77 @@ describe('AragonPlugins: LogTokenVoting', () => {
       expect(processErrorStub.calledOnce).to.be.true
       expect(processErrorStub.calledWith(error, pluginStub, { logIndex: 2, transactionHash: '0xhash2' })).to.be.true
     })
+
+    it('should use linkPluginToExistingTokenHolders when token has an existing sync block', async () => {
+      const token = {
+        address: '0x123',
+        network: NetworksEnum.ethereumSepolia,
+        type: ITokenType.ERC20,
+        blockNumber: 100,
+      } as any
+
+      const plugin = {
+        address: '0x456',
+        tokenAddress: token.address,
+        network: token.network,
+        blockNumber: 200,
+        interfaceType: 'tokenVoting',
+      } as any
+
+      const getTokenLastSyncBlockStub = sandbox.stub(TokenHolderSync, 'getTokenLastSyncBlock').resolves(150)
+      const isTokenNotEligibleStub = sandbox.stub(TokenHolderSync, 'isTokenNotEligibleForSync').resolves(false)
+
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+
+      const linkPluginStub = sandbox.stub(TokenHolderSync, 'linkPluginToExistingTokenHolders').resolves()
+
+      sandbox.stub(logger, 'verbose')
+
+      await LogTokenVoting.erc20Governance(plugin, token)
+
+      expect(isTokenNotEligibleStub.calledOnce).to.be.true
+      expect(getTokenLastSyncBlockStub.calledOnce).to.be.true
+      expect(getTokenLastSyncBlockStub.calledWith(token)).to.be.true
+      expect(crawlStub.calledOnce).to.be.true
+      expect(linkPluginStub.calledOnce).to.be.true
+      expect(linkPluginStub.calledWith(plugin, token, 150)).to.be.true
+    })
+
+    it('should use tokenCrawler when token has no existing sync block', async () => {
+      // Setup
+      const token = {
+        address: '0x123',
+        network: NetworksEnum.ethereumSepolia,
+        type: ITokenType.ERC20,
+        blockNumber: 100,
+      } as any
+
+      const plugin = {
+        address: '0x456',
+        tokenAddress: token.address,
+        network: token.network,
+        blockNumber: 200,
+        interfaceType: 'tokenVoting',
+      } as any
+
+      const getTokenLastSyncBlockStub = sandbox.stub(TokenHolderSync, 'getTokenLastSyncBlock').resolves(0)
+      const isTokenNotEligibleStub = sandbox.stub(TokenHolderSync, 'isTokenNotEligibleForSync').resolves(false)
+
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+
+      const linkPluginStub = sandbox.stub(TokenHolderSync, 'linkPluginToExistingTokenHolders').resolves()
+
+      sandbox.stub(logger, 'verbose')
+
+      // Act
+      await LogTokenVoting.erc20Governance(plugin, token)
+
+      // Assert
+      expect(isTokenNotEligibleStub.calledOnce).to.be.true
+      expect(getTokenLastSyncBlockStub.calledOnce).to.be.true
+      expect(crawlStub.calledTwice).to.be.true
+      expect(linkPluginStub.called).to.be.false
+    })
   })
 
   describe('veGovernance', () => {
