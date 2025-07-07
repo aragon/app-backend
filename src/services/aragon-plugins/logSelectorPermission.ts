@@ -4,6 +4,7 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import configIndexer from '@indexer/configIndexer'
 import type Plugin from '@models/schema/plugin'
 import ProxyWeb3Provider from '@src/modules/proxyProvider'
+import ConfigIndexerHelper from '@helpers/configIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogSelectorPermission' })
 
@@ -29,7 +30,7 @@ export const LogSelectorPermission = {
       address: plugin.conditionAddress,
       fromBlock: deploymentInfo.blockNumber || plugin?.blockNumber,
       onError: async (error: any, log: any) => LogSelectorPermission.processError(error, plugin, log),
-      logService: `selectorPermission-${plugin.network}-${plugin.address}`,
+      logService: ConfigIndexerHelper.builders.permission(plugin.network, plugin.address),
       stopOnError: true,
     })
     await crawler.crawl()
