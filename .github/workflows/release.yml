@@ -11,10 +11,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+      - name: Load secrets
+        id: op-secrets
+        uses: 1password/load-secrets-action@v2
         with:
-          fetch-depth: 0
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+          GPG_PASSPHRASE: op://kv_backend2_infra/arabot-1_SIGN_CERTS/credential
+          GPG_PRIVATE_KEY: op://kv_backend2_infra/arabot-1_SIGN_CERTS/private_key
+          GITHUB_RELEASE_TOKEN: "op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential"
+      
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          token: "${{ steps.op-secrets.outputs.GITHUB_RELEASE_TOKEN }}"
 
       - name: Install Node.js
         uses: actions/setup-node@v3
@@ -23,10 +34,20 @@ jobs:
 
       - name: Install Dependencies
         run: yarn install
-
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v6.3.0
+        with:
+          gpg_private_key: ${{ steps.op-secrets.outputs.GPG_PRIVATE_KEY }}
+          passphrase: ${{ steps.op-secrets.outputs.GPG_PASSPHRASE }}
+          git_user_signingkey: true
+          git_commit_gpgsign: true
       - name: Run Semantic Release
         env:
-          GH_TOKEN: ${{ secrets.ARABOT_PAT }}
+          GITHUB_TOKEN: "${{ steps.op-secrets.outputs.GITHUB_RELEASE_TOKEN }}"
+          GIT_AUTHOR_NAME: "arabot-1"
+          GIT_AUTHOR_EMAIL: "devops@aragon.org"
+          GIT_COMMITTER_NAME: "arabot-1"
+          GIT_COMMITTER_EMAIL: "devops@aragon.org"
         run: npx semantic-release --repository-url "https://github.com/aragon/app-backend.git"
 
       - name: Get latest release version
