@@ -1,7 +1,7 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
-import { ICollectionNames, type IConfigIndexerIdParams, NetworksEnum } from '@types'
+import { ICollectionNames, type IConfigIndexerIdParams, IPluginInterfaceType, NetworksEnum } from '@types'
 import { assert } from '@errors'
 
 const customName = ICollectionNames.ConfigIndexer
@@ -82,5 +82,30 @@ export default class ConfigIndexer extends Model {
 
   async reload(tOpts?: SaveOptions) {
     return this.model(customName).findById(this._id, tOpts).exec()
+  }
+
+  static extractInfoFromServiceName(service: string) {
+    const networks = Object.values(NetworksEnum).join('|')
+    const firstSuffix = Object.values(IPluginInterfaceType).join('|') + '|dao'
+    const regex = new RegExp(`(${firstSuffix})-(${networks})-(0x[a-fA-F0-9]{40}$)`, 'g')
+    const match = regex.exec(service)
+    if (!match) {
+      return null
+    }
+    switch (match[1]) {
+      case 'dao':
+        return {
+          model: 'Dao',
+          network: match[2] as NetworksEnum,
+          address: match[3],
+        }
+      default:
+        return {
+          model: 'Plugin',
+          interfaceType: match[1] as IPluginInterfaceType,
+          network: match[2] as NetworksEnum,
+          address: match[3],
+        }
+    }
   }
 }

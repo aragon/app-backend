@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { NetworksEnum } from '@types'
+import { IPluginInterfaceType, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import ConfigIndexer from '@models/schema/configIndexer'
 
@@ -75,5 +75,27 @@ describe('Model: ConfigIndexer', () => {
     await createdConfigIndexer.reload()
 
     expect(createdConfigIndexer.tokenAddress).to.eq(rawConfigIndexer.tokenAddress)
+  })
+  it('should dismantle service and network from id', async () => {
+    const text = `dao-${NetworksEnum.chilizMainnet}-0x1234567890abcdef1234567890abcdef12345678`
+    const { service, network, address } = Models.ConfigIndexer.extractInfoFromServiceName(text)
+    expect(service).to.be.eq('dao')
+    expect(network).to.be.eq(NetworksEnum.chilizMainnet)
+    expect(address).to.be.eq('0x1234567890abcdef1234567890abcdef12345678')
+  })
+
+  it('should dismantle plugin service and network from id', async () => {
+    const text = `${IPluginInterfaceType.tokenVoting}-${NetworksEnum.ethereumMainnet}-0x1234567890abcdef1234567890abcdef12345678`
+    const { service, network, address, interfaceType } = Models.ConfigIndexer.extractInfoFromServiceName(text)
+    expect(service).to.be.eq('plugin')
+    expect(network).to.be.eq(NetworksEnum.ethereumMainnet)
+    expect(address).to.be.eq('0x1234567890abcdef1234567890abcdef12345678')
+    expect(interfaceType).to.be.eq(IPluginInterfaceType.tokenVoting)
+  })
+
+  it('should return null if service name does not match expected format', async () => {
+    const text = 'invalid-servicename-0x1234567890abcdef1234567890abcdef12345678'
+    const result = Models.ConfigIndexer.extractInfoFromServiceName(text)
+    expect(result).to.be.null
   })
 })
