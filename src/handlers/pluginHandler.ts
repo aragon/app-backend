@@ -717,4 +717,34 @@ export const PluginHandler = {
       logger.error('Error Uninstall Plugin', llo({ pluginLog, error }))
     }
   },
+
+  updateConditionAddress: async (
+    pluginAddress: HexAddress,
+    daoAddress: HexAddress,
+    network: NetworksEnum,
+    conditionAddress: HexAddress | null,
+  ): Promise<void> => {
+    const plugin = await Models.Plugin.findOne({
+      address: pluginAddress,
+      daoAddress,
+      network,
+    })
+
+    if (!plugin) {
+      logger.warn('Plugin not found for updating condition address', llo({ pluginAddress, daoAddress, network }))
+      return
+    }
+
+    if (plugin.conditionAddress === conditionAddress) {
+      return
+    }
+
+    await DbOperations.updateDocument(
+      plugin,
+      { conditionAddress },
+      { logId: plugin.id },
+      'Update Plugin Condition Address',
+      llo,
+    )
+  },
 }

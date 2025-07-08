@@ -14,6 +14,7 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import { IPermission } from '@src/types/permission'
 import { PluginHandler } from '@handlers/pluginHandler'
 import DbTx from '@modules/dbTx'
+import Utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PermissionHandler' })
 
@@ -27,7 +28,7 @@ export const PermissionHandler = {
   handleGrantOnDao: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
       const { address, network } = info
-      const { where, who, permissionId } = parsedEvent.args
+      const { where, who, permissionId, condition } = parsedEvent.args
 
       const permissionEntity = {
         network,
@@ -36,7 +37,7 @@ export const PermissionHandler = {
         logIndex: info.logIndex,
         daoAddress: address,
       }
-
+      const conditionAddress = ethers.getAddress(condition) === Utils.zeroAddress ? undefined : condition
       const existingLog = await Models.DaoPermission.findExistingLog(permissionEntity)
       if (existingLog) return
 
@@ -48,6 +49,7 @@ export const PermissionHandler = {
 
       if (permissionId === ethers.id(IPermission.EXECUTE_PERMISSION)) {
         await PluginHandler.installPluginOnPermissionGranted(where, who, info)
+        await PluginHandler.updateConditionAddress(who, where, network, conditionAddress)
       }
 
       await DbTx.executeTxFn(async ({ session }) => {
@@ -57,6 +59,7 @@ export const PermissionHandler = {
           blockNumber: info.blockNumber,
           permissionId,
           event: IEventLogPermission.Granted,
+          conditionAddress,
           ...permissionEntity,
         }
 
@@ -73,7 +76,7 @@ export const PermissionHandler = {
   handleRevokeOnDao: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
       const { address, network } = info
-      const { who, where, permissionId } = parsedEvent.args
+      const { who, where, permissionId, condition } = parsedEvent.args
 
       const permissionEntity = {
         network,
@@ -84,6 +87,7 @@ export const PermissionHandler = {
       }
 
       const entityId = Models.DaoPermission.getEntityId(permissionEntity)
+      const conditionAddress = ethers.getAddress(condition) === Utils.zeroAddress ? undefined : condition
 
       const existingLog = await Models.DaoPermission.findExistingLog(entityId)
       if (existingLog) return
@@ -105,6 +109,7 @@ export const PermissionHandler = {
           blockNumber: info.blockNumber,
           permissionId,
           event: IEventLogPermission.Revoked,
+          conditionAddress,
           ...permissionEntity,
         }
 

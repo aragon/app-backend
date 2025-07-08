@@ -55,6 +55,9 @@ export default class DaoPermission extends Model {
   @prop({ type: () => String, enum: IEventLogPermission, required: true })
   public event!: IEventLogPermission
 
+  @prop({ type: () => String, default: null })
+  public conditionAddress?: HexAddress
+
   static async create(rawData: Partial<DaoPermission>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')

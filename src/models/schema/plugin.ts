@@ -201,6 +201,9 @@ export default class Plugin extends Model {
   @prop({ type: () => VotingEscrow, _id: false, default: null })
   public votingEscrow?: VotingEscrow
 
+  @prop({ type: () => String, default: null })
+  public conditionAddress?: HexAddress
+
   static async create(rawData: Partial<Plugin>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
