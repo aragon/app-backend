@@ -78,16 +78,16 @@ describe('Model: ConfigIndexer', () => {
   })
   it('should dismantle service and network from id', async () => {
     const text = `dao-${NetworksEnum.chilizMainnet}-0x1234567890abcdef1234567890abcdef12345678`
-    const { service, network, address } = Models.ConfigIndexer.extractInfoFromServiceName(text)
-    expect(service).to.be.eq('dao')
+    const { model, network, address } = Models.ConfigIndexer.extractInfoFromServiceName(text)
+    expect(model).to.be.eq('Dao')
     expect(network).to.be.eq(NetworksEnum.chilizMainnet)
     expect(address).to.be.eq('0x1234567890abcdef1234567890abcdef12345678')
   })
 
   it('should dismantle plugin service and network from id', async () => {
     const text = `${IPluginInterfaceType.tokenVoting}-${NetworksEnum.ethereumMainnet}-0x1234567890abcdef1234567890abcdef12345678`
-    const { service, network, address, interfaceType } = Models.ConfigIndexer.extractInfoFromServiceName(text)
-    expect(service).to.be.eq('plugin')
+    const { model, network, address, interfaceType } = Models.ConfigIndexer.extractInfoFromServiceName(text)
+    expect(model).to.be.eq('Plugin')
     expect(network).to.be.eq(NetworksEnum.ethereumMainnet)
     expect(address).to.be.eq('0x1234567890abcdef1234567890abcdef12345678')
     expect(interfaceType).to.be.eq(IPluginInterfaceType.tokenVoting)
