@@ -87,7 +87,8 @@ export default class ConfigIndexer extends Model {
   static extractInfoFromServiceName(service: string) {
     const networks = Object.values(NetworksEnum).join('|')
     const firstSuffix = Object.values(IPluginInterfaceType).join('|') + '|dao'
-    const regex = new RegExp(`(${firstSuffix})-(${networks})-(0x[a-fA-F0-9]{40}$)`, 'g')
+    const regex = new RegExp(`^(${firstSuffix})-(${networks})-(0x[a-fA-F0-9]{40}$)`)
+
     const match = regex.exec(service)
     if (!match) {
       return null
