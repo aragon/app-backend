@@ -25,6 +25,8 @@ import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
 import { ExitQueue } from '@artifacts/ExitQueue'
 import { VotingEscrow } from '@artifacts/VotingEscrow'
 import { DaoV2 } from '@artifacts/daoV2'
+import { ExecuteSelectorCondition } from '@artifacts/ExecuteSelectorCondition'
+import { SelectorPermissionHandler } from '@src/handlers/executeSelectorHandler'
 
 const IndexerEventConfig: IIndexerConfig[] = [
   // historical and realtime on startup
@@ -415,6 +417,50 @@ const IndexerEventConfig: IIndexerConfig[] = [
       {
         abi: VotingEscrow.abi,
         handler: GovernanceVeHandler.unDelegateTokens,
+      },
+    ],
+  },
+  {
+    event: 'SelectorAllowed',
+    enableHistorical: false,
+    topic: new Interface(ExecuteSelectorCondition.abi).getEvent('SelectorAllowed')?.topicHash!,
+    config: [
+      {
+        abi: ExecuteSelectorCondition.abi,
+        handler: SelectorPermissionHandler.selectorAllowed,
+      },
+    ],
+  },
+  {
+    event: 'SelectorDisallowed',
+    enableHistorical: false,
+    topic: new Interface(ExecuteSelectorCondition.abi).getEvent('SelectorDisallowed')?.topicHash!,
+    config: [
+      {
+        abi: ExecuteSelectorCondition.abi,
+        handler: SelectorPermissionHandler.selectorDisallowed,
+      },
+    ],
+  },
+  {
+    event: 'EthTransfersAllowed',
+    enableHistorical: false,
+    topic: new Interface(ExecuteSelectorCondition.abi).getEvent('EthTransfersAllowed')?.topicHash!,
+    config: [
+      {
+        abi: ExecuteSelectorCondition.abi,
+        handler: SelectorPermissionHandler.ethTransfersAllowed,
+      },
+    ],
+  },
+  {
+    event: 'EthTransfersDisallowed',
+    enableHistorical: false,
+    topic: new Interface(ExecuteSelectorCondition.abi).getEvent('EthTransfersDisallowed')?.topicHash!,
+    config: [
+      {
+        abi: ExecuteSelectorCondition.abi,
+        handler: SelectorPermissionHandler.ethTransfersDisallowed,
       },
     ],
   },
