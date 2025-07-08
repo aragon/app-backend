@@ -184,6 +184,7 @@ export const TokenHolderSync = {
     })
 
     await crawlerTokenDelegationOnly.crawl()
+    await crawlerTokenDelegationOnly.end()
   },
 
   syncTransfersEvents: async (plugin: Plugin, token: Token) => {
@@ -210,6 +211,7 @@ export const TokenHolderSync = {
     })
 
     await crawlerTokenTransfers.crawl()
+    await crawlerTokenTransfers.end()
   },
 
   convertToStandardSync: async (plugin: Plugin, token: Token) => {
