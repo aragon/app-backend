@@ -24,6 +24,7 @@ export const LogSpp = {
       stopOnError: true,
     })
     await crawler.crawl()
+    await crawler.end()
 
     logger.verbose('End LogSpp', llo({ network: plugin.network, latestBlockSync: crawler.crawlSetting.lastSync }))
   },

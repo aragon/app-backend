@@ -81,6 +81,7 @@ export const LogTokenVoting = {
 
     const startTime = Date.now()
     await Promise.all(crawlers)
+    await Promise.all([pluginCrawler.end(), veGovernanceCrawler.end()])
 
     logger.verbose(
       'End LogTokenVoting veGovernance',
@@ -135,8 +136,8 @@ export const LogTokenVoting = {
       logger.verbose('Start Sync Only Delegates Events', llo({ ...infoLogs, skipSync }))
 
       await Promise.all([pluginCrawler.crawl(), TokenHolderSync.syncDelegationEvents(plugin, token)])
-
       await TokenHolderSync.convertToStandardSync(plugin, token)
+      await pluginCrawler.end()
 
       logger.verbose(
         'End LogTokenVoting',
@@ -173,6 +174,7 @@ export const LogTokenVoting = {
     }
 
     await Promise.all(crawlers)
+    await Promise.all([pluginCrawler.end(), tokenCrawler.end()])
 
     logger.verbose(
       'End LogTokenVoting',
