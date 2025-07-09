@@ -26,7 +26,7 @@ import { ExitQueue } from '@artifacts/ExitQueue'
 import { VotingEscrow } from '@artifacts/VotingEscrow'
 import { DaoV2 } from '@artifacts/daoV2'
 import { ExecuteSelectorCondition } from '@artifacts/ExecuteSelectorCondition'
-import { SelectorPermissionHandler } from '@src/handlers/executeSelectorHandler'
+import { SelectorPermissionHandler } from '@handlers/executeSelectorHandler'
 
 const IndexerEventConfig: IIndexerConfig[] = [
   // historical and realtime on startup
