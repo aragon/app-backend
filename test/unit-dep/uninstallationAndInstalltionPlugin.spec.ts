@@ -19,7 +19,7 @@ describe('Installation And Uninstallation Of Plugin Via Revoke And Grant ', () =
     sandbox && sandbox.restore()
   })
 
-  it.only('should revoke and grant permission to plugin', async function () {
+  it('should revoke and grant permission to plugin', async function () {
     this.timeout(1000000)
     const revokeTxHash = '0x9ef64afa23ef2ced4dbfec481c31dd7a17441fc6b6c586d14104a10e59342966'
 
