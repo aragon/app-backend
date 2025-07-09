@@ -106,6 +106,15 @@ describe('Indexer: Permission Handler', () => {
       await PermissionHandler.handleGrantOnDao(parsedEvent, info)
 
       expect(findExistingLog.callCount).to.eq(1)
+      expect(
+        findExistingLog.calledWith({
+          network: info.network,
+          transactionHash: info.transactionHash,
+          transactionIndex: info.transactionIndex,
+          logIndex: info.logIndex,
+          daoAddress: info.address,
+        }),
+      ).to.be.true
       expect(handleForAdminPlugin.calledOnce).to.be.false
       expect(loggerVerbose.notCalled).to.be.true
     })
@@ -231,6 +240,15 @@ describe('Indexer: Permission Handler', () => {
       await PermissionHandler.handleRevokeOnDao(parsedEvent, info)
 
       expect(findExistingLog.called).to.be.true
+      expect(
+        findExistingLog.calledWith({
+          network: info.network,
+          transactionHash: info.transactionHash,
+          transactionIndex: info.transactionIndex,
+          logIndex: info.logIndex,
+          daoAddress: info.address,
+        }),
+      ).to.be.true
       expect(handleForAdminPlugin.calledOnce).to.be.true
       expect(loggerVerbose.calledOnce).to.be.true
     })
