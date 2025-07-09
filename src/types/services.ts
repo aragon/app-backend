@@ -34,4 +34,4 @@ export enum IEnumIndexerService {
 }
 
 export type IEnumIndexerServiceStatic =
-  `${'indexer' | 'token' | 'deposit' | 'dao' | NetworksEnum | IPluginInterfaceType}-${string}-${string}`
+  `${'indexer' | 'token' | 'deposit' | 'dao' | 'selectorPermission' | NetworksEnum | IPluginInterfaceType}-${string}-${string}`
