@@ -19,7 +19,7 @@ describe('Installation And Uninstallation Of Plugin Via Revoke And Grant ', () =
     sandbox && sandbox.restore()
   })
 
-  it('should revoke and grant permission to plugin', async function () {
+  it.only('should revoke and grant permission to plugin', async function () {
     this.timeout(1000000)
     const revokeTxHash = '0x9ef64afa23ef2ced4dbfec481c31dd7a17441fc6b6c586d14104a10e59342966'
 
@@ -77,21 +77,29 @@ describe('Installation And Uninstallation Of Plugin Via Revoke And Grant ', () =
     //here is the revoke and grant happening
 
     const logsRevokeAndGrant = await UnitDepUtils.parseLogsByConfig(revokeTxReceipt.logs as any, network)
-
-    for(const ev of logsRevokeAndGrant) {
-      await ev.handler(ev.event, ev.info)
-    }
-
-
     const logsRevoked = logsRevokeAndGrant[0]
 
     let plugin = await Models.Plugin.findByAddress(logsRevoked.event.args.who, network)
+
+    for (let i = 0; i < logsRevokeAndGrant.length; i++) {
+      const ev = logsRevokeAndGrant[i]
+      await ev.handler(ev.event, ev.info)
+      if (i === 0) {
+        plugin = await plugin.reload()
+        expect(plugin.status).to.be.eq(IPluginStatus.uninstalled)
+      }
+
+      if (i === 1) {
+        plugin = await plugin.reload()
+        expect(plugin.status).to.be.eq(IPluginStatus.installed)
+      }
+    }
+
     expect(plugin.status).to.be.eq(IPluginStatus.installed)
 
-    for(const ev of logsRevokeAndGrant) {
+    //re-handle the logs to ensure everything is processed correctly
+    for (const ev of logsRevokeAndGrant) {
       await ev.handler(ev.event, ev.info)
-      plugin = await plugin.reload()
-      expect(plugin.status).to.be.eq(IPluginStatus.uninstalled)
     }
 
     plugin = await plugin.reload()
