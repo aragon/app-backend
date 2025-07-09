@@ -10,6 +10,7 @@ import {
   IPluginStatus,
   type IQueryGetPlugin,
   type NetworksEnum,
+  EnumQueueName,
 } from '@types'
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
 import type Plugin from '@models/schema/plugin'
@@ -23,6 +24,7 @@ import { PluginSlug } from '@helpers/pluginSlug'
 import DbTx from '@modules/dbTx'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import { MetadataHandler } from '@handlers/metadataHandler'
+import RabbitMQHelper from '@src/helpers/rabbitMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PluginHandler' })
 
@@ -746,5 +748,14 @@ export const PluginHandler = {
       'Update Plugin Condition Address',
       llo,
     )
+
+    await RabbitMQHelper.sendMessage(EnumQueueName.logSelectorPermission, {
+      id: plugin.id,
+      params: {
+        address: plugin.address,
+        network: plugin.network,
+        conditionAddress,
+      },
+    })
   },
 }

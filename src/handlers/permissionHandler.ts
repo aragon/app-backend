@@ -29,6 +29,8 @@ export const PermissionHandler = {
     try {
       const { address, network } = info
       const { where, who, permissionId, condition } = parsedEvent.args
+      const conditionAddress =
+        condition === null && ethers.getAddress(condition) === Utils.zeroAddress ? undefined : condition
 
       const permissionEntity = {
         network,
@@ -37,7 +39,7 @@ export const PermissionHandler = {
         logIndex: info.logIndex,
         daoAddress: address,
       }
-      const conditionAddress = ethers.getAddress(condition) === Utils.zeroAddress ? undefined : condition
+
       const existingLog = await Models.DaoPermission.findExistingLog(permissionEntity)
       if (existingLog) return
 
@@ -49,7 +51,7 @@ export const PermissionHandler = {
 
       if (permissionId === ethers.id(IPermission.EXECUTE_PERMISSION)) {
         await PluginHandler.installPluginOnPermissionGranted(where, who, info)
-        await PluginHandler.updateConditionAddress(who, where, network, conditionAddress)
+        if (conditionAddress) await PluginHandler.updateConditionAddress(who, where, network, conditionAddress)
       }
 
       await DbTx.executeTxFn(async ({ session }) => {
@@ -77,6 +79,7 @@ export const PermissionHandler = {
     try {
       const { address, network } = info
       const { who, where, permissionId, condition } = parsedEvent.args
+      const conditionAddress = condition && ethers.getAddress(condition) === Utils.zeroAddress ? undefined : condition
 
       const permissionEntity = {
         network,
@@ -86,10 +89,7 @@ export const PermissionHandler = {
         daoAddress: address,
       }
 
-      const entityId = Models.DaoPermission.getEntityId(permissionEntity)
-      const conditionAddress = ethers.getAddress(condition) === Utils.zeroAddress ? undefined : condition
-
-      const existingLog = await Models.DaoPermission.findExistingLog(entityId)
+      const existingLog = await Models.DaoPermission.findExistingLog(permissionEntity)
       if (existingLog) return
 
       const permissionToCheck = ethers.id(IPermission.EXECUTE_PROPOSAL_PERMISSION)
