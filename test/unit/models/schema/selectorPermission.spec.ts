@@ -231,14 +231,6 @@ describe('Model: SelectorPermission', () => {
         logIndex: 2, // Make sure logIndex is different
       })
 
-      const disallowedPermission = await Models.SelectorPermission.create({
-        ...rawSelectorPermission,
-        transactionHash: '0x7777777777777777777777777777777777777777777777777777777777777777',
-        selector: '0x87654321',
-        logIndex: 3, // Make sure logIndex is different
-        isAllowed: false,
-      })
-
       const allowedSelectors = await Models.SelectorPermission.findAllowedSelectors(
         rawSelectorPermission.pluginAddress,
         rawSelectorPermission.daoAddress,

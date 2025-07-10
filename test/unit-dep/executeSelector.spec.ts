@@ -11,7 +11,6 @@ import { PluginHandler } from '@handlers/pluginHandler'
 
 describe('ExecuteSelector: Integration Test', () => {
   let sandbox: sinon.SinonSandbox
-  const eventsToLook = ['SelectorAllowed', 'SelectorDisallowed', 'EthTransfersAllowed', 'EthTransfersDisallowed']
   const grantedEvent = 'Granted'
 
   const mockDao = {
@@ -120,7 +119,6 @@ describe('ExecuteSelector: Integration Test', () => {
 
       // Step 1: Grant event - Set condition address
       const grantedTxHash = '0x1111111111111111111111111111111111111111111111111111111111111111'
-      const conditionAddress = '0x4444444444444444444444444444444444444444'
 
       logger.info('Step 1: Processing Grant event to set condition address')
 
@@ -150,8 +148,6 @@ describe('ExecuteSelector: Integration Test', () => {
 
       // Step 2: SelectorAllowed event - Allow a selector
       const selectorAllowedTxHash = '0x2222222222222222222222222222222222222222222222222222222222222222'
-      const allowedSelector = '0x12345678'
-      const targetAddress = '0x5555555555555555555555555555555555555555'
 
       logger.info('Step 2: Processing SelectorAllowed event')
 
@@ -273,7 +269,6 @@ describe('ExecuteSelector: Integration Test', () => {
 
       // Step 2: EthTransfersAllowed event
       const ethTransfersAllowedTxHash = '0x4444444444444444444444444444444444444444444444444444444444444444'
-      const targetAddress = '0x6666666666666666666666666666666666666666'
 
       logger.info('Step 2: Processing EthTransfersAllowed event')
 
