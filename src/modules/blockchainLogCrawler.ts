@@ -536,8 +536,10 @@ class BlockchainLogCrawler {
       network: this.crawlParams.network,
       service: this.crawlParams.logService,
     })
-    configIndex.end = true
-    await configIndex.save()
+    if (configIndex) {
+      configIndex.end = true
+      await configIndex.save()
+    }
   }
 
   // If we're only processing a small range, use getLogsByBatch without topics

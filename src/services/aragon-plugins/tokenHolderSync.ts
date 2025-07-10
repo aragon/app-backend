@@ -6,8 +6,6 @@ import type Plugin from '@models/schema/plugin'
 import type Token from '@models/schema/token'
 import configIndexer from '@indexer/configIndexer'
 import config from '@config'
-import { ProxyMember } from '@modules/proxyMember'
-import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 

@@ -1474,6 +1474,140 @@ describe('Module: blockchainLogCrawler', () => {
     expect(startBlock).to.equal(defaultFromBlock)
   })
 
+  describe('end', () => {
+    it('should set end to true and save when config exists', async () => {
+      const crawler = new BlockchainLogCrawler({
+        ...crawlerConfig,
+        logService: 'indexer-ethereum-mainnet',
+      })
+
+      const mockConfig = {
+        end: false,
+        save: sandbox.stub().resolves(),
+      }
+
+      const findExistingLogStub = sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves(mockConfig)
+
+      await crawler.end()
+
+      expect(
+        findExistingLogStub.calledOnceWith({
+          network: NetworksEnum.ethereumMainnet,
+          service: 'indexer-ethereum-mainnet',
+        }),
+      ).to.be.true
+
+      expect(mockConfig.end).to.be.true
+      expect(mockConfig.save.calledOnce).to.be.true
+    })
+
+    it('should do nothing when no config exists', async () => {
+      const crawler = new BlockchainLogCrawler({
+        ...crawlerConfig,
+        logService: 'indexer-ethereum-mainnet',
+      })
+
+      const findExistingLogStub = sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves(null)
+
+      await crawler.end()
+
+      expect(
+        findExistingLogStub.calledOnceWith({
+          network: NetworksEnum.ethereumMainnet,
+          service: 'indexer-ethereum-mainnet',
+        }),
+      ).to.be.true
+    })
+
+    it('should work without logService', async () => {
+      const crawler = new BlockchainLogCrawler({
+        ...crawlerConfig,
+        logService: undefined,
+      })
+
+      const findExistingLogStub = sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves(null)
+
+      await crawler.end()
+
+      expect(
+        findExistingLogStub.calledOnceWith({
+          network: NetworksEnum.ethereumMainnet,
+          service: undefined,
+        }),
+      ).to.be.true
+    })
+
+    it('should handle errors during save', async () => {
+      const crawler = new BlockchainLogCrawler({
+        ...crawlerConfig,
+        logService: 'indexer-ethereum-mainnet',
+      })
+
+      const saveError = new Error('Database save failed')
+      const mockConfig = {
+        end: false,
+        save: sandbox.stub().rejects(saveError),
+      }
+
+      const findExistingLogStub = sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves(mockConfig)
+
+      try {
+        await crawler.end()
+        expect.fail('Should have thrown an error')
+      } catch (error) {
+        expect(error).to.equal(saveError)
+        expect(mockConfig.end).to.be.true
+        expect(mockConfig.save.calledOnce).to.be.true
+      }
+    })
+
+    it('should handle errors during findExistingLog', async () => {
+      const crawler = new BlockchainLogCrawler({
+        ...crawlerConfig,
+        logService: 'indexer-ethereum-mainnet',
+      })
+
+      const findError = new Error('Database query failed')
+      const findExistingLogStub = sandbox.stub(Models.ConfigIndexer, 'findExistingLog').rejects(findError)
+
+      try {
+        await crawler.end()
+        expect.fail('Should have thrown an error')
+      } catch (error) {
+        expect(error).to.equal(findError)
+        expect(findExistingLogStub.calledOnce).to.be.true
+      }
+    })
+
+    it('should handle multiple calls to end', async () => {
+      const crawler = new BlockchainLogCrawler({
+        ...crawlerConfig,
+        logService: 'indexer-ethereum-mainnet',
+      })
+
+      const mockConfig = {
+        end: false,
+        save: sandbox.stub().resolves(),
+      }
+
+      const findExistingLogStub = sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves(mockConfig)
+
+      // First call
+      await crawler.end()
+      expect(mockConfig.end).to.be.true
+      expect(mockConfig.save.calledOnce).to.be.true
+
+      // Reset for second call
+      mockConfig.save.resetHistory()
+
+      // Second call
+      await crawler.end()
+      expect(mockConfig.end).to.be.true
+      expect(mockConfig.save.calledOnce).to.be.true
+      expect(findExistingLogStub.calledTwice).to.be.true
+    })
+  })
+
   describe('getStrategyBySituation', () => {
     it('should return getBlockReceipts when oneBlockPerTime is true and range is within threshold', async () => {
       const crawler = new BlockchainLogCrawler({
