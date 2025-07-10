@@ -34,12 +34,15 @@ export const LogSelectorPermission = {
     })
     await crawler.crawl()
 
-    logger.verbose('End LogDao', llo({ network: plugin.network, latestBlockSync: crawler.crawlSetting.lastSync }))
+    logger.verbose(
+      'End SelectorPermission',
+      llo({ network: plugin.network, latestBlockSync: crawler.crawlSetting.lastSync }),
+    )
   },
 
   processError: async (error: any, plugin: Plugin, log: any) => {
     logger.error(
-      'Error LogDao',
+      'Error SelectorPermission',
       llo({
         log,
         error,
