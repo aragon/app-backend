@@ -37,7 +37,7 @@ describe('AragonPlugins: LogSelectorPermission', () => {
 
       expect(crawlStub.calledOnce).to.be.true
       expect(verboseStub.calledWith('Start LogSelectorPermission' as any)).to.be.true
-      expect(verboseStub.calledWith('End LogDao' as any)).to.be.true
+      expect(verboseStub.calledWith('End SelectorPermission' as any)).to.be.true
       expect(verboseStub.calledTwice).to.be.true
       expect(fetchContractCreationStub.calledOnce).to.be.true
       expect(
@@ -188,7 +188,7 @@ describe('AragonPlugins: LogSelectorPermission', () => {
       await LogSelectorPermission.processError('error-message', pluginStub as any, logStub)
 
       expect(errorStub.calledOnce).to.be.true
-      expect(errorStub.calledWith('Error LogDao' as any)).to.be.true
+      expect(errorStub.calledWith('Error SelectorPermission' as any)).to.be.true
     })
 
     it('should include plugin and log details in error message', async () => {
