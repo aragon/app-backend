@@ -9,6 +9,7 @@ import { NetworksEnum } from '@types'
 import { ethers } from 'ethers'
 import { ProxyMember } from '@modules/proxyMember'
 import { PluginHandler } from '@handlers/pluginHandler'
+import Utils from '@helpers/utils'
 
 describe('Indexer: Permission Handler', () => {
   let sandbox: SinonSandbox
@@ -26,6 +27,7 @@ describe('Indexer: Permission Handler', () => {
           where: 'where',
           who: 'who',
           permissionId: '0xf281525e53675515a6ba7cc7bea8a81e649b3608423ee2d73be1752cea887889',
+          condition: undefined,
         },
       } as any
 
@@ -56,6 +58,7 @@ describe('Indexer: Permission Handler', () => {
           where: 'where',
           who: 'who',
           permissionId: ethers.id('EXECUTE_PROPOSAL_PERMISSION'),
+          condition: undefined,
         },
       } as any
 
@@ -80,12 +83,114 @@ describe('Indexer: Permission Handler', () => {
       expect(loggerVerbose.calledOnce).to.be.true
     })
 
+    it('should handle grant with condition address', async () => {
+      const conditionAddress = '0x1234567890123456789012345678901234567890'
+      const parsedEvent = {
+        args: {
+          where: 'where',
+          who: 'who',
+          permissionId: ethers.id('EXECUTE_PERMISSION'),
+          condition: conditionAddress,
+        },
+      } as any
+
+      const info = {
+        address: '0xaddress',
+        network: NetworksEnum.ethereumSepolia,
+        transactionHash: 'transactionHash',
+        transactionIndex: 212,
+        logIndex: 213,
+        blockNumber: 1212,
+      } as any
+
+      const loggerVerbose = sandbox.stub(logger, 'verbose')
+      const findExistingLog = sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
+      const installPluginWithPermissionGrant = sandbox.stub(PluginHandler, 'installPluginOnPermissionGranted')
+      const updateConditionAddress = sandbox.stub(PluginHandler, 'updateConditionAddress')
+
+      await PermissionHandler.handleGrantOnDao(parsedEvent, info)
+
+      expect(findExistingLog.called).to.be.true
+      expect(installPluginWithPermissionGrant.calledOnce).to.be.true
+      expect(updateConditionAddress.calledOnce).to.be.true
+      expect(updateConditionAddress.args[0][0]).to.equal('who')
+      expect(updateConditionAddress.args[0][1]).to.equal('where')
+      expect(updateConditionAddress.args[0][2]).to.equal(NetworksEnum.ethereumSepolia)
+      expect(updateConditionAddress.args[0][3]).to.equal(conditionAddress)
+      expect(loggerVerbose.calledOnce).to.be.true
+    })
+
+    it('should not call updateConditionAddress if condition is zero address', async () => {
+      const parsedEvent = {
+        args: {
+          where: 'where',
+          who: 'who',
+          permissionId: ethers.id('EXECUTE_PERMISSION'),
+          condition: Utils.zeroAddress,
+        },
+      } as any
+
+      const info = {
+        address: '0xaddress',
+        network: NetworksEnum.ethereumSepolia,
+        transactionHash: 'transactionHash',
+        transactionIndex: 212,
+        logIndex: 213,
+        blockNumber: 1212,
+      } as any
+
+      const loggerVerbose = sandbox.stub(logger, 'verbose')
+      const findExistingLog = sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
+      const installPluginWithPermissionGrant = sandbox.stub(PluginHandler, 'installPluginOnPermissionGranted')
+      const updateConditionAddress = sandbox.stub(PluginHandler, 'updateConditionAddress')
+
+      await PermissionHandler.handleGrantOnDao(parsedEvent, info)
+
+      expect(findExistingLog.called).to.be.true
+      expect(installPluginWithPermissionGrant.calledOnce).to.be.true
+      expect(updateConditionAddress.called).to.be.false
+      expect(loggerVerbose.calledOnce).to.be.true
+    })
+
+    it('should not call updateConditionAddress if condition is 0x0000000000000000000000000000000000000002', async () => {
+      const parsedEvent = {
+        args: {
+          where: 'where',
+          who: 'who',
+          permissionId: ethers.id('EXECUTE_PERMISSION'),
+          condition: '0x0000000000000000000000000000000000000002',
+        },
+      } as any
+
+      const info = {
+        address: '0xaddress',
+        network: NetworksEnum.ethereumSepolia,
+        transactionHash: 'transactionHash',
+        transactionIndex: 212,
+        logIndex: 213,
+        blockNumber: 1212,
+      } as any
+
+      const loggerVerbose = sandbox.stub(logger, 'verbose')
+      const findExistingLog = sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
+      const installPluginWithPermissionGrant = sandbox.stub(PluginHandler, 'installPluginOnPermissionGranted')
+      const updateConditionAddress = sandbox.stub(PluginHandler, 'updateConditionAddress')
+
+      await PermissionHandler.handleGrantOnDao(parsedEvent, info)
+
+      expect(findExistingLog.called).to.be.true
+      expect(installPluginWithPermissionGrant.calledOnce).to.be.true
+      expect(updateConditionAddress.called).to.be.false
+      expect(loggerVerbose.calledOnce).to.be.true
+    })
+
     it('should return if already exists', async () => {
       const parsedEvent = {
         args: {
           where: 'where',
           who: 'who',
           permissionId: '0xf281525e53675515a6ba7cc7bea8a81e649b3608423ee2d73be1752cea887889',
+          condition: undefined,
         },
       } as any
 
@@ -125,6 +230,7 @@ describe('Indexer: Permission Handler', () => {
           where: 'where',
           who: 'who',
           permissionId: '0xf281525e53675515a6ba7cc7bea8a81e649b3608423ee2d73be1752cea887889',
+          condition: undefined,
         },
       } as any
 
@@ -154,6 +260,7 @@ describe('Indexer: Permission Handler', () => {
           where: 'where',
           who: 'who',
           permissionId: ethers.id('EXECUTE_PERMISSION'),
+          condition: undefined,
         },
       } as any
 
@@ -190,6 +297,7 @@ describe('Indexer: Permission Handler', () => {
           where: 'where',
           who: 'who',
           permissionId: 'permissionId',
+          condition: undefined,
         },
       } as any
 
@@ -220,6 +328,7 @@ describe('Indexer: Permission Handler', () => {
           where: 'where',
           who: 'who',
           permissionId: ethers.id('EXECUTE_PROPOSAL_PERMISSION'),
+          condition: undefined,
         },
       } as any
 
@@ -253,12 +362,48 @@ describe('Indexer: Permission Handler', () => {
       expect(loggerVerbose.calledOnce).to.be.true
     })
 
+    it('should handle revoke with condition address', async () => {
+      const conditionAddress = '0x1234567890123456789012345678901234567890'
+      const parsedEvent = {
+        args: {
+          where: 'where',
+          who: 'who',
+          permissionId: ethers.id('EXECUTE_PERMISSION'),
+          condition: conditionAddress,
+        },
+      } as any
+
+      const info = {
+        address: '0xaddress',
+        network: NetworksEnum.ethereumSepolia,
+        transactionHash: 'transactionHash',
+        transactionIndex: 212,
+        logIndex: 213,
+        blockNumber: 1212,
+      } as any
+
+      const loggerVerbose = sandbox.stub(logger, 'verbose')
+      const findExistingLog = sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
+      const uninstallPluginWithPermissionRevoke = sandbox.stub(PluginHandler, 'uninstallPluginWithPermissionRevoke')
+
+      await PermissionHandler.handleRevokeOnDao(parsedEvent, info)
+
+      expect(findExistingLog.called).to.be.true
+      expect(uninstallPluginWithPermissionRevoke.calledOnce).to.be.true
+      expect(uninstallPluginWithPermissionRevoke.args[0][0]).to.equal('who')
+      expect(uninstallPluginWithPermissionRevoke.args[0][1]).to.equal('where')
+      expect(uninstallPluginWithPermissionRevoke.args[0][2]).to.equal(NetworksEnum.ethereumSepolia)
+      expect(uninstallPluginWithPermissionRevoke.args[0][3]).to.deep.equal(info)
+      expect(loggerVerbose.calledOnce).to.be.true
+    })
+
     it('should handle when execute permission is revoked', async () => {
       const parsedEvent = {
         args: {
           where: 'where',
           who: 'who',
           permissionId: ethers.id('EXECUTE_PERMISSION'),
+          condition: undefined,
         },
       } as any
 
@@ -292,6 +437,7 @@ describe('Indexer: Permission Handler', () => {
           where: 'where',
           who: 'who',
           permissionId: 'permissionId',
+          condition: undefined,
         },
       } as any
 
@@ -322,6 +468,7 @@ describe('Indexer: Permission Handler', () => {
           where: 'where',
           who: 'who',
           permissionId: 'permissionId',
+          condition: undefined,
         },
       } as any
 
@@ -343,6 +490,36 @@ describe('Indexer: Permission Handler', () => {
 
       expect(handleForAdminPlugin.calledOnce).to.be.false
       expect(loggerError.calledOnce).to.be.true
+    })
+  })
+
+  describe('validateAndGetConditionAddress', () => {
+    it('should return undefined for undefined condition', () => {
+      const result = PermissionHandler.validateAndGetConditionAddress(undefined)
+      expect(result).to.be.undefined
+    })
+
+    it('should return undefined for zero address', () => {
+      const result = PermissionHandler.validateAndGetConditionAddress(Utils.zeroAddress)
+      expect(result).to.be.undefined
+    })
+
+    it('should return undefined for 0x0000000000000000000000000000000000000002', () => {
+      const result = PermissionHandler.validateAndGetConditionAddress('0x0000000000000000000000000000000000000002')
+      expect(result).to.be.undefined
+    })
+
+    it('should return checksummed address for valid address', () => {
+      const inputAddress = '0x1234567890123456789012345678901234567890'
+      const result = PermissionHandler.validateAndGetConditionAddress(inputAddress)
+      expect(result).to.equal(ethers.getAddress(inputAddress))
+    })
+
+    it('should return checksummed address for lowercase address', () => {
+      const inputAddress = '0x1234567890123456789012345678901234567890'
+      const lowerCaseAddress = inputAddress.toLowerCase()
+      const result = PermissionHandler.validateAndGetConditionAddress(lowerCaseAddress)
+      expect(result).to.equal(ethers.getAddress(inputAddress))
     })
   })
 

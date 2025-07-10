@@ -6,6 +6,20 @@ import { assert } from '@errors'
 
 const customName = ICollectionNames.SelectorPermission
 
+export class Disallowed {
+  @prop({ type: () => Boolean, default: false })
+  public status!: boolean
+
+  @prop({ type: () => String, default: null })
+  public transactionHash!: HexAddress | null
+
+  @prop({ type: () => Number, default: null })
+  public blockNumber!: number | null
+
+  @prop({ type: () => Number, default: null })
+  public blockTimestamp!: number | null
+}
+
 @modelOptions({
   schemaOptions: {
     id: false,
@@ -22,22 +36,8 @@ const customName = ICollectionNames.SelectorPermission
 @index({ pluginAddress: 1, daoAddress: 1, conditionAddress: 1 })
 @index({ network: 1, transactionHash: 1 })
 @index({ pluginAddress: 1, selector: 1 })
-export class Disallowed {
-  @prop({ type: () => Boolean, default: false })
-  public status!: boolean
-
-  @prop({ type: () => String, default: null })
-  public transactionHash!: HexAddress | null
-
-  @prop({ type: () => Number, default: null })
-  public blockNumber!: number | null
-
-  @prop({ type: () => Number, default: null })
-  public blockTimestamp!: number | null
-}
-
 export default class SelectorPermission extends Model {
-  @prop({ type: () => String, required: true, unique: true })
+  @prop({ type: () => String, required: true })
   public id!: string
 
   @prop({ type: () => String, required: true })
@@ -76,7 +76,7 @@ export default class SelectorPermission extends Model {
   @prop({ type: () => Boolean, default: true })
   public isAllowed!: boolean
 
-  @prop({ type: () => Disallowed, default: () => ({}) })
+  @prop({ type: () => Disallowed, default: {}, _id: false })
   public disallowed!: Disallowed
 
   static async create(rawData: Partial<SelectorPermission>, tOpts?: SaveOptions) {
