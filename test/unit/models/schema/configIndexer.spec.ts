@@ -99,7 +99,7 @@ describe('Model: ConfigIndexer', () => {
     expect(result).to.be.null
   })
 
-  describe.only('extractInfoFromServiceName', () => {
+  describe('extractInfoFromServiceName', () => {
     it('should extract info from indexer pattern: indexer-{network}', async () => {
       const rawConfigIndexer = {
         network: NetworksEnum.ethereumSepolia,
