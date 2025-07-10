@@ -744,7 +744,7 @@ export const PluginHandler = {
     await DbOperations.updateDocument(
       plugin,
       { conditionAddress },
-      { logId: plugin.id },
+      { logId: plugin.id, conditionAddress },
       'Update Plugin Condition Address',
       llo,
     )

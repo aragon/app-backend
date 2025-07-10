@@ -29,8 +29,7 @@ export const PermissionHandler = {
     try {
       const { address, network } = info
       const { where, who, permissionId, condition } = parsedEvent.args
-      const conditionAddress =
-        condition === null && ethers.getAddress(condition) === Utils.zeroAddress ? undefined : condition
+      const conditionAddress = PermissionHandler.validateAndGetConditionAddress(condition)
 
       const permissionEntity = {
         network,
@@ -79,7 +78,7 @@ export const PermissionHandler = {
     try {
       const { address, network } = info
       const { who, where, permissionId, condition } = parsedEvent.args
-      const conditionAddress = condition && ethers.getAddress(condition) === Utils.zeroAddress ? undefined : condition
+      const conditionAddress = PermissionHandler.validateAndGetConditionAddress(condition)
 
       const permissionEntity = {
         network,
@@ -169,5 +168,14 @@ export const PermissionHandler = {
     })
 
     logger.info('Add member to DAO', llo({ daoAddress, pluginAddress, network, where }))
+  },
+
+  validateAndGetConditionAddress: (conditionAddress: HexAddress | undefined): HexAddress | undefined => {
+    if (!conditionAddress) return undefined
+    if (ethers.getAddress(conditionAddress) === Utils.zeroAddress) return undefined
+    if (ethers.getAddress(conditionAddress) === ethers.getAddress('0x0000000000000000000000000000000000000002'))
+      return undefined
+
+    return ethers.getAddress(conditionAddress)
   },
 }

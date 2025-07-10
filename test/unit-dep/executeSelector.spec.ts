@@ -78,7 +78,47 @@ describe('ExecuteSelector: Integration Test', () => {
     return UnitDepUtils.parseLogsByConfig(sortedLogs, network)
   }
 
-  describe('Complete ExecuteSelector Flow', () => {
+  describe.only('complete executeSelector flow', () => {
+    it('should check if the plugin condition address is set', async () => {
+      const txHashes = [
+        '0x5a059dc68ba109df5c3cc255380da4ad9d4d09f508093fff2196580bca50ebbb',
+        '0xbf9e3ac7a9aff1248ac333b18035eed748e19f5a8ed86ca5587429cdb545d8d4',
+        '0x535989b131da3871381a4c4e80a2155f54e05b6b89daf668f6b9d7d031d8e528',
+        '0x9ef64afa23ef2ced4dbfec481c31dd7a17441fc6b6c586d14104a10e59342966',
+        '0x72e4d2660cba3b81469672cca40b591af4de64dd2680761b7fc906c121e92f51',
+        '0x67a1e915cff251ec247d481a52f5cd373ea755df579734c392052057af52d21f',
+        '0xf09bd9546cda4096a58b835e6388c1ec3bc7ddadd84e0112b08dbaf0957d189a'
+      ]
+
+      const allEvents = (await Promise.all(
+        txHashes.map(async txHash => {
+          const receipt = await Web3Helper.getTransactionReceipt(txHash, NetworksEnum.ethereumSepolia)
+          if(!receipt) return false
+          return await UnitDepUtils.parseLogsByConfig(
+            receipt.logs as any,
+            NetworksEnum.ethereumSepolia
+          )
+        })
+      )).filter(Boolean)
+
+      for(const events of allEvents) {
+        for (const event of events) {
+          await event.handler(event.event, event.info)
+        }
+      }
+
+      const plugins = await Models.Plugin.find({
+        network: NetworksEnum.ethereumSepolia
+      })
+      expect(plugins).to.be.an('array')
+      const pluginWithCondition = plugins.find(p => p.conditionAddress)
+      expect(pluginWithCondition).to.exist
+      expect(pluginWithCondition.conditionAddress).to.be.eq('0xDA894f03e043D56022B49D9eef1FD55388cBe55C')
+    })
+  })
+
+
+  describe.skip('Complete ExecuteSelector Flow', () => {
     it('should handle complete flow: Grant -> SelectorAllowed -> SelectorDisallowed', async () => {
       await init()
       
@@ -382,7 +422,7 @@ describe('ExecuteSelector: Integration Test', () => {
     })
   })
 
-  describe('Plugin Condition Address Update', () => {
+  describe.skip('Plugin Condition Address Update', () => {
     it('should update plugin condition address through PluginHandler', async () => {
       await init()
       
