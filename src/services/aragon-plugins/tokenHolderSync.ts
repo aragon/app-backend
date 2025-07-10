@@ -179,6 +179,7 @@ export const TokenHolderSync = {
 
     return syncTag?.lastSync || 0
   },
+
   linkPluginToExistingTokenHolders: async (plugin: Plugin, token: Token, lastSync: number) => {
     const membersFromToken = await Models.Member.find({
       tokenAddress: token.address,
