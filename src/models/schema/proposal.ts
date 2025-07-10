@@ -495,6 +495,34 @@ export default class Proposal extends Model {
           token: '$$REMOVE',
         },
       },
+      {
+        $lookup: {
+          from: 'Plugin',
+          let: { pluginAddress: '$pluginAddress', network: '$network' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [{ $eq: ['$$pluginAddress', '$address'] }, { $eq: ['$$network', '$network'] }],
+                },
+              },
+            },
+            {
+              $project: {
+                interfaceType: 1,
+              },
+            },
+          ],
+          as: 'pluginInterfaceType',
+        },
+      },
+      {
+        $addFields: {
+          pluginInterfaceType: {
+            $first: '$pluginInterfaceType.interfaceType',
+          },
+        },
+      },
 
       // populate plugin in settings
       {
@@ -641,6 +669,7 @@ export default class Proposal extends Model {
           network: 1,
           pluginAddress: 1,
           pluginSubdomain: 1,
+          pluginInterfaceType: 1,
           daoAddress: 1,
           proposalIndex: 1,
           incrementalId: 1,
@@ -785,8 +814,34 @@ export default class Proposal extends Model {
           token: '$$REMOVE',
         },
       },
-
-      // populate plugin in settings
+      {
+        $lookup: {
+          from: 'Plugin',
+          let: { pluginAddress: '$pluginAddress', network: '$network' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [{ $eq: ['$$pluginAddress', '$address'] }, { $eq: ['$$network', '$network'] }],
+                },
+              },
+            },
+            {
+              $project: {
+                interfaceType: 1,
+              },
+            },
+          ],
+          as: 'pluginInterfaceType',
+        },
+      },
+      {
+        $addFields: {
+          pluginInterfaceType: {
+            $first: '$pluginInterfaceType.interfaceType',
+          },
+        },
+      },
       {
         $addFields: {
           allPluginAddresses: {
@@ -954,6 +1009,7 @@ export default class Proposal extends Model {
           network: 1,
           pluginAddress: 1,
           pluginSubdomain: 1,
+          pluginInterfaceType: 1,
           daoAddress: 1,
           proposalIndex: 1,
           incrementalId: 1,
