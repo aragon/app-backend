@@ -2,12 +2,7 @@ import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
   ICollectionNames,
-  type IDelegateExtraParams,
-  type IDelegatesResponse,
-  type IExtraQueryData,
   type IMemberTransactionIdParams,
-  type IPaginatedResult,
-  type IPaginationParams,
   ITransferSide,
   ITransferType,
   NetworksEnum,
@@ -15,9 +10,6 @@ import {
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
-import ModelUtils from '@models/utils/models'
-import { AggregationQueryHelper } from '@models/utils/aggregation'
-import utils from '@helpers/utils'
 
 const customName = ICollectionNames.MemberTransaction
 
