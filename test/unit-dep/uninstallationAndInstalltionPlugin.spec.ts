@@ -77,34 +77,32 @@ describe('Installation And Uninstallation Of Plugin Via Revoke And Grant ', () =
     //here is the revoke and grant happening
 
     const logsRevokeAndGrant = await UnitDepUtils.parseLogsByConfig(revokeTxReceipt.logs as any, network)
+    const logsRevoked = logsRevokeAndGrant[0]
 
-    for(const ev of logsRevokeAndGrant) {
+    let plugin = await Models.Plugin.findByAddress(logsRevoked.event.args.who, network)
+
+    for (let i = 0; i < logsRevokeAndGrant.length; i++) {
+      const ev = logsRevokeAndGrant[i]
       await ev.handler(ev.event, ev.info)
+      if (i === 0) {
+        plugin = await plugin.reload()
+        expect(plugin.status).to.be.eq(IPluginStatus.uninstalled)
+      }
+
+      if (i === 1) {
+        plugin = await plugin.reload()
+        expect(plugin.status).to.be.eq(IPluginStatus.installed)
+      }
     }
 
-
-    const logsRevoked = logsRevokeAndGrant[0]
-    // const logsGranted = logsRevokeAndGrant[1]
-    let plugin = await Models.Plugin.findByAddress(logsRevoked.event.args.who, network)
     expect(plugin.status).to.be.eq(IPluginStatus.installed)
 
-    for(const ev of logsRevokeAndGrant) {
+    //re-handle the logs to ensure everything is processed correctly
+    for (const ev of logsRevokeAndGrant) {
       await ev.handler(ev.event, ev.info)
     }
-    // ethereum-sepolia-0x9ef64afa23ef2ced4dbfec481c31dd7a17441fc6b6c586d14104a10e59342966-33-80-0xb582516d83FF5F28C1B8c08f9fA63cad36Cd34C2
-    // ethereum-sepolia-0x9ef64afa23ef2ced4dbfec481c31dd7a17441fc6b6c586d14104a10e59342966-33-80-0xb582516d83FF5F28C1B8c08f9fA63cad36Cd34C2
-    // //uninstall first
-    // await logsRevoked.handler(logsRevoked.event, logsRevoked.info)
+
     plugin = await plugin.reload()
     expect(plugin.status).to.be.eq(IPluginStatus.installed)
-    // expect(plugin.uninstalled.status).to.be.eq(true)
-    // expect(plugin.uninstalled.transactionHash).to.be.eq(revokeTxHash)
-    // //install again
-    // await logsGranted.handler(logsGranted.event, logsGranted.info)
-    // plugin = await plugin.reload()
-    // expect(plugin.status).to.be.eq(IPluginStatus.installed)
-    // expect(plugin.uninstalled.status).to.be.eq(false)
-    // expect(plugin.uninstalled.transactionHash).to.be.eq(revokeTxHash)
-    //expect part
   })
 })
