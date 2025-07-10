@@ -86,10 +86,10 @@ export const PermissionHandler = {
         daoAddress: address,
       }
 
-      const entityId = Models.DaoPermission.getEntityId(permissionEntity)
       const conditionAddress = ethers.getAddress(condition) === Utils.zeroAddress ? undefined : condition
 
-      const existingLog = await Models.DaoPermission.findExistingLog(entityId)
+      const existingLog = await Models.DaoPermission.findExistingLog(permissionEntity)
+
       if (existingLog) return
 
       const permissionToCheck = ethers.id(IPermission.EXECUTE_PROPOSAL_PERMISSION)
