@@ -201,7 +201,7 @@ describe('GovernanceErc20Handler', () => {
       isMemberOfDaoStub.onSecondCall().resolves(mockDaoMemberMapping2)
 
       // Stub removeFromDao to actually remove the documents
-      sandbox.stub(ProxyMember, 'removeFromDao').callsFake(async (params) => {
+      sandbox.stub(ProxyMember, 'removeFromDao').callsFake(async params => {
         return await Models.DaoMemberMapping.deleteOne({
           memberAddress: params.memberAddress,
           daoAddress: params.daoAddress,
@@ -304,7 +304,7 @@ describe('GovernanceErc20Handler', () => {
       isMemberOfDaoStub.onSecondCall().resolves(mockDaoMemberMapping2)
 
       // Stub removeFromDao to actually remove the documents
-      sandbox.stub(ProxyMember, 'removeFromDao').callsFake(async (params) => {
+      sandbox.stub(ProxyMember, 'removeFromDao').callsFake(async params => {
         return await Models.DaoMemberMapping.deleteOne({
           memberAddress: params.memberAddress,
           daoAddress: params.daoAddress,
@@ -912,7 +912,7 @@ describe('GovernanceErc20Handler', () => {
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       // Stub removeFromDao to actually remove the document
-      sandbox.stub(ProxyMember, 'removeFromDao').callsFake(async (params) => {
+      sandbox.stub(ProxyMember, 'removeFromDao').callsFake(async params => {
         return await Models.DaoMemberMapping.deleteOne({
           memberAddress: params.memberAddress,
           daoAddress: params.daoAddress,
@@ -1015,7 +1015,7 @@ describe('GovernanceErc20Handler', () => {
       const memberTx = {
         address: '0xMember',
         memberBalance: '1000',
-        memberVotingPower: '2000'
+        memberVotingPower: '2000',
       }
 
       const plugins = [
@@ -1023,13 +1023,13 @@ describe('GovernanceErc20Handler', () => {
           daoAddress: '0xDao1',
           network,
           address: '0xPlugin1',
-          tokenAddress: '0xToken1'
+          tokenAddress: '0xToken1',
         },
         {
           daoAddress: '0xDao2',
           network,
           address: '0xPlugin2',
-          tokenAddress: '0xToken1'
+          tokenAddress: '0xToken1',
         },
       ] as any
 
@@ -1079,7 +1079,7 @@ describe('GovernanceErc20Handler', () => {
 
     it('should remove member from DAO when requirements are not met and already a member', async () => {
       const mockDaoMapping = {
-        removeSelf: sandbox.stub().resolves()
+        removeSelf: sandbox.stub().resolves(),
       }
 
       const isMemberOfDaoStub = sandbox.stub(ProxyMember, 'isMemberOfDao')
@@ -1091,7 +1091,7 @@ describe('GovernanceErc20Handler', () => {
       const memberTx = {
         address: '0xMember',
         memberBalance: '0',
-        memberVotingPower: '0'
+        memberVotingPower: '0',
       }
 
       const plugins = [
@@ -1099,8 +1099,8 @@ describe('GovernanceErc20Handler', () => {
           daoAddress: '0xDao1',
           network,
           address: '0xPlugin1',
-          tokenAddress: '0xToken1'
-        }
+          tokenAddress: '0xToken1',
+        },
       ] as any
 
       const info = {
@@ -1131,7 +1131,7 @@ describe('GovernanceErc20Handler', () => {
 
     it('should not add or remove member when already a member with requirements met', async () => {
       const mockDaoMapping = {
-        removeSelf: sandbox.stub().resolves()
+        removeSelf: sandbox.stub().resolves(),
       }
 
       const isMemberOfDaoStub = sandbox.stub(ProxyMember, 'isMemberOfDao')
@@ -1143,7 +1143,7 @@ describe('GovernanceErc20Handler', () => {
       const memberTx = {
         address: '0xMember',
         memberBalance: '1000',
-        memberVotingPower: '2000'
+        memberVotingPower: '2000',
       }
 
       const plugins = [
@@ -1151,8 +1151,8 @@ describe('GovernanceErc20Handler', () => {
           daoAddress: '0xDao1',
           network,
           address: '0xPlugin1',
-          tokenAddress: '0xToken1'
-        }
+          tokenAddress: '0xToken1',
+        },
       ] as any
 
       const info = {
@@ -1183,7 +1183,7 @@ describe('GovernanceErc20Handler', () => {
       const memberTx = {
         address: '0xMember',
         memberBalance: '1000',
-        memberVotingPower: '2000'
+        memberVotingPower: '2000',
       }
 
       const plugins = [
@@ -1191,8 +1191,8 @@ describe('GovernanceErc20Handler', () => {
           daoAddress: '0xDao1',
           network,
           address: '0xPlugin1',
-          tokenAddress: '0xToken1'
-        }
+          tokenAddress: '0xToken1',
+        },
       ] as any
 
       const info = {
@@ -1219,7 +1219,7 @@ describe('GovernanceErc20Handler', () => {
       const memberTx = {
         address: '0xMember',
         memberBalance: '0',
-        memberVotingPower: '1000'
+        memberVotingPower: '1000',
       }
 
       const plugins = [
@@ -1227,8 +1227,8 @@ describe('GovernanceErc20Handler', () => {
           daoAddress: '0xDao1',
           network,
           address: '0xPlugin1',
-          tokenAddress: '0xToken1'
-        }
+          tokenAddress: '0xToken1',
+        },
       ] as any
 
       const info = {
@@ -1255,7 +1255,7 @@ describe('GovernanceErc20Handler', () => {
       const memberTx = {
         address: '0xMember',
         memberBalance: '1000',
-        memberVotingPower: '0'
+        memberVotingPower: '0',
       }
 
       const plugins = [
@@ -1263,8 +1263,8 @@ describe('GovernanceErc20Handler', () => {
           daoAddress: '0xDao1',
           network,
           address: '0xPlugin1',
-          tokenAddress: '0xToken1'
-        }
+          tokenAddress: '0xToken1',
+        },
       ] as any
 
       const info = {
