@@ -172,6 +172,7 @@ export const TokenHolderSync = {
       }),
     )
   },
+
   getTokenLastSyncBlock: async (token: Token) => {
     const syncTag = await Models.ConfigIndexer.findOne({
       network: token.network,
