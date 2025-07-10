@@ -400,7 +400,7 @@ describe('Modules:ProxyMember', () => {
         expect(createMemberStub.calledOnceWithExactly(params.memberAddress)).to.be.true
         expect(findMappingStub.calledOnce).to.be.true
         expect(createMappingStub.calledOnce).to.be.true
-        expect(loggerVerboseStub.notCalled).to.be.true
+        expect(loggerVerboseStub.calledOnce).to.be.true
       })
 
       it('should not add member to DAO if already a member', async () => {
@@ -539,7 +539,7 @@ describe('Modules:ProxyMember', () => {
         expect(createMemberStub.calledTwice).to.be.true
         expect(findMappingStub.calledTwice).to.be.true
         expect(createMappingStub.calledOnce).to.be.true
-        expect(loggerVerboseStub.notCalled).to.be.true
+        expect(loggerVerboseStub.calledOnce).to.be.true
       })
     })
 
