@@ -1,7 +1,15 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
-import { ICollectionNames, type IConfigIndexerIdParams, IPluginInterfaceType, NetworksEnum } from '@types'
+import {
+  ICollectionNames,
+  type IConfigIndexerIdParams,
+  type IEnumIndexerService,
+  IndexerType,
+  IPluginInterfaceType,
+  ITransactionType,
+  NetworksEnum,
+} from '@types'
 import { assert } from '@errors'
 
 const customName = ICollectionNames.ConfigIndexer
@@ -21,6 +29,7 @@ const customName = ICollectionNames.ConfigIndexer
 @index({ id: 1 }, { unique: true })
 @index({ network: 1, lastSync: 1 })
 @index({ lastSync: 1 })
+@index({ end: -1 })
 export default class ConfigIndexer extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -84,29 +93,96 @@ export default class ConfigIndexer extends Model {
     return this.model(customName).findById(this._id, tOpts).exec()
   }
 
-  static extractInfoFromServiceName(service: string) {
-    const networks = Object.values(NetworksEnum).join('|')
-    const firstSuffix = Object.values(IPluginInterfaceType).join('|') + '|dao'
-    const regex = new RegExp(`^(${firstSuffix})-(${networks})-(0x[a-fA-F0-9]{40}$)`)
+  extractInfoFromServiceName() {
+    const parts = this.service.split('-')
+    const firstPart = parts[0]
 
-    const match = regex.exec(service)
-    if (!match) {
-      return null
+    // Check if it's a transaction type first
+    const transactionTypes = Object.values(ITransactionType)
+    if (transactionTypes.includes(firstPart as ITransactionType)) {
+      return {
+        indexerType: IndexerType.daoTransactions,
+        transactionType: firstPart as ITransactionType,
+        daoAddress: parts[1],
+        indexerService: parts[2] as IEnumIndexerService,
+      }
     }
-    switch (match[1]) {
-      case 'dao':
+
+    // Handle other specific types
+    switch (firstPart) {
+      case 'indexer': {
+        // indexer-{network} - network might have hyphens
         return {
-          model: 'Dao',
-          network: match[2] as NetworksEnum,
-          address: match[3],
+          indexerType: IndexerType.indexer,
+          network: parts.slice(1).join('-') as NetworksEnum,
         }
-      default:
+      }
+
+      case 'transferList': {
+        // transferList-{address}-{network} - network is at the end
+        const transferListAddress = parts[1]
+        const transferListNetwork = parts.slice(2).join('-')
         return {
-          model: 'Plugin',
-          interfaceType: match[1] as IPluginInterfaceType,
-          network: match[2] as NetworksEnum,
-          address: match[3],
+          indexerType: IndexerType.tokenTransfers,
+          tokenAddress: transferListAddress,
+          network: transferListNetwork as NetworksEnum,
         }
+      }
+
+      case 'dao': {
+        // dao-{network}-{daoAddress} - network might have hyphens
+        // Find the last part that looks like an address (starts with 0x)
+        let daoAddressIndex = -1
+        for (let i = parts.length - 1; i >= 0; i--) {
+          if (parts[i].startsWith('0x')) {
+            daoAddressIndex = i
+            break
+          }
+        }
+        if (daoAddressIndex === -1) return null
+
+        return {
+          indexerType: IndexerType.dao,
+          network: parts.slice(1, daoAddressIndex).join('-') as NetworksEnum,
+          daoAddress: parts[daoAddressIndex],
+        }
+      }
+
+      default: {
+        // Check if it's a plugin type
+        const pluginTypes = Object.values(IPluginInterfaceType)
+        if (pluginTypes.includes(firstPart as IPluginInterfaceType)) {
+          // Find addresses (they start with 0x)
+          const addresses = parts.filter(part => part.startsWith('0x'))
+
+          if (addresses.length === 0) return null
+
+          // Find the network (between plugin type and first address)
+          const firstAddressIndex = parts.indexOf(addresses[0])
+          const network = parts.slice(1, firstAddressIndex).join('-')
+
+          if (addresses.length === 1) {
+            // Plugin pattern: {pluginType}-{network}-{pluginAddress}
+            return {
+              indexerType: IndexerType.plugin,
+              interfaceType: firstPart as IPluginInterfaceType,
+              network: network as NetworksEnum,
+              pluginAddress: addresses[0],
+            }
+          } else if (addresses.length === 2) {
+            // Token pattern: {pluginType}-{network}-{pluginAddress}-{tokenAddress}
+            return {
+              indexerType: IndexerType.token,
+              interfaceType: firstPart as IPluginInterfaceType,
+              network: network as NetworksEnum,
+              pluginAddress: addresses[0],
+              tokenAddress: addresses[1],
+            }
+          }
+        }
+
+        return null
+      }
     }
   }
 }
