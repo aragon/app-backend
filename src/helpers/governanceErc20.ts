@@ -108,13 +108,19 @@ const GovernanceErc20Helper = {
     }
   },
 
-  async getPastTotalSupply(
-    blockNumber: number,
-    tokenAddress: HexAddress,
-    network: NetworksEnum,
-    hasClockMode?: boolean,
-    blockTimestamp?: number,
-  ): Promise<string> {
+  async getPastTotalSupply({
+    tokenAddress,
+    blockNumber,
+    network,
+    blockTimestamp,
+    hasClockMode,
+  }: {
+    tokenAddress: HexAddress
+    blockNumber: number
+    network: NetworksEnum
+    blockTimestamp?: number
+    hasClockMode?: boolean
+  }): Promise<string> {
     const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
     const timepointValue = hasClockMode

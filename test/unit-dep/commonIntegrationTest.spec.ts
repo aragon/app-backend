@@ -73,13 +73,13 @@ describe('Basic Integer Test', () => {
     if (!tokenDb) {
       return
     }
-    const supply = await GovernanceErc20Helper.getPastTotalSupply(
-      123123123,
-      tokenDb.address,
+    const supply = await GovernanceErc20Helper.getPastTotalSupply({
+      blockNumber: 123123123,
+      tokenAddress: tokenDb.address,
       network,
-      tokenDb.hasClockMode,
-      timestamp - 15000,
-    )
+      hasClockMode: tokenDb.hasClockMode,
+      blockTimestamp: timestamp - 15000,
+    })
 
     expect(Number(supply)).to.be.gt(0)
   })

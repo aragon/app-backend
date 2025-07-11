@@ -11,7 +11,7 @@ export const SyncProposals: IService = {
     })
 
     for (const proposal of proposals) {
-      const pastTotalSupply = await GovernanceErc20Helper.getPastTotalSupply(
+      const pastTotalSupply = await GovernanceErc20Helper
         proposal.blockNumber,
         proposal.settings.tokenAddress,
         proposal.network,
