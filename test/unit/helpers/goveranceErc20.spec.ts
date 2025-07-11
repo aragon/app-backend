@@ -300,7 +300,11 @@ describe('Helpers: GovernanceErc20', () => {
         },
       })
 
-      const result = await MockedGovernanceErc20Helper.getPastTotalSupply(1, '0x123', NetworksEnum.ethereumMainnet)
+      const result = await MockedGovernanceErc20Helper.getPastTotalSupply({
+        blockNumber: 1,
+        tokenAddress: '0x123',
+        network: NetworksEnum.ethereumMainnet,
+      })
       expect(getChainAdjustedBlockNumberStub.calledWith(1, NetworksEnum.ethereumMainnet)).to.be.true
       expect(result).to.eq('1000000')
     })
@@ -320,7 +324,11 @@ describe('Helpers: GovernanceErc20', () => {
 
       const loggerStub = sandbox.stub(logger, 'error')
 
-      const result = await MockedGovernanceErc20Helper.getPastTotalSupply(1, '0x123', NetworksEnum.ethereumMainnet)
+      const result = await MockedGovernanceErc20Helper.getPastTotalSupply({
+        blockNumber: 1,
+        tokenAddress: '0x123',
+        network: NetworksEnum.ethereumMainnet,
+      })
       expect(result).to.eq('0')
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.calledWith('Error getting pastTotalSupply' as any)).to.be.true
@@ -341,13 +349,13 @@ describe('Helpers: GovernanceErc20', () => {
         },
       })
 
-      const result = await MockedGovernanceErc20Helper.getPastTotalSupply(
-        1,
-        '0x123',
-        NetworksEnum.ethereumMainnet,
-        true,
-        1622547800,
-      )
+      const result = await MockedGovernanceErc20Helper.getPastTotalSupply({
+        tokenAddress: '0x123',
+        blockNumber: 1,
+        network: NetworksEnum.ethereumMainnet,
+        blockTimestamp: 1622547800,
+        hasClockMode: true,
+      })
       expect(getPastTotalSupplyStub.args[0][0]).to.eq(1622547800)
       expect(result).to.eq('1000000')
     })

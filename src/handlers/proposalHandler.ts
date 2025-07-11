@@ -215,13 +215,13 @@ export const ProposalHandler = {
         const token = await ProxyToken.saveAndGetToken(document.settings.tokenAddress, info.network)
         const avgBlockTimeSec = config.NODES[utils.networkToAragon(info.network)].INTERVAL_BLOCK_TIME
 
-        const totalSupply = await GovernanceErc20Helper.getPastTotalSupply(
-          document.blockNumber! - 1,
-          document?.settings.tokenAddress,
-          document.network!,
-          token?.hasClockMode,
-          blockTimestamp - avgBlockTimeSec,
-        )
+        const totalSupply = await GovernanceErc20Helper.getPastTotalSupply({
+          blockNumber: info.blockNumber - 1,
+          tokenAddress: document.settings.tokenAddress,
+          network: info.network,
+          hasClockMode: token?.hasClockMode,
+          blockTimestamp: blockTimestamp - avgBlockTimeSec,
+        })
 
         document.snapshot = {
           totalSupply: totalSupply?.toString() ?? '0',
