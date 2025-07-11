@@ -325,6 +325,37 @@ describe('Helpers: GovernanceErc20', () => {
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.calledWith('Error getting pastTotalSupply' as any)).to.be.true
     })
+
+    it('should get historical total supply when clock mode is passed with timestamp', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const getPastTotalSupplyStub = sandbox.stub().resolves('1000000')
+
+      const { default: MockedGovernanceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
+        ethers: {
+          Contract: function () {
+            return {
+              getPastTotalSupply: getPastTotalSupplyStub,
+            }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedGovernanceErc20Helper.getPastTotalSupply(
+        1,
+        '0x123',
+        NetworksEnum.ethereumMainnet,
+        true,
+        1622547800,
+      )
+      expect(getPastTotalSupplyStub.args[0][0]).to.eq(1622547800)
+      expect(result).to.eq('1000000')
+    })
   })
 
   describe('getDelegates', () => {
