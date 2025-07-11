@@ -76,27 +76,37 @@ describe('Model: ConfigIndexer', () => {
 
     expect(createdConfigIndexer.tokenAddress).to.eq(rawConfigIndexer.tokenAddress)
   })
+
   it('should dismantle service and network from id', async () => {
-    const text = `dao-${NetworksEnum.chilizMainnet}-0x1234567890abcdef1234567890abcdef12345678`
-    const { model, network, address } = Models.ConfigIndexer.extractInfoFromServiceName(text)
-    expect(model).to.be.eq('Dao')
-    expect(network).to.be.eq(NetworksEnum.chilizMainnet)
-    expect(address).to.be.eq('0x1234567890abcdef1234567890abcdef12345678')
+    const service = `dao-${NetworksEnum.chilizMainnet}-0x1234567890abcdef1234567890abcdef12345678`
+    const createdConfigIndexer = await Models.ConfigIndexer.create({ ...rawConfigIndexer, service })
+
+    const params = createdConfigIndexer.extractInfoFromServiceName()
+
+    expect(params.indexerType).to.be.eq(IndexerType.dao)
+    expect(params.network).to.be.eq(NetworksEnum.chilizMainnet)
+    expect(params.daoAddress).to.be.eq('0x1234567890abcdef1234567890abcdef12345678')
   })
 
   it('should dismantle plugin service and network from id', async () => {
-    const text = `${IPluginInterfaceType.tokenVoting}-${NetworksEnum.ethereumMainnet}-0x1234567890abcdef1234567890abcdef12345678`
-    const { model, network, address, interfaceType } = Models.ConfigIndexer.extractInfoFromServiceName(text)
-    expect(model).to.be.eq('Plugin')
-    expect(network).to.be.eq(NetworksEnum.ethereumMainnet)
-    expect(address).to.be.eq('0x1234567890abcdef1234567890abcdef12345678')
-    expect(interfaceType).to.be.eq(IPluginInterfaceType.tokenVoting)
+    const service = `${IPluginInterfaceType.tokenVoting}-${NetworksEnum.ethereumMainnet}-0x1234567890abcdef1234567890abcdef12345678`
+    const createdConfigIndexer = await Models.ConfigIndexer.create({ ...rawConfigIndexer, service })
+
+    const params = createdConfigIndexer.extractInfoFromServiceName()
+
+    expect(params.indexerType).to.be.eq(IndexerType.plugin)
+    expect(params.network).to.be.eq(NetworksEnum.ethereumMainnet)
+    expect(params.interfaceType).to.be.eq(IPluginInterfaceType.tokenVoting)
+    expect(params.pluginAddress).to.be.eq('0x1234567890abcdef1234567890abcdef12345678')
   })
 
   it('should return null if service name does not match expected format', async () => {
-    const text = 'invalid-servicename-0x1234567890abcdef1234567890abcdef12345678'
-    const result = Models.ConfigIndexer.extractInfoFromServiceName(text)
-    expect(result).to.be.null
+    const service = 'invalid-servicename-0x1234567890abcdef1234567890abcdef12345678'
+
+    const createdConfigIndexer = await Models.ConfigIndexer.create({ ...rawConfigIndexer, service })
+
+    const params = createdConfigIndexer.extractInfoFromServiceName()
+    expect(params).to.be.null
   })
 
   describe('extractInfoFromServiceName', () => {

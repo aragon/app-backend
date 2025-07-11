@@ -22,6 +22,10 @@ export const TokenHolderSync = {
         return false
       }
 
+      if (token.ignoreTransfer) {
+        return true
+      }
+
       const isCustomToken = token.blockNumber !== 0 && token.blockNumber < plugin.blockNumber
       if (!isCustomToken) {
         return false
