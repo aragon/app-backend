@@ -1,15 +1,10 @@
 import sinon from 'sinon'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
-import { NetworksEnum, IPluginStatus } from '@types'
-import logger from '@logger'
-import configIndexer from '@indexer/configIndexer'
+import { NetworksEnum} from '@types'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
 import { expect } from 'chai'
 import RabbitMQHelper from '@helpers/rabbitMQ'
-import { PluginHandler } from '@handlers/pluginHandler'
-import RabbitMQ from "@modules/rabbitMQ";
-import AragonPlugins from "@plugins/index";
 import {LogSelectorPermission} from "@plugins/logSelectorPermission";
 
 describe.skip('ExecuteSelector: Integration Test', () => {

@@ -6,7 +6,7 @@ import { Models } from '@dbModels'
 import SelectorPermission from '@models/schema/selectorPermission'
 import { NetworksEnum } from '@types'
 
-describe.only('Controller: ExecuteSelector', () => {
+describe('Controller: ExecuteSelector', () => {
   let sandbox: SinonSandbox
   let rawSelectorPermission: Partial<SelectorPermission>
 
