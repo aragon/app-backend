@@ -339,9 +339,6 @@ describe('Helpers: GovernanceErc20', () => {
             }
           },
         },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
-        },
       })
 
       const result = await MockedGovernanceErc20Helper.getPastTotalSupply(
