@@ -61,10 +61,7 @@ describe('Controller: ExecuteSelector', () => {
 
       const spyReq = sandbox.spy(Models.SelectorPermission, 'findWithPagination')
 
-      const response = await ExecuteSelectorController.getExecuteSelectorsWithPagination(
-        paginationParams,
-        filterParams,
-      )
+      const response = await ExecuteSelectorController.getExecuteSelectorsWithPagination(paginationParams, filterParams)
 
       expect(spyReq.calledOnce).to.be.true
       expect(
@@ -109,10 +106,7 @@ describe('Controller: ExecuteSelector', () => {
 
       const spyReq = sandbox.spy(Models.SelectorPermission, 'findWithPagination')
 
-      const response = await ExecuteSelectorController.getExecuteSelectorsWithPagination(
-        paginationParams,
-        filterParams,
-      )
+      const response = await ExecuteSelectorController.getExecuteSelectorsWithPagination(paginationParams, filterParams)
 
       expect(spyReq.calledOnce).to.be.true
       expect(
@@ -152,10 +146,7 @@ describe('Controller: ExecuteSelector', () => {
 
       const spyReq = sandbox.spy(Models.SelectorPermission, 'findWithPagination')
 
-      const response = await ExecuteSelectorController.getExecuteSelectorsWithPagination(
-        paginationParams,
-        filterParams,
-      )
+      const response = await ExecuteSelectorController.getExecuteSelectorsWithPagination(paginationParams, filterParams)
 
       expect(spyReq.calledOnce).to.be.true
 
