@@ -317,11 +317,13 @@ describe('Indexer: ProposalHandler', () => {
         blockNumber: 100,
       })
 
-      expect(pastTotalSupplyStub.args[0][0]).to.eq(info.blockNumber - 1)
-      expect(pastTotalSupplyStub.args[0][1]).to.eq('0xtoken-address')
-      expect(pastTotalSupplyStub.args[0][2]).to.eq(network)
-      expect(pastTotalSupplyStub.args[0][3]).to.be.eq(true)
-      expect(pastTotalSupplyStub.args[0][4]).to.be.eq(1700000000)
+      expect(pastTotalSupplyStub.args[0][0]).to.be.deep.eq({
+        tokenAddress: '0xtoken-address',
+        blockNumber: info.blockNumber - 1,
+        network,
+        blockTimestamp: 1700000000 - (config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME || 0),
+        hasClockMode: true,
+      })
 
       expect(
         updateActivityStub.calledWith({
