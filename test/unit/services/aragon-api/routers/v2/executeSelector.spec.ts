@@ -5,7 +5,7 @@ import ExecuteSelectorRouter from '@api/routers/v2/executeSelector'
 import ExecuteSelectorController from '@api/controllers/executeSelector'
 import { NetworksEnum } from '@types'
 
-describe.only('RouterV2: ExecuteSelector', () => {
+describe('RouterV2: ExecuteSelector', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
