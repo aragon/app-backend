@@ -327,9 +327,7 @@ describe('Helpers: GovernanceErc20', () => {
     })
 
     it('should get historical total supply when clock mode is passed with timestamp', async () => {
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns({}),
-      }
+// Removed unused stubConfigState definition
 
       const getPastTotalSupplyStub = sandbox.stub().resolves('1000000')
 
