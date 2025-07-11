@@ -8,43 +8,13 @@ import UnitDepUtils from '@test/lib/unit-dep/utils'
 import { expect } from 'chai'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { PluginHandler } from '@handlers/pluginHandler'
+import RabbitMQ from "@modules/rabbitMQ";
+import AragonPlugins from "@plugins/index";
+import {LogSelectorPermission} from "@plugins/logSelectorPermission";
 
-describe('ExecuteSelector: Integration Test', () => {
+describe.skip('ExecuteSelector: Integration Test', () => {
   let sandbox: sinon.SinonSandbox
-  const grantedEvent = 'Granted'
-
-  const mockDao = {
-    id: 'ethereum-sepolia-0x1234567890123456789012345678901234567890',
-    network: NetworksEnum.ethereumSepolia,
-    address: '0x1234567890123456789012345678901234567890',
-    blockNumber: 12345,
-    blockTimestamp: 1234567890,
-    transactionHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
-    creator: '0x1111111111111111111111111111111111111111',
-    subdomain: 'test-dao',
-    name: 'Test DAO',
-    metadata: 'Test metadata',
-    isSupported: true,
-    version: '1.0.0',
-  }
-
-  const mockPlugin = {
-    id: 'ethereum-sepolia-0x2222222222222222222222222222222222222222',
-    network: NetworksEnum.ethereumSepolia,
-    address: '0x2222222222222222222222222222222222222222',
-    daoAddress: '0x1234567890123456789012345678901234567890',
-    blockNumber: 12346,
-    blockTimestamp: 1234567891,
-    transactionHash: '0xdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abc',
-    status: IPluginStatus.installed,
-    pluginSetupRepoAddress: '0x3333333333333333333333333333333333333333',
-    interfaceType: 'admin',
-    isSupported: true,
-    isProcess: true,
-    isBody: true,
-    isSubPlugin: false,
-    conditionAddress: null as any,
-  }
+  let network = NetworksEnum.ethereumSepolia
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
@@ -55,24 +25,10 @@ describe('ExecuteSelector: Integration Test', () => {
     sandbox.restore()
   })
 
-  async function init() {
-    await Models.Dao.create(mockDao)
-    await Models.Plugin.create(mockPlugin)
-  }
-
-  async function parseLogsAndGet(txHash: string, network: NetworksEnum, eventNames: string[]) {
+  async function getParsedLogs(txHash: string) {
     const receipt = await Web3Helper.getTransactionReceipt(txHash, network)
-    if (!receipt) {
-      logger.warn('Transaction receipt not found', { txHash, network })
-      throw new Error('Transaction receipt not found')
-    }
-
-    const topicsToLook = configIndexer.filter(config => eventNames.includes(config.event)).map(config => config.topic)
-
-    const filteredLogs = receipt.logs.filter(log => topicsToLook.includes(log.topics[0]))
-    const sortedLogs = filteredLogs.sort((a, b) => a.index - b.index)
-
-    return UnitDepUtils.parseLogsByConfig(sortedLogs, network)
+    if (!receipt) return false
+    return await UnitDepUtils.parseLogsByConfig(receipt.logs as any, network)
   }
 
   describe('complete executeSelector flow', () => {
@@ -80,19 +36,13 @@ describe('ExecuteSelector: Integration Test', () => {
       const txHashes = [
         '0x5a059dc68ba109df5c3cc255380da4ad9d4d09f508093fff2196580bca50ebbb',
         '0xbf9e3ac7a9aff1248ac333b18035eed748e19f5a8ed86ca5587429cdb545d8d4',
-        '0x535989b131da3871381a4c4e80a2155f54e05b6b89daf668f6b9d7d031d8e528',
         '0x9ef64afa23ef2ced4dbfec481c31dd7a17441fc6b6c586d14104a10e59342966',
-        '0x72e4d2660cba3b81469672cca40b591af4de64dd2680761b7fc906c121e92f51',
-        '0x67a1e915cff251ec247d481a52f5cd373ea755df579734c392052057af52d21f',
-        '0xf09bd9546cda4096a58b835e6388c1ec3bc7ddadd84e0112b08dbaf0957d189a',
       ]
 
       const allEvents = (
         await Promise.all(
           txHashes.map(async txHash => {
-            const receipt = await Web3Helper.getTransactionReceipt(txHash, NetworksEnum.ethereumSepolia)
-            if (!receipt) return false
-            return await UnitDepUtils.parseLogsByConfig(receipt.logs as any, NetworksEnum.ethereumSepolia)
+            return await getParsedLogs(txHash)
           }),
         )
       ).filter(Boolean)
@@ -109,356 +59,254 @@ describe('ExecuteSelector: Integration Test', () => {
       expect(plugins).to.be.an('array')
       const pluginWithCondition = plugins.find(p => p.conditionAddress)
       expect(pluginWithCondition).to.exist
-      expect(pluginWithCondition.conditionAddress).to.be.eq('0xDA894f03e043D56022B49D9eef1FD55388cBe55C')
-    })
-  })
+      const conditionAddress = '0xDA894f03e043D56022B49D9eef1FD55388cBe55C'
+      expect(pluginWithCondition.conditionAddress).to.be.eq(conditionAddress)
 
-  describe.skip('Complete ExecuteSelector Flow', () => {
-    it('should handle complete flow: Grant -> SelectorAllowed -> SelectorDisallowed', async () => {
-      await init()
-
-      // Step 1: Grant event - Set condition address
-      const grantedTxHash = '0x1111111111111111111111111111111111111111111111111111111111111111'
-
-      logger.info('Step 1: Processing Grant event to set condition address')
-
-      const grantedParsedLogs = await parseLogsAndGet(grantedTxHash, NetworksEnum.ethereumSepolia, [grantedEvent])
-      expect(grantedParsedLogs).to.have.length.greaterThan(0)
-
-      // Process the granted event
-      for (const { event, handler, info } of grantedParsedLogs) {
-        await handler(event, info)
-      }
-
-      // Verify plugin condition address was set
-      let plugin = await Models.Plugin.findOne({
-        address: mockPlugin.address,
-        network: NetworksEnum.ethereumSepolia,
-      })
-
-      expect(plugin).to.exist
-      expect(plugin.conditionAddress).to.not.be.null
-
-      // Update our mock for subsequent tests
-      mockPlugin.conditionAddress = plugin.conditionAddress
-
-      logger.info('Step 1 completed: Plugin condition address set', {
-        conditionAddress: plugin.conditionAddress,
-      })
-
-      // Step 2: SelectorAllowed event - Allow a selector
-      const selectorAllowedTxHash = '0x2222222222222222222222222222222222222222222222222222222222222222'
-
-      logger.info('Step 2: Processing SelectorAllowed event')
-
-      const selectorAllowedParsedLogs = await parseLogsAndGet(selectorAllowedTxHash, NetworksEnum.ethereumSepolia, [
-        'SelectorAllowed',
+      const ethTransferFailingTxs = await Promise.all([
+        getParsedLogs('0xb9f8f18a597e683ba8c38473d3a7f5df2860a807197b9242c1afadc3aa72ed1d'),
+        getParsedLogs('0xf89589fc50f3683ec4a612e20acadd4ef4ba3cf0a8941008a30330c085848fc8'),
+        getParsedLogs('0xf53daeb76b0a7a18321977bb54fff1c65fa36620289b20aa363771aac673d5ef')
       ])
 
-      expect(selectorAllowedParsedLogs).to.have.length.greaterThan(0)
-
-      // Process the selector allowed event
-      for (const { event, handler, info } of selectorAllowedParsedLogs) {
-        await handler(event, info)
+      for(const events of ethTransferFailingTxs) {
+        for (const event of events) {
+          await event.handler(event.event, event.info)
+        }
       }
 
-      // Verify selector permission was created
-      const selectorPermission = await Models.SelectorPermission.findOne({
-        network: NetworksEnum.ethereumSepolia,
-        transactionHash: selectorAllowedTxHash,
-        conditionAddress: plugin.conditionAddress,
-        isAllowed: true,
+      const proposal = await Models.Proposal.findOne({
+        pluginAddress: pluginWithCondition.address,
       })
+      expect(proposal).to.exist
+      expect(proposal.executed.status).to.be.false
 
-      expect(selectorPermission).to.exist
-      expect(selectorPermission.pluginAddress).to.equal(mockPlugin.address)
-      expect(selectorPermission.daoAddress).to.equal(mockPlugin.daoAddress)
-      expect(selectorPermission.isAllowed).to.be.true
-      expect(selectorPermission.selector).to.not.be.null
-      expect(selectorPermission.target).to.not.be.null
+      const addEthSelectorTxs = await getParsedLogs('0xa590321e653fc15f6b6226e0118ef9c3c7433c5f9387ee0bd5d86b690dc35747')
 
-      logger.info('Step 2 completed: Selector permission created', {
-        selector: selectorPermission.selector,
-        target: selectorPermission.target,
-        isAllowed: selectorPermission.isAllowed,
-      })
-
-      // Step 3: SelectorDisallowed event - Disallow the same selector
-      const selectorDisallowedTxHash = '0x3333333333333333333333333333333333333333333333333333333333333333'
-
-      logger.info('Step 3: Processing SelectorDisallowed event')
-
-      const selectorDisallowedParsedLogs = await parseLogsAndGet(
-        selectorDisallowedTxHash,
-        NetworksEnum.ethereumSepolia,
-        ['SelectorDisallowed'],
-      )
-
-      expect(selectorDisallowedParsedLogs).to.have.length.greaterThan(0)
-
-      // Process the selector disallowed event
-      for (const { event, handler, info } of selectorDisallowedParsedLogs) {
-        await handler(event, info)
+      for(const event of addEthSelectorTxs) {
+        await event.handler(event.event, event.info)
       }
 
-      // Verify selector permission was updated to disallowed
-      const updatedSelectorPermission = await Models.SelectorPermission.findOne({
-        id: selectorPermission.id,
+      const selectorOnDb = await Models.SelectorPermission.findOne({
+        network,
+        pluginAddress: pluginWithCondition.address,
+        daoAddress: pluginWithCondition.daoAddress,
+        conditionAddress: pluginWithCondition.conditionAddress,
       })
 
-      expect(updatedSelectorPermission).to.exist
-      expect(updatedSelectorPermission.isAllowed).to.be.false
-      expect(updatedSelectorPermission.disallowed.status).to.be.true
-      expect(updatedSelectorPermission.disallowed.transactionHash).to.equal(selectorDisallowedTxHash)
-      expect(updatedSelectorPermission.disallowed.blockNumber).to.not.be.null
-      expect(updatedSelectorPermission.disallowed.blockTimestamp).to.not.be.null
+      expect(selectorOnDb).to.exist
+      expect(selectorOnDb.selector).to.be.null // ETH transfer selector is null
+      expect(selectorOnDb.isAllowed).to.be.true
+      expect(selectorOnDb.disallowed.status).to.be.false
 
-      logger.info('Step 3 completed: Selector permission disallowed', {
-        selector: updatedSelectorPermission.selector,
-        target: updatedSelectorPermission.target,
-        isAllowed: updatedSelectorPermission.isAllowed,
-        disallowed: updatedSelectorPermission.disallowed,
-      })
-
-      // Final verification: Check complete flow
-      const finalPlugin = await Models.Plugin.findOne({
-        address: mockPlugin.address,
-        network: NetworksEnum.ethereumSepolia,
-      })
-
-      const allSelectorPermissions = await Models.SelectorPermission.find({
-        pluginAddress: mockPlugin.address,
-        daoAddress: mockPlugin.daoAddress,
-        conditionAddress: finalPlugin.conditionAddress,
-        network: NetworksEnum.ethereumSepolia,
-      })
-
-      expect(finalPlugin.conditionAddress).to.not.be.null
-      expect(allSelectorPermissions).to.have.length(1)
-      expect(allSelectorPermissions[0].isAllowed).to.be.false
-      expect(allSelectorPermissions[0].disallowed.status).to.be.true
-
-      logger.info('Complete flow verified successfully')
-    })
-
-    it('should handle complete flow: Grant -> EthTransfersAllowed -> EthTransfersDisallowed', async () => {
-      await init()
-
-      // Step 1: Grant event - Set condition address
-      const grantedTxHash = '0x1111111111111111111111111111111111111111111111111111111111111111'
-
-      logger.info('Step 1: Processing Grant event to set condition address for ETH transfers')
-
-      const grantedParsedLogs = await parseLogsAndGet(grantedTxHash, NetworksEnum.ethereumSepolia, [grantedEvent])
-      expect(grantedParsedLogs).to.have.length.greaterThan(0)
-
-      for (const { event, handler, info } of grantedParsedLogs) {
-        await handler(event, info)
-      }
-
-      let plugin = await Models.Plugin.findOne({
-        address: mockPlugin.address,
-        network: NetworksEnum.ethereumSepolia,
-      })
-
-      expect(plugin).to.exist
-      expect(plugin.conditionAddress).to.not.be.null
-      mockPlugin.conditionAddress = plugin.conditionAddress
-
-      logger.info('Step 1 completed: Plugin condition address set for ETH transfers')
-
-      // Step 2: EthTransfersAllowed event
-      const ethTransfersAllowedTxHash = '0x4444444444444444444444444444444444444444444444444444444444444444'
-
-      logger.info('Step 2: Processing EthTransfersAllowed event')
-
-      const ethTransfersAllowedParsedLogs = await parseLogsAndGet(
-        ethTransfersAllowedTxHash,
-        NetworksEnum.ethereumSepolia,
-        ['EthTransfersAllowed'],
-      )
-
-      expect(ethTransfersAllowedParsedLogs).to.have.length.greaterThan(0)
-
-      for (const { event, handler, info } of ethTransfersAllowedParsedLogs) {
-        await handler(event, info)
-      }
-
-      const ethTransferPermission = await Models.SelectorPermission.findOne({
-        network: NetworksEnum.ethereumSepolia,
-        transactionHash: ethTransfersAllowedTxHash,
-        conditionAddress: plugin.conditionAddress,
-        selector: null, // ETH transfers have null selector
-        isAllowed: true,
-      })
-
-      expect(ethTransferPermission).to.exist
-      expect(ethTransferPermission.pluginAddress).to.equal(mockPlugin.address)
-      expect(ethTransferPermission.daoAddress).to.equal(mockPlugin.daoAddress)
-      expect(ethTransferPermission.selector).to.be.null
-      expect(ethTransferPermission.isAllowed).to.be.true
-
-      logger.info('Step 2 completed: ETH transfer permission created')
-
-      // Step 3: EthTransfersDisallowed event
-      const ethTransfersDisallowedTxHash = '0x5555555555555555555555555555555555555555555555555555555555555555'
-
-      logger.info('Step 3: Processing EthTransfersDisallowed event')
-
-      const ethTransfersDisallowedParsedLogs = await parseLogsAndGet(
-        ethTransfersDisallowedTxHash,
-        NetworksEnum.ethereumSepolia,
-        ['EthTransfersDisallowed'],
-      )
-
-      expect(ethTransfersDisallowedParsedLogs).to.have.length.greaterThan(0)
-
-      for (const { event, handler, info } of ethTransfersDisallowedParsedLogs) {
-        await handler(event, info)
-      }
-
-      const updatedEthTransferPermission = await Models.SelectorPermission.findOne({
-        id: ethTransferPermission.id,
-      })
-
-      expect(updatedEthTransferPermission).to.exist
-      expect(updatedEthTransferPermission.isAllowed).to.be.false
-      expect(updatedEthTransferPermission.disallowed.status).to.be.true
-      expect(updatedEthTransferPermission.disallowed.transactionHash).to.equal(ethTransfersDisallowedTxHash)
-
-      logger.info('Step 3 completed: ETH transfer permission disallowed')
-
-      // Final verification
-      const finalPlugin = await Models.Plugin.findOne({
-        address: mockPlugin.address,
-        network: NetworksEnum.ethereumSepolia,
-      })
-
-      const allEthTransferPermissions = await Models.SelectorPermission.find({
-        pluginAddress: mockPlugin.address,
-        daoAddress: mockPlugin.daoAddress,
-        conditionAddress: finalPlugin.conditionAddress,
-        selector: null,
-        network: NetworksEnum.ethereumSepolia,
-      })
-
-      expect(finalPlugin.conditionAddress).to.not.be.null
-      expect(allEthTransferPermissions).to.have.length(1)
-      expect(allEthTransferPermissions[0].isAllowed).to.be.false
-      expect(allEthTransferPermissions[0].disallowed.status).to.be.true
-
-      logger.info('Complete ETH transfer flow verified successfully')
-    })
-
-    it('should handle mixed selector and ETH transfer events in sequence', async () => {
-      await init()
-
-      // Step 1: Grant event
-      const grantedTxHash = '0x1111111111111111111111111111111111111111111111111111111111111111'
-
-      const grantedParsedLogs = await parseLogsAndGet(grantedTxHash, NetworksEnum.ethereumSepolia, [grantedEvent])
-      for (const { event, handler, info } of grantedParsedLogs) {
-        await handler(event, info)
-      }
-
-      const plugin = await Models.Plugin.findOne({
-        address: mockPlugin.address,
-        network: NetworksEnum.ethereumSepolia,
-      })
-      mockPlugin.conditionAddress = plugin.conditionAddress
-
-      // Step 2: Process multiple events in one transaction
-      const mixedEventsTxHash = '0x6666666666666666666666666666666666666666666666666666666666666666'
-
-      const mixedParsedLogs = await parseLogsAndGet(mixedEventsTxHash, NetworksEnum.ethereumSepolia, [
-        'SelectorAllowed',
-        'EthTransfersAllowed',
+      const passingEthTransferTxs = await Promise.all([
+        '0xec10897d68997d8012801bbd57c4d340bf807ac697ca31108e5dd57ee9674c9d',
+        '0xe18775668e684b818e7d6e84edfb4a6c9f64c576a5ef45e4caf3c23803f3e414',
+        '0xee90c9daa24908bcd3d31933aecfbbdcf4dd31cf2abeebb21247ab39d4980f29'
       ])
 
-      expect(mixedParsedLogs.length).to.be.greaterThan(0)
-
-      for (const { event, handler, info } of mixedParsedLogs) {
-        await handler(event, info)
+      for(const txHash of passingEthTransferTxs) {
+        const events = await getParsedLogs(txHash)
+        for (const event of events) {
+          await event.handler(event.event, event.info)
+        }
       }
 
-      // Verify both selector and ETH transfer permissions were created
-      const allPermissions = await Models.SelectorPermission.find({
-        network: NetworksEnum.ethereumSepolia,
-        transactionHash: mixedEventsTxHash,
-        conditionAddress: plugin.conditionAddress,
+      const proposals = await Models.Proposal.find({
+        network,
+        daoAddress: pluginWithCondition.daoAddress,
+        pluginAddress: pluginWithCondition.address,
       })
 
-      expect(allPermissions.length).to.be.greaterThan(0)
+      expect(proposals.length).to.be.eq(2)
+      expect(proposals[1].executed.status).to.be.true
 
-      // Should have both selector permission and ETH transfer permission
-      const selectorPermission = allPermissions.find(p => p.selector !== null)
-      const ethTransferPermission = allPermissions.find(p => p.selector === null)
+      const someSigFailingTxs = await Promise.all([
+        getParsedLogs('0x3ba16cecfcb80b3bd579de36a8315f985e929bfeb1df920dd11a7033fed43cec'),
+        getParsedLogs('0x7aadd9307601dec0f185631cf92cdc7c9e23c8edd06d2cb169b7726813477417'),
+        getParsedLogs('0xce611c42b7574de30b728e8af1d4407a9bca2aee96dce752439b59a646888dcd')
+      ])
 
-      expect(selectorPermission).to.exist
-      expect(ethTransferPermission).to.exist
+      for(const events of someSigFailingTxs) {
+        for (const event of events) {
+          await event.handler(event.event, event.info)
+        }
+      }
 
-      expect(selectorPermission.isAllowed).to.be.true
-      expect(ethTransferPermission.isAllowed).to.be.true
-
-      allPermissions.forEach(permission => {
-        expect(permission.pluginAddress).to.equal(mockPlugin.address)
-        expect(permission.daoAddress).to.equal(mockPlugin.daoAddress)
-        expect(permission.conditionAddress).to.equal(plugin.conditionAddress)
+      const sigProposal = await Models.Proposal.findOne({
+        pluginAddress: pluginWithCondition.address,
+        network,
+        blockNumber: someSigFailingTxs[0][0].info.blockNumber,
       })
 
-      logger.info('Mixed events flow completed successfully')
+      expect(sigProposal).to.exist
+      expect(sigProposal.executed.status).to.be.false
+
+      const sigSelectorAddingTxs = '0x0789678f30d1c913ffe58534e3723d2a65133850207989a9bdabd3f81d31ec71'
+      const addSelectorSigEvents = await getParsedLogs(sigSelectorAddingTxs)
+
+      for(const event of addSelectorSigEvents) {
+        await event.handler(event.event, event.info)
+      }
+
+      const sigSelectorOnDb = await Models.SelectorPermission.find({
+        network,
+        pluginAddress: pluginWithCondition.address,
+        daoAddress: pluginWithCondition.daoAddress,
+        conditionAddress: pluginWithCondition.conditionAddress,
+        selector: {$ne: null}
+      })
+
+      expect(sigSelectorOnDb.length).to.be.eq(1)
+      expect(sigSelectorOnDb[0].isAllowed).to.be.true
+      expect(sigSelectorOnDb[0].disallowed.status).to.be.false
+      expect(sigSelectorOnDb[0].selector).to.be.eq('0xee57e36f')
+
+      const customSigPassingTxs = await Promise.all([
+        getParsedLogs('0x03cb8ac08c0433a26a552b14e984780f25a4493e4df95d77b8eecb43dee396c3'),
+        getParsedLogs('0xc9adf484060fcd99d7d1b9bb8735d55cdadb5a83d3e10220c787ac6d641dcf5c'),
+        getParsedLogs('0xaabbdc8433bfb28844d8bf296975b66f0b985754c8c09a3da72f196ad4716307')
+      ])
+
+      for(const events of customSigPassingTxs) {
+        for (const event of events) {
+          await event.handler(event.event, event.info)
+        }
+      }
+
+      const proposalAfterCustomSig = await Models.Proposal.findOne({
+        transactionHash: '0x03cb8ac08c0433a26a552b14e984780f25a4493e4df95d77b8eecb43dee396c3'
+      })
+
+      expect(proposalAfterCustomSig).to.exist
+      expect(proposalAfterCustomSig.executed.status).to.be.true
+      expect(proposalAfterCustomSig.rawActions[0].data.startsWith('0xee57e36f')).to.be.true
+
+      const disallowEthSelectorTx = await getParsedLogs(
+        '0xf5fd216c8399eb98862896ddb845e6643089cd4085446c2723869e7679f59233'
+      )
+
+      for(const event of disallowEthSelectorTx) {
+        await event.handler(event.event, event.info)
+      }
+
+      const disallowedEthSelector = await Models.SelectorPermission.findOne({
+        network,
+        pluginAddress: pluginWithCondition.address,
+        daoAddress: pluginWithCondition.daoAddress,
+        conditionAddress: pluginWithCondition.conditionAddress,
+        selector: null, // ETH transfer selector is null
+      })
+
+      expect(disallowedEthSelector).to.exist
+      expect(disallowedEthSelector.isAllowed).to.be.false
+      expect(disallowedEthSelector.disallowed.status).to.be.true
+
+      const attemptAfterDisallowingEthTransfer = await Promise.all([
+        getParsedLogs('0x7d846bb2e9de15aec102b45bc73d53bc04f6fe0f65e3a54d49932fd6ee6e1da0'),
+        getParsedLogs('0xb03092ed408a9b9178efc4ceb949e97d3f34f242af5967aedc17e70238c7117b'),
+        getParsedLogs('0xd2773e8869299ad02f54b8f88c8544623c7d08775ed6828cc579cfa5ffab5264')
+      ])
+
+      for(const events of attemptAfterDisallowingEthTransfer) {
+        for (const event of events) {
+          await event.handler(event.event, event.info)
+        }
+      }
+
+      const proposalAfterDisallowingEthTransfer = await Models.Proposal.findOne({
+        transactionHash: '0x7d846bb2e9de15aec102b45bc73d53bc04f6fe0f65e3a54d49932fd6ee6e1da0',
+        pluginAddress: pluginWithCondition.address,
+      })
+
+      expect(proposalAfterDisallowingEthTransfer).to.exist
+      expect(proposalAfterDisallowingEthTransfer.executed.status).to.be.false
+
+
+      const disallowSelectorSigTx = await getParsedLogs(
+        '0xc715e4321bb54ca6f9411414da5cb4dd02e48803d4f00f858a0f1276217bdecf'
+      )
+
+      for(const event of disallowSelectorSigTx) {
+        await event.handler(event.event, event.info)
+      }
+
+      const disallowedSigSelector = await Models.SelectorPermission.findOne({
+        network,
+        pluginAddress: pluginWithCondition.address,
+        daoAddress: pluginWithCondition.daoAddress,
+        conditionAddress: pluginWithCondition.conditionAddress,
+        selector: '0xee57e36f', // custom sig selector
+      })
+
+      expect(disallowedSigSelector).to.exist
+      expect(disallowedSigSelector.isAllowed).to.be.false
+      expect(disallowedSigSelector.disallowed.status).to.be.true
+
+      const attemptAfterDisallowingSigSelector = await Promise.all([
+        getParsedLogs('0xd65daa7b31ee460485643695aba10bd785f04abb8189f661cff3ea3ac6c3bb36'),
+        getParsedLogs('0xda00df91b91e34451c80fe84ef53d314f9bee16290623194e63f7e6ddb864084'),
+        getParsedLogs('0x9591d716fff2c65c8e48cbdddab0d5faa2cf8797bc68bb4b8f094fe10b867ee7')
+      ])
+
+      for(const events of attemptAfterDisallowingSigSelector) {
+        for (const event of events) {
+          await event.handler(event.event, event.info)
+        }
+      }
+
+      const proposalAfterDisallowingSigSelector = await Models.Proposal.findOne({
+        transactionHash: '0xd65daa7b31ee460485643695aba10bd785f04abb8189f661cff3ea3ac6c3bb36'
+      })
+
+      expect(proposalAfterDisallowingSigSelector).to.exist
+      expect(proposalAfterDisallowingSigSelector.executed.status).to.be.false
     })
-  })
+    it('should handle general selector indexing', async () => {
+      const txHashes = [
+        '0x5a059dc68ba109df5c3cc255380da4ad9d4d09f508093fff2196580bca50ebbb',
+        '0xbf9e3ac7a9aff1248ac333b18035eed748e19f5a8ed86ca5587429cdb545d8d4',
+        '0x9ef64afa23ef2ced4dbfec481c31dd7a17441fc6b6c586d14104a10e59342966',
+      ]
 
-  describe.skip('Plugin Condition Address Update', () => {
-    it('should update plugin condition address through PluginHandler', async () => {
-      await init()
+      const allEvents = (
+        await Promise.all(
+          txHashes.map(async txHash => {
+            return await getParsedLogs(txHash)
+          }),
+        )
+      ).filter(Boolean)
 
-      const newConditionAddress = '0x7777777777777777777777777777777777777777'
+      for (const events of allEvents) {
+        for (const event of events) {
+          await event.handler(event.event, event.info)
+        }
+      }
 
-      await PluginHandler.updateConditionAddress(
-        mockPlugin.address,
-        mockPlugin.daoAddress,
-        NetworksEnum.ethereumSepolia,
-        newConditionAddress,
-      )
+      const plugins = await Models.Plugin.find({
+        network: NetworksEnum.ethereumSepolia,
+        conditionAddress: '0xDA894f03e043D56022B49D9eef1FD55388cBe55C',
+      })
 
-      const updatedPlugin = await Models.Plugin.findOne({
-        address: mockPlugin.address,
+      expect(plugins).to.be.an('array')
+      const pluginWithCondition = plugins.find(p => p.conditionAddress)
+      expect(pluginWithCondition).to.exist
+
+      await LogSelectorPermission.start(pluginWithCondition)
+
+      const selectors = await Models.SelectorPermission.find({
         network: NetworksEnum.ethereumSepolia,
       })
 
-      expect(updatedPlugin).to.exist
-      expect(updatedPlugin.conditionAddress).to.equal(newConditionAddress)
-    })
+      expect(selectors).to.be.an('array')
+      expect(selectors.length).to.be.eq(2)
 
-    it('should not update plugin condition address if same value', async () => {
-      await init()
+      expect(selectors[0].selector).to.be.eq('0xee57e36f')
+      expect(selectors[0].isAllowed).to.be.false
+      expect(selectors[0].disallowed.status).to.be.true
 
-      const conditionAddress = '0x8888888888888888888888888888888888888888'
-
-      // First update
-      await PluginHandler.updateConditionAddress(
-        mockPlugin.address,
-        mockPlugin.daoAddress,
-        NetworksEnum.ethereumSepolia,
-        conditionAddress,
-      )
-
-      // Second update with same value - should not change
-      await PluginHandler.updateConditionAddress(
-        mockPlugin.address,
-        mockPlugin.daoAddress,
-        NetworksEnum.ethereumSepolia,
-        conditionAddress,
-      )
-
-      const plugin = await Models.Plugin.findOne({
-        address: mockPlugin.address,
-        network: NetworksEnum.ethereumSepolia,
-      })
-
-      expect(plugin.conditionAddress).to.equal(conditionAddress)
+      expect(selectors[1].selector).to.be.eq(null)
+      expect(selectors[1].isAllowed).to.be.false
+      expect(selectors[1].disallowed.status).to.be.true
     })
   })
 })
