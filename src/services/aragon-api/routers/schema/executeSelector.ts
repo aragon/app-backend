@@ -9,7 +9,7 @@ const ExecuteSelectorSchema = {
       .required(),
     pluginAddress: ValidationSchema.joiAddress.required(),
     daoAddress: ValidationSchema.joiAddress.optional(),
-    conditionAddress: ValidationSchema.joiAddress.optional()
+    conditionAddress: ValidationSchema.joiAddress.optional(),
   }),
 }
 
