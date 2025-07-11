@@ -41,7 +41,7 @@
     "docker:unit-dep-dependencies": "docker-compose up -d --build mongo1 mongo2 mongo3 mongo-init-replica rabbitmq",
     "docker:mongo": "docker-compose up -d --build mongo1 mongo2 mongo3 mongo-init-replica",
     "docker:rabbitmq": "docker rm -f aragon-rabbit || true && docker run -d --hostname aragon-rabbit --name aragon-rabbit -p 5672:5672 -p 15672:15672 rabbitmq:3-management",
-    "docker:services": "docker-compose up --build -d service-aragon-api service-aragon-indexer service-aragon-rates service-aragon-admin-api service-aragon-requeue",
+    "docker:services": "docker-compose up --build -d service-aragon-api service-aragon-indexer service-aragon-rates service-aragon-admin-api",
     "wait:rabbitmq": "bash scripts/waitUp.sh rabbitmq 5672",
     "wait:db": "bash scripts/waitUp.sh mongo1 27017 && bash scripts/waitUp.sh mongo2 27017 && bash scripts/waitUp.sh mongo3 27017",
     "prepare": "husky"
