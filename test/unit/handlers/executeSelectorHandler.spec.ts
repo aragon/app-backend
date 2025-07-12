@@ -264,7 +264,7 @@ describe('Indexer: ExecuteSelectorHandler', () => {
     })
   })
 
-  describe('ethTransfersAllowed', () => {
+  describe('nativeTransfersAllowed', () => {
     it('should create ETH transfer permission with null selector', async () => {
       const parsedEvent = {
         args: {
@@ -274,7 +274,7 @@ describe('Indexer: ExecuteSelectorHandler', () => {
 
       const loggerInfoStub = sandbox.stub(logger, 'info')
 
-      await SelectorPermissionHandler.ethTransfersAllowed(parsedEvent, mockInfo)
+      await SelectorPermissionHandler.nativeTransfersAllowed(parsedEvent, mockInfo)
 
       const ethPermission = await Models.SelectorPermission.findOne({
         network: NetworksEnum.ethereumMainnet,
@@ -307,7 +307,7 @@ describe('Indexer: ExecuteSelectorHandler', () => {
 
       const warnStub = sandbox.stub(logger, 'warn')
 
-      await SelectorPermissionHandler.ethTransfersAllowed(parsedEvent, infoWithInvalidCondition)
+      await SelectorPermissionHandler.nativeTransfersAllowed(parsedEvent, infoWithInvalidCondition)
 
       expect(warnStub.calledOnce).to.be.true
       expect(warnStub.calledWith('Plugin not found for condition address' as any)).to.be.true
@@ -336,7 +336,7 @@ describe('Indexer: ExecuteSelectorHandler', () => {
         isAllowed: true,
       })
 
-      await SelectorPermissionHandler.ethTransfersAllowed(parsedEvent, mockInfo)
+      await SelectorPermissionHandler.nativeTransfersAllowed(parsedEvent, mockInfo)
 
       const ethPermissions = await Models.SelectorPermission.find({
         network: NetworksEnum.ethereumMainnet,
@@ -358,7 +358,7 @@ describe('Indexer: ExecuteSelectorHandler', () => {
       const errorStub = sandbox.stub(logger, 'error')
       sandbox.stub(Models.Plugin, 'findOne').rejects(new Error('Database error'))
 
-      await SelectorPermissionHandler.ethTransfersAllowed(parsedEvent, mockInfo)
+      await SelectorPermissionHandler.nativeTransfersAllowed(parsedEvent, mockInfo)
 
       expect(errorStub.calledOnce).to.be.true
     })
@@ -390,7 +390,7 @@ describe('Indexer: ExecuteSelectorHandler', () => {
 
       const loggerInfoStub = sandbox.stub(logger, 'info')
 
-      await SelectorPermissionHandler.ethTransfersDisallowed(parsedEvent, mockInfo)
+      await SelectorPermissionHandler.nativeTransfersDisallowed(parsedEvent, mockInfo)
 
       const updatedPermission = await Models.SelectorPermission.findOne({
         id: existingPermission.id,
@@ -419,7 +419,7 @@ describe('Indexer: ExecuteSelectorHandler', () => {
 
       const warnStub = sandbox.stub(logger, 'warn')
 
-      await SelectorPermissionHandler.ethTransfersDisallowed(parsedEvent, infoWithInvalidCondition)
+      await SelectorPermissionHandler.nativeTransfersDisallowed(parsedEvent, infoWithInvalidCondition)
 
       expect(warnStub.calledOnce).to.be.true
       expect(warnStub.calledWith('Plugin not found for condition address' as any)).to.be.true
@@ -434,7 +434,7 @@ describe('Indexer: ExecuteSelectorHandler', () => {
 
       const warnStub = sandbox.stub(logger, 'warn')
 
-      await SelectorPermissionHandler.ethTransfersDisallowed(parsedEvent, mockInfo)
+      await SelectorPermissionHandler.nativeTransfersDisallowed(parsedEvent, mockInfo)
 
       expect(warnStub.calledOnce).to.be.true
       expect(warnStub.calledWith('ETH transfer permission not found for disallowing' as any)).to.be.true
@@ -450,7 +450,7 @@ describe('Indexer: ExecuteSelectorHandler', () => {
       const errorStub = sandbox.stub(logger, 'error')
       sandbox.stub(Models.Plugin, 'findOne').rejects(new Error('Database error'))
 
-      await SelectorPermissionHandler.ethTransfersDisallowed(parsedEvent, mockInfo)
+      await SelectorPermissionHandler.nativeTransfersDisallowed(parsedEvent, mockInfo)
 
       expect(errorStub.calledOnce).to.be.true
     })
@@ -523,7 +523,7 @@ describe('Indexer: ExecuteSelectorHandler', () => {
       } as any
 
       // Allow ETH transfers
-      await SelectorPermissionHandler.ethTransfersAllowed(ethAllowedEvent, mockInfo)
+      await SelectorPermissionHandler.nativeTransfersAllowed(ethAllowedEvent, mockInfo)
 
       let permission = await Models.SelectorPermission.findOne({
         network: NetworksEnum.ethereumMainnet,
@@ -542,7 +542,7 @@ describe('Indexer: ExecuteSelectorHandler', () => {
         blockNumber: 12347,
       }
 
-      await SelectorPermissionHandler.ethTransfersDisallowed(ethDisallowedEvent, disallowInfo)
+      await SelectorPermissionHandler.nativeTransfersDisallowed(ethDisallowedEvent, disallowInfo)
 
       permission = await Models.SelectorPermission.findOne({
         id: permission.id,
@@ -576,7 +576,7 @@ describe('Indexer: ExecuteSelectorHandler', () => {
         logIndex: 1,
       }
 
-      await SelectorPermissionHandler.ethTransfersAllowed(ethEvent, ethInfo)
+      await SelectorPermissionHandler.nativeTransfersAllowed(ethEvent, ethInfo)
 
       const permissions = await Models.SelectorPermission.find({
         network: NetworksEnum.ethereumMainnet,

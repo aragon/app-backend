@@ -443,24 +443,24 @@ const IndexerEventConfig: IIndexerConfig[] = [
     ],
   },
   {
-    event: 'EthTransfersAllowed',
+    event: 'NativeTransfersAllowed',
     enableHistorical: false,
-    topic: new Interface(ExecuteSelectorCondition.abi).getEvent('EthTransfersAllowed')?.topicHash!,
+    topic: new Interface(ExecuteSelectorCondition.abi).getEvent('NativeTransfersAllowed')?.topicHash!,
     config: [
       {
         abi: ExecuteSelectorCondition.abi,
-        handler: SelectorPermissionHandler.ethTransfersAllowed,
+        handler: SelectorPermissionHandler.nativeTransfersAllowed,
       },
     ],
   },
   {
-    event: 'EthTransfersDisallowed',
+    event: 'NativeTransfersDisallowed',
     enableHistorical: false,
-    topic: new Interface(ExecuteSelectorCondition.abi).getEvent('EthTransfersDisallowed')?.topicHash!,
+    topic: new Interface(ExecuteSelectorCondition.abi).getEvent('NativeTransfersDisallowed')?.topicHash!,
     config: [
       {
         abi: ExecuteSelectorCondition.abi,
-        handler: SelectorPermissionHandler.ethTransfersDisallowed,
+        handler: SelectorPermissionHandler.nativeTransfersDisallowed,
       },
     ],
   },

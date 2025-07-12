@@ -161,7 +161,12 @@ describe('AragonPlugins: LogSelectorPermission', () => {
 
       // Verify only selector permission events are included
       const eventNames = events.map((event: any) => event.event)
-      const expectedEvents = ['SelectorAllowed', 'SelectorDisallowed', 'EthTransfersAllowed', 'EthTransfersDisallowed']
+      const expectedEvents = [
+        'SelectorAllowed',
+        'SelectorDisallowed',
+        'NativeTransfersAllowed',
+        'NativeTransfersDisallowed',
+      ]
 
       expectedEvents.forEach(expectedEvent => {
         expect(eventNames).to.include(expectedEvent)
