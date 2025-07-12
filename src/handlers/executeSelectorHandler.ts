@@ -116,7 +116,7 @@ export const SelectorPermissionHandler = {
     }
   },
 
-  async ethTransfersAllowed(parsedEvent: LogDescription, info: ILogInfo) {
+  async nativeTransfersAllowed(parsedEvent: LogDescription, info: ILogInfo) {
     try {
       const { where } = parsedEvent.args as any
       const { network, transactionHash, transactionIndex, logIndex, blockNumber } = info
@@ -165,14 +165,14 @@ export const SelectorPermissionHandler = {
         isAllowed: true,
       })
 
-      logger.info(`ETH transfers allowed for target ${where} in condition ${info.address}`)
+      logger.info(`Native transfers allowed for target ${where} in condition ${info.address}`)
       return selectorRecord
     } catch (error) {
-      logger.error(`Error processing EthTransfersAllowed event: ${error}`)
+      logger.error(`Error processing NativeTransfersAllowed event: ${error}`)
     }
   },
 
-  async ethTransfersDisallowed(parsedEvent: LogDescription, info: ILogInfo) {
+  async nativeTransfersDisallowed(parsedEvent: LogDescription, info: ILogInfo) {
     try {
       const { where } = parsedEvent.args as any
 
@@ -223,7 +223,7 @@ export const SelectorPermissionHandler = {
       })
 
       logger.info(
-        'ETH transfers disallowed',
+        'Native transfers disallowed',
         llo({
           where,
           ...info,
@@ -231,7 +231,7 @@ export const SelectorPermissionHandler = {
         }),
       )
     } catch (error) {
-      logger.error('Error processing EthTransfersDisallowed event:', llo({ error, parsedEvent, info }))
+      logger.error('Error processing NativeTransfersDisallowed event:', llo({ error, parsedEvent, info }))
     }
   },
 }

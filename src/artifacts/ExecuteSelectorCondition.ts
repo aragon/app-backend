@@ -48,7 +48,7 @@ export const ExecuteSelectorCondition = {
           type: 'address',
         },
       ],
-      name: 'EthTransfersAllowed',
+      name: 'NativeTransfersAllowed',
       type: 'event',
     },
     {
@@ -61,7 +61,7 @@ export const ExecuteSelectorCondition = {
           type: 'address',
         },
       ],
-      name: 'EthTransfersDisallowed',
+      name: 'NativeTransfersDisallowed',
       type: 'event',
     },
   ],

@@ -119,6 +119,6 @@ export enum IExitQueueLogs {
 export enum ISelectorPermissionLogs {
   SelectorAllowed = 'SelectorAllowed',
   SelectorDisallowed = 'SelectorDisallowed',
-  EthTransfersAllowed = 'EthTransfersAllowed',
-  EthTransfersDisallowed = 'EthTransfersDisallowed',
+  NativeTransfersAllowed = 'NativeTransfersAllowed',
+  NativeTransfersDisallowed = 'NativeTransfersDisallowed',
 }
