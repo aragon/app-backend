@@ -14,6 +14,7 @@ import configIndexer from '@indexer/configIndexer'
 import type Token from '@models/schema/token'
 import { TokenHolderSync } from './tokenHolderSync'
 import config from '@config'
+import ConfigIndexerHelper from '@helpers/configIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogTokenVoting' })
 
@@ -56,7 +57,7 @@ export const LogTokenVoting = {
       address: [plugin.address],
       fromBlock: plugin?.blockNumber,
       onError: async (error: any, log: any) => LogTokenVoting.processError(error, plugin, log),
-      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}`,
+      logService: ConfigIndexerHelper.builders.plugin(plugin.interfaceType, plugin.network, plugin.address),
       stopOnError: true,
     })
 
@@ -71,7 +72,11 @@ export const LogTokenVoting = {
       ].filter(Boolean),
       fromBlock: token.blockNumber || plugin.blockNumber,
       onError: async (error: any, log: any) => LogTokenVoting.processError(error, plugin, log),
-      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}-${plugin.votingEscrow?.escrowAddress}`,
+      logService: ConfigIndexerHelper.builders.token(
+        ITokenType.escrowAdapter,
+        plugin.network,
+        plugin.votingEscrow?.escrowAddress!,
+      ),
       stopOnError: true,
     })
 
@@ -117,7 +122,7 @@ export const LogTokenVoting = {
       address: [plugin.address],
       fromBlock: plugin?.blockNumber,
       onError: async (error: any, log: any) => LogTokenVoting.processError(error, plugin, log),
-      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}`,
+      logService: ConfigIndexerHelper.builders.plugin(plugin.interfaceType, plugin.network, plugin.address),
       stopOnError: true,
     })
     const startTime = Date.now()
@@ -161,7 +166,7 @@ export const LogTokenVoting = {
       address: [plugin.tokenAddress],
       fromBlock: token?.blockNumber || plugin?.blockNumber,
       onError: async (error: any, log: any) => LogTokenVoting.processError(error, plugin, log),
-      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}-${token?.address}`,
+      logService: ConfigIndexerHelper.builders.token(token.type, plugin.network, plugin.address),
       stopOnError: true,
     })
 
