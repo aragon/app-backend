@@ -166,7 +166,7 @@ export const LogTokenVoting = {
       address: [plugin.tokenAddress],
       fromBlock: token?.blockNumber || plugin?.blockNumber,
       onError: async (error: any, log: any) => LogTokenVoting.processError(error, plugin, log),
-      logService: ConfigIndexerHelper.builders.token(token.type, plugin.network, plugin.address),
+      logService: ConfigIndexerHelper.builders.token(token.type, token.network, plugin.tokenAddress),
       stopOnError: true,
     })
 
