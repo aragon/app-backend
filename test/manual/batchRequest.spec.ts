@@ -1,11 +1,12 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import ProviderModule from '@modules/provider'
-import { ITokenType, NetworksEnum } from '@types'
+import { IndexerType, ITokenType, NetworksEnum } from '@types'
 import utils from '@helpers/utils'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import configIndexer from '@indexer/configIndexer'
 import { ProxyToken } from '@modules/proxyToken'
+import ConfigIndexerHelper from '@helpers/configIndexer'
 
 describe('Manual: BathRequest', () => {
   let sandbox: SinonSandbox
@@ -29,7 +30,7 @@ describe('Manual: BathRequest', () => {
       network: NetworksEnum.ethereumMainnet,
       events: configLogs,
       onError: async (error: any) => console.log('Error Indexer', error),
-      logService: `indexer-${NetworksEnum.ethereumMainnet}`,
+      logService: ConfigIndexerHelper.builders.indexer(NetworksEnum.ethereumMainnet),
       stopOnError: true,
     })
     await crawler.crawl()
