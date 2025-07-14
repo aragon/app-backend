@@ -1,7 +1,6 @@
 import logger from '@logger'
 import {
   type IAlchemyTransferResponse,
-  IEnumIndexerService,
   ITransactionType,
   type IWeb3Provider,
   type IWeb3TokenBalance,
@@ -20,6 +19,7 @@ import { RateModule } from '@modules/rates'
 import TokenUtils from '@helpers/tokenUtils'
 import ProxyUtils from '@modules/proxyProvider/utils'
 import AnkrHelper from '@helpers/ankrHelper'
+import ConfigIndexerHelper from '@helpers/configIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ProxyWeb3' })
 
@@ -149,7 +149,7 @@ const Web3Provider: IWeb3Provider = {
       onError: async (error: any) => {
         logger.error('Error deposit transfer', llo({ error, type: ITransactionType.deposit, dao: address, network }))
       },
-      logService: `deposit-${address}-${IEnumIndexerService.depositTxs}` as any,
+      logService: ConfigIndexerHelper.builders.deposit(address),
       stopOnError: true,
     })
 
@@ -174,7 +174,7 @@ const Web3Provider: IWeb3Provider = {
       onError: async (error: any) => {
         logger.error('Error withdraw transfer', llo({ error, type: ITransactionType.withdraw, address, network }))
       },
-      logService: `withdraw-${address}-${IEnumIndexerService.withdrawTxs}` as any,
+      logService: ConfigIndexerHelper.builders.withdraw(address),
       stopOnError: true,
     })
 

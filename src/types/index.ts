@@ -1,4 +1,5 @@
 export * from './config'
+export * from './indexer'
 export * from './db'
 export * from './daos'
 export * from './device'
