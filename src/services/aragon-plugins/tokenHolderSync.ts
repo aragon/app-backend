@@ -28,7 +28,7 @@ export const TokenHolderSync = {
 
       const defaultTag = await Models.ConfigIndexer.findOne({
         network: plugin.network,
-        logService: ConfigIndexerHelper.builders.token(token.type, token.network, token.address),
+        service: ConfigIndexerHelper.builders.token(token.type, token.network, token.address),
       })
 
       if (defaultTag) {

@@ -33,7 +33,7 @@ export const LogTokenVoting = {
       network: plugin.network,
       daoAddress: plugin.daoAddress,
       pluginAddress: plugin.address,
-      tokenAddress: token?.address,
+      tokenAddress: token.address,
     }
     logger.verbose('Start LogTokenVoting veGovernance', llo(infoLogs))
 
@@ -166,7 +166,7 @@ export const LogTokenVoting = {
       address: [plugin.tokenAddress],
       fromBlock: token?.blockNumber || plugin?.blockNumber,
       onError: async (error: any, log: any) => LogTokenVoting.processError(error, plugin, log),
-      logService: ConfigIndexerHelper.builders.token(token.type, token.network, plugin.tokenAddress),
+      logService: ConfigIndexerHelper.builders.token(token.type, token.network, token.address),
       stopOnError: true,
     })
 
