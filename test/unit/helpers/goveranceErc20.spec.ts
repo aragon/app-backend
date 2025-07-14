@@ -300,7 +300,11 @@ describe('Helpers: GovernanceErc20', () => {
         },
       })
 
-      const result = await MockedGovernanceErc20Helper.getPastTotalSupply(1, '0x123', NetworksEnum.ethereumMainnet)
+      const result = await MockedGovernanceErc20Helper.getPastTotalSupply({
+        blockNumber: 1,
+        tokenAddress: '0x123',
+        network: NetworksEnum.ethereumMainnet,
+      })
       expect(getChainAdjustedBlockNumberStub.calledWith(1, NetworksEnum.ethereumMainnet)).to.be.true
       expect(result).to.eq('1000000')
     })
@@ -320,10 +324,40 @@ describe('Helpers: GovernanceErc20', () => {
 
       const loggerStub = sandbox.stub(logger, 'error')
 
-      const result = await MockedGovernanceErc20Helper.getPastTotalSupply(1, '0x123', NetworksEnum.ethereumMainnet)
+      const result = await MockedGovernanceErc20Helper.getPastTotalSupply({
+        blockNumber: 1,
+        tokenAddress: '0x123',
+        network: NetworksEnum.ethereumMainnet,
+      })
       expect(result).to.eq('0')
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.calledWith('Error getting pastTotalSupply' as any)).to.be.true
+    })
+
+    it('should get historical total supply when clock mode is passed with timestamp', async () => {
+      // Removed unused stubConfigState definition
+
+      const getPastTotalSupplyStub = sandbox.stub().resolves('1000000')
+
+      const { default: MockedGovernanceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
+        ethers: {
+          Contract: function () {
+            return {
+              getPastTotalSupply: getPastTotalSupplyStub,
+            }
+          },
+        },
+      })
+
+      const result = await MockedGovernanceErc20Helper.getPastTotalSupply({
+        tokenAddress: '0x123',
+        blockNumber: 1,
+        network: NetworksEnum.ethereumMainnet,
+        blockTimestamp: 1622547800,
+        hasClockMode: true,
+      })
+      expect(getPastTotalSupplyStub.args[0][0]).to.eq(1622547800)
+      expect(result).to.eq('1000000')
     })
   })
 
