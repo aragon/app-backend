@@ -134,7 +134,7 @@ describe('AragonPlugins: LogSelectorPermission', () => {
       expect(crawlerInstance.crawlParams.network).to.equal(NetworksEnum.ethereumMainnet)
       expect(crawlerInstance.crawlParams.address).to.equal('0x456') // condition address
       expect(crawlerInstance.crawlParams.fromBlock).to.equal(12000) // contract creation block
-      expect(crawlerInstance.crawlParams.logService).to.equal('selectorPermission-ethereum-mainnet-0x123')
+      expect(crawlerInstance.crawlParams.logService).to.equal('permission-ethereum-mainnet-0x123')
       expect(crawlerInstance.crawlParams.stopOnError).to.be.true
     })
 
