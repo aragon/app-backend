@@ -19,6 +19,7 @@ export enum EnumQueueName {
   proposalActions = 'proposal.actions',
   canCreateProposal = 'can.create.proposal',
   pluginInstallationData = 'plugin.installation.data',
+  getTokenStats = 'token.stats',
 }
 
 export interface IQueueAllMetrics {
