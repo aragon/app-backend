@@ -1,6 +1,6 @@
 /* eslint-disable prettier/prettier */
 import logger from '@logger'
-import { type IEnumIndexerServiceStatic, TokenSyncTagName, IGovernanceErc20Logs, type IIndexerConfig } from '@types'
+import { IGovernanceErc20Logs, type IIndexerConfig, ITokenSyncTagName } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Plugin from '@models/schema/plugin'
 import type Token from '@models/schema/token'
@@ -10,14 +10,11 @@ import { ProxyMember } from '@modules/proxyMember'
 import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
 import ProxyWeb3Provider from '@modules/proxyProvider'
+import ConfigIndexerHelper from '@helpers/configIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-plugins:tokenHolderSync' })
 
 export const TokenHolderSync = {
-  getTagName: (plugin: Plugin, token: Token, type: TokenSyncTagName): IEnumIndexerServiceStatic => {
-    return `${plugin.interfaceType}-${plugin.network}-${plugin.address}-${token?.address}${type === TokenSyncTagName.Default ? '' : `-${type}`}`
-  },
-
   isTokenNotEligibleForSync: async (token: Token, plugin: Plugin): Promise<boolean> => {
     try {
       if (!token || !plugin) {
@@ -31,7 +28,7 @@ export const TokenHolderSync = {
 
       const defaultTag = await Models.ConfigIndexer.findOne({
         network: plugin.network,
-        service: TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Default),
+        service: ConfigIndexerHelper.builders.token(token.type, token.network, token.address),
       })
 
       if (defaultTag) {
@@ -78,7 +75,12 @@ export const TokenHolderSync = {
   },
 
   syncAllTokenHolders: async (plugin: Plugin, token: Token) => {
-    const blockScoutSyncKey = TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.TokenHolders)
+    const blockScoutSyncKey = ConfigIndexerHelper.builders.token(
+      token.type,
+      token.network,
+      token.address,
+      ITokenSyncTagName.holders,
+    )
 
     const existingSync = await Models.ConfigIndexer.findExistingLog({
       network: plugin.network,
@@ -179,7 +181,12 @@ export const TokenHolderSync = {
           }),
         )
       },
-      logService: TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Delegation),
+      logService: ConfigIndexerHelper.builders.token(
+        token.type,
+        token.network,
+        token.address,
+        ITokenSyncTagName.delegates,
+      ),
       stopOnError: true,
     })
 
@@ -205,7 +212,12 @@ export const TokenHolderSync = {
           }),
         )
       },
-      logService: TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Transfer),
+      logService: ConfigIndexerHelper.builders.token(
+        token.type,
+        token.network,
+        token.address,
+        ITokenSyncTagName.transfers,
+      ),
       stopOnError: true,
     })
 
@@ -213,8 +225,19 @@ export const TokenHolderSync = {
   },
 
   convertToStandardSync: async (plugin: Plugin, token: Token) => {
-    const delegationTagName = TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Delegation)
-    const transferTagName = TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Transfer)
+    const delegationTagName = ConfigIndexerHelper.builders.token(
+      token.type,
+      token.network,
+      token.address,
+      ITokenSyncTagName.delegates,
+    )
+
+    const transferTagName = ConfigIndexerHelper.builders.token(
+      token.type,
+      token.network,
+      token.address,
+      ITokenSyncTagName.transfers,
+    )
 
     const syncTags = await Models.ConfigIndexer.find({
       network: plugin.network,
@@ -236,7 +259,7 @@ export const TokenHolderSync = {
       }),
       Models.ConfigIndexer.create({
         network: plugin.network,
-        service: TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Default),
+        service: ConfigIndexerHelper.builders.token(token.type, token.network, token.address),
         lastSync: syncStatBlock,
       }),
     ])
@@ -251,6 +274,7 @@ export const TokenHolderSync = {
       }),
     )
   },
+
   getTokenLastSyncBlock: async (token: Token) => {
     const syncTag = await Models.ConfigIndexer.findOne({
       network: token.network,
@@ -259,6 +283,7 @@ export const TokenHolderSync = {
 
     return syncTag?.lastSync || 0
   },
+
   linkPluginToExistingTokenHolders: async (plugin: Plugin, token: Token, lastSync: number) => {
     const membersFromToken = await Models.Member.find({
       tokenAddress: token.address,
@@ -306,7 +331,7 @@ export const TokenHolderSync = {
       ])
       await Models.ConfigIndexer.create({
         network: plugin.network,
-        service: TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Default),
+        service: ConfigIndexerHelper.builders.token(token.type, token.network, token.address),
         lastSync,
       })
     } catch (e: any) {
