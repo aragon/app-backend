@@ -537,8 +537,7 @@ class BlockchainLogCrawler {
       service: this.crawlParams.logService,
     })
     if (configIndex) {
-      configIndex.end = true
-      await configIndex.save()
+      await configIndex.update({ end: true })
     }
   }
 
