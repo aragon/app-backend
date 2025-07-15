@@ -148,5 +148,5 @@ jobs:
       - name: Dispatch E2E tests
         uses: aragon/app-qa/.github/actions/dispatch@main
         with:
-          opToken: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_PROD_TEMP }}
+          opToken: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_APP_NEXT_QA }}
           environment: ${{ env.DEPLOY_ENV }}

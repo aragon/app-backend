@@ -322,6 +322,35 @@ export interface ITokenResponse {
   lastUpdatedAt: string
 }
 
+export interface IExecuteSelectorExtraParams {
+  network: NetworksEnum
+  pluginAddress: HexAddress
+  daoAddress?: HexAddress
+  conditionAddress?: HexAddress
+}
+
+export interface IExecuteSelectorResponse {
+  id: string
+  transactionHash: HexAddress
+  transactionIndex: number
+  logIndex: number
+  blockNumber: number
+  blockTimestamp?: number
+  network: NetworksEnum
+  pluginAddress: HexAddress
+  daoAddress: HexAddress
+  conditionAddress: HexAddress
+  selector: string | null
+  target: HexAddress
+  isAllowed: boolean
+  disallowed: {
+    status: boolean
+    transactionHash: HexAddress | null
+    blockNumber: number | null
+    blockTimestamp: number | null
+  }
+}
+
 export interface ITransactionIndexingStatusResponse {
   isProcessed: boolean
   slug?: string

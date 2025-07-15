@@ -3,7 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import logger from '@logger'
-import { ICrawStrategy, NetworksEnum } from '@types'
+import { ICrawStrategy, IndexerType, NetworksEnum } from '@types'
 import ProviderModule from '@modules/provider'
 import Web3Helper from '@helpers/web3'
 import axios from 'axios'
@@ -1209,7 +1209,7 @@ describe('Module: blockchainLogCrawler', () => {
       address: '0xAddress',
       events,
       stopOnError: false,
-      logService: `indexer-${NetworksEnum.ethereumMainnet}`,
+      logService: `${IndexerType.indexer}-${NetworksEnum.ethereumMainnet}`,
       onError: sandbox.stub(),
     })
 
@@ -1340,7 +1340,7 @@ describe('Module: blockchainLogCrawler', () => {
       address: '0xAddress',
       events: [],
       stopOnError: false,
-      logService: `indexer-${NetworksEnum.ethereumMainnet}`,
+      logService: `${IndexerType.indexer}-${NetworksEnum.ethereumMainnet}`,
       onError: () => {},
     })
 
@@ -1350,7 +1350,7 @@ describe('Module: blockchainLogCrawler', () => {
     expect(
       stubFindLog.calledOnceWith({
         network: NetworksEnum.ethereumMainnet,
-        service: `indexer-${NetworksEnum.ethereumMainnet}`,
+        service: `${IndexerType.indexer}-${NetworksEnum.ethereumMainnet}`,
       }),
     ).to.be.true
   })
@@ -1372,7 +1372,7 @@ describe('Module: blockchainLogCrawler', () => {
       address: '0xAddress',
       events: [],
       stopOnError: false,
-      logService: `indexer-${NetworksEnum.ethereumMainnet}`,
+      logService: `${IndexerType.indexer}-${NetworksEnum.ethereumMainnet}`,
       onError: () => {},
     })
 
@@ -1384,7 +1384,7 @@ describe('Module: blockchainLogCrawler', () => {
     expect(
       stubFindLog.calledOnceWith({
         network: NetworksEnum.ethereumMainnet,
-        service: `indexer-${NetworksEnum.ethereumMainnet}`,
+        service: `${IndexerType.indexer}-${NetworksEnum.ethereumMainnet}`,
       }),
     ).to.be.true
   })
@@ -1400,7 +1400,7 @@ describe('Module: blockchainLogCrawler', () => {
       address: '0xAddress',
       events: [],
       stopOnError: false,
-      logService: `indexer-${NetworksEnum.ethereumMainnet}`,
+      logService: `${IndexerType.indexer}-${NetworksEnum.ethereumMainnet}`,
       onError: () => {},
     })
 
@@ -1409,7 +1409,7 @@ describe('Module: blockchainLogCrawler', () => {
     expect(
       stubFindLog.calledOnceWith({
         network: NetworksEnum.ethereumMainnet,
-        service: `indexer-${NetworksEnum.ethereumMainnet}`,
+        service: `${IndexerType.indexer}-${NetworksEnum.ethereumMainnet}`,
       }),
     ).to.be.true
     expect(startBlock).to.equal(lastSync)
@@ -1425,7 +1425,7 @@ describe('Module: blockchainLogCrawler', () => {
       address: '0xAddress',
       events: [],
       stopOnError: false,
-      logService: `indexer-${NetworksEnum.ethereumMainnet}`,
+      logService: `${IndexerType.indexer}-${NetworksEnum.ethereumMainnet}`,
       onError: () => {},
     })
 
@@ -1434,7 +1434,7 @@ describe('Module: blockchainLogCrawler', () => {
     expect(
       stubFindLog.calledOnceWith({
         network: NetworksEnum.ethereumMainnet,
-        service: `indexer-${NetworksEnum.ethereumMainnet}`,
+        service: `${IndexerType.indexer}-${NetworksEnum.ethereumMainnet}`,
       }),
     ).to.be.true
     expect(startBlock).to.equal(100)
@@ -1459,7 +1459,7 @@ describe('Module: blockchainLogCrawler', () => {
       address: '0xAddress',
       events: [],
       stopOnError: false,
-      logService: `indexer-${NetworksEnum.ethereumMainnet}`,
+      logService: `${IndexerType.indexer}-${NetworksEnum.ethereumMainnet}`,
       onError: () => {},
     })
 
@@ -1468,7 +1468,7 @@ describe('Module: blockchainLogCrawler', () => {
     expect(
       stubFindLog.calledOnceWith({
         network: NetworksEnum.ethereumMainnet,
-        service: `indexer-${NetworksEnum.ethereumMainnet}`,
+        service: `${IndexerType.indexer}-${NetworksEnum.ethereumMainnet}`,
       }),
     ).to.be.true
     expect(startBlock).to.equal(defaultFromBlock)

@@ -25,6 +25,7 @@ import Web3Utils from '@helpers/web3Utils'
 import { DaoRegistryHandler } from '@src/handlers/daoRegistryHandler'
 import { MetadataHandler } from '@handlers/metadataHandler'
 import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
+import RabbitMQHelper from '@src/helpers/rabbitMQ'
 
 describe('Indexer:Plugin', () => {
   let sandbox: SinonSandbox
@@ -1321,6 +1322,109 @@ describe('Indexer:Plugin', () => {
 
       expect(getTransactionReceiptStub.notCalled).to.be.true
       expect(stubLogger.calledOnce).to.be.true
+    })
+  })
+
+  describe('updateConditionAddress', () => {
+    it('should update plugin condition address successfully', async () => {
+      // Create a mock plugin in the database
+      const mockPlugin = await Models.Plugin.create({
+        status: IPluginStatus.installed,
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 12345,
+        blockTimestamp: 1620000000,
+        transactionHash: '0x123abc',
+        address: '0x1234567890123456789012345678901234567890',
+        daoAddress: '0x9876543210987654321098765432109876543210',
+        pluginSetupRepoAddress: '0x1111111111111111111111111111111111111111',
+        interfaceType: IPluginInterfaceType.admin,
+        conditionAddress: null,
+      })
+
+      const newConditionAddress = '0x2222222222222222222222222222222222222222'
+      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
+      const loggerStub = sandbox.stub(logger, 'verbose')
+
+      await PluginHandler.updateConditionAddress(
+        mockPlugin.address,
+        mockPlugin.daoAddress,
+        NetworksEnum.ethereumMainnet,
+        newConditionAddress,
+      )
+
+      // Retrieve the plugin from database to check if condition address was updated
+      const updatedPlugin = await Models.Plugin.findOne({
+        address: mockPlugin.address,
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      expect(updatedPlugin).to.exist
+      expect(updatedPlugin.conditionAddress).to.equal(newConditionAddress)
+      expect(sendMessageStub.calledOnce).to.be.true
+      expect(loggerStub.calledWith('Updated document - Update Plugin Condition Address' as any)).to.be.true
+      expect(sendMessageStub.args[0][1]).to.deep.include({
+        id: mockPlugin.id,
+        params: {
+          address: mockPlugin.address,
+          network: mockPlugin.network,
+          conditionAddress: newConditionAddress,
+        },
+      })
+    })
+
+    it('should not update if plugin is not found', async () => {
+      const loggerWarnStub = sandbox.stub(logger, 'warn')
+      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
+
+      await PluginHandler.updateConditionAddress(
+        '0x9999999999999999999999999999999999999999',
+        '0x8888888888888888888888888888888888888888',
+        NetworksEnum.ethereumMainnet,
+        '0x7777777777777777777777777777777777777777',
+      )
+
+      expect(loggerWarnStub.calledOnce).to.be.true
+      expect(loggerWarnStub.calledWith('Plugin not found for updating condition address' as any)).to.be.true
+      expect(sendMessageStub.called).to.be.false
+    })
+
+    it('should not update if condition address is the same', async () => {
+      const existingConditionAddress = '0x3333333333333333333333333333333333333333'
+
+      // Create a mock plugin with existing condition address
+      const mockPlugin = await Models.Plugin.create({
+        status: IPluginStatus.installed,
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 12345,
+        blockTimestamp: 1620000000,
+        transactionHash: '0x123abc',
+        address: '0x1234567890123456789012345678901234567890',
+        daoAddress: '0x9876543210987654321098765432109876543210',
+        pluginSetupRepoAddress: '0x1111111111111111111111111111111111111111',
+        interfaceType: IPluginInterfaceType.admin,
+        conditionAddress: existingConditionAddress,
+      })
+
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
+      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
+
+      await PluginHandler.updateConditionAddress(
+        mockPlugin.address,
+        mockPlugin.daoAddress,
+        NetworksEnum.ethereumMainnet,
+        existingConditionAddress,
+      )
+
+      expect(updateDocumentStub.called).to.be.false
+      expect(sendMessageStub.called).to.be.false
+
+      // Verify the plugin still has the same condition address
+      const plugin = await Models.Plugin.findOne({
+        address: mockPlugin.address,
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      expect(plugin.conditionAddress).to.equal(existingConditionAddress)
     })
   })
 })

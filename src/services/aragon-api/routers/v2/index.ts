@@ -9,6 +9,7 @@ import TransactionRouter from '@api/routers/v2/transaction'
 import VoteRouter from '@api/routers/v2/vote'
 import ContractRouter from '@api/routers/v2/contract'
 import PluginRouter from '@api/routers/v2/plugins'
+import ExecuteSelectorRouter from '@api/routers/v2/executeSelector'
 
 const V2Router = {
   router() {
@@ -24,6 +25,7 @@ const V2Router = {
     const voteRouter = VoteRouter.router()
     const contractRouter = ContractRouter.router()
     const pluginRouter = PluginRouter.router()
+    const executeSelectorRouter = ExecuteSelectorRouter.router()
 
     router.use('/assets', assetRouter.routes(), assetRouter.allowedMethods())
     router.use('/daos', daoRouter.routes(), daoRouter.allowedMethods())
@@ -35,6 +37,7 @@ const V2Router = {
     router.use('/votes', voteRouter.routes(), voteRouter.allowedMethods())
     router.use('/contract', contractRouter.routes(), contractRouter.allowedMethods())
     router.use('/plugins', pluginRouter.routes(), pluginRouter.allowedMethods())
+    router.use('/execute-selectors', executeSelectorRouter.routes(), executeSelectorRouter.allowedMethods())
 
     return router
   },

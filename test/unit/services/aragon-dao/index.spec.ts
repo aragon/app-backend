@@ -16,6 +16,7 @@ import { AllMetrics } from '@services/aragon-dao/allMetrics'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import config from '@config'
 import Plugin from '@src/services/aragon-dao/plugin'
+import ProxyWeb3Provider from '@modules/proxyProvider'
 
 describe('AragonDao: index', () => {
   let sandbox: SinonSandbox
@@ -37,7 +38,7 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      expect(processStub.callCount).to.equal(14)
+      expect(processStub.callCount).to.equal(15)
       expect(processStub.calledWith(EnumQueueName.allMetrics)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoTransactions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoAssets)).to.be.true
@@ -52,6 +53,7 @@ describe('AragonDao: index', () => {
       expect(processStub.calledWith(EnumQueueName.canCreateProposal)).to.be.true
       expect(processStub.calledWith(EnumQueueName.pluginInstallationData)).to.be.true
       expect(processStub.calledWith(EnumQueueName.getLockVotingPowerBatch)).to.be.true
+      expect(processStub.calledWith(EnumQueueName.getTokenStats)).to.be.true
 
       expect(loggerStub.calledOnceWith('AragonDaoService service started' as any)).to.be.true
     })
@@ -378,6 +380,34 @@ describe('AragonDao: index', () => {
       expect(queueName).to.eq(EnumQueueName.pluginInstallationData)
       expect(pluginInstallationStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
       expect(result).to.equal('{"installationData":"test"}')
+    })
+
+    it('should handle getTokenStats queue', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const getTokenCountersStub = sandbox
+        .stub(ProxyWeb3Provider, 'getTokenCounters')
+        .resolves({ holders: 10, transfers: 0 })
+
+      await AragonDaoService.start()
+
+      const handler = processStub.getCall(14).args[1]
+      const queueName = processStub.getCall(14).args[0]
+
+      const result = await handler({
+        params: {
+          address: '0xTokenAddress',
+          network: NetworksEnum.ethereumMainnet,
+        },
+      } as any)
+
+      expect(queueName).to.eq(EnumQueueName.getTokenStats)
+      expect(
+        getTokenCountersStub.calledOnceWith({
+          address: '0xTokenAddress',
+          network: NetworksEnum.ethereumMainnet,
+        }),
+      ).to.be.true
+      expect(result).to.deep.equal({ holders: 10, transfers: 0 })
     })
   })
 
