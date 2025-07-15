@@ -40,7 +40,8 @@ describe('Router: MainAdminRouter', () => {
     const mainRouter = MainAdminRouter.router()
     expect(mainRouter instanceof Router).to.be.true
 
-    expect(use.callCount).to.be.eq(3)
+    const routers = [StatusAdminRouter, QueueAdminRouter, DaoAdminRouter]
+    expect(use.callCount).to.be.eq(routers.length)
     expect(use.calledWith(`statusRoutes`, `statusAllowedMethod`)).to.be.true
 
     function expectRouter(name: string) {

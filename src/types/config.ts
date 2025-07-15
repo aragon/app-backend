@@ -55,6 +55,7 @@ export interface IConfig {
     URI: string
     API_KEY: string
   }
+  CHILIZ_API_URL: string
   BATCH_REQUEST: {
     DEFAULT_SIZE: number
   }

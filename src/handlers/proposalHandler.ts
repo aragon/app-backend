@@ -28,6 +28,8 @@ import { TokenVoting } from '@src/aragonContracts'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { assert } from '@errors'
 import Web3Utils from '@helpers/web3Utils'
+import config from '@config'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:ProposalHandler' })
 export const ProposalHandler = {
@@ -170,10 +172,12 @@ export const ProposalHandler = {
         }
       }
 
+      const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
+
       const document: Partial<Proposal> = {
         network: info.network,
         blockNumber: info.blockNumber,
-        blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+        blockTimestamp,
         transactionHash: info.transactionHash,
         title: proposalMetadata?.title!,
         description: proposalMetadata?.description!,
@@ -208,11 +212,16 @@ export const ProposalHandler = {
       }
 
       if (document?.settings?.tokenAddress && relatedPlugin.interfaceType === IPluginInterfaceType.tokenVoting) {
-        const totalSupply = await GovernanceErc20Helper.getPastTotalSupply(
-          document.blockNumber! - 1,
-          document?.settings.tokenAddress,
-          document.network!,
-        )
+        const token = await ProxyToken.saveAndGetToken(document.settings.tokenAddress, info.network)
+        const avgBlockTimeSec = config.NODES[utils.networkToAragon(info.network)].INTERVAL_BLOCK_TIME
+
+        const totalSupply = await GovernanceErc20Helper.getPastTotalSupply({
+          blockNumber: info.blockNumber - 1,
+          tokenAddress: document.settings.tokenAddress,
+          network: info.network,
+          hasClockMode: token?.hasClockMode,
+          blockTimestamp: blockTimestamp - avgBlockTimeSec,
+        })
 
         document.snapshot = {
           totalSupply: totalSupply?.toString() ?? '0',
