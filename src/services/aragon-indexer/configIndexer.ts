@@ -25,6 +25,8 @@ import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
 import { ExitQueue } from '@artifacts/ExitQueue'
 import { VotingEscrow } from '@artifacts/VotingEscrow'
 import { DaoV2 } from '@artifacts/daoV2'
+import { ExecuteSelectorCondition } from '@artifacts/ExecuteSelectorCondition'
+import { SelectorPermissionHandler } from '@handlers/executeSelectorHandler'
 
 const IndexerEventConfig: IIndexerConfig[] = [
   // historical and realtime on startup
@@ -415,6 +417,50 @@ const IndexerEventConfig: IIndexerConfig[] = [
       {
         abi: VotingEscrow.abi,
         handler: GovernanceVeHandler.unDelegateTokens,
+      },
+    ],
+  },
+  {
+    event: 'SelectorAllowed',
+    enableHistorical: false,
+    topic: new Interface(ExecuteSelectorCondition.abi).getEvent('SelectorAllowed')?.topicHash!,
+    config: [
+      {
+        abi: ExecuteSelectorCondition.abi,
+        handler: SelectorPermissionHandler.selectorAllowed,
+      },
+    ],
+  },
+  {
+    event: 'SelectorDisallowed',
+    enableHistorical: false,
+    topic: new Interface(ExecuteSelectorCondition.abi).getEvent('SelectorDisallowed')?.topicHash!,
+    config: [
+      {
+        abi: ExecuteSelectorCondition.abi,
+        handler: SelectorPermissionHandler.selectorDisallowed,
+      },
+    ],
+  },
+  {
+    event: 'NativeTransfersAllowed',
+    enableHistorical: false,
+    topic: new Interface(ExecuteSelectorCondition.abi).getEvent('NativeTransfersAllowed')?.topicHash!,
+    config: [
+      {
+        abi: ExecuteSelectorCondition.abi,
+        handler: SelectorPermissionHandler.nativeTransfersAllowed,
+      },
+    ],
+  },
+  {
+    event: 'NativeTransfersDisallowed',
+    enableHistorical: false,
+    topic: new Interface(ExecuteSelectorCondition.abi).getEvent('NativeTransfersDisallowed')?.topicHash!,
+    config: [
+      {
+        abi: ExecuteSelectorCondition.abi,
+        handler: SelectorPermissionHandler.nativeTransfersDisallowed,
       },
     ],
   },
