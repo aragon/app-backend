@@ -265,9 +265,6 @@ export default class Proposal extends Model {
   @prop({ type: () => Number, required: true })
   public endDate!: number
 
-  @prop({ type: () => Boolean, default: false })
-  public approvalReached!: boolean
-
   @prop({ type: () => String, default: null })
   public metadataUri!: string
 
