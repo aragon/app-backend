@@ -16,7 +16,7 @@ describe('migration: migrateTokenConfigIndexer', () => {
   })
 
   describe('migrateTokenConfigIndexer', () => {
-    it.only('should migrate token config indexer', async () => {
+    it('should migrate token config indexer', async () => {
       const dbData = [
         {
           id: 'ethereum-mainnet-gauge-ethereum-mainnet-0x69E8D5151d71d4cde35b5076aF3023C7D54d379E-0x1b6ec227ceBeC25118270efbb4b67642fc29965E',
