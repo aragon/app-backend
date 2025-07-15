@@ -141,9 +141,15 @@ export const LogTokenVoting = {
     if (isNotEligibleForSync) {
       logger.verbose('Start Sync Only Delegates Events', llo({ ...infoLogs, skipSync }))
 
-      await Promise.all([pluginCrawler.crawl(), TokenHolderSync.syncDelegationEvents(plugin, token)])
+      const crawlers: any = [pluginCrawler]
+      crawlers.push({
+        crawl: async () => TokenHolderSync.syncDelegationEvents(plugin, token),
+        end: async () => {},
+      })
+
+      await Promise.all(crawlers.map(async (c: BlockchainLogCrawler) => c.crawl()))
       await TokenHolderSync.convertToStandardSync(plugin, token)
-      await pluginCrawler.end()
+      await Promise.all(crawlers.map(async (c: BlockchainLogCrawler) => c.end?.()))
 
       logger.verbose(
         'End LogTokenVoting',
@@ -182,8 +188,8 @@ export const LogTokenVoting = {
       crawlers.push(tokenCrawler)
     }
 
-    await Promise.all(crawlers.map(c => c.crawl()))
-    await Promise.all(crawlers.map(c => c.end?.()))
+    await Promise.all(crawlers.map(async (c: BlockchainLogCrawler) => c.crawl()))
+    await Promise.all(crawlers.map(async (c: BlockchainLogCrawler) => c.end?.()))
 
     logger.verbose(
       'End LogTokenVoting',
