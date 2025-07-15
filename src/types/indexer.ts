@@ -9,6 +9,7 @@ export enum IndexerType {
   dao = 'dao',
   plugin = 'plugin',
   token = 'token',
+  permission = 'permission',
 }
 
 export enum IEnumIndexerService {
@@ -30,6 +31,7 @@ export type LogServicePattern =
   | PluginLogService
   | DaoLogService
   | TokenLogService
+  | PermissionLogService
   | null
 
 // Individual pattern types
@@ -38,6 +40,7 @@ export type WithdrawLogService = `${IndexerType.withdraw}-${string}-${IEnumIndex
 export type IndexerLogService = `${IndexerType.indexer}-${NetworksEnum}`
 export type PluginLogService = `${IPluginInterfaceType}-${NetworksEnum}-${string}`
 export type DaoLogService = `${IndexerType.dao}-${NetworksEnum}-${string}`
+export type PermissionLogService = `${IndexerType.permission}-${NetworksEnum}-${string}`
 
 // Only include valid token types for logService (excluding native and unknown)
 export type TokenLogService =
@@ -60,5 +63,6 @@ export type LogServiceInfo =
   | { type: 'withdraw'; address: string; service: IEnumIndexerService.withdrawTxs }
   | { type: 'indexer'; network: NetworksEnum }
   | { type: 'dao'; network: NetworksEnum; address: string }
+  | { type: 'permission'; network: NetworksEnum; address: string }
   | { type: 'token'; tokenType: ITokenType; network: NetworksEnum; address: string; syncTag?: ITokenSyncTagName }
   | { type: 'plugin'; interfaceType: IPluginInterfaceType; network: NetworksEnum; address: string }

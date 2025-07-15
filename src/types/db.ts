@@ -20,6 +20,7 @@ import type MemberMetrics from '@models/schema/memberMetrics'
 import type DaoPermission from '@models/schema/daoPermission'
 import type Jwt from '@models/schema/jwt'
 import type PluginSlug from '@models/schema/pluginSlug'
+import type SelectorPermission from '@models/schema/selectorPermission'
 
 export enum ICollectionNames {
   Asset = 'Asset',
@@ -46,6 +47,7 @@ export enum ICollectionNames {
   Jwt = 'Jwt',
   Lock = 'Lock',
   Migration = 'Migration',
+  SelectorPermission = 'SelectorPermission',
 }
 
 export enum ITransactionIndexCheckType {
@@ -97,6 +99,7 @@ export interface IMongoModel {
   Token: typeof Token
   Transaction: typeof Transaction
   Vote: typeof Vote
+  SelectorPermission: typeof SelectorPermission
 }
 
 export enum IEventLogPluginMembership {

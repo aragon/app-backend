@@ -16,6 +16,7 @@ import { LogMultiSig } from '@services/aragon-plugins/logMultisig'
 import { LogSpp } from '@services/aragon-plugins/logSPP'
 import { LogTokenVoting } from '@services/aragon-plugins/logTokenVoting'
 import { LogGauge } from '@plugins/logGauge'
+import { LogSelectorPermission } from '@services/aragon-plugins/logSelectorPermission'
 
 const llo = logger.logMeta.bind(null, { service: 'service:PluginSyncService' })
 
@@ -87,6 +88,20 @@ const AragonPluginsService: IService = {
           break
         }
       }
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.logSelectorPermission, async job => {
+      const { address, network, conditionAddress } = job.params as IQueuePlugin
+      const plugin = await Models.Plugin.findOne({
+        address,
+        network,
+        conditionAddress,
+      })
+      if (!plugin) {
+        logger.error('PluginSyncService: plugin not found', llo({ address, network }))
+        return
+      }
+      await LogSelectorPermission.start(plugin)
     })
 
     logger.info('PluginSyncService service started', llo({}))

@@ -14,6 +14,7 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import { IPermission } from '@src/types/permission'
 import { PluginHandler } from '@handlers/pluginHandler'
 import DbTx from '@modules/dbTx'
+import Utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PermissionHandler' })
 
@@ -27,7 +28,8 @@ export const PermissionHandler = {
   handleGrantOnDao: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
       const { address, network } = info
-      const { where, who, permissionId } = parsedEvent.args
+      const { where, who, permissionId, condition } = parsedEvent.args
+      const conditionAddress = PermissionHandler.validateAndGetConditionAddress(condition)
 
       const permissionEntity = {
         network,
@@ -48,6 +50,7 @@ export const PermissionHandler = {
 
       if (permissionId === ethers.id(IPermission.EXECUTE_PERMISSION)) {
         await PluginHandler.installPluginOnPermissionGranted(where, who, info)
+        if (conditionAddress) await PluginHandler.updateConditionAddress(who, where, network, conditionAddress)
       }
 
       await DbTx.executeTxFn(async ({ session }) => {
@@ -57,6 +60,7 @@ export const PermissionHandler = {
           blockNumber: info.blockNumber,
           permissionId,
           event: IEventLogPermission.Granted,
+          conditionAddress,
           ...permissionEntity,
         }
 
@@ -73,7 +77,8 @@ export const PermissionHandler = {
   handleRevokeOnDao: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
       const { address, network } = info
-      const { who, where, permissionId } = parsedEvent.args
+      const { who, where, permissionId, condition } = parsedEvent.args
+      const conditionAddress = PermissionHandler.validateAndGetConditionAddress(condition)
 
       const permissionEntity = {
         network,
@@ -103,6 +108,7 @@ export const PermissionHandler = {
           blockNumber: info.blockNumber,
           permissionId,
           event: IEventLogPermission.Revoked,
+          conditionAddress,
           ...permissionEntity,
         }
 
@@ -162,5 +168,14 @@ export const PermissionHandler = {
     })
 
     logger.info('Add member to DAO', llo({ daoAddress, pluginAddress, network, where }))
+  },
+
+  validateAndGetConditionAddress: (conditionAddress: HexAddress | undefined): HexAddress | undefined => {
+    if (!conditionAddress) return undefined
+    if (ethers.getAddress(conditionAddress) === Utils.zeroAddress) return undefined
+    if (ethers.getAddress(conditionAddress) === ethers.getAddress('0x0000000000000000000000000000000000000002'))
+      return undefined
+
+    return ethers.getAddress(conditionAddress)
   },
 }

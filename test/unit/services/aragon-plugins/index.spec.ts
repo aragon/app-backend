@@ -12,6 +12,7 @@ import { LogAdmin } from '@plugins/logAdmin'
 import { LogSpp } from '@plugins/logSPP'
 import { LogGauge } from '@plugins/logGauge'
 import { LogMultiSig } from '@plugins/logMultisig'
+import { LogSelectorPermission } from '@plugins/logSelectorPermission'
 
 describe('AragonPlugins: index', () => {
   let sandbox: SinonSandbox
@@ -33,9 +34,10 @@ describe('AragonPlugins: index', () => {
       sandbox.stub(logger, 'info')
       await AragonPluginsService.start()
 
-      expect(processStub.calledTwice).to.be.true
+      expect(processStub.calledThrice).to.be.true
       expect(processStub.args[0][0]).to.eq(EnumQueueName.logDao)
       expect(processStub.args[1][0]).to.eq(EnumQueueName.plugins)
+      expect(processStub.args[2][0]).to.eq(EnumQueueName.logSelectorPermission)
 
       const handler = processStub.getCall(0).args[1]
       await handler({ id: 'some-id', params: { address: '0xDaoAddress', network: NetworksEnum.ethereumMainnet } })
@@ -61,7 +63,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      expect(processStub.calledTwice).to.be.true
+      expect(processStub.calledThrice).to.be.true
 
       const handler = processStub.getCall(1).args[1]
       await handler({
@@ -420,6 +422,107 @@ describe('AragonPlugins: index', () => {
       })
 
       expect(pluginStub.calledOnceWith('0xPluginWithNoType', NetworksEnum.ethereumMainnet)).to.be.true
+    })
+  })
+
+  describe('logSelectorPermission queue', () => {
+    it('should process logSelectorPermission queue and call LogSelectorPermission.start', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const pluginStub = sandbox.stub(Models.Plugin, 'findOne').resolves({
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumMainnet,
+        conditionAddress: '0xConditionAddress',
+      } as any)
+      const logSelectorPermissionStub = sandbox.stub(LogSelectorPermission, 'start').resolves()
+
+      sandbox.stub(logger, 'info')
+      await AragonPluginsService.start()
+
+      expect(processStub.calledThrice).to.be.true
+      expect(processStub.args[2][0]).to.eq(EnumQueueName.logSelectorPermission)
+
+      const handler = processStub.getCall(2).args[1]
+      await handler({
+        id: 'some-id',
+        params: {
+          address: '0xPluginAddress',
+          network: NetworksEnum.ethereumMainnet,
+          conditionAddress: '0xConditionAddress',
+        },
+      })
+
+      expect(
+        pluginStub.calledOnceWith({
+          address: '0xPluginAddress',
+          network: NetworksEnum.ethereumMainnet,
+          conditionAddress: '0xConditionAddress',
+        }),
+      ).to.be.true
+      expect(logSelectorPermissionStub.calledOnce).to.be.true
+    })
+
+    it('should log an error if plugin is not found for logSelectorPermission queue', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const pluginStub = sandbox.stub(Models.Plugin, 'findOne').resolves(null)
+      const loggerStub = sandbox.stub(logger, 'error')
+      const logSelectorPermissionStub = sandbox.stub(LogSelectorPermission, 'start')
+
+      sandbox.stub(logger, 'info')
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(2).args[1]
+      await handler({
+        id: 'some-id',
+        params: {
+          address: '0xMissingPlugin',
+          network: NetworksEnum.ethereumMainnet,
+          conditionAddress: '0xConditionAddress',
+        },
+      })
+
+      expect(
+        pluginStub.calledOnceWith({
+          address: '0xMissingPlugin',
+          network: NetworksEnum.ethereumMainnet,
+          conditionAddress: '0xConditionAddress',
+        }),
+      ).to.be.true
+      expect(loggerStub.calledWith('PluginSyncService: plugin not found' as any)).to.be.true
+      expect(logSelectorPermissionStub.notCalled).to.be.true
+    })
+
+    it('should handle logSelectorPermission queue with all required parameters', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const mockPlugin = {
+        address: '0x1234567890123456789012345678901234567890',
+        network: NetworksEnum.ethereumSepolia,
+        conditionAddress: '0x2222222222222222222222222222222222222222',
+        interfaceType: 'admin',
+      }
+      const pluginStub = sandbox.stub(Models.Plugin, 'findOne').resolves(mockPlugin as any)
+      const logSelectorPermissionStub = sandbox.stub(LogSelectorPermission, 'start').resolves()
+
+      sandbox.stub(logger, 'info')
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(2).args[1]
+      await handler({
+        id: 'selector-permission-job',
+        params: {
+          address: mockPlugin.address,
+          network: mockPlugin.network,
+          conditionAddress: mockPlugin.conditionAddress,
+        },
+      })
+
+      expect(
+        pluginStub.calledOnceWith({
+          address: mockPlugin.address,
+          network: mockPlugin.network,
+          conditionAddress: mockPlugin.conditionAddress,
+        }),
+      ).to.be.true
+      expect(logSelectorPermissionStub.calledOnceWith(mockPlugin as any)).to.be.true
     })
   })
 })

@@ -144,3 +144,11 @@ export interface IDaoPermissionId {
   transactionIndex: number
   logIndex: number
 }
+
+export interface ISelectorPermissionIdParams {
+  network: NetworksEnum
+  transactionHash: HexAddress
+  transactionIndex: number
+  logIndex: number
+  conditionAddress: HexAddress
+}

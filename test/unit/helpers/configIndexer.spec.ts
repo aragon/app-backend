@@ -69,6 +69,25 @@ describe('Helpers: ConfigIndexerHelper', () => {
       })
     })
 
+    describe('permission', () => {
+      it('should create permission logService', () => {
+        const network = NetworksEnum.ethereumMainnet
+        const address = '0xpermission123'
+        const result = ConfigIndexerHelper.builders.permission(network, address)
+        expect(result).to.equal(`permission-${network}-${address}`)
+      })
+
+      it('should create permission logService with different networks', () => {
+        const address = '0xpermission456'
+        const networks = [NetworksEnum.polygonMainnet, NetworksEnum.baseMainnet, NetworksEnum.arbitrumMainnet]
+
+        networks.forEach(network => {
+          const result = ConfigIndexerHelper.builders.permission(network, address)
+          expect(result).to.equal(`permission-${network}-${address}`)
+        })
+      })
+    })
+
     describe('token', () => {
       it('should create basic token logService without sync tag', () => {
         const tokenType = ITokenType.ERC20
@@ -180,6 +199,21 @@ describe('Helpers: ConfigIndexerHelper', () => {
       })
     })
 
+    describe('isPermission', () => {
+      it('should return true for permission service', () => {
+        const service = 'permission-ethereum-mainnet-0x123'
+        expect(ConfigIndexerHelper.guards.isPermission(service)).to.be.true
+      })
+
+      it('should return false for non-permission service', () => {
+        expect(ConfigIndexerHelper.guards.isPermission('deposit-0x123-depositTxs')).to.be.false
+        expect(ConfigIndexerHelper.guards.isPermission('dao-ethereum-mainnet-0x123')).to.be.false
+        expect(ConfigIndexerHelper.guards.isPermission('voting-ethereum-mainnet-0x123' as LogServicePattern)).to.be
+          .false
+        expect(ConfigIndexerHelper.guards.isPermission(null)).to.be.false
+      })
+    })
+
     describe('isToken', () => {
       it('should return true for token services', () => {
         expect(ConfigIndexerHelper.guards.isToken('ERC20-ethereum-mainnet-0x123')).to.be.true
@@ -210,6 +244,7 @@ describe('Helpers: ConfigIndexerHelper', () => {
         expect(ConfigIndexerHelper.guards.isPlugin('withdraw-0x123-withdrawTxs')).to.be.false
         expect(ConfigIndexerHelper.guards.isPlugin('indexer-ethereum-mainnet')).to.be.false
         expect(ConfigIndexerHelper.guards.isPlugin('dao-ethereum-mainnet-0x123')).to.be.false
+        expect(ConfigIndexerHelper.guards.isPlugin('permission-ethereum-mainnet-0x123')).to.be.false
         expect(ConfigIndexerHelper.guards.isPlugin('ERC20-ethereum-mainnet-0x123')).to.be.false
         expect(ConfigIndexerHelper.guards.isPlugin(null)).to.be.false
       })
@@ -239,6 +274,15 @@ describe('Helpers: ConfigIndexerHelper', () => {
           type: IndexerType.withdraw,
           address: '0x456',
           service: IEnumIndexerService.withdrawTxs,
+        })
+      })
+
+      it('should parse permission service', () => {
+        const result = ConfigIndexerHelper.parser.parse('permission-ethereum-mainnet-0xabc123')
+        expect(result).to.deep.equal({
+          type: IndexerType.permission,
+          network: 'ethereum-mainnet',
+          address: '0xabc123',
         })
       })
 
@@ -309,6 +353,7 @@ describe('Helpers: ConfigIndexerHelper', () => {
         expect(ConfigIndexerHelper.parser.getType('withdraw-0x123-withdrawTxs')).to.equal(IndexerType.withdraw)
         expect(ConfigIndexerHelper.parser.getType('indexer-ethereum-mainnet')).to.equal(IndexerType.indexer)
         expect(ConfigIndexerHelper.parser.getType('dao-ethereum-mainnet-0x123')).to.equal(IndexerType.dao)
+        expect(ConfigIndexerHelper.parser.getType('permission-ethereum-mainnet-0x123')).to.equal(IndexerType.permission)
         expect(ConfigIndexerHelper.parser.getType('ERC20-ethereum-mainnet-0x123')).to.equal(IndexerType.token)
         expect(ConfigIndexerHelper.parser.getType('voting-ethereum-mainnet-0x123' as LogServicePattern)).to.equal(
           IndexerType.plugin,
@@ -378,6 +423,7 @@ describe('Helpers: ConfigIndexerHelper', () => {
         expect(ConfigIndexerHelper.validators.isValidLogService('withdraw-0x123-withdrawTxs')).to.be.true
         expect(ConfigIndexerHelper.validators.isValidLogService('indexer-ethereum-mainnet')).to.be.true
         expect(ConfigIndexerHelper.validators.isValidLogService('dao-ethereum-mainnet-0x123')).to.be.true
+        expect(ConfigIndexerHelper.validators.isValidLogService('permission-ethereum-mainnet-0x123')).to.be.true
         expect(ConfigIndexerHelper.validators.isValidLogService('ERC20-ethereum-mainnet-0x123')).to.be.true
         expect(ConfigIndexerHelper.validators.isValidLogService('voting-ethereum-mainnet-0x123' as LogServicePattern))
           .to.be.true
@@ -541,6 +587,7 @@ describe('Helpers: ConfigIndexerHelper', () => {
         { service: 'withdraw-0x456-withdrawTxs', type: IndexerType.withdraw },
         { service: 'indexer-ethereum-mainnet', type: IndexerType.indexer },
         { service: 'dao-polygon-mainnet-0x789', type: IndexerType.dao },
+        { service: 'permission-ethereum-mainnet-0xperm123', type: IndexerType.permission },
         { service: 'ERC20-base-mainnet-0xabc', type: IndexerType.token },
         { service: 'voting-arbitrum-mainnet-0xdef', type: IndexerType.plugin },
       ]
