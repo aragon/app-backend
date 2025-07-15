@@ -108,14 +108,28 @@ const GovernanceErc20Helper = {
     }
   },
 
-  async getPastTotalSupply(blockNumber: number, tokenAddress: HexAddress, network: NetworksEnum): Promise<string> {
+  async getPastTotalSupply({
+    tokenAddress,
+    blockNumber,
+    network,
+    blockTimestamp,
+    hasClockMode,
+  }: {
+    tokenAddress: HexAddress
+    blockNumber: number
+    network: NetworksEnum
+    blockTimestamp?: number
+    hasClockMode?: boolean
+  }): Promise<string> {
     const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
-    const adjustedBlockNumber = await Web3Helper.getChainAdjustedBlockNumber(blockNumber, network)
+    const timepointValue = hasClockMode
+      ? blockTimestamp
+      : await Web3Helper.getChainAdjustedBlockNumber(blockNumber, network)
 
     try {
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.getPastTotalSupply(adjustedBlockNumber)),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.getPastTotalSupply(timepointValue)),
       )
     } catch (error) {
       logger.error('Error getting pastTotalSupply', llo({ blockNumber, tokenAddress, network, error }))

@@ -1,5 +1,6 @@
 import { Models } from '@dbModels'
 import {
+  EnumQueueName,
   ErrorKeyEnum,
   type HexAddress,
   type IPaginatedResult,
@@ -11,6 +12,7 @@ import {
 import { assertExposable } from '@errors'
 import type Token from '@models/schema/token'
 import { ProxyToken } from '@modules/proxyToken'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 
 const TokenController = {
   getTokensWithPagination: async (
@@ -32,6 +34,23 @@ const TokenController = {
     }
 
     return token.filterKeys()
+  },
+
+  getTokenStats: async (params: { address: HexAddress; network: NetworksEnum }): Promise<any> => {
+    const token = await Models.Token.findByTokenAddressAndNetwork(params.address, params.network)
+    assertExposable(!!token, ErrorKeyEnum.notFound, undefined, undefined, params)
+
+    return RabbitMQHelper.sendMessage(
+      EnumQueueName.getTokenStats,
+      {
+        id: `getTokenStats-${params.address}-${params.network}`,
+        params: {
+          address: params.address,
+          network: params.network,
+        },
+      },
+      { waitResponse: true, timeout: 10000 },
+    )
   },
 }
 

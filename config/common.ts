@@ -42,6 +42,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       API_URL: utils.configParser(sourceConfig, 'string', 'ANKR_API_URL', 'https://rpc.ankr.com'),
       API_KEY: utils.configParser(sourceConfig, 'string', 'ANKR_API_KEY', null),
     },
+    CHILIZ_API_URL: utils.configParser(sourceConfig, 'string', 'CHILIZ_API_URL', 'https://scan.chiliz.com'),
 
     CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'CONFIRMATION_BLOCKS', 3),
     WHITELIST_TOKENS: utils.configParser(sourceConfig, 'array', 'WHITELIST_TOKENS', [

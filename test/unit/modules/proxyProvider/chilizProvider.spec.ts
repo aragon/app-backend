@@ -9,6 +9,7 @@ import TokenUtils from '@helpers/tokenUtils'
 import ChilizProvider from '@modules/proxyProvider/chilizProvider'
 import ProxyUtils from '@modules/proxyProvider/utils'
 import Web3Helper from '@helpers/web3'
+import RouteScanHelper from '@helpers/routeScanHelper'
 
 describe('ChilizProvider', () => {
   let sandbox: any
@@ -1303,45 +1304,26 @@ describe('ChilizProvider', () => {
   })
 
   describe('getTokenCounters', () => {
-    it('should return token counters when API call succeeds', async () => {
+    it('should return token counters using routescan', async () => {
       // Arrange
       const address = '0xtoken'
       const network = NetworksEnum.chilizMainnet
-      const mockResponse = {
-        token_holder_count: 150,
-        token_holders: 75,
-      }
 
-      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(mockResponse)
+      const routeScanStub = sandbox.stub(RouteScanHelper, 'fetchTokenHoldersCount').resolves(10)
 
       // Act
       const result = await ChilizProvider.getTokenCounters({ address, network })
 
       // Assert
-      expect(rpcCallStub.calledOnce).to.be.true
-      expect(rpcCallStub.firstCall.args[0]).to.equal('token-counters')
-      expect(rpcCallStub.firstCall.args[1]).to.deep.equal({ id: address })
-
-      expect(result).to.deep.equal({
-        transfers: 150,
-        holders: 75,
+      expect(routeScanStub.calledOnce).to.be.true
+      expect(routeScanStub.firstCall.args[0]).to.deep.eq({
+        network,
+        address,
       })
-    })
 
-    it('should return default values when API call fails', async () => {
-      // Arrange
-      const address = '0xtoken'
-      const network = NetworksEnum.chilizMainnet
-
-      sandbox.stub(ChilizProvider, '_rpcCall').rejects(new Error('API Error'))
-
-      // Act
-      const result = await ChilizProvider.getTokenCounters({ address, network })
-
-      // Assert
       expect(result).to.deep.equal({
         transfers: 0,
-        holders: 0,
+        holders: 10,
       })
     })
   })
