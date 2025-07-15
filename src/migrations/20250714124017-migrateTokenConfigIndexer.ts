@@ -55,12 +55,16 @@ export const migrateTokenConfigIndexerMigration: IMigration & {
             config.interfaceType === IPluginInterfaceType.gauge
           ) {
             if (token?.type === ITokenType.ERC20 || token?.type === ITokenType.ERC721) {
+              const service = ConfigIndexerHelper.builders.token(token.type, token.network, token.address)
               await configIndexer.update({
-                service: ConfigIndexerHelper.builders.token(token.type, token.network, token.address),
+                id: Models.ConfigIndexer.getEntityId({ network: configIndexer.network, service }),
+                service,
               })
             } else if (token?.type === ITokenType.escrowAdapter) {
+              const service = ConfigIndexerHelper.builders.token(ITokenType.escrowAdapter, token.network, token.address)
               await configIndexer.update({
-                service: ConfigIndexerHelper.builders.token(ITokenType.escrowAdapter, token.network, token.address),
+                id: Models.ConfigIndexer.getEntityId({ network: configIndexer.network, service }),
+                service,
               })
             }
           } else {

@@ -4,7 +4,7 @@ import { Models } from '@dbModels'
 import { expect } from 'chai'
 import migrateTokenConfigIndexerMigration from '@src/migrations/20250714124017-migrateTokenConfigIndexer'
 
-describe.only('migration: migrateTokenConfigIndexer', () => {
+describe('migration: migrateTokenConfigIndexer', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -116,9 +116,12 @@ describe.only('migration: migrateTokenConfigIndexer', () => {
 
       await migrateTokenConfigIndexerMigration.start()
 
-      const a = await Models.ConfigIndexer.find().lean().exec()
-      console.log(a)
-      // expect(spyConfigName.callCount).to.equal(2)
+      const docs = await Models.ConfigIndexer.find().lean().exec()
+
+      docs.map((doc: any) => {
+        expect(doc.id).to.eq(Models.ConfigIndexer.getEntityId({ network: doc.network, service: doc.service }))
+      })
+      expect(spyConfigName.callCount).to.equal(5) // not 6 as it should skip all plugins config
     })
   })
 })
