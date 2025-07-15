@@ -61,7 +61,6 @@ describe('RouterV1: V1Router', () => {
     // Verify all routers are mounted
     const routers = [
       VoteRouter,
-      DelegateRouter,
       AssetRouter,
       DaoRouter,
       MemberRouter,

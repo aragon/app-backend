@@ -96,12 +96,3 @@ export interface IGetLockVotingPowerBatch {
     network: NetworksEnum
   }>
 }
-
-export enum IndexerType {
-  indexer = 'indexer',
-  tokenTransfers = 'tokenTransfers',
-  daoTransactions = 'daoTransactions',
-  dao = 'dao',
-  plugin = 'plugin',
-  token = 'token',
-}

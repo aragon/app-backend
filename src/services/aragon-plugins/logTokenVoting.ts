@@ -82,11 +82,12 @@ export const LogTokenVoting = {
 
     logger.verbose('Start Token Sync', llo({ ...infoLogs, ...{ syncStrategy: 'BlockchainLogCrawler' } }))
 
-    const crawlers: any = [pluginCrawler.crawl(), veGovernanceCrawler.crawl()]
+    const crawlers: any = [pluginCrawler, veGovernanceCrawler]
 
     const startTime = Date.now()
-    await Promise.all(crawlers)
-    await Promise.all([pluginCrawler.end(), veGovernanceCrawler.end()])
+
+    await Promise.all(crawlers.map(async (crawler: BlockchainLogCrawler) => crawler.crawl()))
+    await Promise.all(crawlers.map(async (crawler: BlockchainLogCrawler) => crawler.end()))
 
     logger.verbose(
       'End LogTokenVoting veGovernance',
@@ -171,15 +172,18 @@ export const LogTokenVoting = {
       stopOnError: true,
     })
 
-    const crawlers: any = [pluginCrawler.crawl()]
+    const crawlers: any = [pluginCrawler]
     if (tokenLastSyncBlock) {
-      crawlers.push(TokenHolderSync.linkPluginToExistingTokenHolders(plugin, token, tokenLastSyncBlock))
+      crawlers.push({
+        crawl: async () => TokenHolderSync.linkPluginToExistingTokenHolders(plugin, token, tokenLastSyncBlock),
+        end: async () => {},
+      })
     } else {
-      crawlers.push(tokenCrawler.crawl())
+      crawlers.push(tokenCrawler)
     }
 
-    await Promise.all(crawlers)
-    await Promise.all([pluginCrawler.end(), tokenCrawler.end()])
+    await Promise.all(crawlers.map(c => c.crawl()))
+    await Promise.all(crawlers.map(c => c.end?.()))
 
     logger.verbose(
       'End LogTokenVoting',
