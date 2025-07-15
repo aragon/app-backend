@@ -68,7 +68,7 @@ export const DaoMetrics = {
         logger.verbose('Update Dao metrics', llo({ logId: logDb?.id }))
       })
     } catch (error) {
-      logger.error('Error DaoMetrics', llo({ error }))
+      logger.error('Error DaoMetrics', llo({ error, daoAddress: document.address, network: document.network }))
     }
   },
 }

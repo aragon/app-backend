@@ -10,6 +10,7 @@ import {
   IPluginStatus,
   type IQueryGetPlugin,
   type NetworksEnum,
+  EnumQueueName,
 } from '@types'
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
 import type Plugin from '@models/schema/plugin'
@@ -23,6 +24,7 @@ import { PluginSlug } from '@helpers/pluginSlug'
 import DbTx from '@modules/dbTx'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import { MetadataHandler } from '@handlers/metadataHandler'
+import RabbitMQHelper from '@src/helpers/rabbitMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PluginHandler' })
 
@@ -716,5 +718,44 @@ export const PluginHandler = {
     } catch (error) {
       logger.error('Error Uninstall Plugin', llo({ pluginLog, error }))
     }
+  },
+
+  updateConditionAddress: async (
+    pluginAddress: HexAddress,
+    daoAddress: HexAddress,
+    network: NetworksEnum,
+    conditionAddress: HexAddress | null,
+  ): Promise<void> => {
+    const plugin = await Models.Plugin.findOne({
+      address: pluginAddress,
+      daoAddress,
+      network,
+    })
+
+    if (!plugin) {
+      logger.warn('Plugin not found for updating condition address', llo({ pluginAddress, daoAddress, network }))
+      return
+    }
+
+    if (plugin.conditionAddress === conditionAddress) {
+      return
+    }
+
+    await DbOperations.updateDocument(
+      plugin,
+      { conditionAddress },
+      { logId: plugin.id, conditionAddress },
+      'Update Plugin Condition Address',
+      llo,
+    )
+
+    await RabbitMQHelper.sendMessage(EnumQueueName.logSelectorPermission, {
+      id: plugin.id,
+      params: {
+        address: plugin.address,
+        network: plugin.network,
+        conditionAddress,
+      },
+    })
   },
 }
