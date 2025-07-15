@@ -44,10 +44,17 @@ export const SelectorPermissionHandler = {
         ...selectorParams,
       })
 
-      logger.info(`Selector allowed: ${selector} for target ${where} in condition ${info.address}`)
+      logger.info(
+        'Selector allowed',
+        llo({
+          selector,
+          where,
+          ...info,
+        }),
+      )
       return selectorRecord
     } catch (error) {
-      logger.error(`Error processing SelectorAllowed event: ${error}`)
+      logger.error('Error processing SelectorAllowed event:', llo({ error, parsedEvent, ...info }))
     }
   },
 
@@ -112,7 +119,7 @@ export const SelectorPermissionHandler = {
         }),
       )
     } catch (error) {
-      logger.error('Error processing SelectorDisallowed event:', llo({ error, parsedEvent, info }))
+      logger.error('Error processing SelectorDisallowed event', llo({ error, parsedEvent, ...info }))
     }
   },
 
@@ -165,10 +172,16 @@ export const SelectorPermissionHandler = {
         isAllowed: true,
       })
 
-      logger.info(`Native transfers allowed for target ${where} in condition ${info.address}`)
+      logger.info(
+        'Native transfers allowed',
+        llo({
+          where,
+          ...info,
+        }),
+      )
       return selectorRecord
     } catch (error) {
-      logger.error(`Error processing NativeTransfersAllowed event: ${error}`)
+      logger.error('Error processing NativeTransfersAllowed event', llo({ error, parsedEvent, ...info }))
     }
   },
 
@@ -231,7 +244,7 @@ export const SelectorPermissionHandler = {
         }),
       )
     } catch (error) {
-      logger.error('Error processing NativeTransfersDisallowed event:', llo({ error, parsedEvent, info }))
+      logger.error('Error processing NativeTransfersDisallowed event', llo({ error, parsedEvent, ...info }))
     }
   },
 }
