@@ -210,7 +210,7 @@ describe('AragonPlugins: index', () => {
       expect(logMultisigStub.calledOnce).to.be.true
     })
 
-    it('should process plugins queue for tokenVoting interface type', async () => {
+    it('should process plugins queue for tokenVoting ERC20 interface type', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
         interfaceType: IPluginInterfaceType.tokenVoting,
@@ -219,6 +219,35 @@ describe('AragonPlugins: index', () => {
       })
       const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
         type: ITokenType.ERC20,
+        isGovernance: true,
+      } as any)
+      const logTokenVotingStub = sandbox.stub(LogTokenVoting, 'start').resolves()
+
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(1).args[1]
+      await handler({
+        id: 'some-id',
+        params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
+      })
+
+      expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
+
+      expect(proxyTokenStub.args[0][0].address).to.be.eq('0xTokenAddress')
+      expect(proxyTokenStub.args[0][0].network).to.be.eq(NetworksEnum.ethereumMainnet)
+
+      expect(logTokenVotingStub.calledOnce).to.be.true
+    })
+
+    it('should process plugins queue for tokenVoting EscrowAdapter interface type', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xTokenAddress',
+        network: NetworksEnum.ethereumMainnet,
+      })
+      const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
+        type: ITokenType.escrowAdapter,
         isGovernance: true,
       } as any)
       const logTokenVotingStub = sandbox.stub(LogTokenVoting, 'start').resolves()

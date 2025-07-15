@@ -19,6 +19,8 @@ import TokenUtils from '@helpers/tokenUtils'
 import { ITransactionCategory, ITransactionType } from '@types'
 import ProxyUtils from '@modules/proxyProvider/utils'
 import Web3Helper from '@helpers/web3'
+import RouteScanHelper from '@helpers/routeScanHelper'
+import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'provider:ChilizProvider' })
 
@@ -562,7 +564,7 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
   },
 
   _rpcCall: async (path: string, params: any, network: NetworksEnum) => {
-    const baseUrl = 'https://scan.chiliz.com'
+    const baseUrl = config.CHILIZ_API_URL
 
     try {
       const response = await retryRequest(async () =>
@@ -579,27 +581,12 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
     }
   },
   getTokenCounters: async ({ address, network }) => {
-    const path = 'token-counters'
-    const params = {
-      id: address,
-    }
-
-    try {
-      const response = await ChilizProvider._rpcCall(path, params, network)
-
-      if (response?.token_holder_count) {
-        return {
-          transfers: response?.token_holder_count,
-          holders: response?.token_holders,
-        }
-      }
-    } catch (error: any) {
-      logger.warn('Chiliz Provider token-counter api failed', llo({ error, path, params }))
-    }
-
     return {
+      holders: await RouteScanHelper.fetchTokenHoldersCount({
+        network,
+        address,
+      }),
       transfers: 0,
-      holders: 0,
     }
   },
   fetchHistoricalTokenPrice: async () => {

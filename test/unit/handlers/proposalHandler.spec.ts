@@ -275,7 +275,13 @@ describe('Indexer: ProposalHandler', () => {
       sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
       sandbox.stub(IPFSModule, 'fetchMetadata').resolves(proposalMetadata)
-      sandbox.stub(GovernanceErc20Helper, 'getPastTotalSupply').resolves(1000n as any)
+      const pastTotalSupplyStub = sandbox.stub(GovernanceErc20Helper, 'getPastTotalSupply').resolves(1000n as any)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        address: '0xtoken-address',
+        network,
+        decimals: 18,
+        hasClockMode: true,
+      } as any)
       sandbox.stub(ProposalHandler, 'handleStartEndDate').resolves({
         startDate: 0,
         endDate: 0,
@@ -309,6 +315,14 @@ describe('Indexer: ProposalHandler', () => {
         network,
         proposalIndex: '1',
         blockNumber: 100,
+      })
+
+      expect(pastTotalSupplyStub.args[0][0]).to.be.deep.eq({
+        tokenAddress: '0xtoken-address',
+        blockNumber: info.blockNumber - 1,
+        network,
+        blockTimestamp: 1700000000 - (config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME || 0),
+        hasClockMode: true,
       })
 
       expect(
@@ -398,6 +412,12 @@ describe('Indexer: ProposalHandler', () => {
       const stubDaoMetrics = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
       const updateActivityStub = sandbox.stub(ProxyMember, 'updateActivity')
       const verboseLoggerStub = sandbox.stub(logger, 'verbose')
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        address: '0xtoken-address',
+        network,
+        decimals: 18,
+        hasClockMode: true,
+      } as any)
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
 

@@ -3,6 +3,7 @@ import { type IIndexerConfig, IMultiSigLogs } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Plugin from '@models/schema/plugin'
 import configIndexer from '@indexer/configIndexer'
+import ConfigIndexerHelper from '@helpers/configIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogMultiSig' })
 
@@ -20,7 +21,7 @@ export const LogMultiSig = {
       address: plugin.address,
       fromBlock: plugin?.blockNumber,
       onError: async (error: any, log: any) => LogMultiSig.processError(error, plugin, log),
-      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}`,
+      logService: ConfigIndexerHelper.builders.plugin(plugin.interfaceType, plugin.network, plugin.address),
       stopOnError: true,
     })
     await crawler.crawl()

@@ -4,13 +4,14 @@ import { expect } from 'chai'
 import { TokenHolderSync } from '@plugins/tokenHolderSync'
 import { ProxyMember } from '@modules/proxyMember'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
-import { IGovernanceErc20Logs, NetworksEnum, TokenSyncTagName } from '@types'
+import { IGovernanceErc20Logs, ITokenSyncTagName, NetworksEnum } from '@types'
 import configIndexer from '@indexer/configIndexer'
 import config from '@config'
 import logger from '@logger'
 import { Models } from '@dbModels'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 import DbTx from '@modules/dbTx'
+import ConfigIndexerHelper from '@helpers/configIndexer'
 
 describe('AragonPlugins: TokenHolderSync', () => {
   let sandbox: SinonSandbox
@@ -93,18 +94,6 @@ describe('AragonPlugins: TokenHolderSync', () => {
 
   afterEach(() => {
     sandbox.restore()
-  })
-
-  describe('getTagName', () => {
-    it('should return correct tag name for default type', () => {
-      const result = TokenHolderSync.getTagName(mockPlugin, mockToken, TokenSyncTagName.Default)
-      expect(result).to.equal('tokenVoting-ethereum-sepolia-0xPlugin123-0xToken456')
-    })
-
-    it('should return correct tag name with suffix for non-default types', () => {
-      const result = TokenHolderSync.getTagName(mockPlugin, mockToken, TokenSyncTagName.TokenHolders)
-      expect(result).to.equal('tokenVoting-ethereum-sepolia-0xPlugin123-0xToken456-token-holders')
-    })
   })
 
   describe('isTokenNotEligibleForSync', () => {
@@ -190,7 +179,12 @@ describe('AragonPlugins: TokenHolderSync', () => {
       expect(callArgs.network).to.equal(mockToken.network)
       expect(typeof callArgs.callback).to.equal('function')
 
-      const expectedSyncKey = TokenHolderSync.getTagName(mockPlugin, mockToken, TokenSyncTagName.TokenHolders)
+      const expectedSyncKey = ConfigIndexerHelper.builders.token(
+        mockToken.type,
+        mockToken.network,
+        mockToken.address,
+        ITokenSyncTagName.holders,
+      )
       expect(callArgs.syncKey).to.equal(expectedSyncKey)
     })
 
@@ -307,7 +301,12 @@ describe('AragonPlugins: TokenHolderSync', () => {
       expect(crawler.crawlParams.address).to.deep.equal([mockToken.address])
       expect(crawler.crawlParams.fromBlock).to.equal(mockToken.blockNumber)
 
-      const expectedTagName = TokenHolderSync.getTagName(mockPlugin, mockToken, TokenSyncTagName.Delegation)
+      const expectedTagName = ConfigIndexerHelper.builders.token(
+        mockToken.type,
+        mockToken.network,
+        mockToken.address,
+        ITokenSyncTagName.delegates,
+      )
       expect(crawler.crawlParams.logService).to.equal(expectedTagName)
     })
   })
@@ -326,7 +325,12 @@ describe('AragonPlugins: TokenHolderSync', () => {
       expect(crawler.crawlParams.address).to.deep.equal([mockPlugin.tokenAddress])
       expect(crawler.crawlParams.fromBlock).to.equal(mockPlugin.blockNumber)
 
-      const expectedTagName = TokenHolderSync.getTagName(mockPlugin, mockToken, TokenSyncTagName.Transfer)
+      const expectedTagName = ConfigIndexerHelper.builders.token(
+        mockToken.type,
+        mockToken.network,
+        mockToken.address,
+        ITokenSyncTagName.transfers,
+      )
       expect(crawler.crawlParams.logService).to.equal(expectedTagName)
     })
   })
@@ -352,7 +356,7 @@ describe('AragonPlugins: TokenHolderSync', () => {
       expect(deleteManyStub.calledOnce).to.be.true
       expect(createStub.calledOnce).to.be.true
 
-      const defaultTagName = TokenHolderSync.getTagName(mockPlugin, mockToken, TokenSyncTagName.Default)
+      const defaultTagName = ConfigIndexerHelper.builders.token(mockToken.type, mockToken.network, mockToken.address)
       expect(createStub.firstCall.args[0]).to.deep.include({
         network: mockPlugin.network,
         service: defaultTagName,
@@ -373,7 +377,7 @@ describe('AragonPlugins: TokenHolderSync', () => {
       // Assert
       expect(createStub.calledOnce).to.be.true
 
-      const defaultTagName = TokenHolderSync.getTagName(mockPlugin, mockToken, TokenSyncTagName.Default)
+      const defaultTagName = ConfigIndexerHelper.builders.token(mockToken.type, mockToken.network, mockToken.address)
       expect(createStub.firstCall.args[0]).to.deep.include({
         network: mockPlugin.network,
         service: defaultTagName,
@@ -448,7 +452,7 @@ describe('AragonPlugins: TokenHolderSync', () => {
       expect(spyConfigIndexerCreate.calledOnce).to.be.true
       const configIndexer = await Models.ConfigIndexer.findOne({
         network: mockPlugin.network,
-        service: TokenHolderSync.getTagName(mockPlugin, mockToken, TokenSyncTagName.Default),
+        service: ConfigIndexerHelper.builders.token(mockToken.type, mockToken.network, mockToken.address),
       })
       expect(configIndexer).to.not.be.null
       expect(configIndexer.lastSync).to.equal(lastSyncBlock)
