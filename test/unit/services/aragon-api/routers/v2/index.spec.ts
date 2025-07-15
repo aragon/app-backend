@@ -62,8 +62,21 @@ describe('RouterV2: V2Router', () => {
     // Verify router is created correctly
     expect(v2Router instanceof Router).to.be.true
 
-    // Verify all routers are mounted (12 routers now)
-    expect(use.callCount).to.be.eq(12)
+    const routers = [
+      VoteRouter,
+      DelegateRouter,
+      AssetRouter,
+      DaoRouter,
+      MemberRouter,
+      ProposalRouter,
+      SettingRouter,
+      TokenRouter,
+      TransactionRouter,
+      ContractRouter,
+      PluginRouter,
+      ExecuteSelectorRouter,
+    ]
+    expect(use.callCount).to.be.eq(routers.length)
 
     // Helper function to verify router mounting
     function expectRouter(path: string, name: string) {
