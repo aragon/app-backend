@@ -460,7 +460,7 @@ describe('Handler:GovernanceVeHandler', () => {
       })
 
       const mockInfo = {
-        address: '0xExitQueue', // Use the exitQueueAddress, not escrowAddress
+        address: '0xExitQueue',
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 124,
         transactionHash: '0xexitQueuedHash',
