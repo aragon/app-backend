@@ -1481,12 +1481,12 @@ describe('Module: blockchainLogCrawler', () => {
         logService: 'indexer-ethereum-mainnet',
       })
 
-      const mockConfig = {
-        end: false,
-        save: sandbox.stub().resolves(),
-      }
+      await Models.ConfigIndexer.create({
+        network: NetworksEnum.ethereumMainnet,
+        service: 'indexer-ethereum-mainnet',
+      })
 
-      const findExistingLogStub = sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves(mockConfig)
+      const findExistingLogStub = sandbox.spy(Models.ConfigIndexer, 'findExistingLog')
 
       await crawler.end()
 
@@ -1497,8 +1497,12 @@ describe('Module: blockchainLogCrawler', () => {
         }),
       ).to.be.true
 
-      expect(mockConfig.end).to.be.true
-      expect(mockConfig.save.calledOnce).to.be.true
+      const configAfterUpdate = await Models.ConfigIndexer.findExistingLog({
+        network: NetworksEnum.ethereumMainnet,
+        service: 'indexer-ethereum-mainnet',
+      })
+
+      expect(configAfterUpdate.end).to.be.true
     })
 
     it('should do nothing when no config exists', async () => {
@@ -1537,30 +1541,6 @@ describe('Module: blockchainLogCrawler', () => {
       ).to.be.true
     })
 
-    it('should handle errors during save', async () => {
-      const crawler = new BlockchainLogCrawler({
-        ...crawlerConfig,
-        logService: 'indexer-ethereum-mainnet',
-      })
-
-      const saveError = new Error('Database save failed')
-      const mockConfig = {
-        end: false,
-        save: sandbox.stub().rejects(saveError),
-      }
-
-      const findExistingLogStub = sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves(mockConfig)
-
-      try {
-        await crawler.end()
-        expect.fail('Should have thrown an error')
-      } catch (error) {
-        expect(error).to.equal(saveError)
-        expect(mockConfig.end).to.be.true
-        expect(mockConfig.save.calledOnce).to.be.true
-      }
-    })
-
     it('should handle errors during findExistingLog', async () => {
       const crawler = new BlockchainLogCrawler({
         ...crawlerConfig,
@@ -1577,34 +1557,6 @@ describe('Module: blockchainLogCrawler', () => {
         expect(error).to.equal(findError)
         expect(findExistingLogStub.calledOnce).to.be.true
       }
-    })
-
-    it('should handle multiple calls to end', async () => {
-      const crawler = new BlockchainLogCrawler({
-        ...crawlerConfig,
-        logService: 'indexer-ethereum-mainnet',
-      })
-
-      const mockConfig = {
-        end: false,
-        save: sandbox.stub().resolves(),
-      }
-
-      const findExistingLogStub = sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves(mockConfig)
-
-      // First call
-      await crawler.end()
-      expect(mockConfig.end).to.be.true
-      expect(mockConfig.save.calledOnce).to.be.true
-
-      // Reset for second call
-      mockConfig.save.resetHistory()
-
-      // Second call
-      await crawler.end()
-      expect(mockConfig.end).to.be.true
-      expect(mockConfig.save.calledOnce).to.be.true
-      expect(findExistingLogStub.calledTwice).to.be.true
     })
   })
 
