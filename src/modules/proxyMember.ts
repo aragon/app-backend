@@ -292,6 +292,7 @@ export const ProxyMember = {
           await Models.DaoMemberMapping.create(queryParams, { session })
           await session.commitTransaction()
           await session.endSession()
+          logger.verbose('Add DaoMemberMapping', llo(queryParams))
         }
         return member
       })
@@ -325,10 +326,10 @@ export const ProxyMember = {
         const existingDao = await ProxyMember.isMemberOfDao(queryParams, session)
 
         if (existingDao) {
-          const logDb = await existingDao.removeSelf({ session })
+          await existingDao.removeSelf({ session })
           await session.commitTransaction()
           await session.endSession()
-          logger.verbose('Remove DaoMemberMapping', llo({ logId: logDb.id }))
+          logger.verbose('Remove DaoMemberMapping', llo(queryParams))
         }
 
         return member
