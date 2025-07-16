@@ -101,6 +101,18 @@ export const GovernanceVeHandler = {
     tokenIds: number[],
   ) => {
     try {
+      const existingLog = await Models.MemberTransaction.findExistingLog({
+        network: info.network,
+        transactionHash: info.transactionHash,
+        transactionIndex: info.transactionIndex,
+        logIndex: info.logIndex,
+        address: memberAddress,
+      })
+
+      if (existingLog) {
+        return
+      }
+
       await ProxyMember.createMember(memberAddress)
 
       const token = await ProxyToken.saveAndGetToken(info.address, info.network)
@@ -145,38 +157,28 @@ export const GovernanceVeHandler = {
           { session },
         )
 
-        let memberTransaction = await Models.MemberTransaction.findExistingLog({
-          network: info.network,
-          transactionHash: info.transactionHash,
-          transactionIndex: info.transactionIndex,
-          logIndex: info.logIndex,
-          address: memberAddress,
-        })
+        const memberTransaction = await Models.MemberTransaction.create(
+          {
+            network: info.network,
+            transactionHash: info.transactionHash,
+            transactionIndex: info.transactionIndex,
+            logIndex: info.logIndex,
+            blockNumber: info.blockNumber,
+            blockTimestamp,
+            address: memberAddress,
+            type: ITransferType.delegate,
+            side: transferSide,
+            from: parsedEvent.args.sender,
+            to: parsedEvent.args.delegatee,
+            amount: tokenIdsToSave.length.toString(),
+            tokenAddress: info.address,
+            memberVotingPower: votingPower.toString(),
+          },
+          { session },
+        )
 
-        if (!memberTransaction) {
-          memberTransaction = await Models.MemberTransaction.create(
-            {
-              network: info.network,
-              transactionHash: info.transactionHash,
-              transactionIndex: info.transactionIndex,
-              logIndex: info.logIndex,
-              blockNumber: info.blockNumber,
-              blockTimestamp,
-              address: memberAddress,
-              type: ITransferType.delegate,
-              side: transferSide,
-              from: parsedEvent.args.sender,
-              to: parsedEvent.args.delegatee,
-              amount: tokenIdsToSave.length.toString(),
-              tokenAddress: info.address,
-              memberVotingPower: votingPower.toString(),
-            },
-            { session },
-          )
-
-          await session.commitTransaction()
-          await session.endSession()
-        }
+        await session.commitTransaction()
+        await session.endSession()
 
         return memberTransaction
       })
