@@ -173,6 +173,7 @@ export const GovernanceVeHandler = {
             amount: tokenIdsToSave.length.toString(),
             tokenAddress: info.address,
             memberVotingPower: votingPower.toString(),
+            memberBalance: tokenIdsToSave.length.toString(),
           },
           { session },
         )
