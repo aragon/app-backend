@@ -531,6 +531,16 @@ class BlockchainLogCrawler {
     }
   }
 
+  async end() {
+    const configIndex = await Models.ConfigIndexer.findExistingLog({
+      network: this.crawlParams.network,
+      service: this.crawlParams.logService,
+    })
+    if (configIndex) {
+      await configIndex.update({ end: true })
+    }
+  }
+
   // If we're only processing a small range, use getLogsByBatch without topics
   // If we're processing a large range, use getLogsByBatch without topics
   // Fewer thresholds for faster block times

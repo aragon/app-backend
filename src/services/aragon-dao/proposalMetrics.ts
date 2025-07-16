@@ -35,8 +35,6 @@ export const ProposalMetrics = {
             : proposal.settings.minApprovals - votes.length
 
         const rawMetrics = {
-          // TODO: add this feature to know if approvalReached
-          // approvalReached: votes.length >= proposal.settings.minApprovals,
           metrics: {
             totalVotes: votes.length,
             missingVotes,
@@ -99,8 +97,6 @@ export const ProposalMetrics = {
         )
 
         const rawMetrics = {
-          // TODO: add this feature to know if approvalReached
-          // approvalReached: votes.length >= proposal.settings.minApprovals,
           metrics: {
             totalVotes: votes.length,
             missingVotes:

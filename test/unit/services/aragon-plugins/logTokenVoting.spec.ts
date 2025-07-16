@@ -7,6 +7,7 @@ import { NetworksEnum, ITokenType } from '@types'
 import { expect } from 'chai'
 import { TokenHolderSync } from '@plugins/tokenHolderSync'
 import config from '@config'
+import { Models } from '@dbModels'
 
 describe('AragonPlugins: LogTokenVoting', () => {
   let sandbox: SinonSandbox
@@ -269,7 +270,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
       expect(processErrorStub.calledWith(error, pluginStub, { logIndex: 2, transactionHash: '0xhash2' })).to.be.true
     })
 
-    it('should use linkPluginToExistingTokenHolders when token has an existing sync block', async () => {
+    it('should not sync when config indexer already exits', async () => {
       const token = {
         address: '0x123',
         network: NetworksEnum.ethereumSepolia,
@@ -285,23 +286,14 @@ describe('AragonPlugins: LogTokenVoting', () => {
         interfaceType: 'tokenVoting',
       } as any
 
-      const getTokenLastSyncBlockStub = sandbox.stub(TokenHolderSync, 'getTokenLastSyncBlock').resolves(150)
       const isTokenNotEligibleStub = sandbox.stub(TokenHolderSync, 'isTokenNotEligibleForSync').resolves(false)
-
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
-
-      const linkPluginStub = sandbox.stub(TokenHolderSync, 'linkPluginToExistingTokenHolders').resolves()
-
-      sandbox.stub(logger, 'verbose')
+      sandbox.stub(Models.ConfigIndexer, 'findOne').resolves(true)
 
       await LogTokenVoting.erc20Governance(plugin, token)
 
       expect(isTokenNotEligibleStub.calledOnce).to.be.true
-      expect(getTokenLastSyncBlockStub.calledOnce).to.be.true
-      expect(getTokenLastSyncBlockStub.calledWith(token)).to.be.true
-      expect(crawlStub.calledOnce).to.be.true
-      expect(linkPluginStub.calledOnce).to.be.true
-      expect(linkPluginStub.calledWith(plugin, token, 150)).to.be.true
+      expect(crawlStub.calledOnce).to.be.false
     })
 
     it('should use tokenCrawler when token has no existing sync block', async () => {
@@ -321,13 +313,8 @@ describe('AragonPlugins: LogTokenVoting', () => {
         interfaceType: 'tokenVoting',
       } as any
 
-      const getTokenLastSyncBlockStub = sandbox.stub(TokenHolderSync, 'getTokenLastSyncBlock').resolves(0)
       const isTokenNotEligibleStub = sandbox.stub(TokenHolderSync, 'isTokenNotEligibleForSync').resolves(false)
-
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
-
-      const linkPluginStub = sandbox.stub(TokenHolderSync, 'linkPluginToExistingTokenHolders').resolves()
-
       sandbox.stub(logger, 'verbose')
 
       // Act
@@ -335,9 +322,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
 
       // Assert
       expect(isTokenNotEligibleStub.calledOnce).to.be.true
-      expect(getTokenLastSyncBlockStub.calledOnce).to.be.true
       expect(crawlStub.calledTwice).to.be.true
-      expect(linkPluginStub.called).to.be.false
     })
   })
 
