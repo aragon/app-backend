@@ -89,7 +89,6 @@ describe('migration: migrateTokenConfigIndexer', () => {
           type: 'ERC20',
           address: '0x613ef3f5959688c3b422A545906F844b6f8c8F35',
         },
-
         {
           id: '0xA5148e8fA0CA950dEaAE6422e32149d361708e2e-base-mainnet',
           network: 'base-mainnet',
