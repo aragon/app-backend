@@ -160,12 +160,14 @@ export const GovernanceErc20Handler = {
 
     if (!isHistorical) {
       const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
-      uniqueDaoList.map(async (daoAddress: string) => {
-        await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-          id: daoAddress,
-          params: { address: daoAddress, network: info.network },
-        })
-      })
+      await Promise.all(
+        uniqueDaoList.map(async (daoAddress: string) => {
+          await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+            id: daoAddress,
+            params: { address: daoAddress, network: info.network },
+          })
+        }),
+      )
     }
   },
 
