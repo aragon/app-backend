@@ -1384,7 +1384,7 @@ describe('Handler:GovernanceVeHandler', () => {
       const memberAddress = '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5'
       const transferSide = 'outgoing' as any
       const plugins = [plugin]
-      const tokenIds = ['123']
+      const tokenIds = [123]
 
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         type: ITokenType.ERC721,
@@ -1470,7 +1470,7 @@ describe('Handler:GovernanceVeHandler', () => {
         '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
         ITransferSide.outgoing,
         [plugin],
-        ['123'],
+        [123],
       )
 
       expect(stubMemberTxCreate.notCalled).to.be.true
@@ -1497,7 +1497,7 @@ describe('Handler:GovernanceVeHandler', () => {
       const memberAddress = '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5'
       const transferSide = 'outgoing' as any
       const plugins = [plugin]
-      const tokenIds = ['123']
+      const tokenIds = [123]
 
       sandbox.stub(ProxyMember, 'createMember').rejects(new Error('Database error'))
       const stubLogger = sandbox.stub(logger, 'error')
@@ -1691,7 +1691,7 @@ describe('Handler:GovernanceVeHandler', () => {
         '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
         ITransferSide.outgoing,
         [plugin],
-        ['123'],
+        [123],
       )
 
       expect(stubLogger.calledWith('handleTokenDelegation token not found' as any)).to.be.true
@@ -1731,7 +1731,7 @@ describe('Handler:GovernanceVeHandler', () => {
         '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
         ITransferSide.outgoing,
         [plugin],
-        ['123'],
+        [123],
       )
 
       expect(stubLogger.calledWith('Error handling token delegation' as any)).to.be.true
@@ -1780,7 +1780,7 @@ describe('Handler:GovernanceVeHandler', () => {
         '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
         ITransferSide.outgoing,
         [plugin],
-        ['123'],
+        [123],
       )
 
       expect(stubRemoveFromDao.calledOnce).to.be.true

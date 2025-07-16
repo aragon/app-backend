@@ -22,7 +22,12 @@ export const GovernanceVeHandler = {
 
     const fromAddress = parsedEvent.args.sender
     const toAddress = parsedEvent.args.delegatee
-    const tokenIds = parsedEvent.args.tokenIds.map((id: any) => id.toString())
+    const tokenIds = parsedEvent.args.tokenIds.map((id: any) => Number(id))
+
+    if (fromAddress === toAddress) {
+      logger.verbose('Self-delegation detected, skipping processing', llo({ info, fromAddress, toAddress, tokenIds }))
+      return
+    }
 
     try {
       await GovernanceVeHandler._handleTokenDelegation(
@@ -55,7 +60,12 @@ export const GovernanceVeHandler = {
 
     const toAddress = parsedEvent.args.sender
     const fromAddress = parsedEvent.args.delegatee
-    const tokenIds = parsedEvent.args.tokenIds.map((id: any) => id.toString())
+    const tokenIds = parsedEvent.args.tokenIds.map((id: any) => Number(id))
+
+    if (fromAddress === toAddress) {
+      logger.verbose('Self-undelegation detected, skipping processing', llo({ info, fromAddress, toAddress, tokenIds }))
+      return
+    }
 
     try {
       await GovernanceVeHandler._handleTokenDelegation(
@@ -88,7 +98,7 @@ export const GovernanceVeHandler = {
     memberAddress: string,
     transferSide: ITransferSide,
     plugins: any[],
-    tokenIds: string[],
+    tokenIds: number[],
   ) => {
     try {
       await ProxyMember.createMember(memberAddress)
@@ -100,13 +110,21 @@ export const GovernanceVeHandler = {
       }
 
       const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
-      const tokenAmount = tokenIds.length.toString()
 
-      let tokenBalanceDb = await ProxyMember.getBalances({
+      const tokenBalanceDb = await ProxyMember.getBalances({
         address: memberAddress,
         tokenAddress: info.address,
         network: info.network,
       })
+
+      const currentTokenIds = tokenBalanceDb?.tokenIds || []
+      let tokenIdsToSave: number[]
+
+      if (transferSide === ITransferSide.incoming) {
+        tokenIdsToSave = [...currentTokenIds, ...tokenIds]
+      } else {
+        tokenIdsToSave = currentTokenIds.filter(id => !tokenIds.includes(id))
+      }
 
       const votingPower = await GovernanceErc20Helper.getPastVotes(
         memberAddress,
@@ -118,12 +136,11 @@ export const GovernanceVeHandler = {
       )
 
       const memberTransaction = await DbTx.executeTxFn(async ({ session }) => {
-        const tokenBalanceFuncName = transferSide === ITransferSide.incoming ? 'increaseBalance' : 'decreaseBalance'
-        tokenBalanceDb = await tokenBalanceDb?.[tokenBalanceFuncName](
+        await tokenBalanceDb!.update(
           {
-            amount: tokenAmount,
+            amount: tokenIdsToSave.length.toString(),
             blockNumber: info.blockNumber,
-            tokenId: Number(tokenIds[0]),
+            tokenIds: tokenIdsToSave,
           },
           { session },
         )
@@ -150,9 +167,8 @@ export const GovernanceVeHandler = {
               side: transferSide,
               from: parsedEvent.args.sender,
               to: parsedEvent.args.delegatee,
-              amount: tokenAmount,
+              amount: tokenIdsToSave.length.toString(),
               tokenAddress: info.address,
-              memberBalance: tokenBalanceDb?.amount,
               memberVotingPower: votingPower.toString(),
             },
             { session },
