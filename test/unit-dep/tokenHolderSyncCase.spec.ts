@@ -45,6 +45,7 @@ describe('token holder sync case', () => {
     const tokenDb = await Models.Token.create(token)
 
     sandbox.stub(BlockchainLogCrawler.prototype, 'crawl')
+    sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
 
     const syncDelegationEventSpy = sandbox.spy(TokenHolderSync, 'syncDelegationEvents')
 

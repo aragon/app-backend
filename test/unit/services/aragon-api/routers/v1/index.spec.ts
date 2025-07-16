@@ -10,7 +10,6 @@ import ProposalRouter from '@services/aragon-api/routers/v1/proposal'
 import SettingRouter from '@services/aragon-api/routers/v1/setting'
 import TokenRouter from '@services/aragon-api/routers/v1/token'
 import TransactionRouter from '@services/aragon-api/routers/v1/transaction'
-import DelegateRouter from '@services/aragon-api/routers/v1/delegate'
 import VoteRouter from '@services/aragon-api/routers/v1/vote'
 import ContractRouter from '@services/aragon-api/routers/v1/contract'
 import PluginRouter from '@services/aragon-api/routers/v1/plugins'
@@ -41,7 +40,6 @@ describe('RouterV1: V1Router', () => {
 
     // Stub all routers
     stubRouter(VoteRouter, 'votes')
-    stubRouter(DelegateRouter, 'delegates')
     stubRouter(AssetRouter, 'assets')
     stubRouter(DaoRouter, 'daos')
     stubRouter(MemberRouter, 'members')
@@ -63,7 +61,6 @@ describe('RouterV1: V1Router', () => {
     // Verify all routers are mounted
     const routers = [
       VoteRouter,
-      DelegateRouter,
       AssetRouter,
       DaoRouter,
       MemberRouter,
@@ -89,7 +86,6 @@ describe('RouterV1: V1Router', () => {
     expectRouter('/settings', 'settings')
     expectRouter('/tokens', 'tokens')
     expectRouter('/transactions', 'transactions')
-    expectRouter('/delegates', 'delegates')
     expectRouter('/votes', 'votes')
     expectRouter('/contract', 'contract')
     expectRouter('/plugins', 'plugins')
@@ -116,7 +112,6 @@ describe('RouterV1: V1Router', () => {
     emptyRouterStub(SettingRouter)
     emptyRouterStub(TokenRouter)
     emptyRouterStub(TransactionRouter)
-    emptyRouterStub(DelegateRouter)
     emptyRouterStub(VoteRouter)
     emptyRouterStub(ContractRouter)
     emptyRouterStub(PluginRouter)

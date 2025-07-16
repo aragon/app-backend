@@ -405,7 +405,7 @@ const ConfigIndexerHelper = {
         throw new Error('Failed to parse token service')
       }
 
-      // Rebuild without sync tag
+      // Rebuild without a sync tag
       return ConfigIndexerHelper.builders.token(parsed.tokenType, parsed.network, parsed.address)
     },
   },

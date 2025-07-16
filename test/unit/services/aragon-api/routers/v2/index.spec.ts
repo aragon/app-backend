@@ -9,7 +9,6 @@ import utils from '@helpers/utils'
 import Koa from 'koa'
 import supertest from 'supertest'
 import VoteRouter from '@api/routers/v2/vote'
-import DelegateRouter from '@api/routers/v2/delegate'
 import AssetRouter from '@api/routers/v2/asset'
 import DaoRouter from '@api/routers/v2/dao'
 import SettingRouter from '@api/routers/v2/setting'
@@ -42,7 +41,6 @@ describe('RouterV2: V2Router', () => {
 
     // Stub all v2 routers
     stubRouter(VoteRouter, 'votes')
-    stubRouter(DelegateRouter, 'delegates')
     stubRouter(AssetRouter, 'assets')
     stubRouter(DaoRouter, 'daos')
     stubRouter(MemberRouter, 'members')
@@ -64,7 +62,6 @@ describe('RouterV2: V2Router', () => {
 
     const routers = [
       VoteRouter,
-      DelegateRouter,
       AssetRouter,
       DaoRouter,
       MemberRouter,
@@ -91,7 +88,6 @@ describe('RouterV2: V2Router', () => {
     expectRouter('/settings', 'settings')
     expectRouter('/tokens', 'tokens')
     expectRouter('/transactions', 'transactions')
-    expectRouter('/delegates', 'delegates')
     expectRouter('/votes', 'votes')
     expectRouter('/contract', 'contract')
     expectRouter('/plugins', 'plugins')
@@ -119,7 +115,6 @@ describe('RouterV2: V2Router', () => {
     emptyRouterStub(SettingRouter)
     emptyRouterStub(TokenRouter)
     emptyRouterStub(TransactionRouter)
-    emptyRouterStub(DelegateRouter)
     emptyRouterStub(VoteRouter)
     emptyRouterStub(ContractRouter)
     emptyRouterStub(PluginRouter)
