@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { IEnumIndexerService, IndexerType, IPluginInterfaceType, ITransactionType, NetworksEnum } from '@types'
+import { NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import ConfigIndexer from '@models/schema/configIndexer'
 
