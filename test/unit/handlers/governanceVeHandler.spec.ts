@@ -92,7 +92,6 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       const stubLogger = sandbox.stub(logger, 'verbose')
 
-      
       const memberBalance = await Models.MemberBalance.create({
         network: NetworksEnum.ethereumMainnet,
         address: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
@@ -145,10 +144,10 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stubAddToDao.calledOnce).to.be.true
       expect(stubLogger.firstCall.args[0]).to.equal('Deposit VeGovernance - Lock created')
       expect(stubLogger.secondCall.args[0]).to.equal('Updated document - MemberBalance Update on deposit')
-      
+
       const updatedBalance = await Models.MemberBalance.findById(memberBalance._id)
       expect(updatedBalance?.amount).to.equal('1')
-      expect(updatedBalance?.tokenIds).to.deep.equal([]) 
+      expect(updatedBalance?.tokenIds).to.deep.equal([])
     })
 
     it('should create Lock and update member balance on success', async () => {
@@ -163,7 +162,7 @@ describe('Handler:GovernanceVeHandler', () => {
         address: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
         tokenAddress: plugin.tokenAddress,
         amount: '2',
-        tokenIds: [], 
+        tokenIds: [],
         votingPower: '0',
       })
 
@@ -192,7 +191,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
       const updatedBalance = await Models.MemberBalance.findById(memberBalance._id)
       expect(updatedBalance?.amount).to.equal('3')
-      expect(updatedBalance?.tokenIds).to.deep.equal([]) 
+      expect(updatedBalance?.tokenIds).to.deep.equal([])
       expect(updatedBalance?.lastSyncAmountBlockNumber).to.equal(123)
 
       expect(stubLogger.calledTwice).to.be.true
@@ -206,7 +205,6 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       const stubLogger = sandbox.stub(logger, 'warn')
 
-      
       await Models.Lock.create({
         network: NetworksEnum.ethereumMainnet,
         transactionHash: '0xhash',
@@ -323,7 +321,7 @@ describe('Handler:GovernanceVeHandler', () => {
       const mockEvent = {
         args: {
           depositor: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          tokenId: 999n, 
+          tokenId: 999n,
           value: 5000n,
           ts: 1650005000n,
           newTotalLocked: 20000n,
@@ -343,7 +341,6 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       const stubLogger = sandbox.stub(logger, 'verbose')
 
-      
       const createdLock = await Models.Lock.create({
         network: NetworksEnum.ethereumMainnet,
         transactionHash: '0xoriginalHash',
@@ -364,13 +361,12 @@ describe('Handler:GovernanceVeHandler', () => {
         lockWithdraw: { status: false },
       })
 
-      
       const memberBalance = await Models.MemberBalance.create({
         network: NetworksEnum.ethereumMainnet,
         address: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
         tokenAddress: plugin.tokenAddress,
         amount: '3',
-        tokenIds: [100, 123, 200], 
+        tokenIds: [100, 123, 200],
         votingPower: '0',
       })
 
@@ -394,11 +390,10 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.withdraw(mockEvent, mockInfo as any)
 
-      
       const updatedLock = await Models.Lock.findById(createdLock._id)
       expect(updatedLock).to.exist
       expect(updatedLock?.lockWithdraw.status).to.be.true
-      
+
       const updatedBalance = await Models.MemberBalance.findById(memberBalance._id)
       expect(updatedBalance?.amount).to.equal('2')
       expect(updatedBalance?.tokenIds).to.deep.equal([100, 200])
@@ -413,7 +408,7 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(logger, 'verbose')
-      
+
       await Models.Lock.create({
         network: NetworksEnum.ethereumMainnet,
         transactionHash: '0xoriginalHash',
@@ -511,7 +506,7 @@ describe('Handler:GovernanceVeHandler', () => {
     it('should update existing lock with exit info and call logger on success', async () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       const stubLogger = sandbox.stub(logger, 'verbose')
-      
+
       const createdLock = await Models.Lock.create({
         network: NetworksEnum.ethereumMainnet,
         transactionHash: '0xoriginalHash',
@@ -549,7 +544,7 @@ describe('Handler:GovernanceVeHandler', () => {
       } as any
 
       await GovernanceVeHandler.exitQueued(mockEvent, mockInfo as any)
-      
+
       const updatedLock = await Models.Lock.findById(createdLock._id)
 
       expect(updatedLock).to.exist
@@ -621,7 +616,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
       const mockEvent = {
         args: {
-          minLock: 604800n, 
+          minLock: 604800n,
         },
       } as any
 
@@ -708,7 +703,6 @@ describe('Handler:GovernanceVeHandler', () => {
     })
 
     it('should update all plugin settings', async () => {
-      
       const plugin2 = await Models.Plugin.create({
         id: 'test-plugin-settings-2',
         address: '0x124',
@@ -720,13 +714,12 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xabc4',
         blockNumber: 4,
         votingEscrow: {
-          escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6', 
+          escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
           nftLockAddress: '0xNftToken2',
           exitQueueAddress: '0xExitQueue2',
         },
       })
 
-      
       const setting2 = await Models.Setting.create({
         transactionHash: '0xsetting2Hash',
         blockNumber: 40941780,
@@ -756,7 +749,6 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.minDepositSet(mockEvent, mockInfo as any)
 
-      
       const updatedSetting1 = await Models.Setting.findById(activePluginSetting._id)
       const updatedSetting2 = await Models.Setting.findById(setting2._id)
 
@@ -806,19 +798,18 @@ describe('Handler:GovernanceVeHandler', () => {
       const mockEvent = {
         args: {
           sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5', 
+          delegatee: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
           tokenIds: [123n],
         },
       } as any
 
       await GovernanceVeHandler.delegateTokens(mockEvent, mockInfo)
 
-      expect(stubHandleTokenDelegation.calledTwice).to.be.true 
+      expect(stubHandleTokenDelegation.calledTwice).to.be.true
       expect(stubLogger.calledOnce).to.be.true
     })
 
     it('should create MemberTransactions for both sender and delegatee with correct tokenIds handling', async () => {
-      
       const stubCreateMember = sandbox.stub(ProxyMember, 'createMember').resolves()
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         type: ITokenType.ERC721,
@@ -826,17 +817,14 @@ describe('Handler:GovernanceVeHandler', () => {
         hasClockMode: false,
       } as any)
 
-      
       const stubUpdateDocument = sandbox.stub(DbOperations, 'updateDocument').resolves()
 
-      
       const stubGetPastVotes = sandbox.stub(GovernanceErc20Helper, 'getPastVotes')
-      stubGetPastVotes.onFirstCall().resolves('50') 
-      stubGetPastVotes.onSecondCall().resolves('150') 
+      stubGetPastVotes.onFirstCall().resolves('50')
+      stubGetPastVotes.onSecondCall().resolves('150')
 
-      
-      const senderCurrentTokenIds = [100, 200, 123, 456] 
-      const delegateeCurrentTokenIds = [300] 
+      const senderCurrentTokenIds = [100, 200, 123, 456]
+      const delegateeCurrentTokenIds = [300]
 
       sandbox
         .stub(ProxyMember, 'getBalances')
@@ -875,10 +863,8 @@ describe('Handler:GovernanceVeHandler', () => {
         },
       } as any
 
-      
       await GovernanceVeHandler.delegateTokens(mockEvent, mockInfo)
 
-      
       const allTransactions = await Models.MemberTransaction.find({
         transactionHash: mockInfo.transactionHash,
       })
@@ -888,22 +874,18 @@ describe('Handler:GovernanceVeHandler', () => {
       const senderTx = allTransactions.find(tx => tx.address === mockEvent.args.sender)
       const delegateeTx = allTransactions.find(tx => tx.address === mockEvent.args.delegatee)
 
-      
       expect(senderTx).to.exist
       expect(senderTx?.side).to.equal(ITransferSide.outgoing)
-      expect(senderTx?.amount).to.equal('2') 
+      expect(senderTx?.amount).to.equal('2')
       expect(senderTx?.memberVotingPower).to.equal('50')
 
-      
       expect(delegateeTx).to.exist
       expect(delegateeTx?.side).to.equal(ITransferSide.incoming)
-      expect(delegateeTx?.amount).to.equal('3') 
+      expect(delegateeTx?.amount).to.equal('3')
       expect(delegateeTx?.memberVotingPower).to.equal('150')
 
-      
       expect(stubUpdateDocument.calledTwice).to.be.true
 
-      
       expect(stubCreateMember.calledTwice).to.be.true
       expect(stubLogger.calledOnce).to.be.true
     })
@@ -915,10 +897,8 @@ describe('Handler:GovernanceVeHandler', () => {
         isGovernance: true,
       } as any)
 
-      
       sandbox.stub(DbOperations, 'updateDocument').resolves()
 
-      
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').onFirstCall().resolves('0').onSecondCall().resolves('100')
       const loggerStub = sandbox.stub(logger, 'verbose')
       sandbox
@@ -935,12 +915,7 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
       sandbox.stub(ProxyMember, 'updateActivity').resolves()
-      sandbox
-        .stub(ProxyMember, 'isMemberOfDao')
-        .onFirstCall()
-        .resolves(true) 
-        .onSecondCall()
-        .resolves(false) 
+      sandbox.stub(ProxyMember, 'isMemberOfDao').onFirstCall().resolves(true).onSecondCall().resolves(false)
 
       const stubRemoveFromDao = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
       const stubAddToDao = sandbox.stub(ProxyMember, 'addToDao').resolves()
@@ -966,15 +941,14 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.delegateTokens(mockEvent, mockInfo)
 
-      
       const senderTx = await Models.MemberTransaction.findOne({
         transactionHash: mockInfo.transactionHash,
         address: mockEvent.args.sender,
       })
 
       expect(senderTx?.memberVotingPower).to.equal('0')
-      expect(stubRemoveFromDao.calledOnce).to.be.true 
-      expect(stubAddToDao.calledOnce).to.be.true 
+      expect(stubRemoveFromDao.calledOnce).to.be.true
+      expect(stubAddToDao.calledOnce).to.be.true
       expect(loggerStub.calledOnce).to.be.true
     })
 
@@ -1038,15 +1012,14 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.delegateTokens(mockEvent, mockInfo)
 
-      
       const allTransactions = await Models.MemberTransaction.find({
         transactionHash: mockInfo.transactionHash,
       })
 
-      expect(allTransactions).to.have.lengthOf(2) 
-      expect(stubUpdateDelegationMetrics.callCount).to.equal(4) 
-      expect(stubUpdateActivity.callCount).to.equal(4) 
-      expect(rabbitMQHelperStub.callCount).to.equal(4) 
+      expect(allTransactions).to.have.lengthOf(2)
+      expect(stubUpdateDelegationMetrics.callCount).to.equal(4)
+      expect(stubUpdateActivity.callCount).to.equal(4)
+      expect(rabbitMQHelperStub.callCount).to.equal(4)
     })
   })
 
@@ -1090,19 +1063,18 @@ describe('Handler:GovernanceVeHandler', () => {
       const mockEvent = {
         args: {
           sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5', 
+          delegatee: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
           tokenIds: [123n],
         },
       } as any
 
       await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
 
-      expect(stubHandleTokenDelegation.calledTwice).to.be.true 
+      expect(stubHandleTokenDelegation.calledTwice).to.be.true
       expect(stubLogger.calledOnce).to.be.true
     })
 
     it('should create MemberTransactions for both delegatee and sender with correct tokenIds handling', async () => {
-      
       const stubCreateMember = sandbox.stub(ProxyMember, 'createMember').resolves()
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         type: ITokenType.ERC721,
@@ -1140,10 +1112,8 @@ describe('Handler:GovernanceVeHandler', () => {
         },
       } as any
 
-      
       await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
 
-      
       const allTransactions = await Models.MemberTransaction.find({
         transactionHash: mockInfo.transactionHash,
       })
@@ -1153,18 +1123,15 @@ describe('Handler:GovernanceVeHandler', () => {
       const delegateeTx = allTransactions.find(tx => tx.address === mockEvent.args.delegatee)
       const senderTx = allTransactions.find(tx => tx.address === mockEvent.args.sender)
 
-      
       expect(delegateeTx).to.exist
       expect(delegateeTx?.side).to.equal(ITransferSide.outgoing)
       expect(delegateeTx?.amount).to.equal('0')
 
-      
       expect(senderTx).to.exist
       expect(senderTx?.side).to.equal(ITransferSide.incoming)
-      expect(senderTx?.amount).to.equal('2') 
+      expect(senderTx?.amount).to.equal('2')
       expect(senderTx?.memberVotingPower).to.equal('75')
 
-      
       expect(stubCreateMember.calledTwice).to.be.true
       expect(stubLogger.called).to.be.true
 
@@ -1182,23 +1149,12 @@ describe('Handler:GovernanceVeHandler', () => {
         hasClockMode: false,
       } as any)
 
-      
-      sandbox
-        .stub(GovernanceErc20Helper, 'getPastVotes')
-        .onFirstCall()
-        .resolves('0') 
-        .onSecondCall()
-        .resolves('100') 
+      sandbox.stub(GovernanceErc20Helper, 'getPastVotes').onFirstCall().resolves('0').onSecondCall().resolves('100')
 
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
       sandbox.stub(ProxyMember, 'updateActivity').resolves()
-      sandbox
-        .stub(ProxyMember, 'isMemberOfDao')
-        .onFirstCall()
-        .resolves(true) 
-        .onSecondCall()
-        .resolves(false) 
+      sandbox.stub(ProxyMember, 'isMemberOfDao').onFirstCall().resolves(true).onSecondCall().resolves(false)
 
       const stubRemoveFromDao = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
       const stubAddToDao = sandbox.stub(ProxyMember, 'addToDao').resolves()
@@ -1224,20 +1180,18 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
 
-      
       const delegateeTx = await Models.MemberTransaction.findOne({
         transactionHash: mockInfo.transactionHash,
         address: mockEvent.args.delegatee,
       })
 
       expect(delegateeTx?.memberVotingPower).to.equal('0')
-      expect(stubRemoveFromDao.calledOnce).to.be.true 
-      expect(stubAddToDao.calledOnce).to.be.true 
+      expect(stubRemoveFromDao.calledOnce).to.be.true
+      expect(stubAddToDao.calledOnce).to.be.true
       expect(loggerStub.called).to.be.true
     })
 
     it('should handle multiple plugins and create proper DAO mappings', async () => {
-      
       const plugin2 = await Models.Plugin.create({
         id: 'test-plugin-2',
         address: '0x122',
@@ -1290,15 +1244,14 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
 
-      
       const allTransactions = await Models.MemberTransaction.find({
         transactionHash: mockInfo.transactionHash,
       })
 
-      expect(allTransactions).to.have.lengthOf(2) 
-      expect(stubUpdateDelegationMetrics.callCount).to.equal(4) 
-      expect(stubUpdateActivity.callCount).to.equal(4) 
-      expect(rabbitMQHelperStub.callCount).to.equal(4) 
+      expect(allTransactions).to.have.lengthOf(2)
+      expect(stubUpdateDelegationMetrics.callCount).to.equal(4)
+      expect(stubUpdateActivity.callCount).to.equal(4)
+      expect(rabbitMQHelperStub.callCount).to.equal(4)
     })
   })
 
@@ -1307,7 +1260,7 @@ describe('Handler:GovernanceVeHandler', () => {
       const mockParsedEvent = {
         args: {
           sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5', 
+          delegatee: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
           tokenIds: [123n, 456n],
         },
       } as any
@@ -1331,7 +1284,7 @@ describe('Handler:GovernanceVeHandler', () => {
         address: memberAddress,
         tokenAddress: '0xToken',
         amount: '1',
-        tokenIds: [789], 
+        tokenIds: [789],
         votingPower: '0',
       })
 
@@ -1358,14 +1311,13 @@ describe('Handler:GovernanceVeHandler', () => {
         tokenIds,
       )
 
-      
       const createdTx = await Models.MemberTransaction.findOne({
         transactionHash: mockInfo.transactionHash,
         address: memberAddress,
       })
 
       expect(createdTx).to.exist
-      expect(createdTx?.amount).to.equal('3') 
+      expect(createdTx?.amount).to.equal('3')
       expect(createdTx?.memberVotingPower).to.equal('100')
     })
 
