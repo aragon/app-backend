@@ -21,6 +21,10 @@ export const TokenHolderSync = {
         return false
       }
 
+      if (token.ignoreTransfer) {
+        return true
+      }
+
       const isCustomToken = token.blockNumber !== 0 && token.blockNumber < plugin.blockNumber
       if (!isCustomToken) {
         return false
@@ -191,6 +195,7 @@ export const TokenHolderSync = {
     })
 
     await crawlerTokenDelegationOnly.crawl()
+    await crawlerTokenDelegationOnly.end()
   },
 
   syncTransfersEvents: async (plugin: Plugin, token: Token) => {
@@ -222,6 +227,7 @@ export const TokenHolderSync = {
     })
 
     await crawlerTokenTransfers.crawl()
+    await crawlerTokenTransfers.end()
   },
 
   convertToStandardSync: async (plugin: Plugin, token: Token) => {
