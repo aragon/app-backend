@@ -20,7 +20,7 @@ export const FixBrokenLockMember: IService & { onDocument: any; cleanupRelatedDa
       where: {
         network: NetworksEnum.ethereumSepolia,
         votingEscrow: { $ne: null },
-        'votingPower.escrowAddress': '0x4b139dE004AaD88C37716b5D081FDbf2F2A4c4c1',
+        tokenAddress: '0x211aEa089C589bbCB636A52283B520E1b4F7c1b3',
       },
       limit: 100,
       concurrency: 5,
@@ -43,8 +43,10 @@ export const FixBrokenLockMember: IService & { onDocument: any; cleanupRelatedDa
     // syncing the unique plugin only
     const tokens = await Models.Plugin.aggregate([
       {
-        tokenAddress: '0x4b139dE004AaD88C37716b5D081FDbf2F2A4c4c1',
-        $match: { votingEscrow: { $ne: null } },
+        $match: {
+          votingEscrow: { $ne: null },
+          tokenAddress: '0x211aEa089C589bbCB636A52283B520E1b4F7c1b3',
+        },
       },
       {
         $group: {
