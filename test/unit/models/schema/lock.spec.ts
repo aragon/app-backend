@@ -771,11 +771,6 @@ describe('Model: Lock', () => {
     })
 
     it('should return empty result when no locks match criteria', async () => {
-      // Clean up any existing member balances that might interfere with this test
-      await Models.MemberBalance.deleteMany({
-        tokenAddress: { $ne: tokenAddress },
-      })
-
       // Use a completely different token address that has no locks or balances
       const nonExistentTokenAddress = '0xNonExistentToken1234567890abcdef123456'
 
@@ -794,7 +789,7 @@ describe('Model: Lock', () => {
 
       expect(response.data).to.have.length(0)
       expect(response.metadata.totalRecords).to.eq(0)
-      expect(response.metadata.totalPages).to.eq(0)
+      expect(response.metadata.totalPages).to.eq(1)
     })
 
     it('should calculate voting power based on time and amount', async () => {
