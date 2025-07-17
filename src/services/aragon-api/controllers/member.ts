@@ -43,6 +43,10 @@ const MemberController = {
     assertExposable(plugin, ErrorKeyEnum.notFound)
 
     if (plugin.tokenAddress) {
+      if (plugin.votingEscrow !== null && plugin.votingEscrow.escrowAddress) {
+        return await MemberController.getMembersOfVeLockPlugin(paginationParams, plugin)
+      }
+
       extraParams.tokenAddress = plugin.tokenAddress
       return Models.MemberBalance.findAndPaginate({
         paginationParams,
