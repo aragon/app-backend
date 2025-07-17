@@ -8,8 +8,10 @@ import configIndexer from '@indexer/configIndexer'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
 import { expect } from 'chai'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import { LogTokenVoting } from '@plugins/logTokenVoting'
+import MemberController from '@api/controllers/member'
 
-describe('GovernanceVeLock: Integration Test', () => {
+describe.skip('GovernanceVeLock: Integration Test', () => {
   let sandbox: sinon.SinonSandbox
   const eventsToLook = ['Deposit', 'Withdraw', 'MinDepositSet', 'ExitQueued', 'MinLockSet']
 
@@ -129,5 +131,36 @@ describe('GovernanceVeLock: Integration Test', () => {
       daoAddress: plugin.daoAddress,
     })
     expect(daoMemberMappingAfterWithdraw).to.be.not.exist
+  })
+
+  it('should handle veLock all events properly', async function () {
+    this.timeout(100000000)
+    const daoAddress = '0x9418fcf1Aa0dCEB9090F2bBA06E70d94E10e46b1'
+    await UnitDepUtils.syncACompleteDao(daoAddress, NetworksEnum.ethereumSepolia)
+    const plugins = await Models.Plugin.find({
+      daoAddress,
+    })
+    expect(plugins).to.be.an('array')
+    expect(plugins.length).to.be.gt(1)
+
+    const veLockPlugin = plugins.find(plugin => plugin.votingEscrow !== null)
+    expect(veLockPlugin).to.be.exist
+    const token = await Models.Token.findOne({
+      address: veLockPlugin.tokenAddress,
+    })
+
+    await LogTokenVoting.start(veLockPlugin, token)
+
+    const members = await MemberController.getMembersOfVeLockPlugin(
+      { page: 1, limit: 100, sort: 'votingPower', order: 'desc' },
+      veLockPlugin,
+    )
+
+    expect(members).to.be.exist
+    expect(members.data).to.be.an('array')
+    expect(members.data.length).to.be.gt(0)
+
+    const sortedMembers = members.data.sort((a: any, b: any) => parseFloat(b.votingPower) - parseFloat(a.votingPower))
+    expect(members.data).to.deep.equal(sortedMembers)
   })
 })

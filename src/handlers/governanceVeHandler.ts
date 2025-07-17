@@ -315,6 +315,23 @@ export const GovernanceVeHandler = {
       )
     }
 
+    const memberBalance = await ProxyMember.getBalances({
+      address: memberAddress,
+      tokenAddress,
+      network: info.network,
+    })
+
+    if (!memberBalance) {
+      logger.error('Member balance not found for depositing user', llo({ info, memberAddress, tokenId }))
+      return
+    }
+
+    await memberBalance.update({
+      amount: (Number(memberBalance.amount) + 1).toString(),
+      tokenIds: [...memberBalance.tokenIds, Number(tokenId)],
+      lastSyncAmountBlockNumber: info.blockNumber,
+    })
+
     await GovernanceVeHandler._handleDaoMemberShipOnLockEvents(plugins, memberAddress, info, true)
   },
 
@@ -372,6 +389,26 @@ export const GovernanceVeHandler = {
     })
 
     logger.verbose('Withdraw VeGovernance', llo({ info, memberAddress, tokenId }))
+
+    const memberBalance = await ProxyMember.getBalances({
+      address: memberAddress,
+      tokenAddress: plugins[0].tokenAddress,
+      network: info.network,
+    })
+
+    if (!memberBalance) {
+      logger.error('Member balance not found for withdrawing user', llo({ info, memberAddress, tokenId }))
+      return
+    }
+
+    const currentTokenIds = memberBalance.tokenIds || []
+    const tokenIdsToSave = currentTokenIds.filter(id => id !== Number(tokenId))
+
+    await memberBalance.update({
+      amount: (Number(memberBalance.amount) - 1).toString(),
+      tokenIds: tokenIdsToSave,
+      lastSyncAmountBlockNumber: info.blockNumber,
+    })
 
     await GovernanceVeHandler._handleDaoMemberShipOnLockEvents(plugins, memberAddress, info, false)
   },
