@@ -15,6 +15,7 @@ import type Token from '@models/schema/token'
 import { TokenHolderSync } from './tokenHolderSync'
 import config from '@config'
 import ConfigIndexerHelper from '@helpers/configIndexer'
+import { Models } from '@dbModels'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogTokenVoting' })
 
@@ -82,10 +83,12 @@ export const LogTokenVoting = {
 
     logger.verbose('Start Token Sync', llo({ ...infoLogs, ...{ syncStrategy: 'BlockchainLogCrawler' } }))
 
-    const crawlers: any = [pluginCrawler.crawl(), veGovernanceCrawler.crawl()]
+    const crawlers: any = [pluginCrawler, veGovernanceCrawler]
 
     const startTime = Date.now()
-    await Promise.all(crawlers)
+
+    await Promise.all(crawlers.map(async (crawler: BlockchainLogCrawler) => crawler.crawl()))
+    await Promise.all(crawlers.map(async (crawler: BlockchainLogCrawler) => crawler.end()))
 
     logger.verbose(
       'End LogTokenVoting veGovernance',
@@ -139,9 +142,15 @@ export const LogTokenVoting = {
     if (isNotEligibleForSync) {
       logger.verbose('Start Sync Only Delegates Events', llo({ ...infoLogs, skipSync }))
 
-      await Promise.all([pluginCrawler.crawl(), TokenHolderSync.syncDelegationEvents(plugin, token)])
+      const crawlers: any = [pluginCrawler]
+      crawlers.push({
+        crawl: async () => TokenHolderSync.syncDelegationEvents(plugin, token),
+        end: async () => {},
+      })
 
+      await Promise.all(crawlers.map(async (c: BlockchainLogCrawler) => c.crawl()))
       await TokenHolderSync.convertToStandardSync(plugin, token)
+      await Promise.all(crawlers.map(async (c: BlockchainLogCrawler) => c.end?.()))
 
       logger.verbose(
         'End LogTokenVoting',
@@ -157,8 +166,14 @@ export const LogTokenVoting = {
 
     logger.verbose('Start Token Sync', llo({ ...infoLogs, ...{ syncStrategy: 'BlockchainLogCrawler' } }))
 
-    const tokenLastSyncBlock = await TokenHolderSync.getTokenLastSyncBlock(token)
+    const exitingConfigIndex = await Models.ConfigIndexer.findOne({
+      service: ConfigIndexerHelper.builders.token(token.type, token.network, token.address),
+    })
 
+    // for now, we don't sync if config already exits
+    if (exitingConfigIndex) return
+
+    // config not exits sync from scratch
     const tokenCrawler = new BlockchainLogCrawler({
       onlyHistorical: isHistorical,
       network: plugin.network,
@@ -170,14 +185,9 @@ export const LogTokenVoting = {
       stopOnError: true,
     })
 
-    const crawlers: any = [pluginCrawler.crawl()]
-    if (tokenLastSyncBlock) {
-      crawlers.push(TokenHolderSync.linkPluginToExistingTokenHolders(plugin, token, tokenLastSyncBlock))
-    } else {
-      crawlers.push(tokenCrawler.crawl())
-    }
-
-    await Promise.all(crawlers)
+    const crawlers: any = [pluginCrawler, tokenCrawler]
+    await Promise.all(crawlers.map(async (c: BlockchainLogCrawler) => c.crawl()))
+    await Promise.all(crawlers.map(async (c: BlockchainLogCrawler) => c.end?.()))
 
     logger.verbose(
       'End LogTokenVoting',

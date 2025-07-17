@@ -130,6 +130,14 @@ describe('AragonPlugins: TokenHolderSync', () => {
       expect(findOneStub.calledOnce).to.be.true
     })
 
+    it('should return true if token is ignoreTransfer', async () => {
+      const sameBlockNumberToken = { ...mockToken, blockNumber: mockPlugin.blockNumber, ignoreTransfer: true }
+
+      const result = await TokenHolderSync.isTokenNotEligibleForSync(sameBlockNumberToken, mockPlugin)
+
+      expect(result).to.be.true
+    })
+
     it('should return true if token holder count is above threshold', async () => {
       blockScoutGetTokenCountersStub.resolves({ holders: 400000, transfers: 4000 })
 
