@@ -115,6 +115,7 @@ const PairDataModule = {
       }
     }
 
+    // TODO: token may be attached to multiple plugins
     if (extraParams?.tokenAddress) {
       const plugin = await Models.Plugin.findByTokenAddress(extraParams.tokenAddress, extraParams.network!)
       if (plugin) {
@@ -126,13 +127,11 @@ const PairDataModule = {
   },
 
   async pairFromDaoMemberMapping({
-    daoAddress,
     network,
     pluginAddress,
     tokenAddress,
     memberAddress,
   }: {
-    daoAddress?: HexAddress
     pluginAddress?: HexAddress
     tokenAddress?: HexAddress
     memberAddress?: HexAddress
@@ -140,16 +139,12 @@ const PairDataModule = {
   }) {
     const params: any = {}
 
-    if (daoAddress) {
-      params.daoAddress = daoAddress
-    }
-
-    if (pluginAddress) {
-      params.pluginAddress = pluginAddress
-    }
-
     if (tokenAddress) {
       params.tokenAddress = tokenAddress
+    }
+
+    if (!tokenAddress && pluginAddress) {
+      params.pluginAddress = pluginAddress
     }
 
     if (memberAddress) {

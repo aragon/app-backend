@@ -16,7 +16,7 @@ import type MemberTransaction from '@models/schema/memberTransaction'
 const llo = logger.logMeta.bind(null, { service: 'handlers:GovernanceVeHandler' })
 
 export const GovernanceVeHandler = {
-  delegateTokens: async (parsedEvent: LogDescription, info: ILogInfo) => {
+  delegateTokens: async (parsedEvent: LogDescription, info: ILogInfo, isHistorical?: boolean) => {
     const plugins = await Models.Plugin.findAllByTokenAddress(info.address, info.network)
     if (!plugins || plugins.length === 0) return
 
@@ -32,6 +32,7 @@ export const GovernanceVeHandler = {
         ITransferSide.outgoing,
         plugins,
         tokenIds,
+        isHistorical,
       )
 
       await GovernanceVeHandler._handleTokenDelegation(
@@ -41,6 +42,7 @@ export const GovernanceVeHandler = {
         ITransferSide.incoming,
         plugins,
         tokenIds,
+        isHistorical,
       )
 
       logger.verbose('Delegate tokens VeGovernance', llo({ info, fromAddress, toAddress, tokenIds }))
@@ -89,6 +91,7 @@ export const GovernanceVeHandler = {
     transferSide: ITransferSide,
     plugins: any[],
     tokenIds: string[],
+    isHistorical?: boolean,
   ) => {
     try {
       await ProxyMember.createMember(memberAddress)
@@ -166,64 +169,67 @@ export const GovernanceVeHandler = {
       })
       await GovernanceVeHandler._handleDaoMemberShip(memberTransaction, plugins, info)
 
-      await Promise.all(
-        plugins.map(async (plugin: any) => {
-          await ProxyMember.updateDelegationMetrics({
-            memberAddress,
-            pluginAddress: plugin.address,
-            tokenAddress: info.address,
-            network: info.network,
-          })
+      if (!isHistorical) {
+        await Promise.all(
+          plugins.map(async (plugin: any) => {
+            await ProxyMember.updateDelegationMetrics({
+              memberAddress,
+              pluginAddress: plugin.address,
+              tokenAddress: info.address,
+              network: info.network,
+            })
 
-          await ProxyMember.updateActivity({
-            memberAddress,
-            pluginAddress: plugin.address,
-            blockNumber: info.blockNumber,
-            network: info.network,
-          })
-        }),
-      )
+            await ProxyMember.updateActivity({
+              memberAddress,
+              pluginAddress: plugin.address,
+              blockNumber: info.blockNumber,
+              network: info.network,
+            })
+          }),
+        )
+      }
     } catch (error) {
       logger.error('Error handling token delegation', llo({ error, info, memberAddress, transferSide, tokenIds }))
     }
   },
 
-  _handleDaoMemberShip: async (memberTx: MemberTransaction, plugins: Plugin[], info: ILogInfo) => {
+  _handleDaoMemberShip: async (
+    memberTx: MemberTransaction,
+    plugins: Plugin[],
+    info: ILogInfo,
+    isHistorical?: boolean,
+  ) => {
     const userBalance = BigInt(memberTx.memberVotingPower || '0')
 
-    await Promise.all([
-      ...plugins.map(async (plugin: any) => {
-        const memberShipParams = {
-          memberAddress: memberTx.address,
-          daoAddress: plugin.daoAddress,
-          network: plugin.network,
-          pluginAddress: plugin.address,
-          tokenAddress: plugin.tokenAddress,
-        }
+    const memberShipParams = {
+      memberAddress: memberTx.address,
+      network: info.network,
+      tokenAddress: info.address,
+    }
 
-        const isMember = await ProxyMember.isMemberOfDao(memberShipParams)
-        const meetsRequirements = userBalance > 0n
+    const isMember = await ProxyMember.isMemberOfDao(memberShipParams)
+    const meetsRequirements = userBalance > 0n
 
-        if (!isMember && meetsRequirements) {
-          await ProxyMember.addToDao(memberShipParams)
-        } else if (isMember && !meetsRequirements) {
-          await ProxyMember.removeFromDao(memberShipParams)
-        }
-      }),
-    ])
+    if (!isMember && meetsRequirements) {
+      await ProxyMember.addToDao(memberShipParams)
+    } else if (isMember && !meetsRequirements) {
+      await ProxyMember.removeFromDao(memberShipParams)
+    }
 
-    const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
-    await Promise.all(
-      uniqueDaoList.map(async (daoAddress: string) => {
-        await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-          id: daoAddress,
-          params: { address: daoAddress, network: info.network },
-        })
-      }),
-    )
+    if (!isHistorical) {
+      const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
+      await Promise.all(
+        uniqueDaoList.map(async (daoAddress: string) => {
+          await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+            id: daoAddress,
+            params: { address: daoAddress, network: info.network },
+          })
+        }),
+      )
+    }
   },
 
-  deposit: async (parsedEvent: LogDescription, info: ILogInfo) => {
+  deposit: async (parsedEvent: LogDescription, info: ILogInfo, isHistorical?: boolean) => {
     const plugins = await Models.Plugin.find({
       'votingEscrow.escrowAddress': info.address,
       network: info.network,
@@ -296,10 +302,10 @@ export const GovernanceVeHandler = {
       )
     }
 
-    await GovernanceVeHandler._handleDaoMemberShipOnLockEvents(plugins, memberAddress, info, true)
+    await GovernanceVeHandler._handleDaoMemberShipOnLockEvents(plugins, memberAddress, info, true, isHistorical)
   },
 
-  withdraw: async (parsedEvent: LogDescription, info: ILogInfo) => {
+  withdraw: async (parsedEvent: LogDescription, info: ILogInfo, isHistorical?: boolean) => {
     const plugins = await Models.Plugin.find({
       'votingEscrow.escrowAddress': info.address,
       network: info.network,
@@ -354,7 +360,7 @@ export const GovernanceVeHandler = {
 
     logger.verbose('Withdraw VeGovernance', llo({ info, memberAddress, tokenId }))
 
-    await GovernanceVeHandler._handleDaoMemberShipOnLockEvents(plugins, memberAddress, info, false)
+    await GovernanceVeHandler._handleDaoMemberShipOnLockEvents(plugins, memberAddress, info, false, isHistorical)
   },
 
   _handleDaoMemberShipOnLockEvents: async (
@@ -362,38 +368,36 @@ export const GovernanceVeHandler = {
     memberAddress: HexAddress,
     info: ILogInfo,
     addToDao: boolean,
+    isHistorical?: boolean,
   ) => {
     await Promise.all(
       plugins.map(async (plugin: any) => {
         const memberShipParams = {
           memberAddress,
-          daoAddress: plugin.daoAddress,
           network: plugin.network,
-          pluginAddress: plugin.address,
           tokenAddress: plugin.tokenAddress,
         }
 
         const isMember = await ProxyMember.isMemberOfDao(memberShipParams)
         if (addToDao && !isMember) {
           await ProxyMember.addToDao(memberShipParams)
-        }
-
-        if (!addToDao && isMember) {
+        } else if (!addToDao && isMember) {
           await ProxyMember.removeFromDao(memberShipParams)
         }
       }),
     )
 
-    const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
-
-    await Promise.all(
-      uniqueDaoList.map(async (daoAddress: string) => {
-        await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-          id: daoAddress,
-          params: { address: daoAddress, network: info.network },
-        })
-      }),
-    )
+    if (!isHistorical) {
+      const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
+      await Promise.all(
+        uniqueDaoList.map(async (daoAddress: string) => {
+          await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+            id: daoAddress,
+            params: { address: daoAddress, network: info.network },
+          })
+        }),
+      )
+    }
   },
 
   exitQueued: async (parsedEvent: LogDescription, info: ILogInfo) => {

@@ -2,6 +2,7 @@ import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
   ICollectionNames,
+  type IDaoMemberMappingIdParams,
   type IDaoMemberMappingData,
   type IMemberExtraParams,
   type IMembersResponse,
@@ -13,8 +14,15 @@ import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import ModelUtils from '@models/utils/models'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
+import { assert } from '@errors'
 
 const customName = ICollectionNames.DaoMemberMapping
+
+// Respect this format
+// erc20Gov and VeGove have  tokenAddress
+// tokenAddress, memberAddress, network (No pluginAddress)
+// admin, multisig
+// memberAddress, pluginAddress, network (No tokenAddress)
 
 @modelOptions({
   schemaOptions: {
@@ -29,37 +37,87 @@ const customName = ICollectionNames.DaoMemberMapping
   },
 })
 @index({ tokenAddress: 1 })
-@index({ daoAddress: 1 })
 @index({ memberAddress: 1, pluginAddress: 1 })
 @index({ network: 1, pluginAddress: 1 })
-@index({ network: 1, daoAddress: 1, pluginAddress: 1, memberAddress: 1, tokenAddress: 1 })
+@index({ network: 1, pluginAddress: 1, memberAddress: 1, tokenAddress: 1 })
 @index({ event: 1, address: 1, tokenAddress: 1, pluginAddress: 1 })
 export default class DaoMemberMapping extends Model {
+  @prop({ type: () => String, required: true, unique: true })
+  public id!: string
+
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
 
   @prop({ type: () => String, required: true })
   public memberAddress!: HexAddress
 
-  @prop({ type: () => String, required: true })
-  public daoAddress!: HexAddress
-
-  @prop({ type: () => String, required: true })
+  @prop({ type: () => String, required: false, default: null })
   public pluginAddress!: HexAddress
 
-  @prop({ type: () => String, default: null })
+  @prop({ type: () => String, required: false, default: null })
   public tokenAddress!: HexAddress
 
   static async create(rawData: Partial<DaoMemberMapping>, tOpts?: SaveOptions) {
+    if (!rawData.id) {
+      assert(!!rawData.network, 'network is required')
+      assert(!!rawData.memberAddress, 'memberAddress is required')
+      assert(!!rawData.tokenAddress || !!rawData.pluginAddress, 'tokenAddress or pluginAddress is required')
+
+      rawData.id = this.getEntityId({
+        network: rawData?.network!,
+        memberAddress: rawData?.memberAddress!,
+        tokenOrPluginAddress: rawData?.tokenAddress || rawData?.pluginAddress,
+      })
+    }
+
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  static async countUniqueMembers(daoAddress: string, network: NetworksEnum, tOpts?: SaveOptions) {
+  static getEntityId(params: IDaoMemberMappingIdParams) {
+    return `${params.network}-${params.memberAddress}-${params.tokenOrPluginAddress}`
+  }
+
+  static async findExistingLog(params: IDaoMemberMappingIdParams, tOpts?: SaveOptions) {
+    const entityId = this.getEntityId(params)
+    return await this.findByEntityId(entityId, tOpts)
+  }
+
+  static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
+    return await this.findOne({ id: entityId }, null, tOpts)
+  }
+
+  static async pluginCountUniqueMembers(pluginAddress: string, network: NetworksEnum, tOpts?: SaveOptions) {
     const aggregate = this.aggregate([
       {
         $match: {
-          daoAddress,
+          pluginAddress,
+          network,
+        },
+      },
+      {
+        $group: {
+          _id: '$memberAddress',
+        },
+      },
+      {
+        $count: 'uniqueMemberCount',
+      },
+    ])
+
+    if (tOpts?.session) {
+      aggregate.session(tOpts.session)
+    }
+
+    const result = await aggregate
+    return result[0]?.uniqueMemberCount || 0
+  }
+
+  static async tokenCountUniqueMembers(tokenAddress: string, network: NetworksEnum, tOpts?: SaveOptions) {
+    const aggregate = this.aggregate([
+      {
+        $match: {
+          tokenAddress,
           network,
         },
       },
@@ -82,19 +140,26 @@ export default class DaoMemberMapping extends Model {
   }
 
   static async findMapping(
-    { memberAddress, daoAddress, pluginAddress, tokenAddress, network }: IDaoMemberMappingData,
+    { memberAddress, pluginAddress, tokenAddress, network }: IDaoMemberMappingData,
     tOpts?: SaveOptions,
   ) {
-    const params: IDaoMemberMappingData = {
+    const params: Partial<IDaoMemberMappingData> = {
       memberAddress,
-      daoAddress,
-      pluginAddress,
       network,
     }
 
     if (tokenAddress) {
       params.tokenAddress = tokenAddress
     }
+
+    if (!tokenAddress && pluginAddress) {
+      params.pluginAddress = pluginAddress
+    }
+
+    if (!tokenAddress && !pluginAddress) {
+      return null
+    }
+
     return this.findOne(params, null, tOpts)
   }
 
@@ -111,6 +176,7 @@ export default class DaoMemberMapping extends Model {
     return this.find({ pluginAddress, network }, null, tOpts)
   }
 
+  // TODO: to pair tokenVoting we need tokenAddress and not pluginAddress, remove also daoAddress
   static async findAndPaginate({
     paginationParams = {},
     extraParams = {},

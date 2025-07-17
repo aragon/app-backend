@@ -40,6 +40,8 @@ const DaoController = {
   },
 
   getDaosByMember: async (paginationParams: IPaginationParams = {}, extraParams: IDaoExtraParams = {}) => {
+    // TODO: need to change
+    // excludeDao by daoId wont work anymore as member is related to the plugin not the dao
     paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
     extraParams.memberAddress = await PairDataModule.checkIFEns(extraParams.memberAddress!)
     extraParams.excludedDao = extraParams.excludeDaoId

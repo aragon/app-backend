@@ -253,22 +253,30 @@ export default class Plugin extends Model {
     return await this.find({ tokenAddress, network }, null, tOpts)
   }
 
-  static async findActivePluginByTokenAddress(tokenAddress: HexAddress, network: NetworksEnum) {
-    return await this.findOne({
-      tokenAddress,
-      network,
-      status: IPluginStatus.installed,
-    })
-      .sort({ blockNumber: -1 })
-      .exec()
+  static async findActivePluginByTokenAddress(tokenAddress: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
+    return await this.findOne(
+      {
+        tokenAddress,
+        network,
+        status: IPluginStatus.installed,
+      },
+      null,
+      tOpts,
+    ).exec()
   }
 
-  static async findActivePluginsByDaoAddress(daoAddress: HexAddress, network: NetworksEnum) {
-    return await this.find({
-      daoAddress,
-      network,
-      status: IPluginStatus.installed,
-    }).exec()
+  static async findActivePluginsByDaoAddress(daoAddress: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
+    return await this.find(
+      {
+        daoAddress,
+        network,
+        status: IPluginStatus.installed,
+      },
+      null,
+      tOpts,
+    )
+      .sort({ blockNumber: -1 })
+      .exec()
   }
 
   static async getPluginIdBySlugAndDao(slug: string, daoAddress: HexAddress, network: NetworksEnum) {

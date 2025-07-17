@@ -1235,9 +1235,7 @@ describe('Helpers: DecodeActions', () => {
         value: '0x40c10f19',
       }
 
-      const getMultiSigMemberAtBlockNumberStub = sandbox
-        .stub(Models.DaoMemberMapping, 'findAllMembersOfPlugin')
-        .resolves([{ memberAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9E' }])
+      const getMultiSigMemberAtBlockNumberStub = sandbox.stub(ProxyMember, 'countAllMembersOfPlugin').resolves(1)
 
       const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves({
         address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
@@ -1305,9 +1303,7 @@ describe('Helpers: DecodeActions', () => {
         value: '0x40c10f19',
       }
 
-      const getMultiSigMemberAtBlockNumberStub = sandbox
-        .stub(Models.DaoMemberMapping, 'findAllMembersOfPlugin')
-        .resolves([{ memberAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9E' }])
+      const getMultiSigMemberAtBlockNumberStub = sandbox.stub(ProxyMember, 'countAllMembersOfPlugin').resolves(1)
 
       const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves({
         address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',

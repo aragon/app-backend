@@ -93,7 +93,6 @@ export interface IAggProposalParams {
 export interface IAggDaoMemberMappingParams {
   tokenAddress?: string
   memberAddress?: string
-  daoAddress?: string
   pluginAddress?: string
   network?: string
 }

@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import logger from '@logger'
 import { IGovernanceErc20Logs, type IIndexerConfig, ITokenSyncTagName } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
@@ -145,7 +144,6 @@ export const TokenHolderSync = {
 
         await ProxyMember.addToDao({
           memberAddress: holder.address,
-          daoAddress: plugin.daoAddress,
           pluginAddress: plugin.address,
           tokenAddress: plugin.tokenAddress,
           network: plugin.network,
@@ -301,10 +299,13 @@ export const TokenHolderSync = {
     const membersDataToSave = membersFromToken.reduce(
       (membersData: any, memberAddress: any) => {
         const daoRelation = {
+          id: Models.DaoMemberMapping.getEntityId({
+            network: plugin.network,
+            memberAddress,
+            tokenOrPluginAddress: token.address || plugin.address,
+          }),
           memberAddress,
-          daoAddress: plugin.daoAddress,
-          pluginAddress: plugin.address,
-          tokenAddress: token.address,
+          ...(token.address ? { tokenAddress: token.address } : { pluginAddress: plugin.address }),
           network: plugin.network,
           createdAt: new Date(),
           updatedAt: new Date(),

@@ -101,7 +101,6 @@ export type IProposalOnChain = IProposalTokenVotingOnChain | IProposalMultisigOn
 export interface IDaoMemberMappingData {
   network: NetworksEnum
   memberAddress: HexAddress
-  daoAddress: HexAddress
   pluginAddress: HexAddress
   tokenAddress?: HexAddress
 }

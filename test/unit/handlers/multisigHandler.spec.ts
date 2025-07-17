@@ -26,7 +26,7 @@ describe('Indexer: MemberHandler', () => {
 
     let rawPlugin = {
       transactionHash,
-      interfaceType: IPluginInterfaceType.tokenVoting,
+      interfaceType: IPluginInterfaceType.multisig,
       blockNumber: 3,
       transactionIndex: 1,
       logIndex: 1,
@@ -39,7 +39,6 @@ describe('Indexer: MemberHandler', () => {
       pluginSetupRepo: '0x17366cae2b9c6c3055e9e3c78936a69006be5403',
       address: '0x17366cae2b9c6c3055e9e3c78936a69006be5404',
       sender: '0x17366cae2b9c6c3055e9e3c78936a69006be5405',
-      tokenAddress: '0x17366cae2b9c6c3025e9e3c78936a69006be5406',
       release: '1',
       build: '2',
       permissions: [
@@ -79,13 +78,25 @@ describe('Indexer: MemberHandler', () => {
       } as any
 
       const findByPluginAddressSpy = sandbox.spy(Models.Plugin, 'findByAddress')
-      const findExistingLogSpy = sandbox.spy(ProxyMember, 'addToDao')
+      const addToDaoStub = sandbox.spy(ProxyMember, 'addToDao')
       const stubRaddit = sandbox.stub(RabbitMQHelper, 'sendMessage')
 
       await MultisigHandler.membersAdded(fakeLog, logInfo)
 
       expect(findByPluginAddressSpy.calledOnce).to.be.true
-      expect(findExistingLogSpy.calledTwice).to.be.true
+      expect(addToDaoStub.calledTwice).to.be.true
+
+      expect(addToDaoStub.firstCall.args[0]).to.deep.equal({
+        memberAddress: '0x52Af16664155608b845BE18aa29620EbF6eA2D3a',
+        pluginAddress: plugin.address,
+        network: NetworksEnum.ethereumMainnet,
+      })
+      expect(addToDaoStub.secondCall.args[0]).to.deep.equal({
+        memberAddress: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
+        pluginAddress: plugin.address,
+        network: NetworksEnum.ethereumMainnet,
+      })
+
       expect(stubRaddit.calledTwice).to.be.true
 
       expect(stubRaddit.args[0][0]).to.be.eq(EnumQueueName.daoMetrics)
@@ -140,13 +151,25 @@ describe('Indexer: MemberHandler', () => {
       } as any
 
       const findByPluginAddressSpy = sandbox.spy(Models.Plugin, 'findByAddress')
-      const findExistingLogSpy = sandbox.spy(ProxyMember, 'removeFromDao')
+      const removeFromDaoStub = sandbox.spy(ProxyMember, 'removeFromDao')
       const stubRaddit = sandbox.stub(RabbitMQHelper, 'sendMessage')
 
       await MultisigHandler.membersRemoved(fakeLog, logInfo)
 
       expect(findByPluginAddressSpy.calledOnce).to.be.true
-      expect(findExistingLogSpy.calledTwice).to.be.true
+      expect(removeFromDaoStub.calledTwice).to.be.true
+
+      expect(removeFromDaoStub.firstCall.args[0]).to.deep.equal({
+        memberAddress: '0x52Af16664155608b845BE18aa29620EbF6eA2D3a',
+        pluginAddress: plugin.address,
+        network: NetworksEnum.ethereumMainnet,
+      })
+      expect(removeFromDaoStub.secondCall.args[0]).to.deep.equal({
+        memberAddress: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
+        pluginAddress: plugin.address,
+        network: NetworksEnum.ethereumMainnet,
+      })
+
       expect(stubRaddit.calledTwice).to.be.true
 
       expect(stubRaddit.args[0][0]).to.be.eq(EnumQueueName.daoMetrics)

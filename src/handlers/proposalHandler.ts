@@ -220,7 +220,7 @@ export const ProposalHandler = {
           tokenAddress: document.settings.tokenAddress,
           network: info.network,
           hasClockMode: token?.hasClockMode,
-          blockTimestamp: blockTimestamp - avgBlockTimeSec,
+          blockTimestamp: blockTimestamp - avgBlockTimeSec, // TODO: its wrong
         })
 
         document.snapshot = {
@@ -230,12 +230,9 @@ export const ProposalHandler = {
         relatedPlugin.interfaceType === IPluginInterfaceType.multisig ||
         relatedPlugin.interfaceType === IPluginInterfaceType.admin
       ) {
-        const members = await Models.DaoMemberMapping.findAllMembersOfPlugin({
-          pluginAddress: relatedPlugin.address,
-          network: relatedPlugin.network,
-        })
+        const membersCount = await ProxyMember.countAllMembersOfPlugin(relatedPlugin.address, relatedPlugin.network)
         document.snapshot = {
-          membersCount: members.length,
+          membersCount,
         }
       }
 

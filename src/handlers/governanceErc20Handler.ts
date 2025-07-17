@@ -137,26 +137,20 @@ export const GovernanceErc20Handler = {
     info: ILogInfo,
     isHistorical?: boolean,
   ) => {
-    await Promise.all([
-      ...plugins.map(async (plugin: Plugin) => {
-        const memberShipParams = {
-          memberAddress: memberTx.address!,
-          daoAddress: plugin.daoAddress,
-          network: plugin.network,
-          pluginAddress: plugin.address,
-          tokenAddress: plugin.tokenAddress,
-        }
+    const memberShipParams = {
+      memberAddress: memberTx.address!,
+      network: info.network,
+      tokenAddress: info.address,
+    }
 
-        const isMember = await ProxyMember.isMemberOfDao(memberShipParams)
-        const meetsRequirements = BigInt(memberTx?.memberVotingPower!) > 0n || BigInt(memberTx?.memberBalance!) > 0n
+    const isMember = await ProxyMember.isMemberOfDao(memberShipParams)
+    const meetsRequirements = BigInt(memberTx?.memberVotingPower!) > 0n || BigInt(memberTx?.memberBalance!) > 0n
 
-        if (!isMember && meetsRequirements) {
-          await ProxyMember.addToDao(memberShipParams)
-        } else if (isMember && !meetsRequirements) {
-          await ProxyMember.removeFromDao(memberShipParams)
-        }
-      }),
-    ])
+    if (!isMember && meetsRequirements) {
+      await ProxyMember.addToDao(memberShipParams)
+    } else if (isMember && !meetsRequirements) {
+      await ProxyMember.removeFromDao(memberShipParams)
+    }
 
     if (!isHistorical) {
       const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')

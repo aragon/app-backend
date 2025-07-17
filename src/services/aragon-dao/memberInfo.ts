@@ -109,11 +109,12 @@ export const MemberInfo = {
 
     return setting?.onlyListed ? await Web3Helper.isMember(plugin.address, memberAddress, plugin.network) : true
   },
+
   _checkForAdmin: async (plugin: Plugin, _setting: PluginSetting, memberAddress: HexAddress) => {
-    const daoMemberMapping = await Models.DaoMemberMapping.findOne({
-      daoAddress: plugin.daoAddress,
-      memberAddress,
+    const daoMemberMapping = await Models.DaoMemberMapping.findExistingLog({
       network: plugin.network,
+      memberAddress,
+      tokenOrPluginAddress: plugin.address,
     })
 
     return !!daoMemberMapping

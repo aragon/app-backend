@@ -75,7 +75,6 @@ describe('AggregationQueryHelper', () => {
         {
           tokenAddress: '0xTokenAddress',
           memberAddress: '0xMemberAddress',
-          daoAddress: '0xDaoAddress',
           pluginAddress: '0xPluginAddress',
           network: NetworksEnum.ethereumMainnet,
         },
@@ -88,7 +87,6 @@ describe('AggregationQueryHelper', () => {
           let: {
             tokenAddress: '0xTokenAddress',
             memberAddress: '0xMemberAddress',
-            daoAddress: '0xDaoAddress',
             pluginAddress: '0xPluginAddress',
             network: NetworksEnum.ethereumMainnet,
           },
@@ -99,7 +97,6 @@ describe('AggregationQueryHelper', () => {
                   $and: [
                     { $eq: ['$pluginAddress', '$$pluginAddress'] },
                     { $eq: ['$tokenAddress', '$$tokenAddress'] },
-                    { $eq: ['$daoAddress', '$$daoAddress'] },
                     { $eq: ['$memberAddress', '$$memberAddress'] },
                     { $eq: ['$network', '$$network'] },
                   ],
@@ -108,7 +105,6 @@ describe('AggregationQueryHelper', () => {
             },
             {
               $project: {
-                daoAddress: 1,
                 memberAddress: 1,
                 pluginAddress: 1,
                 tokenAddress: 1,

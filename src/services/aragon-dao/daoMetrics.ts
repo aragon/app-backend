@@ -3,6 +3,7 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import type Dao from '@models/schema/dao'
+import { ProxyMember } from '@modules/proxyMember'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:DaoMetrics' })
 
@@ -40,9 +41,11 @@ export const DaoMetrics = {
           },
           { session },
         )
-        const members = await Models.DaoMemberMapping.countUniqueMembers(document.address, document.network, {
+
+        const memberCount = await ProxyMember.countUniqueMembersOfDao(document.address, document.network, {
           session,
         })
+
         const votes = await Models.Vote.countDocuments(
           {
             daoAddress: document.address,
@@ -59,7 +62,7 @@ export const DaoMetrics = {
             proposalsCreated,
             proposalsExecuted,
             votes,
-            members,
+            members: memberCount,
           },
           { session },
         )

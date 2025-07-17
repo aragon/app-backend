@@ -273,17 +273,14 @@ class DecodeActions {
       }),
     )
 
-    const currentMembersInfo = await Models.DaoMemberMapping.findAllMembersOfPlugin({
-      pluginAddress: document.pluginAddress!,
-      network: document.network!,
-    })
+    const membersCount = await ProxyMember.countAllMembersOfPlugin(document.pluginAddress!, document.network!)
 
     return {
       ...action,
       inputData: decodedData,
       type: ProposalActionType.MultisigAddMembers,
       members: membersInfo,
-      currentMembers: currentMembersInfo.length,
+      currentMembers: membersCount,
     }
   }
 
@@ -303,17 +300,14 @@ class DecodeActions {
       }),
     )
 
-    const currentMembersInfo = await Models.DaoMemberMapping.findAllMembersOfPlugin({
-      pluginAddress: document.pluginAddress!,
-      network: document.network!,
-    })
+    const membersCount = await ProxyMember.countAllMembersOfPlugin(document.pluginAddress!, document.network!)
 
     return {
       ...action,
       inputData: decodedData,
       type: ProposalActionType.MultisigRemoveMembers,
       members: membersInfo,
-      currentMembers: currentMembersInfo.length,
+      currentMembers: membersCount,
     }
   }
 

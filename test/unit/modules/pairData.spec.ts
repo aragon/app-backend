@@ -413,7 +413,6 @@ describe('Modules:PairDataModule', () => {
       const findStub = sandbox.stub(Models.DaoMemberMapping, 'find').resolves(mappings as any)
 
       const params = {
-        daoAddress: '0xDaoAddress' as any,
         network: NetworksEnum.ethereumSepolia,
         pluginAddress: '0xPluginAddress' as any,
         tokenAddress: '0xTokenAddress' as any,
@@ -432,7 +431,7 @@ describe('Modules:PairDataModule', () => {
       const findStub = sandbox.stub(Models.DaoMemberMapping, 'find').resolves(mappings as any)
 
       const params = {
-        daoAddress: '0xDaoAddress' as any,
+        tokenAddress: '0xTokenAddress' as any,
         memberAddress: '0xMemberAddress' as any,
       }
 
@@ -449,7 +448,7 @@ describe('Modules:PairDataModule', () => {
 
       const params = {
         network: NetworksEnum.ethereumSepolia,
-        daoAddress: '0xDaoAddress' as any,
+        pluginAddress: '0xpluginAddress' as any,
       }
 
       const result = await PairDataModule.pairFromDaoMemberMapping(params)
@@ -485,7 +484,7 @@ describe('Modules:PairDataModule', () => {
       const findStub = sandbox.stub(Models.DaoMemberMapping, 'find').resolves([])
 
       const params = {
-        daoAddress: '0xNonExistentDao' as any,
+        pluginAddress: '0xNonExist' as any,
       }
 
       const result = await PairDataModule.pairFromDaoMemberMapping(params)

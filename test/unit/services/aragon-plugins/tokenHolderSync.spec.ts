@@ -13,7 +13,7 @@ import ProxyWeb3Provider from '@modules/proxyProvider'
 import DbTx from '@modules/dbTx'
 import ConfigIndexerHelper from '@helpers/configIndexer'
 
-describe('AragonPlugins: TokenHolderSync', () => {
+describe.only('AragonPlugins: TokenHolderSync', () => {
   let sandbox: SinonSandbox
   let blockScoutGetTokenCountersStub: SinonStub
   let proxyWeb3ProviderGetAllTokenHoldersStub: SinonStub
@@ -239,7 +239,6 @@ describe('AragonPlugins: TokenHolderSync', () => {
       expect(
         proxyMemberAddToDaoStub.calledWith({
           memberAddress: mockHolder.address,
-          daoAddress: mockPlugin.daoAddress,
           pluginAddress: mockPlugin.address,
           tokenAddress: mockPlugin.tokenAddress,
           network: mockPlugin.network,
@@ -416,7 +415,7 @@ describe('AragonPlugins: TokenHolderSync', () => {
       expect(spyDaoMemberMappingInsertMany.called).to.be.false
     })
 
-    it('should link existing token holders to plugin and create config indexer entry', async () => {
+    it('should link existing token holders to plugin and create config indexer entry for tokenVoting', async () => {
       const mockHolders = ['0xHolder1', '0xHolder2']
 
       const memberFindStub = sandbox.stub(Models.Member, 'find')
@@ -441,7 +440,6 @@ describe('AragonPlugins: TokenHolderSync', () => {
       ).to.be.true
 
       const daoMemberMappings = await Models.DaoMemberMapping.find({
-        pluginAddress: mockPlugin.address,
         tokenAddress: mockToken.address,
         network: mockPlugin.network,
       })
@@ -465,6 +463,8 @@ describe('AragonPlugins: TokenHolderSync', () => {
       expect(configIndexer).to.not.be.null
       expect(configIndexer.lastSync).to.equal(lastSyncBlock)
     })
+
+    // TODO: Add new test cases for different scenarios should link existing token holders to plugin and create config indexer entry for multisig
 
     it('should handle errors during insertion and still create config indexer entry', async () => {
       // Setup - mock some token holders

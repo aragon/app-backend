@@ -5,9 +5,12 @@ import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import EnsHelper from '@helpers/ens'
 import DbTx from '@modules/dbTx'
+import type Plugin from '@models/schema/plugin'
 import type Member from '@models/schema/member'
 import type MemberBalance from '@models/schema/memberBalance'
 import type MemberMetrics from '@models/schema/memberMetrics'
+import type { SaveOptions } from 'mongoose'
+import type DaoMemberMapping from '@models/schema/daoMemberMapping'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:ProxyMember' })
 
@@ -264,8 +267,7 @@ export const ProxyMember = {
 
   addToDao: async (params: {
     memberAddress: HexAddress
-    daoAddress: HexAddress
-    pluginAddress: HexAddress
+    pluginAddress?: HexAddress
     tokenAddress?: HexAddress
     network: NetworksEnum
   }): Promise<Member | null> => {
@@ -280,15 +282,24 @@ export const ProxyMember = {
 
     try {
       return await DbTx.executeTxFn(async ({ session }) => {
-        const queryParams = {
+        const exitingRecord = await Models.DaoMemberMapping.findExistingLog({
           memberAddress,
-          daoAddress: params.daoAddress,
-          pluginAddress: params.pluginAddress,
-          tokenAddress: params?.tokenAddress,
           network: params.network,
-        }
-        const existingDao = await ProxyMember.isMemberOfDao(queryParams, session)
-        if (!existingDao) {
+          tokenOrPluginAddress: params?.tokenAddress || params?.pluginAddress,
+        })
+
+        if (!exitingRecord) {
+          const queryParams: Partial<DaoMemberMapping> = {
+            memberAddress,
+            network: params.network,
+          }
+
+          if (params?.tokenAddress) {
+            queryParams.tokenAddress = params.tokenAddress
+          } else {
+            queryParams.pluginAddress = params.pluginAddress
+          }
+
           await Models.DaoMemberMapping.create(queryParams, { session })
           await session.commitTransaction()
           await session.endSession()
@@ -304,8 +315,7 @@ export const ProxyMember = {
 
   removeFromDao: async (params: {
     memberAddress: HexAddress
-    daoAddress: HexAddress
-    pluginAddress: HexAddress
+    pluginAddress?: HexAddress
     tokenAddress?: HexAddress
     network: NetworksEnum
   }): Promise<Member | null> => {
@@ -316,20 +326,16 @@ export const ProxyMember = {
 
     try {
       return await DbTx.executeTxFn(async ({ session }) => {
-        const queryParams = {
+        const exitingRecord = await Models.DaoMemberMapping.findExistingLog({
           memberAddress,
-          daoAddress: params.daoAddress,
-          pluginAddress: params.pluginAddress,
-          tokenAddress: params?.tokenAddress,
           network: params.network,
-        }
-        const existingDao = await ProxyMember.isMemberOfDao(queryParams, session)
-
-        if (existingDao) {
-          await existingDao.removeSelf({ session })
+          tokenOrPluginAddress: params?.tokenAddress || params.pluginAddress,
+        })
+        if (exitingRecord) {
+          await exitingRecord.removeSelf({ session })
           await session.commitTransaction()
           await session.endSession()
-          logger.verbose('Remove DaoMemberMapping', llo(queryParams))
+          logger.verbose('Remove DaoMemberMapping', llo(params))
         }
 
         return member
@@ -342,14 +348,51 @@ export const ProxyMember = {
 
   isMemberOfDao: async (
     params: {
-      memberAddress: HexAddress
-      daoAddress: HexAddress
-      pluginAddress: HexAddress
       network: NetworksEnum
+      memberAddress: HexAddress
+      pluginAddress?: HexAddress
       tokenAddress?: HexAddress
     },
     session?: any,
   ) => {
     return Models.DaoMemberMapping.findMapping(params, { session })
+  },
+
+  countAllMembersOfPlugin: async (
+    pluginAddress: HexAddress,
+    network: NetworksEnum,
+    tOpts?: SaveOptions,
+  ): Promise<number> => {
+    const plugin = await Models.Plugin.findOne({ address: pluginAddress, network }, null, tOpts)
+
+    if (!plugin) {
+      return 0
+    }
+
+    if (plugin.tokenAddress) {
+      return Models.DaoMemberMapping.tokenCountUniqueMembers(plugin.tokenAddress, network, tOpts)
+    } else {
+      return Models.DaoMemberMapping.pluginCountUniqueMembers(plugin.address, network, tOpts)
+    }
+  },
+
+  countUniqueMembersOfDao: async (
+    daoAddress: HexAddress,
+    network: NetworksEnum,
+    tOpts?: SaveOptions,
+  ): Promise<number> => {
+    const plugins = await Models.Plugin.findActivePluginsByDaoAddress(daoAddress, network, tOpts)
+
+    const counts = await Promise.all(
+      plugins.map((plugin: Plugin) => {
+        if (plugin.tokenAddress) {
+          return Models.DaoMemberMapping.tokenCountUniqueMembers(plugin.tokenAddress, network, tOpts)
+        } else {
+          return Models.DaoMemberMapping.pluginCountUniqueMembers(plugin.address, network, tOpts)
+        }
+      }),
+    )
+
+    return counts.reduce((total, count) => total + count, 0)
   },
 }

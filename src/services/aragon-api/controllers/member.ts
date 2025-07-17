@@ -16,6 +16,7 @@ import { assertExposable } from '@errors'
 import PairDataModule from '@modules/pairData'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import config from '@config'
+import { ProxyMember } from '@modules/proxyMember'
 
 const MemberController = {
   getMembersWithPagination: async (
@@ -23,16 +24,17 @@ const MemberController = {
     extraParams: IMemberExtraParams = {},
     pairParams: IPairParams = {},
   ): Promise<IPaginatedResult<IMembersResponse>> => {
+    // TODO: need to change
     extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
 
     assertExposable(!!extraParams.network, ErrorKeyEnum.badParams)
 
     if (!extraParams.pluginAddress && !extraParams.daoAddress) {
-      return Models.Member.findPaginatedMembersOnly({ paginationParams })
+      return await Models.Member.findPaginatedMembersOnly({ paginationParams })
     }
 
     if (extraParams.daoAddress && !extraParams.pluginAddress) {
-      return Models.DaoMemberMapping.findAndPaginate({
+      return await Models.DaoMemberMapping.findAndPaginate({
         extraParams,
         paginationParams,
       })
@@ -43,13 +45,13 @@ const MemberController = {
 
     if (plugin.tokenAddress) {
       extraParams.tokenAddress = plugin.tokenAddress
-      return Models.MemberBalance.findAndPaginate({
+      return await Models.MemberBalance.findAndPaginate({
         paginationParams,
         extraParams,
       })
     }
 
-    return Models.DaoMemberMapping.findAndPaginate({
+    return await Models.DaoMemberMapping.findAndPaginate({
       extraParams,
       paginationParams,
     })
@@ -92,11 +94,19 @@ const MemberController = {
   isMemberOfPlugin: async (
     memberAddress: HexAddress,
     pluginAddress: HexAddress,
-    network?: NetworksEnum,
+    network: NetworksEnum,
   ): Promise<boolean> => {
-    const member = await Models.DaoMemberMapping.findOne({ memberAddress, pluginAddress, ...(network && { network }) })
+    const plugin = await Models.Plugin.findByAddress(pluginAddress, network)
+    const memberShipParams = {
+      memberAddress,
+      pluginAddress,
+      tokenAddress: plugin?.tokenAddress!,
+      network,
+    }
 
-    return !!member
+    const isMember = await ProxyMember.isMemberOfDao(memberShipParams)
+
+    return !!isMember
   },
 
   getMemberLocks: async (

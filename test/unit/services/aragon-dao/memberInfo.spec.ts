@@ -474,8 +474,7 @@ describe('AragonDao: memberInfo', () => {
 
       const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
 
-      const daoMemberMappingStub = sandbox.stub(Models.DaoMemberMapping, 'findOne').resolves({
-        daoAddress: '0xDaoAddress',
+      const daoMemberMappingStub = sandbox.stub(Models.DaoMemberMapping, 'findExistingLog').resolves({
         memberAddress: '0xMemberAddress',
         network: NetworksEnum.ethereumSepolia,
       } as any)
@@ -491,9 +490,9 @@ describe('AragonDao: memberInfo', () => {
       expect(daoMemberMappingStub.calledOnce).to.be.true
       expect(
         daoMemberMappingStub.calledWith({
-          daoAddress: '0xDaoAddress',
-          memberAddress: '0xMemberAddress',
           network: NetworksEnum.ethereumSepolia,
+          memberAddress: '0xMemberAddress',
+          tokenOrPluginAddress: '0xPluginAddress',
         }),
       ).to.be.true
       expect(result).to.be.true

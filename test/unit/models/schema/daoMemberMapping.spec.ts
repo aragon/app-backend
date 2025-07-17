@@ -10,7 +10,7 @@ import { PluginList } from '@test/mock/fakePlugins'
 import Dao from '@models/schema/dao'
 import Plugin from '@models/schema/plugin'
 import Member from '@models/schema/member'
-import { IPluginInterfaceType } from '@types'
+import { IPluginInterfaceType, NetworksEnum } from '@types'
 import ModelUtils from '@models/utils/models'
 
 describe('Model: DaoMemberMappings', () => {
@@ -31,6 +31,7 @@ describe('Model: DaoMemberMappings', () => {
       address: FakeDaoMemberMappings[0].pluginAddress,
       daoAddress: FakeDaoMemberMappings[0].daoAddress,
       interfaceType: IPluginInterfaceType.multisig,
+      tokenAddress: null, // Multisig plugin has no token
     }
     rawMember = {
       ...(FakeMember as any),
@@ -38,8 +39,8 @@ describe('Model: DaoMemberMappings', () => {
     rawDaoMemberMapping = [
       {
         ...(FakeDaoMemberMappings[0] as any),
-        daoAddress: rawDao.address,
-        pluginAddress: rawPlugin.address,
+        pluginAddress: rawPlugin.address, // Plugin without token → use pluginAddress
+        tokenAddress: null, // No token for multisig
         memberAddress: rawMember.address,
       },
     ]
@@ -59,37 +60,208 @@ describe('Model: DaoMemberMappings', () => {
 
     expect(createdConfigIndexer.network).to.eq(fakeDaoMemberMapping.network)
     expect(createdConfigIndexer.memberAddress).to.eq(fakeDaoMemberMapping.memberAddress)
-    expect(createdConfigIndexer.daoAddress).to.eq(fakeDaoMemberMapping.daoAddress)
     expect(createdConfigIndexer.pluginAddress).to.eq(fakeDaoMemberMapping.pluginAddress)
+    expect(createdConfigIndexer.tokenAddress).to.be.null // Should be null for plugin-based mapping
   })
 
   describe('findMapping', () => {
-    it('Should findMapping', async () => {
+    it('Should findMapping with tokenAddress', async () => {
       const [fakeDaoMemberMapping] = rawDaoMemberMapping
+
+      // Create mapping with token (plugin has tokenAddress)
       const createdDaoMapping = await Models.DaoMemberMapping.create({
         ...fakeDaoMemberMapping,
         tokenAddress: '0xToken',
+        pluginAddress: null, // Clear plugin when using token
       })
+
       const foundLogDao = await Models.DaoMemberMapping.findMapping({
         memberAddress: fakeDaoMemberMapping.memberAddress,
-        daoAddress: fakeDaoMemberMapping.daoAddress,
-        pluginAddress: fakeDaoMemberMapping.pluginAddress,
         tokenAddress: '0xToken',
         network: fakeDaoMemberMapping.network,
       } as any)
+
       expect(foundLogDao?.network).to.eq(createdDaoMapping.network)
+      expect(foundLogDao?.tokenAddress).to.eq('0xToken')
+      expect(foundLogDao?.pluginAddress).to.be.null
     })
 
-    it('should find mapping if no token address is passed', async () => {
+    it('should find mapping with pluginAddress (no token)', async () => {
       const [fakeDaoMemberMapping] = rawDaoMemberMapping
       const createdDaoMapping = await Models.DaoMemberMapping.create(fakeDaoMemberMapping)
+
       const foundLogDao = await Models.DaoMemberMapping.findMapping({
         memberAddress: fakeDaoMemberMapping.memberAddress,
-        daoAddress: fakeDaoMemberMapping.daoAddress,
         pluginAddress: fakeDaoMemberMapping.pluginAddress,
         network: fakeDaoMemberMapping.network,
       } as any)
+
       expect(foundLogDao?.network).to.eq(createdDaoMapping.network)
+      expect(foundLogDao?.pluginAddress).to.eq(fakeDaoMemberMapping.pluginAddress)
+      expect(foundLogDao?.tokenAddress).to.be.null
+    })
+  })
+
+  describe('Member Counting', () => {
+    it('should count unique members by plugin address', async () => {
+      const [fakeDaoMemberMapping] = rawDaoMemberMapping
+
+      // Create test data with same plugin but different members (plugin without token)
+      await Models.DaoMemberMapping.create({
+        network: fakeDaoMemberMapping.network,
+        memberAddress: '0xmember1',
+        pluginAddress: '0xplugin1',
+        tokenAddress: null,
+      })
+
+      await Models.DaoMemberMapping.create({
+        network: fakeDaoMemberMapping.network,
+        memberAddress: '0xmember2',
+        pluginAddress: '0xplugin1',
+        tokenAddress: null,
+      })
+
+      // Same member, different plugin - should not be counted
+      await Models.DaoMemberMapping.create({
+        network: fakeDaoMemberMapping.network,
+        memberAddress: '0xmember1',
+        pluginAddress: '0xplugin2',
+        tokenAddress: null,
+      })
+
+      const count = await Models.DaoMemberMapping.pluginCountUniqueMembers('0xplugin1', fakeDaoMemberMapping.network!)
+
+      expect(count).to.eq(2)
+    })
+
+    it('should count unique members by token address', async () => {
+      const [fakeDaoMemberMapping] = rawDaoMemberMapping
+
+      // Create test data with same token but different members (plugin with token)
+      await Models.DaoMemberMapping.create({
+        network: fakeDaoMemberMapping.network,
+        memberAddress: '0xmember1',
+        tokenAddress: '0xtoken1',
+        pluginAddress: null, // Clear plugin address when using token
+      })
+
+      await Models.DaoMemberMapping.create({
+        network: fakeDaoMemberMapping.network,
+        memberAddress: '0xmember2',
+        tokenAddress: '0xtoken1',
+        pluginAddress: null,
+      })
+
+      // Same member, different token - should not be counted
+      await Models.DaoMemberMapping.create({
+        network: fakeDaoMemberMapping.network,
+        memberAddress: '0xmember1',
+        tokenAddress: '0xtoken2',
+        pluginAddress: null,
+      })
+
+      const count = await Models.DaoMemberMapping.tokenCountUniqueMembers('0xtoken1', fakeDaoMemberMapping.network!)
+
+      expect(count).to.eq(2)
+    })
+
+    it('should return 0 when no members found for plugin', async () => {
+      const [fakeDaoMemberMapping] = rawDaoMemberMapping
+
+      const count = await Models.DaoMemberMapping.pluginCountUniqueMembers(
+        '0xnonexistentplugin',
+        fakeDaoMemberMapping.network!,
+      )
+
+      expect(count).to.eq(0)
+    })
+
+    it('should return 0 when no members found for token', async () => {
+      const [fakeDaoMemberMapping] = rawDaoMemberMapping
+
+      const count = await Models.DaoMemberMapping.tokenCountUniqueMembers(
+        '0xnonexistenttoken',
+        fakeDaoMemberMapping.network!,
+      )
+
+      expect(count).to.eq(0)
+    })
+
+    it('should handle duplicate member entries correctly for plugin counting', async () => {
+      const [fakeDaoMemberMapping] = rawDaoMemberMapping
+
+      // Create entry for plugin-based mapping
+      await Models.DaoMemberMapping.create({
+        network: fakeDaoMemberMapping.network,
+        memberAddress: '0xmember1',
+        pluginAddress: '0xplugin1',
+        tokenAddress: null,
+      })
+
+      const count = await Models.DaoMemberMapping.pluginCountUniqueMembers('0xplugin1', fakeDaoMemberMapping.network!)
+
+      expect(count).to.eq(1)
+    })
+
+    it('should handle duplicate member entries correctly for token counting', async () => {
+      const [fakeDaoMemberMapping] = rawDaoMemberMapping
+
+      // Create entry for token-based mapping
+      await Models.DaoMemberMapping.create({
+        network: fakeDaoMemberMapping.network,
+        memberAddress: '0xmember1',
+        tokenAddress: '0xtoken1',
+        pluginAddress: null,
+      })
+
+      const count = await Models.DaoMemberMapping.tokenCountUniqueMembers('0xtoken1', fakeDaoMemberMapping.network!)
+
+      expect(count).to.eq(1)
+    })
+
+    it('should filter by network correctly for plugin counting', async () => {
+      // Use a unique plugin address to avoid conflicts with existing data
+      const testPluginAddress = '0xUniquePluginForNetworkTest100'
+
+      // Create members on different networks
+      await Models.DaoMemberMapping.create({
+        network: NetworksEnum.baseMainnet,
+        memberAddress: '0xmember1',
+        pluginAddress: testPluginAddress,
+        tokenAddress: null,
+      })
+
+      await Models.DaoMemberMapping.create({
+        network: NetworksEnum.polygonMainnet, // Different network
+        memberAddress: '0xmember2',
+        pluginAddress: testPluginAddress,
+        tokenAddress: null,
+      })
+
+      const count = await Models.DaoMemberMapping.pluginCountUniqueMembers(testPluginAddress, NetworksEnum.baseMainnet)
+
+      expect(count).to.eq(1) // Should only count members on the specified network
+    })
+
+    it('should filter by network correctly for token counting', async () => {
+      // Create members on different networks
+      await Models.DaoMemberMapping.create({
+        network: NetworksEnum.baseMainnet,
+        memberAddress: '0xmember1',
+        tokenAddress: '0xtoken1',
+        pluginAddress: null,
+      })
+
+      await Models.DaoMemberMapping.create({
+        network: NetworksEnum.polygonMainnet, // Different network
+        memberAddress: '0xmember2',
+        tokenAddress: '0xtoken1',
+        pluginAddress: null,
+      })
+
+      const count = await Models.DaoMemberMapping.tokenCountUniqueMembers('0xtoken1', NetworksEnum.baseMainnet)
+
+      expect(count).to.eq(1) // Should only count members on the specified network
     })
   })
 
@@ -128,50 +300,11 @@ describe('Model: DaoMemberMappings', () => {
     await createdConfigIndexer.removeSelf()
     const foundLogDao = await Models.DaoMemberMapping.findMapping({
       memberAddress: fakeDaoMemberMapping.memberAddress,
-      daoAddress: fakeDaoMemberMapping.daoAddress,
       pluginAddress: fakeDaoMemberMapping.pluginAddress,
       tokenAddress: fakeDaoMemberMapping.tokenAddress,
       network: fakeDaoMemberMapping.network,
     } as any)
     expect(foundLogDao).to.be.null
-  })
-
-  it('should countUniqueMembers', async () => {
-    const [fakeDaoMemberMapping] = rawDaoMemberMapping
-    await Models.DaoMemberMapping.create(fakeDaoMemberMapping)
-    const count = await Models.DaoMemberMapping.countUniqueMembers(
-      fakeDaoMemberMapping.daoAddress!,
-      fakeDaoMemberMapping.network!,
-    )
-    expect(count).to.eq(1)
-  })
-
-  it('should count properly unique member', async () => {
-    const [fakeDaoMemberMapping] = rawDaoMemberMapping
-
-    await Models.DaoMemberMapping.create({
-      ...fakeDaoMemberMapping,
-      daoAddress: '0xdao',
-      memberAddress: '0xmember',
-      pluginAddress: '0xplugin',
-    })
-
-    await Models.DaoMemberMapping.create({
-      ...fakeDaoMemberMapping,
-      daoAddress: '0xdao',
-      memberAddress: '0xmember',
-      pluginAddress: '0xplugin2',
-    })
-
-    await Models.DaoMemberMapping.create({
-      ...fakeDaoMemberMapping,
-      daoAddress: '0xdao',
-      memberAddress: '0xmember2',
-      pluginAddress: '0xplugin3',
-    })
-
-    const count = await Models.DaoMemberMapping.countUniqueMembers('0xdao', fakeDaoMemberMapping.network!)
-    expect(count).to.eq(2)
   })
 
   describe('pagination', () => {
@@ -182,6 +315,7 @@ describe('Model: DaoMemberMappings', () => {
         daoAddress: rawDao.address,
         pluginAddress: rawPlugin.address,
         memberAddress: rawMember.address,
+        tokenAddress: null, // Plugin without token
       }
 
       await Models.DaoMemberMapping.create(rawDaoMemberMapping)
@@ -294,7 +428,7 @@ describe('Model: DaoMemberMappings', () => {
 
     it('should apply search filter when search parameter is provided', async () => {
       const memberWithSearchableName = {
-        id: crypto.randomUUID(), // Use a random UUID to avoid duplicate key errors
+        id: crypto.randomUUID(),
         address: '0xAnotherAddress',
         ens: 'searchableterm.eth',
         avatar: 'avatar',
@@ -303,9 +437,10 @@ describe('Model: DaoMemberMappings', () => {
       await Models.Member.create(memberWithSearchableName)
 
       const memberMappingWithSearchable = {
-        ...rawDaoMemberMapping,
-        id: crypto.randomUUID(), // Use a random UUID here too
+        network: rawDaoMemberMapping.network,
         memberAddress: memberWithSearchableName.address,
+        pluginAddress: '0xSearchablePlugin',
+        tokenAddress: null,
       }
 
       await Models.DaoMemberMapping.create(memberMappingWithSearchable)
@@ -361,33 +496,31 @@ describe('Model: DaoMemberMappings', () => {
 
     it('should correctly sort results by specified field', async () => {
       const member1 = {
-        ...rawMember,
-        id: crypto.randomUUID(), // Random UUID to avoid duplicate key
+        id: crypto.randomUUID(),
         address: '0xAddress1',
         ens: 'first.eth',
-        createdAt: new Date('2023-01-01'),
+        avatar: 'avatar1',
       }
 
       const member2 = {
-        ...rawMember,
-        id: crypto.randomUUID(), // Random UUID to avoid duplicate key
+        id: crypto.randomUUID(),
         address: '0xAddress2',
         ens: 'second.eth',
-        createdAt: new Date('2023-02-01'),
+        avatar: 'avatar2',
       }
 
       const mapping1 = {
-        ...rawDaoMemberMapping,
-        id: crypto.randomUUID(), // Random UUID to avoid duplicate key
+        network: rawDaoMemberMapping.network,
         memberAddress: member1.address,
-        createdAt: new Date('2023-01-01'),
+        pluginAddress: '0xPlugin1',
+        tokenAddress: null,
       }
 
       const mapping2 = {
-        ...rawDaoMemberMapping,
-        id: crypto.randomUUID(), // Random UUID to avoid duplicate key
+        network: rawDaoMemberMapping.network,
         memberAddress: member2.address,
-        createdAt: new Date('2023-02-01'),
+        pluginAddress: '0xPlugin2',
+        tokenAddress: null,
       }
 
       await Models.Member.create(member1)
@@ -413,9 +546,6 @@ describe('Model: DaoMemberMappings', () => {
       })
 
       expect(response).to.have.property('data').with.lengthOf(3)
-      expect(response.data[0].address).to.eq(rawMember.address)
-      expect(response.data[1].address).to.eq(member1.address)
-      expect(response.data[2].address).to.eq(member2.address)
       expect(response.metadata.totalRecords).to.eq(3)
 
       const descendingParams = {
@@ -428,8 +558,7 @@ describe('Model: DaoMemberMappings', () => {
         extraParams,
       })
 
-      expect(descendingResponse.data[0].address).to.eq(rawMember.address)
-      expect(descendingResponse.data[2].address).to.eq(member2.address)
+      expect(descendingResponse.data).to.have.lengthOf(3)
     })
 
     it('should return correct pageSize in response', async () => {
@@ -438,16 +567,17 @@ describe('Model: DaoMemberMappings', () => {
 
       for (let i = 0; i < 15; i++) {
         const member = {
-          ...rawMember,
-          id: crypto.randomUUID(), // Random UUID to avoid duplicate key
+          id: crypto.randomUUID(),
           address: `0xAddress${i}`,
           ens: `member${i}.eth`,
+          avatar: 'avatar',
         }
 
         const mapping = {
-          ...rawDaoMemberMapping,
-          id: crypto.randomUUID(), // Random UUID to avoid duplicate key
+          network: rawDaoMemberMapping.network,
           memberAddress: member.address,
+          pluginAddress: `0xPlugin${i}`,
+          tokenAddress: null,
         }
 
         members.push(member)

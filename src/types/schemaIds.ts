@@ -49,6 +49,12 @@ export interface IConfigIndexerIdParams {
   service: string
 }
 
+export interface IDaoMemberMappingIdParams {
+  network: NetworksEnum
+  memberAddress: HexAddress
+  tokenOrPluginAddress: HexAddress | undefined
+}
+
 export interface IDaoIdParams {
   network: NetworksEnum
   address: HexAddress

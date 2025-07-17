@@ -22,7 +22,6 @@ export const MultisigHandler = {
     for (const memberAddress of members) {
       await ProxyMember.addToDao({
         memberAddress,
-        daoAddress: pluginExisted.daoAddress,
         pluginAddress: address,
         network,
       })
@@ -48,7 +47,6 @@ export const MultisigHandler = {
     for (const memberAddress of members) {
       await ProxyMember.removeFromDao({
         memberAddress,
-        daoAddress: pluginExisted.daoAddress,
         pluginAddress: address,
         network,
       })

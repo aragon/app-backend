@@ -6,6 +6,7 @@ import { NetworksEnum } from '@types'
 import Logger from '@logger'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import DbTx from '@modules/dbTx'
+import { ProxyMember } from '@modules/proxyMember'
 
 describe('AragonDao:DaoMetrics', () => {
   let sandbox: SinonSandbox
@@ -68,7 +69,7 @@ describe('AragonDao:DaoMetrics', () => {
         .resolves(fakeMetrics.proposalsCreated)
         .onCall(1)
         .resolves(fakeMetrics.proposalsExecuted)
-      sandbox.stub(Models.DaoMemberMapping, 'countUniqueMembers').resolves(fakeMetrics.members)
+      sandbox.stub(ProxyMember, 'countUniqueMembersOfDao').resolves(fakeMetrics.members)
       sandbox.stub(Models.Vote, 'countDocuments').resolves(fakeMetrics.votes)
       sandbox.stub(Models.Vote, 'countUniqueMemberVotesByPlugin').resolves(fakeMetrics.uniqueVoters)
       const stubLogger = sandbox.stub(Logger, 'verbose')

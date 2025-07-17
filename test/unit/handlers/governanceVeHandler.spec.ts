@@ -1062,8 +1062,8 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(allTransactions).to.have.lengthOf(2) // One for sender, one for delegatee
       expect(stubUpdateDelegationMetrics.callCount).to.equal(4) // 2 addresses * 2 plugins
       expect(stubUpdateActivity.callCount).to.equal(4) // 2 addresses * 2 plugins
-      expect(stubAddToDao.callCount).to.equal(4) // 2 addresses * 2 plugins
-      expect(rabbitMQHelperStub.callCount).to.equal(4)
+      expect(stubAddToDao.callCount).to.equal(2) // Changed from 4 to 2 - one per address (same tokenAddress)
+      expect(rabbitMQHelperStub.callCount).to.equal(4) // 2 unique DAOs * 2 _handleDaoMemberShip calls
     })
   })
 
@@ -1458,7 +1458,7 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(ProxyMember, 'getBalances').resolves({
         decreaseBalance: sandbox.stub().resolves({ amount: '1' }),
       } as any)
-      sandbox.stub(Models.MemberTransaction, 'getEntityId').resolves(existingMemberTx as any)
+      sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(existingMemberTx as any) // Changed from getEntityId
       const stubMemberTxCreate = sandbox.stub(Models.MemberTransaction, 'create')
       sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
       sandbox.stub(ProxyMember, 'updateActivity').resolves()
@@ -1524,6 +1524,7 @@ describe('Handler:GovernanceVeHandler', () => {
       }
       const plugins = [plugin]
       const mockInfo = {
+        address: '0xToken',
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 123,
       } as any
@@ -1534,6 +1535,11 @@ describe('Handler:GovernanceVeHandler', () => {
       await GovernanceVeHandler._handleDaoMemberShip(memberTx as any, plugins, mockInfo)
 
       expect(stubAddToDao.calledOnce).to.be.true
+      expect(stubAddToDao.firstCall.args[0]).to.deep.equal({
+        memberAddress: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+        network: NetworksEnum.ethereumMainnet,
+        tokenAddress: '0xToken',
+      })
     })
 
     it('should handle DAO membership removal when user has no voting power', async () => {
@@ -1544,6 +1550,7 @@ describe('Handler:GovernanceVeHandler', () => {
       }
       const plugins = [plugin]
       const mockInfo = {
+        address: '0xToken', // This should be the tokenAddress
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 123,
       } as any
@@ -1554,6 +1561,11 @@ describe('Handler:GovernanceVeHandler', () => {
       await GovernanceVeHandler._handleDaoMemberShip(memberTx as any, plugins, mockInfo)
 
       expect(stubRemoveFromDao.calledOnce).to.be.true
+      expect(stubRemoveFromDao.firstCall.args[0]).to.deep.equal({
+        memberAddress: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+        network: NetworksEnum.ethereumMainnet,
+        tokenAddress: '0xToken',
+      })
     })
 
     it('should skip membership operations when already in correct state', async () => {
@@ -1564,6 +1576,7 @@ describe('Handler:GovernanceVeHandler', () => {
       }
       const plugins = [plugin]
       const mockInfo = {
+        address: '0xToken',
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 123,
       } as any
@@ -1594,6 +1607,11 @@ describe('Handler:GovernanceVeHandler', () => {
       await GovernanceVeHandler._handleDaoMemberShipOnLockEvents(plugins, memberAddress, mockInfo, true)
 
       expect(stubAddToDao.calledOnce).to.be.true
+      expect(stubAddToDao.firstCall.args[0]).to.deep.equal({
+        memberAddress: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+        network: NetworksEnum.ethereumMainnet,
+        tokenAddress: '0xToken',
+      })
     })
 
     it('should not add member to DAO when addToDao is true but member is already a member', async () => {
@@ -1626,6 +1644,11 @@ describe('Handler:GovernanceVeHandler', () => {
       await GovernanceVeHandler._handleDaoMemberShipOnLockEvents(plugins, memberAddress, mockInfo, false)
 
       expect(stubRemoveFromDao.calledOnce).to.be.true
+      expect(stubRemoveFromDao.firstCall.args[0]).to.deep.equal({
+        memberAddress: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+        network: NetworksEnum.ethereumMainnet,
+        tokenAddress: '0xToken',
+      })
     })
 
     it('should not remove member from DAO when addToDao is false but member is not a member', async () => {

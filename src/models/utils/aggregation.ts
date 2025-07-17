@@ -69,7 +69,7 @@ export const AggregationQueryHelper = {
   },
 
   daoMemberMapping: (
-    { tokenAddress, memberAddress, daoAddress, pluginAddress, network }: IAggDaoMemberMappingParams,
+    { tokenAddress, memberAddress, pluginAddress, network }: IAggDaoMemberMappingParams,
     as: string = 'memberMapping',
   ) => {
     const letVariables: any = {}
@@ -83,11 +83,6 @@ export const AggregationQueryHelper = {
     if (tokenAddress) {
       letVariables.tokenAddress = tokenAddress
       matchConditions.push({ $eq: ['$tokenAddress', '$$tokenAddress'] })
-    }
-
-    if (daoAddress) {
-      letVariables.daoAddress = daoAddress
-      matchConditions.push({ $eq: ['$daoAddress', '$$daoAddress'] })
     }
 
     if (memberAddress) {
@@ -114,7 +109,6 @@ export const AggregationQueryHelper = {
 
     pipeline.push({
       $project: {
-        daoAddress: 1,
         memberAddress: 1,
         pluginAddress: 1,
         tokenAddress: 1,

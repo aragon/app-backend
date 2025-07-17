@@ -7,7 +7,6 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import { Models } from '@dbModels'
 import { NetworksEnum } from '@types'
 import { ethers } from 'ethers'
-import { ProxyMember } from '@modules/proxyMember'
 import { PluginHandler } from '@handlers/pluginHandler'
 import Utils from '@helpers/utils'
 
@@ -528,7 +527,7 @@ describe('Indexer: Permission Handler', () => {
       const daoAddress = '0xaddress'
       const pluginAddress = '0xpluginAddress'
       const network = NetworksEnum.ethereumSepolia
-      const where = 'where'
+      const where = '0x1234567890123456789012345678901234567890'
       const add = true
 
       const findExistingLog = sandbox.stub(Models.Plugin, 'findOne').returns({
@@ -538,22 +537,186 @@ describe('Indexer: Permission Handler', () => {
         interfaceType: 'admin',
       })
       const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
-      const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao')
       const loggerInfo = sandbox.stub(logger, 'info')
 
       await PermissionHandler.handleForAdminPlugin(daoAddress, pluginAddress, network, where, add)
 
+      // Verify the member was created
+      const member = await Models.Member.findOne({ address: where })
+      expect(member).to.exist
+      expect(member.address).to.equal(where)
+
+      // Verify the DaoMemberMapping was created with pluginAddress
+      const mapping = await Models.DaoMemberMapping.findOne({
+        memberAddress: where,
+        pluginAddress,
+        network,
+      })
+      expect(mapping).to.exist
+      expect(mapping.memberAddress).to.equal(where)
+      expect(mapping.pluginAddress).to.equal(pluginAddress)
+      expect(mapping.network).to.equal(network)
+      expect(mapping.tokenAddress).to.be.null // Admin plugins don't have tokenAddress
+
       expect(findExistingLog.calledOnce).to.be.true
-      expect(addToDaoStub.calledOnce).to.be.true
       expect(sendMessage.calledOnce).to.be.true
       expect(loggerInfo.calledOnce).to.be.true
+      expect(loggerInfo.calledWith('Add member to DAO' as any)).to.be.true
     })
 
     it('should handle for admin plugin when removing', async () => {
       const daoAddress = '0xaddress'
       const pluginAddress = '0xpluginAddress'
       const network = NetworksEnum.ethereumSepolia
-      const where = 'where'
+      const where = '0x1234567890123456789012345678901234567890'
+      const add = false
+
+      // First create the member and mapping that will be removed
+      await Models.Member.create({ address: where })
+      await Models.DaoMemberMapping.create({
+        memberAddress: where,
+        pluginAddress,
+        network,
+      })
+
+      const findExistingLog = sandbox.stub(Models.Plugin, 'findOne').returns({
+        daoAddress,
+        network,
+        address: pluginAddress,
+        interfaceType: 'admin',
+      })
+      const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
+      const loggerInfo = sandbox.stub(logger, 'info')
+
+      await PermissionHandler.handleForAdminPlugin(daoAddress, pluginAddress, network, where, add)
+
+      // Verify the DaoMemberMapping was removed
+      const mapping = await Models.DaoMemberMapping.findOne({
+        memberAddress: where,
+        pluginAddress,
+        network,
+      })
+      expect(mapping).to.be.null
+
+      // Member should still exist (not removed, just unmapped)
+      const member = await Models.Member.findOne({ address: where })
+      expect(member).to.exist
+
+      expect(findExistingLog.calledOnce).to.be.true
+      expect(sendMessage.calledOnce).to.be.true
+      expect(loggerInfo.calledOnce).to.be.true
+      expect(loggerInfo.calledWith('Remove member from DAO' as any)).to.be.true
+    })
+
+    it('should return if plugin not exists', async () => {
+      const daoAddress = '0xaddress'
+      const pluginAddress = '0xpluginAddress'
+      const network = NetworksEnum.ethereumSepolia
+      const where = '0x1234567890123456789012345678901234567890'
+      const add = true
+
+      const findExistingLog = sandbox.stub(Models.Plugin, 'findOne').returns(null)
+      const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
+      const loggerInfo = sandbox.stub(logger, 'info')
+
+      await PermissionHandler.handleForAdminPlugin(daoAddress, pluginAddress, network, where, add)
+
+      // Verify no mapping was created
+      const mapping = await Models.DaoMemberMapping.findOne({
+        memberAddress: where,
+        pluginAddress,
+        network,
+      })
+      expect(mapping).to.be.null
+
+      expect(findExistingLog.calledOnce).to.be.true
+      expect(sendMessage.notCalled).to.be.true
+      expect(loggerInfo.notCalled).to.be.true
+    })
+
+    it('should handle when member already exists when adding', async () => {
+      const daoAddress = '0xaddress'
+      const pluginAddress = '0xpluginAddress'
+      const network = NetworksEnum.ethereumSepolia
+      const where = '0x1234567890123456789012345678901234567890'
+      const add = true
+
+      // Pre-create the member
+      await Models.Member.create({ address: where, ens: 'existing.eth' })
+
+      const findExistingLog = sandbox.stub(Models.Plugin, 'findOne').returns({
+        daoAddress,
+        network,
+        address: pluginAddress,
+        interfaceType: 'admin',
+      })
+      const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
+      const loggerInfo = sandbox.stub(logger, 'info')
+
+      await PermissionHandler.handleForAdminPlugin(daoAddress, pluginAddress, network, where, add)
+
+      // Verify the member still exists with original data
+      const member = await Models.Member.findOne({ address: where })
+      expect(member).to.exist
+      expect(member.ens).to.equal('existing.eth')
+
+      // Verify the DaoMemberMapping was created
+      const mapping = await Models.DaoMemberMapping.findOne({
+        memberAddress: where,
+        pluginAddress,
+        network,
+      })
+      expect(mapping).to.exist
+
+      expect(findExistingLog.calledOnce).to.be.true
+      expect(sendMessage.calledOnce).to.be.true
+      expect(loggerInfo.calledOnce).to.be.true
+    })
+
+    it('should not create duplicate mappings when adding', async () => {
+      const daoAddress = '0xaddress'
+      const pluginAddress = '0xpluginAddress'
+      const network = NetworksEnum.ethereumSepolia
+      const where = '0x1234567890123456789012345678901234567890'
+      const add = true
+
+      // Pre-create the member and mapping
+      await Models.Member.create({ address: where })
+      await Models.DaoMemberMapping.create({
+        memberAddress: where,
+        pluginAddress,
+        network,
+      })
+
+      const findExistingLog = sandbox.stub(Models.Plugin, 'findOne').returns({
+        daoAddress,
+        network,
+        address: pluginAddress,
+        interfaceType: 'admin',
+      })
+      const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
+      const loggerInfo = sandbox.stub(logger, 'info')
+
+      await PermissionHandler.handleForAdminPlugin(daoAddress, pluginAddress, network, where, add)
+
+      // Verify only one mapping exists
+      const mappings = await Models.DaoMemberMapping.find({
+        memberAddress: where,
+        pluginAddress,
+        network,
+      })
+      expect(mappings.length).to.equal(1)
+
+      expect(findExistingLog.calledOnce).to.be.true
+      expect(sendMessage.calledOnce).to.be.true
+      expect(loggerInfo.calledOnce).to.be.true
+    })
+
+    it('should handle removing non-existent mapping gracefully', async () => {
+      const daoAddress = '0xaddress'
+      const pluginAddress = '0xpluginAddress'
+      const network = NetworksEnum.ethereumSepolia
+      const where = '0x1234567890123456789012345678901234567890'
       const add = false
 
       const findExistingLog = sandbox.stub(Models.Plugin, 'findOne').returns({
@@ -563,33 +726,21 @@ describe('Indexer: Permission Handler', () => {
         interfaceType: 'admin',
       })
       const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
-      const removeFromDaoStub = sandbox.stub(ProxyMember, 'removeFromDao')
       const loggerInfo = sandbox.stub(logger, 'info')
 
       await PermissionHandler.handleForAdminPlugin(daoAddress, pluginAddress, network, where, add)
 
+      // Verify no mapping exists
+      const mapping = await Models.DaoMemberMapping.findOne({
+        memberAddress: where,
+        pluginAddress,
+        network,
+      })
+      expect(mapping).to.be.null
+
       expect(findExistingLog.calledOnce).to.be.true
-      expect(removeFromDaoStub.calledOnce).to.be.true
       expect(sendMessage.calledOnce).to.be.true
       expect(loggerInfo.calledOnce).to.be.true
-    })
-
-    it('should return if not exists', async () => {
-      const daoAddress = '0xaddress'
-      const pluginAddress = '0xpluginAddress'
-      const network = NetworksEnum.ethereumSepolia
-      const where = 'where'
-      const add = true
-
-      const findExistingLog = sandbox.stub(Models.Plugin, 'findOne').returns(null)
-      const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
-      const loggerInfo = sandbox.stub(logger, 'info')
-
-      await PermissionHandler.handleForAdminPlugin(daoAddress, pluginAddress, network, where, add)
-
-      expect(findExistingLog.calledOnce).to.be.true
-      expect(sendMessage.notCalled).to.be.true
-      expect(loggerInfo.notCalled).to.be.true
     })
   })
 })

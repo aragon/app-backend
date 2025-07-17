@@ -2,6 +2,7 @@ import logger from '@logger'
 import { Models } from '@dbModels'
 import { type IVoteAggregation, type NetworksEnum } from '@types'
 import DbTx from '@modules/dbTx'
+import { ProxyMember } from '@modules/proxyMember'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:ProposalMetrics' })
 
@@ -60,7 +61,7 @@ export const ProposalMetrics = {
   }: {
     proposalIndex: string
     pluginAddress: string
-    network: string
+    network: NetworksEnum
   }) => {
     try {
       return await DbTx.executeTxFn(async ({ session }) => {
@@ -72,10 +73,7 @@ export const ProposalMetrics = {
         }
 
         const votes = await Models.Vote.findVotes({ proposalIndex, pluginAddress, network }, { session })
-        const members = await Models.DaoMemberMapping.findAllMembersOfPlugin({
-          pluginAddress,
-          network,
-        })
+        const membersCount = await ProxyMember.countAllMembersOfPlugin(pluginAddress, network)
 
         const voteAggregation: Record<number, IVoteAggregation> = votes.reduce(
           (acc: Record<number, IVoteAggregation>, { voteOption, votingPower }) => {
@@ -99,8 +97,7 @@ export const ProposalMetrics = {
         const rawMetrics = {
           metrics: {
             totalVotes: votes.length,
-            missingVotes:
-              votes.length >= members.length ? votes.length - members.length : members.length - votes.length,
+            missingVotes: votes.length >= membersCount ? votes.length - membersCount : membersCount - votes.length,
             votesByOption: Object.entries(voteAggregation).map(([type, data]) => ({
               type,
               totalVotes: data.totalVotes,

@@ -7,6 +7,7 @@ import {
   ILogInfo,
   IMetricAction,
   IPluginInterfaceType,
+  IPluginStatus,
   IProposalMetadata,
   IReportResultType,
   NetworksEnum,
@@ -493,10 +494,14 @@ describe('Indexer: ProposalHandler', () => {
       }
 
       const plugin = {
+        network: NetworksEnum.ethereumMainnet,
+        transactionHash: '0xadmin-tx',
+        blockNumber: 150,
+        status: IPluginStatus.installed,
+        interfaceType: IPluginInterfaceType.admin,
         address: '0xplugin-address',
         daoAddress: '0xdao-admin',
         subdomain: 'dao.admin',
-        interfaceType: IPluginInterfaceType.admin,
       }
 
       const proposalMetadata = {
@@ -524,6 +529,29 @@ describe('Indexer: ProposalHandler', () => {
       })
       sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
 
+      // Set up database state for member counting - create Plugin record first
+      await Models.Plugin.create({
+        ...plugin,
+        network,
+      })
+
+      // Create some DaoMemberMapping records for this plugin
+      await Models.DaoMemberMapping.create({
+        memberAddress: '0xmember1',
+        pluginAddress: '0xplugin-address',
+        network,
+      })
+      await Models.DaoMemberMapping.create({
+        memberAddress: '0xmember2',
+        pluginAddress: '0xplugin-address',
+        network,
+      })
+      await Models.DaoMemberMapping.create({
+        memberAddress: '0xmember3',
+        pluginAddress: '0xplugin-address',
+        network,
+      })
+
       const stubPair = sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
       const stubMemberMetrics = sandbox.stub(ProxyMember, 'updateMetricsByAction').resolves()
       const stubDaoMetrics = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
@@ -544,7 +572,7 @@ describe('Indexer: ProposalHandler', () => {
       expect(savedProposal.rawActions[0].to).to.eq('0xadmin-target')
       expect(savedProposal.rawActions[0].value).to.eq('0')
       expect(savedProposal.rawActions[0].data).to.eq('0x4b3d1223')
-      expect(savedProposal.snapshot.membersCount).to.eq(0) // Admin plugin has no voting token snapshot
+      expect(savedProposal.snapshot.membersCount).to.eq(3) // Updated to match the actual number of members created
 
       expect(
         updateActivityStub.calledOnceWith({
@@ -567,6 +595,219 @@ describe('Indexer: ProposalHandler', () => {
       expect(stubDaoMetrics.calledTwice).to.be.true
       expect(stubDaoMetrics.args[0][0]).to.be.eq(EnumQueueName.daoMetrics)
       expect(stubDaoMetrics.args[1][0]).to.be.eq(EnumQueueName.proposalActions)
+      expect(verboseLoggerStub.calledOnceWith('New Proposal' as any)).to.be.true
+    })
+
+    it('should handle multisig proposalCreated with correct member count', async () => {
+      const metadataUri = 'ipfs://metadata-uri'
+
+      const info: ILogInfo = {
+        transactionHash: '0xmultisig-tx',
+        address: '0xmultisig-plugin-address',
+        blockNumber: 200,
+        network,
+        eventName: 'proposalCreated',
+        transactionIndex: 1,
+        logIndex: 1,
+        interfaceType: IPluginInterfaceType.multisig,
+      }
+
+      const fakeEvent = {
+        args: {
+          creator: '0xmultisig-creator',
+          proposalId: 3n,
+          startDate: 0n,
+          endDate: 1900000000n,
+          allowFailureMap: 1n,
+          metadata: metadataUri,
+          actions: [{ to: '0xmultisig-target', value: 0n, data: '0xabcdef' }],
+        },
+      }
+
+      const plugin = {
+        network: NetworksEnum.ethereumMainnet,
+        transactionHash: '0xmultisig-plugin-address',
+        blockNumber: 200,
+        status: IPluginStatus.installed,
+        address: '0xmultisig-plugin-address',
+        daoAddress: '0xdao-multisig',
+        subdomain: 'dao.multisig',
+        interfaceType: IPluginInterfaceType.multisig,
+      }
+
+      const proposalMetadata = {
+        title: 'Multisig Proposal Title',
+        description: 'Multisig Proposal Description',
+        summary: 'Multisig Proposal Summary',
+        resources: [],
+        media: {},
+      }
+
+      const settings = null // No settings for this test
+
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(settings)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin)
+      sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1900000000)
+      sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves(proposalMetadata as any)
+      sandbox.stub(ProposalHandler, 'handleStartEndDate').resolves({
+        startDate: 0,
+        endDate: 0,
+      })
+      sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(2)
+
+      // Set up database state for member counting - create Plugin record first
+      await Models.Plugin.create({
+        ...plugin,
+        network,
+      })
+
+      // Create DaoMemberMapping records for this multisig plugin
+      await Models.DaoMemberMapping.create({
+        memberAddress: '0xmultisig-member1',
+        pluginAddress: '0xmultisig-plugin-address',
+        network,
+      })
+      await Models.DaoMemberMapping.create({
+        memberAddress: '0xmultisig-member2',
+        pluginAddress: '0xmultisig-plugin-address',
+        network,
+      })
+      await Models.DaoMemberMapping.create({
+        memberAddress: '0xmultisig-member3',
+        pluginAddress: '0xmultisig-plugin-address',
+        network,
+      })
+      await Models.DaoMemberMapping.create({
+        memberAddress: '0xmultisig-member4',
+        pluginAddress: '0xmultisig-plugin-address',
+        network,
+      })
+
+      const stubPair = sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
+      const stubMemberMetrics = sandbox.stub(ProxyMember, 'updateMetricsByAction').resolves()
+      const stubDaoMetrics = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const updateActivityStub = sandbox.stub(ProxyMember, 'updateActivity')
+      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
+
+      await ProposalHandler.proposalCreated(fakeEvent as any, info)
+
+      const savedProposal = await Models.Proposal.findOne({
+        transactionHash: '0xmultisig-tx',
+        pluginAddress: '0xmultisig-plugin-address',
+        proposalIndex: '3',
+      })
+
+      expect(savedProposal).to.exist
+      expect(savedProposal.daoAddress).to.eq('0xdao-multisig')
+      expect(savedProposal.pluginAddress).to.eq('0xmultisig-plugin-address')
+      expect(savedProposal.snapshot.membersCount).to.eq(4) // Updated to match the actual number of members created
+
+      expect(
+        updateActivityStub.calledOnceWith({
+          memberAddress: '0xmultisig-creator',
+          pluginAddress: '0xmultisig-plugin-address',
+          network,
+          blockNumber: 200,
+        }),
+      ).to.be.true
+
+      expect(
+        stubMemberMetrics.calledOnceWith(IMetricAction.increaseProposalCount, {
+          memberAddress: '0xmultisig-creator',
+          pluginAddress: '0xmultisig-plugin-address',
+          network,
+        }),
+      ).to.be.true
+
+      expect(stubPair.calledOnce).to.be.true
+      expect(stubDaoMetrics.calledThrice).to.be.true
+      expect(stubDaoMetrics.args[0][0]).to.be.eq(EnumQueueName.daoMetrics)
+      expect(stubDaoMetrics.args[1][0]).to.be.eq(EnumQueueName.proposalActions)
+      expect(stubDaoMetrics.args[2][0]).to.be.eq(EnumQueueName.proposalMultisigMetrics)
+      expect(verboseLoggerStub.calledOnceWith('New Proposal' as any)).to.be.true
+    })
+
+    it('should handle proposalCreated when no members are found', async () => {
+      const metadataUri = 'ipfs://metadata-uri'
+
+      const info: ILogInfo = {
+        transactionHash: '0xno-members-tx',
+        address: '0xplugin-address',
+        blockNumber: 250,
+        network,
+        eventName: 'proposalCreated',
+        transactionIndex: 1,
+        logIndex: 1,
+        interfaceType: IPluginInterfaceType.admin,
+      }
+
+      const fakeEvent = {
+        args: {
+          creator: '0xcreator',
+          proposalId: 4n,
+          startDate: 0n,
+          endDate: 2000000000n,
+          allowFailureMap: 1n,
+          metadata: metadataUri,
+          actions: [],
+        },
+      }
+
+      const plugin = {
+        network: NetworksEnum.ethereumMainnet,
+        transactionHash: '0xmultisig-plugin-address',
+        blockNumber: 200,
+        status: IPluginStatus.installed,
+        address: '0xplugin-address',
+        daoAddress: '0xdao-address',
+        subdomain: 'dao.subdomain',
+        interfaceType: IPluginInterfaceType.admin,
+      }
+
+      const proposalMetadata = {
+        title: 'No Members Proposal',
+        description: 'Proposal Description',
+        summary: 'Proposal Summary',
+        resources: [],
+        media: {},
+      }
+
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(null)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin)
+      sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(2000000000)
+      sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves(proposalMetadata as any)
+      sandbox.stub(ProposalHandler, 'handleStartEndDate').resolves({
+        startDate: 0,
+        endDate: 0,
+      })
+      sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(3)
+
+      // Set up database state - create Plugin record with no members
+      await Models.Plugin.create({
+        ...plugin,
+        network,
+      })
+
+      const stubPair = sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
+      const stubMemberMetrics = sandbox.stub(ProxyMember, 'updateMetricsByAction').resolves()
+      const stubDaoMetrics = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const updateActivityStub = sandbox.stub(ProxyMember, 'updateActivity')
+      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
+
+      await ProposalHandler.proposalCreated(fakeEvent as any, info)
+
+      const savedProposal = await Models.Proposal.findOne({
+        transactionHash: '0xno-members-tx',
+        pluginAddress: '0xplugin-address',
+        proposalIndex: '4',
+      })
+
+      expect(savedProposal).to.exist
+      expect(savedProposal.snapshot.membersCount).to.eq(0) // Should be 0 when no members found
       expect(verboseLoggerStub.calledOnceWith('New Proposal' as any)).to.be.true
     })
 
