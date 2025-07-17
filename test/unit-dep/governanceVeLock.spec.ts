@@ -11,7 +11,7 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import { LogTokenVoting } from '@plugins/logTokenVoting'
 import MemberController from '@api/controllers/member'
 
-describe.skip('GovernanceVeLock: Integration Test', () => {
+describe('GovernanceVeLock: Integration Test', () => {
   let sandbox: sinon.SinonSandbox
   const eventsToLook = ['Deposit', 'Withdraw', 'MinDepositSet', 'ExitQueued', 'MinLockSet']
 
