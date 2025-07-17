@@ -17,7 +17,9 @@ import { LogMultiSig } from '@plugins/logMultisig'
 import logger from '@logger'
 import { LogTokenVoting } from '@plugins/logTokenVoting'
 import { LogSpp } from '@plugins/logSPP'
-
+import PluginRepoMockData from '@test/unit-dep/mockData/pluginRepo.json'
+import ProviderModule from '@modules/provider'
+import { ethers } from 'ethers'
 const UnitDepUtils = {
   getData: async (
     abi: any,
@@ -233,6 +235,65 @@ const UnitDepUtils = {
         }
       }
     })
+  },
+
+  async syncACompleteDao(daoAddress: string, network: NetworksEnum) {
+    const pspAddress = {
+      [NetworksEnum.ethereumSepolia]: '0xC24188a73dc09aA7C721f96Ad8857B469C01dC9f',
+    }
+    await Models.PluginRepo.insertMany(PluginRepoMockData[network])
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const pspTopicAddressFilter = ethers.AbiCoder.defaultAbiCoder().encode(['address'], [daoAddress])
+
+    const daoLogs = await provider.getLogs({
+      address: daoAddress,
+      fromBlock: 0,
+      toBlock: 'latest',
+      topics: [
+        configIndexer
+          .filter(config => config.event === 'Granted' || config.event === 'Revoked')
+          .map(config => config.topic),
+      ],
+    })
+
+    const pspLogs = await provider.getLogs({
+      address: pspAddress[network],
+      fromBlock: 0,
+      toBlock: 'latest',
+      topics: [
+        [configIndexer.filter(config => config.event === 'InstallationPrepared')[0].topic],
+        null,
+        [pspTopicAddressFilter],
+      ],
+    })
+
+    const allLogs = [...daoLogs, ...pspLogs].sort((a, b) => a.blockNumber - b.blockNumber)
+
+    const txHashesUnique: any[] = Array.from(new Set(allLogs.map((log: any) => log.transactionHash)))
+
+    const receipts = await Promise.all(
+      txHashesUnique.map(async (txHash: string) => {
+        return await Web3Helper.getTransactionReceipt(txHash, NetworksEnum.ethereumSepolia)
+      }),
+    )
+
+    const parsedLogs = (
+      await Promise.all(
+        receipts.map(async receipt => {
+          if (!receipt) {
+            logger.warn('Transaction receipt not found', { receipt })
+            return false
+          }
+          return await UnitDepUtils.parseLogsByConfig(receipt.logs as any, network)
+        }),
+      )
+    ).filter(Boolean)
+
+    for (const parsedLog of parsedLogs) {
+      for (const { event, handler, info } of parsedLog) {
+        await handler(event, info)
+      }
+    }
   },
 }
 
