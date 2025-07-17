@@ -42,30 +42,28 @@ export const FixBrokenLockMember: IService & { onDocument: any; cleanupRelatedDa
 
     // syncing the unique plugin only
     const tokens = await Models.Plugin.aggregate([
-      [
-        {
-          tokenAddress: '0x4b139dE004AaD88C37716b5D081FDbf2F2A4c4c1',
-          $match: { votingEscrow: { $ne: null } },
-        },
-        {
-          $group: {
-            _id: '$tokenAddress',
-            plugins: {
-              $push: '$$ROOT',
-            },
+      {
+        tokenAddress: '0x4b139dE004AaD88C37716b5D081FDbf2F2A4c4c1',
+        $match: { votingEscrow: { $ne: null } },
+      },
+      {
+        $group: {
+          _id: '$tokenAddress',
+          plugins: {
+            $push: '$$ROOT',
           },
         },
-        {
-          $addFields: {
-            pluginAddress: {
-              $first: '$plugins.address',
-            },
-            network: {
-              $first: '$plugins.network',
-            },
+      },
+      {
+        $addFields: {
+          pluginAddress: {
+            $first: '$plugins.address',
+          },
+          network: {
+            $first: '$plugins.network',
           },
         },
-      ],
+      },
     ])
 
     for (const token of tokens) {

@@ -391,12 +391,12 @@ export const GovernanceVeHandler = {
     await DbOperations.updateDocument(
       memberBalance!,
       {
-        amount: (Number(memberBalance!.amount) + 1).toString(),
+        amount: (Number(memberBalance!.amount) - 1).toString(),
         tokenIds: tokenIdsToSave,
         lastSyncAmountBlockNumber: info.blockNumber,
       },
       info,
-      'MemberBalance Update on deposit',
+      'MemberBalance Update on withdraw',
       llo,
     )
 
