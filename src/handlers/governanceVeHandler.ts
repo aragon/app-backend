@@ -24,11 +24,6 @@ export const GovernanceVeHandler = {
     const toAddress = parsedEvent.args.delegatee
     const tokenIds = parsedEvent.args.tokenIds.map((id: any) => Number(id))
 
-    if (fromAddress === toAddress) {
-      logger.verbose('Self-delegation detected, skipping processing', llo({ info, fromAddress, toAddress, tokenIds }))
-      return
-    }
-
     try {
       await GovernanceVeHandler._handleTokenDelegation(
         parsedEvent,
@@ -61,11 +56,6 @@ export const GovernanceVeHandler = {
     const toAddress = parsedEvent.args.sender
     const fromAddress = parsedEvent.args.delegatee
     const tokenIds = parsedEvent.args.tokenIds.map((id: any) => Number(id))
-
-    if (fromAddress === toAddress) {
-      logger.verbose('Self-undelegation detected, skipping processing', llo({ info, fromAddress, toAddress, tokenIds }))
-      return
-    }
 
     try {
       await GovernanceVeHandler._handleTokenDelegation(
@@ -132,10 +122,16 @@ export const GovernanceVeHandler = {
       const currentTokenIds = tokenBalanceDb?.tokenIds || []
       let tokenIdsToSave: number[]
 
-      if (transferSide === ITransferSide.incoming) {
-        tokenIdsToSave = [...currentTokenIds, ...tokenIds]
+      const isSelfDelegation = parsedEvent.args.sender === parsedEvent.args.delegatee
+
+      if (isSelfDelegation) {
+        tokenIdsToSave = [...new Set([...currentTokenIds, ...tokenIds])]
       } else {
-        tokenIdsToSave = currentTokenIds.filter(id => !tokenIds.includes(id))
+        if (transferSide === ITransferSide.incoming) {
+          tokenIdsToSave = [...currentTokenIds, ...tokenIds]
+        } else {
+          tokenIdsToSave = currentTokenIds.filter(id => !tokenIds.includes(id))
+        }
       }
 
       const votingPower = await GovernanceErc20Helper.getPastVotes(
@@ -312,11 +308,11 @@ export const GovernanceVeHandler = {
       network: info.network,
     })
 
+    // Only update amount, don't attach tokens yet (tokens will be attached on delegation)
     await DbOperations.updateDocument(
       memberBalance!,
       {
         amount: (Number(memberBalance!.amount) + 1).toString(),
-        tokenIds: [...(memberBalance!.tokenIds || []), Number(tokenId)],
         lastSyncAmountBlockNumber: info.blockNumber,
       },
       info,
