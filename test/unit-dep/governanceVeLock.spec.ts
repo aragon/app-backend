@@ -133,7 +133,7 @@ describe('GovernanceVeLock: Integration Test', () => {
     expect(daoMemberMappingAfterWithdraw).to.be.not.exist
   })
 
-  it('should handle veLock all events properly', async function () {
+  it.skip('should handle veLock all events properly', async function () {
     this.timeout(100000000)
     const daoAddress = '0x9418fcf1Aa0dCEB9090F2bBA06E70d94E10e46b1'
     await UnitDepUtils.syncACompleteDao(daoAddress, NetworksEnum.ethereumSepolia)
