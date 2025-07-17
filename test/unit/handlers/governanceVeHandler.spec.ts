@@ -805,7 +805,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.delegateTokens(mockEvent, mockInfo)
 
-      expect(stubHandleTokenDelegation.calledTwice).to.be.true
+      expect(stubHandleTokenDelegation.calledOnce).to.be.true
       expect(stubLogger.calledOnce).to.be.true
     })
 
@@ -1020,6 +1020,36 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stubUpdateDelegationMetrics.callCount).to.equal(4)
       expect(stubUpdateActivity.callCount).to.equal(4)
       expect(rabbitMQHelperStub.callCount).to.equal(4)
+    })
+
+    it('should log error when _handleTokenDelegation throws an error', async () => {
+      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
+      const stubHandleTokenDelegation = sandbox
+        .stub(GovernanceVeHandler, '_handleTokenDelegation')
+        .rejects(new Error('Delegation failed'))
+      const stubLogger = sandbox.stub(logger, 'error')
+
+      const mockInfo = {
+        address: '0xToken',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+        transactionHash: '0xhash',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+
+      const mockEvent = {
+        args: {
+          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          delegatee: '0x75D9D3887Aa9A9ee78901E96819b574160e4EAC6',
+          tokenIds: [123n],
+        },
+      } as any
+
+      await GovernanceVeHandler.delegateTokens(mockEvent, mockInfo)
+
+      expect(stubHandleTokenDelegation.calledOnce).to.be.true
+      expect(stubLogger.calledOnceWith('DelegateTokens error' as any)).to.be.true
     })
   })
 
@@ -1252,6 +1282,36 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stubUpdateDelegationMetrics.callCount).to.equal(4)
       expect(stubUpdateActivity.callCount).to.equal(4)
       expect(rabbitMQHelperStub.callCount).to.equal(4)
+    })
+
+    it('should log error when _handleTokenDelegation throws an error', async () => {
+      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
+      const stubHandleTokenDelegation = sandbox
+        .stub(GovernanceVeHandler, '_handleTokenDelegation')
+        .rejects(new Error('Delegation failed'))
+      const stubLogger = sandbox.stub(logger, 'error')
+
+      const mockInfo = {
+        address: '0xToken',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+        transactionHash: '0xhash',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+
+      const mockEvent = {
+        args: {
+          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          delegatee: '0x75D9D3887Aa9A9ee78901E96819b574160e4EAC6',
+          tokenIds: [123n],
+        },
+      } as any
+
+      await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
+
+      expect(stubHandleTokenDelegation.calledOnce).to.be.true
+      expect(stubLogger.calledOnceWith('UnDelegateTokens error' as any)).to.be.true
     })
   })
 

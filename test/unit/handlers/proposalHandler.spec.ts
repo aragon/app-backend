@@ -564,7 +564,7 @@ describe('Indexer: ProposalHandler', () => {
       ).to.be.true
 
       expect(stubPair.calledOnce).to.be.true
-      expect(stubDaoMetrics.calledTwice).to.be.true
+      expect(stubDaoMetrics.callCount).to.be.eq(2)
       expect(stubDaoMetrics.args[0][0]).to.be.eq(EnumQueueName.daoMetrics)
       expect(stubDaoMetrics.args[1][0]).to.be.eq(EnumQueueName.proposalActions)
       expect(verboseLoggerStub.calledOnceWith('New Proposal' as any)).to.be.true
@@ -799,6 +799,68 @@ describe('Indexer: ProposalHandler', () => {
 
       expect(stubFindPlugin.calledOnceWith(info.address, info.network)).to.be.true
       expect(stubLogger.calledOnceWith('Approved - Plugin not found' as any)).to.be.true
+    })
+
+    it('should return early when existingLog exists and not call createDocument', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0x123',
+        address: '0xplugin-address',
+        blockNumber: 100,
+        network,
+        eventName: 'approved',
+        transactionIndex: 1,
+        logIndex: 1,
+      }
+
+      const fakeEvent = {
+        args: {
+          approver: '0xapprover',
+          proposalId: 1n,
+        },
+      }
+
+      const stubFindPlugin = sandbox.stub(Models.Plugin, 'findByAddress').resolves({ isSupported: true } as any)
+      const stubFindProposal = sandbox
+        .stub(Models.Proposal, 'findByProposalIndex')
+        .resolves({ daoAddress: '0xdao-address' } as any)
+      const stubFindExistingLog = sandbox.stub(Models.Vote, 'findExistingLog').resolves(true)
+      const stubCreateDocument = sandbox.stub(DbOperations, 'createDocument')
+
+      await ProposalHandler.approved(fakeEvent as any, info)
+
+      expect(stubFindPlugin.calledOnceWith(info.address, info.network)).to.be.true
+      expect(stubFindProposal.calledOnceWith('1', info.address, info.network)).to.be.true
+      expect(stubFindExistingLog.calledOnce).to.be.true
+      expect(stubCreateDocument.notCalled).to.be.true // Ensure createDocument is never called
+    })
+
+    it('should log a warning if the proposal is not found', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0xApprovedTx',
+        address: '0xplugin-address',
+        blockNumber: 10,
+        network,
+        eventName: 'Approved',
+        transactionIndex: 2,
+        logIndex: 3,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: 1n,
+          approver: '0xapprover-address',
+        },
+      }
+
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(null)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(PluginList[0] as any)
+
+      const warnLoggerStub = sandbox.stub(logger, 'warn')
+
+      const result = await ProposalHandler.approved(fakeEvent as any, info)
+
+      expect(result).to.be.undefined
+      expect(warnLoggerStub.calledOnceWith('Approved - Proposal not found' as any)).to.be.true
     })
 
     it('should return early when existingLog exists and not call createDocument', async () => {
@@ -2826,6 +2888,102 @@ describe('Indexer: ProposalHandler', () => {
       expect(updatedParentProposal.stageIndex).to.equal(0)
       expect(updatedParentProposal.lastStageTransition).to.equal(1700000000)
       expect(updatedParentProposal.subProposals).to.be.an('array').that.is.empty
+    })
+  })
+
+  describe('proposalCanceled', () => {
+    it('should update proposal with cancel transaction info', async () => {
+      const proposal = await Models.Proposal.create({
+        ...ProposalList[0],
+        network,
+      })
+
+      const info: ILogInfo = {
+        transactionHash: '0xCanceledTx',
+        address: proposal.pluginAddress,
+        blockNumber: 200,
+        network,
+        eventName: 'ProposalCanceled',
+        transactionIndex: 1,
+        logIndex: 2,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: proposal.proposalIndex,
+        },
+      }
+
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1900000000)
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
+
+      await ProposalHandler.proposalCanceled(fakeEvent as any, info)
+
+      expect(updateDocumentStub.calledOnce).to.be.true
+      expect(updateDocumentStub.firstCall.args[0]).to.equal(proposal)
+      expect(updateDocumentStub.firstCall.args[1]).to.deep.equal({
+        cancelTxInfo: {
+          blockNumber: info.blockNumber,
+          transactionHash: info.transactionHash,
+          blockTimestamp: 1900000000,
+        },
+      })
+      expect(updateDocumentStub.firstCall.args[2]).to.deep.equal({ logId: proposal.id, info })
+      expect(updateDocumentStub.firstCall.args[3]).to.equal('Update proposalCanceled')
+    })
+
+    it('should log a warning if the proposal is not found', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0xCanceledTx',
+        address: '0xplugin-address',
+        blockNumber: 200,
+        network,
+        eventName: 'ProposalCanceled',
+        transactionIndex: 1,
+        logIndex: 2,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: 1n,
+        },
+      }
+
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(null)
+      const warnLoggerStub = sandbox.stub(logger, 'warn')
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
+
+      await ProposalHandler.proposalCanceled(fakeEvent as any, info)
+
+      expect(warnLoggerStub.calledOnceWith('Proposal not found' as any)).to.be.true
+      expect(updateDocumentStub.called).to.be.false
+    })
+
+    it('should log an error if an exception occurs', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0xCanceledTx',
+        address: '0xplugin-address',
+        blockNumber: 200,
+        network,
+        eventName: 'ProposalCanceled',
+        transactionIndex: 1,
+        logIndex: 2,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: 1n,
+        },
+      }
+
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').rejects(new Error('Database error'))
+      const errorLoggerStub = sandbox.stub(logger, 'error')
+
+      await ProposalHandler.proposalCanceled(fakeEvent as any, info)
+
+      expect(errorLoggerStub.calledOnceWith('Error proposalCanceled' as any)).to.be.true
     })
   })
 })
