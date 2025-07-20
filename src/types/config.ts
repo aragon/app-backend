@@ -123,6 +123,7 @@ export interface IConfig {
     CONNECTION_RETRY: number
     CONNECTION_TIMEOUT: number
     CONNECTION_DELAY: number
+    UPDATE_INDEXES: boolean
   }
   LOG: {
     LEVEL: string

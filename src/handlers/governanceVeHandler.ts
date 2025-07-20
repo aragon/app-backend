@@ -89,7 +89,7 @@ export const GovernanceVeHandler = {
     info: ILogInfo,
     memberAddress: string,
     transferSide: ITransferSide,
-    plugins: any[],
+    plugins: Plugin[],
     tokenIds: string[],
     isHistorical?: boolean,
   ) => {
@@ -370,22 +370,18 @@ export const GovernanceVeHandler = {
     addToDao: boolean,
     isHistorical?: boolean,
   ) => {
-    await Promise.all(
-      plugins.map(async (plugin: any) => {
-        const memberShipParams = {
-          memberAddress,
-          network: plugin.network,
-          tokenAddress: plugin.tokenAddress,
-        }
+    const memberShipParams = {
+      memberAddress,
+      network: info.network,
+      tokenAddress: plugins[0].tokenAddress,
+    }
 
-        const isMember = await ProxyMember.isMemberOfDao(memberShipParams)
-        if (addToDao && !isMember) {
-          await ProxyMember.addToDao(memberShipParams)
-        } else if (!addToDao && isMember) {
-          await ProxyMember.removeFromDao(memberShipParams)
-        }
-      }),
-    )
+    const isMember = await ProxyMember.isMemberOfDao(memberShipParams)
+    if (addToDao && !isMember) {
+      await ProxyMember.addToDao(memberShipParams)
+    } else if (!addToDao && isMember) {
+      await ProxyMember.removeFromDao(memberShipParams)
+    }
 
     if (!isHistorical) {
       const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')

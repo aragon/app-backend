@@ -19,7 +19,7 @@ import { assert } from '@errors'
 const customName = ICollectionNames.DaoMemberMapping
 
 // Respect this format
-// erc20Gov and VeGove have  tokenAddress
+// erc20Gov and VeGove have tokenAddress
 // tokenAddress, memberAddress, network (No pluginAddress)
 // admin, multisig
 // memberAddress, pluginAddress, network (No tokenAddress)
