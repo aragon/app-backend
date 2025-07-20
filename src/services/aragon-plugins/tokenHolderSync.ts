@@ -141,7 +141,7 @@ export const TokenHolderSync = {
           await session.commitTransaction()
           await session.endSession()
         })
-
+        // TODO: need to change
         await ProxyMember.addToDao({
           memberAddress: holder.address,
           pluginAddress: plugin.address,
