@@ -5,23 +5,39 @@ import Web3Helper from '@helpers/web3'
 import { IPluginStatus, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import { expect } from 'chai'
-import RabbitMQHelper from '@helpers/rabbitMQ'
+import logger from '@logger'
 
 describe('Installation And Uninstallation Of Plugin Via Revoke And Grant ', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
-    sandbox.stub(RabbitMQHelper, 'sendMessage')
+    UnitDepUtils.stubRabbitmqSend(
+      sandbox
+    )
   })
 
   afterEach(() => {
     sandbox && sandbox.restore()
   })
 
+  it.only('should debug broken tx in db related to plugin installation', async function () {
+    this.timeout(10000000)
+    const daoAddress = '0x58c76855073e460ee2703b5131ce938EBf70aE4B'
+    const network = NetworksEnum.ethereumSepolia
+
+    await UnitDepUtils.syncACompleteDao(
+      daoAddress,
+      network
+    )
+
+    const plugins = await Models.Plugin.find({ daoAddress, network })
+    logger.info('Plugins found:', plugins.length)
+  })
+
   it('should revoke and grant permission to plugin', async function () {
     this.timeout(1000000)
-    const revokeTxHash = '0xbf04b4486c9663d805744005c3da000eda93de6e3308a4a7a812eb565327b78d'
+    const revokeTxHash = '0x9ef64afa23ef2ced4dbfec481c31dd7a17441fc6b6c586d14104a10e59342966'
 
     const network = NetworksEnum.ethereumSepolia
     const createDaoTxHash = '0x5a059dc68ba109df5c3cc255380da4ad9d4d09f508093fff2196580bca50ebbb'
