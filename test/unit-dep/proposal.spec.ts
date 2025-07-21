@@ -86,7 +86,6 @@ describe('Integration: Proposal', () => {
       creatorAddress: '0x6818013d7B2D49D7396BA9733b59C539A639f3ED',
       startDate: 1745488164,
       endDate: 0,
-      approvalReached: false,
       metadataUri: 'ipfs://QmUPJ1dXRT2WVXiKEeQrJdRVeiuGh1CVExzSs6SLjDGuR4',
       title: 'sdf',
       description: null,

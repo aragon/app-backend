@@ -43,7 +43,13 @@ describe('GovernanceErc20Helper', () => {
     const tokenAddress = '0xe4fBbB0B11b3B48D10B4753a1D2c00244b247b33'
     const blockNumber = 16733703
     const network = NetworksEnum.ethereumMainnet
-    const totalSupply = await GovernanceErc20Helper.getPastTotalSupply(blockNumber, tokenAddress, network)
+    const totalSupply = await GovernanceErc20Helper.getPastTotalSupply({
+      blockNumber,
+      network,
+      tokenAddress,
+      blockTimestamp: 0,
+      hasClockMode: true,
+    })
     expect(totalSupply).to.eq(500000000000000000000n)
   })
 
