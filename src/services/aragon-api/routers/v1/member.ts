@@ -77,6 +77,7 @@ const MemberRouter = {
     const params = {
       memberAddress: ctx.params.memberAddress,
       pluginAddress: ctx.params.pluginAddress,
+      network: ctx.query.network as NetworksEnum,
     }
     const anyInvalidParams = Utils.extractAdditionalParams({ ...params }, ctx.query)
 
@@ -85,7 +86,11 @@ const MemberRouter = {
       ValidationSchema.validateParams(PaginationSchema.getNotAllowedParams, anyInvalidParams),
     ])
 
-    ctx.body = await MemberController.isMemberOfPlugin(formattedParams.memberAddress, formattedParams.pluginAddress)
+    ctx.body = await MemberController.isMemberOfPlugin(
+      formattedParams.memberAddress,
+      formattedParams.pluginAddress,
+      formattedParams.network,
+    )
   },
 
   getMemberLocks: async function (ctx: RouterContext) {
