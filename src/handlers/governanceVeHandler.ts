@@ -22,7 +22,7 @@ export const GovernanceVeHandler = {
 
     const fromAddress = parsedEvent.args.sender
     const toAddress = parsedEvent.args.delegatee
-    const tokenIds = parsedEvent.args.tokenIds.map((id: any) => Number(id))
+    const tokenIds = parsedEvent.args.tokenIds.map((id: any) => id.toString())
 
     try {
       await GovernanceVeHandler._handleTokenDelegation(
@@ -63,7 +63,7 @@ export const GovernanceVeHandler = {
 
     const toAddress = parsedEvent.args.sender
     const fromAddress = parsedEvent.args.delegatee
-    const tokenIds = parsedEvent.args.tokenIds.map((id: any) => Number(id))
+    const tokenIds = parsedEvent.args.tokenIds.map((id: any) => id.toString())
 
     try {
       await GovernanceVeHandler._handleTokenDelegation(
@@ -96,7 +96,7 @@ export const GovernanceVeHandler = {
     memberAddress: string,
     transferSide: ITransferSide,
     plugins: any[],
-    tokenIds: number[],
+    tokenIds: string[],
   ) => {
     try {
       const existingLog = await Models.MemberTransaction.findExistingLog({
@@ -128,7 +128,7 @@ export const GovernanceVeHandler = {
       })
 
       const currentTokenIds = tokenBalanceDb?.tokenIds || []
-      let tokenIdsToSave: number[]
+      let tokenIdsToSave: string[]
 
       const isSelfDelegation = parsedEvent.args.sender === parsedEvent.args.delegatee
 
@@ -394,7 +394,7 @@ export const GovernanceVeHandler = {
     })
 
     const currentTokenIds = memberBalance!.tokenIds || []
-    const tokenIdsToSave = currentTokenIds.filter(id => id !== Number(tokenId))
+    const tokenIdsToSave = currentTokenIds.filter(id => id !== tokenId.toString())
 
     await DbOperations.updateDocument(
       memberBalance!,

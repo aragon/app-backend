@@ -366,7 +366,7 @@ describe('Handler:GovernanceVeHandler', () => {
         address: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
         tokenAddress: plugin.tokenAddress,
         amount: '3',
-        tokenIds: [100, 123, 200],
+        tokenIds: ['100', '123', '200'],
         votingPower: '0',
       })
 
@@ -396,8 +396,8 @@ describe('Handler:GovernanceVeHandler', () => {
 
       const updatedBalance = await Models.MemberBalance.findById(memberBalance._id)
       expect(updatedBalance?.amount).to.equal('2')
-      expect(updatedBalance?.tokenIds).to.deep.equal([100, 200])
-      expect(updatedBalance?.lastSyncAmountBlockNumber).to.equal(124)
+      expect(updatedBalance?.tokenIds).to.deep.equal(['100', '200'])
+      expect(updatedBalance?.lastSyncAmountBlockNumber).to.equal('124')
 
       expect(stubLogger.calledTwice).to.be.true
       expect(stubRemoveFromDao.calledOnce).to.be.true
@@ -823,8 +823,8 @@ describe('Handler:GovernanceVeHandler', () => {
       stubGetPastVotes.onFirstCall().resolves('50')
       stubGetPastVotes.onSecondCall().resolves('150')
 
-      const senderCurrentTokenIds = [100, 200, 123, 456]
-      const delegateeCurrentTokenIds = [300]
+      const senderCurrentTokenIds = ['100', '200', '123', '456']
+      const delegateeCurrentTokenIds = ['300']
 
       sandbox
         .stub(ProxyMember, 'getBalances')
@@ -1337,7 +1337,7 @@ describe('Handler:GovernanceVeHandler', () => {
       const memberAddress = '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5'
       const transferSide = ITransferSide.incoming
       const plugins = [plugin]
-      const tokenIds = [123, 456]
+      const tokenIds = ['123', '456']
 
       await Models.MemberBalance.create({
         network: NetworksEnum.ethereumMainnet,
@@ -1402,7 +1402,7 @@ describe('Handler:GovernanceVeHandler', () => {
       const memberAddress = '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5'
       const transferSide = 'outgoing' as any
       const plugins = [plugin]
-      const tokenIds = [123]
+      const tokenIds = ['123']
 
       sandbox.stub(ProxyMember, 'createMember').rejects(new Error('Database error'))
       const stubLogger = sandbox.stub(logger, 'error')

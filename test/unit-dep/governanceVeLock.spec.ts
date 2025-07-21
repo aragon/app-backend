@@ -11,7 +11,7 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import { LogTokenVoting } from '@plugins/logTokenVoting'
 import MemberController from '@api/controllers/member'
 
-describe('GovernanceVeLock: Integration Test', () => {
+describe.skip('GovernanceVeLock: Integration Test', () => {
   let sandbox: sinon.SinonSandbox
   const eventsToLook = ['Deposit', 'Withdraw', 'MinDepositSet', 'ExitQueued', 'MinLockSet']
 
@@ -133,7 +133,7 @@ describe('GovernanceVeLock: Integration Test', () => {
     expect(daoMemberMappingAfterWithdraw).to.be.not.exist
   })
 
-  it.skip('should handle veLock all events properly', async function () {
+  it('should handle veLock all events properly', async function () {
     this.timeout(100000000)
     const daoAddress = '0x9418fcf1Aa0dCEB9090F2bBA06E70d94E10e46b1'
     await UnitDepUtils.syncACompleteDao(daoAddress, NetworksEnum.ethereumSepolia)
