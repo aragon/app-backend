@@ -74,6 +74,20 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'https://api.routescan.io/v2/network/mainnet/evm',
       ),
     },
+    ZKSYNC_BLOCK_EXPLORER_API: {
+      MAINNET_BASE_URI: utils.configParser(
+        sourceConfig,
+        'string',
+        'ZKSYNC_BLOCK_EXPLORER_MAINNET_BASE_URI',
+        'https://block-explorer-api.mainnet.zksync.io/api',
+      ),
+      SEPOLIA_BASE_URI: utils.configParser(
+        sourceConfig,
+        'string',
+        'ZKSYNC_BLOCK_EXPLORER_SEPOLIA_BASE_URI',
+        'https://block-explorer-api.sepolia.zksync.dev/api',
+      ),
+    },
 
     ALCHEMY_PRICE_API: {
       URI: utils.configParser(sourceConfig, 'string', 'ALCHEMY_PRICE_API_URI', 'https://api.g.alchemy.com/prices/v1'),
