@@ -11,6 +11,7 @@ import {
   type IQueryGetPlugin,
   type NetworksEnum,
   EnumQueueName,
+  IDaoLogs,
 } from '@types'
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
 import type Plugin from '@models/schema/plugin'
@@ -25,6 +26,8 @@ import DbTx from '@modules/dbTx'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import { MetadataHandler } from '@handlers/metadataHandler'
 import RabbitMQHelper from '@src/helpers/rabbitMQ'
+import configIndexer from '@indexer/configIndexer'
+import { ethers } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PluginHandler' })
 
@@ -627,12 +630,30 @@ export const PluginHandler = {
         PluginSetupProcessor.abi,
       )
 
-      if (installationAppliedLogs.length > 0) {
-        return
-      }
+      const executePermissionId = ethers.id('EXECUTE_PERMISSION')
 
-      if (pluginDb.status === IPluginStatus.installed) {
-        return
+      if (installationAppliedLogs.length > 0) {
+        const grantedTopic = configIndexer.find(config => config.event === IDaoLogs.Granted)?.topic
+        const revokedTopic = configIndexer.find(config => config.event === IDaoLogs.Revoked)?.topic
+
+        const lastAppliedLog = installationAppliedLogs[installationAppliedLogs.length - 1]
+        const lastAppliedLogIndex = lastAppliedLog.txLog.index
+
+        const nextPermissionEvent = txReceipt.logs.find((log: any) => {
+          const isPermissionEvent =
+            log.address === daoDb.address &&
+            (log.topics[0] === grantedTopic || log.topics[0] === revokedTopic) &&
+            log.topics[1] === executePermissionId
+          return isPermissionEvent && log.logIndex > lastAppliedLogIndex
+        })
+
+        if (!nextPermissionEvent) {
+          return
+        }
+
+        if (nextPermissionEvent.topics[0] !== revokedTopic) {
+          return
+        }
       }
 
       const pluginInfo = await PluginDetector.detectPluginType(pluginDb.address, info.network)
