@@ -56,6 +56,10 @@ export interface IConfig {
     API_KEY: string
   }
   CHILIZ_API_URL: string
+  ZKSYNC_BLOCK_EXPLORER_API: {
+    MAINNET_BASE_URI: string
+    SEPOLIA_BASE_URI: string
+  }
   BATCH_REQUEST: {
     DEFAULT_SIZE: number
   }

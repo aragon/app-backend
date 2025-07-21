@@ -3,8 +3,8 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import CornProvider from '@modules/proxyProvider/cornProvider'
 import BlockScoutProvider from '@modules/proxyProvider/blockscoutProvider'
-import RouteScanHelper from '@helpers/routeScanHelper'
 import { NetworksEnum } from '@types'
+import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
 
 describe('Modules: CornProvider', () => {
   let sandbox: SinonSandbox
@@ -81,7 +81,7 @@ describe('Modules: CornProvider', () => {
       const network = NetworksEnum.cornMainnet
       const expectedResult = [{ SourceCode: 'contract Test {}', ContractName: 'Test' }]
 
-      const routeScanStub = sandbox.stub(RouteScanHelper, 'fetchContractSourceCode').resolves(expectedResult as any)
+      const routeScanStub = sandbox.stub(evmExplorerClient, 'fetchContractSourceCode').resolves(expectedResult as any)
 
       // Act
       const result = await CornProvider.fetchContractSourceCode({ address, network })
@@ -89,7 +89,9 @@ describe('Modules: CornProvider', () => {
       // Assert
       expect(result).to.equal(expectedResult)
       expect(routeScanStub.calledOnce).to.be.true
-      expect(routeScanStub.firstCall.args[0]).to.deep.equal({ address, network })
+      expect(routeScanStub.firstCall.args[0]).to.be.equal(EvmExplorerEnum.ROUTESCAN)
+      expect(routeScanStub.firstCall.args[1]).to.deep.equal(address)
+      expect(routeScanStub.firstCall.args[2]).to.deep.equal(network)
     })
   })
 
@@ -104,7 +106,7 @@ describe('Modules: CornProvider', () => {
         blockNumber: 12345,
       }
 
-      const routeScanStub = sandbox.stub(RouteScanHelper, 'fetchContractCreation').resolves(expectedResult)
+      const routeScanStub = sandbox.stub(evmExplorerClient, 'fetchContractCreation').resolves(expectedResult)
 
       // Act
       const result = await CornProvider.fetchContractCreation({ address, network })
@@ -112,7 +114,9 @@ describe('Modules: CornProvider', () => {
       // Assert
       expect(result).to.equal(expectedResult)
       expect(routeScanStub.calledOnce).to.be.true
-      expect(routeScanStub.firstCall.args[0]).to.deep.equal({ address, network })
+      expect(routeScanStub.firstCall.args[0]).to.be.equal(EvmExplorerEnum.ROUTESCAN)
+      expect(routeScanStub.firstCall.args[1]).to.deep.equal(address)
+      expect(routeScanStub.firstCall.args[2]).to.deep.equal(network)
     })
   })
 })
