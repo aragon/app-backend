@@ -127,6 +127,7 @@ describe('Modules:PairDataModule', () => {
       const result = await PairDataModule.pairExtraQueryData(extraParams)
 
       expect(result.daoAddresses).to.deep.equal([])
+      expect(findOneStub.calledOnce).to.be.true
     })
 
     it('should return empty object when no pluginAddress provided', async () => {
