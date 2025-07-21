@@ -1,12 +1,10 @@
 import logger from '@logger'
 import { type LogDescription } from 'ethers'
-import { EnumQueueName, IEventLogMember, type ILogInfo, ITokenType, ITransferSide, ITransferType } from '@types'
+import { EnumQueueName, type ILogInfo, ITransferSide, ITransferType } from '@types'
 import utils from '@helpers/utils'
 import { ProxyMember } from '@modules/proxyMember'
 import DbTx from '@modules/dbTx'
-import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import Web3Helper from '@helpers/web3'
-import Web3Utils from '@helpers/web3Utils'
 import { Models } from '@dbModels'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import type Plugin from '@models/schema/plugin'
@@ -43,7 +41,6 @@ export const GovernanceErc20Handler = {
   ) => {
     try {
       const memberAddress = transferType === ITransferSide.incoming ? parsedEvent.args.to : parsedEvent.args.from
-      await ProxyMember.createMember(memberAddress)
 
       const existingLog = await Models.MemberTransaction.findExistingLog({
         network: info.network,
@@ -52,57 +49,51 @@ export const GovernanceErc20Handler = {
         logIndex: info.logIndex,
         address: memberAddress,
       })
+      if (existingLog) return
 
       const token = await ProxyToken.saveAndGetToken(info.address, info.network)
       if (!token) {
         logger.error('handleTransfer token not found', llo({ info }))
+        return
       }
 
-      if (existingLog) {
-        return await GovernanceErc20Handler._handleDaoMemberShip(
-          existingLog,
-          token?.type!,
-          token?.isGovernance!,
-          plugins,
-          info,
-          isHistorical,
-        )
-      }
-
+      await ProxyMember.createMember(memberAddress)
       const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
 
-      let tokenBalanceDb = await ProxyMember.getBalances({
-        address: memberAddress,
-        tokenAddress: info.address,
-        network: info.network,
-      })
-
-      let tokenBal: string = '0'
-      let memberVotingPower: string = '0'
-
-      if (token?.type === ITokenType.ERC20 && token?.isGovernance) {
-        tokenBal = BigInt(parsedEvent?.args?.value || 0)?.toString()
-        memberVotingPower = await GovernanceErc20Helper.getPastVotes(
+      const [memberVotingPower, memberTokenBalance, memberTokenBalanceDb] = await Promise.all([
+        GovernanceErc20Helper.getPastVotes(
           memberAddress,
           info.address,
           info.blockNumber,
           blockTimestamp,
           info.network,
-          token.hasClockMode,
-        )
-      } else if (token?.type === ITokenType.ERC721) {
-        tokenBal = BigInt(1).toString()
-      }
+          token?.hasClockMode,
+        ),
+        Web3Helper.getTokenBalanceAtBlock({
+          address: memberAddress,
+          tokenAddress: info.address,
+          blockNumber: info.blockNumber,
+          network: info.network,
+        }),
+        ProxyMember.getBalances({
+          address: memberAddress,
+          tokenAddress: info.address,
+          network: info.network,
+        }),
+      ])
 
       const tokenId = parsedEvent.args.tokenId !== undefined ? Number(parsedEvent.args.tokenId || 0) : undefined
 
       const memberTransaction = await DbTx.executeTxFn(async ({ session }) => {
-        const tokenBalanceFuncName = transferType === ITransferSide.incoming ? 'increaseBalance' : 'decreaseBalance'
-        tokenBalanceDb = await tokenBalanceDb?.[tokenBalanceFuncName](
+        const tokenIds = memberTokenBalanceDb?.tokenIds || []
+        if (tokenId !== undefined && !tokenIds.includes(tokenId)) {
+          tokenIds.push(tokenId)
+        }
+        await memberTokenBalanceDb?.update(
           {
-            amount: tokenBal,
-            blockNumber: info.blockNumber,
-            tokenId,
+            amount: memberTokenBalance,
+            votingPower: memberVotingPower,
+            tokenIds,
           },
           { session },
         )
@@ -120,9 +111,9 @@ export const GovernanceErc20Handler = {
             side: transferType,
             from: parsedEvent.args.from,
             to: parsedEvent.args.to,
-            amount: tokenBal,
+            amount: parsedEvent.args.value?.toString(),
             tokenAddress: info.address,
-            memberBalance: tokenBalanceDb?.amount,
+            memberBalance: memberTokenBalance,
             memberVotingPower,
             tokenId,
           },
@@ -134,14 +125,7 @@ export const GovernanceErc20Handler = {
         return memberTransaction
       })
 
-      await GovernanceErc20Handler._handleDaoMemberShip(
-        memberTransaction,
-        token?.type!,
-        token?.isGovernance!,
-        plugins,
-        info,
-        isHistorical,
-      )
+      await GovernanceErc20Handler._handleDaoMemberShip(memberTransaction, plugins, info, isHistorical)
     } catch (error) {
       logger.error(`Transfer - ${transferType} transfer error`, llo({ error, info }))
     }
@@ -149,29 +133,10 @@ export const GovernanceErc20Handler = {
 
   _handleDaoMemberShip: async (
     memberTx: Partial<MemberTransaction>,
-    tokenType: ITokenType,
-    tokenIsGovernance: boolean,
     plugins: Plugin[],
     info: ILogInfo,
     isHistorical?: boolean,
   ) => {
-    let userBalance = 0n
-    let votingPower = 0n
-
-    if (tokenType === ITokenType.ERC20 && tokenIsGovernance) {
-      votingPower = BigInt(memberTx.memberVotingPower!)
-      userBalance = BigInt(memberTx.memberBalance!)
-    } else {
-      userBalance = BigInt(
-        await Web3Helper.getTokenBalanceAtBlock({
-          address: memberTx.address!,
-          tokenAddress: info.address,
-          blockNumber: info.blockNumber,
-          network: info.network,
-        }),
-      )
-    }
-
     await Promise.all([
       ...plugins.map(async (plugin: Plugin) => {
         const memberShipParams = {
@@ -183,7 +148,7 @@ export const GovernanceErc20Handler = {
         }
 
         const isMember = await ProxyMember.isMemberOfDao(memberShipParams)
-        const meetsRequirements = tokenIsGovernance ? votingPower > 0n || userBalance > 0n : BigInt(userBalance) > 0n
+        const meetsRequirements = BigInt(memberTx?.memberVotingPower!) > 0n || BigInt(memberTx?.memberBalance!) > 0n
 
         if (!isMember && meetsRequirements) {
           await ProxyMember.addToDao(memberShipParams)
@@ -195,12 +160,14 @@ export const GovernanceErc20Handler = {
 
     if (!isHistorical) {
       const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
-      uniqueDaoList.map(async (daoAddress: string) => {
-        await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-          id: daoAddress,
-          params: { address: daoAddress, network: info.network },
-        })
-      })
+      await Promise.all(
+        uniqueDaoList.map(async (daoAddress: string) => {
+          await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+            id: daoAddress,
+            params: { address: daoAddress, network: info.network },
+          })
+        }),
+      )
     }
   },
 
@@ -214,89 +181,68 @@ export const GovernanceErc20Handler = {
       const tokenAddress = info.address
       const network = info.network
 
-      await ProxyMember.createMember(memberAddress)
+      if (memberAddress === utils.zeroAddress) return
 
-      const tokenBalance = await ProxyMember.getBalances({
-        address: memberAddress,
-        tokenAddress,
+      const existingLog = await Models.MemberTransaction.findExistingLog({
         network,
+        transactionHash: info.transactionHash,
+        transactionIndex: info.transactionIndex,
+        logIndex: info.logIndex,
+        address: memberAddress,
       })
+      if (existingLog) return
 
-      const votingPowerResult = await DbTx.executeTxFn(async ({ session }) => {
-        const existingLog = await Models.MemberTransaction.findExistingLog(
+      const token = await ProxyToken.saveAndGetToken(info.address, info.network)
+      if (!token) {
+        logger.error('handleTransfer token not found', llo({ info }))
+        return
+      }
+
+      await ProxyMember.createMember(memberAddress)
+      const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
+
+      const [memberVotingPower, memberTokenBalance, memberTokenBalanceDb] = await Promise.all([
+        GovernanceErc20Helper.getPastVotes(
+          memberAddress,
+          info.address,
+          info.blockNumber,
+          blockTimestamp,
+          info.network,
+          token?.hasClockMode,
+        ),
+        Web3Helper.getTokenBalanceAtBlock({
+          address: memberAddress,
+          tokenAddress: info.address,
+          blockNumber: info.blockNumber,
+          network: info.network,
+        }),
+        ProxyMember.getBalances({
+          address: memberAddress,
+          tokenAddress: info.address,
+          network: info.network,
+        }),
+      ])
+
+      const newBalance = BigInt(parsedEvent?.args?.newBalance || 0)
+      const previousBalance = BigInt(parsedEvent?.args?.previousBalance || 0)
+
+      let side: ITransferSide
+      if (newBalance > previousBalance) {
+        side = ITransferSide.incoming
+      } else {
+        side = ITransferSide.outgoing
+      }
+
+      // save member transaction
+      const memberTx = await DbTx.executeTxFn(async ({ session }) => {
+        await memberTokenBalanceDb?.update(
           {
-            network,
-            transactionHash: info.transactionHash,
-            transactionIndex: info.transactionIndex,
-            logIndex: info.logIndex,
-            address: memberAddress,
+            amount: memberTokenBalance,
+            votingPower: memberVotingPower,
           },
           { session },
         )
 
-        if (existingLog) {
-          return existingLog
-        }
-
-        const newVotingPower = BigInt(parsedEvent?.args?.newBalance || 0)
-        await tokenBalance?.updateVotingPower(newVotingPower.toString(), info.blockNumber, { session })
-        await session.commitTransaction()
-        await session.endSession()
-        return newVotingPower
-      })
-
-      if (typeof votingPowerResult !== 'bigint') {
-        return await GovernanceErc20Handler._handleDaoMemberShip(
-          votingPowerResult as MemberTransaction,
-          ITokenType.ERC20,
-          true,
-          plugins,
-          info,
-          isHistorical,
-        )
-      }
-
-      const memberBalance = await Web3Helper.getTokenBalanceAtBlock({
-        address: memberAddress,
-        tokenAddress,
-        blockNumber: info.blockNumber,
-        network,
-      })
-
-      await GovernanceErc20Handler._handleDaoMemberShip(
-        {
-          address: memberAddress,
-          memberBalance: memberBalance.toString(),
-          memberVotingPower: votingPowerResult.toString(),
-        },
-        ITokenType.ERC20,
-        true,
-        plugins,
-        info,
-        isHistorical,
-      )
-
-      const { from, to, delegator } = await GovernanceErc20Handler._findDelegatorsFromReceipt(parsedEvent, info)
-
-      if ((from === utils.zeroAddress && to === utils.zeroAddress) || from === to) {
-        // Note we skip all delegation happened on transfer, mint, burn, etc
-        logger.warn('Skip from and to address', llo({ from, to, info }))
-        return
-      }
-
-      let side: ITransferSide
-      if (memberAddress === from) {
-        side = ITransferSide.outgoing
-      } else if (memberAddress === to) {
-        side = ITransferSide.incoming
-      } else {
-        // cannot detect side
-        logger.error('Error cannot detect delegation side', llo({ from, to, memberAddress, info }))
-        return
-      }
-
-      // save member transaction
-      await DbTx.executeTxFn(async ({ session }) => {
         const logDb = await Models.MemberTransaction.create(
           {
             network,
@@ -304,24 +250,24 @@ export const GovernanceErc20Handler = {
             transactionIndex: info.transactionIndex,
             logIndex: info.logIndex,
             blockNumber: info.blockNumber,
-            blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+            blockTimestamp,
             address: memberAddress,
-            delegator,
             type: ITransferType.delegate,
             side,
-            from,
-            to,
             amount: BigInt(parsedEvent?.args?.value || 0).toString(),
             tokenAddress,
-            memberBalance,
-            memberVotingPower: votingPowerResult.toString(),
+            memberBalance: memberTokenBalance,
+            memberVotingPower,
           },
           { session },
         )
         await session.commitTransaction()
         await session.endSession()
         logger.verbose('Transfer outgoing - MemberTransaction', llo({ logId: logDb?.id, info }))
+        return logDb
       })
+
+      await GovernanceErc20Handler._handleDaoMemberShip(memberTx, plugins, info, isHistorical)
 
       await Promise.all(
         plugins.map(async (plg: Plugin) => {
@@ -338,76 +284,10 @@ export const GovernanceErc20Handler = {
             blockNumber: info.blockNumber,
             network,
           })
-
-          // if (side === ITransferSide.outgoing) {
-          //   // decrease received delegation
-          //   await ProxyMember.updateMetricsByAction(IMetricAction.decreaseDelegateReceivedCount, {
-          //     memberAddress,
-          //     pluginAddress: plg.address,
-          //     network: plg.network,
-          //   })
-          //
-          //   await ProxyMember.updateActivity({
-          //     memberAddress,
-          //     pluginAddress: plg.address,
-          //     network: info.network,
-          //     blockNumber: info.blockNumber,
-          //   })
-          // } else if (side === ITransferSide.incoming) {
-          //   // increase received delegation
-          //   await ProxyMember.updateMetricsByAction(IMetricAction.increaseDelegateReceivedCount, {
-          //     memberAddress,
-          //     pluginAddress: plg.address,
-          //     network: plg.network,
-          //   })
-          //
-          //   await ProxyMember.updateActivity({
-          //     memberAddress,
-          //     pluginAddress: plg.address,
-          //     network: info.network,
-          //     blockNumber: info.blockNumber,
-          //   })
-          // }
         }),
       )
     } catch (error) {
       logger.error('DelegateVotesChanged - error', llo({ error, parsedEvent, info }))
     }
-  },
-
-  _findDelegatorsFromReceipt: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    let from = utils.zeroAddress
-    let to = utils.zeroAddress
-    let delegator = utils.zeroAddress
-
-    const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
-
-    if (txReceipt) {
-      const delegationChangedLogs = Web3Utils.findLogsByName(
-        txReceipt,
-        IEventLogMember.DelegateChanged,
-        GovernanceERC20.abi,
-      )
-
-      const log = delegationChangedLogs?.find(
-        ({ parsed }: { parsed: LogDescription | null }) =>
-          parsed?.args?.fromDelegate === parsedEvent?.args?.delegate ||
-          parsed?.args?.toDelegate === parsedEvent?.args?.delegate,
-      )
-
-      if (log?.parsed?.args?.delegator) {
-        delegator = log?.parsed?.args.delegator
-      }
-
-      if (log?.parsed?.args?.fromDelegate) {
-        from = log.parsed.args.fromDelegate
-      }
-
-      if (log?.parsed?.args?.toDelegate) {
-        to = log.parsed.args.toDelegate
-      }
-    }
-
-    return { from, to, delegator }
   },
 }

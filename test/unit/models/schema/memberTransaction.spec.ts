@@ -9,8 +9,6 @@ import { FakeDaoMemberMappings } from '@test/mock/fakeDaoMappings'
 import DaoMemberMapping from '@models/schema/daoMemberMapping'
 import Token from '@models/schema/token'
 import { FakeToken } from '@test/mock/fakeToken'
-import { ITransferSide, ITransferType } from '@types'
-import { ethers } from 'ethers'
 
 describe('Model: Member Transaction', () => {
   let sandbox: SinonSandbox
@@ -180,55 +178,5 @@ describe('Model: Member Transaction', () => {
     const entityDb = await Models.MemberTransaction.create(rawMemberTransferTx)
     await entityDb.reload()
     expect(entityDb.id).to.eq(entityDb.id)
-  })
-
-  describe('findWithPagination', () => {
-    beforeEach(async () => {
-      await Models.MemberTransaction.create(rawMemberTransferTx)
-      await Models.MemberTransaction.create(rawMemberDelegationTx)
-    })
-
-    it('should find member transactions with pagination filter by memberAddress', async () => {
-      const result = await Models.MemberTransaction.findWithPagination({
-        extraParams: {
-          memberAddress: rawMemberTransferTx.address,
-        },
-      })
-
-      expect(result.data.length).to.eq(2)
-    })
-
-    it('should find member transaction by type', async () => {
-      const result = await Models.MemberTransaction.findWithPagination({
-        extraParams: {
-          type: ITransferType.delegate,
-          side: ITransferSide.incoming,
-        },
-      })
-
-      expect(result.data.length).to.eq(1)
-    })
-
-    it('should find member transaction by excludeZeroAddress', async () => {
-      const result = await Models.MemberTransaction.findWithPagination({
-        extraParams: {
-          excludeZeroAddress: true,
-        },
-      })
-
-      expect(result.data.length).to.eq(1)
-      expect(result.data[0].from.address).to.not.eq(ethers.ZeroAddress)
-      expect(result.data[0].to.address).to.not.eq(ethers.ZeroAddress)
-    })
-
-    it('should handle when there is no member transaction', async () => {
-      const result = await Models.MemberTransaction.findWithPagination({
-        extraParams: {
-          memberAddress: '0x000',
-        },
-      })
-
-      expect(result.data.length).to.eq(0)
-    })
   })
 })

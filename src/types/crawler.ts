@@ -115,3 +115,10 @@ export enum IExitQueueLogs {
   ExitQueued = 'ExitQueued',
   MinLockSet = 'MinLockSet',
 }
+
+export enum ISelectorPermissionLogs {
+  SelectorAllowed = 'SelectorAllowed',
+  SelectorDisallowed = 'SelectorDisallowed',
+  NativeTransfersAllowed = 'NativeTransfersAllowed',
+  NativeTransfersDisallowed = 'NativeTransfersDisallowed',
+}

@@ -1,13 +1,13 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import ProviderModule from '@modules/provider'
-import { ITokenType, NetworksEnum } from '@types'
+import { NetworksEnum } from '@types'
 import utils from '@helpers/utils'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import configIndexer from '@indexer/configIndexer'
 import { ProxyToken } from '@modules/proxyToken'
 
-describe('Manual: BathRequest', () => {
+describe('Manual: BatchRequest', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {

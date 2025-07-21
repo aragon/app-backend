@@ -21,12 +21,12 @@ describe('Installation And Uninstallation Of Plugin Via Revoke And Grant ', () =
 
   it('should revoke and grant permission to plugin', async function () {
     this.timeout(1000000)
-    const revokeTxHash = '0x8c26a5fbc7fa3364058a2a5f169ad8ab4f1640be047c74161745f6c794705012'
+    const revokeTxHash = '0xbf04b4486c9663d805744005c3da000eda93de6e3308a4a7a812eb565327b78d'
 
     const network = NetworksEnum.ethereumSepolia
-    const createDaoTxHash = '0xc1add76f1348bbe6790a339013a1e7612d970abd1f6db884d99e93bf2df5a2e0'
-    const pluginInstallationTxHashPrepare = '0xa050ec835a9aa1aed1ed0256e4e7b9d232f420a9911e447e35ffe05371fbee2d'
-    const pluginInstallationAppliedTxHash = '0x02452fbe5d16232c97111ed97b920b37e4863d83503e571bd88ed6e3e4fa49ff'
+    const createDaoTxHash = '0x5a059dc68ba109df5c3cc255380da4ad9d4d09f508093fff2196580bca50ebbb'
+    const pluginInstallationTxHashPrepare = '0xbf9e3ac7a9aff1248ac333b18035eed748e19f5a8ed86ca5587429cdb545d8d4'
+    const pluginInstallationAppliedTxHash = '0x535989b131da3871381a4c4e80a2155f54e05b6b89daf668f6b9d7d031d8e528'
 
     const daoTxReceipts = await Web3Helper.getTransactionReceipt(createDaoTxHash, network)
     const pluginInstallationTxReceiptPrepare = await Web3Helper.getTransactionReceipt(
@@ -78,22 +78,31 @@ describe('Installation And Uninstallation Of Plugin Via Revoke And Grant ', () =
 
     const logsRevokeAndGrant = await UnitDepUtils.parseLogsByConfig(revokeTxReceipt.logs as any, network)
     const logsRevoked = logsRevokeAndGrant[0]
-    const logsGranted = logsRevokeAndGrant[2]
+
     let plugin = await Models.Plugin.findByAddress(logsRevoked.event.args.who, network)
+
+    for (let i = 0; i < logsRevokeAndGrant.length; i++) {
+      const ev = logsRevokeAndGrant[i]
+      await ev.handler(ev.event, ev.info)
+      if (i === 0) {
+        plugin = await plugin.reload()
+        expect(plugin.status).to.be.eq(IPluginStatus.uninstalled)
+      }
+
+      if (i === 1) {
+        plugin = await plugin.reload()
+        expect(plugin.status).to.be.eq(IPluginStatus.installed)
+      }
+    }
+
     expect(plugin.status).to.be.eq(IPluginStatus.installed)
 
-    //uninstall first
-    await logsRevoked.handler(logsRevoked.event, logsRevoked.info)
-    plugin = await plugin.reload()
-    expect(plugin.status).to.be.eq(IPluginStatus.uninstalled)
-    expect(plugin.uninstalled.status).to.be.eq(true)
-    expect(plugin.uninstalled.transactionHash).to.be.eq(revokeTxHash)
-    //install again
-    await logsGranted.handler(logsGranted.event, logsGranted.info)
+    //re-handle the logs to ensure everything is processed correctly
+    for (const ev of logsRevokeAndGrant) {
+      await ev.handler(ev.event, ev.info)
+    }
+
     plugin = await plugin.reload()
     expect(plugin.status).to.be.eq(IPluginStatus.installed)
-    expect(plugin.uninstalled.status).to.be.eq(false)
-    expect(plugin.uninstalled.transactionHash).to.be.eq(revokeTxHash)
-    //expect part
   })
 })

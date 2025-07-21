@@ -11,11 +11,17 @@ export const SyncProposals: IService = {
     })
 
     for (const proposal of proposals) {
-      const pastTotalSupply = await GovernanceErc20Helper.getPastTotalSupply(
-        proposal.blockNumber,
-        proposal.settings.tokenAddress,
-        proposal.network,
-      )
+      const token = await Models.Token.findOne({
+        address: proposal.settings.tokenAddress,
+        network: proposal.network,
+      })
+      const pastTotalSupply = await GovernanceErc20Helper.getPastTotalSupply({
+        blockNumber: proposal.blockNumber,
+        tokenAddress: proposal.settings.tokenAddress,
+        network: proposal.network,
+        blockTimestamp: proposal.blockTimestamp,
+        hasClockMode: token.hasClockMode,
+      })
 
       proposal.snapshot.totalSupply = pastTotalSupply.toString()
       await proposal.save()
