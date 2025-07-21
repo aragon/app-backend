@@ -1,9 +1,9 @@
-import EtherscanHelper from '@helpers/etherscan'
 import { expect } from 'chai'
 import sinon from 'sinon'
 import { NetworksEnum } from '@types'
 import Utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
+import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
 
 describe.skip('etherscan helper v2 migration test', () => {
   let sandbox: sinon.SinonSandbox
@@ -54,20 +54,20 @@ describe.skip('etherscan helper v2 migration test', () => {
     for (const network in tokens) {
       it(`getTokenInfo ${network}`, async () => {
         const token = tokens[network as NetworksEnum]
-        const result = await EtherscanHelper.fetchContractCreation({
-          contractAddress: token.address,
-          network: network as NetworksEnum,
-        })
+        const result = await evmExplorerClient.fetchContractCreation(
+          EvmExplorerEnum.ETHERSCAN,
+          token.address,
+          network as NetworksEnum,
+        )
 
         expect(result).to.be.not.null
-        expect(result).to.be.an('array')
-        const resultItem: any = result[0]
+        const resultItem: any = result
         expect(resultItem).to.have.property('blockNumber')
-        expect(resultItem).to.have.property('txHash')
+        expect(resultItem).to.have.property('transactionHash')
         expect(resultItem.blockNumber).to.be.not.null
-        expect(resultItem.txHash).to.be.not.null
+        expect(resultItem.transactionHash).to.be.not.null
 
-        const txReceipt = await Web3Helper.getTransactionReceipt(resultItem.txHash, network as NetworksEnum)
+        const txReceipt = await Web3Helper.getTransactionReceipt(resultItem.transactionHash, network as NetworksEnum)
 
         expect(txReceipt).to.be.not.null
         expect(txReceipt).to.have.property('blockNumber')
