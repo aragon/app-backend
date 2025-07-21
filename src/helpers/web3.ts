@@ -573,10 +573,6 @@ const Web3Helper = {
       return false
     }
   },
-
-  async isPluginUninstalled(pluginAddress: HexAddress, network: NetworksEnum) {},
-
-  async isPluginInstalledList(pluginAddress: HexAddress, network: NetworksEnum) {},
 }
 
 export default Web3Helper
