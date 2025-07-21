@@ -20,6 +20,17 @@ export const daoMemberMappingMigration: IMigration = {
             memberAddress: doc.memberAddress,
             tokenOrPluginAddress: doc.tokenAddress || doc.pluginAddress,
           })
+
+          const toSave = {
+            id,
+            memberAddress: doc.memberAddress,
+            network: doc.network,
+            tokenAddress: doc.tokenAddress ? doc.tokenAddress : null,
+            pluginAddress: doc.tokenAddress ? null : doc.pluginAddress,
+          }
+
+          await Models.DaoMemberMapping.deleteOne({ _id: doc._id })
+          await Models.DaoMemberMapping.create(toSave)
         },
         onError: (error: any, document: any) => {
           logger.error('Error migrate daoMemberMapping', llo({ error, document }))
