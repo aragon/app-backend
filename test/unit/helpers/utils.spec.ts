@@ -714,7 +714,7 @@ describe('Helpers:Utils', () => {
 
       await new Promise(resolve => {
         Utils.setImmediateAsyncArray([fn1, fn2], onError)
-        setImmediate(resolve) // Allow all setImmediate calls to complete
+        setImmediate(resolve)
       })
 
       sinon.assert.calledOnce(fn1)
@@ -999,6 +999,141 @@ describe('Helpers:Utils', () => {
       }
       const result = Utils.deepConvertToObject(obj)
       expect(result).to.deep.equal({ a: 1, b: 2 })
+    })
+  })
+
+  describe('fallbackCall', () => {
+    it('should return result from first provider on success', async () => {
+      const providers = ['provider1', 'provider2', 'provider3']
+      const expectedResult = { data: 'success' }
+
+      const fn = sandbox.stub()
+      fn.withArgs('provider1').resolves(expectedResult)
+      fn.withArgs('provider2').resolves({ data: 'backup' })
+
+      const result = await Utils.fallbackCall(providers, fn)
+
+      expect(result).to.deep.equal(expectedResult)
+      expect(fn.calledOnce).to.be.true
+      expect(fn.calledWith('provider1')).to.be.true
+    })
+
+    it('should fallback to second provider when first fails', async () => {
+      const providers = ['provider1', 'provider2', 'provider3']
+      const expectedResult = { data: 'backup' }
+      const error = new Error('Provider1 failed')
+
+      const fn = sandbox.stub()
+      fn.withArgs('provider1').rejects(error)
+      fn.withArgs('provider2').resolves(expectedResult)
+
+      const onError = sandbox.stub()
+
+      const result = await Utils.fallbackCall(providers, fn, { onError })
+
+      expect(result).to.deep.equal(expectedResult)
+      expect(fn.calledTwice).to.be.true
+      expect(onError.calledOnceWith(error, 'provider1', 0)).to.be.true
+    })
+
+    it('should return null when all providers fail', async () => {
+      const providers = ['provider1', 'provider2']
+      const error1 = new Error('Provider1 failed')
+      const error2 = new Error('Provider2 failed')
+
+      const fn = sandbox.stub()
+      fn.withArgs('provider1').rejects(error1)
+      fn.withArgs('provider2').rejects(error2)
+
+      const onError = sandbox.stub()
+
+      const result = await Utils.fallbackCall(providers, fn, { onError })
+
+      expect(result).to.be.null
+      expect(fn.calledTwice).to.be.true
+      expect(onError.calledTwice).to.be.true
+      expect(onError.firstCall.calledWith(error1, 'provider1', 0)).to.be.true
+      expect(onError.secondCall.calledWith(error2, 'provider2', 1)).to.be.true
+    })
+
+    it('should skip providers that return invalid results based on validation', async () => {
+      const providers = ['provider1', 'provider2', 'provider3']
+      const invalidResult = null
+      const validResult = { data: 'valid' }
+
+      const fn = sandbox.stub()
+      fn.withArgs('provider1').resolves(invalidResult)
+      fn.withArgs('provider2').resolves(validResult)
+
+      const validate = sandbox.stub()
+      validate.withArgs(invalidResult).returns(false)
+      validate.withArgs(validResult).returns(true)
+
+      const result = await Utils.fallbackCall(providers, fn, { validate })
+
+      expect(result).to.deep.equal(validResult)
+      expect(fn.calledTwice).to.be.true
+      expect(validate.calledTwice).to.be.true
+    })
+
+    it('should handle timeout correctly', async () => {
+      const providers = ['provider1', 'provider2']
+
+      const fn = sandbox.stub()
+      fn.withArgs('provider1').returns(new Promise(resolve => setTimeout(() => resolve({ data: 'slow' }), 2000)))
+      fn.withArgs('provider2').resolves({ data: 'fast' })
+
+      const onError = sandbox.stub()
+
+      const result = await Utils.fallbackCall(providers, fn, {
+        timeout: 100,
+        onError,
+      })
+
+      expect(result).to.deep.equal({ data: 'fast' })
+      expect(fn.calledTwice).to.be.true
+      expect(onError.calledOnce).to.be.true
+      expect(onError.firstCall.args[0]?.message).to.equal('Timeout')
+    })
+
+    it('should call onError with correct parameters', async () => {
+      const providers = ['prov1', 'prov2']
+      const error1 = new Error('Error 1')
+      const error2 = new Error('Error 2')
+
+      const fn = sandbox.stub()
+      fn.withArgs('prov1').rejects(error1)
+      fn.withArgs('prov2').rejects(error2)
+
+      const onError = sandbox.stub()
+
+      await Utils.fallbackCall(providers, fn, { onError })
+
+      expect(onError.calledTwice).to.be.true
+      expect(onError.firstCall.calledWith(error1, 'prov1', 0)).to.be.true
+      expect(onError.secondCall.calledWith(error2, 'prov2', 1)).to.be.true
+    })
+
+    it('should handle validation function that throws', async () => {
+      const providers = ['provider1', 'provider2']
+      const result1 = { data: 'test' }
+      const result2 = { data: 'backup' }
+
+      const fn = sandbox.stub()
+      fn.withArgs('provider1').resolves(result1)
+      fn.withArgs('provider2').resolves(result2)
+
+      const validate = sandbox.stub()
+      validate.withArgs(result1).throws(new Error('Validation error'))
+      validate.withArgs(result2).returns(true)
+
+      const onError = sandbox.stub()
+
+      const result = await Utils.fallbackCall(providers, fn, { validate, onError })
+
+      expect(result).to.deep.equal(result2)
+      expect(onError.calledOnce).to.be.true
+      expect(onError.firstCall.args[0]?.message).to.equal('Validation error')
     })
   })
 })
