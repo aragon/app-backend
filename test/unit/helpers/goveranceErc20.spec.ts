@@ -304,6 +304,8 @@ describe('Helpers: GovernanceErc20', () => {
         blockNumber: 1,
         tokenAddress: '0x123',
         network: NetworksEnum.ethereumMainnet,
+        blockTimestamp: 1,
+        hasClockMode: false,
       })
       expect(getChainAdjustedBlockNumberStub.calledWith(1, NetworksEnum.ethereumMainnet)).to.be.true
       expect(result).to.eq('1000000')
@@ -328,6 +330,8 @@ describe('Helpers: GovernanceErc20', () => {
         blockNumber: 1,
         tokenAddress: '0x123',
         network: NetworksEnum.ethereumMainnet,
+        blockTimestamp: 1,
+        hasClockMode: false,
       })
       expect(result).to.eq('0')
       expect(loggerStub.calledOnce).to.be.true
