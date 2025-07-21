@@ -111,8 +111,8 @@ export default class Lock extends Model {
   public nftAddress!: HexAddress
 
   // ID of the received NFT (emitted by the Deposit event)
-  @prop({ type: () => Number, default: null })
-  public tokenId!: number
+  @prop({ type: () => String, default: null })
+  public tokenId!: string
 
   // Amount of tokens locked (emitted by the Deposit event)
   @prop({ type: () => String, default: '0' })

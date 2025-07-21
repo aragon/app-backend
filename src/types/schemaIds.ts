@@ -34,7 +34,7 @@ export interface ILockIdParams {
   logIndex: number
   tokenAddress: HexAddress
   memberAddress: HexAddress
-  tokenId: number
+  tokenId: string
   escrowAddress: HexAddress
 }
 
