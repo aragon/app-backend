@@ -320,9 +320,9 @@ describe('Indexer: ProposalHandler', () => {
 
       expect(pastTotalSupplyStub.args[0][0]).to.be.deep.eq({
         tokenAddress: '0xtoken-address',
-        blockNumber: info.blockNumber - 1,
+        blockNumber: info.blockNumber,
         network,
-        blockTimestamp: 1700000000 - (config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME || 0),
+        blockTimestamp: 1700000000,
         hasClockMode: true,
       })
 

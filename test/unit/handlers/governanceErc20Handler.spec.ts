@@ -88,6 +88,8 @@ describe('GovernanceErc20Handler', () => {
         },
       ]
 
+      const loggerStub = sandbox.stub(logger, 'verbose')
+
       // Don't stub createMember - let it actually create the member
       const getPastVotesStub = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('2000')
       const findExistingLogStub = sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(false)
@@ -139,6 +141,17 @@ describe('GovernanceErc20Handler', () => {
       expect(rabbitMqStub.calledTwice).to.be.true
       expect(rabbitMqStub.args[0][1].id).to.be.eq(plugins[0].daoAddress)
       expect(rabbitMqStub.args[1][1].id).to.be.eq(plugins[1].daoAddress)
+      expect(
+        getPastVotesStub.calledOnceWith(
+          parsedEvent.args.to,
+          info.address,
+          info.blockNumber,
+          1630425600,
+          info.network,
+          fakeToken.hasClockMode,
+        ),
+      ).to.be.true
+      expect(loggerStub.callCount).to.be.eq(3)
     })
 
     it('should handle outgoing ERC20 transfer event and remove member from DAO', async () => {
@@ -174,8 +187,9 @@ describe('GovernanceErc20Handler', () => {
         },
       ]
 
-      const getPastVotesStub = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('0')
-      const findExistingLogStub = sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(false)
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('0')
+      sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(false)
       sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('0')
 
       // Create only one mock DaoMemberMapping document (since both plugins share same tokenAddress)
@@ -266,6 +280,7 @@ describe('GovernanceErc20Handler', () => {
         },
       ]
 
+      const loggerStub = sandbox.stub(logger, 'verbose')
       const getTokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('0')
       const findExistingLogStub = sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(false)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('0')
@@ -312,6 +327,16 @@ describe('GovernanceErc20Handler', () => {
       expect(remainingMappings.length).to.be.eq(0)
 
       expect(rabbitMqStub.calledTwice).to.be.true
+      expect(loggerStub.callCount).to.be.eq(2)
+      expect(
+        getTokenBalanceAtBlockStub.calledWith({
+          address: parsedEvent.args.from,
+          tokenAddress: FakeToken.address,
+          blockNumber: info.blockNumber,
+          network: info.network,
+        }),
+      ).to.be.true
+      expect(findExistingLogStub.calledOnce).to.be.true
     })
 
     it('should handle incoming ERC721 transfer event and add member to DAO', async () => {
@@ -354,6 +379,7 @@ describe('GovernanceErc20Handler', () => {
       sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('12')
       sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(false)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('1')
+      sandbox.stub(logger, 'verbose')
 
       // Stub isMemberOfDao to return null (not a member)
       sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(null)
@@ -731,6 +757,7 @@ describe('GovernanceErc20Handler', () => {
         tokenAddress: plugin.tokenAddress,
       })
 
+      sandbox.stub(logger, 'verbose')
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
       sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(null)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1630425600)

@@ -9,6 +9,7 @@ import GovernanceErc20Helper from '@helpers/governanceErc20'
 import { expect } from 'chai'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
 import utils from '@helpers/utils'
+import { NetworkHelper } from '@helpers/network'
 
 describe('Helpers: GovernanceErc20', () => {
   let sandbox: SinonSandbox
@@ -282,10 +283,6 @@ describe('Helpers: GovernanceErc20', () => {
 
   describe('getPastTotalSupply', () => {
     it('Should make a successful getPastTotalSupply call', async () => {
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns({}),
-      }
-
       const getPastTotalSupplyStub = sandbox.stub().resolves('1000000')
       const getChainAdjustedBlockNumberStub = sandbox.stub(Web3Helper, 'getChainAdjustedBlockNumber').resolves(1)
 
@@ -295,19 +292,16 @@ describe('Helpers: GovernanceErc20', () => {
             return { getPastTotalSupply: getPastTotalSupplyStub }
           },
         },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
-        },
       })
 
       const result = await MockedGovernanceErc20Helper.getPastTotalSupply({
-        blockNumber: 1,
+        blockNumber: 10,
         tokenAddress: '0x123',
         network: NetworksEnum.ethereumMainnet,
         blockTimestamp: 1,
         hasClockMode: false,
       })
-      expect(getChainAdjustedBlockNumberStub.calledWith(1, NetworksEnum.ethereumMainnet)).to.be.true
+      expect(getChainAdjustedBlockNumberStub.calledWith(9, NetworksEnum.ethereumMainnet)).to.be.true
       expect(result).to.eq('1000000')
     })
 
@@ -339,8 +333,6 @@ describe('Helpers: GovernanceErc20', () => {
     })
 
     it('should get historical total supply when clock mode is passed with timestamp', async () => {
-      // Removed unused stubConfigState definition
-
       const getPastTotalSupplyStub = sandbox.stub().resolves('1000000')
 
       const { default: MockedGovernanceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
@@ -360,7 +352,9 @@ describe('Helpers: GovernanceErc20', () => {
         blockTimestamp: 1622547800,
         hasClockMode: true,
       })
-      expect(getPastTotalSupplyStub.args[0][0]).to.eq(1622547800)
+      expect(getPastTotalSupplyStub.args[0][0]).to.eq(
+        1622547800 - NetworkHelper.getAverageBlockTime(NetworksEnum.ethereumMainnet),
+      ) //after adjustment
       expect(result).to.eq('1000000')
     })
   })

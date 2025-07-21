@@ -13,7 +13,7 @@ import ProxyWeb3Provider from '@modules/proxyProvider'
 import DbTx from '@modules/dbTx'
 import ConfigIndexerHelper from '@helpers/configIndexer'
 
-describe.only('AragonPlugins: TokenHolderSync', () => {
+describe('AragonPlugins: TokenHolderSync', () => {
   let sandbox: SinonSandbox
   let blockScoutGetTokenCountersStub: SinonStub
   let proxyWeb3ProviderGetAllTokenHoldersStub: SinonStub

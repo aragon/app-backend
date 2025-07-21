@@ -422,7 +422,13 @@ describe('Modules:PairDataModule', () => {
       const result = await PairDataModule.pairFromDaoMemberMapping(params)
 
       expect(findStub.calledOnce).to.be.true
-      expect(findStub.calledWith(params)).to.be.true
+      expect(
+        findStub.calledWith({
+          tokenAddress: params.tokenAddress,
+          memberAddress: params.memberAddress,
+          network: params.network,
+        }),
+      ).to.be.true
       expect(result).to.deep.equal(mappings)
     })
 

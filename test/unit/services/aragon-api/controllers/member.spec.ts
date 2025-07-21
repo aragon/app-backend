@@ -12,9 +12,9 @@ import DaoMemberMapping from '@models/schema/daoMemberMapping'
 import type Dao from '@models/schema/dao'
 import { fakeMemberBalance } from '@test/mock/fakeMemberBalance'
 import MemberBalance from '@models/schema/memberBalance'
-import { HexAddress, IPluginInterfaceType } from '@types'
-import { NetworksEnum } from '@types'
+import { HexAddress, IPluginInterfaceType, NetworksEnum } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import { PluginList } from '@test/mock/fakePlugins'
 
 describe('Controller: Member', () => {
   let sandbox: SinonSandbox
@@ -34,7 +34,7 @@ describe('Controller: Member', () => {
       ...(FakeDaoMemberMappings[0] as any),
       memberAddress: FakeMember.address,
       daoAddress: DaoList[0].address,
-      pluginAddress: FakeDaoMemberMappings[0].pluginAddress,
+      pluginAddress: '0xFakePluginAddress',
     }
 
     rawDao = {
@@ -92,7 +92,7 @@ describe('Controller: Member', () => {
       expect(response.metadata.totalRecords).to.eq(1)
     })
 
-    it('should call DaoMemberMapping.findAndPaginate when only daoAddress is provided', async () => {
+    it('should call DaoMemberMapping.findAndPaginate when pluginAddress is provided', async () => {
       const paginationParams = {
         search: '',
         pageSize: 10,
@@ -102,9 +102,18 @@ describe('Controller: Member', () => {
       }
 
       const extraParams = {
-        daoAddress: rawDaoMemberMapping.daoAddress,
+        pluginAddress: rawDaoMemberMapping.pluginAddress,
         network: rawDaoMemberMapping.network,
       }
+
+      await Models.Plugin.create({
+        ...PluginList[0],
+        id: `unique-plugin-${rawDaoMemberMapping.pluginAddress}`,
+        address: rawDaoMemberMapping.pluginAddress,
+        network: rawDaoMemberMapping.network,
+        tokenAddress: null,
+      })
+
       const pairParams = {}
 
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
@@ -369,7 +378,6 @@ describe('Controller: Member', () => {
       await Models.DaoMemberMapping.create({
         memberAddress: '0x0',
         pluginAddress: '0x1',
-        daoAddress: '0x0',
         network: NetworksEnum.arbitrumMainnet,
       })
 
@@ -377,13 +385,18 @@ describe('Controller: Member', () => {
       const pluginAddress = '0x1'
 
       const spyReq = sandbox.spy(Models.DaoMemberMapping, 'findOne')
-      const response = await MemberController.isMemberOfPlugin(memberAddress, pluginAddress)
+      const response = await MemberController.isMemberOfPlugin(
+        memberAddress,
+        pluginAddress,
+        NetworksEnum.arbitrumMainnet,
+      )
 
       expect(response).to.be.true
       expect(
         spyReq.calledOnceWith({
           memberAddress,
           pluginAddress,
+          network: NetworksEnum.arbitrumMainnet,
         }),
       ).to.be.true
     })
@@ -393,13 +406,14 @@ describe('Controller: Member', () => {
       const pluginAddress = '0x1'
 
       const spyReq = sandbox.spy(Models.DaoMemberMapping, 'findOne')
-      const response = await MemberController.isMemberOfPlugin(memberAddress, pluginAddress)
+      const response = await MemberController.isMemberOfPlugin(memberAddress, pluginAddress, NetworksEnum.zksyncMainnet)
 
       expect(response).to.be.false
       expect(
         spyReq.calledOnceWith({
           memberAddress,
           pluginAddress,
+          network: NetworksEnum.zksyncMainnet,
         }),
       ).to.be.true
     })

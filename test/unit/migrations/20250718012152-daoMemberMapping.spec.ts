@@ -5,7 +5,7 @@ import { expect } from 'chai'
 import migrateDaoMemberMapping from '@src/migrations/20250718012152-daoMemberMapping'
 import { startSession, connection } from 'mongoose'
 
-describe.only('migration: daoMemberMapping', () => {
+describe('migration: daoMemberMapping', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -18,7 +18,7 @@ describe.only('migration: daoMemberMapping', () => {
 
   describe('migrateTokenConfigIndexer', () => {
     it('should migrate token config indexer', async () => {
-      const TempModel = connection.model(tempCollectionName, Models.DaoMemberMapping.schema)
+      // const TempModel = connection.model(tempCollectionName, Models.DaoMemberMapping.schema)
 
       const dbData = [
         {

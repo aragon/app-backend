@@ -28,7 +28,7 @@ describe('Model: DaoMemberMappings', () => {
     }
     rawPlugin = {
       ...(PluginList[0] as any),
-      address: FakeDaoMemberMappings[0].pluginAddress,
+      address: '0xPluginAddress',
       daoAddress: FakeDaoMemberMappings[0].daoAddress,
       interfaceType: IPluginInterfaceType.multisig,
       tokenAddress: null, // Multisig plugin has no token
@@ -332,7 +332,6 @@ describe('Model: DaoMemberMappings', () => {
 
       const extraParams = {
         pluginAddress: rawDaoMemberMapping.pluginAddress,
-        daoAddress: rawDaoMemberMapping.daoAddress,
         network: rawDaoMemberMapping.network,
       }
 
@@ -364,6 +363,7 @@ describe('Model: DaoMemberMappings', () => {
 
       const extraParams = {
         pluginAddress: rawDaoMemberMapping.pluginAddress,
+        network: rawDaoMemberMapping.network,
       }
 
       const response = await Models.DaoMemberMapping.findAndPaginate({
@@ -378,7 +378,7 @@ describe('Model: DaoMemberMappings', () => {
       expect(response.metadata.totalRecords).to.eq(1)
     })
 
-    it('should find and paginate members with daoAddress only', async () => {
+    it('should find and paginate members with token only', async () => {
       const paginationParams = {
         search: '',
         pageSize: 10,
@@ -388,7 +388,8 @@ describe('Model: DaoMemberMappings', () => {
       }
 
       const extraParams = {
-        daoAddress: rawDaoMemberMapping.daoAddress,
+        tokenAddress: rawDaoMemberMapping.daoAddress,
+        network: rawDaoMemberMapping.network,
       }
 
       const response = await Models.DaoMemberMapping.findAndPaginate({
@@ -454,7 +455,8 @@ describe('Model: DaoMemberMappings', () => {
       }
 
       const extraParams = {
-        daoAddress: rawDaoMemberMapping.daoAddress,
+        pluginAddress: '0xSearchablePlugin',
+        network: rawDaoMemberMapping.network,
       }
 
       const response = await Models.DaoMemberMapping.findAndPaginate({
@@ -512,7 +514,7 @@ describe('Model: DaoMemberMappings', () => {
       const mapping1 = {
         network: rawDaoMemberMapping.network,
         memberAddress: member1.address,
-        pluginAddress: '0xPlugin1',
+        pluginAddress: '0xPlugin2',
         tokenAddress: null,
       }
 
@@ -537,7 +539,8 @@ describe('Model: DaoMemberMappings', () => {
       }
 
       const extraParams = {
-        daoAddress: rawDaoMemberMapping.daoAddress,
+        pluginAddress: '0xPlugin2',
+        network: rawDaoMemberMapping.network,
       }
 
       const response = await Models.DaoMemberMapping.findAndPaginate({
@@ -545,8 +548,8 @@ describe('Model: DaoMemberMappings', () => {
         extraParams,
       })
 
-      expect(response).to.have.property('data').with.lengthOf(3)
-      expect(response.metadata.totalRecords).to.eq(3)
+      expect(response).to.have.property('data').with.lengthOf(2)
+      expect(response.metadata.totalRecords).to.eq(2)
 
       const descendingParams = {
         ...paginationParams,
@@ -558,7 +561,7 @@ describe('Model: DaoMemberMappings', () => {
         extraParams,
       })
 
-      expect(descendingResponse.data).to.have.lengthOf(3)
+      expect(descendingResponse.data).to.have.lengthOf(2)
     })
 
     it('should return correct pageSize in response', async () => {

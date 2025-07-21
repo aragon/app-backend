@@ -9,8 +9,6 @@ import { FakeDaoMemberMappings } from '@test/mock/fakeDaoMappings'
 import DaoMemberMapping from '@models/schema/daoMemberMapping'
 import Token from '@models/schema/token'
 import { FakeToken } from '@test/mock/fakeToken'
-import { ITransferSide, ITransferType } from '@types'
-import { ethers } from 'ethers'
 
 describe('Model: Member Transaction', () => {
   let sandbox: SinonSandbox
@@ -45,6 +43,11 @@ describe('Model: Member Transaction', () => {
     await Models.DaoMemberMapping.create({
       ...rawDaoMemberMapping,
       memberAddress: rawMemberDelegationTx.address,
+      id: Models.DaoMemberMapping.getEntityId({
+        network: rawDaoMemberMapping.network,
+        memberAddress: rawMemberDelegationTx.address!,
+        tokenOrPluginAddress: rawMemberDelegationTx.tokenAddress!,
+      }),
     })
 
     await Models.Token.create(rawToken)
