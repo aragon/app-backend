@@ -120,60 +120,6 @@ describe('Helpers: Etherscan', () => {
     })
   })
 
-  describe('fetchContractSourceCode', () => {
-    it('should fetch contract source code successfully', async () => {
-      const mockSourceCode = [{ SourceCode: 'SourceCode', ContractName: 'ContractName', ABI: 'ABI' }]
-      const rpcCallStub = sandbox.stub(EtherscanHelper, '_rpCall').resolves(mockSourceCode)
-
-      const result = await EtherscanHelper.fetchContractSourceCode({
-        contractAddress: '0xf96e6FD76BD0A15580604e1Ea5818D448b1041C0',
-        network: NetworksEnum.ethereumSepolia,
-      })
-
-      expect(result?.[0]).to.deep.equal({
-        SourceCode: 'SourceCode',
-        ContractName: 'ContractName',
-        ABI: 'ABI',
-      })
-      expect(rpcCallStub.calledOnce).to.be.true
-      expect(rpcCallStub.firstCall.args[0]).to.deep.equal({
-        module: 'contract',
-        action: 'getsourcecode',
-        address: '0xf96e6FD76BD0A15580604e1Ea5818D448b1041C0',
-      })
-    })
-
-    it('should return null if the network is not configured', async () => {
-      const rpcCallStub = sandbox.stub(EtherscanHelper, '_rpCall').throws(new Error('Network not configured'))
-      const loggerStub = sandbox.stub(logger, 'error')
-
-      const result = await EtherscanHelper.fetchContractSourceCode({
-        contractAddress: '0xf96e6FD76BD0A15580604e1Ea5818D448b1041C0',
-        network: NetworksEnum.ethereumSepolia,
-      })
-
-      expect(result).to.be.null
-      expect(rpcCallStub.calledOnce).to.be.true
-      expect(loggerStub.calledOnce).to.be.true
-      expect(loggerStub.args[0][0]).to.include('Error fetchContractSourceCode')
-    })
-
-    it('should handle errors when fetching contract source code fails', async () => {
-      const expectedError = new Error('Failed to fetch contract source code')
-      sandbox.stub(EtherscanHelper, '_rpCall').rejects(expectedError)
-      const loggerStub = sandbox.stub(logger, 'error')
-
-      const result = await EtherscanHelper.fetchContractSourceCode({
-        contractAddress: '0xf96e6FD76BD0A15580604e1Ea5818D448b1041C0',
-        network: NetworksEnum.ethereumSepolia,
-      })
-
-      expect(result).to.be.null
-      expect(loggerStub.calledOnce).to.be.true
-      expect(loggerStub.args[0][0]).to.include('Error fetchContractSourceCode')
-    })
-  })
-
   describe('getTokenMetrics', () => {
     it('should fetch getTokenMetrics', async () => {
       const mockSupply = { result: '100000000000000000000000000', status: '1' }
@@ -219,50 +165,6 @@ describe('Helpers: Etherscan', () => {
       expect(result).to.equal('0')
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.firstCall.args[0]).to.equal('Error getTokenMetrics')
-    })
-  })
-
-  describe('fetchContractCreation', () => {
-    it('should fetch contract creation successfully', async () => {
-      const mockCreationData = [{ address: '0x123', txHash: '0xabc' }]
-      const rpcCallStub = sandbox.stub(EtherscanHelper, '_rpCall').resolves(mockCreationData)
-
-      const result = await EtherscanHelper.fetchContractCreation({
-        contractAddress: '0x123',
-        network: NetworksEnum.ethereumMainnet,
-      })
-
-      expect(result).to.deep.equal(mockCreationData)
-      expect(rpcCallStub.calledOnce).to.be.true
-      expect(rpcCallStub.firstCall.args[0]).to.deep.equal({
-        module: 'contract',
-        action: 'getcontractcreation',
-        contractaddresses: '0x123',
-      })
-    })
-
-    it('should return an empty array if the network is not configured', async () => {
-      const rpcCallStub = sandbox.stub(EtherscanHelper, '_rpCall').throws(new Error('Network not configured'))
-
-      const result = await EtherscanHelper.fetchContractCreation({
-        contractAddress: '0x123',
-        network: NetworksEnum.ethereumMainnet,
-      })
-
-      expect(result).to.deep.equal([])
-      expect(rpcCallStub.calledOnce).to.be.true
-    })
-
-    it('should handle errors when fetching contract creation fails', async () => {
-      const expectedError = new Error('Failed to fetch contract creation')
-      sandbox.stub(EtherscanHelper, '_rpCall').rejects(expectedError)
-
-      const result = await EtherscanHelper.fetchContractCreation({
-        contractAddress: '0x123',
-        network: NetworksEnum.ethereumMainnet,
-      })
-
-      expect(result).to.deep.equal([])
     })
   })
 })
