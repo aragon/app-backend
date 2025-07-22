@@ -134,7 +134,7 @@ describe('Integration: VeGovernance', () => {
       tokenAddress: tokenPlugin.tokenAddress,
       network,
     })
-    expect(locks[0].tokenId).to.eq(Number(depositMintNftId))
+    expect(locks[0].tokenId).to.eq(depositMintNftId.toString())
     expect(locks[0].memberAddress).to.eq(memberAddress)
 
     const exitQueueTx = '0x8ce4405c3c255f5bb4de37175328f92aa14c0ade8d6361125800a49b942230c2'
