@@ -1,5 +1,0 @@
-{
-    "terminal.integrated.commandsToSkipShell": [
-        "accessibility.signals.chatRequestSent"
-    ]
-}
