@@ -82,7 +82,7 @@ export const GovernanceErc20Handler = {
         }),
       ])
 
-      const tokenId = parsedEvent.args.tokenId !== undefined ? Number(parsedEvent.args.tokenId || 0) : undefined
+      const tokenId = parsedEvent.args.tokenId !== undefined ? (parsedEvent.args.tokenId || 0).toString() : undefined
 
       const memberTransaction = await DbTx.executeTxFn(async ({ session }) => {
         const tokenIds = memberTokenBalanceDb?.tokenIds || []

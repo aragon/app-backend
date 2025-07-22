@@ -50,7 +50,7 @@ export default class MemberBalance extends Model {
   public amount!: string
 
   @prop({ type: () => [Number], default: [] })
-  public tokenIds!: number[]
+  public tokenIds!: string[]
 
   @prop({ type: () => String, default: '0' })
   public votingPower!: string
@@ -133,7 +133,7 @@ export default class MemberBalance extends Model {
     }: {
       amount: string
       blockNumber: number
-      tokenId?: number
+      tokenId?: string
     },
     tOpts?: SaveOptions,
   ) {
@@ -160,7 +160,7 @@ export default class MemberBalance extends Model {
     }: {
       amount: string
       blockNumber: number
-      tokenId?: number
+      tokenId?: string
     },
     tOpts?: SaveOptions,
   ) {
