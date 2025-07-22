@@ -394,7 +394,7 @@ describe('GovernanceErc20Handler', () => {
       expect(memberBalance).to.be.not.null
       expect(memberBalance.amount).to.be.eq('12')
       expect(memberBalance.tokenIds.length).to.be.eq(1)
-      expect(memberBalance.tokenIds[0]).to.be.eq(parsedEvent.args.tokenId)
+      expect(memberBalance.tokenIds[0]).to.be.eq(parsedEvent.args.tokenId.toString())
 
       const memberTransaction = await Models.MemberTransaction.find({})
       expect(memberTransaction.length).to.be.eq(1)

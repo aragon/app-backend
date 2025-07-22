@@ -19,6 +19,15 @@ describe('Installation And Uninstallation Of Plugin Via Revoke And Grant ', () =
     sandbox && sandbox.restore()
   })
 
+  it.only('should install properly plugins and dao', async function () {
+    this.timeout(100000)
+    const daoAddress = '0x0AB0902f1d4AF089Af6dcDD512E9BFe40b20f679'
+    const network = NetworksEnum.ethereumSepolia
+    UnitDepUtils.stubRabbitmqSend(sandbox)
+
+    await UnitDepUtils.syncACompleteDao(daoAddress, network)
+  })
+
   it('should revoke and grant permission to plugin', async function () {
     this.timeout(1000000)
     const revokeTxHash = '0x9ef64afa23ef2ced4dbfec481c31dd7a17441fc6b6c586d14104a10e59342966'
