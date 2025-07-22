@@ -74,6 +74,20 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'https://api.routescan.io/v2/network/mainnet/evm',
       ),
     },
+    ZKSYNC_BLOCK_EXPLORER_API: {
+      MAINNET_BASE_URI: utils.configParser(
+        sourceConfig,
+        'string',
+        'ZKSYNC_BLOCK_EXPLORER_MAINNET_BASE_URI',
+        'https://block-explorer-api.mainnet.zksync.io/api',
+      ),
+      SEPOLIA_BASE_URI: utils.configParser(
+        sourceConfig,
+        'string',
+        'ZKSYNC_BLOCK_EXPLORER_SEPOLIA_BASE_URI',
+        'https://block-explorer-api.sepolia.zksync.dev/api',
+      ),
+    },
 
     ALCHEMY_PRICE_API: {
       URI: utils.configParser(sourceConfig, 'string', 'ALCHEMY_PRICE_API_URI', 'https://api.g.alchemy.com/prices/v1'),
@@ -420,7 +434,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       CONNECTION_RETRY: utils.configParser(sourceConfig, 'number', 'MONGO_DB_RETRY_CONNECTION_RETRY', 60),
       CONNECTION_TIMEOUT: utils.configParser(sourceConfig, 'number', 'MONGO_DB_RETRY_CONNECTION_TIMEOUT', 5000),
       CONNECTION_DELAY: utils.configParser(sourceConfig, 'number', 'MONGO_DB_RETRY_CONNECTION_DELAY', 1000),
-      UPDATE_INDEXES: utils.configParser(sourceConfig, 'bool', 'MONGO_DB_UPDATE_INDEXES', true),
     },
 
     LOG: {

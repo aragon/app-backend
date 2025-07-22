@@ -8,7 +8,7 @@ const llo = logger.logMeta.bind(null, { service: 'mongo' })
 
 const mongoOptions: ConnectOptions = {
   dbName: config.MONGO_DB.NAME,
-  autoIndex: false, // Don't build indexes
+  autoIndex: true, // Don't build indexes
   maxPoolSize: 50,
 }
 
@@ -33,8 +33,7 @@ const Mongo = {
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       mongoose.connection.on('connected', async () => {
         try {
-          await Mongo.updateIndexes()
-
+          await Promise.all(Object.keys(mongoose.models).map(async name => mongoose.models[name].syncIndexes()))
           logger.info('MongoDB connected', llo({ env: config.NODE_ENV }))
           resolve(mongoose)
         } catch (syncError) {
@@ -72,12 +71,6 @@ const Mongo = {
       )
       resolve(true)
     })
-  },
-
-  async updateIndexes(): Promise<void> {
-    if (config.MONGO_DB.UPDATE_INDEXES) {
-      await Promise.all(Object.keys(mongoose.models).map(async name => mongoose.models[name].syncIndexes()))
-    }
   },
 }
 
