@@ -7,7 +7,7 @@ import { Models } from '@dbModels'
 import { expect } from 'chai'
 import logger from '@logger'
 
-describe('Installation And Uninstallation Of Plugin Via Revoke And Grant ', () => {
+describe.skip('Installation And Uninstallation Of Plugin Via Revoke And Grant ', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -19,7 +19,7 @@ describe('Installation And Uninstallation Of Plugin Via Revoke And Grant ', () =
     sandbox && sandbox.restore()
   })
 
-  it.only('should debug broken tx in db related to plugin installation', async function () {
+  it('should debug broken tx in db related to plugin installation', async function () {
     this.timeout(10000000)
     const daoAddress = '0x58c76855073e460ee2703b5131ce938EBf70aE4B'
     const network = NetworksEnum.ethereumSepolia
