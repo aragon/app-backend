@@ -12,9 +12,7 @@ describe('Installation And Uninstallation Of Plugin Via Revoke And Grant ', () =
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
-    UnitDepUtils.stubRabbitmqSend(
-      sandbox
-    )
+    UnitDepUtils.stubRabbitmqSend(sandbox)
   })
 
   afterEach(() => {
@@ -26,10 +24,7 @@ describe('Installation And Uninstallation Of Plugin Via Revoke And Grant ', () =
     const daoAddress = '0x58c76855073e460ee2703b5131ce938EBf70aE4B'
     const network = NetworksEnum.ethereumSepolia
 
-    await UnitDepUtils.syncACompleteDao(
-      daoAddress,
-      network
-    )
+    await UnitDepUtils.syncACompleteDao(daoAddress, network)
 
     const plugins = await Models.Plugin.find({ daoAddress, network })
     logger.info('Plugins found:', plugins.length)
