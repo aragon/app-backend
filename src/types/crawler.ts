@@ -1,7 +1,7 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
-import type { IEnumIndexerService, IEnumIndexerServiceStatic } from '@src/types/services'
 import type { IFormattedLog, ILogInfo } from '@src/types/eventLogs'
 import { type Filter, type Log, type LogDescription } from 'ethers'
+import { type LogServicePattern } from '@src/types/indexer'
 
 export interface IIndexerConfigHandler {
   abi: any[]
@@ -32,7 +32,7 @@ export interface ICrawlParam {
   oneBlockPerTime?: boolean
   filterLogs?: (logs: any) => Promise<any>
   strategy?: ICrawStrategy
-  logService: IEnumIndexerService | IEnumIndexerServiceStatic | null
+  logService: LogServicePattern
   onError: (error: Error, log?: Log) => void
   skipLogProcessing?: boolean
   isTopicObject?: boolean
@@ -114,4 +114,11 @@ export enum IVotingEscrowAdapterLogs {
 export enum IExitQueueLogs {
   ExitQueued = 'ExitQueued',
   MinLockSet = 'MinLockSet',
+}
+
+export enum ISelectorPermissionLogs {
+  SelectorAllowed = 'SelectorAllowed',
+  SelectorDisallowed = 'SelectorDisallowed',
+  NativeTransfersAllowed = 'NativeTransfersAllowed',
+  NativeTransfersDisallowed = 'NativeTransfersDisallowed',
 }
