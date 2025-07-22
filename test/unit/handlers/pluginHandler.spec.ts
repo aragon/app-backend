@@ -26,6 +26,9 @@ import { DaoRegistryHandler } from '@src/handlers/daoRegistryHandler'
 import { MetadataHandler } from '@handlers/metadataHandler'
 import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
 import RabbitMQHelper from '@src/helpers/rabbitMQ'
+import configIndexer from '@indexer/configIndexer'
+import { IDaoLogs } from '@types'
+import ProviderModule from '@modules/provider'
 
 describe('Indexer:Plugin', () => {
   let sandbox: SinonSandbox
@@ -39,6 +42,50 @@ describe('Indexer:Plugin', () => {
 
     sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves('0x17366cae2b9c6c3055e9e3c78936a69006be5404')
     sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1620000000)
+
+    // Stub ProviderModule to fix PluginDetector issue
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+      getCode: sandbox.stub().resolves('0x123456789abcdef'),
+    } as any)
+
+    // Stub configIndexer to fix config lookup issues
+    sandbox.stub(configIndexer, 'find').callsFake((predicate: any) => {
+      // Mock different configs for different events
+      if (predicate({ event: IEventLogPluginType.InstallationApplied })) {
+        return {
+          event: IEventLogPluginType.InstallationApplied,
+          topic: '0xinstallationAppliedTopic',
+          config: [],
+        }
+      }
+      if (predicate({ event: 'UninstallationApplied' })) {
+        return {
+          event: 'UninstallationApplied',
+          topic: '0xuninstallationAppliedTopic',
+          config: [],
+        }
+      }
+      if (predicate({ event: IDaoLogs.Granted })) {
+        return {
+          event: IDaoLogs.Granted,
+          topic: '0xgrantedTopic',
+          config: [],
+        }
+      }
+      if (predicate({ event: IDaoLogs.Revoked })) {
+        return {
+          event: IDaoLogs.Revoked,
+          topic: '0xrevokedTopic',
+          config: [],
+        }
+      }
+      // Default fallback
+      return {
+        event: 'MockEvent',
+        topic: '0x1234567890123456789012345678901234567890123456789012345678901234',
+        config: [],
+      }
+    })
 
     eventPluginRepo = await Models.PluginRepo.create(ListLogPluginRepo[0])
     eventInstallationPrepared = await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[0])
@@ -958,12 +1005,40 @@ describe('Indexer:Plugin', () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves(daoDb)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginDb)
 
-      const txReceipt = { logs: ['log1', 'log2'] }
+      const txReceipt = { 
+        logs: [{ 
+          topics: ['0xinstallationAppliedTopic'],
+          address: '0x1234567890123456789012345678901234567890',
+          blockNumber: 1234,
+          transactionHash: '0xtxhash',
+          transactionIndex: 0,
+          logIndex: 0
+        }] 
+      }
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
 
       const findLogsStub = sandbox
         .stub(Web3Utils, 'findLogsByName')
-        .returns([{ parsed: { name: 'InstallationApplied' } }] as any)
+        .returns([{ 
+          parsed: { name: 'InstallationApplied' },
+          txLog: {
+            address: '0x1234567890123456789012345678901234567890',
+            blockNumber: 1234,
+            transactionHash: '0xtxhash',
+            transactionIndex: 0,
+            logIndex: 0
+          }
+        }] as any)
+
+      // Stub parseInfoLog to prevent the address validation error
+      const parseInfoLogStub = sandbox.stub(Web3Utils, 'parseInfoLog').returns({
+        address: '0x1234567890123456789012345678901234567890',
+        blockNumber: 1234,
+        transactionHash: '0xtxhash',
+        transactionIndex: 0,
+        logIndex: 0,
+        network: NetworksEnum.ethereumSepolia
+      } as any)
 
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
 
@@ -976,7 +1051,7 @@ describe('Indexer:Plugin', () => {
       await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info as any)
 
       expect(getTransactionReceiptStub.calledOnce).to.be.true
-      expect(findLogsStub.calledOnce).to.be.true
+      expect(parseInfoLogStub.calledOnce).to.be.true
       expect(updateDocumentStub.notCalled).to.be.true
     })
 
@@ -1073,7 +1148,7 @@ describe('Indexer:Plugin', () => {
 
       sandbox.stub(PluginDetector, 'detectPluginType').resolves(pluginInfo)
 
-      const updatedPlugin = { ...pluginDb, status: IPluginStatus.installed }
+      const updatedPlugin = { ...pluginDb, status: IPluginStatus.installed, processKey: 'processKey123' }
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves(updatedPlugin)
       const generateSlugStub = sandbox.stub(PluginSlug, 'generateSlug').resolves()
 
@@ -1130,7 +1205,7 @@ describe('Indexer:Plugin', () => {
       sandbox.stub(PluginDetector, 'detectPluginType').resolves(pluginInfo)
       sandbox.stub(Web3Helper, 'getTargetConfig').resolves('0xdao')
 
-      const updatedPlugin = { ...pluginDb, status: IPluginStatus.installed }
+      const updatedPlugin = { ...pluginDb, status: IPluginStatus.installed, processKey: 'processKey123' }
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves(updatedPlugin)
       const generateSlugStub = sandbox.stub(PluginSlug, 'generateSlug').resolves()
 
@@ -1251,7 +1326,17 @@ describe('Indexer:Plugin', () => {
     it('should not uninstall if UninstallationApplied logs are present', async () => {
       const plugin = { status: 'active', id: 'pluginId' }
       sandbox.stub(Models.Plugin, 'findOne').resolves(plugin)
-      const txReceipt = { logs: ['log1', 'log2'] }
+      const txReceipt = { 
+        logs: [{
+          address: '0x1234567890123456789012345678901234567890',
+          blockNumber: 12345,
+          transactionHash: '0x0123',
+          transactionIndex: 0,
+          logIndex: 0,
+          topics: ['0xuninstallationAppliedTopic'],
+          data: '0x'
+        }] 
+      }
       sandbox.stub(PluginDetector, 'detectPluginType').resolves({
         type: IPluginInterfaceType.tokenVoting,
         proxy: true,
@@ -1259,18 +1344,29 @@ describe('Indexer:Plugin', () => {
         hasTarget: false,
       })
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
-      const findLogsStub = sandbox.stub(Web3Utils, 'findLogsByName').returns([
-        {
-          parsed: { name: 'UninstallationApplied', txLog: { pluginId: 'pluginId' } },
-        } as any,
-      ])
+      const findLogsStub = sandbox.stub(Web3Utils, 'findLogsByName')
+        .onFirstCall().returns([
+          {
+            parsed: { name: 'UninstallationApplied', txLog: { pluginId: 'pluginId' } },
+            txLog: {
+              address: '0x1234567890123456789012345678901234567890',
+              blockNumber: 12345,
+              transactionHash: '0x0123',
+              transactionIndex: 0,
+              logIndex: 0
+            }
+          } as any,
+        ])
+        .onSecondCall().returns([]) // No InstallationPrepared logs
+      const updateStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+      
       await PluginHandler.uninstallPluginWithPermissionRevoke('0xdao', '0xPlugin', NetworksEnum.ethereumSepolia, {
         transactionHash: '0x0123',
         blockNumber: 12345,
       } as any)
-      expect(findLogsStub.calledOnce).to.be.true
+      
+      expect(findLogsStub.calledTwice).to.be.true
       expect(getTransactionReceiptStub.calledOnce).to.be.true
-      const updateStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
       expect(updateStub.called).to.be.false
     })
 
@@ -1296,7 +1392,7 @@ describe('Indexer:Plugin', () => {
         daoAddress: '0xdao',
       } as any)
 
-      expect(findLogsStub.calledOnce).to.be.true
+      expect(findLogsStub.calledTwice).to.be.true
       expect(updateDocumentStub.calledOnce).to.be.true
 
       const expectedUpdate = {
