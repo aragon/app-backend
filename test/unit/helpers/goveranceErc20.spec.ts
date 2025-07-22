@@ -9,7 +9,7 @@ import GovernanceErc20Helper from '@helpers/governanceErc20'
 import { expect } from 'chai'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
 import utils from '@helpers/utils'
-import {NetworkHelper} from "@helpers/network";
+import { NetworkHelper } from '@helpers/network'
 
 describe('Helpers: GovernanceErc20', () => {
   let sandbox: SinonSandbox
@@ -359,7 +359,9 @@ describe('Helpers: GovernanceErc20', () => {
         blockTimestamp: 1622547800,
         hasClockMode: true,
       })
-      expect(getPastTotalSupplyStub.args[0][0]).to.eq(1622547800 - NetworkHelper.getAverageBlockTime(NetworksEnum.ethereumMainnet))
+      expect(getPastTotalSupplyStub.args[0][0]).to.eq(
+        1622547800 - NetworkHelper.getAverageBlockTime(NetworksEnum.ethereumMainnet),
+      )
       expect(result).to.eq('1000000')
     })
   })
