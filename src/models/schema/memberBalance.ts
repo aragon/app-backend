@@ -49,7 +49,7 @@ export default class MemberBalance extends Model {
   @prop({ type: () => String, default: '0' })
   public amount!: string
 
-  @prop({ type: () => [Number], default: [] })
+  @prop({ type: () => [String], default: [] })
   public tokenIds!: string[]
 
   @prop({ type: () => String, default: '0' })

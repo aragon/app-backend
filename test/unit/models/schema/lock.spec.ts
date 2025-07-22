@@ -420,7 +420,7 @@ describe('Model: Lock', () => {
         ...rawLock,
         id: 'lock-active-1',
         transactionHash: '0xactive1111111111111111111111111111111111',
-        tokenId: 101,
+        tokenId: '101',
         memberAddress: '0xActive1234567890abcdef1234567890abcdef',
         tokenAddress,
         amount: '1000000000000000000', // 1 token
@@ -432,7 +432,7 @@ describe('Model: Lock', () => {
         ...rawLock,
         id: 'lock-active-2',
         transactionHash: '0xactive2222222222222222222222222222222222',
-        tokenId: 102,
+        tokenId: '102',
         memberAddress: '0xActive2234567890abcdef1234567890abcdef',
         tokenAddress,
         amount: '2000000000000000000', // 2 tokens
@@ -445,7 +445,7 @@ describe('Model: Lock', () => {
         ...rawLock,
         id: 'lock-inactive',
         transactionHash: '0xinactive333333333333333333333333333333',
-        tokenId: 103,
+        tokenId: '103',
         memberAddress: '0xInactive234567890abcdef1234567890abcdef',
         tokenAddress,
         amount: '1500000000000000000', // 1.5 tokens
@@ -459,7 +459,7 @@ describe('Model: Lock', () => {
         address: '0xActive1234567890abcdef1234567890abcdef',
         tokenAddress,
         amount: '1000000000000000000',
-        tokenIds: [101], // Must match the tokenId from the lock
+        tokenIds: ['101'], // Must match the tokenId from the lock
         votingPower: '0',
       })
 
@@ -468,11 +468,9 @@ describe('Model: Lock', () => {
         address: '0xActive2234567890abcdef1234567890abcdef',
         tokenAddress,
         amount: '2000000000000000000',
-        tokenIds: [102], // Must match the tokenId from the lock
+        tokenIds: ['102'], // Must match the tokenId from the lock
         votingPower: '0',
       })
-
-      // Don't create member balance for inactive member to ensure it's filtered out
 
       const paginationParams = {
         pageSize: 10,
@@ -819,7 +817,7 @@ describe('Model: Lock', () => {
         address: memberAddress,
         tokenAddress,
         amount: '1000000000000000000',
-        tokenIds: [501],
+        tokenIds: ['501'],
         votingPower: '0',
       })
 
