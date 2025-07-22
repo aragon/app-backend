@@ -88,6 +88,8 @@ describe('GovernanceErc20Handler', () => {
         },
       ]
 
+      const loggerStub = sandbox.stub(logger, 'verbose')
+
       // Don't stub createMember - let it actually create the member
       const getPastVotesStub = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('2000')
       const findExistingLogStub = sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(false)
@@ -139,6 +141,17 @@ describe('GovernanceErc20Handler', () => {
       expect(rabbitMqStub.calledTwice).to.be.true
       expect(rabbitMqStub.args[0][1].id).to.be.eq(plugins[0].daoAddress)
       expect(rabbitMqStub.args[1][1].id).to.be.eq(plugins[1].daoAddress)
+      expect(
+        getPastVotesStub.calledOnceWith(
+          parsedEvent.args.to,
+          info.address,
+          info.blockNumber,
+          1630425600,
+          info.network,
+          fakeToken.hasClockMode,
+        ),
+      ).to.be.true
+      expect(loggerStub.callCount).to.be.eq(4)
     })
 
     it('should handle outgoing ERC20 transfer event and remove member from DAO', async () => {
@@ -394,7 +407,7 @@ describe('GovernanceErc20Handler', () => {
       expect(memberBalance).to.be.not.null
       expect(memberBalance.amount).to.be.eq('12')
       expect(memberBalance.tokenIds.length).to.be.eq(1)
-      expect(memberBalance.tokenIds[0]).to.be.eq(parsedEvent.args.tokenId)
+      expect(memberBalance.tokenIds[0]).to.be.eq(parsedEvent.args.tokenId.toString())
 
       const memberTransaction = await Models.MemberTransaction.find({})
       expect(memberTransaction.length).to.be.eq(1)

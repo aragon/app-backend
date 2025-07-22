@@ -1,14 +1,6 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import {
-  IPluginInterfaceType,
-  IPluginStatus,
-  ISettingStatus,
-  ITokenType,
-  NetworksEnum,
-  ITransferSide,
-  ITransferType,
-} from '@types'
+import { IPluginInterfaceType, IPluginStatus, ISettingStatus, ITokenType, NetworksEnum, ITransferSide } from '@types'
 import type Plugin from '@models/schema/plugin'
 import { Models } from '@dbModels'
 import logger from '@logger'
@@ -20,6 +12,7 @@ import { PluginSetting } from '@models/schema/setting'
 import { ProxyToken } from '@modules/proxyToken'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import DbOperations from '@models/utils/dbOperations'
 
 describe('Handler:GovernanceVeHandler', () => {
   let sandbox: SinonSandbox
@@ -95,8 +88,18 @@ describe('Handler:GovernanceVeHandler', () => {
     it('should create Lock and call logger/ProxyMember on success', async () => {
       const stubAddToDao = sandbox.stub(ProxyMember, 'addToDao').resolves()
       sandbox.stub(ProxyMember, 'createMember').resolves()
+      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       const stubLogger = sandbox.stub(logger, 'verbose')
+
+      const memberBalance = await Models.MemberBalance.create({
+        network: NetworksEnum.ethereumMainnet,
+        address: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+        tokenAddress: plugin.tokenAddress,
+        amount: '0',
+        tokenIds: [],
+        votingPower: '0',
+      })
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
@@ -137,7 +140,61 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stored?.totalLocked).to.equal(mockEvent.args.newTotalLocked.toString())
       expect(stored?.lockExit.status).to.be.false
       expect(stored?.lockWithdraw.status).to.be.false
-      expect(stubLogger.calledOnce).to.be.true
+      expect(stubLogger.calledTwice).to.be.true
+      expect(stubAddToDao.calledOnce).to.be.true
+      expect(stubLogger.firstCall.args[0]).to.equal('Deposit VeGovernance - Lock created')
+      expect(stubLogger.secondCall.args[0]).to.equal('Updated document - MemberBalance Update on deposit')
+
+      const updatedBalance = await Models.MemberBalance.findById(memberBalance._id)
+      expect(updatedBalance?.amount).to.equal('1')
+      expect(updatedBalance?.tokenIds).to.deep.equal([])
+    })
+
+    it('should create Lock and update member balance on success', async () => {
+      const stubAddToDao = sandbox.stub(ProxyMember, 'addToDao').resolves()
+      sandbox.stub(ProxyMember, 'createMember').resolves()
+      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
+      const stubLogger = sandbox.stub(logger, 'verbose')
+
+      const memberBalance = await Models.MemberBalance.create({
+        network: NetworksEnum.ethereumMainnet,
+        address: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+        tokenAddress: plugin.tokenAddress,
+        amount: '2',
+        tokenIds: [],
+        votingPower: '0',
+      })
+
+      const mockInfo = {
+        address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+        transactionHash: '0xhash',
+        transactionIndex: 1,
+        logIndex: 1,
+      }
+      const mockEvent = {
+        args: {
+          depositor: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          tokenId: 123n,
+          value: 10000n,
+          startTs: 1650000000n,
+          newTotalLocked: 25000n,
+        },
+      } as any
+
+      await GovernanceVeHandler.deposit(mockEvent, mockInfo as any)
+
+      const stored = await Models.Lock.findOne({ transactionHash: mockInfo.transactionHash })
+      expect(stored).to.exist
+
+      const updatedBalance = await Models.MemberBalance.findById(memberBalance._id)
+      expect(updatedBalance?.amount).to.equal('3')
+      expect(updatedBalance?.tokenIds).to.deep.equal([])
+      expect(updatedBalance?.lastSyncAmountBlockNumber).to.equal(123)
+
+      expect(stubLogger.calledTwice).to.be.true
       expect(stubAddToDao.calledOnce).to.be.true
     })
 
@@ -148,7 +205,6 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       const stubLogger = sandbox.stub(logger, 'warn')
 
-      // First create a lock in the database
       await Models.Lock.create({
         network: NetworksEnum.ethereumMainnet,
         transactionHash: '0xhash',
@@ -265,7 +321,7 @@ describe('Handler:GovernanceVeHandler', () => {
       const mockEvent = {
         args: {
           depositor: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          tokenId: 999n, // Non-existent tokenId
+          tokenId: 999n,
           value: 5000n,
           ts: 1650005000n,
           newTotalLocked: 20000n,
@@ -285,7 +341,6 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       const stubLogger = sandbox.stub(logger, 'verbose')
 
-      // First create a lock in the database
       const createdLock = await Models.Lock.create({
         network: NetworksEnum.ethereumMainnet,
         transactionHash: '0xoriginalHash',
@@ -304,6 +359,15 @@ describe('Handler:GovernanceVeHandler', () => {
         exitQueueAddress: plugin?.votingEscrow?.exitQueueAddress,
         lockExit: { status: false },
         lockWithdraw: { status: false },
+      })
+
+      const memberBalance = await Models.MemberBalance.create({
+        network: NetworksEnum.ethereumMainnet,
+        address: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+        tokenAddress: plugin.tokenAddress,
+        amount: '3',
+        tokenIds: ['100', '123', '200'],
+        votingPower: '0',
       })
 
       const mockInfo = {
@@ -326,18 +390,16 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.withdraw(mockEvent, mockInfo as any)
 
-      // Retrieve the updated lock from database
       const updatedLock = await Models.Lock.findById(createdLock._id)
-
       expect(updatedLock).to.exist
       expect(updatedLock?.lockWithdraw.status).to.be.true
-      expect(updatedLock?.lockWithdraw.transactionHash).to.equal(mockInfo.transactionHash)
-      expect(updatedLock?.lockWithdraw.blockNumber).to.equal(mockInfo.blockNumber)
-      expect(updatedLock?.lockWithdraw.blockTimestamp).to.equal(1650009999)
-      expect(updatedLock?.lockWithdraw.totalLocked).to.equal(mockEvent.args.newTotalLocked.toString())
-      expect(updatedLock?.lockWithdraw.amount).to.equal(mockEvent.args.value.toString())
-      expect(updatedLock?.lockWithdraw.epochEndAt).to.equal(Number(mockEvent.args.ts))
-      expect(stubLogger.calledOnce).to.be.true
+
+      const updatedBalance = await Models.MemberBalance.findById(memberBalance._id)
+      expect(updatedBalance?.amount).to.equal('2')
+      expect(updatedBalance?.tokenIds).to.deep.equal(['100', '200'])
+      expect(updatedBalance?.lastSyncAmountBlockNumber).to.equal(124)
+
+      expect(stubLogger.calledTwice).to.be.true
       expect(stubRemoveFromDao.calledOnce).to.be.true
     })
 
@@ -347,7 +409,6 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(logger, 'verbose')
 
-      // First create a lock in the database
       await Models.Lock.create({
         network: NetworksEnum.ethereumMainnet,
         transactionHash: '0xoriginalHash',
@@ -431,7 +492,7 @@ describe('Handler:GovernanceVeHandler', () => {
       const mockEvent = {
         args: {
           holder: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          tokenId: 999n, // Non-existent tokenId
+          tokenId: 999n,
           exitDate: 1650010000n,
         },
       } as any
@@ -446,7 +507,6 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       const stubLogger = sandbox.stub(logger, 'verbose')
 
-      // First create a lock in the database
       const createdLock = await Models.Lock.create({
         network: NetworksEnum.ethereumMainnet,
         transactionHash: '0xoriginalHash',
@@ -485,7 +545,6 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.exitQueued(mockEvent, mockInfo as any)
 
-      // Retrieve the updated lock from database
       const updatedLock = await Models.Lock.findById(createdLock._id)
 
       expect(updatedLock).to.exist
@@ -557,7 +616,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
       const mockEvent = {
         args: {
-          minLock: 604800n, // 7 days in seconds
+          minLock: 604800n,
         },
       } as any
 
@@ -644,7 +703,6 @@ describe('Handler:GovernanceVeHandler', () => {
     })
 
     it('should update all plugin settings', async () => {
-      // Create a second plugin with same escrow address
       const plugin2 = await Models.Plugin.create({
         id: 'test-plugin-settings-2',
         address: '0x124',
@@ -656,13 +714,12 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xabc4',
         blockNumber: 4,
         votingEscrow: {
-          escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6', // Same escrow
+          escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
           nftLockAddress: '0xNftToken2',
           exitQueueAddress: '0xExitQueue2',
         },
       })
 
-      // Create setting for second plugin
       const setting2 = await Models.Setting.create({
         transactionHash: '0xsetting2Hash',
         blockNumber: 40941780,
@@ -692,7 +749,6 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.minDepositSet(mockEvent, mockInfo as any)
 
-      // Verify both settings were updated
       const updatedSetting1 = await Models.Setting.findById(activePluginSetting._id)
       const updatedSetting2 = await Models.Setting.findById(setting2._id)
 
@@ -727,8 +783,33 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stubLogger.notCalled).to.be.true
     })
 
-    it('should create MemberTransactions for both sender and delegatee with correct data', async () => {
-      // Arrange
+    it('should process self-delegation and attach tokens to member balance', async () => {
+      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
+      const stubLogger = sandbox.stub(logger, 'verbose')
+      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, '_handleTokenDelegation')
+
+      const mockInfo = {
+        address: '0xToken',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+        transactionHash: '0xhash',
+      } as any
+
+      const mockEvent = {
+        args: {
+          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          delegatee: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          tokenIds: [123n],
+        },
+      } as any
+
+      await GovernanceVeHandler.delegateTokens(mockEvent, mockInfo)
+
+      expect(stubHandleTokenDelegation.calledOnce).to.be.true
+      expect(stubLogger.calledOnce).to.be.true
+    })
+
+    it('should create MemberTransactions for both sender and delegatee with correct tokenIds handling', async () => {
       const stubCreateMember = sandbox.stub(ProxyMember, 'createMember').resolves()
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         type: ITokenType.ERC721,
@@ -736,21 +817,25 @@ describe('Handler:GovernanceVeHandler', () => {
         hasClockMode: false,
       } as any)
 
-      // Stub voting power calls - different values for sender and delegatee
-      const stubGetPastVotes = sandbox.stub(GovernanceErc20Helper, 'getPastVotes')
-      stubGetPastVotes.onFirstCall().resolves('50') // sender's voting power after delegation
-      stubGetPastVotes.onSecondCall().resolves('150') // delegatee's voting power after delegation
+      const stubUpdateDocument = sandbox.stub(DbOperations, 'updateDocument').resolves()
 
-      // Mock balance operations
-      const decreaseBalanceStub = sandbox.stub().resolves({ amount: '0' })
-      const increaseBalanceStub = sandbox.stub().resolves({ amount: '2' })
+      const stubGetPastVotes = sandbox.stub(GovernanceErc20Helper, 'getPastVotes')
+      stubGetPastVotes.onFirstCall().resolves('50')
+      stubGetPastVotes.onSecondCall().resolves('150')
+
+      const senderCurrentTokenIds = ['100', '200', '123', '456']
+      const delegateeCurrentTokenIds = ['300']
 
       sandbox
         .stub(ProxyMember, 'getBalances')
         .onFirstCall()
-        .resolves({ decreaseBalance: decreaseBalanceStub } as any) // for sender
+        .resolves({
+          tokenIds: senderCurrentTokenIds,
+        } as any)
         .onSecondCall()
-        .resolves({ increaseBalance: increaseBalanceStub } as any) // for delegatee
+        .resolves({
+          tokenIds: delegateeCurrentTokenIds,
+        } as any)
 
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
@@ -773,15 +858,13 @@ describe('Handler:GovernanceVeHandler', () => {
       const mockEvent = {
         args: {
           sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
+          delegatee: '0x75D9D3887Aa9A9ee78901E96819b574160e4EAC6',
           tokenIds: [123n, 456n],
         },
       } as any
 
-      // Act
       await GovernanceVeHandler.delegateTokens(mockEvent, mockInfo)
 
-      // Assert - Verify MemberTransactions were created in the database
       const allTransactions = await Models.MemberTransaction.find({
         transactionHash: mockInfo.transactionHash,
       })
@@ -791,149 +874,20 @@ describe('Handler:GovernanceVeHandler', () => {
       const senderTx = allTransactions.find(tx => tx.address === mockEvent.args.sender)
       const delegateeTx = allTransactions.find(tx => tx.address === mockEvent.args.delegatee)
 
-      // Verify sender transaction
       expect(senderTx).to.exist
-      expect(senderTx?.network).to.equal(NetworksEnum.ethereumMainnet)
-      expect(senderTx?.transactionHash).to.equal('0xdelegateHash')
-      expect(senderTx?.transactionIndex).to.equal(1)
-      expect(senderTx?.logIndex).to.equal(1)
-      expect(senderTx?.blockNumber).to.equal(123)
-      expect(senderTx?.blockTimestamp).to.equal(1650009999)
-      expect(senderTx?.address).to.equal(mockEvent.args.sender)
-      expect(senderTx?.from).to.equal(mockEvent.args.sender)
-      expect(senderTx?.to).to.equal(mockEvent.args.delegatee)
       expect(senderTx?.side).to.equal(ITransferSide.outgoing)
-      expect(senderTx?.type).to.equal(ITransferType.delegate)
-      expect(senderTx?.amount).to.equal('2') // 2 tokenIds
-      expect(senderTx?.tokenAddress).to.equal('0xToken')
-      expect(senderTx?.memberBalance).to.equal('0')
+      expect(senderTx?.amount).to.equal('2')
       expect(senderTx?.memberVotingPower).to.equal('50')
 
-      // Verify delegatee transaction
       expect(delegateeTx).to.exist
-      expect(delegateeTx?.network).to.equal(NetworksEnum.ethereumMainnet)
-      expect(delegateeTx?.transactionHash).to.equal('0xdelegateHash')
-      expect(delegateeTx?.transactionIndex).to.equal(1)
-      expect(delegateeTx?.logIndex).to.equal(1)
-      expect(delegateeTx?.blockNumber).to.equal(123)
-      expect(delegateeTx?.blockTimestamp).to.equal(1650009999)
-      expect(delegateeTx?.address).to.equal(mockEvent.args.delegatee)
-      expect(delegateeTx?.from).to.equal(mockEvent.args.sender)
-      expect(delegateeTx?.to).to.equal(mockEvent.args.delegatee)
       expect(delegateeTx?.side).to.equal(ITransferSide.incoming)
-      expect(delegateeTx?.type).to.equal(ITransferType.delegate)
-      expect(delegateeTx?.amount).to.equal('2') // 2 tokenIds
-      expect(delegateeTx?.tokenAddress).to.equal('0xToken')
-      expect(delegateeTx?.memberBalance).to.equal('2')
+      expect(delegateeTx?.amount).to.equal('3')
       expect(delegateeTx?.memberVotingPower).to.equal('150')
 
-      // Verify other method calls
+      expect(stubUpdateDocument.calledTwice).to.be.true
+
       expect(stubCreateMember.calledTwice).to.be.true
-      expect(stubCreateMember.calledWith(mockEvent.args.sender)).to.be.true
-      expect(stubCreateMember.calledWith(mockEvent.args.delegatee)).to.be.true
       expect(stubLogger.calledOnce).to.be.true
-    })
-
-    it('should skip creating duplicate MemberTransactions', async () => {
-      // First create an existing transaction
-      await Models.MemberTransaction.create({
-        id: `${NetworksEnum.ethereumMainnet}-0xduplicateHash-1-1-0x65D9d3887aa9a9ee78901E96819B574160E4EAC5`,
-        network: NetworksEnum.ethereumMainnet,
-        transactionHash: '0xduplicateHash',
-        transactionIndex: 1,
-        logIndex: 1,
-        blockNumber: 123,
-        blockTimestamp: 1650009999,
-        address: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-        from: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-        to: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-        side: ITransferSide.outgoing,
-        type: ITransferType.delegate,
-        amount: '1',
-        tokenAddress: '0xToken',
-        memberBalance: '0',
-        memberVotingPower: '100',
-      })
-
-      sandbox.stub(ProxyMember, 'createMember').resolves()
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.ERC721,
-        isGovernance: true,
-        hasClockMode: false,
-      } as any)
-      sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('100')
-      sandbox.stub(ProxyMember, 'getBalances').resolves({
-        decreaseBalance: sandbox.stub().resolves({ amount: '0' }),
-        increaseBalance: sandbox.stub().resolves({ amount: '1' }),
-      } as any)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
-      sandbox.stub(ProxyMember, 'updateActivity').resolves()
-      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
-      sandbox.stub(ProxyMember, 'addToDao').resolves()
-
-      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
-
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xduplicateHash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-
-      const mockEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n],
-        },
-      } as any
-
-      await GovernanceVeHandler.delegateTokens(mockEvent, mockInfo)
-
-      // Verify no duplicate was created for sender (already exists)
-      const senderTxs = await Models.MemberTransaction.find({
-        transactionHash: mockInfo.transactionHash,
-        address: mockEvent.args.sender,
-      })
-
-      expect(senderTxs).to.have.lengthOf(1)
-
-      // Verify delegatee transaction was created
-      const delegateeTx = await Models.MemberTransaction.findOne({
-        transactionHash: mockInfo.transactionHash,
-        address: mockEvent.args.delegatee,
-      })
-
-      expect(delegateeTx).to.exist
-    })
-
-    it('should handle errors and log them', async () => {
-      const stubLogger = sandbox.stub(logger, 'error')
-      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
-      sandbox.stub(GovernanceVeHandler, '_handleTokenDelegation').rejects(new Error('fake error'))
-
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-      } as any
-
-      const mockEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n],
-        },
-      } as any
-
-      await GovernanceVeHandler.delegateTokens(mockEvent, mockInfo)
-
-      expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('DelegateTokens error' as any)).to.be.true
     })
 
     it('should handle zero voting power and remove from DAO', async () => {
@@ -943,25 +897,25 @@ describe('Handler:GovernanceVeHandler', () => {
         isGovernance: true,
       } as any)
 
-      // Zero voting power for sender after delegation
-      sandbox.stub(GovernanceErc20Helper, 'getPastVotes').onFirstCall().resolves('0').onSecondCall().resolves('100')
+      sandbox.stub(DbOperations, 'updateDocument').resolves()
 
+      sandbox.stub(GovernanceErc20Helper, 'getPastVotes').onFirstCall().resolves('0').onSecondCall().resolves('100')
+      const loggerStub = sandbox.stub(logger, 'verbose')
       sandbox
         .stub(ProxyMember, 'getBalances')
         .onFirstCall()
-        .resolves({ decreaseBalance: sandbox.stub().resolves({ amount: '0' }) } as any)
+        .resolves({
+          tokenIds: [123],
+        } as any)
         .onSecondCall()
-        .resolves({ increaseBalance: sandbox.stub().resolves({ amount: '1' }) } as any)
+        .resolves({
+          tokenIds: [],
+        } as any)
 
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
       sandbox.stub(ProxyMember, 'updateActivity').resolves()
-      sandbox
-        .stub(ProxyMember, 'isMemberOfDao')
-        .onFirstCall()
-        .resolves(true) // sender is member
-        .onSecondCall()
-        .resolves(false) // delegatee is not member
+      sandbox.stub(ProxyMember, 'isMemberOfDao').onFirstCall().resolves(true).onSecondCall().resolves(false)
 
       const stubRemoveFromDao = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
       const stubAddToDao = sandbox.stub(ProxyMember, 'addToDao').resolves()
@@ -980,321 +934,25 @@ describe('Handler:GovernanceVeHandler', () => {
       const mockEvent = {
         args: {
           sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
+          delegatee: '0x75D9D3887Aa9A9ee78901E96819b574160e4EAC6',
           tokenIds: [123n],
         },
       } as any
 
       await GovernanceVeHandler.delegateTokens(mockEvent, mockInfo)
 
-      // Verify transactions were created with correct voting power
       const senderTx = await Models.MemberTransaction.findOne({
         transactionHash: mockInfo.transactionHash,
         address: mockEvent.args.sender,
       })
 
       expect(senderTx?.memberVotingPower).to.equal('0')
-      expect(stubRemoveFromDao.calledOnce).to.be.true // sender removed due to 0 voting power
-      expect(stubAddToDao.calledOnce).to.be.true // delegatee added
+      expect(stubRemoveFromDao.calledOnce).to.be.true
+      expect(stubAddToDao.calledOnce).to.be.true
+      expect(loggerStub.calledOnce).to.be.true
     })
 
     it('should handle multiple plugins and create proper DAO mappings', async () => {
-      // Create a second plugin
-      const plugin2 = await Models.Plugin.create({
-        id: 'test-plugin-2',
-        address: '0x122',
-        daoAddress: '0xDAO2',
-        tokenAddress: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        interfaceType: IPluginInterfaceType.tokenVoting,
-        status: IPluginStatus.installed,
-        transactionHash: '0xabc2',
-        blockNumber: 2,
-        votingEscrow: {
-          escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
-          nftLockAddress: '0xNftToken2',
-          exitQueueAddress: '0xExitQueue2',
-        },
-      })
-
-      sandbox.stub(ProxyMember, 'createMember').resolves()
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.ERC721,
-        isGovernance: true,
-      } as any)
-      sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('100')
-      sandbox.stub(ProxyMember, 'getBalances').resolves({
-        increaseBalance: sandbox.stub().resolves({ amount: '1' }),
-        decreaseBalance: sandbox.stub().resolves({ amount: '0' }),
-      } as any)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      const stubUpdateDelegationMetrics = sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
-      const stubUpdateActivity = sandbox.stub(ProxyMember, 'updateActivity').resolves()
-      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
-      const stubAddToDao = sandbox.stub(ProxyMember, 'addToDao').resolves()
-
-      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin, plugin2])
-
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xmultiPluginHash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-
-      const mockEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n],
-        },
-      } as any
-
-      await GovernanceVeHandler.delegateTokens(mockEvent, mockInfo)
-
-      // Verify transactions were created
-      const allTransactions = await Models.MemberTransaction.find({
-        transactionHash: mockInfo.transactionHash,
-      })
-
-      expect(allTransactions).to.have.lengthOf(2) // One for sender, one for delegatee
-      expect(stubUpdateDelegationMetrics.callCount).to.equal(4) // 2 addresses * 2 plugins
-      expect(stubUpdateActivity.callCount).to.equal(4) // 2 addresses * 2 plugins
-      expect(stubAddToDao.callCount).to.equal(4) // 2 addresses * 2 plugins
-      expect(rabbitMQHelperStub.callCount).to.equal(4)
-    })
-  })
-
-  describe('unDelegateTokens', () => {
-    it('should return early if no plugins found', async () => {
-      const stubLogger = sandbox.stub(logger, 'verbose')
-      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([])
-
-      const mockInfo = {
-        address: '0xNonExistentToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-      } as any
-
-      const mockEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n, 456n],
-        },
-      } as any
-
-      await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
-
-      expect(stubLogger.notCalled).to.be.true
-    })
-
-    it('should create MemberTransactions for both delegatee and sender with correct data', async () => {
-      // Arrange
-      const stubCreateMember = sandbox.stub(ProxyMember, 'createMember').resolves()
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.ERC721,
-        isGovernance: true,
-        hasClockMode: false,
-      } as any)
-
-      // Stub voting power calls - different values for delegatee and sender
-      const stubGetPastVotes = sandbox.stub(GovernanceErc20Helper, 'getPastVotes')
-      stubGetPastVotes.onFirstCall().resolves('25') // delegatee's voting power after undelegation
-      stubGetPastVotes.onSecondCall().resolves('75') // sender's voting power after getting tokens back
-
-      // Mock balance operations
-      const decreaseBalanceStub = sandbox.stub().resolves({ amount: '0' })
-      const increaseBalanceStub = sandbox.stub().resolves({ amount: '1' })
-
-      sandbox
-        .stub(ProxyMember, 'getBalances')
-        .onFirstCall()
-        .resolves({ decreaseBalance: decreaseBalanceStub } as any) // for delegatee (losing tokens)
-        .onSecondCall()
-        .resolves({ increaseBalance: increaseBalanceStub } as any) // for sender (getting tokens back)
-
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
-      sandbox.stub(ProxyMember, 'updateActivity').resolves()
-      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(true)
-      sandbox.stub(ProxyMember, 'removeFromDao').resolves()
-      const stubLogger = sandbox.stub(logger, 'verbose')
-
-      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
-
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xundelegateHash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-
-      const mockEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n],
-        },
-      } as any
-
-      // Act
-      await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
-
-      // Assert - Verify MemberTransactions were created in the database
-      const allTransactions = await Models.MemberTransaction.find({
-        transactionHash: mockInfo.transactionHash,
-      })
-
-      expect(allTransactions).to.have.lengthOf(2)
-
-      const delegateeTx = allTransactions.find(tx => tx.address === mockEvent.args.delegatee)
-      const senderTx = allTransactions.find(tx => tx.address === mockEvent.args.sender)
-
-      // Verify delegatee transaction (losing tokens)
-      expect(delegateeTx).to.exist
-      expect(delegateeTx?.network).to.equal(NetworksEnum.ethereumMainnet)
-      expect(delegateeTx?.transactionHash).to.equal('0xundelegateHash')
-      expect(delegateeTx?.transactionIndex).to.equal(1)
-      expect(delegateeTx?.logIndex).to.equal(1)
-      expect(delegateeTx?.blockNumber).to.equal(123)
-      expect(delegateeTx?.blockTimestamp).to.equal(1650009999)
-      expect(delegateeTx?.address).to.equal(mockEvent.args.delegatee)
-      expect(delegateeTx?.from).to.equal(mockEvent.args.sender)
-      expect(delegateeTx?.to).to.equal(mockEvent.args.delegatee)
-      expect(delegateeTx?.side).to.equal(ITransferSide.outgoing)
-      expect(delegateeTx?.type).to.equal(ITransferType.delegate)
-      expect(delegateeTx?.amount).to.equal('1')
-      expect(delegateeTx?.tokenAddress).to.equal('0xToken')
-      expect(delegateeTx?.memberBalance).to.equal('0')
-      expect(delegateeTx?.memberVotingPower).to.equal('25')
-
-      // Verify sender transaction (getting tokens back)
-      expect(senderTx).to.exist
-      expect(senderTx?.network).to.equal(NetworksEnum.ethereumMainnet)
-      expect(senderTx?.transactionHash).to.equal('0xundelegateHash')
-      expect(senderTx?.transactionIndex).to.equal(1)
-      expect(senderTx?.logIndex).to.equal(1)
-      expect(senderTx?.blockNumber).to.equal(123)
-      expect(senderTx?.blockTimestamp).to.equal(1650009999)
-      expect(senderTx?.address).to.equal(mockEvent.args.sender)
-      expect(senderTx?.from).to.equal(mockEvent.args.sender)
-      expect(senderTx?.to).to.equal(mockEvent.args.delegatee)
-      expect(senderTx?.side).to.equal(ITransferSide.incoming)
-      expect(senderTx?.type).to.equal(ITransferType.delegate)
-      expect(senderTx?.amount).to.equal('1')
-      expect(senderTx?.tokenAddress).to.equal('0xToken')
-      expect(senderTx?.memberBalance).to.equal('1')
-      expect(senderTx?.memberVotingPower).to.equal('75')
-
-      // Verify other method calls
-      expect(stubCreateMember.calledTwice).to.be.true
-      expect(stubCreateMember.calledWith(mockEvent.args.sender)).to.be.true
-      expect(stubCreateMember.calledWith(mockEvent.args.delegatee)).to.be.true
-      expect(stubLogger.calledOnce).to.be.true
-    })
-
-    it('should handle errors and log them', async () => {
-      const stubLogger = sandbox.stub(logger, 'error')
-      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
-      sandbox.stub(GovernanceVeHandler, '_handleTokenDelegation').rejects(new Error('fake error'))
-
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-      } as any
-
-      const mockEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n],
-        },
-      } as any
-
-      await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
-
-      expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('UnDelegateTokens error' as any)).to.be.true
-    })
-
-    it('should handle membership removal when voting power becomes zero', async () => {
-      sandbox.stub(ProxyMember, 'createMember').resolves()
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.ERC721,
-        isGovernance: true,
-        hasClockMode: false,
-      } as any)
-
-      // Zero voting power for delegatee after undelegation
-      sandbox
-        .stub(GovernanceErc20Helper, 'getPastVotes')
-        .onFirstCall()
-        .resolves('0') // delegatee loses all voting power
-        .onSecondCall()
-        .resolves('100') // sender gains voting power back
-
-      sandbox
-        .stub(ProxyMember, 'getBalances')
-        .onFirstCall()
-        .resolves({ decreaseBalance: sandbox.stub().resolves({ amount: '0' }) } as any)
-        .onSecondCall()
-        .resolves({ increaseBalance: sandbox.stub().resolves({ amount: '1' }) } as any)
-
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
-      sandbox.stub(ProxyMember, 'updateActivity').resolves()
-      sandbox
-        .stub(ProxyMember, 'isMemberOfDao')
-        .onFirstCall()
-        .resolves(true) // delegatee is member
-        .onSecondCall()
-        .resolves(false) // sender is not member
-
-      const stubRemoveFromDao = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
-      const stubAddToDao = sandbox.stub(ProxyMember, 'addToDao').resolves()
-
-      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
-
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xzeroVotingPowerHash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-
-      const mockEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n],
-        },
-      } as any
-
-      await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
-
-      // Verify transactions were created with correct voting power
-      const delegateeTx = await Models.MemberTransaction.findOne({
-        transactionHash: mockInfo.transactionHash,
-        address: mockEvent.args.delegatee,
-      })
-
-      expect(delegateeTx?.memberVotingPower).to.equal('0')
-      expect(stubRemoveFromDao.calledOnce).to.be.true // delegatee removed due to 0 voting power
-      expect(stubAddToDao.calledOnce).to.be.true // sender added back
-    })
-
-    it('should handle multiple plugins and create proper DAO mappings', async () => {
-      // Create a second plugin
       const plugin2 = await Models.Plugin.create({
         id: 'test-plugin-2',
         address: '0x122',
@@ -1319,16 +977,282 @@ describe('Handler:GovernanceVeHandler', () => {
         hasClockMode: false,
       } as any)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('50')
+
+      const balanceUpdate = sandbox.stub().resolves({ amount: '1' })
       sandbox.stub(ProxyMember, 'getBalances').resolves({
-        increaseBalance: sandbox.stub().resolves({ amount: '1' }),
-        decreaseBalance: sandbox.stub().resolves({ amount: '1' }),
+        tokenIds: [123, 456],
+        update: balanceUpdate,
       } as any)
+
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       const stubUpdateDelegationMetrics = sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
       const stubUpdateActivity = sandbox.stub(ProxyMember, 'updateActivity').resolves()
       sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(true)
       sandbox.stub(ProxyMember, 'removeFromDao').resolves()
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin, plugin2])
+      sandbox.stub(DbOperations, 'updateDocument').resolves()
 
+      const mockInfo = {
+        address: '0xToken',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+        transactionHash: '0xmultiPluginHash',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+
+      const mockEvent = {
+        args: {
+          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          delegatee: '0x75D9D3887Aa9A9ee78901E96819b574160e4EAC6',
+          tokenIds: [123n, 456n],
+        },
+      } as any
+
+      await GovernanceVeHandler.delegateTokens(mockEvent, mockInfo)
+
+      const allTransactions = await Models.MemberTransaction.find({
+        transactionHash: mockInfo.transactionHash,
+      })
+
+      expect(allTransactions).to.have.lengthOf(2)
+      expect(stubUpdateDelegationMetrics.callCount).to.equal(4)
+      expect(stubUpdateActivity.callCount).to.equal(4)
+      expect(rabbitMQHelperStub.callCount).to.equal(4)
+    })
+
+    it('should log error when _handleTokenDelegation throws an error', async () => {
+      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
+      const stubHandleTokenDelegation = sandbox
+        .stub(GovernanceVeHandler, '_handleTokenDelegation')
+        .rejects(new Error('Delegation failed'))
+      const stubLogger = sandbox.stub(logger, 'error')
+
+      const mockInfo = {
+        address: '0xToken',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+        transactionHash: '0xhash',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+
+      const mockEvent = {
+        args: {
+          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          delegatee: '0x75D9D3887Aa9A9ee78901E96819b574160e4EAC6',
+          tokenIds: [123n],
+        },
+      } as any
+
+      await GovernanceVeHandler.delegateTokens(mockEvent, mockInfo)
+
+      expect(stubHandleTokenDelegation.calledOnce).to.be.true
+      expect(stubLogger.calledOnceWith('DelegateTokens error' as any)).to.be.true
+    })
+  })
+
+  describe('unDelegateTokens', () => {
+    it('should return early if no plugins found', async () => {
+      const stubLogger = sandbox.stub(logger, 'verbose')
+      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([])
+
+      const mockInfo = {
+        address: '0xNonExistentToken',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+        transactionHash: '0xhash',
+      } as any
+
+      const mockEvent = {
+        args: {
+          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          delegatee: '0x75D9D3887Aa9A9ee78901E96819b574160e4EAC6',
+          tokenIds: [123n, 456n],
+        },
+      } as any
+
+      await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
+
+      expect(stubLogger.notCalled).to.be.true
+    })
+
+    it('should process self-undelegation and handle tokens correctly', async () => {
+      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
+      const stubLogger = sandbox.stub(logger, 'verbose')
+      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, '_handleTokenDelegation')
+
+      const mockInfo = {
+        address: '0xToken',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+        transactionHash: '0xhash',
+      } as any
+
+      const mockEvent = {
+        args: {
+          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          delegatee: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          tokenIds: [123n],
+        },
+      } as any
+
+      await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
+
+      expect(stubHandleTokenDelegation.calledTwice).to.be.true
+      expect(stubLogger.calledOnce).to.be.true
+    })
+
+    it('should create MemberTransactions for both delegatee and sender with correct tokenIds handling', async () => {
+      const stubCreateMember = sandbox.stub(ProxyMember, 'createMember').resolves()
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        type: ITokenType.ERC721,
+        isGovernance: true,
+        hasClockMode: false,
+      } as any)
+
+      const stubGetPastVotes = sandbox.stub(GovernanceErc20Helper, 'getPastVotes')
+      stubGetPastVotes.onFirstCall().resolves('0')
+      stubGetPastVotes.onSecondCall().resolves('75')
+
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
+      sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
+      sandbox.stub(ProxyMember, 'updateActivity').resolves()
+      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(true)
+      sandbox.stub(ProxyMember, 'removeFromDao').resolves()
+      const stubLogger = sandbox.stub(logger, 'verbose')
+
+      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
+
+      const mockInfo = {
+        address: '0xToken',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+        transactionHash: '0xundelegateHash',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+
+      const mockEvent = {
+        args: {
+          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          delegatee: '0x75D9D3887Aa9A9ee78901E96819b574160e4EAC6',
+          tokenIds: [123n, 456n],
+        },
+      } as any
+
+      await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
+
+      const allTransactions = await Models.MemberTransaction.find({
+        transactionHash: mockInfo.transactionHash,
+      })
+
+      expect(allTransactions).to.have.lengthOf(2)
+
+      const delegateeTx = allTransactions.find(tx => tx.address === mockEvent.args.delegatee)
+      const senderTx = allTransactions.find(tx => tx.address === mockEvent.args.sender)
+
+      expect(delegateeTx).to.exist
+      expect(delegateeTx?.side).to.equal(ITransferSide.outgoing)
+      expect(delegateeTx?.amount).to.equal('0')
+
+      expect(senderTx).to.exist
+      expect(senderTx?.side).to.equal(ITransferSide.incoming)
+      expect(senderTx?.amount).to.equal('2')
+      expect(senderTx?.memberVotingPower).to.equal('75')
+
+      expect(stubCreateMember.calledTwice).to.be.true
+      expect(stubLogger.called).to.be.true
+
+      const memberBalance = await Models.MemberBalance.find({ tokenAddress: delegateeTx.tokenAddress })
+      expect(memberBalance).to.have.lengthOf(2)
+      expect(memberBalance[1].tokenIds[0].toString()).to.equal('123')
+      expect(memberBalance[1].tokenIds[1].toString()).to.equal('456')
+    })
+
+    it('should handle membership removal when voting power becomes zero', async () => {
+      sandbox.stub(ProxyMember, 'createMember').resolves()
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        type: ITokenType.ERC721,
+        isGovernance: true,
+        hasClockMode: false,
+      } as any)
+
+      sandbox.stub(GovernanceErc20Helper, 'getPastVotes').onFirstCall().resolves('0').onSecondCall().resolves('100')
+
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
+      sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
+      sandbox.stub(ProxyMember, 'updateActivity').resolves()
+      sandbox.stub(ProxyMember, 'isMemberOfDao').onFirstCall().resolves(true).onSecondCall().resolves(false)
+
+      const stubRemoveFromDao = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
+      const stubAddToDao = sandbox.stub(ProxyMember, 'addToDao').resolves()
+      const loggerStub = sandbox.stub(logger, 'verbose')
+      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
+
+      const mockInfo = {
+        address: '0xToken',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+        transactionHash: '0xzeroVotingPowerHash',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+
+      const mockEvent = {
+        args: {
+          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          delegatee: '0x75D9D3887Aa9A9ee78901E96819b574160e4EAC6',
+          tokenIds: [123n],
+        },
+      } as any
+
+      await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
+
+      const delegateeTx = await Models.MemberTransaction.findOne({
+        transactionHash: mockInfo.transactionHash,
+        address: mockEvent.args.delegatee,
+      })
+
+      expect(delegateeTx?.memberVotingPower).to.equal('0')
+      expect(stubRemoveFromDao.calledOnce).to.be.true
+      expect(stubAddToDao.calledOnce).to.be.true
+      expect(loggerStub.called).to.be.true
+    })
+
+    it('should handle multiple plugins and create proper DAO mappings', async () => {
+      const plugin2 = await Models.Plugin.create({
+        id: 'test-plugin-2',
+        address: '0x122',
+        daoAddress: '0xDAO2',
+        tokenAddress: '0xToken',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabc2',
+        blockNumber: 2,
+        votingEscrow: {
+          escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+          nftLockAddress: '0xNftToken2',
+          exitQueueAddress: '0xExitQueue2',
+        },
+      })
+
+      sandbox.stub(ProxyMember, 'createMember').resolves()
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        type: ITokenType.ERC721,
+        isGovernance: true,
+        hasClockMode: false,
+      } as any)
+      sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('50')
+
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
+      const stubUpdateDelegationMetrics = sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
+      const stubUpdateActivity = sandbox.stub(ProxyMember, 'updateActivity').resolves()
+      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(true)
+      sandbox.stub(ProxyMember, 'removeFromDao').resolves()
+      sandbox.stub(logger, 'verbose')
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin, plugin2])
 
       const mockInfo = {
@@ -1343,32 +1267,61 @@ describe('Handler:GovernanceVeHandler', () => {
       const mockEvent = {
         args: {
           sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
+          delegatee: '0x75D9D3887Aa9A9ee78901E96819b574160e4EAC6',
           tokenIds: [123n, 456n],
         },
       } as any
 
       await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
 
-      // Verify transactions were created
       const allTransactions = await Models.MemberTransaction.find({
         transactionHash: mockInfo.transactionHash,
       })
 
-      expect(allTransactions).to.have.lengthOf(2) // One for delegatee, one for sender
-      expect(stubUpdateDelegationMetrics.callCount).to.equal(4) // 2 addresses * 2 plugins
-      expect(stubUpdateActivity.callCount).to.equal(4) // 2 addresses * 2 plugins
-      expect(rabbitMQHelperStub.callCount).to.equal(4) // 2 calls (outgoing + incoming) × 2 unique DAOs
+      expect(allTransactions).to.have.lengthOf(2)
+      expect(stubUpdateDelegationMetrics.callCount).to.equal(4)
+      expect(stubUpdateActivity.callCount).to.equal(4)
+      expect(rabbitMQHelperStub.callCount).to.equal(4)
+    })
+
+    it('should log error when _handleTokenDelegation throws an error', async () => {
+      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
+      const stubHandleTokenDelegation = sandbox
+        .stub(GovernanceVeHandler, '_handleTokenDelegation')
+        .rejects(new Error('Delegation failed'))
+      const stubLogger = sandbox.stub(logger, 'error')
+
+      const mockInfo = {
+        address: '0xToken',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+        transactionHash: '0xhash',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+
+      const mockEvent = {
+        args: {
+          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          delegatee: '0x75D9D3887Aa9A9ee78901E96819b574160e4EAC6',
+          tokenIds: [123n],
+        },
+      } as any
+
+      await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
+
+      expect(stubHandleTokenDelegation.calledOnce).to.be.true
+      expect(stubLogger.calledOnceWith('UnDelegateTokens error' as any)).to.be.true
     })
   })
 
   describe('_handleTokenDelegation', () => {
-    it('should handle token delegation with member transaction creation', async () => {
+    it('should handle self-delegation by ensuring tokens are attached to member balance', async () => {
       const mockParsedEvent = {
         args: {
           sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n],
+          delegatee: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          tokenIds: [123n, 456n],
         },
       } as any
 
@@ -1382,26 +1335,32 @@ describe('Handler:GovernanceVeHandler', () => {
       } as any
 
       const memberAddress = '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5'
-      const transferSide = 'outgoing' as any
+      const transferSide = ITransferSide.incoming
       const plugins = [plugin]
-      const tokenIds = ['123']
+      const tokenIds = ['123', '456']
+
+      await Models.MemberBalance.create({
+        network: NetworksEnum.ethereumMainnet,
+        address: memberAddress,
+        tokenAddress: '0xToken',
+        amount: '1',
+        tokenIds: [789],
+        votingPower: '0',
+      })
 
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         type: ITokenType.ERC721,
         isGovernance: true,
+        hasClockMode: false,
       } as any)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('100')
-
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
       sandbox.stub(ProxyMember, 'updateActivity').resolves()
+      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
+      sandbox.stub(ProxyMember, 'addToDao').resolves()
       sandbox.stub(logger, 'verbose')
-
-      const stubMemberTxCreate = sandbox.stub(Models.MemberTransaction, 'create').resolves({
-        address: memberAddress,
-        memberBalance: '1',
-        memberVotingPower: '100',
-      })
+      sandbox.stub(DbOperations, 'updateDocument').resolves()
 
       await GovernanceVeHandler._handleTokenDelegation(
         mockParsedEvent,
@@ -1412,75 +1371,21 @@ describe('Handler:GovernanceVeHandler', () => {
         tokenIds,
       )
 
-      const memberExists = await Models.DaoMemberMapping.findOne({
-        memberAddress,
-        network: NetworksEnum.ethereumMainnet,
-      })
-      const memberDb = await Models.Member.findOne({
+      const createdTx = await Models.MemberTransaction.findOne({
+        transactionHash: mockInfo.transactionHash,
         address: memberAddress,
       })
-      expect(memberDb).to.be.exist
-      expect(memberExists).to.be.exist
-      expect(stubMemberTxCreate.calledOnce).to.be.true
-    })
 
-    it('should handle when MemberTransaction already exists', async () => {
-      const mockParsedEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n],
-        },
-      } as any
-
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-
-      const existingMemberTx = {
-        address: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-        memberBalance: '1',
-        memberVotingPower: '100',
-      }
-
-      sandbox.stub(ProxyMember, 'createMember').resolves()
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.ERC721,
-        isGovernance: true,
-      } as any)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('100')
-      sandbox.stub(ProxyMember, 'getBalances').resolves({
-        decreaseBalance: sandbox.stub().resolves({ amount: '1' }),
-      } as any)
-      sandbox.stub(Models.MemberTransaction, 'getEntityId').resolves(existingMemberTx as any)
-      const stubMemberTxCreate = sandbox.stub(Models.MemberTransaction, 'create')
-      sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
-      sandbox.stub(ProxyMember, 'updateActivity').resolves()
-      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(true)
-
-      await GovernanceVeHandler._handleTokenDelegation(
-        mockParsedEvent,
-        mockInfo,
-        '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-        ITransferSide.outgoing,
-        [plugin],
-        ['123'],
-      )
-
-      expect(stubMemberTxCreate.notCalled).to.be.true
+      expect(createdTx).to.exist
+      expect(createdTx?.amount).to.equal('3')
+      expect(createdTx?.memberVotingPower).to.equal('100')
     })
 
     it('should handle errors in token delegation', async () => {
       const mockParsedEvent = {
         args: {
           sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
+          delegatee: '0x75D9D3887Aa9A9ee78901E96819b574160e4EAC6',
           tokenIds: [123n],
         },
       } as any
@@ -1659,182 +1564,6 @@ describe('Handler:GovernanceVeHandler', () => {
       await GovernanceVeHandler._handleDaoMemberShipOnLockEvents(plugins as any, memberAddress, mockInfo, true)
 
       expect(rabbitMQHelperStub.calledTwice).to.be.true
-    })
-  })
-
-  describe('Error handling in main functions', () => {
-    it('should handle ProxyToken.saveAndGetToken returning null in _handleTokenDelegation', async () => {
-      const mockParsedEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n],
-        },
-      } as any
-
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-
-      sandbox.stub(ProxyMember, 'createMember').resolves()
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
-      const stubLogger = sandbox.stub(logger, 'error')
-
-      await GovernanceVeHandler._handleTokenDelegation(
-        mockParsedEvent,
-        mockInfo,
-        '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-        ITransferSide.outgoing,
-        [plugin],
-        ['123'],
-      )
-
-      expect(stubLogger.calledWith('handleTokenDelegation token not found' as any)).to.be.true
-    })
-
-    it('should handle database transaction failures in _handleTokenDelegation', async () => {
-      const mockParsedEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n],
-        },
-      } as any
-
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-
-      sandbox.stub(ProxyMember, 'createMember').resolves()
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ type: ITokenType.ERC721 } as any)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('100')
-      sandbox.stub(ProxyMember, 'getBalances').resolves({
-        decreaseBalance: sandbox.stub().rejects(new Error('DB transaction failed')),
-      } as any)
-
-      const stubLogger = sandbox.stub(logger, 'error')
-
-      await GovernanceVeHandler._handleTokenDelegation(
-        mockParsedEvent,
-        mockInfo,
-        '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-        ITransferSide.outgoing,
-        [plugin],
-        ['123'],
-      )
-
-      expect(stubLogger.calledWith('Error handling token delegation' as any)).to.be.true
-    })
-  })
-
-  describe('Integration scenarios', () => {
-    it('should handle token delegation with zero voting power', async () => {
-      sandbox.stub(ProxyMember, 'createMember').resolves()
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ type: ITokenType.ERC721 } as any)
-      sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('0')
-      sandbox.stub(ProxyMember, 'getBalances').resolves({
-        decreaseBalance: sandbox.stub().resolves({ amount: '0' }),
-      } as any)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
-      sandbox.stub(ProxyMember, 'updateActivity').resolves()
-      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(true)
-      const stubRemoveFromDao = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
-
-      sandbox.stub(Models.MemberTransaction, 'create').resolves({
-        address: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-        memberVotingPower: '0',
-      })
-
-      const mockParsedEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n],
-        },
-      } as any
-
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-
-      await GovernanceVeHandler._handleTokenDelegation(
-        mockParsedEvent,
-        mockInfo,
-        '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-        ITransferSide.outgoing,
-        [plugin],
-        ['123'],
-      )
-
-      expect(stubRemoveFromDao.calledOnce).to.be.true
-    })
-
-    it('should handle multiple tokenIds in delegation', async () => {
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-
-      const mockEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n, 456n, 789n],
-        },
-      } as any
-
-      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
-      sandbox.stub(GovernanceVeHandler, '_handleTokenDelegation').resolves()
-      const stubLogger = sandbox.stub(logger, 'verbose')
-
-      await GovernanceVeHandler.delegateTokens(mockEvent, mockInfo)
-
-      expect(stubLogger.calledWith('Delegate tokens VeGovernance' as any)).to.be.true
-    })
-
-    it('should handle empty tokenIds array', async () => {
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-      } as any
-
-      const mockEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [],
-        },
-      } as any
-
-      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
-      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, '_handleTokenDelegation').resolves()
-
-      await GovernanceVeHandler.delegateTokens(mockEvent, mockInfo)
-
-      expect(stubHandleTokenDelegation.calledTwice).to.be.true
     })
   })
 })

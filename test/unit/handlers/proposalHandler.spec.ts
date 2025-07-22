@@ -564,7 +564,7 @@ describe('Indexer: ProposalHandler', () => {
       ).to.be.true
 
       expect(stubPair.calledOnce).to.be.true
-      expect(stubDaoMetrics.calledTwice).to.be.true
+      expect(stubDaoMetrics.callCount).to.be.eq(2)
       expect(stubDaoMetrics.args[0][0]).to.be.eq(EnumQueueName.daoMetrics)
       expect(stubDaoMetrics.args[1][0]).to.be.eq(EnumQueueName.proposalActions)
       expect(verboseLoggerStub.calledOnceWith('New Proposal' as any)).to.be.true

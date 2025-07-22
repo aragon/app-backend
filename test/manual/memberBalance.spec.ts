@@ -33,7 +33,7 @@ describe('Manual: Member Balance', () => {
     tokenBalanceDb = await tokenBalanceDb?.increaseBalance({
       amount: '1',
       blockNumber: 0,
-      tokenId: 0,
+      tokenId: '0',
     })
 
     expect(tokenBalanceDb?.amount).to.eq('1')
@@ -41,7 +41,7 @@ describe('Manual: Member Balance', () => {
     tokenBalanceDb = await tokenBalanceDb?.decreaseBalance({
       amount: '1',
       blockNumber: 1,
-      tokenId: 0,
+      tokenId: '0',
     })
 
     expect(tokenBalanceDb?.amount).to.eq('0')

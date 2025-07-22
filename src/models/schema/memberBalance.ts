@@ -33,6 +33,7 @@ const customName = ICollectionNames.MemberBalance
 @index({ address: 1 })
 @index({ network: 1, tokenAddress: 1, amount: 1 })
 @index({ network: 1, tokenAddress: 1, votingPower: 1 })
+@index({ tokenAddress: 1 })
 export default class MemberBalance extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -49,8 +50,8 @@ export default class MemberBalance extends Model {
   @prop({ type: () => String, default: '0' })
   public amount!: string
 
-  @prop({ type: () => [Number], default: [] })
-  public tokenIds!: number[]
+  @prop({ type: () => [String], default: [] })
+  public tokenIds!: string[]
 
   @prop({ type: () => String, default: '0' })
   public votingPower!: string
@@ -133,7 +134,7 @@ export default class MemberBalance extends Model {
     }: {
       amount: string
       blockNumber: number
-      tokenId?: number
+      tokenId?: string
     },
     tOpts?: SaveOptions,
   ) {
@@ -160,7 +161,7 @@ export default class MemberBalance extends Model {
     }: {
       amount: string
       blockNumber: number
-      tokenId?: number
+      tokenId?: string
     },
     tOpts?: SaveOptions,
   ) {

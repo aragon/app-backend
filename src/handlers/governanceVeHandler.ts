@@ -6,12 +6,12 @@ import { ProxyMember } from '@modules/proxyMember'
 import Web3Helper from '@helpers/web3'
 import { EnumQueueName, ITransferSide, ITransferType } from '@types'
 import utils from '@helpers/utils'
-import DbTx from '@modules/dbTx'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { ProxyToken } from '@modules/proxyToken'
 import GovernanceErc20Helper from '@src/helpers/governanceErc20'
 import type Plugin from '@models/schema/plugin'
 import type MemberTransaction from '@models/schema/memberTransaction'
+import DbOperations from '@models/utils/dbOperations'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:GovernanceVeHandler' })
 
@@ -33,6 +33,14 @@ export const GovernanceVeHandler = {
         plugins,
         tokenIds,
       )
+
+      if (fromAddress === toAddress) {
+        logger.verbose(
+          'Self-delegation detected, skipping incoming delegation handling',
+          llo({ info, fromAddress, toAddress }),
+        )
+        return
+      }
 
       await GovernanceVeHandler._handleTokenDelegation(
         parsedEvent,
@@ -91,6 +99,18 @@ export const GovernanceVeHandler = {
     tokenIds: string[],
   ) => {
     try {
+      const existingLog = await Models.MemberTransaction.findExistingLog({
+        network: info.network,
+        transactionHash: info.transactionHash,
+        transactionIndex: info.transactionIndex,
+        logIndex: info.logIndex,
+        address: memberAddress,
+      })
+
+      if (existingLog) {
+        return
+      }
+
       await ProxyMember.createMember(memberAddress)
 
       const token = await ProxyToken.saveAndGetToken(info.address, info.network)
@@ -100,13 +120,27 @@ export const GovernanceVeHandler = {
       }
 
       const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
-      const tokenAmount = tokenIds.length.toString()
 
-      let tokenBalanceDb = await ProxyMember.getBalances({
+      const tokenBalanceDb = await ProxyMember.getBalances({
         address: memberAddress,
         tokenAddress: info.address,
         network: info.network,
       })
+
+      const currentTokenIds = tokenBalanceDb?.tokenIds || []
+      let tokenIdsToSave: string[]
+
+      const isSelfDelegation = parsedEvent.args.sender === parsedEvent.args.delegatee
+
+      if (isSelfDelegation) {
+        tokenIdsToSave = [...new Set([...currentTokenIds, ...tokenIds])]
+      } else {
+        if (transferSide === ITransferSide.incoming) {
+          tokenIdsToSave = [...currentTokenIds, ...tokenIds]
+        } else {
+          tokenIdsToSave = currentTokenIds.filter(id => !tokenIds.includes(id))
+        }
+      }
 
       const votingPower = await GovernanceErc20Helper.getPastVotes(
         memberAddress,
@@ -117,53 +151,36 @@ export const GovernanceVeHandler = {
         token.hasClockMode,
       )
 
-      const memberTransaction = await DbTx.executeTxFn(async ({ session }) => {
-        const tokenBalanceFuncName = transferSide === ITransferSide.incoming ? 'increaseBalance' : 'decreaseBalance'
-        tokenBalanceDb = await tokenBalanceDb?.[tokenBalanceFuncName](
-          {
-            amount: tokenAmount,
-            blockNumber: info.blockNumber,
-            tokenId: Number(tokenIds[0]),
-          },
-          { session },
-        )
+      await DbOperations.updateDocument(
+        tokenBalanceDb!,
+        {
+          amount: tokenIdsToSave.length.toString(),
+          blockNumber: info.blockNumber,
+          tokenIds: tokenIdsToSave,
+        },
+        info,
+        'MemberBalance Update on delegation',
+        llo,
+      )
 
-        let memberTransaction = await Models.MemberTransaction.findExistingLog({
-          network: info.network,
-          transactionHash: info.transactionHash,
-          transactionIndex: info.transactionIndex,
-          logIndex: info.logIndex,
-          address: memberAddress,
-        })
-
-        if (!memberTransaction) {
-          memberTransaction = await Models.MemberTransaction.create(
-            {
-              network: info.network,
-              transactionHash: info.transactionHash,
-              transactionIndex: info.transactionIndex,
-              logIndex: info.logIndex,
-              blockNumber: info.blockNumber,
-              blockTimestamp,
-              address: memberAddress,
-              type: ITransferType.delegate,
-              side: transferSide,
-              from: parsedEvent.args.sender,
-              to: parsedEvent.args.delegatee,
-              amount: tokenAmount,
-              tokenAddress: info.address,
-              memberBalance: tokenBalanceDb?.amount,
-              memberVotingPower: votingPower.toString(),
-            },
-            { session },
-          )
-
-          await session.commitTransaction()
-          await session.endSession()
-        }
-
-        return memberTransaction
+      const memberTransaction = await Models.MemberTransaction.create({
+        network: info.network,
+        transactionHash: info.transactionHash,
+        transactionIndex: info.transactionIndex,
+        logIndex: info.logIndex,
+        blockNumber: info.blockNumber,
+        blockTimestamp,
+        address: memberAddress,
+        type: ITransferType.delegate,
+        side: transferSide,
+        from: parsedEvent.args.sender,
+        to: parsedEvent.args.delegatee,
+        amount: tokenIdsToSave.length.toString(),
+        tokenAddress: info.address,
+        memberVotingPower: votingPower.toString(),
+        memberBalance: tokenIdsToSave.length.toString(),
       })
+
       await GovernanceVeHandler._handleDaoMemberShip(memberTransaction, plugins, info)
 
       await Promise.all(
@@ -248,10 +265,7 @@ export const GovernanceVeHandler = {
     const tokenId = parsedEvent.args.tokenId.toString()
     const amount = parsedEvent.args.value.toString()
     const epochStartAt = Number(parsedEvent.args.startTs)
-    const blockTimestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
     const totalLocked = parsedEvent.args.newTotalLocked.toString()
-
-    await ProxyMember.createMember(memberAddress)
 
     const lockParams = {
       network: info.network,
@@ -265,36 +279,54 @@ export const GovernanceVeHandler = {
     }
 
     const existingLock = await Models.Lock.findExistingLog(lockParams)
-
-    if (!existingLock) {
-      await Models.Lock.create({
-        network: info.network,
-        transactionHash: info.transactionHash,
-        transactionIndex: info.transactionIndex,
-        logIndex: info.logIndex,
-        blockNumber: info.blockNumber,
-        blockTimestamp,
-        escrowAddress,
-        memberAddress,
-        nftAddress: nftLockAddress,
-        tokenAddress,
-        tokenId,
-        amount,
-        epochStartAt,
-        totalLocked,
-        exitQueueAddress,
-      })
-
-      logger.verbose(
-        'Deposit VeGovernance - Lock created',
-        llo({ info, memberAddress, tokenId, escrow: escrowAddress }),
-      )
-    } else {
+    if (existingLock) {
       logger.warn(
         'Deposit VeGovernance - Lock already exists',
         llo({ info, memberAddress, tokenId, escrow: escrowAddress }),
       )
+      return
     }
+
+    const blockTimestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
+    await ProxyMember.createMember(memberAddress)
+
+    await Models.Lock.create({
+      network: info.network,
+      transactionHash: info.transactionHash,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
+      blockNumber: info.blockNumber,
+      blockTimestamp,
+      escrowAddress,
+      memberAddress,
+      nftAddress: nftLockAddress,
+      tokenAddress,
+      tokenId,
+      amount,
+      epochStartAt,
+      totalLocked,
+      exitQueueAddress,
+    })
+
+    logger.verbose('Deposit VeGovernance - Lock created', llo({ info, memberAddress, tokenId, escrow: escrowAddress }))
+
+    const memberBalance = await ProxyMember.getBalances({
+      address: memberAddress,
+      tokenAddress,
+      network: info.network,
+    })
+
+    // Only update amount, don't attach tokens yet (tokens will be attached on delegation)
+    await DbOperations.updateDocument(
+      memberBalance!,
+      {
+        amount: (Number(memberBalance!.amount) + 1).toString(),
+        lastSyncAmountBlockNumber: info.blockNumber,
+      },
+      info,
+      'MemberBalance Update on deposit',
+      llo,
+    )
 
     await GovernanceVeHandler._handleDaoMemberShipOnLockEvents(plugins, memberAddress, info, true)
   },
@@ -316,7 +348,6 @@ export const GovernanceVeHandler = {
     const tokenId = parsedEvent.args.tokenId.toString()
     const amount = parsedEvent.args.value.toString()
     const epochEndAt = Number(parsedEvent.args.ts)
-    const blockTimestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
     const totalLocked = parsedEvent.args.newTotalLocked.toString()
 
     const memberLockParams = {
@@ -340,6 +371,8 @@ export const GovernanceVeHandler = {
       return
     }
 
+    const blockTimestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
+
     await existingLock.update({
       lockWithdraw: {
         status: true,
@@ -353,6 +386,27 @@ export const GovernanceVeHandler = {
     })
 
     logger.verbose('Withdraw VeGovernance', llo({ info, memberAddress, tokenId }))
+
+    const memberBalance = await ProxyMember.getBalances({
+      address: memberAddress,
+      tokenAddress: plugins[0].tokenAddress,
+      network: info.network,
+    })
+
+    const currentTokenIds = memberBalance!.tokenIds || []
+    const tokenIdsToSave = currentTokenIds.filter(id => id !== tokenId.toString())
+
+    await DbOperations.updateDocument(
+      memberBalance!,
+      {
+        amount: (Number(memberBalance!.amount) - 1).toString(),
+        tokenIds: tokenIdsToSave,
+        lastSyncAmountBlockNumber: info.blockNumber,
+      },
+      info,
+      'MemberBalance Update on withdraw',
+      llo,
+    )
 
     await GovernanceVeHandler._handleDaoMemberShipOnLockEvents(plugins, memberAddress, info, false)
   },
