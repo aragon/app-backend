@@ -3,7 +3,6 @@ import { type IIndexerConfig, ISPPLogs } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Plugin from '@models/schema/plugin'
 import configIndexer from '@indexer/configIndexer'
-import ConfigIndexerHelper from '@helpers/configIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogSpp' })
 
@@ -21,11 +20,10 @@ export const LogSpp = {
       address: plugin.address,
       fromBlock: plugin?.blockNumber,
       onError: async (error: any, log: any) => LogSpp.processError(error, plugin, log),
-      logService: ConfigIndexerHelper.builders.plugin(plugin.interfaceType, plugin.network, plugin.address),
+      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}`,
       stopOnError: true,
     })
     await crawler.crawl()
-    await crawler.end()
 
     logger.verbose('End LogSpp', llo({ network: plugin.network, latestBlockSync: crawler.crawlSetting.lastSync }))
   },
