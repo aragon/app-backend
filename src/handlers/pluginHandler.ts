@@ -11,6 +11,7 @@ import {
   type IQueryGetPlugin,
   type NetworksEnum,
   EnumQueueName,
+  IDaoLogs,
 } from '@types'
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
 import type Plugin from '@models/schema/plugin'
@@ -25,6 +26,8 @@ import DbTx from '@modules/dbTx'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import { MetadataHandler } from '@handlers/metadataHandler'
 import RabbitMQHelper from '@src/helpers/rabbitMQ'
+import configIndexer from '@services/aragon-indexer/configIndexer'
+import { ethers } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PluginHandler' })
 
@@ -627,12 +630,33 @@ export const PluginHandler = {
         PluginSetupProcessor.abi,
       )
 
-      if (installationAppliedLogs.length > 0) {
-        return
-      }
+      const executePermissionId = ethers.id('EXECUTE_PERMISSION')
 
       if (pluginDb.status === IPluginStatus.installed) {
         return
+      }
+
+      // After the applied log, we need to check if there is a next permission event
+      // We so we can be sure that the plugin is installed so proceed with the installation
+
+      if (installationAppliedLogs.length > 0) {
+        const grantedTopic = configIndexer.find(config => config.event === IDaoLogs.Granted)?.topic
+        const revokedTopic = configIndexer.find(config => config.event === IDaoLogs.Revoked)?.topic
+
+        const lastAppliedLog = installationAppliedLogs[installationAppliedLogs.length - 1]
+        const lastAppliedLogIndex = lastAppliedLog.txLog.index
+
+        const nextPermissionEvent = txReceipt.logs.find((log: any) => {
+          const isPermissionEvent =
+            log.address === daoDb.address &&
+            (log.topics[0] === grantedTopic || log.topics[0] === revokedTopic) &&
+            log.topics[1] === executePermissionId
+          return isPermissionEvent && log.logIndex > lastAppliedLogIndex
+        })
+
+        if (!nextPermissionEvent) {
+          return
+        }
       }
 
       const pluginInfo = await PluginDetector.detectPluginType(pluginDb.address, info.network)
