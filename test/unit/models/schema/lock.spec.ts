@@ -29,7 +29,7 @@ describe('Model: Lock', () => {
       exitQueueAddress: '0xexitqueue1234567890abcdef1234567890abcdef1',
       tokenAddress: '0xtoken1234567890abcdef1234567890abcdef12',
       nftAddress: '0xnft1234567890abcdef1234567890abcdef123',
-      tokenId: 123,
+      tokenId: '123',
       amount: '1000000000000000000',
       epochStartAt: 1640995200,
       totalLocked: '5000000000000000000',
