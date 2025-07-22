@@ -12,7 +12,6 @@ import config from '@config'
 import PoolingCrawler from '@modules/poolingCrawler'
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
-import ConfigIndexerHelper from '@helpers/configIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
@@ -28,16 +27,11 @@ const AragonIndexerService: IService & { repeaters: any } = {
 
     await Promise.all(
       networks.map(async ({ networkName }) => {
-        const logService = ConfigIndexerHelper.builders.indexer(networkName)
-
-        if (!logService) {
-          logger.error('Log service not found', llo({ networkName }))
-          return
-        }
+        const logService: any = `indexer-${networkName}`
 
         const existingConfig = await Models.ConfigIndexer.findExistingLog({
           network: networkName,
-          service: logService,
+          service: logService!,
         })
 
         // sync historical data

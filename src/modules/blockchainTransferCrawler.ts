@@ -4,8 +4,9 @@ import {
   type IAlchemyTransferOptions,
   type IAlchemyTransferResponse,
   IConnectionType,
+  type IEnumIndexerService,
+  type IEnumIndexerServiceStatic,
   IProviderType,
-  type LogServicePattern,
   type NetworksEnum,
 } from '@types'
 import BottleneckModule from '@modules/bottleneck'
@@ -25,7 +26,7 @@ class BlockchainTransferCrawler {
   private readonly toBlock: number | string
   private readonly filter: IAlchemyTransferOptions
   private readonly stopOnError: boolean
-  private readonly logService: LogServicePattern
+  private readonly logService: IEnumIndexerService | IEnumIndexerServiceStatic | null
   private runCount: number
   originalBatchSize: number = 0
   batchSize: number = 0
@@ -42,7 +43,7 @@ class BlockchainTransferCrawler {
     nbError: number
     nbTotal: number
     lastSync: number
-    logService: LogServicePattern
+    logService: IEnumIndexerService | IEnumIndexerServiceStatic | null
   }
 
   constructor(opts: {
@@ -52,7 +53,7 @@ class BlockchainTransferCrawler {
     onError?: (error: Error, log?: IAlchemyTransferResponse) => void
     stopOnError?: boolean
     shutdown?: boolean
-    logService?: LogServicePattern
+    logService?: IEnumIndexerService | IEnumIndexerServiceStatic | null
   }) {
     this.network = opts.network
     this.filter = {

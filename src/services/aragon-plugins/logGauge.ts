@@ -4,7 +4,6 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Plugin from '@models/schema/plugin'
 import configIndexer from '@indexer/configIndexer'
 import type Token from '@models/schema/token'
-import ConfigIndexerHelper from '@helpers/configIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogGauge' })
 
@@ -23,15 +22,14 @@ export const LogGauge = {
       onlyHistorical: isHistorical,
       network: plugin.network,
       events: [...configLockTokenLogs],
-      address: [token.address],
+      address: [plugin.tokenAddress],
       fromBlock: token?.blockNumber,
       onError: async (error: any, log: any) => LogGauge.processError(error, plugin, log),
-      logService: ConfigIndexerHelper.builders.token(token.type, token.network, token.address),
+      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}-${token?.address}`,
       stopOnError: true,
     })
 
     await crawlerGaugeToken.crawl()
-    await crawlerGaugeToken.end()
 
     logger.verbose(
       'End LogGauge',
