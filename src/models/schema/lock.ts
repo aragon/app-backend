@@ -324,4 +324,283 @@ export default class Lock extends Model {
   async reload(tOpts?: SaveOptions) {
     return await this.model(customName).findById(this._id, tOpts)
   }
+
+  static async getMembersOfVeLockPlugin({
+    tokenAddress,
+    pluginAddress,
+    network,
+    settings,
+    paginationParams = {},
+  }: {
+    tokenAddress: HexAddress
+    network: NetworksEnum
+    pluginAddress: HexAddress
+    paginationParams?: IPaginationParams
+    settings: {
+      currentTime: number
+      maxTime: string
+      decimals: string
+      bias: string
+      slope: string
+    }
+  }): Promise<IPaginatedResult<any>> {
+    const request = ModelUtils.paginateAndSort({
+      ...paginationParams,
+    })
+    const currentPage = request.skip / request.limit + 1
+
+    const baseQuery = [
+      {
+        $match: {
+          network,
+          tokenAddress,
+        },
+      },
+      {
+        $addFields: {
+          isActive: { $eq: ['$lockExit.status', false] },
+          activeTime: { $subtract: [settings.currentTime, '$epochStartAt'] },
+        },
+      },
+      {
+        $addFields: {
+          processedTime: { $min: ['$activeTime', settings.maxTime] },
+        },
+      },
+      {
+        $addFields: {
+          amountDecimal: { $toDecimal: '$amount' },
+          slope: { $toDecimal: settings.slope },
+          bias: { $toDecimal: settings.bias },
+          oneE18: { $toDecimal: settings.decimals },
+          processedTimeDecimal: { $toDecimal: '$processedTime' },
+        },
+      },
+      {
+        $addFields: {
+          slopeComponent: { $multiply: ['$amountDecimal', '$slope', '$processedTimeDecimal'] },
+          biasComponent: { $multiply: ['$amountDecimal', '$bias'] },
+        },
+      },
+      {
+        $addFields: {
+          rawVotingPower: {
+            $divide: [{ $add: ['$slopeComponent', '$biasComponent'] }, '$oneE18'],
+          },
+        },
+      },
+      {
+        $addFields: {
+          votingPower: {
+            $cond: {
+              if: '$isActive',
+              then: '$rawVotingPower',
+              else: { $toDecimal: '0' },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          memberAddress: 1,
+          lockVotingPower: '$votingPower',
+          tokenId: 1,
+          network: 1,
+          tokenAddress: 1,
+          amount: 1,
+          isActive: 1,
+          epochStartAt: 1,
+        },
+      },
+      {
+        $lookup: {
+          from: ICollectionNames.MemberBalance,
+          let: {
+            lockTokenId: '$tokenId',
+            lockNetwork: '$network',
+            lockTokenAddress: '$tokenAddress',
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $in: ['$$lockTokenId', '$tokenIds'] },
+                    { $eq: ['$network', '$$lockNetwork'] },
+                    { $eq: ['$tokenAddress', '$$lockTokenAddress'] },
+                  ],
+                },
+              },
+            },
+          ],
+          as: 'currentHolder',
+        },
+      },
+      {
+        $addFields: {
+          currentHolder: {
+            $arrayElemAt: ['$currentHolder', 0],
+          },
+        },
+      },
+      {
+        $match: {
+          'currentHolder.address': { $exists: true },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            memberAddress: '$currentHolder.address',
+            network: '$network',
+            tokenAddress: '$tokenAddress',
+          },
+          votingPower: { $sum: '$lockVotingPower' },
+          locks: {
+            $push: {
+              tokenId: '$tokenId',
+              lockVotingPower: '$lockVotingPower',
+            },
+          },
+          activeLocks: {
+            $push: {
+              $cond: {
+                if: { $gt: ['$lockVotingPower', { $toDecimal: '0' }] },
+                then: {
+                  tokenId: '$tokenId',
+                  amount: '$amount',
+                  lockVotingPower: '$lockVotingPower',
+                  isActive: '$isActive',
+                  epochStartAt: '$epochStartAt',
+                },
+                else: '$$REMOVE',
+              },
+            },
+          },
+          tokenIds: { $addToSet: '$tokenId' },
+          totalAmount: { $sum: { $toDecimal: '$amount' } },
+          lockCount: { $sum: 1 },
+          activeLockCount: {
+            $sum: {
+              $cond: {
+                if: { $gt: ['$lockVotingPower', { $toDecimal: '0' }] },
+                then: 1,
+                else: 0,
+              },
+            },
+          },
+        },
+      },
+    ]
+
+    const dataQuery = [
+      ...baseQuery,
+      { $sort: request.sort },
+      { $skip: request.skip },
+      { $limit: request.limit },
+      {
+        $addFields: {
+          votingPowerString: {
+            $cond: {
+              if: { $eq: ['$votingPower', { $toDecimal: '0' }] },
+              then: '0',
+              else: {
+                $convert: {
+                  input: { $round: ['$votingPower', 0] },
+                  to: 'string',
+                  onError: {
+                    $toString: { $round: ['$votingPower', 0] },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          address: '$_id.memberAddress',
+          votingPower: '$votingPowerString',
+        },
+      },
+      {
+        $lookup: {
+          from: 'Member',
+          localField: 'address',
+          foreignField: 'address',
+          as: 'memberInfo',
+        },
+      },
+      {
+        $addFields: {
+          memberInfo: {
+            $arrayElemAt: ['$memberInfo', 0],
+          },
+        },
+      },
+      AggregationQueryHelper.memberMetrics(
+        {
+          memberAddress: '$memberInfo.address',
+          network: '$network',
+          pluginAddress,
+        },
+        'memberMetrics',
+        {
+          _id: 0,
+          lastActivity: 1,
+          firstActivity: 1,
+          delegateReceivedCount: 1,
+          voteCount: 1,
+          proposalCount: 1,
+        },
+      ),
+      {
+        $project: {
+          address: '$memberInfo.address',
+          ens: '$memberInfo.ens',
+          avatar: '$memberInfo.avatar',
+          votingPower: 1,
+          memberMetrics: {
+            $ifNull: [
+              {
+                $arrayElemAt: ['$memberMetrics', 0],
+              },
+              {
+                lastActivity: null,
+                firstActivity: null,
+                delegateReceivedCount: 0,
+                voteCount: 0,
+                proposalCount: 0,
+              },
+            ],
+          },
+        },
+      },
+    ]
+
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate(dataQuery),
+      this.aggregate([...baseQuery, { $count: 'totalRecords' }]).then(results =>
+        results[0] ? results[0].totalRecords : 0,
+      ),
+    ])
+
+    const totalPages = Math.ceil(totalRecords / request.limit)
+
+    if (currentPage > totalPages) {
+      return ModelUtils.paginateEmptyResponse(request.limit)
+    }
+
+    return {
+      metadata: {
+        page: currentPage,
+        pageSize: request.limit,
+        totalPages,
+        totalRecords,
+      },
+      data,
+    }
+  }
 }

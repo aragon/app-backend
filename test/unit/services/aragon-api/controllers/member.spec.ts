@@ -146,6 +146,7 @@ describe('Controller: Member', () => {
       const tokenVotingPlugin = {
         interfaceType: IPluginInterfaceType.tokenVoting,
         tokenAddress: rawDaoMemberMapping.tokenAddress,
+        votingEscrow: null,
       }
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(tokenVotingPlugin)
 
@@ -171,6 +172,78 @@ describe('Controller: Member', () => {
       expect(response.metadata.totalRecords).to.eq(1)
     })
 
+    it('should call getMembersOfVeLockPlugin when plugin has tokenAddress and votingEscrow', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const filterParams = {
+        network: rawDaoMemberMapping.network,
+        pluginAddress: rawDaoMemberMapping.pluginAddress,
+      }
+      const pairParams = {}
+
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(filterParams)
+
+      const veLockPlugin = {
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: rawDaoMemberMapping.tokenAddress,
+        address: rawDaoMemberMapping.pluginAddress,
+        daoAddress: rawDaoMemberMapping.daoAddress,
+        network: rawDaoMemberMapping.network,
+        votingEscrow: {
+          escrowAddress: '0xEscrowAddress123',
+        },
+      }
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(veLockPlugin)
+
+      // Mock the dependencies for getMembersOfVeLockPlugin
+      const mockSettings = {
+        votingEscrow: {
+          maxTime: 1000,
+          slope: 100,
+          bias: 50,
+        },
+      }
+      const mockToken = {
+        decimals: 18,
+      }
+
+      sandbox.stub(Models.Setting, 'findActive').resolves(mockSettings)
+      sandbox.stub(Models.Token, 'findOne').resolves(mockToken)
+
+      const mockVeLockResponse = {
+        data: [{ address: rawMember.address, votingPower: '1000' }],
+        metadata: { page: 1, totalPages: 1, totalRecords: 1 },
+      }
+      const veLockSpy = sandbox.stub(Models.Lock, 'getMembersOfVeLockPlugin').resolves(mockVeLockResponse)
+
+      const response = await MemberController.getMembersWithPagination(paginationParams, filterParams, pairParams)
+
+      expect(veLockSpy.calledOnce).to.be.true
+      expect(
+        veLockSpy.calledWith({
+          paginationParams,
+          pluginAddress: veLockPlugin.address,
+          settings: {
+            currentTime: sinon.match.number,
+            maxTime: mockSettings.votingEscrow.maxTime,
+            slope: mockSettings.votingEscrow.slope,
+            bias: mockSettings.votingEscrow.bias,
+            decimals: (BigInt(10) ** BigInt(mockToken.decimals)).toString(),
+          },
+          tokenAddress: veLockPlugin.tokenAddress,
+          network: veLockPlugin.network,
+        }),
+      ).to.be.true
+
+      expect(response).to.deep.equal(mockVeLockResponse)
+    })
+
     it('should call DaoMemberMapping.findAndPaginate when plugin has no tokenAddress or interfaceType is not tokenVoting', async () => {
       const paginationParams = {
         search: '',
@@ -189,6 +262,7 @@ describe('Controller: Member', () => {
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(filterParams)
       const nonTokenVotingPlugin = {
         interfaceType: 'Multisig',
+        votingEscrow: null,
       }
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(nonTokenVotingPlugin)
 
@@ -465,6 +539,104 @@ describe('Controller: Member', () => {
         ...mockLock,
       })
       expect(response.metadata).to.deep.equal(expectedResponse.metadata)
+    })
+  })
+
+  describe('getMembersOfVeLockPlugin', () => {
+    it('should return members with voting power for VeLock plugin', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const mockPlugin = {
+        address: rawDaoMemberMapping.pluginAddress,
+        daoAddress: rawDaoMemberMapping.daoAddress,
+        network: rawDaoMemberMapping.network,
+        tokenAddress: rawDaoMemberMapping.tokenAddress,
+      }
+
+      const mockSettings = {
+        votingEscrow: {
+          maxTime: 1000,
+          slope: 100,
+          bias: 50,
+        },
+      }
+
+      const mockToken = {
+        decimals: 18,
+      }
+
+      const mockVeLockResponse = {
+        data: [
+          {
+            address: rawMember.address,
+            votingPower: '1000000000000000000',
+            lockEnd: 1234567890,
+          },
+        ],
+        metadata: {
+          page: 1,
+          totalPages: 1,
+          totalRecords: 1,
+        },
+      }
+
+      sandbox.stub(Models.Setting, 'findActive').resolves(mockSettings)
+      sandbox.stub(Models.Token, 'findOne').resolves(mockToken)
+      const veLockSpy = sandbox.stub(Models.Lock, 'getMembersOfVeLockPlugin').resolves(mockVeLockResponse)
+
+      const response = await MemberController.getMembersOfVeLockPlugin(paginationParams, mockPlugin as any)
+
+      expect(veLockSpy.calledOnce).to.be.true
+      expect(
+        veLockSpy.calledWith({
+          paginationParams,
+          pluginAddress: mockPlugin.address,
+          settings: {
+            currentTime: sinon.match.number,
+            maxTime: mockSettings.votingEscrow.maxTime,
+            slope: mockSettings.votingEscrow.slope,
+            bias: mockSettings.votingEscrow.bias,
+            decimals: (BigInt(10) ** BigInt(mockToken.decimals)).toString(),
+          },
+          tokenAddress: mockPlugin.tokenAddress,
+          network: mockPlugin.network,
+        }),
+      ).to.be.true
+
+      expect(response).to.deep.equal(mockVeLockResponse)
+    })
+
+    it('should throw an error when settings or token not found', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const mockPlugin = {
+        address: rawDaoMemberMapping.pluginAddress,
+        daoAddress: rawDaoMemberMapping.daoAddress,
+        network: rawDaoMemberMapping.network,
+        tokenAddress: rawDaoMemberMapping.tokenAddress,
+      }
+
+      sandbox.stub(Models.Setting, 'findActive').resolves(null)
+      sandbox.stub(Models.Token, 'findOne').resolves(null)
+
+      try {
+        await MemberController.getMembersOfVeLockPlugin(paginationParams, mockPlugin as any)
+        expect.fail('Expected an error to be thrown')
+      } catch (err: any) {
+        expect(err.message).to.include('notFound')
+      }
     })
   })
 })

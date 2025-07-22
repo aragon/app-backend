@@ -1,5 +1,7 @@
 import { type ISupportedNetwork, NetworksEnum } from '@types'
 import ProviderModule from '@modules/provider'
+import config from '@config'
+import utils from '@helpers/utils'
 
 export const NetworkHelper = {
   supportedNetworks(): ISupportedNetwork[] {
@@ -19,5 +21,10 @@ export const NetworkHelper = {
     }, [])
 
     return result as ISupportedNetwork[]
+  },
+  getAverageBlockTime(network: NetworksEnum): number {
+    const networkConfig = config.NODES[utils.networkToAragon(network)]
+    const timeInSec = networkConfig.INTERVAL_BLOCK_TIME
+    return timeInSec * 1000
   },
 }

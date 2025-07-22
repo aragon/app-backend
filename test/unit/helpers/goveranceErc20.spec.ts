@@ -9,6 +9,7 @@ import GovernanceErc20Helper from '@helpers/governanceErc20'
 import { expect } from 'chai'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
 import utils from '@helpers/utils'
+import { NetworkHelper } from '@helpers/network'
 
 describe('Helpers: GovernanceErc20', () => {
   let sandbox: SinonSandbox
@@ -301,11 +302,13 @@ describe('Helpers: GovernanceErc20', () => {
       })
 
       const result = await MockedGovernanceErc20Helper.getPastTotalSupply({
-        blockNumber: 1,
+        blockNumber: 10,
         tokenAddress: '0x123',
         network: NetworksEnum.ethereumMainnet,
+        blockTimestamp: 0,
+        hasClockMode: false,
       })
-      expect(getChainAdjustedBlockNumberStub.calledWith(1, NetworksEnum.ethereumMainnet)).to.be.true
+      expect(getChainAdjustedBlockNumberStub.calledWith(9, NetworksEnum.ethereumMainnet)).to.be.true
       expect(result).to.eq('1000000')
     })
 
@@ -356,7 +359,9 @@ describe('Helpers: GovernanceErc20', () => {
         blockTimestamp: 1622547800,
         hasClockMode: true,
       })
-      expect(getPastTotalSupplyStub.args[0][0]).to.eq(1622547800)
+      expect(getPastTotalSupplyStub.args[0][0]).to.eq(
+        1622547800 - NetworkHelper.getAverageBlockTime(NetworksEnum.ethereumMainnet),
+      )
       expect(result).to.eq('1000000')
     })
   })
