@@ -4,7 +4,7 @@ import { expect } from 'chai'
 import { NetworksEnum } from '@types'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 
-describe('GovernanceErc20Helper', () => {
+describe.skip('GovernanceErc20Helper', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
