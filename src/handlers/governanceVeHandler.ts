@@ -123,7 +123,7 @@ export const GovernanceVeHandler = {
           {
             amount: tokenAmount,
             blockNumber: info.blockNumber,
-            tokenId: Number(tokenIds[0]),
+            tokenId: tokenIds[0],
           },
           { session },
         )
