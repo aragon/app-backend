@@ -33,7 +33,7 @@ const customName = ICollectionNames.DaoMemberMapping
 @index({ memberAddress: 1, pluginAddress: 1 })
 @index({ network: 1, pluginAddress: 1 })
 @index({ network: 1, daoAddress: 1, pluginAddress: 1, memberAddress: 1, tokenAddress: 1 })
-@index({ event: 1, address: 1, tokenAddress: 1, pluginAddress: 1 })
+@index({ event: 1, tokenAddress: 1, pluginAddress: 1 })
 export default class DaoMemberMapping extends Model {
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum

@@ -78,6 +78,7 @@ class Token {
 @index({ fromAddress: 1, toAddress: 1, tokenAddress: 1, daoAddress: 1 })
 @index({ id: -1, blockNumber: -1, network: 1, daoAddress: 1 })
 @index({ blockNumber: -1 })
+@index({ uniqueId: 1 })
 export default class Transaction extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string

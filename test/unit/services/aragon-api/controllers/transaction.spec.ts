@@ -208,7 +208,7 @@ describe('TransactionController', () => {
         expect(spyPluginSlugReq.calledOnce).to.be.true
         expect(response).to.deep.eq({
           isProcessed: true,
-          slug: 'test-slug-0',
+          slug: 'test-slug-7',
         })
       })
 

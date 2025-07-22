@@ -129,7 +129,7 @@ describe('Model: MemberBalance', () => {
     const member = await createdMember.increaseBalance({ amount: '1000', blockNumber: 1232323, tokenId: 1 })
     expect(member?.amount).to.eq('1000')
     expect(member?.tokenIds.length).to.eq(1)
-    expect(member?.tokenIds[0]).to.eq(1)
+    expect(member?.tokenIds[0]).to.eq('1')
   })
 
   describe('increaseBalance', () => {
