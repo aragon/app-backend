@@ -4,13 +4,14 @@ import { expect } from 'chai'
 import { TokenHolderSync } from '@plugins/tokenHolderSync'
 import { ProxyMember } from '@modules/proxyMember'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
-import { IGovernanceErc20Logs, NetworksEnum, TokenSyncTagName } from '@types'
+import { IGovernanceErc20Logs, ITokenSyncTagName, NetworksEnum } from '@types'
 import configIndexer from '@indexer/configIndexer'
 import config from '@config'
 import logger from '@logger'
 import { Models } from '@dbModels'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 import DbTx from '@modules/dbTx'
+import ConfigIndexerHelper from '@helpers/configIndexer'
 
 describe('AragonPlugins: TokenHolderSync', () => {
   let sandbox: SinonSandbox
@@ -95,18 +96,6 @@ describe('AragonPlugins: TokenHolderSync', () => {
     sandbox.restore()
   })
 
-  describe('getTagName', () => {
-    it('should return correct tag name for default type', () => {
-      const result = TokenHolderSync.getTagName(mockPlugin, mockToken, TokenSyncTagName.Default)
-      expect(result).to.equal('tokenVoting-ethereum-sepolia-0xPlugin123-0xToken456')
-    })
-
-    it('should return correct tag name with suffix for non-default types', () => {
-      const result = TokenHolderSync.getTagName(mockPlugin, mockToken, TokenSyncTagName.TokenHolders)
-      expect(result).to.equal('tokenVoting-ethereum-sepolia-0xPlugin123-0xToken456-token-holders')
-    })
-  })
-
   describe('isTokenNotEligibleForSync', () => {
     it('should return false if token is not a custom token', async () => {
       const sameBlockNumberToken = { ...mockToken, blockNumber: mockPlugin.blockNumber }
@@ -139,6 +128,14 @@ describe('AragonPlugins: TokenHolderSync', () => {
       expect(result).to.be.false
       expect(blockScoutGetTokenCountersStub.calledOnce).to.be.true
       expect(findOneStub.calledOnce).to.be.true
+    })
+
+    it('should return true if token is ignoreTransfer', async () => {
+      const sameBlockNumberToken = { ...mockToken, blockNumber: mockPlugin.blockNumber, ignoreTransfer: true }
+
+      const result = await TokenHolderSync.isTokenNotEligibleForSync(sameBlockNumberToken, mockPlugin)
+
+      expect(result).to.be.true
     })
 
     it('should return true if token holder count is above threshold', async () => {
@@ -190,7 +187,12 @@ describe('AragonPlugins: TokenHolderSync', () => {
       expect(callArgs.network).to.equal(mockToken.network)
       expect(typeof callArgs.callback).to.equal('function')
 
-      const expectedSyncKey = TokenHolderSync.getTagName(mockPlugin, mockToken, TokenSyncTagName.TokenHolders)
+      const expectedSyncKey = ConfigIndexerHelper.builders.token(
+        mockToken.type,
+        mockToken.network,
+        mockToken.address,
+        ITokenSyncTagName.holders,
+      )
       expect(callArgs.syncKey).to.equal(expectedSyncKey)
     })
 
@@ -307,7 +309,12 @@ describe('AragonPlugins: TokenHolderSync', () => {
       expect(crawler.crawlParams.address).to.deep.equal([mockToken.address])
       expect(crawler.crawlParams.fromBlock).to.equal(mockToken.blockNumber)
 
-      const expectedTagName = TokenHolderSync.getTagName(mockPlugin, mockToken, TokenSyncTagName.Delegation)
+      const expectedTagName = ConfigIndexerHelper.builders.token(
+        mockToken.type,
+        mockToken.network,
+        mockToken.address,
+        ITokenSyncTagName.delegates,
+      )
       expect(crawler.crawlParams.logService).to.equal(expectedTagName)
     })
   })
@@ -326,7 +333,12 @@ describe('AragonPlugins: TokenHolderSync', () => {
       expect(crawler.crawlParams.address).to.deep.equal([mockPlugin.tokenAddress])
       expect(crawler.crawlParams.fromBlock).to.equal(mockPlugin.blockNumber)
 
-      const expectedTagName = TokenHolderSync.getTagName(mockPlugin, mockToken, TokenSyncTagName.Transfer)
+      const expectedTagName = ConfigIndexerHelper.builders.token(
+        mockToken.type,
+        mockToken.network,
+        mockToken.address,
+        ITokenSyncTagName.transfers,
+      )
       expect(crawler.crawlParams.logService).to.equal(expectedTagName)
     })
   })
@@ -352,7 +364,7 @@ describe('AragonPlugins: TokenHolderSync', () => {
       expect(deleteManyStub.calledOnce).to.be.true
       expect(createStub.calledOnce).to.be.true
 
-      const defaultTagName = TokenHolderSync.getTagName(mockPlugin, mockToken, TokenSyncTagName.Default)
+      const defaultTagName = ConfigIndexerHelper.builders.token(mockToken.type, mockToken.network, mockToken.address)
       expect(createStub.firstCall.args[0]).to.deep.include({
         network: mockPlugin.network,
         service: defaultTagName,
@@ -373,7 +385,7 @@ describe('AragonPlugins: TokenHolderSync', () => {
       // Assert
       expect(createStub.calledOnce).to.be.true
 
-      const defaultTagName = TokenHolderSync.getTagName(mockPlugin, mockToken, TokenSyncTagName.Default)
+      const defaultTagName = ConfigIndexerHelper.builders.token(mockToken.type, mockToken.network, mockToken.address)
       expect(createStub.firstCall.args[0]).to.deep.include({
         network: mockPlugin.network,
         service: defaultTagName,
@@ -389,6 +401,126 @@ describe('AragonPlugins: TokenHolderSync', () => {
 
       // Assert
       expect(Array.isArray(result)).to.be.true
+    })
+  })
+
+  describe('linkPluginToExistingTokenHolders', () => {
+    beforeEach(() => {
+      sandbox.restore()
+    })
+    it('should not process anything if no token holders exist', async () => {
+      const spyDaoMemberMappingInsertMany = sandbox.spy(Models.DaoMemberMapping, 'insertMany')
+
+      await TokenHolderSync.linkPluginToExistingTokenHolders(mockPlugin, mockToken, 1000)
+
+      expect(spyDaoMemberMappingInsertMany.called).to.be.false
+    })
+
+    it('should link existing token holders to plugin and create config indexer entry', async () => {
+      const mockHolders = ['0xHolder1', '0xHolder2']
+
+      const memberFindStub = sandbox.stub(Models.Member, 'find')
+      memberFindStub.returns({
+        distinct: sandbox.stub().resolves(mockHolders),
+      })
+      const spyDaoMemberMappingInsertMany = sandbox.spy(Models.DaoMemberMapping, 'insertMany')
+      const spyMemberMetricsInsertMany = sandbox.spy(Models.MemberMetrics, 'insertMany')
+      const spyConfigIndexerCreate = sandbox.spy(Models.ConfigIndexer, 'create')
+
+      const lastSyncBlock = 1500
+
+      // Act
+      await TokenHolderSync.linkPluginToExistingTokenHolders(mockPlugin, mockToken, lastSyncBlock)
+
+      // Assert
+      expect(
+        memberFindStub.calledWith({
+          tokenAddress: mockToken.address,
+          network: mockToken.network,
+        }),
+      ).to.be.true
+
+      const daoMemberMappings = await Models.DaoMemberMapping.find({
+        pluginAddress: mockPlugin.address,
+        tokenAddress: mockToken.address,
+        network: mockPlugin.network,
+      })
+
+      expect(spyDaoMemberMappingInsertMany.calledOnce).to.be.true
+      expect(spyMemberMetricsInsertMany.calledOnce).to.be.true
+
+      expect(daoMemberMappings.length).to.equal(mockHolders.length)
+      const memberMetrics = await Models.MemberMetrics.find({
+        pluginAddress: mockPlugin.address,
+        network: mockPlugin.network,
+      })
+
+      expect(memberMetrics.length).to.equal(mockHolders.length)
+
+      expect(spyConfigIndexerCreate.calledOnce).to.be.true
+      const configIndexer = await Models.ConfigIndexer.findOne({
+        network: mockPlugin.network,
+        service: ConfigIndexerHelper.builders.token(mockToken.type, mockToken.network, mockToken.address),
+      })
+      expect(configIndexer).to.not.be.null
+      expect(configIndexer.lastSync).to.equal(lastSyncBlock)
+    })
+
+    it('should handle errors during insertion and still create config indexer entry', async () => {
+      // Setup - mock some token holders
+      const mockHolders = ['0xHolder1', '0xHolder2']
+
+      // Stub Member.find().distinct to return our mock holders
+      const memberFindStub = sandbox.stub(Models.Member, 'find')
+      memberFindStub.returns({
+        distinct: sandbox.stub().resolves(mockHolders),
+      })
+
+      const insertManyStub = sandbox.stub(Models.DaoMemberMapping, 'insertMany')
+      insertManyStub.throws(new Error('Database error'))
+
+      // Spy on other methods
+      const spyConfigIndexerCreate = sandbox.spy(Models.ConfigIndexer, 'create')
+      const spyLoggerError = sandbox.stub(logger, 'error')
+
+      // Act
+      await TokenHolderSync.linkPluginToExistingTokenHolders(mockPlugin, mockToken, 1000)
+
+      // Assert
+      expect(spyLoggerError.calledOnce).to.be.true
+      expect(spyConfigIndexerCreate.calledOnce).to.be.false
+    })
+
+    it('should return the last sync block if config exists', async () => {
+      // Setup
+      const mockLastSync = 5000
+
+      const findOneStub = sandbox.stub(Models.ConfigIndexer, 'findOne')
+      findOneStub.resolves({ lastSync: mockLastSync })
+
+      // Act
+      const result = await TokenHolderSync.getTokenLastSyncBlock(mockToken)
+
+      // Assert
+      expect(result).to.equal(mockLastSync)
+      expect(findOneStub.calledOnce).to.be.true
+      expect(findOneStub.firstCall.args[0]).to.deep.include({
+        network: mockToken.network,
+        regex: { $regex: `${mockToken.address}$` },
+      })
+    })
+
+    it('should return 0 if no config exists', async () => {
+      // Setup
+      const findOneStub = sandbox.stub(Models.ConfigIndexer, 'findOne')
+      findOneStub.resolves(null)
+
+      // Act
+      const result = await TokenHolderSync.getTokenLastSyncBlock(mockToken)
+
+      // Assert
+      expect(result).to.equal(0)
+      expect(findOneStub.calledOnce).to.be.true
     })
   })
 })

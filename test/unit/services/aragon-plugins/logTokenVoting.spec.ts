@@ -7,6 +7,7 @@ import { NetworksEnum, ITokenType } from '@types'
 import { expect } from 'chai'
 import { TokenHolderSync } from '@plugins/tokenHolderSync'
 import config from '@config'
+import { Models } from '@dbModels'
 
 describe('AragonPlugins: LogTokenVoting', () => {
   let sandbox: SinonSandbox
@@ -267,6 +268,61 @@ describe('AragonPlugins: LogTokenVoting', () => {
       expect(crawlStub.calledTwice).to.be.true
       expect(processErrorStub.calledOnce).to.be.true
       expect(processErrorStub.calledWith(error, pluginStub, { logIndex: 2, transactionHash: '0xhash2' })).to.be.true
+    })
+
+    it('should not sync when config indexer already exits', async () => {
+      const token = {
+        address: '0x123',
+        network: NetworksEnum.ethereumSepolia,
+        type: ITokenType.ERC20,
+        blockNumber: 100,
+      } as any
+
+      const plugin = {
+        address: '0x456',
+        tokenAddress: token.address,
+        network: token.network,
+        blockNumber: 200,
+        interfaceType: 'tokenVoting',
+      } as any
+
+      const isTokenNotEligibleStub = sandbox.stub(TokenHolderSync, 'isTokenNotEligibleForSync').resolves(false)
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      sandbox.stub(Models.ConfigIndexer, 'findOne').resolves(true)
+
+      await LogTokenVoting.erc20Governance(plugin, token)
+
+      expect(isTokenNotEligibleStub.calledOnce).to.be.true
+      expect(crawlStub.calledOnce).to.be.false
+    })
+
+    it('should use tokenCrawler when token has no existing sync block', async () => {
+      // Setup
+      const token = {
+        address: '0x123',
+        network: NetworksEnum.ethereumSepolia,
+        type: ITokenType.ERC20,
+        blockNumber: 100,
+      } as any
+
+      const plugin = {
+        address: '0x456',
+        tokenAddress: token.address,
+        network: token.network,
+        blockNumber: 200,
+        interfaceType: 'tokenVoting',
+      } as any
+
+      const isTokenNotEligibleStub = sandbox.stub(TokenHolderSync, 'isTokenNotEligibleForSync').resolves(false)
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      sandbox.stub(logger, 'verbose')
+
+      // Act
+      await LogTokenVoting.erc20Governance(plugin, token)
+
+      // Assert
+      expect(isTokenNotEligibleStub.calledOnce).to.be.true
+      expect(crawlStub.calledTwice).to.be.true
     })
   })
 
