@@ -574,7 +574,13 @@ export const PluginHandler = {
         PluginSetupProcessor.abi,
       )
 
-      if (uninstallationAppliedLogs.length > 0) {
+      const installationPreparedLogs = Web3Utils.findLogsByName(
+        txReceipt!,
+        IEventLogPluginType.InstallationPrepared,
+        PluginSetupProcessor.abi,
+      )
+
+      if (uninstallationAppliedLogs.length > 0 || installationPreparedLogs.length > 0) {
         return
       }
 
@@ -624,10 +630,10 @@ export const PluginHandler = {
         return
       }
 
-      const installationAppliedLogs = Web3Utils.findLogsByName(
-        txReceipt,
-        IEventLogPluginType.InstallationApplied,
-        PluginSetupProcessor.abi,
+      const installationAppliedLogs = txReceipt.logs.filter(
+        log =>
+          configIndexer.find(config => config.event === IEventLogPluginType.InstallationApplied)?.topic ===
+          log.topics[0],
       )
 
       const executePermissionId = ethers.id('EXECUTE_PERMISSION')
@@ -643,8 +649,12 @@ export const PluginHandler = {
         const grantedTopic = configIndexer.find(config => config.event === IDaoLogs.Granted)?.topic
         const revokedTopic = configIndexer.find(config => config.event === IDaoLogs.Revoked)?.topic
 
-        const lastAppliedLog = installationAppliedLogs[installationAppliedLogs.length - 1]
-        const lastAppliedLogIndex = lastAppliedLog.txLog.index
+        const lastAppliedLog = Web3Utils.parseInfoLog(
+          installationAppliedLogs[installationAppliedLogs.length - 1],
+          IEventLogPluginType.InstallationApplied,
+          info.network,
+        )
+        const lastAppliedLogIndex = lastAppliedLog.logIndex
 
         const nextPermissionEvent = txReceipt.logs.find((log: any) => {
           const isPermissionEvent =
