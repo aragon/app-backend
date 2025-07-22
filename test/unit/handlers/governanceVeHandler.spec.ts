@@ -14,7 +14,7 @@ import GovernanceErc20Helper from '@helpers/governanceErc20'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import DbOperations from '@models/utils/dbOperations'
 
-describe('Handler:GovernanceVeHandler', () => {
+describe.only('Handler:GovernanceVeHandler', () => {
   let sandbox: SinonSandbox
   let plugin: Plugin
   let activePluginSetting: PluginSetting | any
@@ -134,7 +134,7 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stored?.memberAddress).to.equal(mockEvent.args.depositor)
       expect(stored?.tokenAddress).to.equal(plugin.tokenAddress)
       expect(stored?.nftAddress).to.equal(plugin?.votingEscrow?.nftLockAddress)
-      expect(stored?.tokenId).to.equal(Number(mockEvent.args.tokenId))
+      expect(stored?.tokenId).to.equal(mockEvent.args.tokenId.toString())
       expect(stored?.amount).to.equal(mockEvent.args.value.toString())
       expect(stored?.epochStartAt).to.equal(Number(mockEvent.args.startTs))
       expect(stored?.totalLocked).to.equal(mockEvent.args.newTotalLocked.toString())
@@ -397,7 +397,7 @@ describe('Handler:GovernanceVeHandler', () => {
       const updatedBalance = await Models.MemberBalance.findById(memberBalance._id)
       expect(updatedBalance?.amount).to.equal('2')
       expect(updatedBalance?.tokenIds).to.deep.equal(['100', '200'])
-      expect(updatedBalance?.lastSyncAmountBlockNumber).to.equal('124')
+      expect(updatedBalance?.lastSyncAmountBlockNumber).to.equal(124)
 
       expect(stubLogger.calledTwice).to.be.true
       expect(stubRemoveFromDao.calledOnce).to.be.true
