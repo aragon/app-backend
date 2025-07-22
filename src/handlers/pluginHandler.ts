@@ -632,6 +632,10 @@ export const PluginHandler = {
 
       const executePermissionId = ethers.id('EXECUTE_PERMISSION')
 
+      if (pluginDb.status === IPluginStatus.installed) {
+        return
+      }
+
       if (installationAppliedLogs.length > 0) {
         const grantedTopic = configIndexer.find(config => config.event === IDaoLogs.Granted)?.topic
         const revokedTopic = configIndexer.find(config => config.event === IDaoLogs.Revoked)?.topic
