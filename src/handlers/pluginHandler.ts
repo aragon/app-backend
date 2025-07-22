@@ -570,7 +570,7 @@ export const PluginHandler = {
       const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, network)
       const uninstallationAppliedLogs = Web3Utils.findLogsByName(
         txReceipt!,
-        'UninstallationApplied',
+        IEventLogPluginType.UninstallationApplied,
         PluginSetupProcessor.abi,
       )
 
@@ -642,8 +642,8 @@ export const PluginHandler = {
         return
       }
 
-      // After the applied log, we need to check if there is a next permission event
-      // We so we can be sure that the plugin is installed so proceed with the installation
+      // After the applied log, we need to check if there is a next execute permission event
+      // So we can be sure that we need to install the plugin
 
       if (installationAppliedLogs.length > 0) {
         const grantedTopic = configIndexer.find(config => config.event === IDaoLogs.Granted)?.topic
