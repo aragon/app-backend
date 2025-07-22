@@ -10,7 +10,6 @@ import Web3Utils from '@helpers/web3Utils'
 import { PermissionHandler } from '@src/handlers/permissionHandler'
 import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
 import { IPermission } from '@src/types/permission'
-import ConfigIndexerHelper from '@helpers/configIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogAdmin' })
 
@@ -30,11 +29,10 @@ export const LogAdmin = {
       address: plugin.address,
       fromBlock: plugin?.blockNumber,
       onError: async (error: any, log: any) => LogAdmin.processError(error, plugin, log),
-      logService: ConfigIndexerHelper.builders.plugin(plugin.interfaceType, plugin.network, plugin.address),
+      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}`,
       stopOnError: true,
     })
     await crawler.crawl()
-    await crawler.end()
 
     logger.verbose('End LogAdmin', llo({ network: plugin.network, latestBlockSync: crawler.crawlSetting.lastSync }))
   },

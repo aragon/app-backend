@@ -1,6 +1,6 @@
 import { SinonSandbox } from 'sinon'
 import * as sinon from 'sinon'
-import { IPluginInterfaceType, ITokenType, NetworksEnum } from '@types'
+import { IPluginInterfaceType, ITokenType, NetworksEnum, TokenSyncTagName } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { PluginList } from '@test/mock/fakePlugins'
 import { FakeToken } from '@test/mock/fakeToken'
@@ -8,7 +8,6 @@ import { Models } from '@dbModels'
 import { TokenHolderSync } from '@plugins/tokenHolderSync'
 import { LogTokenVoting } from '@plugins/logTokenVoting'
 import { expect } from 'chai'
-import ConfigIndexerHelper from '@helpers/configIndexer'
 
 describe('token holder sync case', () => {
   let sandbox: SinonSandbox
@@ -45,7 +44,6 @@ describe('token holder sync case', () => {
     const tokenDb = await Models.Token.create(token)
 
     sandbox.stub(BlockchainLogCrawler.prototype, 'crawl')
-    sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
 
     const syncDelegationEventSpy = sandbox.spy(TokenHolderSync, 'syncDelegationEvents')
 
@@ -57,7 +55,7 @@ describe('token holder sync case', () => {
     })
     expect(tokenReloaded.ignoreTransfer).to.be.true
     const configIndexerDefault = await Models.ConfigIndexer.findOne({
-      service: ConfigIndexerHelper.builders.token(tokenDb.type, tokenDb.network, tokenDb.address),
+      service: TokenHolderSync.getTagName(pluginDb, tokenDb, TokenSyncTagName.Default),
     })
     expect(configIndexerDefault).to.be.not.null
     expect(configIndexerDefault.network).to.be.equal(pluginDb.network)
