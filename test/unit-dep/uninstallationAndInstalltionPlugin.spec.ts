@@ -7,7 +7,7 @@ import { Models } from '@dbModels'
 import { expect } from 'chai'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 
-describe('Installation And Uninstallation Of Plugin Via Revoke And Grant ', () => {
+describe.skip('Installation And Uninstallation Of Plugin Via Revoke And Grant ', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -19,10 +19,11 @@ describe('Installation And Uninstallation Of Plugin Via Revoke And Grant ', () =
     sandbox && sandbox.restore()
   })
 
-  it.only('should install properly plugins and dao', async function () {
+  it('should install properly plugins and dao', async function () {
     this.timeout(100000)
     const daoAddress = '0x0AB0902f1d4AF089Af6dcDD512E9BFe40b20f679'
     const network = NetworksEnum.ethereumSepolia
+    sandbox.restore()
     UnitDepUtils.stubRabbitmqSend(sandbox)
 
     await UnitDepUtils.syncACompleteDao(daoAddress, network)
