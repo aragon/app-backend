@@ -1005,30 +1005,32 @@ describe('Indexer:Plugin', () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves(daoDb)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginDb)
 
-      const txReceipt = { 
-        logs: [{ 
-          topics: ['0xinstallationAppliedTopic'],
-          address: '0x1234567890123456789012345678901234567890',
-          blockNumber: 1234,
-          transactionHash: '0xtxhash',
-          transactionIndex: 0,
-          logIndex: 0
-        }] 
+      const txReceipt = {
+        logs: [
+          {
+            topics: ['0xinstallationAppliedTopic'],
+            address: '0x1234567890123456789012345678901234567890',
+            blockNumber: 1234,
+            transactionHash: '0xtxhash',
+            transactionIndex: 0,
+            logIndex: 0,
+          },
+        ],
       }
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
 
-      const findLogsStub = sandbox
-        .stub(Web3Utils, 'findLogsByName')
-        .returns([{ 
+      const findLogsStub = sandbox.stub(Web3Utils, 'findLogsByName').returns([
+        {
           parsed: { name: 'InstallationApplied' },
           txLog: {
             address: '0x1234567890123456789012345678901234567890',
             blockNumber: 1234,
             transactionHash: '0xtxhash',
             transactionIndex: 0,
-            logIndex: 0
-          }
-        }] as any)
+            logIndex: 0,
+          },
+        },
+      ] as any)
 
       // Stub parseInfoLog to prevent the address validation error
       const parseInfoLogStub = sandbox.stub(Web3Utils, 'parseInfoLog').returns({
@@ -1037,7 +1039,7 @@ describe('Indexer:Plugin', () => {
         transactionHash: '0xtxhash',
         transactionIndex: 0,
         logIndex: 0,
-        network: NetworksEnum.ethereumSepolia
+        network: NetworksEnum.ethereumSepolia,
       } as any)
 
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
@@ -1326,16 +1328,18 @@ describe('Indexer:Plugin', () => {
     it('should not uninstall if UninstallationApplied logs are present', async () => {
       const plugin = { status: 'active', id: 'pluginId' }
       sandbox.stub(Models.Plugin, 'findOne').resolves(plugin)
-      const txReceipt = { 
-        logs: [{
-          address: '0x1234567890123456789012345678901234567890',
-          blockNumber: 12345,
-          transactionHash: '0x0123',
-          transactionIndex: 0,
-          logIndex: 0,
-          topics: ['0xuninstallationAppliedTopic'],
-          data: '0x'
-        }] 
+      const txReceipt = {
+        logs: [
+          {
+            address: '0x1234567890123456789012345678901234567890',
+            blockNumber: 12345,
+            transactionHash: '0x0123',
+            transactionIndex: 0,
+            logIndex: 0,
+            topics: ['0xuninstallationAppliedTopic'],
+            data: '0x',
+          },
+        ],
       }
       sandbox.stub(PluginDetector, 'detectPluginType').resolves({
         type: IPluginInterfaceType.tokenVoting,
@@ -1344,8 +1348,10 @@ describe('Indexer:Plugin', () => {
         hasTarget: false,
       })
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
-      const findLogsStub = sandbox.stub(Web3Utils, 'findLogsByName')
-        .onFirstCall().returns([
+      const findLogsStub = sandbox
+        .stub(Web3Utils, 'findLogsByName')
+        .onFirstCall()
+        .returns([
           {
             parsed: { name: 'UninstallationApplied', txLog: { pluginId: 'pluginId' } },
             txLog: {
@@ -1353,18 +1359,19 @@ describe('Indexer:Plugin', () => {
               blockNumber: 12345,
               transactionHash: '0x0123',
               transactionIndex: 0,
-              logIndex: 0
-            }
+              logIndex: 0,
+            },
           } as any,
         ])
-        .onSecondCall().returns([]) // No InstallationPrepared logs
+        .onSecondCall()
+        .returns([]) // No InstallationPrepared logs
       const updateStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
-      
+
       await PluginHandler.uninstallPluginWithPermissionRevoke('0xdao', '0xPlugin', NetworksEnum.ethereumSepolia, {
         transactionHash: '0x0123',
         blockNumber: 12345,
       } as any)
-      
+
       expect(findLogsStub.calledTwice).to.be.true
       expect(getTransactionReceiptStub.calledOnce).to.be.true
       expect(updateStub.called).to.be.false
