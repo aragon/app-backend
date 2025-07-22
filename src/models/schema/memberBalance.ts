@@ -33,6 +33,7 @@ const customName = ICollectionNames.MemberBalance
 @index({ address: 1 })
 @index({ network: 1, tokenAddress: 1, amount: 1 })
 @index({ network: 1, tokenAddress: 1, votingPower: 1 })
+@index({ tokenAddress: 1 })
 export default class MemberBalance extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
