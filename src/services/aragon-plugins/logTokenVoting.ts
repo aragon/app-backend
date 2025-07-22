@@ -163,8 +163,9 @@ export const LogTokenVoting = {
       stopOnError: true,
     })
 
-    const crawlers: any = [pluginCrawler.crawl(), tokenCrawler.crawl()]
-    await Promise.all(crawlers)
+    const pluginCrawlerPromise = pluginCrawler.crawl()
+    const tokenCrawlerPromise = tokenCrawler.crawl()
+    await Promise.all([pluginCrawlerPromise, tokenCrawlerPromise])
 
     logger.verbose(
       'End LogTokenVoting',
