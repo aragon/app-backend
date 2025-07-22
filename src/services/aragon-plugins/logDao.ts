@@ -3,7 +3,6 @@ import { IDaoLogs, type IIndexerConfig } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Dao from '@models/schema/dao'
 import configIndexer from '@indexer/configIndexer'
-import ConfigIndexerHelper from '@helpers/configIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogDao' })
 
@@ -21,11 +20,10 @@ export const LogDao = {
       address: dao.address,
       fromBlock: dao?.blockNumber || 0,
       onError: async (error: any, log: any) => LogDao.processError(error, dao, log),
-      logService: ConfigIndexerHelper.builders.dao(dao.network, dao.address),
+      logService: `dao-${dao.network}-${dao.address}`,
       stopOnError: true,
     })
     await crawler.crawl()
-    await crawler.end()
 
     logger.verbose('End LogDao', llo({ network: dao.network, latestBlockSync: crawler.crawlSetting.lastSync }))
   },

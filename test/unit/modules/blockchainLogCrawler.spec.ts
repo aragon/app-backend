@@ -3,7 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import logger from '@logger'
-import { ICrawStrategy, IndexerType, NetworksEnum } from '@types'
+import { ICrawStrategy, NetworksEnum } from '@types'
 import ProviderModule from '@modules/provider'
 import Web3Helper from '@helpers/web3'
 import axios from 'axios'
@@ -1209,7 +1209,7 @@ describe('Module: blockchainLogCrawler', () => {
       address: '0xAddress',
       events,
       stopOnError: false,
-      logService: `${IndexerType.indexer}-${NetworksEnum.ethereumMainnet}`,
+      logService: `indexer-${NetworksEnum.ethereumMainnet}`,
       onError: sandbox.stub(),
     })
 
@@ -1340,7 +1340,7 @@ describe('Module: blockchainLogCrawler', () => {
       address: '0xAddress',
       events: [],
       stopOnError: false,
-      logService: `${IndexerType.indexer}-${NetworksEnum.ethereumMainnet}`,
+      logService: `indexer-${NetworksEnum.ethereumMainnet}`,
       onError: () => {},
     })
 
@@ -1350,7 +1350,7 @@ describe('Module: blockchainLogCrawler', () => {
     expect(
       stubFindLog.calledOnceWith({
         network: NetworksEnum.ethereumMainnet,
-        service: `${IndexerType.indexer}-${NetworksEnum.ethereumMainnet}`,
+        service: `indexer-${NetworksEnum.ethereumMainnet}`,
       }),
     ).to.be.true
   })
@@ -1372,7 +1372,7 @@ describe('Module: blockchainLogCrawler', () => {
       address: '0xAddress',
       events: [],
       stopOnError: false,
-      logService: `${IndexerType.indexer}-${NetworksEnum.ethereumMainnet}`,
+      logService: `indexer-${NetworksEnum.ethereumMainnet}`,
       onError: () => {},
     })
 
@@ -1384,7 +1384,7 @@ describe('Module: blockchainLogCrawler', () => {
     expect(
       stubFindLog.calledOnceWith({
         network: NetworksEnum.ethereumMainnet,
-        service: `${IndexerType.indexer}-${NetworksEnum.ethereumMainnet}`,
+        service: `indexer-${NetworksEnum.ethereumMainnet}`,
       }),
     ).to.be.true
   })
@@ -1400,7 +1400,7 @@ describe('Module: blockchainLogCrawler', () => {
       address: '0xAddress',
       events: [],
       stopOnError: false,
-      logService: `${IndexerType.indexer}-${NetworksEnum.ethereumMainnet}`,
+      logService: `indexer-${NetworksEnum.ethereumMainnet}`,
       onError: () => {},
     })
 
@@ -1409,7 +1409,7 @@ describe('Module: blockchainLogCrawler', () => {
     expect(
       stubFindLog.calledOnceWith({
         network: NetworksEnum.ethereumMainnet,
-        service: `${IndexerType.indexer}-${NetworksEnum.ethereumMainnet}`,
+        service: `indexer-${NetworksEnum.ethereumMainnet}`,
       }),
     ).to.be.true
     expect(startBlock).to.equal(lastSync)
@@ -1425,7 +1425,7 @@ describe('Module: blockchainLogCrawler', () => {
       address: '0xAddress',
       events: [],
       stopOnError: false,
-      logService: `${IndexerType.indexer}-${NetworksEnum.ethereumMainnet}`,
+      logService: `indexer-${NetworksEnum.ethereumMainnet}`,
       onError: () => {},
     })
 
@@ -1434,7 +1434,7 @@ describe('Module: blockchainLogCrawler', () => {
     expect(
       stubFindLog.calledOnceWith({
         network: NetworksEnum.ethereumMainnet,
-        service: `${IndexerType.indexer}-${NetworksEnum.ethereumMainnet}`,
+        service: `indexer-${NetworksEnum.ethereumMainnet}`,
       }),
     ).to.be.true
     expect(startBlock).to.equal(100)
@@ -1459,7 +1459,7 @@ describe('Module: blockchainLogCrawler', () => {
       address: '0xAddress',
       events: [],
       stopOnError: false,
-      logService: `${IndexerType.indexer}-${NetworksEnum.ethereumMainnet}`,
+      logService: `indexer-${NetworksEnum.ethereumMainnet}`,
       onError: () => {},
     })
 
@@ -1468,96 +1468,10 @@ describe('Module: blockchainLogCrawler', () => {
     expect(
       stubFindLog.calledOnceWith({
         network: NetworksEnum.ethereumMainnet,
-        service: `${IndexerType.indexer}-${NetworksEnum.ethereumMainnet}`,
+        service: `indexer-${NetworksEnum.ethereumMainnet}`,
       }),
     ).to.be.true
     expect(startBlock).to.equal(defaultFromBlock)
-  })
-
-  describe('end', () => {
-    it('should set end to true and save when config exists', async () => {
-      const crawler = new BlockchainLogCrawler({
-        ...crawlerConfig,
-        logService: 'indexer-ethereum-mainnet',
-      })
-
-      await Models.ConfigIndexer.create({
-        network: NetworksEnum.ethereumMainnet,
-        service: 'indexer-ethereum-mainnet',
-      })
-
-      const findExistingLogStub = sandbox.spy(Models.ConfigIndexer, 'findExistingLog')
-
-      await crawler.end()
-
-      expect(
-        findExistingLogStub.calledOnceWith({
-          network: NetworksEnum.ethereumMainnet,
-          service: 'indexer-ethereum-mainnet',
-        }),
-      ).to.be.true
-
-      const configAfterUpdate = await Models.ConfigIndexer.findExistingLog({
-        network: NetworksEnum.ethereumMainnet,
-        service: 'indexer-ethereum-mainnet',
-      })
-
-      expect(configAfterUpdate.end).to.be.true
-    })
-
-    it('should do nothing when no config exists', async () => {
-      const crawler = new BlockchainLogCrawler({
-        ...crawlerConfig,
-        logService: 'indexer-ethereum-mainnet',
-      })
-
-      const findExistingLogStub = sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves(null)
-
-      await crawler.end()
-
-      expect(
-        findExistingLogStub.calledOnceWith({
-          network: NetworksEnum.ethereumMainnet,
-          service: 'indexer-ethereum-mainnet',
-        }),
-      ).to.be.true
-    })
-
-    it('should work without logService', async () => {
-      const crawler = new BlockchainLogCrawler({
-        ...crawlerConfig,
-        logService: undefined,
-      })
-
-      const findExistingLogStub = sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves(null)
-
-      await crawler.end()
-
-      expect(
-        findExistingLogStub.calledOnceWith({
-          network: NetworksEnum.ethereumMainnet,
-          service: undefined,
-        }),
-      ).to.be.true
-    })
-
-    it('should handle errors during findExistingLog', async () => {
-      const crawler = new BlockchainLogCrawler({
-        ...crawlerConfig,
-        logService: 'indexer-ethereum-mainnet',
-      })
-
-      const findError = new Error('Database query failed')
-      const findExistingLogStub = sandbox.stub(Models.ConfigIndexer, 'findExistingLog').rejects(findError)
-
-      try {
-        await crawler.end()
-        expect.fail('Should have thrown an error')
-      } catch (error) {
-        expect(error).to.equal(findError)
-        expect(findExistingLogStub.calledOnce).to.be.true
-      }
-    })
   })
 
   describe('getStrategyBySituation', () => {

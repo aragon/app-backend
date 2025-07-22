@@ -1,3 +1,6 @@
+import { type IPluginInterfaceType } from '@src/types/plugin'
+import { type NetworksEnum } from '@src/types/networks'
+
 export enum EnumConnection {
   MONGODB = 'MONGODB',
   BLOCKCHAIN = 'BLOCKCHAIN',
@@ -24,3 +27,11 @@ export enum IEnumTaskStatus {
   DONE = 'DONE',
   ERROR = 'ERROR',
 }
+
+export enum IEnumIndexerService {
+  depositTxs = 'depositTxs',
+  withdrawTxs = 'withdrawTxs',
+}
+
+export type IEnumIndexerServiceStatic =
+  `${'indexer' | 'token' | 'deposit' | 'dao' | 'permission' | NetworksEnum | IPluginInterfaceType}-${string}-${string}`
