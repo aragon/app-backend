@@ -225,6 +225,7 @@ class TxInfo {
 @index({ transactionHash: 1 })
 @index({ network: 1 })
 @index({ isSubProposal: 1, 'executed.status': 1 })
+@index({ daoAddress: 1, createdAt: -1, transactionIndex: -1 })
 export default class Proposal extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
