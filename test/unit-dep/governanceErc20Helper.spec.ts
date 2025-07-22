@@ -47,6 +47,8 @@ describe('GovernanceErc20Helper', () => {
       blockNumber,
       network,
       tokenAddress,
+      blockTimestamp: 0,
+      hasClockMode: true,
     })
     expect(totalSupply).to.eq(500000000000000000000n)
   })

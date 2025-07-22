@@ -19,7 +19,7 @@ import EnsHelper from '@helpers/ens'
 import { expect } from 'chai'
 import Web3Utils from '@helpers/web3Utils'
 
-describe('GovernanceErc20Handler', () => {
+describe.only('GovernanceErc20Handler', () => {
   let sandbox: SinonSandbox
   let intervalTime: number
   let network: NetworksEnum
@@ -88,6 +88,8 @@ describe('GovernanceErc20Handler', () => {
         },
       ]
 
+      const loggerStub = sandbox.stub(logger, 'verbose')
+
       // Don't stub createMember - let it actually create the member
       const getPastVotesStub = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('2000')
       const findExistingLogStub = sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(false)
@@ -139,6 +141,17 @@ describe('GovernanceErc20Handler', () => {
       expect(rabbitMqStub.calledTwice).to.be.true
       expect(rabbitMqStub.args[0][1].id).to.be.eq(plugins[0].daoAddress)
       expect(rabbitMqStub.args[1][1].id).to.be.eq(plugins[1].daoAddress)
+      expect(
+        getPastVotesStub.calledOnceWith(
+          parsedEvent.args.to,
+          info.address,
+          info.blockNumber,
+          1630425600,
+          info.network,
+          fakeToken.hasClockMode,
+        ),
+      ).to.be.true
+      expect(loggerStub.callCount).to.be.eq(4)
     })
 
     it('should handle outgoing ERC20 transfer event and remove member from DAO', async () => {

@@ -9,6 +9,7 @@ import Web3Helper from '@helpers/web3'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
 import config from '@config'
 import utils from '@helpers/utils'
+import { NetworkHelper } from '@helpers/network'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:GovernanceErc20Helper' })
 
@@ -118,14 +119,17 @@ const GovernanceErc20Helper = {
     tokenAddress: HexAddress
     blockNumber: number
     network: NetworksEnum
-    blockTimestamp?: number
-    hasClockMode?: boolean
+    blockTimestamp: number
+    hasClockMode: boolean
   }): Promise<string> {
     const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
+    const pastBlockNumber = blockNumber - 1
+    const pastBlockTimestamp = blockTimestamp - NetworkHelper.getAverageBlockTime(network)
+
     const timepointValue = hasClockMode
-      ? blockTimestamp
-      : await Web3Helper.getChainAdjustedBlockNumber(blockNumber, network)
+      ? pastBlockTimestamp
+      : await Web3Helper.getChainAdjustedBlockNumber(pastBlockNumber, network)
 
     try {
       return await retryRequest(async () =>
