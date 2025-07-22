@@ -19,7 +19,7 @@ import EnsHelper from '@helpers/ens'
 import { expect } from 'chai'
 import Web3Utils from '@helpers/web3Utils'
 
-describe.only('GovernanceErc20Handler', () => {
+describe('GovernanceErc20Handler', () => {
   let sandbox: SinonSandbox
   let intervalTime: number
   let network: NetworksEnum
