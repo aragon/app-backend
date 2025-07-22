@@ -456,7 +456,7 @@ describe('AragonPlugins: TokenHolderSync', () => {
       expect(spyConfigIndexerCreate.calledOnce).to.be.true
       const configIndexer = await Models.ConfigIndexer.findOne({
         network: mockPlugin.network,
-        logService: `${mockPlugin.interfaceType}-${mockPlugin.network}-${mockPlugin.address}-${mockPlugin?.tokenAddress}`,
+        service: `${mockPlugin.interfaceType}-${mockPlugin.network}-${mockPlugin.address}-${mockPlugin?.tokenAddress}`,
       })
       expect(configIndexer).to.not.be.null
       expect(configIndexer.lastSync).to.equal(lastSyncBlock)
