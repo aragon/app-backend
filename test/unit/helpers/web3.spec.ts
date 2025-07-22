@@ -536,7 +536,7 @@ describe('Helpers:Web3', () => {
 
       expect(result).to.be.null
       expect(getTransactionReceiptStub.calledOnce).to.be.true
-      expect(stubLogger.calledOnceWith('Error get transaction receipt' as any)).to.be.true
+      expect(stubLogger.calledWith('Error get transaction receipt' as any)).to.be.true
     })
   })
 
