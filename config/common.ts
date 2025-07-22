@@ -420,6 +420,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       CONNECTION_RETRY: utils.configParser(sourceConfig, 'number', 'MONGO_DB_RETRY_CONNECTION_RETRY', 60),
       CONNECTION_TIMEOUT: utils.configParser(sourceConfig, 'number', 'MONGO_DB_RETRY_CONNECTION_TIMEOUT', 5000),
       CONNECTION_DELAY: utils.configParser(sourceConfig, 'number', 'MONGO_DB_RETRY_CONNECTION_DELAY', 1000),
+      UPDATE_INDEXES: utils.configParser(sourceConfig, 'bool', 'MONGO_DB_UPDATE_INDEXES', true),
     },
 
     LOG: {
