@@ -173,6 +173,7 @@ export interface IAggPluginProjectFields {
   build?: 1
   subdomain?: 1
   isProcess: 1
+  conditionAddress: 1
   isBody: 1
   isSubPlugin: 1
   totalStages: 1
