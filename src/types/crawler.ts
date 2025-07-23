@@ -1,5 +1,5 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
-import type { IEnumIndexerService, IEnumIndexerServiceStatic } from '@src/types/services'
+import type { IEnumIndexerService, IEnumIndexerServiceStatic } from '@types'
 import type { IFormattedLog, ILogInfo } from '@src/types/eventLogs'
 import { type Filter, type Log, type LogDescription } from 'ethers'
 
