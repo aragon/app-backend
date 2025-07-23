@@ -26,7 +26,7 @@ import { ExitQueue } from '@artifacts/ExitQueue'
 import { VotingEscrow } from '@artifacts/VotingEscrow'
 import { DaoV2 } from '@artifacts/daoV2'
 import { ExecuteSelectorCondition } from '@artifacts/ExecuteSelectorCondition'
-import { SelectorPermissionHandler } from '@handlers/executeSelectorHandler'
+import { ExecuteHandler } from '@handlers/executeHandler'
 
 const IndexerEventConfig: IIndexerConfig[] = [
   // historical and realtime on startup
@@ -427,7 +427,7 @@ const IndexerEventConfig: IIndexerConfig[] = [
     config: [
       {
         abi: ExecuteSelectorCondition.abi,
-        handler: SelectorPermissionHandler.selectorAllowed,
+        handler: ExecuteHandler.selectorAllowed,
       },
     ],
   },
@@ -438,7 +438,7 @@ const IndexerEventConfig: IIndexerConfig[] = [
     config: [
       {
         abi: ExecuteSelectorCondition.abi,
-        handler: SelectorPermissionHandler.selectorDisallowed,
+        handler: ExecuteHandler.selectorDisallowed,
       },
     ],
   },
@@ -449,7 +449,7 @@ const IndexerEventConfig: IIndexerConfig[] = [
     config: [
       {
         abi: ExecuteSelectorCondition.abi,
-        handler: SelectorPermissionHandler.nativeTransfersAllowed,
+        handler: ExecuteHandler.nativeTransfersAllowed,
       },
     ],
   },
@@ -460,7 +460,7 @@ const IndexerEventConfig: IIndexerConfig[] = [
     config: [
       {
         abi: ExecuteSelectorCondition.abi,
-        handler: SelectorPermissionHandler.nativeTransfersDisallowed,
+        handler: ExecuteHandler.nativeTransfersDisallowed,
       },
     ],
   },
