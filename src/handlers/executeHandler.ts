@@ -5,9 +5,9 @@ import logger from '@logger'
 import Web3Helper from '@helpers/web3'
 import { ContractInfo } from '@services/aragon-dao/contractInfo'
 
-const llo = logger.logMeta.bind(null, { service: 'handlers:SelectorPermissionHandler' })
+const llo = logger.logMeta.bind(null, { service: 'handlers:ExecuteHandler' })
 
-export const SelectorPermissionHandler = {
+export const ExecuteHandler = {
   async selectorAllowed(parsedEvent: LogDescription, info: ILogInfo) {
     try {
       const { selector, where } = parsedEvent.args as any
