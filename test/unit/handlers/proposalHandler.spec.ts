@@ -1014,7 +1014,7 @@ describe('ProposalHandler', () => {
       expect(stubError.calledOnceWith('Error ProposalHandler.proposalCreated - tokenAddress is missing' as any))
     })
 
-    it.only('should handle when proposalMetadata is null', async () => {
+    it('should handle when proposalMetadata is null', async () => {
       const metadataUri = 'ipfs://metadata-uri'
       const info: ILogInfo = {
         transactionHash: '0xno-metadata-tx',
@@ -1124,7 +1124,7 @@ describe('ProposalHandler', () => {
       expect(result?.relatedPlugin).to.be.undefined
     })
 
-    it.only('should handle when getPastTotalSupply returns null', async () => {
+    it('should handle when getPastTotalSupply returns null', async () => {
       const metadataUri = 'ipfs://metadata-uri'
       const info: ILogInfo = {
         transactionHash: '0xnull-supply-tx',
