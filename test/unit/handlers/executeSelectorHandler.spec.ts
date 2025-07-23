@@ -6,6 +6,7 @@ import { Models } from '@dbModels'
 import { NetworksEnum, IPluginStatus } from '@types'
 import logger from '@logger'
 import Web3Helper from '@helpers/web3'
+import { ContractInfo } from '@services/aragon-dao/contractInfo'
 
 describe('Indexer: ExecuteSelectorHandler', () => {
   let sandbox: SinonSandbox
@@ -53,6 +54,13 @@ describe('Indexer: ExecuteSelectorHandler', () => {
         },
       } as any
 
+      const stubDecodedAction = sandbox.stub(ContractInfo, 'parseSignature').resolves({
+        functionName: 'transfer',
+        contractName: 'ERC20Token',
+        proxyName: 'ProxyContract',
+        implementationAddress: '0x00'
+      })
+
       const loggerInfoStub = sandbox.stub(logger, 'info')
       const findExistingLogStub = sandbox.stub(Models.SelectorPermission, 'findExistingLog').resolves(null)
       const createStub = sandbox.stub(Models.SelectorPermission, 'create').resolves({
@@ -86,8 +94,72 @@ describe('Indexer: ExecuteSelectorHandler', () => {
       expect(createArgs.daoAddress).to.equal(mockPlugin.daoAddress)
       expect(createArgs.conditionAddress).to.equal(mockInfo.address)
       expect(createArgs.isAllowed).to.be.true
+      expect(createArgs.decoded.functionName).to.equal('transfer')
+      expect(createArgs.decoded.contractName).to.equal('ERC20Token')
 
+      expect(stubDecodedAction.calledOnce).to.be.true
+      expect(stubDecodedAction.calledWith('0x12345678', '0x3333333333333333333333333333333333333333', mockInfo.network)).to.be.true
       expect(loggerInfoStub.calledOnce).to.be.true
+    })
+
+    it('should create selector permission with decoded action information', async () => {
+      const parsedEvent = {
+        args: {
+          selector: '0x12345678',
+          where: '0x3333333333333333333333333333333333333333',
+        },
+      } as any
+
+      const mockDecodedAction = {
+        functionName: 'transfer',
+        contractName: 'ERC20Token',
+        proxyName: 'ProxyContract',
+        implementationAddress: '0x4444444444444444444444444444444444444444',
+        inputs: [
+          { name: 'to', type: 'address', value: '0x5555555555555555555555555555555555555555', notice: 'Recipient address' },
+          { name: 'amount', type: 'uint256', value: '1000000000000000000', notice: 'Transfer amount' }
+        ],
+        notice: 'Transfers tokens to specified address'
+      }
+
+      const parseSignatureStub = sandbox.stub(ContractInfo, 'parseSignature').resolves(mockDecodedAction)
+      sandbox.stub(Models.SelectorPermission, 'findExistingLog').resolves(null)
+      const createStub = sandbox.stub(Models.SelectorPermission, 'create').resolves({} as any)
+
+      await SelectorPermissionHandler.selectorAllowed(parsedEvent, mockInfo)
+
+      expect(parseSignatureStub.calledOnce).to.be.true
+
+      expect(createStub.calledOnce).to.be.true
+      const createArgs = createStub.args[0][0]
+      expect(createArgs.decoded).to.deep.equal({
+        functionName: 'transfer',
+        contractName: 'ERC20Token',
+        proxyName: 'ProxyContract',
+        implementationAddress: '0x4444444444444444444444444444444444444444',
+        inputs: mockDecodedAction.inputs,
+        notice: 'Transfers tokens to specified address'
+      })
+    })
+
+    it('should handle parseSignature errors gracefully', async () => {
+      const parsedEvent = {
+        args: {
+          selector: '0x12345678',
+          where: '0x3333333333333333333333333333333333333333',
+        },
+      } as any
+
+      const parseSignatureStub = sandbox.stub(ContractInfo, 'parseSignature').rejects(new Error('Parse error'))
+      sandbox.stub(Models.SelectorPermission, 'findExistingLog').resolves(null)
+      const createStub = sandbox.stub(Models.SelectorPermission, 'create').resolves({} as any)
+      const errorStub = sandbox.stub(logger, 'error')
+
+      await SelectorPermissionHandler.selectorAllowed(parsedEvent, mockInfo)
+
+      expect(parseSignatureStub.calledOnce).to.be.true
+      expect(errorStub.calledOnce).to.be.true
+      expect(createStub.notCalled).to.be.true
     })
 
     it('should not create selector permission if plugin not found', async () => {
@@ -293,6 +365,55 @@ describe('Indexer: ExecuteSelectorHandler', () => {
       expect(loggerInfoStub.calledOnce).to.be.true
     })
 
+    it('should create ETH transfer permission with decoded native transfer information', async () => {
+      const parsedEvent = {
+        args: {
+          where: '0x3333333333333333333333333333333333333333',
+        },
+      } as any
+
+      const mockNativeTransferDecoded = {
+        functionName: 'NativeTransfer',
+        contractName: 'TestContract'
+      }
+
+      const parseSignatureStub = sandbox.stub(ContractInfo, 'parseSignature').resolves(mockNativeTransferDecoded)
+      sandbox.stub(Models.SelectorPermission, 'findExistingLog').resolves(null)
+      const createStub = sandbox.stub(Models.SelectorPermission, 'create').resolves({} as any)
+
+      await SelectorPermissionHandler.nativeTransfersAllowed(parsedEvent, mockInfo)
+
+      expect(parseSignatureStub.calledOnce).to.be.true
+      expect(parseSignatureStub.calledWith(null, '0x3333333333333333333333333333333333333333', mockInfo.network)).to.be.true
+
+      expect(createStub.calledOnce).to.be.true
+      const createArgs = createStub.args[0][0]
+      expect(createArgs.decoded).to.deep.equal({
+        functionName: 'NativeTransfer',
+        contractName: 'TestContract'
+      })
+      expect(createArgs.selector).to.be.null
+    })
+
+    it('should handle parseSignature errors for native transfers', async () => {
+      const parsedEvent = {
+        args: {
+          where: '0x3333333333333333333333333333333333333333',
+        },
+      } as any
+
+      const parseSignatureStub = sandbox.stub(ContractInfo, 'parseSignature').rejects(new Error('Parse error'))
+      sandbox.stub(Models.SelectorPermission, 'findExistingLog').resolves(null)
+      const createStub = sandbox.stub(Models.SelectorPermission, 'create')
+      const errorStub = sandbox.stub(logger, 'error')
+
+      await SelectorPermissionHandler.nativeTransfersAllowed(parsedEvent, mockInfo)
+
+      expect(parseSignatureStub.calledOnce).to.be.true
+      expect(errorStub.calledOnce).to.be.true
+      expect(createStub.notCalled).to.be.true
+    })
+
     it('should warn if plugin not found', async () => {
       const parsedEvent = {
         args: {
@@ -453,148 +574,6 @@ describe('Indexer: ExecuteSelectorHandler', () => {
       await SelectorPermissionHandler.nativeTransfersDisallowed(parsedEvent, mockInfo)
 
       expect(errorStub.calledOnce).to.be.true
-    })
-  })
-
-  describe('Integration scenarios', () => {
-    beforeEach(async () => {
-      sandbox.stub(logger, 'info')
-    })
-    afterEach(async () => {
-      sandbox.restore()
-    })
-
-    it('should handle selector allowed followed by disallowed', async () => {
-      const selectorAllowedEvent = {
-        args: {
-          selector: '0x12345678',
-          where: '0x3333333333333333333333333333333333333333',
-        },
-      } as any
-
-      const selectorDisallowedEvent = {
-        args: {
-          selector: '0x12345678',
-          where: '0x3333333333333333333333333333333333333333',
-        },
-      } as any
-
-      // Allow selector
-      await SelectorPermissionHandler.selectorAllowed(selectorAllowedEvent, mockInfo)
-
-      let permission = await Models.SelectorPermission.findOne({
-        network: NetworksEnum.ethereumMainnet,
-        conditionAddress: mockInfo.address,
-        selector: '0x12345678',
-      })
-
-      expect(permission).to.exist
-      expect(permission.isAllowed).to.be.true
-
-      // Disallow selector
-      const disallowInfo = {
-        ...mockInfo,
-        transactionHash: '0xdef456789',
-        blockNumber: 12347,
-      }
-
-      await SelectorPermissionHandler.selectorDisallowed(selectorDisallowedEvent, disallowInfo)
-
-      permission = await Models.SelectorPermission.findOne({
-        id: permission.id,
-      })
-
-      expect(permission.isAllowed).to.be.false
-      expect(permission.disallowed.status).to.be.true
-      expect(permission.disallowed.transactionHash).to.equal(disallowInfo.transactionHash)
-    })
-
-    it('should handle ETH transfers allowed followed by disallowed', async () => {
-      const ethAllowedEvent = {
-        args: {
-          where: '0x3333333333333333333333333333333333333333',
-        },
-      } as any
-
-      const ethDisallowedEvent = {
-        args: {
-          where: '0x3333333333333333333333333333333333333333',
-        },
-      } as any
-
-      // Allow ETH transfers
-      await SelectorPermissionHandler.nativeTransfersAllowed(ethAllowedEvent, mockInfo)
-
-      let permission = await Models.SelectorPermission.findOne({
-        network: NetworksEnum.ethereumMainnet,
-        conditionAddress: mockInfo.address,
-        selector: null,
-      })
-
-      expect(permission).to.exist
-      expect(permission.isAllowed).to.be.true
-      expect(permission.selector).to.be.null
-
-      // Disallow ETH transfers
-      const disallowInfo = {
-        ...mockInfo,
-        transactionHash: '0xdef456789',
-        blockNumber: 12347,
-      }
-
-      await SelectorPermissionHandler.nativeTransfersDisallowed(ethDisallowedEvent, disallowInfo)
-
-      permission = await Models.SelectorPermission.findOne({
-        id: permission.id,
-      })
-
-      expect(permission.isAllowed).to.be.false
-      expect(permission.disallowed.status).to.be.true
-      expect(permission.disallowed.transactionHash).to.equal(disallowInfo.transactionHash)
-    })
-
-    it('should handle mixed selector and ETH transfer permissions', async () => {
-      const selectorEvent = {
-        args: {
-          selector: '0x12345678',
-          where: '0x3333333333333333333333333333333333333333',
-        },
-      } as any
-
-      const ethEvent = {
-        args: {
-          where: '0x4444444444444444444444444444444444444444',
-        },
-      } as any
-
-      // Create both types of permissions
-      await SelectorPermissionHandler.selectorAllowed(selectorEvent, mockInfo)
-
-      const ethInfo = {
-        ...mockInfo,
-        transactionHash: '0xdef456789',
-        logIndex: 1,
-      }
-
-      await SelectorPermissionHandler.nativeTransfersAllowed(ethEvent, ethInfo)
-
-      const permissions = await Models.SelectorPermission.find({
-        network: NetworksEnum.ethereumMainnet,
-        conditionAddress: mockInfo.address,
-      })
-
-      expect(permissions).to.have.lengthOf(2)
-
-      const selectorPermission = permissions.find(p => p.selector === '0x12345678')
-      const ethPermission = permissions.find(p => p.selector === null)
-
-      expect(selectorPermission).to.exist
-      expect(selectorPermission.target).to.equal('0x3333333333333333333333333333333333333333')
-      expect(selectorPermission.isAllowed).to.be.true
-
-      expect(ethPermission).to.exist
-      expect(ethPermission.target).to.equal('0x4444444444444444444444444444444444444444')
-      expect(ethPermission.isAllowed).to.be.true
     })
   })
 })

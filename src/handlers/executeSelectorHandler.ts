@@ -3,6 +3,7 @@ import { type ILogInfo, IPluginStatus } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import Web3Helper from '@helpers/web3'
+import { ContractInfo } from '@services/aragon-dao/contractInfo'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:SelectorPermissionHandler' })
 
@@ -33,6 +34,17 @@ export const SelectorPermissionHandler = {
 
       const blockTimestamp = await Web3Helper.getBlockTimestamp(blockNumber, network)
 
+      const selectorInfo = await ContractInfo.parseSignature(selector, where, network)
+
+      const decoded = {
+        functionName: selectorInfo.functionName,
+        contractName: selectorInfo.contractName,
+        proxyName: selectorInfo.proxyName,
+        implementationAddress: selectorInfo.implementationAddress,
+        inputs: selectorInfo.inputs,
+        notice: selectorInfo.notice,
+      }
+
       const selectorRecord = await Models.SelectorPermission.create({
         blockNumber,
         blockTimestamp,
@@ -42,6 +54,7 @@ export const SelectorPermissionHandler = {
         target: where,
         isAllowed: true,
         ...selectorParams,
+        decoded,
       })
 
       logger.info(
@@ -157,6 +170,8 @@ export const SelectorPermissionHandler = {
 
       const blockTimestamp = await Web3Helper.getBlockTimestamp(blockNumber, network)
 
+      const decoded = await ContractInfo.parseSignature(null, where, network)
+
       const selectorRecord = await Models.SelectorPermission.create({
         network,
         transactionHash,
@@ -170,6 +185,10 @@ export const SelectorPermissionHandler = {
         selector: null,
         target: where,
         isAllowed: true,
+        decoded: {
+          functionName: decoded.functionName,
+          contractName: decoded.contractName,
+        },
       })
 
       logger.info(
