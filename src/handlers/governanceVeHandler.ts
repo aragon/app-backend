@@ -90,6 +90,315 @@ export const GovernanceVeHandler = {
     }
   },
 
+  deposit: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const plugins = await Models.Plugin.find({
+      'votingEscrow.escrowAddress': info.address,
+      network: info.network,
+    })
+
+    if (plugins.length === 0) {
+      logger.error('Plugin not found for deposit event', llo({ info }))
+      return
+    }
+
+    /**
+     * Extracting addresses from the first plugin
+     * since they are expected to be the same across all plugins
+     */
+
+    const escrowAddress = plugins[0].votingEscrow.escrowAddress
+    const tokenAddress = plugins[0].tokenAddress
+    const nftLockAddress = plugins[0].votingEscrow.nftLockAddress
+    const exitQueueAddress = plugins[0].votingEscrow.exitQueueAddress
+
+    const memberAddress = parsedEvent.args.depositor
+    const tokenId = parsedEvent.args.tokenId.toString()
+    const amount = parsedEvent.args.value.toString()
+    const epochStartAt = Number(parsedEvent.args.startTs)
+    const totalLocked = parsedEvent.args.newTotalLocked.toString()
+
+    const lockParams = {
+      network: info.network,
+      transactionHash: info.transactionHash,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
+      tokenAddress: plugins[0].tokenAddress,
+      memberAddress,
+      tokenId,
+      escrowAddress,
+    }
+
+    const existingLock = await Models.Lock.findExistingLog(lockParams)
+    if (existingLock) {
+      logger.warn(
+        'Deposit VeGovernance - Lock already exists',
+        llo({ info, memberAddress, tokenId, escrow: escrowAddress }),
+      )
+      return
+    }
+
+    const blockTimestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
+    await ProxyMember.createMember(memberAddress)
+
+    await Models.Lock.create({
+      network: info.network,
+      transactionHash: info.transactionHash,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
+      blockNumber: info.blockNumber,
+      blockTimestamp,
+      escrowAddress,
+      memberAddress,
+      nftAddress: nftLockAddress,
+      tokenAddress,
+      tokenId,
+      amount,
+      epochStartAt,
+      totalLocked,
+      exitQueueAddress,
+    })
+
+    logger.verbose('Deposit VeGovernance - Lock created', llo({ info, memberAddress, tokenId, escrow: escrowAddress }))
+
+    const memberBalance = await ProxyMember.getBalances({
+      address: memberAddress,
+      tokenAddress,
+      network: info.network,
+    })
+
+    // Only update amount, don't attach tokens yet (tokens will be attached on delegation)
+    await DbOperations.updateDocument(
+      memberBalance!,
+      {
+        amount: (Number(memberBalance!.amount) + 1).toString(),
+        lastSyncAmountBlockNumber: info.blockNumber,
+      },
+      info,
+      'MemberBalance Update on deposit',
+      llo,
+    )
+
+    await GovernanceVeHandler._handleDaoMemberShipOnLockEvents(plugins, memberAddress, info, true)
+  },
+
+  withdraw: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const plugins = await Models.Plugin.find({
+      'votingEscrow.escrowAddress': info.address,
+      network: info.network,
+    })
+
+    if (plugins.length === 0) {
+      logger.error('Plugin not found for withdraw event', llo({ info }))
+      return
+    }
+
+    const escrowAddress = info.address
+
+    const memberAddress = parsedEvent.args.depositor
+    const tokenId = parsedEvent.args.tokenId.toString()
+    const amount = parsedEvent.args.value.toString()
+    const epochEndAt = Number(parsedEvent.args.ts)
+    const totalLocked = parsedEvent.args.newTotalLocked.toString()
+
+    const memberLockParams = {
+      escrowAddress,
+      network: info.network,
+      memberAddress,
+      tokenId,
+    }
+
+    const existingLock = await Models.Lock.findLockMember(memberLockParams)
+    if (!existingLock) {
+      logger.error(
+        'Lock not found for withdraw event',
+        llo({
+          info,
+          memberAddress,
+          tokenId,
+          escrowAddress,
+        }),
+      )
+      return
+    }
+
+    if (existingLock.lockWithdraw?.status) return
+
+    const blockTimestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
+
+    await existingLock.update({
+      lockWithdraw: {
+        status: true,
+        transactionHash: info.transactionHash,
+        blockNumber: info.blockNumber,
+        blockTimestamp,
+        totalLocked,
+        amount,
+        epochEndAt,
+      },
+    })
+
+    logger.verbose('Withdraw VeGovernance', llo({ info, memberAddress, tokenId }))
+
+    const memberBalance = await ProxyMember.getBalances({
+      address: memberAddress,
+      tokenAddress: plugins[0].tokenAddress,
+      network: info.network,
+    })
+
+    const currentTokenIds = memberBalance!.tokenIds || []
+    const tokenIdsToSave = currentTokenIds.filter(id => id !== tokenId.toString())
+
+    await DbOperations.updateDocument(
+      memberBalance!,
+      {
+        amount: (Number(memberBalance!.amount) - 1).toString(),
+        tokenIds: tokenIdsToSave,
+        lastSyncAmountBlockNumber: info.blockNumber,
+      },
+      info,
+      'MemberBalance Update on withdraw',
+      llo,
+    )
+
+    await GovernanceVeHandler._handleDaoMemberShipOnLockEvents(plugins, memberAddress, info, false)
+  },
+
+  exitQueued: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const plugins = await Models.Plugin.find({
+      'votingEscrow.exitQueueAddress': info.address,
+      network: info.network,
+    })
+
+    if (plugins.length === 0) {
+      logger.error('Plugin not found for exitQueued event', llo({ info }))
+      return
+    }
+
+    const memberAddress = parsedEvent.args.holder
+    const tokenId = parsedEvent.args.tokenId.toString()
+    const exitDateAt = Number(parsedEvent.args.exitDate)
+    const blockTimestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
+
+    const memberLock = await Models.Lock.findLockMember({
+      network: info.network,
+      exitQueueAddress: info.address,
+      tokenId,
+      memberAddress,
+    })
+
+    if (!memberLock) {
+      logger.error(
+        'Lock not found for exitQueued event',
+        llo({
+          info,
+          memberAddress,
+          tokenId,
+        }),
+      )
+      return
+    }
+
+    if (memberLock.lockExit?.status) return
+
+    await memberLock.update({
+      lockExit: {
+        status: true,
+        transactionHash: info.transactionHash,
+        blockNumber: info.blockNumber,
+        blockTimestamp,
+        exitDateAt,
+      },
+    })
+
+    logger.verbose('Exit queued VeGovernance', llo({ info, memberAddress, tokenId }))
+  },
+
+  minDepositSet: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const minDeposit = parsedEvent.args.minDeposit.toString()
+    const plugins = await Models.Plugin.find({
+      'votingEscrow.escrowAddress': info.address,
+      network: info.network,
+    })
+
+    if (plugins.length === 0) {
+      logger.error('Plugin not found for minDepositSet event', llo({ info }))
+      return
+    }
+
+    await Promise.all(
+      plugins.map(async (plugin: any) => {
+        const activePluginSetting = await Models.Setting.findActive({
+          network: info.network,
+          pluginAddress: plugin.address,
+        })
+
+        if (!activePluginSetting) {
+          logger.error(
+            'Active plugin setting not found for minDepositSet event',
+            llo({
+              info,
+              pluginAddress: plugin.address,
+            }),
+          )
+          return
+        }
+
+        if (activePluginSetting.votingEscrow.minDeposit === minDeposit) return
+
+        if (!activePluginSetting.votingEscrow) {
+          activePluginSetting.votingEscrow = {}
+        }
+        activePluginSetting.votingEscrow.minDeposit = minDeposit
+        await activePluginSetting.save()
+
+        logger.verbose('minDepositSet VeGovernance', llo({ info }))
+      }),
+    )
+  },
+
+  minLockSet: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const minLock = parsedEvent.args.minLock.toString()
+    const plugins = await Models.Plugin.find({
+      'votingEscrow.exitQueueAddress': info.address,
+      network: info.network,
+    })
+
+    if (plugins.length === 0) {
+      logger.error('Plugin not found for minLockSet event', llo({ info }))
+      return
+    }
+
+    await Promise.all(
+      plugins.map(async (plugin: any) => {
+        const activePluginSetting = await Models.Setting.findActive({
+          network: info.network,
+          pluginAddress: plugin.address,
+        })
+
+        if (!activePluginSetting) {
+          logger.error(
+            'Active plugin setting not found for minLockSet event',
+            llo({
+              info,
+              pluginAddress: plugin.address,
+            }),
+          )
+          return
+        }
+
+        if (activePluginSetting?.votingEscrow?.minLockTime === minLock) return
+
+        if (!activePluginSetting.votingEscrow) {
+          activePluginSetting.votingEscrow = {}
+        }
+        activePluginSetting.votingEscrow.minLockTime = minLock
+        await activePluginSetting.save()
+
+        logger.verbose('minLockSet VeGovernance', llo({ info }))
+      }),
+    )
+  },
+
   _handleTokenDelegation: async (
     parsedEvent: LogDescription,
     info: ILogInfo,
@@ -240,177 +549,6 @@ export const GovernanceVeHandler = {
     )
   },
 
-  deposit: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const plugins = await Models.Plugin.find({
-      'votingEscrow.escrowAddress': info.address,
-      network: info.network,
-    })
-
-    if (plugins.length === 0) {
-      logger.error('Plugin not found for deposit event', llo({ info }))
-      return
-    }
-
-    /**
-     * Extracting addresses from the first plugin
-     * since they are expected to be the same across all plugins
-     */
-
-    const escrowAddress = plugins[0].votingEscrow.escrowAddress
-    const tokenAddress = plugins[0].tokenAddress
-    const nftLockAddress = plugins[0].votingEscrow.nftLockAddress
-    const exitQueueAddress = plugins[0].votingEscrow.exitQueueAddress
-
-    const memberAddress = parsedEvent.args.depositor
-    const tokenId = parsedEvent.args.tokenId.toString()
-    const amount = parsedEvent.args.value.toString()
-    const epochStartAt = Number(parsedEvent.args.startTs)
-    const totalLocked = parsedEvent.args.newTotalLocked.toString()
-
-    const lockParams = {
-      network: info.network,
-      transactionHash: info.transactionHash,
-      transactionIndex: info.transactionIndex,
-      logIndex: info.logIndex,
-      tokenAddress: plugins[0].tokenAddress,
-      memberAddress,
-      tokenId,
-      escrowAddress,
-    }
-
-    const existingLock = await Models.Lock.findExistingLog(lockParams)
-    if (existingLock) {
-      logger.warn(
-        'Deposit VeGovernance - Lock already exists',
-        llo({ info, memberAddress, tokenId, escrow: escrowAddress }),
-      )
-      return
-    }
-
-    const blockTimestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
-    await ProxyMember.createMember(memberAddress)
-
-    await Models.Lock.create({
-      network: info.network,
-      transactionHash: info.transactionHash,
-      transactionIndex: info.transactionIndex,
-      logIndex: info.logIndex,
-      blockNumber: info.blockNumber,
-      blockTimestamp,
-      escrowAddress,
-      memberAddress,
-      nftAddress: nftLockAddress,
-      tokenAddress,
-      tokenId,
-      amount,
-      epochStartAt,
-      totalLocked,
-      exitQueueAddress,
-    })
-
-    logger.verbose('Deposit VeGovernance - Lock created', llo({ info, memberAddress, tokenId, escrow: escrowAddress }))
-
-    const memberBalance = await ProxyMember.getBalances({
-      address: memberAddress,
-      tokenAddress,
-      network: info.network,
-    })
-
-    // Only update amount, don't attach tokens yet (tokens will be attached on delegation)
-    await DbOperations.updateDocument(
-      memberBalance!,
-      {
-        amount: (Number(memberBalance!.amount) + 1).toString(),
-        lastSyncAmountBlockNumber: info.blockNumber,
-      },
-      info,
-      'MemberBalance Update on deposit',
-      llo,
-    )
-
-    await GovernanceVeHandler._handleDaoMemberShipOnLockEvents(plugins, memberAddress, info, true)
-  },
-
-  withdraw: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const plugins = await Models.Plugin.find({
-      'votingEscrow.escrowAddress': info.address,
-      network: info.network,
-    })
-
-    if (plugins.length === 0) {
-      logger.error('Plugin not found for withdraw event', llo({ info }))
-      return
-    }
-
-    const escrowAddress = info.address
-
-    const memberAddress = parsedEvent.args.depositor
-    const tokenId = parsedEvent.args.tokenId.toString()
-    const amount = parsedEvent.args.value.toString()
-    const epochEndAt = Number(parsedEvent.args.ts)
-    const totalLocked = parsedEvent.args.newTotalLocked.toString()
-
-    const memberLockParams = {
-      escrowAddress,
-      network: info.network,
-      memberAddress,
-      tokenId,
-    }
-
-    const existingLock = await Models.Lock.findLockMember(memberLockParams)
-    if (!existingLock) {
-      logger.error(
-        'Lock not found for withdraw event',
-        llo({
-          info,
-          memberAddress,
-          tokenId,
-          escrowAddress,
-        }),
-      )
-      return
-    }
-
-    const blockTimestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
-
-    await existingLock.update({
-      lockWithdraw: {
-        status: true,
-        transactionHash: info.transactionHash,
-        blockNumber: info.blockNumber,
-        blockTimestamp,
-        totalLocked,
-        amount,
-        epochEndAt,
-      },
-    })
-
-    logger.verbose('Withdraw VeGovernance', llo({ info, memberAddress, tokenId }))
-
-    const memberBalance = await ProxyMember.getBalances({
-      address: memberAddress,
-      tokenAddress: plugins[0].tokenAddress,
-      network: info.network,
-    })
-
-    const currentTokenIds = memberBalance!.tokenIds || []
-    const tokenIdsToSave = currentTokenIds.filter(id => id !== tokenId.toString())
-
-    await DbOperations.updateDocument(
-      memberBalance!,
-      {
-        amount: (Number(memberBalance!.amount) - 1).toString(),
-        tokenIds: tokenIdsToSave,
-        lastSyncAmountBlockNumber: info.blockNumber,
-      },
-      info,
-      'MemberBalance Update on withdraw',
-      llo,
-    )
-
-    await GovernanceVeHandler._handleDaoMemberShipOnLockEvents(plugins, memberAddress, info, false)
-  },
-
   _handleDaoMemberShipOnLockEvents: async (
     plugins: Plugin[],
     memberAddress: HexAddress,
@@ -446,128 +584,6 @@ export const GovernanceVeHandler = {
           id: daoAddress,
           params: { address: daoAddress, network: info.network },
         })
-      }),
-    )
-  },
-
-  exitQueued: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const plugins = await Models.Plugin.find({
-      'votingEscrow.exitQueueAddress': info.address,
-      network: info.network,
-    })
-
-    if (plugins.length === 0) {
-      logger.error('Plugin not found for exitQueued event', llo({ info }))
-      return
-    }
-
-    const memberAddress = parsedEvent.args.holder
-    const tokenId = parsedEvent.args.tokenId.toString()
-    const exitDateAt = Number(parsedEvent.args.exitDate)
-    const blockTimestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
-
-    const memberLock = await Models.Lock.findLockMember({
-      network: info.network,
-      exitQueueAddress: info.address,
-      tokenId,
-      memberAddress,
-    })
-
-    if (!memberLock) {
-      logger.error(
-        'Lock not found for exitQueued event',
-        llo({
-          info,
-          memberAddress,
-          tokenId,
-        }),
-      )
-      return
-    }
-
-    await memberLock.update({
-      lockExit: {
-        status: true,
-        transactionHash: info.transactionHash,
-        blockNumber: info.blockNumber,
-        blockTimestamp,
-        exitDateAt,
-      },
-    })
-
-    logger.verbose('Exit queued VeGovernance', llo({ info, memberAddress, tokenId }))
-  },
-
-  minDepositSet: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const plugins = await Models.Plugin.find({
-      'votingEscrow.escrowAddress': info.address,
-      network: info.network,
-    })
-
-    if (plugins.length === 0) {
-      logger.error('Plugin not found for minDepositSet event', llo({ info }))
-      return
-    }
-
-    await Promise.all(
-      plugins.map(async (plugin: any) => {
-        const activePluginSetting = await Models.Setting.findActive({
-          network: info.network,
-          pluginAddress: plugin.address,
-        })
-
-        if (!activePluginSetting) {
-          logger.error(
-            'Active plugin setting not found for minDepositSet event',
-            llo({
-              info,
-              pluginAddress: plugin.address,
-            }),
-          )
-          return
-        }
-
-        activePluginSetting.votingEscrow.minDeposit = parsedEvent.args.minDeposit.toString()
-        await activePluginSetting.save()
-
-        logger.verbose('minDepositSet VeGovernance', llo({ info }))
-      }),
-    )
-  },
-
-  minLockSet: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const plugins = await Models.Plugin.find({
-      'votingEscrow.exitQueueAddress': info.address,
-      network: info.network,
-    })
-
-    if (plugins.length === 0) {
-      logger.error('Plugin not found for minLockSet event', llo({ info }))
-      return
-    }
-
-    await Promise.all(
-      plugins.map(async (plugin: any) => {
-        const activePluginSetting = await Models.Setting.findActive({
-          network: info.network,
-          pluginAddress: plugin.address,
-        })
-
-        if (!activePluginSetting) {
-          logger.error(
-            'Active plugin setting not found for minLockSet event',
-            llo({
-              info,
-              pluginAddress: plugin.address,
-            }),
-          )
-          return
-        }
-
-        activePluginSetting.votingEscrow.minLockTime = Number(parsedEvent.args.minLock)
-        await activePluginSetting.save()
-
-        logger.verbose('minLockSet VeGovernance', llo({ info }))
       }),
     )
   },
