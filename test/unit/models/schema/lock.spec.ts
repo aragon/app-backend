@@ -500,12 +500,12 @@ describe('Model: Lock', () => {
       expect(member1).to.exist
       expect(member1.ens).to.eq('active1.eth')
       expect(member1.votingPower).to.be.a('string')
-      expect(member1.memberMetrics).to.exist
+      expect(member1.metrics).to.exist
 
       expect(member2).to.exist
       expect(member2.ens).to.eq('active2.eth')
       expect(member2.votingPower).to.be.a('string')
-      expect(member2.memberMetrics).to.exist
+      expect(member2.metrics).to.exist
     })
 
     it('should handle pagination correctly with multiple pages', async () => {
