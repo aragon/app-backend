@@ -24,6 +24,7 @@ export const LogDao = {
       stopOnError: true,
     })
     await crawler.crawl()
+    await crawler.end()
 
     logger.verbose('End LogDao', llo({ network: dao.network, latestBlockSync: crawler.crawlSetting.lastSync }))
   },
