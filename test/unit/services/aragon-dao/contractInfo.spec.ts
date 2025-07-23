@@ -239,7 +239,7 @@ describe('AragonDao: contractInfo', () => {
           '0x1234abcd',
           {
             to: '0xto',
-            data: '',
+            data: '0x',
             value: undefined,
           },
           NetworksEnum.ethereumSepolia,
