@@ -14,7 +14,6 @@ import configIndexer from '@indexer/configIndexer'
 import type Token from '@models/schema/token'
 import { TokenHolderSync } from './tokenHolderSync'
 import config from '@config'
-import { Models } from '@dbModels'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogTokenVoting' })
 
