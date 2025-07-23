@@ -197,10 +197,12 @@ describe('AragonDao: contractInfo', () => {
       const result = await ContractInfo.parseSignature(null, '0xto', NetworksEnum.ethereumSepolia)
 
       expect(searchDetailsStub.calledOnce).to.be.true
-      expect(searchDetailsStub.calledWith({
-        address: '0xto',
-        network: NetworksEnum.ethereumSepolia,
-      })).to.be.true
+      expect(
+        searchDetailsStub.calledWith({
+          address: '0xto',
+          network: NetworksEnum.ethereumSepolia,
+        }),
+      ).to.be.true
       expect(result).to.deep.equal({
         functionName: 'NativeTransfer',
         contractName: 'TestContract',
@@ -224,7 +226,7 @@ describe('AragonDao: contractInfo', () => {
         parseContractNetspec: sandbox.stub().resolves({
           functionName: 'transfer',
           contractName: 'ERC20Token',
-        })
+        }),
       }
 
       sandbox.stub(DecodeActions.prototype, 'parseContractNetspec').callsFake(mockDecodeAction.parseContractNetspec)
@@ -232,15 +234,17 @@ describe('AragonDao: contractInfo', () => {
       const result = await ContractInfo.parseSignature('0x1234abcd', '0xto', NetworksEnum.ethereumSepolia)
 
       expect(mockDecodeAction.parseContractNetspec.calledOnce).to.be.true
-      expect(mockDecodeAction.parseContractNetspec.calledWith(
-        '0x1234abcd',
-        {
-          to: '0xto',
-          data: '',
-          value: undefined,
-        },
-        NetworksEnum.ethereumSepolia,
-      )).to.be.true
+      expect(
+        mockDecodeAction.parseContractNetspec.calledWith(
+          '0x1234abcd',
+          {
+            to: '0xto',
+            data: '',
+            value: undefined,
+          },
+          NetworksEnum.ethereumSepolia,
+        ),
+      ).to.be.true
       expect(result).to.deep.equal({
         functionName: 'transfer',
         contractName: 'ERC20Token',

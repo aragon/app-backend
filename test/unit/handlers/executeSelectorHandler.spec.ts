@@ -58,7 +58,7 @@ describe('Indexer: ExecuteSelectorHandler', () => {
         functionName: 'transfer',
         contractName: 'ERC20Token',
         proxyName: 'ProxyContract',
-        implementationAddress: '0x00'
+        implementationAddress: '0x00',
       })
 
       const loggerInfoStub = sandbox.stub(logger, 'info')
@@ -98,7 +98,8 @@ describe('Indexer: ExecuteSelectorHandler', () => {
       expect(createArgs.decoded.contractName).to.equal('ERC20Token')
 
       expect(stubDecodedAction.calledOnce).to.be.true
-      expect(stubDecodedAction.calledWith('0x12345678', '0x3333333333333333333333333333333333333333', mockInfo.network)).to.be.true
+      expect(stubDecodedAction.calledWith('0x12345678', '0x3333333333333333333333333333333333333333', mockInfo.network))
+        .to.be.true
       expect(loggerInfoStub.calledOnce).to.be.true
     })
 
@@ -116,10 +117,15 @@ describe('Indexer: ExecuteSelectorHandler', () => {
         proxyName: 'ProxyContract',
         implementationAddress: '0x4444444444444444444444444444444444444444',
         inputs: [
-          { name: 'to', type: 'address', value: '0x5555555555555555555555555555555555555555', notice: 'Recipient address' },
-          { name: 'amount', type: 'uint256', value: '1000000000000000000', notice: 'Transfer amount' }
+          {
+            name: 'to',
+            type: 'address',
+            value: '0x5555555555555555555555555555555555555555',
+            notice: 'Recipient address',
+          },
+          { name: 'amount', type: 'uint256', value: '1000000000000000000', notice: 'Transfer amount' },
         ],
-        notice: 'Transfers tokens to specified address'
+        notice: 'Transfers tokens to specified address',
       }
 
       const parseSignatureStub = sandbox.stub(ContractInfo, 'parseSignature').resolves(mockDecodedAction)
@@ -138,7 +144,7 @@ describe('Indexer: ExecuteSelectorHandler', () => {
         proxyName: 'ProxyContract',
         implementationAddress: '0x4444444444444444444444444444444444444444',
         inputs: mockDecodedAction.inputs,
-        notice: 'Transfers tokens to specified address'
+        notice: 'Transfers tokens to specified address',
       })
     })
 
@@ -374,7 +380,7 @@ describe('Indexer: ExecuteSelectorHandler', () => {
 
       const mockNativeTransferDecoded = {
         functionName: 'NativeTransfer',
-        contractName: 'TestContract'
+        contractName: 'TestContract',
       }
 
       const parseSignatureStub = sandbox.stub(ContractInfo, 'parseSignature').resolves(mockNativeTransferDecoded)
@@ -384,13 +390,14 @@ describe('Indexer: ExecuteSelectorHandler', () => {
       await SelectorPermissionHandler.nativeTransfersAllowed(parsedEvent, mockInfo)
 
       expect(parseSignatureStub.calledOnce).to.be.true
-      expect(parseSignatureStub.calledWith(null, '0x3333333333333333333333333333333333333333', mockInfo.network)).to.be.true
+      expect(parseSignatureStub.calledWith(null, '0x3333333333333333333333333333333333333333', mockInfo.network)).to.be
+        .true
 
       expect(createStub.calledOnce).to.be.true
       const createArgs = createStub.args[0][0]
       expect(createArgs.decoded).to.deep.equal({
         functionName: 'NativeTransfer',
-        contractName: 'TestContract'
+        contractName: 'TestContract',
       })
       expect(createArgs.selector).to.be.null
     })
