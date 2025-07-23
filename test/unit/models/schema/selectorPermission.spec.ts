@@ -108,6 +108,125 @@ describe('Model: SelectorPermission', () => {
       ).to.be.rejectedWith('conditionAddress is required')
     })
 
+    it('should create selector permission with decoded action data', async () => {
+      const decodedData = {
+        functionName: 'transfer',
+        contractName: 'ERC20',
+        proxyName: 'TransparentProxy',
+        implementationAddress: '0x5555555555555555555555555555555555555555',
+        inputs: [
+          { name: 'to', type: 'address', value: '0x1234567890123456789012345678901234567890' },
+          { name: 'amount', type: 'uint256', value: '1000000000000000000' },
+        ],
+        notice: 'Transfer tokens to address',
+      }
+
+      const selectorPermissionWithDecoded = {
+        ...rawSelectorPermission,
+        decoded: decodedData,
+      }
+
+      const selectorPermission = await Models.SelectorPermission.create(selectorPermissionWithDecoded)
+
+      expect(selectorPermission.decoded).to.be.an('object')
+      expect(selectorPermission.decoded.functionName).to.equal(decodedData.functionName)
+      expect(selectorPermission.decoded.contractName).to.equal(decodedData.contractName)
+      expect(selectorPermission.decoded.proxyName).to.equal(decodedData.proxyName)
+      expect(selectorPermission.decoded.implementationAddress).to.equal(decodedData.implementationAddress)
+      expect(selectorPermission.decoded.inputs).to.deep.equal(decodedData.inputs)
+      expect(selectorPermission.decoded.notice).to.equal(decodedData.notice)
+    })
+
+    it('should create selector permission with null decoded by default', async () => {
+      const selectorPermission = await Models.SelectorPermission.create(rawSelectorPermission)
+
+      expect(selectorPermission.decoded).to.be.null
+    })
+
+    it('should update decoded field', async () => {
+      const selectorPermission = await Models.SelectorPermission.create(rawSelectorPermission)
+
+      expect(selectorPermission.decoded).to.be.null
+
+      const decodedData = {
+        functionName: 'approve',
+        contractName: 'ERC20',
+        proxyName: null,
+        implementationAddress: null,
+        inputs: [
+          { name: 'spender', type: 'address', value: '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' },
+          { name: 'amount', type: 'uint256', value: '999999999999999999' },
+        ],
+        notice: 'Approve spender to spend tokens',
+      }
+
+      const updatedPermission = await selectorPermission.update({
+        decoded: decodedData,
+      })
+
+      expect(updatedPermission.decoded).to.be.an('object')
+      expect(updatedPermission.decoded.functionName).to.equal(decodedData.functionName)
+      expect(updatedPermission.decoded.contractName).to.equal(decodedData.contractName)
+      expect(updatedPermission.decoded.proxyName).to.be.null
+      expect(updatedPermission.decoded.implementationAddress).to.be.null
+      expect(updatedPermission.decoded.inputs).to.deep.equal(decodedData.inputs)
+      expect(updatedPermission.decoded.notice).to.equal(decodedData.notice)
+    })
+
+    it('should handle decoded with minimal data', async () => {
+      const minimalDecoded = {
+        functionName: 'unknown',
+        contractName: null,
+        proxyName: null,
+        implementationAddress: null,
+        inputs: null,
+        notice: null,
+      }
+
+      const selectorPermission = await Models.SelectorPermission.create({
+        ...rawSelectorPermission,
+        decoded: minimalDecoded,
+      })
+
+      expect(selectorPermission.decoded.functionName).to.equal('unknown')
+      expect(selectorPermission.decoded.contractName).to.be.null
+      expect(selectorPermission.decoded.proxyName).to.be.null
+      expect(selectorPermission.decoded.implementationAddress).to.be.null
+      expect(selectorPermission.decoded.inputs).to.be.null
+      expect(selectorPermission.decoded.notice).to.be.null
+    })
+
+    it('should handle decoded with complex inputs', async () => {
+      const complexDecoded = {
+        functionName: 'swapExactTokensForTokens',
+        contractName: 'UniswapV2Router',
+        proxyName: null,
+        implementationAddress: null,
+        inputs: [
+          { name: 'amountIn', type: 'uint256', value: '1000000' },
+          { name: 'amountOutMin', type: 'uint256', value: '900000' },
+          {
+            name: 'path',
+            type: 'address[]',
+            value: ['0x1111111111111111111111111111111111111111', '0x2222222222222222222222222222222222222222'],
+          },
+          { name: 'to', type: 'address', value: '0x3333333333333333333333333333333333333333' },
+          { name: 'deadline', type: 'uint256', value: '1234567890' },
+        ],
+        notice: 'Swap tokens through Uniswap',
+      }
+
+      const selectorPermission = await Models.SelectorPermission.create({
+        ...rawSelectorPermission,
+        decoded: complexDecoded,
+      })
+
+      expect(selectorPermission.decoded.functionName).to.equal(complexDecoded.functionName)
+      expect(selectorPermission.decoded.inputs).to.have.lengthOf(5)
+      expect(selectorPermission.decoded.inputs[2].type).to.equal('address[]')
+      expect(selectorPermission.decoded.inputs[2].value).to.be.an('array').with.lengthOf(2)
+    })
+
     it('should allow transactionIndex to be 0', async () => {
       const selectorPermission = await Models.SelectorPermission.create({
         ...rawSelectorPermission,
@@ -192,6 +311,200 @@ describe('Model: SelectorPermission', () => {
       expect(foundSelectorPermission).to.be.an('object')
       expect(foundSelectorPermission?.id).to.equal(createdSelectorPermission.id)
       expect(foundSelectorPermission?.selector).to.equal(rawSelectorPermission.selector)
+    })
+  })
+
+  describe('decoded field', () => {
+    it('should create selector permission with decoded action data', async () => {
+      const decodedData = {
+        functionName: 'transfer',
+        contractName: 'ERC20',
+        proxyName: 'TransparentProxy',
+        implementationAddress: '0x5555555555555555555555555555555555555555',
+        inputs: [
+          { name: 'to', type: 'address', value: '0x1234567890123456789012345678901234567890' },
+          { name: 'amount', type: 'uint256', value: '1000000000000000000' },
+        ],
+        notice: 'Transfer tokens to address',
+      }
+
+      const selectorPermissionWithDecoded = {
+        ...rawSelectorPermission,
+        decoded: decodedData,
+      }
+
+      const selectorPermission = await Models.SelectorPermission.create(selectorPermissionWithDecoded)
+
+      expect(selectorPermission.decoded).to.be.an('object')
+      expect(selectorPermission.decoded.functionName).to.equal(decodedData.functionName)
+      expect(selectorPermission.decoded.contractName).to.equal(decodedData.contractName)
+      expect(selectorPermission.decoded.proxyName).to.equal(decodedData.proxyName)
+      expect(selectorPermission.decoded.implementationAddress).to.equal(decodedData.implementationAddress)
+      expect(selectorPermission.decoded.inputs).to.deep.equal(decodedData.inputs)
+      expect(selectorPermission.decoded.notice).to.equal(decodedData.notice)
+    })
+
+    it('should create selector permission with null decoded by default', async () => {
+      const selectorPermission = await Models.SelectorPermission.create(rawSelectorPermission)
+
+      expect(selectorPermission.decoded).to.be.null
+    })
+
+    it('should update decoded field', async () => {
+      const selectorPermission = await Models.SelectorPermission.create(rawSelectorPermission)
+
+      expect(selectorPermission.decoded).to.be.null
+
+      const decodedData = {
+        functionName: 'approve',
+        contractName: 'ERC20',
+        proxyName: null,
+        implementationAddress: null,
+        inputs: [
+          { name: 'spender', type: 'address', value: '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' },
+          { name: 'amount', type: 'uint256', value: '999999999999999999' },
+        ],
+        notice: 'Approve spender to spend tokens',
+      }
+
+      const updatedPermission = await selectorPermission.update({
+        decoded: decodedData,
+      })
+
+      expect(updatedPermission.decoded).to.be.an('object')
+      expect(updatedPermission.decoded.functionName).to.equal(decodedData.functionName)
+      expect(updatedPermission.decoded.contractName).to.equal(decodedData.contractName)
+      expect(updatedPermission.decoded.proxyName).to.be.null
+      expect(updatedPermission.decoded.implementationAddress).to.be.null
+      expect(updatedPermission.decoded.inputs).to.deep.equal(decodedData.inputs)
+      expect(updatedPermission.decoded.notice).to.equal(decodedData.notice)
+    })
+
+    it('should handle decoded with minimal data', async () => {
+      const minimalDecoded = {
+        functionName: 'unknown',
+        contractName: null,
+        proxyName: null,
+        implementationAddress: null,
+        inputs: null,
+        notice: null,
+      }
+
+      const selectorPermission = await Models.SelectorPermission.create({
+        ...rawSelectorPermission,
+        decoded: minimalDecoded,
+      })
+
+      expect(selectorPermission.decoded.functionName).to.equal('unknown')
+      expect(selectorPermission.decoded.contractName).to.be.null
+      expect(selectorPermission.decoded.proxyName).to.be.null
+      expect(selectorPermission.decoded.implementationAddress).to.be.null
+      expect(selectorPermission.decoded.inputs).to.be.null
+      expect(selectorPermission.decoded.notice).to.be.null
+    })
+
+    it('should handle decoded with complex inputs', async () => {
+      const complexDecoded = {
+        functionName: 'swapExactTokensForTokens',
+        contractName: 'UniswapV2Router',
+        proxyName: null,
+        implementationAddress: null,
+        inputs: [
+          { name: 'amountIn', type: 'uint256', value: '1000000' },
+          { name: 'amountOutMin', type: 'uint256', value: '900000' },
+          {
+            name: 'path',
+            type: 'address[]',
+            value: ['0x1111111111111111111111111111111111111111', '0x2222222222222222222222222222222222222222'],
+          },
+          { name: 'to', type: 'address', value: '0x3333333333333333333333333333333333333333' },
+          { name: 'deadline', type: 'uint256', value: '1234567890' },
+        ],
+        notice: 'Swap tokens through Uniswap',
+      }
+
+      const selectorPermission = await Models.SelectorPermission.create({
+        ...rawSelectorPermission,
+        decoded: complexDecoded,
+      })
+
+      expect(selectorPermission.decoded.functionName).to.equal(complexDecoded.functionName)
+      expect(selectorPermission.decoded.inputs).to.have.lengthOf(5)
+      expect(selectorPermission.decoded.inputs[2].type).to.equal('address[]')
+      expect(selectorPermission.decoded.inputs[2].value).to.be.an('array').with.lengthOf(2)
+    })
+  })
+
+  describe('findWithPagination', () => {
+    it('should include decoded field in pagination results', async () => {
+      const decodedData = {
+        functionName: 'mint',
+        contractName: 'ERC20Mintable',
+        proxyName: null,
+        implementationAddress: null,
+        inputs: [
+          { name: 'to', type: 'address', value: '0xBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB' },
+          { name: 'amount', type: 'uint256', value: '5000000000000000000' },
+        ],
+        notice: 'Mint new tokens',
+      }
+
+      await Models.SelectorPermission.create({
+        ...rawSelectorPermission,
+        decoded: decodedData,
+      })
+
+      const result = await Models.SelectorPermission.findWithPagination({
+        paginationParams: { limit: 10, skip: 0 },
+      })
+
+      expect(result.data).to.have.lengthOf(1)
+      expect(result.data[0].decoded).to.be.an('object')
+      expect(result.data[0].decoded.functionName).to.equal(decodedData.functionName)
+      expect(result.data[0].decoded.contractName).to.equal(decodedData.contractName)
+      expect(result.data[0].decoded.inputs).to.deep.equal(decodedData.inputs)
+    })
+
+    it('should filter by isAllowed and return decoded data', async () => {
+      // Create allowed permission with decoded data
+      const allowedWithDecoded = await Models.SelectorPermission.create({
+        ...rawSelectorPermission,
+        transactionHash: '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+        logIndex: 10,
+        isAllowed: true,
+        decoded: {
+          functionName: 'transfer',
+          contractName: 'ERC20',
+          proxyName: null,
+          implementationAddress: null,
+          inputs: [],
+          notice: 'Transfer tokens',
+        },
+      })
+
+      // Create disallowed permission (should not be returned)
+      await Models.SelectorPermission.create({
+        ...rawSelectorPermission,
+        transactionHash: '0xBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB',
+        logIndex: 11,
+        isAllowed: false,
+        decoded: {
+          functionName: 'burn',
+          contractName: 'ERC20',
+          proxyName: null,
+          implementationAddress: null,
+          inputs: [],
+          notice: 'Burn tokens',
+        },
+      })
+
+      const result = await Models.SelectorPermission.findWithPagination({
+        paginationParams: { limit: 10, skip: 0 },
+      })
+
+      expect(result.data).to.have.lengthOf(1)
+      expect(result.data[0].id).to.equal(allowedWithDecoded.id)
+      expect(result.data[0].decoded.functionName).to.equal('transfer')
     })
   })
 
