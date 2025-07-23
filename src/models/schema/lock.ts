@@ -562,7 +562,7 @@ export default class Lock extends Model {
           ens: '$memberInfo.ens',
           avatar: '$memberInfo.avatar',
           votingPower: 1,
-          memberMetrics: {
+          metrics: {
             $ifNull: [
               {
                 $arrayElemAt: ['$memberMetrics', 0],
