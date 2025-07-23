@@ -10,7 +10,6 @@ import { expect } from 'chai'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
 import utils from '@helpers/utils'
 import { NetworkHelper } from '@helpers/network'
-import ProviderModule from '@modules/provider'
 
 describe('Helpers: GovernanceErc20', () => {
   let sandbox: SinonSandbox
