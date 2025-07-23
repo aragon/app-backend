@@ -30,6 +30,7 @@ export const LogGauge = {
     })
 
     await crawlerGaugeToken.crawl()
+    await crawlerGaugeToken.end()
 
     logger.verbose(
       'End LogGauge',

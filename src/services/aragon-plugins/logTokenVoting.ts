@@ -14,6 +14,7 @@ import configIndexer from '@indexer/configIndexer'
 import type Token from '@models/schema/token'
 import { TokenHolderSync } from './tokenHolderSync'
 import config from '@config'
+import { Models } from '@dbModels'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogTokenVoting' })
 
@@ -77,10 +78,11 @@ export const LogTokenVoting = {
 
     logger.verbose('Start Token Sync', llo({ ...infoLogs, ...{ syncStrategy: 'BlockchainLogCrawler' } }))
 
-    const crawlers: any = [pluginCrawler.crawl(), veGovernanceCrawler.crawl()]
+    const crawlers: any = [pluginCrawler, veGovernanceCrawler]
 
     const startTime = Date.now()
-    await Promise.all(crawlers)
+    await Promise.all(crawlers.map(async (crawler: BlockchainLogCrawler) => crawler.crawl()))
+    await Promise.all(crawlers.map(async (crawler: BlockchainLogCrawler) => crawler.end()))
 
     logger.verbose(
       'End LogTokenVoting veGovernance',
@@ -134,9 +136,15 @@ export const LogTokenVoting = {
     if (isNotEligibleForSync) {
       logger.verbose('Start Sync Only Delegates Events', llo({ ...infoLogs, skipSync }))
 
-      await Promise.all([pluginCrawler.crawl(), TokenHolderSync.syncDelegationEvents(plugin, token)])
+      const crawlers: any = [pluginCrawler]
+      crawlers.push({
+        crawl: async () => TokenHolderSync.syncDelegationEvents(plugin, token),
+        end: async () => {},
+      })
 
+      await Promise.all(crawlers.map(async (c: BlockchainLogCrawler) => c.crawl()))
       await TokenHolderSync.convertToStandardSync(plugin, token)
+      await Promise.all(crawlers.map(async (c: BlockchainLogCrawler) => c.end?.()))
 
       logger.verbose(
         'End LogTokenVoting',
@@ -163,9 +171,9 @@ export const LogTokenVoting = {
       stopOnError: true,
     })
 
-    const pluginCrawlerPromise = pluginCrawler.crawl()
-    const tokenCrawlerPromise = tokenCrawler.crawl()
-    await Promise.all([pluginCrawlerPromise, tokenCrawlerPromise])
+    const crawlers: any = [pluginCrawler, tokenCrawler]
+    await Promise.all(crawlers.map(async (c: BlockchainLogCrawler) => c.crawl()))
+    await Promise.all(crawlers.map(async (c: BlockchainLogCrawler) => c.end?.()))
 
     logger.verbose(
       'End LogTokenVoting',
