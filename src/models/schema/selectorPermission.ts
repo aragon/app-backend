@@ -7,12 +7,32 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
 } from '@types'
-import { Model, type SaveOptions } from 'mongoose'
+import { Model, Schema, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 
 const customName = ICollectionNames.SelectorPermission
+
+export class ActionDecoded {
+  @prop({ type: () => String, default: null })
+  public functionName!: string | null
+
+  @prop({ type: () => String, default: null })
+  public contractName!: string | null
+
+  @prop({ type: () => String, default: null })
+  public proxyName!: string | null
+
+  @prop({ type: () => String, default: null })
+  public implementationAddress!: HexAddress | null
+
+  @prop({ type: () => Schema.Types.Mixed, default: null })
+  public inputs!: any
+
+  @prop({ type: () => String, default: null })
+  public notice!: string | null
+}
 
 export class Disallowed {
   @prop({ type: () => Boolean, default: false })
@@ -86,6 +106,9 @@ export default class SelectorPermission extends Model {
 
   @prop({ type: () => Disallowed, default: {}, _id: false })
   public disallowed!: Disallowed
+
+  @prop({ type: () => ActionDecoded, default: null })
+  public decoded!: ActionDecoded
 
   static async create(rawData: Partial<SelectorPermission>, tOpts?: SaveOptions) {
     if (!rawData.id) {
@@ -233,6 +256,7 @@ export default class SelectorPermission extends Model {
           target: 1,
           isAllowed: 1,
           disallowed: 1,
+          decoded: 1,
         },
       },
     ]

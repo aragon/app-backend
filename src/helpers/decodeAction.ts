@@ -688,9 +688,10 @@ class DecodeActions {
       }
 
       const iface = new ethers.Interface(contractAbi)
-      const decodedData: any = abiWithNetSpec?.inputs.length
-        ? iface.decodeFunctionData(abiWithNetSpec.fragment, rawAction.data).toArray()
-        : []
+      const decodedData: any =
+        abiWithNetSpec?.inputs.length && rawAction.data && rawAction.data !== '0x'
+          ? iface.decodeFunctionData(abiWithNetSpec.fragment, rawAction.data).toArray()
+          : []
 
       const decodedFormatted = decodedData.map((item: any) => (typeof item === 'bigint' ? item.toString() : item))
 
