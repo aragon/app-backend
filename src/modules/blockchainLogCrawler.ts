@@ -169,6 +169,16 @@ class BlockchainLogCrawler {
     }
   }
 
+  async end() {
+    const configIndex = await Models.ConfigIndexer.findExistingLog({
+      network: this.crawlParams.network,
+      service: this.crawlParams.logService,
+    })
+    if (configIndex) {
+      await configIndex.update({ end: true })
+    }
+  }
+
   async getLogsByStrategy(currentBlock: number, latestBlock: number) {
     switch (this.crawlParams.strategy) {
       case ICrawStrategy.getBlockReceipts:
