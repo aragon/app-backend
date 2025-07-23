@@ -8,10 +8,11 @@ import logger from '@logger'
 import Web3Helper from '@helpers/web3'
 import { ContractInfo } from '@services/aragon-dao/contractInfo'
 
-describe('ExecuteHandler', () => {
+describe.only('ExecuteHandler', () => {
   let sandbox: SinonSandbox
   let mockPlugin: any
   let mockInfo: any
+  let getBlockTimestamp: any
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
@@ -40,8 +41,7 @@ describe('ExecuteHandler', () => {
       blockNumber: 12346,
     }
 
-    // Stub only external services
-    sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1620000001)
+    getBlockTimestamp = sandbox.stub(Web3Helper, 'getBlockTimestamp')
   })
 
   afterEach(async () => {
@@ -200,9 +200,7 @@ describe('ExecuteHandler', () => {
         },
       } as any
 
-      // First restore the existing stub
-      (Web3Helper.getBlockTimestamp as any).restore()
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').rejects(new Error('Web3 error'))
+      getBlockTimestamp.rejects(new Error('Web3 error'))
       sandbox.stub(ContractInfo, 'parseSignature').resolves({
         functionName: 'test',
         contractName: 'TestContract',
@@ -242,6 +240,7 @@ describe('ExecuteHandler', () => {
       })
 
       const loggerInfoStub = sandbox.stub(logger, 'info')
+      getBlockTimestamp.resolves(1620000001)
 
       await ExecuteHandler.selectorDisallowed(parsedEvent, mockInfo)
 
@@ -440,7 +439,8 @@ describe('ExecuteHandler', () => {
       await ExecuteHandler.nativeTransfersAllowed(parsedEvent, mockInfo)
 
       expect(parseSignatureStub.calledOnce).to.be.true
-      expect(parseSignatureStub.calledWith(null, '0x3333333333333333333333333333333333333333', mockInfo.network)).to.be.true
+      expect(parseSignatureStub.calledWith(null, '0x3333333333333333333333333333333333333333', mockInfo.network)).to.be
+        .true
     })
   })
 
@@ -469,6 +469,7 @@ describe('ExecuteHandler', () => {
       })
 
       const loggerInfoStub = sandbox.stub(logger, 'info')
+      getBlockTimestamp.resolves(1620000001)
 
       await ExecuteHandler.nativeTransfersDisallowed(parsedEvent, mockInfo)
 
