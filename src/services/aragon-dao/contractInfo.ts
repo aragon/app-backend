@@ -91,7 +91,7 @@ export const ContractInfo = {
       signature,
       {
         to,
-        data: '',
+        data: '0x',
         value: undefined,
       },
       network,

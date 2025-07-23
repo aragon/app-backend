@@ -689,7 +689,7 @@ class DecodeActions {
 
       const iface = new ethers.Interface(contractAbi)
       const decodedData: any =
-        abiWithNetSpec?.inputs.length && rawAction.data
+        abiWithNetSpec?.inputs.length && rawAction.data && rawAction.data !== '0x'
           ? iface.decodeFunctionData(abiWithNetSpec.fragment, rawAction.data).toArray()
           : []
 
