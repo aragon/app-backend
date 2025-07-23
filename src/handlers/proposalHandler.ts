@@ -30,6 +30,7 @@ import { assert } from '@errors'
 import Web3Utils from '@helpers/web3Utils'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:ProposalHandler' })
+
 export const ProposalHandler = {
   findIncrementalId: async (proposal: Partial<Proposal>): Promise<number | null> => {
     try {
@@ -233,6 +234,13 @@ export const ProposalHandler = {
         })
         document.snapshot = {
           membersCount: members.length,
+        }
+      }
+
+      if (relatedPlugin.interfaceType === IPluginInterfaceType.tokenVoting && !document?.settings?.tokenAddress) {
+        logger.error('Error ProposalHandler.proposalCreated - tokenAddress is missing', llo({ ...info, parsedEvent }))
+        document.snapshot = {
+          totalSupply: '0',
         }
       }
 
