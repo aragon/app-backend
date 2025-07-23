@@ -916,11 +916,7 @@ describe('ProposalHandler', () => {
         minApprovals: 2,
       }
 
-      const members = [
-        { address: '0xmember1' },
-        { address: '0xmember2' },
-        { address: '0xmember3' },
-      ]
+      const members = [{ address: '0xmember1' }, { address: '0xmember2' }, { address: '0xmember3' }]
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin)
       sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
