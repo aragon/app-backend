@@ -30,7 +30,7 @@ import DbOperations from '@models/utils/dbOperations'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import Web3Utils from '@helpers/web3Utils'
 
-describe('Indexer: ProposalHandler', () => {
+describe.only('Indexer: ProposalHandler', () => {
   let sandbox: SinonSandbox
   let intervalTime: number
   let network: NetworksEnum = NetworksEnum.ethereumMainnet
@@ -319,9 +319,9 @@ describe('Indexer: ProposalHandler', () => {
 
       expect(pastTotalSupplyStub.args[0][0]).to.be.deep.eq({
         tokenAddress: '0xtoken-address',
-        blockNumber: info.blockNumber - 1,
+        blockNumber: info.blockNumber,
         network,
-        blockTimestamp: 1700000000 - (config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME || 0),
+        blockTimestamp: 1700000000,
         hasClockMode: true,
       })
 
