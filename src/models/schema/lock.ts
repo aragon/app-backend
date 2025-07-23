@@ -565,7 +565,7 @@ export default class Lock extends Model {
           metrics: {
             $ifNull: [
               {
-                $arrayElemAt: ['$memberMetrics', 0],
+                $arrayElemAt: ['$metrics', 0],
               },
               {
                 lastActivity: null,
