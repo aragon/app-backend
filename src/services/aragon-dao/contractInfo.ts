@@ -1,7 +1,8 @@
-import { type IContractAbi, type NetworksEnum } from '@types'
+import { type IContractAbi, type ISelectorActionData, type NetworksEnum } from '@types'
 import ProxyContract from '@helpers/proxyContract'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
 import ProxyWeb3Provider from '@modules/proxyProvider'
+import DecodeActions from '@helpers/decodeAction'
 
 export const ContractInfo = {
   getContractInfo: async (network: NetworksEnum, address: string): Promise<IContractAbi | null> => {
@@ -70,5 +71,30 @@ export const ContractInfo = {
         type: fn.type,
         stateMutability: fn.stateMutability,
       }))
+  },
+
+  parseSignature: async (signature: string | null, to: string, network: NetworksEnum): Promise<ISelectorActionData> => {
+    const decodeAction = new DecodeActions()
+    if (!signature) {
+      const toInfo = await ProxyWeb3Provider.searchDetailsOfContract({
+        address: to,
+        network,
+      })
+
+      return {
+        functionName: 'NativeTransfer',
+        contractName: toInfo?.name || 'Unknown',
+      }
+    }
+
+    return (await decodeAction.parseContractNetspec(
+      signature,
+      {
+        to,
+        data: '',
+        value: undefined,
+      },
+      network,
+    )) as ISelectorActionData
   },
 }

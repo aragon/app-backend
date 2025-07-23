@@ -32,7 +32,6 @@ import { ToolsFixBrokenTx } from '@tools/fixBrokenTx'
 import ToolsVeGovernance from '@tools/veGovernance'
 import FixSppPair from '@tools/fixSppPair'
 import { CleanUpTasks } from '@tools/cleanUpTasks'
-import { FixBrokenLockMember } from '@tools/fixBrokenLockMember'
 
 const { TOOL_RUN } = process.env
 const llo = logger.logMeta.bind(null, { TOOL_RUN })
@@ -70,7 +69,6 @@ const runners = {
   ToolsFixBrokenTx,
   FixSppPair,
   CleanUpTasks,
-  FixBrokenLockMember,
 }
 
 const appToRun = runners[TOOL_RUN!]

@@ -38,3 +38,12 @@ export interface IContractDeployInfo {
   transactionHash: HexAddress | null
   address: HexAddress
 }
+
+export interface ISelectorActionData {
+  functionName: string
+  contractName: string
+  proxyName?: string
+  implementationAddress?: string | null
+  inputs?: any[]
+  notice?: string
+}
