@@ -8,7 +8,7 @@ import logger from '@logger'
 import Web3Helper from '@helpers/web3'
 import { ContractInfo } from '@services/aragon-dao/contractInfo'
 
-describe.only('ExecuteHandler', () => {
+describe('ExecuteHandler', () => {
   let sandbox: SinonSandbox
   let mockPlugin: any
   let mockInfo: any
