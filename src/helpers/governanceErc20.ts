@@ -137,8 +137,25 @@ const GovernanceErc20Helper = {
       )
     } catch (error) {
       logger.error('Error getting pastTotalSupply', llo({ blockNumber, tokenAddress, network, error }))
-      return '0'
     }
+
+    try {
+      const totalSupply = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => {
+          return provider.call('eth_call', [
+            {
+              to: tokenAddress,
+              data: contract.interface.encodeFunctionData('totalSupply'),
+            },
+            pastBlockNumber,
+          ])
+        }),
+      )
+      return totalSupply.toString()
+    } catch (error) {
+      logger.error('Error getting totalSupply', llo({ blockNumber, tokenAddress, network, error }))
+    }
+    return '0'
   },
 
   async getDelegates(memberAddress: HexAddress, tokenAddress: HexAddress, network: NetworksEnum): Promise<any> {

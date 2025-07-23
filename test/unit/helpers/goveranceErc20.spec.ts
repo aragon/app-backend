@@ -333,7 +333,7 @@ describe('Helpers: GovernanceErc20', () => {
         network: NetworksEnum.ethereumMainnet,
       })
       expect(result).to.eq('0')
-      expect(loggerStub.calledOnce).to.be.true
+      expect(loggerStub.called).to.be.true
       expect(loggerStub.calledWith('Error getting pastTotalSupply' as any)).to.be.true
     })
 

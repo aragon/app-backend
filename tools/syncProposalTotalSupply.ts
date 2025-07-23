@@ -15,6 +15,8 @@ export const SyncProposalTotalSupply: IService = {
           blockNumber: proposal.blockNumber,
           tokenAddress: proposal?.settings.tokenAddress,
           network: proposal.network,
+          blockTimestamp: 0,
+          hasClockMode: false,
         })
 
         proposal.markModified('snapshot')
