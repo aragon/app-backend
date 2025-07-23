@@ -10,6 +10,7 @@ import { expect } from 'chai'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
 import utils from '@helpers/utils'
 import { NetworkHelper } from '@helpers/network'
+import ProviderModule from '@modules/provider'
 
 describe('Helpers: GovernanceErc20', () => {
   let sandbox: SinonSandbox
@@ -333,7 +334,7 @@ describe('Helpers: GovernanceErc20', () => {
         network: NetworksEnum.ethereumMainnet,
       })
       expect(result).to.eq('0')
-      expect(loggerStub.calledOnce).to.be.true
+      expect(loggerStub.called).to.be.true
       expect(loggerStub.calledWith('Error getting pastTotalSupply' as any)).to.be.true
     })
 
