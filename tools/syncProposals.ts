@@ -15,6 +15,8 @@ export const SyncProposals: IService = {
         blockNumber: proposal.blockNumber,
         tokenAddress: proposal.settings.tokenAddress,
         network: proposal.network,
+        blockTimestamp: 0,
+        hasClockMode: false,
       })
 
       proposal.snapshot.totalSupply = pastTotalSupply.toString()

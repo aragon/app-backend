@@ -28,10 +28,9 @@ import { TokenVoting } from '@src/aragonContracts'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { assert } from '@errors'
 import Web3Utils from '@helpers/web3Utils'
-import config from '@config'
-import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:ProposalHandler' })
+
 export const ProposalHandler = {
   findIncrementalId: async (proposal: Partial<Proposal>): Promise<number | null> => {
     try {
@@ -213,14 +212,13 @@ export const ProposalHandler = {
 
       if (document?.settings?.tokenAddress && relatedPlugin.interfaceType === IPluginInterfaceType.tokenVoting) {
         const token = await ProxyToken.saveAndGetToken(document.settings.tokenAddress, info.network)
-        const avgBlockTimeSec = config.NODES[utils.networkToAragon(info.network)].INTERVAL_BLOCK_TIME
 
         const totalSupply = await GovernanceErc20Helper.getPastTotalSupply({
-          blockNumber: info.blockNumber - 1,
+          blockNumber: info.blockNumber,
           tokenAddress: document.settings.tokenAddress,
           network: info.network,
           hasClockMode: token?.hasClockMode!,
-          blockTimestamp: blockTimestamp - avgBlockTimeSec,
+          blockTimestamp,
         })
 
         document.snapshot = {
@@ -236,6 +234,13 @@ export const ProposalHandler = {
         })
         document.snapshot = {
           membersCount: members.length,
+        }
+      }
+
+      if (relatedPlugin.interfaceType === IPluginInterfaceType.tokenVoting && !document?.settings?.tokenAddress) {
+        logger.error('Error ProposalHandler.proposalCreated - tokenAddress is missing', llo({ ...info, parsedEvent }))
+        document.snapshot = {
+          totalSupply: '0',
         }
       }
 
