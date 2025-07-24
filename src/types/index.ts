@@ -1,5 +1,6 @@
 export * from './config'
 export * from './db'
+export * from './indexer'
 export * from './daos'
 export * from './device'
 export * from './error'

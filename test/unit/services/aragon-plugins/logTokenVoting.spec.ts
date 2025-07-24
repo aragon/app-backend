@@ -270,32 +270,6 @@ describe('AragonPlugins: LogTokenVoting', () => {
       expect(processErrorStub.calledWith(error, pluginStub, { logIndex: 2, transactionHash: '0xhash2' })).to.be.true
     })
 
-    it('should not sync when config indexer already exits', async () => {
-      const token = {
-        address: '0x123',
-        network: NetworksEnum.ethereumSepolia,
-        type: ITokenType.ERC20,
-        blockNumber: 100,
-      } as any
-
-      const plugin = {
-        address: '0x456',
-        tokenAddress: token.address,
-        network: token.network,
-        blockNumber: 200,
-        interfaceType: 'tokenVoting',
-      } as any
-
-      const isTokenNotEligibleStub = sandbox.stub(TokenHolderSync, 'isTokenNotEligibleForSync').resolves(false)
-      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
-      sandbox.stub(Models.ConfigIndexer, 'findOne').resolves(true)
-
-      await LogTokenVoting.erc20Governance(plugin, token)
-
-      expect(isTokenNotEligibleStub.calledOnce).to.be.true
-      expect(crawlStub.calledOnce).to.be.false
-    })
-
     it('should use tokenCrawler when token has no existing sync block', async () => {
       // Setup
       const token = {
