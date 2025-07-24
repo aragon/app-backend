@@ -138,6 +138,15 @@ export default class MemberTransaction extends Model {
         },
       },
       {
+        $match: {
+          $expr: {
+            $not: {
+              $and: [{ $eq: ['$from', '$to'] }, { $eq: ['$from', '$address'] }],
+            },
+          },
+        },
+      },
+      {
         $sort: {
           blockNumber: 1,
           transactionIndex: 1,

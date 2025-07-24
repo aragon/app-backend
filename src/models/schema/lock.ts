@@ -543,7 +543,7 @@ export default class Lock extends Model {
       AggregationQueryHelper.memberMetrics(
         {
           memberAddress: '$memberInfo.address',
-          network: '$network',
+          network,
           pluginAddress,
         },
         'memberMetrics',
@@ -565,7 +565,7 @@ export default class Lock extends Model {
           metrics: {
             $ifNull: [
               {
-                $arrayElemAt: ['$metrics', 0],
+                $arrayElemAt: ['$memberMetrics', 0],
               },
               {
                 lastActivity: null,
