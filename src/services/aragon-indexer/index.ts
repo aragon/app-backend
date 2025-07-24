@@ -17,7 +17,7 @@ const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
 const AragonIndexerService: IService & { repeaters: any } = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
-  options: { mongoSync: false },
+  options: { mongoSync: config.MONGO_DB.SYNC_MODELS },
   repeaters: {},
 
   start: async function () {
