@@ -4,6 +4,7 @@ import AdminApp from '@admin-api/app'
 
 const AragonAdminAPIService: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.RABBITMQ],
+  options: { mongoSync: false },
 
   async start() {
     return await AdminApp()
