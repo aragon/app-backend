@@ -36,9 +36,9 @@ describe('AragonPlugins: index', () => {
 
       const queues = [
         EnumQueueName.logDao,
+        EnumQueueName.logSelectorPermission,
         EnumQueueName.plugins,
         EnumQueueName.requeue,
-        EnumQueueName.logSelectorPermission,
       ]
       expect(processStub.callCount).to.eq(queues.length)
 
@@ -68,9 +68,9 @@ describe('AragonPlugins: index', () => {
 
       const queues = [
         EnumQueueName.logDao,
+        EnumQueueName.logSelectorPermission,
         EnumQueueName.plugins,
         EnumQueueName.requeue,
-        EnumQueueName.logSelectorPermission,
       ]
       expect(processStub.callCount).to.eq(queues.length)
 
@@ -194,9 +194,9 @@ describe('AragonPlugins: index', () => {
 
       const queues = [
         EnumQueueName.logDao,
+        EnumQueueName.logSelectorPermission,
         EnumQueueName.plugins,
         EnumQueueName.requeue,
-        EnumQueueName.logSelectorPermission,
       ]
       expect(processStub.callCount).to.eq(queues.length)
       expect(processStub.args[1][0]).to.eq(EnumQueueName.logSelectorPermission)
