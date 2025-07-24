@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { Models } from '@dbModels'
 import { expect } from 'chai'
-import migrationTokenHasClockMode from '@src/migrations/20250627144557-tokenHasClockMode'
+import tokenGovernanceMigration from '@src/migrations/20250724204119-tokenGovernance'
 import { IClockMode, NetworksEnum } from '@types'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import GovernanceVeHelper from '@helpers/governanceVe'
@@ -18,7 +18,7 @@ describe('migration: migrateTokenConfigIndexer', () => {
     sandbox?.restore()
   })
 
-  describe('migrationTokenHasClockMode', () => {
+  describe('tokenGovernanceMigration', () => {
     it('should migrate token has clock mode', async () => {
       const dbTokenData = [
         {
@@ -60,7 +60,7 @@ describe('migration: migrateTokenConfigIndexer', () => {
         underlying: '0x1234567890abcdef1234567890abcdef12345678',
       })
 
-      await migrationTokenHasClockMode.start()
+      await tokenGovernanceMigration.start()
 
       expect(stubGetClockMode.calledOnceWith(dbTokenData[0].address, dbTokenData[0].network)).to.be.true
       expect(stubGetUnderlying.calledOnceWith(dbTokenData[0].address, dbTokenData[0].network)).to.be.true
