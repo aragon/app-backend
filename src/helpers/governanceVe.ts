@@ -162,10 +162,15 @@ const GovernanceVeHelper = {
   async getUnderlyingTokenNameAndSymbol(
     adapterAddress: HexAddress,
     network: NetworksEnum,
-  ): Promise<{ name: string | null; symbol: string | null }> {
-    const nameAndSymbol = {
+  ): Promise<{ name: string | null; symbol: string | null; underlying: HexAddress | null }> {
+    const nameAndSymbol: {
+      name: string | null
+      symbol: string | null
+      underlying: HexAddress | null
+    } = {
       name: null,
       symbol: null,
+      underlying: null,
     }
 
     try {
@@ -179,7 +184,13 @@ const GovernanceVeHelper = {
         return nameAndSymbol
       }
 
-      return await Web3Helper.getTokenNameAndSymbol(tokenAddress, network)
+      nameAndSymbol.underlying = tokenAddress
+
+      const { name, symbol } = await Web3Helper.getTokenNameAndSymbol(tokenAddress, network)
+
+      nameAndSymbol.name = name
+      nameAndSymbol.symbol = symbol
+      return nameAndSymbol
     } catch (error: any) {
       return nameAndSymbol
     }

@@ -1,24 +1,33 @@
-import { type IMigration } from '@types'
+import { type IMigration, ITokenType } from '@types'
 import logger from '@logger'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
 import type Token from '@models/schema/token'
-import TokenDetector from '@helpers/tokenDetector'
+import GovernanceErc20Helper from '@helpers/governanceErc20'
+import GovernanceVeHelper from '@helpers/governanceVe'
 
-const llo = logger.logMeta.bind(null, { service: 'Migration: hasClockMode' })
+const llo = logger.logMeta.bind(null, { service: 'Migration: clockMode' })
 
-export const hasClockModeMigration: IMigration = {
+export const clockModeMigration: IMigration = {
   start: async () => {
-    logger.info('Starting migration', llo({ migration: '20250627144557-hasClockMode' }))
+    logger.info('Starting migration', llo({ migration: '20250724165553-clockMode' }))
 
     try {
-      logger.info('Migration completed successfully', llo({ migration: '20250627144557-hasClockMode' }))
-
       const crawler = new DBCrawler({
         model: Models.Token,
         onDocument: async (token: Token) => {
-          const result = await TokenDetector.detectTokenType(token.address, token.network)
-          token.hasClockMode = result.hasClockMode
+          token.clockMode = await GovernanceErc20Helper.getClockMode(token.address, token.network)
+
+          if (token.type === ITokenType.escrowAdapter) {
+            const underlyingTokenInfo = await GovernanceVeHelper.getUnderlyingTokenNameAndSymbol(
+              token.address,
+              token.network,
+            )
+            token.name = underlyingTokenInfo.name
+            token.symbol = underlyingTokenInfo.symbol
+            token.underlying = underlyingTokenInfo.underlying
+          }
+
           await token.save()
         },
         onError: (error: any, document: any) => {
@@ -40,8 +49,9 @@ export const hasClockModeMigration: IMigration = {
       })
 
       await crawler.crawl()
+      logger.info('Migration completed successfully', llo({ migration: '20250724165553-clockMode' }))
     } catch (error) {
-      logger.error('Migration failed', llo({ migration: '20250627144557-hasClockMode', error }))
+      logger.error('Migration failed', llo({ migration: '20250724165553-clockMode', error }))
       throw error
     }
   },
@@ -51,4 +61,4 @@ export const hasClockModeMigration: IMigration = {
   },
 }
 
-export default hasClockModeMigration
+export default clockModeMigration
