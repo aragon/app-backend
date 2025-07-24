@@ -190,7 +190,10 @@ export const ProxyToken = {
         const underlyingTokenInfo = await GovernanceVeHelper.getUnderlyingTokenNameAndSymbol(tokenAddress, network)
         rawToken.name = underlyingTokenInfo.name
         rawToken.symbol = underlyingTokenInfo.symbol
-        rawToken.underlying = underlyingTokenInfo.underlying
+
+        if (!rawToken.underlying) {
+          rawToken.underlying = underlyingTokenInfo.underlying
+        }
       }
 
       if (!rawToken.decimals && tokenTypeInfo.hasDecimals) {

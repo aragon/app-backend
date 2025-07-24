@@ -1008,7 +1008,7 @@ describe('Indexer:Plugin', () => {
       const txReceipt = {
         logs: [
           {
-            topics: ['0xinstallationAppliedTopic'],
+            topics: ['0x74e616c7264536b98a5ec234d051ae6ce1305bf05c85f9ddc112364440ccf129'],
             address: '0x1234567890123456789012345678901234567890',
             blockNumber: 1234,
             transactionHash: '0xtxhash',
