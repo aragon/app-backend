@@ -140,7 +140,7 @@ export default class Setting extends Model {
   @prop({ type: () => String, default: null })
   public tokenAddress!: HexAddress // voting token address
 
-  @prop({ type: () => VotingEscrowSetting, _id: false, default: {} })
+  @prop({ type: () => VotingEscrowSetting, _id: false, default: undefined })
   public votingEscrow!: VotingEscrowSetting
 
   // Multisig plugin
