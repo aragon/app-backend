@@ -75,6 +75,11 @@ export const GovernanceVeHandler = {
         tokenIds,
       )
 
+      if (fromAddress === toAddress) {
+        logger.verbose('Self-delegation detected, skipping delegation handling', llo({ info, fromAddress, toAddress }))
+        return
+      }
+
       await GovernanceVeHandler._handleTokenDelegation(
         parsedEvent,
         info,
