@@ -6,7 +6,7 @@ import { expect } from 'chai'
 import utils from '@helpers/utils'
 import { EnumConnection } from '@types'
 
-describe.skip('Module: runner', () => {
+describe('Module: runner', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -27,8 +27,7 @@ describe.skip('Module: runner', () => {
     const connectionsMock = sandbox.stub(Connections, 'open').resolves()
     sandbox.stub(Connections, 'close').resolves()
 
-    const apps = [{ app: appMock }]
-    Runner(apps)
+    Runner(appMock)
     await utils.wait(100)
     expect(appMock.start.calledOnce).to.be.true
     expect(connectionsMock.calledOnce).to.be.true
@@ -41,10 +40,9 @@ describe.skip('Module: runner', () => {
       stop: sandbox.stub().resolves(),
       NEED_CONNECTIONS: [EnumConnection.MONGODB],
     }
-    const apps = [{ app: appMock }]
 
     try {
-      Runner(apps)
+      Runner(appMock)
       await utils.wait(100)
       expect.fail('Expected runApps to throw')
     } catch (err: any) {

@@ -1,54 +1,77 @@
 import { expect } from 'chai'
 import sinon, { SinonSandbox } from 'sinon'
-import { connect, AmqpConnectionManager, ChannelWrapper } from 'amqp-connection-manager'
+import * as amqpConnectionManager from 'amqp-connection-manager'
 import config from '@config'
 import logger from '@logger'
 import RabbitMQ from '@modules/rabbitMQ'
 import { EnumQueueName } from '@types'
-import proxyquire from 'proxyquire'
-import { ConfirmChannel } from 'amqplib'
-import Utils from '@helpers/utils'
+import { EventEmitter } from 'events'
 
 describe('Modules: RabbitMQ', () => {
   let sandbox: SinonSandbox
+  let mockConnection: any
+  let mockChannel: any
+  let connectStub: sinon.SinonStub
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+
+    // Reset RabbitMQ state
     RabbitMQ.connection = null
     RabbitMQ.channelsMap.clear()
+    if (RabbitMQ.noopInterval) {
+      clearInterval(RabbitMQ.noopInterval)
+      RabbitMQ.noopInterval = null
+    }
+
+    // Create mock objects
+    mockChannel = {
+      on: sandbox.stub(),
+      assertQueue: sandbox.stub().resolves(),
+      checkQueue: sandbox.stub().resolves(),
+      addSetup: sandbox.stub().resolves(),
+    }
+
+    // Mock connection extends EventEmitter for proper event handling
+    class MockConnection extends EventEmitter {
+      isConnected = sandbox.stub().returns(false)
+      createChannel = sandbox.stub().returns(mockChannel)
+      close = sandbox.stub().resolves()
+    }
+
+    mockConnection = new MockConnection()
+
+    // Stub the connect method
+    connectStub = sandbox.stub(amqpConnectionManager, 'connect').returns(mockConnection as any)
   })
 
   afterEach(() => {
     sandbox.restore()
+    if (RabbitMQ.noopInterval) {
+      clearInterval(RabbitMQ.noopInterval)
+      RabbitMQ.noopInterval = null
+    }
   })
 
   describe('connect', () => {
     it('should establish a connection and set up channels', async () => {
-      const connectionStub = {
-        on: sandbox.stub(),
-        createChannel: sandbox.stub().returns({
-          on: sandbox.stub(),
-          assertQueue: sandbox.stub().resolves(),
-        }),
-      }
+      const loggerInfoStub = sandbox.stub(logger, 'info')
+      const startNoopIntervalStub = sandbox.stub(RabbitMQ, 'startNoopInterval')
 
-      const connectStub = sandbox.stub().returns(connectionStub)
+      // Start connection
+      const connectPromise = RabbitMQ.connect()
 
-      const RabbitMQWrapper = proxyquire.noCallThru()('@modules/rabbitMQ', {
-        'amqp-connection-manager': { connect: connectStub },
-      }).default
+      // Simulate successful connection
+      process.nextTick(() => {
+        mockConnection.emit('connect')
+      })
 
-      const startNoopIntervalStub = sandbox.stub(RabbitMQWrapper, 'startNoopInterval')
-      // Simulate the 'connect' event being emitted
-      setTimeout(() => {
-        connectionStub.on.getCall(0).args[1]()
-      }, 10)
+      const result = await connectPromise
 
-      await RabbitMQWrapper.connect()
-
-      expect(RabbitMQWrapper.channelsMap.size).to.eq(Object.values(EnumQueueName).length)
+      expect(result).to.be.true
+      expect(connectStub.calledOnce).to.be.true
       expect(
-        connectStub.calledOnceWith([config.RABBITMQ.URI], {
+        connectStub.calledWith([config.RABBITMQ.URI], {
           heartbeatIntervalInSeconds: config.RABBITMQ.HEARTBEAT_INTERVAL_SECONDS,
           reconnectTimeInSeconds: config.RABBITMQ.RECONNECT_TIME_SECONDS,
           connectionOptions: {
@@ -59,57 +82,140 @@ describe('Modules: RabbitMQ', () => {
           },
         }),
       ).to.be.true
+
+      expect(RabbitMQ.channelsMap.size).to.equal(Object.values(EnumQueueName).length)
+      expect(loggerInfoStub.calledWith('RabbitMQ connected' as any)).to.be.true
       expect(startNoopIntervalStub.calledOnce).to.be.true
     })
 
-    it('should handle disconnection and log an error', async () => {
-      const loggerStub = sandbox.stub(logger, 'error')
-      const disconnectError = new Error('Connection lost')
-      const connectionStub = {
-        on: sandbox.stub(),
-        createChannel: sandbox.stub().returns({
-          on: sandbox.stub(),
-          assertQueue: sandbox.stub().resolves(),
-        }),
-      }
+    it('should not reconnect if already connected', async () => {
+      // Set up already connected state
+      RabbitMQ.connection = mockConnection
+      mockConnection.isConnected.returns(true)
 
-      const connectStub = sandbox.stub().returns(connectionStub)
+      const result = await RabbitMQ.connect()
 
-      const RabbitMQWrapper = proxyquire.noCallThru()('@modules/rabbitMQ', {
-        'amqp-connection-manager': { connect: connectStub },
-      }).default
-
-      // Simulate the 'disconnect' event being emitted
-      setTimeout(() => {
-        connectionStub.on.withArgs('disconnect').callArgWith(1, disconnectError)
-      }, 10)
-
-      await RabbitMQWrapper.connect()
-
-      expect(loggerStub.calledWith('RabbitMQ disconnected' as any)).to.be.true
+      expect(result).to.be.true
+      expect(connectStub.called).to.be.false
     })
 
-    it('should not reconnect if already connected', async () => {
-      const mockConnection = { on: sandbox.stub() } as unknown as AmqpConnectionManager
+    it('should handle connection timeout', async () => {
+      // Override timeout to be very short
+      const originalTimeout = config.RABBITMQ.TIMEOUT
+      config.RABBITMQ.TIMEOUT = 100
+
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+
+      try {
+        await RabbitMQ.connect()
+        expect.fail('Should have thrown timeout error')
+      } catch (err: any) {
+        expect(err.message).to.equal('RabbitMQ connection timeout')
+        expect(loggerErrorStub.calledWith('RabbitMQ connection timeout' as any)).to.be.true
+      } finally {
+        config.RABBITMQ.TIMEOUT = originalTimeout
+      }
+    })
+
+    it('should handle disconnect event during connection', async () => {
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+      const disconnectError = new Error('Connection lost')
+
+      // Start connection
+      const connectPromise = RabbitMQ.connect()
+
+      // Simulate disconnect before connect
+      process.nextTick(() => {
+        mockConnection.emit('disconnect', disconnectError)
+      })
+
+      try {
+        await connectPromise
+        expect.fail('Should have thrown error')
+      } catch (err: any) {
+        expect(err.message).to.include('RabbitMQ connection failed: Connection lost')
+        expect(loggerErrorStub.calledWith('RabbitMQ disconnected' as any)).to.be.true
+      }
+    })
+
+    it('should handle connectFailed event', async () => {
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+      const connectError = new Error('Failed to connect')
+
+      // Start connection
+      const connectPromise = RabbitMQ.connect()
+
+      // Simulate connect failed
+      process.nextTick(() => {
+        mockConnection.emit('connectFailed', connectError)
+      })
+
+      // For connectFailed, it resolves to true but logs error
+      const result = await connectPromise
+      expect(result).to.be.true
+      expect(loggerErrorStub.calledWith('RabbitMQ connect failed' as any)).to.be.true
+      expect(loggerErrorStub.calledWith('RabbitMQ connection failed' as any)).to.be.true
+    })
+
+    it('should handle disconnection and log an error', async () => {
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+      const stopNoopIntervalStub = sandbox.stub(RabbitMQ, 'stopNoopInterval')
+
+      // Start connection
+      const connectPromise = RabbitMQ.connect()
+
+      // Simulate successful connection first
+      process.nextTick(() => {
+        mockConnection.emit('connect')
+      })
+
+      await connectPromise
+
+      // Now simulate disconnect
+      mockConnection.emit('disconnect', new Error('Lost connection'))
+
+      expect(loggerErrorStub.calledWith('RabbitMQ disconnected' as any)).to.be.true
+      expect(stopNoopIntervalStub.calledOnce).to.be.true
+    })
+  })
+
+  describe('isConnected', () => {
+    it('should return false when no connection', () => {
+      expect(RabbitMQ.isConnected()).to.be.false
+    })
+
+    it('should return true when connected', () => {
       RabbitMQ.connection = mockConnection
+      mockConnection.isConnected.returns(true)
 
-      const mockConnect = sandbox.stub().returns(mockConnection)
-      sandbox.stub(connect as any, 'bind').returns(mockConnect as any)
+      expect(RabbitMQ.isConnected()).to.be.true
+    })
+  })
 
-      await RabbitMQ.connect()
+  describe('getStatus', () => {
+    it('should return correct status', () => {
+      RabbitMQ.connection = mockConnection
+      mockConnection.isConnected.returns(true)
+      RabbitMQ.channelsMap.set(EnumQueueName.contractInfo, mockChannel)
 
-      expect(mockConnect.notCalled).to.be.true
+      const status = RabbitMQ.getStatus()
+
+      expect(status).to.deep.equal({
+        connected: true,
+        uri: config.RABBITMQ.URI,
+        channels: 1,
+      })
     })
   })
 
   describe('getChannel', () => {
     it('should return the correct channel for a queue', () => {
       const queueName = EnumQueueName.contractInfo
-      const mockChannel = { sendToQueue: sandbox.stub() } as unknown as ChannelWrapper
+      RabbitMQ.connection = mockConnection
       RabbitMQ.channelsMap.set(queueName, mockChannel)
 
-      RabbitMQ.connection = true as any
       const channel = RabbitMQ.getChannel(queueName)
+
       expect(channel).to.equal(mockChannel)
     })
 
@@ -122,7 +228,7 @@ describe('Modules: RabbitMQ', () => {
 
     it('should throw an error if no channel exists for a queue', () => {
       const queueName = EnumQueueName.contractInfo
-      RabbitMQ.connection = {} as AmqpConnectionManager // Mock connected state
+      RabbitMQ.connection = mockConnection
 
       expect(() => RabbitMQ.getChannel(queueName)).to.throw(`No channel found for queue "${queueName}"`)
     })
@@ -130,112 +236,112 @@ describe('Modules: RabbitMQ', () => {
 
   describe('close', () => {
     it('should close the connection and log the event', async () => {
-      const mockLoggerVerbose = sandbox.stub(logger, 'verbose')
-      const mockConnection = {
-        close: sandbox.stub().resolves(),
-      }
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
+      const stopNoopIntervalStub = sandbox.stub(RabbitMQ, 'stopNoopInterval')
 
-      RabbitMQ.connection = mockConnection as any
+      RabbitMQ.connection = mockConnection
+      RabbitMQ.channelsMap.set(EnumQueueName.contractInfo, mockChannel)
 
       await RabbitMQ.close()
 
       expect(mockConnection.close.calledOnce).to.be.true
-      expect(mockLoggerVerbose.calledWith('RabbitMQ connection closed' as any)).to.be.true
+      expect(stopNoopIntervalStub.calledOnce).to.be.true
+      expect(loggerVerboseStub.calledWith('RabbitMQ connection closed' as any)).to.be.true
+      expect(RabbitMQ.connection).to.be.null
+      expect(RabbitMQ.channelsMap.size).to.equal(0)
     })
 
     it('should log a warning if an error occurs during closing', async () => {
-      const mockLoggerWarn = sandbox.stub(logger, 'warn')
-      const mockConnection = {
-        close: sandbox.stub().rejects(new Error('Close error')),
-      } as unknown as AmqpConnectionManager
+      const loggerWarnStub = sandbox.stub(logger, 'warn')
+      const closeError = new Error('Close failed')
+      mockConnection.close.rejects(closeError)
 
       RabbitMQ.connection = mockConnection
 
       await RabbitMQ.close()
 
-      expect(mockLoggerWarn.calledWith('Error closing RabbitMQ connection' as any)).to.be.true
+      expect(loggerWarnStub.calledWith('Error closing RabbitMQ connection' as any)).to.be.true
       expect(RabbitMQ.connection).to.be.null
     })
   })
 
   describe('startNoopInterval', () => {
+    let clock: sinon.SinonFakeTimers
+
+    beforeEach(() => {
+      clock = sandbox.useFakeTimers()
+    })
+
+    afterEach(() => {
+      clock.restore()
+    })
+
     it('should create an interval and perform noop operations', async () => {
-      const oldConfig = config.RABBITMQ.HEARTBEAT_INTERVAL_SECONDS
-
-      config.RABBITMQ.HEARTBEAT_INTERVAL_SECONDS = 1
-      const intervalMs = (config.RABBITMQ.HEARTBEAT_INTERVAL_SECONDS * 1000) / 2
+      const loggerInfoStub = sandbox.stub(logger, 'info')
       const addSetupStub = sandbox.stub().resolves()
-      const checkQueueStub = sandbox.stub().resolves()
-      const mockChannel = {
-        addSetup: addSetupStub,
-      } as unknown as ChannelWrapper
 
-      const mockConfirmChannel = {
-        checkQueue: checkQueueStub,
-      } as unknown as ConfirmChannel
-
-      // Set up channelsMap with a test channel
+      mockChannel.addSetup = addSetupStub
       RabbitMQ.channelsMap.set(EnumQueueName.contractInfo, mockChannel)
 
-      sandbox.stub(logger, 'info')
-
       RabbitMQ.startNoopInterval()
-      await Utils.wait(intervalMs)
 
       expect(RabbitMQ.noopInterval).to.not.be.null
-      // Verify that checkQueue is called via addSetup
+      expect(loggerInfoStub.calledWith('Starting noop interval' as any)).to.be.true
+
+      // Advance time to trigger interval
+      const intervalMs = (config.RABBITMQ.HEARTBEAT_INTERVAL_SECONDS * 1000) / 2
+      await clock.tickAsync(intervalMs)
+
       expect(addSetupStub.calledOnce).to.be.true
+
+      // Verify the setup function works correctly
       const setupFn = addSetupStub.getCall(0).args[0]
-      await setupFn(mockConfirmChannel, () => {})
-      expect(checkQueueStub.calledOnceWith(EnumQueueName.contractInfo)).to.be.true
-      config.RABBITMQ.HEARTBEAT_INTERVAL_SECONDS = oldConfig
+      const mockConfirmChannel = { checkQueue: sandbox.stub().resolves() }
+      await setupFn(mockConfirmChannel)
+
+      expect(mockConfirmChannel.checkQueue.calledWith(EnumQueueName.contractInfo)).to.be.true
     })
 
     it('should handle errors during noop operation', async () => {
-      const oldConfig = config.RABBITMQ.HEARTBEAT_INTERVAL_SECONDS
-      config.RABBITMQ.HEARTBEAT_INTERVAL_SECONDS = 1
-      const intervalMs = (config.RABBITMQ.HEARTBEAT_INTERVAL_SECONDS * 1000) / 2
-      const errorStub = sandbox.stub(logger, 'error')
+      const loggerErrorStub = sandbox.stub(logger, 'error')
       sandbox.stub(logger, 'info')
-      const mockChannel = {
-        addSetup: sandbox.stub().rejects(new Error('Noop error')),
-      } as unknown as ChannelWrapper
 
+      const addSetupStub = sandbox.stub().rejects(new Error('Noop failed'))
+      mockChannel.addSetup = addSetupStub
       RabbitMQ.channelsMap.set(EnumQueueName.contractInfo, mockChannel)
 
       RabbitMQ.startNoopInterval()
 
-      await Utils.wait(intervalMs)
+      // Advance time to trigger interval
+      const intervalMs = (config.RABBITMQ.HEARTBEAT_INTERVAL_SECONDS * 1000) / 2
+      await clock.tickAsync(intervalMs)
 
-      expect(errorStub.calledOnce).to.be.true
-      expect(errorStub.calledWith('Noop operation failed' as any)).to.be.true
-      config.RABBITMQ.HEARTBEAT_INTERVAL_SECONDS = oldConfig
+      expect(loggerErrorStub.calledWith('Noop operation failed' as any)).to.be.true
     })
 
     it('should clear existing interval before creating a new one', () => {
       sandbox.stub(logger, 'info')
 
-      RabbitMQ.noopInterval = setInterval(() => {}, 1000) as unknown as NodeJS.Timeout
+      // Set up existing interval
+      const existingInterval = setInterval(() => {}, 1000)
+      RabbitMQ.noopInterval = existingInterval
 
       RabbitMQ.startNoopInterval()
 
-      expect(RabbitMQ.noopInterval).to.be.not.eq(null)
-
-      RabbitMQ.stopNoopInterval()
+      expect(RabbitMQ.noopInterval).to.not.equal(existingInterval)
     })
   })
 
   describe('stopNoopInterval', () => {
     it('should clear interval and log verbose message', () => {
-      RabbitMQ.noopInterval = setInterval(() => {}, 1000) as unknown as NodeJS.Timeout
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
 
-      const verboseStub = sandbox.stub(logger, 'verbose')
-      RabbitMQ.noopInterval = {} as NodeJS.Timeout
+      RabbitMQ.noopInterval = setInterval(() => {}, 1000)
 
       RabbitMQ.stopNoopInterval()
 
       expect(RabbitMQ.noopInterval).to.be.null
-      expect(verboseStub.calledWith('Stopped noop interval' as any)).to.be.true
+      expect(loggerVerboseStub.calledWith('Stopped noop interval' as any)).to.be.true
     })
   })
 })

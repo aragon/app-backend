@@ -22,6 +22,7 @@ const llo = logger.logMeta.bind(null, { service: 'service:PluginSyncService' })
 
 const AragonPluginsService: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
+  options: { mongoSync: false },
 
   async start() {
     await RabbitMQHelper.process(EnumQueueName.logDao, async job => {

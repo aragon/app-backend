@@ -4,11 +4,13 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { glob } from 'glob'
 import { Models } from '@dbModels'
+import Mongo from '@modules/mongo'
 
 const llo = logger.logMeta.bind(null, { service: 'MigrationService' })
 
 class MigrationService implements IService {
   NEED_CONNECTIONS = [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ]
+  options = { mongoSync: false }
   private readonly migrationsPath = path.resolve(process.cwd(), 'src/migrations')
   private isRunning = false
   private onComplete?: () => void
@@ -80,6 +82,9 @@ class MigrationService implements IService {
 
       await this.executeMigration(filename)
     }
+
+    // Sync MongoDB indexes after migrations
+    await Mongo.syncIndexes()
   }
 
   private async getMigrationFiles(): Promise<string[]> {
