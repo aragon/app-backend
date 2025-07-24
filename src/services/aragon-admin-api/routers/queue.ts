@@ -3,7 +3,7 @@ import ValidationSchema from '@helpers/validationSchema'
 import GenericSchema from '@admin-api/routers/schema/generic'
 import QueueAdminController from '@admin-api/controllers/queue'
 import AuthMiddleware from '@middlewares/auth'
-import { type IAQueueDao, type IAQueueProposal, type NetworksEnum } from '@types'
+import { type IAQueueDao, type IAQueueToken, type IAQueueProposal, type NetworksEnum } from '@types'
 
 const QueueAdminRouter = {
   queueDaoPlugins: async function (ctx: RouterContext) {
@@ -74,6 +74,17 @@ const QueueAdminRouter = {
     ctx.body = await QueueAdminController.recalculateProposalActions(formattedValues)
   },
 
+  resetAndForceSyncToken: async function (ctx: RouterContext) {
+    const params: IAQueueToken = {
+      address: ctx.params.tokenAddress,
+      network: ctx.params.network,
+    }
+
+    const formattedValues = await ValidationSchema.validateParams(GenericSchema.defaultParams, params)
+
+    ctx.body = await QueueAdminController.resetAndForceSyncToken(formattedValues)
+  },
+
   router() {
     const router = new Router()
     const authedAdmin = AuthMiddleware.authAssertAdmin()
@@ -88,6 +99,7 @@ const QueueAdminRouter = {
       QueueAdminRouter.queueProposalMetrics,
     )
     router.post('/proposals/decode', authedAdmin, QueueAdminRouter.recalculateProposalActions)
+    router.post('/reset-token/:tokenAddress/:network', authedAdmin, QueueAdminRouter.resetAndForceSyncToken)
 
     return router
   },
