@@ -1,5 +1,5 @@
 import * as sinon from 'sinon'
-import { NetworksEnum } from '@types'
+import { IClockMode, NetworksEnum } from '@types'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import ProviderModule from '@modules/provider'
 import { expect } from 'chai'
@@ -73,6 +73,7 @@ describe('PastVotesBatch', () => {
         block.number,
         block.timestamp,
         member.network,
+        IClockMode.BlockNumber,
       )
 
       expect(result).to.be.a('string')

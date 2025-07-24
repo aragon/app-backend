@@ -67,7 +67,7 @@ export const GovernanceErc20Handler = {
           info.blockNumber,
           blockTimestamp,
           info.network,
-          token?.hasClockMode,
+          token?.clockMode,
         ),
         Web3Helper.getTokenBalanceAtBlock({
           address: memberAddress,
@@ -208,7 +208,7 @@ export const GovernanceErc20Handler = {
           info.blockNumber,
           blockTimestamp,
           info.network,
-          token?.hasClockMode,
+          token?.clockMode,
         ),
         Web3Helper.getTokenBalanceAtBlock({
           address: memberAddress,

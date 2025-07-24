@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import ProviderModule from '@modules/provider'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
-import { NetworksEnum } from '@types'
+import { IClockMode, NetworksEnum } from '@types'
 
 describe('Manual: GovernanceErc20', () => {
   let sandbox: SinonSandbox
@@ -24,6 +24,7 @@ describe('Manual: GovernanceErc20', () => {
       6726542,
       1634016000,
       NetworksEnum.ethereumSepolia,
+      IClockMode.BlockNumber,
     )
 
     console.log(response)

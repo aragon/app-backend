@@ -3,6 +3,8 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { NetworksEnum } from '@types'
 import proxyquire from 'proxyquire'
+import Web3Helper from '@helpers/web3'
+import GovernanceVeHelper from '@helpers/governanceVe'
 
 describe('Helpers: GovernanceVe', () => {
   let sandbox: SinonSandbox
@@ -476,6 +478,132 @@ describe('Helpers: GovernanceVe', () => {
       expect(result.slope).to.eq(0n)
       expect(result.bias).to.eq(0n)
       expect(getCoefficientsStub.calledOnce).to.be.true
+    })
+  })
+
+  describe('getUnderlyingTokenNameAndSymbol', () => {
+    it('Should make a successful getUnderlyingTokenNameAndSymbol call', async () => {
+      const adapterAddress = '0x123'
+      const escrowAddress = '0x1234567890123456789012345678901234567890'
+      const underlyingAddress = '0x9876543210987654321098765432109876543210'
+
+      const stubGetEscrowAddress = sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(escrowAddress)
+
+      const stubGetUnderlyingAddress = sandbox
+        .stub(GovernanceVeHelper, 'getErc20TokenAddress')
+        .resolves(underlyingAddress)
+
+      const getTokenNameAndSymbolStub = sandbox
+        .stub(Web3Helper, 'getTokenNameAndSymbol')
+        .resolves({ name: 'Test Token', symbol: 'TEST' })
+
+      const result = await GovernanceVeHelper.getUnderlyingTokenNameAndSymbol(
+        adapterAddress,
+        NetworksEnum.ethereumMainnet,
+      )
+      expect(result.name).to.eq('Test Token')
+      expect(result.symbol).to.eq('TEST')
+      expect(result.underlying).to.eq(underlyingAddress)
+      expect(stubGetEscrowAddress.calledOnceWith(adapterAddress)).to.be.true
+      expect(stubGetUnderlyingAddress.calledOnceWith(escrowAddress)).to.be.true
+      expect(getTokenNameAndSymbolStub.calledOnceWith(underlyingAddress)).to.be.true
+    })
+
+    it('should return empty name and symbol when getEscrowAddress fails', async () => {
+      const adapterAddress = '0x123'
+
+      const stubGetEscrowAddress = sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(null)
+
+      const stubGetUnderlyingAddress = sandbox.stub(GovernanceVeHelper, 'getErc20TokenAddress')
+
+      const getTokenNameAndSymbolStub = sandbox.stub(Web3Helper, 'getTokenNameAndSymbol')
+
+      const result = await GovernanceVeHelper.getUnderlyingTokenNameAndSymbol(
+        adapterAddress,
+        NetworksEnum.ethereumMainnet,
+      )
+      expect(result.name).to.be.null
+      expect(result.symbol).to.be.null
+      expect(result.underlying).to.null
+      expect(stubGetEscrowAddress.calledOnceWith(adapterAddress)).to.be.true
+      expect(stubGetUnderlyingAddress.notCalled).to.be.true
+      expect(getTokenNameAndSymbolStub.notCalled).to.be.true
+    })
+
+    it('should return empty name and symbol when getEscrowAddress returns null', async () => {
+      const adapterAddress = '0x123'
+      const escrowAddress = '0x1234567890123456789012345678901234567890'
+
+      const stubGetEscrowAddress = sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(escrowAddress)
+
+      const stubGetUnderlyingAddress = sandbox.stub(GovernanceVeHelper, 'getErc20TokenAddress').resolves(null)
+
+      const getTokenNameAndSymbolStub = sandbox.stub(Web3Helper, 'getTokenNameAndSymbol')
+
+      const result = await GovernanceVeHelper.getUnderlyingTokenNameAndSymbol(
+        adapterAddress,
+        NetworksEnum.ethereumMainnet,
+      )
+      expect(result.name).to.null
+      expect(result.symbol).to.null
+      expect(result.underlying).to.null
+      expect(stubGetEscrowAddress.calledOnceWith(adapterAddress)).to.be.true
+      expect(stubGetUnderlyingAddress.calledOnceWith(escrowAddress)).to.be.true
+      expect(getTokenNameAndSymbolStub.notCalled).to.be.true
+    })
+
+    it('should return empty name and symbol when getErc20TokenAddress returns null', async () => {
+      const adapterAddress = '0x123'
+      const escrowAddress = '0x1234567890123456789012345678901234567890'
+      const underlyingAddress = '0x9876543210987654321098765432109876543210'
+
+      const stubGetEscrowAddress = sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(escrowAddress)
+
+      const stubGetUnderlyingAddress = sandbox
+        .stub(GovernanceVeHelper, 'getErc20TokenAddress')
+        .resolves(underlyingAddress)
+
+      const getTokenNameAndSymbolStub = sandbox
+        .stub(Web3Helper, 'getTokenNameAndSymbol')
+        .resolves({ name: null, symbol: null })
+
+      const result = await GovernanceVeHelper.getUnderlyingTokenNameAndSymbol(
+        adapterAddress,
+        NetworksEnum.ethereumMainnet,
+      )
+      expect(result.name).to.be.null
+      expect(result.symbol).to.be.null
+      expect(result.underlying).to.eq(underlyingAddress)
+      expect(stubGetEscrowAddress.calledOnceWith(adapterAddress)).to.be.true
+      expect(stubGetUnderlyingAddress.calledOnceWith(escrowAddress)).to.be.true
+      expect(getTokenNameAndSymbolStub.calledOnceWith(underlyingAddress)).to.be.true
+    })
+
+    it('should handle errors in getUnderlyingTokenNameAndSymbol', async () => {
+      const adapterAddress = '0x123'
+      const escrowAddress = '0x1234567890123456789012345678901234567890'
+      const underlyingAddress = '0x9876543210987654321098765432109876543210'
+
+      const stubGetEscrowAddress = sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(escrowAddress)
+
+      const stubGetUnderlyingAddress = sandbox
+        .stub(GovernanceVeHelper, 'getErc20TokenAddress')
+        .resolves(underlyingAddress)
+
+      const getTokenNameAndSymbolStub = sandbox
+        .stub(Web3Helper, 'getTokenNameAndSymbol')
+        .rejects(new Error('RPC Call Failed'))
+
+      const result = await GovernanceVeHelper.getUnderlyingTokenNameAndSymbol(
+        adapterAddress,
+        NetworksEnum.ethereumMainnet,
+      )
+      expect(result.name).to.be.null
+      expect(result.symbol).to.be.null
+      expect(result.underlying).to.eq(underlyingAddress)
+      expect(stubGetEscrowAddress.calledOnceWith(adapterAddress)).to.be.true
+      expect(stubGetUnderlyingAddress.calledOnceWith(escrowAddress)).to.be.true
+      expect(getTokenNameAndSymbolStub.calledOnceWith(underlyingAddress)).to.be.true
     })
   })
 })

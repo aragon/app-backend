@@ -4,6 +4,7 @@ import { expect } from 'chai'
 import logger from '@logger'
 import {
   EnumQueueName,
+  IClockMode,
   ILogInfo,
   IMetricAction,
   IPluginInterfaceType,
@@ -574,6 +575,7 @@ describe('ProposalHandler', () => {
         network,
         decimals: 18,
         hasClockMode: true,
+        clockMode: IClockMode.BlockNumber,
       } as any)
       sandbox.stub(ProposalHandler, 'handleStartEndDate').resolves({
         startDate: 0,
@@ -615,7 +617,7 @@ describe('ProposalHandler', () => {
         blockNumber: info.blockNumber,
         network,
         blockTimestamp: 1700000000,
-        hasClockMode: true,
+        clockMode: IClockMode.BlockNumber,
       })
 
       expect(
@@ -926,8 +928,8 @@ describe('ProposalHandler', () => {
       sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves(proposalMetadata as any)
       sandbox.stub(Models.DaoMemberMapping, 'findAllMembersOfPlugin').resolves(members)
       sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
-      const stubPair = sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
-      const stubMemberMetrics = sandbox.stub(ProxyMember, 'updateMetricsByAction').resolves()
+      sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
+      sandbox.stub(ProxyMember, 'updateMetricsByAction').resolves()
       const stubDaoMetrics = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
       sandbox.stub(ProxyMember, 'updateActivity').resolves()
 
@@ -3377,7 +3379,7 @@ describe('ProposalHandler', () => {
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1900000000)
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
-      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
+      sandbox.stub(logger, 'verbose')
 
       await ProposalHandler.proposalCanceled(fakeEvent as any, info)
 
