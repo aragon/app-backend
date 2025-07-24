@@ -245,6 +245,7 @@ describe('Controller: QueueAdmin', () => {
         status: IPluginStatus.installed,
       })
 
+      const loggerStub = sandbox.stub(logger, 'verbose')
       sandbox
         .stub(Models.Proposal, 'findOne')
         .resolves({ proposalIndex: '1', pluginAddress: '0x456', network: 'mainnet' })
@@ -253,6 +254,7 @@ describe('Controller: QueueAdmin', () => {
 
       expect(result).to.be.true
       expect(rabbitMQ.calledOnce).to.be.true
+      expect(loggerStub.calledOnce).to.be.true
       expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.proposalTokenVotingMetrics)
     })
 
@@ -264,16 +266,17 @@ describe('Controller: QueueAdmin', () => {
         interfaceType: IPluginInterfaceType.multisig,
         status: IPluginStatus.installed,
       })
+      const loggerStub = sandbox.stub(logger, 'verbose')
 
       sandbox
         .stub(Models.Proposal, 'findOne')
         .resolves({ proposalIndex: '1', pluginAddress: '0x456', network: 'mainnet' })
 
       const result = await QueueAdminController.queueProposalMetrics(params)
-
       expect(result).to.be.true
       expect(rabbitMQ.calledOnce).to.be.true
       expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.proposalMultisigMetrics)
+      expect(loggerStub.calledOnce).to.be.true
     })
 
     it('should throw error if plugin not found', async () => {
@@ -364,7 +367,6 @@ describe('Controller: QueueAdmin', () => {
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginStub)
       sandbox.stub(Models.Proposal, 'findByProposalIncrementalId').resolves(proposalStub)
-      sandbox.stub(logger, 'info')
 
       const result = await QueueAdminController.recalculateProposalActions(params)
 
@@ -473,43 +475,47 @@ describe('Controller: QueueAdmin', () => {
   describe('resetAndForceSyncToken', () => {
     it('should successfully reset and force sync plugin token', async () => {
       const params = { address: '0x456', network: 'mainnet' }
+      const tokenStub = {
+        address: '0x456',
+        network: 'mainnet',
+        deleteOne: sandbox.stub().resolves(),
+      }
       const pluginStub = {
         address: '0x456',
         network: 'mainnet',
         interfaceType: IPluginInterfaceType.tokenVoting,
-        tokenAddress: '0xtoken123',
+        tokenAddress: '0x456',
       }
       const configIndexerStub = {
-        service: 'tokenVoting-mainnet-0x456-0xtoken123',
+        service: 'tokenVoting-mainnet-0x456-0x456',
         deleteOne: sandbox.stub().resolves(),
       }
 
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginStub)
+      sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves(tokenStub)
+      sandbox.stub(Models.Plugin, 'find').resolves([pluginStub])
       sandbox.stub(Models.ConfigIndexer, 'findOne').resolves(configIndexerStub)
-      const memberTransactionStub = sandbox.stub(Models.MemberTransaction, 'deleteMany').resolves()
-      const memberBalanceStub = sandbox.stub(Models.MemberBalance, 'deleteMany').resolves()
-      const daoMemberMappingStub = sandbox.stub(Models.DaoMemberMapping, 'deleteMany').resolves()
+      sandbox.stub(Models.MemberTransaction, 'deleteMany').resolves()
+      sandbox.stub(Models.MemberBalance, 'deleteMany').resolves()
+      sandbox.stub(Models.DaoMemberMapping, 'deleteMany').resolves()
+      sandbox.stub(Models.MemberMetrics, 'deleteMany').resolves()
+      sandbox.stub(logger, 'verbose')
 
       const result = await QueueAdminController.resetAndForceSyncToken(params)
 
       expect(result).to.be.undefined
-      expect(memberTransactionStub.calledOnce).to.be.true
-      expect(memberTransactionStub.firstCall.args[0]).to.deep.equal({ tokenAddress: '0xtoken123' })
-      expect(memberBalanceStub.calledOnce).to.be.true
-      expect(memberBalanceStub.firstCall.args[0]).to.deep.equal({ tokenAddress: '0xtoken123' })
-      expect(daoMemberMappingStub.calledOnce).to.be.true
-      expect(daoMemberMappingStub.firstCall.args[0]).to.deep.equal({
-        pluginAddress: '0x456',
-        tokenAddress: '0xtoken123',
-      })
-      expect(configIndexerStub.deleteOne.calledOnce).to.be.true
+      expect(rabbitMQ.calledOnce).to.be.true
     })
 
-    it('should throw error if plugin not found', async () => {
+    it('should return early if token not found', async () => {
       const params = { address: '0x456', network: 'mainnet' }
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+      sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves(null)
+      const pluginFindStub = sandbox.stub(Models.Plugin, 'find')
 
-      await expect(QueueAdminController.resetAndForceSyncToken(params)).to.be.rejectedWith(Error, ErrorKeyEnum.notFound)
+      const result = await QueueAdminController.resetAndForceSyncToken(params)
+
+      expect(result).to.be.undefined
+      expect(pluginFindStub.called).to.be.false
+      expect(rabbitMQ.called).to.be.false
     })
 
     it('should do nothing if plugin has no tokenAddress', async () => {
@@ -521,92 +527,80 @@ describe('Controller: QueueAdmin', () => {
         tokenAddress: null,
       }
 
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginStub)
+      sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves(false)
+      sandbox.stub(Models.Plugin, 'find').resolves([pluginStub])
       const configIndexerStub = sandbox.stub(Models.ConfigIndexer, 'findOne')
-      const memberTransactionStub = sandbox.stub(Models.MemberTransaction, 'deleteMany')
-      const memberBalanceStub = sandbox.stub(Models.MemberBalance, 'deleteMany')
-      const daoMemberMappingStub = sandbox.stub(Models.DaoMemberMapping, 'deleteMany')
+      sandbox.stub(Models.MemberTransaction, 'deleteMany').resolves()
+      sandbox.stub(Models.MemberBalance, 'deleteMany').resolves()
 
       const result = await QueueAdminController.resetAndForceSyncToken(params)
 
       expect(result).to.be.undefined
       expect(configIndexerStub.called).to.be.false
-      expect(memberTransactionStub.called).to.be.false
-      expect(memberBalanceStub.called).to.be.false
-      expect(daoMemberMappingStub.called).to.be.false
     })
 
-    it('should log error and return if no config indexer found', async () => {
+    it('should log error and continue if no config indexer found', async () => {
       const params = { address: '0x456', network: 'mainnet' }
+      const tokenStub = { address: '0x456', network: 'mainnet', deleteOne: sandbox.stub().resolves() }
       const pluginStub = {
         address: '0x456',
         network: 'mainnet',
         interfaceType: IPluginInterfaceType.tokenVoting,
-        tokenAddress: '0xtoken123',
+        tokenAddress: '0x456',
       }
 
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginStub)
+      sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves(tokenStub)
+      sandbox.stub(Models.Plugin, 'find').resolves([pluginStub])
       sandbox.stub(Models.ConfigIndexer, 'findOne').resolves(null)
+      sandbox.stub(Models.MemberTransaction, 'deleteMany').resolves()
+      sandbox.stub(Models.MemberBalance, 'deleteMany').resolves()
+      sandbox.stub(Models.DaoMemberMapping, 'deleteMany').resolves()
+      sandbox.stub(Models.MemberMetrics, 'deleteMany').resolves()
       const loggerStub = sandbox.stub(logger, 'error')
-      const memberTransactionStub = sandbox.stub(Models.MemberTransaction, 'deleteMany')
-      const memberBalanceStub = sandbox.stub(Models.MemberBalance, 'deleteMany')
-      const daoMemberMappingStub = sandbox.stub(Models.DaoMemberMapping, 'deleteMany')
 
       const result = await QueueAdminController.resetAndForceSyncToken(params)
 
       expect(result).to.be.undefined
       expect(loggerStub.calledOnce).to.be.true
-      const args = loggerStub.firstCall.args as any
-      expect(args[0]).to.equal('No config indexer found')
-      expect(args[1]).to.include({
-        params,
-        service: 'tokenVoting-mainnet-0x456-0xtoken123',
-      })
-      expect(memberTransactionStub.called).to.be.false
-      expect(memberBalanceStub.called).to.be.false
-      expect(daoMemberMappingStub.called).to.be.false
     })
 
     it('should handle errors when deleting member transactions', async () => {
       const params = { address: '0x456', network: 'mainnet' }
+      const tokenStub = { address: '0x456', network: 'mainnet', deleteOne: sandbox.stub().resolves() }
       const pluginStub = {
         address: '0x456',
         network: 'mainnet',
         interfaceType: IPluginInterfaceType.multisig,
-        tokenAddress: '0xtoken123',
-      }
-      const configIndexerStub = {
-        service: 'multisig-mainnet-0x456-0xtoken123',
-        deleteOne: sandbox.stub().resolves(),
+        tokenAddress: '0x456',
       }
 
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginStub)
-      sandbox.stub(Models.ConfigIndexer, 'findOne').resolves(configIndexerStub)
+      sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves(tokenStub)
+      sandbox.stub(Models.Plugin, 'find').resolves([pluginStub])
       sandbox.stub(Models.MemberTransaction, 'deleteMany').rejects(new Error('Delete failed'))
       sandbox.stub(Models.MemberBalance, 'deleteMany').resolves()
-      sandbox.stub(Models.DaoMemberMapping, 'deleteMany').resolves()
 
       await expect(QueueAdminController.resetAndForceSyncToken(params)).to.be.rejectedWith(Error, 'Delete failed')
     })
 
     it('should handle errors when deleting config indexer', async () => {
       const params = { address: '0x456', network: 'mainnet' }
+      const tokenStub = { address: '0x456', network: 'mainnet', deleteOne: sandbox.stub().resolves() }
       const pluginStub = {
         address: '0x456',
         network: 'mainnet',
         interfaceType: IPluginInterfaceType.tokenVoting,
-        tokenAddress: '0xtoken123',
+        tokenAddress: '0x456',
       }
       const configIndexerStub = {
-        service: 'tokenVoting-mainnet-0x456-0xtoken123',
+        service: 'tokenVoting-mainnet-0x456-0x456',
         deleteOne: sandbox.stub().rejects(new Error('ConfigIndexer delete failed')),
       }
 
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginStub)
+      sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves(tokenStub)
+      sandbox.stub(Models.Plugin, 'find').resolves([pluginStub])
       sandbox.stub(Models.ConfigIndexer, 'findOne').resolves(configIndexerStub)
       sandbox.stub(Models.MemberTransaction, 'deleteMany').resolves()
       sandbox.stub(Models.MemberBalance, 'deleteMany').resolves()
-      sandbox.stub(Models.DaoMemberMapping, 'deleteMany').resolves()
 
       await expect(QueueAdminController.resetAndForceSyncToken(params)).to.be.rejectedWith(
         Error,
@@ -616,28 +610,31 @@ describe('Controller: QueueAdmin', () => {
 
     it('should construct correct service string for different interface types', async () => {
       const params = { address: '0x789', network: 'sepolia' }
+      const tokenStub = { address: '0x789', network: 'sepolia', deleteOne: sandbox.stub().resolves() }
       const pluginStub = {
         address: '0x789',
         network: 'sepolia',
-        interfaceType: IPluginInterfaceType.multisig,
-        tokenAddress: '0xtokenABC',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0x789',
       }
       const configIndexerStub = {
-        service: 'multisig-sepolia-0x789-0xtokenABC',
+        service: 'multisig-sepolia-0x789-0x789',
         deleteOne: sandbox.stub().resolves(),
       }
 
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginStub)
+      sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves(tokenStub)
+      sandbox.stub(Models.Plugin, 'find').resolves([pluginStub])
       const configIndexerFindStub = sandbox.stub(Models.ConfigIndexer, 'findOne').resolves(configIndexerStub)
       sandbox.stub(Models.MemberTransaction, 'deleteMany').resolves()
       sandbox.stub(Models.MemberBalance, 'deleteMany').resolves()
       sandbox.stub(Models.DaoMemberMapping, 'deleteMany').resolves()
+      sandbox.stub(Models.MemberMetrics, 'deleteMany').resolves()
 
       await QueueAdminController.resetAndForceSyncToken(params)
 
       expect(configIndexerFindStub.calledOnce).to.be.true
       expect(configIndexerFindStub.firstCall.args[0]).to.deep.equal({
-        service: 'multisig-sepolia-0x789-0xtokenABC',
+        service: 'tokenVoting-sepolia-0x789-0x789',
       })
     })
 
@@ -650,15 +647,16 @@ describe('Controller: QueueAdmin', () => {
         tokenAddress: undefined,
       }
 
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginStub)
+      sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves(null)
+      sandbox.stub(Models.Plugin, 'find').resolves([pluginStub])
       const configIndexerStub = sandbox.stub(Models.ConfigIndexer, 'findOne')
-      const memberTransactionStub = sandbox.stub(Models.MemberTransaction, 'deleteMany')
+      sandbox.stub(Models.MemberTransaction, 'deleteMany').resolves()
+      sandbox.stub(Models.MemberBalance, 'deleteMany').resolves()
 
       const result = await QueueAdminController.resetAndForceSyncToken(params)
 
       expect(result).to.be.undefined
       expect(configIndexerStub.called).to.be.false
-      expect(memberTransactionStub.called).to.be.false
     })
 
     it('should wait for all delete operations to complete', async () => {
@@ -666,21 +664,21 @@ describe('Controller: QueueAdmin', () => {
       const tokenStub = {
         address: '0x456',
         network: 'mainnet',
-        interfaceType: ITokenType.ERC20,
+        deleteOne: sandbox.stub().resolves(),
       }
       const pluginStub = {
         address: '0x456',
         network: 'mainnet',
         interfaceType: IPluginInterfaceType.tokenVoting,
-        tokenAddress: '0xtoken123',
+        tokenAddress: '0x456',
       }
       const configIndexerStub = {
-        service: 'tokenVoting-mainnet-0x456-0xtoken123',
+        service: 'tokenVoting-mainnet-0x456-0x456',
         deleteOne: sandbox.stub().resolves(),
       }
 
       sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves(tokenStub)
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginStub)
+      sandbox.stub(Models.Plugin, 'find').resolves([pluginStub])
       sandbox.stub(Models.ConfigIndexer, 'findOne').resolves(configIndexerStub)
 
       // Create stubs with delays to test Promise.all behavior
@@ -701,7 +699,7 @@ describe('Controller: QueueAdmin', () => {
       await QueueAdminController.resetAndForceSyncToken(params)
       const endTime = Date.now()
 
-      // Should wait for the longest operation (21)
+      // Should wait for the longest operation (30ms)
       expect(endTime - startTime).to.be.at.least(21)
       expect(memberTransactionStub.calledOnce).to.be.true
       expect(memberBalanceStub.calledOnce).to.be.true

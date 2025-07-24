@@ -138,8 +138,6 @@ const QueueAdminController = {
     network: NetworksEnum
   }): Promise<any> => {
     try {
-      logger.info('Recalculating proposal actions', llo(params))
-
       const plugin = await Models.Plugin.findByAddress(params.pluginAddress, params.network)
       assertExposable(plugin, ErrorKeyEnum.notFound)
 
