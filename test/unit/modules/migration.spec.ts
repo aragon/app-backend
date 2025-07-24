@@ -6,6 +6,7 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import { IMigrationStatus } from '@types'
 import proxyquire from 'proxyquire'
+import MongoDB from '@modules/mongo'
 
 describe('MigrationService', () => {
   let sandbox: SinonSandbox
@@ -299,6 +300,74 @@ describe('MigrationService', () => {
         expect(error.message).to.include('Invalid migration file structure')
         expect(mockMigration.markAsFailed.calledOnce).to.be.true
       }
+    })
+
+    it('should return empty array if no valid migration files found', async () => {
+      const mockFiles = ['/invalid/path/README.md', '/bad/path/test.ts', '/wrong/format/2020-no-name.ts']
+      globStub.resolves(mockFiles)
+
+      const result = await (MigrationServiceMocked as any).getMigrationFiles()
+
+      expect(result).to.deep.equal([]) // All should be filtered out
+    })
+
+    it('should handle unexpected error during migration import execution', async () => {
+      const filename = '20240101000000-test-migration'
+      const unexpectedError = new Error('Unexpected import failure')
+
+      sandbox.stub(Models.Migration, 'findOne').resolves(mockMigration)
+      fsExistsSyncStub.returns(true)
+
+      const importStub = sandbox.stub().throws(unexpectedError)
+      const MigrationServiceBrokenImport = proxyquire.noCallThru()('@modules/migration', {
+        fs: {
+          ...fs,
+          existsSync: fsExistsSyncStub,
+        },
+        path: require('path'),
+      }).default
+
+      sandbox.stub(MigrationServiceBrokenImport as any, 'executeMigration').callsFake(async function (
+        ...args: unknown[]
+      ) {
+        const fname = args[0] as string
+        const migration = mockMigration
+        await migration.markAsRunning()
+
+        try {
+          await importStub()
+        } catch (error) {
+          await migration.markAsFailed(error as Error)
+          throw error
+        }
+      })
+
+      try {
+        await MigrationServiceBrokenImport.executeMigration(filename)
+        expect.fail('Should have thrown error')
+      } catch (err: any) {
+        expect(err.message).to.equal('Unexpected import failure')
+        expect(mockMigration.markAsFailed.calledOnce).to.be.true
+      }
+    })
+
+    it('should sync MongoDB indexes after executing all migrations', async () => {
+      const mockMigrationFiles = ['20240101000000-test-migration']
+      const mockExecutedMigrations: any[] = []
+
+      // Stub file discovery and execution
+      sandbox.stub(MigrationServiceMocked as any, 'getMigrationFiles').resolves(mockMigrationFiles)
+      sandbox.stub(Models.Migration, 'find').returns({
+        select: sandbox.stub().resolves(mockExecutedMigrations),
+      } as any)
+
+      const executeMigrationStub = sandbox.stub(MigrationServiceMocked as any, 'executeMigration').resolves()
+      const syncIndexesStub = sandbox.stub(MongoDB, 'syncIndexes').resolves()
+
+      await MigrationServiceMocked.start()
+
+      expect(executeMigrationStub.calledOnceWith('20240101000000-test-migration')).to.be.true
+      expect(syncIndexesStub.calledOnce).to.be.true
     })
   })
 
