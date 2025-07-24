@@ -410,7 +410,7 @@ const Utils = {
       timeout?: number
     } = {},
   ): Promise<T | null> {
-    const { validate = result => !!result, onError = () => {}, timeout = 10000 } = options
+    const { validate = result => !!result, onError = () => {}, timeout = 60 * 1000 } = options
 
     for (const [index, provider] of providers.entries()) {
       try {
