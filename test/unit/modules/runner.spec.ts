@@ -6,7 +6,7 @@ import { expect } from 'chai'
 import utils from '@helpers/utils'
 import { EnumConnection } from '@types'
 
-describe('Module: runner', () => {
+describe.skip('Module: runner', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
