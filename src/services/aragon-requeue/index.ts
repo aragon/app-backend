@@ -40,7 +40,7 @@ const AragonReQueueService: IService & { extractInfoFromServiceName: any } = {
         }
 
         if ([IndexerType.plugin, IndexerType.token].includes(parsedService?.indexerType)) {
-          await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
+          await RabbitMQHelper.sendMessage(EnumQueueName.requeue, {
             id: parsedService.pluginAddress,
             params: { address: parsedService.pluginAddress, network: configIndexer.network },
           })
