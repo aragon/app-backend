@@ -148,7 +148,7 @@ describe('GovernanceErc20Handler', () => {
           info.blockNumber,
           1630425600,
           info.network,
-          fakeToken.hasClockMode,
+          fakeToken.clockMode,
         ),
       ).to.be.true
       expect(loggerStub.callCount).to.be.eq(4)

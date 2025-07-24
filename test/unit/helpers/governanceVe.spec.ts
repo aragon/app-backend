@@ -3,6 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { NetworksEnum } from '@types'
 import proxyquire from 'proxyquire'
+import Web3Helper from '@helpers/web3'
 
 describe('Helpers: GovernanceVe', () => {
   let sandbox: SinonSandbox
@@ -476,6 +477,127 @@ describe('Helpers: GovernanceVe', () => {
       expect(result.slope).to.eq(0n)
       expect(result.bias).to.eq(0n)
       expect(getCoefficientsStub.calledOnce).to.be.true
+    })
+  })
+
+  describe('getUnderlyingTokenNameAndSymbol', () => {
+    it('Should make a successful getUnderlyingTokenNameAndSymbol call', async () => {
+      const getEscrowStub = sandbox.stub().resolves('0x1234567890123456789012345678901234567890')
+      const getTokenStub = sandbox.stub().resolves('0x9876543210987654321098765432109876543210')
+      const getTokenNameAndSymbolStub = sandbox
+        .stub(Web3Helper, 'getTokenNameAndSymbol')
+        .resolves({ name: 'Test Token', symbol: 'TEST' })
+
+      const { default: MockedGovernanceVeHelper } = proxyquire.noCallThru()('@helpers/governanceVe', {
+        ethers: {
+          Contract: function () {
+            return {
+              escrow: getEscrowStub,
+              token: getTokenStub,
+            }
+          },
+        },
+      })
+
+      const result = await MockedGovernanceVeHelper.getUnderlyingTokenNameAndSymbol(
+        '0x123',
+        NetworksEnum.ethereumMainnet,
+      )
+      expect(result.name).to.eq('Test Token')
+      expect(result.symbol).to.eq('TEST')
+      expect(getEscrowStub.calledOnce).to.be.true
+      expect(getTokenStub.calledOnce).to.be.true
+      expect(getTokenNameAndSymbolStub.calledOnce).to.be.true
+    })
+
+    it('should return empty name and symbol when getEscrowAddress fails', async () => {
+      const getEscrowStub = sandbox.stub().rejects(new Error('RPC Call Failed'))
+
+      const { default: MockedGovernanceVeHelper } = proxyquire.noCallThru()('@helpers/governanceVe', {
+        ethers: {
+          Contract: function () {
+            return { escrow: getEscrowStub }
+          },
+        },
+      })
+
+      const result = await MockedGovernanceVeHelper.getUnderlyingTokenNameAndSymbol(
+        '0x123',
+        NetworksEnum.ethereumMainnet,
+      )
+      expect(result.name).to.eq('')
+      expect(result.symbol).to.eq('')
+    })
+
+    it('should return empty name and symbol when getEscrowAddress returns null', async () => {
+      const getEscrowStub = sandbox.stub().resolves(null)
+
+      const { default: MockedGovernanceVeHelper } = proxyquire.noCallThru()('@helpers/governanceVe', {
+        ethers: {
+          Contract: function () {
+            return { escrow: getEscrowStub }
+          },
+        },
+      })
+
+      const result = await MockedGovernanceVeHelper.getUnderlyingTokenNameAndSymbol(
+        '0x123',
+        NetworksEnum.ethereumMainnet,
+      )
+      expect(result.name).to.eq('')
+      expect(result.symbol).to.eq('')
+    })
+
+    it('should return empty name and symbol when getErc20TokenAddress returns null', async () => {
+      const getEscrowStub = sandbox.stub().resolves('0x1234567890123456789012345678901234567890')
+      const getTokenStub = sandbox.stub().resolves(null)
+
+      const { default: MockedGovernanceVeHelper } = proxyquire.noCallThru()('@helpers/governanceVe', {
+        ethers: {
+          Contract: function () {
+            return {
+              escrow: getEscrowStub,
+              token: getTokenStub,
+            }
+          },
+        },
+      })
+
+      const result = await MockedGovernanceVeHelper.getUnderlyingTokenNameAndSymbol(
+        '0x123',
+        NetworksEnum.ethereumMainnet,
+      )
+      expect(result.name).to.eq('')
+      expect(result.symbol).to.eq('')
+    })
+
+    it('should handle errors in getUnderlyingTokenNameAndSymbol', async () => {
+      const getEscrowStub = sandbox.stub().resolves('0x1234567890123456789012345678901234567890')
+      const getTokenStub = sandbox.stub().resolves('0x9876543210987654321098765432109876543210')
+      const getTokenNameAndSymbolStub = sandbox.stub().rejects(new Error('Token call failed'))
+
+      const { default: MockedGovernanceVeHelper } = proxyquire.noCallThru()('@helpers/governanceVe', {
+        ethers: {
+          Contract: function () {
+            return {
+              escrow: getEscrowStub,
+              token: getTokenStub,
+            }
+          },
+        },
+        '@helpers/web3': {
+          default: {
+            getTokenNameAndSymbol: getTokenNameAndSymbolStub,
+          },
+        },
+      })
+
+      const result = await MockedGovernanceVeHelper.getUnderlyingTokenNameAndSymbol(
+        '0x123',
+        NetworksEnum.ethereumMainnet,
+      )
+      expect(result.name).to.eq('')
+      expect(result.symbol).to.eq('')
     })
   })
 })

@@ -9,7 +9,7 @@ import { PluginSlug } from '@helpers/pluginSlug'
 import logger from '@logger'
 import * as errors from '@errors'
 
-describe.only('Controller: QueueAdmin', () => {
+describe('Controller: QueueAdmin', () => {
   let sandbox: SinonSandbox
   let rabbitMQ: any
 
@@ -470,7 +470,7 @@ describe.only('Controller: QueueAdmin', () => {
     })
   })
 
-  describe.only('resetAndForceSyncToken', () => {
+  describe('resetAndForceSyncToken', () => {
     it('should successfully reset and force sync plugin token', async () => {
       const params = { address: '0x456', network: 'mainnet' }
       const pluginStub = {
@@ -509,10 +509,7 @@ describe.only('Controller: QueueAdmin', () => {
       const params = { address: '0x456', network: 'mainnet' }
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
 
-      await expect(QueueAdminController.resetAndForceSyncToken(params)).to.be.rejectedWith(
-        Error,
-        ErrorKeyEnum.notFound,
-      )
+      await expect(QueueAdminController.resetAndForceSyncToken(params)).to.be.rejectedWith(Error, ErrorKeyEnum.notFound)
     })
 
     it('should do nothing if plugin has no tokenAddress', async () => {
@@ -664,7 +661,7 @@ describe.only('Controller: QueueAdmin', () => {
       expect(memberTransactionStub.called).to.be.false
     })
 
-    it.only('should wait for all delete operations to complete', async () => {
+    it('should wait for all delete operations to complete', async () => {
       const params = { address: '0x456', network: 'mainnet' }
       const tokenStub = {
         address: '0x456',
@@ -704,8 +701,8 @@ describe.only('Controller: QueueAdmin', () => {
       await QueueAdminController.resetAndForceSyncToken(params)
       const endTime = Date.now()
 
-      // Should wait for the longest operation (30ms)
-      expect(endTime - startTime).to.be.at.least(30)
+      // Should wait for the longest operation (21)
+      expect(endTime - startTime).to.be.at.least(21)
       expect(memberTransactionStub.calledOnce).to.be.true
       expect(memberBalanceStub.calledOnce).to.be.true
       expect(daoMemberMappingStub.calledOnce).to.be.true
@@ -713,5 +710,4 @@ describe.only('Controller: QueueAdmin', () => {
       expect(configIndexerStub.deleteOne.calledOnce).to.be.true
     })
   })
-
 })

@@ -31,7 +31,7 @@ describe('Integration: Governances', () => {
     sandbox && sandbox.restore()
   })
 
-  it.only('should install ERC20 governance dao on ethereum-sepolia + proposal and totalSupply', async function () {
+  it('should install ERC20 governance dao on ethereum-sepolia + proposal and totalSupply', async function () {
     this.timeout(10000000)
 
     sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation').resolves(null as any)
@@ -112,7 +112,12 @@ describe('Integration: Governances', () => {
 
     const proposalCreatedTx = '0xf322ab4c771f8973b5481e2f4245f8a0645701842462ebda4300ea079e62538b'
 
-    const proposalCreatedEvents = await UnitDepUtils.getData(TokenVoting.abi, 'ProposalCreated', proposalCreatedTx, network)
+    const proposalCreatedEvents = await UnitDepUtils.getData(
+      TokenVoting.abi,
+      'ProposalCreated',
+      proposalCreatedTx,
+      network,
+    )
 
     for (const { event, logInfo } of proposalCreatedEvents) {
       await ProposalHandler.proposalCreated(event, logInfo)
@@ -122,7 +127,7 @@ describe('Integration: Governances', () => {
       id: '0xf322ab4c771f8973b5481e2f4245f8a0645701842462ebda4300ea079e62538b-0xfd30f6A658A82e8D2CBBCcea429371ac545ef62a-41981293179899666192778232992133842641974663734803984851385824614613996023303',
       network,
     })
-    expect(proposals.length).to.eq(0)
+    expect(proposals.length).to.eq(1)
     expect(proposals[0].snapshot.totalSupply).to.eq('1000000000000000000')
   })
 
@@ -200,6 +205,7 @@ describe('Integration: Governances', () => {
     const token = await Models.Token.findOne({ address: tokenPlugin.tokenAddress, network })
     expect(token.type).to.eq(ITokenType.escrowAdapter)
     expect(token.isGovernance).to.be.true
+    expect(!!token.name).to.be.true
 
     const tokenVotingSlug = await Models.PluginSlug.findOne({ pluginAddress: pluginAddressTokenVoting, network })
     expect(tokenVotingSlug.slug).to.eq('mama')

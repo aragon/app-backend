@@ -2,7 +2,7 @@ import VeLockIntMockTestData from '@test/unit-dep/mockData/veLockIntTestMock.jso
 import sinon from 'sinon'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
-import { NetworksEnum } from '@types'
+import { IPluginInterfaceType, IPluginStatus, ITokenType, NetworksEnum } from '@types'
 import logger from '@logger'
 import configIndexer from '@indexer/configIndexer'
 import UnitDepUtils from '@test/lib/unit-dep/utils'

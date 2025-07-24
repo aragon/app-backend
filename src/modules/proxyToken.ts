@@ -1,6 +1,6 @@
 import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
-import { type HexAddress, type ITokenInfo, ITokenType, type NetworksEnum } from '@types'
+import { type HexAddress, IClockMode, type ITokenInfo, ITokenType, type NetworksEnum } from '@types'
 import TokenDetector from '@helpers/tokenDetector'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
@@ -13,6 +13,8 @@ import { type ClientSession, type SaveOptions } from 'mongoose'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 import TokenUtils from '@helpers/tokenUtils'
 import CovalentHelper from '@helpers/covalent'
+import GovernanceErc20Helper from '@helpers/governanceErc20'
+import GovernanceVeHelper from '@helpers/governanceVe'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:ProxyToken' })
 
@@ -128,6 +130,10 @@ export const ProxyToken = {
     const tokenTypeInfo = await TokenDetector.detectTokenType(tokenAddress, network)
     const tokenDetails = await ProxyToken.wrapTokenDetails(tokenTypeInfo, tokenAddress, network)
 
+    const clockMode = tokenTypeInfo.hasClockMode
+      ? await GovernanceErc20Helper.getClockMode(tokenAddress, network)
+      : IClockMode.BlockNumber
+
     const rawToken: Partial<Token & { isScamToken: boolean }> = {
       network,
       address: tokenAddress,
@@ -148,6 +154,7 @@ export const ProxyToken = {
       hasDecimals: tokenTypeInfo.hasDecimals,
       hasTotalSupply: tokenTypeInfo.hasTotalSupply,
       hasClockMode: tokenTypeInfo.hasClockMode,
+      clockMode,
       hasProxy: tokenTypeInfo.proxy,
       implementationAddress: tokenTypeInfo?.implementationAddress!,
       mintableByDao: await ProxyToken.checkPluginMintAuthorizationIsDao(tokenAddress, network, session),
@@ -176,6 +183,12 @@ export const ProxyToken = {
         if (!isTokenSyncable) {
           return null
         }
+      }
+
+      if (rawToken.type === ITokenType.escrowAdapter) {
+        const underlyingTokenInfo = await GovernanceVeHelper.getUnderlyingTokenNameAndSymbol(tokenAddress, network)
+        rawToken.name = underlyingTokenInfo.name
+        rawToken.symbol = underlyingTokenInfo.symbol
       }
 
       if (!rawToken.decimals && tokenTypeInfo.hasDecimals) {

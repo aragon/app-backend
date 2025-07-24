@@ -18,12 +18,17 @@ export const SyncMemberVP: IService = {
       onDocument: async (doc: MemberBalance) => {
         const blockNumber = doc.lastSyncVotingPowerBlockNumber || doc.lastSyncAmountBlockNumber
         const blockTimestamp = await Web3Helper.getBlockTimestamp(blockNumber, doc.network)
+        const token = await Models.Token.findOne({
+          address: doc.tokenAddress,
+          network: doc.network,
+        })
         const memberVotingPower = await GovernanceErc20Helper.getPastVotes(
           doc.address,
           doc.tokenAddress,
           blockNumber,
           blockTimestamp,
           doc.network,
+          token.clockMode,
         )
 
         if (memberVotingPower !== doc.votingPower) {

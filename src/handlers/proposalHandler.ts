@@ -217,7 +217,7 @@ export const ProposalHandler = {
           blockNumber: info.blockNumber,
           tokenAddress: document.settings.tokenAddress,
           network: info.network,
-          hasClockMode: token?.hasClockMode!,
+          clockMode: token?.clockMode!,
           blockTimestamp,
         })
 

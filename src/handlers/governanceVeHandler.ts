@@ -464,7 +464,7 @@ export const GovernanceVeHandler = {
         info.blockNumber,
         blockTimestamp || 0,
         info.network,
-        token.hasClockMode,
+        token.clockMode,
       )
 
       await DbOperations.updateDocument(
