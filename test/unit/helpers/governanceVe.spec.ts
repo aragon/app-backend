@@ -525,8 +525,8 @@ describe('Helpers: GovernanceVe', () => {
         '0x123',
         NetworksEnum.ethereumMainnet,
       )
-      expect(result.name).to.eq('')
-      expect(result.symbol).to.eq('')
+      expect(result.name).to.be.null
+      expect(result.symbol).to.null
     })
 
     it('should return empty name and symbol when getEscrowAddress returns null', async () => {
@@ -544,8 +544,8 @@ describe('Helpers: GovernanceVe', () => {
         '0x123',
         NetworksEnum.ethereumMainnet,
       )
-      expect(result.name).to.eq('')
-      expect(result.symbol).to.eq('')
+      expect(result.name).to.be.null
+      expect(result.symbol).to.be.null
     })
 
     it('should return empty name and symbol when getErc20TokenAddress returns null', async () => {
@@ -567,8 +567,8 @@ describe('Helpers: GovernanceVe', () => {
         '0x123',
         NetworksEnum.ethereumMainnet,
       )
-      expect(result.name).to.eq('')
-      expect(result.symbol).to.eq('')
+      expect(result.name).to.be.null
+      expect(result.symbol).to.be.null
     })
 
     it('should handle errors in getUnderlyingTokenNameAndSymbol', async () => {
@@ -596,8 +596,8 @@ describe('Helpers: GovernanceVe', () => {
         '0x123',
         NetworksEnum.ethereumMainnet,
       )
-      expect(result.name).to.eq('')
-      expect(result.symbol).to.eq('')
+      expect(result.name).to.be.null
+      expect(result.symbol).to.be.null
     })
   })
 })
