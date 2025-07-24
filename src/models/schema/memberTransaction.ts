@@ -137,6 +137,7 @@ export default class MemberTransaction extends Model {
           type: 'delegate',
         },
       },
+      { $match: { $expr: { $ne: ['$from', '$to'] } } },
       {
         $sort: {
           blockNumber: 1,

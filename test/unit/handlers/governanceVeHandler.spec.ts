@@ -1100,7 +1100,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
 
-      expect(stubHandleTokenDelegation.calledTwice).to.be.true
+      expect(stubHandleTokenDelegation.calledOnce).to.be.true
       expect(stubLogger.calledOnce).to.be.true
     })
 
