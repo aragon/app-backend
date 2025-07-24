@@ -3,7 +3,6 @@ import logger from '@logger'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
 import type Token from '@models/schema/token'
-import TokenDetector from '@helpers/tokenDetector'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import GovernanceVeHelper from '@helpers/governanceVe'
 
