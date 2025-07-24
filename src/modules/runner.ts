@@ -1,6 +1,6 @@
 /* istanbul ignore file */
 import { TooBusyMonitor } from '@helpers/monitoring'
-import { type EnumConnection, type IService } from '@types'
+import { type IService } from '@types'
 import logger from '@logger'
 import Connections from './connections'
 
@@ -8,7 +8,7 @@ const llo = logger.logMeta.bind(null, { service: 'runner' })
 
 let stopping = false
 
-export function stopApps(instances: Array<{ app: IService }>, code: number, timeToKill = 20 * 1000) {
+export async function stopApp(app: IService, code: number, timeToKill = 20 * 1000) {
   setTimeout(() => {
     if (typeof code !== 'number') code = 1
     process.exit(code) // eslint-disable-line no-process-exit
@@ -20,43 +20,63 @@ export function stopApps(instances: Array<{ app: IService }>, code: number, time
   logger.info('Exiting...')
   logger.purge()
 
-  Promise.all(
-    instances.map((instance: { app: IService }): boolean => {
-      instance.app.stop()
-      return true
-    }),
-  )
-    .then(async () => {
-      await Connections.close()
-    })
-    .then(() => process.exit(code)) // eslint-disable-line no-process-exit
-    .catch(error => logger.error('global error', llo({ error })))
+  try {
+    // Handle both sync and async stop methods
+    await Promise.resolve(app.stop())
+    await Connections.close()
+    process.exit(code) // eslint-disable-line no-process-exit
+  } catch (error) {
+    logger.error('global error', llo({ error }))
+    process.exit(code) // eslint-disable-line no-process-exit
+  }
 }
 
-async function runApps(instances: Array<{ app: IService }>) {
+async function runApp(app: IService) {
   try {
-    process.on('exit', stopApps.bind(null, instances, -1))
-    process.on('SIGINT', stopApps.bind(null, instances, -1))
-    process.on('SIGTERM', stopApps.bind(null, instances, -1))
+    process.on('exit', () => {
+      stopApp(app, -1)
+    })
+    process.on('SIGINT', () => {
+      stopApp(app, -1)
+    })
+    process.on('SIGTERM', () => {
+      stopApp(app, -1)
+    })
 
     process.on('unhandledRejection', error => {
       logger.error('Unhandled Promise Rejection', llo({ error }))
-      stopApps(instances, -1)
+      stopApp(app, -1)
     })
 
     process.on('uncaughtException', error => {
       logger.error('Unhandled Exception', llo({ error }))
-      stopApps(instances, -1)
+      stopApp(app, -1)
     })
 
-    const neededConnections = instances.reduce(
-      (acc: EnumConnection[], instance: { app: IService }) =>
-        instance.app.NEED_CONNECTIONS ? acc.concat(instance.app.NEED_CONNECTIONS) : acc,
-      [],
-    )
-    await Connections.open(neededConnections)
+    // Get connections needed by this service
+    const neededConnections = app.NEED_CONNECTIONS || []
 
-    await Promise.all(instances.map(async (instance: { app: IService }) => await instance.app.start()))
+    logger.info(
+      'Starting service',
+      llo({
+        service: app.constructor.name,
+        connections: neededConnections,
+        options: app.options,
+      }),
+    )
+
+    // Open connections with service-specific options
+    await Connections.open(neededConnections, app.options)
+
+    // Start the service
+    await app.start()
+
+    logger.info(
+      'Service started successfully',
+      llo({
+        service: app.constructor.name,
+      }),
+    )
   } catch (error) {
     logger.error('Unable to start application', llo({ error }))
     logger.purge()
@@ -67,10 +87,11 @@ async function runApps(instances: Array<{ app: IService }>) {
   }
 }
 
-function Runner(apps: Array<{ app: IService }>) {
-  if (!apps || apps.length === 0) throw new Error('need app')
+function Runner(app: IService) {
+  if (!app) throw new Error('Service instance required')
+
   new TooBusyMonitor().init()
-  runApps(apps).catch(error => logger.error('run error', llo({ error })))
+  runApp(app).catch(error => logger.error('run error', llo({ error })))
 }
 
 export default Runner
