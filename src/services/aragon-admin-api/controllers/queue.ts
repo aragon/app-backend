@@ -1,4 +1,10 @@
-import { type IAQueueDao, type IAQueueProposal, IPluginInterfaceType, type NetworksEnum } from '@src/types'
+import {
+  type IAQueueDao,
+  type IAQueueProposal,
+  type IAQueueToken,
+  IPluginInterfaceType,
+  type NetworksEnum,
+} from '@src/types'
 import { Models } from '@dbModels'
 import { EnumQueueName, ErrorKeyEnum, IPluginStatus } from '@types'
 import { assertExposable } from '@errors'
@@ -170,6 +176,65 @@ const QueueAdminController = {
       logger.error('Error recalculating proposal actions', llo({ error, params }))
       return false
     }
+  },
+
+  resetAndForceSyncToken: async (params: IAQueueToken): Promise<any> => {
+    const token = await Models.Token.findByTokenAddressAndNetwork(params.address, params.network)
+    if (!token) return
+
+    // take all plugins with the same token address and network
+    const plugins = await Models.Plugin.find({
+      tokenAddress: params.address,
+      network: params.network,
+    })
+
+    await Promise.all([
+      Models.MemberTransaction.deleteMany({
+        tokenAddress: params.address,
+        network: params.network,
+      }),
+      Models.MemberBalance.deleteMany({
+        tokenAddress: params.address,
+        network: params.network,
+      }),
+    ])
+
+    await Promise.all(
+      plugins.map(async (p: Plugin) => {
+        const service = `${IPluginInterfaceType.tokenVoting}-${p.network}-${p.address}-${p.tokenAddress}`
+        const configIndexer = await Models.ConfigIndexer.findOne({ service })
+
+        if (!configIndexer) {
+          logger.error('No config indexer found', llo({ params, service }))
+          return
+        }
+        await configIndexer.deleteOne()
+
+        await Models.DaoMemberMapping.deleteMany({
+          pluginAddress: p.address,
+          tokenAddress: p.tokenAddress,
+          network: p.network,
+        })
+        await Models.MemberMetrics.deleteMany({
+          pluginAddress: p.address,
+          network: p.network,
+        })
+
+        if (token) {
+          await token.deleteOne()
+        }
+
+        if (p.tokenAddress) {
+          logger.verbose('Force re-sync plugin', llo({ address: params.address, network: params.network }))
+        }
+
+        // re-sync from scratch
+        await RabbitMQHelper.sendMessage(EnumQueueName.requeue, {
+          id: p.address,
+          params: { address: p.address, network: p.network },
+        })
+      }),
+    )
   },
 }
 
