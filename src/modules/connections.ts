@@ -155,7 +155,7 @@ const Connections = {
    * Health check for all connections
    */
   async healthCheck(): Promise<Record<EnumConnection, boolean>> {
-    const health: Record<string, boolean> = {}
+    const health: Record<EnumConnection | any, boolean> = {}
 
     for (const connection of Connections.openedConnections) {
       try {

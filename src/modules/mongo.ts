@@ -50,7 +50,7 @@ const Mongo = {
       return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
           reject(new Error('MongoDB connection timeout while waiting for existing connection'))
-        }, 30000)
+        }, retryOptions.timeout)
 
         mongoose.connection.once('connected', async () => {
           clearTimeout(timeout)
