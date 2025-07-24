@@ -1,6 +1,6 @@
 import logger from '@logger'
 import { type LogDescription } from 'ethers'
-import { EnumQueueName, type ILogInfo, ITransferSide, ITransferType } from '@types'
+import { EnumQueueName, type HexAddress, type ILogInfo, ITransferSide, ITransferType } from '@types'
 import utils from '@helpers/utils'
 import { ProxyMember } from '@modules/proxyMember'
 import DbTx from '@modules/dbTx'
@@ -227,10 +227,14 @@ export const GovernanceErc20Handler = {
       const previousBalance = BigInt(parsedEvent?.args?.previousBalance || 0)
 
       let side: ITransferSide
+      let from: HexAddress | null = null
+      let to: HexAddress | null = null
       if (newBalance > previousBalance) {
         side = ITransferSide.incoming
+        to = memberAddress
       } else {
         side = ITransferSide.outgoing
+        from = memberAddress
       }
 
       // save member transaction
@@ -258,6 +262,8 @@ export const GovernanceErc20Handler = {
             tokenAddress,
             memberBalance: memberTokenBalance,
             memberVotingPower,
+            from,
+            to,
           },
           { session },
         )
