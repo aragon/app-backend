@@ -11,7 +11,6 @@ import {
   type IQueryGetPlugin,
   type NetworksEnum,
   EnumQueueName,
-  IDaoLogs,
 } from '@types'
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
 import type Plugin from '@models/schema/plugin'
@@ -26,10 +25,14 @@ import DbTx from '@modules/dbTx'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import { MetadataHandler } from '@handlers/metadataHandler'
 import RabbitMQHelper from '@src/helpers/rabbitMQ'
-import configIndexer from '@services/aragon-indexer/configIndexer'
-import { ethers } from 'ethers'
+import { ethers, Interface } from 'ethers'
+import { DAO } from '@artifacts/dao'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PluginHandler' })
+
+const InstallationAppliedTopicHash = new Interface(PluginSetupProcessor.abi).getEvent('InstallationApplied')?.topicHash!
+const GrantedTopicHash = new Interface(DAO.abi).getEvent('Granted')?.topicHash!
+const RevokeTopicHash = new Interface(DAO.abi).getEvent('Revoke')?.topicHash!
 
 export const PluginHandler = {
   async _queryGetPlugin({
@@ -630,11 +633,7 @@ export const PluginHandler = {
         return
       }
 
-      const installationAppliedLogs = txReceipt.logs.filter(
-        log =>
-          configIndexer.find(config => config.event === IEventLogPluginType.InstallationApplied)?.topic ===
-          log.topics[0],
-      )
+      const installationAppliedLogs = txReceipt.logs.filter(log => InstallationAppliedTopicHash === log.topics[0])
 
       const executePermissionId = ethers.id('EXECUTE_PERMISSION')
 
@@ -646,9 +645,6 @@ export const PluginHandler = {
       // So we can be sure that we need to install the plugin
 
       if (installationAppliedLogs.length > 0) {
-        const grantedTopic = configIndexer.find(config => config.event === IDaoLogs.Granted)?.topic
-        const revokedTopic = configIndexer.find(config => config.event === IDaoLogs.Revoked)?.topic
-
         const lastAppliedLog = Web3Utils.parseInfoLog(
           installationAppliedLogs[installationAppliedLogs.length - 1],
           IEventLogPluginType.InstallationApplied,
@@ -659,7 +655,7 @@ export const PluginHandler = {
         const nextPermissionEvent = txReceipt.logs.find((log: any) => {
           const isPermissionEvent =
             log.address === daoDb.address &&
-            (log.topics[0] === grantedTopic || log.topics[0] === revokedTopic) &&
+            (log.topics[0] === GrantedTopicHash || log.topics[0] === RevokeTopicHash) &&
             log.topics[1] === executePermissionId
           return isPermissionEvent && log.logIndex > lastAppliedLogIndex
         })

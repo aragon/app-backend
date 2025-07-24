@@ -166,6 +166,7 @@ export const ProxyToken = {
         rawToken.type = tokenTypeInfo.type
       }
 
+      // escrow adapters have no underlying token
       if (!rawToken.underlying && tokenTypeInfo.hasUnderlying) {
         rawToken.underlying = await Web3Helper.getUnderlying(tokenAddress, network)
       }
@@ -189,6 +190,7 @@ export const ProxyToken = {
         const underlyingTokenInfo = await GovernanceVeHelper.getUnderlyingTokenNameAndSymbol(tokenAddress, network)
         rawToken.name = underlyingTokenInfo.name
         rawToken.symbol = underlyingTokenInfo.symbol
+        rawToken.underlying = underlyingTokenInfo.underlying
       }
 
       if (!rawToken.decimals && tokenTypeInfo.hasDecimals) {
