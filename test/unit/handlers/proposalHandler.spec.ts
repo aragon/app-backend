@@ -3,7 +3,8 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import logger from '@logger'
 import {
-  EnumQueueName, IClockMode,
+  EnumQueueName,
+  IClockMode,
   ILogInfo,
   IMetricAction,
   IPluginInterfaceType,
@@ -574,7 +575,7 @@ describe('ProposalHandler', () => {
         network,
         decimals: 18,
         hasClockMode: true,
-        clockMode: IClockMode.BlockNumber
+        clockMode: IClockMode.BlockNumber,
       } as any)
       sandbox.stub(ProposalHandler, 'handleStartEndDate').resolves({
         startDate: 0,
