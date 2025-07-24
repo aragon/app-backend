@@ -79,10 +79,10 @@ export type TokenLogService =
 
 // Type for parsed log service info
 export type LogServiceInfo =
-  | { type: 'deposit'; address: string; service: IEnumIndexerService.depositTxs }
-  | { type: 'withdraw'; address: string; service: IEnumIndexerService.withdrawTxs }
-  | { type: 'indexer'; network: NetworksEnum }
-  | { type: 'dao'; network: NetworksEnum; address: string }
-  | { type: 'permission'; network: NetworksEnum; address: string }
-  | { type: 'token'; tokenType: ITokenType; network: NetworksEnum; address: string; syncTag?: ITokenSyncTagName }
-  | { type: 'plugin'; interfaceType: IPluginInterfaceType; network: NetworksEnum; address: string }
+  | { type: IndexerType.deposit; address: string; service: IEnumIndexerService.depositTxs }
+  | { type: IndexerType.withdraw; address: string; service: IEnumIndexerService.withdrawTxs }
+  | { type: IndexerType.indexer; network: NetworksEnum }
+  | { type: IndexerType.dao; network: NetworksEnum; address: string }
+  | { type: IndexerType.permission; network: NetworksEnum; address: string }
+  | { type: IndexerType.token; tokenType: ITokenType; network: NetworksEnum; address: string; syncTag?: ITokenSyncTagName }
+  | { type: IndexerType.plugin; interfaceType: IPluginInterfaceType; network: NetworksEnum; address: string }
