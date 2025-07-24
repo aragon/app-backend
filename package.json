@@ -13,6 +13,7 @@
     "service:aragon-dao": "ts-node -r tsconfig-paths/register runners/aragon-dao.ts",
     "service:aragon-plugins": "ts-node -r tsconfig-paths/register runners/aragon-plugins.ts",
     "service:aragon-rates": "ts-node -r tsconfig-paths/register runners/aragon-rates.ts",
+    "service:aragon-requeue": "ts-node -r tsconfig-paths/register runners/aragon-requeue.ts",
     "deploy:sand": "bash scripts/app-deploy.sh sand",
     "deploy:dev": "bash scripts/app-deploy.sh dev",
     "deploy:stg": "bash scripts/app-deploy.sh stg",

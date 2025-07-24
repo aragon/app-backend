@@ -24,6 +24,7 @@ export const LogMultiSig = {
       stopOnError: true,
     })
     await crawler.crawl()
+    await crawler.end()
 
     logger.verbose('End LogMultiSig', llo({ network: plugin.network, latestBlockSync: crawler.crawlSetting.lastSync }))
   },
