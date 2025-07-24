@@ -1,14 +1,13 @@
-import { EnumConnection, type IMigration } from '@types'
+import { type IMigration } from '@types'
 import logger from '@logger'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
 import type Token from '@models/schema/token'
-import TokenDetector from '@helpers/tokenDetector'
+import GovernanceErc20Helper from '@helpers/governanceErc20'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: clockMode' })
 
 export const clockModeMigration: IMigration = {
-
   start: async () => {
     logger.info('Starting migration', llo({ migration: '20250724165553-clockMode' }))
 
@@ -16,7 +15,7 @@ export const clockModeMigration: IMigration = {
       const crawler = new DBCrawler({
         model: Models.Token,
         onDocument: async (token: Token) => {
-
+          token.clockMode = await GovernanceErc20Helper.getClockMode(token.address, token.network)
           await token.save()
         },
         onError: (error: any, document: any) => {
