@@ -927,8 +927,8 @@ describe('ProposalHandler', () => {
       sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves(proposalMetadata as any)
       sandbox.stub(Models.DaoMemberMapping, 'findAllMembersOfPlugin').resolves(members)
       sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
-      const stubPair = sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
-      const stubMemberMetrics = sandbox.stub(ProxyMember, 'updateMetricsByAction').resolves()
+      sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
+      sandbox.stub(ProxyMember, 'updateMetricsByAction').resolves()
       const stubDaoMetrics = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
       sandbox.stub(ProxyMember, 'updateActivity').resolves()
 
@@ -3378,7 +3378,7 @@ describe('ProposalHandler', () => {
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1900000000)
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
-      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
+      sandbox.stub(logger, 'verbose')
 
       await ProposalHandler.proposalCanceled(fakeEvent as any, info)
 
