@@ -252,6 +252,8 @@ describe('GovernanceErc20Handler', () => {
       expect(rabbitMqStub.calledTwice).to.be.true
       expect(rabbitMqStub.args[0][1].id).to.be.eq(plugins[0].daoAddress)
       expect(rabbitMqStub.args[1][1].id).to.be.eq(plugins[1].daoAddress)
+      expect(getPastVotesStub.called).to.be.true
+      expect(findExistingLogStub.called).to.be.true
     })
 
     it('should handle outgoing ERC721 transfer event and remove member from DAO', async () => {
@@ -349,6 +351,8 @@ describe('GovernanceErc20Handler', () => {
       expect(remainingMappings.length).to.be.eq(0)
 
       expect(rabbitMqStub.calledTwice).to.be.true
+      expect(getTokenBalanceAtBlockStub.called).to.be.true
+      expect(findExistingLogStub.called).to.be.true
     })
 
     it('should handle incoming ERC721 transfer event and add member to DAO', async () => {
