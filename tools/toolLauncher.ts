@@ -74,4 +74,4 @@ const runners = {
 const appToRun = runners[TOOL_RUN!]
 logger.info('Tool started', llo({ appToRun: TOOL_RUN }))
 
-Runner([{ app: appToRun }])
+Runner(appToRun)

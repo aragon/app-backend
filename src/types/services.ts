@@ -13,9 +13,13 @@ export interface IMigration {
   stop: () => void | Promise<void>
 }
 
-export interface IService {
-  NEED_CONNECTIONS: EnumConnection[]
+export interface IOptionService {
+  mongoSync: boolean
+}
 
+export interface IService {
+  options?: IOptionService
+  NEED_CONNECTIONS: EnumConnection[]
   start: () => Promise<any>
 
   stop: () => void | Promise<void>
