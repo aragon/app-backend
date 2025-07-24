@@ -343,11 +343,12 @@ export const GovernanceVeHandler = {
           return
         }
 
-        if (activePluginSetting.votingEscrow.minDeposit === minDeposit) return
-
         if (!activePluginSetting.votingEscrow) {
           activePluginSetting.votingEscrow = {}
         }
+
+        if (activePluginSetting.votingEscrow.minDeposit === minDeposit) return
+
         activePluginSetting.votingEscrow.minDeposit = minDeposit
         await activePluginSetting.save()
 
@@ -357,7 +358,7 @@ export const GovernanceVeHandler = {
   },
 
   minLockSet: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const minLock = parsedEvent.args.minLock.toString()
+    const minLock = Number(parsedEvent.args.minLock)
     const plugins = await Models.Plugin.find({
       'votingEscrow.exitQueueAddress': info.address,
       network: info.network,
@@ -386,11 +387,12 @@ export const GovernanceVeHandler = {
           return
         }
 
-        if (activePluginSetting?.votingEscrow?.minLockTime === minLock) return
-
         if (!activePluginSetting.votingEscrow) {
           activePluginSetting.votingEscrow = {}
         }
+
+        if (activePluginSetting?.votingEscrow?.minLockTime === minLock) return
+
         activePluginSetting.votingEscrow.minLockTime = minLock
         await activePluginSetting.save()
 
