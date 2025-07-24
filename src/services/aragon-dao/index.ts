@@ -33,7 +33,7 @@ const llo = logger.logMeta.bind(null, { service: 'service:DaoService' })
 
 const AragonDaoService: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
-  options: { mongoSync: false },
+  options: { mongoSync: config.MONGO_DB.SYNC_MODELS },
 
   start: async function () {
     await RabbitMQHelper.process(EnumQueueName.allMetrics, async job => {

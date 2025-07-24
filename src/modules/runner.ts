@@ -33,10 +33,15 @@ export async function stopApp(app: IService, code: number, timeToKill = 20 * 100
 
 async function runApp(app: IService) {
   try {
-    // Use arrow functions to properly handle async stopApp
-    process.on('exit', async () => stopApp(app, -1))
-    process.on('SIGINT', async () => stopApp(app, -1))
-    process.on('SIGTERM', async () => stopApp(app, -1))
+    process.on('exit', () => {
+      stopApp(app, -1)
+    })
+    process.on('SIGINT', () => {
+      stopApp(app, -1)
+    })
+    process.on('SIGTERM', () => {
+      stopApp(app, -1)
+    })
 
     process.on('unhandledRejection', error => {
       logger.error('Unhandled Promise Rejection', llo({ error }))

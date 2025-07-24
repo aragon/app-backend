@@ -17,12 +17,13 @@ import { LogSpp } from '@services/aragon-plugins/logSPP'
 import { LogTokenVoting } from '@services/aragon-plugins/logTokenVoting'
 import { LogGauge } from '@plugins/logGauge'
 import { LogSelectorPermission } from '@services/aragon-plugins/logSelectorPermission'
+import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'service:PluginSyncService' })
 
 const AragonPluginsService: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
-  options: { mongoSync: false },
+  options: { mongoSync: config.MONGO_DB.SYNC_MODELS },
 
   async start() {
     await RabbitMQHelper.process(EnumQueueName.logDao, async job => {
