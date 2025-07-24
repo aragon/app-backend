@@ -245,6 +245,7 @@ describe('Controller: QueueAdmin', () => {
         status: IPluginStatus.installed,
       })
 
+      const loggerStub = sandbox.stub(logger, 'verbose')
       sandbox
         .stub(Models.Proposal, 'findOne')
         .resolves({ proposalIndex: '1', pluginAddress: '0x456', network: 'mainnet' })
@@ -253,6 +254,7 @@ describe('Controller: QueueAdmin', () => {
 
       expect(result).to.be.true
       expect(rabbitMQ.calledOnce).to.be.true
+      expect(loggerStub.calledOnce).to.be.true
       expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.proposalTokenVotingMetrics)
     })
 
@@ -264,16 +266,17 @@ describe('Controller: QueueAdmin', () => {
         interfaceType: IPluginInterfaceType.multisig,
         status: IPluginStatus.installed,
       })
+      const loggerStub = sandbox.stub(logger, 'verbose')
 
       sandbox
         .stub(Models.Proposal, 'findOne')
         .resolves({ proposalIndex: '1', pluginAddress: '0x456', network: 'mainnet' })
 
       const result = await QueueAdminController.queueProposalMetrics(params)
-
       expect(result).to.be.true
       expect(rabbitMQ.calledOnce).to.be.true
       expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.proposalMultisigMetrics)
+      expect(loggerStub.calledOnce).to.be.true
     })
 
     it('should throw error if plugin not found', async () => {
@@ -364,7 +367,6 @@ describe('Controller: QueueAdmin', () => {
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginStub)
       sandbox.stub(Models.Proposal, 'findByProposalIncrementalId').resolves(proposalStub)
-      sandbox.stub(logger, 'info')
 
       const result = await QueueAdminController.recalculateProposalActions(params)
 

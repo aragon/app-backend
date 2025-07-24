@@ -87,7 +87,7 @@ export const AllMetrics = {
           blockNumber,
           blockTimestamp,
           doc.network,
-          token?.hasClockMode,
+          token?.clockMode!,
         )
 
         if (memberVotingPower !== doc.votingPower) {

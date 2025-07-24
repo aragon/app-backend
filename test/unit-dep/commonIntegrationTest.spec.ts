@@ -77,7 +77,7 @@ describe('Basic Integer Test', () => {
       blockNumber: 123123123,
       tokenAddress: tokenDb.address,
       network,
-      hasClockMode: tokenDb.hasClockMode,
+      clockMode: tokenDb.clockMode,
       blockTimestamp: timestamp - 15000,
     })
 

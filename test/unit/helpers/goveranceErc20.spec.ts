@@ -55,7 +55,7 @@ describe('Helpers: GovernanceErc20', () => {
         12345678,
         1622547800,
         NetworksEnum.ethereumMainnet,
-        false,
+        IClockMode.BlockNumber,
       )
 
       expect(result).to.equal('1000')
@@ -92,7 +92,7 @@ describe('Helpers: GovernanceErc20', () => {
         12345678,
         1622547800,
         NetworksEnum.ethereumMainnet,
-        true,
+        IClockMode.Timestamp,
       )
 
       expect(result).to.equal('2000')
@@ -124,6 +124,7 @@ describe('Helpers: GovernanceErc20', () => {
         12345678,
         1622547800,
         NetworksEnum.ethereumMainnet,
+        IClockMode.BlockNumber,
       )
 
       expect(_getPastVotesForFallbackStub.calledOnce).to.be.true
@@ -165,6 +166,7 @@ describe('Helpers: GovernanceErc20', () => {
         12345678,
         1622547800,
         NetworksEnum.ethereumMainnet,
+        IClockMode.BlockNumber,
       )
 
       expect(result).to.equal('0')
@@ -306,7 +308,7 @@ describe('Helpers: GovernanceErc20', () => {
         tokenAddress: '0x123',
         network: NetworksEnum.ethereumMainnet,
         blockTimestamp: 0,
-        hasClockMode: false,
+        clockMode: IClockMode.BlockNumber,
       })
       expect(getChainAdjustedBlockNumberStub.calledWith(9, NetworksEnum.ethereumMainnet)).to.be.true
       expect(result).to.eq('1000000')
@@ -331,6 +333,8 @@ describe('Helpers: GovernanceErc20', () => {
         blockNumber: 1,
         tokenAddress: '0x123',
         network: NetworksEnum.ethereumMainnet,
+        blockTimestamp: 0,
+        clockMode: IClockMode.BlockNumber,
       })
       expect(result).to.eq('0')
       expect(loggerStub.called).to.be.true
@@ -357,7 +361,7 @@ describe('Helpers: GovernanceErc20', () => {
         blockNumber: 1,
         network: NetworksEnum.ethereumMainnet,
         blockTimestamp: 1622547800,
-        hasClockMode: true,
+        clockMode: IClockMode.Timestamp,
       })
       expect(getPastTotalSupplyStub.args[0][0]).to.eq(
         1622547800 - NetworkHelper.getAverageBlockTime(NetworksEnum.ethereumMainnet),

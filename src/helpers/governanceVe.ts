@@ -6,6 +6,7 @@ import ProviderModule from '@modules/provider'
 import { VotingEscrowIncreasing } from '@artifacts/VotingEscrowIncreasing'
 import { ExitQueue } from '@artifacts/ExitQueue'
 import { LinearIncreasingCurve } from '@artifacts/LinearIncreasingCurve'
+import Web3Helper from '@helpers/web3'
 
 const GovernanceVeHelper = {
   async getEscrowAddress(voterAdapter: HexAddress, network: NetworksEnum): Promise<HexAddress | null> {
@@ -155,6 +156,43 @@ const GovernanceVeHelper = {
         bias: 0n,
         slope: 0n,
       }
+    }
+  },
+
+  async getUnderlyingTokenNameAndSymbol(
+    adapterAddress: HexAddress,
+    network: NetworksEnum,
+  ): Promise<{ name: string | null; symbol: string | null; underlying: HexAddress | null }> {
+    const nameAndSymbol: {
+      name: string | null
+      symbol: string | null
+      underlying: HexAddress | null
+    } = {
+      name: null,
+      symbol: null,
+      underlying: null,
+    }
+
+    try {
+      const escrowAddress = await GovernanceVeHelper.getEscrowAddress(adapterAddress, network)
+      if (!escrowAddress) {
+        return nameAndSymbol
+      }
+
+      const tokenAddress = await GovernanceVeHelper.getErc20TokenAddress(escrowAddress, network)
+      if (!tokenAddress) {
+        return nameAndSymbol
+      }
+
+      nameAndSymbol.underlying = tokenAddress
+
+      const { name, symbol } = await Web3Helper.getTokenNameAndSymbol(tokenAddress, network)
+
+      nameAndSymbol.name = name
+      nameAndSymbol.symbol = symbol
+      return nameAndSymbol
+    } catch (error: any) {
+      return nameAndSymbol
     }
   },
 }
