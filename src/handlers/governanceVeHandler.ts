@@ -76,7 +76,7 @@ export const GovernanceVeHandler = {
       )
 
       if (fromAddress === toAddress) {
-        logger.verbose('Self-unDelegate, skipping incoming delegation handling', llo({ info, fromAddress, toAddress }))
+        logger.verbose('Self-delegation detected, skipping delegation handling', llo({ info, fromAddress, toAddress }))
         return
       }
 
