@@ -162,10 +162,10 @@ const GovernanceVeHelper = {
   async getUnderlyingTokenNameAndSymbol(
     adapterAddress: HexAddress,
     network: NetworksEnum,
-  ): Promise<{ name: string; symbol: string }> {
+  ): Promise<{ name: string | null; symbol: string | null }> {
     const nameAndSymbol = {
-      name: '',
-      symbol: '',
+      name: null,
+      symbol: null,
     }
 
     try {
