@@ -84,5 +84,11 @@ export type LogServiceInfo =
   | { type: IndexerType.indexer; network: NetworksEnum }
   | { type: IndexerType.dao; network: NetworksEnum; address: string }
   | { type: IndexerType.permission; network: NetworksEnum; address: string }
-  | { type: IndexerType.token; tokenType: ITokenType; network: NetworksEnum; address: string; syncTag?: ITokenSyncTagName }
+  | {
+      type: IndexerType.token
+      tokenType: ITokenType
+      network: NetworksEnum
+      address: string
+      syncTag?: ITokenSyncTagName
+    }
   | { type: IndexerType.plugin; interfaceType: IPluginInterfaceType; network: NetworksEnum; address: string }
