@@ -57,23 +57,21 @@ describe('EvmExplorerClient Integration Tests', () => {
         it(`should fetch contract source code for ${network} using RouteScan`, async () => {
           const token = testTokens[network as NetworksEnum]
 
-          const result = await evmExplorerClient.fetchContractSourceCode(
+          const result = (await evmExplorerClient.fetchContractSourceCode(
             EvmExplorerEnum.ROUTESCAN,
             token.address,
             network as NetworksEnum,
-          )
+          )) as any
 
-          if (result) {
-            expect(result).to.be.an('array')
-            expect(result).to.have.length.greaterThan(0)
+          expect(result).to.be.an('array')
+          expect(result).to.have.length.greaterThan(0)
 
-            const sourceCode = result[0]
-            expect(sourceCode).to.have.property('SourceCode')
-            expect(sourceCode).to.have.property('ContractName')
-            expect(sourceCode).to.have.property('ABI')
-            expect(sourceCode.SourceCode).to.not.be.empty
-            expect(sourceCode.ContractName).to.not.be.empty
-          }
+          const sourceCode = result[0]
+          expect(sourceCode).to.have.property('SourceCode')
+          expect(sourceCode).to.have.property('ContractName')
+          expect(sourceCode).to.have.property('ABI')
+          expect(sourceCode.SourceCode).to.not.be.empty
+          expect(sourceCode.ContractName).to.not.be.empty
 
           await Utils.wait(1000)
         })
@@ -85,23 +83,21 @@ describe('EvmExplorerClient Integration Tests', () => {
         it(`should fetch contract source code for ${network} using BlockScout`, async () => {
           const token = testTokens[network as NetworksEnum]
 
-          const result = await evmExplorerClient.fetchContractSourceCode(
+          const result = (await evmExplorerClient.fetchContractSourceCode(
             EvmExplorerEnum.BLOCKSCOUT,
             token.address,
             network as NetworksEnum,
-          )
+          )) as any
 
-          if (result) {
-            expect(result).to.be.an('array')
-            expect(result).to.have.length.greaterThan(0)
+          expect(result).to.be.an('array')
+          expect(result).to.have.length.greaterThan(0)
 
-            const sourceCode = result[0]
-            expect(sourceCode).to.have.property('SourceCode')
-            expect(sourceCode).to.have.property('ContractName')
-            expect(sourceCode).to.have.property('ABI')
-            expect(sourceCode.SourceCode).to.not.be.empty
-            expect(sourceCode.ContractName).to.not.be.empty
-          }
+          const sourceCode = result[0]
+          expect(sourceCode).to.have.property('SourceCode')
+          expect(sourceCode).to.have.property('ContractName')
+          expect(sourceCode).to.have.property('ABI')
+          expect(sourceCode.SourceCode).to.not.be.empty
+          expect(sourceCode.ContractName).to.not.be.empty
 
           await Utils.wait(1000)
         })
@@ -113,23 +109,21 @@ describe('EvmExplorerClient Integration Tests', () => {
         const network = NetworksEnum.chilizMainnet
         const token = '0xFC66329Ce71d6e6160fc73f6D263995E15679c4b'
 
-        const result = await evmExplorerClient.fetchContractSourceCode(
+        const result = (await evmExplorerClient.fetchContractSourceCode(
           EvmExplorerEnum.ROUTESCAN,
           token,
           network as NetworksEnum,
-        )
+        )) as any
 
-        if (result) {
-          expect(result).to.be.an('array')
-          expect(result).to.have.length.greaterThan(0)
+        expect(result).to.be.an('array')
+        expect(result).to.have.length.greaterThan(0)
 
-          const sourceCode = result[0]
-          expect(sourceCode).to.have.property('SourceCode')
-          expect(sourceCode).to.have.property('ContractName')
-          expect(sourceCode).to.have.property('ABI')
-          expect(sourceCode.SourceCode).to.not.be.empty
-          expect(sourceCode.ContractName).to.not.be.empty
-        }
+        const sourceCode = result[0]
+        expect(sourceCode).to.have.property('SourceCode')
+        expect(sourceCode).to.have.property('ContractName')
+        expect(sourceCode).to.have.property('ABI')
+        expect(sourceCode.SourceCode).to.not.be.empty
+        expect(sourceCode.ContractName).to.not.be.empty
 
         await Utils.wait(1000)
       })
@@ -138,46 +132,43 @@ describe('EvmExplorerClient Integration Tests', () => {
     describe('ZkSyncScan', () => {
       it(`should fetch contract source code for ${NetworksEnum.zksyncMainnet} using ZkSyncScan`, async () => {
         const network = NetworksEnum.zksyncMainnet
-        const token = '0x7597E841c1Ff21bfA297e93B14703e461763735B'
+        const token = '0xf8aDd95F880C5B4A30b0D5F574187A9423833752'
 
-        const result = await evmExplorerClient.fetchContractSourceCode(
+        const result = (await evmExplorerClient.fetchContractSourceCode(
           EvmExplorerEnum.ZKSYNC,
           token,
           network as NetworksEnum,
-        )
+        )) as any
 
-        if (result) {
-          expect(result).to.be.an('array')
-          expect(result).to.have.length.greaterThan(0)
+        expect(result).to.be.an('array')
+        expect(result).to.have.length.greaterThan(0)
 
-          const sourceCode = result[0]
-          expect(sourceCode).to.have.property('SourceCode')
-          expect(sourceCode).to.have.property('ContractName')
-          expect(sourceCode).to.have.property('ABI')
-          expect(sourceCode.SourceCode).to.not.be.empty
-          expect(sourceCode.ContractName).to.not.be.empty
-        }
+        const sourceCode = result[0]
+        expect(sourceCode).to.have.property('SourceCode')
+        expect(sourceCode).to.have.property('ContractName')
+        expect(sourceCode).to.have.property('ABI')
+        expect(sourceCode.SourceCode).to.not.be.empty
+        expect(sourceCode.ContractName).to.not.be.empty
       })
 
       it('should fetch contract source code for ZkSync Sepolia using zkScan', async () => {
         const network = NetworksEnum.zksyncSepolia
-        const token = '0x42327460Caf5308edb4DC3b4180Ad9E7449c66A9'
-        const result = await evmExplorerClient.fetchContractSourceCode(
+        const token = '0xBe77A25f427366A3424c4CFaFe597F33153b6D5C'
+        const result = (await evmExplorerClient.fetchContractSourceCode(
           EvmExplorerEnum.ZKSYNC,
           token,
           network as NetworksEnum,
-        )
-        if (result) {
-          expect(result).to.be.an('array')
-          expect(result).to.have.length.greaterThan(0)
+        )) as any
 
-          const sourceCode = result[0]
-          expect(sourceCode).to.have.property('SourceCode')
-          expect(sourceCode).to.have.property('ContractName')
-          expect(sourceCode).to.have.property('ABI')
-          expect(sourceCode.SourceCode).to.not.be.empty
-          expect(sourceCode.ContractName).to.not.be.empty
-        }
+        expect(result).to.be.an('array')
+        expect(result).to.have.length.greaterThan(0)
+
+        const sourceCode = result[0]
+        expect(sourceCode).to.have.property('SourceCode')
+        expect(sourceCode).to.have.property('ContractName')
+        expect(sourceCode).to.have.property('ABI')
+        expect(sourceCode.SourceCode).to.not.be.empty
+        expect(sourceCode.ContractName).to.not.be.empty
       })
     })
   })
