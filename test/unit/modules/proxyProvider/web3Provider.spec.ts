@@ -381,6 +381,36 @@ describe('Web3Provider', () => {
         expect(validationOptions.validate([{ SourceCode: 'contract code' }])).to.be.true
       }
     })
+
+    it('should pass zksync in case of zkSync network', async () => {
+      // Arrange
+      const address = '0xcontract'
+      const network = NetworksEnum.zksyncMainnet
+      const expectedResult = [
+        {
+          SourceCode: 'contract source code',
+          ContractName: 'TestContract',
+          ABI: '[]',
+        },
+      ]
+
+      const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').resolves(expectedResult)
+
+      // Act
+      const result = await Web3Provider.fetchContractSourceCode({ address, network })
+
+      // Assert
+      expect(fallbackCallStub.calledOnce).to.be.true
+      expect(result).to.deep.equal(expectedResult)
+
+      const fallbackArgs = fallbackCallStub.firstCall.args
+      expect(fallbackArgs[0]).to.deep.equal([
+        EvmExplorerEnum.ZKSYNC,
+        EvmExplorerEnum.ETHERSCAN,
+        EvmExplorerEnum.BLOCKSCOUT,
+        EvmExplorerEnum.ROUTESCAN,
+      ])
+    })
   })
 
   describe('fetchBasicTokenInfo', () => {
