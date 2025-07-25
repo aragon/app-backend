@@ -5,7 +5,7 @@ import {
   ITransactionType,
   type IWeb3Provider,
   type IWeb3TokenBalance,
-  type NetworksEnum,
+  NetworksEnum,
 } from '@types'
 import { ProxyToken } from '@modules/proxyToken'
 import utils from '@helpers/utils'
@@ -65,6 +65,9 @@ const Web3Provider: IWeb3Provider = {
 
   fetchContractCreation: async ({ address, network }) => {
     const explorers = [EvmExplorerEnum.ETHERSCAN, EvmExplorerEnum.BLOCKSCOUT, EvmExplorerEnum.ROUTESCAN]
+    if (network === NetworksEnum.zksyncMainnet || network === NetworksEnum.zksyncSepolia) {
+      explorers.unshift(EvmExplorerEnum.ZKSYNC)
+    }
 
     const result = await utils.fallbackCall(
       explorers,
@@ -93,7 +96,9 @@ const Web3Provider: IWeb3Provider = {
 
   fetchContractSourceCode: async ({ address, network }) => {
     const explorers = [EvmExplorerEnum.ETHERSCAN, EvmExplorerEnum.BLOCKSCOUT, EvmExplorerEnum.ROUTESCAN]
-
+    if (network === NetworksEnum.zksyncMainnet || network === NetworksEnum.zksyncSepolia) {
+      explorers.unshift(EvmExplorerEnum.ZKSYNC)
+    }
     const result = await utils.fallbackCall(
       explorers,
       async (explorerType: EvmExplorerEnum) => {
