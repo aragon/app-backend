@@ -410,7 +410,7 @@ describe('Web3Provider', () => {
       }
     })
 
-    it('should pass zksync in case of zkSync network', async () => {
+    it('should pass zkSync in case of zkSync network', async () => {
       // Arrange
       const address = '0xcontract'
       const network = NetworksEnum.zksyncMainnet
