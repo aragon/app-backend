@@ -295,6 +295,34 @@ describe('Web3Provider', () => {
         expect(validationOptions.validate({ transactionHash: '0xabc123' })).to.be.true
       }
     })
+
+    it('should pass zkSync in case of zkSync network', async () => {
+      // Arrange
+      const address = '0xcontract'
+      const network = NetworksEnum.zksyncMainnet
+      const expectedResult = {
+        blockNumber: 100,
+        transactionHash: '0xtxhash',
+        address,
+      }
+
+      const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').resolves(expectedResult)
+
+      // Act
+      const result = await Web3Provider.fetchContractCreation({ address, network })
+
+      // Assert
+      expect(fallbackCallStub.calledOnce).to.be.true
+      expect(result).to.deep.equal(expectedResult)
+
+      const fallbackArgs = fallbackCallStub.firstCall.args
+      expect(fallbackArgs[0]).to.deep.equal([
+        EvmExplorerEnum.ZKSYNC,
+        EvmExplorerEnum.ETHERSCAN,
+        EvmExplorerEnum.BLOCKSCOUT,
+        EvmExplorerEnum.ROUTESCAN,
+      ])
+    })
   })
 
   describe('fetchContractSourceCode', () => {
@@ -380,6 +408,36 @@ describe('Web3Provider', () => {
         expect(validationOptions.validate([])).to.be.true
         expect(validationOptions.validate([{ SourceCode: 'contract code' }])).to.be.true
       }
+    })
+
+    it('should pass zkSync in case of zkSync network', async () => {
+      // Arrange
+      const address = '0xcontract'
+      const network = NetworksEnum.zksyncMainnet
+      const expectedResult = [
+        {
+          SourceCode: 'contract source code',
+          ContractName: 'TestContract',
+          ABI: '[]',
+        },
+      ]
+
+      const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').resolves(expectedResult)
+
+      // Act
+      const result = await Web3Provider.fetchContractSourceCode({ address, network })
+
+      // Assert
+      expect(fallbackCallStub.calledOnce).to.be.true
+      expect(result).to.deep.equal(expectedResult)
+
+      const fallbackArgs = fallbackCallStub.firstCall.args
+      expect(fallbackArgs[0]).to.deep.equal([
+        EvmExplorerEnum.ZKSYNC,
+        EvmExplorerEnum.ETHERSCAN,
+        EvmExplorerEnum.BLOCKSCOUT,
+        EvmExplorerEnum.ROUTESCAN,
+      ])
     })
   })
 
@@ -756,7 +814,7 @@ describe('Web3Provider', () => {
       const getAllTokenHoldersStub = sandbox.stub(BlockScoutHelper, 'getAllTokenHolders').rejects(error)
 
       // Act
-      const result = await Web3Provider.getAllTokenHolders({
+      await Web3Provider.getAllTokenHolders({
         address,
         network,
         callback: () => {},
