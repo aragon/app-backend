@@ -37,6 +37,64 @@ describe('Helpers:ProxyContractHelper', () => {
     })
   })
 
+  describe('_getBeaconProxyImplementationAddress', () => {
+    it('should return the implementation address from a beacon proxy', async () => {
+      const proxyAddress = '0xProxyAddress'
+      const beaconAddress = '0x1234567890abcdef1234567890abcdef12345678'
+      const implementationAddress = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'
+
+      // Mock storage to return the beacon address
+      const beaconStorageValue = '0x000000000000000000000000' + beaconAddress.slice(2)
+      const providerStub = {
+        getStorageAt: sandbox.stub().resolves(beaconStorageValue),
+      }
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').callsFake(network => providerStub as any)
+
+      const proxyImpStub = sandbox
+        .stub(ProxyContractHelper, 'getImplementationAddress')
+        .resolves(getAddress(implementationAddress))
+
+      const result = await ProxyContractHelper._getBeaconProxyImplementationAddress(
+        proxyAddress,
+        NetworksEnum.ethereumMainnet,
+      )
+
+      expect(providerStub.getStorageAt.calledOnce).to.be.true
+      expect(providerStub.getStorageAt.firstCall.args[0]).to.equal(proxyAddress)
+      expect(proxyImpStub.calledOnce).to.be.true
+      expect(proxyImpStub.firstCall.args[0]).to.equal(getAddress(beaconAddress))
+      expect(result).to.equal(getAddress(implementationAddress))
+    })
+
+    it('should return null when no beacon address is found', async () => {
+      const zeroStorageValue = '0x0000000000000000000000000000000000000000000000000000000000000000'
+      const providerStub = {
+        getStorageAt: sandbox.stub().resolves(zeroStorageValue),
+      }
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').callsFake(network => providerStub as any)
+
+      const result = await ProxyContractHelper._getBeaconProxyImplementationAddress(
+        '0xProxyAddress',
+        NetworksEnum.ethereumMainnet,
+      )
+      expect(result).to.be.null
+    })
+
+    it('should return null when error occurs', async () => {
+      const providerStub = {
+        getStorageAt: sandbox.stub().rejects(new Error('Error getting storage')),
+      }
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').callsFake(network => providerStub as any)
+      const stubLogger = sandbox.stub(Logger, 'warn')
+      const result = await ProxyContractHelper._getBeaconProxyImplementationAddress(
+        '0xProxyAddress',
+        NetworksEnum.ethereumMainnet,
+      )
+      expect(result).to.be.null
+      expect(stubLogger.calledOnce).to.be.true
+    })
+  })
+
   describe('_fallBackImplementationViaViewCall', () => {
     it('should return the fallback implementation via getImplementation', async () => {
       const providerStub = {
@@ -242,6 +300,58 @@ describe('Helpers:ProxyContractHelper', () => {
       const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.ethereumMainnet)
       expect(result).to.be.null
       expect(stubLogger.calledOnce).to.be.true
+    })
+
+    it('should return the implementation address from beacon proxy when other methods fail', async () => {
+      const beaconImplementationAddress = '0x1234567890123456789012345678901234567890'
+
+      const getStorageStub = sandbox.stub().resolves('0x')
+      const getCodeStub = sandbox.stub().resolves('someBytecode')
+      const minimalProxyStub = sandbox.stub(ProxyContractHelper, '_getImplementationForMinimalProxy').returns(null)
+      const fallbackStub = sandbox.stub(ProxyContractHelper, '_fallBackImplementationViaViewCall').resolves(null)
+      const beaconProxyStub = sandbox
+        .stub(ProxyContractHelper, '_getBeaconProxyImplementationAddress')
+        .resolves(getAddress(beaconImplementationAddress))
+
+      const providerStub = {
+        getStorage: getStorageStub,
+        getStorageAt: getStorageStub,
+        getCode: getCodeStub,
+      }
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').callsFake(_ => providerStub as any)
+      sandbox.stub(ProxyContractHelper, 'getAddressFromStorage').resolves(null)
+
+      const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.ethereumMainnet)
+
+      expect(minimalProxyStub.calledOnce).to.be.true
+      expect(fallbackStub.calledOnce).to.be.true
+      expect(beaconProxyStub.calledOnce).to.be.true
+      expect(beaconProxyStub.firstCall.args[0]).to.equal('0xProxyAddress')
+      expect(beaconProxyStub.firstCall.args[1]).to.equal(NetworksEnum.ethereumMainnet)
+      expect(result).to.equal(getAddress(beaconImplementationAddress))
+    })
+
+    it('should return null when no implementation address is found including beacon proxy', async () => {
+      const getStorageStub = sandbox.stub().resolves('0x')
+      const getCodeStub = sandbox.stub().resolves('someBytecode')
+      const minimalProxyStub = sandbox.stub(ProxyContractHelper, '_getImplementationForMinimalProxy').returns(null)
+      const fallbackStub = sandbox.stub(ProxyContractHelper, '_fallBackImplementationViaViewCall').resolves(null)
+      const beaconProxyStub = sandbox.stub(ProxyContractHelper, '_getBeaconProxyImplementationAddress').resolves(null)
+
+      const providerStub = {
+        getStorage: getStorageStub,
+        getStorageAt: getStorageStub,
+        getCode: getCodeStub,
+      }
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').callsFake(_ => providerStub as any)
+      sandbox.stub(ProxyContractHelper, 'getAddressFromStorage').resolves(null)
+
+      const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.ethereumMainnet)
+
+      expect(minimalProxyStub.calledOnce).to.be.true
+      expect(fallbackStub.calledOnce).to.be.true
+      expect(beaconProxyStub.calledOnce).to.be.true
+      expect(result).to.be.null
     })
   })
 })

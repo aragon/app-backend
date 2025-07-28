@@ -100,9 +100,40 @@ const ProxyContractHelper = {
         implementationAddress = await ProxyContractHelper._fallBackImplementationViaViewCall(address, network)
       }
 
+      // we can also encounter a beacon proxy, so we need to check for that
+      if (!implementationAddress) {
+        implementationAddress = await ProxyContractHelper._getBeaconProxyImplementationAddress(address, network)
+      }
+
       return implementationAddress
     } catch (error) {
       logger.warn('Failed to fetch implementation address', llo({ error, address, network }))
+      return null
+    }
+  },
+
+  _getBeaconProxyImplementationAddress: async (address: string, network: NetworksEnum) => {
+    const hash = ethers.keccak256(ethers.toUtf8Bytes('eip1967.proxy.beacon'))
+    const slot = '0x' + (BigInt(hash) - 1n).toString(16)
+
+    try {
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      const method = provider.getStorageAt ? 'getStorageAt' : 'getStorage'
+      const slotValue = await provider[method](address, slot)
+
+      if (!slotValue || slotValue === '0x' || slotValue.length < 42) {
+        return null
+      }
+
+      const beaconAddress = getAddress('0x' + slotValue.slice(-40))
+
+      if (beaconAddress === ZeroAddress) {
+        return null
+      }
+
+      return ProxyContractHelper.getImplementationAddress(beaconAddress, network)
+    } catch (e) {
+      logger.warn('Failed to fetch beacon proxy implementation address', llo({ error: e, address, network }))
       return null
     }
   },
