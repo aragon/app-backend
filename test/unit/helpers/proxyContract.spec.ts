@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import ProxyContractHelper from '@helpers/proxyContract'
-import { getAddress } from 'ethers'
+import { ethers, getAddress } from 'ethers'
 import { NetworksEnum } from '@types'
 import proxyquire from 'proxyquire'
 import Logger from '@logger'
@@ -352,6 +352,88 @@ describe('Helpers:ProxyContractHelper', () => {
       expect(fallbackStub.calledOnce).to.be.true
       expect(beaconProxyStub.calledOnce).to.be.true
       expect(result).to.be.null
+    })
+
+    it('should handle recursive beacon proxies with depth limit', async () => {
+      const stubLogger = sandbox.stub(Logger, 'warn')
+
+      // Create a chain of addresses that will cause deep recursion
+      const addresses = [
+        '0x1234567890123456789012345678901234567890',
+        '0x2345678901234567890123456789012345678901',
+        '0x3456789012345678901234567890123456789012',
+        '0x4567890123456789012345678901234567890123',
+        '0x5678901234567890123456789012345678901234',
+        '0x6789012345678901234567890123456789012345',
+        '0x7890123456789012345678901234567890123456',
+      ]
+
+      // Calculate the beacon proxy storage slot
+      const hash = ethers.keccak256(ethers.toUtf8Bytes('eip1967.proxy.beacon'))
+      const slot = '0x' + (BigInt(hash) - 1n).toString(16)
+
+      // Mock storage to return different beacon addresses in sequence
+      const getStorageAtStub = sandbox.stub()
+      for (let i = 0; i < addresses.length - 1; i++) {
+        const beaconStorageValue = '0x000000000000000000000000' + addresses[i + 1].slice(2)
+        getStorageAtStub.withArgs(addresses[i], slot).resolves(beaconStorageValue)
+      }
+      // Last address points to itself to create the eventual recursion
+      const lastBeaconValue = '0x000000000000000000000000' + addresses[addresses.length - 1].slice(2)
+      getStorageAtStub.withArgs(addresses[addresses.length - 1], slot).resolves(lastBeaconValue)
+
+      const providerStub = {
+        getStorageAt: getStorageAtStub,
+        getStorage: sandbox.stub().resolves('0x'),
+        getCode: sandbox.stub().resolves('someBytecode'),
+      }
+
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').callsFake(_ => providerStub as any)
+      sandbox.stub(ProxyContractHelper, 'getAddressFromStorage').resolves(null)
+      sandbox.stub(ProxyContractHelper, '_getImplementationForMinimalProxy').returns(null)
+      sandbox.stub(ProxyContractHelper, '_fallBackImplementationViaViewCall').resolves(null)
+
+      const result = await ProxyContractHelper.getImplementationAddress(addresses[0], NetworksEnum.ethereumMainnet)
+
+      expect(result).to.be.null
+      expect(stubLogger.called).to.be.true
+
+      const loggerCalls = stubLogger.getCalls()
+      expect(loggerCalls[0].firstArg).to.be.eq('Maximum recursion depth reached for proxy resolution')
+    })
+
+    it('should handle circular reference in beacon proxies', async () => {
+      const stubLogger = sandbox.stub(Logger, 'warn')
+      const proxyAddress = '0x1234567890123456789012345678901234567890'
+
+      // Create a circular reference scenario
+      const beaconProxyStub = sandbox.stub(ProxyContractHelper, '_getBeaconProxyImplementationAddress')
+      beaconProxyStub.callsFake(async (address, network, depth = 0, visited = new Set()) => {
+        // Return the same address to create circular reference
+        return ProxyContractHelper.getImplementationAddress(proxyAddress, network, depth + 1, visited)
+      })
+
+      const getStorageStub = sandbox.stub().resolves('0x')
+      const getCodeStub = sandbox.stub().resolves('someBytecode')
+      sandbox.stub(ProxyContractHelper, '_getImplementationForMinimalProxy').returns(null)
+      sandbox.stub(ProxyContractHelper, '_fallBackImplementationViaViewCall').resolves(null)
+
+      const providerStub = {
+        getStorage: getStorageStub,
+        getStorageAt: getStorageStub,
+        getCode: getCodeStub,
+      }
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').callsFake(_ => providerStub as any)
+      sandbox.stub(ProxyContractHelper, 'getAddressFromStorage').resolves(null)
+
+      const result = await ProxyContractHelper.getImplementationAddress(proxyAddress, NetworksEnum.ethereumMainnet)
+
+      expect(result).to.be.null
+      expect(stubLogger.called).to.be.true
+
+      // Check if any of the logger calls contains the expected message
+      const loggerCalls = stubLogger.getCalls()
+      expect(loggerCalls[0].firstArg).to.be.eq('Circular reference detected in proxy resolution')
     })
   })
 })
