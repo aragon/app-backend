@@ -225,10 +225,10 @@ export function collapseNatspec(natspec: Record<string, NatspecContract>, contra
       collapsed.details = Object.fromEntries(
         Object.entries(collapsed.details).map(([name, details]) => {
           if (details.tags?.['inheritdoc'] !== undefined) {
-            const inheritDetails = natspec[details.tags['inheritdoc'] as string]?.details[name]
+            const inheritDetails = natspec[details.tags?.['inheritdoc'] as string]?.details[name]
             if (inheritDetails !== undefined) {
-              delete details.tags['inheritdoc']
-              details.tags = { ...inheritDetails.tags, ...details.tags }
+              details.tags?.['inheritdoc'] && delete details.tags['inheritdoc']
+              details.tags = { ...inheritDetails.tags, ...(details.tags || {}) }
             }
           }
           if (details.tags && Object.keys(details.tags).length === 0) {
