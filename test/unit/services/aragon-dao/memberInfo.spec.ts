@@ -376,7 +376,7 @@ describe('AragonDao: memberInfo', () => {
       } as any)
 
       const getVotesStub = sandbox.stub(GovernanceErc20Helper, 'getVotes').resolves(50n)
-      sandbox.stub(Web3Helper, 'getERC20Balance').resolves(200n)
+      sandbox.stub(Web3Helper, 'getERC20Balance').resolves(0n)
 
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
