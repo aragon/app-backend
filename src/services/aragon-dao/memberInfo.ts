@@ -100,8 +100,13 @@ export const MemberInfo = {
 
   _checkForTokenVoting: async (plugin: Plugin, setting: PluginSetting, memberAddress: HexAddress) => {
     if (!setting || !plugin.tokenAddress) return false
-    const votingPower = await GovernanceErc20Helper.getVotes(memberAddress, plugin.tokenAddress, plugin.network)
-    return Number(votingPower) > 0 && Number(votingPower) >= Number(setting.minParticipation)
+
+    const [votingPower, balance] = await Promise.all([
+      GovernanceErc20Helper.getVotes(memberAddress, plugin.tokenAddress, plugin.network),
+      Web3Helper.getERC20Balance(memberAddress, plugin.tokenAddress, plugin.network),
+    ])
+    const userBalance = Number(votingPower || balance)
+    return userBalance > 0 && userBalance >= Number(setting.minParticipation)
   },
 
   _checkForMultiSig: async (plugin: Plugin, setting: PluginSetting, memberAddress: HexAddress) => {
