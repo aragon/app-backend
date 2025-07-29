@@ -8,9 +8,9 @@ export enum EnumQueueName {
   proposalMultisigMetrics = 'proposal.multisig.metrics',
   proposalTokenVotingMetrics = 'proposal.token.metrics',
   plugins = 'log.plugins',
+  requeue = 'log.requeue',
   logDao = 'log.dao',
   contractInfo = 'contract.info',
-  voteInfo = 'vote.info',
   getVotingPower = 'member.votingPower',
   getLockVotingPowerBatch = 'member.lockVotingPowerBatch',
   memberBalance = 'member.balance',
@@ -19,6 +19,8 @@ export enum EnumQueueName {
   proposalActions = 'proposal.actions',
   canCreateProposal = 'can.create.proposal',
   pluginInstallationData = 'plugin.installation.data',
+  getTokenStats = 'token.stats',
+  logSelectorPermission = 'log.selector.permission',
 }
 
 export interface IQueueAllMetrics {
@@ -36,6 +38,7 @@ export interface IQueuePlugin {
   address: HexAddress
   network: NetworksEnum
   isHistorical?: boolean
+  conditionAddress?: HexAddress
 }
 
 export interface IGetVotingPower {

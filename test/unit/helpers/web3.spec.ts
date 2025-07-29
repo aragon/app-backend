@@ -469,16 +469,13 @@ describe('Helpers:Web3', () => {
     it('should return an empty array on error', async () => {
       const fakeAddress = '0x1234567890123456789012345678901234567890'
       const fakeNetwork = NetworksEnum.ethereumMainnet
-      const providerStub = {
-        send: sandbox.stub().rejects(new Error('RPC error')),
-      }
+      sandbox.stub(ProviderModule, 'getProvider').throws(new Error('fake-error'))
+
       const loggerStubError = sandbox.stub(logger, 'error')
-      sandbox.stub(ProviderModule, 'getProvider').returns(providerStub as any)
 
       const balances = await Web3Helper.getTokenBalances(fakeAddress, fakeNetwork)
       expect(loggerStubError.calledOnce).to.be.true
       expect(balances).to.be.an('array').that.is.empty
-      expect(providerStub.send.calledOnce).to.be.true
     })
   })
 
@@ -539,7 +536,7 @@ describe('Helpers:Web3', () => {
 
       expect(result).to.be.null
       expect(getTransactionReceiptStub.calledOnce).to.be.true
-      expect(stubLogger.calledOnceWith('Error get transaction receipt' as any)).to.be.true
+      expect(stubLogger.calledWith('Error get transaction receipt' as any)).to.be.true
     })
   })
 

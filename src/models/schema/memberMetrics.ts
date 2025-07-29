@@ -20,6 +20,7 @@ const customName = ICollectionNames.MemberMetrics
 })
 @index({ id: 1 }, { unique: true })
 @index({ address: 1 })
+@index({ address: 1, network: 1, pluginAddress: 1 })
 export default class MemberMetrics extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string

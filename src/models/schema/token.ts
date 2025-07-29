@@ -1,6 +1,7 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
+  IClockMode,
   ICollectionNames,
   type IPaginatedResult,
   type IPaginationParams,
@@ -123,6 +124,9 @@ export default class Token extends Model {
 
   @prop({ type: () => Boolean, default: false })
   public hasClockMode!: boolean
+
+  @prop({ type: String, enum: IClockMode, default: null })
+  public clockMode!: IClockMode
 
   @prop({ type: () => Boolean, default: false })
   public refetch!: boolean

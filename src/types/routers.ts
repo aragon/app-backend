@@ -1,7 +1,6 @@
 import { type ENS, type HexAddress, type NetworksEnum } from './networks'
 import { type ITokenType } from '@src/types/token'
 import { type IActionMetadata } from '@src/types/proposalAction'
-import { type ITransferSide, type ITransferType } from '@src/types/transfer'
 import { type IPluginInterfaceType, type IReportResultType } from '@src/types/plugin'
 import type Router from '@koa/router'
 
@@ -20,36 +19,6 @@ export interface IStatusResponse {
   supportedNetworks: NetworksEnum[]
   appVersionPackage: string
   time: string
-}
-
-export interface IDelegatesResponse {
-  network: NetworksEnum
-  transactionHash: HexAddress
-  blockNumber: number
-  from: {
-    address: HexAddress
-    ens: ENS
-    avatar: string
-  }
-  to: {
-    address: HexAddress
-    ens: ENS
-    avatar: string
-  }
-  side: ITransferSide
-  type: ITransferType
-  pluginAddress: HexAddress
-  daoAddress: HexAddress
-  amount: string
-  token: {
-    network: NetworksEnum
-    type: ITokenType
-    address: HexAddress
-    logo: string
-    name: string
-    decimals: number
-    symbol: string
-  }
 }
 
 export interface IMemberLockResponse {
@@ -351,6 +320,35 @@ export interface ITokenResponse {
   totalSupply: string
   priceUsd: string
   lastUpdatedAt: string
+}
+
+export interface IExecuteSelectorExtraParams {
+  network: NetworksEnum
+  pluginAddress: HexAddress
+  daoAddress?: HexAddress
+  conditionAddress?: HexAddress
+}
+
+export interface IExecuteSelectorResponse {
+  id: string
+  transactionHash: HexAddress
+  transactionIndex: number
+  logIndex: number
+  blockNumber: number
+  blockTimestamp?: number
+  network: NetworksEnum
+  pluginAddress: HexAddress
+  daoAddress: HexAddress
+  conditionAddress: HexAddress
+  selector: string | null
+  target: HexAddress
+  isAllowed: boolean
+  disallowed: {
+    status: boolean
+    transactionHash: HexAddress | null
+    blockNumber: number | null
+    blockTimestamp: number | null
+  }
 }
 
 export interface ITransactionIndexingStatusResponse {

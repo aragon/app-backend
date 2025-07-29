@@ -21,6 +21,8 @@ const customName = ICollectionNames.ConfigIndexer
 @index({ id: 1 }, { unique: true })
 @index({ network: 1, lastSync: 1 })
 @index({ lastSync: 1 })
+@index({ end: -1 })
+@index({ service: 1 })
 export default class ConfigIndexer extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string

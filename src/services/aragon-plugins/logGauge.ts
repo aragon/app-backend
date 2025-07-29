@@ -9,7 +9,10 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogGauge' })
 
 export const LogGauge = {
   start: async (plugin: Plugin, token: Token, isHistorical?: boolean) => {
-    logger.verbose('Start LogGauge', llo({ network: plugin.network, pluginAddress: plugin.address }))
+    logger.verbose(
+      'Start LogGauge',
+      llo({ network: plugin.network, pluginAddress: plugin.address, tokenAddress: token.address }),
+    )
 
     const configLockTokenLogs = configIndexer.filter((item: IIndexerConfig) =>
       Object.values(LockErc721Token).includes(item.event as any),
@@ -27,6 +30,7 @@ export const LogGauge = {
     })
 
     await crawlerGaugeToken.crawl()
+    await crawlerGaugeToken.end()
 
     logger.verbose(
       'End LogGauge',

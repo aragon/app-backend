@@ -400,6 +400,39 @@ const Utils = {
     visited.set(result, plainObject)
     return plainObject
   },
+
+  async fallbackCall<T, P>(
+    providers: P[],
+    fn: (provider: P) => Promise<T>,
+    options: {
+      validate?: (result: T) => boolean
+      onError?: (error: Error, provider: P, index: number) => void
+      timeout?: number
+    } = {},
+  ): Promise<T | null> {
+    const { validate = result => !!result, onError = () => {}, timeout = 60 * 1000 } = options
+
+    for (const [index, provider] of providers.entries()) {
+      try {
+        const promise = fn(provider)
+        const result =
+          timeout > 0
+            ? await Promise.race([
+                promise,
+                new Promise<never>((_resolve, reject) => setTimeout(() => reject(new Error('Timeout')), timeout)),
+              ])
+            : await promise
+
+        if (validate(result)) {
+          return result
+        }
+      } catch (error) {
+        onError(error as Error, provider, index)
+      }
+    }
+
+    return null
+  },
 }
 
 export default Utils

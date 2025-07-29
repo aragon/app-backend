@@ -19,12 +19,14 @@ import TokenUtils from '@helpers/tokenUtils'
 import { ITransactionCategory, ITransactionType } from '@types'
 import ProxyUtils from '@modules/proxyProvider/utils'
 import Web3Helper from '@helpers/web3'
+import RouteScanHelper from '@helpers/routeScanHelper'
+import config from '@config'
+import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
 
 const llo = logger.logMeta.bind(null, { service: 'provider:ChilizProvider' })
 
 const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
   _rpcCall: any
-  _fetchInternalTxs: ITransactionFetchFunction
   _fetchTxList: ITransactionFetchFunction
   _fetchERC20Transfers: ITransactionFetchFunction
   getTokenHoldersPage: any
@@ -53,39 +55,60 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
     }
   },
 
-  fetchContractCreation: async ({ address }) => {
-    return { blockNumber: 0, transactionHash: null, address }
+  fetchContractCreation: async ({ address, network }) => {
+    const explorers = [EvmExplorerEnum.CHILIZ, EvmExplorerEnum.ROUTESCAN]
+
+    const result = await utils.fallbackCall(
+      explorers,
+      async (explorerType: EvmExplorerEnum) => {
+        return await evmExplorerClient.fetchContractCreation(explorerType, address, network)
+      },
+      {
+        validate: result => !!result?.transactionHash,
+        onError: (error, explorerType, index) => {
+          logger.warn(
+            `Failed to fetch contract creation from ${explorerType}`,
+            llo({
+              error: error.message,
+              address,
+              network,
+              explorerType,
+              attemptIndex: index,
+            }),
+          )
+        },
+      },
+    )
+
+    return result || { blockNumber: 0, transactionHash: null, address }
   },
 
   fetchContractSourceCode: async ({ address, network }) => {
-    const path = 'api'
-    const params = {
-      module: 'contract',
-      action: 'getsourcecode',
-      address,
-    }
+    const explorers = [EvmExplorerEnum.CHILIZ, EvmExplorerEnum.ROUTESCAN]
 
-    try {
-      const response = await ChilizProvider._rpcCall(path, params, network)
-      if (
-        response?.message === 'OK' &&
-        response?.result.length &&
-        response?.result[0]?.SourceCode &&
-        response?.result[0]?.SourceCode !== ''
-      ) {
-        return [
-          {
-            SourceCode: response!.result[0].SourceCode || '',
-            ContractName: response!.result[0].ContractName,
-            ABI: JSON.stringify(response!.result[0].ABI),
-          },
-        ]
-      }
-    } catch (error: any) {
-      logger.warn('Chiliz Provider contract source code api failed', llo({ error, path, params }))
-    }
+    const result = await utils.fallbackCall(
+      explorers,
+      async (explorerType: EvmExplorerEnum) => {
+        return await evmExplorerClient.fetchContractSourceCode(explorerType, address, network)
+      },
+      {
+        validate: result => !!result && result.length > 0 && !!result[0]?.SourceCode,
+        onError: (error, explorerType, index) => {
+          logger.warn(
+            `Failed to fetch contract source code from ${explorerType}`,
+            llo({
+              error: error.message,
+              address,
+              network,
+              explorerType,
+              attemptIndex: index,
+            }),
+          )
+        },
+      },
+    )
 
-    return null
+    return result
   },
 
   fetchBasicTokenInfo: async ({ address, network }) => {
@@ -332,57 +355,6 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
     }
   },
 
-  _fetchInternalTxs: async (address: string, network: NetworksEnum, blockFilter: ITxFilterBlockArgs) => {
-    const allInternalTxs: any[] = []
-    let page = 1
-    const offset = 100
-
-    try {
-      while (true) {
-        const path = 'api'
-        const params = {
-          module: 'account',
-          action: 'txlistinternal',
-          address,
-          page,
-          offset,
-          startblock: blockFilter.startBlock,
-          endblock: blockFilter.endBlock,
-        }
-
-        const response = await ChilizProvider._rpcCall(path, params, network)
-
-        if (response?.message !== 'OK' || !response?.result || response.result.length === 0) {
-          break
-        }
-
-        const validInternalTxs = response.result.filter(
-          (tx: any) => tx.type === 'call' && tx.value && tx.value !== '0' && parseInt(tx.value) > 0,
-        )
-
-        const processedTxs = validInternalTxs.map((tx: any) => ({
-          ...tx,
-          contractAddress: null,
-          category: ITransactionCategory.Internal,
-          hash: tx.transactionHash,
-        }))
-
-        allInternalTxs.push(...processedTxs)
-
-        if (response.result.length < offset) {
-          break
-        }
-
-        page++
-      }
-
-      return allInternalTxs
-    } catch (error) {
-      logger.error('Error fetching internal transactions', llo({ error, address, network }))
-      return []
-    }
-  },
-
   fetchTokenPrice: async ({ address, network }) => {
     if (address === utils.zeroAddress) {
       try {
@@ -562,7 +534,7 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
   },
 
   _rpcCall: async (path: string, params: any, network: NetworksEnum) => {
-    const baseUrl = 'https://scan.chiliz.com'
+    const baseUrl = config.CHILIZ_API_URL
 
     try {
       const response = await retryRequest(async () =>
@@ -579,27 +551,12 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
     }
   },
   getTokenCounters: async ({ address, network }) => {
-    const path = 'token-counters'
-    const params = {
-      id: address,
-    }
-
-    try {
-      const response = await ChilizProvider._rpcCall(path, params, network)
-
-      if (response?.token_holder_count) {
-        return {
-          transfers: response?.token_holder_count,
-          holders: response?.token_holders,
-        }
-      }
-    } catch (error: any) {
-      logger.warn('Chiliz Provider token-counter api failed', llo({ error, path, params }))
-    }
-
     return {
+      holders: await RouteScanHelper.fetchTokenHoldersCount({
+        network,
+        address,
+      }),
       transfers: 0,
-      holders: 0,
     }
   },
   fetchHistoricalTokenPrice: async () => {

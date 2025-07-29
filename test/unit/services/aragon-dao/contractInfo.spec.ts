@@ -6,6 +6,7 @@ import { expect } from 'chai'
 import ProxyContract from '@helpers/proxyContract'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
 import ProxyWeb3Provider from '@modules/proxyProvider'
+import DecodeActions from '@helpers/decodeAction'
 
 describe('AragonDao: contractInfo', () => {
   let sandbox: SinonSandbox
@@ -185,5 +186,69 @@ describe('AragonDao: contractInfo', () => {
     expect(result).to.be.deep.eq([
       { name: 'function1', type: 'function', stateMutability: 'payable', parameters: [], notice: 'Test function' },
     ])
+  })
+
+  describe('parseSignature', () => {
+    it('should return native transfer data when signature is null', async () => {
+      const searchDetailsStub = sandbox.stub(ProxyWeb3Provider, 'searchDetailsOfContract').resolves({
+        name: 'TestContract',
+      })
+
+      const result = await ContractInfo.parseSignature(null, '0xto', NetworksEnum.ethereumSepolia)
+
+      expect(searchDetailsStub.calledOnce).to.be.true
+      expect(
+        searchDetailsStub.calledWith({
+          address: '0xto',
+          network: NetworksEnum.ethereumSepolia,
+        }),
+      ).to.be.true
+      expect(result).to.deep.equal({
+        functionName: 'NativeTransfer',
+        contractName: 'TestContract',
+      })
+    })
+
+    it('should return unknown contract name when searchDetailsOfContract returns null', async () => {
+      const searchDetailsStub = sandbox.stub(ProxyWeb3Provider, 'searchDetailsOfContract').resolves(null)
+
+      const result = await ContractInfo.parseSignature(null, '0xto', NetworksEnum.ethereumSepolia)
+
+      expect(searchDetailsStub.calledOnce).to.be.true
+      expect(result).to.deep.equal({
+        functionName: 'NativeTransfer',
+        contractName: 'Unknown',
+      })
+    })
+
+    it('should parse contract netspec when signature is provided', async () => {
+      const mockDecodeAction = {
+        parseContractNetspec: sandbox.stub().resolves({
+          functionName: 'transfer',
+          contractName: 'ERC20Token',
+        }),
+      }
+
+      sandbox.stub(DecodeActions.prototype, 'parseContractNetspec').callsFake(mockDecodeAction.parseContractNetspec)
+
+      const result = await ContractInfo.parseSignature('0x1234abcd', '0xto', NetworksEnum.ethereumSepolia)
+
+      expect(mockDecodeAction.parseContractNetspec.calledOnce).to.be.true
+      expect(
+        mockDecodeAction.parseContractNetspec.calledWith(
+          '0x1234abcd',
+          {
+            to: '0xto',
+            data: '0x',
+            value: undefined,
+          },
+          NetworksEnum.ethereumSepolia,
+        ),
+      ).to.be.true
+      expect(result).to.deep.equal({
+        functionName: 'transfer',
+        contractName: 'ERC20Token',
+      })
+    })
   })
 })

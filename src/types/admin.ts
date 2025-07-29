@@ -1,3 +1,8 @@
+export interface IAQueueToken {
+  address: string
+  network: string
+}
+
 export interface IAQueueDao {
   address: string
   network: string

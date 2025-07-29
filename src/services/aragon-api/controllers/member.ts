@@ -16,6 +16,7 @@ import { assertExposable } from '@errors'
 import PairDataModule from '@modules/pairData'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import config from '@config'
+import type Plugin from '@models/schema/plugin'
 
 const MemberController = {
   getMembersWithPagination: async (
@@ -42,6 +43,10 @@ const MemberController = {
     assertExposable(plugin, ErrorKeyEnum.notFound)
 
     if (plugin.tokenAddress) {
+      if (plugin.votingEscrow !== null && plugin.votingEscrow.escrowAddress) {
+        return await MemberController.getMembersOfVeLockPlugin(paginationParams, plugin)
+      }
+
       extraParams.tokenAddress = plugin.tokenAddress
       return Models.MemberBalance.findAndPaginate({
         paginationParams,
@@ -104,6 +109,36 @@ const MemberController = {
     paginationParams: IPaginationParams = {},
   ): Promise<IPaginatedResult<IMemberLockResponse>> => {
     return await Models.Lock.findWithPagination({ extraParams, paginationParams })
+  },
+
+  getMembersOfVeLockPlugin: async (paginationParams: IPaginationParams = {}, plugin: Plugin) => {
+    const settings = await Models.Setting.findActive({
+      daoAddress: plugin.daoAddress,
+      network: plugin.network,
+      pluginAddress: plugin.address,
+      tokenAddress: plugin.tokenAddress,
+    })
+
+    const token = await Models.Token.findOne({
+      address: plugin.tokenAddress,
+      network: plugin.network,
+    })
+
+    assertExposable(token && settings, ErrorKeyEnum.notFound)
+
+    return Models.Lock.getMembersOfVeLockPlugin({
+      paginationParams,
+      pluginAddress: plugin.address,
+      settings: {
+        currentTime: Math.floor(Date.now() / 1000),
+        maxTime: settings.votingEscrow.maxTime,
+        slope: settings.votingEscrow.slope,
+        bias: settings.votingEscrow.bias,
+        decimals: (BigInt(10) ** BigInt(token.decimals)).toString(),
+      },
+      tokenAddress: plugin.tokenAddress,
+      network: plugin.network,
+    })
   },
 }
 
