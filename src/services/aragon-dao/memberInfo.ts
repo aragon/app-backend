@@ -105,7 +105,7 @@ export const MemberInfo = {
       GovernanceErc20Helper.getVotes(memberAddress, plugin.tokenAddress, plugin.network),
       Web3Helper.getERC20Balance(memberAddress, plugin.tokenAddress, plugin.network),
     ])
-    const userBalance = Number(votingPower || balance)
+    const userBalance = Math.max(Number(votingPower), Number(balance))
     return userBalance > 0 && userBalance >= Number(setting.minParticipation)
   },
 
