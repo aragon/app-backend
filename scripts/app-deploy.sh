@@ -70,6 +70,7 @@ MICROSERVICES=(
   service-aragon-dao
   service-aragon-plugins
   service-aragon-rates
+  service-aragon-requeue
 )
 
 # Function to check if a container is running

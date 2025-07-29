@@ -117,9 +117,9 @@ const ProposalHelper = {
     pluginAddress: HexAddress
     network: NetworksEnum
   }): Promise<IProposalTokenVotingOnChain | null> {
-    const provider = ProviderModule.getAnyRpcProvider(network)
-    const contract = new Contract(pluginAddress, TokenVoting.abi, provider)
     try {
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      const contract = new Contract(pluginAddress, TokenVoting.abi, provider)
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network).schedule(async () => contract.getProposal(proposalIndex)),
       )

@@ -33,7 +33,7 @@ const QueueAdminController = {
           logger.verbose('Force queue generate slug plugin', llo({ address: plugin.address, network: plugin.network }))
         }
 
-        await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
+        await RabbitMQHelper.sendMessage(EnumQueueName.requeue, {
           id: plugin.address,
           params: { address: plugin.address, network: plugin.network },
         })

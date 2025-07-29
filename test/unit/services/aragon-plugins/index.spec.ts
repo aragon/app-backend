@@ -12,6 +12,7 @@ import { LogAdmin } from '@plugins/logAdmin'
 import { LogSpp } from '@plugins/logSPP'
 import { LogGauge } from '@plugins/logGauge'
 import { LogMultiSig } from '@plugins/logMultisig'
+import { LogSelectorPermission } from '@plugins/logSelectorPermission'
 
 describe('AragonPlugins: index', () => {
   let sandbox: SinonSandbox
@@ -33,9 +34,13 @@ describe('AragonPlugins: index', () => {
       sandbox.stub(logger, 'info')
       await AragonPluginsService.start()
 
-      expect(processStub.calledTwice).to.be.true
-      expect(processStub.args[0][0]).to.eq(EnumQueueName.logDao)
-      expect(processStub.args[1][0]).to.eq(EnumQueueName.plugins)
+      const queues = [
+        EnumQueueName.logDao,
+        EnumQueueName.logSelectorPermission,
+        EnumQueueName.plugins,
+        EnumQueueName.requeue,
+      ]
+      expect(processStub.callCount).to.eq(queues.length)
 
       const handler = processStub.getCall(0).args[1]
       await handler({ id: 'some-id', params: { address: '0xDaoAddress', network: NetworksEnum.ethereumMainnet } })
@@ -61,9 +66,15 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      expect(processStub.calledTwice).to.be.true
+      const queues = [
+        EnumQueueName.logDao,
+        EnumQueueName.logSelectorPermission,
+        EnumQueueName.plugins,
+        EnumQueueName.requeue,
+      ]
+      expect(processStub.callCount).to.eq(queues.length)
 
-      const handler = processStub.getCall(1).args[1]
+      const handler = processStub.getCall(2).args[1]
       await handler({
         id: 'some-id',
         params: {
@@ -88,7 +99,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[1]
+      const handler = processStub.getCall(2).args[1]
       await handler({
         id: 'some-id',
         params: {
@@ -113,7 +124,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[1]
+      const handler = processStub.getCall(2).args[1]
       await handler({
         id: 'some-id',
         params: {
@@ -168,6 +179,113 @@ describe('AragonPlugins: index', () => {
     })
   })
 
+  describe('logSelectorPermission queue', () => {
+    it('should process logSelectorPermission queue and call LogSelectorPermission.start', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const pluginStub = sandbox.stub(Models.Plugin, 'findOne').resolves({
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumMainnet,
+        conditionAddress: '0xConditionAddress',
+      } as any)
+      const logSelectorPermissionStub = sandbox.stub(LogSelectorPermission, 'start').resolves()
+
+      sandbox.stub(logger, 'info')
+      await AragonPluginsService.start()
+
+      const queues = [
+        EnumQueueName.logDao,
+        EnumQueueName.logSelectorPermission,
+        EnumQueueName.plugins,
+        EnumQueueName.requeue,
+      ]
+      expect(processStub.callCount).to.eq(queues.length)
+      expect(processStub.args[1][0]).to.eq(EnumQueueName.logSelectorPermission)
+
+      const handler = processStub.getCall(1).args[1]
+      await handler({
+        id: 'some-id',
+        params: {
+          address: '0xPluginAddress',
+          network: NetworksEnum.ethereumMainnet,
+          conditionAddress: '0xConditionAddress',
+        },
+      })
+
+      expect(
+        pluginStub.calledOnceWith({
+          address: '0xPluginAddress',
+          network: NetworksEnum.ethereumMainnet,
+          conditionAddress: '0xConditionAddress',
+        }),
+      ).to.be.true
+      expect(logSelectorPermissionStub.calledOnce).to.be.true
+    })
+
+    it('should log an error if plugin is not found for logSelectorPermission queue', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const pluginStub = sandbox.stub(Models.Plugin, 'findOne').resolves(null)
+      const loggerStub = sandbox.stub(logger, 'error')
+      const logSelectorPermissionStub = sandbox.stub(LogSelectorPermission, 'start')
+
+      sandbox.stub(logger, 'info')
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(1).args[1]
+      await handler({
+        id: 'some-id',
+        params: {
+          address: '0xMissingPlugin',
+          network: NetworksEnum.ethereumMainnet,
+          conditionAddress: '0xConditionAddress',
+        },
+      })
+
+      expect(
+        pluginStub.calledOnceWith({
+          address: '0xMissingPlugin',
+          network: NetworksEnum.ethereumMainnet,
+          conditionAddress: '0xConditionAddress',
+        }),
+      ).to.be.true
+      expect(loggerStub.calledWith('PluginSyncService: plugin not found' as any)).to.be.true
+      expect(logSelectorPermissionStub.notCalled).to.be.true
+    })
+
+    it('should handle logSelectorPermission queue with all required parameters', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const mockPlugin = {
+        address: '0x1234567890123456789012345678901234567890',
+        network: NetworksEnum.ethereumSepolia,
+        conditionAddress: '0x2222222222222222222222222222222222222222',
+        interfaceType: 'admin',
+      }
+      const pluginStub = sandbox.stub(Models.Plugin, 'findOne').resolves(mockPlugin as any)
+      const logSelectorPermissionStub = sandbox.stub(LogSelectorPermission, 'start').resolves()
+
+      sandbox.stub(logger, 'info')
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(1).args[1]
+      await handler({
+        id: 'selector-permission-job',
+        params: {
+          address: mockPlugin.address,
+          network: mockPlugin.network,
+          conditionAddress: mockPlugin.conditionAddress,
+        },
+      })
+
+      expect(
+        pluginStub.calledOnceWith({
+          address: mockPlugin.address,
+          network: mockPlugin.network,
+          conditionAddress: mockPlugin.conditionAddress,
+        }),
+      ).to.be.true
+      expect(logSelectorPermissionStub.calledOnceWith(mockPlugin as any)).to.be.true
+    })
+  })
+
   describe('plugins queue', () => {
     it('should process plugins queue for admin interface type', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
@@ -178,7 +296,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[1]
+      const handler = processStub.getCall(2).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
@@ -198,7 +316,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[1]
+      const handler = processStub.getCall(2).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
@@ -208,7 +326,7 @@ describe('AragonPlugins: index', () => {
       expect(logMultisigStub.calledOnce).to.be.true
     })
 
-    it('should process plugins queue for tokenVoting interface type', async () => {
+    it('should process plugins queue for tokenVoting ERC20 interface type', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
         interfaceType: IPluginInterfaceType.tokenVoting,
@@ -223,7 +341,36 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[1]
+      const handler = processStub.getCall(2).args[1]
+      await handler({
+        id: 'some-id',
+        params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
+      })
+
+      expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
+
+      expect(proxyTokenStub.args[0][0].address).to.be.eq('0xTokenAddress')
+      expect(proxyTokenStub.args[0][0].network).to.be.eq(NetworksEnum.ethereumMainnet)
+
+      expect(logTokenVotingStub.calledOnce).to.be.true
+    })
+
+    it('should process plugins queue for tokenVoting EscrowAdapter interface type', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xTokenAddress',
+        network: NetworksEnum.ethereumMainnet,
+      })
+      const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
+        type: ITokenType.escrowAdapter,
+        isGovernance: true,
+      } as any)
+      const logTokenVotingStub = sandbox.stub(LogTokenVoting, 'start').resolves()
+
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(2).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
@@ -251,7 +398,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[1]
+      const handler = processStub.getCall(2).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
@@ -274,7 +421,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[1]
+      const handler = processStub.getCall(2).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
@@ -298,7 +445,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[1]
+      const handler = processStub.getCall(2).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
@@ -326,7 +473,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[1]
+      const handler = processStub.getCall(2).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
@@ -347,7 +494,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[1]
+      const handler = processStub.getCall(2).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xMissingPlugin', network: NetworksEnum.ethereumMainnet, isHistorical: false },
@@ -366,7 +513,7 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[1]
+      const handler = processStub.getCall(2).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xPluginWithNoType', network: NetworksEnum.ethereumMainnet, isHistorical: false },
@@ -384,7 +531,262 @@ describe('AragonPlugins: index', () => {
 
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[1]
+      const handler = processStub.getCall(2).args[1]
+      await handler({
+        id: 'some-id',
+        params: { address: '0xPluginWithNoType', network: NetworksEnum.ethereumMainnet, isHistorical: false },
+      })
+
+      expect(pluginStub.calledOnceWith('0xPluginWithNoType', NetworksEnum.ethereumMainnet)).to.be.true
+    })
+  })
+
+  describe('requeue queue', () => {
+    it('should process plugins queue for admin interface type', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.admin,
+      })
+      const logAdminStub = sandbox.stub(LogAdmin, 'start').resolves()
+
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(3).args[1]
+      await handler({
+        id: 'some-id',
+        params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
+      })
+
+      expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(logAdminStub.calledOnce).to.be.true
+    })
+
+    it('should process plugins queue for multisig interface type', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.multisig,
+        network: NetworksEnum.ethereumMainnet,
+      })
+      const logMultisigStub = sandbox.stub(LogMultiSig, 'start').resolves()
+
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(3).args[1]
+      await handler({
+        id: 'some-id',
+        params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
+      })
+
+      expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(logMultisigStub.calledOnce).to.be.true
+    })
+
+    it('should process plugins queue for tokenVoting ERC20 interface type', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xTokenAddress',
+        network: NetworksEnum.ethereumMainnet,
+      })
+      const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
+        type: ITokenType.ERC20,
+        isGovernance: true,
+      } as any)
+      const logTokenVotingStub = sandbox.stub(LogTokenVoting, 'start').resolves()
+
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(3).args[1]
+      await handler({
+        id: 'some-id',
+        params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
+      })
+
+      expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
+
+      expect(proxyTokenStub.args[0][0].address).to.be.eq('0xTokenAddress')
+      expect(proxyTokenStub.args[0][0].network).to.be.eq(NetworksEnum.ethereumMainnet)
+
+      expect(logTokenVotingStub.calledOnce).to.be.true
+    })
+
+    it('should process plugins queue for tokenVoting EscrowAdapter interface type', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xTokenAddress',
+        network: NetworksEnum.ethereumMainnet,
+      })
+      const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
+        type: ITokenType.escrowAdapter,
+        isGovernance: true,
+      } as any)
+      const logTokenVotingStub = sandbox.stub(LogTokenVoting, 'start').resolves()
+
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(3).args[1]
+      await handler({
+        id: 'some-id',
+        params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
+      })
+
+      expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
+
+      expect(proxyTokenStub.args[0][0].address).to.be.eq('0xTokenAddress')
+      expect(proxyTokenStub.args[0][0].network).to.be.eq(NetworksEnum.ethereumMainnet)
+
+      expect(logTokenVotingStub.calledOnce).to.be.true
+    })
+
+    it('should log a warning if token is not GovernanceERC20 for tokenVoting', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xTokenAddress',
+        network: NetworksEnum.ethereumMainnet,
+      })
+      const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
+        type: 'NonGovernanceToken',
+      } as any)
+      const loggerStub = sandbox.stub(logger, 'warn')
+
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(3).args[1]
+      await handler({
+        id: 'some-id',
+        params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
+      })
+
+      expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
+
+      expect(proxyTokenStub.args[0][0].address).to.be.eq('0xTokenAddress')
+      expect(proxyTokenStub.args[0][0].network).to.be.eq(NetworksEnum.ethereumMainnet)
+
+      expect(loggerStub.calledWithMatch('token not governance erc20' as any)).to.be.true
+    })
+
+    it('should process plugins queue for spp interface type', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.spp,
+      })
+      const logSPPStub = sandbox.stub(LogSpp, 'start').resolves()
+
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(3).args[1]
+      await handler({
+        id: 'some-id',
+        params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
+      })
+
+      expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(logSPPStub.calledOnce).to.be.true
+    })
+
+    it('should process plugins queue for gauge interface type', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.gauge,
+        tokenAddress: '0xTokenAddress',
+        network: NetworksEnum.ethereumMainnet,
+      })
+      const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
+        type: ITokenType.ERC721,
+      } as any)
+      const logGaugeStub = sandbox.stub(LogGauge, 'start').resolves()
+
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(3).args[1]
+      await handler({
+        id: 'some-id',
+        params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
+      })
+
+      expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
+
+      expect(proxyTokenStub.args[0][0].address).to.be.eq('0xTokenAddress')
+      expect(proxyTokenStub.args[0][0].network).to.be.eq(NetworksEnum.ethereumMainnet)
+
+      expect(logGaugeStub.calledOnce).to.be.true
+    })
+
+    it('should log a warning if token is not ERC721 for gauge interface type', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.gauge,
+        tokenAddress: '0xTokenAddress',
+        network: NetworksEnum.ethereumMainnet,
+      })
+      const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
+        type: 'NonGovernanceToken',
+      } as any)
+      const loggerStub = sandbox.stub(logger, 'warn')
+
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(3).args[1]
+      await handler({
+        id: 'some-id',
+        params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
+      })
+
+      expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
+
+      expect(proxyTokenStub.args[0][0].address).to.be.eq('0xTokenAddress')
+      expect(proxyTokenStub.args[0][0].network).to.be.eq(NetworksEnum.ethereumMainnet)
+
+      expect(loggerStub.calledWithMatch('Sync plugin: token not ERC721' as any)).to.be.true
+    })
+
+    it('should log an error if plugin is missing', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(3).args[1]
+      await handler({
+        id: 'some-id',
+        params: { address: '0xMissingPlugin', network: NetworksEnum.ethereumMainnet, isHistorical: false },
+      })
+
+      expect(pluginStub.calledOnceWith('0xMissingPlugin', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(loggerStub.calledWithMatch('plugin not found' as any)).to.be.true
+    })
+
+    it('should log an error if interfaceType is missing', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: null,
+      })
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(3).args[1]
+      await handler({
+        id: 'some-id',
+        params: { address: '0xPluginWithNoType', network: NetworksEnum.ethereumMainnet, isHistorical: false },
+      })
+
+      expect(pluginStub.calledOnceWith('0xPluginWithNoType', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(loggerStub.calledWithMatch('PluginSyncService: plugin not found' as any)).to.be.true
+    })
+
+    it('should log an error if interfaceType is not supported', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: 'not-supported',
+      })
+
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(3).args[1]
       await handler({
         id: 'some-id',
         params: { address: '0xPluginWithNoType', network: NetworksEnum.ethereumMainnet, isHistorical: false },

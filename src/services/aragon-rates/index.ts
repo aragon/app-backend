@@ -8,6 +8,7 @@ const llo = logger.logMeta.bind(null, { service: 'service:RatesService' })
 
 const AragonRatesService: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
+  options: { mongoSync: config.MONGO_DB.SYNC_MODELS },
 
   start: async function () {
     logger.info('RatesService service sync start', llo({}))

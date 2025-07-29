@@ -1,0 +1,15 @@
+{
+  "ethereum-sepolia": [
+    {
+      "id": "ethereum-sepolia-0xea3f85274f31672bd1f60681fc46f846fc2e38963cc599b82c0c869044c8368c-32-92",
+      "transactionHash": "0xea3f85274f31672bd1f60681fc46f846fc2e38963cc599b82c0c869044c8368c",
+      "transactionIndex": 32,
+      "logIndex": 92,
+      "blockNumber": 4421531,
+      "blockTimestamp": 1696404696,
+      "network": "ethereum-sepolia",
+      "subdomain": "token-voting",
+      "pluginRepo": "0x424F4cA6FA9c24C03f2396DF0E96057eD11CF7dF"
+    }
+  ]
+}

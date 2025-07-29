@@ -1,11 +1,9 @@
-import { EnumConnection, type IService } from '@types'
+import { type IMigration } from '@types'
 import logger from '@logger'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: init' })
 
-export const initMigration: IService = {
-  NEED_CONNECTIONS: [EnumConnection.MONGODB],
-
+export const initMigration: IMigration = {
   start: async () => {
     logger.info('Starting migration', llo({ migration: '20250603004759-init' }))
 

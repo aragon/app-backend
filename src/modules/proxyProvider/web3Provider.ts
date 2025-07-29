@@ -5,7 +5,7 @@ import {
   ITransactionType,
   type IWeb3Provider,
   type IWeb3TokenBalance,
-  type NetworksEnum,
+  NetworksEnum,
 } from '@types'
 import { ProxyToken } from '@modules/proxyToken'
 import utils from '@helpers/utils'
@@ -13,13 +13,13 @@ import Alchemy from '@helpers/alchemy'
 import Web3Utils from '@helpers/web3Utils'
 import BlockScoutHelper from '@helpers/blockScout'
 import Web3Helper from '@helpers/web3'
-import EtherscanHelper from '@helpers/etherscan'
 import CovalentHelper from '@helpers/covalent'
 import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
 import { RateModule } from '@modules/rates'
 import TokenUtils from '@helpers/tokenUtils'
 import ProxyUtils from '@modules/proxyProvider/utils'
 import AnkrHelper from '@helpers/ankrHelper'
+import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ProxyWeb3' })
 
@@ -64,35 +64,64 @@ const Web3Provider: IWeb3Provider = {
   },
 
   fetchContractCreation: async ({ address, network }) => {
-    const contractInfo = await EtherscanHelper.fetchContractCreation({
-      contractAddress: address,
-      network,
-    })
-
-    if (contractInfo?.length) {
-      const txHash = contractInfo[0].txHash
-      const txReceipt = await Web3Helper.getTransaction(txHash, network)
-      return {
-        blockNumber: txReceipt?.blockNumber || 0,
-        transactionHash: txHash,
-        address,
-      }
+    const explorers = [EvmExplorerEnum.ETHERSCAN, EvmExplorerEnum.BLOCKSCOUT, EvmExplorerEnum.ROUTESCAN]
+    if (network === NetworksEnum.zksyncMainnet || network === NetworksEnum.zksyncSepolia) {
+      explorers.unshift(EvmExplorerEnum.ZKSYNC)
     }
 
-    return { blockNumber: 0, transactionHash: null, address }
+    const result = await utils.fallbackCall(
+      explorers,
+      async (explorerType: EvmExplorerEnum) => {
+        return await evmExplorerClient.fetchContractCreation(explorerType, address, network)
+      },
+      {
+        validate: (result: any) => !!result?.transactionHash,
+        onError: (error: any, explorerType: any, index: any) => {
+          logger.warn(
+            `Failed to fetch contract creation from ${explorerType}`,
+            llo({
+              error: error.message,
+              address,
+              network,
+              explorerType,
+              attemptIndex: index,
+            }),
+          )
+        },
+      },
+    )
+
+    return result || { blockNumber: 0, transactionHash: null, address }
   },
 
   fetchContractSourceCode: async ({ address, network }) => {
-    let contractDetails = await BlockScoutHelper.getContractSourceCode(address, network)
-
-    if (!contractDetails) {
-      contractDetails = await EtherscanHelper.fetchContractSourceCode({
-        contractAddress: address,
-        network,
-      })
+    const explorers = [EvmExplorerEnum.ETHERSCAN, EvmExplorerEnum.BLOCKSCOUT, EvmExplorerEnum.ROUTESCAN]
+    if (network === NetworksEnum.zksyncMainnet || network === NetworksEnum.zksyncSepolia) {
+      explorers.unshift(EvmExplorerEnum.ZKSYNC)
     }
+    const result = await utils.fallbackCall(
+      explorers,
+      async (explorerType: EvmExplorerEnum) => {
+        return await evmExplorerClient.fetchContractSourceCode(explorerType, address, network)
+      },
+      {
+        validate: (result: any) => !!result,
+        onError: (error: any, explorerType: any, index: any) => {
+          logger.warn(
+            `Failed to fetch contract source code from ${explorerType}`,
+            llo({
+              error: error.message,
+              address,
+              network,
+              explorerType,
+              attemptIndex: index,
+            }),
+          )
+        },
+      },
+    )
 
-    return contractDetails
+    return result || null
   },
 
   fetchBasicTokenInfo: async ({ address, network }) => {

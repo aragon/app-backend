@@ -23,6 +23,10 @@ export const TokenHolderSync = {
         return false
       }
 
+      if (token.ignoreTransfer) {
+        return true
+      }
+
       const isCustomToken = token.blockNumber !== 0 && token.blockNumber < plugin.blockNumber
       if (!isCustomToken) {
         return false
@@ -183,6 +187,7 @@ export const TokenHolderSync = {
     })
 
     await crawlerTokenDelegationOnly.crawl()
+    await crawlerTokenDelegationOnly.end()
   },
 
   syncTransfersEvents: async (plugin: Plugin, token: Token) => {
@@ -209,6 +214,7 @@ export const TokenHolderSync = {
     })
 
     await crawlerTokenTransfers.crawl()
+    await crawlerTokenTransfers.end()
   },
 
   convertToStandardSync: async (plugin: Plugin, token: Token) => {
@@ -249,5 +255,74 @@ export const TokenHolderSync = {
         lastSyncBlock: syncStatBlock,
       }),
     )
+  },
+
+  getTokenLastSyncBlock: async (token: Token) => {
+    const syncTag = await Models.ConfigIndexer.findOne({
+      network: token.network,
+      regex: { $regex: `${token.address}$` },
+    })
+
+    return syncTag?.lastSync || 0
+  },
+
+  linkPluginToExistingTokenHolders: async (plugin: Plugin, token: Token, lastSync: number) => {
+    const membersFromToken = await Models.Member.find({
+      tokenAddress: token.address,
+      network: token.network,
+    }).distinct('memberAddress')
+
+    if (membersFromToken.length === 0) return
+
+    const membersDataToSave = membersFromToken.reduce(
+      (membersData: any, memberAddress: any) => {
+        const daoRelation = {
+          memberAddress,
+          daoAddress: plugin.daoAddress,
+          pluginAddress: plugin.address,
+          tokenAddress: token.address,
+          network: plugin.network,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          __v: 0,
+        }
+        const memberMetrics = {
+          network: plugin.network,
+          address: memberAddress,
+          pluginAddress: plugin.address,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          __v: 0,
+        }
+
+        membersData.daoRelation.push(daoRelation)
+        membersData.metrics.push({
+          id: Models.MemberMetrics.getEntityId(memberMetrics),
+          ...memberMetrics,
+        })
+
+        return membersData
+      },
+      { daoRelation: [], metrics: [] },
+    )
+
+    try {
+      await Promise.all([
+        Models.DaoMemberMapping.insertMany(membersDataToSave.daoRelation, { ordered: false, lean: true }),
+        Models.MemberMetrics.insertMany(membersDataToSave.metrics, { ordered: false, lean: true }),
+      ])
+      await Models.ConfigIndexer.create({
+        network: plugin.network,
+        service: TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Default),
+        lastSync,
+      })
+    } catch (e: any) {
+      logger.error('Error linking plugin to existing token holders', {
+        error: e,
+        pluginAddress: plugin.address,
+        tokenAddress: token.address,
+        network: plugin.network,
+      })
+    }
   },
 }

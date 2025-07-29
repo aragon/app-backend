@@ -45,7 +45,8 @@ const TransactionController = {
       assert(!!model, 'action is required')
 
       const queryToCheck = TransactionController._getQueryForAction(action, txHash, network)
-      const data = await Models[model].findOne(queryToCheck)
+      const data = await Models[model].findOne(queryToCheck, null).sort({ createdAt: -1, logIndex: -1 })
+
       response.isProcessed = Boolean(data)
 
       if (data && action === ITransactionIndexCheckType.PROPOSAL_CREATE) {

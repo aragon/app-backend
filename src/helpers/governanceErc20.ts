@@ -9,6 +9,7 @@ import Web3Helper from '@helpers/web3'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
 import config from '@config'
 import utils from '@helpers/utils'
+import { NetworkHelper } from '@helpers/network'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:GovernanceErc20Helper' })
 
@@ -58,22 +59,21 @@ const GovernanceErc20Helper = {
     blockNumber: number,
     blockTimestamp: number,
     network: NetworksEnum,
-    hasClockMode: boolean = false,
+    clockMode: IClockMode,
   ): Promise<string> {
     const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
 
     try {
-      const clockMode = hasClockMode
-        ? await GovernanceErc20Helper.getClockMode(tokenAddress, network)
-        : IClockMode.BlockNumber
+      const timePointValue =
+        clockMode === IClockMode.Timestamp
+          ? blockTimestamp
+          : await Web3Helper.getChainAdjustedBlockNumber(blockNumber, network)
 
-      const modeToUse =
-        clockMode === IClockMode.BlockNumber
-          ? await Web3Helper.getChainAdjustedBlockNumber(blockNumber, network)
-          : blockTimestamp
       const pastVotes = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.getPastVotes(memberAddress, modeToUse)),
+        BottleneckModule.getNodeLimiter(network).schedule(async () =>
+          contract.getPastVotes(memberAddress, timePointValue),
+        ),
       )
       if (pastVotes > 0n) {
         return BigInt(pastVotes || 0)?.toString()
@@ -108,19 +108,35 @@ const GovernanceErc20Helper = {
     }
   },
 
-  async getPastTotalSupply(blockNumber: number, tokenAddress: HexAddress, network: NetworksEnum): Promise<string> {
+  async getPastTotalSupply({
+    tokenAddress,
+    blockNumber,
+    network,
+    blockTimestamp,
+    clockMode,
+  }: {
+    tokenAddress: HexAddress
+    blockNumber: number
+    network: NetworksEnum
+    blockTimestamp: number
+    clockMode: IClockMode
+  }): Promise<string> {
     const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(tokenAddress, GovernanceERC20.abi, provider)
-    const adjustedBlockNumber = await Web3Helper.getChainAdjustedBlockNumber(blockNumber, network)
+
+    const timepointValue =
+      clockMode === IClockMode.Timestamp
+        ? blockTimestamp - NetworkHelper.getAverageBlockTime(network)
+        : await Web3Helper.getChainAdjustedBlockNumber(blockNumber - 1, network)
 
     try {
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.getPastTotalSupply(adjustedBlockNumber)),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.getPastTotalSupply(timepointValue)),
       )
     } catch (error) {
-      logger.error('Error getting pastTotalSupply', llo({ blockNumber, tokenAddress, network, error }))
-      return '0'
+      logger.error('Error getting pastTotalSupply', llo({ timepointValue, clockMode, tokenAddress, network, error }))
     }
+    return '0'
   },
 
   async getDelegates(memberAddress: HexAddress, tokenAddress: HexAddress, network: NetworksEnum): Promise<any> {
