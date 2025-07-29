@@ -303,7 +303,37 @@ describe('AragonDao: memberInfo', () => {
       expect(result).to.be.false
     })
 
-    it('should return false for tokenVoting when voting power is 0', async () => {
+    it('should return true when voting power is 0 and there is the balance', async () => {
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xTokenAddress',
+      } as any)
+      const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({
+        minParticipation: 100,
+      } as any)
+
+      const getVotesStub = sandbox.stub(GovernanceErc20Helper, 'getVotes').resolves(0n)
+      const getBalanceStub = sandbox.stub(Web3Helper, 'getERC20Balance').resolves(200n)
+
+      const result = await MemberInfo.canCreateProposal(
+        '0xPluginAddress',
+        '0xMemberAddress',
+        NetworksEnum.ethereumSepolia,
+      )
+
+      expect(pluginStub.calledOnce).to.be.true
+      expect(settingsStub.calledOnce).to.be.true
+      expect(getVotesStub.calledOnce).to.be.true
+      expect(getVotesStub.calledWith('0xMemberAddress', '0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be.true
+      expect(getBalanceStub.calledOnce).to.be.true
+      expect(getBalanceStub.calledWith('0xMemberAddress', '0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be.true
+      expect(result).to.be.true
+    })
+
+    it('should return false for tokenVoting when voting power is 0 and balance also 0', async () => {
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
         daoAddress: '0xDaoAddress',
         address: '0xPluginAddress',
@@ -317,6 +347,7 @@ describe('AragonDao: memberInfo', () => {
       } as any)
 
       const getVotesStub = sandbox.stub(GovernanceErc20Helper, 'getVotes').resolves(0n)
+      sandbox.stub(Web3Helper, 'getERC20Balance').resolves(0n)
 
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
@@ -345,6 +376,7 @@ describe('AragonDao: memberInfo', () => {
       } as any)
 
       const getVotesStub = sandbox.stub(GovernanceErc20Helper, 'getVotes').resolves(50n)
+      sandbox.stub(Web3Helper, 'getERC20Balance').resolves(200n)
 
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
@@ -372,6 +404,7 @@ describe('AragonDao: memberInfo', () => {
       } as any)
 
       const getVotesStub = sandbox.stub(GovernanceErc20Helper, 'getVotes').resolves(150n)
+      sandbox.stub(Web3Helper, 'getERC20Balance').resolves(200n)
 
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
