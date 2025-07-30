@@ -1,22 +1,17 @@
 import logger from '@logger'
-import { type IEnumIndexerServiceStatic, TokenSyncTagName, IGovernanceErc20Logs, type IIndexerConfig } from '@types'
+import { IGovernanceErc20Logs, type IIndexerConfig, ITokenSyncTagName } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Plugin from '@models/schema/plugin'
 import type Token from '@models/schema/token'
 import configIndexer from '@indexer/configIndexer'
 import config from '@config'
-import { ProxyMember } from '@modules/proxyMember'
-import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
 import ProxyWeb3Provider from '@modules/proxyProvider'
+import ConfigIndexerHelper from '@helpers/configIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-plugins:tokenHolderSync' })
 
 export const TokenHolderSync = {
-  getTagName: (plugin: Plugin, token: Token, type: TokenSyncTagName): IEnumIndexerServiceStatic => {
-    return `${plugin.interfaceType}-${plugin.network}-${plugin.address}-${token?.address}${type === TokenSyncTagName.Default ? '' : `-${type}`}`
-  },
-
   isTokenNotEligibleForSync: async (token: Token, plugin: Plugin): Promise<boolean> => {
     try {
       if (!token || !plugin) {
@@ -34,7 +29,7 @@ export const TokenHolderSync = {
 
       const defaultTag = await Models.ConfigIndexer.findOne({
         network: plugin.network,
-        service: TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Default),
+        service: ConfigIndexerHelper.builders.token(token.type, token.network, token.address),
       })
 
       if (defaultTag) {
@@ -80,87 +75,6 @@ export const TokenHolderSync = {
     return configGovLogs.filter((item: IIndexerConfig) => item.event === governanceLogTopic)
   },
 
-  syncAllTokenHolders: async (plugin: Plugin, token: Token) => {
-    const blockScoutSyncKey = TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.TokenHolders)
-
-    const existingSync = await Models.ConfigIndexer.findExistingLog({
-      network: plugin.network,
-      service: blockScoutSyncKey,
-    })
-
-    if (existingSync?.end) {
-      logger.verbose(
-        'TokenHolderSync - BlockScout sync already completed, skipping',
-        llo({
-          network: plugin.network,
-          tokenAddress: token.address,
-          pluginAddress: plugin.address,
-        }),
-      )
-      return
-    }
-
-    logger.verbose(
-      'TokenHolderSync - Starting/Resuming BlockScout sync',
-      llo({
-        network: plugin.network,
-        tokenAddress: token.address,
-        pluginAddress: plugin.address,
-        lastSync: existingSync?.lastSync || 0,
-      }),
-    )
-
-    const result = await ProxyWeb3Provider.getAllTokenHolders({
-      address: token.address,
-      network: token.network,
-      syncKey: blockScoutSyncKey,
-      callback: async holder => {
-        const balanceAmount = holder.value.toString()
-        if (balanceAmount === '0') return
-
-        const member = await ProxyMember.createMember(holder.address)
-
-        const memberBalanceDb = await ProxyMember.getBalances({
-          address: holder.address,
-          tokenAddress: token.address,
-          network: token.network,
-        })
-
-        if (!(member && memberBalanceDb)) return
-
-        await DbTx.executeTxFn(async ({ session }) => {
-          await memberBalanceDb?.increaseBalance(
-            {
-              amount: balanceAmount,
-              blockNumber: plugin.blockNumber,
-            },
-            { session },
-          )
-          await session.commitTransaction()
-          await session.endSession()
-        })
-
-        await ProxyMember.addToDao({
-          memberAddress: holder.address,
-          daoAddress: plugin.daoAddress,
-          pluginAddress: plugin.address,
-          tokenAddress: plugin.tokenAddress,
-          network: plugin.network,
-        })
-      },
-    })
-
-    logger.verbose(
-      'TokenHolderSync - Sync completed or suspended',
-      llo({
-        network: plugin.network,
-        tokenAddress: token.address,
-        hasMore: result.hasMore,
-        lastPage: result.lastPage,
-      }),
-    )
-  },
-
   syncDelegationEvents: async (plugin: Plugin, token: Token) => {
     const configDelegationOnly = TokenHolderSync._getGovernanceLogConfigsByName(
       IGovernanceErc20Logs.DelegateVotesChanged,
@@ -182,7 +96,12 @@ export const TokenHolderSync = {
           }),
         )
       },
-      logService: TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Delegation),
+      logService: ConfigIndexerHelper.builders.token(
+        token.type,
+        token.network,
+        token.address,
+        ITokenSyncTagName.delegates,
+      ),
       stopOnError: true,
     })
 
@@ -209,7 +128,12 @@ export const TokenHolderSync = {
           }),
         )
       },
-      logService: TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Transfer),
+      logService: ConfigIndexerHelper.builders.token(
+        token.type,
+        token.network,
+        token.address,
+        ITokenSyncTagName.transfers,
+      ),
       stopOnError: true,
     })
 
@@ -218,8 +142,19 @@ export const TokenHolderSync = {
   },
 
   convertToStandardSync: async (plugin: Plugin, token: Token) => {
-    const delegationTagName = TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Delegation)
-    const transferTagName = TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Transfer)
+    const delegationTagName = ConfigIndexerHelper.builders.token(
+      token.type,
+      token.network,
+      token.address,
+      ITokenSyncTagName.delegates,
+    )
+
+    const transferTagName = ConfigIndexerHelper.builders.token(
+      token.type,
+      token.network,
+      token.address,
+      ITokenSyncTagName.transfers,
+    )
 
     const syncTags = await Models.ConfigIndexer.find({
       network: plugin.network,
@@ -241,7 +176,7 @@ export const TokenHolderSync = {
       }),
       Models.ConfigIndexer.create({
         network: plugin.network,
-        service: TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Default),
+        service: ConfigIndexerHelper.builders.token(token.type, token.network, token.address),
         lastSync: syncStatBlock,
       }),
     ])
@@ -255,74 +190,5 @@ export const TokenHolderSync = {
         lastSyncBlock: syncStatBlock,
       }),
     )
-  },
-
-  getTokenLastSyncBlock: async (token: Token) => {
-    const syncTag = await Models.ConfigIndexer.findOne({
-      network: token.network,
-      regex: { $regex: `${token.address}$` },
-    })
-
-    return syncTag?.lastSync || 0
-  },
-
-  linkPluginToExistingTokenHolders: async (plugin: Plugin, token: Token, lastSync: number) => {
-    const membersFromToken = await Models.Member.find({
-      tokenAddress: token.address,
-      network: token.network,
-    }).distinct('memberAddress')
-
-    if (membersFromToken.length === 0) return
-
-    const membersDataToSave = membersFromToken.reduce(
-      (membersData: any, memberAddress: any) => {
-        const daoRelation = {
-          memberAddress,
-          daoAddress: plugin.daoAddress,
-          pluginAddress: plugin.address,
-          tokenAddress: token.address,
-          network: plugin.network,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          __v: 0,
-        }
-        const memberMetrics = {
-          network: plugin.network,
-          address: memberAddress,
-          pluginAddress: plugin.address,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          __v: 0,
-        }
-
-        membersData.daoRelation.push(daoRelation)
-        membersData.metrics.push({
-          id: Models.MemberMetrics.getEntityId(memberMetrics),
-          ...memberMetrics,
-        })
-
-        return membersData
-      },
-      { daoRelation: [], metrics: [] },
-    )
-
-    try {
-      await Promise.all([
-        Models.DaoMemberMapping.insertMany(membersDataToSave.daoRelation, { ordered: false, lean: true }),
-        Models.MemberMetrics.insertMany(membersDataToSave.metrics, { ordered: false, lean: true }),
-      ])
-      await Models.ConfigIndexer.create({
-        network: plugin.network,
-        service: TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Default),
-        lastSync,
-      })
-    } catch (e: any) {
-      logger.error('Error linking plugin to existing token holders', {
-        error: e,
-        pluginAddress: plugin.address,
-        tokenAddress: token.address,
-        network: plugin.network,
-      })
-    }
   },
 }
