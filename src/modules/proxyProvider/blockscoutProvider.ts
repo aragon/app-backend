@@ -6,6 +6,7 @@ import { ProxyToken } from '@modules/proxyToken'
 import TokenUtils from '@helpers/tokenUtils'
 import ProxyUtils from '@modules/proxyProvider/utils'
 import BlockScoutHelper from '@helpers/blockScout'
+import ConfigIndexerHelper from '@helpers/configIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'provider:BlockScoutProvider' })
 
@@ -89,7 +90,7 @@ const BlockScoutProvider: Pick<any, 'fetchAddressTxns' | 'getTokenBalances' | 'f
       const sortedTxList = parsedTransfers.filter(Boolean).sort((a: any, b: any) => a.blockNum - b.blockNum)
       await ProxyUtils.updateProgressInConfigIndexer(
         network,
-        `transferList-${address}-${network}`,
+        ConfigIndexerHelper.builders.transferList(network, address),
         sortedTxList[sortedTxList.length - 1]?.blockNum || 0,
       )
       return sortedTxList

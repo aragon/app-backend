@@ -5,8 +5,6 @@ import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
 import { type HexAddress, ITokenType, type NetworksEnum } from '@types'
 import { type ITokenFullDetails } from '@src/types/blockScout'
-import Utils from '@helpers/utils'
-import { ethers } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:BlockScoutHelper' })
 
@@ -16,6 +14,7 @@ const BlockScoutHelper = {
       baseURL: BlockScoutHelper._parseNetworkToConfig(network).BLOCKSCOUT_API_URL,
       headers: { 'Content-Type': 'application/json' },
     }),
+
   _parseNetworkToConfig: (network: NetworksEnum) => {
     const networkConfigKey = network.replace('-', '_').toUpperCase()
     return config.NODES[networkConfigKey]
@@ -135,122 +134,6 @@ const BlockScoutHelper = {
       }
     } catch (error) {
       logger.warn('Error getTransactionOfAnAddress', llo({ error }))
-    }
-  },
-
-  getTokenHoldersPage: async (
-    tokenAddress: HexAddress,
-    network: NetworksEnum,
-    page: number = 1,
-    pageSize: number = 100,
-  ) => {
-    try {
-      const networkConfig = BlockScoutHelper._parseNetworkToConfig(network)
-      if (!networkConfig?.BLOCKSCOUT_API_URL) {
-        logger.warn('BlockScout API is not configured', llo({ network }))
-        return { holders: [], total: 0 }
-      }
-
-      const baseUrl = networkConfig.BLOCKSCOUT_API_URL.replace(/\/api\/?$/, '')
-      const params = {
-        module: 'token',
-        action: 'getTokenHolders',
-        contractaddress: tokenAddress,
-        page,
-        offset: pageSize,
-        apikey: networkConfig.BLOCKSCOUT_API_KEY,
-      }
-
-      try {
-        const url = `${baseUrl}/api`
-        const response = await retryRequest(async () =>
-          BottleneckModule.getBlockScoutLimiter(network).schedule(async () => axios.get(url, { params })),
-        )
-
-        const data = response?.data
-
-        if (data?.message === 'OK' && Array.isArray(data?.result) && data.result.length > 0) {
-          return {
-            holders: data.result.map((item: any) => ({
-              address: ethers.getAddress(item.address),
-              value: item.value,
-            })),
-            total: data.result.length,
-          }
-        }
-
-        return { holders: [], total: 0 }
-      } catch (error) {
-        logger.error('Error fetching token holders page', llo({ error, page, tokenAddress }))
-        throw error
-      }
-    } catch (error) {
-      logger.error('Error in getTokenHoldersPage', llo({ error, tokenAddress, page }))
-      return { holders: [], total: 0 }
-    }
-  },
-
-  async getAllTokenHolders(
-    tokenAddress: HexAddress,
-    network: NetworksEnum,
-    options = {
-      pageSize: 100,
-      delayMs: 500,
-      startPage: 0,
-    },
-    callback?: (
-      holders: Array<{ address: string; value: string }>,
-      pageInfo: { currentPage: number; isLastPage: boolean; total: number },
-    ) => Promise<void> | void,
-  ) {
-    try {
-      const networkConfig = BlockScoutHelper._parseNetworkToConfig(network)
-      if (!networkConfig?.BLOCKSCOUT_API_URL) {
-        logger.warn('BlockScout API is not configured', llo({ network }))
-        return { holders: [], total: 0, hasMore: false, lastPage: 0 }
-      }
-
-      const allHolders: Array<{ address: string; value: string }> = []
-      let page = options.startPage || 1
-      let hasMoreData = true
-
-      while (hasMoreData) {
-        const pageResult = await BlockScoutHelper.getTokenHoldersPage(tokenAddress, network, page, options.pageSize)
-
-        if (!pageResult.holders || pageResult.holders.length === 0) {
-          hasMoreData = false
-          break
-        }
-
-        const isLastPage = pageResult.holders.length < options.pageSize
-
-        if (callback) {
-          await callback(pageResult.holders, {
-            currentPage: page,
-            isLastPage,
-            total: pageResult.total,
-          })
-        }
-
-        allHolders.push(...pageResult.holders)
-
-        if (isLastPage) {
-          hasMoreData = false
-        } else {
-          page++
-          await Utils.wait(options.delayMs)
-        }
-      }
-
-      return {
-        holders: allHolders,
-        total: allHolders.length,
-        hasMore: hasMoreData,
-        lastPage: page,
-      }
-    } catch (error) {
-      logger.error('Error getAllTokenHolders', llo({ error, tokenAddress }))
-      return { holders: [], total: 0, hasMore: false, lastPage: options.startPage }
     }
   },
 

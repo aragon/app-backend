@@ -1,5 +1,5 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
-import type { IEnumIndexerService, IEnumIndexerServiceStatic } from '@types'
+import type { LogServicePattern } from '@types'
 import type { IFormattedLog, ILogInfo } from '@src/types/eventLogs'
 import { type Filter, type Log, type LogDescription } from 'ethers'
 
@@ -32,7 +32,7 @@ export interface ICrawlParam {
   oneBlockPerTime?: boolean
   filterLogs?: (logs: any) => Promise<any>
   strategy?: ICrawStrategy
-  logService: IEnumIndexerService | IEnumIndexerServiceStatic | null
+  logService: LogServicePattern
   onError: (error: Error, log?: Log) => void
   skipLogProcessing?: boolean
   isTopicObject?: boolean
