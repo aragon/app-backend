@@ -1,4 +1,4 @@
-import { EnumConnection, type IService } from '@types'
+import { EnumConnection, IClockMode, type IService } from '@types'
 import { Models } from '@dbModels'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 
@@ -16,7 +16,7 @@ export const SyncProposals: IService = {
         tokenAddress: proposal.settings.tokenAddress,
         network: proposal.network,
         blockTimestamp: 0,
-        hasClockMode: false,
+        clockMode: IClockMode.BlockNumber,
       })
 
       proposal.snapshot.totalSupply = pastTotalSupply.toString()
