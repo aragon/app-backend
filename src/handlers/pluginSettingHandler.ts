@@ -41,6 +41,7 @@ export const PluginSettingHandler = {
     let handler: (parsedEvent: LogDescription, info: ILogInfo) => Promise<Plugin | undefined>
     switch (plugin.interfaceType) {
       case IPluginInterfaceType.tokenVoting:
+      case IPluginInterfaceType.lockToVote:
         abi = TokenVoting.abi
         eventName = IEventLogPluginSettings.VotingSettingsUpdated
         handler = PluginSettingHandler.votingSettingsUpdated
