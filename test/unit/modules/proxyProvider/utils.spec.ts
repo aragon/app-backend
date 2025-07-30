@@ -26,7 +26,7 @@ describe('ProxyUtils', () => {
 
       const findExistingLogStub = sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves(mockConfigData)
 
-      const result = await ProxyUtils.getProgressFromConfigIndexer(network, syncKey)
+      const result = await ProxyUtils.getProgressFromConfigIndexer(network, syncKey as any)
 
       expect(findExistingLogStub.calledOnceWith({ network, service: syncKey })).to.be.true
       expect(result).to.deep.equal(mockConfigData)
@@ -38,7 +38,7 @@ describe('ProxyUtils', () => {
 
       const findExistingLogStub = sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves(null)
 
-      const result = await ProxyUtils.getProgressFromConfigIndexer(network, syncKey)
+      const result = await ProxyUtils.getProgressFromConfigIndexer(network, syncKey as any)
 
       expect(findExistingLogStub.calledOnceWith({ network, service: syncKey })).to.be.true
       expect(result).to.be.null
@@ -59,7 +59,7 @@ describe('ProxyUtils', () => {
       const findExistingLogStub = sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves(mockExistingRecord)
       const createStub = sandbox.stub(Models.ConfigIndexer, 'create')
 
-      await ProxyUtils.updateProgressInConfigIndexer(network, syncKey, lastPage, hasMore)
+      await ProxyUtils.updateProgressInConfigIndexer(network, syncKey as any, lastPage, hasMore)
 
       expect(findExistingLogStub.calledOnceWith({ network, service: syncKey })).to.be.true
       expect(mockExistingRecord.update.calledOnce).to.be.true
@@ -76,7 +76,7 @@ describe('ProxyUtils', () => {
       const findExistingLogStub = sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves(null)
       const createStub = sandbox.stub(Models.ConfigIndexer, 'create').resolves()
 
-      await ProxyUtils.updateProgressInConfigIndexer(network, syncKey, lastPage, hasMore)
+      await ProxyUtils.updateProgressInConfigIndexer(network, syncKey as any, lastPage, hasMore)
 
       expect(findExistingLogStub.calledOnceWith({ network, service: syncKey })).to.be.true
       expect(createStub.calledOnce).to.be.true
