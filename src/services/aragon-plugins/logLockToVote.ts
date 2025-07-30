@@ -31,7 +31,7 @@ export const LogLockToVote = {
     const lockManagerCrawler = new BlockchainLogCrawler({
       network: plugin.network,
       events: lockManagerLogs,
-      address: plugin.address,
+      address: plugin.lockManager,
       fromBlock: plugin?.blockNumber,
       onError: async (error: any, log: any) => LogLockToVote.processError(error, plugin, log),
       logService: `${plugin.interfaceType}-${plugin.network}-${plugin.lockManager}`,
