@@ -116,6 +116,7 @@ const PoolingCrawler = {
         Models.Token.distinct('address', {
           address: { $in: [...new Set([...delegateVotesChangedTokenAddresses, ...transferTokenAddresses])] },
           ignoreTransfer: { $ne: true },
+          hasDelegate: true, // only tokens that have delegate votes need to be synced
           network,
         }),
       ])

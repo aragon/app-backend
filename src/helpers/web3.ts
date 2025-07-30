@@ -560,7 +560,7 @@ const Web3Helper = {
 
     return token
   },
-  async isMember(pluginAddress: HexAddress, memberAddress: HexAddress, network: NetworksEnum) {
+  async isMultisigMember(pluginAddress: HexAddress, memberAddress: HexAddress, network: NetworksEnum) {
     try {
       const provider = ProviderModule.getAnyRpcProvider(network)
       const pluginInstance = new Contract(pluginAddress, Multisig.abi, provider)
@@ -570,6 +570,19 @@ const Web3Helper = {
       return Boolean(isListed)
     } catch (error) {
       logger.error('Error isMember', llo({ pluginAddress, memberAddress, network, error }))
+      return false
+    }
+  },
+  async isTokenVotingMember(pluginAddress: HexAddress, network: NetworksEnum) {
+    try {
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      const pluginInstance = new Contract(pluginAddress, TokenVoting.abi, provider)
+      const isMember = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => pluginInstance.isMember()),
+      )
+      return Boolean(isMember)
+    } catch (error) {
+      logger.error('Error isTokenVotingMember', llo({ pluginAddress, network, error }))
       return false
     }
   },
