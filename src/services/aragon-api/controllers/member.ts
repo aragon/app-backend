@@ -11,6 +11,7 @@ import {
   type IPaginationParams,
   type IPairParams,
   type NetworksEnum,
+  IPluginInterfaceType,
 } from '@types'
 import { assertExposable } from '@errors'
 import PairDataModule from '@modules/pairData'
@@ -41,6 +42,11 @@ const MemberController = {
 
     const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
     assertExposable(plugin, ErrorKeyEnum.notFound)
+
+    // Check for LockManager/lockToVote interface type
+    if (plugin.interfaceType === IPluginInterfaceType.lockToVote) {
+      return await MemberController.getMembersOfLockManagerPlugin(paginationParams, plugin)
+    }
 
     if (plugin.tokenAddress) {
       if (plugin.votingEscrow !== null && plugin.votingEscrow.escrowAddress) {
@@ -137,6 +143,14 @@ const MemberController = {
         decimals: (BigInt(10) ** BigInt(token.decimals)).toString(),
       },
       tokenAddress: plugin.tokenAddress,
+      network: plugin.network,
+    })
+  },
+
+  getMembersOfLockManagerPlugin: async (paginationParams: IPaginationParams = {}, plugin: Plugin) => {
+    return Models.LockManagerMember.findAndPaginate({
+      paginationParams,
+      pluginAddress: plugin.address,
       network: plugin.network,
     })
   },
