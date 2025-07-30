@@ -33,7 +33,7 @@ describe('Module: PoolingCrawler', () => {
       PoolingCrawler.instances.set(NetworksEnum.ethereumMainnet, mockCrawler as any)
 
       await PoolingCrawler.start({
-        logService: 'test-service',
+        logService: 'test-service' as any,
         network: NetworksEnum.ethereumMainnet,
       })
 
@@ -46,7 +46,7 @@ describe('Module: PoolingCrawler', () => {
       const BlockchainLogCrawlerStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(crawlStub)
 
       await PoolingCrawler.start({
-        logService: 'test-service',
+        logService: 'test-service' as any,
         network: NetworksEnum.ethereumMainnet,
       })
 
@@ -59,7 +59,7 @@ describe('Module: PoolingCrawler', () => {
       sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
 
       await PoolingCrawler.start({
-        logService: 'test-service',
+        logService: 'test-service' as any,
         network: NetworksEnum.ethereumMainnet,
       })
 
