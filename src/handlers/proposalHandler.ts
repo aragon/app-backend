@@ -28,6 +28,7 @@ import { TokenVoting } from '@src/aragonContracts'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { assert } from '@errors'
 import Web3Utils from '@helpers/web3Utils'
+import LockToVoteHelper from '@helpers/lockToVoteHelper'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:ProposalHandler' })
 
@@ -234,6 +235,14 @@ export const ProposalHandler = {
         })
         document.snapshot = {
           membersCount: members.length,
+        }
+      } else if (relatedPlugin.interfaceType === IPluginInterfaceType.lockToVote) {
+        document.snapshot = {
+          totalSupply: await LockToVoteHelper.getCurrentTotalSupply(
+            relatedPlugin.network,
+            relatedPlugin.address,
+            info.blockNumber,
+          ),
         }
       }
 
@@ -1082,5 +1091,10 @@ export const ProposalHandler = {
     } catch (error) {
       logger.error('Error proposalEdited', llo({ ...info, error, parsedEvent }))
     }
+  },
+
+  voteCleared: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    logger.info('voteCleared', llo({ parsedEvent, info }))
+    // TODO: Implement the logic for handling the voteCleared event
   },
 }

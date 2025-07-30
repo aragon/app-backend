@@ -27,6 +27,9 @@ import { VotingEscrow } from '@artifacts/VotingEscrow'
 import { DaoV2 } from '@artifacts/daoV2'
 import { ExecuteSelectorCondition } from '@artifacts/ExecuteSelectorCondition'
 import { ExecuteHandler } from '@handlers/executeHandler'
+import LockManagerHandler from '@handlers/lockManagerHandler'
+import { LockManager } from '@artifacts/LockManager'
+import { LockToVote } from '@artifacts/LockToVote'
 
 const IndexerEventConfig: IIndexerConfig[] = [
   // historical and realtime on startup
@@ -461,6 +464,39 @@ const IndexerEventConfig: IIndexerConfig[] = [
       {
         abi: ExecuteSelectorCondition.abi,
         handler: ExecuteHandler.nativeTransfersDisallowed,
+      },
+    ],
+  },
+  {
+    event: 'BalanceLocked',
+    enableHistorical: false,
+    topic: new Interface(ExecuteSelectorCondition.abi).getEvent('Execute')?.topicHash!,
+    config: [
+      {
+        abi: ExecuteSelectorCondition.abi,
+        handler: LockManagerHandler.balanceLocked,
+      },
+    ],
+  },
+  {
+    event: 'BalanceUnlocked',
+    enableHistorical: false,
+    topic: new Interface(LockManager.abi).getEvent('Execute')?.topicHash!,
+    config: [
+      {
+        abi: ExecuteSelectorCondition.abi,
+        handler: LockManagerHandler.balanceUnlocked,
+      },
+    ],
+  },
+  {
+    event: 'VoteCleared',
+    enableHistorical: false,
+    topic: new Interface(LockToVote.abi).getEvent('VoteCleared')?.topicHash!,
+    config: [
+      {
+        abi: LockToVote.abi,
+        handler: ProposalHandler.voteCleared,
       },
     ],
   },

@@ -24,6 +24,12 @@ const PluginDetector = {
   ],
   HAS_TARGET: ['getTargetConfig()'],
   SAFE_WALLET: 'masterCopy()',
+  LOCK_TO_VOTE_FUNCTIONS: [
+    'usedVotingPower(uint256,address)',
+    'currentTokenSupply()',
+    'clearVote(uint256,address)',
+    'lockManager()',
+  ],
 
   _generateFunctionHash(functionSignature: string): string {
     return keccak256(Buffer.from(functionSignature)).slice(0, 10)
@@ -78,6 +84,8 @@ const PluginDetector = {
         pluginDetails.type = IPluginInterfaceType.admin
       } else if (hasFunctions(PluginDetector.GAUGE_VOTER_FUNCTIONS)) {
         pluginDetails.type = IPluginInterfaceType.gauge
+      } else if (hasFunctions(PluginDetector.LOCK_TO_VOTE_FUNCTIONS)) {
+        pluginDetails.type = IPluginInterfaceType.lockToVote
       } else {
         pluginDetails.type = IPluginInterfaceType.unknown
       }
