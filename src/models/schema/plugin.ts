@@ -207,7 +207,7 @@ export default class Plugin extends Model {
   public conditionAddress?: HexAddress
 
   @prop({ type: () => String, default: null })
-  public lockManager?: HexAddress
+  public lockManagerAddress?: HexAddress
 
   static async create(rawData: Partial<Plugin>, tOpts?: SaveOptions) {
     if (!rawData.id) {

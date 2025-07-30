@@ -61,6 +61,12 @@ export interface ILogMetadataIdParams {
   logIndex: number
 }
 
+export interface ILockManagerMemberIdParams {
+  network: NetworksEnum
+  pluginAddress: HexAddress
+  memberAddress: HexAddress
+}
+
 export interface IPluginRepoIdParams {
   network: NetworksEnum
   transactionHash: HexAddress
