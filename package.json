@@ -64,7 +64,8 @@
     "exclude": [
       "scripts/**",
       "src/aragonContracts/**",
-      "src/artifacts/**"
+      "src/artifacts/**",
+      "src/migrations/**"
     ],
     "reporter": [
       "text",
