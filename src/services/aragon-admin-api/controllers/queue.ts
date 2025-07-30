@@ -180,13 +180,45 @@ const QueueAdminController = {
 
   resetAndForceSyncToken: async (params: IAQueueToken): Promise<any> => {
     const token = await Models.Token.findByTokenAddressAndNetwork(params.address, params.network)
-    if (!token) return
+    if (!token) {
+      logger.warn('Token not found', llo(params))
+      return
+    }
 
     // take all plugins with the same token address and network
     const plugins = await Models.Plugin.find({
       tokenAddress: params.address,
       network: params.network,
     })
+
+    const pluginsToSync = await Promise.all(
+      plugins.map(async (p: Plugin) => {
+        const service = `${p.interfaceType}-${p.network}-${p.address}-${p.tokenAddress}`
+        const configIndexer = await Models.ConfigIndexer.findOne({ service })
+
+        if (!configIndexer) {
+          logger.error('No config indexer found', llo({ params, service }))
+          return
+        }
+        await configIndexer.deleteOne()
+
+        await Promise.all([
+          Models.DaoMemberMapping.deleteMany({
+            pluginAddress: plugin.address,
+            tokenAddress: plugin.tokenAddress,
+            network: plugin.network,
+          }),
+          Models.MemberMetrics.deleteMany({
+            pluginAddress: plugin.address,
+            network: plugin.network,
+          }),
+        ])
+
+        return p
+      }),
+    )
+
+    if (pluginsToSync.length === 0) return
 
     await Promise.all([
       Models.MemberTransaction.deleteMany({
@@ -199,42 +231,22 @@ const QueueAdminController = {
       }),
     ])
 
-    await Promise.all(
-      plugins.map(async (p: Plugin) => {
-        const service = `${IPluginInterfaceType.tokenVoting}-${p.network}-${p.address}-${p.tokenAddress}`
-        const configIndexer = await Models.ConfigIndexer.findOne({ service })
+    if (token) {
+      await token.deleteOne()
+    }
 
-        if (!configIndexer) {
-          logger.error('No config indexer found', llo({ params, service }))
-          return
-        }
-        await configIndexer.deleteOne()
+    // re-sync from scratch
+    await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
+      id: params.address,
+      params: { address: params.address, network: params.network },
+    })
 
-        await Models.DaoMemberMapping.deleteMany({
-          pluginAddress: p.address,
-          tokenAddress: p.tokenAddress,
-          network: p.network,
-        })
-        await Models.MemberMetrics.deleteMany({
-          pluginAddress: p.address,
-          network: p.network,
-        })
+    const plugin = await Models.Plugin.findByAddress(params.address, params.network)
+    assertExposable(plugin, ErrorKeyEnum.notFound)
 
-        if (token) {
-          await token.deleteOne()
-        }
-
-        if (p.tokenAddress) {
-          logger.verbose('Force re-sync plugin', llo({ address: params.address, network: params.network }))
-        }
-
-        // re-sync from scratch
-        await RabbitMQHelper.sendMessage(EnumQueueName.requeue, {
-          id: p.address,
-          params: { address: p.address, network: p.network },
-        })
-      }),
-    )
+    if (plugin.tokenAddress) {
+      logger.verbose('Force re-sync plugin', llo({ address: params.address, network: params.network }))
+    }
   },
 }
 
