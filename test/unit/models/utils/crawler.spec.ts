@@ -244,7 +244,12 @@ describe('Model/Utils: crawler', () => {
 
   it('throws an error if required options are missing', () => {
     expect(() => new DBCrawler({})).to.throw('Need onDocument method')
-    expect(() => new DBCrawler({ onDocument: () => {} })).to.throw('Need model to crawl')
+    expect(
+      () =>
+        new DBCrawler({
+          onDocument: () => {},
+        }),
+    ).to.throw('Need model to crawl')
   })
 
   it('resolves with crawlResult when an error occurs and stopOnError is true', async () => {
@@ -381,5 +386,347 @@ describe('Model/Utils: crawler', () => {
     } catch (error: any) {
       expect(error.message).to.equal('Already crawling')
     }
+  })
+
+  describe('Infinite Loop Prevention Tests', () => {
+    it('prevents infinite loop when database returns same documents repeatedly', async () => {
+      const processedDocs: any[] = []
+      const onDocumentStub = sandbox.stub().callsFake(doc => {
+        processedDocs.push(doc)
+        return Promise.resolve()
+      })
+
+      const totalDocuments = 5
+      const sameDocuments = [
+        { _id: 'doc-1', index: 1 },
+        { _id: 'doc-2', index: 2 },
+        { _id: 'doc-3', index: 3 },
+        { _id: 'doc-4', index: 4 },
+        { _id: 'doc-5', index: 5 },
+      ]
+
+      mockModel.countDocuments = sandbox.stub().resolves(totalDocuments)
+
+      // Simulate the bug: database keeps returning the same documents
+      let execCallCount = 0
+      mockModel.exec = sandbox.stub().callsFake(() => {
+        execCallCount++
+        console.log(`Exec call ${execCallCount}`)
+
+        // First few calls return the same documents (simulating the bug)
+        if (execCallCount <= 10) {
+          return Promise.resolve(sameDocuments)
+        }
+        // Eventually return empty (this shouldn't be reached with the fix)
+        return Promise.resolve([])
+      })
+
+      const crawler = new DBCrawler({
+        model: mockModel,
+        onDocument: onDocumentStub,
+        batchSize: 10,
+        concurrency: 2,
+        skip: 0,
+      })
+
+      const crawlResult = await crawler.crawl()
+
+      // Should process each document exactly once, despite DB returning duplicates
+      expect(processedDocs.length).to.equal(totalDocuments)
+      expect(onDocumentStub.callCount).to.equal(totalDocuments)
+      expect(crawlResult.nbSuccess).to.equal(totalDocuments)
+      expect(crawlResult.nbError).to.equal(0)
+      expect(crawlResult.nbTotal).to.equal(totalDocuments)
+
+      // Verify no duplicates were processed
+      const processedIds = processedDocs.map(doc => doc._id)
+      const uniqueIds = [...new Set(processedIds)]
+      expect(uniqueIds.length).to.equal(totalDocuments)
+
+      // Should have called exec multiple times but stopped when no new docs found
+      expect(execCallCount).to.be.greaterThan(1)
+      expect(execCallCount).to.be.lessThan(10) // Should terminate before hitting our limit
+    })
+
+    it('properly excludes processed IDs from subsequent queries', async () => {
+      const processedDocs: any[] = []
+      const onDocumentStub = sandbox.stub().callsFake(doc => {
+        processedDocs.push(doc)
+        return Promise.resolve()
+      })
+
+      const allDocuments = [
+        { _id: 'doc-1', index: 1 },
+        { _id: 'doc-2', index: 2 },
+        { _id: 'doc-3', index: 3 },
+        { _id: 'doc-4', index: 4 },
+        { _id: 'doc-5', index: 5 },
+      ]
+
+      mockModel.countDocuments = sandbox.stub().resolves(5)
+
+      let execCallCount = 0
+      const queryConditions: any[] = []
+
+      // Capture the where conditions to verify ID exclusion
+      mockModel.find = sandbox.stub().callsFake(where => {
+        queryConditions.push(where)
+        return mockModel
+      })
+
+      mockModel.exec = sandbox.stub().callsFake(() => {
+        execCallCount++
+
+        // Get the current where condition
+        const currentWhere = queryConditions[queryConditions.length - 1] || {}
+        const excludedIds = currentWhere._id?.$nin || []
+
+        // Return documents not in the excluded list
+        const availableDocs = allDocuments.filter(doc => !excludedIds.includes(doc._id))
+
+        if (execCallCount === 1) {
+          // First batch: return first 2 documents
+          return Promise.resolve(availableDocs.slice(0, 2))
+        } else if (execCallCount === 2) {
+          // Second batch: should exclude the first 2, return next 2
+          return Promise.resolve(availableDocs.slice(0, 2))
+        } else if (execCallCount === 3) {
+          // Third batch: should exclude first 4, return last 1
+          return Promise.resolve(availableDocs.slice(0, 1))
+        } else {
+          // No more documents
+          return Promise.resolve([])
+        }
+      })
+
+      const crawler = new DBCrawler({
+        model: mockModel,
+        onDocument: onDocumentStub,
+        batchSize: 2,
+        concurrency: 1,
+        skip: 0,
+      })
+
+      const crawlResult = await crawler.crawl()
+
+      // Verify all documents were processed exactly once
+      expect(processedDocs.length).to.equal(5)
+      expect(crawlResult.nbSuccess).to.equal(5)
+
+      // Verify that exclusion was applied in subsequent queries
+      expect(queryConditions.length).to.be.greaterThan(1)
+
+      // Second query should exclude first processed IDs
+      const secondQuery = queryConditions[1]
+      expect(secondQuery._id).to.exist
+      expect(secondQuery._id.$nin).to.be.an('array')
+      expect(secondQuery._id.$nin.length).to.equal(2) // First 2 IDs excluded
+
+      // Third query should exclude more IDs
+      const thirdQuery = queryConditions[2]
+      expect(thirdQuery._id.$nin.length).to.equal(4) // First 4 IDs excluded
+    })
+
+    it('handles aggregation pipeline with ID exclusion', async () => {
+      const processedDocs: any[] = []
+      const onDocumentStub = sandbox.stub().callsFake(doc => {
+        processedDocs.push(doc)
+        return Promise.resolve()
+      })
+
+      const allDocuments = [
+        { _id: 'doc-1', index: 1 },
+        { _id: 'doc-2', index: 2 },
+        { _id: 'doc-3', index: 3 },
+      ]
+
+      const aggregatePipelines: any[] = []
+
+      mockModel.aggregate = sandbox.stub().callsFake(pipeline => {
+        aggregatePipelines.push([...pipeline]) // Clone the pipeline
+        return mockModel
+      })
+
+      let crawlExecCallCount = 0
+      let countExecCallCount = 0
+
+      mockModel.exec = sandbox.stub().callsFake(() => {
+        const currentPipeline = aggregatePipelines[aggregatePipelines.length - 1]
+
+        // Check if this is a count aggregation
+        const isCountQuery = currentPipeline.some((stage: any) => stage.$count)
+
+        if (isCountQuery) {
+          countExecCallCount++
+          return Promise.resolve([{ totalRecords: 3 }])
+        }
+
+        // This is a data query
+        crawlExecCallCount++
+
+        // Check if there's an exclusion match stage
+        const matchStage = currentPipeline.find((stage: any) => stage.$match)
+        const excludedIds = matchStage?.$match?._id?.$nin || []
+
+        // Return documents not in the excluded list
+        const availableDocs = allDocuments.filter(doc => !excludedIds.includes(doc._id))
+
+        if (crawlExecCallCount === 1) {
+          // First batch: return first 2 documents
+          return Promise.resolve(availableDocs.slice(0, 2))
+        } else if (crawlExecCallCount === 2) {
+          // Second batch: should have exclusion, return remaining documents
+          return Promise.resolve(availableDocs.slice(0, 1))
+        } else {
+          // No more documents
+          return Promise.resolve([])
+        }
+      })
+
+      const crawler = new DBCrawler({
+        model: mockModel,
+        onDocument: onDocumentStub,
+        useAggregate: true,
+        aggregate: (skip: number | undefined, limit: number | undefined) => {
+          return [...DBCrawler.aggregatePagination(skip, limit)]
+        },
+        batchSize: 2,
+        concurrency: 1,
+      })
+
+      const crawlResult = await crawler.crawl()
+
+      expect(processedDocs.length).to.equal(3)
+      expect(crawlResult.nbSuccess).to.equal(3)
+
+      // Verify we had both count and data queries
+      expect(countExecCallCount).to.equal(1)
+      expect(crawlExecCallCount).to.be.greaterThan(1)
+
+      // Verify exclusion was added to aggregation pipeline
+      expect(aggregatePipelines.length).to.be.greaterThan(2)
+
+      // Find data pipelines (non-count)
+      const dataPipelines = aggregatePipelines.filter(p => !p.some((stage: any) => stage.$count))
+      expect(dataPipelines.length).to.be.greaterThan(1)
+
+      // Check if any data pipeline has exclusion (should be the second one)
+      const pipelinesWithExclusion = dataPipelines.filter(p => {
+        const matchStage = p.find((stage: any) => stage.$match && stage.$match._id && stage.$match._id.$nin)
+        return matchStage !== undefined
+      })
+
+      expect(pipelinesWithExclusion.length).to.be.greaterThan(0)
+
+      // Verify the exclusion contains processed IDs
+      const exclusionPipeline = pipelinesWithExclusion[0]
+      const matchStage = exclusionPipeline.find((stage: any) => stage.$match)
+      expect(matchStage.$match._id.$nin).to.be.an('array')
+      expect(matchStage.$match._id.$nin.length).to.be.greaterThan(0)
+    })
+
+    it('terminates after consecutive empty batches even with processing errors', async () => {
+      const processedDocs: any[] = []
+      let errorCount = 0
+
+      const onDocumentStub = sandbox.stub().callsFake(doc => {
+        if (doc._id === 'doc-2') {
+          errorCount++
+          throw new Error('Processing error')
+        }
+        processedDocs.push(doc)
+        return Promise.resolve()
+      })
+
+      const documents = [
+        { _id: 'doc-1', index: 1 },
+        { _id: 'doc-2', index: 2 }, // This will cause an error
+        { _id: 'doc-3', index: 3 },
+      ]
+
+      mockModel.countDocuments = sandbox.stub().resolves(3)
+
+      let execCallCount = 0
+      mockModel.exec = sandbox.stub().callsFake(() => {
+        execCallCount++
+
+        if (execCallCount === 1) {
+          return Promise.resolve(documents)
+        } else {
+          // Simulate no more documents after processing
+          return Promise.resolve([])
+        }
+      })
+
+      const crawler = new DBCrawler({
+        model: mockModel,
+        onDocument: onDocumentStub,
+        batchSize: 10,
+        concurrency: 1,
+        stopOnError: false, // Continue despite errors
+      })
+
+      const crawlResult = await crawler.crawl()
+
+      // Should process all documents (2 success, 1 error)
+      expect(processedDocs.length).to.equal(2)
+      expect(errorCount).to.equal(1)
+      expect(crawlResult.nbSuccess).to.equal(2)
+      expect(crawlResult.nbError).to.equal(1)
+      expect(crawlResult.nbTotal).to.equal(3)
+
+      // Should terminate properly after empty batches
+      expect(execCallCount).to.be.lessThan(10) // Should not loop indefinitely
+    })
+
+    it('handles edge case where processed count exceeds initial total', async () => {
+      const processedDocs: any[] = []
+      const onDocumentStub = sandbox.stub().callsFake(doc => {
+        processedDocs.push(doc)
+        return Promise.resolve()
+      })
+
+      // Initial count returns 3, but actually there are 5 documents
+      // This can happen if documents are added during crawling
+      mockModel.countDocuments = sandbox.stub().resolves(3)
+
+      const allDocuments = [
+        { _id: 'doc-1', index: 1 },
+        { _id: 'doc-2', index: 2 },
+        { _id: 'doc-3', index: 3 },
+        { _id: 'doc-4', index: 4 },
+        { _id: 'doc-5', index: 5 },
+      ]
+
+      let execCallCount = 0
+      mockModel.exec = sandbox.stub().callsFake(() => {
+        execCallCount++
+
+        if (execCallCount === 1) {
+          return Promise.resolve(allDocuments.slice(0, 3))
+        } else if (execCallCount === 2) {
+          return Promise.resolve(allDocuments.slice(3, 5))
+        } else {
+          return Promise.resolve([])
+        }
+      })
+
+      const crawler = new DBCrawler({
+        model: mockModel,
+        onDocument: onDocumentStub,
+        batchSize: 3,
+        concurrency: 1,
+      })
+
+      const crawlResult = await crawler.crawl()
+
+      // Should process all 5 documents even though initial count was 3
+      expect(processedDocs.length).to.equal(5)
+      expect(crawlResult.nbSuccess).to.equal(5)
+      expect(crawlResult.nbTotal).to.equal(3) // Original count
+
+      // Should handle the case gracefully
+      expect(execCallCount).to.equal(3) // Two data batches + one empty
+    })
   })
 })
