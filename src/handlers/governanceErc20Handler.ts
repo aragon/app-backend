@@ -201,27 +201,11 @@ export const GovernanceErc20Handler = {
       await ProxyMember.createMember(memberAddress)
       const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
 
-      const [memberVotingPower, memberTokenBalance, memberTokenBalanceDb] = await Promise.all([
-        GovernanceErc20Helper.getPastVotes(
-          memberAddress,
-          info.address,
-          info.blockNumber,
-          blockTimestamp,
-          info.network,
-          token?.clockMode,
-        ),
-        Web3Helper.getTokenBalanceAtBlock({
-          address: memberAddress,
-          tokenAddress: info.address,
-          blockNumber: info.blockNumber,
-          network: info.network,
-        }),
-        ProxyMember.getBalances({
-          address: memberAddress,
-          tokenAddress: info.address,
-          network: info.network,
-        }),
-      ])
+      const memberTokenBalanceDb = await ProxyMember.getBalances({
+        address: memberAddress,
+        tokenAddress: info.address,
+        network: info.network,
+      })
 
       const newBalance = BigInt(parsedEvent?.args?.newBalance || 0)
       const previousBalance = BigInt(parsedEvent?.args?.previousBalance || 0)
@@ -241,8 +225,7 @@ export const GovernanceErc20Handler = {
       const memberTx = await DbTx.executeTxFn(async ({ session }) => {
         await memberTokenBalanceDb?.update(
           {
-            amount: memberTokenBalance,
-            votingPower: memberVotingPower,
+            votingPower: newBalance.toString(),
           },
           { session },
         )
@@ -260,8 +243,7 @@ export const GovernanceErc20Handler = {
             side,
             amount: BigInt(parsedEvent?.args?.value || 0).toString(),
             tokenAddress,
-            memberBalance: memberTokenBalance,
-            memberVotingPower,
+            memberVotingPower: memberTokenBalanceDb?.votingPower,
             from,
             to,
           },
