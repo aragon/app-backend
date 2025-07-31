@@ -44,523 +44,6 @@ describe('GovernanceErc20Handler', () => {
     config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME = intervalTime
   })
 
-  describe('_handleTransfer', () => {
-    let getBlockTimestampStub: SinonStub
-    let saveAndGetTokenStub: SinonStub
-    let rabbitMqStub: SinonStub
-
-    beforeEach(() => {
-      getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1630425600)
-      saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(fakeToken)
-      rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-    })
-
-    it('should handle incoming ERC20 transfer event and add member to DAO', async () => {
-      const parsedEvent = {
-        args: {
-          from: '0xFrom',
-          to: '0xTo',
-          value: '1000',
-        },
-      } as unknown as LogDescription
-
-      const info = {
-        network,
-        blockNumber: 12345678,
-        transactionHash: '0xTransactionHash',
-        transactionIndex: 1,
-        logIndex: 1,
-        address: FakeToken.address,
-      }
-
-      const plugins = [
-        {
-          daoAddress: '0xDaoAddress',
-          address: '0xPluginAddress',
-          tokenAddress: FakeToken.address,
-          network,
-        },
-        {
-          daoAddress: '0xDaoAddress2',
-          address: '0xPluginAddress2',
-          tokenAddress: FakeToken.address,
-          network,
-        },
-      ]
-
-      const loggerStub = sandbox.stub(logger, 'verbose')
-
-      // Don't stub createMember - let it actually create the member
-      const getPastVotesStub = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('2000')
-      const findExistingLogStub = sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(false)
-      sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves(parsedEvent.args.value)
-
-      // Stub isMemberOfDao to return null (not a member)
-      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(null)
-
-      await GovernanceErc20Handler._handleTransfer(parsedEvent, info as any, ITransferSide.incoming, plugins as any)
-
-      const members = await Models.Member.find({})
-      expect(members.length).to.be.eq(1)
-      expect(members[0].address).to.be.eq(parsedEvent.args.to)
-
-      expect(
-        findExistingLogStub.calledOnceWith({
-          network: info.network,
-          transactionHash: info.transactionHash,
-          transactionIndex: info.transactionIndex,
-          logIndex: info.logIndex,
-          address: '0xTo',
-        }),
-      ).to.be.true
-
-      const memberBalance = await Models.MemberBalance.findOne({
-        address: parsedEvent.args.to,
-      })
-      expect(memberBalance).to.be.not.null
-      expect(memberBalance.amount).to.be.eq('1000')
-      expect(memberBalance.votingPower).to.be.eq('2000')
-
-      const memberTransaction = await Models.MemberTransaction.findOne({
-        transactionHash: info.transactionHash,
-        address: parsedEvent.args.to,
-      })
-      expect(memberTransaction).to.be.not.null
-      expect(memberTransaction.side).to.be.eq(ITransferSide.incoming)
-      expect(memberTransaction.memberBalance).to.be.eq('1000')
-      expect(memberTransaction.memberVotingPower).to.be.eq('2000')
-
-      const addToDao = await Models.DaoMemberMapping.find({
-        memberAddress: parsedEvent.args.to,
-      })
-
-      expect(addToDao.length).to.be.eq(2)
-      expect(addToDao.find((w: any) => w.daoAddress === plugins[0].daoAddress)).to.exist
-      expect(addToDao.find((w: any) => w.pluginAddress === plugins[0].address)).to.exist
-
-      expect(rabbitMqStub.calledTwice).to.be.true
-      expect(rabbitMqStub.args[0][1].id).to.be.eq(plugins[0].daoAddress)
-      expect(rabbitMqStub.args[1][1].id).to.be.eq(plugins[1].daoAddress)
-      expect(
-        getPastVotesStub.calledOnceWith(
-          parsedEvent.args.to,
-          info.address,
-          info.blockNumber,
-          1630425600,
-          info.network,
-          fakeToken.clockMode,
-        ),
-      ).to.be.true
-      expect(loggerStub.callCount).to.be.eq(4)
-    })
-
-    it('should handle outgoing ERC20 transfer event and remove member from DAO', async () => {
-      const parsedEvent = {
-        args: {
-          from: '0xFrom',
-          to: '0xTo',
-          value: '1000',
-        },
-      } as unknown as LogDescription
-
-      const info = {
-        network,
-        blockNumber: 12345678,
-        transactionHash: '0xTransactionHash',
-        transactionIndex: 1,
-        logIndex: 1,
-        address: FakeToken.address,
-      }
-
-      const plugins = [
-        {
-          daoAddress: '0xDaoAddress',
-          address: '0xPluginAddress',
-          tokenAddress: FakeToken.address,
-          network,
-        },
-        {
-          daoAddress: '0xDaoAddress2',
-          address: '0xPluginAddress2',
-          tokenAddress: FakeToken.address,
-          network,
-        },
-      ]
-
-      const getPastVotesStub = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('0')
-      const findExistingLogStub = sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(false)
-      sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('0')
-
-      // Create mock DaoMemberMapping documents that will be removed
-      const mockDaoMemberMapping1 = await Models.DaoMemberMapping.create({
-        memberAddress: parsedEvent.args.from,
-        daoAddress: plugins[0].daoAddress,
-        network: plugins[0].network,
-        pluginAddress: plugins[0].address,
-        tokenAddress: plugins[0].tokenAddress,
-      })
-
-      const mockDaoMemberMapping2 = await Models.DaoMemberMapping.create({
-        memberAddress: parsedEvent.args.from,
-        daoAddress: plugins[1].daoAddress,
-        network: plugins[1].network,
-        pluginAddress: plugins[1].address,
-        tokenAddress: plugins[1].tokenAddress,
-      })
-
-      // Stub isMemberOfDao to return the mapping documents
-      const isMemberOfDaoStub = sandbox.stub(ProxyMember, 'isMemberOfDao')
-      isMemberOfDaoStub.onFirstCall().resolves(mockDaoMemberMapping1)
-      isMemberOfDaoStub.onSecondCall().resolves(mockDaoMemberMapping2)
-
-      // Stub removeFromDao to actually remove the documents
-      sandbox.stub(ProxyMember, 'removeFromDao').callsFake(async params => {
-        return await Models.DaoMemberMapping.deleteOne({
-          memberAddress: params.memberAddress,
-          daoAddress: params.daoAddress,
-          pluginAddress: params.pluginAddress,
-          tokenAddress: params.tokenAddress,
-        })
-      })
-
-      await GovernanceErc20Handler._handleTransfer(parsedEvent, info as any, ITransferSide.outgoing, plugins as any)
-
-      const members = await Models.Member.find({})
-      expect(members.length).to.be.eq(1)
-      expect(members[0].address).to.be.eq(parsedEvent.args.from)
-
-      const memberBalance = await Models.MemberBalance.findOne({
-        address: parsedEvent.args.from,
-      })
-      expect(memberBalance).to.be.not.null
-      expect(memberBalance.amount).to.be.eq('0')
-      expect(memberBalance.votingPower).to.be.eq('0')
-
-      const memberTransaction = await Models.MemberTransaction.findOne({
-        transactionHash: info.transactionHash,
-        address: parsedEvent.args.from,
-      })
-      expect(memberTransaction).to.be.not.null
-      expect(memberTransaction.side).to.be.eq(ITransferSide.outgoing)
-
-      // Check that members were removed from DAOs
-      const remainingMappings = await Models.DaoMemberMapping.find({
-        memberAddress: parsedEvent.args.from,
-      })
-      expect(remainingMappings.length).to.be.eq(0)
-
-      expect(rabbitMqStub.calledTwice).to.be.true
-      expect(rabbitMqStub.args[0][1].id).to.be.eq(plugins[0].daoAddress)
-      expect(rabbitMqStub.args[1][1].id).to.be.eq(plugins[1].daoAddress)
-      expect(getPastVotesStub.called).to.be.true
-      expect(findExistingLogStub.called).to.be.true
-    })
-
-    it('should handle outgoing ERC721 transfer event and remove member from DAO', async () => {
-      const parsedEvent = {
-        args: {
-          from: '0xFrom',
-          to: '0xTo',
-          tokenId: 123,
-        },
-      } as unknown as LogDescription
-
-      await fakeToken.update({
-        type: ITokenType.ERC721,
-      })
-
-      const info = {
-        network,
-        blockNumber: 12345678,
-        transactionHash: '0xTransactionHash',
-        transactionIndex: 1,
-        logIndex: 1,
-        address: FakeToken.address,
-      }
-
-      const plugins = [
-        {
-          daoAddress: '0xDaoAddress',
-          address: '0xPluginAddress',
-          tokenAddress: FakeToken.address,
-          network,
-        },
-        {
-          daoAddress: '0xDaoAddress2',
-          address: '0xPluginAddress2',
-          tokenAddress: FakeToken.address,
-          network,
-        },
-      ]
-
-      const getTokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('0')
-      const findExistingLogStub = sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(false)
-      sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('0')
-
-      // Create mock DaoMemberMapping documents
-      const mockDaoMemberMapping1 = await Models.DaoMemberMapping.create({
-        memberAddress: parsedEvent.args.from,
-        daoAddress: plugins[0].daoAddress,
-        network: plugins[0].network,
-        pluginAddress: plugins[0].address,
-        tokenAddress: plugins[0].tokenAddress,
-      })
-
-      const mockDaoMemberMapping2 = await Models.DaoMemberMapping.create({
-        memberAddress: parsedEvent.args.from,
-        daoAddress: plugins[1].daoAddress,
-        network: plugins[1].network,
-        pluginAddress: plugins[1].address,
-        tokenAddress: plugins[1].tokenAddress,
-      })
-
-      const isMemberOfDaoStub = sandbox.stub(ProxyMember, 'isMemberOfDao')
-      isMemberOfDaoStub.onFirstCall().resolves(mockDaoMemberMapping1)
-      isMemberOfDaoStub.onSecondCall().resolves(mockDaoMemberMapping2)
-
-      // Stub removeFromDao to actually remove the documents
-      sandbox.stub(ProxyMember, 'removeFromDao').callsFake(async params => {
-        return await Models.DaoMemberMapping.deleteOne({
-          memberAddress: params.memberAddress,
-          daoAddress: params.daoAddress,
-          pluginAddress: params.pluginAddress,
-          tokenAddress: params.tokenAddress,
-        })
-      })
-
-      await GovernanceErc20Handler._handleTransfer(parsedEvent, info as any, ITransferSide.outgoing, plugins as any)
-
-      const members = await Models.Member.find({})
-      expect(members.length).to.be.eq(1)
-      expect(members[0].address).to.be.eq(parsedEvent.args.from)
-
-      const memberBalance = await Models.MemberBalance.findOne({
-        address: parsedEvent.args.from,
-      })
-      expect(memberBalance).to.be.not.null
-      expect(memberBalance.amount).to.be.eq('0')
-
-      const memberTransaction = await Models.MemberTransaction.find({})
-      expect(memberTransaction.length).to.be.eq(1)
-      expect(memberTransaction[0].tokenId).to.be.eq(parsedEvent.args.tokenId)
-
-      // Check that members were removed
-      const remainingMappings = await Models.DaoMemberMapping.find({
-        memberAddress: parsedEvent.args.from,
-      })
-      expect(remainingMappings.length).to.be.eq(0)
-
-      expect(rabbitMqStub.calledTwice).to.be.true
-      expect(getTokenBalanceAtBlockStub.called).to.be.true
-      expect(findExistingLogStub.called).to.be.true
-    })
-
-    it('should handle incoming ERC721 transfer event and add member to DAO', async () => {
-      const parsedEvent = {
-        args: {
-          from: '0xFrom',
-          to: '0xTo',
-          tokenId: 123,
-        },
-      } as unknown as LogDescription
-
-      await fakeToken.update({
-        type: ITokenType.ERC721,
-      })
-
-      const info = {
-        network,
-        blockNumber: 12345678,
-        transactionHash: '0xTransactionHash',
-        transactionIndex: 1,
-        logIndex: 1,
-        address: FakeToken.address,
-      }
-
-      const plugins = [
-        {
-          daoAddress: '0xDaoAddress',
-          address: '0xPluginAddress',
-          tokenAddress: FakeToken.address,
-          network,
-        },
-        {
-          daoAddress: '0xDaoAddress2',
-          address: '0xPluginAddress2',
-          tokenAddress: FakeToken.address,
-          network,
-        },
-      ]
-
-      sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('12')
-      sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(false)
-      sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('1')
-
-      // Stub isMemberOfDao to return null (not a member)
-      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(null)
-
-      await GovernanceErc20Handler._handleTransfer(parsedEvent, info as any, ITransferSide.incoming, plugins as any)
-
-      const members = await Models.Member.find({})
-      expect(members.length).to.be.eq(1)
-      expect(members[0].address).to.be.eq(parsedEvent.args.to)
-
-      const memberBalance = await Models.MemberBalance.findOne({
-        address: parsedEvent.args.to,
-      })
-      expect(memberBalance).to.be.not.null
-      expect(memberBalance.amount).to.be.eq('12')
-      expect(memberBalance.tokenIds.length).to.be.eq(1)
-      expect(memberBalance.tokenIds[0]).to.be.eq(parsedEvent.args.tokenId.toString())
-
-      const memberTransaction = await Models.MemberTransaction.find({})
-      expect(memberTransaction.length).to.be.eq(1)
-      expect(memberTransaction[0].tokenId).to.be.eq(parsedEvent.args.tokenId)
-
-      const addToDao = await Models.DaoMemberMapping.find({
-        memberAddress: parsedEvent.args.to,
-      })
-      expect(addToDao.length).to.be.eq(2)
-
-      expect(rabbitMqStub.calledTwice).to.be.true
-    })
-
-    it('should handle token return null', async () => {
-      const parsedEvent = {
-        args: {
-          from: '0xFrom',
-          to: '0xTo',
-          value: '1000',
-        },
-      } as unknown as LogDescription
-
-      const info = {
-        network,
-        blockNumber: 12345678,
-        transactionHash: '0xTransactionHash',
-        transactionIndex: 1,
-        logIndex: 1,
-        address: FakeToken.address,
-      }
-
-      const plugins = [
-        {
-          daoAddress: '0xDaoAddress',
-          address: '0xPluginAddress',
-          tokenAddress: FakeToken.address,
-          network,
-        },
-        {
-          daoAddress: '0xDaoAddress2',
-          address: '0xPluginAddress2',
-          tokenAddress: FakeToken.address,
-          network,
-        },
-      ]
-
-      saveAndGetTokenStub.resolves(null)
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember')
-      const getBalancesStub = sandbox.stub(ProxyMember, 'getBalances')
-      const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao')
-
-      const stubLogger = sandbox.stub(logger, 'error')
-      const getPastVotesStub = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('2000')
-      const findExistingLogStub = sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(false)
-
-      await GovernanceErc20Handler._handleTransfer(parsedEvent, info as any, ITransferSide.incoming, plugins as any)
-
-      expect(createMemberStub.notCalled).to.be.true
-      expect(findExistingLogStub.calledOnce).to.be.true
-      expect(getBalancesStub.notCalled).to.be.true
-      expect(getBlockTimestampStub.notCalled).to.be.true
-      expect(saveAndGetTokenStub.calledOnceWith(info.address, info.network)).to.be.true
-      expect(getPastVotesStub.notCalled).to.be.true
-      expect(addToDaoStub.notCalled).to.be.true
-      expect(stubLogger.calledWith('handleTransfer token not found' as any)).to.be.true
-      expect(rabbitMqStub.notCalled).to.be.true
-    })
-
-    it('should handle if the existing log is found', async () => {
-      const parsedEvent = {
-        args: {
-          from: '0xFrom',
-          to: '0xTo',
-          value: '1000',
-        },
-      } as unknown as LogDescription
-
-      const info = {
-        network,
-        blockNumber: 12345678,
-        transactionHash: '0xTransactionHash',
-        transactionIndex: 1,
-        logIndex: 1,
-        address: '0xTokenAddress',
-      }
-
-      const plugin = {
-        daoAddress: '0xDaoAddress',
-        address: '0xPluginAddress',
-        network,
-        tokenAddress: '0xTokenAddress',
-      }
-
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember')
-      const findExistingLogStub = sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves({
-        memberBalance: 0,
-        memberVotingPower: 0,
-        address: parsedEvent.args.from,
-      })
-      const removeStub = sandbox.stub(ProxyMember, 'removeFromDao')
-      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(null)
-
-      const handlerResponse = await GovernanceErc20Handler._handleTransfer(
-        parsedEvent,
-        info as any,
-        ITransferSide.outgoing,
-        [plugin] as any,
-      )
-
-      expect(handlerResponse).to.be.undefined
-      expect(createMemberStub.notCalled).to.be.true
-      expect(removeStub.notCalled).to.be.true
-      expect(findExistingLogStub.calledOnce).to.be.true
-    })
-
-    it('should handle if throw', async () => {
-      const parsedEvent = {
-        args: {
-          from: '0xFrom',
-          to: '0xTo',
-          value: '1000',
-        },
-      } as unknown as LogDescription
-
-      const info = {
-        network,
-        blockNumber: 12345678,
-        transactionHash: '0xTransactionHash',
-        transactionIndex: 1,
-        logIndex: 1,
-        address: '0xTokenAddress',
-      }
-
-      const plugin = {
-        daoAddress: '0xDaoAddress',
-        address: '0xPluginAddress',
-        network,
-      }
-
-      sandbox.stub(ProxyMember, 'createMember').rejects(new Error('fake error'))
-
-      const loggerErrorStub = sandbox.stub(logger, 'error')
-
-      await GovernanceErc20Handler._handleTransfer(parsedEvent, info as any, ITransferSide.incoming, [plugin] as any)
-
-      expect(loggerErrorStub.calledOnceWith('Transfer - incoming transfer error' as any)).to.be.true
-    })
-  })
-
   describe('delegateVotesChanged', () => {
     it('should handle if throw', async () => {
       const parsedEvent = {
@@ -692,7 +175,6 @@ describe('GovernanceErc20Handler', () => {
 
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(plugin)
       sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves({
-        memberBalance: '2000',
         memberVotingPower: '2000',
         memberAddress: fakeLog.args.delegate,
       })
@@ -798,7 +280,6 @@ describe('GovernanceErc20Handler', () => {
       expect(memberTransaction).to.be.not.null
       expect(memberTransaction.type).to.be.eq(ITransferType.delegate)
       expect(memberTransaction.side).to.be.eq(ITransferSide.incoming)
-      expect(memberTransaction.memberBalance).to.be.eq('1500')
       expect(memberTransaction.memberVotingPower).to.be.eq('2000')
       expect(memberTransaction.blockNumber).to.be.eq(info.blockNumber)
       expect(memberTransaction.blockTimestamp).to.be.eq(1630425600)
@@ -806,7 +287,6 @@ describe('GovernanceErc20Handler', () => {
       // Verify the member balance was updated
       const memberBalance = await Models.MemberBalance.findOne({ address: memberAddress })
       expect(memberBalance).to.be.not.null
-      expect(memberBalance.amount).to.be.eq('1500')
       expect(memberBalance.votingPower).to.be.eq('2000')
 
       // Verify member was added to DAOs
@@ -862,7 +342,6 @@ describe('GovernanceErc20Handler', () => {
       expect(memberTransaction).to.be.not.null
       expect(memberTransaction.type).to.be.eq(ITransferType.delegate)
       expect(memberTransaction.side).to.be.eq(ITransferSide.outgoing)
-      expect(memberTransaction.memberBalance).to.be.eq('1500')
       expect(memberTransaction.memberVotingPower).to.be.eq('1000')
       expect(memberTransaction.amount).to.be.eq('500')
 
@@ -948,76 +427,11 @@ describe('GovernanceErc20Handler', () => {
       expect(memberTransaction).to.be.not.null
       expect(memberTransaction.type).to.be.eq(ITransferType.delegate)
       expect(memberTransaction.side).to.be.eq(ITransferSide.outgoing)
-      expect(memberTransaction.memberBalance).to.be.eq('0')
       expect(memberTransaction.memberVotingPower).to.be.eq('0')
 
       // Verify member was removed from DAO (since voting power and balance are 0)
       const remainingMappings = await Models.DaoMemberMapping.find({ memberAddress })
       expect(remainingMappings.length).to.be.eq(0)
-    })
-  })
-
-  describe('transfer', () => {
-    it('should handle transfer when plugin is provided', async () => {
-      const parsedEvent = {
-        args: {
-          from: '0xFrom',
-          to: '0xTo',
-          value: '1000',
-        },
-      } as unknown as LogDescription
-
-      const info = {
-        network,
-        blockNumber: 12345678,
-        transactionHash: '0xTransactionHash',
-        transactionIndex: 1,
-        logIndex: 1,
-        address: '0xTokenAddress',
-      }
-
-      const plugin = {
-        daoAddress: '0xDaoAddress',
-        address: '0xPluginAddress',
-        network,
-      }
-
-      const findPluginStub = sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
-      const _handleTransfer = sandbox.stub(GovernanceErc20Handler, '_handleTransfer').resolves()
-
-      const handlerResponse = await GovernanceErc20Handler.transfer(parsedEvent, info as any)
-
-      expect(handlerResponse).to.be.undefined
-      expect(findPluginStub.calledOnceWith(info.address, info.network)).to.be.true
-      expect(_handleTransfer.calledTwice).to.be.true
-      expect(_handleTransfer.args[0][2]).to.be.eq(ITransferSide.outgoing)
-      expect(_handleTransfer.args[1][2]).to.be.eq(ITransferSide.incoming)
-    })
-
-    it('should return if the plugin is not found', async () => {
-      const parsedEvent = {
-        args: {
-          from: '0xFrom',
-          to: '0xTo',
-          value: '1000',
-        },
-      } as unknown as LogDescription
-
-      const info = {
-        network,
-        blockNumber: 12345678,
-        transactionHash: '0xTransactionHash',
-        transactionIndex: 1,
-        logIndex: 1,
-        address: '0xTokenAddress',
-      }
-
-      const findPluginStub = sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(null)
-
-      const handlerResponse = await GovernanceErc20Handler.transfer(parsedEvent, info as any)
-
-      expect(handlerResponse).to.be.undefined
-      expect(findPluginStub.calledOnceWith(info.address, info.network)).to.be.true
     })
   })
 
@@ -1031,7 +445,6 @@ describe('GovernanceErc20Handler', () => {
 
       const memberTx = {
         address: '0xMember',
-        memberBalance: '1000',
         memberVotingPower: '2000',
       }
 
@@ -1107,7 +520,6 @@ describe('GovernanceErc20Handler', () => {
 
       const memberTx = {
         address: '0xMember',
-        memberBalance: '0',
         memberVotingPower: '0',
       }
 
@@ -1159,7 +571,6 @@ describe('GovernanceErc20Handler', () => {
 
       const memberTx = {
         address: '0xMember',
-        memberBalance: '1000',
         memberVotingPower: '2000',
       }
 
@@ -1199,7 +610,6 @@ describe('GovernanceErc20Handler', () => {
 
       const memberTx = {
         address: '0xMember',
-        memberBalance: '1000',
         memberVotingPower: '2000',
       }
 
@@ -1235,44 +645,7 @@ describe('GovernanceErc20Handler', () => {
 
       const memberTx = {
         address: '0xMember',
-        memberBalance: '0',
         memberVotingPower: '1000',
-      }
-
-      const plugins = [
-        {
-          daoAddress: '0xDao1',
-          network,
-          address: '0xPlugin1',
-          tokenAddress: '0xToken1',
-        },
-      ] as any
-
-      const info = {
-        address: '0xTokenAddress',
-        blockNumber: 100,
-        network,
-      } as any
-
-      uniqueValuesStub.returns(['0xDao1'])
-      isMemberOfDaoStub.resolves(null)
-
-      await GovernanceErc20Handler._handleDaoMemberShip(memberTx, plugins, info, false)
-
-      expect(addToDaoStub.callCount).to.equal(1)
-      expect(sendMessageStub.callCount).to.equal(1)
-    })
-
-    it('should handle member with only balance (no voting power)', async () => {
-      const isMemberOfDaoStub = sandbox.stub(ProxyMember, 'isMemberOfDao')
-      const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao').resolves()
-      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      const uniqueValuesStub = sandbox.stub(utils, 'getUniqueValuesByKey')
-
-      const memberTx = {
-        address: '0xMember',
-        memberBalance: '1000',
-        memberVotingPower: '0',
       }
 
       const plugins = [

@@ -135,7 +135,8 @@ const PoolingCrawler = {
 
       return logs.filter(log => {
         if (!topicsToFilterOut.has(log.topics[0])) return true
-        if (log.topics[0] === transferTopic && !tokenAddressesSet.has(ethers.getAddress(log.address))) return false
+        // NOTE: we don't pass Transfer logs
+        // if (log.topics[0] === transferTopic && !tokenAddressesSet.has(ethers.getAddress(log.address))) return false
         return !(log.topics[0] === delegateVotesChangedTopic && !tokenAddressesSet.has(ethers.getAddress(log.address)))
       })
     } catch (error) {
