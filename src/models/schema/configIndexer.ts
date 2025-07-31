@@ -1,7 +1,7 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
-import { ICollectionNames, type IConfigIndexerIdParams, NetworksEnum } from '@types'
+import { ICollectionNames, type IConfigIndexerIdParams, LogServicePattern, NetworksEnum } from '@types'
 import { assert } from '@errors'
 
 const customName = ICollectionNames.ConfigIndexer
@@ -31,7 +31,7 @@ export default class ConfigIndexer extends Model {
   public network!: NetworksEnum
 
   @prop({ type: () => String, required: true })
-  public service!: string
+  public service!: LogServicePattern
 
   @prop({ type: () => Number, default: 0 })
   public lastSync!: number

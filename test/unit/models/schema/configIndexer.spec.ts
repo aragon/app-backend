@@ -14,7 +14,7 @@ describe('Model: ConfigIndexer', () => {
 
     rawConfigIndexer = {
       network: NetworksEnum.ethereumMainnet,
-      service: 'test-service',
+      service: 'test-service' as any,
       lastSync: 0,
     }
   })

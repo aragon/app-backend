@@ -1,9 +1,14 @@
-import type { NetworksEnum } from '@types'
+import type { LogServicePattern, NetworksEnum } from '@types'
 import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
 
 const ProxyUtils = {
-  updateProgressInConfigIndexer: async (network: NetworksEnum, service: any, lastSync: number, finished?: boolean) => {
+  updateProgressInConfigIndexer: async (
+    network: NetworksEnum,
+    service: LogServicePattern,
+    lastSync: number,
+    finished?: boolean,
+  ) => {
     await DbTx.executeTxFn(async ({ session }) => {
       const existingConfig = await Models.ConfigIndexer.findExistingLog(
         {
@@ -38,7 +43,7 @@ const ProxyUtils = {
     })
   },
 
-  getProgressFromConfigIndexer: async (network: NetworksEnum, service: any) => {
+  getProgressFromConfigIndexer: async (network: NetworksEnum, service: LogServicePattern) => {
     const existingConfig = await Models.ConfigIndexer.findExistingLog({
       network,
       service,
