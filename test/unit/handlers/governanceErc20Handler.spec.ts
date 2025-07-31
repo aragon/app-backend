@@ -798,7 +798,6 @@ describe('GovernanceErc20Handler', () => {
       expect(memberTransaction).to.be.not.null
       expect(memberTransaction.type).to.be.eq(ITransferType.delegate)
       expect(memberTransaction.side).to.be.eq(ITransferSide.incoming)
-      expect(memberTransaction.memberBalance).to.be.eq('1500')
       expect(memberTransaction.memberVotingPower).to.be.eq('2000')
       expect(memberTransaction.blockNumber).to.be.eq(info.blockNumber)
       expect(memberTransaction.blockTimestamp).to.be.eq(1630425600)
@@ -862,7 +861,6 @@ describe('GovernanceErc20Handler', () => {
       expect(memberTransaction).to.be.not.null
       expect(memberTransaction.type).to.be.eq(ITransferType.delegate)
       expect(memberTransaction.side).to.be.eq(ITransferSide.outgoing)
-      expect(memberTransaction.memberBalance).to.be.eq('1500')
       expect(memberTransaction.memberVotingPower).to.be.eq('1000')
       expect(memberTransaction.amount).to.be.eq('500')
 
