@@ -9,16 +9,10 @@ describe('migration: migrateTokenConfigIndexer', () => {
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
-    // Clean up any existing data
-    await Models.ConfigIndexer.deleteMany({})
-    await Models.Token.deleteMany({})
   })
 
   afterEach(async () => {
     sandbox?.restore()
-    // Clean up after each test
-    await Models.ConfigIndexer.deleteMany({})
-    await Models.Token.deleteMany({})
   })
 
   describe('migrateTokenConfigIndexer', () => {

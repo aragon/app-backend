@@ -11,7 +11,6 @@ class DBCrawler {
   private readonly where: object
   private readonly stopOnError: boolean
   private readonly useAggregate: boolean
-  private readonly disablePagination: boolean
   private readonly aggregate: (skip: number | undefined, limit: number | undefined) => any[]
   private readonly select: string
   private readonly skip: number
@@ -67,13 +66,6 @@ class DBCrawler {
     this.stopOnError = opts.stopOnError
 
     /**
-     * @description disablePagination
-     * @param {disablePagination}
-     * @example true
-     */
-    this.disablePagination = opts.disablePagination
-
-    /**
      * @description useAggregate
      * @param {useAggregate}
      * @example true
@@ -99,7 +91,7 @@ class DBCrawler {
      * @param {skip}
      * @example 100
      */
-    this.skip = !this.disablePagination ? opts.skip || 0 : undefined
+    this.skip = opts.skip
 
     /**
      * @description sort documents
@@ -131,11 +123,7 @@ class DBCrawler {
     this.nbTotal = 0
     this.crawlResult = { nbSuccess: 0, nbError: 0, nbTotal: 0, lastCreatedAt: null }
 
-    this.queue = async.queue((document: Document, callback: any) => {
-      this._worker(document)
-        .then(() => callback())
-        .catch(() => callback())
-    }, this.concurrency) as any
+    this.queue = async.queue(this._worker.bind(this) as any, this.concurrency)
   }
 
   static defaultOnError(error: Error, document: Document): void {
@@ -165,16 +153,15 @@ class DBCrawler {
     if (useAggregate) {
       const aggregatePipeline = this.aggregate(skip, limit)
       const response = this.model.aggregate(aggregatePipeline)
-      const documents = await response.exec()
-      return documents
+      return await response.exec()
     } else {
       let response: any = this.model.find(where).select(select).populate(populate)
 
-      if (limit && !this.disablePagination) {
+      if (limit) {
         response = response.limit(limit)
       }
 
-      if (skip && !this.disablePagination) {
+      if (skip) {
         response = response.skip(skip)
       }
 
@@ -230,8 +217,8 @@ class DBCrawler {
     this.crawlResult.nbTotal = this.nbTotal
 
     return await new Promise((resolve, reject) => {
-      const limit = this.disablePagination ? undefined : this.batchSize
-      let skip = this.disablePagination ? undefined : this.skip
+      const limit = this.batchSize
+      let skip = this.skip
 
       const fillQueue = async (): Promise<any> => {
         if (this.isOnError || !this.crawling) {
@@ -248,48 +235,20 @@ class DBCrawler {
         }
 
         this._fetchNext(limit, skip)
-          .then((items: any) => {
-            if (items?.length > 0) {
-              // eslint-disable-next-line
+          .then(items => {
+            if (items.length > 0) {
               this.queue.push(items)
-
-              if (this.disablePagination) {
-                this.crawling = false
-
-                // Wait for queue to finish
-                if (this.queue.idle()) {
-                  return resolve(this.crawlResult)
-                } else {
-                  // Queue will resolve when drained
-                  this.queue.drain(() => {
-                    resolve(this.crawlResult)
-                  })
-                }
-              } else {
-                skip! += limit!
-              }
+              skip += limit
             } else {
               this.crawling = false
-
-              // No more items, wait for queue to finish
-              if (this.queue.idle()) {
-                return resolve(this.crawlResult)
-              } else {
-                // Queue will resolve when drained
-                this.queue.drain(() => {
-                  resolve(this.crawlResult)
-                })
-              }
+              resolve(this.crawlResult)
             }
 
             return true
           })
-          .catch((error: any) => {
-            reject(error)
-          })
+          .catch(reject)
       }
 
-      // Keep original behavior - drain calls fillQueue
       this.queue.drain(fillQueue) // eslint-disable-line
       fillQueue() // eslint-disable-line
     })

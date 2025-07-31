@@ -26,8 +26,8 @@ export const FixGovernanceVeMigration: IMigration & { fixLock: any; parseAndFixL
         },
 
         where: { id: { $regex: '^(ethereum-[^-]+)-([^-]+)-([^-]+)-([^-]+)-([^-]+)-([^-]+)-([^-]+)$' } },
-        batchSize: 1000,
-        concurrency: 10,
+        batchSize: 2000,
+        concurrency: 200,
       })
 
       await crawler.crawl()
