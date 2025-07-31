@@ -253,26 +253,97 @@ describe('Model/Utils: crawler', () => {
   })
 
   it('resolves with crawlResult when an error occurs and stopOnError is true', async () => {
-    const onDocumentStub = sandbox.stub()
-    onDocumentStub.resolves()
-    onDocumentStub.onCall(5).rejects(new Error('Simulated error'))
+    let processOrder: string[] = []
+    let errorCaught = false
+    let errorMessage = ''
+
+    const onDocumentStub = sandbox.stub().callsFake(async doc => {
+      processOrder.push(`start-${doc._id}`)
+
+      // Add small delay to make processing more predictable
+      await new Promise(resolve => setTimeout(resolve, 10))
+
+      // Simulate error on document with _id '1'
+      if (doc._id === '1') {
+        processOrder.push(`error-${doc._id}`)
+        throw new Error('Simulated error')
+      }
+
+      processOrder.push(`success-${doc._id}`)
+      return Promise.resolve()
+    })
+
+    const onErrorStub = sandbox.stub().callsFake((error, doc) => {
+      console.log(`onError called for document ${doc._id}: ${error.message}`)
+      if (doc._id === '1') {
+        errorCaught = true
+        errorMessage = error.message
+      }
+    })
 
     const crawler = new DBCrawler({
       model: mockModel,
       onDocument: onDocumentStub,
+      onError: onErrorStub, // Add custom error handler
       stopOnError: true,
-      batchSize: 2,
-      concurrency: 1,
+      batchSize: 10, // Large batch to get all documents at once
+      concurrency: 1, // Single worker to ensure order
     })
 
-    const simulatedDocuments = new Array(10).fill(null).map((_, index) => ({ _id: index.toString() }))
-    mockModel.exec = sandbox.stub().resolves(simulatedDocuments)
+    // Create fewer documents to make test more predictable
+    const simulatedDocuments = [
+      { _id: '0' },
+      { _id: '1' }, // This will error
+      { _id: '2' },
+      { _id: '3' },
+    ]
+
+    let execCallCount = 0
+    mockModel.exec = sandbox.stub().callsFake(() => {
+      execCallCount++
+
+      if (execCallCount === 1) {
+        return Promise.resolve(simulatedDocuments)
+      } else {
+        return Promise.resolve([])
+      }
+    })
+
+    // Don't forget to stub countDocuments
+    mockModel.countDocuments = sandbox.stub().returns(Promise.resolve(4))
 
     const crawlResult = await crawler.crawl()
 
+    console.log('Process order:', processOrder)
+    console.log('Crawl result:', crawlResult)
+    console.log('Error caught:', errorCaught)
+    console.log('Error message:', errorMessage)
+
+    // Verify error was caught by our custom handler
+    expect(errorCaught).to.be.true
+    expect(errorMessage).to.equal('Simulated error')
+    expect(onErrorStub.calledOnce).to.be.true
+
+    // Verify crawl results
     expect(crawlResult.nbError).to.equal(1)
-    expect(crawlResult.nbSuccess).to.equal(9)
-    expect(crawlResult.nbTotal).to.equal(10)
+    expect(crawlResult.nbTotal).to.equal(4)
+    expect(crawlResult.nbSuccess).to.equal(1) // Only document '0' succeeded
+
+    // Verify process order
+    expect(processOrder).to.include('start-0')
+    expect(processOrder).to.include('success-0')
+    expect(processOrder).to.include('start-1')
+    expect(processOrder).to.include('error-1')
+
+    // With stopOnError=true and concurrency=1, documents after the error should NOT be processed
+    expect(onDocumentStub.callCount).to.equal(2) // Only docs 0 and 1
+
+    // Documents 2 and 3 should NOT have been processed
+    expect(processOrder).to.not.include('start-2')
+    expect(processOrder).to.not.include('start-3')
+
+    // Additional verification
+    expect(processOrder.length).to.equal(4) // start-0, success-0, start-1, error-1
   })
 
   it('correctly handles useAggregate = true', async () => {
@@ -332,11 +403,30 @@ describe('Model/Utils: crawler', () => {
       concurrency: 1,
     })
 
-    await crawler._worker(mockError as any)
+    // Create a mock document with an _id
+    const mockDocument = {
+      _id: {
+        toString: () => 'test-id-123',
+      },
+      createdAt: new Date(),
+    }
+
+    // Set a mock resolve function to prevent the error
+    crawler['crawlResolve'] = sandbox.stub()
+
+    // Call _worker
+    await crawler._worker(mockDocument)
+
+    // Wait for setImmediate to execute
+    await new Promise(resolve => setImmediate(resolve))
 
     expect(onErrorStub.calledOnce).to.be.true
+    expect(onErrorStub.calledWith(mockError, mockDocument)).to.be.true
     expect(crawler['crawlResult'].nbError).to.eq(1)
+    expect(crawler['crawlResult'].nbSuccess).to.eq(0)
     expect(crawler['isOnError']).to.be.true
+    expect(crawler['crawling']).to.be.false
+    expect(crawler['isCompleted']).to.be.true
   })
 
   it('correctly handles sorting and raw mode', async () => {

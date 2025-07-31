@@ -9,7 +9,7 @@ class DBCrawler {
   private readonly onDocument: (document: Document, stat: { nbWorked: number; nbTotal: number }) => Promise<void>
 
   private readonly where: object
-  private readonly stopOnError: boolean
+  public stopOnError: boolean
   private readonly useAggregate: boolean
   private readonly aggregate: (skip: number | undefined, limit: number | undefined) => any[]
   private readonly select: string
@@ -21,10 +21,11 @@ class DBCrawler {
   private readonly concurrency: number
   private readonly batchSize: number
   private crawling: boolean
-  private isOnError: boolean
   private nbWorked: number
   private nbTotal: number
   private isCompleted: boolean
+  public isOnError: boolean
+  private crawlResolve: any
   private readonly processedIds = new Set<string>()
   public readonly crawlResult: { nbSuccess: number; nbError: number; nbTotal: number; lastCreatedAt: null | Date }
   private readonly queue: async.QueueObject<Document[]>
@@ -38,17 +39,84 @@ class DBCrawler {
       throw new Error('Need model to crawl')
     }
 
+    /**
+     * @description mongoose model
+     * @param {model}
+     * @example mongoose.model('invoice')
+     */
     this.model = opts.model
+
+    /**
+     * @description mongoose model
+     * @param {onDocument}
+     * @example myFunction
+     * @returns {Function} Returns a function with the current document
+     */
     this.onDocument = opts.onDocument
+
+    /**
+     * @description where document
+     * @param {where}
+     * @example {name: 'goo', surname: 'baspp'}
+     */
     this.where = opts.where || {}
+
+    /**
+     * @description stopOnError
+     * @param {stopOnError}
+     * @example true
+     */
     this.stopOnError = opts.stopOnError
+
+    /**
+     * @description useAggregate
+     * @param {useAggregate}
+     * @example true
+     */
     this.useAggregate = opts.useAggregate || false
+
+    /**
+     * @description aggregation document
+     * @param {aggregate}
+     * @example [{$lookup: {from: 'subscriptions'}}]
+     */
     this.aggregate = opts.aggregate
+
+    /**
+     * @description select document fields
+     * @param {select}
+     * @example '_id name surname'
+     */
     this.select = opts.select || ''
+
+    /**
+     * @description set skip documents
+     * @param {skip}
+     * @example 100
+     */
     this.skip = opts.skip
+
+    /**
+     * @description sort documents
+     * @param {sort}
+     * @example {'created_at': -1}
+     */
     this.sort = opts.sort || undefined
+
+    /**
+     * @description get raw documents
+     * @param {boolean}
+     * @example true
+     */
     this.raw = opts.raw || false
+
+    /**
+     * @description populate document
+     * @param {populate}
+     * @example 'tags', '_id name'
+     */
     this.populate = opts.populate || ''
+
     this.onError = opts.onError || DBCrawler.defaultOnError
     this.concurrency = opts.concurrency || 2
     this.batchSize = opts.batchSize || 10
@@ -162,6 +230,14 @@ class DBCrawler {
       this.crawlResult.nbError++
       if (this.stopOnError) {
         this.isOnError = true
+        this.crawling = false
+        this.isCompleted = true
+        this.queue.kill()
+
+        // Force immediate resolution
+        setImmediate(() => {
+          this._finalizeCrawl(this.crawlResolve)
+        })
       }
     }
   }
@@ -186,6 +262,7 @@ class DBCrawler {
     this.crawlResult.nbTotal = this.nbTotal
 
     return await new Promise((resolve, reject) => {
+      this.crawlResolve = resolve
       const limit = this.batchSize
       let skip = this.skip || 0
       let consecutiveEmptyBatches = 0
@@ -257,6 +334,12 @@ class DBCrawler {
   private _finalizeCrawl(resolve: (value: any) => void): void {
     // Clear the drain handler to prevent infinite loops
     this.queue.drain(() => {})
+
+    // If stopOnError triggered, resolve immediately
+    if (this.isOnError && this.stopOnError) {
+      resolve(this.crawlResult)
+      return
+    }
 
     if (this.queue.idle()) {
       resolve(this.crawlResult)
