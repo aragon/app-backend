@@ -165,8 +165,9 @@ describe('migration: migrateTokenConfigIndexer', () => {
       // Should keep the higher lastSync value
       expect(polygonTokenDoc?.lastSync).to.equal(68998694)
 
-      // Should have processed 7 documents (ethereum-sepolia doesn't match the regex - only has one address)
-      expect(spyConfigName.callCount).to.equal(7)
+      // Should have processed 6 documents
+      // (ethereum-sepolia doesn't match the regex - only has one address and one is duplicate)
+      expect(spyConfigName.callCount).to.equal(6)
     })
 
     it('should handle duplicate tokens with race conditions', async () => {

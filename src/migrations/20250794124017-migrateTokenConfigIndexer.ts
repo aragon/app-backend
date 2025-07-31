@@ -26,12 +26,14 @@ interface TokenConfig {
 export const migrateTokenConfigIndexerMigration: IMigration & {
   extractInfoFromServiceName: (service: string) => TokenConfig | null
   deleteUnused: () => Promise<void>
+  deleteDuplicated: () => Promise<void>
 } = {
   start: async () => {
     logger.info('Starting migration', llo({ migration: '20250794124017-migrateTokenConfigIndexer' }))
 
     try {
       await migrateTokenConfigIndexerMigration.deleteUnused()
+      await migrateTokenConfigIndexerMigration.deleteDuplicated()
 
       const crawlerTokens = new DBCrawler({
         model: Models.ConfigIndexer,
@@ -57,102 +59,10 @@ export const migrateTokenConfigIndexerMigration: IMigration & {
             config.interfaceType === IPluginInterfaceType.gauge
           ) {
             const service = ConfigIndexerHelper.builders.token(token.type, token.network, token.address)
-            const newId = Models.ConfigIndexer.getEntityId({ network: configIndexer.network, service })
-
-            try {
-              // Check if a document with the new service already exists
-              const existingDoc = await Models.ConfigIndexer.findOne({
-                id: newId,
-              })
-
-              if (existingDoc) {
-                // Document already exists for this token
-                // Always keep the one with higher lastSync
-                if (configIndexer.lastSync && existingDoc.lastSync && configIndexer.lastSync > existingDoc.lastSync) {
-                  // Current document has higher lastSync, replace the existing one
-                  await existingDoc.deleteOne()
-                  await configIndexer.update({
-                    id: newId,
-                    service,
-                  })
-                  logger.info(
-                    'Replaced existing document with higher lastSync version',
-                    llo({
-                      oldService: configIndexer.service,
-                      newService: service,
-                      oldLastSync: existingDoc.lastSync,
-                      newLastSync: configIndexer.lastSync,
-                    }),
-                  )
-                } else {
-                  // Existing document has higher or equal lastSync, keep it and delete current
-                  await configIndexer.deleteOne()
-                  logger.info(
-                    'Deleted duplicate token document',
-                    llo({
-                      oldService: configIndexer.service,
-                      newService: service,
-                      keptLastSync: existingDoc.lastSync,
-                      deletedLastSync: configIndexer.lastSync,
-                    }),
-                  )
-                }
-              } else {
-                // No existing document, update this one
-                await configIndexer.update({
-                  id: newId,
-                  service,
-                })
-                logger.info(
-                  'Migrated token document',
-                  llo({
-                    oldService: configIndexer.service,
-                    newService: service,
-                  }),
-                )
-              }
-            } catch (error: any) {
-              if (error.code === 11000) {
-                // Duplicate key error - another document already exists with this ID
-                // Check which one has higher lastSync and keep that one
-                const existingDoc = await Models.ConfigIndexer.findOne({ id: newId })
-
-                if (
-                  existingDoc &&
-                  configIndexer.lastSync &&
-                  existingDoc.lastSync &&
-                  configIndexer.lastSync > existingDoc.lastSync
-                ) {
-                  // Current document has higher lastSync, replace the existing one
-                  await existingDoc.deleteOne()
-                  await configIndexer.update({
-                    id: newId,
-                    service,
-                  })
-                  logger.info(
-                    'Replaced existing document with higher lastSync version (race condition)',
-                    llo({
-                      oldService: configIndexer.service,
-                      newService: service,
-                      oldLastSync: existingDoc.lastSync,
-                      newLastSync: configIndexer.lastSync,
-                    }),
-                  )
-                } else {
-                  // Existing document has higher or equal lastSync, delete current
-                  await configIndexer.deleteOne()
-                  logger.info(
-                    'Deleted duplicate token document (race condition)',
-                    llo({
-                      oldService: configIndexer.service,
-                      newService: service,
-                    }),
-                  )
-                }
-              } else {
-                throw error
-              }
-            }
+            await configIndexer.update({
+              id: Models.ConfigIndexer.getEntityId({ network: configIndexer.network, service }),
+              service,
+            })
           } else {
             logger.error('Error to check', llo({ service: configIndexer.service }))
           }
@@ -271,6 +181,89 @@ export const migrateTokenConfigIndexerMigration: IMigration & {
 
   stop: async () => {
     // Usually empty for migrations
+  },
+
+  deleteDuplicated: async () => {
+    // Find all documents to delete (duplicates with lower lastSync)
+    const toDelete = await Models.ConfigIndexer.aggregate([
+      {
+        $match: {
+          service: { $regex: '^(tokenVoting|gauge).*-0x[a-fA-F0-9]+-0x[a-fA-F0-9]+$' },
+        },
+      },
+      {
+        $addFields: {
+          addresses: {
+            $filter: {
+              input: { $split: ['$service', '-'] },
+              cond: { $regexMatch: { input: '$$this', regex: '^0x[a-fA-F0-9]+$' } },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          tokenAddress: { $arrayElemAt: ['$addresses', 1] },
+        },
+      },
+      // Sort by network, token, and lastSync DESC
+      {
+        $sort: {
+          network: 1,
+          tokenAddress: 1,
+          lastSync: -1,
+        },
+      },
+      // Group and keep all documents
+      {
+        $group: {
+          _id: {
+            network: '$network',
+            tokenAddress: { $toLower: '$tokenAddress' },
+          },
+          allDocs: { $push: { _id: '$_id', lastSync: '$lastSync', service: '$service' } },
+          count: { $sum: 1 },
+        },
+      },
+      // Only process groups with duplicates
+      {
+        $match: {
+          count: { $gt: 1 },
+        },
+      },
+      // Project to get all except the first (highest lastSync)
+      {
+        $project: {
+          toDelete: { $slice: ['$allDocs', 1, { $size: '$allDocs' }] }, // Skip first, take rest
+        },
+      },
+      // Unwind to get individual documents to delete
+      {
+        $unwind: '$toDelete',
+      },
+      {
+        $replaceRoot: { newRoot: '$toDelete' },
+      },
+    ])
+
+    logger.info(
+      'Found duplicates to delete',
+      llo({
+        documentsToDelete: toDelete.length,
+      }),
+    )
+
+    const idsToDelete = toDelete.map(doc => doc._id)
+    const deleteResult = await Models.ConfigIndexer.deleteMany({
+      _id: { $in: idsToDelete },
+    })
+
+    logger.info(
+      'Deleted duplicate documents',
+      llo({
+        deletedCount: deleteResult.deletedCount,
+      }),
+    )
   },
 
   deleteUnused: async () => {
