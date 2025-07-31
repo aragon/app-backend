@@ -22,6 +22,7 @@ import Web3Helper from '@helpers/web3'
 import RouteScanHelper from '@helpers/routeScanHelper'
 import config from '@config'
 import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
+import ConfigIndexerHelper from '@helpers/configIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'provider:ChilizProvider' })
 
@@ -29,8 +30,6 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
   _rpcCall: any
   _fetchTxList: ITransactionFetchFunction
   _fetchERC20Transfers: ITransactionFetchFunction
-  getTokenHoldersPage: any
-  _getAllTokenHolders: any
 } = {
   getTokenBalances: async ({ address, network }) => {
     const path = 'api'
@@ -191,7 +190,8 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
 
   fetchAddressTxns: async ({ address, network }) => {
     try {
-      const lastSyncStat = await ProxyUtils.getProgressFromConfigIndexer(network, `transferList-${address}-${network}`)
+      const service = ConfigIndexerHelper.builders.transferList(network, address)
+      const lastSyncStat = await ProxyUtils.getProgressFromConfigIndexer(network, service)
       const latestBlock = await Web3Helper.getBlockNumber(undefined, network)
       const blockFilter: ITxFilterBlockArgs = {
         startBlock: lastSyncStat?.lastSync ? lastSyncStat.lastSync + 1 : 0,
@@ -251,7 +251,7 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
       const sortedTxList = parsedTransfers.filter(Boolean).sort((a: any, b: any) => a.blockNum - b.blockNum)
       await ProxyUtils.updateProgressInConfigIndexer(
         network,
-        `transferList-${address}-${network}`,
+        ConfigIndexerHelper.builders.transferList(network, address),
         sortedTxList[sortedTxList.length - 1]?.blockNum || 0,
       )
       return sortedTxList
@@ -402,134 +402,6 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
     return {
       type: IBlockScoutAddressType.TOKEN,
       name: token.name,
-    }
-  },
-
-  getAllTokenHolders: async ({
-    address,
-    network,
-    callback,
-    syncKey,
-  }: {
-    address: string
-    network: NetworksEnum
-    callback: ({ address, value }: { address: string; value: string }) => Promise<void> | void
-    syncKey?: string
-  }) => {
-    const syncProgress = await ProxyUtils.getProgressFromConfigIndexer(network, syncKey)
-    if (syncProgress?.end) {
-      return
-    }
-    const initialPage = syncProgress ? syncProgress.lastSync + 1 : 1
-
-    try {
-      return await ChilizProvider._getAllTokenHolders(
-        address,
-        network,
-        { pageSize: 100, delayMs: 500, startPage: initialPage },
-        async (holders: any, pageInfo: any) => {
-          await Promise.all(holders.map(async (holder: any) => await callback(holder)))
-
-          if (syncKey) {
-            await ProxyUtils.updateProgressInConfigIndexer(network, syncKey, pageInfo.currentPage, pageInfo.isLastPage)
-          }
-        },
-      )
-    } catch (error) {
-      logger.error('Error in getAllTokenHolders', llo({ error, address, network }))
-    }
-  },
-
-  getTokenHoldersPage: async (
-    tokenAddress: string,
-    network: NetworksEnum,
-    page: number = 1,
-    pageSize: number = 100,
-  ) => {
-    try {
-      const path = 'api'
-      const params = {
-        module: 'token',
-        action: 'getTokenHolders',
-        contractaddress: tokenAddress,
-        page,
-        offset: pageSize,
-      }
-
-      const response = await ChilizProvider._rpcCall(path, params, network)
-
-      if (response?.message === 'OK' && Array.isArray(response?.result) && response.result.length > 0) {
-        return {
-          holders: response.result.map((item: any) => ({
-            address: ethers.getAddress(item.address),
-            value: item.value,
-          })),
-          total: response.result.length,
-        }
-      }
-
-      return { holders: [], total: 0 }
-    } catch (error) {
-      logger.error('Error fetching token holders page', llo({ error, page, tokenAddress }))
-      return { holders: [], total: 0 }
-    }
-  },
-
-  _getAllTokenHolders: async (
-    tokenAddress: string,
-    network: NetworksEnum,
-    options = {
-      pageSize: 100,
-      delayMs: 500,
-      startPage: 1,
-    },
-    callback?: (
-      holders: Array<{ address: string; value: string }>,
-      pageInfo: { currentPage: number; isLastPage: boolean; total: number },
-    ) => Promise<void> | void,
-  ) => {
-    try {
-      const allHolders: Array<{ address: string; value: string }> = []
-      let page = options.startPage || 1
-      let hasMoreData = true
-
-      while (hasMoreData) {
-        const pageResult = await ChilizProvider.getTokenHoldersPage(tokenAddress, network, page, options.pageSize)
-
-        if (!pageResult.holders || pageResult.holders.length === 0) {
-          hasMoreData = false
-          break
-        }
-
-        const isLastPage = pageResult.holders.length < options.pageSize
-
-        if (callback) {
-          await callback(pageResult.holders, {
-            currentPage: page,
-            isLastPage,
-            total: pageResult.total,
-          })
-        }
-
-        allHolders.push(...pageResult.holders)
-
-        if (isLastPage) {
-          hasMoreData = false
-        } else {
-          page++
-          await utils.wait(options.delayMs)
-        }
-      }
-
-      return {
-        holders: allHolders,
-        total: allHolders.length,
-        hasMore: hasMoreData,
-        lastPage: page,
-      }
-    } catch (error) {
-      logger.error('Error _getAllTokenHolders', llo({ error, tokenAddress }))
-      return { holders: [], total: 0, hasMore: false, lastPage: options.startPage }
     }
   },
 
