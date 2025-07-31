@@ -19,6 +19,13 @@ describe('migration: migrateTokenConfigIndexer', () => {
     it('should migrate token config indexer', async () => {
       const dbData = [
         {
+          id: 'polygon-mainnet-tokenVoting-polygon-mainnet-0xd54662215e0602b79C7eE3FcA65562E2Ab817A2E-0xEAc07e0595883C3Ea9E96ABD096DdC640f81F087',
+          network: 'polygon-mainnet',
+          service:
+            'tokenVoting-polygon-mainnet-0xd54662215e0602b79C7eE3FcA65562E2Ab817A2E-0xEAc07e0595883C3Ea9E96ABD096DdC640f81F087',
+          lastSync: 68998694,
+        },
+        {
           id: 'ethereum-mainnet-gauge-ethereum-mainnet-0x69E8D5151d71d4cde35b5076aF3023C7D54d379E-0x1b6ec227ceBeC25118270efbb4b67642fc29965E',
           network: 'ethereum-mainnet',
           service:
@@ -64,7 +71,12 @@ describe('migration: migrateTokenConfigIndexer', () => {
       await Promise.all(dbData.map(async data => Models.ConfigIndexer.create(data)))
 
       const dbTokenData = [
-        // to check this one
+        {
+          id: '0xEAc07e0595883C3Ea9E96ABD096DdC640f81F087-polygon-mainnet',
+          network: 'polygon-mainnet',
+          type: 'ERC20',
+          address: '0xEAc07e0595883C3Ea9E96ABD096DdC640f81F087',
+        },
         {
           id: '0x211aEa089C589bbCB636A52283B520E1b4F7c1b3-ethereum-sepolia',
           network: 'ethereum-sepolia',
@@ -121,7 +133,7 @@ describe('migration: migrateTokenConfigIndexer', () => {
       docs.map((doc: any) => {
         expect(doc.id).to.eq(Models.ConfigIndexer.getEntityId({ network: doc.network, service: doc.service }))
       })
-      expect(spyConfigName.callCount).to.equal(5) // not 6 as it should skip all plugins config
+      expect(spyConfigName.callCount).to.equal(6) // not 6 as it should skip all plugins config
     })
 
     it('should migrate transferList config indexer', async () => {

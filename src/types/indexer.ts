@@ -45,8 +45,8 @@ export type LogServicePattern =
   | null
 
 // Individual pattern types
-export type DepositLogService = `${IndexerType.deposit}-${NetworksEnum}-${IEnumIndexerService.depositTxs}`
-export type WithdrawLogService = `${IndexerType.withdraw}-${NetworksEnum}-${IEnumIndexerService.withdrawTxs}`
+export type DepositLogService = `${IndexerType.deposit}-${NetworksEnum}-${string}-${IEnumIndexerService.depositTxs}`
+export type WithdrawLogService = `${IndexerType.withdraw}-${NetworksEnum}-${string}-${IEnumIndexerService.withdrawTxs}`
 export type IndexerLogService = `${IndexerType.indexer}-${NetworksEnum}`
 export type PluginLogService = `${IPluginInterfaceType}-${NetworksEnum}-${string}`
 export type DaoLogService = `${IndexerType.dao}-${NetworksEnum}-${string}`
