@@ -217,9 +217,11 @@ export const migrateTokenConfigIndexerMigration: IMigration & {
       parts[1].startsWith('0x') &&
       parts[2] === IEnumIndexerService.withdrawTxs
     ) {
+      const network = parts.slice(2).join('-') as NetworksEnum
       return {
         indexerType: IndexerType.withdraw,
         daoAddress: parts[1],
+        network,
       }
     }
 

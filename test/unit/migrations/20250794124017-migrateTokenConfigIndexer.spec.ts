@@ -214,6 +214,12 @@ describe('migration: migrateTokenConfigIndexer', () => {
     it('should migrate withdraw config indexer', async () => {
       const stubData = [
         {
+          id: 'withdraw-0x2c3E69a01922EEaD380E1143195dF34737EeD4ac-withdrawTxs',
+          network: 'polygon-mainnet',
+          service: 'withdraw-0x2c3E69a01922EEaD380E1143195dF34737EeD4ac-withdrawTxs',
+          lastSync: 12345678,
+        },
+        {
           id: 'withdraw-0x0FE96b4D862981C39D6cA9f5c8d58d6d92AaB8dA-withdrawTxs',
           network: 'ethereum-mainnet',
           service: 'withdraw-0x0FE96b4D862981C39D6cA9f5c8d58d6d92AaB8dA-withdrawTxs',
@@ -241,7 +247,7 @@ describe('migration: migrateTokenConfigIndexer', () => {
 
       const updatedDocs = await Models.ConfigIndexer.find({ service: /withdraw/ }).lean()
 
-      expect(updatedDocs).to.have.lengthOf(3)
+      expect(updatedDocs).to.have.lengthOf(4)
 
       updatedDocs.forEach(doc => {
         // Extract the address from the service string
