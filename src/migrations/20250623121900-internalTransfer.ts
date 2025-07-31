@@ -1,4 +1,4 @@
-import { type IMigration } from '@types'
+import { IMigHelper, type IMigration } from '@types'
 import logger from '@logger'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
@@ -7,7 +7,9 @@ import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: internalTransfer' })
 
-export const internalTransferMigration: IMigration = {
+export const internalTransferMigration: IMigration & IMigHelper = {
+  countDocs: 0,
+
   start: async () => {
     logger.info('Starting migration', llo({ migration: '20250623121900-internalTransfer' }))
 
@@ -15,7 +17,9 @@ export const internalTransferMigration: IMigration = {
       const crawler = new DBCrawler({
         model: Models.Proposal,
         onDocument: async (proposal: Proposal) => {
+          internalTransferMigration.countDocs++
           await DaoTransactions.parseTransactionFromProposalAction(proposal)
+          logger.verbose('Processed document', llo({ count: internalTransferMigration.countDocs }))
         },
         onError: (error: any, document: any) => {
           logger.error('Error fix internal transfer on proposal', llo({ error, document }))
