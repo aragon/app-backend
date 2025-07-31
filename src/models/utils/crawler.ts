@@ -231,7 +231,15 @@ class DBCrawler {
 
       const fillQueue = async (): Promise<any> => {
         if (this.isOnError || !this.crawling) {
-          resolve(this.crawlResult)
+          // Wait for queue to complete processing
+          if (this.queue.idle()) {
+            resolve(this.crawlResult)
+          } else {
+            // Set up a one-time drain handler to resolve when queue empties
+            this.queue.drain(() => {
+              resolve(this.crawlResult)
+            })
+          }
           return true
         }
 
@@ -243,13 +251,31 @@ class DBCrawler {
 
               if (this.disablePagination) {
                 this.crawling = false
-                return resolve(this.crawlResult)
+
+                // Wait for queue to finish
+                if (this.queue.idle()) {
+                  return resolve(this.crawlResult)
+                } else {
+                  // Queue will resolve when drained
+                  this.queue.drain(() => {
+                    resolve(this.crawlResult)
+                  })
+                }
               } else {
                 skip! += limit!
               }
             } else {
               this.crawling = false
-              return resolve(this.crawlResult)
+
+              // No more items, wait for queue to finish
+              if (this.queue.idle()) {
+                return resolve(this.crawlResult)
+              } else {
+                // Queue will resolve when drained
+                this.queue.drain(() => {
+                  resolve(this.crawlResult)
+                })
+              }
             }
 
             return true
@@ -259,6 +285,7 @@ class DBCrawler {
           })
       }
 
+      // Keep original behavior - drain calls fillQueue
       this.queue.drain(fillQueue) // eslint-disable-line
       fillQueue() // eslint-disable-line
     })
