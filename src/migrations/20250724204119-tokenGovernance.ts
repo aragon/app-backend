@@ -1,4 +1,4 @@
-import { IMigHelper, type IMigration, ITokenType } from '@types'
+import { type IMigHelper, type IMigration, ITokenType } from '@types'
 import logger from '@logger'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
