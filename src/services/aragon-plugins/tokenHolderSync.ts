@@ -5,10 +5,9 @@ import type Plugin from '@models/schema/plugin'
 import type Token from '@models/schema/token'
 import configIndexer from '@indexer/configIndexer'
 import config from '@config'
-import { ProxyMember } from '@modules/proxyMember'
-import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
 import ProxyWeb3Provider from '@modules/proxyProvider'
+import GovernanceBatchHandler from '@handlers/governanceBatchHandler'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-plugins:tokenHolderSync' })
 
@@ -80,87 +79,6 @@ export const TokenHolderSync = {
     return configGovLogs.filter((item: IIndexerConfig) => item.event === governanceLogTopic)
   },
 
-  syncAllTokenHolders: async (plugin: Plugin, token: Token) => {
-    const blockScoutSyncKey = TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.TokenHolders)
-
-    const existingSync = await Models.ConfigIndexer.findExistingLog({
-      network: plugin.network,
-      service: blockScoutSyncKey,
-    })
-
-    if (existingSync?.end) {
-      logger.verbose(
-        'TokenHolderSync - BlockScout sync already completed, skipping',
-        llo({
-          network: plugin.network,
-          tokenAddress: token.address,
-          pluginAddress: plugin.address,
-        }),
-      )
-      return
-    }
-
-    logger.verbose(
-      'TokenHolderSync - Starting/Resuming BlockScout sync',
-      llo({
-        network: plugin.network,
-        tokenAddress: token.address,
-        pluginAddress: plugin.address,
-        lastSync: existingSync?.lastSync || 0,
-      }),
-    )
-
-    const result = await ProxyWeb3Provider.getAllTokenHolders({
-      address: token.address,
-      network: token.network,
-      syncKey: blockScoutSyncKey,
-      callback: async holder => {
-        const balanceAmount = holder.value.toString()
-        if (balanceAmount === '0') return
-
-        const member = await ProxyMember.createMember(holder.address)
-
-        const memberBalanceDb = await ProxyMember.getBalances({
-          address: holder.address,
-          tokenAddress: token.address,
-          network: token.network,
-        })
-
-        if (!(member && memberBalanceDb)) return
-
-        await DbTx.executeTxFn(async ({ session }) => {
-          await memberBalanceDb?.increaseBalance(
-            {
-              amount: balanceAmount,
-              blockNumber: plugin.blockNumber,
-            },
-            { session },
-          )
-          await session.commitTransaction()
-          await session.endSession()
-        })
-
-        await ProxyMember.addToDao({
-          memberAddress: holder.address,
-          daoAddress: plugin.daoAddress,
-          pluginAddress: plugin.address,
-          tokenAddress: plugin.tokenAddress,
-          network: plugin.network,
-        })
-      },
-    })
-
-    logger.verbose(
-      'TokenHolderSync - Sync completed or suspended',
-      llo({
-        network: plugin.network,
-        tokenAddress: token.address,
-        hasMore: result.hasMore,
-        lastPage: result.lastPage,
-      }),
-    )
-  },
-
   syncDelegationEvents: async (plugin: Plugin, token: Token) => {
     const configDelegationOnly = TokenHolderSync._getGovernanceLogConfigsByName(
       IGovernanceErc20Logs.DelegateVotesChanged,
@@ -184,6 +102,12 @@ export const TokenHolderSync = {
       },
       logService: TokenHolderSync.getTagName(plugin, token, TokenSyncTagName.Delegation),
       stopOnError: true,
+      skipLogProcessing: true,
+      filterLogs: async (logs: any) => {
+        const batchHandler = new GovernanceBatchHandler(token.network, token.address)
+        await batchHandler.processBatchDelegations(logs)
+        return [logs[logs.length - 1]]
+      },
     })
 
     await crawlerTokenDelegationOnly.crawl()
