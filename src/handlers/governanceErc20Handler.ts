@@ -201,15 +201,8 @@ export const GovernanceErc20Handler = {
       await ProxyMember.createMember(memberAddress)
       const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
 
-      const [memberVotingPower, memberTokenBalance, memberTokenBalanceDb] = await Promise.all([
-        GovernanceErc20Helper.getPastVotes(
-          memberAddress,
-          info.address,
-          info.blockNumber,
-          blockTimestamp,
-          info.network,
-          token?.clockMode,
-        ),
+      const memberVotingPower = BigInt(parsedEvent?.args?.newBalance || 0).toString()
+      const [memberTokenBalance, memberTokenBalanceDb] = await Promise.all([
         Web3Helper.getTokenBalanceAtBlock({
           address: memberAddress,
           tokenAddress: info.address,
