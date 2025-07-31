@@ -40,11 +40,12 @@ export const migrateTokenConfigIndexerMigration: IMigration & {
 
           if (!config) {
             logger.error(
-              'Migration ConfigIndexer service does not match expected pattern',
+              'Migration ConfigIndexer service does not match expected pattern token',
               llo({ service: configIndexer.service }),
             )
             return
           }
+
           const token = await Models.Token.findByTokenAddressAndNetwork(config.tokenAddress, config.network)
           if (!token) {
             logger.error('Migration ConfigIndexer token not found', llo({ service: configIndexer.service }))
@@ -56,10 +57,102 @@ export const migrateTokenConfigIndexerMigration: IMigration & {
             config.interfaceType === IPluginInterfaceType.gauge
           ) {
             const service = ConfigIndexerHelper.builders.token(token.type, token.network, token.address)
-            await configIndexer.update({
-              id: Models.ConfigIndexer.getEntityId({ network: configIndexer.network, service }),
-              service,
-            })
+            const newId = Models.ConfigIndexer.getEntityId({ network: configIndexer.network, service })
+
+            try {
+              // Check if a document with the new service already exists
+              const existingDoc = await Models.ConfigIndexer.findOne({
+                id: newId,
+              })
+
+              if (existingDoc) {
+                // Document already exists for this token
+                // Always keep the one with higher lastSync
+                if (configIndexer.lastSync && existingDoc.lastSync && configIndexer.lastSync > existingDoc.lastSync) {
+                  // Current document has higher lastSync, replace the existing one
+                  await existingDoc.deleteOne()
+                  await configIndexer.update({
+                    id: newId,
+                    service,
+                  })
+                  logger.info(
+                    'Replaced existing document with higher lastSync version',
+                    llo({
+                      oldService: configIndexer.service,
+                      newService: service,
+                      oldLastSync: existingDoc.lastSync,
+                      newLastSync: configIndexer.lastSync,
+                    }),
+                  )
+                } else {
+                  // Existing document has higher or equal lastSync, keep it and delete current
+                  await configIndexer.deleteOne()
+                  logger.info(
+                    'Deleted duplicate token document',
+                    llo({
+                      oldService: configIndexer.service,
+                      newService: service,
+                      keptLastSync: existingDoc.lastSync,
+                      deletedLastSync: configIndexer.lastSync,
+                    }),
+                  )
+                }
+              } else {
+                // No existing document, update this one
+                await configIndexer.update({
+                  id: newId,
+                  service,
+                })
+                logger.info(
+                  'Migrated token document',
+                  llo({
+                    oldService: configIndexer.service,
+                    newService: service,
+                  }),
+                )
+              }
+            } catch (error: any) {
+              if (error.code === 11000) {
+                // Duplicate key error - another document already exists with this ID
+                // Check which one has higher lastSync and keep that one
+                const existingDoc = await Models.ConfigIndexer.findOne({ id: newId })
+
+                if (
+                  existingDoc &&
+                  configIndexer.lastSync &&
+                  existingDoc.lastSync &&
+                  configIndexer.lastSync > existingDoc.lastSync
+                ) {
+                  // Current document has higher lastSync, replace the existing one
+                  await existingDoc.deleteOne()
+                  await configIndexer.update({
+                    id: newId,
+                    service,
+                  })
+                  logger.info(
+                    'Replaced existing document with higher lastSync version (race condition)',
+                    llo({
+                      oldService: configIndexer.service,
+                      newService: service,
+                      oldLastSync: existingDoc.lastSync,
+                      newLastSync: configIndexer.lastSync,
+                    }),
+                  )
+                } else {
+                  // Existing document has higher or equal lastSync, delete current
+                  await configIndexer.deleteOne()
+                  logger.info(
+                    'Deleted duplicate token document (race condition)',
+                    llo({
+                      oldService: configIndexer.service,
+                      newService: service,
+                    }),
+                  )
+                }
+              } else {
+                throw error
+              }
+            }
           } else {
             logger.error('Error to check', llo({ service: configIndexer.service }))
           }
@@ -79,7 +172,7 @@ export const migrateTokenConfigIndexerMigration: IMigration & {
 
           if (!config) {
             logger.error(
-              'Migration ConfigIndexer service does not match expected pattern',
+              'Migration ConfigIndexer service does not match expected pattern transferList',
               llo({ service: configIndexer.service }),
             )
             return
@@ -109,7 +202,7 @@ export const migrateTokenConfigIndexerMigration: IMigration & {
 
           if (!config) {
             logger.error(
-              'Migration ConfigIndexer service does not match expected pattern',
+              'Migration ConfigIndexer service does not match expected pattern withdraw',
               llo({ service: configIndexer.service }),
             )
             return
@@ -125,9 +218,9 @@ export const migrateTokenConfigIndexerMigration: IMigration & {
           }
         },
         onError: (error: any, document: any) => {
-          logger.error('Error migrate deposit config indexer', llo({ error, document }))
+          logger.error('Error migrate withdraw config indexer', llo({ error, document }))
         },
-        where: { service: /withdraw/ },
+        where: { service: { $regex: '^withdraw-0x[a-fA-F0-9]+-withdrawTxs$' } },
         batchSize: 2000,
         concurrency: 200,
       })
@@ -139,7 +232,7 @@ export const migrateTokenConfigIndexerMigration: IMigration & {
 
           if (!config) {
             logger.error(
-              'Migration ConfigIndexer service does not match expected pattern',
+              'Migration ConfigIndexer service does not match expected pattern deposit',
               llo({ service: configIndexer.service }),
             )
             return
@@ -157,7 +250,7 @@ export const migrateTokenConfigIndexerMigration: IMigration & {
         onError: (error: any, document: any) => {
           logger.error('Error migrate deposit config indexer', llo({ error, document }))
         },
-        where: { service: /deposit/ },
+        where: { service: { $regex: '^deposit-0x[a-fA-F0-9]+-depositTxs$' } },
         batchSize: 2000,
         concurrency: 200,
       })
@@ -217,11 +310,9 @@ export const migrateTokenConfigIndexerMigration: IMigration & {
       parts[1].startsWith('0x') &&
       parts[2] === IEnumIndexerService.withdrawTxs
     ) {
-      const network = parts.slice(2).join('-') as NetworksEnum
       return {
         indexerType: IndexerType.withdraw,
         daoAddress: parts[1],
-        network,
       }
     }
 

@@ -9,14 +9,20 @@ describe('migration: migrateTokenConfigIndexer', () => {
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    // Clean up any existing data
+    await Models.ConfigIndexer.deleteMany({})
+    await Models.Token.deleteMany({})
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     sandbox?.restore()
+    // Clean up after each test
+    await Models.ConfigIndexer.deleteMany({})
+    await Models.Token.deleteMany({})
   })
 
   describe('migrateTokenConfigIndexer', () => {
-    it('should migrate token config indexer', async () => {
+    it('should migrate token config indexer and handle duplicates', async () => {
       const dbData = [
         {
           id: 'polygon-mainnet-tokenVoting-polygon-mainnet-0xd54662215e0602b79C7eE3FcA65562E2Ab817A2E-0xEAc07e0595883C3Ea9E96ABD096DdC640f81F087',
@@ -24,6 +30,14 @@ describe('migration: migrateTokenConfigIndexer', () => {
           service:
             'tokenVoting-polygon-mainnet-0xd54662215e0602b79C7eE3FcA65562E2Ab817A2E-0xEAc07e0595883C3Ea9E96ABD096DdC640f81F087',
           lastSync: 68998694,
+        },
+        // Add duplicate token - different plugin, same token
+        {
+          id: 'polygon-mainnet-tokenVoting-polygon-mainnet-0xABCDEF1234567890123456789012345678901234-0xEAc07e0595883C3Ea9E96ABD096DdC640f81F087',
+          network: 'polygon-mainnet',
+          service:
+            'tokenVoting-polygon-mainnet-0xABCDEF1234567890123456789012345678901234-0xEAc07e0595883C3Ea9E96ABD096DdC640f81F087',
+          lastSync: 68998500, // Lower lastSync - should be deleted
         },
         {
           id: 'ethereum-mainnet-gauge-ethereum-mainnet-0x69E8D5151d71d4cde35b5076aF3023C7D54d379E-0x1b6ec227ceBeC25118270efbb4b67642fc29965E',
@@ -68,7 +82,14 @@ describe('migration: migrateTokenConfigIndexer', () => {
         },
       ]
 
-      await Promise.all(dbData.map(async data => Models.ConfigIndexer.create(data)))
+      // Create documents with proper data transformation
+      await Promise.all(
+        dbData.map(async data => {
+          const doc = new Models.ConfigIndexer(data)
+          // Force save without validation to simulate pre-migration state
+          await doc.save({ validateBeforeSave: false })
+        }),
+      )
 
       const dbTokenData = [
         {
@@ -101,7 +122,6 @@ describe('migration: migrateTokenConfigIndexer', () => {
           type: 'ERC20',
           address: '0x613ef3f5959688c3b422A545906F844b6f8c8F35',
         },
-
         {
           id: '0xA5148e8fA0CA950dEaAE6422e32149d361708e2e-base-mainnet',
           network: 'base-mainnet',
@@ -130,10 +150,66 @@ describe('migration: migrateTokenConfigIndexer', () => {
 
       const docs = await Models.ConfigIndexer.find().lean().exec()
 
+      // Should have 7 documents after migration (one duplicate was removed, but ethereum-sepolia wasn't touched)
+      expect(docs).to.have.lengthOf(7)
+
       docs.map((doc: any) => {
         expect(doc.id).to.eq(Models.ConfigIndexer.getEntityId({ network: doc.network, service: doc.service }))
       })
-      expect(spyConfigName.callCount).to.equal(6) // not 6 as it should skip all plugins config
+
+      // Check that the duplicate was handled properly
+      const polygonTokenDoc = await Models.ConfigIndexer.findOne({
+        service: 'ERC20-polygon-mainnet-0xEAc07e0595883C3Ea9E96ABD096DdC640f81F087',
+      }).lean()
+
+      // Should keep the higher lastSync value
+      expect(polygonTokenDoc?.lastSync).to.equal(68998694)
+
+      // Should have processed 7 documents (ethereum-sepolia doesn't match the regex - only has one address)
+      expect(spyConfigName.callCount).to.equal(7)
+    })
+
+    it('should handle duplicate tokens with race conditions', async () => {
+      // Create two documents pointing to the same token
+      const token1 = {
+        id: 'polygon-mainnet-tokenVoting-polygon-mainnet-0x1234567890123456789012345678901234567890-0xabcdefABCDEFabcdefABCDEFabcdefABCDEFabcd',
+        network: 'polygon-mainnet',
+        service:
+          'tokenVoting-polygon-mainnet-0x1234567890123456789012345678901234567890-0xabcdefABCDEFabcdefABCDEFabcdefABCDEFabcd',
+        lastSync: 1000,
+      }
+
+      const token2 = {
+        id: 'polygon-mainnet-tokenVoting-polygon-mainnet-0x0987654321098765432109876543210987654321-0xabcdefABCDEFabcdefABCDEFabcdefABCDEFabcd',
+        network: 'polygon-mainnet',
+        service:
+          'tokenVoting-polygon-mainnet-0x0987654321098765432109876543210987654321-0xabcdefABCDEFabcdefABCDEFabcdefABCDEFabcd',
+        lastSync: 2000,
+      }
+
+      await Models.ConfigIndexer.create(token1)
+      await Models.ConfigIndexer.create(token2)
+
+      // Create the token
+      await Models.Token.create({
+        id: '0xabcdefABCDEFabcdefABCDEFabcdefABCDEFabcd-polygon-mainnet',
+        network: 'polygon-mainnet',
+        type: 'ERC20',
+        address: '0xabcdefABCDEFabcdefABCDEFabcdefABCDEFabcd',
+      })
+
+      await migrateTokenConfigIndexerMigration.start()
+
+      const remainingDocs = await Models.ConfigIndexer.find().lean().exec()
+
+      // Should have only 1 document after migration
+      expect(remainingDocs).to.have.lengthOf(1)
+
+      // Should have the correct service format
+      expect(remainingDocs[0].service).to.equal('ERC20-polygon-mainnet-0xabcdefABCDEFabcdefABCDEFabcdefABCDEFabcd')
+
+      // Should keep the higher lastSync
+      expect(remainingDocs[0].lastSync).to.equal(2000)
     })
 
     it('should migrate transferList config indexer', async () => {
