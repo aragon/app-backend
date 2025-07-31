@@ -452,7 +452,7 @@ class DecodeActions {
     }
 
     const pluginDetails = await Models.Plugin.findByAddress(action.to, document.network!)
-    if (!pluginDetails) {
+    if (!pluginDetails?.tokenAddress) {
       return null
     }
     const votingToken = await ProxyToken.saveAndGetToken(pluginDetails.tokenAddress, pluginDetails.network)
