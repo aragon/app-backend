@@ -1099,6 +1099,7 @@ describe('Helpers: DecodeActions', () => {
       } as any)
 
       const result = await decodeActions._parseTokenVotingSettingUpdateAction(baseAction, action, {
+        network: NetworksEnum.ethereumSepolia,
         blockNumber: 123,
       })
       expect(result?.type).to.be.eq(ProposalActionType.UpdateVoteSettings)
@@ -1170,6 +1171,7 @@ describe('Helpers: DecodeActions', () => {
       })
       const getPluginSettingsStub = sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(null)
       const result = await decodeActions._parseMultiSigSettingUpdateAction(baseAction, action, {
+        network: NetworksEnum.ethereumSepolia,
         blockNumber: 123,
       })
       expect(getPluginDetailsStub.calledOnce).to.be.true
