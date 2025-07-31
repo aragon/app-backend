@@ -50,7 +50,8 @@ export const migrateTokenConfigIndexerMigration: IMigration & {
 
           const token = await Models.Token.findByTokenAddressAndNetwork(config.tokenAddress, config.network)
           if (!token) {
-            logger.error('Migration ConfigIndexer token not found', llo({ service: configIndexer.service }))
+            const result = await Models.ConfigIndexer.deleteOne({ _id: configIndexer._id })
+            logger.error('Migration ConfigIndexer token not found', llo({ service: configIndexer.service, result }))
             return
           }
 
@@ -100,7 +101,7 @@ export const migrateTokenConfigIndexerMigration: IMigration & {
         onError: (error: any, document: any) => {
           logger.error('Error migrate transferList config indexer', llo({ error, document }))
         },
-        where: { service: /transferList/ },
+        where: { service: { $regex: '^transferList-0x[a-fA-F0-9]{40}-[a-zA-Z0-9]+-[a-zA-Z0-9]+$' } },
         batchSize: 2000,
         concurrency: 200,
       })
@@ -185,6 +186,9 @@ export const migrateTokenConfigIndexerMigration: IMigration & {
 
   deleteDuplicated: async () => {
     // Find all documents to delete (duplicates with lower lastSync)
+    const countAll = await Models.ConfigIndexer.countDocuments({
+      service: { $regex: '^(tokenVoting|gauge).*-0x[a-fA-F0-9]+-0x[a-fA-F0-9]+$' },
+    })
     const toDelete = await Models.ConfigIndexer.aggregate([
       {
         $match: {
@@ -249,6 +253,7 @@ export const migrateTokenConfigIndexerMigration: IMigration & {
     logger.info(
       'Found duplicates to delete',
       llo({
+        countAll,
         documentsToDelete: toDelete.length,
       }),
     )
@@ -258,9 +263,14 @@ export const migrateTokenConfigIndexerMigration: IMigration & {
       _id: { $in: idsToDelete },
     })
 
+    const countAllAfter = await Models.ConfigIndexer.countDocuments({
+      service: { $regex: '^(tokenVoting|gauge).*-0x[a-fA-F0-9]+-0x[a-fA-F0-9]+$' },
+    })
+
     logger.info(
       'Deleted duplicate documents',
       llo({
+        countAllAfter,
         deletedCount: deleteResult.deletedCount,
       }),
     )

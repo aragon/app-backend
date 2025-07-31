@@ -35,8 +35,8 @@ export const hasClockModeMigration: IMigration = {
         where: {
           isGovernance: true,
         },
-        batchSize: 1000,
-        concurrency: 10,
+        batchSize: 2000,
+        concurrency: 200,
       })
 
       await crawler.crawl()
