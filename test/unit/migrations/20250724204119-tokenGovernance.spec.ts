@@ -7,7 +7,7 @@ import { IClockMode, NetworksEnum } from '@types'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import GovernanceVeHelper from '@helpers/governanceVe'
 
-describe('migration: migrateTokenConfigIndexer', () => {
+describe('migration: migrateTokenGovernance', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
