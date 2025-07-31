@@ -131,7 +131,11 @@ class DBCrawler {
     this.nbTotal = 0
     this.crawlResult = { nbSuccess: 0, nbError: 0, nbTotal: 0, lastCreatedAt: null }
 
-    this.queue = async.queue(this._worker.bind(this) as any, this.concurrency)
+    this.queue = async.queue((document: Document, callback: any) => {
+      this._worker(document)
+        .then(() => callback())
+        .catch(() => callback())
+    }, this.concurrency) as any
   }
 
   static defaultOnError(error: Error, document: Document): void {
