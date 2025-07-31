@@ -293,16 +293,7 @@ const IndexerEventConfig: IIndexerConfig[] = [
     event: 'Transfer',
     enableHistorical: false,
     topic: new Interface(GovernanceERC20.abi).getEvent('Transfer')?.topicHash!,
-    config: [
-      {
-        abi: GovernanceERC20.abi,
-        handler: GovernanceErc20Handler.transfer,
-      },
-      {
-        abi: LockERC721.abi,
-        handler: GovernanceErc20Handler.transfer,
-      },
-    ],
+    config: [],
   },
   {
     event: 'NativeTokenDeposited',
