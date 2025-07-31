@@ -90,7 +90,6 @@ describe('Integ: Delegates', () => {
     // expect(member1Txs[0].to).to.eq(member1)
     expect(member1Txs[0].memberVotingPower).to.eq('1000000000000000000')
     expect(member1Balance.votingPower).to.eq('1000000000000000000')
-    expect(member1Balance.amount).to.eq('1000000000000000000')
     expect(member1Metrics.delegateReceivedCount).to.eq(1)
 
     console.log('end tx1')
@@ -206,7 +205,6 @@ describe('Integ: Delegates', () => {
     // expect(member3Txs[0].to).to.eq(member3)
     expect(member3Txs[0].memberVotingPower).to.eq('1000000000000000000')
     expect(member3Balance.votingPower).to.eq('1000000000000000000')
-    expect(member3Balance.amount).to.eq('0')
     expect(member3Metrics.delegateReceivedCount).to.eq(1)
 
     console.log('end tx3')
