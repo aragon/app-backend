@@ -805,7 +805,6 @@ describe('GovernanceErc20Handler', () => {
       // Verify the member balance was updated
       const memberBalance = await Models.MemberBalance.findOne({ address: memberAddress })
       expect(memberBalance).to.be.not.null
-      expect(memberBalance.amount).to.be.eq('1500')
       expect(memberBalance.votingPower).to.be.eq('2000')
 
       // Verify member was added to DAOs

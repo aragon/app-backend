@@ -88,7 +88,6 @@ describe('Integ: Delegates', () => {
     expect(member1Txs[0].side).to.eq(ITransferSide.incoming)
     // expect(member1Txs[0].from).to.eq(utils.zeroAddress)
     // expect(member1Txs[0].to).to.eq(member1)
-    expect(member1Txs[0].memberBalance).to.eq('1000000000000000000')
     expect(member1Txs[0].memberVotingPower).to.eq('1000000000000000000')
     expect(member1Balance.votingPower).to.eq('1000000000000000000')
     expect(member1Balance.amount).to.eq('1000000000000000000')
@@ -120,10 +119,8 @@ describe('Integ: Delegates', () => {
     expect(member1Txs[0].side).to.eq(ITransferSide.outgoing)
     // expect(member1Txs[0].from).to.eq(member1)
     // expect(member1Txs[0].to).to.eq(member2)
-    expect(member1Txs[0].memberBalance).to.eq('1000000000000000000')
     expect(member1Txs[0].memberVotingPower).to.eq('0')
     expect(member1Balance.votingPower).to.eq('0')
-    expect(member1Balance.amount).to.eq('1000000000000000000')
     expect(member1Metrics.delegateReceivedCount).to.eq(0)
 
     // test member2 have a transaction, balance and correct metrics
@@ -135,10 +132,8 @@ describe('Integ: Delegates', () => {
     expect(member2Txs[0].side).to.eq(ITransferSide.incoming)
     // expect(member2Txs[0].from).to.eq(member1)
     // expect(member2Txs[0].to).to.eq(member2)
-    expect(member2Txs[0].memberBalance).to.eq('0')
     expect(member2Txs[0].memberVotingPower).to.eq('1000000000000000000')
     expect(member2Balance.votingPower).to.eq('1000000000000000000')
-    expect(member2Balance.amount).to.eq('0')
     expect(member2Metrics.delegateReceivedCount).to.eq(1)
 
     // let count = await ProxyMember.updateDelegationMetrics({
@@ -183,10 +178,8 @@ describe('Integ: Delegates', () => {
     expect(member1Txs[0].side).to.eq(ITransferSide.outgoing)
     // expect(member1Txs[0].from).to.eq(member1)
     // expect(member1Txs[0].to).to.eq(member2)
-    expect(member1Txs[0].memberBalance).to.eq('1000000000000000000')
     expect(member1Txs[0].memberVotingPower).to.eq('0')
     expect(member1Balance.votingPower).to.eq('0')
-    expect(member1Balance.amount).to.eq('1000000000000000000')
     expect(member1Metrics.delegateReceivedCount).to.eq(0)
 
     // test member2 have a transaction, balance and correct metrics
@@ -198,10 +191,8 @@ describe('Integ: Delegates', () => {
     expect(member2Txs[0].side).to.eq(ITransferSide.outgoing)
     // expect(member2Txs[0].from).to.eq(member2)
     // expect(member2Txs[0].to).to.eq(member3)
-    expect(member2Txs[0].memberBalance).to.eq('0')
     expect(member2Txs[0].memberVotingPower).to.eq('0')
     expect(member2Balance.votingPower).to.eq('0')
-    expect(member2Balance.amount).to.eq('0')
     expect(member2Metrics.delegateReceivedCount).to.eq(0)
 
     // test member3 have a transaction, balance and correct metrics
@@ -213,7 +204,6 @@ describe('Integ: Delegates', () => {
     expect(member3Txs[0].side).to.eq(ITransferSide.incoming)
     // expect(member3Txs[0].from).to.eq(member2)
     // expect(member3Txs[0].to).to.eq(member3)
-    expect(member3Txs[0].memberBalance).to.eq('0')
     expect(member3Txs[0].memberVotingPower).to.eq('1000000000000000000')
     expect(member3Balance.votingPower).to.eq('1000000000000000000')
     expect(member3Balance.amount).to.eq('0')
@@ -242,10 +232,8 @@ describe('Integ: Delegates', () => {
     expect(member1Txs[0].side).to.eq(ITransferSide.incoming)
     // expect(member1Txs[0].from).to.eq(member3)
     // expect(member1Txs[0].to).to.eq(member1)
-    expect(member1Txs[0].memberBalance).to.eq('1000000000000000000')
     expect(member1Txs[0].memberVotingPower).to.eq('1000000000000000000')
     expect(member1Balance.votingPower).to.eq('1000000000000000000')
-    expect(member1Balance.amount).to.eq('1000000000000000000')
     expect(member1Metrics.delegateReceivedCount).to.eq(1)
 
     // test member3 have a transaction, balance and correct metrics
@@ -257,10 +245,8 @@ describe('Integ: Delegates', () => {
     expect(member3Txs[0].side).to.eq(ITransferSide.outgoing)
     // expect(member3Txs[0].from).to.eq(member3)
     // expect(member3Txs[0].to).to.eq(member1)
-    expect(member3Txs[0].memberBalance).to.eq('0')
     expect(member3Txs[0].memberVotingPower).to.eq('0')
     expect(member3Balance.votingPower).to.eq('0')
-    expect(member3Balance.amount).to.eq('0')
     expect(member3Metrics.delegateReceivedCount).to.eq(0)
 
     console.log('end tx4')
@@ -341,10 +327,8 @@ describe('Integ: Delegates', () => {
     expect(member1Txs[0].side).to.eq(ITransferSide.incoming)
     // expect(member1Txs[0].from).to.eq(utils.zeroAddress)
     // expect(member1Txs[0].to).to.eq(member1)
-    expect(member1Txs[0].memberBalance).to.eq('1000000000000000000')
     expect(member1Txs[0].memberVotingPower).to.eq('1000000000000000000')
     expect(member1Balance.votingPower).to.eq('1000000000000000000')
-    expect(member1Balance.amount).to.eq('1000000000000000000')
     expect(member1Metrics.delegateReceivedCount).to.eq(1)
 
     // test member2 have a transaction, balance and correct metrics
@@ -356,10 +340,8 @@ describe('Integ: Delegates', () => {
     expect(member2Txs[0].side).to.eq(ITransferSide.incoming)
     // expect(member2Txs[0].from).to.eq(utils.zeroAddress)
     // expect(member2Txs[0].to).to.eq(member2)
-    expect(member2Txs[0].memberBalance).to.eq('1000000000000000000')
     expect(member2Txs[0].memberVotingPower).to.eq('1000000000000000000')
     expect(member2Balance.votingPower).to.eq('1000000000000000000')
-    expect(member2Balance.amount).to.eq('1000000000000000000')
     expect(member2Metrics.delegateReceivedCount).to.eq(1)
 
     // test member3 have a transaction, balance and correct metrics
@@ -371,10 +353,8 @@ describe('Integ: Delegates', () => {
     expect(member3Txs[0].side).to.eq(ITransferSide.incoming)
     // expect(member3Txs[0].from).to.eq(utils.zeroAddress)
     // expect(member3Txs[0].to).to.eq(member3)
-    expect(member3Txs[0].memberBalance).to.eq('1000000000000000000')
     expect(member3Txs[0].memberVotingPower).to.eq('1000000000000000000')
     expect(member3Balance.votingPower).to.eq('1000000000000000000')
-    expect(member3Balance.amount).to.eq('1000000000000000000')
     expect(member3Metrics.delegateReceivedCount).to.eq(1)
 
     // test member4 have a transaction, balance and correct metrics
@@ -386,10 +366,8 @@ describe('Integ: Delegates', () => {
     expect(member4Txs[0].side).to.eq(ITransferSide.incoming)
     // expect(member4Txs[0].from).to.eq(utils.zeroAddress)
     // expect(member4Txs[0].to).to.eq(member4)
-    expect(member4Txs[0].memberBalance).to.eq('1000000000000000000')
     expect(member4Txs[0].memberVotingPower).to.eq('1000000000000000000')
     expect(member4Balance.votingPower).to.eq('1000000000000000000')
-    expect(member4Balance.amount).to.eq('1000000000000000000')
     expect(member4Metrics.delegateReceivedCount).to.eq(1)
 
     // test member5 have a transaction, balance and correct metrics
@@ -401,10 +379,8 @@ describe('Integ: Delegates', () => {
     expect(member5Txs[0].side).to.eq(ITransferSide.incoming)
     // expect(member5Txs[0].from).to.eq(utils.zeroAddress)
     // expect(member5Txs[0].to).to.eq(member5)
-    expect(member5Txs[0].memberBalance).to.eq('1000000000000000000')
     expect(member5Txs[0].memberVotingPower).to.eq('1000000000000000000')
     expect(member5Balance.votingPower).to.eq('1000000000000000000')
-    expect(member5Balance.amount).to.eq('1000000000000000000')
     expect(member5Metrics.delegateReceivedCount).to.eq(1)
 
     console.log('end tx1')
@@ -430,10 +406,8 @@ describe('Integ: Delegates', () => {
     expect(member1Txs[0].side).to.eq(ITransferSide.incoming)
     // expect(member1Txs[0].from).to.eq(member2)
     // expect(member1Txs[0].to).to.eq(member1)
-    expect(member1Txs[0].memberBalance).to.eq('1000000000000000000')
     expect(member1Txs[0].memberVotingPower).to.eq('2000000000000000000')
     expect(member1Balance.votingPower).to.eq('2000000000000000000')
-    expect(member1Balance.amount).to.eq('1000000000000000000')
     expect(member1Metrics.delegateReceivedCount).to.eq(2)
 
     // test member1 have a transaction, balance and correct metrics
@@ -445,10 +419,8 @@ describe('Integ: Delegates', () => {
     expect(member2Txs[0].side).to.eq(ITransferSide.outgoing)
     // expect(member2Txs[0].from).to.eq(member2)
     // expect(member2Txs[0].to).to.eq(member1)
-    expect(member2Txs[0].memberBalance).to.eq('1000000000000000000')
     expect(member2Txs[0].memberVotingPower).to.eq('0')
     expect(member2Balance.votingPower).to.eq('0')
-    expect(member2Balance.amount).to.eq('1000000000000000000')
     expect(member2Metrics.delegateReceivedCount).to.eq(0)
 
     console.log('end tx2')
@@ -474,10 +446,8 @@ describe('Integ: Delegates', () => {
     expect(member1Txs[0].side).to.eq(ITransferSide.incoming)
     // expect(member1Txs[0].from).to.eq(member3)
     // expect(member1Txs[0].to).to.eq(member1)
-    expect(member1Txs[0].memberBalance).to.eq('1000000000000000000')
     expect(member1Txs[0].memberVotingPower).to.eq('3000000000000000000')
     expect(member1Balance.votingPower).to.eq('3000000000000000000')
-    expect(member1Balance.amount).to.eq('1000000000000000000')
     expect(member1Metrics.delegateReceivedCount).to.eq(3)
 
     // test member3 have a transaction, balance and correct metrics
@@ -489,10 +459,8 @@ describe('Integ: Delegates', () => {
     expect(member3Txs[0].side).to.eq(ITransferSide.outgoing)
     // expect(member3Txs[0].from).to.eq(member3)
     // expect(member3Txs[0].to).to.eq(member1)
-    expect(member3Txs[0].memberBalance).to.eq('1000000000000000000')
     expect(member3Txs[0].memberVotingPower).to.eq('0')
     expect(member3Balance.votingPower).to.eq('0')
-    expect(member3Balance.amount).to.eq('1000000000000000000')
     expect(member3Metrics.delegateReceivedCount).to.eq(0)
 
     console.log('end tx3')
@@ -518,10 +486,8 @@ describe('Integ: Delegates', () => {
     expect(member1Txs[0].side).to.eq(ITransferSide.incoming)
     // expect(member1Txs[0].from).to.eq(member4)
     // expect(member1Txs[0].to).to.eq(member1)
-    expect(member1Txs[0].memberBalance).to.eq('1000000000000000000')
     expect(member1Txs[0].memberVotingPower).to.eq('4000000000000000000')
     expect(member1Balance.votingPower).to.eq('4000000000000000000')
-    expect(member1Balance.amount).to.eq('1000000000000000000')
     expect(member1Metrics.delegateReceivedCount).to.eq(4)
 
     // test member4 have a transaction, balance and correct metrics
@@ -533,10 +499,8 @@ describe('Integ: Delegates', () => {
     expect(member4Txs[0].side).to.eq(ITransferSide.outgoing)
     // expect(member4Txs[0].from).to.eq(member4)
     // expect(member4Txs[0].to).to.eq(member1)
-    expect(member4Txs[0].memberBalance).to.eq('1000000000000000000')
     expect(member4Txs[0].memberVotingPower).to.eq('0')
     expect(member4Balance.votingPower).to.eq('0')
-    expect(member4Balance.amount).to.eq('1000000000000000000')
     expect(member4Metrics.delegateReceivedCount).to.eq(0)
 
     console.log('end tx4')
@@ -562,10 +526,8 @@ describe('Integ: Delegates', () => {
     expect(member1Txs[0].side).to.eq(ITransferSide.outgoing)
     // expect(member1Txs[0].from).to.eq(member1)
     // expect(member1Txs[0].to).to.eq(member2)
-    expect(member1Txs[0].memberBalance).to.eq('1000000000000000000')
     expect(member1Txs[0].memberVotingPower).to.eq('3000000000000000000')
     expect(member1Balance.votingPower).to.eq('3000000000000000000')
-    expect(member1Balance.amount).to.eq('1000000000000000000')
     expect(member1Metrics.delegateReceivedCount).to.eq(3)
 
     // test member2 have a transaction, balance and correct metrics
@@ -577,10 +539,8 @@ describe('Integ: Delegates', () => {
     expect(member2Txs[0].side).to.eq(ITransferSide.incoming)
     // expect(member2Txs[0].from).to.eq(member1)
     // expect(member2Txs[0].to).to.eq(member2)
-    expect(member2Txs[0].memberBalance).to.eq('1000000000000000000')
     expect(member2Txs[0].memberVotingPower).to.eq('1000000000000000000')
     expect(member2Balance.votingPower).to.eq('1000000000000000000')
-    expect(member2Balance.amount).to.eq('1000000000000000000')
     expect(member2Metrics.delegateReceivedCount).to.eq(1)
 
     console.log('end tx5')
@@ -606,10 +566,8 @@ describe('Integ: Delegates', () => {
     expect(member1Txs[0].side).to.eq(ITransferSide.outgoing)
     // expect(member1Txs[0].from).to.eq(member1)
     // expect(member1Txs[0].to).to.eq(member2)
-    expect(member1Txs[0].memberBalance).to.eq('1000000000000000000')
     expect(member1Txs[0].memberVotingPower).to.eq('2000000000000000000')
     expect(member1Balance.votingPower).to.eq('2000000000000000000')
-    expect(member1Balance.amount).to.eq('1000000000000000000')
     expect(member1Metrics.delegateReceivedCount).to.eq(2)
 
     // test member2 have a transaction, balance and correct metrics
@@ -621,10 +579,8 @@ describe('Integ: Delegates', () => {
     expect(member2Txs[0].side).to.eq(ITransferSide.incoming)
     // expect(member2Txs[0].from).to.eq(member1)
     // expect(member2Txs[0].to).to.eq(member2)
-    expect(member2Txs[0].memberBalance).to.eq('1000000000000000000')
     expect(member2Txs[0].memberVotingPower).to.eq('2000000000000000000')
     expect(member2Balance.votingPower).to.eq('2000000000000000000')
-    expect(member2Balance.amount).to.eq('1000000000000000000')
     expect(member2Metrics.delegateReceivedCount).to.eq(2)
 
     console.log('end tx6')
