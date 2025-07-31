@@ -1084,12 +1084,14 @@ describe('Helpers: DecodeActions', () => {
       }
 
       const getPluginDetails = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        network: NetworksEnum.ethereumSepolia,
+        tokenAddress: '0xAddress',
         address: action.to,
       })
       const getExistingSettingStub = sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(null)
 
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        address: '0xplugin1',
+        address: '0xAddress',
         name: 'Plugin 1',
         symbol: 'P1',
         decimals: 18,
