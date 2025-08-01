@@ -101,12 +101,6 @@ export interface IMemberIdParams {
   address: HexAddress
 }
 
-export interface IMemberMetricsIdParams {
-  network: NetworksEnum
-  address: HexAddress
-  pluginAddress: HexAddress
-}
-
 export interface IMemberBalanceIdParams {
   network: NetworksEnum
   address: HexAddress
@@ -152,4 +146,22 @@ export interface ISelectorPermissionIdParams {
   transactionIndex: number
   logIndex: number
   conditionAddress: HexAddress
+}
+
+export interface IPluginMemberIdParams {
+  network: NetworksEnum
+  pluginAddress: HexAddress
+  memberAddress: HexAddress
+}
+
+export interface IVpMemberIdParams {
+  network: NetworksEnum
+  tokenAddress: HexAddress
+  memberAddress: HexAddress
+}
+
+export interface IPluginMetricsIdParams {
+  network: NetworksEnum
+  pluginAddress: HexAddress
+  memberAddress: HexAddress
 }
