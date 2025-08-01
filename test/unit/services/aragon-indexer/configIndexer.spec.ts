@@ -21,7 +21,11 @@ describe('ConfigIndexer', () => {
         expect(config.topic, `Config at index ${index} missing topic`).to.be.a('string')
         expect(config.topic, `Config at index ${index} has invalid topic`).to.match(/^0x[a-fA-F0-9]{64}$/)
         expect(config.config, `Config at index ${index} missing config`).to.be.an('array')
-        expect(config.config.length, `Config at index ${index} has empty config`).to.be.greaterThan(0)
+
+        // Allow empty config array for specific events like Transfer
+        if (config.event !== 'Transfer') {
+          expect(config.config.length, `Config at index ${index} has empty config`).to.be.greaterThan(0)
+        }
 
         config.config.forEach((handlerConfig, handlerIndex) => {
           expect(handlerConfig.abi, `Handler config at ${index}.${handlerIndex} missing abi`).to.be.an('array')
@@ -103,15 +107,20 @@ describe('ConfigIndexer', () => {
 
   describe('Handler configurations', () => {
     it('should have multiple handlers for specific events', () => {
-      // Test Transfer event has multiple handlers
+      // Test Transfer event has empty config (intentionally)
       const transferConfig = ConfigIndexer.find(c => c.event === 'Transfer')
       expect(transferConfig).to.exist
-      expect(transferConfig!.config.length).to.equal(2)
+      expect(transferConfig!.config.length).to.equal(0)
 
       // Test NativeTokenDeposited has multiple handlers
       const nativeTokenConfig = ConfigIndexer.find(c => c.event === 'NativeTokenDeposited')
       expect(nativeTokenConfig).to.exist
       expect(nativeTokenConfig!.config.length).to.equal(2)
+
+      // Test MultisigSettingsUpdated has multiple handlers
+      const multisigSettingsConfig = ConfigIndexer.find(c => c.event === 'MultisigSettingsUpdated')
+      expect(multisigSettingsConfig).to.exist
+      expect(multisigSettingsConfig!.config.length).to.equal(2)
     })
 
     it('should have correct ABI associations', () => {

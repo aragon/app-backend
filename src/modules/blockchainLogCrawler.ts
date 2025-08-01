@@ -670,7 +670,7 @@ class BlockchainLogCrawler {
       }
     }
 
-    if (!parsedEvent) {
+    if (!parsedEvent && eventSetting?.config.length) {
       logger.error('Error parsing log in blockchainCrawler', llo({ ...this.parseCrawlerInfoLog(), log }))
     }
 

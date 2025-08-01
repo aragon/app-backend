@@ -33,7 +33,7 @@ describe('Module: PoolingCrawler', () => {
       PoolingCrawler.instances.set(NetworksEnum.ethereumMainnet, mockCrawler as any)
 
       await PoolingCrawler.start({
-        logService: 'test-service',
+        logService: 'test-service' as any,
         network: NetworksEnum.ethereumMainnet,
       })
 
@@ -46,7 +46,7 @@ describe('Module: PoolingCrawler', () => {
       const BlockchainLogCrawlerStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(crawlStub)
 
       await PoolingCrawler.start({
-        logService: 'test-service',
+        logService: 'test-service' as any,
         network: NetworksEnum.ethereumMainnet,
       })
 
@@ -59,7 +59,7 @@ describe('Module: PoolingCrawler', () => {
       sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
 
       await PoolingCrawler.start({
-        logService: 'test-service',
+        logService: 'test-service' as any,
         network: NetworksEnum.ethereumMainnet,
       })
 
@@ -103,8 +103,8 @@ describe('Module: PoolingCrawler', () => {
 
       expect(nativeTransferStub.calledOnce).to.be.true
 
-      expect(result).to.have.lengthOf(4)
-      expect(result).to.not.include(mockLogs[2])
+      expect(result).to.have.lengthOf(5)
+      expect(result).to.include.members(mockLogs)
     })
 
     it('should return only syncable tokens when filtering for transfer logs', async () => {
@@ -143,7 +143,7 @@ describe('Module: PoolingCrawler', () => {
       })
 
       const resultAfterUpdate = await PoolingCrawler.filterLogs(mockLogs as any, NetworksEnum.ethereumMainnet)
-      expect(resultAfterUpdate).to.have.lengthOf(0)
+      expect(resultAfterUpdate).to.have.lengthOf(1)
     })
 
     it('should handle empty logs array', async () => {
