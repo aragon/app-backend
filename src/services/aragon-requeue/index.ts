@@ -27,7 +27,7 @@ const AragonReQueueService: IService = {
       onDocument: async (configIndexer: ConfigIndexer) => {
         const parsedService = ConfigIndexerHelper.parser.parse(configIndexer.service)
 
-        if (!parsedService || !Object.values(NetworksEnum).includes(parsedService.network as NetworksEnum)) {
+        if (!parsedService || !Object.values(NetworksEnum).includes(parsedService.network)) {
           logger.error(
             'Migration ConfigIndexer service does not match expected pattern',
             llo({ service: configIndexer.service }),
@@ -51,19 +51,20 @@ const AragonReQueueService: IService = {
           const tokenAddress = parsedService.address
           if (tokenAddress) {
             const plugin = await Models.Plugin.findByTokenAddress(tokenAddress, configIndexer.network)
-
-            await RabbitMQHelper.sendMessage(EnumQueueName.requeue, {
-              id: plugin.address,
-              params: { address: plugin.address, network: configIndexer.network },
-            })
-            logger.verbose(
-              'Processing token service - found plugin:',
-              llo({
-                tokenAddress,
-                pluginAddress: plugin.address,
-                network: configIndexer.network,
-              }),
-            )
+            if (plugin?.address) {
+              await RabbitMQHelper.sendMessage(EnumQueueName.requeue, {
+                id: plugin.address,
+                params: { address: plugin.address, network: configIndexer.network },
+              })
+              logger.verbose(
+                'Processing token service - found plugin:',
+                llo({
+                  tokenAddress,
+                  pluginAddress: plugin.address,
+                  network: configIndexer.network,
+                }),
+              )
+            }
           }
         }
       },
