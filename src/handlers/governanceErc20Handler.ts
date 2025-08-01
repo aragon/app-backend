@@ -1,11 +1,12 @@
 import logger from '@logger'
 import { type LogDescription } from 'ethers'
-import { type HexAddress, type ILogInfo, ITransferSide, ITransferType } from '@types'
+import { EnumQueueName, type HexAddress, type ILogInfo, ITransferSide, ITransferType } from '@types'
 import utils from '@helpers/utils'
 import { ProxyMember } from '@modules/proxyMember'
 import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
 import { ProxyToken } from '@modules/proxyToken'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:GovernanceErc20Handler' })
 
@@ -95,6 +96,16 @@ export const GovernanceErc20Handler = {
           network,
         })
       }
+
+      const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
+      await Promise.all(
+        uniqueDaoList.map(async (daoAddress: string) => {
+          await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+            id: daoAddress,
+            params: { address: daoAddress, network: info.network },
+          })
+        }),
+      )
     } catch (error) {
       logger.error('DelegateVotesChanged - error', llo({ error, parsedEvent, info }))
     }

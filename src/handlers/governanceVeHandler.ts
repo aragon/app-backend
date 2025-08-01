@@ -1,6 +1,6 @@
 import logger from '@logger'
 import { type LogDescription } from 'ethers'
-import { type HexAddress, type ILogInfo } from '@types'
+import { type ILogInfo } from '@types'
 import { Models } from '@dbModels'
 import { ProxyMember } from '@modules/proxyMember'
 import Web3Helper from '@helpers/web3'
@@ -10,8 +10,6 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import { ProxyToken } from '@modules/proxyToken'
 import GovernanceErc20Helper from '@src/helpers/governanceErc20'
 import type Plugin from '@models/schema/plugin'
-import type MemberTransaction from '@models/schema/memberTransaction'
-import DbOperations from '@models/utils/dbOperations'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:GovernanceVeHandler' })
 
@@ -164,26 +162,6 @@ export const GovernanceVeHandler = {
     })
 
     logger.verbose('Deposit VeGovernance - Lock created', llo({ info, memberAddress, tokenId, escrow: escrowAddress }))
-
-    const memberBalance = await ProxyMember.getBalances({
-      address: memberAddress,
-      tokenAddress,
-      network: info.network,
-    })
-
-    // Only update amount, don't attach tokens yet (tokens will be attached on delegation)
-    await DbOperations.updateDocument(
-      memberBalance!,
-      {
-        amount: (Number(memberBalance!.amount) + 1).toString(),
-        lastSyncAmountBlockNumber: info.blockNumber,
-      },
-      info,
-      'MemberBalance Update on deposit',
-      llo,
-    )
-
-    await GovernanceVeHandler._handleDaoMemberShipOnLockEvents(plugins, memberAddress, info, true)
   },
 
   withdraw: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -242,30 +220,24 @@ export const GovernanceVeHandler = {
       },
     })
 
-    logger.verbose('Withdraw VeGovernance', llo({ info, memberAddress, tokenId }))
-
-    const memberBalance = await ProxyMember.getBalances({
-      address: memberAddress,
-      tokenAddress: plugins[0].tokenAddress,
+    const vpMember = await ProxyMember.getOrCreateVotingPower({
+      memberAddress,
+      tokenAddress: info.address,
       network: info.network,
     })
 
-    const currentTokenIds = memberBalance!.tokenIds || []
+    const currentTokenIds = vpMember!.tokenIds || []
     const tokenIdsToSave = currentTokenIds.filter(id => id !== tokenId.toString())
 
-    await DbOperations.updateDocument(
-      memberBalance!,
-      {
-        amount: (Number(memberBalance!.amount) - 1).toString(),
-        tokenIds: tokenIdsToSave,
-        lastSyncAmountBlockNumber: info.blockNumber,
-      },
-      info,
-      'MemberBalance Update on withdraw',
-      llo,
-    )
+    await ProxyMember.updateVotingPower({
+      memberAddress,
+      tokenAddress: info.address,
+      network: info.network,
+      votingPower: tokenIdsToSave.length > 0 ? undefined : '0',
+      tokenIds: tokenIdsToSave,
+    })
 
-    await GovernanceVeHandler._handleDaoMemberShipOnLockEvents(plugins, memberAddress, info, false)
+    logger.verbose('Withdraw VeGovernance', llo({ info, memberAddress, tokenId }))
   },
 
   exitQueued: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -411,7 +383,7 @@ export const GovernanceVeHandler = {
     info: ILogInfo,
     memberAddress: string,
     transferSide: ITransferSide,
-    plugins: any[],
+    plugins: Plugin[],
     tokenIds: string[],
   ) => {
     try {
@@ -423,11 +395,14 @@ export const GovernanceVeHandler = {
         address: memberAddress,
       })
 
-      if (existingLog) {
-        return
+      if (existingLog) return
+
+      let lastActivity: undefined | number
+      if (transferSide === ITransferSide.outgoing) {
+        lastActivity = info.blockNumber
       }
 
-      await ProxyMember.createMember(memberAddress)
+      await ProxyMember.createMember(memberAddress, lastActivity)
 
       const token = await ProxyToken.saveAndGetToken(info.address, info.network)
       if (!token) {
@@ -435,15 +410,13 @@ export const GovernanceVeHandler = {
         return
       }
 
-      const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
-
-      const tokenBalanceDb = await ProxyMember.getBalances({
-        address: memberAddress,
+      const vpMember = await ProxyMember.getOrCreateVotingPower({
+        memberAddress,
         tokenAddress: info.address,
         network: info.network,
       })
 
-      const currentTokenIds = tokenBalanceDb?.tokenIds || []
+      const currentTokenIds = vpMember?.tokenIds || []
       let tokenIdsToSave: string[]
 
       const isSelfDelegation = parsedEvent.args.sender === parsedEvent.args.delegatee
@@ -459,6 +432,7 @@ export const GovernanceVeHandler = {
       }
 
       // TODO on l2 the we need to adjust the blockNumber and it should use as offset +1
+      const blockTimestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
       const votingPower = await GovernanceErc20Helper.getPastVotes(
         memberAddress,
         info.address,
@@ -468,19 +442,7 @@ export const GovernanceVeHandler = {
         token.clockMode,
       )
 
-      await DbOperations.updateDocument(
-        tokenBalanceDb!,
-        {
-          amount: tokenIdsToSave.length.toString(),
-          blockNumber: info.blockNumber,
-          tokenIds: tokenIdsToSave,
-        },
-        info,
-        'MemberBalance Update on delegation',
-        llo,
-      )
-
-      const memberTransaction = await Models.MemberTransaction.create({
+      await Models.MemberTransaction.create({
         network: info.network,
         transactionHash: info.transactionHash,
         transactionIndex: info.transactionIndex,
@@ -498,101 +460,34 @@ export const GovernanceVeHandler = {
         memberBalance: tokenIdsToSave.length.toString(),
       })
 
-      await GovernanceVeHandler._handleDaoMemberShip(memberTransaction, plugins, info)
+      await ProxyMember.updateVotingPower({
+        memberAddress,
+        tokenAddress: info.address,
+        votingPower: votingPower.toString(),
+        network: info.network,
+        tokenIds: tokenIdsToSave,
+      })
 
+      // only when incoming delegation, we update the delegation metrics
+      if (transferSide === ITransferSide.outgoing) {
+        await ProxyMember.updateDelegationMetrics({
+          memberAddress,
+          tokenAddress: info.address,
+          network: info.network,
+        })
+      }
+
+      const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
       await Promise.all(
-        plugins.map(async (plugin: any) => {
-          await ProxyMember.updateDelegationMetrics({
-            memberAddress,
-            pluginAddress: plugin.address,
-            tokenAddress: info.address,
-            network: info.network,
-          })
-
-          await ProxyMember.updateActivity({
-            memberAddress,
-            pluginAddress: plugin.address,
-            blockNumber: info.blockNumber,
-            network: info.network,
+        uniqueDaoList.map(async (daoAddress: string) => {
+          await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+            id: daoAddress,
+            params: { address: daoAddress, network: info.network },
           })
         }),
       )
     } catch (error) {
       logger.error('Error handling token delegation', llo({ error, info, memberAddress, transferSide, tokenIds }))
     }
-  },
-
-  _handleDaoMemberShip: async (memberTx: MemberTransaction, plugins: Plugin[], info: ILogInfo) => {
-    const userBalance = BigInt(memberTx.memberVotingPower || '0')
-
-    await Promise.all([
-      ...plugins.map(async (plugin: any) => {
-        const memberShipParams = {
-          memberAddress: memberTx.address,
-          daoAddress: plugin.daoAddress,
-          network: plugin.network,
-          pluginAddress: plugin.address,
-          tokenAddress: plugin.tokenAddress,
-        }
-
-        const isMember = await ProxyMember.isMemberOfDao(memberShipParams)
-        const meetsRequirements = userBalance > 0n
-
-        if (!isMember && meetsRequirements) {
-          await ProxyMember.addToDao(memberShipParams)
-        } else if (isMember && !meetsRequirements) {
-          await ProxyMember.removeFromDao(memberShipParams)
-        }
-      }),
-    ])
-
-    const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
-    await Promise.all(
-      uniqueDaoList.map(async (daoAddress: string) => {
-        await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-          id: daoAddress,
-          params: { address: daoAddress, network: info.network },
-        })
-      }),
-    )
-  },
-
-  _handleDaoMemberShipOnLockEvents: async (
-    plugins: Plugin[],
-    memberAddress: HexAddress,
-    info: ILogInfo,
-    addToDao: boolean,
-  ) => {
-    await Promise.all(
-      plugins.map(async (plugin: any) => {
-        const memberShipParams = {
-          memberAddress,
-          daoAddress: plugin.daoAddress,
-          network: plugin.network,
-          pluginAddress: plugin.address,
-          tokenAddress: plugin.tokenAddress,
-        }
-
-        const isMember = await ProxyMember.isMemberOfDao(memberShipParams)
-        if (addToDao && !isMember) {
-          await ProxyMember.addToDao(memberShipParams)
-        }
-
-        if (!addToDao && isMember) {
-          await ProxyMember.removeFromDao(memberShipParams)
-        }
-      }),
-    )
-
-    const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
-
-    await Promise.all(
-      uniqueDaoList.map(async (daoAddress: string) => {
-        await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-          id: daoAddress,
-          params: { address: daoAddress, network: info.network },
-        })
-      }),
-    )
   },
 }
