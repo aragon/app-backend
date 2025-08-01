@@ -1,29 +1,29 @@
 import { Models } from '@dbModels'
-import { type HexAddress, IMetricAction, type NetworksEnum } from '@types'
-import Web3Helper from '@helpers/web3'
+import { type HexAddress, type NetworksEnum } from '@types'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import EnsHelper from '@helpers/ens'
 import DbTx from '@modules/dbTx'
 import type Member from '@models/schema/member'
-import type MemberBalance from '@models/schema/memberBalance'
-import type MemberMetrics from '@models/schema/memberMetrics'
+import type VpMember from '@models/schema/vpMember'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:ProxyMember' })
 
 export const ProxyMember = {
-  createMember: async (memberAddress: HexAddress): Promise<Member | null> => {
+  createMember: async (memberAddress: HexAddress, lastActivity?: number): Promise<Member | null> => {
     const parsedMemberAddress = Web3Utils.parseAddress(memberAddress) || memberAddress
     if (!parsedMemberAddress) return null
 
     try {
-      return await DbTx.executeTxFn(async ({ session }) => {
+      const member = await DbTx.executeTxFn(async ({ session }) => {
         const existingMember = await Models.Member.findExistingLog({ address: parsedMemberAddress }, { session })
 
         if (!existingMember) {
           const rawMember = {
             address: parsedMemberAddress,
             ens: await EnsHelper.getEnsWithUniversalResolver(parsedMemberAddress),
+            firstActivity: lastActivity,
+            lastActivity,
           }
 
           const newMember = await Models.Member.create(rawMember, { session })
@@ -31,325 +31,225 @@ export const ProxyMember = {
           await session.endSession()
           logger.verbose('Create document - New Member', llo({ documentId: newMember.id }))
           return newMember
+        } else if (lastActivity) {
+          // update lastActivity and firstActivity if not set
+
+          const params: Partial<Member> = {
+            lastActivity,
+          }
+
+          if (!existingMember?.firstActivity) {
+            params.firstActivity = lastActivity
+          }
+          return await existingMember.update(params, { session })
         }
 
         return existingMember
       })
+      return member
     } catch (error) {
       logger.error('Error creating new member', llo({ error, memberAddress: parsedMemberAddress }))
       return null
     }
   },
 
-  createMetrics: async ({
-    address,
-    pluginAddress,
-    network,
-  }: {
-    address: HexAddress
-    pluginAddress: HexAddress
-    network: NetworksEnum
-  }): Promise<MemberMetrics | null> => {
-    try {
-      const memberAddress = Web3Utils.parseAddress(address)
-      if (!memberAddress) {
-        return null
-      }
-
-      return await DbTx.executeTxFn(async ({ session }) => {
-        const metrics = await Models.MemberMetrics.findOne({ address: memberAddress, pluginAddress, network }, null, {
-          session,
-        })
-
-        if (metrics) {
-          return metrics
-        }
-
-        const rawMetrics = { address: memberAddress, pluginAddress, network }
-
-        const newMetrics = await Models.MemberMetrics.create(rawMetrics, { session })
-        await session.commitTransaction()
-        await session.endSession()
-        logger.verbose('Create document - New MemberMetrics', llo({ documentId: newMetrics.id }))
-        return newMetrics
-      })
-    } catch (error) {
-      logger.error('Error creating new member metrics', llo({ error, address, pluginAddress }))
-      return null
-    }
-  },
-
-  getBalances: async ({
-    address,
-    tokenAddress,
-    network,
-  }: {
-    address: HexAddress
+  getOrCreateVotingPower: async (params: {
+    memberAddress: HexAddress
     tokenAddress: HexAddress
     network: NetworksEnum
-  }): Promise<MemberBalance | null> => {
+  }): Promise<VpMember | null> => {
+    const memberAddress = Web3Utils.parseAddress(params.memberAddress)
+    if (!memberAddress) return null
+
     try {
-      const memberAddress = Web3Utils.parseAddress(address)
-      if (!memberAddress) {
-        return null
-      }
       return await DbTx.executeTxFn(async ({ session }) => {
-        const token = await Models.MemberBalance.findByAddressAndToken(
-          { address: memberAddress, tokenAddress, network },
+        const existingVpMember = await Models.VpMember.findExistingLog(
+          {
+            network: params.network,
+            tokenAddress: params.tokenAddress,
+            memberAddress,
+          },
           { session },
         )
 
-        if (token) {
-          return token
+        if (existingVpMember) {
+          return existingVpMember
         }
 
-        const data = { address: memberAddress, tokenAddress, network }
-        const memberBalance = await Models.MemberBalance.create(data, { session })
+        // Create new vpMember document with default voting power
+        const newVpMember = await Models.VpMember.create(
+          {
+            memberAddress,
+            tokenAddress: params.tokenAddress,
+            votingPower: '0',
+            tokenIds: [],
+            network: params.network,
+          },
+          { session },
+        )
         await session.commitTransaction()
         await session.endSession()
-        logger.verbose('Create document - New MemberBalance', llo({ documentId: memberBalance.id }))
-        return memberBalance
+        logger.verbose(
+          'Created new VpMember',
+          llo({
+            memberAddress,
+            tokenAddress: params.tokenAddress,
+          }),
+        )
+        return newVpMember
       })
     } catch (error) {
-      logger.error('Error getting member balances', llo({ error, address, tokenAddress }))
+      logger.error('Error getting or creating voting power', llo({ error, params }))
       return null
     }
   },
 
-  updateActivity: async ({
-    memberAddress,
-    pluginAddress,
-    blockNumber,
-    network,
-  }: {
+  updateVotingPower: async (params: {
     memberAddress: HexAddress
-    pluginAddress: HexAddress
-    blockNumber: number
+    tokenAddress: HexAddress
+    votingPower: string
+    tokenIds?: string[]
     network: NetworksEnum
-  }): Promise<Member | null> => {
+  }): Promise<VpMember | null> => {
+    const memberAddress = Web3Utils.parseAddress(params.memberAddress)
+    if (!memberAddress) return null
+
     try {
-      const [member, memberMetrics, blockTimestamp] = await Promise.all([
-        ProxyMember.createMember(memberAddress),
-        ProxyMember.createMetrics({
-          address: memberAddress,
-          pluginAddress,
-          network,
-        }),
-        Web3Helper.getBlockTimestamp(blockNumber, network),
-      ])
-
-      if (!member || !memberMetrics) return null
-
-      const updateFields: Partial<Member> = {
-        lastActivity: blockTimestamp,
-      }
-
-      if (!member?.firstActivity) {
-        updateFields.firstActivity = blockTimestamp
-      }
-
       return await DbTx.executeTxFn(async ({ session }) => {
-        const updatedMember = await memberMetrics?.update(updateFields, { session })
-        await session.commitTransaction()
-        await session.endSession()
-        logger.verbose('Update Member activity', llo({ documentId: updatedMember.id }))
-        return updatedMember
+        // Get or create the vpMember document
+        const vpMember = await ProxyMember.getOrCreateVotingPower({
+          memberAddress,
+          tokenAddress: params.tokenAddress,
+          network: params.network,
+        })
+
+        if (!vpMember) {
+          logger.error('Failed to get or create VpMember', llo({ params }))
+          return null
+        }
+
+        // Prepare update data
+        const updateData: any = { votingPower: params.votingPower }
+
+        // If voting power is 0, always set tokenIds to empty array
+        if (params.votingPower === '0') {
+          updateData.tokenIds = []
+        } else if (params.tokenIds !== undefined) {
+          updateData.tokenIds = params.tokenIds
+        }
+
+        // Update if voting power is different or tokenIds need to be updated
+        if (vpMember.votingPower !== params.votingPower || updateData.tokenIds !== undefined) {
+          const updated = await vpMember.update(updateData, { session })
+          await session.commitTransaction()
+          await session.endSession()
+          logger.verbose(
+            'Updated VpMember voting power',
+            llo({
+              memberAddress,
+              tokenAddress: params.tokenAddress,
+              oldVotingPower: vpMember.votingPower,
+              newVotingPower: params.votingPower,
+            }),
+          )
+          return updated
+        }
+
+        return vpMember
       })
     } catch (error) {
-      logger.error('Error updating member activity', llo({ error, memberAddress, pluginAddress, blockNumber, network }))
+      logger.error('Error updating voting power', llo({ error, params }))
       return null
     }
   },
 
-  updateDelegationMetrics: async ({
-    memberAddress,
-    pluginAddress,
-    tokenAddress,
-    network,
-  }: {
+  updateDelegationMetrics: async (params: {
     memberAddress: HexAddress
-    pluginAddress: HexAddress
     tokenAddress: HexAddress
     network: NetworksEnum
-  }): Promise<MemberMetrics | undefined | null> => {
-    const address = Web3Utils.parseAddress(memberAddress)
-    if (!address) return null
-
-    const metrics = await ProxyMember.createMetrics({
-      address,
-      pluginAddress,
-      network,
-    })
-
-    if (!metrics) {
-      logger.error('Failed to create metrics', llo({ memberAddress, pluginAddress, tokenAddress, network }))
-      return
-    }
+  }): Promise<VpMember | null> => {
+    const memberAddress = Web3Utils.parseAddress(params.memberAddress)
+    if (!memberAddress) return null
 
     try {
       return await DbTx.executeTxFn(async ({ session }) => {
+        // Get or create the vpMember document
+        const vpMember = await ProxyMember.getOrCreateVotingPower({
+          memberAddress,
+          tokenAddress: params.tokenAddress,
+          network: params.network,
+        })
+
+        if (!vpMember) {
+          logger.error('Failed to get or create VpMember', llo({ params }))
+          return null
+        }
+
+        // Get the delegate received count
         const delegateReceivedCount = await Models.MemberTransaction.getReceiveDelegationCount(
-          address,
-          tokenAddress,
-          network,
+          memberAddress,
+          params.tokenAddress,
+          params.network,
           { session },
         )
-        const logDb = await metrics.update({ delegateReceivedCount }, { session })
+
+        // Update the vpMember with the delegate count
+        const updated = await vpMember.update({ delegateReceivedCount }, { session })
         await session.commitTransaction()
         await session.endSession()
-        logger.verbose('Updated Member DAO metrics', { logId: logDb.id })
-        return logDb
+
+        logger.verbose(
+          'Updated VpMember delegation metrics',
+          llo({
+            memberAddress,
+            tokenAddress: params.tokenAddress,
+            delegateReceivedCount,
+          }),
+        )
+
+        return updated
       })
     } catch (error) {
-      logger.error(
-        'Error updating delegation metrics',
-        llo({
-          error,
-          address,
-          pluginAddress,
-          tokenAddress,
-          network,
-        }),
+      logger.error('Error updating delegation metrics', llo({ error, params }))
+      return null
+    }
+  },
+
+  isPluginMember: async (params: {
+    memberAddress: HexAddress
+    pluginAddress: HexAddress
+    network: NetworksEnum
+  }): Promise<boolean> => {
+    const memberAddress = Web3Utils.parseAddress(params.memberAddress)
+    if (!memberAddress) return false
+
+    try {
+      const pluginMember = await Models.PluginMember.findByPluginAndMember(
+        params.network,
+        params.pluginAddress,
+        memberAddress,
       )
+      return !!pluginMember
+    } catch (error) {
+      logger.error('Error checking plugin membership', llo({ error, params }))
+      return false
     }
   },
 
-  updateMetricsByAction: async (
-    metricAction: IMetricAction,
-    {
-      memberAddress,
-      pluginAddress,
-      network,
-    }: {
-      memberAddress: HexAddress
-      pluginAddress: HexAddress
-      network: NetworksEnum
-    },
-  ) => {
-    const address = Web3Utils.parseAddress(memberAddress)
-    if (!address) return null
-
-    const metrics = await ProxyMember.createMetrics({
-      address,
-      pluginAddress,
-      network,
-    })
-
-    if (!metrics) return
-
-    const metricActionsMap = {
-      [IMetricAction.increaseProposalCount]: metrics.increaseProposalCount,
-      [IMetricAction.increaseVoteCount]: metrics.increaseVoteCount,
-      [IMetricAction.increaseDelegateReceivedCount]: metrics.increaseDelegateReceivedCount,
-      [IMetricAction.decreaseDelegateReceivedCount]: metrics.decreaseDelegateReceivedCount,
-    }
-
-    const metricUpdateFn = metricActionsMap[metricAction]
-
-    if (metricUpdateFn) {
-      try {
-        await DbTx.executeTxFn(async ({ session }) => {
-          const logDb = await metricUpdateFn.call(metrics, 1, { session })
-          await session.commitTransaction()
-          await session.endSession()
-          logger.verbose('Updated Member DAO metrics', { logId: logDb.id })
-        })
-      } catch (error) {
-        logger.error('Error updating member metrics', llo({ error, address, pluginAddress, network }))
-      }
-    } else {
-      logger.error('Unsupported metric action', llo({ metricAction, address, pluginAddress, network }))
-    }
-  },
-
-  addToDao: async (params: {
+  hasVotingPower: async (params: {
     memberAddress: HexAddress
-    daoAddress: HexAddress
-    pluginAddress: HexAddress
-    tokenAddress?: HexAddress
+    tokenAddress: HexAddress
     network: NetworksEnum
-  }): Promise<Member | null> => {
+  }): Promise<boolean> => {
     const memberAddress = Web3Utils.parseAddress(params.memberAddress)
-    if (!memberAddress) return null
-
-    const member = await ProxyMember.createMember(memberAddress)
-    if (!member) {
-      logger.error('Failed to add member to dao', llo({ params }))
-      return null
-    }
+    if (!memberAddress) return false
 
     try {
-      return await DbTx.executeTxFn(async ({ session }) => {
-        const queryParams = {
-          memberAddress,
-          daoAddress: params.daoAddress,
-          pluginAddress: params.pluginAddress,
-          tokenAddress: params?.tokenAddress,
-          network: params.network,
-        }
-        const existingDao = await ProxyMember.isMemberOfDao(queryParams, session)
-        if (!existingDao) {
-          await Models.DaoMemberMapping.create(queryParams, { session })
-          await session.commitTransaction()
-          await session.endSession()
-          logger.verbose('Add DaoMemberMapping', llo(queryParams))
-        }
-        return member
-      })
+      const vpMember = await Models.VpMember.findByTokenAndMember(params.network, params.tokenAddress, memberAddress)
+      return !!vpMember && BigInt(vpMember.votingPower) > 0n
     } catch (error) {
-      logger.error('Error in addToDao', llo({ error, params }))
-      return null
+      logger.error('Error checking voting power', llo({ error, params }))
+      return false
     }
-  },
-
-  removeFromDao: async (params: {
-    memberAddress: HexAddress
-    daoAddress: HexAddress
-    pluginAddress: HexAddress
-    tokenAddress?: HexAddress
-    network: NetworksEnum
-  }): Promise<Member | null> => {
-    const memberAddress = Web3Utils.parseAddress(params.memberAddress)
-    if (!memberAddress) return null
-
-    const member = await ProxyMember.createMember(memberAddress)
-
-    try {
-      return await DbTx.executeTxFn(async ({ session }) => {
-        const queryParams = {
-          memberAddress,
-          daoAddress: params.daoAddress,
-          pluginAddress: params.pluginAddress,
-          tokenAddress: params?.tokenAddress,
-          network: params.network,
-        }
-        const existingDao = await ProxyMember.isMemberOfDao(queryParams, session)
-
-        if (existingDao) {
-          await existingDao.removeSelf({ session })
-          await session.commitTransaction()
-          await session.endSession()
-          logger.verbose('Remove DaoMemberMapping', llo(queryParams))
-        }
-
-        return member
-      })
-    } catch (error) {
-      logger.error('Error in removeFromDao', llo({ error, params }))
-      return null
-    }
-  },
-
-  isMemberOfDao: async (
-    params: {
-      memberAddress: HexAddress
-      daoAddress: HexAddress
-      pluginAddress: HexAddress
-      network: NetworksEnum
-      tokenAddress?: HexAddress
-    },
-    session?: any,
-  ) => {
-    return Models.DaoMemberMapping.findMapping(params, { session })
   },
 }

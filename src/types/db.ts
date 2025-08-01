@@ -16,22 +16,24 @@ import type TaskRun from '@models/schema/taskRun'
 import type MemberBalance from '@models/schema/memberBalance'
 import type MemberTransaction from '@models/schema/memberTransaction'
 import type DaoMemberMapping from '@models/schema/daoMemberMapping'
-import type MemberMetrics from '@models/schema/memberMetrics'
 import type DaoPermission from '@models/schema/daoPermission'
 import type Jwt from '@models/schema/jwt'
 import type PluginSlug from '@models/schema/pluginSlug'
 import type SelectorPermission from '@models/schema/selectorPermission'
+import type VpMember from '@models/schema/vpMember'
+import type PluginMember from '@models/schema/pluginMember'
+import type PluginMetrics from '@models/schema/pluginMetrics'
+import type Lock from '@models/schema/lock'
 
 export enum ICollectionNames {
   Asset = 'Asset',
   ConfigIndexer = 'ConfigIndexer',
   Dao = 'Dao',
-  DaoMemberMapping = 'DaoMemberMapping',
+  DaoMemberMapping = 'DaoMemberMapping', // TODO remove
   LogMetadata = 'LogMetadata',
   LogPluginSetupProcessor = 'LogPluginSetupProcessor',
   Member = 'Member',
-  MemberBalance = 'MemberBalance',
-  MemberMetrics = 'MemberMetrics',
+  MemberBalance = 'MemberBalance', // TODO remove
   MemberTransaction = 'MemberTransaction',
   Plugin = 'Plugin',
   PluginRepo = 'PluginRepo',
@@ -48,6 +50,9 @@ export enum ICollectionNames {
   Lock = 'Lock',
   Migration = 'Migration',
   SelectorPermission = 'SelectorPermission',
+  PluginMember = 'PluginMember',
+  VpMember = 'VpMember',
+  PluginMetrics = 'PluginMetrics',
 }
 
 export enum ITransactionIndexCheckType {
@@ -87,7 +92,6 @@ export interface IMongoModel {
   LogPluginSetupProcessor: typeof LogPluginSetupProcessor
   Member: typeof Member
   MemberBalance: typeof MemberBalance
-  MemberMetrics: typeof MemberMetrics
   MemberTransaction: typeof MemberTransaction
   Plugin: typeof Plugin
   PluginRepo: typeof PluginRepo
@@ -100,10 +104,10 @@ export interface IMongoModel {
   Transaction: typeof Transaction
   Vote: typeof Vote
   SelectorPermission: typeof SelectorPermission
-}
-
-export enum IEventLogPluginMembership {
-  MembershipContractAnnounced = 'MembershipContractAnnounced',
+  Lock: typeof Lock
+  VpMember: typeof VpMember
+  PluginMember: typeof PluginMember
+  PluginMetrics: typeof PluginMetrics
 }
 
 export enum IEventLogPluginType {

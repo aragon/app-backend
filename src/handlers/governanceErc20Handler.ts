@@ -1,21 +1,17 @@
 import logger from '@logger'
 import { type LogDescription } from 'ethers'
-import { EnumQueueName, type HexAddress, type ILogInfo, ITransferSide, ITransferType } from '@types'
+import { type HexAddress, type ILogInfo, ITransferSide, ITransferType } from '@types'
 import utils from '@helpers/utils'
 import { ProxyMember } from '@modules/proxyMember'
 import DbTx from '@modules/dbTx'
-import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
-import type Plugin from '@models/schema/plugin'
-import RabbitMQHelper from '@helpers/rabbitMQ'
 import { ProxyToken } from '@modules/proxyToken'
-import type MemberTransaction from '@models/schema/memberTransaction'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:GovernanceErc20Handler' })
 
 export const GovernanceErc20Handler = {
   // it triggers for each user the previous and new votingPower
-  delegateVotesChanged: async (parsedEvent: LogDescription, info: ILogInfo, isHistorical?: boolean) => {
+  delegateVotesChanged: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const plugins = await Models.Plugin.findAllByTokenAddress(info.address, info.network)
     if (!plugins || plugins.length === 0) return
 
@@ -41,38 +37,25 @@ export const GovernanceErc20Handler = {
         return
       }
 
-      await ProxyMember.createMember(memberAddress)
-      const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
-
-      const memberTokenBalanceDb = await ProxyMember.getBalances({
-        address: memberAddress,
-        tokenAddress: info.address,
-        network: info.network,
-      })
-
       const newBalance = BigInt(parsedEvent?.args?.newBalance || 0)
       const previousBalance = BigInt(parsedEvent?.args?.previousBalance || 0)
 
       let side: ITransferSide
       let from: HexAddress | null = null
       let to: HexAddress | null = null
+      let lastActivity: undefined | number
       if (newBalance > previousBalance) {
         side = ITransferSide.incoming
         to = memberAddress
       } else {
         side = ITransferSide.outgoing
         from = memberAddress
+        lastActivity = info.blockNumber
       }
 
-      // save member transaction
-      const memberTx = await DbTx.executeTxFn(async ({ session }) => {
-        await memberTokenBalanceDb?.update(
-          {
-            votingPower: newBalance.toString(),
-          },
-          { session },
-        )
+      await ProxyMember.createMember(memberAddress, lastActivity)
 
+      await DbTx.executeTxFn(async ({ session }) => {
         const logDb = await Models.MemberTransaction.create(
           {
             network,
@@ -80,7 +63,6 @@ export const GovernanceErc20Handler = {
             transactionIndex: info.transactionIndex,
             logIndex: info.logIndex,
             blockNumber: info.blockNumber,
-            blockTimestamp,
             address: memberAddress,
             type: ITransferType.delegate,
             side,
@@ -98,67 +80,23 @@ export const GovernanceErc20Handler = {
         return logDb
       })
 
-      await GovernanceErc20Handler._handleDaoMemberShip(memberTx, plugins, info, isHistorical)
+      await ProxyMember.updateVotingPower({
+        memberAddress,
+        tokenAddress: info.address,
+        votingPower: newBalance.toString(),
+        network: info.network,
+      })
 
-      await Promise.all(
-        plugins.map(async (plg: Plugin) => {
-          await ProxyMember.updateDelegationMetrics({
-            memberAddress,
-            pluginAddress: plg.address,
-            tokenAddress,
-            network,
-          })
-
-          await ProxyMember.updateActivity({
-            memberAddress,
-            pluginAddress: plg.address,
-            blockNumber: info.blockNumber,
-            network,
-          })
-        }),
-      )
+      // only when incoming delegation, we update the delegation metrics
+      if (side === ITransferSide.incoming) {
+        await ProxyMember.updateDelegationMetrics({
+          memberAddress,
+          tokenAddress,
+          network,
+        })
+      }
     } catch (error) {
       logger.error('DelegateVotesChanged - error', llo({ error, parsedEvent, info }))
-    }
-  },
-
-  _handleDaoMemberShip: async (
-    memberTx: Partial<MemberTransaction>,
-    plugins: Plugin[],
-    info: ILogInfo,
-    isHistorical?: boolean,
-  ) => {
-    await Promise.all([
-      ...plugins.map(async (plugin: Plugin) => {
-        const memberShipParams = {
-          memberAddress: memberTx.address!,
-          daoAddress: plugin.daoAddress,
-          network: plugin.network,
-          pluginAddress: plugin.address,
-          tokenAddress: plugin.tokenAddress,
-        }
-
-        const isMember = await ProxyMember.isMemberOfDao(memberShipParams)
-        const meetsRequirements = BigInt(memberTx?.memberVotingPower!) > 0n
-
-        if (!isMember && meetsRequirements) {
-          await ProxyMember.addToDao(memberShipParams)
-        } else if (isMember && !meetsRequirements) {
-          await ProxyMember.removeFromDao(memberShipParams)
-        }
-      }),
-    ])
-
-    if (!isHistorical) {
-      const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
-      await Promise.all(
-        uniqueDaoList.map(async (daoAddress: string) => {
-          await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-            id: daoAddress,
-            params: { address: daoAddress, network: info.network },
-          })
-        }),
-      )
     }
   },
 }

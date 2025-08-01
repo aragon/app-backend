@@ -47,6 +47,12 @@ export default class Member extends Model {
   @prop({ type: () => String, default: null })
   public avatar!: string
 
+  @prop({ type: () => Number, default: null })
+  public lastActivity?: number
+
+  @prop({ type: () => Number, default: null })
+  public firstActivity?: number
+
   static async create(rawData: Partial<Member>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.address, 'address is required')
