@@ -107,7 +107,7 @@ export const ProxyMember = {
   updateVotingPower: async (params: {
     memberAddress: HexAddress
     tokenAddress: HexAddress
-    votingPower: string
+    votingPower?: string
     tokenIds?: string[]
     network: NetworksEnum
   }): Promise<VpMember | null> => {
@@ -129,12 +129,16 @@ export const ProxyMember = {
         }
 
         // Prepare update data
-        const updateData: any = { votingPower: params.votingPower }
+        const updateData: any = {}
 
-        // If voting power is 0, always set tokenIds to empty array
-        if (params.votingPower === '0') {
+        if (params.votingPower !== undefined) {
+          updateData.votingPower = params.votingPower.toString()
+        } else if (params.votingPower === '0') {
+          // If voting power is 0, always set tokenIds to empty array
           updateData.tokenIds = []
-        } else if (params.tokenIds !== undefined) {
+        }
+
+        if (params.tokenIds !== undefined) {
           updateData.tokenIds = params.tokenIds
         }
 
