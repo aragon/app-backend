@@ -458,6 +458,7 @@ export const GovernanceVeHandler = {
         }
       }
 
+      // TODO on l2 the we need to adjust the blockNumber and it should use as offset +1
       const votingPower = await GovernanceErc20Helper.getPastVotes(
         memberAddress,
         info.address,

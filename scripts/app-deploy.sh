@@ -64,7 +64,7 @@ echo "🔧 Compose file: $DOCKER_FILE"
 
 # List of microservice names (as defined in compose)
 MICROSERVICES=(
-  service-aragon-api
+  #service-aragon-api done HA
   service-aragon-admin-api
   service-aragon-indexer
   service-aragon-dao
@@ -270,6 +270,12 @@ deploy_services() {
   # Step 2: Pre-build all images while services are running
   echo "🔨 Pre-building all Docker images (services still available)..."
   docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" build --parallel migration "${MICROSERVICES[@]}"
+  
+  ###service-aragon-api 
+  docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" build service-aragon-api
+  docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" up -d service-aragon-api
+
+
   echo "✅ All images built and ready"
 
   # Phase 2: Quick switchover (minimal downtime)
