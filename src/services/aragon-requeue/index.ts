@@ -75,11 +75,12 @@ const AragonReQueueService: IService = {
           { $or: [{ end: false }, { end: { $exists: false } }] },
           {
             $or: [
-              { service: { $regex: `^(${Object.values(IPluginInterfaceType).join('|')})-` } },
+              { service: { $regex: `^(${Object.values(IPluginInterfaceType).map(escapeRegExp).join('|')})-` } },
               {
                 service: {
                   $regex: `^(${Object.values(ITokenType)
                     .filter(type => type !== ITokenType.native && type !== ITokenType.unknown)
+                    .map(escapeRegExp)
                     .join('|')})-`,
                 },
               },
