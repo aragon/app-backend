@@ -4,7 +4,6 @@ import {
   IEventLogPluginSettings,
   IEventLogPluginType,
   IPluginInterfaceType,
-  type IQueuePlugin,
   ITokenType,
   NetworksEnum,
 } from '@types'
@@ -21,7 +20,6 @@ import { RateModule } from '@modules/rates'
 import { PluginSlug } from '@helpers/pluginSlug'
 import { Multisig } from '@artifacts/Multisig'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
-import AragonPluginsService from '@plugins/index'
 
 describe('Integration: Plugin Setup SPP', () => {
   let sandbox: SinonSandbox
