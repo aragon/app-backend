@@ -66,7 +66,6 @@ export enum LockErc721Token {
 }
 
 export enum IGovernanceErc20Logs {
-  Transfer = 'Transfer',
   DelegateVotesChanged = 'DelegateVotesChanged',
 }
 
