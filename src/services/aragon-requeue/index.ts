@@ -74,27 +74,19 @@ const AragonReQueueService: IService = {
       where: {
         $and: [
           { $or: [{ end: false }, { end: { $exists: false } }] },
-
           {
-            $and: [
+            $or: [
               {
-                $or: [{ end: false }, { end: { $exists: false } }],
+                service: {
+                  $regex: `^(${Object.values(IPluginInterfaceType).join('|')})-(${Object.values(NetworksEnum).join('|')})-0x[a-fA-F0-9]{40}$`,
+                },
               },
               {
-                $or: [
-                  {
-                    service: {
-                      $regex: `^(${Object.values(IPluginInterfaceType).join('|')})-(${Object.values(NetworksEnum).join('|')})-0x[a-fA-F0-9]{40}$`,
-                    },
-                  },
-                  {
-                    service: {
-                      $regex: `^(${Object.values(ITokenType)
-                        .filter(type => type !== ITokenType.native && type !== ITokenType.unknown)
-                        .join('|')})-(${Object.values(NetworksEnum).join('|')})-0x[a-fA-F0-9]{40}$`,
-                    },
-                  },
-                ],
+                service: {
+                  $regex: `^(${Object.values(ITokenType)
+                    .filter(type => type !== ITokenType.native && type !== ITokenType.unknown)
+                    .join('|')})-(${Object.values(NetworksEnum).join('|')})-0x[a-fA-F0-9]{40}$`,
+                },
               },
             ],
           },
