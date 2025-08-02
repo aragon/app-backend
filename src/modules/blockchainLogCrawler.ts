@@ -137,7 +137,6 @@ class BlockchainLogCrawler {
               strategy: this.crawlParams.strategy,
               toBlock,
               latestBlock,
-              logsLen: 0,
             }),
           )
         } else if (!this.crawlParams.skipLogProcessing) {
