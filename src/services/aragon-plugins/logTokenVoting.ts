@@ -12,8 +12,6 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Plugin from '@models/schema/plugin'
 import configIndexer from '@indexer/configIndexer'
 import type Token from '@models/schema/token'
-import { TokenHolderSync } from './tokenHolderSync'
-import config from '@config'
 import ConfigIndexerHelper from '@helpers/configIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogTokenVoting' })
@@ -128,41 +126,7 @@ export const LogTokenVoting = {
     })
     const startTime = Date.now()
 
-    const isNotEligibleForSync = await TokenHolderSync.isTokenNotEligibleForSync(token, plugin)
-    const skipSync = isNotEligibleForSync && config.IGNORE_TRANSFER
-
-    if (skipSync) {
-      logger.verbose('Skip sync large token', llo({ ...infoLogs }))
-      token.ignoreTransfer = true
-      await token.save()
-    }
-
-    if (isNotEligibleForSync) {
-      logger.verbose('Start Sync Only Delegates Events', llo({ ...infoLogs, skipSync }))
-
-      const crawlers: any = [pluginCrawler]
-      crawlers.push({
-        crawl: async () => TokenHolderSync.syncDelegationEvents(plugin, token),
-        end: async () => {},
-      })
-
-      await Promise.all(crawlers.map(async (c: BlockchainLogCrawler) => c.crawl()))
-      await TokenHolderSync.convertToStandardSync(plugin, token)
-      await Promise.all(crawlers.map(async (c: BlockchainLogCrawler) => c.end?.()))
-
-      logger.verbose(
-        'End LogTokenVoting',
-        llo({
-          ...infoLogs,
-          syncStrategy: 'BlockScout',
-          startTime,
-          endTime: Date.now(),
-        }),
-      )
-      return
-    }
-
-    logger.verbose('Start Token Sync', llo({ ...infoLogs, ...{ syncStrategy: 'BlockchainLogCrawler' } }))
+    logger.verbose('Start Token Sync', llo({ ...infoLogs, ...{ syncStrategy: 'BlockchainLogCrawler', startTime } }))
 
     const tokenCrawler = new BlockchainLogCrawler({
       onlyHistorical: isHistorical,
@@ -186,6 +150,8 @@ export const LogTokenVoting = {
         syncStrategy: 'BlockchainLogCrawler',
         lastTokenSyncBlock: tokenCrawler.crawlSetting.lastSync,
         lastPluginSyncBlock: pluginCrawler.crawlSetting.lastSync,
+        startTime,
+        endTime: Date.now(),
       }),
     )
   },
