@@ -1,4 +1,4 @@
-import { EnumConnection, type IMigration } from '@types'
+import { type IMigration } from '@types'
 import logger from '@logger'
 import { Models } from '@dbModels'
 
