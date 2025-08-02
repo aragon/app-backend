@@ -282,7 +282,7 @@ describe('AragonRequeue: index', () => {
         {
           id: 'invalid-service-pattern',
           network: 'ethereum-mainnet',
-          service: 'tokenVoting-invalid-network-0x1234567890123456789012345678901234567890',
+          service: 'ERC20-ethereum-mainnet-0xA5148e8fA0CA950dEaAE6422e32149d361708e2e',
           lastSync: 12345678,
         },
       ]
@@ -292,6 +292,7 @@ describe('AragonRequeue: index', () => {
       const stubRabbitMq = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
       const loggerErrorStub = sandbox.stub(logger, 'error')
       const loggerInfoStub = sandbox.stub(logger, 'info').resolves()
+      sandbox.stub(ConfigIndexerHelper.parser, 'parse').resolves(null)
 
       await AragonReQueueService.start()
 
