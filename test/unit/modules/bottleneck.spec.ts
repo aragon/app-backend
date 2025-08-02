@@ -147,4 +147,32 @@ describe('Module: bottleneck', () => {
       expect(limiter1).not.eq(limiter2)
     })
   })
+
+  describe('getDuneLimiter', () => {
+    it('returns the same instance for the same network', () => {
+      const limiter1 = BottleneckModule.getDuneLimiter(NetworksEnum.ethereumMainnet)
+      const limiter2 = BottleneckModule.getDuneLimiter(NetworksEnum.ethereumMainnet)
+
+      expect(limiter1).to.eq(limiter2)
+
+      const limiter3 = BottleneckModule.duneLimiters[NetworksEnum.ethereumMainnet]
+      expect(limiter3).to.eq(limiter1)
+    })
+
+    it('returns different instances for different networks', () => {
+      const limiter1 = BottleneckModule.getDuneLimiter(NetworksEnum.ethereumMainnet)
+      const limiter2 = BottleneckModule.getDuneLimiter(NetworksEnum.ethereumSepolia)
+
+      expect(limiter1).not.eq(limiter2)
+    })
+
+    it('creates a limiter instance', () => {
+      const limiter = BottleneckModule.getDuneLimiter(NetworksEnum.ethereumMainnet)
+
+      // Check that a limiter instance was created
+      expect(limiter).to.exist
+      expect(limiter).to.have.property('schedule')
+      expect(limiter.schedule).to.be.a('function')
+    })
+  })
 })

@@ -99,9 +99,9 @@ describe('AragonIndexer: SyncAll', () => {
 
       await SyncAll.onDocument(plugin as any)
 
-      expect(getMessageCountStub.calledOnceWith(EnumQueueName.plugins)).to.be.true
+      expect(getMessageCountStub.calledOnceWith(EnumQueueName.requeue)).to.be.true
       expect(
-        sendMessageStub.calledOnceWith(EnumQueueName.plugins, {
+        sendMessageStub.calledOnceWith(EnumQueueName.requeue, {
           id: plugin.address,
           params: { address: plugin.address, network: plugin.network },
         }),
@@ -127,9 +127,9 @@ describe('AragonIndexer: SyncAll', () => {
 
       expect(getMessageCountStub.callCount).to.equal(2)
       expect(waitStub.calledOnce).to.be.true
-      expect(loggerWarnStub.calledWithMatch('Queue "log.plugins" has reached the limit. Waiting...' as any)).to.be.true
+      expect(loggerWarnStub.calledWithMatch('Queue "log.requeue" has reached the limit. Waiting...' as any)).to.be.true
       expect(sendMessageStub.calledOnce).to.be.true
-      expect(loggerVerboseStub.calledWithMatch('Message sent to queue "log.plugins"' as any)).to.be.true
+      expect(loggerVerboseStub.calledWithMatch('Message sent to queue "log.requeue"' as any)).to.be.true
     })
 
     it('should log an error and retry when unable to get message count', async () => {
@@ -153,13 +153,13 @@ describe('AragonIndexer: SyncAll', () => {
       expect(loggerErrorStub.calledOnce).to.be.true
       expect(
         loggerErrorStub.calledWith(
-          `Unable to get message count for queue "${EnumQueueName.plugins}". Retrying...` as any,
+          `Unable to get message count for queue "${EnumQueueName.requeue}". Retrying...` as any,
         ),
       ).to.be.true
 
       expect(waitStub.calledOnce).to.be.true
       expect(sendMessageStub.calledOnce).to.be.true
-      expect(loggerVerboseStub.args[0][0]).to.be.eq(`Message sent to queue "${EnumQueueName.plugins}"` as any)
+      expect(loggerVerboseStub.args[0][0]).to.be.eq(`Message sent to queue "${EnumQueueName.requeue}"` as any)
     })
 
     it('should handle the aggregation query and handle the crawler', async () => {
