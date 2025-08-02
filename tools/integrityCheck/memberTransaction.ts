@@ -71,26 +71,29 @@ export const IntegrityToolMemberTransaction: any = {
       const BATCH_SIZE = 10 // Process 10 tokens at a time
       const limiter = BottleneckModule.getDuneLimiter(IntegrityToolMemberTransaction.NETWORK_FILTER)
       const results: TokenCheckResult[] = []
-      
+
       for (let i = 0; i < uniqueTokenAddresses.length; i += BATCH_SIZE) {
         const batch = uniqueTokenAddresses.slice(i, i + BATCH_SIZE)
         const batchNumber = Math.floor(i / BATCH_SIZE) + 1
         const totalBatches = Math.ceil(uniqueTokenAddresses.length / BATCH_SIZE)
-        
-        logger.info(`Processing batch ${batchNumber}/${totalBatches}`, llo({ 
-          startIndex: i, 
-          endIndex: Math.min(i + BATCH_SIZE, uniqueTokenAddresses.length),
-          tokensInBatch: batch.length 
-        }))
-        
+
+        logger.info(
+          `Processing batch ${batchNumber}/${totalBatches}`,
+          llo({
+            startIndex: i,
+            endIndex: Math.min(i + BATCH_SIZE, uniqueTokenAddresses.length),
+            tokensInBatch: batch.length,
+          }),
+        )
+
         const batchResults = await Promise.all(
-          batch.map((tokenAddress: string) =>
+          batch.map(async (tokenAddress: string) =>
             limiter.schedule(() => IntegrityToolMemberTransaction.checkToken(tokenAddress)),
           ),
         )
-        
+
         results.push(...batchResults)
-        
+
         // Log progress after each batch
         const processed = results.length
         const percentage = ((processed / uniqueTokenAddresses.length) * 100).toFixed(1)
@@ -113,15 +116,16 @@ export const IntegrityToolMemberTransaction: any = {
           errors: errors.length,
           matchPercentage: ((matches.length / results.length) * 100).toFixed(2) + '%',
         },
-        mismatches: mismatches.map(m => ({
-          tokenAddress: m.tokenAddress,
-          duneCount: m.duneCount,
-          dbCount: m.dbCount,
-          difference: m.duneCount - m.dbCount,
-          percentageDifference: m.duneCount > 0 
-            ? ((Math.abs(m.duneCount - m.dbCount) / m.duneCount) * 100).toFixed(2) + '%'
-            : 'N/A',
-        })).sort((a, b) => Math.abs(b.difference) - Math.abs(a.difference)), // Sort by difference descending
+        mismatches: mismatches
+          .map(m => ({
+            tokenAddress: m.tokenAddress,
+            duneCount: m.duneCount,
+            dbCount: m.dbCount,
+            difference: m.duneCount - m.dbCount,
+            percentageDifference:
+              m.duneCount > 0 ? ((Math.abs(m.duneCount - m.dbCount) / m.duneCount) * 100).toFixed(2) + '%' : 'N/A',
+          }))
+          .sort((a, b) => Math.abs(b.difference) - Math.abs(a.difference)), // Sort by difference descending
         errors: errors.map(e => ({
           tokenAddress: e.tokenAddress,
           error: e.error,
@@ -137,10 +141,10 @@ export const IntegrityToolMemberTransaction: any = {
       if (!fs.existsSync(reportPath)) {
         fs.mkdirSync(reportPath, { recursive: true })
       }
-      
+
       const filename = `integrity_report_${IntegrityToolMemberTransaction.NETWORK_FILTER}_${new Date().toISOString().replace(/[:.]/g, '-')}.json`
       const filepath = path.join(reportPath, filename)
-      
+
       fs.writeFileSync(filepath, JSON.stringify(report, null, 2))
       logger.info(`Report saved to: ${filepath}`, llo({}))
 
@@ -155,7 +159,7 @@ export const IntegrityToolMemberTransaction: any = {
           reportPath: filepath,
         }),
       )
-      
+
       // If there are mismatches, log the top 10 biggest differences
       if (mismatches.length > 0) {
         const top10Mismatches = report.mismatches.slice(0, 10)
