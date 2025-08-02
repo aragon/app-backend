@@ -76,12 +76,16 @@ const AragonReQueueService: IService = {
           { $or: [{ end: false }, { end: { $exists: false } }] },
           {
             $or: [
-              { service: { $regex: `^(${Object.values(IPluginInterfaceType).join('|')})-` } },
+              {
+                service: {
+                  $regex: `^(${Object.values(IPluginInterfaceType).join('|')})-[a-zA-Z0-9-]+-0x[a-fA-F0-9]{40}$`,
+                },
+              },
               {
                 service: {
                   $regex: `^(${Object.values(ITokenType)
                     .filter(type => type !== ITokenType.native && type !== ITokenType.unknown)
-                    .join('|')})-`,
+                    .join('|')})-[a-zA-Z0-9-]+-0x[a-fA-F0-9]{40}$`,
                 },
               },
             ],
