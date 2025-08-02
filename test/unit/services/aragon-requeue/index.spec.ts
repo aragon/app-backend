@@ -276,13 +276,13 @@ describe('AragonRequeue: index', () => {
     })
 
     it('should skip invalid service patterns', async () => {
-      // Use a service that matches the regex but fails parsing
-      // This will match the tokenVoting plugin regex but have invalid format
+      // Use a service that matches the regex but has invalid network
+      // This will match the plugin regex pattern but fail parsing due to invalid network
       const dbData = [
         {
           id: 'invalid-service-pattern',
           network: 'ethereum-mainnet',
-          service: 'tokenVoting-invalid-format',
+          service: 'tokenVoting-invalid-network-0x1234567890123456789012345678901234567890',
           lastSync: 12345678,
         },
       ]
@@ -302,12 +302,17 @@ describe('AragonRequeue: index', () => {
 
     it('should handle all supported plugin interface types', async () => {
       const pluginTypes = Object.values(IPluginInterfaceType).filter(type => type !== IPluginInterfaceType.unknown)
-      const dbData = pluginTypes.map((pluginType, index) => ({
-        id: `ethereum-mainnet-${pluginType}-ethereum-mainnet-0x${index.toString().padStart(40, '0')}123456789012345678901234567890`,
-        network: 'ethereum-mainnet',
-        service: `${pluginType}-ethereum-mainnet-0x${index.toString().padStart(40, '0')}123456789012345678901234567890`,
-        lastSync: 12345678,
-      }))
+      const dbData = pluginTypes.map((pluginType, index) => {
+        // Generate a proper 40-character hex address
+        const paddedIndex = index.toString().padStart(2, '0')
+        const address = `0x${paddedIndex}${'0'.repeat(38)}`
+        return {
+          id: `ethereum-mainnet-${pluginType}-ethereum-mainnet-${address}`,
+          network: 'ethereum-mainnet',
+          service: `${pluginType}-ethereum-mainnet-${address}`,
+          lastSync: 12345678,
+        }
+      })
 
       await Promise.all(dbData.map(async data => Models.ConfigIndexer.create(data)))
 
@@ -324,24 +329,34 @@ describe('AragonRequeue: index', () => {
       const tokenTypes = Object.values(ITokenType).filter(
         type => type !== ITokenType.native && type !== ITokenType.unknown,
       )
-      const dbData = tokenTypes.map((tokenType, index) => ({
-        id: `ethereum-mainnet-${tokenType}-ethereum-mainnet-0x${index.toString().padStart(40, '0')}123456789012345678901234567890`,
-        network: 'ethereum-mainnet',
-        service: `${tokenType}-ethereum-mainnet-0x${index.toString().padStart(40, '0')}123456789012345678901234567890`,
-        lastSync: 12345678,
-      }))
+      const dbData = tokenTypes.map((tokenType, index) => {
+        // Generate a proper 40-character hex address
+        const paddedIndex = index.toString().padStart(2, '0')
+        const tokenAddress = `0x${paddedIndex}${'0'.repeat(38)}`
+        return {
+          id: `ethereum-mainnet-${tokenType}-ethereum-mainnet-${tokenAddress}`,
+          network: 'ethereum-mainnet',
+          service: `${tokenType}-ethereum-mainnet-${tokenAddress}`,
+          lastSync: 12345678,
+        }
+      })
 
-      const mockPlugins = tokenTypes.map((tokenType, index) => ({
-        transactionHash: `0x${index.toString().padStart(64, '0')}`,
-        blockNumber: 12345678 + index,
-        blockTimestamp: 1234567890 + index,
-        address: `0x${(index + 100).toString().padStart(40, '0')}123456789012345678901234567890`,
-        network: 'ethereum-mainnet',
-        tokenAddress: `0x${index.toString().padStart(40, '0')}123456789012345678901234567890`,
-        interfaceType: IPluginInterfaceType.tokenVoting,
-        status: IPluginStatus.installed,
-        daoAddress: '0x1111111111111111111111111111111111111111',
-      }))
+      const mockPlugins = tokenTypes.map((tokenType, index) => {
+        const paddedIndex = index.toString().padStart(2, '0')
+        const tokenAddress = `0x${paddedIndex}${'0'.repeat(38)}`
+        const pluginAddress = `0x${(index + 100).toString().padStart(2, '0')}${'0'.repeat(38)}`
+        return {
+          transactionHash: `0x${index.toString().padStart(64, '0')}`,
+          blockNumber: 12345678 + index,
+          blockTimestamp: 1234567890 + index,
+          address: pluginAddress,
+          network: 'ethereum-mainnet',
+          tokenAddress: tokenAddress,
+          interfaceType: IPluginInterfaceType.tokenVoting,
+          status: IPluginStatus.installed,
+          daoAddress: '0x1111111111111111111111111111111111111111',
+        }
+      })
 
       await Promise.all(dbData.map(async data => Models.ConfigIndexer.create(data)))
       await Promise.all(mockPlugins.map(async plugin => Models.Plugin.create(plugin)))
@@ -350,9 +365,9 @@ describe('AragonRequeue: index', () => {
       const stubFindByTokenAddress = sandbox.stub(Models.Plugin, 'findByTokenAddress')
 
       tokenTypes.forEach((tokenType, index) => {
-        stubFindByTokenAddress
-          .withArgs(`0x${index.toString().padStart(40, '0')}123456789012345678901234567890`, 'ethereum-mainnet')
-          .resolves(mockPlugins[index])
+        const paddedIndex = index.toString().padStart(2, '0')
+        const tokenAddress = `0x${paddedIndex}${'0'.repeat(38)}`
+        stubFindByTokenAddress.withArgs(tokenAddress, 'ethereum-mainnet').resolves(mockPlugins[index])
       })
 
       const loggerVerboseStub = sandbox.stub(logger, 'verbose').resolves()

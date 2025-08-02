@@ -1,12 +1,6 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import {
-  IEventLogPluginSettings,
-  IEventLogPluginType,
-  IPluginInterfaceType,
-  ITokenType,
-  NetworksEnum,
-} from '@types'
+import { IEventLogPluginSettings, IEventLogPluginType, IPluginInterfaceType, ITokenType, NetworksEnum } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
