@@ -4,7 +4,7 @@ import { Models } from '@dbModels'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: rm-transfers' })
 
-export enum ITransferType {
+enum ITransferType {
   tokenTransfer = 'tokenTransfer',
 }
 
