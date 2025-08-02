@@ -1,14 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import {
-  ITokenType,
-  NetworksEnum,
-  ITokenSyncTagName,
-  IndexerType,
-  IEnumIndexerService,
-  LogServicePattern,
-} from '@types'
+import { ITokenType, NetworksEnum, IndexerType, IEnumIndexerService, LogServicePattern } from '@types'
 import logger from '@logger'
 import ConfigIndexerHelper from '@helpers/configIndexer'
 
@@ -118,15 +111,6 @@ describe('Helpers: ConfigIndexerHelper', () => {
         expect(result).to.equal(`${tokenType}-${network}-${address}`)
       })
 
-      it('should create token logService with sync tag', () => {
-        const tokenType = ITokenType.ERC721
-        const network = NetworksEnum.optimismMainnet
-        const address = '0xnft123'
-        const syncTag = ITokenSyncTagName.delegates
-        const result = ConfigIndexerHelper.builders.token(tokenType, network, address, syncTag)
-        expect(result).to.equal(`${tokenType}-${network}-${address}-${syncTag}`)
-      })
-
       it('should throw error for native token type', () => {
         expect(() => {
           ConfigIndexerHelper.builders.token(ITokenType.native, NetworksEnum.ethereumMainnet, '0xtoken123')
@@ -153,18 +137,6 @@ describe('Helpers: ConfigIndexerHelper', () => {
         validTypes.forEach(tokenType => {
           const result = ConfigIndexerHelper.builders.token(tokenType, network, address)
           expect(result).to.equal(`${tokenType}-${network}-${address}`)
-        })
-      })
-
-      it('should create token logService with all sync tag types', () => {
-        const tokenType = ITokenType.ERC20
-        const network = NetworksEnum.ethereumMainnet
-        const address = '0xtoken123'
-        const syncTags = [ITokenSyncTagName.delegates, ITokenSyncTagName.transfers, ITokenSyncTagName.holders]
-
-        syncTags.forEach(syncTag => {
-          const result = ConfigIndexerHelper.builders.token(tokenType, network, address, syncTag)
-          expect(result).to.equal(`${tokenType}-${network}-${address}-${syncTag}`)
         })
       })
     })
@@ -368,28 +340,6 @@ describe('Helpers: ConfigIndexerHelper', () => {
         })
       })
 
-      it('should parse token service with sync tag', () => {
-        const result = ConfigIndexerHelper.parser.parse('ERC721-arbitrum-mainnet-0xdef-delegates')
-        expect(result).to.deep.equal({
-          type: IndexerType.token,
-          tokenType: ITokenType.ERC721,
-          network: 'arbitrum-mainnet',
-          address: '0xdef',
-          syncTag: ITokenSyncTagName.delegates,
-        })
-      })
-
-      it('should parse token service with invalid sync tag as regular token', () => {
-        const result = ConfigIndexerHelper.parser.parse('ERC20-ethereum-mainnet-0x123-invalid')
-        expect(result).to.deep.equal({
-          type: IndexerType.token,
-          tokenType: ITokenType.ERC20,
-          network: 'ethereum-mainnet',
-          address: '0x123',
-          // No syncTag because 'invalid' is not a valid sync tag
-        })
-      })
-
       it('should parse plugin service', () => {
         const result = ConfigIndexerHelper.parser.parse('voting-optimism-mainnet-0x999' as LogServicePattern)
         expect(result).to.deep.equal({
@@ -427,56 +377,6 @@ describe('Helpers: ConfigIndexerHelper', () => {
         expect(ConfigIndexerHelper.parser.getType('transferList-ethereum-mainnet-0x123')).to.equal(
           IndexerType.transferList,
         )
-      })
-    })
-
-    describe('hasSyncTag', () => {
-      it('should return true for token service with sync tag', () => {
-        expect(ConfigIndexerHelper.parser.hasSyncTag('ERC20-ethereum-mainnet-0x123-delegates')).to.be.true
-        expect(ConfigIndexerHelper.parser.hasSyncTag('ERC721-polygon-mainnet-0x456-transfers')).to.be.true
-        expect(ConfigIndexerHelper.parser.hasSyncTag('ERC1155-base-mainnet-0x789-holders')).to.be.true
-      })
-
-      it('should return false for token service without sync tag', () => {
-        expect(ConfigIndexerHelper.parser.hasSyncTag('ERC20-ethereum-mainnet-0x123')).to.be.false
-      })
-
-      it('should return false for token service with invalid sync tag', () => {
-        expect(ConfigIndexerHelper.parser.hasSyncTag('ERC20-ethereum-mainnet-0x123-invalid')).to.be.false
-      })
-
-      it('should return false for non-token services', () => {
-        expect(ConfigIndexerHelper.parser.hasSyncTag('deposit-ethereum-mainnet-0x123-depositTxs')).to.be.false
-        expect(ConfigIndexerHelper.parser.hasSyncTag('dao-ethereum-mainnet-0x123')).to.be.false
-        expect(ConfigIndexerHelper.parser.hasSyncTag(null)).to.be.false
-      })
-    })
-
-    describe('getSyncTag', () => {
-      it('should return sync tag for token service with valid sync tag', () => {
-        expect(ConfigIndexerHelper.parser.getSyncTag('ERC20-ethereum-mainnet-0x123-delegates')).to.equal(
-          ITokenSyncTagName.delegates,
-        )
-        expect(ConfigIndexerHelper.parser.getSyncTag('ERC721-polygon-mainnet-0x456-transfers')).to.equal(
-          ITokenSyncTagName.transfers,
-        )
-        expect(ConfigIndexerHelper.parser.getSyncTag('ERC1155-base-mainnet-0x789-holders')).to.equal(
-          ITokenSyncTagName.holders,
-        )
-      })
-
-      it('should return null for token service without sync tag', () => {
-        expect(ConfigIndexerHelper.parser.getSyncTag('ERC20-ethereum-mainnet-0x123')).to.be.null
-      })
-
-      it('should return null for token service with invalid sync tag', () => {
-        expect(ConfigIndexerHelper.parser.getSyncTag('ERC20-ethereum-mainnet-0x123-invalid')).to.be.null
-      })
-
-      it('should return null for non-token services', () => {
-        expect(ConfigIndexerHelper.parser.getSyncTag('deposit-ethereum-mainnet-0x123-depositTxs')).to.be.null
-        expect(ConfigIndexerHelper.parser.getSyncTag('dao-ethereum-mainnet-0x123')).to.be.null
-        expect(ConfigIndexerHelper.parser.getSyncTag(null)).to.be.null
       })
     })
   })
@@ -555,104 +455,9 @@ describe('Helpers: ConfigIndexerHelper', () => {
         expect(ConfigIndexerHelper.utils.isValidTokenTypeForLogService(ITokenType.unknown)).to.be.false
       })
     })
-
-    describe('getValidSyncTags', () => {
-      it('should return all sync tag values', () => {
-        const result = ConfigIndexerHelper.utils.getValidSyncTags()
-        expect(result).to.deep.equal([
-          ITokenSyncTagName.delegates,
-          ITokenSyncTagName.transfers,
-          ITokenSyncTagName.holders,
-        ])
-      })
-    })
-
-    describe('isValidSyncTag', () => {
-      it('should return true for valid sync tags', () => {
-        expect(ConfigIndexerHelper.utils.isValidSyncTag('delegates')).to.be.true
-        expect(ConfigIndexerHelper.utils.isValidSyncTag('transfers')).to.be.true
-        expect(ConfigIndexerHelper.utils.isValidSyncTag('holders')).to.be.true
-      })
-
-      it('should return false for invalid sync tags', () => {
-        expect(ConfigIndexerHelper.utils.isValidSyncTag('invalid')).to.be.false
-        expect(ConfigIndexerHelper.utils.isValidSyncTag('')).to.be.false
-        expect(ConfigIndexerHelper.utils.isValidSyncTag('delegate')).to.be.false // typo
-      })
-    })
-
-    describe('addSyncTagToTokenService', () => {
-      it('should add sync tag to token service without one', () => {
-        const service = 'ERC20-ethereum-mainnet-0x123' as any
-        const result = ConfigIndexerHelper.utils.addSyncTagToTokenService(service, ITokenSyncTagName.delegates)
-        expect(result).to.equal('ERC20-ethereum-mainnet-0x123-delegates')
-      })
-
-      it('should replace existing sync tag', () => {
-        const service = 'ERC20-ethereum-mainnet-0x123-transfers' as any
-        const result = ConfigIndexerHelper.utils.addSyncTagToTokenService(service, ITokenSyncTagName.holders)
-        expect(result).to.equal('ERC20-ethereum-mainnet-0x123-holders')
-      })
-
-      it('should throw error for non-token service', () => {
-        expect(() => {
-          ConfigIndexerHelper.utils.addSyncTagToTokenService(
-            'deposit-0x123-depositTxs' as any,
-            ITokenSyncTagName.delegates,
-          )
-        }).to.throw('Service must be a token service')
-      })
-    })
-
-    describe('removeSyncTagFromTokenService', () => {
-      it('should remove sync tag from token service', () => {
-        const service = 'ERC20-ethereum-mainnet-0x123-delegates' as any
-        const result = ConfigIndexerHelper.utils.removeSyncTagFromTokenService(service)
-        expect(result).to.equal('ERC20-ethereum-mainnet-0x123')
-      })
-
-      it('should return unchanged service if no sync tag', () => {
-        const service = 'ERC20-ethereum-mainnet-0x123' as any
-        const result = ConfigIndexerHelper.utils.removeSyncTagFromTokenService(service)
-        expect(result).to.equal('ERC20-ethereum-mainnet-0x123')
-      })
-
-      it('should throw error for non-token service', () => {
-        expect(() => {
-          ConfigIndexerHelper.utils.removeSyncTagFromTokenService('dao-ethereum-mainnet-0x123' as any)
-        }).to.throw('Service must be a token service')
-      })
-    })
   })
 
   describe('Integration tests', () => {
-    it('should handle full lifecycle of token service with sync tags', () => {
-      // Create basic token service
-      const basic = ConfigIndexerHelper.builders.token(ITokenType.ERC20, NetworksEnum.ethereumMainnet, '0xtoken123')
-      expect(basic).to.equal('ERC20-ethereum-mainnet-0xtoken123')
-      expect(ConfigIndexerHelper.parser.hasSyncTag(basic)).to.be.false
-
-      // Add sync tag
-      const withTag = ConfigIndexerHelper.utils.addSyncTagToTokenService(basic, ITokenSyncTagName.delegates)
-      expect(withTag).to.equal('ERC20-ethereum-mainnet-0xtoken123-delegates')
-      expect(ConfigIndexerHelper.parser.hasSyncTag(withTag)).to.be.true
-      expect(ConfigIndexerHelper.parser.getSyncTag(withTag)).to.equal(ITokenSyncTagName.delegates)
-
-      // Parse it
-      const parsed = ConfigIndexerHelper.parser.parse(withTag)
-      expect(parsed).to.deep.equal({
-        type: IndexerType.token,
-        tokenType: ITokenType.ERC20,
-        network: NetworksEnum.ethereumMainnet,
-        address: '0xtoken123',
-        syncTag: ITokenSyncTagName.delegates,
-      })
-
-      // Remove sync tag
-      const removed = ConfigIndexerHelper.utils.removeSyncTagFromTokenService(withTag)
-      expect(removed).to.equal(basic)
-    })
-
     it('should handle transferList service lifecycle', () => {
       // Create transferList service
       const service = ConfigIndexerHelper.builders.transferList(NetworksEnum.ethereumMainnet, '0xtransfer123')

@@ -105,7 +105,7 @@ Used to track token log events for a specific Token.
 
 ```typescript
 import ConfigIndexerHelper from '@helpers/configIndexer'
-import { NetworksEnum, ITokenType, ITokenSyncTagName } from '@types'
+import { NetworksEnum, ITokenType } from '@types'
 
 // Deposit Service (daoAddress represents the DAO contract address)
 const depositService = ConfigIndexerHelper.builders.deposit(NetworksEnum.ethereumMainnet, '0x123456789')
@@ -148,16 +148,6 @@ const tokenService = ConfigIndexerHelper.builders.token(
   '0xtoken789',
 )
 // Result: "ERC20-arbitrum-mainnet-0xtoken789"
-
-// Token Service (with sync tag)
-const tokenWithSync = ConfigIndexerHelper.builders.token(
-  ITokenType.ERC721,
-  NetworksEnum.optimismMainnet,
-  '0xnft123',
-  ITokenSyncTagName.delegates,
-)
-// Result: "ERC721-optimism-mainnet-0xnft123-delegates"
-
 ```
 
 ### 2. Type Guards
@@ -196,7 +186,6 @@ const parsed = ConfigIndexerHelper.parser.parse('ERC20-ethereum-mainnet-0x123-de
   tokenType: 'ERC20',
   network: 'ethereum-mainnet',
   address: '0x123',
-  syncTag: 'delegates'
 }
 
 // Parse different service types
@@ -230,31 +219,7 @@ const invalidType = ConfigIndexerHelper.parser.getType('invalid-service')
 // Result: null
 ```
 
-### 5. Working with Token Sync Tags
-
-```typescript
-// Check if a token service has a sync tag
-const hasTag = ConfigIndexerHelper.parser.hasSyncTag('ERC20-ethereum-mainnet-0x123-delegates')
-// Result: true
-
-// Get the sync tag
-const syncTag = ConfigIndexerHelper.parser.getSyncTag('ERC20-ethereum-mainnet-0x123-transfers')
-// Result: 'transfers'
-
-// Add sync tag to existing token service
-const basic = 'ERC20-ethereum-mainnet-0x123' as TokenLogService
-const withTag = ConfigIndexerHelper.utils.addSyncTagToTokenService(
-        basic,
-        ITokenSyncTagName.holders
-)
-// Result: "ERC20-ethereum-mainnet-0x123-holders"
-
-// Remove sync tag
-const removed = ConfigIndexerHelper.utils.removeSyncTagFromTokenService(withTag)
-// Result: "ERC20-ethereum-mainnet-0x123"
-```
-
-### 6. Validation
+### 5. Validation
 
 ```typescript
 // Check if a string is a valid log service
@@ -270,7 +235,7 @@ const result = ConfigIndexerHelper.validators.validateAndParse('dao-ethereum-mai
 // Returns null if invalid
 ```
 
-### 7. Utility Functions
+### 6. Utility Functions
 
 ```typescript
 // Get all valid token types for logService
@@ -283,12 +248,4 @@ const isValidToken = ConfigIndexerHelper.utils.isValidTokenTypeForLogService(ITo
 
 const isInvalidToken = ConfigIndexerHelper.utils.isValidTokenTypeForLogService(ITokenType.native)
 // Result: false
-
-// Get all valid sync tags
-const validSyncTags = ConfigIndexerHelper.utils.getValidSyncTags()
-// Result: ['delegates', 'transfers', 'holders']
-
-// Check if a string is a valid sync tag
-const isValidTag = ConfigIndexerHelper.utils.isValidSyncTag('delegates')
-// Result: true
 ```

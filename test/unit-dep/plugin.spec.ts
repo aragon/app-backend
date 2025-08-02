@@ -1,6 +1,13 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { IEventLogPluginSettings, IEventLogPluginType, IPluginInterfaceType, ITokenType, NetworksEnum } from '@types'
+import {
+  IEventLogPluginSettings,
+  IEventLogPluginType,
+  IPluginInterfaceType,
+  type IQueuePlugin,
+  ITokenType,
+  NetworksEnum,
+} from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
@@ -14,6 +21,7 @@ import { RateModule } from '@modules/rates'
 import { PluginSlug } from '@helpers/pluginSlug'
 import { Multisig } from '@artifacts/Multisig'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
+import AragonPluginsService from '@plugins/index'
 
 describe('Integration: Plugin Setup SPP', () => {
   let sandbox: SinonSandbox
@@ -28,6 +36,76 @@ describe('Integration: Plugin Setup SPP', () => {
 
   afterEach(() => {
     sandbox && sandbox.restore()
+  })
+
+  it.only('should handle plugin installation', async function () {
+    const plugin = await Models.Plugin.create({
+      id: 'base-mainnet-0x610a6c5bb97592f1bad492162bf93a773136d9dbbcc2c6406519345c59c7182f-0xAb001519D45B4FAB600C778787668A8A2B6fEf61',
+      transactionHash: '0x610a6c5bb97592f1bad492162bf93a773136d9dbbcc2c6406519345c59c7182f',
+      blockNumber: 29351814,
+      blockTimestamp: 1745492975,
+      network: 'base-mainnet',
+      address: '0xAb001519D45B4FAB600C778787668A8A2B6fEf61',
+      implementationAddress: '0x429d2aC7839352091F2d44f8B0b1Ea140F3B95E4',
+      interfaceType: 'tokenVoting',
+      status: 'installed',
+      isSupported: true,
+      daoAddress: '0x9B4F300fb4536637AcFF34250499aF50Af90B340',
+      tokenAddress: '0x1111111111166b7FE7bd91427724B487980aFc69',
+      pluginSetupRepoAddress: '0x2532570DcFb749A7F976136CC05648ef2a0f60b0',
+      sender: '0xf9551c66995eD3Ff9bb05C9Fd7ff148Bd75dc99a',
+      release: '1',
+      build: '3',
+      subdomain: 'token-voting',
+      hasTarget: false,
+      isProcess: true,
+      isBody: true,
+      isSubPlugin: false,
+      metadataIpfs: 'ipfs://QmW6dF8vHK5SGLgW93NhocugvoxgRxDYTgQtqmS57uz4bX',
+      name: 'Revoke Rights',
+      description:
+        'This process allows $ZORA tokenholders to revoke the rights of the Zora team to upgrade the protocol.',
+      processKey: 'RR',
+      subPlugins: [],
+      links: [],
+    })
+    const token = await Models.Token.create({
+      id: '0x1111111111166b7FE7bd91427724B487980aFc69-base-mainnet',
+      network: 'base-mainnet',
+      transactionHash: '0xd0a10c53c9a776cd5fa6d6065a786cda4a9bba88a6262009e39708e0762ebd46',
+      blockNumber: 26990278,
+      type: 'ERC20',
+      address: '0x1111111111166b7FE7bd91427724B487980aFc69',
+      mintableByDao: false,
+      implementationAddress: null,
+      logo: 'https://assets.coingecko.com/coins/images/54693/small/zora.jpg?1741094751',
+      skipFetchRate: false,
+      isGovernance: true,
+      name: 'Zora',
+      symbol: 'ZORA',
+      decimals: 18,
+      underlying: null,
+      holders: 929934,
+      totalSupply: null,
+      priceUsd: '0.06687304',
+      hasDelegate: true,
+      hasBalanceOfERC20: true,
+      hasBalanceOfERC777: false,
+      hasName: true,
+      hasSymbol: true,
+      hasDecimals: true,
+      hasTotalSupply: true,
+      refetch: false,
+      ignoreTransfer: true,
+      hasClockMode: false,
+      clockMode: 'blocknumber',
+    })
+
+    await AragonPluginsService.pluginQueue({
+      address: plugin.address,
+      network: plugin.network,
+    })
+    console.log('ok')
   })
 
   it('plugin slug', async function () {
