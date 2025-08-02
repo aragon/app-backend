@@ -1,5 +1,5 @@
 import { type IPluginInterfaceType } from '@src/types/plugin'
-import { type HexAddress, type NetworksEnum } from '@src/types/networks'
+import { type NetworksEnum } from '@src/types/networks'
 import { type ITokenType } from '@src/types/token'
 
 export enum IndexerType {
