@@ -38,7 +38,7 @@ describe('Integration: Plugin Setup SPP', () => {
     sandbox && sandbox.restore()
   })
 
-  it.only('should handle plugin installation', async function () {
+  it('should handle plugin installation', async function () {
     const plugin = await Models.Plugin.create({
       id: 'base-mainnet-0x610a6c5bb97592f1bad492162bf93a773136d9dbbcc2c6406519345c59c7182f-0xAb001519D45B4FAB600C778787668A8A2B6fEf61',
       transactionHash: '0x610a6c5bb97592f1bad492162bf93a773136d9dbbcc2c6406519345c59c7182f',
