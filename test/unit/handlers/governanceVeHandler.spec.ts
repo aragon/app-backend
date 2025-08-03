@@ -59,7 +59,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
   describe('deposit', () => {
     it('should log error if plugin not found', async () => {
-      const stubAddToDao = sandbox.stub(ProxyMember, 'addToDao').resolves()
+      const stubAddPluginMember = sandbox.stub(ProxyMember, 'addPluginMember').resolves()
       const stubLogger = sandbox.stub(logger, 'error')
 
       const mockInfo = {
@@ -81,14 +81,13 @@ describe('Handler:GovernanceVeHandler', () => {
       await GovernanceVeHandler.deposit(mockEvent, mockInfo)
 
       expect(stubLogger.calledOnce).to.be.true
-      expect(stubAddToDao.notCalled).to.be.true
+      expect(stubAddPluginMember.notCalled).to.be.true
       expect(stubLogger.calledOnceWith('Plugin not found for deposit event' as any)).to.be.true
     })
 
     it('should create Lock and call logger/ProxyMember on success', async () => {
-      const stubAddToDao = sandbox.stub(ProxyMember, 'addToDao').resolves()
+      const stubAddPluginMember = sandbox.stub(ProxyMember, 'addPluginMember').resolves()
       sandbox.stub(ProxyMember, 'createMember').resolves()
-      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       const stubLogger = sandbox.stub(logger, 'verbose')
 
@@ -141,7 +140,7 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stored?.lockExit.status).to.be.false
       expect(stored?.lockWithdraw.status).to.be.false
       expect(stubLogger.calledTwice).to.be.true
-      expect(stubAddToDao.calledOnce).to.be.true
+      expect(stubAddPluginMember.calledOnce).to.be.true
       expect(stubLogger.firstCall.args[0]).to.equal('Deposit VeGovernance - Lock created')
       expect(stubLogger.secondCall.args[0]).to.equal('Updated document - MemberBalance Update on deposit')
 
@@ -151,9 +150,8 @@ describe('Handler:GovernanceVeHandler', () => {
     })
 
     it('should create Lock and update member balance on success', async () => {
-      const stubAddToDao = sandbox.stub(ProxyMember, 'addToDao').resolves()
+      const stubAddPluginMember = sandbox.stub(ProxyMember, 'addPluginMember').resolves()
       sandbox.stub(ProxyMember, 'createMember').resolves()
-      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       const stubLogger = sandbox.stub(logger, 'verbose')
 
@@ -195,13 +193,12 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(updatedBalance?.lastSyncAmountBlockNumber).to.equal(123)
 
       expect(stubLogger.calledTwice).to.be.true
-      expect(stubAddToDao.calledOnce).to.be.true
+      expect(stubAddPluginMember.calledOnce).to.be.true
     })
 
     it('should handle existing lock and log already exists', async () => {
       sandbox.stub(ProxyMember, 'createMember').resolves()
-      sandbox.stub(ProxyMember, 'addToDao').resolves()
-      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
+      sandbox.stub(ProxyMember, 'addPluginMember').resolves()
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       const stubLogger = sandbox.stub(logger, 'warn')
 
@@ -246,10 +243,9 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stubLogger.calledWith('Deposit VeGovernance - Lock already exists' as any)).to.be.true
     })
 
-    it('should skip addToDao if member is already in DAO', async () => {
+    it('should skip addPluginMember if member is already in DAO', async () => {
       sandbox.stub(ProxyMember, 'createMember').resolves()
-      const stubAddToDao = sandbox.stub(ProxyMember, 'addToDao').resolves()
-      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(true)
+      const stubAddPluginMember = sandbox.stub(ProxyMember, 'addPluginMember').resolves()
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(logger, 'verbose')
 
@@ -273,13 +269,13 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.deposit(mockEvent, mockInfo as any)
 
-      expect(stubAddToDao.notCalled).to.be.true
+      expect(stubAddPluginMember.notCalled).to.be.true
     })
   })
 
   describe('withdraw', () => {
     it('should log error if plugin not found', async () => {
-      const stubRemoveFromDao = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
+      const stubRemovePluginMember = sandbox.stub(ProxyMember, 'removePluginMember').resolves()
       const stubLogger = sandbox.stub(logger, 'error')
 
       const mockInfo = {
@@ -301,12 +297,12 @@ describe('Handler:GovernanceVeHandler', () => {
       await GovernanceVeHandler.withdraw(mockEvent, mockInfo)
 
       expect(stubLogger.calledOnce).to.be.true
-      expect(stubRemoveFromDao.calledOnce).to.be.false
+      expect(stubRemovePluginMember.calledOnce).to.be.false
       expect(stubLogger.calledOnceWith('Plugin not found for withdraw event' as any)).to.be.true
     })
 
     it('should log error if lock not found', async () => {
-      const stubRemoveFromDao = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
+      const stubRemovePluginMember = sandbox.stub(ProxyMember, 'removePluginMember').resolves()
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       const stubLogger = sandbox.stub(logger, 'error')
 
@@ -331,13 +327,12 @@ describe('Handler:GovernanceVeHandler', () => {
       await GovernanceVeHandler.withdraw(mockEvent, mockInfo as any)
 
       expect(stubLogger.calledOnce).to.be.true
-      expect(stubRemoveFromDao.calledOnce).to.be.false
+      expect(stubRemovePluginMember.calledOnce).to.be.false
       expect(stubLogger.calledOnceWith('Lock not found for withdraw event' as any)).to.be.true
     })
 
     it('should update existing lock with withdraw info and call logger on success', async () => {
-      const stubRemoveFromDao = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
-      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(true)
+      const stubRemovePluginMember = sandbox.stub(ProxyMember, 'removePluginMember').resolves()
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       const stubLogger = sandbox.stub(logger, 'verbose')
 
@@ -400,12 +395,11 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(updatedBalance?.lastSyncAmountBlockNumber).to.equal(124)
 
       expect(stubLogger.calledTwice).to.be.true
-      expect(stubRemoveFromDao.calledOnce).to.be.true
+      expect(stubRemovePluginMember.calledOnce).to.be.true
     })
 
-    it('should skip removeFromDao if member is not in DAO', async () => {
-      const stubRemoveFromDao = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
-      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
+    it('should skip removePluginMember if member is not in DAO', async () => {
+      const stubRemovePluginMember = sandbox.stub(ProxyMember, 'removePluginMember').resolves()
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(logger, 'verbose')
 
@@ -449,7 +443,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.withdraw(mockEvent, mockInfo as any)
 
-      expect(stubRemoveFromDao.notCalled).to.be.true
+      expect(stubRemovePluginMember.notCalled).to.be.true
     })
   })
 
@@ -841,7 +835,7 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
       sandbox.stub(ProxyMember, 'updateActivity').resolves()
       sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
-      sandbox.stub(ProxyMember, 'addToDao').resolves()
+      sandbox.stub(ProxyMember, 'addPluginMember').resolves()
       const stubLogger = sandbox.stub(logger, 'verbose')
 
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
@@ -917,8 +911,8 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(ProxyMember, 'updateActivity').resolves()
       sandbox.stub(ProxyMember, 'isMemberOfDao').onFirstCall().resolves(true).onSecondCall().resolves(false)
 
-      const stubRemoveFromDao = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
-      const stubAddToDao = sandbox.stub(ProxyMember, 'addToDao').resolves()
+      const stubRemovePluginMember = sandbox.stub(ProxyMember, 'removePluginMember').resolves()
+      const stubAddPluginMember = sandbox.stub(ProxyMember, 'addPluginMember').resolves()
 
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
 
@@ -947,8 +941,8 @@ describe('Handler:GovernanceVeHandler', () => {
       })
 
       expect(senderTx?.memberVotingPower).to.equal('0')
-      expect(stubRemoveFromDao.calledOnce).to.be.true
-      expect(stubAddToDao.calledOnce).to.be.true
+      expect(stubRemovePluginMember.calledOnce).to.be.true
+      expect(stubAddPluginMember.calledOnce).to.be.true
       expect(loggerStub.calledOnce).to.be.true
     })
 
@@ -988,7 +982,7 @@ describe('Handler:GovernanceVeHandler', () => {
       const stubUpdateDelegationMetrics = sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
       const stubUpdateActivity = sandbox.stub(ProxyMember, 'updateActivity').resolves()
       sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(true)
-      sandbox.stub(ProxyMember, 'removeFromDao').resolves()
+      sandbox.stub(ProxyMember, 'removePluginMember').resolves()
       sandbox.stub(logger, 'verbose')
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin, plugin2])
       sandbox.stub(DbOperations, 'updateDocument').resolves()
@@ -1120,7 +1114,7 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
       sandbox.stub(ProxyMember, 'updateActivity').resolves()
       sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(true)
-      sandbox.stub(ProxyMember, 'removeFromDao').resolves()
+      sandbox.stub(ProxyMember, 'removePluginMember').resolves()
       const stubLogger = sandbox.stub(logger, 'verbose')
 
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
@@ -1186,8 +1180,8 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(ProxyMember, 'updateActivity').resolves()
       sandbox.stub(ProxyMember, 'isMemberOfDao').onFirstCall().resolves(true).onSecondCall().resolves(false)
 
-      const stubRemoveFromDao = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
-      const stubAddToDao = sandbox.stub(ProxyMember, 'addToDao').resolves()
+      const stubRemovePluginMember = sandbox.stub(ProxyMember, 'removePluginMember').resolves()
+      const stubAddPluginMember = sandbox.stub(ProxyMember, 'addPluginMember').resolves()
       const loggerStub = sandbox.stub(logger, 'verbose')
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
 
@@ -1216,8 +1210,8 @@ describe('Handler:GovernanceVeHandler', () => {
       })
 
       expect(delegateeTx?.memberVotingPower).to.equal('0')
-      expect(stubRemoveFromDao.calledOnce).to.be.true
-      expect(stubAddToDao.calledOnce).to.be.true
+      expect(stubRemovePluginMember.calledOnce).to.be.true
+      expect(stubAddPluginMember.calledOnce).to.be.true
       expect(loggerStub.called).to.be.true
     })
 
@@ -1251,7 +1245,7 @@ describe('Handler:GovernanceVeHandler', () => {
       const stubUpdateDelegationMetrics = sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
       const stubUpdateActivity = sandbox.stub(ProxyMember, 'updateActivity').resolves()
       sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(true)
-      sandbox.stub(ProxyMember, 'removeFromDao').resolves()
+      sandbox.stub(ProxyMember, 'removePluginMember').resolves()
       sandbox.stub(logger, 'verbose')
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin, plugin2])
 
@@ -1358,7 +1352,7 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
       sandbox.stub(ProxyMember, 'updateActivity').resolves()
       sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
-      sandbox.stub(ProxyMember, 'addToDao').resolves()
+      sandbox.stub(ProxyMember, 'addPluginMember').resolves()
       sandbox.stub(logger, 'verbose')
       sandbox.stub(DbOperations, 'updateDocument').resolves()
 
@@ -1434,11 +1428,11 @@ describe('Handler:GovernanceVeHandler', () => {
       } as any
 
       sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
-      const stubAddToDao = sandbox.stub(ProxyMember, 'addToDao').resolves()
+      const stubAddPluginMember = sandbox.stub(ProxyMember, 'addPluginMember').resolves()
 
       await GovernanceVeHandler._handleDaoMemberShip(memberTx as any, plugins, mockInfo)
 
-      expect(stubAddToDao.calledOnce).to.be.true
+      expect(stubAddPluginMember.calledOnce).to.be.true
     })
 
     it('should handle DAO membership removal when user has no voting power', async () => {
@@ -1454,11 +1448,11 @@ describe('Handler:GovernanceVeHandler', () => {
       } as any
 
       sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(true)
-      const stubRemoveFromDao = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
+      const stubRemovePluginMember = sandbox.stub(ProxyMember, 'removePluginMember').resolves()
 
       await GovernanceVeHandler._handleDaoMemberShip(memberTx as any, plugins, mockInfo)
 
-      expect(stubRemoveFromDao.calledOnce).to.be.true
+      expect(stubRemovePluginMember.calledOnce).to.be.true
     })
 
     it('should skip membership operations when already in correct state', async () => {
@@ -1474,96 +1468,13 @@ describe('Handler:GovernanceVeHandler', () => {
       } as any
 
       sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(true)
-      const stubAddToDao = sandbox.stub(ProxyMember, 'addToDao').resolves()
-      const stubRemoveFromDao = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
+      const stubAddPluginMember = sandbox.stub(ProxyMember, 'addPluginMember').resolves()
+      const stubRemovePluginMember = sandbox.stub(ProxyMember, 'removePluginMember').resolves()
 
       await GovernanceVeHandler._handleDaoMemberShip(memberTx as any, plugins, mockInfo)
 
-      expect(stubAddToDao.notCalled).to.be.true
-      expect(stubRemoveFromDao.notCalled).to.be.true
-    })
-  })
-
-  describe('_handleDaoMemberShipOnLockEvents', () => {
-    it('should add member to DAO when addToDao is true and member is not already a member', async () => {
-      const plugins = [plugin]
-      const memberAddress = '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5'
-      const mockInfo = {
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-      } as any
-
-      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
-      const stubAddToDao = sandbox.stub(ProxyMember, 'addToDao').resolves()
-
-      await GovernanceVeHandler._handleDaoMemberShipOnLockEvents(plugins, memberAddress, mockInfo, true)
-
-      expect(stubAddToDao.calledOnce).to.be.true
-    })
-
-    it('should not add member to DAO when addToDao is true but member is already a member', async () => {
-      const plugins = [plugin]
-      const memberAddress = '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5'
-      const mockInfo = {
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-      } as any
-
-      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(true)
-      const stubAddToDao = sandbox.stub(ProxyMember, 'addToDao').resolves()
-
-      await GovernanceVeHandler._handleDaoMemberShipOnLockEvents(plugins, memberAddress, mockInfo, true)
-
-      expect(stubAddToDao.notCalled).to.be.true
-    })
-
-    it('should remove member from DAO when addToDao is false and member is currently a member', async () => {
-      const plugins = [plugin]
-      const memberAddress = '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5'
-      const mockInfo = {
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-      } as any
-
-      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(true)
-      const stubRemoveFromDao = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
-
-      await GovernanceVeHandler._handleDaoMemberShipOnLockEvents(plugins, memberAddress, mockInfo, false)
-
-      expect(stubRemoveFromDao.calledOnce).to.be.true
-    })
-
-    it('should not remove member from DAO when addToDao is false but member is not a member', async () => {
-      const plugins = [plugin]
-      const memberAddress = '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5'
-      const mockInfo = {
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-      } as any
-
-      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
-      const stubRemoveFromDao = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
-
-      await GovernanceVeHandler._handleDaoMemberShipOnLockEvents(plugins, memberAddress, mockInfo, false)
-
-      expect(stubRemoveFromDao.notCalled).to.be.true
-    })
-
-    it('should send DAO metrics messages for unique DAOs', async () => {
-      const plugin2 = { ...plugin, daoAddress: '0xDAO2' }
-      const plugins = [plugin, plugin2]
-      const memberAddress = '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5'
-      const mockInfo = {
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-      } as any
-
-      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
-      sandbox.stub(ProxyMember, 'addToDao').resolves()
-
-      await GovernanceVeHandler._handleDaoMemberShipOnLockEvents(plugins as any, memberAddress, mockInfo, true)
-
-      expect(rabbitMQHelperStub.calledTwice).to.be.true
+      expect(stubAddPluginMember.notCalled).to.be.true
+      expect(stubRemovePluginMember.notCalled).to.be.true
     })
   })
 })

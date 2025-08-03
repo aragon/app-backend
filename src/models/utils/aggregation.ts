@@ -1,17 +1,14 @@
 import {
   type HexAddress,
-  type IAggDaoMemberMappingParams,
   type IAggDaoParams,
   type IAggDaoProjectFields,
-  type IAggMemberBalanceParams,
-  type IAggMemberBalanceProjectFields,
-  type IAggMemberMetricsParams,
-  type IAggMemberMetricsProjectFields,
   type IAggMemberParams,
   type IAggMemberProjectFields,
   type IAggMemberTransactionParams,
   type IAggMemberTransactionProjectFields,
   type IAggPluginInclude,
+  type IAggPluginMetricsParams,
+  type IAggPluginMetricsProjectFields,
   type IAggPluginParams,
   type IAggPluginProjectFields,
   type IAggPluginSlugParams,
@@ -20,9 +17,10 @@ import {
   type IAggSettingProjectFields,
   type IAggTokenParams,
   type IAggTokenProjectFields,
+  type IAggVpMemberParams,
+  type IAggVpMemberProjectFields,
   ICollectionNames,
   ISettingStatus,
-  type NetworksEnum,
 } from '@types'
 
 export const AggregationQueryHelper = {
@@ -61,70 +59,6 @@ export const AggregationQueryHelper = {
     return {
       $lookup: {
         from: ICollectionNames.Dao,
-        let: letVariables,
-        pipeline,
-        as,
-      },
-    }
-  },
-
-  daoMemberMapping: (
-    { tokenAddress, memberAddress, daoAddress, pluginAddress, network }: IAggDaoMemberMappingParams,
-    as: string = 'memberMapping',
-  ) => {
-    const letVariables: any = {}
-    const matchConditions: any[] = []
-
-    if (pluginAddress) {
-      letVariables.pluginAddress = pluginAddress
-      matchConditions.push({ $eq: ['$pluginAddress', '$$pluginAddress'] })
-    }
-
-    if (tokenAddress) {
-      letVariables.tokenAddress = tokenAddress
-      matchConditions.push({ $eq: ['$tokenAddress', '$$tokenAddress'] })
-    }
-
-    if (daoAddress) {
-      letVariables.daoAddress = daoAddress
-      matchConditions.push({ $eq: ['$daoAddress', '$$daoAddress'] })
-    }
-
-    if (memberAddress) {
-      letVariables.memberAddress = memberAddress
-      matchConditions.push({ $eq: ['$memberAddress', '$$memberAddress'] })
-    }
-
-    if (network) {
-      letVariables.network = network
-      matchConditions.push({ $eq: ['$network', '$$network'] })
-    }
-
-    const pipeline: any[] = []
-
-    if (matchConditions.length > 0) {
-      pipeline.push({
-        $match: {
-          $expr: {
-            $and: matchConditions,
-          },
-        },
-      })
-    }
-
-    pipeline.push({
-      $project: {
-        daoAddress: 1,
-        memberAddress: 1,
-        pluginAddress: 1,
-        tokenAddress: 1,
-        network: 1,
-      },
-    })
-
-    return {
-      $lookup: {
-        from: ICollectionNames.DaoMemberMapping,
         let: letVariables,
         pipeline,
         as,
@@ -654,10 +588,10 @@ export const AggregationQueryHelper = {
     }
   },
 
-  memberBalance: (
-    { tokenAddress, network, memberAddress }: IAggMemberBalanceParams,
-    as: string = 'memberBalance',
-    project?: IAggMemberBalanceProjectFields,
+  vpMember: (
+    { tokenAddress, network, memberAddress }: IAggVpMemberParams,
+    as: string = 'vpMember',
+    project?: IAggVpMemberProjectFields,
   ) => {
     const letVariables: any = {}
     const matchConditions: any[] = []
@@ -697,7 +631,7 @@ export const AggregationQueryHelper = {
 
     return {
       $lookup: {
-        from: ICollectionNames.MemberBalance,
+        from: ICollectionNames.VpMember,
         let: letVariables,
         pipeline,
         as,
@@ -705,10 +639,10 @@ export const AggregationQueryHelper = {
     }
   },
 
-  memberMetrics: (
-    { pluginAddress, network, memberAddress }: IAggMemberMetricsParams,
-    as: string = 'memberMetrics',
-    project?: IAggMemberMetricsProjectFields,
+  pluginMetrics: (
+    { pluginAddress, network, memberAddress }: IAggPluginMetricsParams,
+    as: string = 'vpMember',
+    project?: IAggPluginMetricsProjectFields,
   ) => {
     const letVariables: any = {}
     const matchConditions: any[] = []
@@ -748,82 +682,12 @@ export const AggregationQueryHelper = {
 
     return {
       $lookup: {
-        from: ICollectionNames.MemberMetrics,
+        from: ICollectionNames.PluginMetrics,
         let: letVariables,
         pipeline,
         as,
       },
     }
-  },
-
-  memberCountByToken: (tokenAddress: HexAddress, network: NetworksEnum) => {
-    return [
-      {
-        $match: {
-          address: tokenAddress,
-          network,
-        },
-      },
-      {
-        $lookup: {
-          from: ICollectionNames.Plugin,
-          let: {
-            tNetwork: '$network',
-            tAddress: '$address',
-          },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [{ $eq: ['$tokenAddress', '$$tAddress'] }, { $eq: ['$network', '$$tNetwork'] }],
-                },
-              },
-            },
-            {
-              $lookup: {
-                from: ICollectionNames.DaoMemberMapping,
-                let: { pluginAddr: '$address' },
-                pipeline: [
-                  {
-                    $match: {
-                      $expr: {
-                        $eq: ['$pluginAddress', '$$pluginAddr'],
-                      },
-                    },
-                  },
-                  {
-                    $count: 'memberCount',
-                  },
-                ],
-                as: 'daoMembers',
-              },
-            },
-            {
-              $set: {
-                memberCount: {
-                  $ifNull: [{ $arrayElemAt: ['$daoMembers.memberCount', 0] }, 0],
-                },
-              },
-            },
-          ],
-          as: 'plugin',
-        },
-      },
-      {
-        $set: {
-          memberCount: {
-            $sum: '$plugin.memberCount',
-          },
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          address: 1,
-          memberCount: 1,
-        },
-      },
-    ]
   },
 
   pluginSlug: (

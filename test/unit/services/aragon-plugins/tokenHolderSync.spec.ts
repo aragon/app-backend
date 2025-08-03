@@ -18,7 +18,7 @@ describe('AragonPlugins: TokenHolderSync', () => {
   let blockScoutGetTokenCountersStub: SinonStub
   let proxyMemberCreateMemberStub: SinonStub
   let proxyMemberGetBalancesStub: SinonStub
-  let proxyMemberAddToDaoStub: SinonStub
+  let proxyMemberAddPluginMemberStub: SinonStub
   let crawlerCrawlStub: SinonStub
   let loggerVerboseStub: SinonStub
   let loggerWarnStub: SinonStub
@@ -49,7 +49,7 @@ describe('AragonPlugins: TokenHolderSync', () => {
     // Stub ProxyMember methods
     proxyMemberCreateMemberStub = sandbox.stub(ProxyMember, 'createMember')
     proxyMemberGetBalancesStub = sandbox.stub(ProxyMember, 'getBalances')
-    proxyMemberAddToDaoStub = sandbox.stub(ProxyMember, 'addToDao')
+    proxyMemberAddPluginMemberStub = sandbox.stub(ProxyMember, 'addPluginMember')
 
     // Stub DbTx
     dbTxExecuteTxFnStub = sandbox.stub(DbTx, 'executeTxFn').callsFake(async callback => {

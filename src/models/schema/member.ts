@@ -109,6 +109,8 @@ export default class Member extends Model {
           address: 1,
           ens: 1,
           avatar: 1,
+          firstActivity: 1,
+          lastActivity: 1,
         },
       },
     ]
@@ -191,45 +193,50 @@ export default class Member extends Model {
             daoPlugin: { $arrayElemAt: ['$plugin', 0] },
           },
         },
-        AggregationQueryHelper.memberBalance(
-          {
-            tokenAddress: '$daoPlugin.tokenAddress',
-            network: '$daoPlugin.network',
-            memberAddress: '$address',
-          },
-          'memberBalance',
-          {
-            amount: 1,
-            votingPower: 1,
-          },
-        ),
-        {
-          $addFields: {
-            memberBalance: {
-              $cond: [
-                { $gt: [{ $size: '$memberBalance' }, 0] },
-                { $arrayElemAt: ['$memberBalance', 0] },
-                { amount: null, votingPower: null },
-              ],
-            },
-          },
-        },
-        AggregationQueryHelper.memberMetrics(
+        AggregationQueryHelper.pluginMetrics(
           {
             pluginAddress: '$daoPlugin.address',
             network: '$daoPlugin.network',
             memberAddress: '$address',
           },
-          'memberMetrics',
+          'pluginMetrics',
           {
-            _id: 0,
-            lastActivity: 1,
-            firstActivity: 1,
-            delegateReceivedCount: 1,
             voteCount: 1,
             proposalCount: 1,
+            firstActivity: 1,
+            lastActivity: 1,
           },
         ),
+        {
+          $addFields: {
+            pluginMetrics: {
+              $cond: {
+                if: { $gt: [{ $size: '$pluginMetrics' }, 0] },
+                then: { $arrayElemAt: ['$pluginMetrics', 0] },
+                else: {
+                  voteCount: 0,
+                  proposalCount: 0,
+                  firstActivity: null,
+                  lastActivity: null,
+                },
+              },
+            },
+          },
+        },
+        {
+          $addFields: {
+            vpMember: {
+              $cond: {
+                if: { $gt: [{ $size: '$vpMember' }, 0] },
+                then: { $arrayElemAt: ['$vpMember', 0] },
+                else: {
+                  votingPower: null,
+                  delegateReceivedCount: 0,
+                },
+              },
+            },
+          },
+        },
         AggregationQueryHelper.token(
           {
             address: '$daoPlugin.tokenAddress',
@@ -257,21 +264,15 @@ export default class Member extends Model {
         address: 1,
         ens: 1,
         avatar: 1,
-        tokenBalance: '$memberBalance.amount',
-        votingPower: '$memberBalance.votingPower',
+        firstActivity: 1,
+        lastActivity: 1,
+        votingPower: '$vpMember.votingPower',
         metrics: {
-          $ifNull: [
-            {
-              $arrayElemAt: ['$memberMetrics', 0],
-            },
-            {
-              lastActivity: null,
-              firstActivity: null,
-              delegateReceivedCount: 0,
-              voteCount: 0,
-              proposalCount: 0,
-            },
-          ],
+          lastActivity: '$pluginMetrics.lastActivity',
+          firstActivity: '$pluginMetrics.firstActivity',
+          delegateReceivedCount: '$vpMember.delegateReceivedCount',
+          voteCount: '$pluginMetrics.voteCount',
+          proposalCount: '$pluginMetrics.proposalCount',
         },
         isGovernance: '$isGovernance',
         hasDelegate: '$hasDelegate',

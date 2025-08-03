@@ -1,8 +1,19 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, ICollectionNames, NetworksEnum, type IVpMemberIdParams } from '@types'
+import {
+  HexAddress,
+  ICollectionNames,
+  NetworksEnum,
+  type IVpMemberIdParams,
+  type IPaginationParams,
+  type IMemberExtraParams,
+  type IPaginatedResult,
+  type IMembersResponse,
+} from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
+import ModelUtils from '@models/utils/models'
+import { AggregationQueryHelper } from '@models/utils/aggregation'
 
 const customName = ICollectionNames.VpMember
 
@@ -44,6 +55,9 @@ export default class VpMember extends Model {
 
   @prop({ type: () => Number, default: 0 })
   public delegateReceivedCount!: number
+
+  @prop({ type: () => Number, default: 0 })
+  public lastVPBlockNumber!: number
 
   static async create(rawData: Partial<VpMember>, tOpts?: SaveOptions) {
     if (!rawData.id) {
@@ -88,6 +102,186 @@ export default class VpMember extends Model {
 
   static async findByMember(network: NetworksEnum, memberAddress: HexAddress, tOpts?: SaveOptions) {
     return await this.find({ network, memberAddress }, null, tOpts)
+  }
+
+  static async countHoldersWithVotingPower(tokenAddress: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
+    const aggregate = this.aggregate([
+      {
+        $match: {
+          tokenAddress,
+          network,
+          votingPower: { $ne: '0' },
+        },
+      },
+      {
+        $count: 'holderCount',
+      },
+    ])
+
+    if (tOpts?.session) {
+      aggregate.session(tOpts.session)
+    }
+
+    const result = await aggregate
+    return result[0]?.holderCount || 0
+  }
+
+  static async findAndPaginate({
+    paginationParams = {},
+    extraParams = {},
+  }: {
+    paginationParams?: IPaginationParams
+    extraParams?: IMemberExtraParams
+  }): Promise<IPaginatedResult<IMembersResponse>> {
+    const request = ModelUtils.paginateAndSort(paginationParams)
+
+    const filter: any = {}
+
+    if (extraParams?.tokenAddress) {
+      filter.tokenAddress = extraParams.tokenAddress
+      filter.network = extraParams.network
+    }
+
+    const searchFilter = ModelUtils.createFilter(paginationParams, ['memberInfo.ens', 'memberInfo.address'])
+
+    const currentPage = request.skip / request.limit + 1
+
+    const query: any = [
+      {
+        $match: {
+          ...filter,
+          votingPower: { $gt: '0' },
+        },
+      },
+    ]
+    const mainQuery = [
+      {
+        $lookup: {
+          from: ICollectionNames.Member,
+          localField: 'address',
+          foreignField: 'address',
+          as: 'memberInfo',
+        },
+      },
+      {
+        $addFields: {
+          memberInfo: {
+            $arrayElemAt: ['$memberInfo', 0],
+          },
+        },
+      },
+      ...(Object.keys(searchFilter).length ? [{ $match: searchFilter }] : []),
+      AggregationQueryHelper.pluginMetrics(
+        {
+          pluginAddress: extraParams?.pluginAddress,
+          network: extraParams?.network!,
+          memberAddress: '$address',
+        },
+        'pluginMetrics',
+        {
+          voteCount: 1,
+          proposalCount: 1,
+          firstActivity: 1,
+          lastActivity: 1,
+        },
+      ),
+      {
+        $addFields: {
+          pluginMetrics: {
+            $cond: {
+              if: { $gt: [{ $size: '$pluginMetrics' }, 0] },
+              then: { $arrayElemAt: ['$pluginMetrics', 0] },
+              else: {
+                voteCount: 0,
+                proposalCount: 0,
+                firstActivity: null,
+                lastActivity: null,
+              },
+            },
+          },
+        },
+      },
+      AggregationQueryHelper.vpMember(
+        {
+          tokenAddress: extraParams?.tokenAddress,
+          network: extraParams?.network!,
+          memberAddress: '$address',
+        },
+        'vpMember',
+        {
+          delegateReceivedCount: 1,
+        },
+      ),
+      {
+        $addFields: {
+          vpMember: {
+            $cond: {
+              if: { $gt: [{ $size: '$vpMember' }, 0] },
+              then: { $arrayElemAt: ['$vpMember', 0] },
+              else: { delegateReceivedCount: 0 },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          address: '$memberInfo.address',
+          ens: '$memberInfo.ens',
+          avatar: '$memberInfo.avatar',
+          tokenBalance: '$amount',
+          votingPower: '$votingPowerString',
+          metrics: {
+            voteCount: '$pluginMetrics.voteCount',
+            proposalCount: '$pluginMetrics.proposalCount',
+            firstActivity: '$pluginMetrics.firstActivity',
+            lastActivity: '$pluginMetrics.lastActivity',
+            delegateReceivedCount: {
+              $ifNull: ['$vpMember.delegateReceivedCount', 0],
+            },
+          },
+        },
+      },
+    ]
+
+    const aggQuery = [
+      ...query,
+      {
+        $addFields: {
+          votingPowerString: '$votingPower',
+          votingPower: {
+            $toDouble: '$votingPower',
+          },
+        },
+      },
+      { $sort: request?.sort },
+      { $skip: request?.skip },
+      { $limit: request?.limit },
+      ...mainQuery,
+    ]
+
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate(aggQuery),
+      this.aggregate([...query, { $count: 'totalRecords' }]).then(results =>
+        results[0] ? results[0].totalRecords : 0,
+      ),
+    ])
+
+    const totalPages = Math.ceil(totalRecords / request.limit)
+
+    if (currentPage > totalPages) {
+      return ModelUtils.paginateEmptyResponse(request.limit)
+    }
+
+    return {
+      metadata: {
+        page: currentPage,
+        pageSize: request.limit,
+        totalPages,
+        totalRecords,
+      },
+      data: data as any,
+    }
   }
 
   async update(params: Partial<VpMember>, tOpts?: SaveOptions) {

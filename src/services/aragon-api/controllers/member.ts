@@ -33,7 +33,7 @@ const MemberController = {
     }
 
     if (extraParams.daoAddress && !extraParams.pluginAddress) {
-      return Models.DaoMemberMapping.findAndPaginate({
+      return Models.PluginMember.findAndPaginate({
         extraParams,
         paginationParams,
       })
@@ -48,13 +48,14 @@ const MemberController = {
       }
 
       extraParams.tokenAddress = plugin.tokenAddress
-      return Models.MemberBalance.findAndPaginate({
+      // TODO: check the query for vp members
+      return Models.VpMember.findAndPaginate({
         paginationParams,
         extraParams,
       })
     }
 
-    return Models.DaoMemberMapping.findAndPaginate({
+    return Models.PluginMember.findAndPaginate({
       extraParams,
       paginationParams,
     })
@@ -99,7 +100,7 @@ const MemberController = {
     pluginAddress: HexAddress,
     network?: NetworksEnum,
   ): Promise<boolean> => {
-    const member = await Models.DaoMemberMapping.findOne({ memberAddress, pluginAddress, ...(network && { network }) })
+    const member = await Models.PluginMember.findOne({ memberAddress, pluginAddress, ...(network && { network }) })
 
     return !!member
   },

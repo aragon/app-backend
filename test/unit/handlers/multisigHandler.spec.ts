@@ -79,7 +79,7 @@ describe('Indexer: MemberHandler', () => {
       } as any
 
       const findByPluginAddressSpy = sandbox.spy(Models.Plugin, 'findByAddress')
-      const findExistingLogSpy = sandbox.spy(ProxyMember, 'addToDao')
+      const findExistingLogSpy = sandbox.spy(ProxyMember, 'addPluginMember')
       const stubRaddit = sandbox.stub(RabbitMQHelper, 'sendMessage')
 
       await MultisigHandler.membersAdded(fakeLog, logInfo)
@@ -140,7 +140,7 @@ describe('Indexer: MemberHandler', () => {
       } as any
 
       const findByPluginAddressSpy = sandbox.spy(Models.Plugin, 'findByAddress')
-      const findExistingLogSpy = sandbox.spy(ProxyMember, 'removeFromDao')
+      const findExistingLogSpy = sandbox.spy(ProxyMember, 'removePluginMember')
       const stubRaddit = sandbox.stub(RabbitMQHelper, 'sendMessage')
 
       await MultisigHandler.membersRemoved(fakeLog, logInfo)

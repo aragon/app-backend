@@ -415,7 +415,7 @@ export default class Lock extends Model {
       },
       {
         $lookup: {
-          from: ICollectionNames.MemberBalance,
+          from: ICollectionNames.VpMember,
           let: {
             lockTokenId: '$tokenId',
             lockNetwork: '$network',
@@ -540,7 +540,7 @@ export default class Lock extends Model {
           },
         },
       },
-      AggregationQueryHelper.memberMetrics(
+      AggregationQueryHelper.pluginMetrics(
         {
           memberAddress: '$memberInfo.address',
           network,
@@ -548,14 +548,50 @@ export default class Lock extends Model {
         },
         'memberMetrics',
         {
-          _id: 0,
           lastActivity: 1,
           firstActivity: 1,
-          delegateReceivedCount: 1,
           voteCount: 1,
           proposalCount: 1,
         },
       ),
+      {
+        $addFields: {
+          memberMetrics: {
+            $cond: {
+              if: { $gt: [{ $size: '$memberMetrics' }, 0] },
+              then: { $arrayElemAt: ['$memberMetrics', 0] },
+              else: {
+                voteCount: 0,
+                proposalCount: 0,
+                firstActivity: null,
+                lastActivity: null,
+              },
+            },
+          },
+        },
+      },
+      AggregationQueryHelper.vpMember(
+        {
+          tokenAddress,
+          network,
+          memberAddress: '$memberInfo.address',
+        },
+        'vpMember',
+        {
+          delegateReceivedCount: 1,
+        },
+      ),
+      {
+        $addFields: {
+          vpMember: {
+            $cond: {
+              if: { $gt: [{ $size: '$vpMember' }, 0] },
+              then: { $arrayElemAt: ['$vpMember', 0] },
+              else: { delegateReceivedCount: 0 },
+            },
+          },
+        },
+      },
       {
         $project: {
           address: '$memberInfo.address',
@@ -563,18 +599,31 @@ export default class Lock extends Model {
           avatar: '$memberInfo.avatar',
           votingPower: 1,
           metrics: {
-            $ifNull: [
-              {
-                $arrayElemAt: ['$memberMetrics', 0],
-              },
-              {
-                lastActivity: null,
-                firstActivity: null,
-                delegateReceivedCount: 0,
-                voteCount: 0,
-                proposalCount: 0,
-              },
-            ],
+            voteCount: '$memberMetrics.voteCount',
+            proposalCount: '$memberMetrics.proposalCount',
+            firstActivity: '$memberMetrics.firstActivity',
+            lastActivity: '$memberMetrics.lastActivity',
+            delegateReceivedCount: {
+              $ifNull: ['$vpMember.delegateReceivedCount', 0],
+            },
+          },
+        },
+      },
+
+      {
+        $project: {
+          address: '$memberInfo.address',
+          ens: '$memberInfo.ens',
+          avatar: '$memberInfo.avatar',
+          votingPower: 1,
+          metrics: {
+            voteCount: '$memberMetrics.voteCount',
+            proposalCount: '$memberMetrics.proposalCount',
+            firstActivity: '$memberMetrics.firstActivity',
+            lastActivity: '$memberMetrics.lastActivity',
+            delegateReceivedCount: {
+              $ifNull: ['$vpMember.delegateReceivedCount', 0],
+            },
           },
         },
       },
