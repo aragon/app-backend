@@ -4,6 +4,5 @@ export enum ITransferSide {
 }
 
 export enum ITransferType {
-  tokenTransfer = 'tokenTransfer',
   delegate = 'delegate',
 }

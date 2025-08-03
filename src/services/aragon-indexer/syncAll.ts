@@ -116,11 +116,11 @@ export const SyncAll = {
     const retryDelay = 1000 // 1 second
 
     while (true) {
-      const count = await RabbitMQHelper.getQueueMessageCount(EnumQueueName.plugins)
+      const count = await RabbitMQHelper.getQueueMessageCount(EnumQueueName.requeue)
 
       if (count === null) {
         logger.error(
-          `Unable to get message count for queue "${EnumQueueName.plugins}". Retrying...`,
+          `Unable to get message count for queue "${EnumQueueName.requeue}". Retrying...`,
           llo({ pluginId: plugin.id }),
         )
         await utils.wait(retryDelay)
@@ -128,19 +128,19 @@ export const SyncAll = {
       }
 
       if (count < maxQueueSize) {
-        await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
+        await RabbitMQHelper.sendMessage(EnumQueueName.requeue, {
           id: plugin.address,
           params: { address: plugin.address, network: plugin.network },
         })
         logger.verbose(
-          `Message sent to queue "${EnumQueueName.plugins}"`,
-          llo({ queueName: EnumQueueName.plugins, address: plugin.address, count: count + 1 }),
+          `Message sent to queue "${EnumQueueName.requeue}"`,
+          llo({ queueName: EnumQueueName.requeue, address: plugin.address, count: count + 1 }),
         )
         break
       } else {
         logger.warn(
-          `Queue "${EnumQueueName.plugins}" has reached the limit. Waiting...`,
-          llo({ queueName: EnumQueueName.plugins, waitingPlugin: plugin.address, count }),
+          `Queue "${EnumQueueName.requeue}" has reached the limit. Waiting...`,
+          llo({ queueName: EnumQueueName.requeue, waitingPlugin: plugin.address, count }),
         )
         await utils.wait(retryDelay)
       }

@@ -123,7 +123,7 @@ wait_for_migration() {
   echo "⏳ Waiting for migration to complete..."
 
   local counter=0
-  local max_attempts=150  # 150 * 2 seconds = 5 minutes
+  local max_attempts=900  # 900 * 2 seconds = 30 minutes
   local migration_completed=false
   local container_name="service-migration-${ENV_SUFFIX}"
 
@@ -270,8 +270,8 @@ deploy_services() {
   # Step 2: Pre-build all images while services are running
   echo "🔨 Pre-building all Docker images (services still available)..."
   docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" build --parallel migration "${MICROSERVICES[@]}"
-  
-  ###service-aragon-api 
+
+  ###service-aragon-api
   docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" build service-aragon-api
   docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" up -d service-aragon-api
 
