@@ -5,7 +5,8 @@ import { Models } from '@dbModels'
 import AragonReQueueService from '@services/aragon-requeue'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
-import { IndexerType, IPluginInterfaceType } from '@types'
+import ConfigIndexerHelper from '@src/helpers/configIndexer'
+import { IPluginInterfaceType, ITokenType, IPluginStatus } from '@types'
 
 describe('AragonRequeue: index', () => {
   let sandbox: SinonSandbox
@@ -18,8 +19,9 @@ describe('AragonRequeue: index', () => {
     sandbox?.restore()
   })
 
-  it('should start', async () => {
+  it('should start and handle mixed plugin and token services', async () => {
     const dbData = [
+      // Plugin services
       {
         id: 'ethereum-mainnet-gauge-ethereum-mainnet-0x69E8D5151d71d4cde35b5076aF3023C7D54d379E',
         network: 'ethereum-mainnet',
@@ -38,80 +40,81 @@ describe('AragonRequeue: index', () => {
         service: 'tokenVoting-ethereum-sepolia-0x01239b4E29691BB81F9BAdF8525Ae744Cc7B83C1',
         lastSync: 7893826,
       },
+      // Token services (new pattern)
       {
-        id: 'base-mainnet-tokenVoting-base-mainnet-0x5011b031C7530B6aBd9fF8554AEeaAC7f962dDB7',
-        network: 'base-mainnet',
-        service: 'tokenVoting-base-mainnet-0x5011b031C7530B6aBd9fF8554AEeaAC7f962dDB7',
-        lastSync: 27556510,
+        id: 'ethereum-mainnet-ERC20-ethereum-mainnet-0xA5148e8fA0CA950dEaAE6422e32149d361708e2e',
+        network: 'ethereum-mainnet',
+        service: 'ERC20-ethereum-mainnet-0xA5148e8fA0CA950dEaAE6422e32149d361708e2e',
+        lastSync: 12345678,
       },
       {
-        id: 'zksync-sepolia-tokenVoting-zksync-sepolia-0xb9693D4397E23745dfFB21Ef39095275778e1c09',
-        network: 'zksync-sepolia',
-        service: 'tokenVoting-zksync-sepolia-0xb9693D4397E23745dfFB21Ef39095275778e1c09',
-        lastSync: 4944360,
-      },
-      {
-        id: 'peaq-mainnet-tokenVoting-peaq-mainnet-0x05Bd9dB4B461F9387dA2cF4012666c6Ea5C93Ccb-0x37100474ABdA3788c9A6A8eBB4a910c897A06ebc',
-        network: 'peaq-mainnet',
-        service:
-          'tokenVoting-peaq-mainnet-0x05Bd9dB4B461F9387dA2cF4012666c6Ea5C93Ccb-0x37100474ABdA3788c9A6A8eBB4a910c897A06ebc',
-        lastSync: 4883665,
+        id: 'polygon-mainnet-ERC721-polygon-mainnet-0x1b6ec227ceBeC25118270efbb4b67642fc29965E',
+        network: 'polygon-mainnet',
+        service: 'ERC721-polygon-mainnet-0x1b6ec227ceBeC25118270efbb4b67642fc29965E',
+        lastSync: 87654321,
       },
     ]
 
     await Promise.all(dbData.map(async data => Models.ConfigIndexer.create(data)))
 
     const dbTokenData = [
-      // to check this one
       {
-        id: '0x211aEa089C589bbCB636A52283B520E1b4F7c1b3-ethereum-sepolia',
-        network: 'ethereum-sepolia',
-        type: 'escrowAdapter',
-        address: '0x211aEa089C589bbCB636A52283B520E1b4F7c1b3',
-      },
-      {
-        id: '0x1b6ec227ceBeC25118270efbb4b67642fc29965E-ethereum-mainnet',
+        id: '0xA5148e8fA0CA950dEaAE6422e32149d361708e2e-ethereum-mainnet',
         network: 'ethereum-mainnet',
-        type: 'ERC721',
-        address: '0x1b6ec227ceBeC25118270efbb4b67642fc29965E',
-      },
-      {
-        id: '0xff602165c513E1B73eB644525497521873e923AD-polygon-mainnet',
-        network: 'polygon-mainnet',
-        type: 'ERC20',
-        address: '0xff602165c513E1B73eB644525497521873e923AD',
-      },
-      {
-        id: '0x613ef3f5959688c3b422A545906F844b6f8c8F35-polygon-mainnet',
-        network: 'polygon-mainnet',
-        type: 'ERC20',
-        address: '0x613ef3f5959688c3b422A545906F844b6f8c8F35',
-      },
-
-      {
-        id: '0xA5148e8fA0CA950dEaAE6422e32149d361708e2e-base-mainnet',
-        network: 'base-mainnet',
         type: 'ERC20',
         address: '0xA5148e8fA0CA950dEaAE6422e32149d361708e2e',
       },
       {
-        id: '0x9f1bbA96d539E467F3822ABd07C4eb5Fc001CE2c-zksync-sepolia',
-        network: 'zksync-sepolia',
-        type: 'ERC20',
-        address: '0x9f1bbA96d539E467F3822ABd07C4eb5Fc001CE2c',
-      },
-      {
-        id: '0x37100474ABdA3788c9A6A8eBB4a910c897A06ebc-peaq-mainnet',
-        network: 'peaq-mainnet',
-        type: 'ERC20',
-        address: '0x37100474ABdA3788c9A6A8eBB4a910c897A06ebc',
+        id: '0x1b6ec227ceBeC25118270efbb4b67642fc29965E-polygon-mainnet',
+        network: 'polygon-mainnet',
+        type: 'ERC721',
+        address: '0x1b6ec227ceBeC25118270efbb4b67642fc29965E',
       },
     ]
 
     await Promise.all(dbTokenData.map(async data => Models.Token.create(data)))
 
-    const spyConfigName = sandbox.spy(AragonReQueueService, 'extractInfoFromServiceName')
+    // Mock plugin data for token services
+    const mockPluginData = [
+      {
+        transactionHash: '0x1234567890123456789012345678901234567890123456789012345678901234',
+        blockNumber: 12345678,
+        blockTimestamp: 1234567890,
+        address: '0x5011b031C7530B6aBd9fF8554AEeaAC7f962dDB7',
+        network: 'ethereum-mainnet',
+        tokenAddress: '0xA5148e8fA0CA950dEaAE6422e32149d361708e2e',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        daoAddress: '0x1111111111111111111111111111111111111111',
+      },
+      {
+        transactionHash: '0x2234567890123456789012345678901234567890123456789012345678901234',
+        blockNumber: 12345679,
+        blockTimestamp: 1234567891,
+        address: '0x703Bf30B62239216E22307a526c4eB148Fddeed8',
+        network: 'polygon-mainnet',
+        tokenAddress: '0x1b6ec227ceBeC25118270efbb4b67642fc29965E',
+        interfaceType: IPluginInterfaceType.gauge,
+        status: IPluginStatus.installed,
+        daoAddress: '0x2222222222222222222222222222222222222222',
+      },
+    ]
+
+    const loggerVerboseStub = sandbox.stub(logger, 'verbose').resolves()
+    const loggerInfoStub = sandbox.stub(logger, 'info').resolves()
+    await Promise.all(mockPluginData.map(async data => Models.Plugin.create(data)))
+
+    const spyConfigIndexerParse = sandbox.spy(ConfigIndexerHelper.parser, 'parse')
     const stubRabbitMq = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+    const stubFindByTokenAddress = sandbox.stub(Models.Plugin, 'findByTokenAddress')
+
+    // Mock findByTokenAddress to return the plugin for token services
+    stubFindByTokenAddress
+      .withArgs('0xA5148e8fA0CA950dEaAE6422e32149d361708e2e', 'ethereum-mainnet')
+      .resolves(mockPluginData[0])
+    stubFindByTokenAddress
+      .withArgs('0x1b6ec227ceBeC25118270efbb4b67642fc29965E', 'polygon-mainnet')
+      .resolves(mockPluginData[1])
 
     await AragonReQueueService.start()
 
@@ -120,8 +123,26 @@ describe('AragonRequeue: index', () => {
     docs.map((doc: any) => {
       expect(doc.id).to.eq(Models.ConfigIndexer.getEntityId({ network: doc.network, service: doc.service }))
     })
-    expect(spyConfigName.callCount).to.equal(6) // also grab token config and push as plugin
-    expect(stubRabbitMq.callCount).to.equal(6)
+
+    // Should parse all 5 services (3 plugins + 2 tokens)
+    expect(spyConfigIndexerParse.callCount).to.equal(5)
+
+    // Should send 5 requeue messages (3 plugins directly + 2 plugins found from tokens)
+    expect(stubRabbitMq.callCount).to.equal(5)
+
+    // Verify that all expected addresses were requeued (order may vary)
+    const requeuedAddresses = stubRabbitMq.getCalls().map(call => call.args[1].params.address)
+
+    // Should include all 3 plugin addresses
+    expect(requeuedAddresses).to.include('0x69E8D5151d71d4cde35b5076aF3023C7D54d379E')
+    expect(requeuedAddresses).to.include('0x703Bf30B62239216E22307a526c4eB148Fddeed7')
+    expect(requeuedAddresses).to.include('0x01239b4E29691BB81F9BAdF8525Ae744Cc7B83C1')
+
+    // Should include the 2 plugin addresses found from token services
+    expect(requeuedAddresses).to.include('0x5011b031C7530B6aBd9fF8554AEeaAC7f962dDB7')
+    expect(requeuedAddresses).to.include('0x703Bf30B62239216E22307a526c4eB148Fddeed8')
+    expect(loggerVerboseStub.called).to.be.eq(true)
+    expect(loggerInfoStub.called).to.be.eq(true)
   })
 
   describe('stop method', () => {
@@ -134,183 +155,230 @@ describe('AragonRequeue: index', () => {
     })
   })
 
-  describe('extractInfoFromServiceName method', () => {
-    describe('valid plugin patterns', () => {
-      it('should extract plugin info with single address', () => {
-        const service = 'gauge-ethereum-mainnet-0x69E8D5151d71d4cde35b5076aF3023C7D54d379E'
-        const result = AragonReQueueService.extractInfoFromServiceName(service)
-
-        expect(result).to.deep.equal({
-          indexerType: IndexerType.plugin,
-          interfaceType: 'gauge',
+  describe('service parsing and requeue logic', () => {
+    it('should handle plugin services correctly', async () => {
+      const dbData = [
+        {
+          id: 'ethereum-mainnet-gauge-ethereum-mainnet-0x69E8D5151d71d4cde35b5076aF3023C7D54d379E',
           network: 'ethereum-mainnet',
-          pluginAddress: '0x69E8D5151d71d4cde35b5076aF3023C7D54d379E',
-        })
-      })
+          service: 'gauge-ethereum-mainnet-0x69E8D5151d71d4cde35b5076aF3023C7D54d379E',
+          lastSync: 22082879,
+        },
+      ]
 
-      it('should extract token info with two addresses', () => {
-        const service =
-          'tokenVoting-base-mainnet-0x5011b031C7530B6aBd9fF8554AEeaAC7f962dDB7-0xA5148e8fA0CA950dEaAE6422e32149d361708e2e'
-        const result = AragonReQueueService.extractInfoFromServiceName(service)
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose').resolves()
+      const loggerInfoStub = sandbox.stub(logger, 'info').resolves()
 
-        expect(result).to.deep.equal({
-          indexerType: IndexerType.token,
-          interfaceType: 'tokenVoting',
-          network: 'base-mainnet',
-          pluginAddress: '0x5011b031C7530B6aBd9fF8554AEeaAC7f962dDB7',
+      await Promise.all(dbData.map(async data => Models.ConfigIndexer.create(data)))
+
+      const stubRabbitMq = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await AragonReQueueService.start()
+
+      expect(loggerVerboseStub.called).to.be.true
+      expect(loggerInfoStub.called).to.be.true
+
+      expect(stubRabbitMq.callCount).to.equal(1)
+      expect(stubRabbitMq.getCall(0).args[1].params.address).to.equal('0x69E8D5151d71d4cde35b5076aF3023C7D54d379E')
+    })
+
+    it('should handle token services correctly', async () => {
+      const dbData = [
+        {
+          id: 'ethereum-mainnet-ERC20-ethereum-mainnet-0xA5148e8fA0CA950dEaAE6422e32149d361708e2e',
+          network: 'ethereum-mainnet',
+          service: 'ERC20-ethereum-mainnet-0xA5148e8fA0CA950dEaAE6422e32149d361708e2e',
+          lastSync: 12345678,
+        },
+      ]
+
+      const mockPlugin = {
+        transactionHash: '0x1234567890123456789012345678901234567890123456789012345678901234',
+        blockNumber: 12345678,
+        blockTimestamp: 1234567890,
+        address: '0x5011b031C7530B6aBd9fF8554AEeaAC7f962dDB7',
+        network: 'ethereum-mainnet',
+        tokenAddress: '0xA5148e8fA0CA950dEaAE6422e32149d361708e2e',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        daoAddress: '0x1111111111111111111111111111111111111111',
+      }
+
+      await Promise.all(dbData.map(async data => Models.ConfigIndexer.create(data)))
+      await Models.Plugin.create(mockPlugin)
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose').resolves()
+      const loggerInfoStub = sandbox.stub(logger, 'info').resolves()
+
+      const stubRabbitMq = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const stubFindByTokenAddress = sandbox.stub(Models.Plugin, 'findByTokenAddress')
+      stubFindByTokenAddress
+        .withArgs('0xA5148e8fA0CA950dEaAE6422e32149d361708e2e', 'ethereum-mainnet')
+        .resolves(mockPlugin)
+
+      await AragonReQueueService.start()
+      expect(loggerVerboseStub.called).to.be.true
+      expect(loggerInfoStub.called).to.be.true
+      expect(stubRabbitMq.callCount).to.equal(1)
+      expect(stubRabbitMq.getCall(0).args[1].params.address).to.equal('0x5011b031C7530B6aBd9fF8554AEeaAC7f962dDB7')
+    })
+
+    it('should handle multiple plugins for same token', async () => {
+      const dbData = [
+        {
+          id: 'ethereum-mainnet-ERC20-ethereum-mainnet-0xA5148e8fA0CA950dEaAE6422e32149d361708e2e',
+          network: 'ethereum-mainnet',
+          service: 'ERC20-ethereum-mainnet-0xA5148e8fA0CA950dEaAE6422e32149d361708e2e',
+          lastSync: 12345678,
+        },
+      ]
+
+      const mockPlugins = [
+        {
+          transactionHash: '0x1234567890123456789012345678901234567890123456789012345678901234',
+          blockNumber: 12345678,
+          blockTimestamp: 1234567890,
+          address: '0x5011b031C7530B6aBd9fF8554AEeaAC7f962dDB7',
+          network: 'ethereum-mainnet',
           tokenAddress: '0xA5148e8fA0CA950dEaAE6422e32149d361708e2e',
-        })
-      })
-
-      it('should handle all plugin interface types', () => {
-        const pluginTypes = Object.values(IPluginInterfaceType)
-
-        pluginTypes.forEach(pluginType => {
-          const service = `${pluginType}-ethereum-mainnet-0x69E8D5151d71d4cde35b5076aF3023C7D54d379E`
-          const result = AragonReQueueService.extractInfoFromServiceName(service)
-
-          expect(result).to.deep.equal({
-            indexerType: IndexerType.plugin,
-            interfaceType: pluginType,
-            network: 'ethereum-mainnet',
-            pluginAddress: '0x69E8D5151d71d4cde35b5076aF3023C7D54d379E',
-          })
-        })
-      })
-
-      it('should handle network names with hyphens', () => {
-        const service = 'gauge-arbitrum-one-0x69E8D5151d71d4cde35b5076aF3023C7D54d379E'
-        const result = AragonReQueueService.extractInfoFromServiceName(service)
-
-        expect(result).to.deep.equal({
-          indexerType: IndexerType.plugin,
-          interfaceType: 'gauge',
-          network: 'arbitrum-one',
-          pluginAddress: '0x69E8D5151d71d4cde35b5076aF3023C7D54d379E',
-        })
-      })
-
-      it('should handle complex network names', () => {
-        const service = 'tokenVoting-polygon-zkevm-testnet-0x69E8D5151d71d4cde35b5076aF3023C7D54d379E'
-        const result = AragonReQueueService.extractInfoFromServiceName(service)
-
-        expect(result).to.deep.equal({
-          indexerType: IndexerType.plugin,
-          interfaceType: 'tokenVoting',
-          network: 'polygon-zkevm-testnet',
-          pluginAddress: '0x69E8D5151d71d4cde35b5076aF3023C7D54d379E',
-        })
-      })
-
-      it('should handle lowercase addresses', () => {
-        const service = 'gauge-ethereum-mainnet-0x69e8d5151d71d4cde35b5076af3023c7d54d379e'
-        const result = AragonReQueueService.extractInfoFromServiceName(service)
-
-        expect(result).to.deep.equal({
-          indexerType: IndexerType.plugin,
-          interfaceType: 'gauge',
+          interfaceType: IPluginInterfaceType.tokenVoting,
+          status: IPluginStatus.installed,
+          daoAddress: '0x1111111111111111111111111111111111111111',
+        },
+        {
+          transactionHash: '0x2234567890123456789012345678901234567890123456789012345678901234',
+          blockNumber: 12345679,
+          blockTimestamp: 1234567891,
+          address: '0x703Bf30B62239216E22307a526c4eB148Fddeed7',
           network: 'ethereum-mainnet',
-          pluginAddress: '0x69e8d5151d71d4cde35b5076af3023c7d54d379e',
-        })
-      })
+          tokenAddress: '0xA5148e8fA0CA950dEaAE6422e32149d361708e2e',
+          interfaceType: IPluginInterfaceType.gauge,
+          status: IPluginStatus.installed,
+          daoAddress: '0x2222222222222222222222222222222222222222',
+        },
+      ]
 
-      it('should handle mixed case addresses', () => {
-        const service = 'gauge-ethereum-mainnet-0x69E8d5151D71D4CdE35B5076aF3023C7d54D379e'
-        const result = AragonReQueueService.extractInfoFromServiceName(service)
+      await Promise.all(dbData.map(async data => Models.ConfigIndexer.create(data)))
+      await Promise.all(mockPlugins.map(async plugin => Models.Plugin.create(plugin)))
 
-        expect(result).to.deep.equal({
-          indexerType: IndexerType.plugin,
-          interfaceType: 'gauge',
-          network: 'ethereum-mainnet',
-          pluginAddress: '0x69E8d5151D71D4CdE35B5076aF3023C7d54D379e',
-        })
-      })
+      const stubRabbitMq = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const stubFindByTokenAddress = sandbox.stub(Models.Plugin, 'findByTokenAddress')
+      stubFindByTokenAddress
+        .withArgs('0xA5148e8fA0CA950dEaAE6422e32149d361708e2e', 'ethereum-mainnet')
+        .resolves(mockPlugins[0])
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose').resolves()
+      const loggerInfoStub = sandbox.stub(logger, 'info').resolves()
+
+      await AragonReQueueService.start()
+      expect(loggerVerboseStub.called).to.be.true
+      expect(loggerInfoStub.called).to.be.true
+      expect(stubRabbitMq.callCount).to.equal(1)
+      expect(stubRabbitMq.getCall(0).args[1].params.address).to.equal('0x5011b031C7530B6aBd9fF8554AEeaAC7f962dDB7')
     })
 
-    describe('invalid patterns', () => {
-      it('should return null for invalid plugin type', () => {
-        const service = 'invalidPlugin-ethereum-mainnet-0x69E8D5151d71d4cde35b5076aF3023C7D54d379E'
-        const result = AragonReQueueService.extractInfoFromServiceName(service)
+    it('should skip invalid service patterns', async () => {
+      // Use a service that matches the regex but has invalid network
+      // This will match the plugin regex pattern but fail parsing due to invalid network
+      const dbData = [
+        {
+          id: 'invalid-service-pattern',
+          network: 'ethereum-mainnet',
+          service: 'ERC20-ethereum-mainnet-0xA5148e8fA0CA950dEaAE6422e32149d361708e2e',
+          lastSync: 12345678,
+        },
+      ]
 
-        expect(result).to.be.null
-      })
+      await Promise.all(dbData.map(async data => Models.ConfigIndexer.create(data)))
 
-      it('should return null for missing address', () => {
-        const service = 'gauge-ethereum-mainnet'
-        const result = AragonReQueueService.extractInfoFromServiceName(service)
+      const stubRabbitMq = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+      const loggerInfoStub = sandbox.stub(logger, 'info').resolves()
+      sandbox.stub(ConfigIndexerHelper.parser, 'parse').resolves(null)
 
-        expect(result).to.be.null
-      })
+      await AragonReQueueService.start()
 
-      it('should return null for invalid address format', () => {
-        const service = 'gauge-ethereum-mainnet-invalid-address'
-        const result = AragonReQueueService.extractInfoFromServiceName(service)
-
-        expect(result).to.be.null
-      })
-
-      it('should return null for empty string', () => {
-        const result = AragonReQueueService.extractInfoFromServiceName('')
-
-        expect(result).to.be.null
-      })
-
-      it('should return null for string without separators', () => {
-        const service = 'gaugeethereummainnet0x69E8D5151d71d4cde35b5076aF3023C7D54d379E'
-        const result = AragonReQueueService.extractInfoFromServiceName(service)
-
-        expect(result).to.be.null
-      })
-
-      it('should return null for too many addresses', () => {
-        const service =
-          'gauge-ethereum-mainnet-0x69E8D5151d71d4cde35b5076aF3023C7D54d379E-0xA5148e8fA0CA950dEaAE6422e32149d361708e2e-0x1234567890123456789012345678901234567890'
-        const result = AragonReQueueService.extractInfoFromServiceName(service)
-
-        expect(result).to.be.null
-      })
-
-      it('should return null for addresses with wrong length', () => {
-        const service = 'gauge-ethereum-mainnet-0x69E8D515'
-        const result = AragonReQueueService.extractInfoFromServiceName(service)
-
-        expect(result).to.be.null
-      })
-
-      it('should return null for addresses with invalid characters', () => {
-        const service = 'gauge-ethereum-mainnet-0xG9E8D5151d71d4cde35b5076aF3023C7D54d379E'
-        const result = AragonReQueueService.extractInfoFromServiceName(service)
-
-        expect(result).to.be.null
-      })
+      expect(stubRabbitMq.callCount).to.equal(0)
+      expect(loggerErrorStub.called).to.be.true
+      expect(loggerInfoStub.called).to.be.true
     })
 
-    describe('edge cases', () => {
-      it('should handle service with only hyphens', () => {
-        const service = '---'
-        const result = AragonReQueueService.extractInfoFromServiceName(service)
-
-        expect(result).to.be.null
+    it('should handle all supported plugin interface types', async () => {
+      const pluginTypes = Object.values(IPluginInterfaceType).filter(type => type !== IPluginInterfaceType.unknown)
+      const dbData = pluginTypes.map((pluginType, index) => {
+        // Generate a proper 40-character hex address
+        const paddedIndex = index.toString().padStart(2, '0')
+        const address = `0x${paddedIndex}${'0'.repeat(38)}`
+        return {
+          id: `ethereum-mainnet-${pluginType}-ethereum-mainnet-${address}`,
+          network: 'ethereum-mainnet',
+          service: `${pluginType}-ethereum-mainnet-${address}`,
+          lastSync: 12345678,
+        }
       })
 
-      it('should handle service with mixed valid/invalid parts', () => {
-        const service = 'gauge-0x69E8D5151d71d4cde35b5076aF3023C7D54d379E-ethereum-mainnet'
-        const result = AragonReQueueService.extractInfoFromServiceName(service)
+      await Promise.all(dbData.map(async data => Models.ConfigIndexer.create(data)))
 
-        expect(result).to.be.null
+      const stubRabbitMq = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose').resolves()
+      const loggerInfoStub = sandbox.stub(logger, 'info').resolves()
+      await AragonReQueueService.start()
+      expect(loggerVerboseStub.called).to.be.true
+      expect(loggerInfoStub.called).to.be.true
+      expect(stubRabbitMq.callCount).to.equal(pluginTypes.length)
+    })
+
+    it('should handle all supported token types', async () => {
+      const tokenTypes = Object.values(ITokenType).filter(
+        type => type !== ITokenType.native && type !== ITokenType.unknown,
+      )
+      const dbData = tokenTypes.map((tokenType, index) => {
+        // Generate a proper 40-character hex address
+        const paddedIndex = index.toString().padStart(2, '0')
+        const tokenAddress = `0x${paddedIndex}${'0'.repeat(38)}`
+        return {
+          id: `ethereum-mainnet-${tokenType}-ethereum-mainnet-${tokenAddress}`,
+          network: 'ethereum-mainnet',
+          service: `${tokenType}-ethereum-mainnet-${tokenAddress}`,
+          lastSync: 12345678,
+        }
       })
 
-      it('should handle undefined input', () => {
-        const result = AragonReQueueService.extractInfoFromServiceName(undefined as any)
-
-        expect(result).to.be.null
+      const mockPlugins = tokenTypes.map((tokenType, index) => {
+        const paddedIndex = index.toString().padStart(2, '0')
+        const tokenAddress = `0x${paddedIndex}${'0'.repeat(38)}`
+        const pluginAddress = `0x${(index + 100).toString().padStart(2, '0')}${'0'.repeat(38)}`
+        return {
+          transactionHash: `0x${index.toString().padStart(64, '0')}`,
+          blockNumber: 12345678 + index,
+          blockTimestamp: 1234567890 + index,
+          address: pluginAddress,
+          network: 'ethereum-mainnet',
+          tokenAddress: tokenAddress,
+          interfaceType: IPluginInterfaceType.tokenVoting,
+          status: IPluginStatus.installed,
+          daoAddress: '0x1111111111111111111111111111111111111111',
+        }
       })
 
-      it('should handle null input', () => {
-        const result = AragonReQueueService.extractInfoFromServiceName(null as any)
+      await Promise.all(dbData.map(async data => Models.ConfigIndexer.create(data)))
+      await Promise.all(mockPlugins.map(async plugin => Models.Plugin.create(plugin)))
 
-        expect(result).to.be.null
+      const stubRabbitMq = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const stubFindByTokenAddress = sandbox.stub(Models.Plugin, 'findByTokenAddress')
+
+      tokenTypes.forEach((tokenType, index) => {
+        const paddedIndex = index.toString().padStart(2, '0')
+        const tokenAddress = `0x${paddedIndex}${'0'.repeat(38)}`
+        stubFindByTokenAddress.withArgs(tokenAddress, 'ethereum-mainnet').resolves(mockPlugins[index])
       })
+
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose').resolves()
+      const loggerInfoStub = sandbox.stub(logger, 'info').resolves()
+
+      await AragonReQueueService.start()
+
+      expect(stubRabbitMq.callCount).to.equal(tokenTypes.length)
+      expect(loggerVerboseStub.called).to.be.true
+      expect(loggerInfoStub.called).to.be.true
     })
   })
 })

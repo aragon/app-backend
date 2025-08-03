@@ -3,7 +3,6 @@ import {
   IndexerType,
   IEnumIndexerService,
   ITokenType,
-  ITokenSyncTagName,
   NetworksEnum,
   type IPluginInterfaceType,
   type LogServicePattern,
@@ -70,17 +69,12 @@ const ConfigIndexerHelper = {
       return service as TransferListLogService
     },
 
-    token: (
-      tokenType: ITokenType,
-      network: NetworksEnum,
-      address: string,
-      syncTag?: ITokenSyncTagName,
-    ): TokenLogService => {
+    token: (tokenType: ITokenType, network: NetworksEnum, address: string): TokenLogService => {
       // Validate token type
       if (!ConfigIndexerHelper.utils.isValidTokenTypeForLogService(tokenType)) {
         throw new Error(`Invalid token type for logService: ${tokenType}. Cannot use 'native' or 'unknown'.`)
       }
-      const service = syncTag ? `${tokenType}-${network}-${address}-${syncTag}` : `${tokenType}-${network}-${address}`
+      const service = `${tokenType}-${network}-${address}`
       return service as TokenLogService
     },
   },
@@ -237,28 +231,18 @@ const ConfigIndexerHelper = {
       }
 
       if (ConfigIndexerHelper.guards.isToken(service)) {
-        // {tokenType}-{network}-{address}[-{syncTag}]
+        // {tokenType}-{network}-{address}
         const tokenType = parts[0] as ITokenType
         const { network, remainingParts } = extractNetwork(parts, 1)
         const networkIndex = remainingParts.indexOf(network)
         const afterNetworkParts = remainingParts.slice(networkIndex + 1)
 
         let address: string
-        let syncTag: ITokenSyncTagName | undefined
 
         // If we have more than one part after the network, check if the last part could be a sync tag
         if (afterNetworkParts.length > 1) {
-          const lastPart = afterNetworkParts[afterNetworkParts.length - 1]
-
-          // Check if it's a valid sync tag
-          if (ConfigIndexerHelper.utils.isValidSyncTag(lastPart)) {
-            // Valid sync tag
-            address = afterNetworkParts.slice(0, -1).join('-')
-            syncTag = lastPart
-          } else {
-            // This handles invalid syncTag 'ERC20-ethereum-mainnet-0x123-invalid' -> address='0x123'
-            address = afterNetworkParts.slice(0, -1).join('-')
-          }
+          // This handles invalid syncTag 'ERC20-ethereum-mainnet-0x123-invalid' -> address='0x123'
+          address = afterNetworkParts.slice(0, -1).join('-')
         } else {
           // Only one part after network, it's the address
           address = afterNetworkParts.join('-')
@@ -269,10 +253,6 @@ const ConfigIndexerHelper = {
           tokenType,
           network,
           address,
-        }
-
-        if (syncTag) {
-          result.syncTag = syncTag
         }
 
         return result
@@ -311,27 +291,6 @@ const ConfigIndexerHelper = {
       if (ConfigIndexerHelper.guards.isTransferList(service)) return IndexerType.transferList // Add this line
       if (ConfigIndexerHelper.guards.isPlugin(service)) return IndexerType.plugin
 
-      return null
-    },
-
-    // Helper to check if a token service has a sync tag
-    hasSyncTag: (service: LogServicePattern): boolean => {
-      if (!ConfigIndexerHelper.guards.isToken(service)) return false
-
-      // Parse the service to check for sync tag
-      const parsed = ConfigIndexerHelper.parser.parse(service)
-      return parsed?.type === 'token' && !!parsed.syncTag
-    },
-
-    // Helper to get sync tag from token service
-    getSyncTag: (service: LogServicePattern): ITokenSyncTagName | null => {
-      if (!ConfigIndexerHelper.guards.isToken(service)) return null
-
-      // Parse the service to get sync tag
-      const parsed = ConfigIndexerHelper.parser.parse(service)
-      if (parsed?.type === 'token' && parsed.syncTag) {
-        return parsed.syncTag
-      }
       return null
     },
   },
@@ -399,48 +358,6 @@ const ConfigIndexerHelper = {
     // Check if a token type is valid for logService
     isValidTokenTypeForLogService: (tokenType: ITokenType): boolean => {
       return tokenType !== ITokenType.native && tokenType !== ITokenType.unknown
-    },
-
-    // Get all valid sync tags
-    getValidSyncTags: (): ITokenSyncTagName[] => {
-      return Object.values(ITokenSyncTagName)
-    },
-
-    // Check if a string is a valid sync tag
-    isValidSyncTag: (tag: string): tag is ITokenSyncTagName => {
-      return Object.values(ITokenSyncTagName).includes(tag as ITokenSyncTagName)
-    },
-
-    // Create a token service with sync tag from an existing one
-    addSyncTagToTokenService: (service: TokenLogService, syncTag: ITokenSyncTagName): TokenLogService => {
-      if (!ConfigIndexerHelper.guards.isToken(service)) {
-        throw new Error('Service must be a token service')
-      }
-
-      // Parse the service first to get its components
-      const parsed = ConfigIndexerHelper.parser.parse(service)
-      if (parsed?.type !== 'token') {
-        throw new Error('Failed to parse token service')
-      }
-
-      // Rebuild with the new sync tag
-      return ConfigIndexerHelper.builders.token(parsed.tokenType, parsed.network, parsed.address, syncTag)
-    },
-
-    // Remove sync tag from a token service
-    removeSyncTagFromTokenService: (service: TokenLogService): TokenLogService => {
-      if (!ConfigIndexerHelper.guards.isToken(service)) {
-        throw new Error('Service must be a token service')
-      }
-
-      // Parse the service first to get its components
-      const parsed = ConfigIndexerHelper.parser.parse(service)
-      if (parsed?.type !== 'token') {
-        throw new Error('Failed to parse token service')
-      }
-
-      // Rebuild without a sync tag
-      return ConfigIndexerHelper.builders.token(parsed.tokenType, parsed.network, parsed.address)
     },
   },
 }
