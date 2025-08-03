@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import {
   type HexAddress,
+  type IAggDaoMemberMappingParams,
   type IExtraQueryData,
   type IPaginationParams,
   type IPairParams,
@@ -125,7 +126,7 @@ const PairDataModule = {
     return extraParams
   },
 
-  async pairFromDaoMemberMapping({
+  async pairAllMemberOfDao({
     daoAddress,
     network,
     pluginAddress,
@@ -138,34 +139,94 @@ const PairDataModule = {
     memberAddress?: HexAddress
     network?: NetworksEnum
   }) {
-    const params: any = {}
+    const result: IAggDaoMemberMappingParams[] = []
 
-    if (daoAddress) {
-      params.daoAddress = daoAddress
+    // Case 1: If pluginAddress is passed, retrieve members from PluginMember
+    if (pluginAddress && network) {
+      const params: any = {
+        pluginAddress,
+        network,
+      }
+
+      if (daoAddress) {
+        params.daoAddress = daoAddress
+      }
+
+      if (memberAddress) {
+        params.memberAddress = memberAddress
+      }
+
+      const pluginMembers = await Models.PluginMember.find(params)
+      // Map PluginMember to IAggDaoMemberMappingParams format
+      const mappedPluginMembers = pluginMembers.map(member => ({
+        memberAddress: member.memberAddress,
+        daoAddress: member.daoAddress,
+        pluginAddress: member.pluginAddress,
+        network: member.network,
+        votingPower: undefined,
+        tokenAddress: undefined,
+      }))
+      result.push(...mappedPluginMembers)
+
+      // Check if plugin has tokenAddress, if yes retrieve from VpMember
+      const plugin = await Models.Plugin.findOne({ address: pluginAddress, network })
+      if (plugin?.tokenAddress) {
+        const vpParams: any = {
+          tokenAddress: plugin.tokenAddress,
+          network,
+          votingPower: { $ne: '0' },
+        }
+
+        if (memberAddress) {
+          vpParams.memberAddress = memberAddress
+        }
+
+        const vpMembers = await Models.VpMember.find(vpParams)
+        // Map VpMember to include plugin context
+        const mappedVpMembers = vpMembers.map(member => ({
+          memberAddress: member.memberAddress,
+          daoAddress: plugin.daoAddress,
+          pluginAddress: plugin.address,
+          network: member.network,
+          votingPower: member.votingPower,
+          tokenAddress: member.tokenAddress,
+        }))
+        result.push(...mappedVpMembers)
+      }
+    }
+    // Case 2: If tokenAddress is passed directly, query VpMember directly
+    else if (tokenAddress && network) {
+      const vpParams: any = {
+        tokenAddress,
+        network,
+        votingPower: { $ne: '0' },
+      }
+
+      if (memberAddress) {
+        vpParams.memberAddress = memberAddress
+      }
+
+      const vpMembers = await Models.VpMember.find(vpParams)
+
+      // Find associated plugin to get daoAddress
+      const plugin = await Models.Plugin.findOne({ tokenAddress, network })
+
+      // Map VpMember to include dao context
+      const mappedVpMembers = vpMembers.map(member => ({
+        memberAddress: member.memberAddress,
+        daoAddress: plugin?.daoAddress || daoAddress,
+        pluginAddress: plugin?.address,
+        network: member.network,
+        votingPower: member.votingPower,
+        tokenAddress: member.tokenAddress,
+      }))
+      result.push(...mappedVpMembers)
     }
 
-    if (pluginAddress) {
-      params.pluginAddress = pluginAddress
-    }
+    // Remove duplicates based on memberAddress
+    const uniqueMembers = Array.from(new Map(result.map(item => [item.memberAddress, item])).values())
 
-    if (tokenAddress) {
-      params.tokenAddress = tokenAddress
-    }
-
-    if (memberAddress) {
-      params.memberAddress = memberAddress
-    }
-
-    if (network) {
-      params.network = network
-    }
-
-    if (Object.keys(params).length > 0) {
-      const mappings = (await Models.DaoMemberMapping.find(params)) || []
-      return mappings
-    }
-
-    return []
+    return uniqueMembers
   },
 }
 export default PairDataModule

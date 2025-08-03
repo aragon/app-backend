@@ -1,4 +1,4 @@
-import { EnumConnection, IMetricAction, type IService, ITransferSide, ITransferType } from '@types'
+import { EnumConnection, type IService, ITransferSide, ITransferType } from '@types'
 import { Models } from '@dbModels'
 import type Member from '@models/schema/member'
 import type Plugin from '@models/schema/plugin'
@@ -67,10 +67,11 @@ export const MemberMetrics: IExtendedService = {
     for (const proposal of proposals) {
       const plugin = await Models.Plugin.findOne({ address: proposal.pluginAddress, network: proposal.network })
       if (!plugin) continue
-      await ProxyMember.updateMetricsByAction(IMetricAction.increaseProposalCount, {
+      await ProxyMember.updatePluginMetrics({
         memberAddress: member.address,
         pluginAddress: plugin.address,
         network: plugin.network,
+        daoAddress: proposal.daoAddress,
       })
       await MemberMetrics.setActivity(member, plugin, proposal.blockTimestamp)
     }
@@ -86,10 +87,11 @@ export const MemberMetrics: IExtendedService = {
       const plugin = await Models.Plugin.findOne({ address: vote.pluginAddress, network: vote.network })
       if (!plugin) return
 
-      await ProxyMember.updateMetricsByAction(IMetricAction.increaseVoteCount, {
+      await ProxyMember.updatePluginMetrics({
         memberAddress: member.address,
         pluginAddress: plugin.address,
         network: plugin.network,
+        daoAddress: vote.daoAddress,
       })
       await MemberMetrics.setActivity(member, plugin, vote.blockTimestamp)
     }

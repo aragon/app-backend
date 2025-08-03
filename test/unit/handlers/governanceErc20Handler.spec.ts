@@ -407,8 +407,8 @@ describe('GovernanceErc20Handler', () => {
       sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(existingMapping)
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
-      // Stub removeFromDao to actually remove the document
-      sandbox.stub(ProxyMember, 'removeFromDao').callsFake(async params => {
+      // Stub removePluginMember to actually remove the document
+      sandbox.stub(ProxyMember, 'removePluginMember').callsFake(async params => {
         return await Models.DaoMemberMapping.deleteOne({
           memberAddress: params.memberAddress,
           daoAddress: params.daoAddress,
@@ -438,8 +438,8 @@ describe('GovernanceErc20Handler', () => {
   describe('_handleDaoMemberShip', () => {
     it('should add member to DAO when requirements are met and not a member', async () => {
       const isMemberOfDaoStub = sandbox.stub(ProxyMember, 'isMemberOfDao')
-      const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao').resolves()
-      const removeFromDaoStub = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
+      const addPluginMemberStub = sandbox.stub(ProxyMember, 'addPluginMember').resolves()
+      const removePluginMemberStub = sandbox.stub(ProxyMember, 'removePluginMember').resolves()
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
       const uniqueValuesStub = sandbox.stub(utils, 'getUniqueValuesByKey')
 
@@ -476,11 +476,11 @@ describe('GovernanceErc20Handler', () => {
 
       // Verify member was added to both DAOs
       expect(isMemberOfDaoStub.callCount).to.equal(2)
-      expect(addToDaoStub.callCount).to.equal(2)
-      expect(removeFromDaoStub.notCalled).to.be.true
+      expect(addPluginMemberStub.callCount).to.equal(2)
+      expect(removePluginMemberStub.notCalled).to.be.true
 
       // Verify the correct parameters were passed
-      expect(addToDaoStub.firstCall.args[0]).to.deep.equal({
+      expect(addPluginMemberStub.firstCall.args[0]).to.deep.equal({
         memberAddress: '0xMember',
         daoAddress: '0xDao1',
         network,
@@ -488,7 +488,7 @@ describe('GovernanceErc20Handler', () => {
         tokenAddress: '0xToken1',
       })
 
-      expect(addToDaoStub.secondCall.args[0]).to.deep.equal({
+      expect(addPluginMemberStub.secondCall.args[0]).to.deep.equal({
         memberAddress: '0xMember',
         daoAddress: '0xDao2',
         network,
@@ -513,8 +513,8 @@ describe('GovernanceErc20Handler', () => {
       }
 
       const isMemberOfDaoStub = sandbox.stub(ProxyMember, 'isMemberOfDao')
-      const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao').resolves()
-      const removeFromDaoStub = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
+      const addPluginMemberStub = sandbox.stub(ProxyMember, 'addPluginMember').resolves()
+      const removePluginMemberStub = sandbox.stub(ProxyMember, 'removePluginMember').resolves()
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
       const uniqueValuesStub = sandbox.stub(utils, 'getUniqueValuesByKey')
 
@@ -544,10 +544,10 @@ describe('GovernanceErc20Handler', () => {
       await GovernanceErc20Handler._handleDaoMemberShip(memberTx, plugins, info, false)
 
       expect(isMemberOfDaoStub.callCount).to.equal(1)
-      expect(removeFromDaoStub.callCount).to.equal(1)
-      expect(addToDaoStub.notCalled).to.be.true
+      expect(removePluginMemberStub.callCount).to.equal(1)
+      expect(addPluginMemberStub.notCalled).to.be.true
 
-      expect(removeFromDaoStub.firstCall.args[0]).to.deep.equal({
+      expect(removePluginMemberStub.firstCall.args[0]).to.deep.equal({
         memberAddress: '0xMember',
         daoAddress: '0xDao1',
         network,
@@ -564,8 +564,8 @@ describe('GovernanceErc20Handler', () => {
       }
 
       const isMemberOfDaoStub = sandbox.stub(ProxyMember, 'isMemberOfDao')
-      const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao').resolves()
-      const removeFromDaoStub = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
+      const addPluginMemberStub = sandbox.stub(ProxyMember, 'addPluginMember').resolves()
+      const removePluginMemberStub = sandbox.stub(ProxyMember, 'removePluginMember').resolves()
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
       const uniqueValuesStub = sandbox.stub(utils, 'getUniqueValuesByKey')
 
@@ -595,8 +595,8 @@ describe('GovernanceErc20Handler', () => {
       await GovernanceErc20Handler._handleDaoMemberShip(memberTx, plugins, info, false)
 
       expect(isMemberOfDaoStub.callCount).to.equal(1)
-      expect(addToDaoStub.notCalled).to.be.true
-      expect(removeFromDaoStub.notCalled).to.be.true
+      expect(addPluginMemberStub.notCalled).to.be.true
+      expect(removePluginMemberStub.notCalled).to.be.true
 
       // RabbitMQ message should still be sent
       expect(sendMessageStub.callCount).to.equal(1)
@@ -604,7 +604,7 @@ describe('GovernanceErc20Handler', () => {
 
     it('should not send RabbitMQ messages when isHistorical is true', async () => {
       const isMemberOfDaoStub = sandbox.stub(ProxyMember, 'isMemberOfDao')
-      const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao').resolves()
+      const addPluginMemberStub = sandbox.stub(ProxyMember, 'addPluginMember').resolves()
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
       const uniqueValuesStub = sandbox.stub(utils, 'getUniqueValuesByKey')
 
@@ -633,13 +633,13 @@ describe('GovernanceErc20Handler', () => {
 
       await GovernanceErc20Handler._handleDaoMemberShip(memberTx, plugins, info, true)
 
-      expect(addToDaoStub.callCount).to.equal(1)
+      expect(addPluginMemberStub.callCount).to.equal(1)
       expect(sendMessageStub.notCalled).to.be.true
     })
 
     it('should handle member with only voting power (no balance)', async () => {
       const isMemberOfDaoStub = sandbox.stub(ProxyMember, 'isMemberOfDao')
-      const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao').resolves()
+      const addPluginMemberStub = sandbox.stub(ProxyMember, 'addPluginMember').resolves()
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
       const uniqueValuesStub = sandbox.stub(utils, 'getUniqueValuesByKey')
 
@@ -668,7 +668,7 @@ describe('GovernanceErc20Handler', () => {
 
       await GovernanceErc20Handler._handleDaoMemberShip(memberTx, plugins, info, false)
 
-      expect(addToDaoStub.callCount).to.equal(1)
+      expect(addPluginMemberStub.callCount).to.equal(1)
       expect(sendMessageStub.callCount).to.equal(1)
     })
   })

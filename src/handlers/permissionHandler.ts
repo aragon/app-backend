@@ -141,9 +141,8 @@ export const PermissionHandler = {
     }
 
     if (!add) {
-      await ProxyMember.removeFromDao({
+      await ProxyMember.removePluginMember({
         memberAddress: where,
-        daoAddress: pluginExisted.daoAddress,
         pluginAddress,
         network,
       })
@@ -156,7 +155,7 @@ export const PermissionHandler = {
       return
     }
 
-    await ProxyMember.addToDao({
+    await ProxyMember.addPluginMember({
       memberAddress: where,
       daoAddress: pluginExisted.daoAddress,
       pluginAddress,

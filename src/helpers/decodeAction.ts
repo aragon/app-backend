@@ -273,7 +273,7 @@ class DecodeActions {
       }),
     )
 
-    const currentMembersInfo = await Models.DaoMemberMapping.findAllMembersOfPlugin({
+    const currentMembersInfo = await Models.PluginMember.findAllMembersOfPlugin({
       pluginAddress: document.pluginAddress!,
       network: document.network!,
     })
@@ -303,7 +303,7 @@ class DecodeActions {
       }),
     )
 
-    const currentMembersInfo = await Models.DaoMemberMapping.findAllMembersOfPlugin({
+    const currentMembersInfo = await Models.PluginMember.findAllMembersOfPlugin({
       pluginAddress: document.pluginAddress!,
       network: document.network!,
     })

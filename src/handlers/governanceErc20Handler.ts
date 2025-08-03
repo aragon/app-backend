@@ -86,6 +86,7 @@ export const GovernanceErc20Handler = {
         tokenAddress: info.address,
         votingPower: newBalance.toString(),
         network: info.network,
+        lastVPBlockNumber: info.blockNumber,
       })
 
       // only when incoming delegation, we update the delegation metrics
