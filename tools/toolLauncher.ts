@@ -8,7 +8,6 @@ import SyncProposalType from '@tools/syncProposalType'
 import SyncProposalTotalSupply from '@tools/syncProposalTotalSupply'
 import RevertDbAtBlock from '@tools/revertDbAtBlock'
 import SyncProposalIndex from '@tools/syncProposalIndex'
-import MemberMetrics from '@tools/memberMetrics'
 import EnsFetch from '@tools/ensFetch'
 import FixSettingIssue from '@tools/fixBrokenPluginSetting'
 import CleanDb from '@tools/cleanDb'
@@ -43,7 +42,6 @@ const runners = {
   SyncMemberVP,
   CleanDb,
   EnsFetch,
-  MemberMetrics,
   ToolsMissingSlugs,
   ToolsManualSyncMultisigV2Settings,
   SyncProposalTotalSupply,

@@ -32,32 +32,20 @@ const MemberController = {
       return Models.Member.findPaginatedMembersOnly({ paginationParams })
     }
 
-    if (extraParams.daoAddress && !extraParams.pluginAddress) {
-      return Models.PluginMember.findAndPaginate({
-        extraParams,
-        paginationParams,
-      })
-    }
+    assertExposable(!!(extraParams.daoAddress && extraParams.pluginAddress), ErrorKeyEnum.pluginNotFound)
 
     const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
     assertExposable(plugin, ErrorKeyEnum.notFound)
 
-    if (plugin.tokenAddress) {
-      if (plugin.votingEscrow !== null && plugin.votingEscrow.escrowAddress) {
-        return await MemberController.getMembersOfVeLockPlugin(paginationParams, plugin)
-      }
-
-      extraParams.tokenAddress = plugin.tokenAddress
-      // TODO: check the query for vp members
-      return Models.VpMember.findAndPaginate({
-        paginationParams,
-        extraParams,
-      })
+    if (plugin.votingEscrow !== null && plugin.votingEscrow.escrowAddress) {
+      return await MemberController.getMembersOfVeLockPlugin(paginationParams, plugin)
     }
 
-    return Models.PluginMember.findAndPaginate({
-      extraParams,
+    extraParams.tokenAddress = plugin.tokenAddress
+    // TODO: check the query for vp members
+    return Models.VpMember.findAndPaginate({
       paginationParams,
+      extraParams,
     })
   },
 

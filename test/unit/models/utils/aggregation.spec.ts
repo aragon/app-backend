@@ -69,59 +69,6 @@ describe('AggregationQueryHelper', () => {
     })
   })
 
-  describe('daoMemberMapping', () => {
-    it('should construct a valid aggregation query for daoMemberMapping', () => {
-      const query = AggregationQueryHelper.daoMemberMapping(
-        {
-          tokenAddress: '0xTokenAddress',
-          memberAddress: '0xMemberAddress',
-          daoAddress: '0xDaoAddress',
-          pluginAddress: '0xPluginAddress',
-          network: NetworksEnum.ethereumMainnet,
-        },
-        'memberMappings',
-      )
-
-      expect(query).to.deep.equal({
-        $lookup: {
-          from: 'DaoMemberMapping',
-          let: {
-            tokenAddress: '0xTokenAddress',
-            memberAddress: '0xMemberAddress',
-            daoAddress: '0xDaoAddress',
-            pluginAddress: '0xPluginAddress',
-            network: NetworksEnum.ethereumMainnet,
-          },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    { $eq: ['$pluginAddress', '$$pluginAddress'] },
-                    { $eq: ['$tokenAddress', '$$tokenAddress'] },
-                    { $eq: ['$daoAddress', '$$daoAddress'] },
-                    { $eq: ['$memberAddress', '$$memberAddress'] },
-                    { $eq: ['$network', '$$network'] },
-                  ],
-                },
-              },
-            },
-            {
-              $project: {
-                daoAddress: 1,
-                memberAddress: 1,
-                pluginAddress: 1,
-                tokenAddress: 1,
-                network: 1,
-              },
-            },
-          ],
-          as: 'memberMappings',
-        },
-      })
-    })
-  })
-
   describe('proposals', () => {
     it('should construct a valid aggregation query for proposals', () => {
       const query = AggregationQueryHelper.proposals({
@@ -345,77 +292,6 @@ describe('AggregationQueryHelper', () => {
           as: 'tokens',
         },
       })
-    })
-  })
-
-  describe('memberCountByToken', () => {
-    it('should construct a valid aggregation query for memberCountByToken', () => {
-      const query = AggregationQueryHelper.memberCountByToken('0xToken', NetworksEnum.ethereumMainnet)
-
-      expect(query).to.deep.equal([
-        {
-          $match: {
-            address: '0xToken',
-            network: NetworksEnum.ethereumMainnet,
-          },
-        },
-        {
-          $lookup: {
-            from: 'Plugin',
-            let: { tNetwork: '$network', tAddress: '$address' },
-            pipeline: [
-              {
-                $match: {
-                  $expr: {
-                    $and: [{ $eq: ['$tokenAddress', '$$tAddress'] }, { $eq: ['$network', '$$tNetwork'] }],
-                  },
-                },
-              },
-              {
-                $lookup: {
-                  from: 'DaoMemberMapping',
-                  let: { pluginAddr: '$address' },
-                  pipeline: [
-                    {
-                      $match: {
-                        $expr: {
-                          $eq: ['$pluginAddress', '$$pluginAddr'],
-                        },
-                      },
-                    },
-                    {
-                      $count: 'memberCount',
-                    },
-                  ],
-                  as: 'daoMembers',
-                },
-              },
-              {
-                $set: {
-                  memberCount: {
-                    $ifNull: [{ $arrayElemAt: ['$daoMembers.memberCount', 0] }, 0],
-                  },
-                },
-              },
-            ],
-            as: 'plugin',
-          },
-        },
-        {
-          $set: {
-            memberCount: {
-              $sum: '$plugin.memberCount',
-            },
-          },
-        },
-        {
-          $project: {
-            _id: 0,
-            address: 1,
-            memberCount: 1,
-          },
-        },
-      ])
     })
   })
 

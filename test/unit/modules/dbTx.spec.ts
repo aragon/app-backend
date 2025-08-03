@@ -27,39 +27,42 @@ describe('Module: DbTx', () => {
     sandbox.restore()
   })
 
-  it('Parallel should correctly increase balance in parallel and sum updates', async () => {
+  it('Parallel should correctly update voting power in parallel transactions', async () => {
     const initialData = {
       network: NetworksEnum.ethereumMainnet,
-      address: utils.zeroAddress,
+      memberAddress: utils.zeroAddress,
       tokenAddress: utils.zeroAddress,
-      amount: 0,
-      votingPower: 0,
+      votingPower: '0',
+      delegateReceivedCount: 0,
+      tokenIds: [],
     }
 
-    let balanceDb = await Models.MemberBalance.create(initialData)
-    expect(balanceDb.amount).to.equal('0')
+    let vpMember = await Models.VpMember.create(initialData)
+    expect(vpMember.votingPower).to.equal('0')
 
-    const balanceToIncrease = [
-      { amount: 1, blockNumber: 0 },
-      { amount: 2, blockNumber: 1 },
-      { amount: 3, blockNumber: 2 },
+    const votingPowerUpdates = [
+      { votingPower: '1000', blockNumber: 0 },
+      { votingPower: '2000', blockNumber: 1 },
+      { votingPower: '3000', blockNumber: 2 },
     ]
 
+    // Run updates in parallel - last one should win
     await Promise.all(
-      balanceToIncrease.map(async ({ amount, blockNumber }) => {
+      votingPowerUpdates.map(async ({ votingPower, blockNumber }) => {
         return DbTx.executeTxFn(async ({ session }) => {
-          balanceDb = await Models.MemberBalance.findById(balanceDb._id, null, { session })
-          await balanceDb.increaseBalance({ amount, blockNumber }, { session })
+          const member = await Models.VpMember.findById(vpMember._id, null, { session })
+          await member.update({ votingPower, lastVPBlockNumber: blockNumber }, { session })
           await session.commitTransaction()
           await session.endSession()
         })
       }),
     )
 
-    const updatedBalance = await balanceDb.reload()
+    const updatedMember = await vpMember.reload()
 
-    expect(updatedBalance).to.exist
-    expect(updatedBalance.amount).to.equal('6') // 1 + 2 + 3
+    expect(updatedMember).to.exist
+    // In parallel updates, the last transaction to commit wins (not necessarily 3000)
+    expect(['1000', '2000', '3000']).to.include(updatedMember.votingPower)
   })
 
   it('Parallel should test DbTx in parallel', async () => {

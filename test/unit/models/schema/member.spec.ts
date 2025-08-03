@@ -5,25 +5,12 @@ import { afterEach, beforeEach } from 'mocha'
 import { expect } from 'chai'
 import { Models } from '@dbModels'
 import { FakeMember } from '@test/mock/fakeMember'
-import DaoMemberMapping from '@models/schema/daoMemberMapping'
-import Plugin from '@models/schema/plugin'
-import { FakeDaoMemberMappings } from '@test/mock/fakeDaoMappings'
-import { FakeMemberMetrics } from '@test/mock/fakeMemberMetrics'
-import { fakeMemberBalance } from '@test/mock/fakeMemberBalance'
-
-import { PluginList } from '@test/mock/fakePlugins'
-import MemberBalance from '@models/schema/memberBalance'
-import MemberMetrics from '@models/schema/memberMetrics'
-import { IPluginInterfaceType } from '@types'
+import { IPluginInterfaceType, NetworksEnum } from '@types'
 import ModelUtils from '@models/utils/models'
 
 describe('Model: Member', () => {
   let sandbox: SinonSandbox
   let rawMember: Partial<Member>
-  let rawDaoMapping: Partial<DaoMemberMapping>
-  let rawPlugin: Partial<Plugin>
-  let rawMemberBalance: Partial<MemberBalance>
-  let rawMemberMetrics: Partial<MemberMetrics>
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
@@ -31,34 +18,6 @@ describe('Model: Member', () => {
     rawMember = {
       ...FakeMember,
     } as any
-
-    rawDaoMapping = {
-      ...FakeDaoMemberMappings[0],
-      memberAddress: rawMember.address,
-    }
-
-    rawPlugin = {
-      ...PluginList[0],
-      daoAddress: rawDaoMapping.daoAddress,
-      interfaceType: IPluginInterfaceType.multisig,
-    } as any
-
-    rawMemberBalance = {
-      ...fakeMemberBalance,
-      address: FakeMember.address,
-      tokenAddress: rawPlugin.tokenAddress,
-    }
-
-    rawMemberMetrics = {
-      ...FakeMemberMetrics,
-      address: rawMember.address,
-      pluginAddress: rawPlugin.address,
-    }
-
-    await Models.MemberBalance.create(rawMemberBalance)
-    await Models.DaoMemberMapping.create(rawDaoMapping)
-    await Models.Plugin.create(rawPlugin)
-    await Models.MemberMetrics.create(rawMemberMetrics)
   })
 
   afterEach(() => {
@@ -107,8 +66,8 @@ describe('Model: Member', () => {
 
   it('should update Member', async () => {
     const member = await Models.Member.create(rawMember)
-    const updatedMember = await member.update({ address: '0x00' })
-    expect(updatedMember.address).to.eq('0x00')
+    const updatedMember = await member.update({ ens: 'updated.eth' })
+    expect(updatedMember.ens).to.eq('updated.eth')
   })
 
   it('Should reload', async () => {
@@ -118,28 +77,79 @@ describe('Model: Member', () => {
     expect(createdMember.address).to.eq(rawMember.address)
   })
 
+  it('should add lastActivity and firstActivity', async () => {
+    const memberData = {
+      ...rawMember,
+      lastActivity: 1234567890,
+      firstActivity: 1234567800,
+    }
+    const member = await Models.Member.create(memberData)
+    expect(member.lastActivity).to.eq(1234567890)
+    expect(member.firstActivity).to.eq(1234567800)
+  })
+
   describe('findMemberByAddress', () => {
     it('should find member by address only', async () => {
       const createdMember = await Models.Member.create(rawMember)
       const member = await Models.Member.findMemberByAddress(createdMember.address)
 
       expect(member?.address).to.eq(createdMember.address)
+      expect(member?.ens).to.eq(createdMember.ens)
+      expect(member?.avatar).to.eq(createdMember.avatar)
     })
 
-    it('should return all the details of the member if passed extra params', async () => {
+    it('should return member with aggregated data when extra params provided', async () => {
       const createdMember = await Models.Member.create(rawMember)
-      const member = await Models.Member.findMemberByAddress(createdMember.address, {
-        daoAddress: rawDaoMapping.daoAddress,
-        network: rawDaoMapping.network,
-        pluginAddress: rawPlugin.address,
-        tokenAddress: rawPlugin.tokenAddress,
+
+      // Create related data
+      const plugin = await Models.Plugin.create({
+        id: 'test-plugin',
+        address: '0xPluginAddress',
+        daoAddress: '0xDaoAddress',
+        tokenAddress: '0xTokenAddress',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: 'installed',
+        transactionHash: '0xhash',
+        blockNumber: 1000,
       })
 
+      const vpMember = await Models.VpMember.create({
+        memberAddress: createdMember.address,
+        tokenAddress: plugin.tokenAddress,
+        network: plugin.network,
+        votingPower: '1000',
+        delegateReceivedCount: 5,
+      })
+
+      const pluginMetrics = await Models.PluginMetrics.create({
+        memberAddress: createdMember.address,
+        pluginAddress: plugin.address,
+        network: plugin.network,
+        voteCount: 10,
+        proposalCount: 3,
+        firstActivity: 1234567800,
+        lastActivity: 1234567890,
+      })
+
+      const aggregateSpy = sandbox.spy(Models.Member, 'aggregate')
+
+      const member = await Models.Member.findMemberByAddress(createdMember.address, {
+        daoAddress: plugin.daoAddress,
+        network: plugin.network,
+        pluginAddress: plugin.address,
+        tokenAddress: plugin.tokenAddress,
+      })
+
+      expect(aggregateSpy.calledOnce).to.be.true
       expect(member?.address).to.eq(createdMember.address)
-      expect(member.tokenBalance).to.be.eq(rawMemberBalance.amount)
-      expect(member.votingPower).to.be.eq(rawMemberBalance.votingPower)
-      expect(member.metrics).to.be.exist
-      expect(member.metrics?.delegateReceivedCount).to.be.eq(rawMemberMetrics.delegateReceivedCount)
+      expect(member?.votingPower).to.be.eq(vpMember.votingPower)
+      expect(member?.metrics).to.be.exist
+      expect(member?.metrics?.delegateReceivedCount).to.be.eq(vpMember.delegateReceivedCount)
+      expect(member?.metrics?.voteCount).to.be.eq(pluginMetrics.voteCount)
+      expect(member?.metrics?.proposalCount).to.be.eq(pluginMetrics.proposalCount)
+      expect(member?.metrics?.firstActivity).to.be.eq(pluginMetrics.firstActivity)
+      expect(member?.metrics?.lastActivity).to.be.eq(pluginMetrics.lastActivity)
     })
   })
 

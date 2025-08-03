@@ -57,7 +57,7 @@ export function scanNatspecBlock(source: string, pos: number, terminator: string
         ended = true
       }
 
-      const comment = source.substring(pos, posEnd).trim()
+      const comment = source.substring(pos, posEnd < 0 ? source.length : posEnd).trim()
 
       if (tag === 'param') {
         if (details.tags[tag]) {
@@ -75,7 +75,11 @@ export function scanNatspecBlock(source: string, pos: number, terminator: string
       ended = true
     } else if (match === '\n') {
       if (tag) {
-        const line = source.substring(prevPos, pos).trim()
+        let line = source.substring(prevPos, pos).trim()
+        // Remove leading '* ' from multiline comments
+        if (line.startsWith('* ')) {
+          line = line.substring(2)
+        }
         const currentTag = details.tags[tag]
         if (typeof currentTag === 'object') {
           currentTag[param] += '\n' + line
