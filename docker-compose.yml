@@ -133,7 +133,6 @@ services:
 
   service-aragon-plugins:
     image: service-aragon-plugins-${ENV_SUFFIX}
-    container_name: service-aragon-plugins-${ENV_SUFFIX}
     build:
       context: .
     env_file:
@@ -151,6 +150,8 @@ services:
     networks:
       - internal-net
       - public-net
+    deploy:
+      replicas: 10
 
   service-aragon-rates:
     image: service-aragon-rates-${ENV_SUFFIX}
