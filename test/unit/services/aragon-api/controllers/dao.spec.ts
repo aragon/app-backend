@@ -7,7 +7,7 @@ import { Models } from '@dbModels'
 import { DaoList } from '@test/mock/fakeDao'
 import Dao from '@models/schema/dao'
 import PairDataModule from '@modules/pairData'
-import { FakeDaoMemberMappings } from '@test/mock/fakeDaoMappings'
+import { fakePluginMembers } from '@test/mock/fakePluginMember'
 import { FakeMember } from '@test/mock/fakeMember'
 
 describe('Controller: Dao', () => {
@@ -19,11 +19,14 @@ describe('Controller: Dao', () => {
 
     rawDao = {
       ...(DaoList[0] as any),
-      id: `${DaoList[0].network}-${FakeDaoMemberMappings[0].daoAddress}`,
-      address: FakeDaoMemberMappings[0].daoAddress,
     }
     await Models.Dao.create(rawDao)
-    await Models.DaoMemberMapping.create(FakeDaoMemberMappings[0])
+    await Models.PluginMember.create({
+      memberAddress: FakeMember.address,
+      pluginAddress: '0xPluginAddress',
+      daoAddress: rawDao.address,
+      network: rawDao.network,
+    })
 
     await Models.Member.create(FakeMember)
   })
@@ -243,7 +246,7 @@ describe('Controller: Dao', () => {
 
       const filterParams: any = {
         network: rawDao.network,
-        memberAddress: FakeDaoMemberMappings[0].memberAddress,
+        memberAddress: FakeMember.address,
       }
 
       const spyReq = sandbox.spy(Models.Dao, 'findWithPagination')
@@ -276,7 +279,7 @@ describe('Controller: Dao', () => {
       ]
 
       sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves(paginationParams)
-      sandbox.stub(PairDataModule, 'pairFromDaoMemberMapping').resolves(fakeMapping)
+      sandbox.stub(PairDataModule, 'pairAllMemberOfDao').resolves(fakeMapping)
       sandbox.stub(PairDataModule, 'checkIFEns').resolves(filterParams.memberAddress)
       sandbox
         .stub(PairDataModule, 'pairFromExtraParams')
@@ -312,7 +315,7 @@ describe('Controller: Dao', () => {
 
       const filterParams: any = {
         networks: [NetworksEnum.ethereumMainnet, NetworksEnum.ethereumSepolia, NetworksEnum.polygonMainnet],
-        memberAddress: FakeDaoMemberMappings[0].memberAddress,
+        memberAddress: FakeMember.address,
       }
 
       sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves(paginationParams)

@@ -1,5 +1,5 @@
 import RabbitMQ from '@modules/rabbitMQ'
-import { type EnumQueueName, type IQueueMessage } from '@types'
+import { type EnumQueueName, type IQueueMessage, type ISendOptions } from '@types'
 import logger from '@logger'
 import { type ConfirmChannel, type ConsumeMessage, type Options } from 'amqplib'
 import { v4 as uuidv4 } from 'uuid'
@@ -7,11 +7,6 @@ import { Mutex } from 'async-mutex'
 import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:RabbitMQHelper' })
-
-export interface ISendOptions {
-  waitResponse?: boolean
-  timeout?: number
-}
 
 const RabbitMQHelper = {
   activeJobs: new Map<string, boolean>(),

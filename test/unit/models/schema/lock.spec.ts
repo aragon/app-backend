@@ -453,23 +453,23 @@ describe('Model: Lock', () => {
         lockExit: { status: true }, // This lock is exited
       })
 
-      // Create member balances that match the locks
-      await Models.MemberBalance.create({
+      // Create VpMembers that match the locks
+      await Models.VpMember.create({
         network,
-        address: '0xActive1234567890abcdef1234567890abcdef',
+        memberAddress: '0xActive1234567890abcdef1234567890abcdef',
         tokenAddress,
-        amount: '1000000000000000000',
         tokenIds: ['101'], // Must match the tokenId from the lock
-        votingPower: '0',
+        votingPower: '1000000000000000000',
+        delegateReceivedCount: 0,
       })
 
-      await Models.MemberBalance.create({
+      await Models.VpMember.create({
         network,
-        address: '0xActive2234567890abcdef1234567890abcdef',
+        memberAddress: '0xActive2234567890abcdef1234567890abcdef',
         tokenAddress,
-        amount: '2000000000000000000',
         tokenIds: ['102'], // Must match the tokenId from the lock
-        votingPower: '0',
+        votingPower: '2000000000000000000',
+        delegateReceivedCount: 0,
       })
 
       const paginationParams = {
@@ -561,7 +561,14 @@ describe('Model: Lock', () => {
         await Models.Lock.create(lock)
       }
       for (const balance of balances) {
-        await Models.MemberBalance.create(balance)
+        await Models.VpMember.create({
+          memberAddress: balance.address,
+          tokenAddress: balance.tokenAddress,
+          network: balance.network,
+          tokenIds: balance.tokenIds,
+          votingPower: balance.amount || balance.votingPower || '0',
+          delegateReceivedCount: 0,
+        })
       }
 
       // Test first page
@@ -668,14 +675,14 @@ describe('Model: Lock', () => {
         lockExit: { status: true }, // Inactive (exited)
       })
 
-      // Only create member balance for the active member
-      await Models.MemberBalance.create({
+      // Only create VpMember for the active member
+      await Models.VpMember.create({
         network,
-        address: '0xActive1234567890abcdef1234567890abcdef',
+        memberAddress: '0xActive1234567890abcdef1234567890abcdef',
         tokenAddress,
-        amount: '1000000000000000000',
+        votingPower: '1000000000000000000',
         tokenIds: [301], // Only active lock's tokenId
-        votingPower: '0',
+        delegateReceivedCount: 0,
       })
 
       // Don't create member balance for inactive member - this simulates that
@@ -735,14 +742,14 @@ describe('Model: Lock', () => {
         lockExit: { status: false },
       })
 
-      // Create member balance with multiple token IDs
-      await Models.MemberBalance.create({
+      // Create VpMember with multiple token IDs
+      await Models.VpMember.create({
         network,
-        address: memberAddress,
+        memberAddress: memberAddress,
         tokenAddress,
-        amount: '3000000000000000000', // Sum of both locks
+        votingPower: '3000000000000000000', // Sum of both locks
         tokenIds: [401, 402], // Both lock tokenIds
-        votingPower: '0',
+        delegateReceivedCount: 0,
       })
 
       const response = await Models.Lock.getMembersOfVeLockPlugin({
@@ -812,13 +819,13 @@ describe('Model: Lock', () => {
         lockExit: { status: false },
       })
 
-      await Models.MemberBalance.create({
+      await Models.VpMember.create({
         network,
-        address: memberAddress,
+        memberAddress: memberAddress,
         tokenAddress,
-        amount: '1000000000000000000',
+        votingPower: '1000000000000000000',
         tokenIds: ['501'],
-        votingPower: '0',
+        delegateReceivedCount: 0,
       })
 
       const response = await Models.Lock.getMembersOfVeLockPlugin({

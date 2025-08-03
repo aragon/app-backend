@@ -6,12 +6,13 @@ import { Models } from '@dbModels'
 import Member from '@models/schema/member'
 import PairDataModule from '@modules/pairData'
 import { FakeMember } from '@test/mock/fakeMember'
-import { FakeDaoMemberMappings } from '@test/mock/fakeDaoMappings'
+import { fakePluginMembers } from '@test/mock/fakePluginMember'
+import { fakeVpMembers } from '@test/mock/fakeVpMember'
 import { DaoList } from '@test/mock/fakeDao'
-import DaoMemberMapping from '@models/schema/daoMemberMapping'
+import PluginMember from '@models/schema/pluginMember'
+import VpMember from '@models/schema/vpMember'
 import type Dao from '@models/schema/dao'
-import { fakeMemberBalance } from '@test/mock/fakeMemberBalance'
-import MemberBalance from '@models/schema/memberBalance'
+import { PluginList } from '@test/mock/fakePlugins'
 import { HexAddress, IPluginInterfaceType } from '@types'
 import { NetworksEnum } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
@@ -19,9 +20,10 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 describe('Controller: Member', () => {
   let sandbox: SinonSandbox
   let rawMember: Partial<Member>
-  let rawDaoMemberMapping: Partial<DaoMemberMapping>
+  let rawPluginMember: Partial<PluginMember>
   let rawDao: Partial<Dao>
-  let rawMemberBalance: Partial<MemberBalance>
+  let rawVpMember: Partial<VpMember>
+  let rawPlugin: any
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
@@ -30,31 +32,37 @@ describe('Controller: Member', () => {
       ...(FakeMember as any),
     }
 
-    rawDaoMemberMapping = {
-      ...(FakeDaoMemberMappings[0] as any),
-      memberAddress: FakeMember.address,
-      daoAddress: DaoList[0].address,
-      pluginAddress: FakeDaoMemberMappings[0].pluginAddress,
-    }
-
     rawDao = {
       ...(DaoList[0] as any),
     }
 
-    rawMemberBalance = {
-      ...(fakeMemberBalance as any),
-      address: FakeMember.address,
-      tokenAddress: rawDaoMemberMapping.tokenAddress,
+    rawPlugin = {
+      ...PluginList[0],
+      daoAddress: rawDao.address,
+      network: rawDao.network,
     }
 
-    rawDaoMemberMapping.memberAddress = FakeMember.address
-    rawDaoMemberMapping.daoAddress = rawDao.address
-    rawDaoMemberMapping.network = rawDao.network
+    rawPluginMember = {
+      memberAddress: FakeMember.address,
+      daoAddress: rawDao.address,
+      pluginAddress: rawPlugin.address,
+      network: rawDao.network,
+    }
+
+    rawVpMember = {
+      memberAddress: FakeMember.address,
+      tokenAddress: rawPlugin.tokenAddress,
+      network: rawDao.network,
+      votingPower: '1000000000000000000',
+      delegateReceivedCount: 0,
+      tokenIds: [],
+    }
 
     await Models.Member.create(rawMember)
-    await Models.DaoMemberMapping.create(rawDaoMemberMapping)
+    await Models.PluginMember.create(rawPluginMember)
     await Models.Dao.create(rawDao)
-    await Models.MemberBalance.create(rawMemberBalance)
+    await Models.VpMember.create(rawVpMember)
+    await Models.Plugin.create(rawPlugin)
   })
 
   afterEach(() => {
@@ -92,7 +100,7 @@ describe('Controller: Member', () => {
       expect(response.metadata.totalRecords).to.eq(1)
     })
 
-    it('should call DaoMemberMapping.findAndPaginate when only daoAddress is provided', async () => {
+    it('should call PluginMember.findAndPaginate when only daoAddress is provided', async () => {
       const paginationParams = {
         search: '',
         pageSize: 10,
@@ -102,32 +110,32 @@ describe('Controller: Member', () => {
       }
 
       const extraParams = {
-        daoAddress: rawDaoMemberMapping.daoAddress,
-        network: rawDaoMemberMapping.network,
+        daoAddress: rawPluginMember.daoAddress,
+        network: rawPluginMember.network,
       }
       const pairParams = {}
 
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
-      const daoMemberMappingSpy = sandbox.spy(Models.DaoMemberMapping, 'findAndPaginate')
+      const pluginMemberSpy = sandbox.spy(Models.PluginMember, 'findAndPaginate')
 
       const response = await MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams)
 
-      expect(daoMemberMappingSpy.calledOnce).to.be.true
+      expect(pluginMemberSpy.calledOnce).to.be.true
       expect(
-        daoMemberMappingSpy.calledWith({
+        pluginMemberSpy.calledWith({
           extraParams,
           paginationParams,
         }),
       ).to.be.true
 
       expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].address).to.eq(rawDaoMemberMapping.memberAddress)
+      expect(response.data[0].address).to.eq(rawPluginMember.memberAddress)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
     })
 
-    it('should call MemberBalance.findAndPaginate when plugin has tokenAddress and interfaceType is tokenVoting', async () => {
+    it('should call VpMember.findAndPaginate when plugin has tokenAddress and interfaceType is tokenVoting', async () => {
       const paginationParams = {
         search: '',
         pageSize: 10,
@@ -137,26 +145,26 @@ describe('Controller: Member', () => {
       }
 
       const filterParams = {
-        network: rawDaoMemberMapping.network,
-        pluginAddress: rawDaoMemberMapping.pluginAddress,
+        network: rawPlugin.network,
+        pluginAddress: rawPlugin.address,
       }
       const pairParams = {}
 
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(filterParams)
       const tokenVotingPlugin = {
         interfaceType: IPluginInterfaceType.tokenVoting,
-        tokenAddress: rawDaoMemberMapping.tokenAddress,
+        tokenAddress: rawPlugin.tokenAddress,
         votingEscrow: null,
       }
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(tokenVotingPlugin)
 
-      const memberBalanceSpy = sandbox.spy(Models.MemberBalance, 'findAndPaginate')
+      const vpMemberSpy = sandbox.spy(Models.VpMember, 'findAndPaginate')
 
       const response = await MemberController.getMembersWithPagination(paginationParams, filterParams, pairParams)
 
-      expect(memberBalanceSpy.calledOnce).to.be.true
+      expect(vpMemberSpy.calledOnce).to.be.true
       expect(
-        memberBalanceSpy.calledWith({
+        vpMemberSpy.calledWith({
           paginationParams,
           extraParams: {
             ...filterParams,
@@ -166,7 +174,7 @@ describe('Controller: Member', () => {
       ).to.be.true
 
       expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].address).to.eq(rawMemberBalance.address)
+      expect(response.data[0].address).to.eq(rawVpMember.memberAddress)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
@@ -182,8 +190,8 @@ describe('Controller: Member', () => {
       }
 
       const filterParams = {
-        network: rawDaoMemberMapping.network,
-        pluginAddress: rawDaoMemberMapping.pluginAddress,
+        network: rawPlugin.network,
+        pluginAddress: rawPlugin.address,
       }
       const pairParams = {}
 
@@ -191,10 +199,10 @@ describe('Controller: Member', () => {
 
       const veLockPlugin = {
         interfaceType: IPluginInterfaceType.tokenVoting,
-        tokenAddress: rawDaoMemberMapping.tokenAddress,
-        address: rawDaoMemberMapping.pluginAddress,
-        daoAddress: rawDaoMemberMapping.daoAddress,
-        network: rawDaoMemberMapping.network,
+        tokenAddress: rawPlugin.tokenAddress,
+        address: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+        network: rawPlugin.network,
         votingEscrow: {
           escrowAddress: '0xEscrowAddress123',
         },
@@ -244,7 +252,7 @@ describe('Controller: Member', () => {
       expect(response).to.deep.equal(mockVeLockResponse)
     })
 
-    it('should call DaoMemberMapping.findAndPaginate when plugin has no tokenAddress or interfaceType is not tokenVoting', async () => {
+    it('should call PluginMember.findAndPaginate when plugin has no tokenAddress or interfaceType is not tokenVoting', async () => {
       const paginationParams = {
         search: '',
         pageSize: 10,
@@ -254,8 +262,8 @@ describe('Controller: Member', () => {
       }
 
       const filterParams = {
-        network: rawDaoMemberMapping.network,
-        pluginAddress: rawDaoMemberMapping.pluginAddress,
+        network: rawPlugin.network,
+        pluginAddress: rawPlugin.address,
       }
       const pairParams = {}
 
@@ -266,20 +274,20 @@ describe('Controller: Member', () => {
       }
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(nonTokenVotingPlugin)
 
-      const daoMemberMappingSpy = sandbox.spy(Models.DaoMemberMapping, 'findAndPaginate')
+      const pluginMemberSpy = sandbox.spy(Models.PluginMember, 'findAndPaginate')
 
       const response = await MemberController.getMembersWithPagination(paginationParams, filterParams, pairParams)
 
-      expect(daoMemberMappingSpy.calledOnce).to.be.true
+      expect(pluginMemberSpy.calledOnce).to.be.true
       expect(
-        daoMemberMappingSpy.calledWith({
+        pluginMemberSpy.calledWith({
           extraParams: filterParams,
           paginationParams,
         }),
       ).to.be.true
 
       expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].address).to.eq(rawDaoMemberMapping.memberAddress)
+      expect(response.data[0].address).to.eq(rawPluginMember.memberAddress)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
@@ -295,8 +303,8 @@ describe('Controller: Member', () => {
       }
 
       const filterParams = {
-        daoAddress: rawDaoMemberMapping.daoAddress,
-        network: rawDaoMemberMapping.network,
+        daoAddress: rawDao.address,
+        network: rawDao.network,
         pluginAddress: 'nonExistentPluginAddress',
       }
       const pairParams = {}
@@ -319,9 +327,9 @@ describe('Controller: Member', () => {
       const response = await MemberController.getMemberByAddress(
         rawMember.address as HexAddress,
         {
-          daoAddress: rawDaoMemberMapping.daoAddress,
-          network: rawDaoMemberMapping.network,
-          pluginAddress: rawDaoMemberMapping.pluginAddress,
+          daoAddress: rawDao.address,
+          network: rawDao.network,
+          pluginAddress: rawPlugin.address,
         },
         {},
       )
@@ -340,22 +348,22 @@ describe('Controller: Member', () => {
       const response = await MemberController.getMemberByAddress(
         rawMember.address as HexAddress,
         {
-          daoAddress: rawDaoMemberMapping.daoAddress,
-          network: rawDaoMemberMapping.network,
-          pluginAddress: rawDaoMemberMapping.pluginAddress,
-          tokenAddress: rawDaoMemberMapping.tokenAddress,
+          daoAddress: rawDao.address,
+          network: rawDao.network,
+          pluginAddress: rawPlugin.address,
+          tokenAddress: rawPlugin.tokenAddress,
         },
         {},
       )
 
       expect(rabbitMqStub.calledOnce).to.be.true
       expect(rabbitMqStub.args[0][1]).to.deep.eq({
-        id: `memberBalance-${rawMember.address}-${rawDaoMemberMapping.tokenAddress}-${rawDaoMemberMapping.network}`,
+        id: `memberBalance-${rawMember.address}-${rawPlugin.tokenAddress}-${rawDao.network}`,
         params: {
           userAddress: rawMember.address,
-          tokenAddress: rawDaoMemberMapping.tokenAddress,
-          network: rawDaoMemberMapping.network,
-          pluginAddress: rawDaoMemberMapping.pluginAddress,
+          tokenAddress: rawPlugin.tokenAddress,
+          network: rawDao.network,
+          pluginAddress: rawPlugin.address,
         },
       })
       expect(response.address).to.eq(rawMember.address)
@@ -367,10 +375,10 @@ describe('Controller: Member', () => {
 
     it('should return the member even if RabbitMQHelper.sendMessage throws an error', async () => {
       const filterParams = {
-        daoAddress: rawDaoMemberMapping.daoAddress,
-        network: rawDaoMemberMapping.network,
-        pluginAddress: rawDaoMemberMapping.pluginAddress,
-        tokenAddress: rawDaoMemberMapping.tokenAddress,
+        daoAddress: rawDao.address,
+        network: rawDao.network,
+        pluginAddress: rawPlugin.address,
+        tokenAddress: rawPlugin.tokenAddress,
       }
 
       const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').throws(new Error('RabbitMQ error'))
@@ -379,12 +387,12 @@ describe('Controller: Member', () => {
 
       expect(rabbitMqStub.calledOnce).to.be.true
       expect(rabbitMqStub.args[0][1]).to.deep.eq({
-        id: `memberBalance-${rawMember.address}-${rawDaoMemberMapping.tokenAddress}-${rawDaoMemberMapping.network}`,
+        id: `memberBalance-${rawMember.address}-${rawPlugin.tokenAddress}-${rawDao.network}`,
         params: {
           userAddress: rawMember.address,
-          tokenAddress: rawDaoMemberMapping.tokenAddress,
-          network: rawDaoMemberMapping.network,
-          pluginAddress: rawDaoMemberMapping.pluginAddress,
+          tokenAddress: rawPlugin.tokenAddress,
+          network: rawDao.network,
+          pluginAddress: rawPlugin.address,
         },
       })
 
@@ -413,21 +421,21 @@ describe('Controller: Member', () => {
       const response = await MemberController.getMemberByAddress(
         rawMember.address as HexAddress,
         {
-          daoAddress: rawDaoMemberMapping.daoAddress,
-          network: rawDaoMemberMapping.network,
-          pluginAddress: rawDaoMemberMapping.pluginAddress,
+          daoAddress: rawDao.address,
+          network: rawDao.network,
+          pluginAddress: rawPlugin.address,
         },
         {},
       )
 
       expect(rabbitMqStub.calledOnce).to.be.true
       expect(rabbitMqStub.args[0][1]).to.deep.eq({
-        id: `memberBalance-${rawMember.address}-${rawDaoMemberMapping.pluginAddress}-${rawDaoMemberMapping.network}`,
+        id: `memberBalance-${rawMember.address}-${rawPlugin.address}-${rawDao.network}`,
         params: {
           userAddress: rawMember.address,
           tokenAddress: undefined,
-          network: rawDaoMemberMapping.network,
-          pluginAddress: rawDaoMemberMapping.pluginAddress,
+          network: rawDao.network,
+          pluginAddress: rawPlugin.address,
         },
       })
       expect(response.address).to.eq(rawMember.address)
@@ -440,7 +448,7 @@ describe('Controller: Member', () => {
 
   describe('isMemberOfPlugin', () => {
     it('should return true when member is part of plugin', async () => {
-      await Models.DaoMemberMapping.create({
+      await Models.PluginMember.create({
         memberAddress: '0x0',
         pluginAddress: '0x1',
         daoAddress: '0x0',
@@ -450,7 +458,7 @@ describe('Controller: Member', () => {
       const memberAddress = '0x0'
       const pluginAddress = '0x1'
 
-      const spyReq = sandbox.spy(Models.DaoMemberMapping, 'findOne')
+      const spyReq = sandbox.spy(Models.PluginMember, 'findOne')
       const response = await MemberController.isMemberOfPlugin(memberAddress, pluginAddress)
 
       expect(response).to.be.true
@@ -466,7 +474,7 @@ describe('Controller: Member', () => {
       const memberAddress = '0x0'
       const pluginAddress = '0x1'
 
-      const spyReq = sandbox.spy(Models.DaoMemberMapping, 'findOne')
+      const spyReq = sandbox.spy(Models.PluginMember, 'findOne')
       const response = await MemberController.isMemberOfPlugin(memberAddress, pluginAddress)
 
       expect(response).to.be.false
@@ -511,8 +519,8 @@ describe('Controller: Member', () => {
         tokenId: 'token-456',
         memberAddress: rawMember.address,
         amount: '1000000000000000000',
-        pluginAddress: rawDaoMemberMapping.pluginAddress,
-        network: rawDaoMemberMapping.network,
+        pluginAddress: rawPlugin.address,
+        network: rawDao.network,
         escrowAddress: '0xEscrowAddress123',
         blockTimestamp: 1234567890,
       }
@@ -553,10 +561,10 @@ describe('Controller: Member', () => {
       }
 
       const mockPlugin = {
-        address: rawDaoMemberMapping.pluginAddress,
-        daoAddress: rawDaoMemberMapping.daoAddress,
-        network: rawDaoMemberMapping.network,
-        tokenAddress: rawDaoMemberMapping.tokenAddress,
+        address: rawPlugin.address,
+        daoAddress: rawDao.address,
+        network: rawDao.network,
+        tokenAddress: rawPlugin.tokenAddress,
       }
 
       const mockSettings = {
@@ -622,10 +630,10 @@ describe('Controller: Member', () => {
       }
 
       const mockPlugin = {
-        address: rawDaoMemberMapping.pluginAddress,
-        daoAddress: rawDaoMemberMapping.daoAddress,
-        network: rawDaoMemberMapping.network,
-        tokenAddress: rawDaoMemberMapping.tokenAddress,
+        address: rawPlugin.address,
+        daoAddress: rawDao.address,
+        network: rawDao.network,
+        tokenAddress: rawPlugin.tokenAddress,
       }
 
       sandbox.stub(Models.Setting, 'findActive').resolves(null)
