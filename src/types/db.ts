@@ -13,9 +13,7 @@ import type ConfigIndexer from '@models/schema/configIndexer'
 import type Vote from '@models/schema/vote'
 import type TaskService from '@models/schema/taskService'
 import type TaskRun from '@models/schema/taskRun'
-import type MemberBalance from '@models/schema/memberBalance'
 import type MemberTransaction from '@models/schema/memberTransaction'
-import type DaoMemberMapping from '@models/schema/daoMemberMapping'
 import type DaoPermission from '@models/schema/daoPermission'
 import type Jwt from '@models/schema/jwt'
 import type PluginSlug from '@models/schema/pluginSlug'
@@ -29,11 +27,9 @@ export enum ICollectionNames {
   Asset = 'Asset',
   ConfigIndexer = 'ConfigIndexer',
   Dao = 'Dao',
-  DaoMemberMapping = 'DaoMemberMapping', // TODO remove
   LogMetadata = 'LogMetadata',
   LogPluginSetupProcessor = 'LogPluginSetupProcessor',
   Member = 'Member',
-  MemberBalance = 'MemberBalance', // TODO remove
   MemberTransaction = 'MemberTransaction',
   Plugin = 'Plugin',
   PluginRepo = 'PluginRepo',
@@ -85,13 +81,11 @@ export interface IMongoModel {
   Asset: typeof Asset
   ConfigIndexer: typeof ConfigIndexer
   Dao: typeof Dao
-  DaoMemberMapping: typeof DaoMemberMapping
   DaoPermission: typeof DaoPermission
   Jwt: typeof Jwt
   LogMetadata: typeof LogMetadata
   LogPluginSetupProcessor: typeof LogPluginSetupProcessor
   Member: typeof Member
-  MemberBalance: typeof MemberBalance
   MemberTransaction: typeof MemberTransaction
   Plugin: typeof Plugin
   PluginRepo: typeof PluginRepo

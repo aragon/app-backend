@@ -538,13 +538,13 @@ describe('Indexer: Permission Handler', () => {
         interfaceType: 'admin',
       })
       const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
-      const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao')
+      const addPluginMemberStub = sandbox.stub(ProxyMember, 'addPluginMember')
       const loggerInfo = sandbox.stub(logger, 'info')
 
       await PermissionHandler.handleForAdminPlugin(daoAddress, pluginAddress, network, where, add)
 
       expect(findExistingLog.calledOnce).to.be.true
-      expect(addToDaoStub.calledOnce).to.be.true
+      expect(addPluginMemberStub.calledOnce).to.be.true
       expect(sendMessage.calledOnce).to.be.true
       expect(loggerInfo.calledOnce).to.be.true
     })
@@ -563,13 +563,13 @@ describe('Indexer: Permission Handler', () => {
         interfaceType: 'admin',
       })
       const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
-      const removeFromDaoStub = sandbox.stub(ProxyMember, 'removeFromDao')
+      const removePluginMemberStub = sandbox.stub(ProxyMember, 'removePluginMember')
       const loggerInfo = sandbox.stub(logger, 'info')
 
       await PermissionHandler.handleForAdminPlugin(daoAddress, pluginAddress, network, where, add)
 
       expect(findExistingLog.calledOnce).to.be.true
-      expect(removeFromDaoStub.calledOnce).to.be.true
+      expect(removePluginMemberStub.calledOnce).to.be.true
       expect(sendMessage.calledOnce).to.be.true
       expect(loggerInfo.calledOnce).to.be.true
     })

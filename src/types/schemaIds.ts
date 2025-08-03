@@ -101,12 +101,6 @@ export interface IMemberIdParams {
   address: HexAddress
 }
 
-export interface IMemberBalanceIdParams {
-  network: NetworksEnum
-  address: HexAddress
-  tokenAddress: HexAddress
-}
-
 export interface IPluginIdParams {
   network: NetworksEnum
   transactionHash: HexAddress

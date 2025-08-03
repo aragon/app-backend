@@ -72,7 +72,7 @@ export const ProposalMetrics = {
         }
 
         const votes = await Models.Vote.findVotes({ proposalIndex, pluginAddress, network }, { session })
-        const members = await Models.DaoMemberMapping.findAllMembersOfPlugin({
+        const members = await Models.PluginMember.findAllMembersOfPlugin({
           pluginAddress,
           network,
         })

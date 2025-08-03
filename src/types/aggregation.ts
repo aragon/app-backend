@@ -91,6 +91,7 @@ export interface IAggProposalParams {
 }
 
 export interface IAggDaoMemberMappingParams {
+  votingPower?: string
   tokenAddress?: string
   memberAddress?: string
   daoAddress?: string
@@ -212,28 +213,26 @@ export interface IAggMemberProjectFields {
   avatar?: 1
 }
 
-export interface IAggMemberBalanceParams {
+export interface IAggVpMemberParams {
   tokenAddress?: string
   network: string
   memberAddress?: string
 }
 
-export interface IAggMemberBalanceProjectFields {
-  amount?: 1
+export interface IAggVpMemberProjectFields {
   votingPower?: 1
-}
-
-export interface IAggMemberMetricsParams {
-  network?: string
-  memberAddress?: string
-  pluginAddress?: string
-}
-
-export interface IAggMemberMetricsProjectFields {
-  _id?: 0 | 1
-  lastActivity?: 1
-  firstActivity?: 1
   delegateReceivedCount?: 1
+}
+
+export interface IAggPluginMetricsParams {
+  pluginAddress?: string
+  memberAddress?: string
+  network: string
+}
+
+export interface IAggPluginMetricsProjectFields {
   voteCount?: 1
   proposalCount?: 1
+  lastActivity?: 1
+  firstActivity?: 1
 }

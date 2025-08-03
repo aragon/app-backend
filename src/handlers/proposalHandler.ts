@@ -2,7 +2,6 @@ import logger from '@logger'
 import {
   EnumQueueName,
   type ILogInfo,
-  IMetricAction,
   IPluginInterfaceType,
   type IProposalMetadata,
   type IProposalSPPOnChain,
@@ -228,7 +227,7 @@ export const ProposalHandler = {
         relatedPlugin.interfaceType === IPluginInterfaceType.multisig ||
         relatedPlugin.interfaceType === IPluginInterfaceType.admin
       ) {
-        const members = await Models.DaoMemberMapping.findAllMembersOfPlugin({
+        const members = await Models.PluginMember.findAllMembersOfPlugin({
           pluginAddress: relatedPlugin.address,
           network: relatedPlugin.network,
         })
@@ -263,17 +262,14 @@ export const ProposalHandler = {
       logger.verbose('New Proposal', llo({ ...info, logId: newProposal.id }))
 
       await ProposalHandler.pairSppProposals(newProposal, relatedPlugin, info)
-      await ProxyMember.updateActivity({
-        memberAddress: newProposal.creatorAddress,
-        pluginAddress: relatedPlugin.address,
-        network: newProposal.network,
-        blockNumber: newProposal.blockNumber,
-      })
 
-      await ProxyMember.updateMetricsByAction(IMetricAction.increaseProposalCount, {
+      await ProxyMember.createMember(newProposal.creatorAddress, newProposal.blockNumber)
+
+      await ProxyMember.updatePluginMetrics({
         memberAddress: newProposal.creatorAddress,
         pluginAddress,
         network: info.network,
+        daoAddress: newProposal.daoAddress,
       })
 
       const allMessages: Promise<any>[] = [
@@ -368,18 +364,14 @@ export const ProposalHandler = {
 
       await DbOperations.createDocument(Models.Vote, document, info, 'New Vote - Approved', llo)
 
-      await ProxyMember.updateActivity({
-        memberAddress: document.memberAddress!,
-        pluginAddress: info.address,
-        network: info.network,
-        blockNumber: info.blockNumber,
-      })
+      await ProxyMember.createMember(document.memberAddress!, info.blockNumber)
 
       await Promise.allSettled([
-        ProxyMember.updateMetricsByAction(IMetricAction.increaseVoteCount, {
+        ProxyMember.updatePluginMetrics({
           memberAddress: document.memberAddress!,
           pluginAddress: info.address,
           network: info.network,
+          daoAddress: proposal?.daoAddress,
         }),
         // Proposal metrics
         RabbitMQHelper.sendMessage(EnumQueueName.proposalMultisigMetrics, {
@@ -473,20 +465,16 @@ export const ProposalHandler = {
 
       if (!isExistingVote) {
         // only increase vote count if it's a new vote
-        await ProxyMember.updateMetricsByAction(IMetricAction.increaseVoteCount, {
+        await ProxyMember.updatePluginMetrics({
           memberAddress: document.memberAddress!,
           pluginAddress: info.address,
           network: info.network,
+          daoAddress: proposal.daoAddress,
         })
       }
 
-      // always update updateActivity
-      await ProxyMember.updateActivity({
-        memberAddress: document.memberAddress!,
-        pluginAddress: info.address,
-        network: info.network,
-        blockNumber: info.blockNumber,
-      })
+      // always update activity
+      await ProxyMember.createMember(document.memberAddress!, info.blockNumber)
 
       await Promise.allSettled([
         // Proposal metrics

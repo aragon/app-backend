@@ -141,7 +141,7 @@ export const GovernanceVeHandler = {
     }
 
     const blockTimestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
-    await ProxyMember.createMember(memberAddress)
+    await ProxyMember.createMember(memberAddress, info.blockNumber)
 
     await Models.Lock.create({
       network: info.network,
@@ -229,12 +229,14 @@ export const GovernanceVeHandler = {
     const currentTokenIds = vpMember!.tokenIds || []
     const tokenIdsToSave = currentTokenIds.filter(id => id !== tokenId.toString())
 
+    await ProxyMember.createMember(memberAddress, info.blockNumber)
     await ProxyMember.updateVotingPower({
       memberAddress,
       tokenAddress: info.address,
       network: info.network,
       votingPower: tokenIdsToSave.length > 0 ? undefined : '0',
       tokenIds: tokenIdsToSave,
+      lastVPBlockNumber: info.blockNumber,
     })
 
     logger.verbose('Withdraw VeGovernance', llo({ info, memberAddress, tokenId }))
@@ -286,6 +288,8 @@ export const GovernanceVeHandler = {
         exitDateAt,
       },
     })
+
+    await ProxyMember.createMember(memberAddress, info.blockNumber)
 
     logger.verbose('Exit queued VeGovernance', llo({ info, memberAddress, tokenId }))
   },
@@ -466,6 +470,7 @@ export const GovernanceVeHandler = {
         votingPower: votingPower.toString(),
         network: info.network,
         tokenIds: tokenIdsToSave,
+        lastVPBlockNumber: info.blockNumber,
       })
 
       // only when incoming delegation, we update the delegation metrics

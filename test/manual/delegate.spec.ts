@@ -149,14 +149,13 @@ describe('Manual: Delegate', () => {
 
     // test member1 have a transaction, balance and correct metrics
     member1Txs = await Models.MemberTransaction.find({ address: member1 }).sort({ createdAt: -1 })
-    member1Balance = await Models.MemberBalance.findOne({ address: member1 })
+    member1Balance = await Models.VpMember.findOne({ address: member1 })
     member1Metrics = await Models.MemberMetrics.findOne({ address: member1 })
 
     expect(member1Txs).to.have.length(2)
     expect(member1Txs[0].side).to.eq(ITransferSide.incoming)
     expect(member1Txs[0].from).to.eq(member3)
     expect(member1Txs[0].to).to.eq(member1)
-    expect(member1Txs[0].memberBalance).to.eq('1000000000000000000')
     expect(member1Txs[0].memberVotingPower).to.eq('3000000000000000000')
     expect(member1Balance.votingPower).to.eq('3000000000000000000')
     expect(member1Balance.amount).to.eq('0')
