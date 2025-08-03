@@ -1,3 +1,4 @@
+import '@test/environment'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
@@ -5,15 +6,13 @@ import { Models } from '@dbModels'
 import Logger from '@logger'
 import { ProxyMember } from '@modules/proxyMember'
 import EnsHelper from '@helpers/ens'
-import { IMetricAction, NetworksEnum } from '@types'
-import Web3Helper from '@helpers/web3'
-import DbTx from '@modules/dbTx'
+import { NetworksEnum } from '@types'
 import Web3Utils from '@helpers/web3Utils'
 
 describe('Modules:ProxyMember', () => {
   let sandbox: SinonSandbox
 
-  beforeEach(() => {
+  beforeEach(async () => {
     sandbox = sinon.createSandbox()
   })
 
@@ -22,24 +21,67 @@ describe('Modules:ProxyMember', () => {
   })
 
   describe('createMember', () => {
-    it('should create a new member', async () => {
+    it('should create a new member with lastActivity', async () => {
       const parsedMemberAddress = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'
+      const lastActivity = 1680000000
 
       const findExistingLogStub = sandbox.stub(Models.Member, 'findExistingLog').resolves(null)
       const getEnsWithUniversalResolverStub = sandbox
         .stub(EnsHelper, 'getEnsWithUniversalResolver')
         .resolves('louis.eth' as any)
 
-      const createdMember = await ProxyMember.createMember(parsedMemberAddress)
+      const createdMember = await ProxyMember.createMember(parsedMemberAddress, lastActivity)
 
       expect(createdMember).to.be.an('object')
       expect(createdMember?.address).to.equal(parsedMemberAddress)
       expect(createdMember?.ens).to.equal('louis.eth')
+      expect(createdMember?.firstActivity).to.equal(lastActivity)
+      expect(createdMember?.lastActivity).to.equal(lastActivity)
       expect(findExistingLogStub.calledOnceWith({ address: parsedMemberAddress })).to.be.true
       expect(getEnsWithUniversalResolverStub.calledOnceWith(parsedMemberAddress)).to.be.true
     })
 
-    it('should return an existing member if it already exists', async () => {
+    it('should update existing member lastActivity if provided', async () => {
+      const parsedMemberAddress = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'
+      const lastActivity = 1680000000
+      const existingMember = {
+        address: parsedMemberAddress,
+        ens: 'louis.eth',
+        firstActivity: 1670000000,
+        update: sandbox.stub().resolves({ address: parsedMemberAddress, lastActivity }),
+      }
+
+      const findExistingLogStub = sandbox.stub(Models.Member, 'findExistingLog').resolves(existingMember as any)
+
+      const result = await ProxyMember.createMember(parsedMemberAddress, lastActivity)
+
+      expect(result?.lastActivity).to.equal(lastActivity)
+      expect(existingMember.update.calledOnceWith({ lastActivity }, sinon.match.any)).to.be.true
+      expect(findExistingLogStub.calledOnceWith({ address: parsedMemberAddress })).to.be.true
+    })
+
+    it('should update firstActivity if not set on existing member', async () => {
+      const parsedMemberAddress = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'
+      const lastActivity = 1680000000
+      const existingMember = {
+        address: parsedMemberAddress,
+        ens: 'louis.eth',
+        firstActivity: null,
+        update: sandbox.stub().resolves({ address: parsedMemberAddress, lastActivity, firstActivity: lastActivity }),
+      }
+
+      const findExistingLogStub = sandbox.stub(Models.Member, 'findExistingLog').resolves(existingMember as any)
+
+      const result = await ProxyMember.createMember(parsedMemberAddress, lastActivity)
+
+      expect(result?.lastActivity).to.equal(lastActivity)
+      expect(result?.firstActivity).to.equal(lastActivity)
+      expect(existingMember.update.calledOnceWith({ lastActivity, firstActivity: lastActivity }, sinon.match.any)).to.be
+        .true
+      expect(findExistingLogStub.calledOnceWith({ address: parsedMemberAddress })).to.be.true
+    })
+
+    it('should return existing member without updating if no lastActivity provided', async () => {
       const parsedMemberAddress = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'
       const existingMember = {
         address: parsedMemberAddress,
@@ -66,166 +108,60 @@ describe('Modules:ProxyMember', () => {
       expect(findExistingLogStub.calledOnceWith({ address: parsedMemberAddress })).to.be.true
       expect(loggerErrorStub.calledOnce).to.be.true
     })
-
-    it('should create a new member in parallel calls', async () => {
-      const parsedMemberAddress = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'
-
-      const findExistingLogStub = sandbox.stub(Models.Member, 'findExistingLog').resolves(null)
-      const getEnsWithUniversalResolverStub = sandbox
-        .stub(EnsHelper, 'getEnsWithUniversalResolver')
-        .resolves('louis.eth' as any)
-
-      const [result1, result2, result3] = await Promise.all([
-        ProxyMember.createMember(parsedMemberAddress),
-        ProxyMember.createMember(parsedMemberAddress),
-        ProxyMember.createMember(parsedMemberAddress),
-      ])
-
-      expect(result1?.address).to.equal(parsedMemberAddress)
-      expect(result2?.address).to.equal(parsedMemberAddress)
-      expect(result3?.address).to.equal(parsedMemberAddress)
-      expect(findExistingLogStub.callCount).to.be.at.least(3)
-      expect(getEnsWithUniversalResolverStub.callCount).to.be.at.least(3)
-    })
-
-    it('should force create a new member with shitty address', async () => {
-      const parsedMemberAddress = 'invalid-address'
-
-      const findExistingLogStub = sandbox.stub(Models.Member, 'findExistingLog').resolves(null)
-      const getEnsWithUniversalResolverStub = sandbox
-        .stub(EnsHelper, 'getEnsWithUniversalResolver')
-        .resolves('louis.eth' as any)
-
-      const createdMember = await ProxyMember.createMember(parsedMemberAddress)
-
-      expect(createdMember).to.be.an('object')
-      expect(createdMember?.address).to.equal(parsedMemberAddress)
-      expect(createdMember?.ens).to.equal('louis.eth')
-      expect(findExistingLogStub.calledOnceWith({ address: parsedMemberAddress })).to.be.true
-      expect(getEnsWithUniversalResolverStub.calledOnceWith(parsedMemberAddress)).to.be.true
-    })
   })
 
-  describe('createMetrics', () => {
-    it('should create new metrics when none exist', async () => {
-      const address = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'
-      const pluginAddress = '0xabc'
-      const network = NetworksEnum.ethereumMainnet
+  describe('getOrCreateVotingPower', () => {
+    it('should return existing VpMember if found', async () => {
+      const params = {
+        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
+        tokenAddress: '0xtoken',
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const existingVpMember = { id: 'vp-member-id', votingPower: '100' }
 
-      sandbox.stub(Models.MemberMetrics, 'findOne').resolves(null)
-      const createStub = sandbox.stub(Models.MemberMetrics, 'create').resolves({ id: 'metrics-id' })
+      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
+      sandbox.stub(Models.VpMember, 'findExistingLog').resolves(existingVpMember)
 
-      const result = await ProxyMember.createMetrics({ address, pluginAddress, network })
+      const result = await ProxyMember.getOrCreateVotingPower(params)
 
-      expect(result).to.be.an('object')
-      expect(result?.id).to.equal('metrics-id')
+      expect(result).to.equal(existingVpMember)
+    })
+
+    it('should create new VpMember if not found', async () => {
+      const params = {
+        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
+        tokenAddress: '0xtoken',
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const newVpMember = { id: 'new-vp-member-id', votingPower: '0' }
+
+      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
+      sandbox.stub(Models.VpMember, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.VpMember, 'create').resolves(newVpMember)
+
+      const result = await ProxyMember.getOrCreateVotingPower(params)
+
+      expect(result).to.equal(newVpMember)
       expect(
-        Models.MemberMetrics.findOne.calledOnceWith({ address, pluginAddress, network }, null, {
-          session: sinon.match.any,
-        }),
+        Models.VpMember.create.calledOnceWith(
+          {
+            memberAddress: params.memberAddress,
+            tokenAddress: params.tokenAddress,
+            votingPower: '0',
+            tokenIds: [],
+            network: params.network,
+          },
+          sinon.match.any,
+        ),
       ).to.be.true
-      expect(createStub.calledOnceWith({ address, pluginAddress, network }, { session: sinon.match.any })).to.be.true
-    })
-
-    it('should return existing metrics if they exist', async () => {
-      const address = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'
-      const pluginAddress = '0xabc'
-      const network = NetworksEnum.ethereumMainnet
-      const existingMetrics = { id: 'existing-metrics-id' }
-
-      sandbox.stub(Models.MemberMetrics, 'findOne').resolves(existingMetrics)
-      const createStub = sandbox.stub(Models.MemberMetrics, 'create')
-
-      const result = await ProxyMember.createMetrics({ address, pluginAddress, network })
-
-      expect(result).to.equal(existingMetrics)
-      expect(
-        Models.MemberMetrics.findOne.calledOnceWith({ address, pluginAddress, network }, null, {
-          session: sinon.match.any,
-        }),
-      ).to.be.true
-      expect(createStub.notCalled).to.be.true
-    })
-
-    it('should handle errors during metrics creation and return null', async () => {
-      const address = '0x123'
-      const pluginAddress = '0xabc'
-      const network = NetworksEnum.ethereumMainnet
-
-      sandbox.stub(Models.MemberMetrics, 'findOne').rejects(new Error('Database error'))
-      const loggerErrorStub = sandbox.stub(Logger, 'error')
-
-      const result = await ProxyMember.createMetrics({ address, pluginAddress, network })
-
-      expect(result).to.be.null
-      expect(loggerErrorStub.calledOnce).to.be.true
-    })
-
-    it('should handle invalid input parameters gracefully', async () => {
-      const invalidParams = { address: null, pluginAddress: '0xabc', network: NetworksEnum.ethereumMainnet } as any
-      const loggerStub = sandbox.stub(Logger, 'error')
-      const result = await ProxyMember.createMetrics(invalidParams)
-
-      expect(result).to.be.null
-      expect(loggerStub.calledOnce).to.be.true
-    })
-  })
-
-  describe('getBalances', () => {
-    it('should return existing token balance if found', async () => {
-      const address = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'
-      const tokenAddress = '0xabc'
-      const network = NetworksEnum.ethereumMainnet
-
-      const existingToken = { id: 'token-id', address, tokenAddress, network }
-      const findByAddressAndTokenStub = sandbox
-        .stub(Models.MemberBalance, 'findByAddressAndToken')
-        .resolves(existingToken)
-
-      const result = await ProxyMember.getBalances({ address, tokenAddress, network })
-      expect(result).to.equal(existingToken)
-      expect(findByAddressAndTokenStub.calledWith({ address, tokenAddress, network })).to.be.true
-    })
-
-    it('should create new token balance if not found', async () => {
-      const address = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'
-      const tokenAddress = '0xabc'
-      const network = NetworksEnum.ethereumMainnet
-
-      const findByAddressAndTokenStub = sandbox.stub(Models.MemberBalance, 'findByAddressAndToken').resolves(null)
-      const data = { address, tokenAddress, network }
-
-      const result = await ProxyMember.getBalances({ address, tokenAddress, network })
-      expect(result?.address).to.equal(data.address)
-      expect(findByAddressAndTokenStub.calledWith({ address, tokenAddress, network })).to.be.true
-    })
-
-    it('should create new token balance in parallel', async () => {
-      const address = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'
-      const tokenAddress = '0xabc'
-      const network = NetworksEnum.ethereumMainnet
-
-      const data = { address, tokenAddress, network }
-      const [result1, result2, result3] = await Promise.all([
-        ProxyMember.getBalances({ address, tokenAddress, network }),
-        ProxyMember.getBalances({ address, tokenAddress, network }),
-        ProxyMember.getBalances({ address, tokenAddress, network }),
-      ])
-
-      expect(result1?.address).to.equal(data.address)
-      expect(result2?.address).to.equal(data.address)
-      expect(result3?.address).to.equal(data.address)
-
-      const items = await Models.MemberBalance.countDocuments()
-      expect(items).to.equal(1)
     })
 
     it('should return null if address is invalid', async () => {
       sandbox.stub(Web3Utils, 'parseAddress').returns(null)
 
-      const result = await ProxyMember.getBalances({
-        address: 'invalid',
-        tokenAddress: '0xabc',
+      const result = await ProxyMember.getOrCreateVotingPower({
+        memberAddress: 'invalid',
+        tokenAddress: '0xtoken',
         network: NetworksEnum.ethereumMainnet,
       })
 
@@ -233,167 +169,156 @@ describe('Modules:ProxyMember', () => {
     })
 
     it('should handle errors and return null', async () => {
-      const address = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'
-      sandbox.stub(Web3Utils, 'parseAddress').returns(address)
-      sandbox.stub(Models.MemberBalance, 'findByAddressAndToken').rejects(new Error('Database error'))
+      const params = {
+        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
+        tokenAddress: '0xtoken',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
+      sandbox.stub(Models.VpMember, 'findExistingLog').rejects(new Error('Database error'))
       const loggerErrorStub = sandbox.stub(Logger, 'error')
 
-      const result = await ProxyMember.getBalances({
-        address,
-        tokenAddress: '0xabc',
-        network: NetworksEnum.ethereumMainnet,
-      })
+      const result = await ProxyMember.getOrCreateVotingPower(params)
 
       expect(result).to.be.null
       expect(loggerErrorStub.calledOnce).to.be.true
     })
   })
 
-  describe('updateActivity', () => {
-    it('should update activity and set firstActivity if not set', async () => {
-      const memberAddress = '0x123'
-      const pluginAddress = '0xabc'
-      const blockNumber = 100
-      const network = NetworksEnum.ethereumMainnet
+  describe('getOrCreatePluginMember', () => {
+    it('should return existing PluginMember if found', async () => {
+      const params = {
+        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
+        pluginAddress: '0xplugin',
+        daoAddress: '0xdao',
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const existingPluginMember = { id: 'plugin-member-id' }
 
-      const member = { id: 'member-id', firstActivity: null } as any
-      const updatedMemberMetrics = { id: 'metrics-id', lastActivity: 1680000000, firstActivity: 1680000000 }
-      const memberMetrics = {
-        id: 'metrics-id',
-        update: sandbox.stub().resolves(updatedMemberMetrics),
-      } as any
-      const blockTimestamp = 1680000000
+      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
+      sandbox.stub(Models.PluginMember, 'findExistingLog').resolves(existingPluginMember)
 
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(member)
-      const createMetricsStub = sandbox.stub(ProxyMember, 'createMetrics').resolves(memberMetrics)
-      const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(blockTimestamp)
-      const loggerVerboseStub = sandbox.stub(Logger, 'verbose')
+      const result = await ProxyMember.getOrCreatePluginMember(params)
 
-      const result = await ProxyMember.updateActivity({ memberAddress, pluginAddress, blockNumber, network })
-
-      expect(result).to.equal(updatedMemberMetrics)
-      expect(createMemberStub.calledOnceWithExactly(memberAddress)).to.be.true
-      expect(createMetricsStub.calledOnceWithExactly({ address: memberAddress, pluginAddress, network })).to.be.true
-      expect(getBlockTimestampStub.calledOnceWithExactly(blockNumber, network)).to.be.true
-      expect(
-        memberMetrics.update.calledOnceWithExactly(
-          { lastActivity: blockTimestamp, firstActivity: blockTimestamp },
-          { session: sinon.match.any },
-        ),
-      ).to.be.true
-      expect(loggerVerboseStub.calledOnceWith('Update Member activity' as any)).to.be.true
+      expect(result).to.equal(existingPluginMember)
     })
 
-    it('should update activity and not set firstActivity if already set', async () => {
-      const memberAddress = '0x123'
-      const pluginAddress = '0xabc'
-      const blockNumber = 100
-      const network = NetworksEnum.ethereumMainnet
+    it('should create new PluginMember if not found', async () => {
+      const params = {
+        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
+        pluginAddress: '0xplugin',
+        daoAddress: '0xdao',
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const newPluginMember = { id: 'new-plugin-member-id' }
 
-      const existingFirstActivity = new Date('2023-01-01')
-      const member = { id: 'member-id', firstActivity: existingFirstActivity } as any
-      const updatedMemberMetrics = { id: 'metrics-id', lastActivity: 1680000000 }
-      const memberMetrics = {
-        id: 'metrics-id',
-        update: sandbox.stub().resolves(updatedMemberMetrics),
-      } as any
-      const blockTimestamp = 1680000000
+      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
+      sandbox.stub(Models.PluginMember, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.PluginMember, 'create').resolves(newPluginMember)
 
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(member)
-      const createMetricsStub = sandbox.stub(ProxyMember, 'createMetrics').resolves(memberMetrics)
-      const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(blockTimestamp)
-      const loggerVerboseStub = sandbox.stub(Logger, 'verbose')
+      const result = await ProxyMember.getOrCreatePluginMember(params)
 
-      const result = await ProxyMember.updateActivity({ memberAddress, pluginAddress, blockNumber, network })
-
-      expect(result).to.equal(updatedMemberMetrics)
-      expect(createMemberStub.calledOnceWithExactly(memberAddress)).to.be.true
-      expect(createMetricsStub.calledOnceWithExactly({ address: memberAddress, pluginAddress, network })).to.be.true
-      expect(getBlockTimestampStub.calledOnceWithExactly(blockNumber, network)).to.be.true
-      expect(memberMetrics.update.calledOnceWithExactly({ lastActivity: blockTimestamp }, { session: sinon.match.any }))
-        .to.be.true
-      expect(loggerVerboseStub.calledOnceWith('Update Member activity' as any)).to.be.true
+      expect(result).to.equal(newPluginMember)
+      expect(Models.PluginMember.create.calledOnceWith(params, sinon.match.any)).to.be.true
     })
 
-    it('should return null if createMember fails', async () => {
-      const memberAddress = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'
-      const pluginAddress = '0xabc'
-      const blockNumber = 100
-      const network = NetworksEnum.ethereumMainnet
+    it('should return null if address is invalid', async () => {
+      sandbox.stub(Web3Utils, 'parseAddress').returns(null)
 
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').rejects(new Error('Some error'))
-      const loggerErrorStub = sandbox.stub(Logger, 'error')
-
-      const result = await ProxyMember.updateActivity({ memberAddress, pluginAddress, blockNumber, network })
-
-      expect(result).to.be.null
-      expect(createMemberStub.calledOnceWithExactly(memberAddress)).to.be.true
-      expect(loggerErrorStub.calledOnceWith('Error updating member activity' as any)).to.be.true
-    })
-
-    it('should handle errors from Web3Helper.getBlockTimestamp and return null', async () => {
-      const memberAddress = '0x123'
-      const pluginAddress = '0xabc'
-      const blockNumber = 100
-      const network = NetworksEnum.ethereumMainnet
-
-      const member = { id: 'member-id', firstActivity: null } as any
-      const memberMetrics = {
-        id: 'metrics-id',
-        update: sandbox.stub().resolves({ id: 'metrics-id' }),
-      } as any
-
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(member)
-      const createMetricsStub = sandbox.stub(ProxyMember, 'createMetrics').resolves(memberMetrics)
-      const getBlockTimestampStub = sandbox
-        .stub(Web3Helper, 'getBlockTimestamp')
-        .rejects(new Error('Block fetch error'))
-      const loggerErrorStub = sandbox.stub(Logger, 'error')
-
-      const result = await ProxyMember.updateActivity({ memberAddress, pluginAddress, blockNumber, network })
-
-      expect(result).to.be.null
-      expect(createMemberStub.calledOnceWithExactly(memberAddress)).to.be.true
-      expect(createMetricsStub.calledOnceWithExactly({ address: memberAddress, pluginAddress, network })).to.be.true
-      expect(getBlockTimestampStub.calledOnceWithExactly(blockNumber, network)).to.be.true
-      expect(loggerErrorStub.calledOnceWith('Error updating member activity' as any)).to.be.true
-    })
-
-    it('should return null if createMetrics fails', async () => {
-      const memberAddress = '0x123'
-      const pluginAddress = '0xabc'
-      const blockNumber = 100
-      const network = NetworksEnum.ethereumMainnet
-
-      const member = { id: 'member-id' } as any
-
-      sandbox.stub(ProxyMember, 'createMember').resolves(member)
-      sandbox.stub(ProxyMember, 'createMetrics').resolves(null)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1680000000)
-
-      const result = await ProxyMember.updateActivity({ memberAddress, pluginAddress, blockNumber, network })
+      const result = await ProxyMember.getOrCreatePluginMember({
+        memberAddress: 'invalid',
+        pluginAddress: '0xplugin',
+        daoAddress: '0xdao',
+        network: NetworksEnum.ethereumMainnet,
+      })
 
       expect(result).to.be.null
     })
+  })
 
-    it('should handle errors from memberMetrics.update and return null', async () => {
-      const memberAddress = '0x123'
-      const pluginAddress = '0xabc'
-      const blockNumber = 100
-      const network = NetworksEnum.ethereumMainnet
+  describe('updateVotingPower', () => {
+    it('should update voting power successfully', async () => {
+      const params = {
+        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
+        tokenAddress: '0xtoken',
+        votingPower: '1000',
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const vpMember = {
+        id: 'vp-member-id',
+        votingPower: '100',
+        update: sandbox.stub().resolves({ id: 'vp-member-id', votingPower: '1000' }),
+      }
 
-      const member = { id: 'member-id', firstActivity: null } as any
-      const memberMetrics = {
-        id: 'metrics-id',
-        update: sandbox.stub().rejects(new Error('Update failed')),
-      } as any
+      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
+      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves(vpMember as any)
 
-      sandbox.stub(ProxyMember, 'createMember').resolves(member)
-      sandbox.stub(ProxyMember, 'createMetrics').resolves(memberMetrics)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1680000000)
+      const result = await ProxyMember.updateVotingPower(params)
+
+      expect(result?.votingPower).to.equal('1000')
+      expect(vpMember.update.calledOnceWith({ votingPower: '1000' }, sinon.match.any)).to.be.true
+    })
+
+    it('should update tokenIds when provided', async () => {
+      const params = {
+        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
+        tokenAddress: '0xtoken',
+        votingPower: '1000',
+        tokenIds: ['1', '2', '3'],
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const vpMember = {
+        id: 'vp-member-id',
+        votingPower: '100',
+        update: sandbox.stub().resolves({ id: 'vp-member-id', votingPower: '1000', tokenIds: ['1', '2', '3'] }),
+      }
+
+      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
+      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves(vpMember as any)
+
+      const result = await ProxyMember.updateVotingPower(params)
+
+      expect(result?.tokenIds).to.deep.equal(['1', '2', '3'])
+      expect(vpMember.update.calledOnceWith({ votingPower: '1000', tokenIds: ['1', '2', '3'] }, sinon.match.any)).to.be
+        .true
+    })
+
+    it('should clear tokenIds when voting power is 0', async () => {
+      const params = {
+        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
+        tokenAddress: '0xtoken',
+        votingPower: '0',
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const vpMember = {
+        id: 'vp-member-id',
+        votingPower: '100',
+        update: sandbox.stub().resolves({ id: 'vp-member-id', votingPower: '0', tokenIds: [] }),
+      }
+
+      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
+      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves(vpMember as any)
+
+      const result = await ProxyMember.updateVotingPower(params)
+
+      expect(result?.votingPower).to.equal('0')
+      expect(vpMember.update.calledOnceWith({ votingPower: '0', tokenIds: [] }, sinon.match.any)).to.be.true
+    })
+
+    it('should return null if getOrCreateVotingPower fails', async () => {
+      const params = {
+        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
+        tokenAddress: '0xtoken',
+        votingPower: '1000',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
+      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves(null)
       const loggerErrorStub = sandbox.stub(Logger, 'error')
 
-      const result = await ProxyMember.updateActivity({ memberAddress, pluginAddress, blockNumber, network })
+      const result = await ProxyMember.updateVotingPower(params)
 
       expect(result).to.be.null
       expect(loggerErrorStub.calledOnce).to.be.true
@@ -402,32 +327,24 @@ describe('Modules:ProxyMember', () => {
 
   describe('updateDelegationMetrics', () => {
     it('should update delegation metrics successfully', async () => {
-      const memberAddress = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'
-      const pluginAddress = '0xabc'
-      const tokenAddress = '0xtoken'
-      const network = NetworksEnum.ethereumMainnet
+      const params = {
+        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
+        tokenAddress: '0xtoken',
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const vpMember = {
+        id: 'vp-member-id',
+        update: sandbox.stub().resolves({ id: 'vp-member-id', delegateReceivedCount: 5 }),
+      }
 
-      const metrics = {
-        id: 'metrics-id',
-        update: sandbox.stub().resolves({ id: 'metrics-id', delegateReceivedCount: 5 }),
-      } as any
-
-      sandbox.stub(Web3Utils, 'parseAddress').returns(memberAddress)
-      sandbox.stub(ProxyMember, 'createMetrics').resolves(metrics)
+      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
+      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves(vpMember as any)
       sandbox.stub(Models.MemberTransaction, 'getReceiveDelegationCount').resolves(5)
-      const loggerVerboseStub = sandbox.stub(Logger, 'verbose')
 
-      const result = await ProxyMember.updateDelegationMetrics({
-        memberAddress,
-        pluginAddress,
-        tokenAddress,
-        network,
-      })
+      const result = await ProxyMember.updateDelegationMetrics(params)
 
-      expect(result).to.be.an('object')
       expect(result?.delegateReceivedCount).to.equal(5)
-      expect(metrics.update.calledOnceWith({ delegateReceivedCount: 5 }, { session: sinon.match.any })).to.be.true
-      expect(loggerVerboseStub.calledOnce).to.be.true
+      expect(vpMember.update.calledOnceWith({ delegateReceivedCount: 5 }, sinon.match.any)).to.be.true
     })
 
     it('should return null if address is invalid', async () => {
@@ -435,7 +352,6 @@ describe('Modules:ProxyMember', () => {
 
       const result = await ProxyMember.updateDelegationMetrics({
         memberAddress: 'invalid',
-        pluginAddress: '0xabc',
         tokenAddress: '0xtoken',
         network: NetworksEnum.ethereumMainnet,
       })
@@ -443,98 +359,335 @@ describe('Modules:ProxyMember', () => {
       expect(result).to.be.null
     })
 
-    it('should return undefined and log error if createMetrics fails', async () => {
-      const memberAddress = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'
-
-      sandbox.stub(Web3Utils, 'parseAddress').returns(memberAddress)
-      sandbox.stub(ProxyMember, 'createMetrics').resolves(null)
-      const loggerErrorStub = sandbox.stub(Logger, 'error')
-
-      const result = await ProxyMember.updateDelegationMetrics({
-        memberAddress,
-        pluginAddress: '0xabc',
+    it('should return null if getOrCreateVotingPower fails', async () => {
+      const params = {
+        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
         tokenAddress: '0xtoken',
         network: NetworksEnum.ethereumMainnet,
-      })
+      }
 
-      expect(result).to.be.undefined
-      expect(loggerErrorStub.calledOnce).to.be.true
-    })
-
-    it('should handle errors during update', async () => {
-      const memberAddress = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C'
-      const metrics = {
-        id: 'metrics-id',
-        update: sandbox.stub().rejects(new Error('Update failed')),
-      } as any
-
-      sandbox.stub(Web3Utils, 'parseAddress').returns(memberAddress)
-      sandbox.stub(ProxyMember, 'createMetrics').resolves(metrics)
-      sandbox.stub(Models.MemberTransaction, 'getReceiveDelegationCount').resolves(5)
+      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
+      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves(null)
       const loggerErrorStub = sandbox.stub(Logger, 'error')
 
-      const result = await ProxyMember.updateDelegationMetrics({
-        memberAddress,
-        pluginAddress: '0xabc',
-        tokenAddress: '0xtoken',
-        network: NetworksEnum.ethereumMainnet,
-      })
+      const result = await ProxyMember.updateDelegationMetrics(params)
 
-      expect(result).to.be.undefined
+      expect(result).to.be.null
       expect(loggerErrorStub.calledOnce).to.be.true
     })
   })
 
-  describe('isMemberOfDao', () => {
-    it('should find existing member mapping', async () => {
+  describe('addPluginMember', () => {
+    it('should add plugin member successfully', async () => {
       const params = {
-        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C' as any,
-        daoAddress: '0xdao' as any,
-        pluginAddress: '0xplugin' as any,
+        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
+        pluginAddress: '0xplugin',
+        daoAddress: '0xdao',
         network: NetworksEnum.ethereumMainnet,
-        tokenAddress: '0xtoken' as any,
       }
-      const mapping = { id: 'mapping-id' }
+      const pluginMember = { id: 'plugin-member-id' }
 
-      const findMappingStub = sandbox.stub(Models.DaoMemberMapping, 'findMapping').resolves(mapping)
+      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
+      sandbox.stub(ProxyMember, 'getOrCreatePluginMember').resolves(pluginMember as any)
 
-      const result = await ProxyMember.isMemberOfDao(params)
+      const result = await ProxyMember.addPluginMember(params)
 
-      expect(result).to.equal(mapping)
-      expect(findMappingStub.calledOnceWith(params, { session: undefined })).to.be.true
+      expect(result).to.equal(pluginMember)
     })
 
-    it('should pass session when provided', async () => {
-      const params = {
-        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C' as any,
-        daoAddress: '0xdao' as any,
-        pluginAddress: '0xplugin' as any,
+    it('should return null if address is invalid', async () => {
+      sandbox.stub(Web3Utils, 'parseAddress').returns(null)
+
+      const result = await ProxyMember.addPluginMember({
+        memberAddress: 'invalid',
+        pluginAddress: '0xplugin',
+        daoAddress: '0xdao',
         network: NetworksEnum.ethereumMainnet,
-      }
-      const session = { id: 'session-id' }
-      const mapping = { id: 'mapping-id' }
-
-      const findMappingStub = sandbox.stub(Models.DaoMemberMapping, 'findMapping').resolves(mapping)
-
-      const result = await ProxyMember.isMemberOfDao(params, session)
-
-      expect(result).to.equal(mapping)
-      expect(findMappingStub.calledOnceWith(params, { session })).to.be.true
-    })
-
-    it('should return null when no mapping exists', async () => {
-      const params = {
-        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C' as any,
-        daoAddress: '0xdao' as any,
-        pluginAddress: '0xplugin' as any,
-        network: NetworksEnum.ethereumMainnet,
-      }
-
-      sandbox.stub(Models.DaoMemberMapping, 'findMapping').resolves(null)
-
-      const result = await ProxyMember.isMemberOfDao(params)
+      })
 
       expect(result).to.be.null
+    })
+  })
+
+  describe('removePluginMember', () => {
+    it('should remove plugin member successfully', async () => {
+      const params = {
+        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
+        pluginAddress: '0xplugin',
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const pluginMember = {
+        id: 'plugin-member-id',
+        deleteOne: sandbox.stub().resolves(true),
+      }
+
+      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
+      sandbox.stub(Models.PluginMember, 'findByPluginAndMember').resolves(pluginMember as any)
+
+      const result = await ProxyMember.removePluginMember(params)
+
+      expect(result).to.be.true
+      expect(pluginMember.deleteOne.calledOnce).to.be.true
+    })
+
+    it('should return false if plugin member not found', async () => {
+      const params = {
+        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
+        pluginAddress: '0xplugin',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
+      sandbox.stub(Models.PluginMember, 'findByPluginAndMember').resolves(null)
+
+      const result = await ProxyMember.removePluginMember(params)
+
+      expect(result).to.be.false
+    })
+
+    it('should return false if address is invalid', async () => {
+      sandbox.stub(Web3Utils, 'parseAddress').returns(null)
+
+      const result = await ProxyMember.removePluginMember({
+        memberAddress: 'invalid',
+        pluginAddress: '0xplugin',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      expect(result).to.be.false
+    })
+  })
+
+  describe('isPluginMember', () => {
+    it('should return true if member exists', async () => {
+      const params = {
+        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
+        pluginAddress: '0xplugin',
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const pluginMember = { id: 'plugin-member-id' }
+
+      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
+      sandbox.stub(Models.PluginMember, 'findByPluginAndMember').resolves(pluginMember)
+
+      const result = await ProxyMember.isPluginMember(params)
+
+      expect(result).to.be.true
+    })
+
+    it('should return false if member does not exist', async () => {
+      const params = {
+        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
+        pluginAddress: '0xplugin',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
+      sandbox.stub(Models.PluginMember, 'findByPluginAndMember').resolves(null)
+
+      const result = await ProxyMember.isPluginMember(params)
+
+      expect(result).to.be.false
+    })
+
+    it('should return false if address is invalid', async () => {
+      sandbox.stub(Web3Utils, 'parseAddress').returns(null)
+
+      const result = await ProxyMember.isPluginMember({
+        memberAddress: 'invalid',
+        pluginAddress: '0xplugin',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      expect(result).to.be.false
+    })
+  })
+
+  describe('hasVotingPower', () => {
+    it('should return true if member has voting power', async () => {
+      const params = {
+        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
+        tokenAddress: '0xtoken',
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const vpMember = { id: 'vp-member-id', votingPower: '1000' }
+
+      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
+      sandbox.stub(Models.VpMember, 'findByTokenAndMember').resolves(vpMember)
+
+      const result = await ProxyMember.hasVotingPower(params)
+
+      expect(result).to.be.true
+    })
+
+    it('should return false if member has no voting power', async () => {
+      const params = {
+        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
+        tokenAddress: '0xtoken',
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const vpMember = { id: 'vp-member-id', votingPower: '0' }
+
+      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
+      sandbox.stub(Models.VpMember, 'findByTokenAndMember').resolves(vpMember)
+
+      const result = await ProxyMember.hasVotingPower(params)
+
+      expect(result).to.be.false
+    })
+
+    it('should return false if member not found', async () => {
+      const params = {
+        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
+        tokenAddress: '0xtoken',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
+      sandbox.stub(Models.VpMember, 'findByTokenAndMember').resolves(null)
+
+      const result = await ProxyMember.hasVotingPower(params)
+
+      expect(result).to.be.false
+    })
+  })
+
+  describe('getOrCreatePluginMetrics', () => {
+    it('should return existing PluginMetrics if found', async () => {
+      const params = {
+        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
+        pluginAddress: '0xplugin',
+        daoAddress: '0xdao',
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const existingMetrics = { id: 'metrics-id' }
+
+      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
+      sandbox.stub(Models.PluginMetrics, 'findExistingLog').resolves(existingMetrics)
+
+      const result = await ProxyMember.getOrCreatePluginMetrics(params)
+
+      expect(result).to.equal(existingMetrics)
+    })
+
+    it('should create new PluginMetrics if not found', async () => {
+      const params = {
+        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
+        pluginAddress: '0xplugin',
+        daoAddress: '0xdao',
+        network: NetworksEnum.ethereumMainnet,
+        lastActivity: 1680000000,
+      }
+      const newMetrics = { id: 'new-metrics-id' }
+
+      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
+      sandbox.stub(Models.PluginMetrics, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.PluginMetrics, 'create').resolves(newMetrics)
+
+      const result = await ProxyMember.getOrCreatePluginMetrics(params)
+
+      expect(result).to.equal(newMetrics)
+      expect(
+        Models.PluginMetrics.create.calledOnceWith(
+          {
+            memberAddress: params.memberAddress,
+            pluginAddress: params.pluginAddress,
+            daoAddress: params.daoAddress,
+            network: params.network,
+            voteCount: 0,
+            proposalCount: 0,
+            fistActivity: params.lastActivity,
+            lastActivity: params.lastActivity,
+          },
+          sinon.match.any,
+        ),
+      ).to.be.true
+    })
+  })
+
+  describe('updatePluginMetrics', () => {
+    it('should update plugin metrics with counts from database', async () => {
+      const params = {
+        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
+        pluginAddress: '0xplugin',
+        daoAddress: '0xdao',
+        network: NetworksEnum.ethereumMainnet,
+        lastActivity: 1680000000,
+      }
+      const pluginMetrics = {
+        id: 'metrics-id',
+        update: sandbox.stub().resolves({ id: 'metrics-id', proposalCount: 3, voteCount: 10 }),
+      }
+
+      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
+      sandbox.stub(ProxyMember, 'getOrCreatePluginMetrics').resolves(pluginMetrics as any)
+      sandbox.stub(Models.Proposal, 'countDocuments').resolves(3)
+      sandbox.stub(Models.Vote, 'countDocuments').resolves(10)
+
+      const result = await ProxyMember.updatePluginMetrics(params)
+
+      expect(result?.proposalCount).to.equal(3)
+      expect(result?.voteCount).to.equal(10)
+      expect(
+        Models.Proposal.countDocuments.calledOnceWith(
+          {
+            pluginAddress: params.pluginAddress,
+            network: params.network,
+            creatorAddress: params.memberAddress,
+          },
+          sinon.match.any,
+        ),
+      ).to.be.true
+      expect(
+        Models.Vote.countDocuments.calledOnceWith(
+          {
+            pluginAddress: params.pluginAddress,
+            network: params.network,
+            memberAddress: params.memberAddress,
+          },
+          sinon.match.any,
+        ),
+      ).to.be.true
+      expect(
+        pluginMetrics.update.calledOnceWith(
+          { proposalCount: 3, voteCount: 10, lastActivity: 1680000000 },
+          sinon.match.any,
+        ),
+      ).to.be.true
+    })
+
+    it('should return null if getOrCreatePluginMetrics fails', async () => {
+      const params = {
+        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
+        pluginAddress: '0xplugin',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
+      sandbox.stub(ProxyMember, 'getOrCreatePluginMetrics').resolves(null)
+      const loggerErrorStub = sandbox.stub(Logger, 'error')
+
+      const result = await ProxyMember.updatePluginMetrics(params)
+
+      expect(result).to.be.null
+      expect(loggerErrorStub.calledOnce).to.be.true
+    })
+
+    it('should handle errors and return null', async () => {
+      const params = {
+        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
+        pluginAddress: '0xplugin',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
+      sandbox.stub(ProxyMember, 'getOrCreatePluginMetrics').rejects(new Error('Database error'))
+      const loggerErrorStub = sandbox.stub(Logger, 'error')
+
+      const result = await ProxyMember.updatePluginMetrics(params)
+
+      expect(result).to.be.null
+      expect(loggerErrorStub.calledOnce).to.be.true
     })
   })
 })

@@ -18,18 +18,3 @@ export interface IFormattedLog {
   info: ILogInfo
   handler: any
 }
-export interface ILogAction {
-  to: string
-  value: string
-  data: string
-}
-
-export interface IDecodedData {
-  parameters?: any
-  notice?: string
-  contractName?: string
-  functionName: any
-  decoded: any
-  textSignature: string
-  type?: ProposalActionType
-}

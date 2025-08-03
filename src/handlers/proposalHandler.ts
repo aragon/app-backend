@@ -270,6 +270,7 @@ export const ProposalHandler = {
         pluginAddress,
         network: info.network,
         daoAddress: newProposal.daoAddress,
+        lastActivity: newProposal.blockNumber,
       })
 
       const allMessages: Promise<any>[] = [
@@ -372,6 +373,7 @@ export const ProposalHandler = {
           pluginAddress: info.address,
           network: info.network,
           daoAddress: proposal?.daoAddress,
+          lastActivity: info?.blockNumber,
         }),
         // Proposal metrics
         RabbitMQHelper.sendMessage(EnumQueueName.proposalMultisigMetrics, {
@@ -463,18 +465,17 @@ export const ProposalHandler = {
         logger.verbose(`Created new document - ${logName}`, llo({ ...info, documentId: logId.id }))
       })
 
-      if (!isExistingVote) {
-        // only increase vote count if it's a new vote
-        await ProxyMember.updatePluginMetrics({
-          memberAddress: document.memberAddress!,
-          pluginAddress: info.address,
-          network: info.network,
-          daoAddress: proposal.daoAddress,
-        })
-      }
-
       // always update activity
       await ProxyMember.createMember(document.memberAddress!, info.blockNumber)
+
+      // always update plugin metrics
+      await ProxyMember.updatePluginMetrics({
+        memberAddress: document.memberAddress!,
+        pluginAddress: info.address,
+        network: info.network,
+        daoAddress: proposal.daoAddress,
+        lastActivity: info?.blockNumber,
+      })
 
       await Promise.allSettled([
         // Proposal metrics

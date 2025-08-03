@@ -8,15 +8,16 @@ import Proposal from '@models/schema/proposal'
 import PairDataModule from '@modules/pairData'
 import Token from '@models/schema/token'
 import Member from '@models/schema/member'
-import DaoMemberMapping from '@models/schema/daoMemberMapping'
+import PluginMember from '@models/schema/pluginMember'
+import VpMember from '@models/schema/vpMember'
 import { FakeToken } from '@test/mock/fakeToken'
 import { ProposalList } from '@test/mock/fakeProposal'
-import { FakeDaoMemberMappings } from '@test/mock/fakeDaoMappings'
+import { fakePluginMembers } from '@test/mock/fakePluginMember'
+import { fakeVpMembers } from '@test/mock/fakeVpMember'
 import { FakeMember } from '@test/mock/fakeMember'
 import Setting from '@models/schema/setting'
 import { fakeSettings } from '@test/mock/fakeSettings'
 import { PluginList } from '@test/mock/fakePlugins'
-import { fakeMemberBalance } from '@test/mock/fakeMemberBalance'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Logger from '@logger'
 
@@ -26,7 +27,8 @@ describe('Controller: Proposal', () => {
   let rawToken: Partial<Token>
   let rawProposal: Partial<Proposal>
   let rawMember: Partial<Member>
-  let rawDaoMemberMappings: Partial<DaoMemberMapping>
+  let rawPluginMember: Partial<PluginMember>
+  let rawVpMember: Partial<VpMember>
   let rawSettings: Partial<Setting>
 
   beforeEach(async () => {
@@ -37,7 +39,7 @@ describe('Controller: Proposal', () => {
 
     rawProposal = {
       ...(ProposalList[0] as any),
-      daoAddress: FakeDaoMemberMappings[0].daoAddress,
+      daoAddress: ProposalList[0].daoAddress,
       settings: {
         ...(ProposalList[0].settings as any),
         tokenAddress: FakeToken.address,
@@ -48,11 +50,20 @@ describe('Controller: Proposal', () => {
       ...(FakeMember as any),
     }
 
-    rawDaoMemberMappings = {
-      ...(FakeDaoMemberMappings[0] as any),
+    rawPluginMember = {
       pluginAddress: rawProposal.pluginAddress,
       daoAddress: rawProposal.daoAddress,
       memberAddress: FakeMember.address,
+      network: rawProposal.network,
+    }
+
+    rawVpMember = {
+      memberAddress: FakeMember.address,
+      tokenAddress: FakeToken.address,
+      network: rawProposal.network,
+      votingPower: '1000000000000000000',
+      delegateReceivedCount: 0,
+      tokenIds: [],
     }
 
     rawSettings = {
@@ -65,7 +76,7 @@ describe('Controller: Proposal', () => {
       Models.Token.create(rawToken),
       Models.Proposal.create(rawProposal),
       Models.Member.create(rawMember),
-      Models.DaoMemberMapping.create(rawDaoMemberMappings),
+      Models.PluginMember.create(rawPluginMember),
       Models.Setting.create(rawSettings),
       Models.Plugin.create({
         ...PluginList[0],
@@ -75,11 +86,7 @@ describe('Controller: Proposal', () => {
         tokenAddress: FakeToken.address,
         interfaceType: IPluginInterfaceType.multisig,
       }),
-      Models.MemberBalance.create({
-        ...fakeMemberBalance,
-        address: FakeMember.address,
-        tokenAddress: FakeToken.address,
-      }),
+      Models.VpMember.create(rawVpMember),
     ])
   })
 

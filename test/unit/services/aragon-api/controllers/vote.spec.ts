@@ -9,10 +9,10 @@ import { FakeVote } from '@test/mock/fakeVote'
 import { FakeToken } from '@test/mock/fakeToken'
 import { ProposalList } from '@test/mock/fakeProposal'
 import { FakeMember } from '@test/mock/fakeMember'
-import { FakeDaoMemberMappings } from '@test/mock/fakeDaoMappings'
+import { fakeVpMembers } from '@test/mock/fakeVpMember'
 import Proposal from '@models/schema/proposal'
 import Member from '@models/schema/member'
-import DaoMemberMapping from '@models/schema/daoMemberMapping'
+import VpMember from '@models/schema/vpMember'
 import Token from '@models/schema/token'
 import { fakeSettings } from '@test/mock/fakeSettings'
 import { IPluginInterfaceType } from '@types'
@@ -24,7 +24,7 @@ describe('Controller: Vote', () => {
   let rawToken: Partial<Token>
   let rawProposal: Partial<Proposal>
   let rawMember: Partial<Member>
-  let rawDaoMemberMappings: Partial<DaoMemberMapping>
+  let rawVpMember: Partial<VpMember>
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
@@ -53,11 +53,13 @@ describe('Controller: Vote', () => {
       ...(FakeMember as any),
     }
 
-    rawDaoMemberMappings = {
-      ...(FakeDaoMemberMappings[0] as any),
-      daoAddress: rawProposal.daoAddress,
-      pluginAddress: rawProposal.pluginAddress,
+    rawVpMember = {
       memberAddress: rawMember.address,
+      tokenAddress: rawToken.address,
+      network: rawProposal.network,
+      votingPower: '1000000000000000000',
+      delegateReceivedCount: 0,
+      tokenIds: [],
     }
 
     await Promise.all([
@@ -65,7 +67,7 @@ describe('Controller: Vote', () => {
       Models.Token.create(rawToken),
       Models.Proposal.create(rawProposal),
       Models.Member.create(rawMember),
-      Models.DaoMemberMapping.create(rawDaoMemberMappings),
+      Models.VpMember.create(rawVpMember),
       Models.Setting.create({
         ...fakeSettings,
         pluginAddress: rawProposal.pluginAddress,

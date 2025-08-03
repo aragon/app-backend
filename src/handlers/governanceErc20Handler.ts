@@ -3,6 +3,7 @@ import { type LogDescription } from 'ethers'
 import { EnumQueueName, type HexAddress, type ILogInfo, ITransferSide, ITransferType } from '@types'
 import utils from '@helpers/utils'
 import { ProxyMember } from '@modules/proxyMember'
+import type Plugin from '@models/schema/plugin'
 import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
 import { ProxyToken } from '@modules/proxyToken'
@@ -96,6 +97,19 @@ export const GovernanceErc20Handler = {
           tokenAddress,
           network,
         })
+      } else {
+        // update lastActivity metrics for all plugins
+        const plugins = await Models.Plugin.findAllByTokenAddress(tokenAddress, network)
+        await Promise.all(
+          plugins.map(async (plugin: Plugin) => {
+            await ProxyMember.updatePluginMetrics({
+              memberAddress,
+              pluginAddress: plugin.address,
+              network,
+              lastActivity: info.blockNumber,
+            })
+          }),
+        )
       }
 
       const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')

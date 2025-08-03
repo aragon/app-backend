@@ -1,12 +1,5 @@
 import { type HexAddress } from '@src/types/networks'
-import { type WebSocketProvider } from 'ethers'
 import { type ITransactionType } from '@src/types/db'
-
-export interface IWebSocketProvider extends WebSocketProvider {
-  updateProvider: (newProvider: WebSocketProvider) => void
-  websocket: WebSocket | any
-  processQueue: any
-}
 
 export enum ITransactionCategory {
   External = 'external',

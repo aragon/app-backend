@@ -619,9 +619,7 @@ describe('ProposalHandler', () => {
         clockMode: IClockMode.BlockNumber,
       })
 
-      expect(
-        updateActivityStub.calledWith('0xcreator', 100),
-      ).to.be.true
+      expect(updateActivityStub.calledWith('0xcreator', 100)).to.be.true
 
       expect(
         stubMemberMetrics.calledWith({
@@ -629,6 +627,7 @@ describe('ProposalHandler', () => {
           pluginAddress: '0xplugin-address',
           network,
           daoAddress: '0xdao-address',
+          lastActivity: 100,
         }),
       ).to.be.true
 
@@ -731,9 +730,7 @@ describe('ProposalHandler', () => {
         blockNumber: 100,
       })
 
-      expect(
-        updateActivityStub.calledWith('0xcreator', 100),
-      ).to.be.true
+      expect(updateActivityStub.calledWith('0xcreator', 100)).to.be.true
 
       expect(
         stubMemberMetrics.calledWith({
@@ -741,6 +738,7 @@ describe('ProposalHandler', () => {
           pluginAddress: '0xplugin-address',
           network,
           daoAddress: '0xdao-address',
+          lastActivity: 100,
         }),
       ).to.be.true
 
@@ -832,16 +830,15 @@ describe('ProposalHandler', () => {
       expect(savedProposal.rawActions[0].data).to.eq('0x4b3d1223')
       expect(savedProposal.snapshot.membersCount).to.eq(0) // Admin plugin has no voting token snapshot
 
-      expect(
-        updateActivityStub.calledOnceWith('0xadmin-creator', 150),
-      ).to.be.true
+      expect(updateActivityStub.calledOnceWith('0xadmin-creator', 150)).to.be.true
 
       expect(
         stubMemberMetrics.calledOnceWith({
           memberAddress: '0xadmin-creator',
           pluginAddress: '0xplugin-address',
           network,
-          daoAddress: '0xdao-address',
+          daoAddress: '0xdao-admin',
+          lastActivity: 150,
         }),
       ).to.be.true
 
@@ -913,7 +910,7 @@ describe('ProposalHandler', () => {
       sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
       sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves(proposalMetadata as any)
-      sandbox.stub(Models.DaoMemberMapping, 'findAllMembersOfPlugin').resolves(members)
+      sandbox.stub(Models.PluginMember, 'findAllMembersOfPlugin').resolves(members)
       sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
       sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
       sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
@@ -1535,9 +1532,7 @@ describe('ProposalHandler', () => {
       expect(savedVote.blockNumber).to.eq(10)
       expect(savedVote.blockTimestamp).to.eq(1700000000)
 
-      expect(
-        updateActivityStub.calledOnceWith('0xapprover-address', 10),
-      ).to.be.true
+      expect(updateActivityStub.calledOnceWith('0xapprover-address', 10)).to.be.true
 
       expect(
         updateMetricsStub.calledOnceWith({
@@ -1545,6 +1540,7 @@ describe('ProposalHandler', () => {
           pluginAddress: '0xplugin-address',
           network,
           daoAddress: '0xdao-address',
+          lastActivity: 10,
         }),
       ).to.be.true
 
@@ -1792,12 +1788,11 @@ describe('ProposalHandler', () => {
           pluginAddress: '0xplugin-address',
           network,
           daoAddress: '0xdao-address',
+          lastActivity: 10,
         }),
       ).to.be.true
 
-      expect(
-        updateActivityStub.calledOnceWith('0xvoter-address', 10),
-      ).to.be.true
+      expect(updateActivityStub.calledOnceWith('0xvoter-address', 10)).to.be.true
 
       expect(rabbitMQStub.calledTwice).to.be.true
       expect(verboseLoggerStub.calledOnceWith('Created new document - New Vote - VoteCast' as any)).to.be.true
@@ -3451,8 +3446,8 @@ describe('ProposalHandler', () => {
           metadata: 'ipfs://edited-metadata-uri',
           actions: [
             { to: '0xTarget1', value: 0n, data: '0x12345678' },
-            { to: '0xTarget2', value: 100n, data: '0x' }
-          ]
+            { to: '0xTarget2', value: 100n, data: '0x' },
+          ],
         },
       }
 
@@ -3461,31 +3456,35 @@ describe('ProposalHandler', () => {
         description: 'Edited Description',
         summary: 'Edited Summary',
         resources: [{ name: 'Edited Resource', url: 'https://edited.com' }],
-        media: [{ logo: 'https://edited-logo.com' }]
+        media: { logo: 'https://edited-logo.com' },
       }
 
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal)
       sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://edited-metadata-uri')
       sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves(editedMetadata)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
-      
-      const decodeDataStub = sandbox.stub(DecodeActions.prototype, 'decodeData').resolves({ decoded: 'action' })
-      const decodeTransferStub = sandbox.stub(DecodeActions.prototype, 'decodeTransfer').resolves({ decoded: 'transfer' })
+
+      const decodeDataStub = sandbox
+        .stub(DecodeActions.prototype, 'decodeData')
+        .resolves({ to: '0xDecoded', value: '0', data: '0x' } as any)
+      const decodeTransferStub = sandbox
+        .stub(DecodeActions.prototype, 'decodeTransfer')
+        .resolves({ to: '0xDecoded', value: '0', data: '0x' } as any)
       const verboseLoggerStub = sandbox.stub(logger, 'verbose')
 
       await ProposalHandler.proposalEdited(fakeEvent as any, info)
 
       const updatedProposal = await proposal.reload()
-      
+
       expect(updatedProposal.title).to.equal('Edited Title')
       expect(updatedProposal.description).to.equal('Edited Description')
       expect(updatedProposal.summary).to.equal('Edited Summary')
-      expect(updatedProposal.resources).to.deep.equal(editedMetadata.resources)
-      expect(updatedProposal.media).to.deep.equal(editedMetadata.media)
+      expect(updatedProposal.resources.map(r => ({ name: r.name, url: r.url }))).to.deep.equal(editedMetadata.resources)
+      expect(updatedProposal.media.logo).to.equal(editedMetadata.media.logo)
       expect(updatedProposal.editedTxInfo).to.deep.equal({
         blockNumber: 200,
         transactionHash: '0xEditedTx',
-        blockTimestamp: 1700000000
+        blockTimestamp: 1700000000,
       })
       expect(decodeDataStub.calledOnce).to.be.true
       expect(decodeTransferStub.calledOnce).to.be.true
@@ -3507,7 +3506,7 @@ describe('ProposalHandler', () => {
         args: {
           proposalId: 1n,
           metadata: 'ipfs://metadata-uri',
-          actions: []
+          actions: [],
         },
       }
 
@@ -3539,7 +3538,7 @@ describe('ProposalHandler', () => {
         args: {
           proposalId: proposal.proposalIndex,
           metadata: 'ipfs://metadata-uri',
-          actions: []
+          actions: [],
         },
       }
 
@@ -3552,10 +3551,11 @@ describe('ProposalHandler', () => {
       await ProposalHandler.proposalEdited(fakeEvent as any, info)
 
       const updatedProposal = await proposal.reload()
-      
-      expect(updatedProposal.title).to.be.undefined
-      expect(updatedProposal.description).to.be.undefined
-      expect(updatedProposal.summary).to.be.undefined
+
+      // When metadata is null, fields should remain unchanged from original values
+      expect(updatedProposal.title).to.equal('Withdraw funds')
+      expect(updatedProposal.description).to.equal('<p>Withdraw funds</p>')
+      expect(updatedProposal.summary).to.equal('Withdraw funds')
       expect(verboseLoggerStub.calledOnceWith('Update proposalEdited' as any)).to.be.true
     })
 
@@ -3574,7 +3574,7 @@ describe('ProposalHandler', () => {
         args: {
           proposalId: 1n,
           metadata: 'ipfs://metadata-uri',
-          actions: []
+          actions: [],
         },
       }
 

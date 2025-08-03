@@ -1,5 +1,5 @@
 import * as sinon from 'sinon'
-import { SinonSandbox, SinonStub } from 'sinon'
+import { SinonSandbox } from 'sinon'
 import { EnumQueueName, ITokenType, ITransferSide, ITransferType, NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
 import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
@@ -180,13 +180,11 @@ describe('GovernanceErc20Handler', () => {
       })
 
       const createMemberStub = sandbox.stub(ProxyMember, 'createMember')
-      const _handleDaoMemberShipStub = sandbox.spy(GovernanceErc20Handler, '_handleDaoMemberShip')
 
       const handlerResponse = await GovernanceErc20Handler.delegateVotesChanged(fakeLog as any, logInfo)
 
       expect(handlerResponse).to.be.undefined
       expect(createMemberStub.notCalled).to.be.true
-      expect(_handleDaoMemberShipStub.notCalled).to.be.true
     })
 
     it('should handle token return null in delegateVotesChanged', async () => {
@@ -261,15 +259,18 @@ describe('GovernanceErc20Handler', () => {
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ hasClockMode: true } as any)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('2000')
       sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
-      sandbox.stub(ProxyMember, 'updateActivity').resolves()
-      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(null)
+      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves({} as any)
+      const updateVotingPowerStub = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
+      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
+        memberAddress,
+        tokenAddress: '0xTokenAddress',
+        network,
+        votingPower: '2000',
+        delegateReceivedCount: 0
+      } as any)
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       await GovernanceErc20Handler.delegateVotesChanged(parsedEvent, info as any)
-
-      // Verify the member was created
-      const member = await Models.Member.findOne({ address: memberAddress })
-      expect(member).to.be.not.null
 
       // Verify the member transaction was created in the database
       const memberTransaction = await Models.MemberTransaction.findOne({
@@ -282,19 +283,23 @@ describe('GovernanceErc20Handler', () => {
       expect(memberTransaction.side).to.be.eq(ITransferSide.incoming)
       expect(memberTransaction.memberVotingPower).to.be.eq('2000')
       expect(memberTransaction.blockNumber).to.be.eq(info.blockNumber)
-      expect(memberTransaction.blockTimestamp).to.be.eq(1630425600)
 
-      // Verify the member balance was updated
-      const memberBalance = await Models.MemberBalance.findOne({ address: memberAddress })
-      expect(memberBalance).to.be.not.null
-      expect(memberBalance.votingPower).to.be.eq('2000')
+      // Verify createMember was called
+      expect(createMemberStub.calledOnce).to.be.true
+      expect(createMemberStub.calledWith(memberAddress, undefined)).to.be.true
 
-      // Verify member was added to DAOs
-      const daoMappings = await Models.DaoMemberMapping.find({ memberAddress })
-      expect(daoMappings.length).to.be.eq(2)
+      // Verify updateVotingPower was called  
+      expect(updateVotingPowerStub.calledOnce).to.be.true
+      expect(updateVotingPowerStub.calledWith({
+        memberAddress,
+        tokenAddress: info.address,
+        votingPower: '2000',
+        network: info.network,
+        lastVPBlockNumber: info.blockNumber,
+      })).to.be.true
     })
 
-    it('should handle outgoing delegateVotesChanged event and add member to DAO', async () => {
+    it('should handle outgoing delegateVotesChanged event and update plugin metrics', async () => {
       const memberAddress = '0xDelegateAddress'
       const parsedEvent = {
         args: {
@@ -328,8 +333,16 @@ describe('GovernanceErc20Handler', () => {
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ hasClockMode: true } as any)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('1000')
       sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
-      sandbox.stub(ProxyMember, 'updateActivity').resolves()
-      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(null)
+      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves({} as any)
+      const updateVotingPowerStub = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
+      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
+        memberAddress,
+        tokenAddress: '0xTokenAddress',
+        network,
+        votingPower: '1000',
+        delegateReceivedCount: 0
+      } as any)
+      const updatePluginMetricsStub = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       await GovernanceErc20Handler.delegateVotesChanged(parsedEvent, info as any)
@@ -345,9 +358,30 @@ describe('GovernanceErc20Handler', () => {
       expect(memberTransaction.memberVotingPower).to.be.eq('1000')
       expect(memberTransaction.amount).to.be.eq('500')
 
-      // Verify member was added to DAO (since they still have voting power > 0)
-      const daoMappings = await Models.DaoMemberMapping.find({ memberAddress })
-      expect(daoMappings.length).to.be.eq(1)
+      // Verify createMember was called with lastActivity
+      expect(createMemberStub.calledOnce).to.be.true
+      expect(createMemberStub.calledWith(memberAddress, info.blockNumber)).to.be.true
+
+      // Verify updateVotingPower was called
+      expect(updateVotingPowerStub.calledOnce).to.be.true
+      expect(updateVotingPowerStub.calledWith({
+        memberAddress,
+        tokenAddress: info.address,
+        votingPower: '1000',
+        network: info.network,
+        lastVPBlockNumber: info.blockNumber,
+      })).to.be.true
+
+      // Verify updatePluginMetrics was called for outgoing transfer
+      expect(updatePluginMetricsStub.calledOnce).to.be.true
+      expect(
+        updatePluginMetricsStub.calledWith({
+          memberAddress,
+          pluginAddress: plugin.address,
+          network,
+          lastActivity: info.blockNumber,
+        }),
+      ).to.be.true
 
       // Verify message was sent
       expect(sendMessageStub.calledOnce).to.be.true
@@ -358,6 +392,95 @@ describe('GovernanceErc20Handler', () => {
           params: { address: plugin.daoAddress, network: plugin.network },
         },
       ])
+    })
+
+    it('should update plugin metrics for multiple plugins on outgoing delegation', async () => {
+      const memberAddress = '0xDelegateAddress'
+      const parsedEvent = {
+        args: {
+          delegate: memberAddress,
+          previousBalance: '2000',
+          newBalance: '1000',
+          value: '500',
+        },
+      } as unknown as LogDescription
+
+      const info = {
+        network,
+        blockNumber: 12345678,
+        transactionHash: '0xTransactionHash',
+        transactionIndex: 1,
+        logIndex: 1,
+        address: '0xTokenAddress',
+      }
+
+      const plugin1 = {
+        daoAddress: '0xDaoAddress1',
+        address: '0xPluginAddress1',
+        network,
+        tokenAddress: '0xTokenAddress',
+      }
+
+      const plugin2 = {
+        daoAddress: '0xDaoAddress2',
+        address: '0xPluginAddress2',
+        network,
+        tokenAddress: '0xTokenAddress',
+      }
+
+      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin1, plugin2])
+      sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(null)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1630425600)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ hasClockMode: true } as any)
+      sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('1000')
+      sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
+      sandbox.stub(ProxyMember, 'createMember').resolves({} as any)
+      sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
+      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
+        memberAddress,
+        tokenAddress: '0xTokenAddress',
+        network,
+        votingPower: '1000',
+        delegateReceivedCount: 0
+      } as any)
+      const updatePluginMetricsStub = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await GovernanceErc20Handler.delegateVotesChanged(parsedEvent, info as any)
+
+      // Verify updatePluginMetrics was called for each plugin
+      expect(updatePluginMetricsStub.calledTwice).to.be.true
+      expect(
+        updatePluginMetricsStub.firstCall.calledWith({
+          memberAddress,
+          pluginAddress: plugin1.address,
+          network,
+          lastActivity: info.blockNumber,
+        }),
+      ).to.be.true
+      expect(
+        updatePluginMetricsStub.secondCall.calledWith({
+          memberAddress,
+          pluginAddress: plugin2.address,
+          network,
+          lastActivity: info.blockNumber,
+        }),
+      ).to.be.true
+
+      // Verify dao metrics messages were sent for each unique DAO
+      expect(sendMessageStub.calledTwice).to.be.true
+      expect(
+        sendMessageStub.firstCall.calledWith(EnumQueueName.daoMetrics, {
+          id: plugin1.daoAddress,
+          params: { address: plugin1.daoAddress, network: plugin1.network },
+        }),
+      ).to.be.true
+      expect(
+        sendMessageStub.secondCall.calledWith(EnumQueueName.daoMetrics, {
+          id: plugin2.daoAddress,
+          params: { address: plugin2.daoAddress, network: plugin2.network },
+        }),
+      ).to.be.true
     })
 
     it('should handle outgoing delegateVotesChanged event and remove member if voting power becomes zero', async () => {
@@ -387,13 +510,13 @@ describe('GovernanceErc20Handler', () => {
         tokenAddress: '0xTokenAddress',
       }
 
-      // Create existing DAO member mapping
-      const existingMapping = await Models.DaoMemberMapping.create({
+      // Create existing voting power member
+      const existingVpMember = await Models.VpMember.create({
         memberAddress,
-        daoAddress: plugin.daoAddress,
-        network: plugin.network,
-        pluginAddress: plugin.address,
         tokenAddress: plugin.tokenAddress,
+        network: plugin.network,
+        votingPower: '1000',
+        delegateReceivedCount: 0,
       })
 
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
@@ -403,19 +526,18 @@ describe('GovernanceErc20Handler', () => {
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ hasClockMode: true } as any)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('0')
       sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
-      sandbox.stub(ProxyMember, 'updateActivity').resolves()
-      sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(existingMapping)
+      sandbox.stub(ProxyMember, 'createMember').resolves({} as any)
+      const updateVotingPowerStub = sandbox.stub(ProxyMember, 'updateVotingPower').callsFake(async (params) => {
+        // Update the existing VpMember with the new voting power
+        existingVpMember.votingPower = params.votingPower
+        await existingVpMember.save()
+        return existingVpMember
+      })
+      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves(existingVpMember as any)
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
-      // Stub removePluginMember to actually remove the document
-      sandbox.stub(ProxyMember, 'removePluginMember').callsFake(async params => {
-        return await Models.DaoMemberMapping.deleteOne({
-          memberAddress: params.memberAddress,
-          daoAddress: params.daoAddress,
-          pluginAddress: params.pluginAddress,
-          tokenAddress: params.tokenAddress,
-        })
-      })
+      // Stub removePluginMember
+      sandbox.stub(ProxyMember, 'removePluginMember').resolves(true)
 
       await GovernanceErc20Handler.delegateVotesChanged(parsedEvent, info as any)
 
@@ -429,247 +551,14 @@ describe('GovernanceErc20Handler', () => {
       expect(memberTransaction.side).to.be.eq(ITransferSide.outgoing)
       expect(memberTransaction.memberVotingPower).to.be.eq('0')
 
-      // Verify member was removed from DAO (since voting power and balance are 0)
-      const remainingMappings = await Models.DaoMemberMapping.find({ memberAddress })
-      expect(remainingMappings.length).to.be.eq(0)
-    })
-  })
-
-  describe('_handleDaoMemberShip', () => {
-    it('should add member to DAO when requirements are met and not a member', async () => {
-      const isMemberOfDaoStub = sandbox.stub(ProxyMember, 'isMemberOfDao')
-      const addPluginMemberStub = sandbox.stub(ProxyMember, 'addPluginMember').resolves()
-      const removePluginMemberStub = sandbox.stub(ProxyMember, 'removePluginMember').resolves()
-      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      const uniqueValuesStub = sandbox.stub(utils, 'getUniqueValuesByKey')
-
-      const memberTx = {
-        address: '0xMember',
-        memberVotingPower: '2000',
-      }
-
-      const plugins = [
-        {
-          daoAddress: '0xDao1',
-          network,
-          address: '0xPlugin1',
-          tokenAddress: '0xToken1',
-        },
-        {
-          daoAddress: '0xDao2',
-          network,
-          address: '0xPlugin2',
-          tokenAddress: '0xToken1',
-        },
-      ] as any
-
-      const info = {
-        address: '0xTokenAddress',
-        blockNumber: 100,
+      // Verify voting power was set to 0
+      const vpMember = await Models.VpMember.findOne({
+        memberAddress,
+        tokenAddress: '0xTokenAddress',
         network,
-      } as any
-
-      uniqueValuesStub.returns(['0xDao1', '0xDao2'])
-      isMemberOfDaoStub.resolves(null)
-
-      await GovernanceErc20Handler._handleDaoMemberShip(memberTx, plugins, info, false)
-
-      // Verify member was added to both DAOs
-      expect(isMemberOfDaoStub.callCount).to.equal(2)
-      expect(addPluginMemberStub.callCount).to.equal(2)
-      expect(removePluginMemberStub.notCalled).to.be.true
-
-      // Verify the correct parameters were passed
-      expect(addPluginMemberStub.firstCall.args[0]).to.deep.equal({
-        memberAddress: '0xMember',
-        daoAddress: '0xDao1',
-        network,
-        pluginAddress: '0xPlugin1',
-        tokenAddress: '0xToken1',
       })
-
-      expect(addPluginMemberStub.secondCall.args[0]).to.deep.equal({
-        memberAddress: '0xMember',
-        daoAddress: '0xDao2',
-        network,
-        pluginAddress: '0xPlugin2',
-        tokenAddress: '0xToken1',
-      })
-
-      // Verify RabbitMQ messages were sent for unique DAOs
-      expect(sendMessageStub.callCount).to.equal(2)
-      expect(sendMessageStub.firstCall.args).to.deep.equal([
-        EnumQueueName.daoMetrics,
-        {
-          id: '0xDao1',
-          params: { address: '0xDao1', network },
-        },
-      ])
-    })
-
-    it('should remove member from DAO when requirements are not met and already a member', async () => {
-      const mockDaoMapping = {
-        removeSelf: sandbox.stub().resolves(),
-      }
-
-      const isMemberOfDaoStub = sandbox.stub(ProxyMember, 'isMemberOfDao')
-      const addPluginMemberStub = sandbox.stub(ProxyMember, 'addPluginMember').resolves()
-      const removePluginMemberStub = sandbox.stub(ProxyMember, 'removePluginMember').resolves()
-      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      const uniqueValuesStub = sandbox.stub(utils, 'getUniqueValuesByKey')
-
-      const memberTx = {
-        address: '0xMember',
-        memberVotingPower: '0',
-      }
-
-      const plugins = [
-        {
-          daoAddress: '0xDao1',
-          network,
-          address: '0xPlugin1',
-          tokenAddress: '0xToken1',
-        },
-      ] as any
-
-      const info = {
-        address: '0xTokenAddress',
-        blockNumber: 100,
-        network,
-      } as any
-
-      uniqueValuesStub.returns(['0xDao1'])
-      isMemberOfDaoStub.resolves(mockDaoMapping)
-
-      await GovernanceErc20Handler._handleDaoMemberShip(memberTx, plugins, info, false)
-
-      expect(isMemberOfDaoStub.callCount).to.equal(1)
-      expect(removePluginMemberStub.callCount).to.equal(1)
-      expect(addPluginMemberStub.notCalled).to.be.true
-
-      expect(removePluginMemberStub.firstCall.args[0]).to.deep.equal({
-        memberAddress: '0xMember',
-        daoAddress: '0xDao1',
-        network,
-        pluginAddress: '0xPlugin1',
-        tokenAddress: '0xToken1',
-      })
-
-      expect(sendMessageStub.callCount).to.equal(1)
-    })
-
-    it('should not add or remove member when already a member with requirements met', async () => {
-      const mockDaoMapping = {
-        removeSelf: sandbox.stub().resolves(),
-      }
-
-      const isMemberOfDaoStub = sandbox.stub(ProxyMember, 'isMemberOfDao')
-      const addPluginMemberStub = sandbox.stub(ProxyMember, 'addPluginMember').resolves()
-      const removePluginMemberStub = sandbox.stub(ProxyMember, 'removePluginMember').resolves()
-      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      const uniqueValuesStub = sandbox.stub(utils, 'getUniqueValuesByKey')
-
-      const memberTx = {
-        address: '0xMember',
-        memberVotingPower: '2000',
-      }
-
-      const plugins = [
-        {
-          daoAddress: '0xDao1',
-          network,
-          address: '0xPlugin1',
-          tokenAddress: '0xToken1',
-        },
-      ] as any
-
-      const info = {
-        address: '0xTokenAddress',
-        blockNumber: 100,
-        network,
-      } as any
-
-      uniqueValuesStub.returns(['0xDao1'])
-      isMemberOfDaoStub.resolves(mockDaoMapping)
-
-      await GovernanceErc20Handler._handleDaoMemberShip(memberTx, plugins, info, false)
-
-      expect(isMemberOfDaoStub.callCount).to.equal(1)
-      expect(addPluginMemberStub.notCalled).to.be.true
-      expect(removePluginMemberStub.notCalled).to.be.true
-
-      // RabbitMQ message should still be sent
-      expect(sendMessageStub.callCount).to.equal(1)
-    })
-
-    it('should not send RabbitMQ messages when isHistorical is true', async () => {
-      const isMemberOfDaoStub = sandbox.stub(ProxyMember, 'isMemberOfDao')
-      const addPluginMemberStub = sandbox.stub(ProxyMember, 'addPluginMember').resolves()
-      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      const uniqueValuesStub = sandbox.stub(utils, 'getUniqueValuesByKey')
-
-      const memberTx = {
-        address: '0xMember',
-        memberVotingPower: '2000',
-      }
-
-      const plugins = [
-        {
-          daoAddress: '0xDao1',
-          network,
-          address: '0xPlugin1',
-          tokenAddress: '0xToken1',
-        },
-      ] as any
-
-      const info = {
-        address: '0xTokenAddress',
-        blockNumber: 100,
-        network,
-      } as any
-
-      uniqueValuesStub.returns(['0xDao1'])
-      isMemberOfDaoStub.resolves(null)
-
-      await GovernanceErc20Handler._handleDaoMemberShip(memberTx, plugins, info, true)
-
-      expect(addPluginMemberStub.callCount).to.equal(1)
-      expect(sendMessageStub.notCalled).to.be.true
-    })
-
-    it('should handle member with only voting power (no balance)', async () => {
-      const isMemberOfDaoStub = sandbox.stub(ProxyMember, 'isMemberOfDao')
-      const addPluginMemberStub = sandbox.stub(ProxyMember, 'addPluginMember').resolves()
-      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      const uniqueValuesStub = sandbox.stub(utils, 'getUniqueValuesByKey')
-
-      const memberTx = {
-        address: '0xMember',
-        memberVotingPower: '1000',
-      }
-
-      const plugins = [
-        {
-          daoAddress: '0xDao1',
-          network,
-          address: '0xPlugin1',
-          tokenAddress: '0xToken1',
-        },
-      ] as any
-
-      const info = {
-        address: '0xTokenAddress',
-        blockNumber: 100,
-        network,
-      } as any
-
-      uniqueValuesStub.returns(['0xDao1'])
-      isMemberOfDaoStub.resolves(null)
-
-      await GovernanceErc20Handler._handleDaoMemberShip(memberTx, plugins, info, false)
-
-      expect(addPluginMemberStub.callCount).to.equal(1)
-      expect(sendMessageStub.callCount).to.equal(1)
+      expect(vpMember).to.be.not.null
+      expect(vpMember.votingPower).to.be.eq('0')
     })
   })
 })

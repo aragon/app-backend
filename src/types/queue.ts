@@ -76,12 +76,6 @@ export interface IQueueMessage {
   params: IQueueProposalMetrics | IQueueDao | any
 }
 
-export interface IQueueRealtimeTransactions {
-  daoAddresses: HexAddress[]
-  network: NetworksEnum
-  transactionHash: HexAddress
-}
-
 export interface ISendOptions {
   waitResponse?: boolean
   timeout?: number // reject response after timeout

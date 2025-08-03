@@ -162,6 +162,38 @@ export const GovernanceVeHandler = {
     })
 
     logger.verbose('Deposit VeGovernance - Lock created', llo({ info, memberAddress, tokenId, escrow: escrowAddress }))
+
+    // Add member to plugins and update voting power
+    for (const plugin of plugins) {
+      await ProxyMember.addPluginMember({
+        memberAddress,
+        pluginAddress: plugin.address,
+        daoAddress: plugin.daoAddress,
+        network: info.network,
+      })
+    }
+
+    // Get or create voting power entry and update tokenIds
+    const vpMember = await ProxyMember.getOrCreateVotingPower({
+      memberAddress,
+      tokenAddress,
+      network: info.network,
+    })
+
+    if (vpMember) {
+      const currentTokenIds = vpMember.tokenIds || []
+      if (!currentTokenIds.includes(tokenId)) {
+        currentTokenIds.push(tokenId)
+        await ProxyMember.updateVotingPower({
+          memberAddress,
+          tokenAddress,
+          network: info.network,
+          tokenIds: currentTokenIds,
+        })
+      }
+    }
+
+    logger.verbose('Deposit VeGovernance - Member and voting power updated', llo({ info, memberAddress, tokenId }))
   },
 
   withdraw: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -480,6 +512,21 @@ export const GovernanceVeHandler = {
           tokenAddress: info.address,
           network: info.network,
         })
+      }
+
+      // update lastActivity metrics for all plugins
+      if (lastActivity) {
+        const plugins = await Models.Plugin.findAllByTokenAddress(info.address, info.network)
+        await Promise.all(
+          plugins.map(async (plugin: Plugin) => {
+            await ProxyMember.updatePluginMetrics({
+              memberAddress,
+              pluginAddress: plugin.address,
+              network: info.network,
+              lastActivity,
+            })
+          }),
+        )
       }
 
       const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
