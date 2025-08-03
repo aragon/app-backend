@@ -28,7 +28,7 @@ export const fakeMemberTransactions = [
     from: '0x0000000000000000000000000000000000000000',
     to: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
     side: ITransferSide.incoming,
-    type: ITransferType.tokenTransfer,
+    type: ITransferType.delegate,
     amount: '10000000000000000000000',
     memberBalance: '10000000000000000000000',
     memberVotingPower: '10000000000000000000000',
