@@ -137,7 +137,6 @@ class BlockchainLogCrawler {
               strategy: this.crawlParams.strategy,
               toBlock,
               latestBlock,
-              logsLen: 0,
             }),
           )
         } else if (!this.crawlParams.skipLogProcessing) {
@@ -670,7 +669,7 @@ class BlockchainLogCrawler {
       }
     }
 
-    if (!parsedEvent) {
+    if (!parsedEvent && eventSetting?.config.length) {
       logger.error('Error parsing log in blockchainCrawler', llo({ ...this.parseCrawlerInfoLog(), log }))
     }
 

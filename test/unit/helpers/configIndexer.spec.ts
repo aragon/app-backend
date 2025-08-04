@@ -1,0 +1,502 @@
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
+import { expect } from 'chai'
+import { ITokenType, NetworksEnum, IndexerType, IEnumIndexerService, LogServicePattern } from '@types'
+import logger from '@logger'
+import ConfigIndexerHelper from '@helpers/configIndexer'
+
+describe('Helpers: ConfigIndexerHelper', () => {
+  let sandbox: SinonSandbox
+  let loggerErrorStub: sinon.SinonStub
+
+  beforeEach(() => {
+    sandbox = sinon.createSandbox()
+    loggerErrorStub = sandbox.stub(logger, 'error')
+  })
+
+  afterEach(() => {
+    sandbox && sandbox.restore()
+  })
+
+  describe('builders', () => {
+    describe('deposit', () => {
+      it('should create deposit logService', () => {
+        const network = NetworksEnum.ethereumSepolia
+        const address = '0x123456789'
+        const result = ConfigIndexerHelper.builders.deposit(network, address)
+        expect(result).to.equal(`deposit-${network}-${address}-depositTxs`)
+      })
+    })
+
+    describe('withdraw', () => {
+      it('should create withdraw logService', () => {
+        const network = NetworksEnum.ethereumSepolia
+        const address = '0xabcdef123'
+        const result = ConfigIndexerHelper.builders.withdraw(network, address)
+        expect(result).to.equal(`withdraw-${network}-${address}-withdrawTxs`)
+      })
+    })
+
+    describe('indexer', () => {
+      it('should create indexer logService', () => {
+        const network = NetworksEnum.ethereumMainnet
+        const result = ConfigIndexerHelper.builders.indexer(network)
+        expect(result).to.equal(`indexer-${network}`)
+      })
+    })
+
+    describe('plugin', () => {
+      it('should create plugin logService', () => {
+        const interfaceType = 'voting' as any
+        const network = NetworksEnum.polygonMainnet
+        const address = '0xplugin123'
+        const result = ConfigIndexerHelper.builders.plugin(interfaceType, network, address)
+        expect(result).to.equal(`${interfaceType}-${network}-${address}`)
+      })
+    })
+
+    describe('dao', () => {
+      it('should create dao logService', () => {
+        const network = NetworksEnum.baseMainnet
+        const address = '0xdao123'
+        const result = ConfigIndexerHelper.builders.dao(network, address)
+        expect(result).to.equal(`dao-${network}-${address}`)
+      })
+    })
+
+    describe('permission', () => {
+      it('should create permission logService', () => {
+        const network = NetworksEnum.ethereumMainnet
+        const address = '0xpermission123'
+        const result = ConfigIndexerHelper.builders.permission(network, address)
+        expect(result).to.equal(`permission-${network}-${address}`)
+      })
+
+      it('should create permission logService with different networks', () => {
+        const address = '0xpermission456'
+        const networks = [NetworksEnum.polygonMainnet, NetworksEnum.baseMainnet, NetworksEnum.arbitrumMainnet]
+
+        networks.forEach(network => {
+          const result = ConfigIndexerHelper.builders.permission(network, address)
+          expect(result).to.equal(`permission-${network}-${address}`)
+        })
+      })
+    })
+
+    describe('transferList', () => {
+      it('should create transferList logService', () => {
+        const network = NetworksEnum.ethereumMainnet
+        const address = '0xtransfer123'
+        const result = ConfigIndexerHelper.builders.transferList(network, address)
+        expect(result).to.equal(`transferList-${network}-${address}`)
+      })
+
+      it('should create transferList logService with different networks', () => {
+        const address = '0xtransfer456'
+        const networks = [NetworksEnum.polygonMainnet, NetworksEnum.baseMainnet, NetworksEnum.arbitrumMainnet]
+
+        networks.forEach(network => {
+          const result = ConfigIndexerHelper.builders.transferList(network, address)
+          expect(result).to.equal(`transferList-${network}-${address}`)
+        })
+      })
+    })
+
+    describe('token', () => {
+      it('should create basic token logService without sync tag', () => {
+        const tokenType = ITokenType.ERC20
+        const network = NetworksEnum.arbitrumMainnet
+        const address = '0xtoken123'
+        const result = ConfigIndexerHelper.builders.token(tokenType, network, address)
+        expect(result).to.equal(`${tokenType}-${network}-${address}`)
+      })
+
+      it('should throw error for native token type', () => {
+        expect(() => {
+          ConfigIndexerHelper.builders.token(ITokenType.native, NetworksEnum.ethereumMainnet, '0xtoken123')
+        }).to.throw("Invalid token type for logService: native. Cannot use 'native' or 'unknown'.")
+      })
+
+      it('should throw error for unknown token type', () => {
+        expect(() => {
+          ConfigIndexerHelper.builders.token(ITokenType.unknown, NetworksEnum.ethereumMainnet, '0xtoken123')
+        }).to.throw("Invalid token type for logService: unknown. Cannot use 'native' or 'unknown'.")
+      })
+
+      it('should create token logService with all valid token types', () => {
+        const validTypes = [
+          ITokenType.ERC20,
+          ITokenType.ERC721,
+          ITokenType.ERC1155,
+          ITokenType.ERC777,
+          ITokenType.escrowAdapter,
+        ]
+        const network = NetworksEnum.ethereumMainnet
+        const address = '0xtoken123'
+
+        validTypes.forEach(tokenType => {
+          const result = ConfigIndexerHelper.builders.token(tokenType, network, address)
+          expect(result).to.equal(`${tokenType}-${network}-${address}`)
+        })
+      })
+    })
+  })
+
+  describe('guards', () => {
+    describe('isDeposit', () => {
+      it('should return true for deposit service', () => {
+        const service = 'deposit-ethereum-mainnet-0x123-depositTxs'
+        expect(ConfigIndexerHelper.guards.isDeposit(service)).to.be.true
+      })
+
+      it('should return false for non-deposit service', () => {
+        expect(ConfigIndexerHelper.guards.isDeposit('withdraw-ethereum-mainnet-0x123-withdrawTxs')).to.be.false
+        expect(ConfigIndexerHelper.guards.isDeposit('indexer-ethereum-mainnet')).to.be.false
+        expect(ConfigIndexerHelper.guards.isDeposit(null)).to.be.false
+      })
+    })
+
+    describe('isWithdraw', () => {
+      it('should return true for withdraw service', () => {
+        const service = 'withdraw-ethereum-mainnet-0x123-withdrawTxs'
+        expect(ConfigIndexerHelper.guards.isWithdraw(service)).to.be.true
+      })
+
+      it('should return false for non-withdraw service', () => {
+        expect(ConfigIndexerHelper.guards.isWithdraw('deposit-ethereum-mainnet-0x123-depositTxs')).to.be.false
+        expect(ConfigIndexerHelper.guards.isWithdraw(null)).to.be.false
+      })
+    })
+
+    describe('isIndexer', () => {
+      it('should return true for indexer service', () => {
+        const service = 'indexer-ethereum-mainnet'
+        expect(ConfigIndexerHelper.guards.isIndexer(service)).to.be.true
+      })
+
+      it('should return false for non-indexer service', () => {
+        expect(ConfigIndexerHelper.guards.isIndexer('dao-ethereum-mainnet-0x123')).to.be.false
+        expect(ConfigIndexerHelper.guards.isIndexer(null)).to.be.false
+      })
+    })
+
+    describe('isDao', () => {
+      it('should return true for dao service', () => {
+        const service = 'dao-ethereum-mainnet-0x123'
+        expect(ConfigIndexerHelper.guards.isDao(service)).to.be.true
+      })
+
+      it('should return false for non-dao service', () => {
+        expect(ConfigIndexerHelper.guards.isDao('deposit-ethereum-mainnet-0x123-depositTxs')).to.be.false
+        expect(ConfigIndexerHelper.guards.isDao(null)).to.be.false
+      })
+    })
+
+    describe('isPermission', () => {
+      it('should return true for permission service', () => {
+        const service = 'permission-ethereum-mainnet-0x123'
+        expect(ConfigIndexerHelper.guards.isPermission(service)).to.be.true
+      })
+
+      it('should return false for non-permission service', () => {
+        expect(ConfigIndexerHelper.guards.isPermission('deposit-ethereum-mainnet-0x123-depositTxs')).to.be.false
+        expect(ConfigIndexerHelper.guards.isPermission('dao-ethereum-mainnet-0x123')).to.be.false
+        expect(ConfigIndexerHelper.guards.isPermission('voting-ethereum-mainnet-0x123' as LogServicePattern)).to.be
+          .false
+        expect(ConfigIndexerHelper.guards.isPermission(null)).to.be.false
+      })
+    })
+
+    describe('isTransferList', () => {
+      it('should return true for transferList service', () => {
+        const service = 'transferList-ethereum-mainnet-0x123'
+        expect(ConfigIndexerHelper.guards.isTransferList(service)).to.be.true
+      })
+
+      it('should return false for non-transferList service', () => {
+        expect(ConfigIndexerHelper.guards.isTransferList('deposit-ethereum-mainnet-0x123-depositTxs')).to.be.false
+        expect(ConfigIndexerHelper.guards.isTransferList('dao-ethereum-mainnet-0x123')).to.be.false
+        expect(ConfigIndexerHelper.guards.isTransferList('permission-ethereum-mainnet-0x123')).to.be.false
+        expect(ConfigIndexerHelper.guards.isTransferList(null)).to.be.false
+      })
+    })
+
+    describe('isToken', () => {
+      it('should return true for token services', () => {
+        expect(ConfigIndexerHelper.guards.isToken('ERC20-ethereum-mainnet-0x123')).to.be.true
+        expect(ConfigIndexerHelper.guards.isToken('ERC721-ethereum-mainnet-0x123')).to.be.true
+        expect(ConfigIndexerHelper.guards.isToken('ERC1155-ethereum-mainnet-0x123')).to.be.true
+        expect(ConfigIndexerHelper.guards.isToken('ERC777-ethereum-mainnet-0x123')).to.be.true
+        expect(ConfigIndexerHelper.guards.isToken('escrowAdapter-ethereum-mainnet-0x123')).to.be.true
+        expect(ConfigIndexerHelper.guards.isToken('ERC20-ethereum-mainnet-0x123-delegates')).to.be.true
+      })
+
+      it('should return false for non-token services', () => {
+        // Use type assertion for invalid token types that TypeScript correctly rejects
+        expect(ConfigIndexerHelper.guards.isToken('native-ethereum-mainnet-0x123' as any)).to.be.false
+        expect(ConfigIndexerHelper.guards.isToken('unknown-ethereum-mainnet-0x123' as any)).to.be.false
+        expect(ConfigIndexerHelper.guards.isToken('deposit-ethereum-mainnet-0x123-depositTxs')).to.be.false
+        expect(ConfigIndexerHelper.guards.isToken(null)).to.be.false
+      })
+    })
+
+    describe('isPlugin', () => {
+      it('should return true for plugin service', () => {
+        const service = 'voting-ethereum-mainnet-0x123' as LogServicePattern
+        expect(ConfigIndexerHelper.guards.isPlugin(service)).to.be.true
+      })
+
+      it('should return false for known service types', () => {
+        expect(ConfigIndexerHelper.guards.isPlugin('deposit-ethereum-mainnet-0x123-depositTxs')).to.be.false
+        expect(ConfigIndexerHelper.guards.isPlugin('withdraw-ethereum-mainnet-0x123-withdrawTxs')).to.be.false
+        expect(ConfigIndexerHelper.guards.isPlugin('indexer-ethereum-mainnet')).to.be.false
+        expect(ConfigIndexerHelper.guards.isPlugin('dao-ethereum-mainnet-0x123')).to.be.false
+        expect(ConfigIndexerHelper.guards.isPlugin('permission-ethereum-mainnet-0x123')).to.be.false
+        expect(ConfigIndexerHelper.guards.isPlugin('ERC20-ethereum-mainnet-0x123')).to.be.false
+        expect(ConfigIndexerHelper.guards.isPlugin(null)).to.be.false
+      })
+    })
+  })
+
+  describe('parser', () => {
+    describe('parse', () => {
+      it('should parse null service', () => {
+        const result = ConfigIndexerHelper.parser.parse(null)
+        expect(result).to.be.null
+        expect(loggerErrorStub.calledOnce).to.be.true
+      })
+
+      it('should parse deposit service', () => {
+        const result = ConfigIndexerHelper.parser.parse('deposit-ethereum-mainnet-0x123-depositTxs')
+        expect(result).to.deep.equal({
+          type: IndexerType.deposit,
+          address: '0x123',
+          network: NetworksEnum.ethereumMainnet,
+          service: IEnumIndexerService.depositTxs,
+        })
+      })
+
+      it('should parse withdraw service', () => {
+        const result = ConfigIndexerHelper.parser.parse('withdraw-ethereum-mainnet-0x456-withdrawTxs')
+        expect(result).to.deep.equal({
+          type: IndexerType.withdraw,
+          address: '0x456',
+          network: NetworksEnum.ethereumMainnet,
+          service: IEnumIndexerService.withdrawTxs,
+        })
+      })
+
+      it('should parse permission service', () => {
+        const result = ConfigIndexerHelper.parser.parse('permission-ethereum-mainnet-0xabc123')
+        expect(result).to.deep.equal({
+          type: IndexerType.permission,
+          network: 'ethereum-mainnet',
+          address: '0xabc123',
+        })
+      })
+
+      it('should parse transferList service', () => {
+        const result = ConfigIndexerHelper.parser.parse('transferList-ethereum-mainnet-0xabc123')
+        expect(result).to.deep.equal({
+          type: IndexerType.transferList,
+          network: 'ethereum-mainnet',
+          address: '0xabc123',
+        })
+      })
+
+      it('should parse transferList service with complex addresses', () => {
+        const result = ConfigIndexerHelper.parser.parse('transferList-polygon-mainnet-0x123-456-789')
+        expect(result).to.deep.equal({
+          type: IndexerType.transferList,
+          network: 'polygon-mainnet',
+          address: '0x123-456-789',
+        })
+      })
+
+      it('should parse indexer service', () => {
+        const result = ConfigIndexerHelper.parser.parse('indexer-ethereum-mainnet')
+        expect(result).to.deep.equal({
+          type: IndexerType.indexer,
+          network: 'ethereum-mainnet',
+        })
+      })
+
+      it('should parse dao service', () => {
+        const result = ConfigIndexerHelper.parser.parse('dao-polygon-mainnet-0x789')
+        expect(result).to.deep.equal({
+          type: IndexerType.dao,
+          network: 'polygon-mainnet',
+          address: '0x789',
+        })
+      })
+
+      it('should parse token service without sync tag', () => {
+        const result = ConfigIndexerHelper.parser.parse('ERC20-base-mainnet-0xabc')
+        expect(result).to.deep.equal({
+          type: IndexerType.token,
+          tokenType: ITokenType.ERC20,
+          network: 'base-mainnet',
+          address: '0xabc',
+        })
+      })
+
+      it('should parse plugin service', () => {
+        const result = ConfigIndexerHelper.parser.parse('voting-optimism-mainnet-0x999' as LogServicePattern)
+        expect(result).to.deep.equal({
+          type: IndexerType.plugin,
+          interfaceType: 'voting',
+          network: 'optimism-mainnet',
+          address: '0x999',
+        })
+      })
+    })
+
+    describe('getType', () => {
+      it('should return correct type for each service', () => {
+        expect(ConfigIndexerHelper.parser.getType(null)).to.be.null
+        expect(ConfigIndexerHelper.parser.getType('deposit-ethereum-mainnet-0x123-depositTxs')).to.equal(
+          IndexerType.deposit,
+        )
+        expect(ConfigIndexerHelper.parser.getType('withdraw-ethereum-mainnet-0x123-withdrawTxs')).to.equal(
+          IndexerType.withdraw,
+        )
+        expect(ConfigIndexerHelper.parser.getType('indexer-ethereum-mainnet')).to.equal(IndexerType.indexer)
+        expect(ConfigIndexerHelper.parser.getType('dao-ethereum-mainnet-0x123')).to.equal(IndexerType.dao)
+        expect(ConfigIndexerHelper.parser.getType('permission-ethereum-mainnet-0x123')).to.equal(IndexerType.permission)
+        expect(ConfigIndexerHelper.parser.getType('ERC20-ethereum-mainnet-0x123')).to.equal(IndexerType.token)
+        expect(ConfigIndexerHelper.parser.getType('voting-ethereum-mainnet-0x123' as LogServicePattern)).to.equal(
+          IndexerType.plugin,
+        )
+      })
+
+      it('should return null for invalid service', () => {
+        expect(ConfigIndexerHelper.parser.getType('invalid-service' as any)).to.be.null
+      })
+
+      it('should return transferList type for transferList service', () => {
+        expect(ConfigIndexerHelper.parser.getType('transferList-ethereum-mainnet-0x123')).to.equal(
+          IndexerType.transferList,
+        )
+      })
+    })
+  })
+
+  describe('validators', () => {
+    describe('isValidLogService', () => {
+      it('should return true for valid services', () => {
+        expect(ConfigIndexerHelper.validators.isValidLogService('deposit-ethereum-mainnet-0x123-depositTxs')).to.be.true
+        expect(ConfigIndexerHelper.validators.isValidLogService('withdraw-ethereum-mainnet-0x123-withdrawTxs')).to.be
+          .true
+        expect(ConfigIndexerHelper.validators.isValidLogService('indexer-ethereum-mainnet')).to.be.true
+        expect(ConfigIndexerHelper.validators.isValidLogService('dao-ethereum-mainnet-0x123')).to.be.true
+        expect(ConfigIndexerHelper.validators.isValidLogService('permission-ethereum-mainnet-0x123')).to.be.true
+        expect(ConfigIndexerHelper.validators.isValidLogService('ERC20-ethereum-mainnet-0x123')).to.be.true
+        expect(ConfigIndexerHelper.validators.isValidLogService('voting-ethereum-mainnet-0x123' as LogServicePattern))
+          .to.be.true
+      })
+
+      it('should return false for invalid services', () => {
+        expect(ConfigIndexerHelper.validators.isValidLogService(null)).to.be.false
+        expect(ConfigIndexerHelper.validators.isValidLogService('' as any)).to.be.false
+        expect(ConfigIndexerHelper.validators.isValidLogService(undefined as any)).to.be.false
+        expect(ConfigIndexerHelper.validators.isValidLogService('invalid-service' as any)).to.be.false
+      })
+
+      it('should return true for valid transferList service', () => {
+        expect(ConfigIndexerHelper.validators.isValidLogService('transferList-ethereum-mainnet-0x123')).to.be.true
+        expect(ConfigIndexerHelper.validators.isValidLogService('transferList-polygon-mainnet-0xabc')).to.be.true
+      })
+    })
+
+    describe('validateAndParse', () => {
+      it('should parse valid service', () => {
+        const result = ConfigIndexerHelper.validators.validateAndParse('deposit-ethereum-mainnet-0x123-depositTxs')
+        expect(result).to.deep.equal({
+          type: IndexerType.deposit,
+          address: '0x123',
+          network: NetworksEnum.ethereumMainnet,
+          service: IEnumIndexerService.depositTxs,
+        })
+      })
+
+      it('should return null and log error for invalid service', () => {
+        const result = ConfigIndexerHelper.validators.validateAndParse(null)
+        expect(result).to.be.null
+        expect(loggerErrorStub.calledWith('Invalid logService format')).to.be.true
+      })
+    })
+  })
+
+  describe('utils', () => {
+    describe('getValidTokenTypes', () => {
+      it('should return all token types except native and unknown', () => {
+        const result = ConfigIndexerHelper.utils.getValidTokenTypes()
+        expect(result).to.include(ITokenType.ERC20)
+        expect(result).to.include(ITokenType.ERC721)
+        expect(result).to.include(ITokenType.ERC1155)
+        expect(result).to.include(ITokenType.ERC777)
+        expect(result).to.include(ITokenType.escrowAdapter)
+        expect(result).to.not.include(ITokenType.native)
+        expect(result).to.not.include(ITokenType.unknown)
+      })
+    })
+
+    describe('isValidTokenTypeForLogService', () => {
+      it('should return true for valid token types', () => {
+        expect(ConfigIndexerHelper.utils.isValidTokenTypeForLogService(ITokenType.ERC20)).to.be.true
+        expect(ConfigIndexerHelper.utils.isValidTokenTypeForLogService(ITokenType.ERC721)).to.be.true
+        expect(ConfigIndexerHelper.utils.isValidTokenTypeForLogService(ITokenType.ERC1155)).to.be.true
+        expect(ConfigIndexerHelper.utils.isValidTokenTypeForLogService(ITokenType.ERC777)).to.be.true
+        expect(ConfigIndexerHelper.utils.isValidTokenTypeForLogService(ITokenType.escrowAdapter)).to.be.true
+      })
+
+      it('should return false for invalid token types', () => {
+        expect(ConfigIndexerHelper.utils.isValidTokenTypeForLogService(ITokenType.native)).to.be.false
+        expect(ConfigIndexerHelper.utils.isValidTokenTypeForLogService(ITokenType.unknown)).to.be.false
+      })
+    })
+  })
+
+  describe('Integration tests', () => {
+    it('should handle transferList service lifecycle', () => {
+      // Create transferList service
+      const service = ConfigIndexerHelper.builders.transferList(NetworksEnum.ethereumMainnet, '0xtransfer123')
+      expect(service).to.equal('transferList-ethereum-mainnet-0xtransfer123')
+
+      // Verify guard works
+      expect(ConfigIndexerHelper.guards.isTransferList(service)).to.be.true
+
+      // Parse it
+      const parsed = ConfigIndexerHelper.parser.parse(service)
+      expect(parsed).to.deep.equal({
+        type: IndexerType.transferList,
+        network: NetworksEnum.ethereumMainnet,
+        address: '0xtransfer123',
+      })
+
+      // Verify type
+      expect(ConfigIndexerHelper.parser.getType(service)).to.equal(IndexerType.transferList)
+
+      // Validate it
+      expect(ConfigIndexerHelper.validators.isValidLogService(service)).to.be.true
+    })
+
+    it('should correctly identify all service types', () => {
+      const services = [
+        { service: 'deposit-ethereum-mainnet-0x123-depositTxs', type: IndexerType.deposit },
+        { service: 'withdraw-ethereum-mainnet-0x456-withdrawTxs', type: IndexerType.withdraw },
+        { service: 'indexer-ethereum-mainnet', type: IndexerType.indexer },
+        { service: 'dao-polygon-mainnet-0x789', type: IndexerType.dao },
+        { service: 'permission-ethereum-mainnet-0xperm123', type: IndexerType.permission },
+        { service: 'transferList-ethereum-mainnet-0xtransfer123', type: IndexerType.transferList }, // Add this line
+        { service: 'ERC20-base-mainnet-0xabc', type: IndexerType.token },
+        { service: 'voting-arbitrum-mainnet-0xdef', type: IndexerType.plugin },
+      ]
+
+      services.forEach(({ service, type }) => {
+        expect(ConfigIndexerHelper.parser.getType(service as any)).to.equal(type)
+        expect(ConfigIndexerHelper.validators.isValidLogService(service as any)).to.be.true
+      })
+    })
+  })
+})

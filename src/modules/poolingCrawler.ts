@@ -1,7 +1,7 @@
 import { ethers, Interface, type Log } from 'ethers'
 import { DAO } from '@artifacts/dao'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
-import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
+import { IPluginInterfaceType, IPluginStatus, type LogServicePattern, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import configIndexer from '@indexer/configIndexer'
@@ -22,7 +22,7 @@ const delegateVotesChangedTopic = govTokenInterface.getEvent('DelegateVotesChang
 const PoolingCrawler = {
   instances: new Map<NetworksEnum, BlockchainLogCrawler>(),
 
-  async start({ logService, network }: { logService: any; network: NetworksEnum }) {
+  async start({ logService, network }: { logService: LogServicePattern; network: NetworksEnum }) {
     try {
       if (this.instances.has(network)) {
         return this.instances.get(network)!.crawl()
@@ -136,7 +136,8 @@ const PoolingCrawler = {
 
       return logs.filter(log => {
         if (!topicsToFilterOut.has(log.topics[0])) return true
-        if (log.topics[0] === transferTopic && !tokenAddressesSet.has(ethers.getAddress(log.address))) return false
+        // NOTE: we don't pass Transfer logs
+        // if (log.topics[0] === transferTopic && !tokenAddressesSet.has(ethers.getAddress(log.address))) return false
         return !(log.topics[0] === delegateVotesChangedTopic && !tokenAddressesSet.has(ethers.getAddress(log.address)))
       })
     } catch (error) {

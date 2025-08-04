@@ -10,6 +10,10 @@ export interface IMigration {
   stop: () => void | Promise<void>
 }
 
+export interface IMigHelper {
+  countDocs: number
+}
+
 export interface IOptionService {
   mongoSync: boolean
 }

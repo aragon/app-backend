@@ -152,7 +152,7 @@ export const ProposalHandler = {
 
       if (settings) {
         rawSettings = {
-          id: settings?.id,
+          id: settings.id,
           transactionHash: settings.transactionHash,
           blockNumber: settings.blockNumber,
           blockTimestamp: settings.blockTimestamp,
@@ -160,7 +160,7 @@ export const ProposalHandler = {
           daoAddress: settings.daoAddress,
           pluginAddress: settings.pluginAddress,
           pluginSubdomain: settings.pluginSubdomain,
-          tokenAddress: settings.tokenAddress,
+          tokenAddress: settings?.tokenAddress, // token address is optional
           onlyListed: settings?.onlyListed,
           minApprovals: settings?.minApprovals,
           votingMode: settings?.votingMode,
