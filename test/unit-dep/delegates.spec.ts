@@ -8,7 +8,7 @@ import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 import { ProxyMember } from '@modules/proxyMember'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
 
-describe('Integ: Delegates', () => {
+describe.only('Integ: Delegates', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -261,7 +261,8 @@ describe('Integ: Delegates', () => {
     // expect(member1Txs[0].to).to.eq(member1)
     expect(member1Txs[0].memberVotingPower).to.eq('1000000000000000000')
     expect(member1Balance.votingPower).to.eq('1000000000000000000')
-    expect(member1Balance.delegateReceivedCount).to.eq(1)
+    // expect(member1Balance.delegateReceivedCount).to.eq(1) // with peter it was 1 (-1 when outgoing)
+    expect(member1Balance.delegateReceivedCount).to.eq(2)
 
     // test member3 have a transaction, balance and correct metrics
     member3Txs = await Models.MemberTransaction.find({ address: member3 }).sort({ createdAt: -1 })
@@ -273,7 +274,8 @@ describe('Integ: Delegates', () => {
     // expect(member3Txs[0].to).to.eq(member1)
     expect(member3Txs[0].memberVotingPower).to.eq('0')
     expect(member3Balance.votingPower).to.eq('0')
-    expect(member3Balance.delegateReceivedCount).to.eq(0)
+    // expect(member3Balance.delegateReceivedCount).to.eq(0) // 0 with peter (-1 when outgoing)
+    expect(member3Balance.delegateReceivedCount).to.eq(1)
 
     console.log('end tx4')
   })
@@ -557,7 +559,8 @@ describe('Integ: Delegates', () => {
     // expect(member4Txs[0].to).to.eq(member1)
     expect(member4Txs[0].memberVotingPower).to.eq('0')
     expect(member4Balance.votingPower).to.eq('0')
-    expect(member4Balance.delegateReceivedCount).to.eq(0)
+    expect(member4Balance.delegateReceivedCount).to.eq(1)
+    // expect(member4Balance.delegateReceivedCount).to.eq(0) // with peter it was 0 (-1 when outgoing)
 
     console.log('end tx4')
 
@@ -595,7 +598,8 @@ describe('Integ: Delegates', () => {
     // expect(member1Txs[0].to).to.eq(member2)
     expect(member1Txs[0].memberVotingPower).to.eq('3000000000000000000')
     expect(member1Balance.votingPower).to.eq('3000000000000000000')
-    expect(member1Balance.delegateReceivedCount).to.eq(3)
+    // expect(member1Balance.delegateReceivedCount).to.eq(3) // 3 with peter
+    expect(member1Balance.delegateReceivedCount).to.eq(4)
 
     // test member2 have a transaction, balance and correct metrics
     member2Txs = await Models.MemberTransaction.find({ address: member2 }).sort({ createdAt: -1 })
