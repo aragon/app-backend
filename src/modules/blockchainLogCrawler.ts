@@ -657,7 +657,9 @@ class BlockchainLogCrawler {
     let matchingHandler: any = null
 
     for (const configItem of eventSetting?.config!) {
-      const iFace = new Interface(configItem.abi)
+      const abiFragment = configItem.abi.find((item: any) => item.name === eventSetting?.event && item.type === 'event')
+      if (!abiFragment) continue
+      const iFace = new Interface([abiFragment])
       try {
         parsedEvent = Web3Utils.parseLog(log, iFace)
         if (parsedEvent) {
