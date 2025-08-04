@@ -1,4 +1,4 @@
-import { type IMigration, type NetworksEnum } from '@types'
+import { type IMigHelper, type IMigration, type NetworksEnum } from '@types'
 import logger from '@logger'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
@@ -9,28 +9,31 @@ import UnitDepUtils from '@test/lib/unit-dep/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: fixGoveranceVe' })
 
-export const FixGovernanceVeMigration: IMigration & { fixLock: any; parseAndFixLockLogsFromTx: any } = {
+export const FixGovernanceVeMigration: IMigration & IMigHelper & { fixLock: any; parseAndFixLockLogsFromTx: any } = {
+  countDocs: 0,
+
   start: async () => {
     logger.info('Starting migration', llo({ migration: '20250624200948-fixGoveranceVe' }))
 
     try {
-      logger.info('Migration completed successfully', llo({ migration: '20250624200948-fixGoveranceVe' }))
-
       const crawler = new DBCrawler({
         model: Models.Lock,
         onDocument: async (lock: Lock) => {
+          FixGovernanceVeMigration.countDocs++
           await FixGovernanceVeMigration.fixLock(lock)
+          logger.verbose('Processed document', llo({ count: FixGovernanceVeMigration.countDocs }))
         },
         onError: (error: any, document: any) => {
           logger.error('Error fix lock', llo({ error, document }))
         },
 
         where: { id: { $regex: '^(ethereum-[^-]+)-([^-]+)-([^-]+)-([^-]+)-([^-]+)-([^-]+)-([^-]+)$' } },
-        batchSize: 1000,
-        concurrency: 10,
+        batchSize: 2000,
+        concurrency: 200,
       })
 
       await crawler.crawl()
+      logger.info('Migration completed successfully', llo({ migration: '20250624200948-fixGoveranceVe' }))
     } catch (error) {
       logger.error('Migration failed', llo({ migration: '20250624200948-fixGoveranceVe', error }))
       throw error
