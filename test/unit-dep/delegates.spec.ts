@@ -197,7 +197,8 @@ describe('Integ: Delegates', () => {
     // expect(member1Txs[0].to).to.eq(member2)
     expect(member1Txs[0].memberVotingPower).to.eq('0')
     expect(member1Balance.votingPower).to.eq('0')
-    expect(member1Balance.delegateReceivedCount).to.eq(0)
+    // expect(member1Balance.delegateReceivedCount).to.eq(0) // with peter it was 0 (-1 when outgoing)
+    expect(member1Balance.delegateReceivedCount).to.eq(1)
 
     // test member2 have a transaction, balance and correct metrics
     member2Txs = await Models.MemberTransaction.find({ address: member2 }).sort({ createdAt: -1 })
@@ -453,7 +454,7 @@ describe('Integ: Delegates', () => {
     // expect(member2Txs[0].to).to.eq(member1)
     expect(member2Txs[0].memberVotingPower).to.eq('0')
     expect(member2Balance.votingPower).to.eq('0')
-    expect(member2Balance.delegateReceivedCount).to.eq(0) // with peter it was 0 (-1 when outgoing)
+    // expect(member2Balance.delegateReceivedCount).to.eq(0) // with peter it was 0 (-1 when outgoing)
     expect(member2Balance.delegateReceivedCount).to.eq(1)
 
     console.log('end tx2')
