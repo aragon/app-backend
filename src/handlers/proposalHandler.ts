@@ -31,6 +31,8 @@ import Web3Utils from '@helpers/web3Utils'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:ProposalHandler' })
 
+const ProposalCreatedTopicHash = new Interface(TokenVoting.abi).getEvent(ITokenVotingLogs.ProposalCreated)?.topicHash!
+
 export const ProposalHandler = {
   findIncrementalId: async (proposal: Partial<Proposal>): Promise<number | null> => {
     try {
@@ -64,7 +66,7 @@ export const ProposalHandler = {
         events: [
           {
             event: ITokenVotingLogs.ProposalCreated,
-            topic: new Interface(TokenVoting.abi).getEvent(ITokenVotingLogs.ProposalCreated)?.topicHash!,
+            topic: ProposalCreatedTopicHash,
             enableHistorical: false,
             config: [
               {
