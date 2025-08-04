@@ -1215,10 +1215,26 @@ describe('Module: blockchainLogCrawler', () => {
 
     // Mock event settings
     const events = [
-      { topic: '0xTopic1', event: 'Test1', config: [{ abi: ['event Test1()'], handler: sandbox.stub().resolves() }] },
-      { topic: '0xTopic2', event: 'Test2', config: [{ abi: ['event Test2()'], handler: sandbox.stub().resolves() }] },
-      { topic: '0xTopic3', event: 'Test3', config: [{ abi: ['event Test3()'], handler: sandbox.stub().resolves() }] },
-      { topic: '0xTopic4', event: 'Test4', config: [{ abi: ['event Test4()'], handler: sandbox.stub().resolves() }] },
+      {
+        topic: '0xTopic1',
+        event: 'Test1',
+        config: [{ abi: [{ name: 'Test1', type: 'event', inputs: [] }], handler: sandbox.stub().resolves() }],
+      },
+      {
+        topic: '0xTopic2',
+        event: 'Test2',
+        config: [{ abi: [{ name: 'Test2', type: 'event', inputs: [] }], handler: sandbox.stub().resolves() }],
+      },
+      {
+        topic: '0xTopic3',
+        event: 'Test3',
+        config: [{ abi: [{ name: 'Test3', type: 'event', inputs: [] }], handler: sandbox.stub().resolves() }],
+      },
+      {
+        topic: '0xTopic4',
+        event: 'Test4',
+        config: [{ abi: [{ name: 'Test4', type: 'event', inputs: [] }], handler: sandbox.stub().resolves() }],
+      },
     ] as any
 
     const parseLogStub = sandbox.stub(Web3Utils, 'parseLog').callsFake(
@@ -1280,10 +1296,26 @@ describe('Module: blockchainLogCrawler', () => {
 
     // Mock event settings
     const events = [
-      { topic: '0xTopic1', event: 'Test1', config: [{ handler: sandbox.stub().resolves(), abi: ['event Test1()'] }] },
-      { topic: '0xTopic2', event: 'Test2', config: [{ handler: sandbox.stub().resolves(), abi: ['event Test2()'] }] },
-      { topic: '0xTopic3', event: 'Test3', config: [{ handler: sandbox.stub().resolves(), abi: ['event Test3()'] }] },
-      { topic: '0xTopic4', event: 'Test4', config: [{ handler: sandbox.stub().resolves(), abi: ['event Test4()'] }] },
+      {
+        topic: '0xTopic1',
+        event: 'Test1',
+        config: [{ handler: sandbox.stub().resolves(), abi: [{ name: 'Test1', type: 'event', inputs: [] }] }],
+      },
+      {
+        topic: '0xTopic2',
+        event: 'Test2',
+        config: [{ handler: sandbox.stub().resolves(), abi: [{ name: 'Test2', type: 'event', inputs: [] }] }],
+      },
+      {
+        topic: '0xTopic3',
+        event: 'Test3',
+        config: [{ handler: sandbox.stub().resolves(), abi: [{ name: 'Test3', type: 'event', inputs: [] }] }],
+      },
+      {
+        topic: '0xTopic4',
+        event: 'Test4',
+        config: [{ handler: sandbox.stub().resolves(), abi: [{ name: 'Test4', type: 'event', inputs: [] }] }],
+      },
     ] as any
 
     const stubParseLog = sandbox.stub(Web3Utils, 'parseLog').callsFake(log => log as any)
