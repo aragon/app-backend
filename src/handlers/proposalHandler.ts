@@ -1039,9 +1039,9 @@ export const ProposalHandler = {
         }
 
         if (proposalMetadata) {
-          rawUpdate.title = proposalMetadata.title
-          rawUpdate.description = proposalMetadata.description
-          rawUpdate.summary = proposalMetadata.summary
+          rawUpdate.title = proposalMetadata.title!
+          rawUpdate.description = proposalMetadata.description!
+          rawUpdate.summary = proposalMetadata.summary!
           rawUpdate.resources = proposalMetadata.resources as any
           rawUpdate.media = proposalMetadata.media as any
         }
