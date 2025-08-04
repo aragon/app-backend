@@ -151,7 +151,10 @@ const ProxyContractHelper = {
     try {
       const provider = ProviderModule.getAnyRpcProvider(network)
       const method = provider.getStorageAt ? 'getStorageAt' : 'getStorage'
-      const slotValue = await provider[method](address, slot)
+
+      const slotValue = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => provider[method](address, slot)),
+      )
 
       if (!slotValue || slotValue === '0x' || slotValue.length < 42) {
         return null
