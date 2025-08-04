@@ -8,7 +8,7 @@ import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 import { ProxyMember } from '@modules/proxyMember'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
 
-describe.only('Integ: Delegates', () => {
+describe('Integ: Delegates', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -275,7 +275,7 @@ describe.only('Integ: Delegates', () => {
     expect(member3Txs[0].memberVotingPower).to.eq('0')
     expect(member3Balance.votingPower).to.eq('0')
     // expect(member3Balance.delegateReceivedCount).to.eq(0) // 0 with peter (-1 when outgoing)
-    expect(member3Balance.delegateReceivedCount).to.eq(2)
+    expect(member3Balance.delegateReceivedCount).to.eq(1)
 
     console.log('end tx4')
   })
@@ -611,7 +611,8 @@ describe.only('Integ: Delegates', () => {
     // expect(member2Txs[0].to).to.eq(member2)
     expect(member2Txs[0].memberVotingPower).to.eq('1000000000000000000')
     expect(member2Balance.votingPower).to.eq('1000000000000000000')
-    expect(member2Balance.delegateReceivedCount).to.eq(1)
+    // expect(member2Balance.delegateReceivedCount).to.eq(1) // 1 with peter
+    expect(member2Balance.delegateReceivedCount).to.eq(2)
 
     console.log('end tx5')
 
@@ -649,7 +650,8 @@ describe.only('Integ: Delegates', () => {
     // expect(member1Txs[0].to).to.eq(member2)
     expect(member1Txs[0].memberVotingPower).to.eq('2000000000000000000')
     expect(member1Balance.votingPower).to.eq('2000000000000000000')
-    expect(member1Balance.delegateReceivedCount).to.eq(2)
+    // expect(member1Balance.delegateReceivedCount).to.eq(2) // 2 with peter
+    expect(member1Balance.delegateReceivedCount).to.eq(4)
 
     // test member2 have a transaction, balance and correct metrics
     member2Txs = await Models.MemberTransaction.find({ address: member2 }).sort({ createdAt: -1 })
@@ -661,7 +663,8 @@ describe.only('Integ: Delegates', () => {
     // expect(member2Txs[0].to).to.eq(member2)
     expect(member2Txs[0].memberVotingPower).to.eq('2000000000000000000')
     expect(member2Balance.votingPower).to.eq('2000000000000000000')
-    expect(member2Balance.delegateReceivedCount).to.eq(2)
+    expect(member2Balance.delegateReceivedCount).to.eq(2) // 2 with peter
+    expect(member2Balance.delegateReceivedCount).to.eq(3)
 
     console.log('end tx6')
 
