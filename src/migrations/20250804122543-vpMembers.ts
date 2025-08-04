@@ -12,9 +12,9 @@ export const vpMembersMigration: IMigration = {
     logger.info('Starting migration', llo({ migration: '20250804122543-vpMembers' }))
 
     try {
-      const memberBalancesCollection = mongoose.connection.collection('memberBalances')
-      const memberMetricsCollection = mongoose.connection.collection('memberMetrics')
-      const memberTransactionsCollection = mongoose.connection.collection('memberTransactions')
+      const memberBalancesCollection = mongoose.connection.collection('MemberBalance')
+      const memberMetricsCollection = mongoose.connection.collection('MemberMetric')
+      const memberTransactionsCollection = mongoose.connection.collection('MemberTransaction')
 
       // Query all MemberBalance where votingPower !== '0' and tokenAddress exists
       const memberBalances = await memberBalancesCollection

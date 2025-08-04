@@ -40,11 +40,11 @@ describe('migration: vpMembers', () => {
     // Stub mongoose connection
     sandbox
       .stub(mongoose.connection, 'collection')
-      .withArgs('memberBalances')
+      .withArgs('MemberBalance')
       .returns(mockMemberBalancesCollection)
-      .withArgs('memberMetrics')
+      .withArgs('MemberMetric')
       .returns(mockMemberMetricsCollection)
-      .withArgs('memberTransactions')
+      .withArgs('MemberTransaction')
       .returns(mockMemberTransactionsCollection)
 
     // Stub ProxyMember methods

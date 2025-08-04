@@ -12,8 +12,8 @@ export const pluginMembersMigration: IMigration = {
 
     try {
       // Get the raw MongoDB collections
-      const daoMemberMappingCollection = mongoose.connection.collection('DaoMemberMappings')
-      const memberMetricsCollection = mongoose.connection.collection('MemberMetrics')
+      const daoMemberMappingCollection = mongoose.connection.collection('DaoMemberMapping')
+      const memberMetricsCollection = mongoose.connection.collection('MemberMetric')
 
       // Query all daoMemberMapping documents where tokenAddress is null
       const daoMemberMappings = await daoMemberMappingCollection.find({ tokenAddress: null }).toArray()
