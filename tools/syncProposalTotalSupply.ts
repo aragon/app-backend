@@ -1,4 +1,4 @@
-import { EnumConnection, IClockMode, type IService } from '@types'
+import { EnumConnection, type IService } from '@types'
 import { Models } from '@dbModels'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 
@@ -11,12 +11,15 @@ export const SyncProposalTotalSupply: IService = {
 
     await Promise.all(
       proposals.map(async (proposal: any) => {
+        const token = await Models.Token.findOne({
+          address: proposal.settings.tokenAddress,
+        })
         proposal.snapshot.totalSupply = await GovernanceErc20Helper.getPastTotalSupply({
           blockNumber: proposal.blockNumber,
           tokenAddress: proposal?.settings.tokenAddress,
           network: proposal.network,
-          blockTimestamp: 0,
-          clockMode: IClockMode.BlockNumber,
+          clockMode: token?.clockMode!,
+          blockTimestamp: proposal.blockTimestamp,
         })
 
         proposal.markModified('snapshot')

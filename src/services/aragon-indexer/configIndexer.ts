@@ -19,7 +19,6 @@ import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { SharedLogs } from '@artifacts/shared'
 import { PermissionHandler } from '@src/handlers/permissionHandler'
 import { DaoRegistryHandler } from '@src/handlers/daoRegistryHandler'
-import { LockERC721 } from '@artifacts/LockERC721'
 import { VotingEscrowIncreasing } from '@artifacts/VotingEscrowIncreasing'
 import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
 import { ExitQueue } from '@artifacts/ExitQueue'
@@ -296,16 +295,7 @@ const IndexerEventConfig: IIndexerConfig[] = [
     event: 'Transfer',
     enableHistorical: false,
     topic: new Interface(GovernanceERC20.abi).getEvent('Transfer')?.topicHash!,
-    config: [
-      {
-        abi: GovernanceERC20.abi,
-        handler: GovernanceErc20Handler.transfer,
-      },
-      {
-        abi: LockERC721.abi,
-        handler: GovernanceErc20Handler.transfer,
-      },
-    ],
+    config: [],
   },
   {
     event: 'NativeTokenDeposited',

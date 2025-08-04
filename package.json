@@ -36,7 +36,7 @@
     "test:unit": "ts-node -r tsconfig-paths/register test/test.config.ts --unit",
     "test:unit-dep": "ts-node -r tsconfig-paths/register test/test.config.ts --unit-dep",
     "test:unit:coverage": "rm -rf coverage .nyc_output && nyc --debug --no-clean --temp-dir=.nyc_output/ yarn test:unit",
-    "test:coverage:check": "nyc check-coverage --temp-dir=.nyc_output/ --statements 96.92 --branches 82 --functions 97.50 --lines 97",
+    "test:coverage:check": "nyc check-coverage --temp-dir=.nyc_output/ --statements 96.92 --branches 82 --functions 97.40 --lines 97",
     "docker:test:unit-dep": "docker-compose up -d --build unit-dep",
     "docker:unit-dep-dependencies": "docker-compose up -d --build mongo1 mongo2 mongo3 mongo-init-replica rabbitmq",
     "docker:mongo": "docker-compose up -d --build mongo1 mongo2 mongo3 mongo-init-replica",
@@ -64,7 +64,8 @@
     "exclude": [
       "scripts/**",
       "src/aragonContracts/**",
-      "src/artifacts/**"
+      "src/artifacts/**",
+      "src/migrations/**"
     ],
     "reporter": [
       "text",

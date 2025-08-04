@@ -161,7 +161,7 @@ describe('Modules: BlockScoutProvider', () => {
       const updateProgressStub = ProxyUtils.updateProgressInConfigIndexer as sinon.SinonStub
       expect(updateProgressStub.calledOnce).to.be.true
       expect(updateProgressStub.firstCall.args[0]).to.equal(network)
-      expect(updateProgressStub.firstCall.args[1]).to.equal(`transferList-${address}-${network}`)
+      expect(updateProgressStub.firstCall.args[1]).to.equal(`transferList-${network}-${address}`)
       expect(updateProgressStub.firstCall.args[2]).to.equal(18000001) // Latest block number
     })
 

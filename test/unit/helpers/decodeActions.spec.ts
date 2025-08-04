@@ -1084,12 +1084,14 @@ describe('Helpers: DecodeActions', () => {
       }
 
       const getPluginDetails = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        network: NetworksEnum.ethereumSepolia,
+        tokenAddress: '0xAddress',
         address: action.to,
       })
       const getExistingSettingStub = sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(null)
 
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        address: '0xplugin1',
+        address: '0xAddress',
         name: 'Plugin 1',
         symbol: 'P1',
         decimals: 18,
@@ -1099,6 +1101,7 @@ describe('Helpers: DecodeActions', () => {
       } as any)
 
       const result = await decodeActions._parseTokenVotingSettingUpdateAction(baseAction, action, {
+        network: NetworksEnum.ethereumSepolia,
         blockNumber: 123,
       })
       expect(result?.type).to.be.eq(ProposalActionType.UpdateVoteSettings)
@@ -1170,6 +1173,7 @@ describe('Helpers: DecodeActions', () => {
       })
       const getPluginSettingsStub = sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(null)
       const result = await decodeActions._parseMultiSigSettingUpdateAction(baseAction, action, {
+        network: NetworksEnum.ethereumSepolia,
         blockNumber: 123,
       })
       expect(getPluginDetailsStub.calledOnce).to.be.true
