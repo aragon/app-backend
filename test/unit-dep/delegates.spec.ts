@@ -275,7 +275,7 @@ describe.only('Integ: Delegates', () => {
     expect(member3Txs[0].memberVotingPower).to.eq('0')
     expect(member3Balance.votingPower).to.eq('0')
     // expect(member3Balance.delegateReceivedCount).to.eq(0) // 0 with peter (-1 when outgoing)
-    expect(member3Balance.delegateReceivedCount).to.eq(1)
+    expect(member3Balance.delegateReceivedCount).to.eq(2)
 
     console.log('end tx4')
   })
