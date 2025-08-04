@@ -140,10 +140,17 @@ const IndexerEventConfig: IIndexerConfig[] = [
   {
     event: 'VotingSettingsUpdated',
     enableHistorical: false,
-    topic: new Interface(TokenVoting.abi).getEvent('VotingSettingsUpdated')?.topicHash!,
+    topic: [
+      new Interface(TokenVoting.abi).getEvent('VotingSettingsUpdated')?.topicHash!,
+      new Interface(LockToVote.abi).getEvent('VotingSettingsUpdated')?.topicHash!,
+    ],
     config: [
       {
         abi: TokenVoting.abi,
+        handler: PluginSettingHandler.votingSettingsUpdated,
+      },
+      {
+        abi: LockToVote.abi,
         handler: PluginSettingHandler.votingSettingsUpdated,
       },
     ],
@@ -460,10 +467,10 @@ const IndexerEventConfig: IIndexerConfig[] = [
   {
     event: 'BalanceLocked',
     enableHistorical: false,
-    topic: new Interface(ExecuteSelectorCondition.abi).getEvent('Execute')?.topicHash!,
+    topic: new Interface(LockManager.abi).getEvent('BalanceLocked')?.topicHash!,
     config: [
       {
-        abi: ExecuteSelectorCondition.abi,
+        abi: LockManager.abi,
         handler: LockManagerHandler.balanceLocked,
       },
     ],
@@ -471,10 +478,10 @@ const IndexerEventConfig: IIndexerConfig[] = [
   {
     event: 'BalanceUnlocked',
     enableHistorical: false,
-    topic: new Interface(LockManager.abi).getEvent('Execute')?.topicHash!,
+    topic: new Interface(LockManager.abi).getEvent('BalanceUnlocked')?.topicHash!,
     config: [
       {
-        abi: ExecuteSelectorCondition.abi,
+        abi: LockManager.abi,
         handler: LockManagerHandler.balanceUnlocked,
       },
     ],

@@ -11,6 +11,7 @@ export enum IndexerType {
   token = 'token',
   permission = 'permission',
   transferList = 'transferList',
+  lockManager = 'lockManager',
 }
 
 export enum IEnumIndexerService {
@@ -28,6 +29,7 @@ export type LogServicePattern =
   | TokenLogService
   | PermissionLogService
   | TransferListLogService
+  | LockManagerLogService
   | null
 
 // Individual pattern types
@@ -39,6 +41,7 @@ export type DaoLogService = `${IndexerType.dao}-${NetworksEnum}-${string}`
 export type PermissionLogService = `${IndexerType.permission}-${NetworksEnum}-${string}`
 export type TransferListLogService = `${IndexerType.transferList}-${NetworksEnum}-${string}`
 export type TokenLogService = `${ITokenType}-${NetworksEnum}-${string}`
+export type LockManagerLogService = `${IndexerType.lockManager}-${NetworksEnum}-${string}`
 
 // Type for parsed log service info
 export type LogServiceInfo =
@@ -50,3 +53,4 @@ export type LogServiceInfo =
   | { type: IndexerType.transferList; network: NetworksEnum; address: string }
   | { type: IndexerType.plugin; interfaceType: IPluginInterfaceType; network: NetworksEnum; address: string }
   | { type: IndexerType.token; tokenType: ITokenType; network: NetworksEnum; address: string }
+  | { type: IndexerType.lockManager; network: NetworksEnum; address: string }

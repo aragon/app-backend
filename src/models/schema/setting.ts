@@ -166,6 +166,9 @@ export default class Setting extends Model {
   @prop({ type: () => String })
   public minProposerVotingPower!: string
 
+  @prop({ type: () => Number })
+  public proposalDuration!: number
+
   // SPP plugin
   @prop({ type: () => [Stages], _id: false })
   public stages!: Stages[]

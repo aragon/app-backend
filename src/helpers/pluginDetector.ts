@@ -74,7 +74,9 @@ const PluginDetector = {
         return functions.every(hasFunction)
       }
 
-      if (hasFunctions(PluginDetector.TOKEN_VOTING_FUNCTIONS)) {
+      if (hasFunctions(PluginDetector.LOCK_TO_VOTE_FUNCTIONS)) {
+        pluginDetails.type = IPluginInterfaceType.lockToVote
+      } else if (hasFunctions(PluginDetector.TOKEN_VOTING_FUNCTIONS)) {
         pluginDetails.type = IPluginInterfaceType.tokenVoting
       } else if (hasFunctions(PluginDetector.SPP_FUNCTIONS)) {
         pluginDetails.type = IPluginInterfaceType.spp
@@ -84,8 +86,6 @@ const PluginDetector = {
         pluginDetails.type = IPluginInterfaceType.admin
       } else if (hasFunctions(PluginDetector.GAUGE_VOTER_FUNCTIONS)) {
         pluginDetails.type = IPluginInterfaceType.gauge
-      } else if (hasFunctions(PluginDetector.LOCK_TO_VOTE_FUNCTIONS)) {
-        pluginDetails.type = IPluginInterfaceType.lockToVote
       } else {
         pluginDetails.type = IPluginInterfaceType.unknown
       }

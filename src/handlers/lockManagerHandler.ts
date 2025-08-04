@@ -15,7 +15,11 @@ const LockManagerHandler = {
     const voterAddress = parsedEvent.args.voter
     const amount = parsedEvent.args.amount.toString()
     try {
-      const plugin = await Models.Plugin.findByAddress(info.address, info.network)
+      const plugin = await Models.Plugin.findOne({
+        lockManagerAddress: info.address,
+        network: info.network,
+      })
+
       if (!plugin) {
         logger.warn('BalanceLocked - Plugin not found', llo(info))
         return
@@ -23,7 +27,7 @@ const LockManagerHandler = {
 
       const existingMember = await Models.LockManagerMember.findMemberByPlugin({
         network: info.network,
-        pluginAddress: info.address,
+        pluginAddress: plugin.address,
         memberAddress: voterAddress,
       })
 
@@ -46,7 +50,7 @@ const LockManagerHandler = {
       } else {
         const lockManagerMemberData = {
           network: info.network,
-          pluginAddress: info.address,
+          pluginAddress: plugin.address,
           memberAddress: voterAddress,
           daoAddress: plugin.daoAddress,
           votingPower: amount,
@@ -65,7 +69,7 @@ const LockManagerHandler = {
           memberAddress: voterAddress,
           daoAddress: plugin.daoAddress,
           network: info.network,
-          pluginAddress: info.address,
+          pluginAddress: plugin.address,
         }
 
         const isMember = await ProxyMember.isMemberOfDao(memberShipParams)
@@ -76,13 +80,13 @@ const LockManagerHandler = {
         await Promise.all([
           ProxyMember.updateActivity({
             memberAddress: voterAddress,
-            pluginAddress: info.address,
+            pluginAddress: plugin.address,
             blockNumber: info.blockNumber,
             network: info.network,
           }),
           ProxyMember.createMetrics({
             address: voterAddress,
-            pluginAddress: info.address,
+            pluginAddress: plugin.address,
             network: info.network,
           }),
           RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
@@ -103,7 +107,11 @@ const LockManagerHandler = {
       const voterAddress = parsedEvent.args.voter
       const amount = parsedEvent.args.amount.toString()
 
-      const plugin = await Models.Plugin.findByAddress(info.address, info.network)
+      const plugin = await Models.Plugin.findOne({
+        lockManagerAddress: info.address,
+        network: info.network,
+      })
+
       if (!plugin) {
         logger.warn('BalanceUnlocked - Plugin not found', llo(info))
         return
@@ -111,7 +119,7 @@ const LockManagerHandler = {
 
       const existingMember = await Models.LockManagerMember.findMemberByPlugin({
         network: info.network,
-        pluginAddress: info.address,
+        pluginAddress: plugin.address,
         memberAddress: voterAddress,
       })
 
@@ -140,7 +148,7 @@ const LockManagerHandler = {
         memberAddress: voterAddress,
         daoAddress: plugin.daoAddress,
         network: info.network,
-        pluginAddress: info.address,
+        pluginAddress: plugin.address,
       }
 
       const isMember = await ProxyMember.isMemberOfDao(memberShipParams)

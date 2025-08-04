@@ -387,12 +387,12 @@ export const PluginSetupProcessorHandler = {
 
     if (tokenAddress) {
       const result = await PluginSetupProcessorHandler.findVotingEscrow(tokenAddress, info)
-      const lockManager = await LockToVoteHelper.getLockManager(info.network, pluginDb.address)
+      const lockManagerAddress = await LockToVoteHelper.getLockManager(info.network, pluginDb.address)
       const votingEscrow = result || null
 
       await DbOperations.updateDocument(
         pluginDb,
-        { tokenAddress, votingEscrow, lockManager },
+        { tokenAddress, votingEscrow, lockManagerAddress },
         info,
         'Update Voting plugin token',
         llo,
