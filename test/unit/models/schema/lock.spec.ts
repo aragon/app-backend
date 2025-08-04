@@ -66,8 +66,13 @@ describe('Model: Lock', () => {
     })
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     sandbox?.restore()
+    // Clean up database to prevent test interference
+    await Models.Lock.deleteMany({})
+    await Models.Member.deleteMany({})
+    await Models.VpMember.deleteMany({})
+    await Models.Token.deleteMany({})
   })
 
   describe('it should create lock', () => {

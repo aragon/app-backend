@@ -188,9 +188,10 @@ export const ProxyMember = {
 
         if (params.votingPower !== undefined) {
           updateData.votingPower = params.votingPower.toString()
-        } else if (params.votingPower === '0') {
           // If voting power is 0, always set tokenIds to empty array
-          updateData.tokenIds = []
+          if (params.votingPower === '0') {
+            updateData.tokenIds = []
+          }
         }
 
         if (params.tokenIds !== undefined) {

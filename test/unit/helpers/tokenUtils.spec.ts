@@ -18,12 +18,6 @@ describe('TokenUtils', () => {
     type: ITokenType.ERC20,
   } as any
 
-  before(async () => {
-    // Ensure models are loaded
-    const { ModelProxy } = await import('@src/models')
-    await ModelProxy.setMongoModels()
-  })
-
   beforeEach(() => {
     sandbox = sinon.createSandbox()
     sandbox.stub(logger, 'error').returns(undefined as any)

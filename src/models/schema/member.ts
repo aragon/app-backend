@@ -223,6 +223,18 @@ export default class Member extends Model {
             },
           },
         },
+        AggregationQueryHelper.vpMember(
+          {
+            tokenAddress: '$daoPlugin.tokenAddress',
+            network: '$daoPlugin.network',
+            memberAddress: '$address',
+          },
+          'vpMember',
+          {
+            votingPower: 1,
+            delegateReceivedCount: 1,
+          },
+        ),
         {
           $addFields: {
             vpMember: {

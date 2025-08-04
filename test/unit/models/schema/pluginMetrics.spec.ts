@@ -10,12 +10,6 @@ describe('Model: PluginMetrics', () => {
   let sandbox: SinonSandbox
   let rawPluginMetrics: Partial<PluginMetrics>
 
-  before(async () => {
-    // Ensure models are loaded when running test directly
-    const { ModelProxy } = await import('@src/models')
-    await ModelProxy.setMongoModels()
-  })
-
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
 
@@ -31,8 +25,10 @@ describe('Model: PluginMetrics', () => {
     }
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     sandbox?.restore()
+    // Clean up database to prevent duplicate key errors
+    await Models.PluginMetrics.deleteMany({})
   })
 
   it('Should create PluginMetrics', async () => {
@@ -104,34 +100,42 @@ describe('Model: PluginMetrics', () => {
   })
 
   it('should findByPlugin', async () => {
-    await Models.PluginMetrics.create(rawPluginMetrics)
-    const anotherMember = {
+    // Use unique addresses for this test
+    const testPlugin = '0xC23456789012345678901234567890123456789D'
+    const member1 = { ...rawPluginMetrics, pluginAddress: testPlugin }
+    const member2 = {
       ...rawPluginMetrics,
       memberAddress: '0x223456789012345678901234567890123456789A',
+      pluginAddress: testPlugin,
     }
-    await Models.PluginMetrics.create(anotherMember)
+    await Models.PluginMetrics.create(member1)
+    await Models.PluginMetrics.create(member2)
 
-    const pluginMetrics = await Models.PluginMetrics.findByPlugin(
-      rawPluginMetrics.network!,
-      rawPluginMetrics.pluginAddress!,
-    )
+    const pluginMetrics = await Models.PluginMetrics.findByPlugin(rawPluginMetrics.network!, testPlugin)
     expect(pluginMetrics).to.have.lengthOf(2)
-    expect(pluginMetrics[0].pluginAddress).to.eq(rawPluginMetrics.pluginAddress)
-    expect(pluginMetrics[1].pluginAddress).to.eq(rawPluginMetrics.pluginAddress)
+    expect(pluginMetrics[0].pluginAddress).to.eq(testPlugin)
+    expect(pluginMetrics[1].pluginAddress).to.eq(testPlugin)
   })
 
   it('should findByDao', async () => {
-    await Models.PluginMetrics.create(rawPluginMetrics)
-    const anotherMember = {
+    // Use unique addresses for this test
+    const testDao = '0xD23456789012345678901234567890123456789E'
+    const testPlugin1 = '0xE23456789012345678901234567890123456789F'
+    const testPlugin2 = '0xF234567890123456789012345678901234567890'
+    const member1 = { ...rawPluginMetrics, daoAddress: testDao, pluginAddress: testPlugin1 }
+    const member2 = {
       ...rawPluginMetrics,
-      memberAddress: '0x223456789012345678901234567890123456789A',
+      memberAddress: '0x323456789012345678901234567890123456789B',
+      daoAddress: testDao,
+      pluginAddress: testPlugin2,
     }
-    await Models.PluginMetrics.create(anotherMember)
+    await Models.PluginMetrics.create(member1)
+    await Models.PluginMetrics.create(member2)
 
-    const daoMetrics = await Models.PluginMetrics.findByDao(rawPluginMetrics.network!, rawPluginMetrics.daoAddress!)
+    const daoMetrics = await Models.PluginMetrics.findByDao(rawPluginMetrics.network!, testDao)
     expect(daoMetrics).to.have.lengthOf(2)
-    expect(daoMetrics[0].daoAddress).to.eq(rawPluginMetrics.daoAddress)
-    expect(daoMetrics[1].daoAddress).to.eq(rawPluginMetrics.daoAddress)
+    expect(daoMetrics[0].daoAddress).to.eq(testDao)
+    expect(daoMetrics[1].daoAddress).to.eq(testDao)
   })
 
   it('should update PluginMetrics', async () => {
@@ -170,11 +174,21 @@ describe('Model: PluginMetrics', () => {
   })
 
   it('should handle metrics for different networks', async () => {
-    await Models.PluginMetrics.create(rawPluginMetrics)
+    // Use unique addresses for this test
+    const testMember = '0x423456789012345678901234567890123456789C'
+    const testPlugin = '0x523456789012345678901234567890123456789D'
+    const ethMetricsData = {
+      ...rawPluginMetrics,
+      memberAddress: testMember,
+      pluginAddress: testPlugin,
+    }
+    await Models.PluginMetrics.create(ethMetricsData)
 
     // Create same member/plugin combination on different network
     const polygonMetrics = {
       ...rawPluginMetrics,
+      memberAddress: testMember,
+      pluginAddress: testPlugin,
       network: NetworksEnum.polygonMainnet,
       voteCount: 15,
       proposalCount: 8,
@@ -183,9 +197,9 @@ describe('Model: PluginMetrics', () => {
 
     // Find by Ethereum network
     const ethMetrics = await Models.PluginMetrics.findByPluginAndMember(
-      rawPluginMetrics.network!,
-      rawPluginMetrics.pluginAddress!,
-      rawPluginMetrics.memberAddress!,
+      NetworksEnum.ethereumMainnet,
+      testPlugin,
+      testMember,
     )
     expect(ethMetrics?.voteCount).to.eq(10)
     expect(ethMetrics?.network).to.eq(NetworksEnum.ethereumMainnet)
@@ -193,8 +207,8 @@ describe('Model: PluginMetrics', () => {
     // Find by Polygon network
     const polyMetrics = await Models.PluginMetrics.findByPluginAndMember(
       NetworksEnum.polygonMainnet,
-      rawPluginMetrics.pluginAddress!,
-      rawPluginMetrics.memberAddress!,
+      testPlugin,
+      testMember,
     )
     expect(polyMetrics?.voteCount).to.eq(15)
     expect(polyMetrics?.network).to.eq(NetworksEnum.polygonMainnet)

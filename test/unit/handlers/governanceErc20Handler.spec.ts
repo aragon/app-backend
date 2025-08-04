@@ -266,7 +266,7 @@ describe('GovernanceErc20Handler', () => {
         tokenAddress: '0xTokenAddress',
         network,
         votingPower: '2000',
-        delegateReceivedCount: 0
+        delegateReceivedCount: 0,
       } as any)
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
@@ -288,15 +288,17 @@ describe('GovernanceErc20Handler', () => {
       expect(createMemberStub.calledOnce).to.be.true
       expect(createMemberStub.calledWith(memberAddress, undefined)).to.be.true
 
-      // Verify updateVotingPower was called  
+      // Verify updateVotingPower was called
       expect(updateVotingPowerStub.calledOnce).to.be.true
-      expect(updateVotingPowerStub.calledWith({
-        memberAddress,
-        tokenAddress: info.address,
-        votingPower: '2000',
-        network: info.network,
-        lastVPBlockNumber: info.blockNumber,
-      })).to.be.true
+      expect(
+        updateVotingPowerStub.calledWith({
+          memberAddress,
+          tokenAddress: info.address,
+          votingPower: '2000',
+          network: info.network,
+          lastVPBlockNumber: info.blockNumber,
+        }),
+      ).to.be.true
     })
 
     it('should handle outgoing delegateVotesChanged event and update plugin metrics', async () => {
@@ -340,7 +342,7 @@ describe('GovernanceErc20Handler', () => {
         tokenAddress: '0xTokenAddress',
         network,
         votingPower: '1000',
-        delegateReceivedCount: 0
+        delegateReceivedCount: 0,
       } as any)
       const updatePluginMetricsStub = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
@@ -364,13 +366,15 @@ describe('GovernanceErc20Handler', () => {
 
       // Verify updateVotingPower was called
       expect(updateVotingPowerStub.calledOnce).to.be.true
-      expect(updateVotingPowerStub.calledWith({
-        memberAddress,
-        tokenAddress: info.address,
-        votingPower: '1000',
-        network: info.network,
-        lastVPBlockNumber: info.blockNumber,
-      })).to.be.true
+      expect(
+        updateVotingPowerStub.calledWith({
+          memberAddress,
+          tokenAddress: info.address,
+          votingPower: '1000',
+          network: info.network,
+          lastVPBlockNumber: info.blockNumber,
+        }),
+      ).to.be.true
 
       // Verify updatePluginMetrics was called for outgoing transfer
       expect(updatePluginMetricsStub.calledOnce).to.be.true
@@ -441,7 +445,7 @@ describe('GovernanceErc20Handler', () => {
         tokenAddress: '0xTokenAddress',
         network,
         votingPower: '1000',
-        delegateReceivedCount: 0
+        delegateReceivedCount: 0,
       } as any)
       const updatePluginMetricsStub = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
@@ -527,7 +531,7 @@ describe('GovernanceErc20Handler', () => {
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('0')
       sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
       sandbox.stub(ProxyMember, 'createMember').resolves({} as any)
-      const updateVotingPowerStub = sandbox.stub(ProxyMember, 'updateVotingPower').callsFake(async (params) => {
+      const updateVotingPowerStub = sandbox.stub(ProxyMember, 'updateVotingPower').callsFake(async params => {
         // Update the existing VpMember with the new voting power
         existingVpMember.votingPower = params.votingPower
         await existingVpMember.save()

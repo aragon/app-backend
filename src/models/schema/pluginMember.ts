@@ -93,6 +93,19 @@ export default class PluginMember extends Model {
     return this.find({ pluginAddress, network }, null, tOpts)
   }
 
+  static async findAllMembersOfDao(
+    {
+      daoAddress,
+      network,
+    }: {
+      daoAddress: HexAddress
+      network: NetworksEnum
+    },
+    tOpts?: SaveOptions,
+  ) {
+    return this.find({ daoAddress, network }, null, tOpts)
+  }
+
   static async findAndPaginate({
     paginationParams = {},
     extraParams = {},
@@ -150,6 +163,17 @@ export default class PluginMember extends Model {
           lastActivity: 1,
         },
       ),
+      {
+        $addFields: {
+          memberMetrics: {
+            $cond: {
+              if: { $gt: [{ $size: '$memberMetrics' }, 0] },
+              then: { $arrayElemAt: ['$memberMetrics', 0] },
+              else: null,
+            },
+          },
+        },
+      },
       {
         $project: {
           _id: 0,

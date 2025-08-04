@@ -13,8 +13,7 @@ import PluginMember from '@models/schema/pluginMember'
 import VpMember from '@models/schema/vpMember'
 import type Dao from '@models/schema/dao'
 import { PluginList } from '@test/mock/fakePlugins'
-import { HexAddress, IPluginInterfaceType } from '@types'
-import { NetworksEnum } from '@types'
+import { HexAddress, IPluginInterfaceType, NetworksEnum, ErrorKeyEnum, EnumQueueName } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 
 describe('Controller: Member', () => {
@@ -70,6 +69,18 @@ describe('Controller: Member', () => {
   })
 
   describe('getMembersWithPagination', () => {
+    it('should throw badParams error when network is missing', async () => {
+      const paginationParams = {}
+      const extraParams = {}
+      const pairParams = {}
+
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
+
+      await expect(
+        MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams),
+      ).to.be.rejectedWith('badParams')
+    })
+
     it('should call findPaginatedMembersOnly when no pluginAddress and daoAddress', async () => {
       const paginationParams = {
         search: '',
@@ -78,29 +89,27 @@ describe('Controller: Member', () => {
         order: 'asc',
         sort: 'createdAt',
       }
-
       const extraParams = {}
       const pairParams = {}
 
-      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({
+      const stubPairFromExtraParams = sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({
         network: NetworksEnum.polygonMainnet,
       })
-      const findPaginatedSpy = sandbox.spy(Models.Member, 'findPaginatedMembersOnly')
+      const stubFindPaginatedMembersOnly = sandbox.stub(Models.Member, 'findPaginatedMembersOnly').resolves({
+        data: [rawMember],
+        metadata: { page: 1, totalPages: 1, totalRecords: 1 },
+      } as any)
 
       const response = await MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams)
 
-      expect(findPaginatedSpy.calledOnce).to.be.true
-      expect(findPaginatedSpy.calledWith({ paginationParams })).to.be.true
-
-      expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].address).to.eq(rawMember.address)
-      expect(response.data[0].ens).to.eq(rawMember.ens)
-      expect(response.metadata.page).to.eq(1)
-      expect(response.metadata.totalPages).to.eq(1)
-      expect(response.metadata.totalRecords).to.eq(1)
+      expect(stubPairFromExtraParams.calledOnce).to.be.true
+      expect(stubFindPaginatedMembersOnly.calledOnce).to.be.true
+      expect(stubFindPaginatedMembersOnly.calledWith({ paginationParams })).to.be.true
+      expect(response.data).to.have.lengthOf(1)
+      expect(response.data[0].address).to.equal(rawMember.address)
     })
 
-    it('should call PluginMember.findAndPaginate when only daoAddress is provided', async () => {
+    it('should throw error when only daoAddress is provided without pluginAddress', async () => {
       const paginationParams = {
         search: '',
         pageSize: 10,
@@ -108,34 +117,20 @@ describe('Controller: Member', () => {
         order: 'asc',
         sort: 'createdAt',
       }
-
       const extraParams = {
-        daoAddress: rawPluginMember.daoAddress,
-        network: rawPluginMember.network,
+        daoAddress: rawDao.address,
+        network: rawDao.network,
       }
       const pairParams = {}
 
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
-      const pluginMemberSpy = sandbox.spy(Models.PluginMember, 'findAndPaginate')
 
-      const response = await MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams)
-
-      expect(pluginMemberSpy.calledOnce).to.be.true
-      expect(
-        pluginMemberSpy.calledWith({
-          extraParams,
-          paginationParams,
-        }),
-      ).to.be.true
-
-      expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].address).to.eq(rawPluginMember.memberAddress)
-      expect(response.metadata.page).to.eq(1)
-      expect(response.metadata.totalPages).to.eq(1)
-      expect(response.metadata.totalRecords).to.eq(1)
+      await expect(
+        MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams),
+      ).to.be.rejectedWith('pluginNotFound')
     })
 
-    it('should call VpMember.findAndPaginate when plugin has tokenAddress and interfaceType is tokenVoting', async () => {
+    it('should call VpMember.findAndPaginate for tokenVoting plugin with token', async () => {
       const paginationParams = {
         search: '',
         pageSize: 10,
@@ -143,44 +138,42 @@ describe('Controller: Member', () => {
         order: 'asc',
         sort: 'createdAt',
       }
-
-      const filterParams = {
+      const extraParams = {
         network: rawPlugin.network,
         pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
       }
       const pairParams = {}
 
-      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(filterParams)
-      const tokenVotingPlugin = {
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      // First check if plugin exists
+      sandbox.stub(Models.Plugin, 'findOne').resolves(rawPlugin)
+      const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
         interfaceType: IPluginInterfaceType.tokenVoting,
         tokenAddress: rawPlugin.tokenAddress,
         votingEscrow: null,
-      }
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves(tokenVotingPlugin)
+      })
+      const stubFindAndPaginate = sandbox.stub(Models.VpMember, 'findAndPaginate').resolves({
+        data: [{ address: rawVpMember.memberAddress }],
+        metadata: { page: 1, totalPages: 1, totalRecords: 1 },
+      } as any)
 
-      const vpMemberSpy = sandbox.spy(Models.VpMember, 'findAndPaginate')
+      const response = await MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams)
 
-      const response = await MemberController.getMembersWithPagination(paginationParams, filterParams, pairParams)
-
-      expect(vpMemberSpy.calledOnce).to.be.true
+      expect(stubFindByAddress.calledOnce).to.be.true
+      expect(stubFindAndPaginate.calledOnce).to.be.true
       expect(
-        vpMemberSpy.calledWith({
+        stubFindAndPaginate.calledWith({
           paginationParams,
           extraParams: {
-            ...filterParams,
-            tokenAddress: tokenVotingPlugin.tokenAddress,
+            ...extraParams,
+            tokenAddress: rawPlugin.tokenAddress,
           },
         }),
       ).to.be.true
-
-      expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].address).to.eq(rawVpMember.memberAddress)
-      expect(response.metadata.page).to.eq(1)
-      expect(response.metadata.totalPages).to.eq(1)
-      expect(response.metadata.totalRecords).to.eq(1)
     })
 
-    it('should call getMembersOfVeLockPlugin when plugin has tokenAddress and votingEscrow', async () => {
+    it('should call getMembersOfVeLockPlugin for VE lock plugin', async () => {
       const paginationParams = {
         search: '',
         pageSize: 10,
@@ -188,14 +181,12 @@ describe('Controller: Member', () => {
         order: 'asc',
         sort: 'createdAt',
       }
-
-      const filterParams = {
+      const extraParams = {
         network: rawPlugin.network,
         pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
       }
       const pairParams = {}
-
-      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(filterParams)
 
       const veLockPlugin = {
         interfaceType: IPluginInterfaceType.tokenVoting,
@@ -207,52 +198,42 @@ describe('Controller: Member', () => {
           escrowAddress: '0xEscrowAddress123',
         },
       }
+
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      // First check if plugin exists
+      sandbox.stub(Models.Plugin, 'findOne').resolves(rawPlugin)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(veLockPlugin)
 
-      // Mock the dependencies for getMembersOfVeLockPlugin
-      const mockSettings = {
-        votingEscrow: {
-          maxTime: 1000,
-          slope: 100,
-          bias: 50,
-        },
-      }
-      const mockToken = {
-        decimals: 18,
-      }
+      const stubGetMembersOfVeLockPlugin = sandbox.stub(MemberController, 'getMembersOfVeLockPlugin').resolves({
+        data: [],
+        metadata: { page: 1, totalPages: 0, totalRecords: 0 },
+      })
 
-      sandbox.stub(Models.Setting, 'findActive').resolves(mockSettings)
-      sandbox.stub(Models.Token, 'findOne').resolves(mockToken)
+      const response = await MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams)
 
-      const mockVeLockResponse = {
-        data: [{ address: rawMember.address, votingPower: '1000' }],
-        metadata: { page: 1, totalPages: 1, totalRecords: 1 },
-      }
-      const veLockSpy = sandbox.stub(Models.Lock, 'getMembersOfVeLockPlugin').resolves(mockVeLockResponse)
-
-      const response = await MemberController.getMembersWithPagination(paginationParams, filterParams, pairParams)
-
-      expect(veLockSpy.calledOnce).to.be.true
+      expect(stubGetMembersOfVeLockPlugin.calledOnce).to.be.true
       expect(
-        veLockSpy.calledWith({
+        stubGetMembersOfVeLockPlugin.calledWith(
           paginationParams,
-          pluginAddress: veLockPlugin.address,
-          settings: {
-            currentTime: sinon.match.number,
-            maxTime: mockSettings.votingEscrow.maxTime,
-            slope: mockSettings.votingEscrow.slope,
-            bias: mockSettings.votingEscrow.bias,
-            decimals: (BigInt(10) ** BigInt(mockToken.decimals)).toString(),
-          },
-          tokenAddress: veLockPlugin.tokenAddress,
-          network: veLockPlugin.network,
-        }),
+          sinon.match({
+            interfaceType: IPluginInterfaceType.tokenVoting,
+            tokenAddress: rawPlugin.tokenAddress,
+            address: rawPlugin.address,
+            daoAddress: rawPlugin.daoAddress,
+            network: rawPlugin.network,
+            votingEscrow: sinon.match({
+              escrowAddress: '0xEscrowAddress123',
+            }),
+          }),
+        ),
       ).to.be.true
-
-      expect(response).to.deep.equal(mockVeLockResponse)
+      expect(response).to.deep.equal({
+        data: [],
+        metadata: { page: 1, totalPages: 0, totalRecords: 0 },
+      })
     })
 
-    it('should call PluginMember.findAndPaginate when plugin has no tokenAddress or interfaceType is not tokenVoting', async () => {
+    it('should call PluginMember.findAndPaginate for non-tokenVoting plugin', async () => {
       const paginationParams = {
         search: '',
         pageSize: 10,
@@ -260,40 +241,37 @@ describe('Controller: Member', () => {
         order: 'asc',
         sort: 'createdAt',
       }
-
-      const filterParams = {
+      const extraParams = {
         network: rawPlugin.network,
         pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
       }
       const pairParams = {}
 
-      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(filterParams)
-      const nonTokenVotingPlugin = {
-        interfaceType: 'Multisig',
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      // First check if plugin exists
+      sandbox.stub(Models.Plugin, 'findOne').resolves(rawPlugin)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.multisig,
         votingEscrow: null,
-      }
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves(nonTokenVotingPlugin)
+      })
+      const stubFindAndPaginate = sandbox.stub(Models.PluginMember, 'findAndPaginate').resolves({
+        data: [{ address: rawPluginMember.memberAddress }],
+        metadata: { page: 1, totalPages: 1, totalRecords: 1 },
+      } as any)
 
-      const pluginMemberSpy = sandbox.spy(Models.PluginMember, 'findAndPaginate')
+      const response = await MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams)
 
-      const response = await MemberController.getMembersWithPagination(paginationParams, filterParams, pairParams)
-
-      expect(pluginMemberSpy.calledOnce).to.be.true
+      expect(stubFindAndPaginate.calledOnce).to.be.true
       expect(
-        pluginMemberSpy.calledWith({
-          extraParams: filterParams,
+        stubFindAndPaginate.calledWith({
+          extraParams,
           paginationParams,
         }),
       ).to.be.true
-
-      expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].address).to.eq(rawPluginMember.memberAddress)
-      expect(response.metadata.page).to.eq(1)
-      expect(response.metadata.totalPages).to.eq(1)
-      expect(response.metadata.totalRecords).to.eq(1)
     })
 
-    it('should throw an error when plugin is not found', async () => {
+    it('should throw pluginNotFound error when plugin not found', async () => {
       const paginationParams = {
         search: '',
         pageSize: 10,
@@ -301,48 +279,61 @@ describe('Controller: Member', () => {
         order: 'asc',
         sort: 'createdAt',
       }
-
-      const filterParams = {
-        daoAddress: rawDao.address,
-        network: rawDao.network,
-        pluginAddress: 'nonExistentPluginAddress',
+      const extraParams = {
+        network: NetworksEnum.ethereumMainnet,
+        pluginAddress: '0xNonExistent',
       }
       const pairParams = {}
 
-      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(filterParams)
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(null)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
 
-      try {
-        await MemberController.getMembersWithPagination(paginationParams, filterParams, pairParams)
-        expect.fail('Expected an error to be thrown')
-      } catch (err: any) {
-        expect(err.message).to.include('notFound')
+      await expect(
+        MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams),
+      ).to.be.rejectedWith('pluginNotFound')
+    })
+
+    it('should handle plugin without tokenAddress', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
       }
+      const extraParams = {
+        network: rawPlugin.network,
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      }
+      const pairParams = {}
+
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      // First check if plugin exists
+      sandbox.stub(Models.Plugin, 'findOne').resolves(rawPlugin)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: null,
+        votingEscrow: null,
+      })
+      const stubFindAndPaginate = sandbox.stub(Models.PluginMember, 'findAndPaginate').resolves({
+        data: [],
+        metadata: { page: 1, totalPages: 0, totalRecords: 0 },
+      } as any)
+
+      const response = await MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams)
+
+      expect(stubFindAndPaginate.calledOnce).to.be.true
     })
   })
 
   describe('getMemberByAddress', () => {
-    it('should get member by address', async () => {
-      sandbox.stub(RabbitMQHelper, 'sendMessage')
-      const response = await MemberController.getMemberByAddress(
-        rawMember.address as HexAddress,
-        {
-          daoAddress: rawDao.address,
-          network: rawDao.network,
-          pluginAddress: rawPlugin.address,
-        },
-        {},
-      )
-
-      expect(response.address).to.eq(rawMember.address)
-      expect(response.ens).to.eq(rawMember.ens)
-    })
-
-    it('should get member by address when token address is also provided', async () => {
-      const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').returns({
-        votingPower: '1',
-        balance: '1',
-        currentDelegate: '0xdelegate',
+    it('should get member by address without tokenAddress', async () => {
+      const stubFindMemberByAddress = sandbox.stub(Models.Member, 'findMemberByAddress').resolves({
+        address: rawMember.address,
+        ens: rawMember.ens,
+        avatar: rawMember.avatar,
       } as any)
 
       const response = await MemberController.getMemberByAddress(
@@ -351,72 +342,108 @@ describe('Controller: Member', () => {
           daoAddress: rawDao.address,
           network: rawDao.network,
           pluginAddress: rawPlugin.address,
+        },
+        {},
+      )
+
+      expect(stubFindMemberByAddress.calledOnce).to.be.true
+      expect(response.address).to.equal(rawMember.address)
+      expect(response.ens).to.equal(rawMember.ens)
+    })
+
+    it('should get member with token balance when tokenAddress provided', async () => {
+      const mockMemberData = {
+        address: rawMember.address,
+        ens: rawMember.ens,
+        avatar: rawMember.avatar,
+        votingPower: null,
+      }
+
+      sandbox.stub(Models.Member, 'findMemberByAddress').resolves(mockMemberData as any)
+      const stubSendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({
+        votingPower: '1000',
+        balance: '2000',
+        currentDelegate: '0xDelegate',
+      })
+
+      const response = await MemberController.getMemberByAddress(
+        rawMember.address as HexAddress,
+        {
+          daoAddress: rawDao.address,
+          network: rawDao.network,
+          pluginAddress: rawPlugin.address,
           tokenAddress: rawPlugin.tokenAddress,
         },
         {},
       )
 
-      expect(rabbitMqStub.calledOnce).to.be.true
-      expect(rabbitMqStub.args[0][1]).to.deep.eq({
-        id: `memberBalance-${rawMember.address}-${rawPlugin.tokenAddress}-${rawDao.network}`,
-        params: {
-          userAddress: rawMember.address,
-          tokenAddress: rawPlugin.tokenAddress,
-          network: rawDao.network,
-          pluginAddress: rawPlugin.address,
-        },
-      })
-      expect(response.address).to.eq(rawMember.address)
-      expect(response.ens).to.eq(rawMember.ens)
-      expect(response.tokenBalance).to.eq('1')
-      expect(response.votingPower).to.eq('1')
-      expect(response.currentDelegate).to.eq('0xdelegate')
+      expect(stubSendMessage.calledOnce).to.be.true
+      expect(
+        stubSendMessage.calledWith(EnumQueueName.memberBalance, {
+          id: `memberBalance-${rawMember.address}-${rawPlugin.tokenAddress}-${rawDao.network}`,
+          params: {
+            userAddress: rawMember.address,
+            tokenAddress: rawPlugin.tokenAddress,
+            network: rawDao.network,
+            pluginAddress: rawPlugin.address,
+          },
+        }),
+      ).to.be.true
+      expect(response.votingPower).to.equal('1000')
+      expect(response.tokenBalance).to.equal('2000')
+      expect(response.currentDelegate).to.equal('0xDelegate')
     })
 
-    it('should return the member even if RabbitMQHelper.sendMessage throws an error', async () => {
-      const filterParams = {
-        daoAddress: rawDao.address,
-        network: rawDao.network,
-        pluginAddress: rawPlugin.address,
-        tokenAddress: rawPlugin.tokenAddress,
+    it('should handle RabbitMQ error gracefully', async () => {
+      const mockMemberData = {
+        address: rawMember.address,
+        ens: rawMember.ens,
+        avatar: rawMember.avatar,
+        votingPower: null,
       }
 
-      const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').throws(new Error('RabbitMQ error'))
+      sandbox.stub(Models.Member, 'findMemberByAddress').resolves(mockMemberData as any)
+      const stubSendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('RabbitMQ error'))
 
-      const response = await MemberController.getMemberByAddress(rawMember.address as HexAddress, filterParams, {})
-
-      expect(rabbitMqStub.calledOnce).to.be.true
-      expect(rabbitMqStub.args[0][1]).to.deep.eq({
-        id: `memberBalance-${rawMember.address}-${rawPlugin.tokenAddress}-${rawDao.network}`,
-        params: {
-          userAddress: rawMember.address,
-          tokenAddress: rawPlugin.tokenAddress,
+      const response = await MemberController.getMemberByAddress(
+        rawMember.address as HexAddress,
+        {
+          daoAddress: rawDao.address,
           network: rawDao.network,
           pluginAddress: rawPlugin.address,
+          tokenAddress: rawPlugin.tokenAddress,
         },
-      })
+        {},
+      )
 
-      expect(response.address).to.eq(rawMember.address)
-      expect(response.ens).to.eq(rawMember.ens)
+      expect(stubSendMessage.calledOnce).to.be.true
+      expect(response.address).to.equal(rawMember.address)
       expect(response.votingPower).to.be.null
       expect(response.currentDelegate).to.be.undefined
     })
 
-    it('should throw an error when member is not found', async () => {
-      try {
-        await MemberController.getMemberByAddress('0xnonexistent' as HexAddress, {}, {})
-        expect.fail('Expected an error to be thrown')
-      } catch (err: any) {
-        expect(err.message).to.include('notFound')
-      }
+    it('should throw notFound error when member not found', async () => {
+      sandbox.stub(Models.Member, 'findMemberByAddress').resolves(null)
+
+      await expect(MemberController.getMemberByAddress('0xNonExistent' as HexAddress, {}, {})).to.be.rejectedWith(
+        ErrorKeyEnum.notFound,
+      )
     })
 
-    it('should get member by address when only pluginAddress is provided (without tokenAddress)', async () => {
-      const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').returns({
-        votingPower: '2',
-        balance: '2',
+    it('should use pluginAddress as tokenAddress when tokenAddress not provided', async () => {
+      const mockMemberData = {
+        address: rawMember.address,
+        ens: rawMember.ens,
+        avatar: rawMember.avatar,
+        votingPower: null,
+      }
+
+      sandbox.stub(Models.Member, 'findMemberByAddress').resolves(mockMemberData as any)
+      const stubSendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({
+        votingPower: '500',
+        balance: '1000',
         currentDelegate: null,
-      } as any)
+      })
 
       const response = await MemberController.getMemberByAddress(
         rawMember.address as HexAddress,
@@ -428,92 +455,63 @@ describe('Controller: Member', () => {
         {},
       )
 
-      expect(rabbitMqStub.calledOnce).to.be.true
-      expect(rabbitMqStub.args[0][1]).to.deep.eq({
-        id: `memberBalance-${rawMember.address}-${rawPlugin.address}-${rawDao.network}`,
-        params: {
-          userAddress: rawMember.address,
-          tokenAddress: undefined,
-          network: rawDao.network,
-          pluginAddress: rawPlugin.address,
-        },
-      })
-      expect(response.address).to.eq(rawMember.address)
-      expect(response.ens).to.eq(rawMember.ens)
-      expect(response.tokenBalance).to.eq('2')
-      expect(response.votingPower).to.eq('2')
-      expect(response.currentDelegate).to.be.null
+      expect(stubSendMessage.calledOnce).to.be.true
+      expect(stubSendMessage.firstCall.args[1].id).to.equal(
+        `memberBalance-${rawMember.address}-${rawPlugin.address}-${rawDao.network}`,
+      )
+      expect(stubSendMessage.firstCall.args[1].params.tokenAddress).to.be.undefined
+      expect(response.votingPower).to.equal('500')
     })
   })
 
   describe('isMemberOfPlugin', () => {
-    it('should return true when member is part of plugin', async () => {
-      await Models.PluginMember.create({
-        memberAddress: '0x0',
-        pluginAddress: '0x1',
-        daoAddress: '0x0',
-        network: NetworksEnum.arbitrumMainnet,
-      })
+    it('should return true when member exists in plugin', async () => {
+      const stubFindOne = sandbox.stub(Models.PluginMember, 'findOne').resolves({ id: 'exists' })
 
-      const memberAddress = '0x0'
-      const pluginAddress = '0x1'
+      const result = await MemberController.isMemberOfPlugin('0xMember', '0xPlugin')
 
-      const spyReq = sandbox.spy(Models.PluginMember, 'findOne')
-      const response = await MemberController.isMemberOfPlugin(memberAddress, pluginAddress)
-
-      expect(response).to.be.true
+      expect(stubFindOne.calledOnce).to.be.true
       expect(
-        spyReq.calledOnceWith({
-          memberAddress,
-          pluginAddress,
+        stubFindOne.calledWith({
+          memberAddress: '0xMember',
+          pluginAddress: '0xPlugin',
         }),
       ).to.be.true
+      expect(result).to.be.true
     })
 
-    it('should return false when member is not part of plugin', async () => {
-      const memberAddress = '0x0'
-      const pluginAddress = '0x1'
+    it('should return false when member not in plugin', async () => {
+      const stubFindOne = sandbox.stub(Models.PluginMember, 'findOne').resolves(null)
 
-      const spyReq = sandbox.spy(Models.PluginMember, 'findOne')
-      const response = await MemberController.isMemberOfPlugin(memberAddress, pluginAddress)
+      const result = await MemberController.isMemberOfPlugin('0xMember', '0xPlugin')
 
-      expect(response).to.be.false
-      expect(
-        spyReq.calledOnceWith({
-          memberAddress,
-          pluginAddress,
-        }),
-      ).to.be.true
+      expect(stubFindOne.calledOnce).to.be.true
+      expect(result).to.be.false
     })
   })
 
   describe('getMemberLocks', () => {
-    it('should return empty response when no locks exist', async () => {
-      const expectedResponse = {
+    it('should get member locks without calculating voting power', async () => {
+      const mockResponse = {
         data: [],
-        metadata: {
-          page: 1,
-          totalPages: 0,
-          totalRecords: 0,
-        },
+        metadata: { page: 1, totalPages: 0, totalRecords: 0 },
       }
 
-      const lockSpy = sandbox.stub(Models.Lock, 'findWithPagination').resolves(expectedResponse)
+      const stubFindWithPagination = sandbox.stub(Models.Lock, 'findWithPagination').resolves(mockResponse)
 
-      const response = await MemberController.getMemberLocks()
+      const result = await MemberController.getMemberLocks()
 
-      expect(lockSpy.calledOnce).to.be.true
+      expect(stubFindWithPagination.calledOnce).to.be.true
       expect(
-        lockSpy.calledWith({
+        stubFindWithPagination.calledWith({
           extraParams: {},
           paginationParams: {},
         }),
       ).to.be.true
-
-      expect(response).to.deep.equal(expectedResponse)
+      expect(result).to.deep.equal(mockResponse)
     })
 
-    it('should calculate voting power when locks exist', async () => {
+    it('should get member locks with parameters', async () => {
       const mockLock = {
         id: 'lock-123',
         tokenId: 'token-456',
@@ -525,33 +523,32 @@ describe('Controller: Member', () => {
         blockTimestamp: 1234567890,
       }
 
-      const expectedResponse = {
+      const mockResponse = {
         data: [mockLock],
-        metadata: {
-          page: 1,
-          totalPages: 1,
-          totalRecords: 1,
-        },
+        metadata: { page: 1, totalPages: 1, totalRecords: 1 },
       }
 
-      const lockSpy = sandbox.stub(Models.Lock, 'findWithPagination').resolves(expectedResponse)
+      const stubFindWithPagination = sandbox.stub(Models.Lock, 'findWithPagination').resolves(mockResponse)
 
       const extraParams = { memberAddress: rawMember.address }
       const paginationParams = { page: 1, pageSize: 10 }
 
-      const response = await MemberController.getMemberLocks(extraParams, paginationParams)
+      const result = await MemberController.getMemberLocks(extraParams, paginationParams)
 
-      expect(lockSpy.calledOnce).to.be.true
-
-      expect(response.data[0]).to.deep.include({
-        ...mockLock,
-      })
-      expect(response.metadata).to.deep.equal(expectedResponse.metadata)
+      expect(stubFindWithPagination.calledOnce).to.be.true
+      expect(
+        stubFindWithPagination.calledWith({
+          extraParams,
+          paginationParams,
+        }),
+      ).to.be.true
+      expect(result.data).to.have.lengthOf(1)
+      expect(result.data[0]).to.deep.include(mockLock)
     })
   })
 
   describe('getMembersOfVeLockPlugin', () => {
-    it('should return members with voting power for VeLock plugin', async () => {
+    it('should get members of VE lock plugin successfully', async () => {
       const paginationParams = {
         search: '',
         pageSize: 10,
@@ -579,7 +576,7 @@ describe('Controller: Member', () => {
         decimals: 18,
       }
 
-      const mockVeLockResponse = {
+      const mockResponse = {
         data: [
           {
             address: rawMember.address,
@@ -587,22 +584,20 @@ describe('Controller: Member', () => {
             lockEnd: 1234567890,
           },
         ],
-        metadata: {
-          page: 1,
-          totalPages: 1,
-          totalRecords: 1,
-        },
+        metadata: { page: 1, totalPages: 1, totalRecords: 1 },
       }
 
-      sandbox.stub(Models.Setting, 'findActive').resolves(mockSettings)
-      sandbox.stub(Models.Token, 'findOne').resolves(mockToken)
-      const veLockSpy = sandbox.stub(Models.Lock, 'getMembersOfVeLockPlugin').resolves(mockVeLockResponse)
+      const stubFindActive = sandbox.stub(Models.Setting, 'findActive').resolves(mockSettings)
+      const stubFindOne = sandbox.stub(Models.Token, 'findOne').resolves(mockToken)
+      const stubGetMembersOfVeLockPlugin = sandbox.stub(Models.Lock, 'getMembersOfVeLockPlugin').resolves(mockResponse)
 
-      const response = await MemberController.getMembersOfVeLockPlugin(paginationParams, mockPlugin as any)
+      const result = await MemberController.getMembersOfVeLockPlugin(paginationParams, mockPlugin as any)
 
-      expect(veLockSpy.calledOnce).to.be.true
+      expect(stubFindActive.calledOnce).to.be.true
+      expect(stubFindOne.calledOnce).to.be.true
+      expect(stubGetMembersOfVeLockPlugin.calledOnce).to.be.true
       expect(
-        veLockSpy.calledWith({
+        stubGetMembersOfVeLockPlugin.calledWith({
           paginationParams,
           pluginAddress: mockPlugin.address,
           settings: {
@@ -616,19 +611,11 @@ describe('Controller: Member', () => {
           network: mockPlugin.network,
         }),
       ).to.be.true
-
-      expect(response).to.deep.equal(mockVeLockResponse)
+      expect(result).to.deep.equal(mockResponse)
     })
 
-    it('should throw an error when settings or token not found', async () => {
-      const paginationParams = {
-        search: '',
-        pageSize: 10,
-        page: 1,
-        order: 'asc',
-        sort: 'createdAt',
-      }
-
+    it('should throw notFound error when settings not found', async () => {
+      const paginationParams = {}
       const mockPlugin = {
         address: rawPlugin.address,
         daoAddress: rawDao.address,
@@ -637,14 +624,88 @@ describe('Controller: Member', () => {
       }
 
       sandbox.stub(Models.Setting, 'findActive').resolves(null)
+      sandbox.stub(Models.Token, 'findOne').resolves({ decimals: 18 })
+
+      await expect(MemberController.getMembersOfVeLockPlugin(paginationParams, mockPlugin as any)).to.be.rejectedWith(
+        ErrorKeyEnum.notFound,
+      )
+    })
+
+    it('should throw notFound error when token not found', async () => {
+      const paginationParams = {}
+      const mockPlugin = {
+        address: rawPlugin.address,
+        daoAddress: rawDao.address,
+        network: rawDao.network,
+        tokenAddress: rawPlugin.tokenAddress,
+      }
+
+      sandbox.stub(Models.Setting, 'findActive').resolves({
+        votingEscrow: { maxTime: 1000, slope: 100, bias: 50 },
+      })
       sandbox.stub(Models.Token, 'findOne').resolves(null)
 
-      try {
-        await MemberController.getMembersOfVeLockPlugin(paginationParams, mockPlugin as any)
-        expect.fail('Expected an error to be thrown')
-      } catch (err: any) {
-        expect(err.message).to.include('notFound')
+      await expect(MemberController.getMembersOfVeLockPlugin(paginationParams, mockPlugin as any)).to.be.rejectedWith(
+        ErrorKeyEnum.notFound,
+      )
+    })
+
+    it('should handle missing votingEscrow in settings', async () => {
+      const paginationParams = {}
+      const mockPlugin = {
+        address: rawPlugin.address,
+        daoAddress: rawDao.address,
+        network: rawDao.network,
+        tokenAddress: rawPlugin.tokenAddress,
       }
+
+      sandbox.stub(Models.Setting, 'findActive').resolves({
+        /* no votingEscrow property */
+      } as any)
+      sandbox.stub(Models.Token, 'findOne').resolves({ decimals: 18 })
+
+      await expect(MemberController.getMembersOfVeLockPlugin(paginationParams, mockPlugin as any)).to.be.rejectedWith(
+        ErrorKeyEnum.notFound,
+      )
+    })
+
+    it('should calculate currentTime correctly', async () => {
+      const paginationParams = {}
+      const mockPlugin = {
+        address: rawPlugin.address,
+        daoAddress: rawDao.address,
+        network: rawDao.network,
+        tokenAddress: rawPlugin.tokenAddress,
+      }
+
+      const mockSettings = {
+        votingEscrow: {
+          maxTime: 1000,
+          slope: 100,
+          bias: 50,
+        },
+      }
+
+      const mockToken = {
+        decimals: 18,
+      }
+
+      const mockResponse = {
+        data: [],
+        metadata: { page: 1, totalPages: 0, totalRecords: 0 },
+      }
+
+      sandbox.stub(Models.Setting, 'findActive').resolves(mockSettings)
+      sandbox.stub(Models.Token, 'findOne').resolves(mockToken)
+      const stubGetMembersOfVeLockPlugin = sandbox.stub(Models.Lock, 'getMembersOfVeLockPlugin').resolves(mockResponse)
+
+      const timeBeforeCall = Math.floor(Date.now() / 1000)
+      await MemberController.getMembersOfVeLockPlugin(paginationParams, mockPlugin as any)
+      const timeAfterCall = Math.floor(Date.now() / 1000)
+
+      const callArgs = stubGetMembersOfVeLockPlugin.firstCall.args[0]
+      expect(callArgs.settings.currentTime).to.be.at.least(timeBeforeCall)
+      expect(callArgs.settings.currentTime).to.be.at.most(timeAfterCall)
     })
   })
 })

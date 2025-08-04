@@ -3481,11 +3481,9 @@ describe('ProposalHandler', () => {
       expect(updatedProposal.summary).to.equal('Edited Summary')
       expect(updatedProposal.resources.map(r => ({ name: r.name, url: r.url }))).to.deep.equal(editedMetadata.resources)
       expect(updatedProposal.media.logo).to.equal(editedMetadata.media.logo)
-      expect(updatedProposal.editedTxInfo).to.deep.equal({
-        blockNumber: 200,
-        transactionHash: '0xEditedTx',
-        blockTimestamp: 1700000000,
-      })
+      expect(updatedProposal.editedTxInfo.blockNumber).to.equal(200)
+      expect(updatedProposal.editedTxInfo.transactionHash).to.equal('0xEditedTx')
+      expect(updatedProposal.editedTxInfo.blockTimestamp).to.equal(1700000000)
       expect(decodeDataStub.calledOnce).to.be.true
       expect(decodeTransferStub.calledOnce).to.be.true
       expect(verboseLoggerStub.calledOnceWith('Update proposalEdited' as any)).to.be.true

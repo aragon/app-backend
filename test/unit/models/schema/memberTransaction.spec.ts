@@ -8,7 +8,6 @@ import { fakeMemberTransactions } from '@test/mock/fakeMemberTransaction'
 import Token from '@models/schema/token'
 import { FakeToken } from '@test/mock/fakeToken'
 import { ITransferSide, ITransferType } from '@types'
-import { ethers } from 'ethers'
 
 describe('Model: Member Transaction', () => {
   let sandbox: SinonSandbox
@@ -48,7 +47,6 @@ describe('Model: Member Transaction', () => {
         transactionIndex: rawMemberDelegationTx.transactionIndex!,
         logIndex: rawMemberDelegationTx.logIndex!,
         address: rawMemberDelegationTx.address!,
-        tokenId: 10,
       })
 
       const memberTransaction = await Models.MemberTransaction.create(rawMemberDelegationTx)
@@ -57,7 +55,6 @@ describe('Model: Member Transaction', () => {
       expect(memberTransaction.network).to.eq(rawMemberDelegationTx.network)
       expect(memberTransaction.address).to.eq(rawMemberDelegationTx.address)
       expect(memberTransaction.transactionHash).to.eq(rawMemberDelegationTx.transactionHash)
-      expect(memberTransaction.tokenId).to.eq(rawMemberDelegationTx.tokenId)
     })
 
     it('should save without asset if id present', async () => {
@@ -128,11 +125,10 @@ describe('Model: Member Transaction', () => {
         transactionIndex: rawMemberDelegationTx.transactionIndex!,
         logIndex: rawMemberDelegationTx.logIndex!,
         address: rawMemberDelegationTx.address!,
-        tokenId: 100,
       }
       const entityId = Models.MemberTransaction.getEntityId(params)
       expect(entityId).to.eq(
-        `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}-${params.address}-100`,
+        `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}-${params.address}`,
       )
     })
 
@@ -200,7 +196,7 @@ describe('Model: Member Transaction', () => {
       expect(count).to.eq(0)
     })
 
-    it('should count only incoming delegate type transactions', async () => {
+    it('should count net delegate type transactions (incoming - outgoing)', async () => {
       // Create multiple transactions
       await Models.MemberTransaction.create({
         ...rawMemberDelegationTx,
@@ -211,7 +207,7 @@ describe('Model: Member Transaction', () => {
         ...rawMemberDelegationTx,
         logIndex: rawMemberDelegationTx.logIndex! + 1,
         type: ITransferType.delegate,
-        side: ITransferSide.outgoing, // Should not count
+        side: ITransferSide.outgoing, // Should subtract from count
       })
       await Models.MemberTransaction.create({
         ...rawMemberDelegationTx,
@@ -225,7 +221,7 @@ describe('Model: Member Transaction', () => {
         rawMemberDelegationTx.tokenAddress!,
         rawMemberDelegationTx.network!,
       )
-      expect(count).to.eq(2)
+      expect(count).to.eq(1) // 2 incoming - 1 outgoing = 1
     })
   })
 

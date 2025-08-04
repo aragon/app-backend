@@ -1,5 +1,4 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
-import { type ProposalActionType } from '@src/types/proposalAction'
 import type { LogDescription } from 'ethers'
 
 export interface ILogInfo {
