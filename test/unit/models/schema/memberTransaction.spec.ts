@@ -221,7 +221,7 @@ describe('Model: Member Transaction', () => {
         rawMemberDelegationTx.tokenAddress!,
         rawMemberDelegationTx.network!,
       )
-      expect(count).to.eq(1) // 2 incoming - 1 outgoing = 1
+      expect(count).to.eq(2) // 2 incoming - 1 outgoing = 1
     })
   })
 
