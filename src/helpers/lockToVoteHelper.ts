@@ -1,6 +1,6 @@
 import ProviderModule from '@modules/provider'
 import { type HexAddress, type NetworksEnum } from '@types'
-import { Interface } from 'ethers'
+import { Contract, Interface } from 'ethers'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
 
@@ -14,7 +14,7 @@ const LockToVoteHelper = {
       if (!lockManagerAddress) {
         return null
       }
-      const managerContract = new provider.Contract(lockManagerAddress, abi, provider)
+      const managerContract = new Contract(lockManagerAddress, abi, provider)
 
       return await retryRequest(async () =>
         BottleneckModule.getAlchemyBalanceLimiter(network).schedule(async () => managerContract.token()),
@@ -27,7 +27,7 @@ const LockToVoteHelper = {
   async getLockManager(network: NetworksEnum, pluginAddress: HexAddress) {
     const provider = ProviderModule.getAnyRpcProvider(network)
     const abi = ['function lockManager() view returns (address)']
-    const contract = new provider.Contract(pluginAddress, abi, provider)
+    const contract = new Contract(pluginAddress, abi, provider)
 
     try {
       return await retryRequest(async () =>
@@ -41,7 +41,7 @@ const LockToVoteHelper = {
   async getUserLockedBalance(network: NetworksEnum, lockManagerAddress: HexAddress, userAddress: HexAddress) {
     const provider = ProviderModule.getAnyRpcProvider(network)
     const abi = ['function getLockedBalance(address) view returns (uint256)']
-    const contract = new provider.Contract(lockManagerAddress, abi, provider)
+    const contract = new Contract(lockManagerAddress, abi, provider)
 
     try {
       return await retryRequest(async () =>

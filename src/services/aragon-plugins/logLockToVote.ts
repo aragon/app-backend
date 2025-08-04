@@ -3,6 +3,7 @@ import { type IIndexerConfig, ILockManager, ILogToVoteLogs } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Plugin from '@models/schema/plugin'
 import configIndexer from '@indexer/configIndexer'
+import ConfigIndexerHelper from '@helpers/configIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogLockToVote' })
 
@@ -24,17 +25,17 @@ export const LogLockToVote = {
       address: plugin.address,
       fromBlock: plugin?.blockNumber,
       onError: async (error: any, log: any) => LogLockToVote.processError(error, plugin, log),
-      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}`,
+      logService: ConfigIndexerHelper.builders.plugin(plugin.interfaceType, plugin.network, plugin.address),
       stopOnError: true,
     })
 
     const lockManagerCrawler = new BlockchainLogCrawler({
       network: plugin.network,
       events: lockManagerLogs,
-      address: plugin.lockManager,
+      address: plugin.lockManagerAddress,
       fromBlock: plugin?.blockNumber,
       onError: async (error: any, log: any) => LogLockToVote.processError(error, plugin, log),
-      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.lockManager}`,
+      logService: ConfigIndexerHelper.builders.lockManager(plugin.network, plugin.lockManager),
       stopOnError: true,
     })
 
