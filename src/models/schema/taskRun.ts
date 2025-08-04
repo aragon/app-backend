@@ -1,4 +1,4 @@
-import { index, modelOptions, prop } from '@typegoose/typegoose'
+import { index, modelOptions, prop, Severity } from '@typegoose/typegoose'
 import { Model, type SaveOptions, Schema } from 'mongoose'
 import * as _ from 'lodash'
 import { ICollectionNames, IEnumTaskStatus } from '@types'
@@ -45,6 +45,7 @@ class Task {
   },
   options: {
     customName,
+    allowMixed: Severity.WARN,
   },
 })
 @index({ id: 1 }, { unique: true })
