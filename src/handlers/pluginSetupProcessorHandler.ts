@@ -29,6 +29,8 @@ import GovernanceVeHelper from '@helpers/governanceVe'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:pluginSetupProcessorHandler' })
 
+const StagedProposalProcessorTopicHash = new Interface(StagedProposalProcessor.abi)
+
 export const PluginSetupProcessorHandler = {
   pluginHandler: async (action: IPluginActionType, logDb: LogPluginSetupProcessor) => {
     switch (action) {
@@ -116,8 +118,7 @@ export const PluginSetupProcessorHandler = {
   },
 
   updateMetadataOnPreInstall: async (plugin: Plugin, txReceipt: TransactionReceipt) => {
-    const iFace = new Interface(StagedProposalProcessor.abi)
-    const metadataLogTopics = iFace.getEvent('MetadataSet')?.topicHash!
+    const metadataLogTopics = StagedProposalProcessorTopicHash.getEvent('MetadataSet')?.topicHash!
 
     const metadataLog = txReceipt?.logs.find(
       log => log.topics[0] === metadataLogTopics && log.address === plugin.address,
@@ -125,7 +126,7 @@ export const PluginSetupProcessorHandler = {
 
     if (metadataLog) {
       try {
-        const parsedEvent = Web3Utils.parseLog(metadataLog, iFace)
+        const parsedEvent = Web3Utils.parseLog(metadataLog, StagedProposalProcessorTopicHash)
         if (parsedEvent) {
           const logInfo = Web3Utils.parseInfoLog(metadataLog, ISPPLogs.MetadataSet, plugin.network)
 
