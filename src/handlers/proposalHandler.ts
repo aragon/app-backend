@@ -29,7 +29,6 @@ import { assert } from '@errors'
 import Web3Utils from '@helpers/web3Utils'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:ProposalHandler' })
-
 export const ProposalHandler = {
   findIncrementalId: async (proposal: Partial<Proposal>): Promise<number | null> => {
     try {
