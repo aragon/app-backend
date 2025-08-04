@@ -1026,11 +1026,6 @@ export const ProposalHandler = {
         const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri)
 
         const rawUpdate: Partial<Proposal> = {
-          title: proposalMetadata?.title!,
-          description: proposalMetadata?.description!,
-          summary: proposalMetadata?.summary!,
-          resources: proposalMetadata?.resources as any,
-          media: proposalMetadata?.media as any,
           rawActions: parsedEvent.args?.actions?.map((w: IRawAction) => ({
             to: w.to,
             value: w.value,
@@ -1041,6 +1036,14 @@ export const ProposalHandler = {
             transactionHash: info.transactionHash,
             blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || null,
           },
+        }
+
+        if (proposalMetadata) {
+          rawUpdate.title = proposalMetadata.title
+          rawUpdate.description = proposalMetadata.description
+          rawUpdate.summary = proposalMetadata.summary
+          rawUpdate.resources = proposalMetadata.resources as any
+          rawUpdate.media = proposalMetadata.media as any
         }
 
         const decodeActions = new DecodeActions()

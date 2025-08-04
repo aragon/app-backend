@@ -26,6 +26,8 @@ describe('Helpers: DecodeActions', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    // Stub the expensive _setupSignatures method globally to speed up all tests
+    sandbox.stub(DecodeActions.prototype, '_setupSignatures').returns()
   })
 
   afterEach(() => {
@@ -34,6 +36,8 @@ describe('Helpers: DecodeActions', () => {
 
   describe('decodeData', () => {
     it('Should decodeData', async () => {
+      // For this test, we need actual signatures, so restore the stub temporarily
+      sandbox.restore()
       const decodeActions = new DecodeActions()
 
       const action = {
@@ -112,6 +116,8 @@ describe('Helpers: DecodeActions', () => {
 
   it('Should fail decodeData', async () => {
     const decodeActions = new DecodeActions()
+    // Set minimal signatures for the test
+    decodeActions.allSignatures = []
 
     const action = {
       to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
@@ -702,6 +708,8 @@ describe('Helpers: DecodeActions', () => {
 
   describe('_setupSignatures', () => {
     it('should set up signatures correctly', () => {
+      // For this specific test, we need to restore the original method
+      sandbox.restore()
       const decodeActions = new DecodeActions()
 
       const allSignatures = decodeActions.allSignatures.map(({ contractName, abi }) => ({ contractName, abi }))

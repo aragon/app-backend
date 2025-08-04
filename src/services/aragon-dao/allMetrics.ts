@@ -82,7 +82,7 @@ export const AllMetrics = {
         const token = await ProxyToken.saveAndGetToken(doc.tokenAddress, doc.network, false)
         const blockTimestamp = await Web3Helper.getBlockTimestamp(blockNumber, doc.network)
         const memberVotingPower = await GovernanceErc20Helper.getPastVotes(
-          doc.address,
+          doc.memberAddress,
           doc.tokenAddress,
           blockNumber,
           blockTimestamp,

@@ -11,12 +11,6 @@ describe('Model: PluginMember', () => {
   let sandbox: SinonSandbox
   let rawPluginMember: Partial<PluginMember>
 
-  before(async () => {
-    // Ensure models are loaded when running test directly
-    const { ModelProxy } = await import('@src/models')
-    await ModelProxy.setMongoModels()
-  })
-
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
 
@@ -28,8 +22,13 @@ describe('Model: PluginMember', () => {
     }
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     sandbox?.restore()
+    // Clean up database to prevent duplicate key errors
+    await Models.PluginMember.deleteMany({})
+    await Models.Member.deleteMany({})
+    await Models.Plugin.deleteMany({})
+    await Models.PluginMetrics.deleteMany({})
   })
 
   it('Should create PluginMember', async () => {
@@ -83,37 +82,59 @@ describe('Model: PluginMember', () => {
   })
 
   it('should findAllMembersOfPlugin', async () => {
-    await Models.PluginMember.create(rawPluginMember)
-    const anotherMember = {
-      ...rawPluginMember,
-      memberAddress: '0x223456789012345678901234567890123456789A',
+    // Use a unique plugin address to ensure we're testing in isolation
+    const uniquePluginAddress = `0x${Date.now().toString(16).padEnd(40, '0')}`
+    const testPluginMember1 = {
+      memberAddress: '0x1111111111111111111111111111111111111111',
+      pluginAddress: uniquePluginAddress,
+      daoAddress: rawPluginMember.daoAddress,
+      network: rawPluginMember.network,
     }
-    await Models.PluginMember.create(anotherMember)
+    const testPluginMember2 = {
+      memberAddress: '0x2222222222222222222222222222222222222222',
+      pluginAddress: uniquePluginAddress,
+      daoAddress: rawPluginMember.daoAddress,
+      network: rawPluginMember.network,
+    }
+
+    await Models.PluginMember.create(testPluginMember1)
+    await Models.PluginMember.create(testPluginMember2)
 
     const pluginMembers = await Models.PluginMember.findAllMembersOfPlugin({
-      pluginAddress: rawPluginMember.pluginAddress!,
+      pluginAddress: uniquePluginAddress,
       network: rawPluginMember.network!,
     })
     expect(pluginMembers).to.have.lengthOf(2)
-    expect(pluginMembers[0].pluginAddress).to.eq(rawPluginMember.pluginAddress)
-    expect(pluginMembers[1].pluginAddress).to.eq(rawPluginMember.pluginAddress)
+    expect(pluginMembers[0].pluginAddress).to.eq(uniquePluginAddress)
+    expect(pluginMembers[1].pluginAddress).to.eq(uniquePluginAddress)
   })
 
   it('should findAllMembersOfDao', async () => {
-    await Models.PluginMember.create(rawPluginMember)
-    const anotherMember = {
-      ...rawPluginMember,
-      memberAddress: '0x223456789012345678901234567890123456789A',
+    // Use a unique DAO address to ensure we're testing in isolation
+    const uniqueDaoAddress = `0x${(Date.now() + 1).toString(16).padEnd(40, '0')}`
+    const testPluginMember1 = {
+      memberAddress: '0x3333333333333333333333333333333333333333',
+      pluginAddress: '0x4444444444444444444444444444444444444444',
+      daoAddress: uniqueDaoAddress,
+      network: rawPluginMember.network,
     }
-    await Models.PluginMember.create(anotherMember)
+    const testPluginMember2 = {
+      memberAddress: '0x5555555555555555555555555555555555555555',
+      pluginAddress: '0x6666666666666666666666666666666666666666',
+      daoAddress: uniqueDaoAddress,
+      network: rawPluginMember.network,
+    }
+
+    await Models.PluginMember.create(testPluginMember1)
+    await Models.PluginMember.create(testPluginMember2)
 
     const daoMembers = await Models.PluginMember.findAllMembersOfDao({
-      daoAddress: rawPluginMember.daoAddress!,
+      daoAddress: uniqueDaoAddress,
       network: rawPluginMember.network!,
     })
     expect(daoMembers).to.have.lengthOf(2)
-    expect(daoMembers[0].daoAddress).to.eq(rawPluginMember.daoAddress)
-    expect(daoMembers[1].daoAddress).to.eq(rawPluginMember.daoAddress)
+    expect(daoMembers[0].daoAddress).to.eq(uniqueDaoAddress)
+    expect(daoMembers[1].daoAddress).to.eq(uniqueDaoAddress)
   })
 
   it('should update PluginMember', async () => {
@@ -134,6 +155,11 @@ describe('Model: PluginMember', () => {
 
   describe('findAndPaginate', () => {
     beforeEach(async () => {
+      // Clean up before creating test data
+      await Models.PluginMember.deleteMany({})
+      await Models.Member.deleteMany({})
+      await Models.Plugin.deleteMany({})
+      await Models.PluginMetrics.deleteMany({})
       // Create a member first
       await Models.Member.create({
         address: rawPluginMember.memberAddress,
@@ -186,15 +212,17 @@ describe('Model: PluginMember', () => {
     })
 
     it('should filter by daoAddress when provided', async () => {
-      // Create another plugin member for different DAO
+      // Create another plugin member for different DAO and member
+      const otherMemberAddress = '0x223456789012345678901234567890123456789A'
       await Models.Member.create({
-        address: '0x223456789012345678901234567890123456789A',
+        address: otherMemberAddress,
         ens: 'other.eth',
       })
       await Models.PluginMember.create({
-        ...rawPluginMember,
-        memberAddress: '0x223456789012345678901234567890123456789A',
-        daoAddress: '0xOtherDao',
+        memberAddress: otherMemberAddress,
+        pluginAddress: rawPluginMember.pluginAddress,
+        daoAddress: '0xD23456789012345678901234567890123456789E',
+        network: rawPluginMember.network,
       })
 
       const paginationParams = {
@@ -221,13 +249,32 @@ describe('Model: PluginMember', () => {
     })
 
     it('should apply search filter on member info', async () => {
+      const searchableMemberAddress = '0x223456789012345678901234567890123456789A'
+      const searchablePluginAddress = '0xC23456789012345678901234567890123456789D'
+
       await Models.Member.create({
-        address: '0x223456789012345678901234567890123456789A',
+        address: searchableMemberAddress,
         ens: 'searchable.eth',
       })
+
+      // Create plugin first
+      await Models.Plugin.create({
+        id: 'searchable-plugin',
+        address: searchablePluginAddress,
+        daoAddress: rawPluginMember.daoAddress,
+        network: rawPluginMember.network,
+        interfaceType: 'tokenVoting',
+        status: 'installed',
+        transactionHash: '0xhash2',
+        blockNumber: 1001,
+      })
+
+      // Create with different plugin to avoid conflicts
       await Models.PluginMember.create({
-        ...rawPluginMember,
-        memberAddress: '0x223456789012345678901234567890123456789A',
+        memberAddress: searchableMemberAddress,
+        pluginAddress: searchablePluginAddress,
+        daoAddress: rawPluginMember.daoAddress,
+        network: rawPluginMember.network,
       })
 
       const paginationParams = {
@@ -239,7 +286,7 @@ describe('Model: PluginMember', () => {
       }
 
       const extraParams = {
-        pluginAddress: rawPluginMember.pluginAddress,
+        pluginAddress: searchablePluginAddress,
         network: rawPluginMember.network,
       }
 

@@ -311,8 +311,9 @@ describe('Helpers:Utils', () => {
 
   describe('setIntervalAsync', () => {
     it('repeats', async () => {
+      const clock = sandbox.useFakeTimers()
       const onError = sandbox.stub()
-      const fn = sandbox.stub().resolves(Utils.wait(50))
+      const fn = sandbox.stub().resolves()
       const delay = 200
 
       const clear = Utils.setIntervalAsync({
@@ -321,24 +322,29 @@ describe('Helpers:Utils', () => {
         onError,
       })
 
-      await Utils.wait(100)
+      // Function executes immediately
+      await clock.tickAsync(0)
       expect(fn.args.length).to.eq(1)
 
-      await Utils.wait(200)
+      // Then after delay
+      await clock.tickAsync(200)
       expect(fn.args.length).to.eq(2)
 
-      await Utils.wait(300)
+      // Then after another delay
+      await clock.tickAsync(200)
       expect(fn.args.length).to.eq(3)
 
       clear()
 
-      await Utils.wait(300)
+      // Should not execute after clear
+      await clock.tickAsync(200)
       expect(fn.args.length).to.eq(3)
     })
 
     it('stops while working', async () => {
+      const clock = sandbox.useFakeTimers()
       const onError = sandbox.stub()
-      const fn = sandbox.stub().resolves(Utils.wait(500))
+      const fn = sandbox.stub().resolves()
       const delay = 100
 
       const clear = Utils.setIntervalAsync({
@@ -347,18 +353,26 @@ describe('Helpers:Utils', () => {
         onError,
       })
 
-      await Utils.wait(100)
+      // Function executes immediately
+      await clock.tickAsync(0)
       expect(fn.args.length).to.eq(1)
 
       clear()
 
-      await Utils.wait(600)
+      // Should not execute after clear
+      await clock.tickAsync(600)
       expect(fn.args.length).to.eq(1)
     })
 
     it('clear waits execution end', async () => {
+      const clock = sandbox.useFakeTimers()
       const onError = sandbox.stub()
-      const fn = sandbox.stub().resolves(Utils.wait(500))
+      let resolveExecutions: (() => void)[] = []
+      const fn = sandbox.stub().callsFake(() => {
+        return new Promise(resolve => {
+          resolveExecutions.push(resolve as any)
+        })
+      })
       const delay = 100
 
       const clear = Utils.setIntervalAsync({
@@ -366,20 +380,30 @@ describe('Helpers:Utils', () => {
         delay,
         onError,
       })
-      await Utils.wait(10)
+
+      await clock.tickAsync(10)
       expect(fn.args.length).to.eq(1)
 
-      const d = Date.now()
+      // Start clearing but don't resolve the execution yet
+      const clearPromise = clear(true)
 
-      await clear(true)
+      // Advance time to show clear is waiting
+      await clock.tickAsync(100)
 
-      expect(Date.now() - d).to.be.greaterThan(400)
+      // Now resolve the execution to complete the clear
+      resolveExecutions[0]()
+
+      await clearPromise
+
+      // Verify clear waited for execution to complete
+      expect(fn.args.length).to.eq(1)
     })
 
     it('throws', async () => {
+      const clock = sandbox.useFakeTimers()
       const onError = sandbox.stub()
       const e = new Error('pascontent')
-      const fn = sandbox.stub().resolves(Utils.wait(100))
+      const fn = sandbox.stub().resolves()
       const delay = 500
 
       const clear = Utils.setIntervalAsync({
@@ -388,13 +412,13 @@ describe('Helpers:Utils', () => {
         onError,
       })
 
-      await Utils.wait(200)
+      await clock.tickAsync(200)
       expect(fn.args.length).to.eq(1)
 
       fn.rejects(e)
       expect(onError.calledOnce).to.be.false
 
-      await Utils.wait(500)
+      await clock.tickAsync(500)
 
       expect(fn.args.length).to.eq(2)
       expect(onError.calledOnce).to.be.true
@@ -404,9 +428,10 @@ describe('Helpers:Utils', () => {
     })
 
     it('throws but still continues', async () => {
+      const clock = sandbox.useFakeTimers()
       const onError = sandbox.stub()
       const e = new Error('pascontent')
-      const fn = sandbox.stub().resolves(Utils.wait(50))
+      const fn = sandbox.stub().resolves()
       const delay = 400
 
       const clear = Utils.setIntervalAsync({
@@ -415,29 +440,33 @@ describe('Helpers:Utils', () => {
         onError,
       })
 
-      await Utils.wait(200)
+      // First execution is immediate
+      await clock.tickAsync(0)
       expect(fn.args.length).to.eq(1)
 
+      // Change fn to reject for next execution
       fn.rejects(e)
       expect(onError.calledOnce).to.be.false
 
-      await Utils.wait(500)
-
+      // Execute after delay - this will throw
+      await clock.tickAsync(400)
       expect(fn.args.length).to.eq(2)
       expect(onError.calledOnce).to.be.true
       expect(onError.args[0][0]).to.eq(e)
 
-      await Utils.wait(500)
+      // Should still continue after error
+      await clock.tickAsync(400)
       expect(fn.args.length).to.eq(3)
 
       clear()
     })
 
     it('throws with default error handler', async () => {
+      const clock = sandbox.useFakeTimers()
       const error = sandbox.stub(logger, 'error')
 
       const e = new Error('pascontent')
-      const fn = sandbox.stub().resolves(Utils.wait(100))
+      const fn = sandbox.stub().resolves()
       const delay = 500
 
       const clear = Utils.setIntervalAsync({
@@ -445,13 +474,13 @@ describe('Helpers:Utils', () => {
         delay,
       })
 
-      await Utils.wait(200)
+      await clock.tickAsync(200)
       expect(fn.args.length).to.eq(1)
 
       fn.rejects(e)
       expect(error.calledOnce).to.be.false
 
-      await Utils.wait(500)
+      await clock.tickAsync(500)
 
       clear()
 

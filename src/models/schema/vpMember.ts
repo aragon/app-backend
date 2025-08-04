@@ -158,7 +158,7 @@ export default class VpMember extends Model {
       {
         $lookup: {
           from: ICollectionNames.Member,
-          localField: 'address',
+          localField: 'memberAddress',
           foreignField: 'address',
           as: 'memberInfo',
         },
@@ -175,7 +175,7 @@ export default class VpMember extends Model {
         {
           pluginAddress: extraParams?.pluginAddress,
           network: extraParams?.network!,
-          memberAddress: '$address',
+          memberAddress: '$memberAddress',
         },
         'pluginMetrics',
         {
@@ -205,7 +205,7 @@ export default class VpMember extends Model {
         {
           tokenAddress: extraParams?.tokenAddress,
           network: extraParams?.network!,
-          memberAddress: '$address',
+          memberAddress: '$memberAddress',
         },
         'vpMember',
         {
@@ -229,8 +229,8 @@ export default class VpMember extends Model {
           address: '$memberInfo.address',
           ens: '$memberInfo.ens',
           avatar: '$memberInfo.avatar',
-          tokenBalance: '$amount',
-          votingPower: '$votingPowerString',
+          tokenBalance: null, // VpMember doesn't have amount field
+          votingPower: '$votingPower',
           metrics: {
             voteCount: '$pluginMetrics.voteCount',
             proposalCount: '$pluginMetrics.proposalCount',

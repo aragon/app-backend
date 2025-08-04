@@ -23,6 +23,8 @@ describe('Indexer: DaoRegistryHandler', () => {
   let sandbox: SinonSandbox
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    // Stub wait to speed up tests
+    sandbox.stub(Utils, 'wait').resolves()
   })
 
   afterEach(async () => {
@@ -178,8 +180,6 @@ describe('Indexer: DaoRegistryHandler', () => {
       const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       await DaoRegistryHandler.initiateNewDaoCreation(logInfo, '0x00')
-
-      await Utils.wait(500)
 
       expect(web3Stub.calledOnce).to.be.true
       expect(metadataHandlerStub.calledOnce).to.be.true

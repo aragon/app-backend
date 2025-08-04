@@ -41,12 +41,18 @@ const MemberController = {
       return await MemberController.getMembersOfVeLockPlugin(paginationParams, plugin)
     }
 
-    extraParams.tokenAddress = plugin.tokenAddress
-    // TODO: check the query for vp members
-    return Models.VpMember.findAndPaginate({
-      paginationParams,
-      extraParams,
-    })
+    if (plugin.tokenAddress) {
+      extraParams.tokenAddress = plugin.tokenAddress
+      return Models.VpMember.findAndPaginate({
+        paginationParams,
+        extraParams,
+      })
+    } else {
+      return Models.PluginMember.findAndPaginate({
+        extraParams,
+        paginationParams,
+      })
+    }
   },
 
   getMemberByAddress: async (
@@ -113,7 +119,7 @@ const MemberController = {
       network: plugin.network,
     })
 
-    assertExposable(token && settings, ErrorKeyEnum.notFound)
+    assertExposable(token && settings?.votingEscrow, ErrorKeyEnum.notFound)
 
     return Models.Lock.getMembersOfVeLockPlugin({
       paginationParams,
