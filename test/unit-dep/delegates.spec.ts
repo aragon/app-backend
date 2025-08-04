@@ -663,7 +663,7 @@ describe('Integ: Delegates', () => {
     // expect(member2Txs[0].to).to.eq(member2)
     expect(member2Txs[0].memberVotingPower).to.eq('2000000000000000000')
     expect(member2Balance.votingPower).to.eq('2000000000000000000')
-    expect(member2Balance.delegateReceivedCount).to.eq(2) // 2 with peter
+    // expect(member2Balance.delegateReceivedCount).to.eq(2) // 2 with peter
     expect(member2Balance.delegateReceivedCount).to.eq(3)
 
     console.log('end tx6')
