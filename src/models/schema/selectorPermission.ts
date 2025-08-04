@@ -1,4 +1,4 @@
-import { index, modelOptions, prop } from '@typegoose/typegoose'
+import { index, modelOptions, prop, Severity } from '@typegoose/typegoose'
 import {
   HexAddress,
   ICollectionNames,
@@ -58,6 +58,7 @@ export class Disallowed {
   },
   options: {
     customName,
+    allowMixed: Severity.WARN,
   },
 })
 @index({ id: 1 }, { unique: true })
