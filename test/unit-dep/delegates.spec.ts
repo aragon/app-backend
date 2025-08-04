@@ -275,7 +275,7 @@ describe('Integ: Delegates', () => {
     console.log('end tx4')
   })
 
-  it.only('should test delegates', async function () {
+  it('should test delegates', async function () {
     this.timeout(1600000) // Increase timeout for the test
     const network = NetworksEnum.ethereumSepolia
     const daoAddress = '0x3e5fba52959d12f41266028f3a3d7ecc7462dd81'
