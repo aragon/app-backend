@@ -596,7 +596,7 @@ describe('Modules:ProxyMember', () => {
             network: params.network,
             voteCount: 0,
             proposalCount: 0,
-            fistActivity: params.lastActivity,
+            firstActivity: params.lastActivity,
             lastActivity: params.lastActivity,
           },
           sinon.match.any,
