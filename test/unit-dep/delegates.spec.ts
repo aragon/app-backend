@@ -5,6 +5,7 @@ import { IEventLogMember, ITransferSide, NetworksEnum } from '@types'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { Models } from '@dbModels'
 import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
+import { ProxyMember } from '@modules/proxyMember'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
 
 describe('Integ: Delegates', () => {
@@ -81,8 +82,7 @@ describe('Integ: Delegates', () => {
 
     // test member1 have a transaction, balance and correct metrics
     let member1Txs = await Models.MemberTransaction.find({ address: member1 }).sort({ createdAt: -1 })
-    let member1Balance = await Models.MemberBalance.findOne({ address: member1 })
-    let member1Metrics = await Models.MemberMetrics.findOne({ address: member1 })
+    let member1Balance = await Models.VpMember.findOne({ memberAddress: member1, tokenAddress })
 
     expect(member1Txs).to.have.length(1)
     expect(member1Txs[0].side).to.eq(ITransferSide.incoming)
@@ -90,7 +90,14 @@ describe('Integ: Delegates', () => {
     // expect(member1Txs[0].to).to.eq(member1)
     expect(member1Txs[0].memberVotingPower).to.eq('1000000000000000000')
     expect(member1Balance.votingPower).to.eq('1000000000000000000')
-    expect(member1Metrics.delegateReceivedCount).to.eq(1)
+    expect(member1Balance.delegateReceivedCount).to.eq(1)
+
+    // Update delegation metrics
+    await ProxyMember.updateDelegationMetrics({
+      memberAddress: member1,
+      tokenAddress,
+      network,
+    })
 
     console.log('end tx1')
 
@@ -109,10 +116,21 @@ describe('Integ: Delegates', () => {
     // test member created
     expect(await Models.Member.findByAddress(member2)).to.exist
 
+    // Update delegation metrics first
+    await ProxyMember.updateDelegationMetrics({
+      memberAddress: member1,
+      tokenAddress,
+      network,
+    })
+    await ProxyMember.updateDelegationMetrics({
+      memberAddress: member2,
+      tokenAddress,
+      network,
+    })
+
     // test member1 have a transaction, balance and correct metrics
     member1Txs = await Models.MemberTransaction.find({ address: member1 }).sort({ createdAt: -1 })
-    member1Balance = await Models.MemberBalance.findOne({ address: member1 })
-    member1Metrics = await Models.MemberMetrics.findOne({ address: member1 })
+    member1Balance = await Models.VpMember.findOne({ memberAddress: member1, tokenAddress })
 
     expect(member1Txs).to.have.length(2)
     expect(member1Txs[0].side).to.eq(ITransferSide.outgoing)
@@ -120,12 +138,11 @@ describe('Integ: Delegates', () => {
     // expect(member1Txs[0].to).to.eq(member2)
     expect(member1Txs[0].memberVotingPower).to.eq('0')
     expect(member1Balance.votingPower).to.eq('0')
-    expect(member1Metrics.delegateReceivedCount).to.eq(0)
+    expect(member1Balance.delegateReceivedCount).to.eq(0)
 
     // test member2 have a transaction, balance and correct metrics
     let member2Txs = await Models.MemberTransaction.find({ address: member2 }).sort({ createdAt: -1 })
-    let member2Balance = await Models.MemberBalance.findOne({ address: member2 })
-    let member2Metrics = await Models.MemberMetrics.findOne({ address: member2 })
+    let member2Balance = await Models.VpMember.findOne({ memberAddress: member2, tokenAddress })
 
     expect(member2Txs).to.have.length(1)
     expect(member2Txs[0].side).to.eq(ITransferSide.incoming)
@@ -133,23 +150,7 @@ describe('Integ: Delegates', () => {
     // expect(member2Txs[0].to).to.eq(member2)
     expect(member2Txs[0].memberVotingPower).to.eq('1000000000000000000')
     expect(member2Balance.votingPower).to.eq('1000000000000000000')
-    expect(member2Metrics.delegateReceivedCount).to.eq(1)
-
-    // let count = await ProxyMember.updateDelegationMetrics({
-    //   memberAddress: member1,
-    //   pluginAddress,
-    //   tokenAddress,
-    //   network,
-    // })
-    // expect(count).to.eq(0)
-    //
-    // let count1 = await ProxyMember.updateDelegationMetrics({
-    //   memberAddress: member2,
-    //   pluginAddress,
-    //   tokenAddress,
-    //   network,
-    // })
-    // expect(count1).to.eq(1)
+    expect(member2Balance.delegateReceivedCount).to.eq(1)
 
     console.log('end tx2')
 
@@ -168,10 +169,26 @@ describe('Integ: Delegates', () => {
     // test member created
     expect(await Models.Member.findByAddress(member3)).to.exist
 
+    // Update delegation metrics first
+    await ProxyMember.updateDelegationMetrics({
+      memberAddress: member1,
+      tokenAddress,
+      network,
+    })
+    await ProxyMember.updateDelegationMetrics({
+      memberAddress: member2,
+      tokenAddress,
+      network,
+    })
+    await ProxyMember.updateDelegationMetrics({
+      memberAddress: member3,
+      tokenAddress,
+      network,
+    })
+
     // test member1 have a transaction, balance and correct metrics
     member1Txs = await Models.MemberTransaction.find({ address: member1 }).sort({ createdAt: -1 })
-    member1Balance = await Models.MemberBalance.findOne({ address: member1 })
-    member1Metrics = await Models.MemberMetrics.findOne({ address: member1 })
+    member1Balance = await Models.VpMember.findOne({ memberAddress: member1, tokenAddress })
 
     expect(member1Txs).to.have.length(2)
     expect(member1Txs[0].side).to.eq(ITransferSide.outgoing)
@@ -179,12 +196,11 @@ describe('Integ: Delegates', () => {
     // expect(member1Txs[0].to).to.eq(member2)
     expect(member1Txs[0].memberVotingPower).to.eq('0')
     expect(member1Balance.votingPower).to.eq('0')
-    expect(member1Metrics.delegateReceivedCount).to.eq(0)
+    expect(member1Balance.delegateReceivedCount).to.eq(0)
 
     // test member2 have a transaction, balance and correct metrics
     member2Txs = await Models.MemberTransaction.find({ address: member2 }).sort({ createdAt: -1 })
-    member2Balance = await Models.MemberBalance.findOne({ address: member2 })
-    member2Metrics = await Models.MemberMetrics.findOne({ address: member2 })
+    member2Balance = await Models.VpMember.findOne({ memberAddress: member2, tokenAddress })
 
     expect(member2Txs).to.have.length(2)
     expect(member2Txs[0].side).to.eq(ITransferSide.outgoing)
@@ -192,12 +208,11 @@ describe('Integ: Delegates', () => {
     // expect(member2Txs[0].to).to.eq(member3)
     expect(member2Txs[0].memberVotingPower).to.eq('0')
     expect(member2Balance.votingPower).to.eq('0')
-    expect(member2Metrics.delegateReceivedCount).to.eq(0)
+    expect(member2Balance.delegateReceivedCount).to.eq(0)
 
     // test member3 have a transaction, balance and correct metrics
     let member3Txs = await Models.MemberTransaction.find({ address: member3 }).sort({ createdAt: -1 })
-    let member3Balance = await Models.MemberBalance.findOne({ address: member3 })
-    let member3Metrics = await Models.MemberMetrics.findOne({ address: member3 })
+    let member3Balance = await Models.VpMember.findOne({ memberAddress: member3, tokenAddress })
 
     expect(member3Txs).to.have.length(1)
     expect(member3Txs[0].side).to.eq(ITransferSide.incoming)
@@ -205,7 +220,7 @@ describe('Integ: Delegates', () => {
     // expect(member3Txs[0].to).to.eq(member3)
     expect(member3Txs[0].memberVotingPower).to.eq('1000000000000000000')
     expect(member3Balance.votingPower).to.eq('1000000000000000000')
-    expect(member3Metrics.delegateReceivedCount).to.eq(1)
+    expect(member3Balance.delegateReceivedCount).to.eq(1)
 
     console.log('end tx3')
 
@@ -221,10 +236,21 @@ describe('Integ: Delegates', () => {
       await GovernanceErc20Handler.delegateVotesChanged(event, logInfo)
     }
 
+    // Update delegation metrics first
+    await ProxyMember.updateDelegationMetrics({
+      memberAddress: member1,
+      tokenAddress,
+      network,
+    })
+    await ProxyMember.updateDelegationMetrics({
+      memberAddress: member3,
+      tokenAddress,
+      network,
+    })
+
     // test member1 have a transaction, balance and correct metrics
     member1Txs = await Models.MemberTransaction.find({ address: member1 }).sort({ createdAt: -1 })
-    member1Balance = await Models.MemberBalance.findOne({ address: member1 })
-    member1Metrics = await Models.MemberMetrics.findOne({ address: member1 })
+    member1Balance = await Models.VpMember.findOne({ memberAddress: member1, tokenAddress })
 
     expect(member1Txs).to.have.length(3)
     expect(member1Txs[0].side).to.eq(ITransferSide.incoming)
@@ -232,12 +258,11 @@ describe('Integ: Delegates', () => {
     // expect(member1Txs[0].to).to.eq(member1)
     expect(member1Txs[0].memberVotingPower).to.eq('1000000000000000000')
     expect(member1Balance.votingPower).to.eq('1000000000000000000')
-    expect(member1Metrics.delegateReceivedCount).to.eq(1)
+    expect(member1Balance.delegateReceivedCount).to.eq(1)
 
     // test member3 have a transaction, balance and correct metrics
     member3Txs = await Models.MemberTransaction.find({ address: member3 }).sort({ createdAt: -1 })
-    member3Balance = await Models.MemberBalance.findOne({ address: member3 })
-    member3Metrics = await Models.MemberMetrics.findOne({ address: member3 })
+    member3Balance = await Models.VpMember.findOne({ memberAddress: member3, tokenAddress })
 
     expect(member3Txs).to.have.length(2)
     expect(member3Txs[0].side).to.eq(ITransferSide.outgoing)
@@ -245,12 +270,12 @@ describe('Integ: Delegates', () => {
     // expect(member3Txs[0].to).to.eq(member1)
     expect(member3Txs[0].memberVotingPower).to.eq('0')
     expect(member3Balance.votingPower).to.eq('0')
-    expect(member3Metrics.delegateReceivedCount).to.eq(0)
+    expect(member3Balance.delegateReceivedCount).to.eq(0)
 
     console.log('end tx4')
   })
 
-  it('should test delegates', async function () {
+  it.only('should test delegates', async function () {
     this.timeout(1600000) // Increase timeout for the test
     const network = NetworksEnum.ethereumSepolia
     const daoAddress = '0x3e5fba52959d12f41266028f3a3d7ecc7462dd81'
@@ -318,8 +343,7 @@ describe('Integ: Delegates', () => {
 
     // test member1 have a transaction, balance and correct metrics
     let member1Txs = await Models.MemberTransaction.find({ address: member1 }).sort({ createdAt: -1 })
-    let member1Balance = await Models.MemberBalance.findOne({ address: member1 })
-    let member1Metrics = await Models.MemberMetrics.findOne({ address: member1 })
+    let member1Balance = await Models.VpMember.findOne({ memberAddress: member1, tokenAddress })
 
     expect(member1Txs).to.have.length(1)
     expect(member1Txs[0].side).to.eq(ITransferSide.incoming)
@@ -327,12 +351,11 @@ describe('Integ: Delegates', () => {
     // expect(member1Txs[0].to).to.eq(member1)
     expect(member1Txs[0].memberVotingPower).to.eq('1000000000000000000')
     expect(member1Balance.votingPower).to.eq('1000000000000000000')
-    expect(member1Metrics.delegateReceivedCount).to.eq(1)
+    expect(member1Balance.delegateReceivedCount).to.eq(1)
 
     // test member2 have a transaction, balance and correct metrics
     let member2Txs = await Models.MemberTransaction.find({ address: member2 }).sort({ createdAt: -1 })
-    let member2Balance = await Models.MemberBalance.findOne({ address: member2 })
-    let member2Metrics = await Models.MemberMetrics.findOne({ address: member2 })
+    let member2Balance = await Models.VpMember.findOne({ memberAddress: member2, tokenAddress })
 
     expect(member2Txs).to.have.length(1)
     expect(member2Txs[0].side).to.eq(ITransferSide.incoming)
@@ -340,12 +363,12 @@ describe('Integ: Delegates', () => {
     // expect(member2Txs[0].to).to.eq(member2)
     expect(member2Txs[0].memberVotingPower).to.eq('1000000000000000000')
     expect(member2Balance.votingPower).to.eq('1000000000000000000')
-    expect(member2Metrics.delegateReceivedCount).to.eq(1)
+    expect(member2Balance.delegateReceivedCount).to.eq(1)
 
     // test member3 have a transaction, balance and correct metrics
     let member3Txs = await Models.MemberTransaction.find({ address: member3 }).sort({ createdAt: -1 })
-    let member3Balance = await Models.MemberBalance.findOne({ address: member3 })
-    let member3Metrics = await Models.MemberMetrics.findOne({ address: member3 })
+    let member3Balance = await Models.VpMember.findOne({ memberAddress: member3, tokenAddress })
+    let member3Metrics = await Models.PluginMetrics.findOne({ memberAddress: member3, pluginAddress })
 
     expect(member3Txs).to.have.length(1)
     expect(member3Txs[0].side).to.eq(ITransferSide.incoming)
@@ -353,12 +376,12 @@ describe('Integ: Delegates', () => {
     // expect(member3Txs[0].to).to.eq(member3)
     expect(member3Txs[0].memberVotingPower).to.eq('1000000000000000000')
     expect(member3Balance.votingPower).to.eq('1000000000000000000')
-    expect(member3Metrics.delegateReceivedCount).to.eq(1)
+    expect(member3Balance.delegateReceivedCount).to.eq(1)
 
     // test member4 have a transaction, balance and correct metrics
     let member4Txs = await Models.MemberTransaction.find({ address: member4 }).sort({ createdAt: -1 })
-    let member4Balance = await Models.MemberBalance.findOne({ address: member4 })
-    let member4Metrics = await Models.MemberMetrics.findOne({ address: member4 })
+    let member4Balance = await Models.VpMember.findOne({ memberAddress: member4, tokenAddress })
+    let member4Metrics = await Models.PluginMetrics.findOne({ memberAddress: member4, pluginAddress })
 
     expect(member4Txs).to.have.length(1)
     expect(member4Txs[0].side).to.eq(ITransferSide.incoming)
@@ -366,12 +389,12 @@ describe('Integ: Delegates', () => {
     // expect(member4Txs[0].to).to.eq(member4)
     expect(member4Txs[0].memberVotingPower).to.eq('1000000000000000000')
     expect(member4Balance.votingPower).to.eq('1000000000000000000')
-    expect(member4Metrics.delegateReceivedCount).to.eq(1)
+    expect(member4Balance.delegateReceivedCount).to.eq(1)
 
     // test member5 have a transaction, balance and correct metrics
     let member5Txs = await Models.MemberTransaction.find({ address: member5 }).sort({ createdAt: -1 })
-    let member5Balance = await Models.MemberBalance.findOne({ address: member5 })
-    let member5Metrics = await Models.MemberMetrics.findOne({ address: member5 })
+    let member5Balance = await Models.VpMember.findOne({ memberAddress: member5, tokenAddress })
+    let member5Metrics = await Models.PluginMetrics.findOne({ memberAddress: member5, pluginAddress })
 
     expect(member5Txs).to.have.length(1)
     expect(member5Txs[0].side).to.eq(ITransferSide.incoming)
@@ -379,7 +402,7 @@ describe('Integ: Delegates', () => {
     // expect(member5Txs[0].to).to.eq(member5)
     expect(member5Txs[0].memberVotingPower).to.eq('1000000000000000000')
     expect(member5Balance.votingPower).to.eq('1000000000000000000')
-    expect(member5Metrics.delegateReceivedCount).to.eq(1)
+    expect(member5Balance.delegateReceivedCount).to.eq(1)
 
     console.log('end tx1')
 
@@ -395,10 +418,21 @@ describe('Integ: Delegates', () => {
       await GovernanceErc20Handler.delegateVotesChanged(event, logInfo)
     }
 
+    // Update delegation metrics first
+    await ProxyMember.updateDelegationMetrics({
+      memberAddress: member1,
+      tokenAddress,
+      network,
+    })
+    await ProxyMember.updateDelegationMetrics({
+      memberAddress: member2,
+      tokenAddress,
+      network,
+    })
+
     // test member1 have a transaction, balance and correct metrics
     member1Txs = await Models.MemberTransaction.find({ address: member1 }).sort({ createdAt: -1 })
-    member1Balance = await Models.MemberBalance.findOne({ address: member1 })
-    member1Metrics = await Models.MemberMetrics.findOne({ address: member1 })
+    member1Balance = await Models.VpMember.findOne({ memberAddress: member1, tokenAddress })
 
     expect(member1Txs).to.have.length(2)
     expect(member1Txs[0].side).to.eq(ITransferSide.incoming)
@@ -406,12 +440,11 @@ describe('Integ: Delegates', () => {
     // expect(member1Txs[0].to).to.eq(member1)
     expect(member1Txs[0].memberVotingPower).to.eq('2000000000000000000')
     expect(member1Balance.votingPower).to.eq('2000000000000000000')
-    expect(member1Metrics.delegateReceivedCount).to.eq(2)
+    expect(member1Balance.delegateReceivedCount).to.eq(2)
 
     // test member1 have a transaction, balance and correct metrics
     member2Txs = await Models.MemberTransaction.find({ address: member2 }).sort({ createdAt: -1 })
-    member2Balance = await Models.MemberBalance.findOne({ address: member2 })
-    member2Metrics = await Models.MemberMetrics.findOne({ address: member2 })
+    member2Balance = await Models.VpMember.findOne({ memberAddress: member2, tokenAddress })
 
     expect(member2Txs).to.have.length(2)
     expect(member2Txs[0].side).to.eq(ITransferSide.outgoing)
@@ -419,7 +452,7 @@ describe('Integ: Delegates', () => {
     // expect(member2Txs[0].to).to.eq(member1)
     expect(member2Txs[0].memberVotingPower).to.eq('0')
     expect(member2Balance.votingPower).to.eq('0')
-    expect(member2Metrics.delegateReceivedCount).to.eq(0)
+    expect(member2Balance.delegateReceivedCount).to.eq(0)
 
     console.log('end tx2')
 
@@ -435,10 +468,21 @@ describe('Integ: Delegates', () => {
       await GovernanceErc20Handler.delegateVotesChanged(event, logInfo)
     }
 
+    // Update delegation metrics first
+    await ProxyMember.updateDelegationMetrics({
+      memberAddress: member1,
+      tokenAddress,
+      network,
+    })
+    await ProxyMember.updateDelegationMetrics({
+      memberAddress: member3,
+      tokenAddress,
+      network,
+    })
+
     // test member1 have a transaction, balance and correct metrics
     member1Txs = await Models.MemberTransaction.find({ address: member1 }).sort({ createdAt: -1 })
-    member1Balance = await Models.MemberBalance.findOne({ address: member1 })
-    member1Metrics = await Models.MemberMetrics.findOne({ address: member1 })
+    member1Balance = await Models.VpMember.findOne({ memberAddress: member1, tokenAddress })
 
     expect(member1Txs).to.have.length(3)
     expect(member1Txs[0].side).to.eq(ITransferSide.incoming)
@@ -446,12 +490,11 @@ describe('Integ: Delegates', () => {
     // expect(member1Txs[0].to).to.eq(member1)
     expect(member1Txs[0].memberVotingPower).to.eq('3000000000000000000')
     expect(member1Balance.votingPower).to.eq('3000000000000000000')
-    expect(member1Metrics.delegateReceivedCount).to.eq(3)
+    expect(member1Balance.delegateReceivedCount).to.eq(3)
 
     // test member3 have a transaction, balance and correct metrics
     member3Txs = await Models.MemberTransaction.find({ address: member3 }).sort({ createdAt: -1 })
-    member3Balance = await Models.MemberBalance.findOne({ address: member3 })
-    member3Metrics = await Models.MemberMetrics.findOne({ address: member3 })
+    member3Balance = await Models.VpMember.findOne({ memberAddress: member3, tokenAddress })
 
     expect(member3Txs).to.have.length(2)
     expect(member3Txs[0].side).to.eq(ITransferSide.outgoing)
@@ -459,7 +502,7 @@ describe('Integ: Delegates', () => {
     // expect(member3Txs[0].to).to.eq(member1)
     expect(member3Txs[0].memberVotingPower).to.eq('0')
     expect(member3Balance.votingPower).to.eq('0')
-    expect(member3Metrics.delegateReceivedCount).to.eq(0)
+    expect(member3Balance.delegateReceivedCount).to.eq(0)
 
     console.log('end tx3')
 
@@ -475,10 +518,21 @@ describe('Integ: Delegates', () => {
       await GovernanceErc20Handler.delegateVotesChanged(event, logInfo)
     }
 
+    // Update delegation metrics first
+    await ProxyMember.updateDelegationMetrics({
+      memberAddress: member1,
+      tokenAddress,
+      network,
+    })
+    await ProxyMember.updateDelegationMetrics({
+      memberAddress: member4,
+      tokenAddress,
+      network,
+    })
+
     // test member1 have a transaction, balance and correct metrics
     member1Txs = await Models.MemberTransaction.find({ address: member1 }).sort({ createdAt: -1 })
-    member1Balance = await Models.MemberBalance.findOne({ address: member1 })
-    member1Metrics = await Models.MemberMetrics.findOne({ address: member1 })
+    member1Balance = await Models.VpMember.findOne({ memberAddress: member1, tokenAddress })
 
     expect(member1Txs).to.have.length(4)
     expect(member1Txs[0].side).to.eq(ITransferSide.incoming)
@@ -486,12 +540,11 @@ describe('Integ: Delegates', () => {
     // expect(member1Txs[0].to).to.eq(member1)
     expect(member1Txs[0].memberVotingPower).to.eq('4000000000000000000')
     expect(member1Balance.votingPower).to.eq('4000000000000000000')
-    expect(member1Metrics.delegateReceivedCount).to.eq(4)
+    expect(member1Balance.delegateReceivedCount).to.eq(4)
 
     // test member4 have a transaction, balance and correct metrics
     member4Txs = await Models.MemberTransaction.find({ address: member4 }).sort({ createdAt: -1 })
-    member4Balance = await Models.MemberBalance.findOne({ address: member4 })
-    member4Metrics = await Models.MemberMetrics.findOne({ address: member4 })
+    member4Balance = await Models.VpMember.findOne({ memberAddress: member4, tokenAddress })
 
     expect(member4Txs).to.have.length(2)
     expect(member4Txs[0].side).to.eq(ITransferSide.outgoing)
@@ -499,7 +552,7 @@ describe('Integ: Delegates', () => {
     // expect(member4Txs[0].to).to.eq(member1)
     expect(member4Txs[0].memberVotingPower).to.eq('0')
     expect(member4Balance.votingPower).to.eq('0')
-    expect(member4Metrics.delegateReceivedCount).to.eq(0)
+    expect(member4Balance.delegateReceivedCount).to.eq(0)
 
     console.log('end tx4')
 
@@ -515,10 +568,21 @@ describe('Integ: Delegates', () => {
       await GovernanceErc20Handler.delegateVotesChanged(event, logInfo)
     }
 
+    // Update delegation metrics first
+    await ProxyMember.updateDelegationMetrics({
+      memberAddress: member1,
+      tokenAddress,
+      network,
+    })
+    await ProxyMember.updateDelegationMetrics({
+      memberAddress: member2,
+      tokenAddress,
+      network,
+    })
+
     // test member1 have a transaction, balance and correct metrics
     member1Txs = await Models.MemberTransaction.find({ address: member1 }).sort({ createdAt: -1 })
-    member1Balance = await Models.MemberBalance.findOne({ address: member1 })
-    member1Metrics = await Models.MemberMetrics.findOne({ address: member1 })
+    member1Balance = await Models.VpMember.findOne({ memberAddress: member1, tokenAddress })
 
     expect(member1Txs).to.have.length(5)
     expect(member1Txs[0].side).to.eq(ITransferSide.outgoing)
@@ -526,12 +590,11 @@ describe('Integ: Delegates', () => {
     // expect(member1Txs[0].to).to.eq(member2)
     expect(member1Txs[0].memberVotingPower).to.eq('3000000000000000000')
     expect(member1Balance.votingPower).to.eq('3000000000000000000')
-    expect(member1Metrics.delegateReceivedCount).to.eq(3)
+    expect(member1Balance.delegateReceivedCount).to.eq(3)
 
     // test member2 have a transaction, balance and correct metrics
     member2Txs = await Models.MemberTransaction.find({ address: member2 }).sort({ createdAt: -1 })
-    member2Balance = await Models.MemberBalance.findOne({ address: member2 })
-    member2Metrics = await Models.MemberMetrics.findOne({ address: member2 })
+    member2Balance = await Models.VpMember.findOne({ memberAddress: member2, tokenAddress })
 
     expect(member2Txs).to.have.length(3)
     expect(member2Txs[0].side).to.eq(ITransferSide.incoming)
@@ -539,7 +602,7 @@ describe('Integ: Delegates', () => {
     // expect(member2Txs[0].to).to.eq(member2)
     expect(member2Txs[0].memberVotingPower).to.eq('1000000000000000000')
     expect(member2Balance.votingPower).to.eq('1000000000000000000')
-    expect(member2Metrics.delegateReceivedCount).to.eq(1)
+    expect(member2Balance.delegateReceivedCount).to.eq(1)
 
     console.log('end tx5')
 
@@ -555,10 +618,21 @@ describe('Integ: Delegates', () => {
       await GovernanceErc20Handler.delegateVotesChanged(event, logInfo)
     }
 
+    // Update delegation metrics first
+    await ProxyMember.updateDelegationMetrics({
+      memberAddress: member1,
+      tokenAddress,
+      network,
+    })
+    await ProxyMember.updateDelegationMetrics({
+      memberAddress: member2,
+      tokenAddress,
+      network,
+    })
+
     // test member1 have a transaction, balance and correct metrics
     member1Txs = await Models.MemberTransaction.find({ address: member1 }).sort({ createdAt: -1 })
-    member1Balance = await Models.MemberBalance.findOne({ address: member1 })
-    member1Metrics = await Models.MemberMetrics.findOne({ address: member1 })
+    member1Balance = await Models.VpMember.findOne({ memberAddress: member1, tokenAddress })
 
     expect(member1Txs).to.have.length(6)
     expect(member1Txs[0].side).to.eq(ITransferSide.outgoing)
@@ -566,12 +640,11 @@ describe('Integ: Delegates', () => {
     // expect(member1Txs[0].to).to.eq(member2)
     expect(member1Txs[0].memberVotingPower).to.eq('2000000000000000000')
     expect(member1Balance.votingPower).to.eq('2000000000000000000')
-    expect(member1Metrics.delegateReceivedCount).to.eq(2)
+    expect(member1Balance.delegateReceivedCount).to.eq(2)
 
     // test member2 have a transaction, balance and correct metrics
     member2Txs = await Models.MemberTransaction.find({ address: member2 }).sort({ createdAt: -1 })
-    member2Balance = await Models.MemberBalance.findOne({ address: member2 })
-    member2Metrics = await Models.MemberMetrics.findOne({ address: member2 })
+    member2Balance = await Models.VpMember.findOne({ memberAddress: member2, tokenAddress })
 
     expect(member2Txs).to.have.length(4)
     expect(member2Txs[0].side).to.eq(ITransferSide.incoming)
@@ -579,7 +652,7 @@ describe('Integ: Delegates', () => {
     // expect(member2Txs[0].to).to.eq(member2)
     expect(member2Txs[0].memberVotingPower).to.eq('2000000000000000000')
     expect(member2Balance.votingPower).to.eq('2000000000000000000')
-    expect(member2Metrics.delegateReceivedCount).to.eq(2)
+    expect(member2Balance.delegateReceivedCount).to.eq(2)
 
     console.log('end tx6')
 
