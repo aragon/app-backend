@@ -34,9 +34,9 @@ describe('migration: pluginMembers', () => {
     // Stub mongoose connection
     sandbox
       .stub(mongoose.connection, 'collection')
-      .withArgs('DaoMemberMappings')
+      .withArgs('DaoMemberMapping')
       .returns(mockDaoMemberMappingCollection)
-      .withArgs('MemberMetrics')
+      .withArgs('MemberMetric')
       .returns(mockMemberMetricsCollection)
 
     // Stub ProxyMember methods
