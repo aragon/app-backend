@@ -96,7 +96,7 @@ describe('AragonDao:ProposalMetrics', () => {
       const members = [{}, {}, {}, {}] // 4 members
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
       sandbox.stub(Models.Vote, 'findVotes').resolves(votes as any)
-      sandbox.stub(Models.DaoMemberMapping, 'findAllMembersOfPlugin').resolves(members as any)
+      sandbox.stub(Models.PluginMember, 'findAllMembersOfPlugin').resolves(members as any)
       const logVerbose = sandbox.stub(logger, 'verbose')
 
       const result = await ProposalMetrics.proposalTokenVotingMetrics({

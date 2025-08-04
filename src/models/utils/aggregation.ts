@@ -608,7 +608,7 @@ export const AggregationQueryHelper = {
 
     if (memberAddress) {
       letVariables.memberAddress = memberAddress
-      matchConditions.push({ $eq: ['$$memberAddress', '$address'] })
+      matchConditions.push({ $eq: ['$$memberAddress', '$memberAddress'] })
     }
 
     const pipeline: any[] = []
@@ -659,7 +659,7 @@ export const AggregationQueryHelper = {
 
     if (memberAddress) {
       letVariables.memberAddress = memberAddress
-      matchConditions.push({ $eq: ['$$memberAddress', '$address'] })
+      matchConditions.push({ $eq: ['$$memberAddress', '$memberAddress'] })
     }
 
     const pipeline: any[] = []

@@ -11,12 +11,6 @@ describe('Model: VpMember', () => {
   let sandbox: SinonSandbox
   let rawVpMember: Partial<VpMember>
 
-  before(async () => {
-    // Ensure models are loaded when running test directly
-    const { ModelProxy } = await import('@src/models')
-    await ModelProxy.setMongoModels()
-  })
-
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
 
@@ -31,8 +25,11 @@ describe('Model: VpMember', () => {
     }
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     sandbox?.restore()
+    // Clean up database to prevent duplicate key errors
+    await Models.VpMember.deleteMany({})
+    await Models.Member.deleteMany({})
   })
 
   it('Should create VpMember', async () => {
@@ -104,8 +101,13 @@ describe('Model: VpMember', () => {
   it('should findByToken', async () => {
     await Models.VpMember.create(rawVpMember)
     const anotherMember = {
-      ...rawVpMember,
       memberAddress: '0x223456789012345678901234567890123456789A',
+      tokenAddress: rawVpMember.tokenAddress,
+      votingPower: '500000',
+      network: rawVpMember.network,
+      tokenIds: ['4', '5'],
+      delegateReceivedCount: 2,
+      lastVPBlockNumber: 1000001,
     }
     await Models.VpMember.create(anotherMember)
 
@@ -118,8 +120,13 @@ describe('Model: VpMember', () => {
   it('should findByMember', async () => {
     await Models.VpMember.create(rawVpMember)
     const anotherToken = {
-      ...rawVpMember,
+      memberAddress: rawVpMember.memberAddress,
       tokenAddress: '0xB23456789012345678901234567890123456789B',
+      votingPower: '750000',
+      network: rawVpMember.network,
+      tokenIds: ['6', '7'],
+      delegateReceivedCount: 3,
+      lastVPBlockNumber: 1000002,
     }
     await Models.VpMember.create(anotherToken)
 
@@ -153,14 +160,22 @@ describe('Model: VpMember', () => {
       // Create members with different voting powers
       await Models.VpMember.create(rawVpMember) // votingPower: '1000000'
       await Models.VpMember.create({
-        ...rawVpMember,
         memberAddress: '0x223456789012345678901234567890123456789A',
+        tokenAddress: rawVpMember.tokenAddress,
         votingPower: '500000',
+        network: rawVpMember.network,
+        tokenIds: ['4'],
+        delegateReceivedCount: 1,
+        lastVPBlockNumber: 1000001,
       })
       await Models.VpMember.create({
-        ...rawVpMember,
         memberAddress: '0x323456789012345678901234567890123456789A',
+        tokenAddress: rawVpMember.tokenAddress,
         votingPower: '0',
+        network: rawVpMember.network,
+        tokenIds: [],
+        delegateReceivedCount: 0,
+        lastVPBlockNumber: 1000002,
       })
 
       const count = await Models.VpMember.countHoldersWithVotingPower(rawVpMember.tokenAddress!, rawVpMember.network!)
@@ -169,13 +184,22 @@ describe('Model: VpMember', () => {
 
     it('should return 0 when no holders have voting power', async () => {
       await Models.VpMember.create({
-        ...rawVpMember,
+        memberAddress: rawVpMember.memberAddress,
+        tokenAddress: rawVpMember.tokenAddress,
         votingPower: '0',
+        network: rawVpMember.network,
+        tokenIds: [],
+        delegateReceivedCount: 0,
+        lastVPBlockNumber: 1000000,
       })
       await Models.VpMember.create({
-        ...rawVpMember,
         memberAddress: '0x223456789012345678901234567890123456789A',
+        tokenAddress: rawVpMember.tokenAddress,
         votingPower: '0',
+        network: rawVpMember.network,
+        tokenIds: [],
+        delegateReceivedCount: 0,
+        lastVPBlockNumber: 1000001,
       })
 
       const count = await Models.VpMember.countHoldersWithVotingPower(rawVpMember.tokenAddress!, rawVpMember.network!)
@@ -185,12 +209,22 @@ describe('Model: VpMember', () => {
     it('should filter by tokenAddress and network', async () => {
       await Models.VpMember.create(rawVpMember)
       await Models.VpMember.create({
-        ...rawVpMember,
+        memberAddress: '0x223456789012345678901234567890123456789A',
         tokenAddress: '0xDifferentToken',
+        votingPower: '1000000',
+        network: rawVpMember.network,
+        tokenIds: ['4'],
+        delegateReceivedCount: 1,
+        lastVPBlockNumber: 1000001,
       })
       await Models.VpMember.create({
-        ...rawVpMember,
+        memberAddress: '0x323456789012345678901234567890123456789A',
+        tokenAddress: rawVpMember.tokenAddress,
+        votingPower: '1000000',
         network: NetworksEnum.polygonMainnet,
+        tokenIds: ['5'],
+        delegateReceivedCount: 1,
+        lastVPBlockNumber: 1000002,
       })
 
       const count = await Models.VpMember.countHoldersWithVotingPower(rawVpMember.tokenAddress!, rawVpMember.network!)
@@ -234,7 +268,7 @@ describe('Model: VpMember', () => {
       expect(aggregateSpy.calledTwice).to.be.true
       expect(response).to.have.property('data').with.lengthOf(1)
       expect(response.data[0].address).to.eq(rawVpMember.memberAddress)
-      expect(response.data[0].votingPower).to.eq(rawVpMember.votingPower)
+      expect(response.data[0].votingPower).to.eq(Number(rawVpMember.votingPower))
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
@@ -247,9 +281,13 @@ describe('Model: VpMember', () => {
         ens: 'zero.eth',
       })
       await Models.VpMember.create({
-        ...rawVpMember,
         memberAddress: '0x223456789012345678901234567890123456789A',
+        tokenAddress: rawVpMember.tokenAddress,
         votingPower: '0',
+        network: rawVpMember.network,
+        tokenIds: [],
+        delegateReceivedCount: 0,
+        lastVPBlockNumber: 1000001,
       })
 
       const paginationParams = {
@@ -281,8 +319,13 @@ describe('Model: VpMember', () => {
         ens: 'searchable.eth',
       })
       await Models.VpMember.create({
-        ...rawVpMember,
         memberAddress: '0x223456789012345678901234567890123456789A',
+        tokenAddress: rawVpMember.tokenAddress,
+        votingPower: '750000',
+        network: rawVpMember.network,
+        tokenIds: ['4'],
+        delegateReceivedCount: 1,
+        lastVPBlockNumber: 1000001,
       })
 
       const paginationParams = {

@@ -497,7 +497,7 @@ describe('AragonDao: memberInfo', () => {
       expect(result).to.be.true
     })
 
-    it('should return true for admin when daoMemberMapping exists', async () => {
+    it('should return true for admin when pluginMember exists', async () => {
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
         daoAddress: '0xDaoAddress',
         address: '0xPluginAddress',
@@ -507,7 +507,7 @@ describe('AragonDao: memberInfo', () => {
 
       const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
 
-      const daoMemberMappingStub = sandbox.stub(Models.DaoMemberMapping, 'findOne').resolves({
+      const pluginMemberStub = sandbox.stub(Models.PluginMember, 'findOne').resolves({
         daoAddress: '0xDaoAddress',
         memberAddress: '0xMemberAddress',
         network: NetworksEnum.ethereumSepolia,
@@ -521,9 +521,9 @@ describe('AragonDao: memberInfo', () => {
 
       expect(pluginStub.calledOnce).to.be.true
       expect(settingsStub.calledOnce).to.be.true
-      expect(daoMemberMappingStub.calledOnce).to.be.true
+      expect(pluginMemberStub.calledOnce).to.be.true
       expect(
-        daoMemberMappingStub.calledWith({
+        pluginMemberStub.calledWith({
           daoAddress: '0xDaoAddress',
           memberAddress: '0xMemberAddress',
           network: NetworksEnum.ethereumSepolia,
@@ -532,7 +532,7 @@ describe('AragonDao: memberInfo', () => {
       expect(result).to.be.true
     })
 
-    it('should return false for admin when daoMemberMapping does not exist', async () => {
+    it('should return false for admin when pluginMember does not exist', async () => {
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
         daoAddress: '0xDaoAddress',
         address: '0xPluginAddress',
@@ -542,7 +542,7 @@ describe('AragonDao: memberInfo', () => {
 
       const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
 
-      const daoMemberMappingStub = sandbox.stub(Models.DaoMemberMapping, 'findOne').resolves(null)
+      const pluginMemberStub = sandbox.stub(Models.PluginMember, 'findOne').resolves(null)
 
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
@@ -552,7 +552,7 @@ describe('AragonDao: memberInfo', () => {
 
       expect(pluginStub.calledOnce).to.be.true
       expect(settingsStub.calledOnce).to.be.true
-      expect(daoMemberMappingStub.calledOnce).to.be.true
+      expect(pluginMemberStub.calledOnce).to.be.true
       expect(result).to.be.false
     })
 

@@ -7,7 +7,9 @@ import {
   ITokenType,
   NetworksEnum,
   ITransferSide,
-  EnumQueueName, ITransferType, IClockMode,
+  EnumQueueName,
+  ITransferType,
+  IClockMode,
 } from '@types'
 import type Plugin from '@models/schema/plugin'
 import { Models } from '@dbModels'
@@ -20,7 +22,7 @@ import { PluginSetting } from '@models/schema/setting'
 import { ProxyToken } from '@modules/proxyToken'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import RabbitMQHelper from '@helpers/rabbitMQ'
-import utils from "@helpers/utils";
+import utils from '@helpers/utils'
 
 describe('Handler:GovernanceVeHandler', () => {
   let sandbox: SinonSandbox
@@ -93,10 +95,12 @@ describe('Handler:GovernanceVeHandler', () => {
       await GovernanceVeHandler.deposit(mockEvent, mockInfo)
 
       expect(stubPluginFind.calledOnce).to.be.true
-      expect(stubPluginFind.calledWith({
-        'votingEscrow.escrowAddress': mockInfo.address,
-        network: mockInfo.network,
-      })).to.be.true
+      expect(
+        stubPluginFind.calledWith({
+          'votingEscrow.escrowAddress': mockInfo.address,
+          network: mockInfo.network,
+        }),
+      ).to.be.true
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Plugin not found for deposit event' as any)).to.be.true
       expect(stubLockCreate.notCalled).to.be.true
@@ -165,7 +169,7 @@ describe('Handler:GovernanceVeHandler', () => {
       const stubLogger = sandbox.stub(logger, 'verbose')
       const stubAddPluginMember = sandbox.stub(ProxyMember, 'addPluginMember').resolves()
       const stubGetOrCreateVotingPower = sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
-        tokenIds: []
+        tokenIds: [],
       } as any)
       const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
 
@@ -212,34 +216,41 @@ describe('Handler:GovernanceVeHandler', () => {
 
       // Verify addPluginMember was called
       expect(stubAddPluginMember.calledOnce).to.be.true
-      expect(stubAddPluginMember.calledWith({
-        memberAddress: mockEvent.args.depositor,
-        pluginAddress: mockPlugin.address,
-        daoAddress: mockPlugin.daoAddress,
-        network: mockInfo.network,
-      })).to.be.true
+      expect(
+        stubAddPluginMember.calledWith({
+          memberAddress: mockEvent.args.depositor,
+          pluginAddress: mockPlugin.address,
+          daoAddress: mockPlugin.daoAddress,
+          network: mockInfo.network,
+        }),
+      ).to.be.true
 
       // Verify getOrCreateVotingPower was called
       expect(stubGetOrCreateVotingPower.calledOnce).to.be.true
-      expect(stubGetOrCreateVotingPower.calledWith({
-        memberAddress: mockEvent.args.depositor,
-        tokenAddress: mockPlugin.tokenAddress,
-        network: mockInfo.network,
-      })).to.be.true
+      expect(
+        stubGetOrCreateVotingPower.calledWith({
+          memberAddress: mockEvent.args.depositor,
+          tokenAddress: mockPlugin.tokenAddress,
+          network: mockInfo.network,
+        }),
+      ).to.be.true
 
       // Verify updateVotingPower was called with new tokenId
       expect(stubUpdateVotingPower.calledOnce).to.be.true
-      expect(stubUpdateVotingPower.calledWith({
-        memberAddress: mockEvent.args.depositor,
-        tokenAddress: mockPlugin.tokenAddress,
-        network: mockInfo.network,
-        tokenIds: ['123'],
-      })).to.be.true
+      expect(
+        stubUpdateVotingPower.calledWith({
+          memberAddress: mockEvent.args.depositor,
+          tokenAddress: mockPlugin.tokenAddress,
+          network: mockInfo.network,
+          tokenIds: ['123'],
+        }),
+      ).to.be.true
 
       // Verify logging
       expect(stubLogger.calledTwice).to.be.true
       expect(stubLogger.firstCall.calledWith('Deposit VeGovernance - Lock created' as any)).to.be.true
-      expect(stubLogger.secondCall.calledWith('Deposit VeGovernance - Member and voting power updated' as any)).to.be.true
+      expect(stubLogger.secondCall.calledWith('Deposit VeGovernance - Member and voting power updated' as any)).to.be
+        .true
     })
 
     it('should create Lock with existing VpMember and not update if tokenId already exists', async () => {
@@ -262,7 +273,7 @@ describe('Handler:GovernanceVeHandler', () => {
       const stubAddPluginMember = sandbox.stub(ProxyMember, 'addPluginMember').resolves()
       // VpMember already has the tokenId
       const stubGetOrCreateVotingPower = sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
-        tokenIds: ['100', '123', '200'] // Already includes tokenId 123
+        tokenIds: ['100', '123', '200'], // Already includes tokenId 123
       } as any)
       const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
 
@@ -301,7 +312,8 @@ describe('Handler:GovernanceVeHandler', () => {
       // Verify logging
       expect(stubLogger.calledTwice).to.be.true
       expect(stubLogger.firstCall.calledWith('Deposit VeGovernance - Lock created' as any)).to.be.true
-      expect(stubLogger.secondCall.calledWith('Deposit VeGovernance - Member and voting power updated' as any)).to.be.true
+      expect(stubLogger.secondCall.calledWith('Deposit VeGovernance - Member and voting power updated' as any)).to.be
+        .true
     })
 
     it('should handle multiple plugins and call addPluginMember for each', async () => {
@@ -359,18 +371,22 @@ describe('Handler:GovernanceVeHandler', () => {
 
       // Verify addPluginMember was called for each plugin
       expect(stubAddPluginMember.calledTwice).to.be.true
-      expect(stubAddPluginMember.firstCall.calledWith({
-        memberAddress: mockEvent.args.depositor,
-        pluginAddress: mockPlugins[0].address,
-        daoAddress: mockPlugins[0].daoAddress,
-        network: mockInfo.network,
-      })).to.be.true
-      expect(stubAddPluginMember.secondCall.calledWith({
-        memberAddress: mockEvent.args.depositor,
-        pluginAddress: mockPlugins[1].address,
-        daoAddress: mockPlugins[1].daoAddress,
-        network: mockInfo.network,
-      })).to.be.true
+      expect(
+        stubAddPluginMember.firstCall.calledWith({
+          memberAddress: mockEvent.args.depositor,
+          pluginAddress: mockPlugins[0].address,
+          daoAddress: mockPlugins[0].daoAddress,
+          network: mockInfo.network,
+        }),
+      ).to.be.true
+      expect(
+        stubAddPluginMember.secondCall.calledWith({
+          memberAddress: mockEvent.args.depositor,
+          pluginAddress: mockPlugins[1].address,
+          daoAddress: mockPlugins[1].daoAddress,
+          network: mockInfo.network,
+        }),
+      ).to.be.true
     })
 
     it('should handle undefined blockTimestamp gracefully', async () => {
@@ -498,10 +514,12 @@ describe('Handler:GovernanceVeHandler', () => {
       await GovernanceVeHandler.withdraw(mockEvent, mockInfo)
 
       expect(stubPluginFind.calledOnce).to.be.true
-      expect(stubPluginFind.calledWith({
-        'votingEscrow.escrowAddress': mockInfo.address,
-        network: mockInfo.network,
-      })).to.be.true
+      expect(
+        stubPluginFind.calledWith({
+          'votingEscrow.escrowAddress': mockInfo.address,
+          network: mockInfo.network,
+        }),
+      ).to.be.true
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Plugin not found for withdraw event' as any)).to.be.true
       expect(stubLockFindLockMember.notCalled).to.be.true
@@ -628,7 +646,7 @@ describe('Handler:GovernanceVeHandler', () => {
       const stubLogger = sandbox.stub(logger, 'verbose')
       const stubCreateMember = sandbox.stub(ProxyMember, 'createMember').resolves()
       const stubGetOrCreateVotingPower = sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
-        tokenIds: ['100', '123', '200']
+        tokenIds: ['100', '123', '200'],
       } as any)
       const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
 
@@ -654,17 +672,19 @@ describe('Handler:GovernanceVeHandler', () => {
 
       // Verify existingLock.update was called with correct params
       expect(stubUpdate.calledOnce).to.be.true
-      expect(stubUpdate.calledWith({
-        lockWithdraw: {
-          status: true,
-          transactionHash: mockInfo.transactionHash,
-          blockNumber: mockInfo.blockNumber,
-          blockTimestamp: 1650009999,
-          totalLocked: '20000',
-          amount: '5000',
-          epochEndAt: 1650005000,
-        },
-      })).to.be.true
+      expect(
+        stubUpdate.calledWith({
+          lockWithdraw: {
+            status: true,
+            transactionHash: mockInfo.transactionHash,
+            blockNumber: mockInfo.blockNumber,
+            blockTimestamp: 1650009999,
+            totalLocked: '20000',
+            amount: '5000',
+            epochEndAt: 1650005000,
+          },
+        }),
+      ).to.be.true
 
       // Verify ProxyMember.createMember was called
       expect(stubCreateMember.calledOnce).to.be.true
@@ -672,22 +692,26 @@ describe('Handler:GovernanceVeHandler', () => {
 
       // Verify getOrCreateVotingPower was called
       expect(stubGetOrCreateVotingPower.calledOnce).to.be.true
-      expect(stubGetOrCreateVotingPower.calledWith({
-        memberAddress: mockEvent.args.depositor,
-        tokenAddress: mockInfo.address,
-        network: mockInfo.network,
-      })).to.be.true
+      expect(
+        stubGetOrCreateVotingPower.calledWith({
+          memberAddress: mockEvent.args.depositor,
+          tokenAddress: mockInfo.address,
+          network: mockInfo.network,
+        }),
+      ).to.be.true
 
       // Verify ProxyMember.updateVotingPower was called with tokenId removed
       expect(stubUpdateVotingPower.calledOnce).to.be.true
-      expect(stubUpdateVotingPower.calledWith({
-        memberAddress: mockEvent.args.depositor,
-        tokenAddress: mockInfo.address,
-        network: mockInfo.network,
-        votingPower: undefined,
-        tokenIds: ['100', '200'], // '123' removed
-        lastVPBlockNumber: mockInfo.blockNumber,
-      })).to.be.true
+      expect(
+        stubUpdateVotingPower.calledWith({
+          memberAddress: mockEvent.args.depositor,
+          tokenAddress: mockInfo.address,
+          network: mockInfo.network,
+          votingPower: undefined,
+          tokenIds: ['100', '200'], // '123' removed
+          lastVPBlockNumber: mockInfo.blockNumber,
+        }),
+      ).to.be.true
 
       // Verify logging
       expect(stubLogger.calledOnce).to.be.true
@@ -719,7 +743,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
       // Only one tokenId exists, which will be removed
       sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
-        tokenIds: ['123']
+        tokenIds: ['123'],
       } as any)
       const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
 
@@ -745,14 +769,16 @@ describe('Handler:GovernanceVeHandler', () => {
 
       // Verify updateVotingPower was called with votingPower: '0' when no tokenIds remain
       expect(stubUpdateVotingPower.calledOnce).to.be.true
-      expect(stubUpdateVotingPower.calledWith({
-        memberAddress: mockEvent.args.depositor,
-        tokenAddress: mockInfo.address,
-        network: mockInfo.network,
-        votingPower: '0',
-        tokenIds: [],
-        lastVPBlockNumber: mockInfo.blockNumber,
-      })).to.be.true
+      expect(
+        stubUpdateVotingPower.calledWith({
+          memberAddress: mockEvent.args.depositor,
+          tokenAddress: mockInfo.address,
+          network: mockInfo.network,
+          votingPower: '0',
+          tokenIds: [],
+          lastVPBlockNumber: mockInfo.blockNumber,
+        }),
+      ).to.be.true
     })
 
     it('should handle undefined blockTimestamp gracefully', async () => {
@@ -778,7 +804,7 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(logger, 'verbose')
       sandbox.stub(ProxyMember, 'createMember').resolves()
       sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
-        tokenIds: ['123']
+        tokenIds: ['123'],
       } as any)
       sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
 
@@ -833,7 +859,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
       // tokenId 123 is not in the array
       sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
-        tokenIds: ['100', '200']
+        tokenIds: ['100', '200'],
       } as any)
       const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
 
@@ -859,14 +885,16 @@ describe('Handler:GovernanceVeHandler', () => {
 
       // Verify updateVotingPower was called with same tokenIds (nothing removed)
       expect(stubUpdateVotingPower.calledOnce).to.be.true
-      expect(stubUpdateVotingPower.calledWith({
-        memberAddress: mockEvent.args.depositor,
-        tokenAddress: mockInfo.address,
-        network: mockInfo.network,
-        votingPower: undefined,
-        tokenIds: ['100', '200'],
-        lastVPBlockNumber: mockInfo.blockNumber,
-      })).to.be.true
+      expect(
+        stubUpdateVotingPower.calledWith({
+          memberAddress: mockEvent.args.depositor,
+          tokenAddress: mockInfo.address,
+          network: mockInfo.network,
+          votingPower: undefined,
+          tokenIds: ['100', '200'],
+          lastVPBlockNumber: mockInfo.blockNumber,
+        }),
+      ).to.be.true
     })
 
     it('should handle empty tokenIds array', async () => {
@@ -894,7 +922,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
       // VpMember has undefined tokenIds
       sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
-        tokenIds: undefined
+        tokenIds: undefined,
       } as any)
       const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
 
@@ -920,14 +948,16 @@ describe('Handler:GovernanceVeHandler', () => {
 
       // Verify updateVotingPower was called with votingPower: '0' for empty array
       expect(stubUpdateVotingPower.calledOnce).to.be.true
-      expect(stubUpdateVotingPower.calledWith({
-        memberAddress: mockEvent.args.depositor,
-        tokenAddress: mockInfo.address,
-        network: mockInfo.network,
-        votingPower: '0',
-        tokenIds: [],
-        lastVPBlockNumber: mockInfo.blockNumber,
-      })).to.be.true
+      expect(
+        stubUpdateVotingPower.calledWith({
+          memberAddress: mockEvent.args.depositor,
+          tokenAddress: mockInfo.address,
+          network: mockInfo.network,
+          votingPower: '0',
+          tokenIds: [],
+          lastVPBlockNumber: mockInfo.blockNumber,
+        }),
+      ).to.be.true
     })
   })
 
@@ -957,10 +987,12 @@ describe('Handler:GovernanceVeHandler', () => {
       await GovernanceVeHandler.exitQueued(mockEvent, mockInfo)
 
       expect(stubPluginFind.calledOnce).to.be.true
-      expect(stubPluginFind.calledWith({
-        'votingEscrow.exitQueueAddress': mockInfo.address,
-        network: mockInfo.network,
-      })).to.be.true
+      expect(
+        stubPluginFind.calledWith({
+          'votingEscrow.exitQueueAddress': mockInfo.address,
+          network: mockInfo.network,
+        }),
+      ).to.be.true
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Plugin not found for exitQueued event' as any)).to.be.true
       expect(stubLockFindLockMember.notCalled).to.be.true
@@ -1100,15 +1132,17 @@ describe('Handler:GovernanceVeHandler', () => {
 
       // Verify existingLock.update was called with correct params
       expect(stubUpdate.calledOnce).to.be.true
-      expect(stubUpdate.calledWith({
-        lockExit: {
-          status: true,
-          transactionHash: mockInfo.transactionHash,
-          blockNumber: mockInfo.blockNumber,
-          blockTimestamp: 1650009999,
-          exitDateAt: 1650010000,
-        },
-      })).to.be.true
+      expect(
+        stubUpdate.calledWith({
+          lockExit: {
+            status: true,
+            transactionHash: mockInfo.transactionHash,
+            blockNumber: mockInfo.blockNumber,
+            blockTimestamp: 1650009999,
+            exitDateAt: 1650010000,
+          },
+        }),
+      ).to.be.true
 
       // Verify ProxyMember.createMember was called
       expect(stubCreateMember.calledOnce).to.be.true
@@ -1221,12 +1255,14 @@ describe('Handler:GovernanceVeHandler', () => {
 
       // Verify findLockMember was called with the correct params
       expect(stubFindLockMember.calledOnce).to.be.true
-      expect(stubFindLockMember.calledWith({
-        network: mockInfo.network,
-        exitQueueAddress: mockInfo.address,
-        tokenId: '123',
-        memberAddress: mockEvent.args.holder,
-      })).to.be.true
+      expect(
+        stubFindLockMember.calledWith({
+          network: mockInfo.network,
+          exitQueueAddress: mockInfo.address,
+          tokenId: '123',
+          memberAddress: mockEvent.args.holder,
+        }),
+      ).to.be.true
 
       // Verify update was called
       expect(stubUpdate.calledOnce).to.be.true
@@ -1302,10 +1338,12 @@ describe('Handler:GovernanceVeHandler', () => {
       await GovernanceVeHandler.minDepositSet(mockEvent, mockInfo)
 
       expect(stubPluginFind.calledOnce).to.be.true
-      expect(stubPluginFind.calledWith({
-        'votingEscrow.escrowAddress': mockInfo.address,
-        network: mockInfo.network,
-      })).to.be.true
+      expect(
+        stubPluginFind.calledWith({
+          'votingEscrow.escrowAddress': mockInfo.address,
+          network: mockInfo.network,
+        }),
+      ).to.be.true
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Plugin not found for minDepositSet event' as any)).to.be.true
       expect(stubSettingFindActive.notCalled).to.be.true
@@ -1627,10 +1665,12 @@ describe('Handler:GovernanceVeHandler', () => {
       await GovernanceVeHandler.minLockSet(mockEvent, mockInfo)
 
       expect(stubPluginFind.calledOnce).to.be.true
-      expect(stubPluginFind.calledWith({
-        'votingEscrow.exitQueueAddress': mockInfo.address,
-        network: mockInfo.network,
-      })).to.be.true
+      expect(
+        stubPluginFind.calledWith({
+          'votingEscrow.exitQueueAddress': mockInfo.address,
+          network: mockInfo.network,
+        }),
+      ).to.be.true
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Plugin not found for minLockSet event' as any)).to.be.true
       expect(stubSettingFindActive.notCalled).to.be.true
@@ -1997,14 +2037,16 @@ describe('Handler:GovernanceVeHandler', () => {
 
       // Should only handle outgoing delegation
       expect(stubHandleTokenDelegation.calledOnce).to.be.true
-      expect(stubHandleTokenDelegation.calledWith(
-        mockEvent,
-        mockInfo,
-        mockEvent.args.sender,
-        ITransferSide.outgoing,
-        [mockPlugin],
-        ['123']
-      )).to.be.true
+      expect(
+        stubHandleTokenDelegation.calledWith(
+          mockEvent,
+          mockInfo,
+          mockEvent.args.sender,
+          ITransferSide.outgoing,
+          [mockPlugin],
+          ['123'],
+        ),
+      ).to.be.true
 
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Self-delegation detected, skipping incoming delegation handling' as any)).to.be.true
@@ -2042,24 +2084,28 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stubHandleTokenDelegation.calledTwice).to.be.true
 
       // First call - outgoing from sender
-      expect(stubHandleTokenDelegation.firstCall.calledWith(
-        mockEvent,
-        mockInfo,
-        mockEvent.args.sender,
-        ITransferSide.outgoing,
-        [mockPlugin],
-        ['123', '456']
-      )).to.be.true
+      expect(
+        stubHandleTokenDelegation.firstCall.calledWith(
+          mockEvent,
+          mockInfo,
+          mockEvent.args.sender,
+          ITransferSide.outgoing,
+          [mockPlugin],
+          ['123', '456'],
+        ),
+      ).to.be.true
 
       // Second call - incoming to delegatee
-      expect(stubHandleTokenDelegation.secondCall.calledWith(
-        mockEvent,
-        mockInfo,
-        mockEvent.args.delegatee,
-        ITransferSide.incoming,
-        [mockPlugin],
-        ['123', '456']
-      )).to.be.true
+      expect(
+        stubHandleTokenDelegation.secondCall.calledWith(
+          mockEvent,
+          mockInfo,
+          mockEvent.args.delegatee,
+          ITransferSide.incoming,
+          [mockPlugin],
+          ['123', '456'],
+        ),
+      ).to.be.true
 
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Delegate tokens VeGovernance' as any)).to.be.true
@@ -2265,14 +2311,16 @@ describe('Handler:GovernanceVeHandler', () => {
 
       // Should only handle outgoing delegation
       expect(stubHandleTokenDelegation.calledOnce).to.be.true
-      expect(stubHandleTokenDelegation.calledWith(
-        mockEvent,
-        mockInfo,
-        mockEvent.args.delegatee, // Note: fromAddress is delegatee in unDelegate
-        ITransferSide.outgoing,
-        [mockPlugin],
-        ['123']
-      )).to.be.true
+      expect(
+        stubHandleTokenDelegation.calledWith(
+          mockEvent,
+          mockInfo,
+          mockEvent.args.delegatee, // Note: fromAddress is delegatee in unDelegate
+          ITransferSide.outgoing,
+          [mockPlugin],
+          ['123'],
+        ),
+      ).to.be.true
 
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Self-delegation detected, skipping delegation handling' as any)).to.be.true
@@ -2310,24 +2358,28 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stubHandleTokenDelegation.calledTwice).to.be.true
 
       // First call - outgoing from delegatee (note the swap in unDelegate)
-      expect(stubHandleTokenDelegation.firstCall.calledWith(
-        mockEvent,
-        mockInfo,
-        mockEvent.args.delegatee, // fromAddress is delegatee
-        ITransferSide.outgoing,
-        [mockPlugin],
-        ['123', '456']
-      )).to.be.true
+      expect(
+        stubHandleTokenDelegation.firstCall.calledWith(
+          mockEvent,
+          mockInfo,
+          mockEvent.args.delegatee, // fromAddress is delegatee
+          ITransferSide.outgoing,
+          [mockPlugin],
+          ['123', '456'],
+        ),
+      ).to.be.true
 
       // Second call - incoming to sender (toAddress is sender)
-      expect(stubHandleTokenDelegation.secondCall.calledWith(
-        mockEvent,
-        mockInfo,
-        mockEvent.args.sender, // toAddress is sender
-        ITransferSide.incoming,
-        [mockPlugin],
-        ['123', '456']
-      )).to.be.true
+      expect(
+        stubHandleTokenDelegation.secondCall.calledWith(
+          mockEvent,
+          mockInfo,
+          mockEvent.args.sender, // toAddress is sender
+          ITransferSide.incoming,
+          [mockPlugin],
+          ['123', '456'],
+        ),
+      ).to.be.true
 
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Undelegate tokens VeGovernance' as any)).to.be.true
@@ -2481,7 +2533,9 @@ describe('Handler:GovernanceVeHandler', () => {
 
   describe('_handleTokenDelegation', () => {
     it('should skip if existing log found', async () => {
-      const stubFindExistingLog = sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves({ id: 'existing' } as any)
+      const stubFindExistingLog = sandbox
+        .stub(Models.MemberTransaction, 'findExistingLog')
+        .resolves({ id: 'existing' } as any)
       const stubCreateMember = sandbox.stub(ProxyMember, 'createMember')
       const stubSaveAndGetToken = sandbox.stub(ProxyToken, 'saveAndGetToken')
       const stubCreate = sandbox.stub(Models.MemberTransaction, 'create')
@@ -2611,14 +2665,16 @@ describe('Handler:GovernanceVeHandler', () => {
 
       // Verify voting power updated with deduplicated tokenIds
       expect(stubUpdateVotingPower.calledOnce).to.be.true
-      expect(stubUpdateVotingPower.calledWith({
-        memberAddress: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-        tokenAddress: mockInfo.address,
-        votingPower: '100',
-        network: mockInfo.network,
-        tokenIds: ['789', '123', '456'], // Deduplicated
-        lastVPBlockNumber: mockInfo.blockNumber,
-      })).to.be.true
+      expect(
+        stubUpdateVotingPower.calledWith({
+          memberAddress: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          tokenAddress: mockInfo.address,
+          votingPower: '100',
+          network: mockInfo.network,
+          tokenIds: ['789', '123', '456'], // Deduplicated
+          lastVPBlockNumber: mockInfo.blockNumber,
+        }),
+      ).to.be.true
 
       // Should not update delegation metrics for incoming
       expect(stubUpdateDelegationMetrics.notCalled).to.be.true
@@ -2686,27 +2742,33 @@ describe('Handler:GovernanceVeHandler', () => {
 
       // Should update delegation metrics for outgoing
       expect(stubUpdateDelegationMetrics.calledOnce).to.be.true
-      expect(stubUpdateDelegationMetrics.calledWith({
-        memberAddress: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-        tokenAddress: mockInfo.address,
-        network: mockInfo.network,
-      })).to.be.true
+      expect(
+        stubUpdateDelegationMetrics.calledWith({
+          memberAddress: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          tokenAddress: mockInfo.address,
+          network: mockInfo.network,
+        }),
+      ).to.be.true
 
       // Should update plugin metrics for outgoing
       expect(stubUpdatePluginMetrics.calledOnce).to.be.true
-      expect(stubUpdatePluginMetrics.calledWith({
-        memberAddress: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-        pluginAddress: plugin.address,
-        network: mockInfo.network,
-        lastActivity: 123,
-      })).to.be.true
+      expect(
+        stubUpdatePluginMetrics.calledWith({
+          memberAddress: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          pluginAddress: plugin.address,
+          network: mockInfo.network,
+          lastActivity: 123,
+        }),
+      ).to.be.true
 
       // Should send DAO metrics
       expect(rabbitMQHelperStub.calledOnce).to.be.true
-      expect(rabbitMQHelperStub.calledWith(EnumQueueName.daoMetrics, {
-        id: plugin.daoAddress,
-        params: { address: plugin.daoAddress, network: mockInfo.network },
-      })).to.be.true
+      expect(
+        rabbitMQHelperStub.calledWith(EnumQueueName.daoMetrics, {
+          id: plugin.daoAddress,
+          params: { address: plugin.daoAddress, network: mockInfo.network },
+        }),
+      ).to.be.true
     })
 
     it('should handle normal delegation with incoming transfer side', async () => {
@@ -2825,14 +2887,16 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(createArgs.blockTimestamp).to.be.undefined
 
       // Verify getPastVotes called with 0 when blockTimestamp is undefined
-      expect(stubGetPastVotes.calledWith(
-        '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-        mockInfo.address,
-        mockInfo.blockNumber,
-        0, // Should pass 0 when blockTimestamp is undefined
-        mockInfo.network,
-        false as any // clockMode from token (which is null in this test)
-      )).to.be.true
+      expect(
+        stubGetPastVotes.calledWith(
+          '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
+          mockInfo.address,
+          mockInfo.blockNumber,
+          0, // Should pass 0 when blockTimestamp is undefined
+          mockInfo.network,
+          false as any, // clockMode from token (which is null in this test)
+        ),
+      ).to.be.true
     })
 
     it('should handle multiple plugins and send unique DAO metrics', async () => {
@@ -2900,14 +2964,18 @@ describe('Handler:GovernanceVeHandler', () => {
 
       // Verify RabbitMQ called only for unique DAOs
       expect(rabbitMQHelperStub.calledTwice).to.be.true
-      expect(rabbitMQHelperStub.firstCall.calledWith(EnumQueueName.daoMetrics, {
-        id: '0xDAO',
-        params: { address: '0xDAO', network: mockInfo.network },
-      })).to.be.true
-      expect(rabbitMQHelperStub.secondCall.calledWith(EnumQueueName.daoMetrics, {
-        id: '0xDAO2',
-        params: { address: '0xDAO2', network: mockInfo.network },
-      })).to.be.true
+      expect(
+        rabbitMQHelperStub.firstCall.calledWith(EnumQueueName.daoMetrics, {
+          id: '0xDAO',
+          params: { address: '0xDAO', network: mockInfo.network },
+        }),
+      ).to.be.true
+      expect(
+        rabbitMQHelperStub.secondCall.calledWith(EnumQueueName.daoMetrics, {
+          id: '0xDAO2',
+          params: { address: '0xDAO2', network: mockInfo.network },
+        }),
+      ).to.be.true
     })
 
     it('should handle empty tokenIds arrays', async () => {
@@ -3044,14 +3112,16 @@ describe('Handler:GovernanceVeHandler', () => {
 
       // Verify getPastVotes called with clockMode = IClockMode.Timestamp
       expect(stubGetPastVotes.calledOnce).to.be.true
-      expect(stubGetPastVotes.calledWith(
-        '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-        mockInfo.address,
-        mockInfo.blockNumber,
-        1650009999,
-        mockInfo.network,
-        IClockMode.Timestamp // clockMode should be IClockMode.Timestamp
-      )).to.be.true
+      expect(
+        stubGetPastVotes.calledWith(
+          '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
+          mockInfo.address,
+          mockInfo.blockNumber,
+          1650009999,
+          mockInfo.network,
+          IClockMode.Timestamp, // clockMode should be IClockMode.Timestamp
+        ),
+      ).to.be.true
     })
 
     it('should handle token with clockMode as BlockNumber', async () => {
@@ -3099,14 +3169,16 @@ describe('Handler:GovernanceVeHandler', () => {
 
       // Verify getPastVotes called with clockMode = IClockMode.BlockNumber
       expect(stubGetPastVotes.calledOnce).to.be.true
-      expect(stubGetPastVotes.calledWith(
-        '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-        mockInfo.address,
-        mockInfo.blockNumber,
-        1650009999,
-        mockInfo.network,
-        IClockMode.BlockNumber // clockMode should be IClockMode.BlockNumber
-      )).to.be.true
+      expect(
+        stubGetPastVotes.calledWith(
+          '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
+          mockInfo.address,
+          mockInfo.blockNumber,
+          1650009999,
+          mockInfo.network,
+          IClockMode.BlockNumber, // clockMode should be IClockMode.BlockNumber
+        ),
+      ).to.be.true
     })
   })
 })

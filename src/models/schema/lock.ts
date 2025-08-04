@@ -446,13 +446,13 @@ export default class Lock extends Model {
       },
       {
         $match: {
-          'currentHolder.address': { $exists: true },
+          'currentHolder.memberAddress': { $exists: true },
         },
       },
       {
         $group: {
           _id: {
-            memberAddress: '$currentHolder.address',
+            memberAddress: '$currentHolder.memberAddress',
             network: '$network',
             tokenAddress: '$tokenAddress',
           },
@@ -592,24 +592,6 @@ export default class Lock extends Model {
           },
         },
       },
-      {
-        $project: {
-          address: '$memberInfo.address',
-          ens: '$memberInfo.ens',
-          avatar: '$memberInfo.avatar',
-          votingPower: 1,
-          metrics: {
-            voteCount: '$memberMetrics.voteCount',
-            proposalCount: '$memberMetrics.proposalCount',
-            firstActivity: '$memberMetrics.firstActivity',
-            lastActivity: '$memberMetrics.lastActivity',
-            delegateReceivedCount: {
-              $ifNull: ['$vpMember.delegateReceivedCount', 0],
-            },
-          },
-        },
-      },
-
       {
         $project: {
           address: '$memberInfo.address',

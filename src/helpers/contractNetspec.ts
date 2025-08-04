@@ -57,7 +57,7 @@ export function scanNatspecBlock(source: string, pos: number, terminator: string
         ended = true
       }
 
-      const comment = source.substring(pos, posEnd < 0 ? source.length : posEnd).trim()
+      const comment = source.substring(pos, posEnd).trim()
 
       if (tag === 'param') {
         if (details.tags[tag]) {

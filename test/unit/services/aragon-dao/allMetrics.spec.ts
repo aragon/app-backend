@@ -11,12 +11,29 @@ import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
 import Web3Helper from '@helpers/web3'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
+import * as retryRequestModule from '@helpers/retryRequest'
+import BottleneckModule from '@modules/bottleneck'
 
 describe('AragonDao:AllMetrics', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    // Stub retryRequest to execute immediately without retries
+    sandbox.stub(retryRequestModule, 'retryRequest').callsFake(async fn => {
+      try {
+        return await fn()
+      } catch (error) {
+        throw error
+      }
+    })
+    // Stub BottleneckModule rate limiters to execute immediately without delays
+    sandbox.stub(BottleneckModule, 'getNodeLimiter').returns({
+      schedule: sandbox.stub().callsFake(async fn => fn()),
+    } as any)
+    sandbox.stub(BottleneckModule, 'getAlchemyBalanceLimiter').returns({
+      schedule: sandbox.stub().callsFake(async fn => fn()),
+    } as any)
   })
 
   afterEach(async () => {
@@ -167,9 +184,9 @@ describe('AragonDao:AllMetrics', () => {
 
       const docStub = {
         update: sandbox.stub().resolves(),
-        address: '0x123',
+        memberAddress: '0x123',
         tokenAddress: '0x01403157c847B2c0291c05DF5055876eB4e039bc',
-        lastSyncVotingPowerBlockNumber: 100,
+        lastVPBlockNumber: 100,
         votingPower: '300',
         network: NetworksEnum.ethereumSepolia,
       }
@@ -182,7 +199,7 @@ describe('AragonDao:AllMetrics', () => {
 
       expect(stubGetBlockTimestamp.calledOnce).to.be.true
       expect(stubGetPastVotes.calledOnce).to.be.true
-      expect(docStub.update.calledOnceWith({ votingPower: '500', lastSyncVotingPowerBlockNumber: 100 })).to.be.true
+      expect(docStub.update.calledOnceWith({ votingPower: '500', lastVPBlockNumber: 100 })).to.be.true
       expect(stubLogger.calledWith('End rebaseTokens' as any)).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
     })
