@@ -14,6 +14,9 @@ import ConfigIndexerHelper from '@helpers/configIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogAdmin' })
 
+const GrantedTopicHash = new Interface(DAO.abi).getEvent('Granted')?.topicHash!
+const RevokedTopicHash = new Interface(DAO.abi).getEvent('Revoked')?.topicHash!
+
 export const LogAdmin = {
   start: async (plugin: Plugin) => {
     logger.verbose('Start LogAdmin', llo({ network: plugin.network }))
@@ -59,10 +62,7 @@ export const LogAdmin = {
   async _syncAdminMember(plugin: Plugin) {
     const txReceipt = await Web3Helper.getTransactionReceipt(plugin.transactionHash, plugin.network)
 
-    const topics = [
-      new Interface(DAO.abi).getEvent('Granted')?.topicHash!,
-      new Interface(DAO.abi).getEvent('Revoked')?.topicHash!,
-    ]
+    const topics = [GrantedTopicHash, RevokedTopicHash]
 
     const events = txReceipt!.logs.filter(log => topics.includes(log.topics[0]))
 
