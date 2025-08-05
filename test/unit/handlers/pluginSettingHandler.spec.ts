@@ -615,7 +615,7 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(settingData.supportThreshold).to.eq(150)
       expect(settingData.minParticipation).to.eq(222)
       expect(settingData.approvalThreshold).to.eq(100)
-      expect(settingData.proposalDuration).to.eq(1312312125)
+      expect(settingData.minDuration).to.eq(1312312125)
       expect(settingData.minProposerVotingPower).to.eq('10')
       expect(settingData.status).to.eq(ISettingStatus.active)
       expect(settingData.daoAddress).to.eq('0xdao123')
