@@ -18,16 +18,16 @@ import { AggregationQueryHelper } from '@models/utils/aggregation'
 const customName = ICollectionNames.Vote
 
 export class VoteCleared {
-  @prop({ type: () => Boolean, required: true })
+  @prop({ type: () => Boolean })
   public status!: boolean
 
-  @prop({ type: () => String, required: true })
+  @prop({ type: () => String })
   public transactionHash!: HexAddress
 
-  @prop({ type: () => Number, required: true })
+  @prop({ type: () => Number })
   public blockNumber!: number
 
-  @prop({ type: () => Number, required: true })
+  @prop({ type: () => Number })
   public blockTimestamp!: number
 }
 
