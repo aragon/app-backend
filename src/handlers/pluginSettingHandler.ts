@@ -120,7 +120,7 @@ export const PluginSettingHandler = {
       minParticipation: Number(parsedEvent.args.minParticipationRatio),
       approvalThreshold: Number(parsedEvent.args.minApprovalRatio),
       minProposerVotingPower: parsedEvent.args.minProposerVotingPower.toString(),
-      proposalDuration: Number(parsedEvent.args.proposalDuration),
+      minDuration: Number(parsedEvent.args.proposalDuration),
     }
 
     await DbOperations.createDocument(Models.Setting, settingLog, info, 'New Setting - lockToVoteSettingsUpdated', llo)
