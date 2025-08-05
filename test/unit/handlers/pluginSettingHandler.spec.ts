@@ -122,6 +122,29 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(result).to.deep.equal({ address: '0xspp-plugin' })
     })
 
+    it('should process lockToVote settings log', async () => {
+      const txReceipt = { logs: [{ topics: ['0xlockToVote'], data: '0x04' }] } as any
+      const plugin = {
+        address: '0xplugin',
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: '0xlockManager123',
+      } as any
+      const info = { network: NetworksEnum.ethereumMainnet } as any
+
+      sandbox
+        .stub(Web3Utils, 'findLogsByName')
+        .returns([{ parsed: 'lockToVoteLog', txLog: { address: '0xplugin' } }] as any)
+      sandbox.stub(Web3Utils, 'parseInfoLog').returns('lockToVoteInfo' as any)
+      const lockToVoteStub = sandbox
+        .stub(PluginSettingHandler, 'lockToVoteSettingsUpdated')
+        .resolves({ address: '0xlockToVote-plugin' } as any)
+
+      const result = await PluginSettingHandler.handlePluginSettingByType(plugin, txReceipt, info)
+
+      expect(lockToVoteStub.calledOnceWith('lockToVoteLog' as any, 'lockToVoteInfo' as any)).to.be.true
+      expect(result).to.deep.equal({ address: '0xlockToVote-plugin' })
+    })
+
     it('should process not a supported type', async () => {
       const txReceipt = { logs: [{ topics: ['0xspp'], data: '0x03' }] } as any
       const plugin = { address: '0xplugin', interfaceType: IPluginInterfaceType.unknown } as any
@@ -423,6 +446,286 @@ describe('Indexer: PluginSettingHandler', () => {
 
       expect(isSupportedStub.notCalled).to.be.true
       expect(stubError.calledOnceWith('votingSettingsUpdated token not found' as any)).to.be.true
+    })
+  })
+
+  describe('lockToVoteSettingsUpdated', () => {
+    it('should return if plugin not found', async () => {
+      const parsedEvent = {
+        args: {
+          votingMode: 2n,
+          supportThresholdRatio: 150n,
+          minParticipationRatio: 222n,
+          minApprovalRatio: 100n,
+          proposalDuration: 1312312125n,
+          minProposerVotingPower: 10n,
+        },
+      }
+      const info = {
+        address: '0x456',
+        transactionHash: '0x789',
+        blockNumber: 1,
+        transactionIndex: 1,
+        logIndex: 1,
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+      const stubLogger = sandbox.stub(logger, 'warn')
+
+      await PluginSettingHandler.lockToVoteSettingsUpdated(parsedEvent as any, info as any)
+
+      expect(stubFindByAddress.calledOnce).to.be.true
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubLogger.calledOnceWith('Plugin not found' as any)).to.be.true
+    })
+
+    it('should return if plugin is not lockToVote type', async () => {
+      const parsedEvent = {
+        args: {
+          votingMode: 2n,
+          supportThresholdRatio: 150n,
+          minParticipationRatio: 222n,
+          minApprovalRatio: 100n,
+          proposalDuration: 1312312125n,
+          minProposerVotingPower: 10n,
+        },
+      }
+      const info = {
+        address: '0x456',
+        transactionHash: '0x789',
+        blockNumber: 1,
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        lockManagerAddress: '0xlockManager123',
+      })
+      const stubLogger = sandbox.stub(logger, 'warn')
+
+      await PluginSettingHandler.lockToVoteSettingsUpdated(parsedEvent as any, info as any)
+
+      expect(stubFindByAddress.calledOnce).to.be.true
+      expect(stubLogger.calledOnceWith('Plugin is not a lockToVote' as any)).to.be.true
+    })
+
+    it('should return if plugin has no lockManagerAddress', async () => {
+      const parsedEvent = {
+        args: {
+          votingMode: 2n,
+          supportThresholdRatio: 150n,
+          minParticipationRatio: 222n,
+          minApprovalRatio: 100n,
+          proposalDuration: 1312312125n,
+          minProposerVotingPower: 10n,
+        },
+      }
+      const info = {
+        address: '0x456',
+        transactionHash: '0x789',
+        blockNumber: 1,
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: null,
+      })
+      const stubLogger = sandbox.stub(logger, 'warn')
+
+      await PluginSettingHandler.lockToVoteSettingsUpdated(parsedEvent as any, info as any)
+
+      expect(stubFindByAddress.calledOnce).to.be.true
+      expect(stubLogger.calledOnceWith('Plugin is not a lockToVote' as any)).to.be.true
+    })
+
+    it('should return if already existing log', async () => {
+      const parsedEvent = {
+        args: {
+          votingMode: 2n,
+          supportThresholdRatio: 150n,
+          minParticipationRatio: 222n,
+          minApprovalRatio: 100n,
+          proposalDuration: 1312312125n,
+          minProposerVotingPower: 10n,
+        },
+      }
+      const info = {
+        address: '0x456',
+        transactionHash: '0x789',
+        blockNumber: 1,
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: '0xlockManager123',
+      })
+      const stubFindExistingLog = sandbox.stub(Models.Setting, 'findExistingLog').resolves(true)
+
+      await PluginSettingHandler.lockToVoteSettingsUpdated(parsedEvent as any, info as any)
+
+      expect(stubFindByAddress.calledOnce).to.be.true
+      expect(stubFindExistingLog.calledOnce).to.be.true
+    })
+
+    it('should handle lockToVoteSettingsUpdated and create new setting', async () => {
+      const parsedEvent = {
+        args: {
+          votingMode: 2n,
+          supportThresholdRatio: 150n,
+          minParticipationRatio: 222n,
+          minApprovalRatio: 100n,
+          proposalDuration: 1312312125n,
+          minProposerVotingPower: 10n,
+        },
+      }
+      const info = {
+        address: '0x456',
+        transactionHash: '0x789',
+        blockNumber: 1,
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const relatedPlugin = {
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: '0xlockManager123',
+        daoAddress: '0xdao123',
+        subdomain: 'test.dao',
+        tokenAddress: '0xtoken123',
+      }
+
+      const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves(relatedPlugin)
+      const stubFindExistingLog = sandbox.stub(Models.Setting, 'findExistingLog').resolves(false)
+      const stubFindActive = sandbox.stub(Models.Setting, 'findActive').resolves(false)
+      const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
+      const createDocumentStub = sandbox.stub(DbOperations, 'createDocument').resolves()
+      const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
+      const stubFindSppPlugin = sandbox.stub(Models.Plugin, 'findOne').resolves(null)
+
+      await PluginSettingHandler.lockToVoteSettingsUpdated(parsedEvent as any, info as any)
+
+      expect(stubFindByAddress.calledOnce).to.be.true
+      expect(stubFindExistingLog.calledOnce).to.be.true
+      expect(stubFindActive.calledOnce).to.be.true
+      expect(getBlockTimestampStub.calledOnce).to.be.true
+      expect(isSupportedStub.calledOnce).to.be.true
+
+      expect(createDocumentStub.calledOnce).to.be.true
+      const settingData = createDocumentStub.firstCall.args[1]
+      expect(settingData.votingMode).to.eq(2)
+      expect(settingData.supportThreshold).to.eq(150)
+      expect(settingData.minParticipation).to.eq(222)
+      expect(settingData.approvalThreshold).to.eq(100)
+      expect(settingData.proposalDuration).to.eq(1312312125)
+      expect(settingData.minProposerVotingPower).to.eq('10')
+      expect(settingData.status).to.eq(ISettingStatus.active)
+      expect(settingData.daoAddress).to.eq('0xdao123')
+      expect(settingData.pluginAddress).to.eq('0x456')
+      expect(settingData.tokenAddress).to.eq('0xtoken123')
+    })
+
+    it('should update active plugin setting to inactive when creating new lockToVote setting', async () => {
+      const parsedEvent = {
+        args: {
+          votingMode: 1n,
+          supportThresholdRatio: 200n,
+          minParticipationRatio: 300n,
+          minApprovalRatio: 150n,
+          proposalDuration: 86400n,
+          minProposerVotingPower: 100n,
+        },
+      }
+      const info = {
+        address: '0x456',
+        transactionHash: '0x789',
+        blockNumber: 1,
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const relatedPlugin = {
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: '0xlockManager123',
+        daoAddress: '0xdao123',
+        subdomain: 'test.dao',
+        tokenAddress: '0xtoken123',
+      }
+
+      const activeSetting = { id: 'active-setting-id' }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(relatedPlugin)
+      sandbox.stub(Models.Setting, 'findExistingLog').resolves(false)
+      sandbox.stub(Models.Setting, 'findActive').resolves(activeSetting)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
+      const createDocumentStub = sandbox.stub(DbOperations, 'createDocument').resolves()
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+      sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
+      sandbox.stub(Models.Plugin, 'findOne').resolves(null)
+
+      await PluginSettingHandler.lockToVoteSettingsUpdated(parsedEvent as any, info as any)
+
+      expect(createDocumentStub.calledOnce).to.be.true
+      expect(updateDocumentStub.calledOnce).to.be.true
+      expect(
+        updateDocumentStub.calledWith(
+          activeSetting,
+          { inactiveAtBlockNumber: 1, status: ISettingStatus.inactive },
+          { logId: 'active-setting-id', info },
+          'Update lockToVote inactive plugin',
+        ),
+      ).to.be.true
+    })
+
+    it('should handle SPP plugin pairing for lockToVote settings', async () => {
+      const parsedEvent = {
+        args: {
+          votingMode: 1n,
+          supportThresholdRatio: 200n,
+          minParticipationRatio: 300n,
+          minApprovalRatio: 150n,
+          proposalDuration: 86400n,
+          minProposerVotingPower: 100n,
+        },
+      }
+      const info = {
+        address: '0xlockToVotePlugin',
+        transactionHash: '0x789',
+        blockNumber: 1,
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const relatedPlugin = {
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: '0xlockManager123',
+        daoAddress: '0xdao123',
+        subdomain: 'test.dao',
+        tokenAddress: '0xtoken123',
+      }
+
+      const sppPlugin = {
+        address: '0xsppPlugin',
+        interfaceType: IPluginInterfaceType.spp,
+      }
+
+      const sppSettings = {
+        id: 'spp-settings-id',
+        stages: [],
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(relatedPlugin)
+      sandbox.stub(Models.Setting, 'findExistingLog').resolves(false)
+      sandbox
+        .stub(Models.Setting, 'findActive')
+        .onFirstCall()
+        .resolves(false) // for lockToVote plugin
+        .onSecondCall()
+        .resolves(sppSettings) // for SPP plugin
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
+      sandbox.stub(DbOperations, 'createDocument').resolves()
+      sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
+      sandbox.stub(Models.Plugin, 'findOne').resolves(sppPlugin)
+      const pairSppPluginsStub = sandbox.stub(PluginSettingHandler, 'pairSppPlugins').resolves()
+
+      await PluginSettingHandler.lockToVoteSettingsUpdated(parsedEvent as any, info as any)
+
+      expect(pairSppPluginsStub.calledOnceWith(sppPlugin, sppSettings, info)).to.be.true
     })
   })
 
