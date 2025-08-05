@@ -16,6 +16,7 @@ import {
   type PermissionLogService,
   type TransferListLogService,
   type LockManagerLogService,
+  type HexAddress,
 } from '@src/types'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ConfigIndexerHelper' })
@@ -70,7 +71,7 @@ const ConfigIndexerHelper = {
       return service as TransferListLogService
     },
 
-    lockManager: (network: NetworksEnum, address: string): LockManagerLogService => {
+    lockManager: (network: NetworksEnum, address: HexAddress): LockManagerLogService => {
       const service = `${IndexerType.lockManager}-${network}-${address}`
       return service as LockManagerLogService
     },

@@ -35,7 +35,7 @@ export const LogLockToVote = {
       address: plugin.lockManagerAddress,
       fromBlock: plugin?.blockNumber,
       onError: async (error: any, log: any) => LogLockToVote.processError(error, plugin, log),
-      logService: ConfigIndexerHelper.builders.lockManager(plugin.network, plugin.lockManager),
+      logService: ConfigIndexerHelper.builders.lockManager(plugin.network, plugin.lockManagerAddress!),
       stopOnError: true,
     })
 
