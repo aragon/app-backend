@@ -285,6 +285,67 @@ describe('Controller: Member', () => {
       expect(response.metadata.totalRecords).to.eq(1)
     })
 
+    it('should call getMembersOfLockManagerPlugin when plugin has lockToVote interface type', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const filterParams = {
+        network: rawDaoMemberMapping.network,
+        pluginAddress: rawDaoMemberMapping.pluginAddress,
+      }
+      const pairParams = {}
+
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(filterParams)
+
+      const lockToVotePlugin = {
+        interfaceType: IPluginInterfaceType.lockToVote,
+        address: rawDaoMemberMapping.pluginAddress,
+        network: rawDaoMemberMapping.network,
+        lockManagerAddress: '0xLockManager123',
+        tokenAddress: rawDaoMemberMapping.tokenAddress,
+      }
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(lockToVotePlugin)
+
+      const mockLockManagerResponse = {
+        data: [
+          {
+            address: rawMember.address,
+            ens: rawMember.ens,
+            avatar: rawMember.avatar,
+            votingPower: '1000000000000000000',
+            metrics: {
+              lastActivity: 1620000000,
+              firstActivity: 1619000000,
+              voteCount: 5,
+              proposalCount: 2,
+              delegateReceivedCount: 1,
+            },
+          },
+        ],
+        metadata: { page: 1, totalPages: 1, totalRecords: 1 },
+      }
+
+      const lockManagerSpy = sandbox.stub(Models.LockManagerMember, 'findAndPaginate').resolves(mockLockManagerResponse)
+
+      const response = await MemberController.getMembersWithPagination(paginationParams, filterParams, pairParams)
+
+      expect(lockManagerSpy.calledOnce).to.be.true
+      expect(
+        lockManagerSpy.calledWith({
+          paginationParams,
+          pluginAddress: lockToVotePlugin.address,
+          network: lockToVotePlugin.network,
+        }),
+      ).to.be.true
+
+      expect(response).to.deep.equal(mockLockManagerResponse)
+    })
+
     it('should throw an error when plugin is not found', async () => {
       const paginationParams = {
         search: '',
@@ -637,6 +698,153 @@ describe('Controller: Member', () => {
       } catch (err: any) {
         expect(err.message).to.include('notFound')
       }
+    })
+  })
+
+  describe('getMembersOfLockManagerPlugin', () => {
+    it('should return members from LockManagerMember model for lockToVote plugin', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const mockPlugin = {
+        address: rawDaoMemberMapping.pluginAddress,
+        network: rawDaoMemberMapping.network,
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: '0xLockManager123',
+        tokenAddress: rawDaoMemberMapping.tokenAddress,
+      }
+
+      const mockLockManagerResponse = {
+        data: [
+          {
+            address: rawMember.address,
+            ens: rawMember.ens,
+            avatar: rawMember.avatar,
+            votingPower: '2000000000000000000',
+            metrics: {
+              lastActivity: 1620100000,
+              firstActivity: 1619000000,
+              voteCount: 10,
+              proposalCount: 3,
+              delegateReceivedCount: 2,
+            },
+          },
+          {
+            address: '0xmember2',
+            ens: 'member2.eth',
+            avatar: 'avatar2-url',
+            votingPower: '1500000000000000000',
+            metrics: {
+              lastActivity: 1620200000,
+              firstActivity: 1619100000,
+              voteCount: 8,
+              proposalCount: 1,
+              delegateReceivedCount: 0,
+            },
+          },
+        ],
+        metadata: {
+          page: 1,
+          totalPages: 1,
+          totalRecords: 2,
+        },
+      }
+
+      const lockManagerSpy = sandbox.stub(Models.LockManagerMember, 'findAndPaginate').resolves(mockLockManagerResponse)
+
+      const response = await MemberController.getMembersOfLockManagerPlugin(paginationParams, mockPlugin as any)
+
+      expect(lockManagerSpy.calledOnce).to.be.true
+      expect(
+        lockManagerSpy.calledWith({
+          paginationParams,
+          pluginAddress: mockPlugin.address,
+          network: mockPlugin.network,
+        }),
+      ).to.be.true
+
+      expect(response).to.deep.equal(mockLockManagerResponse)
+    })
+
+    it('should handle pagination parameters correctly', async () => {
+      const paginationParams = {
+        search: 'test',
+        pageSize: 5,
+        page: 2,
+        order: 'desc',
+        sort: 'votingPower',
+      }
+
+      const mockPlugin = {
+        address: '0xPluginLockToVote',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: '0xLockManager456',
+      }
+
+      const mockResponse = {
+        data: [],
+        metadata: {
+          page: 2,
+          totalPages: 3,
+          totalRecords: 12,
+          pageSize: 5,
+        },
+      }
+
+      const lockManagerSpy = sandbox.stub(Models.LockManagerMember, 'findAndPaginate').resolves(mockResponse)
+
+      const response = await MemberController.getMembersOfLockManagerPlugin(paginationParams, mockPlugin as any)
+
+      expect(lockManagerSpy.calledOnce).to.be.true
+      expect(
+        lockManagerSpy.calledWith({
+          paginationParams: {
+            search: 'test',
+            pageSize: 5,
+            page: 2,
+            order: 'desc',
+            sort: 'votingPower',
+          },
+          pluginAddress: '0xPluginLockToVote',
+          network: NetworksEnum.ethereumMainnet,
+        }),
+      ).to.be.true
+
+      expect(response.metadata.page).to.eq(2)
+      expect(response.metadata.pageSize).to.eq(5)
+      expect(response.metadata.totalRecords).to.eq(12)
+    })
+
+    it('should return empty result when no members exist', async () => {
+      const paginationParams = {}
+
+      const mockPlugin = {
+        address: '0xEmptyPlugin',
+        network: NetworksEnum.arbitrumMainnet,
+        interfaceType: IPluginInterfaceType.lockToVote,
+      }
+
+      const emptyResponse = {
+        data: [],
+        metadata: {
+          page: 1,
+          totalPages: 1,
+          totalRecords: 0,
+        },
+      }
+
+      sandbox.stub(Models.LockManagerMember, 'findAndPaginate').resolves(emptyResponse)
+
+      const response = await MemberController.getMembersOfLockManagerPlugin(paginationParams, mockPlugin as any)
+
+      expect(response.data).to.be.an('array').that.is.empty
+      expect(response.metadata.totalRecords).to.eq(0)
     })
   })
 })
