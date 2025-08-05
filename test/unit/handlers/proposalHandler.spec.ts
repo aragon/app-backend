@@ -3448,4 +3448,216 @@ describe('ProposalHandler', () => {
       expect(errorLoggerStub.calledOnceWith('Error proposalCanceled' as any)).to.be.true
     })
   })
+
+  describe('voteCleared', () => {
+    it('should clear a vote successfully', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0xVoteClearedTx',
+        address: '0xplugin-address',
+        blockNumber: 10,
+        network,
+        eventName: 'VoteCleared',
+        transactionIndex: 2,
+        logIndex: 3,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: 1n,
+          voter: '0xvoter-address',
+        },
+      }
+
+      const mockPlugin = { address: '0xplugin-address', network, isSupported: true }
+      const mockProposal = {
+        id: 'proposal-id',
+        daoAddress: '0xdao-address',
+        network,
+        proposalIndex: '1',
+      }
+      const mockVote = {
+        id: 'vote-id',
+        memberAddress: '0xvoter-address',
+        proposalIndex: '1',
+      }
+
+      sandbox.stub(Models.Vote, 'findOne').resolves(null)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(mockProposal as any)
+      sandbox.stub(Models.Vote, 'findVoteOnPlugin').resolves(mockVote as any)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1640995200)
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+      const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
+
+      await ProposalHandler.voteCleared(fakeEvent as any, info)
+
+      expect(updateDocumentStub.calledOnce).to.be.true
+      expect(updateDocumentStub.firstCall.args[1]).to.deep.equal({
+        voteCleared: {
+          status: true,
+          transactionHash: '0xVoteClearedTx',
+          blockNumber: 10,
+          blockTimestamp: 1640995200,
+        },
+      })
+      expect(rabbitMQStub.calledTwice).to.be.true
+      expect(verboseLoggerStub.calledOnceWith('Vote cleared successfully' as any)).to.be.true
+    })
+
+    it('should return early if log already exists', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0xVoteClearedTx',
+        address: '0xplugin-address',
+        blockNumber: 10,
+        network,
+        eventName: 'VoteCleared',
+        transactionIndex: 2,
+        logIndex: 3,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: 1n,
+          voter: '0xvoter-address',
+        },
+      }
+
+      const existingLog = { id: 'existing-log' }
+      sandbox.stub(Models.Vote, 'findOne').resolves(existingLog as any)
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress')
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
+
+      await ProposalHandler.voteCleared(fakeEvent as any, info)
+
+      expect(pluginStub.called).to.be.false
+      expect(updateDocumentStub.called).to.be.false
+    })
+
+    it('should return early if plugin is not found', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0xVoteClearedTx',
+        address: '0xplugin-address',
+        blockNumber: 10,
+        network,
+        eventName: 'VoteCleared',
+        transactionIndex: 2,
+        logIndex: 3,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: 1n,
+          voter: '0xvoter-address',
+        },
+      }
+
+      sandbox.stub(Models.Vote, 'findOne').resolves(null)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+      const warnLoggerStub = sandbox.stub(logger, 'warn')
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
+
+      await ProposalHandler.voteCleared(fakeEvent as any, info)
+
+      expect(warnLoggerStub.calledOnceWith('VoteCleared - Plugin not found' as any)).to.be.true
+      expect(updateDocumentStub.called).to.be.false
+    })
+
+    it('should return early if proposal is not found', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0xVoteClearedTx',
+        address: '0xplugin-address',
+        blockNumber: 10,
+        network,
+        eventName: 'VoteCleared',
+        transactionIndex: 2,
+        logIndex: 3,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: 1n,
+          voter: '0xvoter-address',
+        },
+      }
+
+      const mockPlugin = { address: '0xplugin-address', network, isSupported: true }
+
+      sandbox.stub(Models.Vote, 'findOne').resolves(null)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(null)
+      const warnLoggerStub = sandbox.stub(logger, 'warn')
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
+
+      await ProposalHandler.voteCleared(fakeEvent as any, info)
+
+      expect(warnLoggerStub.calledOnceWith('VoteCleared - Proposal not found' as any)).to.be.true
+      expect(updateDocumentStub.called).to.be.false
+    })
+
+    it('should return early if existing vote is not found', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0xVoteClearedTx',
+        address: '0xplugin-address',
+        blockNumber: 10,
+        network,
+        eventName: 'VoteCleared',
+        transactionIndex: 2,
+        logIndex: 3,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: 1n,
+          voter: '0xvoter-address',
+        },
+      }
+
+      const mockPlugin = { address: '0xplugin-address', network, isSupported: true }
+      const mockProposal = {
+        id: 'proposal-id',
+        daoAddress: '0xdao-address',
+        network,
+        proposalIndex: '1',
+      }
+
+      sandbox.stub(Models.Vote, 'findOne').resolves(null)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(mockProposal as any)
+      sandbox.stub(Models.Vote, 'findVoteOnPlugin').resolves(null)
+      const warnLoggerStub = sandbox.stub(logger, 'warn')
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
+
+      await ProposalHandler.voteCleared(fakeEvent as any, info)
+
+      expect(warnLoggerStub.calledOnceWith('VoteCleared - Vote not found' as any)).to.be.true
+      expect(updateDocumentStub.called).to.be.false
+    })
+
+    it('should log an error if an exception occurs', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0xVoteClearedTx',
+        address: '0xplugin-address',
+        blockNumber: 10,
+        network,
+        eventName: 'VoteCleared',
+        transactionIndex: 2,
+        logIndex: 3,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: 1n,
+          voter: '0xvoter-address',
+        },
+      }
+
+      sandbox.stub(Models.Vote, 'findOne').rejects(new Error('Database error'))
+      const errorLoggerStub = sandbox.stub(logger, 'error')
+
+      await ProposalHandler.voteCleared(fakeEvent as any, info)
+
+      expect(errorLoggerStub.calledOnceWith('Error VoteCleared' as any)).to.be.true
+    })
+  })
 })

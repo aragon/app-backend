@@ -1287,7 +1287,7 @@ describe('Helpers:Web3', () => {
       const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
         ethers: {
           Contract: function () {
-            return { isListed: stubIsMember }
+            return { isMember: stubIsMember }
           },
         },
       })
@@ -1309,7 +1309,7 @@ describe('Helpers:Web3', () => {
       const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
         ethers: {
           Contract: function () {
-            return { isListed: stubIsMember }
+            return { isMember: stubIsMember }
           },
         },
       })
@@ -1332,7 +1332,7 @@ describe('Helpers:Web3', () => {
       const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
         ethers: {
           Contract: function () {
-            return { isListed: stubIsMember }
+            return { isMember: stubIsMember }
           },
         },
       })
@@ -1346,7 +1346,7 @@ describe('Helpers:Web3', () => {
       expect(result).to.be.false
       expect(stubIsMember.calledOnce).to.be.true
       expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Error isMember' as any)).to.be.true
+      expect(stubLogger.calledWith('Error isTokenVotingMember' as any)).to.be.true
     })
   })
 
