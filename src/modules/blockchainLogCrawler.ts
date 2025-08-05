@@ -143,22 +143,27 @@ class BlockchainLogCrawler {
           )
         } else if (!this.crawlParams.skipLogProcessing) {
           const parallelConfig = this.getParallelConfig(sortedLogs.length)
+          let highestBlockProcessed = 0
+
           if (parallelConfig.enable) {
-            const highestBlockProcessed = await this.processLogsParallel(sortedLogs, {
+            highestBlockProcessed = await this.processLogsParallel(sortedLogs, {
               fromBlock: currentBlock,
               toBlock,
               latestBlock,
             })
-            // Save progress once after parallel processing to avoid write conflicts
-            if (this.crawlParams.logService && highestBlockProcessed > 0) {
-              await this.onSaveProgress(highestBlockProcessed)
-            }
           } else {
-            await this.processLogs(sortedLogs, { fromBlock: currentBlock, toBlock, latestBlock })
-            // For sequential processing, save progress at the end of the batch
-            if (this.crawlParams.logService) {
-              await this.onSaveProgress(toBlock)
-            }
+            highestBlockProcessed = await this.processLogs(sortedLogs, {
+              fromBlock: currentBlock,
+              toBlock,
+              latestBlock,
+            })
+          }
+
+          // Save progress once after processing (both parallel and sequential)
+          // Use the highest block actually processed, or toBlock if no logs were processed
+          if (this.crawlParams.logService) {
+            const progressBlock = highestBlockProcessed > 0 ? highestBlockProcessed : toBlock
+            await this.onSaveProgress(progressBlock)
           }
         } else {
           sortedLogs?.map(log => rawLogs.push(this.formatLog(log)))
@@ -456,8 +461,10 @@ class BlockchainLogCrawler {
       toBlock?: number
       latestBlock?: number
     } = {},
-  ): Promise<void> {
+  ): Promise<number> {
     let logIndex = 0
+    let highestBlockNumber = 0
+
     for (const log of logs) {
       logIndex++
       try {
@@ -472,7 +479,12 @@ class BlockchainLogCrawler {
 
         this.crawlSetting.nbSuccess++
         if (log.blockNumber) {
-          this.crawlSetting.lastSync = log?.blockNumber
+          // Track the highest block number processed
+          highestBlockNumber = Math.max(highestBlockNumber, log.blockNumber)
+          // Update lastSync only if this is a higher block number
+          if (log.blockNumber > this.crawlSetting.lastSync) {
+            this.crawlSetting.lastSync = log.blockNumber
+          }
         }
         logger.verbose(
           'Processing Event',
@@ -500,6 +512,8 @@ class BlockchainLogCrawler {
         }
       }
     }
+
+    return highestBlockNumber
   }
 
   async getProvider(): Promise<any> {
