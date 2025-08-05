@@ -1846,12 +1846,12 @@ describe('Module: blockchainLogCrawler', () => {
 
         // Test different log counts
         const testCases = [
-          { logCount: 50, expected: { concurrency: 1, batchSize: 50 } },
-          { logCount: 500, expected: { concurrency: 5, batchSize: 50 } },
-          { logCount: 5000, expected: { concurrency: 19, batchSize: 100 } },
+          { logCount: 50, expected: { concurrency: 5, batchSize: 50 } },
+          { logCount: 500, expected: { concurrency: 10, batchSize: 50 } },
+          { logCount: 5000, expected: { concurrency: 34, batchSize: 100 } },
           { logCount: 50000, expected: { concurrency: 39, batchSize: 200 } },
           { logCount: 200000, expected: { concurrency: 50, batchSize: 500 } },
-          { logCount: 500000, expected: { concurrency: 40, batchSize: 500 } },
+          { logCount: 500000, expected: { concurrency: 50, batchSize: 500 } },
         ]
 
         testCases.forEach(({ logCount, expected }) => {

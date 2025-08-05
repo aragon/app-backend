@@ -810,21 +810,21 @@ class BlockchainLogCrawler {
       return { concurrency: 1, batchSize: 50 }
     }
 
-    // Calculate concurrency: scales from 1 to 50 based on log count
-    // Using a logarithmic scale for smoother scaling
+    // Calculate concurrency: scales from 5 to 50 based on log count
+    // More aggressive scaling for faster processing
     let concurrency: number
 
     if (logCount <= 100) {
-      concurrency = 1 // Minimal concurrency for very small batches
+      concurrency = Math.max(5, Math.ceil(logCount / 20)) // 5-5 for very small batches
     } else if (logCount <= 1000) {
-      concurrency = Math.ceil(logCount / 100) // 1-10 for small batches
+      concurrency = Math.max(10, Math.ceil(logCount / 50)) // 10-20 for small batches
     } else if (logCount <= 10000) {
-      concurrency = Math.ceil(10 + (logCount - 1000) / 450) // 10-30 for medium batches
+      concurrency = Math.max(20, Math.ceil(20 + (logCount - 1000) / 300)) // 20-50 for medium batches
     } else if (logCount <= 100000) {
-      concurrency = Math.ceil(30 + (logCount - 10000) / 4500) // 30-50 for large batches
+      concurrency = Math.max(30, Math.ceil(30 + (logCount - 10000) / 4500)) // 30-50 for large batches
     } else {
-      // For very large batches, cap at 50 but scale down if extremely large
-      concurrency = logCount > 400000 ? 40 : 50
+      // Always use max concurrency for very large batches
+      concurrency = 50
     }
 
     // Calculate batch size: larger batches for larger workloads
