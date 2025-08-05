@@ -1355,8 +1355,8 @@ describe('Module: blockchainLogCrawler', () => {
       expect(event.config[0].handler.calledOnce).to.be.true
     }
 
-    expect(stubSaveProgress.callCount).to.equal(4)
-    expect(stubSaveProgress.calledWith(sortedLogs[0].blockNumber)).to.be.true
+    // Progress is now saved once per batch, not per log
+    expect(stubSaveProgress.callCount).to.equal(0)
   })
 
   it('should log an error when event setting is not found', async () => {
@@ -1967,23 +1967,25 @@ describe('Module: blockchainLogCrawler', () => {
       })
 
       it('should handle empty logs array', async () => {
-        await crawler.processLogsParallel([], {
+        const highestBlock = await crawler.processLogsParallel([], {
           fromBlock: 100,
           toBlock: 150,
           latestBlock: 200,
         })
 
+        expect(highestBlock).to.equal(0)
         expect(handlerStub1.notCalled).to.be.true
         expect(crawler.crawlSetting.nbSuccess).to.equal(0)
       })
 
       it('should handle null logs array', async () => {
-        await crawler.processLogsParallel(null as any, {
+        const highestBlock = await crawler.processLogsParallel(null as any, {
           fromBlock: 100,
           toBlock: 150,
           latestBlock: 200,
         })
 
+        expect(highestBlock).to.equal(0)
         expect(handlerStub1.notCalled).to.be.true
         expect(crawler.crawlSetting.nbSuccess).to.equal(0)
       })
@@ -2116,23 +2118,22 @@ describe('Module: blockchainLogCrawler', () => {
         expect(crawler.crawlSetting.lastSync).to.be.oneOf([101, 103, 105])
       })
 
-      it('should save progress when logService is configured', async () => {
-        const onSaveProgressStub = sandbox.stub(crawler, 'onSaveProgress').resolves()
-
+      it('should return highest block number processed', async () => {
         const logs = [
           { blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xTopic1'], transactionHash: '0x1' },
-          { blockNumber: 102, transactionIndex: 0, index: 0, topics: ['0xTopic2'], transactionHash: '0x2' },
+          { blockNumber: 105, transactionIndex: 0, index: 0, topics: ['0xTopic2'], transactionHash: '0x2' },
+          { blockNumber: 102, transactionIndex: 0, index: 0, topics: ['0xTopic3'], transactionHash: '0x3' },
         ] as any
 
-        await crawler.processLogsParallel(logs, {
+        const highestBlock = await crawler.processLogsParallel(logs, {
           fromBlock: 100,
           toBlock: 150,
           latestBlock: 200,
         })
 
-        expect(onSaveProgressStub.callCount).to.equal(2)
-        expect(onSaveProgressStub.calledWith(101)).to.be.true
-        expect(onSaveProgressStub.calledWith(102)).to.be.true
+        // Should return the highest block number processed
+        expect(highestBlock).to.equal(105)
+        expect(crawler.crawlSetting.lastSync).to.equal(105)
       })
 
       it('should verify all logs are processed exactly once', async () => {

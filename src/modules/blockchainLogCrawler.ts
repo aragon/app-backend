@@ -142,18 +142,26 @@ class BlockchainLogCrawler {
             }),
           )
         } else if (!this.crawlParams.skipLogProcessing) {
-          const parallelConfig = this.getParallelConfig()
+          const parallelConfig = this.getParallelConfig(sortedLogs.length)
           if (parallelConfig.enable) {
-            await this.processLogsParallel(sortedLogs, { fromBlock: currentBlock, toBlock, latestBlock })
+            const highestBlockProcessed = await this.processLogsParallel(sortedLogs, {
+              fromBlock: currentBlock,
+              toBlock,
+              latestBlock,
+            })
+            // Save progress once after parallel processing to avoid write conflicts
+            if (this.crawlParams.logService && highestBlockProcessed > 0) {
+              await this.onSaveProgress(highestBlockProcessed)
+            }
           } else {
             await this.processLogs(sortedLogs, { fromBlock: currentBlock, toBlock, latestBlock })
+            // For sequential processing, save progress at the end of the batch
+            if (this.crawlParams.logService) {
+              await this.onSaveProgress(toBlock)
+            }
           }
         } else {
           sortedLogs?.map(log => rawLogs.push(this.formatLog(log)))
-        }
-
-        if (this.crawlParams.logService) {
-          await this.onSaveProgress(toBlock)
         }
         if (this.crawlSetting.shutdown) break
         currentBlock = toBlock + 1
@@ -482,9 +490,7 @@ class BlockchainLogCrawler {
             transactionHash: log.transactionHash,
           }),
         )
-        if (this.crawlParams.logService && log.blockNumber) {
-          await this.onSaveProgress(log.blockNumber)
-        }
+        // Progress is saved after processing the entire batch, not for each log
       } catch (error: any) {
         this.crawlParams.onError(error, log)
         this.crawlSetting.nbError++
@@ -835,10 +841,10 @@ class BlockchainLogCrawler {
       toBlock?: number
       latestBlock?: number
     } = {},
-  ): Promise<void> {
+  ): Promise<number> {
     // Safety check: if no logs, return immediately
     if (!logs || logs.length === 0) {
-      return
+      return 0
     }
 
     // Get parallel config with log count for auto-scaling
@@ -848,9 +854,10 @@ class BlockchainLogCrawler {
     const processedLogs = new Set<string>()
     let processedCount = 0
     const totalLogs = logs.length
+    let highestBlockNumber = 0
 
     // Create promise to track completion
-    return new Promise<void>((resolve, reject) => {
+    return new Promise<number>((resolve, reject) => {
       // Create a queue for parallel processing with fixed concurrency
       const queue = async.queue<{ log: Log; index: number }>(async task => {
         const { log, index } = task
@@ -879,7 +886,12 @@ class BlockchainLogCrawler {
 
           this.crawlSetting.nbSuccess++
           if (log.blockNumber) {
-            this.crawlSetting.lastSync = log.blockNumber
+            // Track the highest block number processed
+            highestBlockNumber = Math.max(highestBlockNumber, log.blockNumber)
+            // Update lastSync only if this is a higher block number to avoid out-of-order updates
+            if (log.blockNumber > this.crawlSetting.lastSync) {
+              this.crawlSetting.lastSync = log.blockNumber
+            }
           }
 
           logger.verbose(
@@ -902,9 +914,8 @@ class BlockchainLogCrawler {
             }),
           )
 
-          if (this.crawlParams.logService && log.blockNumber) {
-            await this.onSaveProgress(log.blockNumber)
-          }
+          // Don't save progress for each log in parallel mode to avoid write conflicts
+          // Progress will be saved once after all logs are processed
 
           processedCount++
         } catch (error: any) {
@@ -924,7 +935,7 @@ class BlockchainLogCrawler {
       queue.drain(() => {
         // Verify all logs were processed
         if (processedCount >= totalLogs) {
-          resolve()
+          resolve(highestBlockNumber)
         }
       })
 
@@ -964,7 +975,7 @@ class BlockchainLogCrawler {
 
       // If queue is empty (shouldn't happen), resolve immediately
       if (queue.length() === 0 && queue.running() === 0) {
-        resolve()
+        resolve(highestBlockNumber)
       }
     })
   }
