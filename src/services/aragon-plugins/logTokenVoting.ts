@@ -129,6 +129,10 @@ export const LogTokenVoting = {
     logger.verbose('Start Token Sync', llo({ ...infoLogs, ...{ syncStrategy: 'BlockchainLogCrawler', startTime } }))
 
     const tokenCrawler = new BlockchainLogCrawler({
+      parallel: {
+        enable: true,
+        autoScale: true,
+      },
       onlyHistorical: isHistorical,
       network: plugin.network,
       events: [...configGovLogs],

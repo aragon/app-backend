@@ -13,7 +13,7 @@ const llo = logger.logMeta.bind(null, { service: 'modules:ProxyMember' })
 
 export const ProxyMember = {
   createMember: async (memberAddress: HexAddress, lastActivity?: number): Promise<Member | null> => {
-    const parsedMemberAddress = Web3Utils.parseAddress(memberAddress) || memberAddress
+    const parsedMemberAddress = Web3Utils.parseAddress(memberAddress)
     if (!parsedMemberAddress) return null
 
     try {
@@ -164,7 +164,7 @@ export const ProxyMember = {
     votingPower?: string
     tokenIds?: string[]
     network: NetworksEnum
-    lastVPBlockNumber?: number
+    lastVPBlockNumber: number
   }): Promise<VpMember | null> => {
     const memberAddress = Web3Utils.parseAddress(params.memberAddress)
     if (!memberAddress) return null
@@ -202,11 +202,10 @@ export const ProxyMember = {
           updateData.lastVPBlockNumber = params.lastVPBlockNumber
         }
 
-        // Update if voting power is different or tokenIds need to be updated
+        // Update only if lastVPBlockNumber is greater than the current one, or if current one not exists and new one exists
         if (
-          vpMember.votingPower !== params.votingPower ||
-          updateData.tokenIds !== undefined ||
-          updateData.lastVPBlockNumber !== undefined
+          (!vpMember.lastVPBlockNumber && updateData.lastVPBlockNumber) ||
+          (updateData.lastVPBlockNumber && updateData.lastVPBlockNumber > vpMember.lastVPBlockNumber)
         ) {
           const updated = await vpMember.update(updateData, { session })
           await session.commitTransaction()

@@ -238,17 +238,19 @@ describe('Modules:ProxyMember', () => {
   })
 
   describe('updateVotingPower', () => {
-    it('should update voting power successfully', async () => {
+    it('should update voting power when lastVPBlockNumber is greater', async () => {
       const params = {
         memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
         tokenAddress: '0xtoken',
         votingPower: '1000',
         network: NetworksEnum.ethereumMainnet,
+        lastVPBlockNumber: 20,
       }
       const vpMember = {
         id: 'vp-member-id',
         votingPower: '100',
         update: sandbox.stub().resolves({ id: 'vp-member-id', votingPower: '1000' }),
+        lastVPBlockNumber: 10,
       }
 
       sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
@@ -257,7 +259,55 @@ describe('Modules:ProxyMember', () => {
       const result = await ProxyMember.updateVotingPower(params)
 
       expect(result?.votingPower).to.equal('1000')
-      expect(vpMember.update.calledOnceWith({ votingPower: '1000' }, sinon.match.any)).to.be.true
+      expect(vpMember.update.calledOnceWith({ votingPower: '1000', lastVPBlockNumber: 20 }, sinon.match.any)).to.be.true
+    })
+
+    it('should update voting power when current lastVPBlockNumber is null', async () => {
+      const params = {
+        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
+        tokenAddress: '0xtoken',
+        votingPower: '1000',
+        network: NetworksEnum.ethereumMainnet,
+        lastVPBlockNumber: 15,
+      }
+      const vpMember = {
+        id: 'vp-member-id',
+        votingPower: '100',
+        update: sandbox.stub().resolves({ id: 'vp-member-id', votingPower: '1000' }),
+        lastVPBlockNumber: null,
+      }
+
+      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
+      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves(vpMember as any)
+
+      const result = await ProxyMember.updateVotingPower(params)
+
+      expect(result?.votingPower).to.equal('1000')
+      expect(vpMember.update.calledOnceWith({ votingPower: '1000', lastVPBlockNumber: 15 }, sinon.match.any)).to.be.true
+    })
+
+    it('should not update voting power when lastVPBlockNumber is lower', async () => {
+      const params = {
+        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
+        tokenAddress: '0xtoken',
+        votingPower: '1000',
+        network: NetworksEnum.ethereumMainnet,
+        lastVPBlockNumber: 5,
+      }
+      const vpMember = {
+        id: 'vp-member-id',
+        votingPower: '100',
+        update: sandbox.stub().resolves({ id: 'vp-member-id', votingPower: '1000' }),
+        lastVPBlockNumber: 10,
+      }
+
+      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
+      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves(vpMember as any)
+
+      const result = await ProxyMember.updateVotingPower(params)
+
+      expect(result).to.equal(vpMember)
+      expect(vpMember.update.called).to.be.false
     })
 
     it('should update tokenIds when provided', async () => {
@@ -267,11 +317,13 @@ describe('Modules:ProxyMember', () => {
         votingPower: '1000',
         tokenIds: ['1', '2', '3'],
         network: NetworksEnum.ethereumMainnet,
+        lastVPBlockNumber: 20,
       }
       const vpMember = {
         id: 'vp-member-id',
         votingPower: '100',
         update: sandbox.stub().resolves({ id: 'vp-member-id', votingPower: '1000', tokenIds: ['1', '2', '3'] }),
+        lastVPBlockNumber: 10,
       }
 
       sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
@@ -280,8 +332,12 @@ describe('Modules:ProxyMember', () => {
       const result = await ProxyMember.updateVotingPower(params)
 
       expect(result?.tokenIds).to.deep.equal(['1', '2', '3'])
-      expect(vpMember.update.calledOnceWith({ votingPower: '1000', tokenIds: ['1', '2', '3'] }, sinon.match.any)).to.be
-        .true
+      expect(
+        vpMember.update.calledOnceWith(
+          { votingPower: '1000', tokenIds: ['1', '2', '3'], lastVPBlockNumber: 20 },
+          sinon.match.any,
+        ),
+      ).to.be.true
     })
 
     it('should clear tokenIds when voting power is 0', async () => {
@@ -290,11 +346,13 @@ describe('Modules:ProxyMember', () => {
         tokenAddress: '0xtoken',
         votingPower: '0',
         network: NetworksEnum.ethereumMainnet,
+        lastVPBlockNumber: 20,
       }
       const vpMember = {
         id: 'vp-member-id',
         votingPower: '100',
         update: sandbox.stub().resolves({ id: 'vp-member-id', votingPower: '0', tokenIds: [] }),
+        lastVPBlockNumber: 10,
       }
 
       sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
@@ -303,7 +361,8 @@ describe('Modules:ProxyMember', () => {
       const result = await ProxyMember.updateVotingPower(params)
 
       expect(result?.votingPower).to.equal('0')
-      expect(vpMember.update.calledOnceWith({ votingPower: '0', tokenIds: [] }, sinon.match.any)).to.be.true
+      expect(vpMember.update.calledOnceWith({ votingPower: '0', tokenIds: [], lastVPBlockNumber: 20 }, sinon.match.any))
+        .to.be.true
     })
 
     it('should return null if getOrCreateVotingPower fails', async () => {
@@ -312,6 +371,7 @@ describe('Modules:ProxyMember', () => {
         tokenAddress: '0xtoken',
         votingPower: '1000',
         network: NetworksEnum.ethereumMainnet,
+        lastVPBlockNumber: 0,
       }
 
       sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
