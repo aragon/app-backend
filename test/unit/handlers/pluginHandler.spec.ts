@@ -808,7 +808,7 @@ describe('Indexer:Plugin', () => {
         daoAddress: rawPlugin.daoAddress,
       })
 
-      const existingPlugin = await Models.Plugin.create({
+      await Models.Plugin.create({
         status: IPluginStatus.installed,
         network: rawPlugin.network,
         blockNumber: 1000,
@@ -874,7 +874,7 @@ describe('Indexer:Plugin', () => {
         daoAddress: rawPlugin.daoAddress,
       })
 
-      const existingPlugin = await Models.Plugin.create({
+      await Models.Plugin.create({
         status: IPluginStatus.installed,
         network: rawPlugin.network,
         blockNumber: 1000,
@@ -1293,7 +1293,7 @@ describe('Indexer:Plugin', () => {
       }
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
 
-      const findLogsStub = sandbox.stub(Web3Utils, 'findLogsByName').returns([
+      sandbox.stub(Web3Utils, 'findLogsByName').returns([
         {
           parsed: { name: 'InstallationApplied' },
           txLog: {

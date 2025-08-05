@@ -233,6 +233,7 @@ const UnitDepUtils = {
           }
           case IPluginInterfaceType.lockToVote: {
             await LogLockToVote.start(plugin)
+            break
           }
           default:
             break

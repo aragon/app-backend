@@ -607,6 +607,7 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(stubFindActive.calledOnce).to.be.true
       expect(getBlockTimestampStub.calledOnce).to.be.true
       expect(isSupportedStub.calledOnce).to.be.true
+      expect(stubFindSppPlugin.calledOnce).to.be.true
 
       expect(createDocumentStub.calledOnce).to.be.true
       const settingData = createDocumentStub.firstCall.args[1]
