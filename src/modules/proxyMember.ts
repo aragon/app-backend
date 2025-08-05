@@ -185,7 +185,7 @@ export const ProxyMember = {
 
         // Prepare update data
         const updateData: any = {}
-
+        const oldVotingPower = vpMember.votingPower
         if (params.votingPower !== undefined) {
           updateData.votingPower = params.votingPower.toString()
           // If voting power is 0, always set tokenIds to empty array
@@ -215,8 +215,8 @@ export const ProxyMember = {
             llo({
               memberAddress,
               tokenAddress: params.tokenAddress,
-              oldVotingPower: vpMember.votingPower,
-              newVotingPower: params.votingPower,
+              oldVotingPower,
+              newVotingPower: updated.votingPower,
             }),
           )
           return updated
