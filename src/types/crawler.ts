@@ -21,6 +21,13 @@ export enum ICrawStrategy {
   getLogsByBatch = 'getLogsByBatch',
 }
 
+export interface IParallelConfig {
+  enable: boolean
+  concurrency?: number
+  batchSize?: number
+  autoScale?: boolean
+}
+
 export interface ICrawlParam {
   network: NetworksEnum
   fromBlock?: number
@@ -28,6 +35,7 @@ export interface ICrawlParam {
   address?: HexAddress | HexAddress[] | string | string[]
   events: IIndexerConfig[]
   stopOnError: boolean
+  parallel?: boolean | IParallelConfig
   onlyHistorical?: boolean
   oneBlockPerTime?: boolean
   filterLogs?: (logs: any) => Promise<any>
