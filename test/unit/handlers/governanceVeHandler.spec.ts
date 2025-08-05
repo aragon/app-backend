@@ -243,6 +243,7 @@ describe('Handler:GovernanceVeHandler', () => {
           tokenAddress: mockPlugin.tokenAddress,
           network: mockInfo.network,
           tokenIds: ['123'],
+          lastVPBlockNumber: mockInfo.blockNumber,
         }),
       ).to.be.true
 

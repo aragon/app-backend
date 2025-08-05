@@ -20,6 +20,7 @@ import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import axios from 'axios'
 import BottleneckModule from '@modules/bottleneck'
+import * as async from 'async'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:EventCrawler' })
 
@@ -29,6 +30,7 @@ class BlockchainLogCrawler {
 
   constructor(opts: ICrawlParam) {
     this.crawlParams = {
+      parallel: opts.parallel,
       network: opts.network,
       fromBlock: opts.fromBlock,
       toBlock: opts.toBlock,
@@ -140,7 +142,12 @@ class BlockchainLogCrawler {
             }),
           )
         } else if (!this.crawlParams.skipLogProcessing) {
-          await this.processLogs(sortedLogs, { fromBlock: currentBlock, toBlock, latestBlock })
+          const parallelConfig = this.getParallelConfig()
+          if (parallelConfig.enable) {
+            await this.processLogsParallel(sortedLogs, { fromBlock: currentBlock, toBlock, latestBlock })
+          } else {
+            await this.processLogs(sortedLogs, { fromBlock: currentBlock, toBlock, latestBlock })
+          }
         } else {
           sortedLogs?.map(log => rawLogs.push(this.formatLog(log)))
         }
@@ -721,6 +728,245 @@ class BlockchainLogCrawler {
       address: this.crawlParams.address,
       logService: this.crawlParams.logService,
     }
+  }
+
+  getParallelConfig(logCount?: number): { enable: boolean; concurrency: number; batchSize: number } {
+    const parallel = this.crawlParams.parallel
+
+    // Default disabled config
+    if (!parallel) {
+      return {
+        enable: false,
+        concurrency: 1,
+        batchSize: 1,
+      }
+    }
+
+    // Boolean config - always use defaults (1, 50)
+    if (typeof parallel === 'boolean') {
+      return {
+        enable: parallel,
+        concurrency: parallel ? 1 : 1,
+        batchSize: parallel ? 50 : 1,
+      }
+    }
+
+    // Object config
+    if (typeof parallel === 'object' && parallel !== null) {
+      const baseConfig = {
+        enable: parallel.enable ?? false,
+        concurrency: parallel.concurrency ?? 1, // Default concurrency is 1
+        batchSize: parallel.batchSize ?? 50, // Default batch size is 50
+      }
+
+      // If autoScale is enabled and we have a log count, calculate adaptive values
+      if (parallel.enable && parallel.autoScale && logCount !== undefined) {
+        const adaptive = this.getAdaptiveConfig(logCount)
+        return {
+          enable: true,
+          concurrency: adaptive.concurrency,
+          batchSize: adaptive.batchSize,
+        }
+      }
+
+      return baseConfig
+    }
+
+    // Fallback
+    return {
+      enable: false,
+      concurrency: 1,
+      batchSize: 1,
+    }
+  }
+
+  /**
+   * Calculate optimal concurrency and batch size based on log count
+   * Scales from 1-50 concurrency based on workload
+   */
+  private getAdaptiveConfig(logCount: number): { concurrency: number; batchSize: number } {
+    // Handle edge cases
+    if (logCount <= 0) {
+      return { concurrency: 1, batchSize: 50 }
+    }
+
+    // Calculate concurrency: scales from 1 to 50 based on log count
+    // Using a logarithmic scale for smoother scaling
+    let concurrency: number
+
+    if (logCount <= 100) {
+      concurrency = 1 // Minimal concurrency for very small batches
+    } else if (logCount <= 1000) {
+      concurrency = Math.ceil(logCount / 100) // 1-10 for small batches
+    } else if (logCount <= 10000) {
+      concurrency = Math.ceil(10 + (logCount - 1000) / 450) // 10-30 for medium batches
+    } else if (logCount <= 100000) {
+      concurrency = Math.ceil(30 + (logCount - 10000) / 4500) // 30-50 for large batches
+    } else {
+      // For very large batches, cap at 50 but scale down if extremely large
+      concurrency = logCount > 400000 ? 40 : 50
+    }
+
+    // Calculate batch size: larger batches for larger workloads
+    let batchSize: number
+
+    if (logCount <= 1000) {
+      batchSize = 50 // Default for small workloads
+    } else if (logCount <= 10000) {
+      batchSize = 100 // Moderate batch size
+    } else if (logCount <= 50000) {
+      batchSize = 200 // Large batch size
+    } else {
+      batchSize = 500 // Very large batch size for massive workloads
+    }
+
+    logger.verbose('Adaptive parallel config', llo({ concurrency, batchSize }))
+    return { concurrency, batchSize }
+  }
+
+  async processLogsParallel(
+    logs: Log[],
+    {
+      fromBlock,
+      toBlock,
+      latestBlock,
+    }: {
+      fromBlock?: number
+      toBlock?: number
+      latestBlock?: number
+    } = {},
+  ): Promise<void> {
+    // Safety check: if no logs, return immediately
+    if (!logs || logs.length === 0) {
+      return
+    }
+
+    // Get parallel config with log count for auto-scaling
+    const parallelConfig = this.getParallelConfig(logs.length)
+
+    // Track processed logs to prevent duplicates
+    const processedLogs = new Set<string>()
+    let processedCount = 0
+    const totalLogs = logs.length
+
+    // Create promise to track completion
+    return new Promise<void>((resolve, reject) => {
+      // Create a queue for parallel processing with fixed concurrency
+      const queue = async.queue<{ log: Log; index: number }>(async task => {
+        const { log, index } = task
+
+        // Create unique key using blockNumber, transactionHash, transactionIndex, and logIndex
+        // This ensures uniqueness even when multiple events from same address in same tx
+        const logKey = `${log.blockNumber}-${log.transactionHash}-${log.transactionIndex}-${log.index}`
+
+        // Double-check to prevent duplicate processing
+        if (processedLogs.has(logKey)) {
+          processedCount++
+          return
+        }
+        processedLogs.add(logKey)
+
+        const startTime = Date.now()
+
+        try {
+          const { handler, event, info } = this.formatLog(log)
+          if (!event) {
+            processedCount++
+            return
+          }
+
+          await handler(event, info, this.crawlParams.onlyHistorical)
+
+          this.crawlSetting.nbSuccess++
+          if (log.blockNumber) {
+            this.crawlSetting.lastSync = log.blockNumber
+          }
+
+          logger.verbose(
+            'Processing Event (Parallel)',
+            llo({
+              ...this.parseCrawlerInfoLog(),
+              blockNumber: Number(log.blockNumber),
+              logsLen: totalLogs,
+              logIndex: index + 1,
+              processedCount: processedCount + 1,
+              event: event.name,
+              strategy: this.crawlParams.strategy,
+              fromBlock,
+              processedTime: Date.now() - startTime,
+              toBlock,
+              latestBlock,
+              transactionHash: log.transactionHash,
+              parallel: true,
+              concurrency: parallelConfig.concurrency,
+            }),
+          )
+
+          if (this.crawlParams.logService && log.blockNumber) {
+            await this.onSaveProgress(log.blockNumber)
+          }
+
+          processedCount++
+        } catch (error: any) {
+          processedCount++
+          this.crawlParams.onError(error, log)
+          this.crawlSetting.nbError++
+
+          if (this.crawlParams.stopOnError) {
+            this.crawlSetting.shutdown = true
+            queue.kill()
+            reject(error)
+          }
+        }
+      }, parallelConfig.concurrency)
+
+      // Set up completion handler
+      queue.drain(() => {
+        // Verify all logs were processed
+        if (processedCount >= totalLogs) {
+          resolve()
+        }
+      })
+
+      // Handle errors
+      queue.error((error, task) => {
+        logger.error(
+          'Parallel processing queue error',
+          llo({
+            error,
+            transactionHash: task.log.transactionHash,
+            logIndex: task.index,
+            ...this.parseCrawlerInfoLog(),
+          }),
+        )
+        if (this.crawlParams.stopOnError) {
+          this.crawlSetting.shutdown = true
+          queue.kill()
+          reject(error)
+        }
+      })
+
+      // Add all logs to the queue at once to prevent loops
+      // Each log is added exactly once with its index
+      const tasks = logs.map((log, index) => ({ log, index }))
+
+      // Push tasks in batches to avoid memory spikes
+      const { batchSize } = parallelConfig
+      for (let i = 0; i < tasks.length; i += batchSize) {
+        const batch = tasks.slice(i, Math.min(i + batchSize, tasks.length))
+        queue.push(batch)
+
+        // If shutdown is triggered, stop adding more tasks
+        if (this.crawlSetting.shutdown) {
+          break
+        }
+      }
+
+      // If queue is empty (shouldn't happen), resolve immediately
+      if (queue.length() === 0 && queue.running() === 0) {
+        resolve()
+      }
+    })
   }
 }
 

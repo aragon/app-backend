@@ -189,6 +189,7 @@ export const GovernanceVeHandler = {
           tokenAddress,
           network: info.network,
           tokenIds: currentTokenIds,
+          lastVPBlockNumber: info.blockNumber,
         })
       }
     }
