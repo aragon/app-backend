@@ -312,9 +312,7 @@ describe('Indexer: LockManagerHandler', () => {
       const verboseStub = sandbox.stub(logger, 'verbose')
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1620000000)
       // User unlocked all tokens, so balance is now 0
-      const getUserLockedBalanceStub = sandbox
-        .stub(LockToVoteHelper, 'getUserLockedBalance')
-        .resolves('0')
+      const getUserLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves('0')
       const isMemberOfDaoStub = sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(true)
       const removeFromDaoStub = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
