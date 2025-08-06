@@ -104,7 +104,6 @@ export class Stages {
     customName,
   },
 })
-@index({ id: 1 }, { unique: true })
 @index({ pluginAddress: 1, blockNumber: 1 })
 export default class Setting extends Model {
   @prop({ type: () => String, required: true, unique: true })
