@@ -113,6 +113,9 @@ const ConfigIndexerHelper = {
     isTransferList: (service: LogServicePattern): service is TransferListLogService =>
       service?.startsWith(`${IndexerType.transferList}-`) ?? false,
 
+    isLockManager: (service: LogServicePattern): service is LockManagerLogService =>
+      service?.startsWith(`${IndexerType.lockManager}-`) ?? false,
+
     isPlugin: (service: LogServicePattern): service is PluginLogService => {
       if (service === null) return false
       // If it's not any of the other types, and it's not null, it should be a plugin
@@ -122,7 +125,9 @@ const ConfigIndexerHelper = {
         !ConfigIndexerHelper.guards.isIndexer(service) &&
         !ConfigIndexerHelper.guards.isDao(service) &&
         !ConfigIndexerHelper.guards.isPermission(service) &&
-        !ConfigIndexerHelper.guards.isToken(service)
+        !ConfigIndexerHelper.guards.isToken(service) &&
+        !ConfigIndexerHelper.guards.isTransferList(service) &&
+        !ConfigIndexerHelper.guards.isLockManager(service)
       )
     },
   },
@@ -237,6 +242,19 @@ const ConfigIndexerHelper = {
         }
       }
 
+      if (ConfigIndexerHelper.guards.isLockManager(service)) {
+        // lockManager-{network}-{address}
+        const { network, remainingParts } = extractNetwork(parts, 1)
+        const networkIndex = remainingParts.indexOf(network)
+        const addressParts = remainingParts.slice(networkIndex + 1)
+
+        return {
+          type: IndexerType.lockManager,
+          network,
+          address: addressParts.join('-'),
+        }
+      }
+
       if (ConfigIndexerHelper.guards.isToken(service)) {
         // {tokenType}-{network}-{address}
         const tokenType = parts[0] as ITokenType
@@ -295,7 +313,8 @@ const ConfigIndexerHelper = {
       if (ConfigIndexerHelper.guards.isDao(service)) return IndexerType.dao
       if (ConfigIndexerHelper.guards.isToken(service)) return IndexerType.token
       if (ConfigIndexerHelper.guards.isPermission(service)) return IndexerType.permission
-      if (ConfigIndexerHelper.guards.isTransferList(service)) return IndexerType.transferList // Add this line
+      if (ConfigIndexerHelper.guards.isTransferList(service)) return IndexerType.transferList
+      if (ConfigIndexerHelper.guards.isLockManager(service)) return IndexerType.lockManager
       if (ConfigIndexerHelper.guards.isPlugin(service)) return IndexerType.plugin
 
       return null
@@ -344,6 +363,7 @@ const ConfigIndexerHelper = {
         ConfigIndexerHelper.guards.isToken(service) ||
         ConfigIndexerHelper.guards.isPermission(service) ||
         ConfigIndexerHelper.guards.isTransferList(service) ||
+        ConfigIndexerHelper.guards.isLockManager(service) ||
         (ConfigIndexerHelper.guards.isPlugin(service) && hasValidNetwork)
       )
     },
