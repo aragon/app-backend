@@ -334,7 +334,49 @@ export const ProxyMember = {
     }
   },
 
-  // Batch operations without session (for fallback scenarios)
+  // Batch operations without transaction for parallel processing
+  createMembersBatchNoTx: async (
+    members: Array<{ memberAddress: HexAddress; lastActivity?: number }>,
+  ): Promise<boolean> => {
+    try {
+      const bulkOps = members
+        .map(({ memberAddress, lastActivity }) => {
+          const parsedAddress = Web3Utils.parseAddress(memberAddress)
+          if (!parsedAddress) return null
+
+          return {
+            updateOne: {
+              filter: { id: parsedAddress },
+              update: {
+                $set: {
+                  address: parsedAddress,
+                  ...(lastActivity && { lastActivity }),
+                },
+                $setOnInsert: {
+                  id: parsedAddress,
+                  firstActivity: lastActivity || null,
+                  ens: null, // Skip ENS for now, will be updated later
+                },
+              },
+              upsert: true,
+            },
+          }
+        })
+        .filter(op => op !== null)
+
+      if (bulkOps.length > 0) {
+        await Models.Member.bulkWrite(bulkOps, { ordered: false })
+      }
+
+      logger.verbose('Batch created/updated members without transaction', llo({ count: bulkOps.length }))
+      return true
+    } catch (error) {
+      logger.error('Error in batch member creation without transaction', llo({ error, memberCount: members.length }))
+      return false
+    }
+  },
+
+  // Batch operations with session wrapper (for fallback scenarios)
   createMembersBatch: async (
     members: Array<{ memberAddress: HexAddress; lastActivity?: number }>,
   ): Promise<boolean> => {
@@ -347,6 +389,140 @@ export const ProxyMember = {
       })
     } catch (error) {
       logger.error('Error in batch member creation', llo({ error, memberCount: members.length }))
+      return false
+    }
+  },
+
+  updateVotingPowerBatchNoTx: async (
+    updates: Array<{
+      memberAddress: HexAddress
+      tokenAddress: HexAddress
+      votingPower?: string
+      tokenIds?: string[]
+      network: NetworksEnum
+      lastVPBlockNumber: number
+    }>,
+  ): Promise<boolean> => {
+    try {
+      // Group updates by unique id to get the latest update per member
+      const updatesWithParsedAddress = updates
+        .map(update => {
+          const memberAddress = Web3Utils.parseAddress(update.memberAddress)
+          if (!memberAddress) return null
+
+          const id = Models.VpMember.getEntityId({
+            network: update.network,
+            tokenAddress: update.tokenAddress,
+            memberAddress,
+          })
+
+          return { ...update, memberAddress, id }
+        })
+        .filter(update => update !== null)
+
+      // Sort by block number descending and reduce to get only latest per id
+      const latestUpdates = updatesWithParsedAddress
+        .sort((a, b) => b.lastVPBlockNumber - a.lastVPBlockNumber)
+        .reduce<typeof updatesWithParsedAddress>((acc, update) => {
+          if (!acc.some(u => u.id === update.id)) {
+            acc.push(update)
+          }
+          return acc
+        }, [])
+
+      // Create bulk operations with proper handling for concurrent updates
+      const bulkOps = latestUpdates.map(update => {
+        const setFields: any = {
+          lastVPBlockNumber: update.lastVPBlockNumber,
+        }
+
+        const setOnInsertFields: any = {
+          id: update.id,
+          memberAddress: update.memberAddress,
+          tokenAddress: update.tokenAddress,
+          network: update.network,
+          delegateReceivedCount: 0,
+        }
+
+        if (update.votingPower !== undefined) {
+          setFields.votingPower = update.votingPower.toString()
+          // If voting power is 0, always set tokenIds to empty array
+          if (update.votingPower === '0') {
+            setFields.tokenIds = []
+          }
+        } else {
+          setOnInsertFields.votingPower = '0'
+        }
+
+        if (update.tokenIds !== undefined) {
+          setFields.tokenIds = update.tokenIds
+        } else if (!setFields.tokenIds) {
+          setOnInsertFields.tokenIds = []
+        }
+
+        // Use a filter that checks block number to ensure we only update with newer data
+        // The upsert will create the document if it doesn't exist
+        return {
+          updateOne: {
+            filter: {
+              id: update.id,
+              $or: [
+                { lastVPBlockNumber: { $exists: false } },
+                { lastVPBlockNumber: { $lt: update.lastVPBlockNumber } },
+              ],
+            },
+            update: {
+              $set: setFields,
+              $setOnInsert: setOnInsertFields,
+            },
+            upsert: true,
+          },
+        }
+      })
+
+      if (bulkOps.length > 0) {
+        try {
+          // Use ordered: false to continue on errors and maximize throughput
+          await Models.VpMember.bulkWrite(bulkOps, { ordered: false })
+        } catch (bulkError: any) {
+          // Check if this is a bulk write error with duplicate key errors
+          if (bulkError.code === 11000 || bulkError.writeErrors) {
+            // Filter out duplicate key errors (code 11000) which are expected in parallel processing
+            const nonDuplicateErrors = bulkError.writeErrors?.filter((err: any) => err.code !== 11000) || []
+
+            if (nonDuplicateErrors.length > 0) {
+              logger.error(
+                'Non-duplicate write errors in batch voting power update without tx',
+                llo({
+                  errors: nonDuplicateErrors,
+                  updateCount: updates.length,
+                }),
+              )
+              throw new Error('Batch voting power update failed with non-duplicate errors')
+            }
+
+            // If only duplicate key errors, continue - these are expected when parallel batches
+            // try to insert the same new document simultaneously
+            logger.verbose(
+              'Handled expected duplicate key errors in batch update without tx',
+              llo({
+                duplicateCount: bulkError.writeErrors?.filter((err: any) => err.code === 11000).length || 0,
+              }),
+            )
+          } else {
+            // Re-throw unexpected errors
+            throw bulkError
+          }
+        }
+      }
+
+      logger.verbose('Batch updated voting powers without transaction', llo({ count: bulkOps.length }))
+      return true
+    } catch (error) {
+      logger.error(
+        'Error in batch voting power update without transaction',
+        llo({ error, updateCount: updates.length }),
+      )
       return false
     }
   },
@@ -370,6 +546,74 @@ export const ProxyMember = {
       })
     } catch (error) {
       logger.error('Error in batch voting power update', llo({ error, updateCount: updates.length }))
+      return false
+    }
+  },
+
+  updatePluginMetricsBatchNoTx: async (
+    updates: Array<{
+      memberAddress: HexAddress
+      pluginAddress: HexAddress
+      daoAddress?: HexAddress
+      network: NetworksEnum
+      lastActivity?: number
+    }>,
+  ): Promise<boolean> => {
+    try {
+      const bulkOps = updates
+        .map(update => {
+          const memberAddress = Web3Utils.parseAddress(update.memberAddress)
+          if (!memberAddress) return null
+
+          const id = Models.PluginMetrics.getEntityId({
+            network: update.network,
+            memberAddress,
+            pluginAddress: update.pluginAddress,
+          })
+
+          const setFields: any = {}
+          const setOnInsertFields: any = {
+            id,
+            memberAddress,
+            pluginAddress: update.pluginAddress,
+            network: update.network,
+            voteCount: 0,
+            proposalCount: 0,
+          }
+
+          if (update.daoAddress) {
+            setFields.daoAddress = update.daoAddress
+          }
+
+          if (update.lastActivity !== undefined) {
+            setFields.lastActivity = update.lastActivity
+            setOnInsertFields.firstActivity = update.lastActivity
+          }
+
+          return {
+            updateOne: {
+              filter: { id },
+              update: {
+                $set: setFields,
+                $setOnInsert: setOnInsertFields,
+              },
+              upsert: true,
+            },
+          }
+        })
+        .filter(op => op !== null)
+
+      if (bulkOps.length > 0) {
+        await Models.PluginMetrics.bulkWrite(bulkOps, { ordered: false })
+      }
+
+      logger.verbose('Batch updated plugin metrics without transaction', llo({ count: bulkOps.length }))
+      return true
+    } catch (error) {
+      logger.error(
+        'Error in batch plugin metrics update without transaction',
+        llo({ error, updateCount: updates.length }),
+      )
       return false
     }
   },
@@ -536,20 +780,26 @@ export const ProxyMember = {
           if (bulkError.code === 11000 || bulkError.writeErrors) {
             // Filter out duplicate key errors (code 11000) which are expected in parallel processing
             const nonDuplicateErrors = bulkError.writeErrors?.filter((err: any) => err.code !== 11000) || []
-            
+
             if (nonDuplicateErrors.length > 0) {
-              logger.error('Non-duplicate write errors in batch voting power update', llo({ 
-                errors: nonDuplicateErrors,
-                updateCount: updates.length 
-              }))
+              logger.error(
+                'Non-duplicate write errors in batch voting power update',
+                llo({
+                  errors: nonDuplicateErrors,
+                  updateCount: updates.length,
+                }),
+              )
               throw new Error('Batch voting power update failed with non-duplicate errors')
             }
-            
+
             // If only duplicate key errors, continue - these are expected when parallel batches
             // try to insert the same new document simultaneously
-            logger.verbose('Handled expected duplicate key errors in batch update', llo({ 
-              duplicateCount: bulkError.writeErrors?.filter((err: any) => err.code === 11000).length || 0
-            }))
+            logger.verbose(
+              'Handled expected duplicate key errors in batch update',
+              llo({
+                duplicateCount: bulkError.writeErrors?.filter((err: any) => err.code === 11000).length || 0,
+              }),
+            )
           } else {
             // Re-throw unexpected errors
             throw bulkError

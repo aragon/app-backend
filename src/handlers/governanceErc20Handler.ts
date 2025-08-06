@@ -7,7 +7,6 @@ import type Plugin from '@models/schema/plugin'
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { ProxyToken } from '@modules/proxyToken'
-import DbTx from '@modules/dbTx'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:GovernanceErc20Handler' })
 
@@ -91,7 +90,7 @@ export const GovernanceErc20Handler = {
 
       // Process each member's events to get only the latest
       const latestEventsPerMember: Array<{ parsedEvent: LogDescription; info: ILogInfo }> = []
-      
+
       // Use for...of with Map entries for better performance
       for (const [, memberEvents] of eventsByMember) {
         // Find the event with the highest block number without sorting the entire array
@@ -104,99 +103,98 @@ export const GovernanceErc20Handler = {
         latestEventsPerMember.push(latestEvent)
       }
 
-      // First, try batch operation with transaction for better performance
+      // Try batch operation without transaction for parallel processing
+      // Transactions cause conflicts when multiple batches run in parallel
       try {
-        await DbTx.executeTxFn(async ({ session }) => {
-          // Prepare batch data for members
-          const memberData = latestEventsPerMember.map(({ parsedEvent, info }) => ({
-            memberAddress: parsedEvent.args.delegate,
-            lastActivity: info.blockNumber,
-          }))
+        // Prepare batch data for members
+        const memberData = latestEventsPerMember.map(({ parsedEvent, info }) => ({
+          memberAddress: parsedEvent.args.delegate,
+          lastActivity: info.blockNumber,
+        }))
 
-          // Create/update members in batch with session
-          await ProxyMember.createMembersBatchWithSession(memberData, session)
+        // Create/update members in batch without session (no transaction)
+        await ProxyMember.createMembersBatchNoTx(memberData)
 
-          // Prepare voting power updates
-          const vpUpdates = latestEventsPerMember.map(({ parsedEvent, info }) => ({
-            memberAddress: parsedEvent.args.delegate,
-            tokenAddress: info.address,
-            votingPower: BigInt(parsedEvent?.args?.newBalance || 0).toString(),
-            network: info.network,
-            lastVPBlockNumber: info.blockNumber,
-          }))
+        // Prepare voting power updates
+        const vpUpdates = latestEventsPerMember.map(({ parsedEvent, info }) => ({
+          memberAddress: parsedEvent.args.delegate,
+          tokenAddress: info.address,
+          votingPower: BigInt(parsedEvent?.args?.newBalance || 0).toString(),
+          network: info.network,
+          lastVPBlockNumber: info.blockNumber,
+        }))
 
-          // Update voting powers in batch with session
-          await ProxyMember.updateVotingPowerBatchWithSession(vpUpdates, session)
+        // Update voting powers in batch without session (no transaction)
+        await ProxyMember.updateVotingPowerBatchNoTx(vpUpdates)
 
-          // Get unique token-network combinations using reduce
-          const uniqueTokenNetworks = latestEventsPerMember.reduce<Array<{ tokenAddress: string; network: string }>>(
-            (acc, { info }) => {
-              const key = `${info.address}-${info.network}`
-              if (!acc.some(item => `${item.tokenAddress}-${item.network}` === key)) {
-                acc.push({ tokenAddress: info.address, network: info.network })
-              }
-              return acc
-            },
-            [],
-          )
-
-          // Fetch all plugins for all unique token-network combinations
-          const pluginPromises = uniqueTokenNetworks.map(({ tokenAddress, network }) =>
-            Models.Plugin.findAllByTokenAddress(tokenAddress, network, { session }),
-          )
-          const pluginArrays = await Promise.all(pluginPromises)
-          const allPlugins = pluginArrays.flat()
-
-          // Create a map of token-network to plugins for quick lookup using reduce
-          const pluginMap = allPlugins.reduce<Record<string, Plugin[]>>((map, plugin) => {
-            const key = `${plugin.tokenAddress}-${plugin.network}`
-            if (!map[key]) {
-              map[key] = []
-            }
-            map[key].push(plugin)
-            return map
-          }, {})
-
-          // Prepare plugin metrics updates using flatMap
-          const pluginMetricsUpdates = latestEventsPerMember.flatMap(({ parsedEvent, info }) => {
+        // Get unique token-network combinations using reduce
+        const uniqueTokenNetworks = latestEventsPerMember.reduce<Array<{ tokenAddress: string; network: string }>>(
+          (acc, { info }) => {
             const key = `${info.address}-${info.network}`
-            const plugins = pluginMap[key] || []
-
-            return plugins.map(plugin => ({
-              memberAddress: parsedEvent.args.delegate,
-              pluginAddress: plugin.address,
-              daoAddress: plugin.daoAddress,
-              network: info.network,
-              lastActivity: info.blockNumber,
-            }))
-          })
-
-          // Update plugin metrics in batch with session
-          if (pluginMetricsUpdates.length > 0) {
-            await ProxyMember.updatePluginMetricsBatchWithSession(pluginMetricsUpdates, session)
-          }
-
-          // Collect unique DAOs for metrics messages using reduce
-          const uniqueDaos = allPlugins.reduce<Array<{ daoAddress: string; network: string }>>((acc, plugin) => {
-            const key = `${plugin.daoAddress}-${plugin.network}`
-            if (!acc.some(item => `${item.daoAddress}-${item.network}` === key)) {
-              acc.push({ daoAddress: plugin.daoAddress, network: plugin.network })
+            if (!acc.some(item => `${item.tokenAddress}-${item.network}` === key)) {
+              acc.push({ tokenAddress: info.address, network: info.network })
             }
             return acc
-          }, [])
+          },
+          [],
+        )
 
-          // Send DAO metrics messages
-          const daoMessages = uniqueDaos.map(async ({ daoAddress, network }) =>
-            RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-              id: daoAddress,
-              params: { address: daoAddress, network },
-            }),
-          )
+        // Fetch all plugins for all unique token-network combinations
+        const pluginPromises = uniqueTokenNetworks.map(({ tokenAddress, network }) =>
+          Models.Plugin.findAllByTokenAddress(tokenAddress, network),
+        )
+        const pluginArrays = await Promise.all(pluginPromises)
+        const allPlugins = pluginArrays.flat()
 
-          if (daoMessages.length > 0) {
-            await Promise.all(daoMessages)
+        // Create a map of token-network to plugins for quick lookup using reduce
+        const pluginMap = allPlugins.reduce<Record<string, Plugin[]>>((map, plugin) => {
+          const key = `${plugin.tokenAddress}-${plugin.network}`
+          if (!map[key]) {
+            map[key] = []
           }
-        }) // End of transaction
+          map[key].push(plugin)
+          return map
+        }, {})
+
+        // Prepare plugin metrics updates using flatMap
+        const pluginMetricsUpdates = latestEventsPerMember.flatMap(({ parsedEvent, info }) => {
+          const key = `${info.address}-${info.network}`
+          const plugins = pluginMap[key] || []
+
+          return plugins.map(plugin => ({
+            memberAddress: parsedEvent.args.delegate,
+            pluginAddress: plugin.address,
+            daoAddress: plugin.daoAddress,
+            network: info.network,
+            lastActivity: info.blockNumber,
+          }))
+        })
+
+        // Update plugin metrics in batch without session
+        if (pluginMetricsUpdates.length > 0) {
+          await ProxyMember.updatePluginMetricsBatchNoTx(pluginMetricsUpdates)
+        }
+
+        // Collect unique DAOs for metrics messages using reduce
+        const uniqueDaos = allPlugins.reduce<Array<{ daoAddress: string; network: string }>>((acc, plugin) => {
+          const key = `${plugin.daoAddress}-${plugin.network}`
+          if (!acc.some(item => `${item.daoAddress}-${item.network}` === key)) {
+            acc.push({ daoAddress: plugin.daoAddress, network: plugin.network })
+          }
+          return acc
+        }, [])
+
+        // Send DAO metrics messages
+        const daoMessages = uniqueDaos.map(async ({ daoAddress, network }) =>
+          RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+            id: daoAddress,
+            params: { address: daoAddress, network },
+          }),
+        )
+
+        if (daoMessages.length > 0) {
+          await Promise.all(daoMessages)
+        }
       } catch (txError) {
         // If batch transaction fails, fall back to individual processing
         logger.warn(
