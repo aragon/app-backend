@@ -344,8 +344,8 @@ describe('Helpers: GovernanceErc20', () => {
         clockMode: IClockMode.BlockNumber,
       })
       expect(getChainAdjustedBlockNumberStub.calledWith(9, NetworksEnum.ethereumMainnet)).to.be.true
-      // The hex value 0x00000000000000000000000000000000000000000000000005badbbe2f007cf8 = 25687468126498680
-      expect(result).to.eq('25687468126498680')
+      // The hex value 0x00000000000000000000000000000000000000000000000005badbbe2f007cf8 = 412883925736652024
+      expect(result).to.eq('412883925736652024')
     })
 
     it('should handle errors in getPastTotalSupply', async () => {
