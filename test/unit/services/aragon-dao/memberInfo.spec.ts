@@ -430,7 +430,7 @@ describe('AragonDao: memberInfo', () => {
         onlyListed: false,
       } as any)
 
-      const isMemberStub = sandbox.stub(Web3Helper, 'isMember').resolves(false)
+      const isMemberStub = sandbox.stub(Web3Helper, 'isMultisigMember').resolves(false)
 
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
@@ -456,7 +456,7 @@ describe('AragonDao: memberInfo', () => {
         onlyListed: true,
       } as any)
 
-      const isMemberStub = sandbox.stub(Web3Helper, 'isMember').resolves(false)
+      const isMemberStub = sandbox.stub(Web3Helper, 'isMultisigMember').resolves(false)
 
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
@@ -483,7 +483,7 @@ describe('AragonDao: memberInfo', () => {
         onlyListed: true,
       } as any)
 
-      const isMemberStub = sandbox.stub(Web3Helper, 'isMember').resolves(true)
+      const isMemberStub = sandbox.stub(Web3Helper, 'isMultisigMember').resolves(true)
 
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',

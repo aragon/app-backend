@@ -20,6 +20,7 @@ import { LogSpp } from '@plugins/logSPP'
 import PluginRepoMockData from '@test/unit-dep/mockData/pluginRepo.json'
 import ProviderModule from '@modules/provider'
 import { ethers } from 'ethers'
+import { LogLockToVote } from '@plugins/logLockToVote'
 const UnitDepUtils = {
   getData: async (
     abi: any,
@@ -228,6 +229,10 @@ const UnitDepUtils = {
           }
           case IPluginInterfaceType.spp: {
             await LogSpp.start(plugin)
+            break
+          }
+          case IPluginInterfaceType.lockToVote: {
+            await LogLockToVote.start(plugin)
             break
           }
           default:

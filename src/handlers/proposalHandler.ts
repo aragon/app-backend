@@ -28,6 +28,7 @@ import { TokenVoting } from '@src/aragonContracts'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { assert } from '@errors'
 import Web3Utils from '@helpers/web3Utils'
+import LockToVoteHelper from '@helpers/lockToVoteHelper'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:ProposalHandler' })
 export const ProposalHandler = {
@@ -233,6 +234,14 @@ export const ProposalHandler = {
         })
         document.snapshot = {
           membersCount: members.length,
+        }
+      } else if (relatedPlugin.interfaceType === IPluginInterfaceType.lockToVote) {
+        document.snapshot = {
+          totalSupply: await LockToVoteHelper.getCurrentTotalSupply(
+            relatedPlugin.network,
+            relatedPlugin.address,
+            info.blockNumber,
+          ),
         }
       }
 
@@ -1080,6 +1089,76 @@ export const ProposalHandler = {
       })
     } catch (error) {
       logger.error('Error proposalEdited', llo({ ...info, error, parsedEvent }))
+    }
+  },
+
+  voteCleared: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const proposalIndex = parsedEvent.args.proposalId.toString()
+    const voterAddress = parsedEvent.args.voter
+    try {
+      const existingLog = await Models.Vote.findOne({
+        network: info.network,
+        pluginAddress: info.address,
+        proposalIndex,
+        memberAddress: voterAddress,
+        voteCleared: {
+          status: true,
+          transactionHash: info.transactionHash,
+          blockNumber: info.blockNumber,
+        },
+      })
+
+      if (existingLog) return
+
+      const plugin = await Models.Plugin.findByAddress(info.address, info.network)
+      if (!plugin) {
+        logger.warn('VoteCleared - Plugin not found', llo(info))
+        return
+      }
+
+      const proposal = await Models.Proposal.findByProposalIndex(proposalIndex, info.address, info.network)
+      if (!proposal) {
+        logger.warn('VoteCleared - Proposal not found', llo(info))
+        return
+      }
+
+      const existingVote = await Models.Vote.findVoteOnPlugin({
+        network: info.network,
+        pluginAddress: info.address,
+        memberAddress: voterAddress,
+        proposalIndex,
+      })
+
+      if (!existingVote) {
+        logger.warn('VoteCleared - Vote not found', llo({ ...info, voterAddress, proposalIndex }))
+        return
+      }
+
+      const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
+
+      const voteClearedInfo = {
+        status: true,
+        transactionHash: info.transactionHash,
+        blockNumber: info.blockNumber,
+        blockTimestamp: blockTimestamp || 0,
+      }
+
+      await DbOperations.updateDocument(existingVote, { voteCleared: voteClearedInfo }, info, 'Vote Cleared', llo)
+
+      await Promise.allSettled([
+        RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {
+          id: `${proposalIndex}-${info.address}`,
+          params: { proposalIndex, pluginAddress: info.address, network: proposal.network },
+        }),
+        RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+          id: proposal.daoAddress,
+          params: { address: proposal.daoAddress, network: proposal.network },
+        }),
+      ])
+
+      logger.verbose('Vote cleared successfully', llo({ ...info, voteId: existingVote.id, voterAddress }))
+    } catch (error) {
+      logger.error('Error VoteCleared', llo({ ...info, error, parsedEvent }))
     }
   },
 }
