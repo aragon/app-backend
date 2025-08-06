@@ -136,7 +136,7 @@ describe('Helpers: LockToVoteHelper', () => {
         '0xUser456',
       )
 
-      expect(result).to.equal(mockBalance)
+      expect(result).to.equal(mockBalance.toString())
       expect(getLockedBalanceStub.calledOnceWith('0xUser456')).to.be.true
     })
 
