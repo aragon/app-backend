@@ -511,9 +511,7 @@ describe('GovernanceErc20Handler', () => {
       // Set up stubs
       const createMembersBatchStub = sandbox.stub(ProxyMember, 'createMembersBatchNoTx').resolves(true)
       const updateVotingPowerBatchStub = sandbox.stub(ProxyMember, 'updateVotingPowerBatchNoTx').resolves(true)
-      const updatePluginMetricsBatchStub = sandbox
-        .stub(ProxyMember, 'updatePluginMetricsBatchNoTx')
-        .resolves(true)
+      const updatePluginMetricsBatchStub = sandbox.stub(ProxyMember, 'updatePluginMetricsBatchNoTx').resolves(true)
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(mockPlugins)
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
@@ -609,9 +607,7 @@ describe('GovernanceErc20Handler', () => {
 
       sandbox.stub(ProxyMember, 'createMembersBatchNoTx').resolves(true)
       sandbox.stub(ProxyMember, 'updateVotingPowerBatchNoTx').resolves(true)
-      const updatePluginMetricsBatchStub = sandbox
-        .stub(ProxyMember, 'updatePluginMetricsBatchNoTx')
-        .resolves(true)
+      const updatePluginMetricsBatchStub = sandbox.stub(ProxyMember, 'updatePluginMetricsBatchNoTx').resolves(true)
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(mockPlugins)
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 

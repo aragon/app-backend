@@ -950,10 +950,10 @@ describe('Modules:ProxyMember', () => {
 
           expect(result).to.be.true
           expect(bulkWriteStub.calledOnce).to.be.true
-          
+
           const bulkOps = bulkWriteStub.getCall(0).args[0]
           expect(bulkOps).to.have.lengthOf(2)
-          
+
           // Should have ordered: false for parallel processing
           const options = bulkWriteStub.getCall(0).args[1]
           expect(options.ordered).to.be.false
@@ -975,11 +975,11 @@ describe('Modules:ProxyMember', () => {
 
           sandbox.stub(Web3Utils, 'parseAddress').callsFake((address: string) => address)
           sandbox.stub(Models.VpMember, 'getEntityId').returns('test-id')
-          
+
           const bulkError = new Error('Bulk write error') as any
           bulkError.code = 11000
           bulkError.writeErrors = [{ code: 11000 }] // Only duplicate key errors
-          
+
           const bulkWriteStub = sandbox.stub(Models.VpMember, 'bulkWrite').rejects(bulkError)
 
           const result = await ProxyMember.updateVotingPowerBatchNoTx(updates)
@@ -987,7 +987,7 @@ describe('Modules:ProxyMember', () => {
           // Should succeed even with duplicate key errors
           expect(result).to.be.true
           expect(bulkWriteStub.calledOnce).to.be.true
-          
+
           const options = bulkWriteStub.getCall(0).args[1]
           expect(options.ordered).to.be.false
           expect(options.session).to.be.undefined
@@ -1006,11 +1006,11 @@ describe('Modules:ProxyMember', () => {
 
           sandbox.stub(Web3Utils, 'parseAddress').callsFake((address: string) => address)
           sandbox.stub(Models.VpMember, 'getEntityId').returns('test-id')
-          
+
           const bulkError = new Error('Bulk write error') as any
           bulkError.code = 11000
           bulkError.writeErrors = [{ code: 500 }] // Non-duplicate error
-          
+
           sandbox.stub(Models.VpMember, 'bulkWrite').rejects(bulkError)
 
           const result = await ProxyMember.updateVotingPowerBatchNoTx(updates)
@@ -1039,7 +1039,7 @@ describe('Modules:ProxyMember', () => {
 
           expect(result).to.be.true
           expect(bulkWriteStub.calledOnce).to.be.true
-          
+
           const options = bulkWriteStub.getCall(0).args[1]
           expect(options.ordered).to.be.false
           expect(options.session).to.be.undefined
