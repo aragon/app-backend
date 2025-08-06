@@ -813,34 +813,38 @@ class BlockchainLogCrawler {
       return { concurrency: 1, batchSize: 50 }
     }
 
-    // Calculate concurrency: scales from 5 to 50 based on log count
-    // More aggressive scaling for faster processing
+    // Calculate concurrency: more conservative with larger batch sizes
+    // Fewer concurrent batches reduce conflicts and database load
     let concurrency: number
 
-    if (logCount <= 100) {
-      concurrency = Math.max(5, Math.ceil(logCount / 20)) // 5-5 for very small batches
-    } else if (logCount <= 1000) {
-      concurrency = Math.max(10, Math.ceil(logCount / 50)) // 10-20 for small batches
+    if (logCount <= 1000) {
+      concurrency = 2 // Only 2 batches for small workloads (500 each)
     } else if (logCount <= 10000) {
-      concurrency = Math.max(20, Math.ceil(20 + (logCount - 1000) / 300)) // 20-50 for medium batches
+      concurrency = 5 // ~5 batches of 2000 each
+    } else if (logCount <= 50000) {
+      concurrency = 10 // ~10 batches of 5000 each
     } else if (logCount <= 100000) {
-      concurrency = Math.max(30, Math.ceil(30 + (logCount - 10000) / 4500)) // 30-50 for large batches
+      concurrency = 15 // ~10 batches of 10000 each, with some concurrency
     } else {
-      // Always use max concurrency for very large batches
-      concurrency = 50
+      // Moderate concurrency for massive workloads
+      concurrency = 20 // ~10+ batches of 20000 each
     }
 
-    // Calculate batch size: larger batches for larger workloads
+    // Calculate batch size: much larger batches to reduce duplicate conflicts
+    // Larger batches mean more events are grouped together, increasing the chance
+    // that all events for a member are in the same batch (and thus deduplicated before DB operations)
     let batchSize: number
 
     if (logCount <= 1000) {
-      batchSize = 50 // Default for small workloads
+      batchSize = 500 // Process small workloads in 1-2 batches
     } else if (logCount <= 10000) {
-      batchSize = 100 // Moderate batch size
+      batchSize = 2000 // ~5 batches for medium workloads
     } else if (logCount <= 50000) {
-      batchSize = 200 // Large batch size
+      batchSize = 5000 // ~10 batches for large workloads
+    } else if (logCount <= 100000) {
+      batchSize = 10000 // ~10 batches for very large workloads
     } else {
-      batchSize = 500 // Very large batch size for massive workloads
+      batchSize = 20000 // ~5-10 batches even for massive workloads
     }
 
     logger.verbose('Adaptive parallel config', llo({ concurrency, batchSize }))

@@ -934,5 +934,117 @@ describe('Modules:ProxyMember', () => {
         expect(bulkOps[0].updateOne.upsert).to.be.true
       })
     })
+
+    describe('NoTx Batch Methods', () => {
+      describe('createMembersBatchNoTx', () => {
+        it('should create/update multiple members without transaction', async () => {
+          const members = [
+            { memberAddress: '0xmember1', lastActivity: 100 },
+            { memberAddress: '0xmember2', lastActivity: 200 },
+          ]
+
+          sandbox.stub(Web3Utils, 'parseAddress').callsFake((address: string) => address)
+          const bulkWriteStub = sandbox.stub(Models.Member, 'bulkWrite').resolves()
+
+          const result = await ProxyMember.createMembersBatchNoTx(members)
+
+          expect(result).to.be.true
+          expect(bulkWriteStub.calledOnce).to.be.true
+          
+          const bulkOps = bulkWriteStub.getCall(0).args[0]
+          expect(bulkOps).to.have.lengthOf(2)
+          
+          // Should have ordered: false for parallel processing
+          const options = bulkWriteStub.getCall(0).args[1]
+          expect(options.ordered).to.be.false
+          expect(options.session).to.be.undefined
+        })
+      })
+
+      describe('updateVotingPowerBatchNoTx', () => {
+        it('should update voting powers without transaction and handle duplicate key errors', async () => {
+          const updates = [
+            {
+              memberAddress: '0xmember1',
+              tokenAddress: '0xtoken1',
+              votingPower: '1000',
+              network: NetworksEnum.ethereumMainnet,
+              lastVPBlockNumber: 100,
+            },
+          ]
+
+          sandbox.stub(Web3Utils, 'parseAddress').callsFake((address: string) => address)
+          sandbox.stub(Models.VpMember, 'getEntityId').returns('test-id')
+          
+          const bulkError = new Error('Bulk write error') as any
+          bulkError.code = 11000
+          bulkError.writeErrors = [{ code: 11000 }] // Only duplicate key errors
+          
+          const bulkWriteStub = sandbox.stub(Models.VpMember, 'bulkWrite').rejects(bulkError)
+
+          const result = await ProxyMember.updateVotingPowerBatchNoTx(updates)
+
+          // Should succeed even with duplicate key errors
+          expect(result).to.be.true
+          expect(bulkWriteStub.calledOnce).to.be.true
+          
+          const options = bulkWriteStub.getCall(0).args[1]
+          expect(options.ordered).to.be.false
+          expect(options.session).to.be.undefined
+        })
+
+        it('should fail on non-duplicate errors', async () => {
+          const updates = [
+            {
+              memberAddress: '0xmember1',
+              tokenAddress: '0xtoken1',
+              votingPower: '1000',
+              network: NetworksEnum.ethereumMainnet,
+              lastVPBlockNumber: 100,
+            },
+          ]
+
+          sandbox.stub(Web3Utils, 'parseAddress').callsFake((address: string) => address)
+          sandbox.stub(Models.VpMember, 'getEntityId').returns('test-id')
+          
+          const bulkError = new Error('Bulk write error') as any
+          bulkError.code = 11000
+          bulkError.writeErrors = [{ code: 500 }] // Non-duplicate error
+          
+          sandbox.stub(Models.VpMember, 'bulkWrite').rejects(bulkError)
+
+          const result = await ProxyMember.updateVotingPowerBatchNoTx(updates)
+
+          expect(result).to.be.false
+        })
+      })
+
+      describe('updatePluginMetricsBatchNoTx', () => {
+        it('should update plugin metrics without transaction', async () => {
+          const updates = [
+            {
+              memberAddress: '0xmember1',
+              pluginAddress: '0xplugin1',
+              daoAddress: '0xdao1',
+              network: NetworksEnum.ethereumMainnet,
+              lastActivity: 1000,
+            },
+          ]
+
+          sandbox.stub(Web3Utils, 'parseAddress').callsFake((address: string) => address)
+          sandbox.stub(Models.PluginMetrics, 'getEntityId').returns('test-id')
+          const bulkWriteStub = sandbox.stub(Models.PluginMetrics, 'bulkWrite').resolves()
+
+          const result = await ProxyMember.updatePluginMetricsBatchNoTx(updates)
+
+          expect(result).to.be.true
+          expect(bulkWriteStub.calledOnce).to.be.true
+          
+          const options = bulkWriteStub.getCall(0).args[1]
+          expect(options.ordered).to.be.false
+          expect(options.session).to.be.undefined
+        })
+      })
+    })
   })
 })
