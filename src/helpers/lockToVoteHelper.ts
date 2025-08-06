@@ -47,7 +47,7 @@ const LockToVoteHelper = {
       const balance = await retryRequest(async () =>
         BottleneckModule.getAlchemyBalanceLimiter(network).schedule(async () => contract.getLockedBalance(userAddress)),
       )
-      return Number(BigInt(balance))
+      return Number(BigInt(balance || 0)).toString()
     } catch (error) {
       return null
     }
