@@ -1,6 +1,6 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { EnumQueueName, ITokenType, ITransferSide, ITransferType, NetworksEnum } from '@types'
+import { EnumQueueName, ITokenType, NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
 import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 import utils from '@helpers/utils'
@@ -139,54 +139,6 @@ describe('GovernanceErc20Handler', () => {
       expect(createMemberStub.notCalled).to.be.true
     })
 
-    it('should return if existing log is found', async () => {
-      const fakeLog = {
-        args: {
-          delegate: '0xDelegateAddress',
-          previousBalance: '1000',
-          newBalance: '2000',
-        },
-      }
-
-      const logInfo = {
-        network,
-        blockNumber: 12345678,
-        transactionIndex: 1,
-        logIndex: 1,
-        transactionHash: '0xTransactionHash',
-        address: '0xTokenAddress',
-        eventName: 'DelegateVotesChanged',
-      }
-
-      const plugin = [
-        {
-          daoAddress: '0xDaoAddress',
-          address: '0xPluginAddress',
-          tokenAddress: '0xTokenAddress',
-          network,
-        },
-        {
-          daoAddress: '0xDaoAddress1',
-          address: '0xPluginAddress1',
-          network,
-          tokenAddress: '0xTokenAddress',
-        },
-      ] as any
-
-      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(plugin)
-      sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves({
-        memberVotingPower: '2000',
-        memberAddress: fakeLog.args.delegate,
-      })
-
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember')
-
-      const handlerResponse = await GovernanceErc20Handler.delegateVotesChanged(fakeLog as any, logInfo)
-
-      expect(handlerResponse).to.be.undefined
-      expect(createMemberStub.notCalled).to.be.true
-    })
-
     it('should handle token return null in delegateVotesChanged', async () => {
       const parsedEvent = {
         args: {
@@ -206,7 +158,6 @@ describe('GovernanceErc20Handler', () => {
       }
 
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(['plugin' as any])
-      sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(null)
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
 
       const createMemberStub = sandbox.stub(ProxyMember, 'createMember')
@@ -258,7 +209,6 @@ describe('GovernanceErc20Handler', () => {
       sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('1500')
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ hasClockMode: true } as any)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('2000')
-      sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
       const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves({} as any)
       const updateVotingPowerStub = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
       sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
@@ -272,21 +222,9 @@ describe('GovernanceErc20Handler', () => {
 
       await GovernanceErc20Handler.delegateVotesChanged(parsedEvent, info as any)
 
-      // Verify the member transaction was created in the database
-      const memberTransaction = await Models.MemberTransaction.findOne({
-        transactionHash: info.transactionHash,
-        address: memberAddress,
-      })
-
-      expect(memberTransaction).to.be.not.null
-      expect(memberTransaction.type).to.be.eq(ITransferType.delegate)
-      expect(memberTransaction.side).to.be.eq(ITransferSide.incoming)
-      expect(memberTransaction.memberVotingPower).to.be.eq('2000')
-      expect(memberTransaction.blockNumber).to.be.eq(info.blockNumber)
-
       // Verify createMember was called
       expect(createMemberStub.calledOnce).to.be.true
-      expect(createMemberStub.calledWith(memberAddress, undefined)).to.be.true
+      expect(createMemberStub.calledWith(memberAddress, info.blockNumber)).to.be.true
 
       // Verify updateVotingPower was called
       expect(updateVotingPowerStub.calledOnce).to.be.true
@@ -329,12 +267,10 @@ describe('GovernanceErc20Handler', () => {
       }
 
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
-      sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(null)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1630425600)
       sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('1500')
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ hasClockMode: true } as any)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('1000')
-      sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
       const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves({} as any)
       const updateVotingPowerStub = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
       sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
@@ -348,17 +284,6 @@ describe('GovernanceErc20Handler', () => {
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       await GovernanceErc20Handler.delegateVotesChanged(parsedEvent, info as any)
-
-      const memberTransaction = await Models.MemberTransaction.findOne({
-        transactionHash: info.transactionHash,
-        address: memberAddress,
-      })
-
-      expect(memberTransaction).to.be.not.null
-      expect(memberTransaction.type).to.be.eq(ITransferType.delegate)
-      expect(memberTransaction.side).to.be.eq(ITransferSide.outgoing)
-      expect(memberTransaction.memberVotingPower).to.be.eq('1000')
-      expect(memberTransaction.amount).to.be.eq('500')
 
       // Verify createMember was called with lastActivity
       expect(createMemberStub.calledOnce).to.be.true
@@ -437,7 +362,6 @@ describe('GovernanceErc20Handler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1630425600)
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ hasClockMode: true } as any)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('1000')
-      sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
       sandbox.stub(ProxyMember, 'createMember').resolves({} as any)
       sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
       sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
@@ -529,7 +453,6 @@ describe('GovernanceErc20Handler', () => {
       sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('0')
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ hasClockMode: true } as any)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('0')
-      sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
       sandbox.stub(ProxyMember, 'createMember').resolves({} as any)
       const updateVotingPowerStub = sandbox.stub(ProxyMember, 'updateVotingPower').callsFake(async params => {
         // Update the existing VpMember with the new voting power
@@ -545,16 +468,6 @@ describe('GovernanceErc20Handler', () => {
 
       await GovernanceErc20Handler.delegateVotesChanged(parsedEvent, info as any)
 
-      const memberTransaction = await Models.MemberTransaction.findOne({
-        transactionHash: info.transactionHash,
-        address: memberAddress,
-      })
-
-      expect(memberTransaction).to.be.not.null
-      expect(memberTransaction.type).to.be.eq(ITransferType.delegate)
-      expect(memberTransaction.side).to.be.eq(ITransferSide.outgoing)
-      expect(memberTransaction.memberVotingPower).to.be.eq('0')
-
       // Verify voting power was set to 0
       const vpMember = await Models.VpMember.findOne({
         memberAddress,
@@ -563,6 +476,170 @@ describe('GovernanceErc20Handler', () => {
       })
       expect(vpMember).to.be.not.null
       expect(vpMember.votingPower).to.be.eq('0')
+    })
+  })
+
+  describe('delegateVotesChangedBatch', () => {
+    it('should process multiple events and keep only latest per member', async () => {
+      const events = [
+        {
+          parsedEvent: { args: { delegate: '0xmember1', newBalance: '1' } } as any,
+          info: { blockNumber: 1, address: '0xtoken1', network } as any,
+        },
+        {
+          parsedEvent: { args: { delegate: '0xmember2', newBalance: '10' } } as any,
+          info: { blockNumber: 1, address: '0xtoken1', network } as any,
+        },
+        {
+          parsedEvent: { args: { delegate: '0xmember1', newBalance: '0' } } as any,
+          info: { blockNumber: 2, address: '0xtoken1', network } as any,
+        },
+        {
+          parsedEvent: { args: { delegate: '0xmember3', newBalance: '12' } } as any,
+          info: { blockNumber: 2, address: '0xtoken1', network } as any,
+        },
+      ]
+
+      // Mock plugins
+      const mockPlugins = [
+        {
+          address: '0xplugin1',
+          daoAddress: '0xdao1',
+          tokenAddress: '0xtoken1',
+          network,
+        },
+      ]
+
+      // Set up stubs
+      const createMembersBatchStub = sandbox.stub(ProxyMember, 'createMembersBatch').resolves(true)
+      const updateVotingPowerBatchStub = sandbox.stub(ProxyMember, 'updateVotingPowerBatch').resolves(true)
+      const updatePluginMetricsBatchStub = sandbox.stub(ProxyMember, 'updatePluginMetricsBatch').resolves(true)
+      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(mockPlugins)
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await GovernanceErc20Handler.delegateVotesChangedBatch(events)
+
+      // Verify createMembersBatch was called with correct data
+      expect(createMembersBatchStub.calledOnce).to.be.true
+      const memberDataCall = createMembersBatchStub.getCall(0).args[0]
+      expect(memberDataCall).to.have.lengthOf(3) // 3 unique members
+
+      // Verify it keeps latest activity for each member
+      const member1Data = memberDataCall.find((m: any) => m.memberAddress === '0xmember1')
+      expect(member1Data!.lastActivity).to.equal(2) // Should use block 2, not block 1
+
+      // Verify updateVotingPowerBatch was called with correct data
+      expect(updateVotingPowerBatchStub.calledOnce).to.be.true
+      const vpDataCall = updateVotingPowerBatchStub.getCall(0).args[0]
+      expect(vpDataCall).to.have.lengthOf(3) // 3 unique members
+
+      // Verify it uses latest voting power for each member
+      const member1VpData = vpDataCall.find((vp: any) => vp.memberAddress === '0xmember1')
+      expect(member1VpData!.votingPower).to.equal('0') // Should use balance from block 2
+      expect(member1VpData!.lastVPBlockNumber).to.equal(2)
+
+      const member2VpData = vpDataCall.find((vp: any) => vp.memberAddress === '0xmember2')
+      expect(member2VpData!.votingPower).to.equal('10')
+      expect(member2VpData!.lastVPBlockNumber).to.equal(1)
+
+      const member3VpData = vpDataCall.find((vp: any) => vp.memberAddress === '0xmember3')
+      expect(member3VpData!.votingPower).to.equal('12')
+      expect(member3VpData!.lastVPBlockNumber).to.equal(2)
+
+      // Verify updatePluginMetricsBatch was called
+      expect(updatePluginMetricsBatchStub.calledOnce).to.be.true
+      const pluginMetricsCall = updatePluginMetricsBatchStub.getCall(0).args[0]
+      expect(pluginMetricsCall).to.have.lengthOf(3) // 3 members x 1 plugin
+    })
+
+    it('should skip zero addresses', async () => {
+      const events = [
+        {
+          parsedEvent: { args: { delegate: utils.zeroAddress, newBalance: '100' } } as any,
+          info: { blockNumber: 1, address: '0xtoken1', network } as any,
+        },
+        {
+          parsedEvent: { args: { delegate: '0xmember1', newBalance: '50' } } as any,
+          info: { blockNumber: 1, address: '0xtoken1', network } as any,
+        },
+      ]
+
+      const createMembersBatchStub = sandbox.stub(ProxyMember, 'createMembersBatch').resolves(true)
+      const updateVotingPowerBatchStub = sandbox.stub(ProxyMember, 'updateVotingPowerBatch').resolves(true)
+      sandbox.stub(ProxyMember, 'updatePluginMetricsBatch').resolves(true)
+      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([])
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await GovernanceErc20Handler.delegateVotesChangedBatch(events)
+
+      // Should only process 1 member (skipping zero address)
+      expect(createMembersBatchStub.calledOnce).to.be.true
+      const memberDataCall = createMembersBatchStub.getCall(0).args[0]
+      expect(memberDataCall).to.have.lengthOf(1)
+      expect(memberDataCall[0].memberAddress).to.equal('0xmember1')
+
+      expect(updateVotingPowerBatchStub.calledOnce).to.be.true
+      const vpDataCall = updateVotingPowerBatchStub.getCall(0).args[0]
+      expect(vpDataCall).to.have.lengthOf(1)
+    })
+
+    it('should handle empty events array', async () => {
+      const createMembersBatchStub = sandbox.stub(ProxyMember, 'createMembersBatch').resolves(true)
+      const updateVotingPowerBatchStub = sandbox.stub(ProxyMember, 'updateVotingPowerBatch').resolves(true)
+
+      await GovernanceErc20Handler.delegateVotesChangedBatch([])
+
+      expect(createMembersBatchStub.notCalled).to.be.true
+      expect(updateVotingPowerBatchStub.notCalled).to.be.true
+    })
+
+    it('should handle multiple plugins for same token', async () => {
+      const events = [
+        {
+          parsedEvent: { args: { delegate: '0xmember1', newBalance: '100' } } as any,
+          info: { blockNumber: 1, address: '0xtoken1', network } as any,
+        },
+      ]
+
+      const mockPlugins = [
+        { address: '0xplugin1', daoAddress: '0xdao1', tokenAddress: '0xtoken1', network },
+        { address: '0xplugin2', daoAddress: '0xdao1', tokenAddress: '0xtoken1', network },
+        { address: '0xplugin3', daoAddress: '0xdao2', tokenAddress: '0xtoken1', network },
+      ]
+
+      sandbox.stub(ProxyMember, 'createMembersBatch').resolves(true)
+      sandbox.stub(ProxyMember, 'updateVotingPowerBatch').resolves(true)
+      const updatePluginMetricsBatchStub = sandbox.stub(ProxyMember, 'updatePluginMetricsBatch').resolves(true)
+      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(mockPlugins)
+      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await GovernanceErc20Handler.delegateVotesChangedBatch(events)
+
+      // Should create metrics for each plugin
+      expect(updatePluginMetricsBatchStub.calledOnce).to.be.true
+      const pluginMetricsCall = updatePluginMetricsBatchStub.getCall(0).args[0]
+      expect(pluginMetricsCall).to.have.lengthOf(3) // 1 member x 3 plugins
+
+      // Should send messages for unique DAOs
+      expect(sendMessageStub.callCount).to.equal(2) // 2 unique DAOs
+    })
+
+    it('should handle errors gracefully', async () => {
+      const events = [
+        {
+          parsedEvent: { args: { delegate: '0xmember1', newBalance: '100' } } as any,
+          info: { blockNumber: 1, address: '0xtoken1', network } as any,
+        },
+      ]
+
+      const error = new Error('Database error')
+      sandbox.stub(ProxyMember, 'createMembersBatch').rejects(error)
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+
+      await GovernanceErc20Handler.delegateVotesChangedBatch(events)
+
+      expect(loggerErrorStub.calledOnce).to.be.true
+      expect(loggerErrorStub.calledOnce).to.be.true
     })
   })
 })

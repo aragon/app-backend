@@ -386,6 +386,224 @@ export const ProxyMember = {
     }
   },
 
+  // Batch operations for better performance
+  createMembersBatch: async (
+    members: Array<{ memberAddress: HexAddress; lastActivity?: number }>,
+  ): Promise<boolean> => {
+    try {
+      return await DbTx.executeTxFn(async ({ session }) => {
+        // Parse addresses and prepare bulk operations
+        const bulkOps = members
+          .map(({ memberAddress, lastActivity }) => {
+            const parsedAddress = Web3Utils.parseAddress(memberAddress)
+            if (!parsedAddress) return null
+
+            return {
+              updateOne: {
+                filter: { id: parsedAddress },
+                update: {
+                  $set: {
+                    address: parsedAddress,
+                    ...(lastActivity && { lastActivity }),
+                  },
+                  $setOnInsert: {
+                    id: parsedAddress,
+                    firstActivity: lastActivity || null,
+                    ens: null, // Skip ENS for now, will be updated later
+                  },
+                },
+                upsert: true,
+              },
+            }
+          })
+          .filter(op => op !== null)
+
+        if (bulkOps.length > 0) {
+          await Models.Member.bulkWrite(bulkOps, { session })
+        }
+
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose('Batch created/updated members', llo({ count: bulkOps.length }))
+        return true
+      })
+    } catch (error) {
+      logger.error('Error in batch member creation', llo({ error, memberCount: members.length }))
+      return false
+    }
+  },
+
+  updateVotingPowerBatch: async (
+    updates: Array<{
+      memberAddress: HexAddress
+      tokenAddress: HexAddress
+      votingPower?: string
+      tokenIds?: string[]
+      network: NetworksEnum
+      lastVPBlockNumber: number
+    }>,
+  ): Promise<boolean> => {
+    try {
+      return await DbTx.executeTxFn(async ({ session }) => {
+        // Group updates by unique id to get the latest update per member
+        const updatesWithParsedAddress = updates
+          .map(update => {
+            const memberAddress = Web3Utils.parseAddress(update.memberAddress)
+            if (!memberAddress) return null
+
+            const id = Models.VpMember.getEntityId({
+              network: update.network,
+              tokenAddress: update.tokenAddress,
+              memberAddress,
+            })
+
+            return { ...update, memberAddress, id }
+          })
+          .filter(update => update !== null)
+
+        // Sort by block number descending and reduce to get only latest per id
+        const latestUpdates = updatesWithParsedAddress
+          .sort((a, b) => b.lastVPBlockNumber - a.lastVPBlockNumber)
+          .reduce<typeof updatesWithParsedAddress>((acc, update) => {
+            if (!acc.some(u => u.id === update.id)) {
+              acc.push(update)
+            }
+            return acc
+          }, [])
+
+        const bulkOps = latestUpdates.map(update => {
+          const setFields: any = {
+            lastVPBlockNumber: update.lastVPBlockNumber,
+          }
+
+          const setOnInsertFields: any = {
+            id: update.id,
+            memberAddress: update.memberAddress,
+            tokenAddress: update.tokenAddress,
+            network: update.network,
+            delegateReceivedCount: 0,
+          }
+
+          if (update.votingPower !== undefined) {
+            setFields.votingPower = update.votingPower.toString()
+            // If voting power is 0, always set tokenIds to empty array
+            if (update.votingPower === '0') {
+              setFields.tokenIds = []
+            }
+          } else {
+            // Only set default votingPower in $setOnInsert if not being set in $set
+            setOnInsertFields.votingPower = '0'
+          }
+
+          if (update.tokenIds !== undefined) {
+            setFields.tokenIds = update.tokenIds
+          } else if (!setFields.tokenIds) {
+            // Only set default tokenIds in $setOnInsert if not being set in $set
+            setOnInsertFields.tokenIds = []
+          }
+
+          return {
+            updateOne: {
+              filter: {
+                id: update.id,
+                $or: [
+                  { lastVPBlockNumber: { $exists: false } },
+                  { lastVPBlockNumber: { $lt: update.lastVPBlockNumber } },
+                ],
+              },
+              update: {
+                $set: setFields,
+                $setOnInsert: setOnInsertFields,
+              },
+              upsert: true,
+            },
+          }
+        })
+
+        if (bulkOps.length > 0) {
+          await Models.VpMember.bulkWrite(bulkOps, { session, ordered: false })
+        }
+
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose('Batch updated voting powers', llo({ count: bulkOps.length }))
+        return true
+      })
+    } catch (error) {
+      logger.error('Error in batch voting power update', llo({ error, updateCount: updates.length }))
+      return false
+    }
+  },
+
+  updatePluginMetricsBatch: async (
+    updates: Array<{
+      memberAddress: HexAddress
+      pluginAddress: HexAddress
+      daoAddress?: HexAddress
+      network: NetworksEnum
+      lastActivity?: number
+    }>,
+  ): Promise<boolean> => {
+    try {
+      return await DbTx.executeTxFn(async ({ session }) => {
+        const bulkOps = updates
+          .map(update => {
+            const memberAddress = Web3Utils.parseAddress(update.memberAddress)
+            if (!memberAddress) return null
+
+            const id = Models.PluginMetrics.getEntityId({
+              network: update.network,
+              memberAddress,
+              pluginAddress: update.pluginAddress,
+            })
+
+            const setFields: any = {}
+            const setOnInsertFields: any = {
+              id,
+              memberAddress,
+              pluginAddress: update.pluginAddress,
+              network: update.network,
+              voteCount: 0,
+              proposalCount: 0,
+            }
+
+            if (update.daoAddress) {
+              setFields.daoAddress = update.daoAddress
+            }
+
+            if (update.lastActivity !== undefined) {
+              setFields.lastActivity = update.lastActivity
+              setOnInsertFields.firstActivity = update.lastActivity
+            }
+
+            return {
+              updateOne: {
+                filter: { id },
+                update: {
+                  $set: setFields,
+                  $setOnInsert: setOnInsertFields,
+                },
+                upsert: true,
+              },
+            }
+          })
+          .filter(op => op !== null)
+
+        if (bulkOps.length > 0) {
+          await Models.PluginMetrics.bulkWrite(bulkOps, { session })
+        }
+
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose('Batch updated plugin metrics', llo({ count: bulkOps.length }))
+        return true
+      })
+    } catch (error) {
+      logger.error('Error in batch plugin metrics update', llo({ error, updateCount: updates.length }))
+      return false
+    }
+  },
+
   getOrCreatePluginMetrics: async (params: {
     memberAddress: HexAddress
     pluginAddress: HexAddress

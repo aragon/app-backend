@@ -750,4 +750,196 @@ describe('Modules:ProxyMember', () => {
       expect(loggerErrorStub.calledOnce).to.be.true
     })
   })
+
+  describe('Batch Methods', () => {
+    describe('createMembersBatch', () => {
+      it('should create/update multiple members in batch', async () => {
+        const members = [
+          { memberAddress: '0xmember1', lastActivity: 100 },
+          { memberAddress: '0xmember2', lastActivity: 200 },
+          { memberAddress: '0xmember3', lastActivity: 300 },
+        ]
+
+        sandbox.stub(Web3Utils, 'parseAddress').callsFake((address: string) => address)
+        const bulkWriteStub = sandbox.stub(Models.Member, 'bulkWrite').resolves()
+
+        const result = await ProxyMember.createMembersBatch(members)
+
+        expect(result).to.be.true
+        expect(bulkWriteStub.calledOnce).to.be.true
+
+        const bulkOps = bulkWriteStub.getCall(0).args[0]
+        expect(bulkOps).to.have.lengthOf(3)
+
+        // Verify first member operation
+        expect(bulkOps[0].updateOne.filter).to.deep.equal({ id: '0xmember1' })
+        expect(bulkOps[0].updateOne.update.$set).to.include({
+          address: '0xmember1',
+          lastActivity: 100,
+        })
+        expect(bulkOps[0].updateOne.update.$setOnInsert).to.include({
+          id: '0xmember1',
+          firstActivity: 100,
+          ens: null,
+        })
+        expect(bulkOps[0].updateOne.upsert).to.be.true
+      })
+
+      it('should skip invalid addresses', async () => {
+        const members = [
+          { memberAddress: '0xmember1', lastActivity: 100 },
+          { memberAddress: 'invalid', lastActivity: 200 },
+          { memberAddress: '0xmember3', lastActivity: 300 },
+        ]
+
+        sandbox.stub(Web3Utils, 'parseAddress').callsFake((address: string) => {
+          return address === 'invalid' ? null : address
+        })
+
+        const bulkWriteStub = sandbox.stub(Models.Member, 'bulkWrite').resolves()
+
+        await ProxyMember.createMembersBatch(members)
+
+        const bulkOps = bulkWriteStub.getCall(0).args[0]
+        expect(bulkOps).to.have.lengthOf(2) // Only 2 valid addresses
+      })
+
+      it('should handle errors gracefully', async () => {
+        const members = [{ memberAddress: '0xmember1', lastActivity: 100 }]
+        const error = new Error('Database error')
+
+        sandbox.stub(Web3Utils, 'parseAddress').returns('0xmember1')
+        sandbox.stub(Models.Member, 'bulkWrite').rejects(error)
+        const loggerErrorStub = sandbox.stub(Logger, 'error')
+
+        const result = await ProxyMember.createMembersBatch(members)
+
+        expect(result).to.be.false
+        expect(loggerErrorStub.calledOnce).to.be.true
+      })
+    })
+
+    describe('updateVotingPowerBatch', () => {
+      it('should update voting powers keeping only latest per member', async () => {
+        const updates = [
+          {
+            memberAddress: '0xmember1',
+            tokenAddress: '0xtoken1',
+            votingPower: '100',
+            network: NetworksEnum.ethereumMainnet,
+            lastVPBlockNumber: 1000,
+          },
+          {
+            memberAddress: '0xmember1',
+            tokenAddress: '0xtoken1',
+            votingPower: '200',
+            network: NetworksEnum.ethereumMainnet,
+            lastVPBlockNumber: 2000, // Higher block number
+          },
+          {
+            memberAddress: '0xmember2',
+            tokenAddress: '0xtoken1',
+            votingPower: '300',
+            network: NetworksEnum.ethereumMainnet,
+            lastVPBlockNumber: 1500,
+          },
+        ]
+
+        sandbox.stub(Web3Utils, 'parseAddress').callsFake((address: string) => address)
+        sandbox.stub(Models.VpMember, 'getEntityId').callsFake((params: any) => {
+          return `${params.network}-${params.tokenAddress}-${params.memberAddress}`
+        })
+
+        const bulkWriteStub = sandbox.stub(Models.VpMember, 'bulkWrite').resolves()
+
+        const result = await ProxyMember.updateVotingPowerBatch(updates)
+
+        expect(result).to.be.true
+        expect(bulkWriteStub.calledOnce).to.be.true
+
+        const bulkOps = bulkWriteStub.getCall(0).args[0]
+        expect(bulkOps).to.have.lengthOf(2) // Only 2 unique members
+
+        // Verify member1 uses the update with higher block number
+        const member1Op = bulkOps.find((op: any) => op.updateOne.filter.id.includes('0xmember1'))
+        expect(member1Op.updateOne.update.$set.votingPower).to.equal('200')
+        expect(member1Op.updateOne.update.$set.lastVPBlockNumber).to.equal(2000)
+
+        // Verify filter condition to only update if block number is higher
+        expect(member1Op.updateOne.filter.$or).to.deep.equal([
+          { lastVPBlockNumber: { $exists: false } },
+          { lastVPBlockNumber: { $lt: 2000 } },
+        ])
+      })
+
+      it('should set tokenIds to empty array when voting power is 0', async () => {
+        const updates = [
+          {
+            memberAddress: '0xmember1',
+            tokenAddress: '0xtoken1',
+            votingPower: '0',
+            network: NetworksEnum.ethereumMainnet,
+            lastVPBlockNumber: 1000,
+          },
+        ]
+
+        sandbox.stub(Web3Utils, 'parseAddress').returns('0xmember1')
+        sandbox.stub(Models.VpMember, 'getEntityId').returns('test-id')
+        const bulkWriteStub = sandbox.stub(Models.VpMember, 'bulkWrite').resolves()
+
+        await ProxyMember.updateVotingPowerBatch(updates)
+
+        const bulkOps = bulkWriteStub.getCall(0).args[0]
+        expect(bulkOps[0].updateOne.update.$set.tokenIds).to.deep.equal([])
+      })
+    })
+
+    describe('updatePluginMetricsBatch', () => {
+      it('should update plugin metrics in batch', async () => {
+        const updates = [
+          {
+            memberAddress: '0xmember1',
+            pluginAddress: '0xplugin1',
+            daoAddress: '0xdao1',
+            network: NetworksEnum.ethereumMainnet,
+            lastActivity: 1000,
+          },
+          {
+            memberAddress: '0xmember2',
+            pluginAddress: '0xplugin1',
+            daoAddress: '0xdao1',
+            network: NetworksEnum.ethereumMainnet,
+            lastActivity: 2000,
+          },
+        ]
+
+        sandbox.stub(Web3Utils, 'parseAddress').callsFake((address: string) => address)
+        sandbox.stub(Models.PluginMetrics, 'getEntityId').callsFake((params: any) => {
+          return `${params.network}-${params.memberAddress}-${params.pluginAddress}`
+        })
+
+        const bulkWriteStub = sandbox.stub(Models.PluginMetrics, 'bulkWrite').resolves()
+
+        const result = await ProxyMember.updatePluginMetricsBatch(updates)
+
+        expect(result).to.be.true
+        expect(bulkWriteStub.calledOnce).to.be.true
+
+        const bulkOps = bulkWriteStub.getCall(0).args[0]
+        expect(bulkOps).to.have.lengthOf(2)
+
+        // Verify first update
+        expect(bulkOps[0].updateOne.update.$set).to.include({
+          daoAddress: '0xdao1',
+          lastActivity: 1000,
+        })
+        expect(bulkOps[0].updateOne.update.$setOnInsert).to.include({
+          voteCount: 0,
+          proposalCount: 0,
+          firstActivity: 1000,
+        })
+        expect(bulkOps[0].updateOne.upsert).to.be.true
+      })
+    })
+  })
 })
