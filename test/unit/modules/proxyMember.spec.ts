@@ -892,6 +892,51 @@ describe('Modules:ProxyMember', () => {
         const bulkOps = bulkWriteStub.getCall(0).args[0]
         expect(bulkOps[0].updateOne.update.$set.tokenIds).to.deep.equal([])
       })
+
+      it('should handle tokenIds when provided', async () => {
+        const updates = [
+          {
+            memberAddress: '0xmember1',
+            tokenAddress: '0xtoken1',
+            votingPower: '100',
+            tokenIds: ['1', '2', '3'],
+            network: NetworksEnum.ethereumMainnet,
+            lastVPBlockNumber: 1000,
+          },
+        ]
+
+        sandbox.stub(Web3Utils, 'parseAddress').returns('0xmember1')
+        sandbox.stub(Models.VpMember, 'getEntityId').returns('test-id')
+        const bulkWriteStub = sandbox.stub(Models.VpMember, 'bulkWrite').resolves()
+
+        await ProxyMember.updateVotingPowerBatch(updates)
+
+        const bulkOps = bulkWriteStub.getCall(0).args[0]
+        expect(bulkOps[0].updateOne.update.$set.tokenIds).to.deep.equal(['1', '2', '3'])
+      })
+
+      it('should handle bulk write errors', async () => {
+        const updates = [
+          {
+            memberAddress: '0xmember1',
+            tokenAddress: '0xtoken1',
+            votingPower: '100',
+            network: NetworksEnum.ethereumMainnet,
+            lastVPBlockNumber: 1000,
+          },
+        ]
+
+        const error = new Error('Bulk write error')
+        sandbox.stub(Web3Utils, 'parseAddress').returns('0xmember1')
+        sandbox.stub(Models.VpMember, 'getEntityId').returns('test-id')
+        sandbox.stub(Models.VpMember, 'bulkWrite').rejects(error)
+        const loggerErrorStub = sandbox.stub(Logger, 'error')
+
+        const result = await ProxyMember.updateVotingPowerBatch(updates)
+
+        expect(result).to.be.false
+        expect(loggerErrorStub.calledOnce).to.be.true
+      })
     })
 
     describe('updatePluginMetricsBatch', () => {

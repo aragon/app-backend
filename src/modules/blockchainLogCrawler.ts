@@ -1033,8 +1033,8 @@ class BlockchainLogCrawler {
           highestBlockNumber = Math.max(highestBlockNumber, log.blockNumber)
         }
 
-        // Create a key combining event name and handler reference
-        const eventKey = `${event.name}_${handler.toString()}`
+        // Create a key using just the event name
+        const eventKey = event.name
 
         if (!eventBatches.has(eventKey)) {
           eventBatches.set(eventKey, [])
@@ -1175,14 +1175,53 @@ class BlockchainLogCrawler {
 
         const handlerInfo = { handler: batch[0].handler }
 
-        // If batch is larger than configured batchSize, split it
-        if (batch.length > parallelConfig.batchSize) {
-          for (let i = 0; i < batch.length; i += parallelConfig.batchSize) {
-            const chunk = batch.slice(i, Math.min(i + parallelConfig.batchSize, batch.length))
-            tasks.push({ eventKey, batch: chunk, handlerInfo })
+        // Special handling for DelegateVotesChanged to group by member address
+        if (eventKey === 'DelegateVotesChanged') {
+          // Group events by delegate address to avoid conflicts
+          const eventsByDelegate = new Map<string, Array<any>>()
+
+          batch.forEach(item => {
+            const delegateAddress = item.parsedEvent.args.delegate
+            if (!eventsByDelegate.has(delegateAddress)) {
+              eventsByDelegate.set(delegateAddress, [])
+            }
+            eventsByDelegate.get(delegateAddress)!.push(item)
+          })
+
+          // Create batches ensuring all events for a delegate are together
+          let currentBatch: Array<any> = []
+
+          eventsByDelegate.forEach(delegateEvents => {
+            // If adding these events would exceed batch size, create a new batch
+            if (currentBatch.length > 0 && currentBatch.length + delegateEvents.length > parallelConfig.batchSize) {
+              tasks.push({ eventKey, batch: currentBatch, handlerInfo })
+              currentBatch = []
+            }
+
+            // Add all events for this delegate to current batch
+            currentBatch.push(...delegateEvents)
+
+            // If batch is full, create task
+            if (currentBatch.length >= parallelConfig.batchSize) {
+              tasks.push({ eventKey, batch: currentBatch, handlerInfo })
+              currentBatch = []
+            }
+          })
+
+          // Add remaining events
+          if (currentBatch.length > 0) {
+            tasks.push({ eventKey, batch: currentBatch, handlerInfo })
           }
         } else {
-          tasks.push({ eventKey, batch, handlerInfo })
+          // Default batching for other events
+          if (batch.length > parallelConfig.batchSize) {
+            for (let i = 0; i < batch.length; i += parallelConfig.batchSize) {
+              const chunk = batch.slice(i, Math.min(i + parallelConfig.batchSize, batch.length))
+              tasks.push({ eventKey, batch: chunk, handlerInfo })
+            }
+          } else {
+            tasks.push({ eventKey, batch, handlerInfo })
+          }
         }
       })
 
