@@ -217,7 +217,9 @@ describe('Indexer: LockManagerHandler', () => {
       await LockManagerHandler.balanceLocked(mockParsedEvent as any, mockLogInfo as any)
 
       expect(getUserLockedBalanceStub.calledOnce).to.be.true
-      expect(warnStub.calledWith('BalanceLocked - Failed to get locked balance from contract, using fallback sum' as any)).to.be.true
+      expect(
+        warnStub.calledWith('BalanceLocked - Failed to get locked balance from contract, using fallback sum' as any),
+      ).to.be.true
       // Should use event amount as initial voting power
       const createCall = createStub.getCall(0)
       expect(createCall.args[0].votingPower).to.equal('1000000000000000000')
@@ -247,7 +249,9 @@ describe('Indexer: LockManagerHandler', () => {
       await LockManagerHandler.balanceLocked(mockParsedEvent as any, mockLogInfo as any)
 
       expect(getUserLockedBalanceStub.calledOnce).to.be.true
-      expect(warnStub.calledWith('BalanceLocked - Failed to get locked balance from contract, using fallback sum' as any)).to.be.true
+      expect(
+        warnStub.calledWith('BalanceLocked - Failed to get locked balance from contract, using fallback sum' as any),
+      ).to.be.true
       // Should add event amount to existing voting power (500 + 1000 = 1500)
       const updateCall = updateStub.getCall(0)
       expect(updateCall.args[1].votingPower).to.equal('1500000000000000000')
@@ -500,7 +504,11 @@ describe('Indexer: LockManagerHandler', () => {
       await LockManagerHandler.balanceUnlocked(mockParsedEvent as any, mockLogInfo as any)
 
       expect(getUserLockedBalanceStub.calledOnce).to.be.true
-      expect(warnStub.calledWith('BalanceUnlocked - Failed to get locked balance from contract, using fallback subtraction' as any)).to.be.true
+      expect(
+        warnStub.calledWith(
+          'BalanceUnlocked - Failed to get locked balance from contract, using fallback subtraction' as any,
+        ),
+      ).to.be.true
       // Should subtract event amount from existing voting power (2000 - 1000 = 1000)
       const updateCall = updateStub.getCall(0)
       expect(updateCall.args[1].votingPower).to.equal('1000000000000000000')
