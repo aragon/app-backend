@@ -23,6 +23,7 @@ import { Multisig2 } from '@artifacts/Multisig2'
 import Web3Utils from '@helpers/web3Utils'
 import PluginDetector from '@helpers/pluginDetector'
 import GovernanceVeHelper from '@helpers/governanceVe'
+import { LockToVote } from '@artifacts/LockToVote'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PluginSettingHandler' })
 
@@ -40,6 +41,11 @@ export const PluginSettingHandler = {
     let eventName: IEventLogPluginSettings
     let handler: (parsedEvent: LogDescription, info: ILogInfo) => Promise<Plugin | undefined>
     switch (plugin.interfaceType) {
+      case IPluginInterfaceType.lockToVote:
+        abi = LockToVote.abi
+        eventName = IEventLogPluginSettings.VotingSettingsUpdated
+        handler = PluginSettingHandler.lockToVoteSettingsUpdated
+        break
       case IPluginInterfaceType.tokenVoting:
         abi = TokenVoting.abi
         eventName = IEventLogPluginSettings.VotingSettingsUpdated
@@ -70,6 +76,87 @@ export const PluginSettingHandler = {
       const infoPluginSetup = Web3Utils.parseInfoLog(settingLog.txLog, eventName, info.network)
       const plugin = await handler(settingLog.parsed!, infoPluginSetup)
       if (plugin) return plugin
+    }
+  },
+
+  lockToVoteSettingsUpdated: async (parsedEvent: LogDescription, info: ILogInfo): Promise<Plugin | undefined> => {
+    const { address: pluginAddress, transactionHash, blockNumber, network } = info
+    const relatedPlugin = await Models.Plugin.findByAddress(pluginAddress, network)
+
+    if (!relatedPlugin) {
+      logger.warn('Plugin not found', llo(info))
+      return
+    }
+
+    if (relatedPlugin.interfaceType !== IPluginInterfaceType.lockToVote || relatedPlugin.lockManagerAddress === null) {
+      logger.warn('Plugin is not a lockToVote', llo(info))
+      return
+    }
+
+    const existingLog = await Models.Setting.findExistingLog({
+      transactionHash,
+      pluginAddress,
+    })
+
+    if (existingLog) return
+
+    const activePluginSetting = await Models.Setting.findActive({
+      network: info.network,
+      pluginAddress,
+    })
+
+    const settingLog = {
+      blockNumber,
+      blockTimestamp: (await Web3Helper.getBlockTimestamp(blockNumber, network)) || undefined,
+      transactionHash,
+      status: ISettingStatus.active,
+      daoAddress: relatedPlugin.daoAddress,
+      pluginAddress,
+      pluginSubdomain: relatedPlugin.subdomain,
+      tokenAddress: relatedPlugin.tokenAddress,
+      network,
+      votingMode: Number(parsedEvent.args.votingMode),
+      supportThreshold: Number(parsedEvent.args.supportThresholdRatio),
+      minParticipation: Number(parsedEvent.args.minParticipationRatio),
+      approvalThreshold: Number(parsedEvent.args.minApprovalRatio),
+      minProposerVotingPower: parsedEvent.args.minProposerVotingPower.toString(),
+      minDuration: Number(parsedEvent.args.proposalDuration),
+    }
+
+    await DbOperations.createDocument(Models.Setting, settingLog, info, 'New Setting - lockToVoteSettingsUpdated', llo)
+
+    if (activePluginSetting) {
+      await DbOperations.updateDocument(
+        activePluginSetting,
+        {
+          inactiveAtBlockNumber: blockNumber,
+          status: ISettingStatus.inactive,
+        },
+        { logId: activePluginSetting.id, info },
+        'Update lockToVote inactive plugin',
+        llo,
+      )
+    }
+
+    await PluginSettingHandler.isSupported(relatedPlugin, info)
+
+    const sppPlugin = await Models.Plugin.findOne({
+      daoAddress: relatedPlugin.daoAddress,
+      network: relatedPlugin.network,
+      interfaceType: IPluginInterfaceType.spp,
+      status: IPluginStatus.installed,
+      'subPlugins.addresses': { $in: [pluginAddress] },
+    })
+
+    if (sppPlugin) {
+      const sppSettings = await Models.Setting.findActive({
+        network: info.network,
+        pluginAddress: sppPlugin.address,
+      })
+
+      if (sppSettings) {
+        await PluginSettingHandler.pairSppPlugins(sppPlugin, sppSettings, info)
+      }
     }
   },
 

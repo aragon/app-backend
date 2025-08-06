@@ -18,8 +18,19 @@ describe('ConfigIndexer', () => {
       ConfigIndexer.forEach((config, index) => {
         expect(config.event, `Config at index ${index} missing event`).to.be.a('string')
         expect(config.enableHistorical, `Config at index ${index} missing enableHistorical`).to.be.a('boolean')
-        expect(config.topic, `Config at index ${index} missing topic`).to.be.a('string')
-        expect(config.topic, `Config at index ${index} has invalid topic`).to.match(/^0x[a-fA-F0-9]{64}$/)
+        // Topic can be either a string or an array of strings
+        if (Array.isArray(config.topic)) {
+          expect(config.topic, `Config at index ${index} topic array is empty`).to.have.length.greaterThan(0)
+          config.topic.forEach((topic, topicIndex) => {
+            expect(topic, `Config at index ${index} topic[${topicIndex}] is not a string`).to.be.a('string')
+            expect(topic, `Config at index ${index} topic[${topicIndex}] has invalid format`).to.match(
+              /^0x[a-fA-F0-9]{64}$/,
+            )
+          })
+        } else {
+          expect(config.topic, `Config at index ${index} missing topic`).to.be.a('string')
+          expect(config.topic, `Config at index ${index} has invalid topic`).to.match(/^0x[a-fA-F0-9]{64}$/)
+        }
         expect(config.config, `Config at index ${index} missing config`).to.be.an('array')
 
         // Allow empty config array for specific events like Transfer
@@ -58,7 +69,14 @@ describe('ConfigIndexer', () => {
     })
 
     it('should have unique topic hashes', () => {
-      const topics = ConfigIndexer.map(config => config.topic)
+      const topics: string[] = []
+      ConfigIndexer.forEach(config => {
+        if (Array.isArray(config.topic)) {
+          topics.push(...config.topic)
+        } else {
+          topics.push(config.topic)
+        }
+      })
       const uniqueTopics = new Set(topics)
       expect(uniqueTopics.size).to.equal(topics.length)
     })
