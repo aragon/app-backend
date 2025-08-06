@@ -33,7 +33,6 @@ class Link {
     customName,
   },
 })
-@index({ id: 1 }, { unique: true })
 @index({ daoAddress: 1 })
 @index({ network: 1, pluginAddress: 1, blockNumber: -1 })
 export default class LogMetadata extends Model {
