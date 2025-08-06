@@ -30,13 +30,11 @@ import { ToolsFixBrokenTx } from '@tools/fixBrokenTx'
 import ToolsVeGovernance from '@tools/veGovernance'
 import FixSppPair from '@tools/fixSppPair'
 import { CleanUpTasks } from '@tools/cleanUpTasks'
-import { IntegrityToolMemberTransaction } from '@tools/integrityCheck/memberTransaction'
 
 const { TOOL_RUN } = process.env
 const llo = logger.logMeta.bind(null, { TOOL_RUN })
 
 const runners = {
-  IntegrityToolMemberTransaction,
   ToolsVeGovernance,
   Queue,
   SyncMemberVP,

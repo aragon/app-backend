@@ -230,58 +230,6 @@ export const ProxyMember = {
     }
   },
 
-  updateDelegationMetrics: async (params: {
-    memberAddress: HexAddress
-    tokenAddress: HexAddress
-    network: NetworksEnum
-  }): Promise<VpMember | null> => {
-    const memberAddress = Web3Utils.parseAddress(params.memberAddress)
-    if (!memberAddress) return null
-
-    try {
-      return await DbTx.executeTxFn(async ({ session }) => {
-        // Get or create the vpMember document
-        const vpMember = await ProxyMember.getOrCreateVotingPower({
-          memberAddress,
-          tokenAddress: params.tokenAddress,
-          network: params.network,
-        })
-
-        if (!vpMember) {
-          logger.error('Failed to get or create VpMember', llo({ params }))
-          return null
-        }
-
-        // Get the delegate received count
-        const delegateReceivedCount = await Models.MemberTransaction.getReceiveDelegationCount(
-          memberAddress,
-          params.tokenAddress,
-          params.network,
-          { session },
-        )
-
-        // Update the vpMember with the delegate count
-        const updated = await vpMember.update({ delegateReceivedCount }, { session })
-        await session.commitTransaction()
-        await session.endSession()
-
-        logger.verbose(
-          'Updated VpMember delegation metrics',
-          llo({
-            memberAddress,
-            tokenAddress: params.tokenAddress,
-            delegateReceivedCount,
-          }),
-        )
-
-        return updated
-      })
-    } catch (error) {
-      logger.error('Error updating delegation metrics', llo({ error, params }))
-      return null
-    }
-  },
-
   addPluginMember: async (params: {
     memberAddress: HexAddress
     pluginAddress: HexAddress
