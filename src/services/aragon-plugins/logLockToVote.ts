@@ -40,6 +40,7 @@ export const LogLockToVote = {
     })
 
     await Promise.all([pluginCrawler.crawl(), lockManagerCrawler.crawl()])
+    await Promise.all([pluginCrawler.end(), lockManagerCrawler.end()])
 
     logger.verbose(
       'End LogLockToVote',
