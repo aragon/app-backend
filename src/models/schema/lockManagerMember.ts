@@ -28,7 +28,6 @@ const customName = ICollectionNames.LockManagerMember
     customName,
   },
 })
-@index({ id: 1 }, { unique: true })
 @index({ network: 1, pluginAddress: 1, memberAddress: 1 })
 @index({ network: 1, pluginAddress: 1, votingPower: -1 })
 @index({ pluginAddress: 1, memberAddress: 1 })

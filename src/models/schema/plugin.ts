@@ -92,7 +92,6 @@ class Link {
     customName,
   },
 })
-@index({ id: 1 }, { unique: true })
 @index({ network: 1, address: 1, daoAddress: 1, tokenAddress: 1 })
 @index({ network: 1, tokenAddress: 1 })
 @index({ network: 1, status: 1, interfaceType: 1 })
