@@ -1127,7 +1127,7 @@ describe('ProposalHandler', () => {
       expect(result?.relatedPlugin).to.be.undefined
     })
 
-    it('should handle when getPastTotalSupply returns null', async () => {
+    it('should handle when getPastTotalSupply returns 0', async () => {
       const metadataUri = 'ipfs://metadata-uri'
       const info: ILogInfo = {
         transactionHash: '0xnull-supply-tx',
@@ -1170,7 +1170,7 @@ describe('ProposalHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
       sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves({} as any)
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ hasClockMode: true } as any)
-      sandbox.stub(GovernanceErc20Helper, 'getPastTotalSupply').resolves(null as any) // Null total supply
+      sandbox.stub(GovernanceErc20Helper, 'getPastTotalSupply').resolves('0') // Null total supply
       sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
       sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
       sandbox.stub(ProxyMember, 'updateMetricsByAction').resolves()
