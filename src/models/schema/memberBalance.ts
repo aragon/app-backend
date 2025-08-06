@@ -29,7 +29,6 @@ const customName = ICollectionNames.MemberBalance
     customName,
   },
 })
-@index({ id: 1 }, { unique: true })
 @index({ address: 1 })
 @index({ network: 1, tokenAddress: 1, amount: 1 })
 @index({ network: 1, tokenAddress: 1, votingPower: 1 })
