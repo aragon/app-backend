@@ -55,7 +55,7 @@ describe('Indexer: LockManagerHandler', () => {
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1620000000)
       const getUserLockedBalanceStub = sandbox
         .stub(LockToVoteHelper, 'getUserLockedBalance')
-        .resolves(Number(BigInt('1000000000000000000')))
+        .resolves('1000000000000000000')
       const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves()
       const isMemberOfDaoStub = sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
       const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao').resolves()
@@ -133,7 +133,7 @@ describe('Indexer: LockManagerHandler', () => {
       // User locked another 1000, so total is now 1500
       const getUserLockedBalanceStub = sandbox
         .stub(LockToVoteHelper, 'getUserLockedBalance')
-        .resolves(Number(BigInt('1500000000000000000')))
+        .resolves('1500000000000000000')
 
       await LockManagerHandler.balanceLocked(mockParsedEvent as any, mockLogInfo as any)
 
@@ -314,7 +314,7 @@ describe('Indexer: LockManagerHandler', () => {
       // User unlocked all tokens, so balance is now 0
       const getUserLockedBalanceStub = sandbox
         .stub(LockToVoteHelper, 'getUserLockedBalance')
-        .resolves(Number(BigInt('0')))
+        .resolves('0')
       const isMemberOfDaoStub = sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(true)
       const removeFromDaoStub = sandbox.stub(ProxyMember, 'removeFromDao').resolves()
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
@@ -391,7 +391,7 @@ describe('Indexer: LockManagerHandler', () => {
       // User unlocked 1000 tokens, but still has 1000 tokens locked
       const getUserLockedBalanceStub = sandbox
         .stub(LockToVoteHelper, 'getUserLockedBalance')
-        .resolves(Number(BigInt('1000000000000000000')))
+        .resolves('1000000000000000000')
       const isMemberOfDaoStub = sandbox.stub(ProxyMember, 'isMemberOfDao')
       const removeFromDaoStub = sandbox.stub(ProxyMember, 'removeFromDao')
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
