@@ -44,9 +44,10 @@ const LockToVoteHelper = {
     const contract = new Contract(lockManagerAddress, abi, provider)
 
     try {
-      return await retryRequest(async () =>
+      const balance = await retryRequest(async () =>
         BottleneckModule.getAlchemyBalanceLimiter(network).schedule(async () => contract.getLockedBalance(userAddress)),
       )
+      return BigInt(balance || 0).toString()
     } catch (error) {
       return null
     }

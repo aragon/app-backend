@@ -222,7 +222,11 @@ export const ProposalHandler = {
         })
 
         document.snapshot = {
-          totalSupply: totalSupply?.toString() ?? '0',
+          totalSupply,
+        }
+
+        if (document.snapshot.totalSupply === '0') {
+          logger.error('Error ProposalHandler.proposalCreated - totalSupply is 0', llo({ ...info, parsedEvent }))
         }
       } else if (
         relatedPlugin.interfaceType === IPluginInterfaceType.multisig ||

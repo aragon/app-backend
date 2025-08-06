@@ -59,9 +59,6 @@ export default class LockManagerMember extends Model {
   @prop({ type: () => Number })
   public blockTimestamp?: number
 
-  @prop({ type: () => Boolean, default: true })
-  public isActive!: boolean
-
   static async create(rawData: Partial<LockManagerMember>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
@@ -110,7 +107,7 @@ export default class LockManagerMember extends Model {
     },
     tOpts?: SaveOptions,
   ) {
-    return await this.find({ network, pluginAddress, isActive: true }, null, tOpts)
+    return await this.find({ network, pluginAddress, votingPower: { $ne: '0' } }, null, tOpts)
   }
 
   async update(params: Partial<LockManagerMember>, tOpts?: SaveOptions) {
@@ -146,7 +143,6 @@ export default class LockManagerMember extends Model {
     const filter = {
       pluginAddress,
       network,
-      isActive: true,
     }
 
     const currentPage = request.skip / request.limit + 1
