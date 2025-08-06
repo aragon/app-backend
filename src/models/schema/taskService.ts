@@ -18,7 +18,6 @@ const customName = ICollectionNames.TaskService
     customName,
   },
 })
-@index({ id: 1 }, { unique: true })
 @index({ serviceName: 1 }, { unique: true }) // Add index for serviceName
 @index({ nextStartAt: 1 }) // Add index for nextStartAt queries
 @index({ lockedUntil: 1 }) // Add index for lock queries
