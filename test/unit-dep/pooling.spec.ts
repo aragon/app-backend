@@ -12,8 +12,9 @@ import { IGovernanceErc20Logs, type IIndexerConfig, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import configIndexer from '@indexer/configIndexer'
+import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 
-describe.skip('Integration: Pooling', () => {
+describe.only('Integration: Pooling', () => {
   let sandbox: SinonSandbox
 
   before(async () => {
@@ -103,13 +104,31 @@ describe.skip('Integration: Pooling', () => {
 
     logger.verbose('Start Token Sync', { startTime })
 
-    const configGovLogs = configIndexer.filter((item: IIndexerConfig) =>
-      Object.values(IGovernanceErc20Logs).includes(item.event as any),
-    )
+    // const configGovLogs = configIndexer.filter((item: IIndexerConfig) =>
+    //   Object.values(IGovernanceErc20Logs).includes(item.event as any),
+    // )
+
+    const configGovLogs = configIndexer
+      .filter((item: IIndexerConfig) => Object.values(IGovernanceErc20Logs).includes(item.event as any))
+      .map((item: IIndexerConfig) => {
+        // Override the handler for DelegateVotesChanged to use batch handler
+        if (item.event === IGovernanceErc20Logs.DelegateVotesChanged) {
+          return {
+            ...item,
+            config: item.config.map(cfg => ({
+              ...cfg,
+              handler: GovernanceErc20Handler.delegateVotesChangedBatch,
+            })),
+          }
+        }
+        return item
+      })
 
     const tokenCrawler = new BlockchainLogCrawler({
       parallel: {
         enable: true,
+        useBatch: true,
+        batchSize: 1000,
         autoScale: true,
       },
       network: networkName,

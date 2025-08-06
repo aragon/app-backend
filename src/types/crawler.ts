@@ -5,7 +5,9 @@ import { type Filter, type Log, type LogDescription } from 'ethers'
 
 export interface IIndexerConfigHandler {
   abi: any[]
-  handler: (event: LogDescription, info: ILogInfo, isHistorical?: boolean) => Promise<any>
+  handler:
+    | ((event: LogDescription, info: ILogInfo, isHistorical?: boolean) => Promise<any>)
+    | ((events: Array<{ parsedEvent: LogDescription; info: ILogInfo }>) => Promise<any>)
 }
 
 export interface IIndexerConfig {
@@ -26,6 +28,7 @@ export interface IParallelConfig {
   concurrency?: number
   batchSize?: number
   autoScale?: boolean
+  useBatch?: boolean
 }
 
 export interface ICrawlParam {
