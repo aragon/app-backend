@@ -60,9 +60,6 @@ export default class LockManagerMember extends Model {
   @prop({ type: () => Number })
   public blockTimestamp?: number
 
-  @prop({ type: () => Boolean, default: true })
-  public isActive!: boolean
-
   static async create(rawData: Partial<LockManagerMember>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')

@@ -193,7 +193,7 @@ const LockManagerHandler = {
       )
 
       // Only remove from DAO if the member has no more locked tokens
-      if (!isStillActive) {
+      if (totalLockedBalanceStr === '0') {
         const memberShipParams = {
           memberAddress: voterAddress,
           daoAddress: plugin.daoAddress,
