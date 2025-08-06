@@ -712,6 +712,280 @@ describe('Indexer:Plugin', () => {
       expect(updated?.status).to.equal(IPluginStatus.deprecated)
     })
 
+    it('should handle lockToVote plugin with lockManagerAddress', async () => {
+      rawPlugin.daoAddress = '0xdaoAddress'
+
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.lockToVote,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+      })
+
+      sandbox.stub(logger, 'verbose').resolves()
+      const handleVersionUpgradeStub = sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
+
+      await Models.LogPluginSetupProcessor.create({
+        ...ListLogPluginSetupProcessor[2],
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      })
+      const eventUpdateApplied = await Models.LogPluginSetupProcessor.create({
+        ...ListLogPluginSetupProcessor[3],
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      })
+
+      const existingPlugin = await Models.Plugin.create({
+        status: IPluginStatus.installed,
+        network: rawPlugin.network,
+        blockNumber: 1000,
+        transactionHash: 'oldTx',
+        address: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: '0xLockManager123',
+        tokenAddress: '0xToken123',
+        isSupported: true,
+      })
+
+      const newPlugin = {
+        id: 'new-plugin-id',
+        address: rawPlugin.address,
+        blockNumber: 2000,
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        transactionHash: '0xnewtx',
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: null,
+        tokenAddress: null,
+        isSupported: false,
+        update: sandbox.stub().resolves({}),
+      }
+
+      sandbox.stub(PluginHandler, '_createPlugin').resolves(newPlugin as any)
+
+      await PluginHandler.updatePlugin(eventUpdateApplied as any)
+
+      expect(handleVersionUpgradeStub.calledOnce).to.be.true
+      expect(newPlugin.update.calledOnce).to.be.true
+      expect(newPlugin.update.args[0][0]).to.deep.include({
+        lockManagerAddress: '0xLockManager123',
+        tokenAddress: '0xToken123',
+        isSupported: true,
+      })
+
+      const updated = await Models.Plugin.findOne({
+        id: existingPlugin.id,
+      })
+      expect(updated?.status).to.equal(IPluginStatus.deprecated)
+      expect(updated?.uninstalled.status).to.be.true
+    })
+
+    it('should not copy lockManagerAddress if new plugin already has one', async () => {
+      rawPlugin.daoAddress = '0xdaoAddress'
+
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.lockToVote,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+      })
+
+      sandbox.stub(logger, 'verbose').resolves()
+      const handleVersionUpgradeStub = sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
+
+      await Models.LogPluginSetupProcessor.create({
+        ...ListLogPluginSetupProcessor[2],
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      })
+      const eventUpdateApplied = await Models.LogPluginSetupProcessor.create({
+        ...ListLogPluginSetupProcessor[3],
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      })
+
+      await Models.Plugin.create({
+        status: IPluginStatus.installed,
+        network: rawPlugin.network,
+        blockNumber: 1000,
+        transactionHash: 'oldTx',
+        address: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: '0xLockManagerOld',
+        tokenAddress: '0xTokenOld',
+        isSupported: true,
+      })
+
+      const newPlugin = {
+        id: 'new-plugin-id',
+        address: rawPlugin.address,
+        blockNumber: 2000,
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        transactionHash: '0xnewtx',
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: '0xLockManagerNew',
+        tokenAddress: '0xTokenNew',
+        isSupported: false,
+        update: sandbox.stub().resolves({}),
+      }
+
+      sandbox.stub(PluginHandler, '_createPlugin').resolves(newPlugin as any)
+
+      await PluginHandler.updatePlugin(eventUpdateApplied as any)
+
+      expect(handleVersionUpgradeStub.calledOnce).to.be.true
+      expect(newPlugin.update.calledOnce).to.be.true
+      expect(newPlugin.update.args[0][0]).to.deep.include({
+        isSupported: true,
+      })
+      expect(newPlugin.update.args[0][0]).to.not.have.property('lockManagerAddress')
+      expect(newPlugin.update.args[0][0]).to.not.have.property('tokenAddress')
+    })
+
+    it('should not copy lockManagerAddress if existing plugin has no lockManagerAddress', async () => {
+      rawPlugin.daoAddress = '0xdaoAddress'
+
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.lockToVote,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+      })
+
+      sandbox.stub(logger, 'verbose').resolves()
+      const handleVersionUpgradeStub = sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
+
+      await Models.LogPluginSetupProcessor.create({
+        ...ListLogPluginSetupProcessor[2],
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      })
+      const eventUpdateApplied = await Models.LogPluginSetupProcessor.create({
+        ...ListLogPluginSetupProcessor[3],
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      })
+
+      await Models.Plugin.create({
+        status: IPluginStatus.installed,
+        network: rawPlugin.network,
+        blockNumber: 1000,
+        transactionHash: 'oldTx',
+        address: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: null,
+        tokenAddress: '0xToken123',
+        isSupported: true,
+      })
+
+      const newPlugin = {
+        id: 'new-plugin-id',
+        address: rawPlugin.address,
+        blockNumber: 2000,
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        transactionHash: '0xnewtx',
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: null,
+        tokenAddress: null,
+        isSupported: false,
+        update: sandbox.stub().resolves({}),
+      }
+
+      sandbox.stub(PluginHandler, '_createPlugin').resolves(newPlugin as any)
+
+      await PluginHandler.updatePlugin(eventUpdateApplied as any)
+
+      expect(handleVersionUpgradeStub.calledOnce).to.be.true
+      expect(newPlugin.update.calledOnce).to.be.true
+      expect(newPlugin.update.args[0][0]).to.deep.include({
+        isSupported: true,
+      })
+      expect(newPlugin.update.args[0][0]).to.not.have.property('lockManagerAddress')
+      expect(newPlugin.update.args[0][0]).to.not.have.property('tokenAddress')
+    })
+
+    it('should handle different interface types between existing lockToVote and new non-lockToVote plugins', async () => {
+      rawPlugin.daoAddress = '0xdaoAddress'
+
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.tokenVoting,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+      })
+
+      sandbox.stub(logger, 'verbose').resolves()
+      const handleVersionUpgradeStub = sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
+
+      await Models.LogPluginSetupProcessor.create({
+        ...ListLogPluginSetupProcessor[2],
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      })
+      const eventUpdateApplied = await Models.LogPluginSetupProcessor.create({
+        ...ListLogPluginSetupProcessor[3],
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      })
+
+      const existingPlugin = await Models.Plugin.create({
+        status: IPluginStatus.installed,
+        network: rawPlugin.network,
+        blockNumber: 1000,
+        transactionHash: 'oldTx',
+        address: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: '0xLockManager123',
+        tokenAddress: '0xToken123',
+        isSupported: true,
+      })
+
+      const newPlugin = {
+        id: 'new-plugin-id',
+        address: rawPlugin.address,
+        blockNumber: 2000,
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        transactionHash: '0xnewtx',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: null,
+        isSupported: false,
+        update: sandbox.stub().resolves({}),
+      }
+
+      sandbox.stub(PluginHandler, '_createPlugin').resolves(newPlugin as any)
+
+      await PluginHandler.updatePlugin(eventUpdateApplied as any)
+
+      expect(handleVersionUpgradeStub.calledOnce).to.be.true
+      expect(newPlugin.update.calledOnce).to.be.true
+      expect(newPlugin.update.args[0][0]).to.deep.include({
+        isSupported: true,
+      })
+      expect(newPlugin.update.args[0][0]).to.not.have.property('lockManagerAddress')
+      expect(newPlugin.update.args[0][0]).to.not.have.property('tokenAddress')
+
+      const updated = await Models.Plugin.findOne({
+        id: existingPlugin.id,
+      })
+      expect(updated?.status).to.equal(IPluginStatus.deprecated)
+    })
+
     it('should handle case when no existing plugin is found', async () => {
       rawPlugin.daoAddress = '0xdaoAddress'
 
@@ -1019,7 +1293,7 @@ describe('Indexer:Plugin', () => {
       }
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
 
-      const findLogsStub = sandbox.stub(Web3Utils, 'findLogsByName').returns([
+      sandbox.stub(Web3Utils, 'findLogsByName').returns([
         {
           parsed: { name: 'InstallationApplied' },
           txLog: {
