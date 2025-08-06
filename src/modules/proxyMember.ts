@@ -477,6 +477,7 @@ export const ProxyMember = {
           return acc
         }, [])
 
+      // Create bulk operations with proper handling for concurrent updates
       const bulkOps = latestUpdates.map(update => {
         const setFields: any = {
           lastVPBlockNumber: update.lastVPBlockNumber,
@@ -497,17 +498,17 @@ export const ProxyMember = {
             setFields.tokenIds = []
           }
         } else {
-          // Only set default votingPower in $setOnInsert if not being set in $set
           setOnInsertFields.votingPower = '0'
         }
 
         if (update.tokenIds !== undefined) {
           setFields.tokenIds = update.tokenIds
         } else if (!setFields.tokenIds) {
-          // Only set default tokenIds in $setOnInsert if not being set in $set
           setOnInsertFields.tokenIds = []
         }
 
+        // Use a filter that checks block number to ensure we only update with newer data
+        // The upsert will create the document if it doesn't exist
         return {
           updateOne: {
             filter: {
@@ -527,7 +528,33 @@ export const ProxyMember = {
       })
 
       if (bulkOps.length > 0) {
-        await Models.VpMember.bulkWrite(bulkOps, { session, ordered: false })
+        try {
+          // Use ordered: false to continue on errors and maximize throughput
+          await Models.VpMember.bulkWrite(bulkOps, { session, ordered: false })
+        } catch (bulkError: any) {
+          // Check if this is a bulk write error with duplicate key errors
+          if (bulkError.code === 11000 || bulkError.writeErrors) {
+            // Filter out duplicate key errors (code 11000) which are expected in parallel processing
+            const nonDuplicateErrors = bulkError.writeErrors?.filter((err: any) => err.code !== 11000) || []
+            
+            if (nonDuplicateErrors.length > 0) {
+              logger.error('Non-duplicate write errors in batch voting power update', llo({ 
+                errors: nonDuplicateErrors,
+                updateCount: updates.length 
+              }))
+              throw new Error('Batch voting power update failed with non-duplicate errors')
+            }
+            
+            // If only duplicate key errors, continue - these are expected when parallel batches
+            // try to insert the same new document simultaneously
+            logger.verbose('Handled expected duplicate key errors in batch update', llo({ 
+              duplicateCount: bulkError.writeErrors?.filter((err: any) => err.code === 11000).length || 0
+            }))
+          } else {
+            // Re-throw unexpected errors
+            throw bulkError
+          }
+        }
       }
 
       logger.verbose('Batch updated voting powers with session', llo({ count: bulkOps.length }))

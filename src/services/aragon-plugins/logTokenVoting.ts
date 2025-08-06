@@ -146,6 +146,7 @@ export const LogTokenVoting = {
         enable: true,
         autoScale: true,
         useBatch: true,
+        batchSize: 1000,
       },
       onlyHistorical: isHistorical,
       network: plugin.network,
