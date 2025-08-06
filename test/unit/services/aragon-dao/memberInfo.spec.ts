@@ -612,7 +612,7 @@ describe('AragonDao: memberInfo', () => {
 
       const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
 
-      const getLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves(0n)
+      const getLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves(0)
 
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
@@ -639,7 +639,7 @@ describe('AragonDao: memberInfo', () => {
 
       const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
 
-      const getLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves(100n)
+      const getLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves(100)
 
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
@@ -666,7 +666,7 @@ describe('AragonDao: memberInfo', () => {
 
       const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
 
-      const getLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves(1000000n)
+      const getLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves(1000000)
 
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
