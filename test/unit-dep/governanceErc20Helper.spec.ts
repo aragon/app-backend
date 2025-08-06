@@ -51,7 +51,7 @@ describe('GovernanceErc20Helper', () => {
       blockTimestamp: 0,
       clockMode: IClockMode.BlockNumber,
     })
-    expect(totalSupply).to.eq(500000000000000000000n)
+    expect(totalSupply).to.eq('500000000000000000000')
   })
 
   it('getDelegates', async () => {

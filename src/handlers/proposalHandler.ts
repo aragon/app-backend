@@ -222,7 +222,7 @@ export const ProposalHandler = {
         })
 
         document.snapshot = {
-          totalSupply: totalSupply?.toString() ?? '0',
+          totalSupply,
         }
 
         if (document.snapshot.totalSupply === '0') {
