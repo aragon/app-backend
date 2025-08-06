@@ -71,8 +71,14 @@ export const ProposalMetrics = {
           return
         }
 
-        const votes = await Models.Vote.findVotes(
-          { proposalIndex, pluginAddress, network, 'voteCleared.status': false },
+        const votes = await Models.Vote.find(
+          {
+            proposalIndex,
+            pluginAddress,
+            network,
+            $or: [{ 'voteCleared.status': false }, { 'voteCleared.status': { $exists: false } }],
+          },
+          null,
           { session },
         )
         const members = await Models.DaoMemberMapping.findAllMembersOfPlugin({
