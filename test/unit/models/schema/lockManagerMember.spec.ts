@@ -108,7 +108,7 @@ describe('Model: LockManagerMember', () => {
       }
 
       const createdMember = await Models.LockManagerMember.create(minimalMemberData)
-      
+
       expect(createdMember.network).to.eq(minimalMemberData.network)
       expect(createdMember.pluginAddress).to.eq(minimalMemberData.pluginAddress)
       expect(createdMember.memberAddress).to.eq(minimalMemberData.memberAddress)
@@ -396,7 +396,7 @@ describe('Model: LockManagerMember', () => {
     it('should find multiple active members', async () => {
       // Create multiple active members
       const memberAddresses = ['0xactive1', '0xactive2', '0xactive3']
-      
+
       for (const address of memberAddresses) {
         await Models.LockManagerMember.create({
           ...mockLockManagerMemberData,
@@ -481,7 +481,7 @@ describe('Model: LockManagerMember', () => {
       const originalVotingPower = createdMember.votingPower
 
       const saveSpy = sandbox.spy(createdMember, 'save')
-      
+
       const updatedMember = await createdMember.update({
         votingPower: originalVotingPower,
       })
@@ -548,12 +548,9 @@ describe('Model: LockManagerMember', () => {
   describe('reload', () => {
     it('should reload member from database', async () => {
       const createdMember = await Models.LockManagerMember.create(mockLockManagerMemberData)
-      
+
       // Update the member directly in database
-      await Models.LockManagerMember.updateOne(
-        { _id: createdMember._id },
-        { votingPower: '9999999999' }
-      )
+      await Models.LockManagerMember.updateOne({ _id: createdMember._id }, { votingPower: '9999999999' })
 
       const reloadedMember = await createdMember.reload()
 
@@ -564,7 +561,7 @@ describe('Model: LockManagerMember', () => {
 
     it('should return null if member was deleted', async () => {
       const createdMember = await Models.LockManagerMember.create(mockLockManagerMemberData)
-      
+
       // Delete the member from database
       await Models.LockManagerMember.deleteOne({ _id: createdMember._id })
 
@@ -574,16 +571,13 @@ describe('Model: LockManagerMember', () => {
 
     it('should reload with latest data after external update', async () => {
       const createdMember = await Models.LockManagerMember.create(mockLockManagerMemberData)
-      
+
       // Simulate external update
-      await Models.LockManagerMember.findByIdAndUpdate(
-        createdMember._id,
-        {
-          votingPower: '5000000000000000000',
-          transactionHash: '0xexternalupdate',
-          blockNumber: 77777,
-        }
-      )
+      await Models.LockManagerMember.findByIdAndUpdate(createdMember._id, {
+        votingPower: '5000000000000000000',
+        transactionHash: '0xexternalupdate',
+        blockNumber: 77777,
+      })
 
       const reloadedMember = await createdMember.reload()
 
