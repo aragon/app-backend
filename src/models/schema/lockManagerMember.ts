@@ -111,7 +111,7 @@ export default class LockManagerMember extends Model {
     },
     tOpts?: SaveOptions,
   ) {
-    return await this.find({ network, pluginAddress, isActive: true }, null, tOpts)
+    return await this.find({ network, pluginAddress }, null, tOpts)
   }
 
   async update(params: Partial<LockManagerMember>, tOpts?: SaveOptions) {
@@ -147,7 +147,6 @@ export default class LockManagerMember extends Model {
     const filter = {
       pluginAddress,
       network,
-      isActive: true,
     }
 
     const currentPage = request.skip / request.limit + 1
