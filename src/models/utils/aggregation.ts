@@ -4,8 +4,6 @@ import {
   type IAggDaoProjectFields,
   type IAggMemberParams,
   type IAggMemberProjectFields,
-  type IAggMemberTransactionParams,
-  type IAggMemberTransactionProjectFields,
   type IAggPluginInclude,
   type IAggPluginMetricsParams,
   type IAggPluginMetricsProjectFields,
@@ -506,81 +504,6 @@ export const AggregationQueryHelper = {
     return {
       $lookup: {
         from: ICollectionNames.Member,
-        let: letVariables,
-        pipeline,
-        as,
-      },
-    }
-  },
-
-  memberTransaction: (
-    { network, memberAddress, tokenAddress, type, side }: IAggMemberTransactionParams,
-    as: string = 'memberTransaction',
-    project?: IAggMemberTransactionProjectFields,
-    sort?: any,
-    limit?: any,
-  ) => {
-    const letVariables: any = {}
-    const matchConditions: any[] = []
-
-    if (network) {
-      letVariables.network = network
-      matchConditions.push({ $eq: ['$$network', '$network'] })
-    }
-
-    if (type) {
-      letVariables.type = type
-      matchConditions.push({ $eq: ['$$type', '$type'] })
-    }
-
-    if (side) {
-      letVariables.side = side
-      matchConditions.push({ $eq: ['$$side', '$side'] })
-    }
-
-    if (memberAddress) {
-      letVariables.address = memberAddress
-      matchConditions.push({ $eq: ['$$address', '$address'] })
-    }
-
-    if (tokenAddress) {
-      letVariables.tokenAddress = tokenAddress
-      matchConditions.push({ $eq: ['$$tokenAddress', '$tokenAddress'] })
-    }
-
-    const pipeline: any[] = []
-
-    if (matchConditions.length > 0) {
-      pipeline.push({
-        $match: {
-          $expr: {
-            $and: matchConditions,
-          },
-        },
-      })
-    }
-
-    if (sort) {
-      pipeline.push({
-        $sort: sort,
-      })
-    }
-
-    if (limit) {
-      pipeline.push({
-        $limit: limit,
-      })
-    }
-
-    if (project) {
-      pipeline.push({
-        $project: project,
-      })
-    }
-
-    return {
-      $lookup: {
-        from: ICollectionNames.MemberTransaction,
         let: letVariables,
         pipeline,
         as,
