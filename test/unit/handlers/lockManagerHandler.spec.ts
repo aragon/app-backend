@@ -55,7 +55,7 @@ describe('Indexer: LockManagerHandler', () => {
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1620000000)
       const getUserLockedBalanceStub = sandbox
         .stub(LockToVoteHelper, 'getUserLockedBalance')
-        .resolves(Number(BigInt('1000000000000000000')))
+        .resolves('1000000000000000000')
       const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves()
       const isMemberOfDaoStub = sandbox.stub(ProxyMember, 'isMemberOfDao').resolves(false)
       const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao').resolves()
