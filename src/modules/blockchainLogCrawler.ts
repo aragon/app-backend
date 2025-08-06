@@ -145,19 +145,17 @@ class BlockchainLogCrawler {
           const parallelConfig = this.getParallelConfig(sortedLogs.length)
           let highestBlockProcessed = 0
 
-          if (parallelConfig.enable) {
-            highestBlockProcessed = await this.processLogsParallel(sortedLogs, {
-              fromBlock: currentBlock,
-              toBlock,
-              latestBlock,
-            })
-          } else {
-            highestBlockProcessed = await this.processLogs(sortedLogs, {
-              fromBlock: currentBlock,
-              toBlock,
-              latestBlock,
-            })
-          }
+          const processMethod = parallelConfig.enable
+            ? parallelConfig.useBatch
+              ? this.processLogsParallelBatch
+              : this.processLogsParallel
+            : this.processLogs
+
+          highestBlockProcessed = await processMethod.call(this, sortedLogs, {
+            fromBlock: currentBlock,
+            toBlock,
+            latestBlock,
+          })
 
           // Save progress once after processing (both parallel and sequential)
           // Use the highest block actually processed, or toBlock if no logs were processed
@@ -750,7 +748,7 @@ class BlockchainLogCrawler {
     }
   }
 
-  getParallelConfig(logCount?: number): { enable: boolean; concurrency: number; batchSize: number } {
+  getParallelConfig(logCount?: number): { enable: boolean; concurrency: number; batchSize: number; useBatch: boolean } {
     const parallel = this.crawlParams.parallel
 
     // Default disabled config
@@ -759,6 +757,7 @@ class BlockchainLogCrawler {
         enable: false,
         concurrency: 1,
         batchSize: 1,
+        useBatch: false,
       }
     }
 
@@ -768,6 +767,7 @@ class BlockchainLogCrawler {
         enable: parallel,
         concurrency: parallel ? 1 : 1,
         batchSize: parallel ? 50 : 1,
+        useBatch: false,
       }
     }
 
@@ -777,6 +777,7 @@ class BlockchainLogCrawler {
         enable: parallel.enable ?? false,
         concurrency: parallel.concurrency ?? 1, // Default concurrency is 1
         batchSize: parallel.batchSize ?? 50, // Default batch size is 50
+        useBatch: parallel.useBatch ?? false, // Default useBatch is false
       }
 
       // If autoScale is enabled and we have a log count, calculate adaptive values
@@ -786,6 +787,7 @@ class BlockchainLogCrawler {
           enable: true,
           concurrency: adaptive.concurrency,
           batchSize: adaptive.batchSize,
+          useBatch: parallel.useBatch ?? false,
         }
       }
 
@@ -797,6 +799,7 @@ class BlockchainLogCrawler {
       enable: false,
       concurrency: 1,
       batchSize: 1,
+      useBatch: false,
     }
   }
 
@@ -989,6 +992,205 @@ class BlockchainLogCrawler {
 
       // If queue is empty (shouldn't happen), resolve immediately
       if (queue.length() === 0 && queue.running() === 0) {
+        resolve(highestBlockNumber)
+      }
+    })
+  }
+
+  async processLogsParallelBatch(
+    logs: Log[],
+    {
+      fromBlock,
+      toBlock,
+      latestBlock,
+    }: {
+      fromBlock?: number
+      toBlock?: number
+      latestBlock?: number
+    } = {},
+  ): Promise<number> {
+    // Safety check: if no logs, return immediately
+    if (!logs || logs.length === 0) {
+      return 0
+    }
+
+    // Get parallel config with log count for auto-scaling
+    const parallelConfig = this.getParallelConfig(logs.length)
+
+    // Group logs by event type and handler
+    const eventBatches = new Map<string, Array<{ log: Log; parsedEvent: LogDescription; info: any; handler: any }>>()
+    let highestBlockNumber = 0
+
+    // First pass: parse all logs and group by event type and handler
+    for (let i = 0; i < logs.length; i++) {
+      const log = logs[i]
+      try {
+        const { handler, event, info } = this.formatLog(log)
+        if (!event || !handler) continue
+
+        // Update highest block number
+        if (log.blockNumber) {
+          highestBlockNumber = Math.max(highestBlockNumber, log.blockNumber)
+        }
+
+        // Create a key combining event name and handler reference
+        const eventKey = `${event.name}_${handler.toString()}`
+
+        if (!eventBatches.has(eventKey)) {
+          eventBatches.set(eventKey, [])
+        }
+
+        eventBatches.get(eventKey)!.push({
+          log,
+          parsedEvent: event,
+          info,
+          handler,
+        })
+      } catch (error) {
+        this.crawlParams.onError(error as Error, log)
+        this.crawlSetting.nbError++
+        if (this.crawlParams.stopOnError) {
+          this.crawlSetting.shutdown = true
+          throw error
+        }
+      }
+    }
+
+    // Second pass: process each event type's batch
+    const startTime = Date.now()
+    const totalBatches = eventBatches.size
+
+    // Create promise to track completion
+    return new Promise<number>((resolve, reject) => {
+      let processedBatches = 0
+      let hasError = false
+
+      // Create a queue for parallel batch processing
+      const queue = async.queue<{ eventKey: string; batch: Array<any>; handlerInfo: any }>(async task => {
+        const { eventKey, batch, handlerInfo } = task
+        const batchStartTime = Date.now()
+
+        try {
+          // In batch mode, all handlers are treated as batch handlers
+          // Prepare the array of events
+          const eventsArray = batch.map(item => ({
+            parsedEvent: item.parsedEvent,
+            info: item.info,
+          }))
+
+          // Call batch handler with all events at once
+          await handlerInfo.handler(eventsArray)
+
+          this.crawlSetting.nbSuccess += batch.length
+
+          logger.verbose(
+            'Processed Event Batch',
+            llo({
+              ...this.parseCrawlerInfoLog(),
+              eventKey,
+              batchSize: batch.length,
+              processedTime: Date.now() - batchStartTime,
+              fromBlock,
+              toBlock,
+              latestBlock,
+              parallel: true,
+              useBatch: true,
+            }),
+          )
+
+          // Update lastSync with highest block from this batch
+          const batchHighestBlock = Math.max(...batch.map(item => item.log.blockNumber || 0))
+          if (batchHighestBlock > this.crawlSetting.lastSync) {
+            this.crawlSetting.lastSync = batchHighestBlock
+          }
+
+          processedBatches++
+        } catch (error: any) {
+          logger.error(
+            'Batch processing error',
+            llo({
+              error,
+              eventKey,
+              batchSize: batch.length,
+              ...this.parseCrawlerInfoLog(),
+            }),
+          )
+
+          this.crawlSetting.nbError += batch.length
+
+          if (this.crawlParams.stopOnError) {
+            hasError = true
+            this.crawlSetting.shutdown = true
+            queue.kill()
+            reject(error)
+          } else {
+            // If not stopping on error, still increment processed batches
+            processedBatches++
+          }
+        }
+      }, parallelConfig.concurrency)
+
+      // Set up completion handler
+      queue.drain(() => {
+        if (!hasError && processedBatches >= totalBatches) {
+          logger.verbose(
+            'Completed parallel batch processing',
+            llo({
+              ...this.parseCrawlerInfoLog(),
+              totalBatches,
+              totalLogs: logs.length,
+              processedTime: Date.now() - startTime,
+              highestBlockNumber,
+            }),
+          )
+          resolve(highestBlockNumber)
+        }
+      })
+
+      // Handle errors
+      queue.error((error, task) => {
+        logger.error(
+          'Parallel batch processing queue error',
+          llo({
+            error,
+            eventKey: task.eventKey,
+            batchSize: task.batch.length,
+            ...this.parseCrawlerInfoLog(),
+          }),
+        )
+        if (this.crawlParams.stopOnError) {
+          hasError = true
+          this.crawlSetting.shutdown = true
+          queue.kill()
+          reject(error)
+        }
+      })
+
+      // Process batches based on batchSize config
+      // Split large event batches into smaller chunks if needed
+      const tasks: Array<{ eventKey: string; batch: Array<any>; handlerInfo: any }> = []
+
+      eventBatches.forEach((batch, eventKey) => {
+        if (batch.length === 0) return
+
+        const handlerInfo = { handler: batch[0].handler }
+
+        // If batch is larger than configured batchSize, split it
+        if (batch.length > parallelConfig.batchSize) {
+          for (let i = 0; i < batch.length; i += parallelConfig.batchSize) {
+            const chunk = batch.slice(i, Math.min(i + parallelConfig.batchSize, batch.length))
+            tasks.push({ eventKey, batch: chunk, handlerInfo })
+          }
+        } else {
+          tasks.push({ eventKey, batch, handlerInfo })
+        }
+      })
+
+      // Add all tasks to queue
+      if (tasks.length > 0) {
+        queue.push(tasks)
+      } else {
+        // If no tasks, resolve immediately
         resolve(highestBlockNumber)
       }
     })

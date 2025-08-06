@@ -1766,6 +1766,7 @@ describe('Module: blockchainLogCrawler', () => {
           enable: true,
           concurrency: 1,
           batchSize: 50,
+          useBatch: false,
         })
       })
 
@@ -1781,6 +1782,7 @@ describe('Module: blockchainLogCrawler', () => {
           enable: false,
           concurrency: 1,
           batchSize: 1,
+          useBatch: false,
         })
       })
 
@@ -1800,6 +1802,7 @@ describe('Module: blockchainLogCrawler', () => {
           enable: true,
           concurrency: 10,
           batchSize: 20,
+          useBatch: false,
         })
       })
 
@@ -1817,6 +1820,7 @@ describe('Module: blockchainLogCrawler', () => {
           enable: true,
           concurrency: 1,
           batchSize: 50,
+          useBatch: false,
         })
       })
 
@@ -1832,6 +1836,7 @@ describe('Module: blockchainLogCrawler', () => {
           enable: false,
           concurrency: 1,
           batchSize: 1,
+          useBatch: false,
         })
       })
 
@@ -1879,6 +1884,7 @@ describe('Module: blockchainLogCrawler', () => {
           enable: true,
           concurrency: 5,
           batchSize: 10,
+          useBatch: false,
         })
       })
     })
@@ -2327,6 +2333,189 @@ describe('Module: blockchainLogCrawler', () => {
         // Verify the transaction hashes match
         for (let i = 0; i < 13; i++) {
           expect(processedLogs.some(log => log.txHash === `0x${i}`)).to.be.true
+        }
+      })
+    })
+
+    describe('processLogsParallelBatch', () => {
+      it('should process logs in batches when useBatch is true', async () => {
+        const batchHandlerStub = sandbox.stub().resolves()
+
+        const mockLogs = [
+          { blockNumber: 100, transactionHash: '0x1', transactionIndex: 0, index: 0, topics: ['0xEventA'] },
+          { blockNumber: 101, transactionHash: '0x2', transactionIndex: 0, index: 0, topics: ['0xEventA'] },
+          { blockNumber: 102, transactionHash: '0x3', transactionIndex: 0, index: 0, topics: ['0xEventA'] },
+          { blockNumber: 103, transactionHash: '0x4', transactionIndex: 0, index: 0, topics: ['0xEventB'] },
+          { blockNumber: 104, transactionHash: '0x5', transactionIndex: 0, index: 0, topics: ['0xEventB'] },
+        ] as any[]
+
+        const crawler = new BlockchainLogCrawler({
+          network: NetworksEnum.ethereumSepolia,
+          events: [
+            {
+              event: 'EventA',
+              topic: '0xEventA',
+              config: [
+                {
+                  abi: [],
+                  handler: batchHandlerStub,
+                },
+              ],
+            },
+            {
+              event: 'EventB',
+              topic: '0xEventB',
+              config: [
+                {
+                  abi: [],
+                  handler: batchHandlerStub,
+                },
+              ],
+            },
+          ],
+          parallel: {
+            enable: true,
+            useBatch: true,
+            batchSize: 10,
+          },
+          address: ['0x123'],
+          onError: sandbox.stub(),
+          logService: 'test' as any,
+          stopOnError: true,
+        })
+
+        // Stub formatLog to return proper event objects
+        sandbox.stub(crawler, 'formatLog').callsFake((log: any) => ({
+          event: { name: log.topics[0] === '0xEventA' ? 'EventA' : 'EventB' } as any,
+          handler: batchHandlerStub,
+          info: { transactionHash: log.transactionHash, blockNumber: log.blockNumber } as any,
+        }))
+
+        const highestBlock = await crawler.processLogsParallelBatch(mockLogs, {
+          fromBlock: 100,
+          toBlock: 104,
+          latestBlock: 200,
+        })
+
+        // Should be called twice - once for EventA batch and once for EventB batch
+        expect(batchHandlerStub.callCount).to.equal(2)
+
+        // Check first batch call (EventA)
+        const firstBatchCall = batchHandlerStub.getCall(0).args[0]
+        expect(firstBatchCall).to.have.lengthOf(3)
+        expect(firstBatchCall[0].parsedEvent.name).to.equal('EventA')
+
+        // Check second batch call (EventB)
+        const secondBatchCall = batchHandlerStub.getCall(1).args[0]
+        expect(secondBatchCall).to.have.lengthOf(2)
+        expect(secondBatchCall[0].parsedEvent.name).to.equal('EventB')
+
+        // Check highest block returned
+        expect(highestBlock).to.equal(104)
+      })
+
+      it('should split large batches based on batchSize', async () => {
+        const batchHandlerStub = sandbox.stub().resolves()
+
+        // Create 15 logs for the same event
+        const mockLogs = Array.from({ length: 15 }, (_, i) => ({
+          blockNumber: 100 + i,
+          transactionHash: `0x${i}`,
+          transactionIndex: 0,
+          index: 0,
+          topics: ['0xEventA'],
+        })) as any[]
+
+        const crawler = new BlockchainLogCrawler({
+          network: NetworksEnum.ethereumSepolia,
+          events: [
+            {
+              event: 'EventA',
+              topic: '0xEventA',
+              config: [
+                {
+                  abi: [],
+                  handler: batchHandlerStub,
+                },
+              ],
+            },
+          ],
+          parallel: {
+            enable: true,
+            useBatch: true,
+            batchSize: 10, // Set batch size to 10
+          },
+          address: ['0x123'],
+          onError: sandbox.stub(),
+          logService: 'test' as any,
+          stopOnError: true,
+        })
+
+        // Stub formatLog
+        sandbox.stub(crawler, 'formatLog').callsFake((log: any) => ({
+          event: { name: 'EventA' } as any,
+          handler: batchHandlerStub,
+          info: { transactionHash: log.transactionHash, blockNumber: log.blockNumber } as any,
+        }))
+
+        await crawler.processLogsParallelBatch(mockLogs, {})
+
+        // Should be called twice - first batch with 10, second batch with 5
+        expect(batchHandlerStub.callCount).to.equal(2)
+
+        const firstBatchCall = batchHandlerStub.getCall(0).args[0]
+        expect(firstBatchCall).to.have.lengthOf(10)
+
+        const secondBatchCall = batchHandlerStub.getCall(1).args[0]
+        expect(secondBatchCall).to.have.lengthOf(5)
+      })
+
+      it('should handle errors in batch processing', async () => {
+        const batchHandlerStub = sandbox.stub()
+        batchHandlerStub.onFirstCall().rejects(new Error('Batch processing error'))
+
+        const onErrorStub = sandbox.stub()
+
+        const mockLogs = [
+          { blockNumber: 100, transactionHash: '0x1', transactionIndex: 0, index: 0, topics: ['0xEventA'] },
+        ] as any[]
+
+        const crawler = new BlockchainLogCrawler({
+          network: NetworksEnum.ethereumSepolia,
+          events: [
+            {
+              event: 'EventA',
+              topic: '0xEventA',
+              config: [
+                {
+                  abi: [],
+                  handler: batchHandlerStub,
+                },
+              ],
+            },
+          ],
+          parallel: {
+            enable: true,
+            useBatch: true,
+          },
+          address: ['0x123'],
+          onError: onErrorStub,
+          logService: 'test' as any,
+          stopOnError: true,
+        })
+
+        sandbox.stub(crawler, 'formatLog').returns({
+          event: { name: 'EventA' } as any,
+          handler: batchHandlerStub,
+          info: {} as any,
+        })
+
+        try {
+          await crawler.processLogsParallelBatch(mockLogs, {})
+          expect.fail('Should have thrown an error')
+        } catch (error: any) {
+          expect(error.message).to.equal('Batch processing error')
+          expect(crawler.crawlSetting.shutdown).to.be.true
         }
       })
     })
