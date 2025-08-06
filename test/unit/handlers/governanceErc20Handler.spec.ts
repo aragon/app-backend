@@ -18,6 +18,7 @@ import logger from '@logger'
 import EnsHelper from '@helpers/ens'
 import { expect } from 'chai'
 import Web3Utils from '@helpers/web3Utils'
+import DbTx from '@modules/dbTx'
 
 describe('GovernanceErc20Handler', () => {
   let sandbox: SinonSandbox
@@ -204,7 +205,6 @@ describe('GovernanceErc20Handler', () => {
       ]
 
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(plugin)
-      sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(null)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1630425600)
       sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('1500')
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ hasClockMode: true } as any)
@@ -448,7 +448,6 @@ describe('GovernanceErc20Handler', () => {
       })
 
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
-      sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(null)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1630425600)
       sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('0')
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ hasClockMode: true } as any)
@@ -511,15 +510,20 @@ describe('GovernanceErc20Handler', () => {
       ]
 
       // Set up stubs
-      const createMembersBatchStub = sandbox.stub(ProxyMember, 'createMembersBatch').resolves(true)
-      const updateVotingPowerBatchStub = sandbox.stub(ProxyMember, 'updateVotingPowerBatch').resolves(true)
-      const updatePluginMetricsBatchStub = sandbox.stub(ProxyMember, 'updatePluginMetricsBatch').resolves(true)
+      const createMembersBatchStub = sandbox.stub(ProxyMember, 'createMembersBatchWithSession').resolves(true)
+      const updateVotingPowerBatchStub = sandbox.stub(ProxyMember, 'updateVotingPowerBatchWithSession').resolves(true)
+      const updatePluginMetricsBatchStub = sandbox
+        .stub(ProxyMember, 'updatePluginMetricsBatchWithSession')
+        .resolves(true)
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(mockPlugins)
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      sandbox.stub(DbTx, 'executeTxFn').callsFake(async callback => {
+        return callback({ session: {} as any })
+      })
 
       await GovernanceErc20Handler.delegateVotesChangedBatch(events)
 
-      // Verify createMembersBatch was called with correct data
+      // Verify createMembersBatchWithSession was called with correct data
       expect(createMembersBatchStub.calledOnce).to.be.true
       const memberDataCall = createMembersBatchStub.getCall(0).args[0]
       expect(memberDataCall).to.have.lengthOf(3) // 3 unique members
@@ -528,7 +532,7 @@ describe('GovernanceErc20Handler', () => {
       const member1Data = memberDataCall.find((m: any) => m.memberAddress === '0xmember1')
       expect(member1Data!.lastActivity).to.equal(2) // Should use block 2, not block 1
 
-      // Verify updateVotingPowerBatch was called with correct data
+      // Verify updateVotingPowerBatchWithSession was called with correct data
       expect(updateVotingPowerBatchStub.calledOnce).to.be.true
       const vpDataCall = updateVotingPowerBatchStub.getCall(0).args[0]
       expect(vpDataCall).to.have.lengthOf(3) // 3 unique members
@@ -546,7 +550,7 @@ describe('GovernanceErc20Handler', () => {
       expect(member3VpData!.votingPower).to.equal('12')
       expect(member3VpData!.lastVPBlockNumber).to.equal(2)
 
-      // Verify updatePluginMetricsBatch was called
+      // Verify updatePluginMetricsBatchWithSession was called
       expect(updatePluginMetricsBatchStub.calledOnce).to.be.true
       const pluginMetricsCall = updatePluginMetricsBatchStub.getCall(0).args[0]
       expect(pluginMetricsCall).to.have.lengthOf(3) // 3 members x 1 plugin
@@ -564,11 +568,14 @@ describe('GovernanceErc20Handler', () => {
         },
       ]
 
-      const createMembersBatchStub = sandbox.stub(ProxyMember, 'createMembersBatch').resolves(true)
-      const updateVotingPowerBatchStub = sandbox.stub(ProxyMember, 'updateVotingPowerBatch').resolves(true)
-      sandbox.stub(ProxyMember, 'updatePluginMetricsBatch').resolves(true)
+      const createMembersBatchStub = sandbox.stub(ProxyMember, 'createMembersBatchWithSession').resolves(true)
+      const updateVotingPowerBatchStub = sandbox.stub(ProxyMember, 'updateVotingPowerBatchWithSession').resolves(true)
+      sandbox.stub(ProxyMember, 'updatePluginMetricsBatchWithSession').resolves(true)
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([])
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      sandbox.stub(DbTx, 'executeTxFn').callsFake(async callback => {
+        return callback({ session: {} as any })
+      })
 
       await GovernanceErc20Handler.delegateVotesChangedBatch(events)
 
@@ -584,8 +591,11 @@ describe('GovernanceErc20Handler', () => {
     })
 
     it('should handle empty events array', async () => {
-      const createMembersBatchStub = sandbox.stub(ProxyMember, 'createMembersBatch').resolves(true)
-      const updateVotingPowerBatchStub = sandbox.stub(ProxyMember, 'updateVotingPowerBatch').resolves(true)
+      const createMembersBatchStub = sandbox.stub(ProxyMember, 'createMembersBatchWithSession').resolves(true)
+      const updateVotingPowerBatchStub = sandbox.stub(ProxyMember, 'updateVotingPowerBatchWithSession').resolves(true)
+      sandbox.stub(DbTx, 'executeTxFn').callsFake(async callback => {
+        return callback({ session: {} as any })
+      })
 
       await GovernanceErc20Handler.delegateVotesChangedBatch([])
 
@@ -607,11 +617,16 @@ describe('GovernanceErc20Handler', () => {
         { address: '0xplugin3', daoAddress: '0xdao2', tokenAddress: '0xtoken1', network },
       ]
 
-      sandbox.stub(ProxyMember, 'createMembersBatch').resolves(true)
-      sandbox.stub(ProxyMember, 'updateVotingPowerBatch').resolves(true)
-      const updatePluginMetricsBatchStub = sandbox.stub(ProxyMember, 'updatePluginMetricsBatch').resolves(true)
+      sandbox.stub(ProxyMember, 'createMembersBatchWithSession').resolves(true)
+      sandbox.stub(ProxyMember, 'updateVotingPowerBatchWithSession').resolves(true)
+      const updatePluginMetricsBatchStub = sandbox
+        .stub(ProxyMember, 'updatePluginMetricsBatchWithSession')
+        .resolves(true)
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(mockPlugins)
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      sandbox.stub(DbTx, 'executeTxFn').callsFake(async callback => {
+        return callback({ session: {} as any })
+      })
 
       await GovernanceErc20Handler.delegateVotesChangedBatch(events)
 
@@ -633,13 +648,18 @@ describe('GovernanceErc20Handler', () => {
       ]
 
       const error = new Error('Database error')
-      sandbox.stub(ProxyMember, 'createMembersBatch').rejects(error)
-      const loggerErrorStub = sandbox.stub(logger, 'error')
+      sandbox.stub(DbTx, 'executeTxFn').rejects(error)
+      const loggerWarnStub = sandbox.stub(logger, 'warn')
+      // Stub the fallback methods that will be called
+      sandbox.stub(ProxyMember, 'createMembersBatch').resolves(true)
+      sandbox.stub(ProxyMember, 'updateVotingPowerBatch').resolves(true)
+      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([])
 
       await GovernanceErc20Handler.delegateVotesChangedBatch(events)
 
-      expect(loggerErrorStub.calledOnce).to.be.true
-      expect(loggerErrorStub.calledOnce).to.be.true
+      expect(loggerWarnStub.calledOnce).to.be.true
+      expect(loggerWarnStub.calledWith('Batch transaction failed, falling back to individual processing' as any)).to.be
+        .true
     })
   })
 })

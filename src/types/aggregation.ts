@@ -1,6 +1,5 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 import { type IPluginRawStatus, type IPluginStatus, type ISettingStatus } from '@src/types/plugin'
-import { type ITransferSide, type ITransferType } from '@src/types/transfer'
 
 export interface IQueryGetPlugin {
   transactionHash: HexAddress
@@ -129,14 +128,6 @@ export interface IAggSettingProjectFields {
 
 export interface IAggMemberParams {
   memberAddress?: string
-}
-
-export interface IAggMemberTransactionParams {
-  network?: string
-  memberAddress?: string
-  tokenAddress?: string
-  type?: ITransferType
-  side?: ITransferSide
 }
 
 export interface IAggPluginParams {

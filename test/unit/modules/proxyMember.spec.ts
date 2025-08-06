@@ -8,6 +8,7 @@ import { ProxyMember } from '@modules/proxyMember'
 import EnsHelper from '@helpers/ens'
 import { NetworksEnum } from '@types'
 import Web3Utils from '@helpers/web3Utils'
+import DbTx from '@modules/dbTx'
 
 describe('Modules:ProxyMember', () => {
   let sandbox: SinonSandbox
@@ -385,58 +386,6 @@ describe('Modules:ProxyMember', () => {
     })
   })
 
-  describe('updateDelegationMetrics', () => {
-    it('should update delegation metrics successfully', async () => {
-      const params = {
-        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
-        tokenAddress: '0xtoken',
-        network: NetworksEnum.ethereumMainnet,
-      }
-      const vpMember = {
-        id: 'vp-member-id',
-        update: sandbox.stub().resolves({ id: 'vp-member-id', delegateReceivedCount: 5 }),
-      }
-
-      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves(vpMember as any)
-      sandbox.stub(Models.MemberTransaction, 'getReceiveDelegationCount').resolves(5)
-
-      const result = await ProxyMember.updateDelegationMetrics(params)
-
-      expect(result?.delegateReceivedCount).to.equal(5)
-      expect(vpMember.update.calledOnceWith({ delegateReceivedCount: 5 }, sinon.match.any)).to.be.true
-    })
-
-    it('should return null if address is invalid', async () => {
-      sandbox.stub(Web3Utils, 'parseAddress').returns(null)
-
-      const result = await ProxyMember.updateDelegationMetrics({
-        memberAddress: 'invalid',
-        tokenAddress: '0xtoken',
-        network: NetworksEnum.ethereumMainnet,
-      })
-
-      expect(result).to.be.null
-    })
-
-    it('should return null if getOrCreateVotingPower fails', async () => {
-      const params = {
-        memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
-        tokenAddress: '0xtoken',
-        network: NetworksEnum.ethereumMainnet,
-      }
-
-      sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves(null)
-      const loggerErrorStub = sandbox.stub(Logger, 'error')
-
-      const result = await ProxyMember.updateDelegationMetrics(params)
-
-      expect(result).to.be.null
-      expect(loggerErrorStub.calledOnce).to.be.true
-    })
-  })
-
   describe('addPluginMember', () => {
     it('should add plugin member successfully', async () => {
       const params = {
@@ -808,8 +757,8 @@ describe('Modules:ProxyMember', () => {
         const members = [{ memberAddress: '0xmember1', lastActivity: 100 }]
         const error = new Error('Database error')
 
-        sandbox.stub(Web3Utils, 'parseAddress').returns('0xmember1')
-        sandbox.stub(Models.Member, 'bulkWrite').rejects(error)
+        // Stub DbTx.executeTxFn to throw error
+        sandbox.stub(DbTx, 'executeTxFn').rejects(error)
         const loggerErrorStub = sandbox.stub(Logger, 'error')
 
         const result = await ProxyMember.createMembersBatch(members)
@@ -927,9 +876,8 @@ describe('Modules:ProxyMember', () => {
         ]
 
         const error = new Error('Bulk write error')
-        sandbox.stub(Web3Utils, 'parseAddress').returns('0xmember1')
-        sandbox.stub(Models.VpMember, 'getEntityId').returns('test-id')
-        sandbox.stub(Models.VpMember, 'bulkWrite').rejects(error)
+        // Stub DbTx.executeTxFn to throw error
+        sandbox.stub(DbTx, 'executeTxFn').rejects(error)
         const loggerErrorStub = sandbox.stub(Logger, 'error')
 
         const result = await ProxyMember.updateVotingPowerBatch(updates)

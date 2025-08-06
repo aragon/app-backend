@@ -4,7 +4,7 @@ import { type ILogInfo } from '@types'
 import { Models } from '@dbModels'
 import { ProxyMember } from '@modules/proxyMember'
 import Web3Helper from '@helpers/web3'
-import { EnumQueueName, ITransferSide, ITransferType } from '@types'
+import { EnumQueueName, ITransferSide } from '@types'
 import utils from '@helpers/utils'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { ProxyToken } from '@modules/proxyToken'
@@ -424,23 +424,6 @@ export const GovernanceVeHandler = {
     tokenIds: string[],
   ) => {
     try {
-      const existingLog = await Models.MemberTransaction.findExistingLog({
-        network: info.network,
-        transactionHash: info.transactionHash,
-        transactionIndex: info.transactionIndex,
-        logIndex: info.logIndex,
-        address: memberAddress,
-      })
-
-      if (existingLog) return
-
-      let lastActivity: undefined | number
-      if (transferSide === ITransferSide.outgoing) {
-        lastActivity = info.blockNumber
-      }
-
-      await ProxyMember.createMember(memberAddress, lastActivity)
-
       const token = await ProxyToken.saveAndGetToken(info.address, info.network)
       if (!token) {
         logger.error('handleTokenDelegation token not found', llo({ info }))
@@ -452,6 +435,15 @@ export const GovernanceVeHandler = {
         tokenAddress: info.address,
         network: info.network,
       })
+
+      if (vpMember && vpMember?.lastVPBlockNumber > info.blockNumber) return
+
+      let lastActivity: undefined | number
+      if (transferSide === ITransferSide.outgoing) {
+        lastActivity = info.blockNumber
+      }
+
+      await ProxyMember.createMember(memberAddress, lastActivity)
 
       const currentTokenIds = vpMember?.tokenIds || []
       let tokenIdsToSave: string[]
@@ -479,24 +471,6 @@ export const GovernanceVeHandler = {
         token.clockMode,
       )
 
-      await Models.MemberTransaction.create({
-        network: info.network,
-        transactionHash: info.transactionHash,
-        transactionIndex: info.transactionIndex,
-        logIndex: info.logIndex,
-        blockNumber: info.blockNumber,
-        blockTimestamp,
-        address: memberAddress,
-        type: ITransferType.delegate,
-        side: transferSide,
-        from: parsedEvent.args.sender,
-        to: parsedEvent.args.delegatee,
-        amount: tokenIdsToSave.length.toString(),
-        tokenAddress: info.address,
-        memberVotingPower: votingPower.toString(),
-        memberBalance: tokenIdsToSave.length.toString(),
-      })
-
       await ProxyMember.updateVotingPower({
         memberAddress,
         tokenAddress: info.address,
@@ -507,14 +481,6 @@ export const GovernanceVeHandler = {
       })
 
       // only when incoming delegation, we update the delegation metrics
-      if (transferSide === ITransferSide.outgoing) {
-        await ProxyMember.updateDelegationMetrics({
-          memberAddress,
-          tokenAddress: info.address,
-          network: info.network,
-        })
-      }
-
       // update lastActivity metrics for all plugins
       if (lastActivity) {
         const plugins = await Models.Plugin.findAllByTokenAddress(info.address, info.network)

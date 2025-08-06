@@ -2533,13 +2533,19 @@ describe('Handler:GovernanceVeHandler', () => {
   })
 
   describe('_handleTokenDelegation', () => {
-    it('should skip if existing log found', async () => {
-      const stubFindExistingLog = sandbox
-        .stub(Models.MemberTransaction, 'findExistingLog')
-        .resolves({ id: 'existing' } as any)
+    it('should skip if lastVPBlockNumber is greater than current block', async () => {
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        type: ITokenType.ERC721,
+        isGovernance: true,
+        clockMode: false,
+      } as any)
+      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
+        lastVPBlockNumber: 200, // Greater than info.blockNumber (123)
+        tokenIds: ['123'],
+      } as any)
       const stubCreateMember = sandbox.stub(ProxyMember, 'createMember')
-      const stubSaveAndGetToken = sandbox.stub(ProxyToken, 'saveAndGetToken')
-      const stubCreate = sandbox.stub(Models.MemberTransaction, 'create')
+      const stubGetBlockTimestamp = sandbox.stub(Web3Helper, 'getBlockTimestamp')
+      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateVotingPower')
 
       const mockParsedEvent = {
         args: {
@@ -2567,18 +2573,15 @@ describe('Handler:GovernanceVeHandler', () => {
         ['123'],
       )
 
-      expect(stubFindExistingLog.calledOnce).to.be.true
       expect(stubCreateMember.notCalled).to.be.true
-      expect(stubSaveAndGetToken.notCalled).to.be.true
-      expect(stubCreate.notCalled).to.be.true
+      expect(stubGetBlockTimestamp.notCalled).to.be.true
+      expect(stubUpdateVotingPower.notCalled).to.be.true
     })
 
     it('should log error if token not found', async () => {
-      sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(null)
-      sandbox.stub(ProxyMember, 'createMember').resolves()
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
       const stubLogger = sandbox.stub(logger, 'error')
-      const stubCreate = sandbox.stub(Models.MemberTransaction, 'create')
+      const stubCreateMember = sandbox.stub(ProxyMember, 'createMember')
 
       const mockParsedEvent = {
         args: {
@@ -2608,12 +2611,11 @@ describe('Handler:GovernanceVeHandler', () => {
 
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('handleTokenDelegation token not found' as any)).to.be.true
-      expect(stubCreate.notCalled).to.be.true
+      expect(stubCreateMember.notCalled).to.be.true
     })
 
     it('should handle self-delegation with incoming transfer side', async () => {
-      sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(null)
-      sandbox.stub(ProxyMember, 'createMember').resolves()
+      const stubCreateMember = sandbox.stub(ProxyMember, 'createMember').resolves()
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         type: ITokenType.ERC721,
         isGovernance: true,
@@ -2624,9 +2626,8 @@ describe('Handler:GovernanceVeHandler', () => {
       } as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('100')
-      const stubCreate = sandbox.stub(Models.MemberTransaction, 'create').resolves()
       const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
-      const stubUpdateDelegationMetrics = sandbox.stub(ProxyMember, 'updateDelegationMetrics')
+      const stubUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics')
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([])
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([])
 
@@ -2656,13 +2657,9 @@ describe('Handler:GovernanceVeHandler', () => {
         ['123', '456'],
       )
 
-      // Verify transaction created with deduplicated tokenIds
-      expect(stubCreate.calledOnce).to.be.true
-      const createArgs = stubCreate.firstCall.args[0]
-      expect(createArgs.amount).to.equal('3') // ['789', '123', '456'] - deduplicated
-      expect(createArgs.memberBalance).to.equal('3')
-      expect(createArgs.type).to.equal(ITransferType.delegate)
-      expect(createArgs.side).to.equal(ITransferSide.incoming)
+      // Verify createMember called without lastActivity for incoming
+      expect(stubCreateMember.calledOnce).to.be.true
+      expect(stubCreateMember.calledWith('0x65D9d3887aa9a9ee78901E96819B574160E4EAC5', undefined)).to.be.true
 
       // Verify voting power updated with deduplicated tokenIds
       expect(stubUpdateVotingPower.calledOnce).to.be.true
@@ -2677,12 +2674,11 @@ describe('Handler:GovernanceVeHandler', () => {
         }),
       ).to.be.true
 
-      // Should not update delegation metrics for incoming
-      expect(stubUpdateDelegationMetrics.notCalled).to.be.true
+      // Should not update plugin metrics for incoming (no lastActivity)
+      expect(stubUpdatePluginMetrics.notCalled).to.be.true
     })
 
     it('should handle normal delegation with outgoing transfer side', async () => {
-      sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(null)
       const stubCreateMember = sandbox.stub(ProxyMember, 'createMember').resolves()
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         type: ITokenType.ERC721,
@@ -2694,9 +2690,7 @@ describe('Handler:GovernanceVeHandler', () => {
       } as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('50')
-      const stubCreate = sandbox.stub(Models.MemberTransaction, 'create').resolves()
       const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
-      const stubUpdateDelegationMetrics = sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
       const stubUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([plugin.daoAddress])
@@ -2731,25 +2725,9 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stubCreateMember.calledOnce).to.be.true
       expect(stubCreateMember.calledWith('0x65D9d3887aa9a9ee78901E96819B574160E4EAC5', 123)).to.be.true
 
-      // Verify transaction created with filtered tokenIds
-      expect(stubCreate.calledOnce).to.be.true
-      const createArgs = stubCreate.firstCall.args[0]
-      expect(createArgs.amount).to.equal('1') // Only '789' remains
-      expect(createArgs.memberBalance).to.equal('1')
-
       // Verify voting power updated with filtered tokenIds
       expect(stubUpdateVotingPower.calledOnce).to.be.true
       expect(stubUpdateVotingPower.firstCall.args[0].tokenIds).to.deep.equal(['789'])
-
-      // Should update delegation metrics for outgoing
-      expect(stubUpdateDelegationMetrics.calledOnce).to.be.true
-      expect(
-        stubUpdateDelegationMetrics.calledWith({
-          memberAddress: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          tokenAddress: mockInfo.address,
-          network: mockInfo.network,
-        }),
-      ).to.be.true
 
       // Should update plugin metrics for outgoing
       expect(stubUpdatePluginMetrics.calledOnce).to.be.true
@@ -2773,7 +2751,6 @@ describe('Handler:GovernanceVeHandler', () => {
     })
 
     it('should handle normal delegation with incoming transfer side', async () => {
-      sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(null)
       const stubCreateMember = sandbox.stub(ProxyMember, 'createMember').resolves()
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         type: ITokenType.ERC721,
@@ -2785,9 +2762,7 @@ describe('Handler:GovernanceVeHandler', () => {
       } as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('150')
-      const stubCreate = sandbox.stub(Models.MemberTransaction, 'create').resolves()
       const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
-      const stubUpdateDelegationMetrics = sandbox.stub(ProxyMember, 'updateDelegationMetrics')
       const stubUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics')
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([])
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([])
@@ -2822,25 +2797,15 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stubCreateMember.calledOnce).to.be.true
       expect(stubCreateMember.calledWith('0x75D9d3887aa9a9ee78901E96819B574160E4EAC6', undefined)).to.be.true
 
-      // Verify transaction created with added tokenIds
-      expect(stubCreate.calledOnce).to.be.true
-      const createArgs = stubCreate.firstCall.args[0]
-      expect(createArgs.amount).to.equal('3') // ['789', '123', '456']
-      expect(createArgs.memberBalance).to.equal('3')
-
       // Verify voting power updated with added tokenIds
       expect(stubUpdateVotingPower.calledOnce).to.be.true
       expect(stubUpdateVotingPower.firstCall.args[0].tokenIds).to.deep.equal(['789', '123', '456'])
 
-      // Should not update delegation metrics for incoming
-      expect(stubUpdateDelegationMetrics.notCalled).to.be.true
-
-      // Should not update plugin metrics for incoming
+      // Should not update plugin metrics for incoming (no lastActivity)
       expect(stubUpdatePluginMetrics.notCalled).to.be.true
     })
 
     it('should handle undefined blockTimestamp gracefully', async () => {
-      sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(null)
       sandbox.stub(ProxyMember, 'createMember').resolves()
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         type: ITokenType.ERC721,
@@ -2852,7 +2817,6 @@ describe('Handler:GovernanceVeHandler', () => {
       } as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(undefined)
       const stubGetPastVotes = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('0')
-      const stubCreate = sandbox.stub(Models.MemberTransaction, 'create').resolves()
       sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([])
 
@@ -2882,11 +2846,6 @@ describe('Handler:GovernanceVeHandler', () => {
         ['123'],
       )
 
-      // Verify transaction created with undefined blockTimestamp
-      expect(stubCreate.calledOnce).to.be.true
-      const createArgs = stubCreate.firstCall.args[0]
-      expect(createArgs.blockTimestamp).to.be.undefined
-
       // Verify getPastVotes called with 0 when blockTimestamp is undefined
       expect(
         stubGetPastVotes.calledWith(
@@ -2895,7 +2854,7 @@ describe('Handler:GovernanceVeHandler', () => {
           mockInfo.blockNumber,
           0, // Should pass 0 when blockTimestamp is undefined
           mockInfo.network,
-          false as any, // clockMode from token (which is null in this test)
+          false as any, // clockMode from token
         ),
       ).to.be.true
     })
@@ -2915,7 +2874,6 @@ describe('Handler:GovernanceVeHandler', () => {
         tokenAddress: '0xToken',
       } as any
 
-      sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(null)
       sandbox.stub(ProxyMember, 'createMember').resolves()
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         type: ITokenType.ERC721,
@@ -2927,9 +2885,7 @@ describe('Handler:GovernanceVeHandler', () => {
       } as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('100')
-      sandbox.stub(Models.MemberTransaction, 'create').resolves()
       sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
-      sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
       const stubUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin, plugin2, plugin3])
       sandbox.stub(utils, 'getUniqueValuesByKey').returns(['0xDAO', '0xDAO2']) // Two unique DAOs
@@ -2980,7 +2936,6 @@ describe('Handler:GovernanceVeHandler', () => {
     })
 
     it('should handle empty tokenIds arrays', async () => {
-      sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(null)
       sandbox.stub(ProxyMember, 'createMember').resolves()
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         type: ITokenType.ERC721,
@@ -2992,7 +2947,6 @@ describe('Handler:GovernanceVeHandler', () => {
       } as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('0')
-      const stubCreate = sandbox.stub(Models.MemberTransaction, 'create').resolves()
       const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([])
 
@@ -3022,19 +2976,18 @@ describe('Handler:GovernanceVeHandler', () => {
         [], // Empty tokenIds
       )
 
-      // Verify transaction created with 0 amount
-      expect(stubCreate.calledOnce).to.be.true
-      const createArgs = stubCreate.firstCall.args[0]
-      expect(createArgs.amount).to.equal('0')
-      expect(createArgs.memberBalance).to.equal('0')
-
       // Verify voting power updated with empty array
       expect(stubUpdateVotingPower.calledOnce).to.be.true
       expect(stubUpdateVotingPower.firstCall.args[0].tokenIds).to.deep.equal([])
     })
 
     it('should catch and log errors', async () => {
-      sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(null)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        type: ITokenType.ERC721,
+        isGovernance: true,
+        clockMode: false,
+      } as any)
+      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves(null)
       sandbox.stub(ProxyMember, 'createMember').rejects(new Error('Database error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
@@ -3069,7 +3022,6 @@ describe('Handler:GovernanceVeHandler', () => {
     })
 
     it('should handle token with clockMode enabled', async () => {
-      sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(null)
       sandbox.stub(ProxyMember, 'createMember').resolves()
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         type: ITokenType.ERC721,
@@ -3081,7 +3033,6 @@ describe('Handler:GovernanceVeHandler', () => {
       } as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       const stubGetPastVotes = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('100')
-      sandbox.stub(Models.MemberTransaction, 'create').resolves()
       sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([])
 
@@ -3126,7 +3077,6 @@ describe('Handler:GovernanceVeHandler', () => {
     })
 
     it('should handle token with clockMode as BlockNumber', async () => {
-      sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(null)
       sandbox.stub(ProxyMember, 'createMember').resolves()
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         type: ITokenType.ERC721,
@@ -3138,7 +3088,6 @@ describe('Handler:GovernanceVeHandler', () => {
       } as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       const stubGetPastVotes = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('100')
-      sandbox.stub(Models.MemberTransaction, 'create').resolves()
       sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([])
 
