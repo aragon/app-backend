@@ -78,21 +78,31 @@ export const GovernanceErc20Handler = {
       // Group events by member to handle each member's updates together
       const eventsByMember = new Map<string, Array<{ parsedEvent: LogDescription; info: ILogInfo }>>()
 
-      validEvents.forEach(event => {
+      // Use for...of loop for better performance
+      for (const event of validEvents) {
         const memberAddress = event.parsedEvent.args.delegate.toLowerCase()
-        if (!eventsByMember.has(memberAddress)) {
-          eventsByMember.set(memberAddress, [])
+        const existing = eventsByMember.get(memberAddress)
+        if (existing) {
+          existing.push(event)
+        } else {
+          eventsByMember.set(memberAddress, [event])
         }
-        eventsByMember.get(memberAddress)!.push(event)
-      })
+      }
 
       // Process each member's events to get only the latest
       const latestEventsPerMember: Array<{ parsedEvent: LogDescription; info: ILogInfo }> = []
-      eventsByMember.forEach(memberEvents => {
-        // Sort by block number descending and take the first (latest)
-        const latestEvent = memberEvents.sort((a, b) => b.info.blockNumber - a.info.blockNumber)[0]
+      
+      // Use for...of with Map entries for better performance
+      for (const [, memberEvents] of eventsByMember) {
+        // Find the event with the highest block number without sorting the entire array
+        let latestEvent = memberEvents[0]
+        for (let i = 1; i < memberEvents.length; i++) {
+          if (memberEvents[i].info.blockNumber > latestEvent.info.blockNumber) {
+            latestEvent = memberEvents[i]
+          }
+        }
         latestEventsPerMember.push(latestEvent)
-      })
+      }
 
       // First, try batch operation with transaction for better performance
       try {
