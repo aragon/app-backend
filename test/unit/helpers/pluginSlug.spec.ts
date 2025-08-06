@@ -128,6 +128,12 @@ describe('Helpers:PluginSlug', () => {
       expect(result).to.equal(IPluginSlug.spp)
     })
 
+    it('should return correct IPluginSlug for lockToVote interface type', () => {
+      const plugin = { interfaceType: IPluginInterfaceType.lockToVote } as any
+      const result = PluginSlug._defaultSlug(plugin)
+      expect(result).to.equal(IPluginSlug.locktovote)
+    })
+
     it('should return correct IPluginSlug for tokenVoting interface type', () => {
       const plugin = { interfaceType: IPluginInterfaceType.tokenVoting } as any
       const result = PluginSlug._defaultSlug(plugin)
