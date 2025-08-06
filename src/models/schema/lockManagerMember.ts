@@ -108,7 +108,7 @@ export default class LockManagerMember extends Model {
     },
     tOpts?: SaveOptions,
   ) {
-    return await this.find({ network, pluginAddress }, null, tOpts)
+    return await this.find({ network, pluginAddress, votingPower: { $ne: '0' } }, null, tOpts)
   }
 
   async update(params: Partial<LockManagerMember>, tOpts?: SaveOptions) {

@@ -54,8 +54,7 @@ const LockManagerHandler = {
           totalLockedBalanceStr = eventAmount
         }
       } else {
-        // Convert to string to avoid precision loss in DB
-        totalLockedBalanceStr = totalLockedBalance.toString()
+        totalLockedBalanceStr = totalLockedBalance
       }
 
       const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
@@ -173,8 +172,7 @@ const LockManagerHandler = {
         const newPower = currentPower > unlockAmount ? currentPower - unlockAmount : BigInt(0)
         totalLockedBalanceStr = newPower.toString()
       } else {
-        // Convert to string to avoid precision loss in DB
-        totalLockedBalanceStr = totalLockedBalance.toString()
+        totalLockedBalanceStr = totalLockedBalance
       }
 
       const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
