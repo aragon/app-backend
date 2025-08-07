@@ -180,6 +180,7 @@ export default class Vote extends Model {
     const filter = {
       ...ModelUtils.createFilter(paginationParams, ['address', 'ens']),
       ...dynamicFilter,
+      $or: [{ 'voteCleared.status': false }, { 'voteCleared.status': { $exists: false } }],
     }
 
     const query: any = [
