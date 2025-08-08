@@ -160,7 +160,7 @@ const RabbitMQHelper = {
     try {
       const response = await new Promise(resolve => {
         const timeoutId = setTimeout(async () => {
-          logger.warn('Timeout waiting for response', { queueName, correlationId })
+          logger.warn('Timeout waiting for response', { queueName, correlationId, payload, opts })
           resolve(null)
         }, opts.timeout || 5000)
         channelWrapper.addSetup(async (channel: ConfirmChannel) => {
