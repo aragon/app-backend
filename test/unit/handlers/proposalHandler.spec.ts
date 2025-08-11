@@ -29,6 +29,7 @@ import DecodeActions from '@helpers/decodeAction'
 import DbOperations from '@models/utils/dbOperations'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import Web3Utils from '@helpers/web3Utils'
+import LockToVoteHelper from '@helpers/lockToVoteHelper'
 
 describe('ProposalHandler', () => {
   let sandbox: SinonSandbox
@@ -1110,7 +1111,7 @@ describe('ProposalHandler', () => {
       expect(result?.relatedPlugin).to.be.undefined
     })
 
-    it('should handle when getPastTotalSupply returns null', async () => {
+    it('should handle when getPastTotalSupply returns 0', async () => {
       const metadataUri = 'ipfs://metadata-uri'
       const info: ILogInfo = {
         transactionHash: '0xnull-supply-tx',
@@ -1153,7 +1154,7 @@ describe('ProposalHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
       sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves({} as any)
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ hasClockMode: true } as any)
-      sandbox.stub(GovernanceErc20Helper, 'getPastTotalSupply').resolves(null as any) // Null total supply
+      sandbox.stub(GovernanceErc20Helper, 'getPastTotalSupply').resolves('0')
       sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
       sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
       sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
@@ -1268,6 +1269,74 @@ describe('ProposalHandler', () => {
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
 
       expect(stubLogger.calledOnceWith('Error Create proposal' as any)).to.be.true
+    })
+
+    it('should handle lockToVote proposalCreated with snapshot totalSupply', async () => {
+      const metadataUri = 'ipfs://metadata-uri'
+      const info: ILogInfo = {
+        transactionHash: '0x123',
+        address: '0xplugin-address',
+        blockNumber: 100,
+        network,
+        eventName: 'proposalCreated',
+        transactionIndex: 1,
+        logIndex: 1,
+        interfaceType: IPluginInterfaceType.lockToVote,
+      }
+
+      const fakeEvent = {
+        args: {
+          creator: '0xcreator',
+          proposalId: 1n,
+          startDate: 1700000000n,
+          endDate: 1700086400n,
+          allowFailureMap: 1n,
+          metadata: metadataUri,
+          actions: [],
+        },
+      }
+
+      const plugin = {
+        address: '0xplugin-address',
+        daoAddress: '0xdao-address',
+        subdomain: 'dao.subdomain',
+        interfaceType: IPluginInterfaceType.lockToVote,
+        network,
+      }
+
+      const proposalMetadata = {
+        title: 'LockToVote Proposal',
+        description: 'LockToVote Description',
+        summary: 'LockToVote Summary',
+        resources: [],
+        media: {},
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin)
+      sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(null)
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      sandbox.stub(IPFSModule, 'fetchMetadata').resolves(proposalMetadata)
+
+      const getCurrentTotalSupplyStub = sandbox.stub(LockToVoteHelper, 'getCurrentTotalSupply').resolves('5000')
+
+      sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
+      sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      sandbox.stub(logger, 'verbose')
+
+      await ProposalHandler.proposalCreated(fakeEvent as any, info)
+
+      const savedProposal = await Models.Proposal.findOne({
+        transactionHash: '0x123',
+        pluginAddress: '0xplugin-address',
+        proposalIndex: '1',
+      })
+
+      expect(savedProposal).to.exist
+      expect(savedProposal.snapshot.totalSupply).to.eq('5000')
+      expect(getCurrentTotalSupplyStub.calledOnceWith(network, '0xplugin-address', 100)).to.be.true
     })
   })
 
@@ -3423,165 +3492,215 @@ describe('ProposalHandler', () => {
     })
   })
 
-  describe('proposalEdited', () => {
-    it('should update proposal with edited metadata and actions', async () => {
-      const proposal = await Models.Proposal.create({
-        ...ProposalList[0],
-        network,
-      })
-
+  describe('voteCleared', () => {
+    it('should clear a vote successfully', async () => {
       const info: ILogInfo = {
-        transactionHash: '0xEditedTx',
-        address: proposal.pluginAddress,
-        blockNumber: 200,
-        network,
-        eventName: 'ProposalEdited',
-        transactionIndex: 1,
-        logIndex: 2,
-      }
-
-      const fakeEvent = {
-        args: {
-          proposalId: proposal.proposalIndex,
-          metadata: 'ipfs://edited-metadata-uri',
-          actions: [
-            { to: '0xTarget1', value: 0n, data: '0x12345678' },
-            { to: '0xTarget2', value: 100n, data: '0x' },
-          ],
-        },
-      }
-
-      const editedMetadata = {
-        title: 'Edited Title',
-        description: 'Edited Description',
-        summary: 'Edited Summary',
-        resources: [{ name: 'Edited Resource', url: 'https://edited.com' }],
-        media: { logo: 'https://edited-logo.com' },
-      }
-
-      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal)
-      sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://edited-metadata-uri')
-      sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves(editedMetadata)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
-
-      const decodeDataStub = sandbox
-        .stub(DecodeActions.prototype, 'decodeData')
-        .resolves({ to: '0xDecoded', value: '0', data: '0x' } as any)
-      const decodeTransferStub = sandbox
-        .stub(DecodeActions.prototype, 'decodeTransfer')
-        .resolves({ to: '0xDecoded', value: '0', data: '0x' } as any)
-      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
-
-      await ProposalHandler.proposalEdited(fakeEvent as any, info)
-
-      const updatedProposal = await proposal.reload()
-
-      expect(updatedProposal.title).to.equal('Edited Title')
-      expect(updatedProposal.description).to.equal('Edited Description')
-      expect(updatedProposal.summary).to.equal('Edited Summary')
-      expect(updatedProposal.resources.map(r => ({ name: r.name, url: r.url }))).to.deep.equal(editedMetadata.resources)
-      expect(updatedProposal.media.logo).to.equal(editedMetadata.media.logo)
-      expect(updatedProposal.editedTxInfo.blockNumber).to.equal(200)
-      expect(updatedProposal.editedTxInfo.transactionHash).to.equal('0xEditedTx')
-      expect(updatedProposal.editedTxInfo.blockTimestamp).to.equal(1700000000)
-      expect(decodeDataStub.calledOnce).to.be.true
-      expect(decodeTransferStub.calledOnce).to.be.true
-      expect(verboseLoggerStub.calledOnceWith('Update proposalEdited' as any)).to.be.true
-    })
-
-    it('should log a warning if the proposal is not found', async () => {
-      const info: ILogInfo = {
-        transactionHash: '0xEditedTx',
+        transactionHash: '0xVoteClearedTx',
         address: '0xplugin-address',
-        blockNumber: 200,
+        blockNumber: 10,
         network,
-        eventName: 'ProposalEdited',
-        transactionIndex: 1,
-        logIndex: 2,
+        eventName: 'VoteCleared',
+        transactionIndex: 2,
+        logIndex: 3,
       }
 
       const fakeEvent = {
         args: {
           proposalId: 1n,
-          metadata: 'ipfs://metadata-uri',
-          actions: [],
+          voter: '0xvoter-address',
         },
       }
 
-      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(null)
-      const warnLoggerStub = sandbox.stub(logger, 'warn')
+      const mockPlugin = { address: '0xplugin-address', network, isSupported: true }
+      const mockProposal = {
+        id: 'proposal-id',
+        daoAddress: '0xdao-address',
+        network,
+        proposalIndex: '1',
+      }
+      const mockVote = {
+        id: 'vote-id',
+        memberAddress: '0xvoter-address',
+        proposalIndex: '1',
+      }
 
-      await ProposalHandler.proposalEdited(fakeEvent as any, info)
+      sandbox.stub(Models.Vote, 'findOne').resolves(null)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(mockProposal as any)
+      sandbox.stub(Models.Vote, 'findVoteOnPlugin').resolves(mockVote as any)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1640995200)
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+      const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
 
-      expect(warnLoggerStub.calledOnceWith('Proposal not found' as any)).to.be.true
+      await ProposalHandler.voteCleared(fakeEvent as any, info)
+
+      expect(updateDocumentStub.calledOnce).to.be.true
+      expect(updateDocumentStub.firstCall.args[1]).to.deep.equal({
+        voteCleared: {
+          status: true,
+          transactionHash: '0xVoteClearedTx',
+          blockNumber: 10,
+          blockTimestamp: 1640995200,
+        },
+      })
+      expect(rabbitMQStub.calledTwice).to.be.true
+      expect(verboseLoggerStub.calledOnceWith('Vote cleared successfully' as any)).to.be.true
     })
 
-    it('should handle null metadata gracefully', async () => {
-      const proposal = await Models.Proposal.create({
-        ...ProposalList[0],
-        network,
-      })
-
+    it('should return early if log already exists', async () => {
       const info: ILogInfo = {
-        transactionHash: '0xEditedTx',
-        address: proposal.pluginAddress,
-        blockNumber: 200,
+        transactionHash: '0xVoteClearedTx',
+        address: '0xplugin-address',
+        blockNumber: 10,
         network,
-        eventName: 'ProposalEdited',
-        transactionIndex: 1,
-        logIndex: 2,
+        eventName: 'VoteCleared',
+        transactionIndex: 2,
+        logIndex: 3,
       }
 
       const fakeEvent = {
         args: {
-          proposalId: proposal.proposalIndex,
-          metadata: 'ipfs://metadata-uri',
-          actions: [],
+          proposalId: 1n,
+          voter: '0xvoter-address',
         },
       }
 
-      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal)
-      sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://metadata-uri')
-      sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves(null)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
-      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
+      const existingLog = { id: 'existing-log' }
+      sandbox.stub(Models.Vote, 'findOne').resolves(existingLog as any)
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress')
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
 
-      await ProposalHandler.proposalEdited(fakeEvent as any, info)
+      await ProposalHandler.voteCleared(fakeEvent as any, info)
 
-      const updatedProposal = await proposal.reload()
+      expect(pluginStub.called).to.be.false
+      expect(updateDocumentStub.called).to.be.false
+    })
 
-      // When metadata is null, fields should remain unchanged from original values
-      expect(updatedProposal.title).to.equal('Withdraw funds')
-      expect(updatedProposal.description).to.equal('<p>Withdraw funds</p>')
-      expect(updatedProposal.summary).to.equal('Withdraw funds')
-      expect(verboseLoggerStub.calledOnceWith('Update proposalEdited' as any)).to.be.true
+    it('should return early if plugin is not found', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0xVoteClearedTx',
+        address: '0xplugin-address',
+        blockNumber: 10,
+        network,
+        eventName: 'VoteCleared',
+        transactionIndex: 2,
+        logIndex: 3,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: 1n,
+          voter: '0xvoter-address',
+        },
+      }
+
+      sandbox.stub(Models.Vote, 'findOne').resolves(null)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+      const warnLoggerStub = sandbox.stub(logger, 'warn')
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
+
+      await ProposalHandler.voteCleared(fakeEvent as any, info)
+
+      expect(warnLoggerStub.calledOnceWith('VoteCleared - Plugin not found' as any)).to.be.true
+      expect(updateDocumentStub.called).to.be.false
+    })
+
+    it('should return early if proposal is not found', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0xVoteClearedTx',
+        address: '0xplugin-address',
+        blockNumber: 10,
+        network,
+        eventName: 'VoteCleared',
+        transactionIndex: 2,
+        logIndex: 3,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: 1n,
+          voter: '0xvoter-address',
+        },
+      }
+
+      const mockPlugin = { address: '0xplugin-address', network, isSupported: true }
+
+      sandbox.stub(Models.Vote, 'findOne').resolves(null)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(null)
+      const warnLoggerStub = sandbox.stub(logger, 'warn')
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
+
+      await ProposalHandler.voteCleared(fakeEvent as any, info)
+
+      expect(warnLoggerStub.calledOnceWith('VoteCleared - Proposal not found' as any)).to.be.true
+      expect(updateDocumentStub.called).to.be.false
+    })
+
+    it('should return early if existing vote is not found', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0xVoteClearedTx',
+        address: '0xplugin-address',
+        blockNumber: 10,
+        network,
+        eventName: 'VoteCleared',
+        transactionIndex: 2,
+        logIndex: 3,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: 1n,
+          voter: '0xvoter-address',
+        },
+      }
+
+      const mockPlugin = { address: '0xplugin-address', network, isSupported: true }
+      const mockProposal = {
+        id: 'proposal-id',
+        daoAddress: '0xdao-address',
+        network,
+        proposalIndex: '1',
+      }
+
+      sandbox.stub(Models.Vote, 'findOne').resolves(null)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(mockProposal as any)
+      sandbox.stub(Models.Vote, 'findVoteOnPlugin').resolves(null)
+      const warnLoggerStub = sandbox.stub(logger, 'warn')
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
+
+      await ProposalHandler.voteCleared(fakeEvent as any, info)
+
+      expect(warnLoggerStub.calledOnceWith('VoteCleared - Vote not found' as any)).to.be.true
+      expect(updateDocumentStub.called).to.be.false
     })
 
     it('should log an error if an exception occurs', async () => {
       const info: ILogInfo = {
-        transactionHash: '0xEditedTx',
+        transactionHash: '0xVoteClearedTx',
         address: '0xplugin-address',
-        blockNumber: 200,
+        blockNumber: 10,
         network,
-        eventName: 'ProposalEdited',
-        transactionIndex: 1,
-        logIndex: 2,
+        eventName: 'VoteCleared',
+        transactionIndex: 2,
+        logIndex: 3,
       }
 
       const fakeEvent = {
         args: {
           proposalId: 1n,
-          metadata: 'ipfs://metadata-uri',
-          actions: [],
+          voter: '0xvoter-address',
         },
       }
 
-      sandbox.stub(Models.Proposal, 'findByProposalIndex').rejects(new Error('Database error'))
+      sandbox.stub(Models.Vote, 'findOne').rejects(new Error('Database error'))
       const errorLoggerStub = sandbox.stub(logger, 'error')
 
-      await ProposalHandler.proposalEdited(fakeEvent as any, info)
+      await ProposalHandler.voteCleared(fakeEvent as any, info)
 
-      expect(errorLoggerStub.calledOnceWith('Error proposalEdited' as any)).to.be.true
+      expect(errorLoggerStub.calledOnceWith('Error VoteCleared' as any)).to.be.true
     })
   })
 })
