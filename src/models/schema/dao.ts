@@ -61,14 +61,11 @@ class Metrics {
     customName,
   },
 })
-@index({ id: 1 }, { unique: true })
 @index({ address: 1, blockNumber: 1, name: 1, creatorAddress: 1, tvlUSD: 1 })
 @index({ isHidden: 1, isActive: 1, 'metrics.tvlUSD': -1 })
 @index({ address: 1, isActive: 1, isHidden: 1 })
 @index({ blockNumber: -1, address: 1, isActive: 1, isHidden: 1 })
-@index({ id: 1 }, { unique: true })
 @index({ address: 1, isActive: 1, network: 1, isHidden: 1 })
-@index({ address: 1, blockNumber: 1, name: 1, creatorAddress: 1, tvlUSD: 1 })
 @index({ address: 1, creatorAddress: 1, isActive: 1, isHidden: 1 })
 @index({ network: 1, creatorAddress: 1, isActive: 1, isHidden: 1 })
 @index({ address: 1, transactionHash: 1, isActive: 1, isHidden: 1 })
@@ -80,10 +77,8 @@ class Metrics {
 @index({ network: 1, transactionHash: 1, isActive: 1, isHidden: 1 })
 @index({ address: 1, name: 1, isActive: 1, isHidden: 1 })
 @index({ address: 1, ens: 1, isActive: 1, isHidden: 1 })
-@index({ address: 1, isActive: 1, isHidden: 1 })
 @index({ network: 1, isActive: 1, isHidden: 1 })
 @index({ network: 1, isActive: 1, name: 1, isHidden: 1 })
-@index({ isHidden: 1, isActive: 1, 'metrics.tvlUSD': -1 })
 @index({ network: 1 })
 export default class Dao extends Model {
   @prop({ type: () => String, required: true, unique: true })

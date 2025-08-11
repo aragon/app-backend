@@ -5,6 +5,7 @@ import logger from '@logger'
 import EnsHelper from '@helpers/ens'
 import DbTx from '@modules/dbTx'
 import type Member from '@models/schema/member'
+import type LockManagerMember from '@models/schema/lockManagerMember'
 import type TokenMember from '@models/schema/tokenMember'
 import type PluginMember from '@models/schema/pluginMember'
 import type PluginMetrics from '@models/schema/pluginMetrics'
@@ -55,7 +56,7 @@ export const ProxyMember = {
     }
   },
 
-  getOrCreateVotingPower: async (params: {
+  getOrCreateTokenMember: async (params: {
     memberAddress: HexAddress
     tokenAddress: HexAddress
     network: NetworksEnum
@@ -102,6 +103,56 @@ export const ProxyMember = {
       })
     } catch (error) {
       logger.error('Error getting or creating voting power', llo({ error, params }))
+      return null
+    }
+  },
+
+  getOrCreateLockManagerMember: async (params: {
+    memberAddress: HexAddress
+    lockManagerAddress: HexAddress
+    network: NetworksEnum
+  }): Promise<LockManagerMember | null> => {
+    const memberAddress = Web3Utils.parseAddress(params.memberAddress)
+    if (!memberAddress) return null
+
+    try {
+      return await DbTx.executeTxFn(async ({ session }) => {
+        const existingLockManagerMember = await Models.LockManagerMember.findExistingLog(
+          {
+            network: params.network,
+            lockManagerAddress: params.lockManagerAddress,
+            memberAddress,
+          },
+          { session },
+        )
+
+        if (existingLockManagerMember) {
+          return existingLockManagerMember
+        }
+
+        // Create new LockManagerMember document with default voting power
+        const newTokenMember = await Models.LockManagerMember.create(
+          {
+            memberAddress,
+            lockManagerAddress: params.lockManagerAddress,
+            votingPower: '0',
+            network: params.network,
+          },
+          { session },
+        )
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose(
+          'Created new LockManagerMember',
+          llo({
+            memberAddress,
+            lockManagerAddress: params.lockManagerAddress,
+          }),
+        )
+        return newTokenMember
+      })
+    } catch (error) {
+      logger.error('Error getting or creating lock manager member', llo({ error, params }))
       return null
     }
   },
@@ -158,7 +209,70 @@ export const ProxyMember = {
     }
   },
 
-  updateVotingPower: async (params: {
+  updateLockManagerMemberVP: async (params: {
+    memberAddress: HexAddress
+    lockManagerAddress: HexAddress
+    votingPower?: string
+    network: NetworksEnum
+    lastVPBlockNumber: number
+  }): Promise<LockManagerMember | null> => {
+    const memberAddress = Web3Utils.parseAddress(params.memberAddress)
+    if (!memberAddress) return null
+
+    try {
+      return await DbTx.executeTxFn(async ({ session }) => {
+        // Get or create the tokenMember document
+        const lockManagerMember = await ProxyMember.getOrCreateLockManagerMember({
+          memberAddress,
+          lockManagerAddress: params.lockManagerAddress,
+          network: params.network,
+        })
+
+        if (!lockManagerMember) {
+          logger.error('Failed to get or create lockManagerMember', llo({ params }))
+          return null
+        }
+
+        // Prepare update data
+        const updateData: any = {}
+        const oldVotingPower = lockManagerMember.votingPower
+        if (params.votingPower !== undefined) {
+          updateData.votingPower = params.votingPower.toString()
+        }
+
+        if (params.lastVPBlockNumber !== undefined) {
+          updateData.lastVPBlockNumber = params.lastVPBlockNumber
+        }
+
+        // Update only if lastVPBlockNumber is greater than the current one, or if current one not exists and new one exists
+        if (
+          (!lockManagerMember.lastVPBlockNumber && updateData.lastVPBlockNumber) ||
+          (updateData.lastVPBlockNumber && updateData.lastVPBlockNumber > lockManagerMember.lastVPBlockNumber)
+        ) {
+          const updated = await lockManagerMember.update(updateData, { session })
+          await session.commitTransaction()
+          await session.endSession()
+          logger.verbose(
+            'Updated LockManagerMember voting power',
+            llo({
+              memberAddress,
+              lockManagerAddress: params.lockManagerAddress,
+              oldVotingPower,
+              newVotingPower: updated.votingPower,
+            }),
+          )
+          return updated
+        }
+
+        return lockManagerMember
+      })
+    } catch (error) {
+      logger.error('Error updating LockManagerMember voting power', llo({ error, params }))
+      return null
+    }
+  },
+
+  updateTokenMemberVP: async (params: {
     memberAddress: HexAddress
     tokenAddress: HexAddress
     votingPower?: string
@@ -172,7 +286,7 @@ export const ProxyMember = {
     try {
       return await DbTx.executeTxFn(async ({ session }) => {
         // Get or create the tokenMember document
-        const tokenMember = await ProxyMember.getOrCreateVotingPower({
+        const tokenMember = await ProxyMember.getOrCreateTokenMember({
           memberAddress,
           tokenAddress: params.tokenAddress,
           network: params.network,
@@ -296,41 +410,134 @@ export const ProxyMember = {
     }
   },
 
-  isPluginMember: async (params: {
+  getOrCreatePluginMetrics: async (params: {
     memberAddress: HexAddress
     pluginAddress: HexAddress
+    daoAddress?: HexAddress
     network: NetworksEnum
-  }): Promise<boolean> => {
+    lastActivity?: number
+  }): Promise<PluginMetrics | null> => {
     const memberAddress = Web3Utils.parseAddress(params.memberAddress)
-    if (!memberAddress) return false
+    if (!memberAddress) return null
 
     try {
-      const pluginMember = await Models.PluginMember.findByPluginAndMember(
-        params.network,
-        params.pluginAddress,
-        memberAddress,
-      )
-      return !!pluginMember
+      return await DbTx.executeTxFn(async ({ session }) => {
+        const existingPluginMetrics = await Models.PluginMetrics.findExistingLog(
+          {
+            network: params.network,
+            pluginAddress: params.pluginAddress,
+            memberAddress,
+          },
+          { session },
+        )
+
+        if (existingPluginMetrics) {
+          return existingPluginMetrics
+        }
+
+        // Create new pluginMetrics document with default counts
+        const newPluginMetrics = await Models.PluginMetrics.create(
+          {
+            memberAddress,
+            pluginAddress: params.pluginAddress,
+            daoAddress: params.daoAddress,
+            network: params.network,
+            voteCount: 0,
+            proposalCount: 0,
+            firstActivity: params.lastActivity,
+            lastActivity: params.lastActivity,
+          },
+          { session },
+        )
+        await session.commitTransaction()
+        await session.endSession()
+        logger.verbose(
+          'Created new PluginMetrics',
+          llo({
+            memberAddress,
+            pluginAddress: params.pluginAddress,
+            daoAddress: params.daoAddress,
+          }),
+        )
+        return newPluginMetrics
+      })
     } catch (error) {
-      logger.error('Error checking plugin membership', llo({ error, params }))
-      return false
+      logger.error('Error getting or creating plugin metrics', llo({ error, params }))
+      return null
     }
   },
 
-  hasVotingPower: async (params: {
+  updatePluginMetrics: async (params: {
     memberAddress: HexAddress
-    tokenAddress: HexAddress
+    pluginAddress: HexAddress
+    daoAddress?: HexAddress
     network: NetworksEnum
-  }): Promise<boolean> => {
+    lastActivity?: number
+  }): Promise<PluginMetrics | null> => {
     const memberAddress = Web3Utils.parseAddress(params.memberAddress)
-    if (!memberAddress) return false
+    if (!memberAddress) return null
 
     try {
-      const tokenMember = await Models.TokenMember.findByTokenAndMember(params.network, params.tokenAddress, memberAddress)
-      return !!tokenMember && BigInt(tokenMember.votingPower) > 0n
+      return await DbTx.executeTxFn(async ({ session }) => {
+        // Get or create the pluginMetrics document
+        const pluginMetrics = await ProxyMember.getOrCreatePluginMetrics({
+          memberAddress,
+          pluginAddress: params.pluginAddress,
+          daoAddress: params.daoAddress,
+          network: params.network,
+          lastActivity: params.lastActivity,
+        })
+
+        if (!pluginMetrics) {
+          logger.error('Failed to get or create PluginMetrics', llo({ params }))
+          return null
+        }
+
+        // Count proposals created by this member for this plugin
+        const proposalCount = await Models.Proposal.countDocuments(
+          {
+            pluginAddress: params.pluginAddress,
+            network: params.network,
+            creatorAddress: memberAddress,
+          },
+          { session },
+        )
+
+        // Count votes by this member for this plugin
+        const voteCount = await Models.Vote.countDocuments(
+          {
+            pluginAddress: params.pluginAddress,
+            network: params.network,
+            memberAddress,
+          },
+          { session },
+        )
+
+        const document: Partial<PluginMetrics> = { proposalCount, voteCount }
+        if (params.lastActivity !== undefined) {
+          document.lastActivity = params.lastActivity
+        }
+
+        // Update the pluginMetrics with the counts
+        const updated = await pluginMetrics.update(document, { session })
+        await session.commitTransaction()
+        await session.endSession()
+
+        logger.verbose(
+          'Updated PluginMetrics',
+          llo({
+            memberAddress,
+            pluginAddress: params.pluginAddress,
+            proposalCount,
+            voteCount,
+          }),
+        )
+
+        return updated
+      })
     } catch (error) {
-      logger.error('Error checking voting power', llo({ error, params }))
-      return false
+      logger.error('Error updating plugin metrics', llo({ error, params }))
+      return null
     }
   },
 
@@ -393,7 +600,7 @@ export const ProxyMember = {
     }
   },
 
-  updateVotingPowerBatchNoTx: async (
+  updateTokenMemberVPBatchNoTx: async (
     updates: Array<{
       memberAddress: HexAddress
       tokenAddress: HexAddress
@@ -527,7 +734,7 @@ export const ProxyMember = {
     }
   },
 
-  updateVotingPowerBatch: async (
+  updateTokenMemberVPBatch: async (
     updates: Array<{
       memberAddress: HexAddress
       tokenAddress: HexAddress
@@ -539,7 +746,7 @@ export const ProxyMember = {
   ): Promise<boolean> => {
     try {
       return await DbTx.executeTxFn(async ({ session }) => {
-        const result = await ProxyMember.updateVotingPowerBatchWithSession(updates, session)
+        const result = await ProxyMember.updateTokenMemberVPBatchWithSession(updates, session)
         await session.commitTransaction()
         await session.endSession()
         return result
@@ -683,7 +890,7 @@ export const ProxyMember = {
     }
   },
 
-  updateVotingPowerBatchWithSession: async (
+  updateTokenMemberVPBatchWithSession: async (
     updates: Array<{
       memberAddress: HexAddress
       tokenAddress: HexAddress
@@ -878,137 +1085,6 @@ export const ProxyMember = {
     } catch (error) {
       logger.error('Error in batch plugin metrics update with session', llo({ error, updateCount: updates.length }))
       throw error // Re-throw to trigger transaction rollback
-    }
-  },
-
-  getOrCreatePluginMetrics: async (params: {
-    memberAddress: HexAddress
-    pluginAddress: HexAddress
-    daoAddress?: HexAddress
-    network: NetworksEnum
-    lastActivity?: number
-  }): Promise<PluginMetrics | null> => {
-    const memberAddress = Web3Utils.parseAddress(params.memberAddress)
-    if (!memberAddress) return null
-
-    try {
-      return await DbTx.executeTxFn(async ({ session }) => {
-        const existingPluginMetrics = await Models.PluginMetrics.findExistingLog(
-          {
-            network: params.network,
-            pluginAddress: params.pluginAddress,
-            memberAddress,
-          },
-          { session },
-        )
-
-        if (existingPluginMetrics) {
-          return existingPluginMetrics
-        }
-
-        // Create new pluginMetrics document with default counts
-        const newPluginMetrics = await Models.PluginMetrics.create(
-          {
-            memberAddress,
-            pluginAddress: params.pluginAddress,
-            daoAddress: params.daoAddress,
-            network: params.network,
-            voteCount: 0,
-            proposalCount: 0,
-            firstActivity: params.lastActivity,
-            lastActivity: params.lastActivity,
-          },
-          { session },
-        )
-        await session.commitTransaction()
-        await session.endSession()
-        logger.verbose(
-          'Created new PluginMetrics',
-          llo({
-            memberAddress,
-            pluginAddress: params.pluginAddress,
-            daoAddress: params.daoAddress,
-          }),
-        )
-        return newPluginMetrics
-      })
-    } catch (error) {
-      logger.error('Error getting or creating plugin metrics', llo({ error, params }))
-      return null
-    }
-  },
-
-  updatePluginMetrics: async (params: {
-    memberAddress: HexAddress
-    pluginAddress: HexAddress
-    daoAddress?: HexAddress
-    network: NetworksEnum
-    lastActivity?: number
-  }): Promise<PluginMetrics | null> => {
-    const memberAddress = Web3Utils.parseAddress(params.memberAddress)
-    if (!memberAddress) return null
-
-    try {
-      return await DbTx.executeTxFn(async ({ session }) => {
-        // Get or create the pluginMetrics document
-        const pluginMetrics = await ProxyMember.getOrCreatePluginMetrics({
-          memberAddress,
-          pluginAddress: params.pluginAddress,
-          daoAddress: params.daoAddress,
-          network: params.network,
-          lastActivity: params.lastActivity,
-        })
-
-        if (!pluginMetrics) {
-          logger.error('Failed to get or create PluginMetrics', llo({ params }))
-          return null
-        }
-
-        // Count proposals created by this member for this plugin
-        const proposalCount = await Models.Proposal.countDocuments(
-          {
-            pluginAddress: params.pluginAddress,
-            network: params.network,
-            creatorAddress: memberAddress,
-          },
-          { session },
-        )
-
-        // Count votes by this member for this plugin
-        const voteCount = await Models.Vote.countDocuments(
-          {
-            pluginAddress: params.pluginAddress,
-            network: params.network,
-            memberAddress,
-          },
-          { session },
-        )
-
-        const document: Partial<PluginMetrics> = { proposalCount, voteCount }
-        if (params.lastActivity !== undefined) {
-          document.lastActivity = params.lastActivity
-        }
-
-        // Update the pluginMetrics with the counts
-        const updated = await pluginMetrics.update(document, { session })
-        await session.commitTransaction()
-        await session.endSession()
-
-        logger.verbose(
-          'Updated PluginMetrics',
-          llo({
-            memberAddress,
-            pluginAddress: params.pluginAddress,
-            proposalCount,
-            voteCount,
-          }),
-        )
-
-        return updated
-      })
-    } catch (error) {
-      logger.error('Error updating plugin metrics', llo({ error, params }))
-      return null
     }
   },
 }

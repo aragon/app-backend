@@ -10,6 +10,7 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   type IPairParams,
+  IPluginInterfaceType,
   type NetworksEnum,
 } from '@types'
 import { assertExposable } from '@errors'
@@ -37,21 +38,34 @@ const MemberController = {
     const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
     assertExposable(plugin, ErrorKeyEnum.notFound)
 
-    if (plugin.votingEscrow !== null && plugin.votingEscrow.escrowAddress) {
-      return await MemberController.getMembersOfVeLockPlugin(paginationParams, plugin)
-    }
+    switch (plugin.interfaceType) {
+      case IPluginInterfaceType.tokenVoting: {
+        if (plugin.votingEscrow !== null && plugin.votingEscrow.escrowAddress) {
+          return await MemberController.getMembersOfVeLockPlugin(paginationParams, plugin)
+        }
+        assertExposable(plugin.tokenAddress, ErrorKeyEnum.pluginNotFound)
 
-    if (plugin.tokenAddress) {
-      extraParams.tokenAddress = plugin.tokenAddress
-      return Models.TokenMember.findAndPaginate({
-        paginationParams,
-        extraParams,
-      })
-    } else {
-      return Models.PluginMember.findAndPaginate({
-        extraParams,
-        paginationParams,
-      })
+        extraParams.tokenAddress = plugin.tokenAddress
+        return Models.TokenMember.findAndPaginate({
+          paginationParams,
+          extraParams,
+        })
+      }
+      case IPluginInterfaceType.lockToVote: {
+        assertExposable(plugin.lockManagerAddress, ErrorKeyEnum.pluginNotFound)
+
+        extraParams.lockManagerAddress = plugin.lockManagerAddress
+        return Models.LockManagerMember.findAndPaginate({
+          paginationParams,
+          extraParams,
+        })
+      }
+      default: {
+        return Models.PluginMember.findAndPaginate({
+          extraParams,
+          paginationParams,
+        })
+      }
     }
   },
 

@@ -163,18 +163,8 @@ export const GovernanceVeHandler = {
 
     logger.verbose('Deposit VeGovernance - Lock created', llo({ info, memberAddress, tokenId, escrow: escrowAddress }))
 
-    // Add member to plugins and update voting power
-    for (const plugin of plugins) {
-      await ProxyMember.addPluginMember({
-        memberAddress,
-        pluginAddress: plugin.address,
-        daoAddress: plugin.daoAddress,
-        network: info.network,
-      })
-    }
-
     // Get or create voting power entry and update tokenIds
-    const tokenMember = await ProxyMember.getOrCreateVotingPower({
+    const tokenMember = await ProxyMember.getOrCreateTokenMember({
       memberAddress,
       tokenAddress,
       network: info.network,
@@ -184,7 +174,7 @@ export const GovernanceVeHandler = {
       const currentTokenIds = tokenMember.tokenIds || []
       if (!currentTokenIds.includes(tokenId)) {
         currentTokenIds.push(tokenId)
-        await ProxyMember.updateVotingPower({
+        await ProxyMember.updateTokenMemberVP({
           memberAddress,
           tokenAddress,
           network: info.network,
@@ -193,6 +183,28 @@ export const GovernanceVeHandler = {
         })
       }
     }
+
+    // update lastActivity metrics for all plugins
+    await Promise.all(
+      plugins.map(async (plugin: Plugin) => {
+        await ProxyMember.updatePluginMetrics({
+          memberAddress,
+          pluginAddress: plugin.address,
+          network: info.network,
+          lastActivity: info.blockNumber,
+        })
+      }),
+    )
+
+    const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
+    await Promise.all(
+      uniqueDaoList.map(async (daoAddress: string) => {
+        await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+          id: daoAddress,
+          params: { address: daoAddress, network: info.network },
+        })
+      }),
+    )
 
     logger.verbose('Deposit VeGovernance - Member and voting power updated', llo({ info, memberAddress, tokenId }))
   },
@@ -253,7 +265,7 @@ export const GovernanceVeHandler = {
       },
     })
 
-    const tokenMember = await ProxyMember.getOrCreateVotingPower({
+    const tokenMember = await ProxyMember.getOrCreateTokenMember({
       memberAddress,
       tokenAddress: info.address,
       network: info.network,
@@ -263,7 +275,7 @@ export const GovernanceVeHandler = {
     const tokenIdsToSave = currentTokenIds.filter(id => id !== tokenId.toString())
 
     await ProxyMember.createMember(memberAddress, info.blockNumber)
-    await ProxyMember.updateVotingPower({
+    await ProxyMember.updateTokenMemberVP({
       memberAddress,
       tokenAddress: info.address,
       network: info.network,
@@ -271,6 +283,28 @@ export const GovernanceVeHandler = {
       tokenIds: tokenIdsToSave,
       lastVPBlockNumber: info.blockNumber,
     })
+
+    // update lastActivity metrics for all plugins
+    await Promise.all(
+      plugins.map(async (plugin: Plugin) => {
+        await ProxyMember.updatePluginMetrics({
+          memberAddress,
+          pluginAddress: plugin.address,
+          network: info.network,
+          lastActivity: info.blockNumber,
+        })
+      }),
+    )
+
+    const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
+    await Promise.all(
+      uniqueDaoList.map(async (daoAddress: string) => {
+        await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+          id: daoAddress,
+          params: { address: daoAddress, network: info.network },
+        })
+      }),
+    )
 
     logger.verbose('Withdraw VeGovernance', llo({ info, memberAddress, tokenId }))
   },
@@ -323,6 +357,18 @@ export const GovernanceVeHandler = {
     })
 
     await ProxyMember.createMember(memberAddress, info.blockNumber)
+
+    // update lastActivity metrics for all plugins
+    await Promise.all(
+      plugins.map(async (plugin: Plugin) => {
+        await ProxyMember.updatePluginMetrics({
+          memberAddress,
+          pluginAddress: plugin.address,
+          network: info.network,
+          lastActivity: info.blockNumber,
+        })
+      }),
+    )
 
     logger.verbose('Exit queued VeGovernance', llo({ info, memberAddress, tokenId }))
   },
@@ -430,7 +476,7 @@ export const GovernanceVeHandler = {
         return
       }
 
-      const tokenMember = await ProxyMember.getOrCreateVotingPower({
+      const tokenMember = await ProxyMember.getOrCreateTokenMember({
         memberAddress,
         tokenAddress: info.address,
         network: info.network,
@@ -471,7 +517,7 @@ export const GovernanceVeHandler = {
         token.clockMode,
       )
 
-      await ProxyMember.updateVotingPower({
+      await ProxyMember.updateTokenMemberVP({
         memberAddress,
         tokenAddress: info.address,
         votingPower: votingPower.toString(),

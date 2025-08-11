@@ -19,6 +19,7 @@ import {
   type IAggTokenMemberProjectFields,
   ICollectionNames,
   ISettingStatus,
+  type IAggLockManagerMemberParams,
 } from '@types'
 
 export const AggregationQueryHelper = {
@@ -504,6 +505,57 @@ export const AggregationQueryHelper = {
     return {
       $lookup: {
         from: ICollectionNames.Member,
+        let: letVariables,
+        pipeline,
+        as,
+      },
+    }
+  },
+
+  lockManagerMember: (
+    { lockManagerAddress, network, memberAddress }: IAggLockManagerMemberParams,
+    as: string = 'lockManagerMember',
+    project?: IAggTokenMemberProjectFields,
+  ) => {
+    const letVariables: any = {}
+    const matchConditions: any[] = []
+
+    if (lockManagerAddress) {
+      letVariables.lockManagerAddress = lockManagerAddress
+      matchConditions.push({ $eq: ['$$lockManagerAddress', '$lockManagerAddress'] })
+    }
+
+    if (network) {
+      letVariables.network = network
+      matchConditions.push({ $eq: ['$$network', '$network'] })
+    }
+
+    if (memberAddress) {
+      letVariables.memberAddress = memberAddress
+      matchConditions.push({ $eq: ['$$memberAddress', '$memberAddress'] })
+    }
+
+    const pipeline: any[] = []
+
+    if (matchConditions.length > 0) {
+      pipeline.push({
+        $match: {
+          $expr: {
+            $and: matchConditions,
+          },
+        },
+      })
+    }
+
+    if (project) {
+      pipeline.push({
+        $project: project,
+      })
+    }
+
+    return {
+      $lookup: {
+        from: ICollectionNames.LockManagerMember,
         let: letVariables,
         pipeline,
         as,

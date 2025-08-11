@@ -22,33 +22,65 @@ import type TokenMember from '@models/schema/tokenMember'
 import type PluginMember from '@models/schema/pluginMember'
 import type PluginMetrics from '@models/schema/pluginMetrics'
 import type Lock from '@models/schema/lock'
+import type LockManagerMember from '@models/schema/lockManagerMember'
+import type Migration from '@models/schema/migration'
+
+export interface IMongoModel {
+  Migration: typeof Migration
+  Asset: typeof Asset
+  ConfigIndexer: typeof ConfigIndexer
+  Dao: typeof Dao
+  DaoPermission: typeof DaoPermission
+  Jwt: typeof Jwt
+  LogMetadata: typeof LogMetadata
+  LogPluginSetupProcessor: typeof LogPluginSetupProcessor
+  Member: typeof Member
+  MemberTransaction: typeof MemberTransaction // TODO: deprecated
+  Plugin: typeof Plugin
+  PluginRepo: typeof PluginRepo
+  PluginSlug: typeof PluginSlug
+  Proposal: typeof Proposal
+  Setting: typeof Setting
+  TaskRun: typeof TaskRun
+  TaskService: typeof TaskService
+  Token: typeof Token
+  Transaction: typeof Transaction
+  Vote: typeof Vote
+  SelectorPermission: typeof SelectorPermission
+  Lock: typeof Lock
+  TokenMember: typeof TokenMember
+  PluginMember: typeof PluginMember
+  PluginMetrics: typeof PluginMetrics
+  LockManagerMember: typeof LockManagerMember
+}
 
 export enum ICollectionNames {
+  Migration = 'Migration',
   Asset = 'Asset',
   ConfigIndexer = 'ConfigIndexer',
   Dao = 'Dao',
+  DaoPermission = 'DaoPermission',
+  Jwt = 'Jwt',
   LogMetadata = 'LogMetadata',
   LogPluginSetupProcessor = 'LogPluginSetupProcessor',
   Member = 'Member',
-  MemberTransaction = 'MemberTransaction',
+  MemberTransaction = 'MemberTransaction', // TODO: deprecated
   Plugin = 'Plugin',
   PluginRepo = 'PluginRepo',
+  PluginSlug = 'PluginSlug',
   Proposal = 'Proposal',
   Setting = 'Setting',
-  PluginSlug = 'PluginSlug',
   TaskRun = 'TaskRun',
   TaskService = 'TaskService',
   Token = 'Token',
   Transaction = 'Transaction',
   Vote = 'Vote',
-  DaoPermission = 'DaoPermission',
-  Jwt = 'Jwt',
-  Lock = 'Lock',
-  Migration = 'Migration',
   SelectorPermission = 'SelectorPermission',
-  PluginMember = 'PluginMember',
+  Lock = 'Lock',
   TokenMember = 'TokenMember',
+  PluginMember = 'PluginMember',
   PluginMetrics = 'PluginMetrics',
+  LockManagerMember = 'LockManagerMember',
 }
 
 export enum ITransactionIndexCheckType {
@@ -75,33 +107,6 @@ export const IndexCheckTypeToModel: Record<ITransactionIndexCheckType, ICollecti
   [ITransactionIndexCheckType.EXIT_CREATE]: ICollectionNames.Lock,
   [ITransactionIndexCheckType.WITHDRAW_CREATE]: ICollectionNames.Lock,
   [ITransactionIndexCheckType.PLUGIN_CREATE]: ICollectionNames.Plugin,
-}
-
-export interface IMongoModel {
-  Asset: typeof Asset
-  ConfigIndexer: typeof ConfigIndexer
-  Dao: typeof Dao
-  DaoPermission: typeof DaoPermission
-  Jwt: typeof Jwt
-  LogMetadata: typeof LogMetadata
-  LogPluginSetupProcessor: typeof LogPluginSetupProcessor
-  Member: typeof Member
-  MemberTransaction: typeof MemberTransaction
-  Plugin: typeof Plugin
-  PluginRepo: typeof PluginRepo
-  PluginSlug: typeof PluginSlug
-  Proposal: typeof Proposal
-  Setting: typeof Setting
-  TaskRun: typeof TaskRun
-  TaskService: typeof TaskService
-  Token: typeof Token
-  Transaction: typeof Transaction
-  Vote: typeof Vote
-  SelectorPermission: typeof SelectorPermission
-  Lock: typeof Lock
-  TokenMember: typeof TokenMember
-  PluginMember: typeof PluginMember
-  PluginMetrics: typeof PluginMetrics
 }
 
 export enum IEventLogPluginType {

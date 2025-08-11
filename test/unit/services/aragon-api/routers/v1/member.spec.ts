@@ -54,7 +54,7 @@ describe('RouterV1: Member', () => {
         sort: 'votingPower',
       }
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
-      expect(stubCtrl.args[0][1]).to.deep.eq(filterParams)
+      expect(stubCtrl.args[0][1]).to.deep.eq({ ...filterParams, lockManagerAddress: undefined })
       expect(stubCtrl.args[0][2]).to.deep.eq({ daoId: undefined })
     })
 
@@ -62,6 +62,7 @@ describe('RouterV1: Member', () => {
       const filterParams = {
         network: NetworksEnum.ethereumMainnet,
         daoId: 'ethereum-mainnet-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        pluginAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
       }
       const paginationParams = {
         pageSize: 10,
@@ -93,8 +94,9 @@ describe('RouterV1: Member', () => {
       expect(stubCtrl.args[0][1]).to.deep.eq({
         network: filterParams.network,
         daoAddress: undefined,
-        pluginAddress: undefined,
+        pluginAddress: filterParams.pluginAddress,
         tokenAddress: undefined,
+        lockManagerAddress: undefined,
       })
       expect(stubCtrl.args[0][2]).to.deep.eq({ daoId: filterParams.daoId })
     })
@@ -102,6 +104,7 @@ describe('RouterV1: Member', () => {
     it('Should get member with pagination - missing pagination params', async () => {
       const filterParams = {
         network: NetworksEnum.ethereumMainnet,
+        pluginAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
       }
       const paginationParams = {
         sort: 'createdAt',
@@ -132,9 +135,31 @@ describe('RouterV1: Member', () => {
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
       expect(stubCtrl.args[0][1]).to.deep.eq({
         ...filterParams,
-        ...{ daoAddress: undefined, pluginAddress: undefined, tokenAddress: undefined },
+        ...{ daoAddress: undefined, tokenAddress: undefined, lockManagerAddress: undefined },
       })
       expect(stubCtrl.args[0][2]).to.deep.eq({ daoId: undefined })
+    })
+
+    it('Should fail validation when pluginAddress is missing', async () => {
+      const filterParams = {
+        daoId: 'ethereum-mainnet-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        // Missing required pluginAddress
+      }
+      const paginationParams = {
+        pageSize: 10,
+        page: 1,
+      }
+
+      const ctx: any = {
+        query: { ...filterParams, ...paginationParams },
+      }
+
+      try {
+        await MemberRouter.getMembersWithPagination(ctx)
+        expect.fail('Should have thrown validation error')
+      } catch (error: any) {
+        expect(error.message).to.include('badParams')
+      }
     })
   })
 
@@ -149,6 +174,7 @@ describe('RouterV1: Member', () => {
       params,
       query: {
         network: NetworksEnum.ethereumMainnet,
+        pluginAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
       },
     }
 
@@ -156,7 +182,18 @@ describe('RouterV1: Member', () => {
 
     expect(ctx.body).to.eq(true)
     expect(stubCtrl.calledOnce).to.be.true
-    expect(stubCtrl.calledWith(getAddress(params.address) as any)).to.be.true
+    
+    const expectedExtraParams = {
+      network: NetworksEnum.ethereumMainnet,
+      pluginAddress: getAddress('0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254'),
+      daoAddress: undefined,
+      tokenAddress: undefined,
+      lockManagerAddress: undefined,
+    }
+    
+    expect(stubCtrl.args[0][0]).to.eq(getAddress(params.address))
+    expect(stubCtrl.args[0][1]).to.deep.eq(expectedExtraParams)
+    expect(stubCtrl.args[0][2]).to.deep.eq({ daoId: undefined })
   })
 
   it('Should check if a member is part of a plugin', async () => {

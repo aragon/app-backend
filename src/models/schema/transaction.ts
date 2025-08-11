@@ -74,7 +74,6 @@ class Token {
     customName,
   },
 })
-@index({ id: 1 }, { unique: true })
 @index({ fromAddress: 1, toAddress: 1, tokenAddress: 1, daoAddress: 1 })
 @index({ id: -1, blockNumber: -1, network: 1, daoAddress: 1 })
 @index({ blockNumber: -1 })

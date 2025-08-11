@@ -48,7 +48,7 @@ describe('migration: tokenMembers', () => {
       .returns(mockMemberTransactionsCollection)
 
     // Stub ProxyMember methods
-    stubProxyMemberUpdateVotingPower = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
+    stubProxyMemberUpdateVotingPower = sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
     stubProxyMemberUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves({
       firstActivity: undefined,
       update: sandbox.stub().resolves(),
@@ -158,7 +158,7 @@ describe('migration: tokenMembers', () => {
       ).to.be.true
       expect(mockMemberBalancesCollection.toArray.calledOnce).to.be.true
 
-      // Verify ProxyMember.updateVotingPower calls
+      // Verify ProxyMember.updateTokenMemberVP calls
       expect(
         stubProxyMemberUpdateVotingPower.calledWith({
           memberAddress: mockMemberBalances[0].address,
