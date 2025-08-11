@@ -523,6 +523,16 @@ export const PluginHandler = {
             updateParams.tokenAddress = existingPlugin.tokenAddress
           }
 
+          if (
+            plugin.interfaceType === IPluginInterfaceType.lockToVote &&
+            existingPlugin.interfaceType === IPluginInterfaceType.lockToVote &&
+            !plugin.lockManagerAddress &&
+            existingPlugin.lockManagerAddress
+          ) {
+            updateParams.lockManagerAddress = existingPlugin.lockManagerAddress
+            updateParams.tokenAddress = existingPlugin.tokenAddress
+          }
+
           if (Object.keys(updateParams).length > 0) {
             await plugin.update(updateParams, { session })
           }

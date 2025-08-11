@@ -26,6 +26,7 @@ import DbTx from '@modules/dbTx'
 import Web3Utils from '@helpers/web3Utils'
 import VotingEscrowDetector from '@helpers/votingEscrowDetector'
 import GovernanceVeHelper from '@helpers/governanceVe'
+import LockToVoteHelper from '@helpers/lockToVoteHelper'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:pluginSetupProcessorHandler' })
 
@@ -374,6 +375,10 @@ export const PluginSetupProcessorHandler = {
         break
       case IPluginInterfaceType.gauge:
         tokenAddress = await GaugeHelper.getTokenAddress(pluginDb.address, info.network)
+
+        break
+      case IPluginInterfaceType.lockToVote:
+        tokenAddress = await LockToVoteHelper.getVotingToken(info.network, pluginDb.address)
         break
       default:
         break
@@ -381,11 +386,12 @@ export const PluginSetupProcessorHandler = {
 
     if (tokenAddress) {
       const result = await PluginSetupProcessorHandler.findVotingEscrow(tokenAddress, info)
+      const lockManagerAddress = await LockToVoteHelper.getLockManager(info.network, pluginDb.address)
       const votingEscrow = result || null
 
       await DbOperations.updateDocument(
         pluginDb,
-        { tokenAddress, votingEscrow },
+        { tokenAddress, votingEscrow, lockManagerAddress },
         info,
         'Update Voting plugin token',
         llo,

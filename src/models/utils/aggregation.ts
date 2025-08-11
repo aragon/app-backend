@@ -15,8 +15,8 @@ import {
   type IAggSettingProjectFields,
   type IAggTokenParams,
   type IAggTokenProjectFields,
-  type IAggVpMemberParams,
-  type IAggVpMemberProjectFields,
+  type IAggTokenMemberParams,
+  type IAggTokenMemberProjectFields,
   ICollectionNames,
   ISettingStatus,
 } from '@types'
@@ -511,10 +511,10 @@ export const AggregationQueryHelper = {
     }
   },
 
-  vpMember: (
-    { tokenAddress, network, memberAddress }: IAggVpMemberParams,
-    as: string = 'vpMember',
-    project?: IAggVpMemberProjectFields,
+  tokenMember: (
+    { tokenAddress, network, memberAddress }: IAggTokenMemberParams,
+    as: string = 'tokenMember',
+    project?: IAggTokenMemberProjectFields,
   ) => {
     const letVariables: any = {}
     const matchConditions: any[] = []
@@ -554,7 +554,7 @@ export const AggregationQueryHelper = {
 
     return {
       $lookup: {
-        from: ICollectionNames.VpMember,
+        from: ICollectionNames.TokenMember,
         let: letVariables,
         pipeline,
         as,
@@ -564,7 +564,7 @@ export const AggregationQueryHelper = {
 
   pluginMetrics: (
     { pluginAddress, network, memberAddress }: IAggPluginMetricsParams,
-    as: string = 'vpMember',
+    as: string = 'tokenMember',
     project?: IAggPluginMetricsProjectFields,
   ) => {
     const letVariables: any = {}

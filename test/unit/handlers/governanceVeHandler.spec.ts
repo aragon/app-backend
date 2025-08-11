@@ -150,7 +150,7 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stubAddPluginMember.notCalled).to.be.true
     })
 
-    it('should create Lock and call addPluginMember with new VpMember created and updated', async () => {
+    it('should create Lock and call addPluginMember with new TokenMember created and updated', async () => {
       const mockPlugin = {
         address: '0xPluginAddress',
         daoAddress: '0xDaoAddress',
@@ -254,7 +254,7 @@ describe('Handler:GovernanceVeHandler', () => {
         .true
     })
 
-    it('should create Lock with existing VpMember and not update if tokenId already exists', async () => {
+    it('should create Lock with existing TokenMember and not update if tokenId already exists', async () => {
       const mockPlugin = {
         address: '0xPluginAddress',
         daoAddress: '0xDaoAddress',
@@ -272,7 +272,7 @@ describe('Handler:GovernanceVeHandler', () => {
       const stubLockCreate = sandbox.stub(Models.Lock, 'create').resolves()
       const stubLogger = sandbox.stub(logger, 'verbose')
       const stubAddPluginMember = sandbox.stub(ProxyMember, 'addPluginMember').resolves()
-      // VpMember already has the tokenId
+      // TokenMember already has the tokenId
       const stubGetOrCreateVotingPower = sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
         tokenIds: ['100', '123', '200'], // Already includes tokenId 123
       } as any)
@@ -437,7 +437,7 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(lockCreateArgs.blockTimestamp).to.be.undefined
     })
 
-    it('should handle null VpMember gracefully', async () => {
+    it('should handle null TokenMember gracefully', async () => {
       const mockPlugin = {
         address: '0xPluginAddress',
         daoAddress: '0xDaoAddress',
@@ -481,7 +481,7 @@ describe('Handler:GovernanceVeHandler', () => {
       // Verify getOrCreateVotingPower was called
       expect(stubGetOrCreateVotingPower.calledOnce).to.be.true
 
-      // Verify updateVotingPower was NOT called since vpMember is null
+      // Verify updateVotingPower was NOT called since tokenMember is null
       expect(stubUpdateVotingPower.notCalled).to.be.true
     })
   })
@@ -921,7 +921,7 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(logger, 'verbose')
       sandbox.stub(ProxyMember, 'createMember').resolves()
 
-      // VpMember has undefined tokenIds
+      // TokenMember has undefined tokenIds
       sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
         tokenIds: undefined,
       } as any)

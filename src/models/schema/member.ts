@@ -224,13 +224,13 @@ export default class Member extends Model {
             },
           },
         },
-        AggregationQueryHelper.vpMember(
+        AggregationQueryHelper.tokenMember(
           {
             tokenAddress: '$daoPlugin.tokenAddress',
             network: '$daoPlugin.network',
             memberAddress: '$address',
           },
-          'vpMember',
+          'tokenMember',
           {
             votingPower: 1,
             delegateReceivedCount: 1,
@@ -238,10 +238,10 @@ export default class Member extends Model {
         ),
         {
           $addFields: {
-            vpMember: {
+            tokenMember: {
               $cond: {
-                if: { $gt: [{ $size: '$vpMember' }, 0] },
-                then: { $arrayElemAt: ['$vpMember', 0] },
+                if: { $gt: [{ $size: '$tokenMember' }, 0] },
+                then: { $arrayElemAt: ['$tokenMember', 0] },
                 else: {
                   votingPower: null,
                   delegateReceivedCount: 0,
@@ -279,11 +279,11 @@ export default class Member extends Model {
         avatar: 1,
         firstActivity: 1,
         lastActivity: 1,
-        votingPower: '$vpMember.votingPower',
+        votingPower: '$tokenMember.votingPower',
         metrics: {
           lastActivity: '$pluginMetrics.lastActivity',
           firstActivity: '$pluginMetrics.firstActivity',
-          delegateReceivedCount: '$vpMember.delegateReceivedCount',
+          delegateReceivedCount: '$tokenMember.delegateReceivedCount',
           voteCount: '$pluginMetrics.voteCount',
           proposalCount: '$pluginMetrics.proposalCount',
         },

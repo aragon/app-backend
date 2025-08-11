@@ -205,13 +205,13 @@ export interface IAggMemberProjectFields {
   avatar?: 1
 }
 
-export interface IAggVpMemberParams {
+export interface IAggTokenMemberParams {
   tokenAddress?: string
   network: string
   memberAddress?: string
 }
 
-export interface IAggVpMemberProjectFields {
+export interface IAggTokenMemberProjectFields {
   votingPower?: 1
   delegateReceivedCount?: 1
 }

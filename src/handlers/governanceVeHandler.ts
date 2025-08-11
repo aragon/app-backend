@@ -174,14 +174,14 @@ export const GovernanceVeHandler = {
     }
 
     // Get or create voting power entry and update tokenIds
-    const vpMember = await ProxyMember.getOrCreateVotingPower({
+    const tokenMember = await ProxyMember.getOrCreateVotingPower({
       memberAddress,
       tokenAddress,
       network: info.network,
     })
 
-    if (vpMember) {
-      const currentTokenIds = vpMember.tokenIds || []
+    if (tokenMember) {
+      const currentTokenIds = tokenMember.tokenIds || []
       if (!currentTokenIds.includes(tokenId)) {
         currentTokenIds.push(tokenId)
         await ProxyMember.updateVotingPower({
@@ -253,13 +253,13 @@ export const GovernanceVeHandler = {
       },
     })
 
-    const vpMember = await ProxyMember.getOrCreateVotingPower({
+    const tokenMember = await ProxyMember.getOrCreateVotingPower({
       memberAddress,
       tokenAddress: info.address,
       network: info.network,
     })
 
-    const currentTokenIds = vpMember!.tokenIds || []
+    const currentTokenIds = tokenMember!.tokenIds || []
     const tokenIdsToSave = currentTokenIds.filter(id => id !== tokenId.toString())
 
     await ProxyMember.createMember(memberAddress, info.blockNumber)
@@ -430,13 +430,13 @@ export const GovernanceVeHandler = {
         return
       }
 
-      const vpMember = await ProxyMember.getOrCreateVotingPower({
+      const tokenMember = await ProxyMember.getOrCreateVotingPower({
         memberAddress,
         tokenAddress: info.address,
         network: info.network,
       })
 
-      if (vpMember && vpMember?.lastVPBlockNumber > info.blockNumber) return
+      if (tokenMember && tokenMember?.lastVPBlockNumber > info.blockNumber) return
 
       let lastActivity: undefined | number
       if (transferSide === ITransferSide.outgoing) {
@@ -445,7 +445,7 @@ export const GovernanceVeHandler = {
 
       await ProxyMember.createMember(memberAddress, lastActivity)
 
-      const currentTokenIds = vpMember?.tokenIds || []
+      const currentTokenIds = tokenMember?.tokenIds || []
       let tokenIdsToSave: string[]
 
       const isSelfDelegation = parsedEvent.args.sender === parsedEvent.args.delegatee

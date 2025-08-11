@@ -3,7 +3,7 @@ import {
   HexAddress,
   ICollectionNames,
   NetworksEnum,
-  type IVpMemberIdParams,
+  type ITokenMemberIdParams,
   type IPaginationParams,
   type IMemberExtraParams,
   type IPaginatedResult,
@@ -15,7 +15,7 @@ import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 
-const customName = ICollectionNames.VpMember
+const customName = ICollectionNames.TokenMember
 
 @modelOptions({
   schemaOptions: {
@@ -34,7 +34,7 @@ const customName = ICollectionNames.VpMember
 @index({ tokenAddress: 1 })
 @index({ network: 1 })
 @index({ network: 1, tokenAddress: 1, memberAddress: 1 })
-export default class VpMember extends Model {
+export default class TokenMember extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
 
@@ -59,7 +59,7 @@ export default class VpMember extends Model {
   @prop({ type: () => Number, default: 0 })
   public lastVPBlockNumber!: number
 
-  static async create(rawData: Partial<VpMember>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<TokenMember>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.tokenAddress, 'tokenAddress is required')
@@ -74,11 +74,11 @@ export default class VpMember extends Model {
     return await data.save(tOpts)
   }
 
-  static getEntityId(params: IVpMemberIdParams) {
+  static getEntityId(params: ITokenMemberIdParams) {
     return `${params.network}-${params.tokenAddress}-${params.memberAddress}`
   }
 
-  static async findExistingLog(params: IVpMemberIdParams, tOpts?: SaveOptions) {
+  static async findExistingLog(params: ITokenMemberIdParams, tOpts?: SaveOptions) {
     const entityId = this.getEntityId(params)
     return await this.findByEntityId(entityId, tOpts)
   }
@@ -201,23 +201,23 @@ export default class VpMember extends Model {
           },
         },
       },
-      AggregationQueryHelper.vpMember(
+      AggregationQueryHelper.tokenMember(
         {
           tokenAddress: extraParams?.tokenAddress,
           network: extraParams?.network!,
           memberAddress: '$memberAddress',
         },
-        'vpMember',
+        'tokenMember',
         {
           delegateReceivedCount: 1,
         },
       ),
       {
         $addFields: {
-          vpMember: {
+          tokenMember: {
             $cond: {
-              if: { $gt: [{ $size: '$vpMember' }, 0] },
-              then: { $arrayElemAt: ['$vpMember', 0] },
+              if: { $gt: [{ $size: '$tokenMember' }, 0] },
+              then: { $arrayElemAt: ['$tokenMember', 0] },
               else: { delegateReceivedCount: 0 },
             },
           },
@@ -229,7 +229,7 @@ export default class VpMember extends Model {
           address: '$memberInfo.address',
           ens: '$memberInfo.ens',
           avatar: '$memberInfo.avatar',
-          tokenBalance: null, // VpMember doesn't have amount field
+          tokenBalance: null, // TokenMember doesn't have amount field
           votingPower: '$votingPower',
           metrics: {
             voteCount: '$pluginMetrics.voteCount',
@@ -237,7 +237,7 @@ export default class VpMember extends Model {
             firstActivity: '$pluginMetrics.firstActivity',
             lastActivity: '$pluginMetrics.lastActivity',
             delegateReceivedCount: {
-              $ifNull: ['$vpMember.delegateReceivedCount', 0],
+              $ifNull: ['$tokenMember.delegateReceivedCount', 0],
             },
           },
         },
@@ -284,7 +284,7 @@ export default class VpMember extends Model {
     }
   }
 
-  async update(params: Partial<VpMember>, tOpts?: SaveOptions) {
+  async update(params: Partial<TokenMember>, tOpts?: SaveOptions) {
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {

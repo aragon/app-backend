@@ -114,7 +114,7 @@ describe('Model: Member', () => {
         blockNumber: 1000,
       })
 
-      const vpMember = await Models.VpMember.create({
+      const tokenMember = await Models.TokenMember.create({
         memberAddress: createdMember.address,
         tokenAddress: plugin.tokenAddress,
         network: plugin.network,
@@ -143,9 +143,9 @@ describe('Model: Member', () => {
 
       expect(aggregateSpy.calledOnce).to.be.true
       expect(member?.address).to.eq(createdMember.address)
-      expect(member?.votingPower).to.be.eq(vpMember.votingPower)
+      expect(member?.votingPower).to.be.eq(tokenMember.votingPower)
       expect(member?.metrics).to.be.exist
-      expect(member?.metrics?.delegateReceivedCount).to.be.eq(vpMember.delegateReceivedCount)
+      expect(member?.metrics?.delegateReceivedCount).to.be.eq(tokenMember.delegateReceivedCount)
       expect(member?.metrics?.voteCount).to.be.eq(pluginMetrics.voteCount)
       expect(member?.metrics?.proposalCount).to.be.eq(pluginMetrics.proposalCount)
       expect(member?.metrics?.firstActivity).to.be.eq(pluginMetrics.firstActivity)

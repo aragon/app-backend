@@ -9,7 +9,7 @@ import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
 import Web3Helper from '@helpers/web3'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import { ProxyToken } from '@modules/proxyToken'
-import type VpMember from '@models/schema/vpMember'
+import type TokenMember from '@models/schema/tokenMember'
 
 const llo = logger.logMeta.bind(null, { service: 'service:dao:DaoAssets' })
 
@@ -76,8 +76,8 @@ export const AllMetrics = {
     if (network !== NetworksEnum.ethereumSepolia) return
     // we only rebase for the token address 0x01403157c847B2c0291c05DF5055876eB4e039bc on ethereum sepolia
     const dbCrawler = new DBCrawler({
-      model: Models.VpMember,
-      onDocument: async (doc: VpMember) => {
+      model: Models.TokenMember,
+      onDocument: async (doc: TokenMember) => {
         const blockNumber = doc.lastVPBlockNumber || doc.blockNumber
         const token = await ProxyToken.saveAndGetToken(doc.tokenAddress, doc.network, false)
         const blockTimestamp = await Web3Helper.getBlockTimestamp(blockNumber, doc.network)
