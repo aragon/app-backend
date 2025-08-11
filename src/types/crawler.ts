@@ -80,6 +80,20 @@ export enum IGovernanceErc20Logs {
   DelegateVotesChanged = 'DelegateVotesChanged',
 }
 
+export enum ILogToVoteLogs {
+  ProposalCreated = 'ProposalCreated',
+  ProposalExecuted = 'ProposalExecuted',
+  VoteCast = 'VoteCast',
+  VotingSettingsUpdated = 'VotingSettingsUpdated',
+  MetadataSet = 'MetadataSet',
+  VoteCleared = 'VoteCleared',
+}
+
+export enum ILockManager {
+  BalanceLocked = 'BalanceLocked',
+  BalanceUnlocked = 'BalanceUnlocked',
+}
+
 export enum IMultiSigLogs {
   MultisigSettingsUpdated = 'MultisigSettingsUpdated',
   MembersAdded = 'MembersAdded',
