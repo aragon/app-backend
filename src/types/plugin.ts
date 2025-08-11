@@ -52,6 +52,7 @@ export enum IEventLogPluginSettings {
 }
 
 export enum IPluginInterfaceType {
+  lockToVote = 'lockToVote',
   tokenVoting = 'tokenVoting',
   multisig = 'multisig',
   admin = 'admin',
