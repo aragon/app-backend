@@ -62,7 +62,7 @@ const LockToVoteHelper = {
     const blockTag = `0x${BigInt(blockNumber).toString(16)}`
     try {
       const supply = await provider.call(params, blockTag)
-      return supply.toString()
+      return BigInt(supply).toString()
     } catch (error) {
       return '0'
     }
