@@ -7,7 +7,7 @@ import { Multisig } from '@artifacts/Multisig'
 import { TokenVoting } from '@artifacts/TokenVoting'
 import { ExecuteSelectorCondition } from '@artifacts/ExecuteSelectorCondition'
 
-describe.only('ConfigIndexer', () => {
+describe('ConfigIndexer', () => {
   it('should be an array of configurations', () => {
     expect(ConfigIndexer).to.be.an('array')
     expect(ConfigIndexer.length).to.be.greaterThan(0)
