@@ -1,7 +1,7 @@
 import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 
 export const PluginList = [
-  // Plugin with token (members in VpMember)
+  // Plugin with token (members in TokenMember)
   {
     transactionHash: '0x6f3e8a941b2140d72e402e35078fd459478222e146aa6d6bd6832d322de5dd71',
     blockNumber: 42368043,

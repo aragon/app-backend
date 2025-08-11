@@ -438,7 +438,7 @@ describe('GovernanceErc20Handler', () => {
       }
 
       // Create existing voting power member
-      const existingVpMember = await Models.VpMember.create({
+      const existingTokenMember = await Models.TokenMember.create({
         memberAddress,
         tokenAddress: plugin.tokenAddress,
         network: plugin.network,
@@ -453,12 +453,12 @@ describe('GovernanceErc20Handler', () => {
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('0')
       sandbox.stub(ProxyMember, 'createMember').resolves({} as any)
       const updateVotingPowerStub = sandbox.stub(ProxyMember, 'updateVotingPower').callsFake(async params => {
-        // Update the existing VpMember with the new voting power
-        existingVpMember.votingPower = params.votingPower
-        await existingVpMember.save()
-        return existingVpMember
+        // Update the existing TokenMember with the new voting power
+        existingTokenMember.votingPower = params.votingPower
+        await existingTokenMember.save()
+        return existingTokenMember
       })
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves(existingVpMember as any)
+      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves(existingTokenMember as any)
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       // Stub removePluginMember
@@ -467,13 +467,13 @@ describe('GovernanceErc20Handler', () => {
       await GovernanceErc20Handler.delegateVotesChanged(parsedEvent, info as any)
 
       // Verify voting power was set to 0
-      const vpMember = await Models.VpMember.findOne({
+      const tokenMember = await Models.TokenMember.findOne({
         memberAddress,
         tokenAddress: '0xTokenAddress',
         network,
       })
-      expect(vpMember).to.be.not.null
-      expect(vpMember.votingPower).to.be.eq('0')
+      expect(tokenMember).to.be.not.null
+      expect(tokenMember.votingPower).to.be.eq('0')
     })
   })
 

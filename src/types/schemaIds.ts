@@ -148,7 +148,7 @@ export interface IPluginMemberIdParams {
   memberAddress: HexAddress
 }
 
-export interface IVpMemberIdParams {
+export interface ITokenMemberIdParams {
   network: NetworksEnum
   tokenAddress: HexAddress
   memberAddress: HexAddress

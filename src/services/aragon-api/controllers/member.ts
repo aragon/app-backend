@@ -43,7 +43,7 @@ const MemberController = {
 
     if (plugin.tokenAddress) {
       extraParams.tokenAddress = plugin.tokenAddress
-      return Models.VpMember.findAndPaginate({
+      return Models.TokenMember.findAndPaginate({
         paginationParams,
         extraParams,
       })

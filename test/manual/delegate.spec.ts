@@ -149,7 +149,7 @@ describe('Manual: Delegate', () => {
 
     // test member1 have a transaction, balance and correct metrics
     member1Txs = await Models.MemberTransaction.find({ address: member1 }).sort({ createdAt: -1 })
-    member1Balance = await Models.VpMember.findOne({ address: member1 })
+    member1Balance = await Models.TokenMember.findOne({ address: member1 })
     member1Metrics = await Models.MemberMetrics.findOne({ address: member1 })
 
     expect(member1Txs).to.have.length(2)

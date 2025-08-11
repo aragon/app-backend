@@ -206,7 +206,7 @@ describe('Modules:PairData', () => {
       expect(result[1].memberAddress).to.equal('0xMember2')
     })
 
-    it('should include VpMember data when plugin has tokenAddress', async () => {
+    it('should include TokenMember data when plugin has tokenAddress', async () => {
       const pluginMembers = [
         {
           memberAddress: '0xMember1',
@@ -215,7 +215,7 @@ describe('Modules:PairData', () => {
           network: NetworksEnum.ethereumMainnet,
         },
       ]
-      const vpMembers = [
+      const tokenMembers = [
         {
           memberAddress: '0xMember2',
           tokenAddress: '0xToken1',
@@ -227,7 +227,7 @@ describe('Modules:PairData', () => {
 
       sandbox.stub(Models.PluginMember, 'find').resolves(pluginMembers)
       sandbox.stub(Models.Plugin, 'findOne').resolves(plugin)
-      sandbox.stub(Models.VpMember, 'find').resolves(vpMembers)
+      sandbox.stub(Models.TokenMember, 'find').resolves(tokenMembers)
 
       const result = await PairDataModule.pairAllMemberOfDao({
         pluginAddress: '0xPlugin1',
@@ -240,8 +240,8 @@ describe('Modules:PairData', () => {
       expect(result[1].votingPower).to.equal('100')
     })
 
-    it('should query VpMember directly when only tokenAddress is provided', async () => {
-      const vpMembers = [
+    it('should query TokenMember directly when only tokenAddress is provided', async () => {
+      const tokenMembers = [
         {
           memberAddress: '0xMember1',
           tokenAddress: '0xToken1',
@@ -257,7 +257,7 @@ describe('Modules:PairData', () => {
       ]
       const plugin = { address: '0xPlugin1', daoAddress: '0xDao1' }
 
-      sandbox.stub(Models.VpMember, 'find').resolves(vpMembers)
+      sandbox.stub(Models.TokenMember, 'find').resolves(tokenMembers)
       sandbox.stub(Models.Plugin, 'findOne').resolves(plugin)
 
       const result = await PairDataModule.pairAllMemberOfDao({
@@ -308,7 +308,7 @@ describe('Modules:PairData', () => {
           network: NetworksEnum.ethereumMainnet,
         },
       ]
-      const vpMembers = [
+      const tokenMembers = [
         {
           memberAddress: '0xMember1',
           tokenAddress: '0xToken1',
@@ -320,7 +320,7 @@ describe('Modules:PairData', () => {
 
       sandbox.stub(Models.PluginMember, 'find').resolves(pluginMembers)
       sandbox.stub(Models.Plugin, 'findOne').resolves(plugin)
-      sandbox.stub(Models.VpMember, 'find').resolves(vpMembers)
+      sandbox.stub(Models.TokenMember, 'find').resolves(tokenMembers)
 
       const result = await PairDataModule.pairAllMemberOfDao({
         pluginAddress: '0xPlugin1',

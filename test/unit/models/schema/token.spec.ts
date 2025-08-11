@@ -202,8 +202,8 @@ describe('Model: Token', () => {
   it('should get holder count', async () => {
     const createdToken = await Models.Token.create(rawToken)
 
-    // Create VpMembers with voting power
-    await Models.VpMember.create({
+    // Create TokenMembers with voting power
+    await Models.TokenMember.create({
       memberAddress: '0x123456789012345678901234567890123456789A',
       tokenAddress: createdToken.address,
       network: createdToken.network,
@@ -211,7 +211,7 @@ describe('Model: Token', () => {
       delegateReceivedCount: 0,
     })
 
-    await Models.VpMember.create({
+    await Models.TokenMember.create({
       memberAddress: '0x223456789012345678901234567890123456789A',
       tokenAddress: createdToken.address,
       network: createdToken.network,
@@ -220,7 +220,7 @@ describe('Model: Token', () => {
     })
 
     // One with zero voting power (should not count)
-    await Models.VpMember.create({
+    await Models.TokenMember.create({
       memberAddress: '0x323456789012345678901234567890123456789A',
       tokenAddress: createdToken.address,
       network: createdToken.network,

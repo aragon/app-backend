@@ -26,6 +26,9 @@ import { VotingEscrow } from '@artifacts/VotingEscrow'
 import { DaoV2 } from '@artifacts/daoV2'
 import { ExecuteSelectorCondition } from '@artifacts/ExecuteSelectorCondition'
 import { ExecuteHandler } from '@handlers/executeHandler'
+import LockManagerHandler from '@handlers/lockManagerHandler'
+import { LockManager } from '@artifacts/LockManager'
+import { LockToVote } from '@artifacts/LockToVote'
 
 const IndexerEventConfig: IIndexerConfig[] = [
   // historical and realtime on startup
@@ -137,10 +140,17 @@ const IndexerEventConfig: IIndexerConfig[] = [
   {
     event: 'VotingSettingsUpdated',
     enableHistorical: false,
-    topic: new Interface(TokenVoting.abi).getEvent('VotingSettingsUpdated')?.topicHash!,
+    topic: [
+      new Interface(TokenVoting.abi).getEvent('VotingSettingsUpdated')?.topicHash!,
+      new Interface(LockToVote.abi).getEvent('VotingSettingsUpdated')?.topicHash!,
+    ],
     config: [
       {
         abi: TokenVoting.abi,
+        handler: PluginSettingHandler.votingSettingsUpdated,
+      },
+      {
+        abi: LockToVote.abi,
         handler: PluginSettingHandler.votingSettingsUpdated,
       },
     ],
@@ -451,6 +461,39 @@ const IndexerEventConfig: IIndexerConfig[] = [
       {
         abi: ExecuteSelectorCondition.abi,
         handler: ExecuteHandler.nativeTransfersDisallowed,
+      },
+    ],
+  },
+  {
+    event: 'BalanceLocked',
+    enableHistorical: false,
+    topic: new Interface(LockManager.abi).getEvent('BalanceLocked')?.topicHash!,
+    config: [
+      {
+        abi: LockManager.abi,
+        handler: LockManagerHandler.balanceLocked,
+      },
+    ],
+  },
+  {
+    event: 'BalanceUnlocked',
+    enableHistorical: false,
+    topic: new Interface(LockManager.abi).getEvent('BalanceUnlocked')?.topicHash!,
+    config: [
+      {
+        abi: LockManager.abi,
+        handler: LockManagerHandler.balanceUnlocked,
+      },
+    ],
+  },
+  {
+    event: 'VoteCleared',
+    enableHistorical: false,
+    topic: new Interface(LockToVote.abi).getEvent('VoteCleared')?.topicHash!,
+    config: [
+      {
+        abi: LockToVote.abi,
+        handler: ProposalHandler.voteCleared,
       },
     ],
   },

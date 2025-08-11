@@ -5,11 +5,11 @@ import mongoose from 'mongoose'
 import * as pLimit from 'p-limit'
 import { ProxyMember } from '@modules/proxyMember'
 
-const llo = logger.logMeta.bind(null, { service: 'Migration: vpMembers' })
+const llo = logger.logMeta.bind(null, { service: 'Migration: tokenMembers' })
 
-export const vpMembersMigration: IMigration = {
+export const tokenMembersMigration: IMigration = {
   start: async () => {
-    logger.info('Starting migration', llo({ migration: '20250804122543-vpMembers' }))
+    logger.info('Starting migration', llo({ migration: '20250804122543-tokenMembers' }))
 
     try {
       const memberBalancesCollection = mongoose.connection.collection('MemberBalance')
@@ -144,7 +144,7 @@ export const vpMembersMigration: IMigration = {
       logger.info(
         'Migration completed successfully',
         llo({
-          migration: '20250804122543-vpMembers',
+          migration: '20250804122543-tokenMembers',
           totalProcessed: processedCount,
           skipped: skippedCount,
           errors: errorCount,
@@ -152,7 +152,7 @@ export const vpMembersMigration: IMigration = {
         }),
       )
     } catch (error) {
-      logger.error('Migration failed', llo({ migration: '20250804122543-vpMembers', error }))
+      logger.error('Migration failed', llo({ migration: '20250804122543-tokenMembers', error }))
       throw error
     }
   },
@@ -162,4 +162,4 @@ export const vpMembersMigration: IMigration = {
   },
 }
 
-export default vpMembersMigration
+export default tokenMembersMigration

@@ -168,7 +168,7 @@ const PairDataModule = {
       }))
       result.push(...mappedPluginMembers)
 
-      // Check if plugin has tokenAddress, if yes retrieve from VpMember
+      // Check if plugin has tokenAddress, if yes retrieve from TokenMember
       const plugin = await Models.Plugin.findOne({ address: pluginAddress, network })
       if (plugin?.tokenAddress) {
         const vpParams: any = {
@@ -181,9 +181,9 @@ const PairDataModule = {
           vpParams.memberAddress = memberAddress
         }
 
-        const vpMembers = await Models.VpMember.find(vpParams)
-        // Map VpMember to include plugin context
-        const mappedVpMembers = vpMembers.map(member => ({
+        const tokenMembers = await Models.TokenMember.find(vpParams)
+        // Map TokenMember to include plugin context
+        const mappedTokenMembers = tokenMembers.map(member => ({
           memberAddress: member.memberAddress,
           daoAddress: plugin.daoAddress,
           pluginAddress: plugin.address,
@@ -191,10 +191,10 @@ const PairDataModule = {
           votingPower: member.votingPower,
           tokenAddress: member.tokenAddress,
         }))
-        result.push(...mappedVpMembers)
+        result.push(...mappedTokenMembers)
       }
     }
-    // Case 2: If tokenAddress is passed directly, query VpMember directly
+    // Case 2: If tokenAddress is passed directly, query TokenMember directly
     else if (tokenAddress && network) {
       const vpParams: any = {
         tokenAddress,
@@ -206,13 +206,13 @@ const PairDataModule = {
         vpParams.memberAddress = memberAddress
       }
 
-      const vpMembers = await Models.VpMember.find(vpParams)
+      const tokenMembers = await Models.TokenMember.find(vpParams)
 
       // Find associated plugin to get daoAddress
       const plugin = await Models.Plugin.findOne({ tokenAddress, network })
 
-      // Map VpMember to include dao context
-      const mappedVpMembers = vpMembers.map(member => ({
+      // Map TokenMember to include dao context
+      const mappedTokenMembers = tokenMembers.map(member => ({
         memberAddress: member.memberAddress,
         daoAddress: plugin?.daoAddress || daoAddress,
         pluginAddress: plugin?.address,
@@ -220,7 +220,7 @@ const PairDataModule = {
         votingPower: member.votingPower,
         tokenAddress: member.tokenAddress,
       }))
-      result.push(...mappedVpMembers)
+      result.push(...mappedTokenMembers)
     }
 
     // Remove duplicates based on memberAddress

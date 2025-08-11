@@ -10,7 +10,7 @@ import { ProxyToken } from '@modules/proxyToken'
 import { Models } from '@dbModels'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
 
-describe.only('AragonDao: memberInfo', () => {
+describe('AragonDao: memberInfo', () => {
   let sandbox: SinonSandbox
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
