@@ -102,6 +102,25 @@ describe('Helpers: ConfigIndexerHelper', () => {
       })
     })
 
+    describe('lockManager', () => {
+      it('should create lockManager logService', () => {
+        const network = NetworksEnum.ethereumMainnet
+        const address = '0xlockManager123'
+        const result = ConfigIndexerHelper.builders.lockManager(network, address)
+        expect(result).to.equal(`lockManager-${network}-${address}`)
+      })
+
+      it('should create lockManager logService with different networks', () => {
+        const address = '0xlockManager456'
+        const networks = [NetworksEnum.polygonMainnet, NetworksEnum.baseMainnet, NetworksEnum.arbitrumMainnet]
+
+        networks.forEach(network => {
+          const result = ConfigIndexerHelper.builders.lockManager(network, address)
+          expect(result).to.equal(`lockManager-${network}-${address}`)
+        })
+      })
+    })
+
     describe('token', () => {
       it('should create basic token logService without sync tag', () => {
         const tokenType = ITokenType.ERC20
@@ -221,6 +240,21 @@ describe('Helpers: ConfigIndexerHelper', () => {
       })
     })
 
+    describe('isLockManager', () => {
+      it('should return true for lockManager service', () => {
+        const service = 'lockManager-ethereum-mainnet-0x123'
+        expect(ConfigIndexerHelper.guards.isLockManager(service)).to.be.true
+      })
+
+      it('should return false for non-lockManager service', () => {
+        expect(ConfigIndexerHelper.guards.isLockManager('deposit-ethereum-mainnet-0x123-depositTxs')).to.be.false
+        expect(ConfigIndexerHelper.guards.isLockManager('dao-ethereum-mainnet-0x123')).to.be.false
+        expect(ConfigIndexerHelper.guards.isLockManager('permission-ethereum-mainnet-0x123')).to.be.false
+        expect(ConfigIndexerHelper.guards.isLockManager('transferList-ethereum-mainnet-0x123')).to.be.false
+        expect(ConfigIndexerHelper.guards.isLockManager(null)).to.be.false
+      })
+    })
+
     describe('isToken', () => {
       it('should return true for token services', () => {
         expect(ConfigIndexerHelper.guards.isToken('ERC20-ethereum-mainnet-0x123')).to.be.true
@@ -252,6 +286,8 @@ describe('Helpers: ConfigIndexerHelper', () => {
         expect(ConfigIndexerHelper.guards.isPlugin('indexer-ethereum-mainnet')).to.be.false
         expect(ConfigIndexerHelper.guards.isPlugin('dao-ethereum-mainnet-0x123')).to.be.false
         expect(ConfigIndexerHelper.guards.isPlugin('permission-ethereum-mainnet-0x123')).to.be.false
+        expect(ConfigIndexerHelper.guards.isPlugin('transferList-ethereum-mainnet-0x123')).to.be.false
+        expect(ConfigIndexerHelper.guards.isPlugin('lockManager-ethereum-mainnet-0x123')).to.be.false
         expect(ConfigIndexerHelper.guards.isPlugin('ERC20-ethereum-mainnet-0x123')).to.be.false
         expect(ConfigIndexerHelper.guards.isPlugin(null)).to.be.false
       })
@@ -308,6 +344,24 @@ describe('Helpers: ConfigIndexerHelper', () => {
         const result = ConfigIndexerHelper.parser.parse('transferList-polygon-mainnet-0x123-456-789')
         expect(result).to.deep.equal({
           type: IndexerType.transferList,
+          network: 'polygon-mainnet',
+          address: '0x123-456-789',
+        })
+      })
+
+      it('should parse lockManager service', () => {
+        const result = ConfigIndexerHelper.parser.parse('lockManager-ethereum-mainnet-0xlock123')
+        expect(result).to.deep.equal({
+          type: IndexerType.lockManager,
+          network: 'ethereum-mainnet',
+          address: '0xlock123',
+        })
+      })
+
+      it('should parse lockManager service with complex addresses', () => {
+        const result = ConfigIndexerHelper.parser.parse('lockManager-polygon-mainnet-0x123-456-789')
+        expect(result).to.deep.equal({
+          type: IndexerType.lockManager,
           network: 'polygon-mainnet',
           address: '0x123-456-789',
         })
@@ -378,6 +432,12 @@ describe('Helpers: ConfigIndexerHelper', () => {
           IndexerType.transferList,
         )
       })
+
+      it('should return lockManager type for lockManager service', () => {
+        expect(ConfigIndexerHelper.parser.getType('lockManager-ethereum-mainnet-0x123')).to.equal(
+          IndexerType.lockManager,
+        )
+      })
     })
   })
 
@@ -405,6 +465,12 @@ describe('Helpers: ConfigIndexerHelper', () => {
       it('should return true for valid transferList service', () => {
         expect(ConfigIndexerHelper.validators.isValidLogService('transferList-ethereum-mainnet-0x123')).to.be.true
         expect(ConfigIndexerHelper.validators.isValidLogService('transferList-polygon-mainnet-0xabc')).to.be.true
+      })
+
+      it('should return true for valid lockManager service', () => {
+        expect(ConfigIndexerHelper.validators.isValidLogService('lockManager-ethereum-mainnet-0x123')).to.be.true
+        expect(ConfigIndexerHelper.validators.isValidLogService('lockManager-polygon-mainnet-0xabc')).to.be.true
+        expect(ConfigIndexerHelper.validators.isValidLogService('lockManager-base-mainnet-0xdef456')).to.be.true
       })
     })
 
@@ -481,6 +547,29 @@ describe('Helpers: ConfigIndexerHelper', () => {
       expect(ConfigIndexerHelper.validators.isValidLogService(service)).to.be.true
     })
 
+    it('should handle lockManager service lifecycle', () => {
+      // Create lockManager service
+      const service = ConfigIndexerHelper.builders.lockManager(NetworksEnum.ethereumMainnet, '0xlockManager123')
+      expect(service).to.equal('lockManager-ethereum-mainnet-0xlockManager123')
+
+      // Verify guard works
+      expect(ConfigIndexerHelper.guards.isLockManager(service)).to.be.true
+
+      // Parse it
+      const parsed = ConfigIndexerHelper.parser.parse(service)
+      expect(parsed).to.deep.equal({
+        type: IndexerType.lockManager,
+        network: NetworksEnum.ethereumMainnet,
+        address: '0xlockManager123',
+      })
+
+      // Verify type
+      expect(ConfigIndexerHelper.parser.getType(service)).to.equal(IndexerType.lockManager)
+
+      // Validate it
+      expect(ConfigIndexerHelper.validators.isValidLogService(service)).to.be.true
+    })
+
     it('should correctly identify all service types', () => {
       const services = [
         { service: 'deposit-ethereum-mainnet-0x123-depositTxs', type: IndexerType.deposit },
@@ -488,7 +577,8 @@ describe('Helpers: ConfigIndexerHelper', () => {
         { service: 'indexer-ethereum-mainnet', type: IndexerType.indexer },
         { service: 'dao-polygon-mainnet-0x789', type: IndexerType.dao },
         { service: 'permission-ethereum-mainnet-0xperm123', type: IndexerType.permission },
-        { service: 'transferList-ethereum-mainnet-0xtransfer123', type: IndexerType.transferList }, // Add this line
+        { service: 'transferList-ethereum-mainnet-0xtransfer123', type: IndexerType.transferList },
+        { service: 'lockManager-ethereum-mainnet-0xlockManager123', type: IndexerType.lockManager },
         { service: 'ERC20-base-mainnet-0xabc', type: IndexerType.token },
         { service: 'voting-arbitrum-mainnet-0xdef', type: IndexerType.plugin },
       ]
