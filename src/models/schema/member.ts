@@ -177,6 +177,7 @@ export default class Member extends Model {
             isSupported: 1,
             interfaceType: 1,
             conditionAddress: 1,
+            lockManagerAddress: 1,
             subdomain: 1,
             isProcess: 1,
             isBody: 1,
