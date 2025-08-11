@@ -71,7 +71,7 @@ export const tokenMembersMigration: IMigration = {
             }
 
             // Update voting power for the member
-            await ProxyMember.updateVotingPower({
+            await ProxyMember.updateTokenMemberVP({
               memberAddress: memberBalance.address,
               tokenAddress: memberBalance.tokenAddress,
               network: memberBalance.network,

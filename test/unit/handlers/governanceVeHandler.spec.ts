@@ -72,7 +72,9 @@ describe('Handler:GovernanceVeHandler', () => {
       const stubPluginFind = sandbox.stub(Models.Plugin, 'find').resolves([])
       const stubLogger = sandbox.stub(logger, 'error')
       const stubLockCreate = sandbox.stub(Models.Lock, 'create')
-      const stubAddPluginMember = sandbox.stub(ProxyMember, 'addPluginMember')
+      const stubGetOrCreateTokenMember = sandbox.stub(ProxyMember, 'getOrCreateTokenMember')
+      const stubUpdateTokenMemberVP = sandbox.stub(ProxyMember, 'updateTokenMemberVP')
+      const stubUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics')
 
       const mockInfo = {
         address: '0x001DdEdc2139d9948e8dcC936C1Ab2314D9181E8',
@@ -104,7 +106,9 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Plugin not found for deposit event' as any)).to.be.true
       expect(stubLockCreate.notCalled).to.be.true
-      expect(stubAddPluginMember.notCalled).to.be.true
+      expect(stubGetOrCreateTokenMember.notCalled).to.be.true
+      expect(stubUpdateTokenMemberVP.notCalled).to.be.true
+      expect(stubUpdatePluginMetrics.notCalled).to.be.true
     })
 
     it('should log warning if lock already exists', async () => {
@@ -122,7 +126,9 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Models.Lock, 'findExistingLog').resolves({ id: 'existingLock' } as any)
       const stubLogger = sandbox.stub(logger, 'warn')
       const stubLockCreate = sandbox.stub(Models.Lock, 'create')
-      const stubAddPluginMember = sandbox.stub(ProxyMember, 'addPluginMember')
+      const stubGetOrCreateTokenMember = sandbox.stub(ProxyMember, 'getOrCreateTokenMember')
+      const stubUpdateTokenMemberVP = sandbox.stub(ProxyMember, 'updateTokenMemberVP')
+      const stubUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics')
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
@@ -147,10 +153,12 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Deposit VeGovernance - Lock already exists' as any)).to.be.true
       expect(stubLockCreate.notCalled).to.be.true
-      expect(stubAddPluginMember.notCalled).to.be.true
+      expect(stubGetOrCreateTokenMember.notCalled).to.be.true
+      expect(stubUpdateTokenMemberVP.notCalled).to.be.true
+      expect(stubUpdatePluginMetrics.notCalled).to.be.true
     })
 
-    it('should create Lock and call addPluginMember with new TokenMember created and updated', async () => {
+    it('should create Lock and update TokenMember with new tokenId', async () => {
       const mockPlugin = {
         address: '0xPluginAddress',
         daoAddress: '0xDaoAddress',
@@ -167,11 +175,12 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(ProxyMember, 'createMember').resolves()
       const stubLockCreate = sandbox.stub(Models.Lock, 'create').resolves()
       const stubLogger = sandbox.stub(logger, 'verbose')
-      const stubAddPluginMember = sandbox.stub(ProxyMember, 'addPluginMember').resolves()
-      const stubGetOrCreateVotingPower = sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
+      const stubGetOrCreateTokenMember = sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
         tokenIds: [],
       } as any)
-      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
+      const stubUpdateTokenMemberVP = sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
+      const stubUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+      sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin.daoAddress])
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
@@ -214,36 +223,45 @@ describe('Handler:GovernanceVeHandler', () => {
         exitQueueAddress: mockPlugin.votingEscrow.exitQueueAddress,
       })
 
-      // Verify addPluginMember was called
-      expect(stubAddPluginMember.calledOnce).to.be.true
+      // Verify getOrCreateTokenMember was called
+      expect(stubGetOrCreateTokenMember.calledOnce).to.be.true
       expect(
-        stubAddPluginMember.calledWith({
-          memberAddress: mockEvent.args.depositor,
-          pluginAddress: mockPlugin.address,
-          daoAddress: mockPlugin.daoAddress,
-          network: mockInfo.network,
-        }),
-      ).to.be.true
-
-      // Verify getOrCreateVotingPower was called
-      expect(stubGetOrCreateVotingPower.calledOnce).to.be.true
-      expect(
-        stubGetOrCreateVotingPower.calledWith({
+        stubGetOrCreateTokenMember.calledWith({
           memberAddress: mockEvent.args.depositor,
           tokenAddress: mockPlugin.tokenAddress,
           network: mockInfo.network,
         }),
       ).to.be.true
 
-      // Verify updateVotingPower was called with new tokenId
-      expect(stubUpdateVotingPower.calledOnce).to.be.true
+      // Verify updateTokenMemberVP was called with new tokenId
+      expect(stubUpdateTokenMemberVP.calledOnce).to.be.true
       expect(
-        stubUpdateVotingPower.calledWith({
+        stubUpdateTokenMemberVP.calledWith({
           memberAddress: mockEvent.args.depositor,
           tokenAddress: mockPlugin.tokenAddress,
           network: mockInfo.network,
           tokenIds: ['123'],
           lastVPBlockNumber: mockInfo.blockNumber,
+        }),
+      ).to.be.true
+
+      // Verify updatePluginMetrics was called
+      expect(stubUpdatePluginMetrics.calledOnce).to.be.true
+      expect(
+        stubUpdatePluginMetrics.calledWith({
+          memberAddress: mockEvent.args.depositor,
+          pluginAddress: mockPlugin.address,
+          network: mockInfo.network,
+          lastActivity: mockInfo.blockNumber,
+        }),
+      ).to.be.true
+
+      // Verify RabbitMQ message was sent
+      expect(rabbitMQHelperStub.calledOnce).to.be.true
+      expect(
+        rabbitMQHelperStub.calledWith(EnumQueueName.daoMetrics, {
+          id: mockPlugin.daoAddress,
+          params: { address: mockPlugin.daoAddress, network: mockInfo.network },
         }),
       ).to.be.true
 
@@ -271,12 +289,13 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(ProxyMember, 'createMember').resolves()
       const stubLockCreate = sandbox.stub(Models.Lock, 'create').resolves()
       const stubLogger = sandbox.stub(logger, 'verbose')
-      const stubAddPluginMember = sandbox.stub(ProxyMember, 'addPluginMember').resolves()
       // TokenMember already has the tokenId
-      const stubGetOrCreateVotingPower = sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
+      const stubGetOrCreateTokenMember = sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
         tokenIds: ['100', '123', '200'], // Already includes tokenId 123
       } as any)
-      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
+      const stubUpdateTokenMemberVP = sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
+      const stubUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+      sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin.daoAddress])
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
@@ -301,14 +320,17 @@ describe('Handler:GovernanceVeHandler', () => {
       // Verify Lock was created
       expect(stubLockCreate.calledOnce).to.be.true
 
-      // Verify addPluginMember was called
-      expect(stubAddPluginMember.calledOnce).to.be.true
+      // Verify getOrCreateTokenMember was called
+      expect(stubGetOrCreateTokenMember.calledOnce).to.be.true
 
-      // Verify getOrCreateVotingPower was called
-      expect(stubGetOrCreateVotingPower.calledOnce).to.be.true
+      // Verify updateTokenMemberVP was NOT called since tokenId already exists
+      expect(stubUpdateTokenMemberVP.notCalled).to.be.true
 
-      // Verify updateVotingPower was NOT called since tokenId already exists
-      expect(stubUpdateVotingPower.notCalled).to.be.true
+      // Verify updatePluginMetrics was called
+      expect(stubUpdatePluginMetrics.calledOnce).to.be.true
+
+      // Verify RabbitMQ message was sent
+      expect(rabbitMQHelperStub.calledOnce).to.be.true
 
       // Verify logging
       expect(stubLogger.calledTwice).to.be.true
@@ -317,7 +339,7 @@ describe('Handler:GovernanceVeHandler', () => {
         .true
     })
 
-    it('should handle multiple plugins and call addPluginMember for each', async () => {
+    it('should handle multiple plugins and call updatePluginMetrics for each', async () => {
       const mockPlugins = [
         {
           address: '0xPluginAddress1',
@@ -346,9 +368,10 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(ProxyMember, 'createMember').resolves()
       sandbox.stub(Models.Lock, 'create').resolves()
       sandbox.stub(logger, 'verbose')
-      const stubAddPluginMember = sandbox.stub(ProxyMember, 'addPluginMember').resolves()
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({ tokenIds: [] } as any)
-      sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
+      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({ tokenIds: [] } as any)
+      sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
+      const stubUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+      sandbox.stub(utils, 'getUniqueValuesByKey').returns(['0xDaoAddress1', '0xDaoAddress2'])
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
@@ -370,24 +393,27 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.deposit(mockEvent, mockInfo)
 
-      // Verify addPluginMember was called for each plugin
-      expect(stubAddPluginMember.calledTwice).to.be.true
+      // Verify updatePluginMetrics was called for each plugin
+      expect(stubUpdatePluginMetrics.calledTwice).to.be.true
       expect(
-        stubAddPluginMember.firstCall.calledWith({
+        stubUpdatePluginMetrics.firstCall.calledWith({
           memberAddress: mockEvent.args.depositor,
           pluginAddress: mockPlugins[0].address,
-          daoAddress: mockPlugins[0].daoAddress,
           network: mockInfo.network,
+          lastActivity: mockInfo.blockNumber,
         }),
       ).to.be.true
       expect(
-        stubAddPluginMember.secondCall.calledWith({
+        stubUpdatePluginMetrics.secondCall.calledWith({
           memberAddress: mockEvent.args.depositor,
           pluginAddress: mockPlugins[1].address,
-          daoAddress: mockPlugins[1].daoAddress,
           network: mockInfo.network,
+          lastActivity: mockInfo.blockNumber,
         }),
       ).to.be.true
+
+      // Verify RabbitMQ messages were sent for both DAOs
+      expect(rabbitMQHelperStub.calledTwice).to.be.true
     })
 
     it('should handle undefined blockTimestamp gracefully', async () => {
@@ -407,9 +433,10 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(ProxyMember, 'createMember').resolves()
       const stubLockCreate = sandbox.stub(Models.Lock, 'create').resolves()
       sandbox.stub(logger, 'verbose')
-      sandbox.stub(ProxyMember, 'addPluginMember').resolves()
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({ tokenIds: [] } as any)
-      sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
+      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({ tokenIds: [] } as any)
+      sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
+      sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+      sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin.daoAddress])
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
@@ -454,9 +481,10 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(ProxyMember, 'createMember').resolves()
       sandbox.stub(Models.Lock, 'create').resolves()
       sandbox.stub(logger, 'verbose')
-      sandbox.stub(ProxyMember, 'addPluginMember').resolves()
-      const stubGetOrCreateVotingPower = sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves(null) // Returns null
-      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
+      const stubGetOrCreateTokenMember = sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves(null) // Returns null
+      const stubUpdateTokenMemberVP = sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
+      sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+      sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin.daoAddress])
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
@@ -478,11 +506,11 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.deposit(mockEvent, mockInfo)
 
-      // Verify getOrCreateVotingPower was called
-      expect(stubGetOrCreateVotingPower.calledOnce).to.be.true
+      // Verify getOrCreateTokenMember was called
+      expect(stubGetOrCreateTokenMember.calledOnce).to.be.true
 
-      // Verify updateVotingPower was NOT called since tokenMember is null
-      expect(stubUpdateVotingPower.notCalled).to.be.true
+      // Verify updateTokenMemberVP was NOT called since tokenMember is null
+      expect(stubUpdateTokenMemberVP.notCalled).to.be.true
     })
   })
 
@@ -492,7 +520,7 @@ describe('Handler:GovernanceVeHandler', () => {
       const stubLogger = sandbox.stub(logger, 'error')
       const stubLockFindLockMember = sandbox.stub(Models.Lock, 'findLockMember')
       const stubCreateMember = sandbox.stub(ProxyMember, 'createMember')
-      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateVotingPower')
+      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateTokenMemberVP')
 
       const mockInfo = {
         address: '0x001DdEdc2139d9948e8dcC936C1Ab2314D9181E8',
@@ -543,7 +571,7 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Models.Lock, 'findLockMember').resolves(null)
       const stubLogger = sandbox.stub(logger, 'error')
       const stubCreateMember = sandbox.stub(ProxyMember, 'createMember')
-      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateVotingPower')
+      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateTokenMemberVP')
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
@@ -592,8 +620,8 @@ describe('Handler:GovernanceVeHandler', () => {
 
       const stubLogger = sandbox.stub(logger, 'verbose')
       const stubCreateMember = sandbox.stub(ProxyMember, 'createMember')
-      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateVotingPower')
-      const stubGetOrCreateVotingPower = sandbox.stub(ProxyMember, 'getOrCreateVotingPower')
+      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateTokenMemberVP')
+      const stubGetOrCreateVotingPower = sandbox.stub(ProxyMember, 'getOrCreateTokenMember')
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
@@ -623,7 +651,7 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stubLogger.notCalled).to.be.true
     })
 
-    it('should update lock and call createMember and updateVotingPower', async () => {
+    it('should update lock and call createMember and updateTokenMemberVP', async () => {
       const mockPlugin = {
         address: '0xPluginAddress',
         daoAddress: '0xDaoAddress',
@@ -646,10 +674,11 @@ describe('Handler:GovernanceVeHandler', () => {
 
       const stubLogger = sandbox.stub(logger, 'verbose')
       const stubCreateMember = sandbox.stub(ProxyMember, 'createMember').resolves()
-      const stubGetOrCreateVotingPower = sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
+      const stubGetOrCreateVotingPower = sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
         tokenIds: ['100', '123', '200'],
       } as any)
-      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
+      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
+      const stubUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
@@ -691,7 +720,7 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stubCreateMember.calledOnce).to.be.true
       expect(stubCreateMember.calledWith(mockEvent.args.depositor, mockInfo.blockNumber)).to.be.true
 
-      // Verify getOrCreateVotingPower was called
+      // Verify getOrCreateTokenMember was called
       expect(stubGetOrCreateVotingPower.calledOnce).to.be.true
       expect(
         stubGetOrCreateVotingPower.calledWith({
@@ -701,7 +730,7 @@ describe('Handler:GovernanceVeHandler', () => {
         }),
       ).to.be.true
 
-      // Verify ProxyMember.updateVotingPower was called with tokenId removed
+      // Verify ProxyMember.updateTokenMemberVP was called with tokenId removed
       expect(stubUpdateVotingPower.calledOnce).to.be.true
       expect(
         stubUpdateVotingPower.calledWith({
@@ -711,6 +740,17 @@ describe('Handler:GovernanceVeHandler', () => {
           votingPower: undefined,
           tokenIds: ['100', '200'], // '123' removed
           lastVPBlockNumber: mockInfo.blockNumber,
+        }),
+      ).to.be.true
+
+      // Verify updatePluginMetrics was called
+      expect(stubUpdatePluginMetrics.calledOnce).to.be.true
+      expect(
+        stubUpdatePluginMetrics.calledWith({
+          memberAddress: mockEvent.args.depositor,
+          pluginAddress: mockPlugin.address,
+          network: mockInfo.network,
+          lastActivity: mockInfo.blockNumber,
         }),
       ).to.be.true
 
@@ -743,10 +783,10 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(ProxyMember, 'createMember').resolves()
 
       // Only one tokenId exists, which will be removed
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
+      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
         tokenIds: ['123'],
       } as any)
-      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
+      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
@@ -768,7 +808,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.withdraw(mockEvent, mockInfo)
 
-      // Verify updateVotingPower was called with votingPower: '0' when no tokenIds remain
+      // Verify updateTokenMemberVP was called with votingPower: '0' when no tokenIds remain
       expect(stubUpdateVotingPower.calledOnce).to.be.true
       expect(
         stubUpdateVotingPower.calledWith({
@@ -804,10 +844,10 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(undefined) // Returns undefined
       sandbox.stub(logger, 'verbose')
       sandbox.stub(ProxyMember, 'createMember').resolves()
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
+      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
         tokenIds: ['123'],
       } as any)
-      sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
+      sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
@@ -859,10 +899,10 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(ProxyMember, 'createMember').resolves()
 
       // tokenId 123 is not in the array
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
+      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
         tokenIds: ['100', '200'],
       } as any)
-      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
+      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
@@ -884,7 +924,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.withdraw(mockEvent, mockInfo)
 
-      // Verify updateVotingPower was called with same tokenIds (nothing removed)
+      // Verify updateTokenMemberVP was called with same tokenIds (nothing removed)
       expect(stubUpdateVotingPower.calledOnce).to.be.true
       expect(
         stubUpdateVotingPower.calledWith({
@@ -922,10 +962,10 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(ProxyMember, 'createMember').resolves()
 
       // TokenMember has undefined tokenIds
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
+      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
         tokenIds: undefined,
       } as any)
-      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
+      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
@@ -947,7 +987,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.withdraw(mockEvent, mockInfo)
 
-      // Verify updateVotingPower was called with votingPower: '0' for empty array
+      // Verify updateTokenMemberVP was called with votingPower: '0' for empty array
       expect(stubUpdateVotingPower.calledOnce).to.be.true
       expect(
         stubUpdateVotingPower.calledWith({
@@ -1112,6 +1152,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
       const stubLogger = sandbox.stub(logger, 'verbose')
       const stubCreateMember = sandbox.stub(ProxyMember, 'createMember').resolves()
+      const stubUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
 
       const mockInfo = {
         address: '0xExitQueue',
@@ -1148,6 +1189,17 @@ describe('Handler:GovernanceVeHandler', () => {
       // Verify ProxyMember.createMember was called
       expect(stubCreateMember.calledOnce).to.be.true
       expect(stubCreateMember.calledWith(mockEvent.args.holder, mockInfo.blockNumber)).to.be.true
+
+      // Verify updatePluginMetrics was called
+      expect(stubUpdatePluginMetrics.calledOnce).to.be.true
+      expect(
+        stubUpdatePluginMetrics.calledWith({
+          memberAddress: mockEvent.args.holder,
+          pluginAddress: mockPlugin.address,
+          network: mockInfo.network,
+          lastActivity: mockInfo.blockNumber,
+        }),
+      ).to.be.true
 
       // Verify logging
       expect(stubLogger.calledOnce).to.be.true
@@ -2539,13 +2591,13 @@ describe('Handler:GovernanceVeHandler', () => {
         isGovernance: true,
         clockMode: false,
       } as any)
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
+      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
         lastVPBlockNumber: 200, // Greater than info.blockNumber (123)
         tokenIds: ['123'],
       } as any)
       const stubCreateMember = sandbox.stub(ProxyMember, 'createMember')
       const stubGetBlockTimestamp = sandbox.stub(Web3Helper, 'getBlockTimestamp')
-      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateVotingPower')
+      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateTokenMemberVP')
 
       const mockParsedEvent = {
         args: {
@@ -2621,12 +2673,12 @@ describe('Handler:GovernanceVeHandler', () => {
         isGovernance: true,
         clockMode: null,
       } as any)
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
+      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
         tokenIds: ['789', '123'], // Already has 123
       } as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('100')
-      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
+      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
       const stubUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics')
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([])
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([])
@@ -2685,12 +2737,12 @@ describe('Handler:GovernanceVeHandler', () => {
         isGovernance: true,
         clockMode: false,
       } as any)
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
+      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
         tokenIds: ['123', '456', '789'],
       } as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('50')
-      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
+      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
       const stubUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([plugin.daoAddress])
@@ -2757,12 +2809,12 @@ describe('Handler:GovernanceVeHandler', () => {
         isGovernance: true,
         clockMode: false,
       } as any)
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
+      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
         tokenIds: ['789'],
       } as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('150')
-      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
+      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
       const stubUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics')
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([])
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([])
@@ -2812,12 +2864,12 @@ describe('Handler:GovernanceVeHandler', () => {
         isGovernance: true,
         clockMode: false,
       } as any)
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
+      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
         tokenIds: [],
       } as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(undefined)
       const stubGetPastVotes = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('0')
-      sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
+      sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([])
 
       const mockParsedEvent = {
@@ -2880,12 +2932,12 @@ describe('Handler:GovernanceVeHandler', () => {
         isGovernance: true,
         clockMode: false,
       } as any)
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
+      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
         tokenIds: ['789'],
       } as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('100')
-      sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
+      sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
       const stubUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin, plugin2, plugin3])
       sandbox.stub(utils, 'getUniqueValuesByKey').returns(['0xDAO', '0xDAO2']) // Two unique DAOs
@@ -2942,12 +2994,12 @@ describe('Handler:GovernanceVeHandler', () => {
         isGovernance: true,
         clockMode: false,
       } as any)
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
+      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
         tokenIds: undefined, // No existing tokenIds
       } as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('0')
-      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
+      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([])
 
       const mockParsedEvent = {
@@ -2987,7 +3039,7 @@ describe('Handler:GovernanceVeHandler', () => {
         isGovernance: true,
         clockMode: false,
       } as any)
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves(null)
+      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves(null)
       sandbox.stub(ProxyMember, 'createMember').rejects(new Error('Database error'))
       const stubLogger = sandbox.stub(logger, 'error')
 
@@ -3028,12 +3080,12 @@ describe('Handler:GovernanceVeHandler', () => {
         isGovernance: true,
         clockMode: IClockMode.Timestamp, // Clock mode is Timestamp
       } as any)
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
+      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
         tokenIds: [],
       } as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       const stubGetPastVotes = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('100')
-      sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
+      sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([])
 
       const mockParsedEvent = {
@@ -3083,12 +3135,12 @@ describe('Handler:GovernanceVeHandler', () => {
         isGovernance: true,
         clockMode: IClockMode.BlockNumber, // Clock mode is BlockNumber
       } as any)
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
+      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
         tokenIds: [],
       } as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       const stubGetPastVotes = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('100')
-      sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
+      sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([])
 
       const mockParsedEvent = {

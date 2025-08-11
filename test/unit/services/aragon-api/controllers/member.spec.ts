@@ -6,11 +6,10 @@ import { Models } from '@dbModels'
 import Member from '@models/schema/member'
 import PairDataModule from '@modules/pairData'
 import { FakeMember } from '@test/mock/fakeMember'
-import { fakePluginMembers } from '@test/mock/fakePluginMember'
-import { fakeTokenMembers } from '@test/mock/fakeTokenMember'
 import { DaoList } from '@test/mock/fakeDao'
 import PluginMember from '@models/schema/pluginMember'
 import TokenMember from '@models/schema/tokenMember'
+import LockManagerMember from '@models/schema/lockManagerMember'
 import type Dao from '@models/schema/dao'
 import { PluginList } from '@test/mock/fakePlugins'
 import { HexAddress, IPluginInterfaceType, NetworksEnum, ErrorKeyEnum, EnumQueueName } from '@types'
@@ -22,6 +21,7 @@ describe('Controller: Member', () => {
   let rawPluginMember: Partial<PluginMember>
   let rawDao: Partial<Dao>
   let rawTokenMember: Partial<TokenMember>
+  let rawLockManagerMember: Partial<LockManagerMember>
   let rawPlugin: any
 
   beforeEach(async () => {
@@ -57,10 +57,19 @@ describe('Controller: Member', () => {
       tokenIds: [],
     }
 
+    rawLockManagerMember = {
+      memberAddress: FakeMember.address,
+      lockManagerAddress: '0xLockManager123',
+      network: rawDao.network,
+      votingPower: '1000000000000000000',
+      lastVPBlockNumber: 12345,
+    }
+
     await Models.Member.create(rawMember)
     await Models.PluginMember.create(rawPluginMember)
     await Models.Dao.create(rawDao)
     await Models.TokenMember.create(rawTokenMember)
+    await Models.LockManagerMember.create(rawLockManagerMember)
     await Models.Plugin.create(rawPlugin)
   })
 
@@ -233,6 +242,51 @@ describe('Controller: Member', () => {
       })
     })
 
+    it('should call LockManagerMember.findAndPaginate for lockToVote plugin', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+      const extraParams = {
+        network: rawPlugin.network,
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      }
+      const pairParams = {}
+
+      const lockToVotePlugin = {
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: '0xLockManager123',
+        votingEscrow: null,
+      }
+
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(rawPlugin)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(lockToVotePlugin)
+      const stubFindAndPaginate = sandbox.stub(Models.LockManagerMember, 'findAndPaginate').resolves({
+        data: [{ address: rawPluginMember.memberAddress }],
+        metadata: { page: 1, totalPages: 1, totalRecords: 1 },
+      } as any)
+
+      const response = await MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams)
+
+      expect(stubFindAndPaginate.calledOnce).to.be.true
+      expect(
+        stubFindAndPaginate.calledWith({
+          paginationParams,
+          extraParams: {
+            ...extraParams,
+            lockManagerAddress: lockToVotePlugin.lockManagerAddress,
+          },
+        }),
+      ).to.be.true
+      expect(response.data).to.have.lengthOf(1)
+      expect(response.data[0].address).to.equal(rawPluginMember.memberAddress)
+    })
+
     it('should call PluginMember.findAndPaginate for non-tokenVoting plugin', async () => {
       const paginationParams = {
         search: '',
@@ -294,7 +348,7 @@ describe('Controller: Member', () => {
       ).to.be.rejectedWith('pluginNotFound')
     })
 
-    it('should handle plugin without tokenAddress', async () => {
+    it('should throw error when tokenVoting plugin has no tokenAddress', async () => {
       const paginationParams = {
         search: '',
         pageSize: 10,
@@ -317,14 +371,37 @@ describe('Controller: Member', () => {
         tokenAddress: null,
         votingEscrow: null,
       })
-      const stubFindAndPaginate = sandbox.stub(Models.PluginMember, 'findAndPaginate').resolves({
-        data: [],
-        metadata: { page: 1, totalPages: 0, totalRecords: 0 },
-      } as any)
 
-      const response = await MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams)
+      await expect(
+        MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams),
+      ).to.be.rejectedWith('pluginNotFound')
+    })
 
-      expect(stubFindAndPaginate.calledOnce).to.be.true
+    it('should throw error when lockToVote plugin has no lockManagerAddress', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+      const extraParams = {
+        network: rawPlugin.network,
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      }
+      const pairParams = {}
+
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(rawPlugin)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: null,
+      })
+
+      await expect(
+        MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams),
+      ).to.be.rejectedWith('pluginNotFound')
     })
   })
 

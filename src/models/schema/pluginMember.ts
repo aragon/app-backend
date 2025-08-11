@@ -30,7 +30,6 @@ const customName = ICollectionNames.PluginMember
     customName,
   },
 })
-@index({ id: 1 }, { unique: true })
 @index({ memberAddress: 1 })
 @index({ daoAddress: 1 })
 @index({ pluginAddress: 1 })

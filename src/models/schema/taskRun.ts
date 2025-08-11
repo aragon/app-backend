@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid'
 
 const customName = ICollectionNames.TaskRun
 
+@modelOptions({ schemaOptions: { _id: false }, options: { allowMixed: Severity.ALLOW } })
 class Task {
   @prop({ type: () => String, required: true })
   public taskName!: string
@@ -48,7 +49,6 @@ class Task {
     allowMixed: Severity.WARN,
   },
 })
-@index({ id: 1 }, { unique: true })
 @index({ serviceName: 1, createdAt: -1 })
 @index({ createdAt: 1 })
 export default class TaskRun extends Model {

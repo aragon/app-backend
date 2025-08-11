@@ -3,11 +3,11 @@ import {
   HexAddress,
   ICollectionNames,
   NetworksEnum,
-  type ITokenMemberIdParams,
-  type IPaginationParams,
-  type IMemberExtraParams,
+  type ILockManagerMemberIdParams,
   type IPaginatedResult,
+  type IPaginationParams,
   type IMembersResponse,
+  type IMemberExtraParams,
 } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
@@ -15,7 +15,7 @@ import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 
-const customName = ICollectionNames.TokenMember
+const customName = ICollectionNames.LockManagerMember
 
 @modelOptions({
   schemaOptions: {
@@ -29,13 +29,18 @@ const customName = ICollectionNames.TokenMember
     customName,
   },
 })
-@index({ memberAddress: 1 })
-@index({ tokenAddress: 1 })
-@index({ network: 1 })
-@index({ network: 1, tokenAddress: 1, memberAddress: 1 })
-export default class TokenMember extends Model {
+@index({ network: 1, lockManagerAddress: 1, memberAddress: 1 })
+@index({ network: 1, lockManagerAddress: 1, votingPower: -1 })
+@index({ lockManagerAddress: 1, memberAddress: 1 })
+export default class LockManagerMember extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
+
+  @prop({ type: () => String, enum: NetworksEnum, required: true })
+  public network!: NetworksEnum
+
+  @prop({ type: () => String, required: true })
+  public lockManagerAddress!: HexAddress
 
   @prop({ type: () => String, required: true })
   public memberAddress!: HexAddress
@@ -43,29 +48,17 @@ export default class TokenMember extends Model {
   @prop({ type: () => String, default: '0' })
   public votingPower!: string
 
-  @prop({ type: () => String, required: true })
-  public tokenAddress!: HexAddress
-
-  @prop({ type: () => [String], default: [] })
-  public tokenIds!: string[]
-
-  @prop({ type: () => String, required: true, enum: NetworksEnum })
-  public network!: NetworksEnum
-
-  @prop({ type: () => Number, default: 0 })
-  public delegateReceivedCount!: number
-
   @prop({ type: () => Number, default: 0 })
   public lastVPBlockNumber!: number
 
-  static async create(rawData: Partial<TokenMember>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<LockManagerMember>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
-      assert(!!rawData.tokenAddress, 'tokenAddress is required')
+      assert(!!rawData.lockManagerAddress, 'lockManagerAddress is required')
       assert(!!rawData.memberAddress, 'memberAddress is required')
       rawData.id = this.getEntityId({
         network: rawData.network!,
-        tokenAddress: rawData.tokenAddress!,
+        lockManagerAddress: rawData.lockManagerAddress!,
         memberAddress: rawData.memberAddress!,
       })
     }
@@ -73,11 +66,11 @@ export default class TokenMember extends Model {
     return await data.save(tOpts)
   }
 
-  static getEntityId(params: ITokenMemberIdParams) {
-    return `${params.network}-${params.tokenAddress}-${params.memberAddress}`
+  static getEntityId(params: ILockManagerMemberIdParams) {
+    return `${params.network}-${params.lockManagerAddress}-${params.memberAddress}`
   }
 
-  static async findExistingLog(params: ITokenMemberIdParams, tOpts?: SaveOptions) {
+  static async findExistingLog(params: ILockManagerMemberIdParams, tOpts?: SaveOptions) {
     const entityId = this.getEntityId(params)
     return await this.findByEntityId(entityId, tOpts)
   }
@@ -86,43 +79,52 @@ export default class TokenMember extends Model {
     return await this.findOne({ id: entityId }, null, tOpts)
   }
 
-  static async findByTokenAndMember(
-    network: NetworksEnum,
-    tokenAddress: HexAddress,
-    memberAddress: HexAddress,
+  static async findMemberByLockManager(
+    {
+      network,
+      lockManagerAddress,
+      memberAddress,
+    }: {
+      network: NetworksEnum
+      lockManagerAddress: HexAddress
+      memberAddress: HexAddress
+    },
     tOpts?: SaveOptions,
   ) {
-    return await this.findOne({ network, tokenAddress, memberAddress }, null, tOpts)
+    return await this.findOne({ network, lockManagerAddress, memberAddress }, null, tOpts)
   }
 
-  static async findByToken(network: NetworksEnum, tokenAddress: HexAddress, tOpts?: SaveOptions) {
-    return await this.find({ network, tokenAddress }, null, tOpts)
+  static async findActiveMembers(
+    {
+      network,
+      lockManagerAddress,
+    }: {
+      network: NetworksEnum
+      lockManagerAddress: HexAddress
+    },
+    tOpts?: SaveOptions,
+  ) {
+    return await this.find({ network, lockManagerAddress, votingPower: { $ne: '0' } }, null, tOpts)
   }
 
-  static async findByMember(network: NetworksEnum, memberAddress: HexAddress, tOpts?: SaveOptions) {
-    return await this.find({ network, memberAddress }, null, tOpts)
+  async update(params: Partial<LockManagerMember>, tOpts?: SaveOptions) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (this.schema.tree[key]) {
+        if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
+          const parsedObj = this.toObject()
+
+          if (!_.isEqual(parsedObj[key], value)) {
+            this[key] = value
+          }
+        }
+      }
+    })
+
+    return await this.save(tOpts)
   }
 
-  static async countHoldersWithVotingPower(tokenAddress: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
-    const aggregate = this.aggregate([
-      {
-        $match: {
-          tokenAddress,
-          network,
-          votingPower: { $ne: '0' },
-        },
-      },
-      {
-        $count: 'holderCount',
-      },
-    ])
-
-    if (tOpts?.session) {
-      aggregate.session(tOpts.session)
-    }
-
-    const result = await aggregate
-    return result[0]?.holderCount || 0
+  async reload(tOpts?: SaveOptions) {
+    return await this.model(customName).findById(this._id, tOpts)
   }
 
   static async findAndPaginate({
@@ -136,8 +138,8 @@ export default class TokenMember extends Model {
 
     const filter: any = {}
 
-    if (extraParams?.tokenAddress) {
-      filter.tokenAddress = extraParams.tokenAddress
+    if (extraParams?.lockManagerAddress) {
+      filter.lockManagerAddress = extraParams.lockManagerAddress
       filter.network = extraParams.network
     }
 
@@ -153,6 +155,7 @@ export default class TokenMember extends Model {
         },
       },
     ]
+
     const mainQuery = [
       {
         $lookup: {
@@ -200,44 +203,19 @@ export default class TokenMember extends Model {
           },
         },
       },
-      AggregationQueryHelper.tokenMember(
-        {
-          tokenAddress: extraParams?.tokenAddress,
-          network: extraParams?.network!,
-          memberAddress: '$memberAddress',
-        },
-        'tokenMember',
-        {
-          delegateReceivedCount: 1,
-        },
-      ),
-      {
-        $addFields: {
-          tokenMember: {
-            $cond: {
-              if: { $gt: [{ $size: '$tokenMember' }, 0] },
-              then: { $arrayElemAt: ['$tokenMember', 0] },
-              else: { delegateReceivedCount: 0 },
-            },
-          },
-        },
-      },
       {
         $project: {
           _id: 0,
           address: '$memberInfo.address',
           ens: '$memberInfo.ens',
           avatar: '$memberInfo.avatar',
-          tokenBalance: null, // TokenMember doesn't have amount field
+          tokenBalance: null, // LockManagerMember doesn't have amount field
           votingPower: '$votingPower',
           metrics: {
             voteCount: '$pluginMetrics.voteCount',
             proposalCount: '$pluginMetrics.proposalCount',
             firstActivity: '$pluginMetrics.firstActivity',
             lastActivity: '$pluginMetrics.lastActivity',
-            delegateReceivedCount: {
-              $ifNull: ['$tokenMember.delegateReceivedCount', 0],
-            },
           },
         },
       },
@@ -261,12 +239,11 @@ export default class TokenMember extends Model {
 
     const [data, totalRecords] = await Promise.all([
       this.aggregate(aggQuery),
-      this.aggregate([...query, { $count: 'totalRecords' }]).then(results =>
-        results[0] ? results[0].totalRecords : 0,
-      ),
+      this.aggregate([{ $match: filter }, { $count: 'totalRecords' }]),
     ])
 
-    const totalPages = Math.ceil(totalRecords / request.limit)
+    const _totalRecords = totalRecords && totalRecords.length === 1 ? totalRecords[0].totalRecords : 0
+    const totalPages = Math.ceil(_totalRecords / request.limit)
 
     if (currentPage > totalPages) {
       return ModelUtils.paginateEmptyResponse(request.limit)
@@ -277,29 +254,9 @@ export default class TokenMember extends Model {
         page: currentPage,
         pageSize: request.limit,
         totalPages,
-        totalRecords,
+        totalRecords: _totalRecords,
       },
       data: data as any,
     }
-  }
-
-  async update(params: Partial<TokenMember>, tOpts?: SaveOptions) {
-    Object.entries(params).forEach(([key, value]) => {
-      if (this.schema.tree[key]) {
-        if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
-          const parsedObj = this.toObject()
-
-          if (!_.isEqual(parsedObj[key], value)) {
-            this[key] = value
-          }
-        }
-      }
-    })
-
-    return await this.save(tOpts)
-  }
-
-  async reload(tOpts?: SaveOptions) {
-    return await this.model(customName).findById(this._id, tOpts)
   }
 }

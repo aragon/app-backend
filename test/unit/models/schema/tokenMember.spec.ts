@@ -178,7 +178,10 @@ describe('Model: TokenMember', () => {
         lastVPBlockNumber: 1000002,
       })
 
-      const count = await Models.TokenMember.countHoldersWithVotingPower(rawTokenMember.tokenAddress!, rawTokenMember.network!)
+      const count = await Models.TokenMember.countHoldersWithVotingPower(
+        rawTokenMember.tokenAddress!,
+        rawTokenMember.network!,
+      )
       expect(count).to.eq(2)
     })
 
@@ -202,7 +205,10 @@ describe('Model: TokenMember', () => {
         lastVPBlockNumber: 1000001,
       })
 
-      const count = await Models.TokenMember.countHoldersWithVotingPower(rawTokenMember.tokenAddress!, rawTokenMember.network!)
+      const count = await Models.TokenMember.countHoldersWithVotingPower(
+        rawTokenMember.tokenAddress!,
+        rawTokenMember.network!,
+      )
       expect(count).to.eq(0)
     })
 
@@ -227,7 +233,10 @@ describe('Model: TokenMember', () => {
         lastVPBlockNumber: 1000002,
       })
 
-      const count = await Models.TokenMember.countHoldersWithVotingPower(rawTokenMember.tokenAddress!, rawTokenMember.network!)
+      const count = await Models.TokenMember.countHoldersWithVotingPower(
+        rawTokenMember.tokenAddress!,
+        rawTokenMember.network!,
+      )
       expect(count).to.eq(1)
     })
   })

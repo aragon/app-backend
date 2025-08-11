@@ -76,6 +76,7 @@ const PairDataModule = {
       memberAddress?: HexAddress
       pluginAddress?: HexAddress
       tokenAddress?: HexAddress
+      lockManagerAddress?: HexAddress
       pluginAddresses?: HexAddress[]
       proposalIndex?: string
     },
@@ -116,8 +117,15 @@ const PairDataModule = {
       }
     }
 
-    if (extraParams?.tokenAddress) {
+    if (extraParams?.tokenAddress && !extraParams.pluginAddress) {
       const plugin = await Models.Plugin.findByTokenAddress(extraParams.tokenAddress, extraParams.network!)
+      if (plugin) {
+        extraParams.pluginAddress = plugin.address
+      }
+    }
+
+    if (extraParams?.lockManagerAddress && !extraParams.pluginAddress) {
+      const plugin = await Models.Plugin.findOne(extraParams.lockManagerAddress, extraParams.network!)
       if (plugin) {
         extraParams.pluginAddress = plugin.address
       }
