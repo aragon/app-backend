@@ -130,9 +130,10 @@ const GovernanceErc20Helper = {
         : await Web3Helper.getChainAdjustedBlockNumber(blockNumber - 1, network)
 
     try {
-      return await retryRequest(async () =>
+      const result = await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network).schedule(async () => contract.getPastTotalSupply(timepointValue)),
       )
+      return BigInt(result || 0).toString()
     } catch (error) {
       logger.error('Error getting pastTotalSupply', llo({ timepointValue, clockMode, tokenAddress, network, error }))
     }

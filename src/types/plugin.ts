@@ -37,6 +37,7 @@ export enum IPluginStatus {
 }
 
 export enum IPluginSlug {
+  locktovote = 'locktovote',
   tokenvoting = 'tokenvoting',
   multisig = 'multisig',
   admin = 'admin',
