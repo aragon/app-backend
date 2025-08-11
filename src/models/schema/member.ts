@@ -31,7 +31,6 @@ const customName = ICollectionNames.Member
     customName,
   },
 })
-@index({ id: 1 }, { unique: true })
 @index({ memberAddress: 1 })
 @index({ address: 1, ens: 1 })
 export default class Member extends Model {

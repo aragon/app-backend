@@ -22,6 +22,7 @@ const MemberRouter = {
         daoAddress: ctx.query.daoAddress as HexAddress,
         pluginAddress: ctx.query.pluginAddress as HexAddress,
         tokenAddress: ctx.query.tokenAddress as HexAddress,
+        lockManagerAddress: ctx.query.lockManagerAddress as HexAddress,
       },
       pairParams: {
         daoId: ctx.query.daoId as string,

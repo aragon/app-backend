@@ -205,6 +205,12 @@ export interface IAggMemberProjectFields {
   avatar?: 1
 }
 
+export interface IAggLockManagerMemberParams {
+  lockManagerAddress?: string
+  network: string
+  memberAddress?: string
+}
+
 export interface IAggTokenMemberParams {
   tokenAddress?: string
   network: string

@@ -32,7 +32,7 @@ export const GovernanceErc20Handler = {
       const lastActivity = info.blockNumber
 
       await ProxyMember.createMember(memberAddress, lastActivity)
-      await ProxyMember.updateVotingPower({
+      await ProxyMember.updateTokenMemberVP({
         memberAddress,
         tokenAddress: info.address,
         votingPower: newBalance.toString(),
@@ -125,7 +125,7 @@ export const GovernanceErc20Handler = {
         }))
 
         // Update voting powers in batch without session (no transaction)
-        await ProxyMember.updateVotingPowerBatchNoTx(vpUpdates)
+        await ProxyMember.updateTokenMemberVPBatchNoTx(vpUpdates)
 
         // Get unique token-network combinations using reduce
         const uniqueTokenNetworks = latestEventsPerMember.reduce<Array<{ tokenAddress: string; network: string }>>(
@@ -222,7 +222,7 @@ export const GovernanceErc20Handler = {
             ])
 
             // Update voting power - this will only update if block number is higher
-            await ProxyMember.updateVotingPowerBatch([
+            await ProxyMember.updateTokenMemberVPBatch([
               {
                 memberAddress,
                 tokenAddress: info.address,
