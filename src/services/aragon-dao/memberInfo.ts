@@ -6,6 +6,7 @@ import { ProxyToken } from '@modules/proxyToken'
 import { Models } from '@dbModels'
 import type Plugin from '@models/schema/plugin'
 import type PluginSetting from '@models/schema/setting'
+import LockToVoteHelper from '@helpers/lockToVoteHelper'
 
 export const MemberInfo = {
   getVotingPower: async (userAddress: string, tokenAddress: string, network: NetworksEnum): Promise<string> => {
@@ -84,6 +85,8 @@ export const MemberInfo = {
       })
 
       switch (plugin.interfaceType) {
+        case IPluginInterfaceType.lockToVote:
+          return await MemberInfo._checkForLockToVote(plugin, settings, memberAddress)
         case IPluginInterfaceType.tokenVoting:
           return await MemberInfo._checkForTokenVoting(plugin, settings, memberAddress)
         case IPluginInterfaceType.multisig:
@@ -96,6 +99,16 @@ export const MemberInfo = {
     } catch (e) {
       return false
     }
+  },
+
+  _checkForLockToVote: async (plugin: Plugin, setting: PluginSetting, memberAddress: HexAddress) => {
+    if (!setting || !plugin.lockManagerAddress) return false
+    const votingPower = await LockToVoteHelper.getUserLockedBalance(
+      plugin.network,
+      plugin.lockManagerAddress,
+      memberAddress,
+    )
+    return Number(votingPower) > 0
   },
 
   _checkForTokenVoting: async (plugin: Plugin, setting: PluginSetting, memberAddress: HexAddress) => {
