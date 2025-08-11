@@ -7,10 +7,10 @@ import Member from '@models/schema/member'
 import PairDataModule from '@modules/pairData'
 import { FakeMember } from '@test/mock/fakeMember'
 import { fakePluginMembers } from '@test/mock/fakePluginMember'
-import { fakeVpMembers } from '@test/mock/fakeVpMember'
+import { fakeTokenMembers } from '@test/mock/fakeTokenMember'
 import { DaoList } from '@test/mock/fakeDao'
 import PluginMember from '@models/schema/pluginMember'
-import VpMember from '@models/schema/vpMember'
+import TokenMember from '@models/schema/tokenMember'
 import type Dao from '@models/schema/dao'
 import { PluginList } from '@test/mock/fakePlugins'
 import { HexAddress, IPluginInterfaceType, NetworksEnum, ErrorKeyEnum, EnumQueueName } from '@types'
@@ -21,7 +21,7 @@ describe('Controller: Member', () => {
   let rawMember: Partial<Member>
   let rawPluginMember: Partial<PluginMember>
   let rawDao: Partial<Dao>
-  let rawVpMember: Partial<VpMember>
+  let rawTokenMember: Partial<TokenMember>
   let rawPlugin: any
 
   beforeEach(async () => {
@@ -48,7 +48,7 @@ describe('Controller: Member', () => {
       network: rawDao.network,
     }
 
-    rawVpMember = {
+    rawTokenMember = {
       memberAddress: FakeMember.address,
       tokenAddress: rawPlugin.tokenAddress,
       network: rawDao.network,
@@ -60,7 +60,7 @@ describe('Controller: Member', () => {
     await Models.Member.create(rawMember)
     await Models.PluginMember.create(rawPluginMember)
     await Models.Dao.create(rawDao)
-    await Models.VpMember.create(rawVpMember)
+    await Models.TokenMember.create(rawTokenMember)
     await Models.Plugin.create(rawPlugin)
   })
 
@@ -130,7 +130,7 @@ describe('Controller: Member', () => {
       ).to.be.rejectedWith('pluginNotFound')
     })
 
-    it('should call VpMember.findAndPaginate for tokenVoting plugin with token', async () => {
+    it('should call TokenMember.findAndPaginate for tokenVoting plugin with token', async () => {
       const paginationParams = {
         search: '',
         pageSize: 10,
@@ -153,8 +153,8 @@ describe('Controller: Member', () => {
         tokenAddress: rawPlugin.tokenAddress,
         votingEscrow: null,
       })
-      const stubFindAndPaginate = sandbox.stub(Models.VpMember, 'findAndPaginate').resolves({
-        data: [{ address: rawVpMember.memberAddress }],
+      const stubFindAndPaginate = sandbox.stub(Models.TokenMember, 'findAndPaginate').resolves({
+        data: [{ address: rawTokenMember.memberAddress }],
         metadata: { page: 1, totalPages: 1, totalRecords: 1 },
       } as any)
 

@@ -5,7 +5,7 @@ import logger from '@logger'
 import EnsHelper from '@helpers/ens'
 import DbTx from '@modules/dbTx'
 import type Member from '@models/schema/member'
-import type VpMember from '@models/schema/vpMember'
+import type TokenMember from '@models/schema/tokenMember'
 import type PluginMember from '@models/schema/pluginMember'
 import type PluginMetrics from '@models/schema/pluginMetrics'
 
@@ -59,13 +59,13 @@ export const ProxyMember = {
     memberAddress: HexAddress
     tokenAddress: HexAddress
     network: NetworksEnum
-  }): Promise<VpMember | null> => {
+  }): Promise<TokenMember | null> => {
     const memberAddress = Web3Utils.parseAddress(params.memberAddress)
     if (!memberAddress) return null
 
     try {
       return await DbTx.executeTxFn(async ({ session }) => {
-        const existingVpMember = await Models.VpMember.findExistingLog(
+        const existingTokenMember = await Models.TokenMember.findExistingLog(
           {
             network: params.network,
             tokenAddress: params.tokenAddress,
@@ -74,12 +74,12 @@ export const ProxyMember = {
           { session },
         )
 
-        if (existingVpMember) {
-          return existingVpMember
+        if (existingTokenMember) {
+          return existingTokenMember
         }
 
-        // Create new vpMember document with default voting power
-        const newVpMember = await Models.VpMember.create(
+        // Create new tokenMember document with default voting power
+        const newTokenMember = await Models.TokenMember.create(
           {
             memberAddress,
             tokenAddress: params.tokenAddress,
@@ -92,13 +92,13 @@ export const ProxyMember = {
         await session.commitTransaction()
         await session.endSession()
         logger.verbose(
-          'Created new VpMember',
+          'Created new TokenMember',
           llo({
             memberAddress,
             tokenAddress: params.tokenAddress,
           }),
         )
-        return newVpMember
+        return newTokenMember
       })
     } catch (error) {
       logger.error('Error getting or creating voting power', llo({ error, params }))
@@ -165,27 +165,27 @@ export const ProxyMember = {
     tokenIds?: string[]
     network: NetworksEnum
     lastVPBlockNumber: number
-  }): Promise<VpMember | null> => {
+  }): Promise<TokenMember | null> => {
     const memberAddress = Web3Utils.parseAddress(params.memberAddress)
     if (!memberAddress) return null
 
     try {
       return await DbTx.executeTxFn(async ({ session }) => {
-        // Get or create the vpMember document
-        const vpMember = await ProxyMember.getOrCreateVotingPower({
+        // Get or create the tokenMember document
+        const tokenMember = await ProxyMember.getOrCreateVotingPower({
           memberAddress,
           tokenAddress: params.tokenAddress,
           network: params.network,
         })
 
-        if (!vpMember) {
-          logger.error('Failed to get or create VpMember', llo({ params }))
+        if (!tokenMember) {
+          logger.error('Failed to get or create TokenMember', llo({ params }))
           return null
         }
 
         // Prepare update data
         const updateData: any = {}
-        const oldVotingPower = vpMember.votingPower
+        const oldVotingPower = tokenMember.votingPower
         if (params.votingPower !== undefined) {
           updateData.votingPower = params.votingPower.toString()
           // If voting power is 0, always set tokenIds to empty array
@@ -204,14 +204,14 @@ export const ProxyMember = {
 
         // Update only if lastVPBlockNumber is greater than the current one, or if current one not exists and new one exists
         if (
-          (!vpMember.lastVPBlockNumber && updateData.lastVPBlockNumber) ||
-          (updateData.lastVPBlockNumber && updateData.lastVPBlockNumber > vpMember.lastVPBlockNumber)
+          (!tokenMember.lastVPBlockNumber && updateData.lastVPBlockNumber) ||
+          (updateData.lastVPBlockNumber && updateData.lastVPBlockNumber > tokenMember.lastVPBlockNumber)
         ) {
-          const updated = await vpMember.update(updateData, { session })
+          const updated = await tokenMember.update(updateData, { session })
           await session.commitTransaction()
           await session.endSession()
           logger.verbose(
-            'Updated VpMember voting power',
+            'Updated TokenMember voting power',
             llo({
               memberAddress,
               tokenAddress: params.tokenAddress,
@@ -222,7 +222,7 @@ export const ProxyMember = {
           return updated
         }
 
-        return vpMember
+        return tokenMember
       })
     } catch (error) {
       logger.error('Error updating voting power', llo({ error, params }))
@@ -326,8 +326,8 @@ export const ProxyMember = {
     if (!memberAddress) return false
 
     try {
-      const vpMember = await Models.VpMember.findByTokenAndMember(params.network, params.tokenAddress, memberAddress)
-      return !!vpMember && BigInt(vpMember.votingPower) > 0n
+      const tokenMember = await Models.TokenMember.findByTokenAndMember(params.network, params.tokenAddress, memberAddress)
+      return !!tokenMember && BigInt(tokenMember.votingPower) > 0n
     } catch (error) {
       logger.error('Error checking voting power', llo({ error, params }))
       return false
@@ -410,7 +410,7 @@ export const ProxyMember = {
           const memberAddress = Web3Utils.parseAddress(update.memberAddress)
           if (!memberAddress) return null
 
-          const id = Models.VpMember.getEntityId({
+          const id = Models.TokenMember.getEntityId({
             network: update.network,
             tokenAddress: update.tokenAddress,
             memberAddress,
@@ -483,7 +483,7 @@ export const ProxyMember = {
       if (bulkOps.length > 0) {
         try {
           // Use ordered: false to continue on errors and maximize throughput
-          await Models.VpMember.bulkWrite(bulkOps, { ordered: false })
+          await Models.TokenMember.bulkWrite(bulkOps, { ordered: false })
         } catch (bulkError: any) {
           // Check if this is a bulk write error with duplicate key errors
           if (bulkError.code === 11000 || bulkError.writeErrors) {
@@ -701,7 +701,7 @@ export const ProxyMember = {
           const memberAddress = Web3Utils.parseAddress(update.memberAddress)
           if (!memberAddress) return null
 
-          const id = Models.VpMember.getEntityId({
+          const id = Models.TokenMember.getEntityId({
             network: update.network,
             tokenAddress: update.tokenAddress,
             memberAddress,
@@ -774,7 +774,7 @@ export const ProxyMember = {
       if (bulkOps.length > 0) {
         try {
           // Use ordered: false to continue on errors and maximize throughput
-          await Models.VpMember.bulkWrite(bulkOps, { session, ordered: false })
+          await Models.TokenMember.bulkWrite(bulkOps, { session, ordered: false })
         } catch (bulkError: any) {
           // Check if this is a bulk write error with duplicate key errors
           if (bulkError.code === 11000 || bulkError.writeErrors) {

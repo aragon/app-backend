@@ -2,13 +2,13 @@ import * as sinon from 'sinon'
 import { SinonSandbox, SinonStub } from 'sinon'
 import { expect } from 'chai'
 import mongoose from 'mongoose'
-import vpMembersMigration from '@src/migrations/20250804122543-vpMembers'
+import tokenMembersMigration from '@src/migrations/20250804122543-tokenMembers'
 import { IPluginStatus, NetworksEnum } from '@types'
 import { ProxyMember } from '@modules/proxyMember'
 import { Models } from '@dbModels'
 import logger from '@logger'
 
-describe('migration: vpMembers', () => {
+describe('migration: tokenMembers', () => {
   let sandbox: SinonSandbox
   let mockMemberBalancesCollection: any
   let mockMemberMetricsCollection: any
@@ -67,7 +67,7 @@ describe('migration: vpMembers', () => {
     sandbox?.restore()
   })
 
-  describe('vpMembersMigration', () => {
+  describe('tokenMembersMigration', () => {
     it('should successfully migrate MemberBalance documents with votingPower !== "0" and tokenAddress exists', async () => {
       const mockMemberBalances = [
         {
@@ -147,7 +147,7 @@ describe('migration: vpMembers', () => {
         })
         .resolves(null)
 
-      await vpMembersMigration.start()
+      await tokenMembersMigration.start()
 
       // Verify queries
       expect(
@@ -209,7 +209,7 @@ describe('migration: vpMembers', () => {
     it('should handle no documents to migrate', async () => {
       mockMemberBalancesCollection.toArray.resolves([])
 
-      await vpMembersMigration.start()
+      await tokenMembersMigration.start()
 
       expect(
         mockMemberBalancesCollection.find.calledWith({
@@ -246,7 +246,7 @@ describe('migration: vpMembers', () => {
 
       stubPluginFind.returns({ lean: () => Promise.resolve([]) })
 
-      await vpMembersMigration.start()
+      await tokenMembersMigration.start()
 
       // Verify error handling
       expect(stubLoggerError.calledOnce).to.be.true
@@ -289,7 +289,7 @@ describe('migration: vpMembers', () => {
       stubPluginFind.returns({ lean: () => Promise.resolve(mockPlugins) })
       mockMemberMetricsCollection.findOne.resolves(null)
 
-      await vpMembersMigration.start()
+      await tokenMembersMigration.start()
 
       // Verify updatePluginMetrics was called with default values
       expect(
@@ -339,7 +339,7 @@ describe('migration: vpMembers', () => {
       stubPluginFind.returns({ lean: () => Promise.resolve([]) })
       mockMemberMetricsCollection.findOne.resolves(null)
 
-      await vpMembersMigration.start()
+      await tokenMembersMigration.start()
 
       // Verify warning was logged
       expect(stubLoggerWarn.calledWith('Voting power mismatch detected')).to.be.true
@@ -380,7 +380,7 @@ describe('migration: vpMembers', () => {
       mockMemberMetricsCollection.findOne.resolves(null)
       stubPluginFind.returns({ lean: () => Promise.resolve([]) })
 
-      await vpMembersMigration.start()
+      await tokenMembersMigration.start()
 
       // Check for progress log at 100 documents
       const progressLogCalls = stubLoggerInfo.getCalls().filter(call => call.args[0] === 'Migration progress')
@@ -393,7 +393,7 @@ describe('migration: vpMembers', () => {
       const error = new Error('Database connection failed')
       mockMemberBalancesCollection.toArray.rejects(error)
 
-      await expect(vpMembersMigration.start()).to.be.rejectedWith('Database connection failed')
+      await expect(tokenMembersMigration.start()).to.be.rejectedWith('Database connection failed')
 
       expect(stubLoggerError.calledWith('Migration failed')).to.be.true
       expect(stubLoggerError.firstCall.args[1].error).to.equal(error)
@@ -402,7 +402,7 @@ describe('migration: vpMembers', () => {
 
   describe('stop', () => {
     it('should do nothing', async () => {
-      await vpMembersMigration.stop()
+      await tokenMembersMigration.stop()
       // No assertions needed, just verify it doesn't throw
     })
   })

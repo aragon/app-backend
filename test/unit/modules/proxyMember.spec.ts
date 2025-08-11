@@ -112,39 +112,39 @@ describe('Modules:ProxyMember', () => {
   })
 
   describe('getOrCreateVotingPower', () => {
-    it('should return existing VpMember if found', async () => {
+    it('should return existing TokenMember if found', async () => {
       const params = {
         memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
         tokenAddress: '0xtoken',
         network: NetworksEnum.ethereumMainnet,
       }
-      const existingVpMember = { id: 'vp-member-id', votingPower: '100' }
+      const existingTokenMember = { id: 'vp-member-id', votingPower: '100' }
 
       sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
-      sandbox.stub(Models.VpMember, 'findExistingLog').resolves(existingVpMember)
+      sandbox.stub(Models.TokenMember, 'findExistingLog').resolves(existingTokenMember)
 
       const result = await ProxyMember.getOrCreateVotingPower(params)
 
-      expect(result).to.equal(existingVpMember)
+      expect(result).to.equal(existingTokenMember)
     })
 
-    it('should create new VpMember if not found', async () => {
+    it('should create new TokenMember if not found', async () => {
       const params = {
         memberAddress: '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C',
         tokenAddress: '0xtoken',
         network: NetworksEnum.ethereumMainnet,
       }
-      const newVpMember = { id: 'new-vp-member-id', votingPower: '0' }
+      const newTokenMember = { id: 'new-vp-member-id', votingPower: '0' }
 
       sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
-      sandbox.stub(Models.VpMember, 'findExistingLog').resolves(null)
-      sandbox.stub(Models.VpMember, 'create').resolves(newVpMember)
+      sandbox.stub(Models.TokenMember, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.TokenMember, 'create').resolves(newTokenMember)
 
       const result = await ProxyMember.getOrCreateVotingPower(params)
 
-      expect(result).to.equal(newVpMember)
+      expect(result).to.equal(newTokenMember)
       expect(
-        Models.VpMember.create.calledOnceWith(
+        Models.TokenMember.create.calledOnceWith(
           {
             memberAddress: params.memberAddress,
             tokenAddress: params.tokenAddress,
@@ -177,7 +177,7 @@ describe('Modules:ProxyMember', () => {
       }
 
       sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
-      sandbox.stub(Models.VpMember, 'findExistingLog').rejects(new Error('Database error'))
+      sandbox.stub(Models.TokenMember, 'findExistingLog').rejects(new Error('Database error'))
       const loggerErrorStub = sandbox.stub(Logger, 'error')
 
       const result = await ProxyMember.getOrCreateVotingPower(params)
@@ -247,7 +247,7 @@ describe('Modules:ProxyMember', () => {
         network: NetworksEnum.ethereumMainnet,
         lastVPBlockNumber: 20,
       }
-      const vpMember = {
+      const tokenMember = {
         id: 'vp-member-id',
         votingPower: '100',
         update: sandbox.stub().resolves({ id: 'vp-member-id', votingPower: '1000' }),
@@ -255,12 +255,12 @@ describe('Modules:ProxyMember', () => {
       }
 
       sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves(vpMember as any)
+      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves(tokenMember as any)
 
       const result = await ProxyMember.updateVotingPower(params)
 
       expect(result?.votingPower).to.equal('1000')
-      expect(vpMember.update.calledOnceWith({ votingPower: '1000', lastVPBlockNumber: 20 }, sinon.match.any)).to.be.true
+      expect(tokenMember.update.calledOnceWith({ votingPower: '1000', lastVPBlockNumber: 20 }, sinon.match.any)).to.be.true
     })
 
     it('should update voting power when current lastVPBlockNumber is null', async () => {
@@ -271,7 +271,7 @@ describe('Modules:ProxyMember', () => {
         network: NetworksEnum.ethereumMainnet,
         lastVPBlockNumber: 15,
       }
-      const vpMember = {
+      const tokenMember = {
         id: 'vp-member-id',
         votingPower: '100',
         update: sandbox.stub().resolves({ id: 'vp-member-id', votingPower: '1000' }),
@@ -279,12 +279,12 @@ describe('Modules:ProxyMember', () => {
       }
 
       sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves(vpMember as any)
+      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves(tokenMember as any)
 
       const result = await ProxyMember.updateVotingPower(params)
 
       expect(result?.votingPower).to.equal('1000')
-      expect(vpMember.update.calledOnceWith({ votingPower: '1000', lastVPBlockNumber: 15 }, sinon.match.any)).to.be.true
+      expect(tokenMember.update.calledOnceWith({ votingPower: '1000', lastVPBlockNumber: 15 }, sinon.match.any)).to.be.true
     })
 
     it('should not update voting power when lastVPBlockNumber is lower', async () => {
@@ -295,7 +295,7 @@ describe('Modules:ProxyMember', () => {
         network: NetworksEnum.ethereumMainnet,
         lastVPBlockNumber: 5,
       }
-      const vpMember = {
+      const tokenMember = {
         id: 'vp-member-id',
         votingPower: '100',
         update: sandbox.stub().resolves({ id: 'vp-member-id', votingPower: '1000' }),
@@ -303,12 +303,12 @@ describe('Modules:ProxyMember', () => {
       }
 
       sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves(vpMember as any)
+      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves(tokenMember as any)
 
       const result = await ProxyMember.updateVotingPower(params)
 
-      expect(result).to.equal(vpMember)
-      expect(vpMember.update.called).to.be.false
+      expect(result).to.equal(tokenMember)
+      expect(tokenMember.update.called).to.be.false
     })
 
     it('should update tokenIds when provided', async () => {
@@ -320,7 +320,7 @@ describe('Modules:ProxyMember', () => {
         network: NetworksEnum.ethereumMainnet,
         lastVPBlockNumber: 20,
       }
-      const vpMember = {
+      const tokenMember = {
         id: 'vp-member-id',
         votingPower: '100',
         update: sandbox.stub().resolves({ id: 'vp-member-id', votingPower: '1000', tokenIds: ['1', '2', '3'] }),
@@ -328,13 +328,13 @@ describe('Modules:ProxyMember', () => {
       }
 
       sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves(vpMember as any)
+      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves(tokenMember as any)
 
       const result = await ProxyMember.updateVotingPower(params)
 
       expect(result?.tokenIds).to.deep.equal(['1', '2', '3'])
       expect(
-        vpMember.update.calledOnceWith(
+        tokenMember.update.calledOnceWith(
           { votingPower: '1000', tokenIds: ['1', '2', '3'], lastVPBlockNumber: 20 },
           sinon.match.any,
         ),
@@ -349,7 +349,7 @@ describe('Modules:ProxyMember', () => {
         network: NetworksEnum.ethereumMainnet,
         lastVPBlockNumber: 20,
       }
-      const vpMember = {
+      const tokenMember = {
         id: 'vp-member-id',
         votingPower: '100',
         update: sandbox.stub().resolves({ id: 'vp-member-id', votingPower: '0', tokenIds: [] }),
@@ -357,12 +357,12 @@ describe('Modules:ProxyMember', () => {
       }
 
       sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves(vpMember as any)
+      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves(tokenMember as any)
 
       const result = await ProxyMember.updateVotingPower(params)
 
       expect(result?.votingPower).to.equal('0')
-      expect(vpMember.update.calledOnceWith({ votingPower: '0', tokenIds: [], lastVPBlockNumber: 20 }, sinon.match.any))
+      expect(tokenMember.update.calledOnceWith({ votingPower: '0', tokenIds: [], lastVPBlockNumber: 20 }, sinon.match.any))
         .to.be.true
     })
 
@@ -519,10 +519,10 @@ describe('Modules:ProxyMember', () => {
         tokenAddress: '0xtoken',
         network: NetworksEnum.ethereumMainnet,
       }
-      const vpMember = { id: 'vp-member-id', votingPower: '1000' }
+      const tokenMember = { id: 'vp-member-id', votingPower: '1000' }
 
       sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
-      sandbox.stub(Models.VpMember, 'findByTokenAndMember').resolves(vpMember)
+      sandbox.stub(Models.TokenMember, 'findByTokenAndMember').resolves(tokenMember)
 
       const result = await ProxyMember.hasVotingPower(params)
 
@@ -535,10 +535,10 @@ describe('Modules:ProxyMember', () => {
         tokenAddress: '0xtoken',
         network: NetworksEnum.ethereumMainnet,
       }
-      const vpMember = { id: 'vp-member-id', votingPower: '0' }
+      const tokenMember = { id: 'vp-member-id', votingPower: '0' }
 
       sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
-      sandbox.stub(Models.VpMember, 'findByTokenAndMember').resolves(vpMember)
+      sandbox.stub(Models.TokenMember, 'findByTokenAndMember').resolves(tokenMember)
 
       const result = await ProxyMember.hasVotingPower(params)
 
@@ -553,7 +553,7 @@ describe('Modules:ProxyMember', () => {
       }
 
       sandbox.stub(Web3Utils, 'parseAddress').returns(params.memberAddress)
-      sandbox.stub(Models.VpMember, 'findByTokenAndMember').resolves(null)
+      sandbox.stub(Models.TokenMember, 'findByTokenAndMember').resolves(null)
 
       const result = await ProxyMember.hasVotingPower(params)
 
@@ -795,11 +795,11 @@ describe('Modules:ProxyMember', () => {
         ]
 
         sandbox.stub(Web3Utils, 'parseAddress').callsFake((address: string) => address)
-        sandbox.stub(Models.VpMember, 'getEntityId').callsFake((params: any) => {
+        sandbox.stub(Models.TokenMember, 'getEntityId').callsFake((params: any) => {
           return `${params.network}-${params.tokenAddress}-${params.memberAddress}`
         })
 
-        const bulkWriteStub = sandbox.stub(Models.VpMember, 'bulkWrite').resolves()
+        const bulkWriteStub = sandbox.stub(Models.TokenMember, 'bulkWrite').resolves()
 
         const result = await ProxyMember.updateVotingPowerBatch(updates)
 
@@ -833,8 +833,8 @@ describe('Modules:ProxyMember', () => {
         ]
 
         sandbox.stub(Web3Utils, 'parseAddress').returns('0xmember1')
-        sandbox.stub(Models.VpMember, 'getEntityId').returns('test-id')
-        const bulkWriteStub = sandbox.stub(Models.VpMember, 'bulkWrite').resolves()
+        sandbox.stub(Models.TokenMember, 'getEntityId').returns('test-id')
+        const bulkWriteStub = sandbox.stub(Models.TokenMember, 'bulkWrite').resolves()
 
         await ProxyMember.updateVotingPowerBatch(updates)
 
@@ -855,8 +855,8 @@ describe('Modules:ProxyMember', () => {
         ]
 
         sandbox.stub(Web3Utils, 'parseAddress').returns('0xmember1')
-        sandbox.stub(Models.VpMember, 'getEntityId').returns('test-id')
-        const bulkWriteStub = sandbox.stub(Models.VpMember, 'bulkWrite').resolves()
+        sandbox.stub(Models.TokenMember, 'getEntityId').returns('test-id')
+        const bulkWriteStub = sandbox.stub(Models.TokenMember, 'bulkWrite').resolves()
 
         await ProxyMember.updateVotingPowerBatch(updates)
 
@@ -974,13 +974,13 @@ describe('Modules:ProxyMember', () => {
           ]
 
           sandbox.stub(Web3Utils, 'parseAddress').callsFake((address: string) => address)
-          sandbox.stub(Models.VpMember, 'getEntityId').returns('test-id')
+          sandbox.stub(Models.TokenMember, 'getEntityId').returns('test-id')
 
           const bulkError = new Error('Bulk write error') as any
           bulkError.code = 11000
           bulkError.writeErrors = [{ code: 11000 }] // Only duplicate key errors
 
-          const bulkWriteStub = sandbox.stub(Models.VpMember, 'bulkWrite').rejects(bulkError)
+          const bulkWriteStub = sandbox.stub(Models.TokenMember, 'bulkWrite').rejects(bulkError)
 
           const result = await ProxyMember.updateVotingPowerBatchNoTx(updates)
 
@@ -1005,13 +1005,13 @@ describe('Modules:ProxyMember', () => {
           ]
 
           sandbox.stub(Web3Utils, 'parseAddress').callsFake((address: string) => address)
-          sandbox.stub(Models.VpMember, 'getEntityId').returns('test-id')
+          sandbox.stub(Models.TokenMember, 'getEntityId').returns('test-id')
 
           const bulkError = new Error('Bulk write error') as any
           bulkError.code = 11000
           bulkError.writeErrors = [{ code: 500 }] // Non-duplicate error
 
-          sandbox.stub(Models.VpMember, 'bulkWrite').rejects(bulkError)
+          sandbox.stub(Models.TokenMember, 'bulkWrite').rejects(bulkError)
 
           const result = await ProxyMember.updateVotingPowerBatchNoTx(updates)
 

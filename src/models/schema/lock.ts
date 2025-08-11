@@ -415,7 +415,7 @@ export default class Lock extends Model {
       },
       {
         $lookup: {
-          from: ICollectionNames.VpMember,
+          from: ICollectionNames.TokenMember,
           let: {
             lockTokenId: '$tokenId',
             lockNetwork: '$network',
@@ -570,23 +570,23 @@ export default class Lock extends Model {
           },
         },
       },
-      AggregationQueryHelper.vpMember(
+      AggregationQueryHelper.tokenMember(
         {
           tokenAddress,
           network,
           memberAddress: '$memberInfo.address',
         },
-        'vpMember',
+        'tokenMember',
         {
           delegateReceivedCount: 1,
         },
       ),
       {
         $addFields: {
-          vpMember: {
+          tokenMember: {
             $cond: {
-              if: { $gt: [{ $size: '$vpMember' }, 0] },
-              then: { $arrayElemAt: ['$vpMember', 0] },
+              if: { $gt: [{ $size: '$tokenMember' }, 0] },
+              then: { $arrayElemAt: ['$tokenMember', 0] },
               else: { delegateReceivedCount: 0 },
             },
           },
@@ -604,7 +604,7 @@ export default class Lock extends Model {
             firstActivity: '$memberMetrics.firstActivity',
             lastActivity: '$memberMetrics.lastActivity',
             delegateReceivedCount: {
-              $ifNull: ['$vpMember.delegateReceivedCount', 0],
+              $ifNull: ['$tokenMember.delegateReceivedCount', 0],
             },
           },
         },

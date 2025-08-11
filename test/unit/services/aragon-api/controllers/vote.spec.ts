@@ -9,10 +9,10 @@ import { FakeVote } from '@test/mock/fakeVote'
 import { FakeToken } from '@test/mock/fakeToken'
 import { ProposalList } from '@test/mock/fakeProposal'
 import { FakeMember } from '@test/mock/fakeMember'
-import { fakeVpMembers } from '@test/mock/fakeVpMember'
+import { fakeTokenMembers } from '@test/mock/fakeTokenMember'
 import Proposal from '@models/schema/proposal'
 import Member from '@models/schema/member'
-import VpMember from '@models/schema/vpMember'
+import TokenMember from '@models/schema/tokenMember'
 import Token from '@models/schema/token'
 import { fakeSettings } from '@test/mock/fakeSettings'
 import { IPluginInterfaceType } from '@types'
@@ -24,7 +24,7 @@ describe('Controller: Vote', () => {
   let rawToken: Partial<Token>
   let rawProposal: Partial<Proposal>
   let rawMember: Partial<Member>
-  let rawVpMember: Partial<VpMember>
+  let rawTokenMember: Partial<TokenMember>
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
@@ -53,7 +53,7 @@ describe('Controller: Vote', () => {
       ...(FakeMember as any),
     }
 
-    rawVpMember = {
+    rawTokenMember = {
       memberAddress: rawMember.address,
       tokenAddress: rawToken.address,
       network: rawProposal.network,
@@ -67,7 +67,7 @@ describe('Controller: Vote', () => {
       Models.Token.create(rawToken),
       Models.Proposal.create(rawProposal),
       Models.Member.create(rawMember),
-      Models.VpMember.create(rawVpMember),
+      Models.TokenMember.create(rawTokenMember),
       Models.Setting.create({
         ...fakeSettings,
         pluginAddress: rawProposal.pluginAddress,
