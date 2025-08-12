@@ -56,6 +56,7 @@ describe('Modules: RabbitMQ', () => {
   describe('connect', () => {
     it('should establish a connection and set up channels', async () => {
       const loggerInfoStub = sandbox.stub(logger, 'info')
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
       const startNoopIntervalStub = sandbox.stub(RabbitMQ, 'startNoopInterval')
 
       // Start connection
@@ -86,6 +87,49 @@ describe('Modules: RabbitMQ', () => {
       expect(RabbitMQ.channelsMap.size).to.equal(Object.values(EnumQueueName).length)
       expect(loggerInfoStub.calledWith('RabbitMQ connected' as any)).to.be.true
       expect(startNoopIntervalStub.calledOnce).to.be.true
+
+      // Verify channels were set up properly (lines 92-94)
+      for (const queueName of Object.values(EnumQueueName)) {
+        expect(RabbitMQ.channelsMap.has(queueName)).to.be.true
+      }
+    })
+
+    it('should handle channel setup errors', async () => {
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
+      const startNoopIntervalStub = sandbox.stub(RabbitMQ, 'startNoopInterval')
+
+      // Make assertQueue fail for testing error handling (lines 95-98)
+      const setupError = new Error('Queue assertion failed')
+      mockChannel.assertQueue.rejects(setupError)
+
+      // Override createChannel to capture setup function
+      let setupFunction: any
+      mockConnection.createChannel = sandbox.stub().callsFake((options: any) => {
+        if (options.setup) {
+          setupFunction = options.setup
+        }
+        return mockChannel
+      })
+
+      // Start connection
+      const connectPromise = RabbitMQ.connect()
+
+      // Simulate successful connection
+      process.nextTick(() => {
+        mockConnection.emit('connect')
+      })
+
+      await connectPromise
+
+      // Now test the setup function error handling
+      try {
+        await setupFunction(mockChannel)
+        expect.fail('Should have thrown error')
+      } catch (err) {
+        expect(err).to.equal(setupError)
+        expect(loggerErrorStub.calledWith('Failed to set up channel for queue' as any)).to.be.true
+      }
     })
 
     it('should not reconnect if already connected', async () => {
@@ -140,6 +184,7 @@ describe('Modules: RabbitMQ', () => {
 
     it('should handle connectFailed event', async () => {
       const loggerErrorStub = sandbox.stub(logger, 'error')
+      const stopNoopIntervalStub = sandbox.stub(RabbitMQ, 'stopNoopInterval')
       const connectError = new Error('Failed to connect')
 
       // Start connection
@@ -155,6 +200,49 @@ describe('Modules: RabbitMQ', () => {
       expect(result).to.be.true
       expect(loggerErrorStub.calledWith('RabbitMQ connect failed' as any)).to.be.true
       expect(loggerErrorStub.calledWith('RabbitMQ connection failed' as any)).to.be.true
+      expect(stopNoopIntervalStub.calledOnce).to.be.true
+    })
+
+    it('should handle disconnect event when already connected', async () => {
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+      const stopNoopIntervalStub = sandbox.stub(RabbitMQ, 'stopNoopInterval')
+
+      // Start connection
+      const connectPromise = RabbitMQ.connect()
+
+      // First emit connect to resolve promise
+      process.nextTick(() => {
+        mockConnection.emit('connect')
+      })
+
+      await connectPromise
+
+      // Now emit disconnect after connection (covers lines 66-70 when promiseResolved is true)
+      const disconnectError = new Error('Connection lost after connect')
+      mockConnection.emit('disconnect', disconnectError)
+
+      expect(loggerErrorStub.calledWith('RabbitMQ disconnected' as any)).to.be.true
+      expect(stopNoopIntervalStub.called).to.be.true
+    })
+
+    it('should not resolve multiple times on multiple connect events', async () => {
+      sandbox.stub(logger, 'info')
+      const startNoopIntervalStub = sandbox.stub(RabbitMQ, 'startNoopInterval')
+
+      // Start connection
+      const connectPromise = RabbitMQ.connect()
+
+      // Emit connect twice (covers lines 55-58)
+      process.nextTick(() => {
+        mockConnection.emit('connect')
+        mockConnection.emit('connect') // Second connect should not resolve again
+      })
+
+      const result = await connectPromise
+      expect(result).to.be.true
+
+      // startNoopInterval should be called twice even though promise resolves once
+      expect(startNoopIntervalStub.calledTwice).to.be.true
     })
 
     it('should handle disconnection and log an error', async () => {
@@ -262,6 +350,16 @@ describe('Modules: RabbitMQ', () => {
 
       expect(loggerWarnStub.calledWith('Error closing RabbitMQ connection' as any)).to.be.true
       expect(RabbitMQ.connection).to.be.null
+    })
+
+    it('should do nothing if connection is null', async () => {
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
+      RabbitMQ.connection = null
+
+      await RabbitMQ.close()
+
+      expect(mockConnection.close.called).to.be.false
+      expect(loggerVerboseStub.called).to.be.false
     })
   })
 

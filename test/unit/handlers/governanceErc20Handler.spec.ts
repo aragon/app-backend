@@ -723,9 +723,7 @@ describe('GovernanceErc20Handler', () => {
         },
       ]
 
-      const mockPlugins = [
-        { address: '0xplugin1', daoAddress: '0xdao1', tokenAddress: '0xtoken1', network },
-      ]
+      const mockPlugins = [{ address: '0xplugin1', daoAddress: '0xdao1', tokenAddress: '0xtoken1', network }]
 
       const error = new Error('Database error')
       // Make the NoTx batch methods fail to trigger fallback
