@@ -620,8 +620,10 @@ class BlockchainLogCrawler {
           logger.error(`Topic hash not found for event ${item?.event}`, llo({ ...this.parseCrawlerInfoLog(), item }))
           return null
         }
-        return item.topic
+
+        return Array.isArray(item.topic) ? item.topic : [item.topic]
       })
+      .flat()
       .filter(Boolean) as string[]
   }
 
