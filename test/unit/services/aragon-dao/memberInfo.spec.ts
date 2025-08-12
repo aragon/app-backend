@@ -4,6 +4,7 @@ import { MemberInfo } from '@services/aragon-dao/memberInfo'
 import Web3Helper from '@helpers/web3'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
+import LockToVoteHelper from '@helpers/lockToVoteHelper'
 import { IPluginInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { ProxyToken } from '@modules/proxyToken'
@@ -431,7 +432,7 @@ describe('AragonDao: memberInfo', () => {
         onlyListed: false,
       } as any)
 
-      const isMemberStub = sandbox.stub(Web3Helper, 'isMember').resolves(false)
+      const isMemberStub = sandbox.stub(Web3Helper, 'isMultisigMember').resolves(false)
 
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
@@ -457,7 +458,7 @@ describe('AragonDao: memberInfo', () => {
         onlyListed: true,
       } as any)
 
-      const isMemberStub = sandbox.stub(Web3Helper, 'isMember').resolves(false)
+      const isMemberStub = sandbox.stub(Web3Helper, 'isMultisigMember').resolves(false)
 
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
@@ -484,7 +485,7 @@ describe('AragonDao: memberInfo', () => {
         onlyListed: true,
       } as any)
 
-      const isMemberStub = sandbox.stub(Web3Helper, 'isMember').resolves(true)
+      const isMemberStub = sandbox.stub(Web3Helper, 'isMultisigMember').resolves(true)
 
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',

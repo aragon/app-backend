@@ -1,12 +1,12 @@
 import logger from '@logger'
 import {
   EnumQueueName,
+  type HexAddress,
   IEventLogPluginType,
   type ILogInfo,
   IPluginActionType,
   IPluginInterfaceType,
   ISPPLogs,
-  type HexAddress,
 } from '@types'
 import { Interface, type LogDescription, type TransactionReceipt } from 'ethers'
 import { Models } from '@dbModels'
