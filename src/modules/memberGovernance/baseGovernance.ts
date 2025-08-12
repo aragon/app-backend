@@ -1,5 +1,14 @@
 import { Models } from '@dbModels'
-import { type HexAddress, type IGovernanceParamsOpts, type NetworksEnum } from '@types'
+import {
+  type HexAddress,
+  type IGovernanceParamsOpts,
+  type NetworksEnum,
+  type IPaginationParams,
+  type IPaginatedResult,
+  type IMembersResponse,
+  type IMemberExtraParams,
+  type IMemberLockResponse,
+} from '@types'
 import type PluginMetrics from '@models/schema/pluginMetrics'
 import logger from '@logger'
 import Web3Utils from '@helpers/web3Utils'
@@ -34,6 +43,11 @@ export abstract class BaseGovernance {
   abstract delete(memberAddress: HexAddress): Promise<boolean>
 
   abstract findOne(memberAddress: HexAddress, session?: ClientSession): Promise<any>
+
+  abstract findAndPaginateMembers(params: {
+    paginationParams?: IPaginationParams
+    extraParams?: IMemberExtraParams
+  }): Promise<IPaginatedResult<IMembersResponse | IMemberLockResponse>>
 
   // Protected helper to find existing plugin metrics
   protected async findExistingPluginMetricsByLog(

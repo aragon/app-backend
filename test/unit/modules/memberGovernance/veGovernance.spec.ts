@@ -335,4 +335,149 @@ describe('Modules:MemberGovernance:VeGovernance', () => {
       })
     })
   })
+
+  describe('findAndPaginateMembers', () => {
+    it('should call Lock.getMembersOfVeLockPlugin with settings and token info', async () => {
+      const mockSettings = {
+        votingEscrow: {
+          maxTime: 86400 * 365 * 4, // 4 years
+          slope: 1,
+          bias: 0,
+        },
+      }
+
+      const mockToken = {
+        address: testTokenAddress,
+        network: testNetwork,
+        decimals: 18,
+      }
+
+      const mockResult = {
+        docs: [
+          { memberAddress: parsedAddress, lockedAmount: '1000', unlockTime: 1234567890 },
+          { memberAddress: '0xabcd', lockedAmount: '2000', unlockTime: 1234567891 },
+        ],
+        totalDocs: 2,
+        limit: 10,
+        totalPages: 1,
+        page: 1,
+        pagingCounter: 1,
+        hasPrevPage: false,
+        hasNextPage: false,
+        prevPage: null,
+        nextPage: null,
+      }
+
+      sandbox.stub(Models.Setting, 'findActive').resolves(mockSettings as any)
+      sandbox.stub(Models.Token, 'findOne').resolves(mockToken as any)
+      const getMembersStub = sandbox.stub(Models.Lock, 'getMembersOfVeLockPlugin').resolves(mockResult as any)
+
+      const result = await veGovernance.findAndPaginateMembers({
+        paginationParams: { limit: 10, page: 1 },
+        extraParams: {
+          daoAddress: '0xdao' as HexAddress,
+          pluginAddress: '0xplugin' as HexAddress,
+          tokenAddress: testTokenAddress,
+          network: testNetwork,
+        },
+      })
+
+      expect(result).to.equal(mockResult)
+      expect(getMembersStub.calledOnce).to.be.true
+
+      const callArgs = getMembersStub.firstCall.args[0]
+      expect(callArgs.paginationParams).to.deep.equal({ limit: 10, page: 1 })
+      expect(callArgs.pluginAddress).to.equal('0xplugin')
+      expect(callArgs.tokenAddress).to.equal(testTokenAddress)
+      expect(callArgs.network).to.equal(testNetwork)
+      expect(callArgs.settings).to.deep.include({
+        maxTime: 126144000, // 4 years in seconds
+        slope: 1,
+        bias: 0,
+        decimals: '1000000000000000000', // 10^18
+      })
+      expect(callArgs.settings.currentTime).to.be.a('number')
+    })
+
+    it('should calculate current time dynamically', async () => {
+      const mockSettings = {
+        votingEscrow: {
+          maxTime: 86400 * 365 * 4,
+          slope: 1,
+          bias: 0,
+        },
+      }
+
+      const mockToken = {
+        address: testTokenAddress,
+        network: testNetwork,
+        decimals: 18,
+      }
+
+      const mockResult = {
+        docs: [],
+        totalDocs: 0,
+        limit: 10,
+        totalPages: 0,
+        page: 1,
+      }
+
+      sandbox.stub(Models.Setting, 'findActive').resolves(mockSettings as any)
+      sandbox.stub(Models.Token, 'findOne').resolves(mockToken as any)
+      const getMembersStub = sandbox.stub(Models.Lock, 'getMembersOfVeLockPlugin').resolves(mockResult as any)
+
+      const timeBeforeCall = Math.floor(Date.now() / 1000)
+      await veGovernance.findAndPaginateMembers({
+        extraParams: {
+          pluginAddress: '0xplugin' as HexAddress,
+          tokenAddress: testTokenAddress,
+          network: testNetwork,
+        },
+      })
+      const timeAfterCall = Math.floor(Date.now() / 1000)
+
+      const callArgs = getMembersStub.firstCall.args[0]
+      expect(callArgs.settings.currentTime).to.be.at.least(timeBeforeCall)
+      expect(callArgs.settings.currentTime).to.be.at.most(timeAfterCall)
+    })
+
+    it('should work with different decimal values', async () => {
+      const mockSettings = {
+        votingEscrow: {
+          maxTime: 86400 * 365 * 4,
+          slope: 1,
+          bias: 0,
+        },
+      }
+
+      const mockToken = {
+        address: testTokenAddress,
+        network: testNetwork,
+        decimals: 6, // USDC-like decimals
+      }
+
+      const mockResult = {
+        docs: [],
+        totalDocs: 0,
+        limit: 10,
+        totalPages: 0,
+        page: 1,
+      }
+
+      sandbox.stub(Models.Setting, 'findActive').resolves(mockSettings as any)
+      sandbox.stub(Models.Token, 'findOne').resolves(mockToken as any)
+      const getMembersStub = sandbox.stub(Models.Lock, 'getMembersOfVeLockPlugin').resolves(mockResult as any)
+
+      await veGovernance.findAndPaginateMembers({
+        extraParams: {
+          pluginAddress: '0xplugin' as HexAddress,
+          tokenAddress: testTokenAddress,
+          network: testNetwork,
+        },
+      })
+
+      const callArgs = getMembersStub.firstCall.args[0]
+      expect(callArgs.settings.decimals).to.equal('1000000') // 10^6 for 6 decimals
+    })
+  })
 })
