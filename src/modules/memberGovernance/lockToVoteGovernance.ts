@@ -1,6 +1,14 @@
 import { BaseGovernance } from './baseGovernance'
 import { Models } from '@dbModels'
-import { type HexAddress, type IGovernanceParamsOpts, type NetworksEnum } from '@types'
+import {
+  type HexAddress,
+  type IGovernanceParamsOpts,
+  type NetworksEnum,
+  type IPaginationParams,
+  type IPaginatedResult,
+  type IMembersResponse,
+  type IMemberExtraParams,
+} from '@types'
 import Web3Utils from '@helpers/web3Utils'
 import DbTx from '@modules/dbTx'
 import type LockManagerMember from '@models/schema/lockManagerMember'
@@ -231,5 +239,24 @@ export class LockToVoteGovernance extends BaseGovernance {
       },
       { session },
     )
+  }
+
+  async findAndPaginateMembers(params: {
+    paginationParams?: IPaginationParams
+    extraParams?: IMemberExtraParams
+  }): Promise<IPaginatedResult<IMembersResponse>> {
+    const { paginationParams = {}, extraParams = {} } = params
+
+    // Enrich extraParams with lockManagerAddress and network from the governance instance
+    const enrichedExtraParams: IMemberExtraParams = {
+      ...extraParams,
+      lockManagerAddress: this.lockManagerAddress,
+      network: this.network,
+    }
+
+    return Models.LockManagerMember.findAndPaginate({
+      paginationParams,
+      extraParams: enrichedExtraParams,
+    })
   }
 }

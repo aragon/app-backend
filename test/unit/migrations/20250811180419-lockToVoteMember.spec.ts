@@ -3,7 +3,7 @@ import { SinonSandbox, SinonStub } from 'sinon'
 import { expect } from 'chai'
 import mongoose from 'mongoose'
 import lockToVoteMemberMigration from '@src/migrations/20250811180419-lockToVoteMember'
-import { IPluginInterfaceType, NetworksEnum } from '@types'
+import { IPluginInterfaceType } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
 
@@ -168,6 +168,11 @@ describe('migration: lockToVoteMember', () => {
           lockManagerAddress: '0xLockManager1234567890abcdef1234567890ab',
           memberAddress: '0x17366cae2b9c6C3055e9e3C78936a69006BE5409',
           votingPower: '408000000000000000000',
+          pluginAddress: undefined,
+          daoAddress: undefined,
+          transactionHash: undefined,
+          blockNumber: undefined,
+          blockTimestamp: undefined,
         }),
       ).to.be.true
 
@@ -179,6 +184,11 @@ describe('migration: lockToVoteMember', () => {
           lockManagerAddress: '0xLockManager2234567890abcdef1234567890ab',
           memberAddress: '0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759',
           votingPower: '15506703',
+          pluginAddress: undefined,
+          daoAddress: undefined,
+          transactionHash: undefined,
+          blockNumber: undefined,
+          blockTimestamp: undefined,
         }),
       ).to.be.true
 
@@ -190,6 +200,11 @@ describe('migration: lockToVoteMember', () => {
           lockManagerAddress: '0xLockManager1234567890abcdef1234567890ab',
           memberAddress: '0xF6ad40D5D477ade0C640eaD49944bdD0AA1fBF05',
           votingPower: '11000000000000000000',
+          pluginAddress: undefined,
+          daoAddress: undefined,
+          transactionHash: undefined,
+          blockNumber: undefined,
+          blockTimestamp: undefined,
         }),
       ).to.be.true
 
@@ -201,6 +216,11 @@ describe('migration: lockToVoteMember', () => {
           lockManagerAddress: '0xLockManager2234567890abcdef1234567890ab',
           memberAddress: '0xE3217A7790BB9bb60D4712B86E96B5f77AF7a747',
           votingPower: '10000000',
+          pluginAddress: undefined,
+          daoAddress: undefined,
+          transactionHash: undefined,
+          blockNumber: undefined,
+          blockTimestamp: undefined,
         }),
       ).to.be.true
 
@@ -309,6 +329,11 @@ describe('migration: lockToVoteMember', () => {
           lockManagerAddress: '0xLockManager2234567890abcdef1234567890ab',
           memberAddress: '0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759',
           votingPower: '15506703',
+          pluginAddress: undefined,
+          daoAddress: undefined,
+          transactionHash: undefined,
+          blockNumber: undefined,
+          blockTimestamp: undefined,
         }),
       ).to.be.true
 
