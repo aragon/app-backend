@@ -225,7 +225,14 @@ export const ProposalHandler = {
         }
 
         if (document.snapshot.totalSupply === '0') {
-          logger.error('Error ProposalHandler.proposalCreated - totalSupply is 0', llo({ ...info, parsedEvent }))
+          logger.error(
+            'Error ProposalHandler.proposalCreated - totalSupply is 0',
+            llo({
+              ...info,
+              parsedEvent,
+              pluginAddress,
+            }),
+          )
         }
       } else if (
         relatedPlugin.interfaceType === IPluginInterfaceType.multisig ||
@@ -248,12 +255,26 @@ export const ProposalHandler = {
         }
 
         if (document.snapshot.totalSupply === '0') {
-          logger.error('Error ProposalHandler.proposalCreated - totalSupply is 0', llo({ ...info, parsedEvent }))
+          logger.error(
+            'Error ProposalHandler.proposalCreated - totalSupply is 0',
+            llo({
+              ...info,
+              parsedEvent,
+              pluginAddress,
+            }),
+          )
         }
       }
 
       if (relatedPlugin.interfaceType === IPluginInterfaceType.tokenVoting && !document?.settings?.tokenAddress) {
-        logger.error('Error ProposalHandler.proposalCreated - tokenAddress is missing', llo({ ...info, parsedEvent }))
+        logger.error(
+          'Error ProposalHandler.proposalCreated - tokenAddress is missing',
+          llo({
+            ...info,
+            parsedEvent,
+            pluginAddress,
+          }),
+        )
         document.snapshot = {
           totalSupply: '0',
         }
@@ -267,7 +288,7 @@ export const ProposalHandler = {
       })
 
       if (incrementalId === null) {
-        logger.error('Error findIncrementalId - incrementalId is null', llo({ ...info, parsedEvent }))
+        logger.error('Error findIncrementalId - incrementalId is null', llo({ ...info, parsedEvent, pluginAddress }))
         return { newProposal: undefined, relatedPlugin: undefined }
       }
 
