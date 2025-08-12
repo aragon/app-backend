@@ -237,7 +237,18 @@ class BlockchainTransferCrawler {
   isBatchSizeError(error: any): boolean {
     const messages = ['The query timed out', 'Log response size exceeded']
 
-    return messages.some(msg => error.message?.includes(msg))
+    const isError = messages.some(msg => error?.message?.includes(msg))
+
+    if (!error) {
+      logger.error(
+        'Error not whitelisted in TransferCrawler isBatchSizeError',
+        llo({
+          error,
+        }),
+      )
+    }
+
+    return isError
   }
 
   getProvider(): WebSocketProvider {

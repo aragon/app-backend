@@ -405,6 +405,83 @@ describe('Modules:BlockchainTransferCrawler', () => {
     })
   })
 
+  describe('isBatchSizeError', () => {
+    it('should return true for whitelisted errors', () => {
+      const crawler = new BlockchainTransferCrawler({
+        network: NetworksEnum.ethereumMainnet,
+        filter: {},
+        onTx: async () => {},
+      })
+      const timeoutErrors = [{ message: 'The query timed out' }, { message: 'Log response size exceeded' }]
+      timeoutErrors.forEach(error => {
+        expect((crawler as any).isBatchSizeError(error)).to.be.true
+      })
+    })
+
+    it('should return false for non-batch size errors', () => {
+      const crawler = new BlockchainTransferCrawler({
+        network: NetworksEnum.ethereumMainnet,
+        filter: {},
+        onTx: async () => {},
+      })
+      const otherErrors = [
+        { message: 'Network connection failed' },
+        { message: 'Invalid address' },
+        { message: 'Contract not found' },
+        { message: 'Unknown error occurred' },
+      ]
+      otherErrors.forEach(error => {
+        expect((crawler as any).isBatchSizeError(error)).to.be.false
+      })
+    })
+
+    it('should log error and return false when error is null', () => {
+      const crawler = new BlockchainTransferCrawler({
+        network: NetworksEnum.ethereumMainnet,
+        filter: {},
+        onTx: async () => {},
+      })
+      const result = (crawler as any).isBatchSizeError(null)
+      expect(result).to.be.false
+      expect(logError.calledOnce).to.be.true
+      expect(logError.firstCall.args[0]).to.equal('Error not whitelisted in TransferCrawler isBatchSizeError')
+    })
+
+    it('should log error and return false when error is undefined', () => {
+      const crawler = new BlockchainTransferCrawler({
+        network: NetworksEnum.ethereumMainnet,
+        filter: {},
+        onTx: async () => {},
+      })
+      const result = (crawler as any).isBatchSizeError(undefined)
+      expect(result).to.be.false
+      expect(logError.calledOnce).to.be.true
+      expect(logError.firstCall.args[0]).to.equal('Error not whitelisted in TransferCrawler isBatchSizeError')
+    })
+
+    it('should return false when error is empty object', () => {
+      const crawler = new BlockchainTransferCrawler({
+        network: NetworksEnum.ethereumMainnet,
+        filter: {},
+        onTx: async () => {},
+      })
+      const result = (crawler as any).isBatchSizeError({})
+      expect(result).to.be.false
+      expect(logError.notCalled).to.be.true
+    })
+
+    it('should handle error without message property', () => {
+      const crawler = new BlockchainTransferCrawler({
+        network: NetworksEnum.ethereumMainnet,
+        filter: {},
+        onTx: async () => {},
+      })
+      const errorWithoutMessage = { code: 'TIMEOUT', data: 'some data' }
+      const result = (crawler as any).isBatchSizeError(errorWithoutMessage)
+      expect(result).to.be.false
+    })
+  })
+
   describe('getServiceStartBlock', () => {
     it('should getServiceStartBlock', async () => {
       const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
