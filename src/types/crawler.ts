@@ -93,6 +93,14 @@ export enum IMultiSigLogs {
   MetadataSet = 'MetadataSet',
 }
 
+export enum ICapitalDistributorLogs {
+  CampaignCreated = 'CampaignCreated',
+  PayoutClaimed = 'PayoutClaimed',
+  CampaignDeactivated = 'CampaignDeactivated',
+  MerkleCampaignSet = 'MerkleCampaignSet',
+  MerkleCampaignUpdated = 'MerkleCampaignUpdated',
+}
+
 export enum IAdminLogs {
   MembersAdded = 'MembersAdded',
   MembersRemoved = 'MembersRemoved',

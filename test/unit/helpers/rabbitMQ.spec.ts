@@ -7,7 +7,7 @@ import utils from '@helpers/utils'
 import { ConfirmChannel } from 'amqplib'
 import logger from '@logger'
 
-describe('Helpers:RabbitMQ', () => {
+describe.only('Helpers:RabbitMQ', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {

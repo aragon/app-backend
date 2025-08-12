@@ -78,6 +78,7 @@
   "dependencies": {
     "@ethersproject/constants": "^5.7.0",
     "@koa/router": "^12.0.1",
+    "@openzeppelin/merkle-tree": "^1.0.8",
     "@pinata/sdk": "^2.1.0",
     "@sentry/node": "^7.102.1",
     "@typegoose/typegoose": "^12.1.0",
@@ -102,6 +103,7 @@
     "koa-jwt": "^4.0.4",
     "lodash": "^4.17.21",
     "logzio-nodejs": "^2.4.0",
+    "merkletreejs": "^0.5.2",
     "mongoose": "^8.12.2",
     "speakeasy": "^2.0.0",
     "toobusy-js": "^0.5.1",

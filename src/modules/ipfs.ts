@@ -107,6 +107,79 @@ const IPFSModule = {
     const cidv1Regex = /^b[a-z2-7]{58}$/
     return cidv1Regex.test(cid)
   },
+
+  parseCapitalDistributorMetadata: (metadata: any): {
+    // Campaign metadata (basic)
+    name: string | null
+    description: string | null
+    links: string[]
+    // Plugin metadata (Capital Distributor specific)
+    blockedCountries: string[]
+    termsConditionsUrl: string | null
+    enableOfacCheck: boolean
+  } => {
+    const parsedMetadata = {
+      // Campaign metadata
+      name: null as string | null,
+      description: null as string | null,
+      links: [] as string[],
+      // Plugin metadata
+      blockedCountries: [] as string[],
+      termsConditionsUrl: null as string | null,
+      enableOfacCheck: false,
+    }
+
+    if (!metadata) {
+      return parsedMetadata
+    }
+
+    // Parse campaign metadata (basic)
+    if (metadata.name && typeof metadata.name === 'string') {
+      parsedMetadata.name = metadata.name
+    }
+
+    if (metadata.description && typeof metadata.description === 'string') {
+      parsedMetadata.description = metadata.description
+    }
+
+    if (metadata.links && Array.isArray(metadata.links)) {
+      parsedMetadata.links = metadata.links.map((link: any) => {
+        if (typeof link === 'string') {
+          return link
+        }
+        if (link && typeof link === 'object' && link.url) {
+          return link.url
+        }
+        return null
+      }).filter(Boolean)
+    }
+
+    // Parse plugin metadata (Capital Distributor specific)
+    if (metadata.blockedCountries && Array.isArray(metadata.blockedCountries)) {
+      parsedMetadata.blockedCountries = metadata.blockedCountries.filter(
+        (country: any) => typeof country === 'string'
+      )
+    }
+
+    if (metadata.termsConditionsUrl && typeof metadata.termsConditionsUrl === 'string') {
+      parsedMetadata.termsConditionsUrl = metadata.termsConditionsUrl
+    }
+
+    if (typeof metadata.enableOfacCheck === 'boolean') {
+      parsedMetadata.enableOfacCheck = metadata.enableOfacCheck
+    }
+
+    logger.debug('Capital Distributor metadata parsed', llo({
+      hasCampaignName: !!parsedMetadata.name,
+      hasCampaignDescription: !!parsedMetadata.description,
+      campaignLinksCount: parsedMetadata.links.length,
+      blockedCountriesCount: parsedMetadata.blockedCountries.length,
+      hasTermsConditions: !!parsedMetadata.termsConditionsUrl,
+      enableOfacCheck: parsedMetadata.enableOfacCheck,
+    }))
+
+    return parsedMetadata
+  },
 }
 
 export default IPFSModule

@@ -17,6 +17,7 @@ import { LogSpp } from '@services/aragon-plugins/logSPP'
 import { LogTokenVoting } from '@services/aragon-plugins/logTokenVoting'
 import { LogGauge } from '@plugins/logGauge'
 import { LogSelectorPermission } from '@services/aragon-plugins/logSelectorPermission'
+import { LogCapitalDistributor } from '@services/aragon-plugins/logCapitalDistributor'
 import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'service:PluginSyncService' })
@@ -116,6 +117,11 @@ const AragonPluginsService: IService & { pluginQueue: (params: IQueuePlugin) => 
         } else {
           logger.warn('Sync plugin: token not ERC721', llo({ plugin: plugin.address, token: token.address }))
         }
+        break
+      }
+      case IPluginInterfaceType.capitalDistribution: {
+        logger.info('Sync plugin: Capital Distributor', llo({ plugin: plugin.address }))
+        await LogCapitalDistributor.start(plugin)
         break
       }
       default: {

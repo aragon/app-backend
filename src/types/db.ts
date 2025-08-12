@@ -22,9 +22,12 @@ import type Jwt from '@models/schema/jwt'
 import type PluginSlug from '@models/schema/pluginSlug'
 import type LockManagerMember from '@models/schema/lockManagerMember'
 import type SelectorPermission from '@models/schema/selectorPermission'
+import type Campaign from '@models/schema/campaign'
+import type Reward from '@models/schema/reward'
 
 export enum ICollectionNames {
   Asset = 'Asset',
+  Campaign = 'Campaign',
   ConfigIndexer = 'ConfigIndexer',
   Dao = 'Dao',
   DaoMemberMapping = 'DaoMemberMapping',
@@ -37,6 +40,7 @@ export enum ICollectionNames {
   Plugin = 'Plugin',
   PluginRepo = 'PluginRepo',
   Proposal = 'Proposal',
+  Reward = 'Reward',
   Setting = 'Setting',
   PluginSlug = 'PluginSlug',
   TaskRun = 'TaskRun',
@@ -80,6 +84,7 @@ export const IndexCheckTypeToModel: Record<ITransactionIndexCheckType, ICollecti
 
 export interface IMongoModel {
   Asset: typeof Asset
+  Campaign: typeof Campaign
   ConfigIndexer: typeof ConfigIndexer
   Dao: typeof Dao
   DaoMemberMapping: typeof DaoMemberMapping
@@ -95,6 +100,7 @@ export interface IMongoModel {
   PluginRepo: typeof PluginRepo
   PluginSlug: typeof PluginSlug
   Proposal: typeof Proposal
+  Reward: typeof Reward
   Setting: typeof Setting
   TaskRun: typeof TaskRun
   TaskService: typeof TaskService
@@ -141,4 +147,8 @@ export enum IMigrationStatus {
   RUNNING = 'RUNNING',
   COMPLETED = 'COMPLETED',
   FAILED = 'FAILED',
+}
+
+export enum ICampaignType {
+  MERKLE_ROOT = 'MERKLE_ROOT',
 }
