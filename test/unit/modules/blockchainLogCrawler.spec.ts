@@ -1753,7 +1753,7 @@ describe('Module: blockchainLogCrawler', () => {
   })
 
   describe('isBatchSizeError', () => {
-    it('should return true for whitelist errors', () => {
+    it('should return true for whitelisted errors', () => {
       const crawler = new BlockchainLogCrawler({
         events: [],
         address: ['0x123'],
