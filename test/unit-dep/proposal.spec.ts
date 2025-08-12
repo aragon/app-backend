@@ -6,6 +6,8 @@ import { Models } from '@dbModels'
 import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { ProposalHandler } from '@handlers/proposalHandler'
 import { expect } from 'chai'
+import { DAORegistry } from '@artifacts/daoRegistry'
+import { SharedLogs } from '@artifacts/shared'
 
 describe('Integration: Proposal', () => {
   let sandbox: SinonSandbox
@@ -20,6 +22,63 @@ describe('Integration: Proposal', () => {
 
   afterEach(() => {
     sandbox && sandbox.restore()
+  })
+
+  it.only('IncrementalId - chiliz', async function () {
+    this.timeout(1600000)
+    const transactionHash = '0xc2638b87e3ccadf69ab4fb581da033d5b1949a5c09eed0d018c2ecc2471c84ff'
+    const network = NetworksEnum.cornMainnet
+
+    await Models.Plugin.create({
+      id: 'corn-mainnet-0xef4a512ba0836239143cc8a5a79cb0f8de68493aa04b5aff4df64d90c5abae3b-0x62217Ae59A8D1E19CA304f9C10AC0361F4542803',
+      transactionHash: '0xef4a512ba0836239143cc8a5a79cb0f8de68493aa04b5aff4df64d90c5abae3b',
+      blockNumber: 776138,
+      blockTimestamp: 1753969887,
+      network,
+      address: '0x62217Ae59A8D1E19CA304f9C10AC0361F4542803',
+      implementationAddress: '0x7ab3908D556578429e9300696DB55831f3700f04',
+      interfaceType: 'multisig',
+      status: 'installed',
+      isSupported: true,
+      daoAddress: '0xcf03B0739A285F613E716f9b9f83167525F0f06C',
+      tokenAddress: null,
+      pluginSetupRepoAddress: '0xf3793d55C5fef8AFB5CDF305996A93281C6Bd220',
+      sender: '0xCFE83d0079c9455eF1e11864D701d6e1bDf8Ff2a',
+      release: '1',
+      build: '3',
+      subdomain: 'multisig',
+      uninstalled: {
+        status: false,
+        transactionHash: null,
+        blockNumber: null,
+        blockTimestamp: null,
+      },
+      hasTarget: false,
+      isProcess: true,
+      isBody: true,
+      isSubPlugin: true,
+      metadataIpfs: 'ipfs://Qmf8e9U1rts7dR7bTLFPhKa97rE31wBGKLWHRnJzuh6Rpr',
+      name: 'MS',
+      description: '',
+      processKey: null,
+      votingEscrow: null,
+      subPlugins: [],
+      links: [],
+      parentPlugin: '0x12CB507bE69A179A18a659235009f782DFA32501',
+      stageIndex: 0,
+    })
+
+    const proposalCreatedEvents = await UnitDepUtils.getData(
+      SharedLogs.abi,
+      'ProposalCreated',
+      transactionHash,
+      network,
+    )
+
+    console.log(proposalCreatedEvents)
+    await ProposalHandler.proposalCreated(proposalCreatedEvents[0].event, proposalCreatedEvents[0].logInfo)
+
+    console.log('ok')
   })
 
   it('proposalResultReport - update spp proposal on external body result', async function () {

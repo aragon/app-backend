@@ -730,9 +730,22 @@ class BlockchainLogCrawler {
       'Consider reducing your block range',
       'Query returned more than 1000000 results',
       'Cannot create a string longer',
+      'Block range is too large',
     ]
 
-    return messages.some(msg => error.message?.includes(msg))
+    const isError = messages.some(msg => error.message?.includes(msg))
+
+    if (!error) {
+      logger.error(
+        'Error isBatchSizeError: check error message',
+        llo({
+          error,
+          ...this.parseCrawlerInfoLog(),
+        }),
+      )
+    }
+
+    return isError
   }
 
   getOffsetToBlockNumber(blockNumber: number): number {
