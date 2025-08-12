@@ -99,7 +99,8 @@ describe('Module: PoolingCrawler', () => {
 
       const result = await PoolingCrawler.filterLogs(mockLogs as any, NetworksEnum.ethereumMainnet)
 
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Removed 1000ms delay - not needed for test assertions
+      await new Promise(resolve => setImmediate(resolve))
 
       expect(nativeTransferStub.calledOnce).to.be.true
 

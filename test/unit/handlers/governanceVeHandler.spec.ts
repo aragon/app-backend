@@ -17,6 +17,7 @@ import logger from '@logger'
 import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
 import { expect } from 'chai'
 import { ProxyMember } from '@modules/proxyMember'
+import { MemberGovernanceFactory } from '@modules/memberGovernance'
 import Web3Helper from '@helpers/web3'
 import { PluginSetting } from '@models/schema/setting'
 import { ProxyToken } from '@modules/proxyToken'
@@ -72,9 +73,8 @@ describe('Handler:GovernanceVeHandler', () => {
       const stubPluginFind = sandbox.stub(Models.Plugin, 'find').resolves([])
       const stubLogger = sandbox.stub(logger, 'error')
       const stubLockCreate = sandbox.stub(Models.Lock, 'create')
-      const stubGetOrCreateTokenMember = sandbox.stub(ProxyMember, 'getOrCreateTokenMember')
-      const stubUpdateTokenMemberVP = sandbox.stub(ProxyMember, 'updateTokenMemberVP')
-      const stubUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics')
+      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
+      const stubMemberGovernanceCreate = sandbox.stub(MemberGovernanceFactory, 'create')
 
       const mockInfo = {
         address: '0x001DdEdc2139d9948e8dcC936C1Ab2314D9181E8',
@@ -106,9 +106,8 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Plugin not found for deposit event' as any)).to.be.true
       expect(stubLockCreate.notCalled).to.be.true
-      expect(stubGetOrCreateTokenMember.notCalled).to.be.true
-      expect(stubUpdateTokenMemberVP.notCalled).to.be.true
-      expect(stubUpdatePluginMetrics.notCalled).to.be.true
+      expect(stubCreateBaseMember.notCalled).to.be.true
+      expect(stubMemberGovernanceCreate.notCalled).to.be.true
     })
 
     it('should log warning if lock already exists', async () => {
@@ -126,9 +125,8 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Models.Lock, 'findExistingLog').resolves({ id: 'existingLock' } as any)
       const stubLogger = sandbox.stub(logger, 'warn')
       const stubLockCreate = sandbox.stub(Models.Lock, 'create')
-      const stubGetOrCreateTokenMember = sandbox.stub(ProxyMember, 'getOrCreateTokenMember')
-      const stubUpdateTokenMemberVP = sandbox.stub(ProxyMember, 'updateTokenMemberVP')
-      const stubUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics')
+      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
+      const stubMemberGovernanceCreate = sandbox.stub(MemberGovernanceFactory, 'create')
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
@@ -153,9 +151,8 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Deposit VeGovernance - Lock already exists' as any)).to.be.true
       expect(stubLockCreate.notCalled).to.be.true
-      expect(stubGetOrCreateTokenMember.notCalled).to.be.true
-      expect(stubUpdateTokenMemberVP.notCalled).to.be.true
-      expect(stubUpdatePluginMetrics.notCalled).to.be.true
+      expect(stubCreateBaseMember.notCalled).to.be.true
+      expect(stubMemberGovernanceCreate.notCalled).to.be.true
     })
 
     it('should create Lock and update TokenMember with new tokenId', async () => {
@@ -172,14 +169,18 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
       sandbox.stub(Models.Lock, 'findExistingLog').resolves(null)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      sandbox.stub(ProxyMember, 'createMember').resolves()
+      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
       const stubLockCreate = sandbox.stub(Models.Lock, 'create').resolves()
       const stubLogger = sandbox.stub(logger, 'verbose')
-      const stubGetOrCreateTokenMember = sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
-        tokenIds: [],
-      } as any)
-      const stubUpdateTokenMemberVP = sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
-      const stubUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+
+      // Mock governance instance
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves(),
+        findOne: sandbox.stub().resolves({ tokenIds: [] }),
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      const stubMemberGovernanceCreate = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin.daoAddress])
 
       const mockInfo = {
@@ -223,34 +224,43 @@ describe('Handler:GovernanceVeHandler', () => {
         exitQueueAddress: mockPlugin.votingEscrow.exitQueueAddress,
       })
 
-      // Verify getOrCreateTokenMember was called
-      expect(stubGetOrCreateTokenMember.calledOnce).to.be.true
+      // Verify createBaseMember was called
+      expect(stubCreateBaseMember.calledOnce).to.be.true
+      expect(stubCreateBaseMember.calledWith(mockEvent.args.depositor, mockInfo.blockNumber)).to.be.true
+
+      // Verify MemberGovernanceFactory.create was called
+      expect(stubMemberGovernanceCreate.calledOnce).to.be.true
       expect(
-        stubGetOrCreateTokenMember.calledWith({
-          memberAddress: mockEvent.args.depositor,
-          tokenAddress: mockPlugin.tokenAddress,
+        stubMemberGovernanceCreate.calledWith({
+          address: mockPlugin.tokenAddress,
           network: mockInfo.network,
+          interfaceType: IPluginInterfaceType.tokenVoting,
+          tokenType: ITokenType.escrowAdapter,
         }),
       ).to.be.true
 
-      // Verify updateTokenMemberVP was called with new tokenId
-      expect(stubUpdateTokenMemberVP.calledOnce).to.be.true
+      // Verify governance methods were called
+      expect(mockGovernance.getOrCreate.calledOnce).to.be.true
+      expect(mockGovernance.getOrCreate.calledWith(mockEvent.args.depositor)).to.be.true
+
+      expect(mockGovernance.findOne.calledOnce).to.be.true
+      expect(mockGovernance.findOne.calledWith(mockEvent.args.depositor)).to.be.true
+
+      expect(mockGovernance.update.calledOnce).to.be.true
       expect(
-        stubUpdateTokenMemberVP.calledWith({
-          memberAddress: mockEvent.args.depositor,
-          tokenAddress: mockPlugin.tokenAddress,
-          network: mockInfo.network,
+        mockGovernance.update.calledWith(mockEvent.args.depositor, {
           tokenIds: ['123'],
-          lastVPBlockNumber: mockInfo.blockNumber,
+          lastActivity: mockInfo.blockNumber,
         }),
       ).to.be.true
 
-      // Verify updatePluginMetrics was called
-      expect(stubUpdatePluginMetrics.calledOnce).to.be.true
+      // Verify getOrCreatePluginMetrics was called
+      expect(mockGovernance.getOrCreatePluginMetrics.calledOnce).to.be.true
       expect(
-        stubUpdatePluginMetrics.calledWith({
+        mockGovernance.getOrCreatePluginMetrics.calledWith({
           memberAddress: mockEvent.args.depositor,
           pluginAddress: mockPlugin.address,
+          daoAddress: mockPlugin.daoAddress,
           network: mockInfo.network,
           lastActivity: mockInfo.blockNumber,
         }),
@@ -286,15 +296,18 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
       sandbox.stub(Models.Lock, 'findExistingLog').resolves(null)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      sandbox.stub(ProxyMember, 'createMember').resolves()
+      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
       const stubLockCreate = sandbox.stub(Models.Lock, 'create').resolves()
       const stubLogger = sandbox.stub(logger, 'verbose')
-      // TokenMember already has the tokenId
-      const stubGetOrCreateTokenMember = sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
-        tokenIds: ['100', '123', '200'], // Already includes tokenId 123
-      } as any)
-      const stubUpdateTokenMemberVP = sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
-      const stubUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+
+      // Mock governance instance with existing tokenId
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves(),
+        findOne: sandbox.stub().resolves({ tokenIds: ['100', '123', '200'] }), // Already includes tokenId 123
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      const stubMemberGovernanceCreate = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin.daoAddress])
 
       const mockInfo = {
@@ -320,14 +333,18 @@ describe('Handler:GovernanceVeHandler', () => {
       // Verify Lock was created
       expect(stubLockCreate.calledOnce).to.be.true
 
-      // Verify getOrCreateTokenMember was called
-      expect(stubGetOrCreateTokenMember.calledOnce).to.be.true
+      // Verify createBaseMember was called
+      expect(stubCreateBaseMember.calledOnce).to.be.true
 
-      // Verify updateTokenMemberVP was NOT called since tokenId already exists
-      expect(stubUpdateTokenMemberVP.notCalled).to.be.true
+      // Verify governance methods were called
+      expect(mockGovernance.getOrCreate.calledOnce).to.be.true
+      expect(mockGovernance.findOne.calledOnce).to.be.true
 
-      // Verify updatePluginMetrics was called
-      expect(stubUpdatePluginMetrics.calledOnce).to.be.true
+      // Verify update was NOT called since tokenId already exists
+      expect(mockGovernance.update.notCalled).to.be.true
+
+      // Verify getOrCreatePluginMetrics was called
+      expect(mockGovernance.getOrCreatePluginMetrics.calledOnce).to.be.true
 
       // Verify RabbitMQ message was sent
       expect(rabbitMQHelperStub.calledOnce).to.be.true
@@ -365,12 +382,18 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Models.Plugin, 'find').resolves(mockPlugins)
       sandbox.stub(Models.Lock, 'findExistingLog').resolves(null)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      sandbox.stub(ProxyMember, 'createMember').resolves()
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
       sandbox.stub(Models.Lock, 'create').resolves()
       sandbox.stub(logger, 'verbose')
-      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({ tokenIds: [] } as any)
-      sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
-      const stubUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+
+      // Mock governance instance
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves({ tokenIds: [] } as any),
+        findOne: sandbox.stub().resolves({ tokenIds: [] } as any),
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
       sandbox.stub(utils, 'getUniqueValuesByKey').returns(['0xDaoAddress1', '0xDaoAddress2'])
 
       const mockInfo = {
@@ -394,19 +417,21 @@ describe('Handler:GovernanceVeHandler', () => {
       await GovernanceVeHandler.deposit(mockEvent, mockInfo)
 
       // Verify updatePluginMetrics was called for each plugin
-      expect(stubUpdatePluginMetrics.calledTwice).to.be.true
+      expect(mockGovernance.getOrCreatePluginMetrics.calledTwice).to.be.true
       expect(
-        stubUpdatePluginMetrics.firstCall.calledWith({
+        mockGovernance.getOrCreatePluginMetrics.firstCall.calledWith({
           memberAddress: mockEvent.args.depositor,
           pluginAddress: mockPlugins[0].address,
+          daoAddress: mockPlugins[0].daoAddress,
           network: mockInfo.network,
           lastActivity: mockInfo.blockNumber,
         }),
       ).to.be.true
       expect(
-        stubUpdatePluginMetrics.secondCall.calledWith({
+        mockGovernance.getOrCreatePluginMetrics.secondCall.calledWith({
           memberAddress: mockEvent.args.depositor,
           pluginAddress: mockPlugins[1].address,
+          daoAddress: mockPlugins[1].daoAddress,
           network: mockInfo.network,
           lastActivity: mockInfo.blockNumber,
         }),
@@ -430,12 +455,18 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
       sandbox.stub(Models.Lock, 'findExistingLog').resolves(null)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(undefined) // Returns undefined
-      sandbox.stub(ProxyMember, 'createMember').resolves()
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
       const stubLockCreate = sandbox.stub(Models.Lock, 'create').resolves()
       sandbox.stub(logger, 'verbose')
-      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({ tokenIds: [] } as any)
-      sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
-      sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+
+      // Mock governance instance
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves({ tokenIds: [] } as any),
+        findOne: sandbox.stub().resolves({ tokenIds: [] } as any),
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin.daoAddress])
 
       const mockInfo = {
@@ -478,12 +509,18 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
       sandbox.stub(Models.Lock, 'findExistingLog').resolves(null)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      sandbox.stub(ProxyMember, 'createMember').resolves()
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
       sandbox.stub(Models.Lock, 'create').resolves()
       sandbox.stub(logger, 'verbose')
-      const stubGetOrCreateTokenMember = sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves(null) // Returns null
-      const stubUpdateTokenMemberVP = sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
-      sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+
+      // Mock governance instance that returns null for getOrCreate
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves(null), // Returns null
+        findOne: sandbox.stub().resolves(null), // Returns null
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin.daoAddress])
 
       const mockInfo = {
@@ -506,11 +543,11 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.deposit(mockEvent, mockInfo)
 
-      // Verify getOrCreateTokenMember was called
-      expect(stubGetOrCreateTokenMember.calledOnce).to.be.true
+      // Verify getOrCreate was called
+      expect(mockGovernance.getOrCreate.calledOnce).to.be.true
 
-      // Verify updateTokenMemberVP was NOT called since tokenMember is null
-      expect(stubUpdateTokenMemberVP.notCalled).to.be.true
+      // Verify update was called even though tokenMember is null (it will try to update with the tokenId)
+      expect(mockGovernance.update.calledOnce).to.be.true
     })
   })
 
@@ -519,8 +556,13 @@ describe('Handler:GovernanceVeHandler', () => {
       const stubPluginFind = sandbox.stub(Models.Plugin, 'find').resolves([])
       const stubLogger = sandbox.stub(logger, 'error')
       const stubLockFindLockMember = sandbox.stub(Models.Lock, 'findLockMember')
-      const stubCreateMember = sandbox.stub(ProxyMember, 'createMember')
-      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateTokenMemberVP')
+      const stubCreateMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
+
+      // Mock governance instance (won't be called since plugin not found)
+      const mockGovernance = {
+        update: sandbox.stub().resolves(),
+      }
+      const stubGovernanceCreate = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
       const mockInfo = {
         address: '0x001DdEdc2139d9948e8dcC936C1Ab2314D9181E8',
@@ -553,7 +595,8 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stubLogger.calledWith('Plugin not found for withdraw event' as any)).to.be.true
       expect(stubLockFindLockMember.notCalled).to.be.true
       expect(stubCreateMember.notCalled).to.be.true
-      expect(stubUpdateVotingPower.notCalled).to.be.true
+      expect(stubGovernanceCreate.notCalled).to.be.true
+      expect(mockGovernance.update.notCalled).to.be.true
     })
 
     it('should log error if lock not found', async () => {
@@ -570,8 +613,13 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
       sandbox.stub(Models.Lock, 'findLockMember').resolves(null)
       const stubLogger = sandbox.stub(logger, 'error')
-      const stubCreateMember = sandbox.stub(ProxyMember, 'createMember')
-      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateTokenMemberVP')
+      const stubCreateMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
+
+      // Mock governance instance (won't be called since lock not found)
+      const mockGovernance = {
+        update: sandbox.stub().resolves(),
+      }
+      const stubGovernanceCreate = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
@@ -596,7 +644,8 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Lock not found for withdraw event' as any)).to.be.true
       expect(stubCreateMember.notCalled).to.be.true
-      expect(stubUpdateVotingPower.notCalled).to.be.true
+      expect(stubGovernanceCreate.notCalled).to.be.true
+      expect(mockGovernance.update.notCalled).to.be.true
     })
 
     it('should skip if lockWithdraw already true', async () => {
@@ -619,9 +668,15 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Models.Lock, 'findLockMember').resolves(mockExistingLock as any)
 
       const stubLogger = sandbox.stub(logger, 'verbose')
-      const stubCreateMember = sandbox.stub(ProxyMember, 'createMember')
-      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateTokenMemberVP')
-      const stubGetOrCreateVotingPower = sandbox.stub(ProxyMember, 'getOrCreateTokenMember')
+      const stubCreateMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
+
+      // Mock governance instance (won't be called since lockWithdraw is already true)
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves({ tokenIds: [] } as any),
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      const stubGovernanceCreate = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
@@ -646,8 +701,9 @@ describe('Handler:GovernanceVeHandler', () => {
       // Should return early, so no methods should be called
       expect(mockExistingLock.update.notCalled).to.be.true
       expect(stubCreateMember.notCalled).to.be.true
-      expect(stubUpdateVotingPower.notCalled).to.be.true
-      expect(stubGetOrCreateVotingPower.notCalled).to.be.true
+      expect(stubGovernanceCreate.notCalled).to.be.true
+      expect(mockGovernance.update.notCalled).to.be.true
+      expect(mockGovernance.getOrCreate.notCalled).to.be.true
       expect(stubLogger.notCalled).to.be.true
     })
 
@@ -673,12 +729,20 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
 
       const stubLogger = sandbox.stub(logger, 'verbose')
-      const stubCreateMember = sandbox.stub(ProxyMember, 'createMember').resolves()
-      const stubGetOrCreateVotingPower = sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
-        tokenIds: ['100', '123', '200'],
-      } as any)
-      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
-      const stubUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+      const stubCreateMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      // Mock governance instance
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves({
+          tokenIds: ['100', '123', '200'],
+        } as any),
+        findOne: sandbox.stub().resolves({
+          tokenIds: ['100', '123', '200'],
+        } as any),
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
@@ -716,39 +780,31 @@ describe('Handler:GovernanceVeHandler', () => {
         }),
       ).to.be.true
 
-      // Verify ProxyMember.createMember was called
+      // Verify createBaseMember was called
       expect(stubCreateMember.calledOnce).to.be.true
       expect(stubCreateMember.calledWith(mockEvent.args.depositor, mockInfo.blockNumber)).to.be.true
 
-      // Verify getOrCreateTokenMember was called
-      expect(stubGetOrCreateVotingPower.calledOnce).to.be.true
-      expect(
-        stubGetOrCreateVotingPower.calledWith({
-          memberAddress: mockEvent.args.depositor,
-          tokenAddress: mockInfo.address,
-          network: mockInfo.network,
-        }),
-      ).to.be.true
+      // Verify findOne was called (withdraw uses findOne, not getOrCreate)
+      expect(mockGovernance.findOne.calledOnce).to.be.true
+      expect(mockGovernance.findOne.calledWith(mockEvent.args.depositor)).to.be.true
 
-      // Verify ProxyMember.updateTokenMemberVP was called with tokenId removed
-      expect(stubUpdateVotingPower.calledOnce).to.be.true
+      // Verify update was called with tokenId removed
+      expect(mockGovernance.update.calledOnce).to.be.true
       expect(
-        stubUpdateVotingPower.calledWith({
-          memberAddress: mockEvent.args.depositor,
-          tokenAddress: mockInfo.address,
-          network: mockInfo.network,
-          votingPower: undefined,
+        mockGovernance.update.calledWith(mockEvent.args.depositor, {
+          votingPower: undefined, // votingPower is undefined when tokenIds remain
           tokenIds: ['100', '200'], // '123' removed
-          lastVPBlockNumber: mockInfo.blockNumber,
+          lastActivity: mockInfo.blockNumber,
         }),
       ).to.be.true
 
-      // Verify updatePluginMetrics was called
-      expect(stubUpdatePluginMetrics.calledOnce).to.be.true
+      // Verify getOrCreatePluginMetrics was called
+      expect(mockGovernance.getOrCreatePluginMetrics.calledOnce).to.be.true
       expect(
-        stubUpdatePluginMetrics.calledWith({
+        mockGovernance.getOrCreatePluginMetrics.calledWith({
           memberAddress: mockEvent.args.depositor,
           pluginAddress: mockPlugin.address,
+          daoAddress: mockPlugin.daoAddress,
           network: mockInfo.network,
           lastActivity: mockInfo.blockNumber,
         }),
@@ -780,13 +836,17 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Models.Lock, 'findLockMember').resolves(mockExistingLock as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(logger, 'verbose')
-      sandbox.stub(ProxyMember, 'createMember').resolves()
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
-      // Only one tokenId exists, which will be removed
-      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
-        tokenIds: ['123'],
-      } as any)
-      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
+      // Mock governance instance - Only one tokenId exists, which will be removed
+      const mockGovernance = {
+        findOne: sandbox.stub().resolves({
+          tokenIds: ['123'],
+        } as any),
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
@@ -808,16 +868,13 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.withdraw(mockEvent, mockInfo)
 
-      // Verify updateTokenMemberVP was called with votingPower: '0' when no tokenIds remain
-      expect(stubUpdateVotingPower.calledOnce).to.be.true
+      // Verify update was called with votingPower: '0' when no tokenIds remain
+      expect(mockGovernance.update.calledOnce).to.be.true
       expect(
-        stubUpdateVotingPower.calledWith({
-          memberAddress: mockEvent.args.depositor,
-          tokenAddress: mockInfo.address,
-          network: mockInfo.network,
+        mockGovernance.update.calledWith(mockEvent.args.depositor, {
           votingPower: '0',
           tokenIds: [],
-          lastVPBlockNumber: mockInfo.blockNumber,
+          lastActivity: mockInfo.blockNumber,
         }),
       ).to.be.true
     })
@@ -896,13 +953,17 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Models.Lock, 'findLockMember').resolves(mockExistingLock as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(logger, 'verbose')
-      sandbox.stub(ProxyMember, 'createMember').resolves()
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
-      // tokenId 123 is not in the array
-      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
-        tokenIds: ['100', '200'],
-      } as any)
-      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
+      // Mock governance instance - tokenId 123 is not in the array
+      const mockGovernance = {
+        findOne: sandbox.stub().resolves({
+          tokenIds: ['100', '200'],
+        } as any),
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
@@ -924,16 +985,13 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.withdraw(mockEvent, mockInfo)
 
-      // Verify updateTokenMemberVP was called with same tokenIds (nothing removed)
-      expect(stubUpdateVotingPower.calledOnce).to.be.true
+      // Verify update was called with same tokenIds (nothing removed)
+      expect(mockGovernance.update.calledOnce).to.be.true
       expect(
-        stubUpdateVotingPower.calledWith({
-          memberAddress: mockEvent.args.depositor,
-          tokenAddress: mockInfo.address,
-          network: mockInfo.network,
+        mockGovernance.update.calledWith(mockEvent.args.depositor, {
           votingPower: undefined,
           tokenIds: ['100', '200'],
-          lastVPBlockNumber: mockInfo.blockNumber,
+          lastActivity: mockInfo.blockNumber,
         }),
       ).to.be.true
     })
@@ -959,13 +1017,17 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Models.Lock, 'findLockMember').resolves(mockExistingLock as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(logger, 'verbose')
-      sandbox.stub(ProxyMember, 'createMember').resolves()
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
-      // TokenMember has undefined tokenIds
-      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
-        tokenIds: undefined,
-      } as any)
-      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
+      // Mock governance instance - TokenMember has undefined tokenIds
+      const mockGovernance = {
+        findOne: sandbox.stub().resolves({
+          tokenIds: undefined,
+        } as any),
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
@@ -987,16 +1049,13 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.withdraw(mockEvent, mockInfo)
 
-      // Verify updateTokenMemberVP was called with votingPower: '0' for empty array
-      expect(stubUpdateVotingPower.calledOnce).to.be.true
+      // Verify update was called with votingPower: '0' for empty array
+      expect(mockGovernance.update.calledOnce).to.be.true
       expect(
-        stubUpdateVotingPower.calledWith({
-          memberAddress: mockEvent.args.depositor,
-          tokenAddress: mockInfo.address,
-          network: mockInfo.network,
+        mockGovernance.update.calledWith(mockEvent.args.depositor, {
           votingPower: '0',
           tokenIds: [],
-          lastVPBlockNumber: mockInfo.blockNumber,
+          lastActivity: mockInfo.blockNumber,
         }),
       ).to.be.true
     })
@@ -1151,8 +1210,13 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
 
       const stubLogger = sandbox.stub(logger, 'verbose')
-      const stubCreateMember = sandbox.stub(ProxyMember, 'createMember').resolves()
-      const stubUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+      const stubCreateMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      // Mock governance instance for updatePluginMetrics
+      const mockGovernance = {
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
       const mockInfo = {
         address: '0xExitQueue',
@@ -1186,16 +1250,17 @@ describe('Handler:GovernanceVeHandler', () => {
         }),
       ).to.be.true
 
-      // Verify ProxyMember.createMember was called
+      // Verify createBaseMember was called
       expect(stubCreateMember.calledOnce).to.be.true
       expect(stubCreateMember.calledWith(mockEvent.args.holder, mockInfo.blockNumber)).to.be.true
 
-      // Verify updatePluginMetrics was called
-      expect(stubUpdatePluginMetrics.calledOnce).to.be.true
+      // Verify getOrCreatePluginMetrics was called
+      expect(mockGovernance.getOrCreatePluginMetrics.calledOnce).to.be.true
       expect(
-        stubUpdatePluginMetrics.calledWith({
+        mockGovernance.getOrCreatePluginMetrics.calledWith({
           memberAddress: mockEvent.args.holder,
           pluginAddress: mockPlugin.address,
+          daoAddress: mockPlugin.daoAddress,
           network: mockInfo.network,
           lastActivity: mockInfo.blockNumber,
         }),
@@ -2591,13 +2656,23 @@ describe('Handler:GovernanceVeHandler', () => {
         isGovernance: true,
         clockMode: false,
       } as any)
-      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
-        lastVPBlockNumber: 200, // Greater than info.blockNumber (123)
-        tokenIds: ['123'],
-      } as any)
-      const stubCreateMember = sandbox.stub(ProxyMember, 'createMember')
+
+      // Mock MemberGovernanceFactory
+      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      // Mock governance instance
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves(),
+        findOne: sandbox.stub().resolves({
+          lastVPBlockNumber: 200, // Greater than info.blockNumber (123)
+          tokenIds: ['123'],
+        }),
+        update: sandbox.stub(),
+        getOrCreatePluginMetrics: sandbox.stub(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
       const stubGetBlockTimestamp = sandbox.stub(Web3Helper, 'getBlockTimestamp')
-      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateTokenMemberVP')
 
       const mockParsedEvent = {
         args: {
@@ -2625,15 +2700,16 @@ describe('Handler:GovernanceVeHandler', () => {
         ['123'],
       )
 
-      expect(stubCreateMember.notCalled).to.be.true
+      // Should create base member but not update voting power
+      expect(stubCreateBaseMember.calledOnce).to.be.true
+      expect(mockGovernance.update.notCalled).to.be.true
       expect(stubGetBlockTimestamp.notCalled).to.be.true
-      expect(stubUpdateVotingPower.notCalled).to.be.true
     })
 
     it('should log error if token not found', async () => {
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
       const stubLogger = sandbox.stub(logger, 'error')
-      const stubCreateMember = sandbox.stub(ProxyMember, 'createMember')
+      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
 
       const mockParsedEvent = {
         args: {
@@ -2663,23 +2739,32 @@ describe('Handler:GovernanceVeHandler', () => {
 
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('handleTokenDelegation token not found' as any)).to.be.true
-      expect(stubCreateMember.notCalled).to.be.true
+      expect(stubCreateBaseMember.notCalled).to.be.true
     })
 
     it('should handle self-delegation with incoming transfer side', async () => {
-      const stubCreateMember = sandbox.stub(ProxyMember, 'createMember').resolves()
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         type: ITokenType.ERC721,
         isGovernance: true,
         clockMode: null,
       } as any)
-      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
-        tokenIds: ['789', '123'], // Already has 123
-      } as any)
+
+      // Mock MemberGovernanceFactory
+      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      // Mock governance instance
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves(),
+        findOne: sandbox.stub().resolves({
+          tokenIds: ['789', '123'], // Already has 123
+        }),
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('100')
-      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
-      const stubUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics')
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([])
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([])
 
@@ -2709,41 +2794,47 @@ describe('Handler:GovernanceVeHandler', () => {
         ['123', '456'],
       )
 
-      // Verify createMember called without lastActivity for incoming
-      expect(stubCreateMember.calledOnce).to.be.true
-      expect(stubCreateMember.calledWith('0x65D9d3887aa9a9ee78901E96819B574160E4EAC5', undefined)).to.be.true
+      // Verify createBaseMember called without lastActivity for incoming
+      expect(stubCreateBaseMember.calledOnce).to.be.true
+      expect(stubCreateBaseMember.calledWith('0x65D9d3887aa9a9ee78901E96819B574160E4EAC5', undefined)).to.be.true
 
       // Verify voting power updated with deduplicated tokenIds
-      expect(stubUpdateVotingPower.calledOnce).to.be.true
+      expect(mockGovernance.update.calledOnce).to.be.true
       expect(
-        stubUpdateVotingPower.calledWith({
-          memberAddress: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          tokenAddress: mockInfo.address,
+        mockGovernance.update.calledWith('0x65D9d3887aa9a9ee78901E96819B574160E4EAC5', {
           votingPower: '100',
-          network: mockInfo.network,
           tokenIds: ['789', '123', '456'], // Deduplicated
-          lastVPBlockNumber: mockInfo.blockNumber,
+          lastActivity: mockInfo.blockNumber,
         }),
       ).to.be.true
 
       // Should not update plugin metrics for incoming (no lastActivity)
-      expect(stubUpdatePluginMetrics.notCalled).to.be.true
+      expect(mockGovernance.getOrCreatePluginMetrics.notCalled).to.be.true
     })
 
     it('should handle normal delegation with outgoing transfer side', async () => {
-      const stubCreateMember = sandbox.stub(ProxyMember, 'createMember').resolves()
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         type: ITokenType.ERC721,
         isGovernance: true,
         clockMode: false,
       } as any)
-      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
-        tokenIds: ['123', '456', '789'],
-      } as any)
+
+      // Mock MemberGovernanceFactory
+      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      // Mock governance instance
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves(),
+        findOne: sandbox.stub().resolves({
+          tokenIds: ['123', '456', '789'],
+        }),
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('50')
-      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
-      const stubUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([plugin.daoAddress])
 
@@ -2773,21 +2864,22 @@ describe('Handler:GovernanceVeHandler', () => {
         ['123', '456'],
       )
 
-      // Verify createMember called with lastActivity for outgoing
-      expect(stubCreateMember.calledOnce).to.be.true
-      expect(stubCreateMember.calledWith('0x65D9d3887aa9a9ee78901E96819B574160E4EAC5', 123)).to.be.true
+      // Verify createBaseMember called with lastActivity for outgoing
+      expect(stubCreateBaseMember.calledOnce).to.be.true
+      expect(stubCreateBaseMember.calledWith('0x65D9d3887aa9a9ee78901E96819B574160E4EAC5', 123)).to.be.true
 
       // Verify voting power updated with filtered tokenIds
-      expect(stubUpdateVotingPower.calledOnce).to.be.true
-      expect(stubUpdateVotingPower.firstCall.args[0].tokenIds).to.deep.equal(['789'])
+      expect(mockGovernance.update.calledOnce).to.be.true
+      expect(mockGovernance.update.firstCall.args[1].tokenIds).to.deep.equal(['789'])
 
       // Should update plugin metrics for outgoing
-      expect(stubUpdatePluginMetrics.calledOnce).to.be.true
+      expect(mockGovernance.getOrCreatePluginMetrics.calledOnce).to.be.true
       expect(
-        stubUpdatePluginMetrics.calledWith({
+        mockGovernance.getOrCreatePluginMetrics.calledWith({
           memberAddress: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
           pluginAddress: plugin.address,
-          network: mockInfo.network,
+          daoAddress: plugin.daoAddress,
+          network: plugin.network,
           lastActivity: 123,
         }),
       ).to.be.true
@@ -2803,19 +2895,28 @@ describe('Handler:GovernanceVeHandler', () => {
     })
 
     it('should handle normal delegation with incoming transfer side', async () => {
-      const stubCreateMember = sandbox.stub(ProxyMember, 'createMember').resolves()
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         type: ITokenType.ERC721,
         isGovernance: true,
         clockMode: false,
       } as any)
-      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
-        tokenIds: ['789'],
-      } as any)
+
+      // Mock MemberGovernanceFactory
+      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      // Mock governance instance
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves(),
+        findOne: sandbox.stub().resolves({
+          tokenIds: ['789'],
+        }),
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('150')
-      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
-      const stubUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics')
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([])
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([])
 
@@ -2845,31 +2946,41 @@ describe('Handler:GovernanceVeHandler', () => {
         ['123', '456'],
       )
 
-      // Verify createMember called without lastActivity for incoming
-      expect(stubCreateMember.calledOnce).to.be.true
-      expect(stubCreateMember.calledWith('0x75D9d3887aa9a9ee78901E96819B574160E4EAC6', undefined)).to.be.true
+      // Verify createBaseMember called without lastActivity for incoming
+      expect(stubCreateBaseMember.calledOnce).to.be.true
+      expect(stubCreateBaseMember.calledWith('0x75D9d3887aa9a9ee78901E96819B574160E4EAC6', undefined)).to.be.true
 
       // Verify voting power updated with added tokenIds
-      expect(stubUpdateVotingPower.calledOnce).to.be.true
-      expect(stubUpdateVotingPower.firstCall.args[0].tokenIds).to.deep.equal(['789', '123', '456'])
+      expect(mockGovernance.update.calledOnce).to.be.true
+      expect(mockGovernance.update.firstCall.args[1].tokenIds).to.deep.equal(['789', '123', '456'])
 
       // Should not update plugin metrics for incoming (no lastActivity)
-      expect(stubUpdatePluginMetrics.notCalled).to.be.true
+      expect(mockGovernance.getOrCreatePluginMetrics.notCalled).to.be.true
     })
 
     it('should handle undefined blockTimestamp gracefully', async () => {
-      sandbox.stub(ProxyMember, 'createMember').resolves()
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         type: ITokenType.ERC721,
         isGovernance: true,
         clockMode: false,
       } as any)
-      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
-        tokenIds: [],
-      } as any)
+
+      // Mock MemberGovernanceFactory
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      // Mock governance instance
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves(),
+        findOne: sandbox.stub().resolves({
+          tokenIds: [],
+        }),
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(undefined)
       const stubGetPastVotes = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('0')
-      sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([])
 
       const mockParsedEvent = {
@@ -2917,6 +3028,7 @@ describe('Handler:GovernanceVeHandler', () => {
         address: '0x122',
         daoAddress: '0xDAO2',
         tokenAddress: '0xToken',
+        network: NetworksEnum.ethereumMainnet,
       } as any
 
       const plugin3 = {
@@ -2924,21 +3036,31 @@ describe('Handler:GovernanceVeHandler', () => {
         address: '0x123',
         daoAddress: '0xDAO', // Same DAO as plugin1
         tokenAddress: '0xToken',
+        network: NetworksEnum.ethereumMainnet,
       } as any
 
-      sandbox.stub(ProxyMember, 'createMember').resolves()
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         type: ITokenType.ERC721,
         isGovernance: true,
         clockMode: false,
       } as any)
-      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
-        tokenIds: ['789'],
-      } as any)
+
+      // Mock MemberGovernanceFactory
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      // Mock governance instance
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves(),
+        findOne: sandbox.stub().resolves({
+          tokenIds: ['789'],
+        }),
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('100')
-      sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
-      const stubUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin, plugin2, plugin3])
       sandbox.stub(utils, 'getUniqueValuesByKey').returns(['0xDAO', '0xDAO2']) // Two unique DAOs
 
@@ -2969,7 +3091,7 @@ describe('Handler:GovernanceVeHandler', () => {
       )
 
       // Verify updatePluginMetrics called for each plugin
-      expect(stubUpdatePluginMetrics.calledThrice).to.be.true
+      expect(mockGovernance.getOrCreatePluginMetrics.calledThrice).to.be.true
 
       // Verify RabbitMQ called only for unique DAOs
       expect(rabbitMQHelperStub.calledTwice).to.be.true
@@ -2988,18 +3110,28 @@ describe('Handler:GovernanceVeHandler', () => {
     })
 
     it('should handle empty tokenIds arrays', async () => {
-      sandbox.stub(ProxyMember, 'createMember').resolves()
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         type: ITokenType.ERC721,
         isGovernance: true,
         clockMode: false,
       } as any)
-      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
-        tokenIds: undefined, // No existing tokenIds
-      } as any)
+
+      // Mock MemberGovernanceFactory
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      // Mock governance instance
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves(),
+        findOne: sandbox.stub().resolves({
+          tokenIds: undefined, // No existing tokenIds
+        }),
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('0')
-      const stubUpdateVotingPower = sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([])
 
       const mockParsedEvent = {
@@ -3029,8 +3161,8 @@ describe('Handler:GovernanceVeHandler', () => {
       )
 
       // Verify voting power updated with empty array
-      expect(stubUpdateVotingPower.calledOnce).to.be.true
-      expect(stubUpdateVotingPower.firstCall.args[0].tokenIds).to.deep.equal([])
+      expect(mockGovernance.update.calledOnce).to.be.true
+      expect(mockGovernance.update.firstCall.args[1].tokenIds).to.deep.equal([])
     })
 
     it('should catch and log errors', async () => {
@@ -3039,8 +3171,10 @@ describe('Handler:GovernanceVeHandler', () => {
         isGovernance: true,
         clockMode: false,
       } as any)
-      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves(null)
-      sandbox.stub(ProxyMember, 'createMember').rejects(new Error('Database error'))
+
+      // Mock MemberGovernanceFactory to throw error
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').rejects(new Error('Database error'))
+
       const stubLogger = sandbox.stub(logger, 'error')
 
       const mockParsedEvent = {

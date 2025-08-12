@@ -14,7 +14,7 @@ import * as ContractNetspecHelper from '@helpers/contractNetspec'
 import Ipfs from '@modules/ipfs'
 import IPFSModule from '@modules/ipfs'
 import { Models } from '@dbModels'
-import { ProxyMember } from '@modules/proxyMember'
+import { MemberGovernanceFactory } from '@modules/memberGovernance'
 import BlockScoutHelper from '@helpers/blockScout'
 import { IBlockScoutAddressType } from '@src/types/blockScout'
 import Web3Utils from '@helpers/web3Utils'
@@ -218,7 +218,8 @@ describe('Helpers: DecodeActions', () => {
         ...token,
       } as any)
 
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves({
+      const createBaseMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(Models.Member, 'findByAddress').resolves({
         address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         ens: 'userEns.eth',
         avatar: 'ERC20',
@@ -242,7 +243,7 @@ describe('Helpers: DecodeActions', () => {
       expect(result?.type).to.be.eq(ProposalActionType.TransferNative)
       expect(result?.inputData.contract).to.be.eq('Recipient Contract')
       expect(findTokenStub.calledOnce).to.be.true
-      expect(createMemberStub.calledOnce).to.be.true
+      expect(createBaseMemberStub.calledOnce).to.be.true
       expect(findByAddressDaoStub.calledOnce).to.be.true
       expect(findAddressDetailsStub.calledOnceWith(action.to, NetworksEnum.ethereumSepolia)).to.be.true
       expect(pickFieldsStub.calledOnce).to.be.true
@@ -277,7 +278,8 @@ describe('Helpers: DecodeActions', () => {
         pickFields: pickFieldsStub,
       } as any)
 
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves({
+      const createBaseMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(Models.Member, 'findByAddress').resolves({
         address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         ens: 'userEns.eth',
         avatar: 'ERC20',
@@ -301,7 +303,7 @@ describe('Helpers: DecodeActions', () => {
       expect(result?.type).to.be.eq(ProposalActionType.TransferNative)
       expect(result?.inputData.contract).to.be.eq('Wallet Address')
       expect(findTokenStub.calledOnce).to.be.true
-      expect(createMemberStub.calledOnce).to.be.true
+      expect(createBaseMemberStub.calledOnce).to.be.true
       expect(findByAddressDaoStub.calledOnce).to.be.true
       expect(findAddressDetailsStub.calledOnceWith(action.to, NetworksEnum.ethereumSepolia)).to.be.true
       expect(pickFieldsStub.calledOnce).to.be.true
@@ -1463,7 +1465,8 @@ describe('Helpers: DecodeActions', () => {
         .stub(Models.PluginMember, 'findAllMembersOfPlugin')
         .resolves([{ memberAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9E' }])
 
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves({
+      const createBaseMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(Models.Member, 'findByAddress').resolves({
         address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         ens: 'abc.eth',
       } as any)
@@ -1472,7 +1475,7 @@ describe('Helpers: DecodeActions', () => {
       expect(result?.type).to.be.eq(ProposalActionType.MultisigAddMembers)
 
       expect(getMultiSigMemberAtBlockNumberStub.calledOnce).to.be.true
-      expect(createMemberStub.calledOnce).to.be.true
+      expect(createBaseMemberStub.calledOnce).to.be.true
     })
 
     it('should return null when the signature is not correct for remove multisig', async () => {
@@ -1533,7 +1536,8 @@ describe('Helpers: DecodeActions', () => {
         .stub(Models.PluginMember, 'findAllMembersOfPlugin')
         .resolves([{ memberAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9E' }])
 
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves({
+      const createBaseMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(Models.Member, 'findByAddress').resolves({
         address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         ens: 'abc.eth',
       } as any)
@@ -1541,7 +1545,7 @@ describe('Helpers: DecodeActions', () => {
       const result = await decodeActions._parseRemoveMemberAction(baseAction, action, document as any)
       expect(result?.type).to.be.eq(ProposalActionType.MultisigRemoveMembers)
       expect(getMultiSigMemberAtBlockNumberStub.calledOnce).to.be.true
-      expect(createMemberStub.calledOnce).to.be.true
+      expect(createBaseMemberStub.calledOnce).to.be.true
     })
 
     it('should return null when the signature is not correct for mint', async () => {
@@ -1631,7 +1635,8 @@ describe('Helpers: DecodeActions', () => {
         totalHolders: 1,
       })
 
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves({
+      const createBaseMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(Models.Member, 'findByAddress').resolves({
         address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         ens: 'abc.eth',
       } as any)
@@ -1640,7 +1645,7 @@ describe('Helpers: DecodeActions', () => {
 
       const result = await decodeActions._parseMintAction(baseAction, action, document as any)
 
-      expect(createMemberStub.calledOnce).to.be.true
+      expect(createBaseMemberStub.calledOnce).to.be.true
       expect(result?.type).to.be.eq(ProposalActionType.Mint)
       expect(saveAndGetTokenStub.calledOnce).to.be.true
       expect(covalentTokenInfo.calledOnce).to.be.true
@@ -1693,12 +1698,13 @@ describe('Helpers: DecodeActions', () => {
 
       const loggerStub = sandbox.stub(Logger, 'error')
 
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves(null)
+      const createBaseMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(Models.Member, 'findByAddress').resolves(null)
 
       const tokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock')
       const result = await decodeActions._parseMintAction(baseAction, action, document as any)
       expect(loggerStub.calledOnce).to.be.true
-      expect(createMemberStub.calledOnce).to.be.true
+      expect(createBaseMemberStub.calledOnce).to.be.true
       expect(result?.type).to.be.eq(ProposalActionType.Mint)
       expect(saveAndGetTokenStub.calledOnce).to.be.false
       expect(covalentTokenInfo.calledOnce).to.be.false

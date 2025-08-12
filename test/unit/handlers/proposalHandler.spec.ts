@@ -18,6 +18,7 @@ import { Models } from '@dbModels'
 import IPFSModule from '@modules/ipfs'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import { ProxyMember } from '@modules/proxyMember'
+import { MemberGovernanceFactory } from '@modules/memberGovernance'
 import config from '@config'
 import utils from '@helpers/utils'
 import RabbitMQHelper from '@helpers/rabbitMQ'
@@ -583,9 +584,21 @@ describe('ProposalHandler', () => {
       })
       const incrementalIdStub = sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
       const stubPair = sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
-      const stubMemberMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
       const stubDaoMetrics = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      const updateActivityStub = sandbox.stub(ProxyMember, 'createMember')
+      const updateActivityStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
+      const governanceStub = {
+        address: '0xaddress',
+        network,
+        llo: sandbox.stub(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        getOrCreate: sandbox.stub().resolves(),
+        create: sandbox.stub().resolves(),
+        update: sandbox.stub().resolves(),
+        delete: sandbox.stub().resolves(true),
+        findOne: sandbox.stub().resolves(null),
+        findExistingPluginMetricsByLog: sandbox.stub().resolves(null),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(governanceStub as any)
       const verboseLoggerStub = sandbox.stub(logger, 'verbose')
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
@@ -623,7 +636,7 @@ describe('ProposalHandler', () => {
       expect(updateActivityStub.calledWith('0xcreator', 100)).to.be.true
 
       expect(
-        stubMemberMetrics.calledWith({
+        governanceStub.getOrCreatePluginMetrics.calledWith({
           memberAddress: '0xcreator',
           pluginAddress: '0xplugin-address',
           network,
@@ -633,7 +646,7 @@ describe('ProposalHandler', () => {
       ).to.be.true
 
       expect(stubPair.calledOnce).to.be.true
-      expect(stubMemberMetrics.calledOnce).to.be.true
+      expect(governanceStub.getOrCreatePluginMetrics.calledOnce).to.be.true
       expect(stubDaoMetrics.callCount).to.be.eq(3)
       expect(stubDaoMetrics.args[0][0]).to.be.eq(EnumQueueName.daoMetrics)
       expect(stubDaoMetrics.args[1][0]).to.be.eq(EnumQueueName.proposalActions)
@@ -698,9 +711,21 @@ describe('ProposalHandler', () => {
       })
       const incrementalIdStub = sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
       const stubPair = sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
-      const stubMemberMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
       const stubDaoMetrics = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      const updateActivityStub = sandbox.stub(ProxyMember, 'createMember')
+      const updateActivityStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
+      const governanceStub = {
+        address: '0xaddress',
+        network,
+        llo: sandbox.stub(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        getOrCreate: sandbox.stub().resolves(),
+        create: sandbox.stub().resolves(),
+        update: sandbox.stub().resolves(),
+        delete: sandbox.stub().resolves(true),
+        findOne: sandbox.stub().resolves(null),
+        findExistingPluginMetricsByLog: sandbox.stub().resolves(null),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(governanceStub as any)
       const verboseLoggerStub = sandbox.stub(logger, 'verbose')
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         address: '0xtoken-address',
@@ -734,7 +759,7 @@ describe('ProposalHandler', () => {
       expect(updateActivityStub.calledWith('0xcreator', 100)).to.be.true
 
       expect(
-        stubMemberMetrics.calledWith({
+        governanceStub.getOrCreatePluginMetrics.calledWith({
           memberAddress: '0xcreator',
           pluginAddress: '0xplugin-address',
           network,
@@ -744,7 +769,7 @@ describe('ProposalHandler', () => {
       ).to.be.true
 
       expect(stubPair.calledOnce).to.be.true
-      expect(stubMemberMetrics.calledOnce).to.be.true
+      expect(governanceStub.getOrCreatePluginMetrics.calledOnce).to.be.true
       expect(stubDaoMetrics.callCount).to.be.eq(2)
       expect(stubDaoMetrics.args[0][0]).to.be.eq(EnumQueueName.daoMetrics)
       expect(stubDaoMetrics.args[1][0]).to.be.eq(EnumQueueName.proposalTokenVotingMetrics)
@@ -810,9 +835,21 @@ describe('ProposalHandler', () => {
       sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
 
       const stubPair = sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
-      const stubMemberMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
       const stubDaoMetrics = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      const updateActivityStub = sandbox.stub(ProxyMember, 'createMember')
+      const updateActivityStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
+      const governanceStub = {
+        address: '0xaddress',
+        network,
+        llo: sandbox.stub(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        getOrCreate: sandbox.stub().resolves(),
+        create: sandbox.stub().resolves(),
+        update: sandbox.stub().resolves(),
+        delete: sandbox.stub().resolves(true),
+        findOne: sandbox.stub().resolves(null),
+        findExistingPluginMetricsByLog: sandbox.stub().resolves(null),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(governanceStub as any)
       const verboseLoggerStub = sandbox.stub(logger, 'verbose')
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
@@ -834,7 +871,7 @@ describe('ProposalHandler', () => {
       expect(updateActivityStub.calledOnceWith('0xadmin-creator', 150)).to.be.true
 
       expect(
-        stubMemberMetrics.calledOnceWith({
+        governanceStub.getOrCreatePluginMetrics.calledOnceWith({
           memberAddress: '0xadmin-creator',
           pluginAddress: '0xplugin-address',
           network,
@@ -916,7 +953,7 @@ describe('ProposalHandler', () => {
       sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
       sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
       const stubDaoMetrics = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      sandbox.stub(ProxyMember, 'createMember').resolves()
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
 
@@ -984,7 +1021,7 @@ describe('ProposalHandler', () => {
       sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
       sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      sandbox.stub(ProxyMember, 'createMember').resolves()
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
       const stubError = sandbox.stub(logger, 'error')
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
@@ -1043,7 +1080,7 @@ describe('ProposalHandler', () => {
       sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
       sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      sandbox.stub(ProxyMember, 'createMember').resolves()
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
 
@@ -1159,7 +1196,7 @@ describe('ProposalHandler', () => {
       sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
       sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      sandbox.stub(ProxyMember, 'createMember').resolves()
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
 
@@ -1581,8 +1618,20 @@ describe('ProposalHandler', () => {
       sandbox.stub(Models.Vote, 'findExistingLog').resolves(null)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
 
-      const updateActivityStub = sandbox.stub(ProxyMember, 'createMember').resolves()
-      const updateMetricsStub = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+      const updateActivityStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      const governanceStub = {
+        address: '0xaddress',
+        network,
+        llo: sandbox.stub(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        getOrCreate: sandbox.stub().resolves(),
+        create: sandbox.stub().resolves(),
+        update: sandbox.stub().resolves(),
+        delete: sandbox.stub().resolves(true),
+        findOne: sandbox.stub().resolves(null),
+        findExistingPluginMetricsByLog: sandbox.stub().resolves(null),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(governanceStub as any)
       const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
       const verboseLoggerStub = sandbox.stub(logger, 'verbose')
 
@@ -1604,7 +1653,7 @@ describe('ProposalHandler', () => {
       expect(updateActivityStub.calledOnceWith('0xapprover-address', 10)).to.be.true
 
       expect(
-        updateMetricsStub.calledOnceWith({
+        governanceStub.getOrCreatePluginMetrics.calledOnceWith({
           memberAddress: '0xapprover-address',
           pluginAddress: '0xplugin-address',
           network,
@@ -1829,8 +1878,20 @@ describe('ProposalHandler', () => {
       sandbox.stub(Models.Vote, 'findVoteOnPlugin').resolves(null)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
       const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
-      const updateMetricsStub = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
-      const updateActivityStub = sandbox.stub(ProxyMember, 'createMember').resolves()
+      const updateActivityStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      const governanceStub = {
+        address: '0xaddress',
+        network,
+        llo: sandbox.stub(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        getOrCreate: sandbox.stub().resolves(),
+        create: sandbox.stub().resolves(),
+        update: sandbox.stub().resolves(),
+        delete: sandbox.stub().resolves(true),
+        findOne: sandbox.stub().resolves(null),
+        findExistingPluginMetricsByLog: sandbox.stub().resolves(null),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(governanceStub as any)
       const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
       const verboseLoggerStub = sandbox.stub(logger, 'verbose')
 
@@ -1852,7 +1913,7 @@ describe('ProposalHandler', () => {
       expect(proxyTokenStub.calledOnceWith('0xtoken-address', network)).to.be.true
 
       expect(
-        updateMetricsStub.calledOnceWith({
+        governanceStub.getOrCreatePluginMetrics.calledOnceWith({
           memberAddress: '0xvoter-address',
           pluginAddress: '0xplugin-address',
           network,
@@ -1908,7 +1969,7 @@ describe('ProposalHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
 
       const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
-      const updateActivityStub = sandbox.stub(ProxyMember, 'createMember').resolves()
+      const updateActivityStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
       const verboseLoggerStub = sandbox.stub(logger, 'verbose')
 
       await ProposalHandler.voteCast(fakeEvent as any, info)
@@ -1924,6 +1985,7 @@ describe('ProposalHandler', () => {
 
       expect(proxyTokenStub.calledOnceWith('0xtoken-address', network)).to.be.true
       expect(updateActivityStub.calledOnce).to.be.true
+      expect(updateActivityStub.calledWith(fakeEvent.args.voter, info.blockNumber)).to.be.true
       expect(verboseLoggerStub.calledOnceWith('Created new document - Replace Vote - VoteCast' as any)).to.be.true
     })
 

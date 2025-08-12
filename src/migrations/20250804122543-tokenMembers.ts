@@ -1,9 +1,9 @@
-import { type IMigration, IPluginStatus } from '@types'
+import { type IMigration, IPluginStatus, IPluginInterfaceType } from '@types'
 import logger from '@logger'
 import { Models } from '@dbModels'
 import mongoose from 'mongoose'
 import * as pLimit from 'p-limit'
-import { ProxyMember } from '@modules/proxyMember'
+import { MemberGovernanceFactory } from '@modules/memberGovernance'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: tokenMembers' })
 
@@ -70,13 +70,22 @@ export const tokenMembersMigration: IMigration = {
               return
             }
 
-            // Update voting power for the member
-            await ProxyMember.updateTokenMemberVP({
-              memberAddress: memberBalance.address,
-              tokenAddress: memberBalance.tokenAddress,
+            // Create base member
+            await MemberGovernanceFactory.createBaseMember(
+              memberBalance.address,
+              memberBalance.lastSyncVotingPowerBlockNumber,
+            )
+
+            // Create token governance and update voting power
+            const governance = MemberGovernanceFactory.create({
+              address: memberBalance.tokenAddress,
               network: memberBalance.network,
+              interfaceType: IPluginInterfaceType.tokenVoting,
+            })
+
+            await governance.update(memberBalance.address, {
               votingPower: memberBalance.votingPower,
-              lastVPBlockNumber: memberBalance.lastSyncVotingPowerBlockNumber,
+              lastActivity: memberBalance.lastSyncVotingPowerBlockNumber,
             })
 
             // Query all plugins where tokenAddress === memberBalance.tokenAddress
@@ -96,7 +105,7 @@ export const tokenMembersMigration: IMigration = {
                 network: memberBalance.network,
               })
 
-              const pluginMetrics = await ProxyMember.updatePluginMetrics({
+              const pluginMetrics = await governance.getOrCreatePluginMetrics({
                 memberAddress: memberBalance.address,
                 pluginAddress: plugin.address,
                 network: plugin.network,

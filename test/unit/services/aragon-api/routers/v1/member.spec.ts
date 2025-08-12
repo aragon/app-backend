@@ -182,7 +182,7 @@ describe('RouterV1: Member', () => {
 
     expect(ctx.body).to.eq(true)
     expect(stubCtrl.calledOnce).to.be.true
-    
+
     const expectedExtraParams = {
       network: NetworksEnum.ethereumMainnet,
       pluginAddress: getAddress('0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254'),
@@ -190,7 +190,7 @@ describe('RouterV1: Member', () => {
       tokenAddress: undefined,
       lockManagerAddress: undefined,
     }
-    
+
     expect(stubCtrl.args[0][0]).to.eq(getAddress(params.address))
     expect(stubCtrl.args[0][1]).to.deep.eq(expectedExtraParams)
     expect(stubCtrl.args[0][2]).to.deep.eq({ daoId: undefined })

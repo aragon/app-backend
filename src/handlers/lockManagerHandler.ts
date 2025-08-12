@@ -2,8 +2,8 @@ import logger from '@logger'
 import type { LogDescription } from 'ethers'
 import type { ILogInfo } from '@types'
 import { Models } from '@dbModels'
-import { ProxyMember } from '@modules/proxyMember'
-import { EnumQueueName } from '@types'
+import { MemberGovernanceFactory } from '@modules/memberGovernance'
+import { EnumQueueName, IPluginInterfaceType } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
 import type Plugin from '@models/schema/plugin'
@@ -28,6 +28,16 @@ const LockManagerHandler = {
       // Get the total locked balance from the contract
       const totalLockedBalance = await LockToVoteHelper.getUserLockedBalance(network, lockManagerAddress, memberAddress)
 
+      // Create base member using MemberGovernanceFactory
+      await MemberGovernanceFactory.createBaseMember(memberAddress, info.blockNumber)
+
+      // Create LockToVote governance instance
+      const governance = MemberGovernanceFactory.create({
+        address: lockManagerAddress,
+        network: info.network,
+        interfaceType: IPluginInterfaceType.lockToVote,
+      })
+
       let votingPower: string
 
       if (totalLockedBalance === null) {
@@ -36,11 +46,10 @@ const LockManagerHandler = {
           'BalanceLocked - Failed to get locked balance from contract, using fallback sum',
           llo({ ...info, memberAddress }),
         )
-        const lockManager = await ProxyMember.getOrCreateLockManagerMember({
-          memberAddress,
-          lockManagerAddress,
-          network,
-        })
+
+        // Get or create lock manager member
+        await governance.getOrCreate(memberAddress)
+        const lockManager = await governance.findOne(memberAddress)
 
         if (lockManager?.votingPower) {
           // Add event amount to existing voting power
@@ -55,20 +64,19 @@ const LockManagerHandler = {
         votingPower = totalLockedBalance
       }
 
-      await ProxyMember.createMember(memberAddress, info.blockNumber)
-      await ProxyMember.updateLockManagerMemberVP({
-        memberAddress,
-        lockManagerAddress,
+      // Update lock manager member voting power
+      await governance.update(memberAddress, {
         votingPower: votingPower.toString(),
-        network: info.network,
-        lastVPBlockNumber: info.blockNumber,
+        lastActivity: info.blockNumber,
       })
 
+      // Update plugin metrics for all plugins
       await Promise.all(
         plugins.map(async (plugin: Plugin) => {
-          await ProxyMember.updatePluginMetrics({
+          await governance.getOrCreatePluginMetrics({
             memberAddress,
             pluginAddress: plugin.address,
+            daoAddress: plugin.daoAddress,
             network,
             lastActivity: info.blockNumber,
           })
@@ -110,6 +118,13 @@ const LockManagerHandler = {
       // Get the total locked balance from the contract
       const totalLockedBalance = await LockToVoteHelper.getUserLockedBalance(network, lockManagerAddress, memberAddress)
 
+      // Create LockToVote governance instance
+      const governance = MemberGovernanceFactory.create({
+        address: lockManagerAddress,
+        network: info.network,
+        interfaceType: IPluginInterfaceType.lockToVote,
+      })
+
       let votingPower: string
 
       if (totalLockedBalance === null) {
@@ -119,11 +134,8 @@ const LockManagerHandler = {
           llo({ ...info, memberAddress }),
         )
 
-        const lockManager = await ProxyMember.getOrCreateLockManagerMember({
-          memberAddress,
-          lockManagerAddress,
-          network,
-        })
+        // Get lock manager member
+        const lockManager = await governance.findOne(memberAddress)
 
         if (lockManager?.votingPower) {
           const currentPower = BigInt(lockManager?.votingPower || '0')
@@ -140,19 +152,19 @@ const LockManagerHandler = {
         votingPower = totalLockedBalance
       }
 
-      await ProxyMember.updateLockManagerMemberVP({
-        memberAddress,
-        lockManagerAddress,
+      // Update lock manager member voting power
+      await governance.update(memberAddress, {
         votingPower: votingPower.toString(),
-        network: info.network,
-        lastVPBlockNumber: info.blockNumber,
+        lastActivity: info.blockNumber,
       })
 
+      // Update plugin metrics for all plugins
       await Promise.all(
         plugins.map(async (plugin: Plugin) => {
-          await ProxyMember.updatePluginMetrics({
+          await governance.getOrCreatePluginMetrics({
             memberAddress,
             pluginAddress: plugin.address,
+            daoAddress: plugin.daoAddress,
             network,
             lastActivity: info.blockNumber,
           })
