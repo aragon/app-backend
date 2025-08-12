@@ -1,8 +1,9 @@
 import logger from '@logger'
 import { type LogDescription } from 'ethers'
-import { EnumQueueName, type ILogInfo } from '@types'
+import { EnumQueueName, type ILogInfo, IPluginInterfaceType, type NetworksEnum } from '@types'
 import utils from '@helpers/utils'
-import { ProxyMember } from '@modules/proxyMember'
+import { MemberGovernanceFactory } from '@modules/memberGovernance'
+import { TokenGovernance } from '@modules/memberGovernance/tokenGovernance'
 import type Plugin from '@models/schema/plugin'
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
@@ -17,8 +18,7 @@ export const GovernanceErc20Handler = {
     if (!plugins || plugins.length === 0) return
 
     try {
-      const memberAddress = parsedEvent.args.delegate
-      const network = info.network
+      const { delegate: memberAddress } = parsedEvent.args
 
       if (memberAddress === utils.zeroAddress) return
 
@@ -31,22 +31,30 @@ export const GovernanceErc20Handler = {
       const newBalance = BigInt(parsedEvent?.args?.newBalance || 0)
       const lastActivity = info.blockNumber
 
-      await ProxyMember.createMember(memberAddress, lastActivity)
-      await ProxyMember.updateTokenMemberVP({
-        memberAddress,
-        tokenAddress: info.address,
-        votingPower: newBalance.toString(),
+      // Create base member using MemberGovernanceFactory
+      await MemberGovernanceFactory.createBaseMember(memberAddress, lastActivity)
+
+      // Create ERC20 governance instance for token operations
+      const governance = MemberGovernanceFactory.create({
+        address: info.address, // token address
         network: info.network,
-        lastVPBlockNumber: info.blockNumber,
+        interfaceType: IPluginInterfaceType.tokenVoting,
       })
 
-      // update lastActivity metrics for all plugins
+      // Update token member voting power
+      await governance.update(memberAddress, {
+        votingPower: newBalance.toString(),
+        lastActivity: info.blockNumber,
+      })
+
+      // Update plugin metrics for all plugins using this token
       await Promise.all(
         plugins.map(async (plugin: Plugin) => {
-          await ProxyMember.updatePluginMetrics({
+          await governance.getOrCreatePluginMetrics({
             memberAddress,
             pluginAddress: plugin.address,
-            network,
+            daoAddress: plugin.daoAddress,
+            network: plugin.network,
             lastActivity: info.blockNumber,
           })
         }),
@@ -112,20 +120,40 @@ export const GovernanceErc20Handler = {
           lastActivity: info.blockNumber,
         }))
 
-        // Create/update members in batch without session (no transaction)
-        await ProxyMember.createMembersBatchNoTx(memberData)
+        // Create/update base members in batch without session (no transaction)
+        await TokenGovernance.createMembersBatchNoTx(memberData)
 
-        // Prepare voting power updates
-        const vpUpdates = latestEventsPerMember.map(({ parsedEvent, info }) => ({
-          memberAddress: parsedEvent.args.delegate,
-          tokenAddress: info.address,
-          votingPower: BigInt(parsedEvent?.args?.newBalance || 0).toString(),
-          network: info.network,
-          lastVPBlockNumber: info.blockNumber,
-        }))
+        // Group updates by token-network to create governance instances
+        const updatesByTokenNetwork = new Map<
+          string,
+          Array<{
+            memberAddress: string
+            votingPower: string
+            lastVPBlockNumber: number
+          }>
+        >()
 
-        // Update voting powers in batch without session (no transaction)
-        await ProxyMember.updateTokenMemberVPBatchNoTx(vpUpdates)
+        latestEventsPerMember.forEach(({ parsedEvent, info }) => {
+          const key = `${info.address}-${info.network}`
+          const update = {
+            memberAddress: parsedEvent.args.delegate,
+            votingPower: BigInt(parsedEvent?.args?.newBalance || 0).toString(),
+            lastVPBlockNumber: info.blockNumber,
+          }
+          const existing = updatesByTokenNetwork.get(key)
+          if (existing) {
+            existing.push(update)
+          } else {
+            updatesByTokenNetwork.set(key, [update])
+          }
+        })
+
+        // Update voting powers in batch for each token
+        for (const [key, updates] of updatesByTokenNetwork) {
+          const [tokenAddress, network] = key.split('-')
+          const governance = new TokenGovernance(tokenAddress, network as NetworksEnum)
+          await governance.updateTokenMemberVPBatchNoTx(updates)
+        }
 
         // Get unique token-network combinations using reduce
         const uniqueTokenNetworks = latestEventsPerMember.reduce<Array<{ tokenAddress: string; network: string }>>(
@@ -172,7 +200,35 @@ export const GovernanceErc20Handler = {
 
         // Update plugin metrics in batch without session
         if (pluginMetricsUpdates.length > 0) {
-          await ProxyMember.updatePluginMetricsBatchNoTx(pluginMetricsUpdates)
+          // Group metrics updates by network to create governance instances
+          const metricsByNetwork = new Map<
+            NetworksEnum,
+            Array<{
+              memberAddress: string
+              pluginAddress: string
+              daoAddress?: string
+              lastActivity?: number
+            }>
+          >()
+
+          pluginMetricsUpdates.forEach(update => {
+            const existing = metricsByNetwork.get(update.network)
+            if (existing) {
+              existing.push(update)
+            } else {
+              metricsByNetwork.set(update.network, [update])
+            }
+          })
+
+          // Update metrics for each network using TokenGovernance
+          // We use the first available token address for each network
+          for (const [network, updates] of metricsByNetwork) {
+            const tokenNetworkItem = uniqueTokenNetworks.find(item => item.network === network)
+            if (tokenNetworkItem) {
+              const governance = new TokenGovernance(tokenNetworkItem.tokenAddress, network)
+              await governance.updatePluginMetricsBatchNoTx(updates)
+            }
+          }
         }
 
         // Collect unique DAOs for metrics messages using reduce
@@ -213,37 +269,36 @@ export const GovernanceErc20Handler = {
             const { parsedEvent, info } = event
             const memberAddress = parsedEvent.args.delegate
 
-            // Create/update member
-            await ProxyMember.createMembersBatch([
-              {
-                memberAddress,
-                lastActivity: info.blockNumber,
-              },
-            ])
+            // Create/update base member using MemberGovernanceFactory
+            await MemberGovernanceFactory.createBaseMember(memberAddress, info.blockNumber)
+
+            // Create governance instance for token operations
+            const governance = MemberGovernanceFactory.create({
+              address: info.address, // token address
+              network: info.network,
+              interfaceType: IPluginInterfaceType.tokenVoting,
+            })
 
             // Update voting power - this will only update if block number is higher
-            await ProxyMember.updateTokenMemberVPBatch([
-              {
-                memberAddress,
-                tokenAddress: info.address,
-                votingPower: BigInt(parsedEvent?.args?.newBalance || 0).toString(),
-                network: info.network,
-                lastVPBlockNumber: info.blockNumber,
-              },
-            ])
+            await governance.update(memberAddress, {
+              votingPower: BigInt(parsedEvent?.args?.newBalance || 0).toString(),
+              lastActivity: info.blockNumber,
+            })
 
             // Update plugin metrics for this member
             const plugins = await Models.Plugin.findAllByTokenAddress(info.address, info.network)
             if (plugins.length > 0) {
-              const metricsUpdates = plugins.map(plugin => ({
-                memberAddress,
-                pluginAddress: plugin.address,
-                daoAddress: plugin.daoAddress,
-                network: info.network,
-                lastActivity: info.blockNumber,
-              }))
-
-              await ProxyMember.updatePluginMetricsBatch(metricsUpdates)
+              await Promise.all(
+                plugins.map(async (plugin: Plugin) => {
+                  await governance.getOrCreatePluginMetrics({
+                    memberAddress,
+                    pluginAddress: plugin.address,
+                    daoAddress: plugin.daoAddress,
+                    network: plugin.network,
+                    lastActivity: info.blockNumber,
+                  })
+                }),
+              )
             }
           } catch (individualError) {
             logger.error(

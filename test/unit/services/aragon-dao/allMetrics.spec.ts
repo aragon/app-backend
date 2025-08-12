@@ -182,6 +182,10 @@ describe('AragonDao:AllMetrics', () => {
       const stubGetBlockTimestamp = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123456)
       const stubGetPastVotes = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('500')
 
+      // Import and stub ProxyToken
+      const { ProxyToken } = require('@modules/proxyToken')
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ clockMode: 'BlockNumber' })
+
       const docStub = {
         update: sandbox.stub().resolves(),
         memberAddress: '0x123',
@@ -191,8 +195,12 @@ describe('AragonDao:AllMetrics', () => {
         network: NetworksEnum.ethereumSepolia,
       }
 
+      // Mock DBCrawler constructor to avoid instance creation delays
+      const originalConstructor = DBCrawler
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
+        // Immediately call onDocument without any queue processing
         await this.onDocument(docStub)
+        return { nbSuccess: 1, nbError: 0, nbTotal: 1 }
       })
 
       await AllMetrics.rebaseTokens(NetworksEnum.ethereumSepolia)

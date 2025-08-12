@@ -51,10 +51,6 @@ export default class PluginMember extends Model {
   @prop({ type: () => String, required: true, enum: NetworksEnum })
   public network!: NetworksEnum
 
-  // for lockToVote plugin we have not token address but will have vp
-  @prop({ type: () => String, default: undefined })
-  public votingPower?: string
-
   static async create(rawData: Partial<PluginMember>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')

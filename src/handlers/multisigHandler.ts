@@ -1,8 +1,8 @@
 import logger from '@logger'
-import { EnumQueueName, type ILogInfo } from '@types'
+import { EnumQueueName, type ILogInfo, IPluginInterfaceType } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
-import { ProxyMember } from '@modules/proxyMember'
+import { MemberGovernanceFactory } from '@modules/memberGovernance'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:MultisigHandler' })
@@ -11,27 +11,30 @@ export const MultisigHandler = {
   membersAdded: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const { address, network } = info
 
-    const pluginExisted = await Models.Plugin.findByAddress(address, network)
+    const exitingPlugin = await Models.Plugin.findByAddress(address, network)
 
-    if (!pluginExisted) {
+    if (!exitingPlugin) {
       logger.warn('Plugin not found', llo(info))
       return
     }
 
+    // Create multisig governance instance
+    const governance = MemberGovernanceFactory.create({
+      address,
+      network,
+      interfaceType: IPluginInterfaceType.multisig,
+    })
+
     const { members } = parsedEvent.args
     for (const memberAddress of members) {
-      await ProxyMember.createMember(memberAddress)
+      // Use the governance instance to handle member creation
+      // This will handle both Member and PluginMember creation
+      await governance.getOrCreate(memberAddress)
 
-      await ProxyMember.addPluginMember({
-        memberAddress,
-        daoAddress: pluginExisted.daoAddress,
-        pluginAddress: address,
-        network,
-      })
       // Dao metrics
       await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-        id: pluginExisted.daoAddress,
-        params: { address: pluginExisted.daoAddress, network: pluginExisted.network },
+        id: exitingPlugin.daoAddress,
+        params: { address: exitingPlugin.daoAddress, network: exitingPlugin.network },
       })
     }
   },
@@ -39,24 +42,29 @@ export const MultisigHandler = {
   membersRemoved: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const { address, network } = info
 
-    const pluginExisted = await Models.Plugin.findByAddress(address, network)
+    const exitingPlugin = await Models.Plugin.findByAddress(address, network)
 
-    if (!pluginExisted) {
+    if (!exitingPlugin) {
       logger.warn('Plugin not found', llo(info))
       return
     }
 
+    // Create multisig governance instance
+    const governance = MemberGovernanceFactory.create({
+      address,
+      network,
+      interfaceType: IPluginInterfaceType.multisig,
+    })
+
     const { members } = parsedEvent.args
     for (const memberAddress of members) {
-      await ProxyMember.removePluginMember({
-        memberAddress,
-        pluginAddress: address,
-        network,
-      })
+      // Use the governance instance to handle member removal
+      await governance.delete(memberAddress)
+
       // Dao metrics
       await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-        id: pluginExisted.daoAddress,
-        params: { address: pluginExisted.daoAddress, network: pluginExisted.network },
+        id: exitingPlugin.daoAddress,
+        params: { address: exitingPlugin.daoAddress, network: exitingPlugin.network },
       })
     }
   },

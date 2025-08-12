@@ -41,7 +41,7 @@ import { ERC20 } from '@artifacts/ERC20'
 import { ERC721 } from '@artifacts/ERC721'
 import { ERC1155 } from '@artifacts/ERC1155'
 import Utils from '@helpers/utils'
-import { ProxyMember } from '@modules/proxyMember'
+import { MemberGovernanceFactory } from '@modules/memberGovernance'
 import Web3Utils from '@helpers/web3Utils'
 import { IBlockScoutAddressType } from '@src/types/blockScout'
 import ProxyWeb3Provider from '@modules/proxyProvider'
@@ -69,7 +69,9 @@ class DecodeActions {
       const nativeToken = await Models.Token.findByTokenAddressAndNetwork(ethers.ZeroAddress, document.network!)
       const token = nativeToken.pickFields()
 
-      const member = await ProxyMember.createMember(action.to)
+      // Create base member and get member info
+      await MemberGovernanceFactory.createBaseMember(action.to)
+      const member = await Models.Member.findByAddress(action.to)
       const dao = await Models.Dao.findByAddress(document.daoAddress, document.network)
       const toInfo = await ProxyWeb3Provider.searchDetailsOfContract({
         address: action.to,
@@ -197,7 +199,9 @@ class DecodeActions {
       network: document.network!,
     })
 
-    const member = await ProxyMember.createMember(receiver)
+    // Create base member and get member info
+    await MemberGovernanceFactory.createBaseMember(receiver)
+    const member = await Models.Member.findByAddress(receiver)
 
     if (!member) {
       logger.error('Missing member', llo({ member, receiver, decodedData }))
@@ -268,7 +272,8 @@ class DecodeActions {
 
     const membersInfo = await Promise.all(
       decodedData.parameters[0].value.map(async (address: HexAddress) => {
-        const member = await ProxyMember.createMember(address)
+        await MemberGovernanceFactory.createBaseMember(address)
+        const member = await Models.Member.findByAddress(address)
         return { address: member?.address || address, ens: member?.ens, avatar: member?.avatar }
       }),
     )
@@ -298,7 +303,8 @@ class DecodeActions {
 
     const membersInfo = await Promise.all(
       decodedData.parameters[0].value.map(async (address: HexAddress) => {
-        const member = await ProxyMember.createMember(address)
+        await MemberGovernanceFactory.createBaseMember(address)
+        const member = await Models.Member.findByAddress(address)
         return { address: member?.address || address, ens: member?.ens, avatar: member?.avatar }
       }),
     )

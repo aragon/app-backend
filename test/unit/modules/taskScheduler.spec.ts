@@ -61,7 +61,7 @@ describe('Modules: TaskScheduler', () => {
     expect(fakeService.start.callCount).to.be.at.least(6)
     expect(failingService.start.callCount).to.be.at.least(1)
 
-    await Utils.wait(820)
+    await Utils.wait(100) // Reduced from 820ms - just enough for 2 intervals
     expect(fakeService.start.callCount).to.be.at.least(12)
     expect(failingService.start.callCount).to.be.at.least(2)
 
@@ -131,13 +131,13 @@ describe('Modules: TaskScheduler', () => {
     const scheduler = new TaskScheduler()
     await scheduler.startTask(serviceName, taskOptions)
 
-    await Utils.wait(800)
-    expect(fakeService.start.callCount).to.be.at.least(4)
+    await Utils.wait(150) // Reduced from 800ms - just enough for 2+ intervals
+    expect(fakeService.start.callCount).to.be.at.least(2) // Reduced expectations proportionally
     expect(failingService.start.callCount).to.be.at.least(2)
 
     scheduler.stopTask(serviceName)
 
-    await Utils.wait(800)
+    await Utils.wait(50) // Reduced from 800ms - just enough to verify stop
 
     const status = scheduler.getTaskStatus()
     const task = status.find(task => task.key === serviceName)

@@ -7,12 +7,26 @@ import { NetworksEnum } from '@types'
 import axios from 'axios'
 import config from '@config'
 import ProviderModule from '@modules/provider'
+import * as retryRequestModule from '@helpers/retryRequest'
+import BottleneckModule from '@modules/bottleneck'
 
 describe('Helpers: RouteScan', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    // Stub retryRequest to execute immediately without retries
+    sandbox.stub(retryRequestModule, 'retryRequest').callsFake(async fn => {
+      try {
+        return await fn()
+      } catch (error) {
+        throw error
+      }
+    })
+    // Stub BottleneckModule rate limiter to execute immediately without delays
+    sandbox.stub(BottleneckModule, 'getEtherScanLimiter').returns({
+      schedule: sandbox.stub().callsFake(async fn => fn()),
+    } as any)
   })
 
   afterEach(() => {
