@@ -59,7 +59,6 @@ export enum IPluginInterfaceType {
   spp = 'spp',
   gauge = 'gauge',
   unknown = 'unknown',
-  lockToVote = 'lockToVote',
 }
 
 export interface ISettingVotingEscrow {
