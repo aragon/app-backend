@@ -380,6 +380,47 @@ describe('Indexer:Plugin', () => {
       expect(createdPlugin.status).to.eq(IPluginStatus.installed)
       expect(verboseStub.calledWith('Updated document - Installed plugin' as any)).to.be.true
     })
+
+    it('should warn if plugin is not in preInstall status', async () => {
+      // Create a plugin with installed status instead of preInstall
+      await Models.Plugin.create({
+        status: IPluginStatus.installed, // Already installed, not preInstall
+        network: rawPlugin.network,
+        blockNumber: rawPlugin.blockNumber,
+        transactionHash: rawPlugin.transactionHash,
+        address: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        sender: rawPlugin.sender,
+        release: rawPlugin.release,
+        build: rawPlugin.build,
+        permissions: rawPlugin.permissions,
+        subdomain: rawPlugin?.subdomain,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+      })
+
+      const warnStub = sandbox.stub(logger, 'warn')
+      const verboseStub = sandbox.stub(logger, 'verbose')
+      const updateSpy = sandbox.spy(DbOperations, 'updateDocument')
+
+      const logPlugin = await Models.LogPluginSetupProcessor.findOne({ pluginAddress: rawPlugin.address })
+
+      await PluginHandler.installPlugin(logPlugin)
+
+      // Verify warning was logged
+      expect(warnStub.calledOnce).to.be.true
+      expect(warnStub.calledWith('Plugin not in preInstall status' as any)).to.be.true
+      
+      // Verify plugin was not updated
+      expect(updateSpy.notCalled).to.be.true
+      expect(verboseStub.notCalled).to.be.true
+      
+      // Verify plugin status didn't change
+      const unchangedPlugin = await Models.Plugin.findOne({
+        address: rawPlugin.address,
+      })
+      expect(unchangedPlugin.status).to.eq(IPluginStatus.installed)
+    })
   })
 
   describe('updatePlugin', () => {

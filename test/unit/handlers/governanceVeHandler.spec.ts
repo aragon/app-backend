@@ -8,7 +8,6 @@ import {
   NetworksEnum,
   ITransferSide,
   EnumQueueName,
-  ITransferType,
   IClockMode,
 } from '@types'
 import type Plugin from '@models/schema/plugin'
@@ -16,7 +15,6 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
 import { expect } from 'chai'
-import { ProxyMember } from '@modules/proxyMember'
 import { MemberGovernanceFactory } from '@modules/memberGovernance'
 import Web3Helper from '@helpers/web3'
 import { PluginSetting } from '@models/schema/setting'
@@ -900,11 +898,14 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Models.Lock, 'findLockMember').resolves(mockExistingLock as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(undefined) // Returns undefined
       sandbox.stub(logger, 'verbose')
-      sandbox.stub(ProxyMember, 'createMember').resolves()
-      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
-        tokenIds: ['123'],
-      } as any)
-      sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves({
+          tokenIds: ['123'],
+        }),
+        update: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
@@ -1066,7 +1067,7 @@ describe('Handler:GovernanceVeHandler', () => {
       const stubPluginFind = sandbox.stub(Models.Plugin, 'find').resolves([])
       const stubLogger = sandbox.stub(logger, 'error')
       const stubLockFindLockMember = sandbox.stub(Models.Lock, 'findLockMember')
-      const stubCreateMember = sandbox.stub(ProxyMember, 'createMember')
+      const stubCreateMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
 
       const mockInfo = {
         address: '0x001DdEdc2139d9948e8dcC936C1Ab2314D9181E8',
@@ -1114,7 +1115,7 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Models.Lock, 'findLockMember').resolves(null)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       const stubLogger = sandbox.stub(logger, 'error')
-      const stubCreateMember = sandbox.stub(ProxyMember, 'createMember')
+      const stubCreateMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
 
       const mockInfo = {
         address: '0xExitQueue',
@@ -1159,7 +1160,7 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Models.Lock, 'findLockMember').resolves(mockExistingLock as any)
 
       const stubLogger = sandbox.stub(logger, 'verbose')
-      const stubCreateMember = sandbox.stub(ProxyMember, 'createMember')
+      const stubCreateMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
       const stubGetBlockTimestamp = sandbox.stub(Web3Helper, 'getBlockTimestamp')
 
       const mockInfo = {
@@ -1292,7 +1293,7 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Models.Lock, 'findLockMember').resolves(mockExistingLock as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(undefined) // Returns undefined
       sandbox.stub(logger, 'verbose')
-      sandbox.stub(ProxyMember, 'createMember').resolves()
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
       const mockInfo = {
         address: '0xExitQueue',
@@ -1351,7 +1352,7 @@ describe('Handler:GovernanceVeHandler', () => {
       const stubFindLockMember = sandbox.stub(Models.Lock, 'findLockMember').resolves(mockExistingLock as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(logger, 'verbose')
-      sandbox.stub(ProxyMember, 'createMember').resolves()
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
       const mockInfo = {
         address: '0xExitQueue',
@@ -1405,7 +1406,7 @@ describe('Handler:GovernanceVeHandler', () => {
       } as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(logger, 'verbose')
-      sandbox.stub(ProxyMember, 'createMember').resolves()
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
       const mockInfo = {
         address: '0xExitQueue',
@@ -3208,18 +3209,21 @@ describe('Handler:GovernanceVeHandler', () => {
     })
 
     it('should handle token with clockMode enabled', async () => {
-      sandbox.stub(ProxyMember, 'createMember').resolves()
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         type: ITokenType.ERC721,
         isGovernance: true,
         clockMode: IClockMode.Timestamp, // Clock mode is Timestamp
       } as any)
-      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
-        tokenIds: [],
-      } as any)
+      const mockGovernance2 = {
+        getOrCreate: sandbox.stub().resolves({
+          tokenIds: [],
+        }),
+        update: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance2 as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       const stubGetPastVotes = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('100')
-      sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([])
 
       const mockParsedEvent = {
@@ -3263,18 +3267,21 @@ describe('Handler:GovernanceVeHandler', () => {
     })
 
     it('should handle token with clockMode as BlockNumber', async () => {
-      sandbox.stub(ProxyMember, 'createMember').resolves()
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         type: ITokenType.ERC721,
         isGovernance: true,
         clockMode: IClockMode.BlockNumber, // Clock mode is BlockNumber
       } as any)
-      sandbox.stub(ProxyMember, 'getOrCreateTokenMember').resolves({
-        tokenIds: [],
-      } as any)
+      const mockGovernance2 = {
+        getOrCreate: sandbox.stub().resolves({
+          tokenIds: [],
+        }),
+        update: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance2 as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       const stubGetPastVotes = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('100')
-      sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([])
 
       const mockParsedEvent = {

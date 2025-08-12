@@ -6,7 +6,6 @@ import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 import utils from '@helpers/utils'
 import { LogDescription } from 'ethers'
 import config from '@config'
-import { ProxyMember } from '@modules/proxyMember'
 import { MemberGovernanceFactory } from '@modules/memberGovernance'
 import { TokenGovernance } from '@modules/memberGovernance/tokenGovernance'
 import { Models } from '@dbModels'
@@ -133,7 +132,7 @@ describe('GovernanceErc20Handler', () => {
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
 
       const getTokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('1' as any)
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember')
+      const createMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
 
       const handlerResponse = await GovernanceErc20Handler.delegateVotesChanged(fakeLog as any, logInfo)
       expect(handlerResponse).to.be.undefined
@@ -664,6 +663,121 @@ describe('GovernanceErc20Handler', () => {
       expect(loggerWarnStub.calledOnce).to.be.true
       expect(loggerWarnStub.calledWith('Batch transaction failed, falling back to individual processing' as any)).to.be
         .true
+    })
+
+    it('should handle fallback processing with plugins and update plugin metrics', async () => {
+      const events = [
+        {
+          parsedEvent: { args: { delegate: '0xmember1', newBalance: '100' } } as any,
+          info: { blockNumber: 1, address: '0xtoken1', network } as any,
+        },
+        {
+          parsedEvent: { args: { delegate: '0xmember2', newBalance: '200' } } as any,
+          info: { blockNumber: 2, address: '0xtoken1', network } as any,
+        },
+      ]
+
+      const mockPlugins = [
+        { address: '0xplugin1', daoAddress: '0xdao1', tokenAddress: '0xtoken1', network },
+        { address: '0xplugin2', daoAddress: '0xdao2', tokenAddress: '0xtoken1', network },
+      ]
+
+      const error = new Error('Database error')
+      // Make the NoTx batch methods fail
+      sandbox.stub(TokenGovernance, 'createMembersBatchNoTx').rejects(error)
+      const loggerWarnStub = sandbox.stub(logger, 'warn')
+      const loggerInfoStub = sandbox.stub(logger, 'info')
+
+      // Stub the fallback methods that will be called
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      const mockGovernance = {
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(mockPlugins)
+
+      await GovernanceErc20Handler.delegateVotesChangedBatch(events)
+
+      expect(loggerWarnStub.calledOnce).to.be.true
+      // Verify plugin metrics were updated for each member and plugin combination
+      expect(mockGovernance.getOrCreatePluginMetrics.callCount).to.equal(4) // 2 members x 2 plugins
+
+      // Verify success log
+      expect(loggerInfoStub.calledWith('All members processed successfully via fallback' as any)).to.be.true
+    })
+
+    it('should handle partial failures in fallback processing and log failed members', async () => {
+      const events = [
+        {
+          parsedEvent: { args: { delegate: '0xmember1', newBalance: '100' } } as any,
+          info: { blockNumber: 1, address: '0xtoken1', network } as any,
+        },
+        {
+          parsedEvent: { args: { delegate: '0xmember2', newBalance: '200' } } as any,
+          info: { blockNumber: 2, address: '0xtoken1', network } as any,
+        },
+        {
+          parsedEvent: { args: { delegate: '0xmember3', newBalance: '300' } } as any,
+          info: { blockNumber: 3, address: '0xtoken1', network } as any,
+        },
+      ]
+
+      const mockPlugins = [
+        { address: '0xplugin1', daoAddress: '0xdao1', tokenAddress: '0xtoken1', network },
+      ]
+
+      const error = new Error('Database error')
+      // Make the NoTx batch methods fail to trigger fallback
+      sandbox.stub(TokenGovernance, 'createMembersBatchNoTx').rejects(error)
+      const loggerWarnStub = sandbox.stub(logger, 'warn')
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+
+      // Stub the fallback methods - make member2 fail
+      const createBaseMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
+      createBaseMemberStub.withArgs('0xmember1', 1).resolves()
+      createBaseMemberStub.withArgs('0xmember2', 2).rejects(new Error('Member creation failed'))
+      createBaseMemberStub.withArgs('0xmember3', 3).resolves()
+
+      const mockGovernance = {
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(mockPlugins)
+
+      await GovernanceErc20Handler.delegateVotesChangedBatch(events)
+
+      expect(loggerWarnStub.calledOnce).to.be.true
+
+      // Verify individual error was logged
+      expect(loggerErrorStub.calledWith('Failed to process individual member' as any)).to.be.true
+
+      // Verify summary error was logged with failed members
+      expect(loggerErrorStub.calledWith('Some members failed to process' as any)).to.be.true
+    })
+
+    it('should re-throw error after logging in delegateVotesChangedBatch', async () => {
+      // Create events with a getter that throws an error
+      const events = {
+        filter: () => {
+          throw new Error('Critical error')
+        },
+        length: 1,
+      } as any
+
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+
+      try {
+        await GovernanceErc20Handler.delegateVotesChangedBatch(events)
+        expect.fail('Should have thrown an error')
+      } catch (err) {
+        // Verify error was logged
+        expect(loggerErrorStub.calledWith('DelegateVotesChangedBatch - error' as any)).to.be.true
+        // Verify error was re-thrown
+        expect(err).to.be.instanceOf(Error)
+        expect((err as Error).message).to.equal('Critical error')
+      }
     })
   })
 })
