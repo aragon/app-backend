@@ -32,6 +32,10 @@ class TestGovernance extends BaseGovernance {
     return null
   }
 
+  async findAndPaginateMembers(_params: { paginationParams?: any; extraParams?: any }): Promise<any> {
+    return { docs: [], totalDocs: 0, limit: 10, totalPages: 0, page: 1 }
+  }
+
   // Expose static method for testing
   public async testEnsureBaseMember(memberAddress: HexAddress, lastActivity?: number, session?: ClientSession) {
     return BaseGovernance.ensureBaseMember(memberAddress, lastActivity, session)

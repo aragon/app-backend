@@ -1,6 +1,13 @@
 import { BaseGovernance } from './baseGovernance'
 import { Models } from '@dbModels'
-import { type HexAddress, type IGovernanceParamsOpts } from '@types'
+import {
+  type HexAddress,
+  type IGovernanceParamsOpts,
+  type IPaginationParams,
+  type IPaginatedResult,
+  type IMembersResponse,
+  type IMemberExtraParams,
+} from '@types'
 import type Plugin from '@models/schema/plugin'
 import logger from '@logger'
 import Web3Utils from '@helpers/web3Utils'
@@ -162,5 +169,23 @@ export class PluginGovernance extends BaseGovernance {
       null,
       { session },
     )
+  }
+
+  async findAndPaginateMembers(params: {
+    paginationParams?: IPaginationParams
+    extraParams?: IMemberExtraParams
+  }): Promise<IPaginatedResult<IMembersResponse>> {
+    const { paginationParams = {}, extraParams = {} } = params
+
+    const enrichedExtraParams: IMemberExtraParams = {
+      ...extraParams,
+      pluginAddress: this.address,
+      network: this.network,
+    }
+
+    return Models.PluginMember.findAndPaginate({
+      extraParams: enrichedExtraParams,
+      paginationParams,
+    })
   }
 }

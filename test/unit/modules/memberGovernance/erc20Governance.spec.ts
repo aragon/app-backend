@@ -314,4 +314,86 @@ describe('Modules:MemberGovernance:Erc20Governance', () => {
       expect(findOneStub.calledOnce).to.be.true // Should not be called again
     })
   })
+
+  describe('findAndPaginateMembers', () => {
+    it('should call TokenMember.findAndPaginate with enriched params', async () => {
+      const mockResult = {
+        docs: [
+          { memberAddress: parsedAddress, votingPower: '1000' },
+          { memberAddress: '0xabcd', votingPower: '2000' },
+        ],
+        totalDocs: 2,
+        limit: 10,
+        totalPages: 1,
+        page: 1,
+        pagingCounter: 1,
+        hasPrevPage: false,
+        hasNextPage: false,
+        prevPage: null,
+        nextPage: null,
+      }
+
+      const findAndPaginateStub = sandbox.stub(Models.TokenMember, 'findAndPaginate').resolves(mockResult as any)
+
+      const result = await erc20Governance.findAndPaginateMembers({
+        paginationParams: { limit: 10, page: 1 },
+        extraParams: { daoAddress: '0xdao' as HexAddress },
+      })
+
+      expect(result).to.equal(mockResult)
+      expect(findAndPaginateStub.calledOnce).to.be.true
+      expect(findAndPaginateStub.firstCall.args[0]).to.deep.equal({
+        paginationParams: { limit: 10, page: 1 },
+        extraParams: {
+          daoAddress: '0xdao',
+          tokenAddress: testTokenAddress,
+          network: testNetwork,
+        },
+      })
+    })
+
+    it('should enrich extraParams with tokenAddress and network', async () => {
+      const mockResult = {
+        docs: [],
+        totalDocs: 0,
+        limit: 10,
+        totalPages: 0,
+        page: 1,
+      }
+
+      const findAndPaginateStub = sandbox.stub(Models.TokenMember, 'findAndPaginate').resolves(mockResult as any)
+
+      await erc20Governance.findAndPaginateMembers({
+        paginationParams: { limit: 5 },
+        extraParams: {},
+      })
+
+      expect(findAndPaginateStub.firstCall.args[0].extraParams).to.deep.equal({
+        tokenAddress: testTokenAddress,
+        network: testNetwork,
+      })
+    })
+
+    it('should work with no params provided', async () => {
+      const mockResult = {
+        docs: [],
+        totalDocs: 0,
+        limit: 10,
+        totalPages: 0,
+        page: 1,
+      }
+
+      const findAndPaginateStub = sandbox.stub(Models.TokenMember, 'findAndPaginate').resolves(mockResult as any)
+
+      await erc20Governance.findAndPaginateMembers({})
+
+      expect(findAndPaginateStub.firstCall.args[0]).to.deep.equal({
+        paginationParams: {},
+        extraParams: {
+          tokenAddress: testTokenAddress,
+          network: testNetwork,
+        },
+      })
+    })
+  })
 })

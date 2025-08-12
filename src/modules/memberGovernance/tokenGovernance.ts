@@ -1,6 +1,15 @@
 import { BaseGovernance } from './baseGovernance'
 import { Models } from '@dbModels'
-import { type HexAddress, type IGovernanceParamsOpts, type NetworksEnum } from '@types'
+import {
+  type HexAddress,
+  type IGovernanceParamsOpts,
+  type NetworksEnum,
+  type IPaginationParams,
+  type IPaginatedResult,
+  type IMembersResponse,
+  type IMemberExtraParams,
+  type IMemberLockResponse,
+} from '@types'
 import type Token from '@models/schema/token'
 import type TokenMember from '@models/schema/tokenMember'
 import Web3Utils from '@helpers/web3Utils'
@@ -251,9 +260,18 @@ export class TokenGovernance extends BaseGovernance {
   }
 
   /**
+   * findAndPaginateMembers
+   */
+  async findAndPaginateMembers(_params: {
+    paginationParams?: IPaginationParams
+    extraParams?: IMemberExtraParams
+  }): Promise<IPaginatedResult<IMembersResponse | IMemberLockResponse>> {
+    throw new Error('findAndPaginateMembers not implemented in TokenGovernance - must be implemented in subclass')
+  }
+
+  /**
    * Batch operations for high-performance bulk updates
    */
-
   /**
    * Create multiple members in batch without transaction
    */

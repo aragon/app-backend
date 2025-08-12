@@ -40,6 +40,11 @@ export const lockToVoteMemberMigration: IMigration = {
                 lockManagerAddress: plugin.lockManagerAddress,
                 memberAddress: memberManager.memberAddress,
                 votingPower: memberManager.votingPower,
+                pluginAddress: undefined,
+                daoAddress: undefined,
+                transactionHash: undefined,
+                blockNumber: undefined,
+                blockTimestamp: undefined,
               })
             }
           } catch (e) {
