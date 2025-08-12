@@ -1751,4 +1751,118 @@ describe('Module: blockchainLogCrawler', () => {
       expect(isBatchSizeError).to.be.true
     })
   })
+
+  describe('isBatchSizeError', () => {
+    it('should return true for whitelist errors', () => {
+      const crawler = new BlockchainLogCrawler({
+        events: [],
+        address: ['0x123'],
+        network: NetworksEnum.ethereumMainnet,
+        stopOnError: false,
+        logService: 'test' as any,
+        onError: sandbox.stub(),
+      })
+
+      const timeoutErrors = [
+        { message: 'The query timed out' },
+        { message: 'timeout' },
+        { message: 'eth_getLogs is limited' },
+        { message: 'Response size is larger than 150MB limit' },
+        { message: 'Log response size exceeded' },
+        { message: 'Consider reducing your block range' },
+        { message: 'Query returned more than 1000000 results' },
+        { message: 'Cannot create a string longer' },
+        { message: 'Block range is too large' },
+      ]
+
+      timeoutErrors.forEach(error => {
+        expect((crawler as any).isBatchSizeError(error)).to.be.true
+      })
+    })
+
+    it('should log error and return false when error is null', () => {
+      const crawler = new BlockchainLogCrawler({
+        events: [],
+        address: ['0x123'],
+        network: NetworksEnum.ethereumMainnet,
+        stopOnError: false,
+        logService: 'test' as any,
+        onError: sandbox.stub(),
+      })
+
+      const result = (crawler as any).isBatchSizeError(null)
+
+      expect(result).to.be.false
+      expect(logError.calledOnce).to.be.true
+      expect(logError.firstCall.args[0]).to.equal('Error not whitelisted in BlockchainLogCrawler isBatchSizeError')
+    })
+
+    it('should log error and return false when error is undefined', () => {
+      const crawler = new BlockchainLogCrawler({
+        events: [],
+        address: ['0x123'],
+        network: NetworksEnum.ethereumMainnet,
+        stopOnError: false,
+        logService: 'test' as any,
+        onError: sandbox.stub(),
+      })
+
+      const result = (crawler as any).isBatchSizeError(undefined)
+
+      expect(result).to.be.false
+      expect(logError.calledOnce).to.be.true
+      expect(logError.firstCall.args[0]).to.equal('Error not whitelisted in BlockchainLogCrawler isBatchSizeError')
+    })
+
+    it('should log error and return false when error is empty object', () => {
+      const crawler = new BlockchainLogCrawler({
+        events: [],
+        address: ['0x123'],
+        network: NetworksEnum.ethereumMainnet,
+        stopOnError: false,
+        logService: 'test' as any,
+        onError: sandbox.stub(),
+      })
+
+      const result = (crawler as any).isBatchSizeError({})
+
+      expect(result).to.be.false
+      expect(logError.notCalled).to.be.true
+    })
+
+    it('should handle error without message property', () => {
+      const crawler = new BlockchainLogCrawler({
+        events: [],
+        address: ['0x123'],
+        network: NetworksEnum.ethereumMainnet,
+        stopOnError: false,
+        logService: 'test' as any,
+        onError: sandbox.stub(),
+      })
+
+      const errorWithoutMessage = { code: 'TIMEOUT', data: 'some data' }
+      const result = (crawler as any).isBatchSizeError(errorWithoutMessage)
+
+      expect(result).to.be.false
+      expect(logError.notCalled).to.be.true
+    })
+
+    it('should handle multiple matching error messages', () => {
+      const crawler = new BlockchainLogCrawler({
+        events: [],
+        address: ['0x123'],
+        network: NetworksEnum.ethereumMainnet,
+        stopOnError: false,
+        logService: 'test' as any,
+        onError: sandbox.stub(),
+      })
+
+      const complexError = {
+        message: 'The query timed out. Block range is too large. Consider reducing your block range.',
+      }
+
+      // Should return true as it matches multiple batch size error patterns
+      expect((crawler as any).isBatchSizeError(complexError)).to.be.true
+    })
+  })
 })
