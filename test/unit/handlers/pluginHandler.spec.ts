@@ -1293,7 +1293,7 @@ describe('Indexer:Plugin', () => {
       }
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
 
-      const findLogsStub = sandbox.stub(Web3Utils, 'findLogsByName').returns([
+      sandbox.stub(Web3Utils, 'findLogsByName').returns([
         {
           parsed: { name: 'InstallationApplied' },
           txLog: {

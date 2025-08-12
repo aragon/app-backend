@@ -125,7 +125,7 @@ export const MemberInfo = {
   _checkForMultiSig: async (plugin: Plugin, setting: PluginSetting, memberAddress: HexAddress) => {
     if (!setting) return false
 
-    return setting?.onlyListed ? await Web3Helper.isMember(plugin.address, memberAddress, plugin.network) : true
+    return setting?.onlyListed ? await Web3Helper.isMultisigMember(plugin.address, memberAddress, plugin.network) : true
   },
 
   _checkForAdmin: async (plugin: Plugin, _setting: PluginSetting, memberAddress: HexAddress) => {
