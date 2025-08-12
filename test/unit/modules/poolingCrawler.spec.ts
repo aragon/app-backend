@@ -10,6 +10,7 @@ import PoolingCrawler from '@modules/poolingCrawler'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { DAO } from '@artifacts/dao'
 import utils from '@helpers/utils'
+import logger from '@logger'
 import { FakeToken } from '@test/mock/fakeToken'
 import { PluginList } from '@test/mock/fakePlugins'
 
@@ -67,6 +68,29 @@ describe('Module: PoolingCrawler', () => {
       expect(crawlerInstance).to.exist
 
       expect(crawlerInstance).to.have.property('crawlParams')
+    })
+
+    it('should handle errors during start', async () => {
+      const error = new Error('Test error')
+      // Stub the constructor to throw an error
+      const originalConstructor = BlockchainLogCrawler
+      ;(BlockchainLogCrawler as any) = function () {
+        throw error
+      }
+
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      const result = await PoolingCrawler.start({
+        logService: 'test-service' as any,
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      expect(result).to.be.undefined
+      expect(loggerStub.calledOnce).to.be.true
+      expect(loggerStub.firstCall.args[0]).to.equal('PoolingCrawler start')
+
+      // Restore the original constructor
+      ;(BlockchainLogCrawler as any) = originalConstructor
     })
   })
 
@@ -150,6 +174,86 @@ describe('Module: PoolingCrawler', () => {
     it('should handle empty logs array', async () => {
       const result = await PoolingCrawler.filterLogs([], NetworksEnum.ethereumMainnet)
       expect(result).to.be.an('array').that.is.empty
+    })
+
+    it('should wait for peaqMainnet network', async () => {
+      const govTokenInterface = new Interface(GovernanceERC20.abi)
+      const transferTopic = govTokenInterface.getEvent('Transfer')?.topicHash!
+      const daoInterface = new Interface(DAO.abi)
+      const nativeTokenDepositedTopic = daoInterface.getEvent('NativeTokenDeposited')?.topicHash!
+
+      const mockLogs = [{ topics: [nativeTokenDepositedTopic], address: '0x4838b106fce9647bdf1e7877bf73ce8b0bad5f94' }]
+
+      sandbox.stub(PoolingCrawler, '_getReceiverAddress').returns('0xDecodedAddress')
+      sandbox.stub(Models.Dao, 'distinct').resolves([ethers.getAddress('0x4838b106fce9647bdf1e7877bf73ce8b0bad5f94')])
+      sandbox.stub(Models.Plugin, 'distinct').resolves([])
+      sandbox.stub(Models.Token, 'distinct').resolves([])
+
+      const nativeTransferStub = sandbox.stub(DaoRegistryHandler, 'nativeTransfer').resolves()
+      const waitStub = sandbox.stub(utils, 'wait').resolves()
+
+      const result = await PoolingCrawler.filterLogs(mockLogs as any, NetworksEnum.peaqMainnet)
+
+      // Wait for nextTick to process
+      await new Promise(resolve => setImmediate(resolve))
+
+      expect(waitStub.calledOnce).to.be.true
+      expect(nativeTransferStub.calledOnce).to.be.true
+      expect(result).to.have.lengthOf(1)
+    })
+
+    it('should handle logs with empty topics array', async () => {
+      const mockLogs = [
+        { topics: [], address: '0x4838b106fce9647bdf1e7877bf73ce8b0bad5f95' },
+        { topics: [], address: '0x4838b106fce9647bdf1e7877bf73ce8b0bad5f94' },
+      ]
+
+      sandbox.stub(Models.Dao, 'distinct').resolves([])
+      sandbox.stub(Models.Plugin, 'distinct').resolves([])
+      sandbox.stub(Models.Token, 'distinct').resolves([])
+
+      const result = await PoolingCrawler.filterLogs(mockLogs as any, NetworksEnum.ethereumMainnet)
+
+      expect(result).to.have.lengthOf(2)
+      expect(result).to.include.members(mockLogs)
+    })
+
+    it('should filter delegateVotesChanged logs correctly', async () => {
+      const govTokenInterface = new Interface(GovernanceERC20.abi)
+      const delegateVotesChangedTopic = govTokenInterface.getEvent('DelegateVotesChanged')?.topicHash!
+
+      const tokenAddress1 = ethers.getAddress('0x4838b106fce9647bdf1e7877bf73ce8b0bad5f95')
+      const tokenAddress2 = ethers.getAddress('0x4838b106fce9647bdf1e7877bf73ce8b0bad5f94')
+
+      const mockLogs = [
+        { topics: [delegateVotesChangedTopic], address: tokenAddress1 },
+        { topics: [delegateVotesChangedTopic], address: tokenAddress2 },
+      ]
+
+      sandbox.stub(PoolingCrawler, '_getReceiverAddress').returns(null)
+      sandbox.stub(Models.Dao, 'distinct').resolves([])
+      sandbox.stub(Models.Plugin, 'distinct').resolves([tokenAddress1]) // Only tokenAddress1 is valid
+      sandbox.stub(Models.Token, 'distinct').resolves([tokenAddress1]) // Only tokenAddress1 is valid
+
+      const result = await PoolingCrawler.filterLogs(mockLogs as any, NetworksEnum.ethereumMainnet)
+
+      // tokenAddress2 should be filtered out because it's not in valid tokens
+      expect(result).to.have.lengthOf(1)
+      expect(result[0]).to.equal(mockLogs[0])
+    })
+
+    it('should handle errors in filterLogs and return original logs', async () => {
+      const mockLogs = [{ topics: ['0xSomeTopic'], address: '0x4838b106fce9647bdf1e7877bf73ce8b0bad5f95' }]
+
+      // Stub Models.Dao.distinct to throw an error
+      sandbox.stub(Models.Dao, 'distinct').rejects(new Error('Database error'))
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      const result = await PoolingCrawler.filterLogs(mockLogs as any, NetworksEnum.ethereumMainnet)
+
+      expect(loggerStub.calledOnce).to.be.true
+      expect(loggerStub.firstCall.args[0]).to.equal('PoolingCrawler filterLogs')
+      expect(result).to.equal(mockLogs) // Should return original logs on error
     })
   })
 

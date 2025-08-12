@@ -173,6 +173,32 @@ describe('Modules:PairData', () => {
       expect(findByTokenAddressStub.calledOnceWith('0xTokenAddress', NetworksEnum.ethereumMainnet)).to.be.true
       expect(result.pluginAddress).to.equal('0xPluginAddress')
     })
+
+    it('should find plugin by lockManagerAddress when provided', async () => {
+      const plugin = { address: '0xPluginAddress' }
+      const findOneStub = sandbox.stub(Models.Plugin, 'findOne').resolves(plugin)
+
+      const extraParams = { lockManagerAddress: '0xLockManager', network: NetworksEnum.ethereumMainnet } as any
+      const result = await PairDataModule.pairFromExtraParams(extraParams)
+
+      expect(findOneStub.calledOnceWith('0xLockManager', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(result.pluginAddress).to.equal('0xPluginAddress')
+    })
+
+    it('should not override pluginAddress when already provided with lockManagerAddress', async () => {
+      // This ensures lines 127-130 aren't executed when pluginAddress exists
+      const extraParams = {
+        lockManagerAddress: '0xLockManager',
+        pluginAddress: '0xExistingPlugin',
+        network: NetworksEnum.ethereumMainnet,
+      } as any
+      const findOneStub = sandbox.stub(Models.Plugin, 'findOne')
+
+      const result = await PairDataModule.pairFromExtraParams(extraParams)
+
+      expect(findOneStub.notCalled).to.be.true
+      expect(result.pluginAddress).to.equal('0xExistingPlugin')
+    })
   })
 
   describe('pairAllMemberOfDao', () => {
@@ -204,6 +230,35 @@ describe('Modules:PairData', () => {
       expect(result).to.have.lengthOf(2)
       expect(result[0].memberAddress).to.equal('0xMember1')
       expect(result[1].memberAddress).to.equal('0xMember2')
+    })
+
+    it('should include daoAddress in PluginMember query when provided', async () => {
+      const pluginMembers = [
+        {
+          memberAddress: '0xMember1',
+          daoAddress: '0xDao1',
+          pluginAddress: '0xPlugin1',
+          network: NetworksEnum.ethereumMainnet,
+        },
+      ]
+      const plugin = { address: '0xPlugin1', daoAddress: '0xDao1', tokenAddress: null }
+
+      const findStub = sandbox.stub(Models.PluginMember, 'find').resolves(pluginMembers)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin)
+
+      await PairDataModule.pairAllMemberOfDao({
+        pluginAddress: '0xPlugin1',
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: '0xDao1' as any,
+      })
+
+      expect(
+        findStub.calledWith({
+          pluginAddress: '0xPlugin1',
+          network: NetworksEnum.ethereumMainnet,
+          daoAddress: '0xDao1',
+        }),
+      ).to.be.true
     })
 
     it('should include TokenMember data when plugin has tokenAddress', async () => {
@@ -240,6 +295,38 @@ describe('Modules:PairData', () => {
       expect(result[1].votingPower).to.equal('100')
     })
 
+    it('should filter TokenMember by memberAddress when plugin has tokenAddress', async () => {
+      const pluginMembers: any[] = []
+      const tokenMembers = [
+        {
+          memberAddress: '0xSpecificMember',
+          tokenAddress: '0xToken1',
+          network: NetworksEnum.ethereumMainnet,
+          votingPower: '100',
+        },
+      ]
+      const plugin = { address: '0xPlugin1', daoAddress: '0xDao1', tokenAddress: '0xToken1' }
+
+      sandbox.stub(Models.PluginMember, 'find').resolves(pluginMembers)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin)
+      const tokenMemberFindStub = sandbox.stub(Models.TokenMember, 'find').resolves(tokenMembers)
+
+      await PairDataModule.pairAllMemberOfDao({
+        pluginAddress: '0xPlugin1',
+        network: NetworksEnum.ethereumMainnet,
+        memberAddress: '0xSpecificMember' as any,
+      })
+
+      expect(
+        tokenMemberFindStub.calledWith({
+          tokenAddress: '0xToken1',
+          network: NetworksEnum.ethereumMainnet,
+          votingPower: { $ne: '0' },
+          memberAddress: '0xSpecificMember',
+        }),
+      ).to.be.true
+    })
+
     it('should query TokenMember directly when only tokenAddress is provided', async () => {
       const tokenMembers = [
         {
@@ -268,6 +355,36 @@ describe('Modules:PairData', () => {
       expect(result).to.have.lengthOf(2)
       expect(result[0].votingPower).to.equal('100')
       expect(result[1].votingPower).to.equal('200')
+    })
+
+    it('should filter TokenMember by memberAddress when only tokenAddress is provided', async () => {
+      const tokenMembers = [
+        {
+          memberAddress: '0xSpecificMember',
+          tokenAddress: '0xToken1',
+          network: NetworksEnum.ethereumMainnet,
+          votingPower: '300',
+        },
+      ]
+      const plugin = { address: '0xPlugin1', daoAddress: '0xDao1' }
+
+      const tokenMemberFindStub = sandbox.stub(Models.TokenMember, 'find').resolves(tokenMembers)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin)
+
+      await PairDataModule.pairAllMemberOfDao({
+        tokenAddress: '0xToken1',
+        network: NetworksEnum.ethereumMainnet,
+        memberAddress: '0xSpecificMember' as any,
+      })
+
+      expect(
+        tokenMemberFindStub.calledWith({
+          tokenAddress: '0xToken1',
+          network: NetworksEnum.ethereumMainnet,
+          votingPower: { $ne: '0' },
+          memberAddress: '0xSpecificMember',
+        }),
+      ).to.be.true
     })
 
     it('should filter by memberAddress when provided', async () => {
