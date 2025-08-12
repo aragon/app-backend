@@ -96,7 +96,7 @@ const AragonPluginsService: IService & { pluginQueue: (params: IQueuePlugin) => 
         } else {
           logger.warn(
             'Sync plugin: token not governance erc20 or escrowAdapter',
-            llo({ plugin: plugin.address, token: token.address }),
+            llo({ plugin: plugin.address, token: token?.address }),
           )
         }
         break
