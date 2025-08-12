@@ -1,8 +1,8 @@
 import logger from '@logger'
 import { type LogDescription } from 'ethers'
-import { type ILogInfo } from '@types'
+import { type ILogInfo, IPluginInterfaceType, ITokenType } from '@types'
 import { Models } from '@dbModels'
-import { ProxyMember } from '@modules/proxyMember'
+import { MemberGovernanceFactory } from '@modules/memberGovernance'
 import Web3Helper from '@helpers/web3'
 import { EnumQueueName, ITransferSide } from '@types'
 import utils from '@helpers/utils'
@@ -115,7 +115,8 @@ export const GovernanceVeHandler = {
     const exitQueueAddress = plugins[0].votingEscrow.exitQueueAddress
 
     const memberAddress = parsedEvent.args.depositor
-    const tokenId = parsedEvent.args.tokenId.toString()
+    const tokenId = Number(parsedEvent.args.tokenId.toString())
+    const tokenIdStr = parsedEvent.args.tokenId.toString()
     const amount = parsedEvent.args.value.toString()
     const epochStartAt = Number(parsedEvent.args.startTs)
     const totalLocked = parsedEvent.args.newTotalLocked.toString()
@@ -127,7 +128,7 @@ export const GovernanceVeHandler = {
       logIndex: info.logIndex,
       tokenAddress: plugins[0].tokenAddress,
       memberAddress,
-      tokenId,
+      tokenId: tokenIdStr,
       escrowAddress,
     }
 
@@ -141,7 +142,9 @@ export const GovernanceVeHandler = {
     }
 
     const blockTimestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
-    await ProxyMember.createMember(memberAddress, info.blockNumber)
+
+    // Create base member using MemberGovernanceFactory
+    await MemberGovernanceFactory.createBaseMember(memberAddress, info.blockNumber)
 
     await Models.Lock.create({
       network: info.network,
@@ -154,7 +157,7 @@ export const GovernanceVeHandler = {
       memberAddress,
       nftAddress: nftLockAddress,
       tokenAddress,
-      tokenId,
+      tokenId: tokenIdStr,
       amount,
       epochStartAt,
       totalLocked,
@@ -163,33 +166,34 @@ export const GovernanceVeHandler = {
 
     logger.verbose('Deposit VeGovernance - Lock created', llo({ info, memberAddress, tokenId, escrow: escrowAddress }))
 
-    // Get or create voting power entry and update tokenIds
-    const tokenMember = await ProxyMember.getOrCreateTokenMember({
-      memberAddress,
-      tokenAddress,
+    // Create VE governance instance for token operations
+    const governance = MemberGovernanceFactory.create({
+      address: tokenAddress,
       network: info.network,
+      interfaceType: IPluginInterfaceType.tokenVoting,
+      tokenType: ITokenType.escrowAdapter,
     })
 
-    if (tokenMember) {
-      const currentTokenIds = tokenMember.tokenIds || []
-      if (!currentTokenIds.includes(tokenId)) {
-        currentTokenIds.push(tokenId)
-        await ProxyMember.updateTokenMemberVP({
-          memberAddress,
-          tokenAddress,
-          network: info.network,
-          tokenIds: currentTokenIds,
-          lastVPBlockNumber: info.blockNumber,
-        })
-      }
+    // Get or create token member and update tokenIds
+    await governance.getOrCreate(memberAddress)
+    const tokenMember = await governance.findOne(memberAddress)
+    const currentTokenIds = tokenMember?.tokenIds || []
+
+    if (!currentTokenIds.includes(tokenIdStr)) {
+      currentTokenIds.push(tokenIdStr)
+      await governance.update(memberAddress, {
+        tokenIds: currentTokenIds,
+        lastActivity: info.blockNumber,
+      })
     }
 
-    // update lastActivity metrics for all plugins
+    // Update plugin metrics for all plugins
     await Promise.all(
       plugins.map(async (plugin: Plugin) => {
-        await ProxyMember.updatePluginMetrics({
+        await governance.getOrCreatePluginMetrics({
           memberAddress,
           pluginAddress: plugin.address,
+          daoAddress: plugin.daoAddress,
           network: info.network,
           lastActivity: info.blockNumber,
         })
@@ -223,7 +227,8 @@ export const GovernanceVeHandler = {
     const escrowAddress = info.address
 
     const memberAddress = parsedEvent.args.depositor
-    const tokenId = parsedEvent.args.tokenId.toString()
+    const tokenId = Number(parsedEvent.args.tokenId.toString())
+    const tokenIdStr = parsedEvent.args.tokenId.toString()
     const amount = parsedEvent.args.value.toString()
     const epochEndAt = Number(parsedEvent.args.ts)
     const totalLocked = parsedEvent.args.newTotalLocked.toString()
@@ -232,7 +237,7 @@ export const GovernanceVeHandler = {
       escrowAddress,
       network: info.network,
       memberAddress,
-      tokenId,
+      tokenId: tokenIdStr,
     }
 
     const existingLock = await Models.Lock.findLockMember(memberLockParams)
@@ -265,31 +270,35 @@ export const GovernanceVeHandler = {
       },
     })
 
-    const tokenMember = await ProxyMember.getOrCreateTokenMember({
-      memberAddress,
-      tokenAddress: info.address,
+    // Create base member using MemberGovernanceFactory
+    await MemberGovernanceFactory.createBaseMember(memberAddress, info.blockNumber)
+
+    // Create VE governance instance for token operations
+    const governance = MemberGovernanceFactory.create({
+      address: plugins[0].tokenAddress, // Use tokenAddress from plugin
       network: info.network,
+      interfaceType: IPluginInterfaceType.tokenVoting,
+      tokenType: ITokenType.escrowAdapter,
     })
 
-    const currentTokenIds = tokenMember!.tokenIds || []
-    const tokenIdsToSave = currentTokenIds.filter(id => id !== tokenId.toString())
+    // Get token member and update tokenIds
+    const tokenMember = await governance.findOne(memberAddress)
+    const currentTokenIds = tokenMember?.tokenIds || []
+    const tokenIdsToSave = currentTokenIds.filter(id => id !== tokenIdStr)
 
-    await ProxyMember.createMember(memberAddress, info.blockNumber)
-    await ProxyMember.updateTokenMemberVP({
-      memberAddress,
-      tokenAddress: info.address,
-      network: info.network,
+    await governance.update(memberAddress, {
       votingPower: tokenIdsToSave.length > 0 ? undefined : '0',
       tokenIds: tokenIdsToSave,
-      lastVPBlockNumber: info.blockNumber,
+      lastActivity: info.blockNumber,
     })
 
-    // update lastActivity metrics for all plugins
+    // Update plugin metrics for all plugins
     await Promise.all(
       plugins.map(async (plugin: Plugin) => {
-        await ProxyMember.updatePluginMetrics({
+        await governance.getOrCreatePluginMetrics({
           memberAddress,
           pluginAddress: plugin.address,
+          daoAddress: plugin.daoAddress,
           network: info.network,
           lastActivity: info.blockNumber,
         })
@@ -356,14 +365,24 @@ export const GovernanceVeHandler = {
       },
     })
 
-    await ProxyMember.createMember(memberAddress, info.blockNumber)
+    // Create base member using MemberGovernanceFactory
+    await MemberGovernanceFactory.createBaseMember(memberAddress, info.blockNumber)
 
-    // update lastActivity metrics for all plugins
+    // Create VE governance instance for plugin metrics
+    const governance = MemberGovernanceFactory.create({
+      address: plugins[0].tokenAddress, // Use tokenAddress from plugin
+      network: info.network,
+      interfaceType: IPluginInterfaceType.tokenVoting,
+      tokenType: ITokenType.escrowAdapter,
+    })
+
+    // Update plugin metrics for all plugins
     await Promise.all(
       plugins.map(async (plugin: Plugin) => {
-        await ProxyMember.updatePluginMetrics({
+        await governance.getOrCreatePluginMetrics({
           memberAddress,
           pluginAddress: plugin.address,
+          daoAddress: plugin.daoAddress,
           network: info.network,
           lastActivity: info.blockNumber,
         })
@@ -476,20 +495,27 @@ export const GovernanceVeHandler = {
         return
       }
 
-      const tokenMember = await ProxyMember.getOrCreateTokenMember({
-        memberAddress,
-        tokenAddress: info.address,
-        network: info.network,
-      })
-
-      if (tokenMember && tokenMember?.lastVPBlockNumber > info.blockNumber) return
-
       let lastActivity: undefined | number
       if (transferSide === ITransferSide.outgoing) {
         lastActivity = info.blockNumber
       }
 
-      await ProxyMember.createMember(memberAddress, lastActivity)
+      // Create base member using MemberGovernanceFactory
+      await MemberGovernanceFactory.createBaseMember(memberAddress, lastActivity)
+
+      // Create VE governance instance for token operations
+      const governance = MemberGovernanceFactory.create({
+        address: info.address, // token address
+        network: info.network,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenType: ITokenType.escrowAdapter,
+      })
+
+      // Get or create token member
+      await governance.getOrCreate(memberAddress)
+      const tokenMember = await governance.findOne(memberAddress)
+
+      if (tokenMember && tokenMember?.lastVPBlockNumber > info.blockNumber) return
 
       const currentTokenIds = tokenMember?.tokenIds || []
       let tokenIdsToSave: string[]
@@ -502,7 +528,7 @@ export const GovernanceVeHandler = {
         if (transferSide === ITransferSide.incoming) {
           tokenIdsToSave = [...currentTokenIds, ...tokenIds]
         } else {
-          tokenIdsToSave = currentTokenIds.filter(id => !tokenIds.includes(id))
+          tokenIdsToSave = currentTokenIds.filter((id: string) => !tokenIds.includes(id))
         }
       }
 
@@ -517,24 +543,22 @@ export const GovernanceVeHandler = {
         token.clockMode,
       )
 
-      await ProxyMember.updateTokenMemberVP({
-        memberAddress,
-        tokenAddress: info.address,
+      await governance.update(memberAddress, {
         votingPower: votingPower.toString(),
-        network: info.network,
         tokenIds: tokenIdsToSave,
-        lastVPBlockNumber: info.blockNumber,
+        lastActivity: info.blockNumber,
       })
 
-      // only when incoming delegation, we update the delegation metrics
+      // only when outgoing delegation, we update the delegation metrics
       // update lastActivity metrics for all plugins
       if (lastActivity) {
         const plugins = await Models.Plugin.findAllByTokenAddress(info.address, info.network)
         await Promise.all(
           plugins.map(async (plugin: Plugin) => {
-            await ProxyMember.updatePluginMetrics({
+            await governance.getOrCreatePluginMetrics({
               memberAddress,
               pluginAddress: plugin.address,
+              daoAddress: plugin.daoAddress,
               network: info.network,
               lastActivity,
             })

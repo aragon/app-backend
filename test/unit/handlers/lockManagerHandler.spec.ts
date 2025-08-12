@@ -5,9 +5,9 @@ import { beforeEach } from 'mocha'
 import LockManagerHandler from '@handlers/lockManagerHandler'
 import { Models } from '@dbModels'
 import logger from '@logger'
-import { ProxyMember } from '@modules/proxyMember'
+import { MemberGovernanceFactory } from '@modules/memberGovernance'
 import RabbitMQHelper from '@helpers/rabbitMQ'
-import { NetworksEnum, EnumQueueName } from '@types'
+import { NetworksEnum, EnumQueueName, IPluginInterfaceType } from '@types'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
 import utils from '@helpers/utils'
 
@@ -49,27 +49,43 @@ describe('Indexer: LockManagerHandler', () => {
       const getUserLockedBalanceStub = sandbox
         .stub(LockToVoteHelper, 'getUserLockedBalance')
         .resolves('1000000000000000000')
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves()
-      const updateLockManagerMemberVPStub = sandbox.stub(ProxyMember, 'updateLockManagerMemberVP').resolves()
-      const updatePluginMetricsStub = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+
+      const createBaseMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      // Mock governance instance
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves(),
+        findOne: sandbox.stub().resolves(null), // New member
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      const createGovernanceStub = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
       const getUniqueValuesByKeyStub = sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin.daoAddress])
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       await LockManagerHandler.balanceLocked(mockParsedEvent as any, mockLogInfo as any)
 
-      // Verify createMember was called
-      expect(createMemberStub.calledOnce).to.be.true
-      expect(createMemberStub.calledWith(mockParsedEvent.args.voter, mockLogInfo.blockNumber)).to.be.true
+      // Verify createBaseMember was called
+      expect(createBaseMemberStub.calledOnce).to.be.true
+      expect(createBaseMemberStub.calledWith(mockParsedEvent.args.voter, mockLogInfo.blockNumber)).to.be.true
 
-      // Verify updateLockManagerMemberVP was called
-      expect(updateLockManagerMemberVPStub.calledOnce).to.be.true
+      // Verify MemberGovernanceFactory.create was called
+      expect(createGovernanceStub.calledOnce).to.be.true
       expect(
-        updateLockManagerMemberVPStub.calledWith({
-          memberAddress: mockParsedEvent.args.voter,
-          lockManagerAddress: mockLogInfo.address,
-          votingPower: '1000000000000000000',
+        createGovernanceStub.calledWith({
+          address: mockLogInfo.address,
           network: mockLogInfo.network,
-          lastVPBlockNumber: mockLogInfo.blockNumber,
+          interfaceType: IPluginInterfaceType.lockToVote,
+        }),
+      ).to.be.true
+
+      // Verify governance.update was called
+      expect(mockGovernance.update.calledOnce).to.be.true
+      expect(
+        mockGovernance.update.calledWith(mockParsedEvent.args.voter, {
+          votingPower: '1000000000000000000',
+          lastActivity: mockLogInfo.blockNumber,
         }),
       ).to.be.true
 
@@ -78,12 +94,13 @@ describe('Indexer: LockManagerHandler', () => {
       expect(getUserLockedBalanceStub.calledWith(mockLogInfo.network, mockLogInfo.address, mockParsedEvent.args.voter))
         .to.be.true
 
-      // Verify updatePluginMetrics was called
-      expect(updatePluginMetricsStub.calledOnce).to.be.true
+      // Verify getOrCreatePluginMetrics was called
+      expect(mockGovernance.getOrCreatePluginMetrics.calledOnce).to.be.true
       expect(
-        updatePluginMetricsStub.calledWith({
+        mockGovernance.getOrCreatePluginMetrics.calledWith({
           memberAddress: mockParsedEvent.args.voter,
           pluginAddress: mockPlugin.address,
+          daoAddress: mockPlugin.daoAddress,
           network: mockPlugin.network,
           lastActivity: mockLogInfo.blockNumber,
         }),
@@ -114,22 +131,28 @@ describe('Indexer: LockManagerHandler', () => {
       const getUserLockedBalanceStub = sandbox
         .stub(LockToVoteHelper, 'getUserLockedBalance')
         .resolves('1500000000000000000')
-      sandbox.stub(ProxyMember, 'createMember').resolves()
-      const updateLockManagerMemberVPStub = sandbox.stub(ProxyMember, 'updateLockManagerMemberVP').resolves()
-      sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+
+      const createBaseMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      // Mock governance instance with existing member
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves(),
+        findOne: sandbox.stub().resolves({ votingPower: '500000000000000000' }), // Existing member
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      const createGovernanceStub = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin.daoAddress])
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       await LockManagerHandler.balanceLocked(mockParsedEvent as any, mockLogInfo as any)
 
-      expect(updateLockManagerMemberVPStub.calledOnce).to.be.true
+      expect(mockGovernance.update.calledOnce).to.be.true
       expect(
-        updateLockManagerMemberVPStub.calledWith({
-          memberAddress: mockParsedEvent.args.voter,
-          lockManagerAddress: mockLogInfo.address,
+        mockGovernance.update.calledWith(mockParsedEvent.args.voter, {
           votingPower: '1500000000000000000',
-          network: mockLogInfo.network,
-          lastVPBlockNumber: mockLogInfo.blockNumber,
+          lastActivity: mockLogInfo.blockNumber,
         }),
       ).to.be.true
 
@@ -139,12 +162,14 @@ describe('Indexer: LockManagerHandler', () => {
 
     it('should handle case when plugins are not found', async () => {
       const findPluginStub = sandbox.stub(Models.Plugin, 'find').resolves([])
-      const updateLockManagerMemberVPStub = sandbox.stub(ProxyMember, 'updateLockManagerMemberVP')
+      const createBaseMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
+      const createGovernanceStub = sandbox.stub(MemberGovernanceFactory, 'create')
 
       await LockManagerHandler.balanceLocked(mockParsedEvent as any, mockLogInfo as any)
 
       expect(findPluginStub.calledOnce).to.be.true
-      expect(updateLockManagerMemberVPStub.notCalled).to.be.true
+      expect(createBaseMemberStub.notCalled).to.be.true
+      expect(createGovernanceStub.notCalled).to.be.true
     })
 
     it('should use fallback when getUserLockedBalance returns null for new member', async () => {
@@ -157,12 +182,18 @@ describe('Indexer: LockManagerHandler', () => {
       sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
       const warnStub = sandbox.stub(logger, 'warn')
       const getUserLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves(null)
-      sandbox.stub(ProxyMember, 'createMember').resolves()
-      sandbox.stub(ProxyMember, 'getOrCreateLockManagerMember').resolves({
-        votingPower: undefined, // New member has no voting power yet
-      } as any)
-      const updateLockManagerMemberVPStub = sandbox.stub(ProxyMember, 'updateLockManagerMemberVP').resolves()
-      sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      // Mock governance instance - new member has no voting power yet
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves(),
+        findOne: sandbox.stub().resolves(null), // New member
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin.daoAddress])
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
@@ -173,14 +204,11 @@ describe('Indexer: LockManagerHandler', () => {
         warnStub.calledWith('BalanceLocked - Failed to get locked balance from contract, using fallback sum' as any),
       ).to.be.true
       // Should use event amount as initial voting power
-      expect(updateLockManagerMemberVPStub.calledOnce).to.be.true
+      expect(mockGovernance.update.calledOnce).to.be.true
       expect(
-        updateLockManagerMemberVPStub.calledWith({
-          memberAddress: mockParsedEvent.args.voter,
-          lockManagerAddress: mockLogInfo.address,
+        mockGovernance.update.calledWith(mockParsedEvent.args.voter, {
           votingPower: '1000000000000000000',
-          network: mockLogInfo.network,
-          lastVPBlockNumber: mockLogInfo.blockNumber,
+          lastActivity: mockLogInfo.blockNumber,
         }),
       ).to.be.true
     })
@@ -195,12 +223,18 @@ describe('Indexer: LockManagerHandler', () => {
       sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
       const warnStub = sandbox.stub(logger, 'warn')
       const getUserLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves(null)
-      sandbox.stub(ProxyMember, 'createMember').resolves()
-      sandbox.stub(ProxyMember, 'getOrCreateLockManagerMember').resolves({
-        votingPower: '500000000000000000',
-      } as any)
-      const updateLockManagerMemberVPStub = sandbox.stub(ProxyMember, 'updateLockManagerMemberVP').resolves()
-      sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      // Mock governance instance - existing member with 500 voting power
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves(),
+        findOne: sandbox.stub().resolves({ votingPower: '500000000000000000' }), // Existing member
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin.daoAddress])
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
@@ -212,12 +246,9 @@ describe('Indexer: LockManagerHandler', () => {
       ).to.be.true
       // Should add event amount to existing voting power (500 + 1000 = 1500)
       expect(
-        updateLockManagerMemberVPStub.calledWith({
-          memberAddress: mockParsedEvent.args.voter,
-          lockManagerAddress: mockLogInfo.address,
+        mockGovernance.update.calledWith(mockParsedEvent.args.voter, {
           votingPower: '1500000000000000000',
-          network: mockLogInfo.network,
-          lastVPBlockNumber: mockLogInfo.blockNumber,
+          lastActivity: mockLogInfo.blockNumber,
         }),
       ).to.be.true
     })
@@ -237,28 +268,39 @@ describe('Indexer: LockManagerHandler', () => {
       sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin1, mockPlugin2])
       sandbox.stub(logger, 'verbose')
       sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves('1000000000000000000')
-      sandbox.stub(ProxyMember, 'createMember').resolves()
-      sandbox.stub(ProxyMember, 'updateLockManagerMemberVP').resolves()
-      const updatePluginMetricsStub = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      // Mock governance instance
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves(),
+        findOne: sandbox.stub().resolves(null), // New member
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin1.daoAddress, mockPlugin2.daoAddress])
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       await LockManagerHandler.balanceLocked(mockParsedEvent as any, mockLogInfo as any)
 
-      // Verify updatePluginMetrics was called for both plugins
-      expect(updatePluginMetricsStub.calledTwice).to.be.true
+      // Verify getOrCreatePluginMetrics was called for both plugins
+      expect(mockGovernance.getOrCreatePluginMetrics.calledTwice).to.be.true
       expect(
-        updatePluginMetricsStub.firstCall.calledWith({
+        mockGovernance.getOrCreatePluginMetrics.firstCall.calledWith({
           memberAddress: mockParsedEvent.args.voter,
           pluginAddress: mockPlugin1.address,
+          daoAddress: mockPlugin1.daoAddress,
           network: mockPlugin1.network,
           lastActivity: mockLogInfo.blockNumber,
         }),
       ).to.be.true
       expect(
-        updatePluginMetricsStub.secondCall.calledWith({
+        mockGovernance.getOrCreatePluginMetrics.secondCall.calledWith({
           memberAddress: mockParsedEvent.args.voter,
           pluginAddress: mockPlugin2.address,
+          daoAddress: mockPlugin2.daoAddress,
           network: mockPlugin2.network,
           lastActivity: mockLogInfo.blockNumber,
         }),
@@ -318,21 +360,26 @@ describe('Indexer: LockManagerHandler', () => {
       const verboseStub = sandbox.stub(logger, 'verbose')
       // User unlocked all tokens, so balance is now 0
       const getUserLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves('0')
-      const updateLockManagerMemberVPStub = sandbox.stub(ProxyMember, 'updateLockManagerMemberVP').resolves()
-      sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+
+      // Mock governance instance
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves(),
+        findOne: sandbox.stub().resolves({ votingPower: '1000000000000000000' }), // Had balance before
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin.daoAddress])
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       await LockManagerHandler.balanceUnlocked(mockParsedEvent as any, mockLogInfo as any)
 
-      expect(updateLockManagerMemberVPStub.calledOnce).to.be.true
+      expect(mockGovernance.update.calledOnce).to.be.true
       expect(
-        updateLockManagerMemberVPStub.calledWith({
-          memberAddress: mockParsedEvent.args.voter,
-          lockManagerAddress: mockLogInfo.address,
+        mockGovernance.update.calledWith(mockParsedEvent.args.voter, {
           votingPower: '0',
-          network: mockLogInfo.network,
-          lastVPBlockNumber: mockLogInfo.blockNumber,
+          lastActivity: mockLogInfo.blockNumber,
         }),
       ).to.be.true
 
@@ -364,21 +411,26 @@ describe('Indexer: LockManagerHandler', () => {
       const getUserLockedBalanceStub = sandbox
         .stub(LockToVoteHelper, 'getUserLockedBalance')
         .resolves('1000000000000000000')
-      const updateLockManagerMemberVPStub = sandbox.stub(ProxyMember, 'updateLockManagerMemberVP').resolves()
-      sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+
+      // Mock governance instance
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves(),
+        findOne: sandbox.stub().resolves({ votingPower: '2000000000000000000' }), // Had 2000 before
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin.daoAddress])
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       await LockManagerHandler.balanceUnlocked(mockParsedEvent as any, mockLogInfo as any)
 
-      expect(updateLockManagerMemberVPStub.calledOnce).to.be.true
+      expect(mockGovernance.update.calledOnce).to.be.true
       expect(
-        updateLockManagerMemberVPStub.calledWith({
-          memberAddress: mockParsedEvent.args.voter,
-          lockManagerAddress: mockLogInfo.address,
+        mockGovernance.update.calledWith(mockParsedEvent.args.voter, {
           votingPower: '1000000000000000000',
-          network: mockLogInfo.network,
-          lastVPBlockNumber: mockLogInfo.blockNumber,
+          lastActivity: mockLogInfo.blockNumber,
         }),
       ).to.be.true
 
@@ -389,12 +441,12 @@ describe('Indexer: LockManagerHandler', () => {
 
     it('should handle case when plugins are not found', async () => {
       const findPluginStub = sandbox.stub(Models.Plugin, 'find').resolves([])
-      const updateLockManagerMemberVPStub = sandbox.stub(ProxyMember, 'updateLockManagerMemberVP')
+      const createGovernanceStub = sandbox.stub(MemberGovernanceFactory, 'create')
 
       await LockManagerHandler.balanceUnlocked(mockParsedEvent as any, mockLogInfo as any)
 
       expect(findPluginStub.calledOnce).to.be.true
-      expect(updateLockManagerMemberVPStub.notCalled).to.be.true
+      expect(createGovernanceStub.notCalled).to.be.true
     })
 
     it('should handle error when member has no voting power in fallback', async () => {
@@ -407,14 +459,19 @@ describe('Indexer: LockManagerHandler', () => {
       const errorStub = sandbox.stub(logger, 'error')
       sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
       sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves(null)
-      sandbox.stub(ProxyMember, 'getOrCreateLockManagerMember').resolves({
-        votingPower: undefined, // Member has no voting power
-      } as any)
-      const updateLockManagerMemberVPStub = sandbox.stub(ProxyMember, 'updateLockManagerMemberVP')
+
+      // Mock governance instance - member has no voting power
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves(),
+        findOne: sandbox.stub().resolves(null), // No existing member
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      const createGovernanceStub = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
       await LockManagerHandler.balanceUnlocked(mockParsedEvent as any, mockLogInfo as any)
 
-      expect(updateLockManagerMemberVPStub.notCalled).to.be.true
+      expect(mockGovernance.update.notCalled).to.be.true
       expect(errorStub.calledWith('Error remove votingPower to not pre exiting one' as any)).to.be.true
     })
 
@@ -428,11 +485,16 @@ describe('Indexer: LockManagerHandler', () => {
       sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
       const warnStub = sandbox.stub(logger, 'warn')
       const getUserLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves(null)
-      sandbox.stub(ProxyMember, 'getOrCreateLockManagerMember').resolves({
-        votingPower: '2000000000000000000', // Had 2000 tokens locked
-      } as any)
-      const updateLockManagerMemberVPStub = sandbox.stub(ProxyMember, 'updateLockManagerMemberVP').resolves()
-      sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+
+      // Mock governance instance - had 2000 tokens locked
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves(),
+        findOne: sandbox.stub().resolves({ votingPower: '2000000000000000000' }), // Had 2000 tokens locked
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin.daoAddress])
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
@@ -446,12 +508,9 @@ describe('Indexer: LockManagerHandler', () => {
       ).to.be.true
       // Should subtract event amount from existing voting power (2000 - 1000 = 1000)
       expect(
-        updateLockManagerMemberVPStub.calledWith({
-          memberAddress: mockParsedEvent.args.voter,
-          lockManagerAddress: mockLogInfo.address,
+        mockGovernance.update.calledWith(mockParsedEvent.args.voter, {
           votingPower: '1000000000000000000',
-          network: mockLogInfo.network,
-          lastVPBlockNumber: mockLogInfo.blockNumber,
+          lastActivity: mockLogInfo.blockNumber,
         }),
       ).to.be.true
     })
@@ -471,27 +530,37 @@ describe('Indexer: LockManagerHandler', () => {
       sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin1, mockPlugin2])
       sandbox.stub(logger, 'verbose')
       sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves('0')
-      sandbox.stub(ProxyMember, 'updateLockManagerMemberVP').resolves()
-      const updatePluginMetricsStub = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+
+      // Mock governance instance
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves(),
+        findOne: sandbox.stub().resolves({ votingPower: '1000000000000000000' }), // Had balance
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
       sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin1.daoAddress]) // Only one unique DAO
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       await LockManagerHandler.balanceUnlocked(mockParsedEvent as any, mockLogInfo as any)
 
-      // Verify updatePluginMetrics was called for both plugins
-      expect(updatePluginMetricsStub.calledTwice).to.be.true
+      // Verify getOrCreatePluginMetrics was called for both plugins
+      expect(mockGovernance.getOrCreatePluginMetrics.calledTwice).to.be.true
       expect(
-        updatePluginMetricsStub.firstCall.calledWith({
+        mockGovernance.getOrCreatePluginMetrics.firstCall.calledWith({
           memberAddress: mockParsedEvent.args.voter,
           pluginAddress: mockPlugin1.address,
+          daoAddress: mockPlugin1.daoAddress,
           network: mockPlugin1.network,
           lastActivity: mockLogInfo.blockNumber,
         }),
       ).to.be.true
       expect(
-        updatePluginMetricsStub.secondCall.calledWith({
+        mockGovernance.getOrCreatePluginMetrics.secondCall.calledWith({
           memberAddress: mockParsedEvent.args.voter,
           pluginAddress: mockPlugin2.address,
+          daoAddress: mockPlugin2.daoAddress,
           network: mockPlugin2.network,
           lastActivity: mockLogInfo.blockNumber,
         }),

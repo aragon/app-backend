@@ -4,7 +4,7 @@ import { expect } from 'chai'
 import mongoose from 'mongoose'
 import tokenMembersMigration from '@src/migrations/20250804122543-tokenMembers'
 import { IPluginStatus, NetworksEnum } from '@types'
-import { ProxyMember } from '@modules/proxyMember'
+import { MemberGovernanceFactory } from '@modules/memberGovernance'
 import { Models } from '@dbModels'
 import logger from '@logger'
 
@@ -13,8 +13,9 @@ describe('migration: tokenMembers', () => {
   let mockMemberBalancesCollection: any
   let mockMemberMetricsCollection: any
   let mockMemberTransactionsCollection: any
-  let stubProxyMemberUpdateVotingPower: SinonStub
-  let stubProxyMemberUpdatePluginMetrics: SinonStub
+  let stubCreateBaseMember: SinonStub
+  let stubMemberGovernanceFactoryCreate: SinonStub
+  let governanceStub: any
   let stubPluginFind: SinonStub
   let stubLoggerInfo: SinonStub
   let stubLoggerError: SinonStub
@@ -47,12 +48,19 @@ describe('migration: tokenMembers', () => {
       .withArgs('MemberTransaction')
       .returns(mockMemberTransactionsCollection)
 
-    // Stub ProxyMember methods
-    stubProxyMemberUpdateVotingPower = sandbox.stub(ProxyMember, 'updateTokenMemberVP').resolves()
-    stubProxyMemberUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves({
-      firstActivity: undefined,
+    // Stub MemberGovernanceFactory methods
+    stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+    // Create governance stub with required methods
+    governanceStub = {
       update: sandbox.stub().resolves(),
-    } as any)
+      getOrCreatePluginMetrics: sandbox.stub().resolves({
+        firstActivity: undefined,
+        update: sandbox.stub().resolves(),
+      }),
+    }
+
+    stubMemberGovernanceFactoryCreate = sandbox.stub(MemberGovernanceFactory, 'create').returns(governanceStub)
 
     // Stub Plugin model
     stubPluginFind = sandbox.stub(Models.Plugin, 'find')
@@ -158,29 +166,32 @@ describe('migration: tokenMembers', () => {
       ).to.be.true
       expect(mockMemberBalancesCollection.toArray.calledOnce).to.be.true
 
-      // Verify ProxyMember.updateTokenMemberVP calls
+      // Verify MemberGovernanceFactory.createBaseMember calls
       expect(
-        stubProxyMemberUpdateVotingPower.calledWith({
-          memberAddress: mockMemberBalances[0].address,
-          tokenAddress: mockMemberBalances[0].tokenAddress,
-          network: mockMemberBalances[0].network,
+        stubCreateBaseMember.calledWith(
+          mockMemberBalances[0].address,
+          undefined, // lastSyncVotingPowerBlockNumber is undefined in mock data
+        ),
+      ).to.be.true
+      expect(stubCreateBaseMember.calledWith(mockMemberBalances[1].address, undefined)).to.be.true
+
+      // Verify governance.update calls
+      expect(
+        governanceStub.update.calledWith(mockMemberBalances[0].address, {
           votingPower: mockMemberBalances[0].votingPower,
-          lastVPBlockNumber: undefined,
+          lastActivity: undefined,
         }),
       ).to.be.true
       expect(
-        stubProxyMemberUpdateVotingPower.calledWith({
-          memberAddress: mockMemberBalances[1].address,
-          tokenAddress: mockMemberBalances[1].tokenAddress,
-          network: mockMemberBalances[1].network,
+        governanceStub.update.calledWith(mockMemberBalances[1].address, {
           votingPower: mockMemberBalances[1].votingPower,
-          lastVPBlockNumber: undefined,
+          lastActivity: undefined,
         }),
       ).to.be.true
 
-      // Verify ProxyMember.updatePluginMetrics calls for each plugin
+      // Verify governance.getOrCreatePluginMetrics calls for each plugin
       expect(
-        stubProxyMemberUpdatePluginMetrics.calledWith({
+        governanceStub.getOrCreatePluginMetrics.calledWith({
           memberAddress: mockMemberBalances[0].address,
           pluginAddress: mockPlugins[0].address,
           network: mockPlugins[0].network,
@@ -189,7 +200,7 @@ describe('migration: tokenMembers', () => {
         }),
       ).to.be.true
       expect(
-        stubProxyMemberUpdatePluginMetrics.calledWith({
+        governanceStub.getOrCreatePluginMetrics.calledWith({
           memberAddress: mockMemberBalances[0].address,
           pluginAddress: mockPlugins[1].address,
           network: mockPlugins[1].network,
@@ -199,8 +210,9 @@ describe('migration: tokenMembers', () => {
       ).to.be.true
 
       // Verify total calls
-      expect(stubProxyMemberUpdateVotingPower.callCount).to.equal(2)
-      expect(stubProxyMemberUpdatePluginMetrics.callCount).to.equal(2) // 2 plugins for first member, 0 for second
+      expect(stubCreateBaseMember.callCount).to.equal(2)
+      expect(governanceStub.update.callCount).to.equal(2)
+      expect(governanceStub.getOrCreatePluginMetrics.callCount).to.equal(2) // 2 plugins for first member, 0 for second
 
       // Verify logging
       expect(stubLoggerInfo.calledWith('Migration completed successfully')).to.be.true
@@ -217,8 +229,9 @@ describe('migration: tokenMembers', () => {
           tokenAddress: { $exists: true, $ne: null },
         }),
       ).to.be.true
-      expect(stubProxyMemberUpdateVotingPower.called).to.be.false
-      expect(stubProxyMemberUpdatePluginMetrics.called).to.be.false
+      expect(stubCreateBaseMember.called).to.be.false
+      expect(governanceStub.update.called).to.be.false
+      expect(governanceStub.getOrCreatePluginMetrics.called).to.be.false
       expect(stubLoggerInfo.calledWith('No MemberBalance documents to migrate')).to.be.true
     })
 
@@ -241,8 +254,8 @@ describe('migration: tokenMembers', () => {
       mockMemberBalancesCollection.toArray.resolves(mockMemberBalances)
       mockMemberMetricsCollection.findOne.resolves(null)
 
-      // Make first ProxyMember call fail
-      stubProxyMemberUpdateVotingPower.onFirstCall().rejects(new Error('Test error')).onSecondCall().resolves()
+      // Make first createBaseMember call fail
+      stubCreateBaseMember.onFirstCall().rejects(new Error('Test error')).onSecondCall().resolves()
 
       stubPluginFind.returns({ lean: () => Promise.resolve([]) })
 
@@ -253,7 +266,7 @@ describe('migration: tokenMembers', () => {
       expect(stubLoggerError.firstCall.args[0]).to.equal('Error processing MemberBalance document')
 
       // Verify second document was still processed
-      expect(stubProxyMemberUpdateVotingPower.callCount).to.equal(2)
+      expect(stubCreateBaseMember.callCount).to.equal(2)
 
       // Verify completion with error count
       const completionLogCall = stubLoggerInfo
@@ -291,9 +304,9 @@ describe('migration: tokenMembers', () => {
 
       await tokenMembersMigration.start()
 
-      // Verify updatePluginMetrics was called with default values
+      // Verify getOrCreatePluginMetrics was called with default values
       expect(
-        stubProxyMemberUpdatePluginMetrics.calledWith({
+        governanceStub.getOrCreatePluginMetrics.calledWith({
           memberAddress: mockMemberBalances[0].address,
           pluginAddress: mockPlugins[0].address,
           network: mockPlugins[0].network,
@@ -347,14 +360,12 @@ describe('migration: tokenMembers', () => {
       expect(stubLoggerWarn.firstCall.args[1].memberTransactionVP).to.equal('2000000000000000000')
 
       // Verify only second member was processed
-      expect(stubProxyMemberUpdateVotingPower.callCount).to.equal(1)
+      expect(stubCreateBaseMember.callCount).to.equal(1)
+      expect(stubCreateBaseMember.calledWith(mockMemberBalances[1].address, undefined)).to.be.true
       expect(
-        stubProxyMemberUpdateVotingPower.calledWith({
-          memberAddress: mockMemberBalances[1].address,
-          tokenAddress: mockMemberBalances[1].tokenAddress,
-          network: mockMemberBalances[1].network,
+        governanceStub.update.calledWith(mockMemberBalances[1].address, {
           votingPower: mockMemberBalances[1].votingPower,
-          lastVPBlockNumber: undefined,
+          lastActivity: undefined,
         }),
       ).to.be.true
 

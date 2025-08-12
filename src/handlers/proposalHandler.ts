@@ -13,7 +13,7 @@ import { Models } from '@dbModels'
 import IPFSModule from '@modules/ipfs'
 import type Vote from '@models/schema/vote'
 import Web3Helper from '@helpers/web3'
-import { ProxyMember } from '@modules/proxyMember'
+import { MemberGovernanceFactory } from '@modules/memberGovernance'
 import { ProxyToken } from '@modules/proxyToken'
 import type Proposal from '@models/schema/proposal'
 import type Plugin from '@models/schema/plugin'
@@ -279,9 +279,18 @@ export const ProposalHandler = {
 
       await ProposalHandler.pairSppProposals(newProposal, relatedPlugin, info)
 
-      await ProxyMember.createMember(newProposal.creatorAddress, newProposal.blockNumber)
+      // Create base member using MemberGovernanceFactory
+      await MemberGovernanceFactory.createBaseMember(newProposal.creatorAddress, newProposal.blockNumber)
 
-      await ProxyMember.updatePluginMetrics({
+      // Create governance instance based on plugin type
+      const governance = MemberGovernanceFactory.create({
+        address: relatedPlugin.tokenAddress || pluginAddress,
+        network: info.network,
+        interfaceType: relatedPlugin.interfaceType,
+      })
+
+      // Update plugin metrics
+      await governance.getOrCreatePluginMetrics({
         memberAddress: newProposal.creatorAddress,
         pluginAddress,
         network: info.network,
@@ -381,16 +390,29 @@ export const ProposalHandler = {
 
       await DbOperations.createDocument(Models.Vote, document, info, 'New Vote - Approved', llo)
 
-      await ProxyMember.createMember(document.memberAddress!, info.blockNumber)
+      // Create base member using MemberGovernanceFactory
+      await MemberGovernanceFactory.createBaseMember(document.memberAddress!, info.blockNumber)
 
-      await Promise.allSettled([
-        ProxyMember.updatePluginMetrics({
+      // Get plugin to determine interface type
+      const relatedPlugin = await Models.Plugin.findByAddress(info.address, info.network)
+      if (relatedPlugin) {
+        // Create governance instance based on plugin type
+        const governance = MemberGovernanceFactory.create({
+          address: relatedPlugin.tokenAddress || info.address,
+          network: info.network,
+          interfaceType: relatedPlugin.interfaceType,
+        })
+
+        await governance.getOrCreatePluginMetrics({
           memberAddress: document.memberAddress!,
           pluginAddress: info.address,
           network: info.network,
           daoAddress: proposal?.daoAddress,
           lastActivity: info?.blockNumber,
-        }),
+        })
+      }
+
+      await Promise.allSettled([
         // Proposal metrics
         RabbitMQHelper.sendMessage(EnumQueueName.proposalMultisigMetrics, {
           id: `${proposalIndex}-${info.address}`,
@@ -482,16 +504,25 @@ export const ProposalHandler = {
       })
 
       // always update activity
-      await ProxyMember.createMember(document.memberAddress!, info.blockNumber)
+      await MemberGovernanceFactory.createBaseMember(document.memberAddress!, info.blockNumber)
 
       // always update plugin metrics
-      await ProxyMember.updatePluginMetrics({
-        memberAddress: document.memberAddress!,
-        pluginAddress: info.address,
-        network: info.network,
-        daoAddress: proposal.daoAddress,
-        lastActivity: info?.blockNumber,
-      })
+      const relatedPlugin = await Models.Plugin.findByAddress(info.address, info.network)
+      if (relatedPlugin) {
+        const governance = MemberGovernanceFactory.create({
+          address: relatedPlugin.tokenAddress || info.address,
+          network: info.network,
+          interfaceType: relatedPlugin.interfaceType,
+        })
+
+        await governance.getOrCreatePluginMetrics({
+          memberAddress: document.memberAddress!,
+          pluginAddress: info.address,
+          network: info.network,
+          daoAddress: proposal.daoAddress,
+          lastActivity: info?.blockNumber,
+        })
+      }
 
       await Promise.allSettled([
         // Proposal metrics

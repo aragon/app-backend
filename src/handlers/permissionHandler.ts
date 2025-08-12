@@ -9,7 +9,7 @@ import {
   type NetworksEnum,
 } from '@types'
 import { Models } from '@dbModels'
-import { ProxyMember } from '@modules/proxyMember'
+import { MemberGovernanceFactory } from '@modules/memberGovernance'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { IPermission } from '@src/types/permission'
 import { PluginHandler } from '@handlers/pluginHandler'
@@ -140,12 +140,17 @@ export const PermissionHandler = {
       return
     }
 
+    // Create admin governance instance
+    const governance = MemberGovernanceFactory.create({
+      address: pluginAddress,
+      network,
+      interfaceType: IPluginInterfaceType.admin,
+    })
+
     if (!add) {
-      await ProxyMember.removePluginMember({
-        memberAddress: where,
-        pluginAddress,
-        network,
-      })
+      // Use the governance instance to handle member removal
+      await governance.delete(where)
+
       await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
         id: pluginExisted.daoAddress,
         params: { address: pluginExisted.daoAddress, network: pluginExisted.network },
@@ -155,12 +160,10 @@ export const PermissionHandler = {
       return
     }
 
-    await ProxyMember.addPluginMember({
-      memberAddress: where,
-      daoAddress: pluginExisted.daoAddress,
-      pluginAddress,
-      network,
-    })
+    // Use the governance instance to handle member creation
+    // This will handle both Member and PluginMember creation
+    await governance.getOrCreate(where)
+
     await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
       id: pluginExisted.daoAddress,
       params: { address: pluginExisted.daoAddress, network: pluginExisted.network },
