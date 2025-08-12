@@ -83,7 +83,7 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
   },
 
   fetchContractSourceCode: async ({ address, network }) => {
-    const explorers = [EvmExplorerEnum.CHILIZ, EvmExplorerEnum.ROUTESCAN]
+    const explorers = [EvmExplorerEnum.ROUTESCAN, EvmExplorerEnum.CHILIZ]
 
     const result = await utils.fallbackCall(
       explorers,
