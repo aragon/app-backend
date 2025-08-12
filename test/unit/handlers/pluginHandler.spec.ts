@@ -410,11 +410,11 @@ describe('Indexer:Plugin', () => {
       // Verify warning was logged
       expect(warnStub.calledOnce).to.be.true
       expect(warnStub.calledWith('Plugin not in preInstall status' as any)).to.be.true
-      
+
       // Verify plugin was not updated
       expect(updateSpy.notCalled).to.be.true
       expect(verboseStub.notCalled).to.be.true
-      
+
       // Verify plugin status didn't change
       const unchangedPlugin = await Models.Plugin.findOne({
         address: rawPlugin.address,

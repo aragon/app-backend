@@ -899,11 +899,16 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(undefined) // Returns undefined
       sandbox.stub(logger, 'verbose')
       sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(utils, 'getUniqueValuesByKey').returns(['0xDaoAddress'])
       const mockGovernance = {
         getOrCreate: sandbox.stub().resolves({
           tokenIds: ['123'],
         }),
+        findOne: sandbox.stub().resolves({
+          tokenIds: ['123'],
+        }),
         update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
       }
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
@@ -3219,7 +3224,11 @@ describe('Handler:GovernanceVeHandler', () => {
         getOrCreate: sandbox.stub().resolves({
           tokenIds: [],
         }),
+        findOne: sandbox.stub().resolves({
+          tokenIds: [],
+        }),
         update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
       }
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance2 as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
@@ -3277,7 +3286,11 @@ describe('Handler:GovernanceVeHandler', () => {
         getOrCreate: sandbox.stub().resolves({
           tokenIds: [],
         }),
+        findOne: sandbox.stub().resolves({
+          tokenIds: [],
+        }),
         update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
       }
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance2 as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)

@@ -824,8 +824,8 @@ describe('ProposalHandler', () => {
         media: {},
       } as any)
 
-      // Return 0 for totalSupply to trigger the error log
-      sandbox.stub(GovernanceErc20Helper, 'getPastTotalSupply').resolves(0n as any)
+      // Return '0' for totalSupply to trigger the error log (getPastTotalSupply returns string)
+      sandbox.stub(GovernanceErc20Helper, 'getPastTotalSupply').resolves('0')
 
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         address: '0xtoken-address',
@@ -1049,7 +1049,6 @@ describe('ProposalHandler', () => {
       sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
       sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
       const stubDaoMetrics = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
 
@@ -1117,7 +1116,6 @@ describe('ProposalHandler', () => {
       sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
       sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
       const stubError = sandbox.stub(logger, 'error')
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
@@ -1176,7 +1174,6 @@ describe('ProposalHandler', () => {
       sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
       sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
 
@@ -1292,7 +1289,6 @@ describe('ProposalHandler', () => {
       sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
       sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
 
@@ -3292,14 +3288,12 @@ describe('ProposalHandler', () => {
 
       expect(errorLoggerStub.calledOnceWith('Error proposalEdited' as any)).to.be.true
     })
-    
+
     it('should log error when parseActions throws an error', async () => {
       const proposal = await Models.Proposal.create({
         ...ProposalList[0],
         id: 'proposal-with-error',
-        rawActions: [
-          { data: '0x1234567890abcdef', to: '0xAddress1', value: 100 },
-        ],
+        rawActions: [{ data: '0x1234567890abcdef', to: '0xAddress1', value: 100 }],
       })
 
       const errorLoggerStub = sandbox.stub(logger, 'error')
@@ -3313,7 +3307,7 @@ describe('ProposalHandler', () => {
     it('should return empty array when decodeData and decodeTransfer return null', async () => {
       const decodeDataStub = sandbox.stub(DecodeActions.prototype, 'decodeData').resolves(null)
       const decodeTransferStub = sandbox.stub(DecodeActions.prototype, 'decodeTransfer').resolves(null)
-      
+
       const proposal = await Models.Proposal.create({
         ...ProposalList[0],
         id: 'proposal-null-decode',
@@ -3327,7 +3321,7 @@ describe('ProposalHandler', () => {
 
       expect(decodeDataStub.calledOnce).to.be.true
       expect(decodeTransferStub.calledOnce).to.be.true
-      
+
       // When decode functions return null, empty arrays should be returned
       expect(result.actions).to.deep.equal([[], []])
     })
@@ -3398,7 +3392,7 @@ describe('ProposalHandler', () => {
       const decodeTransferStub = sandbox
         .stub(DecodeActions.prototype, 'decodeTransfer')
         .resolves({ decoded: 'transferData' } as any)
-        
+
       const decodeDataStub = sandbox.stub(DecodeActions.prototype, 'decodeData')
 
       await ProposalHandler.proposalEdited(fakeEvent as any, info)
