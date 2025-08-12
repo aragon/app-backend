@@ -2,7 +2,6 @@ import Runner from '@modules/runner'
 import logger from '@logger'
 import SyncDaoAssets from '@tools/syncDaoAssets'
 import SyncPluginEvents from '@tools/syncPluginEvents'
-import ManualSyncProposals from '@tools/syncProposals'
 import SyncTokens from '@tools/syncTokens'
 import SyncProposalAction from '@tools/syncProposalAction'
 import SyncProposalType from '@tools/syncProposalType'
@@ -32,11 +31,13 @@ import { ToolsFixBrokenTx } from '@tools/fixBrokenTx'
 import ToolsVeGovernance from '@tools/veGovernance'
 import FixSppPair from '@tools/fixSppPair'
 import { CleanUpTasks } from '@tools/cleanUpTasks'
+import { IntegrityToolMemberTransaction } from '@tools/integrityCheck/memberTransaction'
 
 const { TOOL_RUN } = process.env
 const llo = logger.logMeta.bind(null, { TOOL_RUN })
 
 const runners = {
+  IntegrityToolMemberTransaction,
   ToolsVeGovernance,
   Queue,
   SyncMemberVP,
@@ -48,7 +49,6 @@ const runners = {
   SyncProposalTotalSupply,
   SyncDaoAssets,
   SyncPluginEvents,
-  ManualSyncProposals,
   SyncTokens,
   SyncProposalAction,
   SyncProposalType,
@@ -74,4 +74,4 @@ const runners = {
 const appToRun = runners[TOOL_RUN!]
 logger.info('Tool started', llo({ appToRun: TOOL_RUN }))
 
-Runner([{ app: appToRun }])
+Runner(appToRun)

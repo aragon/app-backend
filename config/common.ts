@@ -13,7 +13,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     DEFAULT_CURRENCY: utils.configParser(sourceConfig, 'string', 'DEFAULT_CURRENCY', 'USD'),
     ENS_DOMAIN: utils.configParser(sourceConfig, 'string', 'ENS_DOMAIN', 'dao.eth'),
     CUSTOM_INSTALL: utils.configParser(sourceConfig, 'bool', 'CUSTOM_INSTALL', false),
-    IGNORE_TRANSFER: utils.configParser(sourceConfig, 'bool', 'IGNORE_TRANSFER', true),
     SUPPORTED_ENS_NETWORKS: utils.configParser(
       sourceConfig,
       'array',
@@ -42,6 +41,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       API_URL: utils.configParser(sourceConfig, 'string', 'ANKR_API_URL', 'https://rpc.ankr.com'),
       API_KEY: utils.configParser(sourceConfig, 'string', 'ANKR_API_KEY', null),
     },
+    CHILIZ_API_URL: utils.configParser(sourceConfig, 'string', 'CHILIZ_API_URL', 'https://scan.chiliz.com'),
 
     CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'CONFIRMATION_BLOCKS', 3),
     WHITELIST_TOKENS: utils.configParser(sourceConfig, 'array', 'WHITELIST_TOKENS', [
@@ -71,6 +71,20 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'string',
         'ROUTESCAN_API_BASE_URL',
         'https://api.routescan.io/v2/network/mainnet/evm',
+      ),
+    },
+    ZKSYNC_BLOCK_EXPLORER_API: {
+      MAINNET_BASE_URI: utils.configParser(
+        sourceConfig,
+        'string',
+        'ZKSYNC_BLOCK_EXPLORER_MAINNET_BASE_URI',
+        'https://block-explorer-api.mainnet.zksync.io/api',
+      ),
+      SEPOLIA_BASE_URI: utils.configParser(
+        sourceConfig,
+        'string',
+        'ZKSYNC_BLOCK_EXPLORER_SEPOLIA_BASE_URI',
+        'https://block-explorer-api.sepolia.zksync.dev/api',
       ),
     },
 
@@ -419,6 +433,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       CONNECTION_RETRY: utils.configParser(sourceConfig, 'number', 'MONGO_DB_RETRY_CONNECTION_RETRY', 60),
       CONNECTION_TIMEOUT: utils.configParser(sourceConfig, 'number', 'MONGO_DB_RETRY_CONNECTION_TIMEOUT', 5000),
       CONNECTION_DELAY: utils.configParser(sourceConfig, 'number', 'MONGO_DB_RETRY_CONNECTION_DELAY', 1000),
+      SYNC_MODELS: utils.configParser(sourceConfig, 'bool', 'MONGO_DB_SYNC_MODELS', false),
     },
 
     LOG: {

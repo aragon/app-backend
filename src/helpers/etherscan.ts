@@ -1,7 +1,7 @@
 import logger from '@logger'
 import axios from 'axios'
 import config from '@config'
-import { type HexAddress, type IEtherScanSource, type NetworksEnum } from '@types'
+import { type HexAddress, type NetworksEnum } from '@types'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
@@ -50,38 +50,6 @@ const EtherscanHelper = {
     } catch (error) {
       logger.error('Error fetchAllTransactions', llo({ error }))
       throw error
-    }
-  },
-
-  fetchContractCreation: async ({
-    contractAddress,
-    network,
-  }): Promise<[{ address: HexAddress; txHash: HexAddress }] | []> => {
-    const params = {
-      module: 'contract',
-      action: 'getcontractcreation',
-      contractaddresses: contractAddress,
-    }
-
-    try {
-      return await EtherscanHelper._rpCall(params, network)
-    } catch (error) {
-      return []
-    }
-  },
-
-  fetchContractSourceCode: async ({ contractAddress, network }): Promise<IEtherScanSource[] | null> => {
-    const params = {
-      module: 'contract',
-      action: 'getsourcecode',
-      address: contractAddress,
-    }
-
-    try {
-      return await EtherscanHelper._rpCall(params, network)
-    } catch (error) {
-      logger.error('Error fetchContractSourceCode', llo({ params, network, error }))
-      return null
     }
   },
 

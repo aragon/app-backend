@@ -137,7 +137,6 @@ class BlockchainLogCrawler {
               strategy: this.crawlParams.strategy,
               toBlock,
               latestBlock,
-              logsLen: 0,
             }),
           )
         } else if (!this.crawlParams.skipLogProcessing) {
@@ -166,6 +165,16 @@ class BlockchainLogCrawler {
     this.crawlSetting.crawling = false
     if (!this.crawlParams.filterLogs) {
       logger.verbose('Finished crawling logs', llo({ ...this.parseCrawlerInfoLog() }))
+    }
+  }
+
+  async end() {
+    const configIndex = await Models.ConfigIndexer.findExistingLog({
+      network: this.crawlParams.network,
+      service: this.crawlParams.logService,
+    })
+    if (configIndex) {
+      await configIndex.update({ end: true })
     }
   }
 
@@ -648,7 +657,9 @@ class BlockchainLogCrawler {
     let matchingHandler: any = null
 
     for (const configItem of eventSetting?.config!) {
-      const iFace = new Interface(configItem.abi)
+      const abiFragment = configItem.abi.find((item: any) => item.name === eventSetting?.event && item.type === 'event')
+      if (!abiFragment) continue
+      const iFace = new Interface([abiFragment])
       try {
         parsedEvent = Web3Utils.parseLog(log, iFace)
         if (parsedEvent) {
@@ -660,7 +671,7 @@ class BlockchainLogCrawler {
       }
     }
 
-    if (!parsedEvent) {
+    if (!parsedEvent && eventSetting?.config.length) {
       logger.error('Error parsing log in blockchainCrawler', llo({ ...this.parseCrawlerInfoLog(), log }))
     }
 

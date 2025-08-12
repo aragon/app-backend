@@ -9,6 +9,8 @@ import TokenUtils from '@helpers/tokenUtils'
 import ChilizProvider from '@modules/proxyProvider/chilizProvider'
 import ProxyUtils from '@modules/proxyProvider/utils'
 import Web3Helper from '@helpers/web3'
+import RouteScanHelper from '@helpers/routeScanHelper'
+import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
 
 describe('ChilizProvider', () => {
   let sandbox: any
@@ -107,93 +109,144 @@ describe('ChilizProvider', () => {
   })
 
   describe('fetchContractCreation', () => {
-    it('should return default values', async () => {
-      // Arrange
+    it('should return contract creation data using fallback logic', async () => {
       const address = '0xcontract'
+      const network = NetworksEnum.chilizMainnet
+      const expectedResult = {
+        blockNumber: 100,
+        transactionHash: '0xtxhash',
+        address,
+      }
 
-      // Act
-      const result = await ChilizProvider.fetchContractCreation({ address, network: NetworksEnum.chilizMainnet })
+      const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').resolves(expectedResult)
 
-      // Assert
+      const result = await ChilizProvider.fetchContractCreation({ address, network })
+
+      expect(fallbackCallStub.calledOnce).to.be.true
+      expect(result).to.deep.equal(expectedResult)
+
+      const fallbackArgs = fallbackCallStub.firstCall.args
+      expect(fallbackArgs[0]).to.deep.equal([EvmExplorerEnum.CHILIZ, EvmExplorerEnum.ROUTESCAN])
+      expect(typeof fallbackArgs[1]).to.equal('function')
+      expect(typeof fallbackArgs[2]).to.equal('object')
+    })
+
+    it('should return default values when all explorers fail', async () => {
+      const address = '0xcontract'
+      const network = NetworksEnum.chilizMainnet
+
+      sandbox.stub(utils, 'fallbackCall').resolves(null)
+
+      const result = await ChilizProvider.fetchContractCreation({ address, network })
+
       expect(result).to.deep.equal({
         blockNumber: 0,
         transactionHash: null,
         address,
       })
     })
+
+    it('should call evmExplorerClient.fetchContractCreation in fallback function', async () => {
+      const address = '0xcontract'
+      const network = NetworksEnum.chilizMainnet
+      const mockResult = {
+        blockNumber: 123,
+        transactionHash: '0xabc123',
+        address,
+      }
+
+      const evmExplorerStub = sandbox.stub(evmExplorerClient, 'fetchContractCreation').resolves(mockResult)
+      const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').callsFake(async (explorers, fn, _options) => {
+        // Call the function with the first explorer to test it
+        return await fn(explorers[0])
+      })
+
+      await ChilizProvider.fetchContractCreation({ address, network })
+
+      expect(fallbackCallStub.calledOnce).to.be.true
+      expect(evmExplorerStub.calledOnceWith(EvmExplorerEnum.CHILIZ, address, network)).to.be.true
+    })
   })
 
   describe('fetchContractSourceCode', () => {
-    it('should return contract source code when available', async () => {
-      // Arrange
+    it('should return contract source code using fallback logic', async () => {
       const address = '0xcontract'
       const network = NetworksEnum.chilizMainnet
-      const mockResponse = {
-        message: 'OK',
-        result: [
-          {
-            SourceCode: 'contract source code',
-            ContractName: 'TestContract',
-            ABI: '[]',
-          },
-        ],
-      }
+      const expectedResult = [
+        {
+          SourceCode: 'contract source code',
+          ContractName: 'TestContract',
+          ABI: '[]',
+        },
+      ]
 
-      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(mockResponse)
+      const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').resolves(expectedResult)
 
-      // Act
       const result = await ChilizProvider.fetchContractSourceCode({ address, network })
 
-      // Assert
-      expect(rpcCallStub.calledOnce).to.be.true
-      expect(rpcCallStub.firstCall.args[0]).to.equal('api')
-      expect(rpcCallStub.firstCall.args[1]).to.deep.equal({
-        module: 'contract',
-        action: 'getsourcecode',
-        address,
-      })
+      expect(fallbackCallStub.calledOnce).to.be.true
+      expect(result).to.deep.equal(expectedResult)
 
-      expect(result).to.have.lengthOf(1)
-      expect(result[0]).to.deep.equal({
-        SourceCode: 'contract source code',
-        ContractName: 'TestContract',
-        ABI: '"[]"',
-      })
+      const fallbackArgs = fallbackCallStub.firstCall.args
+      expect(fallbackArgs[0]).to.deep.equal([EvmExplorerEnum.CHILIZ, EvmExplorerEnum.ROUTESCAN])
+      expect(typeof fallbackArgs[1]).to.equal('function')
+      expect(typeof fallbackArgs[2]).to.equal('object')
     })
 
-    it('should return null when source code is not available', async () => {
-      // Arrange
+    it('should return null when all explorers fail', async () => {
       const address = '0xcontract'
       const network = NetworksEnum.chilizMainnet
-      const mockResponse = {
-        message: 'OK',
-        result: [{ SourceCode: '', ContractName: '', ABI: '' }],
-      }
 
-      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(mockResponse)
+      sandbox.stub(utils, 'fallbackCall').resolves(null)
 
-      // Act
       const result = await ChilizProvider.fetchContractSourceCode({ address, network })
-
-      // Assert
-      expect(rpcCallStub.calledOnce).to.be.true
 
       expect(result).to.be.null
     })
 
-    it('should return null when API call fails', async () => {
-      // Arrange
+    it('should call evmExplorerClient.fetchContractSourceCode in fallback function', async () => {
+      const address = '0xcontract'
+      const network = NetworksEnum.chilizMainnet
+      const mockResult = [
+        {
+          SourceCode: 'pragma solidity ^0.8.0; contract Test {}',
+          ContractName: 'TestContract',
+          ABI: '[{"type":"constructor"}]',
+        },
+      ]
+
+      const evmExplorerStub = sandbox.stub(evmExplorerClient, 'fetchContractSourceCode').resolves(mockResult)
+      const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').callsFake(async (explorers, fn, _options) => {
+        // Call the function with the first explorer to test it
+        return await fn(explorers[0])
+      })
+
+      await ChilizProvider.fetchContractSourceCode({ address, network })
+
+      expect(fallbackCallStub.calledOnce).to.be.true
+      expect(evmExplorerStub.calledOnceWith(EvmExplorerEnum.CHILIZ, address, network)).to.be.true
+    })
+
+    it('should validate result has source code in validation function', async () => {
       const address = '0xcontract'
       const network = NetworksEnum.chilizMainnet
 
-      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').rejects(new Error('API Error'))
+      const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').resolves(null)
 
-      // Act
-      const result = await ChilizProvider.fetchContractSourceCode({ address, network })
+      await ChilizProvider.fetchContractSourceCode({ address, network })
 
-      // Assert
-      expect(rpcCallStub.calledOnce).to.be.true
-      expect(result).to.be.null
+      expect(fallbackCallStub.calledOnce).to.be.true
+
+      const validationOptions = fallbackCallStub.firstCall.args[2]
+      expect(typeof validationOptions?.validate).to.equal('function')
+
+      // Test validation function
+      if (validationOptions?.validate) {
+        expect(validationOptions.validate(null)).to.be.false
+        expect(validationOptions.validate([])).to.be.false
+        expect(validationOptions.validate([{ SourceCode: '' }])).to.be.false
+        expect(validationOptions.validate([{ SourceCode: 'contract code' }])).to.be.true
+      }
     })
   })
 
@@ -369,20 +422,6 @@ describe('ChilizProvider', () => {
         },
       ]
 
-      const mockInternalTxs = [
-        {
-          from: address,
-          to: '0x53175D75A0b0937268f9a0EfD2217e6a99a4E5A7',
-          value: '2000000000000000000',
-          blockNumber: '101',
-          timeStamp: '1622345700',
-          hash: '0xtx2',
-          index: '0',
-          contractAddress: null,
-          category: 'internal',
-        },
-      ]
-
       const token1 = {
         address: '0xtoken1',
         decimals: 18,
@@ -407,7 +446,6 @@ describe('ChilizProvider', () => {
 
       const fetchERC20TransfersStub = sandbox.stub(ChilizProvider, '_fetchERC20Transfers').resolves(mockERC20Transfers)
       const fetchTxListStub = sandbox.stub(ChilizProvider, '_fetchTxList').resolves(mockExternalTxs)
-      const fetchInternalTxsStub = sandbox.stub(ChilizProvider, '_fetchInternalTxs').resolves(mockInternalTxs)
 
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken')
       saveAndGetTokenStub.withArgs('0xtoken1', network).resolves(token1)
@@ -426,7 +464,6 @@ describe('ChilizProvider', () => {
       expect(getBlockNumberStub.calledOnce).to.be.true
       expect(fetchERC20TransfersStub.calledOnce).to.be.true
       expect(fetchTxListStub.calledOnce).to.be.true
-      expect(fetchInternalTxsStub.notCalled).to.be.true
 
       // Verify block filter arguments
       const expectedBlockFilter = { startBlock: 51, endBlock: 150 }
@@ -469,7 +506,6 @@ describe('ChilizProvider', () => {
 
       sandbox.stub(ChilizProvider, '_fetchERC20Transfers').resolves([])
       sandbox.stub(ChilizProvider, '_fetchTxList').resolves([])
-      sandbox.stub(ChilizProvider, '_fetchInternalTxs').resolves([])
 
       await ChilizProvider.fetchAddressTxns({ address, network })
 
@@ -777,305 +813,6 @@ describe('ChilizProvider', () => {
     })
   })
 
-  describe('_fetchInternalTxs', () => {
-    it('should fetch internal transactions with pagination and filter valid ones', async () => {
-      const address = '0x7287715c632e32b415b172A978B18f4bFba7997c'
-      const network = NetworksEnum.chilizMainnet
-      const blockFilter = { startBlock: 100, endBlock: 200 }
-
-      const page1Response = {
-        message: 'OK',
-        result: [
-          {
-            from: address,
-            to: '0xrecipient1',
-            value: '1000000000000000000',
-            blockNumber: '150',
-            timeStamp: '1622345678',
-            transactionHash: '0xtx1',
-            index: '0',
-            type: 'call',
-          },
-          {
-            from: address,
-            to: '0xrecipient2',
-            value: '0',
-            blockNumber: '151',
-            timeStamp: '1622345700',
-            transactionHash: '0xtx2',
-            index: '1',
-            type: 'call',
-          },
-          {
-            from: address,
-            to: '0xrecipient3',
-            value: '2000000000000000000',
-            blockNumber: '152',
-            timeStamp: '1622345720',
-            transactionHash: '0xtx3',
-            index: '2',
-            type: 'delegatecall',
-          },
-          {
-            from: address,
-            to: '0xrecipient4',
-            value: '3000000000000000000',
-            blockNumber: '153',
-            timeStamp: '1622345740',
-            transactionHash: '0xtx4',
-            index: '3',
-            type: 'call',
-          },
-        ],
-      }
-
-      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall')
-      rpcCallStub.onCall(0).resolves(page1Response)
-
-      const result = await ChilizProvider._fetchInternalTxs(address, network, blockFilter)
-
-      expect(rpcCallStub.callCount).to.equal(1)
-
-      expect(rpcCallStub.firstCall.args[1]).to.deep.equal({
-        module: 'account',
-        action: 'txlistinternal',
-        address,
-        page: 1,
-        offset: 100,
-        startblock: 100,
-        endblock: 200,
-      })
-
-      // Should filter out zero value transaction, non-call type, and add contractAddress: null and category: 'internal'
-      expect(result).to.have.lengthOf(2)
-      expect(result[0]).to.deep.equal({
-        from: address,
-        to: '0xrecipient1',
-        value: '1000000000000000000',
-        blockNumber: '150',
-        timeStamp: '1622345678',
-        transactionHash: '0xtx1',
-        index: '0',
-        type: 'call',
-        contractAddress: null,
-        category: 'internal',
-        hash: '0xtx1',
-      })
-      expect(result[1]).to.deep.equal({
-        from: address,
-        to: '0xrecipient4',
-        value: '3000000000000000000',
-        blockNumber: '153',
-        timeStamp: '1622345740',
-        transactionHash: '0xtx4',
-        index: '3',
-        type: 'call',
-        contractAddress: null,
-        category: 'internal',
-        hash: '0xtx4',
-      })
-    })
-
-    it('should properly test pagination with 3 calls when needed', async () => {
-      const address = '0x123'
-      const network = NetworksEnum.chilizMainnet
-      const blockFilter = { startBlock: 0, endBlock: 100 }
-
-      const page1Response = {
-        message: 'OK',
-        result: Array.from({ length: 100 }, (_, i) => ({
-          from: address,
-          to: `0xrecipient${i}`,
-          value: '1000000000000000000',
-          blockNumber: `${100 + i}`,
-          timeStamp: `${1622345678 + i}`,
-          transactionHash: `0xtx${i}`,
-          index: `${i}`,
-          type: 'call',
-        })),
-      }
-
-      // Page 2: Full 100 results
-      const page2Response = {
-        message: 'OK',
-        result: Array.from({ length: 100 }, (_, i) => ({
-          from: address,
-          to: `0xrecipient${i + 100}`,
-          value: '2000000000000000000',
-          blockNumber: `${200 + i}`,
-          timeStamp: `${1622345778 + i}`,
-          transactionHash: `0xtx${i + 100}`,
-          index: `${i}`,
-          type: 'call',
-        })),
-      }
-
-      // Page 3: Empty results (stops pagination)
-      const page3Response = {
-        message: 'OK',
-        result: [],
-      }
-
-      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall')
-      rpcCallStub.onCall(0).resolves(page1Response)
-      rpcCallStub.onCall(1).resolves(page2Response)
-      rpcCallStub.onCall(2).resolves(page3Response)
-
-      // Act
-      const result = await ChilizProvider._fetchInternalTxs(address, network, blockFilter)
-
-      // Assert
-      expect(rpcCallStub.callCount).to.equal(3)
-      expect(result).to.have.lengthOf(200)
-
-      // Verify all transactions have contractAddress set to null
-      result.forEach(tx => {
-        expect(tx.contractAddress).to.be.null
-      })
-    })
-
-    it('should stop pagination when response is not OK', async () => {
-      // Arrange
-      const address = '0x123'
-      const network = NetworksEnum.chilizMainnet
-      const blockFilter = { startBlock: 0, endBlock: 100 }
-
-      const errorResponse = {
-        message: 'NOTOK',
-        result: [],
-      }
-
-      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(errorResponse)
-
-      // Act
-      const result = await ChilizProvider._fetchInternalTxs(address, network, blockFilter)
-
-      // Assert
-      expect(rpcCallStub.calledOnce).to.be.true
-      expect(result).to.be.an('array').that.is.empty
-    })
-
-    it('should stop pagination when result length is less than offset', async () => {
-      // Arrange
-      const address = '0x123'
-      const network = NetworksEnum.chilizMainnet
-      const blockFilter = { startBlock: 0, endBlock: 100 }
-
-      const partialResponse = {
-        message: 'OK',
-        result: [
-          {
-            from: address,
-            to: '0xrecipient1',
-            value: '1000000000000000000',
-            blockNumber: '100',
-            timeStamp: '1622345678',
-            transactionHash: '0xtx1',
-            index: '0',
-            type: 'call',
-          },
-        ],
-      }
-
-      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(partialResponse)
-
-      // Act
-      const result = await ChilizProvider._fetchInternalTxs(address, network, blockFilter)
-
-      // Assert
-      expect(rpcCallStub.calledOnce).to.be.true
-      expect(result).to.have.lengthOf(1)
-      expect(result[0]).to.deep.equal({
-        ...partialResponse.result[0],
-        contractAddress: null,
-        category: 'internal',
-        hash: '0xtx1',
-      })
-    })
-
-    it('should handle API errors gracefully', async () => {
-      // Arrange
-      const address = '0x123'
-      const network = NetworksEnum.chilizMainnet
-      const blockFilter = { startBlock: 0, endBlock: 100 }
-
-      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').rejects(new Error('API Error'))
-
-      // Act
-      const result = await ChilizProvider._fetchInternalTxs(address, network, blockFilter)
-
-      // Assert
-      expect(rpcCallStub.calledOnce).to.be.true
-      expect(loggerStub.calledOnce).to.be.true
-      expect(result).to.be.an('array').that.is.empty
-    })
-
-    it('should handle missing result property', async () => {
-      // Arrange
-      const address = '0x123'
-      const network = NetworksEnum.chilizMainnet
-      const blockFilter = { startBlock: 0, endBlock: 100 }
-
-      const invalidResponse = {
-        message: 'OK',
-      }
-
-      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(invalidResponse)
-
-      // Act
-      const result = await ChilizProvider._fetchInternalTxs(address, network, blockFilter)
-
-      // Assert
-      expect(rpcCallStub.calledOnce).to.be.true
-      expect(result).to.be.an('array').that.is.empty
-    })
-
-    it('should continue pagination until no more data', async () => {
-      // Arrange
-      const address = '0x123'
-      const network = NetworksEnum.chilizMainnet
-      const blockFilter = { startBlock: 0, endBlock: 100 }
-
-      // Create 100 valid transactions for first page (full page)
-      const fullPageTransactions = Array.from({ length: 100 }, (_, i) => ({
-        from: address,
-        to: `0xrecipient${i}`,
-        value: '1000000000000000000',
-        blockNumber: `${100 + i}`,
-        timeStamp: `${1622345678 + i}`,
-        transactionHash: `0xtx${i}`,
-        index: `${i}`,
-        type: 'call',
-      }))
-
-      const page1Response = {
-        message: 'OK',
-        result: fullPageTransactions,
-      }
-
-      const page2Response = {
-        message: 'OK',
-        result: [],
-      }
-
-      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall')
-      rpcCallStub.onCall(0).resolves(page1Response)
-      rpcCallStub.onCall(1).resolves(page2Response)
-
-      // Act
-      const result = await ChilizProvider._fetchInternalTxs(address, network, blockFilter)
-
-      // Assert
-      expect(rpcCallStub.callCount).to.equal(2)
-      expect(result).to.have.lengthOf(100)
-
-      // Verify all transactions have contractAddress set to null
-      result.forEach(tx => {
-        expect(tx.contractAddress).to.be.null
-      })
-    })
-  })
-
   describe('fetchTokenPrice', () => {
     it('should fetch native token price for zero address', async () => {
       // Arrange
@@ -1197,436 +934,27 @@ describe('ChilizProvider', () => {
     })
   })
 
-  describe('getAllTokenHolders', () => {
-    it('should fetch all token holders with callback and sync tracking', async () => {
-      // Arrange
-      const address = '0xtoken'
-      const network = NetworksEnum.chilizMainnet
-      const syncKey = 'test-sync-key'
-      const mockCallback = sinon.stub()
-
-      const mockHolders = [
-        { address: '0xholder1', value: '100' },
-        { address: '0xholder2', value: '200' },
-      ]
-
-      const mockResponse = {
-        holders: mockHolders,
-        total: mockHolders.length,
-        hasMore: false,
-        lastPage: 1,
-      }
-
-      const getProgressStub = sandbox.stub(ProxyUtils, 'getProgressFromConfigIndexer').resolves(null)
-      const updateProgressStub = sandbox.stub(ProxyUtils, 'updateProgressInConfigIndexer').resolves()
-
-      let capturedCallback: Function | undefined
-      const getAllTokenHoldersStub = sandbox
-        .stub(ChilizProvider, '_getAllTokenHolders')
-        .callsFake(async (_tokenAddr: any, _net: any, _opts: any, callback: any) => {
-          capturedCallback = callback
-
-          if (callback && typeof callback === 'function') {
-            await callback(mockHolders, {
-              currentPage: 1,
-              isLastPage: true,
-              total: mockHolders.length,
-            })
-          }
-
-          return mockResponse
-        })
-
-      // Act
-      const result = await ChilizProvider.getAllTokenHolders({
-        address,
-        network,
-        callback: mockCallback,
-        syncKey,
-      })
-
-      // Assert
-      expect(getProgressStub.calledOnceWith(network, syncKey)).to.be.true
-      expect(getAllTokenHoldersStub.calledOnce).to.be.true
-      expect(capturedCallback).to.be.a('function')
-      expect(mockCallback.callCount).to.be.eq(2)
-      expect(result).to.deep.equal(mockResponse)
-      expect(updateProgressStub.calledOnce).to.be.true
-    })
-
-    it('should return early when sync is already completed', async () => {
-      // Arrange
-      const address = '0xtoken'
-      const network = NetworksEnum.chilizMainnet
-      const syncKey = 'test-sync-key'
-      const syncProgress = { lastSync: 5, end: true }
-
-      const getProgressStub = sandbox.stub(ProxyUtils, 'getProgressFromConfigIndexer').resolves(syncProgress)
-      const getAllTokenHoldersStub = sandbox.stub(ChilizProvider, '_getAllTokenHolders')
-
-      // Act
-      await ChilizProvider.getAllTokenHolders({
-        address,
-        network,
-        callback: () => {},
-        syncKey,
-      })
-
-      // Assert
-      expect(getProgressStub.calledOnceWith(network, syncKey)).to.be.true
-      expect(getAllTokenHoldersStub.called).to.be.false
-    })
-
-    it('should handle errors gracefully', async () => {
-      // Arrange
-      const address = '0xtoken'
-      const network = NetworksEnum.chilizMainnet
-      const syncKey = 'test-sync-key'
-      const error = new Error('API error')
-
-      const getProgressStub = sandbox.stub(ProxyUtils, 'getProgressFromConfigIndexer').resolves(null)
-      const getAllTokenHoldersStub = sandbox.stub(ChilizProvider, '_getAllTokenHolders').rejects(error)
-
-      // Act
-      await ChilizProvider.getAllTokenHolders({
-        address,
-        network,
-        callback: () => {},
-        syncKey,
-      })
-
-      // Assert
-      expect(getProgressStub.calledOnceWith(network, syncKey)).to.be.true
-      expect(getAllTokenHoldersStub.calledOnce).to.be.true
-      expect(loggerStub.calledOnce).to.be.true
-    })
-  })
-
   describe('getTokenCounters', () => {
-    it('should return token counters when API call succeeds', async () => {
+    it('should return token counters using routescan', async () => {
       // Arrange
       const address = '0xtoken'
       const network = NetworksEnum.chilizMainnet
-      const mockResponse = {
-        token_holder_count: 150,
-        token_holders: 75,
-      }
 
-      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(mockResponse)
+      const routeScanStub = sandbox.stub(RouteScanHelper, 'fetchTokenHoldersCount').resolves(10)
 
       // Act
       const result = await ChilizProvider.getTokenCounters({ address, network })
 
       // Assert
-      expect(rpcCallStub.calledOnce).to.be.true
-      expect(rpcCallStub.firstCall.args[0]).to.equal('token-counters')
-      expect(rpcCallStub.firstCall.args[1]).to.deep.equal({ id: address })
-
-      expect(result).to.deep.equal({
-        transfers: 150,
-        holders: 75,
+      expect(routeScanStub.calledOnce).to.be.true
+      expect(routeScanStub.firstCall.args[0]).to.deep.eq({
+        network,
+        address,
       })
-    })
 
-    it('should return default values when API call fails', async () => {
-      // Arrange
-      const address = '0xtoken'
-      const network = NetworksEnum.chilizMainnet
-
-      sandbox.stub(ChilizProvider, '_rpcCall').rejects(new Error('API Error'))
-
-      // Act
-      const result = await ChilizProvider.getTokenCounters({ address, network })
-
-      // Assert
       expect(result).to.deep.equal({
         transfers: 0,
-        holders: 0,
-      })
-    })
-  })
-
-  describe('getTokenHoldersPage', () => {
-    it('should fetch token holders for a specific page', async () => {
-      // Arrange
-      const tokenAddress = '0xtoken'
-      const network = NetworksEnum.chilizMainnet
-      const page = 1
-      const pageSize = 100
-
-      const mockResponse = {
-        message: 'OK',
-        result: [
-          { address: '0xe02f37d18a73736837f818476d48ef8db1188611', value: '1000000000000000000' },
-          { address: '0xe02f37d18a73736837f818476d48ef8db1188612', value: '2000000000000000000' },
-          { address: '0xe02f37d18a73736837f818476d48ef8db1188613', value: '3000000000000000000' },
-        ],
-      }
-
-      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(mockResponse)
-
-      // Act
-      const result = await ChilizProvider.getTokenHoldersPage(tokenAddress, network, page, pageSize)
-
-      // Assert
-      expect(rpcCallStub.calledOnce).to.be.true
-      expect(rpcCallStub.firstCall.args[0]).to.equal('api')
-      expect(rpcCallStub.firstCall.args[1]).to.deep.equal({
-        module: 'token',
-        action: 'getTokenHolders',
-        contractaddress: tokenAddress,
-        page,
-        offset: pageSize,
-      })
-      expect(rpcCallStub.firstCall.args[2]).to.equal(network)
-
-      expect(result).to.deep.equal({
-        holders: [
-          { address: ethers.getAddress('0xe02f37d18a73736837f818476d48ef8db1188611'), value: '1000000000000000000' },
-          { address: ethers.getAddress('0xe02f37d18a73736837f818476d48ef8db1188612'), value: '2000000000000000000' },
-          { address: ethers.getAddress('0xe02f37d18a73736837f818476d48ef8db1188613'), value: '3000000000000000000' },
-        ],
-        total: 3,
-      })
-    })
-
-    it('should use default page and pageSize when not provided', async () => {
-      // Arrange
-      const tokenAddress = '0xtoken'
-      const network = NetworksEnum.chilizMainnet
-
-      const mockResponse = {
-        message: 'OK',
-        result: [{ address: '0xholder1', value: '1000000000000000000' }],
-      }
-
-      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(mockResponse)
-
-      // Act
-      await ChilizProvider.getTokenHoldersPage(tokenAddress, network)
-
-      // Assert
-      expect(rpcCallStub.firstCall.args[1]).to.deep.equal({
-        module: 'token',
-        action: 'getTokenHolders',
-        contractaddress: tokenAddress,
-        page: 1,
-        offset: 100,
-      })
-    })
-
-    it('should return empty holders when response is not OK', async () => {
-      // Arrange
-      const tokenAddress = '0xtoken'
-      const network = NetworksEnum.chilizMainnet
-
-      const mockResponse = {
-        message: 'NOTOK',
-        result: [],
-      }
-
-      sandbox.stub(ChilizProvider, '_rpcCall').resolves(mockResponse)
-
-      const result = await ChilizProvider.getTokenHoldersPage(tokenAddress, network)
-
-      // Assert
-      expect(result).to.deep.equal({
-        holders: [],
-        total: 0,
-      })
-    })
-
-    it('should return empty holders when result is not an array', async () => {
-      // Arrange
-      const tokenAddress = '0xtoken'
-      const network = NetworksEnum.chilizMainnet
-
-      const mockResponse = {
-        message: 'OK',
-        result: null,
-      }
-
-      sandbox.stub(ChilizProvider, '_rpcCall').resolves(mockResponse)
-
-      const result = await ChilizProvider.getTokenHoldersPage(tokenAddress, network)
-
-      // Assert
-      expect(result).to.deep.equal({
-        holders: [],
-        total: 0,
-      })
-    })
-
-    it('should handle API errors gracefully', async () => {
-      // Arrange
-      const tokenAddress = '0xtoken'
-      const network = NetworksEnum.chilizMainnet
-
-      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').rejects(new Error('API Error'))
-
-      // Act
-      const result = await ChilizProvider.getTokenHoldersPage(tokenAddress, network)
-
-      // Assert
-      expect(rpcCallStub.calledOnce).to.be.true
-      expect(loggerStub.calledOnce).to.be.true
-      expect(result).to.deep.equal({
-        holders: [],
-        total: 0,
-      })
-    })
-  })
-
-  describe('_getAllTokenHolders', () => {
-    it('should fetch all token holders with pagination and callback', async () => {
-      // Arrange
-      const tokenAddress = '0xtoken'
-      const network = NetworksEnum.chilizMainnet
-      const mockCallback = sandbox.stub()
-
-      const page1Holders = Array.from({ length: 100 }, (_, i) => ({
-        address: `0xholder${i}`,
-        value: `${(i + 1) * 1000000000000000000}`,
-      }))
-
-      const page2Holders = [
-        { address: '0xholder100', value: '101000000000000000000' },
-        { address: '0xholder101', value: '102000000000000000000' },
-      ]
-
-      const getTokenHoldersPageStub = sandbox.stub(ChilizProvider, 'getTokenHoldersPage')
-      getTokenHoldersPageStub.onCall(0).resolves({ holders: page1Holders, total: 100 })
-      getTokenHoldersPageStub.onCall(1).resolves({ holders: page2Holders, total: 2 })
-
-      const waitStub = sandbox.stub(utils, 'wait').resolves()
-
-      // Act
-      const result = await ChilizProvider._getAllTokenHolders(
-        tokenAddress,
-        network,
-        { pageSize: 100, delayMs: 500, startPage: 1 },
-        mockCallback,
-      )
-
-      // Assert
-      expect(getTokenHoldersPageStub.callCount).to.equal(2)
-      expect(getTokenHoldersPageStub.firstCall.args).to.deep.equal([tokenAddress, network, 1, 100])
-      expect(getTokenHoldersPageStub.secondCall.args).to.deep.equal([tokenAddress, network, 2, 100])
-
-      expect(mockCallback.callCount).to.equal(2)
-      expect(mockCallback.firstCall.args).to.deep.equal([
-        page1Holders,
-        { currentPage: 1, isLastPage: false, total: 100 },
-      ])
-      expect(mockCallback.secondCall.args).to.deep.equal([page2Holders, { currentPage: 2, isLastPage: true, total: 2 }])
-
-      expect(waitStub.calledOnce).to.be.true
-      expect(waitStub.firstCall.args[0]).to.equal(500)
-
-      expect(result).to.deep.equal({
-        holders: [...page1Holders, ...page2Holders],
-        total: 102,
-        hasMore: false,
-        lastPage: 2,
-      })
-    })
-
-    it('should work without callback', async () => {
-      // Arrange
-      const tokenAddress = '0xtoken'
-      const network = NetworksEnum.chilizMainnet
-
-      const holders = [
-        { address: '0xholder1', value: '1000000000000000000' },
-        { address: '0xholder2', value: '2000000000000000000' },
-      ]
-
-      const getTokenHoldersPageStub = sandbox.stub(ChilizProvider, 'getTokenHoldersPage').resolves({
-        holders,
-        total: 2,
-      })
-
-      // Act
-      const result = await ChilizProvider._getAllTokenHolders(tokenAddress, network)
-
-      // Assert
-      expect(getTokenHoldersPageStub.calledOnce).to.be.true
-      expect(result).to.deep.equal({
-        holders,
-        total: 2,
-        hasMore: false,
-        lastPage: 1,
-      })
-    })
-
-    it('should stop when no more holders are found', async () => {
-      // Arrange
-      const tokenAddress = '0xtoken'
-      const network = NetworksEnum.chilizMainnet
-
-      const getTokenHoldersPageStub = sandbox.stub(ChilizProvider, 'getTokenHoldersPage').resolves({
-        holders: [],
-        total: 0,
-      })
-
-      // Act
-      const result = await ChilizProvider._getAllTokenHolders(tokenAddress, network)
-
-      // Assert
-      expect(getTokenHoldersPageStub.calledOnce).to.be.true
-      expect(result).to.deep.equal({
-        holders: [],
-        total: 0,
-        hasMore: false,
-        lastPage: 1,
-      })
-    })
-
-    it('should handle custom start page', async () => {
-      // Arrange
-      const tokenAddress = '0xtoken'
-      const network = NetworksEnum.chilizMainnet
-      const startPage = 5
-
-      const holders = [{ address: '0xholder1', value: '1000000000000000000' }]
-
-      const getTokenHoldersPageStub = sandbox.stub(ChilizProvider, 'getTokenHoldersPage').resolves({
-        holders,
-        total: 1,
-      })
-
-      // Act
-      const result = await ChilizProvider._getAllTokenHolders(tokenAddress, network, {
-        pageSize: 100,
-        delayMs: 500,
-        startPage,
-      })
-
-      // Assert
-      expect(getTokenHoldersPageStub.firstCall.args[2]).to.equal(startPage)
-      expect(result.lastPage).to.equal(startPage)
-    })
-
-    it('should handle errors gracefully', async () => {
-      // Arrange
-      const tokenAddress = '0xtoken'
-      const network = NetworksEnum.chilizMainnet
-
-      const getTokenHoldersPageStub = sandbox
-        .stub(ChilizProvider, 'getTokenHoldersPage')
-        .rejects(new Error('API Error'))
-
-      // Act
-      const result = await ChilizProvider._getAllTokenHolders(tokenAddress, network)
-
-      // Assert
-      expect(getTokenHoldersPageStub.calledOnce).to.be.true
-      expect(loggerStub.calledOnce).to.be.true
-      expect(result).to.deep.equal({
-        holders: [],
-        total: 0,
-        hasMore: false,
-        lastPage: 1,
+        holders: 10,
       })
     })
   })

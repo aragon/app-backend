@@ -1,11 +1,10 @@
 import logger from '@logger'
 import {
   type IAlchemyTransferResponse,
-  IEnumIndexerService,
   ITransactionType,
   type IWeb3Provider,
   type IWeb3TokenBalance,
-  type NetworksEnum,
+  NetworksEnum,
 } from '@types'
 import { ProxyToken } from '@modules/proxyToken'
 import utils from '@helpers/utils'
@@ -13,13 +12,13 @@ import Alchemy from '@helpers/alchemy'
 import Web3Utils from '@helpers/web3Utils'
 import BlockScoutHelper from '@helpers/blockScout'
 import Web3Helper from '@helpers/web3'
-import EtherscanHelper from '@helpers/etherscan'
 import CovalentHelper from '@helpers/covalent'
 import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
 import { RateModule } from '@modules/rates'
 import TokenUtils from '@helpers/tokenUtils'
-import ProxyUtils from '@modules/proxyProvider/utils'
 import AnkrHelper from '@helpers/ankrHelper'
+import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
+import ConfigIndexerHelper from '@helpers/configIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ProxyWeb3' })
 
@@ -64,35 +63,64 @@ const Web3Provider: IWeb3Provider = {
   },
 
   fetchContractCreation: async ({ address, network }) => {
-    const contractInfo = await EtherscanHelper.fetchContractCreation({
-      contractAddress: address,
-      network,
-    })
-
-    if (contractInfo?.length) {
-      const txHash = contractInfo[0].txHash
-      const txReceipt = await Web3Helper.getTransaction(txHash, network)
-      return {
-        blockNumber: txReceipt?.blockNumber || 0,
-        transactionHash: txHash,
-        address,
-      }
+    const explorers = [EvmExplorerEnum.ETHERSCAN, EvmExplorerEnum.BLOCKSCOUT, EvmExplorerEnum.ROUTESCAN]
+    if (network === NetworksEnum.zksyncMainnet || network === NetworksEnum.zksyncSepolia) {
+      explorers.unshift(EvmExplorerEnum.ZKSYNC)
     }
 
-    return { blockNumber: 0, transactionHash: null, address }
+    const result = await utils.fallbackCall(
+      explorers,
+      async (explorerType: EvmExplorerEnum) => {
+        return await evmExplorerClient.fetchContractCreation(explorerType, address, network)
+      },
+      {
+        validate: (result: any) => !!result?.transactionHash,
+        onError: (error: any, explorerType: any, index: any) => {
+          logger.warn(
+            `Failed to fetch contract creation from ${explorerType}`,
+            llo({
+              error: error.message,
+              address,
+              network,
+              explorerType,
+              attemptIndex: index,
+            }),
+          )
+        },
+      },
+    )
+
+    return result || { blockNumber: 0, transactionHash: null, address }
   },
 
   fetchContractSourceCode: async ({ address, network }) => {
-    let contractDetails = await BlockScoutHelper.getContractSourceCode(address, network)
-
-    if (!contractDetails) {
-      contractDetails = await EtherscanHelper.fetchContractSourceCode({
-        contractAddress: address,
-        network,
-      })
+    const explorers = [EvmExplorerEnum.ETHERSCAN, EvmExplorerEnum.BLOCKSCOUT, EvmExplorerEnum.ROUTESCAN]
+    if (network === NetworksEnum.zksyncMainnet || network === NetworksEnum.zksyncSepolia) {
+      explorers.unshift(EvmExplorerEnum.ZKSYNC)
     }
+    const result = await utils.fallbackCall(
+      explorers,
+      async (explorerType: EvmExplorerEnum) => {
+        return await evmExplorerClient.fetchContractSourceCode(explorerType, address, network)
+      },
+      {
+        validate: (result: any) => !!result,
+        onError: (error: any, explorerType: any, index: any) => {
+          logger.warn(
+            `Failed to fetch contract source code from ${explorerType}`,
+            llo({
+              error: error.message,
+              address,
+              network,
+              explorerType,
+              attemptIndex: index,
+            }),
+          )
+        },
+      },
+    )
 
-    return contractDetails
+    return result || null
   },
 
   fetchBasicTokenInfo: async ({ address, network }) => {
@@ -149,7 +177,7 @@ const Web3Provider: IWeb3Provider = {
       onError: async (error: any) => {
         logger.error('Error deposit transfer', llo({ error, type: ITransactionType.deposit, dao: address, network }))
       },
-      logService: `deposit-${address}-${IEnumIndexerService.depositTxs}` as any,
+      logService: ConfigIndexerHelper.builders.deposit(network, address),
       stopOnError: true,
     })
 
@@ -174,7 +202,7 @@ const Web3Provider: IWeb3Provider = {
       onError: async (error: any) => {
         logger.error('Error withdraw transfer', llo({ error, type: ITransactionType.withdraw, address, network }))
       },
-      logService: `withdraw-${address}-${IEnumIndexerService.withdrawTxs}` as any,
+      logService: ConfigIndexerHelper.builders.withdraw(network, address),
       stopOnError: true,
     })
 
@@ -194,58 +222,6 @@ const Web3Provider: IWeb3Provider = {
 
   searchDetailsOfContract: async ({ address, network }) => {
     return await BlockScoutHelper.searchDetails(address, network)
-  },
-
-  getAllTokenHolders: async ({
-    address,
-    network,
-    callback,
-    syncKey,
-  }: {
-    address: string
-    network: NetworksEnum
-    callback: ({ address, value }: { address: string; value: string }) => Promise<void> | void
-    syncKey?: string
-  }) => {
-    const syncProgress = await ProxyUtils.getProgressFromConfigIndexer(network, syncKey)
-
-    if (syncProgress?.end) {
-      logger.verbose('Token holder sync already completed', llo({ address, network, syncKey }))
-      return
-    }
-
-    const initialPage = syncProgress ? syncProgress.lastSync + 1 : 0
-
-    try {
-      return await BlockScoutHelper.getAllTokenHolders(
-        address,
-        network,
-        { pageSize: 1000, delayMs: 500, startPage: initialPage },
-        async (holders, pageInfo) => {
-          await Promise.all(holders.map(async holder => await callback(holder)))
-
-          if (syncKey) {
-            logger.verbose(
-              'Update progress in config indexer',
-              llo({
-                page: pageInfo.currentPage,
-                address,
-                network,
-                syncKey,
-              }),
-            )
-            await ProxyUtils.updateProgressInConfigIndexer(
-              network,
-              syncKey,
-              pageInfo.currentPage,
-              pageInfo.isLastPage || false,
-            )
-          }
-        },
-      )
-    } catch (error) {
-      logger.error('Error in getAllTokenHolders', llo({ error, address, network }))
-    }
   },
 
   fetchHistoricalTokenPrice: async ({ symbol, address, network, date }) => {

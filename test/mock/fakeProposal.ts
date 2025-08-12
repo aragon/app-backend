@@ -14,7 +14,6 @@ export const ProposalList = [
     creatorAddress: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
     startDate: 1680187320,
     endDate: 1680191520,
-    approvalReached: false,
     metadataUri: 'ipfs://QmXKUXTBQ3TkBiJEGhgnTfF38Q41Z2ZJmJchHN3bqoSCGR',
     title: 'Withdraw funds',
     description: '<p>Withdraw funds</p>',

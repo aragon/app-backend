@@ -150,7 +150,7 @@ export const ProposalHandler = {
 
       if (settings) {
         rawSettings = {
-          id: settings?.id,
+          id: settings.id,
           transactionHash: settings.transactionHash,
           blockNumber: settings.blockNumber,
           blockTimestamp: settings.blockTimestamp,
@@ -158,7 +158,7 @@ export const ProposalHandler = {
           daoAddress: settings.daoAddress,
           pluginAddress: settings.pluginAddress,
           pluginSubdomain: settings.pluginSubdomain,
-          tokenAddress: settings.tokenAddress,
+          tokenAddress: settings?.tokenAddress, // token address is optional
           onlyListed: settings?.onlyListed,
           minApprovals: settings?.minApprovals,
           votingMode: settings?.votingMode,
@@ -170,10 +170,12 @@ export const ProposalHandler = {
         }
       }
 
+      const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
+
       const document: Partial<Proposal> = {
         network: info.network,
         blockNumber: info.blockNumber,
-        blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+        blockTimestamp,
         transactionHash: info.transactionHash,
         title: proposalMetadata?.title!,
         description: proposalMetadata?.description!,
@@ -208,11 +210,15 @@ export const ProposalHandler = {
       }
 
       if (document?.settings?.tokenAddress && relatedPlugin.interfaceType === IPluginInterfaceType.tokenVoting) {
-        const totalSupply = await GovernanceErc20Helper.getPastTotalSupply(
-          document.blockNumber! - 1,
-          document?.settings.tokenAddress,
-          document.network!,
-        )
+        const token = await ProxyToken.saveAndGetToken(document.settings.tokenAddress, info.network)
+
+        const totalSupply = await GovernanceErc20Helper.getPastTotalSupply({
+          blockNumber: info.blockNumber,
+          tokenAddress: document.settings.tokenAddress,
+          network: info.network,
+          clockMode: token?.clockMode!,
+          blockTimestamp,
+        })
 
         document.snapshot = {
           totalSupply: totalSupply?.toString() ?? '0',
@@ -227,6 +233,13 @@ export const ProposalHandler = {
         })
         document.snapshot = {
           membersCount: members.length,
+        }
+      }
+
+      if (relatedPlugin.interfaceType === IPluginInterfaceType.tokenVoting && !document?.settings?.tokenAddress) {
+        logger.error('Error ProposalHandler.proposalCreated - tokenAddress is missing', llo({ ...info, parsedEvent }))
+        document.snapshot = {
+          totalSupply: '0',
         }
       }
 

@@ -10,8 +10,12 @@ import Web3Utils from '@helpers/web3Utils'
 import { PermissionHandler } from '@src/handlers/permissionHandler'
 import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
 import { IPermission } from '@src/types/permission'
+import ConfigIndexerHelper from '@helpers/configIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogAdmin' })
+
+const GrantedTopicHash = new Interface(DAO.abi).getEvent('Granted')?.topicHash!
+const RevokedTopicHash = new Interface(DAO.abi).getEvent('Revoked')?.topicHash!
 
 export const LogAdmin = {
   start: async (plugin: Plugin) => {
@@ -29,10 +33,11 @@ export const LogAdmin = {
       address: plugin.address,
       fromBlock: plugin?.blockNumber,
       onError: async (error: any, log: any) => LogAdmin.processError(error, plugin, log),
-      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}`,
+      logService: ConfigIndexerHelper.builders.plugin(plugin.interfaceType, plugin.network, plugin.address),
       stopOnError: true,
     })
     await crawler.crawl()
+    await crawler.end()
 
     logger.verbose('End LogAdmin', llo({ network: plugin.network, latestBlockSync: crawler.crawlSetting.lastSync }))
   },
@@ -57,10 +62,7 @@ export const LogAdmin = {
   async _syncAdminMember(plugin: Plugin) {
     const txReceipt = await Web3Helper.getTransactionReceipt(plugin.transactionHash, plugin.network)
 
-    const topics = [
-      new Interface(DAO.abi).getEvent('Granted')?.topicHash!,
-      new Interface(DAO.abi).getEvent('Revoked')?.topicHash!,
-    ]
+    const topics = [GrantedTopicHash, RevokedTopicHash]
 
     const events = txReceipt!.logs.filter(log => topics.includes(log.topics[0]))
 

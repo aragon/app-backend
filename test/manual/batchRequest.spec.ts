@@ -7,7 +7,7 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import configIndexer from '@indexer/configIndexer'
 import { ProxyToken } from '@modules/proxyToken'
 
-describe('Manual: BathRequest', () => {
+describe('Manual: BatchRequest', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {

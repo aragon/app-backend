@@ -12,9 +12,25 @@ const RabbitMQ = {
   noopInterval: null as NodeJS.Timeout | null,
 
   async connect(): Promise<boolean> {
-    return await new Promise((resolve, _reject) => {
+    return await new Promise((resolve, reject) => {
       // Avoid re-connecting if already connected
-      if (RabbitMQ.connection) resolve(true)
+      if (RabbitMQ.connection && RabbitMQ.isConnected()) {
+        resolve(true)
+        return
+      }
+
+      // Set a connection timeout
+      const connectionTimeout = setTimeout(() => {
+        const error = new Error('RabbitMQ connection timeout')
+        logger.error(
+          'RabbitMQ connection timeout',
+          llo({
+            uri: config.RABBITMQ.URI,
+            timeout: config.RABBITMQ.TIMEOUT,
+          }),
+        )
+        reject(error)
+      }, config.RABBITMQ.TIMEOUT)
 
       RabbitMQ.connection = connect([config.RABBITMQ.URI], {
         heartbeatIntervalInSeconds: config.RABBITMQ.HEARTBEAT_INTERVAL_SECONDS,
@@ -27,20 +43,44 @@ const RabbitMQ = {
         },
       })
 
+      // Track if we've resolved the promise
+      let promiseResolved = false
+
       RabbitMQ.connection.on('connect', () => {
+        clearTimeout(connectionTimeout)
         logger.info('RabbitMQ connected', llo({ uri: config.RABBITMQ.URI }))
         RabbitMQ.startNoopInterval()
-        resolve(true)
+
+        // Only resolve once
+        if (!promiseResolved) {
+          promiseResolved = true
+          resolve(true)
+        }
       })
-      RabbitMQ.connection.on('disconnect', err => {
+
+      RabbitMQ.connection.on('disconnect', (err: Error) => {
         logger.error('RabbitMQ disconnected', llo({ reason: err }))
         RabbitMQ.stopNoopInterval()
-        resolve(false)
+
+        // If we haven't resolved yet, this is a connection failure
+        if (!promiseResolved) {
+          promiseResolved = true
+          clearTimeout(connectionTimeout)
+          reject(new Error(`RabbitMQ connection failed: ${err?.message || 'Unknown error'}`))
+        }
       })
-      RabbitMQ.connection.on('connectFailed', err => {
+
+      RabbitMQ.connection.on('connectFailed', (err: Error) => {
         logger.error('RabbitMQ connect failed', llo({ reason: err }))
         RabbitMQ.stopNoopInterval()
-        resolve(false)
+
+        // Always reject on connect failed if we haven't resolved yet
+        if (!promiseResolved) {
+          promiseResolved = true
+          clearTimeout(connectionTimeout)
+          logger.error('RabbitMQ connection failed', llo({ reason: err?.message || 'Unknown error' }))
+          resolve(true)
+        }
       })
 
       // For each queue in EnumQueueName, create a dedicated channel wrapper
@@ -64,6 +104,28 @@ const RabbitMQ = {
     })
   },
 
+  /**
+   * Check if RabbitMQ is connected
+   */
+  isConnected(): boolean {
+    return RabbitMQ.connection?.isConnected() || false
+  },
+
+  /**
+   * Get connection status
+   */
+  getStatus(): {
+    connected: boolean
+    uri: string
+    channels: number
+  } {
+    return {
+      connected: RabbitMQ.isConnected(),
+      uri: config.RABBITMQ.URI,
+      channels: RabbitMQ.channelsMap.size,
+    }
+  },
+
   getChannel(queueName: EnumQueueName): ChannelWrapper {
     if (!RabbitMQ.connection) {
       throw new Error('RabbitMQ is not connected. Call RabbitMQ.connect() first.')
@@ -85,6 +147,7 @@ const RabbitMQ = {
         logger.warn('Error closing RabbitMQ connection', llo({ err }))
       } finally {
         RabbitMQ.connection = null
+        RabbitMQ.channelsMap.clear()
       }
     }
   },
@@ -100,7 +163,6 @@ const RabbitMQ = {
   /**
    * Starts a noop interval to keep the RabbitMQ connection alive.
    */
-
   startNoopInterval(): void {
     if (RabbitMQ.noopInterval) {
       clearInterval(RabbitMQ.noopInterval)

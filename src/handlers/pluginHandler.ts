@@ -10,6 +10,7 @@ import {
   IPluginStatus,
   type IQueryGetPlugin,
   type NetworksEnum,
+  EnumQueueName,
 } from '@types'
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
 import type Plugin from '@models/schema/plugin'
@@ -23,8 +24,15 @@ import { PluginSlug } from '@helpers/pluginSlug'
 import DbTx from '@modules/dbTx'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import { MetadataHandler } from '@handlers/metadataHandler'
+import RabbitMQHelper from '@src/helpers/rabbitMQ'
+import { ethers, Interface } from 'ethers'
+import { DAO } from '@artifacts/dao'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PluginHandler' })
+
+const InstallationAppliedTopicHash = new Interface(PluginSetupProcessor.abi).getEvent('InstallationApplied')?.topicHash!
+const GrantedTopicHash = new Interface(DAO.abi).getEvent('Granted')?.topicHash!
+const RevokeTopicHash = new Interface(DAO.abi).getEvent('Revoke')?.topicHash!
 
 export const PluginHandler = {
   async _queryGetPlugin({
@@ -565,11 +573,17 @@ export const PluginHandler = {
       const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, network)
       const uninstallationAppliedLogs = Web3Utils.findLogsByName(
         txReceipt!,
-        'UninstallationApplied',
+        IEventLogPluginType.UninstallationApplied,
         PluginSetupProcessor.abi,
       )
 
-      if (uninstallationAppliedLogs.length > 0) {
+      const installationPreparedLogs = Web3Utils.findLogsByName(
+        txReceipt!,
+        IEventLogPluginType.InstallationPrepared,
+        PluginSetupProcessor.abi,
+      )
+
+      if (uninstallationAppliedLogs.length > 0 || installationPreparedLogs.length > 0) {
         return
       }
 
@@ -619,18 +633,36 @@ export const PluginHandler = {
         return
       }
 
-      const installationAppliedLogs = Web3Utils.findLogsByName(
-        txReceipt,
-        IEventLogPluginType.InstallationApplied,
-        PluginSetupProcessor.abi,
-      )
+      const installationAppliedLogs = txReceipt.logs.filter(log => InstallationAppliedTopicHash === log.topics[0])
 
-      if (installationAppliedLogs.length > 0) {
-        return
-      }
+      const executePermissionId = ethers.id('EXECUTE_PERMISSION')
 
       if (pluginDb.status === IPluginStatus.installed) {
         return
+      }
+
+      // After the applied log, we need to check if there is a next execute permission event
+      // So we can be sure that we need to install the plugin
+
+      if (installationAppliedLogs.length > 0) {
+        const lastAppliedLog = Web3Utils.parseInfoLog(
+          installationAppliedLogs[installationAppliedLogs.length - 1],
+          IEventLogPluginType.InstallationApplied,
+          info.network,
+        )
+        const lastAppliedLogIndex = lastAppliedLog.logIndex
+
+        const nextPermissionEvent = txReceipt.logs.find((log: any) => {
+          const isPermissionEvent =
+            log.address === daoDb.address &&
+            (log.topics[0] === GrantedTopicHash || log.topics[0] === RevokeTopicHash) &&
+            log.topics[1] === executePermissionId
+          return isPermissionEvent && log.logIndex > lastAppliedLogIndex
+        })
+
+        if (!nextPermissionEvent) {
+          return
+        }
       }
 
       const pluginInfo = await PluginDetector.detectPluginType(pluginDb.address, info.network)
@@ -716,5 +748,44 @@ export const PluginHandler = {
     } catch (error) {
       logger.error('Error Uninstall Plugin', llo({ pluginLog, error }))
     }
+  },
+
+  updateConditionAddress: async (
+    pluginAddress: HexAddress,
+    daoAddress: HexAddress,
+    network: NetworksEnum,
+    conditionAddress: HexAddress | null,
+  ): Promise<void> => {
+    const plugin = await Models.Plugin.findOne({
+      address: pluginAddress,
+      daoAddress,
+      network,
+    })
+
+    if (!plugin) {
+      logger.warn('Plugin not found for updating condition address', llo({ pluginAddress, daoAddress, network }))
+      return
+    }
+
+    if (plugin.conditionAddress === conditionAddress) {
+      return
+    }
+
+    await DbOperations.updateDocument(
+      plugin,
+      { conditionAddress },
+      { logId: plugin.id, conditionAddress },
+      'Update Plugin Condition Address',
+      llo,
+    )
+
+    await RabbitMQHelper.sendMessage(EnumQueueName.logSelectorPermission, {
+      id: plugin.id,
+      params: {
+        address: plugin.address,
+        network: plugin.network,
+        conditionAddress,
+      },
+    })
   },
 }

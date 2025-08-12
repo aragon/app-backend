@@ -55,6 +55,11 @@ export interface IConfig {
     URI: string
     API_KEY: string
   }
+  CHILIZ_API_URL: string
+  ZKSYNC_BLOCK_EXPLORER_API: {
+    MAINNET_BASE_URI: string
+    SEPOLIA_BASE_URI: string
+  }
   BATCH_REQUEST: {
     DEFAULT_SIZE: number
   }
@@ -75,7 +80,6 @@ export interface IConfig {
   SUPPORTED_NETWORKS: NetworksEnum[]
   WHITELIST_TOKENS: ITokenData[]
   CUSTOM_INSTALL: boolean
-  IGNORE_TRANSFER: boolean
   DEFAULT_CURRENCY: string
   RABBITMQ: {
     URI: string
@@ -122,6 +126,7 @@ export interface IConfig {
     CONNECTION_RETRY: number
     CONNECTION_TIMEOUT: number
     CONNECTION_DELAY: number
+    SYNC_MODELS: boolean
   }
   LOG: {
     LEVEL: string

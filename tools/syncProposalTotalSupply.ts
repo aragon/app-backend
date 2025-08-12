@@ -11,13 +11,17 @@ export const SyncProposalTotalSupply: IService = {
 
     await Promise.all(
       proposals.map(async (proposal: any) => {
-        const totalSupply = await GovernanceErc20Helper.getPastTotalSupply(
-          proposal.blockNumber,
-          proposal?.settings.tokenAddress,
-          proposal.network,
-        )
+        const token = await Models.Token.findOne({
+          address: proposal.settings.tokenAddress,
+        })
+        proposal.snapshot.totalSupply = await GovernanceErc20Helper.getPastTotalSupply({
+          blockNumber: proposal.blockNumber,
+          tokenAddress: proposal?.settings.tokenAddress,
+          network: proposal.network,
+          clockMode: token?.clockMode!,
+          blockTimestamp: proposal.blockTimestamp,
+        })
 
-        proposal.snapshot.totalSupply = totalSupply
         proposal.markModified('snapshot')
         await proposal.save()
       }),

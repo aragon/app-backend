@@ -416,7 +416,7 @@ class DecodeActions {
       return null
     }
 
-    const pluginDetails = await Models.Plugin.findByAddress(action.to, action.network)
+    const pluginDetails = await Models.Plugin.findByAddress(action.to, document.network)
     if (!pluginDetails) {
       return
     }
@@ -451,11 +451,11 @@ class DecodeActions {
       return null
     }
 
-    const pluginDetails = await Models.Plugin.findByAddress(action.to, action.network!)
-    if (!pluginDetails) {
+    const pluginDetails = await Models.Plugin.findByAddress(action.to, document.network!)
+    if (!pluginDetails?.tokenAddress) {
       return null
     }
-    const votingToken = await ProxyToken.saveAndGetToken(pluginDetails.tokenAddress, action.network!)
+    const votingToken = await ProxyToken.saveAndGetToken(pluginDetails.tokenAddress, pluginDetails.network)
 
     const activeSettings = await Models.Setting.findLastSettingByBlockNumber(
       pluginDetails.address,
@@ -474,6 +474,7 @@ class DecodeActions {
       : {}
 
     return {
+      network: pluginDetails.network,
       ...action,
       inputData: decodedData,
       type: ProposalActionType.UpdateVoteSettings,
@@ -688,9 +689,10 @@ class DecodeActions {
       }
 
       const iface = new ethers.Interface(contractAbi)
-      const decodedData: any = abiWithNetSpec?.inputs.length
-        ? iface.decodeFunctionData(abiWithNetSpec.fragment, rawAction.data).toArray()
-        : []
+      const decodedData: any =
+        abiWithNetSpec?.inputs.length && rawAction.data && rawAction.data !== '0x'
+          ? iface.decodeFunctionData(abiWithNetSpec.fragment, rawAction.data).toArray()
+          : []
 
       const decodedFormatted = decodedData.map((item: any) => (typeof item === 'bigint' ? item.toString() : item))
 

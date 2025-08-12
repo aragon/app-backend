@@ -6,6 +6,8 @@ import Web3Helper from '@helpers/web3'
 import { expect } from 'chai'
 import logger from '@logger'
 import ProxyContractHelper from '@helpers/proxyContract'
+import { ProxyToken } from '@modules/proxyToken'
+import GovernanceErc20Helper from '@helpers/governanceErc20'
 
 describe('Basic Integer Test', () => {
   let sandbox: sinon.SinonSandbox
@@ -60,5 +62,25 @@ describe('Basic Integer Test', () => {
     )
 
     expect(proxyAddress).to.be.eq('0x52Af16664155608b845BE18aa29620EbF6eA2D3a')
+  })
+
+  it('should get the clock mode to work properly when getting the pastSupply', async () => {
+    const token = '0xBB774BffdCAd6A5Bc25B614B494Ac7922Af339Ce'
+    const network = NetworksEnum.ethereumSepolia
+    const timestamp = Math.floor(Date.now() / 1000)
+
+    const tokenDb = await ProxyToken.saveAndGetToken(token, network)
+    if (!tokenDb) {
+      return
+    }
+    const supply = await GovernanceErc20Helper.getPastTotalSupply({
+      blockNumber: 123123123,
+      tokenAddress: tokenDb.address,
+      network,
+      clockMode: tokenDb.clockMode,
+      blockTimestamp: timestamp - 15000,
+    })
+
+    expect(Number(supply)).to.be.gt(0)
   })
 })

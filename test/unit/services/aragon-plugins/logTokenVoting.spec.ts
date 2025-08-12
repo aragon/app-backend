@@ -5,15 +5,12 @@ import { LogTokenVoting } from '@plugins/logTokenVoting'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { NetworksEnum, ITokenType } from '@types'
 import { expect } from 'chai'
-import { TokenHolderSync } from '@plugins/tokenHolderSync'
-import config from '@config'
 
 describe('AragonPlugins: LogTokenVoting', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
-    config.IGNORE_TRANSFER = false
   })
 
   afterEach(() => {
@@ -50,7 +47,6 @@ describe('AragonPlugins: LogTokenVoting', () => {
     it('should start erc20Governance flow for ERC20 token type', async () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
       const verboseStub = sandbox.stub(logger, 'verbose')
-      const isTokenNotEligibleStub = sandbox.stub(TokenHolderSync, 'isTokenNotEligibleForSync').resolves(false)
 
       const token = {
         address: '0x123',
@@ -67,7 +63,6 @@ describe('AragonPlugins: LogTokenVoting', () => {
 
       await LogTokenVoting.start(plugin, token)
 
-      expect(isTokenNotEligibleStub.calledOnce).to.be.true
       expect(crawlStub.calledTwice).to.be.true // Both plugin and token crawlers
       expect(verboseStub.calledWith('Start LogTokenVoting' as any)).to.be.true
       expect(verboseStub.calledWith('End LogTokenVoting' as any)).to.be.true
@@ -76,7 +71,6 @@ describe('AragonPlugins: LogTokenVoting', () => {
     it('should pass isHistorical flag to crawlers', async () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
       sandbox.stub(logger, 'verbose')
-      sandbox.stub(TokenHolderSync, 'isTokenNotEligibleForSync').resolves(false)
 
       const token = {
         address: '0x123',
@@ -99,7 +93,6 @@ describe('AragonPlugins: LogTokenVoting', () => {
     it('should handle standard flow when token is eligible for sync', async () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
       const verboseStub = sandbox.stub(logger, 'verbose')
-      const isTokenNotEligibleStub = sandbox.stub(TokenHolderSync, 'isTokenNotEligibleForSync').resolves(false)
 
       const token = {
         address: '0x123',
@@ -116,82 +109,9 @@ describe('AragonPlugins: LogTokenVoting', () => {
 
       await LogTokenVoting.erc20Governance(plugin, token)
 
-      expect(isTokenNotEligibleStub.calledOnce).to.be.true
       expect(crawlStub.calledTwice).to.be.true // Both plugin and token crawlers
       expect(verboseStub.calledWith('Start LogTokenVoting' as any)).to.be.true
       expect(verboseStub.calledWith('Start Token Sync' as any)).to.be.true
-      expect(verboseStub.calledWith('End LogTokenVoting' as any)).to.be.true
-    })
-
-    it('should skip sync for large tokens when IGNORE_TRANSFER is enabled', async () => {
-      config.IGNORE_TRANSFER = true
-
-      const token = {
-        address: '0x123',
-        network: NetworksEnum.ethereumSepolia,
-        type: ITokenType.ERC20,
-        save: sandbox.stub().resolves(),
-      } as any
-
-      const plugin = {
-        address: '0x456',
-        tokenAddress: token.address,
-        network: token.network,
-        blockNumber: 200,
-        interfaceType: 'tokenVoting',
-      } as any
-
-      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
-      sandbox.stub(TokenHolderSync, 'isTokenNotEligibleForSync').resolves(true)
-      const syncDelegationEventsStub = sandbox.stub(TokenHolderSync, 'syncDelegationEvents').resolves()
-      const convertToStandardSyncStub = sandbox.stub(TokenHolderSync, 'convertToStandardSync').resolves()
-      const verboseStub = sandbox.stub(logger, 'verbose')
-
-      await LogTokenVoting.erc20Governance(plugin, token)
-
-      expect(verboseStub.calledWith('Skip sync large token' as any)).to.be.true
-      expect(token.ignoreTransfer).to.be.true
-      expect(token.save.calledOnce).to.be.true
-      expect(crawlStub.calledOnce).to.be.true
-      expect(syncDelegationEventsStub.calledOnce).to.be.true
-      expect(convertToStandardSyncStub.calledOnce).to.be.true
-    })
-
-    it('should use delegation-only sync when token is not eligible but IGNORE_TRANSFER is false', async () => {
-      config.IGNORE_TRANSFER = false
-
-      const token = {
-        address: '0x123',
-        network: NetworksEnum.ethereumSepolia,
-        type: ITokenType.ERC20,
-        blockNumber: 100,
-        save: sandbox.stub().resolves(),
-      } as any
-
-      const plugin = {
-        address: '0x456',
-        tokenAddress: token.address,
-        network: token.network,
-        blockNumber: 200,
-        interfaceType: 'tokenVoting',
-      } as any
-
-      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
-      sandbox.stub(TokenHolderSync, 'isTokenNotEligibleForSync').resolves(true)
-      const syncDelegationStub = sandbox.stub(TokenHolderSync, 'syncDelegationEvents').resolves()
-      const convertToStandardStub = sandbox.stub(TokenHolderSync, 'convertToStandardSync').resolves()
-      const verboseStub = sandbox.stub(logger, 'verbose')
-
-      await LogTokenVoting.erc20Governance(plugin, token)
-
-      expect(token.ignoreTransfer).to.be.not.eq(true)
-      expect(token.save.calledOnce).to.be.false
-
-      expect(verboseStub.calledWith('Start LogTokenVoting' as any)).to.be.true
-      expect(verboseStub.calledWith('Start Sync Only Delegates Events' as any)).to.be.true
-      expect(syncDelegationStub.calledOnce).to.be.true
-      expect(convertToStandardStub.calledOnce).to.be.true
-      expect(crawlStub.calledOnce).to.be.true // Only plugin crawler
       expect(verboseStub.calledWith('End LogTokenVoting' as any)).to.be.true
     })
 
@@ -211,7 +131,6 @@ describe('AragonPlugins: LogTokenVoting', () => {
         type: ITokenType.ERC20,
       } as any
 
-      sandbox.stub(TokenHolderSync, 'isTokenNotEligibleForSync').resolves(false)
       sandbox.stub(logger, 'verbose')
       const error = new Error('Test error from plugin crawler')
 
@@ -248,7 +167,6 @@ describe('AragonPlugins: LogTokenVoting', () => {
         type: ITokenType.ERC20,
       } as any
 
-      sandbox.stub(TokenHolderSync, 'isTokenNotEligibleForSync').resolves(false)
       const error = new Error('Test error from token crawler')
       sandbox.stub(logger, 'verbose')
 
@@ -267,6 +185,33 @@ describe('AragonPlugins: LogTokenVoting', () => {
       expect(crawlStub.calledTwice).to.be.true
       expect(processErrorStub.calledOnce).to.be.true
       expect(processErrorStub.calledWith(error, pluginStub, { logIndex: 2, transactionHash: '0xhash2' })).to.be.true
+    })
+
+    it('should use tokenCrawler when token has no existing sync block', async () => {
+      // Setup
+      const token = {
+        address: '0x123',
+        network: NetworksEnum.ethereumSepolia,
+        type: ITokenType.ERC20,
+        blockNumber: 100,
+      } as any
+
+      const plugin = {
+        address: '0x456',
+        tokenAddress: token.address,
+        network: token.network,
+        blockNumber: 200,
+        interfaceType: 'tokenVoting',
+      } as any
+
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      sandbox.stub(logger, 'verbose')
+
+      // Act
+      await LogTokenVoting.erc20Governance(plugin, token)
+
+      // Assert
+      expect(crawlStub.calledTwice).to.be.true
     })
   })
 

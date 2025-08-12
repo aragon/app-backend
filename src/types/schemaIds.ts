@@ -2,6 +2,7 @@ import {
   type HexAddress,
   type IEventLogPluginType,
   type ITransactionCategory,
+  type LogServicePattern,
   type NetworksEnum,
 } from '@src/types/index'
 
@@ -46,7 +47,7 @@ export interface IAssetIdParams {
 
 export interface IConfigIndexerIdParams {
   network: NetworksEnum
-  service: string
+  service: LogServicePattern
 }
 
 export interface IDaoIdParams {
@@ -143,4 +144,12 @@ export interface IDaoPermissionId {
   transactionHash: HexAddress
   transactionIndex: number
   logIndex: number
+}
+
+export interface ISelectorPermissionIdParams {
+  network: NetworksEnum
+  transactionHash: HexAddress
+  transactionIndex: number
+  logIndex: number
+  conditionAddress: HexAddress
 }

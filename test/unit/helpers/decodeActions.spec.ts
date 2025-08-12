@@ -842,6 +842,218 @@ describe('Helpers: DecodeActions', () => {
       expect(getImplementationAddressStub.calledOnce).to.be.true
       expect(getContractSourceCode.calledOnce).to.be.true
     })
+
+    it('should handle when rawAction.data is 0x (empty data)', async () => {
+      const decodeActions = new DecodeActions()
+      const contractAddress = '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F'
+      const network = NetworksEnum.ethereumMainnet
+
+      const getImplementationAddressStub = sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
+      const getContractSourceCode = sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves([
+        {
+          SourceCode: 'contract IERC20MintableUpgradeable { function mint(address to, uint256 amount) public { } }',
+          ContractName: 'IERC20MintableUpgradeable',
+          ABI: JSON.stringify([
+            {
+              name: 'mint',
+              type: 'function',
+              inputs: [
+                { name: 'to', type: 'address' },
+                { name: 'amount', type: 'uint256' },
+              ],
+            },
+          ]),
+        },
+      ])
+      const parseNetspecStub = sandbox.stub(ContractNetspecHelper, 'parseNetspec').returns([
+        {
+          inputs: [
+            { name: 'to', type: 'address', notice: 'The address to mint tokens to' },
+            { name: 'amount', type: 'uint256', notice: 'The amount of tokens to mint' },
+          ],
+          notice: 'Mint tokens to a specific address',
+          name: 'mint',
+          type: 'function',
+        },
+      ])
+
+      const result = await decodeActions.parseContractNetspec(
+        'mint(address,uint256)',
+        {
+          to: contractAddress,
+          data: '0x', // Empty data
+          value: '0x',
+        },
+        network,
+      )
+
+      expect(result).to.deep.equal({
+        functionName: 'mint',
+        contractName: 'IERC20MintableUpgradeable',
+        proxyName: null,
+        implementationAddress: null,
+        inputs: [
+          {
+            name: 'to',
+            type: 'address',
+            components: undefined,
+            notice: 'The address to mint tokens to',
+            value: undefined, // No decoded value since data is empty
+          },
+          {
+            name: 'amount',
+            type: 'uint256',
+            components: undefined,
+            notice: 'The amount of tokens to mint',
+            value: undefined, // No decoded value since data is empty
+          },
+        ],
+        notice: 'Mint tokens to a specific address',
+      })
+
+      expect(getImplementationAddressStub.calledOnce).to.be.true
+      expect(getContractSourceCode.calledOnce).to.be.true
+      expect(parseNetspecStub.calledOnce).to.be.true
+    })
+
+    it('should handle when rawAction.data is null/undefined', async () => {
+      const decodeActions = new DecodeActions()
+      const contractAddress = '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F'
+      const network = NetworksEnum.ethereumMainnet
+
+      const getImplementationAddressStub = sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
+      const getContractSourceCode = sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves([
+        {
+          SourceCode: 'contract Test { function test() public { } }',
+          ContractName: 'Test',
+          ABI: JSON.stringify([
+            {
+              name: 'test',
+              type: 'function',
+              inputs: [],
+            },
+          ]),
+        },
+      ])
+      const parseNetspecStub = sandbox.stub(ContractNetspecHelper, 'parseNetspec').returns([
+        {
+          inputs: [],
+          notice: 'Test function',
+          name: 'test',
+          type: 'function',
+        },
+      ])
+
+      const result = await decodeActions.parseContractNetspec(
+        'test()',
+        {
+          to: contractAddress,
+          data: null as any, // null data
+          value: '0x',
+        },
+        network,
+      )
+
+      expect(result).to.deep.equal({
+        functionName: 'test',
+        contractName: 'Test',
+        proxyName: null,
+        implementationAddress: null,
+        inputs: [],
+        notice: 'Test function',
+      })
+    })
+
+    it('should handle function with no inputs', async () => {
+      const decodeActions = new DecodeActions()
+      const contractAddress = '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F'
+      const network = NetworksEnum.ethereumMainnet
+
+      const getImplementationAddressStub = sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
+      const getContractSourceCode = sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves([
+        {
+          SourceCode: 'contract Test { function pause() public { } }',
+          ContractName: 'Test',
+          ABI: JSON.stringify([
+            {
+              name: 'pause',
+              type: 'function',
+              inputs: [], // No inputs
+            },
+          ]),
+        },
+      ])
+      const parseNetspecStub = sandbox.stub(ContractNetspecHelper, 'parseNetspec').returns([
+        {
+          inputs: [], // No inputs
+          notice: 'Pause the contract',
+          name: 'pause',
+          type: 'function',
+        },
+      ])
+
+      const result = await decodeActions.parseContractNetspec(
+        'pause()',
+        {
+          to: contractAddress,
+          data: '0x8456cb59', // pause() selector
+          value: '0x',
+        },
+        network,
+      )
+
+      expect(result).to.deep.equal({
+        functionName: 'pause',
+        contractName: 'Test',
+        proxyName: null,
+        implementationAddress: null,
+        inputs: [], // Empty inputs array
+        notice: 'Pause the contract',
+      })
+
+      expect(getImplementationAddressStub.calledOnce).to.be.true
+      expect(getContractSourceCode.calledOnce).to.be.true
+      expect(parseNetspecStub.calledOnce).to.be.true
+    })
+
+    it('should handle when abiWithNetSpec is not found but still return parsed netspec', async () => {
+      const decodeActions = new DecodeActions()
+      const contractAddress = '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F'
+      const network = NetworksEnum.ethereumMainnet
+      const functionSelector = '0x12345678'
+
+      sandbox.stub(DecodeActions.prototype, '_getSignaturesFromAbi').returns([
+        {
+          method: 'someOtherFunction',
+          sig: '0x87654321', // Different selector
+          fragment: {} as any,
+          notice: 'Some other function',
+          inputs: [],
+        },
+      ])
+
+      const getImplementationAddressStub = sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
+      const getContractSourceCode = sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves([
+        {
+          SourceCode: 'contract Test { }',
+          ContractName: 'Test',
+          ABI: '[]',
+        },
+      ])
+      const parseNetspecStub = sandbox.stub(ContractNetspecHelper, 'parseNetspec').returns([])
+
+      const result = await decodeActions.parseContractNetspec(
+        functionSelector,
+        {
+          to: contractAddress,
+          data: functionSelector,
+          value: '0x',
+        },
+        network,
+      )
+
+      expect(result).to.be.null // Should return null when abiWithNetSpec is not found
+    })
   })
 
   describe('decodeAction', () => {
@@ -872,12 +1084,14 @@ describe('Helpers: DecodeActions', () => {
       }
 
       const getPluginDetails = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        network: NetworksEnum.ethereumSepolia,
+        tokenAddress: '0xAddress',
         address: action.to,
       })
       const getExistingSettingStub = sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(null)
 
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        address: '0xplugin1',
+        address: '0xAddress',
         name: 'Plugin 1',
         symbol: 'P1',
         decimals: 18,
@@ -887,6 +1101,7 @@ describe('Helpers: DecodeActions', () => {
       } as any)
 
       const result = await decodeActions._parseTokenVotingSettingUpdateAction(baseAction, action, {
+        network: NetworksEnum.ethereumSepolia,
         blockNumber: 123,
       })
       expect(result?.type).to.be.eq(ProposalActionType.UpdateVoteSettings)
@@ -958,6 +1173,7 @@ describe('Helpers: DecodeActions', () => {
       })
       const getPluginSettingsStub = sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(null)
       const result = await decodeActions._parseMultiSigSettingUpdateAction(baseAction, action, {
+        network: NetworksEnum.ethereumSepolia,
         blockNumber: 123,
       })
       expect(getPluginDetailsStub.calledOnce).to.be.true

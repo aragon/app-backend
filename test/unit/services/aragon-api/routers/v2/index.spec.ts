@@ -9,7 +9,6 @@ import utils from '@helpers/utils'
 import Koa from 'koa'
 import supertest from 'supertest'
 import VoteRouter from '@api/routers/v2/vote'
-import DelegateRouter from '@api/routers/v2/delegate'
 import AssetRouter from '@api/routers/v2/asset'
 import DaoRouter from '@api/routers/v2/dao'
 import SettingRouter from '@api/routers/v2/setting'
@@ -17,6 +16,7 @@ import TokenRouter from '@api/routers/v2/token'
 import TransactionRouter from '@api/routers/v2/transaction'
 import ContractRouter from '@api/routers/v2/contract'
 import PluginRouter from '@api/routers/v2/plugins'
+import ExecuteSelectorRouter from '@api/routers/v2/executeSelector'
 
 describe('RouterV2: V2Router', () => {
   let sandbox: SinonSandbox
@@ -41,7 +41,6 @@ describe('RouterV2: V2Router', () => {
 
     // Stub all v2 routers
     stubRouter(VoteRouter, 'votes')
-    stubRouter(DelegateRouter, 'delegates')
     stubRouter(AssetRouter, 'assets')
     stubRouter(DaoRouter, 'daos')
     stubRouter(MemberRouter, 'members')
@@ -51,6 +50,7 @@ describe('RouterV2: V2Router', () => {
     stubRouter(TransactionRouter, 'transactions')
     stubRouter(ContractRouter, 'contract')
     stubRouter(PluginRouter, 'plugins')
+    stubRouter(ExecuteSelectorRouter, 'execute-selectors')
 
     await utils.wait(100) // Small wait to ensure stubs are applied
 
@@ -60,8 +60,20 @@ describe('RouterV2: V2Router', () => {
     // Verify router is created correctly
     expect(v2Router instanceof Router).to.be.true
 
-    // Verify all routers are mounted
-    expect(use.callCount).to.be.eq(11) // 3 routers should be mounted
+    const routers = [
+      VoteRouter,
+      AssetRouter,
+      DaoRouter,
+      MemberRouter,
+      ProposalRouter,
+      SettingRouter,
+      TokenRouter,
+      TransactionRouter,
+      ContractRouter,
+      PluginRouter,
+      ExecuteSelectorRouter,
+    ]
+    expect(use.callCount).to.be.eq(routers.length)
 
     // Helper function to verify router mounting
     function expectRouter(path: string, name: string) {
@@ -76,10 +88,10 @@ describe('RouterV2: V2Router', () => {
     expectRouter('/settings', 'settings')
     expectRouter('/tokens', 'tokens')
     expectRouter('/transactions', 'transactions')
-    expectRouter('/delegates', 'delegates')
     expectRouter('/votes', 'votes')
     expectRouter('/contract', 'contract')
     expectRouter('/plugins', 'plugins')
+    expectRouter('/execute-selectors', 'execute-selectors')
   })
 
   it('Should create a functional router that can be used in a Koa app', async () => {
@@ -103,10 +115,10 @@ describe('RouterV2: V2Router', () => {
     emptyRouterStub(SettingRouter)
     emptyRouterStub(TokenRouter)
     emptyRouterStub(TransactionRouter)
-    emptyRouterStub(DelegateRouter)
     emptyRouterStub(VoteRouter)
     emptyRouterStub(ContractRouter)
     emptyRouterStub(PluginRouter)
+    emptyRouterStub(ExecuteSelectorRouter)
 
     // Create a test Koa app with the v2 router
     const app = new Koa()

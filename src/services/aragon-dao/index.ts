@@ -2,6 +2,7 @@ import logger from '@logger'
 import {
   EnumConnection,
   EnumQueueName,
+  type IGetLockVotingPowerBatch,
   type IGetVotingPower,
   type IProposalInfo,
   type IQueueAllMetrics,
@@ -12,7 +13,6 @@ import {
   type IQueueProposalMetrics,
   type IRawAction,
   type IService,
-  type IGetLockVotingPowerBatch,
 } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { DaoAssets } from '@services/aragon-dao/daoAssets'
@@ -27,11 +27,13 @@ import config from '@config'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import TokenFetcher from '@services/aragon-dao/tokenFetcher'
 import Plugin from '@services/aragon-dao/plugin'
+import ProxyWeb3Provider from '@modules/proxyProvider'
 
 const llo = logger.logMeta.bind(null, { service: 'service:DaoService' })
 
 const AragonDaoService: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
+  options: { mongoSync: config.MONGO_DB.SYNC_MODELS },
 
   start: async function () {
     await RabbitMQHelper.process(EnumQueueName.allMetrics, async job => {
@@ -106,6 +108,13 @@ const AragonDaoService: IService = {
     await RabbitMQHelper.process(EnumQueueName.pluginInstallationData, async (job: any) => {
       const { address, network } = job.params as IQueueContractInfo
       return await Plugin.getInstallationData(address, network)
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.getTokenStats, async (job: { params: IQueueContractInfo }) => {
+      return await ProxyWeb3Provider.getTokenCounters({
+        address: job.params.address,
+        network: job.params.network,
+      })
     })
 
     const tasks = [[{ fetchRates: TokenFetcher }]]

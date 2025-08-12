@@ -168,6 +168,7 @@ export default class Member extends Model {
             implementationAddress: 1,
             isSupported: 1,
             interfaceType: 1,
+            conditionAddress: 1,
             subdomain: 1,
             isProcess: 1,
             isBody: 1,

@@ -1,6 +1,3 @@
-import { type IPluginInterfaceType } from '@src/types/plugin'
-import { type NetworksEnum } from '@src/types/networks'
-
 export enum EnumConnection {
   MONGODB = 'MONGODB',
   BLOCKCHAIN = 'BLOCKCHAIN',
@@ -13,9 +10,17 @@ export interface IMigration {
   stop: () => void | Promise<void>
 }
 
-export interface IService {
-  NEED_CONNECTIONS: EnumConnection[]
+export interface IMigHelper {
+  countDocs: number
+}
 
+export interface IOptionService {
+  mongoSync: boolean
+}
+
+export interface IService {
+  options?: IOptionService
+  NEED_CONNECTIONS: EnumConnection[]
   start: () => Promise<any>
 
   stop: () => void | Promise<void>
@@ -27,11 +32,3 @@ export enum IEnumTaskStatus {
   DONE = 'DONE',
   ERROR = 'ERROR',
 }
-
-export enum IEnumIndexerService {
-  depositTxs = 'depositTxs',
-  withdrawTxs = 'withdrawTxs',
-}
-
-export type IEnumIndexerServiceStatic =
-  `${'indexer' | 'token' | 'deposit' | 'dao' | NetworksEnum | IPluginInterfaceType}-${string}-${string}`

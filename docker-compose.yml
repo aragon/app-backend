@@ -133,7 +133,6 @@ services:
 
   service-aragon-plugins:
     image: service-aragon-plugins-${ENV_SUFFIX}
-    container_name: service-aragon-plugins-${ENV_SUFFIX}
     build:
       context: .
     env_file:
@@ -151,6 +150,8 @@ services:
     networks:
       - internal-net
       - public-net
+    deploy:
+      replicas: 10
 
   service-aragon-rates:
     image: service-aragon-rates-${ENV_SUFFIX}
@@ -164,6 +165,27 @@ services:
     command: bash -c "yarn wait:rabbitmq && yarn service:aragon-rates"
     healthcheck:
       test: [ 'CMD-SHELL', "pgrep -f 'service:aragon-rates' > /dev/null || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - internal-net
+      - public-net
+
+  service-aragon-requeue:
+    image: service-aragon-requeue-${ENV_SUFFIX}
+    container_name: service-aragon-requeue-${ENV_SUFFIX}
+    build:
+      context: .
+    env_file:
+      - .env.aragon-requeue-${ENV_SUFFIX}
+    depends_on:
+      - rabbitmq
+    command: bash -c "yarn wait:rabbitmq && yarn service:aragon-requeue"
+    healthcheck:
+      test: [ 'CMD-SHELL', "pgrep -f 'service:aragon-requeue' > /dev/null || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 10

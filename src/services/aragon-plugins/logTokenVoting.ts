@@ -12,8 +12,7 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import type Plugin from '@models/schema/plugin'
 import configIndexer from '@indexer/configIndexer'
 import type Token from '@models/schema/token'
-import { TokenHolderSync } from './tokenHolderSync'
-import config from '@config'
+import ConfigIndexerHelper from '@helpers/configIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogTokenVoting' })
 
@@ -32,7 +31,7 @@ export const LogTokenVoting = {
       network: plugin.network,
       daoAddress: plugin.daoAddress,
       pluginAddress: plugin.address,
-      tokenAddress: token?.address,
+      tokenAddress: token.address,
     }
     logger.verbose('Start LogTokenVoting veGovernance', llo(infoLogs))
 
@@ -56,7 +55,7 @@ export const LogTokenVoting = {
       address: [plugin.address],
       fromBlock: plugin?.blockNumber,
       onError: async (error: any, log: any) => LogTokenVoting.processError(error, plugin, log),
-      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}`,
+      logService: ConfigIndexerHelper.builders.plugin(plugin.interfaceType, plugin.network, plugin.address),
       stopOnError: true,
     })
 
@@ -64,19 +63,28 @@ export const LogTokenVoting = {
       onlyHistorical: isHistorical,
       network: plugin.network,
       events: [...configEscrowAdapterILogs, ...configEscrowILogs, ...configExitQueueLogs],
-      address: [plugin.tokenAddress],
-      fromBlock: plugin?.blockNumber,
+      address: [
+        plugin.tokenAddress,
+        plugin.votingEscrow?.escrowAddress!,
+        plugin.votingEscrow?.exitQueueAddress!,
+      ].filter(Boolean),
+      fromBlock: token.blockNumber || plugin.blockNumber,
       onError: async (error: any, log: any) => LogTokenVoting.processError(error, plugin, log),
-      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}-${plugin.votingEscrow?.escrowAddress}`,
+      logService: ConfigIndexerHelper.builders.token(
+        ITokenType.escrowAdapter,
+        plugin.network,
+        plugin.votingEscrow?.escrowAddress!,
+      ),
       stopOnError: true,
     })
 
     logger.verbose('Start Token Sync', llo({ ...infoLogs, ...{ syncStrategy: 'BlockchainLogCrawler' } }))
 
-    const crawlers: any = [pluginCrawler.crawl(), veGovernanceCrawler.crawl()]
+    const crawlers: any = [pluginCrawler, veGovernanceCrawler]
 
     const startTime = Date.now()
-    await Promise.all(crawlers)
+    await Promise.all(crawlers.map(async (crawler: BlockchainLogCrawler) => crawler.crawl()))
+    await Promise.all(crawlers.map(async (crawler: BlockchainLogCrawler) => crawler.end()))
 
     logger.verbose(
       'End LogTokenVoting veGovernance',
@@ -113,40 +121,12 @@ export const LogTokenVoting = {
       address: [plugin.address],
       fromBlock: plugin?.blockNumber,
       onError: async (error: any, log: any) => LogTokenVoting.processError(error, plugin, log),
-      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}`,
+      logService: ConfigIndexerHelper.builders.plugin(plugin.interfaceType, plugin.network, plugin.address),
       stopOnError: true,
     })
     const startTime = Date.now()
 
-    const isNotEligibleForSync = await TokenHolderSync.isTokenNotEligibleForSync(token, plugin)
-    const skipSync = isNotEligibleForSync && config.IGNORE_TRANSFER
-
-    if (skipSync) {
-      logger.verbose('Skip sync large token', llo({ ...infoLogs }))
-      token.ignoreTransfer = true
-      await token.save()
-    }
-
-    if (isNotEligibleForSync) {
-      logger.verbose('Start Sync Only Delegates Events', llo({ ...infoLogs, skipSync }))
-
-      await Promise.all([pluginCrawler.crawl(), TokenHolderSync.syncDelegationEvents(plugin, token)])
-
-      await TokenHolderSync.convertToStandardSync(plugin, token)
-
-      logger.verbose(
-        'End LogTokenVoting',
-        llo({
-          ...infoLogs,
-          syncStrategy: 'BlockScout',
-          startTime,
-          endTime: Date.now(),
-        }),
-      )
-      return
-    }
-
-    logger.verbose('Start Token Sync', llo({ ...infoLogs, ...{ syncStrategy: 'BlockchainLogCrawler' } }))
+    logger.verbose('Start Token Sync', llo({ ...infoLogs, ...{ syncStrategy: 'BlockchainLogCrawler', startTime } }))
 
     const tokenCrawler = new BlockchainLogCrawler({
       onlyHistorical: isHistorical,
@@ -155,12 +135,13 @@ export const LogTokenVoting = {
       address: [plugin.tokenAddress],
       fromBlock: token?.blockNumber || plugin?.blockNumber,
       onError: async (error: any, log: any) => LogTokenVoting.processError(error, plugin, log),
-      logService: `${plugin.interfaceType}-${plugin.network}-${plugin.address}-${token?.address}`,
+      logService: ConfigIndexerHelper.builders.token(token.type, token.network, token.address),
       stopOnError: true,
     })
 
-    const crawlers: any = [pluginCrawler.crawl(), tokenCrawler.crawl()]
-    await Promise.all(crawlers)
+    const crawlers: any = [pluginCrawler, tokenCrawler]
+    await Promise.all(crawlers.map(async (c: BlockchainLogCrawler) => c.crawl()))
+    await Promise.all(crawlers.map(async (c: BlockchainLogCrawler) => c.end?.()))
 
     logger.verbose(
       'End LogTokenVoting',
@@ -169,6 +150,8 @@ export const LogTokenVoting = {
         syncStrategy: 'BlockchainLogCrawler',
         lastTokenSyncBlock: tokenCrawler.crawlSetting.lastSync,
         lastPluginSyncBlock: pluginCrawler.crawlSetting.lastSync,
+        startTime,
+        endTime: Date.now(),
       }),
     )
   },

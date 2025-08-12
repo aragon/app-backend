@@ -14,6 +14,7 @@ class BottleneckModule {
   static etherScanLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static blockScoutLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static chilizLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
+  static duneLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
 
   static getNodeLimiter(network: NetworksEnum) {
     if (!this.nodeLimiters[network]) {
@@ -123,6 +124,16 @@ class BottleneckModule {
       })
     }
     return this.chilizLimiters[network]
+  }
+
+  static getDuneLimiter(network: NetworksEnum) {
+    if (!this.duneLimiters[network]) {
+      this.duneLimiters[network] = new Bottleneck({
+        maxConcurrent: 1, // Dune API has strict rate limits, process one at a time
+        minTime: 1000, // 1 second between requests to avoid 429 errors
+      })
+    }
+    return this.duneLimiters[network]
   }
 }
 

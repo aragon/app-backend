@@ -9,9 +9,8 @@ class DBCrawler {
   private readonly onDocument: (document: Document, stat: { nbWorked: number; nbTotal: number }) => Promise<void>
 
   private readonly where: object
-  private readonly stopOnError: boolean
+  public stopOnError: boolean
   private readonly useAggregate: boolean
-  private readonly disablePagination: boolean
   private readonly aggregate: (skip: number | undefined, limit: number | undefined) => any[]
   private readonly select: string
   private readonly skip: number
@@ -22,9 +21,12 @@ class DBCrawler {
   private readonly concurrency: number
   private readonly batchSize: number
   private crawling: boolean
-  private isOnError: boolean
   private nbWorked: number
   private nbTotal: number
+  private isCompleted: boolean
+  public isOnError: boolean
+  private crawlResolve: any
+  private readonly processedIds = new Set<string>()
   public readonly crawlResult: { nbSuccess: number; nbError: number; nbTotal: number; lastCreatedAt: null | Date }
   private readonly queue: async.QueueObject<Document[]>
 
@@ -67,13 +69,6 @@ class DBCrawler {
     this.stopOnError = opts.stopOnError
 
     /**
-     * @description disablePagination
-     * @param {disablePagination}
-     * @example true
-     */
-    this.disablePagination = opts.disablePagination
-
-    /**
      * @description useAggregate
      * @param {useAggregate}
      * @example true
@@ -99,7 +94,7 @@ class DBCrawler {
      * @param {skip}
      * @example 100
      */
-    this.skip = !this.disablePagination ? opts.skip || 0 : undefined
+    this.skip = opts.skip
 
     /**
      * @description sort documents
@@ -127,6 +122,7 @@ class DBCrawler {
     this.batchSize = opts.batchSize || 10
     this.crawling = false
     this.isOnError = false
+    this.isCompleted = false
     this.nbWorked = 0
     this.nbTotal = 0
     this.crawlResult = { nbSuccess: 0, nbError: 0, nbTotal: 0, lastCreatedAt: null }
@@ -153,24 +149,39 @@ class DBCrawler {
   }
 
   async _fetchNext(limit: number | undefined, skip: number | undefined): Promise<any> {
-    const where = this.where
+    const where = { ...this.where } as any
     const select = this.select
     const populate = this.populate
     const useAggregate = this.useAggregate
 
+    // Exclude already processed IDs
+    if (this.processedIds.size > 0) {
+      const excludeIds = Array.from(this.processedIds)
+      where._id = { $nin: excludeIds }
+    }
+
     if (useAggregate) {
-      const aggregatePipeline = this.aggregate(skip, limit)
+      // For aggregation, we need to add the exclusion to the pipeline
+      let aggregatePipeline = this.aggregate(skip, limit)
+
+      if (this.processedIds.size > 0) {
+        const excludeIds = Array.from(this.processedIds)
+        // Add match stage to exclude processed IDs at the beginning
+        aggregatePipeline = [{ $match: { _id: { $nin: excludeIds } } }, ...aggregatePipeline]
+      }
+
       const response = this.model.aggregate(aggregatePipeline)
-      const documents = await response.exec()
-      return documents
+      return await response.exec()
     } else {
       let response: any = this.model.find(where).select(select).populate(populate)
 
-      if (limit && !this.disablePagination) {
+      if (limit) {
         response = response.limit(limit)
       }
 
-      if (skip && !this.disablePagination) {
+      // For non-aggregate queries, we don't use skip when we have processed IDs
+      // because we're already filtering them out
+      if (skip && this.processedIds.size === 0) {
         response = response.skip(skip)
       }
 
@@ -182,11 +193,27 @@ class DBCrawler {
         response = response.lean()
       }
 
-      return await response.exec()
+      const results = await response.exec()
+
+      // Double-check for duplicates (extra safety)
+      const newDocuments = results.filter(doc => {
+        const id = doc._id.toString()
+        if (this.processedIds.has(id)) {
+          return false
+        }
+        return true
+      })
+
+      return newDocuments
     }
   }
 
-  async _worker(document: Document): Promise<void> {
+  async _worker(document: any): Promise<void> {
+    const docId = document._id.toString()
+
+    // Add to processed IDs immediately to prevent reprocessing
+    this.processedIds.add(docId)
+
     this.nbWorked++
 
     const stat = {
@@ -197,12 +224,20 @@ class DBCrawler {
     try {
       await this.onDocument(document, stat)
       this.crawlResult.nbSuccess++
-      this.crawlResult.lastCreatedAt = ((document as any)?.updatedAt || (document as any)?.createdAt) ?? null
+      this.crawlResult.lastCreatedAt = (document?.updatedAt || document?.createdAt) ?? null
     } catch (error: any) {
       this.onError(error, document)
       this.crawlResult.nbError++
       if (this.stopOnError) {
         this.isOnError = true
+        this.crawling = false
+        this.isCompleted = true
+        this.queue.kill()
+
+        // Force immediate resolution
+        setImmediate(() => {
+          this._finalizeCrawl(this.crawlResolve)
+        })
       }
     }
   }
@@ -213,6 +248,7 @@ class DBCrawler {
     }
 
     this.crawling = true
+    this.processedIds.clear() // Reset processed IDs for fresh crawl
     const where = this.where || {}
 
     if (!this.useAggregate) {
@@ -226,42 +262,94 @@ class DBCrawler {
     this.crawlResult.nbTotal = this.nbTotal
 
     return await new Promise((resolve, reject) => {
-      const limit = this.disablePagination ? undefined : this.batchSize
-      let skip = this.disablePagination ? undefined : this.skip
+      this.crawlResolve = resolve
+      const limit = this.batchSize
+      let skip = this.skip || 0
+      let consecutiveEmptyBatches = 0
+      const maxConsecutiveEmptyBatches = 3 // Safety limit
 
       const fillQueue = async (): Promise<any> => {
-        if (this.isOnError || !this.crawling) {
-          resolve(this.crawlResult)
+        if (this.isCompleted) {
           return true
         }
 
-        this._fetchNext(limit, skip)
-          .then((items: any) => {
-            if (items?.length > 0) {
-              // eslint-disable-next-line
-              this.queue.push(items)
+        if (this.isOnError || !this.crawling) {
+          this.isCompleted = true
+          this._finalizeCrawl(resolve)
+          return true
+        }
 
-              if (this.disablePagination) {
-                this.crawling = false
-                return resolve(this.crawlResult)
-              } else {
-                skip! += limit!
-              }
-            } else {
+        try {
+          const items = await this._fetchNext(limit, skip)
+
+          if (items.length === 0) {
+            consecutiveEmptyBatches++
+
+            // If we've had multiple empty batches or processed expected amount, we're done
+            if (consecutiveEmptyBatches >= maxConsecutiveEmptyBatches || this.nbWorked >= this.nbTotal) {
               this.crawling = false
-              return resolve(this.crawlResult)
+              this.isCompleted = true
+              this._finalizeCrawl(resolve)
+              return true
             }
 
+            // Try once more with higher skip (in case of edge case)
+            skip += limit
+            setTimeout(async () => fillQueue(), 100) // Small delay before retry
             return true
-          })
-          .catch((error: any) => {
-            reject(error)
-          })
+          }
+
+          consecutiveEmptyBatches = 0 // Reset counter on successful batch
+          this.queue.push(items)
+
+          // For non-aggregate queries with ID exclusion, we don't increment skip
+          // because we're filtering by excluded IDs
+          if (this.useAggregate || this.processedIds.size === 0) {
+            skip += limit
+          }
+
+          // Check if we need to continue filling the queue
+          if (this.queue.length() < this.concurrency && this.crawling && !this.isCompleted) {
+            setImmediate(fillQueue)
+          }
+        } catch (error) {
+          reject(error)
+        }
+
+        return true
       }
 
-      this.queue.drain(fillQueue) // eslint-disable-line
-      fillQueue() // eslint-disable-line
+      // Set up drain handler for when queue becomes empty
+      this.queue.drain(() => {
+        if (this.crawling && !this.isCompleted && !this.isOnError) {
+          setImmediate(fillQueue)
+        }
+      })
+
+      // Start the crawling process
+      fillQueue()
     })
+  }
+
+  private _finalizeCrawl(resolve: (value: any) => void): void {
+    // Clear the drain handler to prevent infinite loops
+    this.queue.drain(() => {})
+
+    // If stopOnError triggered, resolve immediately
+    if (this.isOnError && this.stopOnError) {
+      resolve(this.crawlResult)
+      return
+    }
+
+    if (this.queue.idle()) {
+      resolve(this.crawlResult)
+    } else {
+      // Wait for remaining items to be processed
+      const finalDrainHandler = () => {
+        resolve(this.crawlResult)
+      }
+      this.queue.drain(finalDrainHandler)
+    }
   }
 }
 

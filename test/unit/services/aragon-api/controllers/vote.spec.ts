@@ -215,4 +215,75 @@ describe('Controller: Vote', () => {
       expect(response).to.have.property('data').with.lengthOf(0)
     })
   })
+
+  describe('memberVotesInfo', () => {
+    it('should return vote information when user has voted', async () => {
+      const params = {
+        memberAddress: rawVote.memberAddress!,
+        pluginAddress: rawVote.pluginAddress!,
+        network: rawVote.network!,
+        proposalIndex: rawVote.proposalIndex!,
+      }
+
+      const spyReq = sandbox.spy(Models.Vote, 'findVoteOnPlugin')
+
+      const response = await VoteController.memberVotesInfo(params)
+
+      expect(spyReq.calledOnce).to.be.true
+      expect(spyReq.calledWith(params)).to.be.true
+
+      expect(response).to.be.an('object')
+      expect(response).to.not.be.false
+
+      if (response !== false) {
+        expect(response.transactionHash).to.eq(rawVote.transactionHash)
+        expect(response.transactionIndex).to.eq(rawVote.transactionIndex)
+        expect(response.blockNumber).to.eq(rawVote.blockNumber)
+        expect(response.blockTimestamp).to.eq(rawVote.blockTimestamp)
+        expect(response.voteOption).to.eq(rawVote.voteOption)
+        expect(response.votingPower).to.eq(rawVote.votingPower)
+        expect(response.replacedTransactionHash).to.eq(rawVote.replacedTransactionHash || null)
+        expect(response.daoAddress).to.eq(rawVote.daoAddress)
+        expect(response.pluginAddress).to.eq(rawVote.pluginAddress)
+        expect(response.proposalIndex).to.eq(rawVote.proposalIndex)
+        expect(response.network).to.eq(rawVote.network)
+      }
+    })
+
+    it('should return false when user has not voted', async () => {
+      const params = {
+        memberAddress: '0xNonExistentMember',
+        pluginAddress: rawVote.pluginAddress!,
+        network: rawVote.network!,
+        proposalIndex: rawVote.proposalIndex!,
+      }
+
+      const spyReq = sandbox.spy(Models.Vote, 'findVoteOnPlugin')
+
+      const response = await VoteController.memberVotesInfo(params)
+
+      expect(spyReq.calledOnce).to.be.true
+      expect(spyReq.calledWith(params)).to.be.true
+
+      expect(response).to.be.false
+    })
+
+    it('should return false when proposal does not exist', async () => {
+      const params = {
+        memberAddress: rawVote.memberAddress!,
+        pluginAddress: rawVote.pluginAddress!,
+        network: rawVote.network!,
+        proposalIndex: 'nonExistentProposal',
+      }
+
+      const spyReq = sandbox.spy(Models.Vote, 'findVoteOnPlugin')
+
+      const response = await VoteController.memberVotesInfo(params)
+
+      expect(spyReq.calledOnce).to.be.true
+      expect(spyReq.calledWith(params)).to.be.true
+
+      expect(response).to.be.false
+    })
+  })
 })
