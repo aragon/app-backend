@@ -34,18 +34,23 @@ export class MemberGovernanceFactory {
       case IPluginInterfaceType.tokenVoting:
         switch (params.tokenType) {
           case ITokenType.escrowAdapter:
+            // address is the escrowAddress
             return new VeGovernance(params.address, params.network)
           default:
+            // address is the tokenAddress
             return new Erc20Governance(params.address, params.network)
         }
 
       case IPluginInterfaceType.lockToVote:
+        // address is the lockManagerAddress
         return new LockToVoteGovernance(params.address, params.network)
 
       case IPluginInterfaceType.multisig:
+        // address is the pluginAddress
         return new MultisigGovernance(params.address, params.network)
 
       case IPluginInterfaceType.admin:
+        // address is the pluginAddress
         return new AdminGovernance(params.address, params.network)
 
       case IPluginInterfaceType.spp:

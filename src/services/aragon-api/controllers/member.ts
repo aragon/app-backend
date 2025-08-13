@@ -11,6 +11,7 @@ import {
   type IPaginationParams,
   type IPairParams,
   IPluginInterfaceType,
+  ITokenType,
   type NetworksEnum,
 } from '@types'
 import { assertExposable } from '@errors'
@@ -24,17 +25,14 @@ const MemberController = {
     paginationParams: IPaginationParams = {},
     extraParams: IMemberExtraParams = {},
     pairParams: IPairParams = {},
-  ): Promise<IPaginatedResult<IMembersResponse | IMemberLockResponse>> => {
+  ): Promise<IPaginatedResult<IMembersResponse>> => {
     extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
 
-    assertExposable(!!extraParams.network, ErrorKeyEnum.badParams)
-
-    if (!extraParams.pluginAddress && !extraParams.daoAddress) {
-      return Models.Member.findPaginatedMembersOnly({ paginationParams })
-    }
-
-    // required both daoAddress and pluginAddress
-    assertExposable(!!(extraParams.daoAddress && extraParams.pluginAddress), ErrorKeyEnum.pluginNotFound)
+    // required network, daoAddress and pluginAddress
+    assertExposable(
+      !!(extraParams.network && extraParams.daoAddress && extraParams.pluginAddress),
+      ErrorKeyEnum.pluginNotFound,
+    )
 
     const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
     assertExposable(plugin, ErrorKeyEnum.notFound)
@@ -44,9 +42,16 @@ const MemberController = {
         const token = await Models.Token.findByTokenAddressAndNetwork(plugin.tokenAddress, plugin.network)
         assertExposable(token, ErrorKeyEnum.notFound)
 
-        extraParams.tokenAddress = plugin.tokenAddress
+        let address = plugin.tokenAddress
+        if (token.type === ITokenType.escrowAdapter) {
+          address = plugin.votingEscrow.escrowAddress
+          extraParams.escrowAddress = plugin.votingEscrow.escrowAddress
+        } else {
+          extraParams.tokenAddress = plugin.tokenAddress
+        }
+
         const governance = MemberGovernanceFactory.create({
-          address: plugin.address, // token address
+          address, // escrowAddress or token address
           network: plugin.network,
           interfaceType: IPluginInterfaceType.tokenVoting,
           tokenType: token.type,
@@ -60,7 +65,7 @@ const MemberController = {
       case IPluginInterfaceType.lockToVote: {
         assertExposable(plugin.lockManagerAddress, ErrorKeyEnum.notFound)
         const governance = MemberGovernanceFactory.create({
-          address: plugin.address, // token address
+          address: plugin.lockManagerAddress, // lockManagerAddress
           network: plugin.network,
           interfaceType: IPluginInterfaceType.lockToVote,
         })

@@ -8,7 +8,6 @@ import {
   type IPaginatedResult,
   type IMembersResponse,
   type IMemberExtraParams,
-  type IMemberLockResponse,
 } from '@types'
 import type Token from '@models/schema/token'
 import type TokenMember from '@models/schema/tokenMember'
@@ -19,7 +18,7 @@ import { type ClientSession } from 'mongoose'
 
 /**
  * Token-based governance implementation using TokenMember model.
- * Used for ERC20 and VE token governance types.
+ * Used for ERC20 token governance types.
  */
 export class TokenGovernance extends BaseGovernance {
   protected token?: Token
@@ -265,7 +264,7 @@ export class TokenGovernance extends BaseGovernance {
   async findAndPaginateMembers(_params: {
     paginationParams?: IPaginationParams
     extraParams?: IMemberExtraParams
-  }): Promise<IPaginatedResult<IMembersResponse | IMemberLockResponse>> {
+  }): Promise<IPaginatedResult<IMembersResponse>> {
     throw new Error('findAndPaginateMembers not implemented in TokenGovernance - must be implemented in subclass')
   }
 

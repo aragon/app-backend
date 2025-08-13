@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
-import { IPluginInterfaceType, NetworksEnum } from '@types'
+import { IMembersResponse, IPluginInterfaceType, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import { expect } from 'chai'
 import Web3Helper from '@helpers/web3'
@@ -18,7 +18,7 @@ describe('LockToVote', () => {
     sandbox && sandbox.restore()
   })
 
-  it.skip('should handle the lock to vote functionality', async function () {
+  it('should handle the lock to vote functionality', async function () {
     this.timeout(1600000)
     UnitDepUtils.stubRabbitmqSend(sandbox)
     const daoAddress = '0x3bCd976E756EA18fe2d02724757237Cfa8DB3A92'
@@ -37,15 +37,34 @@ describe('LockToVote', () => {
     })
 
     expect(setting).to.exist
-    const members = await Models.LockManagerMember.find({
-      pluginAddress: plugin.address,
-      network,
-    })
 
-    expect(members).to.have.lengthOf(1)
+    const membersFromQuery = await Models.LockManagerMember.find({ lockManagerAddress: plugin.lockManagerAddress })
+    const members = await MemberController.getMembersWithPagination(
+      {
+        page: 1, limit: 100, sort: 'votingPower', order: 'desc',
+      },
+      {
+        daoAddress,
+        network,
+        pluginAddress: plugin.address,
+      },
+    )
+
+    expect(members.data.length).to.eq(membersFromQuery.length)
+    const sortedMembers = members.data.sort((a: any, b: any) => parseFloat(b.votingPower) - parseFloat(a.votingPower))
+    expect(members.data).to.deep.equal(sortedMembers)
+
+    const member = members.data[0] as IMembersResponse
+    expect(member.address).to.eq('0x17366cae2b9c6C3055e9e3C78936a69006BE5409')
+    expect(member.ens).to.eq('cgero.eth')
+    expect(member.votingPower?.toString()).to.eq('386000000000000000000')
+    expect(member.metrics.voteCount).to.eq(0)
+    expect(member.metrics.proposalCount).to.eq(0)
+    expect(member.metrics.firstActivity).to.eq(8911665)
+    expect(member.metrics.lastActivity).to.eq(8911665)
   })
 
-  it('should not handle the lock to vote functionality for with manual transactions', async function () {
+  it('should handle lockToVote + endpoint with manual transactions', async function () {
     this.timeout(1600000)
     const txns = [
       '0x4d41de9ba02c542690cebc996d49a18dcbc4a40c09052f3c8b3f4d9ff4124ef2',
@@ -79,9 +98,10 @@ describe('LockToVote', () => {
     expect(plugin.isSupported).to.be.true
     expect(plugin.lockManagerAddress).to.be.not.null
 
+    const membersFromQuery = await Models.LockManagerMember.find({ lockManagerAddress: plugin.lockManagerAddress })
     const members = await MemberController.getMembersWithPagination(
       {
-        page: 1,
+        page: 1, limit: 100, sort: 'votingPower', order: 'desc',
       },
       {
         daoAddress,
@@ -90,6 +110,17 @@ describe('LockToVote', () => {
       },
     )
 
-    expect(members.data).to.have.lengthOf(1)
+    expect(members.data.length).to.eq(membersFromQuery.length)
+    const sortedMembers = members.data.sort((a: any, b: any) => parseFloat(b.votingPower) - parseFloat(a.votingPower))
+    expect(members.data).to.deep.equal(sortedMembers)
+
+    const member = members.data[0] as IMembersResponse
+    expect(member.address).to.eq('0x17366cae2b9c6C3055e9e3C78936a69006BE5409')
+    expect(member.ens).to.eq('cgero.eth')
+    expect(member.votingPower).to.eq('386000000000000000000')
+    expect(member.metrics.voteCount).to.eq(0)
+    expect(member.metrics.proposalCount).to.eq(0)
+    expect(member.metrics.firstActivity).to.eq(8911665)
+    expect(member.metrics.lastActivity).to.eq(8911665)
   })
 })
