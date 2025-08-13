@@ -149,7 +149,7 @@ export default class TokenMember extends Model {
       {
         $match: {
           ...filter,
-          votingPower: { $gt: '0' },
+          votingPower: { $ne: '0' },
         },
       },
     ]
@@ -200,28 +200,6 @@ export default class TokenMember extends Model {
           },
         },
       },
-      AggregationQueryHelper.tokenMember(
-        {
-          tokenAddress: extraParams?.tokenAddress,
-          network: extraParams?.network!,
-          memberAddress: '$memberAddress',
-        },
-        'tokenMember',
-        {
-          delegateReceivedCount: 1,
-        },
-      ),
-      {
-        $addFields: {
-          tokenMember: {
-            $cond: {
-              if: { $gt: [{ $size: '$tokenMember' }, 0] },
-              then: { $arrayElemAt: ['$tokenMember', 0] },
-              else: { delegateReceivedCount: 0 },
-            },
-          },
-        },
-      },
       {
         $project: {
           _id: 0,
@@ -229,7 +207,7 @@ export default class TokenMember extends Model {
           ens: '$memberInfo.ens',
           avatar: '$memberInfo.avatar',
           tokenBalance: null, // TokenMember doesn't have amount field
-          votingPower: '$votingPower',
+          votingPower: '$votingPowerString',
           metrics: {
             voteCount: '$pluginMetrics.voteCount',
             proposalCount: '$pluginMetrics.proposalCount',
@@ -265,7 +243,6 @@ export default class TokenMember extends Model {
         results[0] ? results[0].totalRecords : 0,
       ),
     ])
-
     const totalPages = Math.ceil(totalRecords / request.limit)
 
     if (currentPage > totalPages) {

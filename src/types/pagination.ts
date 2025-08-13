@@ -84,6 +84,7 @@ export interface IMemberExtraParams {
   network?: NetworksEnum
   pluginAddress?: HexAddress
   tokenAddress?: HexAddress
+  escrowAddress?: HexAddress
   lockManagerAddress?: HexAddress
 }
 

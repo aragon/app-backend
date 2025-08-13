@@ -307,7 +307,7 @@ describe('Controller: Member', () => {
 
       expect(
         (MemberGovernanceFactory.create as sinon.SinonStub).calledWith({
-          address: rawPlugin.address,
+          address: lockToVotePlugin.lockManagerAddress,
           network: rawPlugin.network,
           interfaceType: IPluginInterfaceType.lockToVote,
         }),

@@ -37,6 +37,8 @@ const LockManagerHandler = {
         network: info.network,
         interfaceType: IPluginInterfaceType.lockToVote,
       })
+      // Get or create lock manager member
+      await governance.getOrCreate(memberAddress)
 
       let votingPower: string
 
@@ -46,9 +48,6 @@ const LockManagerHandler = {
           'BalanceLocked - Failed to get locked balance from contract, using fallback sum',
           llo({ ...info, memberAddress }),
         )
-
-        // Get or create lock manager member
-        await governance.getOrCreate(memberAddress)
         const lockManager = await governance.findOne(memberAddress)
 
         if (lockManager?.votingPower) {
@@ -152,6 +151,7 @@ const LockManagerHandler = {
         votingPower = totalLockedBalance
       }
 
+      await governance.getOrCreate(memberAddress)
       // Update lock manager member voting power
       await governance.update(memberAddress, {
         votingPower: votingPower.toString(),

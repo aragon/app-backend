@@ -7,7 +7,6 @@ import {
   type IPaginatedResult,
   type IMembersResponse,
   type IMemberExtraParams,
-  type IMemberLockResponse,
 } from '@types'
 import type PluginMetrics from '@models/schema/pluginMetrics'
 import logger from '@logger'
@@ -47,7 +46,7 @@ export abstract class BaseGovernance {
   abstract findAndPaginateMembers(params: {
     paginationParams?: IPaginationParams
     extraParams?: IMemberExtraParams
-  }): Promise<IPaginatedResult<IMembersResponse | IMemberLockResponse>>
+  }): Promise<IPaginatedResult<IMembersResponse>>
 
   // Protected helper to find existing plugin metrics
   protected async findExistingPluginMetricsByLog(
