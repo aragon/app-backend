@@ -1,16 +1,8 @@
 import logger from '@logger'
 import { type LogDescription, ethers } from 'ethers'
-import {
-  EnumQueueName,
-  type HexAddress,
-  IEventLogPermission,
-  type ILogInfo,
-  IPluginInterfaceType,
-  type NetworksEnum,
-} from '@types'
+import { type HexAddress, IEventLogPermission, type ILogInfo, IPluginInterfaceType, type NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import { MemberGovernanceFactory } from '@modules/memberGovernance'
-import RabbitMQHelper from '@helpers/rabbitMQ'
 import { IPermission } from '@src/types/permission'
 import { PluginHandler } from '@handlers/pluginHandler'
 import DbTx from '@modules/dbTx'

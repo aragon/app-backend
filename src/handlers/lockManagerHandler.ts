@@ -3,11 +3,9 @@ import type { LogDescription } from 'ethers'
 import type { ILogInfo } from '@types'
 import { Models } from '@dbModels'
 import { MemberGovernanceFactory } from '@modules/memberGovernance'
-import { EnumQueueName, IPluginInterfaceType } from '@types'
-import RabbitMQHelper from '@helpers/rabbitMQ'
+import { IPluginInterfaceType } from '@types'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
 import type Plugin from '@models/schema/plugin'
-import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'service:handler:LockManagerHandler' })
 
