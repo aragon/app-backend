@@ -2,7 +2,7 @@ import { type IMigration, IPluginInterfaceType } from '@types'
 import logger from '@logger'
 import mongoose from 'mongoose'
 import * as pLimit from 'p-limit'
-import { MemberGovernanceFactory } from '@modules/memberGovernance'
+import { MemberGovernanceFactory } from '@src/governance'
 import { Models } from '@dbModels'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: pluginMembers' })
@@ -75,7 +75,7 @@ export const pluginMembersMigration: IMigration = {
             }
 
             // Update plugin metrics
-            await governance.getOrCreatePluginMetrics({
+            await governance.updatePluginMetrics({
               memberAddress: daoMemberMapping.memberAddress!,
               pluginAddress: daoMemberMapping.pluginAddress,
               network: daoMemberMapping.network,

@@ -14,7 +14,7 @@ import type Dao from '@models/schema/dao'
 import { PluginList } from '@test/mock/fakePlugins'
 import { HexAddress, IPluginInterfaceType, ITokenType, NetworksEnum, ErrorKeyEnum, EnumQueueName } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
-import { MemberGovernanceFactory } from '@modules/memberGovernance'
+import { MemberGovernanceFactory } from '@src/governance'
 
 describe('Controller: Member', () => {
   let sandbox: SinonSandbox

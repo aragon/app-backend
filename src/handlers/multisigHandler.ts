@@ -2,7 +2,7 @@ import logger from '@logger'
 import { type ILogInfo, IPluginInterfaceType } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
-import { MemberGovernanceFactory } from '@modules/memberGovernance'
+import { MemberGovernanceFactory } from '@src/governance'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:MultisigHandler' })
 

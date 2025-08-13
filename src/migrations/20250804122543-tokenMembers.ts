@@ -3,7 +3,7 @@ import logger from '@logger'
 import { Models } from '@dbModels'
 import mongoose from 'mongoose'
 import * as pLimit from 'p-limit'
-import { MemberGovernanceFactory } from '@modules/memberGovernance'
+import { MemberGovernanceFactory } from '@src/governance'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: tokenMembers' })
 
@@ -105,7 +105,7 @@ export const tokenMembersMigration: IMigration = {
                 network: memberBalance.network,
               })
 
-              const pluginMetrics = await governance.getOrCreatePluginMetrics({
+              const pluginMetrics = await governance.updatePluginMetrics({
                 memberAddress: memberBalance.address,
                 pluginAddress: plugin.address,
                 network: plugin.network,

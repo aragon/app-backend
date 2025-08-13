@@ -2,7 +2,7 @@ import logger from '@logger'
 import { type LogDescription } from 'ethers'
 import { type ILogInfo, IPluginInterfaceType, ITokenType } from '@types'
 import { Models } from '@dbModels'
-import { MemberGovernanceFactory, VeGovernance } from '@modules/memberGovernance'
+import { MemberGovernanceFactory, VeGovernance } from '@src/governance'
 import type Plugin from '@models/schema/plugin'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:GovernanceVeHandler' })
@@ -55,7 +55,7 @@ export const GovernanceVeHandler = {
             tokenType: ITokenType.escrowAdapter,
           })
 
-          await governance.getOrCreatePluginMetrics({
+          await governance.updatePluginMetrics({
             memberAddress: fromAddress,
             pluginAddress: plugin.address,
             daoAddress: plugin.daoAddress,
@@ -64,7 +64,7 @@ export const GovernanceVeHandler = {
           })
 
           if (!isSelfDelegation) {
-            await governance.getOrCreatePluginMetrics({
+            await governance.updatePluginMetrics({
               memberAddress: toAddress,
               pluginAddress: plugin.address,
               daoAddress: plugin.daoAddress,
@@ -120,7 +120,7 @@ export const GovernanceVeHandler = {
             tokenType: ITokenType.escrowAdapter,
           })
 
-          await governance.getOrCreatePluginMetrics({
+          await governance.updatePluginMetrics({
             memberAddress: fromAddress,
             pluginAddress: plugin.address,
             daoAddress: plugin.daoAddress,
@@ -164,7 +164,7 @@ export const GovernanceVeHandler = {
 
     await Promise.all(
       plugins.map(async (plugin: Plugin) => {
-        await governance.getOrCreatePluginMetrics({
+        await governance.updatePluginMetrics({
           memberAddress,
           pluginAddress: plugin.address,
           daoAddress: plugin.daoAddress,
@@ -211,7 +211,7 @@ export const GovernanceVeHandler = {
             tokenType: ITokenType.escrowAdapter,
           })
 
-          await pluginGovernance.getOrCreatePluginMetrics({
+          await pluginGovernance.updatePluginMetrics({
             memberAddress,
             pluginAddress: plugin.address,
             daoAddress: plugin.daoAddress,
@@ -267,7 +267,7 @@ export const GovernanceVeHandler = {
             tokenType: ITokenType.escrowAdapter,
           })
 
-          await pluginGovernance.getOrCreatePluginMetrics({
+          await pluginGovernance.updatePluginMetrics({
             memberAddress,
             pluginAddress: plugin.address,
             daoAddress: plugin.daoAddress,

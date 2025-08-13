@@ -115,14 +115,4 @@ export default class PluginMetrics extends Model {
   async reload(tOpts?: SaveOptions) {
     return await this.model(customName).findById(this._id, tOpts)
   }
-
-  async incrementVoteCount(tOpts?: SaveOptions) {
-    this.voteCount += 1
-    return await this.save(tOpts)
-  }
-
-  async incrementProposalCount(tOpts?: SaveOptions) {
-    this.proposalCount += 1
-    return await this.save(tOpts)
-  }
 }

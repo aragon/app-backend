@@ -4,7 +4,7 @@ import { expect } from 'chai'
 import { NetworksEnum } from '@types'
 import ProposalHelper from '@helpers/proposal'
 
-describe('ProposalHelper', () => {
+describe('Integ: ProposalHelper', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {

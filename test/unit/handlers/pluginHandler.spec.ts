@@ -1556,7 +1556,7 @@ describe('Indexer:Plugin', () => {
       sandbox.stub(Models.Dao, 'findByAddress').rejects(error)
       const loggerErrorStub = sandbox.stub(logger, 'error')
       sandbox.stub(Web3Helper, 'getTransactionReceipt').rejects(error)
-      sandbox.stub(GovernanceVeHandler, '_handleTokenDelegation').rejects(new Error('fake error'))
+      sandbox.stub(GovernanceVeHandler, 'delegateTokens').rejects(new Error('fake error'))
 
       const info = {
         transactionHash: '0xtxhash',

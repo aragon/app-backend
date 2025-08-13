@@ -4,7 +4,7 @@ import { expect } from 'chai'
 import mongoose from 'mongoose'
 import tokenMembersMigration from '@src/migrations/20250804122543-tokenMembers'
 import { IPluginStatus, NetworksEnum } from '@types'
-import { MemberGovernanceFactory } from '@modules/memberGovernance'
+import { MemberGovernanceFactory } from '@src/governance'
 import { Models } from '@dbModels'
 import logger from '@logger'
 

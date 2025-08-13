@@ -13,7 +13,7 @@ import { Models } from '@dbModels'
 import IPFSModule from '@modules/ipfs'
 import type Vote from '@models/schema/vote'
 import Web3Helper from '@helpers/web3'
-import { MemberGovernanceFactory } from '@modules/memberGovernance'
+import { MemberGovernanceFactory } from '@src/governance'
 import { ProxyToken } from '@modules/proxyToken'
 import type Proposal from '@models/schema/proposal'
 import type Plugin from '@models/schema/plugin'
@@ -300,9 +300,6 @@ export const ProposalHandler = {
 
       await ProposalHandler.pairSppProposals(newProposal, relatedPlugin, info)
 
-      // Create base member using MemberGovernanceFactory
-      await MemberGovernanceFactory.createBaseMember(newProposal.creatorAddress, newProposal.blockNumber)
-
       // Create governance instance based on plugin type
       const governance = MemberGovernanceFactory.create({
         address: relatedPlugin.tokenAddress || pluginAddress,
@@ -310,8 +307,8 @@ export const ProposalHandler = {
         interfaceType: relatedPlugin.interfaceType,
       })
 
-      // Update plugin metrics
-      await governance.getOrCreatePluginMetrics({
+      // Update plugin metrics and increment proposal count
+      await governance.updatePluginMetrics({
         memberAddress: newProposal.creatorAddress,
         pluginAddress,
         network: info.network,
@@ -421,7 +418,7 @@ export const ProposalHandler = {
           interfaceType: relatedPlugin.interfaceType,
         })
 
-        await governance.getOrCreatePluginMetrics({
+        await governance.updatePluginMetrics({
           memberAddress: document.memberAddress!,
           pluginAddress: info.address,
           network: info.network,
@@ -527,7 +524,7 @@ export const ProposalHandler = {
           interfaceType: relatedPlugin.interfaceType,
         })
 
-        await governance.getOrCreatePluginMetrics({
+        await governance.updatePluginMetrics({
           memberAddress: document.memberAddress!,
           pluginAddress: info.address,
           network: info.network,

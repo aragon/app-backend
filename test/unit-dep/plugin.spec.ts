@@ -1,6 +1,13 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { IEventLogPluginSettings, IEventLogPluginType, IPluginInterfaceType, ITokenType, NetworksEnum } from '@types'
+import {
+  IEventLogPluginSettings,
+  IEventLogPluginType,
+  IPluginInterfaceType,
+  IPluginStatus,
+  ITokenType,
+  NetworksEnum,
+} from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
@@ -11,11 +18,12 @@ import { Models } from '@dbModels'
 import { expect } from 'chai'
 import BlockScoutHelper from '@helpers/blockScout'
 import { RateModule } from '@modules/rates'
-import { PluginSlug } from '@helpers/pluginSlug'
 import { Multisig } from '@artifacts/Multisig'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
+import Plugins from '@test/unit-dep/mockData/sppPairMockPlugin.json'
+import Web3Helper from '@helpers/web3'
 
-describe('Integration: Plugin Setup SPP', () => {
+describe('Integ: Plugin', () => {
   let sandbox: SinonSandbox
 
   before(async () => {
@@ -24,64 +32,11 @@ describe('Integration: Plugin Setup SPP', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(RabbitMQHelper, 'sendMessage')
   })
 
   afterEach(() => {
     sandbox && sandbox.restore()
-  })
-
-  it('plugin slug', async function () {
-    this.timeout(10000000)
-
-    const network = NetworksEnum.ethereumSepolia
-    const daoAddress = '0x9b42704949b98CE4C3b7484D3Fe2694807768942'
-    const pluginAddress = '0x0b001495e87237c2Cd57F2E7CEE5962016BC5ca2'
-
-    const plugin = await Models.Plugin.create({
-      id: 'ethereum-sepolia-0x83a5a6df11c205990c24dc10ddb14af669578b9207511bac2a881a0ce84bb5d0-0x0b001495e87237c2Cd57F2E7CEE5962016BC5ca2',
-      transactionHash: '0x83a5a6df11c205990c24dc10ddb14af669578b9207511bac2a881a0ce84bb5d0',
-      blockNumber: 7686518,
-      blockTimestamp: 1739284548,
-      network,
-      address: pluginAddress,
-      implementationAddress: '0x4cCA57aC117Ae35bd0222f8dE52fc4f9c88eBa6f',
-      interfaceType: 'spp',
-      status: 'installed',
-      isSupported: true,
-      daoAddress,
-      tokenAddress: null,
-      pluginSetupRepoAddress: '0xE67b8E026d190876704292442A38163Ce6945d6b',
-      sender: '0x9b42704949b98CE4C3b7484D3Fe2694807768942',
-      release: '1',
-      build: '8',
-      subdomain: 'spp',
-      permissions: [],
-      uninstalled: {
-        status: false,
-        transactionHash: null,
-        blockNumber: null,
-        blockTimestamp: null,
-      },
-      isProcess: true,
-      isBody: false,
-      isSubPlugin: false,
-      metadataIpfs: 'ipfs://Qmc8ECxCFCZS7R5ruavYfiCUfRoXQ1gi1GKWDWZBifVSxZ',
-      name: 'End To End',
-      description: null,
-      processKey: 'ETE',
-      subPlugins: [
-        {
-          addresses: ['0xd7750B1B69aBD00bc1D02adEd842Ec65AfBe52a5'],
-          stageIndex: 0,
-        },
-      ],
-      links: [],
-      totalStages: 1,
-    })
-
-    await PluginSlug.generateSlug(plugin, plugin?.processKey)
-
-    console.log('ok')
   })
 
   it.skip('should handle multisig plugin different abi', async function () {
@@ -130,8 +85,78 @@ describe('Integration: Plugin Setup SPP', () => {
     const plugin = await Models.Plugin.findOne({ address: pluginAddress })
     expect(plugin?.address).to.eq(pluginAddress)
     expect(plugin?.isSupported).to.be.true
+  })
 
-    console.log('ok')
+  it('should test pairing SPP plugins', async () => {
+    sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+    const txHash = '0x05bf306dadf218eb8d83a081b544031d9ce1c76de3701568afbf015e960d9a6b'
+    const network = NetworksEnum.cornMainnet
+
+    const plugins = Plugins.map(plugin => {
+      return {
+        ...plugin,
+        _id: undefined,
+        createdAt: undefined,
+        updatedAt: undefined,
+        __v: undefined,
+      }
+    })
+
+    await Promise.all(plugins.map(async p => await Models.Plugin.create(p)))
+
+    await Models.Dao.create({
+      id: 'corn-mainnet-0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43',
+      isActive: true,
+      isHidden: false,
+      network: 'corn-mainnet',
+      transactionHash: '0x95c832ae5a148570f57e27cf600cc0fed999c1232fadc4aa8edfe5a515a949f3',
+      blockNumber: 640435,
+      blockTimestamp: 1750254946,
+      address: '0xBe31BC9278e4745d9D04F4A9113B71Db3Bdc7E43',
+      implementationAddress: '0x604953e159562FeEfF38961541415B0C0694Ef5A',
+      creatorAddress: '0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759',
+      ens: null,
+      subdomain: null,
+      metadataIpfs: 'ipfs://QmcUGDfvKPgZugPrRPttWUx6rUJxNRdtZsP9MVStZ7JMcu',
+      name: '2025-06-18 Corn',
+      description: 'asdfasdf',
+      avatar: 'ipfs://QmX4q3fu1QkSfdVFUAmSUWziCmnXtitp2TVKLbrFVBcPvv',
+      version: '1.4.0',
+      metrics: {
+        tvlUSD: 0,
+        proposalsCreated: 2,
+        proposalsExecuted: 1,
+        uniqueVoters: 0,
+        votes: 0,
+        members: 1,
+      },
+      links: [],
+    })
+
+    const receipt = await Web3Helper.getTransactionReceipt(txHash, network)
+    const parsedLogs = await UnitDepUtils.parseLogsByConfig(receipt!.logs as any, network)
+
+    for (const log of parsedLogs) {
+      await log.handler(log.event, log.info)
+    }
+
+    const subProposals = await Models.Proposal.find({
+      isSubProposal: true,
+    })
+
+    expect(subProposals.length).to.be.eq(10)
+
+    subProposals.forEach((subProposal: any) => {
+      expect(subProposal.parentProposal).to.be.not.null
+      expect(subProposal.parentProposal.pluginAddress).to.be.eq('0x9F674BC5a486c14e9deb8D27557300a9c0e3CBb7')
+    })
+
+    const mainProposal = await Models.Proposal.findOne({
+      isSubProposal: false,
+    })
+
+    expect(mainProposal.subProposals.length).to.be.eq(10)
   })
 
   it('should handle plugin installation token voting', async function () {
@@ -338,5 +363,110 @@ describe('Integration: Plugin Setup SPP', () => {
     expect(plugin.isSupported).to.be.true
     expect(settings.minApprovals).to.eq(1)
     expect(settings.onlyListed).to.be.true
+  })
+
+  describe.skip('Installation And Uninstallation Of Plugin Via Revoke And Grant ', () => {
+    it('should install properly plugins and dao', async function () {
+      this.timeout(100000)
+      const daoAddress = '0x0AB0902f1d4AF089Af6dcDD512E9BFe40b20f679'
+      const network = NetworksEnum.ethereumSepolia
+      sandbox.restore()
+      UnitDepUtils.stubRabbitmqSend(sandbox)
+
+      await UnitDepUtils.syncACompleteDao(daoAddress, network)
+    })
+
+    it('should revoke and grant permission to plugin', async function () {
+      this.timeout(1000000)
+      const revokeTxHash = '0x9ef64afa23ef2ced4dbfec481c31dd7a17441fc6b6c586d14104a10e59342966'
+
+      const network = NetworksEnum.ethereumSepolia
+      const createDaoTxHash = '0x5a059dc68ba109df5c3cc255380da4ad9d4d09f508093fff2196580bca50ebbb'
+      const pluginInstallationTxHashPrepare = '0xbf9e3ac7a9aff1248ac333b18035eed748e19f5a8ed86ca5587429cdb545d8d4'
+      const pluginInstallationAppliedTxHash = '0x535989b131da3871381a4c4e80a2155f54e05b6b89daf668f6b9d7d031d8e528'
+
+      const daoTxReceipts = await Web3Helper.getTransactionReceipt(createDaoTxHash, network)
+      const pluginInstallationTxReceiptPrepare = await Web3Helper.getTransactionReceipt(
+        pluginInstallationTxHashPrepare,
+        network,
+      )
+      const pluginInstallationTxReceiptApplied = await Web3Helper.getTransactionReceipt(
+        pluginInstallationAppliedTxHash,
+        network,
+      )
+
+      if (!daoTxReceipts || !pluginInstallationTxReceiptPrepare || !pluginInstallationTxReceiptApplied) {
+        return
+      }
+
+      //install dao
+      const logsDaoInstall = await UnitDepUtils.parseLogsByConfig(daoTxReceipts?.logs! as any, network)
+
+      for (const ev of logsDaoInstall) {
+        await ev.handler(ev.event, ev.info)
+      }
+
+      //install plugin
+      const logsPrepare = await UnitDepUtils.parseLogsByConfig(
+        pluginInstallationTxReceiptPrepare?.logs! as any,
+        network,
+      )
+      for (const ev of logsPrepare) {
+        await ev.handler(ev.event, ev.info)
+      }
+
+      //install plugin applied
+      const logsApplied = await UnitDepUtils.parseLogsByConfig(
+        pluginInstallationTxReceiptApplied?.logs! as any,
+        network,
+      )
+      for (const ev of logsApplied) {
+        await ev.handler(ev.event, ev.info)
+      }
+
+      const dao = await Models.Dao.find({})
+      expect(dao).to.be.an('array')
+      expect(dao).to.have.lengthOf(1)
+
+      const plugins = await Models.Plugin.find({})
+      expect(plugins).to.be.an('array')
+      expect(plugins.length).to.be.gt(1)
+
+      const revokeTxReceipt = await Web3Helper.getTransactionReceipt(revokeTxHash, network)
+      if (!revokeTxReceipt) {
+        return
+      }
+
+      //here is the revoke and grant happening
+
+      const logsRevokeAndGrant = await UnitDepUtils.parseLogsByConfig(revokeTxReceipt.logs as any, network)
+      const logsRevoked = logsRevokeAndGrant[0]
+
+      let plugin = await Models.Plugin.findByAddress(logsRevoked.event.args.who, network)
+
+      for (let i = 0; i < logsRevokeAndGrant.length; i++) {
+        const ev = logsRevokeAndGrant[i]
+        await ev.handler(ev.event, ev.info)
+        if (i === 0) {
+          plugin = await plugin.reload()
+          expect(plugin.status).to.be.eq(IPluginStatus.uninstalled)
+        }
+
+        if (i === 1) {
+          plugin = await plugin.reload()
+          expect(plugin.status).to.be.eq(IPluginStatus.installed)
+        }
+      }
+
+      expect(plugin.status).to.be.eq(IPluginStatus.installed)
+
+      //re-handle the logs to ensure everything is processed correctly
+      for (const ev of logsRevokeAndGrant) {
+        await ev.handler(ev.event, ev.info)
+      }
+
+      plugin = await plugin.reload()
+      expect(plugin.status).to.be.eq(IPluginStatus.installed)
+    })
   })
 })
