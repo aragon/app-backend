@@ -7,7 +7,7 @@ import utils from '@helpers/utils'
 import { LogDescription } from 'ethers'
 import config from '@config'
 import { MemberGovernanceFactory } from '@modules/memberGovernance'
-import { TokenGovernance } from '@modules/memberGovernance/tokenGovernance'
+import { Erc20Governance } from '@modules/memberGovernance/erc20Governance'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import { FakeToken } from '@test/mock/fakeToken'
@@ -516,15 +516,15 @@ describe('GovernanceErc20Handler', () => {
       ]
 
       // Set up stubs
-      const createMembersBatchStub = sandbox.stub(TokenGovernance, 'createMembersBatchNoTx').resolves(true)
+      const createMembersBatchStub = sandbox.stub(Erc20Governance, 'createMembersBatchNoTx').resolves(true)
 
       // Create mock governance instance for batch operations
       const mockGovernance = {
         updateTokenMemberVPBatchNoTx: sandbox.stub().resolves(true),
         updatePluginMetricsBatchNoTx: sandbox.stub().resolves(true),
       }
-      sandbox.stub(TokenGovernance.prototype, 'updateTokenMemberVPBatchNoTx').resolves(true)
-      sandbox.stub(TokenGovernance.prototype, 'updatePluginMetricsBatchNoTx').resolves(true)
+      sandbox.stub(Erc20Governance.prototype, 'updateTokenMemberVPBatchNoTx').resolves(true)
+      sandbox.stub(Erc20Governance.prototype, 'updatePluginMetricsBatchNoTx').resolves(true)
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(mockPlugins)
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
@@ -540,8 +540,8 @@ describe('GovernanceErc20Handler', () => {
       expect(member1Data!.lastActivity).to.equal(2) // Should use block 2, not block 1
 
       // Verify updateTokenMemberVPBatchNoTx was called
-      expect((TokenGovernance.prototype.updateTokenMemberVPBatchNoTx as any).calledOnce).to.be.true
-      const vpDataCall = (TokenGovernance.prototype.updateTokenMemberVPBatchNoTx as any).getCall(0).args[0]
+      expect((Erc20Governance.prototype.updateTokenMemberVPBatchNoTx as any).calledOnce).to.be.true
+      const vpDataCall = (Erc20Governance.prototype.updateTokenMemberVPBatchNoTx as any).getCall(0).args[0]
       expect(vpDataCall).to.have.lengthOf(3) // 3 unique members
 
       // Verify it uses latest voting power for each member
@@ -558,8 +558,8 @@ describe('GovernanceErc20Handler', () => {
       expect(member3VpData!.lastVPBlockNumber).to.equal(2)
 
       // Verify updatePluginMetricsBatchNoTx was called
-      expect((TokenGovernance.prototype.updatePluginMetricsBatchNoTx as any).calledOnce).to.be.true
-      const pluginMetricsCall = (TokenGovernance.prototype.updatePluginMetricsBatchNoTx as any).getCall(0).args[0]
+      expect((Erc20Governance.prototype.updatePluginMetricsBatchNoTx as any).calledOnce).to.be.true
+      const pluginMetricsCall = (Erc20Governance.prototype.updatePluginMetricsBatchNoTx as any).getCall(0).args[0]
       expect(pluginMetricsCall).to.have.lengthOf(3) // 3 members x 1 plugin
     })
 
@@ -575,9 +575,9 @@ describe('GovernanceErc20Handler', () => {
         },
       ]
 
-      const createMembersBatchStub = sandbox.stub(TokenGovernance, 'createMembersBatchNoTx').resolves(true)
-      sandbox.stub(TokenGovernance.prototype, 'updateTokenMemberVPBatchNoTx').resolves(true)
-      sandbox.stub(TokenGovernance.prototype, 'updatePluginMetricsBatchNoTx').resolves(true)
+      const createMembersBatchStub = sandbox.stub(Erc20Governance, 'createMembersBatchNoTx').resolves(true)
+      sandbox.stub(Erc20Governance.prototype, 'updateTokenMemberVPBatchNoTx').resolves(true)
+      sandbox.stub(Erc20Governance.prototype, 'updatePluginMetricsBatchNoTx').resolves(true)
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([])
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
@@ -589,19 +589,19 @@ describe('GovernanceErc20Handler', () => {
       expect(memberDataCall).to.have.lengthOf(1)
       expect(memberDataCall[0].memberAddress).to.equal('0xmember1')
 
-      expect((TokenGovernance.prototype.updateTokenMemberVPBatchNoTx as any).calledOnce).to.be.true
-      const vpDataCall = (TokenGovernance.prototype.updateTokenMemberVPBatchNoTx as any).getCall(0).args[0]
+      expect((Erc20Governance.prototype.updateTokenMemberVPBatchNoTx as any).calledOnce).to.be.true
+      const vpDataCall = (Erc20Governance.prototype.updateTokenMemberVPBatchNoTx as any).getCall(0).args[0]
       expect(vpDataCall).to.have.lengthOf(1)
     })
 
     it('should handle empty events array', async () => {
-      const createMembersBatchStub = sandbox.stub(TokenGovernance, 'createMembersBatchNoTx').resolves(true)
-      sandbox.stub(TokenGovernance.prototype, 'updateTokenMemberVPBatchNoTx').resolves(true)
+      const createMembersBatchStub = sandbox.stub(Erc20Governance, 'createMembersBatchNoTx').resolves(true)
+      sandbox.stub(Erc20Governance.prototype, 'updateTokenMemberVPBatchNoTx').resolves(true)
 
       await GovernanceErc20Handler.delegateVotesChangedBatch([])
 
       expect(createMembersBatchStub.notCalled).to.be.true
-      expect((TokenGovernance.prototype.updateTokenMemberVPBatchNoTx as any).notCalled).to.be.true
+      expect((Erc20Governance.prototype.updateTokenMemberVPBatchNoTx as any).notCalled).to.be.true
     })
 
     it('should handle multiple plugins for same token', async () => {
@@ -618,10 +618,10 @@ describe('GovernanceErc20Handler', () => {
         { address: '0xplugin3', daoAddress: '0xdao2', tokenAddress: '0xtoken1', network },
       ]
 
-      sandbox.stub(TokenGovernance, 'createMembersBatchNoTx').resolves(true)
-      sandbox.stub(TokenGovernance.prototype, 'updateTokenMemberVPBatchNoTx').resolves(true)
+      sandbox.stub(Erc20Governance, 'createMembersBatchNoTx').resolves(true)
+      sandbox.stub(Erc20Governance.prototype, 'updateTokenMemberVPBatchNoTx').resolves(true)
       const updatePluginMetricsBatchStub = sandbox
-        .stub(TokenGovernance.prototype, 'updatePluginMetricsBatchNoTx')
+        .stub(Erc20Governance.prototype, 'updatePluginMetricsBatchNoTx')
         .resolves(true)
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(mockPlugins)
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
@@ -629,8 +629,8 @@ describe('GovernanceErc20Handler', () => {
       await GovernanceErc20Handler.delegateVotesChangedBatch(events)
 
       // Should create metrics for each plugin
-      expect((TokenGovernance.prototype.updatePluginMetricsBatchNoTx as any).calledOnce).to.be.true
-      const pluginMetricsCall = (TokenGovernance.prototype.updatePluginMetricsBatchNoTx as any).getCall(0).args[0]
+      expect((Erc20Governance.prototype.updatePluginMetricsBatchNoTx as any).calledOnce).to.be.true
+      const pluginMetricsCall = (Erc20Governance.prototype.updatePluginMetricsBatchNoTx as any).getCall(0).args[0]
       expect(pluginMetricsCall).to.have.lengthOf(3) // 1 member x 3 plugins
 
       // Should send messages for unique DAOs
@@ -647,7 +647,7 @@ describe('GovernanceErc20Handler', () => {
 
       const error = new Error('Database error')
       // Make the NoTx batch methods fail
-      sandbox.stub(TokenGovernance, 'createMembersBatchNoTx').rejects(error)
+      sandbox.stub(Erc20Governance, 'createMembersBatchNoTx').rejects(error)
       const loggerWarnStub = sandbox.stub(logger, 'warn')
       // Stub the fallback methods that will be called
       sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
@@ -684,7 +684,7 @@ describe('GovernanceErc20Handler', () => {
 
       const error = new Error('Database error')
       // Make the NoTx batch methods fail
-      sandbox.stub(TokenGovernance, 'createMembersBatchNoTx').rejects(error)
+      sandbox.stub(Erc20Governance, 'createMembersBatchNoTx').rejects(error)
       const loggerWarnStub = sandbox.stub(logger, 'warn')
       const loggerInfoStub = sandbox.stub(logger, 'info')
 
@@ -727,7 +727,7 @@ describe('GovernanceErc20Handler', () => {
 
       const error = new Error('Database error')
       // Make the NoTx batch methods fail to trigger fallback
-      sandbox.stub(TokenGovernance, 'createMembersBatchNoTx').rejects(error)
+      sandbox.stub(Erc20Governance, 'createMembersBatchNoTx').rejects(error)
       const loggerWarnStub = sandbox.stub(logger, 'warn')
       const loggerErrorStub = sandbox.stub(logger, 'error')
 

@@ -3,7 +3,7 @@ import { type LogDescription } from 'ethers'
 import { EnumQueueName, type ILogInfo, IPluginInterfaceType, type NetworksEnum } from '@types'
 import utils from '@helpers/utils'
 import { MemberGovernanceFactory } from '@modules/memberGovernance'
-import { TokenGovernance } from '@modules/memberGovernance/tokenGovernance'
+import { Erc20Governance } from '@modules/memberGovernance/erc20Governance'
 import type Plugin from '@models/schema/plugin'
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
@@ -122,7 +122,7 @@ export const GovernanceErc20Handler = {
         }))
 
         // Create/update base members in batch without session (no transaction)
-        await TokenGovernance.createMembersBatchNoTx(memberData)
+        await Erc20Governance.createMembersBatchNoTx(memberData)
 
         // Group updates by token-network to create governance instances
         const updatesByTokenNetwork = new Map<
@@ -152,7 +152,7 @@ export const GovernanceErc20Handler = {
         // Update voting powers in batch for each token
         for (const [key, updates] of updatesByTokenNetwork) {
           const [tokenAddress, network] = key.split('-')
-          const governance = new TokenGovernance(tokenAddress, network as NetworksEnum)
+          const governance = new Erc20Governance(tokenAddress, network as NetworksEnum)
           await governance.updateTokenMemberVPBatchNoTx(updates)
         }
 
@@ -221,12 +221,12 @@ export const GovernanceErc20Handler = {
             }
           })
 
-          // Update metrics for each network using TokenGovernance
+          // Update metrics for each network using Erc20Governance
           // We use the first available token address for each network
           for (const [network, updates] of metricsByNetwork) {
             const tokenNetworkItem = uniqueTokenNetworks.find(item => item.network === network)
             if (tokenNetworkItem) {
-              const governance = new TokenGovernance(tokenNetworkItem.tokenAddress, network)
+              const governance = new Erc20Governance(tokenNetworkItem.tokenAddress, network)
               await governance.updatePluginMetricsBatchNoTx(updates)
             }
           }
