@@ -196,4 +196,6 @@ export abstract class BaseGovernance {
       return null
     }
   }
+
+  abstract updateDaoMetrics(): Promise<any>
 }

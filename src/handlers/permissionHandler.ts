@@ -151,10 +151,7 @@ export const PermissionHandler = {
       // Use the governance instance to handle member removal
       await governance.delete(where)
 
-      await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-        id: pluginExisted.daoAddress,
-        params: { address: pluginExisted.daoAddress, network: pluginExisted.network },
-      })
+      await governance.updateDaoMetrics()
       logger.info('Remove member from DAO', llo({ daoAddress, pluginAddress, network, where }))
 
       return
@@ -164,10 +161,7 @@ export const PermissionHandler = {
     // This will handle both Member and PluginMember creation
     await governance.getOrCreate(where)
 
-    await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-      id: pluginExisted.daoAddress,
-      params: { address: pluginExisted.daoAddress, network: pluginExisted.network },
-    })
+    await governance.updateDaoMetrics()
 
     logger.info('Add member to DAO', llo({ daoAddress, pluginAddress, network, where }))
   },

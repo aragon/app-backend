@@ -8,13 +8,16 @@ import {
   type IPaginatedResult,
   type IMembersResponse,
   type IMemberExtraParams,
+  EnumQueueName,
 } from '@types'
 import type Lock from '@models/schema/lock'
 import Web3Utils from '@helpers/web3Utils'
 import DbTx from '@modules/dbTx'
 import logger from '@logger'
-import { type ClientSession } from 'mongoose'
+import { type ClientSession, Promise } from 'mongoose'
 import type Plugin from '@models/schema/plugin'
+import utils from '@helpers/utils'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 
 /**
  * VE governance implementation using a Lock model.
@@ -358,5 +361,18 @@ export class VeGovernance extends BaseGovernance {
       tokenAddress: extraParams.tokenAddress,
       network: extraParams.network,
     })
+  }
+
+  async updateDaoMetrics(): Promise<any> {
+    const plugins = await this.getPlugins()
+    const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
+    await Promise.all(
+      uniqueDaoList.map(async (daoAddress: string) => {
+        await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+          id: daoAddress,
+          params: { address: daoAddress, network: plugins[0].network },
+        })
+      }),
+    )
   }
 }

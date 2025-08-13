@@ -8,12 +8,16 @@ import {
   type IPaginatedResult,
   type IMembersResponse,
   type IMemberExtraParams,
+  EnumQueueName,
 } from '@types'
 import Web3Utils from '@helpers/web3Utils'
 import DbTx from '@modules/dbTx'
 import type LockManagerMember from '@models/schema/lockManagerMember'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
+import { type Promise } from 'mongoose'
+import utils from '@helpers/utils'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 
 export class LockToVoteGovernance extends BaseGovernance {
   private readonly lockManagerAddress: HexAddress
@@ -257,6 +261,14 @@ export class LockToVoteGovernance extends BaseGovernance {
     return Models.LockManagerMember.findAndPaginate({
       paginationParams,
       extraParams: enrichedExtraParams,
+    })
+  }
+
+  async updateDaoMetrics(): Promise<void> {
+    const plugin = await this.getPlugin()
+    await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+      id: plugin!.daoAddress,
+      params: { address: plugin!.daoAddress, network: plugin!.network },
     })
   }
 }
