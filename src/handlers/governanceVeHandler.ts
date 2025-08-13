@@ -3,9 +3,6 @@ import { type LogDescription } from 'ethers'
 import { type ILogInfo, IPluginInterfaceType, ITokenType } from '@types'
 import { Models } from '@dbModels'
 import { MemberGovernanceFactory, VeGovernance } from '@modules/memberGovernance'
-import { EnumQueueName } from '@types'
-import utils from '@helpers/utils'
-import RabbitMQHelper from '@helpers/rabbitMQ'
 import type Plugin from '@models/schema/plugin'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:GovernanceVeHandler' })
@@ -78,15 +75,7 @@ export const GovernanceVeHandler = {
         }),
       )
 
-      const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
-      await Promise.all(
-        uniqueDaoList.map(async (daoAddress: string) => {
-          await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-            id: daoAddress,
-            params: { address: daoAddress, network: info.network },
-          })
-        }),
-      )
+      await governance.updateDaoMetrics()
 
       logger.verbose('Delegate tokens VeGovernance', llo({ info, fromAddress, toAddress, tokenIds }))
     } catch (error) {
@@ -141,15 +130,7 @@ export const GovernanceVeHandler = {
         }),
       )
 
-      const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
-      await Promise.all(
-        uniqueDaoList.map(async (daoAddress: string) => {
-          await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-            id: daoAddress,
-            params: { address: daoAddress, network: info.network },
-          })
-        }),
-      )
+      await governance.updateDaoMetrics()
 
       logger.verbose('Undelegate tokens VeGovernance', llo({ info, fromAddress, tokenIds }))
     } catch (error) {
@@ -189,16 +170,6 @@ export const GovernanceVeHandler = {
           daoAddress: plugin.daoAddress,
           network: info.network,
           lastActivity: info.blockNumber,
-        })
-      }),
-    )
-
-    const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
-    await Promise.all(
-      uniqueDaoList.map(async (daoAddress: string) => {
-        await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-          id: daoAddress,
-          params: { address: daoAddress, network: info.network },
         })
       }),
     )
@@ -246,16 +217,6 @@ export const GovernanceVeHandler = {
             daoAddress: plugin.daoAddress,
             network: info.network,
             lastActivity: info.blockNumber,
-          })
-        }),
-      )
-
-      const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
-      await Promise.all(
-        uniqueDaoList.map(async (daoAddress: string) => {
-          await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-            id: daoAddress,
-            params: { address: daoAddress, network: info.network },
           })
         }),
       )

@@ -1,12 +1,11 @@
 import logger from '@logger'
 import { type LogDescription } from 'ethers'
-import { EnumQueueName, type ILogInfo, IPluginInterfaceType, type NetworksEnum } from '@types'
+import { type ILogInfo, IPluginInterfaceType, type NetworksEnum } from '@types'
 import utils from '@helpers/utils'
 import { MemberGovernanceFactory } from '@modules/memberGovernance'
 import { Erc20Governance } from '@modules/memberGovernance/erc20Governance'
 import type Plugin from '@models/schema/plugin'
 import { Models } from '@dbModels'
-import RabbitMQHelper from '@helpers/rabbitMQ'
 import { ProxyToken } from '@modules/proxyToken'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:GovernanceErc20Handler' })
@@ -61,15 +60,7 @@ export const GovernanceErc20Handler = {
         }),
       )
 
-      const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
-      await Promise.all(
-        uniqueDaoList.map(async (daoAddress: string) => {
-          await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-            id: daoAddress,
-            params: { address: daoAddress, network: info.network },
-          })
-        }),
-      )
+      await governance.updateDaoMetrics()
     } catch (error) {
       logger.error('DelegateVotesChanged - error', llo({ error, parsedEvent, info }))
     }
@@ -228,29 +219,9 @@ export const GovernanceErc20Handler = {
             if (tokenNetworkItem) {
               const governance = new Erc20Governance(tokenNetworkItem.tokenAddress, network)
               await governance.updatePluginMetricsBatchNoTx(updates)
+              await governance.updateDaoMetrics()
             }
           }
-        }
-
-        // Collect unique DAOs for metrics messages using reduce
-        const uniqueDaos = allPlugins.reduce<Array<{ daoAddress: string; network: string }>>((acc, plugin) => {
-          const key = `${plugin.daoAddress}-${plugin.network}`
-          if (!acc.some(item => `${item.daoAddress}-${item.network}` === key)) {
-            acc.push({ daoAddress: plugin.daoAddress, network: plugin.network })
-          }
-          return acc
-        }, [])
-
-        // Send DAO metrics messages
-        const daoMessages = uniqueDaos.map(async ({ daoAddress, network }) =>
-          RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-            id: daoAddress,
-            params: { address: daoAddress, network },
-          }),
-        )
-
-        if (daoMessages.length > 0) {
-          await Promise.all(daoMessages)
         }
       } catch (txError) {
         // If batch transaction fails, fall back to individual processing

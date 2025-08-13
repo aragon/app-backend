@@ -7,12 +7,14 @@ import {
   type IPaginatedResult,
   type IMembersResponse,
   type IMemberExtraParams,
+  EnumQueueName,
 } from '@types'
 import type Plugin from '@models/schema/plugin'
 import logger from '@logger'
 import Web3Utils from '@helpers/web3Utils'
 import DbTx from '@modules/dbTx'
 import { type ClientSession } from 'mongoose'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 
 /**
  * PluginGovernance provides default member governance implementation using PluginMember model.
@@ -186,6 +188,14 @@ export class PluginGovernance extends BaseGovernance {
     return Models.PluginMember.findAndPaginate({
       extraParams: enrichedExtraParams,
       paginationParams,
+    })
+  }
+
+  async updateDaoMetrics(): Promise<void> {
+    const plugin = await this.getPlugin()
+    await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+      id: plugin!.daoAddress,
+      params: { address: plugin!.daoAddress, network: plugin!.network },
     })
   }
 }
