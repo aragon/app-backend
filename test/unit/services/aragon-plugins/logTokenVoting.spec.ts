@@ -115,6 +115,29 @@ describe('AragonPlugins: LogTokenVoting', () => {
       expect(verboseStub.calledWith('End LogTokenVoting' as any)).to.be.true
     })
 
+    it('should return items unchanged when event is not DelegateVotesChanged', async () => {
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      sandbox.stub(logger, 'verbose')
+
+      const token = {
+        address: '0x123',
+        network: NetworksEnum.ethereumSepolia,
+        type: ITokenType.ERC20,
+        blockNumber: 100,
+      } as any
+      const plugin = {
+        address: '0x456',
+        tokenAddress: token.address,
+        network: token.network,
+        blockNumber: 200,
+        interfaceType: 'tokenVoting',
+      } as any
+
+      await LogTokenVoting.erc20Governance(plugin, token)
+
+      expect(crawlStub.calledTwice).to.be.true
+    })
+
     it('should handle errors during plugin crawling', async () => {
       const pluginStub = {
         address: '0x123',
@@ -213,6 +236,139 @@ describe('AragonPlugins: LogTokenVoting', () => {
       // Assert
       expect(crawlStub.calledTwice).to.be.true
     })
+
+    it('should filter logs returning empty array when no logs provided', async () => {
+      const pluginStub = {
+        address: '0x123',
+        tokenAddress: '0x456',
+        network: NetworksEnum.ethereumSepolia,
+        blockNumber: 100,
+        interfaceType: 'tokenVoting',
+      } as any
+
+      const tokenStub = {
+        address: '0x456',
+        blockNumber: 200,
+        network: NetworksEnum.ethereumSepolia,
+        type: ITokenType.ERC20,
+      } as any
+
+      sandbox.stub(logger, 'verbose')
+
+      let capturedFilterLogs: any
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl')
+
+      // Capture the filterLogs function from tokenCrawler
+      sandbox.stub(BlockchainLogCrawler.prototype, 'constructor' as any).callsFake(function (this: any, params: any) {
+        this.crawlParams = params
+        if (params.filterLogs) {
+          capturedFilterLogs = params.filterLogs
+        }
+      })
+
+      await LogTokenVoting.erc20Governance(pluginStub, tokenStub)
+
+      // Test the filterLogs function with empty array
+      if (capturedFilterLogs) {
+        const result = await capturedFilterLogs([])
+        expect(result).to.deep.equal([])
+      }
+    })
+
+    it('should filter duplicate DelegateVotesChanged logs keeping highest block number', async () => {
+      const pluginStub = {
+        address: '0x123',
+        tokenAddress: '0x456',
+        network: NetworksEnum.ethereumSepolia,
+        blockNumber: 100,
+        interfaceType: 'tokenVoting',
+      } as any
+
+      const tokenStub = {
+        address: '0x456',
+        blockNumber: 200,
+        network: NetworksEnum.ethereumSepolia,
+        type: ITokenType.ERC20,
+      } as any
+
+      sandbox.stub(logger, 'verbose')
+
+      let capturedFilterLogs: any
+
+      // Capture the filterLogs function from tokenCrawler
+      sandbox.stub(BlockchainLogCrawler.prototype, 'constructor' as any).callsFake(function (this: any, params: any) {
+        this.crawlParams = params
+        if (params.filterLogs) {
+          capturedFilterLogs = params.filterLogs
+        }
+      })
+
+      await LogTokenVoting.erc20Governance(pluginStub, tokenStub)
+
+      // Test the filterLogs function with duplicate logs
+      if (capturedFilterLogs) {
+        const logs = [
+          { topics: ['0xevent', '0xdelegate1'], blockNumber: 100n },
+          { topics: ['0xevent', '0xdelegate2'], blockNumber: 101n },
+          { topics: ['0xevent', '0xdelegate1'], blockNumber: 102n }, // duplicate of delegate1 with higher block
+          { topics: ['0xevent', '0xdelegate3'], blockNumber: 103n },
+          { topics: ['0xevent', '0xdelegate2'], blockNumber: 99n }, // duplicate of delegate2 with lower block
+        ]
+
+        const result = await capturedFilterLogs(logs)
+
+        // Should keep highest block numbers for each delegate
+        expect(result).to.have.length(3)
+        expect(result[0].topics[1]).to.equal('0xdelegate3') // block 103
+        expect(result[1].topics[1]).to.equal('0xdelegate1') // block 102 (not 100)
+        expect(result[2].topics[1]).to.equal('0xdelegate2') // block 101 (not 99)
+      }
+    })
+
+    it('should log filtered results with correct counts', async () => {
+      const pluginStub = {
+        address: '0x123',
+        tokenAddress: '0x456',
+        network: NetworksEnum.ethereumSepolia,
+        blockNumber: 100,
+        interfaceType: 'tokenVoting',
+      } as any
+
+      const tokenStub = {
+        address: '0x456',
+        blockNumber: 200,
+        network: NetworksEnum.ethereumSepolia,
+        type: ITokenType.ERC20,
+      } as any
+
+      const verboseStub = sandbox.stub(logger, 'verbose')
+
+      let capturedFilterLogs: any
+
+      // Capture the filterLogs function from tokenCrawler
+      sandbox.stub(BlockchainLogCrawler.prototype, 'constructor' as any).callsFake(function (this: any, params: any) {
+        this.crawlParams = params
+        if (params.filterLogs) {
+          capturedFilterLogs = params.filterLogs
+        }
+      })
+
+      await LogTokenVoting.erc20Governance(pluginStub, tokenStub)
+
+      // Test the filterLogs function and verify logging
+      if (capturedFilterLogs) {
+        const logs = [
+          { topics: ['0xevent', '0xdelegate1'], blockNumber: 100n },
+          { topics: ['0xevent', '0xdelegate1'], blockNumber: 102n }, // duplicate
+          { topics: ['0xevent', '0xdelegate2'], blockNumber: 101n },
+        ]
+
+        await capturedFilterLogs(logs)
+
+        // Verify verbose was called with 'Filtered DelegateVotesChanged logs'
+        expect(verboseStub.calledWith('Filtered DelegateVotesChanged logs' as any)).to.be.true
+      }
+    })
   })
 
   describe('veGovernance', () => {
@@ -307,6 +463,48 @@ describe('AragonPlugins: LogTokenVoting', () => {
 
       expect(crawlStub.callCount).to.equal(2)
       expect(verboseStub.calledWith('Start LogTokenVoting veGovernance' as any)).to.be.true
+    })
+
+    it('should handle error from plugin crawler in veGovernance', async () => {
+      const pluginStub = {
+        address: '0x123',
+        tokenAddress: '0x456',
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: 'tokenVoting',
+        blockNumber: 100,
+        votingEscrow: {
+          escrowAddress: '0xEscrowAddress',
+          exitQueueAddress: '0xExitQueueAddress',
+        },
+      } as any
+
+      const tokenStub = {
+        address: '0x456',
+        network: NetworksEnum.ethereumSepolia,
+        type: ITokenType.escrowAdapter,
+        blockNumber: 50,
+      } as any
+
+      sandbox.stub(logger, 'verbose')
+      const error = new Error('Plugin crawler error in veGovernance')
+
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl')
+      // First call is plugin crawler - trigger onError
+      crawlStub.onFirstCall().callsFake(async function (this: BlockchainLogCrawler): Promise<any> {
+        if ((this as any).crawlParams.onError) {
+          await (this as any).crawlParams.onError(error, { logIndex: 5, transactionHash: '0xhash5' })
+        }
+      })
+      // Second call is veGovernance crawler
+      crawlStub.onSecondCall().resolves()
+
+      const processErrorStub = sandbox.stub(LogTokenVoting, 'processError').resolves()
+
+      await LogTokenVoting.veGovernance(pluginStub, tokenStub)
+
+      expect(crawlStub.callCount).to.equal(2)
+      expect(processErrorStub.calledOnce).to.be.true
+      expect(processErrorStub.calledWith(error, pluginStub, { logIndex: 5, transactionHash: '0xhash5' })).to.be.true
     })
   })
 

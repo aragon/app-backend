@@ -1,6 +1,5 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 import { type IPluginRawStatus, type IPluginStatus, type ISettingStatus } from '@src/types/plugin'
-import { type ITransferSide, type ITransferType } from '@src/types/transfer'
 
 export interface IQueryGetPlugin {
   transactionHash: HexAddress
@@ -131,14 +130,6 @@ export interface IAggMemberParams {
   memberAddress?: string
 }
 
-export interface IAggMemberTransactionParams {
-  network?: string
-  memberAddress?: string
-  tokenAddress?: string
-  type?: ITransferType
-  side?: ITransferSide
-}
-
 export interface IAggPluginParams {
   addresses?: string | string[]
   daoAddress?: string
@@ -175,6 +166,7 @@ export interface IAggPluginProjectFields {
   subdomain?: 1
   isProcess: 1
   conditionAddress: 1
+  lockManagerAddress: 1
   isBody: 1
   isSubPlugin: 1
   totalStages: 1
@@ -213,13 +205,19 @@ export interface IAggMemberProjectFields {
   avatar?: 1
 }
 
-export interface IAggVpMemberParams {
+export interface IAggLockManagerMemberParams {
+  lockManagerAddress?: string
+  network: string
+  memberAddress?: string
+}
+
+export interface IAggTokenMemberParams {
   tokenAddress?: string
   network: string
   memberAddress?: string
 }
 
-export interface IAggVpMemberProjectFields {
+export interface IAggTokenMemberProjectFields {
   votingPower?: 1
   delegateReceivedCount?: 1
 }

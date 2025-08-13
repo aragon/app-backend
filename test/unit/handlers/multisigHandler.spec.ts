@@ -13,7 +13,7 @@ import {
 import { beforeEach } from 'mocha'
 import { MultisigHandler } from '@handlers/multisigHandler'
 import { Models } from '@dbModels'
-import { ProxyMember } from '@modules/proxyMember'
+import { MemberGovernanceFactory } from '@modules/memberGovernance'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 
 describe('Indexer: MemberHandler', () => {
@@ -79,13 +79,22 @@ describe('Indexer: MemberHandler', () => {
       } as any
 
       const findByPluginAddressSpy = sandbox.spy(Models.Plugin, 'findByAddress')
-      const findExistingLogSpy = sandbox.spy(ProxyMember, 'addPluginMember')
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves({}),
+      }
+      const factoryStub = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
       const stubRaddit = sandbox.stub(RabbitMQHelper, 'sendMessage')
 
       await MultisigHandler.membersAdded(fakeLog, logInfo)
 
       expect(findByPluginAddressSpy.calledOnce).to.be.true
-      expect(findExistingLogSpy.calledTwice).to.be.true
+      expect(factoryStub.calledOnce).to.be.true
+      expect(factoryStub.firstCall.args[0]).to.deep.equal({
+        address: plugin.address,
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.multisig,
+      })
+      expect(mockGovernance.getOrCreate.calledTwice).to.be.true
       expect(stubRaddit.calledTwice).to.be.true
 
       expect(stubRaddit.args[0][0]).to.be.eq(EnumQueueName.daoMetrics)
@@ -140,13 +149,22 @@ describe('Indexer: MemberHandler', () => {
       } as any
 
       const findByPluginAddressSpy = sandbox.spy(Models.Plugin, 'findByAddress')
-      const findExistingLogSpy = sandbox.spy(ProxyMember, 'removePluginMember')
+      const mockGovernance = {
+        delete: sandbox.stub().resolves(true),
+      }
+      const factoryStub = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
       const stubRaddit = sandbox.stub(RabbitMQHelper, 'sendMessage')
 
       await MultisigHandler.membersRemoved(fakeLog, logInfo)
 
       expect(findByPluginAddressSpy.calledOnce).to.be.true
-      expect(findExistingLogSpy.calledTwice).to.be.true
+      expect(factoryStub.calledOnce).to.be.true
+      expect(factoryStub.firstCall.args[0]).to.deep.equal({
+        address: plugin.address,
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.multisig,
+      })
+      expect(mockGovernance.delete.calledTwice).to.be.true
       expect(stubRaddit.calledTwice).to.be.true
 
       expect(stubRaddit.args[0][0]).to.be.eq(EnumQueueName.daoMetrics)

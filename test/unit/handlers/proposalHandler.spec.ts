@@ -17,7 +17,7 @@ import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
 import IPFSModule from '@modules/ipfs'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
-import { ProxyMember } from '@modules/proxyMember'
+import { MemberGovernanceFactory } from '@modules/memberGovernance'
 import config from '@config'
 import utils from '@helpers/utils'
 import RabbitMQHelper from '@helpers/rabbitMQ'
@@ -29,6 +29,7 @@ import DecodeActions from '@helpers/decodeAction'
 import DbOperations from '@models/utils/dbOperations'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import Web3Utils from '@helpers/web3Utils'
+import LockToVoteHelper from '@helpers/lockToVoteHelper'
 
 describe('ProposalHandler', () => {
   let sandbox: SinonSandbox
@@ -582,9 +583,21 @@ describe('ProposalHandler', () => {
       })
       const incrementalIdStub = sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
       const stubPair = sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
-      const stubMemberMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
       const stubDaoMetrics = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      const updateActivityStub = sandbox.stub(ProxyMember, 'createMember')
+      const updateActivityStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
+      const governanceStub = {
+        address: '0xaddress',
+        network,
+        llo: sandbox.stub(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        getOrCreate: sandbox.stub().resolves(),
+        create: sandbox.stub().resolves(),
+        update: sandbox.stub().resolves(),
+        delete: sandbox.stub().resolves(true),
+        findOne: sandbox.stub().resolves(null),
+        findExistingPluginMetricsByLog: sandbox.stub().resolves(null),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(governanceStub as any)
       const verboseLoggerStub = sandbox.stub(logger, 'verbose')
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
@@ -622,7 +635,7 @@ describe('ProposalHandler', () => {
       expect(updateActivityStub.calledWith('0xcreator', 100)).to.be.true
 
       expect(
-        stubMemberMetrics.calledWith({
+        governanceStub.getOrCreatePluginMetrics.calledWith({
           memberAddress: '0xcreator',
           pluginAddress: '0xplugin-address',
           network,
@@ -632,7 +645,7 @@ describe('ProposalHandler', () => {
       ).to.be.true
 
       expect(stubPair.calledOnce).to.be.true
-      expect(stubMemberMetrics.calledOnce).to.be.true
+      expect(governanceStub.getOrCreatePluginMetrics.calledOnce).to.be.true
       expect(stubDaoMetrics.callCount).to.be.eq(3)
       expect(stubDaoMetrics.args[0][0]).to.be.eq(EnumQueueName.daoMetrics)
       expect(stubDaoMetrics.args[1][0]).to.be.eq(EnumQueueName.proposalActions)
@@ -697,9 +710,21 @@ describe('ProposalHandler', () => {
       })
       const incrementalIdStub = sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
       const stubPair = sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
-      const stubMemberMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
       const stubDaoMetrics = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      const updateActivityStub = sandbox.stub(ProxyMember, 'createMember')
+      const updateActivityStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
+      const governanceStub = {
+        address: '0xaddress',
+        network,
+        llo: sandbox.stub(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        getOrCreate: sandbox.stub().resolves(),
+        create: sandbox.stub().resolves(),
+        update: sandbox.stub().resolves(),
+        delete: sandbox.stub().resolves(true),
+        findOne: sandbox.stub().resolves(null),
+        findExistingPluginMetricsByLog: sandbox.stub().resolves(null),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(governanceStub as any)
       const verboseLoggerStub = sandbox.stub(logger, 'verbose')
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         address: '0xtoken-address',
@@ -733,7 +758,7 @@ describe('ProposalHandler', () => {
       expect(updateActivityStub.calledWith('0xcreator', 100)).to.be.true
 
       expect(
-        stubMemberMetrics.calledWith({
+        governanceStub.getOrCreatePluginMetrics.calledWith({
           memberAddress: '0xcreator',
           pluginAddress: '0xplugin-address',
           network,
@@ -743,11 +768,108 @@ describe('ProposalHandler', () => {
       ).to.be.true
 
       expect(stubPair.calledOnce).to.be.true
-      expect(stubMemberMetrics.calledOnce).to.be.true
+      expect(governanceStub.getOrCreatePluginMetrics.calledOnce).to.be.true
       expect(stubDaoMetrics.callCount).to.be.eq(2)
       expect(stubDaoMetrics.args[0][0]).to.be.eq(EnumQueueName.daoMetrics)
       expect(stubDaoMetrics.args[1][0]).to.be.eq(EnumQueueName.proposalTokenVotingMetrics)
       expect(verboseLoggerStub.calledOnceWith('New Proposal' as any)).to.be.true
+    })
+
+    it('should log error when tokenVoting totalSupply is 0', async () => {
+      const metadataUri = 'ipfs://metadata-uri'
+      const info: ILogInfo = {
+        transactionHash: '0x123',
+        address: '0xplugin-address',
+        blockNumber: 100,
+        network,
+        eventName: 'proposalCreated',
+        transactionIndex: 1,
+        logIndex: 1,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+      }
+
+      const fakeEvent = {
+        args: {
+          creator: '0xcreator',
+          proposalId: 1n,
+          startDate: 0n,
+          endDate: 1700000000n,
+          allowFailureMap: 1n,
+          metadata: metadataUri,
+          actions: [],
+        },
+      }
+
+      const plugin = {
+        address: '0xplugin-address',
+        daoAddress: '0xdao-address',
+        subdomain: 'dao.subdomain',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+      }
+
+      const settings = {
+        tokenAddress: '0xtoken-address',
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin)
+      sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(settings)
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      sandbox.stub(IPFSModule, 'fetchMetadata').resolves({
+        title: 'Proposal Title',
+        description: 'Proposal Description',
+        summary: 'Proposal Summary',
+        resources: [],
+        media: {},
+      } as any)
+
+      // Return '0' for totalSupply to trigger the error log (getPastTotalSupply returns string)
+      sandbox.stub(GovernanceErc20Helper, 'getPastTotalSupply').resolves('0')
+
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        address: '0xtoken-address',
+        network,
+        decimals: 18,
+        hasClockMode: true,
+        clockMode: IClockMode.BlockNumber,
+      } as any)
+
+      sandbox.stub(ProposalHandler, 'handleStartEndDate').resolves({
+        startDate: 0,
+        endDate: 0,
+      })
+
+      sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
+      sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
+
+      const governanceStub = {
+        address: '0xaddress',
+        network,
+        llo: sandbox.stub(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(governanceStub as any)
+
+      const errorLoggerStub = sandbox.stub(logger, 'error')
+      sandbox.stub(logger, 'verbose')
+
+      await ProposalHandler.proposalCreated(fakeEvent as any, info)
+
+      // Verify error was logged
+      expect(errorLoggerStub.calledWith('Error ProposalHandler.proposalCreated - totalSupply is 0' as any)).to.be.true
+
+      // Verify proposal was still created with totalSupply of 0
+      const savedProposal = await Models.Proposal.findOne({
+        transactionHash: '0x123',
+        pluginAddress: '0xplugin-address',
+        proposalIndex: '1',
+      })
+
+      expect(savedProposal).to.exist
+      expect(savedProposal.snapshot.totalSupply).to.eq('0')
     })
 
     it('should handle admin proposalCreated', async () => {
@@ -809,9 +931,21 @@ describe('ProposalHandler', () => {
       sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
 
       const stubPair = sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
-      const stubMemberMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
       const stubDaoMetrics = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      const updateActivityStub = sandbox.stub(ProxyMember, 'createMember')
+      const updateActivityStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
+      const governanceStub = {
+        address: '0xaddress',
+        network,
+        llo: sandbox.stub(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        getOrCreate: sandbox.stub().resolves(),
+        create: sandbox.stub().resolves(),
+        update: sandbox.stub().resolves(),
+        delete: sandbox.stub().resolves(true),
+        findOne: sandbox.stub().resolves(null),
+        findExistingPluginMetricsByLog: sandbox.stub().resolves(null),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(governanceStub as any)
       const verboseLoggerStub = sandbox.stub(logger, 'verbose')
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
@@ -833,7 +967,7 @@ describe('ProposalHandler', () => {
       expect(updateActivityStub.calledOnceWith('0xadmin-creator', 150)).to.be.true
 
       expect(
-        stubMemberMetrics.calledOnceWith({
+        governanceStub.getOrCreatePluginMetrics.calledOnceWith({
           memberAddress: '0xadmin-creator',
           pluginAddress: '0xplugin-address',
           network,
@@ -913,9 +1047,8 @@ describe('ProposalHandler', () => {
       sandbox.stub(Models.PluginMember, 'findAllMembersOfPlugin').resolves(members)
       sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
       sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
-      sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
       const stubDaoMetrics = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      sandbox.stub(ProxyMember, 'createMember').resolves()
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
 
@@ -981,9 +1114,8 @@ describe('ProposalHandler', () => {
       sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves(proposalMetadata as any)
       sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
       sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
-      sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      sandbox.stub(ProxyMember, 'createMember').resolves()
       const stubError = sandbox.stub(logger, 'error')
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
@@ -1040,9 +1172,8 @@ describe('ProposalHandler', () => {
       sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves(null) // Null metadata
       sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
       sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
-      sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      sandbox.stub(ProxyMember, 'createMember').resolves()
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
 
@@ -1110,7 +1241,7 @@ describe('ProposalHandler', () => {
       expect(result?.relatedPlugin).to.be.undefined
     })
 
-    it('should handle when getPastTotalSupply returns null', async () => {
+    it('should handle when getPastTotalSupply returns 0', async () => {
       const metadataUri = 'ipfs://metadata-uri'
       const info: ILogInfo = {
         transactionHash: '0xnull-supply-tx',
@@ -1153,12 +1284,11 @@ describe('ProposalHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
       sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves({} as any)
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ hasClockMode: true } as any)
-      sandbox.stub(GovernanceErc20Helper, 'getPastTotalSupply').resolves(null as any) // Null total supply
+      sandbox.stub(GovernanceErc20Helper, 'getPastTotalSupply').resolves('0')
       sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
       sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
-      sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      sandbox.stub(ProxyMember, 'createMember').resolves()
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
 
@@ -1268,6 +1398,74 @@ describe('ProposalHandler', () => {
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
 
       expect(stubLogger.calledOnceWith('Error Create proposal' as any)).to.be.true
+    })
+
+    it('should handle lockToVote proposalCreated with snapshot totalSupply', async () => {
+      const metadataUri = 'ipfs://metadata-uri'
+      const info: ILogInfo = {
+        transactionHash: '0x123',
+        address: '0xplugin-address',
+        blockNumber: 100,
+        network,
+        eventName: 'proposalCreated',
+        transactionIndex: 1,
+        logIndex: 1,
+        interfaceType: IPluginInterfaceType.lockToVote,
+      }
+
+      const fakeEvent = {
+        args: {
+          creator: '0xcreator',
+          proposalId: 1n,
+          startDate: 1700000000n,
+          endDate: 1700086400n,
+          allowFailureMap: 1n,
+          metadata: metadataUri,
+          actions: [],
+        },
+      }
+
+      const plugin = {
+        address: '0xplugin-address',
+        daoAddress: '0xdao-address',
+        subdomain: 'dao.subdomain',
+        interfaceType: IPluginInterfaceType.lockToVote,
+        network,
+      }
+
+      const proposalMetadata = {
+        title: 'LockToVote Proposal',
+        description: 'LockToVote Description',
+        summary: 'LockToVote Summary',
+        resources: [],
+        media: {},
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin)
+      sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(null)
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      sandbox.stub(IPFSModule, 'fetchMetadata').resolves(proposalMetadata)
+
+      const getCurrentTotalSupplyStub = sandbox.stub(LockToVoteHelper, 'getCurrentTotalSupply').resolves('5000')
+
+      sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
+      sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      sandbox.stub(logger, 'verbose')
+
+      await ProposalHandler.proposalCreated(fakeEvent as any, info)
+
+      const savedProposal = await Models.Proposal.findOne({
+        transactionHash: '0x123',
+        pluginAddress: '0xplugin-address',
+        proposalIndex: '1',
+      })
+
+      expect(savedProposal).to.exist
+      expect(savedProposal.snapshot.totalSupply).to.eq('5000')
+      expect(getCurrentTotalSupplyStub.calledOnceWith(network, '0xplugin-address', 100)).to.be.true
     })
   })
 
@@ -1512,8 +1710,20 @@ describe('ProposalHandler', () => {
       sandbox.stub(Models.Vote, 'findExistingLog').resolves(null)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
 
-      const updateActivityStub = sandbox.stub(ProxyMember, 'createMember').resolves()
-      const updateMetricsStub = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+      const updateActivityStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      const governanceStub = {
+        address: '0xaddress',
+        network,
+        llo: sandbox.stub(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        getOrCreate: sandbox.stub().resolves(),
+        create: sandbox.stub().resolves(),
+        update: sandbox.stub().resolves(),
+        delete: sandbox.stub().resolves(true),
+        findOne: sandbox.stub().resolves(null),
+        findExistingPluginMetricsByLog: sandbox.stub().resolves(null),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(governanceStub as any)
       const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
       const verboseLoggerStub = sandbox.stub(logger, 'verbose')
 
@@ -1535,7 +1745,7 @@ describe('ProposalHandler', () => {
       expect(updateActivityStub.calledOnceWith('0xapprover-address', 10)).to.be.true
 
       expect(
-        updateMetricsStub.calledOnceWith({
+        governanceStub.getOrCreatePluginMetrics.calledOnceWith({
           memberAddress: '0xapprover-address',
           pluginAddress: '0xplugin-address',
           network,
@@ -1760,8 +1970,20 @@ describe('ProposalHandler', () => {
       sandbox.stub(Models.Vote, 'findVoteOnPlugin').resolves(null)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
       const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
-      const updateMetricsStub = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
-      const updateActivityStub = sandbox.stub(ProxyMember, 'createMember').resolves()
+      const updateActivityStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      const governanceStub = {
+        address: '0xaddress',
+        network,
+        llo: sandbox.stub(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        getOrCreate: sandbox.stub().resolves(),
+        create: sandbox.stub().resolves(),
+        update: sandbox.stub().resolves(),
+        delete: sandbox.stub().resolves(true),
+        findOne: sandbox.stub().resolves(null),
+        findExistingPluginMetricsByLog: sandbox.stub().resolves(null),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(governanceStub as any)
       const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
       const verboseLoggerStub = sandbox.stub(logger, 'verbose')
 
@@ -1783,7 +2005,7 @@ describe('ProposalHandler', () => {
       expect(proxyTokenStub.calledOnceWith('0xtoken-address', network)).to.be.true
 
       expect(
-        updateMetricsStub.calledOnceWith({
+        governanceStub.getOrCreatePluginMetrics.calledOnceWith({
           memberAddress: '0xvoter-address',
           pluginAddress: '0xplugin-address',
           network,
@@ -1839,7 +2061,7 @@ describe('ProposalHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
 
       const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
-      const updateActivityStub = sandbox.stub(ProxyMember, 'createMember').resolves()
+      const updateActivityStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
       const verboseLoggerStub = sandbox.stub(logger, 'verbose')
 
       await ProposalHandler.voteCast(fakeEvent as any, info)
@@ -1855,6 +2077,7 @@ describe('ProposalHandler', () => {
 
       expect(proxyTokenStub.calledOnceWith('0xtoken-address', network)).to.be.true
       expect(updateActivityStub.calledOnce).to.be.true
+      expect(updateActivityStub.calledWith(fakeEvent.args.voter, info.blockNumber)).to.be.true
       expect(verboseLoggerStub.calledOnceWith('Created new document - Replace Vote - VoteCast' as any)).to.be.true
     })
 
@@ -3065,6 +3288,172 @@ describe('ProposalHandler', () => {
 
       expect(errorLoggerStub.calledOnceWith('Error proposalEdited' as any)).to.be.true
     })
+
+    it('should log error when parseActions throws an error', async () => {
+      const proposal = await Models.Proposal.create({
+        ...ProposalList[0],
+        id: 'proposal-with-error',
+        rawActions: [{ data: '0x1234567890abcdef', to: '0xAddress1', value: 100 }],
+      })
+
+      const errorLoggerStub = sandbox.stub(logger, 'error')
+      sandbox.stub(DecodeActions.prototype, 'decodeData').throws(new Error('Decode failed'))
+
+      await ProposalHandler.parseActions(proposal as any)
+
+      expect(errorLoggerStub.calledWith('Error parseActions' as any)).to.be.true
+    })
+
+    it('should return empty array when decodeData and decodeTransfer return null', async () => {
+      const decodeDataStub = sandbox.stub(DecodeActions.prototype, 'decodeData').resolves(null)
+      const decodeTransferStub = sandbox.stub(DecodeActions.prototype, 'decodeTransfer').resolves(null)
+
+      const proposal = await Models.Proposal.create({
+        ...ProposalList[0],
+        id: 'proposal-null-decode',
+        rawActions: [
+          { data: '0x1234567890abcdef', to: '0xAddress1', value: 100 }, // should call decodeData (returns null)
+          { data: '0xshort', to: '0xAddress2', value: 50 }, // should call decodeTransfer (returns null)
+        ],
+      })
+
+      const result = await ProposalHandler.parseActions(proposal as any)
+
+      expect(decodeDataStub.calledOnce).to.be.true
+      expect(decodeTransferStub.calledOnce).to.be.true
+
+      // When decode functions return null, empty arrays should be returned
+      expect(result.actions).to.deep.equal([[], []])
+    })
+
+    it('should warn when proposal not found in proposalEdited', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0xNotFoundTx',
+        address: '0xplugin-address',
+        blockNumber: 200,
+        network,
+        eventName: 'ProposalEdited',
+        transactionIndex: 3,
+        logIndex: 3,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: 999n,
+          metadata: 'ipfs://metadata-uri',
+          actions: [],
+        },
+      }
+
+      const warnLoggerStub = sandbox.stub(logger, 'warn')
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(null)
+
+      await ProposalHandler.proposalEdited(fakeEvent as any, info)
+
+      expect(warnLoggerStub.calledWith('Proposal not found' as any)).to.be.true
+    })
+
+    it('should handle proposalEdited with decodeTransfer for short data', async () => {
+      const proposal = await Models.Proposal.create({
+        ...ProposalList[0],
+        network,
+      })
+
+      const info = {
+        transactionHash: '0xProposalEditTx',
+        address: proposal.pluginAddress,
+        blockNumber: 500,
+        network,
+        eventName: 'ProposalEdited',
+        transactionIndex: 1,
+        logIndex: 2,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: proposal.proposalIndex,
+          metadata: 'ipfs://metadata-uri',
+          actions: [
+            { to: '0xAction1', value: 0n, data: '0xShort' }, // data.length < 10, should trigger decodeTransfer
+          ],
+        },
+      }
+
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://metadata-uri')
+      sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves({
+        title: 'Updated Title',
+        description: 'Updated Description',
+        summary: 'Updated Summary',
+        resources: [],
+        media: {},
+      } as any)
+
+      const decodeTransferStub = sandbox
+        .stub(DecodeActions.prototype, 'decodeTransfer')
+        .resolves({ decoded: 'transferData' } as any)
+
+      const decodeDataStub = sandbox.stub(DecodeActions.prototype, 'decodeData')
+
+      await ProposalHandler.proposalEdited(fakeEvent as any, info)
+
+      // Verify decodeTransfer was called for short data
+      expect(decodeTransferStub.calledOnce).to.be.true
+      expect(decodeDataStub.notCalled).to.be.true
+
+      const updatedProposal = await Models.Proposal.findOne({ id: proposal.id })
+      expect(updatedProposal.editedTxInfo.transactionHash).to.eq('0xProposalEditTx')
+      expect(updatedProposal.actions).to.deep.equal([{ decoded: 'transferData' }])
+    })
+
+    it('should return empty array when proposalEdited decode returns null', async () => {
+      const proposal = await Models.Proposal.create({
+        ...ProposalList[0],
+        network,
+      })
+
+      const info = {
+        transactionHash: '0xProposalEditTx',
+        address: proposal.pluginAddress,
+        blockNumber: 500,
+        network,
+        eventName: 'ProposalEdited',
+        transactionIndex: 1,
+        logIndex: 2,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: proposal.proposalIndex,
+          metadata: 'ipfs://metadata-uri',
+          actions: [
+            { to: '0xAction1', value: 0n, data: '0x1234567890' }, // Will call decodeData
+            { to: '0xAction2', value: 0n, data: '0xShort' }, // Will call decodeTransfer
+          ],
+        },
+      }
+
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://metadata-uri')
+      sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves({
+        title: 'Updated Title',
+        description: 'Updated Description',
+        summary: 'Updated Summary',
+        resources: [],
+        media: {},
+      } as any)
+
+      // Both decode methods return null
+      sandbox.stub(DecodeActions.prototype, 'decodeData').resolves(null)
+      sandbox.stub(DecodeActions.prototype, 'decodeTransfer').resolves(null)
+
+      await ProposalHandler.proposalEdited(fakeEvent as any, info)
+
+      const updatedProposal = await Models.Proposal.findOne({ id: proposal.id })
+      expect(updatedProposal.editedTxInfo.transactionHash).to.eq('0xProposalEditTx')
+      // When decode returns null, empty arrays should be stored
+      expect(updatedProposal.actions).to.deep.equal([[], []])
+    })
   })
 
   describe('pairSppProposals', () => {
@@ -3423,165 +3812,215 @@ describe('ProposalHandler', () => {
     })
   })
 
-  describe('proposalEdited', () => {
-    it('should update proposal with edited metadata and actions', async () => {
-      const proposal = await Models.Proposal.create({
-        ...ProposalList[0],
-        network,
-      })
-
+  describe('voteCleared', () => {
+    it('should clear a vote successfully', async () => {
       const info: ILogInfo = {
-        transactionHash: '0xEditedTx',
-        address: proposal.pluginAddress,
-        blockNumber: 200,
-        network,
-        eventName: 'ProposalEdited',
-        transactionIndex: 1,
-        logIndex: 2,
-      }
-
-      const fakeEvent = {
-        args: {
-          proposalId: proposal.proposalIndex,
-          metadata: 'ipfs://edited-metadata-uri',
-          actions: [
-            { to: '0xTarget1', value: 0n, data: '0x12345678' },
-            { to: '0xTarget2', value: 100n, data: '0x' },
-          ],
-        },
-      }
-
-      const editedMetadata = {
-        title: 'Edited Title',
-        description: 'Edited Description',
-        summary: 'Edited Summary',
-        resources: [{ name: 'Edited Resource', url: 'https://edited.com' }],
-        media: { logo: 'https://edited-logo.com' },
-      }
-
-      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal)
-      sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://edited-metadata-uri')
-      sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves(editedMetadata)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
-
-      const decodeDataStub = sandbox
-        .stub(DecodeActions.prototype, 'decodeData')
-        .resolves({ to: '0xDecoded', value: '0', data: '0x' } as any)
-      const decodeTransferStub = sandbox
-        .stub(DecodeActions.prototype, 'decodeTransfer')
-        .resolves({ to: '0xDecoded', value: '0', data: '0x' } as any)
-      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
-
-      await ProposalHandler.proposalEdited(fakeEvent as any, info)
-
-      const updatedProposal = await proposal.reload()
-
-      expect(updatedProposal.title).to.equal('Edited Title')
-      expect(updatedProposal.description).to.equal('Edited Description')
-      expect(updatedProposal.summary).to.equal('Edited Summary')
-      expect(updatedProposal.resources.map(r => ({ name: r.name, url: r.url }))).to.deep.equal(editedMetadata.resources)
-      expect(updatedProposal.media.logo).to.equal(editedMetadata.media.logo)
-      expect(updatedProposal.editedTxInfo.blockNumber).to.equal(200)
-      expect(updatedProposal.editedTxInfo.transactionHash).to.equal('0xEditedTx')
-      expect(updatedProposal.editedTxInfo.blockTimestamp).to.equal(1700000000)
-      expect(decodeDataStub.calledOnce).to.be.true
-      expect(decodeTransferStub.calledOnce).to.be.true
-      expect(verboseLoggerStub.calledOnceWith('Update proposalEdited' as any)).to.be.true
-    })
-
-    it('should log a warning if the proposal is not found', async () => {
-      const info: ILogInfo = {
-        transactionHash: '0xEditedTx',
+        transactionHash: '0xVoteClearedTx',
         address: '0xplugin-address',
-        blockNumber: 200,
+        blockNumber: 10,
         network,
-        eventName: 'ProposalEdited',
-        transactionIndex: 1,
-        logIndex: 2,
+        eventName: 'VoteCleared',
+        transactionIndex: 2,
+        logIndex: 3,
       }
 
       const fakeEvent = {
         args: {
           proposalId: 1n,
-          metadata: 'ipfs://metadata-uri',
-          actions: [],
+          voter: '0xvoter-address',
         },
       }
 
-      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(null)
-      const warnLoggerStub = sandbox.stub(logger, 'warn')
+      const mockPlugin = { address: '0xplugin-address', network, isSupported: true }
+      const mockProposal = {
+        id: 'proposal-id',
+        daoAddress: '0xdao-address',
+        network,
+        proposalIndex: '1',
+      }
+      const mockVote = {
+        id: 'vote-id',
+        memberAddress: '0xvoter-address',
+        proposalIndex: '1',
+      }
 
-      await ProposalHandler.proposalEdited(fakeEvent as any, info)
+      sandbox.stub(Models.Vote, 'findOne').resolves(null)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(mockProposal as any)
+      sandbox.stub(Models.Vote, 'findVoteOnPlugin').resolves(mockVote as any)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1640995200)
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+      const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
 
-      expect(warnLoggerStub.calledOnceWith('Proposal not found' as any)).to.be.true
+      await ProposalHandler.voteCleared(fakeEvent as any, info)
+
+      expect(updateDocumentStub.calledOnce).to.be.true
+      expect(updateDocumentStub.firstCall.args[1]).to.deep.equal({
+        voteCleared: {
+          status: true,
+          transactionHash: '0xVoteClearedTx',
+          blockNumber: 10,
+          blockTimestamp: 1640995200,
+        },
+      })
+      expect(rabbitMQStub.calledTwice).to.be.true
+      expect(verboseLoggerStub.calledOnceWith('Vote cleared successfully' as any)).to.be.true
     })
 
-    it('should handle null metadata gracefully', async () => {
-      const proposal = await Models.Proposal.create({
-        ...ProposalList[0],
-        network,
-      })
-
+    it('should return early if log already exists', async () => {
       const info: ILogInfo = {
-        transactionHash: '0xEditedTx',
-        address: proposal.pluginAddress,
-        blockNumber: 200,
+        transactionHash: '0xVoteClearedTx',
+        address: '0xplugin-address',
+        blockNumber: 10,
         network,
-        eventName: 'ProposalEdited',
-        transactionIndex: 1,
-        logIndex: 2,
+        eventName: 'VoteCleared',
+        transactionIndex: 2,
+        logIndex: 3,
       }
 
       const fakeEvent = {
         args: {
-          proposalId: proposal.proposalIndex,
-          metadata: 'ipfs://metadata-uri',
-          actions: [],
+          proposalId: 1n,
+          voter: '0xvoter-address',
         },
       }
 
-      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal)
-      sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://metadata-uri')
-      sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves(null)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
-      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
+      const existingLog = { id: 'existing-log' }
+      sandbox.stub(Models.Vote, 'findOne').resolves(existingLog as any)
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress')
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
 
-      await ProposalHandler.proposalEdited(fakeEvent as any, info)
+      await ProposalHandler.voteCleared(fakeEvent as any, info)
 
-      const updatedProposal = await proposal.reload()
+      expect(pluginStub.called).to.be.false
+      expect(updateDocumentStub.called).to.be.false
+    })
 
-      // When metadata is null, fields should remain unchanged from original values
-      expect(updatedProposal.title).to.equal('Withdraw funds')
-      expect(updatedProposal.description).to.equal('<p>Withdraw funds</p>')
-      expect(updatedProposal.summary).to.equal('Withdraw funds')
-      expect(verboseLoggerStub.calledOnceWith('Update proposalEdited' as any)).to.be.true
+    it('should return early if plugin is not found', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0xVoteClearedTx',
+        address: '0xplugin-address',
+        blockNumber: 10,
+        network,
+        eventName: 'VoteCleared',
+        transactionIndex: 2,
+        logIndex: 3,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: 1n,
+          voter: '0xvoter-address',
+        },
+      }
+
+      sandbox.stub(Models.Vote, 'findOne').resolves(null)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+      const warnLoggerStub = sandbox.stub(logger, 'warn')
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
+
+      await ProposalHandler.voteCleared(fakeEvent as any, info)
+
+      expect(warnLoggerStub.calledOnceWith('VoteCleared - Plugin not found' as any)).to.be.true
+      expect(updateDocumentStub.called).to.be.false
+    })
+
+    it('should return early if proposal is not found', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0xVoteClearedTx',
+        address: '0xplugin-address',
+        blockNumber: 10,
+        network,
+        eventName: 'VoteCleared',
+        transactionIndex: 2,
+        logIndex: 3,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: 1n,
+          voter: '0xvoter-address',
+        },
+      }
+
+      const mockPlugin = { address: '0xplugin-address', network, isSupported: true }
+
+      sandbox.stub(Models.Vote, 'findOne').resolves(null)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(null)
+      const warnLoggerStub = sandbox.stub(logger, 'warn')
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
+
+      await ProposalHandler.voteCleared(fakeEvent as any, info)
+
+      expect(warnLoggerStub.calledOnceWith('VoteCleared - Proposal not found' as any)).to.be.true
+      expect(updateDocumentStub.called).to.be.false
+    })
+
+    it('should return early if existing vote is not found', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0xVoteClearedTx',
+        address: '0xplugin-address',
+        blockNumber: 10,
+        network,
+        eventName: 'VoteCleared',
+        transactionIndex: 2,
+        logIndex: 3,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: 1n,
+          voter: '0xvoter-address',
+        },
+      }
+
+      const mockPlugin = { address: '0xplugin-address', network, isSupported: true }
+      const mockProposal = {
+        id: 'proposal-id',
+        daoAddress: '0xdao-address',
+        network,
+        proposalIndex: '1',
+      }
+
+      sandbox.stub(Models.Vote, 'findOne').resolves(null)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(mockProposal as any)
+      sandbox.stub(Models.Vote, 'findVoteOnPlugin').resolves(null)
+      const warnLoggerStub = sandbox.stub(logger, 'warn')
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
+
+      await ProposalHandler.voteCleared(fakeEvent as any, info)
+
+      expect(warnLoggerStub.calledOnceWith('VoteCleared - Vote not found' as any)).to.be.true
+      expect(updateDocumentStub.called).to.be.false
     })
 
     it('should log an error if an exception occurs', async () => {
       const info: ILogInfo = {
-        transactionHash: '0xEditedTx',
+        transactionHash: '0xVoteClearedTx',
         address: '0xplugin-address',
-        blockNumber: 200,
+        blockNumber: 10,
         network,
-        eventName: 'ProposalEdited',
-        transactionIndex: 1,
-        logIndex: 2,
+        eventName: 'VoteCleared',
+        transactionIndex: 2,
+        logIndex: 3,
       }
 
       const fakeEvent = {
         args: {
           proposalId: 1n,
-          metadata: 'ipfs://metadata-uri',
-          actions: [],
+          voter: '0xvoter-address',
         },
       }
 
-      sandbox.stub(Models.Proposal, 'findByProposalIndex').rejects(new Error('Database error'))
+      sandbox.stub(Models.Vote, 'findOne').rejects(new Error('Database error'))
       const errorLoggerStub = sandbox.stub(logger, 'error')
 
-      await ProposalHandler.proposalEdited(fakeEvent as any, info)
+      await ProposalHandler.voteCleared(fakeEvent as any, info)
 
-      expect(errorLoggerStub.calledOnceWith('Error proposalEdited' as any)).to.be.true
+      expect(errorLoggerStub.calledOnceWith('Error VoteCleared' as any)).to.be.true
     })
   })
 })

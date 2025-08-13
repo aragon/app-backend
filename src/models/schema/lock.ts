@@ -1,4 +1,4 @@
-import { index, modelOptions, prop } from '@typegoose/typegoose'
+import { modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
   type ILockIdParams,
@@ -70,7 +70,6 @@ export class LockExit {
     customName,
   },
 })
-@index({ id: 1 }, { unique: true })
 export default class Lock extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -130,6 +129,9 @@ export default class Lock extends Model {
 
   @prop({ type: () => LockWithdraw, _id: false, default: {} })
   public lockWithdraw!: LockWithdraw
+
+  @prop({ type: () => String, default: null })
+  public receiveDelegatorAddress!: HexAddress
 
   static async create(rawData: Partial<Lock>, tOpts?: SaveOptions) {
     if (!rawData.id) {
@@ -415,7 +417,7 @@ export default class Lock extends Model {
       },
       {
         $lookup: {
-          from: ICollectionNames.VpMember,
+          from: ICollectionNames.TokenMember,
           let: {
             lockTokenId: '$tokenId',
             lockNetwork: '$network',
@@ -570,23 +572,23 @@ export default class Lock extends Model {
           },
         },
       },
-      AggregationQueryHelper.vpMember(
+      AggregationQueryHelper.tokenMember(
         {
           tokenAddress,
           network,
           memberAddress: '$memberInfo.address',
         },
-        'vpMember',
+        'tokenMember',
         {
           delegateReceivedCount: 1,
         },
       ),
       {
         $addFields: {
-          vpMember: {
+          tokenMember: {
             $cond: {
-              if: { $gt: [{ $size: '$vpMember' }, 0] },
-              then: { $arrayElemAt: ['$vpMember', 0] },
+              if: { $gt: [{ $size: '$tokenMember' }, 0] },
+              then: { $arrayElemAt: ['$tokenMember', 0] },
               else: { delegateReceivedCount: 0 },
             },
           },
@@ -604,7 +606,7 @@ export default class Lock extends Model {
             firstActivity: '$memberMetrics.firstActivity',
             lastActivity: '$memberMetrics.lastActivity',
             delegateReceivedCount: {
-              $ifNull: ['$vpMember.delegateReceivedCount', 0],
+              $ifNull: ['$tokenMember.delegateReceivedCount', 0],
             },
           },
         },

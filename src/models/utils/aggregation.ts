@@ -4,8 +4,6 @@ import {
   type IAggDaoProjectFields,
   type IAggMemberParams,
   type IAggMemberProjectFields,
-  type IAggMemberTransactionParams,
-  type IAggMemberTransactionProjectFields,
   type IAggPluginInclude,
   type IAggPluginMetricsParams,
   type IAggPluginMetricsProjectFields,
@@ -17,10 +15,11 @@ import {
   type IAggSettingProjectFields,
   type IAggTokenParams,
   type IAggTokenProjectFields,
-  type IAggVpMemberParams,
-  type IAggVpMemberProjectFields,
+  type IAggTokenMemberParams,
+  type IAggTokenMemberProjectFields,
   ICollectionNames,
   ISettingStatus,
+  type IAggLockManagerMemberParams,
 } from '@types'
 
 export const AggregationQueryHelper = {
@@ -513,39 +512,27 @@ export const AggregationQueryHelper = {
     }
   },
 
-  memberTransaction: (
-    { network, memberAddress, tokenAddress, type, side }: IAggMemberTransactionParams,
-    as: string = 'memberTransaction',
-    project?: IAggMemberTransactionProjectFields,
-    sort?: any,
-    limit?: any,
+  lockManagerMember: (
+    { lockManagerAddress, network, memberAddress }: IAggLockManagerMemberParams,
+    as: string = 'lockManagerMember',
+    project?: IAggTokenMemberProjectFields,
   ) => {
     const letVariables: any = {}
     const matchConditions: any[] = []
+
+    if (lockManagerAddress) {
+      letVariables.lockManagerAddress = lockManagerAddress
+      matchConditions.push({ $eq: ['$$lockManagerAddress', '$lockManagerAddress'] })
+    }
 
     if (network) {
       letVariables.network = network
       matchConditions.push({ $eq: ['$$network', '$network'] })
     }
 
-    if (type) {
-      letVariables.type = type
-      matchConditions.push({ $eq: ['$$type', '$type'] })
-    }
-
-    if (side) {
-      letVariables.side = side
-      matchConditions.push({ $eq: ['$$side', '$side'] })
-    }
-
     if (memberAddress) {
-      letVariables.address = memberAddress
-      matchConditions.push({ $eq: ['$$address', '$address'] })
-    }
-
-    if (tokenAddress) {
-      letVariables.tokenAddress = tokenAddress
-      matchConditions.push({ $eq: ['$$tokenAddress', '$tokenAddress'] })
+      letVariables.memberAddress = memberAddress
+      matchConditions.push({ $eq: ['$$memberAddress', '$memberAddress'] })
     }
 
     const pipeline: any[] = []
@@ -560,18 +547,6 @@ export const AggregationQueryHelper = {
       })
     }
 
-    if (sort) {
-      pipeline.push({
-        $sort: sort,
-      })
-    }
-
-    if (limit) {
-      pipeline.push({
-        $limit: limit,
-      })
-    }
-
     if (project) {
       pipeline.push({
         $project: project,
@@ -580,7 +555,7 @@ export const AggregationQueryHelper = {
 
     return {
       $lookup: {
-        from: ICollectionNames.MemberTransaction,
+        from: ICollectionNames.LockManagerMember,
         let: letVariables,
         pipeline,
         as,
@@ -588,10 +563,10 @@ export const AggregationQueryHelper = {
     }
   },
 
-  vpMember: (
-    { tokenAddress, network, memberAddress }: IAggVpMemberParams,
-    as: string = 'vpMember',
-    project?: IAggVpMemberProjectFields,
+  tokenMember: (
+    { tokenAddress, network, memberAddress }: IAggTokenMemberParams,
+    as: string = 'tokenMember',
+    project?: IAggTokenMemberProjectFields,
   ) => {
     const letVariables: any = {}
     const matchConditions: any[] = []
@@ -631,7 +606,7 @@ export const AggregationQueryHelper = {
 
     return {
       $lookup: {
-        from: ICollectionNames.VpMember,
+        from: ICollectionNames.TokenMember,
         let: letVariables,
         pipeline,
         as,
@@ -641,7 +616,7 @@ export const AggregationQueryHelper = {
 
   pluginMetrics: (
     { pluginAddress, network, memberAddress }: IAggPluginMetricsParams,
-    as: string = 'vpMember',
+    as: string = 'tokenMember',
     project?: IAggPluginMetricsProjectFields,
   ) => {
     const letVariables: any = {}

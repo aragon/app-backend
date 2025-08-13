@@ -3,7 +3,7 @@ import {
   HexAddress,
   ICollectionNames,
   NetworksEnum,
-  type IVpMemberIdParams,
+  type ITokenMemberIdParams,
   type IPaginationParams,
   type IMemberExtraParams,
   type IPaginatedResult,
@@ -15,7 +15,7 @@ import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 
-const customName = ICollectionNames.VpMember
+const customName = ICollectionNames.TokenMember
 
 @modelOptions({
   schemaOptions: {
@@ -29,12 +29,11 @@ const customName = ICollectionNames.VpMember
     customName,
   },
 })
-@index({ id: 1 }, { unique: true })
 @index({ memberAddress: 1 })
 @index({ tokenAddress: 1 })
 @index({ network: 1 })
 @index({ network: 1, tokenAddress: 1, memberAddress: 1 })
-export default class VpMember extends Model {
+export default class TokenMember extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
 
@@ -59,7 +58,7 @@ export default class VpMember extends Model {
   @prop({ type: () => Number, default: 0 })
   public lastVPBlockNumber!: number
 
-  static async create(rawData: Partial<VpMember>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<TokenMember>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.tokenAddress, 'tokenAddress is required')
@@ -74,11 +73,11 @@ export default class VpMember extends Model {
     return await data.save(tOpts)
   }
 
-  static getEntityId(params: IVpMemberIdParams) {
+  static getEntityId(params: ITokenMemberIdParams) {
     return `${params.network}-${params.tokenAddress}-${params.memberAddress}`
   }
 
-  static async findExistingLog(params: IVpMemberIdParams, tOpts?: SaveOptions) {
+  static async findExistingLog(params: ITokenMemberIdParams, tOpts?: SaveOptions) {
     const entityId = this.getEntityId(params)
     return await this.findByEntityId(entityId, tOpts)
   }
@@ -150,7 +149,7 @@ export default class VpMember extends Model {
       {
         $match: {
           ...filter,
-          votingPower: { $gt: '0' },
+          votingPower: { $ne: '0' },
         },
       },
     ]
@@ -201,43 +200,21 @@ export default class VpMember extends Model {
           },
         },
       },
-      AggregationQueryHelper.vpMember(
-        {
-          tokenAddress: extraParams?.tokenAddress,
-          network: extraParams?.network!,
-          memberAddress: '$memberAddress',
-        },
-        'vpMember',
-        {
-          delegateReceivedCount: 1,
-        },
-      ),
-      {
-        $addFields: {
-          vpMember: {
-            $cond: {
-              if: { $gt: [{ $size: '$vpMember' }, 0] },
-              then: { $arrayElemAt: ['$vpMember', 0] },
-              else: { delegateReceivedCount: 0 },
-            },
-          },
-        },
-      },
       {
         $project: {
           _id: 0,
           address: '$memberInfo.address',
           ens: '$memberInfo.ens',
           avatar: '$memberInfo.avatar',
-          tokenBalance: null, // VpMember doesn't have amount field
-          votingPower: '$votingPower',
+          tokenBalance: null, // TokenMember doesn't have amount field
+          votingPower: '$votingPowerString',
           metrics: {
             voteCount: '$pluginMetrics.voteCount',
             proposalCount: '$pluginMetrics.proposalCount',
             firstActivity: '$pluginMetrics.firstActivity',
             lastActivity: '$pluginMetrics.lastActivity',
             delegateReceivedCount: {
-              $ifNull: ['$vpMember.delegateReceivedCount', 0],
+              $ifNull: ['$tokenMember.delegateReceivedCount', 0],
             },
           },
         },
@@ -266,7 +243,6 @@ export default class VpMember extends Model {
         results[0] ? results[0].totalRecords : 0,
       ),
     ])
-
     const totalPages = Math.ceil(totalRecords / request.limit)
 
     if (currentPage > totalPages) {
@@ -284,7 +260,7 @@ export default class VpMember extends Model {
     }
   }
 
-  async update(params: Partial<VpMember>, tOpts?: SaveOptions) {
+  async update(params: Partial<TokenMember>, tOpts?: SaveOptions) {
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {

@@ -1,12 +1,13 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { EnumQueueName, ITokenType, ITransferSide, ITransferType, NetworksEnum } from '@types'
+import { EnumQueueName, ITokenType, NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
 import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 import utils from '@helpers/utils'
 import { LogDescription } from 'ethers'
 import config from '@config'
-import { ProxyMember } from '@modules/proxyMember'
+import { MemberGovernanceFactory } from '@modules/memberGovernance'
+import { Erc20Governance } from '@modules/memberGovernance/erc20Governance'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import { FakeToken } from '@test/mock/fakeToken'
@@ -65,7 +66,7 @@ describe('GovernanceErc20Handler', () => {
 
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ hasClockMode: true } as any)
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(['plugin' as any])
-      sandbox.stub(ProxyMember, 'createMember').rejects(new Error('fake error'))
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').rejects(new Error('fake error'))
 
       const loggerErrorStub = sandbox.stub(logger, 'error')
 
@@ -131,59 +132,11 @@ describe('GovernanceErc20Handler', () => {
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
 
       const getTokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('1' as any)
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember')
+      const createMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
 
       const handlerResponse = await GovernanceErc20Handler.delegateVotesChanged(fakeLog as any, logInfo)
       expect(handlerResponse).to.be.undefined
       expect(getTokenBalanceAtBlockStub.notCalled).to.be.true
-      expect(createMemberStub.notCalled).to.be.true
-    })
-
-    it('should return if existing log is found', async () => {
-      const fakeLog = {
-        args: {
-          delegate: '0xDelegateAddress',
-          previousBalance: '1000',
-          newBalance: '2000',
-        },
-      }
-
-      const logInfo = {
-        network,
-        blockNumber: 12345678,
-        transactionIndex: 1,
-        logIndex: 1,
-        transactionHash: '0xTransactionHash',
-        address: '0xTokenAddress',
-        eventName: 'DelegateVotesChanged',
-      }
-
-      const plugin = [
-        {
-          daoAddress: '0xDaoAddress',
-          address: '0xPluginAddress',
-          tokenAddress: '0xTokenAddress',
-          network,
-        },
-        {
-          daoAddress: '0xDaoAddress1',
-          address: '0xPluginAddress1',
-          network,
-          tokenAddress: '0xTokenAddress',
-        },
-      ] as any
-
-      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(plugin)
-      sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves({
-        memberVotingPower: '2000',
-        memberAddress: fakeLog.args.delegate,
-      })
-
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember')
-
-      const handlerResponse = await GovernanceErc20Handler.delegateVotesChanged(fakeLog as any, logInfo)
-
-      expect(handlerResponse).to.be.undefined
       expect(createMemberStub.notCalled).to.be.true
     })
 
@@ -206,10 +159,9 @@ describe('GovernanceErc20Handler', () => {
       }
 
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(['plugin' as any])
-      sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(null)
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
 
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember')
+      const createMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
       const loggerErrorStub = sandbox.stub(logger, 'error')
 
       await GovernanceErc20Handler.delegateVotesChanged(parsedEvent, info as any)
@@ -253,52 +205,40 @@ describe('GovernanceErc20Handler', () => {
       ]
 
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(plugin)
-      sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(null)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1630425600)
       sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('1500')
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ hasClockMode: true } as any)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('2000')
-      sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves({} as any)
-      const updateVotingPowerStub = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
-        memberAddress,
-        tokenAddress: '0xTokenAddress',
-        network,
-        votingPower: '2000',
-        delegateReceivedCount: 0,
-      } as any)
+
+      // Mock MemberGovernanceFactory
+      const createMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves({} as any)
+
+      // Mock governance instance
+      const mockGovernance = {
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       await GovernanceErc20Handler.delegateVotesChanged(parsedEvent, info as any)
 
-      // Verify the member transaction was created in the database
-      const memberTransaction = await Models.MemberTransaction.findOne({
-        transactionHash: info.transactionHash,
-        address: memberAddress,
-      })
-
-      expect(memberTransaction).to.be.not.null
-      expect(memberTransaction.type).to.be.eq(ITransferType.delegate)
-      expect(memberTransaction.side).to.be.eq(ITransferSide.incoming)
-      expect(memberTransaction.memberVotingPower).to.be.eq('2000')
-      expect(memberTransaction.blockNumber).to.be.eq(info.blockNumber)
-
-      // Verify createMember was called
+      // Verify createBaseMember was called
       expect(createMemberStub.calledOnce).to.be.true
-      expect(createMemberStub.calledWith(memberAddress, undefined)).to.be.true
+      expect(createMemberStub.calledWith(memberAddress, info.blockNumber)).to.be.true
 
-      // Verify updateVotingPower was called
-      expect(updateVotingPowerStub.calledOnce).to.be.true
+      // Verify governance update was called
+      expect(mockGovernance.update.calledOnce).to.be.true
       expect(
-        updateVotingPowerStub.calledWith({
-          memberAddress,
-          tokenAddress: info.address,
+        mockGovernance.update.calledWith(memberAddress, {
           votingPower: '2000',
-          network: info.network,
-          lastVPBlockNumber: info.blockNumber,
+          lastActivity: info.blockNumber,
         }),
       ).to.be.true
+
+      // Verify plugin metrics were updated
+      expect(mockGovernance.getOrCreatePluginMetrics.callCount).to.equal(plugin.length)
     })
 
     it('should handle outgoing delegateVotesChanged event and update plugin metrics', async () => {
@@ -329,60 +269,45 @@ describe('GovernanceErc20Handler', () => {
       }
 
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
-      sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(null)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1630425600)
       sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('1500')
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ hasClockMode: true } as any)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('1000')
-      sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves({} as any)
-      const updateVotingPowerStub = sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
-        memberAddress,
-        tokenAddress: '0xTokenAddress',
-        network,
-        votingPower: '1000',
-        delegateReceivedCount: 0,
-      } as any)
-      const updatePluginMetricsStub = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+
+      // Mock MemberGovernanceFactory
+      const createMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves({} as any)
+
+      // Mock governance instance
+      const mockGovernance = {
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       await GovernanceErc20Handler.delegateVotesChanged(parsedEvent, info as any)
 
-      const memberTransaction = await Models.MemberTransaction.findOne({
-        transactionHash: info.transactionHash,
-        address: memberAddress,
-      })
-
-      expect(memberTransaction).to.be.not.null
-      expect(memberTransaction.type).to.be.eq(ITransferType.delegate)
-      expect(memberTransaction.side).to.be.eq(ITransferSide.outgoing)
-      expect(memberTransaction.memberVotingPower).to.be.eq('1000')
-      expect(memberTransaction.amount).to.be.eq('500')
-
-      // Verify createMember was called with lastActivity
+      // Verify createBaseMember was called with lastActivity
       expect(createMemberStub.calledOnce).to.be.true
       expect(createMemberStub.calledWith(memberAddress, info.blockNumber)).to.be.true
 
-      // Verify updateVotingPower was called
-      expect(updateVotingPowerStub.calledOnce).to.be.true
+      // Verify governance update was called
+      expect(mockGovernance.update.calledOnce).to.be.true
       expect(
-        updateVotingPowerStub.calledWith({
-          memberAddress,
-          tokenAddress: info.address,
+        mockGovernance.update.calledWith(memberAddress, {
           votingPower: '1000',
-          network: info.network,
-          lastVPBlockNumber: info.blockNumber,
+          lastActivity: info.blockNumber,
         }),
       ).to.be.true
 
       // Verify updatePluginMetrics was called for outgoing transfer
-      expect(updatePluginMetricsStub.calledOnce).to.be.true
+      expect(mockGovernance.getOrCreatePluginMetrics.calledOnce).to.be.true
       expect(
-        updatePluginMetricsStub.calledWith({
+        mockGovernance.getOrCreatePluginMetrics.calledWith({
           memberAddress,
           pluginAddress: plugin.address,
-          network,
+          daoAddress: plugin.daoAddress,
+          network: plugin.network,
           lastActivity: info.blockNumber,
         }),
       ).to.be.true
@@ -437,36 +362,37 @@ describe('GovernanceErc20Handler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1630425600)
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ hasClockMode: true } as any)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('1000')
-      sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
-      sandbox.stub(ProxyMember, 'createMember').resolves({} as any)
-      sandbox.stub(ProxyMember, 'updateVotingPower').resolves()
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves({
-        memberAddress,
-        tokenAddress: '0xTokenAddress',
-        network,
-        votingPower: '1000',
-        delegateReceivedCount: 0,
-      } as any)
-      const updatePluginMetricsStub = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+
+      // Mock MemberGovernanceFactory
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves({} as any)
+
+      // Mock governance instance
+      const mockGovernance = {
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       await GovernanceErc20Handler.delegateVotesChanged(parsedEvent, info as any)
 
       // Verify updatePluginMetrics was called for each plugin
-      expect(updatePluginMetricsStub.calledTwice).to.be.true
+      expect(mockGovernance.getOrCreatePluginMetrics.calledTwice).to.be.true
       expect(
-        updatePluginMetricsStub.firstCall.calledWith({
+        mockGovernance.getOrCreatePluginMetrics.firstCall.calledWith({
           memberAddress,
           pluginAddress: plugin1.address,
-          network,
+          daoAddress: plugin1.daoAddress,
+          network: plugin1.network,
           lastActivity: info.blockNumber,
         }),
       ).to.be.true
       expect(
-        updatePluginMetricsStub.secondCall.calledWith({
+        mockGovernance.getOrCreatePluginMetrics.secondCall.calledWith({
           memberAddress,
           pluginAddress: plugin2.address,
-          network,
+          daoAddress: plugin2.daoAddress,
+          network: plugin2.network,
           lastActivity: info.blockNumber,
         }),
       ).to.be.true
@@ -515,7 +441,7 @@ describe('GovernanceErc20Handler', () => {
       }
 
       // Create existing voting power member
-      const existingVpMember = await Models.VpMember.create({
+      const existingTokenMember = await Models.TokenMember.create({
         memberAddress,
         tokenAddress: plugin.tokenAddress,
         network: plugin.network,
@@ -524,45 +450,332 @@ describe('GovernanceErc20Handler', () => {
       })
 
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
-      sandbox.stub(Models.MemberTransaction, 'findExistingLog').resolves(null)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1630425600)
       sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('0')
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ hasClockMode: true } as any)
       sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('0')
-      sandbox.stub(ProxyMember, 'updateDelegationMetrics').resolves()
-      sandbox.stub(ProxyMember, 'createMember').resolves({} as any)
-      const updateVotingPowerStub = sandbox.stub(ProxyMember, 'updateVotingPower').callsFake(async params => {
-        // Update the existing VpMember with the new voting power
-        existingVpMember.votingPower = params.votingPower
-        await existingVpMember.save()
-        return existingVpMember
-      })
-      sandbox.stub(ProxyMember, 'getOrCreateVotingPower').resolves(existingVpMember as any)
-      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
-      // Stub removePluginMember
-      sandbox.stub(ProxyMember, 'removePluginMember').resolves(true)
+      // Mock MemberGovernanceFactory
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves({} as any)
+
+      // Mock governance instance that will update the member to 0 voting power
+      const mockGovernance = {
+        update: sandbox.stub().callsFake(async (_memberAddress, params) => {
+          // Update the existing TokenMember with the new voting power
+          existingTokenMember.votingPower = params.votingPower
+          await existingTokenMember.save()
+          return existingTokenMember
+        }),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       await GovernanceErc20Handler.delegateVotesChanged(parsedEvent, info as any)
 
-      const memberTransaction = await Models.MemberTransaction.findOne({
-        transactionHash: info.transactionHash,
-        address: memberAddress,
-      })
-
-      expect(memberTransaction).to.be.not.null
-      expect(memberTransaction.type).to.be.eq(ITransferType.delegate)
-      expect(memberTransaction.side).to.be.eq(ITransferSide.outgoing)
-      expect(memberTransaction.memberVotingPower).to.be.eq('0')
-
       // Verify voting power was set to 0
-      const vpMember = await Models.VpMember.findOne({
+      const tokenMember = await Models.TokenMember.findOne({
         memberAddress,
         tokenAddress: '0xTokenAddress',
         network,
       })
-      expect(vpMember).to.be.not.null
-      expect(vpMember.votingPower).to.be.eq('0')
+      expect(tokenMember).to.be.not.null
+      expect(tokenMember.votingPower).to.be.eq('0')
+    })
+  })
+
+  describe('delegateVotesChangedBatch', () => {
+    it('should process multiple events and keep only latest per member', async () => {
+      const events = [
+        {
+          parsedEvent: { args: { delegate: '0xmember1', newBalance: '1' } } as any,
+          info: { blockNumber: 1, address: '0xtoken1', network } as any,
+        },
+        {
+          parsedEvent: { args: { delegate: '0xmember2', newBalance: '10' } } as any,
+          info: { blockNumber: 1, address: '0xtoken1', network } as any,
+        },
+        {
+          parsedEvent: { args: { delegate: '0xmember1', newBalance: '0' } } as any,
+          info: { blockNumber: 2, address: '0xtoken1', network } as any,
+        },
+        {
+          parsedEvent: { args: { delegate: '0xmember3', newBalance: '12' } } as any,
+          info: { blockNumber: 2, address: '0xtoken1', network } as any,
+        },
+      ]
+
+      // Mock plugins
+      const mockPlugins = [
+        {
+          address: '0xplugin1',
+          daoAddress: '0xdao1',
+          tokenAddress: '0xtoken1',
+          network,
+        },
+      ]
+
+      // Set up stubs
+      const createMembersBatchStub = sandbox.stub(Erc20Governance, 'createMembersBatchNoTx').resolves(true)
+
+      // Create mock governance instance for batch operations
+      const mockGovernance = {
+        updateTokenMemberVPBatchNoTx: sandbox.stub().resolves(true),
+        updatePluginMetricsBatchNoTx: sandbox.stub().resolves(true),
+      }
+      sandbox.stub(Erc20Governance.prototype, 'updateTokenMemberVPBatchNoTx').resolves(true)
+      sandbox.stub(Erc20Governance.prototype, 'updatePluginMetricsBatchNoTx').resolves(true)
+      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(mockPlugins)
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await GovernanceErc20Handler.delegateVotesChangedBatch(events)
+
+      // Verify createMembersBatchNoTx was called with correct data
+      expect(createMembersBatchStub.calledOnce).to.be.true
+      const memberDataCall = createMembersBatchStub.getCall(0).args[0]
+      expect(memberDataCall).to.have.lengthOf(3) // 3 unique members
+
+      // Verify it keeps latest activity for each member
+      const member1Data = memberDataCall.find((m: any) => m.memberAddress === '0xmember1')
+      expect(member1Data!.lastActivity).to.equal(2) // Should use block 2, not block 1
+
+      // Verify updateTokenMemberVPBatchNoTx was called
+      expect((Erc20Governance.prototype.updateTokenMemberVPBatchNoTx as any).calledOnce).to.be.true
+      const vpDataCall = (Erc20Governance.prototype.updateTokenMemberVPBatchNoTx as any).getCall(0).args[0]
+      expect(vpDataCall).to.have.lengthOf(3) // 3 unique members
+
+      // Verify it uses latest voting power for each member
+      const member1VpData = vpDataCall.find((vp: any) => vp.memberAddress === '0xmember1')
+      expect(member1VpData!.votingPower).to.equal('0') // Should use balance from block 2
+      expect(member1VpData!.lastVPBlockNumber).to.equal(2)
+
+      const member2VpData = vpDataCall.find((vp: any) => vp.memberAddress === '0xmember2')
+      expect(member2VpData!.votingPower).to.equal('10')
+      expect(member2VpData!.lastVPBlockNumber).to.equal(1)
+
+      const member3VpData = vpDataCall.find((vp: any) => vp.memberAddress === '0xmember3')
+      expect(member3VpData!.votingPower).to.equal('12')
+      expect(member3VpData!.lastVPBlockNumber).to.equal(2)
+
+      // Verify updatePluginMetricsBatchNoTx was called
+      expect((Erc20Governance.prototype.updatePluginMetricsBatchNoTx as any).calledOnce).to.be.true
+      const pluginMetricsCall = (Erc20Governance.prototype.updatePluginMetricsBatchNoTx as any).getCall(0).args[0]
+      expect(pluginMetricsCall).to.have.lengthOf(3) // 3 members x 1 plugin
+    })
+
+    it('should skip zero addresses', async () => {
+      const events = [
+        {
+          parsedEvent: { args: { delegate: utils.zeroAddress, newBalance: '100' } } as any,
+          info: { blockNumber: 1, address: '0xtoken1', network } as any,
+        },
+        {
+          parsedEvent: { args: { delegate: '0xmember1', newBalance: '50' } } as any,
+          info: { blockNumber: 1, address: '0xtoken1', network } as any,
+        },
+      ]
+
+      const createMembersBatchStub = sandbox.stub(Erc20Governance, 'createMembersBatchNoTx').resolves(true)
+      sandbox.stub(Erc20Governance.prototype, 'updateTokenMemberVPBatchNoTx').resolves(true)
+      sandbox.stub(Erc20Governance.prototype, 'updatePluginMetricsBatchNoTx').resolves(true)
+      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([])
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await GovernanceErc20Handler.delegateVotesChangedBatch(events)
+
+      // Should only process 1 member (skipping zero address)
+      expect(createMembersBatchStub.calledOnce).to.be.true
+      const memberDataCall = createMembersBatchStub.getCall(0).args[0]
+      expect(memberDataCall).to.have.lengthOf(1)
+      expect(memberDataCall[0].memberAddress).to.equal('0xmember1')
+
+      expect((Erc20Governance.prototype.updateTokenMemberVPBatchNoTx as any).calledOnce).to.be.true
+      const vpDataCall = (Erc20Governance.prototype.updateTokenMemberVPBatchNoTx as any).getCall(0).args[0]
+      expect(vpDataCall).to.have.lengthOf(1)
+    })
+
+    it('should handle empty events array', async () => {
+      const createMembersBatchStub = sandbox.stub(Erc20Governance, 'createMembersBatchNoTx').resolves(true)
+      sandbox.stub(Erc20Governance.prototype, 'updateTokenMemberVPBatchNoTx').resolves(true)
+
+      await GovernanceErc20Handler.delegateVotesChangedBatch([])
+
+      expect(createMembersBatchStub.notCalled).to.be.true
+      expect((Erc20Governance.prototype.updateTokenMemberVPBatchNoTx as any).notCalled).to.be.true
+    })
+
+    it('should handle multiple plugins for same token', async () => {
+      const events = [
+        {
+          parsedEvent: { args: { delegate: '0xmember1', newBalance: '100' } } as any,
+          info: { blockNumber: 1, address: '0xtoken1', network } as any,
+        },
+      ]
+
+      const mockPlugins = [
+        { address: '0xplugin1', daoAddress: '0xdao1', tokenAddress: '0xtoken1', network },
+        { address: '0xplugin2', daoAddress: '0xdao1', tokenAddress: '0xtoken1', network },
+        { address: '0xplugin3', daoAddress: '0xdao2', tokenAddress: '0xtoken1', network },
+      ]
+
+      sandbox.stub(Erc20Governance, 'createMembersBatchNoTx').resolves(true)
+      sandbox.stub(Erc20Governance.prototype, 'updateTokenMemberVPBatchNoTx').resolves(true)
+      const updatePluginMetricsBatchStub = sandbox
+        .stub(Erc20Governance.prototype, 'updatePluginMetricsBatchNoTx')
+        .resolves(true)
+      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(mockPlugins)
+      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await GovernanceErc20Handler.delegateVotesChangedBatch(events)
+
+      // Should create metrics for each plugin
+      expect((Erc20Governance.prototype.updatePluginMetricsBatchNoTx as any).calledOnce).to.be.true
+      const pluginMetricsCall = (Erc20Governance.prototype.updatePluginMetricsBatchNoTx as any).getCall(0).args[0]
+      expect(pluginMetricsCall).to.have.lengthOf(3) // 1 member x 3 plugins
+
+      // Should send messages for unique DAOs
+      expect(sendMessageStub.callCount).to.equal(2) // 2 unique DAOs
+    })
+
+    it('should handle errors gracefully and fallback to individual processing', async () => {
+      const events = [
+        {
+          parsedEvent: { args: { delegate: '0xmember1', newBalance: '100' } } as any,
+          info: { blockNumber: 1, address: '0xtoken1', network } as any,
+        },
+      ]
+
+      const error = new Error('Database error')
+      // Make the NoTx batch methods fail
+      sandbox.stub(Erc20Governance, 'createMembersBatchNoTx').rejects(error)
+      const loggerWarnStub = sandbox.stub(logger, 'warn')
+      // Stub the fallback methods that will be called
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      const mockGovernance = {
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([])
+
+      await GovernanceErc20Handler.delegateVotesChangedBatch(events)
+
+      expect(loggerWarnStub.calledOnce).to.be.true
+      expect(loggerWarnStub.calledWith('Batch transaction failed, falling back to individual processing' as any)).to.be
+        .true
+    })
+
+    it('should handle fallback processing with plugins and update plugin metrics', async () => {
+      const events = [
+        {
+          parsedEvent: { args: { delegate: '0xmember1', newBalance: '100' } } as any,
+          info: { blockNumber: 1, address: '0xtoken1', network } as any,
+        },
+        {
+          parsedEvent: { args: { delegate: '0xmember2', newBalance: '200' } } as any,
+          info: { blockNumber: 2, address: '0xtoken1', network } as any,
+        },
+      ]
+
+      const mockPlugins = [
+        { address: '0xplugin1', daoAddress: '0xdao1', tokenAddress: '0xtoken1', network },
+        { address: '0xplugin2', daoAddress: '0xdao2', tokenAddress: '0xtoken1', network },
+      ]
+
+      const error = new Error('Database error')
+      // Make the NoTx batch methods fail
+      sandbox.stub(Erc20Governance, 'createMembersBatchNoTx').rejects(error)
+      const loggerWarnStub = sandbox.stub(logger, 'warn')
+      const loggerInfoStub = sandbox.stub(logger, 'info')
+
+      // Stub the fallback methods that will be called
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      const mockGovernance = {
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(mockPlugins)
+
+      await GovernanceErc20Handler.delegateVotesChangedBatch(events)
+
+      expect(loggerWarnStub.calledOnce).to.be.true
+      // Verify plugin metrics were updated for each member and plugin combination
+      expect(mockGovernance.getOrCreatePluginMetrics.callCount).to.equal(4) // 2 members x 2 plugins
+
+      // Verify success log
+      expect(loggerInfoStub.calledWith('All members processed successfully via fallback' as any)).to.be.true
+    })
+
+    it('should handle partial failures in fallback processing and log failed members', async () => {
+      const events = [
+        {
+          parsedEvent: { args: { delegate: '0xmember1', newBalance: '100' } } as any,
+          info: { blockNumber: 1, address: '0xtoken1', network } as any,
+        },
+        {
+          parsedEvent: { args: { delegate: '0xmember2', newBalance: '200' } } as any,
+          info: { blockNumber: 2, address: '0xtoken1', network } as any,
+        },
+        {
+          parsedEvent: { args: { delegate: '0xmember3', newBalance: '300' } } as any,
+          info: { blockNumber: 3, address: '0xtoken1', network } as any,
+        },
+      ]
+
+      const mockPlugins = [{ address: '0xplugin1', daoAddress: '0xdao1', tokenAddress: '0xtoken1', network }]
+
+      const error = new Error('Database error')
+      // Make the NoTx batch methods fail to trigger fallback
+      sandbox.stub(Erc20Governance, 'createMembersBatchNoTx').rejects(error)
+      const loggerWarnStub = sandbox.stub(logger, 'warn')
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+
+      // Stub the fallback methods - make member2 fail
+      const createBaseMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
+      createBaseMemberStub.withArgs('0xmember1', 1).resolves()
+      createBaseMemberStub.withArgs('0xmember2', 2).rejects(new Error('Member creation failed'))
+      createBaseMemberStub.withArgs('0xmember3', 3).resolves()
+
+      const mockGovernance = {
+        update: sandbox.stub().resolves(),
+        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(mockPlugins)
+
+      await GovernanceErc20Handler.delegateVotesChangedBatch(events)
+
+      expect(loggerWarnStub.calledOnce).to.be.true
+
+      // Verify individual error was logged
+      expect(loggerErrorStub.calledWith('Failed to process individual member' as any)).to.be.true
+
+      // Verify summary error was logged with failed members
+      expect(loggerErrorStub.calledWith('Some members failed to process' as any)).to.be.true
+    })
+
+    it('should re-throw error after logging in delegateVotesChangedBatch', async () => {
+      // Create events with a getter that throws an error
+      const events = {
+        filter: () => {
+          throw new Error('Critical error')
+        },
+        length: 1,
+      } as any
+
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+
+      try {
+        await GovernanceErc20Handler.delegateVotesChangedBatch(events)
+        expect.fail('Should have thrown an error')
+      } catch (err) {
+        // Verify error was logged
+        expect(loggerErrorStub.calledWith('DelegateVotesChangedBatch - error' as any)).to.be.true
+        // Verify error was re-thrown
+        expect(err).to.be.instanceOf(Error)
+        expect((err as Error).message).to.equal('Critical error')
+      }
     })
   })
 })

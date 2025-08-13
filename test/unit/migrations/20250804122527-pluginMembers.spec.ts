@@ -3,20 +3,23 @@ import { SinonSandbox, SinonStub } from 'sinon'
 import { expect } from 'chai'
 import mongoose from 'mongoose'
 import pluginMembersMigration from '@src/migrations/20250804122527-pluginMembers'
-import { NetworksEnum } from '@types'
-import { ProxyMember } from '@modules/proxyMember'
+import { NetworksEnum, IPluginInterfaceType } from '@types'
+import { MemberGovernanceFactory } from '@modules/memberGovernance'
+import { Models } from '@dbModels'
 import logger from '@logger'
 
 describe('migration: pluginMembers', () => {
   let sandbox: SinonSandbox
   let mockDaoMemberMappingCollection: any
   let mockMemberMetricsCollection: any
-  let stubProxyMemberCreateMember: SinonStub
-  let stubProxyMemberAddPluginMember: SinonStub
-  let stubProxyMemberUpdatePluginMetrics: SinonStub
+  let stubCreateBaseMember: SinonStub
+  let stubMemberGovernanceFactoryCreate: SinonStub
+  let governanceStub: any
+  let stubPluginFindByAddress: SinonStub
+  let stubPluginMemberCreate: SinonStub
   let stubLoggerInfo: SinonStub
   let stubLoggerError: SinonStub
-  let stubLoggerVerbose: SinonStub
+  let stubLoggerWarn: SinonStub
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
@@ -39,15 +42,26 @@ describe('migration: pluginMembers', () => {
       .withArgs('MemberMetric')
       .returns(mockMemberMetricsCollection)
 
-    // Stub ProxyMember methods
-    stubProxyMemberCreateMember = sandbox.stub(ProxyMember, 'createMember').resolves()
-    stubProxyMemberAddPluginMember = sandbox.stub(ProxyMember, 'addPluginMember').resolves()
-    stubProxyMemberUpdatePluginMetrics = sandbox.stub(ProxyMember, 'updatePluginMetrics').resolves()
+    // Stub MemberGovernanceFactory methods
+    stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+    // Create governance stub with required methods
+    governanceStub = {
+      getOrCreatePluginMetrics: sandbox.stub().resolves(),
+    }
+
+    stubMemberGovernanceFactoryCreate = sandbox.stub(MemberGovernanceFactory, 'create').returns(governanceStub)
+
+    // Stub Plugin model
+    stubPluginFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress')
+
+    // Stub PluginMember model
+    stubPluginMemberCreate = sandbox.stub(Models.PluginMember, 'create').resolves()
 
     // Stub logger methods
     stubLoggerInfo = sandbox.stub(logger, 'info')
     stubLoggerError = sandbox.stub(logger, 'error')
-    stubLoggerVerbose = sandbox.stub(logger, 'verbose')
+    stubLoggerWarn = sandbox.stub(logger, 'warn')
   })
 
   afterEach(() => {
@@ -82,6 +96,29 @@ describe('migration: pluginMembers', () => {
         lastActivity: 1234567899,
       }
 
+      // Set up plugin mocks - plugins without tokenAddress (non-token plugins)
+      const mockPlugin1 = {
+        address: mockDaoMemberMappings[0].pluginAddress,
+        daoAddress: mockDaoMemberMappings[0].daoAddress,
+        network: mockDaoMemberMappings[0].network,
+        tokenAddress: null,
+        interfaceType: IPluginInterfaceType.multisig,
+      }
+      const mockPlugin2 = {
+        address: mockDaoMemberMappings[1].pluginAddress,
+        daoAddress: mockDaoMemberMappings[1].daoAddress,
+        network: mockDaoMemberMappings[1].network,
+        tokenAddress: null,
+        interfaceType: IPluginInterfaceType.admin,
+      }
+
+      stubPluginFindByAddress
+        .withArgs(mockDaoMemberMappings[0].pluginAddress, mockDaoMemberMappings[0].network)
+        .resolves(mockPlugin1)
+      stubPluginFindByAddress
+        .withArgs(mockDaoMemberMappings[1].pluginAddress, mockDaoMemberMappings[1].network)
+        .resolves(mockPlugin2)
+
       mockDaoMemberMappingCollection.toArray.resolves(mockDaoMemberMappings)
       mockMemberMetricsCollection.findOne
         .withArgs({
@@ -102,10 +139,10 @@ describe('migration: pluginMembers', () => {
       expect(mockDaoMemberMappingCollection.find.calledWith({ tokenAddress: null })).to.be.true
       expect(mockDaoMemberMappingCollection.toArray.calledOnce).to.be.true
 
-      // Verify ProxyMember calls for first document
-      expect(stubProxyMemberCreateMember.calledWith(mockDaoMemberMappings[0].memberAddress)).to.be.true
+      // Verify MemberGovernanceFactory calls for first document
+      expect(stubCreateBaseMember.calledWith(mockDaoMemberMappings[0].memberAddress)).to.be.true
       expect(
-        stubProxyMemberAddPluginMember.calledWith({
+        stubPluginMemberCreate.calledWith({
           memberAddress: mockDaoMemberMappings[0].memberAddress,
           daoAddress: mockDaoMemberMappings[0].daoAddress,
           pluginAddress: mockDaoMemberMappings[0].pluginAddress,
@@ -113,7 +150,7 @@ describe('migration: pluginMembers', () => {
         }),
       ).to.be.true
       expect(
-        stubProxyMemberUpdatePluginMetrics.calledWith({
+        governanceStub.getOrCreatePluginMetrics.calledWith({
           memberAddress: mockDaoMemberMappings[0].memberAddress,
           pluginAddress: mockDaoMemberMappings[0].pluginAddress,
           network: mockDaoMemberMappings[0].network,
@@ -122,10 +159,10 @@ describe('migration: pluginMembers', () => {
         }),
       ).to.be.true
 
-      // Verify ProxyMember calls for second document (without metrics)
-      expect(stubProxyMemberCreateMember.calledWith(mockDaoMemberMappings[1].memberAddress)).to.be.true
+      // Verify MemberGovernanceFactory calls for second document (without metrics)
+      expect(stubCreateBaseMember.calledWith(mockDaoMemberMappings[1].memberAddress)).to.be.true
       expect(
-        stubProxyMemberAddPluginMember.calledWith({
+        stubPluginMemberCreate.calledWith({
           memberAddress: mockDaoMemberMappings[1].memberAddress,
           daoAddress: mockDaoMemberMappings[1].daoAddress,
           pluginAddress: mockDaoMemberMappings[1].pluginAddress,
@@ -133,7 +170,7 @@ describe('migration: pluginMembers', () => {
         }),
       ).to.be.true
       expect(
-        stubProxyMemberUpdatePluginMetrics.calledWith({
+        governanceStub.getOrCreatePluginMetrics.calledWith({
           memberAddress: mockDaoMemberMappings[1].memberAddress,
           pluginAddress: mockDaoMemberMappings[1].pluginAddress,
           network: mockDaoMemberMappings[1].network,
@@ -143,9 +180,9 @@ describe('migration: pluginMembers', () => {
       ).to.be.true
 
       // Verify total calls
-      expect(stubProxyMemberCreateMember.callCount).to.equal(2)
-      expect(stubProxyMemberAddPluginMember.callCount).to.equal(2)
-      expect(stubProxyMemberUpdatePluginMetrics.callCount).to.equal(2)
+      expect(stubCreateBaseMember.callCount).to.equal(2)
+      expect(stubPluginMemberCreate.callCount).to.equal(2)
+      expect(governanceStub.getOrCreatePluginMetrics.callCount).to.equal(2)
 
       // Verify logging
       expect(stubLoggerInfo.calledWith('Migration completed successfully')).to.be.true
@@ -157,9 +194,9 @@ describe('migration: pluginMembers', () => {
       await pluginMembersMigration.start()
 
       expect(mockDaoMemberMappingCollection.find.calledWith({ tokenAddress: null })).to.be.true
-      expect(stubProxyMemberCreateMember.called).to.be.false
-      expect(stubProxyMemberAddPluginMember.called).to.be.false
-      expect(stubProxyMemberUpdatePluginMetrics.called).to.be.false
+      expect(stubCreateBaseMember.called).to.be.false
+      expect(stubPluginMemberCreate.called).to.be.false
+      expect(governanceStub.getOrCreatePluginMetrics.called).to.be.false
       expect(stubLoggerInfo.calledWith('No daoMemberMapping documents to migrate')).to.be.true
     })
 
@@ -181,11 +218,28 @@ describe('migration: pluginMembers', () => {
         },
       ]
 
+      // Set up plugin mocks
+      const mockPlugin = {
+        address: mockDaoMemberMappings[1].pluginAddress,
+        daoAddress: mockDaoMemberMappings[1].daoAddress,
+        network: mockDaoMemberMappings[1].network,
+        tokenAddress: null,
+        interfaceType: IPluginInterfaceType.multisig,
+      }
+
+      // First plugin call fails, second succeeds
+      stubPluginFindByAddress
+        .withArgs(mockDaoMemberMappings[0].pluginAddress, mockDaoMemberMappings[0].network)
+        .resolves(null) // Plugin not found - will be skipped
+      stubPluginFindByAddress
+        .withArgs(mockDaoMemberMappings[1].pluginAddress, mockDaoMemberMappings[1].network)
+        .resolves(mockPlugin)
+
       mockDaoMemberMappingCollection.toArray.resolves(mockDaoMemberMappings)
       mockMemberMetricsCollection.findOne.resolves(null)
 
-      // Make first ProxyMember call fail
-      stubProxyMemberCreateMember.onFirstCall().rejects(new Error('Test error')).onSecondCall().resolves()
+      // Make first createBaseMember call fail
+      stubCreateBaseMember.onFirstCall().rejects(new Error('Test error')).onSecondCall().resolves()
 
       await pluginMembersMigration.start()
 
@@ -194,9 +248,9 @@ describe('migration: pluginMembers', () => {
       expect(stubLoggerError.firstCall.args[0]).to.equal('Error processing daoMemberMapping document')
 
       // Verify second document was still processed
-      expect(stubProxyMemberCreateMember.callCount).to.equal(2)
-      expect(stubProxyMemberAddPluginMember.callCount).to.equal(1) // Only successful one
-      expect(stubProxyMemberUpdatePluginMetrics.callCount).to.equal(1) // Only successful one
+      expect(stubCreateBaseMember.callCount).to.equal(2)
+      expect(stubPluginMemberCreate.callCount).to.equal(1) // Only successful one
+      expect(governanceStub.getOrCreatePluginMetrics.callCount).to.equal(1) // Only successful one
 
       // Verify completion with error count
       const completionLogCall = stubLoggerInfo
@@ -216,6 +270,13 @@ describe('migration: pluginMembers', () => {
         network: NetworksEnum.ethereumMainnet,
         tokenAddress: null,
       }))
+
+      // Set up plugin mocks for all 150 documents
+      const mockPlugin = {
+        tokenAddress: null,
+        interfaceType: IPluginInterfaceType.multisig,
+      }
+      stubPluginFindByAddress.resolves(mockPlugin)
 
       mockDaoMemberMappingCollection.toArray.resolves(mockDaoMemberMappings)
       mockMemberMetricsCollection.findOne.resolves(null)

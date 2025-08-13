@@ -10,13 +10,15 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   type IPairParams,
+  IPluginInterfaceType,
+  ITokenType,
   type NetworksEnum,
 } from '@types'
 import { assertExposable } from '@errors'
 import PairDataModule from '@modules/pairData'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import config from '@config'
-import type Plugin from '@models/schema/plugin'
+import { MemberGovernanceFactory } from '@modules/memberGovernance'
 
 const MemberController = {
   getMembersWithPagination: async (
@@ -26,32 +28,65 @@ const MemberController = {
   ): Promise<IPaginatedResult<IMembersResponse>> => {
     extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
 
-    assertExposable(!!extraParams.network, ErrorKeyEnum.badParams)
-
-    if (!extraParams.pluginAddress && !extraParams.daoAddress) {
-      return Models.Member.findPaginatedMembersOnly({ paginationParams })
-    }
-
-    assertExposable(!!(extraParams.daoAddress && extraParams.pluginAddress), ErrorKeyEnum.pluginNotFound)
+    // required network, daoAddress and pluginAddress
+    assertExposable(
+      !!(extraParams.network && extraParams.daoAddress && extraParams.pluginAddress),
+      ErrorKeyEnum.pluginNotFound,
+    )
 
     const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
     assertExposable(plugin, ErrorKeyEnum.notFound)
 
-    if (plugin.votingEscrow !== null && plugin.votingEscrow.escrowAddress) {
-      return await MemberController.getMembersOfVeLockPlugin(paginationParams, plugin)
-    }
+    switch (plugin.interfaceType) {
+      case IPluginInterfaceType.tokenVoting: {
+        const token = await Models.Token.findByTokenAddressAndNetwork(plugin.tokenAddress, plugin.network)
+        assertExposable(token, ErrorKeyEnum.notFound)
 
-    if (plugin.tokenAddress) {
-      extraParams.tokenAddress = plugin.tokenAddress
-      return Models.VpMember.findAndPaginate({
-        paginationParams,
-        extraParams,
-      })
-    } else {
-      return Models.PluginMember.findAndPaginate({
-        extraParams,
-        paginationParams,
-      })
+        let address = plugin.tokenAddress
+        if (token.type === ITokenType.escrowAdapter) {
+          address = plugin.votingEscrow.escrowAddress
+          extraParams.escrowAddress = plugin.votingEscrow.escrowAddress
+        } else {
+          extraParams.tokenAddress = plugin.tokenAddress
+        }
+
+        const governance = MemberGovernanceFactory.create({
+          address, // escrowAddress or token address
+          network: plugin.network,
+          interfaceType: IPluginInterfaceType.tokenVoting,
+          tokenType: token.type,
+        })
+
+        return governance.findAndPaginateMembers({
+          paginationParams,
+          extraParams,
+        })
+      }
+      case IPluginInterfaceType.lockToVote: {
+        assertExposable(plugin.lockManagerAddress, ErrorKeyEnum.notFound)
+        const governance = MemberGovernanceFactory.create({
+          address: plugin.lockManagerAddress, // lockManagerAddress
+          network: plugin.network,
+          interfaceType: IPluginInterfaceType.lockToVote,
+        })
+        extraParams.lockManagerAddress = plugin.lockManagerAddress
+        return governance.findAndPaginateMembers({
+          paginationParams,
+          extraParams,
+        })
+      }
+      default: {
+        // admin and multisig are the same
+        const governance = MemberGovernanceFactory.create({
+          address: plugin.address, // token address
+          network: plugin.network,
+          interfaceType: IPluginInterfaceType.multisig,
+        })
+        return governance.findAndPaginateMembers({
+          paginationParams,
+          extraParams,
+        })
+      }
     }
   },
 
@@ -104,36 +139,6 @@ const MemberController = {
     paginationParams: IPaginationParams = {},
   ): Promise<IPaginatedResult<IMemberLockResponse>> => {
     return await Models.Lock.findWithPagination({ extraParams, paginationParams })
-  },
-
-  getMembersOfVeLockPlugin: async (paginationParams: IPaginationParams = {}, plugin: Plugin) => {
-    const settings = await Models.Setting.findActive({
-      daoAddress: plugin.daoAddress,
-      network: plugin.network,
-      pluginAddress: plugin.address,
-      tokenAddress: plugin.tokenAddress,
-    })
-
-    const token = await Models.Token.findOne({
-      address: plugin.tokenAddress,
-      network: plugin.network,
-    })
-
-    assertExposable(token && settings?.votingEscrow, ErrorKeyEnum.notFound)
-
-    return Models.Lock.getMembersOfVeLockPlugin({
-      paginationParams,
-      pluginAddress: plugin.address,
-      settings: {
-        currentTime: Math.floor(Date.now() / 1000),
-        maxTime: settings.votingEscrow.maxTime,
-        slope: settings.votingEscrow.slope,
-        bias: settings.votingEscrow.bias,
-        decimals: (BigInt(10) ** BigInt(token.decimals)).toString(),
-      },
-      tokenAddress: plugin.tokenAddress,
-      network: plugin.network,
-    })
   },
 }
 

@@ -289,7 +289,7 @@ describe('Helpers: GovernanceErc20', () => {
         getConfigItem: sandbox.stub().returns({}),
       }
 
-      const getPastTotalSupplyStub = sandbox.stub().resolves('1000000')
+      const getPastTotalSupplyStub = sandbox.stub().resolves(BigInt('1000000'))
       const getChainAdjustedBlockNumberStub = sandbox.stub(Web3Helper, 'getChainAdjustedBlockNumber').resolves(1)
 
       const { default: MockedGovernanceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
@@ -312,6 +312,40 @@ describe('Helpers: GovernanceErc20', () => {
       })
       expect(getChainAdjustedBlockNumberStub.calledWith(9, NetworksEnum.ethereumMainnet)).to.be.true
       expect(result).to.eq('1000000')
+    })
+
+    it('Should handle hex string response from getPastTotalSupply', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      // Simulate the contract returning a hex string like the one mentioned
+      const getPastTotalSupplyStub = sandbox
+        .stub()
+        .resolves('0x00000000000000000000000000000000000000000000000005badbbe2f007cf8')
+      const getChainAdjustedBlockNumberStub = sandbox.stub(Web3Helper, 'getChainAdjustedBlockNumber').resolves(1)
+
+      const { default: MockedGovernanceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
+        ethers: {
+          Contract: function () {
+            return { getPastTotalSupply: getPastTotalSupplyStub }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedGovernanceErc20Helper.getPastTotalSupply({
+        blockNumber: 10,
+        tokenAddress: '0x123',
+        network: NetworksEnum.ethereumMainnet,
+        blockTimestamp: 0,
+        clockMode: IClockMode.BlockNumber,
+      })
+      expect(getChainAdjustedBlockNumberStub.calledWith(9, NetworksEnum.ethereumMainnet)).to.be.true
+      // The hex value 0x00000000000000000000000000000000000000000000000005badbbe2f007cf8 = 412883925736652024
+      expect(result).to.eq('412883925736652024')
     })
 
     it('should handle errors in getPastTotalSupply', async () => {
@@ -344,7 +378,7 @@ describe('Helpers: GovernanceErc20', () => {
     it('should get historical total supply when clock mode is passed with timestamp', async () => {
       // Removed unused stubConfigState definition
 
-      const getPastTotalSupplyStub = sandbox.stub().resolves('1000000')
+      const getPastTotalSupplyStub = sandbox.stub().resolves(BigInt('1000000'))
 
       const { default: MockedGovernanceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
         ethers: {

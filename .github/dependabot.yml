@@ -17,3 +17,8 @@ updates:
       include: "scope"
     rebase-strategy: "auto" # Auto-rebase when conflicts
     versioning-strategy: "increase"
+    groups:
+      minor-and-patch:
+        update-types:
+          - "patch"
+          - "minor"
