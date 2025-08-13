@@ -7,7 +7,7 @@ import { expect } from 'chai'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { LogSelectorPermission } from '@plugins/logSelectorPermission'
 
-describe('ExecuteSelector: Integration Test', () => {
+describe('Integ: ExecuteSelector', () => {
   let sandbox: sinon.SinonSandbox
   let network = NetworksEnum.ethereumSepolia
 

@@ -7,7 +7,7 @@ import { EnumQueueName } from '@types'
 import utils from '@helpers/utils'
 import { expect } from 'chai'
 
-describe.skip('RabbitMQ', () => {
+describe.skip('Integ: RabbitMQ', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {

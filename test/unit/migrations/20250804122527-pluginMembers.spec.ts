@@ -4,7 +4,7 @@ import { expect } from 'chai'
 import mongoose from 'mongoose'
 import pluginMembersMigration from '@src/migrations/20250804122527-pluginMembers'
 import { NetworksEnum, IPluginInterfaceType } from '@types'
-import { MemberGovernanceFactory } from '@modules/memberGovernance'
+import { MemberGovernanceFactory } from '@src/governance'
 import { Models } from '@dbModels'
 import logger from '@logger'
 

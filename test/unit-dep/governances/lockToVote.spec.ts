@@ -7,7 +7,7 @@ import { expect } from 'chai'
 import Web3Helper from '@helpers/web3'
 import MemberController from '@api/controllers/member'
 
-describe('LockToVote', () => {
+describe('Integ: LockToVote', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -22,12 +22,12 @@ describe('LockToVote', () => {
     const networks = [
       {
         network: NetworksEnum.ethereumSepolia,
-        daoAddress: '0x9418fcf1Aa0dCEB9090F2bBA06E70d94E10e46b1'
+        daoAddress: '0x9418fcf1Aa0dCEB9090F2bBA06E70d94E10e46b1',
       },
     ]
 
     for (const { network, daoAddress } of networks) {
-      it.only(`should handle veLock all events properly ${network}`, async function() {
+      it.only(`should handle veLock all events properly ${network}`, async function () {
         this.timeout(100000000)
 
         UnitDepUtils.stubRabbitmqSend(sandbox)
@@ -61,9 +61,11 @@ describe('LockToVote', () => {
           },
         )
 
-        if(network === NetworksEnum.ethereumSepolia) {
+        if (network === NetworksEnum.ethereumSepolia) {
           expect(members.data.length).to.eq(membersFromQuery.length)
-          const sortedMembers = members.data.sort((a: any, b: any) => parseFloat(b.votingPower) - parseFloat(a.votingPower))
+          const sortedMembers = members.data.sort(
+            (a: any, b: any) => parseFloat(b.votingPower) - parseFloat(a.votingPower),
+          )
           expect(members.data).to.deep.equal(sortedMembers)
 
           const member = members.data[0] as IMembersResponse

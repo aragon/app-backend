@@ -14,7 +14,7 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import configIndexer from '@indexer/configIndexer'
 import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 
-describe.skip('Integration: BlockchainLogCrawler', () => {
+describe.skip('Integ: BlockchainLogCrawler', () => {
   let sandbox: SinonSandbox
 
   before(async () => {

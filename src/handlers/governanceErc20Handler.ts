@@ -2,8 +2,8 @@ import logger from '@logger'
 import { type LogDescription } from 'ethers'
 import { type ILogInfo, IPluginInterfaceType, type NetworksEnum } from '@types'
 import utils from '@helpers/utils'
-import { MemberGovernanceFactory } from '@modules/memberGovernance'
-import { Erc20Governance } from '@modules/memberGovernance/erc20Governance'
+import { MemberGovernanceFactory } from '@src/governance'
+import { Erc20Governance } from '@src/governance/erc20Governance'
 import type Plugin from '@models/schema/plugin'
 import { Models } from '@dbModels'
 import { ProxyToken } from '@modules/proxyToken'
@@ -30,9 +30,6 @@ export const GovernanceErc20Handler = {
       const newBalance = BigInt(parsedEvent?.args?.newBalance || 0)
       const lastActivity = info.blockNumber
 
-      // Create base member using MemberGovernanceFactory
-      await MemberGovernanceFactory.createBaseMember(memberAddress, lastActivity)
-
       // Create ERC20 governance instance for token operations
       const governance = MemberGovernanceFactory.create({
         address: info.address, // token address
@@ -40,17 +37,16 @@ export const GovernanceErc20Handler = {
         interfaceType: IPluginInterfaceType.tokenVoting,
       })
 
-      await governance.getOrCreate(memberAddress)
-      // Update token member voting power
+      // Update, will create member if not exists, update or create the token member
       await governance.update(memberAddress, {
         votingPower: newBalance.toString(),
-        lastActivity: info.blockNumber,
+        lastActivity,
       })
 
       // Update plugin metrics for all plugins using this token
       await Promise.all(
         plugins.map(async (plugin: Plugin) => {
-          await governance.getOrCreatePluginMetrics({
+          await governance.updatePluginMetrics({
             memberAddress,
             pluginAddress: plugin.address,
             daoAddress: plugin.daoAddress,
@@ -241,9 +237,6 @@ export const GovernanceErc20Handler = {
             const { parsedEvent, info } = event
             const memberAddress = parsedEvent.args.delegate
 
-            // Create/update base member using MemberGovernanceFactory
-            await MemberGovernanceFactory.createBaseMember(memberAddress, info.blockNumber)
-
             // Create governance instance for token operations
             const governance = MemberGovernanceFactory.create({
               address: info.address, // token address
@@ -251,8 +244,6 @@ export const GovernanceErc20Handler = {
               interfaceType: IPluginInterfaceType.tokenVoting,
             })
 
-            // Update voting power - this will only update if block number is higher
-            await governance.getOrCreate(memberAddress)
             await governance.update(memberAddress, {
               votingPower: BigInt(parsedEvent?.args?.newBalance || 0).toString(),
               lastActivity: info.blockNumber,
@@ -263,7 +254,7 @@ export const GovernanceErc20Handler = {
             if (plugins.length > 0) {
               await Promise.all(
                 plugins.map(async (plugin: Plugin) => {
-                  await governance.getOrCreatePluginMetrics({
+                  await governance.updatePluginMetrics({
                     memberAddress,
                     pluginAddress: plugin.address,
                     daoAddress: plugin.daoAddress,

@@ -7,7 +7,7 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import { Models } from '@dbModels'
 import { NetworksEnum } from '@types'
 import { ethers } from 'ethers'
-import { MemberGovernanceFactory } from '@modules/memberGovernance'
+import { MemberGovernanceFactory } from '@src/governance'
 import { PluginHandler } from '@handlers/pluginHandler'
 import Utils from '@helpers/utils'
 
