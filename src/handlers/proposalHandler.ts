@@ -319,12 +319,9 @@ export const ProposalHandler = {
         lastActivity: newProposal.blockNumber,
       })
 
-      const allMessages: Promise<any>[] = [
-        RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-          id: newProposal.daoAddress,
-          params: { address: newProposal.daoAddress, network: newProposal.network },
-        }),
-      ]
+      await governance.updateDaoMetrics()
+
+      const allMessages: Promise<any>[] = []
 
       if (parsedEvent.args?.actions?.length > 0) {
         allMessages.push(
@@ -411,13 +408,13 @@ export const ProposalHandler = {
 
       await DbOperations.createDocument(Models.Vote, document, info, 'New Vote - Approved', llo)
 
-      // Create base member using MemberGovernanceFactory
+      // Create a base member using MemberGovernanceFactory
       await MemberGovernanceFactory.createBaseMember(document.memberAddress!, info.blockNumber)
 
-      // Get plugin to determine interface type
+      // Get plugin to determine an interface type
       const relatedPlugin = await Models.Plugin.findByAddress(info.address, info.network)
       if (relatedPlugin) {
-        // Create governance instance based on plugin type
+        // Create governance instance based on a plugin type
         const governance = MemberGovernanceFactory.create({
           address: relatedPlugin.tokenAddress || info.address,
           network: info.network,
@@ -431,20 +428,14 @@ export const ProposalHandler = {
           daoAddress: proposal?.daoAddress,
           lastActivity: info?.blockNumber,
         })
+
+        await governance.updateDaoMetrics()
       }
 
-      await Promise.allSettled([
-        // Proposal metrics
-        RabbitMQHelper.sendMessage(EnumQueueName.proposalMultisigMetrics, {
-          id: `${proposalIndex}-${info.address}`,
-          params: { proposalIndex, pluginAddress: info.address, network: proposal.network },
-        }),
-        // Dao metrics
-        RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-          id: proposal.daoAddress,
-          params: { address: proposal.daoAddress, network: proposal.network },
-        }),
-      ])
+      await RabbitMQHelper.sendMessage(EnumQueueName.proposalMultisigMetrics, {
+        id: `${proposalIndex}-${info.address}`,
+        params: { proposalIndex, pluginAddress: info.address, network: proposal.network },
+      })
     } catch (error) {
       logger.error('Error Approved Proposal', llo({ ...info, error, parsedEvent }))
     }
@@ -543,20 +534,14 @@ export const ProposalHandler = {
           daoAddress: proposal.daoAddress,
           lastActivity: info?.blockNumber,
         })
+        await governance.updateDaoMetrics()
       }
 
-      await Promise.allSettled([
-        // Proposal metrics
-        RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {
-          id: `${proposalIndex}-${info.address}`,
-          params: { proposalIndex, pluginAddress: info.address, network: proposal.network },
-        }),
-        // Dao metrics
-        RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-          id: proposal.daoAddress,
-          params: { address: proposal.daoAddress, network: proposal.network },
-        }),
-      ])
+      // Proposal metrics
+      await RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {
+        id: `${proposalIndex}-${info.address}`,
+        params: { proposalIndex, pluginAddress: info.address, network: proposal.network },
+      })
     } catch (error) {
       logger.error('Error VoteCast Proposal', llo({ ...info, error, parsedEvent }))
     }

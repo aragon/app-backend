@@ -8,13 +8,16 @@ import {
   type IPaginatedResult,
   type IMembersResponse,
   type IMemberExtraParams,
+  EnumQueueName,
 } from '@types'
 import type Token from '@models/schema/token'
 import type TokenMember from '@models/schema/tokenMember'
 import Web3Utils from '@helpers/web3Utils'
 import DbTx from '@modules/dbTx'
 import logger from '@logger'
-import { type ClientSession } from 'mongoose'
+import { type ClientSession, Promise } from 'mongoose'
+import utils from '@helpers/utils'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 
 /**
  * Token-based governance implementation using TokenMember model.
@@ -461,5 +464,18 @@ export class Erc20Governance extends BaseGovernance {
       logger.error('Error in batch plugin metrics update (no tx)', this.llo({ error, updateCount: updates.length }))
       return false
     }
+  }
+
+  async updateDaoMetrics(): Promise<any> {
+    const plugins = await this.getPlugins()
+    const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
+    await Promise.all(
+      uniqueDaoList.map(async (daoAddress: string) => {
+        await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+          id: daoAddress,
+          params: { address: daoAddress, network: plugins[0].network },
+        })
+      }),
+    )
   }
 }

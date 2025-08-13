@@ -82,15 +82,7 @@ const LockManagerHandler = {
         }),
       )
 
-      const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
-      await Promise.all(
-        uniqueDaoList.map(async (daoAddress: string) => {
-          await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-            id: daoAddress,
-            params: { address: daoAddress, network: info.network },
-          })
-        }),
-      )
+      await governance.updateDaoMetrics()
 
       logger.verbose(
         'Balance locked successfully',
@@ -171,15 +163,7 @@ const LockManagerHandler = {
         }),
       )
 
-      const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
-      await Promise.all(
-        uniqueDaoList.map(async (daoAddress: string) => {
-          await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-            id: daoAddress,
-            params: { address: daoAddress, network: info.network },
-          })
-        }),
-      )
+      await governance.updateDaoMetrics()
 
       logger.verbose(
         'Balance unlocked successfully',
