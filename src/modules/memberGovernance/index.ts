@@ -27,28 +27,31 @@ export class MemberGovernanceFactory {
     network: NetworksEnum
     interfaceType: IPluginInterfaceType
     tokenType?: ITokenType
+    extraParams?: {
+      escrowAdapterAddress?: HexAddress
+    }
   }): BaseGovernance {
     switch (params.interfaceType) {
       case IPluginInterfaceType.tokenVoting:
         switch (params.tokenType) {
           case ITokenType.escrowAdapter:
-            // address is the escrowAddress
-            return new VeGovernance(params.address, params.network)
+            // the address is the escrowAddress
+            return new VeGovernance(params.address, params.network, params.extraParams)
           default:
-            // address is the tokenAddress
+            // the address is the tokenAddress
             return new Erc20Governance(params.address, params.network)
         }
 
       case IPluginInterfaceType.lockToVote:
-        // address is the lockManagerAddress
+        // the address is the lockManagerAddress
         return new LockToVoteGovernance(params.address, params.network)
 
       case IPluginInterfaceType.multisig:
-        // address is the pluginAddress
+        // the address is the pluginAddress
         return new MultisigGovernance(params.address, params.network)
 
       case IPluginInterfaceType.admin:
-        // address is the pluginAddress
+        // the address is the pluginAddress
         return new AdminGovernance(params.address, params.network)
 
       case IPluginInterfaceType.spp:
