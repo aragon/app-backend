@@ -1,7 +1,6 @@
 import { type HexAddress, IPluginInterfaceType, ITokenType, type NetworksEnum } from '@types'
 import { BaseGovernance } from './baseGovernance'
 import { PluginGovernance } from './pluginGovernance'
-import { TokenGovernance } from './tokenGovernance'
 import { Erc20Governance } from './erc20Governance'
 import { VeGovernance } from './veGovernance'
 import { LockToVoteGovernance } from './lockToVoteGovernance'
@@ -14,7 +13,6 @@ import logger from '@logger'
 
 export { BaseGovernance }
 export { PluginGovernance }
-export { TokenGovernance }
 export { Erc20Governance }
 export { VeGovernance }
 export { LockToVoteGovernance }

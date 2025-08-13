@@ -4,7 +4,7 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { Models } from '@dbModels'
 import Logger from '@logger'
-import { Erc20Governance, TokenGovernance } from '@modules/memberGovernance'
+import { Erc20Governance } from '@modules/memberGovernance'
 import EnsHelper from '@helpers/ens'
 import { NetworksEnum, type HexAddress } from '@types'
 import Web3Utils from '@helpers/web3Utils'
@@ -35,27 +35,151 @@ describe('Modules:MemberGovernance:Erc20Governance', () => {
     sandbox.restore()
   })
 
-  describe('inheritance', () => {
-    it('should extend TokenGovernance', () => {
-      expect(erc20Governance).to.be.instanceOf(Erc20Governance)
-      expect(erc20Governance).to.be.instanceOf(TokenGovernance)
-    })
-
-    it('should inherit all methods from TokenGovernance', () => {
-      expect(erc20Governance.getOrCreate).to.be.a('function')
-      expect(erc20Governance.create).to.be.a('function')
-      expect(erc20Governance.update).to.be.a('function')
-      expect(erc20Governance.delete).to.be.a('function')
-      expect(erc20Governance.findOne).to.be.a('function')
-    })
-  })
-
   describe('constructor', () => {
     it('should initialize with token address and network', () => {
       const governance = new Erc20Governance(testTokenAddress, testNetwork)
       expect(governance['address']).to.equal(testTokenAddress)
       expect(governance['tokenAddress']).to.equal(testTokenAddress)
       expect(governance['network']).to.equal(testNetwork)
+    })
+  })
+
+  describe('getPlugins', () => {
+    it('should fetch all plugins using this token', async () => {
+      const mockPlugins = [
+        {
+          address: '0xplugin1plugin1plugin1plugin1plugin1' as HexAddress,
+          tokenAddress: testTokenAddress,
+          network: testNetwork,
+          daoAddress: '0xdao1dao1dao1dao1dao1dao1dao1dao1dao1dao1' as HexAddress,
+        },
+        {
+          address: '0xplugin2plugin2plugin2plugin2plugin2' as HexAddress,
+          tokenAddress: testTokenAddress,
+          network: testNetwork,
+          daoAddress: '0xdao2dao2dao2dao2dao2dao2dao2dao2dao2dao2' as HexAddress,
+        },
+      ]
+
+      const findStub = sandbox.stub(Models.Plugin, 'find').resolves(mockPlugins as any)
+
+      const result = await erc20Governance.getPlugins()
+
+      expect(result).to.equal(mockPlugins)
+      expect(result).to.have.lengthOf(2)
+      expect(
+        findStub.calledOnceWith({ tokenAddress: testTokenAddress, network: testNetwork }, null, { session: undefined }),
+      ).to.be.true
+    })
+
+    it('should pass session when provided', async () => {
+      const mockSession = { id: 'test-session' }
+      const mockPlugins = [
+        {
+          address: '0xplugin1plugin1plugin1plugin1plugin1' as HexAddress,
+          tokenAddress: testTokenAddress,
+          network: testNetwork,
+        },
+      ]
+
+      const findStub = sandbox.stub(Models.Plugin, 'find').resolves(mockPlugins as any)
+
+      const result = await erc20Governance.getPlugins(mockSession)
+
+      expect(result).to.equal(mockPlugins)
+      expect(
+        findStub.calledOnceWith({ tokenAddress: testTokenAddress, network: testNetwork }, null, {
+          session: mockSession,
+        }),
+      ).to.be.true
+    })
+
+    it('should return empty array if no plugins found', async () => {
+      const findStub = sandbox.stub(Models.Plugin, 'find').resolves([])
+
+      const result = await erc20Governance.getPlugins()
+
+      expect(result).to.deep.equal([])
+      expect(result).to.have.lengthOf(0)
+      expect(findStub.calledOnce).to.be.true
+    })
+
+    it('should handle multiple plugins from different DAOs using same token', async () => {
+      const mockPlugins = [
+        {
+          address: '0xplugin1plugin1plugin1plugin1plugin1' as HexAddress,
+          tokenAddress: testTokenAddress,
+          network: testNetwork,
+          daoAddress: '0xdao1dao1dao1dao1dao1dao1dao1dao1dao1dao1' as HexAddress,
+          interfaceType: 'tokenVoting',
+        },
+        {
+          address: '0xplugin2plugin2plugin2plugin2plugin2' as HexAddress,
+          tokenAddress: testTokenAddress,
+          network: testNetwork,
+          daoAddress: '0xdao2dao2dao2dao2dao2dao2dao2dao2dao2dao2' as HexAddress,
+          interfaceType: 'tokenVoting',
+        },
+        {
+          address: '0xplugin3plugin3plugin3plugin3plugin3' as HexAddress,
+          tokenAddress: testTokenAddress,
+          network: testNetwork,
+          daoAddress: '0xdao3dao3dao3dao3dao3dao3dao3dao3dao3dao3' as HexAddress,
+          interfaceType: 'tokenVoting',
+        },
+      ]
+
+      const findStub = sandbox.stub(Models.Plugin, 'find').resolves(mockPlugins as any)
+
+      const result = await erc20Governance.getPlugins()
+
+      expect(result).to.have.lengthOf(3)
+      // Verify all plugins use the same token
+      result.forEach((plugin: any) => {
+        expect(plugin.tokenAddress).to.equal(testTokenAddress)
+      })
+      expect(findStub.calledOnce).to.be.true
+    })
+  })
+
+  describe('getToken', () => {
+    it('should fetch and cache token', async () => {
+      const mockToken = {
+        address: testTokenAddress,
+        network: testNetwork,
+        symbol: 'TEST',
+        decimals: 18,
+      }
+
+      const findOneStub = sandbox.stub(Models.Token, 'findOne').resolves(mockToken as any)
+
+      const result = await erc20Governance['getToken']()
+      expect(result).to.equal(mockToken)
+      expect(
+        findOneStub.calledOnceWith({ address: testTokenAddress, network: testNetwork }, null, { session: undefined }),
+      ).to.be.true
+
+      // Call again to test caching
+      const result2 = await erc20Governance['getToken']()
+      expect(result2).to.equal(mockToken)
+      expect(findOneStub.calledOnce).to.be.true // Should not be called again
+    })
+
+    it('should pass session when provided', async () => {
+      const mockSession = { id: 'test-session' }
+      const mockToken = {
+        address: testTokenAddress,
+        network: testNetwork,
+        symbol: 'TEST',
+      }
+
+      const findOneStub = sandbox.stub(Models.Token, 'findOne').resolves(mockToken as any)
+
+      const result = await erc20Governance['getToken'](mockSession)
+      expect(result).to.equal(mockToken)
+      expect(
+        findOneStub.calledOnceWith({ address: testTokenAddress, network: testNetwork }, null, { session: mockSession }),
+      ).to.be.true
     })
   })
 
