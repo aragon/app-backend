@@ -15,11 +15,12 @@ import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
 describe('ChilizProvider', () => {
   let sandbox: any
   let loggerStub: any
+  let loggerWarnStub: any
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
     loggerStub = sandbox.stub(logger, 'error')
-    sandbox.stub(logger, 'warn')
+    loggerWarnStub = sandbox.stub(logger, 'warn')
   })
 
   afterEach(() => {
@@ -1080,6 +1081,200 @@ describe('ChilizProvider', () => {
       expect(retryRequestStub.calledOnce).to.be.true
       expect(typeof retryFunction!).to.equal('function')
       expect(result).to.deep.equal(mockResponseData)
+    })
+  })
+
+  describe('fetchHistoricalTokenPrice', () => {
+    it('should return 0 for historical token price', async () => {
+      // fetchHistoricalTokenPrice accepts any arguments but doesn't use them
+      const result = await ChilizProvider.fetchHistoricalTokenPrice({
+        address: '0x123',
+        network: NetworksEnum.chilizMainnet,
+      } as any)
+      expect(result).to.equal('0')
+    })
+  })
+
+  describe('fetchContractCreation - validation and error handling', () => {
+    it('should validate contract creation result and handle errors', async () => {
+      const address = '0xcontract'
+      const network = NetworksEnum.chilizMainnet
+
+      let validationFn: any
+      let errorHandler: any
+
+      sandbox.stub(utils, 'fallbackCall').callsFake((_explorers, _fn, options) => {
+        validationFn = options.validate
+        errorHandler = options.onError
+        return null
+      })
+
+      await ChilizProvider.fetchContractCreation({ address, network })
+
+      // Test validation function - covers line 66
+      expect(validationFn(null)).to.be.false
+      expect(validationFn({ transactionHash: null })).to.be.false
+      expect(validationFn({ transactionHash: '0xabc' })).to.be.true
+
+      // Test error handler - covers lines 67-68
+      const mockError = new Error('Test error')
+      errorHandler(mockError, EvmExplorerEnum.CHILIZ, 0)
+
+      // Verify logger was called (check that it was called, not the exact message)
+      expect(loggerWarnStub.called).to.be.true
+    })
+  })
+
+  describe('fetchContractSourceCode - error logging', () => {
+    it('should log errors when fetching contract source code fails', async () => {
+      const address = '0xcontract'
+      const network = NetworksEnum.chilizMainnet
+
+      let errorHandler: any
+
+      sandbox.stub(utils, 'fallbackCall').callsFake((_explorers, _fn, options) => {
+        errorHandler = options.onError
+        return null
+      })
+
+      await ChilizProvider.fetchContractSourceCode({ address, network })
+
+      // Test error handler logs correctly - covers line 96
+      const mockError = new Error('Source code fetch failed')
+      errorHandler(mockError, EvmExplorerEnum.ROUTESCAN, 1)
+
+      // Verify logger was called
+      expect(loggerWarnStub.called).to.be.true
+    })
+  })
+
+  describe('fetchAddressTxns - error handling', () => {
+    it('should handle errors in fetchAddressTxns and return empty array', async () => {
+      const address = '0xaddress'
+      const network = NetworksEnum.chilizMainnet
+
+      sandbox.stub(ProxyUtils, 'getProgressFromConfigIndexer').rejects(new Error('Database error'))
+
+      const result = await ChilizProvider.fetchAddressTxns({ address, network })
+
+      // Covers lines 259-260
+      expect(loggerStub.called).to.be.true
+      expect(result).to.be.an('array').that.is.empty
+    })
+
+    it('should filter out undefined transactions when token info is null', async () => {
+      const address = '0xaddress'
+      const network = NetworksEnum.chilizMainnet
+
+      const mockERC20Transfers = [
+        {
+          from: '0xsender',
+          to: address,
+          value: '1000000000000000000',
+          blockNumber: '100',
+          timeStamp: '1622345678',
+          hash: '0xtx1',
+          contractAddress: '0xtoken1',
+          logIndex: '0',
+          transactionIndex: '1',
+        },
+      ]
+
+      sandbox.stub(ProxyUtils, 'getProgressFromConfigIndexer').resolves(null)
+      sandbox.stub(Web3Helper, 'getBlockNumber').resolves(150)
+      sandbox.stub(ChilizProvider, '_fetchERC20Transfers').resolves(mockERC20Transfers)
+      sandbox.stub(ChilizProvider, '_fetchTxList').resolves([])
+
+      // Return null for token info to trigger line 214
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
+
+      sandbox.stub(ProxyUtils, 'updateProgressInConfigIndexer').resolves()
+
+      const result = await ChilizProvider.fetchAddressTxns({ address, network })
+
+      expect(result).to.be.an('array').that.is.empty
+    })
+
+    it('should filter out scam tokens', async () => {
+      const address = '0xaddress'
+      const network = NetworksEnum.chilizMainnet
+
+      const mockERC20Transfers = [
+        {
+          from: '0xsender',
+          to: address,
+          value: '1000000000000000000',
+          blockNumber: '100',
+          timeStamp: '1622345678',
+          hash: '0xtx1',
+          contractAddress: '0xtoken1',
+          logIndex: '0',
+          transactionIndex: '1',
+        },
+      ]
+
+      const token1 = {
+        address: '0xtoken1',
+        decimals: 18,
+        name: 'Scam Token',
+        symbol: 'SCAM',
+        priceUsd: '0',
+        type: ITokenType.ERC20,
+      }
+
+      sandbox.stub(ProxyUtils, 'getProgressFromConfigIndexer').resolves(null)
+      sandbox.stub(Web3Helper, 'getBlockNumber').resolves(150)
+      sandbox.stub(ChilizProvider, '_fetchERC20Transfers').resolves(mockERC20Transfers)
+      sandbox.stub(ChilizProvider, '_fetchTxList').resolves([])
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(token1)
+
+      // Return true to filter out scam token - triggers line 218
+      sandbox.stub(TokenUtils, 'analyzeIfScamToken').returns(true)
+
+      sandbox.stub(ProxyUtils, 'updateProgressInConfigIndexer').resolves()
+
+      const result = await ChilizProvider.fetchAddressTxns({ address, network })
+
+      expect(result).to.be.an('array').that.is.empty
+    })
+  })
+
+  describe('_fetchTxList - pagination', () => {
+    it('should continue pagination when page is full', async () => {
+      const address = '0xaddress'
+      const network = NetworksEnum.chilizMainnet
+      const blockFilter = { startBlock: 100, endBlock: 200 }
+
+      // Create 100 valid transactions for page 1
+      const page1Result = Array.from({ length: 100 }, (_, i) => ({
+        from: address,
+        to: `0xrecipient${i}`,
+        value: '1000000000000000000',
+        blockNumber: `${100 + i}`,
+        timeStamp: '1622345678',
+        hash: `0xtx${i}`,
+      }))
+
+      // Create 50 valid transactions for page 2
+      const page2Result = Array.from({ length: 50 }, (_, i) => ({
+        from: address,
+        to: `0xrecipient${100 + i}`,
+        value: '2000000000000000000',
+        blockNumber: `${150 + i}`,
+        timeStamp: '1622345700',
+        hash: `0xtx${100 + i}`,
+      }))
+
+      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall')
+      rpcCallStub.onCall(0).resolves({ message: 'OK', result: page1Result })
+      rpcCallStub.onCall(1).resolves({ message: 'OK', result: page2Result })
+
+      const result = await ChilizProvider._fetchTxList(address, network, blockFilter)
+
+      // Should have called twice and incremented page (line 348)
+      expect(rpcCallStub.callCount).to.equal(2)
+      expect(rpcCallStub.secondCall.args[1].page).to.equal(2)
+      expect(result).to.have.lengthOf(150)
     })
   })
 })

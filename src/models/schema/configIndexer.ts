@@ -18,7 +18,6 @@ const customName = ICollectionNames.ConfigIndexer
     customName,
   },
 })
-@index({ id: 1 }, { unique: true })
 @index({ network: 1, lastSync: 1 })
 @index({ lastSync: 1 })
 @index({ end: -1 })

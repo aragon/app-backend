@@ -35,7 +35,7 @@ describe('Router: MainAdminRouter', () => {
     stubRouter(QueueAdminRouter, 'queue')
     stubRouter(DaoAdminRouter, 'dao')
 
-    await utils.wait(1000)
+    // Removed unnecessary 1000ms wait
 
     const mainRouter = MainAdminRouter.router()
     expect(mainRouter instanceof Router).to.be.true

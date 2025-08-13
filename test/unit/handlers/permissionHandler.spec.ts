@@ -7,7 +7,7 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import { Models } from '@dbModels'
 import { NetworksEnum } from '@types'
 import { ethers } from 'ethers'
-import { ProxyMember } from '@modules/proxyMember'
+import { MemberGovernanceFactory } from '@modules/memberGovernance'
 import { PluginHandler } from '@handlers/pluginHandler'
 import Utils from '@helpers/utils'
 
@@ -538,13 +538,21 @@ describe('Indexer: Permission Handler', () => {
         interfaceType: 'admin',
       })
       const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
-      const addPluginMemberStub = sandbox.stub(ProxyMember, 'addPluginMember')
+
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves({}),
+        delete: sandbox.stub().resolves(true),
+      }
+      const factoryStub = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
       const loggerInfo = sandbox.stub(logger, 'info')
 
       await PermissionHandler.handleForAdminPlugin(daoAddress, pluginAddress, network, where, add)
 
       expect(findExistingLog.calledOnce).to.be.true
-      expect(addPluginMemberStub.calledOnce).to.be.true
+      expect(factoryStub.calledOnce).to.be.true
+      expect(mockGovernance.getOrCreate.calledOnce).to.be.true
+      expect(mockGovernance.getOrCreate.calledWith(where)).to.be.true
       expect(sendMessage.calledOnce).to.be.true
       expect(loggerInfo.calledOnce).to.be.true
     })
@@ -563,13 +571,21 @@ describe('Indexer: Permission Handler', () => {
         interfaceType: 'admin',
       })
       const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
-      const removePluginMemberStub = sandbox.stub(ProxyMember, 'removePluginMember')
+
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves({}),
+        delete: sandbox.stub().resolves(true),
+      }
+      const factoryStub = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
       const loggerInfo = sandbox.stub(logger, 'info')
 
       await PermissionHandler.handleForAdminPlugin(daoAddress, pluginAddress, network, where, add)
 
       expect(findExistingLog.calledOnce).to.be.true
-      expect(removePluginMemberStub.calledOnce).to.be.true
+      expect(factoryStub.calledOnce).to.be.true
+      expect(mockGovernance.delete.calledOnce).to.be.true
+      expect(mockGovernance.delete.calledWith(where)).to.be.true
       expect(sendMessage.calledOnce).to.be.true
       expect(loggerInfo.calledOnce).to.be.true
     })
@@ -590,6 +606,12 @@ describe('Indexer: Permission Handler', () => {
       expect(findExistingLog.calledOnce).to.be.true
       expect(sendMessage.notCalled).to.be.true
       expect(loggerInfo.notCalled).to.be.true
+    })
+
+    it.skip('should handle governance creation failure', async () => {
+      // This test is skipped because MemberGovernanceFactory.create should never fail
+      // for valid interface types (admin, multisig, tokenVoting, lockToVote)
+      // It only throws for unsupported types which we don't use in handlers
     })
   })
 })

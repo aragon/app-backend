@@ -37,8 +37,8 @@ describe('Module: DbTx', () => {
       tokenIds: [],
     }
 
-    let vpMember = await Models.VpMember.create(initialData)
-    expect(vpMember.votingPower).to.equal('0')
+    let tokenMember = await Models.TokenMember.create(initialData)
+    expect(tokenMember.votingPower).to.equal('0')
 
     const votingPowerUpdates = [
       { votingPower: '1000', blockNumber: 0 },
@@ -50,7 +50,7 @@ describe('Module: DbTx', () => {
     await Promise.all(
       votingPowerUpdates.map(async ({ votingPower, blockNumber }) => {
         return DbTx.executeTxFn(async ({ session }) => {
-          const member = await Models.VpMember.findById(vpMember._id, null, { session })
+          const member = await Models.TokenMember.findById(tokenMember._id, null, { session })
           await member.update({ votingPower, lastVPBlockNumber: blockNumber }, { session })
           await session.commitTransaction()
           await session.endSession()
@@ -58,7 +58,7 @@ describe('Module: DbTx', () => {
       }),
     )
 
-    const updatedMember = await vpMember.reload()
+    const updatedMember = await tokenMember.reload()
 
     expect(updatedMember).to.exist
     // In parallel updates, the last transaction to commit wins (not necessarily 3000)

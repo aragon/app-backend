@@ -9,11 +9,11 @@ import PairDataModule from '@modules/pairData'
 import Token from '@models/schema/token'
 import Member from '@models/schema/member'
 import PluginMember from '@models/schema/pluginMember'
-import VpMember from '@models/schema/vpMember'
+import TokenMember from '@models/schema/tokenMember'
 import { FakeToken } from '@test/mock/fakeToken'
 import { ProposalList } from '@test/mock/fakeProposal'
 import { fakePluginMembers } from '@test/mock/fakePluginMember'
-import { fakeVpMembers } from '@test/mock/fakeVpMember'
+import { fakeTokenMembers } from '@test/mock/fakeTokenMember'
 import { FakeMember } from '@test/mock/fakeMember'
 import Setting from '@models/schema/setting'
 import { fakeSettings } from '@test/mock/fakeSettings'
@@ -28,7 +28,7 @@ describe('Controller: Proposal', () => {
   let rawProposal: Partial<Proposal>
   let rawMember: Partial<Member>
   let rawPluginMember: Partial<PluginMember>
-  let rawVpMember: Partial<VpMember>
+  let rawTokenMember: Partial<TokenMember>
   let rawSettings: Partial<Setting>
 
   beforeEach(async () => {
@@ -57,7 +57,7 @@ describe('Controller: Proposal', () => {
       network: rawProposal.network,
     }
 
-    rawVpMember = {
+    rawTokenMember = {
       memberAddress: FakeMember.address,
       tokenAddress: FakeToken.address,
       network: rawProposal.network,
@@ -86,7 +86,7 @@ describe('Controller: Proposal', () => {
         tokenAddress: FakeToken.address,
         interfaceType: IPluginInterfaceType.multisig,
       }),
-      Models.VpMember.create(rawVpMember),
+      Models.TokenMember.create(rawTokenMember),
     ])
   })
 

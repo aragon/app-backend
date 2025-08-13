@@ -17,6 +17,20 @@ import { AggregationQueryHelper } from '@models/utils/aggregation'
 
 const customName = ICollectionNames.Vote
 
+export class VoteCleared {
+  @prop({ type: () => Boolean })
+  public status!: boolean
+
+  @prop({ type: () => String })
+  public transactionHash!: HexAddress
+
+  @prop({ type: () => Number })
+  public blockNumber!: number
+
+  @prop({ type: () => Number })
+  public blockTimestamp!: number
+}
+
 @modelOptions({
   schemaOptions: {
     id: false,
@@ -29,12 +43,12 @@ const customName = ICollectionNames.Vote
     customName,
   },
 })
-@index({ id: 1 }, { unique: true })
 @index({ network: 1, blockNumber: 1, daoAddress: 1, pluginAddress: 1, memberAddress: 1 })
 @index({ network: 1, pluginAddress: 1, proposalIndex: 1 })
 @index({ network: 1, pluginAddress: 1, memberAddress: 1, proposalIndex: 1, blockNumber: -1 })
 @index({ pluginAddress: 1, memberAddress: 1, proposalIndex: 1 })
 @index({ network: 1, transactionHash: 1 })
+@index({ 'voteCleared.status': 1, 'voteCleared.transactionHash': 1, 'voteCleared.blockNumber': 1 })
 export default class Vote extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -81,6 +95,9 @@ export default class Vote extends Model {
   @prop({ type: () => String, default: null })
   public replacedTransactionHash!: HexAddress
 
+  @prop({ type: () => VoteCleared, _id: false, default: {} })
+  public voteCleared!: VoteCleared
+
   static async create(rawData: Partial<Vote>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'pluginAddress is required')
@@ -124,7 +141,16 @@ export default class Vote extends Model {
     },
     tOpts?: SaveOptions,
   ) {
-    return await this.find({ proposalIndex, pluginAddress, network }, null, tOpts)
+    return await this.find(
+      {
+        proposalIndex,
+        pluginAddress,
+        network,
+        $or: [{ 'voteCleared.status': false }, { 'voteCleared.status': { $exists: false } }],
+      },
+      null,
+      tOpts,
+    )
   }
 
   static async findVoteOnPlugin({
@@ -163,6 +189,7 @@ export default class Vote extends Model {
     const filter = {
       ...ModelUtils.createFilter(paginationParams, ['address', 'ens']),
       ...dynamicFilter,
+      $or: [{ 'voteCleared.status': false }, { 'voteCleared.status': { $exists: false } }],
     }
 
     const query: any = [

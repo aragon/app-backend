@@ -71,7 +71,7 @@ describe('Model: Lock', () => {
     // Clean up database to prevent test interference
     await Models.Lock.deleteMany({})
     await Models.Member.deleteMany({})
-    await Models.VpMember.deleteMany({})
+    await Models.TokenMember.deleteMany({})
     await Models.Token.deleteMany({})
   })
 
@@ -458,8 +458,8 @@ describe('Model: Lock', () => {
         lockExit: { status: true }, // This lock is exited
       })
 
-      // Create VpMembers that match the locks
-      await Models.VpMember.create({
+      // Create TokenMembers that match the locks
+      await Models.TokenMember.create({
         network,
         memberAddress: '0xActive1234567890abcdef1234567890abcdef',
         tokenAddress,
@@ -468,7 +468,7 @@ describe('Model: Lock', () => {
         delegateReceivedCount: 0,
       })
 
-      await Models.VpMember.create({
+      await Models.TokenMember.create({
         network,
         memberAddress: '0xActive2234567890abcdef1234567890abcdef',
         tokenAddress,
@@ -566,7 +566,7 @@ describe('Model: Lock', () => {
         await Models.Lock.create(lock)
       }
       for (const balance of balances) {
-        await Models.VpMember.create({
+        await Models.TokenMember.create({
           memberAddress: balance.address,
           tokenAddress: balance.tokenAddress,
           network: balance.network,
@@ -680,8 +680,8 @@ describe('Model: Lock', () => {
         lockExit: { status: true }, // Inactive (exited)
       })
 
-      // Only create VpMember for the active member
-      await Models.VpMember.create({
+      // Only create TokenMember for the active member
+      await Models.TokenMember.create({
         network,
         memberAddress: '0xActive1234567890abcdef1234567890abcdef',
         tokenAddress,
@@ -747,8 +747,8 @@ describe('Model: Lock', () => {
         lockExit: { status: false },
       })
 
-      // Create VpMember with multiple token IDs
-      await Models.VpMember.create({
+      // Create TokenMember with multiple token IDs
+      await Models.TokenMember.create({
         network,
         memberAddress: memberAddress,
         tokenAddress,
@@ -824,7 +824,7 @@ describe('Model: Lock', () => {
         lockExit: { status: false },
       })
 
-      await Models.VpMember.create({
+      await Models.TokenMember.create({
         network,
         memberAddress: memberAddress,
         tokenAddress,
