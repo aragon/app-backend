@@ -15,8 +15,7 @@ import DbTx from '@modules/dbTx'
 import type LockManagerMember from '@models/schema/lockManagerMember'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
-import { type Promise } from 'mongoose'
-import utils from '@helpers/utils'
+
 import RabbitMQHelper from '@helpers/rabbitMQ'
 
 export class LockToVoteGovernance extends BaseGovernance {
