@@ -31,7 +31,6 @@ const customName = ICollectionNames.Token
     customName,
   },
 })
-@index({ id: 1 }, { unique: true })
 @index({ name: -1 })
 @index({ refetch: 1 })
 @index({ address: 1, network: 1 })
@@ -210,7 +209,7 @@ export default class Token extends Model {
   }
 
   async countHolders(tOpts?: SaveOptions) {
-    return await Models.VpMember.countHoldersWithVotingPower(this.address, this.network, tOpts)
+    return await Models.TokenMember.countHoldersWithVotingPower(this.address, this.network, tOpts)
   }
 
   async reload(tOpts?: SaveOptions) {

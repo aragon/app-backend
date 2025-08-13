@@ -19,7 +19,6 @@ const customName = ICollectionNames.Migration
     customName,
   },
 })
-@index({ filename: 1 }, { unique: true })
 @index({ status: 1 })
 @index({ executedAt: -1 })
 export default class Migration extends Model {

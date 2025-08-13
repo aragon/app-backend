@@ -1,6 +1,6 @@
 import { NetworksEnum } from '@types'
 
-export const fakeVpMembers = [
+export const fakeTokenMembers = [
   {
     memberAddress: '0x123456789012345678901234567890123456789A',
     tokenAddress: '0xA23456789012345678901234567890123456789B',

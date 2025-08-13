@@ -8,8 +8,9 @@ const MemberSchema = {
       .valid(...Object.values(NetworksEnum))
       .optional(),
     daoAddress: ValidationSchema.joiAddress.optional(),
-    pluginAddress: ValidationSchema.joiAddress.optional(),
+    pluginAddress: ValidationSchema.joiAddress.required(),
     tokenAddress: ValidationSchema.joiAddress.optional(),
+    lockManagerAddress: ValidationSchema.joiAddress.optional(),
   }),
 
   getExtraParamsV2: Joi.object({

@@ -1,8 +1,9 @@
-import { type IMigration } from '@types'
+import { type IMigration, IPluginInterfaceType } from '@types'
 import logger from '@logger'
 import mongoose from 'mongoose'
 import * as pLimit from 'p-limit'
-import { ProxyMember } from '@modules/proxyMember'
+import { MemberGovernanceFactory } from '@modules/memberGovernance'
+import { Models } from '@dbModels'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: pluginMembers' })
 
@@ -39,16 +40,42 @@ export const pluginMembersMigration: IMigration = {
               pluginAddress: daoMemberMapping.pluginAddress,
             })
 
-            await ProxyMember.createMember(daoMemberMapping.memberAddress)
+            // Create base member
+            await MemberGovernanceFactory.createBaseMember(daoMemberMapping.memberAddress)
 
-            await ProxyMember.addPluginMember({
-              memberAddress: daoMemberMapping.memberAddress,
-              daoAddress: daoMemberMapping.daoAddress,
-              pluginAddress: daoMemberMapping.pluginAddress,
+            // Get plugin to determine the interface type
+            const plugin = await Models.Plugin.findByAddress(daoMemberMapping.pluginAddress, daoMemberMapping.network)
+
+            if (!plugin) {
+              logger.warn(
+                'Plugin not found for daoMemberMapping',
+                llo({
+                  pluginAddress: daoMemberMapping.pluginAddress,
+                  network: daoMemberMapping.network,
+                }),
+              )
+              return
+            }
+
+            // Create governance instance based on plugin type
+            const governance = MemberGovernanceFactory.create({
+              address: plugin.tokenAddress || daoMemberMapping.pluginAddress,
               network: daoMemberMapping.network,
+              interfaceType: plugin.interfaceType || IPluginInterfaceType.multisig,
             })
 
-            await ProxyMember.updatePluginMetrics({
+            // For non-token plugins, add as plugin member
+            if (!plugin.tokenAddress) {
+              await Models.PluginMember.create({
+                memberAddress: daoMemberMapping.memberAddress,
+                daoAddress: daoMemberMapping.daoAddress,
+                pluginAddress: daoMemberMapping.pluginAddress,
+                network: daoMemberMapping.network,
+              })
+            }
+
+            // Update plugin metrics
+            await governance.getOrCreatePluginMetrics({
               memberAddress: daoMemberMapping.memberAddress!,
               pluginAddress: daoMemberMapping.pluginAddress,
               network: daoMemberMapping.network,

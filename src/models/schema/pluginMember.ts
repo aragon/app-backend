@@ -30,7 +30,6 @@ const customName = ICollectionNames.PluginMember
     customName,
   },
 })
-@index({ id: 1 }, { unique: true })
 @index({ memberAddress: 1 })
 @index({ daoAddress: 1 })
 @index({ pluginAddress: 1 })
@@ -51,10 +50,6 @@ export default class PluginMember extends Model {
 
   @prop({ type: () => String, required: true, enum: NetworksEnum })
   public network!: NetworksEnum
-
-  // for lockToVote plugin we have not token address but will have vp
-  @prop({ type: () => String, default: undefined })
-  public votingPower?: string
 
   static async create(rawData: Partial<PluginMember>, tOpts?: SaveOptions) {
     if (!rawData.id) {

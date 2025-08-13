@@ -6,22 +6,23 @@ import { Models } from '@dbModels'
 import Member from '@models/schema/member'
 import PairDataModule from '@modules/pairData'
 import { FakeMember } from '@test/mock/fakeMember'
-import { fakePluginMembers } from '@test/mock/fakePluginMember'
-import { fakeVpMembers } from '@test/mock/fakeVpMember'
 import { DaoList } from '@test/mock/fakeDao'
 import PluginMember from '@models/schema/pluginMember'
-import VpMember from '@models/schema/vpMember'
+import TokenMember from '@models/schema/tokenMember'
+import LockManagerMember from '@models/schema/lockManagerMember'
 import type Dao from '@models/schema/dao'
 import { PluginList } from '@test/mock/fakePlugins'
-import { HexAddress, IPluginInterfaceType, NetworksEnum, ErrorKeyEnum, EnumQueueName } from '@types'
+import { HexAddress, IPluginInterfaceType, ITokenType, NetworksEnum, ErrorKeyEnum, EnumQueueName } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import { MemberGovernanceFactory } from '@modules/memberGovernance'
 
 describe('Controller: Member', () => {
   let sandbox: SinonSandbox
   let rawMember: Partial<Member>
   let rawPluginMember: Partial<PluginMember>
   let rawDao: Partial<Dao>
-  let rawVpMember: Partial<VpMember>
+  let rawTokenMember: Partial<TokenMember>
+  let rawLockManagerMember: Partial<LockManagerMember>
   let rawPlugin: any
 
   beforeEach(async () => {
@@ -48,7 +49,7 @@ describe('Controller: Member', () => {
       network: rawDao.network,
     }
 
-    rawVpMember = {
+    rawTokenMember = {
       memberAddress: FakeMember.address,
       tokenAddress: rawPlugin.tokenAddress,
       network: rawDao.network,
@@ -57,10 +58,19 @@ describe('Controller: Member', () => {
       tokenIds: [],
     }
 
+    rawLockManagerMember = {
+      memberAddress: FakeMember.address,
+      lockManagerAddress: '0xLockManager123',
+      network: rawDao.network,
+      votingPower: '1000000000000000000',
+      lastVPBlockNumber: 12345,
+    }
+
     await Models.Member.create(rawMember)
     await Models.PluginMember.create(rawPluginMember)
     await Models.Dao.create(rawDao)
-    await Models.VpMember.create(rawVpMember)
+    await Models.TokenMember.create(rawTokenMember)
+    await Models.LockManagerMember.create(rawLockManagerMember)
     await Models.Plugin.create(rawPlugin)
   })
 
@@ -106,7 +116,7 @@ describe('Controller: Member', () => {
       expect(stubFindPaginatedMembersOnly.calledOnce).to.be.true
       expect(stubFindPaginatedMembersOnly.calledWith({ paginationParams })).to.be.true
       expect(response.data).to.have.lengthOf(1)
-      expect(response.data[0].address).to.equal(rawMember.address)
+      expect((response as any).data[0].address).to.equal(rawMember.address)
     })
 
     it('should throw error when only daoAddress is provided without pluginAddress', async () => {
@@ -130,7 +140,7 @@ describe('Controller: Member', () => {
       ).to.be.rejectedWith('pluginNotFound')
     })
 
-    it('should call VpMember.findAndPaginate for tokenVoting plugin with token', async () => {
+    it('should use MemberGovernanceFactory for tokenVoting plugin with ERC20 token', async () => {
       const paginationParams = {
         search: '',
         pageSize: 10,
@@ -145,25 +155,45 @@ describe('Controller: Member', () => {
       }
       const pairParams = {}
 
+      const mockToken = {
+        address: rawPlugin.tokenAddress,
+        network: rawPlugin.network,
+        type: ITokenType.ERC20,
+      }
+
+      const mockResult = {
+        data: [{ address: rawTokenMember.memberAddress }],
+        metadata: { page: 1, totalPages: 1, totalRecords: 1 },
+      }
+
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
-      // First check if plugin exists
-      sandbox.stub(Models.Plugin, 'findOne').resolves(rawPlugin)
       const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        ...rawPlugin,
         interfaceType: IPluginInterfaceType.tokenVoting,
         tokenAddress: rawPlugin.tokenAddress,
-        votingEscrow: null,
+        network: rawPlugin.network,
+        address: rawPlugin.address,
       })
-      const stubFindAndPaginate = sandbox.stub(Models.VpMember, 'findAndPaginate').resolves({
-        data: [{ address: rawVpMember.memberAddress }],
-        metadata: { page: 1, totalPages: 1, totalRecords: 1 },
-      } as any)
+      sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves(mockToken)
+
+      const mockGovernance = {
+        findAndPaginateMembers: sandbox.stub().resolves(mockResult),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
       const response = await MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams)
 
       expect(stubFindByAddress.calledOnce).to.be.true
-      expect(stubFindAndPaginate.calledOnce).to.be.true
       expect(
-        stubFindAndPaginate.calledWith({
+        (MemberGovernanceFactory.create as sinon.SinonStub).calledWith({
+          address: rawPlugin.address,
+          network: rawPlugin.network,
+          interfaceType: IPluginInterfaceType.tokenVoting,
+          tokenType: ITokenType.ERC20,
+        }),
+      ).to.be.true
+      expect(
+        (mockGovernance.findAndPaginateMembers as sinon.SinonStub).calledWith({
           paginationParams,
           extraParams: {
             ...extraParams,
@@ -171,9 +201,10 @@ describe('Controller: Member', () => {
           },
         }),
       ).to.be.true
+      expect(response).to.deep.equal(mockResult)
     })
 
-    it('should call getMembersOfVeLockPlugin for VE lock plugin', async () => {
+    it('should use MemberGovernanceFactory for VE lock plugin', async () => {
       const paginationParams = {
         search: '',
         pageSize: 10,
@@ -188,52 +219,55 @@ describe('Controller: Member', () => {
       }
       const pairParams = {}
 
-      const veLockPlugin = {
+      const mockToken = {
+        address: rawPlugin.tokenAddress,
+        network: rawPlugin.network,
+        type: ITokenType.escrowAdapter,
+      }
+
+      const mockResult = {
+        data: [],
+        metadata: { page: 1, totalPages: 0, totalRecords: 0 },
+      }
+
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        ...rawPlugin,
         interfaceType: IPluginInterfaceType.tokenVoting,
         tokenAddress: rawPlugin.tokenAddress,
-        address: rawPlugin.address,
-        daoAddress: rawPlugin.daoAddress,
         network: rawPlugin.network,
-        votingEscrow: {
-          escrowAddress: '0xEscrowAddress123',
-        },
-      }
-
-      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
-      // First check if plugin exists
-      sandbox.stub(Models.Plugin, 'findOne').resolves(rawPlugin)
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves(veLockPlugin)
-
-      const stubGetMembersOfVeLockPlugin = sandbox.stub(MemberController, 'getMembersOfVeLockPlugin').resolves({
-        data: [],
-        metadata: { page: 1, totalPages: 0, totalRecords: 0 },
+        address: rawPlugin.address,
       })
+      sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves(mockToken)
+
+      const mockGovernance = {
+        findAndPaginateMembers: sandbox.stub().resolves(mockResult),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
       const response = await MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams)
 
-      expect(stubGetMembersOfVeLockPlugin.calledOnce).to.be.true
       expect(
-        stubGetMembersOfVeLockPlugin.calledWith(
-          paginationParams,
-          sinon.match({
-            interfaceType: IPluginInterfaceType.tokenVoting,
-            tokenAddress: rawPlugin.tokenAddress,
-            address: rawPlugin.address,
-            daoAddress: rawPlugin.daoAddress,
-            network: rawPlugin.network,
-            votingEscrow: sinon.match({
-              escrowAddress: '0xEscrowAddress123',
-            }),
-          }),
-        ),
+        (MemberGovernanceFactory.create as sinon.SinonStub).calledWith({
+          address: rawPlugin.address,
+          network: rawPlugin.network,
+          interfaceType: IPluginInterfaceType.tokenVoting,
+          tokenType: ITokenType.escrowAdapter,
+        }),
       ).to.be.true
-      expect(response).to.deep.equal({
-        data: [],
-        metadata: { page: 1, totalPages: 0, totalRecords: 0 },
-      })
+      expect(
+        (mockGovernance.findAndPaginateMembers as sinon.SinonStub).calledWith({
+          paginationParams,
+          extraParams: {
+            ...extraParams,
+            tokenAddress: rawPlugin.tokenAddress,
+          },
+        }),
+      ).to.be.true
+      expect(response).to.deep.equal(mockResult)
     })
 
-    it('should call PluginMember.findAndPaginate for non-tokenVoting plugin', async () => {
+    it('should use MemberGovernanceFactory for lockToVote plugin', async () => {
       const paginationParams = {
         search: '',
         pageSize: 10,
@@ -248,30 +282,101 @@ describe('Controller: Member', () => {
       }
       const pairParams = {}
 
-      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
-      // First check if plugin exists
-      sandbox.stub(Models.Plugin, 'findOne').resolves(rawPlugin)
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
-        interfaceType: IPluginInterfaceType.multisig,
-        votingEscrow: null,
-      })
-      const stubFindAndPaginate = sandbox.stub(Models.PluginMember, 'findAndPaginate').resolves({
+      const lockToVotePlugin = {
+        ...rawPlugin,
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: '0xLockManager123',
+        network: rawPlugin.network,
+        address: rawPlugin.address,
+      }
+
+      const mockResult = {
         data: [{ address: rawPluginMember.memberAddress }],
         metadata: { page: 1, totalPages: 1, totalRecords: 1 },
-      } as any)
+      }
+
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(lockToVotePlugin)
+
+      const mockGovernance = {
+        findAndPaginateMembers: sandbox.stub().resolves(mockResult),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
       const response = await MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams)
 
-      expect(stubFindAndPaginate.calledOnce).to.be.true
       expect(
-        stubFindAndPaginate.calledWith({
-          extraParams,
-          paginationParams,
+        (MemberGovernanceFactory.create as sinon.SinonStub).calledWith({
+          address: lockToVotePlugin.lockManagerAddress,
+          network: rawPlugin.network,
+          interfaceType: IPluginInterfaceType.lockToVote,
         }),
       ).to.be.true
+      expect(
+        (mockGovernance.findAndPaginateMembers as sinon.SinonStub).calledWith({
+          paginationParams,
+          extraParams: {
+            ...extraParams,
+            lockManagerAddress: lockToVotePlugin.lockManagerAddress,
+          },
+        }),
+      ).to.be.true
+      expect(response.data).to.have.lengthOf(1)
+      expect((response as any).data[0].address).to.equal(rawPluginMember.memberAddress)
     })
 
-    it('should throw pluginNotFound error when plugin not found', async () => {
+    it('should use MemberGovernanceFactory for non-tokenVoting plugin (multisig/admin)', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+      const extraParams = {
+        network: rawPlugin.network,
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      }
+      const pairParams = {}
+
+      const mockResult = {
+        data: [{ address: rawPluginMember.memberAddress }],
+        metadata: { page: 1, totalPages: 1, totalRecords: 1 },
+      }
+
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        ...rawPlugin,
+        interfaceType: IPluginInterfaceType.multisig,
+        network: rawPlugin.network,
+        address: rawPlugin.address,
+      })
+
+      const mockGovernance = {
+        findAndPaginateMembers: sandbox.stub().resolves(mockResult),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      const response = await MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams)
+
+      expect(
+        (MemberGovernanceFactory.create as sinon.SinonStub).calledWith({
+          address: rawPlugin.address,
+          network: rawPlugin.network,
+          interfaceType: IPluginInterfaceType.multisig,
+        }),
+      ).to.be.true
+      expect(
+        (mockGovernance.findAndPaginateMembers as sinon.SinonStub).calledWith({
+          paginationParams,
+          extraParams,
+        }),
+      ).to.be.true
+      expect(response).to.deep.equal(mockResult)
+    })
+
+    it('should throw notFound error when plugin not found', async () => {
       const paginationParams = {
         search: '',
         pageSize: 10,
@@ -294,7 +399,7 @@ describe('Controller: Member', () => {
       ).to.be.rejectedWith('pluginNotFound')
     })
 
-    it('should handle plugin without tokenAddress', async () => {
+    it('should throw error when tokenVoting plugin has no tokenAddress', async () => {
       const paginationParams = {
         search: '',
         pageSize: 10,
@@ -317,14 +422,37 @@ describe('Controller: Member', () => {
         tokenAddress: null,
         votingEscrow: null,
       })
-      const stubFindAndPaginate = sandbox.stub(Models.PluginMember, 'findAndPaginate').resolves({
-        data: [],
-        metadata: { page: 1, totalPages: 0, totalRecords: 0 },
-      } as any)
 
-      const response = await MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams)
+      await expect(
+        MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams),
+      ).to.be.rejectedWith('notFound')
+    })
 
-      expect(stubFindAndPaginate.calledOnce).to.be.true
+    it('should throw error when lockToVote plugin has no lockManagerAddress', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+      const extraParams = {
+        network: rawPlugin.network,
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      }
+      const pairParams = {}
+
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(rawPlugin)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: null,
+      })
+
+      await expect(
+        MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams),
+      ).to.be.rejectedWith('notFound')
     })
   })
 
@@ -544,168 +672,6 @@ describe('Controller: Member', () => {
       ).to.be.true
       expect(result.data).to.have.lengthOf(1)
       expect(result.data[0]).to.deep.include(mockLock)
-    })
-  })
-
-  describe('getMembersOfVeLockPlugin', () => {
-    it('should get members of VE lock plugin successfully', async () => {
-      const paginationParams = {
-        search: '',
-        pageSize: 10,
-        page: 1,
-        order: 'asc',
-        sort: 'createdAt',
-      }
-
-      const mockPlugin = {
-        address: rawPlugin.address,
-        daoAddress: rawDao.address,
-        network: rawDao.network,
-        tokenAddress: rawPlugin.tokenAddress,
-      }
-
-      const mockSettings = {
-        votingEscrow: {
-          maxTime: 1000,
-          slope: 100,
-          bias: 50,
-        },
-      }
-
-      const mockToken = {
-        decimals: 18,
-      }
-
-      const mockResponse = {
-        data: [
-          {
-            address: rawMember.address,
-            votingPower: '1000000000000000000',
-            lockEnd: 1234567890,
-          },
-        ],
-        metadata: { page: 1, totalPages: 1, totalRecords: 1 },
-      }
-
-      const stubFindActive = sandbox.stub(Models.Setting, 'findActive').resolves(mockSettings)
-      const stubFindOne = sandbox.stub(Models.Token, 'findOne').resolves(mockToken)
-      const stubGetMembersOfVeLockPlugin = sandbox.stub(Models.Lock, 'getMembersOfVeLockPlugin').resolves(mockResponse)
-
-      const result = await MemberController.getMembersOfVeLockPlugin(paginationParams, mockPlugin as any)
-
-      expect(stubFindActive.calledOnce).to.be.true
-      expect(stubFindOne.calledOnce).to.be.true
-      expect(stubGetMembersOfVeLockPlugin.calledOnce).to.be.true
-      expect(
-        stubGetMembersOfVeLockPlugin.calledWith({
-          paginationParams,
-          pluginAddress: mockPlugin.address,
-          settings: {
-            currentTime: sinon.match.number,
-            maxTime: mockSettings.votingEscrow.maxTime,
-            slope: mockSettings.votingEscrow.slope,
-            bias: mockSettings.votingEscrow.bias,
-            decimals: (BigInt(10) ** BigInt(mockToken.decimals)).toString(),
-          },
-          tokenAddress: mockPlugin.tokenAddress,
-          network: mockPlugin.network,
-        }),
-      ).to.be.true
-      expect(result).to.deep.equal(mockResponse)
-    })
-
-    it('should throw notFound error when settings not found', async () => {
-      const paginationParams = {}
-      const mockPlugin = {
-        address: rawPlugin.address,
-        daoAddress: rawDao.address,
-        network: rawDao.network,
-        tokenAddress: rawPlugin.tokenAddress,
-      }
-
-      sandbox.stub(Models.Setting, 'findActive').resolves(null)
-      sandbox.stub(Models.Token, 'findOne').resolves({ decimals: 18 })
-
-      await expect(MemberController.getMembersOfVeLockPlugin(paginationParams, mockPlugin as any)).to.be.rejectedWith(
-        ErrorKeyEnum.notFound,
-      )
-    })
-
-    it('should throw notFound error when token not found', async () => {
-      const paginationParams = {}
-      const mockPlugin = {
-        address: rawPlugin.address,
-        daoAddress: rawDao.address,
-        network: rawDao.network,
-        tokenAddress: rawPlugin.tokenAddress,
-      }
-
-      sandbox.stub(Models.Setting, 'findActive').resolves({
-        votingEscrow: { maxTime: 1000, slope: 100, bias: 50 },
-      })
-      sandbox.stub(Models.Token, 'findOne').resolves(null)
-
-      await expect(MemberController.getMembersOfVeLockPlugin(paginationParams, mockPlugin as any)).to.be.rejectedWith(
-        ErrorKeyEnum.notFound,
-      )
-    })
-
-    it('should handle missing votingEscrow in settings', async () => {
-      const paginationParams = {}
-      const mockPlugin = {
-        address: rawPlugin.address,
-        daoAddress: rawDao.address,
-        network: rawDao.network,
-        tokenAddress: rawPlugin.tokenAddress,
-      }
-
-      sandbox.stub(Models.Setting, 'findActive').resolves({
-        /* no votingEscrow property */
-      } as any)
-      sandbox.stub(Models.Token, 'findOne').resolves({ decimals: 18 })
-
-      await expect(MemberController.getMembersOfVeLockPlugin(paginationParams, mockPlugin as any)).to.be.rejectedWith(
-        ErrorKeyEnum.notFound,
-      )
-    })
-
-    it('should calculate currentTime correctly', async () => {
-      const paginationParams = {}
-      const mockPlugin = {
-        address: rawPlugin.address,
-        daoAddress: rawDao.address,
-        network: rawDao.network,
-        tokenAddress: rawPlugin.tokenAddress,
-      }
-
-      const mockSettings = {
-        votingEscrow: {
-          maxTime: 1000,
-          slope: 100,
-          bias: 50,
-        },
-      }
-
-      const mockToken = {
-        decimals: 18,
-      }
-
-      const mockResponse = {
-        data: [],
-        metadata: { page: 1, totalPages: 0, totalRecords: 0 },
-      }
-
-      sandbox.stub(Models.Setting, 'findActive').resolves(mockSettings)
-      sandbox.stub(Models.Token, 'findOne').resolves(mockToken)
-      const stubGetMembersOfVeLockPlugin = sandbox.stub(Models.Lock, 'getMembersOfVeLockPlugin').resolves(mockResponse)
-
-      const timeBeforeCall = Math.floor(Date.now() / 1000)
-      await MemberController.getMembersOfVeLockPlugin(paginationParams, mockPlugin as any)
-      const timeAfterCall = Math.floor(Date.now() / 1000)
-
-      const callArgs = stubGetMembersOfVeLockPlugin.firstCall.args[0]
-      expect(callArgs.settings.currentTime).to.be.at.least(timeBeforeCall)
-      expect(callArgs.settings.currentTime).to.be.at.most(timeAfterCall)
     })
   })
 })

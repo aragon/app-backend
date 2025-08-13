@@ -8,6 +8,7 @@ import { IPluginInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { ProxyToken } from '@modules/proxyToken'
 import { Models } from '@dbModels'
+import LockToVoteHelper from '@helpers/lockToVoteHelper'
 
 describe('AragonDao: memberInfo', () => {
   let sandbox: SinonSandbox
@@ -430,7 +431,7 @@ describe('AragonDao: memberInfo', () => {
         onlyListed: false,
       } as any)
 
-      const isMemberStub = sandbox.stub(Web3Helper, 'isMember').resolves(false)
+      const isMemberStub = sandbox.stub(Web3Helper, 'isMultisigMember').resolves(false)
 
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
@@ -456,7 +457,7 @@ describe('AragonDao: memberInfo', () => {
         onlyListed: true,
       } as any)
 
-      const isMemberStub = sandbox.stub(Web3Helper, 'isMember').resolves(false)
+      const isMemberStub = sandbox.stub(Web3Helper, 'isMultisigMember').resolves(false)
 
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
@@ -483,7 +484,7 @@ describe('AragonDao: memberInfo', () => {
         onlyListed: true,
       } as any)
 
-      const isMemberStub = sandbox.stub(Web3Helper, 'isMember').resolves(true)
+      const isMemberStub = sandbox.stub(Web3Helper, 'isMultisigMember').resolves(true)
 
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
@@ -554,6 +555,129 @@ describe('AragonDao: memberInfo', () => {
       expect(settingsStub.calledOnce).to.be.true
       expect(pluginMemberStub.calledOnce).to.be.true
       expect(result).to.be.false
+    })
+
+    it('should return false for lockToVote when lockManagerAddress is missing', async () => {
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: null,
+      } as any)
+
+      const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
+
+      const result = await MemberInfo.canCreateProposal(
+        '0xPluginAddress',
+        '0xMemberAddress',
+        NetworksEnum.ethereumSepolia,
+      )
+
+      expect(pluginStub.calledOnce).to.be.true
+      expect(settingsStub.calledOnce).to.be.true
+      expect(result).to.be.false
+    })
+
+    it('should return false for lockToVote when settings are missing', async () => {
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: '0xLockManagerAddress',
+      } as any)
+
+      const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves(null)
+
+      const result = await MemberInfo.canCreateProposal(
+        '0xPluginAddress',
+        '0xMemberAddress',
+        NetworksEnum.ethereumSepolia,
+      )
+
+      expect(pluginStub.calledOnce).to.be.true
+      expect(settingsStub.calledOnce).to.be.true
+      expect(result).to.be.false
+    })
+
+    it('should return false for lockToVote when user has no locked balance', async () => {
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: '0xLockManagerAddress',
+      } as any)
+
+      const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
+
+      const getLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves('0')
+
+      const result = await MemberInfo.canCreateProposal(
+        '0xPluginAddress',
+        '0xMemberAddress',
+        NetworksEnum.ethereumSepolia,
+      )
+
+      expect(pluginStub.calledOnce).to.be.true
+      expect(settingsStub.calledOnce).to.be.true
+      expect(getLockedBalanceStub.calledOnce).to.be.true
+      expect(getLockedBalanceStub.calledWith(NetworksEnum.ethereumSepolia, '0xLockManagerAddress', '0xMemberAddress'))
+        .to.be.true
+      expect(result).to.be.false
+    })
+
+    it('should return true for lockToVote when user has locked balance greater than 0', async () => {
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: '0xLockManagerAddress',
+      } as any)
+
+      const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
+
+      const getLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves('100')
+
+      const result = await MemberInfo.canCreateProposal(
+        '0xPluginAddress',
+        '0xMemberAddress',
+        NetworksEnum.ethereumSepolia,
+      )
+
+      expect(pluginStub.calledOnce).to.be.true
+      expect(settingsStub.calledOnce).to.be.true
+      expect(getLockedBalanceStub.calledOnce).to.be.true
+      expect(getLockedBalanceStub.calledWith(NetworksEnum.ethereumSepolia, '0xLockManagerAddress', '0xMemberAddress'))
+        .to.be.true
+      expect(result).to.be.true
+    })
+
+    it('should return true for lockToVote when user has large locked balance', async () => {
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: '0xLockManagerAddress',
+      } as any)
+
+      const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
+
+      const getLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves('1000000')
+
+      const result = await MemberInfo.canCreateProposal(
+        '0xPluginAddress',
+        '0xMemberAddress',
+        NetworksEnum.ethereumSepolia,
+      )
+
+      expect(pluginStub.calledOnce).to.be.true
+      expect(settingsStub.calledOnce).to.be.true
+      expect(getLockedBalanceStub.calledOnce).to.be.true
+      expect(result).to.be.true
     })
 
     it('should return false on error', async () => {

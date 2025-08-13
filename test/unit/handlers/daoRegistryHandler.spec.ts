@@ -11,7 +11,7 @@ import Web3 from '@helpers/web3'
 import Web3Helper from '@helpers/web3'
 import ProxyContractHelper from '@helpers/proxyContract'
 import { MetadataHandler } from '@handlers/metadataHandler'
-import { ProxyMember } from '@modules/proxyMember'
+import { MemberGovernanceFactory } from '@modules/memberGovernance'
 import Utils from '@helpers/utils'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Utils from '@helpers/web3Utils'
@@ -60,7 +60,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       const getSubdomainEnsStub = sandbox.stub(EnsHelper, 'getDaoEns').resolves('test.dao.eth')
       const getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1123213)
       const getDaoOsVersionStub = sandbox.stub(Web3Helper, 'getDaoOsVersion').resolves('1.0.0')
-      const createMemberStub = sandbox.stub(ProxyMember, 'createMember').resolves()
+      const createMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
       const RabbitMQHelperStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
       await DaoRegistryHandler.daoRegistered(fakeEvent as any, logInfo)
 

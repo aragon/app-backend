@@ -13,7 +13,7 @@ import { Models } from '@dbModels'
 import IPFSModule from '@modules/ipfs'
 import type Vote from '@models/schema/vote'
 import Web3Helper from '@helpers/web3'
-import { ProxyMember } from '@modules/proxyMember'
+import { MemberGovernanceFactory } from '@modules/memberGovernance'
 import { ProxyToken } from '@modules/proxyToken'
 import type Proposal from '@models/schema/proposal'
 import type Plugin from '@models/schema/plugin'
@@ -27,9 +27,9 @@ import { TokenVoting } from '@src/aragonContracts'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { assert } from '@errors'
 import Web3Utils from '@helpers/web3Utils'
+import LockToVoteHelper from '@helpers/lockToVoteHelper'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:ProposalHandler' })
-
 export const ProposalHandler = {
   findIncrementalId: async (proposal: Partial<Proposal>): Promise<number | null> => {
     try {
@@ -221,7 +221,18 @@ export const ProposalHandler = {
         })
 
         document.snapshot = {
-          totalSupply: totalSupply?.toString() ?? '0',
+          totalSupply,
+        }
+
+        if (document.snapshot.totalSupply === '0') {
+          logger.error(
+            'Error ProposalHandler.proposalCreated - totalSupply is 0',
+            llo({
+              ...info,
+              parsedEvent,
+              pluginAddress,
+            }),
+          )
         }
       } else if (
         relatedPlugin.interfaceType === IPluginInterfaceType.multisig ||
@@ -234,10 +245,36 @@ export const ProposalHandler = {
         document.snapshot = {
           membersCount: members.length,
         }
+      } else if (relatedPlugin.interfaceType === IPluginInterfaceType.lockToVote) {
+        document.snapshot = {
+          totalSupply: await LockToVoteHelper.getCurrentTotalSupply(
+            relatedPlugin.network,
+            relatedPlugin.address,
+            info.blockNumber,
+          ),
+        }
+
+        if (document.snapshot.totalSupply === '0') {
+          logger.error(
+            'Error ProposalHandler.proposalCreated - totalSupply is 0',
+            llo({
+              ...info,
+              parsedEvent,
+              pluginAddress,
+            }),
+          )
+        }
       }
 
       if (relatedPlugin.interfaceType === IPluginInterfaceType.tokenVoting && !document?.settings?.tokenAddress) {
-        logger.error('Error ProposalHandler.proposalCreated - tokenAddress is missing', llo({ ...info, parsedEvent }))
+        logger.error(
+          'Error ProposalHandler.proposalCreated - tokenAddress is missing',
+          llo({
+            ...info,
+            parsedEvent,
+            pluginAddress,
+          }),
+        )
         document.snapshot = {
           totalSupply: '0',
         }
@@ -251,7 +288,7 @@ export const ProposalHandler = {
       })
 
       if (incrementalId === null) {
-        logger.error('Error findIncrementalId - incrementalId is null', llo({ ...info, parsedEvent }))
+        logger.error('Error findIncrementalId - incrementalId is null', llo({ ...info, parsedEvent, pluginAddress }))
         return { newProposal: undefined, relatedPlugin: undefined }
       }
 
@@ -263,9 +300,18 @@ export const ProposalHandler = {
 
       await ProposalHandler.pairSppProposals(newProposal, relatedPlugin, info)
 
-      await ProxyMember.createMember(newProposal.creatorAddress, newProposal.blockNumber)
+      // Create base member using MemberGovernanceFactory
+      await MemberGovernanceFactory.createBaseMember(newProposal.creatorAddress, newProposal.blockNumber)
 
-      await ProxyMember.updatePluginMetrics({
+      // Create governance instance based on plugin type
+      const governance = MemberGovernanceFactory.create({
+        address: relatedPlugin.tokenAddress || pluginAddress,
+        network: info.network,
+        interfaceType: relatedPlugin.interfaceType,
+      })
+
+      // Update plugin metrics
+      await governance.getOrCreatePluginMetrics({
         memberAddress: newProposal.creatorAddress,
         pluginAddress,
         network: info.network,
@@ -365,16 +411,29 @@ export const ProposalHandler = {
 
       await DbOperations.createDocument(Models.Vote, document, info, 'New Vote - Approved', llo)
 
-      await ProxyMember.createMember(document.memberAddress!, info.blockNumber)
+      // Create base member using MemberGovernanceFactory
+      await MemberGovernanceFactory.createBaseMember(document.memberAddress!, info.blockNumber)
 
-      await Promise.allSettled([
-        ProxyMember.updatePluginMetrics({
+      // Get plugin to determine interface type
+      const relatedPlugin = await Models.Plugin.findByAddress(info.address, info.network)
+      if (relatedPlugin) {
+        // Create governance instance based on plugin type
+        const governance = MemberGovernanceFactory.create({
+          address: relatedPlugin.tokenAddress || info.address,
+          network: info.network,
+          interfaceType: relatedPlugin.interfaceType,
+        })
+
+        await governance.getOrCreatePluginMetrics({
           memberAddress: document.memberAddress!,
           pluginAddress: info.address,
           network: info.network,
           daoAddress: proposal?.daoAddress,
           lastActivity: info?.blockNumber,
-        }),
+        })
+      }
+
+      await Promise.allSettled([
         // Proposal metrics
         RabbitMQHelper.sendMessage(EnumQueueName.proposalMultisigMetrics, {
           id: `${proposalIndex}-${info.address}`,
@@ -466,16 +525,25 @@ export const ProposalHandler = {
       })
 
       // always update activity
-      await ProxyMember.createMember(document.memberAddress!, info.blockNumber)
+      await MemberGovernanceFactory.createBaseMember(document.memberAddress!, info.blockNumber)
 
       // always update plugin metrics
-      await ProxyMember.updatePluginMetrics({
-        memberAddress: document.memberAddress!,
-        pluginAddress: info.address,
-        network: info.network,
-        daoAddress: proposal.daoAddress,
-        lastActivity: info?.blockNumber,
-      })
+      const relatedPlugin = await Models.Plugin.findByAddress(info.address, info.network)
+      if (relatedPlugin) {
+        const governance = MemberGovernanceFactory.create({
+          address: relatedPlugin.tokenAddress || info.address,
+          network: info.network,
+          interfaceType: relatedPlugin.interfaceType,
+        })
+
+        await governance.getOrCreatePluginMetrics({
+          memberAddress: document.memberAddress!,
+          pluginAddress: info.address,
+          network: info.network,
+          daoAddress: proposal.daoAddress,
+          lastActivity: info?.blockNumber,
+        })
+      }
 
       await Promise.allSettled([
         // Proposal metrics
@@ -1073,6 +1141,76 @@ export const ProposalHandler = {
       })
     } catch (error) {
       logger.error('Error proposalEdited', llo({ ...info, error, parsedEvent }))
+    }
+  },
+
+  voteCleared: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const proposalIndex = parsedEvent.args.proposalId.toString()
+    const voterAddress = parsedEvent.args.voter
+    try {
+      const existingLog = await Models.Vote.findOne({
+        network: info.network,
+        pluginAddress: info.address,
+        proposalIndex,
+        memberAddress: voterAddress,
+        voteCleared: {
+          status: true,
+          transactionHash: info.transactionHash,
+          blockNumber: info.blockNumber,
+        },
+      })
+
+      if (existingLog) return
+
+      const plugin = await Models.Plugin.findByAddress(info.address, info.network)
+      if (!plugin) {
+        logger.warn('VoteCleared - Plugin not found', llo(info))
+        return
+      }
+
+      const proposal = await Models.Proposal.findByProposalIndex(proposalIndex, info.address, info.network)
+      if (!proposal) {
+        logger.warn('VoteCleared - Proposal not found', llo(info))
+        return
+      }
+
+      const existingVote = await Models.Vote.findVoteOnPlugin({
+        network: info.network,
+        pluginAddress: info.address,
+        memberAddress: voterAddress,
+        proposalIndex,
+      })
+
+      if (!existingVote) {
+        logger.warn('VoteCleared - Vote not found', llo({ ...info, voterAddress, proposalIndex }))
+        return
+      }
+
+      const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
+
+      const voteClearedInfo = {
+        status: true,
+        transactionHash: info.transactionHash,
+        blockNumber: info.blockNumber,
+        blockTimestamp: blockTimestamp || 0,
+      }
+
+      await DbOperations.updateDocument(existingVote, { voteCleared: voteClearedInfo }, info, 'Vote Cleared', llo)
+
+      await Promise.allSettled([
+        RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {
+          id: `${proposalIndex}-${info.address}`,
+          params: { proposalIndex, pluginAddress: info.address, network: proposal.network },
+        }),
+        RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+          id: proposal.daoAddress,
+          params: { address: proposal.daoAddress, network: proposal.network },
+        }),
+      ])
+
+      logger.verbose('Vote cleared successfully', llo({ ...info, voteId: existingVote.id, voterAddress }))
+    } catch (error) {
+      logger.error('Error VoteCleared', llo({ ...info, error, parsedEvent }))
     }
   },
 }
