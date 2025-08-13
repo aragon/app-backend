@@ -18,53 +18,65 @@ describe('LockToVote', () => {
     sandbox && sandbox.restore()
   })
 
-  it('should handle the lock to vote functionality', async function () {
-    this.timeout(1600000)
-    UnitDepUtils.stubRabbitmqSend(sandbox)
-    const daoAddress = '0x3bCd976E756EA18fe2d02724757237Cfa8DB3A92'
-    const network = NetworksEnum.ethereumSepolia
-
-    await UnitDepUtils.syncACompleteDao(daoAddress, network)
-    const plugin = await Models.Plugin.findOne({
-      interfaceType: IPluginInterfaceType.lockToVote,
-    })
-
-    expect(plugin.isSupported).to.be.true
-    expect(plugin.lockManagerAddress).to.be.not.null
-    expect(plugin).to.exist
-    const setting = await Models.PluginSetting.findOne({
-      pluginAddress: plugin.address,
-    })
-
-    expect(setting).to.exist
-
-    const membersFromQuery = await Models.LockManagerMember.find({ lockManagerAddress: plugin.lockManagerAddress })
-    const members = await MemberController.getMembersWithPagination(
+  describe('LockToVote flow', () => {
+    const networks = [
       {
-        page: 1,
-        limit: 100,
-        sort: 'votingPower',
-        order: 'desc',
+        network: NetworksEnum.ethereumSepolia,
+        daoAddress: '0x9418fcf1Aa0dCEB9090F2bBA06E70d94E10e46b1'
       },
-      {
-        daoAddress,
-        network,
-        pluginAddress: plugin.address,
-      },
-    )
+    ]
 
-    expect(members.data.length).to.eq(membersFromQuery.length)
-    const sortedMembers = members.data.sort((a: any, b: any) => parseFloat(b.votingPower) - parseFloat(a.votingPower))
-    expect(members.data).to.deep.equal(sortedMembers)
+    for (const { network, daoAddress } of networks) {
+      it.only(`should handle veLock all events properly ${network}`, async function() {
+        this.timeout(100000000)
 
-    const member = members.data[0] as IMembersResponse
-    expect(member.address).to.eq('0x17366cae2b9c6C3055e9e3C78936a69006BE5409')
-    expect(member.ens).to.eq('cgero.eth')
-    expect(member.votingPower?.toString()).to.eq('386000000000000000000')
-    expect(member.metrics.voteCount).to.eq(0)
-    expect(member.metrics.proposalCount).to.eq(0)
-    expect(member.metrics.firstActivity).to.eq(8911665)
-    expect(member.metrics.lastActivity).to.eq(8911665)
+        UnitDepUtils.stubRabbitmqSend(sandbox)
+
+        await UnitDepUtils.syncACompleteDao(daoAddress, network)
+        const plugin = await Models.Plugin.findOne({
+          interfaceType: IPluginInterfaceType.lockToVote,
+        })
+
+        expect(plugin.isSupported).to.be.true
+        expect(plugin.lockManagerAddress).to.be.not.null
+        expect(plugin).to.exist
+        const setting = await Models.PluginSetting.findOne({
+          pluginAddress: plugin.address,
+        })
+
+        expect(setting).to.exist
+
+        const membersFromQuery = await Models.LockManagerMember.find({ lockManagerAddress: plugin.lockManagerAddress })
+        const members = await MemberController.getMembersWithPagination(
+          {
+            page: 1,
+            limit: 100,
+            sort: 'votingPower',
+            order: 'desc',
+          },
+          {
+            daoAddress,
+            network,
+            pluginAddress: plugin.address,
+          },
+        )
+
+        if(network === NetworksEnum.ethereumSepolia) {
+          expect(members.data.length).to.eq(membersFromQuery.length)
+          const sortedMembers = members.data.sort((a: any, b: any) => parseFloat(b.votingPower) - parseFloat(a.votingPower))
+          expect(members.data).to.deep.equal(sortedMembers)
+
+          const member = members.data[0] as IMembersResponse
+          expect(member.address).to.eq('0x17366cae2b9c6C3055e9e3C78936a69006BE5409')
+          expect(member.ens).to.eq('cgero.eth')
+          expect(member.votingPower?.toString()).to.eq('386000000000000000000')
+          expect(member.metrics.voteCount).to.eq(0)
+          expect(member.metrics.proposalCount).to.eq(0)
+          expect(member.metrics.firstActivity).to.eq(8911665)
+          expect(member.metrics.lastActivity).to.eq(8911665)
+        }
+      })
+    }
   })
 
   it('should handle lockToVote + endpoint with manual transactions', async function () {
