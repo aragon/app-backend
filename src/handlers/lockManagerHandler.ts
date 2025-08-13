@@ -2,7 +2,7 @@ import logger from '@logger'
 import type { LogDescription } from 'ethers'
 import type { ILogInfo } from '@types'
 import { Models } from '@dbModels'
-import { MemberGovernanceFactory } from '@modules/memberGovernance'
+import { MemberGovernanceFactory } from '@src/governance'
 import { IPluginInterfaceType } from '@types'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
 import type Plugin from '@models/schema/plugin'
@@ -70,7 +70,7 @@ const LockManagerHandler = {
       // Update plugin metrics for all plugins
       await Promise.all(
         plugins.map(async (plugin: Plugin) => {
-          await governance.getOrCreatePluginMetrics({
+          await governance.updatePluginMetrics({
             memberAddress,
             pluginAddress: plugin.address,
             daoAddress: plugin.daoAddress,
@@ -151,7 +151,7 @@ const LockManagerHandler = {
       // Update plugin metrics for all plugins
       await Promise.all(
         plugins.map(async (plugin: Plugin) => {
-          await governance.getOrCreatePluginMetrics({
+          await governance.updatePluginMetrics({
             memberAddress,
             pluginAddress: plugin.address,
             daoAddress: plugin.daoAddress,

@@ -10,7 +10,7 @@ import MainMiddleware from '@src/middlewares'
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 
-describe('AuthRouter Admin API', () => {
+describe('Integ: AuthRouter Admin API', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {

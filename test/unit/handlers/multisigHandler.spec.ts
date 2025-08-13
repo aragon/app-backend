@@ -13,7 +13,7 @@ import {
 import { beforeEach } from 'mocha'
 import { MultisigHandler } from '@handlers/multisigHandler'
 import { Models } from '@dbModels'
-import { MemberGovernanceFactory } from '@modules/memberGovernance'
+import { MemberGovernanceFactory } from '@src/governance'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 
 describe('Indexer: MemberHandler', () => {

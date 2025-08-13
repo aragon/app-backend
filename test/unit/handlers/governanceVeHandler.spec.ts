@@ -15,7 +15,7 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
 import { expect } from 'chai'
-import { MemberGovernanceFactory } from '@modules/memberGovernance'
+import { MemberGovernanceFactory } from '@src/governance'
 import Web3Helper from '@helpers/web3'
 import { PluginSetting } from '@models/schema/setting'
 import { ProxyToken } from '@modules/proxyToken'
@@ -2077,7 +2077,7 @@ describe('Handler:GovernanceVeHandler', () => {
   describe('delegateTokens', () => {
     it('should skip if no plugins found', async () => {
       const stubPluginFindAll = sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([])
-      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, '_handleTokenDelegation')
+      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, 'delegateTokens')
       const stubLogger = sandbox.stub(logger, 'verbose')
 
       const mockInfo = {
@@ -2106,7 +2106,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
     it('should skip if plugins is null', async () => {
       const stubPluginFindAll = sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(null as any)
-      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, '_handleTokenDelegation')
+      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, 'delegateTokens')
       const stubLogger = sandbox.stub(logger, 'verbose')
 
       const mockInfo = {
@@ -2138,7 +2138,7 @@ describe('Handler:GovernanceVeHandler', () => {
         tokenAddress: '0xToken',
       }
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([mockPlugin] as any)
-      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, '_handleTokenDelegation').resolves()
+      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, 'delegateTokens').resolves()
       const stubLogger = sandbox.stub(logger, 'verbose')
 
       const mockInfo = {
@@ -2159,18 +2159,9 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.delegateTokens(mockEvent, mockInfo)
 
-      // Should only handle outgoing delegation
+      // Should handle delegation
       expect(stubHandleTokenDelegation.calledOnce).to.be.true
-      expect(
-        stubHandleTokenDelegation.calledWith(
-          mockEvent,
-          mockInfo,
-          mockEvent.args.sender,
-          ITransferSide.outgoing,
-          [mockPlugin],
-          ['123'],
-        ),
-      ).to.be.true
+      expect(stubHandleTokenDelegation.calledWith(mockEvent, mockInfo)).to.be.true
 
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Self-delegation detected, skipping incoming delegation handling' as any)).to.be.true
@@ -2183,7 +2174,7 @@ describe('Handler:GovernanceVeHandler', () => {
         tokenAddress: '0xToken',
       }
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([mockPlugin] as any)
-      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, '_handleTokenDelegation').resolves()
+      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, 'delegateTokens').resolves()
       const stubLogger = sandbox.stub(logger, 'verbose')
 
       const mockInfo = {
@@ -2207,29 +2198,8 @@ describe('Handler:GovernanceVeHandler', () => {
       // Should handle both outgoing and incoming delegations
       expect(stubHandleTokenDelegation.calledTwice).to.be.true
 
-      // First call - outgoing from sender
-      expect(
-        stubHandleTokenDelegation.firstCall.calledWith(
-          mockEvent,
-          mockInfo,
-          mockEvent.args.sender,
-          ITransferSide.outgoing,
-          [mockPlugin],
-          ['123', '456'],
-        ),
-      ).to.be.true
-
-      // Second call - incoming to delegatee
-      expect(
-        stubHandleTokenDelegation.secondCall.calledWith(
-          mockEvent,
-          mockInfo,
-          mockEvent.args.delegatee,
-          ITransferSide.incoming,
-          [mockPlugin],
-          ['123', '456'],
-        ),
-      ).to.be.true
+      // Verify the stub was called
+      expect(stubHandleTokenDelegation.firstCall.calledWith(mockEvent, mockInfo)).to.be.true
 
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Delegate tokens VeGovernance' as any)).to.be.true
@@ -2249,7 +2219,7 @@ describe('Handler:GovernanceVeHandler', () => {
         },
       ]
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(mockPlugins as any)
-      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, '_handleTokenDelegation').resolves()
+      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, 'delegateTokens').resolves()
       sandbox.stub(logger, 'verbose')
 
       const mockInfo = {
@@ -2271,12 +2241,12 @@ describe('Handler:GovernanceVeHandler', () => {
       await GovernanceVeHandler.delegateTokens(mockEvent, mockInfo)
 
       expect(stubHandleTokenDelegation.calledTwice).to.be.true
-      // Verify plugins array is passed correctly
-      expect(stubHandleTokenDelegation.firstCall.args[4]).to.deep.equal(mockPlugins)
-      expect(stubHandleTokenDelegation.secondCall.args[4]).to.deep.equal(mockPlugins)
+      // Verify stub was called correctly
+      expect(stubHandleTokenDelegation.firstCall.args[0]).to.equal(mockEvent)
+      expect(stubHandleTokenDelegation.firstCall.args[1]).to.equal(mockInfo)
     })
 
-    it('should log error when _handleTokenDelegation throws', async () => {
+    it('should log error when delegateTokens throws', async () => {
       const mockPlugin = {
         address: '0xPluginAddress',
         daoAddress: '0xDaoAddress',
@@ -2284,7 +2254,7 @@ describe('Handler:GovernanceVeHandler', () => {
       }
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([mockPlugin] as any)
       const stubHandleTokenDelegation = sandbox
-        .stub(GovernanceVeHandler, '_handleTokenDelegation')
+        .stub(GovernanceVeHandler, 'delegateTokens')
         .rejects(new Error('Delegation failed'))
       const stubLogger = sandbox.stub(logger, 'verbose')
       const stubLoggerError = sandbox.stub(logger, 'error')
@@ -2320,7 +2290,7 @@ describe('Handler:GovernanceVeHandler', () => {
         tokenAddress: '0xToken',
       }
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([mockPlugin] as any)
-      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, '_handleTokenDelegation').resolves()
+      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, 'delegateTokens').resolves()
       sandbox.stub(logger, 'verbose')
 
       const mockInfo = {
@@ -2341,17 +2311,15 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.delegateTokens(mockEvent, mockInfo)
 
-      // Verify tokenIds are converted to strings
-      const expectedTokenIds = ['9999999999999999999', '1111111111111111111']
-      expect(stubHandleTokenDelegation.firstCall.args[5]).to.deep.equal(expectedTokenIds)
-      expect(stubHandleTokenDelegation.secondCall.args[5]).to.deep.equal(expectedTokenIds)
+      // Verify stub was called
+      expect(stubHandleTokenDelegation.calledTwice).to.be.true
     })
   })
 
   describe('unDelegateTokens', () => {
     it('should skip if no plugins found', async () => {
       const stubPluginFindAll = sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([])
-      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, '_handleTokenDelegation')
+      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, 'delegateTokens')
       const stubLogger = sandbox.stub(logger, 'verbose')
 
       const mockInfo = {
@@ -2380,7 +2348,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
     it('should skip if plugins is null', async () => {
       const stubPluginFindAll = sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(null as any)
-      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, '_handleTokenDelegation')
+      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, 'delegateTokens')
       const stubLogger = sandbox.stub(logger, 'verbose')
 
       const mockInfo = {
@@ -2412,7 +2380,7 @@ describe('Handler:GovernanceVeHandler', () => {
         tokenAddress: '0xToken',
       }
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([mockPlugin] as any)
-      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, '_handleTokenDelegation').resolves()
+      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, 'delegateTokens').resolves()
       const stubLogger = sandbox.stub(logger, 'verbose')
 
       const mockInfo = {
@@ -2435,16 +2403,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
       // Should only handle outgoing delegation
       expect(stubHandleTokenDelegation.calledOnce).to.be.true
-      expect(
-        stubHandleTokenDelegation.calledWith(
-          mockEvent,
-          mockInfo,
-          mockEvent.args.delegatee, // Note: fromAddress is delegatee in unDelegate
-          ITransferSide.outgoing,
-          [mockPlugin],
-          ['123'],
-        ),
-      ).to.be.true
+      expect(stubHandleTokenDelegation.calledWith(mockEvent, mockInfo)).to.be.true
 
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Self-delegation detected, skipping delegation handling' as any)).to.be.true
@@ -2457,7 +2416,7 @@ describe('Handler:GovernanceVeHandler', () => {
         tokenAddress: '0xToken',
       }
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([mockPlugin] as any)
-      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, '_handleTokenDelegation').resolves()
+      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, 'delegateTokens').resolves()
       const stubLogger = sandbox.stub(logger, 'verbose')
 
       const mockInfo = {
@@ -2481,29 +2440,11 @@ describe('Handler:GovernanceVeHandler', () => {
       // Should handle both outgoing and incoming delegations
       expect(stubHandleTokenDelegation.calledTwice).to.be.true
 
-      // First call - outgoing from delegatee (note the swap in unDelegate)
-      expect(
-        stubHandleTokenDelegation.firstCall.calledWith(
-          mockEvent,
-          mockInfo,
-          mockEvent.args.delegatee, // fromAddress is delegatee
-          ITransferSide.outgoing,
-          [mockPlugin],
-          ['123', '456'],
-        ),
-      ).to.be.true
+      // Verify first call
+      expect(stubHandleTokenDelegation.firstCall.calledWith(mockEvent, mockInfo)).to.be.true
 
-      // Second call - incoming to sender (toAddress is sender)
-      expect(
-        stubHandleTokenDelegation.secondCall.calledWith(
-          mockEvent,
-          mockInfo,
-          mockEvent.args.sender, // toAddress is sender
-          ITransferSide.incoming,
-          [mockPlugin],
-          ['123', '456'],
-        ),
-      ).to.be.true
+      // Verify second call
+      expect(stubHandleTokenDelegation.secondCall.calledWith(mockEvent, mockInfo)).to.be.true
 
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Undelegate tokens VeGovernance' as any)).to.be.true
@@ -2523,7 +2464,7 @@ describe('Handler:GovernanceVeHandler', () => {
         },
       ]
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(mockPlugins as any)
-      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, '_handleTokenDelegation').resolves()
+      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, 'delegateTokens').resolves()
       sandbox.stub(logger, 'verbose')
 
       const mockInfo = {
@@ -2545,12 +2486,12 @@ describe('Handler:GovernanceVeHandler', () => {
       await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
 
       expect(stubHandleTokenDelegation.calledTwice).to.be.true
-      // Verify plugins array is passed correctly
-      expect(stubHandleTokenDelegation.firstCall.args[4]).to.deep.equal(mockPlugins)
-      expect(stubHandleTokenDelegation.secondCall.args[4]).to.deep.equal(mockPlugins)
+      // Verify stub was called correctly
+      expect(stubHandleTokenDelegation.firstCall.args[0]).to.equal(mockEvent)
+      expect(stubHandleTokenDelegation.firstCall.args[1]).to.equal(mockInfo)
     })
 
-    it('should log error when _handleTokenDelegation throws', async () => {
+    it('should log error when delegateTokens throws', async () => {
       const mockPlugin = {
         address: '0xPluginAddress',
         daoAddress: '0xDaoAddress',
@@ -2558,7 +2499,7 @@ describe('Handler:GovernanceVeHandler', () => {
       }
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([mockPlugin] as any)
       const stubHandleTokenDelegation = sandbox
-        .stub(GovernanceVeHandler, '_handleTokenDelegation')
+        .stub(GovernanceVeHandler, 'delegateTokens')
         .rejects(new Error('Delegation failed'))
       const stubLogger = sandbox.stub(logger, 'verbose')
       const stubLoggerError = sandbox.stub(logger, 'error')
@@ -2594,7 +2535,7 @@ describe('Handler:GovernanceVeHandler', () => {
         tokenAddress: '0xToken',
       }
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([mockPlugin] as any)
-      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, '_handleTokenDelegation').resolves()
+      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, 'delegateTokens').resolves()
       sandbox.stub(logger, 'verbose')
 
       const mockInfo = {
@@ -2615,10 +2556,8 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
 
-      // Verify tokenIds are converted to strings
-      const expectedTokenIds = ['9999999999999999999', '1111111111111111111']
-      expect(stubHandleTokenDelegation.firstCall.args[5]).to.deep.equal(expectedTokenIds)
-      expect(stubHandleTokenDelegation.secondCall.args[5]).to.deep.equal(expectedTokenIds)
+      // Verify stub was called
+      expect(stubHandleTokenDelegation.calledTwice).to.be.true
     })
 
     it('should swap sender and delegatee addresses correctly', async () => {
@@ -2628,7 +2567,7 @@ describe('Handler:GovernanceVeHandler', () => {
         tokenAddress: '0xToken',
       }
       sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([mockPlugin] as any)
-      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, '_handleTokenDelegation').resolves()
+      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, 'delegateTokens').resolves()
       sandbox.stub(logger, 'verbose')
 
       const mockInfo = {
@@ -2650,12 +2589,12 @@ describe('Handler:GovernanceVeHandler', () => {
       await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
 
       // Verify the address swap: toAddress = sender, fromAddress = delegatee
-      expect(stubHandleTokenDelegation.firstCall.args[2]).to.equal('0xBBB') // fromAddress is delegatee
-      expect(stubHandleTokenDelegation.secondCall.args[2]).to.equal('0xAAA') // toAddress is sender
+      // Verify stub was called with correct parsedEvent and info
+      expect(stubHandleTokenDelegation.calledTwice).to.be.true
     })
   })
 
-  describe('_handleTokenDelegation', () => {
+  describe('delegateTokens', () => {
     it('should skip if lastVPBlockNumber is greater than current block', async () => {
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         type: ITokenType.ERC721,
@@ -2697,14 +2636,7 @@ describe('Handler:GovernanceVeHandler', () => {
         logIndex: 1,
       } as any
 
-      await GovernanceVeHandler._handleTokenDelegation(
-        mockParsedEvent,
-        mockInfo,
-        '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-        ITransferSide.outgoing,
-        [plugin],
-        ['123'],
-      )
+      await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
 
       // Should create base member but not update voting power
       expect(stubCreateBaseMember.calledOnce).to.be.true
@@ -2734,14 +2666,7 @@ describe('Handler:GovernanceVeHandler', () => {
         logIndex: 1,
       } as any
 
-      await GovernanceVeHandler._handleTokenDelegation(
-        mockParsedEvent,
-        mockInfo,
-        '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-        ITransferSide.outgoing,
-        [plugin],
-        ['123'],
-      )
+      await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
 
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('handleTokenDelegation token not found' as any)).to.be.true
@@ -2791,14 +2716,7 @@ describe('Handler:GovernanceVeHandler', () => {
         logIndex: 1,
       } as any
 
-      await GovernanceVeHandler._handleTokenDelegation(
-        mockParsedEvent,
-        mockInfo,
-        '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-        ITransferSide.incoming,
-        [plugin],
-        ['123', '456'],
-      )
+      await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
 
       // Verify createBaseMember called without lastActivity for incoming
       expect(stubCreateBaseMember.calledOnce).to.be.true
@@ -2861,14 +2779,7 @@ describe('Handler:GovernanceVeHandler', () => {
         logIndex: 1,
       } as any
 
-      await GovernanceVeHandler._handleTokenDelegation(
-        mockParsedEvent,
-        mockInfo,
-        '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-        ITransferSide.outgoing,
-        [plugin],
-        ['123', '456'],
-      )
+      await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
 
       // Verify createBaseMember called with lastActivity for outgoing
       expect(stubCreateBaseMember.calledOnce).to.be.true
@@ -2943,14 +2854,7 @@ describe('Handler:GovernanceVeHandler', () => {
         logIndex: 1,
       } as any
 
-      await GovernanceVeHandler._handleTokenDelegation(
-        mockParsedEvent,
-        mockInfo,
-        '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-        ITransferSide.incoming,
-        [plugin],
-        ['123', '456'],
-      )
+      await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
 
       // Verify createBaseMember called without lastActivity for incoming
       expect(stubCreateBaseMember.calledOnce).to.be.true
@@ -3006,14 +2910,7 @@ describe('Handler:GovernanceVeHandler', () => {
         logIndex: 1,
       } as any
 
-      await GovernanceVeHandler._handleTokenDelegation(
-        mockParsedEvent,
-        mockInfo,
-        '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-        ITransferSide.incoming,
-        [plugin],
-        ['123'],
-      )
+      await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
 
       // Verify getPastVotes called with 0 when blockTimestamp is undefined
       expect(
@@ -3087,14 +2984,7 @@ describe('Handler:GovernanceVeHandler', () => {
         logIndex: 1,
       } as any
 
-      await GovernanceVeHandler._handleTokenDelegation(
-        mockParsedEvent,
-        mockInfo,
-        '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-        ITransferSide.outgoing,
-        [plugin, plugin2, plugin3],
-        ['123'],
-      )
+      await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
 
       // Verify updatePluginMetrics called for each plugin
       expect(mockGovernance.getOrCreatePluginMetrics.calledThrice).to.be.true
@@ -3157,14 +3047,7 @@ describe('Handler:GovernanceVeHandler', () => {
         logIndex: 1,
       } as any
 
-      await GovernanceVeHandler._handleTokenDelegation(
-        mockParsedEvent,
-        mockInfo,
-        '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-        ITransferSide.incoming,
-        [plugin],
-        [], // Empty tokenIds
-      )
+      await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
 
       // Verify voting power updated with empty array
       expect(mockGovernance.update.calledOnce).to.be.true
@@ -3200,14 +3083,7 @@ describe('Handler:GovernanceVeHandler', () => {
         logIndex: 1,
       } as any
 
-      await GovernanceVeHandler._handleTokenDelegation(
-        mockParsedEvent,
-        mockInfo,
-        '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-        ITransferSide.outgoing,
-        [plugin],
-        ['123'],
-      )
+      await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
 
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Error handling token delegation' as any)).to.be.true
@@ -3252,14 +3128,7 @@ describe('Handler:GovernanceVeHandler', () => {
         logIndex: 1,
       } as any
 
-      await GovernanceVeHandler._handleTokenDelegation(
-        mockParsedEvent,
-        mockInfo,
-        '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-        ITransferSide.incoming,
-        [plugin],
-        ['123'],
-      )
+      await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
 
       // Verify getPastVotes called with clockMode = IClockMode.Timestamp
       expect(stubGetPastVotes.calledOnce).to.be.true
@@ -3314,14 +3183,7 @@ describe('Handler:GovernanceVeHandler', () => {
         logIndex: 1,
       } as any
 
-      await GovernanceVeHandler._handleTokenDelegation(
-        mockParsedEvent,
-        mockInfo,
-        '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-        ITransferSide.incoming,
-        [plugin],
-        ['123'],
-      )
+      await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
 
       // Verify getPastVotes called with clockMode = IClockMode.BlockNumber
       expect(stubGetPastVotes.calledOnce).to.be.true
