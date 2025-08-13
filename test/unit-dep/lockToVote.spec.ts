@@ -41,7 +41,10 @@ describe('LockToVote', () => {
     const membersFromQuery = await Models.LockManagerMember.find({ lockManagerAddress: plugin.lockManagerAddress })
     const members = await MemberController.getMembersWithPagination(
       {
-        page: 1, limit: 100, sort: 'votingPower', order: 'desc',
+        page: 1,
+        limit: 100,
+        sort: 'votingPower',
+        order: 'desc',
       },
       {
         daoAddress,
@@ -101,7 +104,10 @@ describe('LockToVote', () => {
     const membersFromQuery = await Models.LockManagerMember.find({ lockManagerAddress: plugin.lockManagerAddress })
     const members = await MemberController.getMembersWithPagination(
       {
-        page: 1, limit: 100, sort: 'votingPower', order: 'desc',
+        page: 1,
+        limit: 100,
+        sort: 'votingPower',
+        order: 'desc',
       },
       {
         daoAddress,
