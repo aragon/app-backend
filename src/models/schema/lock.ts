@@ -130,6 +130,9 @@ export default class Lock extends Model {
   @prop({ type: () => LockWithdraw, _id: false, default: {} })
   public lockWithdraw!: LockWithdraw
 
+  @prop({ type: () => String, default: null })
+  public receiveDelegatorAddress!: HexAddress
+
   static async create(rawData: Partial<Lock>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')

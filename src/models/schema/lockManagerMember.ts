@@ -151,7 +151,7 @@ export default class LockManagerMember extends Model {
       {
         $match: {
           ...filter,
-          votingPower: { $gt: '0' },
+          votingPower: { $ne: '0' },
         },
       },
     ]
@@ -210,7 +210,7 @@ export default class LockManagerMember extends Model {
           ens: '$memberInfo.ens',
           avatar: '$memberInfo.avatar',
           tokenBalance: null, // LockManagerMember doesn't have amount field
-          votingPower: '$votingPower',
+          votingPower: '$votingPowerString',
           metrics: {
             voteCount: '$pluginMetrics.voteCount',
             proposalCount: '$pluginMetrics.proposalCount',

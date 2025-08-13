@@ -41,6 +41,7 @@ export const GovernanceErc20Handler = {
         interfaceType: IPluginInterfaceType.tokenVoting,
       })
 
+      await governance.getOrCreate(memberAddress)
       // Update token member voting power
       await governance.update(memberAddress, {
         votingPower: newBalance.toString(),
@@ -280,6 +281,7 @@ export const GovernanceErc20Handler = {
             })
 
             // Update voting power - this will only update if block number is higher
+            await governance.getOrCreate(memberAddress)
             await governance.update(memberAddress, {
               votingPower: BigInt(parsedEvent?.args?.newBalance || 0).toString(),
               lastActivity: info.blockNumber,
