@@ -2,7 +2,7 @@ import VeLockIntMockTestData from '@test/unit-dep/mockData/veLockIntTestMock.jso
 import sinon from 'sinon'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
-import { IMembersResponse, IPluginInterfaceType, NetworksEnum } from '@types'
+import { IMembersResponse, NetworksEnum } from '@types'
 import logger from '@logger'
 import configIndexer from '@indexer/configIndexer'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
@@ -10,7 +10,6 @@ import { expect } from 'chai'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { LogTokenVoting } from '@plugins/logTokenVoting'
 import MemberController from '@api/controllers/member'
-import { MemberGovernanceFactory } from '@modules/memberGovernance'
 
 describe.only('GovernanceVeLock: Integration Test', () => {
   let sandbox: sinon.SinonSandbox
@@ -134,8 +133,11 @@ describe.only('GovernanceVeLock: Integration Test', () => {
     expect(daoMemberMappingAfterWithdraw).to.be.not.exist
   })
 
-  it.only('should handle veLock all events properly', async function() {
+  it.only('should handle veLock all events properly', async function () {
     this.timeout(100000000)
+    //
+    // UnitDepUtils.stubRabbitmqSend(sandbox)
+
     const daoAddress = '0x9418fcf1Aa0dCEB9090F2bBA06E70d94E10e46b1'
     await UnitDepUtils.syncACompleteDao(daoAddress, NetworksEnum.ethereumSepolia)
     const plugins = await Models.Plugin.find({
@@ -152,10 +154,13 @@ describe.only('GovernanceVeLock: Integration Test', () => {
 
     await LogTokenVoting.start(veLockPlugin, token)
 
-    const membersFromQuery = await Models.TokenMember.find({ tokenAddress: token.address, votingPower: {$ne: '0'} })
+    const membersFromQuery = await Models.Lock.find({ escrowAddress: veLockPlugin.votingEscrow.escrowAddress })
     const members = await MemberController.getMembersWithPagination(
       {
-        page: 1, limit: 100, sort: 'votingPower', order: 'desc',
+        page: 1,
+        limit: 100,
+        sort: 'votingPower',
+        order: 'desc',
       },
       {
         daoAddress,
@@ -179,81 +184,79 @@ describe.only('GovernanceVeLock: Integration Test', () => {
   })
 })
 
+// [
+// {
+//   "_id": "689bbeb36ca6a0d0dc9041b9",
+//   "id": "ethereum-sepolia-0x211aEa089C589bbCB636A52283B520E1b4F7c1b3-0x17366cae2b9c6C3055e9e3C78936a69006BE5409",
+//   "memberAddress": "0x17366cae2b9c6C3055e9e3C78936a69006BE5409",
+//   "votingPower": "834270833333288393000",
+//   "tokenAddress": "0x211aEa089C589bbCB636A52283B520E1b4F7c1b3",
+//   "tokenIds": [
+//     "1",
+//     "2",
+//     "6"
+//   ],
+//   "network": "ethereum-sepolia",
+//   "delegateReceivedCount": 0,
+//   "lastVPBlockNumber": 8627064,
+//   "createdAt": "2025-08-12T22:22:43.371Z",
+//   "updatedAt": "2025-08-12T22:22:48.858Z",
+//   "__v": 3
+// },
+//   {
+//     "_id": "689bbeb66ca6a0d0dc9041ed",
+//     "id": "ethereum-sepolia-0x211aEa089C589bbCB636A52283B520E1b4F7c1b3-0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759",
+//     "memberAddress": "0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759",
+//     "votingPower": "902791016093683639820506",
+//     "tokenAddress": "0x211aEa089C589bbCB636A52283B520E1b4F7c1b3",
+//     "tokenIds": [
+//       "3",
+//       "4",
+//       "7",
+//       "9"
+//     ],
+//     "network": "ethereum-sepolia",
+//     "delegateReceivedCount": 0,
+//     "lastVPBlockNumber": 8770637,
+//     "createdAt": "2025-08-12T22:22:46.349Z",
+//     "updatedAt": "2025-08-12T22:22:53.506Z",
+//     "__v": 4
+//   },
+//   {
+//     "_id": "689bbeb76ca6a0d0dc90420d",
+//     "id": "ethereum-sepolia-0x211aEa089C589bbCB636A52283B520E1b4F7c1b3-0xE3217A7790BB9bb60D4712B86E96B5f77AF7a747",
+//     "memberAddress": "0xE3217A7790BB9bb60D4712B86E96B5f77AF7a747",
+//     "votingPower": "0",
+//     "tokenAddress": "0x211aEa089C589bbCB636A52283B520E1b4F7c1b3",
+//     "tokenIds": [
+//       "5"
+//     ],
+//     "network": "ethereum-sepolia",
+//     "delegateReceivedCount": 0,
+//     "lastVPBlockNumber": 8626049,
+//     "createdAt": "2025-08-12T22:22:47.894Z",
+//     "updatedAt": "2025-08-12T22:22:48.053Z",
+//     "__v": 1
+//   },
+//   {
+//     "_id": "689bbeba6ca6a0d0dc904243",
+//     "id": "ethereum-sepolia-0x211aEa089C589bbCB636A52283B520E1b4F7c1b3-0x061BB58c8C726e545618d9D594bb81D38fabe405",
+//     "memberAddress": "0x061BB58c8C726e545618d9D594bb81D38fabe405",
+//     "votingPower": "0",
+//     "tokenAddress": "0x211aEa089C589bbCB636A52283B520E1b4F7c1b3",
+//     "tokenIds": [
+//       "8"
+//     ],
+//     "network": "ethereum-sepolia",
+//     "delegateReceivedCount": 0,
+//     "lastVPBlockNumber": 8726507,
+//     "createdAt": "2025-08-12T22:22:50.846Z",
+//     "updatedAt": "2025-08-12T22:22:50.999Z",
+//     "__v": 1
+//   }
+// ]
 
-  // [
-  // {
-  //   "_id": "689bbeb36ca6a0d0dc9041b9",
-  //   "id": "ethereum-sepolia-0x211aEa089C589bbCB636A52283B520E1b4F7c1b3-0x17366cae2b9c6C3055e9e3C78936a69006BE5409",
-  //   "memberAddress": "0x17366cae2b9c6C3055e9e3C78936a69006BE5409",
-  //   "votingPower": "834270833333288393000",
-  //   "tokenAddress": "0x211aEa089C589bbCB636A52283B520E1b4F7c1b3",
-  //   "tokenIds": [
-  //     "1",
-  //     "2",
-  //     "6"
-  //   ],
-  //   "network": "ethereum-sepolia",
-  //   "delegateReceivedCount": 0,
-  //   "lastVPBlockNumber": 8627064,
-  //   "createdAt": "2025-08-12T22:22:43.371Z",
-  //   "updatedAt": "2025-08-12T22:22:48.858Z",
-  //   "__v": 3
-  // },
-  //   {
-  //     "_id": "689bbeb66ca6a0d0dc9041ed",
-  //     "id": "ethereum-sepolia-0x211aEa089C589bbCB636A52283B520E1b4F7c1b3-0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759",
-  //     "memberAddress": "0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759",
-  //     "votingPower": "902791016093683639820506",
-  //     "tokenAddress": "0x211aEa089C589bbCB636A52283B520E1b4F7c1b3",
-  //     "tokenIds": [
-  //       "3",
-  //       "4",
-  //       "7",
-  //       "9"
-  //     ],
-  //     "network": "ethereum-sepolia",
-  //     "delegateReceivedCount": 0,
-  //     "lastVPBlockNumber": 8770637,
-  //     "createdAt": "2025-08-12T22:22:46.349Z",
-  //     "updatedAt": "2025-08-12T22:22:53.506Z",
-  //     "__v": 4
-  //   },
-  //   {
-  //     "_id": "689bbeb76ca6a0d0dc90420d",
-  //     "id": "ethereum-sepolia-0x211aEa089C589bbCB636A52283B520E1b4F7c1b3-0xE3217A7790BB9bb60D4712B86E96B5f77AF7a747",
-  //     "memberAddress": "0xE3217A7790BB9bb60D4712B86E96B5f77AF7a747",
-  //     "votingPower": "0",
-  //     "tokenAddress": "0x211aEa089C589bbCB636A52283B520E1b4F7c1b3",
-  //     "tokenIds": [
-  //       "5"
-  //     ],
-  //     "network": "ethereum-sepolia",
-  //     "delegateReceivedCount": 0,
-  //     "lastVPBlockNumber": 8626049,
-  //     "createdAt": "2025-08-12T22:22:47.894Z",
-  //     "updatedAt": "2025-08-12T22:22:48.053Z",
-  //     "__v": 1
-  //   },
-  //   {
-  //     "_id": "689bbeba6ca6a0d0dc904243",
-  //     "id": "ethereum-sepolia-0x211aEa089C589bbCB636A52283B520E1b4F7c1b3-0x061BB58c8C726e545618d9D594bb81D38fabe405",
-  //     "memberAddress": "0x061BB58c8C726e545618d9D594bb81D38fabe405",
-  //     "votingPower": "0",
-  //     "tokenAddress": "0x211aEa089C589bbCB636A52283B520E1b4F7c1b3",
-  //     "tokenIds": [
-  //       "8"
-  //     ],
-  //     "network": "ethereum-sepolia",
-  //     "delegateReceivedCount": 0,
-  //     "lastVPBlockNumber": 8726507,
-  //     "createdAt": "2025-08-12T22:22:50.846Z",
-  //     "updatedAt": "2025-08-12T22:22:50.999Z",
-  //     "__v": 1
-  //   }
-  // ]
-
-
-  // [
+// [
 // {
 //   "votingPower": "1660157840375607403798261",
 //   "address": "0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759",
@@ -308,58 +311,57 @@ describe.only('GovernanceVeLock: Integration Test', () => {
 //   }
 // ]
 
-
-  // [
-  // {
-  //   "votingPower": "1660200048694059780833710",
-  //   "address": "0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759",
-  //   "ens": "ea1.aragonx.eth",
-  //   "avatar": null,
-  //   "metrics": {
-  //     "voteCount": 0,
-  //     "proposalCount": 0,
-  //     "firstActivity": 8618799,
-  //     "lastActivity": 8618799,
-  //     "delegateReceivedCount": 0
-  //   }
-  // },
-  //   {
-  //     "votingPower": "22118775243960976996710",
-  //     "address": "0xE3217A7790BB9bb60D4712B86E96B5f77AF7a747",
-  //     "ens": "ea2.aragonx.eth",
-  //     "avatar": null,
-  //     "metrics": {
-  //       "voteCount": 0,
-  //       "proposalCount": 0,
-  //       "firstActivity": 8626049,
-  //       "lastActivity": 8626049,
-  //       "delegateReceivedCount": 0
-  //     }
-  //   },
-  //   {
-  //     "votingPower": "6847509920634377986000",
-  //     "address": "0x061BB58c8C726e545618d9D594bb81D38fabe405",
-  //     "ens": null,
-  //     "avatar": null,
-  //     "metrics": {
-  //       "voteCount": 0,
-  //       "proposalCount": 0,
-  //       "firstActivity": 8726507,
-  //       "lastActivity": 8726507,
-  //       "delegateReceivedCount": 0
-  //     }
-  //   },
-  //   {
-  //     "votingPower": "3246628472221953415100",
-  //     "address": "0x17366cae2b9c6C3055e9e3C78936a69006BE5409",
-  //     "ens": "cgero.eth",
-  //     "avatar": null,
-  //     "metrics": {
-  //       "voteCount": 0,
-  //       "proposalCount": 0,
-  //       "firstActivity": 8576026,
-  //       "lastActivity": 8576026,
-  //       "delegateReceivedCount": 0
-  //     }
-  //   }
-  // ]
+// [
+// {
+//   "votingPower": "1660200048694059780833710",
+//   "address": "0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759",
+//   "ens": "ea1.aragonx.eth",
+//   "avatar": null,
+//   "metrics": {
+//     "voteCount": 0,
+//     "proposalCount": 0,
+//     "firstActivity": 8618799,
+//     "lastActivity": 8618799,
+//     "delegateReceivedCount": 0
+//   }
+// },
+//   {
+//     "votingPower": "22118775243960976996710",
+//     "address": "0xE3217A7790BB9bb60D4712B86E96B5f77AF7a747",
+//     "ens": "ea2.aragonx.eth",
+//     "avatar": null,
+//     "metrics": {
+//       "voteCount": 0,
+//       "proposalCount": 0,
+//       "firstActivity": 8626049,
+//       "lastActivity": 8626049,
+//       "delegateReceivedCount": 0
+//     }
+//   },
+//   {
+//     "votingPower": "6847509920634377986000",
+//     "address": "0x061BB58c8C726e545618d9D594bb81D38fabe405",
+//     "ens": null,
+//     "avatar": null,
+//     "metrics": {
+//       "voteCount": 0,
+//       "proposalCount": 0,
+//       "firstActivity": 8726507,
+//       "lastActivity": 8726507,
+//       "delegateReceivedCount": 0
+//     }
+//   },
+//   {
+//     "votingPower": "3246628472221953415100",
+//     "address": "0x17366cae2b9c6C3055e9e3C78936a69006BE5409",
+//     "ens": "cgero.eth",
+//     "avatar": null,
+//     "metrics": {
+//       "voteCount": 0,
+//       "proposalCount": 0,
+//       "firstActivity": 8576026,
+//       "lastActivity": 8576026,
+//       "delegateReceivedCount": 0
+//     }
+//   }
+// ]
