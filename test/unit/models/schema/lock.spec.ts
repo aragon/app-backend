@@ -25,6 +25,7 @@ describe('Model: Lock', () => {
       blockNumber: 18000000,
       blockTimestamp: 1640995200,
       memberAddress: '0xmember1234567890abcdef1234567890abcdef1',
+      delegateReceiverAddress: '0xmember1234567890abcdef1234567890abcdef1', // Add delegateReceiverAddress
       escrowAddress: '0xescrow1234567890abcdef1234567890abcdef1',
       exitQueueAddress: '0xexitqueue1234567890abcdef1234567890abcdef1',
       tokenAddress: '0xtoken1234567890abcdef1234567890abcdef12',
@@ -427,6 +428,7 @@ describe('Model: Lock', () => {
         transactionHash: '0xactive1111111111111111111111111111111111',
         tokenId: '101',
         memberAddress: '0xActive1234567890abcdef1234567890abcdef',
+        delegateReceiverAddress: '0xActive1234567890abcdef1234567890abcdef',
         tokenAddress,
         amount: '1000000000000000000', // 1 token
         epochStartAt: 1640995100, // 100 seconds ago
@@ -439,6 +441,7 @@ describe('Model: Lock', () => {
         transactionHash: '0xactive2222222222222222222222222222222222',
         tokenId: '102',
         memberAddress: '0xActive2234567890abcdef1234567890abcdef',
+        delegateReceiverAddress: '0xActive2234567890abcdef1234567890abcdef',
         tokenAddress,
         amount: '2000000000000000000', // 2 tokens
         epochStartAt: 1640995000, // 200 seconds ago
@@ -452,6 +455,7 @@ describe('Model: Lock', () => {
         transactionHash: '0xinactive333333333333333333333333333333',
         tokenId: '103',
         memberAddress: '0xInactive234567890abcdef1234567890abcdef',
+        delegateReceiverAddress: '0xInactive234567890abcdef1234567890abcdef',
         tokenAddress,
         amount: '1500000000000000000', // 1.5 tokens
         epochStartAt: 1640995050,
@@ -539,6 +543,7 @@ describe('Model: Lock', () => {
           transactionHash: `0x${i.toString().padStart(40, '0')}`,
           tokenId,
           memberAddress,
+          delegateReceiverAddress: memberAddress,
           tokenAddress,
           amount: `${(i + 1) * 1000000000000000000}`, // Different amounts
           epochStartAt: 1640995200 - i * 10, // Different start times
@@ -661,6 +666,7 @@ describe('Model: Lock', () => {
         transactionHash: '0xactivetest111111111111111111111111111111',
         tokenId: 301,
         memberAddress: '0xActive1234567890abcdef1234567890abcdef',
+        delegateReceiverAddress: '0xActive1234567890abcdef1234567890abcdef',
         tokenAddress,
         amount: '1000000000000000000',
         epochStartAt: 1640995100,
@@ -674,6 +680,7 @@ describe('Model: Lock', () => {
         transactionHash: '0xinactivetest222222222222222222222222222',
         tokenId: 302,
         memberAddress: '0xInactive234567890abcdef1234567890abcdef',
+        delegateReceiverAddress: '0xInactive234567890abcdef1234567890abcdef',
         tokenAddress,
         amount: '2000000000000000000',
         epochStartAt: 1640995100,
@@ -729,6 +736,7 @@ describe('Model: Lock', () => {
         transactionHash: '0xmulti1111111111111111111111111111111111',
         tokenId: 401,
         memberAddress,
+        delegateReceiverAddress: memberAddress,
         tokenAddress,
         amount: '1000000000000000000',
         epochStartAt: 1640995100,
@@ -741,6 +749,7 @@ describe('Model: Lock', () => {
         transactionHash: '0xmulti2222222222222222222222222222222222',
         tokenId: 402,
         memberAddress,
+        delegateReceiverAddress: memberAddress,
         tokenAddress,
         amount: '2000000000000000000',
         epochStartAt: 1640995050,
@@ -818,6 +827,7 @@ describe('Model: Lock', () => {
         transactionHash: '0xvotingpower11111111111111111111111111111',
         tokenId: 501,
         memberAddress,
+        delegateReceiverAddress: memberAddress,
         tokenAddress,
         amount: '1000000000000000000', // 1 token
         epochStartAt: 1640995100, // 100 seconds before current time

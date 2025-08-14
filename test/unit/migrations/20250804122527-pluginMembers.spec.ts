@@ -47,7 +47,7 @@ describe('migration: pluginMembers', () => {
 
     // Create governance stub with required methods
     governanceStub = {
-      getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      updatePluginMetrics: sandbox.stub().resolves(),
     }
 
     stubMemberGovernanceFactoryCreate = sandbox.stub(MemberGovernanceFactory, 'create').returns(governanceStub)
@@ -150,7 +150,7 @@ describe('migration: pluginMembers', () => {
         }),
       ).to.be.true
       expect(
-        governanceStub.getOrCreatePluginMetrics.calledWith({
+        governanceStub.updatePluginMetrics.calledWith({
           memberAddress: mockDaoMemberMappings[0].memberAddress,
           pluginAddress: mockDaoMemberMappings[0].pluginAddress,
           network: mockDaoMemberMappings[0].network,
@@ -170,7 +170,7 @@ describe('migration: pluginMembers', () => {
         }),
       ).to.be.true
       expect(
-        governanceStub.getOrCreatePluginMetrics.calledWith({
+        governanceStub.updatePluginMetrics.calledWith({
           memberAddress: mockDaoMemberMappings[1].memberAddress,
           pluginAddress: mockDaoMemberMappings[1].pluginAddress,
           network: mockDaoMemberMappings[1].network,
@@ -182,7 +182,7 @@ describe('migration: pluginMembers', () => {
       // Verify total calls
       expect(stubCreateBaseMember.callCount).to.equal(2)
       expect(stubPluginMemberCreate.callCount).to.equal(2)
-      expect(governanceStub.getOrCreatePluginMetrics.callCount).to.equal(2)
+      expect(governanceStub.updatePluginMetrics.callCount).to.equal(2)
 
       // Verify logging
       expect(stubLoggerInfo.calledWith('Migration completed successfully')).to.be.true
@@ -196,7 +196,7 @@ describe('migration: pluginMembers', () => {
       expect(mockDaoMemberMappingCollection.find.calledWith({ tokenAddress: null })).to.be.true
       expect(stubCreateBaseMember.called).to.be.false
       expect(stubPluginMemberCreate.called).to.be.false
-      expect(governanceStub.getOrCreatePluginMetrics.called).to.be.false
+      expect(governanceStub.updatePluginMetrics.called).to.be.false
       expect(stubLoggerInfo.calledWith('No daoMemberMapping documents to migrate')).to.be.true
     })
 
@@ -250,7 +250,7 @@ describe('migration: pluginMembers', () => {
       // Verify second document was still processed
       expect(stubCreateBaseMember.callCount).to.equal(2)
       expect(stubPluginMemberCreate.callCount).to.equal(1) // Only successful one
-      expect(governanceStub.getOrCreatePluginMetrics.callCount).to.equal(1) // Only successful one
+      expect(governanceStub.updatePluginMetrics.callCount).to.equal(1) // Only successful one
 
       // Verify completion with error count
       const completionLogCall = stubLoggerInfo

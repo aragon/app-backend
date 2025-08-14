@@ -54,7 +54,7 @@ describe('migration: tokenMembers', () => {
     // Create governance stub with required methods
     governanceStub = {
       update: sandbox.stub().resolves(),
-      getOrCreatePluginMetrics: sandbox.stub().resolves({
+      updatePluginMetrics: sandbox.stub().resolves({
         firstActivity: undefined,
         update: sandbox.stub().resolves(),
       }),
@@ -189,9 +189,9 @@ describe('migration: tokenMembers', () => {
         }),
       ).to.be.true
 
-      // Verify governance.getOrCreatePluginMetrics calls for each plugin
+      // Verify governance.updatePluginMetrics calls for each plugin
       expect(
-        governanceStub.getOrCreatePluginMetrics.calledWith({
+        governanceStub.updatePluginMetrics.calledWith({
           memberAddress: mockMemberBalances[0].address,
           pluginAddress: mockPlugins[0].address,
           network: mockPlugins[0].network,
@@ -200,7 +200,7 @@ describe('migration: tokenMembers', () => {
         }),
       ).to.be.true
       expect(
-        governanceStub.getOrCreatePluginMetrics.calledWith({
+        governanceStub.updatePluginMetrics.calledWith({
           memberAddress: mockMemberBalances[0].address,
           pluginAddress: mockPlugins[1].address,
           network: mockPlugins[1].network,
@@ -212,7 +212,7 @@ describe('migration: tokenMembers', () => {
       // Verify total calls
       expect(stubCreateBaseMember.callCount).to.equal(2)
       expect(governanceStub.update.callCount).to.equal(2)
-      expect(governanceStub.getOrCreatePluginMetrics.callCount).to.equal(2) // 2 plugins for first member, 0 for second
+      expect(governanceStub.updatePluginMetrics.callCount).to.equal(2) // 2 plugins for first member, 0 for second
 
       // Verify logging
       expect(stubLoggerInfo.calledWith('Migration completed successfully')).to.be.true
@@ -231,7 +231,7 @@ describe('migration: tokenMembers', () => {
       ).to.be.true
       expect(stubCreateBaseMember.called).to.be.false
       expect(governanceStub.update.called).to.be.false
-      expect(governanceStub.getOrCreatePluginMetrics.called).to.be.false
+      expect(governanceStub.updatePluginMetrics.called).to.be.false
       expect(stubLoggerInfo.calledWith('No MemberBalance documents to migrate')).to.be.true
     })
 
@@ -304,9 +304,9 @@ describe('migration: tokenMembers', () => {
 
       await tokenMembersMigration.start()
 
-      // Verify getOrCreatePluginMetrics was called with default values
+      // Verify updatePluginMetrics was called with default values
       expect(
-        governanceStub.getOrCreatePluginMetrics.calledWith({
+        governanceStub.updatePluginMetrics.calledWith({
           memberAddress: mockMemberBalances[0].address,
           pluginAddress: mockPlugins[0].address,
           network: mockPlugins[0].network,

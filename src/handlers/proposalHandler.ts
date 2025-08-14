@@ -300,6 +300,9 @@ export const ProposalHandler = {
 
       await ProposalHandler.pairSppProposals(newProposal, relatedPlugin, info)
 
+      // Create base member first
+      await MemberGovernanceFactory.createBaseMember(newProposal.creatorAddress, info.blockNumber)
+
       // Create governance instance based on plugin type
       const governance = MemberGovernanceFactory.create({
         address: relatedPlugin.tokenAddress || pluginAddress,
