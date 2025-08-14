@@ -14,7 +14,7 @@ import type Lock from '@models/schema/lock'
 import Web3Utils from '@helpers/web3Utils'
 import DbTx from '@modules/dbTx'
 import logger from '@logger'
-import { type ClientSession, Promise } from 'mongoose'
+import { type ClientSession } from 'mongoose'
 import type Plugin from '@models/schema/plugin'
 import utils from '@helpers/utils'
 import RabbitMQHelper from '@helpers/rabbitMQ'
@@ -24,8 +24,8 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
  * Used for VE token governance types.
  */
 export class VeGovernance extends BaseGovernance {
-  protected readonly escrowAddress: HexAddress
-  protected readonly escrowAdapterAddress: HexAddress | null
+  protected readonly escrowAddress: HexAddress // lockManager - user lock the tokes
+  protected readonly escrowAdapterAddress: HexAddress | null // used as token of the plugin
   protected plugins?: Plugin[]
 
   constructor(
@@ -153,7 +153,7 @@ export class VeGovernance extends BaseGovernance {
           { session },
         )
 
-        const locks = Models.Lock.find(
+        const locks = await Models.Lock.find(
           {
             network: this.network,
             escrowAddress: this.escrowAddress,

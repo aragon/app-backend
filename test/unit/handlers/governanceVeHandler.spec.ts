@@ -4,11 +4,7 @@ import {
   IPluginInterfaceType,
   IPluginStatus,
   ISettingStatus,
-  ITokenType,
   NetworksEnum,
-  ITransferSide,
-  EnumQueueName,
-  IClockMode,
 } from '@types'
 import type Plugin from '@models/schema/plugin'
 import { Models } from '@dbModels'
@@ -18,16 +14,25 @@ import { expect } from 'chai'
 import { MemberGovernanceFactory } from '@src/governance'
 import Web3Helper from '@helpers/web3'
 import { PluginSetting } from '@models/schema/setting'
-import { ProxyToken } from '@modules/proxyToken'
-import GovernanceErc20Helper from '@helpers/governanceErc20'
 import RabbitMQHelper from '@helpers/rabbitMQ'
-import utils from '@helpers/utils'
 
 describe('Handler:GovernanceVeHandler', () => {
   let sandbox: SinonSandbox
   let plugin: Plugin
   let activePluginSetting: PluginSetting | any
   let rabbitMQHelperStub: sinon.SinonStub
+
+  // Helper to create common governance mock
+  const createMockGovernance = () => {
+    return {
+      getOrCreate: sandbox.stub().resolves(),
+      findOne: sandbox.stub().resolves({ tokenIds: [] }),
+      update: sandbox.stub().resolves(),
+      getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      updatePluginMetrics: sandbox.stub().resolves(),
+      delete: sandbox.stub().resolves(),
+    }
+  }
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
@@ -68,9 +73,8 @@ describe('Handler:GovernanceVeHandler', () => {
 
   describe('deposit', () => {
     it('should skip if plugin not found', async () => {
-      const stubPluginFind = sandbox.stub(Models.Plugin, 'find').resolves([])
+      // Don't create any plugin in database (plugin not found scenario)
       const stubLogger = sandbox.stub(logger, 'error')
-      const stubLockCreate = sandbox.stub(Models.Lock, 'create')
       const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
       const stubMemberGovernanceCreate = sandbox.stub(MemberGovernanceFactory, 'create')
 
@@ -94,466 +98,389 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.deposit(mockEvent, mockInfo)
 
-      expect(stubPluginFind.calledOnce).to.be.true
-      expect(
-        stubPluginFind.calledWith({
-          'votingEscrow.escrowAddress': mockInfo.address,
-          network: mockInfo.network,
-        }),
-      ).to.be.true
+      // Verify that no plugin was found
+      const plugins = await Models.Plugin.find({
+        'votingEscrow.escrowAddress': mockInfo.address,
+        network: mockInfo.network,
+      })
+      expect(plugins).to.have.lengthOf(0)
+
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Plugin not found for deposit event' as any)).to.be.true
-      expect(stubLockCreate.notCalled).to.be.true
-      expect(stubCreateBaseMember.notCalled).to.be.true
-      expect(stubMemberGovernanceCreate.notCalled).to.be.true
-    })
 
-    it('should log warning if lock already exists', async () => {
-      const mockPlugin = {
-        address: '0xPluginAddress',
-        daoAddress: '0xDaoAddress',
-        tokenAddress: '0xTokenAddress',
-        votingEscrow: {
-          escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
-          nftLockAddress: '0xNftAddress',
-          exitQueueAddress: '0xExitQueueAddress',
-        },
-      }
-      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
-      sandbox.stub(Models.Lock, 'findExistingLog').resolves({ id: 'existingLock' } as any)
-      const stubLogger = sandbox.stub(logger, 'warn')
-      const stubLockCreate = sandbox.stub(Models.Lock, 'create')
-      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
-      const stubMemberGovernanceCreate = sandbox.stub(MemberGovernanceFactory, 'create')
-
-      const mockInfo = {
-        address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-      const mockEvent = {
-        args: {
-          depositor: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          tokenId: 123n,
-          value: 10000n,
-          startTs: 1650000000n,
-          newTotalLocked: 25000n,
-        },
-      } as any
-
-      await GovernanceVeHandler.deposit(mockEvent, mockInfo)
-
-      expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Deposit VeGovernance - Lock already exists' as any)).to.be.true
-      expect(stubLockCreate.notCalled).to.be.true
-      expect(stubCreateBaseMember.notCalled).to.be.true
-      expect(stubMemberGovernanceCreate.notCalled).to.be.true
-    })
-
-    it('should create Lock and update TokenMember with new tokenId', async () => {
-      const mockPlugin = {
-        address: '0xPluginAddress',
-        daoAddress: '0xDaoAddress',
-        tokenAddress: '0xTokenAddress',
-        votingEscrow: {
-          escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
-          nftLockAddress: '0xNftAddress',
-          exitQueueAddress: '0xExitQueueAddress',
-        },
-      }
-      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
-      sandbox.stub(Models.Lock, 'findExistingLog').resolves(null)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-      const stubLockCreate = sandbox.stub(Models.Lock, 'create').resolves()
-      const stubLogger = sandbox.stub(logger, 'verbose')
-
-      // Mock governance instance
-      const mockGovernance = {
-        getOrCreate: sandbox.stub().resolves(),
-        findOne: sandbox.stub().resolves({ tokenIds: [] }),
-        update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
-      }
-      const stubMemberGovernanceCreate = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
-      sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin.daoAddress])
-
-      const mockInfo = {
-        address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-      const mockEvent = {
-        args: {
-          depositor: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          tokenId: 123n,
-          value: 10000n,
-          startTs: 1650000000n,
-          newTotalLocked: 25000n,
-        },
-      } as any
-
-      await GovernanceVeHandler.deposit(mockEvent, mockInfo)
-
-      // Verify Lock.create was called with correct params
-      expect(stubLockCreate.calledOnce).to.be.true
-      const lockCreateArgs = stubLockCreate.firstCall.args[0]
-      expect(lockCreateArgs).to.deep.include({
-        network: mockInfo.network,
-        transactionHash: mockInfo.transactionHash,
-        transactionIndex: mockInfo.transactionIndex,
-        logIndex: mockInfo.logIndex,
-        blockNumber: mockInfo.blockNumber,
-        blockTimestamp: 1650009999,
-        escrowAddress: mockPlugin.votingEscrow.escrowAddress,
-        memberAddress: mockEvent.args.depositor,
-        nftAddress: mockPlugin.votingEscrow.nftLockAddress,
-        tokenAddress: mockPlugin.tokenAddress,
+      // Verify no Lock was created
+      const locks = await Models.Lock.find({
+        escrowAddress: mockInfo.address,
         tokenId: '123',
-        amount: '10000',
-        epochStartAt: 1650000000,
-        totalLocked: '25000',
-        exitQueueAddress: mockPlugin.votingEscrow.exitQueueAddress,
       })
+      expect(locks).to.have.lengthOf(0)
+
+      expect(stubCreateBaseMember.notCalled).to.be.true
+      expect(stubMemberGovernanceCreate.notCalled).to.be.true
+    })
+
+    it('should handle if lock already exists', async () => {
+      // The plugin is already created in beforeEach with the same escrowAddress
+      // No need to create another one
+
+      // Create existing lock in database
+      await Models.Lock.create({
+        id: 'existingLock',
+        network: NetworksEnum.ethereumMainnet,
+        transactionHash: '0xoldtx',
+        transactionIndex: 0,
+        logIndex: 0,
+        blockNumber: 100,
+        blockTimestamp: 1649999999,
+        escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+        memberAddress: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+        nftAddress: '0xNftAddress',
+        tokenAddress: '0xTokenAddress',
+        tokenId: '123',
+        amount: '5000',
+        epochStartAt: 1649000000,
+        totalLocked: '15000',
+        exitQueueAddress: '0xExitQueueAddress',
+      })
+
+      const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
+      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      // Create mock governance instance
+      const mockGovernance = createMockGovernance()
+      // Make getOrCreate return the existing lock (simulating the actual behavior)
+      mockGovernance.getOrCreate.resolves({ id: 'existingLock' })
+      const stubMemberGovernanceCreate = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      const mockInfo = {
+        address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+        transactionHash: '0xhash',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+      const mockEvent = {
+        args: {
+          depositor: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          tokenId: 123n,
+          value: 10000n,
+          startTs: 1650000000n,
+          newTotalLocked: 25000n,
+        },
+      } as any
+
+      await GovernanceVeHandler.deposit(mockEvent, mockInfo)
+
+      // Verify plugin was found
+      const foundPlugins = await Models.Plugin.find({
+        'votingEscrow.escrowAddress': mockInfo.address,
+        network: mockInfo.network,
+      })
+      expect(foundPlugins).to.have.lengthOf(1)
 
       // Verify createBaseMember was called
       expect(stubCreateBaseMember.calledOnce).to.be.true
       expect(stubCreateBaseMember.calledWith(mockEvent.args.depositor, mockInfo.blockNumber)).to.be.true
 
-      // Verify MemberGovernanceFactory.create was called
+      // Verify governance was created and getOrCreate was called
       expect(stubMemberGovernanceCreate.calledOnce).to.be.true
-      expect(
-        stubMemberGovernanceCreate.calledWith({
-          address: mockPlugin.tokenAddress,
-          network: mockInfo.network,
-          interfaceType: IPluginInterfaceType.tokenVoting,
-          tokenType: ITokenType.escrowAdapter,
-        }),
-      ).to.be.true
-
-      // Verify governance methods were called
       expect(mockGovernance.getOrCreate.calledOnce).to.be.true
-      expect(mockGovernance.getOrCreate.calledWith(mockEvent.args.depositor)).to.be.true
 
-      expect(mockGovernance.findOne.calledOnce).to.be.true
-      expect(mockGovernance.findOne.calledWith(mockEvent.args.depositor)).to.be.true
-
-      expect(mockGovernance.update.calledOnce).to.be.true
+      // Verify updatePluginMetrics was called once (for the one plugin)
+      expect(mockGovernance.updatePluginMetrics.calledOnce).to.be.true
       expect(
-        mockGovernance.update.calledWith(mockEvent.args.depositor, {
-          tokenIds: ['123'],
-          lastActivity: mockInfo.blockNumber,
-        }),
-      ).to.be.true
-
-      // Verify getOrCreatePluginMetrics was called
-      expect(mockGovernance.getOrCreatePluginMetrics.calledOnce).to.be.true
-      expect(
-        mockGovernance.getOrCreatePluginMetrics.calledWith({
+        mockGovernance.updatePluginMetrics.calledWith({
           memberAddress: mockEvent.args.depositor,
-          pluginAddress: mockPlugin.address,
-          daoAddress: mockPlugin.daoAddress,
-          network: mockInfo.network,
-          lastActivity: mockInfo.blockNumber,
+          pluginAddress: '0x121', // Plugin address from beforeEach
+          daoAddress: '0xDAO', // DAO address from beforeEach
+          network: NetworksEnum.ethereumMainnet,
+          lastActivity: 123,
         }),
       ).to.be.true
 
-      // Verify RabbitMQ message was sent
-      expect(rabbitMQHelperStub.calledOnce).to.be.true
-      expect(
-        rabbitMQHelperStub.calledWith(EnumQueueName.daoMetrics, {
-          id: mockPlugin.daoAddress,
-          params: { address: mockPlugin.daoAddress, network: mockInfo.network },
-        }),
-      ).to.be.true
+      // Verify the verbose log was called (not a warning since lock exists is handled internally)
+      expect(stubLoggerVerbose.calledOnce).to.be.true
+      expect(stubLoggerVerbose.calledWith('Deposit VeGovernance - Lock created' as any)).to.be.true
 
-      // Verify logging
-      expect(stubLogger.calledTwice).to.be.true
-      expect(stubLogger.firstCall.calledWith('Deposit VeGovernance - Lock created' as any)).to.be.true
-      expect(stubLogger.secondCall.calledWith('Deposit VeGovernance - Member and voting power updated' as any)).to.be
-        .true
+      // Verify no new Lock was created in database (still only 1)
+      const locks = await Models.Lock.find({
+        escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+        tokenId: '123',
+      })
+      expect(locks).to.have.lengthOf(1)
+      expect(locks[0].transactionHash).to.equal('0xoldtx') // Still the old one
     })
 
-    it('should create Lock with existing TokenMember and not update if tokenId already exists', async () => {
-      const mockPlugin = {
-        address: '0xPluginAddress',
-        daoAddress: '0xDaoAddress',
-        tokenAddress: '0xTokenAddress',
-        votingEscrow: {
-          escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
-          nftLockAddress: '0xNftAddress',
-          exitQueueAddress: '0xExitQueueAddress',
-        },
-      }
-      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
-      sandbox.stub(Models.Lock, 'findExistingLog').resolves(null)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
+    it('should create new lock successfully (happy path)', async () => {
+      // Plugin is already created in beforeEach
+      const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
       const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-      const stubLockCreate = sandbox.stub(Models.Lock, 'create').resolves()
-      const stubLogger = sandbox.stub(logger, 'verbose')
 
-      // Mock governance instance with existing tokenId
-      const mockGovernance = {
-        getOrCreate: sandbox.stub().resolves(),
-        findOne: sandbox.stub().resolves({ tokenIds: ['100', '123', '200'] }), // Already includes tokenId 123
-        update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+      // Create mock governance instance
+      const mockGovernance = createMockGovernance()
+      // Mock successful lock creation
+      const newLock = {
+        id: 'newLock',
+        tokenId: '456',
+        memberAddress: '0xNewDepositor',
       }
+      mockGovernance.getOrCreate.resolves(newLock)
       const stubMemberGovernanceCreate = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
-      sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin.daoAddress])
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
         network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
+        blockNumber: 200,
+        transactionHash: '0xnewtx',
+        transactionIndex: 2,
         logIndex: 1,
       } as any
       const mockEvent = {
         args: {
-          depositor: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          tokenId: 123n,
-          value: 10000n,
-          startTs: 1650000000n,
-          newTotalLocked: 25000n,
+          depositor: '0xNewDepositor',
+          tokenId: 456n,
+          value: 20000n,
+          startTs: 1650100000n,
+          newTotalLocked: 50000n,
         },
       } as any
 
       await GovernanceVeHandler.deposit(mockEvent, mockInfo)
 
-      // Verify Lock was created
-      expect(stubLockCreate.calledOnce).to.be.true
-
-      // Verify createBaseMember was called
+      // Verify all steps were called
       expect(stubCreateBaseMember.calledOnce).to.be.true
+      expect(stubCreateBaseMember.calledWith('0xNewDepositor', 200)).to.be.true
 
-      // Verify governance methods were called
+      expect(stubMemberGovernanceCreate.calledOnce).to.be.true
       expect(mockGovernance.getOrCreate.calledOnce).to.be.true
-      expect(mockGovernance.findOne.calledOnce).to.be.true
+      expect(
+        mockGovernance.getOrCreate.calledWith('0xNewDepositor', {
+          parsedEvent: mockEvent,
+          info: mockInfo,
+        }),
+      ).to.be.true
 
-      // Verify update was NOT called since tokenId already exists
-      expect(mockGovernance.update.notCalled).to.be.true
+      expect(mockGovernance.updatePluginMetrics.calledOnce).to.be.true
 
-      // Verify getOrCreatePluginMetrics was called
-      expect(mockGovernance.getOrCreatePluginMetrics.calledOnce).to.be.true
-
-      // Verify RabbitMQ message was sent
-      expect(rabbitMQHelperStub.calledOnce).to.be.true
-
-      // Verify logging
-      expect(stubLogger.calledTwice).to.be.true
-      expect(stubLogger.firstCall.calledWith('Deposit VeGovernance - Lock created' as any)).to.be.true
-      expect(stubLogger.secondCall.calledWith('Deposit VeGovernance - Member and voting power updated' as any)).to.be
-        .true
+      expect(stubLoggerVerbose.calledOnce).to.be.true
+      expect(stubLoggerVerbose.calledWith('Deposit VeGovernance - Lock created' as any)).to.be.true
     })
 
     it('should handle multiple plugins and call updatePluginMetrics for each', async () => {
-      const mockPlugins = [
-        {
-          address: '0xPluginAddress1',
-          daoAddress: '0xDaoAddress1',
-          tokenAddress: '0xTokenAddress',
-          votingEscrow: {
-            escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
-            nftLockAddress: '0xNftAddress',
-            exitQueueAddress: '0xExitQueueAddress',
-          },
+      // Create additional plugins in database
+      await Models.Plugin.create({
+        id: 'test-plugin-2',
+        address: '0x222',
+        daoAddress: '0xDAO2',
+        tokenAddress: '0xToken2',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabc2',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6', // Same escrow
+          nftLockAddress: '0xNftToken2',
+          exitQueueAddress: '0xExitQueue2',
         },
-        {
-          address: '0xPluginAddress2',
-          daoAddress: '0xDaoAddress2',
-          tokenAddress: '0xTokenAddress',
-          votingEscrow: {
-            escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
-            nftLockAddress: '0xNftAddress',
-            exitQueueAddress: '0xExitQueueAddress',
-          },
-        },
-      ]
-      sandbox.stub(Models.Plugin, 'find').resolves(mockPlugins)
-      sandbox.stub(Models.Lock, 'findExistingLog').resolves(null)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-      sandbox.stub(Models.Lock, 'create').resolves()
-      sandbox.stub(logger, 'verbose')
+      })
 
-      // Mock governance instance
-      const mockGovernance = {
-        getOrCreate: sandbox.stub().resolves({ tokenIds: [] } as any),
-        findOne: sandbox.stub().resolves({ tokenIds: [] } as any),
-        update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
-      }
+      await Models.Plugin.create({
+        id: 'test-plugin-3',
+        address: '0x333',
+        daoAddress: '0xDAO3',
+        tokenAddress: '0xToken3',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabc3',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6', // Same escrow
+          nftLockAddress: '0xNftToken3',
+          exitQueueAddress: '0xExitQueue3',
+        },
+      })
+
+      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      const mockGovernance = createMockGovernance()
+      mockGovernance.getOrCreate.resolves({ id: 'newLock' })
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
-      sandbox.stub(utils, 'getUniqueValuesByKey').returns(['0xDaoAddress1', '0xDaoAddress2'])
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
         network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
+        blockNumber: 300,
+        transactionHash: '0xmultipletx',
         transactionIndex: 1,
         logIndex: 1,
       } as any
       const mockEvent = {
         args: {
-          depositor: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          tokenId: 123n,
-          value: 10000n,
-          startTs: 1650000000n,
-          newTotalLocked: 25000n,
+          depositor: '0xDepositor',
+          tokenId: 789n,
+          value: 30000n,
+          startTs: 1650200000n,
+          newTotalLocked: 60000n,
         },
       } as any
 
       await GovernanceVeHandler.deposit(mockEvent, mockInfo)
 
-      // Verify updatePluginMetrics was called for each plugin
-      expect(mockGovernance.getOrCreatePluginMetrics.calledTwice).to.be.true
+      // Verify updatePluginMetrics was called 3 times (for each plugin)
+      expect(mockGovernance.updatePluginMetrics.calledThrice).to.be.true
+
+      // Verify it was called with correct params for each plugin
       expect(
-        mockGovernance.getOrCreatePluginMetrics.firstCall.calledWith({
-          memberAddress: mockEvent.args.depositor,
-          pluginAddress: mockPlugins[0].address,
-          daoAddress: mockPlugins[0].daoAddress,
-          network: mockInfo.network,
-          lastActivity: mockInfo.blockNumber,
-        }),
-      ).to.be.true
-      expect(
-        mockGovernance.getOrCreatePluginMetrics.secondCall.calledWith({
-          memberAddress: mockEvent.args.depositor,
-          pluginAddress: mockPlugins[1].address,
-          daoAddress: mockPlugins[1].daoAddress,
-          network: mockInfo.network,
-          lastActivity: mockInfo.blockNumber,
+        mockGovernance.updatePluginMetrics.firstCall.calledWith({
+          memberAddress: '0xDepositor',
+          pluginAddress: '0x121',
+          daoAddress: '0xDAO',
+          network: NetworksEnum.ethereumMainnet,
+          lastActivity: 300,
         }),
       ).to.be.true
 
-      // Verify RabbitMQ messages were sent for both DAOs
-      expect(rabbitMQHelperStub.calledTwice).to.be.true
+      expect(
+        mockGovernance.updatePluginMetrics.secondCall.calledWith({
+          memberAddress: '0xDepositor',
+          pluginAddress: '0x222',
+          daoAddress: '0xDAO2',
+          network: NetworksEnum.ethereumMainnet,
+          lastActivity: 300,
+        }),
+      ).to.be.true
+
+      expect(
+        mockGovernance.updatePluginMetrics.thirdCall.calledWith({
+          memberAddress: '0xDepositor',
+          pluginAddress: '0x333',
+          daoAddress: '0xDAO3',
+          network: NetworksEnum.ethereumMainnet,
+          lastActivity: 300,
+        }),
+      ).to.be.true
+
+      // Clean up - remove the extra plugins
+      await Models.Plugin.deleteOne({ id: 'test-plugin-2' })
+      await Models.Plugin.deleteOne({ id: 'test-plugin-3' })
     })
 
-    it('should handle undefined blockTimestamp gracefully', async () => {
-      const mockPlugin = {
-        address: '0xPluginAddress',
-        daoAddress: '0xDaoAddress',
-        tokenAddress: '0xTokenAddress',
-        votingEscrow: {
-          escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
-          nftLockAddress: '0xNftAddress',
-          exitQueueAddress: '0xExitQueueAddress',
-        },
-      }
-      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
-      sandbox.stub(Models.Lock, 'findExistingLog').resolves(null)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(undefined) // Returns undefined
-      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-      const stubLockCreate = sandbox.stub(Models.Lock, 'create').resolves()
-      sandbox.stub(logger, 'verbose')
+    it('should throw error when governance.getOrCreate fails', async () => {
+      // Plugin is already created in beforeEach
+      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
-      // Mock governance instance
-      const mockGovernance = {
-        getOrCreate: sandbox.stub().resolves({ tokenIds: [] } as any),
-        findOne: sandbox.stub().resolves({ tokenIds: [] } as any),
-        update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
-      }
+      // Create mock governance that throws error
+      const mockGovernance = createMockGovernance()
+      const dbError = new Error('Database connection failed')
+      mockGovernance.getOrCreate.rejects(dbError)
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
-      sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin.daoAddress])
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
         network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
+        blockNumber: 400,
+        transactionHash: '0xerrortx',
         transactionIndex: 1,
         logIndex: 1,
       } as any
       const mockEvent = {
         args: {
-          depositor: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          tokenId: 123n,
-          value: 10000n,
-          startTs: 1650000000n,
-          newTotalLocked: 25000n,
+          depositor: '0xErrorDepositor',
+          tokenId: 999n,
+          value: 40000n,
+          startTs: 1650300000n,
+          newTotalLocked: 70000n,
         },
       } as any
 
-      await GovernanceVeHandler.deposit(mockEvent, mockInfo)
-
-      // Verify Lock.create was called with undefined blockTimestamp
-      expect(stubLockCreate.calledOnce).to.be.true
-      const lockCreateArgs = stubLockCreate.firstCall.args[0]
-      expect(lockCreateArgs.blockTimestamp).to.be.undefined
-    })
-
-    it('should handle null TokenMember gracefully', async () => {
-      const mockPlugin = {
-        address: '0xPluginAddress',
-        daoAddress: '0xDaoAddress',
-        tokenAddress: '0xTokenAddress',
-        votingEscrow: {
-          escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
-          nftLockAddress: '0xNftAddress',
-          exitQueueAddress: '0xExitQueueAddress',
-        },
+      // Handler should throw the error
+      try {
+        await GovernanceVeHandler.deposit(mockEvent, mockInfo)
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error.message).to.equal('Database connection failed')
       }
-      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
-      sandbox.stub(Models.Lock, 'findExistingLog').resolves(null)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-      sandbox.stub(Models.Lock, 'create').resolves()
-      sandbox.stub(logger, 'verbose')
 
-      // Mock governance instance that returns null for getOrCreate
-      const mockGovernance = {
-        getOrCreate: sandbox.stub().resolves(null), // Returns null
-        findOne: sandbox.stub().resolves(null), // Returns null
-        update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
-      }
-      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
-      sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin.daoAddress])
+      // Verify createBaseMember was still called before the error
+      expect(stubCreateBaseMember.calledOnce).to.be.true
 
-      const mockInfo = {
-        address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-      const mockEvent = {
-        args: {
-          depositor: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          tokenId: 123n,
-          value: 10000n,
-          startTs: 1650000000n,
-          newTotalLocked: 25000n,
-        },
-      } as any
-
-      await GovernanceVeHandler.deposit(mockEvent, mockInfo)
-
-      // Verify getOrCreate was called
+      // Verify getOrCreate was attempted
       expect(mockGovernance.getOrCreate.calledOnce).to.be.true
 
-      // Verify update was called even though tokenMember is null (it will try to update with the tokenId)
-      expect(mockGovernance.update.calledOnce).to.be.true
+      // updatePluginMetrics should not be called since getOrCreate failed
+      expect(mockGovernance.updatePluginMetrics.notCalled).to.be.true
+    })
+
+    it('should throw error if updatePluginMetrics fails', async () => {
+      // Create additional plugin
+      await Models.Plugin.create({
+        id: 'test-plugin-error',
+        address: '0x444',
+        daoAddress: '0xDAO4',
+        tokenAddress: '0xToken4',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabc4',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+          nftLockAddress: '0xNftToken4',
+          exitQueueAddress: '0xExitQueue4',
+        },
+      })
+
+      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      const mockGovernance = createMockGovernance()
+      mockGovernance.getOrCreate.resolves({ id: 'successLock' })
+      // Make updatePluginMetrics fail on first call
+      const metricsError = new Error('Metrics update failed')
+      mockGovernance.updatePluginMetrics.onFirstCall().rejects(metricsError)
+      mockGovernance.updatePluginMetrics.onSecondCall().resolves()
+
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      const mockInfo = {
+        address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 500,
+        transactionHash: '0xpartialerrortx',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+      const mockEvent = {
+        args: {
+          depositor: '0xPartialErrorDepositor',
+          tokenId: 888n,
+          value: 50000n,
+          startTs: 1650400000n,
+          newTotalLocked: 80000n,
+        },
+      } as any
+
+      // Should throw since Promise.all will fail if any promise rejects
+      try {
+        await GovernanceVeHandler.deposit(mockEvent, mockInfo)
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error.message).to.equal('Metrics update failed')
+      }
+
+      // Verify updatePluginMetrics was attempted
+      expect(mockGovernance.updatePluginMetrics.called).to.be.true
+
+      // Clean up
+      await Models.Plugin.deleteOne({ id: 'test-plugin-error' })
     })
   })
 
   describe('withdraw', () => {
     it('should skip if plugin not found', async () => {
-      const stubPluginFind = sandbox.stub(Models.Plugin, 'find').resolves([])
+      // Don't create any plugin in database (plugin not found scenario)
       const stubLogger = sandbox.stub(logger, 'error')
-      const stubLockFindLockMember = sandbox.stub(Models.Lock, 'findLockMember')
       const stubCreateMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
 
       // Mock governance instance (won't be called since plugin not found)
@@ -582,42 +509,40 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.withdraw(mockEvent, mockInfo)
 
-      expect(stubPluginFind.calledOnce).to.be.true
-      expect(
-        stubPluginFind.calledWith({
-          'votingEscrow.escrowAddress': mockInfo.address,
-          network: mockInfo.network,
-        }),
-      ).to.be.true
+      // Verify that no plugin was found
+      const plugins = await Models.Plugin.find({
+        'votingEscrow.escrowAddress': mockInfo.address,
+        network: mockInfo.network,
+      })
+      expect(plugins).to.have.lengthOf(0)
+
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Plugin not found for withdraw event' as any)).to.be.true
-      expect(stubLockFindLockMember.notCalled).to.be.true
+
+      // Verify no Lock was modified
+      const locks = await Models.Lock.find({
+        escrowAddress: mockInfo.address,
+        tokenId: '123',
+      })
+      expect(locks).to.have.lengthOf(0)
+
       expect(stubCreateMember.notCalled).to.be.true
       expect(stubGovernanceCreate.notCalled).to.be.true
       expect(mockGovernance.update.notCalled).to.be.true
     })
 
     it('should log error if lock not found', async () => {
-      const mockPlugin = {
-        address: '0xPluginAddress',
-        daoAddress: '0xDaoAddress',
-        tokenAddress: '0xTokenAddress',
-        votingEscrow: {
-          escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
-          nftLockAddress: '0xNftAddress',
-          exitQueueAddress: '0xExitQueueAddress',
-        },
-      }
-      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
-      sandbox.stub(Models.Lock, 'findLockMember').resolves(null)
-      const stubLogger = sandbox.stub(logger, 'error')
-      const stubCreateMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
+      // Plugin is already created in beforeEach with escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6'
+      // Don't create any lock in database (lock not found scenario)
 
-      // Mock governance instance (won't be called since lock not found)
+      const stubLogger = sandbox.stub(logger, 'error')
+      const stubCreateMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      // Create a mock governance for the plugin metrics update
       const mockGovernance = {
-        update: sandbox.stub().resolves(),
+        updatePluginMetrics: sandbox.stub().resolves(),
       }
-      const stubGovernanceCreate = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
@@ -639,42 +564,58 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.withdraw(mockEvent, mockInfo)
 
-      expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Lock not found for withdraw event' as any)).to.be.true
-      expect(stubCreateMember.notCalled).to.be.true
-      expect(stubGovernanceCreate.notCalled).to.be.true
-      expect(mockGovernance.update.notCalled).to.be.true
+      // The error "Lock not found for withdraw" is logged inside VeGovernance.lockWithdrawn
+      expect(stubLogger.called).to.be.true
+      const errorCalls = stubLogger.getCalls().filter(call => {
+        const firstArg = call.args[0]
+        return firstArg && typeof firstArg === 'string' && (firstArg as string).includes('Lock not found')
+      })
+      expect(errorCalls.length).to.be.greaterThan(0)
+
+      // Verify lock was not found
+      const lock = await Models.Lock.findLockMember({
+        escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+        tokenId: '999',
+      })
+      expect(lock).to.be.null
+
+      // Verify createBaseMember was called (handler calls it before lockWithdrawn)
+      expect(stubCreateMember.calledOnce).to.be.true
+
+      // Verify updatePluginMetrics was called for the plugin
+      expect(mockGovernance.updatePluginMetrics.calledOnce).to.be.true
     })
 
     it('should skip if lockWithdraw already true', async () => {
-      const mockPlugin = {
-        address: '0xPluginAddress',
-        daoAddress: '0xDaoAddress',
-        tokenAddress: '0xTokenAddress',
-        votingEscrow: {
-          escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
-          nftLockAddress: '0xNftAddress',
-          exitQueueAddress: '0xExitQueueAddress',
-        },
-      }
-      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
+      // Plugin is already created in beforeEach
+      // Create a lock with lockWithdraw already true
+      await Models.Lock.create({
+        id: 'test-lock-withdraw-true',
+        network: NetworksEnum.ethereumMainnet,
+        escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+        memberAddress: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+        tokenId: '123',
+        transactionHash: '0xoldtx',
+        transactionIndex: 1,
+        logIndex: 1,
+        blockNumber: 100,
+        tokenAddress: '0xToken',
+        nftAddress: '0xNftToken',
+        amount: '5000',
+        epochStartAt: 1650000000,
+        totalLocked: '20000',
+        exitQueueAddress: '0xExitQueue',
+        lockWithdraw: { status: true, transactionHash: '0xwithdrawtx' },
+      })
 
-      const mockExistingLock = {
-        lockWithdraw: { status: true },
-        update: sandbox.stub().resolves(),
-      }
-      sandbox.stub(Models.Lock, 'findLockMember').resolves(mockExistingLock as any)
+      const stubLoggerWarn = sandbox.stub(logger, 'warn')
+      const stubCreateMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
-      const stubLogger = sandbox.stub(logger, 'verbose')
-      const stubCreateMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
-
-      // Mock governance instance (won't be called since lockWithdraw is already true)
+      // Mock governance instance for plugin metrics
       const mockGovernance = {
-        getOrCreate: sandbox.stub().resolves({ tokenIds: [] } as any),
-        update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        updatePluginMetrics: sandbox.stub().resolves(),
       }
-      const stubGovernanceCreate = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
@@ -696,380 +637,282 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.withdraw(mockEvent, mockInfo)
 
-      // Should return early, so no methods should be called
-      expect(mockExistingLock.update.notCalled).to.be.true
-      expect(stubCreateMember.notCalled).to.be.true
-      expect(stubGovernanceCreate.notCalled).to.be.true
-      expect(mockGovernance.update.notCalled).to.be.true
-      expect(mockGovernance.getOrCreate.notCalled).to.be.true
-      expect(stubLogger.notCalled).to.be.true
+      // VeGovernance.lockWithdrawn should log a warning and return early
+      expect(stubLoggerWarn.called).to.be.true
+      const warnCalls = stubLoggerWarn.getCalls().filter(call => {
+        const firstArg = call.args[0]
+        return firstArg && typeof firstArg === 'string' && (firstArg as string).includes('Lock already withdrawn')
+      })
+      expect(warnCalls.length).to.be.greaterThan(0)
+
+      // createBaseMember is called before lockWithdrawn
+      expect(stubCreateMember.calledOnce).to.be.true
+
+      // updatePluginMetrics is still called
+      expect(mockGovernance.updatePluginMetrics.calledOnce).to.be.true
     })
 
-    it('should update lock and call createMember and updateTokenMemberVP', async () => {
-      const mockPlugin = {
-        address: '0xPluginAddress',
-        daoAddress: '0xDaoAddress',
-        tokenAddress: '0xTokenAddress',
-        votingEscrow: {
-          escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
-          nftLockAddress: '0xNftAddress',
-          exitQueueAddress: '0xExitQueueAddress',
-        },
-      }
-      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
+    it('should process withdraw successfully (happy path)', async () => {
+      // Plugin is already created in beforeEach
+      // Create a lock first
+      await Models.Lock.create({
+        id: 'test-lock-withdraw-happy',
+        network: NetworksEnum.ethereumMainnet,
+        escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+        memberAddress: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+        tokenId: '456',
+        transactionHash: '0xoriginallock',
+        transactionIndex: 1,
+        logIndex: 1,
+        blockNumber: 100,
+        tokenAddress: '0xToken',
+        nftAddress: '0xNftToken',
+        amount: '10000',
+        epochStartAt: 1650000000,
+        totalLocked: '30000',
+        exitQueueAddress: '0xExitQueue',
+        delegateReceiverAddress: '0xDelegate',
+      })
 
-      const stubUpdate = sandbox.stub().resolves()
-      const mockExistingLock = {
-        lockWithdraw: { status: false },
-        update: stubUpdate,
-      }
-      sandbox.stub(Models.Lock, 'findLockMember').resolves(mockExistingLock as any)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
+      const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
+      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
-      const stubLogger = sandbox.stub(logger, 'verbose')
-      const stubCreateMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-
-      // Mock governance instance
+      // Mock governance for plugin metrics
       const mockGovernance = {
-        getOrCreate: sandbox.stub().resolves({
-          tokenIds: ['100', '123', '200'],
-        } as any),
-        findOne: sandbox.stub().resolves({
-          tokenIds: ['100', '123', '200'],
-        } as any),
-        update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        updatePluginMetrics: sandbox.stub().resolves(),
       }
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
         network: NetworksEnum.ethereumMainnet,
-        blockNumber: 124,
-        transactionHash: '0xwithdrawHash',
-        transactionIndex: 1,
-        logIndex: 1,
+        blockNumber: 200,
+        transactionHash: '0xwithdrawtx',
+        transactionIndex: 2,
+        logIndex: 3,
       } as any
       const mockEvent = {
         args: {
           depositor: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          tokenId: 123n,
-          value: 5000n,
-          ts: 1650005000n,
+          tokenId: 456n,
+          value: 10000n,
+          ts: 1650100000n,
           newTotalLocked: 20000n,
         },
       } as any
 
       await GovernanceVeHandler.withdraw(mockEvent, mockInfo)
-
-      // Verify existingLock.update was called with correct params
-      expect(stubUpdate.calledOnce).to.be.true
-      expect(
-        stubUpdate.calledWith({
-          lockWithdraw: {
-            status: true,
-            transactionHash: mockInfo.transactionHash,
-            blockNumber: mockInfo.blockNumber,
-            blockTimestamp: 1650009999,
-            totalLocked: '20000',
-            amount: '5000',
-            epochEndAt: 1650005000,
-          },
-        }),
-      ).to.be.true
 
       // Verify createBaseMember was called
-      expect(stubCreateMember.calledOnce).to.be.true
-      expect(stubCreateMember.calledWith(mockEvent.args.depositor, mockInfo.blockNumber)).to.be.true
+      expect(stubCreateBaseMember.calledOnce).to.be.true
+      expect(stubCreateBaseMember.calledWith('0x65D9d3887aa9a9ee78901E96819B574160E4EAC5', 200)).to.be.true
 
-      // Verify findOne was called (withdraw uses findOne, not getOrCreate)
-      expect(mockGovernance.findOne.calledOnce).to.be.true
-      expect(mockGovernance.findOne.calledWith(mockEvent.args.depositor)).to.be.true
+      // Verify the lock was updated with withdraw information
+      const updatedLock = await Models.Lock.findLockMember({
+        escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+        network: NetworksEnum.ethereumMainnet,
+        memberAddress: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+        tokenId: '456',
+      })
+      expect(updatedLock).to.exist
+      expect(updatedLock.lockWithdraw).to.exist
+      expect(updatedLock.lockWithdraw.status).to.be.true
+      expect(updatedLock.lockWithdraw.transactionHash).to.equal('0xwithdrawtx')
+      expect(updatedLock.lockWithdraw.blockNumber).to.equal(200)
+      expect(updatedLock.lockWithdraw.totalLocked).to.equal('20000')
+      expect(updatedLock.lockWithdraw.amount).to.equal('10000')
+      expect(updatedLock.lockWithdraw.epochEndAt).to.equal(1650100000)
+      expect(updatedLock.delegateReceiverAddress).to.be.null // Should be cleared on withdraw
 
-      // Verify update was called with tokenId removed
-      expect(mockGovernance.update.calledOnce).to.be.true
+      // Verify updatePluginMetrics was called
+      expect(mockGovernance.updatePluginMetrics.calledOnce).to.be.true
       expect(
-        mockGovernance.update.calledWith(mockEvent.args.depositor, {
-          votingPower: undefined, // votingPower is undefined when tokenIds remain
-          tokenIds: ['100', '200'], // '123' removed
-          lastActivity: mockInfo.blockNumber,
+        mockGovernance.updatePluginMetrics.calledWith({
+          memberAddress: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          pluginAddress: '0x121',
+          daoAddress: '0xDAO',
+          network: NetworksEnum.ethereumMainnet,
+          lastActivity: 200,
         }),
       ).to.be.true
 
-      // Verify getOrCreatePluginMetrics was called
-      expect(mockGovernance.getOrCreatePluginMetrics.calledOnce).to.be.true
-      expect(
-        mockGovernance.getOrCreatePluginMetrics.calledWith({
-          memberAddress: mockEvent.args.depositor,
-          pluginAddress: mockPlugin.address,
-          daoAddress: mockPlugin.daoAddress,
-          network: mockInfo.network,
-          lastActivity: mockInfo.blockNumber,
-        }),
-      ).to.be.true
-
-      // Verify logging
-      expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Withdraw VeGovernance' as any)).to.be.true
+      // Verify verbose logging
+      expect(stubLoggerVerbose.called).to.be.true
     })
 
-    it('should set votingPower to 0 when no tokenIds remain after withdrawal', async () => {
-      const mockPlugin = {
-        address: '0xPluginAddress',
-        daoAddress: '0xDaoAddress',
-        tokenAddress: '0xTokenAddress',
+    it('should handle multiple plugins and call updatePluginMetrics for each', async () => {
+      // Create additional plugins with the same escrowAddress
+      await Models.Plugin.create({
+        id: 'test-plugin-withdraw-2',
+        address: '0x777',
+        daoAddress: '0xDAO7',
+        tokenAddress: '0xToken7',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabc7',
+        blockNumber: 1,
         votingEscrow: {
           escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
-          nftLockAddress: '0xNftAddress',
-          exitQueueAddress: '0xExitQueueAddress',
+          nftLockAddress: '0xNftToken7',
+          exitQueueAddress: '0xExitQueue7',
         },
-      }
-      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
+      })
+      await Models.Plugin.create({
+        id: 'test-plugin-withdraw-3',
+        address: '0x888',
+        daoAddress: '0xDAO8',
+        tokenAddress: '0xToken8',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabc8',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+          nftLockAddress: '0xNftToken8',
+          exitQueueAddress: '0xExitQueue8',
+        },
+      })
 
-      const stubUpdate = sandbox.stub().resolves()
-      const mockExistingLock = {
-        lockWithdraw: { status: false },
-        update: stubUpdate,
-      }
-      sandbox.stub(Models.Lock, 'findLockMember').resolves(mockExistingLock as any)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      sandbox.stub(logger, 'verbose')
+      // Create a lock for withdrawal
+      await Models.Lock.create({
+        id: 'test-lock-withdraw-multi',
+        network: NetworksEnum.ethereumMainnet,
+        escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+        memberAddress: '0x1234567890123456789012345678901234567890',
+        tokenId: '789',
+        transactionHash: '0xoriginallock2',
+        transactionIndex: 1,
+        logIndex: 1,
+        blockNumber: 100,
+        tokenAddress: '0xToken',
+        nftAddress: '0xNftToken',
+        amount: '15000',
+        epochStartAt: 1650000000,
+        totalLocked: '40000',
+        exitQueueAddress: '0xExitQueue',
+      })
+
       sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(logger, 'verbose')
 
-      // Mock governance instance - Only one tokenId exists, which will be removed
+      // Mock governance for plugin metrics
       const mockGovernance = {
-        findOne: sandbox.stub().resolves({
-          tokenIds: ['123'],
-        } as any),
-        update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        updatePluginMetrics: sandbox.stub().resolves(),
       }
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
         network: NetworksEnum.ethereumMainnet,
-        blockNumber: 124,
-        transactionHash: '0xwithdrawHash',
+        blockNumber: 300,
+        transactionHash: '0xmultiwithdraw',
         transactionIndex: 1,
         logIndex: 1,
       } as any
       const mockEvent = {
         args: {
-          depositor: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          tokenId: 123n,
-          value: 5000n,
-          ts: 1650005000n,
-          newTotalLocked: 20000n,
+          depositor: '0x1234567890123456789012345678901234567890',
+          tokenId: 789n,
+          value: 15000n,
+          ts: 1650200000n,
+          newTotalLocked: 25000n,
         },
       } as any
 
       await GovernanceVeHandler.withdraw(mockEvent, mockInfo)
 
-      // Verify update was called with votingPower: '0' when no tokenIds remain
-      expect(mockGovernance.update.calledOnce).to.be.true
+      // Verify updatePluginMetrics was called 3 times (for each plugin)
+      expect(mockGovernance.updatePluginMetrics.calledThrice).to.be.true
+
+      // Verify it was called with correct params for each plugin
       expect(
-        mockGovernance.update.calledWith(mockEvent.args.depositor, {
-          votingPower: '0',
-          tokenIds: [],
-          lastActivity: mockInfo.blockNumber,
+        mockGovernance.updatePluginMetrics.firstCall.calledWith({
+          memberAddress: '0x1234567890123456789012345678901234567890',
+          pluginAddress: '0x121',
+          daoAddress: '0xDAO',
+          network: NetworksEnum.ethereumMainnet,
+          lastActivity: 300,
         }),
       ).to.be.true
+
+      expect(
+        mockGovernance.updatePluginMetrics.secondCall.calledWith({
+          memberAddress: '0x1234567890123456789012345678901234567890',
+          pluginAddress: '0x777',
+          daoAddress: '0xDAO7',
+          network: NetworksEnum.ethereumMainnet,
+          lastActivity: 300,
+        }),
+      ).to.be.true
+
+      expect(
+        mockGovernance.updatePluginMetrics.thirdCall.calledWith({
+          memberAddress: '0x1234567890123456789012345678901234567890',
+          pluginAddress: '0x888',
+          daoAddress: '0xDAO8',
+          network: NetworksEnum.ethereumMainnet,
+          lastActivity: 300,
+        }),
+      ).to.be.true
+
+      // Clean up - remove the extra plugins
+      await Models.Plugin.deleteOne({ id: 'test-plugin-withdraw-2' })
+      await Models.Plugin.deleteOne({ id: 'test-plugin-withdraw-3' })
     })
 
-    it('should handle undefined blockTimestamp gracefully', async () => {
-      const mockPlugin = {
-        address: '0xPluginAddress',
-        daoAddress: '0xDaoAddress',
-        tokenAddress: '0xTokenAddress',
-        votingEscrow: {
-          escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
-          nftLockAddress: '0xNftAddress',
-          exitQueueAddress: '0xExitQueueAddress',
-        },
-      }
-      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
+    it('should log error and continue when withdrawal fails', async () => {
+      // Plugin is already created in beforeEach
+      const stubLoggerError = sandbox.stub(logger, 'error')
+      const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
 
-      const stubUpdate = sandbox.stub().resolves()
-      const mockExistingLock = {
-        lockWithdraw: { status: false },
-        update: stubUpdate,
-      }
-      sandbox.stub(Models.Lock, 'findLockMember').resolves(mockExistingLock as any)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(undefined) // Returns undefined
-      sandbox.stub(logger, 'verbose')
-      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-      sandbox.stub(utils, 'getUniqueValuesByKey').returns(['0xDaoAddress'])
+      // Make createBaseMember throw an error
+      const createMemberError = new Error('Failed to create base member')
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').rejects(createMemberError)
+
+      // Mock governance (won't be reached due to error)
       const mockGovernance = {
-        getOrCreate: sandbox.stub().resolves({
-          tokenIds: ['123'],
-        }),
-        findOne: sandbox.stub().resolves({
-          tokenIds: ['123'],
-        }),
-        update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        updatePluginMetrics: sandbox.stub().resolves(),
       }
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
       const mockInfo = {
         address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
         network: NetworksEnum.ethereumMainnet,
-        blockNumber: 124,
-        transactionHash: '0xwithdrawHash',
+        blockNumber: 400,
+        transactionHash: '0xerrorwithdraw',
         transactionIndex: 1,
         logIndex: 1,
       } as any
       const mockEvent = {
         args: {
-          depositor: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          tokenId: 123n,
-          value: 5000n,
-          ts: 1650005000n,
-          newTotalLocked: 20000n,
+          depositor: '0x9999999999999999999999999999999999999999',
+          tokenId: 999n,
+          value: 20000n,
+          ts: 1650300000n,
+          newTotalLocked: 10000n,
         },
       } as any
 
+      // Handler should not throw but log the error
       await GovernanceVeHandler.withdraw(mockEvent, mockInfo)
 
-      // Verify update was called with undefined blockTimestamp
-      expect(stubUpdate.calledOnce).to.be.true
-      const updateArgs = stubUpdate.firstCall.args[0]
-      expect(updateArgs.lockWithdraw.blockTimestamp).to.be.undefined
-    })
+      // Verify error was logged
+      expect(stubLoggerError.calledOnce).to.be.true
+      expect(stubLoggerError.calledWith('Withdraw error' as any)).to.be.true
 
-    it('should handle tokenId not found in tokenIds array', async () => {
-      const mockPlugin = {
-        address: '0xPluginAddress',
-        daoAddress: '0xDaoAddress',
-        tokenAddress: '0xTokenAddress',
-        votingEscrow: {
-          escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
-          nftLockAddress: '0xNftAddress',
-          exitQueueAddress: '0xExitQueueAddress',
-        },
-      }
-      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
+      // Verify verbose log was not called (since we errored early)
+      expect(stubLoggerVerbose.notCalled).to.be.true
 
-      const stubUpdate = sandbox.stub().resolves()
-      const mockExistingLock = {
-        lockWithdraw: { status: false },
-        update: stubUpdate,
-      }
-      sandbox.stub(Models.Lock, 'findLockMember').resolves(mockExistingLock as any)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      sandbox.stub(logger, 'verbose')
-      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-
-      // Mock governance instance - tokenId 123 is not in the array
-      const mockGovernance = {
-        findOne: sandbox.stub().resolves({
-          tokenIds: ['100', '200'],
-        } as any),
-        update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
-      }
-      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
-
-      const mockInfo = {
-        address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 124,
-        transactionHash: '0xwithdrawHash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-      const mockEvent = {
-        args: {
-          depositor: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          tokenId: 123n,
-          value: 5000n,
-          ts: 1650005000n,
-          newTotalLocked: 20000n,
-        },
-      } as any
-
-      await GovernanceVeHandler.withdraw(mockEvent, mockInfo)
-
-      // Verify update was called with same tokenIds (nothing removed)
-      expect(mockGovernance.update.calledOnce).to.be.true
-      expect(
-        mockGovernance.update.calledWith(mockEvent.args.depositor, {
-          votingPower: undefined,
-          tokenIds: ['100', '200'],
-          lastActivity: mockInfo.blockNumber,
-        }),
-      ).to.be.true
-    })
-
-    it('should handle empty tokenIds array', async () => {
-      const mockPlugin = {
-        address: '0xPluginAddress',
-        daoAddress: '0xDaoAddress',
-        tokenAddress: '0xTokenAddress',
-        votingEscrow: {
-          escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
-          nftLockAddress: '0xNftAddress',
-          exitQueueAddress: '0xExitQueueAddress',
-        },
-      }
-      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
-
-      const stubUpdate = sandbox.stub().resolves()
-      const mockExistingLock = {
-        lockWithdraw: { status: false },
-        update: stubUpdate,
-      }
-      sandbox.stub(Models.Lock, 'findLockMember').resolves(mockExistingLock as any)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      sandbox.stub(logger, 'verbose')
-      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-
-      // Mock governance instance - TokenMember has undefined tokenIds
-      const mockGovernance = {
-        findOne: sandbox.stub().resolves({
-          tokenIds: undefined,
-        } as any),
-        update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
-      }
-      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
-
-      const mockInfo = {
-        address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 124,
-        transactionHash: '0xwithdrawHash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-      const mockEvent = {
-        args: {
-          depositor: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          tokenId: 123n,
-          value: 5000n,
-          ts: 1650005000n,
-          newTotalLocked: 20000n,
-        },
-      } as any
-
-      await GovernanceVeHandler.withdraw(mockEvent, mockInfo)
-
-      // Verify update was called with votingPower: '0' for empty array
-      expect(mockGovernance.update.calledOnce).to.be.true
-      expect(
-        mockGovernance.update.calledWith(mockEvent.args.depositor, {
-          votingPower: '0',
-          tokenIds: [],
-          lastActivity: mockInfo.blockNumber,
-        }),
-      ).to.be.true
+      // Verify updatePluginMetrics was not called (error occurred before)
+      expect(mockGovernance.updatePluginMetrics.notCalled).to.be.true
     })
   })
 
   describe('exitQueued', () => {
     it('should skip if plugin not found', async () => {
-      const stubPluginFind = sandbox.stub(Models.Plugin, 'find').resolves([])
+      // Don't stub Models.Plugin.find - let it query the real mock database
       const stubLogger = sandbox.stub(logger, 'error')
       const stubLockFindLockMember = sandbox.stub(Models.Lock, 'findLockMember')
       const stubCreateMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
@@ -1092,304 +935,11 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.exitQueued(mockEvent, mockInfo)
 
-      expect(stubPluginFind.calledOnce).to.be.true
-      expect(
-        stubPluginFind.calledWith({
-          'votingEscrow.exitQueueAddress': mockInfo.address,
-          network: mockInfo.network,
-        }),
-      ).to.be.true
+      // Plugin should not be found since the address doesn't match the one in beforeEach
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Plugin not found for exitQueued event' as any)).to.be.true
       expect(stubLockFindLockMember.notCalled).to.be.true
       expect(stubCreateMember.notCalled).to.be.true
-    })
-
-    it('should log error if lock not found', async () => {
-      const mockPlugin = {
-        address: '0xPluginAddress',
-        daoAddress: '0xDaoAddress',
-        tokenAddress: '0xTokenAddress',
-        votingEscrow: {
-          escrowAddress: '0xEscrowAddress',
-          nftLockAddress: '0xNftAddress',
-          exitQueueAddress: '0xExitQueue',
-        },
-      }
-      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
-      sandbox.stub(Models.Lock, 'findLockMember').resolves(null)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      const stubLogger = sandbox.stub(logger, 'error')
-      const stubCreateMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
-
-      const mockInfo = {
-        address: '0xExitQueue',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-      const mockEvent = {
-        args: {
-          holder: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          tokenId: 999n,
-          exitDate: 1650010000n,
-        },
-      } as any
-
-      await GovernanceVeHandler.exitQueued(mockEvent, mockInfo)
-
-      expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Lock not found for exitQueued event' as any)).to.be.true
-      expect(stubCreateMember.notCalled).to.be.true
-    })
-
-    it('should skip if lockExit already true', async () => {
-      const mockPlugin = {
-        address: '0xPluginAddress',
-        daoAddress: '0xDaoAddress',
-        tokenAddress: '0xTokenAddress',
-        votingEscrow: {
-          escrowAddress: '0xEscrowAddress',
-          nftLockAddress: '0xNftAddress',
-          exitQueueAddress: '0xExitQueue',
-        },
-      }
-      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
-
-      const mockExistingLock = {
-        lockExit: { status: true },
-        update: sandbox.stub().resolves(),
-      }
-      sandbox.stub(Models.Lock, 'findLockMember').resolves(mockExistingLock as any)
-
-      const stubLogger = sandbox.stub(logger, 'verbose')
-      const stubCreateMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
-      const stubGetBlockTimestamp = sandbox.stub(Web3Helper, 'getBlockTimestamp')
-
-      const mockInfo = {
-        address: '0xExitQueue',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-      const mockEvent = {
-        args: {
-          holder: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          tokenId: 123n,
-          exitDate: 1650010000n,
-        },
-      } as any
-
-      await GovernanceVeHandler.exitQueued(mockEvent, mockInfo)
-
-      // Should return early, so no methods should be called
-      expect(mockExistingLock.update.notCalled).to.be.true
-      expect(stubCreateMember.notCalled).to.be.true
-      expect(stubLogger.notCalled).to.be.true
-      // getBlockTimestamp should be called before the early return
-      expect(stubGetBlockTimestamp.calledOnce).to.be.true
-    })
-
-    it('should update lock and call createMember', async () => {
-      const mockPlugin = {
-        address: '0xPluginAddress',
-        daoAddress: '0xDaoAddress',
-        tokenAddress: '0xTokenAddress',
-        votingEscrow: {
-          escrowAddress: '0xEscrowAddress',
-          nftLockAddress: '0xNftAddress',
-          exitQueueAddress: '0xExitQueue',
-        },
-      }
-      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
-
-      const stubUpdate = sandbox.stub().resolves()
-      const mockExistingLock = {
-        lockExit: { status: false },
-        update: stubUpdate,
-      }
-      sandbox.stub(Models.Lock, 'findLockMember').resolves(mockExistingLock as any)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-
-      const stubLogger = sandbox.stub(logger, 'verbose')
-      const stubCreateMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-
-      // Mock governance instance for updatePluginMetrics
-      const mockGovernance = {
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
-      }
-      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
-
-      const mockInfo = {
-        address: '0xExitQueue',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 124,
-        transactionHash: '0xexitQueuedHash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-      const mockEvent = {
-        args: {
-          holder: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          tokenId: 123n,
-          exitDate: 1650010000n,
-        },
-      } as any
-
-      await GovernanceVeHandler.exitQueued(mockEvent, mockInfo)
-
-      // Verify existingLock.update was called with correct params
-      expect(stubUpdate.calledOnce).to.be.true
-      expect(
-        stubUpdate.calledWith({
-          lockExit: {
-            status: true,
-            transactionHash: mockInfo.transactionHash,
-            blockNumber: mockInfo.blockNumber,
-            blockTimestamp: 1650009999,
-            exitDateAt: 1650010000,
-          },
-        }),
-      ).to.be.true
-
-      // Verify createBaseMember was called
-      expect(stubCreateMember.calledOnce).to.be.true
-      expect(stubCreateMember.calledWith(mockEvent.args.holder, mockInfo.blockNumber)).to.be.true
-
-      // Verify getOrCreatePluginMetrics was called
-      expect(mockGovernance.getOrCreatePluginMetrics.calledOnce).to.be.true
-      expect(
-        mockGovernance.getOrCreatePluginMetrics.calledWith({
-          memberAddress: mockEvent.args.holder,
-          pluginAddress: mockPlugin.address,
-          daoAddress: mockPlugin.daoAddress,
-          network: mockInfo.network,
-          lastActivity: mockInfo.blockNumber,
-        }),
-      ).to.be.true
-
-      // Verify logging
-      expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Exit queued VeGovernance' as any)).to.be.true
-    })
-
-    it('should handle undefined blockTimestamp gracefully', async () => {
-      const mockPlugin = {
-        address: '0xPluginAddress',
-        daoAddress: '0xDaoAddress',
-        tokenAddress: '0xTokenAddress',
-        votingEscrow: {
-          escrowAddress: '0xEscrowAddress',
-          nftLockAddress: '0xNftAddress',
-          exitQueueAddress: '0xExitQueue',
-        },
-      }
-      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
-
-      const stubUpdate = sandbox.stub().resolves()
-      const mockExistingLock = {
-        lockExit: { status: false },
-        update: stubUpdate,
-      }
-      sandbox.stub(Models.Lock, 'findLockMember').resolves(mockExistingLock as any)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(undefined) // Returns undefined
-      sandbox.stub(logger, 'verbose')
-      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-
-      const mockInfo = {
-        address: '0xExitQueue',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 124,
-        transactionHash: '0xexitQueuedHash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-      const mockEvent = {
-        args: {
-          holder: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          tokenId: 123n,
-          exitDate: 1650010000n,
-        },
-      } as any
-
-      await GovernanceVeHandler.exitQueued(mockEvent, mockInfo)
-
-      // Verify update was called with undefined blockTimestamp
-      expect(stubUpdate.calledOnce).to.be.true
-      const updateArgs = stubUpdate.firstCall.args[0]
-      expect(updateArgs.lockExit.blockTimestamp).to.be.undefined
-    })
-
-    it('should handle multiple plugins and use first one for finding lock', async () => {
-      const mockPlugins = [
-        {
-          address: '0xPluginAddress1',
-          daoAddress: '0xDaoAddress1',
-          tokenAddress: '0xTokenAddress',
-          votingEscrow: {
-            escrowAddress: '0xEscrowAddress1',
-            nftLockAddress: '0xNftAddress1',
-            exitQueueAddress: '0xExitQueue',
-          },
-        },
-        {
-          address: '0xPluginAddress2',
-          daoAddress: '0xDaoAddress2',
-          tokenAddress: '0xTokenAddress',
-          votingEscrow: {
-            escrowAddress: '0xEscrowAddress2',
-            nftLockAddress: '0xNftAddress2',
-            exitQueueAddress: '0xExitQueue',
-          },
-        },
-      ]
-      sandbox.stub(Models.Plugin, 'find').resolves(mockPlugins)
-
-      const stubUpdate = sandbox.stub().resolves()
-      const mockExistingLock = {
-        lockExit: { status: false },
-        update: stubUpdate,
-      }
-      const stubFindLockMember = sandbox.stub(Models.Lock, 'findLockMember').resolves(mockExistingLock as any)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      sandbox.stub(logger, 'verbose')
-      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-
-      const mockInfo = {
-        address: '0xExitQueue',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 124,
-        transactionHash: '0xexitQueuedHash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-      const mockEvent = {
-        args: {
-          holder: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          tokenId: 123n,
-          exitDate: 1650010000n,
-        },
-      } as any
-
-      await GovernanceVeHandler.exitQueued(mockEvent, mockInfo)
-
-      // Verify findLockMember was called with the correct params
-      expect(stubFindLockMember.calledOnce).to.be.true
-      expect(
-        stubFindLockMember.calledWith({
-          network: mockInfo.network,
-          exitQueueAddress: mockInfo.address,
-          tokenId: '123',
-          memberAddress: mockEvent.args.holder,
-        }),
-      ).to.be.true
-
-      // Verify update was called
-      expect(stubUpdate.calledOnce).to.be.true
     })
 
     it('should convert bigint tokenId to string correctly', async () => {
@@ -1437,11 +987,436 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(findLockMemberArgs.tokenId).to.equal('9999999999999999999')
       expect(typeof findLockMemberArgs.tokenId).to.equal('string')
     })
+
+    it('should process exitQueued successfully (happy path)', async () => {
+      // Create a plugin with exitQueueAddress
+      await Models.Plugin.create({
+        id: 'test-plugin-exitqueue',
+        address: '0x555',
+        daoAddress: '0xDAO5',
+        tokenAddress: '0xToken5',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabc5',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xEscrow5',
+          nftLockAddress: '0xNft5',
+          exitQueueAddress: '0xExitQueueAddress',
+        },
+      })
+
+      // Create a lock first
+      await Models.Lock.create({
+        id: 'test-lock-exitqueue-happy',
+        network: NetworksEnum.ethereumMainnet,
+        escrowAddress: '0xEscrow5',
+        memberAddress: '0x1111111111111111111111111111111111111111',
+        tokenId: '333',
+        transactionHash: '0xoriginallock',
+        transactionIndex: 1,
+        logIndex: 1,
+        blockNumber: 100,
+        tokenAddress: '0xToken5',
+        nftAddress: '0xNft5',
+        amount: '8000',
+        epochStartAt: 1650000000,
+        totalLocked: '25000',
+        exitQueueAddress: '0xExitQueueAddress',
+      })
+
+      const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
+      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      // Mock governance for plugin metrics
+      const mockGovernance = {
+        updatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      const mockInfo = {
+        address: '0xExitQueueAddress',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 150,
+        transactionHash: '0xexittx',
+        transactionIndex: 2,
+        logIndex: 3,
+      } as any
+      const mockEvent = {
+        args: {
+          holder: '0x1111111111111111111111111111111111111111',
+          tokenId: 333n,
+          exitDate: 1650500000n,
+        },
+      } as any
+
+      await GovernanceVeHandler.exitQueued(mockEvent, mockInfo)
+
+      // Verify createBaseMember was called
+      expect(stubCreateBaseMember.calledOnce).to.be.true
+      expect(stubCreateBaseMember.calledWith('0x1111111111111111111111111111111111111111', 150)).to.be.true
+
+      // Verify the lock was updated with exit information
+      const updatedLock = await Models.Lock.findLockMember({
+        network: NetworksEnum.ethereumMainnet,
+        exitQueueAddress: '0xExitQueueAddress',
+        tokenId: '333',
+        memberAddress: '0x1111111111111111111111111111111111111111',
+      })
+      expect(updatedLock).to.exist
+      expect(updatedLock.lockExit).to.exist
+      expect(updatedLock.lockExit.status).to.be.true
+      expect(updatedLock.lockExit.transactionHash).to.equal('0xexittx')
+      expect(updatedLock.lockExit.blockNumber).to.equal(150)
+      expect(updatedLock.lockExit.exitDateAt).to.equal(1650500000)
+
+      // Verify updatePluginMetrics was called
+      expect(mockGovernance.updatePluginMetrics.calledOnce).to.be.true
+      expect(
+        mockGovernance.updatePluginMetrics.calledWith({
+          memberAddress: '0x1111111111111111111111111111111111111111',
+          pluginAddress: '0x555',
+          daoAddress: '0xDAO5',
+          network: NetworksEnum.ethereumMainnet,
+          lastActivity: 150,
+        }),
+      ).to.be.true
+
+      // Verify verbose logging
+      expect(stubLoggerVerbose.called).to.be.true
+
+      // Clean up
+      await Models.Plugin.deleteOne({ id: 'test-plugin-exitqueue' })
+    })
+
+    it('should log error if lock not found', async () => {
+      // Create a plugin with exitQueueAddress
+      await Models.Plugin.create({
+        id: 'test-plugin-exitqueue-notfound',
+        address: '0x666',
+        daoAddress: '0xDAO6',
+        tokenAddress: '0xToken6',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabc6',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xEscrow6',
+          nftLockAddress: '0xNft6',
+          exitQueueAddress: '0xExitQueue6',
+        },
+      })
+
+      const stubLoggerError = sandbox.stub(logger, 'error')
+      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      // Mock governance for plugin metrics
+      const mockGovernance = {
+        updatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      const mockInfo = {
+        address: '0xExitQueue6',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 160,
+        transactionHash: '0xnotfoundtx',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+      const mockEvent = {
+        args: {
+          holder: '0x2222222222222222222222222222222222222222',
+          tokenId: 444n,
+          exitDate: 1650600000n,
+        },
+      } as any
+
+      await GovernanceVeHandler.exitQueued(mockEvent, mockInfo)
+
+      // The error "Lock not found for exitQueued" is logged inside VeGovernance.exitQueued
+      expect(stubLoggerError.called).to.be.true
+      const errorCalls = stubLoggerError.getCalls().filter(call => {
+        const firstArg = call.args[0]
+        return firstArg && (firstArg as any).includes && (firstArg as any).includes('Lock not found')
+      })
+      expect(errorCalls.length).to.be.greaterThan(0)
+
+      // Verify createBaseMember was still called
+      expect(stubCreateBaseMember.calledOnce).to.be.true
+
+      // Verify updatePluginMetrics was still called
+      expect(mockGovernance.updatePluginMetrics.calledOnce).to.be.true
+
+      // Clean up
+      await Models.Plugin.deleteOne({ id: 'test-plugin-exitqueue-notfound' })
+    })
+
+    it('should skip if lockExit already true', async () => {
+      // Create a plugin with exitQueueAddress
+      await Models.Plugin.create({
+        id: 'test-plugin-exitqueue-already',
+        address: '0x777',
+        daoAddress: '0xDAO7',
+        tokenAddress: '0xToken7',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabc7',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xEscrow7',
+          nftLockAddress: '0xNft7',
+          exitQueueAddress: '0xExitQueue7',
+        },
+      })
+
+      // Create a lock with lockExit already true
+      await Models.Lock.create({
+        id: 'test-lock-exitqueue-already',
+        network: NetworksEnum.ethereumMainnet,
+        escrowAddress: '0xEscrow7',
+        memberAddress: '0x3333333333333333333333333333333333333333',
+        tokenId: '555',
+        transactionHash: '0xoriginallock',
+        transactionIndex: 1,
+        logIndex: 1,
+        blockNumber: 100,
+        tokenAddress: '0xToken7',
+        nftAddress: '0xNft7',
+        amount: '9000',
+        epochStartAt: 1650000000,
+        totalLocked: '30000',
+        exitQueueAddress: '0xExitQueue7',
+        lockExit: { status: true, transactionHash: '0xoldexittx', blockNumber: 90, exitDateAt: 1650400000 },
+      })
+
+      const stubLoggerWarn = sandbox.stub(logger, 'warn')
+      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      // Mock governance for plugin metrics
+      const mockGovernance = {
+        updatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      const mockInfo = {
+        address: '0xExitQueue7',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 170,
+        transactionHash: '0xduplicateexittx',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+      const mockEvent = {
+        args: {
+          holder: '0x3333333333333333333333333333333333333333',
+          tokenId: 555n,
+          exitDate: 1650700000n,
+        },
+      } as any
+
+      await GovernanceVeHandler.exitQueued(mockEvent, mockInfo)
+
+      // VeGovernance.exitQueued should log a warning and return early
+      expect(stubLoggerWarn.called).to.be.true
+      const warnCalls = stubLoggerWarn.getCalls().filter(call => {
+        const firstArg = call.args[0]
+        return firstArg && (firstArg as any).includes && (firstArg as any).includes('Lock already exit queued')
+      })
+      expect(warnCalls.length).to.be.greaterThan(0)
+
+      // createBaseMember is called before exitQueued
+      expect(stubCreateBaseMember.calledOnce).to.be.true
+
+      // updatePluginMetrics is still called
+      expect(mockGovernance.updatePluginMetrics.calledOnce).to.be.true
+
+      // Clean up
+      await Models.Plugin.deleteOne({ id: 'test-plugin-exitqueue-already' })
+    })
+
+    it('should handle multiple plugins and call updatePluginMetrics for each', async () => {
+      // Create multiple plugins with the same exitQueueAddress
+      await Models.Plugin.create({
+        id: 'test-plugin-exitqueue-multi-1',
+        address: '0x888',
+        daoAddress: '0xDAO8',
+        tokenAddress: '0xToken8',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabc8',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xEscrow8',
+          nftLockAddress: '0xNft8',
+          exitQueueAddress: '0xExitQueueMulti',
+        },
+      })
+      await Models.Plugin.create({
+        id: 'test-plugin-exitqueue-multi-2',
+        address: '0x999',
+        daoAddress: '0xDAO9',
+        tokenAddress: '0xToken8', // Same token as first plugin
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabc9',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xEscrow8',
+          nftLockAddress: '0xNft8',
+          exitQueueAddress: '0xExitQueueMulti',
+        },
+      })
+
+      // Create a lock for exit queue
+      await Models.Lock.create({
+        id: 'test-lock-exitqueue-multi',
+        network: NetworksEnum.ethereumMainnet,
+        escrowAddress: '0xEscrow8',
+        memberAddress: '0x4444444444444444444444444444444444444444',
+        tokenId: '666',
+        transactionHash: '0xoriginallock',
+        transactionIndex: 1,
+        logIndex: 1,
+        blockNumber: 100,
+        tokenAddress: '0xToken8',
+        nftAddress: '0xNft8',
+        amount: '10000',
+        epochStartAt: 1650000000,
+        totalLocked: '35000',
+        exitQueueAddress: '0xExitQueueMulti',
+      })
+
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(logger, 'verbose')
+
+      // Mock governance for plugin metrics
+      const mockGovernance = {
+        updatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      const mockInfo = {
+        address: '0xExitQueueMulti',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 180,
+        transactionHash: '0xmultiexittx',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+      const mockEvent = {
+        args: {
+          holder: '0x4444444444444444444444444444444444444444',
+          tokenId: 666n,
+          exitDate: 1650800000n,
+        },
+      } as any
+
+      await GovernanceVeHandler.exitQueued(mockEvent, mockInfo)
+
+      // Verify updatePluginMetrics was called 2 times (for each plugin)
+      expect(mockGovernance.updatePluginMetrics.calledTwice).to.be.true
+
+      // Verify it was called with correct params for each plugin
+      expect(
+        mockGovernance.updatePluginMetrics.firstCall.calledWith({
+          memberAddress: '0x4444444444444444444444444444444444444444',
+          pluginAddress: '0x888',
+          daoAddress: '0xDAO8',
+          network: NetworksEnum.ethereumMainnet,
+          lastActivity: 180,
+        }),
+      ).to.be.true
+
+      expect(
+        mockGovernance.updatePluginMetrics.secondCall.calledWith({
+          memberAddress: '0x4444444444444444444444444444444444444444',
+          pluginAddress: '0x999',
+          daoAddress: '0xDAO9',
+          network: NetworksEnum.ethereumMainnet,
+          lastActivity: 180,
+        }),
+      ).to.be.true
+
+      // Clean up
+      await Models.Plugin.deleteOne({ id: 'test-plugin-exitqueue-multi-1' })
+      await Models.Plugin.deleteOne({ id: 'test-plugin-exitqueue-multi-2' })
+    })
+
+    it('should log error and continue when exitQueued fails', async () => {
+      // Create a plugin with exitQueueAddress
+      await Models.Plugin.create({
+        id: 'test-plugin-exitqueue-error',
+        address: '0xAAA',
+        daoAddress: '0xDAOA',
+        tokenAddress: '0xTokenA',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabcA',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xEscrowA',
+          nftLockAddress: '0xNftA',
+          exitQueueAddress: '0xExitQueueError',
+        },
+      })
+
+      const stubLoggerError = sandbox.stub(logger, 'error')
+      const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
+
+      // Make createBaseMember throw an error
+      const createMemberError = new Error('Failed to create base member')
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').rejects(createMemberError)
+
+      // Mock governance (won't be reached due to error)
+      const mockGovernance = {
+        updatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      const mockInfo = {
+        address: '0xExitQueueError',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 190,
+        transactionHash: '0xerrorexittx',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+      const mockEvent = {
+        args: {
+          holder: '0x5555555555555555555555555555555555555555',
+          tokenId: 777n,
+          exitDate: 1650900000n,
+        },
+      } as any
+
+      // Handler should not throw but log the error
+      await GovernanceVeHandler.exitQueued(mockEvent, mockInfo)
+
+      // Verify error was logged
+      expect(stubLoggerError.calledOnce).to.be.true
+      expect(stubLoggerError.calledWith('ExitQueued error' as any)).to.be.true
+
+      // Verify verbose log was not called (since we errored early)
+      expect(stubLoggerVerbose.notCalled).to.be.true
+
+      // Verify updatePluginMetrics was not called (error occurred before)
+      expect(mockGovernance.updatePluginMetrics.notCalled).to.be.true
+
+      // Clean up
+      await Models.Plugin.deleteOne({ id: 'test-plugin-exitqueue-error' })
+    })
   })
 
   describe('minDepositSet', () => {
     it('should skip if plugin not found', async () => {
-      const stubPluginFind = sandbox.stub(Models.Plugin, 'find').resolves([])
+      // Don't stub Models.Plugin.find - use different address so plugin won't be found
       const stubLogger = sandbox.stub(logger, 'error')
       const stubSettingFindActive = sandbox.stub(Models.Setting, 'findActive')
 
@@ -1461,13 +1436,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.minDepositSet(mockEvent, mockInfo)
 
-      expect(stubPluginFind.calledOnce).to.be.true
-      expect(
-        stubPluginFind.calledWith({
-          'votingEscrow.escrowAddress': mockInfo.address,
-          network: mockInfo.network,
-        }),
-      ).to.be.true
+      // Plugin should not be found since the address doesn't match the one in beforeEach
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Plugin not found for minDepositSet event' as any)).to.be.true
       expect(stubSettingFindActive.notCalled).to.be.true
@@ -1763,6 +1732,77 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(mockSetting.votingEscrow.minDeposit).to.equal('3000')
       expect(stubSave.calledOnce).to.be.true
       expect(stubLogger.calledOnce).to.be.true
+    })
+
+    it('should handle bigint minDeposit conversion and use real database operations', async () => {
+      // Create a real plugin and setting in the database
+      await Models.Plugin.create({
+        id: 'test-plugin-mindeposit-real',
+        address: '0xBBB',
+        daoAddress: '0xDAOB',
+        tokenAddress: '0xTokenB',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabcB',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xRealEscrowAddressForMinDepositTest123456',
+          nftLockAddress: '0xNftB',
+          exitQueueAddress: '0xExitQueueB',
+        },
+      })
+
+      // Create a real setting in the database
+      const setting = await Models.Setting.create({
+        id: 'test-setting-mindeposit-real',
+        network: NetworksEnum.ethereumMainnet,
+        pluginAddress: '0xBBB',
+        tokenAddress: '0xTokenB',
+        daoAddress: '0xDAOB',
+        isActive: true,
+        blockNumber: 1,
+        transactionHash: '0xsettingtx',
+        status: ISettingStatus.active,
+        votingEscrow: {
+          minDeposit: '1000000000000000000', // 1 ETH in wei
+        },
+      })
+
+      const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
+
+      const mockInfo = {
+        address: '0xRealEscrowAddressForMinDepositTest123456',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 200,
+        transactionHash: '0xbigintmindeposittx',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+      const mockEvent = {
+        args: {
+          minDeposit: 5000000000000000000n, // 5 ETH in wei as bigint
+        },
+      } as any
+
+      await GovernanceVeHandler.minDepositSet(mockEvent, mockInfo)
+
+      // Verify the setting was updated in the database
+      const updatedSetting = await Models.Setting.findActive({
+        network: NetworksEnum.ethereumMainnet,
+        pluginAddress: '0xBBB',
+      })
+      expect(updatedSetting).to.exist
+      expect(updatedSetting.votingEscrow).to.exist
+      expect(updatedSetting.votingEscrow.minDeposit).to.equal('5000000000000000000') // Should be converted to string
+
+      // Verify verbose logging
+      expect(stubLoggerVerbose.calledOnce).to.be.true
+      expect(stubLoggerVerbose.calledWith('minDepositSet VeGovernance' as any)).to.be.true
+
+      // Clean up
+      await Models.Plugin.deleteOne({ id: 'test-plugin-mindeposit-real' })
+      await Models.Setting.deleteOne({ id: 'test-setting-mindeposit-real' })
     })
   })
 
@@ -2072,582 +2112,105 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(typeof mockSetting.votingEscrow.minLockTime).to.equal('number')
       expect(stubSave.calledOnce).to.be.true
     })
+
+    it('should handle real database operations and mixed plugin settings', async () => {
+      // Create real plugins and settings in the database
+      await Models.Plugin.create({
+        id: 'test-plugin-minlock-real-1',
+        address: '0xCCC',
+        daoAddress: '0xDAOC',
+        tokenAddress: '0xTokenC',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabcC',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xEscrowC',
+          nftLockAddress: '0xNftC',
+          exitQueueAddress: '0xRealExitQueueAddressForMinLockTest123456',
+        },
+      })
+
+      await Models.Plugin.create({
+        id: 'test-plugin-minlock-real-2',
+        address: '0xDDD',
+        daoAddress: '0xDAOD',
+        tokenAddress: '0xTokenD',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabcD',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xEscrowD',
+          nftLockAddress: '0xNftD',
+          exitQueueAddress: '0xRealExitQueueAddressForMinLockTest123456',
+        },
+      })
+
+      // Create a real setting for first plugin only (second plugin setting not found scenario)
+      await Models.Setting.create({
+        id: 'test-setting-minlock-real',
+        network: NetworksEnum.ethereumMainnet,
+        pluginAddress: '0xCCC',
+        tokenAddress: '0xTokenC',
+        daoAddress: '0xDAOC',
+        isActive: true,
+        blockNumber: 1,
+        transactionHash: '0xsettingtx',
+        status: ISettingStatus.active,
+        votingEscrow: {
+          minLockTime: 7200, // 2 hours
+        },
+      })
+
+      const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
+      const stubLoggerError = sandbox.stub(logger, 'error')
+
+      const mockInfo = {
+        address: '0xRealExitQueueAddressForMinLockTest123456',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 300,
+        transactionHash: '0xrealminlocktx',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+      const mockEvent = {
+        args: {
+          minLock: 1209600n, // 14 days in seconds as bigint
+        },
+      } as any
+
+      await GovernanceVeHandler.minLockSet(mockEvent, mockInfo)
+
+      // Verify the first setting was updated in the database
+      const updatedSetting = await Models.Setting.findActive({
+        network: NetworksEnum.ethereumMainnet,
+        pluginAddress: '0xCCC',
+      })
+      expect(updatedSetting).to.exist
+      expect(updatedSetting.votingEscrow).to.exist
+      expect(updatedSetting.votingEscrow.minLockTime).to.equal(1209600) // Should be converted to number
+
+      // Verify error was logged for second plugin (setting not found)
+      expect(stubLoggerError.calledOnce).to.be.true
+      expect(stubLoggerError.calledWith('Active plugin setting not found for minLockSet event' as any)).to.be.true
+
+      // Verify verbose logging for successful update
+      expect(stubLoggerVerbose.calledOnce).to.be.true
+      expect(stubLoggerVerbose.calledWith('minLockSet VeGovernance' as any)).to.be.true
+
+      // Clean up
+      await Models.Plugin.deleteOne({ id: 'test-plugin-minlock-real-1' })
+      await Models.Plugin.deleteOne({ id: 'test-plugin-minlock-real-2' })
+      await Models.Setting.deleteOne({ id: 'test-setting-minlock-real' })
+    })
   })
 
   describe('delegateTokens', () => {
     it('should skip if no plugins found', async () => {
-      const stubPluginFindAll = sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([])
-      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, 'delegateTokens')
-      const stubLogger = sandbox.stub(logger, 'verbose')
-
-      const mockInfo = {
-        address: '0xNonExistentToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-      const mockEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n, 456n],
-        },
-      } as any
-
-      await GovernanceVeHandler.delegateTokens(mockEvent, mockInfo)
-
-      expect(stubPluginFindAll.calledOnce).to.be.true
-      expect(stubPluginFindAll.calledWith(mockInfo.address, mockInfo.network)).to.be.true
-      expect(stubHandleTokenDelegation.notCalled).to.be.true
-      expect(stubLogger.notCalled).to.be.true
-    })
-
-    it('should skip if plugins is null', async () => {
-      const stubPluginFindAll = sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(null as any)
-      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, 'delegateTokens')
-      const stubLogger = sandbox.stub(logger, 'verbose')
-
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-      const mockEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n],
-        },
-      } as any
-
-      await GovernanceVeHandler.delegateTokens(mockEvent, mockInfo)
-
-      expect(stubHandleTokenDelegation.notCalled).to.be.true
-      expect(stubLogger.notCalled).to.be.true
-    })
-
-    it('should handle self-delegation and skip incoming delegation', async () => {
-      const mockPlugin = {
-        address: '0xPluginAddress',
-        daoAddress: '0xDaoAddress',
-        tokenAddress: '0xToken',
-      }
-      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([mockPlugin] as any)
-      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, 'delegateTokens').resolves()
-      const stubLogger = sandbox.stub(logger, 'verbose')
-
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-      const mockEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5', // Same as sender
-          tokenIds: [123n],
-        },
-      } as any
-
-      await GovernanceVeHandler.delegateTokens(mockEvent, mockInfo)
-
-      // Should handle delegation
-      expect(stubHandleTokenDelegation.calledOnce).to.be.true
-      expect(stubHandleTokenDelegation.calledWith(mockEvent, mockInfo)).to.be.true
-
-      expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Self-delegation detected, skipping incoming delegation handling' as any)).to.be.true
-    })
-
-    it('should handle normal delegation with both outgoing and incoming', async () => {
-      const mockPlugin = {
-        address: '0xPluginAddress',
-        daoAddress: '0xDaoAddress',
-        tokenAddress: '0xToken',
-      }
-      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([mockPlugin] as any)
-      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, 'delegateTokens').resolves()
-      const stubLogger = sandbox.stub(logger, 'verbose')
-
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-      const mockEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n, 456n],
-        },
-      } as any
-
-      await GovernanceVeHandler.delegateTokens(mockEvent, mockInfo)
-
-      // Should handle both outgoing and incoming delegations
-      expect(stubHandleTokenDelegation.calledTwice).to.be.true
-
-      // Verify the stub was called
-      expect(stubHandleTokenDelegation.firstCall.calledWith(mockEvent, mockInfo)).to.be.true
-
-      expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Delegate tokens VeGovernance' as any)).to.be.true
-    })
-
-    it('should handle multiple plugins', async () => {
-      const mockPlugins = [
-        {
-          address: '0xPluginAddress1',
-          daoAddress: '0xDaoAddress1',
-          tokenAddress: '0xToken',
-        },
-        {
-          address: '0xPluginAddress2',
-          daoAddress: '0xDaoAddress2',
-          tokenAddress: '0xToken',
-        },
-      ]
-      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(mockPlugins as any)
-      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, 'delegateTokens').resolves()
-      sandbox.stub(logger, 'verbose')
-
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-      const mockEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n],
-        },
-      } as any
-
-      await GovernanceVeHandler.delegateTokens(mockEvent, mockInfo)
-
-      expect(stubHandleTokenDelegation.calledTwice).to.be.true
-      // Verify stub was called correctly
-      expect(stubHandleTokenDelegation.firstCall.args[0]).to.equal(mockEvent)
-      expect(stubHandleTokenDelegation.firstCall.args[1]).to.equal(mockInfo)
-    })
-
-    it('should log error when delegateTokens throws', async () => {
-      const mockPlugin = {
-        address: '0xPluginAddress',
-        daoAddress: '0xDaoAddress',
-        tokenAddress: '0xToken',
-      }
-      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([mockPlugin] as any)
-      const stubHandleTokenDelegation = sandbox
-        .stub(GovernanceVeHandler, 'delegateTokens')
-        .rejects(new Error('Delegation failed'))
-      const stubLogger = sandbox.stub(logger, 'verbose')
-      const stubLoggerError = sandbox.stub(logger, 'error')
-
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-      const mockEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n],
-        },
-      } as any
-
-      await GovernanceVeHandler.delegateTokens(mockEvent, mockInfo)
-
-      expect(stubHandleTokenDelegation.calledOnce).to.be.true
-      expect(stubLoggerError.calledOnce).to.be.true
-      expect(stubLoggerError.calledWith('DelegateTokens error' as any)).to.be.true
-      expect(stubLogger.notCalled).to.be.true
-    })
-
-    it('should convert bigint tokenIds to strings', async () => {
-      const mockPlugin = {
-        address: '0xPluginAddress',
-        daoAddress: '0xDaoAddress',
-        tokenAddress: '0xToken',
-      }
-      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([mockPlugin] as any)
-      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, 'delegateTokens').resolves()
-      sandbox.stub(logger, 'verbose')
-
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-      const mockEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [9999999999999999999n, 1111111111111111111n], // Large bigints
-        },
-      } as any
-
-      await GovernanceVeHandler.delegateTokens(mockEvent, mockInfo)
-
-      // Verify stub was called
-      expect(stubHandleTokenDelegation.calledTwice).to.be.true
-    })
-  })
-
-  describe('unDelegateTokens', () => {
-    it('should skip if no plugins found', async () => {
-      const stubPluginFindAll = sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([])
-      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, 'delegateTokens')
-      const stubLogger = sandbox.stub(logger, 'verbose')
-
-      const mockInfo = {
-        address: '0xNonExistentToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-      const mockEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n, 456n],
-        },
-      } as any
-
-      await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
-
-      expect(stubPluginFindAll.calledOnce).to.be.true
-      expect(stubPluginFindAll.calledWith(mockInfo.address, mockInfo.network)).to.be.true
-      expect(stubHandleTokenDelegation.notCalled).to.be.true
-      expect(stubLogger.notCalled).to.be.true
-    })
-
-    it('should skip if plugins is null', async () => {
-      const stubPluginFindAll = sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(null as any)
-      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, 'delegateTokens')
-      const stubLogger = sandbox.stub(logger, 'verbose')
-
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-      const mockEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n],
-        },
-      } as any
-
-      await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
-
-      expect(stubHandleTokenDelegation.notCalled).to.be.true
-      expect(stubLogger.notCalled).to.be.true
-    })
-
-    it('should handle self-undelegation and skip incoming delegation', async () => {
-      const mockPlugin = {
-        address: '0xPluginAddress',
-        daoAddress: '0xDaoAddress',
-        tokenAddress: '0xToken',
-      }
-      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([mockPlugin] as any)
-      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, 'delegateTokens').resolves()
-      const stubLogger = sandbox.stub(logger, 'verbose')
-
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-      const mockEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5', // Same as sender
-          tokenIds: [123n],
-        },
-      } as any
-
-      await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
-
-      // Should only handle outgoing delegation
-      expect(stubHandleTokenDelegation.calledOnce).to.be.true
-      expect(stubHandleTokenDelegation.calledWith(mockEvent, mockInfo)).to.be.true
-
-      expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Self-delegation detected, skipping delegation handling' as any)).to.be.true
-    })
-
-    it('should handle normal undelegation with both outgoing and incoming', async () => {
-      const mockPlugin = {
-        address: '0xPluginAddress',
-        daoAddress: '0xDaoAddress',
-        tokenAddress: '0xToken',
-      }
-      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([mockPlugin] as any)
-      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, 'delegateTokens').resolves()
-      const stubLogger = sandbox.stub(logger, 'verbose')
-
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-      const mockEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n, 456n],
-        },
-      } as any
-
-      await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
-
-      // Should handle both outgoing and incoming delegations
-      expect(stubHandleTokenDelegation.calledTwice).to.be.true
-
-      // Verify first call
-      expect(stubHandleTokenDelegation.firstCall.calledWith(mockEvent, mockInfo)).to.be.true
-
-      // Verify second call
-      expect(stubHandleTokenDelegation.secondCall.calledWith(mockEvent, mockInfo)).to.be.true
-
-      expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Undelegate tokens VeGovernance' as any)).to.be.true
-    })
-
-    it('should handle multiple plugins', async () => {
-      const mockPlugins = [
-        {
-          address: '0xPluginAddress1',
-          daoAddress: '0xDaoAddress1',
-          tokenAddress: '0xToken',
-        },
-        {
-          address: '0xPluginAddress2',
-          daoAddress: '0xDaoAddress2',
-          tokenAddress: '0xToken',
-        },
-      ]
-      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves(mockPlugins as any)
-      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, 'delegateTokens').resolves()
-      sandbox.stub(logger, 'verbose')
-
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-      const mockEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n],
-        },
-      } as any
-
-      await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
-
-      expect(stubHandleTokenDelegation.calledTwice).to.be.true
-      // Verify stub was called correctly
-      expect(stubHandleTokenDelegation.firstCall.args[0]).to.equal(mockEvent)
-      expect(stubHandleTokenDelegation.firstCall.args[1]).to.equal(mockInfo)
-    })
-
-    it('should log error when delegateTokens throws', async () => {
-      const mockPlugin = {
-        address: '0xPluginAddress',
-        daoAddress: '0xDaoAddress',
-        tokenAddress: '0xToken',
-      }
-      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([mockPlugin] as any)
-      const stubHandleTokenDelegation = sandbox
-        .stub(GovernanceVeHandler, 'delegateTokens')
-        .rejects(new Error('Delegation failed'))
-      const stubLogger = sandbox.stub(logger, 'verbose')
-      const stubLoggerError = sandbox.stub(logger, 'error')
-
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-      const mockEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n],
-        },
-      } as any
-
-      await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
-
-      expect(stubHandleTokenDelegation.calledOnce).to.be.true
-      expect(stubLoggerError.calledOnce).to.be.true
-      expect(stubLoggerError.calledWith('UnDelegateTokens error' as any)).to.be.true
-      expect(stubLogger.notCalled).to.be.true
-    })
-
-    it('should convert bigint tokenIds to strings', async () => {
-      const mockPlugin = {
-        address: '0xPluginAddress',
-        daoAddress: '0xDaoAddress',
-        tokenAddress: '0xToken',
-      }
-      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([mockPlugin] as any)
-      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, 'delegateTokens').resolves()
-      sandbox.stub(logger, 'verbose')
-
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-      const mockEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [9999999999999999999n, 1111111111111111111n], // Large bigints
-        },
-      } as any
-
-      await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
-
-      // Verify stub was called
-      expect(stubHandleTokenDelegation.calledTwice).to.be.true
-    })
-
-    it('should swap sender and delegatee addresses correctly', async () => {
-      const mockPlugin = {
-        address: '0xPluginAddress',
-        daoAddress: '0xDaoAddress',
-        tokenAddress: '0xToken',
-      }
-      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([mockPlugin] as any)
-      const stubHandleTokenDelegation = sandbox.stub(GovernanceVeHandler, 'delegateTokens').resolves()
-      sandbox.stub(logger, 'verbose')
-
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-      const mockEvent = {
-        args: {
-          sender: '0xAAA',
-          delegatee: '0xBBB',
-          tokenIds: [123n],
-        },
-      } as any
-
-      await GovernanceVeHandler.unDelegateTokens(mockEvent, mockInfo)
-
-      // Verify the address swap: toAddress = sender, fromAddress = delegatee
-      // Verify stub was called with correct parsedEvent and info
-      expect(stubHandleTokenDelegation.calledTwice).to.be.true
-    })
-  })
-
-  describe('delegateTokens', () => {
-    it('should skip if lastVPBlockNumber is greater than current block', async () => {
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.ERC721,
-        isGovernance: true,
-        clockMode: false,
-      } as any)
-
-      // Mock MemberGovernanceFactory
-      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-
-      // Mock governance instance
-      const mockGovernance = {
-        getOrCreate: sandbox.stub().resolves(),
-        findOne: sandbox.stub().resolves({
-          lastVPBlockNumber: 200, // Greater than info.blockNumber (123)
-          tokenIds: ['123'],
-        }),
-        update: sandbox.stub(),
-        getOrCreatePluginMetrics: sandbox.stub(),
-      }
-      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
-
-      const stubGetBlockTimestamp = sandbox.stub(Web3Helper, 'getBlockTimestamp')
-
-      const mockParsedEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n],
-        },
-      } as any
-
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-
-      await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
-
-      // Should create base member but not update voting power
-      expect(stubCreateBaseMember.calledOnce).to.be.true
-      expect(mockGovernance.update.notCalled).to.be.true
-      expect(stubGetBlockTimestamp.notCalled).to.be.true
-    })
-
-    it('should log error if token not found', async () => {
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
       const stubLogger = sandbox.stub(logger, 'error')
-      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
 
       const mockParsedEvent = {
         args: {
@@ -2658,7 +2221,7 @@ describe('Handler:GovernanceVeHandler', () => {
       } as any
 
       const mockInfo = {
-        address: '0xToken',
+        address: '0xNonExistentToken',
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 123,
         transactionHash: '0xhash',
@@ -2668,414 +2231,321 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
 
-      expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('handleTokenDelegation token not found' as any)).to.be.true
-      expect(stubCreateBaseMember.notCalled).to.be.true
+      // Should return early without doing anything
+      const plugins = await Models.Plugin.find({
+        tokenAddress: mockInfo.address,
+        network: mockInfo.network,
+      })
+      expect(plugins).to.have.lengthOf(0)
+
+      // No error should be logged since this is expected behavior
+      expect(stubLogger.notCalled).to.be.true
     })
 
-    it('should handle self-delegation with incoming transfer side', async () => {
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.ERC721,
-        isGovernance: true,
-        clockMode: null,
-      } as any)
+    it('should handle self-delegation scenario', async () => {
+      // Create a plugin for delegation
+      await Models.Plugin.create({
+        id: 'test-plugin-delegate-self',
+        address: '0xEEE',
+        daoAddress: '0xDAOE',
+        tokenAddress: '0xTokenDelegate',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabcE',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xEscrowE',
+          nftLockAddress: '0xNftE',
+          exitQueueAddress: '0xExitQueueE',
+        },
+      })
 
-      // Mock MemberGovernanceFactory
+      const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
       const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
-      // Mock governance instance
+      // Mock governance for delegation
       const mockGovernance = {
-        getOrCreate: sandbox.stub().resolves(),
-        findOne: sandbox.stub().resolves({
-          tokenIds: ['789', '123'], // Already has 123
-        }),
         update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
       }
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
-
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('100')
-      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([])
-      sandbox.stub(utils, 'getUniqueValuesByKey').returns([])
 
       const mockParsedEvent = {
         args: {
           sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
           delegatee: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5', // Self-delegation
-          tokenIds: [123n, 456n],
+          tokenIds: [456n, 789n],
         },
       } as any
 
       const mockInfo = {
-        address: '0xToken',
+        address: '0xTokenDelegate',
         network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
+        blockNumber: 150,
+        transactionHash: '0xselfdelegatetx',
         transactionIndex: 1,
         logIndex: 1,
       } as any
 
       await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
 
-      // Verify createBaseMember called without lastActivity for incoming
+      // Verify createBaseMember was called only once (self-delegation)
       expect(stubCreateBaseMember.calledOnce).to.be.true
-      expect(stubCreateBaseMember.calledWith('0x65D9d3887aa9a9ee78901E96819B574160E4EAC5', undefined)).to.be.true
+      expect(stubCreateBaseMember.calledWith('0x65D9d3887aa9a9ee78901E96819B574160E4EAC5', 150)).to.be.true
 
-      // Verify voting power updated with deduplicated tokenIds
+      // Verify delegation update was called
       expect(mockGovernance.update.calledOnce).to.be.true
       expect(
         mockGovernance.update.calledWith('0x65D9d3887aa9a9ee78901E96819B574160E4EAC5', {
-          votingPower: '100',
-          tokenIds: ['789', '123', '456'], // Deduplicated
-          lastActivity: mockInfo.blockNumber,
+          tokenIds: ['456', '789'],
+          delegateReceiverAddress: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
         }),
       ).to.be.true
 
-      // Should not update plugin metrics for incoming (no lastActivity)
-      expect(mockGovernance.getOrCreatePluginMetrics.notCalled).to.be.true
-    })
-
-    it('should handle normal delegation with outgoing transfer side', async () => {
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.ERC721,
-        isGovernance: true,
-        clockMode: false,
-      } as any)
-
-      // Mock MemberGovernanceFactory
-      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-
-      // Mock governance instance
-      const mockGovernance = {
-        getOrCreate: sandbox.stub().resolves(),
-        findOne: sandbox.stub().resolves({
-          tokenIds: ['123', '456', '789'],
-        }),
-        update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
-      }
-      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
-
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('50')
-      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin])
-      sandbox.stub(utils, 'getUniqueValuesByKey').returns([plugin.daoAddress])
-
-      const mockParsedEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n, 456n],
-        },
-      } as any
-
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-
-      await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
-
-      // Verify createBaseMember called with lastActivity for outgoing
-      expect(stubCreateBaseMember.calledOnce).to.be.true
-      expect(stubCreateBaseMember.calledWith('0x65D9d3887aa9a9ee78901E96819B574160E4EAC5', 123)).to.be.true
-
-      // Verify voting power updated with filtered tokenIds
-      expect(mockGovernance.update.calledOnce).to.be.true
-      expect(mockGovernance.update.firstCall.args[1].tokenIds).to.deep.equal(['789'])
-
-      // Should update plugin metrics for outgoing
-      expect(mockGovernance.getOrCreatePluginMetrics.calledOnce).to.be.true
+      // Verify plugin metrics update was called only once (self-delegation)
+      expect(mockGovernance.updatePluginMetrics.calledOnce).to.be.true
       expect(
-        mockGovernance.getOrCreatePluginMetrics.calledWith({
+        mockGovernance.updatePluginMetrics.calledWith({
           memberAddress: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          pluginAddress: plugin.address,
-          daoAddress: plugin.daoAddress,
-          network: plugin.network,
-          lastActivity: 123,
+          pluginAddress: '0xEEE',
+          daoAddress: '0xDAOE',
+          network: NetworksEnum.ethereumMainnet,
+          lastActivity: 150,
         }),
       ).to.be.true
 
-      // Should send DAO metrics
-      expect(rabbitMQHelperStub.calledOnce).to.be.true
-      expect(
-        rabbitMQHelperStub.calledWith(EnumQueueName.daoMetrics, {
-          id: plugin.daoAddress,
-          params: { address: plugin.daoAddress, network: mockInfo.network },
-        }),
-      ).to.be.true
+      // Verify DAO metrics update was called
+      expect(mockGovernance.updateDaoMetrics.calledOnce).to.be.true
+
+      // Verify verbose logging
+      expect(stubLoggerVerbose.called).to.be.true
+
+      // Clean up
+      await Models.Plugin.deleteOne({ id: 'test-plugin-delegate-self' })
     })
 
-    it('should handle normal delegation with incoming transfer side', async () => {
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.ERC721,
-        isGovernance: true,
-        clockMode: false,
-      } as any)
+    it('should handle delegation between different addresses with multiple plugins', async () => {
+      // Create multiple plugins with same tokenAddress
+      await Models.Plugin.create({
+        id: 'test-plugin-delegate-multi-1',
+        address: '0xFFF',
+        daoAddress: '0xDAOF',
+        tokenAddress: '0xTokenDelegateMulti',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabcF',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xEscrowF',
+          nftLockAddress: '0xNftF',
+          exitQueueAddress: '0xExitQueueF',
+        },
+      })
 
-      // Mock MemberGovernanceFactory
+      await Models.Plugin.create({
+        id: 'test-plugin-delegate-multi-2',
+        address: '0x111',
+        daoAddress: '0xDAO1',
+        tokenAddress: '0xTokenDelegateMulti',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabc1',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xEscrow1',
+          nftLockAddress: '0xNft1',
+          exitQueueAddress: '0xExitQueue1',
+        },
+      })
+
+      const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
       const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
-      // Mock governance instance
+      // Mock governance for delegation
       const mockGovernance = {
-        getOrCreate: sandbox.stub().resolves(),
-        findOne: sandbox.stub().resolves({
-          tokenIds: ['789'],
-        }),
         update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
       }
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('150')
-      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([])
-      sandbox.stub(utils, 'getUniqueValuesByKey').returns([])
-
       const mockParsedEvent = {
         args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n, 456n],
+          sender: '0x1111111111111111111111111111111111111111',
+          delegatee: '0x2222222222222222222222222222222222222222',
+          tokenIds: [100n, 200n, 300n],
         },
       } as any
 
       const mockInfo = {
-        address: '0xToken',
+        address: '0xTokenDelegateMulti',
         network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
+        blockNumber: 200,
+        transactionHash: '0xmultidelegatetx',
         transactionIndex: 1,
         logIndex: 1,
       } as any
 
       await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
 
-      // Verify createBaseMember called without lastActivity for incoming
-      expect(stubCreateBaseMember.calledOnce).to.be.true
-      expect(stubCreateBaseMember.calledWith('0x75D9d3887aa9a9ee78901E96819B574160E4EAC6', undefined)).to.be.true
+      // Verify createBaseMember was called twice (sender and receiver)
+      expect(stubCreateBaseMember.calledTwice).to.be.true
+      expect(stubCreateBaseMember.firstCall.calledWith('0x1111111111111111111111111111111111111111', 200)).to.be.true
+      expect(stubCreateBaseMember.secondCall.calledWith('0x2222222222222222222222222222222222222222', 200)).to.be.true
 
-      // Verify voting power updated with added tokenIds
+      // Verify delegation update was called
       expect(mockGovernance.update.calledOnce).to.be.true
-      expect(mockGovernance.update.firstCall.args[1].tokenIds).to.deep.equal(['789', '123', '456'])
-
-      // Should not update plugin metrics for incoming (no lastActivity)
-      expect(mockGovernance.getOrCreatePluginMetrics.notCalled).to.be.true
-    })
-
-    it('should handle undefined blockTimestamp gracefully', async () => {
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.ERC721,
-        isGovernance: true,
-        clockMode: false,
-      } as any)
-
-      // Mock MemberGovernanceFactory
-      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-
-      // Mock governance instance
-      const mockGovernance = {
-        getOrCreate: sandbox.stub().resolves(),
-        findOne: sandbox.stub().resolves({
-          tokenIds: [],
-        }),
-        update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
-      }
-      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
-
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(undefined)
-      const stubGetPastVotes = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('0')
-      sandbox.stub(utils, 'getUniqueValuesByKey').returns([])
-
-      const mockParsedEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n],
-        },
-      } as any
-
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-
-      await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
-
-      // Verify getPastVotes called with 0 when blockTimestamp is undefined
       expect(
-        stubGetPastVotes.calledWith(
-          '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          mockInfo.address,
-          mockInfo.blockNumber,
-          0, // Should pass 0 when blockTimestamp is undefined
-          mockInfo.network,
-          false as any, // clockMode from token
-        ),
+        mockGovernance.update.calledWith('0x2222222222222222222222222222222222222222', {
+          tokenIds: ['100', '200', '300'],
+          delegateReceiverAddress: '0x2222222222222222222222222222222222222222',
+        }),
       ).to.be.true
+
+      // Verify plugin metrics update was called 4 times (2 plugins * 2 addresses)
+      expect(mockGovernance.updatePluginMetrics.callCount).to.equal(4)
+
+      // Check calls for sender on both plugins
+      expect(
+        mockGovernance.updatePluginMetrics.getCall(0).calledWith({
+          memberAddress: '0x1111111111111111111111111111111111111111',
+          pluginAddress: '0xFFF',
+          daoAddress: '0xDAOF',
+          network: NetworksEnum.ethereumMainnet,
+          lastActivity: 200,
+        }),
+      ).to.be.true
+
+      expect(
+        mockGovernance.updatePluginMetrics.getCall(1).calledWith({
+          memberAddress: '0x1111111111111111111111111111111111111111',
+          pluginAddress: '0x111',
+          daoAddress: '0xDAO1',
+          network: NetworksEnum.ethereumMainnet,
+          lastActivity: 200,
+        }),
+      ).to.be.true
+
+      // Check calls for receiver on both plugins
+      expect(
+        mockGovernance.updatePluginMetrics.getCall(2).calledWith({
+          memberAddress: '0x2222222222222222222222222222222222222222',
+          pluginAddress: '0xFFF',
+          daoAddress: '0xDAOF',
+          network: NetworksEnum.ethereumMainnet,
+          lastActivity: 200,
+        }),
+      ).to.be.true
+
+      expect(
+        mockGovernance.updatePluginMetrics.getCall(3).calledWith({
+          memberAddress: '0x2222222222222222222222222222222222222222',
+          pluginAddress: '0x111',
+          daoAddress: '0xDAO1',
+          network: NetworksEnum.ethereumMainnet,
+          lastActivity: 200,
+        }),
+      ).to.be.true
+
+      // Verify DAO metrics update was called
+      expect(mockGovernance.updateDaoMetrics.calledOnce).to.be.true
+
+      // Verify verbose logging
+      expect(stubLoggerVerbose.called).to.be.true
+
+      // Clean up
+      await Models.Plugin.deleteOne({ id: 'test-plugin-delegate-multi-1' })
+      await Models.Plugin.deleteOne({ id: 'test-plugin-delegate-multi-2' })
     })
 
-    it('should handle multiple plugins and send unique DAO metrics', async () => {
-      const plugin2 = {
-        id: 'test-plugin-2',
-        address: '0x122',
+    it('should log error and continue when delegation fails', async () => {
+      // Create a plugin for delegation
+      await Models.Plugin.create({
+        id: 'test-plugin-delegate-error',
+        address: '0x222',
         daoAddress: '0xDAO2',
-        tokenAddress: '0xToken',
+        tokenAddress: '0xTokenDelegateError',
         network: NetworksEnum.ethereumMainnet,
-      } as any
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabc2',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xEscrow2',
+          nftLockAddress: '0xNft2',
+          exitQueueAddress: '0xExitQueue2',
+        },
+      })
 
-      const plugin3 = {
-        id: 'test-plugin-3',
-        address: '0x123',
-        daoAddress: '0xDAO', // Same DAO as plugin1
-        tokenAddress: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-      } as any
+      const stubLoggerError = sandbox.stub(logger, 'error')
+      const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
 
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.ERC721,
-        isGovernance: true,
-        clockMode: false,
-      } as any)
+      // Make createBaseMember throw an error
+      const createMemberError = new Error('Failed to create base member')
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').rejects(createMemberError)
 
-      // Mock MemberGovernanceFactory
-      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-
-      // Mock governance instance
+      // Mock governance (won't be reached due to error)
       const mockGovernance = {
-        getOrCreate: sandbox.stub().resolves(),
-        findOne: sandbox.stub().resolves({
-          tokenIds: ['789'],
-        }),
         update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
       }
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('100')
-      sandbox.stub(Models.Plugin, 'findAllByTokenAddress').resolves([plugin, plugin2, plugin3])
-      sandbox.stub(utils, 'getUniqueValuesByKey').returns(['0xDAO', '0xDAO2']) // Two unique DAOs
-
       const mockParsedEvent = {
         args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n],
+          sender: '0x3333333333333333333333333333333333333333',
+          delegatee: '0x4444444444444444444444444444444444444444',
+          tokenIds: [999n],
         },
       } as any
 
       const mockInfo = {
-        address: '0xToken',
+        address: '0xTokenDelegateError',
         network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
+        blockNumber: 250,
+        transactionHash: '0xerrordelegatetx',
         transactionIndex: 1,
         logIndex: 1,
       } as any
 
+      // Handler should not throw but log the error
       await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
 
-      // Verify updatePluginMetrics called for each plugin
-      expect(mockGovernance.getOrCreatePluginMetrics.calledThrice).to.be.true
+      // Verify error was logged
+      expect(stubLoggerError.calledOnce).to.be.true
+      expect(stubLoggerError.calledWith('DelegateTokens error' as any)).to.be.true
 
-      // Verify RabbitMQ called only for unique DAOs
-      expect(rabbitMQHelperStub.calledTwice).to.be.true
-      expect(
-        rabbitMQHelperStub.firstCall.calledWith(EnumQueueName.daoMetrics, {
-          id: '0xDAO',
-          params: { address: '0xDAO', network: mockInfo.network },
-        }),
-      ).to.be.true
-      expect(
-        rabbitMQHelperStub.secondCall.calledWith(EnumQueueName.daoMetrics, {
-          id: '0xDAO2',
-          params: { address: '0xDAO2', network: mockInfo.network },
-        }),
-      ).to.be.true
+      // Verify verbose log was not called (since we errored early)
+      expect(stubLoggerVerbose.notCalled).to.be.true
+
+      // Verify delegation methods were not called (error occurred before)
+      expect(mockGovernance.update.notCalled).to.be.true
+      expect(mockGovernance.updatePluginMetrics.notCalled).to.be.true
+      expect(mockGovernance.updateDaoMetrics.notCalled).to.be.true
+
+      // Clean up
+      await Models.Plugin.deleteOne({ id: 'test-plugin-delegate-error' })
     })
+  })
 
-    it('should handle empty tokenIds arrays', async () => {
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.ERC721,
-        isGovernance: true,
-        clockMode: false,
-      } as any)
-
-      // Mock MemberGovernanceFactory
-      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-
-      // Mock governance instance
-      const mockGovernance = {
-        getOrCreate: sandbox.stub().resolves(),
-        findOne: sandbox.stub().resolves({
-          tokenIds: undefined, // No existing tokenIds
-        }),
-        update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
-      }
-      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
-
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('0')
-      sandbox.stub(utils, 'getUniqueValuesByKey').returns([])
-
-      const mockParsedEvent = {
-        args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [],
-        },
-      } as any
-
-      const mockInfo = {
-        address: '0xToken',
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
-        transactionIndex: 1,
-        logIndex: 1,
-      } as any
-
-      await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
-
-      // Verify voting power updated with empty array
-      expect(mockGovernance.update.calledOnce).to.be.true
-      expect(mockGovernance.update.firstCall.args[1].tokenIds).to.deep.equal([])
-    })
-
-    it('should catch and log errors', async () => {
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.ERC721,
-        isGovernance: true,
-        clockMode: false,
-      } as any)
-
-      // Mock MemberGovernanceFactory to throw error
-      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').rejects(new Error('Database error'))
-
+  describe('unDelegateTokens', () => {
+    it('should skip if no plugins found', async () => {
       const stubLogger = sandbox.stub(logger, 'error')
 
       const mockParsedEvent = {
         args: {
           sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
           tokenIds: [123n],
         },
       } as any
 
       const mockInfo = {
-        address: '0xToken',
+        address: '0xNonExistentTokenUndelegate',
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 123,
         transactionHash: '0xhash',
@@ -3083,88 +2553,431 @@ describe('Handler:GovernanceVeHandler', () => {
         logIndex: 1,
       } as any
 
-      await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
+      await GovernanceVeHandler.unDelegateTokens(mockParsedEvent, mockInfo)
 
-      expect(stubLogger.calledOnce).to.be.true
-      expect(stubLogger.calledWith('Error handling token delegation' as any)).to.be.true
+      // Should return early without doing anything
+      const plugins = await Models.Plugin.find({
+        tokenAddress: mockInfo.address,
+        network: mockInfo.network,
+      })
+      expect(plugins).to.have.lengthOf(0)
+
+      // No error should be logged since this is expected behavior
+      expect(stubLogger.notCalled).to.be.true
     })
 
-    it('should handle token with clockMode enabled', async () => {
-      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.ERC721,
-        isGovernance: true,
-        clockMode: IClockMode.Timestamp, // Clock mode is Timestamp
-      } as any)
-      const mockGovernance2 = {
-        getOrCreate: sandbox.stub().resolves({
-          tokenIds: [],
-        }),
-        findOne: sandbox.stub().resolves({
-          tokenIds: [],
-        }),
+    it('should handle undelegation with single plugin', async () => {
+      // Create a plugin for undelegation
+      await Models.Plugin.create({
+        id: 'test-plugin-undelegate-single',
+        address: '0x333',
+        daoAddress: '0xDAO3',
+        tokenAddress: '0xTokenUndelegate',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabc3',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xEscrow3',
+          nftLockAddress: '0xNft3',
+          exitQueueAddress: '0xExitQueue3',
+        },
+      })
+
+      const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
+      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      // Mock governance for undelegation
+      const mockGovernance = {
         update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
       }
-      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance2 as any)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      const stubGetPastVotes = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('100')
-      sandbox.stub(utils, 'getUniqueValuesByKey').returns([])
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
       const mockParsedEvent = {
         args: {
-          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
-          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          tokenIds: [123n],
+          sender: '0x5555555555555555555555555555555555555555',
+          tokenIds: [456n, 789n, 101112n],
         },
       } as any
 
       const mockInfo = {
-        address: '0xToken',
+        address: '0xTokenUndelegate',
         network: NetworksEnum.ethereumMainnet,
-        blockNumber: 123,
-        transactionHash: '0xhash',
+        blockNumber: 300,
+        transactionHash: '0xundelegatetx',
         transactionIndex: 1,
         logIndex: 1,
       } as any
 
-      await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
+      await GovernanceVeHandler.unDelegateTokens(mockParsedEvent, mockInfo)
 
-      // Verify getPastVotes called with clockMode = IClockMode.Timestamp
-      expect(stubGetPastVotes.calledOnce).to.be.true
+      // Verify createBaseMember was called only for sender
+      expect(stubCreateBaseMember.calledOnce).to.be.true
+      expect(stubCreateBaseMember.calledWith('0x5555555555555555555555555555555555555555', 300)).to.be.true
+
+      // Verify undelegation update was called with null delegateReceiverAddress
+      expect(mockGovernance.update.calledOnce).to.be.true
       expect(
-        stubGetPastVotes.calledWith(
-          '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          mockInfo.address,
-          mockInfo.blockNumber,
-          1650009999,
-          mockInfo.network,
-          IClockMode.Timestamp, // clockMode should be IClockMode.Timestamp
-        ),
+        mockGovernance.update.calledWith('0x5555555555555555555555555555555555555555', {
+          tokenIds: ['456', '789', '101112'],
+          delegateReceiverAddress: null,
+        }),
       ).to.be.true
+
+      // Verify plugin metrics update was called only for sender
+      expect(mockGovernance.updatePluginMetrics.calledOnce).to.be.true
+      expect(
+        mockGovernance.updatePluginMetrics.calledWith({
+          memberAddress: '0x5555555555555555555555555555555555555555',
+          pluginAddress: '0x333',
+          daoAddress: '0xDAO3',
+          network: NetworksEnum.ethereumMainnet,
+          lastActivity: 300,
+        }),
+      ).to.be.true
+
+      // Verify DAO metrics update was called
+      expect(mockGovernance.updateDaoMetrics.calledOnce).to.be.true
+
+      // Verify verbose logging
+      expect(stubLoggerVerbose.called).to.be.true
+
+      // Clean up
+      await Models.Plugin.deleteOne({ id: 'test-plugin-undelegate-single' })
     })
 
-    it('should handle token with clockMode as BlockNumber', async () => {
-      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
-        type: ITokenType.ERC721,
-        isGovernance: true,
-        clockMode: IClockMode.BlockNumber, // Clock mode is BlockNumber
-      } as any)
-      const mockGovernance2 = {
-        getOrCreate: sandbox.stub().resolves({
-          tokenIds: [],
-        }),
-        findOne: sandbox.stub().resolves({
-          tokenIds: [],
-        }),
+    it('should handle undelegation with multiple plugins', async () => {
+      // Create multiple plugins with same tokenAddress
+      await Models.Plugin.create({
+        id: 'test-plugin-undelegate-multi-1',
+        address: '0x444',
+        daoAddress: '0xDAO4',
+        tokenAddress: '0xTokenUndelegateMulti',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabc4',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xEscrow4',
+          nftLockAddress: '0xNft4',
+          exitQueueAddress: '0xExitQueue4',
+        },
+      })
+
+      await Models.Plugin.create({
+        id: 'test-plugin-undelegate-multi-2',
+        address: '0x555',
+        daoAddress: '0xDAO5',
+        tokenAddress: '0xTokenUndelegateMulti',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabc5',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xEscrow5',
+          nftLockAddress: '0xNft5',
+          exitQueueAddress: '0xExitQueue5',
+        },
+      })
+
+      await Models.Plugin.create({
+        id: 'test-plugin-undelegate-multi-3',
+        address: '0x666',
+        daoAddress: '0xDAO6',
+        tokenAddress: '0xTokenUndelegateMulti',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabc6',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xEscrow6',
+          nftLockAddress: '0xNft6',
+          exitQueueAddress: '0xExitQueue6',
+        },
+      })
+
+      const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
+      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      // Mock governance for undelegation
+      const mockGovernance = {
         update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
       }
-      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance2 as any)
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
-      const stubGetPastVotes = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('100')
-      sandbox.stub(utils, 'getUniqueValuesByKey').returns([])
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      const mockParsedEvent = {
+        args: {
+          sender: '0x6666666666666666666666666666666666666666',
+          tokenIds: [777n, 888n],
+        },
+      } as any
+
+      const mockInfo = {
+        address: '0xTokenUndelegateMulti',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 400,
+        transactionHash: '0xmultiundelegatetx',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+
+      await GovernanceVeHandler.unDelegateTokens(mockParsedEvent, mockInfo)
+
+      // Verify createBaseMember was called only once for sender
+      expect(stubCreateBaseMember.calledOnce).to.be.true
+      expect(stubCreateBaseMember.calledWith('0x6666666666666666666666666666666666666666', 400)).to.be.true
+
+      // Verify undelegation update was called
+      expect(mockGovernance.update.calledOnce).to.be.true
+      expect(
+        mockGovernance.update.calledWith('0x6666666666666666666666666666666666666666', {
+          tokenIds: ['777', '888'],
+          delegateReceiverAddress: null,
+        }),
+      ).to.be.true
+
+      // Verify plugin metrics update was called 3 times (for each plugin)
+      expect(mockGovernance.updatePluginMetrics.callCount).to.equal(3)
+
+      // Check calls for sender on all plugins
+      expect(
+        mockGovernance.updatePluginMetrics.getCall(0).calledWith({
+          memberAddress: '0x6666666666666666666666666666666666666666',
+          pluginAddress: '0x444',
+          daoAddress: '0xDAO4',
+          network: NetworksEnum.ethereumMainnet,
+          lastActivity: 400,
+        }),
+      ).to.be.true
+
+      expect(
+        mockGovernance.updatePluginMetrics.getCall(1).calledWith({
+          memberAddress: '0x6666666666666666666666666666666666666666',
+          pluginAddress: '0x555',
+          daoAddress: '0xDAO5',
+          network: NetworksEnum.ethereumMainnet,
+          lastActivity: 400,
+        }),
+      ).to.be.true
+
+      expect(
+        mockGovernance.updatePluginMetrics.getCall(2).calledWith({
+          memberAddress: '0x6666666666666666666666666666666666666666',
+          pluginAddress: '0x666',
+          daoAddress: '0xDAO6',
+          network: NetworksEnum.ethereumMainnet,
+          lastActivity: 400,
+        }),
+      ).to.be.true
+
+      // Verify DAO metrics update was called
+      expect(mockGovernance.updateDaoMetrics.calledOnce).to.be.true
+
+      // Verify verbose logging
+      expect(stubLoggerVerbose.called).to.be.true
+
+      // Clean up
+      await Models.Plugin.deleteOne({ id: 'test-plugin-undelegate-multi-1' })
+      await Models.Plugin.deleteOne({ id: 'test-plugin-undelegate-multi-2' })
+      await Models.Plugin.deleteOne({ id: 'test-plugin-undelegate-multi-3' })
+    })
+
+    it('should handle empty tokenIds array', async () => {
+      // Create a plugin for undelegation
+      await Models.Plugin.create({
+        id: 'test-plugin-undelegate-empty',
+        address: '0x777',
+        daoAddress: '0xDAO7',
+        tokenAddress: '0xTokenUndelegateEmpty',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabc7',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xEscrow7',
+          nftLockAddress: '0xNft7',
+          exitQueueAddress: '0xExitQueue7',
+        },
+      })
+
+      const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
+      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      // Mock governance for undelegation
+      const mockGovernance = {
+        update: sandbox.stub().resolves(),
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      const mockParsedEvent = {
+        args: {
+          sender: '0x7777777777777777777777777777777777777777',
+          tokenIds: [], // Empty array
+        },
+      } as any
+
+      const mockInfo = {
+        address: '0xTokenUndelegateEmpty',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 500,
+        transactionHash: '0xemptyundelegatetx',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+
+      await GovernanceVeHandler.unDelegateTokens(mockParsedEvent, mockInfo)
+
+      // Verify createBaseMember was called
+      expect(stubCreateBaseMember.calledOnce).to.be.true
+
+      // Verify undelegation update was called with empty tokenIds array
+      expect(mockGovernance.update.calledOnce).to.be.true
+      expect(
+        mockGovernance.update.calledWith('0x7777777777777777777777777777777777777777', {
+          tokenIds: [],
+          delegateReceiverAddress: null,
+        }),
+      ).to.be.true
+
+      // Verify plugin metrics update was called
+      expect(mockGovernance.updatePluginMetrics.calledOnce).to.be.true
+
+      // Verify DAO metrics update was called
+      expect(mockGovernance.updateDaoMetrics.calledOnce).to.be.true
+
+      // Clean up
+      await Models.Plugin.deleteOne({ id: 'test-plugin-undelegate-empty' })
+    })
+
+    it('should log error and continue when undelegation fails', async () => {
+      // Create a plugin for undelegation
+      await Models.Plugin.create({
+        id: 'test-plugin-undelegate-error',
+        address: '0x888',
+        daoAddress: '0xDAO8',
+        tokenAddress: '0xTokenUndelegateError',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabc8',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xEscrow8',
+          nftLockAddress: '0xNft8',
+          exitQueueAddress: '0xExitQueue8',
+        },
+      })
+
+      const stubLoggerError = sandbox.stub(logger, 'error')
+      const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
+
+      // Make createBaseMember throw an error
+      const createMemberError = new Error('Failed to create base member')
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').rejects(createMemberError)
+
+      // Mock governance (won't be reached due to error)
+      const mockGovernance = {
+        update: sandbox.stub().resolves(),
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      const mockParsedEvent = {
+        args: {
+          sender: '0x8888888888888888888888888888888888888888',
+          tokenIds: [999n],
+        },
+      } as any
+
+      const mockInfo = {
+        address: '0xTokenUndelegateError',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 600,
+        transactionHash: '0xerrorundelegatetx',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+
+      // Handler should not throw but log the error
+      await GovernanceVeHandler.unDelegateTokens(mockParsedEvent, mockInfo)
+
+      // Verify error was logged
+      expect(stubLoggerError.calledOnce).to.be.true
+      expect(stubLoggerError.calledWith('UnDelegateTokens error' as any)).to.be.true
+
+      // Verify verbose log was not called (since we errored early)
+      expect(stubLoggerVerbose.notCalled).to.be.true
+
+      // Verify undelegation methods were not called (error occurred before)
+      expect(mockGovernance.update.notCalled).to.be.true
+      expect(mockGovernance.updatePluginMetrics.notCalled).to.be.true
+      expect(mockGovernance.updateDaoMetrics.notCalled).to.be.true
+
+      // Clean up
+      await Models.Plugin.deleteOne({ id: 'test-plugin-undelegate-error' })
+    })
+  })
+
+  describe('delegateTokens (legacy tests)', () => {
+    it('should handle empty tokenIds arrays (legacy test with stubs)', async () => {
+      // Mock MemberGovernanceFactory
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      // Mock governance instance with complete interface
+      const mockGovernance = {
+        update: sandbox.stub().resolves(),
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      const mockParsedEvent = {
+        args: {
+          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
+          tokenIds: [],
+        },
+      } as any
+
+      const mockInfo = {
+        address: '0xToken',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+        transactionHash: '0xhash',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+
+      await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
+
+      // Verify delegation update was called with empty tokenIds array
+      expect(mockGovernance.update.calledOnce).to.be.true
+      expect(mockGovernance.update.firstCall.args[1].tokenIds).to.deep.equal([])
+      expect(mockGovernance.update.firstCall.args[1].delegateReceiverAddress).to.equal('0x75D9d3887aa9a9ee78901E96819B574160E4EAC6')
+    })
+
+    it('should handle token with clockMode as BlockNumber (legacy test with stubs)', async () => {
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      // Mock governance instance with complete interface
+      const mockGovernance = {
+        update: sandbox.stub().resolves(),
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
       const mockParsedEvent = {
         args: {
@@ -3185,17 +2998,13 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
 
-      // Verify getPastVotes called with clockMode = IClockMode.BlockNumber
-      expect(stubGetPastVotes.calledOnce).to.be.true
+      // Verify governance update was called with tokenIds and delegateReceiverAddress
+      expect(mockGovernance.update.calledOnce).to.be.true
       expect(
-        stubGetPastVotes.calledWith(
-          '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
-          mockInfo.address,
-          mockInfo.blockNumber,
-          1650009999,
-          mockInfo.network,
-          IClockMode.BlockNumber, // clockMode should be IClockMode.BlockNumber
-        ),
+        mockGovernance.update.calledWith('0x75D9d3887aa9a9ee78901E96819B574160E4EAC6', {
+          tokenIds: ['123'],
+          delegateReceiverAddress: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
+        }),
       ).to.be.true
     })
   })

@@ -5,6 +5,7 @@ import { expect } from 'chai'
 import Logger from '@logger'
 import {
   MemberGovernanceFactory,
+  BaseGovernance,
   Erc20Governance,
   VeGovernance,
   LockToVoteGovernance,
@@ -12,17 +13,22 @@ import {
   AdminGovernance,
 } from '@src/governance'
 import { NetworksEnum, IPluginInterfaceType, ITokenType, type HexAddress } from '@types'
+import Web3Utils from '@helpers/web3Utils'
+import DbTx from '@modules/dbTx'
 
-describe('Modules:MemberGovernance:MemberGovernanceFactory', () => {
+describe('Governance:GovernanceFactory', () => {
   let sandbox: SinonSandbox
   let loggerWarnStub: sinon.SinonStub
+  let loggerErrorStub: sinon.SinonStub
 
   const testAddress = '0x1234567890123456789012345678901234567890' as HexAddress
   const testNetwork = NetworksEnum.ethereumMainnet
+  const escrowAdapterAddress = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as HexAddress
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
     loggerWarnStub = sandbox.stub(Logger, 'warn')
+    loggerErrorStub = sandbox.stub(Logger, 'error')
   })
 
   afterEach(() => {
@@ -42,6 +48,23 @@ describe('Modules:MemberGovernance:MemberGovernanceFactory', () => {
         expect(result).to.be.instanceOf(VeGovernance)
         expect(result?.['address']).to.equal(testAddress)
         expect(result?.['network']).to.equal(testNetwork)
+      })
+
+      it('should create VeGovernance with extraParams for escrowAdapter token type', () => {
+        const result = MemberGovernanceFactory.create({
+          address: testAddress,
+          network: testNetwork,
+          interfaceType: IPluginInterfaceType.tokenVoting,
+          tokenType: ITokenType.escrowAdapter,
+          extraParams: {
+            escrowAdapterAddress: escrowAdapterAddress,
+          },
+        })
+
+        expect(result).to.be.instanceOf(VeGovernance)
+        expect(result?.['address']).to.equal(testAddress)
+        expect(result?.['network']).to.equal(testNetwork)
+        expect(result?.['escrowAdapterAddress']).to.equal(escrowAdapterAddress)
       })
 
       it('should create Erc20Governance for other token types', () => {
@@ -186,6 +209,102 @@ describe('Modules:MemberGovernance:MemberGovernanceFactory', () => {
 
         expect(loggerWarnStub.calledWith('Unsupported plugin interface type, returning null')).to.be.true
       })
+    })
+  })
+
+  describe('createBaseMember', () => {
+    let parseAddressStub: sinon.SinonStub
+    let executeTxFnStub: sinon.SinonStub
+    let ensureBaseMemberStub: sinon.SinonStub
+    let sessionStub: any
+
+    beforeEach(() => {
+      parseAddressStub = sandbox.stub(Web3Utils, 'parseAddress')
+      executeTxFnStub = sandbox.stub(DbTx, 'executeTxFn')
+      ensureBaseMemberStub = sandbox.stub(BaseGovernance, 'ensureBaseMember')
+
+      sessionStub = {
+        commitTransaction: sandbox.stub().resolves(),
+        endSession: sandbox.stub().resolves(),
+      }
+    })
+
+    it('should return null for invalid address', async () => {
+      parseAddressStub.returns(null)
+
+      const result = await MemberGovernanceFactory.createBaseMember('invalid' as HexAddress)
+
+      expect(result).to.be.null
+      expect(parseAddressStub.calledWith('invalid')).to.be.true
+      expect(executeTxFnStub.called).to.be.false
+    })
+
+    it('should create base member successfully', async () => {
+      const mockMember = { address: testAddress, id: '123' }
+      parseAddressStub.returns(testAddress)
+
+      executeTxFnStub.callsFake(async fn => {
+        return await fn({ session: sessionStub })
+      })
+
+      ensureBaseMemberStub.resolves(mockMember)
+
+      const result = await MemberGovernanceFactory.createBaseMember(testAddress, 100)
+
+      expect(result).to.equal(mockMember)
+      expect(parseAddressStub.calledWith(testAddress)).to.be.true
+      expect(ensureBaseMemberStub.calledWith(testAddress, 100, sessionStub)).to.be.true
+      expect(sessionStub.commitTransaction.called).to.be.true
+      expect(sessionStub.endSession.called).to.be.true
+    })
+
+    it('should create base member without lastActivity', async () => {
+      const mockMember = { address: testAddress, id: '123' }
+      parseAddressStub.returns(testAddress)
+
+      executeTxFnStub.callsFake(async fn => {
+        return await fn({ session: sessionStub })
+      })
+
+      ensureBaseMemberStub.resolves(mockMember)
+
+      const result = await MemberGovernanceFactory.createBaseMember(testAddress)
+
+      expect(result).to.equal(mockMember)
+      expect(parseAddressStub.calledWith(testAddress)).to.be.true
+      expect(ensureBaseMemberStub.calledWith(testAddress, undefined, sessionStub)).to.be.true
+      expect(sessionStub.commitTransaction.called).to.be.true
+      expect(sessionStub.endSession.called).to.be.true
+    })
+
+    it('should handle case when ensureBaseMember returns null', async () => {
+      parseAddressStub.returns(testAddress)
+
+      executeTxFnStub.callsFake(async fn => {
+        return await fn({ session: sessionStub })
+      })
+
+      ensureBaseMemberStub.resolves(null)
+
+      const result = await MemberGovernanceFactory.createBaseMember(testAddress)
+
+      expect(result).to.be.null
+      expect(parseAddressStub.calledWith(testAddress)).to.be.true
+      expect(ensureBaseMemberStub.calledWith(testAddress, undefined, sessionStub)).to.be.true
+      expect(sessionStub.commitTransaction.called).to.be.false
+      expect(sessionStub.endSession.called).to.be.false
+    })
+
+    it('should handle errors and return null', async () => {
+      const error = new Error('Database error')
+      parseAddressStub.returns(testAddress)
+      executeTxFnStub.rejects(error)
+
+      const result = await MemberGovernanceFactory.createBaseMember(testAddress, 100)
+
+      expect(result).to.be.null
+      expect(parseAddressStub.calledWith(testAddress)).to.be.true
+      expect(loggerErrorStub.calledWith('Error creating base member')).to.be.true
     })
   })
 })
