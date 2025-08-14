@@ -1,11 +1,6 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import {
-  IPluginInterfaceType,
-  IPluginStatus,
-  ISettingStatus,
-  NetworksEnum,
-} from '@types'
+import { IPluginInterfaceType, IPluginStatus, ISettingStatus, NetworksEnum } from '@types'
 import type Plugin from '@models/schema/plugin'
 import { Models } from '@dbModels'
 import logger from '@logger'
@@ -2965,7 +2960,9 @@ describe('Handler:GovernanceVeHandler', () => {
       // Verify delegation update was called with empty tokenIds array
       expect(mockGovernance.update.calledOnce).to.be.true
       expect(mockGovernance.update.firstCall.args[1].tokenIds).to.deep.equal([])
-      expect(mockGovernance.update.firstCall.args[1].delegateReceiverAddress).to.equal('0x75D9d3887aa9a9ee78901E96819B574160E4EAC6')
+      expect(mockGovernance.update.firstCall.args[1].delegateReceiverAddress).to.equal(
+        '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
+      )
     })
 
     it('should handle token with clockMode as BlockNumber (legacy test with stubs)', async () => {

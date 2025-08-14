@@ -6,10 +6,8 @@ import LockManagerHandler from '@handlers/lockManagerHandler'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import { MemberGovernanceFactory } from '@src/governance'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import { NetworksEnum, EnumQueueName, IPluginInterfaceType } from '@types'
+import { NetworksEnum, IPluginInterfaceType } from '@types'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
-import utils from '@helpers/utils'
 
 describe('Indexer: LockManagerHandler', () => {
   let sandbox: SinonSandbox
@@ -57,12 +55,10 @@ describe('Indexer: LockManagerHandler', () => {
         getOrCreate: sandbox.stub().resolves(),
         findOne: sandbox.stub().resolves(null), // New member
         update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
       }
       const createGovernanceStub = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
-
-      const getUniqueValuesByKeyStub = sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin.daoAddress])
-      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       await LockManagerHandler.balanceLocked(mockParsedEvent as any, mockLogInfo as any)
 
@@ -94,10 +90,10 @@ describe('Indexer: LockManagerHandler', () => {
       expect(getUserLockedBalanceStub.calledWith(mockLogInfo.network, mockLogInfo.address, mockParsedEvent.args.voter))
         .to.be.true
 
-      // Verify getOrCreatePluginMetrics was called
-      expect(mockGovernance.getOrCreatePluginMetrics.calledOnce).to.be.true
+      // Verify updatePluginMetrics was called
+      expect(mockGovernance.updatePluginMetrics.calledOnce).to.be.true
       expect(
-        mockGovernance.getOrCreatePluginMetrics.calledWith({
+        mockGovernance.updatePluginMetrics.calledWith({
           memberAddress: mockParsedEvent.args.voter,
           pluginAddress: mockPlugin.address,
           daoAddress: mockPlugin.daoAddress,
@@ -106,14 +102,8 @@ describe('Indexer: LockManagerHandler', () => {
         }),
       ).to.be.true
 
-      // Verify message was sent
-      expect(sendMessageStub.calledOnce).to.be.true
-      expect(
-        sendMessageStub.calledWith(EnumQueueName.daoMetrics, {
-          id: mockPlugin.daoAddress,
-          params: { address: mockPlugin.daoAddress, network: mockLogInfo.network },
-        }),
-      ).to.be.true
+      // Verify updateDaoMetrics was called
+      expect(mockGovernance.updateDaoMetrics.calledOnce).to.be.true
 
       expect(verboseStub.calledWith('Balance locked successfully' as any)).to.be.true
     })
@@ -139,12 +129,10 @@ describe('Indexer: LockManagerHandler', () => {
         getOrCreate: sandbox.stub().resolves(),
         findOne: sandbox.stub().resolves({ votingPower: '500000000000000000' }), // Existing member
         update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
       }
       const createGovernanceStub = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
-
-      sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin.daoAddress])
-      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       await LockManagerHandler.balanceLocked(mockParsedEvent as any, mockLogInfo as any)
 
@@ -190,12 +178,10 @@ describe('Indexer: LockManagerHandler', () => {
         getOrCreate: sandbox.stub().resolves(),
         findOne: sandbox.stub().resolves(null), // New member
         update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
       }
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
-
-      sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin.daoAddress])
-      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       await LockManagerHandler.balanceLocked(mockParsedEvent as any, mockLogInfo as any)
 
@@ -231,12 +217,10 @@ describe('Indexer: LockManagerHandler', () => {
         getOrCreate: sandbox.stub().resolves(),
         findOne: sandbox.stub().resolves({ votingPower: '500000000000000000' }), // Existing member
         update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
       }
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
-
-      sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin.daoAddress])
-      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       await LockManagerHandler.balanceLocked(mockParsedEvent as any, mockLogInfo as any)
 
@@ -276,19 +260,17 @@ describe('Indexer: LockManagerHandler', () => {
         getOrCreate: sandbox.stub().resolves(),
         findOne: sandbox.stub().resolves(null), // New member
         update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
       }
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
-      sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin1.daoAddress, mockPlugin2.daoAddress])
-      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-
       await LockManagerHandler.balanceLocked(mockParsedEvent as any, mockLogInfo as any)
 
-      // Verify getOrCreatePluginMetrics was called for both plugins
-      expect(mockGovernance.getOrCreatePluginMetrics.calledTwice).to.be.true
+      // Verify updatePluginMetrics was called for both plugins
+      expect(mockGovernance.updatePluginMetrics.calledTwice).to.be.true
       expect(
-        mockGovernance.getOrCreatePluginMetrics.firstCall.calledWith({
+        mockGovernance.updatePluginMetrics.firstCall.calledWith({
           memberAddress: mockParsedEvent.args.voter,
           pluginAddress: mockPlugin1.address,
           daoAddress: mockPlugin1.daoAddress,
@@ -297,7 +279,7 @@ describe('Indexer: LockManagerHandler', () => {
         }),
       ).to.be.true
       expect(
-        mockGovernance.getOrCreatePluginMetrics.secondCall.calledWith({
+        mockGovernance.updatePluginMetrics.secondCall.calledWith({
           memberAddress: mockParsedEvent.args.voter,
           pluginAddress: mockPlugin2.address,
           daoAddress: mockPlugin2.daoAddress,
@@ -306,20 +288,8 @@ describe('Indexer: LockManagerHandler', () => {
         }),
       ).to.be.true
 
-      // Verify messages were sent for both DAOs
-      expect(sendMessageStub.calledTwice).to.be.true
-      expect(
-        sendMessageStub.firstCall.calledWith(EnumQueueName.daoMetrics, {
-          id: mockPlugin1.daoAddress,
-          params: { address: mockPlugin1.daoAddress, network: mockLogInfo.network },
-        }),
-      ).to.be.true
-      expect(
-        sendMessageStub.secondCall.calledWith(EnumQueueName.daoMetrics, {
-          id: mockPlugin2.daoAddress,
-          params: { address: mockPlugin2.daoAddress, network: mockLogInfo.network },
-        }),
-      ).to.be.true
+      // Verify updateDaoMetrics was called
+      expect(mockGovernance.updateDaoMetrics.calledOnce).to.be.true
     })
 
     it('should handle errors and log them', async () => {
@@ -366,12 +336,10 @@ describe('Indexer: LockManagerHandler', () => {
         getOrCreate: sandbox.stub().resolves(),
         findOne: sandbox.stub().resolves({ votingPower: '1000000000000000000' }), // Had balance before
         update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
       }
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
-
-      sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin.daoAddress])
-      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       await LockManagerHandler.balanceUnlocked(mockParsedEvent as any, mockLogInfo as any)
 
@@ -387,13 +355,8 @@ describe('Indexer: LockManagerHandler', () => {
       expect(getUserLockedBalanceStub.calledWith(mockLogInfo.network, mockLogInfo.address, mockParsedEvent.args.voter))
         .to.be.true
 
-      expect(sendMessageStub.calledOnce).to.be.true
-      expect(
-        sendMessageStub.calledWith(EnumQueueName.daoMetrics, {
-          id: mockPlugin.daoAddress,
-          params: { address: mockPlugin.daoAddress, network: mockLogInfo.network },
-        }),
-      ).to.be.true
+      // Verify updateDaoMetrics was called
+      expect(mockGovernance.updateDaoMetrics.calledOnce).to.be.true
 
       expect(verboseStub.calledWith('Balance unlocked successfully' as any)).to.be.true
     })
@@ -417,12 +380,10 @@ describe('Indexer: LockManagerHandler', () => {
         getOrCreate: sandbox.stub().resolves(),
         findOne: sandbox.stub().resolves({ votingPower: '2000000000000000000' }), // Had 2000 before
         update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
       }
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
-
-      sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin.daoAddress])
-      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       await LockManagerHandler.balanceUnlocked(mockParsedEvent as any, mockLogInfo as any)
 
@@ -435,7 +396,8 @@ describe('Indexer: LockManagerHandler', () => {
       ).to.be.true
 
       expect(getUserLockedBalanceStub.calledOnce).to.be.true
-      expect(sendMessageStub.calledOnce).to.be.true
+      // Verify updateDaoMetrics was called
+      expect(mockGovernance.updateDaoMetrics.calledOnce).to.be.true
       expect(verboseStub.calledWith('Balance unlocked successfully' as any)).to.be.true
     })
 
@@ -465,7 +427,8 @@ describe('Indexer: LockManagerHandler', () => {
         getOrCreate: sandbox.stub().resolves(),
         findOne: sandbox.stub().resolves(null), // No existing member
         update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
       }
       const createGovernanceStub = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
@@ -491,12 +454,10 @@ describe('Indexer: LockManagerHandler', () => {
         getOrCreate: sandbox.stub().resolves(),
         findOne: sandbox.stub().resolves({ votingPower: '2000000000000000000' }), // Had 2000 tokens locked
         update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
       }
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
-
-      sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin.daoAddress])
-      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       await LockManagerHandler.balanceUnlocked(mockParsedEvent as any, mockLogInfo as any)
 
@@ -536,19 +497,17 @@ describe('Indexer: LockManagerHandler', () => {
         getOrCreate: sandbox.stub().resolves(),
         findOne: sandbox.stub().resolves({ votingPower: '1000000000000000000' }), // Had balance
         update: sandbox.stub().resolves(),
-        getOrCreatePluginMetrics: sandbox.stub().resolves(),
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
       }
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
-      sandbox.stub(utils, 'getUniqueValuesByKey').returns([mockPlugin1.daoAddress]) // Only one unique DAO
-      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-
       await LockManagerHandler.balanceUnlocked(mockParsedEvent as any, mockLogInfo as any)
 
-      // Verify getOrCreatePluginMetrics was called for both plugins
-      expect(mockGovernance.getOrCreatePluginMetrics.calledTwice).to.be.true
+      // Verify updatePluginMetrics was called for both plugins
+      expect(mockGovernance.updatePluginMetrics.calledTwice).to.be.true
       expect(
-        mockGovernance.getOrCreatePluginMetrics.firstCall.calledWith({
+        mockGovernance.updatePluginMetrics.firstCall.calledWith({
           memberAddress: mockParsedEvent.args.voter,
           pluginAddress: mockPlugin1.address,
           daoAddress: mockPlugin1.daoAddress,
@@ -557,7 +516,7 @@ describe('Indexer: LockManagerHandler', () => {
         }),
       ).to.be.true
       expect(
-        mockGovernance.getOrCreatePluginMetrics.secondCall.calledWith({
+        mockGovernance.updatePluginMetrics.secondCall.calledWith({
           memberAddress: mockParsedEvent.args.voter,
           pluginAddress: mockPlugin2.address,
           daoAddress: mockPlugin2.daoAddress,
@@ -566,14 +525,8 @@ describe('Indexer: LockManagerHandler', () => {
         }),
       ).to.be.true
 
-      // Verify message was sent only once for the unique DAO
-      expect(sendMessageStub.calledOnce).to.be.true
-      expect(
-        sendMessageStub.calledWith(EnumQueueName.daoMetrics, {
-          id: mockPlugin1.daoAddress,
-          params: { address: mockPlugin1.daoAddress, network: mockLogInfo.network },
-        }),
-      ).to.be.true
+      // Verify updateDaoMetrics was called
+      expect(mockGovernance.updateDaoMetrics.calledOnce).to.be.true
     })
 
     it('should handle errors and log them', async () => {
