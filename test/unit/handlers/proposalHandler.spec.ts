@@ -570,6 +570,7 @@ describe('ProposalHandler', () => {
       }
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
       sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
       sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(settings)
       sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
@@ -689,6 +690,7 @@ describe('ProposalHandler', () => {
       }
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
       sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
       sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(settings)
       sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
@@ -789,6 +791,7 @@ describe('ProposalHandler', () => {
       }
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
       sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
       sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(settings)
       sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
@@ -891,6 +894,7 @@ describe('ProposalHandler', () => {
       sandbox.stub(DecodeActions.prototype, 'parseContractNetspec')
       sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(settings)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
       sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
       sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
@@ -997,6 +1001,7 @@ describe('ProposalHandler', () => {
       const members = [{ address: '0xmember1' }, { address: '0xmember2' }, { address: '0xmember3' }]
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
       sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
       sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(settings)
       sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
@@ -1063,6 +1068,7 @@ describe('ProposalHandler', () => {
       }
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
       sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
       sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(null) // No settings
       sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
@@ -1120,6 +1126,7 @@ describe('ProposalHandler', () => {
       }
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
       sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
       sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves({})
       sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
@@ -1178,6 +1185,7 @@ describe('ProposalHandler', () => {
       }
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
       sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
       sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves({})
       sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
@@ -1232,6 +1240,7 @@ describe('ProposalHandler', () => {
       }
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
       sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
       sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(settings)
       sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
@@ -1395,6 +1404,7 @@ describe('ProposalHandler', () => {
       }
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
       sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
       sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(null)
       sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
@@ -1626,6 +1636,7 @@ describe('ProposalHandler', () => {
       }
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
       const warnLoggerStub = sandbox.stub(logger, 'warn')
 
       const result = await ProposalHandler.approved(fakeEvent as any, info)
@@ -1980,15 +1991,34 @@ describe('ProposalHandler', () => {
         deleteOne: sandbox.stub().resolves(),
       }
 
+      const plugin = {
+        address: '0xplugin-address',
+        daoAddress: '0xdao-address',
+        subdomain: 'dao.subdomain',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xtoken-address',
+        isSupported: true,
+      }
+
+      // Create governance mock with the methods we need
+      const governanceMock = {
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
+      }
+
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves(PluginList[0] as any)
+      const findByAddressStub = sandbox.stub(Models.Plugin, 'findByAddress')
+      findByAddressStub.onFirstCall().resolves(plugin as any) // First call in voteCast main check
+      findByAddressStub.onSecondCall().resolves(plugin as any) // Second call for updating metrics
+
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
       sandbox.stub(Models.Vote, 'findExistingLog').resolves(null)
       sandbox.stub(Models.Vote, 'findVoteOnPlugin').resolves(existingVote as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
 
       const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
-      const updateActivityStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      const createBaseMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      const createStub = sandbox.stub(MemberGovernanceFactory, 'create').returns(governanceMock as any)
       const verboseLoggerStub = sandbox.stub(logger, 'verbose')
 
       await ProposalHandler.voteCast(fakeEvent as any, info)
@@ -2003,8 +2033,34 @@ describe('ProposalHandler', () => {
       expect(existingVote.deleteOne.calledOnce).to.be.true
 
       expect(proxyTokenStub.calledOnceWith('0xtoken-address', network)).to.be.true
-      expect(updateActivityStub.calledOnce).to.be.true
-      expect(updateActivityStub.calledWith(fakeEvent.args.voter, info.blockNumber)).to.be.true
+      expect(createBaseMemberStub.calledOnce).to.be.true
+      expect(createBaseMemberStub.calledWith(fakeEvent.args.voter, info.blockNumber)).to.be.true
+
+      // Check MemberGovernanceFactory.create was called with correct params
+      expect(createStub.calledOnce).to.be.true
+      expect(
+        createStub.calledWith({
+          address: '0xtoken-address',
+          network,
+          interfaceType: IPluginInterfaceType.tokenVoting,
+        }),
+      ).to.be.true
+
+      // Check that updatePluginMetrics was called with correct params
+      expect(governanceMock.updatePluginMetrics.calledOnce).to.be.true
+      expect(
+        governanceMock.updatePluginMetrics.calledWith({
+          memberAddress: fakeEvent.args.voter,
+          pluginAddress: '0xplugin-address',
+          network,
+          daoAddress: '0xdao-address',
+          lastActivity: 15,
+        }),
+      ).to.be.true
+
+      // Check that updateDaoMetrics was called
+      expect(governanceMock.updateDaoMetrics.calledOnce).to.be.true
+
       expect(verboseLoggerStub.calledOnceWith('Created new document - Replace Vote - VoteCast' as any)).to.be.true
     })
 
@@ -2417,6 +2473,7 @@ describe('ProposalHandler', () => {
       sandbox.stub(ProposalHelper, 'getSppSubPluginProposals').resolves(1)
       sandbox.stub(ProposalHelper, 'getProposal').resolves({ lastStageTransition: 1800000000 } as any)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
       sandbox.stub(logger, 'verbose')
 
       // Execute the handler
@@ -2597,6 +2654,7 @@ describe('ProposalHandler', () => {
       })
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
       sandbox.stub(ProposalHelper, 'getProposal').resolves({
         lastStageTransition: 1800000000,
       } as any)
@@ -2663,6 +2721,7 @@ describe('ProposalHandler', () => {
       })
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
       sandbox.stub(ProposalHelper, 'getProposal').resolves({ lastStageTransition: 1800000000 } as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
       sandbox.stub(ProposalHelper, 'getSppSubPluginProposals').resolves(1)
@@ -2719,6 +2778,7 @@ describe('ProposalHandler', () => {
       })
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
       sandbox.stub(ProposalHelper, 'getSppSubPluginProposals').resolves(1) // Simulated valid subProposalIndex
       sandbox.stub(ProposalHelper, 'getProposal').resolves({ lastStageTransition: 1800000000 } as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
@@ -2783,6 +2843,7 @@ describe('ProposalHandler', () => {
       }
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
       sandbox.stub(ProposalHelper, 'getProposal').resolves({ lastStageTransition: 1800000000 } as any)
       sandbox.stub(ProposalHelper, 'getSppSubPluginProposals').resolves(1)
@@ -2835,6 +2896,7 @@ describe('ProposalHandler', () => {
       const fakeEvent = { args: { proposalId: ProposalList[0].proposalIndex, stageId: 2n } }
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
       const errorLoggerStub = sandbox.stub(logger, 'error')
       sandbox.stub(logger, 'verbose')
 
@@ -2891,6 +2953,7 @@ describe('ProposalHandler', () => {
 
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
       sandbox.stub(ProposalHelper, 'getSppSubPluginProposals').resolves(1)
       sandbox.stub(ProposalHelper, 'getProposal').resolves({
         lastStageTransition: 1800000000,
