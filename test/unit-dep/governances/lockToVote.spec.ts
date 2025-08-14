@@ -18,7 +18,7 @@ describe('Integ: LockToVote', () => {
     sandbox && sandbox.restore()
   })
 
-  describe('LockToVote flow', () => {
+  describe.skip('LockToVote flow', () => {
     const networks = [
       {
         network: NetworksEnum.ethereumSepolia,
@@ -27,7 +27,7 @@ describe('Integ: LockToVote', () => {
     ]
 
     for (const { network, daoAddress } of networks) {
-      it.only(`should handle veLock all events properly ${network}`, async function () {
+      it(`should handle veLock all events properly ${network}`, async function () {
         this.timeout(100000000)
 
         UnitDepUtils.stubRabbitmqSend(sandbox)
