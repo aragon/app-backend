@@ -79,7 +79,7 @@ describe('Controller: Member', () => {
   })
 
   describe('getMembersWithPagination', () => {
-    it('should throw badParams error when network is missing', async () => {
+    it('should throw pluginNotFound error when required params missing', async () => {
       const paginationParams = {}
       const extraParams = {}
       const pairParams = {}
@@ -88,10 +88,10 @@ describe('Controller: Member', () => {
 
       await expect(
         MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams),
-      ).to.be.rejectedWith('badParams')
+      ).to.be.rejectedWith('pluginNotFound')
     })
 
-    it('should call findPaginatedMembersOnly when no pluginAddress and daoAddress', async () => {
+    it('should throw pluginNotFound when missing required parameters', async () => {
       const paginationParams = {
         search: '',
         pageSize: 10,
@@ -105,18 +105,12 @@ describe('Controller: Member', () => {
       const stubPairFromExtraParams = sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({
         network: NetworksEnum.polygonMainnet,
       })
-      const stubFindPaginatedMembersOnly = sandbox.stub(Models.Member, 'findPaginatedMembersOnly').resolves({
-        data: [rawMember],
-        metadata: { page: 1, totalPages: 1, totalRecords: 1 },
-      } as any)
 
-      const response = await MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams)
+      await expect(
+        MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams),
+      ).to.be.rejectedWith('pluginNotFound')
 
       expect(stubPairFromExtraParams.calledOnce).to.be.true
-      expect(stubFindPaginatedMembersOnly.calledOnce).to.be.true
-      expect(stubFindPaginatedMembersOnly.calledWith({ paginationParams })).to.be.true
-      expect(response.data).to.have.lengthOf(1)
-      expect((response as any).data[0].address).to.equal(rawMember.address)
     })
 
     it('should throw error when only daoAddress is provided without pluginAddress', async () => {
@@ -179,14 +173,15 @@ describe('Controller: Member', () => {
       const mockGovernance = {
         findAndPaginateMembers: sandbox.stub().resolves(mockResult),
       }
-      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+      const createStub = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
       const response = await MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams)
 
       expect(stubFindByAddress.calledOnce).to.be.true
+      expect(createStub.calledOnce).to.be.true
       expect(
-        (MemberGovernanceFactory.create as sinon.SinonStub).calledWith({
-          address: rawPlugin.address,
+        createStub.calledWith({
+          address: rawPlugin.tokenAddress,
           network: rawPlugin.network,
           interfaceType: IPluginInterfaceType.tokenVoting,
           tokenType: ITokenType.ERC20,
@@ -237,19 +232,22 @@ describe('Controller: Member', () => {
         tokenAddress: rawPlugin.tokenAddress,
         network: rawPlugin.network,
         address: rawPlugin.address,
+        votingEscrow: {
+          escrowAddress: '0xEscrowAddress123',
+        },
       })
       sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves(mockToken)
 
       const mockGovernance = {
         findAndPaginateMembers: sandbox.stub().resolves(mockResult),
       }
-      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+      const createStub = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
       const response = await MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams)
 
       expect(
-        (MemberGovernanceFactory.create as sinon.SinonStub).calledWith({
-          address: rawPlugin.address,
+        createStub.calledWith({
+          address: '0xEscrowAddress123',
           network: rawPlugin.network,
           interfaceType: IPluginInterfaceType.tokenVoting,
           tokenType: ITokenType.escrowAdapter,
@@ -260,7 +258,7 @@ describe('Controller: Member', () => {
           paginationParams,
           extraParams: {
             ...extraParams,
-            tokenAddress: rawPlugin.tokenAddress,
+            escrowAddress: '0xEscrowAddress123',
           },
         }),
       ).to.be.true

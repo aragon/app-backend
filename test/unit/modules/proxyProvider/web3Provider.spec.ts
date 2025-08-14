@@ -232,8 +232,8 @@ describe('Web3Provider', () => {
 
       const fallbackArgs = fallbackCallStub.firstCall.args
       expect(fallbackArgs[0]).to.deep.equal([
-        EvmExplorerEnum.ETHERSCAN,
         EvmExplorerEnum.BLOCKSCOUT,
+        EvmExplorerEnum.ETHERSCAN,
         EvmExplorerEnum.ROUTESCAN,
       ])
       expect(typeof fallbackArgs[1]).to.equal('function')
@@ -273,7 +273,7 @@ describe('Web3Provider', () => {
       await Web3Provider.fetchContractCreation({ address, network })
 
       expect(fallbackCallStub.calledOnce).to.be.true
-      expect(evmExplorerStub.calledOnceWith(EvmExplorerEnum.ETHERSCAN, address, network)).to.be.true
+      expect(evmExplorerStub.calledOnceWith(EvmExplorerEnum.BLOCKSCOUT, address, network)).to.be.true
     })
 
     it('should validate result has transaction hash in validation function', async () => {
@@ -320,8 +320,8 @@ describe('Web3Provider', () => {
       const fallbackArgs = fallbackCallStub.firstCall.args
       expect(fallbackArgs[0]).to.deep.equal([
         EvmExplorerEnum.ZKSYNC,
-        EvmExplorerEnum.ETHERSCAN,
         EvmExplorerEnum.BLOCKSCOUT,
+        EvmExplorerEnum.ETHERSCAN,
         EvmExplorerEnum.ROUTESCAN,
       ])
     })
