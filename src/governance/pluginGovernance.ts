@@ -59,6 +59,20 @@ export class PluginGovernance extends BaseGovernance {
         { session },
       )
 
+      // Create plugin metrics if lastActivity is provided
+      if (params?.lastActivity) {
+        await this.getOrCreatePluginMetrics(
+          {
+            memberAddress: parsedAddress,
+            pluginAddress: this.address,
+            daoAddress: plugin?.daoAddress,
+            network: this.network,
+            lastActivity: params.lastActivity,
+          },
+          session,
+        )
+      }
+
       logger.verbose(
         'Created new PluginMember',
         this.llo({
