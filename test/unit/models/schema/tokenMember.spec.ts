@@ -277,7 +277,7 @@ describe('Model: TokenMember', () => {
       expect(aggregateSpy.calledTwice).to.be.true
       expect(response).to.have.property('data').with.lengthOf(1)
       expect(response.data[0].address).to.eq(rawTokenMember.memberAddress)
-      expect(response.data[0].votingPower).to.eq(Number(rawTokenMember.votingPower))
+      expect(response.data[0].votingPower).to.eq(rawTokenMember.votingPower)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
