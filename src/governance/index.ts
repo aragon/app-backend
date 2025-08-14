@@ -21,6 +21,34 @@ export { AdminGovernance }
 
 const llo = logger.logMeta.bind(null, { service: 'MemberGovernanceFactory' })
 
+/**
+ * Factory class for creating governance instances based on plugin interface type.
+ *
+ * Each governance type requires specific parameters:
+ *
+ * - **ERC20 Governance**:
+ *   - `address`: The token address
+ *   - `tokenType`: The token type
+ *   - `network`: The blockchain network
+ *
+ * - **VE Governance**:
+ *   - `address`: The escrow address
+ *   - `tokenType`: Must be ITokenType.escrowAdapter
+ *   - `network`: The blockchain network
+ *   - `extraParams.escrowAdapterAddress`: The escrow adapter address
+ *
+ * - **Multisig Governance**:
+ *   - `address`: The plugin address
+ *   - `network`: The blockchain network
+ *
+ * - **Admin Governance**:
+ *   - `address`: The plugin address
+ *   - `network`: The blockchain network
+ *
+ * - **Lock to Vote Governance**:
+ *   - `address`: The lock manager address
+ *   - `network`: The blockchain network
+ */
 export class MemberGovernanceFactory {
   static create(params: {
     address: HexAddress

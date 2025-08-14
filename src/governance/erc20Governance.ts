@@ -15,7 +15,7 @@ import type TokenMember from '@models/schema/tokenMember'
 import Web3Utils from '@helpers/web3Utils'
 import DbTx from '@modules/dbTx'
 import logger from '@logger'
-import { type ClientSession, Promise } from 'mongoose'
+import { type ClientSession } from 'mongoose'
 import utils from '@helpers/utils'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 
@@ -415,6 +415,11 @@ export class Erc20Governance extends BaseGovernance {
   async updateDaoMetrics(): Promise<any> {
     const plugins = await this.getPlugins()
     const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
+
+    if (plugins.length === 0 || uniqueDaoList.length === 0) {
+      return // No DAOs to update
+    }
+
     await Promise.all(
       uniqueDaoList.map(async (daoAddress: string) => {
         await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
