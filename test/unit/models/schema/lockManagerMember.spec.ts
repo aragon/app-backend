@@ -170,7 +170,7 @@ describe('Model: LockManagerMember', () => {
 
       const member = result.data[0]
       expect(member.address).to.eq(rawLockManagerMember.memberAddress)
-      expect(member.votingPower).to.eq(parseFloat(rawLockManagerMember.votingPower!))
+      expect(member.votingPower).to.eq(rawLockManagerMember.votingPower)
       expect(member.ens).to.eq('test.eth')
       expect(member.avatar).to.eq('avatar.png')
     })
