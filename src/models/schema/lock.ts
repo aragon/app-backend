@@ -353,20 +353,11 @@ export default class Lock extends Model {
         $match: {
           network,
           tokenAddress,
-          delegateReceiverAddress: { $ne: null },
-          'lockWithdraw.status': { $ne: true },
-          'lockExit.status': { $ne: true },
         },
       },
       {
         $addFields: {
-          isActive: {
-            $and: [
-              { $eq: ['$lockExit.status', false] },
-              { $eq: ['$lockWithdraw.status', false] },
-              { $ne: ['$delegateReceiverAddress', null] },
-            ],
-          },
+          isActive: { $eq: ['$lockExit.status', false] },
           activeTime: { $subtract: [settings.currentTime, '$epochStartAt'] },
         },
       },
@@ -412,7 +403,6 @@ export default class Lock extends Model {
         $project: {
           _id: 1,
           memberAddress: 1,
-          delegateReceiverAddress: 1,
           lockVotingPower: '$votingPower',
           tokenId: 1,
           network: 1,
@@ -423,9 +413,45 @@ export default class Lock extends Model {
         },
       },
       {
+        $lookup: {
+          from: ICollectionNames.MemberBalance,
+          let: {
+            lockTokenId: '$tokenId',
+            lockNetwork: '$network',
+            lockTokenAddress: '$tokenAddress',
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $in: ['$$lockTokenId', '$tokenIds'] },
+                    { $eq: ['$network', '$$lockNetwork'] },
+                    { $eq: ['$tokenAddress', '$$lockTokenAddress'] },
+                  ],
+                },
+              },
+            },
+          ],
+          as: 'currentHolder',
+        },
+      },
+      {
+        $addFields: {
+          currentHolder: {
+            $arrayElemAt: ['$currentHolder', 0],
+          },
+        },
+      },
+      {
+        $match: {
+          'currentHolder.address': { $exists: true },
+        },
+      },
+      {
         $group: {
           _id: {
-            memberAddress: '$delegateReceiverAddress',
+            memberAddress: '$currentHolder.address',
             network: '$network',
             tokenAddress: '$tokenAddress',
           },
@@ -434,7 +460,6 @@ export default class Lock extends Model {
             $push: {
               tokenId: '$tokenId',
               lockVotingPower: '$lockVotingPower',
-              originalMemberAddress: '$memberAddress',
             },
           },
           activeLocks: {
@@ -447,7 +472,6 @@ export default class Lock extends Model {
                   lockVotingPower: '$lockVotingPower',
                   isActive: '$isActive',
                   epochStartAt: '$epochStartAt',
-                  originalMemberAddress: '$memberAddress',
                 },
                 else: '$$REMOVE',
               },
