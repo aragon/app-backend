@@ -15,6 +15,9 @@ const CapitalDistributorAdminController = {
   uploadMembersList: async (params: IAAddMembersListParams): Promise<any> => {
     const { campaignId, pluginAddress, network, rewards } = params
 
+    const plugin = await Models.Plugin.findByAddress(pluginAddress, network)
+    assertExposable(plugin, ErrorKeyEnum.notFound)
+
     const existingCampaign = await Models.Campaign.findExisting({
       pluginAddress,
       network,
@@ -241,7 +244,7 @@ const CapitalDistributorAdminController = {
     }
   },
 
-  getMembersList: async (params: { campaignId: string; pluginAddress: string; network: string }): Promise<any> => {
+  getCampaignDetails: async (params: { campaignId: string; pluginAddress: string; network: string }): Promise<any> => {
     const { campaignId, pluginAddress, network } = params
 
     const campaign = await Models.Campaign.findCampaignById(pluginAddress, network, campaignId)
@@ -252,41 +255,13 @@ const CapitalDistributorAdminController = {
       network,
       campaignId,
     })
-      .select('userAddress amount claims proof leaf')
+      .select('id')
       .lean()
 
-    const membersList = members.map((member: any) => {
-      const totalClaimed =
-        member.claims?.reduce(
-          (total: any, claim: any) => (BigInt(total) + BigInt(claim.claimedAmount)).toString(),
-          '0',
-        ) || '0'
-
-      return {
-        address: member.userAddress,
-        amount: member.amount,
-        claimedAmount: totalClaimed,
-        remainingAmount: (BigInt(member.amount) - BigInt(totalClaimed)).toString(),
-        hasProof: member.proof && member.proof.length > 0,
-        hasLeaf: !!member.leaf,
-        proofLength: member.proof?.length || 0,
-      }
-    })
-
-    logger.info(
-      'Retrieved members list',
-      llo({
-        campaignId,
-        pluginAddress,
-        network,
-        memberCount: membersList.length,
-      }),
-    )
-
     return {
-      members: membersList,
-      total: membersList.length,
+      membersCount: members.length,
       campaignId,
+      root: campaign.root || null,
     }
   },
 }

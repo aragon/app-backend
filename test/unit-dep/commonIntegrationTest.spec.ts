@@ -89,14 +89,12 @@ describe('Basic Integer Test', () => {
     expect(Number(supply)).to.be.gt(0)
   })
 
-  it('should check why the execute selector is failing', async function()  {
+  it('should check why the execute selector is failing', async function () {
     this.timeout(10000000)
     const transactionHash = '0xf2df8e05cf1934f84fce376aff9e706a09d6f2a8d2a4a6dcf40239155041f5c9'
     const receipts = await Web3Helper.getTransactionReceipt(transactionHash, NetworksEnum.ethereumSepolia)
     const selectorAddedTopics = new Interface(ExecuteSelectorCondition.abi).getEvent('SelectorAllowed')?.topicHash!
-    const logs = receipts?.logs.filter(
-      log => log.topics[0] === selectorAddedTopics,
-    )
+    const logs = receipts?.logs.filter(log => log.topics[0] === selectorAddedTopics)
     const parsedLogs = await UnitDepUtils.parseLogsByConfig(logs as any, NetworksEnum.ethereumSepolia)
     sandbox.stub(Models.Plugin, 'findOne').resolves({
       address: '0xpluginAddress',
@@ -109,7 +107,7 @@ describe('Basic Integer Test', () => {
     }
   })
 
-  it.only('contract decoder', async () => {
+  it('contract decoder', async () => {
     const address = '0xc304D3Cbb6c0ed94743AAE4A4304f65854c0081F'
     const network = NetworksEnum.polygonMainnet
 

@@ -41,7 +41,7 @@ const CapitalDistributorAdminRouter = {
     ctx.body = await CapitalDistributorAdminController.uploadMembersList(combinedParams)
   },
 
-  getMembersList: async function (ctx: RouterContext) {
+  getCampaignDetails: async function (ctx: RouterContext) {
     const params = {
       campaignId: ctx.params.campaignId,
       pluginAddress: ctx.params.pluginAddress,
@@ -49,7 +49,7 @@ const CapitalDistributorAdminRouter = {
     }
 
     const formattedParams = await ValidationSchema.validateParams(CapitalDistributorSchema.campaignParams, params)
-    ctx.body = await CapitalDistributorAdminController.getMembersList(formattedParams)
+    ctx.body = await CapitalDistributorAdminController.getCampaignDetails(formattedParams)
   },
 
   generateMerkleData: async function (ctx: RouterContext) {
@@ -73,11 +73,8 @@ const CapitalDistributorAdminRouter = {
       UploadMiddleware.single('membersFile'),
       CapitalDistributorAdminRouter.uploadMembersList,
     )
-    router.get('/:pluginAddress/:network/:campaignId', authedAdmin, CapitalDistributorAdminRouter.getMembersList)
 
-    router.get('/test', authedAdmin, async (ctx: RouterContext) => {
-      ctx.body = { hello: true }
-    })
+    router.get('/:pluginAddress/:network/:campaignId', authedAdmin, CapitalDistributorAdminRouter.getCampaignDetails)
 
     router.get(
       '/sync-merkle-tree/:pluginAddress/:network/:campaignId',

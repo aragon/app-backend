@@ -65,7 +65,7 @@ describe('Controller: CapitalDistributorAdmin', () => {
 
     it('should throw error if members have claiming history', async () => {
       const fakeCampaign = { id: 'campaign1' }
-      
+
       sandbox.stub(Models.Campaign, 'findCampaignById').resolves(fakeCampaign)
       sandbox.stub(Models.CampaignReward, 'countDocuments').resolves(1)
 
@@ -82,9 +82,9 @@ describe('Controller: CapitalDistributorAdmin', () => {
 
   describe('syncMerkleTree', () => {
     it('should sync merkle tree successfully', async () => {
-      const fakeCampaign = { 
+      const fakeCampaign = {
         id: 'campaign1',
-        updateMerkleRoot: sandbox.stub().resolves()
+        updateMerkleRoot: sandbox.stub().resolves(),
       }
       const fakeMembers = [
         { userAddress: '0xabc', amount: '1000' },
@@ -144,25 +144,25 @@ describe('Controller: CapitalDistributorAdmin', () => {
     it('should retrieve members list with claim status', async () => {
       const fakeCampaign = { id: 'campaign1' }
       const fakeMembers = [
-        { 
-          userAddress: '0xabc', 
+        {
+          userAddress: '0xabc',
           amount: '1000',
           claims: [{ claimedAmount: '100' }],
           proof: ['0x123', '0x456'],
-          leaf: '0xleaf123'
+          leaf: '0xleaf123',
         },
-        { 
-          userAddress: '0xdef', 
+        {
+          userAddress: '0xdef',
           amount: '2000',
           claims: [],
           proof: ['0x789'],
-          leaf: '0xleaf456'
+          leaf: '0xleaf456',
         },
       ]
 
       sandbox.stub(Models.Campaign, 'findCampaignById').resolves(fakeCampaign)
       sandbox.stub(Models.CampaignReward, 'find').returns({
-        select: () => ({ lean: () => Promise.resolve(fakeMembers) })
+        select: () => ({ lean: () => Promise.resolve(fakeMembers) }),
       })
 
       const result = await CapitalDistributorAdminController.getMembersList({

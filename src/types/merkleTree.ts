@@ -19,3 +19,8 @@ export interface IMerkleTreeWithProofs {
   merkleRoot: string
   members: IMemberWithProof[]
 }
+
+export enum IClaimStat {
+  CLAIMABLE = 'claimable',
+  CLAIMED = 'claimed',
+}

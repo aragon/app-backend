@@ -6,6 +6,7 @@ import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import IPFSModule from '@modules/ipfs'
 import { LogCampaignStrategy } from '@services/aragon-plugins/logCampaignStrategy'
+import { ProxyToken } from '@modules/proxyToken'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:CapitalDistributorHandler' })
 
@@ -44,8 +45,8 @@ export const CapitalDistributorHandler = {
         token,
         payoutEncoder: actionEncoder,
         multipleClaimsAllowed,
-        startTime: startTime.toNumber(),
-        endTime: endTime.toNumber(),
+        startTime: Number(startTime),
+        endTime: Number(endTime),
         active: true,
       }
 
@@ -61,6 +62,8 @@ export const CapitalDistributorHandler = {
       }
 
       const campaign = await Models.Campaign.create(campaignData)
+
+      await ProxyToken.saveAndGetToken(token, network)
 
       const rawMetadata = await IPFSModule.fetchMetadata(metadataURI, { retries: 4 })
       if (rawMetadata) {

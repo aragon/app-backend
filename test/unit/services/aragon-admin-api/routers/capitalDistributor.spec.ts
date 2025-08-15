@@ -25,9 +25,7 @@ describe('Router: CapitalDistributorAdmin', () => {
         },
         request: {
           body: {
-            rewards: [
-              { address: '0xabc', amount: '1000' },
-            ],
+            rewards: [{ address: '0xabc', amount: '1000' }],
           },
         },
         body: null,
@@ -40,9 +38,7 @@ describe('Router: CapitalDistributorAdmin', () => {
       }
 
       const formattedBody = {
-        rewards: [
-          { address: '0xabc', amount: '1000' },
-        ],
+        rewards: [{ address: '0xabc', amount: '1000' }],
       }
 
       const controllerResult = {
@@ -52,9 +48,12 @@ describe('Router: CapitalDistributorAdmin', () => {
         campaignId: 'campaign1',
       }
 
-      sandbox.stub(ValidationSchema, 'validateParams')
-        .onFirstCall().resolves(formattedParams)
-        .onSecondCall().resolves(formattedBody)
+      sandbox
+        .stub(ValidationSchema, 'validateParams')
+        .onFirstCall()
+        .resolves(formattedParams)
+        .onSecondCall()
+        .resolves(formattedBody)
 
       sandbox.stub(CapitalDistributorAdminController, 'uploadMembersList').resolves(controllerResult)
 
@@ -126,7 +125,7 @@ describe('Router: CapitalDistributorAdmin', () => {
             hasProof: true,
             hasLeaf: true,
             proofLength: 2,
-          }
+          },
         ],
         total: 1,
         campaignId: 'campaign1',
@@ -145,7 +144,7 @@ describe('Router: CapitalDistributorAdmin', () => {
     it('should create router with correct routes', () => {
       const router = CapitalDistributorAdminRouter.router()
       expect(router).to.exist
-      
+
       // Check that router has the expected structure
       const stack = router.stack
       expect(stack).to.exist

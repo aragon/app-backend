@@ -76,12 +76,6 @@ export const CapitalDistributor = {
       inputs: [
         {
           indexed: true,
-          internalType: 'address',
-          name: 'plugin',
-          type: 'address',
-        },
-        {
-          indexed: true,
           internalType: 'uint256',
           name: 'campaignId',
           type: 'uint256',

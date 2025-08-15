@@ -1,6 +1,5 @@
 import { MerkleTree } from 'merkletreejs'
 import { ethers, getAddress, solidityPackedKeccak256 } from 'ethers'
-import logger from '@logger'
 import { type IMemberWithProof, type IMerkleTreeLeaf, type IMerkleTreeWithProofs, type IRewardEntry } from '@types'
 
 const MerkleTreeHelper = {
