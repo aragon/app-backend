@@ -30,8 +30,7 @@ const UploadMiddleware = {
     }
 
     try {
-      const jsonContent = JSON.parse(ctx.file.buffer.toString('utf8'))
-      return jsonContent
+      return JSON.parse(ctx.file.buffer.toString('utf8'))
     } catch (error) {
       throw new Error('Invalid JSON file format')
     }
