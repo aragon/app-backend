@@ -2,7 +2,6 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import Utils from '@helpers/utils'
-import utils from '@helpers/utils'
 import logger from '@logger'
 import dayjs from '@helpers/dayjs'
 import { NetworksEnum } from '@types'
@@ -610,32 +609,32 @@ describe('Helpers:Utils', () => {
   describe('hasHoursPassed', () => {
     it('should return true if the specified hours have passed', () => {
       const pastDate = dayjs().subtract(25, 'hour').toDate()
-      expect(utils.hasHoursPassed(pastDate, 24)).to.be.true
+      expect(Utils.hasHoursPassed(pastDate, 24)).to.be.true
     })
 
     it('should return false if the specified hours have not passed', () => {
       const pastDate = dayjs().subtract(23, 'hour').toDate()
-      expect(utils.hasHoursPassed(pastDate, 24)).to.be.false
+      expect(Utils.hasHoursPassed(pastDate, 24)).to.be.false
     })
   })
 
   describe('calculatePercentageChange', () => {
     it('should calculate the correct positive percentage change', () => {
-      expect(utils.calculatePercentageChange(200, 100)).to.equal(100.0)
+      expect(Utils.calculatePercentageChange(200, 100)).to.equal(100.0)
     })
 
     it('should calculate the correct negative percentage change', () => {
-      expect(utils.calculatePercentageChange(50, 100)).to.equal(-50.0)
+      expect(Utils.calculatePercentageChange(50, 100)).to.equal(-50.0)
     })
 
     it('should handle division by zero when old value is zero', () => {
-      expect(utils.calculatePercentageChange(100, 0)).to.eq(Infinity)
+      expect(Utils.calculatePercentageChange(100, 0)).to.eq(Infinity)
     })
   })
 
   describe('getEpochDayjs', () => {
     it('should return a Dayjs object set to the Unix Epoch', () => {
-      const epoch = utils.getEpochDayjs()
+      const epoch = Utils.getEpochDayjs()
       expect(epoch.isValid()).to.be.true
       expect(epoch.unix()).to.equal(0)
     })
@@ -1134,6 +1133,253 @@ describe('Helpers:Utils', () => {
       expect(result).to.deep.equal(result2)
       expect(onError.calledOnce).to.be.true
       expect(onError.firstCall.args[0]?.message).to.equal('Validation error')
+    })
+  })
+
+  describe('processParallel', () => {
+    it('should process empty array and return empty result', async () => {
+      const processor = sandbox.stub().resolves('result')
+
+      const result = await Utils.processParallel([], processor)
+
+      expect(result).to.deep.equal([])
+      expect(processor.called).to.be.false
+    })
+
+    it('should process null/undefined arrays and return empty result', async () => {
+      const processor = sandbox.stub().resolves('result')
+
+      const nullResult = await Utils.processParallel(null as any, processor)
+      const undefinedResult = await Utils.processParallel(undefined as any, processor)
+
+      expect(nullResult).to.deep.equal([])
+      expect(undefinedResult).to.deep.equal([])
+      expect(processor.called).to.be.false
+    })
+
+    it('should process items sequentially with default concurrency', async () => {
+      const items = [1, 2, 3, 4, 5]
+      const processor = sandbox.stub().callsFake(async (item: number) => {
+        await Utils.wait(10)
+        return item * 2
+      })
+
+      const result = await Utils.processParallel(items, processor)
+
+      expect(result).to.deep.equal([2, 4, 6, 8, 10])
+      expect(processor.callCount).to.equal(5)
+      items.forEach((item, index) => {
+        expect(processor.getCall(index).args[0]).to.equal(item)
+      })
+    })
+
+    it('should process items with custom concurrency limit', async () => {
+      const items = Array.from({ length: 10 }, (_, i) => i + 1)
+      const processor = sandbox.stub().callsFake(async (item: number) => {
+        await Utils.wait(50)
+        return item * 2
+      })
+
+      const startTime = Date.now()
+      const result = await Utils.processParallel(items, processor, { concurrency: 3 })
+      const endTime = Date.now()
+
+      expect(result).to.have.length(10)
+      expect(processor.callCount).to.equal(10)
+      // With concurrency of 3 and 10 items, it should take longer than processing all at once
+      expect(endTime - startTime).to.be.greaterThan(100)
+    })
+
+    it('should handle batch processing with custom batch size', async () => {
+      const items = Array.from({ length: 15 }, (_, i) => i + 1)
+      const processor = sandbox.stub().callsFake(async (item: number) => item * 2)
+
+      const result = await Utils.processParallel(items, processor, {
+        batchSize: 5,
+        concurrency: 2,
+      })
+
+      expect(result).to.have.length(15)
+      expect(processor.callCount).to.equal(15)
+      result.forEach((value, index) => {
+        expect(value).to.equal((index + 1) * 2)
+      })
+    })
+
+    it('should call onProgress callback with correct parameters', async () => {
+      const items = [1, 2, 3, 4, 5]
+      const processor = sandbox.stub().callsFake(async (item: number) => {
+        await Utils.wait(10)
+        return item * 2
+      })
+      const onProgress = sandbox.stub()
+
+      await Utils.processParallel(items, processor, { onProgress })
+
+      expect(onProgress.callCount).to.equal(5)
+
+      // Check that progress is called with correct parameters
+      for (let i = 0; i < 5; i++) {
+        const call = onProgress.getCall(i)
+        expect(call.args[0]).to.be.a('number') // processed count
+        expect(call.args[1]).to.equal(5) // total items
+        expect(call.args[2]).to.be.a('number') // processing time
+        expect(call.args[2]).to.be.greaterThan(0) // processing time should be positive
+      }
+    })
+
+    it('should handle processor errors with onError callback', async () => {
+      const items = [1, 2, 3, 4, 5]
+      const error = new Error('Processing failed')
+      const processor = sandbox.stub().callsFake(async (item: number) => {
+        if (item === 3) {
+          throw error
+        }
+        return item * 2
+      })
+      const onError = sandbox.stub()
+
+      try {
+        await Utils.processParallel(items, processor, { onError })
+        expect.fail('Should have thrown an error')
+      } catch (thrownError) {
+        expect(thrownError).to.equal(error)
+        expect(onError.calledOnce).to.be.true
+        expect(onError.calledWith(error, 3, 2)).to.be.true // error, item, index
+      }
+    })
+
+    it('should reject on first error without onError callback', async () => {
+      const items = [1, 2, 3, 4, 5]
+      const error = new Error('Processing failed')
+      sandbox.stub(logger, 'error')
+      const processor = sandbox.stub().callsFake(async (item: number) => {
+        if (item === 3) {
+          throw error
+        }
+        return item * 2
+      })
+
+      try {
+        await Utils.processParallel(items, processor)
+        expect.fail('Should have thrown an error')
+      } catch (thrownError) {
+        expect(thrownError).to.equal(error)
+      }
+    })
+
+    it('should filter out undefined results', async () => {
+      const items = [1, 2, 3, 4, 5]
+      const processor = sandbox.stub().callsFake(async (item: number) => {
+        if (item % 2 === 0) {
+          return undefined // Even numbers return undefined
+        }
+        return item * 2
+      })
+
+      const result = await Utils.processParallel(items, processor)
+
+      // Only odd numbers (1, 3, 5) should be processed, resulting in [2, 6, 10]
+      expect(result).to.deep.equal([2, 6, 10])
+      expect(processor.callCount).to.equal(5)
+    })
+
+    it('should handle mixed results including null and zero values', async () => {
+      const items = [1, 2, 3, 4, 5]
+      const processor = sandbox.stub().callsFake(async (item: number) => {
+        switch (item) {
+          case 1:
+            return 0 // Should be included
+          case 2:
+            return null // Should be included
+          case 3:
+            return undefined // Should be filtered out
+          case 4:
+            return '' // Should be included
+          case 5:
+            return false // Should be included
+          default:
+            return item
+        }
+      })
+
+      const result = await Utils.processParallel(items, processor)
+
+      expect(result).to.deep.equal([0, null, '', false])
+      expect(processor.callCount).to.equal(5)
+    })
+
+    it('should process large arrays efficiently', async () => {
+      const items = Array.from({ length: 1000 }, (_, i) => i + 1)
+      const processor = sandbox.stub().callsFake(async (item: number) => item * 2)
+
+      const startTime = Date.now()
+      const result = await Utils.processParallel(items, processor, {
+        concurrency: 10,
+        batchSize: 100,
+      })
+      const endTime = Date.now()
+
+      expect(result).to.have.length(1000)
+      expect(processor.callCount).to.equal(1000)
+      expect(endTime - startTime).to.be.lessThan(5000) // Should complete within 5 seconds
+
+      // Verify all results are correct
+      result.forEach((value, index) => {
+        expect(value).to.equal((index + 1) * 2)
+      })
+    })
+
+    it('should handle concurrent processing without race conditions', async () => {
+      const items = Array.from({ length: 50 }, (_, i) => i + 1)
+      let processedCount = 0
+      const processor = sandbox.stub().callsFake(async (item: number) => {
+        await Utils.wait(Math.random() * 10) // Random delay
+        processedCount++
+        return item * 2
+      })
+
+      const result = await Utils.processParallel(items, processor, { concurrency: 5 })
+
+      expect(result).to.have.length(50)
+      expect(processedCount).to.equal(50)
+      expect(processor.callCount).to.equal(50)
+    })
+
+    it('should handle options with all parameters set', async () => {
+      const items = [1, 2, 3, 4, 5, 6, 7, 8]
+      const processor = sandbox.stub().callsFake(async (item: number) => {
+        await Utils.wait(5)
+        return item * 2
+      })
+      const onProgress = sandbox.stub()
+      const onError = sandbox.stub()
+
+      const result = await Utils.processParallel(items, processor, {
+        concurrency: 3,
+        batchSize: 4,
+        onProgress,
+        onError,
+      })
+
+      expect(result).to.deep.equal([2, 4, 6, 8, 10, 12, 14, 16])
+      expect(processor.callCount).to.equal(8)
+      expect(onProgress.callCount).to.equal(8)
+      expect(onError.called).to.be.false
+    })
+
+    it('should preserve order of results despite async processing', async () => {
+      const items = [1, 2, 3, 4, 5]
+      const processor = sandbox.stub().callsFake(async (item: number) => {
+        // Add different delays to simulate out-of-order completion
+        await Utils.wait(item === 1 ? 50 : item === 5 ? 10 : 20)
+        return item * 2
+      })
+
+      const result = await Utils.processParallel(items, processor, { concurrency: 5 })
+
+      expect(result).to.deep.equal([2, 4, 6, 8, 10])
+      expect(processor.callCount).to.equal(5)
     })
   })
 })

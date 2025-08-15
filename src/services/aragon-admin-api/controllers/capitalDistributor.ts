@@ -261,7 +261,7 @@ const CapitalDistributorAdminController = {
     return {
       membersCount: members.length,
       campaignId,
-      root: campaign.root || null,
+      merkleRoot: campaign.merkleRoot || null,
     }
   },
 }

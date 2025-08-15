@@ -15,7 +15,7 @@ export interface IMetadata {
   // Capital Distributor specific fields
   blockedCountries?: string[]
   termsConditionsUrl?: string | null
-  enableOfacCheck?: boolean
+  enableOfacCheck?: boolean | null
 }
 
 export interface IProposalMetadata {
@@ -32,7 +32,7 @@ export interface IProposalMetadata {
   }
 }
 
-export interface ICapitalDistributorMetadata {
+export interface ICampaignMetadata {
   title?: string | null
   description?: string | null
   type?: string | null

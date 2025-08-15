@@ -644,6 +644,40 @@ describe('Helpers:Web3Utils', () => {
     })
   })
 
+  describe('parseCampaignMetadata', () => {
+    it('should parse metadata correctly', () => {
+      const metadata = {
+        title: 'Campaign 1',
+        description: 'Description of Campaign 1',
+        type: 'https://avatar.campaign1',
+        resources: [{ name: 'Link 1', url: 'https://link1.com' }],
+      }
+
+      const parsed = Web3Utils.parseCampaignMetadata(metadata)
+
+      expect(parsed).to.deep.equal({
+        title: 'Campaign 1',
+        description: 'Description of Campaign 1',
+        type: 'https://avatar.campaign1',
+        resources: [{ name: 'Link 1', url: 'https://link1.com' }],
+      })
+
+      expect(Web3Utils.parseCampaignMetadata({})).to.deep.equal({
+        title: null,
+        description: null,
+        type: null,
+        resources: [],
+      })
+
+      expect(Web3Utils.parseCampaignMetadata(undefined as any)).to.deep.equal({
+        title: null,
+        description: null,
+        type: null,
+        resources: [],
+      })
+    })
+  })
+
   describe('parseDaoMetadata', () => {
     it('should parse metadata correctly', () => {
       expect(
@@ -654,6 +688,8 @@ describe('Helpers:Web3Utils', () => {
           links: [{ name: 'test-link', url: 'https://test.com' }],
           stageNames: ['Stage 1', 'Stage 2'],
           processKey: 'process-key-123',
+          blockedCountries: ['US', 'CA'],
+          enableOfacCheck: true,
         }),
       ).to.deep.equal({
         name: 'test',
@@ -662,6 +698,9 @@ describe('Helpers:Web3Utils', () => {
         links: [{ name: 'test-link', url: 'https://test.com' }],
         stageNames: ['Stage 1', 'Stage 2'],
         processKey: 'process-key-123',
+        blockedCountries: ['US', 'CA'],
+        enableOfacCheck: true,
+        termsConditionsUrl: null,
       })
 
       expect(Web3Utils.parseDaoMetadata({})).to.deep.equal({
@@ -671,6 +710,9 @@ describe('Helpers:Web3Utils', () => {
         links: [],
         stageNames: [],
         processKey: null,
+        termsConditionsUrl: null,
+        enableOfacCheck: null,
+        blockedCountries: [],
       })
 
       expect(Web3Utils.parseDaoMetadata(undefined as any)).to.deep.equal({
@@ -680,6 +722,9 @@ describe('Helpers:Web3Utils', () => {
         links: [],
         stageNames: [],
         processKey: null,
+        termsConditionsUrl: null,
+        enableOfacCheck: null,
+        blockedCountries: [],
       })
 
       expect(
@@ -698,6 +743,9 @@ describe('Helpers:Web3Utils', () => {
         links: [],
         stageNames: [],
         processKey: null,
+        termsConditionsUrl: null,
+        enableOfacCheck: null,
+        blockedCountries: [],
       })
 
       expect(
@@ -716,6 +764,9 @@ describe('Helpers:Web3Utils', () => {
         links: [],
         stageNames: ['Stage A', 'Stage B'],
         processKey: 'process-key-456',
+        termsConditionsUrl: null,
+        enableOfacCheck: null,
+        blockedCountries: [],
       })
     })
   })

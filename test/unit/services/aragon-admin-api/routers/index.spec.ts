@@ -9,6 +9,7 @@ import DaoAdminRouter from '@admin-api/routers/dao'
 import utils from '@helpers/utils'
 import Koa from 'koa'
 import supertest from 'supertest'
+import CapitalDistributorAdminRouter from '@admin-api/routers/capitalDistributor'
 
 describe('Router: MainAdminRouter', () => {
   let sandbox: SinonSandbox
@@ -34,13 +35,14 @@ describe('Router: MainAdminRouter', () => {
     stubRouter(StatusAdminRouter, 'status')
     stubRouter(QueueAdminRouter, 'queue')
     stubRouter(DaoAdminRouter, 'dao')
+    stubRouter(CapitalDistributorAdminRouter, 'capital-distributor')
 
     await utils.wait(1000)
 
     const mainRouter = MainAdminRouter.router()
     expect(mainRouter instanceof Router).to.be.true
 
-    const routers = [StatusAdminRouter, QueueAdminRouter, DaoAdminRouter]
+    const routers = [StatusAdminRouter, QueueAdminRouter, DaoAdminRouter, CapitalDistributorAdminRouter]
     expect(use.callCount).to.be.eq(routers.length)
     expect(use.calledWith(`statusRoutes`, `statusAllowedMethod`)).to.be.true
 

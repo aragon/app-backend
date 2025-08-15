@@ -19,7 +19,7 @@ describe('Capital Distributor', () => {
     sandbox && sandbox.restore()
   })
 
-  it.only('should handle capital distribution event and plugin sync correctly', async function () {
+  it('should handle capital distribution event and plugin sync correctly', async function () {
     this.timeout(100000000)
     const network = NetworksEnum.ethereumSepolia
     const pluginAddress = '0x884fb2Cd1A0710d5AcC219C6163FCa75aa63c867'

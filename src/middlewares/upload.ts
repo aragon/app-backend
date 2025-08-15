@@ -15,15 +15,14 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
-    files: 1, // Only one file at a time
+    fileSize: 10 * 1024 * 1024,
+    files: 1,
   },
 })
 
 const UploadMiddleware = {
   single: (fieldName: string) => upload.single(fieldName),
 
-  // Helper function to parse JSON from an uploaded file
   parseJsonFile: (ctx: RouterContext) => {
     if (!ctx.file) {
       throw new Error('No file uploaded')

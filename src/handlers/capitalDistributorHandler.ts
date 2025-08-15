@@ -15,7 +15,7 @@ export const CapitalDistributorHandler = {
     const { address, network, blockNumber, transactionHash } = info
 
     const plugin = await Models.Plugin.findByAddress(address, network)
-    const blockTimestamp = await Web3Helper.getBlockTimestamp(blockNumber, network)
+
     if (!plugin) {
       logger.warn('Plugin not found', llo(info))
       return
@@ -33,12 +33,23 @@ export const CapitalDistributorHandler = {
         endTime,
       } = parsedEvent.args
 
+      const existingCampaign = await Models.Campaign.findExisting({
+        pluginAddress: address,
+        network,
+        campaignId: campaignId.toString(),
+      })
+
+      if (existingCampaign) {
+        logger.warn('Campaign already exists', llo({ campaignId: campaignId.toString(), address, network }))
+        return
+      }
+
       const campaignData = {
         pluginAddress: address,
         network,
         transactionHash,
         blockNumber,
-        blockTimestamp,
+        blockTimestamp: await Web3Helper.getBlockTimestamp(blockNumber, network),
         campaignId: campaignId.toString(),
         metadataURI,
         allocationStrategy,
@@ -50,24 +61,13 @@ export const CapitalDistributorHandler = {
         active: true,
       }
 
-      const existingCampaign = await Models.Campaign.findExisting({
-        pluginAddress: address,
-        network,
-        campaignId: campaignId.toString(),
-      })
-
-      if (existingCampaign) {
-        logger.info('Campaign already exists', llo({ campaignId: campaignId.toString(), address, network }))
-        return
-      }
-
       const campaign = await Models.Campaign.create(campaignData)
 
       await ProxyToken.saveAndGetToken(token, network)
 
       const rawMetadata = await IPFSModule.fetchMetadata(metadataURI, { retries: 4 })
       if (rawMetadata) {
-        const parsedMetadata = Web3Utils.parseCapitalDistributionMetadata(rawMetadata)
+        const parsedMetadata = Web3Utils.parseCampaignMetadata(rawMetadata)
 
         const campaignMetadata = {
           title: parsedMetadata.title,
@@ -259,6 +259,11 @@ export const CapitalDistributorHandler = {
       const blockTimestamp = await Web3Helper.getBlockTimestamp(blockNumber, network)
 
       await reward.addClaim(amount.toString(), transactionHash, blockNumber, blockTimestamp)
+
+      const campaign = await Models.Campaign.findCampaignById(address, network, campaignId.toString())
+      if (campaign) {
+        await campaign.incrementClaimCount()
+      }
 
       logger.info(
         'Payout claimed',

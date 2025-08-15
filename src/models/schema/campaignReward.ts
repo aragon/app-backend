@@ -35,6 +35,8 @@ export class RewardStatus {
 @index({ pluginAddress: 1, network: 1, campaignId: 1, userAddress: 1 }, { unique: true })
 @index({ userAddress: 1 })
 @index({ 'claims.transactionHash': 1 })
+@index({ totalClaimed: 1 })
+@index({ pluginAddress: 1, network: 1, campaignId: 1, totalClaimed: 1 })
 export default class CampaignReward extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string

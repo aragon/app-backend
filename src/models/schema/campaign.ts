@@ -19,13 +19,13 @@ const customName = ICollectionNames.Campaign
 
 export class CampaignMetadata {
   @prop({ type: () => String, default: null })
-  public name?: string | null
+  public title?: string | null
 
   @prop({ type: () => String, default: null })
   public description?: string | null
 
   @prop({ type: () => [String], default: [] })
-  public links?: string[]
+  public resources?: string[]
 }
 
 @modelOptions({
@@ -46,6 +46,9 @@ export class CampaignMetadata {
 @index({ startTime: 1, endTime: 1 })
 @index({ merkleRoot: 1 })
 @index({ metadataURI: 1 })
+@index({ 'metadata.title': 'text', 'metadata.description': 'text' })
+@index({ pluginAddress: 1, network: 1, active: 1 })
+@index({ claimCount: 1 })
 export default class Campaign extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -133,14 +136,6 @@ export default class Campaign extends Model {
     return await this.findOne({ id: entityId }, null, tOpts)
   }
 
-  static async findByPlugin(pluginAddress: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
-    return await this.find({ pluginAddress, network }, null, tOpts)
-  }
-
-  static async findActiveCampaigns(pluginAddress: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
-    return await this.find({ pluginAddress, network, active: true }, null, tOpts)
-  }
-
   static async findCampaignById(
     pluginAddress: HexAddress,
     network: NetworksEnum,
@@ -150,23 +145,21 @@ export default class Campaign extends Model {
     return await this.findOne({ pluginAddress, network, campaignId }, null, tOpts)
   }
 
-  static async findByMerkleRoot(merkleRoot: string, tOpts?: SaveOptions) {
-    return await this.findOne({ merkleRoot }, null, tOpts)
-  }
-
   async updateMerkleRoot(merkleRoot: string, tOpts?: SaveOptions) {
     this.merkleRoot = merkleRoot
     return await this.save(tOpts)
   }
 
+  async incrementClaimCount(tOpts?: SaveOptions) {
+    this.claimCount = (this.claimCount || 0) + 1
+    return await this.save(tOpts)
+  }
+
   async updateMetadata(
     metadata: {
-      name?: string
+      title?: string
       description?: string
-      links?: string[]
-      blockedCountries?: string[]
-      termsConditionsUrl?: string
-      enableOfacCheck?: boolean
+      resources?: string[]
     },
     tOpts?: SaveOptions,
   ) {
@@ -174,9 +167,9 @@ export default class Campaign extends Model {
       this.metadata = new CampaignMetadata()
     }
 
-    if (metadata.name !== undefined) this.metadata.name = metadata.name
+    if (metadata.title !== undefined) this.metadata.title = metadata.title
     if (metadata.description !== undefined) this.metadata.description = metadata.description
-    if (metadata.links !== undefined) this.metadata.links = metadata.links
+    if (metadata.resources !== undefined) this.metadata.resources = metadata.resources
 
     return await this.save(tOpts)
   }
@@ -245,13 +238,33 @@ export default class Campaign extends Model {
         if (extraParams.status === IClaimStat.CLAIMED) {
           pipeline.push({
             $match: {
-              'userReward.totalClaimed': { $gt: '0' },
+              $and: [
+                { userReward: { $not: { $size: 0 } } }, // Must have reward records
+                {
+                  $expr: {
+                    $eq: [
+                      { $arrayElemAt: ['$userReward.totalClaimed', 0] },
+                      { $arrayElemAt: ['$userReward.amount', 0] },
+                    ],
+                  },
+                },
+              ],
             },
           })
         } else if (extraParams.status === IClaimStat.CLAIMABLE) {
           pipeline.push({
             $match: {
-              $or: [{ userReward: { $size: 0 } }, { 'userReward.totalClaimed': { $in: ['0', null] } }],
+              $or: [
+                { userReward: { $size: 0 } },
+                {
+                  $expr: {
+                    $ne: [
+                      { $arrayElemAt: ['$userReward.totalClaimed', 0] },
+                      { $arrayElemAt: ['$userReward.amount', 0] },
+                    ],
+                  },
+                },
+              ],
             },
           })
         }
@@ -301,71 +314,73 @@ export default class Campaign extends Model {
       },
     )
 
-    pipeline.push({
-      $project: {
-        campaignId: '$campaignId',
-        title: { $ifNull: ['$metadata.title', ''] },
-        description: { $ifNull: ['$metadata.description', ''] },
-        type: { $ifNull: ['$metadata.type', ''] },
-        resources: { $ifNull: ['$metadata.resources', null] },
-        token: {
-          address: '$token.address',
-          network: '$token.network',
-          symbol: '$token.symbol',
-          name: '$token.name',
-          decimals: '$token.decimals',
-          priceUsd: '$token.priceUsd',
-        },
-        startTime: '$startTime',
-        endTime: '$endTime',
-        active: '$active',
-        multipleClaimsAllowed: '$multipleClaimsAllowed',
-        userData: {
-          $cond: {
-            if: { $gt: [{ $size: '$userReward' }, 0] },
-            then: {
-              status: {
-                $cond: {
-                  if: {
-                    $eq: [
-                      { $arrayElemAt: ['$userReward.totalClaimed', 0] },
-                      { $arrayElemAt: ['$userReward.amount', 0] },
-                    ],
-                  },
-                  then: IClaimStat.CLAIMED,
-                  else: IClaimStat.CLAIMABLE,
+    const projectStage: any = {
+      campaignId: '$campaignId',
+      title: { $ifNull: ['$metadata.title', ''] },
+      description: { $ifNull: ['$metadata.description', ''] },
+      type: { $ifNull: ['$metadata.type', ''] },
+      resources: { $ifNull: ['$metadata.resources', null] },
+      claimCount: '$claimCount',
+      token: {
+        address: '$token.address',
+        network: '$token.network',
+        symbol: '$token.symbol',
+        name: '$token.name',
+        decimals: '$token.decimals',
+        priceUsd: '$token.priceUsd',
+      },
+      startTime: '$startTime',
+      endTime: '$endTime',
+      active: '$active',
+      multipleClaimsAllowed: '$multipleClaimsAllowed',
+      strategy: {
+        root: { $ifNull: ['$merkleRoot', ''] },
+      },
+    }
+
+    // Only include userData field if userAddress was provided (which means userReward lookup was added)
+    if (extraParams.userAddress) {
+      projectStage.userData = {
+        $cond: {
+          if: { $gt: [{ $size: '$userReward' }, 0] },
+          then: {
+            status: {
+              $cond: {
+                if: {
+                  $eq: [{ $arrayElemAt: ['$userReward.totalClaimed', 0] }, { $arrayElemAt: ['$userReward.amount', 0] }],
+                },
+                then: IClaimStat.CLAIMED,
+                else: IClaimStat.CLAIMABLE,
+              },
+            },
+            claims: {
+              $map: {
+                input: { $arrayElemAt: ['$userReward.claims', 0] },
+                as: 'claim',
+                in: {
+                  amount: '$$claim.claimedAmount',
+                  transactionHash: '$$claim.transactionHash',
+                  blockNumber: '$$claim.blockNumber',
+                  blockTimestamp: '$$claim.blockTimestamp',
                 },
               },
-              claims: {
-                $map: {
-                  input: { $arrayElemAt: ['$userReward.claims', 0] },
-                  as: 'claim',
-                  in: {
-                    amount: '$$claim.claimedAmount',
-                    transactionHash: '$$claim.transactionHash',
-                    blockNumber: '$$claim.blockNumber',
-                    blockTimestamp: '$$claim.blockTimestamp',
-                  },
-                },
-              },
-              proofs: { $arrayElemAt: ['$userReward.proof', 0] },
-              leaf: { $arrayElemAt: ['$userReward.leaf', 0] },
-              totalAmount: { $arrayElemAt: ['$userReward.amount', 0] },
-              totalClaimed: { $arrayElemAt: ['$userReward.totalClaimed', 0] },
             },
-            else: {
-              status: IClaimStat.CLAIMABLE,
-              claims: [],
-              totalAmount: '0',
-              totalClaimed: '0',
-            },
+            proofs: { $arrayElemAt: ['$userReward.proof', 0] },
+            leaf: { $arrayElemAt: ['$userReward.leaf', 0] },
+            totalAmount: { $arrayElemAt: ['$userReward.amount', 0] },
+            totalClaimed: { $arrayElemAt: ['$userReward.totalClaimed', 0] },
+          },
+          else: {
+            status: IClaimStat.CLAIMABLE,
+            claims: [],
+            totalAmount: '0',
+            totalClaimed: '0',
           },
         },
-        strategy: {
-          root: { $ifNull: ['$merkleRoot', ''] },
-        },
-      },
-    })
+      }
+    }
+
+    pipeline.push({ $project: projectStage })
 
     pipeline.push({ $sort: request.sort })
     pipeline.push({ $skip: request.skip })
@@ -407,8 +422,32 @@ export default class Campaign extends Model {
             {
               $match:
                 extraParams.status === IClaimStat.CLAIMED
-                  ? { 'userReward.totalClaimed': { $gt: '0' } }
-                  : { $or: [{ userReward: { $size: 0 } }, { 'userReward.totalClaimed': { $in: ['0', null] } }] },
+                  ? {
+                      $and: [
+                        { userReward: { $not: { $size: 0 } } }, // Must have reward records
+                        {
+                          $expr: {
+                            $eq: [
+                              { $arrayElemAt: ['$userReward.totalClaimed', 0] },
+                              { $arrayElemAt: ['$userReward.amount', 0] },
+                            ],
+                          },
+                        },
+                      ],
+                    }
+                  : {
+                      $or: [
+                        { userReward: { $size: 0 } },
+                        {
+                          $expr: {
+                            $ne: [
+                              { $arrayElemAt: ['$userReward.totalClaimed', 0] },
+                              { $arrayElemAt: ['$userReward.amount', 0] },
+                            ],
+                          },
+                        },
+                      ],
+                    },
             },
           ]
         : []),

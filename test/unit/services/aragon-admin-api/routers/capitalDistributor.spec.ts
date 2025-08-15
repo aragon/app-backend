@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { expect } from 'chai'
 import CapitalDistributorAdminRouter from '@services/aragon-admin-api/routers/capitalDistributor'
-import CapitalDistributorAdminController from '@services/aragon-admin-api/controllers/capitalDistributor'
+import { CapitalDistributorAdminController } from '@services/aragon-admin-api/controllers/capitalDistributor'
 import ValidationSchema from '@helpers/validationSchema'
 
 describe('Router: CapitalDistributorAdmin', () => {
@@ -63,7 +63,7 @@ describe('Router: CapitalDistributorAdmin', () => {
     })
   })
 
-  describe('syncMerkleTree', () => {
+  describe('generateMerkleData', () => {
     it('should validate params and call controller', async () => {
       const mockCtx = {
         params: {
@@ -82,7 +82,6 @@ describe('Router: CapitalDistributorAdmin', () => {
 
       const controllerResult = {
         success: true,
-        message: 'Merkle tree synced successfully',
         merkleRoot: '0x123abc',
         totalMembers: 2,
         updatedMembers: 2,
@@ -98,7 +97,7 @@ describe('Router: CapitalDistributorAdmin', () => {
     })
   })
 
-  describe('getMembersList', () => {
+  describe('getCampaignDetails', () => {
     it('should validate params and call controller', async () => {
       const mockCtx = {
         params: {
@@ -116,25 +115,15 @@ describe('Router: CapitalDistributorAdmin', () => {
       }
 
       const controllerResult = {
-        members: [
-          {
-            address: '0xabc',
-            amount: '1000',
-            claimedAmount: '0',
-            remainingAmount: '1000',
-            hasProof: true,
-            hasLeaf: true,
-            proofLength: 2,
-          },
-        ],
-        total: 1,
+        membersCount: 2,
         campaignId: 'campaign1',
+        root: '0xmerkleroot123', // Change from merkleRoot to root
       }
 
       sandbox.stub(ValidationSchema, 'validateParams').resolves(formattedParams)
-      sandbox.stub(CapitalDistributorAdminController, 'getMembersList').resolves(controllerResult)
+      sandbox.stub(CapitalDistributorAdminController, 'getCampaignDetails').resolves(controllerResult)
 
-      await CapitalDistributorAdminRouter.getMembersList(mockCtx as any)
+      await CapitalDistributorAdminRouter.getCampaignDetails(mockCtx as any)
 
       expect(mockCtx.body).to.deep.equal(controllerResult)
     })
@@ -148,7 +137,7 @@ describe('Router: CapitalDistributorAdmin', () => {
       // Check that router has the expected structure
       const stack = router.stack
       expect(stack).to.exist
-      expect(stack.length).to.equal(3) // uploadMembersList, getMembersList, syncMerkleTree
+      expect(stack.length).to.equal(3) // uploadMembersList, generateMerkleData, getCampaignDetails
     })
   })
 })

@@ -1,6 +1,6 @@
 import {
   type HexAddress,
-  type ICapitalDistributorMetadata,
+  type ICampaignMetadata,
   type ILogInfo,
   type IMetadata,
   type IProposalMetadata,
@@ -301,7 +301,7 @@ const Web3Utils = {
       processKey: null,
       blockedCountries: [],
       termsConditionsUrl: null,
-      enableOfacCheck: false,
+      enableOfacCheck: null,
     }
 
     if (!metadata) {
@@ -390,8 +390,8 @@ const Web3Utils = {
     return parsedMetadata
   },
 
-  parseCapitalDistributionMetadata(metadata: any): any {
-    const parsedMetadata: ICapitalDistributorMetadata = {
+  parseCampaignMetadata(metadata: any): any {
+    const parsedMetadata: ICampaignMetadata = {
       title: null,
       description: null,
       resources: [],
