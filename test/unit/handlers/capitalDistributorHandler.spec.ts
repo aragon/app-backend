@@ -268,9 +268,9 @@ describe('Handler: CapitalDistributor', () => {
 
     it('should handle error gracefully', async () => {
       const loggerErrorStub = sandbox.stub(logger, 'error')
-       sandbox.stub(Models.Campaign, 'findCampaignById').resolves({
+      sandbox.stub(Models.Campaign, 'findCampaignById').resolves({
         ...existingCampaign,
-        update: sandbox.stub().rejects(new Error('Database error'))
+        update: sandbox.stub().rejects(new Error('Database error')),
       } as any)
       await CapitalDistributorHandler.campaignDeactivated(parsedEvent, logInfo)
       expect(loggerErrorStub.calledWith('Error processing CampaignDeactivated event' as any)).to.be.true

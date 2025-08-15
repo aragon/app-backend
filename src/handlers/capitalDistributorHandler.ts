@@ -87,9 +87,8 @@ export const CapitalDistributorHandler = {
           network,
         }),
       )
-      
+
       await LogCampaignStrategy.start(allocationStrategy, network, blockNumber)
-      
     } catch (error) {
       logger.error('Error processing CampaignCreated event', llo({ error, info }))
     }
