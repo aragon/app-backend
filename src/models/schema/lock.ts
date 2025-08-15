@@ -353,7 +353,6 @@ export default class Lock extends Model {
         $match: {
           network,
           tokenAddress,
-          delegateReceiverAddress: { $ne: null },
           'lockWithdraw.status': { $ne: true },
           'lockExit.status': { $ne: true },
         },
