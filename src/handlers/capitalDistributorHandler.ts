@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import logger from '@logger'
 import { type ILogInfo } from '@types'
 import { type LogDescription } from 'ethers'
@@ -86,23 +87,11 @@ export const CapitalDistributorHandler = {
           network,
         }),
       )
-
-      try {
-        await LogCampaignStrategy.start(allocationStrategy, network, blockNumber)
-      } catch (error) {
-        logger.error(
-          'Error starting allocation strategy crawler',
-          llo({
-            error,
-            campaignId: campaignId.toString(),
-            allocationStrategy,
-            network,
-          }),
-        )
-      }
+      
+      await LogCampaignStrategy.start(allocationStrategy, network, blockNumber)
+      
     } catch (error) {
       logger.error('Error processing CampaignCreated event', llo({ error, info }))
-      throw error
     }
   },
 
@@ -145,7 +134,6 @@ export const CapitalDistributorHandler = {
       )
     } catch (error) {
       logger.error('Error processing CampaignDeactivated event', llo({ error, info }))
-      throw error
     }
   },
 
@@ -186,7 +174,6 @@ export const CapitalDistributorHandler = {
       )
     } catch (error) {
       logger.error('Error processing MerkleCampaignSet event', llo({ error, info }))
-      throw error
     }
   },
 
@@ -227,7 +214,6 @@ export const CapitalDistributorHandler = {
       )
     } catch (error) {
       logger.error('Error processing MerkleCampaignUpdated event', llo({ error, info }))
-      throw error
     }
   },
 
@@ -278,7 +264,6 @@ export const CapitalDistributorHandler = {
       )
     } catch (error) {
       logger.error('Error processing PayoutClaimed event', llo({ error, info }))
-      throw error
     }
   },
 }

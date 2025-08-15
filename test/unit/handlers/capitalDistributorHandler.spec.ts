@@ -188,6 +188,14 @@ describe('Handler: CapitalDistributor', () => {
       expect(createdCampaign).to.be.null
       expect(loggerWarnStub.calledWith('Plugin not found' as any)).to.be.true
     })
+
+    it('should handle error gracefully', async () => {
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+      sandbox.stub(Models.Campaign, 'findExisting').rejects(new Error('Database error'))
+
+      await CapitalDistributorHandler.campaignCreated(parsedEvent, logInfo)
+      expect(loggerErrorStub.calledWith('Error processing CampaignCreated event' as any)).to.be.true
+    })
   })
 
   describe('campaignDeactivated', () => {
@@ -201,7 +209,6 @@ describe('Handler: CapitalDistributor', () => {
         },
       }
 
-      // Create campaign in database first
       existingCampaign = await Models.Campaign.create({
         pluginAddress: logInfo.address,
         network: logInfo.network,
@@ -246,6 +253,27 @@ describe('Handler: CapitalDistributor', () => {
       await CapitalDistributorHandler.campaignDeactivated(nonExistentEvent, logInfo)
 
       expect(loggerWarnStub.calledWith('Campaign not found for deactivation' as any)).to.be.true
+    })
+
+    it('should warn when plugin not found', async () => {
+      const loggerWarnStub = sandbox.stub(logger, 'warn')
+
+      const nonExistentLogInfo = {
+        ...logInfo,
+        address: '0x9999999999999999999999999999999999999999' as HexAddress,
+      }
+      await CapitalDistributorHandler.campaignDeactivated(parsedEvent, nonExistentLogInfo)
+      expect(loggerWarnStub.calledWith('Plugin not found' as any)).to.be.true
+    })
+
+    it('should handle error gracefully', async () => {
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+       sandbox.stub(Models.Campaign, 'findCampaignById').resolves({
+        ...existingCampaign,
+        update: sandbox.stub().rejects(new Error('Database error'))
+      } as any)
+      await CapitalDistributorHandler.campaignDeactivated(parsedEvent, logInfo)
+      expect(loggerErrorStub.calledWith('Error processing CampaignDeactivated event' as any)).to.be.true
     })
   })
 
@@ -311,6 +339,88 @@ describe('Handler: CapitalDistributor', () => {
       await CapitalDistributorHandler.merkleCampaignSet(nonExistentEvent as any, logInfo)
 
       expect(loggerWarnStub.calledWith('Campaign not found for merkle root update' as any)).to.be.true
+    })
+
+    it('should handle error gracefully', async () => {
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+      sandbox.stub(Models.Campaign, 'findOne').rejects(new Error('Database error'))
+
+      await CapitalDistributorHandler.merkleCampaignSet(parsedEvent, logInfo)
+      expect(loggerErrorStub.calledWith('Error processing MerkleCampaignSet event' as any)).to.be.true
+    })
+  })
+
+  describe('merkleCampaignUpdated', () => {
+    let parsedEvent: any
+    let existingCampaign: any
+
+    beforeEach(async () => {
+      parsedEvent = {
+        args: {
+          campaignId: BigInt(1),
+          newMerkleRoot: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+        },
+      }
+
+      // Create campaign in database first
+      existingCampaign = await Models.Campaign.create({
+        pluginAddress: logInfo.address,
+        network: logInfo.network,
+        transactionHash: logInfo.transactionHash,
+        blockNumber: logInfo.blockNumber,
+        blockTimestamp: 1640995200,
+        campaignId: '1',
+        metadataURI: 'https://ipfs.io/ipfs/QmTest123',
+        allocationStrategy: logInfo.address, // Using address as allocation strategy for this test
+        token: '0xtoken1234567890123456789012345678901234' as HexAddress,
+        payoutEncoder: '0xencoder123456789012345678901234567890' as HexAddress,
+        multipleClaimsAllowed: true,
+        startTime: 1640995200,
+        endTime: 1672531200,
+        active: true,
+        merkleRoot: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+      })
+    })
+
+    it('Should update merkle root in database', async () => {
+      const loggerInfoStub = sandbox.stub(logger, 'info')
+
+      expect(existingCampaign.merkleRoot).to.eq('0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef')
+
+      await CapitalDistributorHandler.merkleCampaignUpdated(parsedEvent, logInfo)
+
+      // Verify merkle root was updated in database
+      const updatedCampaign = await Models.Campaign.findOne({
+        allocationStrategy: logInfo.address,
+        network: logInfo.network,
+        campaignId: '1',
+      })
+
+      expect(updatedCampaign?.merkleRoot).to.eq(parsedEvent.args.newMerkleRoot)
+      expect(loggerInfoStub.calledWith('Merkle root updated for campaign' as any)).to.be.true
+    })
+
+    it('Should warn when campaign not found', async () => {
+      const loggerWarnStub = sandbox.stub(logger, 'warn')
+
+      const nonExistentEvent = {
+        args: {
+          campaignId: BigInt(999),
+          newMerkleRoot: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+        },
+      }
+
+      await CapitalDistributorHandler.merkleCampaignUpdated(nonExistentEvent as any, logInfo)
+
+      expect(loggerWarnStub.calledWith('Campaign not found for merkle root update' as any)).to.be.true
+    })
+
+    it('should handle error gracefully', async () => {
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+      sandbox.stub(Models.Campaign, 'findOne').rejects(new Error('Database error'))
+
+      await CapitalDistributorHandler.merkleCampaignUpdated(parsedEvent, logInfo)
+      expect(loggerErrorStub.calledWith('Error processing MerkleCampaignUpdated event' as any)).to.be.true
     })
   })
 
@@ -499,6 +609,14 @@ describe('Handler: CapitalDistributor', () => {
 
       // Verify logging occurred
       expect(loggerInfoStub.calledWith('Payout claimed' as any)).to.be.true
+    })
+
+    it('should handle error gracefully', async () => {
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+      sandbox.stub(Models.CampaignReward, 'findRewardForCampaign').rejects(new Error('Database error'))
+
+      await CapitalDistributorHandler.payoutClaimed(parsedEvent, logInfo)
+      expect(loggerErrorStub.calledWith('Error processing PayoutClaimed event' as any)).to.be.true
     })
   })
 })
