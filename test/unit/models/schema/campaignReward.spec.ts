@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { NetworksEnum, HexAddress } from '@types'
-import CampaignReward, { RewardStatus } from '@models/schema/campaignReward'
+import CampaignReward from '@models/schema/campaignReward'
 import { Models } from '@dbModels'
 
 describe('Model: CampaignReward', () => {

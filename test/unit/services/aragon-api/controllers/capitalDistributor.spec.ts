@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import CapitalDistributorController from '@services/aragon-api/controllers/capitalDistributor'
-import { ErrorKeyEnum, NetworksEnum, HexAddress, IClaimStat, ITokenType } from '@types'
+import { ErrorKeyEnum, NetworksEnum, HexAddress, IClaimStat } from '@types'
 import { Models } from '@dbModels'
 import * as errors from '@errors'
 
