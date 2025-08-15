@@ -27,6 +27,8 @@ export const PluginSlug = {
         return IPluginSlug.admin
       case IPluginInterfaceType.gauge:
         return IPluginSlug.gauge
+      case IPluginInterfaceType.capitalDistribution:
+        return IPluginSlug.capitalDistribution
       default:
         return null
     }

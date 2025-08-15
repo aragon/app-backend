@@ -43,6 +43,7 @@ export enum IPluginSlug {
   admin = 'admin',
   gauge = 'gauge',
   spp = 'core',
+  capitalDistribution = 'capitaldistribution',
 }
 
 export enum IEventLogPluginSettings {
