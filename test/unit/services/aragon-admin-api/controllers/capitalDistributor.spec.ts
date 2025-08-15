@@ -25,9 +25,9 @@ describe('Controller: CapitalDistributorAdmin', () => {
       ]
 
       sandbox.stub(Models.Campaign, 'findCampaignById').resolves(fakeCampaign)
-      sandbox.stub(Models.Reward, 'countDocuments').resolves(0)
-      sandbox.stub(Models.Reward, 'deleteMany').resolves({ deletedCount: 0 })
-      sandbox.stub(Models.Reward, 'insertMany').resolves(insertResult)
+      sandbox.stub(Models.CampaignReward, 'countDocuments').resolves(0)
+      sandbox.stub(Models.CampaignReward, 'deleteMany').resolves({ deletedCount: 0 })
+      sandbox.stub(Models.CampaignReward, 'insertMany').resolves(insertResult)
 
       const result = await CapitalDistributorAdminController.uploadMembersList({
         campaignId: 'campaign1',
@@ -67,7 +67,7 @@ describe('Controller: CapitalDistributorAdmin', () => {
       const fakeCampaign = { id: 'campaign1' }
       
       sandbox.stub(Models.Campaign, 'findCampaignById').resolves(fakeCampaign)
-      sandbox.stub(Models.Reward, 'countDocuments').resolves(1)
+      sandbox.stub(Models.CampaignReward, 'countDocuments').resolves(1)
 
       await expect(
         CapitalDistributorAdminController.uploadMembersList({
@@ -92,11 +92,11 @@ describe('Controller: CapitalDistributorAdmin', () => {
       ]
 
       sandbox.stub(Models.Campaign, 'findCampaignById').resolves(fakeCampaign)
-      sandbox.stub(Models.Reward, 'countDocuments').resolves(0)
-      sandbox.stub(Models.Reward, 'find').returns({ lean: () => Promise.resolve(fakeMembers) })
-      sandbox.stub(Models.Reward, 'bulkWrite').resolves({ modifiedCount: 2 })
+      sandbox.stub(Models.CampaignReward, 'countDocuments').resolves(0)
+      sandbox.stub(Models.CampaignReward, 'find').returns({ lean: () => Promise.resolve(fakeMembers) })
+      sandbox.stub(Models.CampaignReward, 'bulkWrite').resolves({ modifiedCount: 2 })
 
-      const result = await CapitalDistributorAdminController.syncMerkleTree({
+      const result = await CapitalDistributorAdminController.generateMerkleData({
         campaignId: 'campaign1',
         pluginAddress: '0x123',
         network: NetworksEnum.ethereumMainnet,
@@ -112,11 +112,11 @@ describe('Controller: CapitalDistributorAdmin', () => {
       const fakeCampaign = { id: 'campaign1' }
 
       sandbox.stub(Models.Campaign, 'findCampaignById').resolves(fakeCampaign)
-      sandbox.stub(Models.Reward, 'countDocuments').resolves(0)
-      sandbox.stub(Models.Reward, 'find').returns({ lean: () => Promise.resolve([]) })
+      sandbox.stub(Models.CampaignReward, 'countDocuments').resolves(0)
+      sandbox.stub(Models.CampaignReward, 'find').returns({ lean: () => Promise.resolve([]) })
 
       await expect(
-        CapitalDistributorAdminController.syncMerkleTree({
+        CapitalDistributorAdminController.generateMerkleData({
           campaignId: 'campaign1',
           pluginAddress: '0x123',
           network: NetworksEnum.ethereumMainnet,
@@ -128,10 +128,10 @@ describe('Controller: CapitalDistributorAdmin', () => {
       const fakeCampaign = { id: 'campaign1' }
 
       sandbox.stub(Models.Campaign, 'findCampaignById').resolves(fakeCampaign)
-      sandbox.stub(Models.Reward, 'countDocuments').resolves(1)
+      sandbox.stub(Models.CampaignReward, 'countDocuments').resolves(1)
 
       await expect(
-        CapitalDistributorAdminController.syncMerkleTree({
+        CapitalDistributorAdminController.generateMerkleData({
           campaignId: 'campaign1',
           pluginAddress: '0x123',
           network: NetworksEnum.ethereumMainnet,
@@ -161,7 +161,7 @@ describe('Controller: CapitalDistributorAdmin', () => {
       ]
 
       sandbox.stub(Models.Campaign, 'findCampaignById').resolves(fakeCampaign)
-      sandbox.stub(Models.Reward, 'find').returns({
+      sandbox.stub(Models.CampaignReward, 'find').returns({
         select: () => ({ lean: () => Promise.resolve(fakeMembers) })
       })
 

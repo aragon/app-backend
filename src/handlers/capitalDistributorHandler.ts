@@ -3,8 +3,9 @@ import { type ILogInfo } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
+import Web3Utils from '@helpers/web3Utils'
 import IPFSModule from '@modules/ipfs'
-import Utils from '@helpers/utils'
+import { LogCampaignStrategy } from '@services/aragon-plugins/logCampaignStrategy'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:CapitalDistributorHandler' })
 
@@ -61,61 +62,38 @@ export const CapitalDistributorHandler = {
 
       const campaign = await Models.Campaign.create(campaignData)
 
+      const rawMetadata = await IPFSModule.fetchMetadata(metadataURI, { retries: 4 })
+      if (rawMetadata) {
+        const parsedMetadata = Web3Utils.parseCapitalDistributionMetadata(rawMetadata)
+
+        const campaignMetadata = {
+          title: parsedMetadata.title,
+          description: parsedMetadata.description,
+          resources: parsedMetadata.resources,
+          type: parsedMetadata.type,
+        }
+        await campaign.updateMetadata(campaignMetadata)
+      }
+
       logger.info(
-        'Campaign created',
+        'Campaign Created. Starting allocation strategy crawler',
         llo({
           campaignId: campaignId.toString(),
-          address,
+          allocationStrategy,
           network,
-          metadataURI,
-          token,
         }),
       )
 
-      // Fetch and parse metadata from IPFS
-      const rawMetadata = await IPFSModule.fetchMetadata(metadataURI, { retries: 4 })
-      if (rawMetadata) {
-        const parsedMetadata = IPFSModule.parseCapitalDistributorMetadata(rawMetadata)
-        
-        // Update campaign with basic metadata (name, description, links)
-        const campaignMetadata = {
-          name: parsedMetadata.name,
-          description: parsedMetadata.description,
-          links: parsedMetadata.links,
-        }
-        await campaign.updateMetadata(campaignMetadata)
-
-        // Store plugin-specific metadata in logMetadata
-        const logMetadata = {
-          id: Models.LogMetadata.getEntityId({
-            network,
-            transactionHash,
-            transactionIndex: 0, // We'll use 0 for campaign creation events
-            logIndex: 0,
-          }),
-          transactionHash,
-          blockNumber,
-          transactionIndex: 0,
-          logIndex: 0,
-          network,
-          pluginAddress: address,
-          metadataUri: metadataURI,
-          name: parsedMetadata.name,
-          description: parsedMetadata.description,
-          links: parsedMetadata.links.map(url => ({ name: '', url })),
-          blockedCountries: parsedMetadata.blockedCountries,
-          termsConditionsUrl: parsedMetadata.termsConditionsUrl,
-          enableOfacCheck: parsedMetadata.enableOfacCheck,
-        }
-
-        await Models.LogMetadata.create(logMetadata)
-
-        logger.info(
-          'Campaign and plugin metadata updated',
+      try {
+        await LogCampaignStrategy.start(allocationStrategy, network, blockNumber)
+      } catch (error) {
+        logger.error(
+          'Error starting allocation strategy crawler',
           llo({
+            error,
             campaignId: campaignId.toString(),
-            campaignMetadata: !!parsedMetadata.name || !!parsedMetadata.description,
-            pluginMetadata: parsedMetadata.blockedCountries.length > 0 || !!parsedMetadata.termsConditionsUrl,
+            allocationStrategy,
+            network,
           }),
         )
       }
@@ -171,17 +149,14 @@ export const CapitalDistributorHandler = {
   merkleCampaignSet: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const { address, network } = info
 
-    const plugin = await Models.Plugin.findByAddress(address, network)
-
-    if (!plugin) {
-      logger.warn('Plugin not found', llo(info))
-      return
-    }
-
     try {
       const { campaignId, merkleRoot } = parsedEvent.args
 
-      const campaign = await Models.Campaign.findCampaignById(address, network, campaignId.toString())
+      const campaign = await Models.Campaign.findOne({
+        allocationStrategy: address,
+        network,
+        campaignId: campaignId.toString(),
+      })
 
       if (!campaign) {
         logger.warn(
@@ -215,17 +190,14 @@ export const CapitalDistributorHandler = {
   merkleCampaignUpdated: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const { address, network } = info
 
-    const plugin = await Models.Plugin.findByAddress(address, network)
-
-    if (!plugin) {
-      logger.warn('Plugin not found', llo(info))
-      return
-    }
-
     try {
       const { campaignId, newMerkleRoot } = parsedEvent.args
 
-      const campaign = await Models.Campaign.findCampaignById(address, network, campaignId.toString())
+      const campaign = await Models.Campaign.findOne({
+        allocationStrategy: address,
+        network,
+        campaignId: campaignId.toString(),
+      })
 
       if (!campaign) {
         logger.warn(
@@ -269,15 +241,15 @@ export const CapitalDistributorHandler = {
     try {
       const { campaignId, recipient, amount, totalClaimed } = parsedEvent.args
 
-      let reward = await Models.Reward.findRewardForCampaign(address, network, campaignId.toString(), recipient)
+      let reward = await Models.CampaignReward.findRewardForCampaign(address, network, campaignId.toString(), recipient)
 
       if (!reward) {
-        reward = await Models.Reward.create({
+        reward = await Models.CampaignReward.create({
           pluginAddress: address,
           network,
           campaignId: campaignId.toString(),
           userAddress: recipient,
-          amount: '0',
+          amount,
         })
       }
 
@@ -301,5 +273,4 @@ export const CapitalDistributorHandler = {
       throw error
     }
   },
-
 }

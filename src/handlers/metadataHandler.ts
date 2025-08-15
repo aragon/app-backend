@@ -49,6 +49,9 @@ export const MetadataHandler = {
         links: ipfsMetadata?.links!,
         processKey: ipfsMetadata?.processKey!,
         stageNames: ipfsMetadata?.stageNames!,
+        blockedCountries: ipfsMetadata?.blockedCountries || [],
+        termsConditionsUrl: ipfsMetadata?.termsConditionsUrl || null,
+        enableOfacCheck: ipfsMetadata?.enableOfacCheck || false,
       }
 
       if (daoExists) {

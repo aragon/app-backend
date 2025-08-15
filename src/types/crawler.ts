@@ -98,7 +98,6 @@ export enum ICapitalDistributorLogs {
   PayoutClaimed = 'PayoutClaimed',
   CampaignDeactivated = 'CampaignDeactivated',
   MerkleCampaignSet = 'MerkleCampaignSet',
-  MerkleCampaignUpdated = 'MerkleCampaignUpdated',
 }
 
 export enum IAdminLogs {

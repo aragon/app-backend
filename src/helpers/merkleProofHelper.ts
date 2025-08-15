@@ -1,5 +1,6 @@
-import MerkleTreeHelper, { type IRewardEntry, type IMerkleProof } from '@helpers/merkleTree'
+import MerkleTreeHelper, { type IRewardEntry } from '@helpers/merkleTree'
 import logger from '@logger'
+import { getAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:MerkleProofHelper' })
 
@@ -10,6 +11,13 @@ export interface IUserRewardWithProof {
   leaf: string | null
 }
 
+export interface IMerkleProof {
+  address: string
+  amount: string
+  proof: string[]
+  leaf: string
+}
+
 const MerkleProofHelper = {
   generateProofForUserFromList: (rewards: IRewardEntry[], targetUserAddress: string): IMerkleProof | null => {
     try {
@@ -18,8 +26,9 @@ const MerkleProofHelper = {
         return null
       }
 
-      const treeResult = MerkleTreeHelper.generateMerkleTree(rewards)
-      const userProof = MerkleTreeHelper.generateProofForAddress(treeResult.tree, targetUserAddress)
+      const treeResult = MerkleTreeHelper.generateTreeWithProofs(rewards)
+      const normalizedAddress = getAddress(targetUserAddress)
+      const userProof = treeResult.members.find(member => getAddress(member.address) === normalizedAddress)
 
       if (!userProof) {
         logger.warn(
@@ -42,7 +51,12 @@ const MerkleProofHelper = {
         }),
       )
 
-      return userProof
+      return {
+        address: userProof.address,
+        amount: userProof.amount,
+        proof: userProof.proof,
+        leaf: userProof.leaf,
+      }
     } catch (error) {
       logger.error(
         'Error generating proof for user from list',
@@ -62,17 +76,17 @@ const MerkleProofHelper = {
         return []
       }
 
-      const treeResult = MerkleTreeHelper.generateMerkleTree(rewards)
-      const allProofs = MerkleTreeHelper.generateAllProofs(treeResult.tree)
+      const treeResult = MerkleTreeHelper.generateTreeWithProofs(rewards)
 
       const rewardsWithProofs: IUserRewardWithProof[] = rewards.map(reward => {
-        const proof = allProofs.get(reward.address.toLowerCase())
+        const normalizedAddress = getAddress(reward.address)
+        const memberProof = treeResult.members.find(member => getAddress(member.address) === normalizedAddress)
 
         return {
           address: reward.address,
           amount: reward.amount,
-          proof: proof ? proof.proof : null,
-          leaf: proof ? proof.leaf : null,
+          proof: memberProof ? memberProof.proof : null,
+          leaf: memberProof ? memberProof.leaf : null,
         }
       })
 
@@ -80,7 +94,7 @@ const MerkleProofHelper = {
         'Attached proofs to reward list',
         llo({
           totalRewards: rewards.length,
-          proofsGenerated: allProofs.size,
+          proofsGenerated: treeResult.members.length,
         }),
       )
 
@@ -115,15 +129,16 @@ const MerkleProofHelper = {
         }))
       }
 
-      const treeResult = MerkleTreeHelper.generateMerkleTree(allRewards)
+      const treeResult = MerkleTreeHelper.generateTreeWithProofs(allRewards)
 
       const enrichedRewards = paginatedRewards.map(reward => {
-        const userProof = MerkleTreeHelper.generateProofForAddress(treeResult.tree, reward.address)
+        const normalizedAddress = getAddress(reward.address)
+        const memberProof = treeResult.members.find(member => getAddress(member.address) === normalizedAddress)
 
         return {
           ...reward,
-          proof: userProof ? userProof.proof : null,
-          leaf: userProof ? userProof.leaf : null,
+          proof: memberProof ? memberProof.proof : null,
+          leaf: memberProof ? memberProof.leaf : null,
         }
       })
 
@@ -156,7 +171,7 @@ const MerkleProofHelper = {
         return null
       }
 
-      const treeResult = MerkleTreeHelper.generateMerkleTree(rewards)
+      const treeResult = MerkleTreeHelper.generateTreeWithProofs(rewards)
 
       logger.debug(
         'Generated merkle root from rewards',

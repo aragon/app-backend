@@ -25,7 +25,7 @@ const CapitalDistributorSchema = {
         Joi.object({
           address: ValidationSchema.joiAddress.required(),
           amount: Joi.string().pattern(/^\d+$/).required(),
-        })
+        }),
       )
       .min(1)
       .required(),

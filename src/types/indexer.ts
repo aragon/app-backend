@@ -12,6 +12,7 @@ export enum IndexerType {
   permission = 'permission',
   transferList = 'transferList',
   lockManager = 'lockManager',
+  campaignStrategy = 'campaignStrategy',
 }
 
 export enum IEnumIndexerService {
@@ -30,6 +31,7 @@ export type LogServicePattern =
   | PermissionLogService
   | TransferListLogService
   | LockManagerLogService
+  | CampaignStrategyLogService
   | null
 
 // Individual pattern types
@@ -42,6 +44,7 @@ export type PermissionLogService = `${IndexerType.permission}-${NetworksEnum}-${
 export type TransferListLogService = `${IndexerType.transferList}-${NetworksEnum}-${string}`
 export type TokenLogService = `${ITokenType}-${NetworksEnum}-${string}`
 export type LockManagerLogService = `${IndexerType.lockManager}-${NetworksEnum}-${string}`
+export type CampaignStrategyLogService = `${IndexerType.campaignStrategy}-${NetworksEnum}-${string}`
 
 // Type for parsed log service info
 export type LogServiceInfo =
@@ -54,3 +57,4 @@ export type LogServiceInfo =
   | { type: IndexerType.plugin; interfaceType: IPluginInterfaceType; network: NetworksEnum; address: string }
   | { type: IndexerType.token; tokenType: ITokenType; network: NetworksEnum; address: string }
   | { type: IndexerType.lockManager; network: NetworksEnum; address: string }
+  | { type: IndexerType.campaignStrategy; network: NetworksEnum; address: string }

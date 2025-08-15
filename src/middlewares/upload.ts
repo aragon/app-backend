@@ -1,0 +1,41 @@
+import multer from '@koa/multer'
+import { type RouterContext } from '@koa/router'
+
+const storage = multer.memoryStorage()
+
+const fileFilter = (req: any, file: any, cb: (error: Error | null, acceptFile: boolean) => void) => {
+  if (file.mimetype === 'application/json' || file.originalname.endsWith('.json')) {
+    cb(null, true)
+  } else {
+    cb(new Error('Only JSON files are allowed'), false)
+  }
+}
+
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+    files: 1, // Only one file at a time
+  },
+})
+
+const UploadMiddleware = {
+  single: (fieldName: string) => upload.single(fieldName),
+
+  // Helper function to parse JSON from an uploaded file
+  parseJsonFile: (ctx: RouterContext) => {
+    if (!ctx.file) {
+      throw new Error('No file uploaded')
+    }
+
+    try {
+      const jsonContent = JSON.parse(ctx.file.buffer.toString('utf8'))
+      return jsonContent
+    } catch (error) {
+      throw new Error('Invalid JSON file format')
+    }
+  },
+}
+
+export default UploadMiddleware

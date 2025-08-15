@@ -3,7 +3,7 @@ import { HexAddress, ICollectionNames, NetworksEnum, type IRewardParams } from '
 import { Model, type SaveOptions } from 'mongoose'
 import { assert } from '@errors'
 
-const customName = ICollectionNames.Reward
+const customName = ICollectionNames.CampaignReward
 
 export class RewardStatus {
   @prop({ type: () => String, required: true })
@@ -35,7 +35,7 @@ export class RewardStatus {
 @index({ pluginAddress: 1, network: 1, campaignId: 1, userAddress: 1 }, { unique: true })
 @index({ userAddress: 1 })
 @index({ 'claims.transactionHash': 1 })
-export default class Reward extends Model {
+export default class CampaignReward extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
 
@@ -60,7 +60,13 @@ export default class Reward extends Model {
   @prop({ type: () => [RewardStatus], _id: false, default: [] })
   public claims!: RewardStatus[]
 
-  static async create(rawData: Partial<Reward>, tOpts?: SaveOptions) {
+  @prop({ type: () => Array, default: null })
+  public proof!: [string] | null
+
+  @prop({ type: () => String, default: null })
+  public leaf!: string | null
+
+  static async create(rawData: Partial<CampaignReward>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.pluginAddress, 'pluginAddress is required')
       assert(!!rawData.network, 'network is required')
@@ -206,7 +212,7 @@ export default class Reward extends Model {
     return (allocated - claimed).toString()
   }
 
-  async update(params: Partial<Reward>, tOpts?: SaveOptions) {
+  async update(params: Partial<CampaignReward>, tOpts?: SaveOptions) {
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {

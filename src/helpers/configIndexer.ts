@@ -17,6 +17,7 @@ import {
   type TransferListLogService,
   type LockManagerLogService,
   type HexAddress,
+  type CampaignStrategyLogService,
 } from '@src/types'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ConfigIndexerHelper' })
@@ -83,6 +84,11 @@ const ConfigIndexerHelper = {
       }
       const service = `${tokenType}-${network}-${address}`
       return service as TokenLogService
+    },
+
+    campaignAllocationStrategy: (network: NetworksEnum, address: HexAddress): CampaignStrategyLogService => {
+      const service = `${IndexerType.campaignStrategy}-${network}-${address}`
+      return service as CampaignStrategyLogService
     },
   },
 

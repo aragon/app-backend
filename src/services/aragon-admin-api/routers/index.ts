@@ -17,7 +17,11 @@ const MainAdminRouter = {
     mainAdminRouter.get('/health', ctx => (ctx.status = 200))
     mainAdminRouter.use('/queue', syncAdminRouter.routes(), syncAdminRouter.allowedMethods())
     mainAdminRouter.use('/dao', daoAdminRouter.routes(), daoAdminRouter.allowedMethods())
-    mainAdminRouter.use('/capital-distributor', capitalDistributorAdminRouter.routes(), capitalDistributorAdminRouter.allowedMethods())
+    mainAdminRouter.use(
+      '/capital-distributor',
+      capitalDistributorAdminRouter.routes(),
+      capitalDistributorAdminRouter.allowedMethods(),
+    )
 
     return mainAdminRouter
   },

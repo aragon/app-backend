@@ -91,9 +91,9 @@ describe('Router: CapitalDistributorAdmin', () => {
       }
 
       sandbox.stub(ValidationSchema, 'validateParams').resolves(formattedParams)
-      sandbox.stub(CapitalDistributorAdminController, 'syncMerkleTree').resolves(controllerResult)
+      sandbox.stub(CapitalDistributorAdminController, 'generateMerkleData').resolves(controllerResult)
 
-      await CapitalDistributorAdminRouter.syncMerkleTree(mockCtx as any)
+      await CapitalDistributorAdminRouter.generateMerkleData(mockCtx as any)
 
       expect(mockCtx.body).to.deep.equal(controllerResult)
     })

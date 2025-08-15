@@ -62,6 +62,77 @@ const Utils = {
       : [array]
   },
 
+  processParallel: async <T, R>(
+    items: T[],
+    processor: (item: T) => Promise<R>,
+    options: {
+      concurrency?: number
+      batchSize?: number
+      onError?: (error: any, item: T, index: number) => void
+      onProgress?: (processed: number, total: number, processingTime: number) => void
+    } = {},
+  ): Promise<R[]> => {
+    if (!items || items.length === 0) {
+      return []
+    }
+
+    const { concurrency = 5, batchSize = 1000, onError = Utils.defaultError, onProgress } = options
+
+    const processedItems = new Set<number>()
+    let processedCount = 0
+    const totalItems = items.length
+    const results: R[] = []
+
+    return new Promise<R[]>((resolve, reject) => {
+      const queue = async.queue<{ item: T; index: number }>(async task => {
+        const { item, index } = task
+
+        if (processedItems.has(index)) {
+          processedCount++
+          return
+        }
+        processedItems.add(index)
+
+        const startTime = Date.now()
+
+        try {
+          results[index] = await processor(item)
+          processedCount++
+
+          if (onProgress) {
+            onProgress(processedCount, totalItems, Date.now() - startTime)
+          }
+        } catch (error: any) {
+          processedCount++
+          onError(error, item, index)
+          reject(error)
+        }
+      }, concurrency)
+
+      queue.drain(() => {
+        if (processedCount >= totalItems) {
+          resolve(results.filter(r => r !== undefined))
+        }
+      })
+
+      queue.error((error, task) => {
+        onError(error, task.item, task.index)
+        reject(error)
+      })
+
+      const tasks = items.map((item, index) => ({ item, index }))
+
+      for (let i = 0; i < tasks.length; i += batchSize) {
+        const batch = tasks.slice(i, Math.min(i + batchSize, tasks.length))
+        queue.push(batch)
+      }
+
+      if (queue.length() === 0 && queue.running() === 0) {
+        resolve([])
+      }
+    })
+  },
+
   lowercaseFirstLetter(str: string): string {
     if (!str) return str
     return str.charAt(0).toLowerCase() + str.slice(1)

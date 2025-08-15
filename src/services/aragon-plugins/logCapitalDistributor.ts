@@ -27,10 +27,13 @@ export const LogCapitalDistributor = {
     await crawler.crawl()
     await crawler.end()
 
-    logger.verbose('End LogCapitalDistributor', llo({ 
-      network: plugin.network, 
-      latestBlockSync: crawler.crawlSetting.lastSync 
-    }))
+    logger.verbose(
+      'End LogCapitalDistributor',
+      llo({
+        network: plugin.network,
+        latestBlockSync: crawler.crawlSetting.lastSync,
+      }),
+    )
   },
 
   processError: async (error: any, plugin: Plugin, log: any) => {

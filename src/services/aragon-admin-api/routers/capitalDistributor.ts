@@ -1,8 +1,11 @@
 import Router, { type RouterContext } from '@koa/router'
 import ValidationSchema from '@helpers/validationSchema'
 import CapitalDistributorSchema from '@admin-api/routers/schema/capitalDistributor'
-import CapitalDistributorAdminController from '@admin-api/controllers/capitalDistributor'
+import { CapitalDistributorAdminController } from '@admin-api/controllers/capitalDistributor'
 import AuthMiddleware from '@middlewares/auth'
+import UploadMiddleware from '@middlewares/upload'
+import { assertExposable } from '@errors'
+import { ErrorKeyEnum } from '@types'
 
 const CapitalDistributorAdminRouter = {
   uploadMembersList: async function (ctx: RouterContext) {
@@ -12,14 +15,27 @@ const CapitalDistributorAdminRouter = {
       network: ctx.params.network,
     }
 
-    const body = ctx.request.body
+    let rewards: any[]
+
+    if (ctx.file) {
+      const fileData = UploadMiddleware.parseJsonFile(ctx)
+
+      if (!Array.isArray(fileData)) {
+        assertExposable(false, ErrorKeyEnum.badParams)
+      }
+
+      rewards = fileData
+    } else {
+      const body = ctx.request.body
+      const formattedBody = await ValidationSchema.validateParams(CapitalDistributorSchema.addMembersListBody, body)
+      rewards = formattedBody.rewards
+    }
 
     const formattedParams = await ValidationSchema.validateParams(CapitalDistributorSchema.addMembersListParams, params)
-    const formattedBody = await ValidationSchema.validateParams(CapitalDistributorSchema.addMembersListBody, body)
 
     const combinedParams = {
       ...formattedParams,
-      rewards: formattedBody.rewards,
+      rewards,
     }
 
     ctx.body = await CapitalDistributorAdminController.uploadMembersList(combinedParams)
@@ -36,7 +52,7 @@ const CapitalDistributorAdminRouter = {
     ctx.body = await CapitalDistributorAdminController.getMembersList(formattedParams)
   },
 
-  syncMerkleTree: async function (ctx: RouterContext) {
+  generateMerkleData: async function (ctx: RouterContext) {
     const params = {
       campaignId: ctx.params.campaignId,
       pluginAddress: ctx.params.pluginAddress,
@@ -44,20 +60,30 @@ const CapitalDistributorAdminRouter = {
     }
 
     const formattedParams = await ValidationSchema.validateParams(CapitalDistributorSchema.campaignParams, params)
-    ctx.body = await CapitalDistributorAdminController.syncMerkleTree(formattedParams)
+    ctx.body = await CapitalDistributorAdminController.generateMerkleData(formattedParams)
   },
-
 
   router() {
     const router = new Router()
     const authedAdmin = AuthMiddleware.authAssertAdmin()
 
-    // Members list management
-    router.post('/members/:pluginAddress/:network/:campaignId', authedAdmin, CapitalDistributorAdminRouter.uploadMembersList)
-    router.get('/members/:pluginAddress/:network/:campaignId', authedAdmin, CapitalDistributorAdminRouter.getMembersList)
-    
-    // Merkle tree management
-    router.post('/merkle-tree/sync/:pluginAddress/:network/:campaignId', authedAdmin, CapitalDistributorAdminRouter.syncMerkleTree)
+    router.post(
+      '/:pluginAddress/:network/:campaignId',
+      authedAdmin,
+      UploadMiddleware.single('membersFile'),
+      CapitalDistributorAdminRouter.uploadMembersList,
+    )
+    router.get('/:pluginAddress/:network/:campaignId', authedAdmin, CapitalDistributorAdminRouter.getMembersList)
+
+    router.get('/test', authedAdmin, async (ctx: RouterContext) => {
+      ctx.body = { hello: true }
+    })
+
+    router.get(
+      '/sync-merkle-tree/:pluginAddress/:network/:campaignId',
+      authedAdmin,
+      CapitalDistributorAdminRouter.generateMerkleData,
+    )
 
     return router
   },

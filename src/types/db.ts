@@ -23,7 +23,7 @@ import type PluginSlug from '@models/schema/pluginSlug'
 import type LockManagerMember from '@models/schema/lockManagerMember'
 import type SelectorPermission from '@models/schema/selectorPermission'
 import type Campaign from '@models/schema/campaign'
-import type Reward from '@models/schema/reward'
+import type CampaignReward from '@models/schema/campaignReward'
 
 export enum ICollectionNames {
   Asset = 'Asset',
@@ -40,7 +40,7 @@ export enum ICollectionNames {
   Plugin = 'Plugin',
   PluginRepo = 'PluginRepo',
   Proposal = 'Proposal',
-  Reward = 'Reward',
+  CampaignReward = 'CampaignReward',
   Setting = 'Setting',
   PluginSlug = 'PluginSlug',
   TaskRun = 'TaskRun',
@@ -100,7 +100,7 @@ export interface IMongoModel {
   PluginRepo: typeof PluginRepo
   PluginSlug: typeof PluginSlug
   Proposal: typeof Proposal
-  Reward: typeof Reward
+  CampaignReward: typeof CampaignReward
   Setting: typeof Setting
   TaskRun: typeof TaskRun
   TaskService: typeof TaskService
