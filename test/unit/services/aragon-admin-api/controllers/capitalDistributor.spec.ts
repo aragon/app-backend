@@ -266,7 +266,7 @@ describe('Controller: CapitalDistributorAdmin', () => {
         startTime: 1640995200,
         endTime: 1672531200,
         active: true,
-        root: '0xmerkleroot123', // Change from merkleRoot to root
+        merkleRoot: '0xmerkleroot123', // Change from merkleRoot to root
       })
 
       // Create some campaign rewards
@@ -295,7 +295,7 @@ describe('Controller: CapitalDistributorAdmin', () => {
 
       expect(result).to.have.property('membersCount', 2)
       expect(result).to.have.property('campaignId', mockParams.campaignId)
-      expect(result).to.have.property('root', '0xmerkleroot123') // Change from merkleRoot to root
+      expect(result).to.have.property('merkleRoot', '0xmerkleroot123') // Change from merkleRoot to root
     })
 
     it('should throw error when campaign is not found', async () => {
