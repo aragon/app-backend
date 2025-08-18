@@ -225,7 +225,6 @@ describe('Helpers:RabbitMQ', () => {
 
       // Stubs
       sandbox.stub(RabbitMQ, 'getChannel').returns(fakeChannelWrapper as any)
-      const stubLoggerWarn = sandbox.stub(logger, 'warn')
 
       // Send the same message twice (in parallel) to simulate duplicates.
       await Promise.all([
@@ -237,7 +236,7 @@ describe('Helpers:RabbitMQ', () => {
       expect(fakeChannelWrapper.sendToQueue.calledOnce).to.be.true
 
       // The code logs a warning when skipping a duplicate
-      expect(stubLoggerWarn.calledOnceWith('Skipping duplicate message' as any)).to.be.true
+      expect(loggerWarnStub.calledOnceWith('Skipping duplicate message' as any)).to.be.true
 
       // Now send a new message (with same ID)
       await RabbitMQHelper.sendMessage(queueName, payload)
