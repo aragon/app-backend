@@ -2458,8 +2458,8 @@ describe('Handler:GovernanceVeHandler', () => {
       ]
 
       // Check that all expected calls were made (order doesn't matter)
-      expectedCalls.forEach((expectedCall) => {
-        const found = allCalls.some((actualCall) => {
+      expectedCalls.forEach(expectedCall => {
+        const found = allCalls.some(actualCall => {
           try {
             expect(actualCall).to.deep.equal(expectedCall)
             return true
