@@ -177,10 +177,7 @@ export const DaoTransactions = {
         uniqueId: tx.uniqueId,
       })
 
-      if (existingLog) {
-        logger.verbose('Transaction already saved', llo({ logId: existingLog.id }))
-        return
-      }
+      if (existingLog) return
 
       const transactionReceipt = await Web3Helper.getTransactionReceipt(tx.hash, network)
 
@@ -190,10 +187,15 @@ export const DaoTransactions = {
           daoAddress = proposalExecutionLog[0].txLog.address
 
           const proposalIdLog = Web3Utils.findLogsByName(transactionReceipt, 'ProposalExecuted', Multisig.abi)
-          pluginAddress = proposalIdLog[0].txLog.address
-
           if (proposalIdLog?.length) {
+            pluginAddress = proposalIdLog[0].txLog.address
             proposalIndex = proposalIdLog[0].txLog.topics[1].toString()
+          } else {
+            logger.error(
+              'Proposal Executed not found on tx receipt',
+              llo({ daoAddress, network, transactionHash: tx.hash }),
+            )
+            return
           }
         }
       }
