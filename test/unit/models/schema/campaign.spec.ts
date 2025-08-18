@@ -265,7 +265,7 @@ describe('Model: Campaign', () => {
     it('Should return campaigns with user data - partially claimed', async () => {
       const result = await Models.Campaign.getCampaignsWithPagination({
         paginationParams: {},
-        extraParams: {
+        params: {
           pluginAddress: rawCampaign.pluginAddress!,
           network: rawCampaign.network!,
           userAddress: '0xUser1234567890123456789012345678901234567890' as HexAddress,
@@ -291,7 +291,7 @@ describe('Model: Campaign', () => {
     it('Should return campaigns with user data - fully claimed', async () => {
       const result = await Models.Campaign.getCampaignsWithPagination({
         paginationParams: {},
-        extraParams: {
+        params: {
           pluginAddress: rawCampaign.pluginAddress!,
           network: rawCampaign.network!,
           userAddress: '0xFullyClaimedUser12345678901234567890123456' as HexAddress,
@@ -310,7 +310,7 @@ describe('Model: Campaign', () => {
     it('Should filter by claim status - CLAIMABLE', async () => {
       const result = await Models.Campaign.getCampaignsWithPagination({
         paginationParams: {},
-        extraParams: {
+        params: {
           pluginAddress: rawCampaign.pluginAddress!,
           network: rawCampaign.network!,
           userAddress: '0xUser1234567890123456789012345678901234567890' as HexAddress,
@@ -327,7 +327,7 @@ describe('Model: Campaign', () => {
     it('Should filter by claim status - CLAIMED', async () => {
       const result = await Models.Campaign.getCampaignsWithPagination({
         paginationParams: {},
-        extraParams: {
+        params: {
           pluginAddress: rawCampaign.pluginAddress!,
           network: rawCampaign.network!,
           userAddress: '0xFullyClaimedUser12345678901234567890123456' as HexAddress,
@@ -343,7 +343,7 @@ describe('Model: Campaign', () => {
     it('Should return empty data for non-existing user', async () => {
       const result = await Models.Campaign.getCampaignsWithPagination({
         paginationParams: {},
-        extraParams: {
+        params: {
           pluginAddress: rawCampaign.pluginAddress!,
           network: rawCampaign.network!,
           userAddress: '0xNonExistentUser1234567890123456789012345678' as HexAddress,
@@ -362,7 +362,7 @@ describe('Model: Campaign', () => {
     it('Should handle pagination correctly', async () => {
       const result = await Models.Campaign.getCampaignsWithPagination({
         paginationParams: { page: 1, pageSize: 1 },
-        extraParams: {
+        params: {
           pluginAddress: rawCampaign.pluginAddress!,
           network: rawCampaign.network!,
           userAddress: '0xUser1234567890123456789012345678901234567890' as HexAddress,
@@ -379,7 +379,7 @@ describe('Model: Campaign', () => {
     it('Should include token and strategy information', async () => {
       const result = await Models.Campaign.getCampaignsWithPagination({
         paginationParams: {},
-        extraParams: {
+        params: {
           pluginAddress: rawCampaign.pluginAddress!,
           network: rawCampaign.network!,
           userAddress: '0xUser1234567890123456789012345678901234567890' as HexAddress,
@@ -406,7 +406,7 @@ describe('Model: Campaign', () => {
     it('Should work without userAddress and not include userData field', async () => {
       const result = await Models.Campaign.getCampaignsWithPagination({
         paginationParams: {},
-        extraParams: {
+        params: {
           pluginAddress: rawCampaign.pluginAddress!,
           network: rawCampaign.network!,
         },

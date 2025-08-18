@@ -98,7 +98,7 @@ describe('Controller: CapitalDistributor', () => {
       expect(campaignStub.calledOnce).to.be.true
       expect(campaignStub.args[0][0]).to.deep.eq({
         paginationParams,
-        extraParams,
+        params: extraParams,
       })
     })
 

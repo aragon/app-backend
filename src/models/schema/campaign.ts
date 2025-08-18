@@ -198,76 +198,40 @@ export default class Campaign extends Model {
     params?: ICampaignApiParams
   }): Promise<IPaginatedResult<ICampaignResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
+    const pipeline = this._buildCampaignPipeline(params, paginationParams, request)
+    const countPipeline = this._buildCountPipeline(params, paginationParams)
 
-    const baseFilter: any = {}
-    if (params.pluginAddress) baseFilter.pluginAddress = params.pluginAddress
-    if (params.network) baseFilter.network = params.network
+    const [data, totalResult] = await Promise.all([this.aggregate(pipeline), this.aggregate(countPipeline)])
 
+    const totalRecords = totalResult[0]?.total || 0
+    const currentPage = request.skip / request.limit + 1
+    const totalPages = Math.ceil(totalRecords / request.limit)
+
+    return {
+      metadata: {
+        page: currentPage,
+        pageSize: request.limit,
+        totalPages,
+        totalRecords,
+      },
+      data,
+    }
+  }
+
+  private static _buildCampaignPipeline(
+    params: ICampaignApiParams,
+    paginationParams: IPaginationParams,
+    request: any,
+  ): any[] {
     const pipeline: any[] = []
 
-    pipeline.push({ $match: baseFilter })
+    pipeline.push({ $match: this._buildBaseFilter(params) })
 
     if (params.userAddress) {
-      pipeline.push({
-        $lookup: {
-          from: ICollectionNames.CampaignReward,
-          let: {
-            campaignPlugin: '$pluginAddress',
-            campaignNetwork: '$network',
-            campaignId: '$campaignId',
-          },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    { $eq: ['$pluginAddress', '$$campaignPlugin'] },
-                    { $eq: ['$network', '$$campaignNetwork'] },
-                    { $eq: ['$campaignId', '$$campaignId'] },
-                    { $eq: ['$userAddress', params.userAddress] },
-                  ],
-                },
-              },
-            },
-          ],
-          as: 'userReward',
-        },
-      })
+      pipeline.push(this._buildUserRewardLookup(params.userAddress))
 
       if (params.status) {
-        if (params.status === IClaimStat.CLAIMED) {
-          pipeline.push({
-            $match: {
-              $and: [
-                { userReward: { $not: { $size: 0 } } }, // Must have reward records
-                {
-                  $expr: {
-                    $eq: [
-                      { $arrayElemAt: ['$userReward.totalClaimed', 0] },
-                      { $arrayElemAt: ['$userReward.amount', 0] },
-                    ],
-                  },
-                },
-              ],
-            },
-          })
-        } else if (params.status === IClaimStat.CLAIMABLE) {
-          pipeline.push({
-            $match: {
-              $or: [
-                { userReward: { $size: 0 } },
-                {
-                  $expr: {
-                    $ne: [
-                      { $arrayElemAt: ['$userReward.totalClaimed', 0] },
-                      { $arrayElemAt: ['$userReward.amount', 0] },
-                    ],
-                  },
-                },
-              ],
-            },
-          })
-        }
+        pipeline.push({ $match: this._buildStatusFilter(params.status) })
       }
     }
 
@@ -276,7 +240,100 @@ export default class Campaign extends Model {
       pipeline.push({ $match: searchFilter })
     }
 
-    pipeline.push(
+    pipeline.push(...this._buildTokenLookup())
+
+    pipeline.push({ $project: this._buildProjectStage(params) })
+
+    // Pagination
+    pipeline.push({ $sort: request.sort })
+    pipeline.push({ $skip: request.skip })
+    pipeline.push({ $limit: request.limit })
+
+    return pipeline
+  }
+
+  private static _buildCountPipeline(params: ICampaignApiParams, paginationParams: IPaginationParams): any[] {
+    const pipeline: any[] = []
+
+    pipeline.push({ $match: this._buildBaseFilter(params) })
+
+    if (params.userAddress) {
+      pipeline.push(this._buildUserRewardLookup(params.userAddress))
+
+      if (params.status) {
+        pipeline.push({ $match: this._buildStatusFilter(params.status) })
+      }
+    }
+
+    const searchFilter = ModelUtils.createFilter(paginationParams, ['metadata.title', 'metadata.description'])
+    if (Object.keys(searchFilter).length > 0) {
+      pipeline.push({ $match: searchFilter })
+    }
+
+    pipeline.push({ $count: 'total' })
+    return pipeline
+  }
+
+  private static _buildBaseFilter(params: ICampaignApiParams): any {
+    const filter: any = {}
+    if (params.pluginAddress) filter.pluginAddress = params.pluginAddress
+    if (params.network) filter.network = params.network
+    return filter
+  }
+
+  private static _buildUserRewardLookup(userAddress: string): any {
+    return {
+      $lookup: {
+        from: ICollectionNames.CampaignReward,
+        let: {
+          campaignPlugin: '$pluginAddress',
+          campaignNetwork: '$network',
+          campaignId: '$campaignId',
+        },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ['$pluginAddress', '$$campaignPlugin'] },
+                  { $eq: ['$network', '$$campaignNetwork'] },
+                  { $eq: ['$campaignId', '$$campaignId'] },
+                  { $eq: ['$userAddress', userAddress] },
+                ],
+              },
+            },
+          },
+        ],
+        as: 'userReward',
+      },
+    }
+  }
+
+  private static _buildStatusFilter(status: string): any {
+    if (status === IClaimStat.CLAIMED) {
+      return {
+        $expr: {
+          $and: [
+            { $gt: [{ $size: '$userReward' }, 0] },
+            { $eq: [{ $arrayElemAt: ['$userReward.totalClaimed', 0] }, { $arrayElemAt: ['$userReward.amount', 0] }] },
+          ],
+        },
+      }
+    } else if (status === IClaimStat.CLAIMABLE) {
+      return {
+        $expr: {
+          $or: [
+            { $eq: [{ $size: '$userReward' }, 0] },
+            { $ne: [{ $arrayElemAt: ['$userReward.totalClaimed', 0] }, { $arrayElemAt: ['$userReward.amount', 0] }] },
+          ],
+        },
+      }
+    }
+    return {}
+  }
+
+  private static _buildTokenLookup(): any[] {
+    return [
       {
         $lookup: {
           from: ICollectionNames.Token,
@@ -312,8 +369,10 @@ export default class Campaign extends Model {
           },
         },
       },
-    )
+    ]
+  }
 
+  private static _buildProjectStage(params: ICampaignApiParams): any {
     const projectStage: any = {
       campaignId: '$campaignId',
       title: { $ifNull: ['$metadata.title', ''] },
@@ -338,13 +397,12 @@ export default class Campaign extends Model {
       },
     }
 
-    // Only include the userData field if userAddress was provided (which means userReward lookup was added)
     if (params.userAddress) {
       projectStage.userData = {
-        $cond: {
-          if: { $gt: [{ $size: '$userReward' }, 0] },
-          then: {
-            status: {
+        status: {
+          $cond: {
+            if: { $gt: [{ $size: '$userReward' }, 0] },
+            then: {
               $cond: {
                 if: {
                   $eq: [{ $arrayElemAt: ['$userReward.totalClaimed', 0] }, { $arrayElemAt: ['$userReward.amount', 0] }],
@@ -353,7 +411,13 @@ export default class Campaign extends Model {
                 else: IClaimStat.CLAIMABLE,
               },
             },
-            claims: {
+            else: IClaimStat.CLAIMABLE,
+          },
+        },
+        claims: {
+          $cond: {
+            if: { $gt: [{ $size: '$userReward' }, 0] },
+            then: {
               $map: {
                 input: { $arrayElemAt: ['$userReward.claims', 0] },
                 as: 'claim',
@@ -365,110 +429,39 @@ export default class Campaign extends Model {
                 },
               },
             },
-            proofs: { $arrayElemAt: ['$userReward.proof', 0] },
-            leaf: { $arrayElemAt: ['$userReward.leaf', 0] },
-            totalAmount: { $arrayElemAt: ['$userReward.amount', 0] },
-            totalClaimed: { $arrayElemAt: ['$userReward.totalClaimed', 0] },
+            else: [],
           },
-          else: {
-            status: IClaimStat.CLAIMABLE,
-            claims: [],
-            totalAmount: '0',
-            totalClaimed: '0',
+        },
+        proofs: {
+          $cond: {
+            if: { $gt: [{ $size: '$userReward' }, 0] },
+            then: { $arrayElemAt: ['$userReward.proof', 0] },
+            else: null,
+          },
+        },
+        leaf: {
+          $cond: {
+            if: { $gt: [{ $size: '$userReward' }, 0] },
+            then: { $arrayElemAt: ['$userReward.leaf', 0] },
+            else: null,
+          },
+        },
+        totalAmount: {
+          $cond: {
+            if: { $gt: [{ $size: '$userReward' }, 0] },
+            then: { $arrayElemAt: ['$userReward.amount', 0] },
+            else: '0',
+          },
+        },
+        totalClaimed: {
+          $cond: {
+            if: { $gt: [{ $size: '$userReward' }, 0] },
+            then: { $arrayElemAt: ['$userReward.totalClaimed', 0] },
+            else: '0',
           },
         },
       }
     }
-
-    pipeline.push({ $project: projectStage })
-
-    pipeline.push({ $sort: request.sort })
-    pipeline.push({ $skip: request.skip })
-    pipeline.push({ $limit: request.limit })
-
-    const countPipeline = [
-      { $match: baseFilter },
-      ...(params.userAddress
-        ? [
-            {
-              $lookup: {
-                from: ICollectionNames.CampaignReward,
-                let: {
-                  campaignPlugin: '$pluginAddress',
-                  campaignNetwork: '$network',
-                  campaignId: '$campaignId',
-                },
-                pipeline: [
-                  {
-                    $match: {
-                      $expr: {
-                        $and: [
-                          { $eq: ['$pluginAddress', '$$campaignPlugin'] },
-                          { $eq: ['$network', '$$campaignNetwork'] },
-                          { $eq: ['$campaignId', '$$campaignId'] },
-                          { $eq: ['$userAddress', params.userAddress] },
-                        ],
-                      },
-                    },
-                  },
-                ],
-                as: 'userReward',
-              },
-            },
-          ]
-        : []),
-      ...(params.status && params.userAddress
-        ? [
-            {
-              $match:
-                params.status === IClaimStat.CLAIMED
-                  ? {
-                      $and: [
-                        { userReward: { $not: { $size: 0 } } }, // Must have reward records
-                        {
-                          $expr: {
-                            $eq: [
-                              { $arrayElemAt: ['$userReward.totalClaimed', 0] },
-                              { $arrayElemAt: ['$userReward.amount', 0] },
-                            ],
-                          },
-                        },
-                      ],
-                    }
-                  : {
-                      $or: [
-                        { userReward: { $size: 0 } },
-                        {
-                          $expr: {
-                            $ne: [
-                              { $arrayElemAt: ['$userReward.totalClaimed', 0] },
-                              { $arrayElemAt: ['$userReward.amount', 0] },
-                            ],
-                          },
-                        },
-                      ],
-                    },
-            },
-          ]
-        : []),
-      ...(Object.keys(searchFilter).length > 0 ? [{ $match: searchFilter }] : []),
-      { $count: 'total' },
-    ]
-
-    const [data, totalResult] = await Promise.all([this.aggregate(pipeline), this.aggregate(countPipeline)])
-
-    const totalRecords = totalResult[0]?.total || 0
-    const currentPage = request.skip / request.limit + 1
-    const totalPages = Math.ceil(totalRecords / request.limit)
-
-    return {
-      metadata: {
-        page: currentPage,
-        pageSize: request.limit,
-        totalPages,
-        totalRecords,
-      },
-      data,
-    }
+    return projectStage
   }
 }
