@@ -37,7 +37,7 @@ describe('Integ: VeLock', () => {
     ]
 
     for (const { network, daoAddress } of networks) {
-      it.only(`should handle veLock all events properly ${network}`, async function () {
+      it(`should handle veLock all events properly ${network}`, async function () {
         this.timeout(100000000)
 
         await UnitDepUtils.syncACompleteDao(daoAddress, network)
