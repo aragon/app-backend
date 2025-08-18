@@ -74,7 +74,7 @@ const CovalentHelper = {
       )
       return response.data.data
     } catch (error: any) {
-      if (!error?.response?.data?.error_message?.includes('not found')) {
+      if (!error?.response?.data?.error_message?.includes('not found') && error?.status !== 401) {
         logger.error('Error in Covalent RPC Call', llo({ path, error }))
       }
       throw error

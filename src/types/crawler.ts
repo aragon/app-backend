@@ -5,7 +5,9 @@ import { type Filter, type Log, type LogDescription } from 'ethers'
 
 export interface IIndexerConfigHandler {
   abi: any[]
-  handler: (event: LogDescription, info: ILogInfo, isHistorical?: boolean) => Promise<any>
+  handler:
+    | ((event: LogDescription, info: ILogInfo, isHistorical?: boolean) => Promise<any>)
+    | ((events: Array<{ parsedEvent: LogDescription; info: ILogInfo }>) => Promise<any>)
 }
 
 export interface IIndexerConfig {
@@ -21,6 +23,14 @@ export enum ICrawStrategy {
   getLogsByBatch = 'getLogsByBatch',
 }
 
+export interface IParallelConfig {
+  enable: boolean
+  concurrency?: number
+  batchSize?: number
+  autoScale?: boolean
+  useBatch?: boolean
+}
+
 export interface ICrawlParam {
   network: NetworksEnum
   fromBlock?: number
@@ -28,6 +38,7 @@ export interface ICrawlParam {
   address?: HexAddress | HexAddress[] | string | string[]
   events: IIndexerConfig[]
   stopOnError: boolean
+  parallel?: boolean | IParallelConfig
   onlyHistorical?: boolean
   oneBlockPerTime?: boolean
   filterLogs?: (logs: any) => Promise<any>

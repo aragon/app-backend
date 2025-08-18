@@ -21,10 +21,12 @@ import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
 describe('Web3Provider', () => {
   let sandbox: any
   let loggerStub: any
+  let loggerWarnStub: any
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
     loggerStub = sandbox.stub(logger, 'error')
+    loggerWarnStub = sandbox.stub(logger, 'warn')
   })
 
   afterEach(() => {
@@ -230,8 +232,8 @@ describe('Web3Provider', () => {
 
       const fallbackArgs = fallbackCallStub.firstCall.args
       expect(fallbackArgs[0]).to.deep.equal([
-        EvmExplorerEnum.ETHERSCAN,
         EvmExplorerEnum.BLOCKSCOUT,
+        EvmExplorerEnum.ETHERSCAN,
         EvmExplorerEnum.ROUTESCAN,
       ])
       expect(typeof fallbackArgs[1]).to.equal('function')
@@ -271,7 +273,7 @@ describe('Web3Provider', () => {
       await Web3Provider.fetchContractCreation({ address, network })
 
       expect(fallbackCallStub.calledOnce).to.be.true
-      expect(evmExplorerStub.calledOnceWith(EvmExplorerEnum.ETHERSCAN, address, network)).to.be.true
+      expect(evmExplorerStub.calledOnceWith(EvmExplorerEnum.BLOCKSCOUT, address, network)).to.be.true
     })
 
     it('should validate result has transaction hash in validation function', async () => {
@@ -318,10 +320,32 @@ describe('Web3Provider', () => {
       const fallbackArgs = fallbackCallStub.firstCall.args
       expect(fallbackArgs[0]).to.deep.equal([
         EvmExplorerEnum.ZKSYNC,
-        EvmExplorerEnum.ETHERSCAN,
         EvmExplorerEnum.BLOCKSCOUT,
+        EvmExplorerEnum.ETHERSCAN,
         EvmExplorerEnum.ROUTESCAN,
       ])
+    })
+
+    it('should log warning when explorer fails in onError callback', async () => {
+      const address = '0xcontract'
+      const network = NetworksEnum.ethereumMainnet
+
+      // Reset the logger stub call history
+      loggerWarnStub.resetHistory()
+
+      sandbox.stub(utils, 'fallbackCall').callsFake(async (_explorers, _fn, options) => {
+        // Call the onError callback to trigger the warning
+        if (options?.onError) {
+          const error = new Error('Explorer API failed')
+          options.onError(error, EvmExplorerEnum.ETHERSCAN, 0)
+        }
+        return null
+      })
+
+      await Web3Provider.fetchContractCreation({ address, network })
+
+      expect(loggerWarnStub.calledOnce).to.be.true
+      expect(loggerWarnStub.calledWith('Failed to fetch contract creation from etherscan' as any)).to.be.true
     })
   })
 
@@ -439,6 +463,28 @@ describe('Web3Provider', () => {
         EvmExplorerEnum.ROUTESCAN,
       ])
     })
+
+    it('should log warning when explorer fails in onError callback', async () => {
+      const address = '0xcontract'
+      const network = NetworksEnum.ethereumMainnet
+
+      // Reset the logger stub call history
+      loggerWarnStub.resetHistory()
+
+      sandbox.stub(utils, 'fallbackCall').callsFake(async (_explorers, _fn, options) => {
+        // Call the onError callback to trigger the warning
+        if (options?.onError) {
+          const error = new Error('Source code API failed')
+          options.onError(error, EvmExplorerEnum.BLOCKSCOUT, 1)
+        }
+        return null
+      })
+
+      await Web3Provider.fetchContractSourceCode({ address, network })
+
+      expect(loggerWarnStub.calledOnce).to.be.true
+      expect(loggerWarnStub.calledWith('Failed to fetch contract source code from blockscout' as any)).to.be.true
+    })
   })
 
   describe('fetchBasicTokenInfo', () => {
@@ -459,6 +505,23 @@ describe('Web3Provider', () => {
       // Assert
       expect(getTokenFullDetailsStub.calledOnceWith(address, network)).to.be.true
       expect(getTokenStub.notCalled).to.be.true
+      expect(result).to.equal(tokenDetails)
+    })
+
+    it('should call Covalent directly for zero address', async () => {
+      const address = utils.zeroAddress
+      const network = NetworksEnum.ethereumMainnet
+      const tokenDetails = { name: 'Native Token', symbol: 'ETH' }
+
+      const getTokenStub = sandbox.stub(CovalentHelper, 'getToken').resolves(tokenDetails)
+      const getTokenFullDetailsStub = sandbox.stub(BlockScoutHelper, 'getTokenFullDetails')
+
+      // Act
+      const result = await Web3Provider.fetchBasicTokenInfo({ address, network })
+
+      // Assert
+      expect(getTokenStub.calledOnceWith(address, network)).to.be.true
+      expect(getTokenFullDetailsStub.notCalled).to.be.true
       expect(result).to.equal(tokenDetails)
     })
 
@@ -605,6 +668,50 @@ describe('Web3Provider', () => {
 
       expect(response).to.be.an('array').with.lengthOf(2)
       expect(response.map((tx: any) => tx.type)).to.include.members(['deposit', 'withdraw'])
+      expect(crawlStub.calledTwice).to.be.true
+    })
+
+    it('should log error when deposit transfer crawler encounters an error', async () => {
+      const address = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
+      const network = NetworksEnum.ethereumMainnet
+      const blockNumber = 1
+      const error = new Error('Deposit transfer failed')
+
+      // Use loggerStub from beforeEach instead of creating a new stub
+      const crawlStub = sandbox.stub(BlockchainTransferCrawler.prototype, 'crawl').callsFake(async function (
+        this: any,
+      ) {
+        // Call onError for deposit crawler (first call)
+        if (this.filter.toAddress === address) {
+          await this.onError(error)
+        }
+      })
+
+      await Web3Provider.fetchAddressTxns({ address, network, blockNumber })
+
+      expect(loggerStub.calledWith('Error deposit transfer' as any)).to.be.true
+      expect(crawlStub.calledTwice).to.be.true
+    })
+
+    it('should log error when withdraw transfer crawler encounters an error', async () => {
+      const address = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
+      const network = NetworksEnum.ethereumMainnet
+      const blockNumber = 1
+      const error = new Error('Withdraw transfer failed')
+
+      // Use loggerStub from beforeEach instead of creating a new stub
+      const crawlStub = sandbox.stub(BlockchainTransferCrawler.prototype, 'crawl').callsFake(async function (
+        this: any,
+      ) {
+        // Call onError for withdraw crawler (second call)
+        if (this.filter.fromAddress === address) {
+          await this.onError(error)
+        }
+      })
+
+      await Web3Provider.fetchAddressTxns({ address, network, blockNumber })
+
+      expect(loggerStub.calledWith('Error withdraw transfer' as any)).to.be.true
       expect(crawlStub.calledTwice).to.be.true
     })
   })

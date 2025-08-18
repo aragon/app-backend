@@ -2,127 +2,89 @@ import logger from '@logger'
 import type { LogDescription } from 'ethers'
 import type { ILogInfo } from '@types'
 import { Models } from '@dbModels'
-import Web3Helper from '@helpers/web3'
-import DbOperations from '@models/utils/dbOperations'
-import { ProxyMember } from '@modules/proxyMember'
-import { EnumQueueName } from '@types'
-import RabbitMQHelper from '@helpers/rabbitMQ'
+import { MemberGovernanceFactory } from '@src/governance'
+import { IPluginInterfaceType } from '@types'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
+import type Plugin from '@models/schema/plugin'
 
 const llo = logger.logMeta.bind(null, { service: 'service:handler:LockManagerHandler' })
 
 const LockManagerHandler = {
   balanceLocked: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const voterAddress = parsedEvent.args.voter
+    const network = info.network
+    const lockManagerAddress = info.address
+    const memberAddress = parsedEvent.args.voter
     const eventAmount = parsedEvent.args.amount.toString()
+
     try {
-      const plugin = await Models.Plugin.findOne({
-        lockManagerAddress: info.address,
-        network: info.network,
+      const plugins = await Models.Plugin.find({
+        lockManagerAddress,
+        network,
       })
-
-      if (!plugin) {
-        logger.warn('BalanceLocked - Plugin not found', llo(info))
-        return
-      }
-
-      const existingMember = await Models.LockManagerMember.findMemberByPlugin({
-        network: info.network,
-        pluginAddress: plugin.address,
-        memberAddress: voterAddress,
-      })
+      if (!plugins || plugins.length === 0) return
 
       // Get the total locked balance from the contract
-      const totalLockedBalance = await LockToVoteHelper.getUserLockedBalance(info.network, info.address, voterAddress)
+      const totalLockedBalance = await LockToVoteHelper.getUserLockedBalance(network, lockManagerAddress, memberAddress)
 
-      let totalLockedBalanceStr: string
+      // Create base member using MemberGovernanceFactory
+      await MemberGovernanceFactory.createBaseMember(memberAddress, info.blockNumber)
+
+      // Create LockToVote governance instance
+      const governance = MemberGovernanceFactory.create({
+        address: lockManagerAddress,
+        network: info.network,
+        interfaceType: IPluginInterfaceType.lockToVote,
+      })
+      // Get or create lock manager member
+      await governance.getOrCreate(memberAddress)
+
+      let votingPower: string
 
       if (totalLockedBalance === null) {
         // Fallback: If we can't get balance from contract, sum the event amount to existing balance
         logger.warn(
           'BalanceLocked - Failed to get locked balance from contract, using fallback sum',
-          llo({ ...info, voterAddress }),
+          llo({ ...info, memberAddress }),
         )
+        const lockManager = await governance.findOne(memberAddress)
 
-        if (existingMember) {
+        if (lockManager?.votingPower) {
           // Add event amount to existing voting power
-          const currentPower = BigInt(existingMember.votingPower || '0')
+          const currentPower = BigInt(lockManager.votingPower || '0')
           const addAmount = BigInt(eventAmount)
-          totalLockedBalanceStr = (currentPower + addAmount).toString()
+          votingPower = (currentPower + addAmount).toString()
         } else {
           // New member, use event amount as initial voting power
-          totalLockedBalanceStr = eventAmount
+          votingPower = eventAmount
         }
       } else {
-        totalLockedBalanceStr = totalLockedBalance
+        votingPower = totalLockedBalance
       }
 
-      const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
+      // Update lock manager member voting power
+      await governance.update(memberAddress, {
+        votingPower: votingPower.toString(),
+        lastActivity: info.blockNumber,
+      })
 
-      if (existingMember) {
-        await DbOperations.updateDocument(
-          existingMember,
-          {
-            votingPower: totalLockedBalanceStr,
-            transactionHash: info.transactionHash,
-            blockNumber: info.blockNumber,
-            blockTimestamp,
-          },
-          info,
-          'Update LockManager Member',
-          llo,
-        )
-      } else {
-        const lockManagerMemberData = {
-          network: info.network,
-          pluginAddress: plugin.address,
-          memberAddress: voterAddress,
-          daoAddress: plugin.daoAddress,
-          votingPower: totalLockedBalanceStr,
-          transactionHash: info.transactionHash,
-          blockNumber: info.blockNumber,
-          blockTimestamp,
-        }
-
-        await Promise.all([
-          ProxyMember.createMember(voterAddress),
-          Models.LockManagerMember.create(lockManagerMemberData),
-        ])
-
-        const memberShipParams = {
-          memberAddress: voterAddress,
-          daoAddress: plugin.daoAddress,
-          network: info.network,
-          pluginAddress: plugin.address,
-        }
-
-        const isMember = await ProxyMember.isMemberOfDao(memberShipParams)
-        if (!isMember) {
-          await ProxyMember.addToDao(memberShipParams)
-        }
-
-        await Promise.all([
-          ProxyMember.updateActivity({
-            memberAddress: voterAddress,
+      // Update plugin metrics for all plugins
+      await Promise.all(
+        plugins.map(async (plugin: Plugin) => {
+          await governance.updatePluginMetrics({
+            memberAddress,
             pluginAddress: plugin.address,
-            blockNumber: info.blockNumber,
-            network: info.network,
-          }),
-          ProxyMember.createMetrics({
-            address: voterAddress,
-            pluginAddress: plugin.address,
-            network: info.network,
-          }),
-          RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-            id: plugin.daoAddress,
-            params: { address: plugin.daoAddress, network: info.network },
-          }),
-        ])
-      }
+            daoAddress: plugin.daoAddress,
+            network,
+            lastActivity: info.blockNumber,
+          })
+        }),
+      )
+
+      await governance.updateDaoMetrics()
 
       logger.verbose(
         'Balance locked successfully',
-        llo({ ...info, voterAddress, eventAmount, totalLockedBalance: totalLockedBalanceStr }),
+        llo({ ...info, memberAddress, eventAmount, totalLockedBalance: votingPower }),
       )
     } catch (error) {
       logger.error('Error BalanceLocked', llo({ ...info, error, parsedEvent }))
@@ -131,88 +93,79 @@ const LockManagerHandler = {
 
   balanceUnlocked: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
-      const voterAddress = parsedEvent.args.voter
+      const network = info.network
+      const lockManagerAddress = info.address
+      const memberAddress = parsedEvent.args.voter
       const eventAmount = parsedEvent.args.amount.toString()
 
-      const plugin = await Models.Plugin.findOne({
-        lockManagerAddress: info.address,
+      const plugins = await Models.Plugin.find({
+        lockManagerAddress,
+        network,
+      })
+      if (!plugins || plugins.length === 0) return
+
+      // Get the total locked balance from the contract
+      const totalLockedBalance = await LockToVoteHelper.getUserLockedBalance(network, lockManagerAddress, memberAddress)
+
+      // Create LockToVote governance instance
+      const governance = MemberGovernanceFactory.create({
+        address: lockManagerAddress,
         network: info.network,
+        interfaceType: IPluginInterfaceType.lockToVote,
       })
 
-      if (!plugin) {
-        logger.warn('BalanceUnlocked - Plugin not found', llo(info))
-        return
-      }
-
-      const existingMember = await Models.LockManagerMember.findMemberByPlugin({
-        network: info.network,
-        pluginAddress: plugin.address,
-        memberAddress: voterAddress,
-      })
-
-      if (!existingMember) {
-        logger.warn('BalanceUnlocked - Member not found', llo({ ...info, voterAddress }))
-        return
-      }
-
-      // Get the total locked balance from the contract after unlock
-      const totalLockedBalance = await LockToVoteHelper.getUserLockedBalance(info.network, info.address, voterAddress)
-
-      let totalLockedBalanceStr: string
+      let votingPower: string
 
       if (totalLockedBalance === null) {
         // Fallback: If we can't get balance from contract, subtract the event amount from existing balance
         logger.warn(
           'BalanceUnlocked - Failed to get locked balance from contract, using fallback subtraction',
-          llo({ ...info, voterAddress }),
+          llo({ ...info, memberAddress }),
         )
 
-        const currentPower = BigInt(existingMember.votingPower || '0')
-        const unlockAmount = BigInt(eventAmount)
-        const newPower = currentPower > unlockAmount ? currentPower - unlockAmount : BigInt(0)
-        totalLockedBalanceStr = newPower.toString()
+        // Get lock manager member
+        const lockManager = await governance.findOne(memberAddress)
+
+        if (lockManager?.votingPower) {
+          const currentPower = BigInt(lockManager?.votingPower || '0')
+          const unlockAmount = BigInt(eventAmount)
+          const newPower = currentPower > unlockAmount ? currentPower - unlockAmount : BigInt(0)
+          votingPower = newPower.toString()
+        } else {
+          // should not happen use event amount as initial voting power
+          // votingPower = eventAmount
+          logger.error('Error remove votingPower to not pre exiting one', llo({ ...info, memberAddress }))
+          return
+        }
       } else {
-        totalLockedBalanceStr = totalLockedBalance
+        votingPower = totalLockedBalance
       }
 
-      const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
+      await governance.getOrCreate(memberAddress)
+      // Update lock manager member voting power
+      await governance.update(memberAddress, {
+        votingPower: votingPower.toString(),
+        lastActivity: info.blockNumber,
+      })
 
-      await DbOperations.updateDocument(
-        existingMember,
-        {
-          votingPower: totalLockedBalanceStr,
-          transactionHash: info.transactionHash,
-          blockNumber: info.blockNumber,
-          blockTimestamp,
-        },
-        info,
-        'Update LockManager Member',
-        llo,
+      // Update plugin metrics for all plugins
+      await Promise.all(
+        plugins.map(async (plugin: Plugin) => {
+          await governance.updatePluginMetrics({
+            memberAddress,
+            pluginAddress: plugin.address,
+            daoAddress: plugin.daoAddress,
+            network,
+            lastActivity: info.blockNumber,
+          })
+        }),
       )
 
-      // Only remove from DAO if the member has no more locked tokens
-      if (totalLockedBalanceStr === '0') {
-        const memberShipParams = {
-          memberAddress: voterAddress,
-          daoAddress: plugin.daoAddress,
-          network: info.network,
-          pluginAddress: plugin.address,
-        }
-
-        const isMember = await ProxyMember.isMemberOfDao(memberShipParams)
-        if (isMember) {
-          await ProxyMember.removeFromDao(memberShipParams)
-        }
-      }
-
-      await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-        id: plugin.daoAddress,
-        params: { address: plugin.daoAddress, network: info.network },
-      })
+      await governance.updateDaoMetrics()
 
       logger.verbose(
         'Balance unlocked successfully',
-        llo({ ...info, voterAddress, eventAmount, totalLockedBalance: totalLockedBalanceStr }),
+        llo({ ...info, memberAddress, eventAmount, totalLockedBalance: votingPower }),
       )
     } catch (error) {
       logger.error('Error BalanceUnlocked', llo({ ...info, error, parsedEvent }))

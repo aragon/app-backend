@@ -46,6 +46,12 @@ export default class Member extends Model {
   @prop({ type: () => String, default: null })
   public avatar!: string
 
+  @prop({ type: () => Number, default: null })
+  public lastActivity?: number
+
+  @prop({ type: () => Number, default: null })
+  public firstActivity?: number
+
   static async create(rawData: Partial<Member>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.address, 'address is required')
@@ -102,6 +108,8 @@ export default class Member extends Model {
           address: 1,
           ens: 1,
           avatar: 1,
+          firstActivity: 1,
+          lastActivity: 1,
         },
       },
     ]
@@ -185,45 +193,62 @@ export default class Member extends Model {
             daoPlugin: { $arrayElemAt: ['$plugin', 0] },
           },
         },
-        AggregationQueryHelper.memberBalance(
-          {
-            tokenAddress: '$daoPlugin.tokenAddress',
-            network: '$daoPlugin.network',
-            memberAddress: '$address',
-          },
-          'memberBalance',
-          {
-            amount: 1,
-            votingPower: 1,
-          },
-        ),
-        {
-          $addFields: {
-            memberBalance: {
-              $cond: [
-                { $gt: [{ $size: '$memberBalance' }, 0] },
-                { $arrayElemAt: ['$memberBalance', 0] },
-                { amount: null, votingPower: null },
-              ],
-            },
-          },
-        },
-        AggregationQueryHelper.memberMetrics(
+        AggregationQueryHelper.pluginMetrics(
           {
             pluginAddress: '$daoPlugin.address',
             network: '$daoPlugin.network',
             memberAddress: '$address',
           },
-          'memberMetrics',
+          'pluginMetrics',
           {
-            _id: 0,
-            lastActivity: 1,
-            firstActivity: 1,
-            delegateReceivedCount: 1,
             voteCount: 1,
             proposalCount: 1,
+            firstActivity: 1,
+            lastActivity: 1,
           },
         ),
+        {
+          $addFields: {
+            pluginMetrics: {
+              $cond: {
+                if: { $gt: [{ $size: '$pluginMetrics' }, 0] },
+                then: { $arrayElemAt: ['$pluginMetrics', 0] },
+                else: {
+                  voteCount: 0,
+                  proposalCount: 0,
+                  firstActivity: null,
+                  lastActivity: null,
+                },
+              },
+            },
+          },
+        },
+        AggregationQueryHelper.tokenMember(
+          {
+            tokenAddress: '$daoPlugin.tokenAddress',
+            network: '$daoPlugin.network',
+            memberAddress: '$address',
+          },
+          'tokenMember',
+          {
+            votingPower: 1,
+            delegateReceivedCount: 1,
+          },
+        ),
+        {
+          $addFields: {
+            tokenMember: {
+              $cond: {
+                if: { $gt: [{ $size: '$tokenMember' }, 0] },
+                then: { $arrayElemAt: ['$tokenMember', 0] },
+                else: {
+                  votingPower: null,
+                  delegateReceivedCount: 0,
+                },
+              },
+            },
+          },
+        },
         AggregationQueryHelper.token(
           {
             address: '$daoPlugin.tokenAddress',
@@ -251,21 +276,15 @@ export default class Member extends Model {
         address: 1,
         ens: 1,
         avatar: 1,
-        tokenBalance: '$memberBalance.amount',
-        votingPower: '$memberBalance.votingPower',
+        firstActivity: 1,
+        lastActivity: 1,
+        votingPower: '$tokenMember.votingPower',
         metrics: {
-          $ifNull: [
-            {
-              $arrayElemAt: ['$memberMetrics', 0],
-            },
-            {
-              lastActivity: null,
-              firstActivity: null,
-              delegateReceivedCount: 0,
-              voteCount: 0,
-              proposalCount: 0,
-            },
-          ],
+          lastActivity: '$pluginMetrics.lastActivity',
+          firstActivity: '$pluginMetrics.firstActivity',
+          delegateReceivedCount: '$tokenMember.delegateReceivedCount',
+          voteCount: '$pluginMetrics.voteCount',
+          proposalCount: '$pluginMetrics.proposalCount',
         },
         isGovernance: '$isGovernance',
         hasDelegate: '$hasDelegate',

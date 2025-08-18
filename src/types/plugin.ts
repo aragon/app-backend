@@ -52,13 +52,13 @@ export enum IEventLogPluginSettings {
 }
 
 export enum IPluginInterfaceType {
+  lockToVote = 'lockToVote',
   tokenVoting = 'tokenVoting',
   multisig = 'multisig',
   admin = 'admin',
   spp = 'spp',
   gauge = 'gauge',
   unknown = 'unknown',
-  lockToVote = 'lockToVote',
 }
 
 export interface ISettingVotingEscrow {

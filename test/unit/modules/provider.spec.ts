@@ -6,6 +6,7 @@ import { IProviderType, NetworksEnum } from '@types'
 import config from '@config'
 import { Network } from 'alchemy-sdk'
 import proxyquire from 'proxyquire'
+import logger from '@logger'
 
 describe('Module: provider', () => {
   let sandbox: SinonSandbox
@@ -242,6 +243,104 @@ describe('Module: provider', () => {
       }
       await ProviderModule.closeAllNetworks()
       expect(ProviderModule.providerProxies[NetworksEnum.ethereumMainnet]).to.be.undefined
+    })
+
+    it('should warn when network key is not mapped to valid NetworksEnum', async () => {
+      const rawNodes = {
+        INVALID_NETWORK: {
+          ALCHEMY_API_KEY: 'test-key',
+          FROM_BLOCK: 0,
+          CONFIRMATION_BLOCKS: 12,
+          INTERVAL_BLOCK_TIME: 15,
+        },
+      }
+      sandbox.stub(config, 'NODES').value(rawNodes)
+      const warnStub = sandbox.stub(logger, 'warn')
+
+      await ProviderModule.connectToAllNetworks()
+
+      expect(warnStub.calledOnce).to.be.true
+      const warnCall = warnStub.firstCall
+      expect(warnCall.args[0]).to.include('Network key INVALID_NETWORK is not mapped')
+    })
+
+    it('should warn when Alchemy API key is not configured', async () => {
+      const rawNodes = {
+        ETHEREUM_MAINNET: {
+          ARAGON_RPC: 'http://localhost:8545',
+          FROM_BLOCK: 0,
+          CONFIRMATION_BLOCKS: 12,
+          INTERVAL_BLOCK_TIME: 15,
+        },
+      }
+      sandbox.stub(config, 'NODES').value(rawNodes)
+      const warnStub = sandbox.stub(logger, 'warn')
+      const connectStub = sandbox.stub(ProviderModule, 'connectToNetwork').resolves()
+
+      await ProviderModule.connectToAllNetworks()
+
+      expect(warnStub.calledOnce).to.be.true
+      const warnCall = warnStub.firstCall
+      expect(warnCall.args[0]).to.include('Alchemy node for ethereum-mainnet is not configured')
+      expect(connectStub.calledOnce).to.be.true // Should still connect Aragon RPC
+    })
+
+    it('should warn when Aragon RPC is not configured', async () => {
+      const rawNodes = {
+        ETHEREUM_MAINNET: {
+          ALCHEMY_API_KEY: 'test-key',
+          FROM_BLOCK: 0,
+          CONFIRMATION_BLOCKS: 12,
+          INTERVAL_BLOCK_TIME: 15,
+        },
+      }
+      sandbox.stub(config, 'NODES').value(rawNodes)
+      const warnStub = sandbox.stub(logger, 'warn')
+      const connectStub = sandbox.stub(ProviderModule, 'connectToNetwork').resolves()
+
+      await ProviderModule.connectToAllNetworks()
+
+      expect(warnStub.calledOnce).to.be.true
+      const warnCall = warnStub.firstCall
+      expect(warnCall.args[0]).to.include('Custom (Aragon) node for ethereum-mainnet is not configured')
+      expect(connectStub.calledOnce).to.be.true // Should still connect Alchemy
+    })
+
+    it('getAnyRpcProvider should return undefined when no provider is available', async () => {
+      ProviderModule.providerProxies[NetworksEnum.ethereumMainnet] = {}
+
+      const result = await ProviderModule.getAnyRpcProvider(NetworksEnum.ethereumMainnet)
+
+      expect(result).to.be.undefined
+    })
+
+    it('getProviderUrl should return provider URL when provider has config.getProvider', async () => {
+      const mockProvider = {
+        config: {
+          getProvider: sandbox.stub().resolves({
+            connection: { url: 'https://test-provider-url.com' },
+          }),
+        },
+      }
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').resolves(mockProvider)
+
+      const result = await ProviderModule.getProviderUrl(NetworksEnum.ethereumMainnet)
+
+      expect(result).to.equal('https://test-provider-url.com')
+      expect(mockProvider.config.getProvider.calledOnce).to.be.true
+    })
+
+    it('getProviderUrl should fallback to config ARAGON_RPC when provider has no getProvider', async () => {
+      const mockProvider = {}
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').resolves(mockProvider)
+      const testRpc = 'https://fallback-rpc.com'
+      sandbox.stub(config.NODES, 'ETHEREUM_MAINNET').value({
+        ARAGON_RPC: testRpc,
+      })
+
+      const result = await ProviderModule.getProviderUrl(NetworksEnum.ethereumMainnet)
+
+      expect(result).to.equal(testRpc)
     })
   })
 })

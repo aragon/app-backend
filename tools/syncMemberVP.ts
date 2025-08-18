@@ -3,7 +3,7 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import DBCrawler from '@models/utils/crawler'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
-import type MemberBalance from '@models/schema/memberBalance'
+import type TokenMember from '@models/schema/tokenMember'
 import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'Tools: SyncMemberVP' })
@@ -15,8 +15,8 @@ export const SyncMemberVP: IService = {
     let countWrongData = 0
     const dbCrawler = new DBCrawler({
       model: Models.MemberBalance,
-      onDocument: async (doc: MemberBalance) => {
-        const blockNumber = doc.lastSyncVotingPowerBlockNumber || doc.lastSyncAmountBlockNumber
+      onDocument: async (doc: TokenMember) => {
+        const blockNumber = doc.lastVPBlockNumber
         const blockTimestamp = await Web3Helper.getBlockTimestamp(blockNumber, doc.network)
         const token = await Models.Token.findOne({
           address: doc.tokenAddress,

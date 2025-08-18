@@ -9,6 +9,8 @@ import config from '@config'
 import ProviderModule from '@modules/provider'
 import utils from '@helpers/utils'
 import { ethers } from 'ethers'
+import * as retryRequestModule from '@helpers/retryRequest'
+import BottleneckModule from '@modules/bottleneck'
 
 describe('Helpers: EvmExplorerClient', () => {
   let sandbox: SinonSandbox
@@ -17,6 +19,18 @@ describe('Helpers: EvmExplorerClient', () => {
   beforeEach(() => {
     sandbox = sinon.createSandbox()
     loggerStub = sandbox.stub(logger, 'error')
+    // Stub retryRequest to execute immediately without retries
+    sandbox.stub(retryRequestModule, 'retryRequest').callsFake(async fn => {
+      try {
+        return await fn()
+      } catch (error) {
+        throw error
+      }
+    })
+    // Stub BottleneckModule to execute immediately without rate limiting
+    sandbox.stub(BottleneckModule, 'getEtherScanLimiter').returns({
+      schedule: sandbox.stub().callsFake(async fn => fn()),
+    } as any)
   })
 
   afterEach(() => {
