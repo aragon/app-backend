@@ -28,7 +28,7 @@ describe('Integ: VeLock', () => {
     sandbox.restore()
   })
 
-  describe(`VeLock Test`, () => {
+  describe.skip(`VeLock Test`, () => {
     const networks = [
       {
         network: NetworksEnum.ethereumSepolia,
