@@ -49,15 +49,17 @@ describe('Controller: Plugin', () => {
       const rabbitMqError = new Error('RabbitMQ connection failed')
       const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(rabbitMqError)
 
-      await expect(PluginController.getInstallationData({
-        pluginAddress,
-        network,
-      })).to.be.rejectedWith(Error, 'RabbitMQ connection failed')
+      await expect(
+        PluginController.getInstallationData({
+          pluginAddress,
+          network,
+        }),
+      ).to.be.rejectedWith(Error, 'RabbitMQ connection failed')
 
       expect(rabbitMqStub.calledOnce).to.be.true
       expect(loggerWarnStub.calledOnce).to.be.true
       expect(loggerWarnStub.calledWith('Error while getting plugin installation data')).to.be.true
-      
+
       const logCall = loggerWarnStub.getCall(0)
       expect(logCall.args[1]).to.deep.include({
         error: rabbitMqError,
