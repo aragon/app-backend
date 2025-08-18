@@ -244,17 +244,31 @@ describe('Helpers:PluginSlug', () => {
     it('should handle concurrent slug generation', async () => {
       const baseKey = IPluginSlug.tokenvoting
 
-      const results = await Promise.all([
+      const results = (await Promise.all([
         PluginSlug.generateSlug(plugin, baseKey),
         PluginSlug.generateSlug(plugin2, baseKey),
         PluginSlug.generateSlug(plugin2, baseKey),
-      ])
+      ])) as any
 
-      const baseKeyCount = results.filter(key => key === baseKey).length
-      const baseKeyWithSuffixCount = results.filter(key => key === `${baseKey}_1`).length
+      // Count occurrences of each slug
+      const slugCounts = results.reduce(
+        (acc, slug) => {
+          acc[slug] = (acc[slug] || 0) + 1
+          return acc
+        },
+        {} as Record<string, number>,
+      )
 
-      expect(baseKeyCount).to.eq(1)
-      expect(baseKeyWithSuffixCount).to.eq(2)
+      // Should have exactly 2 unique slugs
+      const uniqueSlugs = Object.keys(slugCounts)
+      expect(uniqueSlugs).to.have.lengthOf(2, 'Should have exactly 2 unique slugs')
+      expect(uniqueSlugs).to.include(baseKey)
+      expect(uniqueSlugs).to.include(`${baseKey}_1`)
+
+      // One slug should appear twice (plugin2's calls), one should appear once (plugin's call)
+      const counts = Object.values(slugCounts)
+      expect(counts).to.include(2, 'One slug should appear twice (for plugin2)')
+      expect(counts).to.include(1, 'One slug should appear once (for plugin)')
     })
 
     it('should generate default slug if processKey is not provided and not existing', async () => {
