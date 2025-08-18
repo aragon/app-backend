@@ -298,7 +298,7 @@ describe('Model: Campaign', () => {
         },
       })
 
-      expect(result.data.length).to.eq(2)
+      expect(result.data.length).to.eq(1)
 
       const fullyClaimedCampaign = result.data.find(c => c.campaignId === 'campaign-001')
       expect(fullyClaimedCampaign?.userData.status).to.eq(IClaimStat.CLAIMED)
@@ -350,13 +350,7 @@ describe('Model: Campaign', () => {
         },
       })
 
-      expect(result.data.length).to.eq(2)
-      result.data.forEach(campaign => {
-        expect(campaign.userData.status).to.eq(IClaimStat.CLAIMABLE)
-        expect(campaign.userData.totalAmount).to.eq('0')
-        expect(campaign.userData.totalClaimed).to.eq('0')
-        expect(campaign.userData.claims).to.have.length(0)
-      })
+      expect(result.data.length).to.eq(0)
     })
 
     it('Should handle pagination correctly', async () => {

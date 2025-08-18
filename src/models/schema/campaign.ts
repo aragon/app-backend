@@ -230,6 +230,8 @@ export default class Campaign extends Model {
     if (params.userAddress) {
       pipeline.push(this._buildUserRewardLookup(params.userAddress))
 
+      pipeline.push({ $match: { $expr: { $gt: [{ $size: '$userReward' }, 0] } } })
+
       if (params.status) {
         pipeline.push({ $match: this._buildStatusFilter(params.status) })
       }
@@ -259,6 +261,9 @@ export default class Campaign extends Model {
 
     if (params.userAddress) {
       pipeline.push(this._buildUserRewardLookup(params.userAddress))
+
+      // When userAddress is provided, only return campaigns where user has rewards
+      pipeline.push({ $match: { $expr: { $gt: [{ $size: '$userReward' }, 0] } } })
 
       if (params.status) {
         pipeline.push({ $match: this._buildStatusFilter(params.status) })
@@ -313,19 +318,13 @@ export default class Campaign extends Model {
     if (status === IClaimStat.CLAIMED) {
       return {
         $expr: {
-          $and: [
-            { $gt: [{ $size: '$userReward' }, 0] },
-            { $eq: [{ $arrayElemAt: ['$userReward.totalClaimed', 0] }, { $arrayElemAt: ['$userReward.amount', 0] }] },
-          ],
+          $eq: [{ $arrayElemAt: ['$userReward.totalClaimed', 0] }, { $arrayElemAt: ['$userReward.amount', 0] }],
         },
       }
     } else if (status === IClaimStat.CLAIMABLE) {
       return {
         $expr: {
-          $or: [
-            { $eq: [{ $size: '$userReward' }, 0] },
-            { $ne: [{ $arrayElemAt: ['$userReward.totalClaimed', 0] }, { $arrayElemAt: ['$userReward.amount', 0] }] },
-          ],
+          $ne: [{ $arrayElemAt: ['$userReward.totalClaimed', 0] }, { $arrayElemAt: ['$userReward.amount', 0] }],
         },
       }
     }
