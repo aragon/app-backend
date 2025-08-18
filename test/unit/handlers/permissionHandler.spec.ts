@@ -602,11 +602,5 @@ describe('Indexer: Permission Handler', () => {
       expect(findExistingLog.calledOnce).to.be.true
       expect(loggerInfo.notCalled).to.be.true
     })
-
-    it.skip('should handle governance creation failure', async () => {
-      // This test is skipped because MemberGovernanceFactory.create should never fail
-      // for valid interface types (admin, multisig, tokenVoting, lockToVote)
-      // It only throws for unsupported types which we don't use in handlers
-    })
   })
 })
