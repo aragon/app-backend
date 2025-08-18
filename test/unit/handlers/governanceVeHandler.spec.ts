@@ -2323,7 +2323,7 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stubLoggerVerbose.called).to.be.true
     })
 
-    it.skip('should handle delegation between different addresses with multiple plugins', async () => {
+    it('should handle delegation between different addresses with multiple plugins', async () => {
       // Create multiple plugins with same tokenAddress
       await Models.Plugin.create({
         id: 'test-plugin-delegate-multi-1',
