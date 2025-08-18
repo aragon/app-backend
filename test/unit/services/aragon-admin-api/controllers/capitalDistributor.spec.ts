@@ -5,16 +5,20 @@ import { Models } from '@dbModels'
 import { ErrorKeyEnum, NetworksEnum, HexAddress } from '@types'
 import * as errors from '@errors'
 import logger from '@logger'
+import Utils from '@helpers/utils'
+import MerkleTreeHelper from '@helpers/merkleTree'
 
 describe('Controller: CapitalDistributorAdmin', () => {
   let sandbox: sinon.SinonSandbox
   let loggerInfoStub: sinon.SinonStub
   let loggerWarnStub: sinon.SinonStub
+  let loggerErrorStub: sinon.SinonStub
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
     loggerInfoStub = sandbox.stub(logger, 'info')
     loggerWarnStub = sandbox.stub(logger, 'warn')
+    loggerErrorStub = sandbox.stub(logger, 'error')
   })
 
   afterEach(() => {
@@ -168,6 +172,42 @@ describe('Controller: CapitalDistributorAdmin', () => {
       expect(allRewards.find(r => r.userAddress === '0x90F79bf6EB2c4f870365E785982E1f101E93b906')).to.be.undefined
       expect(allRewards.find(r => r.userAddress === '0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65')).to.be.undefined
     })
+
+    it('should handle error in Utils.processParallel onError callback during member upload', async () => {
+      await Models.Plugin.create({
+        id: `${mockParams.network}-0xabc123-${mockParams.pluginAddress}`,
+        address: mockParams.pluginAddress,
+        network: mockParams.network,
+        transactionHash: '0xabc123' as HexAddress,
+        blockNumber: 12345,
+        status: 'installed',
+        interfaceType: 'capitalDistribution',
+        daoAddress: '0xdao123' as HexAddress,
+      })
+
+      const processParallelStub = sandbox.stub(Utils, 'processParallel')
+      const mockError = new Error('Database insertion failed')
+      const mockChunk = [{ id: 'test', userAddress: '0x123', amount: '1000' }]
+      const mockIndex = 0
+
+      processParallelStub.callsFake(async (_chunks: any, _processor: any, options: any) => {
+        if (options.onError) {
+          options.onError(mockError, mockChunk, mockIndex)
+        }
+        return [2]
+      })
+
+      await CapitalDistributorAdminController.uploadMembersList(mockParams)
+
+      expect(loggerErrorStub.calledWith('Error processing member upload chunk')).to.be.true
+      const logCall = loggerErrorStub.getCall(0)
+      expect(logCall.args[1]).to.deep.include({
+        error: mockError,
+        chunkIndex: mockIndex,
+        chunkSize: mockChunk.length,
+        campaignId: mockParams.campaignId,
+      })
+    })
   })
 
   describe('generateMerkleData', () => {
@@ -245,6 +285,75 @@ describe('Controller: CapitalDistributorAdmin', () => {
       ).to.be.rejectedWith(Error, ErrorKeyEnum.campaignAlreadyExists)
 
       expect(assertStub.calledWith(false, ErrorKeyEnum.campaignAlreadyExists)).to.be.true
+    })
+
+    it('should handle error in Utils.processParallel onError callback during merkle data generation', async () => {
+      await Models.CampaignReward.create({
+        pluginAddress: mockParams.pluginAddress,
+        network: mockParams.network,
+        campaignId: mockParams.campaignId,
+        userAddress: mockParams.rewards[0].address,
+        amount: '1000',
+        claims: [],
+      })
+
+      const processParallelStub = sandbox.stub(Utils, 'processParallel')
+      const mockError = new Error('Database update failed')
+      const mockChunk = [{ address: '0x123', proof: ['0xproof'], leaf: '0xleaf' }]
+      const mockIndex = 1
+
+      processParallelStub.callsFake(async (_chunks: any, _processor: any, options: any) => {
+        if (options.onError) {
+          options.onError(mockError, mockChunk, mockIndex)
+        }
+        return [1]
+      })
+
+      const result = await CapitalDistributorAdminController.generateMerkleData({
+        campaignId: mockParams.campaignId,
+        pluginAddress: mockParams.pluginAddress,
+        network: mockParams.network,
+      })
+
+      expect(loggerErrorStub.calledWith('Error processing merkle proof update chunk')).to.be.true
+      const logCall = loggerErrorStub.getCall(0)
+      expect(logCall.args[1]).to.deep.include({
+        error: mockError,
+        chunkIndex: mockIndex,
+        chunkSize: mockChunk.length,
+        campaignId: mockParams.campaignId,
+      })
+      expect(result.success).to.be.true
+    })
+
+    it('should handle catch block error and return success false', async () => {
+      await Models.CampaignReward.create({
+        pluginAddress: mockParams.pluginAddress,
+        network: mockParams.network,
+        campaignId: mockParams.campaignId,
+        userAddress: mockParams.rewards[0].address,
+        amount: '1000',
+        claims: [],
+      })
+
+      const mockError = new Error('MerkleTree generation failed')
+      sandbox.stub(MerkleTreeHelper, 'generateTreeWithProofs').throws(mockError)
+
+      const result = await CapitalDistributorAdminController.generateMerkleData({
+        campaignId: mockParams.campaignId,
+        pluginAddress: mockParams.pluginAddress,
+        network: mockParams.network,
+      })
+
+      expect(loggerWarnStub.calledWith('Error generating merkle data')).to.be.true
+      const logCall = loggerWarnStub.getCall(0)
+      expect(logCall.args[1]).to.deep.include({
+        error: mockError,
+        campaignId: mockParams.campaignId,
+        pluginAddress: mockParams.pluginAddress,
+        network: mockParams.network,
+      })
+      expect(result).to.deep.equal({ success: false })
     })
   })
 
