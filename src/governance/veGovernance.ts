@@ -9,6 +9,7 @@ import {
   type IMembersResponse,
   type IMemberExtraParams,
   EnumQueueName,
+  ErrorKeyEnum,
 } from '@types'
 import type Lock from '@models/schema/lock'
 import Web3Utils from '@helpers/web3Utils'
@@ -18,6 +19,7 @@ import { type ClientSession } from 'mongoose'
 import type Plugin from '@models/schema/plugin'
 import utils from '@helpers/utils'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import { assertExposable } from '@errors'
 
 /**
  * VE governance implementation using a Lock model.
@@ -382,15 +384,17 @@ export class VeGovernance extends BaseGovernance {
       pluginAddress: extraParams.pluginAddress,
       tokenAddress: extraParams.tokenAddress,
     })
+    assertExposable(settings, ErrorKeyEnum.notFound)
 
     const token = await Models.Token.findOne({
       address: settings.tokenAddress || extraParams.tokenAddress,
       network: extraParams.network,
     })
+    assertExposable(token, ErrorKeyEnum.notFound)
 
     return Models.Lock.getMembersOfVeLockPlugin({
       paginationParams,
-      pluginAddress: extraParams.pluginAddress,
+      pluginAddress: settings.pluginAddress,
       settings: {
         currentTime: Math.floor(Date.now() / 1000),
         maxTime: settings.votingEscrow.maxTime,
@@ -398,8 +402,8 @@ export class VeGovernance extends BaseGovernance {
         bias: settings.votingEscrow.bias,
         decimals: (BigInt(10) ** BigInt(token.decimals)).toString(),
       },
-      tokenAddress: extraParams.tokenAddress,
-      network: extraParams.network,
+      tokenAddress: token.address,
+      network: settings.network,
     })
   }
 
