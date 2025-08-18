@@ -28,19 +28,6 @@ export interface ITokenRate {
   skipFetchRate?: boolean
 }
 
-export interface ITokenDetails {
-  address?: HexAddress
-  name?: string
-  symbol?: string
-  decimals?: number
-  logo?: string | undefined
-  priceUsd?: string
-  type?: ITokenType
-  totalSupply?: string
-  totalHolders?: number
-  lastUpdatedAt?: any
-}
-
 export interface IToken {
   address: HexAddress
   network: NetworksEnum
@@ -88,18 +75,6 @@ export interface ITokenMetadata {
   decimals: number
   logo: string
   type: ITokenType
-}
-
-export interface ITokenUpdate {
-  priceUsd: string
-  totalHolders: number
-  totalSupply: string
-}
-
-export interface IMemberTokenInfo {
-  balance: string
-  votingPower: string
-  currentDelegate: HexAddress | null
 }
 
 export enum IClockMode {

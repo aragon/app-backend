@@ -2,21 +2,13 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import logger from '@logger'
-import {
-  EnumQueueName,
-  IEventLogMember,
-  IEventLogPluginType,
-  IPluginInterfaceType,
-  IPluginStatus,
-  NetworksEnum,
-} from '@types'
+import { IEventLogMember, IEventLogPluginType, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
 import { MultisigHandler } from '@handlers/multisigHandler'
 import { Models } from '@dbModels'
-import { ProxyMember } from '@modules/proxyMember'
-import RabbitMQHelper from '@helpers/rabbitMQ'
+import { MemberGovernanceFactory } from '@src/governance'
 
-describe('Indexer: MemberHandler', () => {
+describe('Indexer: MultisigHandler', () => {
   let sandbox: SinonSandbox
   let plugin: any
 
@@ -79,19 +71,23 @@ describe('Indexer: MemberHandler', () => {
       } as any
 
       const findByPluginAddressSpy = sandbox.spy(Models.Plugin, 'findByAddress')
-      const findExistingLogSpy = sandbox.spy(ProxyMember, 'addToDao')
-      const stubRaddit = sandbox.stub(RabbitMQHelper, 'sendMessage')
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves({}),
+        updateDaoMetrics: sandbox.stub().resolves(),
+      }
+      const factoryStub = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
       await MultisigHandler.membersAdded(fakeLog, logInfo)
 
       expect(findByPluginAddressSpy.calledOnce).to.be.true
-      expect(findExistingLogSpy.calledTwice).to.be.true
-      expect(stubRaddit.calledTwice).to.be.true
-
-      expect(stubRaddit.args[0][0]).to.be.eq(EnumQueueName.daoMetrics)
-      expect(stubRaddit.args[0][1].id).to.be.eq(plugin.daoAddress)
-      expect(stubRaddit.args[1][0]).to.be.eq(EnumQueueName.daoMetrics)
-      expect(stubRaddit.args[1][1].id).to.be.eq(plugin.daoAddress)
+      expect(factoryStub.calledOnce).to.be.true
+      expect(factoryStub.firstCall.args[0]).to.deep.equal({
+        address: plugin.address,
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.multisig,
+      })
+      expect(mockGovernance.getOrCreate.calledTwice).to.be.true
+      expect(mockGovernance.updateDaoMetrics.calledOnce).to.be.true
     })
 
     it('should return if the plugin is not found', async () => {
@@ -140,19 +136,23 @@ describe('Indexer: MemberHandler', () => {
       } as any
 
       const findByPluginAddressSpy = sandbox.spy(Models.Plugin, 'findByAddress')
-      const findExistingLogSpy = sandbox.spy(ProxyMember, 'removeFromDao')
-      const stubRaddit = sandbox.stub(RabbitMQHelper, 'sendMessage')
+      const mockGovernance = {
+        delete: sandbox.stub().resolves(true),
+        updateDaoMetrics: sandbox.stub().resolves(),
+      }
+      const factoryStub = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
       await MultisigHandler.membersRemoved(fakeLog, logInfo)
 
       expect(findByPluginAddressSpy.calledOnce).to.be.true
-      expect(findExistingLogSpy.calledTwice).to.be.true
-      expect(stubRaddit.calledTwice).to.be.true
-
-      expect(stubRaddit.args[0][0]).to.be.eq(EnumQueueName.daoMetrics)
-      expect(stubRaddit.args[0][1].id).to.be.eq(plugin.daoAddress)
-      expect(stubRaddit.args[1][0]).to.be.eq(EnumQueueName.daoMetrics)
-      expect(stubRaddit.args[1][1].id).to.be.eq(plugin.daoAddress)
+      expect(factoryStub.calledOnce).to.be.true
+      expect(factoryStub.firstCall.args[0]).to.deep.equal({
+        address: plugin.address,
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.multisig,
+      })
+      expect(mockGovernance.delete.calledTwice).to.be.true
+      expect(mockGovernance.updateDaoMetrics.calledOnce).to.be.true
     })
 
     it('fails if plugin is not found', async () => {

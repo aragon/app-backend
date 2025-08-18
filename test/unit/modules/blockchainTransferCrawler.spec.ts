@@ -9,6 +9,8 @@ import config from '@config'
 import { UnitTestUtils } from '@test/lib/utils'
 import ProviderModule from '@modules/provider'
 import Web3Utils from '@helpers/web3Utils'
+import * as retryRequestModule from '@helpers/retryRequest'
+import BottleneckModule from '@modules/bottleneck'
 
 describe('Modules:BlockchainTransferCrawler', () => {
   let sandbox: sinon.SinonSandbox
@@ -24,6 +26,20 @@ describe('Modules:BlockchainTransferCrawler', () => {
     }
     logVerbose = sandbox.stub(Logger, 'verbose')
     logError = sandbox.stub(Logger, 'error')
+    // Stub wait to speed up all tests
+    sandbox.stub(Utils, 'wait').resolves()
+    // Stub retryRequest to execute immediately without retries
+    sandbox.stub(retryRequestModule, 'retryRequest').callsFake(async fn => {
+      try {
+        return await fn()
+      } catch (error) {
+        throw error
+      }
+    })
+    // Stub BottleneckModule to execute immediately without rate limiting
+    sandbox.stub(BottleneckModule, 'getNodeTransferLimiter').returns({
+      schedule: sandbox.stub().callsFake(async fn => fn()),
+    } as any)
   })
 
   afterEach(() => {
@@ -61,7 +77,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
       const providerStub = {
         getBlockNumber: sandbox.stub().resolves(123),
       }
-      sandbox.stub(ProviderModule, 'getProvider').callsFake(network => providerStub as any)
+      sandbox.stub(ProviderModule, 'getProvider').callsFake(_ => providerStub as any)
       const crawler = new BlockchainTransferCrawler({
         network: NetworksEnum.ethereumMainnet,
         filter: {},
@@ -135,6 +151,8 @@ describe('Modules:BlockchainTransferCrawler', () => {
     })
 
     it('should crawl transfers correctly with logService', async () => {
+      // Stub ConfigIndexer for tests that use logService
+      sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves(null)
       sandbox.stub(ProviderModule, 'getProvider').callsFake(network => mockProvider as any)
       const stubSaveProgress = sandbox.stub(BlockchainTransferCrawler.prototype, 'onSaveProgress').resolves()
       mockProvider.getBlockNumber.resolves(16721863 + 10)
@@ -329,7 +347,6 @@ describe('Modules:BlockchainTransferCrawler', () => {
     })
 
     it('should wait on rate limited error', async () => {
-      const waitStub = sandbox.stub(Utils, 'wait').resolves()
       const fakeProviders = UnitTestUtils.getFakeProviders(sandbox)
       sandbox.stub(ProviderModule, 'getProvider').callsFake(network => fakeProviders[network] as any)
 
@@ -342,7 +359,7 @@ describe('Modules:BlockchainTransferCrawler', () => {
       const error = new Error('Your app has exceeded its compute units per second capacity')
       await crawler.handleErrors(error)
 
-      expect(waitStub.calledOnce).to.be.true
+      expect(Utils.wait.calledOnce).to.be.true
     })
 
     it('should call onError and shutdown on other errors', async () => {
@@ -506,29 +523,38 @@ describe('Modules:BlockchainTransferCrawler', () => {
   })
 
   it('should stop crawling if batch size becomes too small', async () => {
-    sandbox.stub(ProviderModule, 'getProvider').callsFake(network => mockProvider as any)
-    const error = new Error('Log response size exceeded')
-    mockProvider.getBlockNumber.resolves(4)
-    mockProvider.send.onFirstCall().rejects(error).onSecondCall().rejects(error).onThirdCall().rejects(error)
+    // Override the global stub to reject for this specific test
+    ;(retryRequestModule.retryRequest as sinon.SinonStub).rejects(new Error('Log response size exceeded'))
 
-    const onTxStub = sandbox.stub().resolves()
+    sandbox.stub(ProviderModule, 'getProvider').callsFake(network => mockProvider as any)
+    mockProvider.getBlockNumber.resolves(100)
+
     const onErrorStub = sandbox.stub()
     const crawler = new BlockchainTransferCrawler({
       network: NetworksEnum.ethereumMainnet,
-      filter: {},
-      onTx: onTxStub,
+      filter: { fromBlock: 0, toBlock: 100 },
+      onTx: async () => {},
       onError: onErrorStub,
     })
 
-    sandbox.stub(crawler, 'isBatchSizeError').returns(true)
+    // Override updateAndCheckConditions to control loop iterations
+    let iterationCount = 0
+    sandbox.stub(crawler, 'updateAndCheckConditions').callsFake(async () => {
+      iterationCount++
+      // Only allow 2 iterations to test batch size reduction
+      return iterationCount <= 2
+    })
+
+    // Start with batch size 2, it should reduce to 1, then stop
     crawler['batchSize'] = 2
+    crawler['originalBatchSize'] = 100
 
     await crawler.crawl()
 
+    expect(crawler['batchSize']).to.equal(1)
     expect(onErrorStub.calledOnce).to.be.true
     expect(logError.calledWith('Batch size too small, stopping crawl')).to.be.true
-    expect(onTxStub.callCount).to.eq(0)
-    expect(crawler['crawling']).to.be.false
+    expect(crawler['shutdown']).to.be.true
   })
 
   it('should stop crawling if shutdown flag is set', async () => {
@@ -539,13 +565,14 @@ describe('Modules:BlockchainTransferCrawler', () => {
     const onTxStub = sandbox.stub().resolves()
     const crawler = new BlockchainTransferCrawler({
       network: NetworksEnum.ethereumMainnet,
-      filter: {},
+      filter: { fromBlock: 0, toBlock: 10 },
       onTx: onTxStub,
     })
 
+    // Immediately set shutdown on first iteration
     sandbox.stub(crawler, 'updateAndCheckConditions').callsFake(async () => {
       crawler.shutdown = true
-      return true
+      return false // Return false to exit loop immediately
     })
 
     await crawler.crawl()

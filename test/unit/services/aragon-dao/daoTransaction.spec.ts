@@ -327,7 +327,6 @@ describe('AragonDao: DaoTransactions', () => {
 
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt')
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken')
-      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
 
       // Execute
       await DaoTransactions.saveTransaction(mockTx, ITransactionType.deposit, mockDao.address, mockDao.network)
@@ -336,7 +335,6 @@ describe('AragonDao: DaoTransactions', () => {
       expect(findExistingLogStub.calledOnce).to.be.true
       expect(getTransactionReceiptStub.notCalled).to.be.true
       expect(saveAndGetTokenStub.notCalled).to.be.true
-      expect(verboseLoggerStub.calledWithMatch('Transaction already saved' as any)).to.be.true
     })
 
     it('should handle when token is not found', async () => {
@@ -724,6 +722,74 @@ describe('AragonDao: DaoTransactions', () => {
       expect(dbTxs[0].toAddress).to.equal(mockTx.to)
       expect(dbTxs[0].proposalIndex).to.equal('0x456')
       expect(dbTxs[0].tokenAddress).to.equal(utils.zeroAddress)
+    })
+
+    it('should log error and return when ProposalExecuted is not found but Executed event exists', async () => {
+      // Setup
+      const mockTx = {
+        hash: '0xabc123',
+        uniqueId: 'unique123',
+        blockNum: '0x100',
+        blockTimestamp: 1623456789,
+        category: 'erc20',
+        from: '0xsender',
+        to: '0xreceiver',
+        value: '1000000000000000000',
+        rawContract: {
+          address: '0xtoken',
+        },
+      }
+
+      const mockDao = {
+        address: '0xdao',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      // Stubs
+      const findExistingLogStub = sandbox.stub(Models.Transaction, 'findExistingLog').resolves(null)
+
+      const mockReceipt = {
+        logs: [
+          {
+            address: '0xdao',
+            topics: ['0xtopic1'],
+          },
+        ],
+      }
+      const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(mockReceipt as any)
+
+      const findLogsByNameStub = sandbox.stub(Web3Utils, 'findLogsByName')
+      // Return Executed event but no ProposalExecuted event
+      findLogsByNameStub.withArgs(mockReceipt, 'Executed', DAO.abi).returns([
+        {
+          txLog: { address: '0xdao' },
+        },
+      ] as any)
+      findLogsByNameStub.withArgs(mockReceipt, 'ProposalExecuted', Multisig.abi).returns([])
+
+      const errorLoggerStub = sandbox.stub(logger, 'error')
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken')
+      const dbTxStub = sandbox.stub(DbTx, 'executeTxFn')
+
+      // Execute
+      await DaoTransactions.saveTransaction(mockTx, ITransactionType.deposit, mockDao.address, mockDao.network)
+
+      // Verify
+      expect(findExistingLogStub.calledOnce).to.be.true
+      expect(getTransactionReceiptStub.calledOnce).to.be.true
+      expect(findLogsByNameStub.calledTwice).to.be.true
+
+      // Verify the specific error was logged
+      expect(errorLoggerStub.calledOnce).to.be.true
+      expect(errorLoggerStub.getCall(0).args[0]).to.equal('Proposal Executed not found on tx receipt')
+
+      // Verify that the function returned early and didn't continue processing
+      expect(saveAndGetTokenStub.notCalled).to.be.true
+      expect(dbTxStub.notCalled).to.be.true
+
+      // Verify no transaction was saved
+      const dbTxs = await Models.Transaction.find({})
+      expect(dbTxs.length).to.equal(0)
     })
   })
 

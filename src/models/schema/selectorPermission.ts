@@ -59,6 +59,7 @@ export class Disallowed {
   },
   options: {
     customName,
+    allowMixed: Severity.WARN,
   },
 })
 @index({ pluginAddress: 1, daoAddress: 1, conditionAddress: 1 })

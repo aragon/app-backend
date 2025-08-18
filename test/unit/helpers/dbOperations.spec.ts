@@ -5,11 +5,8 @@ import { expect } from 'chai'
 import { Models } from '@dbModels'
 import { FakeMember } from '@test/mock/fakeMember'
 import Logger from '@logger'
-import chaiAsPromised from 'chai-as-promised'
-import chai from 'chai'
 import DbTx from '@modules/dbTx'
 
-chai.use(chaiAsPromised)
 const llo = (obj: any) => obj
 
 describe('Model:Utils: dbOperations', () => {
@@ -72,18 +69,16 @@ describe('Model:Utils: dbOperations', () => {
       expect(loggerStub.calledWith('Updated document - DbOperations' as any)).to.be.true
     })
 
-    it.skip('should fail to update a database document', async () => {
+    it('should fail to update a database document', async () => {
       const document = await Models.Member.create(FakeMember)
       const loggerStub = sandbox.stub(Logger, 'error')
-      sandbox.stub(document, 'update').throws(new Error('Failed to update document'))
+      sandbox.stub(DbTx, 'executeTxFn').throws(new Error('Failed to update document'))
 
-      await expect(DbOperation.updateDocument(document, FakeMember, {}, 'DbOperations', llo)).to.be.rejectedWith(
-        Error,
-        'Failed to update document',
-      )
+      const result = await DbOperation.updateDocument(document, FakeMember, {}, 'DbOperations', llo)
 
+      expect(result).to.be.null
       expect(loggerStub.calledOnce).to.be.true
-      expect(loggerStub.calledWith('error after all retry' as any)).to.be.true
+      expect(loggerStub.calledWith('Error updating document - DbOperations' as any)).to.be.true
     })
   })
 })

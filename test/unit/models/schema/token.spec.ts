@@ -201,8 +201,35 @@ describe('Model: Token', () => {
 
   it('should get holder count', async () => {
     const createdToken = await Models.Token.create(rawToken)
+
+    // Create TokenMembers with voting power
+    await Models.TokenMember.create({
+      memberAddress: '0x123456789012345678901234567890123456789A',
+      tokenAddress: createdToken.address,
+      network: createdToken.network,
+      votingPower: '1000000',
+      delegateReceivedCount: 0,
+    })
+
+    await Models.TokenMember.create({
+      memberAddress: '0x223456789012345678901234567890123456789A',
+      tokenAddress: createdToken.address,
+      network: createdToken.network,
+      votingPower: '500000',
+      delegateReceivedCount: 0,
+    })
+
+    // One with zero voting power (should not count)
+    await Models.TokenMember.create({
+      memberAddress: '0x323456789012345678901234567890123456789A',
+      tokenAddress: createdToken.address,
+      network: createdToken.network,
+      votingPower: '0',
+      delegateReceivedCount: 0,
+    })
+
     const holderCount = await createdToken.countHolders()
-    expect(holderCount).to.eq(0)
+    expect(holderCount).to.eq(2)
   })
 
   it('should pick fields', async () => {
