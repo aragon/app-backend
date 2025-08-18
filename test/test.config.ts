@@ -85,7 +85,7 @@ async function runTests() {
 
   try {
     const files = await glob(pattern)
-    files.map(file => mocha.addFile(file))
+    files.forEach(file => mocha.addFile(file))
 
     mocha.run(failures => {
       process.exitCode = failures ? 1 : 0

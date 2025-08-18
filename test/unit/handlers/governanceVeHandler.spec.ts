@@ -2420,46 +2420,42 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(mockGovernanceForMetrics.updatePluginMetrics.callCount).to.equal(4)
 
       // Check calls for sender on both plugins
-      expect(
-        mockGovernanceForMetrics.updatePluginMetrics.getCall(0).calledWith({
-          memberAddress: '0x1111111111111111111111111111111111111111',
-          pluginAddress: '0xFFF',
-          daoAddress: '0xDAOF',
-          network: NetworksEnum.ethereumMainnet,
-          lastActivity: 200,
-        }),
-      ).to.be.true
+      const call0Args = mockGovernanceForMetrics.updatePluginMetrics.getCall(0).args[0]
+      expect(call0Args).to.deep.equal({
+        memberAddress: '0x1111111111111111111111111111111111111111',
+        pluginAddress: '0xFFF',
+        daoAddress: '0xDAOF',
+        network: NetworksEnum.ethereumMainnet,
+        lastActivity: 200,
+      })
 
-      expect(
-        mockGovernanceForMetrics.updatePluginMetrics.getCall(1).calledWith({
-          memberAddress: '0x1111111111111111111111111111111111111111',
-          pluginAddress: '0x111',
-          daoAddress: '0xDAO1',
-          network: NetworksEnum.ethereumMainnet,
-          lastActivity: 200,
-        }),
-      ).to.be.true
+      const call1Args = mockGovernanceForMetrics.updatePluginMetrics.getCall(1).args[0]
+      expect(call1Args).to.deep.equal({
+        memberAddress: '0x1111111111111111111111111111111111111111',
+        pluginAddress: '0x111',
+        daoAddress: '0xDAO1',
+        network: NetworksEnum.ethereumMainnet,
+        lastActivity: 200,
+      })
 
       // Check calls for receiver on both plugins
-      expect(
-        mockGovernanceForMetrics.updatePluginMetrics.getCall(2).calledWith({
-          memberAddress: '0x2222222222222222222222222222222222222222',
-          pluginAddress: '0xFFF',
-          daoAddress: '0xDAOF',
-          network: NetworksEnum.ethereumMainnet,
-          lastActivity: 200,
-        }),
-      ).to.be.true
+      const call2Args = mockGovernanceForMetrics.updatePluginMetrics.getCall(2).args[0]
+      expect(call2Args).to.deep.equal({
+        memberAddress: '0x2222222222222222222222222222222222222222',
+        pluginAddress: '0xFFF',
+        daoAddress: '0xDAOF',
+        network: NetworksEnum.ethereumMainnet,
+        lastActivity: 200,
+      })
 
-      expect(
-        mockGovernanceForMetrics.updatePluginMetrics.getCall(3).calledWith({
-          memberAddress: '0x2222222222222222222222222222222222222222',
-          pluginAddress: '0x111',
-          daoAddress: '0xDAO1',
-          network: NetworksEnum.ethereumMainnet,
-          lastActivity: 200,
-        }),
-      ).to.be.true
+      const call3Args = mockGovernanceForMetrics.updatePluginMetrics.getCall(3).args[0]
+      expect(call3Args).to.deep.equal({
+        memberAddress: '0x2222222222222222222222222222222222222222',
+        pluginAddress: '0x111',
+        daoAddress: '0xDAO1',
+        network: NetworksEnum.ethereumMainnet,
+        lastActivity: 200,
+      })
 
       // Verify DAO metrics update was called
       expect(mockGovernanceForDelegation.updateDaoMetrics.calledOnce).to.be.true
