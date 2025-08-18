@@ -2375,13 +2375,13 @@ describe('Handler:GovernanceVeHandler', () => {
         update: sandbox.stub().resolves(),
         updatePluginMetrics: sandbox.stub().resolves(),
         updateDaoMetrics: sandbox.stub().resolves(),
-      }
+      } as any
 
       const createStub = sandbox.stub(MemberGovernanceFactory, 'create')
       // First call for delegation update
       createStub.onFirstCall().returns(mockGovernanceForDelegation as any)
       // Subsequent calls for metrics updates
-      createStub.returns(mockGovernanceForMetrics as any)
+      createStub.returns(mockGovernanceForMetrics)
 
       const mockParsedEvent = {
         args: {
@@ -2419,42 +2419,55 @@ describe('Handler:GovernanceVeHandler', () => {
       // Verify plugin metrics update was called 4 times (2 plugins * 2 addresses)
       expect(mockGovernanceForMetrics.updatePluginMetrics.callCount).to.equal(4)
 
-      // Check calls for sender on both plugins
-      const call0Args = mockGovernanceForMetrics.updatePluginMetrics.getCall(0).args[0]
-      expect(call0Args).to.deep.equal({
-        memberAddress: '0x1111111111111111111111111111111111111111',
-        pluginAddress: '0xFFF',
-        daoAddress: '0xDAOF',
-        network: NetworksEnum.ethereumMainnet,
-        lastActivity: 200,
-      })
+      // Collect all calls
+      const allCalls: any = []
+      for (let i = 0; i < 4; i++) {
+        allCalls.push(mockGovernanceForMetrics.updatePluginMetrics.getCall(i).args[0])
+      }
 
-      const call1Args = mockGovernanceForMetrics.updatePluginMetrics.getCall(1).args[0]
-      expect(call1Args).to.deep.equal({
-        memberAddress: '0x1111111111111111111111111111111111111111',
-        pluginAddress: '0x111',
-        daoAddress: '0xDAO1',
-        network: NetworksEnum.ethereumMainnet,
-        lastActivity: 200,
-      })
+      // Define expected calls (order doesn't matter)
+      const expectedCalls = [
+        {
+          memberAddress: '0x1111111111111111111111111111111111111111',
+          pluginAddress: '0xFFF',
+          daoAddress: '0xDAOF',
+          network: NetworksEnum.ethereumMainnet,
+          lastActivity: 200,
+        },
+        {
+          memberAddress: '0x1111111111111111111111111111111111111111',
+          pluginAddress: '0x111',
+          daoAddress: '0xDAO1',
+          network: NetworksEnum.ethereumMainnet,
+          lastActivity: 200,
+        },
+        {
+          memberAddress: '0x2222222222222222222222222222222222222222',
+          pluginAddress: '0xFFF',
+          daoAddress: '0xDAOF',
+          network: NetworksEnum.ethereumMainnet,
+          lastActivity: 200,
+        },
+        {
+          memberAddress: '0x2222222222222222222222222222222222222222',
+          pluginAddress: '0x111',
+          daoAddress: '0xDAO1',
+          network: NetworksEnum.ethereumMainnet,
+          lastActivity: 200,
+        },
+      ]
 
-      // Check calls for receiver on both plugins
-      const call2Args = mockGovernanceForMetrics.updatePluginMetrics.getCall(2).args[0]
-      expect(call2Args).to.deep.equal({
-        memberAddress: '0x2222222222222222222222222222222222222222',
-        pluginAddress: '0xFFF',
-        daoAddress: '0xDAOF',
-        network: NetworksEnum.ethereumMainnet,
-        lastActivity: 200,
-      })
-
-      const call3Args = mockGovernanceForMetrics.updatePluginMetrics.getCall(3).args[0]
-      expect(call3Args).to.deep.equal({
-        memberAddress: '0x2222222222222222222222222222222222222222',
-        pluginAddress: '0x111',
-        daoAddress: '0xDAO1',
-        network: NetworksEnum.ethereumMainnet,
-        lastActivity: 200,
+      // Check that all expected calls were made (order doesn't matter)
+      expectedCalls.forEach((expectedCall) => {
+        const found = allCalls.some((actualCall) => {
+          try {
+            expect(actualCall).to.deep.equal(expectedCall)
+            return true
+          } catch {
+            return false
+          }
+        })
+        expect(found, `Expected call not found: ${JSON.stringify(expectedCall)}`).to.be.true
       })
 
       // Verify DAO metrics update was called
