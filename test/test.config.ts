@@ -21,7 +21,7 @@ process.on('unhandledRejection', (reason, promise) => {
   logger.error('Unhandled Promise Rejection', { reason, promise })
 })
 
-process.on('uncaughtException', (error) => {
+process.on('uncaughtException', error => {
   logger.error('Uncaught Exception', { error })
 })
 
