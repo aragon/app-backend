@@ -17,6 +17,19 @@ declare const global: any
 global.chai = chai
 global.expect = chai.expect
 
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Unhandled Promise Rejection', { reason, promise })
+})
+
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught Exception', { error })
+})
+
+process.removeAllListeners('unhandledRejection')
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Unhandled Promise Rejection', { reason, promise })
+})
+
 let testFolder = ''
 if (argv.includes('--unit-dep')) {
   testFolder = 'unit-dep'
