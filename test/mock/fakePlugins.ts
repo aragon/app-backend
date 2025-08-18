@@ -1,6 +1,7 @@
 import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 
 export const PluginList = [
+  // Plugin with token (members in TokenMember)
   {
     transactionHash: '0x6f3e8a941b2140d72e402e35078fd459478222e146aa6d6bd6832d322de5dd71',
     blockNumber: 42368043,
@@ -41,6 +42,62 @@ export const PluginList = [
         permissionId: '0xbf04b4486c9663d805744005c3da000eda93de6e3308a4a7a812eb565327b78d',
       },
     ],
+    uninstalled: {
+      status: false,
+      transactionHash: null,
+      blockNumber: null,
+      blockTimestamp: null,
+    },
+    createdAt: '2024-08-15T22:58:04.751+0000',
+    updatedAt: '2024-08-15T22:58:04.751+0000',
+  },
+  // Plugin without token (members in PluginMember)
+  {
+    transactionHash: '0x7f3e8a941b2140d72e402e35078fd459478222e146aa6d6bd6832d322de5dd72',
+    blockNumber: 42368044,
+    blockTimestamp: 1683363233,
+    network: NetworksEnum.polygonMainnet,
+    address: '0xCf8dE4316E2778E26b12dad8906467b23BB9A294',
+    implementationAddress: '0xFce3e18F5CC70214a6AAa25674444A63683478cF',
+    status: IPluginStatus.installed,
+    isSupported: true,
+    interfaceType: IPluginInterfaceType.multisig,
+    daoAddress: '0xe2e445489b0356D3087efF7e79DB7Ff3f16c4fEA',
+    tokenAddress: null as any, // No token - members stored in PluginMember
+    pluginSetupRepoAddress: '0x0650EE961514C90D927F302b374d52344E8C62BF',
+    sender: '0x51Ead12DEcD31ea75e1046EdFAda14dd639789b8',
+    release: '1',
+    build: '2',
+    subdomain: 'addresslist',
+    permissions: [],
+    uninstalled: {
+      status: false,
+      transactionHash: null,
+      blockNumber: null,
+      blockTimestamp: null,
+    },
+    createdAt: '2024-08-15T22:58:04.751+0000',
+    updatedAt: '2024-08-15T22:58:04.751+0000',
+  },
+  // Another plugin using the same token (members share with first plugin)
+  {
+    transactionHash: '0x8f3e8a941b2140d72e402e35078fd459478222e146aa6d6bd6832d322de5dd73',
+    blockNumber: 42368045,
+    blockTimestamp: 1683363234,
+    network: NetworksEnum.polygonMainnet,
+    address: '0xDf8dE4316E2778E26b12dad8906467b23BB9A295',
+    implementationAddress: '0xGce3e18F5CC70214a6AAa25674444A63683478cG',
+    status: IPluginStatus.installed,
+    isSupported: true,
+    interfaceType: IPluginInterfaceType.tokenVoting,
+    daoAddress: '0xf2e445489b0356D3087efF7e79DB7Ff3f16c4fEB', // Different DAO
+    tokenAddress: '0x03bD27B6FE4f0B3F2C2C9a4289cA2bfcE1DDE95c', // Same token as first plugin
+    pluginSetupRepoAddress: '0x0650EE961514C90D927F302b374d52344E8C62BF',
+    sender: '0x51Ead12DEcD31ea75e1046EdFAda14dd639789b8',
+    release: '1',
+    build: '3',
+    subdomain: 'lens',
+    permissions: [],
     uninstalled: {
       status: false,
       transactionHash: null,

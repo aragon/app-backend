@@ -6,10 +6,10 @@ import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import DBCrawler from '@models/utils/crawler'
 import type Proposal from '@models/schema/proposal'
 import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
-import type MemberBalance from '@models/schema/memberBalance'
 import Web3Helper from '@helpers/web3'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import { ProxyToken } from '@modules/proxyToken'
+import type TokenMember from '@models/schema/tokenMember'
 
 const llo = logger.logMeta.bind(null, { service: 'service:dao:DaoAssets' })
 
@@ -76,13 +76,13 @@ export const AllMetrics = {
     if (network !== NetworksEnum.ethereumSepolia) return
     // we only rebase for the token address 0x01403157c847B2c0291c05DF5055876eB4e039bc on ethereum sepolia
     const dbCrawler = new DBCrawler({
-      model: Models.MemberBalance,
-      onDocument: async (doc: MemberBalance) => {
-        const blockNumber = doc.lastSyncVotingPowerBlockNumber || doc.lastSyncAmountBlockNumber
+      model: Models.TokenMember,
+      onDocument: async (doc: TokenMember) => {
+        const blockNumber = doc.lastVPBlockNumber || doc.blockNumber
         const token = await ProxyToken.saveAndGetToken(doc.tokenAddress, doc.network, false)
         const blockTimestamp = await Web3Helper.getBlockTimestamp(blockNumber, doc.network)
         const memberVotingPower = await GovernanceErc20Helper.getPastVotes(
-          doc.address,
+          doc.memberAddress,
           doc.tokenAddress,
           blockNumber,
           blockTimestamp,
@@ -92,7 +92,7 @@ export const AllMetrics = {
 
         if (memberVotingPower !== doc.votingPower) {
           logger.error('Wrong data', llo({ doc, memberVotingPower }))
-          await doc.update({ votingPower: memberVotingPower, lastSyncVotingPowerBlockNumber: blockNumber })
+          await doc.update({ votingPower: memberVotingPower, lastVPBlockNumber: blockNumber })
         }
       },
       onError: (error: any, document: any) => {

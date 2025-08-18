@@ -62,7 +62,7 @@ const TokenUtils = {
       ITransactionCategory.ERC20,
       ITransactionCategory.ERC721,
       ITransactionCategory.ERC1155,
-      // ITransactionCategory.Internal,
+      // ITransactionCategory.Internal, // TODO: check if can enable or replace
       ITransactionCategory.External,
     ]
 

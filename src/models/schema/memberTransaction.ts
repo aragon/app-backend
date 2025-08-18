@@ -133,40 +133,21 @@ export default class MemberTransaction extends Model {
           network,
           tokenAddress,
           address: memberAddress,
-          type: 'delegate',
+          type: ITransferType.delegate,
+          side: ITransferSide.incoming,
         },
       },
-      { $match: { $expr: { $ne: ['$from', '$to'] } } },
       {
-        $sort: {
-          blockNumber: 1,
-          transactionIndex: 1,
-          logIndex: 1,
-        },
-      },
-      // 3) Assign a count value: +1 for incoming, -1 for outgoing
-      {
-        $addFields: {
-          delegationCount: {
-            $cond: {
-              if: { $eq: ['$side', 'incoming'] },
-              then: 1,
-              else: -1,
+        $match: {
+          $expr: {
+            $not: {
+              $and: [{ $ne: ['$from', null] }, { $ne: ['$to', null] }, { $eq: ['$from', '$to'] }],
             },
           },
         },
       },
       {
-        $group: {
-          _id: null,
-          receivedDelegationCount: { $sum: '$delegationCount' },
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          receivedDelegationCount: { $toInt: '$receivedDelegationCount' },
-        },
+        $count: 'receivedDelegationCount',
       },
     ]
 

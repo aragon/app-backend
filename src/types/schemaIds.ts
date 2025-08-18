@@ -64,7 +64,7 @@ export interface ILogMetadataIdParams {
 
 export interface ILockManagerMemberIdParams {
   network: NetworksEnum
-  pluginAddress: HexAddress
+  lockManagerAddress: HexAddress
   memberAddress: HexAddress
 }
 
@@ -107,18 +107,6 @@ export interface IMemberIdParams {
   address: HexAddress
 }
 
-export interface IMemberMetricsIdParams {
-  network: NetworksEnum
-  address: HexAddress
-  pluginAddress: HexAddress
-}
-
-export interface IMemberBalanceIdParams {
-  network: NetworksEnum
-  address: HexAddress
-  tokenAddress: HexAddress
-}
-
 export interface IPluginIdParams {
   network: NetworksEnum
   transactionHash: HexAddress
@@ -158,4 +146,22 @@ export interface ISelectorPermissionIdParams {
   transactionIndex: number
   logIndex: number
   conditionAddress: HexAddress
+}
+
+export interface IPluginMemberIdParams {
+  network: NetworksEnum
+  pluginAddress: HexAddress
+  memberAddress: HexAddress
+}
+
+export interface ITokenMemberIdParams {
+  network: NetworksEnum
+  tokenAddress: HexAddress
+  memberAddress: HexAddress
+}
+
+export interface IPluginMetricsIdParams {
+  network: NetworksEnum
+  pluginAddress: HexAddress
+  memberAddress: HexAddress
 }

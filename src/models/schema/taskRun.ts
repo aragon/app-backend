@@ -46,6 +46,7 @@ class Task {
   },
   options: {
     customName,
+    allowMixed: Severity.WARN,
   },
 })
 @index({ serviceName: 1, createdAt: -1 })

@@ -7,7 +7,7 @@ import Web3Utils from '@helpers/web3Utils'
 import ProxyContractHelper from '@helpers/proxyContract'
 import { DAO } from '@artifacts/dao'
 import { MetadataHandler } from '@src/handlers/metadataHandler'
-import { ProxyMember } from '@modules/proxyMember'
+import { MemberGovernanceFactory } from '@src/governance'
 import DbOperations from '@models/utils/dbOperations'
 import Utils from '@helpers/utils'
 import RabbitMQHelper from '@helpers/rabbitMQ'
@@ -18,8 +18,7 @@ const llo = logger.logMeta.bind(null, { service: 'handlers:DaoRegistryHandler' }
 export const DaoRegistryHandler = {
   daoRegistered: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const { network, transactionHash, blockNumber } = info
-    const daoAddress = parsedEvent.args.dao
-    const subdomain = parsedEvent.args.subdomain
+    const { dao: daoAddress, creator: creatorAddress, subdomain } = parsedEvent.args
 
     const existingLog = await Models.Dao.findExistingLog({
       network,
@@ -44,12 +43,12 @@ export const DaoRegistryHandler = {
       ens,
       subdomain: validSubdomain,
       version: await Web3Helper.getDaoOsVersion(daoAddress, network),
-      creatorAddress: parsedEvent.args.creator,
+      creatorAddress,
     }
 
     const dao = await DbOperations.createDocument(Models.Dao, document, info, 'New DaoRegistered', llo)
 
-    await ProxyMember.createMember(parsedEvent.args.creator)
+    await MemberGovernanceFactory.createBaseMember(creatorAddress)
     await DaoRegistryHandler.initiateNewDaoCreation(info, dao.address)
 
     await RabbitMQHelper.sendMessage(EnumQueueName.logDao, {

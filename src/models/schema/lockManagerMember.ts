@@ -7,6 +7,7 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   type IMembersResponse,
+  type IMemberExtraParams,
 } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
@@ -28,9 +29,9 @@ const customName = ICollectionNames.LockManagerMember
     customName,
   },
 })
-@index({ network: 1, pluginAddress: 1, memberAddress: 1 })
-@index({ network: 1, pluginAddress: 1, votingPower: -1 })
-@index({ pluginAddress: 1, memberAddress: 1 })
+@index({ network: 1, lockManagerAddress: 1, memberAddress: 1 })
+@index({ network: 1, lockManagerAddress: 1, votingPower: -1 })
+@index({ lockManagerAddress: 1, memberAddress: 1 })
 export default class LockManagerMember extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -39,34 +40,25 @@ export default class LockManagerMember extends Model {
   public network!: NetworksEnum
 
   @prop({ type: () => String, required: true })
-  public pluginAddress!: HexAddress
+  public lockManagerAddress!: HexAddress
 
   @prop({ type: () => String, required: true })
   public memberAddress!: HexAddress
 
-  @prop({ type: () => String, required: true })
-  public daoAddress!: HexAddress
-
   @prop({ type: () => String, default: '0' })
   public votingPower!: string
 
-  @prop({ type: () => String })
-  public transactionHash!: HexAddress
-
-  @prop({ type: () => Number })
-  public blockNumber!: number
-
-  @prop({ type: () => Number })
-  public blockTimestamp?: number
+  @prop({ type: () => Number, default: 0 })
+  public lastVPBlockNumber!: number
 
   static async create(rawData: Partial<LockManagerMember>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
-      assert(!!rawData.pluginAddress, 'pluginAddress is required')
+      assert(!!rawData.lockManagerAddress, 'lockManagerAddress is required')
       assert(!!rawData.memberAddress, 'memberAddress is required')
       rawData.id = this.getEntityId({
         network: rawData.network!,
-        pluginAddress: rawData.pluginAddress!,
+        lockManagerAddress: rawData.lockManagerAddress!,
         memberAddress: rawData.memberAddress!,
       })
     }
@@ -75,39 +67,44 @@ export default class LockManagerMember extends Model {
   }
 
   static getEntityId(params: ILockManagerMemberIdParams) {
-    return `${params.network}-${params.pluginAddress}-${params.memberAddress}`
+    return `${params.network}-${params.lockManagerAddress}-${params.memberAddress}`
+  }
+
+  static async findExistingLog(params: ILockManagerMemberIdParams, tOpts?: SaveOptions) {
+    const entityId = this.getEntityId(params)
+    return await this.findByEntityId(entityId, tOpts)
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
     return await this.findOne({ id: entityId }, null, tOpts)
   }
 
-  static async findMemberByPlugin(
+  static async findMemberByLockManager(
     {
       network,
-      pluginAddress,
+      lockManagerAddress,
       memberAddress,
     }: {
       network: NetworksEnum
-      pluginAddress: HexAddress
+      lockManagerAddress: HexAddress
       memberAddress: HexAddress
     },
     tOpts?: SaveOptions,
   ) {
-    return await this.findOne({ network, pluginAddress, memberAddress }, null, tOpts)
+    return await this.findOne({ network, lockManagerAddress, memberAddress }, null, tOpts)
   }
 
   static async findActiveMembers(
     {
       network,
-      pluginAddress,
+      lockManagerAddress,
     }: {
       network: NetworksEnum
-      pluginAddress: HexAddress
+      lockManagerAddress: HexAddress
     },
     tOpts?: SaveOptions,
   ) {
-    return await this.find({ network, pluginAddress, votingPower: { $ne: '0' } }, null, tOpts)
+    return await this.find({ network, lockManagerAddress, votingPower: { $ne: '0' } }, null, tOpts)
   }
 
   async update(params: Partial<LockManagerMember>, tOpts?: SaveOptions) {
@@ -132,99 +129,112 @@ export default class LockManagerMember extends Model {
 
   static async findAndPaginate({
     paginationParams = {},
-    pluginAddress,
-    network,
+    extraParams = {},
   }: {
     paginationParams?: IPaginationParams
-    pluginAddress: HexAddress
-    network: NetworksEnum
+    extraParams?: IMemberExtraParams
   }): Promise<IPaginatedResult<IMembersResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
-    const filter = {
-      pluginAddress,
-      network,
+
+    const filter: any = {}
+
+    if (extraParams?.lockManagerAddress) {
+      filter.lockManagerAddress = extraParams.lockManagerAddress
+      filter.network = extraParams.network
     }
+
+    const searchFilter = ModelUtils.createFilter(paginationParams, ['memberInfo.ens', 'memberInfo.address'])
 
     const currentPage = request.skip / request.limit + 1
 
-    const query = [
-      AggregationQueryHelper.member(
+    const query: any = [
+      {
+        $match: {
+          ...filter,
+          votingPower: { $ne: '0' },
+        },
+      },
+    ]
+
+    const mainQuery = [
+      {
+        $lookup: {
+          from: ICollectionNames.Member,
+          localField: 'memberAddress',
+          foreignField: 'address',
+          as: 'memberInfo',
+        },
+      },
+      {
+        $addFields: {
+          memberInfo: {
+            $arrayElemAt: ['$memberInfo', 0],
+          },
+        },
+      },
+      ...(Object.keys(searchFilter).length ? [{ $match: searchFilter }] : []),
+      AggregationQueryHelper.pluginMetrics(
         {
+          pluginAddress: extraParams?.pluginAddress,
+          network: extraParams?.network!,
           memberAddress: '$memberAddress',
         },
-        'member',
+        'pluginMetrics',
         {
-          address: 1,
-          ens: 1,
-          avatar: 1,
+          voteCount: 1,
+          proposalCount: 1,
+          firstActivity: 1,
+          lastActivity: 1,
         },
       ),
       {
         $addFields: {
-          member: {
+          pluginMetrics: {
             $cond: {
-              if: { $gt: [{ $size: '$member' }, 0] },
-              then: {
-                address: { $arrayElemAt: ['$member.address', 0] },
-                ens: { $arrayElemAt: ['$member.ens', 0] },
-                avatar: { $arrayElemAt: ['$member.avatar', 0] },
-              },
+              if: { $gt: [{ $size: '$pluginMetrics' }, 0] },
+              then: { $arrayElemAt: ['$pluginMetrics', 0] },
               else: {
-                address: '$memberAddress',
-                ens: null,
-                avatar: null,
+                voteCount: 0,
+                proposalCount: 0,
+                firstActivity: null,
+                lastActivity: null,
               },
             },
           },
         },
       },
-      AggregationQueryHelper.memberMetrics(
-        {
-          memberAddress: '$memberAddress',
-          network,
-          pluginAddress,
-        },
-        'memberMetrics',
-        {
-          _id: 0,
-          lastActivity: 1,
-          firstActivity: 1,
-          delegateReceivedCount: 1,
-          voteCount: 1,
-          proposalCount: 1,
-        },
-      ),
       {
         $project: {
           _id: 0,
-          address: '$member.address',
-          ens: '$member.ens',
-          avatar: '$member.avatar',
-          votingPower: 1,
+          address: '$memberInfo.address',
+          ens: '$memberInfo.ens',
+          avatar: '$memberInfo.avatar',
+          tokenBalance: null, // LockManagerMember doesn't have amount field
+          votingPower: '$votingPowerString',
           metrics: {
-            $ifNull: [
-              {
-                $arrayElemAt: ['$memberMetrics', 0],
-              },
-              {
-                lastActivity: null,
-                firstActivity: null,
-                delegateReceivedCount: 0,
-                voteCount: 0,
-                proposalCount: 0,
-              },
-            ],
+            voteCount: '$pluginMetrics.voteCount',
+            proposalCount: '$pluginMetrics.proposalCount',
+            firstActivity: '$pluginMetrics.firstActivity',
+            lastActivity: '$pluginMetrics.lastActivity',
           },
         },
       },
     ]
 
     const aggQuery = [
-      { $match: filter },
       ...query,
+      {
+        $addFields: {
+          votingPowerString: '$votingPower',
+          votingPower: {
+            $toDouble: '$votingPower',
+          },
+        },
+      },
       { $sort: request?.sort },
       { $skip: request?.skip },
       { $limit: request?.limit },
+      ...mainQuery,
     ]
 
     const [data, totalRecords] = await Promise.all([

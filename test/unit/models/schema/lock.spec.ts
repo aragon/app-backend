@@ -25,6 +25,7 @@ describe('Model: Lock', () => {
       blockNumber: 18000000,
       blockTimestamp: 1640995200,
       memberAddress: '0xmember1234567890abcdef1234567890abcdef1',
+      delegateReceiverAddress: '0xmember1234567890abcdef1234567890abcdef1', // Add delegateReceiverAddress
       escrowAddress: '0xescrow1234567890abcdef1234567890abcdef1',
       exitQueueAddress: '0xexitqueue1234567890abcdef1234567890abcdef1',
       tokenAddress: '0xtoken1234567890abcdef1234567890abcdef12',
@@ -66,8 +67,13 @@ describe('Model: Lock', () => {
     })
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     sandbox?.restore()
+    // Clean up database to prevent test interference
+    await Models.Lock.deleteMany({})
+    await Models.Member.deleteMany({})
+    await Models.TokenMember.deleteMany({})
+    await Models.Token.deleteMany({})
   })
 
   describe('it should create lock', () => {
@@ -422,6 +428,7 @@ describe('Model: Lock', () => {
         transactionHash: '0xactive1111111111111111111111111111111111',
         tokenId: '101',
         memberAddress: '0xActive1234567890abcdef1234567890abcdef',
+        delegateReceiverAddress: '0xActive1234567890abcdef1234567890abcdef',
         tokenAddress,
         amount: '1000000000000000000', // 1 token
         epochStartAt: 1640995100, // 100 seconds ago
@@ -434,6 +441,7 @@ describe('Model: Lock', () => {
         transactionHash: '0xactive2222222222222222222222222222222222',
         tokenId: '102',
         memberAddress: '0xActive2234567890abcdef1234567890abcdef',
+        delegateReceiverAddress: '0xActive2234567890abcdef1234567890abcdef',
         tokenAddress,
         amount: '2000000000000000000', // 2 tokens
         epochStartAt: 1640995000, // 200 seconds ago
@@ -447,29 +455,30 @@ describe('Model: Lock', () => {
         transactionHash: '0xinactive333333333333333333333333333333',
         tokenId: '103',
         memberAddress: '0xInactive234567890abcdef1234567890abcdef',
+        delegateReceiverAddress: '0xInactive234567890abcdef1234567890abcdef',
         tokenAddress,
         amount: '1500000000000000000', // 1.5 tokens
         epochStartAt: 1640995050,
         lockExit: { status: true }, // This lock is exited
       })
 
-      // Create member balances that match the locks
-      await Models.MemberBalance.create({
+      // Create TokenMembers that match the locks
+      await Models.TokenMember.create({
         network,
-        address: '0xActive1234567890abcdef1234567890abcdef',
+        memberAddress: '0xActive1234567890abcdef1234567890abcdef',
         tokenAddress,
-        amount: '1000000000000000000',
         tokenIds: ['101'], // Must match the tokenId from the lock
-        votingPower: '0',
+        votingPower: '1000000000000000000',
+        delegateReceivedCount: 0,
       })
 
-      await Models.MemberBalance.create({
+      await Models.TokenMember.create({
         network,
-        address: '0xActive2234567890abcdef1234567890abcdef',
+        memberAddress: '0xActive2234567890abcdef1234567890abcdef',
         tokenAddress,
-        amount: '2000000000000000000',
         tokenIds: ['102'], // Must match the tokenId from the lock
-        votingPower: '0',
+        votingPower: '2000000000000000000',
+        delegateReceivedCount: 0,
       })
 
       const paginationParams = {
@@ -534,6 +543,7 @@ describe('Model: Lock', () => {
           transactionHash: `0x${i.toString().padStart(40, '0')}`,
           tokenId,
           memberAddress,
+          delegateReceiverAddress: memberAddress,
           tokenAddress,
           amount: `${(i + 1) * 1000000000000000000}`, // Different amounts
           epochStartAt: 1640995200 - i * 10, // Different start times
@@ -561,7 +571,14 @@ describe('Model: Lock', () => {
         await Models.Lock.create(lock)
       }
       for (const balance of balances) {
-        await Models.MemberBalance.create(balance)
+        await Models.TokenMember.create({
+          memberAddress: balance.address,
+          tokenAddress: balance.tokenAddress,
+          network: balance.network,
+          tokenIds: balance.tokenIds,
+          votingPower: balance.amount || balance.votingPower || '0',
+          delegateReceivedCount: 0,
+        })
       }
 
       // Test first page
@@ -649,6 +666,7 @@ describe('Model: Lock', () => {
         transactionHash: '0xactivetest111111111111111111111111111111',
         tokenId: 301,
         memberAddress: '0xActive1234567890abcdef1234567890abcdef',
+        delegateReceiverAddress: '0xActive1234567890abcdef1234567890abcdef',
         tokenAddress,
         amount: '1000000000000000000',
         epochStartAt: 1640995100,
@@ -662,20 +680,21 @@ describe('Model: Lock', () => {
         transactionHash: '0xinactivetest222222222222222222222222222',
         tokenId: 302,
         memberAddress: '0xInactive234567890abcdef1234567890abcdef',
+        delegateReceiverAddress: '0xInactive234567890abcdef1234567890abcdef',
         tokenAddress,
         amount: '2000000000000000000',
         epochStartAt: 1640995100,
         lockExit: { status: true }, // Inactive (exited)
       })
 
-      // Only create member balance for the active member
-      await Models.MemberBalance.create({
+      // Only create TokenMember for the active member
+      await Models.TokenMember.create({
         network,
-        address: '0xActive1234567890abcdef1234567890abcdef',
+        memberAddress: '0xActive1234567890abcdef1234567890abcdef',
         tokenAddress,
-        amount: '1000000000000000000',
+        votingPower: '1000000000000000000',
         tokenIds: [301], // Only active lock's tokenId
-        votingPower: '0',
+        delegateReceivedCount: 0,
       })
 
       // Don't create member balance for inactive member - this simulates that
@@ -717,6 +736,7 @@ describe('Model: Lock', () => {
         transactionHash: '0xmulti1111111111111111111111111111111111',
         tokenId: 401,
         memberAddress,
+        delegateReceiverAddress: memberAddress,
         tokenAddress,
         amount: '1000000000000000000',
         epochStartAt: 1640995100,
@@ -729,20 +749,21 @@ describe('Model: Lock', () => {
         transactionHash: '0xmulti2222222222222222222222222222222222',
         tokenId: 402,
         memberAddress,
+        delegateReceiverAddress: memberAddress,
         tokenAddress,
         amount: '2000000000000000000',
         epochStartAt: 1640995050,
         lockExit: { status: false },
       })
 
-      // Create member balance with multiple token IDs
-      await Models.MemberBalance.create({
+      // Create TokenMember with multiple token IDs
+      await Models.TokenMember.create({
         network,
-        address: memberAddress,
+        memberAddress: memberAddress,
         tokenAddress,
-        amount: '3000000000000000000', // Sum of both locks
+        votingPower: '3000000000000000000', // Sum of both locks
         tokenIds: [401, 402], // Both lock tokenIds
-        votingPower: '0',
+        delegateReceivedCount: 0,
       })
 
       const response = await Models.Lock.getMembersOfVeLockPlugin({
@@ -806,19 +827,20 @@ describe('Model: Lock', () => {
         transactionHash: '0xvotingpower11111111111111111111111111111',
         tokenId: 501,
         memberAddress,
+        delegateReceiverAddress: memberAddress,
         tokenAddress,
         amount: '1000000000000000000', // 1 token
         epochStartAt: 1640995100, // 100 seconds before current time
         lockExit: { status: false },
       })
 
-      await Models.MemberBalance.create({
+      await Models.TokenMember.create({
         network,
-        address: memberAddress,
+        memberAddress: memberAddress,
         tokenAddress,
-        amount: '1000000000000000000',
+        votingPower: '1000000000000000000',
         tokenIds: ['501'],
-        votingPower: '0',
+        delegateReceivedCount: 0,
       })
 
       const response = await Models.Lock.getMembersOfVeLockPlugin({

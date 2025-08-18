@@ -268,9 +268,7 @@ export const PluginHandler = {
       address: plugin.address,
     })
 
-    if (existingLog) {
-      return
-    }
+    if (existingLog) return
 
     const document: Partial<Plugin> = {
       status: IPluginStatus.installed,
@@ -337,9 +335,7 @@ export const PluginHandler = {
           { session },
         )
 
-        if (existingLog) {
-          return
-        }
+        if (existingLog) return
 
         const pluginRepo = await Models.PluginRepo.findSubdomain(pluginLog.pluginSetupRepo, pluginLog.network, {
           session,

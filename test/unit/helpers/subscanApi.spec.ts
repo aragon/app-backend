@@ -6,12 +6,26 @@ import logger from '@logger'
 import { NetworksEnum, ITokenType } from '@types'
 import utils from '@helpers/utils'
 import dayjs from '@helpers/dayjs'
+import * as retryRequestModule from '@helpers/retryRequest'
+import BottleneckModule from '@modules/bottleneck'
 
 describe('Helpers:Subscan', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    // Stub retryRequest to execute immediately without retries
+    sandbox.stub(retryRequestModule, 'retryRequest').callsFake(async fn => {
+      try {
+        return await fn()
+      } catch (error) {
+        throw error
+      }
+    })
+    // Stub BottleneckModule rate limiter to execute immediately without delays
+    sandbox.stub(BottleneckModule, 'getBlockScoutLimiter').returns({
+      schedule: sandbox.stub().callsFake(async fn => fn()),
+    } as any)
   })
 
   afterEach(() => {

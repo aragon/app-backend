@@ -1,6 +1,5 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 import { type IPluginRawStatus, type IPluginStatus, type ISettingStatus } from '@src/types/plugin'
-import { type ITransferSide, type ITransferType } from '@src/types/transfer'
 
 export interface IQueryGetPlugin {
   transactionHash: HexAddress
@@ -91,6 +90,7 @@ export interface IAggProposalParams {
 }
 
 export interface IAggDaoMemberMappingParams {
+  votingPower?: string
   tokenAddress?: string
   memberAddress?: string
   daoAddress?: string
@@ -128,14 +128,6 @@ export interface IAggSettingProjectFields {
 
 export interface IAggMemberParams {
   memberAddress?: string
-}
-
-export interface IAggMemberTransactionParams {
-  network?: string
-  memberAddress?: string
-  tokenAddress?: string
-  type?: ITransferType
-  side?: ITransferSide
 }
 
 export interface IAggPluginParams {
@@ -213,28 +205,32 @@ export interface IAggMemberProjectFields {
   avatar?: 1
 }
 
-export interface IAggMemberBalanceParams {
+export interface IAggLockManagerMemberParams {
+  lockManagerAddress?: string
+  network: string
+  memberAddress?: string
+}
+
+export interface IAggTokenMemberParams {
   tokenAddress?: string
   network: string
   memberAddress?: string
 }
 
-export interface IAggMemberBalanceProjectFields {
-  amount?: 1
+export interface IAggTokenMemberProjectFields {
   votingPower?: 1
-}
-
-export interface IAggMemberMetricsParams {
-  network?: string
-  memberAddress?: string
-  pluginAddress?: string
-}
-
-export interface IAggMemberMetricsProjectFields {
-  _id?: 0 | 1
-  lastActivity?: 1
-  firstActivity?: 1
   delegateReceivedCount?: 1
+}
+
+export interface IAggPluginMetricsParams {
+  pluginAddress?: string
+  memberAddress?: string
+  network: string
+}
+
+export interface IAggPluginMetricsProjectFields {
   voteCount?: 1
   proposalCount?: 1
+  lastActivity?: 1
+  firstActivity?: 1
 }
