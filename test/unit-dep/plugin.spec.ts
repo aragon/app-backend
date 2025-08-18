@@ -25,6 +25,7 @@ import Web3Helper from '@helpers/web3'
 
 describe('Integ: Plugin', () => {
   let sandbox: SinonSandbox
+  let rabbitMqStub: any
 
   before(async () => {
     await UnitDepUtils.registerPluginRepos()
@@ -32,7 +33,7 @@ describe('Integ: Plugin', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
-    sandbox.stub(RabbitMQHelper, 'sendMessage')
+    rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
   })
 
   afterEach(() => {
@@ -88,8 +89,6 @@ describe('Integ: Plugin', () => {
   })
 
   it('should test pairing SPP plugins', async () => {
-    sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-
     const txHash = '0x05bf306dadf218eb8d83a081b544031d9ce1c76de3701568afbf015e960d9a6b'
     const network = NetworksEnum.cornMainnet
 
@@ -162,7 +161,6 @@ describe('Integ: Plugin', () => {
   it('should handle plugin installation token voting', async function () {
     this.timeout(10000000)
     const daoCreationTxHash = '0x2a47f99a78b147abb325eb14060b0ed4ba665d6a9d40d7c1a7d145e62c2f755f'
-    const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
     sandbox.stub(RateModule, 'fetchRateWithCovalent').resolves({
       address: '0x00',
       decimals: 18,
