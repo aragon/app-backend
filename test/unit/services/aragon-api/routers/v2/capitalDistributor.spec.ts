@@ -51,7 +51,7 @@ describe('RouterV2: CapitalDistributor', () => {
           sort: 'startTime',
           order: 'desc',
         },
-        extraParams: {
+        params: {
           pluginAddress: '0x1234567890123456789012345678901234567890' as HexAddress,
           network: NetworksEnum.ethereumMainnet,
           userAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' as HexAddress,
@@ -83,7 +83,7 @@ describe('RouterV2: CapitalDistributor', () => {
       expect(validationStub.calledOnce).to.be.true
       expect(controllerStub.calledOnce).to.be.true
       expect(controllerStub.args[0][0]).to.deep.eq(validationResult.paginationParams)
-      expect(controllerStub.args[0][1]).to.deep.eq(validationResult.extraParams)
+      expect(controllerStub.args[0][1]).to.deep.eq(validationResult.params)
     })
 
     it('Should get campaigns with pagination - required params only', async () => {
@@ -145,7 +145,7 @@ describe('RouterV2: CapitalDistributor', () => {
           sort: 'startTime',
           order: 'desc',
         },
-        extraParams: {
+        params: {
           pluginAddress: '0x1234567890123456789012345678901234567890' as HexAddress,
           network: NetworksEnum.ethereumMainnet,
           userAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' as HexAddress,
@@ -172,11 +172,11 @@ describe('RouterV2: CapitalDistributor', () => {
       const validationArgs = validationStub.args[0]
       expect(validationArgs[0]).to.eq(ctx)
       expect(validationArgs[1].paginationSort).to.eq('startTime')
-      expect(validationArgs[1].extraParams!.pluginAddress).to.eq(ctx.query.pluginAddress)
-      expect(validationArgs[1].extraParams!.network).to.eq(ctx.query.network)
-      expect(validationArgs[1].extraParams!.userAddress).to.eq(ctx.query.userAddress)
-      expect(validationArgs[1].extraParams!.status).to.eq(ctx.query.status)
-      expect(validationArgs[1].schemas.extra).to.exist
+      expect(validationArgs[1].params!.pluginAddress).to.eq(ctx.query.pluginAddress)
+      expect(validationArgs[1].params!.network).to.eq(ctx.query.network)
+      expect(validationArgs[1].params!.userAddress).to.eq(ctx.query.userAddress)
+      expect(validationArgs[1].params!.status).to.eq(ctx.query.status)
+      expect(validationArgs[1].schemas.params).to.exist
     })
 
     it('Should handle validation errors', async () => {

@@ -2,26 +2,26 @@ import Router, { type RouterContext } from '@koa/router'
 import CapitalDistributorController from '@api/controllers/capitalDistributor'
 import ValidationSchema from '@helpers/validationSchema'
 import CapitalDistributorSchema from '@api/routers/schema/capitalDistributor'
-import { type HexAddress, type NetworksEnum, type ICampaignExtraParams, type IPaginationParams } from '@types'
+import { type HexAddress, type NetworksEnum, type IPaginationParams, type ICampaignApiParams } from '@types'
 
 const CapitalDistributorRouter = {
   getCampaignsWithPagination: async function (ctx: RouterContext) {
     const result = await ValidationSchema.validateRoute(ctx, {
       paginationSort: 'startTime',
-      extraParams: {
+      params: {
         pluginAddress: ctx.query.pluginAddress as HexAddress,
         network: ctx.query.network as NetworksEnum,
         userAddress: ctx.query.userAddress as HexAddress,
         status: ctx.query.status as 'claimed' | 'claimable',
       },
       schemas: {
-        extra: CapitalDistributorSchema.getCampaignsExtraParams,
+        params: CapitalDistributorSchema.getCampaignsExtraParams,
       },
     })
 
     ctx.body = await CapitalDistributorController.getCampaignsWithPagination(
       result.paginationParams as IPaginationParams,
-      result.extraParams as ICampaignExtraParams,
+      result.params as ICampaignApiParams,
     )
   },
 

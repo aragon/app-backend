@@ -88,7 +88,7 @@ const PluginDetector = {
       } else if (hasFunctions(PluginDetector.MULTISIG_FUNCTIONS)) {
         pluginDetails.type = IPluginInterfaceType.multisig
       } else if (hasFunctions(PluginDetector.CAPITAL_DISTRIBUTION_FUNCTIONS)) {
-        pluginDetails.type = IPluginInterfaceType.capitalDistribution
+        pluginDetails.type = IPluginInterfaceType.capitalDistributor
       } else if (hasFunctions(PluginDetector.ADMIN_FUNCTIONS)) {
         pluginDetails.type = IPluginInterfaceType.admin
       } else if (hasFunctions(PluginDetector.GAUGE_VOTER_FUNCTIONS)) {

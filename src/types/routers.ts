@@ -361,11 +361,12 @@ export interface ITransactionIndexingStatusResponse {
   interfaceType?: IPluginInterfaceType
 }
 
-export interface ICampaignExtraParams {
+export interface ICampaignApiParams {
   pluginAddress?: HexAddress
   network?: NetworksEnum
   userAddress?: HexAddress
   status?: 'claimed' | 'claimable'
+  campaignId?: string
 }
 
 export interface ICampaignResponse {

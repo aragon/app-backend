@@ -1,24 +1,24 @@
 import { Models } from '@dbModels'
 import {
   ErrorKeyEnum,
-  type ICampaignExtraParams,
   type ICampaignResponse,
   type IPaginationParams,
   type IPaginatedResult,
+  type ICampaignApiParams,
 } from '@types'
 import { assertExposable } from '@errors'
 
 const CapitalDistributorController = {
   getCampaignsWithPagination: async (
     paginationParams: IPaginationParams = {},
-    extraParams: ICampaignExtraParams = {},
+    params: ICampaignApiParams = {},
   ): Promise<IPaginatedResult<ICampaignResponse>> => {
-    assertExposable(!!extraParams.pluginAddress, ErrorKeyEnum.badParams)
-    assertExposable(!!extraParams.network, ErrorKeyEnum.badParams)
+    assertExposable(!!params.pluginAddress, ErrorKeyEnum.badParams)
+    assertExposable(!!params.network, ErrorKeyEnum.badParams)
 
     return await Models.Campaign.getCampaignsWithPagination({
       paginationParams,
-      extraParams,
+      params,
     })
   },
 }

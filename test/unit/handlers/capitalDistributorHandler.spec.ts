@@ -32,7 +32,7 @@ describe('Handler: CapitalDistributor', () => {
       transactionHash: logInfo.transactionHash,
       blockNumber: logInfo.blockNumber,
       status: IPluginStatus.installed,
-      interfaceType: IPluginInterfaceType.capitalDistribution,
+      interfaceType: IPluginInterfaceType.capitalDistributor,
       daoAddress: '0xdao1234567890123456789012345678901234567890' as HexAddress,
       pluginSetupRepoAddress: '0xrepo123456789012345678901234567890123456' as HexAddress,
       name: 'Capital Distributor',

@@ -193,7 +193,7 @@ export const PluginSetupProcessorHandler = {
     if (
       pluginDb?.interfaceType === IPluginInterfaceType.admin ||
       pluginDb?.interfaceType === IPluginInterfaceType.gauge ||
-      pluginDb.interfaceType === IPluginInterfaceType.capitalDistribution
+      pluginDb.interfaceType === IPluginInterfaceType.capitalDistributor
     ) {
       // mark as an active plugin with no settings
       await PluginSettingHandler.isSupported(pluginDb, info)

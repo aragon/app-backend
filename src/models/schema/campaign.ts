@@ -7,9 +7,9 @@ import {
   ICampaignType,
   type IPaginationParams,
   type IPaginatedResult,
-  type ICampaignExtraParams,
   type ICampaignResponse,
   IClaimStat,
+  type ICampaignApiParams,
 } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import { assert } from '@errors'
@@ -192,22 +192,22 @@ export default class Campaign extends Model {
 
   static async getCampaignsWithPagination({
     paginationParams = {},
-    extraParams = {},
+    params = {},
   }: {
     paginationParams?: IPaginationParams
-    extraParams?: ICampaignExtraParams
+    params?: ICampaignApiParams
   }): Promise<IPaginatedResult<ICampaignResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
 
     const baseFilter: any = {}
-    if (extraParams.pluginAddress) baseFilter.pluginAddress = extraParams.pluginAddress
-    if (extraParams.network) baseFilter.network = extraParams.network
+    if (params.pluginAddress) baseFilter.pluginAddress = params.pluginAddress
+    if (params.network) baseFilter.network = params.network
 
     const pipeline: any[] = []
 
     pipeline.push({ $match: baseFilter })
 
-    if (extraParams.userAddress) {
+    if (params.userAddress) {
       pipeline.push({
         $lookup: {
           from: ICollectionNames.CampaignReward,
@@ -224,7 +224,7 @@ export default class Campaign extends Model {
                     { $eq: ['$pluginAddress', '$$campaignPlugin'] },
                     { $eq: ['$network', '$$campaignNetwork'] },
                     { $eq: ['$campaignId', '$$campaignId'] },
-                    { $eq: ['$userAddress', extraParams.userAddress] },
+                    { $eq: ['$userAddress', params.userAddress] },
                   ],
                 },
               },
@@ -234,8 +234,8 @@ export default class Campaign extends Model {
         },
       })
 
-      if (extraParams.status) {
-        if (extraParams.status === IClaimStat.CLAIMED) {
+      if (params.status) {
+        if (params.status === IClaimStat.CLAIMED) {
           pipeline.push({
             $match: {
               $and: [
@@ -251,7 +251,7 @@ export default class Campaign extends Model {
               ],
             },
           })
-        } else if (extraParams.status === IClaimStat.CLAIMABLE) {
+        } else if (params.status === IClaimStat.CLAIMABLE) {
           pipeline.push({
             $match: {
               $or: [
@@ -338,8 +338,8 @@ export default class Campaign extends Model {
       },
     }
 
-    // Only include userData field if userAddress was provided (which means userReward lookup was added)
-    if (extraParams.userAddress) {
+    // Only include the userData field if userAddress was provided (which means userReward lookup was added)
+    if (params.userAddress) {
       projectStage.userData = {
         $cond: {
           if: { $gt: [{ $size: '$userReward' }, 0] },
@@ -388,7 +388,7 @@ export default class Campaign extends Model {
 
     const countPipeline = [
       { $match: baseFilter },
-      ...(extraParams.userAddress
+      ...(params.userAddress
         ? [
             {
               $lookup: {
@@ -406,7 +406,7 @@ export default class Campaign extends Model {
                           { $eq: ['$pluginAddress', '$$campaignPlugin'] },
                           { $eq: ['$network', '$$campaignNetwork'] },
                           { $eq: ['$campaignId', '$$campaignId'] },
-                          { $eq: ['$userAddress', extraParams.userAddress] },
+                          { $eq: ['$userAddress', params.userAddress] },
                         ],
                       },
                     },
@@ -417,11 +417,11 @@ export default class Campaign extends Model {
             },
           ]
         : []),
-      ...(extraParams.status && extraParams.userAddress
+      ...(params.status && params.userAddress
         ? [
             {
               $match:
-                extraParams.status === IClaimStat.CLAIMED
+                params.status === IClaimStat.CLAIMED
                   ? {
                       $and: [
                         { userReward: { $not: { $size: 0 } } }, // Must have reward records

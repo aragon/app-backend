@@ -44,7 +44,7 @@ describe('Controller: CapitalDistributorAdmin', () => {
         transactionHash: '0xabc123' as HexAddress,
         blockNumber: 12345,
         status: 'installed',
-        interfaceType: 'capitalDistribution',
+        interfaceType: 'capitalDistributor',
         daoAddress: '0xdao123' as HexAddress,
       })
 
@@ -98,7 +98,7 @@ describe('Controller: CapitalDistributorAdmin', () => {
         transactionHash: '0xabc123' as HexAddress,
         blockNumber: 12345,
         status: 'installed',
-        interfaceType: 'capitalDistribution',
+        interfaceType: 'capitalDistributor',
         daoAddress: '0xdao123' as HexAddress,
       })
 
@@ -132,7 +132,7 @@ describe('Controller: CapitalDistributorAdmin', () => {
         transactionHash: '0xabc123' as HexAddress,
         blockNumber: 12345,
         status: 'installed',
-        interfaceType: 'capitalDistribution',
+        interfaceType: 'capitalDistributor',
         daoAddress: '0xdao123' as HexAddress,
       })
 
@@ -181,7 +181,7 @@ describe('Controller: CapitalDistributorAdmin', () => {
         transactionHash: '0xabc123' as HexAddress,
         blockNumber: 12345,
         status: 'installed',
-        interfaceType: 'capitalDistribution',
+        interfaceType: 'capitalDistributor',
         daoAddress: '0xdao123' as HexAddress,
       })
 

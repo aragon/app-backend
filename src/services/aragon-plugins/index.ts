@@ -119,7 +119,7 @@ const AragonPluginsService: IService & { pluginQueue: (params: IQueuePlugin) => 
         }
         break
       }
-      case IPluginInterfaceType.capitalDistribution: {
+      case IPluginInterfaceType.capitalDistributor: {
         logger.info('Sync plugin: Capital Distributor', llo({ plugin: plugin.address }))
         await LogCapitalDistributor.start(plugin)
         break
