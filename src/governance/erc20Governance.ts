@@ -385,7 +385,6 @@ export class Erc20Governance extends BaseGovernance {
             setOnInsertFields.firstActivity = update.lastActivity
           }
           if (update.daoAddress) {
-            setFields.daoAddress = update.daoAddress
             setOnInsertFields.daoAddress = update.daoAddress
           }
 
