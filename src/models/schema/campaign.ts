@@ -17,6 +17,14 @@ import ModelUtils from '@models/utils/models'
 
 const customName = ICollectionNames.Campaign
 
+export class Link {
+  @prop({ type: () => String, default: null })
+  public name!: string
+
+  @prop({ type: () => String, default: null })
+  public url!: string
+}
+
 export class CampaignMetadata {
   @prop({ type: () => String, default: null })
   public title?: string | null
@@ -24,8 +32,11 @@ export class CampaignMetadata {
   @prop({ type: () => String, default: null })
   public description?: string | null
 
-  @prop({ type: () => [String], default: [] })
-  public resources?: string[]
+  @prop({ type: () => [Link], default: [] })
+  public resources?: Link[]
+
+  @prop({ type: () => String, default: null })
+  public type?: string | null
 }
 
 @modelOptions({
@@ -101,7 +112,7 @@ export default class Campaign extends Model {
   @prop({ type: () => String, required: true })
   public metadataURI!: string
 
-  @prop({ type: () => CampaignMetadata, _id: false, default: null })
+  @prop({ type: () => CampaignMetadata, _id: false, default: {} })
   public metadata?: CampaignMetadata | null
 
   @prop({ type: () => Number, default: 0 })
@@ -159,7 +170,8 @@ export default class Campaign extends Model {
     metadata: {
       title?: string
       description?: string
-      resources?: string[]
+      resources?: Link[]
+      type?: string
     },
     tOpts?: SaveOptions,
   ) {
@@ -170,6 +182,7 @@ export default class Campaign extends Model {
     if (metadata.title !== undefined) this.metadata.title = metadata.title
     if (metadata.description !== undefined) this.metadata.description = metadata.description
     if (metadata.resources !== undefined) this.metadata.resources = metadata.resources
+    if (metadata.type !== undefined) this.metadata.type = metadata.type
 
     return await this.save(tOpts)
   }

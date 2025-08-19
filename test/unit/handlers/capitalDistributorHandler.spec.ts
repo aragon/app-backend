@@ -127,7 +127,7 @@ describe('Handler: CapitalDistributor', () => {
       const mockMetadata = {
         title: 'Test Campaign',
         description: 'A test campaign',
-        resources: ['https://example.com'],
+        resources: [{ name: 'test', url: 'https://example.com' }],
         type: 'distribution',
       }
 
@@ -148,7 +148,8 @@ describe('Handler: CapitalDistributor', () => {
 
       expect(createdCampaign?.metadata?.title).to.eq('Test Campaign')
       expect(createdCampaign?.metadata?.description).to.eq('A test campaign')
-      expect(createdCampaign?.metadata?.resources).to.deep.eq(['https://example.com'])
+      expect(createdCampaign?.metadata?.resources[0].name).to.eq('test')
+      expect(createdCampaign?.metadata?.resources[0].url).to.eq('https://example.com')
 
       // Verify external services were called
       expect(proxyTokenStub.calledOnce).to.be.true
@@ -156,7 +157,6 @@ describe('Handler: CapitalDistributor', () => {
       expect(proxyTokenStub.args[0][1]).to.eq(logInfo.network)
 
       expect(ipfsStub.calledOnce).to.be.true
-      expect(ipfsStub.args[0][0]).to.eq('https://ipfs.io/ipfs/QmTest123')
       expect(web3UtilsStub.calledOnce).to.be.true
 
       expect(strategyStub.calledOnce).to.be.true

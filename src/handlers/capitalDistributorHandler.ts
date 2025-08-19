@@ -66,7 +66,9 @@ export const CapitalDistributorHandler = {
 
       await ProxyToken.saveAndGetToken(token, network)
 
-      const rawMetadata = await IPFSModule.fetchMetadata(metadataURI, { retries: 4 })
+      const campaignMetadataUrl = Web3Utils.extractMetadataUri(metadataURI)!
+
+      const rawMetadata = await IPFSModule.fetchMetadata(campaignMetadataUrl, { retries: 4 })
       if (rawMetadata) {
         const parsedMetadata = Web3Utils.parseCampaignMetadata(rawMetadata)
 
