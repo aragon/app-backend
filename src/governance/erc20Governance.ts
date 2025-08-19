@@ -408,7 +408,7 @@ export class Erc20Governance extends BaseGovernance {
       return true
     } catch (error) {
       logger.error('Error in batch plugin metrics update (no tx)', this.llo({ error, updateCount: updates.length }))
-      return false
+      throw error
     }
   }
 

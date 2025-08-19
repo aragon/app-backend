@@ -200,10 +200,12 @@ export default class Setting extends Model {
     daoAddress,
     pluginAddress,
     network,
+    tokenAddress,
   }: {
     pluginAddress?: HexAddress
     daoAddress?: HexAddress
     network: NetworksEnum
+    tokenAddress?: HexAddress
   }) {
     const params: any = {
       status: ISettingStatus.active,
@@ -220,6 +222,11 @@ export default class Setting extends Model {
     if (network) {
       params.network = network
     }
+
+    if (tokenAddress) {
+      params.tokenAddress = tokenAddress
+    }
+
     return await this.findOne(params).exec()
   }
 
