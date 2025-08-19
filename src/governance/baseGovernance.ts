@@ -175,6 +175,8 @@ export abstract class BaseGovernance {
 
         if (!pluginMetrics) {
           logger.warn('Failed to get or create PluginMetrics for update', this.llo({ params }))
+          await session.commitTransaction()
+          await session.endSession()
           return null
         }
 

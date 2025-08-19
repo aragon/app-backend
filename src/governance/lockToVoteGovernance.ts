@@ -124,6 +124,10 @@ export class LockToVoteGovernance extends BaseGovernance {
               new: params.lastActivity,
             }),
           )
+
+          await session.commitTransaction()
+          await session.endSession()
+
           return lockManagerMember
         }
 

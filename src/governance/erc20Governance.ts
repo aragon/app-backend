@@ -125,6 +125,8 @@ export class Erc20Governance extends BaseGovernance {
               new: params.lastActivity,
             }),
           )
+          await session.commitTransaction()
+          await session.endSession()
           return tokenMember
         }
 
@@ -181,6 +183,7 @@ export class Erc20Governance extends BaseGovernance {
         }
 
         await tokenMember.deleteOne({ session })
+
         await session.commitTransaction()
         await session.endSession()
 
