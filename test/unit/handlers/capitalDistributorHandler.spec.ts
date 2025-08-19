@@ -611,6 +611,58 @@ describe('Handler: CapitalDistributor', () => {
       expect(loggerInfoStub.calledWith('Payout claimed' as any)).to.be.true
     })
 
+    it('should return when the claimed tx is already saved', async () => {
+      await Models.Campaign.create({
+        pluginAddress: logInfo.address,
+        network: logInfo.network,
+        transactionHash: logInfo.transactionHash,
+        blockNumber: logInfo.blockNumber,
+        blockTimestamp: 1640995200,
+        campaignId: '1',
+        metadataURI: 'https://ipfs.io/ipfs/QmTest123',
+        allocationStrategy: logInfo.address,
+        token: '0xtoken1234567890123456789012345678901234' as HexAddress,
+        payoutEncoder: '0xencoder123456789012345678901234567890' as HexAddress,
+        multipleClaimsAllowed: true,
+        startTime: 1640995200,
+        endTime: 1672531200,
+        active: true,
+      })
+
+      const existingReward = await Models.CampaignReward.create({
+        pluginAddress: logInfo.address,
+        network: logInfo.network,
+        campaignId: '1',
+        userAddress: parsedEvent.args.recipient,
+        amount: '1000000000000000000',
+        totalClaimed: '1000000000000000000',
+      })
+
+      await existingReward.addClaim(
+        parsedEvent.args.amount.toString(),
+        logInfo.transactionHash,
+        logInfo.blockNumber,
+        1640995200,
+      )
+
+      const loggerInfoStub = sandbox.stub(logger, 'info')
+
+      const claimStub = sandbox.spy(Models.CampaignReward.prototype, 'addClaim')
+
+      await CapitalDistributorHandler.payoutClaimed(parsedEvent, logInfo)
+
+      const updatedReward = await Models.CampaignReward.findRewardForCampaign(
+        logInfo.address,
+        logInfo.network,
+        '1',
+        parsedEvent.args.recipient,
+      )
+
+      expect(updatedReward?.claims).to.have.length(1)
+      expect(loggerInfoStub.calledWith('Payout claimed' as any)).to.be.false
+      expect(claimStub.callCount).to.be.eq(0)
+    })
+
     it('should handle error gracefully', async () => {
       const loggerErrorStub = sandbox.stub(logger, 'error')
       sandbox.stub(Models.CampaignReward, 'findRewardForCampaign').rejects(new Error('Database error'))

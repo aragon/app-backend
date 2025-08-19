@@ -243,6 +243,11 @@ export const CapitalDistributorHandler = {
         })
       }
 
+      const alreadyExistingClaim = reward.claims.find((claim: any) => claim.transactionHash === transactionHash)
+      if( alreadyExistingClaim) {
+        return
+      }
+
       const blockTimestamp = await Web3Helper.getBlockTimestamp(blockNumber, network)
 
       await reward.addClaim(amount.toString(), transactionHash, blockNumber, blockTimestamp)
