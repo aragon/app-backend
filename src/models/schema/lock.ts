@@ -1,4 +1,4 @@
-import { modelOptions, prop } from '@typegoose/typegoose'
+import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
   type ILockIdParams,
@@ -70,6 +70,8 @@ export class LockExit {
     customName,
   },
 })
+@index({ tokenAddress: 1, network: 1 })
+@index({ network: 1, tokenAddress: 1, delegateReceiverAddress: 1 })
 export default class Lock extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
