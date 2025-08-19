@@ -429,7 +429,7 @@ describe('Model: Dao', () => {
     expect(createdDao.metrics.tvlUSD).to.eq(100000)
   })
 
-  describe('countUniqueMembersCount', () => {
+  describe('countUniqueMembers', () => {
     const mockDaoAddress = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
     const mockNetwork = NetworksEnum.polygonMainnet
 
@@ -447,7 +447,7 @@ describe('Model: Dao', () => {
     })
 
     it('should return 0 when no plugins exist', async () => {
-      const count = await Models.Dao.countUniqueMembersCount(mockDaoAddress, mockNetwork)
+      const count = await Models.Dao.countUniqueMembers(mockDaoAddress, mockNetwork)
       expect(count).to.eq(0)
     })
 
@@ -456,7 +456,7 @@ describe('Model: Dao', () => {
       const mockAggregateResult = [{ uniqueMembersCount: 5 }]
       const aggregateStub = sandbox.stub(Models.Dao, 'aggregate').resolves(mockAggregateResult)
 
-      const count = await Models.Dao.countUniqueMembersCount(mockDaoAddress, mockNetwork)
+      const count = await Models.Dao.countUniqueMembers(mockDaoAddress, mockNetwork)
 
       expect(count).to.eq(5)
       expect(aggregateStub.calledOnce).to.be.true
@@ -499,7 +499,7 @@ describe('Model: Dao', () => {
     it('should return 0 when aggregate returns empty result', async () => {
       const aggregateStub = sandbox.stub(Models.Dao, 'aggregate').resolves([])
 
-      const count = await Models.Dao.countUniqueMembersCount(mockDaoAddress, mockNetwork)
+      const count = await Models.Dao.countUniqueMembers(mockDaoAddress, mockNetwork)
 
       expect(count).to.eq(0)
       expect(aggregateStub.calledOnce).to.be.true
@@ -508,7 +508,7 @@ describe('Model: Dao', () => {
     it('should verify member collection config mappings', async () => {
       const aggregateStub = sandbox.stub(Models.Dao, 'aggregate').resolves([{ uniqueMembersCount: 3 }])
 
-      await Models.Dao.countUniqueMembersCount(mockDaoAddress, mockNetwork)
+      await Models.Dao.countUniqueMembers(mockDaoAddress, mockNetwork)
 
       const pipeline = aggregateStub.args[0][0]
       const lookupStages = pipeline.filter(stage => stage.$lookup && stage.$lookup.from !== 'Plugin')
@@ -534,7 +534,7 @@ describe('Model: Dao', () => {
       const mockSession = { session: 'test-session' }
       const aggregateStub = sandbox.stub(Models.Dao, 'aggregate').resolves([{ uniqueMembersCount: 2 }])
 
-      const count = await Models.Dao.countUniqueMembersCount(mockDaoAddress, mockNetwork, mockSession)
+      const count = await Models.Dao.countUniqueMembers(mockDaoAddress, mockNetwork, mockSession)
 
       expect(count).to.eq(2)
       expect(aggregateStub.calledWith(sinon.match.array, mockSession)).to.be.true
