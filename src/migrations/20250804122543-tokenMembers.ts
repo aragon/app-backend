@@ -1,9 +1,11 @@
-import { type IMigration, IPluginStatus, IPluginInterfaceType } from '@types'
+import { type IMigration, IPluginStatus, IPluginInterfaceType, EnumQueueName } from '@types'
 import logger from '@logger'
 import { Models } from '@dbModels'
 import mongoose from 'mongoose'
 import * as pLimit from 'p-limit'
 import { MemberGovernanceFactory } from '@src/governance'
+import utils from '@helpers/utils'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: tokenMembers' })
 
@@ -36,9 +38,16 @@ export const tokenMembersMigration: IMigration = {
       let skippedCount = 0
       const limit = pLimit.default(50) // Process 50 documents concurrently
 
-      // Process memberBalances asynchronously with concurrency limit
+      // Process memberBalances asynchronously with the concurrency limit
       const promises = memberBalances.map(async memberBalance =>
         limit(async () => {
+          const plugins = await Models.Plugin.find({
+            tokenAddress: memberBalance.tokenAddress,
+            network: memberBalance.network,
+            isSupported: true,
+            status: IPluginStatus.installed,
+          }).lean()
+
           try {
             // Query the last memberTransaction for this member
             const lastMemberTransaction = await memberTransactionsCollection.findOne(
@@ -88,19 +97,11 @@ export const tokenMembersMigration: IMigration = {
               lastActivity: memberBalance.lastSyncVotingPowerBlockNumber,
             })
 
-            // Query all plugins where tokenAddress === memberBalance.tokenAddress
-            const plugins = await Models.Plugin.find({
-              tokenAddress: memberBalance.tokenAddress,
-              network: memberBalance.network,
-              isSupported: true,
-              status: IPluginStatus.installed,
-            }).lean()
-
             // Loop through all plugins and update plugin metrics
             for (const plugin of plugins) {
               // Query memberMetric where tokenAddress and memberAddress match
               const memberMetric = await memberMetricsCollection.findOne({
-                tokenAddress: memberBalance.tokenAddress,
+                pluginAddress: plugin.address,
                 memberAddress: memberBalance.address,
                 network: memberBalance.network,
               })
