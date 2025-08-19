@@ -383,4 +383,10 @@ describe('migration: lockToVoteMember', () => {
       // No assertions needed, just verify it doesn't throw
     })
   })
+
+  describe('should create the users and all the related tables without any stub', () => {
+    it('should save the members from the mock data for lockToVote', async () => {
+      sandbox.restore()
+    })
+  })
 })

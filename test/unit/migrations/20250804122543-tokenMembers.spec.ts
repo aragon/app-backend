@@ -422,7 +422,7 @@ describe('migration: tokenMembers', () => {
     })
   })
 
-  describe('check why we did not have the proper data', () => {
+  describe('should insure all the data after the migration ', () => {
     it('should simulate complete migration with mock data arrays', async () => {
       sandbox.restore()
       sandbox.stub(logger, 'verbose')
@@ -543,6 +543,9 @@ describe('migration: tokenMembers', () => {
       const totalMembers = await Models.Dao.countUniqueMembers(dao.address, dao.network)
 
       expect(totalMembers).to.be.eq(membersWeSave.length)
+
+      expect(pluginMetrics[0].firstActivity).to.be.not.eq(0)
+      expect(pluginMetrics[0].lastActivity).to.be.not.eq(0)
     })
   })
 })

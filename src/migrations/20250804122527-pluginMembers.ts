@@ -40,7 +40,7 @@ export const pluginMembersMigration: IMigration = {
               pluginAddress: daoMemberMapping.pluginAddress,
             })
 
-            // Create base member
+            // Create a base member
             await MemberGovernanceFactory.createBaseMember(daoMemberMapping.memberAddress)
 
             // Get plugin to determine the interface type
