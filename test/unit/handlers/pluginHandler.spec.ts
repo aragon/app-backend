@@ -366,7 +366,7 @@ describe('Indexer:Plugin', () => {
         sender: rawPlugin.sender,
         release: rawPlugin.release,
         build: rawPlugin.build,
-        permissions: rawPlugin.permissions, 
+        permissions: rawPlugin.permissions,
         helpers: [],
         subdomain: rawPlugin?.subdomain,
         interfaceType: IPluginInterfaceType.tokenVoting,
