@@ -320,33 +320,41 @@ describe('Module: provider', () => {
       expect(result).to.be.undefined
     })
 
-    it('getProviderUrl should return provider URL when provider has config.getProvider', async () => {
-      const mockProvider = {
-        config: {
-          getProvider: sandbox.stub().resolves({
-            connection: { url: 'https://test-provider-url.com' },
-          }),
-        },
+    it('getProviderUrl should return Aragon RPC URL when available', () => {
+      ProviderModule.providerProxies[NetworksEnum.ethereumMainnet] = {
+        aragon: { rpc: {} },
       }
-      sandbox.stub(ProviderModule, 'getAnyRpcProvider').resolves(mockProvider)
-
-      const result = await ProviderModule.getProviderUrl(NetworksEnum.ethereumMainnet)
-
-      expect(result).to.equal('https://test-provider-url.com')
-      expect(mockProvider.config.getProvider.calledOnce).to.be.true
-    })
-
-    it('getProviderUrl should fallback to config ARAGON_RPC when provider has no getProvider', async () => {
-      const mockProvider = {}
-      sandbox.stub(ProviderModule, 'getAnyRpcProvider').resolves(mockProvider)
-      const testRpc = 'https://fallback-rpc.com'
-      sandbox.stub(config.NODES, 'ETHEREUM_MAINNET').value({
-        ARAGON_RPC: testRpc,
+      const testRpc = 'https://aragon-rpc.com'
+      sandbox.stub(config, 'NODES').value({
+        ETHEREUM_MAINNET: {
+          ARAGON_RPC: testRpc,
+        },
       })
 
-      const result = await ProviderModule.getProviderUrl(NetworksEnum.ethereumMainnet)
+      const result = ProviderModule.getProviderUrl(NetworksEnum.ethereumMainnet)
 
       expect(result).to.equal(testRpc)
+    })
+
+    it('getProviderUrl should return Alchemy URL when only Alchemy provider exists', () => {
+      ProviderModule.providerProxies[NetworksEnum.ethereumMainnet] = {
+        alchemy: { rpc: {} },
+      }
+      sandbox.stub(config, 'NODES').value({
+        ETHEREUM_MAINNET: {
+          ALCHEMY_API_KEY: 'test-key',
+        },
+      })
+
+      const result = ProviderModule.getProviderUrl(NetworksEnum.ethereumMainnet)
+
+      expect(result).to.equal('https://eth-mainnet.g.alchemy.com/v2/test-key')
+    })
+
+    it('getProviderUrl should return undefined when no provider proxy exists', () => {
+      const result = ProviderModule.getProviderUrl(NetworksEnum.ethereumMainnet)
+
+      expect(result).to.be.undefined
     })
   })
 })
