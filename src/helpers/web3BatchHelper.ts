@@ -181,7 +181,7 @@ const Web3BatchHelper = {
    */
   async _executeSingleBatch<T>(requests: BatchRequestItem[], network: NetworksEnum): Promise<BatchResponse<T>[]> {
     try {
-      const providerUrl = await ProviderModule.getProviderUrl(network)
+      const providerUrl = ProviderModule.getProviderUrl(network)
 
       const batchRequests = requests.map(req => ({
         jsonrpc: '2.0',

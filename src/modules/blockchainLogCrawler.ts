@@ -1,13 +1,11 @@
 import logger from '@logger'
 import { Interface, type Log, type LogDescription, type TopicFilter } from 'ethers'
 import {
-  IConnectionType,
   type ICrawlParam,
   type ICrawlSetting,
   ICrawStrategy,
   type IFormattedLog,
   type IIndexerConfig,
-  IProviderType,
   type NetworksEnum,
 } from '@types'
 import { Models } from '@dbModels'
@@ -325,7 +323,7 @@ class BlockchainLogCrawler {
     const toBlock = endBlock || currentBlock
     let allLogs: Log[] = []
 
-    const url = await this.getProviderUrl()
+    const url = this.getProviderUrl()
 
     const requests: any = []
     for (let blockNum = currentBlock; blockNum <= toBlock; blockNum++) {
@@ -341,7 +339,7 @@ class BlockchainLogCrawler {
     try {
       const response = await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(this.crawlParams.network).schedule(async () =>
-          axios.post(url, requests, {
+          axios.post(url!, requests, {
             headers: { 'Content-Type': 'application/json' },
           }),
         ),
@@ -383,19 +381,13 @@ class BlockchainLogCrawler {
     return { logs: allLogs, toBlock }
   }
 
-  async getProviderUrl() {
-    const provider = await ProviderModule.getAnyRpcProvider(this.crawlParams.network)
-    if (provider.config?.getProvider) {
-      const coreProvider = await provider.config.getProvider()
-      return coreProvider.connection.url
-    }
-
-    return config.NODES[utils.networkToAragon(this.crawlParams.network)].ARAGON_RPC
+  getProviderUrl() {
+    return ProviderModule.getProviderUrl(this.crawlParams.network)
   }
 
   async executeBatchRequest(topics: string[] | TopicFilter, currentBlock: number, toBlock: number) {
     try {
-      const url = await this.getProviderUrl()
+      const url = this.getProviderUrl()
 
       const topicChunk = this.crawlParams.isTopicObject ? topics : utils.chunkArray(topics, 4)
       const batchRequests = topicChunk.reduce((req: any, chunk: string[]) => {
@@ -418,7 +410,7 @@ class BlockchainLogCrawler {
 
       const response = await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(this.crawlParams.network).schedule(async () =>
-          axios.post(url, batchRequests, {
+          axios.post(url!, batchRequests, {
             headers: { 'Content-Type': 'application/json' },
           }),
         ),
@@ -512,11 +504,6 @@ class BlockchainLogCrawler {
     }
 
     return highestBlockNumber
-  }
-
-  async getProvider(): Promise<any> {
-    const provider = ProviderModule.getProvider(this.crawlParams.network, IProviderType.ALCHEMY, IConnectionType.RPC)
-    return await provider.config.getProvider()
   }
 
   async getServiceStartBlock() {

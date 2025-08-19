@@ -305,6 +305,7 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
       return []
     }
   },
+
   _fetchTxList: async (address: string, network: NetworksEnum, blockFilter: ITxFilterBlockArgs) => {
     const allTransactions: any[] = []
     let page = 1
@@ -422,6 +423,7 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
       throw error
     }
   },
+
   getTokenCounters: async ({ address, network }) => {
     return {
       holders: await RouteScanHelper.fetchTokenHoldersCount({
@@ -431,6 +433,7 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
       transfers: 0,
     }
   },
+
   fetchHistoricalTokenPrice: async () => {
     return '0'
   },
