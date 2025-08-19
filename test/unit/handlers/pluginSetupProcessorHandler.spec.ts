@@ -502,6 +502,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
           versionTag: { release: '1', build: '1' },
           preparedSetupData: {
             permissions: [],
+            helpers: [],
           },
         },
       }
@@ -554,6 +555,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
           versionTag: { release: '1', build: '1' },
           preparedSetupData: {
             permissions: [],
+            helpers: [],
           },
         },
       }

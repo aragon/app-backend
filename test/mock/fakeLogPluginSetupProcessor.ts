@@ -39,6 +39,7 @@ export const ListLogPluginSetupProcessor = [
         permissionId: '0xbf04b4486c9663d805744005c3da000eda93de6e3308a4a7a812eb565327b78d',
       },
     ],
+    helpers: [],
     tokenAddress: null,
   },
   {
@@ -57,6 +58,7 @@ export const ListLogPluginSetupProcessor = [
     release: null,
     build: null,
     tokenAddress: null,
+    helpers: [],
     permissions: [],
   },
   {
@@ -75,6 +77,7 @@ export const ListLogPluginSetupProcessor = [
     release: '1',
     build: '2',
     permissions: [],
+    helpers: [],
     tokenAddress: null,
   },
   {
@@ -93,6 +96,7 @@ export const ListLogPluginSetupProcessor = [
     release: null,
     build: null,
     tokenAddress: null,
+    helpers: [],
     permissions: [],
   },
   {
@@ -111,6 +115,7 @@ export const ListLogPluginSetupProcessor = [
     release: '1',
     build: '2',
     permissions: [],
+    helpers: [],
     tokenAddress: null,
   },
   {
@@ -129,6 +134,7 @@ export const ListLogPluginSetupProcessor = [
     release: null,
     build: null,
     tokenAddress: null,
+    helpers: [],
     permissions: [],
   },
 ]

@@ -59,6 +59,7 @@ export const PluginSetupProcessorHandler = {
     try {
       const daoAddress = parsedEvent.args.dao
       const pluginAddress = parsedEvent.args.plugin
+      const helpers = parsedEvent.args.preparedSetupData?.helpers || []
 
       const logPlugin = await DbTx.executeTxFn(async ({ session }) => {
         const existingDao = await Models.Dao.findByAddress(daoAddress, info.network, { session })
@@ -84,6 +85,7 @@ export const PluginSetupProcessorHandler = {
           build: parsedEvent.args.versionTag.build,
           blockNumber: info.blockNumber,
           tokenAddress: undefined,
+          helpers,
         }
 
         const logDb = await Models.LogPluginSetupProcessor.create(rawPluginLog, { session })

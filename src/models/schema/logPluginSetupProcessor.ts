@@ -95,6 +95,9 @@ export default class LogPluginSetupProcessor extends Model {
   @prop({ type: () => String, default: null })
   public tokenAddress!: HexAddress // voting token address
 
+  @prop({ type: () => [String], default: [] })
+  public helpers!: HexAddress[] // helper addresses used in the plugin setup
+
   static async create(rawData: Partial<LogPluginSetupProcessor>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')

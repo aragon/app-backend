@@ -110,6 +110,13 @@ export const PluginHandler = {
                     daoAddress: { $ifNull: ['$$this.daoAddress', '$$value.daoAddress'] },
                     preparedSetupId: { $ifNull: ['$$this.preparedSetupId', '$$value.preparedSetupId'] },
                     appliedSetupId: { $ifNull: ['$$this.appliedSetupId', '$$value.appliedSetupId'] },
+                    helpers: {
+                      $cond: {
+                        if: { $gt: [{ $size: { $ifNull: ['$$this.helpers', []] } }, 0] },
+                        then: '$$this.helpers',
+                        else: '$$value.helpers',
+                      },
+                    },
                     pluginSetupRepoAddress: { $ifNull: ['$$this.pluginSetupRepo', '$$value.pluginSetupRepo'] },
                     sender: { $ifNull: ['$$this.sender', '$$value.sender'] },
                     release: { $ifNull: ['$$this.release', '$$value.release'] },
@@ -203,54 +210,12 @@ export const PluginHandler = {
           release: 1,
           build: 1,
           permissions: 1,
+          helpers: 1,
           subdomain: {
             $ifNull: ['$pluginRepo.subdomain', null],
           },
         },
       },
-
-      // uninstall
-      //        {
-      //            $group: {
-      //                _id: {
-      //                    address: "$address",
-      //                    network: "$network",
-      //                },
-      //                documents: { $push: "$$ROOT" },
-      //                hasUninstall: {
-      //                    $max: {
-      //                        $cond: [{ $eq: ["$action", "uninstall"] }, 1, 0],
-      //                    },
-      //                },
-      //                maxBlockNumber: { $max: "$blockNumber" },
-      //            },
-      //        },
-      //        {
-      //            $match: {
-      //                hasUninstall: 0, // Exclude groups that have an uninstall action
-      //            },
-      //        },
-      //        {
-      //            $project: {
-      //                document: {
-      //                    $filter: {
-      //                        input: "$documents",
-      //                        as: "doc",
-      //                        cond: {
-      //                            $eq: ["$$doc.blockNumber", "$maxBlockNumber"],
-      //                        },
-      //                    },
-      //                },
-      //            },
-      //        },
-      //        {
-      //            $unwind: "$document",
-      //        },
-      //        {
-      //            $replaceRoot: {
-      //                newRoot: "$document",
-      //            },
-      //        },
     ]
     const plugins = await Models.LogPluginSetupProcessor.aggregate(query)
 
@@ -285,6 +250,7 @@ export const PluginHandler = {
       permissions: plugin.permissions,
       subdomain: plugin.subdomain,
       tokenAddress: plugin.tokenAddress,
+      helpers: plugin.helpers,
     }
 
     const pluginInfo = await PluginDetector.detectPluginType(plugin.address, plugin.network)

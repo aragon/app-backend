@@ -17,6 +17,7 @@ export interface IQueryGetPlugin {
   action: IPluginRawStatus
   permissions: any[]
   subdomain: string
+  helpers: string[]
 }
 
 export interface IAggPluginSlugParams {

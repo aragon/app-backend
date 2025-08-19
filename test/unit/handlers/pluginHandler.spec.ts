@@ -118,6 +118,7 @@ describe('Indexer:Plugin', () => {
     expect(rawPlugin?.build).to.equal(eventInstallationPrepared.build)
     expect(rawPlugin?.subdomain).to.equal(eventPluginRepo.subdomain)
     expect(rawPlugin?.sender).to.equal(eventInstallationPrepared.sender)
+    expect(rawPlugin?.helpers).to.deep.equal(eventInstallationPrepared.helpers)
   })
 
   describe('preInstallPlugin', () => {
@@ -275,6 +276,8 @@ describe('Indexer:Plugin', () => {
       expect(createdPlugin.isProcess).to.be.true
       expect(createdPlugin.isBody).to.be.true
       expect(createdPlugin.isSubPlugin).to.be.false
+      expect(createdPlugin.helpers).to.be.an('array')
+      expect(createdPlugin.helpers).to.deep.equal([])
     })
 
     it('_createPlugin SPP', async () => {
@@ -312,6 +315,8 @@ describe('Indexer:Plugin', () => {
       expect(createdPlugin.isProcess).to.be.true
       expect(createdPlugin.isBody).to.be.false
       expect(createdPlugin.isSubPlugin).to.be.false
+      expect(createdPlugin.helpers).to.be.an('array')
+      expect(createdPlugin.helpers).to.deep.equal([])
     })
   })
 
@@ -361,7 +366,8 @@ describe('Indexer:Plugin', () => {
         sender: rawPlugin.sender,
         release: rawPlugin.release,
         build: rawPlugin.build,
-        permissions: rawPlugin.permissions,
+        permissions: rawPlugin.permissions, 
+        helpers: [],
         subdomain: rawPlugin?.subdomain,
         interfaceType: IPluginInterfaceType.tokenVoting,
       })
@@ -395,6 +401,7 @@ describe('Indexer:Plugin', () => {
         release: rawPlugin.release,
         build: rawPlugin.build,
         permissions: rawPlugin.permissions,
+        helpers: [],
         subdomain: rawPlugin?.subdomain,
         interfaceType: IPluginInterfaceType.tokenVoting,
       })
@@ -1756,6 +1763,7 @@ describe('Indexer:Plugin', () => {
         daoAddress: '0x9876543210987654321098765432109876543210',
         pluginSetupRepoAddress: '0x1111111111111111111111111111111111111111',
         interfaceType: IPluginInterfaceType.admin,
+        helpers: [],
         conditionAddress: null,
       })
 
@@ -1820,6 +1828,7 @@ describe('Indexer:Plugin', () => {
         daoAddress: '0x9876543210987654321098765432109876543210',
         pluginSetupRepoAddress: '0x1111111111111111111111111111111111111111',
         interfaceType: IPluginInterfaceType.admin,
+        helpers: [],
         conditionAddress: existingConditionAddress,
       })
 
