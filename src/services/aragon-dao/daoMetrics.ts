@@ -50,7 +50,7 @@ export const DaoMetrics = {
           },
           { session },
         )
-        const uniqueVoters = await Models.Vote.countUniqueMemberVotesByPlugin(document.address, { session })
+        const uniqueVoters = await Models.Dao.countUniqueMembersCount(document.address, document.network, { session })
 
         const logDb = await document.updateMetrics(
           {
