@@ -776,7 +776,7 @@ describe('Module: blockchainLogCrawler', () => {
         ],
       })
 
-      sandbox.stub(crawler, 'getProviderUrl').resolves('https://ethereum-rpc.com')
+      sandbox.stub(crawler, 'getProviderUrl').returns('https://ethereum-rpc.com')
 
       sandbox.stub(axios, 'post').resolves(mockResponse)
 
@@ -807,7 +807,7 @@ describe('Module: blockchainLogCrawler', () => {
         ],
       })
 
-      sandbox.stub(crawler, 'getProviderUrl').resolves('https://ethereum-rpc.com')
+      sandbox.stub(crawler, 'getProviderUrl').returns('https://ethereum-rpc.com')
 
       sandbox.stub(axios, 'post').resolves(mockResponse)
 
@@ -835,7 +835,7 @@ describe('Module: blockchainLogCrawler', () => {
         ],
       })
 
-      sandbox.stub(crawler, 'getProviderUrl').resolves('https://ethereum-rpc.com')
+      sandbox.stub(crawler, 'getProviderUrl').returns('https://ethereum-rpc.com')
 
       const mockResponse = {
         data: [
@@ -878,7 +878,7 @@ describe('Module: blockchainLogCrawler', () => {
       const onErrorStub = sandbox.stub()
       const crawler = new BlockchainLogCrawler(crawlerConfig)
 
-      sandbox.stub(crawler, 'getProviderUrl').resolves('https://ethereum-rpc.com')
+      sandbox.stub(crawler, 'getProviderUrl').returns('https://ethereum-rpc.com')
 
       crawler['crawlParams'].onError = onErrorStub
       const networkError = new Error('Network connection error')
@@ -907,7 +907,7 @@ describe('Module: blockchainLogCrawler', () => {
         ],
       })
 
-      sandbox.stub(crawler, 'getProviderUrl').resolves('https://ethereum-rpc.com')
+      sandbox.stub(crawler, 'getProviderUrl').returns('https://ethereum-rpc.com')
 
       const axiosPostStub = sandbox.stub(axios, 'post').resolves({
         data: [
@@ -940,68 +940,24 @@ describe('Module: blockchainLogCrawler', () => {
   })
 
   describe('getProviderUrl', () => {
-    it('should get URL from provider when getProvider exists', async () => {
+    it('should get URL from ProviderModule', async () => {
       const crawler = new BlockchainLogCrawler(crawlerConfig)
 
-      // Mock provider with getProvider function
-      const mockCoreProvider = {
-        connection: {
-          url: 'https://custom-ethereum-rpc.com',
-        },
-      }
+      sandbox.stub(ProviderModule, 'getProviderUrl').returns('https://custom-ethereum-rpc.com')
 
-      const mockProvider = {
-        config: {
-          getProvider: sandbox.stub().resolves(mockCoreProvider),
-        },
-      }
-
-      sandbox.stub(ProviderModule, 'getAnyRpcProvider').resolves(mockProvider)
-
-      const url = await crawler.getProviderUrl()
+      const url = crawler.getProviderUrl()
 
       expect(url).to.equal('https://custom-ethereum-rpc.com')
-      expect(mockProvider.config.getProvider.calledOnce).to.be.true
     })
 
-    it('should fall back to config when getProvider does not exist', async () => {
+    it('should handle undefined provider URL', async () => {
       const crawler = new BlockchainLogCrawler(crawlerConfig)
 
-      // Mock provider without getProvider function
-      const mockProvider = {
-        config: {},
-      }
+      sandbox.stub(ProviderModule, 'getProviderUrl').returns(undefined)
 
-      sandbox.stub(ProviderModule, 'getAnyRpcProvider').resolves(mockProvider)
+      const url = crawler.getProviderUrl()
 
-      sandbox.stub(config, 'NODES').value({
-        ETHEREUM_MAINNET: {
-          ARAGON_RPC: 'https://fallback-ethereum-rpc.com',
-        },
-      })
-
-      const url = await crawler.getProviderUrl()
-
-      expect(url).to.equal('https://fallback-ethereum-rpc.com')
-    })
-
-    it('should handle provider with no config property', async () => {
-      const crawler = new BlockchainLogCrawler(crawlerConfig)
-
-      // Mock provider with no config property
-      const mockProvider = {}
-
-      sandbox.stub(ProviderModule, 'getAnyRpcProvider').resolves(mockProvider)
-
-      sandbox.stub(config, 'NODES').value({
-        ETHEREUM_MAINNET: {
-          ARAGON_RPC: 'https://fallback-ethereum-rpc.com',
-        },
-      })
-
-      const url = await crawler.getProviderUrl()
-
-      expect(url).to.equal('https://fallback-ethereum-rpc.com')
+      expect(url).to.be.undefined
     })
   })
 
@@ -1009,7 +965,7 @@ describe('Module: blockchainLogCrawler', () => {
     it('should create and execute batch requests for topics', async () => {
       const crawler = new BlockchainLogCrawler(crawlerConfig)
 
-      sandbox.stub(crawler, 'getProviderUrl').resolves('https://ethereum-rpc.com')
+      sandbox.stub(crawler, 'getProviderUrl').returns('https://ethereum-rpc.com')
 
       const topics = ['0xTopic1', '0xTopic2', '0xTopic3', '0xTopic4', '0xTopic5']
 
@@ -1049,7 +1005,7 @@ describe('Module: blockchainLogCrawler', () => {
     it('should log and rethrow errors', async () => {
       const crawler = new BlockchainLogCrawler(crawlerConfig)
 
-      sandbox.stub(crawler, 'getProviderUrl').resolves('https://ethereum-rpc.com')
+      sandbox.stub(crawler, 'getProviderUrl').returns('https://ethereum-rpc.com')
 
       sandbox.stub(Utils, 'chunkArray').returns([['0xTopic1']])
 
@@ -1071,7 +1027,7 @@ describe('Module: blockchainLogCrawler', () => {
     it('should return error object when batch size error occurs', async () => {
       const crawler = new BlockchainLogCrawler(crawlerConfig)
 
-      sandbox.stub(crawler, 'getProviderUrl').resolves('https://ethereum-rpc.com')
+      sandbox.stub(crawler, 'getProviderUrl').returns('https://ethereum-rpc.com')
       sandbox.stub(Utils, 'chunkArray').returns([['0xTopic1']])
 
       const batchSizeError = new Error('Response size is larger than 150MB limit')
@@ -1086,7 +1042,7 @@ describe('Module: blockchainLogCrawler', () => {
     it('should throw error when it is not a batch size error', async () => {
       const crawler = new BlockchainLogCrawler(crawlerConfig)
 
-      sandbox.stub(crawler, 'getProviderUrl').resolves('https://ethereum-rpc.com')
+      sandbox.stub(crawler, 'getProviderUrl').returns('https://ethereum-rpc.com')
       sandbox.stub(Utils, 'chunkArray').returns([['0xTopic1']])
 
       const networkError = new Error('Network connection timeout')
