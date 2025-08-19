@@ -965,7 +965,7 @@ export default class Dao extends Model {
       },
     )
 
-    const result = await this.aggregate(pipeline, tOpts).exec()
+    const result = await this.aggregate(pipeline, tOpts)
     return result.length > 0 ? result[0].uniqueMembersCount : 0
   }
 
