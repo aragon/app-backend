@@ -7,12 +7,16 @@ import { IPluginInterfaceType } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import MockDbLockManagerData from './mockData/mockDbLockManager.json'
+import { MemberGovernanceFactory } from '@src/governance'
 
 describe('migration: lockToVoteMember', () => {
   let sandbox: SinonSandbox
   let mockLockManagerMemberCollection: any
   let stubPluginFindOne: SinonStub
-  let stubLockManagerMemberCreate: SinonStub
+  let stubCreateBaseMember: SinonStub
+  let stubMemberGovernanceFactoryCreate: SinonStub
+  let governanceStub: any
+  let stubLockManagerMemberDeleteOne: SinonStub
   let stubLoggerInfo: SinonStub
   let stubLoggerError: SinonStub
 
@@ -34,8 +38,19 @@ describe('migration: lockToVoteMember', () => {
     // Stub Plugin model
     stubPluginFindOne = sandbox.stub(Models.Plugin, 'findOne')
 
-    // Stub LockManagerMember model
-    stubLockManagerMemberCreate = sandbox.stub(Models.LockManagerMember, 'create').resolves()
+    // Stub MemberGovernanceFactory methods
+    stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+    // Create governance stub with required methods
+    governanceStub = {
+      update: sandbox.stub().resolves(),
+      updatePluginMetrics: sandbox.stub().resolves(),
+    }
+
+    stubMemberGovernanceFactoryCreate = sandbox.stub(MemberGovernanceFactory, 'create').returns(governanceStub)
+
+    // Stub LockManagerMember model delete method
+    stubLockManagerMemberDeleteOne = sandbox.stub(Models.LockManagerMember, 'deleteOne').resolves()
 
     // Stub logger methods
     stubLoggerInfo = sandbox.stub(logger, 'info')
@@ -136,7 +151,7 @@ describe('migration: lockToVoteMember', () => {
       stubPluginFindOne
         .withArgs({
           network: 'ethereum-sepolia',
-          pluginAddress: '0x10c0cdDbE36877b6f1E6dD2560E579c47426Fd3b',
+          address: '0x10c0cdDbE36877b6f1E6dD2560E579c47426Fd3b',
           lockManagerAddress: { $exists: true },
         })
         .resolves(mockPlugin1)
@@ -144,15 +159,10 @@ describe('migration: lockToVoteMember', () => {
       stubPluginFindOne
         .withArgs({
           network: 'ethereum-sepolia',
-          pluginAddress: '0xfC907E0a59D555C7caBB1B110E1630d9576cE29e',
+          address: '0xfC907E0a59D555C7caBB1B110E1630d9576cE29e',
           lockManagerAddress: { $exists: true },
         })
         .resolves(mockPlugin2)
-
-      // Stub getEntityId
-      sandbox.stub(Models.LockManagerMember, 'getEntityId').callsFake((params: any) => {
-        return `${params.network}-${params.lockManagerAddress}-${params.memberAddress}`
-      })
 
       await lockToVoteMemberMigration.start()
 
@@ -160,73 +170,45 @@ describe('migration: lockToVoteMember', () => {
       expect(mockLockManagerMemberCollection.find.calledOnce).to.be.true
       expect(mockLockManagerMemberCollection.toArray.calledOnce).to.be.true
 
-      // Verify LockManagerMember.create calls for each member
-      // First member with plugin1
+      // Verify MemberGovernanceFactory.createBaseMember calls for each member
+      expect(stubCreateBaseMember.calledWith('0x17366cae2b9c6C3055e9e3C78936a69006BE5409', 8931464)).to.be.true
+      expect(stubCreateBaseMember.calledWith('0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759', 8926240)).to.be.true
+      expect(stubCreateBaseMember.calledWith('0xF6ad40D5D477ade0C640eaD49944bdD0AA1fBF05', 8926195)).to.be.true
+      expect(stubCreateBaseMember.calledWith('0xE3217A7790BB9bb60D4712B86E96B5f77AF7a747', 8926259)).to.be.true
+
+      // Verify MemberGovernanceFactory.create calls with lockManagerAddress
       expect(
-        stubLockManagerMemberCreate.calledWith({
-          id: 'ethereum-sepolia-0xLockManager1234567890abcdef1234567890ab-0x17366cae2b9c6C3055e9e3C78936a69006BE5409',
+        stubMemberGovernanceFactoryCreate.calledWith({
+          address: '0xLockManager1234567890abcdef1234567890ab',
           network: 'ethereum-sepolia',
-          lockManagerAddress: '0xLockManager1234567890abcdef1234567890ab',
-          memberAddress: '0x17366cae2b9c6C3055e9e3C78936a69006BE5409',
+          interfaceType: IPluginInterfaceType.lockToVote,
+        }),
+      ).to.be.true
+      expect(
+        stubMemberGovernanceFactoryCreate.calledWith({
+          address: '0xLockManager2234567890abcdef1234567890ab',
+          network: 'ethereum-sepolia',
+          interfaceType: IPluginInterfaceType.lockToVote,
+        }),
+      ).to.be.true
+
+      // Verify governance.update calls
+      expect(governanceStub.update.callCount).to.equal(4)
+      expect(
+        governanceStub.update.calledWith('0x17366cae2b9c6C3055e9e3C78936a69006BE5409', {
           votingPower: '408000000000000000000',
-          pluginAddress: undefined,
-          daoAddress: undefined,
-          transactionHash: undefined,
-          blockNumber: undefined,
-          blockTimestamp: undefined,
+          lastActivity: 8931464,
         }),
       ).to.be.true
 
-      // Second member with plugin2
-      expect(
-        stubLockManagerMemberCreate.calledWith({
-          id: 'ethereum-sepolia-0xLockManager2234567890abcdef1234567890ab-0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759',
-          network: 'ethereum-sepolia',
-          lockManagerAddress: '0xLockManager2234567890abcdef1234567890ab',
-          memberAddress: '0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759',
-          votingPower: '15506703',
-          pluginAddress: undefined,
-          daoAddress: undefined,
-          transactionHash: undefined,
-          blockNumber: undefined,
-          blockTimestamp: undefined,
-        }),
-      ).to.be.true
+      // Verify governance.updatePluginMetrics calls
+      expect(governanceStub.updatePluginMetrics.callCount).to.equal(4)
 
-      // Third member with plugin1 (same plugin as first)
-      expect(
-        stubLockManagerMemberCreate.calledWith({
-          id: 'ethereum-sepolia-0xLockManager1234567890abcdef1234567890ab-0xF6ad40D5D477ade0C640eaD49944bdD0AA1fBF05',
-          network: 'ethereum-sepolia',
-          lockManagerAddress: '0xLockManager1234567890abcdef1234567890ab',
-          memberAddress: '0xF6ad40D5D477ade0C640eaD49944bdD0AA1fBF05',
-          votingPower: '11000000000000000000',
-          pluginAddress: undefined,
-          daoAddress: undefined,
-          transactionHash: undefined,
-          blockNumber: undefined,
-          blockTimestamp: undefined,
-        }),
-      ).to.be.true
-
-      // Fourth member with plugin2
-      expect(
-        stubLockManagerMemberCreate.calledWith({
-          id: 'ethereum-sepolia-0xLockManager2234567890abcdef1234567890ab-0xE3217A7790BB9bb60D4712B86E96B5f77AF7a747',
-          network: 'ethereum-sepolia',
-          lockManagerAddress: '0xLockManager2234567890abcdef1234567890ab',
-          memberAddress: '0xE3217A7790BB9bb60D4712B86E96B5f77AF7a747',
-          votingPower: '10000000',
-          pluginAddress: undefined,
-          daoAddress: undefined,
-          transactionHash: undefined,
-          blockNumber: undefined,
-          blockTimestamp: undefined,
-        }),
-      ).to.be.true
+      // Verify LockManagerMember.deleteOne calls for each member
+      expect(stubLockManagerMemberDeleteOne.callCount).to.equal(4)
 
       // Verify total calls
-      expect(stubLockManagerMemberCreate.callCount).to.equal(4)
+      expect(stubCreateBaseMember.callCount).to.equal(4)
 
       // Verify logging
       expect(stubLoggerInfo.calledWith('Starting migration')).to.be.true
@@ -239,7 +221,7 @@ describe('migration: lockToVoteMember', () => {
       await lockToVoteMemberMigration.start()
 
       expect(mockLockManagerMemberCollection.find.calledOnce).to.be.true
-      expect(stubLockManagerMemberCreate.called).to.be.false
+      expect(stubCreateBaseMember.called).to.be.false
       expect(stubLoggerInfo.calledWith('No MemberBalance documents to migrate')).to.be.true
     })
 
@@ -271,7 +253,7 @@ describe('migration: lockToVoteMember', () => {
       expect(stubPluginFindOne.calledOnce).to.be.true
 
       // Verify no LockManagerMember was created
-      expect(stubLockManagerMemberCreate.called).to.be.false
+      expect(stubCreateBaseMember.called).to.be.false
 
       // Verify completion log
       expect(stubLoggerInfo.calledWith('Migration completed successfully')).to.be.true
@@ -322,21 +304,8 @@ describe('migration: lockToVoteMember', () => {
       expect(stubLoggerError.firstCall.args[1].pluginAddress).to.equal('0x10c0cdDbE36877b6f1E6dD2560E579c47426Fd3b')
 
       // Verify second document was still processed
-      expect(stubLockManagerMemberCreate.callCount).to.equal(1)
-      expect(
-        stubLockManagerMemberCreate.calledWith({
-          id: 'ethereum-sepolia-0xLockManager2234567890abcdef1234567890ab-0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759',
-          network: 'ethereum-sepolia',
-          lockManagerAddress: '0xLockManager2234567890abcdef1234567890ab',
-          memberAddress: '0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759',
-          votingPower: '15506703',
-          pluginAddress: undefined,
-          daoAddress: undefined,
-          transactionHash: undefined,
-          blockNumber: undefined,
-          blockTimestamp: undefined,
-        }),
-      ).to.be.true
+      expect(stubCreateBaseMember.callCount).to.equal(1)
+      expect(stubCreateBaseMember.calledWith('0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759', undefined)).to.be.true
 
       // Verify completion
       expect(stubLoggerInfo.calledWith('Migration completed successfully')).to.be.true
@@ -371,7 +340,7 @@ describe('migration: lockToVoteMember', () => {
       await lockToVoteMemberMigration.start()
 
       // Verify no LockManagerMember was created
-      expect(stubLockManagerMemberCreate.called).to.be.false
+      expect(stubCreateBaseMember.called).to.be.false
 
       // Verify completion
       expect(stubLoggerInfo.calledWith('Migration completed successfully')).to.be.true
