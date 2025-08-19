@@ -143,18 +143,18 @@ describe('migration: tokenMembers', () => {
 
       mockMemberMetricsCollection.findOne
         .withArgs({
-          tokenAddress: mockMemberBalances[0].tokenAddress,
+          pluginAddress: mockPlugins[0].address,
           memberAddress: mockMemberBalances[0].address,
           network: mockMemberBalances[0].network,
         })
         .resolves(mockMemberMetrics)
       mockMemberMetricsCollection.findOne
         .withArgs({
-          tokenAddress: mockMemberBalances[1].tokenAddress,
-          memberAddress: mockMemberBalances[1].address,
-          network: mockMemberBalances[1].network,
+          pluginAddress: mockPlugins[1].address,
+          memberAddress: mockMemberBalances[0].address,
+          network: mockMemberBalances[0].network,
         })
-        .resolves(null)
+        .resolves(mockMemberMetrics)
 
       await tokenMembersMigration.start()
 
