@@ -75,7 +75,7 @@ describe('AragonDao:DaoMetrics', () => {
 
       await DaoMetrics.onDocument(document)
 
-      expect(document.updateMetrics.calledOnceWith(fakeMetrics)).to.be.true
+      expect(document.updateMetrics.args[0][0]).to.be.deep.equal(fakeMetrics)
       expect(stubLogger.calledWithMatch('Update Dao metrics' as any)).to.be.true
     })
 
