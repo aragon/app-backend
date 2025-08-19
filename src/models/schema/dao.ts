@@ -832,6 +832,143 @@ export default class Dao extends Model {
     return await this.save(tOpts)
   }
 
+  static async countUniqueMembersCount(
+    address: HexAddress,
+    network: NetworksEnum,
+    tOpts?: SaveOptions,
+  ): Promise<number> {
+    const MEMBER_COLLECTION_CONFIG = [
+      {
+        interfaceTypes: ['tokenVoting'],
+        collection: 'TokenMember',
+        memberAddressField: 'memberAddress',
+        matchField: 'tokenAddress', // Field in a collection to match
+        sourceField: '$plugins.tokenAddress', // Source value from plugin
+        resultAlias: 'tokenMembers',
+      },
+      {
+        interfaceTypes: ['tokenVoting'],
+        collection: 'Lock',
+        memberAddressField: 'delegateReceiverAddress',
+        matchField: 'tokenAddress', // Field in a collection to match
+        sourceField: '$plugins.tokenAddress', // Source value from plugin
+        resultAlias: 'veGovernanceMembers',
+      },
+      {
+        interfaceTypes: ['lockToVote'],
+        collection: 'LockManagerMember',
+        memberAddressField: 'memberAddress',
+        matchField: 'lockManagerAddress', // Field in a collection to match
+        sourceField: '$plugins.lockManagerAddress', // Source value from plugin
+        resultAlias: 'lockMembers',
+      },
+      {
+        interfaceTypes: ['multisig', 'admin'],
+        collection: 'PluginMember',
+        memberAddressField: 'memberAddress',
+        matchField: 'pluginAddress', // Field in collection to match
+        sourceField: '$plugins.address', // Source value from plugin
+        resultAlias: 'pluginMembers',
+      },
+    ]
+
+    const pipeline: any[] = [
+      {
+        $match: {
+          address,
+          network,
+        },
+      },
+      {
+        $lookup: {
+          from: 'Plugin',
+          let: {
+            daoAddress: '$address',
+            network: '$network',
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$daoAddress', '$$daoAddress'] },
+                    { $eq: ['$network', '$$network'] },
+                    { $eq: ['$status', 'installed'] },
+                    { $eq: ['$isSupported', true] },
+                  ],
+                },
+              },
+            },
+          ],
+          as: 'plugins',
+        },
+      },
+      {
+        $unwind: '$plugins',
+      },
+    ]
+
+    MEMBER_COLLECTION_CONFIG.forEach(config => {
+      pipeline.push({
+        $lookup: {
+          from: config.collection,
+          let: {
+            targetValue: config.sourceField,
+            network: '$plugins.network',
+            interfaceType: '$plugins.interfaceType',
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    config.interfaceTypes.length === 1
+                      ? { $eq: ['$$interfaceType', config.interfaceTypes[0]] }
+                      : { $in: ['$$interfaceType', config.interfaceTypes] },
+                    { $eq: [`$${config.matchField}`, '$$targetValue'] },
+                    { $eq: ['$network', '$$network'] },
+                  ],
+                },
+              },
+            },
+            {
+              $project: {
+                memberAddress: `$${config.memberAddressField}`,
+              },
+            },
+          ],
+          as: config.resultAlias,
+        },
+      })
+    })
+
+    const memberArrays = MEMBER_COLLECTION_CONFIG.map(config => `$${config.resultAlias}`)
+
+    pipeline.push(
+      {
+        $addFields: {
+          allMembers: {
+            $concatArrays: memberArrays,
+          },
+        },
+      },
+      {
+        $unwind: '$allMembers',
+      },
+      {
+        $group: {
+          _id: '$allMembers.memberAddress',
+        },
+      },
+      {
+        $count: 'uniqueMembersCount',
+      },
+    )
+
+    const result = await this.aggregate(pipeline, tOpts).exec()
+    return result.length > 0 ? result[0].uniqueMembersCount : 0
+  }
+
   async reload(tOpts?: SaveOptions) {
     return await this.model(customName).findById(this._id, tOpts)
   }

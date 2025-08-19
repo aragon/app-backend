@@ -68,7 +68,7 @@ describe('AragonDao:DaoMetrics', () => {
         .resolves(fakeMetrics.proposalsCreated)
         .onCall(1)
         .resolves(fakeMetrics.proposalsExecuted)
-      sandbox.stub(Models.PluginMember, 'countUniqueMembers').resolves(fakeMetrics.members)
+      sandbox.stub(Models.Dao, 'countUniqueMembers').resolves(fakeMetrics.members)
       sandbox.stub(Models.Vote, 'countDocuments').resolves(fakeMetrics.votes)
       sandbox.stub(Models.Vote, 'countUniqueMemberVotesByPlugin').resolves(fakeMetrics.uniqueVoters)
       const stubLogger = sandbox.stub(Logger, 'verbose')

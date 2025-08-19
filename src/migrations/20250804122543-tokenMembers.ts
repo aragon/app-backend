@@ -70,7 +70,7 @@ export const tokenMembersMigration: IMigration = {
               return
             }
 
-            // Create base member
+            // Create a base member
             await MemberGovernanceFactory.createBaseMember(
               memberBalance.address,
               memberBalance.lastSyncVotingPowerBlockNumber,
