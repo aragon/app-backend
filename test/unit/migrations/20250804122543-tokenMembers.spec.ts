@@ -547,7 +547,7 @@ describe('migration: tokenMembers', () => {
 
       expect(membersWeSave.length).to.be.eq(pluginMetrics.length)
 
-      const totalMembers = await Models.Dao.countUniqueMembersCount(dao.address, dao.network)
+      const totalMembers = await Models.Dao.countUniqueMembers(dao.address, dao.network)
 
       expect(totalMembers).to.be.eq(membersWeSave.length)
     })

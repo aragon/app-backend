@@ -832,11 +832,7 @@ export default class Dao extends Model {
     return await this.save(tOpts)
   }
 
-  static async countUniqueMembersCount(
-    address: HexAddress,
-    network: NetworksEnum,
-    tOpts?: SaveOptions,
-  ): Promise<number> {
+  static async countUniqueMembers(address: HexAddress, network: NetworksEnum, tOpts?: SaveOptions): Promise<number> {
     const MEMBER_COLLECTION_CONFIG = [
       {
         interfaceTypes: ['tokenVoting'],
