@@ -9,7 +9,7 @@ import {
   NetworksEnum,
 } from '@types'
 import { JsonRpcProvider } from 'ethers'
-import { Alchemy, type AlchemySettings, Network } from 'alchemy-sdk'
+import { AlchemyNetwork, alchemyNetworkToUrl } from '@types'
 import config from '@config'
 import logger from '@logger'
 import { type INodeConnection } from '@src/types/node'
@@ -20,16 +20,17 @@ const llo = logger.logMeta.bind(null, { service: 'modules:Provider' })
 const ProviderModule = {
   providerProxies: {} satisfies Record<NetworksEnum | string, IProviderProxy>,
 
-  // Maps NetworksEnum values to Alchemy SDK network identifiers.
+  // Maps NetworksEnum values to Alchemy network identifiers.
   alchemyNetworksMap: {
-    [NetworksEnum.ethereumMainnet]: Network.ETH_MAINNET,
-    [NetworksEnum.ethereumSepolia]: Network.ETH_SEPOLIA,
-    [NetworksEnum.polygonMainnet]: Network.MATIC_MAINNET,
-    [NetworksEnum.baseMainnet]: Network.BASE_MAINNET,
-    [NetworksEnum.arbitrumMainnet]: Network.ARB_MAINNET,
-    [NetworksEnum.zksyncSepolia]: Network.ZKSYNC_SEPOLIA,
-    [NetworksEnum.zksyncMainnet]: Network.ZKSYNC_MAINNET,
-    [NetworksEnum.optimismMainnet]: Network.OPT_MAINNET,
+    [NetworksEnum.ethereumMainnet]: AlchemyNetwork.ETH_MAINNET,
+    [NetworksEnum.ethereumSepolia]: AlchemyNetwork.ETH_SEPOLIA,
+    [NetworksEnum.polygonMainnet]: AlchemyNetwork.MATIC_MAINNET,
+    [NetworksEnum.baseMainnet]: AlchemyNetwork.BASE_MAINNET,
+    [NetworksEnum.arbitrumMainnet]: AlchemyNetwork.ARB_MAINNET,
+    [NetworksEnum.zksyncSepolia]: AlchemyNetwork.ZKSYNC_SEPOLIA,
+    [NetworksEnum.zksyncMainnet]: AlchemyNetwork.ZKSYNC_MAINNET,
+    [NetworksEnum.optimismMainnet]: AlchemyNetwork.OPT_MAINNET,
+    [NetworksEnum.chilizMainnet]: AlchemyNetwork.CHILIZ_MAINNET,
   },
 
   // Maps raw config keys to your NetworksEnum.
@@ -65,8 +66,8 @@ const ProviderModule = {
     return ProviderModule.networksMap[network]
   },
 
-  // Converts a NetworksEnum to the corresponding Alchemy SDK Network.
-  parseAlchemyNetwork: (network: NetworksEnum): Network => {
+  // Converts a NetworksEnum to the corresponding Alchemy network string.
+  parseAlchemyNetwork: (network: NetworksEnum): AlchemyNetwork => {
     return ProviderModule.alchemyNetworksMap[network]
   },
 
@@ -119,14 +120,20 @@ const ProviderModule = {
 
     if (nodeConfig.providerType === IProviderType.ALCHEMY) {
       const alchemyConfig = nodeConfig as IAlchemyConfig
-      const alchemySettings: AlchemySettings = {
-        apiKey: alchemyConfig.alchemyApiKey!,
-        network: ProviderModule.parseAlchemyNetwork(network),
-        maxRetries: 10,
+      const alchemyNetwork = ProviderModule.parseAlchemyNetwork(network)
+      const alchemyHost = alchemyNetworkToUrl[alchemyNetwork]
+
+      if (!alchemyHost) {
+        logger.warn(`Alchemy host not found for network ${alchemyNetwork}`, llo({ network }))
+        return
       }
 
-      const alchemyConnection: any = new Alchemy(alchemySettings) as IAlchemyNodeConnection
-      alchemyConnection.rpc = alchemyConnection.core
+      const alchemyUrl = `https://${alchemyHost}/v2/${alchemyConfig.alchemyApiKey}`
+      const rpcProvider = new JsonRpcProvider(alchemyUrl)
+
+      const alchemyConnection: IAlchemyNodeConnection = {
+        rpc: rpcProvider,
+      }
       ProviderModule.providerProxies[network].alchemy = alchemyConnection
     } else if (nodeConfig.providerType === IProviderType.ARAGON) {
       const aragonConfig = nodeConfig as IAragonNodeConfig
