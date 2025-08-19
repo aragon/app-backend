@@ -8,6 +8,10 @@ import { MemberGovernanceFactory } from '@src/governance'
 import { Models } from '@dbModels'
 import logger from '@logger'
 
+import mockMemberBalanceData from './mockData/mockMemberBalance.json'
+import mockMemberMetricsData from './mockData/mockMemberMetrics.json'
+import mockMemberTransactionData from './mockData/mockMemberTransaction.json'
+
 describe('migration: tokenMembers', () => {
   let sandbox: SinonSandbox
   let mockMemberBalancesCollection: any
@@ -524,21 +528,10 @@ describe('migration: tokenMembers', () => {
         links: [],
       }
 
-      // Load mock data arrays
-      const mockMemberBalanceData = await import('./mockData/mockMemberBalance.json')
-      const mockMemberMetricsData = await import('./mockData/mockMemberMetrics.json')
-      const mockMemberTransactionData = await import('./mockData/mockMemberTransaction.json')
-
       await Models.Plugin.create(plugin)
-      await mongoose.connection
-        .collection('MemberBalance')
-        .insertMany(mockMemberBalanceData.default || mockMemberBalanceData)
-      await mongoose.connection
-        .collection('MemberMetric')
-        .insertMany(mockMemberMetricsData.default || mockMemberMetricsData)
-      await mongoose.connection
-        .collection('MemberTransaction')
-        .insertMany(mockMemberTransactionData.default || mockMemberTransactionData)
+      await mongoose.connection.collection('MemberBalance').insertMany(mockMemberBalanceData)
+      await mongoose.connection.collection('MemberMetric').insertMany(mockMemberMetricsData)
+      await mongoose.connection.collection('MemberTransaction').insertMany(mockMemberTransactionData)
 
       await tokenMembersMigration.start()
 
