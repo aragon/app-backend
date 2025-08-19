@@ -2,9 +2,8 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import ProviderModule from '@modules/provider'
-import { IProviderType, NetworksEnum } from '@types'
+import { IProviderType, NetworksEnum, AlchemyNetwork } from '@types'
 import config from '@config'
-import { Network } from 'alchemy-sdk'
 import proxyquire from 'proxyquire'
 import logger from '@logger'
 
@@ -34,14 +33,15 @@ describe('Module: provider', () => {
   })
 
   it('alchemyNetworksMap', () => {
-    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.ethereumMainnet]).to.equal(Network.ETH_MAINNET)
-    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.ethereumSepolia]).to.equal(Network.ETH_SEPOLIA)
-    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.polygonMainnet]).to.equal(Network.MATIC_MAINNET)
-    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.baseMainnet]).to.equal(Network.BASE_MAINNET)
-    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.arbitrumMainnet]).to.equal(Network.ARB_MAINNET)
-    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.zksyncSepolia]).to.equal(Network.ZKSYNC_SEPOLIA)
-    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.zksyncMainnet]).to.equal(Network.ZKSYNC_MAINNET)
-    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.optimismMainnet]).to.equal(Network.OPT_MAINNET)
+    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.ethereumMainnet]).to.equal(AlchemyNetwork.ETH_MAINNET)
+    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.ethereumSepolia]).to.equal(AlchemyNetwork.ETH_SEPOLIA)
+    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.polygonMainnet]).to.equal(AlchemyNetwork.MATIC_MAINNET)
+    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.baseMainnet]).to.equal(AlchemyNetwork.BASE_MAINNET)
+    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.arbitrumMainnet]).to.equal(AlchemyNetwork.ARB_MAINNET)
+    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.zksyncSepolia]).to.equal(AlchemyNetwork.ZKSYNC_SEPOLIA)
+    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.zksyncMainnet]).to.equal(AlchemyNetwork.ZKSYNC_MAINNET)
+    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.optimismMainnet]).to.equal(AlchemyNetwork.OPT_MAINNET)
+    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.chilizMainnet]).to.equal(AlchemyNetwork.CHILIZ_MAINNET)
   })
 
   it('should correctly parseNetworkChain', () => {
@@ -98,28 +98,31 @@ describe('Module: provider', () => {
 
   it('should correctly parseAlchemyNetwork', () => {
     const result = ProviderModule.parseAlchemyNetwork(NetworksEnum.ethereumMainnet)
-    expect(result).to.equal(Network.ETH_MAINNET)
+    expect(result).to.equal(AlchemyNetwork.ETH_MAINNET)
 
     const result2 = ProviderModule.parseAlchemyNetwork(NetworksEnum.ethereumSepolia)
-    expect(result2).to.equal(Network.ETH_SEPOLIA)
+    expect(result2).to.equal(AlchemyNetwork.ETH_SEPOLIA)
 
     const result3 = ProviderModule.parseAlchemyNetwork(NetworksEnum.polygonMainnet)
-    expect(result3).to.equal(Network.MATIC_MAINNET)
+    expect(result3).to.equal(AlchemyNetwork.MATIC_MAINNET)
 
     const result4 = ProviderModule.parseAlchemyNetwork(NetworksEnum.baseMainnet)
-    expect(result4).to.equal(Network.BASE_MAINNET)
+    expect(result4).to.equal(AlchemyNetwork.BASE_MAINNET)
 
     const result5 = ProviderModule.parseAlchemyNetwork(NetworksEnum.arbitrumMainnet)
-    expect(result5).to.equal(Network.ARB_MAINNET)
+    expect(result5).to.equal(AlchemyNetwork.ARB_MAINNET)
 
     const result6 = ProviderModule.parseAlchemyNetwork(NetworksEnum.zksyncSepolia)
-    expect(result6).to.equal(Network.ZKSYNC_SEPOLIA)
+    expect(result6).to.equal(AlchemyNetwork.ZKSYNC_SEPOLIA)
 
     const result7 = ProviderModule.parseAlchemyNetwork(NetworksEnum.zksyncMainnet)
-    expect(result7).to.equal(Network.ZKSYNC_MAINNET)
+    expect(result7).to.equal(AlchemyNetwork.ZKSYNC_MAINNET)
 
     const result8 = ProviderModule.parseAlchemyNetwork(NetworksEnum.optimismMainnet)
-    expect(result8).to.equal(Network.OPT_MAINNET)
+    expect(result8).to.equal(AlchemyNetwork.OPT_MAINNET)
+
+    const result9 = ProviderModule.parseAlchemyNetwork(NetworksEnum.chilizMainnet)
+    expect(result9).to.equal(AlchemyNetwork.CHILIZ_MAINNET)
   })
 
   it('connectToAllNetworks should call connectToNetwork for each node configured', async () => {
@@ -171,16 +174,19 @@ describe('Module: provider', () => {
         confirmationBlocks: 12,
         intervalBlockTime: 15,
       }
-      const fakeAlchemy = {
-        core: {},
-      }
-      const alchemyStub = sandbox.stub().returns(fakeAlchemy)
-      sandbox.replace(require('alchemy-sdk'), 'Alchemy', alchemyStub)
+      const providerStub = { on: sandbox.stub() }
+      const { default: ProviderModule } = proxyquire.noCallThru()('@modules/provider', {
+        ethers: {
+          JsonRpcProvider: function () {
+            return providerStub
+          },
+        },
+      })
 
       await ProviderModule.connectToNetwork(network, alchemyConfig)
       const proxy = ProviderModule.providerProxies[network]
       expect(proxy.alchemy).to.exist
-      expect(alchemyStub.calledOnce).to.be.true
+      expect(proxy.alchemy.rpc).to.equal(providerStub)
     })
 
     it('connectToNetwork should configure an Aragon connection', async () => {
