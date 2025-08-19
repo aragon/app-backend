@@ -6,6 +6,7 @@ import lockToVoteMemberMigration from '@src/migrations/20250811180419-lockToVote
 import { IPluginInterfaceType } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
+import MockDbLockManagerData from './mockData/mockDbLockManager.json'
 
 describe('migration: lockToVoteMember', () => {
   let sandbox: SinonSandbox
@@ -387,6 +388,49 @@ describe('migration: lockToVoteMember', () => {
   describe('should create the users and all the related tables without any stub', () => {
     it('should save the members from the mock data for lockToVote', async () => {
       sandbox.restore()
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(logger, 'info')
+
+      // Create DAO first
+      await Models.Dao.create(MockDbLockManagerData.dao)
+
+      // Create plugins
+      await Models.Plugin.insertMany(MockDbLockManagerData.plugin)
+
+      await mongoose.connection.collection('LockManagerMember').insertMany(MockDbLockManagerData.lockManagerMember)
+
+      await mongoose.connection.collection('MemberMetrics').insertMany(MockDbLockManagerData.pluginMetrics)
+
+      await lockToVoteMemberMigration.start()
+
+      const lockToVoteMembers = await Models.LockManagerMember.find({})
+
+      for (const member of lockToVoteMembers) {
+        expect(member.network).to.exist
+        expect(member.lockManagerAddress).to.exist
+        expect(member.memberAddress).to.exist
+        expect(member.votingPower).to.exist
+        expect(member.id).to.exist
+        expect(member.pluginAddress).to.not.exist
+        expect(member.daoAddress).to.not.exist
+        expect(member.lastVPBlockNumber).to.be.exist
+
+        const metrics = await Models.PluginMetrics.findOne({
+          memberAddress: member.memberAddress,
+          network: member.network,
+        })
+
+        expect(metrics).to.exist
+        expect(metrics.pluginAddress).to.exist
+        expect(metrics.lastActivity).to.be.eq(member.lastVPBlockNumber)
+      }
+
+      const totalMembers = await Models.Dao.countUniqueMembers(
+        MockDbLockManagerData.dao.address,
+        MockDbLockManagerData.dao.network,
+      )
+
+      expect(totalMembers).to.be.eq(lockToVoteMembers.length)
     })
   })
 })

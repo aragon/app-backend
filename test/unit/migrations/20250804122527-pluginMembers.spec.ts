@@ -308,7 +308,7 @@ describe('migration: pluginMembers', () => {
     })
   })
 
-  describe.only('should create the users and all the related tables without any stub', () => {
+  describe('should create the users and all the related tables without any stub', () => {
     it('should utilize the mock data to run the migration', async () => {
       sandbox.restore()
       sandbox.stub(logger, 'info')
@@ -328,6 +328,13 @@ describe('migration: pluginMembers', () => {
       const pluginMetrics = await Models.PluginMetrics.find({
         pluginAddress: MockMultisigMember.memberMappings[0].pluginAddress,
       })
+
+      const totalMembers = await Models.Dao.countUniqueMembers(
+        MockMultisigMember.dao.address,
+        MockMultisigMember.dao.network,
+      )
+
+      expect(totalMembers).to.be.eq(members.length)
 
       expect(members.length).to.equal(pluginMetrics.length)
       expect(pluginMetrics[0].lastActivity).to.be.not.eq(0)

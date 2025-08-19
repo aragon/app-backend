@@ -1,8 +1,9 @@
-import { type IMigration } from '@types'
+import { type IMigration, IPluginInterfaceType } from '@types'
 import logger from '@logger'
 import { Models } from '@dbModels'
 import mongoose from 'mongoose'
 import * as pLimit from 'p-limit'
+import { MemberGovernanceFactory } from '@src/governance'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: lockToVoteMember' })
 
@@ -26,25 +27,35 @@ export const lockToVoteMemberMigration: IMigration = {
           try {
             const plugin = await Models.Plugin.findOne({
               network: memberManager.network,
-              pluginAddress: memberManager.pluginAddress,
+              address: memberManager.pluginAddress,
               lockManagerAddress: { $exists: true },
             })
+
             if (plugin?.lockManagerAddress) {
-              await Models.LockManagerMember.create({
-                id: Models.LockManagerMember.getEntityId({
-                  network: memberManager.network,
-                  lockManagerAddress: plugin.lockManagerAddress,
-                  memberAddress: memberManager.memberAddress,
-                }),
-                network: memberManager.network,
-                lockManagerAddress: plugin.lockManagerAddress,
-                memberAddress: memberManager.memberAddress,
+              await MemberGovernanceFactory.createBaseMember(memberManager.memberAddress, memberManager.blockNumber)
+
+              const governance = MemberGovernanceFactory.create({
+                address: plugin.lockManagerAddress,
+                network: plugin.network,
+                interfaceType: IPluginInterfaceType.lockToVote,
+              })
+
+              await governance.update(memberManager.memberAddress, {
                 votingPower: memberManager.votingPower,
-                pluginAddress: undefined,
-                daoAddress: undefined,
-                transactionHash: undefined,
-                blockNumber: undefined,
-                blockTimestamp: undefined,
+                lastActivity: memberManager.blockNumber,
+              })
+
+              await governance.updatePluginMetrics({
+                memberAddress: memberManager.memberAddress,
+                pluginAddress: plugin.address,
+                daoAddress: plugin.daoAddress,
+                network: plugin.network,
+                lastActivity: memberManager.blockNumber,
+              })
+
+              // clean up existing data
+              await Models.LockManagerMember.deleteOne({
+                _id: memberManager._id,
               })
             }
           } catch (e) {

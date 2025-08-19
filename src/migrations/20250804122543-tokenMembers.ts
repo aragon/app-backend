@@ -1,11 +1,9 @@
-import { type IMigration, IPluginStatus, IPluginInterfaceType, EnumQueueName } from '@types'
+import { type IMigration, IPluginStatus, IPluginInterfaceType } from '@types'
 import logger from '@logger'
 import { Models } from '@dbModels'
 import mongoose from 'mongoose'
 import * as pLimit from 'p-limit'
 import { MemberGovernanceFactory } from '@src/governance'
-import utils from '@helpers/utils'
-import RabbitMQHelper from '@helpers/rabbitMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: tokenMembers' })
 
