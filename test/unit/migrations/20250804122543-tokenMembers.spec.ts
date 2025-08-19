@@ -418,7 +418,7 @@ describe('migration: tokenMembers', () => {
     })
   })
 
-  describe.only('check why we did not have the proper data', () => {
+  describe('check why we did not have the proper data', () => {
     it('should simulate complete migration with mock data arrays', async () => {
       sandbox.restore()
       sandbox.stub(logger, 'verbose')
