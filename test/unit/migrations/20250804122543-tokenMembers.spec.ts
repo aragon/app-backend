@@ -7,10 +7,7 @@ import { IPluginStatus, NetworksEnum } from '@types'
 import { MemberGovernanceFactory } from '@src/governance'
 import { Models } from '@dbModels'
 import logger from '@logger'
-
-import mockMemberBalanceData from './mockData/mockMemberBalance.json'
-import mockMemberMetricsData from './mockData/mockMemberMetrics.json'
-import mockMemberTransactionData from './mockData/mockMemberTransaction.json'
+import MockTokenVotingData from './mockData/mockTokenVoting.json'
 
 describe('migration: tokenMembers', () => {
   let sandbox: SinonSandbox
@@ -427,111 +424,13 @@ describe('migration: tokenMembers', () => {
       sandbox.restore()
       sandbox.stub(logger, 'verbose')
       sandbox.stub(logger, 'info')
-      const dao = {
-        id: 'ethereum-mainnet-0xFF4e2F08911F0082e7446D377eaFfEE98B7d45a6',
-        isActive: true,
-        isHidden: false,
-        network: 'ethereum-mainnet',
-        transactionHash: '0xd32af2ec5b10c0e131639a9c90340e69a15e925b4f593855e18d93c35fa7d240',
-        blockNumber: 19847203,
-        blockTimestamp: 1715435495,
-        address: '0xFF4e2F08911F0082e7446D377eaFfEE98B7d45a6',
-        implementationAddress: '0x52Af16664155608b845BE18aa29620EbF6eA2D3a',
-        creatorAddress: '0xe5818d70a9b5aed2bfDe4E41FBcB07dD80f8fC84',
-        ens: 'spinnakerspin.dao.eth',
-        subdomain: 'spinnakerspin',
-        metadataIpfs: 'ipfs://QmUBaCEMvbSBC4umuYTYNRFnq2uz7VRfrn2wJckLExSnjZ',
-        name: 'SpinnakerSpinStrategy',
-        description: 'Spinnaker SPIN strategy for managing assets in DeFi with moderate risk exposure',
-        avatar: 'ipfs://Qmdtyq89Q6hsw2TCfZyvRW7Kr8xWQhS4fXbupo5SsDLASW',
-        version: '1.3.0',
-        metrics: {
-          tvlUSD: 514947.23,
-          proposalsCreated: 7,
-          proposalsExecuted: 7,
-          uniqueVoters: 1,
-          votes: 7,
-          members: 0,
-        },
-        links: [
-          {
-            name: 'Website',
-            url: 'http://spinnakerdao.io',
-          },
-        ],
-      }
 
-      await Models.Dao.create(dao)
+      await Models.Dao.create(MockTokenVotingData.dao)
 
-      const plugin = {
-        id: 'ethereum-mainnet-0xd32af2ec5b10c0e131639a9c90340e69a15e925b4f593855e18d93c35fa7d240-0xD7CeEEFE65a9154864f881ACa5C015ac7787EeD7',
-        transactionHash: '0xd32af2ec5b10c0e131639a9c90340e69a15e925b4f593855e18d93c35fa7d240',
-        blockNumber: 19847203,
-        blockTimestamp: 1715435495,
-        network: 'ethereum-mainnet',
-        address: '0xD7CeEEFE65a9154864f881ACa5C015ac7787EeD7',
-        implementationAddress: '0xd4bfb6C688b2982A3b432F2Fc6C35117532A2C27',
-        interfaceType: 'tokenVoting',
-        status: 'installed',
-        isSupported: true,
-        daoAddress: '0xFF4e2F08911F0082e7446D377eaFfEE98B7d45a6',
-        tokenAddress: '0x2DdA5c2e0665B1719Be03DCBbECED9F4d8bb7735',
-        pluginSetupRepoAddress: '0xb7401cD221ceAFC54093168B814Cc3d42579287f',
-        sender: '0xf96e6FD76BD0A15580604e1Ea5818D448b1041C0',
-        release: '1',
-        build: '2',
-        subdomain: 'token-voting',
-        permissions: [
-          {
-            operation: 0,
-            where: '0xD7CeEEFE65a9154864f881ACa5C015ac7787EeD7',
-            who: '0xFF4e2F08911F0082e7446D377eaFfEE98B7d45a6',
-            condition: '0x0000000000000000000000000000000000000000',
-            permissionId: '0xbba35d41610b7d25c8e486006535c76bd423091563e694d206ae3d71ce949fe5',
-          },
-          {
-            operation: 0,
-            where: '0xD7CeEEFE65a9154864f881ACa5C015ac7787EeD7',
-            who: '0xFF4e2F08911F0082e7446D377eaFfEE98B7d45a6',
-            condition: '0x0000000000000000000000000000000000000000',
-            permissionId: '0x821b6e3a557148015a918c89e5d092e878a69854a2d1a410635f771bd5a8a3f5',
-          },
-          {
-            operation: 0,
-            where: '0xFF4e2F08911F0082e7446D377eaFfEE98B7d45a6',
-            who: '0xD7CeEEFE65a9154864f881ACa5C015ac7787EeD7',
-            condition: '0x0000000000000000000000000000000000000000',
-            permissionId: '0xbf04b4486c9663d805744005c3da000eda93de6e3308a4a7a812eb565327b78d',
-          },
-          {
-            operation: 0,
-            where: '0x2DdA5c2e0665B1719Be03DCBbECED9F4d8bb7735',
-            who: '0xFF4e2F08911F0082e7446D377eaFfEE98B7d45a6',
-            condition: '0x0000000000000000000000000000000000000000',
-            permissionId: '0xb737b436e6cc542520cb79ec04245c720c38eebfa56d9e2d99b043979db20e4c',
-          },
-        ],
-        uninstalled: {
-          status: false,
-          transactionHash: null,
-          blockNumber: null,
-          blockTimestamp: null,
-        },
-        isProcess: true,
-        isBody: true,
-        isSubPlugin: false,
-        metadataIpfs: null,
-        name: null,
-        description: null,
-        processKey: null,
-        subPlugins: [],
-        links: [],
-      }
-
-      await Models.Plugin.create(plugin)
-      await mongoose.connection.collection('MemberBalance').insertMany(mockMemberBalanceData)
-      await mongoose.connection.collection('MemberMetric').insertMany(mockMemberMetricsData)
-      await mongoose.connection.collection('MemberTransaction').insertMany(mockMemberTransactionData)
+      await Models.Plugin.insertMany(MockTokenVotingData.plugins)
+      await mongoose.connection.collection('MemberBalance').insertMany(MockTokenVotingData.memberBalance)
+      await mongoose.connection.collection('MemberMetric').insertMany(MockTokenVotingData.memberMetrics)
+      await mongoose.connection.collection('MemberTransaction').insertMany(MockTokenVotingData.memberTransaction)
 
       await tokenMembersMigration.start()
 
@@ -540,7 +439,10 @@ describe('migration: tokenMembers', () => {
 
       expect(membersWeSave.length).to.be.eq(pluginMetrics.length)
 
-      const totalMembers = await Models.Dao.countUniqueMembers(dao.address, dao.network)
+      const totalMembers = await Models.Dao.countUniqueMembers(
+        MockTokenVotingData.dao.address,
+        MockTokenVotingData.dao.network,
+      )
 
       expect(totalMembers).to.be.eq(membersWeSave.length)
 
