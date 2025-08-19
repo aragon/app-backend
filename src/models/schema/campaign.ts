@@ -32,7 +32,7 @@ export class CampaignMetadata {
   @prop({ type: () => String, default: null })
   public description?: string | null
 
-  @prop({ type: () => [Link], default: [] })
+  @prop({ type: () => [Link], default: [], _id: false })
   public resources?: Link[]
 
   @prop({ type: () => String, default: null })
