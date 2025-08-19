@@ -209,7 +209,8 @@ export default class Plugin extends Model {
   public lockManagerAddress?: HexAddress
 
   @prop({ type: () => [String], default: [] })
-  public helpers?: string[]
+  @prop({ type: () => [HexAddress], default: [] })
+  public helpers?: HexAddress[]
 
   static async create(rawData: Partial<Plugin>, tOpts?: SaveOptions) {
     if (!rawData.id) {
