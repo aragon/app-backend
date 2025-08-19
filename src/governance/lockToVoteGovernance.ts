@@ -104,7 +104,6 @@ export class LockToVoteGovernance extends BaseGovernance {
 
     try {
       return await DbTx.executeTxFn(async ({ session }) => {
-        // First ensure the member exists using getOrCreate
         const lockManagerMember = await this.getOrCreate(memberAddress, params, session)
 
         if (!lockManagerMember) {

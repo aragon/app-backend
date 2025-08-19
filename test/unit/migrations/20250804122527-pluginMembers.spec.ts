@@ -7,6 +7,7 @@ import { NetworksEnum, IPluginInterfaceType } from '@types'
 import { MemberGovernanceFactory } from '@src/governance'
 import { Models } from '@dbModels'
 import logger from '@logger'
+import MockMultisigMember from './mockData/mockMultisigMember.json'
 
 describe('migration: pluginMembers', () => {
   let sandbox: SinonSandbox
@@ -304,7 +305,33 @@ describe('migration: pluginMembers', () => {
   describe('stop', () => {
     it('should do nothing', async () => {
       await pluginMembersMigration.stop()
-      // No assertions needed, just verify it doesn't throw
+    })
+  })
+
+  describe.only('should create the users and all the related tables without any stub', () => {
+    it('should utilize the mock data to run the migration', async () => {
+      sandbox.restore()
+      sandbox.stub(logger, 'info')
+      sandbox.stub(logger, 'verbose')
+
+      await mongoose.connection.collection('DaoMemberMapping').insertMany(MockMultisigMember.memberMappings)
+      await mongoose.connection.collection('MemberMetric').insertMany(MockMultisigMember.memberMetrics)
+      await Models.Plugin.insertMany(MockMultisigMember.plugins)
+      await Models.Dao.create(MockMultisigMember.dao)
+
+      await pluginMembersMigration.start()
+
+      const members = await Models.PluginMember.find({
+        pluginAddress: MockMultisigMember.memberMappings[0].pluginAddress,
+      })
+
+      const pluginMetrics = await Models.PluginMetrics.find({
+        pluginAddress: MockMultisigMember.memberMappings[0].pluginAddress,
+      })
+
+      expect(members.length).to.equal(pluginMetrics.length)
+      expect(pluginMetrics[0].lastActivity).to.be.not.eq(0)
+      expect(pluginMetrics[0].firstActivity).to.be.not.eq(0)
     })
   })
 })

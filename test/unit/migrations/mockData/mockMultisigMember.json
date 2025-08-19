@@ -1,0 +1,188 @@
+{
+  "dao": {
+    "id": "ethereum-mainnet-0xB2EcFF866C75c640F335AFbE5b09D5B03d464362",
+    "isActive": true,
+    "isHidden": false,
+    "network": "ethereum-mainnet",
+    "transactionHash": "0x69e7ad955352f301dd240739a4e640a2918c8bd9fe445c74c7cf3794c9a85c28",
+    "blockNumber": 21365057,
+    "blockTimestamp": 1733748623,
+    "address": "0xB2EcFF866C75c640F335AFbE5b09D5B03d464362",
+    "implementationAddress": "0x52Af16664155608b845BE18aa29620EbF6eA2D3a",
+    "creatorAddress": "0x24984b15d2c45619887533710d63246E42946ECE",
+    "ens": "af.dao.eth",
+    "subdomain": "af",
+    "metadataIpfs": "ipfs://bafkreiaflumi2yw63vg4qla6catn6x6eoe3skr6sptmr6zkhpkamq5rwye",
+    "name": "Aragon Foundation Treasury",
+    "description": "Onchain asset management to fulfill the purpose of the Aragon Foundation: empowering developers to build open source technology for onchain governance.\n",
+    "avatar": "ipfs://QmPhmzVmFEA5GaJtT1rVv2jN1hMEW4YBgvAgH5pqQWLkPC",
+    "version": "1.3.0",
+    "metrics": {
+      "tvlUSD": 40535848.89,
+      "proposalsCreated": 21,
+      "proposalsExecuted": 15,
+      "uniqueVoters": 5,
+      "votes": 59,
+      "members": 5
+    },
+    "links": [
+      {
+        "name": "Website",
+        "url": "http://aragonfoundation.org"
+      }
+    ]
+  },
+  "plugins": [
+    {
+      "id": "ethereum-mainnet-0x69e7ad955352f301dd240739a4e640a2918c8bd9fe445c74c7cf3794c9a85c28-0xCC8B5670F2f2Be9Dc942D6A871dcaBBbB31047a7",
+      "transactionHash": "0x69e7ad955352f301dd240739a4e640a2918c8bd9fe445c74c7cf3794c9a85c28",
+      "blockNumber": 21365057,
+      "blockTimestamp": 1733748623,
+      "network": "ethereum-mainnet",
+      "address": "0xCC8B5670F2f2Be9Dc942D6A871dcaBBbB31047a7",
+      "implementationAddress": "0xcEd33DF91AC49415c74BF1b5c218B83a2B8C2f3C",
+      "interfaceType": "multisig",
+      "status": "installed",
+      "isSupported": true,
+      "daoAddress": "0xB2EcFF866C75c640F335AFbE5b09D5B03d464362",
+      "tokenAddress": null,
+      "pluginSetupRepoAddress": "0x8c278e37D0817210E18A7958524b7D0a1fAA6F7b",
+      "sender": "0xf96e6FD76BD0A15580604e1Ea5818D448b1041C0",
+      "release": "1",
+      "build": "2",
+      "subdomain": "multisig",
+      "permissions": [
+        {
+          "operation": 0,
+          "where": "0xCC8B5670F2f2Be9Dc942D6A871dcaBBbB31047a7",
+          "who": "0xB2EcFF866C75c640F335AFbE5b09D5B03d464362",
+          "condition": "0x0000000000000000000000000000000000000000",
+          "permissionId": "0xb1750e46d35a0069c8465b8643e7838d2149a842a2db8ee233d9835590040cad"
+        },
+        {
+          "operation": 0,
+          "where": "0xCC8B5670F2f2Be9Dc942D6A871dcaBBbB31047a7",
+          "who": "0xB2EcFF866C75c640F335AFbE5b09D5B03d464362",
+          "condition": "0x0000000000000000000000000000000000000000",
+          "permissionId": "0x821b6e3a557148015a918c89e5d092e878a69854a2d1a410635f771bd5a8a3f5"
+        },
+        {
+          "operation": 0,
+          "where": "0xB2EcFF866C75c640F335AFbE5b09D5B03d464362",
+          "who": "0xCC8B5670F2f2Be9Dc942D6A871dcaBBbB31047a7",
+          "condition": "0x0000000000000000000000000000000000000000",
+          "permissionId": "0xbf04b4486c9663d805744005c3da000eda93de6e3308a4a7a812eb565327b78d"
+        }
+      ],
+      "uninstalled": {
+        "status": false,
+        "transactionHash": null,
+        "blockNumber": null,
+        "blockTimestamp": null
+      },
+      "isProcess": true,
+      "isBody": true,
+      "isSubPlugin": false,
+      "metadataIpfs": null,
+      "name": null,
+      "description": null,
+      "processKey": null,
+      "subPlugins": [],
+      "links": []
+    }
+  ],
+  "memberMetrics": [
+    {
+      "id": "ethereum-mainnet-0x41eDcEf0F6a01c291c2A8D37f56Da0bcb743d5d4-0xCC8B5670F2f2Be9Dc942D6A871dcaBBbB31047a7",
+      "network": "ethereum-mainnet",
+      "address": "0x41eDcEf0F6a01c291c2A8D37f56Da0bcb743d5d4",
+      "pluginAddress": "0xCC8B5670F2f2Be9Dc942D6A871dcaBBbB31047a7",
+      "delegateReceivedCount": 0,
+      "voteCount": 17,
+      "proposalCount": 15,
+      "lastActivity": 1744392887,
+      "firstActivity": 1744392887
+    },
+    {
+      "id": "ethereum-mainnet-0x810623A41ADef09F79358831ab6d7750D028f209-0xCC8B5670F2f2Be9Dc942D6A871dcaBBbB31047a7",
+      "network": "ethereum-mainnet",
+      "address": "0x810623A41ADef09F79358831ab6d7750D028f209",
+      "pluginAddress": "0xCC8B5670F2f2Be9Dc942D6A871dcaBBbB31047a7",
+      "delegateReceivedCount": 0,
+      "voteCount": 7,
+      "proposalCount": 1,
+      "lastActivity": 1749048215,
+      "firstActivity": 1749048215
+    },
+    {
+      "id": "ethereum-mainnet-0x24984b15d2c45619887533710d63246E42946ECE-0xCC8B5670F2f2Be9Dc942D6A871dcaBBbB31047a7",
+      "network": "ethereum-mainnet",
+      "address": "0x24984b15d2c45619887533710d63246E42946ECE",
+      "pluginAddress": "0xCC8B5670F2f2Be9Dc942D6A871dcaBBbB31047a7",
+      "delegateReceivedCount": 0,
+      "voteCount": 18,
+      "proposalCount": 5,
+      "lastActivity": 1749050879,
+      "firstActivity": 1749050879
+    },
+    {
+      "id": "ethereum-mainnet-0xE869213e41DDdCD189a7de4a2f566E73499131Bc-0xCC8B5670F2f2Be9Dc942D6A871dcaBBbB31047a7",
+      "network": "ethereum-mainnet",
+      "address": "0xE869213e41DDdCD189a7de4a2f566E73499131Bc",
+      "pluginAddress": "0xCC8B5670F2f2Be9Dc942D6A871dcaBBbB31047a7",
+      "delegateReceivedCount": 0,
+      "voteCount": 2,
+      "proposalCount": 0,
+      "lastActivity": 1734700619,
+      "firstActivity": 1734700619
+    },
+    {
+      "id": "ethereum-mainnet-0x9d8350Fff34d2558C5F0a8506f59b863cdd10204-0xCC8B5670F2f2Be9Dc942D6A871dcaBBbB31047a7",
+      "network": "ethereum-mainnet",
+      "address": "0x9d8350Fff34d2558C5F0a8506f59b863cdd10204",
+      "pluginAddress": "0xCC8B5670F2f2Be9Dc942D6A871dcaBBbB31047a7",
+      "delegateReceivedCount": 0,
+      "voteCount": 15,
+      "proposalCount": 0,
+      "lastActivity": 1749049139,
+      "firstActivity": 1749049139
+    }
+  ],
+  "memberMappings": [
+    {
+      "network": "ethereum-mainnet",
+      "memberAddress": "0x9d8350Fff34d2558C5F0a8506f59b863cdd10204",
+      "daoAddress": "0xB2EcFF866C75c640F335AFbE5b09D5B03d464362",
+      "pluginAddress": "0xCC8B5670F2f2Be9Dc942D6A871dcaBBbB31047a7",
+      "tokenAddress": null
+    },
+    {
+      "network": "ethereum-mainnet",
+      "memberAddress": "0xE869213e41DDdCD189a7de4a2f566E73499131Bc",
+      "daoAddress": "0xB2EcFF866C75c640F335AFbE5b09D5B03d464362",
+      "pluginAddress": "0xCC8B5670F2f2Be9Dc942D6A871dcaBBbB31047a7",
+      "tokenAddress": null
+    },
+    {
+      "network": "ethereum-mainnet",
+      "memberAddress": "0x810623A41ADef09F79358831ab6d7750D028f209",
+      "daoAddress": "0xB2EcFF866C75c640F335AFbE5b09D5B03d464362",
+      "pluginAddress": "0xCC8B5670F2f2Be9Dc942D6A871dcaBBbB31047a7",
+      "tokenAddress": null
+    },
+    {
+      "network": "ethereum-mainnet",
+      "memberAddress": "0x24984b15d2c45619887533710d63246E42946ECE",
+      "daoAddress": "0xB2EcFF866C75c640F335AFbE5b09D5B03d464362",
+      "pluginAddress": "0xCC8B5670F2f2Be9Dc942D6A871dcaBBbB31047a7",
+      "tokenAddress": null
+    },
+    {
+      "network": "ethereum-mainnet",
+      "memberAddress": "0x41eDcEf0F6a01c291c2A8D37f56Da0bcb743d5d4",
+      "daoAddress": "0xB2EcFF866C75c640F335AFbE5b09D5B03d464362",
+      "pluginAddress": "0xCC8B5670F2f2Be9Dc942D6A871dcaBBbB31047a7",
+      "tokenAddress": null
+    }
+  ]
+}
