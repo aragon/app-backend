@@ -116,7 +116,7 @@ export const PluginHandler = {
                         then: '$$this.helpers',
                         else: '$$value.helpers',
                       },
-                    },
+                    helpers: { $ifNull: ['$$this.helpers', '$$value.helpers'] },
                     pluginSetupRepoAddress: { $ifNull: ['$$this.pluginSetupRepo', '$$value.pluginSetupRepo'] },
                     sender: { $ifNull: ['$$this.sender', '$$value.sender'] },
                     release: { $ifNull: ['$$this.release', '$$value.release'] },
