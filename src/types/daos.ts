@@ -109,7 +109,7 @@ export interface IProposalActionOnChain {
 
 export type IProposalOnChain = IProposalTokenVotingOnChain | IProposalMultisigOnChain | IProposalSPPOnChain | null
 
-export interface IDaoMemberMappingData {
+export interface IDaoMember {
   network: NetworksEnum
   memberAddress: HexAddress
   daoAddress: HexAddress

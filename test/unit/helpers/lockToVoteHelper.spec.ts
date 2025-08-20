@@ -164,7 +164,7 @@ describe('Helpers: LockToVoteHelper', () => {
 
   describe('getCurrentTotalSupply', () => {
     it('should successfully get current total supply', async () => {
-      const mockSupply = '0x56bc75e2d630fffff'
+      const mockSupply = BigInt(100000000000000000000)
       const mockProvider = {
         call: sandbox.stub().resolves(mockSupply),
       }

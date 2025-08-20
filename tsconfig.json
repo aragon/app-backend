@@ -16,6 +16,7 @@
       "@logger": ["./src/logger/index"],
       "@errors": ["./src/helpers/errors"],
       "@runners/*": ["./runners/*"],
+      "@governance/*": ["./src/governance/*"],
       "@middlewares/*": ["./src/middlewares/*"],
       "@models/*": ["./src/models/*"],
       "@modules/*": ["./src/modules/*"],

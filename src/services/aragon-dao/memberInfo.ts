@@ -129,13 +129,13 @@ export const MemberInfo = {
   },
 
   _checkForAdmin: async (plugin: Plugin, _setting: PluginSetting, memberAddress: HexAddress) => {
-    const daoMemberMapping = await Models.DaoMemberMapping.findOne({
+    const member = await Models.PluginMember.findOne({
       daoAddress: plugin.daoAddress,
       memberAddress,
       network: plugin.network,
     })
 
-    return !!daoMemberMapping
+    return !!member
   },
 
   getLockVotingPowerBatch: async (

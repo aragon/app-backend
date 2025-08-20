@@ -6,12 +6,26 @@ import { ITokenType, NetworksEnum } from '@types'
 import axios from 'axios'
 import logger from '@logger'
 import config from '@config'
+import * as retryRequestModule from '@helpers/retryRequest'
+import BottleneckModule from '@modules/bottleneck'
 
 describe('Helpers: BlockScout', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    // Stub retryRequest to execute immediately without retries
+    sandbox.stub(retryRequestModule, 'retryRequest').callsFake(async fn => {
+      try {
+        return await fn()
+      } catch (error) {
+        throw error
+      }
+    })
+    // Stub BottleneckModule to execute immediately without rate limiting
+    sandbox.stub(BottleneckModule, 'getBlockScoutLimiter').returns({
+      schedule: sandbox.stub().callsFake(async fn => fn()),
+    } as any)
   })
 
   afterEach(() => {

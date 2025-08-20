@@ -7,7 +7,7 @@ import config from '@config'
 import utils from '@helpers/utils'
 import configIndexer from '@indexer/configIndexer'
 
-describe.skip('Batch Request', () => {
+describe('Integ: Batch Request', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {

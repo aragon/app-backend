@@ -1,5 +1,4 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
-import { type ProposalActionType } from '@src/types/proposalAction'
 import type { LogDescription } from 'ethers'
 
 export interface ILogInfo {
@@ -17,19 +16,4 @@ export interface IFormattedLog {
   event: LogDescription
   info: ILogInfo
   handler: any
-}
-export interface ILogAction {
-  to: string
-  value: string
-  data: string
-}
-
-export interface IDecodedData {
-  parameters?: any
-  notice?: string
-  contractName?: string
-  functionName: any
-  decoded: any
-  textSignature: string
-  type?: ProposalActionType
 }

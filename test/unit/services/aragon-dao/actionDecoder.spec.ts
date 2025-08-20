@@ -5,7 +5,7 @@ import { expect } from 'chai'
 import ActionDecoder from '@services/aragon-dao/actionDecoder'
 import DecodeActions from '@helpers/decodeAction'
 import Web3Helper from '@helpers/web3'
-import { ProxyMember } from '@modules/proxyMember'
+import { MemberGovernanceFactory } from '@src/governance'
 import { Models } from '@dbModels'
 import BlockScoutHelper from '@helpers/blockScout'
 import { ProposalHandler } from '@handlers/proposalHandler'
@@ -62,7 +62,7 @@ describe('AragonDao: actionDecoder', () => {
         symbol: 'ETH',
         pickFields: sandbox.stub(),
       })
-      sandbox.stub(ProxyMember, 'createMember').resolves({
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves({
         address: '0xto',
       } as any)
       sandbox.stub(Models.Dao, 'findByAddress').resolves({

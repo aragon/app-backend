@@ -63,7 +63,7 @@ const Web3Provider: IWeb3Provider = {
   },
 
   fetchContractCreation: async ({ address, network }) => {
-    const explorers = [EvmExplorerEnum.ETHERSCAN, EvmExplorerEnum.BLOCKSCOUT, EvmExplorerEnum.ROUTESCAN]
+    const explorers = [EvmExplorerEnum.BLOCKSCOUT, EvmExplorerEnum.ETHERSCAN, EvmExplorerEnum.ROUTESCAN]
     if (network === NetworksEnum.zksyncMainnet || network === NetworksEnum.zksyncSepolia) {
       explorers.unshift(EvmExplorerEnum.ZKSYNC)
     }

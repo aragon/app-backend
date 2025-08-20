@@ -248,7 +248,7 @@ const UnitDepUtils = {
     }
     await Models.PluginRepo.insertMany(PluginRepoMockData[network])
     const provider = ProviderModule.getAnyRpcProvider(network)
-    const pspTopicAddressFilter = ethers.AbiCoder.defaultAbiCoder().encode(['address'], [daoAddress])
+    const daoAddressFilter = ethers.AbiCoder.defaultAbiCoder().encode(['address'], [daoAddress])
 
     const daoLogs = await provider.getLogs({
       address: daoAddress,
@@ -268,7 +268,7 @@ const UnitDepUtils = {
       topics: [
         [configIndexer.filter(config => config.event === 'InstallationPrepared')[0].topic],
         null,
-        [pspTopicAddressFilter],
+        [daoAddressFilter],
       ],
     })
 

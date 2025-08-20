@@ -141,7 +141,16 @@ export default class Vote extends Model {
     },
     tOpts?: SaveOptions,
   ) {
-    return await this.find({ proposalIndex, pluginAddress, network }, null, tOpts)
+    return await this.find(
+      {
+        proposalIndex,
+        pluginAddress,
+        network,
+        $or: [{ 'voteCleared.status': false }, { 'voteCleared.status': { $exists: false } }],
+      },
+      null,
+      tOpts,
+    )
   }
 
   static async findVoteOnPlugin({

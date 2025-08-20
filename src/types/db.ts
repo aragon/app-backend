@@ -13,47 +13,79 @@ import type ConfigIndexer from '@models/schema/configIndexer'
 import type Vote from '@models/schema/vote'
 import type TaskService from '@models/schema/taskService'
 import type TaskRun from '@models/schema/taskRun'
-import type MemberBalance from '@models/schema/memberBalance'
 import type MemberTransaction from '@models/schema/memberTransaction'
-import type DaoMemberMapping from '@models/schema/daoMemberMapping'
-import type MemberMetrics from '@models/schema/memberMetrics'
 import type DaoPermission from '@models/schema/daoPermission'
 import type Jwt from '@models/schema/jwt'
 import type PluginSlug from '@models/schema/pluginSlug'
+import type SelectorPermission from '@models/schema/selectorPermission'
+import type TokenMember from '@models/schema/tokenMember'
+import type PluginMember from '@models/schema/pluginMember'
+import type PluginMetrics from '@models/schema/pluginMetrics'
+import type Lock from '@models/schema/lock'
 import type LockManagerMember from '@models/schema/lockManagerMember'
 import type SelectorPermission from '@models/schema/selectorPermission'
 import type Campaign from '@models/schema/campaign'
 import type CampaignReward from '@models/schema/campaignReward'
+import type Migration from '@models/schema/migration'
+
+export interface IMongoModel {
+  Migration: typeof Migration
+  Asset: typeof Asset
+  ConfigIndexer: typeof ConfigIndexer
+  Dao: typeof Dao
+  DaoPermission: typeof DaoPermission
+  Jwt: typeof Jwt
+  LogMetadata: typeof LogMetadata
+  LogPluginSetupProcessor: typeof LogPluginSetupProcessor
+  Member: typeof Member
+  MemberTransaction: typeof MemberTransaction // TODO: deprecated
+  Plugin: typeof Plugin
+  PluginRepo: typeof PluginRepo
+  PluginSlug: typeof PluginSlug
+  Proposal: typeof Proposal
+  Setting: typeof Setting
+  TaskRun: typeof TaskRun
+  TaskService: typeof TaskService
+  Token: typeof Token
+  Transaction: typeof Transaction
+  Vote: typeof Vote
+  SelectorPermission: typeof SelectorPermission
+  Lock: typeof Lock
+  TokenMember: typeof TokenMember
+  PluginMember: typeof PluginMember
+  PluginMetrics: typeof PluginMetrics
+  LockManagerMember: typeof LockManagerMember
+}
 
 export enum ICollectionNames {
+  Migration = 'Migration',
   Asset = 'Asset',
   Campaign = 'Campaign',
   ConfigIndexer = 'ConfigIndexer',
   Dao = 'Dao',
-  DaoMemberMapping = 'DaoMemberMapping',
+  DaoPermission = 'DaoPermission',
+  Jwt = 'Jwt',
   LogMetadata = 'LogMetadata',
   LogPluginSetupProcessor = 'LogPluginSetupProcessor',
   Member = 'Member',
-  MemberBalance = 'MemberBalance',
-  MemberMetrics = 'MemberMetrics',
-  MemberTransaction = 'MemberTransaction',
+  MemberTransaction = 'MemberTransaction', // TODO: deprecated
   Plugin = 'Plugin',
   PluginRepo = 'PluginRepo',
+  PluginSlug = 'PluginSlug',
   Proposal = 'Proposal',
   CampaignReward = 'CampaignReward',
   Setting = 'Setting',
-  PluginSlug = 'PluginSlug',
   TaskRun = 'TaskRun',
   TaskService = 'TaskService',
   Token = 'Token',
   Transaction = 'Transaction',
   Vote = 'Vote',
-  DaoPermission = 'DaoPermission',
-  Jwt = 'Jwt',
-  Lock = 'Lock',
-  LockManagerMember = 'LockManagerMember',
-  Migration = 'Migration',
   SelectorPermission = 'SelectorPermission',
+  Lock = 'Lock',
+  TokenMember = 'TokenMember',
+  PluginMember = 'PluginMember',
+  PluginMetrics = 'PluginMetrics',
+  LockManagerMember = 'LockManagerMember',
 }
 
 export enum ITransactionIndexCheckType {

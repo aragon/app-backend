@@ -2,10 +2,10 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import ProviderModule from '@modules/provider'
-import { IProviderType, NetworksEnum } from '@types'
+import { IProviderType, NetworksEnum, AlchemyNetwork } from '@types'
 import config from '@config'
-import { Network } from 'alchemy-sdk'
 import proxyquire from 'proxyquire'
+import logger from '@logger'
 
 describe('Module: provider', () => {
   let sandbox: SinonSandbox
@@ -33,14 +33,15 @@ describe('Module: provider', () => {
   })
 
   it('alchemyNetworksMap', () => {
-    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.ethereumMainnet]).to.equal(Network.ETH_MAINNET)
-    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.ethereumSepolia]).to.equal(Network.ETH_SEPOLIA)
-    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.polygonMainnet]).to.equal(Network.MATIC_MAINNET)
-    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.baseMainnet]).to.equal(Network.BASE_MAINNET)
-    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.arbitrumMainnet]).to.equal(Network.ARB_MAINNET)
-    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.zksyncSepolia]).to.equal(Network.ZKSYNC_SEPOLIA)
-    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.zksyncMainnet]).to.equal(Network.ZKSYNC_MAINNET)
-    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.optimismMainnet]).to.equal(Network.OPT_MAINNET)
+    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.ethereumMainnet]).to.equal(AlchemyNetwork.ETH_MAINNET)
+    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.ethereumSepolia]).to.equal(AlchemyNetwork.ETH_SEPOLIA)
+    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.polygonMainnet]).to.equal(AlchemyNetwork.MATIC_MAINNET)
+    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.baseMainnet]).to.equal(AlchemyNetwork.BASE_MAINNET)
+    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.arbitrumMainnet]).to.equal(AlchemyNetwork.ARB_MAINNET)
+    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.zksyncSepolia]).to.equal(AlchemyNetwork.ZKSYNC_SEPOLIA)
+    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.zksyncMainnet]).to.equal(AlchemyNetwork.ZKSYNC_MAINNET)
+    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.optimismMainnet]).to.equal(AlchemyNetwork.OPT_MAINNET)
+    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.chilizMainnet]).to.equal(AlchemyNetwork.CHILIZ_MAINNET)
   })
 
   it('should correctly parseNetworkChain', () => {
@@ -97,28 +98,31 @@ describe('Module: provider', () => {
 
   it('should correctly parseAlchemyNetwork', () => {
     const result = ProviderModule.parseAlchemyNetwork(NetworksEnum.ethereumMainnet)
-    expect(result).to.equal(Network.ETH_MAINNET)
+    expect(result).to.equal(AlchemyNetwork.ETH_MAINNET)
 
     const result2 = ProviderModule.parseAlchemyNetwork(NetworksEnum.ethereumSepolia)
-    expect(result2).to.equal(Network.ETH_SEPOLIA)
+    expect(result2).to.equal(AlchemyNetwork.ETH_SEPOLIA)
 
     const result3 = ProviderModule.parseAlchemyNetwork(NetworksEnum.polygonMainnet)
-    expect(result3).to.equal(Network.MATIC_MAINNET)
+    expect(result3).to.equal(AlchemyNetwork.MATIC_MAINNET)
 
     const result4 = ProviderModule.parseAlchemyNetwork(NetworksEnum.baseMainnet)
-    expect(result4).to.equal(Network.BASE_MAINNET)
+    expect(result4).to.equal(AlchemyNetwork.BASE_MAINNET)
 
     const result5 = ProviderModule.parseAlchemyNetwork(NetworksEnum.arbitrumMainnet)
-    expect(result5).to.equal(Network.ARB_MAINNET)
+    expect(result5).to.equal(AlchemyNetwork.ARB_MAINNET)
 
     const result6 = ProviderModule.parseAlchemyNetwork(NetworksEnum.zksyncSepolia)
-    expect(result6).to.equal(Network.ZKSYNC_SEPOLIA)
+    expect(result6).to.equal(AlchemyNetwork.ZKSYNC_SEPOLIA)
 
     const result7 = ProviderModule.parseAlchemyNetwork(NetworksEnum.zksyncMainnet)
-    expect(result7).to.equal(Network.ZKSYNC_MAINNET)
+    expect(result7).to.equal(AlchemyNetwork.ZKSYNC_MAINNET)
 
     const result8 = ProviderModule.parseAlchemyNetwork(NetworksEnum.optimismMainnet)
-    expect(result8).to.equal(Network.OPT_MAINNET)
+    expect(result8).to.equal(AlchemyNetwork.OPT_MAINNET)
+
+    const result9 = ProviderModule.parseAlchemyNetwork(NetworksEnum.chilizMainnet)
+    expect(result9).to.equal(AlchemyNetwork.CHILIZ_MAINNET)
   })
 
   it('connectToAllNetworks should call connectToNetwork for each node configured', async () => {
@@ -170,16 +174,19 @@ describe('Module: provider', () => {
         confirmationBlocks: 12,
         intervalBlockTime: 15,
       }
-      const fakeAlchemy = {
-        core: {},
-      }
-      const alchemyStub = sandbox.stub().returns(fakeAlchemy)
-      sandbox.replace(require('alchemy-sdk'), 'Alchemy', alchemyStub)
+      const providerStub = { on: sandbox.stub() }
+      const { default: ProviderModule } = proxyquire.noCallThru()('@modules/provider', {
+        ethers: {
+          JsonRpcProvider: function () {
+            return providerStub
+          },
+        },
+      })
 
       await ProviderModule.connectToNetwork(network, alchemyConfig)
       const proxy = ProviderModule.providerProxies[network]
       expect(proxy.alchemy).to.exist
-      expect(alchemyStub.calledOnce).to.be.true
+      expect(proxy.alchemy.rpc).to.equal(providerStub)
     })
 
     it('connectToNetwork should configure an Aragon connection', async () => {
@@ -242,6 +249,112 @@ describe('Module: provider', () => {
       }
       await ProviderModule.closeAllNetworks()
       expect(ProviderModule.providerProxies[NetworksEnum.ethereumMainnet]).to.be.undefined
+    })
+
+    it('should warn when network key is not mapped to valid NetworksEnum', async () => {
+      const rawNodes = {
+        INVALID_NETWORK: {
+          ALCHEMY_API_KEY: 'test-key',
+          FROM_BLOCK: 0,
+          CONFIRMATION_BLOCKS: 12,
+          INTERVAL_BLOCK_TIME: 15,
+        },
+      }
+      sandbox.stub(config, 'NODES').value(rawNodes)
+      const warnStub = sandbox.stub(logger, 'warn')
+
+      await ProviderModule.connectToAllNetworks()
+
+      expect(warnStub.calledOnce).to.be.true
+      const warnCall = warnStub.firstCall
+      expect(warnCall.args[0]).to.include('Network key INVALID_NETWORK is not mapped')
+    })
+
+    it('should warn when Alchemy API key is not configured', async () => {
+      const rawNodes = {
+        ETHEREUM_MAINNET: {
+          ARAGON_RPC: 'http://localhost:8545',
+          FROM_BLOCK: 0,
+          CONFIRMATION_BLOCKS: 12,
+          INTERVAL_BLOCK_TIME: 15,
+        },
+      }
+      sandbox.stub(config, 'NODES').value(rawNodes)
+      const warnStub = sandbox.stub(logger, 'warn')
+      const connectStub = sandbox.stub(ProviderModule, 'connectToNetwork').resolves()
+
+      await ProviderModule.connectToAllNetworks()
+
+      expect(warnStub.calledOnce).to.be.true
+      const warnCall = warnStub.firstCall
+      expect(warnCall.args[0]).to.include('Alchemy node for ethereum-mainnet is not configured')
+      expect(connectStub.calledOnce).to.be.true // Should still connect Aragon RPC
+    })
+
+    it('should warn when Aragon RPC is not configured', async () => {
+      const rawNodes = {
+        ETHEREUM_MAINNET: {
+          ALCHEMY_API_KEY: 'test-key',
+          FROM_BLOCK: 0,
+          CONFIRMATION_BLOCKS: 12,
+          INTERVAL_BLOCK_TIME: 15,
+        },
+      }
+      sandbox.stub(config, 'NODES').value(rawNodes)
+      const warnStub = sandbox.stub(logger, 'warn')
+      const connectStub = sandbox.stub(ProviderModule, 'connectToNetwork').resolves()
+
+      await ProviderModule.connectToAllNetworks()
+
+      expect(warnStub.calledOnce).to.be.true
+      const warnCall = warnStub.firstCall
+      expect(warnCall.args[0]).to.include('Custom (Aragon) node for ethereum-mainnet is not configured')
+      expect(connectStub.calledOnce).to.be.true // Should still connect Alchemy
+    })
+
+    it('getAnyRpcProvider should return undefined when no provider is available', async () => {
+      ProviderModule.providerProxies[NetworksEnum.ethereumMainnet] = {}
+
+      const result = await ProviderModule.getAnyRpcProvider(NetworksEnum.ethereumMainnet)
+
+      expect(result).to.be.undefined
+    })
+
+    it('getProviderUrl should return Aragon RPC URL when available', () => {
+      ProviderModule.providerProxies[NetworksEnum.ethereumMainnet] = {
+        aragon: { rpc: {} },
+      }
+      const testRpc = 'https://aragon-rpc.com'
+      sandbox.stub(config, 'NODES').value({
+        ETHEREUM_MAINNET: {
+          ARAGON_RPC: testRpc,
+        },
+      })
+
+      const result = ProviderModule.getProviderUrl(NetworksEnum.ethereumMainnet)
+
+      expect(result).to.equal(testRpc)
+    })
+
+    it('getProviderUrl should return Alchemy URL when only Alchemy provider exists', () => {
+      ProviderModule.providerProxies[NetworksEnum.ethereumMainnet] = {
+        alchemy: { rpc: {} },
+      }
+      sandbox.stub(config, 'NODES').value({
+        ETHEREUM_MAINNET: {
+          ALCHEMY_API_KEY: 'test-key',
+        },
+      })
+
+      const result = ProviderModule.getProviderUrl(NetworksEnum.ethereumMainnet)
+
+      expect(result).to.equal('https://eth-mainnet.g.alchemy.com/v2/test-key')
+    })
+
+    it('getProviderUrl should return undefined when no provider proxy exists', () => {
+      const result = ProviderModule.getProviderUrl(NetworksEnum.ethereumMainnet)
+
+      expect(result).to.be.undefined
     })
   })
 })

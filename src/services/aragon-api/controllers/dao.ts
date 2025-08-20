@@ -49,12 +49,26 @@ const DaoController = {
         })
       : undefined
 
-    const mapping = await PairDataModule.pairFromDaoMemberMapping({
-      memberAddress: extraParams.memberAddress,
-    })
-    const daoAddresses = mapping
-      .map(m => m.daoAddress)
-      .filter((daoAddress: HexAddress) => daoAddress !== extraParams?.excludedDao?.daoAddress)
+    // Get all DAOs for the member across specified networks
+    const allMappings: any[] = []
+
+    // Query each specified network
+    for (const network of extraParams.networks!) {
+      const mapping = await PairDataModule.pairAllMemberOfDao({
+        memberAddress: extraParams.memberAddress,
+        network,
+      })
+      allMappings.push(...mapping)
+    }
+
+    // Extract unique DAO addresses and filter out excluded DAO
+    const daoAddresses = [
+      ...new Set(
+        allMappings
+          .map(m => m.daoAddress)
+          .filter((daoAddress: HexAddress) => daoAddress && daoAddress !== extraParams?.excludedDao?.daoAddress),
+      ),
+    ]
 
     return await Models.Dao.findWithPagination({
       extraParams,
