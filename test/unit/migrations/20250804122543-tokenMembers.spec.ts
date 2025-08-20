@@ -213,7 +213,7 @@ describe('migration: tokenMembers', () => {
       // Verify total calls
       expect(stubCreateBaseMember.callCount).to.equal(2)
       expect(governanceStub.update.callCount).to.equal(2)
-      expect(governanceStub.updatePluginMetrics.callCount).to.equal(2) // 2 plugins for first member, 0 for second
+      expect(governanceStub.updatePluginMetrics.callCount).to.equal(2)
 
       // Verify logging
       expect(stubLoggerInfo.calledWith('Migration completed successfully')).to.be.true
