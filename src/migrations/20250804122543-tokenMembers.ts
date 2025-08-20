@@ -34,7 +34,6 @@ export const tokenMembersMigration: IMigration = {
 
       let processedCount = 0
       let errorCount = 0
-      let skippedCount = 0
       const limit = pLimit.default(50) // Process 50 documents concurrently
 
       // Process memberBalances asynchronously with concurrency limit
@@ -73,9 +72,9 @@ export const tokenMembersMigration: IMigration = {
                   lastTransactionBlock: lastMemberTransaction.blockNumber,
                 }),
               )
-              // Skip this member
-              skippedCount++
-              return
+
+              memberBalance.votingPower = lastMemberTransaction.votingPower
+              memberBalance.lastSyncVotingPowerBlockNumber = lastMemberTransaction.blockNumber
             }
 
             // Create base member
@@ -128,8 +127,7 @@ export const tokenMembersMigration: IMigration = {
                 llo({
                   totalProcessed: processedCount,
                   total,
-                  remaining: total - processedCount - skippedCount - errorCount,
-                  skipped: skippedCount,
+                  remaining: total - processedCount - errorCount,
                   errors: errorCount,
                   percentage: ((processedCount / total) * 100).toFixed(2),
                 }),
@@ -157,7 +155,6 @@ export const tokenMembersMigration: IMigration = {
           migration: '20250804122543-tokenMembers',
           totalProcessed: processedCount,
           total,
-          skipped: skippedCount,
           errors: errorCount,
         }),
       )
