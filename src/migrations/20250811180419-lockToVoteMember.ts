@@ -16,11 +16,18 @@ export const lockToVoteMemberMigration: IMigration = {
       const memberManagerCollection = mongoose.connection.collection('LockManagerMember')
 
       const members = await memberManagerCollection.find().toArray()
+      const total = members.length
 
-      if (members.length === 0) {
-        logger.info('No MemberBalance documents to migrate', llo({}))
+      logger.info('Found LockManagerMember documents to migrate', llo({ total }))
+
+      if (total === 0) {
+        logger.info('No LockManagerMember documents to migrate', llo({}))
         return
       }
+
+      let processedCount = 0
+      let errorCount = 0
+      let skippedCount = 0
 
       const promises = members.map(async memberManager =>
         limit(async () => {
@@ -57,16 +64,36 @@ export const lockToVoteMemberMigration: IMigration = {
               await Models.LockManagerMember.deleteOne({
                 _id: memberManager._id,
               })
+
+              processedCount++
+
+              if (processedCount % 100 === 0) {
+                logger.info(
+                  'Migration progress',
+                  llo({
+                    totalProcessed: processedCount,
+                    total,
+                    remaining: total - processedCount - skippedCount - errorCount,
+                    skipped: skippedCount,
+                    errors: errorCount,
+                    percentage: ((processedCount / total) * 100).toFixed(2),
+                  }),
+                )
+              }
+            } else {
+              skippedCount++
             }
           } catch (e) {
             logger.error(
-              'updating lockToVoteMember',
+              'Error processing LockManagerMember document',
               llo({
                 migration: '20250811180419-lockToVoteMember',
                 pluginAddress: memberManager.pluginAddress,
                 memberAddress: memberManager.memberAddress,
+                error: e,
               }),
             )
+            errorCount++
           }
         }),
       )
@@ -74,7 +101,16 @@ export const lockToVoteMemberMigration: IMigration = {
       // Wait for all promises to complete
       await Promise.all(promises)
 
-      logger.info('Migration completed successfully', llo({ migration: '20250811180419-lockToVoteMember' }))
+      logger.info(
+        'Migration completed successfully',
+        llo({
+          migration: '20250811180419-lockToVoteMember',
+          totalProcessed: processedCount,
+          total,
+          skipped: skippedCount,
+          errors: errorCount,
+        }),
+      )
     } catch (error) {
       logger.error('Migration failed', llo({ migration: '20250811180419-lockToVoteMember', error }))
       throw error

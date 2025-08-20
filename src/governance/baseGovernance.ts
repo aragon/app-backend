@@ -33,9 +33,9 @@ export abstract class BaseGovernance {
   }
 
   // Abstract methods that must be implemented by subclasses
-  abstract getOrCreate(memberAddress: HexAddress, params?: IGovernanceParamsOpts): Promise<any>
+  abstract getOrCreate(memberAddress: HexAddress, params?: IGovernanceParamsOpts, session?: ClientSession): Promise<any>
 
-  abstract create(memberAddress: HexAddress, params: IGovernanceParamsOpts): Promise<any>
+  abstract create(memberAddress: HexAddress, params: IGovernanceParamsOpts, session?: ClientSession): Promise<any>
 
   abstract update(memberAddress: HexAddress, params: IGovernanceParamsOpts): Promise<any>
 
