@@ -106,10 +106,34 @@ describe('Capital Distributor', () => {
     const pluginAddress = '0x884fb2Cd1A0710d5AcC219C6163FCa75aa63c867'
     const campaignId = '5'
 
-    const campaign = await Models.Campaign.findOne({
+    await Utils.handleEventsFromTxHashes(
+      ['0xc87580b4629dc9c89c6afdb98fe3c63fe300adf9cbf40cd2e5d7f5e970bc807f'],
+      network,
+    )
+
+    await CapitalDistributorAdminController.uploadMembersList({
+      campaignId,
       pluginAddress,
       network,
+      rewards: [...Addresses],
+    })
+
+    await CapitalDistributorAdminController.generateMerkleData({
       campaignId,
+      pluginAddress,
+      network,
+    })
+
+    const plugin = await Models.Plugin.findOne({
+      interfaceType: IPluginInterfaceType.capitalDistributor,
+    })
+
+    await LogCapitalDistributor.start(plugin)
+
+    const campaign = await Models.Campaign.findOne({
+      pluginAddress: plugin.address,
+      network: plugin.network,
+      campaignId: campaignId,
     })
 
     expect(campaign).to.exist
