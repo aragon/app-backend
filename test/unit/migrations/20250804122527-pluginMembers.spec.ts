@@ -6,7 +6,7 @@ import pluginMembersMigration from '@src/migrations/20250804122527-pluginMembers
 import { NetworksEnum, IPluginInterfaceType, IPluginStatus } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
-import MemberController from "@api/controllers/member";
+import MemberController from '@api/controllers/member'
 
 describe('migration: pluginMembers', () => {
   let sandbox: SinonSandbox
@@ -315,16 +315,16 @@ describe('migration: pluginMembers', () => {
 
       // Test the MemberController query to ensure it returns the correct members
       const queryMembers = await MemberController.getMembersWithPagination(
-          {
-            page: 1,
-            limit: 100,
-            order: 'desc',
-          },
-          {
-            pluginAddress: '0x567890aBCDeF1234567890AbcDEf1234567890Ab',
-            daoAddress: '0xabCDEF1234567890ABcDEF1234567890aBCDeF12',
-            network: NetworksEnum.ethereumMainnet,
-          },
+        {
+          page: 1,
+          limit: 100,
+          order: 'desc',
+        },
+        {
+          pluginAddress: '0x567890aBCDeF1234567890AbcDEf1234567890Ab',
+          daoAddress: '0xabCDEF1234567890ABcDEF1234567890aBCDeF12',
+          network: NetworksEnum.ethereumMainnet,
+        },
       )
       console.log('Query Members Result:', queryMembers)
 
@@ -447,9 +447,7 @@ describe('migration: pluginMembers', () => {
 
       // Check completion log
       const loggerInfo = logger.info as sinon.SinonStub
-      const completionLogCall = loggerInfo
-        .getCalls()
-        .find(call => call.args[0] === 'Migration completed successfully')
+      const completionLogCall = loggerInfo.getCalls().find(call => call.args[0] === 'Migration completed successfully')
       expect(completionLogCall).to.exist
       expect(completionLogCall?.args[1].totalProcessed).to.equal(1) // Only 1 fully processed
     })
