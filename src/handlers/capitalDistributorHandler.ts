@@ -248,7 +248,7 @@ export const CapitalDistributorHandler = {
       }
 
       const alreadyExistingClaim = reward.claims.find((claim: any) => claim.transactionHash === transactionHash)
-      if( alreadyExistingClaim) {
+      if (alreadyExistingClaim) {
         return
       }
 

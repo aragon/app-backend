@@ -69,6 +69,7 @@ describe('Handler: CapitalDistributor', () => {
     it('Should create campaign in database', async () => {
       const saveAndGetStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
       const strategyStartStub = sandbox.stub(LogCampaignStrategy, 'start').resolves()
+      const calculateTotalRewardsStub = sandbox.stub(Models.CampaignReward, 'calculateTotalRewards').resolves('5000000000000000000')
       const loggerStub = sandbox.stub(logger, 'info')
 
       await CapitalDistributorHandler.campaignCreated(parsedEvent, logInfo)
@@ -100,6 +101,14 @@ describe('Handler: CapitalDistributor', () => {
       expect(saveAndGetStub.calledOnce).to.be.true
       expect(saveAndGetStub.args[0][0]).to.eq(parsedEvent.args.token)
       expect(saveAndGetStub.args[0][1]).to.eq(logInfo.network)
+
+      expect(calculateTotalRewardsStub.calledOnce).to.be.true
+      expect(calculateTotalRewardsStub.args[0][0]).to.eq(logInfo.address)
+      expect(calculateTotalRewardsStub.args[0][1]).to.eq(logInfo.network)
+      expect(calculateTotalRewardsStub.args[0][2]).to.eq('1')
+
+      // Verify campaign total rewards was updated
+      expect(createdCampaign?.totalRewards).to.eq('5000000000000000000')
 
       expect(strategyStartStub.calledOnce).to.be.true
       expect(strategyStartStub.args[0][0]).to.eq(parsedEvent.args.allocationStrategy)
@@ -134,6 +143,7 @@ describe('Handler: CapitalDistributor', () => {
       const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
       const ipfsStub = sandbox.stub(IPFSModule, 'fetchMetadata').resolves(mockMetadata)
       const web3UtilsStub = sandbox.stub(Web3Utils, 'parseCampaignMetadata').returns(mockMetadata)
+      const calculateTotalRewardsStub = sandbox.stub(Models.CampaignReward, 'calculateTotalRewards').resolves('3000000000000000000')
       const strategyStub = sandbox.stub(LogCampaignStrategy, 'start').resolves()
       const loggerInfoStub = sandbox.stub(logger, 'info')
 
@@ -158,6 +168,14 @@ describe('Handler: CapitalDistributor', () => {
 
       expect(ipfsStub.calledOnce).to.be.true
       expect(web3UtilsStub.calledOnce).to.be.true
+
+      expect(calculateTotalRewardsStub.calledOnce).to.be.true
+      expect(calculateTotalRewardsStub.args[0][0]).to.eq(logInfo.address)
+      expect(calculateTotalRewardsStub.args[0][1]).to.eq(logInfo.network)
+      expect(calculateTotalRewardsStub.args[0][2]).to.eq('1')
+
+      // Verify campaign total rewards was updated
+      expect(createdCampaign?.totalRewards).to.eq('3000000000000000000')
 
       expect(strategyStub.calledOnce).to.be.true
       expect(strategyStub.args[0][0]).to.eq(parsedEvent.args.allocationStrategy)
@@ -456,6 +474,7 @@ describe('Handler: CapitalDistributor', () => {
         endTime: 1672531200,
         active: true,
         claimCount: 0,
+        totalClaimed: '0',
       })
 
       const loggerInfoStub = sandbox.stub(logger, 'info')
@@ -483,9 +502,10 @@ describe('Handler: CapitalDistributor', () => {
       expect(createdReward?.claims[0].blockNumber).to.eq(logInfo.blockNumber)
       expect(createdReward?.claims[0].blockTimestamp).to.eq(1640995200)
 
-      // Verify campaign claim count was incremented
+      // Verify campaign claim count was incremented and total claimed was updated
       const updatedCampaign = await Models.Campaign.findCampaignById(logInfo.address, logInfo.network, '1')
       expect(updatedCampaign?.claimCount).to.eq(1)
+      expect(updatedCampaign?.totalClaimed).to.eq('1000000000000000000')
 
       expect(loggerInfoStub.calledWith('Payout claimed' as any)).to.be.true
     })
@@ -508,6 +528,7 @@ describe('Handler: CapitalDistributor', () => {
         endTime: 1672531200,
         active: true,
         claimCount: 3, // Starting with existing claims
+        totalClaimed: '2000000000000000000', // Starting with existing total claimed
       })
 
       await Models.CampaignReward.create({
@@ -543,9 +564,10 @@ describe('Handler: CapitalDistributor', () => {
       expect(updatedReward?.claims[1].claimedAmount).to.eq('1000000000000000000')
       expect(updatedReward?.claims[1].transactionHash).to.eq(logInfo.transactionHash)
 
-      // Verify campaign claim count was incremented
+      // Verify campaign claim count was incremented and total claimed was updated
       const updatedCampaign = await Models.Campaign.findCampaignById(logInfo.address, logInfo.network, '1')
       expect(updatedCampaign?.claimCount).to.eq(4) // 3 + 1
+      expect(updatedCampaign?.totalClaimed).to.eq('3000000000000000000') // 2000000000000000000 + 1000000000000000000
     })
 
     it('Should warn and return when plugin not found', async () => {

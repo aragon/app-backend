@@ -176,4 +176,234 @@ describe('Model: CampaignReward', () => {
       expect(createdReward.remainingAmount).to.eq('0')
     })
   })
+
+  describe('findByCampaign', () => {
+    it('Should find all rewards for a campaign', async () => {
+      const reward1 = await Models.CampaignReward.create({
+        ...rawReward,
+        userAddress: '0x1111111111111111111111111111111111111111' as HexAddress,
+      })
+      const reward2 = await Models.CampaignReward.create({
+        ...rawReward,
+        userAddress: '0x2222222222222222222222222222222222222222' as HexAddress,
+      })
+
+      const rewards = await Models.CampaignReward.findByCampaign(
+        rawReward.pluginAddress!,
+        rawReward.network!,
+        rawReward.campaignId!,
+      )
+
+      expect(rewards).to.have.length(2)
+      expect(rewards.map(r => r.userAddress)).to.include.members([
+        reward1.userAddress,
+        reward2.userAddress,
+      ])
+    })
+
+    it('Should return empty array for non-existing campaign', async () => {
+      const rewards = await Models.CampaignReward.findByCampaign(
+        '0x9999999999999999999999999999999999999999' as HexAddress,
+        NetworksEnum.ethereumMainnet,
+        'non-existing-campaign',
+      )
+
+      expect(rewards).to.be.an('array').that.is.empty
+    })
+  })
+
+  describe('findByUserAddress', () => {
+    it('Should find all rewards for a user', async () => {
+      const userAddress = '0x1111111111111111111111111111111111111111' as HexAddress
+      const reward1 = await Models.CampaignReward.create({
+        ...rawReward,
+        campaignId: 'campaign-001',
+        userAddress,
+      })
+      const reward2 = await Models.CampaignReward.create({
+        ...rawReward,
+        campaignId: 'campaign-002',
+        userAddress,
+      })
+
+      const rewards = await Models.CampaignReward.findByUserAddress(
+        rawReward.pluginAddress!,
+        rawReward.network!,
+        userAddress,
+      )
+
+      expect(rewards).to.have.length(2)
+      expect(rewards.map(r => r.campaignId)).to.include.members([
+        reward1.campaignId,
+        reward2.campaignId,
+      ])
+    })
+  })
+
+  describe('getTotalClaimedByAddress', () => {
+    it('Should calculate total claimed amount for user across campaigns', async () => {
+      const userAddress = '0x1111111111111111111111111111111111111111' as HexAddress
+      
+      await Models.CampaignReward.create({
+        ...rawReward,
+        campaignId: 'campaign-001',
+        userAddress,
+        totalClaimed: '300000000000000000',
+      })
+      await Models.CampaignReward.create({
+        ...rawReward,
+        campaignId: 'campaign-002',
+        userAddress,
+        totalClaimed: '200000000000000000',
+      })
+
+      const totalClaimed = await Models.CampaignReward.getTotalClaimedByAddress(
+        rawReward.pluginAddress!,
+        rawReward.network!,
+        userAddress,
+      )
+
+      expect(totalClaimed).to.eq('500000000000000000')
+    })
+
+    it('Should return 0 for user with no rewards', async () => {
+      const totalClaimed = await Models.CampaignReward.getTotalClaimedByAddress(
+        '0x9999999999999999999999999999999999999999' as HexAddress,
+        NetworksEnum.ethereumMainnet,
+        '0x8888888888888888888888888888888888888888' as HexAddress,
+      )
+
+      expect(totalClaimed).to.eq('0')
+    })
+  })
+
+  describe('getTotalClaimableByAddress', () => {
+    it('Should calculate total claimable amount for user', async () => {
+      const userAddress = '0x1111111111111111111111111111111111111111' as HexAddress
+      
+      await Models.CampaignReward.create({
+        ...rawReward,
+        campaignId: 'campaign-001',
+        userAddress,
+        amount: '1000000000000000000',
+        totalClaimed: '300000000000000000',
+      })
+      await Models.CampaignReward.create({
+        ...rawReward,
+        campaignId: 'campaign-002',
+        userAddress,
+        amount: '800000000000000000',
+        totalClaimed: '200000000000000000',
+      })
+
+      const totalClaimable = await Models.CampaignReward.getTotalClaimableByAddress(
+        rawReward.pluginAddress!,
+        rawReward.network!,
+        userAddress,
+      )
+
+      expect(totalClaimable).to.eq('1300000000000000000')
+    })
+  })
+
+  describe('calculateTotalRewards', () => {
+    it('Should calculate total rewards for a campaign', async () => {
+      await Models.CampaignReward.create({
+        ...rawReward,
+        userAddress: '0x1111111111111111111111111111111111111111' as HexAddress,
+        amount: '1000000000000000000',
+      })
+      await Models.CampaignReward.create({
+        ...rawReward,
+        userAddress: '0x2222222222222222222222222222222222222222' as HexAddress,
+        amount: '500000000000000000',
+      })
+
+      const totalRewards = await Models.CampaignReward.calculateTotalRewards(
+        rawReward.pluginAddress!,
+        rawReward.network!,
+        rawReward.campaignId!,
+      )
+
+      expect(totalRewards).to.eq('1500000000000000000')
+    })
+
+    it('Should return 0 for campaign with no rewards', async () => {
+      const totalRewards = await Models.CampaignReward.calculateTotalRewards(
+        '0x9999999999999999999999999999999999999999' as HexAddress,
+        NetworksEnum.ethereumMainnet,
+        'non-existing-campaign',
+      )
+
+      expect(totalRewards).to.eq('0')
+    })
+  })
+
+  describe('getUserCampaignStatus', () => {
+    it('Should return user campaign status across all campaigns', async () => {
+      const userAddress = '0x1111111111111111111111111111111111111111' as HexAddress
+      
+      await Models.CampaignReward.create({
+        ...rawReward,
+        campaignId: 'campaign-001',
+        userAddress,
+        amount: '1000000000000000000',
+        totalClaimed: '400000000000000000',
+      })
+      await Models.CampaignReward.create({
+        ...rawReward,
+        campaignId: 'campaign-002',
+        userAddress,
+        amount: '800000000000000000',
+        totalClaimed: '300000000000000000',
+      })
+
+      const status = await Models.CampaignReward.getUserCampaignStatus(
+        rawReward.pluginAddress!,
+        rawReward.network!,
+        userAddress,
+      )
+
+      expect(status.totalClaimed).to.eq('700000000000000000')
+      expect(status.totalClaimable).to.eq('1100000000000000000')
+    })
+  })
+
+  describe('update', () => {
+    it('Should update campaign reward properties', async () => {
+      const createdReward = await Models.CampaignReward.create(rawReward)
+      const newAmount = '2000000000000000000'
+      const newProof = ['0xproof1', '0xproof2']
+
+      await createdReward.update({
+        amount: newAmount,
+        proof: newProof,
+      })
+
+      expect(createdReward.amount).to.eq(newAmount)
+      expect(createdReward.proof).to.deep.eq(newProof)
+    })
+
+    it('Should not update required fields with null values', async () => {
+      const createdReward = await Models.CampaignReward.create(rawReward)
+      const originalAmount = createdReward.amount
+
+      await createdReward.update({
+        amount: null as any,
+      })
+
+      expect(createdReward.amount).to.eq(originalAmount)
+    })
+  })
+
+  describe('reload', () => {
+    it('Should reload document from database', async () => {
+      const createdReward = await Models.CampaignReward.create(rawReward)
+      
+      const reloadedReward = await createdReward.reload()
+
+      expect(reloadedReward?.id).to.eq(createdReward.id)
+      expect(reloadedReward?.userAddress).to.eq(createdReward.userAddress)
+    })
+  })
 })

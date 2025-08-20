@@ -5,6 +5,9 @@ import {
   type IPaginationParams,
   type IPaginatedResult,
   type ICampaignApiParams,
+  type IUserCampaignStatus,
+  type HexAddress,
+  type NetworksEnum,
 } from '@types'
 import { assertExposable } from '@errors'
 
@@ -20,6 +23,18 @@ const CapitalDistributorController = {
       paginationParams,
       params,
     })
+  },
+
+  getUserCampaignStatus: async (
+    pluginAddress: HexAddress,
+    network: NetworksEnum,
+    userAddress: HexAddress,
+  ): Promise<IUserCampaignStatus> => {
+    assertExposable(!!pluginAddress, ErrorKeyEnum.badParams)
+    assertExposable(!!network, ErrorKeyEnum.badParams)
+    assertExposable(!!userAddress, ErrorKeyEnum.badParams)
+
+    return await Models.CampaignReward.getUserCampaignStatus(pluginAddress, network, userAddress)
   },
 }
 

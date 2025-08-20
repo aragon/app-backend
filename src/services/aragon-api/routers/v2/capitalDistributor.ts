@@ -25,6 +25,25 @@ const CapitalDistributorRouter = {
     )
   },
 
+  getUserCampaignStatus: async function (ctx: RouterContext) {
+    const result = await ValidationSchema.validateRoute(ctx, {
+      params: {
+        pluginAddress: ctx.query.pluginAddress as HexAddress,
+        network: ctx.query.network as NetworksEnum,
+        userAddress: ctx.query.userAddress as HexAddress,
+      },
+      schemas: {
+        params: CapitalDistributorSchema.getUserCampaignStatusParams,
+      },
+    })
+
+    ctx.body = await CapitalDistributorController.getUserCampaignStatus(
+      result.params.pluginAddress,
+      result.params.network,
+      result.params.userAddress,
+    )
+  },
+
   router() {
     const router = new Router()
 
@@ -47,6 +66,23 @@ const CapitalDistributorRouter = {
      * @apiSampleRequest /capital-distributor/campaigns?plugin=0x123&network=ethereum&userAddress=0x456&page=1&pageSize=10
      */
     router.get('/campaigns', CapitalDistributorRouter.getCampaignsWithPagination)
+
+    /**
+     * @api {get} /campaigns/stats Get Campaign Statistics
+     * @apiName CampaignStats
+     * @apiGroup CapitalDistributor
+     * @apiDescription Get statistics for a specific campaign (totalClaimed and totalClaimable)
+     *
+     * @apiParam {String} pluginAddress Plugin address
+     * @apiParam {String} network Network name
+     * @apiParam {String} userAddress User address
+     *
+     * @apiSuccess {String} totalClaimed Total amount claimed by user across all campaigns
+     * @apiSuccess {String} totalClaimable Total amount that can still be claimed by user across all campaigns
+     *
+     * @apiSampleRequest /capital-distributor/campaigns/stats?pluginAddress=0x123&network=ethereum&userAddress=0x456
+     */
+    router.get('/campaigns/stats', CapitalDistributorRouter.getUserCampaignStatus)
 
     return router
   },

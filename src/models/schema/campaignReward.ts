@@ -37,6 +37,7 @@ export class RewardStatus {
 @index({ 'claims.transactionHash': 1 })
 @index({ totalClaimed: 1 })
 @index({ pluginAddress: 1, network: 1, campaignId: 1, totalClaimed: 1 })
+@index({ pluginAddress: 1, network: 1, userAddress: 1 })
 export default class CampaignReward extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -96,7 +97,7 @@ export default class CampaignReward extends Model {
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ id: entityId }, null, tOpts)
+    return this.findOne({ id: entityId }, null, tOpts)
   }
 
   static async findByCampaign(
@@ -105,7 +106,7 @@ export default class CampaignReward extends Model {
     campaignId: string,
     tOpts?: SaveOptions,
   ) {
-    return await this.find({ pluginAddress, network, campaignId }, null, tOpts)
+    return this.find({ pluginAddress, network, campaignId }, null, tOpts)
   }
 
   static async findByUserAddress(
@@ -114,7 +115,7 @@ export default class CampaignReward extends Model {
     userAddress: HexAddress,
     tOpts?: SaveOptions,
   ) {
-    return await this.find({ pluginAddress, network, userAddress }, null, tOpts)
+    return this.find({ pluginAddress, network, userAddress }, null, tOpts)
   }
 
   static async findRewardForCampaign(
@@ -124,7 +125,7 @@ export default class CampaignReward extends Model {
     userAddress: HexAddress,
     tOpts?: SaveOptions,
   ) {
-    return await this.findOne({ pluginAddress, network, campaignId, userAddress }, null, tOpts)
+    return this.findOne({ pluginAddress, network, campaignId, userAddress }, null, tOpts)
   }
 
   static async getTotalClaimedByAddress(
@@ -236,21 +237,24 @@ export default class CampaignReward extends Model {
     campaignId: string,
     tOpts?: SaveOptions,
   ) {
-    const result = await this.aggregate(
-      [
-        {
-          $match: { pluginAddress, network, campaignId },
+    const query = [
+      {
+        $match: { pluginAddress, network, campaignId },
+      },
+      {
+        $group: {
+          _id: null,
+          totalRewards: { $sum: { $toDecimal: '$amount' } },
         },
-        {
-          $group: {
-            _id: null,
-            totalRewards: { $sum: { $toDecimal: '$amount' } },
-          },
+      },
+      {
+        $project: {
+          totalRewards: { $toString: '$totalRewards' },
         },
-      ],
-      tOpts,
-    )
+      },
+    ]
 
+    const result = await this.aggregate(query, tOpts)
     return result[0]?.totalRewards?.toString() || '0'
   }
 
@@ -267,8 +271,8 @@ export default class CampaignReward extends Model {
         },
         {
           $project: {
-            totalClaimed: { $toDecimal: '$totalClaimed' },
-            claimable: {
+            claimed: { $toDecimal: '$totalClaimed' },
+            unclaimed: {
               $subtract: [{ $toDecimal: '$amount' }, { $toDecimal: '$totalClaimed' }],
             },
           },
@@ -276,8 +280,8 @@ export default class CampaignReward extends Model {
         {
           $group: {
             _id: null,
-            totalClaimed: { $sum: '$totalClaimed' },
-            totalClaimable: { $sum: '$claimable' },
+            totalClaimed: { $sum: '$claimed' },
+            totalClaimable: { $sum: '$unclaimed' },
           },
         },
       ],

@@ -11,6 +11,22 @@ const CapitalDistributorSchema = {
     userAddress: ValidationSchema.joiAddress.optional(),
     status: Joi.string().valid('claimed', 'claimable').optional(),
   }),
+
+  getCampaignStatsParams: Joi.object({
+    pluginAddress: ValidationSchema.joiAddress.required(),
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
+    userAddress: ValidationSchema.joiAddress.required(),
+  }),
+
+  getUserCampaignStatusParams: Joi.object({
+    pluginAddress: ValidationSchema.joiAddress.required(),
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
+    userAddress: ValidationSchema.joiAddress.required(),
+  }),
 }
 
 export default CapitalDistributorSchema

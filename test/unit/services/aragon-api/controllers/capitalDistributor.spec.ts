@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import CapitalDistributorController from '@services/aragon-api/controllers/capitalDistributor'
-import { ErrorKeyEnum, NetworksEnum, HexAddress, IClaimStat } from '@types'
+import { ErrorKeyEnum, NetworksEnum, HexAddress, IClaimStat, IUserCampaignStatus } from '@types'
 import { Models } from '@dbModels'
 import * as errors from '@errors'
 
@@ -189,6 +189,91 @@ describe('Controller: CapitalDistributor', () => {
       await expect(CapitalDistributorController.getCampaignsWithPagination({}, extraParams)).to.be.rejectedWith(
         'Database connection failed',
       )
+    })
+  })
+
+  describe('getUserCampaignStatus', () => {
+    it('Should get user campaign status successfully', async () => {
+      const mockResult: IUserCampaignStatus = {
+        totalClaimed: '1500000000000000000',
+        totalClaimable: '2500000000000000000',
+      }
+
+      const campaignRewardStub = sandbox.stub(Models.CampaignReward, 'getUserCampaignStatus').resolves(mockResult)
+
+      const result = await CapitalDistributorController.getUserCampaignStatus(
+        mockParams.pluginAddress,
+        mockParams.network,
+        mockParams.userAddress,
+      )
+
+      expect(result).to.deep.eq(mockResult)
+      expect(campaignRewardStub.calledOnce).to.be.true
+      expect(campaignRewardStub.args[0][0]).to.eq(mockParams.pluginAddress)
+      expect(campaignRewardStub.args[0][1]).to.eq(mockParams.network)
+      expect(campaignRewardStub.args[0][2]).to.eq(mockParams.userAddress)
+    })
+
+    it('Should throw error when pluginAddress is missing', async () => {
+      const assertStub = sandbox.stub(errors, 'assertExposable').throws(new Error(ErrorKeyEnum.badParams))
+
+      await expect(
+        CapitalDistributorController.getUserCampaignStatus(
+          '' as HexAddress,
+          mockParams.network,
+          mockParams.userAddress,
+        ),
+      ).to.be.rejectedWith(Error, ErrorKeyEnum.badParams)
+
+      expect(assertStub.calledWith(false, ErrorKeyEnum.badParams)).to.be.true
+    })
+
+    it('Should throw error when network is missing', async () => {
+      const assertStub = sandbox.stub(errors, 'assertExposable')
+      assertStub.onFirstCall().returns(true as any)
+      assertStub.onSecondCall().throws(new Error(ErrorKeyEnum.badParams))
+
+      await expect(
+        CapitalDistributorController.getUserCampaignStatus(
+          mockParams.pluginAddress,
+          '' as NetworksEnum,
+          mockParams.userAddress,
+        ),
+      ).to.be.rejectedWith(Error, ErrorKeyEnum.badParams)
+
+      expect(assertStub.calledTwice).to.be.true
+      expect(assertStub.secondCall.calledWith(false, ErrorKeyEnum.badParams)).to.be.true
+    })
+
+    it('Should throw error when userAddress is missing', async () => {
+      const assertStub = sandbox.stub(errors, 'assertExposable')
+      assertStub.onFirstCall().returns(true as any)
+      assertStub.onSecondCall().returns(true as any)
+      assertStub.onThirdCall().throws(new Error(ErrorKeyEnum.badParams))
+
+      await expect(
+        CapitalDistributorController.getUserCampaignStatus(
+          mockParams.pluginAddress,
+          mockParams.network,
+          '' as HexAddress,
+        ),
+      ).to.be.rejectedWith(Error, ErrorKeyEnum.badParams)
+
+      expect(assertStub.calledThrice).to.be.true
+      expect(assertStub.thirdCall.calledWith(false, ErrorKeyEnum.badParams)).to.be.true
+    })
+
+    it('Should handle and rethrow errors from CampaignReward model', async () => {
+      const modelError = new Error('Database query failed')
+      sandbox.stub(Models.CampaignReward, 'getUserCampaignStatus').rejects(modelError)
+
+      await expect(
+        CapitalDistributorController.getUserCampaignStatus(
+          mockParams.pluginAddress,
+          mockParams.network,
+          mockParams.userAddress,
+        ),
+      ).to.be.rejectedWith('Database query failed')
     })
   })
 })

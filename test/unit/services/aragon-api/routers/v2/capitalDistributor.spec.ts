@@ -3,7 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import CapitalDistributorRouter from '@api/routers/v2/capitalDistributor'
 import CapitalDistributorController from '@api/controllers/capitalDistributor'
-import { NetworksEnum, HexAddress } from '@types'
+import { NetworksEnum, HexAddress, IUserCampaignStatus } from '@types'
 import ValidationSchema from '@helpers/validationSchema'
 
 describe('RouterV2: CapitalDistributor', () => {
@@ -230,14 +230,136 @@ describe('RouterV2: CapitalDistributor', () => {
     })
   })
 
+  describe('getUserCampaignStatus', () => {
+    it('Should get user campaign status successfully', async () => {
+      const mockResult: IUserCampaignStatus = {
+        totalClaimed: '1500000000000000000',
+        totalClaimable: '2500000000000000000',
+      }
+
+      const validationResult = {
+        params: {
+          pluginAddress: '0x1234567890123456789012345678901234567890' as HexAddress,
+          network: NetworksEnum.ethereumMainnet,
+          userAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' as HexAddress,
+        },
+      }
+
+      const validationStub = sandbox.stub(ValidationSchema, 'validateRoute').resolves(validationResult as any)
+      const controllerStub = sandbox
+        .stub(CapitalDistributorController, 'getUserCampaignStatus')
+        .resolves(mockResult)
+
+      const ctx: any = {
+        query: {
+          pluginAddress: '0x1234567890123456789012345678901234567890',
+          network: 'ethereum',
+          userAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+        },
+      }
+
+      await CapitalDistributorRouter.getUserCampaignStatus(ctx)
+
+      expect(ctx.body).to.deep.eq(mockResult)
+      expect(validationStub.calledOnce).to.be.true
+      expect(controllerStub.calledOnce).to.be.true
+      expect(controllerStub.args[0][0]).to.eq(validationResult.params.pluginAddress)
+      expect(controllerStub.args[0][1]).to.eq(validationResult.params.network)
+      expect(controllerStub.args[0][2]).to.eq(validationResult.params.userAddress)
+    })
+
+    it('Should pass correct validation schema', async () => {
+      const validationResult = {
+        params: {
+          pluginAddress: '0x1234567890123456789012345678901234567890' as HexAddress,
+          network: NetworksEnum.ethereumMainnet,
+          userAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' as HexAddress,
+        },
+      }
+
+      const validationStub = sandbox.stub(ValidationSchema, 'validateRoute').resolves(validationResult as any)
+      sandbox.stub(CapitalDistributorController, 'getUserCampaignStatus').resolves({} as any)
+
+      const ctx: any = {
+        query: {
+          pluginAddress: '0x1234567890123456789012345678901234567890',
+          network: 'ethereum',
+          userAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+        },
+      }
+
+      await CapitalDistributorRouter.getUserCampaignStatus(ctx)
+
+      expect(validationStub.calledOnce).to.be.true
+
+      const validationArgs = validationStub.args[0]
+      expect(validationArgs[0]).to.eq(ctx)
+      expect(validationArgs[1].params!.pluginAddress).to.eq(ctx.query.pluginAddress)
+      expect(validationArgs[1].params!.network).to.eq(ctx.query.network)
+      expect(validationArgs[1].params!.userAddress).to.eq(ctx.query.userAddress)
+      expect(validationArgs[1].schemas.params).to.exist
+    })
+
+    it('Should handle validation errors', async () => {
+      const validationError = new Error('Invalid userAddress')
+      const validationStub = sandbox.stub(ValidationSchema, 'validateRoute').rejects(validationError)
+
+      const ctx: any = {
+        query: {
+          pluginAddress: '0x1234567890123456789012345678901234567890',
+          network: 'ethereum',
+          userAddress: 'invalid-address',
+        },
+      }
+
+      await expect(CapitalDistributorRouter.getUserCampaignStatus(ctx)).to.be.rejectedWith('Invalid userAddress')
+
+      expect(validationStub.calledOnce).to.be.true
+    })
+
+    it('Should handle controller errors', async () => {
+      const validationResult = {
+        params: {
+          pluginAddress: '0x1234567890123456789012345678901234567890' as HexAddress,
+          network: NetworksEnum.ethereumMainnet,
+          userAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' as HexAddress,
+        },
+      }
+
+      const controllerError = new Error('Database query failed')
+      sandbox.stub(ValidationSchema, 'validateRoute').resolves(validationResult as any)
+      const controllerStub = sandbox
+        .stub(CapitalDistributorController, 'getUserCampaignStatus')
+        .rejects(controllerError)
+
+      const ctx: any = {
+        query: {
+          pluginAddress: '0x1234567890123456789012345678901234567890',
+          network: 'ethereum',
+          userAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+        },
+      }
+
+      await expect(CapitalDistributorRouter.getUserCampaignStatus(ctx)).to.be.rejectedWith('Database query failed')
+
+      expect(controllerStub.calledOnce).to.be.true
+    })
+  })
+
   describe('router', () => {
-    it('Should return a router with the campaigns route configured', () => {
+    it('Should return a router with both routes configured', () => {
       const router = CapitalDistributorRouter.router()
 
       expect(router).to.exist
-      expect(router.stack).to.have.length(1)
+      expect(router.stack).to.have.length(2)
+      
+      // Check campaigns route
       expect(router.stack[0].path).to.eq('/campaigns')
       expect(router.stack[0].methods).to.include('GET')
+      
+      // Check campaigns/stats route
+      expect(router.stack[1].path).to.eq('/campaigns/stats')
+      expect(router.stack[1].methods).to.include('GET')
     })
   })
 })
