@@ -26,16 +26,16 @@ const LockManagerHandler = {
       // Get the total locked balance from the contract
       const totalLockedBalance = await LockToVoteHelper.getUserLockedBalance(network, lockManagerAddress, memberAddress)
 
-      // Create a base member using MemberGovernanceFactory
+      // Create base member using MemberGovernanceFactory
       await MemberGovernanceFactory.createBaseMember(memberAddress, info.blockNumber)
 
-      // Create a LockToVote governance instance
+      // Create LockToVote governance instance
       const governance = MemberGovernanceFactory.create({
         address: lockManagerAddress,
         network: info.network,
         interfaceType: IPluginInterfaceType.lockToVote,
       })
-      // Get or create a lock manager member
+      // Get or create lock manager member
       await governance.getOrCreate(memberAddress)
 
       let votingPower: string
@@ -107,7 +107,7 @@ const LockManagerHandler = {
       // Get the total locked balance from the contract
       const totalLockedBalance = await LockToVoteHelper.getUserLockedBalance(network, lockManagerAddress, memberAddress)
 
-      // Create a LockToVote governance instance
+      // Create LockToVote governance instance
       const governance = MemberGovernanceFactory.create({
         address: lockManagerAddress,
         network: info.network,
