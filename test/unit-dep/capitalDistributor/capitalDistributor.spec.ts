@@ -159,11 +159,7 @@ describe('Capital Distributor', () => {
     const pluginAddress = '0x884fb2Cd1A0710d5AcC219C6163FCa75aa63c867'
     const campaignId = '5'
 
-    const calculatedTotal = await Models.CampaignReward.calculateTotalRewards(
-      pluginAddress,
-      network,
-      campaignId,
-    )
+    const calculatedTotal = await Models.CampaignReward.calculateTotalRewards(pluginAddress, network, campaignId)
 
     const directCalculation = Addresses.reduce((acc, curr) => acc + BigInt(curr.amount), BigInt(0))
     expect(calculatedTotal).to.be.eq(directCalculation.toString())
@@ -184,26 +180,21 @@ describe('Capital Distributor', () => {
 
     for (const addressConfig of Addresses.slice(0, 3)) {
       const userAddress = ethers.getAddress(addressConfig.address)
-      const status = await Models.CampaignReward.getUserCampaignStatus(
-        pluginAddress,
-        network,
-        userAddress,
-      )
+      const status = await Models.CampaignReward.getUserCampaignStatus(pluginAddress, network, userAddress)
 
       expect(status).to.have.property('totalClaimed')
       expect(status).to.have.property('totalClaimable')
       expect(typeof status.totalClaimed).to.be.eq('string')
       expect(typeof status.totalClaimable).to.be.eq('string')
 
-      const userRewards = await Models.CampaignReward.findByUserAddress(
-        pluginAddress,
-        network,
-        userAddress,
-      )
+      const userRewards = await Models.CampaignReward.findByUserAddress(pluginAddress, network, userAddress)
 
       if (userRewards.length > 0) {
         const manualTotalClaimed = userRewards.reduce((acc, reward) => acc + BigInt(reward.totalClaimed), BigInt(0))
-        const manualTotalClaimable = userRewards.reduce((acc, reward) => acc + BigInt(reward.remainingAmount), BigInt(0))
+        const manualTotalClaimable = userRewards.reduce(
+          (acc, reward) => acc + BigInt(reward.remainingAmount),
+          BigInt(0),
+        )
 
         expect(status.totalClaimed).to.be.eq(manualTotalClaimed.toString())
         expect(status.totalClaimable).to.be.eq(manualTotalClaimable.toString())
@@ -234,7 +225,7 @@ describe('Capital Distributor', () => {
       const initialTotalClaimed = userReward.totalClaimed
 
       const duplicateClaimExists = userReward.claims.find(
-        (claim: any) => claim.transactionHash === existingClaim.transactionHash
+        (claim: any) => claim.transactionHash === existingClaim.transactionHash,
       )
       expect(duplicateClaimExists).to.exist
 

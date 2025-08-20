@@ -69,7 +69,9 @@ describe('Handler: CapitalDistributor', () => {
     it('Should create campaign in database', async () => {
       const saveAndGetStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
       const strategyStartStub = sandbox.stub(LogCampaignStrategy, 'start').resolves()
-      const calculateTotalRewardsStub = sandbox.stub(Models.CampaignReward, 'calculateTotalRewards').resolves('5000000000000000000')
+      const calculateTotalRewardsStub = sandbox
+        .stub(Models.CampaignReward, 'calculateTotalRewards')
+        .resolves('5000000000000000000')
       const loggerStub = sandbox.stub(logger, 'info')
 
       await CapitalDistributorHandler.campaignCreated(parsedEvent, logInfo)
@@ -143,7 +145,9 @@ describe('Handler: CapitalDistributor', () => {
       const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
       const ipfsStub = sandbox.stub(IPFSModule, 'fetchMetadata').resolves(mockMetadata)
       const web3UtilsStub = sandbox.stub(Web3Utils, 'parseCampaignMetadata').returns(mockMetadata)
-      const calculateTotalRewardsStub = sandbox.stub(Models.CampaignReward, 'calculateTotalRewards').resolves('3000000000000000000')
+      const calculateTotalRewardsStub = sandbox
+        .stub(Models.CampaignReward, 'calculateTotalRewards')
+        .resolves('3000000000000000000')
       const strategyStub = sandbox.stub(LogCampaignStrategy, 'start').resolves()
       const loggerInfoStub = sandbox.stub(logger, 'info')
 

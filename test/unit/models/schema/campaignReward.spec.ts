@@ -195,10 +195,7 @@ describe('Model: CampaignReward', () => {
       )
 
       expect(rewards).to.have.length(2)
-      expect(rewards.map(r => r.userAddress)).to.include.members([
-        reward1.userAddress,
-        reward2.userAddress,
-      ])
+      expect(rewards.map(r => r.userAddress)).to.include.members([reward1.userAddress, reward2.userAddress])
     })
 
     it('Should return empty array for non-existing campaign', async () => {
@@ -233,17 +230,14 @@ describe('Model: CampaignReward', () => {
       )
 
       expect(rewards).to.have.length(2)
-      expect(rewards.map(r => r.campaignId)).to.include.members([
-        reward1.campaignId,
-        reward2.campaignId,
-      ])
+      expect(rewards.map(r => r.campaignId)).to.include.members([reward1.campaignId, reward2.campaignId])
     })
   })
 
   describe('getTotalClaimedByAddress', () => {
     it('Should calculate total claimed amount for user across campaigns', async () => {
       const userAddress = '0x1111111111111111111111111111111111111111' as HexAddress
-      
+
       await Models.CampaignReward.create({
         ...rawReward,
         campaignId: 'campaign-001',
@@ -280,7 +274,7 @@ describe('Model: CampaignReward', () => {
   describe('getTotalClaimableByAddress', () => {
     it('Should calculate total claimable amount for user', async () => {
       const userAddress = '0x1111111111111111111111111111111111111111' as HexAddress
-      
+
       await Models.CampaignReward.create({
         ...rawReward,
         campaignId: 'campaign-001',
@@ -342,7 +336,7 @@ describe('Model: CampaignReward', () => {
   describe('getUserCampaignStatus', () => {
     it('Should return user campaign status across all campaigns', async () => {
       const userAddress = '0x1111111111111111111111111111111111111111' as HexAddress
-      
+
       await Models.CampaignReward.create({
         ...rawReward,
         campaignId: 'campaign-001',
@@ -399,7 +393,7 @@ describe('Model: CampaignReward', () => {
   describe('reload', () => {
     it('Should reload document from database', async () => {
       const createdReward = await Models.CampaignReward.create(rawReward)
-      
+
       const reloadedReward = await createdReward.reload()
 
       expect(reloadedReward?.id).to.eq(createdReward.id)

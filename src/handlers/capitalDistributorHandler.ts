@@ -94,7 +94,6 @@ export const CapitalDistributorHandler = {
 
       await campaign.updateTotalRewards(totalRewards)
       await LogCampaignStrategy.start(allocationStrategy, network, blockNumber)
-
     } catch (error) {
       logger.error('Error processing CampaignCreated event', llo({ error, info }))
     }
