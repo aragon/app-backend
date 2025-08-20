@@ -105,8 +105,8 @@ describe('migration: tokenMembers', () => {
         {
           address: '0xplugin2234567890abcdef1234567890abcdef12',
           daoAddress: '0xdao2234567890abcdef1234567890abcdef1234',
-          tokenAddress: '0xtoken1234567890abcdef1234567890abcdef12',
-          network: NetworksEnum.ethereumMainnet,
+          tokenAddress: '0xtoken2234567890abcdef1234567890abcdef12',
+          network: NetworksEnum.polygonMainnet,
           isSupported: true,
           status: IPluginStatus.installed,
         },
@@ -131,7 +131,7 @@ describe('migration: tokenMembers', () => {
           isSupported: true,
           status: IPluginStatus.installed,
         })
-        .returns({ lean: () => Promise.resolve(mockPlugins) })
+        .returns({ lean: () => Promise.resolve([mockPlugins[0]]) })
       stubPluginFind
         .withArgs({
           tokenAddress: mockMemberBalances[1].tokenAddress,
@@ -139,7 +139,7 @@ describe('migration: tokenMembers', () => {
           isSupported: true,
           status: IPluginStatus.installed,
         })
-        .returns({ lean: () => Promise.resolve([]) })
+        .returns({ lean: () => Promise.resolve([mockPlugins[1]]) })
 
       mockMemberMetricsCollection.findOne
         .withArgs({
@@ -151,8 +151,8 @@ describe('migration: tokenMembers', () => {
       mockMemberMetricsCollection.findOne
         .withArgs({
           pluginAddress: mockPlugins[1].address,
-          memberAddress: mockMemberBalances[0].address,
-          network: mockMemberBalances[0].network,
+          memberAddress: mockMemberBalances[1].address,
+          network: mockMemberBalances[1].network,
         })
         .resolves(mockMemberMetrics)
 
@@ -202,7 +202,7 @@ describe('migration: tokenMembers', () => {
       ).to.be.true
       expect(
         governanceStub.updatePluginMetrics.calledWith({
-          memberAddress: mockMemberBalances[0].address,
+          memberAddress: mockMemberBalances[1].address,
           pluginAddress: mockPlugins[1].address,
           network: mockPlugins[1].network,
           daoAddress: mockPlugins[1].daoAddress,
