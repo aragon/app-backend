@@ -24,7 +24,8 @@ export const tokenMembersMigration: IMigration = {
         })
         .toArray()
 
-      logger.info('Found MemberBalance documents to migrate', llo({ count: memberBalances.length }))
+      const total = memberBalances.length
+      logger.info('Found MemberBalance documents to migrate', llo({ total }))
 
       if (memberBalances.length === 0) {
         logger.info('No MemberBalance documents to migrate', llo({}))
@@ -36,7 +37,7 @@ export const tokenMembersMigration: IMigration = {
       let skippedCount = 0
       const limit = pLimit.default(50) // Process 50 documents concurrently
 
-      // Process memberBalances asynchronously with the concurrency limit
+      // Process memberBalances asynchronously with concurrency limit
       const promises = memberBalances.map(async memberBalance =>
         limit(async () => {
           const plugins = await Models.Plugin.find({
@@ -77,7 +78,7 @@ export const tokenMembersMigration: IMigration = {
               return
             }
 
-            // Create a base member
+            // Create base member
             await MemberGovernanceFactory.createBaseMember(
               memberBalance.address,
               memberBalance.lastSyncVotingPowerBlockNumber,
@@ -125,11 +126,12 @@ export const tokenMembersMigration: IMigration = {
               logger.info(
                 'Migration progress',
                 llo({
-                  processed: processedCount,
+                  totalProcessed: processedCount,
+                  total,
+                  remaining: total - processedCount - skippedCount - errorCount,
                   skipped: skippedCount,
-                  total: memberBalances.length,
                   errors: errorCount,
-                  percentage: ((processedCount / memberBalances.length) * 100).toFixed(2),
+                  percentage: ((processedCount / total) * 100).toFixed(2),
                 }),
               )
             }
@@ -154,9 +156,9 @@ export const tokenMembersMigration: IMigration = {
         llo({
           migration: '20250804122543-tokenMembers',
           totalProcessed: processedCount,
+          total,
           skipped: skippedCount,
           errors: errorCount,
-          total: memberBalances.length,
         }),
       )
     } catch (error) {
