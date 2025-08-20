@@ -118,6 +118,12 @@ export default class Campaign extends Model {
   @prop({ type: () => Number, default: 0 })
   public claimCount!: number
 
+  @prop({ type: () => String, default: '0' })
+  public totalClaimed!: string
+
+  @prop({ type: () => String, default: '0' })
+  public totalRewards!: string
+
   static async create(rawData: Partial<Campaign>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.pluginAddress, 'pluginAddress is required')
@@ -163,6 +169,18 @@ export default class Campaign extends Model {
 
   async incrementClaimCount(tOpts?: SaveOptions) {
     this.claimCount = (this.claimCount || 0) + 1
+    return await this.save(tOpts)
+  }
+
+  async updateTotalRewards(totalRewards: string, tOpts?: SaveOptions) {
+    this.totalRewards = totalRewards
+    return await this.save(tOpts)
+  }
+
+  async addToTotalClaimed(claimedAmount: string, tOpts?: SaveOptions) {
+    const currentTotal = BigInt(this.totalClaimed || '0')
+    const claimedBigInt = BigInt(claimedAmount)
+    this.totalClaimed = (currentTotal + claimedBigInt).toString()
     return await this.save(tOpts)
   }
 

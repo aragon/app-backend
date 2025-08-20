@@ -90,7 +90,11 @@ export const CapitalDistributorHandler = {
         }),
       )
 
+      const totalRewards = await Models.CampaignReward.calculateTotalRewards(address, network, campaignId.toString())
+
+      await campaign.updateTotalRewards(totalRewards)
       await LogCampaignStrategy.start(allocationStrategy, network, blockNumber)
+
     } catch (error) {
       logger.error('Error processing CampaignCreated event', llo({ error, info }))
     }
@@ -255,6 +259,7 @@ export const CapitalDistributorHandler = {
       const campaign = await Models.Campaign.findCampaignById(address, network, campaignId.toString())
       if (campaign) {
         await campaign.incrementClaimCount()
+        await campaign.addToTotalClaimed(amount.toString())
       }
 
       logger.info(

@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type IIndexerConfig, ICapitalDistributorLogs, type NetworksEnum, type HexAddress } from '@types'
+import { type IIndexerConfig, type NetworksEnum, type HexAddress, ICapitalDistributorStrategyEvents } from '@types'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import configIndexer from '@indexer/configIndexer'
 import ConfigIndexerHelper from '@helpers/configIndexer'
@@ -10,8 +10,8 @@ export const LogCampaignStrategy = {
   start: async (allocationStrategyAddress: HexAddress, network: NetworksEnum, fromBlock?: number) => {
     logger.verbose('Start LogCampaignStrategy', llo({ network, allocationStrategyAddress, fromBlock }))
 
-    const configLogs = configIndexer.filter(
-      (item: IIndexerConfig) => ICapitalDistributorLogs.MerkleCampaignSet === item.event,
+    const configLogs = configIndexer.filter((item: IIndexerConfig) =>
+      Object.values(ICapitalDistributorStrategyEvents).includes(item.event as any),
     )
 
     const crawler = new BlockchainLogCrawler({

@@ -229,4 +229,64 @@ export default class CampaignReward extends Model {
   async reload(tOpts?: SaveOptions) {
     return await this.model(customName).findById(this._id, tOpts)
   }
+
+  static async calculateTotalRewards(
+    pluginAddress: HexAddress,
+    network: NetworksEnum,
+    campaignId: string,
+    tOpts?: SaveOptions,
+  ) {
+    const result = await this.aggregate(
+      [
+        {
+          $match: { pluginAddress, network, campaignId },
+        },
+        {
+          $group: {
+            _id: null,
+            totalRewards: { $sum: { $toDecimal: '$amount' } },
+          },
+        },
+      ],
+      tOpts,
+    )
+
+    return result[0]?.totalRewards?.toString() || '0'
+  }
+
+  static async getUserCampaignStatus(
+    pluginAddress: HexAddress,
+    network: NetworksEnum,
+    userAddress: HexAddress,
+    tOpts?: SaveOptions,
+  ) {
+    const result = await this.aggregate(
+      [
+        {
+          $match: { pluginAddress, network, userAddress },
+        },
+        {
+          $project: {
+            totalClaimed: { $toDecimal: '$totalClaimed' },
+            claimable: {
+              $subtract: [{ $toDecimal: '$amount' }, { $toDecimal: '$totalClaimed' }],
+            },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalClaimed: { $sum: '$totalClaimed' },
+            totalClaimable: { $sum: '$claimable' },
+          },
+        },
+      ],
+      tOpts,
+    )
+
+    return {
+      totalClaimed: result[0]?.totalClaimed?.toString() || '0',
+      totalClaimable: result[0]?.totalClaimable?.toString() || '0',
+    }
+  }
 }
