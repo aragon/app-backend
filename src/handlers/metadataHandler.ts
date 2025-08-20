@@ -51,7 +51,7 @@ export const MetadataHandler = {
         stageNames: ipfsMetadata?.stageNames!,
         blockedCountries: ipfsMetadata?.blockedCountries || [],
         termsConditionsUrl: ipfsMetadata?.termsConditionsUrl || null,
-        enableOfacCheck: ipfsMetadata?.enableOfacCheck || false,
+        enableOfacCheck: ipfsMetadata?.enableOfacCheck || null,
       }
 
       if (daoExists) {
@@ -109,6 +109,9 @@ export const MetadataHandler = {
       description: metadataLog.description,
       links: metadataLog.links,
       processKey: metadataLog?.processKey,
+      blockedCountries: metadataLog?.blockedCountries || [],
+      termsConditionsUrl: metadataLog?.termsConditionsUrl || null,
+      enableOfacCheck: metadataLog?.enableOfacCheck || null,
     }
 
     await DbOperations.updateDocument(plugin, document, { logId: metadataLog.id }, 'Update Plugin Metadata', llo)

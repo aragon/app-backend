@@ -578,6 +578,9 @@ export default class Proposal extends Model {
           subPlugins: 1,
           stageIndex: 1,
           parentPlugin: 1,
+          enableOfacCheck: 1,
+          blockedCountries: 1,
+          termsConditionsUrl: 1,
         },
         {
           settings: true,
@@ -897,6 +900,9 @@ export default class Proposal extends Model {
           subPlugins: 1,
           stageIndex: 1,
           parentPlugin: 1,
+          enableOfacCheck: 1,
+          blockedCountries: 1,
+          termsConditionsUrl: 1,
         },
         {
           settings: true,

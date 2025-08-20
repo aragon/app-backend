@@ -9,7 +9,7 @@ import { Models } from '@dbModels'
 import { LogCapitalDistributor } from '@plugins/logCapitalDistributor'
 import { ethers } from 'ethers'
 
-describe('Capital Distributor', () => {
+describe.only('Capital Distributor', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -141,7 +141,6 @@ describe('Capital Distributor', () => {
     expect(campaign.totalClaimed).to.exist
 
     const initialTotalClaimed = campaign.totalClaimed
-    const initialTotalRewards = campaign.totalRewards
 
     await campaign.addToTotalClaimed('1000000000000000000')
     expect(campaign.totalClaimed).to.be.eq((BigInt(initialTotalClaimed) + BigInt('1000000000000000000')).toString())

@@ -159,6 +159,9 @@ export interface IAggPluginProjectFields {
   status?: 1
   isSupported: 1
   interfaceType: 1
+  enableOfacCheck: 1
+  blockedCountries: 1
+  termsConditionsUrl: 1
   tokenAddress?: 1
   metadataIpfs?: 1
   release?: 1

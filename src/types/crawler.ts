@@ -108,6 +108,7 @@ export enum ICapitalDistributorLogs {
   CampaignCreated = 'CampaignCreated',
   CampaignDeactivated = 'CampaignDeactivated',
   PayoutClaimed = 'PayoutClaimed',
+  MetadataSet = 'MetadataSet',
 }
 
 export enum ICapitalDistributorStrategyEvents {

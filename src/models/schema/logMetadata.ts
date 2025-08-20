@@ -102,8 +102,8 @@ export default class LogMetadata extends Model {
   @prop({ type: () => String, default: null })
   public termsConditionsUrl?: string | null
 
-  @prop({ type: () => Boolean, default: false })
-  public enableOfacCheck?: boolean
+  @prop({ type: () => Boolean, default: null })
+  public enableOfacCheck?: boolean | null
 
   @prop({ type: () => String, default: null })
   static async create(rawData: Partial<LogMetadata>, tOpts?: SaveOptions) {
