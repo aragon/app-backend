@@ -246,9 +246,7 @@ describe('RouterV2: CapitalDistributor', () => {
       }
 
       const validationStub = sandbox.stub(ValidationSchema, 'validateRoute').resolves(validationResult as any)
-      const controllerStub = sandbox
-        .stub(CapitalDistributorController, 'getUserCampaignStatus')
-        .resolves(mockResult)
+      const controllerStub = sandbox.stub(CapitalDistributorController, 'getUserCampaignStatus').resolves(mockResult)
 
       const ctx: any = {
         query: {
@@ -352,11 +350,11 @@ describe('RouterV2: CapitalDistributor', () => {
 
       expect(router).to.exist
       expect(router.stack).to.have.length(2)
-      
+
       // Check campaigns route
       expect(router.stack[0].path).to.eq('/campaigns')
       expect(router.stack[0].methods).to.include('GET')
-      
+
       // Check campaigns/stats route
       expect(router.stack[1].path).to.eq('/campaigns/stats')
       expect(router.stack[1].methods).to.include('GET')
