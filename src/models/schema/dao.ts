@@ -904,47 +904,67 @@ export default class Dao extends Model {
       },
     ]
 
+    const facetStage: Record<string, any[]> = {}
     MEMBER_COLLECTION_CONFIG.forEach(config => {
-      pipeline.push({
-        $lookup: {
-          from: config.collection,
-          let: {
-            targetValue: config.sourceField,
-            network: '$plugins.network',
-            interfaceType: '$plugins.interfaceType',
-          },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    config.interfaceTypes.length === 1
-                      ? { $eq: ['$$interfaceType', config.interfaceTypes[0]] }
-                      : { $in: ['$$interfaceType', config.interfaceTypes] },
-                    { $eq: [`$${config.matchField}`, '$$targetValue'] },
-                    { $eq: ['$network', '$$network'] },
-                  ],
+      facetStage[config.resultAlias] = [
+        {
+          $lookup: {
+            from: config.collection,
+            let: {
+              targetValue: config.sourceField,
+              network: '$plugins.network',
+              interfaceType: '$plugins.interfaceType',
+            },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      config.interfaceTypes.length === 1
+                        ? { $eq: ['$$interfaceType', config.interfaceTypes[0]] }
+                        : { $in: ['$$interfaceType', config.interfaceTypes] },
+                      { $eq: [`$${config.matchField}`, '$$targetValue'] },
+                      { $eq: ['$network', '$$network'] },
+                    ],
+                  },
                 },
               },
-            },
-            {
-              $project: {
-                memberAddress: `$${config.memberAddressField}`,
+              {
+                $project: {
+                  memberAddress: `$${config.memberAddressField}`,
+                },
               },
-            },
-          ],
-          as: config.resultAlias,
+            ],
+            as: config.resultAlias,
+          },
         },
-      })
+        {
+          $project: {
+            [config.resultAlias]: 1,
+          },
+        },
+      ]
     })
 
-    const memberArrays = MEMBER_COLLECTION_CONFIG.map(config => `$${config.resultAlias}`)
+    pipeline.push({
+      $facet: facetStage,
+    })
 
     pipeline.push(
       {
         $addFields: {
           allMembers: {
-            $concatArrays: memberArrays,
+            $concatArrays: MEMBER_COLLECTION_CONFIG.map(config => {
+              return {
+                $reduce: {
+                  input: `$${config.resultAlias}`,
+                  initialValue: [],
+                  in: {
+                    $concatArrays: ['$$value', `$$this.${config.resultAlias}`],
+                  },
+                },
+              }
+            }),
           },
         },
       },
