@@ -17,7 +17,6 @@ import type MemberTransaction from '@models/schema/memberTransaction'
 import type DaoPermission from '@models/schema/daoPermission'
 import type Jwt from '@models/schema/jwt'
 import type PluginSlug from '@models/schema/pluginSlug'
-import type SelectorPermission from '@models/schema/selectorPermission'
 import type TokenMember from '@models/schema/tokenMember'
 import type PluginMember from '@models/schema/pluginMember'
 import type PluginMetrics from '@models/schema/pluginMetrics'
@@ -32,6 +31,8 @@ export interface IMongoModel {
   Migration: typeof Migration
   Asset: typeof Asset
   ConfigIndexer: typeof ConfigIndexer
+  Campaign: typeof Campaign
+  CampaignReward: typeof CampaignReward
   Dao: typeof Dao
   DaoPermission: typeof DaoPermission
   Jwt: typeof Jwt
@@ -112,35 +113,6 @@ export const IndexCheckTypeToModel: Record<ITransactionIndexCheckType, ICollecti
   [ITransactionIndexCheckType.EXIT_CREATE]: ICollectionNames.Lock,
   [ITransactionIndexCheckType.WITHDRAW_CREATE]: ICollectionNames.Lock,
   [ITransactionIndexCheckType.PLUGIN_CREATE]: ICollectionNames.Plugin,
-}
-
-export interface IMongoModel {
-  Asset: typeof Asset
-  Campaign: typeof Campaign
-  ConfigIndexer: typeof ConfigIndexer
-  Dao: typeof Dao
-  DaoMemberMapping: typeof DaoMemberMapping
-  DaoPermission: typeof DaoPermission
-  Jwt: typeof Jwt
-  LogMetadata: typeof LogMetadata
-  LogPluginSetupProcessor: typeof LogPluginSetupProcessor
-  Member: typeof Member
-  MemberBalance: typeof MemberBalance
-  MemberMetrics: typeof MemberMetrics
-  MemberTransaction: typeof MemberTransaction
-  Plugin: typeof Plugin
-  PluginRepo: typeof PluginRepo
-  PluginSlug: typeof PluginSlug
-  Proposal: typeof Proposal
-  CampaignReward: typeof CampaignReward
-  Setting: typeof Setting
-  TaskRun: typeof TaskRun
-  TaskService: typeof TaskService
-  Token: typeof Token
-  Transaction: typeof Transaction
-  Vote: typeof Vote
-  LockManagerMember: typeof LockManagerMember
-  SelectorPermission: typeof SelectorPermission
 }
 
 export enum IEventLogPluginMembership {
