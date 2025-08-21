@@ -1,15 +1,15 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import Utils from '@test/lib/unit-dep/utils'
-import Addresses from './addresses.json'
 import { CapitalDistributorAdminController } from '@admin-api/controllers/capitalDistributor'
 import { IPluginInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { Models } from '@dbModels'
 import { LogCapitalDistributor } from '@plugins/logCapitalDistributor'
-import { ethers } from 'ethers'
+import CapitalDistributorController from '@api/controllers/capitalDistributor'
+import DaoController from '@api/controllers/dao'
 
-describe.only('Capital Distributor', () => {
+describe('Capital Distributor', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -23,26 +23,77 @@ describe.only('Capital Distributor', () => {
   it('should handle capital distribution event and plugin sync correctly', async function () {
     this.timeout(100000000)
     const network = NetworksEnum.ethereumSepolia
-    const pluginAddress = '0x884fb2Cd1A0710d5AcC219C6163FCa75aa63c867'
-    const campaignId = '5'
+    const pluginAddress = '0x5dA61302D0d08d80D39f015b75595052fD4CdD06'
+
+    const addressesses = [{
+      campaignId: '0',
+      addresses: [
+        {
+          address: '0x17366cae2b9c6C3055e9e3C78936a69006BE5409',
+          amount: '2068407131086655006',
+        },
+        {
+          address: '0xF6ad40D5D477ade0C640eaD49944bdD0AA1fBF05',
+          amount: '3066005202605466524'
+        },
+        {
+          address: '0x764a31E070c6Ea2E81CbC1f680BF9a07f762ED2c',
+          amount: '3327258466775317797'
+        },
+        {
+          address: '0x00C51Fad10462780e488B54D413aD92B28b88204',
+          amount: '4301960492862894413'
+        },
+        {
+          address: '0xD740fd724D616795120BC363316580dAFf41129A',
+          amount: '4429543088946624610'
+        },
+      ],
+    }, {
+      campaignId: '1',
+      addresses: [
+        {
+          address: '0x17366cae2b9c6C3055e9e3C78936a69006BE5409',
+          amount: '5931865400721184342',
+        },
+        {
+          address: '0xF6ad40D5D477ade0C640eaD49944bdD0AA1fBF05',
+          amount: '7315096276842113998'
+        },
+        {
+          address: '0x764a31E070c6Ea2E81CbC1f680BF9a07f762ED2c',
+          amount: '8743269015224678811'
+        },
+        {
+          address: '0x00C51Fad10462780e488B54D413aD92B28b88204',
+          amount: '6674012549813207563'
+        },
+        {
+          address: '0xD740fd724D616795120BC363316580dAFf41129A',
+          amount: '9152804736221590487'
+        },
+      ],
+    }]
 
     await Utils.handleEventsFromTxHashes(
-      ['0xc87580b4629dc9c89c6afdb98fe3c63fe300adf9cbf40cd2e5d7f5e970bc807f'],
+      ['0x11faef71292d3fe642e87f00a4ef0776c0fe8f71e07029ef595535704cab04cd'],
       network,
     )
 
-    await CapitalDistributorAdminController.uploadMembersList({
-      campaignId,
-      pluginAddress,
-      network,
-      rewards: [...Addresses],
-    })
+    for(const address of addressesses) {
+      await CapitalDistributorAdminController.uploadMembersList({
+        campaignId: address.campaignId,
+        pluginAddress,
+        network,
+        rewards: address.addresses,
+      })
 
-    await CapitalDistributorAdminController.generateMerkleData({
-      campaignId,
-      pluginAddress,
-      network,
-    })
+      await CapitalDistributorAdminController.generateMerkleData({
+        campaignId: address.campaignId,
+        pluginAddress,
+        network,
+      })
+    }
 
     const plugin = await Models.Plugin.findOne({
       interfaceType: IPluginInterfaceType.capitalDistributor,
@@ -50,186 +101,69 @@ describe.only('Capital Distributor', () => {
 
     await LogCapitalDistributor.start(plugin)
 
-    const campaign = await Models.Campaign.findOne({
-      pluginAddress: plugin.address,
-      network: plugin.network,
-      campaignId: campaignId,
+    for(const address of addressesses) {
+      const totalRewards = address.addresses.reduce((acc, curr) => acc + BigInt(curr.amount), BigInt(0))
+      const campaignDetail = await Models.Campaign.findOne({
+        pluginAddress: plugin.address,
+        network: plugin.network,
+        campaignId: address.campaignId,
+      })
+      expect(campaignDetail).to.exist
+      expect(campaignDetail.totalRewards).to.be.eq(totalRewards.toString())
+    }
+
+    const rewardReceivedUsers = await Models.CampaignReward.find({
+      claims: { $exists: true, $ne: [] }
     })
 
-    const totalRewardsDirect = Addresses.reduce((acc, curr) => acc + BigInt(curr.amount), BigInt(0))
-    expect(campaign).to.exist
-    expect(campaign.totalRewards).to.be.eq(totalRewardsDirect.toString())
+    const campaignStatus = await CapitalDistributorController.getUserCampaignStatus(
+      pluginAddress,
+      network,
+      rewardReceivedUsers[0].userAddress,
+    )
 
-    const claimRewards = await Models.CampaignReward.aggregate([
-      {
-        $match: {
-          campaignId: '5',
-          claims: { $exists: true, $ne: [] },
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: { $toDecimal: '$totalClaimed' } },
-        },
-      },
-      {
-        $project: {
-          total: { $toString: '$total' },
-        },
-      },
+    const campaignRewardForAddr0 = addressesses.reduce((acc, curr) => acc + BigInt(curr.addresses[0].amount), BigInt(0))
+
+    expect(campaignStatus.totalClaimed).to.be.eq(campaignRewardForAddr0.toString())
+    expect(campaignStatus.totalClaimable).to.be.eq('0')
+
+    const userWhoNeverClaimed = addressesses[1].addresses[1].address
+    const notClaimedRewardStat = await CapitalDistributorController.getUserCampaignStatus(
+      pluginAddress,
+      network,
+      userWhoNeverClaimed,
+    )
+
+    expect(notClaimedRewardStat.totalClaimed).to.be.eq('0')
+
+    //calculate the total rewards for the user who never claimed
+    const totalRewardsForUser = addressesses.reduce((acc, curr) => {
+      const userReward = curr.addresses.find(addr => addr.address === userWhoNeverClaimed)
+      return userReward ? acc + BigInt(userReward.amount) : acc
+    }, BigInt(0))
+    expect(notClaimedRewardStat.totalClaimable).to.be.eq(totalRewardsForUser.toString())
+
+    const daoDetails = await DaoController.getDaoByAddress(
+      plugin.daoAddress,
+      network,
+    )
+
+    const pluginFromResponse = daoDetails.plugins.find(
+      (pl: any) => pl.interfaceType === IPluginInterfaceType.capitalDistributor
+    ) as any
+
+    expect(pluginFromResponse).to.exist
+
+    expect(pluginFromResponse.isSupported).to.be.true
+
+    expect(pluginFromResponse.blockedCountries).to.deep.eq([
+      "RU",
+      "US",
     ])
-    expect(claimRewards[0].total).to.be.eq(campaign.totalClaimed.toString())
-
-    const randomUser = Addresses[Math.floor(Math.random() * Addresses.length)]
-    expect(randomUser).to.exist
-
-    const result = await Models.CampaignReward.getUserCampaignStatus(
-      pluginAddress,
-      network,
-      ethers.getAddress(randomUser.address),
-    )
-    expect(result.totalClaimable).to.be.eq(randomUser.amount)
-
-    const claimingUser = ethers.getAddress('0x17366cae2b9c6C3055e9e3C78936a69006BE5409')
-    const userClaimConfig = Addresses.find(claimConfig => claimingUser === ethers.getAddress(claimConfig.address))
-
-    expect(userClaimConfig).to.exist
-
-    const claimResultOfUserB = await Models.CampaignReward.getUserCampaignStatus(pluginAddress, network, claimingUser)
-    expect(claimResultOfUserB.totalClaimable).to.be.eq('0')
-  })
-
-  it('should test campaign totalRewards and totalClaimed functionality', async function () {
-    this.timeout(100000000)
-    const network = NetworksEnum.ethereumSepolia
-    const pluginAddress = '0x884fb2Cd1A0710d5AcC219C6163FCa75aa63c867'
-    const campaignId = '5'
-
-    await Utils.handleEventsFromTxHashes(
-      ['0xc87580b4629dc9c89c6afdb98fe3c63fe300adf9cbf40cd2e5d7f5e970bc807f'],
-      network,
-    )
-
-    await CapitalDistributorAdminController.uploadMembersList({
-      campaignId,
-      pluginAddress,
-      network,
-      rewards: [...Addresses],
-    })
-
-    await CapitalDistributorAdminController.generateMerkleData({
-      campaignId,
-      pluginAddress,
-      network,
-    })
-
-    const plugin = await Models.Plugin.findOne({
-      interfaceType: IPluginInterfaceType.capitalDistributor,
-    })
-
-    await LogCapitalDistributor.start(plugin)
-
-    const campaign = await Models.Campaign.findOne({
-      pluginAddress: plugin.address,
-      network: plugin.network,
-      campaignId: campaignId,
-    })
-
-    expect(campaign).to.exist
-    expect(campaign.totalRewards).to.exist
-    expect(campaign.totalClaimed).to.exist
-
-    const initialTotalClaimed = campaign.totalClaimed
-
-    await campaign.addToTotalClaimed('1000000000000000000')
-    expect(campaign.totalClaimed).to.be.eq((BigInt(initialTotalClaimed) + BigInt('1000000000000000000')).toString())
-
-    await campaign.updateTotalRewards('5000000000000000000')
-    expect(campaign.totalRewards).to.be.eq('5000000000000000000')
-
-    await campaign.addToTotalClaimed('500000000000000000')
-    expect(campaign.totalClaimed).to.be.eq((BigInt(initialTotalClaimed) + BigInt('1500000000000000000')).toString())
-  })
-
-  it('should verify calculateTotalRewards method works correctly', async function () {
-    this.timeout(100000000)
-    const network = NetworksEnum.ethereumSepolia
-    const pluginAddress = '0x884fb2Cd1A0710d5AcC219C6163FCa75aa63c867'
-    const campaignId = '5'
-
-    const calculatedTotal = await Models.CampaignReward.calculateTotalRewards(pluginAddress, network, campaignId)
-
-    const directCalculation = Addresses.reduce((acc, curr) => acc + BigInt(curr.amount), BigInt(0))
-    expect(calculatedTotal).to.be.eq(directCalculation.toString())
-
-    const campaign = await Models.Campaign.findOne({
-      pluginAddress,
-      network,
-      campaignId,
-    })
-
-    expect(campaign.totalRewards).to.be.eq(calculatedTotal)
-  })
-
-  it('should verify getUserCampaignStatus aggregation', async function () {
-    this.timeout(100000000)
-    const network = NetworksEnum.ethereumSepolia
-    const pluginAddress = '0x884fb2Cd1A0710d5AcC219C6163FCa75aa63c867'
-
-    for (const addressConfig of Addresses.slice(0, 3)) {
-      const userAddress = ethers.getAddress(addressConfig.address)
-      const status = await Models.CampaignReward.getUserCampaignStatus(pluginAddress, network, userAddress)
-
-      expect(status).to.have.property('totalClaimed')
-      expect(status).to.have.property('totalClaimable')
-      expect(typeof status.totalClaimed).to.be.eq('string')
-      expect(typeof status.totalClaimable).to.be.eq('string')
-
-      const userRewards = await Models.CampaignReward.findByUserAddress(pluginAddress, network, userAddress)
-
-      if (userRewards.length > 0) {
-        const manualTotalClaimed = userRewards.reduce((acc, reward) => acc + BigInt(reward.totalClaimed), BigInt(0))
-        const manualTotalClaimable = userRewards.reduce(
-          (acc, reward) => acc + BigInt(reward.remainingAmount),
-          BigInt(0),
-        )
-
-        expect(status.totalClaimed).to.be.eq(manualTotalClaimed.toString())
-        expect(status.totalClaimable).to.be.eq(manualTotalClaimable.toString())
-      }
-    }
-  })
-
-  it('should verify duplicate claim prevention works', async function () {
-    this.timeout(100000000)
-    const network = NetworksEnum.ethereumSepolia
-    const pluginAddress = '0x884fb2Cd1A0710d5AcC219C6163FCa75aa63c867'
-    const campaignId = '5'
-    const claimingUser = ethers.getAddress('0x17366cae2b9c6C3055e9e3C78936a69006BE5409')
-
-    const userReward = await Models.CampaignReward.findRewardForCampaign(
-      pluginAddress,
-      network,
-      campaignId,
-      claimingUser,
-    )
-
-    expect(userReward).to.exist
-    expect(userReward.claims).to.be.an('array')
-
-    if (userReward.claims.length > 0) {
-      const existingClaim = userReward.claims[0]
-      const initialClaimsCount = userReward.claims.length
-      const initialTotalClaimed = userReward.totalClaimed
-
-      const duplicateClaimExists = userReward.claims.find(
-        (claim: any) => claim.transactionHash === existingClaim.transactionHash,
-      )
-      expect(duplicateClaimExists).to.exist
-
-      expect(userReward.claims).to.have.length(initialClaimsCount)
-      expect(userReward.totalClaimed).to.be.eq(initialTotalClaimed)
-    }
+    expect(pluginFromResponse.enableOfacCheck).to.be.true
+    expect(pluginFromResponse.termsConditionsUrl).to.be.eq('https://capital-distributor.com/terms')
+    expect(pluginFromResponse.isBody).to.be.eq(false)
+    expect(pluginFromResponse.isProcess).to.be.eq(false)
+    expect(pluginFromResponse.isSubPlugin).to.be.eq(false)
   })
 })

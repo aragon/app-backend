@@ -105,10 +105,10 @@ export enum IMultiSigLogs {
 }
 
 export enum ICapitalDistributorLogs {
+  MetadataSet = 'MetadataSet',
   CampaignCreated = 'CampaignCreated',
   CampaignDeactivated = 'CampaignDeactivated',
   PayoutClaimed = 'PayoutClaimed',
-  MetadataSet = 'MetadataSet',
 }
 
 export enum ICapitalDistributorStrategyEvents {
