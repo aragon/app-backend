@@ -163,10 +163,12 @@ class EvmExplorerClient {
       response.result[0].SourceCode !== '' &&
       response.result[0].ABI !== undefined
     ) {
+      const name = response.result[0].ContractName
+      const ContractName = name.split(':').pop() || name
       return [
         {
           SourceCode: response.result[0].SourceCode,
-          ContractName: response.result[0].ContractName,
+          ContractName,
           ABI: response.result[0].ABI,
         },
       ]

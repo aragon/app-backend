@@ -349,6 +349,80 @@ describe('Helpers: EvmExplorerClient', () => {
       expect(result).to.be.null
     })
 
+    it('should extract contract name from full path when ContractName contains colon', async () => {
+      const mockResponse = {
+        data: {
+          status: '1',
+          message: 'OK',
+          result: [
+            {
+              SourceCode: 'pragma solidity ^0.8.0; contract ERC1967Proxy {}',
+              ContractName: '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol:ERC1967Proxy',
+              ABI: '[{"type":"constructor"}]',
+            },
+          ],
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+      const getChainIdStub = sandbox.stub(ProviderModule, 'getChainId').returns(1)
+
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+
+      const result = await evmExplorerClient.fetchContractSourceCode(EvmExplorerEnum.ETHERSCAN, address, network)
+
+      expect(axiosStub.calledOnce).to.be.true
+      expect(getChainIdStub.calledOnce).to.be.true
+
+      expect(result).to.deep.equal([
+        {
+          SourceCode: 'pragma solidity ^0.8.0; contract ERC1967Proxy {}',
+          ContractName: 'ERC1967Proxy',
+          ABI: '[{"type":"constructor"}]',
+        },
+      ])
+    })
+
+    it('should keep original contract name when no colon is present', async () => {
+      const mockResponse = {
+        data: {
+          status: '1',
+          message: 'OK',
+          result: [
+            {
+              SourceCode: 'pragma solidity ^0.8.0; contract SimpleContract {}',
+              ContractName: 'SimpleContract',
+              ABI: '[{"type":"constructor"}]',
+            },
+          ],
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+      const getChainIdStub = sandbox.stub(ProviderModule, 'getChainId').returns(1)
+
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+
+      const result = await evmExplorerClient.fetchContractSourceCode(EvmExplorerEnum.ETHERSCAN, address, network)
+
+      expect(axiosStub.calledOnce).to.be.true
+      expect(getChainIdStub.calledOnce).to.be.true
+
+      expect(result).to.deep.equal([
+        {
+          SourceCode: 'pragma solidity ^0.8.0; contract SimpleContract {}',
+          ContractName: 'SimpleContract',
+          ABI: '[{"type":"constructor"}]',
+        },
+      ])
+    })
+
     it('should return null for unsupported explorer type', async () => {
       const result = await evmExplorerClient.fetchContractSourceCode('unsupported' as EvmExplorerEnum, address, network)
 
