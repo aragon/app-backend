@@ -8,7 +8,7 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import MemberController from '@services/aragon-api/controllers/member'
 
-describe.only('migration: lockToVoteMember', () => {
+describe('migration: lockToVoteMember', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
