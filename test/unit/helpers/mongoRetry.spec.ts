@@ -56,9 +56,9 @@ describe('Helpers: MongoRetryHelper', () => {
   describe('retryOperation', () => {
     it('should return result on successful operation', async () => {
       const operation = sandbox.stub().resolves('success')
-      
+
       const result = await MongoRetryHelper.retryOperation(operation)
-      
+
       expect(result).to.equal('success')
       expect(operation.calledOnce).to.be.true
     })
@@ -146,7 +146,7 @@ describe('Helpers: MongoRetryHelper', () => {
       const operation = sandbox.stub()
       operation.onFirstCall().rejects(connectionError)
       operation.onSecondCall().resolves('success')
-      
+
       const onRetryStub = sandbox.stub()
 
       const resultPromise = MongoRetryHelper.retryOperation(operation, {
@@ -216,9 +216,9 @@ describe('Helpers: MongoRetryHelper', () => {
   describe('retryOperationSafe', () => {
     it('should return result on success', async () => {
       const operation = sandbox.stub().resolves('success')
-      
+
       const result = await MongoRetryHelper.retryOperationSafe(operation, 'testOperation')
-      
+
       expect(result).to.equal('success')
       expect(operation.calledOnce).to.be.true
     })
@@ -226,9 +226,9 @@ describe('Helpers: MongoRetryHelper', () => {
     it('should return null on failure without throwing', async () => {
       const error = new Error('Operation failed')
       const operation = sandbox.stub().rejects(error)
-      
+
       const result = await MongoRetryHelper.retryOperationSafe(operation, 'testOperation')
-      
+
       expect(result).to.be.null
       expect(loggerErrorStub.calledWith('Failed to execute testOperation after retries')).to.be.true
     })
@@ -255,9 +255,9 @@ describe('Helpers: MongoRetryHelper', () => {
   describe('safeUpdate', () => {
     it('should return true on successful update', async () => {
       const operation = sandbox.stub().resolves({ acknowledged: true })
-      
+
       const result = await MongoRetryHelper.safeUpdate(operation, { taskName: 'test' })
-      
+
       expect(result).to.be.true
       expect(operation.calledOnce).to.be.true
     })
@@ -265,9 +265,9 @@ describe('Helpers: MongoRetryHelper', () => {
     it('should return false on failure', async () => {
       const error = new Error('Update failed')
       const operation = sandbox.stub().rejects(error)
-      
+
       const result = await MongoRetryHelper.safeUpdate(operation, { taskName: 'test' })
-      
+
       expect(result).to.be.false
       expect(loggerWarnStub.calledWith('MongoDB update failed')).to.be.true
     })

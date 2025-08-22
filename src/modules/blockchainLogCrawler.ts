@@ -543,8 +543,7 @@ class BlockchainLogCrawler {
             { session },
           )
         }
-        await session.commitTransaction()
-        await session.endSession()
+        await DbTx.safeCommit(session)
       })
     } catch (error) {
       logger.error('Error saving progress', llo({ ...this.parseCrawlerInfoLog(), error }))

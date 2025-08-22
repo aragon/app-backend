@@ -329,4 +329,101 @@ describe('Module: DbTx', () => {
       expect(session.endSession.calledOnce).to.be.true
     })
   })
+
+  describe('safeCommit', () => {
+    it('should commit transaction when session is in transaction', async () => {
+      const session = {
+        inTransaction: () => true,
+        commitTransaction: sandbox.stub().resolves(),
+      }
+
+      await DbTx.safeCommit(session as unknown as ClientSession)
+
+      expect(session.commitTransaction.calledOnce).to.be.true
+    })
+
+    it('should not commit when session is not in transaction', async () => {
+      const session = {
+        inTransaction: () => false,
+        commitTransaction: sandbox.stub().resolves(),
+      }
+
+      const loggerWarnStub = sandbox.stub(Logger, 'warn')
+
+      await DbTx.safeCommit(session as unknown as ClientSession)
+
+      expect(session.commitTransaction.called).to.be.false
+      expect(loggerWarnStub.calledWith('Attempted to commit transaction that is not active' as any)).to.be.true
+    })
+
+    it('should handle illegal state transition error gracefully', async () => {
+      const illegalStateError = new Error(
+        'Attempted illegal state transition from [TRANSACTION_ABORTED] to [TRANSACTION_COMMITTED]',
+      )
+      const session = {
+        inTransaction: () => true,
+        commitTransaction: sandbox.stub().rejects(illegalStateError),
+      }
+
+      const loggerWarnStub = sandbox.stub(Logger, 'warn')
+
+      // Should not throw
+      await DbTx.safeCommit(session as unknown as ClientSession)
+
+      expect(session.commitTransaction.calledOnce).to.be.true
+      expect(loggerWarnStub.calledWith('Transaction already ended (likely aborted), skipping commit' as any)).to.be.true
+    })
+
+    it('should re-throw non-illegal state transition errors', async () => {
+      const genericError = new Error('Some other commit error')
+      const session = {
+        inTransaction: () => true,
+        commitTransaction: sandbox.stub().rejects(genericError),
+      }
+
+      try {
+        await DbTx.safeCommit(session as unknown as ClientSession)
+        expect.fail('Expected safeCommit to throw generic error')
+      } catch (error) {
+        expect(error).to.equal(genericError)
+      }
+    })
+
+    it('should handle MongoDB runtime error with illegal state transition', async () => {
+      const mongoRuntimeError = {
+        name: 'MongoRuntimeError',
+        message: 'Attempted illegal state transition from [TRANSACTION_ABORTED] to [TRANSACTION_COMMITTED]',
+      }
+      const session = {
+        inTransaction: () => true,
+        commitTransaction: sandbox.stub().rejects(mongoRuntimeError),
+      }
+
+      const loggerWarnStub = sandbox.stub(Logger, 'warn')
+
+      // Should not throw
+      await DbTx.safeCommit(session as unknown as ClientSession)
+
+      expect(session.commitTransaction.calledOnce).to.be.true
+      expect(loggerWarnStub.calledWith('Transaction already ended (likely aborted), skipping commit' as any)).to.be.true
+    })
+
+    it('should handle transaction timeout errors gracefully', async () => {
+      const timeoutError = {
+        message: 'Transaction 1 has been aborted due to timeout',
+      }
+      const session = {
+        inTransaction: () => true,
+        commitTransaction: sandbox.stub().rejects(timeoutError),
+      }
+
+      try {
+        await DbTx.safeCommit(session as unknown as ClientSession)
+        expect.fail('Expected safeCommit to throw timeout error')
+      } catch (error: any) {
+        expect(error.message).to.include('timeout')
+        expect(session.commitTransaction.calledOnce).to.be.true
+      }
+    })
+  })
 })

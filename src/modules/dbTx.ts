@@ -36,7 +36,7 @@ const DbTx = {
       try {
         const response = await fn({ session })
         return response
-      } catch (error) {
+      } catch (error: any) {
         if (options?.stopRetry) {
           if (options?.throwOnStop) throw error
           return
@@ -56,6 +56,11 @@ const DbTx = {
             logger.error('Exceeded retry attempts for WriteConflict', llo({ error, attempt }))
             throw new Error('Exceeded retry attempts for MongoDB transaction.')
           }
+        }
+
+        // Check if error is due to transaction already being aborted
+        if (error?.message?.includes('Transaction') && error?.message?.includes('aborted')) {
+          logger.warn('Transaction was aborted, likely due to timeout or connection issue', llo({ error }))
         }
 
         await DbTx.closeEnd(session)
@@ -108,6 +113,23 @@ const DbTx = {
         await session.endSession() // Always end the session
       } catch (error) {
         logger.warn('Error ending session', llo({ error }))
+      }
+    }
+  },
+
+  async safeCommit(session: ClientSession): Promise<void> {
+    try {
+      if (session.inTransaction()) {
+        await session.commitTransaction()
+      } else {
+        logger.warn('Attempted to commit transaction that is not active', llo({}))
+      }
+    } catch (error: any) {
+      if (error?.message?.includes('Attempted illegal state transition')) {
+        logger.warn('Transaction already ended (likely aborted), skipping commit', llo({ error: error?.message }))
+        // Don't throw - transaction is already ended
+      } else {
+        throw error // Re-throw other errors
       }
     }
   },
