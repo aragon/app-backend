@@ -46,7 +46,7 @@ describe('Integ: LockToVote', () => {
 
         expect(setting).to.exist
 
-        const membersFromQuery = await Models.LockManagerMember.find({ lockManagerAddress: plugin.lockManagerAddress })
+        const membersFromQuery = await Models.LockToVoteMember.find({ lockManagerAddress: plugin.lockManagerAddress })
         const members = await MemberController.getMembersWithPagination(
           {
             page: 1,
@@ -115,7 +115,7 @@ describe('Integ: LockToVote', () => {
     expect(plugin.isSupported).to.be.true
     expect(plugin.lockManagerAddress).to.be.not.null
 
-    const membersFromQuery = await Models.LockManagerMember.find({ lockManagerAddress: plugin.lockManagerAddress })
+    const membersFromQuery = await Models.LockToVoteMember.find({ lockManagerAddress: plugin.lockManagerAddress })
     const members = await MemberController.getMembersWithPagination(
       {
         page: 1,

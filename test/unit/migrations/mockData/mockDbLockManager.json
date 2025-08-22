@@ -1,5 +1,5 @@
 {
-  "lockManagerMember": [
+  "lockToVoteMember": [
     {
       "id": "ethereum-sepolia-0xfC907E0a59D555C7caBB1B110E1630d9576cE29e-0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759",
       "network": "ethereum-sepolia",

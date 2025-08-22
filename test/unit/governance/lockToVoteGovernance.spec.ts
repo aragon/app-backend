@@ -106,7 +106,7 @@ describe('Governance:LockToVoteGovernance', () => {
     it('should return existing lock manager member if found', async () => {
       const parsedAddress = Web3Utils.parseAddress(memberAddress)
       // Create existing member in database
-      const existingMember = await Models.LockManagerMember.create({
+      const existingMember = await Models.LockToVoteMember.create({
         memberAddress: parsedAddress,
         lockManagerAddress: testLockManagerAddress,
         network: testNetwork,
@@ -134,7 +134,7 @@ describe('Governance:LockToVoteGovernance', () => {
       expect(result?.lastVPBlockNumber).to.equal(12345)
 
       // Verify it was saved to database
-      const savedMember = await Models.LockManagerMember.findOne({
+      const savedMember = await Models.LockToVoteMember.findOne({
         memberAddress: result?.memberAddress,
         lockManagerAddress: testLockManagerAddress,
       })
@@ -146,7 +146,7 @@ describe('Governance:LockToVoteGovernance', () => {
       expect(baseMember).to.exist
       expect(baseMember?.ens).to.equal('test.eth')
 
-      expect(loggerVerboseStub.calledWith('Created new LockManagerMember')).to.be.true
+      expect(loggerVerboseStub.calledWith('Created new LockToVoteMember')).to.be.true
     })
 
     it('should return null if address parsing fails', async () => {
@@ -179,14 +179,14 @@ describe('Governance:LockToVoteGovernance', () => {
       expect(result?.lastVPBlockNumber).to.equal(12345)
 
       // Verify it was saved to database
-      const savedMember = await Models.LockManagerMember.findOne({
+      const savedMember = await Models.LockToVoteMember.findOne({
         memberAddress: result?.memberAddress,
         lockManagerAddress: testLockManagerAddress,
       })
       expect(savedMember).to.exist
       expect(savedMember?.votingPower).to.equal('100')
 
-      expect(loggerVerboseStub.calledWith('Created new LockManagerMember')).to.be.true
+      expect(loggerVerboseStub.calledWith('Created new LockToVoteMember')).to.be.true
     })
 
     it('should return null if address parsing fails', async () => {
@@ -206,7 +206,7 @@ describe('Governance:LockToVoteGovernance', () => {
     it('should update existing lock manager member', async () => {
       const parsedAddress = Web3Utils.parseAddress(memberAddress)
       // Create existing member in database
-      await Models.LockManagerMember.create({
+      await Models.LockToVoteMember.create({
         memberAddress: parsedAddress,
         lockManagerAddress: testLockManagerAddress,
         network: testNetwork,
@@ -224,19 +224,19 @@ describe('Governance:LockToVoteGovernance', () => {
       expect(result?.lastVPBlockNumber).to.equal(12345)
 
       // Verify it was updated in database
-      const updatedMember = await Models.LockManagerMember.findOne({
+      const updatedMember = await Models.LockToVoteMember.findOne({
         memberAddress: parsedAddress,
         lockManagerAddress: testLockManagerAddress,
       })
       expect(updatedMember?.votingPower).to.equal('100')
 
-      expect(loggerVerboseStub.calledWith('Updated LockManagerMember')).to.be.true
+      expect(loggerVerboseStub.calledWith('Updated LockToVoteMember')).to.be.true
     })
 
     it('should skip update if block number is older', async () => {
       const parsedAddress = Web3Utils.parseAddress(memberAddress)
       // Create existing member with newer block number
-      await Models.LockManagerMember.create({
+      await Models.LockToVoteMember.create({
         memberAddress: parsedAddress,
         lockManagerAddress: testLockManagerAddress,
         network: testNetwork,
@@ -264,14 +264,14 @@ describe('Governance:LockToVoteGovernance', () => {
       expect(result?.votingPower).to.equal('100')
 
       // Verify it was created in database
-      const savedMember = await Models.LockManagerMember.findOne({
+      const savedMember = await Models.LockToVoteMember.findOne({
         memberAddress: result?.memberAddress,
         lockManagerAddress: testLockManagerAddress,
       })
       expect(savedMember).to.exist
 
-      // Since it's created via getOrCreate, the 'Created new LockManagerMember' message should be logged
-      expect(loggerVerboseStub.calledWith('Created new LockManagerMember')).to.be.true
+      // Since it's created via getOrCreate, the 'Created new LockToVoteMember' message should be logged
+      expect(loggerVerboseStub.calledWith('Created new LockToVoteMember')).to.be.true
     })
 
     it('should return null if address parsing fails', async () => {
@@ -291,7 +291,7 @@ describe('Governance:LockToVoteGovernance', () => {
     it('should delete existing lock manager member', async () => {
       const parsedAddress = Web3Utils.parseAddress(memberAddress)
       // Create a member to delete
-      await Models.LockManagerMember.create({
+      await Models.LockToVoteMember.create({
         memberAddress: parsedAddress,
         lockManagerAddress: testLockManagerAddress,
         network: testNetwork,
@@ -303,20 +303,20 @@ describe('Governance:LockToVoteGovernance', () => {
       expect(result).to.be.true
 
       // Verify it was deleted from database
-      const deletedMember = await Models.LockManagerMember.findOne({
+      const deletedMember = await Models.LockToVoteMember.findOne({
         memberAddress: parsedAddress,
         lockManagerAddress: testLockManagerAddress,
       })
       expect(deletedMember).to.be.null
 
-      expect(loggerVerboseStub.calledWith('Deleted LockManagerMember')).to.be.true
+      expect(loggerVerboseStub.calledWith('Deleted LockToVoteMember')).to.be.true
     })
 
     it('should return false if member not found', async () => {
       const result = await lockToVoteGovernance.delete(memberAddress)
 
       expect(result).to.be.false
-      expect(loggerVerboseStub.calledWith('LockManagerMember not found for deletion')).to.be.true
+      expect(loggerVerboseStub.calledWith('LockToVoteMember not found for deletion')).to.be.true
     })
 
     it('should return false if address parsing fails', async () => {
@@ -339,7 +339,7 @@ describe('Governance:LockToVoteGovernance', () => {
 
       for (let i = 0; i < addresses.length; i++) {
         const parsedAddr = Web3Utils.parseAddress(addresses[i] as HexAddress)
-        await Models.LockManagerMember.create({
+        await Models.LockToVoteMember.create({
           memberAddress: parsedAddr,
           lockManagerAddress: testLockManagerAddress,
           network: testNetwork,
@@ -360,7 +360,7 @@ describe('Governance:LockToVoteGovernance', () => {
     it('should find lock manager member by address', async () => {
       const parsedAddress = Web3Utils.parseAddress(memberAddress)
       // Create a member to find
-      await Models.LockManagerMember.create({
+      await Models.LockToVoteMember.create({
         memberAddress: parsedAddress,
         lockManagerAddress: testLockManagerAddress,
         network: testNetwork,
@@ -377,7 +377,7 @@ describe('Governance:LockToVoteGovernance', () => {
     it('should pass session when provided', async () => {
       const parsedAddress = Web3Utils.parseAddress(memberAddress)
       // Create a member to find
-      await Models.LockManagerMember.create({
+      await Models.LockToVoteMember.create({
         memberAddress: parsedAddress,
         lockManagerAddress: testLockManagerAddress,
         network: testNetwork,
@@ -385,7 +385,7 @@ describe('Governance:LockToVoteGovernance', () => {
       })
 
       // Start a session
-      const session = await Models.LockManagerMember.startSession()
+      const session = await Models.LockToVoteMember.startSession()
 
       const result = await lockToVoteGovernance.findOne(memberAddress, session)
 

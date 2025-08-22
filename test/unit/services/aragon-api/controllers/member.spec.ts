@@ -9,7 +9,7 @@ import { FakeMember } from '@test/mock/fakeMember'
 import { DaoList } from '@test/mock/fakeDao'
 import PluginMember from '@models/schema/pluginMember'
 import TokenMember from '@models/schema/tokenMember'
-import LockManagerMember from '@models/schema/lockManagerMember'
+import LockToVoteMember from '@models/schema/lockToVoteMember'
 import type Dao from '@models/schema/dao'
 import { PluginList } from '@test/mock/fakePlugins'
 import { HexAddress, IPluginInterfaceType, ITokenType, NetworksEnum, ErrorKeyEnum, EnumQueueName } from '@types'
@@ -22,7 +22,7 @@ describe('Controller: Member', () => {
   let rawPluginMember: Partial<PluginMember>
   let rawDao: Partial<Dao>
   let rawTokenMember: Partial<TokenMember>
-  let rawLockManagerMember: Partial<LockManagerMember>
+  let rawLockToVoteMember: Partial<LockToVoteMember>
   let rawPlugin: any
 
   beforeEach(async () => {
@@ -58,7 +58,7 @@ describe('Controller: Member', () => {
       tokenIds: [],
     }
 
-    rawLockManagerMember = {
+    rawLockToVoteMember = {
       memberAddress: FakeMember.address,
       lockManagerAddress: '0xLockManager123',
       network: rawDao.network,
@@ -70,7 +70,7 @@ describe('Controller: Member', () => {
     await Models.PluginMember.create(rawPluginMember)
     await Models.Dao.create(rawDao)
     await Models.TokenMember.create(rawTokenMember)
-    await Models.LockManagerMember.create(rawLockManagerMember)
+    await Models.LockToVoteMember.create(rawLockToVoteMember)
     await Models.Plugin.create(rawPlugin)
   })
 
