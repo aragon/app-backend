@@ -321,25 +321,24 @@ class BlockchainLogCrawler {
   async getLogsByBlockReceipts(currentBlock: number, endBlock?: number) {
     const topics = this.crawlSetting?.filter?.topics!
     const toBlock = endBlock || currentBlock
+    const url = this.getProviderUrl()!
+    const requests: any = []
     let allLogs: Log[] = []
 
-    const url = this.getProviderUrl()
-
-    const requests: any = []
-    for (let blockNum = currentBlock; blockNum <= toBlock; blockNum++) {
-      const blockHex = `0x${blockNum.toString(16)}`
-      requests.push({
-        jsonrpc: '2.0',
-        id: `block-${blockNum}`,
-        method: 'eth_getBlockReceipts',
-        params: [blockHex],
-      })
-    }
-
     try {
+      for (let blockNum = currentBlock; blockNum <= toBlock; blockNum++) {
+        const blockHex = `0x${blockNum.toString(16)}`
+        requests.push({
+          jsonrpc: '2.0',
+          id: `block-${blockNum}`,
+          method: 'eth_getBlockReceipts',
+          params: [blockHex],
+        })
+      }
+
       const response = await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(this.crawlParams.network).schedule(async () =>
-          axios.post(url!, requests, {
+          axios.post(url, requests, {
             headers: { 'Content-Type': 'application/json' },
           }),
         ),
@@ -387,7 +386,7 @@ class BlockchainLogCrawler {
 
   async executeBatchRequest(topics: string[] | TopicFilter, currentBlock: number, toBlock: number) {
     try {
-      const url = this.getProviderUrl()
+      const url = this.getProviderUrl()!
 
       const topicChunk = this.crawlParams.isTopicObject ? topics : utils.chunkArray(topics, 4)
       const batchRequests = topicChunk.reduce((req: any, chunk: string[]) => {
@@ -410,7 +409,7 @@ class BlockchainLogCrawler {
 
       const response = await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(this.crawlParams.network).schedule(async () =>
-          axios.post(url!, batchRequests, {
+          axios.post(url, batchRequests, {
             headers: { 'Content-Type': 'application/json' },
           }),
         ),
@@ -664,7 +663,7 @@ class BlockchainLogCrawler {
     })
 
     if (!eventSetting) {
-      logger.error('Error event setting not found in blockchainCrawler', llo({ ...this.parseCrawlerInfoLog() }))
+      logger.warn('Error event setting not found in blockchainCrawler', llo({ ...this.parseCrawlerInfoLog() }))
     }
 
     let parsedEvent: LogDescription | null = null
@@ -686,7 +685,7 @@ class BlockchainLogCrawler {
     }
 
     if (!parsedEvent && eventSetting?.config.length) {
-      logger.error('Error parsing log in blockchainCrawler', llo({ ...this.parseCrawlerInfoLog(), log }))
+      logger.warn('Error parsing log in blockchainCrawler', llo({ ...this.parseCrawlerInfoLog(), log }))
     }
 
     const info = Web3Utils.parseInfoLog(log, eventSetting!.event, this.crawlParams.network)

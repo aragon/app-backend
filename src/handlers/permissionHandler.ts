@@ -155,7 +155,7 @@ export const PermissionHandler = {
 
     await governance.updateDaoMetrics()
 
-    logger.info('Add member to DAO', llo({ daoAddress, pluginAddress, network, where }))
+    logger.verbose('Add member to DAO', llo({ daoAddress, pluginAddress, network, where }))
   },
 
   validateAndGetConditionAddress: (conditionAddress: HexAddress | undefined): HexAddress | undefined => {

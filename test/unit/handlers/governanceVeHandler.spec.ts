@@ -76,7 +76,7 @@ describe('Handler:GovernanceVeHandler', () => {
   describe('deposit', () => {
     it('should skip if plugin not found', async () => {
       // Don't create any plugin in database (plugin not found scenario)
-      const stubLogger = sandbox.stub(logger, 'error')
+      const stubLogger = sandbox.stub(logger, 'warn')
       const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
       const stubMemberGovernanceCreate = sandbox.stub(MemberGovernanceFactory, 'create')
 
