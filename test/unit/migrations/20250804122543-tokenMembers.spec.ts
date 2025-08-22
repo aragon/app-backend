@@ -386,14 +386,18 @@ describe('migration: tokenMembers', () => {
       ])
 
       // Verify member 1 metrics from the query
-      const member1Data = queryMembers.data.find((m: any) => m.address.toLowerCase() === '0x1234567890abcdef1234567890abcdef12345678')
+      const member1Data = queryMembers.data.find(
+        (m: any) => m.address.toLowerCase() === '0x1234567890abcdef1234567890abcdef12345678',
+      )
       expect(member1Data).to.exist
       expect(member1Data?.votingPower).to.equal('1000000000000000000')
       expect(member1Data?.metrics.proposalCount).to.equal(2)
       expect(member1Data?.metrics.voteCount).to.equal(5)
 
       // Verify member 2 metrics from the query
-      const member2Data = queryMembers.data.find((m: any) => m.address.toLowerCase() === '0x2234567890abcdef1234567890abcdef12345678')
+      const member2Data = queryMembers.data.find(
+        (m: any) => m.address.toLowerCase() === '0x2234567890abcdef1234567890abcdef12345678',
+      )
       expect(member2Data).to.exist
       expect(member2Data?.votingPower).to.equal('500000000000000000')
       expect(member2Data?.metrics.proposalCount).to.equal(1)

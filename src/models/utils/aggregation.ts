@@ -19,7 +19,7 @@ import {
   type IAggTokenMemberProjectFields,
   ICollectionNames,
   ISettingStatus,
-  type IAggLockManagerMemberParams,
+  type IAggLockToVoteMemberParams,
 } from '@types'
 
 export const AggregationQueryHelper = {
@@ -512,9 +512,9 @@ export const AggregationQueryHelper = {
     }
   },
 
-  lockManagerMember: (
-    { lockManagerAddress, network, memberAddress }: IAggLockManagerMemberParams,
-    as: string = 'lockManagerMember',
+  lockToVoteMember: (
+    { lockManagerAddress, network, memberAddress }: IAggLockToVoteMemberParams,
+    as: string = 'lockToVoteMember',
     project?: IAggTokenMemberProjectFields,
   ) => {
     const letVariables: any = {}
@@ -555,7 +555,7 @@ export const AggregationQueryHelper = {
 
     return {
       $lookup: {
-        from: ICollectionNames.LockManagerMember,
+        from: ICollectionNames.LockToVoteMember,
         let: letVariables,
         pipeline,
         as,

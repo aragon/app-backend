@@ -13,15 +13,15 @@ export const lockToVoteMemberMigration: IMigration = {
 
     try {
       const limit = pLimit.default(50) // Process 50 documents concurrently
-      const memberManagerCollection = mongoose.connection.collection('LockManagerMember')
+      const memberManagerCollection = mongoose.connection.collection('LockToVoteMember')
 
       const members = await memberManagerCollection.find().toArray()
       const total = members.length
 
-      logger.info('Found LockManagerMember documents to migrate', llo({ total }))
+      logger.info('Found LockToVoteMember documents to migrate', llo({ total }))
 
       if (total === 0) {
-        logger.info('No LockManagerMember documents to migrate', llo({}))
+        logger.info('No LockToVoteMember documents to migrate', llo({}))
         return
       }
 
@@ -61,7 +61,7 @@ export const lockToVoteMemberMigration: IMigration = {
               })
 
               // clean up existing data
-              await Models.LockManagerMember.deleteOne({
+              await Models.LockToVoteMember.deleteOne({
                 _id: memberManager._id,
               })
 
@@ -85,7 +85,7 @@ export const lockToVoteMemberMigration: IMigration = {
             }
           } catch (e) {
             logger.error(
-              'Error processing LockManagerMember document',
+              'Error processing LockToVoteMember document',
               llo({
                 migration: '20250811180419-lockToVoteMember',
                 pluginAddress: memberManager.pluginAddress,

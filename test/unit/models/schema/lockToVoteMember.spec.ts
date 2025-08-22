@@ -1,20 +1,20 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import LockManagerMember from '@models/schema/lockManagerMember'
+import LockToVoteMember from '@models/schema/lockToVoteMember'
 import { afterEach, beforeEach } from 'mocha'
 import { expect } from 'chai'
 import { Models } from '@dbModels'
 import { NetworksEnum } from '@types'
 import ModelUtils from '@models/utils/models'
 
-describe('Model: LockManagerMember', () => {
+describe('Model: LockToVoteMember', () => {
   let sandbox: SinonSandbox
-  let rawLockManagerMember: Partial<LockManagerMember>
+  let rawLockToVoteMember: Partial<LockToVoteMember>
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
 
-    rawLockManagerMember = {
+    rawLockToVoteMember = {
       memberAddress: '0x123456789012345678901234567890123456789A',
       lockManagerAddress: '0xA23456789012345678901234567890123456789B',
       network: NetworksEnum.ethereumMainnet,
@@ -25,26 +25,21 @@ describe('Model: LockManagerMember', () => {
 
   afterEach(async () => {
     sandbox?.restore()
-    // Clean up database to prevent duplicate key errors
-    await Models.LockManagerMember.deleteMany({})
-    await Models.Member.deleteMany({})
-    await Models.Plugin.deleteMany({})
-    await Models.PluginMetrics.deleteMany({})
   })
 
-  it('Should create LockManagerMember', async () => {
-    const entityId = Models.LockManagerMember.getEntityId({
-      network: rawLockManagerMember.network!,
-      memberAddress: rawLockManagerMember.memberAddress!,
-      lockManagerAddress: rawLockManagerMember.lockManagerAddress!,
+  it('Should create LockToVoteMember', async () => {
+    const entityId = Models.LockToVoteMember.getEntityId({
+      network: rawLockToVoteMember.network!,
+      memberAddress: rawLockToVoteMember.memberAddress!,
+      lockManagerAddress: rawLockToVoteMember.lockManagerAddress!,
     })
-    const lockManagerMember = await Models.LockManagerMember.create(rawLockManagerMember)
-    expect(lockManagerMember.id).to.eq(entityId)
-    expect(lockManagerMember.memberAddress).to.eq(rawLockManagerMember.memberAddress)
-    expect(lockManagerMember.lockManagerAddress).to.eq(rawLockManagerMember.lockManagerAddress)
-    expect(lockManagerMember.network).to.eq(rawLockManagerMember.network)
-    expect(lockManagerMember.votingPower).to.eq(rawLockManagerMember.votingPower)
-    expect(lockManagerMember.lastVPBlockNumber).to.eq(rawLockManagerMember.lastVPBlockNumber)
+    const lockToVoteMember = await Models.LockToVoteMember.create(rawLockToVoteMember)
+    expect(lockToVoteMember.id).to.eq(entityId)
+    expect(lockToVoteMember.memberAddress).to.eq(rawLockToVoteMember.memberAddress)
+    expect(lockToVoteMember.lockManagerAddress).to.eq(rawLockToVoteMember.lockManagerAddress)
+    expect(lockToVoteMember.network).to.eq(rawLockToVoteMember.network)
+    expect(lockToVoteMember.votingPower).to.eq(rawLockToVoteMember.votingPower)
+    expect(lockToVoteMember.lastVPBlockNumber).to.eq(rawLockToVoteMember.lastVPBlockNumber)
   })
 
   it('Should getEntityId', async () => {
@@ -53,45 +48,45 @@ describe('Model: LockManagerMember', () => {
       memberAddress: '0xMember',
       lockManagerAddress: '0xLockManager',
     }
-    const entityId = Models.LockManagerMember.getEntityId(params)
+    const entityId = Models.LockToVoteMember.getEntityId(params)
     expect(entityId).to.eq(`${params.network}-${params.lockManagerAddress}-${params.memberAddress}`)
   })
 
   it('Should findByEntityId', async () => {
-    const createdLockManagerMember = await Models.LockManagerMember.create(rawLockManagerMember)
-    const foundLockManagerMember = await Models.LockManagerMember.findByEntityId(createdLockManagerMember.id)
-    expect(foundLockManagerMember?.id).to.eq(createdLockManagerMember.id)
+    const createdLockToVoteMember = await Models.LockToVoteMember.create(rawLockToVoteMember)
+    const foundLockToVoteMember = await Models.LockToVoteMember.findByEntityId(createdLockToVoteMember.id)
+    expect(foundLockToVoteMember?.id).to.eq(createdLockToVoteMember.id)
   })
 
   it('should findMemberByLockManager', async () => {
-    const createdLockManagerMember = await Models.LockManagerMember.create(rawLockManagerMember)
-    const lockManagerMember = await Models.LockManagerMember.findMemberByLockManager({
-      network: rawLockManagerMember.network!,
-      lockManagerAddress: rawLockManagerMember.lockManagerAddress!,
-      memberAddress: rawLockManagerMember.memberAddress!,
+    const createdLockToVoteMember = await Models.LockToVoteMember.create(rawLockToVoteMember)
+    const lockToVoteMember = await Models.LockToVoteMember.findMemberByLockManager({
+      network: rawLockToVoteMember.network!,
+      lockManagerAddress: rawLockToVoteMember.lockManagerAddress!,
+      memberAddress: rawLockToVoteMember.memberAddress!,
     })
-    expect(lockManagerMember?.id).to.eq(createdLockManagerMember.id)
+    expect(lockToVoteMember?.id).to.eq(createdLockToVoteMember.id)
   })
 
   it('should findActiveMembers', async () => {
     // Create two members, one active and one inactive
     const activeMember = {
-      ...rawLockManagerMember,
+      ...rawLockToVoteMember,
       memberAddress: '0x1111111111111111111111111111111111111111',
       votingPower: '1000000000000000000',
     }
     const inactiveMember = {
-      ...rawLockManagerMember,
+      ...rawLockToVoteMember,
       memberAddress: '0x2222222222222222222222222222222222222222',
       votingPower: '0',
     }
 
-    await Models.LockManagerMember.create(activeMember)
-    await Models.LockManagerMember.create(inactiveMember)
+    await Models.LockToVoteMember.create(activeMember)
+    await Models.LockToVoteMember.create(inactiveMember)
 
-    const activeMembers = await Models.LockManagerMember.findActiveMembers({
-      network: rawLockManagerMember.network!,
-      lockManagerAddress: rawLockManagerMember.lockManagerAddress!,
+    const activeMembers = await Models.LockToVoteMember.findActiveMembers({
+      network: rawLockToVoteMember.network!,
+      lockManagerAddress: rawLockToVoteMember.lockManagerAddress!,
     })
 
     expect(activeMembers).to.have.lengthOf(1)
@@ -99,45 +94,38 @@ describe('Model: LockManagerMember', () => {
     expect(activeMembers[0].votingPower).to.not.eq('0')
   })
 
-  it('should update LockManagerMember', async () => {
-    const lockManagerMember = await Models.LockManagerMember.create(rawLockManagerMember)
+  it('should update LockToVoteMember', async () => {
+    const lockToVoteMember = await Models.LockToVoteMember.create(rawLockToVoteMember)
     const newVotingPower = '2000000000000000000'
     const newLastVPBlockNumber = 12346
 
-    const updatedLockManagerMember = await lockManagerMember.update({
+    const updatedLockToVoteMember = await lockToVoteMember.update({
       votingPower: newVotingPower,
       lastVPBlockNumber: newLastVPBlockNumber,
     })
 
-    expect(updatedLockManagerMember.votingPower).to.eq(newVotingPower)
-    expect(updatedLockManagerMember.lastVPBlockNumber).to.eq(newLastVPBlockNumber)
+    expect(updatedLockToVoteMember.votingPower).to.eq(newVotingPower)
+    expect(updatedLockToVoteMember.lastVPBlockNumber).to.eq(newLastVPBlockNumber)
   })
 
   it('Should reload', async () => {
-    const createdLockManagerMember = await Models.LockManagerMember.create(rawLockManagerMember)
-    await createdLockManagerMember.reload()
+    const createdLockToVoteMember = await Models.LockToVoteMember.create(rawLockToVoteMember)
+    await createdLockToVoteMember.reload()
 
-    expect(createdLockManagerMember.memberAddress).to.eq(rawLockManagerMember.memberAddress)
+    expect(createdLockToVoteMember.memberAddress).to.eq(rawLockToVoteMember.memberAddress)
   })
 
   describe('findAndPaginate', () => {
     beforeEach(async () => {
-      // Clean up before creating test data
-      await Models.LockManagerMember.deleteMany({})
-      await Models.Member.deleteMany({})
-      await Models.Plugin.deleteMany({})
-      await Models.PluginMetrics.deleteMany({})
-
       // Create a member first
       await Models.Member.create({
-        address: rawLockManagerMember.memberAddress,
+        address: rawLockToVoteMember.memberAddress,
         ens: 'test.eth',
         avatar: 'avatar.png',
       })
 
-      // No need to create plugin for LockManagerMember as it doesn't have pluginAddress
-
-      await Models.LockManagerMember.create(rawLockManagerMember)
+      // No need to create plugin for LockToVoteMember as it doesn't have pluginAddress
+      await Models.LockToVoteMember.create(rawLockToVoteMember)
     })
 
     it('should find and paginate lock manager members with all params', async () => {
@@ -150,13 +138,13 @@ describe('Model: LockManagerMember', () => {
       }
 
       const extraParams = {
-        lockManagerAddress: rawLockManagerMember.lockManagerAddress,
-        network: rawLockManagerMember.network,
+        lockManagerAddress: rawLockToVoteMember.lockManagerAddress,
+        network: rawLockToVoteMember.network,
       }
 
-      const aggregateSpy = sandbox.spy(Models.LockManagerMember, 'aggregate')
+      const aggregateSpy = sandbox.spy(Models.LockToVoteMember, 'aggregate')
 
-      const result = await Models.LockManagerMember.findAndPaginate({
+      const result = await Models.LockToVoteMember.findAndPaginate({
         paginationParams,
         extraParams,
       })
@@ -169,8 +157,8 @@ describe('Model: LockManagerMember', () => {
       expect(result.data.length).to.be.greaterThan(0)
 
       const member = result.data[0]
-      expect(member.address).to.eq(rawLockManagerMember.memberAddress)
-      expect(member.votingPower).to.eq(rawLockManagerMember.votingPower)
+      expect(member.address).to.eq(rawLockToVoteMember.memberAddress)
+      expect(member.votingPower).to.eq(rawLockToVoteMember.votingPower)
       expect(member.ens).to.eq('test.eth')
       expect(member.avatar).to.eq('avatar.png')
     })
@@ -185,13 +173,13 @@ describe('Model: LockManagerMember', () => {
       }
 
       const extraParams = {
-        lockManagerAddress: rawLockManagerMember.lockManagerAddress,
-        network: rawLockManagerMember.network,
+        lockManagerAddress: rawLockToVoteMember.lockManagerAddress,
+        network: rawLockToVoteMember.network,
       }
 
       const paginateEmptyResponseSpy = sandbox.spy(ModelUtils, 'paginateEmptyResponse')
 
-      const result = await Models.LockManagerMember.findAndPaginate({
+      const result = await Models.LockToVoteMember.findAndPaginate({
         paginationParams,
         extraParams,
       })
@@ -216,11 +204,11 @@ describe('Model: LockManagerMember', () => {
       }
 
       const extraParams = {
-        lockManagerAddress: rawLockManagerMember.lockManagerAddress,
-        network: rawLockManagerMember.network,
+        lockManagerAddress: rawLockToVoteMember.lockManagerAddress,
+        network: rawLockToVoteMember.network,
       }
 
-      const result = await Models.LockManagerMember.findAndPaginate({
+      const result = await Models.LockToVoteMember.findAndPaginate({
         paginationParams,
         extraParams,
       })
@@ -233,28 +221,28 @@ describe('Model: LockManagerMember', () => {
 
     it('should sort by voting power descending', async () => {
       // Clean up to avoid duplicate key errors
-      await Models.LockManagerMember.deleteMany({})
+      await Models.LockToVoteMember.deleteMany({})
       await Models.Member.deleteMany({})
 
       // Create multiple members with different voting powers
       const member1 = {
         memberAddress: '0x1111111111111111111111111111111111111111',
-        lockManagerAddress: rawLockManagerMember.lockManagerAddress,
-        network: rawLockManagerMember.network,
+        lockManagerAddress: rawLockToVoteMember.lockManagerAddress,
+        network: rawLockToVoteMember.network,
         votingPower: '1000000000000000000',
         lastVPBlockNumber: 12345,
       }
       const member2 = {
         memberAddress: '0x3333333333333333333333333333333333333333',
-        lockManagerAddress: rawLockManagerMember.lockManagerAddress,
-        network: rawLockManagerMember.network,
+        lockManagerAddress: rawLockToVoteMember.lockManagerAddress,
+        network: rawLockToVoteMember.network,
         votingPower: '500000000000000000',
         lastVPBlockNumber: 12345,
       }
       const member3 = {
         memberAddress: '0x4444444444444444444444444444444444444444',
-        lockManagerAddress: rawLockManagerMember.lockManagerAddress,
-        network: rawLockManagerMember.network,
+        lockManagerAddress: rawLockToVoteMember.lockManagerAddress,
+        network: rawLockToVoteMember.network,
         votingPower: '2000000000000000000',
         lastVPBlockNumber: 12345,
       }
@@ -272,9 +260,9 @@ describe('Model: LockManagerMember', () => {
         ens: 'member3.eth',
       })
 
-      await Models.LockManagerMember.create(member1)
-      await Models.LockManagerMember.create(member2)
-      await Models.LockManagerMember.create(member3)
+      await Models.LockToVoteMember.create(member1)
+      await Models.LockToVoteMember.create(member2)
+      await Models.LockToVoteMember.create(member3)
 
       const paginationParams = {
         search: '',
@@ -285,11 +273,11 @@ describe('Model: LockManagerMember', () => {
       }
 
       const extraParams = {
-        lockManagerAddress: rawLockManagerMember.lockManagerAddress,
-        network: rawLockManagerMember.network,
+        lockManagerAddress: rawLockToVoteMember.lockManagerAddress,
+        network: rawLockToVoteMember.network,
       }
 
-      const result = await Models.LockManagerMember.findAndPaginate({
+      const result = await Models.LockToVoteMember.findAndPaginate({
         paginationParams,
         extraParams,
       })

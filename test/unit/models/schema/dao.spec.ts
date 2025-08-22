@@ -477,13 +477,16 @@ describe('Model: Dao', () => {
       // Check unwind stage
       expect(pipeline[2].$unwind).to.eq('$plugins')
 
-      // Check that all member collection lookups are present
-      const lookupStages = pipeline.filter(stage => stage.$lookup && stage.$lookup.from !== 'Plugin')
-      expect(lookupStages).to.have.length(4) // TokenMember, Lock, LockManagerMember, PluginMember
+      // Check that facet stage is present
+      const facetStage = pipeline.find(stage => stage.$facet)
+      expect(facetStage).to.exist
+      expect(facetStage.$facet).to.have.all.keys(['tokenMembers', 'veGovernanceMembers', 'lockMembers', 'pluginMembers'])
 
-      // Verify collection names in lookup stages
-      const collectionNames = lookupStages.map(stage => stage.$lookup.from)
-      expect(collectionNames).to.include.members(['TokenMember', 'Lock', 'LockManagerMember', 'PluginMember'])
+      // Verify each facet contains the correct collection lookup
+      expect(facetStage.$facet.tokenMembers[0].$lookup.from).to.eq('TokenMember')
+      expect(facetStage.$facet.veGovernanceMembers[0].$lookup.from).to.eq('Lock')
+      expect(facetStage.$facet.lockMembers[0].$lookup.from).to.eq('LockToVoteMember')
+      expect(facetStage.$facet.pluginMembers[0].$lookup.from).to.eq('PluginMember')
 
       // Check final aggregation stages
       const addFieldsStage = pipeline.find(stage => stage.$addFields && stage.$addFields.allMembers)
@@ -511,23 +514,32 @@ describe('Model: Dao', () => {
       await Models.Dao.countUniqueMembers(mockDaoAddress, mockNetwork)
 
       const pipeline = aggregateStub.args[0][0]
-      const lookupStages = pipeline.filter(stage => stage.$lookup && stage.$lookup.from !== 'Plugin')
+      const facetStage = pipeline.find(stage => stage.$facet)
+      expect(facetStage).to.exist
 
       // Verify TokenMember configuration
-      const tokenMemberLookup = lookupStages.find(stage => stage.$lookup.from === 'TokenMember')
-      expect(tokenMemberLookup.$lookup.as).to.eq('tokenMembers')
+      const tokenMemberFacet = facetStage.$facet.tokenMembers
+      expect(tokenMemberFacet).to.exist
+      expect(tokenMemberFacet[0].$lookup.from).to.eq('TokenMember')
+      expect(tokenMemberFacet[0].$lookup.as).to.eq('tokenMembers')
 
       // Verify Lock configuration for veGovernance
-      const lockLookup = lookupStages.find(stage => stage.$lookup.from === 'Lock')
-      expect(lockLookup.$lookup.as).to.eq('veGovernanceMembers')
+      const lockFacet = facetStage.$facet.veGovernanceMembers
+      expect(lockFacet).to.exist
+      expect(lockFacet[0].$lookup.from).to.eq('Lock')
+      expect(lockFacet[0].$lookup.as).to.eq('veGovernanceMembers')
 
-      // Verify LockManagerMember configuration
-      const lockManagerLookup = lookupStages.find(stage => stage.$lookup.from === 'LockManagerMember')
-      expect(lockManagerLookup.$lookup.as).to.eq('lockMembers')
+      // Verify LockToVoteMember configuration
+      const lockManagerFacet = facetStage.$facet.lockMembers
+      expect(lockManagerFacet).to.exist
+      expect(lockManagerFacet[0].$lookup.from).to.eq('LockToVoteMember')
+      expect(lockManagerFacet[0].$lookup.as).to.eq('lockMembers')
 
       // Verify PluginMember configuration
-      const pluginMemberLookup = lookupStages.find(stage => stage.$lookup.from === 'PluginMember')
-      expect(pluginMemberLookup.$lookup.as).to.eq('pluginMembers')
+      const pluginMemberFacet = facetStage.$facet.pluginMembers
+      expect(pluginMemberFacet).to.exist
+      expect(pluginMemberFacet[0].$lookup.from).to.eq('PluginMember')
+      expect(pluginMemberFacet[0].$lookup.as).to.eq('pluginMembers')
     })
 
     it('should handle session parameter correctly', async () => {
