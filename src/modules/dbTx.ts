@@ -125,10 +125,25 @@ const DbTx = {
         logger.warn('Attempted to commit transaction that is not active', llo({}))
       }
     } catch (error: any) {
+      // Handle transaction state errors
       if (error?.message?.includes('Attempted illegal state transition')) {
         logger.warn('Transaction already ended (likely aborted), skipping commit', llo({ error: error?.message }))
         // Don't throw - transaction is already ended
-      } else {
+      } 
+      // Handle duplicate key errors during commit
+      else if (DbTx.isErrorDuplicateKey(error)) {
+        logger.warn('Duplicate key error during commit, data already exists', llo({ 
+          error: error?.message,
+          errorCode: error?.code 
+        }))
+        // Don't throw - the data already exists, which is often acceptable
+      }
+      // Handle other transaction-related errors
+      else if (error?.message?.includes('Transaction') && error?.message?.includes('aborted')) {
+        logger.warn('Transaction was aborted', llo({ error: error?.message }))
+        // Don't throw - transaction is already aborted
+      }
+      else {
         throw error // Re-throw other errors
       }
     }
