@@ -88,12 +88,12 @@ export class PluginGovernance extends BaseGovernance {
     }
   }
 
-  async create(memberAddress: HexAddress, params: IGovernanceParamsOpts, session?: ClientSession): Promise<any> {
+  async create(memberAddress: HexAddress, params?: IGovernanceParamsOpts, session?: ClientSession): Promise<any> {
     // Simply delegate to getOrCreate since it handles creation when member doesn't exist
     return this.getOrCreate(memberAddress, params, session)
   }
 
-  async update(_memberAddress: HexAddress, _params: IGovernanceParamsOpts): Promise<any> {
+  async update(_memberAddress: HexAddress, _params?: IGovernanceParamsOpts): Promise<any> {
     // not implemented
     throw new Error('Update not implemented')
   }

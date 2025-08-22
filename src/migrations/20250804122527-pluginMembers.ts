@@ -66,22 +66,25 @@ export const pluginMembersMigration: IMigration = {
 
             // For non-token plugins, add as plugin member
             if (!plugin.tokenAddress) {
-              await Models.PluginMember.create({
-                memberAddress: daoMemberMapping.memberAddress,
-                daoAddress: daoMemberMapping.daoAddress,
-                pluginAddress: daoMemberMapping.pluginAddress,
-                network: daoMemberMapping.network,
+              await governance.create(daoMemberMapping.memberAddress, {
+                lastActivity: memberMetrics?.lastActivity,
               })
             }
 
             // Update plugin metrics
-            await governance.updatePluginMetrics({
+            const newMemberMetrics = await governance.updatePluginMetrics({
               memberAddress: daoMemberMapping.memberAddress!,
               pluginAddress: daoMemberMapping.pluginAddress,
               network: daoMemberMapping.network,
               daoAddress: daoMemberMapping.daoAddress,
               lastActivity: memberMetrics?.lastActivity,
             })
+
+            if (newMemberMetrics && memberMetrics?.firstActivity) {
+              newMemberMetrics?.update({
+                firstActivity: memberMetrics?.firstActivity,
+              })
+            }
 
             processedCount++
 

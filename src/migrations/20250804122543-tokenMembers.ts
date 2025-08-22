@@ -24,7 +24,8 @@ export const tokenMembersMigration: IMigration = {
         })
         .toArray()
 
-      logger.info('Found MemberBalance documents to migrate', llo({ count: memberBalances.length }))
+      const total = memberBalances.length
+      logger.info('Found MemberBalance documents to migrate', llo({ total }))
 
       if (memberBalances.length === 0) {
         logger.info('No MemberBalance documents to migrate', llo({}))
@@ -33,12 +34,18 @@ export const tokenMembersMigration: IMigration = {
 
       let processedCount = 0
       let errorCount = 0
-      let skippedCount = 0
       const limit = pLimit.default(50) // Process 50 documents concurrently
 
       // Process memberBalances asynchronously with concurrency limit
       const promises = memberBalances.map(async memberBalance =>
         limit(async () => {
+          const plugins = await Models.Plugin.find({
+            tokenAddress: memberBalance.tokenAddress,
+            network: memberBalance.network,
+            isSupported: true,
+            status: IPluginStatus.installed,
+          }).lean()
+
           try {
             // Query the last memberTransaction for this member
             const lastMemberTransaction = await memberTransactionsCollection.findOne(
@@ -65,9 +72,9 @@ export const tokenMembersMigration: IMigration = {
                   lastTransactionBlock: lastMemberTransaction.blockNumber,
                 }),
               )
-              // Skip this member
-              skippedCount++
-              return
+
+              memberBalance.votingPower = lastMemberTransaction.votingPower
+              memberBalance.lastSyncVotingPowerBlockNumber = lastMemberTransaction.blockNumber
             }
 
             // Create base member
@@ -88,19 +95,11 @@ export const tokenMembersMigration: IMigration = {
               lastActivity: memberBalance.lastSyncVotingPowerBlockNumber,
             })
 
-            // Query all plugins where tokenAddress === memberBalance.tokenAddress
-            const plugins = await Models.Plugin.find({
-              tokenAddress: memberBalance.tokenAddress,
-              network: memberBalance.network,
-              isSupported: true,
-              status: IPluginStatus.installed,
-            }).lean()
-
             // Loop through all plugins and update plugin metrics
             for (const plugin of plugins) {
               // Query memberMetric where tokenAddress and memberAddress match
               const memberMetric = await memberMetricsCollection.findOne({
-                tokenAddress: memberBalance.tokenAddress,
+                pluginAddress: plugin.address,
                 memberAddress: memberBalance.address,
                 network: memberBalance.network,
               })
@@ -126,11 +125,11 @@ export const tokenMembersMigration: IMigration = {
               logger.info(
                 'Migration progress',
                 llo({
-                  processed: processedCount,
-                  skipped: skippedCount,
-                  total: memberBalances.length,
+                  totalProcessed: processedCount,
+                  total,
+                  remaining: total - processedCount - errorCount,
                   errors: errorCount,
-                  percentage: ((processedCount / memberBalances.length) * 100).toFixed(2),
+                  percentage: ((processedCount / total) * 100).toFixed(2),
                 }),
               )
             }
@@ -155,9 +154,8 @@ export const tokenMembersMigration: IMigration = {
         llo({
           migration: '20250804122543-tokenMembers',
           totalProcessed: processedCount,
-          skipped: skippedCount,
+          total,
           errors: errorCount,
-          total: memberBalances.length,
         }),
       )
     } catch (error) {
