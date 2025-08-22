@@ -3,6 +3,7 @@ import { Models } from '@dbModels'
 import { IEnumTaskStatus } from '@types'
 import dayjs from '@helpers/dayjs'
 import { throwError } from '@errors'
+import MongoRetryHelper from '@helpers/mongoRetry'
 
 const llo = logger.logMeta.bind(null, { service: 'service:TaskScheduler' })
 
@@ -32,23 +33,30 @@ class TaskScheduler {
   }
 
   private async acquireLock(serviceName: string): Promise<boolean> {
-    try {
-      const now = dayjs().utc().toDate()
-      const lockExpiresAt = dayjs().utc().add(5, 'minutes').toDate()
+    const now = dayjs().utc().toDate()
+    const lockExpiresAt = dayjs().utc().add(5, 'minutes').toDate()
 
-      const result = await Models.TaskService.findOneAndUpdate(
+    try {
+      const result = await MongoRetryHelper.retryOperation(
+        () =>
+          Models.TaskService.findOneAndUpdate(
+            {
+              serviceName,
+              $or: [{ lockedUntil: { $exists: false } }, { lockedUntil: { $lt: now } }, { lockedUntil: null }],
+            },
+            {
+              $set: {
+                lockedUntil: lockExpiresAt,
+                lockedBy: process.pid,
+              },
+            },
+            {
+              new: true,
+            },
+          ),
         {
-          serviceName,
-          $or: [{ lockedUntil: { $exists: false } }, { lockedUntil: { $lt: now } }, { lockedUntil: null }],
-        },
-        {
-          $set: {
-            lockedUntil: lockExpiresAt,
-            lockedBy: process.pid,
-          },
-        },
-        {
-          new: true,
+          maxRetries: 2,
+          retryDelay: 500,
         },
       )
 
@@ -60,25 +68,48 @@ class TaskScheduler {
   }
 
   private async releaseLock(serviceName: string): Promise<void> {
-    try {
-      await Models.TaskService.findOneAndUpdate(
-        { serviceName },
-        {
-          $unset: { lockedUntil: 1, lockedBy: 1 },
+    await MongoRetryHelper.retryOperation(
+      () =>
+        Models.TaskService.findOneAndUpdate(
+          { serviceName },
+          {
+            $unset: { lockedUntil: 1, lockedBy: 1 },
+          },
+        ),
+      {
+        maxRetries: 3,
+        retryDelay: 1000,
+        onRetry: (error, attempt) => {
+          logger.warn(
+            'MongoDB connection lost, retrying lock release',
+            llo({
+              serviceName,
+              attempt,
+              error: error?.message,
+            }),
+          )
         },
-      )
-    } catch (error) {
+      },
+    ).catch(error => {
       logger.error('Error releasing lock', llo({ serviceName, error }))
-    }
+    })
   }
 
   private async shouldRunTask(serviceName: string): Promise<boolean> {
-    const taskService = await Models.TaskService.findOne({ serviceName })
-    if (!taskService) {
+    try {
+      const taskService = await MongoRetryHelper.retryOperation(() => Models.TaskService.findOne({ serviceName }), {
+        maxRetries: 2,
+        retryDelay: 500,
+      })
+      if (!taskService) {
+        return true
+      }
+      const now = dayjs().utc()
+      return now.isAfter((taskService as any).nextStartAt)
+    } catch (error) {
+      logger.warn('Error checking if task should run, defaulting to true', llo({ serviceName, error }))
       return true
     }
-    const now = dayjs().utc()
-    return now.isAfter(taskService.nextStartAt)
   }
 
   private async initializeTaskService(serviceName: string, interval: number): Promise<void> {
@@ -104,10 +135,15 @@ class TaskScheduler {
   private async updateNextStartAt(serviceName: string, interval: number): Promise<void> {
     const now = dayjs().utc()
     const nextStartAt = now.add(interval, 'millisecond').toDate()
-    await Models.TaskService.findOneAndUpdate(
+
+    await MongoRetryHelper.safeUpdate(
+      () =>
+        Models.TaskService.findOneAndUpdate(
+          { serviceName },
+          { $set: { nextStartAt, lastStartAt: now.toDate() } },
+          { upsert: true, new: true },
+        ),
       { serviceName },
-      { $set: { nextStartAt, lastStartAt: now.toDate() } },
-      { upsert: true, new: true },
     )
   }
 
@@ -151,23 +187,30 @@ class TaskScheduler {
         await this.updateNextStartAt(key, interval)
 
         // IMPORTANT: Use the same create syntax as the old version
-        taskRun = await Models.TaskRun.create({
-          serviceName: key,
-          startAt: runStartTime.toDate(),
-          tasks: fn()
-            .flat()
-            .map(
-              (task, index) =>
-                ({
-                  taskName: Object.keys(task)[0],
-                  params: task.params,
-                  status: IEnumTaskStatus.PENDING,
-                  position: index,
-                  batchSize: task[Object.keys(task)[0]].batchSize,
-                  concurrency: task[Object.keys(task)[0]].concurrency,
-                }) as any,
-            ),
-        })
+        taskRun = await MongoRetryHelper.retryOperation(
+          () =>
+            Models.TaskRun.create({
+              serviceName: key,
+              startAt: runStartTime.toDate(),
+              tasks: fn()
+                .flat()
+                .map(
+                  (task, index) =>
+                    ({
+                      taskName: Object.keys(task)[0],
+                      params: task.params,
+                      status: IEnumTaskStatus.PENDING,
+                      position: index,
+                      batchSize: task[Object.keys(task)[0]].batchSize,
+                      concurrency: task[Object.keys(task)[0]].concurrency,
+                    }) as any,
+                ),
+            }),
+          {
+            maxRetries: 2,
+            retryDelay: 500,
+          },
+        )
 
         const taskGroups = fn()
         for (const group of taskGroups) {
@@ -177,14 +220,18 @@ class TaskScheduler {
               const serviceInstance = task[taskName]
               const taskStartTime = dayjs().utc()
 
-              await Models.TaskRun.updateOne(
-                { _id: taskRun._id, 'tasks.taskName': taskName },
-                {
-                  $set: {
-                    'tasks.$.status': IEnumTaskStatus.RUNNING,
-                    'tasks.$.startAt': taskStartTime.toDate(),
-                  },
-                },
+              await MongoRetryHelper.safeUpdate(
+                () =>
+                  Models.TaskRun.updateOne(
+                    { _id: taskRun._id, 'tasks.taskName': taskName },
+                    {
+                      $set: {
+                        'tasks.$.status': IEnumTaskStatus.RUNNING,
+                        'tasks.$.startAt': taskStartTime.toDate(),
+                      },
+                    },
+                  ),
+                { taskName, taskRunId: taskRun._id },
               )
 
               try {
@@ -197,27 +244,35 @@ class TaskScheduler {
                 }
 
                 const taskEndTime = dayjs().utc()
-                await Models.TaskRun.updateOne(
-                  { _id: taskRun._id, 'tasks.taskName': taskName },
-                  {
-                    $set: {
-                      'tasks.$.status': IEnumTaskStatus.DONE,
-                      'tasks.$.endAt': taskEndTime.toDate(),
-                    },
-                  },
+                await MongoRetryHelper.safeUpdate(
+                  () =>
+                    Models.TaskRun.updateOne(
+                      { _id: taskRun._id, 'tasks.taskName': taskName },
+                      {
+                        $set: {
+                          'tasks.$.status': IEnumTaskStatus.DONE,
+                          'tasks.$.endAt': taskEndTime.toDate(),
+                        },
+                      },
+                    ),
+                  { taskName, taskRunId: taskRun._id },
                 )
               } catch (error: any) {
                 hasErrors = true
                 const taskEndTime = dayjs().utc()
-                await Models.TaskRun.updateOne(
-                  { _id: taskRun._id, 'tasks.taskName': taskName },
-                  {
-                    $set: {
-                      'tasks.$.status': IEnumTaskStatus.ERROR,
-                      'tasks.$.endAt': taskEndTime.toDate(),
-                      'tasks.$.error': error?.message || String(error),
-                    },
-                  },
+                await MongoRetryHelper.safeUpdate(
+                  () =>
+                    Models.TaskRun.updateOne(
+                      { _id: taskRun._id, 'tasks.taskName': taskName },
+                      {
+                        $set: {
+                          'tasks.$.status': IEnumTaskStatus.ERROR,
+                          'tasks.$.endAt': taskEndTime.toDate(),
+                          'tasks.$.error': error?.message || String(error),
+                        },
+                      },
+                    ),
+                  { taskName, taskRunId: taskRun._id },
                 )
 
                 logger.error(
@@ -239,13 +294,23 @@ class TaskScheduler {
 
         if (taskRun?._id) {
           const runEndTime = dayjs().utc()
-          await Models.TaskRun.updateOne({ _id: taskRun._id }, { $set: { endAt: runEndTime.toDate() } })
+          await MongoRetryHelper.safeUpdate(
+            () => Models.TaskRun.updateOne({ _id: taskRun._id }, { $set: { endAt: runEndTime.toDate() } }),
+            { serviceName: key, taskRunId: taskRun._id },
+          )
         }
 
         // Delete successful runs immediately
         if (taskRun?._id && !hasErrors) {
-          await Models.TaskRun.deleteOne({ _id: taskRun._id })
-          logger.debug('Deleted successful task run', llo({ key, taskRunId: taskRun._id }))
+          const deleted = await MongoRetryHelper.safeUpdate(() => Models.TaskRun.deleteOne({ _id: taskRun._id }), {
+            serviceName: key,
+            taskRunId: taskRun._id,
+          })
+          if (deleted) {
+            logger.debug('Deleted successful task run', llo({ key, taskRunId: taskRun._id }))
+          } else {
+            logger.warn('Failed to delete successful task run', llo({ key, taskRunId: taskRun._id }))
+          }
         } else if (hasErrors) {
           logger.info('Keeping task run due to errors', llo({ key, taskRunId: taskRun._id }))
         }
@@ -254,14 +319,18 @@ class TaskScheduler {
 
         // Mark task run as failed if it exists
         if (taskRun?._id) {
-          await Models.TaskRun.updateOne(
-            { _id: taskRun._id },
-            {
-              $set: {
-                endAt: dayjs().utc().toDate(),
-                error: error?.message || String(error),
-              },
-            },
+          await MongoRetryHelper.safeUpdate(
+            () =>
+              Models.TaskRun.updateOne(
+                { _id: taskRun._id },
+                {
+                  $set: {
+                    endAt: dayjs().utc().toDate(),
+                    error: error?.message || String(error),
+                  },
+                },
+              ),
+            { serviceName: key, taskRunId: taskRun._id },
           )
         }
 

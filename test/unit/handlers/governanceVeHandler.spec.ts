@@ -481,7 +481,7 @@ describe('Handler:GovernanceVeHandler', () => {
   describe('withdraw', () => {
     it('should skip if plugin not found', async () => {
       // Don't create any plugin in database (plugin not found scenario)
-      const stubLogger = sandbox.stub(logger, 'error')
+      const stubLogger = sandbox.stub(logger, 'warn')
       const stubCreateMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
 
       // Mock governance instance (won't be called since plugin not found)
@@ -913,7 +913,7 @@ describe('Handler:GovernanceVeHandler', () => {
   describe('exitQueued', () => {
     it('should skip if plugin not found', async () => {
       // Don't stub Models.Plugin.find - let it query the real mock database
-      const stubLogger = sandbox.stub(logger, 'error')
+      const stubLogger = sandbox.stub(logger, 'warn')
       const stubLockFindLockMember = sandbox.stub(Models.Lock, 'findLockMember')
       const stubCreateMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
 
