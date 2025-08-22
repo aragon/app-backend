@@ -5,7 +5,7 @@ import { expect } from 'chai'
 import { Fragment, FunctionFragment } from 'ethers'
 import FourByte from '@helpers/4byte'
 import Logger from '@logger'
-import { ITokenType, KnownActionSignature, NetworksEnum, ProposalActionType } from '@types'
+import { IPluginInterfaceType, ITokenType, KnownActionSignature, NetworksEnum, ProposalActionType } from '@types'
 import { ProxyToken } from '@modules/proxyToken'
 import Web3Helper from '@helpers/web3'
 import Covalent from '@helpers/covalent'
@@ -1067,7 +1067,7 @@ describe('Helpers: DecodeActions', () => {
   })
 
   describe('decodeAction', () => {
-    it('should _parseTokenVotingSettingUpdateAction', async () => {
+    it('should _parseVotingSettingUpdateAction for TokenVoting plugin', async () => {
       const decodeActions = new DecodeActions()
       const baseAction = {
         textSignature: 'updateVotingSettings(tuple)',
@@ -1077,7 +1077,7 @@ describe('Helpers: DecodeActions', () => {
           {
             name: 'setting',
             type: 'uint256',
-            value: 1n,
+            value: [1, 2, 3, 4, 5],
           },
           {
             name: 'value',
@@ -1097,6 +1097,7 @@ describe('Helpers: DecodeActions', () => {
         network: NetworksEnum.ethereumSepolia,
         tokenAddress: '0xAddress',
         address: action.to,
+        interfaceType: IPluginInterfaceType.tokenVoting,
       })
       const getExistingSettingStub = sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(null)
 
@@ -1110,20 +1111,92 @@ describe('Helpers: DecodeActions', () => {
         pickFields: sandbox.stub(),
       } as any)
 
-      const result = await decodeActions._parseTokenVotingSettingUpdateAction(baseAction, action, {
+      const result = await decodeActions._parseVotingSettingUpdateAction(baseAction, action, {
         network: NetworksEnum.ethereumSepolia,
         blockNumber: 123,
       })
-      expect(result?.type).to.be.eq(ProposalActionType.UpdateVoteSettings)
+      expect(result?.type).to.be.eq(ProposalActionType.UpdateTokenVoteSettings)
       expect(getExistingSettingStub.calledOnce).to.be.true
       expect(getExistingSettingStub.args[0][0]).to.be.eq(action.to)
       expect(getExistingSettingStub.args[0][1]).to.be.eq(123)
       expect(getPluginDetails.calledOnce).to.be.true
       expect(getPluginDetails.args[0][0]).to.be.eq(action.to)
       expect(getPluginDetails.args[0][1]).to.be.eq(NetworksEnum.ethereumSepolia)
+      expect(result?.proposedSettings).to.deep.eq({
+        votingMode: 1,
+        supportThreshold: 2,
+        minParticipation: 3,
+        minDuration: 4,
+        minProposerVotingPower: 5,
+      })
     })
 
-    it('should fails when the signature is not matched for _parseTokenVotingSettingUpdateAction', async () => {
+    it('should _parseVotingSettingUpdateAction for LockToVote plugin', async () => {
+      const decodeActions = new DecodeActions()
+      const baseAction = {
+        textSignature: 'updateVotingSettings(tuple)',
+        function: 'updateVotingSettings',
+        contract: 'LockToVote',
+        parameters: [
+          {
+            name: 'setting',
+            type: 'uint256',
+            value: [1, 2, 3, 4, 5, 6],
+          },
+          {
+            name: 'value',
+            type: 'uint256',
+            value: 2n,
+          },
+        ],
+      }
+      const action = {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: 0n,
+        data: '0x40c10f1900000000000000000000000x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        network: NetworksEnum.ethereumSepolia,
+      }
+
+      const getPluginDetails = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        network: NetworksEnum.ethereumSepolia,
+        tokenAddress: '0xAddress',
+        address: action.to,
+        interfaceType: IPluginInterfaceType.lockToVote,
+      })
+      const getExistingSettingStub = sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(null)
+
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        address: '0xAddress',
+        name: 'Plugin 1',
+        symbol: 'P1',
+        decimals: 18,
+        logo: 'https://plugin1.com/logo.png',
+        type: 'ERC20',
+        pickFields: sandbox.stub(),
+      } as any)
+
+      const result = await decodeActions._parseVotingSettingUpdateAction(baseAction, action, {
+        network: NetworksEnum.ethereumSepolia,
+        blockNumber: 123,
+      })
+      expect(result?.type).to.be.eq(ProposalActionType.UpdateLockToVoteVoteSettings)
+      expect(getExistingSettingStub.calledOnce).to.be.true
+      expect(getExistingSettingStub.args[0][0]).to.be.eq(action.to)
+      expect(getExistingSettingStub.args[0][1]).to.be.eq(123)
+      expect(getPluginDetails.calledOnce).to.be.true
+      expect(getPluginDetails.args[0][0]).to.be.eq(action.to)
+      expect(getPluginDetails.args[0][1]).to.be.eq(NetworksEnum.ethereumSepolia)
+      expect(result?.proposedSettings).to.deep.eq({
+        votingMode: 1,
+        supportThreshold: 2,
+        minParticipation: 3,
+        minApprovalRatio: 4,
+        minDuration: 5,
+        minProposerVotingPower: 6,
+      })
+    })
+
+    it('should fails when the signature is not matched for _parseVotingSettingUpdateAction', async () => {
       const decodeActions = new DecodeActions()
       const baseAction = {
         textSignature: 'mock(tuple)',
@@ -1148,7 +1221,7 @@ describe('Helpers: DecodeActions', () => {
         data: '0x40c10f1900000000000000000000000x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
       }
 
-      const result = await decodeActions._parseTokenVotingSettingUpdateAction(baseAction, action, {} as any)
+      const result = await decodeActions._parseVotingSettingUpdateAction(baseAction, action, {} as any)
       expect(result).to.be.null
     })
 
