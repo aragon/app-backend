@@ -26,10 +26,10 @@ describe('migration: lockToVoteMember', () => {
   })
 
   describe('lockToVoteMemberMigration with real database', () => {
-    it('should successfully migrate LockManagerMember documents', async () => {
+    it('should successfully migrate LockToVoteMember documents', async () => {
       try {
-        // Prepare old LockManagerMember data (legacy structure)
-        const mockLockManagerMembers = [
+        // Prepare old LockToVoteMember data (legacy structure)
+        const mockLockToVoteMembers = [
           {
             _id: new mongoose.Types.ObjectId('68936662e1d2814ae0ce417b'),
             id: 'ethereum-sepolia-0xfC907E0a59D555C7caBB1B110E1630d9576cE29e-0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759',
@@ -154,7 +154,7 @@ describe('migration: lockToVoteMember', () => {
         })
 
         // Insert old data into collections
-        await mongoose.connection.collection('LockManagerMember').insertMany(mockLockManagerMembers)
+        await mongoose.connection.collection('LockToVoteMember').insertMany(mockLockToVoteMembers)
         await mongoose.connection.collection('MemberMetric').insertMany(mockMemberMetrics)
 
         // Create Proposals and Votes to test that counts are calculated correctly
@@ -247,12 +247,12 @@ describe('migration: lockToVoteMember', () => {
           '0xe3217a7790bb9bb60d4712b86e96b5f77af7a747',
         ])
 
-        // 2. Check LockManagerMember collection - should have 3 entries with new structure
-        const lockManagerMembers = await Models.LockManagerMember.find({})
-        expect(lockManagerMembers.length).to.equal(3)
+        // 2. Check LockToVoteMember collection - should have 3 entries with new structure
+        const lockToVoteMembers = await Models.LockToVoteMember.find({})
+        expect(lockToVoteMembers.length).to.equal(3)
 
         // Verify first member's lock membership (plugin 1)
-        const lockMember1 = await Models.LockManagerMember.findOne({
+        const lockMember1 = await Models.LockToVoteMember.findOne({
           memberAddress: '0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759',
           lockManagerAddress: '0x33b5843C8CB796E4bEC119Fc086a0e0848c945D5',
         })
@@ -265,7 +265,7 @@ describe('migration: lockToVoteMember', () => {
         expect((lockMember1 as any)?.daoAddress).to.be.undefined
 
         // Verify second member's lock membership (plugin 1)
-        const lockMember2 = await Models.LockManagerMember.findOne({
+        const lockMember2 = await Models.LockToVoteMember.findOne({
           memberAddress: '0xE3217A7790BB9bb60D4712B86E96B5f77AF7a747',
           lockManagerAddress: '0x33b5843C8CB796E4bEC119Fc086a0e0848c945D5',
         })
@@ -274,7 +274,7 @@ describe('migration: lockToVoteMember', () => {
         expect(lockMember2?.lastVPBlockNumber).to.equal(8926259)
 
         // Verify third member's lock membership (plugin 2)
-        const lockMember3 = await Models.LockManagerMember.findOne({
+        const lockMember3 = await Models.LockToVoteMember.findOne({
           memberAddress: '0x17366cae2b9c6C3055e9e3C78936a69006BE5409',
           lockManagerAddress: '0x44c5943C8CB796E4bEC119Fc086a0e0848c945E6',
         })
@@ -316,14 +316,14 @@ describe('migration: lockToVoteMember', () => {
         expect(metrics3).to.exist
         expect(metrics3?.lastActivity).to.equal(8931464)
 
-        // 4. Verify old LockManagerMember documents were deleted from the legacy collection
+        // 4. Verify old LockToVoteMember documents were deleted from the legacy collection
         // The migration should have deleted the old documents and created new ones
         // Let's verify the new structure doesn't have the old fields
-        const allLockManagerMembers = await mongoose.connection.collection('LockManagerMember').find({}).toArray()
+        const allLockToVoteMembers = await mongoose.connection.collection('LockToVoteMember').find({}).toArray()
         // We should have 3 documents but with the new structure
-        expect(allLockManagerMembers.length).to.equal(3)
+        expect(allLockToVoteMembers.length).to.equal(3)
         // Verify none have the old fields like pluginAddress or daoAddress
-        for (const member of allLockManagerMembers) {
+        for (const member of allLockToVoteMembers) {
           expect(member.pluginAddress).to.be.undefined
           expect(member.daoAddress).to.be.undefined
           expect(member.lockManagerAddress).to.exist
@@ -376,7 +376,7 @@ describe('migration: lockToVoteMember', () => {
     })
 
     it('should handle no documents to migrate', async () => {
-      // Don't insert any LockManagerMember documents
+      // Don't insert any LockToVoteMember documents
 
       await lockToVoteMemberMigration.start()
 
@@ -384,12 +384,12 @@ describe('migration: lockToVoteMember', () => {
       const members = await Models.Member.find({})
       expect(members.length).to.equal(0)
 
-      const lockManagerMembers = await Models.LockManagerMember.find({})
-      expect(lockManagerMembers.length).to.equal(0)
+      const lockToVoteMembers = await Models.LockToVoteMember.find({})
+      expect(lockToVoteMembers.length).to.equal(0)
     })
 
     it('should skip members where plugin has no lockManagerAddress', async () => {
-      const mockLockManagerMembers = [
+      const mockLockToVoteMembers = [
         {
           _id: new mongoose.Types.ObjectId('68936662e1d2814ae0ce417b'),
           network: 'ethereum-sepolia',
@@ -417,7 +417,7 @@ describe('migration: lockToVoteMember', () => {
         transactionHash: '0xbfcdb',
       })
 
-      await mongoose.connection.collection('LockManagerMember').insertMany(mockLockManagerMembers)
+      await mongoose.connection.collection('LockToVoteMember').insertMany(mockLockToVoteMembers)
 
       await lockToVoteMemberMigration.start()
 
@@ -426,19 +426,19 @@ describe('migration: lockToVoteMember', () => {
       expect(members.length).to.equal(0)
 
       // Verify old document still exists in the collection (since it was skipped)
-      const oldLockManagerMembers = await mongoose.connection.collection('LockManagerMember').find({}).toArray()
-      expect(oldLockManagerMembers.length).to.equal(1) // Should still be there since it was skipped
+      const oldLockToVoteMembers = await mongoose.connection.collection('LockToVoteMember').find({}).toArray()
+      expect(oldLockToVoteMembers.length).to.equal(1) // Should still be there since it was skipped
       // And it should still have the old structure
-      expect(oldLockManagerMembers[0].pluginAddress).to.equal('0xfC907E0a59D555C7caBB1B110E1630d9576cE29e')
-      expect(oldLockManagerMembers[0].lockManagerAddress).to.be.undefined
+      expect(oldLockToVoteMembers[0].pluginAddress).to.equal('0xfC907E0a59D555C7caBB1B110E1630d9576cE29e')
+      expect(oldLockToVoteMembers[0].lockManagerAddress).to.be.undefined
 
-      // Check using the Model - no new LockManagerMember with the new structure should be created
-      const lockManagerMembers = await Models.LockManagerMember.find({ lockManagerAddress: { $exists: true } })
-      expect(lockManagerMembers.length).to.equal(0)
+      // Check using the Model - no new LockToVoteMember with the new structure should be created
+      const lockToVoteMembers = await Models.LockToVoteMember.find({ lockManagerAddress: { $exists: true } })
+      expect(lockToVoteMembers.length).to.equal(0)
     })
 
     it('should handle errors gracefully and continue processing', async () => {
-      const mockLockManagerMembers = [
+      const mockLockToVoteMembers = [
         {
           _id: new mongoose.Types.ObjectId('68936662e1d2814ae0ce417b'),
           id: 'old-doc-1', // Add unique id for old document
@@ -513,7 +513,7 @@ describe('migration: lockToVoteMember', () => {
         transactionHash: '0xabc',
       })
 
-      await mongoose.connection.collection('LockManagerMember').insertMany(mockLockManagerMembers)
+      await mongoose.connection.collection('LockToVoteMember').insertMany(mockLockToVoteMembers)
 
       await lockToVoteMemberMigration.start()
 
@@ -527,10 +527,10 @@ describe('migration: lockToVoteMember', () => {
       const validMember = members.find((m: any) => m.address === '0x17366cae2b9c6C3055e9e3C78936a69006BE5409')
       expect(validMember).to.exist
 
-      // Check LockManagerMembers - only the valid one should be created
-      const lockManagerMembers = await Models.LockManagerMember.find({})
-      expect(lockManagerMembers.length).to.equal(1)
-      const validLockMember = lockManagerMembers.find(
+      // Check LockToVoteMembers - only the valid one should be created
+      const lockToVoteMembers = await Models.LockToVoteMember.find({})
+      expect(lockToVoteMembers.length).to.equal(1)
+      const validLockMember = lockToVoteMembers.find(
         (lm: any) => lm.memberAddress === '0x17366cae2b9c6C3055e9e3C78936a69006BE5409',
       )
       expect(validLockMember).to.exist
@@ -538,7 +538,7 @@ describe('migration: lockToVoteMember', () => {
       expect(validLockMember?.lockManagerAddress).to.equal('0x44c5943C8CB796E4bEC119Fc086a0e0848c945E6')
 
       // Verify the documents in the raw collection
-      const oldDocuments = await mongoose.connection.collection('LockManagerMember').find({}).toArray()
+      const oldDocuments = await mongoose.connection.collection('LockToVoteMember').find({}).toArray()
 
       // After migration, we should have:
       // 1. The valid member migrated to new structure

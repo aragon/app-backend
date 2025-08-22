@@ -12,7 +12,7 @@ import {
 } from '@types'
 import Web3Utils from '@helpers/web3Utils'
 import DbTx from '@modules/dbTx'
-import type LockManagerMember from '@models/schema/lockManagerMember'
+import type LockToVoteMember from '@models/schema/lockToVoteMember'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import { type ClientSession } from 'mongoose'
@@ -48,7 +48,7 @@ export class LockToVoteGovernance extends BaseGovernance {
     memberAddress: HexAddress,
     params?: IGovernanceParamsOpts,
     session?: ClientSession,
-  ): Promise<LockManagerMember | null> {
+  ): Promise<LockToVoteMember | null> {
     const parsedAddress = Web3Utils.parseAddress(memberAddress)
     if (!parsedAddress) return null
 
@@ -63,7 +63,7 @@ export class LockToVoteGovernance extends BaseGovernance {
       await BaseGovernance.ensureBaseMember(parsedAddress, params?.lastActivity, session)
 
       // Create new lock manager member
-      const newLockManagerMember = await Models.LockManagerMember.create(
+      const newLockToVoteMember = await Models.LockToVoteMember.create(
         {
           memberAddress: parsedAddress,
           lockManagerAddress: this.lockManagerAddress,
@@ -75,14 +75,14 @@ export class LockToVoteGovernance extends BaseGovernance {
       )
 
       logger.verbose(
-        'Created new LockManagerMember',
+        'Created new LockToVoteMember',
         this.llo({
           memberAddress: parsedAddress,
           lockManagerAddress: this.lockManagerAddress,
         }),
       )
 
-      return newLockManagerMember
+      return newLockToVoteMember
     } catch (error) {
       logger.error('Error in getOrCreate', this.llo({ error, memberAddress: parsedAddress }))
       return null
@@ -93,33 +93,30 @@ export class LockToVoteGovernance extends BaseGovernance {
     memberAddress: HexAddress,
     params: IGovernanceParamsOpts,
     session?: ClientSession,
-  ): Promise<LockManagerMember | null> {
+  ): Promise<LockToVoteMember | null> {
     // Simply delegate to getOrCreate since it handles creation when member doesn't exist
     return this.getOrCreate(memberAddress, params, session)
   }
 
-  async update(memberAddress: HexAddress, params: IGovernanceParamsOpts): Promise<LockManagerMember | null> {
+  async update(memberAddress: HexAddress, params: IGovernanceParamsOpts): Promise<LockToVoteMember | null> {
     const parsedAddress = Web3Utils.parseAddress(memberAddress)
     if (!parsedAddress) return null
 
     try {
       return await DbTx.executeTxFn(async ({ session }) => {
-        const lockManagerMember = await this.getOrCreate(memberAddress, params, session)
+        const lockToVoteMember = await this.getOrCreate(memberAddress, params, session)
 
-        if (!lockManagerMember) {
-          logger.warn(
-            'Failed to get or create LockManagerMember for update',
-            this.llo({ memberAddress: parsedAddress }),
-          )
+        if (!lockToVoteMember) {
+          logger.warn('Failed to get or create LockToVoteMember for update', this.llo({ memberAddress: parsedAddress }))
           return null
         }
 
         // Only update if block number is newer
-        if (params.lastActivity && lockManagerMember.lastVPBlockNumber >= params.lastActivity) {
+        if (params.lastActivity && lockToVoteMember.lastVPBlockNumber >= params.lastActivity) {
           logger.verbose(
             'Skipping update - older block',
             this.llo({
-              current: lockManagerMember.lastVPBlockNumber,
+              current: lockToVoteMember.lastVPBlockNumber,
               new: params.lastActivity,
             }),
           )
@@ -127,7 +124,7 @@ export class LockToVoteGovernance extends BaseGovernance {
           await session.commitTransaction()
           await session.endSession()
 
-          return lockManagerMember
+          return lockToVoteMember
         }
 
         const updateData: any = {}
@@ -138,13 +135,13 @@ export class LockToVoteGovernance extends BaseGovernance {
           updateData.lastVPBlockNumber = params.lastActivity
         }
 
-        const updated = await lockManagerMember.update(updateData, { session })
+        const updated = await lockToVoteMember.update(updateData, { session })
 
         await session.commitTransaction()
         await session.endSession()
 
         logger.verbose(
-          'Updated LockManagerMember',
+          'Updated LockToVoteMember',
           this.llo({
             memberAddress: parsedAddress,
             updates: updateData,
@@ -154,7 +151,7 @@ export class LockToVoteGovernance extends BaseGovernance {
         return updated
       })
     } catch (error) {
-      logger.error('Error updating LockManagerMember', this.llo({ error, memberAddress: parsedAddress }))
+      logger.error('Error updating LockToVoteMember', this.llo({ error, memberAddress: parsedAddress }))
       return null
     }
   }
@@ -165,38 +162,38 @@ export class LockToVoteGovernance extends BaseGovernance {
 
     try {
       return await DbTx.executeTxFn(async ({ session }) => {
-        const lockManagerMember = await this.findOne(parsedAddress, session)
+        const lockToVoteMember = await this.findOne(parsedAddress, session)
 
-        if (!lockManagerMember) {
-          logger.verbose('LockManagerMember not found for deletion', this.llo({ memberAddress: parsedAddress }))
+        if (!lockToVoteMember) {
+          logger.verbose('LockToVoteMember not found for deletion', this.llo({ memberAddress: parsedAddress }))
           return false
         }
 
-        await lockManagerMember.deleteOne({ session })
+        await lockToVoteMember.deleteOne({ session })
         await session.commitTransaction()
         await session.endSession()
 
-        logger.verbose('Deleted LockManagerMember', this.llo({ memberAddress: parsedAddress }))
+        logger.verbose('Deleted LockToVoteMember', this.llo({ memberAddress: parsedAddress }))
         return true
       })
     } catch (error) {
-      logger.error('Error deleting LockManagerMember', this.llo({ error, memberAddress: parsedAddress }))
+      logger.error('Error deleting LockToVoteMember', this.llo({ error, memberAddress: parsedAddress }))
       return false
     }
   }
 
-  async find(): Promise<LockManagerMember[]> {
-    return await Models.LockManagerMember.findActiveMembers({
+  async find(): Promise<LockToVoteMember[]> {
+    return await Models.LockToVoteMember.findActiveMembers({
       network: this.network,
       lockManagerAddress: this.lockManagerAddress,
     })
   }
 
-  async findOne(memberAddress: HexAddress, session?: any): Promise<LockManagerMember | null> {
+  async findOne(memberAddress: HexAddress, session?: any): Promise<LockToVoteMember | null> {
     const parsedAddress = Web3Utils.parseAddress(memberAddress)
     if (!parsedAddress) return null
 
-    return await Models.LockManagerMember.findExistingLog(
+    return await Models.LockToVoteMember.findExistingLog(
       {
         network: this.network,
         lockManagerAddress: this.lockManagerAddress,
@@ -219,7 +216,7 @@ export class LockToVoteGovernance extends BaseGovernance {
       network: this.network,
     }
 
-    return Models.LockManagerMember.findAndPaginate({
+    return Models.LockToVoteMember.findAndPaginate({
       paginationParams,
       extraParams: enrichedExtraParams,
     })
