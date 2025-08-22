@@ -477,13 +477,16 @@ describe('Model: Dao', () => {
       // Check unwind stage
       expect(pipeline[2].$unwind).to.eq('$plugins')
 
-      // Check that all member collection lookups are present
-      const lookupStages = pipeline.filter(stage => stage.$lookup && stage.$lookup.from !== 'Plugin')
-      expect(lookupStages).to.have.length(4) // TokenMember, Lock, LockManagerMember, PluginMember
+      // Check that facet stage is present
+      const facetStage = pipeline.find(stage => stage.$facet)
+      expect(facetStage).to.exist
+      expect(facetStage.$facet).to.have.all.keys(['tokenMembers', 'veGovernanceMembers', 'lockMembers', 'pluginMembers'])
 
-      // Verify collection names in lookup stages
-      const collectionNames = lookupStages.map(stage => stage.$lookup.from)
-      expect(collectionNames).to.include.members(['TokenMember', 'Lock', 'LockManagerMember', 'PluginMember'])
+      // Verify each facet contains the correct collection lookup
+      expect(facetStage.$facet.tokenMembers[0].$lookup.from).to.eq('TokenMember')
+      expect(facetStage.$facet.veGovernanceMembers[0].$lookup.from).to.eq('Lock')
+      expect(facetStage.$facet.lockMembers[0].$lookup.from).to.eq('LockToVoteMember')
+      expect(facetStage.$facet.pluginMembers[0].$lookup.from).to.eq('PluginMember')
 
       // Check final aggregation stages
       const addFieldsStage = pipeline.find(stage => stage.$addFields && stage.$addFields.allMembers)
