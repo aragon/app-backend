@@ -205,7 +205,7 @@ export interface IAggMemberProjectFields {
   avatar?: 1
 }
 
-export interface IAggLockManagerMemberParams {
+export interface IAggLockToVoteMemberParams {
   lockManagerAddress?: string
   network: string
   memberAddress?: string

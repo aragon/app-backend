@@ -852,7 +852,7 @@ export default class Dao extends Model {
       },
       {
         interfaceTypes: ['lockToVote'],
-        collection: 'LockManagerMember',
+        collection: 'LockToVoteMember',
         memberAddressField: 'memberAddress',
         matchField: 'lockManagerAddress', // Field in a collection to match
         sourceField: '$plugins.lockManagerAddress', // Source value from plugin
