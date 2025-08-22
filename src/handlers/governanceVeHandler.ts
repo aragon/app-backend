@@ -291,7 +291,7 @@ export const GovernanceVeHandler = {
     })
 
     if (plugins.length === 0) {
-      logger.error('Plugin not found for minDepositSet event', llo({ info }))
+      logger.warn('Plugin not found for minDepositSet event', llo({ info }))
       return
     }
 

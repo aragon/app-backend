@@ -1416,8 +1416,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
   describe('minDepositSet', () => {
     it('should skip if plugin not found', async () => {
-      // Don't stub Models.Plugin.find - use different address so plugin won't be found
-      const stubLogger = sandbox.stub(logger, 'error')
+      const stubLogger = sandbox.stub(logger, 'warn')
       const stubSettingFindActive = sandbox.stub(Models.Setting, 'findActive')
 
       const mockInfo = {
