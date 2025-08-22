@@ -543,7 +543,7 @@ describe('Indexer: Permission Handler', () => {
       }
       const factoryStub = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
-      const loggerInfo = sandbox.stub(logger, 'info')
+      const loggerVerbose = sandbox.stub(logger, 'verbose')
 
       await PermissionHandler.handleForAdminPlugin(daoAddress, pluginAddress, network, where, add)
 
@@ -552,7 +552,7 @@ describe('Indexer: Permission Handler', () => {
       expect(mockGovernance.getOrCreate.calledOnce).to.be.true
       expect(mockGovernance.getOrCreate.calledWith(where)).to.be.true
       expect(mockGovernance.updateDaoMetrics.calledOnce).to.be.true
-      expect(loggerInfo.calledOnce).to.be.true
+      expect(loggerVerbose.calledOnce).to.be.true
     })
 
     it('should handle for admin plugin when removing', async () => {
@@ -575,7 +575,7 @@ describe('Indexer: Permission Handler', () => {
       }
       const factoryStub = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
-      const loggerInfo = sandbox.stub(logger, 'info')
+      const loggerInfo = sandbox.stub(logger, 'verbose')
 
       await PermissionHandler.handleForAdminPlugin(daoAddress, pluginAddress, network, where, add)
 

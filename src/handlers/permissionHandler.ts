@@ -144,7 +144,7 @@ export const PermissionHandler = {
       await governance.delete(where)
 
       await governance.updateDaoMetrics()
-      logger.info('Remove member from DAO', llo({ daoAddress, pluginAddress, network, where }))
+      logger.verbose('Remove member from DAO', llo({ daoAddress, pluginAddress, network, where }))
 
       return
     }
