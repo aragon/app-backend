@@ -480,7 +480,12 @@ describe('Model: Dao', () => {
       // Check that facet stage is present
       const facetStage = pipeline.find(stage => stage.$facet)
       expect(facetStage).to.exist
-      expect(facetStage.$facet).to.have.all.keys(['tokenMembers', 'veGovernanceMembers', 'lockMembers', 'pluginMembers'])
+      expect(facetStage.$facet).to.have.all.keys([
+        'tokenMembers',
+        'veGovernanceMembers',
+        'lockMembers',
+        'pluginMembers',
+      ])
 
       // Verify each facet contains the correct collection lookup
       expect(facetStage.$facet.tokenMembers[0].$lookup.from).to.eq('TokenMember')
