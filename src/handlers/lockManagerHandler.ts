@@ -132,8 +132,6 @@ const LockManagerHandler = {
           const newPower = currentPower > unlockAmount ? currentPower - unlockAmount : BigInt(0)
           votingPower = newPower.toString()
         } else {
-          // should not happen use event amount as initial voting power
-          // votingPower = eventAmount
           logger.error('Error remove votingPower to not pre exiting one', llo({ ...info, memberAddress }))
           return
         }

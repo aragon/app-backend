@@ -62,7 +62,7 @@ export interface ILogMetadataIdParams {
   logIndex: number
 }
 
-export interface ILockManagerMemberIdParams {
+export interface ILockToVoteMemberIdParams {
   network: NetworksEnum
   lockManagerAddress: HexAddress
   memberAddress: HexAddress

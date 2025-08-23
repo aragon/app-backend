@@ -21,10 +21,10 @@ import type TokenMember from '@models/schema/tokenMember'
 import type PluginMember from '@models/schema/pluginMember'
 import type PluginMetrics from '@models/schema/pluginMetrics'
 import type Lock from '@models/schema/lock'
-import type LockManagerMember from '@models/schema/lockManagerMember'
 import type SelectorPermission from '@models/schema/selectorPermission'
 import type Campaign from '@models/schema/campaign'
 import type CampaignReward from '@models/schema/campaignReward'
+import type LockToVoteMember from '@models/schema/lockToVoteMember'
 import type Migration from '@models/schema/migration'
 
 export interface IMongoModel {
@@ -55,7 +55,7 @@ export interface IMongoModel {
   TokenMember: typeof TokenMember
   PluginMember: typeof PluginMember
   PluginMetrics: typeof PluginMetrics
-  LockManagerMember: typeof LockManagerMember
+  LockToVoteMember: typeof LockToVoteMember
 }
 
 export enum ICollectionNames {
@@ -86,7 +86,7 @@ export enum ICollectionNames {
   TokenMember = 'TokenMember',
   PluginMember = 'PluginMember',
   PluginMetrics = 'PluginMetrics',
-  LockManagerMember = 'LockManagerMember',
+  LockToVoteMember = 'LockToVoteMember',
 }
 
 export enum ITransactionIndexCheckType {

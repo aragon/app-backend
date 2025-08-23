@@ -428,4 +428,133 @@ describe('Model: Dao', () => {
     expect(createdDao.metrics.votes).to.eq(1000)
     expect(createdDao.metrics.tvlUSD).to.eq(100000)
   })
+
+  describe('countUniqueMembers', () => {
+    const mockDaoAddress = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
+    const mockNetwork = NetworksEnum.polygonMainnet
+
+    beforeEach(async () => {
+      // Create test DAO
+      await Models.Dao.create({
+        address: mockDaoAddress,
+        network: mockNetwork,
+        creatorAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+        isActive: true,
+        isHidden: false,
+        blockNumber: 1000,
+        blockTimestamp: 1699577224,
+      })
+    })
+
+    it('should return 0 when no plugins exist', async () => {
+      const count = await Models.Dao.countUniqueMembers(mockDaoAddress, mockNetwork)
+      expect(count).to.eq(0)
+    })
+
+    it('should count unique members across different governance types', async () => {
+      // Mock the aggregate method to return test data
+      const mockAggregateResult = [{ uniqueMembersCount: 5 }]
+      const aggregateStub = sandbox.stub(Models.Dao, 'aggregate').resolves(mockAggregateResult)
+
+      const count = await Models.Dao.countUniqueMembers(mockDaoAddress, mockNetwork)
+
+      expect(count).to.eq(5)
+      expect(aggregateStub.calledOnce).to.be.true
+
+      // Verify the aggregation pipeline structure
+      const pipeline = aggregateStub.args[0][0]
+
+      // Check initial match stage
+      expect(pipeline[0].$match).to.deep.eq({
+        address: mockDaoAddress,
+        network: mockNetwork,
+      })
+
+      // Check plugin lookup stage
+      expect(pipeline[1].$lookup.from).to.eq('Plugin')
+      expect(pipeline[1].$lookup.as).to.eq('plugins')
+
+      // Check unwind stage
+      expect(pipeline[2].$unwind).to.eq('$plugins')
+
+      // Check that facet stage is present
+      const facetStage = pipeline.find(stage => stage.$facet)
+      expect(facetStage).to.exist
+      expect(facetStage.$facet).to.have.all.keys([
+        'tokenMembers',
+        'veGovernanceMembers',
+        'lockMembers',
+        'pluginMembers',
+      ])
+
+      // Verify each facet contains the correct collection lookup
+      expect(facetStage.$facet.tokenMembers[0].$lookup.from).to.eq('TokenMember')
+      expect(facetStage.$facet.veGovernanceMembers[0].$lookup.from).to.eq('Lock')
+      expect(facetStage.$facet.lockMembers[0].$lookup.from).to.eq('LockToVoteMember')
+      expect(facetStage.$facet.pluginMembers[0].$lookup.from).to.eq('PluginMember')
+
+      // Check final aggregation stages
+      const addFieldsStage = pipeline.find(stage => stage.$addFields && stage.$addFields.allMembers)
+      const unwindStage = pipeline.find(stage => stage.$unwind === '$allMembers')
+      const countStage = pipeline.find(stage => stage.$count === 'uniqueMembersCount')
+
+      expect(addFieldsStage).to.exist
+      expect(addFieldsStage.$addFields).to.have.property('allMembers')
+      expect(unwindStage).to.exist
+      expect(countStage).to.exist
+    })
+
+    it('should return 0 when aggregate returns empty result', async () => {
+      const aggregateStub = sandbox.stub(Models.Dao, 'aggregate').resolves([])
+
+      const count = await Models.Dao.countUniqueMembers(mockDaoAddress, mockNetwork)
+
+      expect(count).to.eq(0)
+      expect(aggregateStub.calledOnce).to.be.true
+    })
+
+    it('should verify member collection config mappings', async () => {
+      const aggregateStub = sandbox.stub(Models.Dao, 'aggregate').resolves([{ uniqueMembersCount: 3 }])
+
+      await Models.Dao.countUniqueMembers(mockDaoAddress, mockNetwork)
+
+      const pipeline = aggregateStub.args[0][0]
+      const facetStage = pipeline.find(stage => stage.$facet)
+      expect(facetStage).to.exist
+
+      // Verify TokenMember configuration
+      const tokenMemberFacet = facetStage.$facet.tokenMembers
+      expect(tokenMemberFacet).to.exist
+      expect(tokenMemberFacet[0].$lookup.from).to.eq('TokenMember')
+      expect(tokenMemberFacet[0].$lookup.as).to.eq('tokenMembers')
+
+      // Verify Lock configuration for veGovernance
+      const lockFacet = facetStage.$facet.veGovernanceMembers
+      expect(lockFacet).to.exist
+      expect(lockFacet[0].$lookup.from).to.eq('Lock')
+      expect(lockFacet[0].$lookup.as).to.eq('veGovernanceMembers')
+
+      // Verify LockToVoteMember configuration
+      const lockManagerFacet = facetStage.$facet.lockMembers
+      expect(lockManagerFacet).to.exist
+      expect(lockManagerFacet[0].$lookup.from).to.eq('LockToVoteMember')
+      expect(lockManagerFacet[0].$lookup.as).to.eq('lockMembers')
+
+      // Verify PluginMember configuration
+      const pluginMemberFacet = facetStage.$facet.pluginMembers
+      expect(pluginMemberFacet).to.exist
+      expect(pluginMemberFacet[0].$lookup.from).to.eq('PluginMember')
+      expect(pluginMemberFacet[0].$lookup.as).to.eq('pluginMembers')
+    })
+
+    it('should handle session parameter correctly', async () => {
+      const mockSession = { session: 'test-session' }
+      const aggregateStub = sandbox.stub(Models.Dao, 'aggregate').resolves([{ uniqueMembersCount: 2 }])
+
+      const count = await Models.Dao.countUniqueMembers(mockDaoAddress, mockNetwork, mockSession)
+
+      expect(count).to.eq(2)
+      expect(aggregateStub.calledWith(sinon.match.array, mockSession)).to.be.true
+    })
+  })
 })

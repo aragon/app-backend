@@ -3,7 +3,7 @@ import {
   HexAddress,
   ICollectionNames,
   NetworksEnum,
-  type ILockManagerMemberIdParams,
+  type ILockToVoteMemberIdParams,
   type IPaginatedResult,
   type IPaginationParams,
   type IMembersResponse,
@@ -15,7 +15,7 @@ import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 
-const customName = ICollectionNames.LockManagerMember
+const customName = ICollectionNames.LockToVoteMember
 
 @modelOptions({
   schemaOptions: {
@@ -32,7 +32,7 @@ const customName = ICollectionNames.LockManagerMember
 @index({ network: 1, lockManagerAddress: 1, memberAddress: 1 })
 @index({ network: 1, lockManagerAddress: 1, votingPower: -1 })
 @index({ lockManagerAddress: 1, memberAddress: 1 })
-export default class LockManagerMember extends Model {
+export default class LockToVoteMember extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
 
@@ -51,7 +51,7 @@ export default class LockManagerMember extends Model {
   @prop({ type: () => Number, default: 0 })
   public lastVPBlockNumber!: number
 
-  static async create(rawData: Partial<LockManagerMember>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<LockToVoteMember>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.lockManagerAddress, 'lockManagerAddress is required')
@@ -66,11 +66,11 @@ export default class LockManagerMember extends Model {
     return await data.save(tOpts)
   }
 
-  static getEntityId(params: ILockManagerMemberIdParams) {
+  static getEntityId(params: ILockToVoteMemberIdParams) {
     return `${params.network}-${params.lockManagerAddress}-${params.memberAddress}`
   }
 
-  static async findExistingLog(params: ILockManagerMemberIdParams, tOpts?: SaveOptions) {
+  static async findExistingLog(params: ILockToVoteMemberIdParams, tOpts?: SaveOptions) {
     const entityId = this.getEntityId(params)
     return await this.findByEntityId(entityId, tOpts)
   }
@@ -107,7 +107,7 @@ export default class LockManagerMember extends Model {
     return await this.find({ network, lockManagerAddress, votingPower: { $ne: '0' } }, null, tOpts)
   }
 
-  async update(params: Partial<LockManagerMember>, tOpts?: SaveOptions) {
+  async update(params: Partial<LockToVoteMember>, tOpts?: SaveOptions) {
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
@@ -209,7 +209,7 @@ export default class LockManagerMember extends Model {
           address: '$memberInfo.address',
           ens: '$memberInfo.ens',
           avatar: '$memberInfo.avatar',
-          tokenBalance: null, // LockManagerMember doesn't have amount field
+          tokenBalance: null, // LockToVoteMember doesn't have amount field
           votingPower: '$votingPowerString',
           metrics: {
             voteCount: '$pluginMetrics.voteCount',
