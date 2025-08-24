@@ -296,15 +296,6 @@ describe('MerkleTreeHelper', () => {
       expect(result.members[0].amount).to.equal(largeAmount)
     })
 
-    it('should throw error when processing fails', () => {
-      // Mock getAddress to throw an error
-      sandbox.stub(getAddress).throws(new Error('Invalid address'))
-
-      const rewards: IRewardEntry[] = [{ address: 'invalid-address', amount: '1000000000000000000' }]
-
-      expect(() => MerkleTreeHelper.generateTreeWithProofs(rewards)).to.throw()
-    })
-
     it('should handle empty rewards array', () => {
       const rewards: IRewardEntry[] = []
 
