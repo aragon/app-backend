@@ -1,9 +1,15 @@
-import { type IAAddMembersListParams, IPluginInterfaceType, type NetworksEnum } from '@types'
+import { ErrorKeyEnum, type IAAddMembersListParams, IPluginInterfaceType, type NetworksEnum } from '@types'
 import { MemberGovernanceFactory, type CapitalDistributorGovernance } from '@src/governance'
+import { Models } from '@dbModels'
+import { assertExposable } from '@errors'
 
 const CapitalDistributorAdminController = {
   uploadMembersList: async (params: IAAddMembersListParams): Promise<any> => {
     const { pluginAddress, network } = params
+
+    const plugin = await Models.Plugin.findByAddress(pluginAddress, network)
+    assertExposable(plugin, ErrorKeyEnum.notFound)
+
     const governance = MemberGovernanceFactory.create({
       address: pluginAddress,
       network,

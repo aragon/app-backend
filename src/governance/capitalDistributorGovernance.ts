@@ -33,13 +33,6 @@ export class CapitalDistributorGovernance extends BaseGovernance {
   async uploadMembersList(params: IAAddMembersListParams): Promise<any> {
     const { campaignId, pluginAddress, network, rewards } = params
 
-    if (pluginAddress !== this.address || network !== this.network) {
-      throw new Error('Plugin address or network mismatch')
-    }
-
-    const plugin = await Models.Plugin.findByAddress(pluginAddress, network)
-    assertExposable(plugin, ErrorKeyEnum.notFound)
-
     const existingCampaign = await Models.Campaign.findExisting({
       pluginAddress,
       network,

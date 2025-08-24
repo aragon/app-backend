@@ -38,10 +38,9 @@ describe('Governance:CapitalDistributorGovernance', () => {
   })
 
   describe('uploadMembersList', () => {
-    let testPlugin: any
 
     beforeEach(async () => {
-      testPlugin = await Models.Plugin.create({
+      await Models.Plugin.create({
         id: `${testNetwork}-${testPluginAddress.toLowerCase()}-0`,
         transactionHash: '0x123',
         blockNumber: 100,
