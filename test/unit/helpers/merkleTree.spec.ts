@@ -298,8 +298,7 @@ describe('MerkleTreeHelper', () => {
 
     it('should throw error when processing fails', () => {
       // Mock getAddress to throw an error
-      const originalGetAddress = getAddress
-      sandbox.stub({ getAddress: originalGetAddress }, 'getAddress').throws(new Error('Invalid address'))
+      sandbox.stub(getAddress).throws(new Error('Invalid address'))
 
       const rewards: IRewardEntry[] = [{ address: 'invalid-address', amount: '1000000000000000000' }]
 
