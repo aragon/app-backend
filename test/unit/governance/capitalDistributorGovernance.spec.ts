@@ -535,8 +535,6 @@ describe('Governance:CapitalDistributorGovernance', () => {
   })
 
   describe('BaseGovernance empty method implementations', () => {
-    const testMemberAddress = '0x1234567890123456789012345678901234567890' as HexAddress
-
     it('should return null for getOrCreate', async () => {
       const result = await capitalDistributorGovernance.getOrCreate()
       expect(result).to.be.null
