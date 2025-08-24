@@ -1,3 +1,5 @@
+import { type NetworksEnum } from '@src/types/networks'
+
 export interface IAQueueToken {
   address: string
   network: string
@@ -36,6 +38,6 @@ export interface IARewardAllocation {
 export interface IAAddMembersListParams {
   campaignId: string
   pluginAddress: string
-  network: string
+  network: NetworksEnum
   rewards: IARewardAllocation[]
 }

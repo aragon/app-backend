@@ -524,13 +524,35 @@ const IndexerEventConfig: IIndexerConfig[] = [
     ],
   },
   {
-    event: 'CampaignDeactivated',
+    event: 'CampaignPaused',
     enableHistorical: false,
-    topic: new Interface(CapitalDistributor.abi).getEvent('CampaignDeactivated')?.topicHash!,
+    topic: new Interface(CapitalDistributor.abi).getEvent('CampaignPaused')?.topicHash!,
     config: [
       {
         abi: CapitalDistributor.abi,
-        handler: CapitalDistributorHandler.campaignDeactivated,
+        handler: CapitalDistributorHandler.campaignPaused,
+      },
+    ],
+  },
+  {
+    event: 'CampaignResumed',
+    enableHistorical: false,
+    topic: new Interface(CapitalDistributor.abi).getEvent('CampaignResumed')?.topicHash!,
+    config: [
+      {
+        abi: CapitalDistributor.abi,
+        handler: CapitalDistributorHandler.campaignResumed,
+      },
+    ],
+  },
+  {
+    event: 'CampaignEnded',
+    enableHistorical: false,
+    topic: new Interface(CapitalDistributor.abi).getEvent('CampaignEnded')?.topicHash!,
+    config: [
+      {
+        abi: CapitalDistributor.abi,
+        handler: CapitalDistributorHandler.campaignEnded,
       },
     ],
   },

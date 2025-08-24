@@ -67,19 +67,6 @@ export const CapitalDistributor = {
           name: 'campaignId',
           type: 'uint256',
         },
-      ],
-      name: 'CampaignDeactivated',
-      type: 'event',
-    },
-    {
-      anonymous: false,
-      inputs: [
-        {
-          indexed: true,
-          internalType: 'uint256',
-          name: 'campaignId',
-          type: 'uint256',
-        },
         {
           indexed: false,
           internalType: 'bytes32',
@@ -93,12 +80,6 @@ export const CapitalDistributor = {
     {
       anonymous: false,
       inputs: [
-        {
-          indexed: true,
-          internalType: 'address',
-          name: 'plugin',
-          type: 'address',
-        },
         {
           indexed: true,
           internalType: 'uint256',
@@ -150,6 +131,24 @@ export const CapitalDistributor = {
         },
       ],
       name: 'PayoutClaimed',
+      type: 'event',
+    },
+    {
+      anonymous: false,
+      inputs: [{ indexed: true, internalType: 'uint256', name: 'campaignId', type: 'uint256' }],
+      name: 'CampaignPaused',
+      type: 'event',
+    },
+    {
+      anonymous: false,
+      inputs: [{ indexed: true, internalType: 'uint256', name: 'campaignId', type: 'uint256' }],
+      name: 'CampaignResumed',
+      type: 'event',
+    },
+    {
+      anonymous: false,
+      inputs: [{ indexed: true, internalType: 'uint256', name: 'campaignId', type: 'uint256' }],
+      name: 'CampaignEnded',
       type: 'event',
     },
   ],

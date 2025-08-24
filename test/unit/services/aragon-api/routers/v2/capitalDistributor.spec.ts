@@ -345,11 +345,11 @@ describe('RouterV2: CapitalDistributor', () => {
   })
 
   describe('router', () => {
-    it('Should return a router with both routes configured', () => {
+    it('Should return a router with all three routes configured', () => {
       const router = CapitalDistributorRouter.router()
 
       expect(router).to.exist
-      expect(router.stack).to.have.length(2)
+      expect(router.stack).to.have.length(3)
 
       // Check campaigns route
       expect(router.stack[0].path).to.eq('/campaigns')
@@ -358,6 +358,10 @@ describe('RouterV2: CapitalDistributor', () => {
       // Check campaigns/stats route
       expect(router.stack[1].path).to.eq('/campaigns/stats')
       expect(router.stack[1].methods).to.include('GET')
+
+      // Check campaign/reward route
+      expect(router.stack[2].path).to.eq('/campaign/reward')
+      expect(router.stack[2].methods).to.include('GET')
     })
   })
 })

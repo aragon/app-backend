@@ -44,6 +44,27 @@ const CapitalDistributorRouter = {
     )
   },
 
+  getUserCampaignReward: async function (ctx: RouterContext) {
+    const result = await ValidationSchema.validateRoute(ctx, {
+      params: {
+        pluginAddress: ctx.query.pluginAddress as HexAddress,
+        network: ctx.query.network as NetworksEnum,
+        userAddress: ctx.query.userAddress as HexAddress,
+        campaignId: ctx.query.campaignId as string,
+      },
+      schemas: {
+        params: CapitalDistributorSchema.getUserCampaignRewardParams,
+      },
+    })
+
+    ctx.body = await CapitalDistributorController.getUserCampaignReward({
+      pluginAddress: result.params.pluginAddress,
+      network: result.params.network,
+      userAddress: result.params.userAddress,
+      campaignId: result.params.campaignId,
+    })
+  },
+
   router() {
     const router = new Router()
 
@@ -83,6 +104,31 @@ const CapitalDistributorRouter = {
      * @apiSampleRequest /capital-distributor/campaigns/stats?pluginAddress=0x123&network=ethereum&userAddress=0x456
      */
     router.get('/campaigns/stats', CapitalDistributorRouter.getUserCampaignStatus)
+
+    /**
+     * @api {get} /campaign/reward Get User Campaign Reward
+     * @apiName GetUserCampaignReward
+     * @apiGroup CapitalDistributor
+     * @apiDescription Get specific campaign reward details for a user
+     *
+     * @apiParam {String} pluginAddress Plugin address
+     * @apiParam {String} network Network name
+     * @apiParam {String} userAddress User address
+     * @apiParam {String} campaignId Campaign ID
+     *
+     * @apiSuccess {Boolean} exists Whether the reward exists
+     * @apiSuccess {String} campaignId Campaign ID
+     * @apiSuccess {String} userAddress User address
+     * @apiSuccess {String} amount Total reward amount
+     * @apiSuccess {String} totalClaimed Total amount claimed
+     * @apiSuccess {Array} claims Array of claim objects
+     * @apiSuccess {Array} proof Merkle proof array
+     * @apiSuccess {String} leaf Merkle leaf
+     * @apiSuccess {Boolean} isFullyClaimed Whether user has fully claimed
+     *
+     * @apiSampleRequest /capital-distributor/campaign/reward?pluginAddress=0x123&network=ethereum&userAddress=0x456&campaignId=1
+     */
+    router.get('/campaign/reward', CapitalDistributorRouter.getUserCampaignReward)
 
     return router
   },

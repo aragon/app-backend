@@ -51,8 +51,8 @@ describe('Controller: CapitalDistributorAdmin', () => {
       const result = await CapitalDistributorAdminController.uploadMembersList(mockParams)
 
       expect(result.success).to.be.true
-      expect(result.message).to.eq('Members list uploaded successfully')
-      expect(result.totalMembers).to.eq(2)
+      expect(result.message).to.eq('Members list processed successfully')
+      expect(result.totalProcessed).to.eq(2)
       expect(result.campaignId).to.eq('campaign1')
 
       const savedRewards = await Models.CampaignReward.find({
@@ -119,9 +119,12 @@ describe('Controller: CapitalDistributorAdmin', () => {
         active: true,
       })
 
-      await expect(CapitalDistributorAdminController.uploadMembersList(mockParams)).to.be.rejected
+      await expect(CapitalDistributorAdminController.uploadMembersList(mockParams)).to.be.rejectedWith(
+        Error,
+        ErrorKeyEnum.alreadyExists,
+      )
 
-      expect(loggerWarnStub.calledWith('Campaign already exists and is immutable' as any)).to.be.true
+      expect(loggerWarnStub.calledWith('Campaign exists and is active - cannot update user list')).to.be.true
     })
 
     it('should handle existing rewards and replace them', async () => {
@@ -156,8 +159,8 @@ describe('Controller: CapitalDistributorAdmin', () => {
       const result = await CapitalDistributorAdminController.uploadMembersList(mockParams)
 
       expect(result.success).to.be.true
-      expect(result.totalMembers).to.eq(2)
-      expect(loggerInfoStub.calledWith('Campaign rewards already exist - will clear and re-upload' as any)).to.be.true
+      expect(result.totalProcessed).to.eq(2)
+      expect(loggerInfoStub.calledWith('Members list processed successfully with upserts')).to.be.true
 
       // Verify old rewards were deleted and new ones created
       const allRewards = await Models.CampaignReward.find({
@@ -199,7 +202,7 @@ describe('Controller: CapitalDistributorAdmin', () => {
 
       await CapitalDistributorAdminController.uploadMembersList(mockParams)
 
-      expect(loggerErrorStub.calledWith('Error processing member upload chunk')).to.be.true
+      expect(loggerErrorStub.calledWith('Error processing upsert chunk')).to.be.true
       const logCall = loggerErrorStub.getCall(0)
       expect(logCall.args[1]).to.deep.include({
         error: mockError,
@@ -274,7 +277,7 @@ describe('Controller: CapitalDistributorAdmin', () => {
     it('should throw error if campaign already exists', async () => {
       const existingCampaign = { id: 'campaign1', active: true }
       sandbox.stub(Models.Campaign, 'findExisting').resolves(existingCampaign)
-      const assertStub = sandbox.stub(errors, 'assertExposable').throws(new Error(ErrorKeyEnum.campaignAlreadyExists))
+      const assertStub = sandbox.stub(errors, 'assertExposable').throws(new Error(ErrorKeyEnum.alreadyExists))
 
       await expect(
         CapitalDistributorAdminController.generateMerkleData({
@@ -282,9 +285,9 @@ describe('Controller: CapitalDistributorAdmin', () => {
           pluginAddress: '0x123',
           network: NetworksEnum.ethereumMainnet,
         }),
-      ).to.be.rejectedWith(Error, ErrorKeyEnum.campaignAlreadyExists)
+      ).to.be.rejectedWith(Error, ErrorKeyEnum.alreadyExists)
 
-      expect(assertStub.calledWith(false, ErrorKeyEnum.campaignAlreadyExists)).to.be.true
+      expect(assertStub.calledWith(false, ErrorKeyEnum.alreadyExists)).to.be.true
     })
 
     it('should handle error in Utils.processParallel onError callback during merkle data generation', async () => {
@@ -350,8 +353,6 @@ describe('Controller: CapitalDistributorAdmin', () => {
       expect(logCall.args[1]).to.deep.include({
         error: mockError,
         campaignId: mockParams.campaignId,
-        pluginAddress: mockParams.pluginAddress,
-        network: mockParams.network,
       })
       expect(result).to.deep.equal({ success: false })
     })

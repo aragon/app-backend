@@ -119,16 +119,25 @@ describe('Capital Distributor', () => {
       claims: { $exists: true, $ne: [] },
     })
 
+    const expectedUserAddress = rewardReceivedUsers[0].userAddress
     const campaignStatus = await CapitalDistributorController.getUserCampaignStatus(
       pluginAddress,
       network,
-      rewardReceivedUsers[0].userAddress,
+      expectedUserAddress,
     )
 
-    const campaignRewardForAddr0 = addressesses.reduce((acc, curr) => acc + BigInt(curr.addresses[0].amount), BigInt(0))
+    const totalClaimedFromDb = rewardReceivedUsers
+      .filter(r => r.userAddress === expectedUserAddress)
+      .reduce((acc, curr) => acc + BigInt(curr.totalClaimed), BigInt(0))
 
-    expect(campaignStatus.totalClaimed).to.be.eq(campaignRewardForAddr0.toString())
-    expect(campaignStatus.totalClaimable).to.be.eq('0')
+    expect(campaignStatus.totalClaimed).to.be.eq(totalClaimedFromDb.toString())
+
+    const totalAmountForUser = rewardReceivedUsers
+      .filter(r => r.userAddress === expectedUserAddress)
+      .reduce((acc, curr) => acc + BigInt(curr.amount), BigInt(0))
+
+    const expectedClaimable = totalAmountForUser - totalClaimedFromDb
+    expect(campaignStatus.totalClaimable).to.be.eq(expectedClaimable.toString())
 
     const userWhoNeverClaimed = addressesses[1].addresses[1].address
     const notClaimedRewardStat = await CapitalDistributorController.getUserCampaignStatus(

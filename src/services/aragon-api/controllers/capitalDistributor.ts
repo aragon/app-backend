@@ -8,8 +8,10 @@ import {
   type IUserCampaignStatus,
   type HexAddress,
   type NetworksEnum,
+  IPluginInterfaceType,
 } from '@types'
 import { assertExposable } from '@errors'
+import { MemberGovernanceFactory, type CapitalDistributorGovernance } from '@src/governance'
 
 const CapitalDistributorController = {
   getCampaignsWithPagination: async (
@@ -35,6 +37,21 @@ const CapitalDistributorController = {
     assertExposable(!!userAddress, ErrorKeyEnum.badParams)
 
     return await Models.CampaignReward.getUserCampaignStatus(pluginAddress, network, userAddress)
+  },
+
+  getUserCampaignReward: async (params: {
+    campaignId: string
+    userAddress: HexAddress
+    pluginAddress: HexAddress
+    network: NetworksEnum
+  }): Promise<any> => {
+    const { campaignId, userAddress, pluginAddress, network } = params
+    const governance = MemberGovernanceFactory.create({
+      address: pluginAddress,
+      network,
+      interfaceType: IPluginInterfaceType.capitalDistributor,
+    }) as CapitalDistributorGovernance
+    return await governance.getUserCampaignReward({ campaignId, userAddress })
   },
 }
 

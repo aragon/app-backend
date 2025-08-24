@@ -220,85 +220,6 @@ describe('Handler: CapitalDistributor', () => {
     })
   })
 
-  describe('campaignDeactivated', () => {
-    let parsedEvent: any
-    let existingCampaign: any
-
-    beforeEach(async () => {
-      parsedEvent = {
-        args: {
-          campaignId: BigInt(1),
-        },
-      }
-
-      existingCampaign = await Models.Campaign.create({
-        pluginAddress: logInfo.address,
-        network: logInfo.network,
-        transactionHash: logInfo.transactionHash,
-        blockNumber: logInfo.blockNumber,
-        blockTimestamp: 1640995200,
-        campaignId: '1',
-        metadataURI: 'https://ipfs.io/ipfs/QmTest123',
-        allocationStrategy: logInfo.address, // Using address as allocation strategy for this test
-        token: '0xA0b86a33E6441E13C7D3a1F1f432bE40e2dca91a' as HexAddress,
-        payoutEncoder: '0x9876543210987654321098765432109876543210' as HexAddress,
-        multipleClaimsAllowed: true,
-        startTime: 1640995200,
-        endTime: 1672531200,
-        active: true,
-      })
-    })
-
-    it('Should deactivate campaign in database', async () => {
-      const loggerInfoStub = sandbox.stub(logger, 'info')
-
-      expect(existingCampaign.active).to.be.true
-
-      await CapitalDistributorHandler.campaignDeactivated(parsedEvent, logInfo)
-
-      // Verify campaign was deactivated in database
-      const updatedCampaign = await Models.Campaign.findCampaignById(logInfo.address, logInfo.network, '1')
-
-      expect(updatedCampaign?.active).to.be.false
-      expect(loggerInfoStub.calledWith('Campaign deactivated' as any)).to.be.true
-    })
-
-    it('Should warn when campaign not found', async () => {
-      const loggerWarnStub = sandbox.stub(logger, 'warn')
-
-      const nonExistentEvent = {
-        args: {
-          campaignId: BigInt(999),
-        },
-      } as any
-
-      await CapitalDistributorHandler.campaignDeactivated(nonExistentEvent, logInfo)
-
-      expect(loggerWarnStub.calledWith('Campaign not found for deactivation' as any)).to.be.true
-    })
-
-    it('should warn when plugin not found', async () => {
-      const loggerWarnStub = sandbox.stub(logger, 'warn')
-
-      const nonExistentLogInfo = {
-        ...logInfo,
-        address: '0x9999999999999999999999999999999999999999' as HexAddress,
-      }
-      await CapitalDistributorHandler.campaignDeactivated(parsedEvent, nonExistentLogInfo)
-      expect(loggerWarnStub.calledWith('Plugin not found' as any)).to.be.true
-    })
-
-    it('should handle error gracefully', async () => {
-      const loggerErrorStub = sandbox.stub(logger, 'error')
-      sandbox.stub(Models.Campaign, 'findCampaignById').resolves({
-        ...existingCampaign,
-        update: sandbox.stub().rejects(new Error('Database error')),
-      } as any)
-      await CapitalDistributorHandler.campaignDeactivated(parsedEvent, logInfo)
-      expect(loggerErrorStub.calledWith('Error processing CampaignDeactivated event' as any)).to.be.true
-    })
-  })
-
   describe('merkleCampaignSet', () => {
     let parsedEvent: any
     let existingCampaign: any
@@ -695,6 +616,218 @@ describe('Handler: CapitalDistributor', () => {
 
       await CapitalDistributorHandler.payoutClaimed(parsedEvent, logInfo)
       expect(loggerErrorStub.calledWith('Error processing PayoutClaimed event' as any)).to.be.true
+    })
+  })
+
+  describe('updateCampaignActiveState', () => {
+    let existingCampaign: any
+
+    beforeEach(async () => {
+      existingCampaign = await Models.Campaign.create({
+        pluginAddress: logInfo.address,
+        network: logInfo.network,
+        transactionHash: logInfo.transactionHash,
+        blockNumber: logInfo.blockNumber,
+        blockTimestamp: 1640995200,
+        campaignId: '1',
+        metadataURI: 'https://ipfs.io/ipfs/QmTest123',
+        allocationStrategy: logInfo.address,
+        token: '0xtoken1234567890123456789012345678901234' as HexAddress,
+        payoutEncoder: '0xencoder123456789012345678901234567890' as HexAddress,
+        multipleClaimsAllowed: true,
+        startTime: 1640995200,
+        endTime: 1672531200,
+        active: true,
+      })
+    })
+
+    it('Should update campaign active state to false', async () => {
+      const loggerInfoStub = sandbox.stub(logger, 'info')
+
+      expect(existingCampaign.active).to.be.true
+
+      await CapitalDistributorHandler.updateCampaignActiveState(logInfo.address, logInfo.network, '1', false, 'paused')
+
+      const updatedCampaign = await Models.Campaign.findCampaignById(logInfo.address, logInfo.network, '1')
+      expect(updatedCampaign?.active).to.be.false
+      expect(loggerInfoStub.calledWith('Campaign paused' as any)).to.be.true
+    })
+
+    it('Should update campaign active state to true', async () => {
+      await existingCampaign.update({ active: false })
+      const loggerInfoStub = sandbox.stub(logger, 'info')
+
+      await CapitalDistributorHandler.updateCampaignActiveState(logInfo.address, logInfo.network, '1', true, 'resumed')
+
+      const updatedCampaign = await Models.Campaign.findCampaignById(logInfo.address, logInfo.network, '1')
+      expect(updatedCampaign?.active).to.be.true
+      expect(loggerInfoStub.calledWith('Campaign resumed' as any)).to.be.true
+    })
+
+    it('Should warn when plugin not found', async () => {
+      const loggerWarnStub = sandbox.stub(logger, 'warn')
+
+      await CapitalDistributorHandler.updateCampaignActiveState(
+        '0x9999999999999999999999999999999999999999',
+        logInfo.network,
+        '1',
+        false,
+        'paused',
+      )
+
+      expect(loggerWarnStub.calledWith('Plugin not found' as any)).to.be.true
+    })
+
+    it('Should warn when campaign not found', async () => {
+      const loggerWarnStub = sandbox.stub(logger, 'warn')
+
+      await CapitalDistributorHandler.updateCampaignActiveState(
+        logInfo.address,
+        logInfo.network,
+        '999',
+        false,
+        'paused',
+      )
+
+      expect(loggerWarnStub.calledWith('Campaign not found for paused' as any)).to.be.true
+    })
+
+    it('Should handle error gracefully', async () => {
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+      sandbox.stub(Models.Campaign, 'findCampaignById').resolves({
+        ...existingCampaign,
+        update: sandbox.stub().rejects(new Error('Database error')),
+      } as any)
+
+      await CapitalDistributorHandler.updateCampaignActiveState(logInfo.address, logInfo.network, '1', false, 'paused')
+
+      expect(loggerErrorStub.calledWith('Error processing paused event' as any)).to.be.true
+    })
+  })
+
+  describe('campaignPaused', () => {
+    let parsedEvent: any
+    let existingCampaign: any
+
+    beforeEach(async () => {
+      parsedEvent = {
+        args: {
+          campaignId: BigInt(1),
+        },
+      }
+
+      existingCampaign = await Models.Campaign.create({
+        pluginAddress: logInfo.address,
+        network: logInfo.network,
+        transactionHash: logInfo.transactionHash,
+        blockNumber: logInfo.blockNumber,
+        blockTimestamp: 1640995200,
+        campaignId: '1',
+        metadataURI: 'https://ipfs.io/ipfs/QmTest123',
+        allocationStrategy: logInfo.address,
+        token: '0xtoken1234567890123456789012345678901234' as HexAddress,
+        payoutEncoder: '0xencoder123456789012345678901234567890' as HexAddress,
+        multipleClaimsAllowed: true,
+        startTime: 1640995200,
+        endTime: 1672531200,
+        active: true,
+      })
+    })
+
+    it('Should pause campaign by setting active to false', async () => {
+      const loggerInfoStub = sandbox.stub(logger, 'info')
+
+      expect(existingCampaign.active).to.be.true
+
+      await CapitalDistributorHandler.campaignPaused(parsedEvent, logInfo)
+
+      const updatedCampaign = await Models.Campaign.findCampaignById(logInfo.address, logInfo.network, '1')
+      expect(updatedCampaign?.active).to.be.false
+      expect(loggerInfoStub.calledWith('Campaign paused' as any)).to.be.true
+    })
+  })
+
+  describe('campaignResumed', () => {
+    let parsedEvent: any
+    let existingCampaign: any
+
+    beforeEach(async () => {
+      parsedEvent = {
+        args: {
+          campaignId: BigInt(1),
+        },
+      }
+
+      existingCampaign = await Models.Campaign.create({
+        pluginAddress: logInfo.address,
+        network: logInfo.network,
+        transactionHash: logInfo.transactionHash,
+        blockNumber: logInfo.blockNumber,
+        blockTimestamp: 1640995200,
+        campaignId: '1',
+        metadataURI: 'https://ipfs.io/ipfs/QmTest123',
+        allocationStrategy: logInfo.address,
+        token: '0xtoken1234567890123456789012345678901234' as HexAddress,
+        payoutEncoder: '0xencoder123456789012345678901234567890' as HexAddress,
+        multipleClaimsAllowed: true,
+        startTime: 1640995200,
+        endTime: 1672531200,
+        active: false,
+      })
+    })
+
+    it('Should resume campaign by setting active to true', async () => {
+      const loggerInfoStub = sandbox.stub(logger, 'info')
+
+      expect(existingCampaign.active).to.be.false
+
+      await CapitalDistributorHandler.campaignResumed(parsedEvent, logInfo)
+
+      const updatedCampaign = await Models.Campaign.findCampaignById(logInfo.address, logInfo.network, '1')
+      expect(updatedCampaign?.active).to.be.true
+      expect(loggerInfoStub.calledWith('Campaign resumed' as any)).to.be.true
+    })
+  })
+
+  describe('campaignEnded', () => {
+    let parsedEvent: any
+    let existingCampaign: any
+
+    beforeEach(async () => {
+      parsedEvent = {
+        args: {
+          campaignId: BigInt(1),
+        },
+      }
+
+      existingCampaign = await Models.Campaign.create({
+        pluginAddress: logInfo.address,
+        network: logInfo.network,
+        transactionHash: logInfo.transactionHash,
+        blockNumber: logInfo.blockNumber,
+        blockTimestamp: 1640995200,
+        campaignId: '1',
+        metadataURI: 'https://ipfs.io/ipfs/QmTest123',
+        allocationStrategy: logInfo.address,
+        token: '0xtoken1234567890123456789012345678901234' as HexAddress,
+        payoutEncoder: '0xencoder123456789012345678901234567890' as HexAddress,
+        multipleClaimsAllowed: true,
+        startTime: 1640995200,
+        endTime: 1672531200,
+        active: true,
+      })
+    })
+
+    it('Should end campaign by setting active to false', async () => {
+      const loggerInfoStub = sandbox.stub(logger, 'info')
+
+      expect(existingCampaign.active).to.be.true
+
+      await CapitalDistributorHandler.campaignEnded(parsedEvent, logInfo)
+
+      const updatedCampaign = await Models.Campaign.findCampaignById(logInfo.address, logInfo.network, '1')
+      expect(updatedCampaign?.active).to.be.false
+      expect(loggerInfoStub.calledWith('Campaign ended' as any)).to.be.true
     })
   })
 })

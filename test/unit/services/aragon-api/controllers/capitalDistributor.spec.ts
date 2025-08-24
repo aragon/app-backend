@@ -2,8 +2,9 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import CapitalDistributorController from '@services/aragon-api/controllers/capitalDistributor'
-import { ErrorKeyEnum, NetworksEnum, HexAddress, IClaimStat, IUserCampaignStatus } from '@types'
+import { ErrorKeyEnum, NetworksEnum, HexAddress, IClaimStat, IUserCampaignStatus, IPluginInterfaceType } from '@types'
 import { Models } from '@dbModels'
+import { MemberGovernanceFactory } from '@src/governance'
 import * as errors from '@errors'
 
 describe('Controller: CapitalDistributor', () => {
@@ -274,6 +275,100 @@ describe('Controller: CapitalDistributor', () => {
           mockParams.userAddress,
         ),
       ).to.be.rejectedWith('Database query failed')
+    })
+  })
+
+  describe('getUserCampaignReward', () => {
+    const testCampaignId = 'test-campaign-123'
+    let mockGovernance: any
+    let factoryStub: sinon.SinonStub
+
+    beforeEach(() => {
+      mockGovernance = {
+        getUserCampaignReward: sandbox.stub(),
+      }
+      factoryStub = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance)
+    })
+
+    it('should get user campaign reward via governance factory', async () => {
+      const expectedResult = {
+        exists: true,
+        campaignId: testCampaignId,
+        userAddress: mockParams.userAddress,
+        amount: '1000',
+        totalClaimed: '500',
+        claims: [
+          {
+            claimedAmount: '500',
+            transactionHash: '0xabc',
+            blockNumber: 123,
+            blockTimestamp: 1640995200,
+          },
+        ],
+        proof: ['0x123'],
+        leaf: '0xleaf',
+        isFullyClaimed: false,
+        pluginAddress: mockParams.pluginAddress,
+        network: mockParams.network,
+      }
+
+      mockGovernance.getUserCampaignReward.resolves(expectedResult)
+
+      const result = await CapitalDistributorController.getUserCampaignReward({
+        pluginAddress: mockParams.pluginAddress,
+        network: mockParams.network,
+        userAddress: mockParams.userAddress,
+        campaignId: testCampaignId,
+      })
+
+      expect(result).to.deep.equal(expectedResult)
+      expect(factoryStub.calledOnce).to.be.true
+      expect(factoryStub.args[0][0]).to.deep.equal({
+        address: mockParams.pluginAddress,
+        network: mockParams.network,
+        interfaceType: IPluginInterfaceType.capitalDistributor,
+      })
+      expect(
+        mockGovernance.getUserCampaignReward.calledWith({
+          campaignId: testCampaignId,
+          userAddress: mockParams.userAddress,
+        }),
+      ).to.be.true
+    })
+
+    it('should return exists: false for non-existing reward', async () => {
+      const expectedResult = {
+        exists: false,
+        campaignId: testCampaignId,
+        userAddress: mockParams.userAddress,
+        pluginAddress: mockParams.pluginAddress,
+        network: mockParams.network,
+      }
+
+      mockGovernance.getUserCampaignReward.resolves(expectedResult)
+
+      const result = await CapitalDistributorController.getUserCampaignReward({
+        pluginAddress: mockParams.pluginAddress,
+        network: mockParams.network,
+        userAddress: mockParams.userAddress,
+        campaignId: testCampaignId,
+      })
+
+      expect(result).to.deep.equal(expectedResult)
+      expect(result.exists).to.be.false
+    })
+
+    it('should handle governance errors gracefully', async () => {
+      mockGovernance.getUserCampaignReward.rejects(new Error('Governance error'))
+
+      await expect(
+        CapitalDistributorController.getUserCampaignReward({
+          pluginAddress: mockParams.pluginAddress,
+          network: mockParams.network,
+          userAddress: mockParams.userAddress,
+          campaignId: testCampaignId,
+        }),
+      ).to.be.rejectedWith('Governance error')
     })
   })
 })

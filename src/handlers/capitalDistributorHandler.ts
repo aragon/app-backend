@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import logger from '@logger'
 import { type ILogInfo } from '@types'
 import { type LogDescription } from 'ethers'
@@ -96,48 +95,6 @@ export const CapitalDistributorHandler = {
       await LogCampaignStrategy.start(allocationStrategy, network, blockNumber)
     } catch (error) {
       logger.error('Error processing CampaignCreated event', llo({ error, info }))
-    }
-  },
-
-  campaignDeactivated: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const { address, network } = info
-
-    const plugin = await Models.Plugin.findByAddress(address, network)
-
-    if (!plugin) {
-      logger.warn('Plugin not found', llo(info))
-      return
-    }
-
-    try {
-      const { campaignId } = parsedEvent.args
-
-      const campaign = await Models.Campaign.findCampaignById(address, network, campaignId.toString())
-
-      if (!campaign) {
-        logger.warn(
-          'Campaign not found for deactivation',
-          llo({
-            campaignId: campaignId.toString(),
-            address,
-            network,
-          }),
-        )
-        return
-      }
-
-      await campaign.update({ active: false })
-
-      logger.info(
-        'Campaign deactivated',
-        llo({
-          campaignId: campaignId.toString(),
-          address,
-          network,
-        }),
-      )
-    } catch (error) {
-      logger.error('Error processing CampaignDeactivated event', llo({ error, info }))
     }
   },
 
@@ -275,5 +232,68 @@ export const CapitalDistributorHandler = {
     } catch (error) {
       logger.error('Error processing PayoutClaimed event', llo({ error, info }))
     }
+  },
+
+  updateCampaignActiveState: async (
+    address: string,
+    network: string,
+    campaignId: string,
+    active: boolean,
+    eventName: string,
+  ) => {
+    const plugin = await Models.Plugin.findByAddress(address, network)
+
+    if (!plugin) {
+      logger.warn('Plugin not found', llo({ address, network, campaignId, eventName }))
+      return
+    }
+
+    try {
+      const campaign = await Models.Campaign.findCampaignById(address, network, campaignId)
+
+      if (!campaign) {
+        logger.warn(
+          `Campaign not found for ${eventName}`,
+          llo({
+            campaignId,
+            address,
+            network,
+          }),
+        )
+        return
+      }
+
+      await campaign.update({ active })
+
+      logger.info(
+        `Campaign ${eventName}`,
+        llo({
+          campaignId,
+          address,
+          network,
+          active,
+        }),
+      )
+    } catch (error) {
+      logger.error(`Error processing ${eventName} event`, llo({ error, address, network, campaignId }))
+    }
+  },
+
+  campaignPaused: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const { address, network } = info
+    const { campaignId } = parsedEvent.args
+    await CapitalDistributorHandler.updateCampaignActiveState(address, network, campaignId.toString(), false, 'paused')
+  },
+
+  campaignResumed: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const { address, network } = info
+    const { campaignId } = parsedEvent.args
+    await CapitalDistributorHandler.updateCampaignActiveState(address, network, campaignId.toString(), true, 'resumed')
+  },
+
+  campaignEnded: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const { address, network } = info
+    const { campaignId } = parsedEvent.args
+    await CapitalDistributorHandler.updateCampaignActiveState(address, network, campaignId.toString(), false, 'ended')
   },
 }
