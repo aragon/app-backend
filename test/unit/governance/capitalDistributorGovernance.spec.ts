@@ -38,7 +38,6 @@ describe('Governance:CapitalDistributorGovernance', () => {
   })
 
   describe('uploadMembersList', () => {
-
     beforeEach(async () => {
       await Models.Plugin.create({
         id: `${testNetwork}-${testPluginAddress.toLowerCase()}-0`,
