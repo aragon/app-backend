@@ -18,7 +18,7 @@ describe('Indexer: MultisigHandler', () => {
 
     let rawPlugin = {
       transactionHash,
-      interfaceType: IPluginInterfaceType.tokenVoting,
+      interfaceType: IPluginInterfaceType.multisig,
       blockNumber: 3,
       transactionIndex: 1,
       logIndex: 1,
@@ -31,7 +31,7 @@ describe('Indexer: MultisigHandler', () => {
       pluginSetupRepo: '0x17366cae2b9c6c3055e9e3c78936a69006be5403',
       address: '0x17366cae2b9c6c3055e9e3c78936a69006be5404',
       sender: '0x17366cae2b9c6c3055e9e3c78936a69006be5405',
-      tokenAddress: '0x17366cae2b9c6c3025e9e3c78936a69006be5406',
+      tokenAddress: null,
       release: '1',
       build: '2',
       permissions: [

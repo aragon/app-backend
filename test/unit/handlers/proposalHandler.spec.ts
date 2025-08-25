@@ -555,6 +555,7 @@ describe('ProposalHandler', () => {
         daoAddress: '0xdao-address',
         subdomain: 'dao.subdomain',
         interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xtoken-address',
       }
 
       const proposalMetadata = {
@@ -675,6 +676,7 @@ describe('ProposalHandler', () => {
         daoAddress: '0xdao-address',
         subdomain: 'dao.subdomain',
         interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xtoken-address',
       }
 
       const proposalMetadata = {
@@ -784,6 +786,7 @@ describe('ProposalHandler', () => {
         daoAddress: '0xdao-address',
         subdomain: 'dao.subdomain',
         interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xtoken-address',
       }
 
       const settings = {
@@ -1057,6 +1060,7 @@ describe('ProposalHandler', () => {
         daoAddress: '0xdao-address',
         subdomain: 'dao.subdomain',
         interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xtoken-address',
       }
 
       const proposalMetadata = {
@@ -1123,6 +1127,7 @@ describe('ProposalHandler', () => {
         daoAddress: '0xdao-address',
         subdomain: 'dao.subdomain',
         interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xtoken-address',
       }
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
@@ -1182,6 +1187,7 @@ describe('ProposalHandler', () => {
         daoAddress: '0xdao-address',
         subdomain: 'dao.subdomain',
         interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xtoken-address',
       }
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
@@ -1233,6 +1239,7 @@ describe('ProposalHandler', () => {
         daoAddress: '0xdao-address',
         subdomain: 'dao.subdomain',
         interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xtoken-address',
       }
 
       const settings = {
@@ -1321,6 +1328,7 @@ describe('ProposalHandler', () => {
         daoAddress: '0xdao-address',
         subdomain: 'dao.subdomain',
         interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xtoken-address',
       }
 
       const stubFindPlugin = sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin)
