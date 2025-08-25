@@ -10,8 +10,6 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   type IPairParams,
-  IPluginInterfaceType,
-  ITokenType,
   type NetworksEnum,
 } from '@types'
 import { assertExposable } from '@errors'
@@ -37,57 +35,11 @@ const MemberController = {
     const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
     assertExposable(plugin, ErrorKeyEnum.notFound)
 
-    switch (plugin.interfaceType) {
-      case IPluginInterfaceType.tokenVoting: {
-        const token = await Models.Token.findByTokenAddressAndNetwork(plugin.tokenAddress, plugin.network)
-        assertExposable(token, ErrorKeyEnum.notFound)
-
-        let address = plugin.tokenAddress
-        if (token.type === ITokenType.escrowAdapter) {
-          address = plugin.votingEscrow.escrowAddress
-          extraParams.escrowAddress = plugin.votingEscrow.escrowAddress
-        } else {
-          extraParams.tokenAddress = plugin.tokenAddress
-        }
-
-        const governance = MemberGovernanceFactory.create({
-          address, // escrowAddress or token address
-          network: plugin.network,
-          interfaceType: IPluginInterfaceType.tokenVoting,
-          tokenType: token.type,
-        })
-
-        return governance.findAndPaginateMembers({
-          paginationParams,
-          extraParams,
-        })
-      }
-      case IPluginInterfaceType.lockToVote: {
-        assertExposable(plugin.lockManagerAddress, ErrorKeyEnum.notFound)
-        const governance = MemberGovernanceFactory.create({
-          address: plugin.lockManagerAddress, // lockManagerAddress
-          network: plugin.network,
-          interfaceType: IPluginInterfaceType.lockToVote,
-        })
-        extraParams.lockManagerAddress = plugin.lockManagerAddress
-        return governance.findAndPaginateMembers({
-          paginationParams,
-          extraParams,
-        })
-      }
-      default: {
-        // admin and multisig are the same
-        const governance = MemberGovernanceFactory.create({
-          address: plugin.address, // token address
-          network: plugin.network,
-          interfaceType: IPluginInterfaceType.multisig,
-        })
-        return governance.findAndPaginateMembers({
-          paginationParams,
-          extraParams,
-        })
-      }
-    }
+    const governance = MemberGovernanceFactory.createFromPlugin(plugin)
+    return governance.findAndPaginateMembers({
+      paginationParams,
+      extraParams,
+    })
   },
 
   getMemberByAddress: async (

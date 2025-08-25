@@ -30,15 +30,7 @@ export const GovernanceVeHandler = {
       }
 
       // Create a VE governance instance for delegation updates
-      const governance = MemberGovernanceFactory.create({
-        address: plugins[0].votingEscrow.escrowAddress,
-        network: info.network,
-        interfaceType: IPluginInterfaceType.tokenVoting,
-        tokenType: ITokenType.escrowAdapter,
-        extraParams: {
-          escrowAdapterAddress: info.address,
-        },
-      })
+      const governance = MemberGovernanceFactory.createFromPlugin(plugins[0])
 
       await governance.update(toAddress, {
         tokenIds,
@@ -48,12 +40,7 @@ export const GovernanceVeHandler = {
       // Update plugin metrics
       await Promise.all(
         plugins.map(async (plugin: Plugin) => {
-          const governance = MemberGovernanceFactory.create({
-            address: plugin.tokenAddress,
-            network: info.network,
-            interfaceType: IPluginInterfaceType.tokenVoting,
-            tokenType: ITokenType.escrowAdapter,
-          })
+          const governance = MemberGovernanceFactory.createFromPlugin(plugin)
 
           await governance.updatePluginMetrics({
             memberAddress: fromAddress,
@@ -96,15 +83,7 @@ export const GovernanceVeHandler = {
     try {
       await MemberGovernanceFactory.createBaseMember(fromAddress, info.blockNumber)
 
-      const governance = MemberGovernanceFactory.create({
-        address: plugins[0].votingEscrow.escrowAddress,
-        network: info.network,
-        interfaceType: IPluginInterfaceType.tokenVoting,
-        tokenType: ITokenType.escrowAdapter,
-        extraParams: {
-          escrowAdapterAddress: info.address,
-        },
-      })
+      const governance = MemberGovernanceFactory.createFromPlugin(plugins[0])
 
       await governance.update(fromAddress, {
         tokenIds,
@@ -113,12 +92,7 @@ export const GovernanceVeHandler = {
 
       await Promise.all(
         plugins.map(async (plugin: Plugin) => {
-          const governance = MemberGovernanceFactory.create({
-            address: plugin.tokenAddress,
-            network: info.network,
-            interfaceType: IPluginInterfaceType.tokenVoting,
-            tokenType: ITokenType.escrowAdapter,
-          })
+          const governance = MemberGovernanceFactory.createFromPlugin(plugin)
 
           await governance.updatePluginMetrics({
             memberAddress: fromAddress,
