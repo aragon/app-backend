@@ -986,7 +986,9 @@ describe('GovernanceErc20Handler', () => {
       ]
 
       const createMembersBatchStub = sandbox.stub(Erc20Governance, 'createMembersBatchNoTx').resolves(true)
-      const updateTokenMemberVPStub = sandbox.stub(Erc20Governance.prototype, 'updateTokenMemberVPBatchNoTx').resolves(true)
+      const updateTokenMemberVPStub = sandbox
+        .stub(Erc20Governance.prototype, 'updateTokenMemberVPBatchNoTx')
+        .resolves(true)
       sandbox.stub(Erc20Governance.prototype, 'updatePluginMetricsBatchNoTx').resolves(true)
       sandbox.stub(Erc20Governance.prototype, 'updateDaoMetrics').resolves()
 
@@ -1013,13 +1015,13 @@ describe('GovernanceErc20Handler', () => {
 
       // Verify updateTokenMemberVPBatchNoTx was called twice (once for each token)
       expect(updateTokenMemberVPStub.calledTwice).to.be.true
-      
+
       // Verify that the instances were created with the correct network
-      // We can't directly access the network property, but we can verify 
+      // We can't directly access the network property, but we can verify
       // that two different governance instances were created for the two tokens
       const calls = updateTokenMemberVPStub.getCalls()
       expect(calls).to.have.lengthOf(2)
-      
+
       // The important part is that the network wasn't truncated to just 'ethereum'
       // We verify this by checking that the stubs were called with the correct number of times
     })
