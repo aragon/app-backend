@@ -311,11 +311,7 @@ export const ProposalHandler = {
       await MemberGovernanceFactory.createBaseMember(newProposal.creatorAddress, info.blockNumber)
 
       // Create governance instance based on plugin type
-      const governance = MemberGovernanceFactory.create({
-        address: relatedPlugin.tokenAddress || pluginAddress,
-        network: info.network,
-        interfaceType: relatedPlugin.interfaceType,
-      })
+      const governance = MemberGovernanceFactory.createFromPlugin(relatedPlugin)
 
       // Update plugin metrics and increment proposal count
       await governance.updatePluginMetrics({
@@ -422,11 +418,7 @@ export const ProposalHandler = {
       const relatedPlugin = await Models.Plugin.findByAddress(info.address, info.network)
       if (relatedPlugin) {
         // Create governance instance based on a plugin type
-        const governance = MemberGovernanceFactory.create({
-          address: relatedPlugin.tokenAddress || info.address,
-          network: info.network,
-          interfaceType: relatedPlugin.interfaceType,
-        })
+        const governance = MemberGovernanceFactory.createFromPlugin(relatedPlugin)
 
         await governance.updatePluginMetrics({
           memberAddress: document.memberAddress!,
