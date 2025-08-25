@@ -36,7 +36,7 @@ const DbTx = {
       try {
         const response = await fn({ session })
         return response
-      } catch (error) {
+      } catch (error: any) {
         if (options?.stopRetry) {
           if (options?.throwOnStop) throw error
           return
@@ -56,6 +56,11 @@ const DbTx = {
             logger.error('Exceeded retry attempts for WriteConflict', llo({ error, attempt }))
             throw new Error('Exceeded retry attempts for MongoDB transaction.')
           }
+        }
+
+        // Check if error is due to transaction already being aborted
+        if (error?.message?.includes('Transaction') && error?.message?.includes('aborted')) {
+          logger.warn('Transaction was aborted, likely due to timeout or connection issue', llo({ error }))
         }
 
         await DbTx.closeEnd(session)
@@ -108,6 +113,40 @@ const DbTx = {
         await session.endSession() // Always end the session
       } catch (error) {
         logger.warn('Error ending session', llo({ error }))
+      }
+    }
+  },
+
+  async safeCommit(session: ClientSession): Promise<void> {
+    try {
+      if (session.inTransaction()) {
+        await session.commitTransaction()
+      } else {
+        logger.warn('Attempted to commit transaction that is not active', llo({}))
+      }
+    } catch (error: any) {
+      // Handle transaction state errors
+      if (error?.message?.includes('Attempted illegal state transition')) {
+        logger.warn('Transaction already ended (likely aborted), skipping commit', llo({ error: error?.message }))
+        // Don't throw - transaction is already ended
+      }
+      // Handle duplicate key errors during commit
+      else if (DbTx.isErrorDuplicateKey(error)) {
+        logger.warn(
+          'Duplicate key error during commit, data already exists',
+          llo({
+            error: error?.message,
+            errorCode: error?.code,
+          }),
+        )
+        // Don't throw - the data already exists, which is often acceptable
+      }
+      // Handle other transaction-related errors
+      else if (error?.message?.includes('Transaction') && error?.message?.includes('aborted')) {
+        logger.warn('Transaction was aborted', llo({ error: error?.message }))
+        // Don't throw - transaction is already aborted
+      } else {
+        throw error // Re-throw other errors
       }
     }
   },
