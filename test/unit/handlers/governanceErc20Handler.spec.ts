@@ -970,5 +970,60 @@ describe('GovernanceErc20Handler', () => {
         expect((err as Error).message).to.equal('Critical error')
       }
     })
+
+    it('should correctly handle ethereum-sepolia network in batch processing', async () => {
+      // Test specifically for ethereum-sepolia network to ensure network names with hyphens are handled correctly
+      const testNetwork = NetworksEnum.ethereumSepolia
+      const events = [
+        {
+          parsedEvent: { args: { delegate: '0xmember1', newBalance: '1000' } } as any,
+          info: { blockNumber: 1, address: '0xtoken1', network: testNetwork } as any,
+        },
+        {
+          parsedEvent: { args: { delegate: '0xmember2', newBalance: '2000' } } as any,
+          info: { blockNumber: 2, address: '0xtoken2', network: testNetwork } as any,
+        },
+      ]
+
+      const createMembersBatchStub = sandbox.stub(Erc20Governance, 'createMembersBatchNoTx').resolves(true)
+      const updateTokenMemberVPStub = sandbox
+        .stub(Erc20Governance.prototype, 'updateTokenMemberVPBatchNoTx')
+        .resolves(true)
+      sandbox.stub(Erc20Governance.prototype, 'updatePluginMetricsBatchNoTx').resolves(true)
+      sandbox.stub(Erc20Governance.prototype, 'updateDaoMetrics').resolves()
+
+      // Create plugins for the tokens
+      for (const tokenAddress of ['0xtoken1', '0xtoken2']) {
+        await Models.Plugin.create({
+          id: `${testNetwork}-plugin-${tokenAddress}-0`,
+          transactionHash: `0xplugintx-${tokenAddress}`,
+          blockNumber: 50,
+          address: `plugin-${tokenAddress}`,
+          network: testNetwork,
+          interfaceType: IPluginInterfaceType.tokenVoting,
+          status: IPluginStatus.installed,
+          tokenAddress,
+          daoAddress: `dao-${tokenAddress}`,
+          isSupported: true,
+        })
+      }
+
+      await GovernanceErc20Handler.delegateVotesChangedBatch(events)
+
+      // Verify createMembersBatchNoTx was called
+      expect(createMembersBatchStub.calledOnce).to.be.true
+
+      // Verify updateTokenMemberVPBatchNoTx was called twice (once for each token)
+      expect(updateTokenMemberVPStub.calledTwice).to.be.true
+
+      // Verify that the instances were created with the correct network
+      // We can't directly access the network property, but we can verify
+      // that two different governance instances were created for the two tokens
+      const calls = updateTokenMemberVPStub.getCalls()
+      expect(calls).to.have.lengthOf(2)
+
+      // The important part is that the network wasn't truncated to just 'ethereum'
+      // We verify this by checking that the stubs were called with the correct number of times
+    })
   })
 })
