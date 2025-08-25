@@ -39,15 +39,8 @@ export class CapitalDistributorGovernance extends BaseGovernance {
       campaignId,
     })
 
-    if (existingCampaign?.active) {
-      logger.warn(
-        'Campaign exists and is active - cannot update user list',
-        this.llo({
-          campaignId,
-          campaignActive: existingCampaign.active,
-        }),
-      )
-      assertExposable(false, ErrorKeyEnum.alreadyExists)
+    if (existingCampaign?.active || existingCampaign?.ended) {
+      assertExposable(false, ErrorKeyEnum.campaignInvalid)
     }
 
     return await this.bulkUpsertRewards(campaignId, rewards)
@@ -202,15 +195,8 @@ export class CapitalDistributorGovernance extends BaseGovernance {
       campaignId,
     })
 
-    if (existingCampaign?.active) {
-      logger.warn(
-        'Campaign already exists and is immutable',
-        this.llo({
-          campaignId,
-          campaignActive: existingCampaign.active,
-        }),
-      )
-      assertExposable(false, ErrorKeyEnum.alreadyExists)
+    if (existingCampaign?.active || existingCampaign?.ended) {
+      assertExposable(false, ErrorKeyEnum.campaignInvalid)
     }
 
     const members = await Models.CampaignReward.find({

@@ -103,6 +103,9 @@ export default class Campaign extends Model {
   @prop({ type: () => Boolean, default: true })
   public active!: boolean
 
+  @prop({ type: () => Boolean, default: false })
+  public ended!: boolean
+
   @prop({ type: () => String, enum: ICampaignType, default: null })
   public strategy?: string
 

@@ -117,14 +117,13 @@ describe('Controller: CapitalDistributorAdmin', () => {
         startTime: 1640995200,
         endTime: 1672531200,
         active: true,
+        ended: false,
       })
 
       await expect(CapitalDistributorAdminController.uploadMembersList(mockParams)).to.be.rejectedWith(
         Error,
-        ErrorKeyEnum.alreadyExists,
+        ErrorKeyEnum.campaignInvalid,
       )
-
-      expect(loggerWarnStub.calledWith('Campaign exists and is active - cannot update user list')).to.be.true
     })
 
     it('should handle existing rewards and replace them', async () => {
@@ -277,7 +276,7 @@ describe('Controller: CapitalDistributorAdmin', () => {
     it('should throw error if campaign already exists', async () => {
       const existingCampaign = { id: 'campaign1', active: true }
       sandbox.stub(Models.Campaign, 'findExisting').resolves(existingCampaign)
-      const assertStub = sandbox.stub(errors, 'assertExposable').throws(new Error(ErrorKeyEnum.alreadyExists))
+      const assertStub = sandbox.stub(errors, 'assertExposable').throws(new Error(ErrorKeyEnum.campaignInvalid))
 
       await expect(
         CapitalDistributorAdminController.generateMerkleData({
@@ -285,9 +284,9 @@ describe('Controller: CapitalDistributorAdmin', () => {
           pluginAddress: '0x123',
           network: NetworksEnum.ethereumMainnet,
         }),
-      ).to.be.rejectedWith(Error, ErrorKeyEnum.alreadyExists)
+      ).to.be.rejectedWith(Error, ErrorKeyEnum.campaignInvalid)
 
-      expect(assertStub.calledWith(false, ErrorKeyEnum.alreadyExists)).to.be.true
+      expect(assertStub.calledWith(false, ErrorKeyEnum.campaignInvalid)).to.be.true
     })
 
     it('should handle error in Utils.processParallel onError callback during merkle data generation', async () => {

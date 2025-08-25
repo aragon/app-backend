@@ -181,8 +181,38 @@ describe('Governance:CapitalDistributorGovernance', () => {
           rewards,
         }),
       ).to.be.rejected
+    })
 
-      expect(loggerWarnStub.calledWith('Campaign exists and is active - cannot update user list')).to.be.true
+    it('should reject upload for ended campaign', async () => {
+      await Models.Campaign.create({
+        pluginAddress: testPluginAddress,
+        network: testNetwork,
+        campaignId: testCampaignId,
+        transactionHash: '0x123',
+        blockNumber: 100,
+        blockTimestamp: 1640995200,
+        metadataURI: 'https://ipfs.io/ipfs/test',
+        allocationStrategy: testPluginAddress,
+        token: '0xtoken123',
+        payoutEncoder: '0xencoder123',
+        multipleClaimsAllowed: true,
+        startTime: 1640995200,
+        endTime: 1672531200,
+        active: false,
+        ended: true,
+        merkleRoot: '0x123',
+      })
+
+      const rewards = [{ address: '0x1111111111111111111111111111111111111111', amount: '100' }]
+
+      await expect(
+        capitalDistributorGovernance.uploadMembersList({
+          campaignId: testCampaignId,
+          pluginAddress: testPluginAddress,
+          network: testNetwork,
+          rewards,
+        }),
+      ).to.be.rejected
     })
   })
 
@@ -290,8 +320,33 @@ describe('Governance:CapitalDistributorGovernance', () => {
           campaignId: testCampaignId,
         }),
       ).to.be.rejected
+    })
 
-      expect(loggerWarnStub.calledWith('Campaign already exists and is immutable')).to.be.true
+    it('should reject merkle generation for ended campaign', async () => {
+      await Models.Campaign.create({
+        pluginAddress: testPluginAddress,
+        network: testNetwork,
+        campaignId: testCampaignId,
+        transactionHash: '0x123',
+        blockNumber: 100,
+        blockTimestamp: 1640995200,
+        metadataURI: 'https://ipfs.io/ipfs/test',
+        allocationStrategy: testPluginAddress,
+        token: '0xtoken123',
+        payoutEncoder: '0xencoder123',
+        multipleClaimsAllowed: true,
+        startTime: 1640995200,
+        endTime: 1672531200,
+        active: false,
+        ended: true,
+        merkleRoot: '0x123',
+      })
+
+      await expect(
+        capitalDistributorGovernance.generateMerkleData({
+          campaignId: testCampaignId,
+        }),
+      ).to.be.rejected
     })
 
     it('should return failure when no campaign rewards exist', async () => {

@@ -115,6 +115,11 @@ describe('Capital Distributor', () => {
       expect(campaignDetail.totalRewards).to.be.eq(totalRewards.toString())
     }
 
+    await Utils.handleEventsFromTxHashes(
+      ['0x95ef153e8fdeb70a4315ff0311251e624181dcf36f17ff07589fd0d6298f7814'],
+      network,
+    )
+
     const rewardReceivedUsers = await Models.CampaignReward.find({
       claims: { $exists: true, $ne: [] },
     })

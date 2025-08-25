@@ -177,8 +177,8 @@ describe('Integration: CapitalDistributor Campaign Lifecycle', () => {
       args: {
         campaignId: BigInt(campaignId),
         recipient: initialUsers[0].address,
-        amount: BigInt('500'), // Partial claim
-        totalClaimed: BigInt('500'), // Total claimed so far
+        amount: BigInt('500'),
+        totalClaimed: BigInt('500'),
       },
     } as any
 
@@ -203,7 +203,7 @@ describe('Integration: CapitalDistributor Campaign Lifecycle', () => {
     expect(user1RewardAfterClaim.claims).to.have.lengthOf(1)
     expect(user1RewardAfterClaim.claims[0].claimedAmount).to.equal('500')
 
-    // Step 5: Admin pauses campaign to update user list
+    // Step 5: Admin pauses campaign to update a user list
     const pauseEvent = {
       args: {
         campaignId: BigInt(campaignId),
@@ -357,7 +357,7 @@ describe('Integration: CapitalDistributor Campaign Lifecycle', () => {
     const endedCampaign = await Models.Campaign.findCampaignById(pluginAddress, network, campaignId)
     expect(endedCampaign.active).to.be.false
 
-    // Step 11: Verify final state through API controllers
+    // Step 11: Verify the final state through API controllers
     const campaignDetails = await CapitalDistributorAdminController.getCampaignDetails({
       campaignId,
       pluginAddress,

@@ -45,5 +45,5 @@ export enum ErrorKeyEnum {
   proposalNotFound = 'proposalNotFound',
   tokenExpired = 'tokenExpired',
   blockscoutNotImplemented = 'blockscoutNotImplemented',
-  campaignAlreadyExists = 'campaignAlreadyExists',
+  campaignInvalid = 'campaignInvalid',
 }

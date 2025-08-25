@@ -646,22 +646,22 @@ describe('Handler: CapitalDistributor', () => {
 
       expect(existingCampaign.active).to.be.true
 
-      await CapitalDistributorHandler.updateCampaignActiveState(logInfo.address, logInfo.network, '1', false, 'paused')
+      await CapitalDistributorHandler.updateCampaignActiveState(logInfo.address, logInfo.network, '1', false)
 
       const updatedCampaign = await Models.Campaign.findCampaignById(logInfo.address, logInfo.network, '1')
       expect(updatedCampaign?.active).to.be.false
-      expect(loggerInfoStub.calledWith('Campaign paused' as any)).to.be.true
+      expect(loggerInfoStub.calledWith('Campaign status updated' as any)).to.be.true
     })
 
     it('Should update campaign active state to true', async () => {
       await existingCampaign.update({ active: false })
       const loggerInfoStub = sandbox.stub(logger, 'info')
 
-      await CapitalDistributorHandler.updateCampaignActiveState(logInfo.address, logInfo.network, '1', true, 'resumed')
+      await CapitalDistributorHandler.updateCampaignActiveState(logInfo.address, logInfo.network, '1', true)
 
       const updatedCampaign = await Models.Campaign.findCampaignById(logInfo.address, logInfo.network, '1')
       expect(updatedCampaign?.active).to.be.true
-      expect(loggerInfoStub.calledWith('Campaign resumed' as any)).to.be.true
+      expect(loggerInfoStub.calledWith('Campaign status updated' as any)).to.be.true
     })
 
     it('Should warn when plugin not found', async () => {
@@ -672,7 +672,6 @@ describe('Handler: CapitalDistributor', () => {
         logInfo.network,
         '1',
         false,
-        'paused',
       )
 
       expect(loggerWarnStub.calledWith('Plugin not found' as any)).to.be.true
@@ -681,15 +680,9 @@ describe('Handler: CapitalDistributor', () => {
     it('Should warn when campaign not found', async () => {
       const loggerWarnStub = sandbox.stub(logger, 'warn')
 
-      await CapitalDistributorHandler.updateCampaignActiveState(
-        logInfo.address,
-        logInfo.network,
-        '999',
-        false,
-        'paused',
-      )
+      await CapitalDistributorHandler.updateCampaignActiveState(logInfo.address, logInfo.network, '999', false)
 
-      expect(loggerWarnStub.calledWith('Campaign not found for paused' as any)).to.be.true
+      expect(loggerWarnStub.calledWith('Campaign not found for' as any)).to.be.true
     })
 
     it('Should handle error gracefully', async () => {
@@ -699,9 +692,9 @@ describe('Handler: CapitalDistributor', () => {
         update: sandbox.stub().rejects(new Error('Database error')),
       } as any)
 
-      await CapitalDistributorHandler.updateCampaignActiveState(logInfo.address, logInfo.network, '1', false, 'paused')
+      await CapitalDistributorHandler.updateCampaignActiveState(logInfo.address, logInfo.network, '1', false)
 
-      expect(loggerErrorStub.calledWith('Error processing paused event' as any)).to.be.true
+      expect(loggerErrorStub.calledWith('Error processing Campaign event' as any)).to.be.true
     })
   })
 
@@ -743,7 +736,7 @@ describe('Handler: CapitalDistributor', () => {
 
       const updatedCampaign = await Models.Campaign.findCampaignById(logInfo.address, logInfo.network, '1')
       expect(updatedCampaign?.active).to.be.false
-      expect(loggerInfoStub.calledWith('Campaign paused' as any)).to.be.true
+      expect(loggerInfoStub.calledWith('Campaign status updated' as any)).to.be.true
     })
   })
 
@@ -785,7 +778,7 @@ describe('Handler: CapitalDistributor', () => {
 
       const updatedCampaign = await Models.Campaign.findCampaignById(logInfo.address, logInfo.network, '1')
       expect(updatedCampaign?.active).to.be.true
-      expect(loggerInfoStub.calledWith('Campaign resumed' as any)).to.be.true
+      expect(loggerInfoStub.calledWith('Campaign status updated' as any)).to.be.true
     })
   })
 
@@ -818,16 +811,18 @@ describe('Handler: CapitalDistributor', () => {
       })
     })
 
-    it('Should end campaign by setting active to false', async () => {
+    it('Should end campaign by setting active to false and ended to true', async () => {
       const loggerInfoStub = sandbox.stub(logger, 'info')
 
       expect(existingCampaign.active).to.be.true
+      expect(existingCampaign.ended).to.be.false
 
       await CapitalDistributorHandler.campaignEnded(parsedEvent, logInfo)
 
       const updatedCampaign = await Models.Campaign.findCampaignById(logInfo.address, logInfo.network, '1')
       expect(updatedCampaign?.active).to.be.false
-      expect(loggerInfoStub.calledWith('Campaign ended' as any)).to.be.true
+      expect(updatedCampaign?.ended).to.be.true
+      expect(loggerInfoStub.calledWith('Campaign status updated' as any)).to.be.true
     })
   })
 })

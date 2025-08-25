@@ -234,17 +234,11 @@ export const CapitalDistributorHandler = {
     }
   },
 
-  updateCampaignActiveState: async (
-    address: string,
-    network: string,
-    campaignId: string,
-    active: boolean,
-    eventName: string,
-  ) => {
+  updateCampaignActiveState: async (address: string, network: string, campaignId: string, active: boolean) => {
     const plugin = await Models.Plugin.findByAddress(address, network)
 
     if (!plugin) {
-      logger.warn('Plugin not found', llo({ address, network, campaignId, eventName }))
+      logger.warn('Plugin not found', llo({ address, network, campaignId }))
       return
     }
 
@@ -253,7 +247,7 @@ export const CapitalDistributorHandler = {
 
       if (!campaign) {
         logger.warn(
-          `Campaign not found for ${eventName}`,
+          'Campaign not found for',
           llo({
             campaignId,
             address,
@@ -266,7 +260,7 @@ export const CapitalDistributorHandler = {
       await campaign.update({ active })
 
       logger.info(
-        `Campaign ${eventName}`,
+        'Campaign status updated',
         llo({
           campaignId,
           address,
@@ -274,26 +268,35 @@ export const CapitalDistributorHandler = {
           active,
         }),
       )
+
+      return campaign
     } catch (error) {
-      logger.error(`Error processing ${eventName} event`, llo({ error, address, network, campaignId }))
+      logger.error('Error processing Campaign event', llo({ error, address, network, campaignId }))
     }
   },
 
   campaignPaused: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const { address, network } = info
     const { campaignId } = parsedEvent.args
-    await CapitalDistributorHandler.updateCampaignActiveState(address, network, campaignId.toString(), false, 'paused')
+    await CapitalDistributorHandler.updateCampaignActiveState(address, network, campaignId.toString(), false)
   },
 
   campaignResumed: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const { address, network } = info
     const { campaignId } = parsedEvent.args
-    await CapitalDistributorHandler.updateCampaignActiveState(address, network, campaignId.toString(), true, 'resumed')
+    await CapitalDistributorHandler.updateCampaignActiveState(address, network, campaignId.toString(), true)
   },
 
   campaignEnded: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const { address, network } = info
     const { campaignId } = parsedEvent.args
-    await CapitalDistributorHandler.updateCampaignActiveState(address, network, campaignId.toString(), false, 'ended')
+    const campaign = await CapitalDistributorHandler.updateCampaignActiveState(
+      address,
+      network,
+      campaignId.toString(),
+      false,
+    )
+
+    await campaign?.update({ ended: true })
   },
 }
