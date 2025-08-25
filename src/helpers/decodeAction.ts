@@ -472,7 +472,11 @@ class DecodeActions {
       pluginDetails.interfaceType !== IPluginInterfaceType.lockToVote &&
       pluginDetails.interfaceType !== IPluginInterfaceType.tokenVoting
     ) {
-      throw new Error(`Unsupported plugin type for voting settings update: ${pluginDetails.interfaceType}`)
+      logger.warn(
+        `Unsupported plugin type for voting settings update: ${pluginDetails.interfaceType}`,
+        llo({ pluginDetails, decodedData }),
+      )
+      return null
     }
 
     return pluginDetails.interfaceType === IPluginInterfaceType.tokenVoting
