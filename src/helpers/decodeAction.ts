@@ -688,12 +688,15 @@ class DecodeActions {
       if (!response || response.count === 0) {
         const functionDetails = await this.parseContractNetspec(functionSelector, action, network)
         if (functionDetails) {
+          const parameterTypes = functionDetails.inputs.map((input: any) => input.type).join(',')
+          const textSignature = `${functionDetails.functionName}(${parameterTypes})`
+
           return {
             function: functionDetails.functionName,
             contract: functionDetails.contractName,
             parameters: functionDetails.inputs,
             notice: functionDetails.notice,
-            textSignature: functionDetails.functionName,
+            textSignature,
             proxyName: functionDetails.proxyName,
             implementationAddress: functionDetails.implementationAddress,
           } as any
