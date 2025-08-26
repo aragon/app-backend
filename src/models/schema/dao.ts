@@ -862,6 +862,14 @@ export default class Dao extends Model {
         sourceField: '$plugins.lockManagerAddress', // Source value from plugin
         resultAlias: 'lockMembers',
       },
+      {
+        interfaceTypes: ['multisig', 'admin'],
+        collection: 'PluginMember',
+        memberAddressField: 'memberAddress',
+        matchField: 'pluginAddress', // Field in collection to match
+        sourceField: '$plugins.address', // Source value from plugin
+        resultAlias: 'pluginMembers',
+      },
     ]
 
     const pipeline: any[] = [
