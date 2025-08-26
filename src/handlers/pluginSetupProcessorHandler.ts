@@ -69,7 +69,8 @@ export const PluginSetupProcessorHandler = {
         }
 
         const pluginPermissions = Utils.parsePermissions(parsedEvent.args?.preparedSetupData?.permissions)
-        const proposalCreationConditionAddress = PluginSetupProcessorHandler.findProposalConditionAddress(pluginPermissions)
+        const proposalCreationConditionAddress =
+          PluginSetupProcessorHandler.findProposalConditionAddress(pluginPermissions)
         const rawPluginLog: Partial<LogPluginSetupProcessor> = {
           event: IEventLogPluginType.InstallationPrepared,
           network: info.network,
