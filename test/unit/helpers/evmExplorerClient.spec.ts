@@ -18,7 +18,7 @@ describe('Helpers: EvmExplorerClient', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
-    loggerStub = sandbox.stub(logger, 'error')
+    loggerStub = sandbox.stub(logger, 'warn')
     // Stub retryRequest to execute immediately without retries
     sandbox.stub(retryRequestModule, 'retryRequest').callsFake(async fn => {
       try {

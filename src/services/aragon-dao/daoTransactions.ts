@@ -191,7 +191,7 @@ export const DaoTransactions = {
             pluginAddress = proposalIdLog[0].txLog.address
             proposalIndex = proposalIdLog[0].txLog.topics[1].toString()
           } else {
-            logger.error(
+            logger.warn(
               'Proposal Executed not found on tx receipt',
               llo({ daoAddress, network, transactionHash: tx.hash }),
             )
