@@ -102,13 +102,18 @@ export const MemberInfo = {
   },
 
   _checkForLockToVote: async (plugin: Plugin, setting: PluginSetting, memberAddress: HexAddress) => {
-    if (!setting || !plugin.lockManagerAddress) return false
+    if (!setting || !plugin.lockManagerAddress || !plugin.conditionAddress) return false
     const votingPower = await LockToVoteHelper.getUserLockedBalance(
       plugin.network,
       plugin.lockManagerAddress,
       memberAddress,
     )
-    return Number(votingPower) > 0
+    const requiredVotingPower = await LockToVoteHelper.getRequiredVotingPowerForProposal(
+      plugin.conditionAddress,
+      memberAddress,
+      plugin.network,
+    )
+    return Number(votingPower) > 0 && Number(votingPower) >= Number(requiredVotingPower)
   },
 
   _checkForTokenVoting: async (plugin: Plugin, setting: PluginSetting, memberAddress: HexAddress) => {

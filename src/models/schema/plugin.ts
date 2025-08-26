@@ -208,6 +208,9 @@ export default class Plugin extends Model {
   @prop({ type: () => String, default: null })
   public lockManagerAddress?: HexAddress
 
+  @prop({ type: () => String, default: null })
+  public proposalCreationCondition?: HexAddress
+
   static async create(rawData: Partial<Plugin>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')

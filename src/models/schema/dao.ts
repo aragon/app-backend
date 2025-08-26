@@ -252,6 +252,7 @@ export default class Dao extends Model {
           build: 1,
           subdomain: 1,
           isProcess: 1,
+          proposalCreationCondition: 1,
           isBody: 1,
           isSubPlugin: 1,
           totalStages: 1,
@@ -370,6 +371,7 @@ export default class Dao extends Model {
           build: 1,
           subdomain: 1,
           isProcess: 1,
+          proposalCreationCondition: 1,
           isBody: 1,
           isSubPlugin: 1,
           totalStages: 1,
@@ -580,6 +582,7 @@ export default class Dao extends Model {
           build: 1,
           subdomain: 1,
           isProcess: 1,
+          proposalCreationCondition: 1,
           isBody: 1,
           isSubPlugin: 1,
           totalStages: 1,
@@ -653,6 +656,7 @@ export default class Dao extends Model {
           build: 1,
           subdomain: 1,
           isProcess: 1,
+          proposalCreationCondition: 1,
           isBody: 1,
           isSubPlugin: 1,
           totalStages: 1,
@@ -857,14 +861,6 @@ export default class Dao extends Model {
         matchField: 'lockManagerAddress', // Field in a collection to match
         sourceField: '$plugins.lockManagerAddress', // Source value from plugin
         resultAlias: 'lockMembers',
-      },
-      {
-        interfaceTypes: ['multisig', 'admin'],
-        collection: 'PluginMember',
-        memberAddressField: 'memberAddress',
-        matchField: 'pluginAddress', // Field in collection to match
-        sourceField: '$plugins.address', // Source value from plugin
-        resultAlias: 'pluginMembers',
       },
     ]
 
