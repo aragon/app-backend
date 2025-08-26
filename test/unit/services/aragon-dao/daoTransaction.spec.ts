@@ -767,7 +767,7 @@ describe('AragonDao: DaoTransactions', () => {
       ] as any)
       findLogsByNameStub.withArgs(mockReceipt, 'ProposalExecuted', Multisig.abi).returns([])
 
-      const errorLoggerStub = sandbox.stub(logger, 'error')
+      const warnLoggerStub = sandbox.stub(logger, 'warn')
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken')
       const dbTxStub = sandbox.stub(DbTx, 'executeTxFn')
 
@@ -780,8 +780,8 @@ describe('AragonDao: DaoTransactions', () => {
       expect(findLogsByNameStub.calledTwice).to.be.true
 
       // Verify the specific error was logged
-      expect(errorLoggerStub.calledOnce).to.be.true
-      expect(errorLoggerStub.getCall(0).args[0]).to.equal('Proposal Executed not found on tx receipt')
+      expect(warnLoggerStub.calledOnce).to.be.true
+      expect(warnLoggerStub.getCall(0).args[0]).to.equal('Proposal Executed not found on tx receipt')
 
       // Verify that the function returned early and didn't continue processing
       expect(saveAndGetTokenStub.notCalled).to.be.true

@@ -310,19 +310,22 @@ export const ProposalHandler = {
       // Create base member first
       await MemberGovernanceFactory.createBaseMember(newProposal.creatorAddress, info.blockNumber)
 
-      // Create governance instance based on plugin type
-      const governance = MemberGovernanceFactory.createFromPlugin(relatedPlugin)
+      // Spp have no members don't need to update plugin metrics
+      if (relatedPlugin.interfaceType !== IPluginInterfaceType.spp) {
+        // Create governance instance based on plugin type
+        const governance = MemberGovernanceFactory.createFromPlugin(relatedPlugin)
 
-      // Update plugin metrics and increment proposal count
-      await governance.updatePluginMetrics({
-        memberAddress: newProposal.creatorAddress,
-        pluginAddress,
-        network: info.network,
-        daoAddress: newProposal.daoAddress,
-        lastActivity: newProposal.blockNumber,
-      })
+        // Update plugin metrics and increment proposal count
+        await governance.updatePluginMetrics({
+          memberAddress: newProposal.creatorAddress,
+          pluginAddress,
+          network: info.network,
+          daoAddress: newProposal.daoAddress,
+          lastActivity: newProposal.blockNumber,
+        })
 
-      await governance.updateDaoMetrics()
+        await governance.updateDaoMetrics()
+      }
 
       const allMessages: Promise<any>[] = []
 

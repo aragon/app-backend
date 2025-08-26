@@ -646,6 +646,104 @@ describe('ProposalHandler', () => {
       expect(verboseLoggerStub.called).to.be.true
     })
 
+    it('should skip governance updates for SPP plugin type', async () => {
+      const metadataUri = 'ipfs://metadata-uri'
+      const info: ILogInfo = {
+        transactionHash: '0x123',
+        address: '0xplugin-address',
+        blockNumber: 100,
+        network,
+        eventName: 'proposalCreated',
+        transactionIndex: 1,
+        logIndex: 1,
+        interfaceType: IPluginInterfaceType.spp,
+      }
+
+      const fakeEvent = {
+        args: {
+          creator: '0x742d35cC6634c0532925A3b844bc9E7595F0beB1',
+          proposalId: 1n,
+          startDate: 0n,
+          endDate: 1700000000n,
+          allowFailureMap: 1n,
+          metadata: metadataUri,
+          actions: [{ to: '0x0', value: 0n, data: '0xdata' }],
+        },
+      }
+
+      const plugin = {
+        address: '0xplugin-address',
+        daoAddress: '0xdao-address',
+        subdomain: 'dao.subdomain',
+        interfaceType: IPluginInterfaceType.spp,
+        tokenAddress: '0xtoken-address',
+      }
+
+      const proposalMetadata = {
+        title: 'SPP Proposal Title',
+        description: 'SPP Proposal Description',
+        summary: 'SPP Proposal Summary',
+        resources: [],
+        media: {},
+      }
+
+      const settings = {
+        tokenAddress: '0xtoken-address',
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
+      sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(settings)
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      sandbox.stub(IPFSModule, 'fetchMetadata').resolves(proposalMetadata)
+      sandbox.stub(GovernanceErc20Helper, 'getPastTotalSupply').resolves(1000n as any)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        address: '0xtoken-address',
+        network,
+        decimals: 18,
+        hasClockMode: true,
+        clockMode: IClockMode.BlockNumber,
+      } as any)
+      sandbox.stub(ProposalHandler, 'handleStartEndDate').resolves({
+        startDate: 0,
+        endDate: 0,
+      })
+      sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
+      sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
+
+      // Spy on MemberGovernanceFactory to ensure it's NOT called for SPP
+      const governanceFactoryStub = sandbox.stub(MemberGovernanceFactory, 'createFromPlugin')
+
+      await ProposalHandler.proposalCreated(fakeEvent as any, info)
+
+      const savedProposal = await Models.Proposal.findOne({
+        transactionHash: '0x123',
+        pluginAddress: '0xplugin-address',
+        proposalIndex: '1',
+      })
+
+      expect(savedProposal).to.exist
+      expect(savedProposal.daoAddress).to.eq('0xdao-address')
+      expect(savedProposal.pluginAddress).to.eq('0xplugin-address')
+
+      // Verify that governance updates were NOT called for SPP plugin
+      expect(governanceFactoryStub.called).to.be.false
+
+      // Verify that PluginMetrics was NOT created/updated for SPP
+      const pluginMetrics = await Models.PluginMetrics.findOne({
+        memberAddress: '0x742d35cC6634c0532925A3b844bc9E7595F0beB1',
+        pluginAddress: '0xplugin-address',
+        network,
+      })
+      expect(pluginMetrics).to.not.exist
+
+      expect(verboseLoggerStub.called).to.be.true
+    })
+
     it('should handle tokenVoting with no actions', async () => {
       const metadataUri = 'ipfs://metadata-uri'
       const info: ILogInfo = {

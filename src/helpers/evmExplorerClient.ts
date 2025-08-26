@@ -109,7 +109,7 @@ class EvmExplorerClient {
 
       return response?.data
     } catch (error) {
-      logger.error(`Error in ${explorerType} API call`, llo({ error, params, urlSegments }))
+      logger.warn('Error API call evm explorer', llo({ error, params, urlSegments, explorerType }))
       throw error
     }
   }
@@ -129,7 +129,7 @@ class EvmExplorerClient {
       const response = await this.apiCall(explorerType, params, network)
       return this.parseSourceCodeResponse(response)
     } catch (error) {
-      logger.error(`Error fetching contract source code from ${explorerType}`, llo({ error, address, network }))
+      logger.warn('Error fetching contract source code', llo({ error, address, network, explorerType }))
       return null
     }
   }
@@ -149,7 +149,7 @@ class EvmExplorerClient {
       const result = await this.apiCall(explorerType, params, network)
       return this.parseContractCreationResponse(result, address)
     } catch (error) {
-      logger.error(`Error fetching contract creation from ${explorerType}`, llo({ error, address, network }))
+      logger.warn('Error fetching contract creation', llo({ error, address, network, explorerType }))
       return { blockNumber: 0, transactionHash: '', address }
     }
   }
