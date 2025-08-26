@@ -113,6 +113,9 @@ export const MemberInfo = {
       memberAddress,
       plugin.network,
     )
+    if (requiredVotingPower === undefined || requiredVotingPower === null || isNaN(Number(requiredVotingPower))) {
+      return false
+    }
     return Number(votingPower) > 0 && Number(votingPower) >= Number(requiredVotingPower)
   },
 

@@ -81,7 +81,9 @@ const LockToVoteHelper = {
     try {
       const power = await provider.call(params)
       return BigInt(power).toString()
-    } catch (error) {}
+    } catch (error) {
+      return undefined
+    }
   },
 }
 
