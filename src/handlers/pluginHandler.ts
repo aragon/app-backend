@@ -643,7 +643,7 @@ export const PluginHandler = {
 
       const executePermissionId = ethers.id('EXECUTE_PERMISSION')
 
-      if (pluginDb.status === IPluginStatus.installed) {
+      if (pluginDb.status !== IPluginStatus.uninstalled) {
         return
       }
 
@@ -659,11 +659,12 @@ export const PluginHandler = {
         const lastAppliedLogIndex = lastAppliedLog.logIndex
 
         const nextPermissionEvent = txReceipt.logs.find((log: any) => {
+          const parsedLog = Web3Utils.parseInfoLog(log, 'Event', info.network)
           const isPermissionEvent =
-            log.address === daoDb.address &&
+            parsedLog.address === daoDb.address &&
             (log.topics[0] === GrantedTopicHash || log.topics[0] === RevokeTopicHash) &&
             log.topics[1] === executePermissionId
-          return isPermissionEvent && log.logIndex > lastAppliedLogIndex
+          return isPermissionEvent && parsedLog.logIndex > lastAppliedLogIndex
         })
 
         if (!nextPermissionEvent) {

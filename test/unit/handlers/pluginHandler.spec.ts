@@ -29,6 +29,8 @@ import RabbitMQHelper from '@src/helpers/rabbitMQ'
 import configIndexer from '@indexer/configIndexer'
 import { IDaoLogs } from '@types'
 import ProviderModule from '@modules/provider'
+import { Interface } from 'ethers'
+import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 
 describe('Indexer:Plugin', () => {
   let sandbox: SinonSandbox
@@ -1314,16 +1316,19 @@ describe('Indexer:Plugin', () => {
       const pluginDb = {
         address: '0xplugin',
         network: NetworksEnum.ethereumSepolia,
-        status: 'pending',
+        status: IPluginStatus.uninstalled,
       }
 
       sandbox.stub(Models.Dao, 'findByAddress').resolves(daoDb)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginDb)
 
+      const InstallationAppliedTopicHash = new Interface(PluginSetupProcessor.abi).getEvent(
+        'InstallationApplied',
+      )?.topicHash!
       const txReceipt = {
         logs: [
           {
-            topics: ['0x74e616c7264536b98a5ec234d051ae6ce1305bf05c85f9ddc112364440ccf129'],
+            topics: [InstallationAppliedTopicHash],
             address: '0x1234567890123456789012345678901234567890',
             blockNumber: 1234,
             transactionHash: '0xtxhash',
@@ -1348,14 +1353,27 @@ describe('Indexer:Plugin', () => {
       ] as any)
 
       // Stub parseInfoLog to prevent the address validation error
-      const parseInfoLogStub = sandbox.stub(Web3Utils, 'parseInfoLog').returns({
-        address: '0x1234567890123456789012345678901234567890',
-        blockNumber: 1234,
-        transactionHash: '0xtxhash',
-        transactionIndex: 0,
-        logIndex: 0,
-        network: NetworksEnum.ethereumSepolia,
-      } as any)
+      const parseInfoLogStub = sandbox
+        .stub(Web3Utils, 'parseInfoLog')
+        .onFirstCall()
+        .returns({
+          network: NetworksEnum.ethereumSepolia,
+          address: '0x1234567890123456789012345678901234567890',
+          blockNumber: 1234,
+          transactionHash: '0xtxhash',
+          transactionIndex: 0,
+          logIndex: 0,
+          eventName: 'InstallationApplied',
+        } as any)
+        .returns({
+          network: NetworksEnum.ethereumSepolia,
+          address: '0x1234567890123456789012345678901234567890',
+          blockNumber: 1234,
+          transactionHash: '0xtxhash',
+          transactionIndex: 0,
+          logIndex: 1,
+          eventName: 'Event',
+        } as any)
 
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
 
@@ -1368,7 +1386,7 @@ describe('Indexer:Plugin', () => {
       await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info as any)
 
       expect(getTransactionReceiptStub.calledOnce).to.be.true
-      expect(parseInfoLogStub.calledOnce).to.be.true
+      expect(parseInfoLogStub.called).to.be.true
       expect(updateDocumentStub.notCalled).to.be.true
     })
 
@@ -1445,7 +1463,7 @@ describe('Indexer:Plugin', () => {
         id: 'plugin-123',
         address: '0xplugin',
         network: NetworksEnum.ethereumSepolia,
-        status: 'pending',
+        status: IPluginStatus.uninstalled,
         processKey: 'processKey123',
       }
 
@@ -1501,7 +1519,7 @@ describe('Indexer:Plugin', () => {
         id: 'plugin-123',
         address: '0xplugin',
         network: NetworksEnum.ethereumSepolia,
-        status: 'pending',
+        status: IPluginStatus.uninstalled,
         processKey: 'processKey123',
       }
 
