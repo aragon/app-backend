@@ -20,7 +20,7 @@ describe('migration: addProposalConditionAddress', () => {
   })
 
   describe('addProposalConditionAddressMigration with real database', () => {
-    it('should successfully update plugins with proposalCreationCondition', async () => {
+    it('should successfully update plugins with proposalCreationConditionAddress', async () => {
       // Create test plugins with different permission scenarios
       await Models.Plugin.create({
         ...PluginList[0],
@@ -34,7 +34,7 @@ describe('migration: addProposalConditionAddress', () => {
             permissionId: '0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90',
           },
         ],
-        proposalCreationCondition: undefined,
+        proposalCreationConditionAddress: undefined,
       })
 
       await Models.Plugin.create({
@@ -49,14 +49,14 @@ describe('migration: addProposalConditionAddress', () => {
             permissionId: '0x' + 'other'.padStart(64, '0'),
           },
         ],
-        proposalCreationCondition: undefined,
+        proposalCreationConditionAddress: undefined,
       })
 
       await Models.Plugin.create({
         ...PluginList[2],
         address: '0x4444444444444444444444444444444444444444',
         permissions: [],
-        proposalCreationCondition: undefined,
+        proposalCreationConditionAddress: undefined,
       })
 
       // Run migration
@@ -71,17 +71,17 @@ describe('migration: addProposalConditionAddress', () => {
       const updatedPlugin1 = await Models.Plugin.findOne({
         address: '0x1111111111111111111111111111111111111111',
       })
-      expect(updatedPlugin1?.proposalCreationCondition).to.equal('0x2222222222222222222222222222222222222222')
+      expect(updatedPlugin1?.proposalCreationConditionAddress).to.equal('0x2222222222222222222222222222222222222222')
 
       const updatedPlugin2 = await Models.Plugin.findOne({
         address: '0x3333333333333333333333333333333333333333',
       })
-      expect(updatedPlugin2?.proposalCreationCondition).to.equal('0x0000000000000000000000000000000000000000')
+      expect(updatedPlugin2?.proposalCreationConditionAddress).to.equal('0x0000000000000000000000000000000000000000')
 
       const updatedPlugin3 = await Models.Plugin.findOne({
         address: '0x4444444444444444444444444444444444444444',
       })
-      expect(updatedPlugin3?.proposalCreationCondition).to.equal('0x0000000000000000000000000000000000000000')
+      expect(updatedPlugin3?.proposalCreationConditionAddress).to.equal('0x0000000000000000000000000000000000000000')
     })
 
     it('should handle plugins with multiple CREATE_PROPOSAL_PERMISSION entries', async () => {
@@ -104,7 +104,7 @@ describe('migration: addProposalConditionAddress', () => {
             permissionId: '0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90',
           },
         ],
-        proposalCreationCondition: undefined,
+        proposalCreationConditionAddress: undefined,
       })
 
       await addProposalConditionAddressMigration.start()
@@ -112,7 +112,7 @@ describe('migration: addProposalConditionAddress', () => {
       const updatedPlugin = await Models.Plugin.findOne({
         address: '0x5555555555555555555555555555555555555555',
       })
-      expect(updatedPlugin?.proposalCreationCondition).to.equal('0x1111111111111111111111111111111111111111')
+      expect(updatedPlugin?.proposalCreationConditionAddress).to.equal('0x1111111111111111111111111111111111111111')
     })
   })
 

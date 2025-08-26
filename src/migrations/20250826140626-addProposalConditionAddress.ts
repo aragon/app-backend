@@ -16,7 +16,7 @@ export const addProposalConditionAddressMigration: IMigration = {
       onDocument: async (plugin: Plugin) => {
         const permissionCondition = PluginSetupProcessorHandler.findProposalConditionAddress(plugin.permissions)
         await plugin.update({
-          proposalCreationCondition: permissionCondition,
+          proposalCreationConditionAddress: permissionCondition,
         })
         logger.verbose(
           'Processed document',

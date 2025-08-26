@@ -165,7 +165,7 @@ export interface IAggPluginProjectFields {
   build?: 1
   subdomain?: 1
   isProcess: 1
-  proposalCreationCondition: 1
+  proposalCreationConditionAddress: 1
   conditionAddress: 1
   lockManagerAddress: 1
   isBody: 1

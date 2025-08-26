@@ -1314,7 +1314,7 @@ describe('Indexer:Plugin', () => {
       const pluginDb = {
         address: '0xplugin',
         network: NetworksEnum.ethereumSepolia,
-        status: 'pending',
+        status: IPluginStatus.uninstalled,
       }
 
       sandbox.stub(Models.Dao, 'findByAddress').resolves(daoDb)
@@ -1445,7 +1445,7 @@ describe('Indexer:Plugin', () => {
         id: 'plugin-123',
         address: '0xplugin',
         network: NetworksEnum.ethereumSepolia,
-        status: 'pending',
+        status: IPluginStatus.uninstalled,
         processKey: 'processKey123',
       }
 
@@ -1501,7 +1501,7 @@ describe('Indexer:Plugin', () => {
         id: 'plugin-123',
         address: '0xplugin',
         network: NetworksEnum.ethereumSepolia,
-        status: 'pending',
+        status: IPluginStatus.uninstalled,
         processKey: 'processKey123',
       }
 

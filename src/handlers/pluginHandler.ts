@@ -643,7 +643,7 @@ export const PluginHandler = {
 
       const executePermissionId = ethers.id('EXECUTE_PERMISSION')
 
-      if (pluginDb.status === IPluginStatus.installed) {
+      if (pluginDb.status !== IPluginStatus.uninstalled) {
         return
       }
 

@@ -69,7 +69,7 @@ export const PluginSetupProcessorHandler = {
         }
 
         const pluginPermissions = Utils.parsePermissions(parsedEvent.args?.preparedSetupData?.permissions)
-        const proposalCreationCondition = PluginSetupProcessorHandler.findProposalConditionAddress(pluginPermissions)
+        const proposalCreationConditionAddress = PluginSetupProcessorHandler.findProposalConditionAddress(pluginPermissions)
         const rawPluginLog: Partial<LogPluginSetupProcessor> = {
           event: IEventLogPluginType.InstallationPrepared,
           network: info.network,
@@ -86,7 +86,7 @@ export const PluginSetupProcessorHandler = {
           build: parsedEvent.args.versionTag.build,
           blockNumber: info.blockNumber,
           tokenAddress: undefined,
-          proposalCreationCondition,
+          proposalCreationConditionAddress,
         }
 
         const logDb = await Models.LogPluginSetupProcessor.create(rawPluginLog, { session })

@@ -209,7 +209,7 @@ export default class Plugin extends Model {
   public lockManagerAddress?: HexAddress
 
   @prop({ type: () => String, default: null })
-  public proposalCreationCondition?: HexAddress
+  public proposalCreationConditionAddress?: HexAddress
 
   static async create(rawData: Partial<Plugin>, tOpts?: SaveOptions) {
     if (!rawData.id) {
