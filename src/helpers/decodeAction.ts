@@ -688,7 +688,7 @@ class DecodeActions {
       if (!response || response.count === 0) {
         const functionDetails = await this.parseContractNetspec(functionSelector, action, network)
         if (functionDetails) {
-          const parameterTypes = functionDetails.inputs.map((input: any) => input.type).join(',')
+          const parameterTypes = functionDetails.inputs.map((input: IProposalActionInputDataParameter) => input.type).join(',')
           const textSignature = `${functionDetails.functionName}(${parameterTypes})`
 
           return {
