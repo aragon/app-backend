@@ -1204,10 +1204,10 @@
     "@tufjs/canonical-json" "2.0.0"
     minimatch "^9.0.5"
 
-"@typegoose/typegoose@^12.18.0":
-  version "12.18.0"
-  resolved "https://registry.yarnpkg.com/@typegoose/typegoose/-/typegoose-12.18.0.tgz#5408d5fc4f30851b9b643cff4cc5913186586088"
-  integrity sha512-b1kXa4j0YZWXgc9B/xAzFbcEpIevf8PQ8LGK6Yl3clWpZKJLGKVMf/kE5mvat3nV1Twdr6OCWvMHFSVB3K5b7g==
+"@typegoose/typegoose@^12.19.0":
+  version "12.19.0"
+  resolved "https://registry.yarnpkg.com/@typegoose/typegoose/-/typegoose-12.19.0.tgz#67fbf5ea7d989d170ba32737966140a49a92f0ea"
+  integrity sha512-rsHMd3M6Rj6YYw6ecZU6YtXjiBzCqO3zJtgrrVCau1bEp6na8sbMcqRy8kNbTRyA2QCBAGEvM7nXTM8hdxeEiQ==
   dependencies:
     lodash "^4.17.20"
     loglevel "^1.9.2"
@@ -1776,10 +1776,10 @@ amqp-connection-manager@^4.1.14:
   dependencies:
     promise-breaker "^6.0.0"
 
-amqplib@^0.10.8:
-  version "0.10.8"
-  resolved "https://registry.npmjs.org/amqplib/-/amqplib-0.10.8.tgz"
-  integrity sha512-Tfn1O9sFgAP8DqeMEpt2IacsVTENBpblB3SqLdn0jK2AeX8iyCvbptBc8lyATT9bQ31MsjVwUSQ1g8f4jHOUfw==
+amqplib@^0.10.9:
+  version "0.10.9"
+  resolved "https://registry.yarnpkg.com/amqplib/-/amqplib-0.10.9.tgz#5b744c21d624f9307d0399e4d339b7354675831c"
+  integrity sha512-jwSftI4QjS3mizvnSnOrPGYiUnm1vI2OP1iXeOUz5pb74Ua0nbf6nPyyTzuiCLEE3fMpaJORXh2K/TQ08H5xGA==
   dependencies:
     buffer-more-ints "~1.0.0"
     url-parse "~1.5.10"
@@ -5753,10 +5753,10 @@ mongodb@^6.9.0, mongodb@~6.18.0:
     bson "^6.10.4"
     mongodb-connection-string-url "^3.0.0"
 
-mongoose@^8.17.2:
-  version "8.17.2"
-  resolved "https://registry.yarnpkg.com/mongoose/-/mongoose-8.17.2.tgz#fa493f5d05817b21f10dc976ad84f1b64211d748"
-  integrity sha512-zp0xzzphKZrr9azDayn0w08gp0jzeZO8EQKvCKNd6c1I/Y9PRmTKj7x+60IWF3+DKmqWq7WZ4ihDEvOFUtWkSA==
+mongoose@^8.18.0:
+  version "8.18.0"
+  resolved "https://registry.yarnpkg.com/mongoose/-/mongoose-8.18.0.tgz#0aae0e3fe2e6689a533a5a8d16e84133ef923ee3"
+  integrity sha512-3TixPihQKBdyaYDeJqRjzgb86KbilEH07JmzV8SoSjgoskNTpa6oTBmDxeoF9p8YnWQoz7shnCyPkSV/48y3yw==
   dependencies:
     bson "^6.10.4"
     kareem "2.6.3"
