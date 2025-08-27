@@ -58,7 +58,7 @@ describe('Helpers: Covalent', () => {
 
       sandbox.stub(CovalentHelper.axiosInstance, 'get').rejects(expectedError)
 
-      const stubLogger = sandbox.stub(logger, 'error')
+      const stubLogger = sandbox.stub(logger, 'warn')
 
       await expect(CovalentHelper._rpCall('/path')).to.be.rejectedWith(expectedError)
 

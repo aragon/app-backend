@@ -10,6 +10,7 @@ import { CapitalDistributorGovernance } from './capitalDistributorGovernance'
 import Web3Utils from '@helpers/web3Utils'
 import DbTx from '@modules/dbTx'
 import type Member from '@models/schema/member'
+import type Plugin from '@models/schema/plugin'
 import logger from '@logger'
 
 export { BaseGovernance }
@@ -56,6 +57,67 @@ const llo = logger.logMeta.bind(null, { service: 'MemberGovernanceFactory' })
  *   - `network`: The blockchain network
  */
 export class MemberGovernanceFactory {
+  static createFromPlugin(plugin: Plugin): BaseGovernance {
+    try {
+      // Handle token voting plugins
+      if (plugin.interfaceType === IPluginInterfaceType.tokenVoting) {
+        // Check if it's VE governance (has votingEscrow configuration)
+        if (plugin.votingEscrow?.escrowAddress) {
+          return MemberGovernanceFactory.create({
+            address: plugin.votingEscrow.escrowAddress,
+            network: plugin.network,
+            interfaceType: IPluginInterfaceType.tokenVoting,
+            tokenType: ITokenType.escrowAdapter,
+            extraParams: {
+              escrowAdapterAddress: plugin.tokenAddress,
+            },
+          })
+        }
+        // Regular ERC20 token governance
+        if (plugin.tokenAddress) {
+          return MemberGovernanceFactory.create({
+            address: plugin.tokenAddress,
+            network: plugin.network,
+            interfaceType: IPluginInterfaceType.tokenVoting,
+          })
+        }
+      }
+
+      // Handle lock to vote governance
+      if (plugin.interfaceType === IPluginInterfaceType.lockToVote) {
+        return MemberGovernanceFactory.create({
+          address: plugin.lockManagerAddress!,
+          network: plugin.network,
+          interfaceType: IPluginInterfaceType.lockToVote,
+        })
+      }
+
+      // Handle multisig governance
+      if (plugin.interfaceType === IPluginInterfaceType.multisig) {
+        return MemberGovernanceFactory.create({
+          address: plugin.address,
+          network: plugin.network,
+          interfaceType: IPluginInterfaceType.multisig,
+        })
+      }
+
+      // Handle admin governance
+      if (plugin.interfaceType === IPluginInterfaceType.admin) {
+        return MemberGovernanceFactory.create({
+          address: plugin.address,
+          network: plugin.network,
+          interfaceType: IPluginInterfaceType.admin,
+        })
+      }
+
+      // If we reach here, the plugin type is not supported
+      throw new Error(`Unsupported plugin interface type: ${plugin.interfaceType}`)
+    } catch (error) {
+      logger.error('Unable to create governance from plugin', llo({ plugin, error }))
+      throw error
+    }
+  }
+
   static create(params: {
     address: HexAddress
     network: NetworksEnum

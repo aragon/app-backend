@@ -212,6 +212,153 @@ describe('Governance:GovernanceFactory', () => {
     })
   })
 
+  describe('createFromPlugin', () => {
+    const createPlugin = (overrides = {}) => ({
+      address: testAddress,
+      network: testNetwork,
+      interfaceType: IPluginInterfaceType.multisig,
+      ...overrides,
+    })
+
+    describe('tokenVoting plugins', () => {
+      it('should create VeGovernance for plugin with votingEscrow', () => {
+        const plugin = createPlugin({
+          interfaceType: IPluginInterfaceType.tokenVoting,
+          votingEscrow: {
+            escrowAddress: testAddress,
+          },
+          tokenAddress: escrowAdapterAddress,
+        })
+
+        const result = MemberGovernanceFactory.createFromPlugin(plugin as any)
+
+        expect(result).to.be.instanceOf(VeGovernance)
+        expect(result?.['address']).to.equal(testAddress)
+        expect(result?.['network']).to.equal(testNetwork)
+        expect(result?.['escrowAdapterAddress']).to.equal(escrowAdapterAddress)
+      })
+
+      it('should create Erc20Governance for plugin with tokenAddress', () => {
+        const plugin = createPlugin({
+          interfaceType: IPluginInterfaceType.tokenVoting,
+          tokenAddress: testAddress,
+        })
+
+        const result = MemberGovernanceFactory.createFromPlugin(plugin as any)
+
+        expect(result).to.be.instanceOf(Erc20Governance)
+        expect(result?.['address']).to.equal(testAddress)
+        expect(result?.['network']).to.equal(testNetwork)
+      })
+
+      it('should throw error for tokenVoting plugin without tokenAddress or votingEscrow', () => {
+        const plugin = createPlugin({
+          interfaceType: IPluginInterfaceType.tokenVoting,
+        })
+
+        expect(() => {
+          MemberGovernanceFactory.createFromPlugin(plugin as any)
+        }).to.throw('Unsupported plugin interface type: tokenVoting')
+
+        expect(loggerErrorStub.calledWith('Unable to create governance from plugin')).to.be.true
+      })
+    })
+
+    describe('lockToVote plugins', () => {
+      it('should create LockToVoteGovernance for plugin with lockManagerAddress', () => {
+        const lockManagerAddress = '0xdeadbeef' as HexAddress
+        const plugin = createPlugin({
+          interfaceType: IPluginInterfaceType.lockToVote,
+          lockManagerAddress,
+        })
+
+        const result = MemberGovernanceFactory.createFromPlugin(plugin as any)
+
+        expect(result).to.be.instanceOf(LockToVoteGovernance)
+        expect(result?.['address']).to.equal(lockManagerAddress)
+        expect(result?.['network']).to.equal(testNetwork)
+      })
+
+      it('should create LockToVoteGovernance even without lockManagerAddress (uses undefined)', () => {
+        const plugin = createPlugin({
+          interfaceType: IPluginInterfaceType.lockToVote,
+        })
+
+        const result = MemberGovernanceFactory.createFromPlugin(plugin as any)
+
+        expect(result).to.be.instanceOf(LockToVoteGovernance)
+        expect(result?.['address']).to.equal(undefined)
+        expect(result?.['network']).to.equal(testNetwork)
+      })
+    })
+
+    describe('multisig plugins', () => {
+      it('should create MultisigGovernance for multisig plugin', () => {
+        const plugin = createPlugin({
+          interfaceType: IPluginInterfaceType.multisig,
+        })
+
+        const result = MemberGovernanceFactory.createFromPlugin(plugin as any)
+
+        expect(result).to.be.instanceOf(MultisigGovernance)
+        expect(result?.['address']).to.equal(testAddress)
+        expect(result?.['network']).to.equal(testNetwork)
+      })
+    })
+
+    describe('admin plugins', () => {
+      it('should create AdminGovernance for admin plugin', () => {
+        const plugin = createPlugin({
+          interfaceType: IPluginInterfaceType.admin,
+        })
+
+        const result = MemberGovernanceFactory.createFromPlugin(plugin as any)
+
+        expect(result).to.be.instanceOf(AdminGovernance)
+        expect(result?.['address']).to.equal(testAddress)
+        expect(result?.['network']).to.equal(testNetwork)
+      })
+    })
+
+    describe('unsupported plugins', () => {
+      it('should throw error for spp plugin', () => {
+        const plugin = createPlugin({
+          interfaceType: IPluginInterfaceType.spp,
+        })
+
+        expect(() => {
+          MemberGovernanceFactory.createFromPlugin(plugin as any)
+        }).to.throw('Unsupported plugin interface type: spp')
+
+        expect(loggerErrorStub.calledWith('Unable to create governance from plugin')).to.be.true
+      })
+
+      it('should throw error for gauge plugin', () => {
+        const plugin = createPlugin({
+          interfaceType: IPluginInterfaceType.gauge,
+        })
+
+        expect(() => {
+          MemberGovernanceFactory.createFromPlugin(plugin as any)
+        }).to.throw('Unsupported plugin interface type: gauge')
+
+        expect(loggerErrorStub.calledWith('Unable to create governance from plugin')).to.be.true
+      })
+
+      it('should throw error for unknown plugin', () => {
+        const plugin = createPlugin({
+          interfaceType: IPluginInterfaceType.unknown,
+        })
+
+        expect(() => {
+          MemberGovernanceFactory.createFromPlugin(plugin as any)
+        }).to.throw('Unsupported plugin interface type: unknown')
+
+        expect(loggerErrorStub.calledWith('Unable to create governance from plugin')).to.be.true
+      })
+    })
+  })
+
   describe('createBaseMember', () => {
     let parseAddressStub: sinon.SinonStub
     let executeTxFnStub: sinon.SinonStub

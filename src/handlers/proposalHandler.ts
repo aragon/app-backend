@@ -288,7 +288,14 @@ export const ProposalHandler = {
       })
 
       if (incrementalId === null) {
-        logger.error('Error findIncrementalId - incrementalId is null', llo({ ...info, parsedEvent, pluginAddress }))
+        logger.error(
+          'Error findIncrementalId - incrementalId is null',
+          llo({
+            ...info,
+            parsedEvent,
+            pluginAddress,
+          }),
+        )
         return { newProposal: undefined, relatedPlugin: undefined }
       }
 
@@ -303,23 +310,22 @@ export const ProposalHandler = {
       // Create base member first
       await MemberGovernanceFactory.createBaseMember(newProposal.creatorAddress, info.blockNumber)
 
-      // Create governance instance based on plugin type
-      const governance = MemberGovernanceFactory.create({
-        address: relatedPlugin.tokenAddress || pluginAddress,
-        network: info.network,
-        interfaceType: relatedPlugin.interfaceType,
-      })
+      // Spp have no members don't need to update plugin metrics
+      if (relatedPlugin.interfaceType !== IPluginInterfaceType.spp) {
+        // Create governance instance based on plugin type
+        const governance = MemberGovernanceFactory.createFromPlugin(relatedPlugin)
 
-      // Update plugin metrics and increment proposal count
-      await governance.updatePluginMetrics({
-        memberAddress: newProposal.creatorAddress,
-        pluginAddress,
-        network: info.network,
-        daoAddress: newProposal.daoAddress,
-        lastActivity: newProposal.blockNumber,
-      })
+        // Update plugin metrics and increment proposal count
+        await governance.updatePluginMetrics({
+          memberAddress: newProposal.creatorAddress,
+          pluginAddress,
+          network: info.network,
+          daoAddress: newProposal.daoAddress,
+          lastActivity: newProposal.blockNumber,
+        })
 
-      await governance.updateDaoMetrics()
+        await governance.updateDaoMetrics()
+      }
 
       const allMessages: Promise<any>[] = []
 
@@ -415,11 +421,7 @@ export const ProposalHandler = {
       const relatedPlugin = await Models.Plugin.findByAddress(info.address, info.network)
       if (relatedPlugin) {
         // Create governance instance based on a plugin type
-        const governance = MemberGovernanceFactory.create({
-          address: relatedPlugin.tokenAddress || info.address,
-          network: info.network,
-          interfaceType: relatedPlugin.interfaceType,
-        })
+        const governance = MemberGovernanceFactory.createFromPlugin(relatedPlugin)
 
         await governance.updatePluginMetrics({
           memberAddress: document.memberAddress!,
@@ -509,8 +511,7 @@ export const ProposalHandler = {
         if (isExistingVote) {
           await existingMemberVote.deleteOne({ session })
         }
-        await session.commitTransaction()
-        await session.endSession()
+        await DbTx.safeCommit(session)
         const logName = existingMemberVote ? 'Replace Vote - VoteCast' : 'New Vote - VoteCast'
         logger.verbose(`Created new document - ${logName}`, llo({ ...info, documentId: logId.id }))
       })
@@ -577,8 +578,7 @@ export const ProposalHandler = {
         }
 
         const logDb = await proposal.update(rawUpdate, { session })
-        await session.commitTransaction()
-        await session.endSession()
+        await DbTx.safeCommit(session)
         logger.verbose('Updated proposal executed', llo({ logDb: logDb.id, info }))
         return logDb
       })
@@ -673,8 +673,7 @@ export const ProposalHandler = {
           },
           { session },
         )
-        await session.commitTransaction()
-        await session.endSession()
+        await DbTx.safeCommit(session)
       })
       logger.verbose('Updated proposal - result report', llo({ logDb: proposal.id, info }))
     } catch (error) {
@@ -1018,8 +1017,7 @@ export const ProposalHandler = {
         )
 
         await proposal.save({ session })
-        await session.commitTransaction()
-        await session.endSession()
+        await DbTx.safeCommit(session)
         logger.verbose('Update proposal - pairSppProposals', llo({ logId: proposal.id, info }))
       })
     } catch (error) {
@@ -1120,8 +1118,7 @@ export const ProposalHandler = {
         )
 
         const dbLog = await proposal.update(rawUpdate, { session })
-        await session.commitTransaction()
-        await session.endSession()
+        await DbTx.safeCommit(session)
         logger.verbose('Update proposalEdited', llo({ logId: dbLog.id }))
       })
     } catch (error) {

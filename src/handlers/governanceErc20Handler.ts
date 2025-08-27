@@ -31,11 +31,7 @@ export const GovernanceErc20Handler = {
       const lastActivity = info.blockNumber
 
       // Create ERC20 governance instance for token operations
-      const governance = MemberGovernanceFactory.create({
-        address: info.address, // token address
-        network: info.network,
-        interfaceType: IPluginInterfaceType.tokenVoting,
-      })
+      const governance = MemberGovernanceFactory.createFromPlugin(plugins[0])
 
       // Update, will create member if not exists, update or create the token member
       await governance.update(memberAddress, {
@@ -138,7 +134,8 @@ export const GovernanceErc20Handler = {
 
         // Update voting powers in batch for each token
         for (const [key, updates] of updatesByTokenNetwork) {
-          const [tokenAddress, network] = key.split('-')
+          const [tokenAddress, ...networkParts] = key.split('-')
+          const network = networkParts.join('-')
           const governance = new Erc20Governance(tokenAddress, network as NetworksEnum)
           await governance.updateTokenMemberVPBatchNoTx(updates)
         }

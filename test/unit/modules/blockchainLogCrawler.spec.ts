@@ -17,6 +17,7 @@ describe('Module: blockchainLogCrawler', () => {
   let sandbox: SinonSandbox
   let mockProvider: any
   let logError: any
+  let logWarn: any
   let logVerbose: any
   let crawlerConfig: any
 
@@ -28,6 +29,7 @@ describe('Module: blockchainLogCrawler', () => {
     }
     logVerbose = sandbox.stub(logger, 'verbose')
     logError = sandbox.stub(logger, 'error')
+    logWarn = sandbox.stub(logger, 'warn')
 
     crawlerConfig = {
       network: NetworksEnum.ethereumMainnet,
@@ -640,15 +642,13 @@ describe('Module: blockchainLogCrawler', () => {
 
       sandbox.stub(crawler, 'isBatchSizeError').returns(true)
 
-      const logWarnSpy = sandbox.stub(logger, 'warn')
-
       try {
         await crawler.getLogsWithoutTopics(100, 200)
         expect.fail('Should have thrown an error')
       } catch (error) {
         expect(error).to.equal(batchSizeError)
-        expect(logWarnSpy.calledOnce).to.be.true
-        expect(logWarnSpy.firstCall.args[0]).to.equal('Batch size error in getLogs, will switch to batch strategy')
+        expect(logWarn.calledOnce).to.be.true
+        expect(logWarn.firstCall.args[0]).to.equal('Batch size error in getLogs, will switch to batch strategy')
       }
     })
 
@@ -674,14 +674,13 @@ describe('Module: blockchainLogCrawler', () => {
 
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').resolves(mockProvider)
       sandbox.stub(crawler, 'isBatchSizeError').returns(false)
-      const logWarnSpy = sandbox.stub(logger, 'warn')
 
       try {
         await crawler.getLogsWithoutTopics(100, 200)
         expect.fail('Should have thrown an error')
       } catch (error) {
         expect(error).to.equal(regularError)
-        expect(logWarnSpy.called).to.be.false
+        expect(logWarn.called).to.be.false
       }
     })
 
@@ -700,15 +699,13 @@ describe('Module: blockchainLogCrawler', () => {
 
       sandbox.stub(crawler, 'isBatchSizeError').returns(true)
 
-      const logWarnSpy = sandbox.stub(logger, 'warn')
-
       try {
         await crawler.getLogsWithoutTopics(100, 200)
         expect.fail('Should have thrown an error')
       } catch (error) {
         expect(error).to.equal(batchSizeError)
-        expect(logWarnSpy.calledOnce).to.be.true
-        expect(logWarnSpy.firstCall.args[0]).to.equal('Batch size error in getLogs, will switch to batch strategy')
+        expect(logWarn.calledOnce).to.be.true
+        expect(logWarn.firstCall.args[0]).to.equal('Batch size error in getLogs, will switch to batch strategy')
       }
     })
   })
@@ -884,13 +881,11 @@ describe('Module: blockchainLogCrawler', () => {
       const networkError = new Error('Network connection error')
       sandbox.stub(axios, 'post').rejects(networkError)
 
-      const logWarnStub = sandbox.stub(logger, 'warn')
-
       const result = await crawler.getLogsByBlockReceipts(100, 102)
 
       expect(result.logs).to.be.empty
-      expect(logWarnStub.calledOnce).to.be.true
-      expect(logWarnStub.firstCall.args[0]).to.equal('Batch request failed, falling back to individual requests')
+      expect(logWarn.calledOnce).to.be.true
+      expect(logWarn.firstCall.args[0]).to.equal('Batch request failed, falling back to individual requests')
       expect(crawler['crawlSetting'].shutdown).to.be.true
       expect(onErrorStub.calledOnceWith(networkError)).to.be.true
     })
@@ -1342,8 +1337,8 @@ describe('Module: blockchainLogCrawler', () => {
       latestBlock: 200,
     })
 
-    expect(logError.calledOnce).to.be.true
-    expect(logError.calledWith('Error event setting not found in blockchainCrawler')).to.be.true
+    expect(logWarn.calledOnce).to.be.true
+    expect(logWarn.calledWith('Error event setting not found in blockchainCrawler')).to.be.true
 
     for (const event of events) {
       expect(event.handler.notCalled).to.be.true
@@ -2060,7 +2055,7 @@ describe('Module: blockchainLogCrawler', () => {
 
         expect(handlerStub1.calledOnce).to.be.true
         expect(crawler.crawlSetting.nbSuccess).to.equal(1) // Only one valid event processed
-        expect(logError.calledWith('Error event setting not found in blockchainCrawler')).to.be.true
+        expect(logWarn.calledWith('Error event setting not found in blockchainCrawler')).to.be.true
       })
 
       it('should update lastSync with the highest block number processed', async () => {

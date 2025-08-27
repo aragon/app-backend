@@ -10,7 +10,8 @@ export enum ProposalActionType {
   MultisigRemoveMembers = 'MultisigRemoveMembers',
   MetadataUpdate = 'MetadataUpdate',
   UpdateMultiSigSettings = 'UpdateMultiSigSettings',
-  UpdateVoteSettings = 'UpdateVoteSettings',
+  UpdateTokenVoteSettings = 'UpdateTokenVoteSettings',
+  UpdateLockToVoteVoteSettings = 'UpdateLockToVoteVoteSettings',
   StagesUpdated = 'StagesUpdated',
   MetadataPluginUpdate = 'MetadataPluginUpdate',
 }

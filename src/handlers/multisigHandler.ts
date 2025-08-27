@@ -18,11 +18,7 @@ export const MultisigHandler = {
     }
 
     // Create multisig governance instance
-    const governance = MemberGovernanceFactory.create({
-      address,
-      network,
-      interfaceType: IPluginInterfaceType.multisig,
-    })
+    const governance = MemberGovernanceFactory.createFromPlugin(exitingPlugin)
 
     const { members } = parsedEvent.args
     for (const memberAddress of members) {
