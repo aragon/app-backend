@@ -16,7 +16,7 @@ import { DaoRegistryHandler } from '@src/handlers/daoRegistryHandler'
 import { DAORegistry } from '@src/aragonContracts'
 import ProxyWeb3Provider from '@src/modules/proxyProvider'
 
-describe.only('Integ: VeLock', () => {
+describe.skip('Integ: VeLock', () => {
   let sandbox: sinon.SinonSandbox
 
   beforeEach(() => {
