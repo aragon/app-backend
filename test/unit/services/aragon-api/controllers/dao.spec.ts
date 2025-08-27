@@ -558,12 +558,8 @@ describe('Controller: Dao', () => {
         { tokenAddress: '0xToken1', network: NetworksEnum.ethereumMainnet },
         { tokenAddress: '0xToken2', network: NetworksEnum.ethereumMainnet },
       ]
-      const veMembersWithNetwork = [
-        { tokenAddress: '0xVeToken1', network: NetworksEnum.ethereumMainnet },
-      ]
-      const lockMembersWithNetwork = [
-        { lockManagerAddress: '0xLockManager1', network: NetworksEnum.ethereumMainnet },
-      ]
+      const veMembersWithNetwork = [{ tokenAddress: '0xVeToken1', network: NetworksEnum.ethereumMainnet }]
+      const lockMembersWithNetwork = [{ lockManagerAddress: '0xLockManager1', network: NetworksEnum.ethereumMainnet }]
       const pluginMembersWithNetwork = [
         { pluginAddress: '0xPlugin1', network: NetworksEnum.ethereumMainnet },
         { pluginAddress: '0xPlugin2', network: NetworksEnum.ethereumMainnet },
@@ -580,10 +576,26 @@ describe('Controller: Dao', () => {
       // Expected query structure
       const expectedQuery = {
         $or: [
-          { tokenAddress: { $in: ['0xToken1', '0xToken2'] }, interfaceType: 'tokenVoting', network: NetworksEnum.ethereumMainnet },
-          { tokenAddress: { $in: ['0xVeToken1'] }, interfaceType: 'tokenVoting', network: NetworksEnum.ethereumMainnet },
-          { lockManagerAddress: { $in: ['0xLockManager1'] }, interfaceType: 'lockToVote', network: NetworksEnum.ethereumMainnet },
-          { address: { $in: ['0xPlugin1', '0xPlugin2'] }, interfaceType: { $in: ['multisig', 'admin'] }, network: NetworksEnum.ethereumMainnet },
+          {
+            tokenAddress: { $in: ['0xToken1', '0xToken2'] },
+            interfaceType: 'tokenVoting',
+            network: NetworksEnum.ethereumMainnet,
+          },
+          {
+            tokenAddress: { $in: ['0xVeToken1'] },
+            interfaceType: 'tokenVoting',
+            network: NetworksEnum.ethereumMainnet,
+          },
+          {
+            lockManagerAddress: { $in: ['0xLockManager1'] },
+            interfaceType: 'lockToVote',
+            network: NetworksEnum.ethereumMainnet,
+          },
+          {
+            address: { $in: ['0xPlugin1', '0xPlugin2'] },
+            interfaceType: { $in: ['multisig', 'admin'] },
+            network: NetworksEnum.ethereumMainnet,
+          },
         ],
         status: 'installed',
         isSupported: true,
@@ -596,14 +608,21 @@ describe('Controller: Dao', () => {
 
       expect(stubPluginDistinct.calledOnce).to.be.true
       // Use sinon.match to match the structure of the query
-      expect(stubPluginDistinct.calledWith('daoAddress', sinon.match(query => {
-        // Verify the query has all the required properties
-        return query.$or.length === 4 && 
-               query.status === 'installed' && 
-               query.isSupported === true && 
-               query.network === NetworksEnum.ethereumMainnet
-      }))).to.be.true
-      
+      expect(
+        stubPluginDistinct.calledWith(
+          'daoAddress',
+          sinon.match(query => {
+            // Verify the query has all the required properties
+            return (
+              query.$or.length === 4 &&
+              query.status === 'installed' &&
+              query.isSupported === true &&
+              query.network === NetworksEnum.ethereumMainnet
+            )
+          }),
+        ),
+      ).to.be.true
+
       expect(result).to.deep.equal(expectedDaoAddresses)
     })
 
@@ -616,7 +635,7 @@ describe('Controller: Dao', () => {
       sandbox.stub(Models.Lock, 'aggregate').resolves([])
       sandbox.stub(Models.LockToVoteMember, 'aggregate').resolves([])
       sandbox.stub(Models.PluginMember, 'aggregate').resolves([])
-      
+
       // No calls to Plugin.distinct should be made
       const stubPluginDistinct = sandbox.stub(Models.Plugin, 'distinct')
 
@@ -640,25 +659,61 @@ describe('Controller: Dao', () => {
       await DaoController.getDaosOfMemberInNetwork(memberAddress, networkFilter)
 
       // Verify that the aggregate calls were made with the correct filter
-      expect(stubTokenMember.calledWith(sinon.match.array.and(sinon.match(arr => 
-        arr[0].$match && arr[0].$match.memberAddress === memberAddress && 
-        arr[0].$match.network && arr[0].$match.network.$in
-      )))).to.be.true
-      
-      expect(stubLock.calledWith(sinon.match.array.and(sinon.match(arr => 
-        arr[0].$match && arr[0].$match.delegateReceiverAddress === memberAddress && 
-        arr[0].$match.network && arr[0].$match.network.$in
-      )))).to.be.true
-      
-      expect(stubLockToVote.calledWith(sinon.match.array.and(sinon.match(arr => 
-        arr[0].$match && arr[0].$match.memberAddress === memberAddress && 
-        arr[0].$match.network && arr[0].$match.network.$in
-      )))).to.be.true
-      
-      expect(stubPluginMember.calledWith(sinon.match.array.and(sinon.match(arr => 
-        arr[0].$match && arr[0].$match.memberAddress === memberAddress && 
-        arr[0].$match.network && arr[0].$match.network.$in
-      )))).to.be.true
+      expect(
+        stubTokenMember.calledWith(
+          sinon.match.array.and(
+            sinon.match(
+              arr =>
+                arr[0].$match &&
+                arr[0].$match.memberAddress === memberAddress &&
+                arr[0].$match.network &&
+                arr[0].$match.network.$in,
+            ),
+          ),
+        ),
+      ).to.be.true
+
+      expect(
+        stubLock.calledWith(
+          sinon.match.array.and(
+            sinon.match(
+              arr =>
+                arr[0].$match &&
+                arr[0].$match.delegateReceiverAddress === memberAddress &&
+                arr[0].$match.network &&
+                arr[0].$match.network.$in,
+            ),
+          ),
+        ),
+      ).to.be.true
+
+      expect(
+        stubLockToVote.calledWith(
+          sinon.match.array.and(
+            sinon.match(
+              arr =>
+                arr[0].$match &&
+                arr[0].$match.memberAddress === memberAddress &&
+                arr[0].$match.network &&
+                arr[0].$match.network.$in,
+            ),
+          ),
+        ),
+      ).to.be.true
+
+      expect(
+        stubPluginMember.calledWith(
+          sinon.match.array.and(
+            sinon.match(
+              arr =>
+                arr[0].$match &&
+                arr[0].$match.memberAddress === memberAddress &&
+                arr[0].$match.network &&
+                arr[0].$match.network.$in,
+            ),
+          ),
+        ),
+      ).to.be.true
     })
 
     it('should handle address collisions across networks', async () => {
@@ -679,8 +734,16 @@ describe('Controller: Dao', () => {
       // Expected query should have two separate entries for the same plugin address on different networks
       const expectedQuery = {
         $or: [
-          { address: { $in: ['0xSamePlugin'] }, interfaceType: { $in: ['multisig', 'admin'] }, network: NetworksEnum.ethereumMainnet },
-          { address: { $in: ['0xSamePlugin'] }, interfaceType: { $in: ['multisig', 'admin'] }, network: NetworksEnum.polygonMainnet },
+          {
+            address: { $in: ['0xSamePlugin'] },
+            interfaceType: { $in: ['multisig', 'admin'] },
+            network: NetworksEnum.ethereumMainnet,
+          },
+          {
+            address: { $in: ['0xSamePlugin'] },
+            interfaceType: { $in: ['multisig', 'admin'] },
+            network: NetworksEnum.polygonMainnet,
+          },
         ],
         status: 'installed',
         isSupported: true,
@@ -691,22 +754,31 @@ describe('Controller: Dao', () => {
       const result = await DaoController.getDaosOfMemberInNetwork(memberAddress, networkFilter)
 
       expect(stubPluginDistinct.calledOnce).to.be.true
-      
+
       // Check that the query contains two separate entries for the same plugin address
-      expect(stubPluginDistinct.calledWith('daoAddress', sinon.match(query => {
-        const hasEthereumEntry = query.$or.some(item => 
-          item.address && item.address.$in.includes('0xSamePlugin') && 
-          item.network === NetworksEnum.ethereumMainnet
-        )
-        
-        const hasPolygonEntry = query.$or.some(item => 
-          item.address && item.address.$in.includes('0xSamePlugin') && 
-          item.network === NetworksEnum.polygonMainnet
-        )
-        
-        return hasEthereumEntry && hasPolygonEntry
-      }))).to.be.true
-      
+      expect(
+        stubPluginDistinct.calledWith(
+          'daoAddress',
+          sinon.match(query => {
+            const hasEthereumEntry = query.$or.some(
+              item =>
+                item.address &&
+                item.address.$in.includes('0xSamePlugin') &&
+                item.network === NetworksEnum.ethereumMainnet,
+            )
+
+            const hasPolygonEntry = query.$or.some(
+              item =>
+                item.address &&
+                item.address.$in.includes('0xSamePlugin') &&
+                item.network === NetworksEnum.polygonMainnet,
+            )
+
+            return hasEthereumEntry && hasPolygonEntry
+          }),
+        ),
+      ).to.be.true
+
       expect(result).to.deep.equal(['0xDao1', '0xDao2'])
     })
   })
@@ -740,7 +812,7 @@ describe('Controller: Dao', () => {
         { tokenAddress: '0xToken1', network: NetworksEnum.ethereumMainnet },
         { network: NetworksEnum.ethereumMainnet } as MembershipData, // Missing tokenAddress
         { tokenAddress: '0xToken2', network: NetworksEnum.ethereumMainnet },
-      ] 
+      ]
 
       const result = DaoController.groupByNetwork(data, 'tokenAddress')
 

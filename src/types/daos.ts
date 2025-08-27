@@ -117,7 +117,6 @@ export interface IDaoMember {
   tokenAddress?: HexAddress
 }
 
-
 export interface MembershipData {
   tokenAddress?: string
   lockManagerAddress?: string
