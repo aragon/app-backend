@@ -1808,7 +1808,7 @@ describe('Handler:GovernanceVeHandler', () => {
   describe('minLockSet', () => {
     it('should skip if plugin not found', async () => {
       const stubPluginFind = sandbox.stub(Models.Plugin, 'find').resolves([])
-      const stubLogger = sandbox.stub(logger, 'error')
+      const stubLogger = sandbox.stub(logger, 'warn')
       const stubSettingFindActive = sandbox.stub(Models.Setting, 'findActive')
 
       const mockInfo = {
