@@ -1,7 +1,7 @@
 import '@test/environment'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { EnumQueueName, ITokenType, NetworksEnum, IPluginInterfaceType, IPluginStatus } from '@types'
+import { ITokenType, NetworksEnum, IPluginInterfaceType, IPluginStatus } from '@types'
 import { beforeEach } from 'mocha'
 import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 import utils from '@helpers/utils'
