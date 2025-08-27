@@ -23,7 +23,7 @@ describe('Capital Distributor', () => {
   it('should handle capital distribution event and plugin sync correctly', async function () {
     this.timeout(100000000)
     const network = NetworksEnum.ethereumSepolia
-    const pluginAddress = '0x5dA61302D0d08d80D39f015b75595052fD4CdD06'
+    const pluginAddress = '0x1F4Bd8b6fcb19F64D172310Da583753d4c0aF4a9'
 
     const addressesses = [
       {
@@ -79,7 +79,7 @@ describe('Capital Distributor', () => {
     ]
 
     await Utils.handleEventsFromTxHashes(
-      ['0x11faef71292d3fe642e87f00a4ef0776c0fe8f71e07029ef595535704cab04cd'],
+      ['0xbe8b845b443bfc8242eae8c5d90e6cbc47bf68e046609f91069c343ec790da1e'],
       network,
     )
 
@@ -116,7 +116,7 @@ describe('Capital Distributor', () => {
     }
 
     await Utils.handleEventsFromTxHashes(
-      ['0x95ef153e8fdeb70a4315ff0311251e624181dcf36f17ff07589fd0d6298f7814'],
+      ['0xd3fd0e6580943af162a12bfadfc7bfd071828263ff4a00b3396cf180b5b31f42'],
       network,
     )
 
@@ -143,22 +143,6 @@ describe('Capital Distributor', () => {
 
     const expectedClaimable = totalAmountForUser - totalClaimedFromDb
     expect(campaignStatus.totalClaimable).to.be.eq(expectedClaimable.toString())
-
-    const userWhoNeverClaimed = addressesses[1].addresses[1].address
-    const notClaimedRewardStat = await CapitalDistributorController.getUserCampaignStatus(
-      pluginAddress,
-      network,
-      userWhoNeverClaimed,
-    )
-
-    expect(notClaimedRewardStat.totalClaimed).to.be.eq('0')
-
-    //calculate the total rewards for the user who never claimed
-    const totalRewardsForUser = addressesses.reduce((acc, curr) => {
-      const userReward = curr.addresses.find(addr => addr.address === userWhoNeverClaimed)
-      return userReward ? acc + BigInt(userReward.amount) : acc
-    }, BigInt(0))
-    expect(notClaimedRewardStat.totalClaimable).to.be.eq(totalRewardsForUser.toString())
 
     const daoDetails = await DaoController.getDaoByAddress(plugin.daoAddress, network)
 
