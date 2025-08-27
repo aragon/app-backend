@@ -6,6 +6,8 @@ import {
   type IDaoResponse,
   type IPaginatedResult,
   type IPaginationParams,
+  IPluginInterfaceType,
+  IPluginStatus,
   type NetworksEnum,
 } from '@types'
 import { assertExposable } from '@errors'
@@ -39,7 +41,10 @@ const DaoController = {
     return await Models.Dao.getDaoDetails(dao.address, dao.network)
   },
 
-  getDaosByMember: async (paginationParams: IPaginationParams = {}, extraParams: IDaoExtraParams = {}) => {
+  getDaosByMember: async (
+    paginationParams: IPaginationParams = {},
+    extraParams: IDaoExtraParams = {},
+  ): Promise<IPaginatedResult<IDaoResponse>> => {
     paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
     extraParams.memberAddress = await PairDataModule.checkIFEns(extraParams.memberAddress!)
     extraParams.excludedDao = extraParams.excludeDaoId
@@ -49,31 +54,35 @@ const DaoController = {
         })
       : undefined
 
-    // Get all DAOs for the member across specified networks
-    const allMappings: any[] = []
+    const networkFilter = extraParams.networks?.length ? { network: { $in: extraParams.networks } } : {}
+    const allDaoAddresses = await DaoController.getDaosOfMemberInNetwork(extraParams.memberAddress, networkFilter)
 
-    // Query each specified network
-    for (const network of extraParams.networks!) {
-      const mapping = await PairDataModule.pairAllMemberOfDao({
-        memberAddress: extraParams.memberAddress,
-        network,
-      })
-      allMappings.push(...mapping)
-    }
+    const extraQueryData = { daoAddresses: allDaoAddresses }
 
-    // Extract unique DAO addresses and filter out excluded DAO
-    const daoAddresses = [
-      ...new Set(
-        allMappings
-          .map(m => m.daoAddress)
-          .filter((daoAddress: HexAddress) => daoAddress && daoAddress !== extraParams?.excludedDao?.daoAddress),
-      ),
-    ]
+    return await Models.Dao.findWithPagination({ extraParams, paginationParams, extraQueryData })
+  },
 
-    return await Models.Dao.findWithPagination({
-      extraParams,
-      paginationParams,
-      extraQueryData: { daoAddresses },
+  getDaosOfMemberInNetwork: async (memberAddress: any, networkFilter: any = {}) => {
+    const [tokenMembers, veMembers, lockMembers, pluginMembers] = await Promise.all([
+      Models.TokenMember.distinct('tokenAddress', { memberAddress, ...networkFilter }),
+      Models.Lock.distinct('tokenAddress', { delegateReceiverAddress: memberAddress, ...networkFilter }),
+      Models.LockToVoteMember.distinct('lockManagerAddress', { memberAddress, ...networkFilter }),
+      Models.PluginMember.distinct('pluginAddress', { memberAddress, ...networkFilter }),
+    ])
+
+    return await Models.Plugin.distinct('daoAddress', {
+      $or: [
+        { tokenAddress: { $in: tokenMembers }, interfaceType: IPluginInterfaceType.tokenVoting },
+        { tokenAddress: { $in: veMembers }, interfaceType: IPluginInterfaceType.tokenVoting },
+        { lockManagerAddress: { $in: lockMembers }, interfaceType: IPluginInterfaceType.lockToVote },
+        {
+          address: { $in: pluginMembers },
+          interfaceType: { $in: [IPluginInterfaceType.multisig, IPluginInterfaceType.admin] },
+        },
+      ],
+      status: IPluginStatus.installed,
+      isSupported: true,
+      ...networkFilter,
     })
   },
 }
