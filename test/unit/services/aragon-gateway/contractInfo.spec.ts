@@ -1,6 +1,6 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { ContractInfo } from '@services/aragon-dao/contractInfo'
+import { ContractInfo } from '@services/aragon-gateway/contractInfo'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
 import ProxyContract from '@helpers/proxyContract'

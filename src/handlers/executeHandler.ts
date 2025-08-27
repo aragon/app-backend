@@ -3,7 +3,7 @@ import { type ILogInfo, IPluginStatus } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import Web3Helper from '@helpers/web3'
-import { ContractInfo } from '@services/aragon-dao/contractInfo'
+import { ContractInfo } from '@services/aragon-gateway/contractInfo'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:ExecuteHandler' })
 
