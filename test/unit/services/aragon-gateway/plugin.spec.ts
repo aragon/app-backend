@@ -1,6 +1,6 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import Plugin from '@services/aragon-dao/plugin'
+import Plugin from '@services/aragon-gateway/plugin'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'

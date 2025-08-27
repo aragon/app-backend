@@ -6,7 +6,7 @@ import { Models } from '@dbModels'
 import { NetworksEnum, IPluginStatus } from '@types'
 import logger from '@logger'
 import Web3Helper from '@helpers/web3'
-import { ContractInfo } from '@services/aragon-dao/contractInfo'
+import { ContractInfo } from '@services/aragon-gateway/contractInfo'
 
 describe('ExecuteHandler', () => {
   let sandbox: SinonSandbox
