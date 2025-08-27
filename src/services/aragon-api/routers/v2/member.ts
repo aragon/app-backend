@@ -110,7 +110,7 @@ const MemberRouter = {
     )
   },
 
-  router() {
+  router(): Router {
     const router = new Router()
 
     /**

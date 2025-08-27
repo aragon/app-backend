@@ -71,7 +71,7 @@ const SettingRouter = {
     )
   },
 
-  router() {
+  router(): Router {
     const router = new Router()
 
     /**

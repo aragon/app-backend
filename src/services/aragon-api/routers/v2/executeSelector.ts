@@ -27,7 +27,7 @@ const ExecuteSelectorRouter = {
     )
   },
 
-  router() {
+  router(): Router {
     const router = new Router()
 
     /**

@@ -16,7 +16,7 @@ const PluginRouter = {
     ctx.body = await PluginsController.getInstallationData(formattedParams)
   },
 
-  router() {
+  router(): Router {
     const router = new Router()
 
     router.get('/installation-data', PluginRouter.getInstallationData)

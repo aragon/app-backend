@@ -41,7 +41,7 @@ const TokenRouter = {
     ctx.body = await TokenController.getTokenByAddress(formattedValues)
   },
 
-  router() {
+  router(): Router {
     const router = new Router()
 
     /**

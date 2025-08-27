@@ -5,7 +5,7 @@ import DaoAdminRouter from './dao'
 import CapitalDistributorAdminRouter from './capitalDistributor'
 
 const MainAdminRouter = {
-  router() {
+  router(): Router {
     const statusAdminRouter = StatusAdminRouter.router()
     const syncAdminRouter = SyncAdminRouter.router()
     const daoAdminRouter = DaoAdminRouter.router()

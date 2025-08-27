@@ -110,7 +110,7 @@ const MemberRouter = {
     ctx.body = await MemberController.getMemberLocks(formattedExtraParams, formattedPaginationParams)
   },
 
-  router() {
+  router(): Router {
     const router = new Router()
 
     /**

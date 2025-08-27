@@ -67,7 +67,7 @@ const VoteRouter = {
     ctx.body = await VoteController.memberVotesInfo(result.extraParams as ICanVoteParams)
   },
 
-  router() {
+  router(): Router {
     const router = new Router()
 
     /**

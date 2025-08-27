@@ -63,7 +63,7 @@ const VoteRouter = {
     ctx.body = await VoteController.memberVotesInfo(formattedValues)
   },
 
-  router() {
+  router(): Router {
     const router = new Router()
 
     /**

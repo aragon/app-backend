@@ -13,7 +13,7 @@ import ExecuteSelectorRouter from '@api/routers/v2/executeSelector'
 import CapitalDistributorRouter from '@api/routers/v2/capitalDistributor'
 
 const V2Router = {
-  router() {
+  router(): Router {
     const router = new Router()
 
     const assetRouter = AssetRouter.router()
