@@ -11,7 +11,7 @@ import ContractRouter from './contract'
 import PluginRouter from './plugins'
 
 const V1Router = {
-  router() {
+  router(): Router {
     const router = new Router()
 
     const assetRouter = AssetRouter.router()

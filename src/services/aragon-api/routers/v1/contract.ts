@@ -25,7 +25,7 @@ const ContractRouter = {
     ctx.body = await ContractController.decodeContractData(formattedValues)
   },
 
-  router() {
+  router(): Router {
     const router = new Router()
 
     /**

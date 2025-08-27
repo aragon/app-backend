@@ -106,7 +106,7 @@ const ProposalRouter = {
     }
   },
 
-  router() {
+  router(): Router {
     const router = new Router()
 
     /**

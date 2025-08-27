@@ -65,7 +65,7 @@ const CapitalDistributorRouter = {
     })
   },
 
-  router() {
+  router(): Router {
     const router = new Router()
 
     /**
