@@ -189,7 +189,7 @@ export const CapitalDistributorHandler = {
     }
 
     try {
-      const { campaignId, recipient, amount, totalClaimed } = parsedEvent.args
+      const { campaignId, recipient, amount } = parsedEvent.args
 
       let reward = await Models.CampaignReward.findRewardForCampaign(address, network, campaignId.toString(), recipient)
 
@@ -224,7 +224,6 @@ export const CapitalDistributorHandler = {
           campaignId: campaignId.toString(),
           recipient,
           amount: amount.toString(),
-          totalClaimed: totalClaimed.toString(),
           address,
           network,
         }),

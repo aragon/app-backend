@@ -123,12 +123,6 @@ export const CapitalDistributor = {
           name: 'amount',
           type: 'uint256',
         },
-        {
-          indexed: false,
-          internalType: 'uint256',
-          name: 'totalClaimed',
-          type: 'uint256',
-        },
       ],
       name: 'PayoutClaimed',
       type: 'event',
