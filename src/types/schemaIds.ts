@@ -148,6 +148,19 @@ export interface ISelectorPermissionIdParams {
   conditionAddress: HexAddress
 }
 
+export interface ICampaignParams {
+  pluginAddress: HexAddress
+  network: NetworksEnum
+  campaignId: string
+}
+
+export interface IRewardParams {
+  pluginAddress: HexAddress
+  network: NetworksEnum
+  campaignId: string
+  userAddress: HexAddress
+}
+
 export interface IPluginMemberIdParams {
   network: NetworksEnum
   pluginAddress: HexAddress

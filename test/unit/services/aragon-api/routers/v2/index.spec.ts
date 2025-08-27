@@ -17,6 +17,7 @@ import TransactionRouter from '@api/routers/v2/transaction'
 import ContractRouter from '@api/routers/v2/contract'
 import PluginRouter from '@api/routers/v2/plugins'
 import ExecuteSelectorRouter from '@api/routers/v2/executeSelector'
+import CapitalDistributorRouter from '@api/routers/v2/capitalDistributor'
 
 describe('RouterV2: V2Router', () => {
   let sandbox: SinonSandbox
@@ -51,6 +52,7 @@ describe('RouterV2: V2Router', () => {
     stubRouter(ContractRouter, 'contract')
     stubRouter(PluginRouter, 'plugins')
     stubRouter(ExecuteSelectorRouter, 'execute-selectors')
+    stubRouter(CapitalDistributorRouter, 'capital-distributors')
 
     await utils.wait(100) // Small wait to ensure stubs are applied
 
@@ -72,6 +74,7 @@ describe('RouterV2: V2Router', () => {
       ContractRouter,
       PluginRouter,
       ExecuteSelectorRouter,
+      CapitalDistributorRouter,
     ]
     expect(use.callCount).to.be.eq(routers.length)
 
@@ -92,6 +95,7 @@ describe('RouterV2: V2Router', () => {
     expectRouter('/contract', 'contract')
     expectRouter('/plugins', 'plugins')
     expectRouter('/execute-selectors', 'execute-selectors')
+    expectRouter('/capital-distributor', 'capital-distributors')
   })
 
   it('Should create a functional router that can be used in a Koa app', async () => {
@@ -119,6 +123,7 @@ describe('RouterV2: V2Router', () => {
     emptyRouterStub(ContractRouter)
     emptyRouterStub(PluginRouter)
     emptyRouterStub(ExecuteSelectorRouter)
+    emptyRouterStub(CapitalDistributorRouter)
 
     // Create a test Koa app with the v2 router
     const app = new Koa()

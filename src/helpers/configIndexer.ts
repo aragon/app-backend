@@ -17,6 +17,7 @@ import {
   type TransferListLogService,
   type LockManagerLogService,
   type HexAddress,
+  type CampaignStrategyLogService,
 } from '@src/types'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ConfigIndexerHelper' })
@@ -84,6 +85,11 @@ const ConfigIndexerHelper = {
       const service = `${tokenType}-${network}-${address}`
       return service as TokenLogService
     },
+
+    campaignAllocationStrategy: (network: NetworksEnum, address: HexAddress): CampaignStrategyLogService => {
+      const service = `${IndexerType.campaignStrategy}-${network}-${address}`
+      return service as CampaignStrategyLogService
+    },
   },
 
   // Type guard functions for runtime checks
@@ -116,6 +122,9 @@ const ConfigIndexerHelper = {
     isLockManager: (service: LogServicePattern): service is LockManagerLogService =>
       service?.startsWith(`${IndexerType.lockManager}-`) ?? false,
 
+    isCampaignStrategy: (service: LogServicePattern): service is CampaignStrategyLogService =>
+      service?.startsWith(`${IndexerType.campaignStrategy}-`) ?? false,
+
     isPlugin: (service: LogServicePattern): service is PluginLogService => {
       if (service === null) return false
       // If it's not any of the other types, and it's not null, it should be a plugin
@@ -127,7 +136,8 @@ const ConfigIndexerHelper = {
         !ConfigIndexerHelper.guards.isPermission(service) &&
         !ConfigIndexerHelper.guards.isToken(service) &&
         !ConfigIndexerHelper.guards.isTransferList(service) &&
-        !ConfigIndexerHelper.guards.isLockManager(service)
+        !ConfigIndexerHelper.guards.isLockManager(service) &&
+        !ConfigIndexerHelper.guards.isCampaignStrategy(service)
       )
     },
   },
@@ -283,6 +293,19 @@ const ConfigIndexerHelper = {
         return result
       }
 
+      if (ConfigIndexerHelper.guards.isCampaignStrategy(service)) {
+        // campaignStrategy-{network}-{address}
+        const { network, remainingParts } = extractNetwork(parts, 1)
+        const networkIndex = remainingParts.indexOf(network)
+        const addressParts = remainingParts.slice(networkIndex + 1)
+
+        return {
+          type: IndexerType.campaignStrategy,
+          network,
+          address: addressParts.join('-'),
+        }
+      }
+
       // Default to plugin pattern
       // {interfaceType}-{network}-{address}
       const interfaceType = parts[0]
@@ -315,6 +338,7 @@ const ConfigIndexerHelper = {
       if (ConfigIndexerHelper.guards.isPermission(service)) return IndexerType.permission
       if (ConfigIndexerHelper.guards.isTransferList(service)) return IndexerType.transferList
       if (ConfigIndexerHelper.guards.isLockManager(service)) return IndexerType.lockManager
+      if (ConfigIndexerHelper.guards.isCampaignStrategy(service)) return IndexerType.campaignStrategy
       if (ConfigIndexerHelper.guards.isPlugin(service)) return IndexerType.plugin
 
       return null
@@ -364,6 +388,7 @@ const ConfigIndexerHelper = {
         ConfigIndexerHelper.guards.isPermission(service) ||
         ConfigIndexerHelper.guards.isTransferList(service) ||
         ConfigIndexerHelper.guards.isLockManager(service) ||
+        ConfigIndexerHelper.guards.isCampaignStrategy(service) ||
         (ConfigIndexerHelper.guards.isPlugin(service) && hasValidNetwork)
       )
     },

@@ -8,6 +8,7 @@ import { TokenVoting } from '@artifacts/TokenVoting'
 import { LockToVote } from '@artifacts/LockToVote'
 import { LockManager } from '@artifacts/LockManager'
 import { ExecuteSelectorCondition } from '@artifacts/ExecuteSelectorCondition'
+import { CapitalDistributor } from '@artifacts/CapitalDistributor'
 
 describe('ConfigIndexer', () => {
   it('should be an array of configurations', () => {
@@ -90,6 +91,7 @@ describe('ConfigIndexer', () => {
         'UninstallationApplied',
         'UninstallationPrepared',
         'MetadataSet',
+        'CampaignCreated',
       ]
 
       historicalEvents.forEach(eventName => {
@@ -109,6 +111,12 @@ describe('ConfigIndexer', () => {
         'Transfer',
         'SelectorAllowed',
         'SelectorDisallowed',
+        'PayoutClaimed',
+        'CampaignPaused',
+        'CampaignResumed',
+        'CampaignEnded',
+        'MerkleCampaignSet',
+        'MerkleCampaignUpdated',
       ]
 
       realtimeOnlyEvents.forEach(eventName => {
@@ -273,6 +281,48 @@ describe('ConfigIndexer', () => {
       expect(config, 'VoteCleared event should exist').to.exist
       expect(config!.config[0].abi).to.equal(LockToVote.abi)
       expect(config!.enableHistorical).to.be.false
+    })
+
+    it('should have all Capital Distributor events', () => {
+      const capitalDistributorEvents = [
+        'CampaignCreated',
+        'PayoutClaimed',
+        'CampaignPaused',
+        'CampaignResumed',
+        'CampaignEnded',
+        'MerkleCampaignSet',
+        'MerkleCampaignUpdated',
+      ]
+
+      capitalDistributorEvents.forEach(eventName => {
+        const config = ConfigIndexer.find(c => c.event === eventName)
+        expect(config, `Capital Distributor event ${eventName} should exist`).to.exist
+        expect(config!.config[0].abi).to.equal(CapitalDistributor.abi)
+
+        // Only CampaignCreated should have historical enabled
+        if (eventName === 'CampaignCreated') {
+          expect(config!.enableHistorical).to.be.true
+        } else {
+          expect(config!.enableHistorical).to.be.false
+        }
+      })
+    })
+
+    it('should have correct topic hashes for Capital Distributor events', () => {
+      const campaignCreatedConfig = ConfigIndexer.find(c => c.event === 'CampaignCreated')
+      expect(campaignCreatedConfig!.topic).to.equal(
+        new Interface(CapitalDistributor.abi).getEvent('CampaignCreated')?.topicHash,
+      )
+
+      const payoutClaimedConfig = ConfigIndexer.find(c => c.event === 'PayoutClaimed')
+      expect(payoutClaimedConfig!.topic).to.equal(
+        new Interface(CapitalDistributor.abi).getEvent('PayoutClaimed')?.topicHash,
+      )
+
+      const merkleCampaignSetConfig = ConfigIndexer.find(c => c.event === 'MerkleCampaignSet')
+      expect(merkleCampaignSetConfig!.topic).to.equal(
+        new Interface(CapitalDistributor.abi).getEvent('MerkleCampaignSet')?.topicHash,
+      )
     })
   })
 })

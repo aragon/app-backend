@@ -300,6 +300,32 @@ const UnitDepUtils = {
       }
     }
   },
+
+  handleEventsFromTxHashes: async (txHashes: string[], network: NetworksEnum) => {
+    const receipts = await Promise.all(
+      txHashes.map(async (txHash: string) => {
+        return await Web3Helper.getTransactionReceipt(txHash, network)
+      }),
+    )
+
+    const parsedLogs = (
+      await Promise.all(
+        receipts.map(async receipt => {
+          if (!receipt) {
+            logger.warn('Transaction receipt not found', { receipt })
+            return false
+          }
+          return await UnitDepUtils.parseLogsByConfig(receipt.logs as any, network)
+        }),
+      )
+    ).filter(Boolean)
+
+    for (const parsedLog of parsedLogs) {
+      for (const { event, handler, info } of parsedLog) {
+        await handler(event, info)
+      }
+    }
+  },
 }
 
 export default UnitDepUtils

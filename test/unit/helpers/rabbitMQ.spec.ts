@@ -9,9 +9,13 @@ import logger from '@logger'
 
 describe('Helpers:RabbitMQ', () => {
   let sandbox: SinonSandbox
+  let loggerErrorStub: sinon.SinonStub
+  let loggerWarnStub: sinon.SinonStub
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    loggerErrorStub = sandbox.stub(logger, 'error')
+    loggerWarnStub = sandbox.stub(logger, 'warn')
   })
 
   afterEach(() => {
@@ -41,6 +45,46 @@ describe('Helpers:RabbitMQ', () => {
 
       await Promise.all(tasks)
       expect(maxConcurrent).to.equal(1)
+    })
+  })
+
+  describe('parseData', () => {
+    it('should handle JSON parsing errors gracefully', () => {
+      const fakeMsg: any = {
+        content: Buffer.from('invalid-json'),
+      }
+
+      const result = RabbitMQHelper.parseData(fakeMsg)
+
+      expect(result).to.be.null
+      expect(loggerErrorStub.calledWith('Failed to parse Buffer as JSON')).to.be.true
+    })
+
+    it('should handle Buffer type data', () => {
+      const originalData = { test: 'data' }
+      const bufferTypeData = {
+        type: 'Buffer',
+        data: Buffer.from(JSON.stringify(originalData)).toJSON().data,
+      }
+
+      const fakeMsg: any = {
+        content: Buffer.from(JSON.stringify(bufferTypeData)),
+      }
+
+      const result = RabbitMQHelper.parseData(fakeMsg)
+
+      expect(result).to.deep.equal(originalData)
+    })
+
+    it('should handle non-buffer content', () => {
+      const testData = { test: 'data' }
+      const fakeMsg: any = {
+        content: testData,
+      }
+
+      const result = RabbitMQHelper.parseData(fakeMsg)
+
+      expect(result).to.deep.equal(testData)
     })
   })
 
@@ -78,6 +122,80 @@ describe('Helpers:RabbitMQ', () => {
       expect(handler.calledOnce).to.be.true
       expect(fakeChannel.ack.calledOnce).to.be.true
     })
+
+    it('should handle RabbitMQ connection errors gracefully', async () => {
+      const queueName = EnumQueueName.contractInfo
+      const connectionError = new Error('Connection failed')
+
+      sandbox.stub(RabbitMQ, 'getChannel').throws(connectionError)
+      const handler = sandbox.stub()
+
+      await RabbitMQHelper.process(queueName, handler)
+
+      expect(loggerErrorStub.calledWith('rabbit process error')).to.be.true
+      expect(handler.called).to.be.false
+    })
+
+    it('should handle message handler errors gracefully', async () => {
+      const queueName = EnumQueueName.contractInfo
+      const handlerError = new Error('Handler failed')
+      const fakeMsg: any = {
+        content: Buffer.from(JSON.stringify({ id: 'msg-error', data: 'test' })),
+        properties: {},
+        fields: {} as any,
+      }
+
+      const fakeChannel: Partial<any> = {
+        consume: sandbox.stub().callsFake((_queue, onMessage) => {
+          setImmediate(() => onMessage(fakeMsg))
+        }),
+        ack: sandbox.stub(),
+        prefetch: sandbox.stub().returns(Promise.resolve()),
+        assertQueue: sandbox.stub().resolves(),
+      }
+
+      const fakeChannelWrapper = {
+        addSetup: sandbox.stub().callsFake(async setupFn => {
+          await setupFn(fakeChannel as ConfirmChannel)
+        }),
+      }
+
+      sandbox.stub(RabbitMQ, 'getChannel').returns(fakeChannelWrapper as any)
+      const handler = sandbox.stub().rejects(handlerError)
+
+      await RabbitMQHelper.process(queueName, handler)
+      await utils.wait(20)
+
+      expect(loggerErrorStub.calledWith('Error in messageHandler')).to.be.true
+      expect(handler.calledOnce).to.be.true
+    })
+
+    it('should handle null messages gracefully', async () => {
+      const queueName = EnumQueueName.contractInfo
+
+      const fakeChannel: Partial<any> = {
+        consume: sandbox.stub().callsFake((_queue, onMessage) => {
+          setImmediate(() => onMessage(null))
+        }),
+        prefetch: sandbox.stub().returns(Promise.resolve()),
+        assertQueue: sandbox.stub().resolves(),
+      }
+
+      const fakeChannelWrapper = {
+        addSetup: sandbox.stub().callsFake(async setupFn => {
+          await setupFn(fakeChannel as ConfirmChannel)
+        }),
+      }
+
+      sandbox.stub(RabbitMQ, 'getChannel').returns(fakeChannelWrapper as any)
+      const handler = sandbox.stub()
+
+      await RabbitMQHelper.process(queueName, handler)
+      await utils.wait(20)
+
+      expect(loggerWarnStub.calledWith('No message to consume')).to.be.true
+      expect(handler.called).to.be.false
+    })
   })
 
   describe('sendMessage', () => {
@@ -107,7 +225,6 @@ describe('Helpers:RabbitMQ', () => {
 
       // Stubs
       sandbox.stub(RabbitMQ, 'getChannel').returns(fakeChannelWrapper as any)
-      const stubLoggerWarn = sandbox.stub(logger, 'warn')
 
       // Send the same message twice (in parallel) to simulate duplicates.
       await Promise.all([
@@ -119,7 +236,7 @@ describe('Helpers:RabbitMQ', () => {
       expect(fakeChannelWrapper.sendToQueue.calledOnce).to.be.true
 
       // The code logs a warning when skipping a duplicate
-      expect(stubLoggerWarn.calledOnceWith('Skipping duplicate message' as any)).to.be.true
+      expect(loggerWarnStub.calledOnceWith('Skipping duplicate message' as any)).to.be.true
 
       // Now send a new message (with same ID)
       await RabbitMQHelper.sendMessage(queueName, payload)
@@ -127,6 +244,61 @@ describe('Helpers:RabbitMQ', () => {
       await RabbitMQHelper.sendMessage(queueName, payloadDifferent)
 
       expect(fakeChannelWrapper.sendToQueue.calledThrice).to.be.true
+    })
+
+    it('should handle sendToQueue errors gracefully in fire-and-forget mode', async () => {
+      const queueName = EnumQueueName.contractInfo
+      const payload = { id: 'msg-error' }
+      const sendError = new Error('Send failed')
+
+      const fakeChannelWrapper = {
+        sendToQueue: sandbox.stub().rejects(sendError),
+      }
+
+      sandbox.stub(RabbitMQ, 'getChannel').returns(fakeChannelWrapper as any)
+
+      const result = await RabbitMQHelper.sendMessage(queueName, payload)
+
+      expect(result).to.be.null
+      expect(loggerErrorStub.calledWith('Error sendMessage')).to.be.true
+    })
+
+    it('should handle sendMessage with response errors gracefully', async () => {
+      const queueName = EnumQueueName.contractInfo
+      const payload = { id: 'msg-response-error' }
+      const connectionError = new Error('Connection error')
+
+      sandbox.stub(RabbitMQ, 'getChannel').throws(connectionError)
+
+      const result = await RabbitMQHelper.sendMessage(queueName, payload, { waitResponse: true })
+
+      expect(result).to.be.null
+      expect(loggerErrorStub.calledWith('Error sendMessage with response')).to.be.true
+    })
+
+    it('should handle timeout in _sendMessageWithResponse', async () => {
+      const queueName = EnumQueueName.contractInfo
+      const payload = { id: 'timeout-msg' }
+
+      const fakeChannelWrapper = {
+        addSetup: sandbox.stub().callsFake(async setupFn => {
+          await setupFn({
+            assertQueue: sandbox.stub().resolves({ queue: 'temp-queue' }),
+            consume: sandbox.stub().resolves({ consumerTag: 'tag-123' }),
+            sendToQueue: sandbox.stub().resolves(true),
+          })
+        }),
+      }
+
+      sandbox.stub(RabbitMQ, 'getChannel').returns(fakeChannelWrapper as any)
+
+      const result = await RabbitMQHelper.sendMessage(queueName, payload, {
+        waitResponse: true,
+        timeout: 10, // Very short timeout
+      })
+
+      expect(result).to.be.null
+      expect(loggerWarnStub.calledWith('Timeout waiting for response')).to.be.true
     })
   })
 
@@ -142,6 +314,18 @@ describe('Helpers:RabbitMQ', () => {
       sandbox.stub(RabbitMQ, 'getChannel').returns(fakeChannelWrapper as any)
       const count = await RabbitMQHelper.getQueueMessageCount(queueName)
       expect(count).to.equal(3)
+    })
+
+    it('should handle getQueueMessageCount errors gracefully', async () => {
+      const queueName = EnumQueueName.contractInfo
+      const queueError = new Error('Queue check failed')
+
+      sandbox.stub(RabbitMQ, 'getChannel').throws(queueError)
+
+      const count = await RabbitMQHelper.getQueueMessageCount(queueName)
+
+      expect(count).to.be.null
+      expect(loggerErrorStub.calledWith('getQueueMessageCount error')).to.be.true
     })
   })
 })

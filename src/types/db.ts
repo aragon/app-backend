@@ -17,11 +17,13 @@ import type MemberTransaction from '@models/schema/memberTransaction'
 import type DaoPermission from '@models/schema/daoPermission'
 import type Jwt from '@models/schema/jwt'
 import type PluginSlug from '@models/schema/pluginSlug'
-import type SelectorPermission from '@models/schema/selectorPermission'
 import type TokenMember from '@models/schema/tokenMember'
 import type PluginMember from '@models/schema/pluginMember'
 import type PluginMetrics from '@models/schema/pluginMetrics'
 import type Lock from '@models/schema/lock'
+import type SelectorPermission from '@models/schema/selectorPermission'
+import type Campaign from '@models/schema/campaign'
+import type CampaignReward from '@models/schema/campaignReward'
 import type LockToVoteMember from '@models/schema/lockToVoteMember'
 import type Migration from '@models/schema/migration'
 
@@ -29,6 +31,8 @@ export interface IMongoModel {
   Migration: typeof Migration
   Asset: typeof Asset
   ConfigIndexer: typeof ConfigIndexer
+  Campaign: typeof Campaign
+  CampaignReward: typeof CampaignReward
   Dao: typeof Dao
   DaoPermission: typeof DaoPermission
   Jwt: typeof Jwt
@@ -57,6 +61,7 @@ export interface IMongoModel {
 export enum ICollectionNames {
   Migration = 'Migration',
   Asset = 'Asset',
+  Campaign = 'Campaign',
   ConfigIndexer = 'ConfigIndexer',
   Dao = 'Dao',
   DaoPermission = 'DaoPermission',
@@ -69,6 +74,7 @@ export enum ICollectionNames {
   PluginRepo = 'PluginRepo',
   PluginSlug = 'PluginSlug',
   Proposal = 'Proposal',
+  CampaignReward = 'CampaignReward',
   Setting = 'Setting',
   TaskRun = 'TaskRun',
   TaskService = 'TaskService',
@@ -109,6 +115,10 @@ export const IndexCheckTypeToModel: Record<ITransactionIndexCheckType, ICollecti
   [ITransactionIndexCheckType.PLUGIN_CREATE]: ICollectionNames.Plugin,
 }
 
+export enum IEventLogPluginMembership {
+  MembershipContractAnnounced = 'MembershipContractAnnounced',
+}
+
 export enum IEventLogPluginType {
   InstallationPrepared = 'InstallationPrepared',
   InstallationApplied = 'InstallationApplied',
@@ -141,4 +151,8 @@ export enum IMigrationStatus {
   RUNNING = 'RUNNING',
   COMPLETED = 'COMPLETED',
   FAILED = 'FAILED',
+}
+
+export enum ICampaignType {
+  MERKLE_ROOT = 'MERKLE_ROOT',
 }

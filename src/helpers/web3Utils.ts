@@ -1,5 +1,6 @@
 import {
   type HexAddress,
+  type ICampaignMetadata,
   type ILogInfo,
   type IMetadata,
   type IProposalMetadata,
@@ -298,6 +299,9 @@ const Web3Utils = {
       links: [],
       stageNames: [],
       processKey: null,
+      blockedCountries: [],
+      termsConditionsUrl: null,
+      enableOfacCheck: null,
     }
 
     if (!metadata) {
@@ -326,6 +330,18 @@ const Web3Utils = {
 
     if (metadata.processKey) {
       parsedMetadata.processKey = metadata.processKey
+    }
+
+    if (metadata.blockedCountries && Array.isArray(metadata.blockedCountries)) {
+      parsedMetadata.blockedCountries = metadata.blockedCountries.filter((country: any) => typeof country === 'string')
+    }
+
+    if (metadata.termsConditionsUrl) {
+      parsedMetadata.termsConditionsUrl = metadata.termsConditionsUrl.toString()
+    }
+
+    if (typeof metadata.enableOfacCheck === 'boolean') {
+      parsedMetadata.enableOfacCheck = metadata.enableOfacCheck
     }
 
     return parsedMetadata
@@ -369,6 +385,37 @@ const Web3Utils = {
 
     if (metadata?.media?.header) {
       parsedMetadata.media!.logo = metadata.media.logo
+    }
+
+    return parsedMetadata
+  },
+
+  parseCampaignMetadata(metadata: any): any {
+    const parsedMetadata: ICampaignMetadata = {
+      title: null,
+      description: null,
+      resources: [],
+      type: null,
+    }
+
+    if (!metadata) {
+      return parsedMetadata
+    }
+
+    if (metadata.title) {
+      parsedMetadata.title = metadata.title
+    }
+
+    if (metadata.description) {
+      parsedMetadata.description = metadata.description
+    }
+
+    if (metadata.resources && metadata.resources.length > 0) {
+      parsedMetadata.resources = metadata.resources
+    }
+
+    if (metadata.type) {
+      parsedMetadata.type = metadata.type
     }
 
     return parsedMetadata

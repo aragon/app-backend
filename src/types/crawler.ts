@@ -104,6 +104,18 @@ export enum IMultiSigLogs {
   MetadataSet = 'MetadataSet',
 }
 
+export enum ICapitalDistributorLogs {
+  MetadataSet = 'MetadataSet',
+  CampaignCreated = 'CampaignCreated',
+  CampaignDeactivated = 'CampaignDeactivated',
+  PayoutClaimed = 'PayoutClaimed',
+}
+
+export enum ICapitalDistributorStrategyEvents {
+  MerkleCampaignSet = 'MerkleCampaignSet',
+  MerkleCampaignUpdated = 'MerkleCampaignUpdated',
+}
+
 export enum IAdminLogs {
   MembersAdded = 'MembersAdded',
   MembersRemoved = 'MembersRemoved',
@@ -145,4 +157,14 @@ export enum ISelectorPermissionLogs {
   SelectorDisallowed = 'SelectorDisallowed',
   NativeTransfersAllowed = 'NativeTransfersAllowed',
   NativeTransfersDisallowed = 'NativeTransfersDisallowed',
+}
+
+export interface ICapitalDistributorStats {
+  totalClaimed: string // Sum of all claimed amounts from events
+  totalClaimable: string // Sum of the claimable amounts for all campaigns
+}
+
+export interface IUserCampaignStatus {
+  totalClaimed: string // Sum of all claimed amounts across all campaigns for the user
+  totalClaimable: string // Sum of all unclaimed amounts across all campaigns for the user
 }

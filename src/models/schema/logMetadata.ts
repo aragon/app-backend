@@ -96,6 +96,15 @@ export default class LogMetadata extends Model {
   @prop({ type: () => String, enum: IMetadataType, default: IMetadataType.dao })
   public metadataType!: IMetadataType
 
+  @prop({ type: () => [String], default: [] })
+  public blockedCountries?: string[]
+
+  @prop({ type: () => String, default: null })
+  public termsConditionsUrl?: string | null
+
+  @prop({ type: () => Boolean, default: null })
+  public enableOfacCheck?: boolean | null
+
   @prop({ type: () => String, default: null })
   static async create(rawData: Partial<LogMetadata>, tOpts?: SaveOptions) {
     if (!rawData.id) {

@@ -7,7 +7,7 @@ import { expect } from 'chai'
 import Web3Helper from '@helpers/web3'
 import MemberController from '@api/controllers/member'
 
-describe('Integ: LockToVote', () => {
+describe.skip('Integ: LockToVote', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {

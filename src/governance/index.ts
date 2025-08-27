@@ -6,6 +6,7 @@ import { VeGovernance } from './veGovernance'
 import { LockToVoteGovernance } from './lockToVoteGovernance'
 import { MultisigGovernance } from './multisigGovernance'
 import { AdminGovernance } from './adminGovernance'
+import { CapitalDistributorGovernance } from './capitalDistributorGovernance'
 import Web3Utils from '@helpers/web3Utils'
 import DbTx from '@modules/dbTx'
 import type Member from '@models/schema/member'
@@ -19,6 +20,7 @@ export { VeGovernance }
 export { LockToVoteGovernance }
 export { MultisigGovernance }
 export { AdminGovernance }
+export { CapitalDistributorGovernance }
 
 const llo = logger.logMeta.bind(null, { service: 'MemberGovernanceFactory' })
 
@@ -48,6 +50,10 @@ const llo = logger.logMeta.bind(null, { service: 'MemberGovernanceFactory' })
  *
  * - **Lock to Vote Governance**:
  *   - `address`: The lock manager address
+ *   - `network`: The blockchain network
+ *
+ * - **Capital Distributor Governance**:
+ *   - `address`: The plugin address
  *   - `network`: The blockchain network
  */
 export class MemberGovernanceFactory {
@@ -143,6 +149,10 @@ export class MemberGovernanceFactory {
       case IPluginInterfaceType.admin:
         // the address is the pluginAddress
         return new AdminGovernance(params.address, params.network)
+
+      case IPluginInterfaceType.capitalDistributor:
+        // the address is the pluginAddress
+        return new CapitalDistributorGovernance(params.address, params.network)
 
       case IPluginInterfaceType.spp:
       case IPluginInterfaceType.gauge:

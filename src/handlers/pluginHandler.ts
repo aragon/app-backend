@@ -303,6 +303,10 @@ export const PluginHandler = {
       document.isProcess = true
       document.isBody = false
       document.isSubPlugin = false
+    } else if (document.interfaceType === IPluginInterfaceType.capitalDistributor) {
+      document.isProcess = false
+      document.isBody = false
+      document.isSubPlugin = false
     } else {
       document.isProcess = true
       document.isBody = true
@@ -371,6 +375,10 @@ export const PluginHandler = {
 
         if (document.interfaceType === IPluginInterfaceType.spp) {
           document.isProcess = true
+          document.isBody = false
+          document.isSubPlugin = false
+        } else if (document.interfaceType === IPluginInterfaceType.capitalDistributor) {
+          document.isProcess = false
           document.isBody = false
           document.isSubPlugin = false
         } else {

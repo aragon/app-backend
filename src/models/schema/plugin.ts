@@ -209,6 +209,15 @@ export default class Plugin extends Model {
   @prop({ type: () => String, default: null })
   public lockManagerAddress?: HexAddress
 
+  @prop({ type: () => Boolean, default: null })
+  public enableOfacCheck?: boolean
+
+  @prop({ type: () => [String], default: [] })
+  public blockedCountries?: string[]
+
+  @prop({ type: () => String, default: null })
+  public termsConditionsUrl?: string
+
   static async create(rawData: Partial<Plugin>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
