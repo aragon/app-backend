@@ -116,3 +116,13 @@ export interface IDaoMember {
   pluginAddress: HexAddress
   tokenAddress?: HexAddress
 }
+
+
+export interface MembershipData {
+  tokenAddress?: string
+  lockManagerAddress?: string
+  pluginAddress?: string
+  network: string
+}
+
+export type NetworkGroupedAddresses = Record<string, string[]>
