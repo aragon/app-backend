@@ -468,6 +468,15 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       ),
     },
 
+    TENDERLY: {
+      API_URL: utils.configParser(sourceConfig, 'string', 'TENDERLY_API_URL', 'https://api.tenderly.co/api/v1'),
+      PROJECT: utils.configParser(sourceConfig, 'string', 'TENDERLY_PROJECT', null),
+      USER: utils.configParser(sourceConfig, 'string', 'TENDERLY_USER', null),
+      ACCESS_KEY: utils.configParser(sourceConfig, 'string', 'TENDERLY_ACCESS_KEY', null),
+      MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'TENDERLY_MAX_CONCURRENT', 1),
+      MIN_TIME: utils.configParser(sourceConfig, 'number', 'TENDERLY_MIN_TIME', 3000),
+    },
+
     CONTRACTS: {
       ENS_REGISTRY: utils.configParser(
         sourceConfig,
