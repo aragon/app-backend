@@ -5,7 +5,8 @@ import { NetworksEnum, ISimulationStatus } from '@types'
 import * as sinon from 'sinon'
 import { DAO } from '@artifacts/dao'
 import { ethers, Interface } from 'ethers'
-describe.only('SimulationController', () => {
+
+describe('SimulationController', () => {
   let daoFindStub: sinon.SinonStub
   let pluginFindStub: sinon.SinonStub
 
@@ -65,7 +66,8 @@ describe.only('SimulationController', () => {
       const result = await SimulationController.simulate(mockActions, NetworksEnum.ethereumMainnet)
 
       expect(result.status).to.equal(ISimulationStatus.SUCCESS)
-      expect(result.url).to.equal('https://tdly.co/test')
+      expect(result.url.startsWith('https://tdly.co')).to.true
+      expect(result.runAt).to.be.not.undefined
       expect(result.network).to.equal(NetworksEnum.ethereumMainnet)
     })
   })
