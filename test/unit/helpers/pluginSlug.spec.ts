@@ -158,6 +158,12 @@ describe('Helpers:PluginSlug', () => {
       expect(result).to.equal(IPluginSlug.gauge)
     })
 
+    it('should return correct IPluginSlug for capitalDistributor interface type', () => {
+      const plugin = { interfaceType: IPluginInterfaceType.capitalDistributor } as any
+      const result = PluginSlug._defaultSlug(plugin)
+      expect(result).to.equal(IPluginSlug.capitalDistributor)
+    })
+
     it('should return null for unrecognized interface type', () => {
       const plugin = { interfaceType: IPluginInterfaceType.unknown } as any
       const result = PluginSlug._defaultSlug(plugin)
@@ -370,7 +376,7 @@ describe('Helpers:PluginSlug', () => {
       const result = await PluginSlug.generateSlug(plugin)
 
       expect(result).to.be.null
-      expect(errorStub.called).to.be.true
+      expect(errorStub.calledWith('Error reserving default slug' as any)).to.be.true
     })
 
     it('should handle error when _createSlugWithRetries throws for parameterized slug', async () => {

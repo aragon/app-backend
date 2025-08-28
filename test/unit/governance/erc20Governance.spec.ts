@@ -352,6 +352,39 @@ describe('Governance:Erc20Governance', () => {
 
       expect(loggerVerboseStub.calledWith('Skipping update - older block')).to.be.true
     })
+
+    it('should clear tokenIds when voting power is set to 0', async () => {
+      const parsedAddress = Web3Utils.parseAddress(memberAddress)
+      // Create existing member with tokenIds
+      await Models.TokenMember.create({
+        memberAddress: parsedAddress,
+        tokenAddress: testTokenAddress,
+        network: testNetwork,
+        votingPower: '1000000000000000000',
+        tokenIds: ['1', '2', '3'],
+        lastVPBlockNumber: 10000,
+      })
+
+      const result = await erc20Governance.update(memberAddress, {
+        votingPower: '0', // Set voting power to 0
+        lastActivity: 12345,
+      })
+
+      expect(result).to.exist
+      expect(result?.votingPower).to.equal('0')
+      expect(result?.tokenIds).to.deep.equal([]) // Should be cleared
+      expect(result?.lastVPBlockNumber).to.equal(12345)
+
+      // Verify it was updated in database
+      const updatedMember = await Models.TokenMember.findOne({
+        memberAddress: parsedAddress,
+        tokenAddress: testTokenAddress,
+      })
+      expect(updatedMember?.votingPower).to.equal('0')
+      expect(updatedMember?.tokenIds).to.deep.equal([])
+
+      expect(loggerVerboseStub.calledWith('Updated TokenMember')).to.be.true
+    })
   })
 
   describe('delete', () => {

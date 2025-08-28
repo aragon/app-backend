@@ -349,4 +349,101 @@ describe('Modules:ContractNetspec', () => {
     expect(natspec.TestContract).to.exist
     expect(natspec.TestContract.details.test.tags).to.be.empty
   })
+
+  it('should handle incomplete function definition when pos becomes negative', () => {
+    const sourceCode = `
+      contract TestContract {
+        /// @notice Test function
+        function`
+    const natspec = ContractNetspecHelper.extractNatSpec(sourceCode) as any
+    expect(natspec.TestContract).to.exist
+    // Function won't be added to details since it's incomplete
+    expect(Object.keys(natspec.TestContract.details)).to.have.length(0)
+  })
+
+  it('should handle collapseNatspec with inheritdoc tag merging', () => {
+    const natspec = {
+      BaseContract: {
+        name: 'BaseContract',
+        superClasses: [],
+        tags: {},
+        details: {
+          test: {
+            keyword: 'function',
+            name: 'test',
+            tags: {
+              notice: 'Base notice',
+              dev: 'Base dev comment',
+              param: { x: 'Base param' },
+            },
+          },
+        },
+      },
+      DerivedContract: {
+        name: 'DerivedContract',
+        superClasses: ['BaseContract'],
+        tags: {},
+        details: {
+          test: {
+            keyword: 'function',
+            name: 'test',
+            tags: {
+              inheritdoc: 'BaseContract',
+              dev: 'Override dev comment',
+            },
+          },
+        },
+      },
+    }
+    const collapsed = ContractNetspecHelper.collapseNatspec(natspec as any, 'DerivedContract')
+    // Should merge inheritdoc base tags with derived tags (derived takes precedence)
+    expect(collapsed.details.test.tags.notice).to.equal('Base notice')
+    expect(collapsed.details.test.tags.dev).to.equal('Override dev comment')
+    expect(collapsed.details.test.tags.param).to.deep.equal({ x: 'Base param' })
+    // inheritdoc tag should be removed after merge
+    expect(collapsed.details.test.tags.inheritdoc).to.be.undefined
+  })
+
+  it('should handle collapseNatspec returning super details when current has empty tags and super exists', () => {
+    const natspec = {
+      BaseContract: {
+        name: 'BaseContract',
+        superClasses: [],
+        tags: {},
+        details: {
+          compute: {
+            keyword: 'function',
+            name: 'compute',
+            tags: { notice: 'Base compute function' },
+          },
+          another: {
+            keyword: 'function',
+            name: 'another',
+            tags: { notice: 'Another function' },
+          },
+        },
+      },
+      DerivedContract: {
+        name: 'DerivedContract',
+        superClasses: ['BaseContract'],
+        tags: {},
+        details: {
+          compute: {
+            keyword: 'function',
+            name: 'compute',
+            tags: {}, // Empty tags should inherit from parent
+          },
+          another: {
+            keyword: 'function',
+            name: 'another',
+            tags: {}, // Empty tags should inherit from parent
+          },
+        },
+      },
+    }
+    const collapsed = ContractNetspecHelper.collapseNatspec(natspec as any, 'DerivedContract')
+    // Should use super details when current has empty tags
+    expect(collapsed.details.compute.tags.notice).to.equal('Base compute function')
+    expect(collapsed.details.another.tags.notice).to.equal('Another function')
+  })
 })
