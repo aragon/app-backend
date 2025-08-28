@@ -1,18 +1,13 @@
 import Joi from 'joi'
 
 const SimulationSchema = {
-  simulateBundle: Joi.object({
-    actions: Joi.array()
-      .items(
-        Joi.object({
-          from: Joi.string().optional(),
-          to: Joi.string().required(),
-          data: Joi.string().default('0x'),
-          value: Joi.string().default('0'),
-        }),
-      )
-      .min(1)
-      .required(),
+  simulate: Joi.object({
+    action: Joi.object({
+      from: Joi.string().required(),
+      to: Joi.string().required(),
+      data: Joi.string().required(),
+      value: Joi.string().default('0'),
+    }).required(),
     network: Joi.string().required(),
   }),
 
@@ -20,18 +15,6 @@ const SimulationSchema = {
     proposalId: Joi.string().required(),
   }),
 
-  getSimulationByActions: Joi.object({
-    actions: Joi.array()
-      .items(
-        Joi.object({
-          to: Joi.string().required(),
-          data: Joi.string().default('0x'),
-          value: Joi.string().default('0'),
-        }),
-      )
-      .min(1)
-      .required(),
-  }),
 
   // POST /:network/proposal/:proposalId
   simulateProposal: Joi.object({

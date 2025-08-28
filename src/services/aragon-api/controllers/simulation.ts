@@ -3,68 +3,62 @@ import TenderlyModule from '@modules/tenderly'
 import logger from '@logger'
 import { type NetworksEnum, IPluginStatus, ErrorKeyEnum, SimulationStatus } from '@types'
 import * as Errors from '@errors'
+import { Interface, ethers } from 'ethers'
+import { DAO } from '@artifacts/dao'
 
 const llo = logger.logMeta.bind(null, { service: 'simulation-controller' })
 
 class SimulationController {
   /**
-   * Simulate a bundle of transactions
-   * This validates that recipients are DAOs and senders are plugins
+   * Validate action that recipient is a DAO and sender is a plugin
    */
-  static async validateBundle(actions: Array<{ to: string; data?: string; value?: string; from?: string }>) {
-    const toAddresses = actions.map(action => action.to).filter(Boolean)
-    const fromAddresses = actions.map(action => action.from).filter(Boolean)
-
-    const daos = await Models.Dao.find({
-      address: { $in: toAddresses },
+  static async validateAction(
+    action: { to: string; data: string; value?: string; from: string },
+    network: NetworksEnum,
+  ) {
+    const dao = await Models.Dao.findOne({
+      address: action.to,
       isActive: true,
+      network,
       isHidden: { $ne: true },
     }).lean()
 
-    const daoAddresses = daos.map((dao: { address: string }) => dao.address)
-    const invalidRecipients = toAddresses.filter(addr => addr && !daoAddresses.includes(addr))
-
     Errors.assertExposable(
-      invalidRecipients.length === 0,
+      dao,
       ErrorKeyEnum.badSimulationRequest,
       400,
-      'Invalid recipients: recipients must be valid DAOs',
+      'Invalid recipient: must be a valid DAO',
       llo({
-        invalidRecipients,
-        actions,
+        action,
       }),
     )
 
-    if (fromAddresses.length > 0) {
-      const plugins = await Models.Plugin.find({
-        address: { $in: fromAddresses },
-        status: IPluginStatus.installed,
-        isSupported: true,
-      }).lean()
+    const plugin = await Models.Plugin.findOne({
+      address: action.from,
+      status: IPluginStatus.installed,
+      daoAddress: dao.address,
+      network: dao.network,
+      isSupported: true,
+    }).lean()
 
-      const pluginAddresses = plugins.map((plugin: { address: string }) => plugin.address.toLowerCase())
-      const invalidSenders = fromAddresses.filter(addr => addr && !pluginAddresses.includes(addr.toLowerCase()))
-
-      Errors.assertExposable(
-        invalidSenders.length === 0,
-        ErrorKeyEnum.badSimulationRequest,
-        400,
-        'Invalid senders: senders must be valid plugins',
-        llo({
-          invalidSenders,
-          actions,
-        }),
-      )
-    }
+    Errors.assertExposable(
+      plugin,
+      ErrorKeyEnum.badSimulationRequest,
+      400,
+      'Invalid sender: must be a valid plugin',
+      llo({
+        action,
+      }),
+    )
   }
 
-  static async simulateBundle(
-    actions: Array<{ to: string; data?: string; value?: string; from?: string }>,
+  static async simulate(
+    action: { to: string; data: string; value?: string; from: string },
     network: NetworksEnum,
   ): Promise<any> {
-    await SimulationController.validateBundle(actions)
+    await SimulationController.validateAction(action, network)
 
-    const result = (await TenderlyModule.simulateBundle(actions, network)) as {
+    const result = (await TenderlyModule.simulate(action, network)) as {
       url?: string
       runAt?: number
     }
@@ -86,12 +80,13 @@ class SimulationController {
   }
 
   /**
-   * Run a simulation for a proposal's actions
+   * Run a simulation for a proposal's actions by encoding them into DAO execute call
    */
+
   static async simulateProposal(proposalId: string): Promise<any> {
     const proposal = await Models.Proposal.findByEntityId(proposalId)
     Errors.assertExposable(
-      proposal?.rawAction.length,
+      proposal?.rawActions?.length,
       ErrorKeyEnum.notFound,
       404,
       'Proposal not found',
@@ -100,14 +95,21 @@ class SimulationController {
 
     const actions = proposal.rawActions.map((action: any) => ({
       to: action.to,
-      data: action.data,
       value: action.value || '0',
-      from: action.pluginAddress,
+      data: action.data || '0x',
     }))
 
-    await SimulationController.validateBundle(actions)
+    const iFace = new Interface(DAO.abi)
+    const encodedData = iFace.encodeFunctionData('execute', [ethers.id(Date.now().toString()), actions, 0])
 
-    const result = (await TenderlyModule.simulateBundle(actions, proposal.network)) as {
+    const simulationAction = {
+      to: proposal.daoAddress,
+      data: encodedData,
+      value: '0',
+      from: proposal.pluginAddress,
+    }
+
+    const result = (await TenderlyModule.simulate(simulationAction, proposal.network)) as {
       url?: string
       runAt?: number
     }
@@ -128,7 +130,12 @@ class SimulationController {
       },
     })
 
-    return result
+    return {
+      status: SimulationStatus.SUCCESS,
+      url: result.url,
+      runAt: result.runAt,
+      network: proposal.network,
+    }
   }
 
   async getSimulationResultOfProposal(proposalId: string) {

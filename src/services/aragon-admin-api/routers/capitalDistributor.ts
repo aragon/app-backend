@@ -63,7 +63,7 @@ const CapitalDistributorAdminRouter = {
     ctx.body = await CapitalDistributorAdminController.generateMerkleData(formattedParams)
   },
 
-  router() {
+  router(): Router {
     const router = new Router()
     const authedAdmin = AuthMiddleware.authAssertAdmin()
 
