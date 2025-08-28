@@ -52,6 +52,12 @@ class SimulationController {
     )
   }
 
+  /**
+   * Run a simulation for a single action
+   * @param action
+   * @param network
+   */
+
   static async simulate(
     action: { to: string; data: string; value?: string; from: string },
     network: NetworksEnum,
@@ -61,18 +67,13 @@ class SimulationController {
     const result = (await TenderlyModule.simulate(action, network)) as {
       url?: string
       runAt?: number
+      status: ISimulationStatus
     }
 
-    if (!result) {
-      return {
-        status: ISimulationStatus.FAILED,
-        runAt: new Date().toISOString(),
-        network,
-      }
-    }
+    Errors.assertExposable(!!result, ErrorKeyEnum.badSimulationRequest, 400, 'Simulation Not Implemented', llo({}))
 
     return {
-      status: ISimulationStatus.SUCCESS,
+      status: result.status,
       url: result.url,
       runAt: result.runAt,
       network,
@@ -81,6 +82,7 @@ class SimulationController {
 
   /**
    * Run a simulation for a proposal's actions by encoding them into DAO execute call
+   * @param proposalId
    */
 
   static async simulateProposal(proposalId: string): Promise<any> {
@@ -138,6 +140,11 @@ class SimulationController {
       network: proposal.network,
     }
   }
+
+  /**
+   * Get simulation result of a proposal
+   * @param proposalId
+   */
 
   static async getSimulationResultOfProposal(proposalId: string) {
     const proposal = await Models.Proposal.findByEntityId(proposalId)
