@@ -6,6 +6,7 @@ import { EnumQueueName } from '@types'
 import utils from '@helpers/utils'
 import { ConfirmChannel } from 'amqplib'
 import logger from '@logger'
+import config from '@config'
 
 describe('Helpers:RabbitMQ', () => {
   let sandbox: SinonSandbox
@@ -326,6 +327,153 @@ describe('Helpers:RabbitMQ', () => {
 
       expect(count).to.be.null
       expect(loggerErrorStub.calledWith('getQueueMessageCount error')).to.be.true
+    })
+  })
+
+  describe('sendMessageWithThrottle', () => {
+    let loggerVerboseStub: sinon.SinonStub
+    let getQueueMessageCountStub: sinon.SinonStub
+    let sendMessageStub: sinon.SinonStub
+    let utilsWaitStub: sinon.SinonStub
+
+    beforeEach(() => {
+      loggerVerboseStub = sandbox.stub(logger, 'verbose')
+      getQueueMessageCountStub = sandbox.stub(RabbitMQHelper, 'getQueueMessageCount')
+      sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
+      utilsWaitStub = sandbox.stub(utils, 'wait').resolves()
+    })
+
+    it('should send message immediately when queue is below threshold', async () => {
+      const queueName = EnumQueueName.requeue
+      const payload = {
+        id: 'plugin-123',
+        params: { address: '0x123', network: 'mainnet', pluginId: 'p-1' },
+      }
+
+      getQueueMessageCountStub.resolves(10) // Below default threshold of 50
+      sendMessageStub.resolves()
+
+      await RabbitMQHelper.sendMessageWithThrottle(queueName, payload)
+
+      expect(getQueueMessageCountStub.calledOnceWith(queueName)).to.be.true
+      expect(sendMessageStub.calledOnceWith(queueName, payload)).to.be.true
+      expect(utilsWaitStub.called).to.be.false
+      expect(loggerVerboseStub.calledWith('Message sent to queue "log.requeue"')).to.be.true
+    })
+
+    it('should wait and retry when queue is at capacity', async () => {
+      const queueName = EnumQueueName.requeue
+      const payload = {
+        id: 'plugin-456',
+        params: { address: '0x456', network: 'testnet' },
+      }
+
+      // First call returns 50 (at capacity), second call returns 30 (below capacity)
+      getQueueMessageCountStub.onFirstCall().resolves(50)
+      getQueueMessageCountStub.onSecondCall().resolves(30)
+      sendMessageStub.resolves()
+
+      await RabbitMQHelper.sendMessageWithThrottle(queueName, payload)
+
+      expect(getQueueMessageCountStub.calledTwice).to.be.true
+      expect(sendMessageStub.calledOnceWith(queueName, payload)).to.be.true
+      expect(utilsWaitStub.calledOnce).to.be.true
+      expect(utilsWaitStub.firstCall.args[0]).to.equal(config.RABBITMQ.THROTTLE_RETRY_DELAY)
+      expect(loggerWarnStub.calledWith('Queue "log.requeue" has reached the limit. Waiting...')).to.be.true
+    })
+
+    it('should retry when getQueueMessageCount returns null', async () => {
+      const queueName = EnumQueueName.requeue
+      const payload = {
+        id: 'plugin-789',
+        params: { address: '0x789', network: 'mainnet' },
+      }
+
+      // First call returns null, second call returns 20
+      getQueueMessageCountStub.onFirstCall().resolves(null)
+      getQueueMessageCountStub.onSecondCall().resolves(20)
+      sendMessageStub.resolves()
+
+      await RabbitMQHelper.sendMessageWithThrottle(queueName, payload)
+
+      expect(getQueueMessageCountStub.calledTwice).to.be.true
+      expect(sendMessageStub.calledOnceWith(queueName, payload)).to.be.true
+      expect(utilsWaitStub.calledOnce).to.be.true
+      expect(loggerErrorStub.calledWith('Unable to get message count for queue "log.requeue". Retrying...')).to.be.true
+    })
+
+    it('should use custom options when provided', async () => {
+      const queueName = EnumQueueName.requeue
+      const payload = {
+        id: 'plugin-custom',
+        params: { address: '0xabc', network: 'mainnet' },
+      }
+      const customOptions = {
+        maxQueueSize: 25,
+        retryDelay: 1000,
+        logContext: { extra: 'context' },
+      }
+
+      // First call returns 25 (at custom capacity), second call returns 10
+      getQueueMessageCountStub.onFirstCall().resolves(25)
+      getQueueMessageCountStub.onSecondCall().resolves(10)
+      sendMessageStub.resolves()
+
+      await RabbitMQHelper.sendMessageWithThrottle(queueName, payload, customOptions)
+
+      expect(getQueueMessageCountStub.calledTwice).to.be.true
+      expect(sendMessageStub.calledOnceWith(queueName, payload)).to.be.true
+      expect(utilsWaitStub.calledOnceWith(1000)).to.be.true
+    })
+
+    it('should merge payload params with log context', async () => {
+      const queueName = EnumQueueName.requeue
+      const payload = {
+        id: 'plugin-context',
+        params: { address: '0xdef', network: 'mainnet', pluginId: 'p-2' },
+      }
+      const customOptions = {
+        logContext: { customField: 'customValue' },
+      }
+
+      getQueueMessageCountStub.resolves(5)
+      sendMessageStub.resolves()
+
+      await RabbitMQHelper.sendMessageWithThrottle(queueName, payload, customOptions)
+
+      // Verify that the log contains both params and custom context
+      const logCall = loggerVerboseStub.getCall(0)
+      const logMeta = logCall.args[1]
+
+      // The log metadata should contain params from payload and custom logContext
+      expect(logMeta).to.include({
+        queueName: 'log.requeue',
+        messageId: 'plugin-context',
+        count: 6,
+      })
+    })
+
+    it('should handle multiple retries until queue has space', async () => {
+      const queueName = EnumQueueName.requeue
+      const payload = {
+        id: 'plugin-multi-retry',
+        params: { address: '0x111', network: 'mainnet' },
+      }
+
+      // Simulate: null, 50, 50, 49 (finally below threshold)
+      getQueueMessageCountStub.onCall(0).resolves(null)
+      getQueueMessageCountStub.onCall(1).resolves(50)
+      getQueueMessageCountStub.onCall(2).resolves(50)
+      getQueueMessageCountStub.onCall(3).resolves(49)
+      sendMessageStub.resolves()
+
+      await RabbitMQHelper.sendMessageWithThrottle(queueName, payload)
+
+      expect(getQueueMessageCountStub.callCount).to.equal(4)
+      expect(sendMessageStub.calledOnceWith(queueName, payload)).to.be.true
+      expect(utilsWaitStub.calledThrice).to.be.true // 3 waits for the 3 retry scenarios
+      expect(loggerErrorStub.calledOnce).to.be.true // One error for null
+      expect(loggerWarnStub.calledTwice).to.be.true // Two warnings for queue at capacity
     })
   })
 })

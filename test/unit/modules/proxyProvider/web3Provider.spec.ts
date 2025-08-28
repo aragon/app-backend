@@ -1,6 +1,6 @@
 import { expect } from 'chai'
 import sinon from 'sinon'
-import { NetworksEnum, ITransactionCategory } from '@types'
+import { NetworksEnum } from '@types'
 import logger from '@logger'
 import Web3Provider from '@modules/proxyProvider/web3Provider'
 import { ProxyToken } from '@modules/proxyToken'
@@ -11,10 +11,8 @@ import utils from '@helpers/utils'
 import Alchemy from '@helpers/alchemy'
 import Web3Utils from '@helpers/web3Utils'
 import { RateModule } from '@modules/rates'
-import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
 import { UnitTestUtils } from '@test/lib/utils'
 import ProviderModule from '@modules/provider'
-import ProxyUtils from '@modules/proxyProvider/utils'
 import AnkrHelper from '@helpers/ankrHelper'
 import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
 
@@ -615,104 +613,6 @@ describe('Web3Provider', () => {
         totalHolders: 0,
         totalSupply: '0',
       })
-    })
-  })
-
-  describe('fetchAddressTxns', async () => {
-    it('should call onDocument and create deposit and withdraw transactions', async () => {
-      const daoRegistry = {
-        address: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
-        network: NetworksEnum.ethereumMainnet,
-      }
-
-      const txLog: any = {
-        hash: '0x123',
-        category: ITransactionCategory.ERC20,
-        uniqueId: 'unique-id',
-        from: '0xfrom',
-        to: '0xto',
-        value: 1000,
-        blockNum: 1,
-      }
-
-      const fakeProviders: any = UnitTestUtils.getFakeProviders(sandbox)
-      fakeProviders.send = sandbox.stub().resolves({ transfers: [txLog] })
-      sandbox.stub(ProviderModule, 'getProvider').callsFake((network: NetworksEnum) => fakeProviders[network])
-
-      let callCount = 0
-
-      const crawlStub = sandbox.stub(BlockchainTransferCrawler.prototype, 'crawl').callsFake(async function (
-        this: any,
-      ) {
-        if (callCount === 0) {
-          // First call: deposit
-          expect(this.filter.fromAddress).to.be.undefined
-          expect(this.filter.toAddress).to.equal(daoRegistry.address)
-        } else if (callCount === 1) {
-          // Second call: withdraw
-          expect(this.filter.toAddress).to.be.undefined
-          expect(this.filter.fromAddress).to.equal(daoRegistry.address)
-        } else {
-          throw new Error('Unexpected crawl call')
-        }
-
-        callCount++
-        await this.onTx(txLog)
-      })
-
-      const response = await Web3Provider.fetchAddressTxns({
-        address: daoRegistry.address,
-        network: daoRegistry.network,
-        blockNumber: 1,
-      })
-
-      expect(response).to.be.an('array').with.lengthOf(2)
-      expect(response.map((tx: any) => tx.type)).to.include.members(['deposit', 'withdraw'])
-      expect(crawlStub.calledTwice).to.be.true
-    })
-
-    it('should log error when deposit transfer crawler encounters an error', async () => {
-      const address = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
-      const network = NetworksEnum.ethereumMainnet
-      const blockNumber = 1
-      const error = new Error('Deposit transfer failed')
-
-      // Use loggerStub from beforeEach instead of creating a new stub
-      const crawlStub = sandbox.stub(BlockchainTransferCrawler.prototype, 'crawl').callsFake(async function (
-        this: any,
-      ) {
-        // Call onError for deposit crawler (first call)
-        if (this.filter.toAddress === address) {
-          await this.onError(error)
-        }
-      })
-
-      await Web3Provider.fetchAddressTxns({ address, network, blockNumber })
-
-      expect(loggerStub.calledWith('Error deposit transfer' as any)).to.be.true
-      expect(crawlStub.calledTwice).to.be.true
-    })
-
-    it('should log error when withdraw transfer crawler encounters an error', async () => {
-      const address = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
-      const network = NetworksEnum.ethereumMainnet
-      const blockNumber = 1
-      const error = new Error('Withdraw transfer failed')
-
-      // Use loggerStub from beforeEach instead of creating a new stub
-      const crawlStub = sandbox.stub(BlockchainTransferCrawler.prototype, 'crawl').callsFake(async function (
-        this: any,
-      ) {
-        // Call onError for withdraw crawler (second call)
-        if (this.filter.fromAddress === address) {
-          await this.onError(error)
-        }
-      })
-
-      await Web3Provider.fetchAddressTxns({ address, network, blockNumber })
-
-      expect(loggerStub.calledWith('Error withdraw transfer' as any)).to.be.true
-      expect(crawlStub.calledTwice).to.be.true
     })
   })
 

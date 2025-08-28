@@ -5,7 +5,6 @@ import { NetworkHelper } from '@helpers/network'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import type Plugin from '@models/schema/plugin'
 import Web3Helper from '@helpers/web3'
-import utils from '@helpers/utils'
 import DBCrawler from '@models/utils/crawler'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:SyncAll' })
@@ -112,38 +111,9 @@ export const SyncAll = {
   },
 
   onDocument: async (plugin: Plugin) => {
-    const maxQueueSize = 50
-    const retryDelay = 1000 // 1 second
-
-    while (true) {
-      const count = await RabbitMQHelper.getQueueMessageCount(EnumQueueName.requeue)
-
-      if (count === null) {
-        logger.error(
-          `Unable to get message count for queue "${EnumQueueName.requeue}". Retrying...`,
-          llo({ pluginId: plugin.id }),
-        )
-        await utils.wait(retryDelay)
-        continue
-      }
-
-      if (count < maxQueueSize) {
-        await RabbitMQHelper.sendMessage(EnumQueueName.requeue, {
-          id: plugin.address,
-          params: { address: plugin.address, network: plugin.network },
-        })
-        logger.verbose(
-          `Message sent to queue "${EnumQueueName.requeue}"`,
-          llo({ queueName: EnumQueueName.requeue, address: plugin.address, count: count + 1 }),
-        )
-        break
-      } else {
-        logger.warn(
-          `Queue "${EnumQueueName.requeue}" has reached the limit. Waiting...`,
-          llo({ queueName: EnumQueueName.requeue, waitingPlugin: plugin.address, count }),
-        )
-        await utils.wait(retryDelay)
-      }
-    }
+    await RabbitMQHelper.sendMessageWithThrottle(EnumQueueName.requeue, {
+      id: plugin.address,
+      params: { address: plugin.address, network: plugin.network, pluginId: plugin.id },
+    })
   },
 }

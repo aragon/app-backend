@@ -75,45 +75,6 @@ describe.skip('Integ: Chiliz Provider', function () {
     })
   })
 
-  describe('Address Transactions', function () {
-    it('should fetch address transactions (ERC20 + Internal)', async () => {
-      const transactions = await ChilizProvider.fetchAddressTxns({
-        address: testAddresses.userAddress,
-        network,
-      })
-
-      expect(transactions).to.be.an('array')
-
-      if (transactions.length > 0) {
-        const firstTx = transactions[0]
-        expect(firstTx).to.have.property('from').that.is.a('string')
-        expect(firstTx).to.have.property('to').that.is.a('string')
-        expect(firstTx).to.have.property('value').that.is.a('string')
-        expect(firstTx).to.have.property('blockNum').that.is.a('number')
-        expect(firstTx).to.have.property('hash').that.is.a('string')
-        expect(firstTx).to.have.property('category')
-        expect(firstTx).to.have.property('rawContract').that.is.an('object')
-
-        logger.info('First transaction details', {
-          hash: firstTx.hash,
-          category: firstTx.category,
-          value: firstTx.value,
-          tokenSymbol: firstTx.rawContract.symbol,
-        })
-      }
-
-      logger.info(`Fetched ${transactions.length} transactions for address`)
-
-      const subsequentTransactions = await ChilizProvider.fetchAddressTxns({
-        address: testAddresses.userAddress,
-        network,
-      })
-
-      expect(subsequentTransactions).to.be.an('array')
-      expect(subsequentTransactions.length).to.equal(0)
-    })
-  })
-
   describe('Contract Information', function () {
     it('should fetch contract source code', async () => {
       const sourceCode = await ChilizProvider.fetchContractSourceCode({
@@ -230,21 +191,6 @@ describe.skip('Integ: Chiliz Provider', function () {
       expect(tokenInfo.type).to.equal(ITokenType.unknown)
 
       logger.info('Non-existent token handled gracefully')
-    })
-
-    it('should handle non-existent address transactions gracefully', async () => {
-      const nonExistentAddress = '0x0000000000000000000000000000000000000001'
-
-      const transactions = await ChilizProvider.fetchAddressTxns({
-        address: nonExistentAddress,
-        network,
-      })
-
-      expect(transactions).to.be.an('array')
-      // Should return empty array for non-existent address
-      expect(transactions.length).to.equal(0)
-
-      logger.info('Non-existent address transactions handled gracefully')
     })
   })
 

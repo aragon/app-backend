@@ -111,6 +111,73 @@ describe('Helpers: BlockScout', () => {
       }
     })
 
+    it('Should handle address_hash field from response', async () => {
+      const tokenDetailsWithAddressHash = {
+        address_hash: '0xabc123',
+        name: 'Test Token',
+        symbol: 'TT',
+        exchange_rate: '2',
+        decimals: 8,
+        total_supply: '2000000000000000000000',
+        holders_count: 100,
+        icon_url: 'https://example.com/logo2.png',
+        type: 'ERC-20',
+      }
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(tokenDetailsWithAddressHash)
+      const result = await BlockScoutHelper.getTokenFullDetails('0xabc123', NetworksEnum.ethereumMainnet)
+      expect(result).to.deep.eq({
+        address: '0xabc123',
+        name: 'Test Token',
+        symbol: 'TT',
+        priceUsd: '2',
+        decimals: 8,
+        totalSupply: '2000000000000000000000',
+        totalHolders: 100,
+        logo: 'https://example.com/logo2.png',
+        type: ITokenType.ERC20,
+      })
+      expect(rpCallStub.calledOnce).to.be.true
+    })
+
+    it('Should handle holders_count field from response', async () => {
+      const tokenDetailsWithHoldersCount = {
+        address: '0xdef456',
+        name: 'Test Token 2',
+        symbol: 'TT2',
+        exchange_rate: '3',
+        decimals: 6,
+        total_supply: '3000000000000000000000',
+        holders_count: 50,
+        icon_url: 'https://example.com/logo3.png',
+        type: 'ERC-721',
+      }
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(tokenDetailsWithHoldersCount)
+      const result = await BlockScoutHelper.getTokenFullDetails('0xdef456', NetworksEnum.ethereumMainnet)
+      expect(result).to.deep.eq({
+        address: '0xdef456',
+        name: 'Test Token 2',
+        symbol: 'TT2',
+        priceUsd: '3',
+        decimals: 6,
+        totalSupply: '3000000000000000000000',
+        totalHolders: 50,
+        logo: 'https://example.com/logo3.png',
+        type: ITokenType.ERC721,
+      })
+      expect(rpCallStub.calledOnce).to.be.true
+    })
+
+    it('Should return null when response has no address fields', async () => {
+      const invalidResponse = {
+        name: 'Test Token',
+        symbol: 'TT',
+      }
+      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(invalidResponse)
+      const result = await BlockScoutHelper.getTokenFullDetails('0x1234567890', NetworksEnum.ethereumMainnet)
+      expect(result).to.be.null
+      expect(rpCallStub.calledOnce).to.be.true
+    })
+
     it('Should get token full details', async () => {
       const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(tokenDetails)
       const result = await BlockScoutHelper.getTokenFullDetails('0x1234567890', NetworksEnum.ethereumMainnet)
@@ -349,279 +416,6 @@ describe('Helpers: BlockScout', () => {
         ),
       ).to.be.true
       expect(loggerStub.calledWith('Error getTransactionOfAnAddress' as any)).to.be.true
-    })
-  })
-
-  describe('_fetchERC20Transfers', () => {
-    const address = '0x1234567890abcdef'
-    const network = NetworksEnum.ethereumMainnet
-
-    it('should fetch ERC20 transfers successfully', async () => {
-      const mockResponse = {
-        items: [
-          {
-            transaction_hash: '0xhash1',
-            block_number: 18000000,
-            timestamp: '2023-01-01T00:00:00Z',
-            from: { hash: '0xfrom1', is_scam: false },
-            to: { hash: '0xto1', is_scam: false },
-            total: { value: '1000000000000000000' },
-            token: {
-              address: '0xtoken1',
-              name: 'Test Token',
-              symbol: 'TT',
-              decimals: 18,
-            },
-            log_index: 1,
-            type: 'token_transfer',
-          },
-        ],
-        next_page_params: null,
-      }
-
-      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(mockResponse)
-
-      const result = await BlockScoutHelper._fetchERC20Transfers(address, network)
-
-      expect(rpCallStub.calledOnce).to.be.true
-      expect(rpCallStub.calledWith(`addresses/${address}/token-transfers`, sinon.match.object, network)).to.be.true
-      expect(result).to.have.length(1)
-      expect(result[0]).to.deep.include({
-        hash: '0xhash1',
-        blockNumber: '18000000',
-        from: '0xfrom1',
-        to: '0xto1',
-        value: '1000000000000000000',
-        contractAddress: '0xtoken1',
-        category: 'erc20',
-      })
-    })
-
-    it('should filter out scam transfers', async () => {
-      const mockResponse = {
-        items: [
-          {
-            transaction_hash: '0xhash1',
-            block_number: 18000000,
-            timestamp: '2023-01-01T00:00:00Z',
-            from: { hash: '0xfrom1', is_scam: true },
-            to: { hash: '0xto1', is_scam: false },
-            total: { value: '1000000000000000000' },
-            token: { address: '0xtoken1', name: 'Test Token', symbol: 'TT', decimals: 18 },
-            log_index: 1,
-            type: 'token_transfer',
-          },
-        ],
-        next_page_params: null,
-      }
-
-      sandbox.stub(BlockScoutHelper, '_rpCall').resolves(mockResponse)
-
-      const result = await BlockScoutHelper._fetchERC20Transfers(address, network)
-
-      expect(result).to.have.length(0)
-    })
-
-    it('should handle pagination', async () => {
-      const firstResponse = {
-        items: [
-          {
-            transaction_hash: '0xhash1',
-            block_number: 18000000,
-            timestamp: '2023-01-01T00:00:00Z',
-            from: { hash: '0xfrom1', is_scam: false },
-            to: { hash: '0xto1', is_scam: false },
-            total: { value: '1000000000000000000' },
-            token: { address: '0xtoken1', name: 'Test Token', symbol: 'TT', decimals: 18 },
-            log_index: 1,
-            type: 'token_transfer',
-          },
-        ],
-        next_page_params: { page: 2 },
-      }
-
-      const secondResponse = {
-        items: [
-          {
-            transaction_hash: '0xhash2',
-            block_number: 18000001,
-            timestamp: '2023-01-01T01:00:00Z',
-            from: { hash: '0xfrom2', is_scam: false },
-            to: { hash: '0xto2', is_scam: false },
-            total: { value: '2000000000000000000' },
-            token: { address: '0xtoken2', name: 'Test Token 2', symbol: 'TT2', decimals: 18 },
-            log_index: 2,
-            type: 'token_transfer',
-          },
-        ],
-        next_page_params: null,
-      }
-
-      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall')
-      rpCallStub.onFirstCall().resolves(firstResponse)
-      rpCallStub.onSecondCall().resolves(secondResponse)
-
-      const result = await BlockScoutHelper._fetchERC20Transfers(address, network)
-
-      expect(rpCallStub.callCount).to.equal(2)
-      expect(result).to.have.length(2)
-    })
-
-    it('should handle errors gracefully', async () => {
-      sandbox.stub(BlockScoutHelper, '_rpCall').rejects(new Error('API Error'))
-      const loggerStub = sandbox.stub(logger, 'error')
-
-      const result = await BlockScoutHelper._fetchERC20Transfers(address, network)
-
-      expect(result).to.be.an('array').that.is.empty
-      expect(loggerStub.calledOnce).to.be.true
-    })
-  })
-
-  describe('_fetchTxList', () => {
-    const address = '0x1234567890abcdef'
-    const network = NetworksEnum.ethereumMainnet
-
-    it('should fetch ETH transactions successfully', async () => {
-      const mockResponse = {
-        items: [
-          {
-            hash: '0xhash1',
-            block_number: 18000000,
-            timestamp: '2023-01-01T00:00:00Z',
-            from: { hash: '0xfrom1' },
-            to: { hash: '0xto1' },
-            value: '1000000000000000000',
-            position: 1,
-          },
-        ],
-        next_page_params: null,
-      }
-
-      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(mockResponse)
-
-      const result = await BlockScoutHelper._fetchTxList(address, network)
-
-      expect(rpCallStub.calledOnce).to.be.true
-      expect(rpCallStub.calledWith(`addresses/${address}/transactions`, sinon.match.object, network)).to.be.true
-      expect(result).to.have.length(1)
-      expect(result[0]).to.deep.include({
-        hash: '0xhash1',
-        blockNumber: '18000000',
-        from: '0xfrom1',
-        to: '0xto1',
-        value: '1000000000000000000',
-        category: 'external',
-        tokenDecimals: '18',
-      })
-    })
-
-    it('should filter out zero value transactions', async () => {
-      const mockResponse = {
-        items: [
-          {
-            hash: '0xhash1',
-            block_number: 18000000,
-            timestamp: '2023-01-01T00:00:00Z',
-            from: { hash: '0xfrom1' },
-            to: { hash: '0xto1' },
-            value: '0',
-            position: 1,
-          },
-        ],
-        next_page_params: null,
-      }
-
-      sandbox.stub(BlockScoutHelper, '_rpCall').resolves(mockResponse)
-
-      const result = await BlockScoutHelper._fetchTxList(address, network)
-
-      expect(result).to.have.length(0)
-    })
-
-    it('should handle errors gracefully', async () => {
-      sandbox.stub(BlockScoutHelper, '_rpCall').rejects(new Error('API Error'))
-      const loggerStub = sandbox.stub(logger, 'error')
-
-      const result = await BlockScoutHelper._fetchTxList(address, network)
-
-      expect(result).to.be.an('array').that.is.empty
-      expect(loggerStub.calledOnce).to.be.true
-    })
-  })
-
-  describe('_fetchInternalTxs', () => {
-    const address = '0x1234567890abcdef'
-    const network = NetworksEnum.ethereumMainnet
-
-    it('should fetch internal transactions successfully', async () => {
-      const mockResponse = {
-        items: [
-          {
-            transaction_hash: '0xhash1',
-            block_number: 18000000,
-            timestamp: '2023-01-01T00:00:00Z',
-            from: { hash: '0xfrom1' },
-            to: { hash: '0xto1' },
-            value: '1000000000000000000',
-            type: 'call',
-            index: 1,
-          },
-        ],
-        next_page_params: null,
-      }
-
-      const rpCallStub = sandbox.stub(BlockScoutHelper, '_rpCall').resolves(mockResponse)
-
-      const result = await BlockScoutHelper._fetchInternalTxs(address, network)
-
-      expect(rpCallStub.calledOnce).to.be.true
-      expect(rpCallStub.calledWith(`addresses/${address}/internal-transactions`, sinon.match.object, network)).to.be
-        .true
-      expect(result).to.have.length(1)
-      expect(result[0]).to.deep.include({
-        hash: '0xhash1',
-        blockNumber: '18000000',
-        from: '0xfrom1',
-        to: '0xto1',
-        value: '1000000000000000000',
-        category: 'internal',
-        tokenDecimals: '18',
-      })
-    })
-
-    it('should filter out non-call type transactions', async () => {
-      const mockResponse = {
-        items: [
-          {
-            transaction_hash: '0xhash1',
-            block_number: 18000000,
-            timestamp: '2023-01-01T00:00:00Z',
-            from: { hash: '0xfrom1' },
-            to: { hash: '0xto1' },
-            value: '1000000000000000000',
-            type: 'create',
-            index: 1,
-          },
-        ],
-        next_page_params: null,
-      }
-
-      sandbox.stub(BlockScoutHelper, '_rpCall').resolves(mockResponse)
-
-      const result = await BlockScoutHelper._fetchInternalTxs(address, network)
-
-      expect(result).to.have.length(0)
-    })
-
-    it('should handle errors gracefully', async () => {
-      sandbox.stub(BlockScoutHelper, '_rpCall').rejects(new Error('API Error'))
-      const loggerStub = sandbox.stub(logger, 'error')
-
-      const result = await BlockScoutHelper._fetchInternalTxs(address, network)
-
-      expect(result).to.be.an('array').that.is.empty
-      expect(loggerStub.calledOnce).to.be.true
     })
   })
 

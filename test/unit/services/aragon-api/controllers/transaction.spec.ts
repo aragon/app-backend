@@ -6,9 +6,9 @@ import {
   IPluginInterfaceType,
   IPluginStatus,
   ITokenType,
-  ITransactionCategory,
   ITransactionIndexCheckType,
   ITransactionType,
+  ITransactionSide,
   NetworksEnum,
 } from '@types'
 import { Models } from '@dbModels'
@@ -28,10 +28,9 @@ describe('TransactionController', () => {
     rawTransaction = {
       transactionHash: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
       blockNumber: 1,
-      uniqueId: '0x123213',
       network: NetworksEnum.ethereumMainnet,
-      type: ITransactionType.deposit,
-      category: ITransactionCategory.Internal,
+      side: ITransactionSide.deposit,
+      type: ITransactionType.native,
       fromAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc0',
       toAddress: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc1',
       value: '0x0',

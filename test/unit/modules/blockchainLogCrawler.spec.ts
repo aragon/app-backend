@@ -2497,6 +2497,82 @@ describe('Module: blockchainLogCrawler', () => {
     })
   })
 
+  describe('isTopicObject functionality', () => {
+    it('should use topic from events[0] when isTopicObject is true', () => {
+      const topicFilter = [['0xExecutedTopic'], null, null, ['0xSomeAddress']]
+
+      const crawler = new BlockchainLogCrawler({
+        events: [{ topic: topicFilter }] as any,
+        address: ['0x123'],
+        onError: sandbox.stub(),
+        logService: 'test' as any,
+        network: NetworksEnum.ethereumMainnet,
+        stopOnError: false,
+        isTopicObject: true,
+      })
+
+      expect(crawler.crawlSetting.filter.topics).to.deep.equal(topicFilter)
+    })
+
+    it('should call buildTopics when isTopicObject is false', () => {
+      const events = [
+        { event: 'Event1', topic: '0xTopic1', config: [{ abi: ['event Event1()'], handler: sandbox.stub() }] },
+        { event: 'Event2', topic: '0xTopic2', config: [{ abi: ['event Event2()'], handler: sandbox.stub() }] },
+      ]
+
+      const crawler = new BlockchainLogCrawler({
+        events,
+        address: ['0x123'],
+        onError: sandbox.stub(),
+        logService: 'test' as any,
+        network: NetworksEnum.ethereumMainnet,
+        stopOnError: false,
+        isTopicObject: false,
+      })
+
+      expect(crawler.crawlSetting.filter.topics).to.deep.equal(['0xTopic1', '0xTopic2'])
+    })
+
+    it('should default to buildTopics when isTopicObject is undefined', () => {
+      const events = [
+        { event: 'Event1', topic: '0xTopic1', config: [{ abi: ['event Event1()'], handler: sandbox.stub() }] },
+        {
+          event: 'Event2',
+          topic: ['0xTopic2', '0xTopic3'],
+          config: [{ abi: ['event Event2()'], handler: sandbox.stub() }],
+        },
+      ]
+
+      const crawler = new BlockchainLogCrawler({
+        events,
+        address: ['0x123'],
+        onError: sandbox.stub(),
+        logService: 'test' as any,
+        network: NetworksEnum.ethereumMainnet,
+        stopOnError: false,
+        // isTopicObject not provided, should default to undefined/false
+      })
+
+      expect(crawler.crawlSetting.filter.topics).to.deep.equal(['0xTopic1', '0xTopic2', '0xTopic3'])
+    })
+
+    it('should handle complex topic filters when isTopicObject is true', () => {
+      const complexTopicFilter = [['0xExecutedTopic', '0xAlternativeTopic'], null, ['0xAddress1', '0xAddress2'], null]
+
+      const crawler = new BlockchainLogCrawler({
+        events: [{ topic: complexTopicFilter }] as any,
+        address: ['0xDAO'],
+        onError: sandbox.stub(),
+        logService: 'test' as any,
+        network: NetworksEnum.ethereumMainnet,
+        stopOnError: false,
+        isTopicObject: true,
+      })
+
+      expect(crawler.crawlSetting.filter.topics).to.deep.equal(complexTopicFilter)
+    })
+  })
+
   describe('getParallelConfig edge cases', () => {
     it('should return fallback config when parallel is not configured', () => {
       const crawler = new BlockchainLogCrawler({

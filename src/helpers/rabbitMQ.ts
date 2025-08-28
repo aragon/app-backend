@@ -1,10 +1,11 @@
 import RabbitMQ from '@modules/rabbitMQ'
-import { type EnumQueueName, type IQueueMessage, type ISendOptions } from '@types'
+import { type EnumQueueName, type IQueueMessage, type ISendOptions, type IThrottleOptions } from '@types'
 import logger from '@logger'
 import { type ConfirmChannel, type ConsumeMessage, type Options } from 'amqplib'
 import { v4 as uuidv4 } from 'uuid'
 import { Mutex } from 'async-mutex'
 import config from '@config'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:RabbitMQHelper' })
 
@@ -212,6 +213,46 @@ const RabbitMQHelper = {
     } catch (err) {
       logger.error('getQueueMessageCount error', llo({ queueName, err }))
       return null
+    }
+  },
+
+  async sendMessageWithThrottle(
+    queueName: EnumQueueName,
+    payload: { id: string; params: any },
+    options?: IThrottleOptions,
+  ): Promise<void> {
+    const maxQueueSize = options?.maxQueueSize ?? config.RABBITMQ.MAX_QUEUE_SIZE
+    const retryDelay = options?.retryDelay ?? config.RABBITMQ.THROTTLE_RETRY_DELAY
+
+    // Extract params as the logging context to avoid duplication
+    const logContext = { ...payload.params, ...(options?.logContext ?? {}) }
+
+    while (true) {
+      const count = await RabbitMQHelper.getQueueMessageCount(queueName)
+
+      if (count === null) {
+        logger.error(
+          `Unable to get message count for queue "${queueName}". Retrying...`,
+          llo({ ...logContext, messageId: payload.id }),
+        )
+        await utils.wait(retryDelay)
+        continue
+      }
+
+      if (count < maxQueueSize) {
+        await RabbitMQHelper.sendMessage(queueName, payload)
+        logger.verbose(
+          `Message sent to queue "${queueName}"`,
+          llo({ queueName, messageId: payload.id, count: count + 1, ...logContext }),
+        )
+        break
+      } else {
+        logger.warn(
+          `Queue "${queueName}" has reached the limit. Waiting...`,
+          llo({ queueName, waitingMessageId: payload.id, count, maxQueueSize, ...logContext }),
+        )
+        await utils.wait(retryDelay)
+      }
     }
   },
 }

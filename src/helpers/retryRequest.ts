@@ -84,7 +84,6 @@ export function isErrorRelatedToServerIssue(error: any): boolean {
     const params = parsedReqBody?.params?.[0]
     const whitelistMethods = [
       'eth_blockNumber',
-      'alchemy_getAssetTransfers',
       'eth_getBlockByNumber',
       'eth_getBlockReceipts',
       'eth_getTransactionReceipt',

@@ -30,7 +30,8 @@
       "@test/*": ["./test/*"],
       "@aragonContracts/*": ["./src/services/aragonContracts/*"],
       "@handlers/*": ["./src/handlers/*"],
-      "@plugins/*": ["./src/services/aragon-plugins/*"]
+      "@plugins/*": ["./src/services/aragon-plugins/*"],
+      "@transfers": ["./src/modules/transfers/index"]
     },
     "esModuleInterop": true,
     "resolveJsonModule": true

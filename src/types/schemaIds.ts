@@ -1,9 +1,9 @@
 import {
   type HexAddress,
   type IEventLogPluginType,
-  type ITransactionCategory,
   type LogServicePattern,
   type NetworksEnum,
+  type TransferTokenType,
 } from '@src/types/index'
 
 export interface IVoteIdParams {
@@ -95,14 +95,6 @@ export interface ILogPluginSetupProcessorIdParams {
   event: IEventLogPluginType
 }
 
-export interface IMemberTransactionIdParams {
-  network: NetworksEnum
-  transactionHash: HexAddress
-  transactionIndex: number
-  logIndex: number
-  address: HexAddress
-}
-
 export interface IMemberIdParams {
   address: HexAddress
 }
@@ -126,10 +118,16 @@ export interface ITokenIdParams {
 
 export interface ITransactionIdParams {
   transactionHash: HexAddress
-  category: ITransactionCategory
   network: NetworksEnum
-  uniqueId: string
   daoAddress: HexAddress
+  logIndex?: number
+  transactionIndex?: number
+  type: TransferTokenType
+  tokenAddress?: string
+  tokenId?: string
+  proposalId?: string
+  batchIndex?: number
+  actionIndex?: number
 }
 
 export interface IDaoPermissionId {
