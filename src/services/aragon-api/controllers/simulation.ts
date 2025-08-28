@@ -145,6 +145,7 @@ class SimulationController {
     return {
       url: proposal.simulation.url,
       status: ISimulationStatus.SUCCESS,
+      runAt: proposal.simulation.runAt,
     }
   }
 }
