@@ -29,7 +29,7 @@ const SimulationRouter = {
         proposalId: ctx.params.proposalId,
       },
       schemas: {
-        params: SimulationSchema.simulateProposal,
+        params: SimulationSchema.simulationProposal,
       },
     })
 
@@ -42,7 +42,7 @@ const SimulationRouter = {
         proposalId: ctx.params.proposalId,
       },
       schemas: {
-        params: SimulationSchema.getSimulationByProposalId,
+        params: SimulationSchema.simulationProposal,
       },
     })
 

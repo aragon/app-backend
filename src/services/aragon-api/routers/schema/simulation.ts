@@ -17,19 +17,8 @@ const SimulationSchema = {
       .required(),
   }),
 
-  getSimulationByProposalId: Joi.object({
+  simulationProposal: Joi.object({
     proposalId: Joi.string().required(),
-  }),
-
-  // POST /:network/proposal/:proposalId
-  simulateProposal: Joi.object({
-    proposalId: Joi.string().required(),
-    network: Joi.string().required(),
-  }),
-
-  // GET /:simulationId/share
-  getShareableUrl: Joi.object({
-    simulationId: Joi.string().required(),
   }),
 }
 
