@@ -26,7 +26,6 @@ import type Campaign from '@models/schema/campaign'
 import type CampaignReward from '@models/schema/campaignReward'
 import type LockToVoteMember from '@models/schema/lockToVoteMember'
 import type Migration from '@models/schema/migration'
-import type Simulation from '@models/schema/simulation'
 
 export interface IMongoModel {
   Migration: typeof Migration
@@ -57,7 +56,6 @@ export interface IMongoModel {
   PluginMember: typeof PluginMember
   PluginMetrics: typeof PluginMetrics
   LockToVoteMember: typeof LockToVoteMember
-  Simulation: typeof Simulation
 }
 
 export enum ICollectionNames {
@@ -89,7 +87,6 @@ export enum ICollectionNames {
   PluginMember = 'PluginMember',
   PluginMetrics = 'PluginMetrics',
   LockToVoteMember = 'LockToVoteMember',
-  Simulation = 'Simulation',
 }
 
 export enum ITransactionIndexCheckType {
