@@ -7,7 +7,8 @@ const SimulationRouter = {
   async simulate(ctx: RouterContext) {
     const result = await ValidationSchema.validateRoute(ctx, {
       params: {
-        action: (ctx.request.body as any).action,
+        actions: (ctx.request.body as any).actions,
+        pluginAddress: ctx.params.pluginAddress,
         network: ctx.params.network,
       },
       schemas: {
@@ -15,7 +16,11 @@ const SimulationRouter = {
       },
     })
 
-    ctx.body = await SimulationController.simulate(result.params.action, result.params.network)
+    ctx.body = await SimulationController.simulate(
+      result.params.pluginAddress,
+      result.params.actions,
+      result.params.network,
+    )
   },
 
   async simulateProposal(ctx: RouterContext) {
@@ -47,7 +52,7 @@ const SimulationRouter = {
   router(): Router {
     const router = new Router()
 
-    router.post('/:network/simulate', SimulationRouter.simulate)
+    router.post('/:network/plugin/:pluginAddress/simulate', SimulationRouter.simulate)
     router.post('/proposal/:proposalId', SimulationRouter.simulateProposal)
     router.get('/proposal/:proposalId', SimulationRouter.getSimulationResultOfProposal)
 

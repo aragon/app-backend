@@ -10,34 +10,13 @@ const llo = logger.logMeta.bind(null, { service: 'simulation-controller' })
 
 class SimulationController {
   /**
-   * Validate action that recipient is a DAO and sender is a plugin
+   * Validate plugin has EXECUTE_PERMISSION on DAO
    */
-  static async validateAction(
-    action: { to: string; data: string; value?: string; from: string },
-    network: NetworksEnum,
-  ) {
-    const dao = await Models.Dao.findOne({
-      address: action.to,
-      isActive: true,
-      network,
-      isHidden: { $ne: true },
-    }).lean()
-
-    Errors.assertExposable(
-      dao,
-      ErrorKeyEnum.badSimulationRequest,
-      400,
-      'Invalid recipient: must be a valid DAO',
-      llo({
-        action,
-      }),
-    )
-
+  static async validateAction(pluginAddress: string, network: NetworksEnum) {
     const plugin = await Models.Plugin.findOne({
-      address: action.from,
+      address: pluginAddress,
       status: IPluginStatus.installed,
-      daoAddress: dao.address,
-      network: dao.network,
+      network,
       isSupported: true,
     }).lean()
 
@@ -45,26 +24,66 @@ class SimulationController {
       plugin,
       ErrorKeyEnum.badSimulationRequest,
       400,
-      'Invalid sender: must be a valid plugin',
+      'Invalid plugin: must be a valid installed plugin',
       llo({
-        action,
+        pluginAddress,
+        network,
       }),
     )
+
+    const executePermissionId = ethers.id('EXECUTE_PERMISSION')
+    const hasExecutePermission = plugin.permissions.find(
+      perm =>
+        perm.permissionId === executePermissionId &&
+        perm.whoAddress === pluginAddress &&
+        perm.whereAddress === plugin.daoAddress,
+    )
+
+    Errors.assertExposable(
+      hasExecutePermission,
+      ErrorKeyEnum.badSimulationRequest,
+      403,
+      'Plugin does not have EXECUTE_PERMISSION on DAO',
+      llo({
+        pluginAddress,
+        daoAddress: plugin.daoAddress,
+        network,
+      }),
+    )
+
+    return plugin
   }
 
   /**
-   * Run a simulation for a single action
-   * @param action
+   * Run a simulation for actions by encoding them into DAO execute call
+   * @param pluginAddress
+   * @param actions
    * @param network
    */
-
   static async simulate(
-    action: { to: string; data: string; value?: string; from: string },
+    pluginAddress: string,
+    actions: Array<{ data: string; value: string; to: string }>,
     network: NetworksEnum,
   ): Promise<any> {
-    await SimulationController.validateAction(action, network)
+    const plugin = await SimulationController.validateAction(pluginAddress, network)
 
-    const result = (await TenderlyModule.simulate(action, network)) as {
+    const formattedActions = actions.map(action => ({
+      to: plugin.daoAddress,
+      value: action.value || '0',
+      data: action.data,
+    }))
+
+    const iFace = new Interface(DAO.abi)
+    const encodedData = iFace.encodeFunctionData('execute', [ethers.id(Date.now().toString()), formattedActions, 0])
+
+    const simulationAction = {
+      to: plugin.daoAddress,
+      data: encodedData,
+      value: '0',
+      from: pluginAddress,
+    }
+
+    const result = (await TenderlyModule.simulate(simulationAction, network)) as {
       url?: string
       runAt?: number
       status: ISimulationStatus
