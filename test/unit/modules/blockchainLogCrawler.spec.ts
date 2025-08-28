@@ -2860,4 +2860,139 @@ describe('Module: blockchainLogCrawler', () => {
       expect(result).to.equal('getLogsByBatch')
     })
   })
+
+  describe('Additional error handling and edge cases', () => {
+    it('should handle queue.error event handler with stopOnError true', async () => {
+      const onErrorStub = sandbox.stub()
+      const crawler = new BlockchainLogCrawler({
+        events: [],
+        address: ['0x123'],
+        onError: onErrorStub,
+        logService: 'test' as any,
+        parallel: { enable: true, concurrency: 2 },
+        stopOnError: true,
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      const asyncModule = require('async')
+      const originalQueue = asyncModule.queue
+      
+      // Create a custom queue that allows us to trigger the error handler
+      const queueStub = sandbox.stub(asyncModule, 'queue').callsFake((worker, concurrency) => {
+        const queue = originalQueue(worker, concurrency)
+        
+        // Trigger error handler after a short delay
+        setTimeout(() => {
+          const testError = new Error('Queue processing error')
+          if (queue.error) {
+            queue.error(testError, { log: { transactionHash: '0xtest' }, index: 0 })
+          }
+        }, 10)
+        
+        return queue
+      })
+
+      const mockLogs: any[] = [{ blockNumber: 100, transactionHash: '0x1' }]
+
+      try {
+        await (crawler as any).processLogsParallel(mockLogs, {})
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error.message).to.equal('Queue processing error')
+        expect(crawler.crawlSetting.shutdown).to.be.true
+        expect(logError.calledWith('Parallel processing queue error')).to.be.true
+      }
+    })
+
+    it('should handle queue.error event handler with stopOnError false', async () => {
+      const onErrorStub = sandbox.stub()
+      const crawler = new BlockchainLogCrawler({
+        events: [],
+        address: ['0x123'],
+        onError: onErrorStub,
+        logService: 'test' as any,
+        parallel: { enable: true, concurrency: 2 },
+        stopOnError: false,
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      sandbox.stub(crawler, 'formatLog').returns({
+        event: { name: 'Test' } as any,
+        handler: sandbox.stub().resolves(),
+        info: {} as any,
+      })
+
+      const asyncModule = require('async')
+      const originalQueue = asyncModule.queue
+      
+      // Create a custom queue that triggers error but continues
+      const queueStub = sandbox.stub(asyncModule, 'queue').callsFake((worker, concurrency) => {
+        const queue = originalQueue(worker, concurrency)
+        
+        // Trigger error handler but don't stop processing
+        setTimeout(() => {
+          const testError = new Error('Non-fatal queue error')
+          if (queue.error) {
+            queue.error(testError, { log: { transactionHash: '0xtest' }, index: 0 })
+          }
+        }, 10)
+        
+        return queue
+      })
+
+      const mockLogs: any[] = [{ blockNumber: 100, transactionHash: '0x1' }]
+
+      const result = await (crawler as any).processLogsParallel(mockLogs, {})
+      
+      expect(result).to.be.a('number')
+      expect(crawler.crawlSetting.shutdown).to.be.false
+      expect(logError.calledWith('Parallel processing queue error')).to.be.true
+    })
+
+    it('should stop adding tasks to queue when shutdown is triggered during batch push', async () => {
+      const crawler = new BlockchainLogCrawler({
+        events: [],
+        address: ['0x123'],
+        onError: sandbox.stub(),
+        logService: 'test' as any,
+        parallel: { enable: true, concurrency: 2, batchSize: 2 },
+        network: NetworksEnum.ethereumMainnet,
+        stopOnError: false,
+      })
+
+      // Create many logs to trigger multiple batch pushes
+      const mockLogs: any[] = []
+      for (let i = 0; i < 10; i++) {
+        mockLogs.push({ blockNumber: 100 + i, transactionHash: `0x${i}`, index: i })
+      }
+
+      let callCount = 0
+      sandbox.stub(crawler, 'formatLog').callsFake((log) => {
+        callCount++
+        // Trigger shutdown after processing first few logs
+        if (callCount === 3) {
+          crawler.crawlSetting.shutdown = true
+        }
+        return {
+          event: { name: 'Test' } as any,
+          handler: sandbox.stub().resolves(),
+          info: {} as any,
+        }
+      })
+
+      sandbox.stub(crawler, 'getParallelConfig').returns({
+        enable: true,
+        concurrency: 2,
+        batchSize: 2, // Small batch size to trigger multiple pushes
+        useBatch: false
+      })
+
+      const result = await (crawler as any).processLogsParallel(mockLogs, {})
+
+      // Should have processed some logs but not all due to shutdown
+      expect(callCount).to.be.greaterThan(0)
+      expect(callCount).to.be.lessThan(mockLogs.length)
+      expect(crawler.crawlSetting.shutdown).to.be.true
+    })
+  })
 })

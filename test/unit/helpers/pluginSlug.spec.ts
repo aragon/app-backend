@@ -370,6 +370,7 @@ describe('Helpers:PluginSlug', () => {
 
     it('should handle error when _createSlugWithRetries throws for default slug', async () => {
       const errorStub = sandbox.stub(logger, 'error')
+      sandbox.stub(PluginSlug, '_parseProcessKey').returns(null)
       sandbox.stub(Models.PluginSlug, 'findPluginSlug').resolves(null)
       sandbox.stub(PluginSlug, '_createSlugWithRetries').rejects(new Error('Create slug failed'))
 
