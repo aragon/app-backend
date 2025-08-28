@@ -1,274 +1,142 @@
 import { Models } from '@dbModels'
 import TenderlyModule from '@modules/tenderly'
-import { SimulationStatus } from '@models/schema/simulation'
 import logger from '@logger'
-import { 
-  type NetworksEnum, 
-  type TenderlySimulationSimulationItem, 
-  IPluginStatus,
-  ErrorKeyEnum 
-} from '@types'
-import { assertExposable } from '@errors'
-import crypto from 'crypto'
+import { type NetworksEnum, IPluginStatus, ErrorKeyEnum, SimulationStatus } from '@types'
+import * as Errors from '@errors'
 
 const llo = logger.logMeta.bind(null, { service: 'simulation-controller' })
-
-export interface ISimulationResponse {
-  status: SimulationStatus
-  url?: string
-  runAt: string
-  errorMessage?: string
-  network?: NetworksEnum
-}
 
 class SimulationController {
   /**
    * Simulate a bundle of transactions
    * This validates that recipients are DAOs and senders are plugins
    */
-  static async simulateBundle(
-    actions: Array<{ to: string; data?: string; value?: string; from?: string }>,
-    network?: NetworksEnum
-  ): Promise<ISimulationResponse> {
-    try {
-      if (!TenderlyModule.isConfigured()) {
-        return {
-          status: SimulationStatus.FAILED,
-          runAt: new Date().toISOString(),
-          errorMessage: 'Tenderly service not available',
-        }
-      }
+  static async validateBundle(actions: Array<{ to: string; data?: string; value?: string; from?: string }>) {
+    const toAddresses = actions.map(action => action.to).filter(Boolean)
+    const fromAddresses = actions.map(action => action.from).filter(Boolean)
 
-      if (!actions || actions.length === 0) {
-        return {
-          status: SimulationStatus.FAILED,
-          runAt: new Date().toISOString(),
-          errorMessage: 'No actions provided',
-        }
-      }
+    const daos = await Models.Dao.find({
+      address: { $in: toAddresses },
+      isActive: true,
+      isHidden: { $ne: true },
+    }).lean()
 
-      // Validate to addresses are DAOs
-      const toAddresses = actions.map(action => action.to).filter(Boolean)
-      const fromAddresses = actions.map(action => action.from).filter(Boolean)
+    const daoAddresses = daos.map((dao: { address: string }) => dao.address)
+    const invalidRecipients = toAddresses.filter(addr => addr && !daoAddresses.includes(addr))
 
-      // Validate recipients are DAOs
-      const daos = await Models.Dao.find({
-        address: { $in: toAddresses },
-        isActive: true,
-        isHidden: { $ne: true },
+    Errors.assertExposable(
+      invalidRecipients.length === 0,
+      ErrorKeyEnum.badSimulationRequest,
+      400,
+      'Invalid recipients: recipients must be valid DAOs',
+      llo({
+        invalidRecipients,
+        actions,
+      }),
+    )
+
+    if (fromAddresses.length > 0) {
+      const plugins = await Models.Plugin.find({
+        address: { $in: fromAddresses },
+        status: IPluginStatus.installed,
+        isSupported: true,
       }).lean()
 
-      const daoAddresses = daos.map((dao: { address: string }) => dao.address.toLowerCase())
-      const invalidRecipients = toAddresses.filter(addr => !daoAddresses.includes(addr.toLowerCase()))
+      const pluginAddresses = plugins.map((plugin: { address: string }) => plugin.address.toLowerCase())
+      const invalidSenders = fromAddresses.filter(addr => addr && !pluginAddresses.includes(addr.toLowerCase()))
 
-      if (invalidRecipients.length > 0) {
-        return {
-          status: SimulationStatus.FAILED,
-          runAt: new Date().toISOString(),
-          errorMessage: 'Invalid recipients: recipients must be valid DAOs',
-        }
-      }
-
-      // Validate senders are plugins (if specified)
-      if (fromAddresses.length > 0) {
-        const plugins = await Models.Plugin.find({
-          address: { $in: fromAddresses },
-          status: IPluginStatus.installed,
-          isSupported: true,
-        }).lean()
-
-        const pluginAddresses = plugins.map((plugin: { address: string }) => plugin.address.toLowerCase())
-        const invalidSenders = fromAddresses.filter(addr => !pluginAddresses.includes(addr.toLowerCase()))
-
-        if (invalidSenders.length > 0) {
-          return {
-            status: SimulationStatus.FAILED,
-            runAt: new Date().toISOString(),
-            errorMessage: 'Invalid senders: senders must be valid plugins',
-          }
-        }
-      }
-
-      // Convert actions to Tenderly simulation items
-      const simulationItems = TenderlyModule.prepareSimulationItems(actions, network)
-
-      // Send to Tenderly
-      const result = await TenderlyModule.simulateBundle(simulationItems)
-
-      // Find existing simulation with the same actions or create a new one
-      const existingSimulation = await Models.Simulation.findByActionsHash(actions)
-      let simulation
-
-      if (existingSimulation) {
-        // Update existing simulation
-        existingSimulation.status = result.status
-        existingSimulation.url = result.url
-        existingSimulation.errorMessage = result.errorMessage
-        existingSimulation.tenderlyResponse = result.tenderlyResponse
-        existingSimulation.runAt = new Date()
-        simulation = await existingSimulation.save()
-      } else {
-        // Create new simulation with hash-based ID
-        simulation = await Models.Simulation.create({
-          status: result.status,
-          url: result.url,
-          errorMessage: result.errorMessage,
-          tenderlyResponse: result.tenderlyResponse,
-          actions: actions,
-          network,
-          runAt: new Date(),
-          id: Models.Simulation.generateId(undefined, actions),
-        })
-      }
-
-      return {
-        status: result.status,
-        url: result.url,
-        runAt: simulation.runAt.toISOString(),
-        errorMessage: result.errorMessage,
-        network: simulation.network,
-      }
-    } catch (error: any) {
-      logger.error('Failed to run simulation bundle', llo({ error: error.message }))
-      throw error
+      Errors.assertExposable(
+        invalidSenders.length === 0,
+        ErrorKeyEnum.badSimulationRequest,
+        400,
+        'Invalid senders: senders must be valid plugins',
+        llo({
+          invalidSenders,
+          actions,
+        }),
+      )
     }
   }
 
-  /**
-   * Get the latest simulation by proposalId, simulationId, or actions
-   * @param params Object containing one of: proposalId, simulationId, or actions
-   */
-  static async getLastSimulation(params: {
-    proposalId?: string;
-    simulationId?: string;
-    actions?: Array<{ to: string; data?: string; value?: string; from?: string }>;
-  }): Promise<ISimulationResponse | null> {
-    try {
-      const { proposalId, simulationId, actions } = params
-      let simulation = null
+  static async simulateBundle(
+    actions: Array<{ to: string; data?: string; value?: string; from?: string }>,
+    network: NetworksEnum,
+  ): Promise<any> {
+    await SimulationController.validateBundle(actions)
 
-      // First try to find by simulationId if provided
-      if (simulationId) {
-        simulation = await Models.Simulation.findBySimulationId(simulationId)
-      }
-      
-      // Then try to find by proposalId if provided
-      if (!simulation && proposalId) {
-        simulation = await Models.Simulation.findByProposalId(proposalId)
-      }
-
-      // Finally try to find by actions hash if provided
-      if (!simulation && actions && actions.length > 0) {
-        simulation = await Models.Simulation.findByActionsHash(actions)
-      }
-
-      if (!simulation) {
-        return null
-      }
-
-      return {
-        status: simulation.status,
-        url: simulation.url,
-        runAt: simulation.runAt.toISOString(),
-        errorMessage: simulation.errorMessage,
-        network: simulation.network,
-      }
-    } catch (error: any) {
-      logger.error('Failed to get last simulation', llo({ params, error: error.message }))
-      throw error
+    const result = (await TenderlyModule.simulateBundle(actions, network)) as {
+      url?: string
+      runAt?: number
     }
-  }
 
-  /**
-   * Run a new simulation for a proposal
-   * This method retrieves the proposal's actions and simulates them
-   */
-  static async runNewSimulation(proposalId: string, network?: NetworksEnum): Promise<ISimulationResponse> {
-    try {
-      if (!TenderlyModule.isConfigured()) {
-        return {
-          status: SimulationStatus.FAILED,
-          runAt: new Date().toISOString(),
-          errorMessage: 'Tenderly service not available',
-          network,
-        }
-      }
-
-      // Find the proposal to get its actions
-      const proposal = await Models.Proposal.findByEntityId(proposalId)
-      if (!proposal) {
-        return {
-          status: SimulationStatus.FAILED,
-          runAt: new Date().toISOString(),
-          errorMessage: 'Proposal not found',
-          network,
-        }
-      }
-
-      if (!proposal.rawActions || proposal.rawActions.length === 0) {
-        return {
-          status: SimulationStatus.FAILED,
-          runAt: new Date().toISOString(),
-          errorMessage: 'No actions to simulate in proposal',
-          network,
-        }
-      }
-
-      // Create or update simulation record with running status
-      const runningSimulation = await Models.Simulation.upsertByProposalId(proposalId, {
-        status: SimulationStatus.RUNNING,
-        network: network || proposal.network,
-      })
-
-      // Run simulation in the background
-      this.runProposalSimulationAsync(proposalId, proposal.rawActions, network || proposal.network)
-        .catch(error => {
-          logger.error('Async simulation failed', llo({ proposalId, network, error: error.message }))
-        })
-
-      // Return running status immediately
+    if (!result) {
       return {
-        status: runningSimulation.status,
-        url: runningSimulation.url,
-        runAt: runningSimulation.runAt.toISOString(),
-        network: runningSimulation.network,
-      }
-    } catch (error: any) {
-      logger.error('Failed to run new simulation', llo({ proposalId, error: error.message }))
-      throw error
-    }
-  }
-
-  /**
-   * Run proposal simulation asynchronously and update the database when done
-   * This is a private method used by runNewSimulation
-   */
-  private static async runProposalSimulationAsync(
-    proposalId: string,
-    actions: any[],
-    network: NetworksEnum
-  ): Promise<void> {
-    try {
-      // Run the simulation
-      const result = await this.simulateBundle(actions, network)
-
-      // Update the simulation record
-      await Models.Simulation.upsertByProposalId(proposalId, {
-        status: result.status,
-        url: result.url,
-        errorMessage: result.errorMessage,
-        network,
-      })
-
-      logger.info('Simulation completed for proposal', llo({ proposalId, status: result.status }))
-    } catch (error: any) {
-      logger.error('Failed to run simulation for proposal', llo({ proposalId, error: error.message }))
-
-      // Update the simulation record with failure
-      await Models.Simulation.upsertByProposalId(proposalId, {
         status: SimulationStatus.FAILED,
-        errorMessage: error.message || 'Unknown error',
-      })
+        runAt: new Date().toISOString(),
+        network,
+      }
+    }
+
+    return {
+      status: SimulationStatus.SUCCESS,
+      url: result.url,
+      runAt: result.runAt,
+      network,
+    }
+  }
+
+  /**
+   * Run a simulation for a proposal's actions
+   */
+  static async simulateProposal(proposalId: string): Promise<any> {
+    const proposal = await Models.Proposal.findByEntityId(proposalId)
+    Errors.assertExposable(
+      proposal?.rawAction.length,
+      ErrorKeyEnum.notFound,
+      404,
+      'Proposal not found',
+      llo({ proposalId }),
+    )
+
+    const actions = proposal.rawActions.map((action: any) => ({
+      to: action.to,
+      data: action.data,
+      value: action.value || '0',
+      from: action.pluginAddress,
+    }))
+
+    await SimulationController.validateBundle(actions)
+
+    const result = (await TenderlyModule.simulateBundle(actions, proposal.network)) as {
+      url?: string
+      runAt?: number
+    }
+
+    if (!result) {
+      return {
+        status: SimulationStatus.FAILED,
+        runAt: new Date().toISOString(),
+        network: proposal.network,
+      }
+    }
+
+    await proposal.update({
+      simulation: {
+        status: result.url ? SimulationStatus.SUCCESS : SimulationStatus.FAILED,
+        url: result.url,
+        runAt: result.runAt ? new Date(result.runAt) : new Date(),
+      },
+    })
+
+    return result
+  }
+
+  async getSimulationResultOfProposal(proposalId: string) {
+    const proposal = await Models.Proposal.findByEntityId(proposalId)
+    Errors.assertExposable(proposal?.simulation?.url, ErrorKeyEnum.notFound, 404)
+    return {
+      url: proposal.simulation.url,
+      status: SimulationStatus.SUCCESS,
     }
   }
 }

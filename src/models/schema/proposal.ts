@@ -82,6 +82,14 @@ class Media {
   public logo!: string | null
 }
 
+class Simulation {
+  @prop({ type: () => String, default: null })
+  public url!: string
+
+  @prop({ type: () => Number, default: null })
+  public runAt!: number
+}
+
 class Settings {
   @prop({ type: () => String })
   public id!: string
@@ -339,6 +347,9 @@ export default class Proposal extends Model {
 
   @prop({ type: () => [ExternalBodyResult], _id: false, default: [] })
   public results!: ExternalBodyResult[]
+
+  @prop({ type: () => Simulation, _id: false, default: {} })
+  public simulation!: Simulation
 
   static async create(rawData: Partial<Proposal>, tOpts?: SaveOptions) {
     if (!rawData.id) {

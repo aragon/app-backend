@@ -3,114 +3,79 @@ import logger from '@logger'
 import config from '@config'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
-import {
-  type TenderlySimulationResponse,
-  type NetworksEnum,
-  type TenderlySimulationBundleRequest,
-  type TenderlySimulationSimulationItem,
-} from '@types'
-import { SimulationStatus } from '@models/schema/simulation'
+import { type NetworksEnum, type TenderlySimulationSimulationItem } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'tenderly-module' })
 
-class TenderlyModule {
-  /**
-   * Check if Tenderly is properly configured in the environment
-   */
-  static isConfigured(): boolean {
+const TenderlyModule = {
+  baseUrl() {
+    return `${config.TENDERLY.API_URL}/account/${config.TENDERLY.USER}/project/${config.TENDERLY.PROJECT}`
+  },
+
+  async rpcCall(baseUrl: string, data: any, headers?: Record<string, string>): Promise<any> {
+    try {
+      const response = await BottleneckModule.getTenderlyLimiter().schedule(async () =>
+        axios.post(baseUrl, data, {
+          headers: {
+            'X-Access-Key': config.TENDERLY.ACCESS_KEY,
+            'Content-Type': 'application/json',
+            ...headers,
+          },
+          timeout: 30000,
+        }),
+      )
+      return response.data
+    } catch (error: any) {
+      logger.error('Tenderly RPC call failed', llo({ baseUrl, error: error.message }))
+    }
+  },
+
+  isConfigured(): boolean {
     return !!(config.TENDERLY.PROJECT && config.TENDERLY.USER && config.TENDERLY.ACCESS_KEY)
-  }
+  },
 
-  /**
-   * Create a shareable URL for a Tenderly simulation
-   */
-  static async createShareableUrl(simulationId: string): Promise<string | undefined> {
-    try {
-      const response = await BottleneckModule.getTenderlyLimiter().schedule(async () =>
-        axios.post(
-          `${config.TENDERLY.API_URL}/account/${config.TENDERLY.USER}/project/${config.TENDERLY.PROJECT}/simulations/${simulationId}/share`,
-          {},
-          {
-            headers: {
-              'X-Access-Key': config.TENDERLY.ACCESS_KEY,
-              'Content-Type': 'application/json',
-            },
-            timeout: 10000,
-          },
-        ),
-      )
-
-      if (response.data.share_url) {
-        return response.data.share_url
-      } else {
-        return `https://www.tdly.co/shared/simulation/${simulationId}`
-      }
-    } catch (error: any) {
-      logger.error('Failed to create shareable URL', llo({ simulationId, error: error.message }))
-      return `https://www.tdly.co/shared/simulation/${simulationId}`
-    }
-  }
-
-  /**
-   * Send a bundle of simulations to Tenderly
-   * This is a pure API call without validation or DB interaction
-   */
-  static async simulateBundle(
-    simulations: TenderlySimulationSimulationItem[],
-  ): Promise<{ status: SimulationStatus; url?: string; errorMessage?: string; tenderlyResponse?: string }> {
-    if (!this.isConfigured()) {
-      logger.error('Tenderly configuration missing', llo({}))
-      return { status: SimulationStatus.FAILED, errorMessage: 'Tenderly service not configured' }
+  async createShareableUrl(simulationId: string): Promise<string | false> {
+    if (!TenderlyModule.isConfigured()) {
+      return false
     }
 
-    try {
-      const simulationRequest: TenderlySimulationBundleRequest = {
-        simulations,
+    const response = await TenderlyModule.rpcCall(`${TenderlyModule.baseUrl()}/simulation/${simulationId}/share`, {})
+    return response.share_url || `https://www.tdly.co/shared/simulation/${simulationId}`
+  },
+
+  async simulateBundle(
+    simulations: Array<{ to: string; data?: string; value?: string; from?: string }>,
+    network: NetworksEnum,
+  ): Promise<
+    | boolean
+    | {
+        url?: string | undefined
+        runAt?: number | undefined
       }
+  > {
+    if (!TenderlyModule.isConfigured()) {
+      return false
+    }
 
-      const response = await BottleneckModule.getTenderlyLimiter().schedule(async () =>
-        axios.post<TenderlySimulationResponse>(
-          `${config.TENDERLY.API_URL}/account/${config.TENDERLY.USER}/project/${config.TENDERLY.PROJECT}/simulate-bundle`,
-          simulationRequest,
-          {
-            headers: {
-              'X-Access-Key': config.TENDERLY.ACCESS_KEY,
-              'Content-Type': 'application/json',
-            },
-            timeout: 30000,
-          },
-        ),
-      )
+    const preparedSimulations = TenderlyModule.prepareSimulationItems(simulations, network)
+    const response = await TenderlyModule.rpcCall(`${TenderlyModule.baseUrl()}/simulate-bundle`, {
+      simulations: preparedSimulations,
+    })
 
-      const tenderlyResponse = JSON.stringify(response.data)
+    const runAt = Date.now()
 
-      if (response.data.status === 'success') {
-        const shareableUrl = await this.createShareableUrl(response.data.simulation_id)
-        return {
-          status: SimulationStatus.SUCCESS,
-          url: shareableUrl,
-          tenderlyResponse,
-        }
-      } else {
-        return {
-          status: SimulationStatus.FAILED,
-          errorMessage: 'Simulation failed',
-          tenderlyResponse,
-        }
-      }
-    } catch (error: any) {
-      logger.error('Tenderly bundle simulation failed', llo({ error: error.message }))
+    if (response?.status === 'success') {
+      const shareableUrl = await TenderlyModule.createShareableUrl(response.simulation_id)
       return {
-        status: SimulationStatus.FAILED,
-        errorMessage: error.message || 'Unknown error',
+        url: shareableUrl || undefined,
+        runAt,
       }
     }
-  }
 
-  /**
-   * Convert actions to simulation items format
-   */
-  static prepareSimulationItems(
+    return false
+  },
+
+  prepareSimulationItems(
     actions: Array<{ to: string; data?: string; value?: string; from?: string }>,
     network?: NetworksEnum,
   ): TenderlySimulationSimulationItem[] {
@@ -124,7 +89,7 @@ class TenderlyModule {
       input: action.data || '0x',
       value: action.value || '0',
     }))
-  }
+  },
 }
 
 export default TenderlyModule

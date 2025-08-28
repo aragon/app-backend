@@ -57,6 +57,10 @@ const ERRORS: IErrorMap = {
     status: 400,
     description: 'Campaign is invalid or cannot be modified',
   },
+  [ErrorKeyEnum.badSimulationRequest]: {
+    status: 400,
+    description: 'Bad simulation request',
+  },
 }
 
 const throwError = (message: string, detail: IErrorDetail = {}) => {

@@ -13,49 +13,13 @@ const SimulationSchema = {
       )
       .min(1)
       .required(),
-    network: Joi.string().optional(),
+    network: Joi.string().required(),
   }),
-  
-  // For backward compatibility
-  simulationBundle: Joi.object({
-    simulations: Joi.array()
-      .items(
-        Joi.object({
-          network_id: Joi.string().required(),
-          save: Joi.boolean().default(true),
-          save_if_fails: Joi.boolean().default(true),
-          simulation_type: Joi.string().default('full'),
-          from: Joi.string().optional(),
-          to: Joi.string().required(),
-          input: Joi.string().optional(),
-          value: Joi.string().optional(),
-          gas: Joi.number().optional(),
-          gas_price: Joi.string().optional(),
-          state_objects: Joi.object()
-            .pattern(
-              Joi.string(),
-              Joi.object({
-                storage: Joi.object().pattern(Joi.string(), Joi.string()).optional(),
-                balance: Joi.string().optional(),
-                code: Joi.string().optional(),
-                nonce: Joi.number().optional(),
-              }),
-            )
-            .optional(),
-        }),
-      )
-      .min(1)
-      .required(),
-  }),
-  
+
   getSimulationByProposalId: Joi.object({
     proposalId: Joi.string().required(),
   }),
-  
-  getSimulationById: Joi.object({
-    simulationId: Joi.string().required(),
-  }),
-  
+
   getSimulationByActions: Joi.object({
     actions: Joi.array()
       .items(
@@ -69,21 +33,15 @@ const SimulationSchema = {
       .required(),
   }),
 
-  runSimulationByProposalId: Joi.object({
+  // POST /:network/proposal/:proposalId
+  simulateProposal: Joi.object({
     proposalId: Joi.string().required(),
+    network: Joi.string().required(),
   }),
 
-  runSimulationForActions: Joi.object({
-    actions: Joi.array()
-      .items(
-        Joi.object({
-          to: Joi.string().required(),
-          value: Joi.string().default('0'),
-          data: Joi.string().default('0x'),
-        }),
-      )
-      .min(1)
-      .required(),
+  // GET /:simulationId/share
+  getShareableUrl: Joi.object({
+    simulationId: Joi.string().required(),
   }),
 }
 
