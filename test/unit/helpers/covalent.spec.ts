@@ -60,7 +60,12 @@ describe('Helpers: Covalent', () => {
 
       const stubLogger = sandbox.stub(logger, 'warn')
 
-      await expect(CovalentHelper._rpCall('/path')).to.be.rejectedWith(expectedError)
+      try {
+        await CovalentHelper._rpCall('/path')
+        expect.fail('Should have thrown an error')
+      } catch (error) {
+        expect(error).to.equal(expectedError)
+      }
 
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Error in Covalent RPC Call' as any)).to.be.true
@@ -293,6 +298,34 @@ describe('Helpers: Covalent', () => {
         totalSupply: '12',
         totalHolders: 100,
       })
+    })
+
+    it('should handle payment required error for getToken', async () => {
+      const error = {
+        response: {
+          statusText: 'Payment Required'
+        }
+      }
+      sandbox.stub(CovalentHelper, '_rpCall').rejects(error)
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      const result = await CovalentHelper.getToken('0xtoken', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.be.false
+      expect(loggerStub.calledWith('Covalent payment error' as any)).to.be.true
+    })
+
+    it('should handle errors in getTokenSupplyAndHolders and return defaults', async () => {
+      sandbox.stub(CovalentHelper, '_rpCall').rejects(new Error('API Error'))
+      const loggerStub = sandbox.stub(logger, 'warn')
+
+      const result = await CovalentHelper.getTokenSupplyAndHolders('0xtoken', NetworksEnum.ethereumMainnet, 12345)
+
+      expect(result).to.deep.eq({
+        totalHolders: 0,
+        totalSupply: '0'
+      })
+      expect(loggerStub.calledWith('Covalent fails getTokenSupplyAndHolders' as any)).to.be.true
     })
   })
 })

@@ -3,7 +3,7 @@ import sinon, { SinonSandbox } from 'sinon'
 import Subscan from '@helpers/subscanApi'
 import axios from 'axios'
 import logger from '@logger'
-import { NetworksEnum, ITokenType } from '@types'
+import { NetworksEnum, ITokenType, ISubScanTokenBalance } from '@types'
 import utils from '@helpers/utils'
 import dayjs from '@helpers/dayjs'
 import * as retryRequestModule from '@helpers/retryRequest'
@@ -558,6 +558,37 @@ describe('Helpers:Subscan', () => {
       expect(getTokenFullDetailsStub.calledOnce).to.be.true
       expect(warnStub.calledOnce).to.be.true
       expect(warnStub.calledWith('SubscanApi getTokenCounters' as any)).to.be.true
+    })
+  })
+
+  describe('getAccountBalances', () => {
+    it('should get account balances and format them correctly', async () => {
+      const mockTokens = [
+        {
+          tokenBalance: '1000000000000000000',
+          decimals: 18,
+          contractAddress: '0x1234567890123456789012345678901234567890',
+          name: 'Token1',
+          symbol: 'TK1',
+        },
+        {
+          tokenBalance: '5000000',
+          decimals: 6,
+          contractAddress: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+          name: 'Token2',
+          symbol: 'TK2',
+        },
+      ] as ISubScanTokenBalance[]
+      
+      const getAccountBalanceStub = sandbox.stub(Subscan, 'getAccountBalance').resolves(mockTokens)
+      
+      const result = await Subscan.getAccountBalances('0xUserAddress', NetworksEnum.ethereumMainnet)
+      
+      expect(result).to.have.length(2)
+      expect(result[0].tokenBalance).to.equal('1.0')
+      expect(result[0].contractAddress).to.match(/^0x[A-Fa-f0-9]{40}$/)
+      expect(result[1].tokenBalance).to.equal('5.0')
+      expect(getAccountBalanceStub.calledOnce).to.be.true
     })
   })
 })

@@ -106,5 +106,15 @@ describe('Helpers:AlchemyHelper', () => {
 
       expect(errorLoggerStub.notCalled).to.be.true
     })
+
+    it('should log error and return "0" for invalid amount format', () => {
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      // Pass an object that is not a valid number and doesn't have 0x prefix
+      const result = Alchemy.handleAlchemyCrazyBalance({ invalid: 'value' } as any, 18, 'testTx')
+
+      expect(result).to.equal('0')
+      expect(loggerStub.calledWith('Error not handled amount format' as any)).to.be.true
+    })
   })
 })

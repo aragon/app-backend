@@ -465,7 +465,7 @@ class BlockchainLogCrawler {
       if (this.isBatchSizeError(error)) {
         return [{ error }]
       }
-      logger.error('error executeBatchRequest', { error, topics, currentBlock, toBlock })
+      logger.warn('error executeBatchRequest', { error, topics, currentBlock, toBlock })
       throw error
     }
   }

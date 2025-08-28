@@ -1014,8 +1014,8 @@ describe('Module: blockchainLogCrawler', () => {
       } catch (error) {
         expect(error).to.equal(networkError)
 
-        expect(logError.calledOnce).to.be.true
-        expect(logError.firstCall.args[0]).to.equal('error executeBatchRequest')
+        expect(logWarn.calledOnce).to.be.true
+        expect(logWarn.firstCall.args[0]).to.equal('error executeBatchRequest')
       }
     })
 
@@ -1049,9 +1049,9 @@ describe('Module: blockchainLogCrawler', () => {
         expect.fail('Should have thrown an error')
       } catch (error) {
         expect(error).to.equal(networkError)
-        expect(logError.calledOnce).to.be.true
-        expect(logError.firstCall.args[0]).to.equal('error executeBatchRequest')
-        expect(logError.firstCall.args[1]).to.deep.include({
+        expect(logWarn.calledOnce).to.be.true
+        expect(logWarn.firstCall.args[0]).to.equal('error executeBatchRequest')
+        expect(logWarn.firstCall.args[1]).to.deep.include({
           error: networkError,
           topics: ['0xTopic1'],
           currentBlock: 100,

@@ -333,5 +333,14 @@ describe('MerkleTreeHelper', () => {
       expect(result.members[0].amount).to.not.equal(result.members[1].amount)
       expect(result.members[0].leaf).to.not.equal(result.members[1].leaf)
     })
+
+    it('should rethrow errors that occur during processing', () => {
+      // Create a rewards array with an invalid address that will cause getAddress to throw
+      const invalidRewards = [
+        { address: 'not-a-valid-address', amount: '1000' }
+      ] as any
+
+      expect(() => MerkleTreeHelper.generateTreeWithProofs(invalidRewards)).to.throw()
+    })
   })
 })
