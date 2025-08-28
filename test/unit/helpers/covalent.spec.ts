@@ -303,8 +303,8 @@ describe('Helpers: Covalent', () => {
     it('should handle payment required error for getToken', async () => {
       const error = {
         response: {
-          statusText: 'Payment Required'
-        }
+          statusText: 'Payment Required',
+        },
       }
       sandbox.stub(CovalentHelper, '_rpCall').rejects(error)
       const loggerStub = sandbox.stub(logger, 'error')
@@ -323,7 +323,7 @@ describe('Helpers: Covalent', () => {
 
       expect(result).to.deep.eq({
         totalHolders: 0,
-        totalSupply: '0'
+        totalSupply: '0',
       })
       expect(loggerStub.calledWith('Covalent fails getTokenSupplyAndHolders' as any)).to.be.true
     })

@@ -579,11 +579,11 @@ describe('Helpers:Subscan', () => {
           symbol: 'TK2',
         },
       ] as ISubScanTokenBalance[]
-      
+
       const getAccountBalanceStub = sandbox.stub(Subscan, 'getAccountBalance').resolves(mockTokens)
-      
+
       const result = await Subscan.getAccountBalances('0xUserAddress', NetworksEnum.ethereumMainnet)
-      
+
       expect(result).to.have.length(2)
       expect(result[0].tokenBalance).to.equal('1.0')
       expect(result[0].contractAddress).to.match(/^0x[A-Fa-f0-9]{40}$/)

@@ -336,9 +336,7 @@ describe('MerkleTreeHelper', () => {
 
     it('should rethrow errors that occur during processing', () => {
       // Create a rewards array with an invalid address that will cause getAddress to throw
-      const invalidRewards = [
-        { address: 'not-a-valid-address', amount: '1000' }
-      ] as any
+      const invalidRewards = [{ address: 'not-a-valid-address', amount: '1000' }] as any
 
       expect(() => MerkleTreeHelper.generateTreeWithProofs(invalidRewards)).to.throw()
     })
