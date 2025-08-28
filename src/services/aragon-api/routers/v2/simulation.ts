@@ -41,7 +41,7 @@ const SimulationRouter = {
       },
     })
 
-    ctx.body = await new SimulationController().getSimulationResultOfProposal(result.params.proposalId)
+    ctx.body = await SimulationController.getSimulationResultOfProposal(result.params.proposalId)
   },
 
   router(): Router {

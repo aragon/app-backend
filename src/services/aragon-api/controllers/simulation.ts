@@ -139,7 +139,7 @@ class SimulationController {
     }
   }
 
-  async getSimulationResultOfProposal(proposalId: string) {
+  static async getSimulationResultOfProposal(proposalId: string) {
     const proposal = await Models.Proposal.findByEntityId(proposalId)
     Errors.assertExposable(proposal?.simulation?.url, ErrorKeyEnum.notFound, 404)
     return {
