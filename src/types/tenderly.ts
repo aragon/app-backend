@@ -45,7 +45,7 @@ export interface TenderlyShareResponse {
   [key: string]: any // Allow additional response fields
 }
 
-export enum SimulationStatus {
+export enum ISimulationStatus {
   SUCCESS = 'success',
   FAILED = 'failed',
 }

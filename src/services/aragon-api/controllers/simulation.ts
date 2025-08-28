@@ -1,7 +1,7 @@
 import { Models } from '@dbModels'
 import TenderlyModule from '@modules/tenderly'
 import logger from '@logger'
-import { type NetworksEnum, IPluginStatus, ErrorKeyEnum, SimulationStatus } from '@types'
+import { type NetworksEnum, IPluginStatus, ErrorKeyEnum, ISimulationStatus } from '@types'
 import * as Errors from '@errors'
 import { Interface, ethers } from 'ethers'
 import { DAO } from '@artifacts/dao'
@@ -65,14 +65,14 @@ class SimulationController {
 
     if (!result) {
       return {
-        status: SimulationStatus.FAILED,
+        status: ISimulationStatus.FAILED,
         runAt: new Date().toISOString(),
         network,
       }
     }
 
     return {
-      status: SimulationStatus.SUCCESS,
+      status: ISimulationStatus.SUCCESS,
       url: result.url,
       runAt: result.runAt,
       network,
@@ -112,26 +112,27 @@ class SimulationController {
     const result = (await TenderlyModule.simulate(simulationAction, proposal.network)) as {
       url?: string
       runAt?: number
+      status: ISimulationStatus
     }
 
-    if (!result) {
-      return {
-        status: SimulationStatus.FAILED,
-        runAt: new Date().toISOString(),
-        network: proposal.network,
-      }
-    }
+    Errors.assertExposable(
+      !!result,
+      ErrorKeyEnum.badSimulationRequest,
+      404,
+      'Simulation Not Implemented',
+      llo({ proposalId, network: proposal.network }),
+    )
 
     await proposal.update({
       simulation: {
-        status: result.url ? SimulationStatus.SUCCESS : SimulationStatus.FAILED,
+        status: result.status,
         url: result.url,
         runAt: result.runAt ? new Date(result.runAt) : new Date(),
       },
     })
 
     return {
-      status: SimulationStatus.SUCCESS,
+      status: result.status,
       url: result.url,
       runAt: result.runAt,
       network: proposal.network,
@@ -143,7 +144,7 @@ class SimulationController {
     Errors.assertExposable(proposal?.simulation?.url, ErrorKeyEnum.notFound, 404)
     return {
       url: proposal.simulation.url,
-      status: SimulationStatus.SUCCESS,
+      status: ISimulationStatus.SUCCESS,
     }
   }
 }

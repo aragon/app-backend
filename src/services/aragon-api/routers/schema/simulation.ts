@@ -15,7 +15,6 @@ const SimulationSchema = {
     proposalId: Joi.string().required(),
   }),
 
-
   // POST /:network/proposal/:proposalId
   simulateProposal: Joi.object({
     proposalId: Joi.string().required(),

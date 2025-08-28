@@ -3,7 +3,7 @@ import logger from '@logger'
 import config from '@config'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
-import { type NetworksEnum } from '@types'
+import { ISimulationStatus, type NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'tenderly-module' })
 
@@ -51,6 +51,7 @@ const TenderlyModule = {
     | {
         url?: string | undefined
         runAt?: number | undefined
+        status?: ISimulationStatus
       }
   > {
     if (!TenderlyModule.isConfigured()) {
@@ -74,9 +75,12 @@ const TenderlyModule = {
 
     if (response?.simulation?.id) {
       const shareableUrl = await TenderlyModule.createShareableUrl(response.simulation.id)
+      const status =
+        response?.transaction?.error_info?.error_message !== '' ? ISimulationStatus.FAILED : ISimulationStatus.SUCCESS
       return {
         url: shareableUrl || undefined,
         runAt,
+        status,
       }
     }
 
