@@ -2876,11 +2876,11 @@ describe('Module: blockchainLogCrawler', () => {
 
       const asyncModule = require('async')
       const originalQueue = asyncModule.queue
-      
+
       // Create a custom queue that allows us to trigger the error handler
       const queueStub = sandbox.stub(asyncModule, 'queue').callsFake((worker, concurrency) => {
         const queue = originalQueue(worker, concurrency)
-        
+
         // Trigger error handler after a short delay
         setTimeout(() => {
           const testError = new Error('Queue processing error')
@@ -2888,7 +2888,7 @@ describe('Module: blockchainLogCrawler', () => {
             queue.error(testError, { log: { transactionHash: '0xtest' }, index: 0 })
           }
         }, 10)
-        
+
         return queue
       })
 
@@ -2924,11 +2924,11 @@ describe('Module: blockchainLogCrawler', () => {
 
       const asyncModule = require('async')
       const originalQueue = asyncModule.queue
-      
+
       // Create a custom queue that triggers error but continues
       const queueStub = sandbox.stub(asyncModule, 'queue').callsFake((worker, concurrency) => {
         const queue = originalQueue(worker, concurrency)
-        
+
         // Trigger error handler but don't stop processing
         setTimeout(() => {
           const testError = new Error('Non-fatal queue error')
@@ -2936,14 +2936,14 @@ describe('Module: blockchainLogCrawler', () => {
             queue.error(testError, { log: { transactionHash: '0xtest' }, index: 0 })
           }
         }, 10)
-        
+
         return queue
       })
 
       const mockLogs: any[] = [{ blockNumber: 100, transactionHash: '0x1' }]
 
       const result = await (crawler as any).processLogsParallel(mockLogs, {})
-      
+
       expect(result).to.be.a('number')
       expect(crawler.crawlSetting.shutdown).to.be.false
       expect(logError.calledWith('Parallel processing queue error')).to.be.true
@@ -2967,7 +2967,7 @@ describe('Module: blockchainLogCrawler', () => {
       }
 
       let callCount = 0
-      sandbox.stub(crawler, 'formatLog').callsFake((log) => {
+      sandbox.stub(crawler, 'formatLog').callsFake(log => {
         callCount++
         // Trigger shutdown after processing first few logs
         if (callCount === 3) {
@@ -2984,7 +2984,7 @@ describe('Module: blockchainLogCrawler', () => {
         enable: true,
         concurrency: 2,
         batchSize: 2, // Small batch size to trigger multiple pushes
-        useBatch: false
+        useBatch: false,
       })
 
       const result = await (crawler as any).processLogsParallel(mockLogs, {})

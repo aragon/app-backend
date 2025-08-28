@@ -109,7 +109,7 @@ describe('migration: migrateTokenGovernance', () => {
 
     it('should handle error during token processing', async () => {
       const loggerErrorStub = sandbox.stub(logger, 'error')
-      
+
       const dbTokenData = {
         id: '0x211aEa089C589bbCB636A52283B520E1b4F7c1b3-ethereum-sepolia',
         network: NetworksEnum.ethereumSepolia,
@@ -127,7 +127,7 @@ describe('migration: migrateTokenGovernance', () => {
       await tokenGovernanceMigration.start()
 
       expect(stubGetClockMode.called).to.be.true
-      
+
       // Check that error was logged
       expect(loggerErrorStub.called).to.be.true
       expect(loggerErrorStub.firstCall.args[0]).to.equal('Error save token hasClockMode')
@@ -148,7 +148,7 @@ describe('migration: migrateTokenGovernance', () => {
       const DBCrawler = require('@models/utils/crawler').default
       const originalCrawl = DBCrawler.prototype.crawl
       sandbox.stub(DBCrawler.prototype, 'crawl').rejects(new Error('Crawler failed'))
-      
+
       const logErrorStub = sandbox.stub(console, 'error')
 
       try {
@@ -156,11 +156,9 @@ describe('migration: migrateTokenGovernance', () => {
         expect.fail('Should have thrown an error')
       } catch (error: any) {
         expect(error.message).to.equal('Crawler failed')
-        
+
         // Check that error was logged
-        const errorCalls = logErrorStub.getCalls().filter(call => 
-          call.args[0]?.includes('Migration failed')
-        )
+        const errorCalls = logErrorStub.getCalls().filter(call => call.args[0]?.includes('Migration failed'))
         expect(errorCalls.length).to.be.greaterThan(0)
       }
     })

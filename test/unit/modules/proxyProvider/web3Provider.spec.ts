@@ -777,20 +777,20 @@ describe('Web3Provider', () => {
     it('should fall back to default values when all sources have zero values', async () => {
       const address = '0xtoken'
       const network = NetworksEnum.ethereumMainnet
-      
+
       // Ankr returns null
       const ankrStub = sandbox.stub(AnkrHelper, 'getTokenHoldersCount').resolves(null)
-      
+
       // BlockScout returns zeros (line 172: blockScoutAvailable = false)
       const blockScoutStats = { holders: 0, transfers: 0 }
       const blockScoutStub = sandbox.stub(BlockScoutHelper, 'getTokenCounters').resolves(blockScoutStats)
-      
+
       // Covalent returns zero holders (line 178: covalentAvailable = false)
       const covalentStats = { totalHolders: 0, totalSupply: '0' }
       const covalentStub = sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves(covalentStats)
-      
+
       const result = await Web3Provider.getTokenCounters({ address, network })
-      
+
       expect(ankrStub.calledOnce).to.be.true
       expect(blockScoutStub.calledOnce).to.be.true
       expect(covalentStub.calledOnce).to.be.true
@@ -800,20 +800,20 @@ describe('Web3Provider', () => {
     it('should handle when BlockScout is unavailable but Covalent has data', async () => {
       const address = '0xtoken'
       const network = NetworksEnum.ethereumMainnet
-      
+
       // Ankr returns null
       const ankrStub = sandbox.stub(AnkrHelper, 'getTokenHoldersCount').resolves(null)
-      
+
       // BlockScout returns zeros (blockScoutAvailable = false)
       const blockScoutStats = { holders: 0, transfers: 0 }
       const blockScoutStub = sandbox.stub(BlockScoutHelper, 'getTokenCounters').resolves(blockScoutStats)
-      
+
       // Covalent has valid data (covalentAvailable = true)
       const covalentStats = { totalHolders: 100, totalSupply: '1000000' }
       const covalentStub = sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves(covalentStats)
-      
+
       const result = await Web3Provider.getTokenCounters({ address, network })
-      
+
       expect(ankrStub.calledOnce).to.be.true
       expect(blockScoutStub.calledOnce).to.be.true
       expect(covalentStub.calledOnce).to.be.true
@@ -833,12 +833,14 @@ describe('Web3Provider', () => {
 
       const result = await Web3Provider.fetchHistoricalTokenPrice({ symbol, address, network, date })
 
-      expect(fetchHistoricalRateStub.calledOnceWith({
-        address,
-        network,
-        symbol,
-        timestamp: date,
-      })).to.be.true
+      expect(
+        fetchHistoricalRateStub.calledOnceWith({
+          address,
+          network,
+          symbol,
+          timestamp: date,
+        }),
+      ).to.be.true
       expect(result).to.deep.equal(expectedResult)
     })
   })
