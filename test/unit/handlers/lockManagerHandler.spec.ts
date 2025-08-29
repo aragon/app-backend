@@ -169,7 +169,7 @@ describe('Indexer: LockManagerHandler', () => {
 
       sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
       const warnStub = sandbox.stub(logger, 'warn')
-      const getUserLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves(null)
+      const getUserLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves('0')
 
       sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
@@ -208,7 +208,7 @@ describe('Indexer: LockManagerHandler', () => {
 
       sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
       const warnStub = sandbox.stub(logger, 'warn')
-      const getUserLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves(null)
+      const getUserLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves('0')
 
       sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
@@ -420,7 +420,7 @@ describe('Indexer: LockManagerHandler', () => {
 
       const errorStub = sandbox.stub(logger, 'error')
       sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
-      sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves(null)
+      sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves('0')
 
       // Mock governance instance - member has no voting power
       const mockGovernance = {
@@ -447,7 +447,7 @@ describe('Indexer: LockManagerHandler', () => {
 
       sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
       const warnStub = sandbox.stub(logger, 'warn')
-      const getUserLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves(null)
+      const getUserLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves('0')
 
       // Mock governance instance - had 2000 tokens locked
       const mockGovernance = {

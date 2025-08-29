@@ -12,7 +12,7 @@ import TokenMember from '@models/schema/tokenMember'
 import LockToVoteMember from '@models/schema/lockToVoteMember'
 import type Dao from '@models/schema/dao'
 import { PluginList } from '@test/mock/fakePlugins'
-import { HexAddress, IPluginInterfaceType, ITokenType, NetworksEnum, ErrorKeyEnum, EnumQueueName } from '@types'
+import { HexAddress, IPluginInterfaceType, NetworksEnum, ErrorKeyEnum, EnumQueueName } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { MemberGovernanceFactory } from '@src/governance'
 
