@@ -2862,7 +2862,7 @@ describe('Module: blockchainLogCrawler', () => {
   })
 
   describe('Additional error handling and edge cases', () => {
-    it.skip('should handle queue.error event handler with stopOnError true', async () => {
+    it('should handle queue.error event handler with stopOnError true', async () => {
       const onErrorStub = sandbox.stub()
       const crawler = new BlockchainLogCrawler({
         events: [],
@@ -2875,9 +2875,11 @@ describe('Module: blockchainLogCrawler', () => {
       })
 
       const handlerStub = sandbox.stub()
+      handlerStub.rejects(new Error('Queue processing error'))
+
       sandbox.stub(crawler, 'formatLog').returns({
         event: { name: 'Test' } as any,
-        handler: handlerStub.rejects(new Error('Queue processing error')),
+        handler: handlerStub,
         info: {} as any,
       })
 
@@ -2888,18 +2890,19 @@ describe('Module: blockchainLogCrawler', () => {
         useBatch: false,
       })
 
-      const mockLogs: any[] = [{ blockNumber: 100, transactionHash: '0x1' }]
+      const mockLogs: any[] = [{ blockNumber: 100, transactionHash: '0x1', index: 0 }]
 
       try {
         await (crawler as any).processLogsParallel(mockLogs, {})
         expect.fail('Should have thrown an error')
       } catch (error: any) {
+        expect(error.message).to.equal('Queue processing error')
         expect(crawler.crawlSetting.shutdown).to.be.true
         expect(onErrorStub.called).to.be.true
       }
     })
 
-    it.skip('should handle queue.error event handler with stopOnError false', async () => {
+    it('should handle queue.error event handler with stopOnError false', async () => {
       const onErrorStub = sandbox.stub()
       const crawler = new BlockchainLogCrawler({
         events: [],
@@ -2942,8 +2945,10 @@ describe('Module: blockchainLogCrawler', () => {
       const result = await (crawler as any).processLogsParallel(mockLogs, {})
 
       expect(result).to.be.a('number')
+      expect(result).to.be.greaterThanOrEqual(0)
       expect(crawler.crawlSetting.shutdown).to.be.false
       expect(onErrorStub.called).to.be.true
+      expect(handlerStub.callCount).to.equal(2)
     })
 
     it('should stop adding tasks to queue when shutdown is triggered during batch push', async () => {
@@ -2964,7 +2969,7 @@ describe('Module: blockchainLogCrawler', () => {
       }
 
       let callCount = 0
-      sandbox.stub(crawler, 'formatLog').callsFake(log => {
+      sandbox.stub(crawler, 'formatLog').callsFake(() => {
         callCount++
         // Trigger shutdown after processing first few logs
         if (callCount === 3) {
@@ -2984,7 +2989,7 @@ describe('Module: blockchainLogCrawler', () => {
         useBatch: false,
       })
 
-      const result = await (crawler as any).processLogsParallel(mockLogs, {})
+      await (crawler as any).processLogsParallel(mockLogs, {})
 
       // Should have processed some logs but not all due to shutdown
       expect(callCount).to.be.greaterThan(0)

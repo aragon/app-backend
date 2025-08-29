@@ -554,7 +554,10 @@ describe('Model: Dao', () => {
       const count = await Models.Dao.countUniqueMembers(mockDaoAddress, mockNetwork, mockSession)
 
       expect(count).to.eq(2)
-      expect(aggregateStub.calledWith(sinon.match.array, mockSession)).to.be.true
+      expect(aggregateStub.calledOnce).to.be.true
+      const [pipeline, session] = aggregateStub.firstCall.args
+      expect(Array.isArray(pipeline)).to.be.true
+      expect(session).to.equal(mockSession)
     })
   })
 })

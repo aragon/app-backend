@@ -731,7 +731,8 @@ describe('Helpers:Utils', () => {
 
       sinon.assert.calledOnce(fn1)
       sinon.assert.calledOnce(fn2)
-      sinon.assert.calledOnceWithExactly(onError, sinon.match(error))
+      expect(onError.calledOnce).to.be.true
+      expect(onError.firstCall.args[0]).to.equal(error)
     })
 
     it('should continue to execute all functions even if one fails', async () => {

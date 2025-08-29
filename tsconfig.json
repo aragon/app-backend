@@ -36,6 +36,6 @@
     "esModuleInterop": true,
     "resolveJsonModule": true
   },
-  "include": ["./**/*"],
-  "exclude": ["node_modules", "types"]
+  "include": ["./**/*", "./test/types.d.ts"],
+  "exclude": ["node_modules"]
 }

@@ -455,7 +455,10 @@ describe('Helpers: BlockScout', () => {
       const result = await BlockScoutHelper.getTokenBalances(address, network)
 
       expect(rpCallStub.calledOnce).to.be.true
-      expect(rpCallStub.calledWith(`addresses/${address}/tokens`, sinon.match.object, network)).to.be.true
+      const [endpoint, params, networkArg] = rpCallStub.firstCall.args
+      expect(endpoint).to.equal(`addresses/${address}/tokens`)
+      expect(params).to.be.an('object')
+      expect(networkArg).to.equal(network)
       expect(result).to.have.length(2)
       expect(result[0]).to.deep.include({
         contractAddress: '0xtoken1',

@@ -279,7 +279,9 @@ describe('Transfers: Erc721TransferProcessor', () => {
       expect(addTokenMetadataStub.called).to.be.false
       expect(persistStub.called).to.be.false
       expect(result).to.equal(existingTx)
-      expect(verboseStub.calledWith(sinon.match('Transaction already exists'))).to.be.true
+      expect(verboseStub.called).to.be.true
+      const verboseCallArg = verboseStub.firstCall.args[0]
+      expect(verboseCallArg).to.include('Transaction already exists')
     })
   })
 

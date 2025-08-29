@@ -261,7 +261,8 @@ describe('Transfers: Erc20TransferProcessor', () => {
       expect(addTokenMetadataStub.called).to.be.false
       expect(persistStub.called).to.be.false
       expect(result).to.equal(existingTx)
-      expect(verboseStub.calledWith(sinon.match('Transaction already exists'))).to.be.true
+      expect(verboseStub.calledOnce).to.be.true
+      expect(verboseStub.firstCall.args[0]).to.include('Transaction already exists')
     })
 
     it('should handle errors gracefully', async () => {
@@ -278,7 +279,8 @@ describe('Transfers: Erc20TransferProcessor', () => {
       const result = await processor.save(transferData as any)
 
       expect(result).to.be.undefined
-      expect(errorStub.calledWith(sinon.match('Error saving transfer'))).to.be.true
+      expect(errorStub.calledOnce).to.be.true
+      expect(errorStub.firstCall.args[0]).to.include('Error saving transfer')
     })
   })
 
@@ -442,8 +444,14 @@ describe('Transfers: Erc20TransferProcessor', () => {
       saveAndGetTokenStub.resolves(null)
       const errorStub = sandbox.stub(logger, 'error')
 
-      await expect(processor['addTokenMetadata'](data as any)).to.be.rejectedWith('Token information not found')
-      expect(errorStub.calledWith(sinon.match('Failed to get token information'))).to.be.true
+      try {
+        await processor['addTokenMetadata'](data as any)
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error.message).to.equal('Token information not found')
+      }
+      expect(errorStub.calledOnce).to.be.true
+      expect(errorStub.firstCall.args[0]).to.include('Failed to get token information')
     })
   })
 
@@ -545,7 +553,8 @@ describe('Transfers: Erc20TransferProcessor', () => {
       expect(createStub.calledWith(data, { session: mockSession })).to.be.true
       expect(mockSession.commitTransaction.calledOnce).to.be.true
       expect(mockSession.endSession.calledOnce).to.be.true
-      expect(verboseStub.calledWith(sinon.match('New Transaction saved'))).to.be.true
+      expect(verboseStub.calledOnce).to.be.true
+      expect(verboseStub.firstCall.args[0]).to.include('New Transaction saved')
       expect(result).to.equal(mockTransaction)
     })
   })
