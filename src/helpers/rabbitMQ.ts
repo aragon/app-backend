@@ -154,44 +154,46 @@ const RabbitMQHelper = {
   ): Promise<any> {
     const correlationId = uuidv4()
     try {
-      const response = await new Promise(resolve => {
+      const response = await new Promise((resolve, reject) => {
         const timeoutId = setTimeout(async () => {
           logger.warn('Timeout waiting for response', { queueName, correlationId, payload, opts })
           resolve(null)
         }, opts.timeout || 5000)
-        channelWrapper.addSetup(async (channel: ConfirmChannel) => {
-          const { queue: replyQueue } = await channel.assertQueue('', { exclusive: true })
-          const { consumerTag } = await channel.consume(replyQueue, async (msg: ConsumeMessage | null) => {
-            if (!msg) return null
-            if (msg.properties.correlationId === correlationId) {
-              try {
-                channel.ack(msg)
-              } catch (ackErr) {
-                logger.warn('Failed to ack ephemeral msg', llo({ queueName, ackErr }))
+        channelWrapper
+          .addSetup(async (channel: ConfirmChannel) => {
+            const { queue: replyQueue } = await channel.assertQueue('', { exclusive: true })
+            const { consumerTag } = await channel.consume(replyQueue, async (msg: ConsumeMessage | null) => {
+              if (!msg) return null
+              if (msg.properties.correlationId === correlationId) {
+                try {
+                  channel.ack(msg)
+                } catch (ackErr) {
+                  logger.warn('Failed to ack ephemeral msg', llo({ queueName, ackErr }))
+                }
+                clearTimeout(timeoutId)
+                resolve(RabbitMQHelper.parseData(msg))
               }
-              clearTimeout(timeoutId)
-              resolve(RabbitMQHelper.parseData(msg))
+            })
+            const publishOpts: Options.Publish = {
+              persistent: true,
+              correlationId,
+              replyTo: replyQueue,
+              contentType: 'application/json',
+            }
+            const queueResult = await channelWrapper.sendToQueue(queueName, payload, publishOpts)
+            if (!queueResult) {
+              if (consumerTag) {
+                try {
+                  await channel.cancel(consumerTag)
+                } catch (cancelErr) {
+                  logger.warn('Failed to cancel ephemeral consumer on timeout', llo({ queueName, cancelErr }))
+                }
+              }
+              logger.error('Failed to send message to queue', llo({ queueName, correlationId, payload }))
+              resolve(null)
             }
           })
-          const publishOpts: Options.Publish = {
-            persistent: true,
-            correlationId,
-            replyTo: replyQueue,
-            contentType: 'application/json',
-          }
-          const queueResult = await channelWrapper.sendToQueue(queueName, payload, publishOpts)
-          if (!queueResult) {
-            if (consumerTag) {
-              try {
-                await channel.cancel(consumerTag)
-              } catch (cancelErr) {
-                logger.warn('Failed to cancel ephemeral consumer on timeout', llo({ queueName, cancelErr }))
-              }
-            }
-            logger.error('Failed to send message to queue', llo({ queueName, correlationId, payload }))
-            resolve(null)
-          }
-        })
+          .catch(reject)
       })
       return response
     } catch (err) {

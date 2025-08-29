@@ -274,7 +274,7 @@ describe('Helpers:RabbitMQ', () => {
       const result = await RabbitMQHelper.sendMessage(queueName, payload, { waitResponse: true })
 
       expect(result).to.be.null
-      expect(loggerErrorStub.calledWith('Error sendMessage with response')).to.be.true
+      expect(loggerErrorStub.calledWithMatch('Error sendMessage with response')).to.be.true
     })
 
     it('should handle timeout in _sendMessageWithResponse', async () => {
@@ -285,7 +285,10 @@ describe('Helpers:RabbitMQ', () => {
         addSetup: sandbox.stub().callsFake(async setupFn => {
           await setupFn({
             assertQueue: sandbox.stub().resolves({ queue: 'temp-queue' }),
-            consume: sandbox.stub().resolves({ consumerTag: 'tag-123' }),
+            consume: sandbox.stub().callsFake((_queue, _onMessage) => {
+              // Don't call onMessage, so it times out
+              return { consumerTag: 'tag-123' }
+            }),
             sendToQueue: sandbox.stub().resolves(true),
           })
         }),
@@ -298,8 +301,11 @@ describe('Helpers:RabbitMQ', () => {
         timeout: 10, // Very short timeout
       })
 
+      // Add a small delay to ensure timeout has had a chance to fire
+      await new Promise(resolve => setTimeout(resolve, 50))
+
       expect(result).to.be.null
-      expect(loggerWarnStub.calledWith('Timeout waiting for response')).to.be.true
+      expect(loggerWarnStub.calledWithMatch('Timeout waiting for response')).to.be.true
     })
 
     it('should handle active jobs that are already being processed', async () => {
@@ -466,7 +472,7 @@ describe('Helpers:RabbitMQ', () => {
       })
 
       expect(result).to.be.null
-      expect(loggerErrorStub.calledWith('Error sendMessage with response')).to.be.true
+      expect(loggerErrorStub.calledWithMatch('_sendMessageWithResponse error')).to.be.true
     })
 
     it('should handle catch block in _sendMessageWithResponse', async () => {

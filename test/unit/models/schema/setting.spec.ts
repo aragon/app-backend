@@ -4,7 +4,7 @@ import { expect } from 'chai'
 import Setting from '@models/schema/setting'
 import { Models } from '@dbModels'
 import { fakeSettings } from '@test/mock/fakeSettings'
-import { ISettingStatus, NetworksEnum } from '@types'
+import { IPluginInterfaceType, IPluginStatus, ISettingStatus, NetworksEnum } from '@types'
 
 describe('Model: Setting', () => {
   let sandbox: SinonSandbox
@@ -253,12 +253,10 @@ describe('Model: Setting', () => {
       address: rawSetting.pluginAddress,
       network: rawSetting.network,
       daoAddress: rawSetting.daoAddress,
-      version: 1,
-      contractName: 'TestPlugin',
-      supportedVersion: '1.0.0',
-      interfaceType: 'tokenVoting',
+      name: 'TestPlugin',
+      interfaceType: IPluginInterfaceType.tokenVoting,
       isSupported: true,
-      status: 'active',
+      status: IPluginStatus.installed,
       blockNumber: 100,
       transactionHash: '0xtest123',
     }
@@ -271,7 +269,7 @@ describe('Model: Setting', () => {
     expect(plugin).to.not.be.null
     expect(plugin?.address).to.eq(rawSetting.pluginAddress)
     expect(plugin?.network).to.eq(rawSetting.network)
-    expect(plugin?.contractName).to.eq('TestPlugin')
+    expect(plugin?.name).to.eq('TestPlugin')
   })
 
   describe('findWithPagination', () => {
