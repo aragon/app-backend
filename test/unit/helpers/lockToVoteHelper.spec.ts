@@ -188,4 +188,41 @@ describe('Helpers: LockToVoteHelper', () => {
       expect(result).to.equal('0')
     })
   })
+
+  describe('getRequiredVotingPowerForProposal', () => {
+    it('should successfully get required voting power', async () => {
+      const mockRequiredPower = BigInt(1000000000000000000)
+      const mockProvider = {
+        call: sandbox.stub().resolves(mockRequiredPower),
+      }
+
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider)
+
+      const result = await LockToVoteHelper.getRequiredVotingPowerForProposal(
+        '0x1234567890123456789012345678901234567890',
+        '0x9876543210987654321098765432109876543210',
+        NetworksEnum.ethereumMainnet,
+      )
+
+      expect(result).to.equal(mockRequiredPower.toString())
+      expect(mockProvider.call.calledOnce).to.be.true
+    })
+
+    it('should return undefined when provider call throws error', async () => {
+      const mockProvider = {
+        call: sandbox.stub().rejects(new Error('Provider call failed')),
+      }
+
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider)
+
+      const result = await LockToVoteHelper.getRequiredVotingPowerForProposal(
+        '0x1234567890123456789012345678901234567890',
+        '0x9876543210987654321098765432109876543210',
+        NetworksEnum.ethereumMainnet,
+      )
+
+      expect(result).to.be.null
+      expect(mockProvider.call.calledOnce).to.be.true
+    })
+  })
 })

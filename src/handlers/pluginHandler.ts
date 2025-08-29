@@ -27,6 +27,7 @@ import { MetadataHandler } from '@handlers/metadataHandler'
 import RabbitMQHelper from '@src/helpers/rabbitMQ'
 import { ethers, Interface } from 'ethers'
 import { DAO } from '@artifacts/dao'
+import { IPermission } from '@src/types/permission'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PluginHandler' })
 
@@ -285,6 +286,7 @@ export const PluginHandler = {
       permissions: plugin.permissions,
       subdomain: plugin.subdomain,
       tokenAddress: plugin.tokenAddress,
+      proposalCreationConditionAddress: PluginHandler.findProposalConditionAddress(plugin.permissions || []),
     }
 
     const pluginInfo = await PluginDetector.detectPluginType(plugin.address, plugin.network)
@@ -358,7 +360,9 @@ export const PluginHandler = {
           build: pluginLog.build,
           permissions: pluginLog.permissions,
           subdomain: pluginRepo?.subdomain,
+          proposalCreationConditionAddress: PluginHandler.findProposalConditionAddress(pluginLog.permissions || []),
         }
+
         const pluginInfo = await PluginDetector.detectPluginType(pluginLog.pluginAddress, pluginLog.network)
         document.interfaceType = pluginInfo?.type
 
@@ -802,5 +806,14 @@ export const PluginHandler = {
         conditionAddress,
       },
     })
+  },
+
+  findProposalConditionAddress(permissions: any[]): HexAddress {
+    const proposalPermissionId = ethers.id(IPermission.CREATE_PROPOSAL_PERMISSION)
+    const permission = permissions.find(p => p.permissionId === proposalPermissionId)
+    if (permission) {
+      return permission.condition
+    }
+    return ethers.ZeroAddress
   },
 }
