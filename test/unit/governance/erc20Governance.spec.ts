@@ -605,5 +605,485 @@ describe('Governance:Erc20Governance', () => {
         expect(plugins).to.have.lengthOf(2)
       }
     })
+
+    it('should return early when no plugins found', async () => {
+      const sendMessageStub = RabbitMQHelper.sendMessage as sinon.SinonStub
+
+      await erc20Governance.updateDaoMetrics()
+
+      // Should not send any messages when no plugins
+      expect(sendMessageStub.called).to.be.false
+    })
+  })
+
+  describe('error handling', () => {
+    it('should handle error in getOrCreate and return null', async () => {
+      // Stub ensureBaseMember to throw an error
+      sandbox.stub(Models.TokenMember, 'create').rejects(new Error('Database error'))
+
+      const result = await erc20Governance.getOrCreate(memberAddress, {
+        votingPower: '1000',
+        lastActivity: 12345,
+      })
+
+      expect(result).to.be.null
+      expect(loggerErrorStub.calledWith('Error in getOrCreate')).to.be.true
+    })
+
+    it('should handle error in update and return null', async () => {
+      // Create a member first
+      const parsedAddress = Web3Utils.parseAddress(memberAddress)
+      await Models.TokenMember.create({
+        memberAddress: parsedAddress,
+        tokenAddress: testTokenAddress,
+        network: testNetwork,
+        votingPower: '1000',
+        lastVPBlockNumber: 10000,
+      })
+
+      // Stub the update method to throw an error
+      sandbox.stub(Models.TokenMember.prototype, 'update').rejects(new Error('Update failed'))
+
+      const result = await erc20Governance.update(memberAddress, {
+        votingPower: '2000',
+        lastActivity: 12345,
+      })
+
+      expect(result).to.be.null
+      expect(loggerErrorStub.calledWith('Error updating TokenMember')).to.be.true
+    })
+
+    it('should handle error in delete and return false', async () => {
+      // Create a member first
+      const parsedAddress = Web3Utils.parseAddress(memberAddress)
+      await Models.TokenMember.create({
+        memberAddress: parsedAddress,
+        tokenAddress: testTokenAddress,
+        network: testNetwork,
+        votingPower: '1000',
+      })
+
+      // Stub the deleteOne method to throw an error
+      sandbox.stub(Models.TokenMember.prototype, 'deleteOne').rejects(new Error('Delete failed'))
+
+      const result = await erc20Governance.delete(memberAddress)
+
+      expect(result).to.be.false
+      expect(loggerErrorStub.calledWith('Error deleting TokenMember')).to.be.true
+    })
+
+    it('should return null for invalid address in getOrCreate', async () => {
+      const result = await erc20Governance.getOrCreate('invalid-address' as HexAddress)
+
+      expect(result).to.be.null
+    })
+
+    it('should return null for invalid address in update', async () => {
+      const result = await erc20Governance.update('invalid-address' as HexAddress, {
+        votingPower: '1000',
+      })
+
+      expect(result).to.be.null
+    })
+
+    it('should return false for invalid address in delete', async () => {
+      const result = await erc20Governance.delete('invalid-address' as HexAddress)
+
+      expect(result).to.be.false
+    })
+
+    it('should return null for invalid address in findOne', async () => {
+      const result = await erc20Governance.findOne('invalid-address' as HexAddress)
+
+      expect(result).to.be.null
+    })
+
+    it('should return false when delete finds no member', async () => {
+      const result = await erc20Governance.delete(memberAddress)
+
+      expect(result).to.be.false
+      expect(loggerVerboseStub.calledWith('TokenMember not found for deletion')).to.be.true
+    })
+
+    it('should log warning when update fails to create member', async () => {
+      // Stub getOrCreate to return null
+      sandbox.stub(erc20Governance, 'getOrCreate').resolves(null)
+
+      const result = await erc20Governance.update(memberAddress, {
+        votingPower: '1000',
+        lastActivity: 12345,
+      })
+
+      expect(result).to.be.null
+      expect(loggerWarnStub.calledWith('Failed to get or create TokenMember for update')).to.be.true
+    })
+
+    it('should handle update with tokenIds', async () => {
+      const parsedAddress = Web3Utils.parseAddress(memberAddress)
+      // Create existing member
+      await Models.TokenMember.create({
+        memberAddress: parsedAddress,
+        tokenAddress: testTokenAddress,
+        network: testNetwork,
+        votingPower: '1000',
+        tokenIds: [],
+        lastVPBlockNumber: 10000,
+      })
+
+      const result = await erc20Governance.update(memberAddress, {
+        tokenIds: ['1', '2', '3'],
+        lastActivity: 12345,
+      })
+
+      expect(result).to.exist
+      expect(result?.tokenIds).to.deep.equal(['1', '2', '3'])
+      expect(result?.lastVPBlockNumber).to.equal(12345)
+    })
+  })
+
+  describe('batch operations', () => {
+    describe('createMembersBatchNoTx', () => {
+      it('should create multiple members in batch', async () => {
+        const members = [
+          { memberAddress: '0x1111111111111111111111111111111111111111' as HexAddress, lastActivity: 100 },
+          { memberAddress: '0x2222222222222222222222222222222222222222' as HexAddress, lastActivity: 200 },
+        ]
+
+        const result = await Erc20Governance.createMembersBatchNoTx(members)
+
+        expect(result).to.be.true
+
+        // Verify members were created
+        const member1 = await Models.Member.findOne({ address: Web3Utils.parseAddress(members[0].memberAddress) })
+        const member2 = await Models.Member.findOne({ address: Web3Utils.parseAddress(members[1].memberAddress) })
+
+        expect(member1).to.exist
+        expect(member1?.lastActivity).to.equal(100)
+        expect(member2).to.exist
+        expect(member2?.lastActivity).to.equal(200)
+      })
+
+      it('should handle invalid addresses in batch', async () => {
+        const members = [
+          { memberAddress: 'invalid-address' as HexAddress, lastActivity: 100 },
+          { memberAddress: '0x2222222222222222222222222222222222222222' as HexAddress, lastActivity: 200 },
+        ]
+
+        const result = await Erc20Governance.createMembersBatchNoTx(members)
+
+        expect(result).to.be.true
+
+        // Only valid member should be created
+        const member2 = await Models.Member.findOne({ address: Web3Utils.parseAddress(members[1].memberAddress) })
+        expect(member2).to.exist
+      })
+
+      it('should handle empty members array', async () => {
+        const result = await Erc20Governance.createMembersBatchNoTx([])
+
+        expect(result).to.be.true
+      })
+
+      it('should handle error in bulk write', async () => {
+        sandbox.stub(Models.Member, 'bulkWrite').rejects(new Error('Bulk write failed'))
+
+        const members = [{ memberAddress: '0x1111111111111111111111111111111111111111' as HexAddress }]
+
+        const result = await Erc20Governance.createMembersBatchNoTx(members)
+
+        expect(result).to.be.false
+        expect(loggerErrorStub.calledWith('Error in batch member creation (no tx)')).to.be.true
+      })
+    })
+
+    describe('updateTokenMemberVPBatchNoTx', () => {
+      it('should update voting power for multiple members', async () => {
+        const updates = [
+          {
+            memberAddress: '0x1111111111111111111111111111111111111111' as HexAddress,
+            votingPower: '1000',
+            lastVPBlockNumber: 100,
+          },
+          {
+            memberAddress: '0x2222222222222222222222222222222222222222' as HexAddress,
+            votingPower: '2000',
+            tokenIds: ['1', '2'],
+            lastVPBlockNumber: 200,
+          },
+        ]
+
+        const result = await erc20Governance.updateTokenMemberVPBatchNoTx(updates)
+
+        expect(result).to.be.true
+
+        // Verify members were created/updated
+        const member1 = await Models.TokenMember.findOne({
+          memberAddress: Web3Utils.parseAddress(updates[0].memberAddress),
+          tokenAddress: testTokenAddress,
+        })
+        const member2 = await Models.TokenMember.findOne({
+          memberAddress: Web3Utils.parseAddress(updates[1].memberAddress),
+          tokenAddress: testTokenAddress,
+        })
+
+        expect(member1).to.exist
+        expect(member1?.votingPower).to.equal('1000')
+        expect(member1?.lastVPBlockNumber).to.equal(100)
+
+        expect(member2).to.exist
+        expect(member2?.votingPower).to.equal('2000')
+        expect(member2?.tokenIds).to.deep.equal(['1', '2'])
+        expect(member2?.lastVPBlockNumber).to.equal(200)
+      })
+
+      it('should handle duplicate updates and keep latest by block number', async () => {
+        const updates = [
+          {
+            memberAddress: '0x1111111111111111111111111111111111111111' as HexAddress,
+            votingPower: '1000',
+            lastVPBlockNumber: 100,
+          },
+          {
+            memberAddress: '0x1111111111111111111111111111111111111111' as HexAddress,
+            votingPower: '2000',
+            lastVPBlockNumber: 200, // Newer block
+          },
+        ]
+
+        const result = await erc20Governance.updateTokenMemberVPBatchNoTx(updates)
+
+        expect(result).to.be.true
+
+        // Should use the update with higher block number
+        const member = await Models.TokenMember.findOne({
+          memberAddress: Web3Utils.parseAddress(updates[0].memberAddress),
+          tokenAddress: testTokenAddress,
+        })
+
+        expect(member).to.exist
+        expect(member?.votingPower).to.equal('2000')
+        expect(member?.lastVPBlockNumber).to.equal(200)
+      })
+
+      it('should clear tokenIds when voting power is 0', async () => {
+        const updates = [
+          {
+            memberAddress: '0x1111111111111111111111111111111111111111' as HexAddress,
+            votingPower: '0',
+            lastVPBlockNumber: 100,
+          },
+        ]
+
+        const result = await erc20Governance.updateTokenMemberVPBatchNoTx(updates)
+
+        expect(result).to.be.true
+
+        const member = await Models.TokenMember.findOne({
+          memberAddress: Web3Utils.parseAddress(updates[0].memberAddress),
+          tokenAddress: testTokenAddress,
+        })
+
+        expect(member).to.exist
+        expect(member?.votingPower).to.equal('0')
+        expect(member?.tokenIds).to.deep.equal([])
+      })
+
+      it('should handle invalid addresses in batch', async () => {
+        const updates = [
+          {
+            memberAddress: 'invalid-address' as HexAddress,
+            votingPower: '1000',
+            lastVPBlockNumber: 100,
+          },
+          {
+            memberAddress: '0x2222222222222222222222222222222222222222' as HexAddress,
+            votingPower: '2000',
+            lastVPBlockNumber: 200,
+          },
+        ]
+
+        const result = await erc20Governance.updateTokenMemberVPBatchNoTx(updates)
+
+        expect(result).to.be.true
+
+        // Only valid member should be updated
+        const member2 = await Models.TokenMember.findOne({
+          memberAddress: Web3Utils.parseAddress(updates[1].memberAddress),
+          tokenAddress: testTokenAddress,
+        })
+        expect(member2).to.exist
+      })
+
+      it('should handle empty updates array', async () => {
+        const result = await erc20Governance.updateTokenMemberVPBatchNoTx([])
+
+        expect(result).to.be.true
+      })
+
+      it('should handle error in bulk write', async () => {
+        sandbox.stub(Models.TokenMember, 'bulkWrite').rejects(new Error('Bulk write failed'))
+
+        const updates = [
+          {
+            memberAddress: '0x1111111111111111111111111111111111111111' as HexAddress,
+            votingPower: '1000',
+            lastVPBlockNumber: 100,
+          },
+        ]
+
+        const result = await erc20Governance.updateTokenMemberVPBatchNoTx(updates)
+
+        expect(result).to.be.false
+        expect(loggerErrorStub.calledWith('Error in batch voting power update (no tx)')).to.be.true
+      })
+    })
+
+    describe('updatePluginMetricsBatchNoTx', () => {
+      it('should update plugin metrics for multiple members', async () => {
+        const updates = [
+          {
+            memberAddress: '0x1111111111111111111111111111111111111111' as HexAddress,
+            pluginAddress: '0xplugin1plugin1plugin1plugin1plugin1' as HexAddress,
+            daoAddress: '0xdao1dao1dao1dao1dao1dao1dao1dao1dao1dao1' as HexAddress,
+            lastActivity: 100,
+          },
+          {
+            memberAddress: '0x2222222222222222222222222222222222222222' as HexAddress,
+            pluginAddress: '0xplugin2plugin2plugin2plugin2plugin2' as HexAddress,
+            daoAddress: '0xdao2dao2dao2dao2dao2dao2dao2dao2dao2dao2' as HexAddress,
+            lastActivity: 200,
+          },
+        ]
+
+        const result = await erc20Governance.updatePluginMetricsBatchNoTx(updates)
+
+        expect(result).to.be.true
+
+        // Verify metrics were created
+        const metrics1 = await Models.PluginMetrics.findOne({
+          memberAddress: Web3Utils.parseAddress(updates[0].memberAddress),
+          pluginAddress: updates[0].pluginAddress,
+        })
+        const metrics2 = await Models.PluginMetrics.findOne({
+          memberAddress: Web3Utils.parseAddress(updates[1].memberAddress),
+          pluginAddress: updates[1].pluginAddress,
+        })
+
+        expect(metrics1).to.exist
+        expect(metrics1?.lastActivity).to.equal(100)
+        expect(metrics1?.daoAddress).to.equal(updates[0].daoAddress)
+
+        expect(metrics2).to.exist
+        expect(metrics2?.lastActivity).to.equal(200)
+        expect(metrics2?.daoAddress).to.equal(updates[1].daoAddress)
+      })
+
+      it('should handle invalid addresses in batch', async () => {
+        const updates = [
+          {
+            memberAddress: 'invalid-address' as HexAddress,
+            pluginAddress: '0xplugin1plugin1plugin1plugin1plugin1' as HexAddress,
+            lastActivity: 100,
+          },
+          {
+            memberAddress: '0x2222222222222222222222222222222222222222' as HexAddress,
+            pluginAddress: '0xplugin2plugin2plugin2plugin2plugin2' as HexAddress,
+            lastActivity: 200,
+          },
+        ]
+
+        const result = await erc20Governance.updatePluginMetricsBatchNoTx(updates)
+
+        expect(result).to.be.true
+
+        // Only valid member should have metrics
+        const metrics2 = await Models.PluginMetrics.findOne({
+          memberAddress: Web3Utils.parseAddress(updates[1].memberAddress),
+          pluginAddress: updates[1].pluginAddress,
+        })
+        expect(metrics2).to.exist
+      })
+
+      it('should handle empty updates array', async () => {
+        const result = await erc20Governance.updatePluginMetricsBatchNoTx([])
+
+        expect(result).to.be.true
+      })
+
+      it('should handle error in bulk write and throw', async () => {
+        sandbox.stub(Models.PluginMetrics, 'bulkWrite').rejects(new Error('Bulk write failed'))
+
+        const updates = [
+          {
+            memberAddress: '0x1111111111111111111111111111111111111111' as HexAddress,
+            pluginAddress: '0xplugin1plugin1plugin1plugin1plugin1' as HexAddress,
+            lastActivity: 100,
+          },
+        ]
+
+        try {
+          await erc20Governance.updatePluginMetricsBatchNoTx(updates)
+          expect.fail('Should have thrown an error')
+        } catch (error: any) {
+          expect(error.message).to.equal('Bulk write failed')
+          expect(loggerErrorStub.calledWith('Error in batch plugin metrics update (no tx)')).to.be.true
+        }
+      })
+
+      it('should handle updates without lastActivity', async () => {
+        const updates = [
+          {
+            memberAddress: '0x1111111111111111111111111111111111111111' as HexAddress,
+            pluginAddress: '0xplugin1plugin1plugin1plugin1plugin1' as HexAddress,
+            daoAddress: '0xdao1dao1dao1dao1dao1dao1dao1dao1dao1dao1' as HexAddress,
+          },
+        ]
+
+        const result = await erc20Governance.updatePluginMetricsBatchNoTx(updates)
+
+        expect(result).to.be.true
+
+        const metrics = await Models.PluginMetrics.findOne({
+          memberAddress: Web3Utils.parseAddress(updates[0].memberAddress),
+          pluginAddress: updates[0].pluginAddress,
+        })
+
+        expect(metrics).to.exist
+        expect(metrics?.daoAddress).to.equal(updates[0].daoAddress)
+      })
+    })
+  })
+
+  describe('getToken caching', () => {
+    it('should return null if token not found', async () => {
+      const result = await erc20Governance['getToken']()
+
+      expect(result).to.be.null
+    })
+
+    it('should use cached token on subsequent calls', async () => {
+      // Create a token
+      await Models.Token.create({
+        address: testTokenAddress,
+        network: testNetwork,
+        type: ITokenType.ERC20,
+        symbol: 'TEST',
+        decimals: 18,
+        name: 'Test Token',
+      })
+
+      // First call
+      const result1 = await erc20Governance['getToken']()
+      expect(result1).to.exist
+
+      // Stub findOne to ensure it's not called again
+      const findOneStub = sandbox.stub(Models.Token, 'findOne').resolves(null)
+
+      // Second call should use cache
+      const result2 = await erc20Governance['getToken']()
+      expect(result2).to.exist
+      expect(result2?.symbol).to.equal('TEST')
+      expect(findOneStub.called).to.be.false // Should not be called due to caching
+    })
   })
 })

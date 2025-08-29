@@ -742,16 +742,12 @@ describe('Controller: Dao', () => {
 
       const hasEthereumEntry = query.$or.some(
         item =>
-          item.address &&
-          item.address.$in.includes('0xSamePlugin') &&
-          item.network === NetworksEnum.ethereumMainnet,
+          item.address && item.address.$in.includes('0xSamePlugin') && item.network === NetworksEnum.ethereumMainnet,
       )
 
       const hasPolygonEntry = query.$or.some(
         item =>
-          item.address &&
-          item.address.$in.includes('0xSamePlugin') &&
-          item.network === NetworksEnum.polygonMainnet,
+          item.address && item.address.$in.includes('0xSamePlugin') && item.network === NetworksEnum.polygonMainnet,
       )
 
       expect(hasEthereumEntry).to.be.true

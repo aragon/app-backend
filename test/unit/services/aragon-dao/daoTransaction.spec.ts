@@ -77,7 +77,7 @@ describe('AragonDao: DaoTransactions', () => {
     }
 
     // Mock BlockchainLogCrawler to capture configurations
-    const BlockchainLogCrawlerMock = function(this: any, config: any) {
+    const BlockchainLogCrawlerMock = function (this: any, config: any) {
       crawlerConfigs.push(config)
       this.crawl = sandbox.stub().resolves()
     }
@@ -550,11 +550,7 @@ describe('AragonDao: DaoTransactions', () => {
 
         const parsedEvent = {
           name: 'Executed',
-          args: [
-            '0x111',
-            '0xabc123def456',
-            [['0x222', BigInt('1000000000000000000'), '0x']],
-          ],
+          args: ['0x111', '0xabc123def456', [['0x222', BigInt('1000000000000000000'), '0x']]],
         }
         const info = {
           address: mockDao.address,
@@ -572,11 +568,7 @@ describe('AragonDao: DaoTransactions', () => {
 
         const parsedEvent = {
           name: 'Executed',
-          args: [
-            '0x111',
-            '0xabc',
-            [{ to: '0x222', value: BigInt('0'), data: '0x' }],
-          ],
+          args: ['0x111', '0xabc', [{ to: '0x222', value: BigInt('0'), data: '0x' }]],
         }
         const info = {
           address: mockDao.address,
@@ -719,7 +711,7 @@ describe('AragonDao: DaoTransactions', () => {
 
   describe('Error handling in start', () => {
     it('should handle crawl promise rejection', async () => {
-      const BlockchainLogCrawlerMock = function(this: any, config: any) {
+      const BlockchainLogCrawlerMock = function (this: any, config: any) {
         crawlerConfigs.push(config)
         this.crawl = sandbox.stub().rejects(new Error('Crawl failed'))
       }
