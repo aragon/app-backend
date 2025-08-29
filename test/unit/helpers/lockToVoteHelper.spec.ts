@@ -157,7 +157,7 @@ describe('Helpers: LockToVoteHelper', () => {
         '0xUser456',
       )
 
-      expect(result).to.equal('0')
+      expect(result).to.be.null
       expect(getLockedBalanceStub.calledOnce).to.be.true
     })
   })
@@ -221,7 +221,7 @@ describe('Helpers: LockToVoteHelper', () => {
         NetworksEnum.ethereumMainnet,
       )
 
-      expect(result).to.equal('0')
+      expect(result).to.be.null
       expect(mockProvider.call.calledOnce).to.be.true
     })
   })

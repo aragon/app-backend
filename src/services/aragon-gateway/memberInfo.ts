@@ -110,6 +110,8 @@ export const MemberInfo = {
     ])
 
     if (votingPower === '0' && requiredVotingPower === '0') return false
+    if (votingPower === null || requiredVotingPower === null) return false
+
     return BigInt(votingPower) >= BigInt(requiredVotingPower)
   },
 
