@@ -81,7 +81,7 @@ describe('migration: migrateTokenGovernance', () => {
         network: NetworksEnum.ethereumSepolia,
         transactionHash: '0x81e8037e8b29b0faf09a7a8e024c3ebb87b2ca32bf628b591e870639c44655f5',
         blockNumber: 8575352,
-        type: 'ERC20', // Not escrowAdapter
+        type: ITokenType.ERC20, // Not escrowAdapter
         address: '0x211aEa089C589bbCB636A52283B520E1b4F7c1b3',
         isGovernance: true,
         name: 'Original Name',
@@ -147,10 +147,9 @@ describe('migration: migrateTokenGovernance', () => {
 
       // Stub the DBCrawler to throw an error
       const DBCrawler = require('@models/utils/crawler').default
-      const originalCrawl = DBCrawler.prototype.crawl
       sandbox.stub(DBCrawler.prototype, 'crawl').rejects(new Error('Crawler failed'))
 
-      const logErrorStub = sandbox.stub(console, 'error')
+      const logErrorStub = sandbox.stub(logger, 'error')
 
       try {
         await tokenGovernanceMigration.start()
@@ -159,8 +158,13 @@ describe('migration: migrateTokenGovernance', () => {
         expect(error.message).to.equal('Crawler failed')
 
         // Check that error was logged
-        const errorCalls = logErrorStub.getCalls().filter(call => call.args[0]?.includes('Migration failed'))
-        expect(errorCalls.length).to.be.greaterThan(0)
+        expect(logErrorStub.called).to.be.true
+        // Check if any error was logged with Migration failed
+        const hasErrorLog = logErrorStub.getCalls().some((call: any) => {
+          const firstArg = call.args[0]
+          return firstArg === 'Migration failed'
+        })
+        expect(hasErrorLog).to.be.true
       }
     })
 
@@ -171,14 +175,14 @@ describe('migration: migrateTokenGovernance', () => {
           network: NetworksEnum.ethereumSepolia,
           address: '0x1111111111111111111111111111111111111111',
           isGovernance: true,
-          type: 'ERC20',
+          type: ITokenType.ERC20,
         },
         {
           id: '0x222-ethereum-sepolia',
           network: NetworksEnum.ethereumSepolia,
           address: '0x2222222222222222222222222222222222222222',
           isGovernance: true,
-          type: 'escrowAdapter' as any,
+          type: ITokenType.escrowAdapter,
         },
       ]
 
@@ -217,14 +221,14 @@ describe('migration: migrateTokenGovernance', () => {
           network: NetworksEnum.ethereumSepolia,
           address: '0x1111111111111111111111111111111111111111',
           isGovernance: true,
-          type: 'ERC20',
+          type: ITokenType.ERC20,
         },
         {
           id: '0x222-ethereum-sepolia',
           network: NetworksEnum.ethereumSepolia,
           address: '0x2222222222222222222222222222222222222222',
           isGovernance: false, // Not a governance token
-          type: 'ERC20',
+          type: ITokenType.ERC20,
         },
       ]
 
