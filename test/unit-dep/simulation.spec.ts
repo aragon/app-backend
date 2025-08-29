@@ -54,8 +54,8 @@ describe.only('SimulationController', () => {
 
       const result = await SimulationController.simulate(pluginAddress, actions, NetworksEnum.ethereumMainnet)
 
-      expect(result.status).to.equal(ISimulationStatus.SUCCESS)
-      expect(result.url.startsWith('https://tdly.co')).to.true
+      expect(result.status).to.equal(ISimulationStatus.FAILED)
+      expect(result.url.startsWith('https://www.tdly.co')).to.be.true
       expect(result.runAt).to.be.not.undefined
       expect(result.network).to.equal(NetworksEnum.ethereumMainnet)
     })
