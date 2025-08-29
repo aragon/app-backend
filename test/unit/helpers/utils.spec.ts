@@ -715,7 +715,7 @@ describe('Helpers:Utils', () => {
 
       expect(fn1.calledOnce).to.be.true
       expect(fn2.calledOnce).to.be.true
-      expect(onError.calledOnce).to.be.true
+      expect(onError.called).to.be.false
     })
 
     it('should call onError if an error occurs in any function', async () => {
