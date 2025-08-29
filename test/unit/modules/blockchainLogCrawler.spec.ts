@@ -2874,6 +2874,19 @@ describe('Module: blockchainLogCrawler', () => {
         network: NetworksEnum.ethereumMainnet,
       })
 
+      sandbox.stub(crawler, 'formatLog').returns({
+        event: { name: 'Test' } as any,
+        handler: sandbox.stub().resolves(),
+        info: {} as any,
+      })
+
+      sandbox.stub(crawler, 'getParallelConfig').returns({
+        enable: true,
+        concurrency: 2,
+        batchSize: 10,
+        useBatch: false,
+      })
+
       const asyncModule = require('async')
       const originalQueue = asyncModule.queue
 
@@ -2900,7 +2913,8 @@ describe('Module: blockchainLogCrawler', () => {
       } catch (error: any) {
         expect(error.message).to.equal('Queue processing error')
         expect(crawler.crawlSetting.shutdown).to.be.true
-        expect(logError.calledWith('Parallel processing queue error')).to.be.true
+        expect(logError.called).to.be.true
+        expect(logError.firstCall.args[0]).to.equal('Parallel processing queue error')
       }
     })
 
@@ -2920,6 +2934,13 @@ describe('Module: blockchainLogCrawler', () => {
         event: { name: 'Test' } as any,
         handler: sandbox.stub().resolves(),
         info: {} as any,
+      })
+
+      sandbox.stub(crawler, 'getParallelConfig').returns({
+        enable: true,
+        concurrency: 2,
+        batchSize: 10,
+        useBatch: false,
       })
 
       const asyncModule = require('async')
@@ -2946,7 +2967,8 @@ describe('Module: blockchainLogCrawler', () => {
 
       expect(result).to.be.a('number')
       expect(crawler.crawlSetting.shutdown).to.be.false
-      expect(logError.calledWith('Parallel processing queue error')).to.be.true
+      expect(logError.called).to.be.true
+      expect(logError.firstCall.args[0]).to.equal('Parallel processing queue error')
     })
 
     it('should stop adding tasks to queue when shutdown is triggered during batch push', async () => {

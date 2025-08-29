@@ -926,6 +926,12 @@ class BlockchainLogCrawler {
       const queue = async.queue<{ log: Log; index: number }>(async task => {
         const { log, index } = task
 
+        // Check for shutdown before processing
+        if (this.crawlSetting.shutdown) {
+          processedCount++
+          return
+        }
+
         // Create unique key using blockNumber, transactionHash, transactionIndex, and logIndex
         // This ensures uniqueness even when multiple events from same address in same tx
         const logKey = `${log.blockNumber}-${log.transactionHash}-${log.transactionIndex}-${log.index}`
@@ -1009,8 +1015,8 @@ class BlockchainLogCrawler {
           'Parallel processing queue error',
           llo({
             error,
-            transactionHash: task.log.transactionHash,
-            logIndex: task.index,
+            transactionHash: task?.log?.transactionHash,
+            logIndex: task?.index,
             ...this.parseCrawlerInfoLog(),
           }),
         )

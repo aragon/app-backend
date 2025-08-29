@@ -3,7 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { Models } from '@dbModels'
 import { expect } from 'chai'
 import tokenGovernanceMigration from '@src/migrations/20250724204119-tokenGovernance'
-import { IClockMode, NetworksEnum } from '@types'
+import { IClockMode, NetworksEnum, ITokenType } from '@types'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import GovernanceVeHelper from '@helpers/governanceVe'
 import logger from '@logger'
@@ -139,6 +139,7 @@ describe('migration: migrateTokenGovernance', () => {
         id: '0x211aEa089C589bbCB636A52283B520E1b4F7c1b3-ethereum-sepolia',
         network: NetworksEnum.ethereumSepolia,
         address: '0x211aEa089C589bbCB636A52283B520E1b4F7c1b3',
+        type: ITokenType.ERC20,
         isGovernance: true,
       }
 
