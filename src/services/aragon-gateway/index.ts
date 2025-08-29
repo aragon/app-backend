@@ -16,9 +16,9 @@ import config from '@config'
 import Plugin from '@services/aragon-gateway/plugin'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 
-const llo = logger.logMeta.bind(null, { service: 'service:DaoService' })
+const llo = logger.logMeta.bind(null, { service: 'service:GatewayService' })
 
-const AragonDaoService: IService = {
+const AragonGatewayService: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
   options: { mongoSync: config.MONGO_DB.SYNC_MODELS },
 
@@ -55,12 +55,12 @@ const AragonDaoService: IService = {
       })
     })
 
-    logger.info('AragonDaoService service started', llo({}))
+    logger.info('AragonGatewayService service started', llo({}))
   },
 
   async stop() {
-    logger.info('AragonDaoService service stopped', llo({}))
+    logger.info('AragonGatewayService service stopped', llo({}))
   },
 }
 
-export default AragonDaoService
+export default AragonGatewayService
