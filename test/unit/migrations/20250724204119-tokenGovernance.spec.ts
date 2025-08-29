@@ -188,9 +188,16 @@ describe('migration: migrateTokenGovernance', () => {
 
       await Promise.all(tokens.map(async data => Models.Token.create(data)))
 
+      // Make stub respond based on token address for deterministic behavior
       const stubGetClockMode = sandbox.stub(GovernanceErc20Helper, 'getClockMode')
-      stubGetClockMode.onCall(0).resolves(IClockMode.BlockNumber)
-      stubGetClockMode.onCall(1).resolves(IClockMode.Timestamp)
+      stubGetClockMode.callsFake(async (address: string) => {
+        if (address === '0x1111111111111111111111111111111111111111') {
+          return IClockMode.BlockNumber
+        } else if (address === '0x2222222222222222222222222222222222222222') {
+          return IClockMode.Timestamp
+        }
+        throw new Error(`Unexpected address: ${address}`)
+      })
 
       const stubGetUnderlying = sandbox.stub(GovernanceVeHelper, 'getUnderlyingTokenNameAndSymbol').resolves({
         name: 'Underlying Token',
