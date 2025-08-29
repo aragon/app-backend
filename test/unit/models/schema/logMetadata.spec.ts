@@ -149,4 +149,117 @@ describe('Model: LogMetadata', () => {
 
     expect(metadataAtBlockNumber?.name).to.eq(createdLogDao.name)
   })
+
+  it('Should create with existing id', async () => {
+    const customId = 'custom-id-12345'
+    const logMetadataWithId = {
+      ...rawLogDaoMetadata,
+      id: customId,
+    }
+    const createdLogDao = await Models.LogMetadata.create(logMetadataWithId)
+    expect(createdLogDao.id).to.eq(customId)
+  })
+
+  it('Should not update when value is equal', async () => {
+    const createdLogDao = await Models.LogMetadata.create(rawLogDaoMetadata)
+    const saveSpy = sandbox.spy(createdLogDao, 'save')
+
+    // Update with the same value
+    await createdLogDao.update({
+      daoURI: rawLogDaoMetadata.daoURI,
+    })
+
+    // Save should still be called but the value should remain the same
+    expect(saveSpy.calledOnce).to.be.true
+    expect(createdLogDao.daoURI).to.eq(rawLogDaoMetadata.daoURI)
+  })
+
+  it('Should getLatestMetadata', async () => {
+    // Create multiple metadata entries with different block numbers
+    const metadata1 = {
+      ...rawLogDaoMetadata,
+      blockNumber: 100,
+      pluginAddress: '0x1234567890123456789012345678901234567890',
+    }
+    const metadata2 = {
+      ...rawLogDaoMetadata,
+      blockNumber: 200,
+      pluginAddress: '0x1234567890123456789012345678901234567890',
+      transactionIndex: 1,
+    }
+    const metadata3 = {
+      ...rawLogDaoMetadata,
+      blockNumber: 150,
+      pluginAddress: '0x1234567890123456789012345678901234567890',
+      logIndex: 2,
+    }
+
+    await Models.LogMetadata.create(metadata1)
+    await Models.LogMetadata.create(metadata2)
+    await Models.LogMetadata.create(metadata3)
+
+    const latestMetadata = await Models.LogMetadata.getLatestMetadata(
+      NetworksEnum.ethereumMainnet,
+      '0x1234567890123456789012345678901234567890',
+      'pluginAddress',
+    )
+
+    expect(latestMetadata).to.exist
+    expect(latestMetadata.blockNumber).to.eq(200)
+  })
+
+  it('Should return empty object when no metadata found in getLatestMetadata', async () => {
+    const latestMetadata = await Models.LogMetadata.getLatestMetadata(
+      NetworksEnum.ethereumMainnet,
+      '0x9999999999999999999999999999999999999999',
+      'pluginAddress',
+    )
+
+    expect(latestMetadata).to.deep.equal({})
+  })
+
+  it('Should return empty object when no metadata found in getMetadataAtBlockNumber', async () => {
+    const metadataAtBlockNumber = await Models.LogMetadata.getMetadataAtBlockNumber(
+      '0x9999999999999999999999999999999999999999',
+      1000,
+      NetworksEnum.ethereumMainnet,
+    )
+
+    expect(metadataAtBlockNumber).to.deep.equal({})
+  })
+
+  it('Should getLatestMetadata with default key (pluginAddress)', async () => {
+    const metadata = {
+      ...rawLogDaoMetadata,
+      pluginAddress: '0xAAAA567890123456789012345678901234567890',
+    }
+    await Models.LogMetadata.create(metadata)
+
+    const latestMetadata = await Models.LogMetadata.getLatestMetadata(
+      NetworksEnum.ethereumMainnet,
+      '0xAAAA567890123456789012345678901234567890',
+    )
+
+    expect(latestMetadata).to.exist
+    expect(latestMetadata.pluginAddress).to.eq('0xAAAA567890123456789012345678901234567890')
+  })
+
+  it('Should getMetadataAtBlockNumber with custom metadataOrigin', async () => {
+    const metadata = {
+      ...rawLogDaoMetadata,
+      pluginAddress: '0xBBBB567890123456789012345678901234567890',
+      blockNumber: 50,
+    }
+    await Models.LogMetadata.create(metadata)
+
+    const metadataAtBlockNumber = await Models.LogMetadata.getMetadataAtBlockNumber(
+      '0xBBBB567890123456789012345678901234567890',
+      100,
+      NetworksEnum.ethereumMainnet,
+      'pluginAddress',
+    )
+
+    expect(metadataAtBlockNumber).to.exist
+    expect(metadataAtBlockNumber.name).to.eq(metadata.name)
+  })
 })

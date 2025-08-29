@@ -1,7 +1,7 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
-import type { ITransactionCategory } from '@src/types/alchemy'
 import { type ITokenType } from '@src/types/token'
 import { type ISettingStatus } from '@src/types/plugin'
+import { type ITransactionSide, type ITransactionType } from '@types'
 
 export interface ITokenExtraParams {
   network?: NetworksEnum
@@ -89,12 +89,13 @@ export interface IMemberExtraParams {
 }
 
 export interface ITransactionExtraParams {
-  category?: ITransactionCategory
   network?: NetworksEnum
   daoAddress?: HexAddress
   tokenAddress?: HexAddress
   fromAddress?: HexAddress
   toAddress?: HexAddress
+  side?: ITransactionSide
+  type?: ITransactionType
 }
 
 export interface IExtraQueryData {

@@ -59,14 +59,14 @@ const BlockScoutHelper = {
 
     try {
       const response = await BlockScoutHelper._rpCall(path, params, network)
-      if (response?.address) {
+      if (response?.address_hash || response?.address) {
         return {
-          address: response.address,
+          address: response?.address_hash ?? response.address,
           name: response.name,
           symbol: response.symbol,
           decimals: response.decimals,
           totalSupply: response.total_supply,
-          totalHolders: response.holders,
+          totalHolders: response.holders_count ?? response.holders,
           logo: response.icon_url,
           priceUsd: response.exchange_rate,
           type: BlockScoutHelper.parseTokenType(response.type),
@@ -134,164 +134,6 @@ const BlockScoutHelper = {
       }
     } catch (error) {
       logger.warn('Error getTransactionOfAnAddress', llo({ error }))
-    }
-  },
-
-  /**
-   * Fetch token transfers using Blockscout's native API v2
-   * Supports ERC-20, ERC-721, ERC-1155 in a single call
-   */
-  async _fetchERC20Transfers(address: string, network: NetworksEnum): Promise<any[]> {
-    const allTransfers: any[] = []
-    let nextPageParams: any = {}
-
-    try {
-      const path = `addresses/${address}/token-transfers`
-      do {
-        const params = {
-          type: 'ERC-20,ERC-721,ERC-1155',
-          ...(nextPageParams || {}),
-          apikey: BlockScoutHelper._parseNetworkToConfig(network).BLOCKSCOUT_API_KEY,
-        }
-
-        const response = await BlockScoutHelper._rpCall(path, params, network)
-        if (!response?.items || response.items.length === 0) {
-          break
-        }
-
-        const processedTransfers = response.items
-          .filter(
-            (transfer: any) =>
-              transfer.from.is_scam === false && transfer.to.is_scam === false && transfer.type === 'token_transfer',
-          )
-          .map((transfer: any) => ({
-            hash: transfer.transaction_hash,
-            blockNumber: transfer.block_number.toString(),
-            timestamp: new Date(transfer.timestamp).getTime() / 1000,
-            from: transfer.from.hash,
-            to: transfer.to.hash,
-            value: transfer.total.value,
-            contractAddress: transfer.token.address,
-            tokenName: transfer.token.name,
-            tokenSymbol: transfer.token.symbol,
-            tokenDecimals: transfer.token.decimals,
-            logIndex: transfer.log_index,
-            category: 'erc20',
-            type: 'token_transfer',
-          }))
-
-        allTransfers.push(...processedTransfers)
-        nextPageParams = response.next_page_params
-      } while (nextPageParams)
-
-      return allTransfers
-    } catch (error) {
-      logger.error('Error fetching token transfers with native API', { error, address, network })
-      return []
-    }
-  },
-
-  /**
-   * Fetch ETH transactions using Block scout native API v2
-   */
-  async _fetchTxList(address: string, network: NetworksEnum): Promise<any[]> {
-    const allTransactions: any[] = []
-    let nextPageParams: any = null
-
-    try {
-      const path = `addresses/${address}/transactions`
-
-      do {
-        const params = {
-          filter: 'to,from',
-          ...(nextPageParams || {}),
-          apikey: BlockScoutHelper._parseNetworkToConfig(network).BLOCKSCOUT_API_KEY,
-        }
-
-        const response = await BlockScoutHelper._rpCall(path, params, network)
-
-        if (!response?.items || response.items.length === 0) {
-          break
-        }
-
-        const validTransactions = response.items
-          .filter((tx: any) => tx.value && tx.value !== '0' && parseFloat(tx.value) > 0)
-          .map((tx: any) => ({
-            hash: tx.hash,
-            blockNumber: tx.block_number.toString(),
-            timestamp: new Date(tx.timestamp).getTime() / 1000,
-            from: tx.from.hash,
-            to: tx.to.hash,
-            value: tx.value,
-            contractAddress: null,
-            tokenName: null,
-            tokenSymbol: null,
-            tokenDecimals: '18', // ETH decimals
-            transactionIndex: tx.position,
-            category: 'external',
-            type: 'transaction',
-          }))
-
-        allTransactions.push(...validTransactions)
-        nextPageParams = response.next_page_params
-      } while (nextPageParams)
-
-      return allTransactions
-    } catch (error) {
-      logger.error('Error fetching ETH transactions with native API', llo({ error, address, network }))
-      return []
-    }
-  },
-
-  /**
-   * Fetch internal transactions using Blockscout's native API v2
-   */
-  async _fetchInternalTxs(address: string, network: NetworksEnum): Promise<any[]> {
-    const allInternalTxs: any[] = []
-    let nextPageParams: any = null
-
-    try {
-      const path = `addresses/${address}/internal-transactions`
-
-      do {
-        const params = {
-          filter: 'to,from',
-          ...(nextPageParams || {}),
-          apikey: BlockScoutHelper._parseNetworkToConfig(network).BLOCKSCOUT_API_KEY,
-        }
-
-        const response = await BlockScoutHelper._rpCall(path, params, network)
-
-        if (!response?.items || response.items.length === 0) {
-          break
-        }
-
-        const validInternalTxs = response.items
-          .filter((tx: any) => tx.type === 'call' && tx.value && tx.value !== '0' && parseFloat(tx.value) > 0)
-          .map((tx: any) => ({
-            hash: tx.transaction_hash,
-            blockNumber: tx.block_number.toString(),
-            timestamp: new Date(tx.timestamp).getTime() / 1000,
-            from: tx.from.hash,
-            to: tx.to.hash,
-            value: tx.value,
-            contractAddress: null,
-            tokenName: null,
-            tokenSymbol: null,
-            tokenDecimals: '18', // ETH decimals
-            index: tx.index,
-            category: 'internal',
-            type: 'internal_transaction',
-          }))
-
-        allInternalTxs.push(...validInternalTxs)
-        nextPageParams = response.next_page_params
-      } while (nextPageParams)
-
-      return allInternalTxs
-    } catch (error) {
-      logger.error('Error fetching internal transactions with native API', llo({ error, address, network }))
-      return []
     }
   },
 

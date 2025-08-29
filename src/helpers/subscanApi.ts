@@ -5,13 +5,11 @@ import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
 import {
   type HexAddress,
-  type ISubScanAssetTransfer,
   type ISubScanContractCreation,
   type ISubScanNativeTokenInfo,
   type ISubScanTokenBalance,
   type ISubScanTokenInfo,
   ITokenType,
-  ITransactionCategory,
   type NetworksEnum,
 } from '@types'
 import { ethers } from 'ethers'
@@ -46,95 +44,6 @@ const SubscanApiHelper = {
     } catch (error) {
       logger.warn('SubscanApi API call', llo({ error, path, params }))
       throw error
-    }
-  },
-
-  getAssetTransfer: async (address: HexAddress, network: NetworksEnum): Promise<ISubScanAssetTransfer[]> => {
-    const substrateAddress = await SubscanApiHelper.getAccountInfoByKey(address, network)
-    if (!substrateAddress) return []
-
-    const nativeTransfers = await SubscanApiHelper._fetchAllPaginatedItems(
-      'transfers',
-      { address: substrateAddress, row: 100 },
-      network,
-      'api/v2/scan/transfers',
-      res => res?.data?.transfers || [],
-    )
-
-    const erc20Transfers = await SubscanApiHelper._fetchAllPaginatedItems(
-      'evm/token/transfer',
-      { address, row: 100, category: 'erc20' },
-      network,
-    )
-
-    const parsedNative = nativeTransfers
-      .map(SubscanApiHelper._parseNativeTransfer)
-      .filter(transfer => transfer.from !== ethers.getAddress(address))
-    const parsedErc20 = await Promise.all(
-      erc20Transfers.map(async tx => SubscanApiHelper._parseErc20Transfer(tx, network)),
-    )
-
-    return [...parsedNative, ...parsedErc20].sort((a, b) => b.blockNum - a.blockNum)
-  },
-
-  _fetchAllPaginatedItems: async (
-    path: string,
-    baseParams: any,
-    network: NetworksEnum,
-    replacedPath?: string,
-    extractListFn: (res: any) => any[] = res => res?.data?.list || [],
-    extractTotalFn: (res: any) => number = res => res?.data?.count || 0,
-  ) => {
-    const pageSize = baseParams.row || 100
-    let page = 0
-    let allItems: any[] = []
-
-    while (true) {
-      const params = { ...baseParams, page, row: pageSize }
-      const res = await SubscanApiHelper._rpCall(path, params, network, replacedPath)
-      const list = extractListFn(res)
-      const total = extractTotalFn(res)
-
-      allItems = allItems.concat(list)
-      if (allItems.length >= total || list.length === 0) break
-
-      page++
-    }
-
-    return allItems
-  },
-
-  _parseNativeTransfer: (transfer: any): ISubScanAssetTransfer => ({
-    blockNum: transfer.block_num,
-    from: ethers.getAddress(transfer.from_account_display.evm_address || ethers.ZeroAddress),
-    to: ethers.getAddress(transfer.to_account_display?.evm_address || ethers.ZeroAddress),
-    uniqueId: transfer.transfer_id,
-    blockTimestamp: transfer.block_timestamp,
-    value: transfer.amount,
-    hash: transfer.hash,
-    category: ITransactionCategory.External,
-  }),
-
-  _parseErc20Transfer: async (transfer: any, network: NetworksEnum): Promise<ISubScanAssetTransfer> => {
-    const txDetails = await SubscanApiHelper.getTransactionInfoByHash(transfer.hash, network)
-
-    return {
-      blockNum: txDetails.block_num,
-      from: ethers.getAddress(transfer.from),
-      to: ethers.getAddress(transfer.to),
-      uniqueId: transfer.id,
-      blockTimestamp: txDetails.block_timestamp,
-      value: transfer.value,
-      hash: transfer.hash,
-      category: ITransactionCategory.ERC20,
-      rawContract: {
-        value: transfer.value,
-        address: ethers.getAddress(transfer.contract),
-        decimals: transfer.decimals,
-        name: transfer.name,
-        symbol: transfer.symbol,
-        priceUsd: transfer.price || '0',
-      },
     }
   },
 

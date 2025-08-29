@@ -713,9 +713,9 @@ describe('Helpers:Utils', () => {
         setImmediate(resolve)
       })
 
-      sinon.assert.calledOnce(fn1)
-      sinon.assert.calledOnce(fn2)
-      sinon.assert.notCalled(onError)
+      expect(fn1.calledOnce).to.be.true
+      expect(fn2.calledOnce).to.be.true
+      expect(onError.called).to.be.false
     })
 
     it('should call onError if an error occurs in any function', async () => {
@@ -729,9 +729,10 @@ describe('Helpers:Utils', () => {
         setImmediate(resolve)
       })
 
-      sinon.assert.calledOnce(fn1)
-      sinon.assert.calledOnce(fn2)
-      sinon.assert.calledOnceWithExactly(onError, sinon.match(error))
+      expect(fn1.calledOnce).to.be.true
+      expect(fn2.calledOnce).to.be.true
+      expect(onError.calledOnce).to.be.true
+      expect(onError.firstCall.args[0]).to.equal(error)
     })
 
     it('should continue to execute all functions even if one fails', async () => {
@@ -745,9 +746,9 @@ describe('Helpers:Utils', () => {
         setImmediate(resolve)
       })
 
-      sinon.assert.calledOnce(fn1)
-      sinon.assert.calledOnce(fn2)
-      sinon.assert.calledOnce(onError)
+      expect(fn1.calledOnce).to.be.true
+      expect(fn2.calledOnce).to.be.true
+      expect(onError.calledOnce).to.be.true
     })
   })
 

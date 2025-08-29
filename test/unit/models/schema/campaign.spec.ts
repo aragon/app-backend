@@ -167,6 +167,106 @@ describe('Model: Campaign', () => {
 
       expect(createdCampaign.metadata?.title).to.eq('New Name')
     })
+
+    it('Should update resources and type in metadata', async () => {
+      const createdCampaign = await Models.Campaign.create(rawCampaign)
+      const resources = [
+        { name: 'Website', url: 'https://example.com' },
+        { name: 'Documentation', url: 'https://docs.example.com' },
+      ]
+
+      await createdCampaign.updateMetadata({
+        resources,
+        type: 'Airdrop',
+      })
+
+      // Check that resources array has correct structure
+      expect(createdCampaign.metadata?.resources).to.have.length(2)
+      expect(createdCampaign.metadata?.resources?.[0]).to.have.property('name', 'Website')
+      expect(createdCampaign.metadata?.resources?.[0]).to.have.property('url', 'https://example.com')
+      expect(createdCampaign.metadata?.resources?.[1]).to.have.property('name', 'Documentation')
+      expect(createdCampaign.metadata?.resources?.[1]).to.have.property('url', 'https://docs.example.com')
+      expect(createdCampaign.metadata?.type).to.eq('Airdrop')
+    })
+  })
+
+  describe('updateTotalRewards', () => {
+    it('Should update total rewards', async () => {
+      const createdCampaign = await Models.Campaign.create(rawCampaign)
+      const newTotalRewards = '1000000000000000000'
+
+      await createdCampaign.updateTotalRewards(newTotalRewards)
+
+      expect(createdCampaign.totalRewards).to.eq(newTotalRewards)
+    })
+  })
+
+  describe('addToTotalClaimed', () => {
+    it('Should add to total claimed amount', async () => {
+      rawCampaign.totalClaimed = '500000000000000000'
+      const createdCampaign = await Models.Campaign.create(rawCampaign)
+
+      await createdCampaign.addToTotalClaimed('250000000000000000')
+
+      expect(createdCampaign.totalClaimed).to.eq('750000000000000000')
+    })
+
+    it('Should handle null/undefined total claimed', async () => {
+      const createdCampaign = await Models.Campaign.create(rawCampaign)
+      // Manually set to null to test safety
+      createdCampaign.totalClaimed = null as any
+
+      await createdCampaign.addToTotalClaimed('100000000000000000')
+
+      expect(createdCampaign.totalClaimed).to.eq('100000000000000000')
+    })
+
+    it('Should handle adding to zero', async () => {
+      rawCampaign.totalClaimed = '0'
+      const createdCampaign = await Models.Campaign.create(rawCampaign)
+
+      await createdCampaign.addToTotalClaimed('500000000000000000')
+
+      expect(createdCampaign.totalClaimed).to.eq('500000000000000000')
+    })
+  })
+
+  describe('findByEntityId', () => {
+    it('Should find campaign by entity id', async () => {
+      const createdCampaign = await Models.Campaign.create(rawCampaign)
+      const entityId = Models.Campaign.getEntityId({
+        network: rawCampaign.network!,
+        pluginAddress: rawCampaign.pluginAddress!,
+        campaignId: rawCampaign.campaignId!,
+      })
+
+      const foundCampaign = await Models.Campaign.findByEntityId(entityId)
+
+      expect(foundCampaign?.id).to.eq(entityId)
+      expect(foundCampaign?.campaignId).to.eq(rawCampaign.campaignId)
+    })
+
+    it('Should return null for non-existing entity id', async () => {
+      const foundCampaign = await Models.Campaign.findByEntityId('non-existing-id')
+
+      expect(foundCampaign).to.be.null
+    })
+  })
+
+  describe('reload', () => {
+    it('Should reload campaign data from database', async () => {
+      const createdCampaign = await Models.Campaign.create(rawCampaign)
+      const originalActive = createdCampaign.active
+
+      // Directly update the database
+      await Models.Campaign.findByIdAndUpdate(createdCampaign._id, { active: false })
+
+      // Reload the campaign
+      const reloadedCampaign = await createdCampaign.reload()
+
+      expect(reloadedCampaign?.active).to.eq(false)
+      expect(originalActive).to.eq(true)
+    })
   })
 
   describe('getCampaignsWithPagination', () => {

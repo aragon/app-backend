@@ -1014,8 +1014,8 @@ describe('Module: blockchainLogCrawler', () => {
       } catch (error) {
         expect(error).to.equal(networkError)
 
-        expect(logError.calledOnce).to.be.true
-        expect(logError.firstCall.args[0]).to.equal('error executeBatchRequest')
+        expect(logWarn.calledOnce).to.be.true
+        expect(logWarn.firstCall.args[0]).to.equal('error executeBatchRequest')
       }
     })
 
@@ -1049,9 +1049,9 @@ describe('Module: blockchainLogCrawler', () => {
         expect.fail('Should have thrown an error')
       } catch (error) {
         expect(error).to.equal(networkError)
-        expect(logError.calledOnce).to.be.true
-        expect(logError.firstCall.args[0]).to.equal('error executeBatchRequest')
-        expect(logError.firstCall.args[1]).to.deep.include({
+        expect(logWarn.calledOnce).to.be.true
+        expect(logWarn.firstCall.args[0]).to.equal('error executeBatchRequest')
+        expect(logWarn.firstCall.args[1]).to.deep.include({
           error: networkError,
           topics: ['0xTopic1'],
           currentBlock: 100,
@@ -2497,6 +2497,82 @@ describe('Module: blockchainLogCrawler', () => {
     })
   })
 
+  describe('isTopicObject functionality', () => {
+    it('should use topic from events[0] when isTopicObject is true', () => {
+      const topicFilter = [['0xExecutedTopic'], null, null, ['0xSomeAddress']]
+
+      const crawler = new BlockchainLogCrawler({
+        events: [{ topic: topicFilter }] as any,
+        address: ['0x123'],
+        onError: sandbox.stub(),
+        logService: 'test' as any,
+        network: NetworksEnum.ethereumMainnet,
+        stopOnError: false,
+        isTopicObject: true,
+      })
+
+      expect(crawler.crawlSetting.filter.topics).to.deep.equal(topicFilter)
+    })
+
+    it('should call buildTopics when isTopicObject is false', () => {
+      const events = [
+        { event: 'Event1', topic: '0xTopic1', config: [{ abi: ['event Event1()'], handler: sandbox.stub() }] },
+        { event: 'Event2', topic: '0xTopic2', config: [{ abi: ['event Event2()'], handler: sandbox.stub() }] },
+      ]
+
+      const crawler = new BlockchainLogCrawler({
+        events,
+        address: ['0x123'],
+        onError: sandbox.stub(),
+        logService: 'test' as any,
+        network: NetworksEnum.ethereumMainnet,
+        stopOnError: false,
+        isTopicObject: false,
+      })
+
+      expect(crawler.crawlSetting.filter.topics).to.deep.equal(['0xTopic1', '0xTopic2'])
+    })
+
+    it('should default to buildTopics when isTopicObject is undefined', () => {
+      const events = [
+        { event: 'Event1', topic: '0xTopic1', config: [{ abi: ['event Event1()'], handler: sandbox.stub() }] },
+        {
+          event: 'Event2',
+          topic: ['0xTopic2', '0xTopic3'],
+          config: [{ abi: ['event Event2()'], handler: sandbox.stub() }],
+        },
+      ]
+
+      const crawler = new BlockchainLogCrawler({
+        events,
+        address: ['0x123'],
+        onError: sandbox.stub(),
+        logService: 'test' as any,
+        network: NetworksEnum.ethereumMainnet,
+        stopOnError: false,
+        // isTopicObject not provided, should default to undefined/false
+      })
+
+      expect(crawler.crawlSetting.filter.topics).to.deep.equal(['0xTopic1', '0xTopic2', '0xTopic3'])
+    })
+
+    it('should handle complex topic filters when isTopicObject is true', () => {
+      const complexTopicFilter = [['0xExecutedTopic', '0xAlternativeTopic'], null, ['0xAddress1', '0xAddress2'], null]
+
+      const crawler = new BlockchainLogCrawler({
+        events: [{ topic: complexTopicFilter }] as any,
+        address: ['0xDAO'],
+        onError: sandbox.stub(),
+        logService: 'test' as any,
+        network: NetworksEnum.ethereumMainnet,
+        stopOnError: false,
+        isTopicObject: true,
+      })
+
+      expect(crawler.crawlSetting.filter.topics).to.deep.equal(complexTopicFilter)
+    })
+  })
+
   describe('getParallelConfig edge cases', () => {
     it('should return fallback config when parallel is not configured', () => {
       const crawler = new BlockchainLogCrawler({
@@ -2782,6 +2858,143 @@ describe('Module: blockchainLogCrawler', () => {
       const result = (crawler as any).getStrategyBySituation(100, 200)
 
       expect(result).to.equal('getLogsByBatch')
+    })
+  })
+
+  describe('Additional error handling and edge cases', () => {
+    it('should handle queue.error event handler with stopOnError true', async () => {
+      const onErrorStub = sandbox.stub()
+      const crawler = new BlockchainLogCrawler({
+        events: [],
+        address: ['0x123'],
+        onError: onErrorStub,
+        logService: 'test' as any,
+        parallel: { enable: true, concurrency: 2 },
+        stopOnError: true,
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      const handlerStub = sandbox.stub()
+      handlerStub.rejects(new Error('Queue processing error'))
+
+      sandbox.stub(crawler, 'formatLog').returns({
+        event: { name: 'Test' } as any,
+        handler: handlerStub,
+        info: {} as any,
+      })
+
+      sandbox.stub(crawler, 'getParallelConfig').returns({
+        enable: true,
+        concurrency: 2,
+        batchSize: 10,
+        useBatch: false,
+      })
+
+      const mockLogs: any[] = [{ blockNumber: 100, transactionHash: '0x1', index: 0 }]
+
+      try {
+        await (crawler as any).processLogsParallel(mockLogs, {})
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error.message).to.equal('Queue processing error')
+        expect(crawler.crawlSetting.shutdown).to.be.true
+        expect(onErrorStub.called).to.be.true
+      }
+    })
+
+    it('should handle queue.error event handler with stopOnError false', async () => {
+      const onErrorStub = sandbox.stub()
+      const crawler = new BlockchainLogCrawler({
+        events: [],
+        address: ['0x123'],
+        onError: onErrorStub,
+        logService: 'test' as any,
+        parallel: { enable: true, concurrency: 2 },
+        stopOnError: false,
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      let callCount = 0
+      const handlerStub = sandbox.stub().callsFake(() => {
+        callCount++
+        if (callCount === 1) {
+          // First call fails
+          return Promise.reject(new Error('Non-fatal queue error'))
+        }
+        return Promise.resolve()
+      })
+
+      sandbox.stub(crawler, 'formatLog').returns({
+        event: { name: 'Test' } as any,
+        handler: handlerStub,
+        info: {} as any,
+      })
+
+      sandbox.stub(crawler, 'getParallelConfig').returns({
+        enable: true,
+        concurrency: 2,
+        batchSize: 10,
+        useBatch: false,
+      })
+
+      const mockLogs: any[] = [
+        { blockNumber: 100, transactionHash: '0x1', index: 0 },
+        { blockNumber: 101, transactionHash: '0x2', index: 1 },
+      ]
+
+      const result = await (crawler as any).processLogsParallel(mockLogs, {})
+
+      expect(result).to.be.a('number')
+      expect(result).to.be.greaterThanOrEqual(0)
+      expect(crawler.crawlSetting.shutdown).to.be.false
+      expect(onErrorStub.called).to.be.true
+      expect(handlerStub.callCount).to.equal(2)
+    })
+
+    it('should stop adding tasks to queue when shutdown is triggered during batch push', async () => {
+      const crawler = new BlockchainLogCrawler({
+        events: [],
+        address: ['0x123'],
+        onError: sandbox.stub(),
+        logService: 'test' as any,
+        parallel: { enable: true, concurrency: 2, batchSize: 2 },
+        network: NetworksEnum.ethereumMainnet,
+        stopOnError: false,
+      })
+
+      // Create many logs to trigger multiple batch pushes
+      const mockLogs: any[] = []
+      for (let i = 0; i < 10; i++) {
+        mockLogs.push({ blockNumber: 100 + i, transactionHash: `0x${i}`, index: i })
+      }
+
+      let callCount = 0
+      sandbox.stub(crawler, 'formatLog').callsFake(() => {
+        callCount++
+        // Trigger shutdown after processing first few logs
+        if (callCount === 3) {
+          crawler.crawlSetting.shutdown = true
+        }
+        return {
+          event: { name: 'Test' } as any,
+          handler: sandbox.stub().resolves(),
+          info: {} as any,
+        }
+      })
+
+      sandbox.stub(crawler, 'getParallelConfig').returns({
+        enable: true,
+        concurrency: 2,
+        batchSize: 2, // Small batch size to trigger multiple pushes
+        useBatch: false,
+      })
+
+      await (crawler as any).processLogsParallel(mockLogs, {})
+
+      // Should have processed some logs but not all due to shutdown
+      expect(callCount).to.be.greaterThan(0)
+      expect(callCount).to.be.lessThan(mockLogs.length)
+      expect(crawler.crawlSetting.shutdown).to.be.true
     })
   })
 })

@@ -410,6 +410,19 @@ describe('Governance:VeGovernance', () => {
 
       expect(result).to.be.null
     })
+
+    it('should handle database error during update and return null', async () => {
+      // Stub Models.Lock.updateMany to throw an error
+      sandbox.stub(Models.Lock, 'updateMany').rejects(new Error('Database error'))
+
+      const result = await veGovernance.update(memberAddress, {
+        tokenIds: ['111'],
+        delegateReceiverAddress: '0x9999999999999999999999999999999999999999',
+      })
+
+      expect(result).to.be.null
+      expect(loggerErrorStub.calledWith('Error updating Lock')).to.be.true
+    })
   })
 
   describe('lockWithdrawn', () => {
@@ -505,6 +518,46 @@ describe('Governance:VeGovernance', () => {
       expect(result).to.exist
       expect(loggerWarnStub.calledWith('Lock already withdrawn')).to.be.true
     })
+
+    it('should return null if address parsing fails', async () => {
+      const result = await veGovernance.lockWithdrawn(
+        'invalid' as HexAddress,
+        {
+          info: { transactionHash: '0xtx', blockNumber: 200 },
+          parsedEvent: { args: {} },
+        } as any,
+      )
+
+      expect(result).to.be.null
+    })
+
+    it('should return null if info or parsedEvent is missing', async () => {
+      const result = await veGovernance.lockWithdrawn(memberAddress, {} as any)
+
+      expect(result).to.be.null
+      expect(loggerErrorStub.calledWith('Missing info or parsedEvent for withdraw')).to.be.true
+    })
+
+    it('should handle database error during withdrawal and return null', async () => {
+      // Stub Models.Lock.findOne to throw an error
+      sandbox.stub(Models.Lock, 'findOne').rejects(new Error('Database error'))
+
+      const result = await veGovernance.lockWithdrawn(memberAddress, {
+        info: { transactionHash: '0xtx', blockNumber: 200 },
+        parsedEvent: {
+          args: {
+            depositor: memberAddress,
+            tokenId: 333,
+            value: '1000000000000000000',
+            ts: 1680003000,
+            newTotalLocked: '0',
+          },
+        },
+      } as any)
+
+      expect(result).to.be.null
+      expect(loggerErrorStub.calledWith('Error in withdraw')).to.be.true
+    })
   })
 
   describe('exitQueued', () => {
@@ -558,6 +611,48 @@ describe('Governance:VeGovernance', () => {
       expect(updatedLock?.lockExit?.exitDateAt).to.equal(1680004000)
 
       expect(loggerVerboseStub.calledWith('Exit queued processed in VeGovernance')).to.be.true
+    })
+
+    it('should return null if address parsing fails', async () => {
+      const result = await veGovernance.exitQueued(
+        'invalid' as HexAddress,
+        {
+          info: { transactionHash: '0xtx', blockNumber: 250, address: '0xexitqueueaddress' },
+          parsedEvent: { args: {} },
+        } as any,
+      )
+
+      expect(result).to.be.null
+    })
+
+    it('should return null if info or parsedEvent is missing', async () => {
+      const result = await veGovernance.exitQueued(memberAddress, {} as any)
+
+      expect(result).to.be.null
+      expect(loggerErrorStub.calledWith('Missing info or parsedEvent for exitQueued')).to.be.true
+    })
+
+    it('should handle database error during exitQueued and return null', async () => {
+      // Stub Models.Lock.findOne to throw an error
+      sandbox.stub(Models.Lock, 'findOne').rejects(new Error('Database error'))
+
+      const result = await veGovernance.exitQueued(memberAddress, {
+        info: {
+          transactionHash: '0xexittx',
+          blockNumber: 250,
+          address: '0xexitqueueaddress',
+        },
+        parsedEvent: {
+          args: {
+            holder: memberAddress,
+            tokenId: 444,
+            exitDate: 1680004000,
+          },
+        },
+      } as any)
+
+      expect(result).to.be.null
+      expect(loggerErrorStub.calledWith('Error in exitQueued')).to.be.true
     })
   })
 

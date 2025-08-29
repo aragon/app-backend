@@ -4,7 +4,7 @@ import TokenUtils from '@helpers/tokenUtils'
 import ProxyProvider from '@modules/proxyProvider'
 import CovalentHelper from '@helpers/covalent'
 import Web3Helper from '@helpers/web3'
-import { ITokenType, ITransactionCategory, NetworksEnum } from '@types'
+import { ITokenType, NetworksEnum } from '@types'
 import type Token from '@models/schema/token'
 import { Models } from '@dbModels'
 import logger from '@logger'
@@ -239,19 +239,6 @@ describe('TokenUtils', () => {
 
       expect(result).to.be.true
       expect(analyzeIfScamTokenStub.calledWith('', '')).to.be.true
-    })
-  })
-
-  describe('getCategories', () => {
-    it('should return correct number of categories', () => {
-      const result = TokenUtils.getCategories()
-      expect(result).to.be.an('array').with.lengthOf(4)
-      expect(result).to.include.members([
-        ITransactionCategory.ERC20,
-        ITransactionCategory.ERC721,
-        ITransactionCategory.ERC1155,
-        ITransactionCategory.External,
-      ])
     })
   })
 })

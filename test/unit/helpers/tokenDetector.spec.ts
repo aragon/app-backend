@@ -174,4 +174,68 @@ describe('Helper: TokenDetector', () => {
     expect(result.isGovernance).to.be.false
     expect(getImplementationAddressStub.calledOnce).to.be.true
   })
+
+  it('should detect token with name, symbol, and decimals properties', async () => {
+    sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+      getCode: sandbox
+        .stub()
+        .resolves(
+          simulateBytecodeForFunctions([
+            ...TokenDetector.ERC20,
+            ...TokenDetector.HAS_NAME,
+            ...TokenDetector.HAS_SYMBOL,
+            ...TokenDetector.HAS_DECIMALS,
+          ]),
+        ),
+    } as any)
+
+    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
+    expect(result.type).to.equal(ITokenType.ERC20)
+    expect(result.hasName).to.be.true
+    expect(result.hasSymbol).to.be.true
+    expect(result.hasDecimals).to.be.true
+  })
+
+  it('should detect token with delegate and clockMode properties', async () => {
+    sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+      getCode: sandbox
+        .stub()
+        .resolves(
+          simulateBytecodeForFunctions([
+            ...TokenDetector.ERC20,
+            ...TokenDetector.HAS_DELEGATE,
+            ...TokenDetector.HAS_CLOCK_MODE,
+          ]),
+        ),
+    } as any)
+
+    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
+    expect(result.type).to.equal(ITokenType.ERC20)
+    expect(result.hasDelegate).to.be.true
+    expect(result.hasClockMode).to.be.true
+  })
+
+  it('should detect token with totalSupply and balanceOf properties', async () => {
+    sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+      getCode: sandbox
+        .stub()
+        .resolves(
+          simulateBytecodeForFunctions([
+            ...TokenDetector.ERC20,
+            ...TokenDetector.HAS_TOTAL_SUPPLY,
+            ...TokenDetector.HAS_BALANCE_OF_ERC20,
+            ...TokenDetector.HAS_BALANCE_OF_ERC777,
+          ]),
+        ),
+    } as any)
+
+    const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
+    expect(result.type).to.equal(ITokenType.ERC20)
+    expect(result.hasTotalSupply).to.be.true
+    expect(result.hasBalanceOfERC20).to.be.true
+    expect(result.hasBalanceOfERC777).to.be.true
+  })
 })

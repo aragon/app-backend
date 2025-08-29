@@ -3,7 +3,7 @@ import sinon, { SinonSandbox } from 'sinon'
 import Subscan from '@helpers/subscanApi'
 import axios from 'axios'
 import logger from '@logger'
-import { NetworksEnum, ITokenType } from '@types'
+import { NetworksEnum, ITokenType, ISubScanTokenBalance } from '@types'
 import utils from '@helpers/utils'
 import dayjs from '@helpers/dayjs'
 import * as retryRequestModule from '@helpers/retryRequest'
@@ -320,119 +320,6 @@ describe('Helpers:Subscan', () => {
     })
   })
 
-  describe('getAssetTransfer', () => {
-    it('should return asset transfers from native and ERC20', async () => {
-      const daoAddress = '0x558c9997f8d382f02dfce79e275af637d8bb19e6'
-      const substrateAddress = 'substrateAddress' // Stub getAccountInfoByKey to return a substrate address.
-      const getAccountInfoByKeyStub = sandbox.stub(Subscan, 'getAccountInfoByKey').resolves(substrateAddress)
-
-      // Native transfers response.
-      const nativeResponse = {
-        data: {
-          transfers: [
-            {
-              block_num: 180,
-              from_account_display: { evm_address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2' },
-              to_account_display: { evm_address: null },
-              transfer_id: 'id1',
-              block_timestamp: 'timestamp1',
-              amount: '50',
-              hash: 'txHash1',
-              name: 'test',
-              symbol: 'test',
-            },
-            {
-              block_num: 180,
-              from_account_display: { evm_address: daoAddress },
-              to_account_display: { evm_address: null },
-              transfer_id: 'id2',
-              block_timestamp: 'timestamp2',
-              amount: '500',
-              hash: 'txHash2',
-              name: 'ETH',
-              symbol: 'ETH',
-            },
-          ],
-        },
-      }
-      // ERC20 transfers response.
-      const erc20Response = {
-        data: {
-          list: [
-            {
-              hash: 'txHash2',
-              from: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-              to: '0xc12aAA39b223fE8D0a0E5C4f27EaD9083c756Cc2',
-              id: 'id2',
-              value: '200',
-              contract: '0x95222290DD7278Aa3Ddd389Cc1E1d165CC4BAfe5',
-              name: 'test',
-              symbol: 'test',
-              decimals: 18,
-            },
-          ],
-        },
-      }
-      const rpCallStub = sandbox.stub(Subscan, '_rpCall')
-      rpCallStub.onCall(0).resolves(nativeResponse)
-      rpCallStub.onCall(1).resolves(erc20Response)
-      const txInfo = { block_num: 150, block_timestamp: 'timestamp2' }
-      const getTxStub = sandbox.stub(Subscan, 'getTransactionInfoByHash').resolves(txInfo)
-
-      const result = await Subscan.getAssetTransfer(daoAddress, NetworksEnum.peaqMainnet)
-      expect(result[0]).to.deep.include({
-        blockNum: 180,
-        from: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-        to: '0x0000000000000000000000000000000000000000',
-        uniqueId: 'id1',
-        blockTimestamp: 'timestamp1',
-        value: '50',
-        hash: 'txHash1',
-        category: 'external',
-      })
-      expect(result[1]).to.deep.eq({
-        blockNum: 150,
-        from: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-        to: '0xc12aAA39b223fE8D0a0E5C4f27EaD9083c756Cc2',
-        uniqueId: 'id2',
-        blockTimestamp: 'timestamp2',
-        value: '200',
-        hash: 'txHash2',
-        category: 'erc20',
-        rawContract: {
-          value: '200',
-          address: '0x95222290DD7278Aa3Ddd389Cc1E1d165CC4BAfe5',
-          name: 'test',
-          symbol: 'test',
-          priceUsd: '0',
-          decimals: 18,
-        },
-      })
-      expect(getAccountInfoByKeyStub.calledOnce).to.be.true
-      expect(rpCallStub.callCount).to.equal(2)
-      expect(getTxStub.calledOnce).to.be.true
-    })
-
-    it('should return empty array if no substrate address', async () => {
-      const getAccountInfoByKeyStub = sandbox.stub(Subscan, 'getAccountInfoByKey').resolves(undefined)
-      const result = await Subscan.getAssetTransfer('0x1234567890', NetworksEnum.peaqMainnet)
-      expect(result).to.deep.eq([])
-      expect(getAccountInfoByKeyStub.calledOnce).to.be.true
-    })
-
-    it('should log error when native transfer list fetch failed', async () => {
-      const substrateAddress = 'substrateAddress'
-      const getAccountInfoByKeyStub = sandbox.stub(Subscan, 'getAccountInfoByKey').resolves(substrateAddress)
-      const error = new Error('RPC Call Failed')
-      sandbox.stub(Subscan, '_rpCall').rejects(error)
-
-      await expect(Subscan.getAssetTransfer('0x1234567890', NetworksEnum.peaqMainnet)).to.be.rejectedWith(
-        'RPC Call Failed',
-      )
-      expect(getAccountInfoByKeyStub.calledOnce).to.be.true
-    })
-  })
-
   describe('getTransactionInfoByHash', () => {
     it('should return transaction info on successful response', async () => {
       const txResponse = { data: { block_num: 123, block_timestamp: 'time' } }
@@ -671,6 +558,37 @@ describe('Helpers:Subscan', () => {
       expect(getTokenFullDetailsStub.calledOnce).to.be.true
       expect(warnStub.calledOnce).to.be.true
       expect(warnStub.calledWith('SubscanApi getTokenCounters' as any)).to.be.true
+    })
+  })
+
+  describe('getAccountBalances', () => {
+    it('should get account balances and format them correctly', async () => {
+      const mockTokens = [
+        {
+          tokenBalance: '1000000000000000000',
+          decimals: 18,
+          contractAddress: '0x1234567890123456789012345678901234567890',
+          name: 'Token1',
+          symbol: 'TK1',
+        },
+        {
+          tokenBalance: '5000000',
+          decimals: 6,
+          contractAddress: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+          name: 'Token2',
+          symbol: 'TK2',
+        },
+      ] as ISubScanTokenBalance[]
+
+      const getAccountBalanceStub = sandbox.stub(Subscan, 'getAccountBalance').resolves(mockTokens)
+
+      const result = await Subscan.getAccountBalances('0xUserAddress', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.have.length(2)
+      expect(result[0].tokenBalance).to.equal('1.0')
+      expect(result[0].contractAddress).to.match(/^0x[A-Fa-f0-9]{40}$/)
+      expect(result[1].tokenBalance).to.equal('5.0')
+      expect(getAccountBalanceStub.calledOnce).to.be.true
     })
   })
 })

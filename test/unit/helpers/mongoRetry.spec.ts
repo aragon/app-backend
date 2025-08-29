@@ -211,6 +211,21 @@ describe('Helpers: MongoRetryHelper', () => {
         // Expected to fail
       }
     })
+
+    it('should handle edge case where loop completes without returning or throwing', async () => {
+      // This tests the defensive code at lines 98-106
+      // We simulate a scenario where maxRetries is 0 which makes the loop not execute
+      const operation = sandbox.stub().resolves('success')
+
+      const result = await MongoRetryHelper.retryOperation(operation, {
+        maxRetries: 0, // Force loop to not execute
+      })
+
+      // With maxRetries=0, the loop doesn't execute and we reach the fallback code
+      expect(result).to.be.null
+      expect(operation.callCount).to.equal(0)
+      expect(loggerErrorStub.calledWith('MongoDB operation failed after all retries')).to.be.true
+    })
   })
 
   describe('retryOperationSafe', () => {

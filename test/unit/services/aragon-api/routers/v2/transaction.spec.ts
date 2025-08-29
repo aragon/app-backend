@@ -3,7 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import TransactionRouter from '@api/routers/v2/transaction'
 import TransactionController from '@api/controllers/transaction'
-import { ITransactionCategory, ITransactionIndexCheckType, NetworksEnum } from '@types'
+import { ITransactionIndexCheckType, ITransactionSide, ITransactionType, NetworksEnum } from '@types'
 import { getAddress } from 'ethers'
 
 describe('RouterV2: Transaction', () => {
@@ -21,7 +21,6 @@ describe('RouterV2: Transaction', () => {
     it('Should get transaction with pagination - all params', async () => {
       const filterParams = {
         network: NetworksEnum.ethereumMainnet,
-        category: ITransactionCategory.ERC20,
         address: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254', // Maps to daoAddress
         tokenAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
         fromAddress: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
@@ -62,11 +61,12 @@ describe('RouterV2: Transaction', () => {
       })
       expect(stubCtrl.args[0]?.[1]).to.deep.eq({
         network: filterParams.network,
-        category: filterParams.category,
         daoAddress: getAddress(filterParams.address), // address -> daoAddress
         fromAddress: getAddress(filterParams.fromAddress),
         toAddress: getAddress(filterParams.toAddress),
         tokenAddress: getAddress(filterParams.tokenAddress),
+        side: undefined,
+        type: undefined,
       })
       expect(stubCtrl.args[0]?.[2]).to.deep.eq({ daoId: undefined })
     })
@@ -110,19 +110,18 @@ describe('RouterV2: Transaction', () => {
       expect(stubCtrl.args[0]?.[1]).to.deep.eq({
         network: undefined,
         daoAddress: undefined,
-        category: undefined,
         fromAddress: undefined,
         toAddress: undefined,
         tokenAddress: undefined,
+        side: undefined,
+        type: undefined,
       })
       expect(stubCtrl.args[0]?.[2]).to.deep.eq({ daoId: filterParams.daoId })
     })
 
     it('Should fail validation when neither daoId nor network with address is provided', async () => {
       const ctx: any = {
-        query: {
-          category: ITransactionCategory.ERC20,
-        },
+        query: {},
       }
 
       let error: any
@@ -143,7 +142,6 @@ describe('RouterV2: Transaction', () => {
       const ctx: any = {
         query: {
           network: NetworksEnum.ethereumMainnet,
-          category: ITransactionCategory.ERC20,
         },
       }
 
@@ -181,11 +179,12 @@ describe('RouterV2: Transaction', () => {
       expect(stubCtrl.calledOnce).to.be.true
       expect(stubCtrl.args[0]?.[1]).to.deep.eq({
         network: filterParams.network,
-        category: undefined,
         daoAddress: getAddress(filterParams.address),
         fromAddress: getAddress(filterParams.fromAddress),
         toAddress: getAddress(filterParams.toAddress),
         tokenAddress: getAddress(filterParams.tokenAddress),
+        side: undefined,
+        type: undefined,
       })
     })
 
@@ -211,6 +210,159 @@ describe('RouterV2: Transaction', () => {
       expect(error.message).to.equal('badParams')
       // The error should be about extraParam, not address (which is skipped)
       expect(error.exposeMeta.validationError.errors[0]).to.include('"value" must have less than or equal')
+    })
+
+    it('Should handle transaction side filter', async () => {
+      const filterParams = {
+        network: NetworksEnum.ethereumMainnet,
+        address: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        side: ITransactionSide.deposit,
+      }
+
+      const stubCtrl = sandbox.stub(TransactionController, 'getTransactionsWithPagination').returns(true as any)
+
+      const ctx: any = {
+        query: filterParams,
+      }
+
+      await TransactionRouter.getWithPagination(ctx)
+
+      expect(stubCtrl.calledOnce).to.be.true
+      expect(stubCtrl.args[0]?.[1]).to.include({
+        side: ITransactionSide.deposit,
+      })
+    })
+
+    it('Should handle transaction type filter', async () => {
+      const filterParams = {
+        network: NetworksEnum.ethereumMainnet,
+        address: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        type: ITransactionType.erc20,
+      }
+
+      const stubCtrl = sandbox.stub(TransactionController, 'getTransactionsWithPagination').returns(true as any)
+
+      const ctx: any = {
+        query: filterParams,
+      }
+
+      await TransactionRouter.getWithPagination(ctx)
+
+      expect(stubCtrl.calledOnce).to.be.true
+      expect(stubCtrl.args[0]?.[1]).to.include({
+        type: ITransactionType.erc20,
+      })
+    })
+
+    it('Should handle both side and type filters together', async () => {
+      const filterParams = {
+        network: NetworksEnum.ethereumMainnet,
+        address: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        side: ITransactionSide.withdraw,
+        type: ITransactionType.erc721,
+      }
+
+      const stubCtrl = sandbox.stub(TransactionController, 'getTransactionsWithPagination').returns(true as any)
+
+      const ctx: any = {
+        query: filterParams,
+      }
+
+      await TransactionRouter.getWithPagination(ctx)
+
+      expect(stubCtrl.calledOnce).to.be.true
+      expect(stubCtrl.args[0]?.[1]).to.include({
+        side: ITransactionSide.withdraw,
+        type: ITransactionType.erc721,
+      })
+    })
+
+    it('Should handle all transaction sides correctly', async () => {
+      const sides = [ITransactionSide.deposit, ITransactionSide.withdraw]
+      const stubCtrl = sandbox.stub(TransactionController, 'getTransactionsWithPagination')
+
+      for (const side of sides) {
+        stubCtrl.reset()
+        stubCtrl.returns({ results: [], side } as any)
+
+        const ctx: any = {
+          query: {
+            network: NetworksEnum.ethereumMainnet,
+            address: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+            side,
+          },
+        }
+
+        await TransactionRouter.getWithPagination(ctx)
+
+        expect(stubCtrl.calledOnce).to.be.true
+        expect(stubCtrl.args[0]?.[1]?.side).to.eq(side)
+      }
+    })
+
+    it('Should handle all transaction types correctly', async () => {
+      const types = [ITransactionType.erc20, ITransactionType.erc721, ITransactionType.native]
+      const stubCtrl = sandbox.stub(TransactionController, 'getTransactionsWithPagination')
+
+      for (const type of types) {
+        stubCtrl.reset()
+        stubCtrl.returns({ results: [], type } as any)
+
+        const ctx: any = {
+          query: {
+            network: NetworksEnum.ethereumMainnet,
+            address: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+            type,
+          },
+        }
+
+        await TransactionRouter.getWithPagination(ctx)
+
+        expect(stubCtrl.calledOnce).to.be.true
+        expect(stubCtrl.args[0]?.[1]?.type).to.eq(type)
+      }
+    })
+
+    it('Should fail validation with invalid side value', async () => {
+      const ctx: any = {
+        query: {
+          network: NetworksEnum.ethereumMainnet,
+          address: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+          side: 'invalid-side',
+        },
+      }
+
+      let error: any
+      try {
+        await TransactionRouter.getWithPagination(ctx)
+      } catch (e) {
+        error = e
+      }
+
+      expect(error).to.exist
+      expect(error.message).to.equal('badParams')
+      expect(error.exposeMeta.validationError.errors[0]).to.include('"side" must be one of')
+    })
+
+    it('Should fail validation with invalid type value', async () => {
+      const ctx: any = {
+        query: {
+          network: NetworksEnum.ethereumMainnet,
+          address: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+          type: 'invalid-type',
+        },
+      }
+
+      let error: any
+      try {
+        await TransactionRouter.getWithPagination(ctx)
+      } catch (e) {
+        error = e
+      }
+
+      expect(error).to.exist
+      expect(error.message).to.equal('badParams')
+      expect(error.exposeMeta.validationError.errors[0]).to.include('"type" must be one of')
     })
   })
 

@@ -7,7 +7,6 @@ export enum IWeb3ProxyMethod {
   fetchContractSourceCode = 'fetchContractSourceCode',
   fetchBasicTokenInfo = 'fetchBasicTokenInfo',
   fetchTokenHolderAndSupply = 'fetchTokenHolderAndSupply',
-  fetchAddressTxns = 'fetchAddressTxns',
   fetchTokenPrice = 'fetchTokenPrice',
   searchDetailsOfContract = 'searchDetailsOfContract',
   fetchHistoricalTokenPrice = 'fetchHistoricalTokenPrice',
@@ -27,15 +26,6 @@ export interface IWeb3Provider {
   fetchContractSourceCode: ({ address, network }: { address: string; network: NetworksEnum }) => Promise<any>
   fetchBasicTokenInfo: ({ address, network }: { address: string; network: NetworksEnum }) => Promise<any>
   fetchTokenHolderAndSupply: ({ address, network }: { address: string; network: NetworksEnum }) => Promise<any>
-  fetchAddressTxns: ({
-    address,
-    network,
-    blockNumber,
-  }: {
-    address: string
-    network: NetworksEnum
-    blockNumber?: number
-  }) => Promise<any>
   fetchTokenPrice: ({
     address,
     network,
@@ -77,14 +67,3 @@ export interface IWeb3ContractCreation {
   transactionHash: HexAddress | null
   address: HexAddress
 }
-
-export interface ITxFilterBlockArgs {
-  startBlock: number
-  endBlock: number
-}
-
-export type ITransactionFetchFunction = (
-  address: string,
-  network: NetworksEnum,
-  blockFilter: ITxFilterBlockArgs,
-) => Promise<any[]>

@@ -13,7 +13,6 @@ import type ConfigIndexer from '@models/schema/configIndexer'
 import type Vote from '@models/schema/vote'
 import type TaskService from '@models/schema/taskService'
 import type TaskRun from '@models/schema/taskRun'
-import type MemberTransaction from '@models/schema/memberTransaction'
 import type DaoPermission from '@models/schema/daoPermission'
 import type Jwt from '@models/schema/jwt'
 import type PluginSlug from '@models/schema/pluginSlug'
@@ -39,7 +38,6 @@ export interface IMongoModel {
   LogMetadata: typeof LogMetadata
   LogPluginSetupProcessor: typeof LogPluginSetupProcessor
   Member: typeof Member
-  MemberTransaction: typeof MemberTransaction // TODO: deprecated
   Plugin: typeof Plugin
   PluginRepo: typeof PluginRepo
   PluginSlug: typeof PluginSlug
@@ -69,7 +67,6 @@ export enum ICollectionNames {
   LogMetadata = 'LogMetadata',
   LogPluginSetupProcessor = 'LogPluginSetupProcessor',
   Member = 'Member',
-  MemberTransaction = 'MemberTransaction', // TODO: deprecated
   Plugin = 'Plugin',
   PluginRepo = 'PluginRepo',
   PluginSlug = 'PluginSlug',
@@ -128,10 +125,10 @@ export enum IEventLogPluginType {
   UpdateApplied = 'UpdateApplied',
 }
 
-export enum ITransactionType {
+// New clean transaction side enum
+export enum ITransactionSide {
   deposit = 'deposit',
   withdraw = 'withdraw',
-  externalTransfer = 'externalTransfer',
 }
 
 export enum IEventLogMember {

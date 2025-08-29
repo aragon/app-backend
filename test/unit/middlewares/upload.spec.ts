@@ -1,6 +1,6 @@
 import * as sinon from 'sinon'
 import { expect } from 'chai'
-import UploadMiddleware from '@middlewares/upload'
+import UploadMiddleware, { fileFilter } from '@middlewares/upload'
 
 describe('Middleware: Upload', () => {
   let sandbox: sinon.SinonSandbox
@@ -11,6 +11,48 @@ describe('Middleware: Upload', () => {
 
   afterEach(() => {
     sandbox.restore()
+  })
+
+  describe('fileFilter', () => {
+    it('should accept JSON files with application/json mimetype', done => {
+      const file = {
+        mimetype: 'application/json',
+        originalname: 'test.txt',
+      }
+
+      fileFilter(null, file, (error: Error | null, acceptFile: boolean) => {
+        expect(error).to.be.null
+        expect(acceptFile).to.be.true
+        done()
+      })
+    })
+
+    it('should accept files with .json extension', done => {
+      const file = {
+        mimetype: 'text/plain',
+        originalname: 'data.json',
+      }
+
+      fileFilter(null, file, (error: Error | null, acceptFile: boolean) => {
+        expect(error).to.be.null
+        expect(acceptFile).to.be.true
+        done()
+      })
+    })
+
+    it('should reject non-JSON files', done => {
+      const file = {
+        mimetype: 'text/plain',
+        originalname: 'test.txt',
+      }
+
+      fileFilter(null, file, (error: Error | null, acceptFile: boolean) => {
+        expect(error).to.be.instanceOf(Error)
+        expect(error?.message).to.equal('Only JSON files are allowed')
+        expect(acceptFile).to.be.false
+        done()
+      })
+    })
   })
 
   describe('single', () => {
