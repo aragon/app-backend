@@ -72,6 +72,48 @@ describe('Model: CampaignReward', () => {
     })
   })
 
+  describe('findExisting', () => {
+    it('Should find existing reward by params', async () => {
+      const createdReward = await Models.CampaignReward.create(rawReward)
+      const foundReward = await Models.CampaignReward.findExisting({
+        network: rawReward.network!,
+        pluginAddress: rawReward.pluginAddress!,
+        campaignId: rawReward.campaignId!,
+        userAddress: rawReward.userAddress!,
+      })
+
+      expect(foundReward?.id).to.eq(createdReward.id)
+      expect(foundReward?.userAddress).to.eq(createdReward.userAddress)
+    })
+
+    it('Should return null for non-existing reward', async () => {
+      const foundReward = await Models.CampaignReward.findExisting({
+        network: NetworksEnum.ethereumMainnet,
+        pluginAddress: '0x9999999999999999999999999999999999999999' as HexAddress,
+        campaignId: 'non-existing-campaign',
+        userAddress: '0x8888888888888888888888888888888888888888' as HexAddress,
+      })
+
+      expect(foundReward).to.be.null
+    })
+  })
+
+  describe('findByEntityId', () => {
+    it('Should find reward by entity ID', async () => {
+      const createdReward = await Models.CampaignReward.create(rawReward)
+      const foundReward = await Models.CampaignReward.findByEntityId(createdReward.id)
+
+      expect(foundReward?.id).to.eq(createdReward.id)
+      expect(foundReward?.userAddress).to.eq(createdReward.userAddress)
+    })
+
+    it('Should return null for non-existing entity ID', async () => {
+      const foundReward = await Models.CampaignReward.findByEntityId('non-existing-id')
+
+      expect(foundReward).to.be.null
+    })
+  })
+
   describe('findRewardForCampaign', () => {
     it('Should find reward for specific campaign and user', async () => {
       const createdReward = await Models.CampaignReward.create(rawReward)

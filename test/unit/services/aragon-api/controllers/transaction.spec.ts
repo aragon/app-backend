@@ -66,6 +66,52 @@ describe('TransactionController', () => {
     sandbox?.restore()
   })
 
+  describe('getTransactionsWithPagination()', () => {
+    it('should return paginated transactions with filtered keys', async () => {
+      const mockTransaction = {
+        filterKeys: sandbox.stub().returns({ id: '1', value: '100' }),
+      }
+
+      const findWithPaginationStub = sandbox.stub(Models.Transaction, 'findWithPagination').resolves({
+        data: [mockTransaction, mockTransaction],
+        metadata: {
+          totalRecords: 2,
+          page: 1,
+          pageSize: 10,
+          totalPages: 1,
+        },
+      })
+
+      const result = await TransactionController.getTransactionsWithPagination(
+        { page: 1, limit: 10 },
+        { daoAddress: '0xdao', network: NetworksEnum.ethereumMainnet },
+      )
+
+      expect(findWithPaginationStub.calledOnce).to.be.true
+      expect(mockTransaction.filterKeys.calledTwice).to.be.true
+      expect(result.data).to.have.lengthOf(2)
+      expect(result.data[0]).to.deep.equal({ id: '1', value: '100' })
+    })
+
+    it('should handle empty results', async () => {
+      const findWithPaginationStub = sandbox.stub(Models.Transaction, 'findWithPagination').resolves({
+        data: [],
+        metadata: {
+          totalRecords: 0,
+          page: 1,
+          pageSize: 10,
+          totalPages: 0,
+        },
+      })
+
+      const result = await TransactionController.getTransactionsWithPagination()
+
+      expect(findWithPaginationStub.calledOnce).to.be.true
+      expect(result.data).to.have.lengthOf(0)
+      expect(result.metadata.totalRecords).to.equal(0)
+    })
+  })
+
   describe('getTransactionIndexingStatus()', () => {
     describe('Common functionality', () => {
       it('should handle errors gracefully and return isProcessed false', async () => {
@@ -208,6 +254,40 @@ describe('TransactionController', () => {
         expect(response).to.deep.eq({
           isProcessed: true,
           slug: 'test-slug-7',
+        })
+      })
+
+      it('should return isProcessed false when sub-proposal has parent plugin but parent proposal not found', async () => {
+        // Create sub-proposal only (no parent proposal)
+        await Models.Proposal.create({
+          daoAddress: ProposalList[0].daoAddress,
+          proposalIndex: '8',
+          incrementalId: 8,
+          blockNumber: 1,
+          pluginAddress: '0xplugin3',
+          transactionHash: '0x127sub',
+          network: ProposalList[0].network,
+          endDate: 1,
+          startDate: 1,
+          creatorAddress: '0xcreator',
+        })
+
+        const network = ProposalList[0].network
+        const findByAddressStub = sandbox.stub(Models.Plugin, 'findByAddress')
+        findByAddressStub.resolves({ parentPlugin: '0xparentPlugin' })
+
+        const spyProposalReq = sandbox.spy(Models.Proposal, 'findOne')
+
+        const response = await TransactionController.getTransactionIndexingStatus(
+          '0x127sub',
+          ITransactionIndexCheckType.PROPOSAL_CREATE,
+          network!,
+        )
+
+        expect(findByAddressStub.calledOnce).to.be.true
+        expect(spyProposalReq.calledTwice).to.be.true // Once for main proposal, once for parent proposal
+        expect(response).to.deep.eq({
+          isProcessed: false,
         })
       })
 
