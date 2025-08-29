@@ -5,7 +5,7 @@ import { NetworksEnum, ISimulationStatus } from '@types'
 import * as sinon from 'sinon'
 import { ethers } from 'ethers'
 
-describe.only('SimulationController', () => {
+describe('SimulationController', () => {
   let pluginFindStub: sinon.SinonStub
 
   beforeEach(() => {
