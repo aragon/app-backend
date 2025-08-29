@@ -27,6 +27,7 @@ import Web3Utils from '@helpers/web3Utils'
 import VotingEscrowDetector from '@helpers/votingEscrowDetector'
 import GovernanceVeHelper from '@helpers/governanceVe'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
+import { IPermission } from '@src/types/permission'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:pluginSetupProcessorHandler' })
 
@@ -448,7 +449,7 @@ export const PluginSetupProcessorHandler = {
   },
 
   findProposalConditionAddress(permissions: any[]): HexAddress {
-    const proposalPermissionId = ethers.id('CREATE_PROPOSAL_PERMISSION')
+    const proposalPermissionId = ethers.id(IPermission.CREATE_PROPOSAL_PERMISSION)
     const permission = permissions.find(p => p.permissionId === proposalPermissionId)
     if (permission) {
       return permission.condition
