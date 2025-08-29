@@ -18,7 +18,7 @@ class SimulationController {
       status: IPluginStatus.installed,
       network,
       isSupported: true,
-    }).lean()
+    })
 
     Errors.assertExposable(
       plugin,
@@ -27,26 +27,6 @@ class SimulationController {
       'Invalid plugin: must be a valid installed plugin',
       llo({
         pluginAddress,
-        network,
-      }),
-    )
-
-    const executePermissionId = ethers.id('EXECUTE_PERMISSION')
-    const hasExecutePermission = plugin.permissions.find(
-      perm =>
-        perm.permissionId === executePermissionId &&
-        perm.whoAddress === pluginAddress &&
-        perm.whereAddress === plugin.daoAddress,
-    )
-
-    Errors.assertExposable(
-      hasExecutePermission,
-      ErrorKeyEnum.badSimulationRequest,
-      403,
-      'Plugin does not have EXECUTE_PERMISSION on DAO',
-      llo({
-        pluginAddress,
-        daoAddress: plugin.daoAddress,
         network,
       }),
     )

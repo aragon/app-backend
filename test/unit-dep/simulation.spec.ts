@@ -3,15 +3,12 @@ import { Models } from '@dbModels'
 import SimulationController from '@api/controllers/simulation'
 import { NetworksEnum, ISimulationStatus } from '@types'
 import * as sinon from 'sinon'
-import { DAO } from '@artifacts/dao'
-import { ethers, Interface } from 'ethers'
+import { ethers } from 'ethers'
 
-describe('SimulationController', () => {
-  let daoFindStub: sinon.SinonStub
+describe.only('SimulationController', () => {
   let pluginFindStub: sinon.SinonStub
 
   beforeEach(() => {
-    daoFindStub = sinon.stub(Models.Dao, 'findOne')
     pluginFindStub = sinon.stub(Models.Plugin, 'findOne')
   })
 
@@ -27,6 +24,14 @@ describe('SimulationController', () => {
 
       const actions = [
         {
+          from: pluginAddress,
+          to: '0x333A4823466879eeF910A04D473505da62142069',
+          data: '0x095ea7b3000000000000000000000000ba12222222228d8ba445958a75a0704d566bf2c8ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
+          value: '0',
+        },
+        {
+          from: pluginAddress,
+          to: '0x333A4823466879eeF910A04D473505da62142069',
           data: '0x095ea7b3000000000000000000000000ba12222222228d8ba445958a75a0704d566bf2c8ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
           value: '0',
         },
