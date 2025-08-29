@@ -113,10 +113,7 @@ export const MemberInfo = {
       memberAddress,
       plugin.network,
     )
-    if (requiredVotingPower === undefined || requiredVotingPower === null || isNaN(Number(requiredVotingPower))) {
-      return false
-    }
-    return Number(votingPower) >= Number(requiredVotingPower)
+    return BigInt(votingPower) >= BigInt(requiredVotingPower)
   },
 
   _checkForTokenVoting: async (plugin: Plugin, setting: PluginSetting, memberAddress: HexAddress) => {

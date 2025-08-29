@@ -49,7 +49,7 @@ const LockToVoteHelper = {
       )
       return BigInt(balance || 0).toString()
     } catch (error) {
-      return null
+      return '0'
     }
   },
 
@@ -82,7 +82,7 @@ const LockToVoteHelper = {
       const power = await provider.call(params)
       return BigInt(power).toString()
     } catch (error) {
-      return undefined
+      return '0'
     }
   },
 }
