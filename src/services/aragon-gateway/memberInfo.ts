@@ -103,16 +103,13 @@ export const MemberInfo = {
 
   _checkForLockToVote: async (plugin: Plugin, setting: PluginSetting, memberAddress: HexAddress) => {
     if (!setting || !plugin.lockManagerAddress || !plugin.conditionAddress) return false
-    const votingPower = await LockToVoteHelper.getUserLockedBalance(
-      plugin.network,
-      plugin.lockManagerAddress,
-      memberAddress,
-    )
-    const requiredVotingPower = await LockToVoteHelper.getRequiredVotingPowerForProposal(
-      plugin.conditionAddress,
-      memberAddress,
-      plugin.network,
-    )
+
+    const [votingPower, requiredVotingPower] = await Promise.all([
+      LockToVoteHelper.getUserLockedBalance(plugin.network, plugin.lockManagerAddress, memberAddress),
+      LockToVoteHelper.getRequiredVotingPowerForProposal(plugin.conditionAddress, memberAddress, plugin.network),
+    ])
+
+    if (votingPower === '0' && requiredVotingPower === '0') return false
     return BigInt(votingPower) >= BigInt(requiredVotingPower)
   },
 

@@ -160,7 +160,7 @@ describe('Indexer: LockManagerHandler', () => {
       expect(createGovernanceStub.notCalled).to.be.true
     })
 
-    it('should use fallback when getUserLockedBalance returns null for new member', async () => {
+    it('should use contract result when getUserLockedBalance returns 0 for new member', async () => {
       const mockPlugin = {
         address: '0xplugin999',
         daoAddress: '0xdao999',
@@ -168,7 +168,6 @@ describe('Indexer: LockManagerHandler', () => {
       }
 
       sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
-      const warnStub = sandbox.stub(logger, 'warn')
       const getUserLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves('0')
 
       sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
@@ -186,20 +185,16 @@ describe('Indexer: LockManagerHandler', () => {
       await LockManagerHandler.balanceLocked(mockParsedEvent as any, mockLogInfo as any)
 
       expect(getUserLockedBalanceStub.calledOnce).to.be.true
-      expect(
-        warnStub.calledWith('BalanceLocked - Failed to get locked balance from contract, using fallback sum' as any),
-      ).to.be.true
-      // Should use event amount as initial voting power
       expect(mockGovernance.update.calledOnce).to.be.true
       expect(
         mockGovernance.update.calledWith(mockParsedEvent.args.voter, {
-          votingPower: '1000000000000000000',
+          votingPower: '0',
           lastActivity: mockLogInfo.blockNumber,
         }),
       ).to.be.true
     })
 
-    it('should use fallback when getUserLockedBalance returns null for existing member', async () => {
+    it('should use contract result when getUserLockedBalance returns 0 for existing member', async () => {
       const mockPlugin = {
         address: '0xplugin888',
         daoAddress: '0xdao888',
@@ -207,7 +202,6 @@ describe('Indexer: LockManagerHandler', () => {
       }
 
       sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
-      const warnStub = sandbox.stub(logger, 'warn')
       const getUserLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves('0')
 
       sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
@@ -226,12 +220,8 @@ describe('Indexer: LockManagerHandler', () => {
 
       expect(getUserLockedBalanceStub.calledOnce).to.be.true
       expect(
-        warnStub.calledWith('BalanceLocked - Failed to get locked balance from contract, using fallback sum' as any),
-      ).to.be.true
-      // Should add event amount to existing voting power (500 + 1000 = 1500)
-      expect(
         mockGovernance.update.calledWith(mockParsedEvent.args.voter, {
-          votingPower: '1500000000000000000',
+          votingPower: '0',
           lastActivity: mockLogInfo.blockNumber,
         }),
       ).to.be.true
@@ -411,14 +401,13 @@ describe('Indexer: LockManagerHandler', () => {
       expect(createGovernanceStub.notCalled).to.be.true
     })
 
-    it('should handle error when member has no voting power in fallback', async () => {
+    it('should handle error when member has no voting power and balance is 0', async () => {
       const mockPlugin = {
         address: '0xplugin123',
         daoAddress: '0xdao123',
         network: NetworksEnum.ethereumMainnet,
       }
 
-      const errorStub = sandbox.stub(logger, 'error')
       sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
       sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves('0')
 
@@ -430,15 +419,20 @@ describe('Indexer: LockManagerHandler', () => {
         updatePluginMetrics: sandbox.stub().resolves(),
         updateDaoMetrics: sandbox.stub().resolves(),
       }
-      const createGovernanceStub = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
 
       await LockManagerHandler.balanceUnlocked(mockParsedEvent as any, mockLogInfo as any)
 
-      expect(mockGovernance.update.notCalled).to.be.true
-      expect(errorStub.calledWith('Error remove votingPower to not pre exiting one' as any)).to.be.true
+      expect(mockGovernance.update.calledOnce).to.be.true
+      expect(
+        mockGovernance.update.calledWith(mockParsedEvent.args.voter, {
+          votingPower: '0',
+          lastActivity: mockLogInfo.blockNumber,
+        }),
+      ).to.be.true
     })
 
-    it('should use fallback when getUserLockedBalance returns null', async () => {
+    it('should use contract result when getUserLockedBalance returns 0', async () => {
       const mockPlugin = {
         address: '0xplugin777',
         daoAddress: '0xdao777',
@@ -446,7 +440,6 @@ describe('Indexer: LockManagerHandler', () => {
       }
 
       sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
-      const warnStub = sandbox.stub(logger, 'warn')
       const getUserLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves('0')
 
       // Mock governance instance - had 2000 tokens locked
@@ -462,15 +455,10 @@ describe('Indexer: LockManagerHandler', () => {
       await LockManagerHandler.balanceUnlocked(mockParsedEvent as any, mockLogInfo as any)
 
       expect(getUserLockedBalanceStub.calledOnce).to.be.true
-      expect(
-        warnStub.calledWith(
-          'BalanceUnlocked - Failed to get locked balance from contract, using fallback subtraction' as any,
-        ),
-      ).to.be.true
-      // Should subtract event amount from existing voting power (2000 - 1000 = 1000)
+      // Should use contract result (0) as voting power
       expect(
         mockGovernance.update.calledWith(mockParsedEvent.args.voter, {
-          votingPower: '1000000000000000000',
+          votingPower: '0',
           lastActivity: mockLogInfo.blockNumber,
         }),
       ).to.be.true
