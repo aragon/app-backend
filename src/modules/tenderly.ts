@@ -26,7 +26,7 @@ const TenderlyModule = {
       )
       return response.data
     } catch (error: any) {
-      logger.error('Tenderly RPC call failed', llo({ baseUrl, error: error.message }))
+      logger.warn('Tenderly RPC call failed', llo({ baseUrl, error: error.message }))
     }
   },
 
