@@ -1,6 +1,6 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { MemberInfo } from '@services/aragon-dao/memberInfo'
+import { MemberInfo } from '@services/aragon-gateway/memberInfo'
 import Web3Helper from '@helpers/web3'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
 import GovernanceErc20Helper from '@helpers/governanceErc20'

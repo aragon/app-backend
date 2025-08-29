@@ -45,6 +45,19 @@ services:
       - rabbitmq
     command: bash -c 'yarn wait:db & yarn wait:rabbitmq & wait && yarn service:aragon-dao'
 
+  service-aragon-gateway:
+    build:
+      context: ./
+    environment:
+      MONGO_DB_URI: mongodb://mongo1:27017,mongo2:27017,mongo3:27017/db-aragon?replicaSet=rs0&authSource=admin
+      SERVICES_ARAGON_API_BASE_URL: http://service-aragon-gateway:3000
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+      - rabbitmq
+    command: bash -c 'yarn wait:db & yarn wait:rabbitmq & wait && yarn service:aragon-gateway'
+
   service-aragon-rates:
     build:
       context: ./

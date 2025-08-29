@@ -52,6 +52,22 @@ module.exports = {
       },
     },
     {
+      name: 'aragon-gateway',
+      cwd: path.resolve(__dirname, ''),
+      script: './runners/aragon-gateway.ts',
+      interpreter: 'node',
+      interpreter_args: ['-r ts-node/register/transpile-only', '-r tsconfig-paths/register'].join(' '),
+      autorestart: true,
+      watch: false,
+      exec_mode: 'fork',
+      min_uptime: '5s',
+      restart_delay: 2000,
+      env: {
+        INSTANCE_ID: 'aragon-gateway',
+        ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-gateway') }).parsed,
+      },
+    },
+    {
       name: 'aragon-plugins',
       cwd: path.resolve(__dirname, ''),
       script: './runners/aragon-plugins.ts',

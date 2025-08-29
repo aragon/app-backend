@@ -65,6 +65,7 @@ echo "🔧 Compose file: $DOCKER_FILE"
 # List of microservice names (as defined in compose)
 MICROSERVICES=(
   #service-aragon-api done HA
+  #service-aragon-gateway done HA
   service-aragon-admin-api
   service-aragon-indexer
   service-aragon-dao
@@ -272,8 +273,8 @@ deploy_services() {
   docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" build --parallel migration "${MICROSERVICES[@]}"
 
   ###service-aragon-api
-  docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" build service-aragon-api
-  docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" up -d service-aragon-api
+  docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" build service-aragon-api service-aragon-gateway
+  docker compose -f "$DOCKER_FILE" -p "$COMPOSE_PROJECT_NAME" up -d service-aragon-api service-aragon-gateway
 
 
   echo "✅ All images built and ready"
