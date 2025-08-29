@@ -8,7 +8,7 @@ import {
   IPluginInterfaceType,
   ISPPLogs,
 } from '@types'
-import { ethers, Interface, type LogDescription, type TransactionReceipt } from 'ethers'
+import { Interface, type LogDescription, type TransactionReceipt } from 'ethers'
 import { Models } from '@dbModels'
 import Utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
@@ -27,7 +27,6 @@ import Web3Utils from '@helpers/web3Utils'
 import VotingEscrowDetector from '@helpers/votingEscrowDetector'
 import GovernanceVeHelper from '@helpers/governanceVe'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
-import { IPermission } from '@src/types/permission'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:pluginSetupProcessorHandler' })
 
@@ -69,16 +68,13 @@ export const PluginSetupProcessorHandler = {
           return
         }
 
-        const pluginPermissions = Utils.parsePermissions(parsedEvent.args?.preparedSetupData?.permissions)
-        const proposalCreationConditionAddress =
-          PluginSetupProcessorHandler.findProposalConditionAddress(pluginPermissions)
         const rawPluginLog: Partial<LogPluginSetupProcessor> = {
           event: IEventLogPluginType.InstallationPrepared,
           network: info.network,
           transactionHash: info.transactionHash,
           transactionIndex: info.transactionIndex,
           logIndex: info.logIndex,
-          permissions: pluginPermissions,
+          permissions: Utils.parsePermissions(parsedEvent.args?.preparedSetupData?.permissions),
           sender: parsedEvent.args.sender,
           daoAddress,
           preparedSetupId: parsedEvent.args.preparedSetupId,
@@ -88,7 +84,6 @@ export const PluginSetupProcessorHandler = {
           build: parsedEvent.args.versionTag.build,
           blockNumber: info.blockNumber,
           tokenAddress: undefined,
-          proposalCreationConditionAddress,
         }
 
         const logDb = await Models.LogPluginSetupProcessor.create(rawPluginLog, { session })
@@ -446,14 +441,5 @@ export const PluginSetupProcessorHandler = {
     }
 
     return null
-  },
-
-  findProposalConditionAddress(permissions: any[]): HexAddress {
-    const proposalPermissionId = ethers.id(IPermission.CREATE_PROPOSAL_PERMISSION)
-    const permission = permissions.find(p => p.permissionId === proposalPermissionId)
-    if (permission) {
-      return permission.condition
-    }
-    return ethers.ZeroAddress
   },
 }

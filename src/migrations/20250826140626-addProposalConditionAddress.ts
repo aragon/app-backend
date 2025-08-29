@@ -3,7 +3,7 @@ import logger from '@logger'
 import { Models } from '@dbModels'
 import DBCrawler from '@models/utils/crawler'
 import type Plugin from '@models/schema/plugin'
-import { PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandler'
+import { PluginHandler } from '@handlers/pluginHandler'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: addProposalConditionAddress' })
 
@@ -14,7 +14,7 @@ export const addProposalConditionAddressMigration: IMigration = {
     const crawler = new DBCrawler({
       model: Models.Plugin,
       onDocument: async (plugin: Plugin) => {
-        const permissionCondition = PluginSetupProcessorHandler.findProposalConditionAddress(plugin.permissions)
+        const permissionCondition = PluginHandler.findProposalConditionAddress(plugin.permissions)
         await plugin.update({
           proposalCreationConditionAddress: permissionCondition,
         })
