@@ -853,5 +853,21 @@ describe('Governance:BaseGovernance', () => {
       expect(result).to.be.null
       expect(loggerErrorStub.calledWith('Error updating plugin metrics')).to.be.true
     })
+
+    it('should return null when getOrCreatePluginMetrics fails', async () => {
+      // Stub getOrCreatePluginMetrics to return null
+      sandbox.stub(testGovernance as any, 'getOrCreatePluginMetrics').resolves(null)
+
+      const result = await testGovernance.testUpdatePluginMetrics({
+        memberAddress,
+        pluginAddress,
+        daoAddress,
+        network: testNetwork,
+        lastActivity,
+      })
+
+      expect(result).to.be.null
+      expect(loggerWarnStub.calledWith('Failed to get or create PluginMetrics for update')).to.be.true
+    })
   })
 })

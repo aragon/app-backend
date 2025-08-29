@@ -107,7 +107,7 @@ describe('Governance:LockToVoteGovernance', () => {
     it('should return existing lock manager member if found', async () => {
       const parsedAddress = Web3Utils.parseAddress(memberAddress)
       // Create existing member in database
-      const existingMember = await Models.LockToVoteMember.create({
+      await Models.LockToVoteMember.create({
         memberAddress: parsedAddress,
         lockManagerAddress: testLockManagerAddress,
         network: testNetwork,
