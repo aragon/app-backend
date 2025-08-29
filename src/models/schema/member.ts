@@ -182,6 +182,7 @@ export default class Member extends Model {
             lockManagerAddress: 1,
             subdomain: 1,
             isProcess: 1,
+            proposalCreationConditionAddress: 1,
             isBody: 1,
             isSubPlugin: 1,
             totalStages: 1,

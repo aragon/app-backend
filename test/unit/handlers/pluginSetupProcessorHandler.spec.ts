@@ -1495,6 +1495,41 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
     })
   })
 
+  describe('findProposalConditionAddress', () => {
+    it('should return condition address when CREATE_PROPOSAL_PERMISSION exists', () => {
+      const permissions = [
+        {
+          permissionId: '0x' + 'other'.padStart(64, '0'),
+          condition: '0x1111111111111111111111111111111111111111',
+        },
+        {
+          permissionId: '0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90',
+          condition: '0x2222222222222222222222222222222222222222',
+        },
+      ]
+
+      const result = PluginSetupProcessorHandler.findProposalConditionAddress(permissions)
+      expect(result).to.eq('0x2222222222222222222222222222222222222222')
+    })
+
+    it('should return ZeroAddress when CREATE_PROPOSAL_PERMISSION does not exist', () => {
+      const permissions = [
+        {
+          permissionId: '0x' + 'other'.padStart(64, '0'),
+          condition: '0x1111111111111111111111111111111111111111',
+        },
+      ]
+
+      const result = PluginSetupProcessorHandler.findProposalConditionAddress(permissions)
+      expect(result).to.eq('0x0000000000000000000000000000000000000000')
+    })
+
+    it('should return ZeroAddress when permissions array is empty', () => {
+      const result = PluginSetupProcessorHandler.findProposalConditionAddress([])
+      expect(result).to.eq('0x0000000000000000000000000000000000000000')
+    })
+  })
+
   describe('findVotingEscrow', () => {
     it('should return voting escrow object when all addresses are valid and escrow is valid', async () => {
       const tokenAddress = '0x1111111111111111111111111111111111111111' // This is the IVoterAdapter
