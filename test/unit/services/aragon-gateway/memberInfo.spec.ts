@@ -633,7 +633,7 @@ describe('AragonDao: memberInfo', () => {
         network: NetworksEnum.ethereumSepolia,
         interfaceType: IPluginInterfaceType.lockToVote,
         lockManagerAddress: '0xLockManagerAddress',
-        conditionAddress: '0xConditionAddress',
+        proposalCreationConditionAddress: '0xConditionAddress',
       } as any)
 
       const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
@@ -668,7 +668,7 @@ describe('AragonDao: memberInfo', () => {
         network: NetworksEnum.ethereumSepolia,
         interfaceType: IPluginInterfaceType.lockToVote,
         lockManagerAddress: '0xLockManagerAddress',
-        conditionAddress: '0xConditionAddress',
+        proposalCreationConditionAddress: '0xConditionAddress',
       } as any)
 
       const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
@@ -698,7 +698,7 @@ describe('AragonDao: memberInfo', () => {
         network: NetworksEnum.ethereumSepolia,
         interfaceType: IPluginInterfaceType.lockToVote,
         lockManagerAddress: '0xLockManagerAddress',
-        conditionAddress: '0xConditionAddress',
+        proposalCreationConditionAddress: '0xConditionAddress',
       } as any)
 
       const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
@@ -728,7 +728,7 @@ describe('AragonDao: memberInfo', () => {
         network: NetworksEnum.ethereumSepolia,
         interfaceType: IPluginInterfaceType.lockToVote,
         lockManagerAddress: '0xLockManagerAddress',
-        conditionAddress: '0xConditionAddress',
+        proposalCreationConditionAddress: '0xConditionAddress',
       } as any)
 
       const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
@@ -758,7 +758,7 @@ describe('AragonDao: memberInfo', () => {
         network: NetworksEnum.ethereumSepolia,
         interfaceType: IPluginInterfaceType.lockToVote,
         lockManagerAddress: '0xLockManagerAddress',
-        conditionAddress: '0xConditionAddress',
+        proposalCreationConditionAddress: '0xConditionAddress',
       } as any)
 
       const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
