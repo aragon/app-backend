@@ -2,6 +2,7 @@ import logger from '@logger'
 import {
   EnumConnection,
   EnumQueueName,
+  type IProposalInfo,
   type IQueueAllMetrics,
   type IQueueContractInfo,
   type IQueueDao,
@@ -18,6 +19,7 @@ import config from '@config'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import TokenFetcher from '@services/aragon-dao/tokenFetcher'
 import ProxyWeb3Provider from '@modules/proxyProvider'
+import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 
 const llo = logger.logMeta.bind(null, { service: 'service:DaoService' })
 
@@ -65,6 +67,11 @@ const AragonDaoService: IService = {
         address: job.params.address,
         network: job.params.network,
       })
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.proposalActions, async (job: any) => {
+      const { id } = job.params as IProposalInfo
+      return await ActionDecoder.proposalActionDecoder(id)
     })
 
     const tasks = [[{ fetchRates: TokenFetcher }]]

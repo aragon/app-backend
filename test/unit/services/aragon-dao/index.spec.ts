@@ -6,6 +6,7 @@ import logger from '@logger'
 import { EnumQueueName, NetworksEnum } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
+import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 import { DaoAssets } from '@services/aragon-dao/daoAssets'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
@@ -14,7 +15,7 @@ import { TaskSchedulerState } from '@state/taskSchedulerState'
 import config from '@config'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 
-describe('AragonDao: index', () => {
+describe.only('AragonDao: index', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -34,7 +35,7 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      expect(processStub.callCount).to.equal(7)
+      expect(processStub.callCount).to.equal(8)
       expect(processStub.calledWith(EnumQueueName.allMetrics)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoTransactions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoAssets)).to.be.true
@@ -42,6 +43,7 @@ describe('AragonDao: index', () => {
       expect(processStub.calledWith(EnumQueueName.proposalMultisigMetrics)).to.be.true
       expect(processStub.calledWith(EnumQueueName.proposalTokenVotingMetrics)).to.be.true
       expect(processStub.calledWith(EnumQueueName.getTokenStats)).to.be.true
+      expect(processStub.calledWith(EnumQueueName.proposalActions)).to.be.true
 
       expect(loggerStub.calledOnceWith('AragonDaoService service started' as any)).to.be.true
     })
@@ -232,6 +234,25 @@ describe('AragonDao: index', () => {
         }),
       ).to.be.true
       expect(result).to.deep.equal({ holders: 10, transfers: 0 })
+    })
+
+    it('should handle proposalActions queue', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const proposalActionDecoderStub = sandbox.stub(ActionDecoder, 'proposalActionDecoder')
+
+      await AragonDaoService.start()
+
+      const handler = processStub.getCall(7).args[1]
+      const queueName = processStub.getCall(7).args[0]
+
+      await handler({
+        params: {
+          id: 'proposalId',
+        },
+      } as any)
+
+      expect(queueName).to.eq(EnumQueueName.proposalActions)
+      expect(proposalActionDecoderStub.calledOnceWith('proposalId')).to.be.true
     })
   })
 
