@@ -11,6 +11,7 @@ import ContractRouter from '@api/routers/v2/contract'
 import PluginRouter from '@api/routers/v2/plugins'
 import ExecuteSelectorRouter from '@api/routers/v2/executeSelector'
 import SimulationRouter from '@api/routers/v2/simulation'
+import CapitalDistributorRouter from '@api/routers/v2/capitalDistributor'
 
 const V2Router = {
   router(): Router {
@@ -28,6 +29,7 @@ const V2Router = {
     const pluginRouter = PluginRouter.router()
     const executeSelectorRouter = ExecuteSelectorRouter.router()
     const simulationRouter = SimulationRouter.router()
+    const capitalDistributorRouter = CapitalDistributorRouter.router()
 
     router.use('/assets', assetRouter.routes(), assetRouter.allowedMethods())
     router.use('/daos', daoRouter.routes(), daoRouter.allowedMethods())
@@ -41,6 +43,7 @@ const V2Router = {
     router.use('/plugins', pluginRouter.routes(), pluginRouter.allowedMethods())
     router.use('/execute-selectors', executeSelectorRouter.routes(), executeSelectorRouter.allowedMethods())
     router.use('/simulations', simulationRouter.routes(), simulationRouter.allowedMethods())
+    router.use('/capital-distributor', capitalDistributorRouter.routes(), capitalDistributorRouter.allowedMethods())
 
     return router
   },

@@ -9,9 +9,6 @@ import { DAO } from '@artifacts/dao'
 const llo = logger.logMeta.bind(null, { service: 'simulation-controller' })
 
 class SimulationController {
-  /**
-   * Validate plugin has EXECUTE_PERMISSION on DAO
-   */
   static async validateAction(pluginAddress: string, network: NetworksEnum) {
     const plugin = await Models.Plugin.findOne({
       address: pluginAddress,
