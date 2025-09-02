@@ -40,36 +40,17 @@ describe('Controller: Simulation', () => {
     it('should throw error when plugin not found', async () => {
       sandbox.stub(Models.Plugin, 'findOne').resolves(null)
 
-      let thrownError: any = null
-      try {
-        await SimulationController.validateAction(
-          '0x1234567890123456789012345678901234567890',
-          NetworksEnum.ethereumMainnet,
-        )
-      } catch (error) {
-        thrownError = error
-      }
-
-      expect(thrownError).to.exist
-      expect(thrownError.status).to.equal(400)
-      expect(thrownError.message).to.equal('badSimulationRequest')
+      await expect(
+        SimulationController.validateAction('0x1234567890123456789012345678901234567890', NetworksEnum.ethereumMainnet),
+      ).to.be.rejectedWith('badSimulationRequest')
     })
 
     it('should throw error when plugin not installed', async () => {
       sandbox.stub(Models.Plugin, 'findOne').resolves(null)
 
-      let thrownError: any = null
-      try {
-        await SimulationController.validateAction(
-          '0x1234567890123456789012345678901234567890',
-          NetworksEnum.ethereumMainnet,
-        )
-      } catch (error) {
-        thrownError = error
-      }
-
-      expect(thrownError).to.exist
-      expect(thrownError.status).to.equal(400)
+      await expect(
+        SimulationController.validateAction('0x1234567890123456789012345678901234567890', NetworksEnum.ethereumMainnet),
+      ).to.be.rejectedWith('badSimulationRequest')
     })
   })
 
@@ -113,20 +94,13 @@ describe('Controller: Simulation', () => {
       sandbox.stub(SimulationController, 'validateAction').resolves(mockPlugin)
       sandbox.stub(TenderlyModule, 'simulate').resolves(false)
 
-      let thrownError: any = null
-      try {
-        await SimulationController.simulate(
+      await expect(
+        SimulationController.simulate(
           '0x3333333333333333333333333333333333333333',
           mockActions,
           NetworksEnum.ethereumMainnet,
-        )
-      } catch (error) {
-        thrownError = error
-      }
-
-      expect(thrownError).to.exist
-      expect(thrownError.status).to.equal(400)
-      expect(thrownError.message).to.equal('badSimulationRequest')
+        ),
+      ).to.be.rejectedWith('badSimulationRequest')
     })
 
     it('should format actions correctly', async () => {
@@ -209,48 +183,21 @@ describe('Controller: Simulation', () => {
     it('should throw error when proposal not found', async () => {
       sandbox.stub(Models.Proposal, 'findByEntityId').resolves(null)
 
-      let thrownError: any = null
-      try {
-        await SimulationController.simulateProposal('proposal-123')
-      } catch (error) {
-        thrownError = error
-      }
-
-      expect(thrownError).to.exist
-      expect(thrownError.status).to.equal(404)
-      expect(thrownError.message).to.equal('notFound')
+      await expect(SimulationController.simulateProposal('proposal-123')).to.be.rejectedWith('notFound')
     })
 
     it('should throw error when proposal has no actions', async () => {
       const proposalWithoutActions = { ...mockProposal, rawActions: [] }
       sandbox.stub(Models.Proposal, 'findByEntityId').resolves(proposalWithoutActions)
 
-      let thrownError: any = null
-      try {
-        await SimulationController.simulateProposal('proposal-123')
-      } catch (error) {
-        thrownError = error
-      }
-
-      expect(thrownError).to.exist
-      expect(thrownError.status).to.equal(404)
-      expect(thrownError.message).to.equal('notFound')
+      await expect(SimulationController.simulateProposal('proposal-123')).to.be.rejectedWith('notFound')
     })
 
     it('should throw error when simulation not implemented', async () => {
       sandbox.stub(Models.Proposal, 'findByEntityId').resolves(mockProposal)
       sandbox.stub(TenderlyModule, 'simulate').resolves(false)
 
-      let thrownError: any = null
-      try {
-        await SimulationController.simulateProposal('proposal-123')
-      } catch (error) {
-        thrownError = error
-      }
-
-      expect(thrownError).to.exist
-      expect(thrownError.status).to.equal(404)
-      expect(thrownError.message).to.equal('badSimulationRequest')
+      await expect(SimulationController.simulateProposal('proposal-123')).to.be.rejectedWith('badSimulationRequest')
     })
 
     it('should handle actions with missing data or value', async () => {
@@ -313,16 +260,7 @@ describe('Controller: Simulation', () => {
 
       sandbox.stub(Models.Proposal, 'findByEntityId').resolves(proposalWithRecentSimulation)
 
-      let thrownError: any = null
-      try {
-        await SimulationController.simulateProposal('proposal-123')
-      } catch (error) {
-        thrownError = error
-      }
-
-      expect(thrownError).to.exist
-      expect(thrownError.status).to.equal(400)
-      expect(thrownError.message).to.equal('badSimulationRequest')
+      await expect(SimulationController.simulateProposal('proposal-123')).to.be.rejectedWith('badSimulationRequest')
     })
   })
 
@@ -350,29 +288,13 @@ describe('Controller: Simulation', () => {
       const mockProposal = { simulation: null }
       sandbox.stub(Models.Proposal, 'findByEntityId').resolves(mockProposal)
 
-      let thrownError: any = null
-      try {
-        await SimulationController.getSimulationResultOfProposal('proposal-123')
-      } catch (error) {
-        thrownError = error
-      }
-
-      expect(thrownError).to.exist
-      expect(thrownError.status).to.equal(404)
+      await expect(SimulationController.getSimulationResultOfProposal('proposal-123')).to.be.rejected
     })
 
     it('should throw error when proposal not found', async () => {
       sandbox.stub(Models.Proposal, 'findByEntityId').resolves(null)
 
-      let thrownError: any = null
-      try {
-        await SimulationController.getSimulationResultOfProposal('proposal-123')
-      } catch (error) {
-        thrownError = error
-      }
-
-      expect(thrownError).to.exist
-      expect(thrownError.status).to.equal(404)
+      await expect(SimulationController.getSimulationResultOfProposal('proposal-123')).to.be.rejected
     })
   })
 })

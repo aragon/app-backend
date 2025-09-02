@@ -1,13 +1,12 @@
 import { expect } from 'chai'
 import { Models } from '@dbModels'
 import SimulationController from '@api/controllers/simulation'
-import { NetworksEnum, ISimulationStatus } from '@types'
+import { NetworksEnum } from '@types'
 import * as sinon from 'sinon'
-import { ethers } from 'ethers'
 import config from '@config'
 import logger from '@logger'
 
-describe.only('SimulationController', () => {
+describe('SimulationController', () => {
   let pluginFindStub: sinon.SinonStub
 
   beforeEach(() => {

@@ -20,7 +20,7 @@ import ExecuteSelectorRouter from '@api/routers/v2/executeSelector'
 import CapitalDistributorRouter from '@api/routers/v2/capitalDistributor'
 import SimulationRouter from '@api/routers/v2/simulation'
 
-describe.only('RouterV2: V2Router', () => {
+describe('RouterV2: V2Router', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
