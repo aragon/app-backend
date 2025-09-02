@@ -5,6 +5,7 @@ import SimulationController from '@services/aragon-api/controllers/simulation'
 import { NetworksEnum, IPluginStatus, ISimulationStatus } from '@types'
 import { Models } from '@dbModels'
 import TenderlyModule from '@modules/tenderly'
+import config from '@config'
 
 describe('Controller: Simulation', () => {
   let sandbox: SinonSandbox
@@ -281,6 +282,47 @@ describe('Controller: Simulation', () => {
 
       const updateCall = mockProposal.update.firstCall.args[0]
       expect(updateCall.simulation.runAt).to.be.instanceOf(Date)
+    })
+
+    it('should allow re-simulation when enough time has passed', async () => {
+      const oldRunAt = Date.now() - config.TENDERLY.RE_SIMULATION_TIME - 1000
+      const proposalWithOldSimulation = {
+        ...mockProposal,
+        simulation: { runAt: oldRunAt },
+      }
+
+      sandbox.stub(Models.Proposal, 'findByEntityId').resolves(proposalWithOldSimulation)
+      sandbox.stub(TenderlyModule, 'simulate').resolves({
+        url: 'https://tenderly.co/simulation/new',
+        runAt: Date.now(),
+        status: ISimulationStatus.SUCCESS,
+      })
+
+      const result = await SimulationController.simulateProposal('proposal-123')
+
+      expect(result.status).to.equal(ISimulationStatus.SUCCESS)
+      expect(result.url).to.equal('https://tenderly.co/simulation/new')
+    })
+
+    it('should throw error when re-simulation attempted too soon', async () => {
+      const recentRunAt = Date.now() - 5000
+      const proposalWithRecentSimulation = {
+        ...mockProposal,
+        simulation: { runAt: recentRunAt },
+      }
+
+      sandbox.stub(Models.Proposal, 'findByEntityId').resolves(proposalWithRecentSimulation)
+
+      let thrownError: any = null
+      try {
+        await SimulationController.simulateProposal('proposal-123')
+      } catch (error) {
+        thrownError = error
+      }
+
+      expect(thrownError).to.exist
+      expect(thrownError.status).to.equal(400)
+      expect(thrownError.message).to.equal('badSimulationRequest')
     })
   })
 

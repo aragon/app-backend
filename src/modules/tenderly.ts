@@ -40,7 +40,7 @@ const TenderlyModule = {
     }
 
     const response = await TenderlyModule.rpcCall(`${TenderlyModule.baseUrl()}/simulations/${simulationId}/share`)
-    return response.share_url || `https://www.tdly.co/shared/simulation/${simulationId}`
+    return response.share_url || `${config.TENDERLY.SHARING_BASE_URL}/shared/simulation/${simulationId}`
   },
 
   async simulate(

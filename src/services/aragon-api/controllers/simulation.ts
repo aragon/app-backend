@@ -5,6 +5,7 @@ import { type NetworksEnum, IPluginStatus, ErrorKeyEnum, ISimulationStatus } fro
 import * as Errors from '@errors'
 import { Interface, ethers } from 'ethers'
 import { DAO } from '@artifacts/dao'
+import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'simulation-controller' })
 
@@ -43,15 +44,7 @@ class SimulationController {
     network: NetworksEnum,
   ): Promise<any> {
     const plugin = await SimulationController.validateAction(pluginAddress, network)
-
-    const formattedActions = actions.map(action => ({
-      to: plugin.daoAddress,
-      value: action.value || '0',
-      data: action.data,
-    }))
-
-    const iFace = new Interface(DAO.abi)
-    const encodedData = iFace.encodeFunctionData('execute', [ethers.id(Date.now().toString()), formattedActions, 0])
+    const encodedData = SimulationController.parseSimulationRequest(actions)
 
     const simulationAction = {
       to: plugin.daoAddress,
@@ -91,20 +84,25 @@ class SimulationController {
       llo({ proposalId }),
     )
 
-    const actions = proposal.rawActions.map((action: any) => ({
-      to: action.to,
-      value: action.value || '0',
-      data: action.data || '0x',
-    }))
-
-    const iFace = new Interface(DAO.abi)
-    const encodedData = iFace.encodeFunctionData('execute', [ethers.id(Date.now().toString()), actions, 0])
+    const encodedData = SimulationController.parseSimulationRequest(proposal.rawActions)
 
     const simulationAction = {
       to: proposal.daoAddress,
       data: encodedData,
       value: '0',
       from: proposal.pluginAddress,
+    }
+
+    const existingSimulation = proposal.simulation
+    if (existingSimulation?.runAt) {
+      const timeDiff = Date.now() - existingSimulation.runAt
+      Errors.assertExposable(
+        timeDiff > config.TENDERLY.RE_SIMULATION_TIME,
+        ErrorKeyEnum.badSimulationRequest,
+        400,
+        'A simulation was run less than 10 minutes ago for this proposal',
+        llo({ proposalId, network: proposal.network }),
+      )
     }
 
     const result = (await TenderlyModule.simulate(simulationAction, proposal.network)) as {
@@ -138,7 +136,7 @@ class SimulationController {
   }
 
   /**
-   * Get simulation result of a proposal
+   * Get a simulation result of a proposal
    * @param proposalId
    */
 
@@ -150,6 +148,17 @@ class SimulationController {
       status: ISimulationStatus.SUCCESS,
       runAt: proposal.simulation.runAt,
     }
+  }
+
+  static parseSimulationRequest(actions: Array<{ data: string; value: string; to: string }>) {
+    actions = actions.map((action: any) => ({
+      to: action.to,
+      value: action.value || '0',
+      data: action.data || '0x',
+    }))
+
+    const iFace = new Interface(DAO.abi)
+    return iFace.encodeFunctionData('execute', [ethers.id(Date.now().toString()), actions, 0])
   }
 }
 

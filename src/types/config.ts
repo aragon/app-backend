@@ -164,6 +164,8 @@ export interface IConfig {
     ACCESS_KEY: string
     MAX_CONCURRENT: number
     MIN_TIME: number
+    SHARING_BASE_URL: string
+    RE_SIMULATION_TIME: number
   }
 
   CONTRACTS: {

@@ -77,7 +77,7 @@ describe.only('RouterV2: V2Router', () => {
       PluginRouter,
       ExecuteSelectorRouter,
       CapitalDistributorRouter,
-      SimulationRouter
+      SimulationRouter,
     ]
     expect(use.callCount).to.be.eq(routers.length)
 
