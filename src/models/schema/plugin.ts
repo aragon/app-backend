@@ -209,6 +209,9 @@ export default class Plugin extends Model {
   @prop({ type: () => String, default: null })
   public lockManagerAddress?: HexAddress
 
+  @prop({ type: () => String, default: null })
+  public proposalCreationConditionAddress?: HexAddress
+
   @prop({ type: () => Boolean, default: null })
   public enableOfacCheck?: boolean
 

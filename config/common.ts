@@ -27,6 +27,8 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       CLEAN_QUEUE: utils.configParser(sourceConfig, 'bool', 'RABBITMQ_CLEAN_QUEUE', false),
       RECONNECT_TIME_SECONDS: utils.configParser(sourceConfig, 'number', 'RABBITMQ_RECONNECT_TIME_SECONDS', 5),
       HEARTBEAT_INTERVAL_SECONDS: utils.configParser(sourceConfig, 'number', 'RABBITMQ_HEARTBEAT_INTERVAL_SECONDS', 30),
+      MAX_QUEUE_SIZE: utils.configParser(sourceConfig, 'number', 'RABBITMQ_MAX_QUEUE_SIZE', 50),
+      THROTTLE_RETRY_DELAY: utils.configParser(sourceConfig, 'number', 'RABBITMQ_THROTTLE_RETRY_DELAY', 3000),
     },
 
     NODE_CONFIG: {

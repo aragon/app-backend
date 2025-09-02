@@ -1863,4 +1863,75 @@ describe('Indexer:Plugin', () => {
       expect(plugin.conditionAddress).to.equal(existingConditionAddress)
     })
   })
+
+  describe('findProposalConditionAddress', () => {
+    it('should return condition address when CREATE_PROPOSAL_PERMISSION exists', () => {
+      const permissions = [
+        {
+          permissionId: '0x' + 'other'.padStart(64, '0'),
+          condition: '0x1111111111111111111111111111111111111111',
+        },
+        {
+          permissionId: '0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90',
+          condition: '0x2222222222222222222222222222222222222222',
+        },
+      ]
+
+      const result = PluginHandler.findProposalConditionAddress(permissions)
+      expect(result).to.eq('0x2222222222222222222222222222222222222222')
+    })
+
+    it('should return ZeroAddress when CREATE_PROPOSAL_PERMISSION does not exist', () => {
+      const permissions = [
+        {
+          permissionId: '0x' + 'other'.padStart(64, '0'),
+          condition: '0x1111111111111111111111111111111111111111',
+        },
+      ]
+
+      const result = PluginHandler.findProposalConditionAddress(permissions)
+      expect(result).to.eq('0x0000000000000000000000000000000000000000')
+    })
+
+    it('should return ZeroAddress when permissions array is empty', () => {
+      const result = PluginHandler.findProposalConditionAddress([])
+      expect(result).to.eq('0x0000000000000000000000000000000000000000')
+    })
+
+    it('should set proposalCreationConditionAddress when creating plugin', async () => {
+      const permissions = [
+        {
+          permissionId: '0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90',
+          condition: '0x3333333333333333333333333333333333333333',
+        },
+      ]
+
+      const mockPluginLog = {
+        ...ListLogPluginSetupProcessor[0],
+        permissions: permissions,
+        address: ListLogPluginSetupProcessor[0].pluginAddress,
+      }
+
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.tokenVoting,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+      })
+
+      const spyFindProposalConditionAddress = sandbox.spy(PluginHandler, 'findProposalConditionAddress')
+
+      await PluginHandler._createPlugin(mockPluginLog as any)
+
+      expect(spyFindProposalConditionAddress.calledOnce).to.be.true
+      expect(spyFindProposalConditionAddress.calledWith(permissions)).to.be.true
+
+      const createdPlugin = await Models.Plugin.findOne({
+        address: mockPluginLog.pluginAddress,
+      })
+
+      expect(createdPlugin).to.not.be.null
+      expect(createdPlugin.proposalCreationConditionAddress).to.equal('0x3333333333333333333333333333333333333333')
+    })
+  })
 })

@@ -8,6 +8,7 @@ import { LockToVoteGovernance } from '@src/governance/lockToVoteGovernance'
 import EnsHelper from '@helpers/ens'
 import { NetworksEnum, type HexAddress, IPluginInterfaceType, IPluginStatus } from '@types'
 import Web3Utils from '@helpers/web3Utils'
+import DbTx from '@modules/dbTx'
 
 describe('Governance:LockToVoteGovernance', () => {
   let sandbox: SinonSandbox
@@ -51,7 +52,7 @@ describe('Governance:LockToVoteGovernance', () => {
   describe('getPlugin', () => {
     it('should fetch and cache plugin by lock manager address', async () => {
       // Create a plugin in database
-      const plugin = await Models.Plugin.create({
+      await Models.Plugin.create({
         id: `${testNetwork}-${testPluginAddress}-0`,
         transactionHash: '0xplugintx',
         blockNumber: 50,
@@ -106,7 +107,7 @@ describe('Governance:LockToVoteGovernance', () => {
     it('should return existing lock manager member if found', async () => {
       const parsedAddress = Web3Utils.parseAddress(memberAddress)
       // Create existing member in database
-      const existingMember = await Models.LockToVoteMember.create({
+      await Models.LockToVoteMember.create({
         memberAddress: parsedAddress,
         lockManagerAddress: testLockManagerAddress,
         network: testNetwork,
@@ -160,6 +161,19 @@ describe('Governance:LockToVoteGovernance', () => {
       const result = await lockToVoteGovernance.getOrCreate('0xinvalid' as HexAddress)
 
       expect(result).to.be.null
+    })
+
+    it('should handle database error during creation and return null', async () => {
+      // Stub LockToVoteMember.create to throw an error
+      sandbox.stub(Models.LockToVoteMember, 'create').rejects(new Error('Database error'))
+
+      const result = await lockToVoteGovernance.getOrCreate(memberAddress, {
+        votingPower: '100',
+        lastActivity: 12345,
+      })
+
+      expect(result).to.be.null
+      expect(loggerErrorStub.calledWith('Error in getOrCreate')).to.be.true
     })
   })
 
@@ -285,6 +299,26 @@ describe('Governance:LockToVoteGovernance', () => {
 
       expect(result).to.be.null
     })
+
+    it('should return null when getOrCreate returns null', async () => {
+      // Stub getOrCreate to return null
+      sandbox.stub(lockToVoteGovernance as any, 'getOrCreate').resolves(null)
+
+      const result = await lockToVoteGovernance.update(memberAddress, { votingPower: '100' })
+
+      expect(result).to.be.null
+      expect(loggerWarnStub.calledWith('Failed to get or create LockToVoteMember for update')).to.be.true
+    })
+
+    it('should handle database error during update transaction and return null', async () => {
+      // Stub DbTx.executeTxFn to throw an error
+      sandbox.stub(DbTx, 'executeTxFn').rejects(new Error('Transaction error'))
+
+      const result = await lockToVoteGovernance.update(memberAddress, { votingPower: '100' })
+
+      expect(result).to.be.null
+      expect(loggerErrorStub.calledWith('Error updating LockToVoteMember')).to.be.true
+    })
   })
 
   describe('delete', () => {
@@ -329,6 +363,16 @@ describe('Governance:LockToVoteGovernance', () => {
       const result = await lockToVoteGovernance.delete('0xinvalid' as HexAddress)
 
       expect(result).to.be.false
+    })
+
+    it('should handle database error during delete transaction and return false', async () => {
+      // Stub DbTx.executeTxFn to throw an error
+      sandbox.stub(DbTx, 'executeTxFn').rejects(new Error('Transaction error'))
+
+      const result = await lockToVoteGovernance.delete(memberAddress)
+
+      expect(result).to.be.false
+      expect(loggerErrorStub.calledWith('Error deleting LockToVoteMember')).to.be.true
     })
   })
 

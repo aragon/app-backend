@@ -1,6 +1,6 @@
 import { Models } from '@dbModels'
 import logger from '@logger'
-import { EnumConnection, IEnumIndexerService, NetworksEnum } from '@src/types'
+import { EnumConnection, NetworksEnum } from '@src/types'
 import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
 
 const llo = logger.logMeta.bind(null, { service: 'Tools: FixBrokenTx' })
@@ -88,12 +88,12 @@ export const ToolsFixBrokenTx = {
     }
 
     await Models.ConfigIndexer.deleteOne({
-      service: `withdraw-${daoAddress}-${IEnumIndexerService.withdrawTxs}`,
+      service: `withdraw-${daoAddress}-withdrawTxs`,
       network,
     })
 
     await Models.ConfigIndexer.deleteOne({
-      service: `deposit-${daoAddress}-${IEnumIndexerService.depositTxs}`,
+      service: `deposit-${daoAddress}-depositTxs`,
       network,
     })
 

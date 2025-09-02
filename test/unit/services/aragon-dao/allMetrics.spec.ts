@@ -164,6 +164,27 @@ describe('AragonDao:AllMetrics', () => {
       expect(crawlerStub.calledOnce).to.be.true
       expect(stubFindPlugin.notCalled).to.be.true
     })
+
+    it('should skip unsupported plugin proposals', async () => {
+      const stubLogger = sandbox.stub(logger, 'verbose')
+      const stubProposalTokenMetrics = sandbox.stub(ProposalMetrics, 'proposalTokenVotingMetrics').resolves()
+      const stubProposalMultisigMetrics = sandbox.stub(ProposalMetrics, 'proposalMultisigMetrics').resolves()
+      const stubFindPlugin = sandbox
+        .stub(Models.Plugin, 'findByAddress')
+        .resolves({ interfaceType: IPluginInterfaceType.tokenVoting, isSupported: false } as any)
+
+      const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
+        await this.onDocument({ pluginAddress: '0x789', proposalIndex: '3', network: NetworksEnum.ethereumMainnet })
+      })
+
+      await AllMetrics.allProposalMetrics(NetworksEnum.ethereumMainnet)
+
+      expect(stubFindPlugin.calledOnce).to.be.true
+      expect(stubProposalTokenMetrics.called).to.be.false
+      expect(stubProposalMultisigMetrics.called).to.be.false
+      expect(crawlerStub.calledOnce).to.be.true
+      expect(stubLogger.calledWith('End allProposalMetrics' as any)).to.be.true
+    })
   })
 
   describe('rebaseTokens', () => {

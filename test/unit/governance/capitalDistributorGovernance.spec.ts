@@ -214,6 +214,20 @@ describe('Governance:CapitalDistributorGovernance', () => {
         }),
       ).to.be.rejected
     })
+
+    it('should handle empty rewards list', async () => {
+      const result = await capitalDistributorGovernance.uploadMembersList({
+        campaignId: testCampaignId,
+        pluginAddress: testPluginAddress,
+        network: testNetwork,
+        rewards: [],
+      })
+
+      expect(result.success).to.be.true
+      expect(result.totalInserted).to.equal(0)
+      expect(result.totalUpdated).to.equal(0)
+      expect(result.totalDeleted).to.equal(0)
+    })
   })
 
   describe('generateMerkleData', () => {
@@ -464,6 +478,29 @@ describe('Governance:CapitalDistributorGovernance', () => {
       expect(result.isFullyClaimed).to.be.true
       expect(result.totalClaimed).to.equal('1000')
       expect(result.amount).to.equal('1000')
+    })
+
+    it('should handle missing proof, leaf, and claims in getUserCampaignReward', async () => {
+      await Models.CampaignReward.create({
+        id: 'test-reward-no-optional-fields',
+        pluginAddress: testPluginAddress,
+        network: testNetwork,
+        campaignId: testCampaignId,
+        userAddress,
+        amount: '500',
+      })
+
+      const result = await capitalDistributorGovernance.getUserCampaignReward({
+        campaignId: testCampaignId,
+        userAddress,
+      })
+
+      expect(result.exists).to.be.true
+      expect(result.totalClaimed).to.equal('0')
+      expect(result.claims).to.deep.equal([])
+      expect(result.proof).to.be.null
+      expect(result.leaf).to.be.null
+      expect(result.isFullyClaimed).to.be.false
     })
   })
 

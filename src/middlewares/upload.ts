@@ -3,7 +3,7 @@ import { type RouterContext } from '@koa/router'
 
 const storage = multer.memoryStorage()
 
-const fileFilter = (req: any, file: any, cb: (error: Error | null, acceptFile: boolean) => void) => {
+export const fileFilter = (req: any, file: any, cb: (error: Error | null, acceptFile: boolean) => void) => {
   if (file.mimetype === 'application/json' || file.originalname.endsWith('.json')) {
     cb(null, true)
   } else {

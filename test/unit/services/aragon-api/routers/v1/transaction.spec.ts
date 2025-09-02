@@ -3,7 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import TransactionRouter from '@api/routers/v1/transaction'
 import TransactionController from '@api/controllers/transaction'
-import { ITransactionCategory, ITransactionIndexCheckType, NetworksEnum } from '@types'
+import { ITransactionIndexCheckType, NetworksEnum } from '@types'
 
 describe('RouterV1: Transaction', () => {
   let sandbox: SinonSandbox
@@ -20,7 +20,6 @@ describe('RouterV1: Transaction', () => {
     it('Should get transaction with pagination - all params', async () => {
       const filterParams = {
         network: NetworksEnum.ethereumMainnet,
-        category: ITransactionCategory.ERC20,
       }
       const paginationParams = {
         pageSize: 10,
@@ -50,7 +49,6 @@ describe('RouterV1: Transaction', () => {
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
       expect(stubCtrl.args[0][1]).to.deep.eq({
         network: filterParams.network,
-        category: filterParams.category,
         daoAddress: undefined,
         fromAddress: undefined,
         toAddress: undefined,
@@ -92,7 +90,6 @@ describe('RouterV1: Transaction', () => {
       expect(stubCtrl.args[0][1]).to.deep.eq({
         network: undefined,
         daoAddress: undefined,
-        category: undefined,
         fromAddress: undefined,
         toAddress: undefined,
         tokenAddress: undefined,
@@ -137,7 +134,6 @@ describe('RouterV1: Transaction', () => {
           toAddress: undefined,
           tokenAddress: undefined,
           daoAddress: undefined,
-          category: undefined,
         },
       })
     })

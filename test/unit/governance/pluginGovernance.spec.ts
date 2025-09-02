@@ -348,6 +348,19 @@ describe('Governance:PluginGovernance', () => {
 
       expect(result).to.be.false
     })
+
+    it('should handle database error during delete and return false', async () => {
+      // Import DbTx to stub it
+      const DbTx = require('@modules/dbTx').default
+
+      // Stub DbTx.executeTxFn to throw an error
+      sandbox.stub(DbTx, 'executeTxFn').rejects(new Error('Database error'))
+
+      const result = await pluginGovernance.delete(memberAddress)
+
+      expect(result).to.be.false
+      expect(loggerErrorStub.calledWith('Error deleting PluginMember')).to.be.true
+    })
   })
 
   describe('findOne', () => {

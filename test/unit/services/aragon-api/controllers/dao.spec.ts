@@ -176,7 +176,12 @@ describe('Controller: Dao', () => {
       const stubFindByEntityId = sandbox.stub(Models.Dao, 'findByEntityId').resolves(null)
       const stubGetDaoDetails = sandbox.stub(Models.Dao, 'getDaoDetails')
 
-      await expect(DaoController.getDaoById('non-existent-id')).to.be.rejectedWith(ErrorKeyEnum.notFound)
+      try {
+        await DaoController.getDaoById('non-existent-id')
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error.message).to.equal(ErrorKeyEnum.notFound)
+      }
 
       expect(stubFindByEntityId.calledOnce).to.be.true
       expect(stubGetDaoDetails.notCalled).to.be.true
@@ -214,9 +219,12 @@ describe('Controller: Dao', () => {
       const stubFindByAddress = sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
       const stubGetDaoDetails = sandbox.stub(Models.Dao, 'getDaoDetails')
 
-      await expect(
-        DaoController.getDaoByAddress('0x999' as HexAddress, NetworksEnum.ethereumMainnet),
-      ).to.be.rejectedWith(ErrorKeyEnum.notFound)
+      try {
+        await DaoController.getDaoByAddress('0x999' as HexAddress, NetworksEnum.ethereumMainnet)
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error.message).to.equal(ErrorKeyEnum.notFound)
+      }
 
       expect(stubFindByAddress.calledOnce).to.be.true
       expect(stubGetDaoDetails.notCalled).to.be.true
@@ -263,9 +271,12 @@ describe('Controller: Dao', () => {
       const stubFindOne = sandbox.stub(Models.Dao, 'findOne').resolves(null)
       const stubGetDaoDetails = sandbox.stub(Models.Dao, 'getDaoDetails')
 
-      await expect(DaoController.getDaoByEns('non-existent.eth', NetworksEnum.ethereumMainnet)).to.be.rejectedWith(
-        ErrorKeyEnum.notFound,
-      )
+      try {
+        await DaoController.getDaoByEns('non-existent.eth', NetworksEnum.ethereumMainnet)
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error.message).to.equal(ErrorKeyEnum.notFound)
+      }
 
       expect(stubFindOne.calledOnce).to.be.true
       expect(stubGetDaoDetails.notCalled).to.be.true
@@ -559,7 +570,12 @@ describe('Controller: Dao', () => {
         { tokenAddress: '0xToken2', network: NetworksEnum.ethereumMainnet },
       ]
       const veMembersWithNetwork = [{ tokenAddress: '0xVeToken1', network: NetworksEnum.ethereumMainnet }]
-      const lockMembersWithNetwork = [{ lockManagerAddress: '0xLockManager1', network: NetworksEnum.ethereumMainnet }]
+      const lockMembersWithNetwork = [
+        {
+          lockManagerAddress: '0xLockManager1',
+          network: NetworksEnum.ethereumMainnet,
+        },
+      ]
       const pluginMembersWithNetwork = [
         { pluginAddress: '0xPlugin1', network: NetworksEnum.ethereumMainnet },
         { pluginAddress: '0xPlugin2', network: NetworksEnum.ethereumMainnet },
@@ -607,21 +623,13 @@ describe('Controller: Dao', () => {
       const result = await DaoController.getDaosOfMemberInNetwork(memberAddress, networkFilter)
 
       expect(stubPluginDistinct.calledOnce).to.be.true
-      // Use sinon.match to match the structure of the query
-      expect(
-        stubPluginDistinct.calledWith(
-          'daoAddress',
-          sinon.match(query => {
-            // Verify the query has all the required properties
-            return (
-              query.$or.length === 4 &&
-              query.status === 'installed' &&
-              query.isSupported === true &&
-              query.network === NetworksEnum.ethereumMainnet
-            )
-          }),
-        ),
-      ).to.be.true
+      const callArgs = stubPluginDistinct.firstCall.args
+      expect(callArgs[0]).to.equal('daoAddress')
+      const query = callArgs[1]
+      expect(query.$or.length).to.equal(4)
+      expect(query.status).to.equal('installed')
+      expect(query.isSupported).to.equal(true)
+      expect(query.network).to.equal(NetworksEnum.ethereumMainnet)
 
       expect(result).to.deep.equal(expectedDaoAddresses)
     })
@@ -659,61 +667,33 @@ describe('Controller: Dao', () => {
       await DaoController.getDaosOfMemberInNetwork(memberAddress, networkFilter)
 
       // Verify that the aggregate calls were made with the correct filter
-      expect(
-        stubTokenMember.calledWith(
-          sinon.match.array.and(
-            sinon.match(
-              arr =>
-                arr[0].$match &&
-                arr[0].$match.memberAddress === memberAddress &&
-                arr[0].$match.network &&
-                arr[0].$match.network.$in,
-            ),
-          ),
-        ),
-      ).to.be.true
+      const tokenMemberCallArgs = stubTokenMember.firstCall.args[0]
+      expect(tokenMemberCallArgs).to.be.an('array')
+      expect(tokenMemberCallArgs[0].$match).to.exist
+      expect(tokenMemberCallArgs[0].$match.memberAddress).to.equal(memberAddress)
+      expect(tokenMemberCallArgs[0].$match.network).to.exist
+      expect(tokenMemberCallArgs[0].$match.network.$in).to.exist
 
-      expect(
-        stubLock.calledWith(
-          sinon.match.array.and(
-            sinon.match(
-              arr =>
-                arr[0].$match &&
-                arr[0].$match.delegateReceiverAddress === memberAddress &&
-                arr[0].$match.network &&
-                arr[0].$match.network.$in,
-            ),
-          ),
-        ),
-      ).to.be.true
+      const lockCallArgs = stubLock.firstCall.args[0]
+      expect(lockCallArgs).to.be.an('array')
+      expect(lockCallArgs[0].$match).to.exist
+      expect(lockCallArgs[0].$match.delegateReceiverAddress).to.equal(memberAddress)
+      expect(lockCallArgs[0].$match.network).to.exist
+      expect(lockCallArgs[0].$match.network.$in).to.exist
 
-      expect(
-        stubLockToVote.calledWith(
-          sinon.match.array.and(
-            sinon.match(
-              arr =>
-                arr[0].$match &&
-                arr[0].$match.memberAddress === memberAddress &&
-                arr[0].$match.network &&
-                arr[0].$match.network.$in,
-            ),
-          ),
-        ),
-      ).to.be.true
+      const lockToVoteCallArgs = stubLockToVote.firstCall.args[0]
+      expect(lockToVoteCallArgs).to.be.an('array')
+      expect(lockToVoteCallArgs[0].$match).to.exist
+      expect(lockToVoteCallArgs[0].$match.memberAddress).to.equal(memberAddress)
+      expect(lockToVoteCallArgs[0].$match.network).to.exist
+      expect(lockToVoteCallArgs[0].$match.network.$in).to.exist
 
-      expect(
-        stubPluginMember.calledWith(
-          sinon.match.array.and(
-            sinon.match(
-              arr =>
-                arr[0].$match &&
-                arr[0].$match.memberAddress === memberAddress &&
-                arr[0].$match.network &&
-                arr[0].$match.network.$in,
-            ),
-          ),
-        ),
-      ).to.be.true
+      const pluginMemberCallArgs = stubPluginMember.firstCall.args[0]
+      expect(pluginMemberCallArgs).to.be.an('array')
+      expect(pluginMemberCallArgs[0].$match).to.exist
+      expect(pluginMemberCallArgs[0].$match.memberAddress).to.equal(memberAddress)
+      expect(pluginMemberCallArgs[0].$match.network).to.exist
+      expect(pluginMemberCallArgs[0].$match.network.$in).to.exist
     })
 
     it('should handle address collisions across networks', async () => {
@@ -756,28 +736,22 @@ describe('Controller: Dao', () => {
       expect(stubPluginDistinct.calledOnce).to.be.true
 
       // Check that the query contains two separate entries for the same plugin address
-      expect(
-        stubPluginDistinct.calledWith(
-          'daoAddress',
-          sinon.match(query => {
-            const hasEthereumEntry = query.$or.some(
-              item =>
-                item.address &&
-                item.address.$in.includes('0xSamePlugin') &&
-                item.network === NetworksEnum.ethereumMainnet,
-            )
+      const distinctCallArgs = stubPluginDistinct.firstCall.args
+      expect(distinctCallArgs[0]).to.equal('daoAddress')
+      const query = distinctCallArgs[1]
 
-            const hasPolygonEntry = query.$or.some(
-              item =>
-                item.address &&
-                item.address.$in.includes('0xSamePlugin') &&
-                item.network === NetworksEnum.polygonMainnet,
-            )
+      const hasEthereumEntry = query.$or.some(
+        item =>
+          item.address && item.address.$in.includes('0xSamePlugin') && item.network === NetworksEnum.ethereumMainnet,
+      )
 
-            return hasEthereumEntry && hasPolygonEntry
-          }),
-        ),
-      ).to.be.true
+      const hasPolygonEntry = query.$or.some(
+        item =>
+          item.address && item.address.$in.includes('0xSamePlugin') && item.network === NetworksEnum.polygonMainnet,
+      )
+
+      expect(hasEthereumEntry).to.be.true
+      expect(hasPolygonEntry).to.be.true
 
       expect(result).to.deep.equal(['0xDao1', '0xDao2'])
     })

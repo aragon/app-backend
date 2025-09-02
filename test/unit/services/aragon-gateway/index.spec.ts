@@ -37,7 +37,7 @@ describe('AragonGateway: index', () => {
       expect(processStub.calledWith(EnumQueueName.pluginInstallationData)).to.be.true
       expect(processStub.calledWith(EnumQueueName.getTokenStats)).to.be.true
 
-      expect(loggerStub.calledOnceWith('AragonDaoService service started' as any)).to.be.true
+      expect(loggerStub.calledOnceWith('AragonGatewayService service started' as any)).to.be.true
     })
   })
 
@@ -47,7 +47,7 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.stop()
 
-      expect(loggerStub.calledOnceWith('AragonDaoService service stopped' as any)).to.be.true
+      expect(loggerStub.calledOnceWith('AragonGatewayService service stopped' as any)).to.be.true
     })
   })
 

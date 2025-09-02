@@ -1,5 +1,5 @@
 import Joi from 'joi'
-import { ITransactionCategory, ITransactionIndexCheckType, NetworksEnum } from '@types'
+import { ITransactionIndexCheckType, ITransactionSide, ITransactionType, NetworksEnum } from '@types'
 import ValidationSchema from '@helpers/validationSchema'
 
 const TransactionSchema = {
@@ -8,11 +8,14 @@ const TransactionSchema = {
     toAddress: ValidationSchema.joiAddress.optional(),
     daoAddress: ValidationSchema.joiAddress.optional(),
     tokenAddress: ValidationSchema.joiAddress.optional(),
+    side: Joi.string()
+      .valid(...Object.values(ITransactionSide))
+      .optional(),
+    type: Joi.string()
+      .valid(...Object.values(ITransactionType))
+      .optional(),
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
-      .optional(),
-    category: Joi.string()
-      .valid(...Object.values(ITransactionCategory))
       .optional(),
   }),
 

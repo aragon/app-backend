@@ -5,19 +5,10 @@ import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
 
 const CornProvider: Pick<
   IWeb3Provider,
-  | 'getTokenCounters'
-  | 'fetchAddressTxns'
-  | 'getTokenBalances'
-  | 'fetchBasicTokenInfo'
-  | 'fetchContractSourceCode'
-  | 'fetchContractCreation'
+  'getTokenCounters' | 'getTokenBalances' | 'fetchBasicTokenInfo' | 'fetchContractSourceCode' | 'fetchContractCreation'
 > = {
   getTokenBalances: async ({ address, network }) => {
     return BlockScoutProvider.getTokenBalances({ address, network })
-  },
-
-  fetchAddressTxns: async ({ address, network }) => {
-    return BlockScoutProvider.fetchAddressTxns({ address, network })
   },
 
   fetchBasicTokenInfo: async ({ address, network }) => {

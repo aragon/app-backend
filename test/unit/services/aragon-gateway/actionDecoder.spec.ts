@@ -91,17 +91,13 @@ describe('AragonDao: actionDecoder', () => {
       const response = await ActionDecoder.decode(action)
 
       expect(getBlockNumberStub.calledOnce).to.be.true
-      expect(
-        decodeDataStub.calledOnceWith(
-          action,
-          sinon.match({
-            network: action.network,
-            daoAddress: action.from,
-            pluginAddress: action.to,
-            blockNumber: 1,
-          }),
-        ),
-      ).to.be.true
+      expect(decodeDataStub.calledOnce).to.be.true
+      const callArgs = decodeDataStub.firstCall.args
+      expect(callArgs[0]).to.equal(action)
+      expect(callArgs[1].network).to.equal(action.network)
+      expect(callArgs[1].daoAddress).to.equal(action.from)
+      expect(callArgs[1].pluginAddress).to.equal(action.to)
+      expect(callArgs[1].blockNumber).to.equal(1)
       expect(response).to.be.null
     })
   })

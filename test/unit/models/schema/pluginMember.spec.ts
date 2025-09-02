@@ -153,6 +153,119 @@ describe('Model: PluginMember', () => {
     expect(createdPluginMember.memberAddress).to.eq(rawPluginMember.memberAddress)
   })
 
+  it('Should create PluginMember with existing id', async () => {
+    const existingId = 'custom-id-12345'
+    const pluginMemberWithId = {
+      ...rawPluginMember,
+      id: existingId,
+    }
+    const pluginMember = await Models.PluginMember.create(pluginMemberWithId)
+    expect(pluginMember.id).to.eq(existingId)
+  })
+
+  it('should findMapping', async () => {
+    const createdPluginMember = await Models.PluginMember.create(rawPluginMember)
+    const foundMapping = await Models.PluginMember.findMapping({
+      memberAddress: rawPluginMember.memberAddress!,
+      daoAddress: rawPluginMember.daoAddress!,
+      pluginAddress: rawPluginMember.pluginAddress!,
+      network: rawPluginMember.network!,
+    })
+    expect(foundMapping?.id).to.eq(createdPluginMember.id)
+  })
+
+  it('should findByPlugin', async () => {
+    const uniquePluginAddress = `0x${Date.now().toString(16).padEnd(40, '0')}`
+    const testPluginMember = {
+      ...rawPluginMember,
+      pluginAddress: uniquePluginAddress,
+    }
+    await Models.PluginMember.create(testPluginMember)
+
+    const pluginMembers = await Models.PluginMember.findByPlugin(rawPluginMember.network!, uniquePluginAddress)
+    expect(pluginMembers).to.have.lengthOf(1)
+    expect(pluginMembers[0].pluginAddress).to.eq(uniquePluginAddress)
+  })
+
+  it('should findByDao', async () => {
+    const uniqueDaoAddress = `0x${Date.now().toString(16).padEnd(40, '0')}`
+    const testPluginMember = {
+      ...rawPluginMember,
+      daoAddress: uniqueDaoAddress,
+    }
+    await Models.PluginMember.create(testPluginMember)
+
+    const daoMembers = await Models.PluginMember.findByDao(rawPluginMember.network!, uniqueDaoAddress)
+    expect(daoMembers).to.have.lengthOf(1)
+    expect(daoMembers[0].daoAddress).to.eq(uniqueDaoAddress)
+  })
+
+  it('should not update when value is equal', async () => {
+    const pluginMember = await Models.PluginMember.create(rawPluginMember)
+    const saveSpy = sandbox.spy(pluginMember, 'save')
+
+    // Update with the same value
+    await pluginMember.update({
+      daoAddress: rawPluginMember.daoAddress,
+    })
+
+    // Save should still be called but the value should remain the same
+    expect(saveSpy.calledOnce).to.be.true
+    expect(pluginMember.daoAddress).to.eq(rawPluginMember.daoAddress)
+  })
+
+  it('should countUniqueMembers', async () => {
+    const uniqueDaoAddress = `0x${Date.now().toString(16).padEnd(40, '0')}`
+
+    // Create multiple members for the same DAO with one duplicate member
+    await Models.PluginMember.create({
+      memberAddress: '0xAAA456789012345678901234567890123456789A',
+      pluginAddress: '0xBBB456789012345678901234567890123456789B',
+      daoAddress: uniqueDaoAddress,
+      network: rawPluginMember.network,
+    })
+
+    await Models.PluginMember.create({
+      memberAddress: '0xCCC456789012345678901234567890123456789C',
+      pluginAddress: '0xDDD456789012345678901234567890123456789D',
+      daoAddress: uniqueDaoAddress,
+      network: rawPluginMember.network,
+    })
+
+    // Same member, different plugin
+    await Models.PluginMember.create({
+      memberAddress: '0xAAA456789012345678901234567890123456789A',
+      pluginAddress: '0xEEE456789012345678901234567890123456789E',
+      daoAddress: uniqueDaoAddress,
+      network: rawPluginMember.network,
+    })
+
+    const count = await Models.PluginMember.countUniqueMembers(uniqueDaoAddress, rawPluginMember.network!)
+    expect(count).to.eq(2) // Only 2 unique members
+  })
+
+  it('should countUniqueMembers with transaction options', async () => {
+    const uniqueDaoAddress = `0x${(Date.now() + 1).toString(16).padEnd(40, '0')}`
+
+    await Models.PluginMember.create({
+      memberAddress: '0xFFF456789012345678901234567890123456789F',
+      pluginAddress: '0x111456789012345678901234567890123456789A',
+      daoAddress: uniqueDaoAddress,
+      network: rawPluginMember.network,
+    })
+
+    // Test that the method can accept options parameter (covers the optional parameter branch)
+    const count = await Models.PluginMember.countUniqueMembers(uniqueDaoAddress, rawPluginMember.network!, {})
+
+    expect(count).to.eq(1)
+  })
+
+  it('should return 0 when no members exist for countUniqueMembers', async () => {
+    const nonExistentDaoAddress = `0x${Date.now().toString(16).padEnd(40, '0')}`
+    const count = await Models.PluginMember.countUniqueMembers(nonExistentDaoAddress, rawPluginMember.network!)
+    expect(count).to.eq(0)
+  })
+
   describe('findAndPaginate', () => {
     beforeEach(async () => {
       // Clean up before creating test data
@@ -360,6 +473,59 @@ describe('Model: PluginMember', () => {
       expect(response.data[0].metrics).to.exist
       expect(response.data[0].metrics.voteCount).to.eq(10)
       expect(response.data[0].metrics.proposalCount).to.eq(5)
+    })
+
+    it('should return null metrics when no plugin metrics exist', async () => {
+      // Don't create any plugin metrics for this test
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const extraParams = {
+        pluginAddress: rawPluginMember.pluginAddress,
+        network: rawPluginMember.network,
+      }
+
+      const response = await Models.PluginMember.findAndPaginate({
+        paginationParams,
+        extraParams,
+      })
+
+      expect(response).to.have.property('data').with.lengthOf(1)
+      expect(response.data[0].metrics).to.be.null
+    })
+
+    it('should handle empty result when no totalRecords exist', async () => {
+      // Delete the plugin member to create an empty result scenario
+      await Models.PluginMember.deleteMany({})
+
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+
+      const extraParams = {
+        pluginAddress: rawPluginMember.pluginAddress,
+        network: rawPluginMember.network,
+      }
+
+      const response = await Models.PluginMember.findAndPaginate({
+        paginationParams,
+        extraParams,
+      })
+
+      expect(response).to.have.property('data').that.is.empty
+      expect(response.metadata.totalRecords).to.eq(0)
+      expect(response.metadata.page).to.eq(1)
+      expect(response.metadata.pageSize).to.eq(10)
+      expect(response.metadata.totalPages).to.eq(1) // Based on ModelUtils.paginateEmptyResponse
     })
   })
 })

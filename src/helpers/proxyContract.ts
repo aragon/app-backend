@@ -16,7 +16,6 @@ const ProxyContractHelper = {
    * 0x363d3d373d3d3d363d73[20-byte implementation address]5af43d82803e903d91602b57fd5bf3
    *
    **/
-
   _getImplementationForMinimalProxy(byteCode: string): HexAddress | null {
     const minimalProxyPattern = '0x363d3d373d3d3d363d73'
     const minimalProxyPatternLength = minimalProxyPattern.length

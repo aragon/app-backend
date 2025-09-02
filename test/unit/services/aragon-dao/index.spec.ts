@@ -91,7 +91,6 @@ describe('AragonDao: index', () => {
         daoTransactionsStub.calledOnceWith({
           daoAddress: '0xDaoAddress',
           network: NetworksEnum.ethereumMainnet,
-          proposalId: undefined,
         }),
       ).to.be.true
     })
@@ -113,7 +112,6 @@ describe('AragonDao: index', () => {
         daoTransactionsStub.calledOnceWith({
           daoAddress: '0xDaoAddress',
           network: NetworksEnum.ethereumMainnet,
-          proposalId: '1',
         }),
       ).to.be.true
     })

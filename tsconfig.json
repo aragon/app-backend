@@ -30,11 +30,12 @@
       "@test/*": ["./test/*"],
       "@aragonContracts/*": ["./src/services/aragonContracts/*"],
       "@handlers/*": ["./src/handlers/*"],
-      "@plugins/*": ["./src/services/aragon-plugins/*"]
+      "@plugins/*": ["./src/services/aragon-plugins/*"],
+      "@transfers": ["./src/modules/transfers/index"]
     },
     "esModuleInterop": true,
     "resolveJsonModule": true
   },
-  "include": ["./**/*"],
-  "exclude": ["node_modules", "types"]
+  "include": ["./**/*", "./test/types.d.ts"],
+  "exclude": ["node_modules"]
 }

@@ -67,6 +67,24 @@ const LockToVoteHelper = {
       return '0'
     }
   },
+
+  async getRequiredVotingPowerForProposal(
+    conditionAddress: HexAddress,
+    userAddress: HexAddress,
+    network: NetworksEnum,
+  ) {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const abi = ['function getRequiredLockAmount(address) view returns (uint256)']
+    const iFace = new Interface(abi)
+    const data = iFace.encodeFunctionData('getRequiredLockAmount', [userAddress])
+    const params = { to: conditionAddress, data }
+    try {
+      const power = await provider.call(params)
+      return BigInt(power).toString()
+    } catch (error) {
+      return null
+    }
+  },
 }
 
 export default LockToVoteHelper

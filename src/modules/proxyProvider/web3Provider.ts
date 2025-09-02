@@ -1,11 +1,5 @@
 import logger from '@logger'
-import {
-  type IAlchemyTransferResponse,
-  ITransactionType,
-  type IWeb3Provider,
-  type IWeb3TokenBalance,
-  NetworksEnum,
-} from '@types'
+import { type IWeb3Provider, type IWeb3TokenBalance, NetworksEnum } from '@types'
 import { ProxyToken } from '@modules/proxyToken'
 import utils from '@helpers/utils'
 import Alchemy from '@helpers/alchemy'
@@ -13,12 +7,9 @@ import Web3Utils from '@helpers/web3Utils'
 import BlockScoutHelper from '@helpers/blockScout'
 import Web3Helper from '@helpers/web3'
 import CovalentHelper from '@helpers/covalent'
-import BlockchainTransferCrawler from '@modules/blockchainTransferCrawler'
 import { RateModule } from '@modules/rates'
-import TokenUtils from '@helpers/tokenUtils'
 import AnkrHelper from '@helpers/ankrHelper'
 import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
-import ConfigIndexerHelper from '@helpers/configIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ProxyWeb3' })
 
@@ -152,68 +143,6 @@ const Web3Provider: IWeb3Provider = {
       totalHolders: 0,
       totalSupply: '0',
     }
-  },
-
-  fetchAddressTxns: async ({ address, network, blockNumber }) => {
-    const category = TokenUtils.getCategories()
-    const txLogs: any[] = []
-    const depositTxCrawler = new BlockchainTransferCrawler({
-      network,
-      filter: {
-        toAddress: address,
-        fromBlock: blockNumber,
-        category,
-      },
-      onTx: async (txLog: IAlchemyTransferResponse) => {
-        const timestamp = await Web3Helper.getBlockTimestamp(txLog.blockNum, network)
-        txLogs.push({
-          ...txLog,
-          type: ITransactionType.deposit,
-          blockTimestamp: timestamp,
-          address,
-          network,
-        })
-      },
-      onError: async (error: any) => {
-        logger.error('Error deposit transfer', llo({ error, type: ITransactionType.deposit, dao: address, network }))
-      },
-      logService: ConfigIndexerHelper.builders.deposit(network, address),
-      stopOnError: true,
-    })
-
-    // txs from daoAddress
-    const withdrawTxCrawler = new BlockchainTransferCrawler({
-      network,
-      filter: {
-        fromAddress: address,
-        fromBlock: blockNumber,
-        category,
-      },
-      onTx: async (txLog: IAlchemyTransferResponse) => {
-        const timestamp = await Web3Helper.getBlockTimestamp(txLog.blockNum, network)
-        txLogs.push({
-          ...txLog,
-          type: ITransactionType.withdraw,
-          blockTimestamp: timestamp,
-          address,
-          network,
-        })
-      },
-      onError: async (error: any) => {
-        logger.error('Error withdraw transfer', llo({ error, type: ITransactionType.withdraw, address, network }))
-      },
-      logService: ConfigIndexerHelper.builders.withdraw(network, address),
-      stopOnError: true,
-    })
-
-    await Promise.all([depositTxCrawler.crawl(), withdrawTxCrawler.crawl()])
-
-    return txLogs.sort((a, b) => {
-      const aBlockNum = Number(a.blockNum)
-      const bBlockNum = Number(b.blockNum)
-      if (aBlockNum !== bBlockNum) return aBlockNum - bBlockNum
-      return aBlockNum - bBlockNum
-    })
   },
 
   fetchTokenPrice: async ({ network, address, pastDays }: any): Promise<any> => {

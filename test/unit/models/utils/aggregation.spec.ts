@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
-import { IPluginStatus, ITransferSide, ITransferType, NetworksEnum } from '@types'
+import { IPluginStatus, NetworksEnum } from '@types'
 
 describe('AggregationQueryHelper', () => {
   let sandbox: SinonSandbox

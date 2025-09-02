@@ -1,11 +1,10 @@
 import {
   type HexAddress,
-  type ICampaignMetadata,
   type ILogInfo,
   type IMetadata,
   type IProposalMetadata,
-  ITransactionType,
   type NetworksEnum,
+  type ICampaignMetadata,
 } from '@types'
 import { AbiCoder, ethers, getAddress, Interface, type Log, type LogDescription, type TransactionReceipt } from 'ethers'
 import logger from '@logger'
@@ -186,24 +185,6 @@ const Web3Utils = {
     }
 
     return { from, to, amount: Number(amount) }
-  },
-
-  getActionTransactionType(from: string | null, to: string | null, daoAddress: string): ITransactionType {
-    // If from/to both aren't equal to dao, it means
-    // dao must have been approved for the `tokenId`
-    // and played the role of transferring between 2 parties.
-    if (from !== daoAddress && to !== daoAddress) {
-      return ITransactionType.externalTransfer
-    }
-
-    if (from !== daoAddress && to === daoAddress) {
-      // 1. some party `y` approved `x` tokenId to the dao.
-      // 2. dao calls transferFrom as an action to transfer it from `y` to itself.
-      return ITransactionType.deposit
-    }
-
-    // from is dao address, to is some other address
-    return ITransactionType.withdraw
   },
 
   getMethodSignature(data: any): string {

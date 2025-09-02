@@ -426,38 +426,6 @@ describe('Helpers:Web3Utils', () => {
     })
   })
 
-  describe('getActionTransactionType', () => {
-    it('should return externalTransfer if neither from nor to is daoAddress', () => {
-      const from = '0xfromAddress'
-      const to = '0xtoAddress'
-      const daoAddress = '0xdaoAddress'
-
-      const result = Web3Utils.getActionTransactionType(from, to, daoAddress)
-
-      expect(result).to.equal(ITransactionType.externalTransfer)
-    })
-
-    it('should return deposit if from is not daoAddress and to is daoAddress', () => {
-      const from = '0xfromAddress'
-      const to = '0xdaoAddress'
-      const daoAddress = '0xdaoAddress'
-
-      const result = Web3Utils.getActionTransactionType(from, to, daoAddress)
-
-      expect(result).to.equal(ITransactionType.deposit)
-    })
-
-    it('should return withdraw if from is daoAddress and to is not daoAddress', () => {
-      const from = '0xdaoAddress'
-      const to = '0xtoAddress'
-      const daoAddress = '0xdaoAddress'
-
-      const result = Web3Utils.getActionTransactionType(from, to, daoAddress)
-
-      expect(result).to.equal(ITransactionType.withdraw)
-    })
-  })
-
   it('getMethodSignature', () => {
     const data = '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890'
     const result = Web3Utils.getMethodSignature(data)

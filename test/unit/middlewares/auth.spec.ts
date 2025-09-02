@@ -1,6 +1,6 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
+const { expect } = chai
 import { ErrorKeyEnum, IJwtTokenType } from '@types'
 import JwtHelper from '@helpers/jwt'
 import AuthMiddleware from '@middlewares/auth'
@@ -24,7 +24,9 @@ describe('middlewares: auth', () => {
       const token = AuthMiddleware._generateJWTLogin('tokenValue', 'userAgent', IJwtTokenType.admin)
 
       expect(jwtStub.calledOnce).to.be.true
-      expect(jwtStub.calledWith(sinon.match({ auth: 'aragon-admin', token: 'tokenValue' }))).to.be.true
+      const jwtCallArgs = jwtStub.firstCall.args[0]
+      expect(jwtCallArgs).to.have.property('auth', 'aragon-admin')
+      expect(jwtCallArgs).to.have.property('token', 'tokenValue')
       expect(token).to.equal('mocked_jwt')
     })
   })

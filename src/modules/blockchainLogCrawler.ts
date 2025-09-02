@@ -56,7 +56,7 @@ class BlockchainLogCrawler {
         address: opts.address,
         fromBlock: opts.fromBlock || 0,
         toBlock: opts.toBlock || 'latest',
-        topics: this.buildTopics(opts.events),
+        topics: this.crawlParams.isTopicObject ? opts.events[0].topic : this.buildTopics(opts.events),
       },
       nbSuccess: 0,
       nbError: 0,
@@ -283,23 +283,38 @@ class BlockchainLogCrawler {
     try {
       const coreProvider = await ProviderModule.getAnyRpcProvider(this.crawlParams.network)
 
-      const logs = await retryRequest(async () =>
-        coreProvider.getLogs({
-          fromBlock: currentBlock,
-          toBlock,
-          address: this.crawlParams.address,
-        }),
-      )
+      // If isTopicObject is set, use the complex topic filter directly
+      if (this.crawlParams.isTopicObject) {
+        const logs = await retryRequest(async () =>
+          coreProvider.getLogs({
+            fromBlock: currentBlock,
+            toBlock,
+            address: this.crawlParams.address,
+            topics: this.crawlSetting.filter.topics as any, // Use the complex topic filter
+          }),
+        )
 
-      let resultLogs = logs.filter((log: any) => {
-        return this.crawlSetting.filter.topics!.includes(log.topics[0])
-      })
+        allLogs = logs
+      } else {
+        // Original behavior: get all logs and filter by topic[0]
+        const logs = await retryRequest(async () =>
+          coreProvider.getLogs({
+            fromBlock: currentBlock,
+            toBlock,
+            address: this.crawlParams.address,
+          }),
+        )
 
-      if (this.crawlParams.filterLogs && resultLogs.length > 0) {
-        resultLogs = await this.crawlParams.filterLogs(resultLogs)
+        const resultLogs = logs.filter((log: any) => {
+          return this.crawlSetting.filter.topics!.includes(log.topics[0])
+        })
+
+        allLogs = resultLogs
       }
 
-      allLogs = resultLogs
+      if (this.crawlParams.filterLogs && allLogs.length > 0) {
+        allLogs = await this.crawlParams.filterLogs(allLogs)
+      }
     } catch (error: any) {
       if (this.isBatchSizeError(error)) {
         logger.warn(
@@ -388,7 +403,37 @@ class BlockchainLogCrawler {
     try {
       const url = this.getProviderUrl()!
 
-      const topicChunk = this.crawlParams.isTopicObject ? topics : utils.chunkArray(topics, 4)
+      // Handle topic filter objects (like [transferTopic, null, daoAddress])
+      if (this.crawlParams.isTopicObject) {
+        const requestId = Math.random().toString(36).substring(2, 15)
+        const batchRequests = [
+          {
+            jsonrpc: '2.0',
+            id: requestId,
+            method: 'eth_getLogs',
+            params: [
+              {
+                fromBlock: `0x${currentBlock.toString(16)}`,
+                toBlock: `0x${toBlock.toString(16)}`,
+                address: this.crawlParams.address,
+                topics, // Pass the topics array as-is for complex filtering
+              },
+            ],
+          },
+        ]
+
+        const response = await retryRequest(async () =>
+          BottleneckModule.getNodeLimiter(this.crawlParams.network).schedule(async () =>
+            axios.post(url, batchRequests, {
+              headers: { 'Content-Type': 'application/json' },
+            }),
+          ),
+        )
+        return response.data
+      }
+
+      // Handle regular topic hashes (chunk them for batch processing)
+      const topicChunk = utils.chunkArray(topics as string[], 4)
       const batchRequests = topicChunk.reduce((req: any, chunk: string[]) => {
         const requestId = Math.random().toString(36).substring(2, 15)
         req.push({
@@ -420,7 +465,7 @@ class BlockchainLogCrawler {
       if (this.isBatchSizeError(error)) {
         return [{ error }]
       }
-      logger.error('error executeBatchRequest', { error, topics, currentBlock, toBlock })
+      logger.warn('error executeBatchRequest', { error, topics, currentBlock, toBlock })
       throw error
     }
   }
@@ -602,7 +647,13 @@ class BlockchainLogCrawler {
     return events
       .map(item => {
         if (!item?.topic) {
-          logger.error(`Topic hash not found for event ${item?.event}`, llo({ ...this.parseCrawlerInfoLog(), item }))
+          logger.error(
+            `Topic hash not found for event ${item?.event}`,
+            llo({
+              ...this.parseCrawlerInfoLog(),
+              item,
+            }),
+          )
           return null
         }
 
@@ -715,6 +766,7 @@ class BlockchainLogCrawler {
       'Consider reducing your block range',
       'Query returned more than 1000000 results',
       'Cannot create a string longer',
+      'Response is too big',
     ]
 
     return messages.some(msg => error.message?.includes(msg))
@@ -735,7 +787,12 @@ class BlockchainLogCrawler {
     }
   }
 
-  getParallelConfig(logCount?: number): { enable: boolean; concurrency: number; batchSize: number; useBatch: boolean } {
+  getParallelConfig(logCount?: number): {
+    enable: boolean
+    concurrency: number
+    batchSize: number
+    useBatch: boolean
+  } {
     const parallel = this.crawlParams.parallel
 
     // Default disabled config
@@ -870,6 +927,12 @@ class BlockchainLogCrawler {
       const queue = async.queue<{ log: Log; index: number }>(async task => {
         const { log, index } = task
 
+        // Check for shutdown before processing
+        if (this.crawlSetting.shutdown) {
+          processedCount++
+          return
+        }
+
         // Create unique key using blockNumber, transactionHash, transactionIndex, and logIndex
         // This ensures uniqueness even when multiple events from same address in same tx
         const logKey = `${log.blockNumber}-${log.transactionHash}-${log.transactionIndex}-${log.index}`
@@ -953,8 +1016,8 @@ class BlockchainLogCrawler {
           'Parallel processing queue error',
           llo({
             error,
-            transactionHash: task.log.transactionHash,
-            logIndex: task.index,
+            transactionHash: task?.log?.transactionHash,
+            logIndex: task?.index,
             ...this.parseCrawlerInfoLog(),
           }),
         )
@@ -1009,7 +1072,15 @@ class BlockchainLogCrawler {
     const parallelConfig = this.getParallelConfig(logs.length)
 
     // Group logs by event type and handler
-    const eventBatches = new Map<string, Array<{ log: Log; parsedEvent: LogDescription; info: any; handler: any }>>()
+    const eventBatches = new Map<
+      string,
+      Array<{
+        log: Log
+        parsedEvent: LogDescription
+        info: any
+        handler: any
+      }>
+    >()
     let highestBlockNumber = 0
 
     // First pass: parse all logs and group by event type and handler

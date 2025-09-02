@@ -588,7 +588,7 @@ export const ProposalHandler = {
       await Promise.allSettled([
         RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
           id: proposal.daoAddress,
-          params: { address: proposal.daoAddress, network: info.network, proposalId: proposal.id },
+          params: { address: proposal.daoAddress, network: info.network },
         }),
         RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
           id: proposal.daoAddress,
