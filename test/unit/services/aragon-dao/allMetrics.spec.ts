@@ -11,12 +11,29 @@ import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
 import Web3Helper from '@helpers/web3'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
+import * as retryRequestModule from '@helpers/retryRequest'
+import BottleneckModule from '@modules/bottleneck'
 
 describe('AragonDao:AllMetrics', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    // Stub retryRequest to execute immediately without retries
+    sandbox.stub(retryRequestModule, 'retryRequest').callsFake(async fn => {
+      try {
+        return await fn()
+      } catch (error) {
+        throw error
+      }
+    })
+    // Stub BottleneckModule rate limiters to execute immediately without delays
+    sandbox.stub(BottleneckModule, 'getNodeLimiter').returns({
+      schedule: sandbox.stub().callsFake(async fn => fn()),
+    } as any)
+    sandbox.stub(BottleneckModule, 'getAlchemyBalanceLimiter').returns({
+      schedule: sandbox.stub().callsFake(async fn => fn()),
+    } as any)
   })
 
   afterEach(async () => {
@@ -147,6 +164,27 @@ describe('AragonDao:AllMetrics', () => {
       expect(crawlerStub.calledOnce).to.be.true
       expect(stubFindPlugin.notCalled).to.be.true
     })
+
+    it('should skip unsupported plugin proposals', async () => {
+      const stubLogger = sandbox.stub(logger, 'verbose')
+      const stubProposalTokenMetrics = sandbox.stub(ProposalMetrics, 'proposalTokenVotingMetrics').resolves()
+      const stubProposalMultisigMetrics = sandbox.stub(ProposalMetrics, 'proposalMultisigMetrics').resolves()
+      const stubFindPlugin = sandbox
+        .stub(Models.Plugin, 'findByAddress')
+        .resolves({ interfaceType: IPluginInterfaceType.tokenVoting, isSupported: false } as any)
+
+      const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
+        await this.onDocument({ pluginAddress: '0x789', proposalIndex: '3', network: NetworksEnum.ethereumMainnet })
+      })
+
+      await AllMetrics.allProposalMetrics(NetworksEnum.ethereumMainnet)
+
+      expect(stubFindPlugin.calledOnce).to.be.true
+      expect(stubProposalTokenMetrics.called).to.be.false
+      expect(stubProposalMultisigMetrics.called).to.be.false
+      expect(crawlerStub.calledOnce).to.be.true
+      expect(stubLogger.calledWith('End allProposalMetrics' as any)).to.be.true
+    })
   })
 
   describe('rebaseTokens', () => {
@@ -165,24 +203,32 @@ describe('AragonDao:AllMetrics', () => {
       const stubGetBlockTimestamp = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123456)
       const stubGetPastVotes = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('500')
 
+      // Import and stub ProxyToken
+      const { ProxyToken } = require('@modules/proxyToken')
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ clockMode: 'BlockNumber' })
+
       const docStub = {
         update: sandbox.stub().resolves(),
-        address: '0x123',
+        memberAddress: '0x123',
         tokenAddress: '0x01403157c847B2c0291c05DF5055876eB4e039bc',
-        lastSyncVotingPowerBlockNumber: 100,
+        lastVPBlockNumber: 100,
         votingPower: '300',
         network: NetworksEnum.ethereumSepolia,
       }
 
+      // Mock DBCrawler constructor to avoid instance creation delays
+      const originalConstructor = DBCrawler
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
+        // Immediately call onDocument without any queue processing
         await this.onDocument(docStub)
+        return { nbSuccess: 1, nbError: 0, nbTotal: 1 }
       })
 
       await AllMetrics.rebaseTokens(NetworksEnum.ethereumSepolia)
 
       expect(stubGetBlockTimestamp.calledOnce).to.be.true
       expect(stubGetPastVotes.calledOnce).to.be.true
-      expect(docStub.update.calledOnceWith({ votingPower: '500', lastSyncVotingPowerBlockNumber: 100 })).to.be.true
+      expect(docStub.update.calledOnceWith({ votingPower: '500', lastVPBlockNumber: 100 })).to.be.true
       expect(stubLogger.calledWith('End rebaseTokens' as any)).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
     })

@@ -1,6 +1,5 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 import { type IPluginRawStatus, type IPluginStatus, type ISettingStatus } from '@src/types/plugin'
-import { type ITransferSide, type ITransferType } from '@src/types/transfer'
 
 export interface IQueryGetPlugin {
   transactionHash: HexAddress
@@ -91,6 +90,7 @@ export interface IAggProposalParams {
 }
 
 export interface IAggDaoMemberMappingParams {
+  votingPower?: string
   tokenAddress?: string
   memberAddress?: string
   daoAddress?: string
@@ -130,14 +130,6 @@ export interface IAggMemberParams {
   memberAddress?: string
 }
 
-export interface IAggMemberTransactionParams {
-  network?: string
-  memberAddress?: string
-  tokenAddress?: string
-  type?: ITransferType
-  side?: ITransferSide
-}
-
 export interface IAggPluginParams {
   addresses?: string | string[]
   daoAddress?: string
@@ -167,13 +159,18 @@ export interface IAggPluginProjectFields {
   status?: 1
   isSupported: 1
   interfaceType: 1
+  enableOfacCheck: 1
+  blockedCountries: 1
+  termsConditionsUrl: 1
   tokenAddress?: 1
   metadataIpfs?: 1
   release?: 1
   build?: 1
   subdomain?: 1
   isProcess: 1
+  proposalCreationConditionAddress: 1
   conditionAddress: 1
+  lockManagerAddress: 1
   isBody: 1
   isSubPlugin: 1
   totalStages: 1
@@ -212,28 +209,32 @@ export interface IAggMemberProjectFields {
   avatar?: 1
 }
 
-export interface IAggMemberBalanceParams {
+export interface IAggLockToVoteMemberParams {
+  lockManagerAddress?: string
+  network: string
+  memberAddress?: string
+}
+
+export interface IAggTokenMemberParams {
   tokenAddress?: string
   network: string
   memberAddress?: string
 }
 
-export interface IAggMemberBalanceProjectFields {
-  amount?: 1
+export interface IAggTokenMemberProjectFields {
   votingPower?: 1
-}
-
-export interface IAggMemberMetricsParams {
-  network?: string
-  memberAddress?: string
-  pluginAddress?: string
-}
-
-export interface IAggMemberMetricsProjectFields {
-  _id?: 0 | 1
-  lastActivity?: 1
-  firstActivity?: 1
   delegateReceivedCount?: 1
+}
+
+export interface IAggPluginMetricsParams {
+  pluginAddress?: string
+  memberAddress?: string
+  network: string
+}
+
+export interface IAggPluginMetricsProjectFields {
   voteCount?: 1
   proposalCount?: 1
+  lastActivity?: 1
+  firstActivity?: 1
 }

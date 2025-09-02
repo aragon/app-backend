@@ -33,7 +33,6 @@ class Link {
     customName,
   },
 })
-@index({ id: 1 }, { unique: true })
 @index({ daoAddress: 1 })
 @index({ network: 1, pluginAddress: 1, blockNumber: -1 })
 export default class LogMetadata extends Model {
@@ -96,6 +95,15 @@ export default class LogMetadata extends Model {
 
   @prop({ type: () => String, enum: IMetadataType, default: IMetadataType.dao })
   public metadataType!: IMetadataType
+
+  @prop({ type: () => [String], default: [] })
+  public blockedCountries?: string[]
+
+  @prop({ type: () => String, default: null })
+  public termsConditionsUrl?: string | null
+
+  @prop({ type: () => Boolean, default: null })
+  public enableOfacCheck?: boolean | null
 
   @prop({ type: () => String, default: null })
   static async create(rawData: Partial<LogMetadata>, tOpts?: SaveOptions) {

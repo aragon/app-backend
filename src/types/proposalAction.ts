@@ -1,5 +1,5 @@
 import { type ITokenMetadata } from '@src/types/token'
-import { type HexAddress, type NetworksEnum } from '@src/types/networks'
+import { type NetworksEnum } from '@src/types/networks'
 
 export enum ProposalActionType {
   Transfer = 'Transfer',
@@ -10,7 +10,8 @@ export enum ProposalActionType {
   MultisigRemoveMembers = 'MultisigRemoveMembers',
   MetadataUpdate = 'MetadataUpdate',
   UpdateMultiSigSettings = 'UpdateMultiSigSettings',
-  UpdateVoteSettings = 'UpdateVoteSettings',
+  UpdateTokenVoteSettings = 'UpdateTokenVoteSettings',
+  UpdateLockToVoteVoteSettings = 'UpdateLockToVoteVoteSettings',
   StagesUpdated = 'StagesUpdated',
   MetadataPluginUpdate = 'MetadataPluginUpdate',
 }
@@ -38,18 +39,6 @@ export enum KnownActionSignature {
   UpdateMultiSigSettings = 'updateMultisigSettings(tuple)',
   UpdateVoteSettings = 'updateVotingSettings(tuple)',
   StagesUpdated = 'updateStages(tuple[])',
-}
-
-export interface IProposalRawAction {
-  to: HexAddress
-  value: string
-  data: HexAddress
-  functionName: string
-  textSignature: string
-  decoded: any[]
-  contractName: string
-  type: ProposalActionType
-  metadata: IActionMetadata
 }
 
 export interface ITransfacerActionMeta {

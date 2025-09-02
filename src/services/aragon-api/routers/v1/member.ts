@@ -21,6 +21,7 @@ const MemberRouter = {
       daoAddress: ctx.query.daoAddress as HexAddress,
       pluginAddress: ctx.query.pluginAddress as HexAddress,
       tokenAddress: ctx.query.tokenAddress as HexAddress,
+      lockManagerAddress: ctx.query.lockManagerAddress as HexAddress,
     }
     const pairParams: IPairParams = {
       daoId: ctx.query.daoId as string,
@@ -53,6 +54,7 @@ const MemberRouter = {
       daoAddress: ctx.query.daoAddress as HexAddress,
       pluginAddress: ctx.query.pluginAddress as HexAddress,
       tokenAddress: ctx.query.tokenAddress as HexAddress,
+      lockManagerAddress: ctx.query.lockManagerAddress as HexAddress,
     }
     const pairParams: IPairParams = {
       daoId: ctx.query.daoId as string,
@@ -108,7 +110,7 @@ const MemberRouter = {
     ctx.body = await MemberController.getMemberLocks(formattedExtraParams, formattedPaginationParams)
   },
 
-  router() {
+  router(): Router {
     const router = new Router()
 
     /**

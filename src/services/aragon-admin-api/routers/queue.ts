@@ -74,7 +74,7 @@ const QueueAdminRouter = {
     ctx.body = await QueueAdminController.recalculateProposalActions(formattedValues)
   },
 
-  router() {
+  router(): Router {
     const router = new Router()
     const authedAdmin = AuthMiddleware.authAssertAdmin()
 

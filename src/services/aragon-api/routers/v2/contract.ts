@@ -35,7 +35,7 @@ const ContractRouter = {
     ctx.body = await ContractController.decodeContractData(result.params)
   },
 
-  router() {
+  router(): Router {
     const router = new Router()
 
     /**

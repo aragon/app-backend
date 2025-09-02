@@ -128,6 +128,12 @@ describe('Helpers:PluginSlug', () => {
       expect(result).to.equal(IPluginSlug.spp)
     })
 
+    it('should return correct IPluginSlug for lockToVote interface type', () => {
+      const plugin = { interfaceType: IPluginInterfaceType.lockToVote } as any
+      const result = PluginSlug._defaultSlug(plugin)
+      expect(result).to.equal(IPluginSlug.locktovote)
+    })
+
     it('should return correct IPluginSlug for tokenVoting interface type', () => {
       const plugin = { interfaceType: IPluginInterfaceType.tokenVoting } as any
       const result = PluginSlug._defaultSlug(plugin)
@@ -144,6 +150,18 @@ describe('Helpers:PluginSlug', () => {
       const plugin = { interfaceType: IPluginInterfaceType.admin } as any
       const result = PluginSlug._defaultSlug(plugin)
       expect(result).to.equal(IPluginSlug.admin)
+    })
+
+    it('should return correct IPluginSlug for gauge interface type', () => {
+      const plugin = { interfaceType: IPluginInterfaceType.gauge } as any
+      const result = PluginSlug._defaultSlug(plugin)
+      expect(result).to.equal(IPluginSlug.gauge)
+    })
+
+    it('should return correct IPluginSlug for capitalDistributor interface type', () => {
+      const plugin = { interfaceType: IPluginInterfaceType.capitalDistributor } as any
+      const result = PluginSlug._defaultSlug(plugin)
+      expect(result).to.equal(IPluginSlug.capitalDistributor)
     })
 
     it('should return null for unrecognized interface type', () => {
@@ -229,20 +247,34 @@ describe('Helpers:PluginSlug', () => {
       expect(storedSlug?.slug).to.equal(slug)
     })
 
-    it.skip('should handle concurrent slug generation', async () => {
+    it('should handle concurrent slug generation', async () => {
       const baseKey = IPluginSlug.tokenvoting
 
-      const results = await Promise.all([
+      const results = (await Promise.all([
         PluginSlug.generateSlug(plugin, baseKey),
         PluginSlug.generateSlug(plugin2, baseKey),
         PluginSlug.generateSlug(plugin2, baseKey),
-      ])
+      ])) as any
 
-      const baseKeyCount = results.filter(key => key === baseKey).length
-      const baseKeyWithSuffixCount = results.filter(key => key === `${baseKey}_1`).length
+      // Count occurrences of each slug
+      const slugCounts = results.reduce(
+        (acc, slug) => {
+          acc[slug] = (acc[slug] || 0) + 1
+          return acc
+        },
+        {} as Record<string, number>,
+      )
 
-      expect(baseKeyCount).to.eq(1)
-      expect(baseKeyWithSuffixCount).to.eq(2)
+      // Should have exactly 2 unique slugs
+      const uniqueSlugs = Object.keys(slugCounts)
+      expect(uniqueSlugs).to.have.lengthOf(2, 'Should have exactly 2 unique slugs')
+      expect(uniqueSlugs).to.include(baseKey)
+      expect(uniqueSlugs).to.include(`${baseKey}_1`)
+
+      // One slug should appear twice (plugin2's calls), one should appear once (plugin's call)
+      const counts = Object.values(slugCounts)
+      expect(counts).to.include(2, 'One slug should appear twice (for plugin2)')
+      expect(counts).to.include(1, 'One slug should appear once (for plugin)')
     })
 
     it('should generate default slug if processKey is not provided and not existing', async () => {
@@ -318,6 +350,45 @@ describe('Helpers:PluginSlug', () => {
       const processKey = { key: 'value' }
       const storedSlug = await PluginSlug.generateSlug(plugin, processKey as any)
       expect(storedSlug).to.equal(IPluginSlug.tokenvoting)
+    })
+
+    it('should return null when plugin has unsupported interface type', async () => {
+      const unsupportedPlugin = await Models.Plugin.create({
+        id: 'test-plugin-unsupported',
+        address: '0x130',
+        daoAddress: '0xDAO',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.unknown,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabc130',
+        blockNumber: 1,
+      })
+
+      const result = await PluginSlug.generateSlug(unsupportedPlugin)
+      expect(result).to.be.null
+    })
+
+    it('should handle error when _createSlugWithRetries throws for default slug', async () => {
+      const errorStub = sandbox.stub(logger, 'error')
+      sandbox.stub(PluginSlug, '_parseProcessKey').returns(null)
+      sandbox.stub(Models.PluginSlug, 'findPluginSlug').resolves(null)
+      sandbox.stub(PluginSlug, '_createSlugWithRetries').rejects(new Error('Create slug failed'))
+
+      const result = await PluginSlug.generateSlug(plugin)
+
+      expect(result).to.be.null
+      expect(errorStub.calledWith('Error reserving default slug' as any)).to.be.true
+    })
+
+    it('should handle error when _createSlugWithRetries throws for parameterized slug', async () => {
+      const errorStub = sandbox.stub(logger, 'error')
+      sandbox.stub(Models.PluginSlug, 'findPluginSlug').resolves(null)
+      sandbox.stub(PluginSlug, '_createSlugWithRetries').rejects(new Error('Create slug failed'))
+
+      const result = await PluginSlug.generateSlug(plugin, 'custom')
+
+      expect(result).to.be.null
+      expect(errorStub.calledWith('Error reserving parameterized slug' as any)).to.be.true
     })
   })
 
@@ -614,6 +685,115 @@ describe('Helpers:PluginSlug', () => {
       expect(findPluginSlugStub.calledOnce).to.be.true
       expect(createStub.calledOnce).to.be.true
       expect(loggerStub.calledOnce).to.be.true
+    })
+
+    it('should handle error code 112 (concurrency error) and continue', async () => {
+      const baseSlug = 'concurrency-slug'
+      const warnStub = sandbox.stub(logger, 'warn')
+
+      const findPluginSlugStub = sandbox.stub(Models.PluginSlug, 'findPluginSlug').resolves(null)
+      const error112 = new Error('Write conflict')
+      ;(error112 as any).code = 112
+
+      const createStub = sandbox
+        .stub(Models.PluginSlug, 'create')
+        .onFirstCall()
+        .rejects(error112)
+        .onSecondCall()
+        .resolves()
+
+      const result = await PluginSlug._createSlugWithRetries(baseSlug, plugin, 2)
+
+      expect(result).to.equal(baseSlug)
+      expect(warnStub.calledWith('Encountered error code 112, skipping' as any)).to.be.true
+      expect(findPluginSlugStub.calledTwice).to.be.true
+      expect(createStub.calledTwice).to.be.true
+    })
+
+    it('should return null after maximum retries exceeded', async () => {
+      const baseSlug = 'max-retries-slug'
+      const errorStub = sandbox.stub(logger, 'error')
+
+      const findPluginSlugStub = sandbox.stub(Models.PluginSlug, 'findPluginSlug').resolves(null)
+      const duplicateError = new Error('Duplicate key')
+      ;(duplicateError as any).code = 11000
+
+      const createStub = sandbox.stub(Models.PluginSlug, 'create').rejects(duplicateError)
+
+      const result = await PluginSlug._createSlugWithRetries(baseSlug, plugin, 2)
+
+      expect(result).to.be.null
+      expect(errorStub.calledWith('Failed to generate unique slug after maximum retries' as any)).to.be.true
+      expect(createStub.calledTwice).to.be.true
+    })
+  })
+
+  describe('_updateSlugWithRetries', () => {
+    let plugin: Plugin
+    let pluginSlug: any
+
+    beforeEach(async () => {
+      plugin = await Models.Plugin.create({
+        id: 'test-plugin-update-retries',
+        address: '0x150',
+        daoAddress: '0xDAO',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabcdef',
+        blockNumber: 1,
+      })
+
+      pluginSlug = {
+        update: sandbox.stub(),
+        slug: 'old-slug',
+      }
+    })
+
+    it('should handle error code 112 (concurrency error) during update', async () => {
+      const newSlug = 'update-concurrency-slug'
+      const warnStub = sandbox.stub(logger, 'warn')
+
+      const error112 = new Error('Write conflict')
+      ;(error112 as any).code = 112
+
+      pluginSlug.update.onFirstCall().rejects(error112).onSecondCall().resolves()
+
+      const result = await PluginSlug._updateSlugWithRetries(newSlug, plugin, pluginSlug, 2)
+
+      expect(result).to.equal(newSlug)
+      expect(warnStub.calledWith('Encountered error code 112, skipping' as any)).to.be.true
+      expect(pluginSlug.update.calledTwice).to.be.true
+    })
+
+    it('should return null after maximum retries exceeded during update', async () => {
+      const newSlug = 'update-max-retries-slug'
+      const errorStub = sandbox.stub(logger, 'error')
+
+      const duplicateError = new Error('Duplicate key')
+      ;(duplicateError as any).code = 11000
+
+      pluginSlug.update.rejects(duplicateError)
+
+      const result = await PluginSlug._updateSlugWithRetries(newSlug, plugin, pluginSlug, 2)
+
+      expect(result).to.be.null
+      expect(errorStub.calledWith('Failed to update slug after maximum retries' as any)).to.be.true
+      expect(pluginSlug.update.calledTwice).to.be.true
+    })
+
+    it('should handle unexpected error during update', async () => {
+      const newSlug = 'update-error-slug'
+      const errorStub = sandbox.stub(logger, 'error')
+
+      const unexpectedError = new Error('Unexpected database error')
+      pluginSlug.update.rejects(unexpectedError)
+
+      const result = await PluginSlug._updateSlugWithRetries(newSlug, plugin, pluginSlug, 2)
+
+      expect(result).to.be.null
+      expect(errorStub.calledWith('Error updating slug' as any)).to.be.true
+      expect(pluginSlug.update.calledOnce).to.be.true
     })
   })
 })

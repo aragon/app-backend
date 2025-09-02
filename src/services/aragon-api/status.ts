@@ -6,7 +6,7 @@ const StatusRouter = {
     ctx.body = StatusController.getStatus()
   },
 
-  router() {
+  router(): Router {
     const router = new Router()
 
     /**

@@ -7,7 +7,7 @@ import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { ProposalHandler } from '@handlers/proposalHandler'
 import { expect } from 'chai'
 
-describe('Integration: Proposal', () => {
+describe('Integ: Proposal', () => {
   let sandbox: SinonSandbox
 
   before(async () => {

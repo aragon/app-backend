@@ -100,7 +100,7 @@ const ProposalRouter = {
     ctx.body = await ProposalController.canCreateProposal(formattedValues)
   },
 
-  router() {
+  router(): Router {
     const router = new Router()
 
     /**

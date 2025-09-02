@@ -1,7 +1,5 @@
 import { type HexAddress } from '@src/types/networks'
-import { type ITransactionType } from '@src/types/db'
 import { type ITokenType } from '@src/types/token'
-import { type ITransactionCategory } from '@src/types/alchemy'
 
 export interface ISubScanTokenBalance {
   contractAddress: HexAddress
@@ -49,20 +47,4 @@ export interface ISubScanRawContractDetails {
   name: string
   symbol: string
   priceUsd: string
-}
-
-export interface ISubScanAssetTransfer {
-  blockNum: number
-  from: HexAddress
-  to: HexAddress
-  uniqueId: string
-  blockTimestamp: number
-  type?: ITransactionType
-  value: number | null
-  hash: string
-  erc721TokenId?: string | null
-  erc1155Metadata?: any | null
-  tokenId?: string | null
-  category: ITransactionCategory
-  rawContract?: ISubScanRawContractDetails
 }

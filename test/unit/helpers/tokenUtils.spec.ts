@@ -1,10 +1,10 @@
 import { expect } from 'chai'
 import sinon, { SinonSandbox } from 'sinon'
 import TokenUtils from '@helpers/tokenUtils'
-import BlockScoutHelper from '@helpers/blockScout'
+import ProxyProvider from '@modules/proxyProvider'
 import CovalentHelper from '@helpers/covalent'
 import Web3Helper from '@helpers/web3'
-import { ITokenType, ITransactionCategory, NetworksEnum } from '@types'
+import { ITokenType, NetworksEnum } from '@types'
 import type Token from '@models/schema/token'
 import { Models } from '@dbModels'
 import logger from '@logger'
@@ -111,13 +111,13 @@ describe('TokenUtils', () => {
 
   describe('isTokenSyncable', () => {
     let findOneStub: sinon.SinonStub
-    let blockScoutStub: sinon.SinonStub
+    let proxyProviderStub: sinon.SinonStub
     let web3HelperStub: sinon.SinonStub
     let analyzeIfScamTokenStub: sinon.SinonStub
 
     beforeEach(() => {
       findOneStub = sandbox.stub(Models.Token, 'findOne')
-      blockScoutStub = sandbox.stub(BlockScoutHelper, 'getTokenFullDetails')
+      proxyProviderStub = sandbox.stub(ProxyProvider, 'fetchBasicTokenInfo')
       web3HelperStub = sandbox.stub(Web3Helper, 'getTokenNameAndSymbol')
       analyzeIfScamTokenStub = sandbox.stub(TokenUtils, 'analyzeIfScamToken')
     })
@@ -128,13 +128,13 @@ describe('TokenUtils', () => {
       const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
 
       expect(result).to.be.true
-      expect(blockScoutStub.called).to.be.false
+      expect(proxyProviderStub.called).to.be.false
       expect(web3HelperStub.called).to.be.false
     })
 
-    it('should return true if BlockScoutHelper returns valid non-scam token details', async () => {
+    it('should return true if ProxyProvider returns valid non-scam token details', async () => {
       findOneStub.resolves(null)
-      blockScoutStub.resolves({
+      proxyProviderStub.resolves({
         type: ITokenType.ERC20,
         name: 'TokenName',
         symbol: 'TKN',
@@ -148,9 +148,9 @@ describe('TokenUtils', () => {
       expect(web3HelperStub.called).to.be.false
     })
 
-    it('should return false if BlockScoutHelper returns scam token details', async () => {
+    it('should return false if ProxyProvider returns scam token details', async () => {
       findOneStub.resolves(null)
-      blockScoutStub.resolves({
+      proxyProviderStub.resolves({
         type: ITokenType.ERC20,
         name: 'Claim Free Tokens at scam.com',
         symbol: 'SCAM',
@@ -163,9 +163,9 @@ describe('TokenUtils', () => {
       expect(web3HelperStub.called).to.be.false
     })
 
-    it('should return false if BlockScoutHelper returns unknown token type', async () => {
+    it('should return false if ProxyProvider returns unknown token type', async () => {
       findOneStub.resolves(null)
-      blockScoutStub.resolves({
+      proxyProviderStub.resolves({
         type: ITokenType.unknown,
         name: 'TokenName',
         symbol: 'TKN',
@@ -176,9 +176,9 @@ describe('TokenUtils', () => {
       expect(result).to.be.false
     })
 
-    it('should try Web3Helper if BlockScoutHelper returns no details', async () => {
+    it('should try Web3Helper if ProxyProvider returns no details', async () => {
       findOneStub.resolves(null)
-      blockScoutStub.resolves(null)
+      proxyProviderStub.resolves(null)
       web3HelperStub.resolves({
         name: 'TokenName',
         symbol: 'TKN',
@@ -193,7 +193,7 @@ describe('TokenUtils', () => {
 
     it('should return false if Web3Helper returns scam token details', async () => {
       findOneStub.resolves(null)
-      blockScoutStub.resolves(null)
+      proxyProviderStub.resolves(null)
       web3HelperStub.resolves({
         name: 'Claim Rewards',
         symbol: 'scam.io',
@@ -205,9 +205,9 @@ describe('TokenUtils', () => {
       expect(result).to.be.false
     })
 
-    it('should return false if neither BlockScoutHelper nor Web3Helper returns valid details', async () => {
+    it('should return false if neither ProxyProvider nor Web3Helper returns valid details', async () => {
       findOneStub.resolves(null)
-      blockScoutStub.resolves(null)
+      proxyProviderStub.resolves(null)
       web3HelperStub.resolves({
         name: undefined,
         symbol: undefined,
@@ -226,9 +226,9 @@ describe('TokenUtils', () => {
       expect(result).to.be.false
     })
 
-    it('should handle null values from BlockScoutHelper properly', async () => {
+    it('should handle null values from ProxyProvider properly', async () => {
       findOneStub.resolves(null)
-      blockScoutStub.resolves({
+      proxyProviderStub.resolves({
         type: ITokenType.ERC20,
         name: null,
         symbol: null,
@@ -239,19 +239,6 @@ describe('TokenUtils', () => {
 
       expect(result).to.be.true
       expect(analyzeIfScamTokenStub.calledWith('', '')).to.be.true
-    })
-  })
-
-  describe('getCategories', () => {
-    it('should return correct number of categories', () => {
-      const result = TokenUtils.getCategories()
-      expect(result).to.be.an('array').with.lengthOf(4)
-      expect(result).to.include.members([
-        ITransactionCategory.ERC20,
-        ITransactionCategory.ERC721,
-        ITransactionCategory.ERC1155,
-        ITransactionCategory.External,
-      ])
     })
   })
 })

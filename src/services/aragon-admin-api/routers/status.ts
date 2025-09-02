@@ -6,7 +6,7 @@ const StatusAdminRouter = {
     ctx.body = StatusAdminController.getStatus()
   },
 
-  router() {
+  router(): Router {
     const router = new Router()
 
     /**

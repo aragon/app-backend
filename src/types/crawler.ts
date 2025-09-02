@@ -5,7 +5,9 @@ import { type Filter, type Log, type LogDescription } from 'ethers'
 
 export interface IIndexerConfigHandler {
   abi: any[]
-  handler: (event: LogDescription, info: ILogInfo, isHistorical?: boolean) => Promise<any>
+  handler:
+    | ((event: LogDescription, info: ILogInfo, isHistorical?: boolean) => Promise<any>)
+    | ((events: Array<{ parsedEvent: LogDescription; info: ILogInfo }>) => Promise<any>)
 }
 
 export interface IIndexerConfig {
@@ -21,6 +23,14 @@ export enum ICrawStrategy {
   getLogsByBatch = 'getLogsByBatch',
 }
 
+export interface IParallelConfig {
+  enable: boolean
+  concurrency?: number
+  batchSize?: number
+  autoScale?: boolean
+  useBatch?: boolean
+}
+
 export interface ICrawlParam {
   network: NetworksEnum
   fromBlock?: number
@@ -28,6 +38,7 @@ export interface ICrawlParam {
   address?: HexAddress | HexAddress[] | string | string[]
   events: IIndexerConfig[]
   stopOnError: boolean
+  parallel?: boolean | IParallelConfig
   onlyHistorical?: boolean
   oneBlockPerTime?: boolean
   filterLogs?: (logs: any) => Promise<any>
@@ -69,6 +80,20 @@ export enum IGovernanceErc20Logs {
   DelegateVotesChanged = 'DelegateVotesChanged',
 }
 
+export enum ILogToVoteLogs {
+  ProposalCreated = 'ProposalCreated',
+  ProposalExecuted = 'ProposalExecuted',
+  VoteCast = 'VoteCast',
+  VotingSettingsUpdated = 'VotingSettingsUpdated',
+  MetadataSet = 'MetadataSet',
+  VoteCleared = 'VoteCleared',
+}
+
+export enum ILockManager {
+  BalanceLocked = 'BalanceLocked',
+  BalanceUnlocked = 'BalanceUnlocked',
+}
+
 export enum IMultiSigLogs {
   MultisigSettingsUpdated = 'MultisigSettingsUpdated',
   MembersAdded = 'MembersAdded',
@@ -77,6 +102,18 @@ export enum IMultiSigLogs {
   ProposalCreated = 'ProposalCreated',
   ProposalExecuted = 'ProposalExecuted',
   MetadataSet = 'MetadataSet',
+}
+
+export enum ICapitalDistributorLogs {
+  MetadataSet = 'MetadataSet',
+  CampaignCreated = 'CampaignCreated',
+  CampaignDeactivated = 'CampaignDeactivated',
+  PayoutClaimed = 'PayoutClaimed',
+}
+
+export enum ICapitalDistributorStrategyEvents {
+  MerkleCampaignSet = 'MerkleCampaignSet',
+  MerkleCampaignUpdated = 'MerkleCampaignUpdated',
 }
 
 export enum IAdminLogs {
@@ -120,4 +157,14 @@ export enum ISelectorPermissionLogs {
   SelectorDisallowed = 'SelectorDisallowed',
   NativeTransfersAllowed = 'NativeTransfersAllowed',
   NativeTransfersDisallowed = 'NativeTransfersDisallowed',
+}
+
+export interface ICapitalDistributorStats {
+  totalClaimed: string // Sum of all claimed amounts from events
+  totalClaimable: string // Sum of the claimable amounts for all campaigns
+}
+
+export interface IUserCampaignStatus {
+  totalClaimed: string // Sum of all claimed amounts across all campaigns for the user
+  totalClaimable: string // Sum of all unclaimed amounts across all campaigns for the user
 }

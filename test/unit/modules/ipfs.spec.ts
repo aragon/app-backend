@@ -159,5 +159,61 @@ describe('Modules: IPFS', () => {
 
       expect(result).to.be.null
     })
+
+    it('should use PinataHelper.getData when it returns data', async function () {
+      const cidV0 = 'ipfs://QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM'
+      const expectedMetadata = { name: 'Example from Pinata' }
+
+      const stubPinataGetData = sandbox.stub(PinataHelper, 'getData').resolves(expectedMetadata)
+      const stubFetchMetadata = sandbox.stub(IPFSModule, '_fetchMetadata')
+
+      const result = await IPFSModule.fetchMetadata(cidV0)
+
+      expect(stubPinataGetData.calledOnceWith('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')).to.be.true
+      expect(stubFetchMetadata.called).to.be.false
+      expect(result).to.deep.equal(expectedMetadata)
+    })
+
+    it('should handle avatar transformation when avatar exists without path property', async function () {
+      const cidV0 = 'ipfs://QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM'
+      const expectedMetadata = { name: 'Example', avatar: 'directAvatar' }
+
+      const stubPinataGetData = sandbox.stub(PinataHelper, 'getData').resolves({
+        name: 'Example',
+        avatar: 'directAvatar',
+      })
+      const stubFetchMetadata = sandbox.stub(IPFSModule, '_fetchMetadata')
+
+      const result = await IPFSModule.fetchMetadata(cidV0)
+
+      expect(stubPinataGetData.calledOnceWith('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')).to.be.true
+      expect(stubFetchMetadata.called).to.be.false
+      expect(result).to.deep.equal(expectedMetadata)
+    })
+  })
+
+  describe('_fetchMetadata with HTTP errors', function () {
+    it('should handle non-OK HTTP response', async () => {
+      const metadatafetchretry = config.IPFS.METADATA_FETCH_RETRY
+      const metadatafetchdelay = config.IPFS.METADATA_FETCH_DELAY
+
+      config.IPFS.METADATA_FETCH_RETRY = 0
+      config.IPFS.METADATA_FETCH_DELAY = 0
+
+      sandbox.stub(global, 'fetch').resolves({
+        ok: false,
+        status: 404,
+      } as any)
+
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+
+      const result = await IPFSModule._fetchMetadata('cid')
+
+      expect(result).to.be.null
+      expect(loggerErrorStub.args[0][0]).to.eq('Failed to fetch metadata from IPFS')
+
+      config.IPFS.METADATA_FETCH_RETRY = metadatafetchretry
+      config.IPFS.METADATA_FETCH_DELAY = metadatafetchdelay
+    })
   })
 })

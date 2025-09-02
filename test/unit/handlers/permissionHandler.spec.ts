@@ -3,11 +3,10 @@ import * as sinon from 'sinon'
 import logger from '@logger'
 import { SinonSandbox } from 'sinon'
 import { PermissionHandler } from '@handlers/permissionHandler'
-import RabbitMQHelper from '@helpers/rabbitMQ'
 import { Models } from '@dbModels'
 import { NetworksEnum } from '@types'
 import { ethers } from 'ethers'
-import { ProxyMember } from '@modules/proxyMember'
+import { MemberGovernanceFactory } from '@src/governance'
 import { PluginHandler } from '@handlers/pluginHandler'
 import Utils from '@helpers/utils'
 
@@ -537,16 +536,23 @@ describe('Indexer: Permission Handler', () => {
         address: pluginAddress,
         interfaceType: 'admin',
       })
-      const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
-      const addToDaoStub = sandbox.stub(ProxyMember, 'addToDao')
-      const loggerInfo = sandbox.stub(logger, 'info')
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves({}),
+        delete: sandbox.stub().resolves(true),
+        updateDaoMetrics: sandbox.stub().resolves(),
+      }
+      const factoryStub = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      const loggerVerbose = sandbox.stub(logger, 'verbose')
 
       await PermissionHandler.handleForAdminPlugin(daoAddress, pluginAddress, network, where, add)
 
       expect(findExistingLog.calledOnce).to.be.true
-      expect(addToDaoStub.calledOnce).to.be.true
-      expect(sendMessage.calledOnce).to.be.true
-      expect(loggerInfo.calledOnce).to.be.true
+      expect(factoryStub.calledOnce).to.be.true
+      expect(mockGovernance.getOrCreate.calledOnce).to.be.true
+      expect(mockGovernance.getOrCreate.calledWith(where)).to.be.true
+      expect(mockGovernance.updateDaoMetrics.calledOnce).to.be.true
+      expect(loggerVerbose.calledOnce).to.be.true
     })
 
     it('should handle for admin plugin when removing', async () => {
@@ -562,15 +568,22 @@ describe('Indexer: Permission Handler', () => {
         address: pluginAddress,
         interfaceType: 'admin',
       })
-      const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
-      const removeFromDaoStub = sandbox.stub(ProxyMember, 'removeFromDao')
-      const loggerInfo = sandbox.stub(logger, 'info')
+      const mockGovernance = {
+        getOrCreate: sandbox.stub().resolves({}),
+        delete: sandbox.stub().resolves(true),
+        updateDaoMetrics: sandbox.stub().resolves(),
+      }
+      const factoryStub = sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      const loggerInfo = sandbox.stub(logger, 'verbose')
 
       await PermissionHandler.handleForAdminPlugin(daoAddress, pluginAddress, network, where, add)
 
       expect(findExistingLog.calledOnce).to.be.true
-      expect(removeFromDaoStub.calledOnce).to.be.true
-      expect(sendMessage.calledOnce).to.be.true
+      expect(factoryStub.calledOnce).to.be.true
+      expect(mockGovernance.delete.calledOnce).to.be.true
+      expect(mockGovernance.delete.calledWith(where)).to.be.true
+      expect(mockGovernance.updateDaoMetrics.calledOnce).to.be.true
       expect(loggerInfo.calledOnce).to.be.true
     })
 
@@ -582,13 +595,11 @@ describe('Indexer: Permission Handler', () => {
       const add = true
 
       const findExistingLog = sandbox.stub(Models.Plugin, 'findOne').returns(null)
-      const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
       const loggerInfo = sandbox.stub(logger, 'info')
 
       await PermissionHandler.handleForAdminPlugin(daoAddress, pluginAddress, network, where, add)
 
       expect(findExistingLog.calledOnce).to.be.true
-      expect(sendMessage.notCalled).to.be.true
       expect(loggerInfo.notCalled).to.be.true
     })
   })

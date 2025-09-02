@@ -1,4 +1,4 @@
-import { ITransferSide, ITransferType, NetworksEnum } from '@types'
+import { ITransactionSide, ITransactionType, NetworksEnum } from '@types'
 
 export const fakeMemberTransactions = [
   {
@@ -9,8 +9,8 @@ export const fakeMemberTransactions = [
     address: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
     from: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C32',
     to: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
-    side: ITransferSide.incoming,
-    type: ITransferType.delegate,
+    side: ITransactionSide.deposit,
+    type: ITransactionType.erc20,
     transactionIndex: 0,
     logIndex: 0,
     amount: '0',
@@ -27,8 +27,8 @@ export const fakeMemberTransactions = [
     address: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
     from: '0x0000000000000000000000000000000000000000',
     to: '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31',
-    side: ITransferSide.incoming,
-    type: ITransferType.delegate,
+    side: ITransactionSide.deposit,
+    type: ITransactionType.erc20,
     amount: '10000000000000000000000',
     memberBalance: '10000000000000000000000',
     memberVotingPower: '10000000000000000000000',

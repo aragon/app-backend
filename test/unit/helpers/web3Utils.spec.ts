@@ -426,38 +426,6 @@ describe('Helpers:Web3Utils', () => {
     })
   })
 
-  describe('getActionTransactionType', () => {
-    it('should return externalTransfer if neither from nor to is daoAddress', () => {
-      const from = '0xfromAddress'
-      const to = '0xtoAddress'
-      const daoAddress = '0xdaoAddress'
-
-      const result = Web3Utils.getActionTransactionType(from, to, daoAddress)
-
-      expect(result).to.equal(ITransactionType.externalTransfer)
-    })
-
-    it('should return deposit if from is not daoAddress and to is daoAddress', () => {
-      const from = '0xfromAddress'
-      const to = '0xdaoAddress'
-      const daoAddress = '0xdaoAddress'
-
-      const result = Web3Utils.getActionTransactionType(from, to, daoAddress)
-
-      expect(result).to.equal(ITransactionType.deposit)
-    })
-
-    it('should return withdraw if from is daoAddress and to is not daoAddress', () => {
-      const from = '0xdaoAddress'
-      const to = '0xtoAddress'
-      const daoAddress = '0xdaoAddress'
-
-      const result = Web3Utils.getActionTransactionType(from, to, daoAddress)
-
-      expect(result).to.equal(ITransactionType.withdraw)
-    })
-  })
-
   it('getMethodSignature', () => {
     const data = '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890'
     const result = Web3Utils.getMethodSignature(data)
@@ -644,6 +612,40 @@ describe('Helpers:Web3Utils', () => {
     })
   })
 
+  describe('parseCampaignMetadata', () => {
+    it('should parse metadata correctly', () => {
+      const metadata = {
+        title: 'Campaign 1',
+        description: 'Description of Campaign 1',
+        type: 'https://avatar.campaign1',
+        resources: [{ name: 'Link 1', url: 'https://link1.com' }],
+      }
+
+      const parsed = Web3Utils.parseCampaignMetadata(metadata)
+
+      expect(parsed).to.deep.equal({
+        title: 'Campaign 1',
+        description: 'Description of Campaign 1',
+        type: 'https://avatar.campaign1',
+        resources: [{ name: 'Link 1', url: 'https://link1.com' }],
+      })
+
+      expect(Web3Utils.parseCampaignMetadata({})).to.deep.equal({
+        title: null,
+        description: null,
+        type: null,
+        resources: [],
+      })
+
+      expect(Web3Utils.parseCampaignMetadata(undefined as any)).to.deep.equal({
+        title: null,
+        description: null,
+        type: null,
+        resources: [],
+      })
+    })
+  })
+
   describe('parseDaoMetadata', () => {
     it('should parse metadata correctly', () => {
       expect(
@@ -654,6 +656,8 @@ describe('Helpers:Web3Utils', () => {
           links: [{ name: 'test-link', url: 'https://test.com' }],
           stageNames: ['Stage 1', 'Stage 2'],
           processKey: 'process-key-123',
+          blockedCountries: ['US', 'CA'],
+          enableOfacCheck: true,
         }),
       ).to.deep.equal({
         name: 'test',
@@ -662,6 +666,9 @@ describe('Helpers:Web3Utils', () => {
         links: [{ name: 'test-link', url: 'https://test.com' }],
         stageNames: ['Stage 1', 'Stage 2'],
         processKey: 'process-key-123',
+        blockedCountries: ['US', 'CA'],
+        enableOfacCheck: true,
+        termsConditionsUrl: null,
       })
 
       expect(Web3Utils.parseDaoMetadata({})).to.deep.equal({
@@ -671,6 +678,9 @@ describe('Helpers:Web3Utils', () => {
         links: [],
         stageNames: [],
         processKey: null,
+        termsConditionsUrl: null,
+        enableOfacCheck: null,
+        blockedCountries: [],
       })
 
       expect(Web3Utils.parseDaoMetadata(undefined as any)).to.deep.equal({
@@ -680,6 +690,9 @@ describe('Helpers:Web3Utils', () => {
         links: [],
         stageNames: [],
         processKey: null,
+        termsConditionsUrl: null,
+        enableOfacCheck: null,
+        blockedCountries: [],
       })
 
       expect(
@@ -698,6 +711,9 @@ describe('Helpers:Web3Utils', () => {
         links: [],
         stageNames: [],
         processKey: null,
+        termsConditionsUrl: null,
+        enableOfacCheck: null,
+        blockedCountries: [],
       })
 
       expect(
@@ -716,6 +732,9 @@ describe('Helpers:Web3Utils', () => {
         links: [],
         stageNames: ['Stage A', 'Stage B'],
         processKey: 'process-key-456',
+        termsConditionsUrl: null,
+        enableOfacCheck: null,
+        blockedCountries: [],
       })
     })
   })

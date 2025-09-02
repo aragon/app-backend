@@ -1,0 +1,178 @@
+{
+  "lockToVoteMember": [
+    {
+      "id": "ethereum-sepolia-0xfC907E0a59D555C7caBB1B110E1630d9576cE29e-0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759",
+      "network": "ethereum-sepolia",
+      "pluginAddress": "0xfC907E0a59D555C7caBB1B110E1630d9576cE29e",
+      "memberAddress": "0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759",
+      "daoAddress": "0xD61D75AeD575ba58Ca3430D9f05D43F9A5c6954f",
+      "votingPower": "15506703",
+      "transactionHash": "0x850eb1120350e78f8d2dda60d5544be587a179fea7fd8dfa0fa19e459f5a81e5",
+      "blockNumber": 8926240,
+      "blockTimestamp": 1754495148,
+      "isActive": true
+    },
+    {
+      "id": "ethereum-sepolia-0xfC907E0a59D555C7caBB1B110E1630d9576cE29e-0xE3217A7790BB9bb60D4712B86E96B5f77AF7a747",
+      "network": "ethereum-sepolia",
+      "pluginAddress": "0xfC907E0a59D555C7caBB1B110E1630d9576cE29e",
+      "memberAddress": "0xE3217A7790BB9bb60D4712B86E96B5f77AF7a747",
+      "daoAddress": "0xD61D75AeD575ba58Ca3430D9f05D43F9A5c6954f",
+      "votingPower": "10000000",
+      "transactionHash": "0x899d72b83f76a1272c038160e0e1c2b1ed0bbc11c89a674b9300cf74cd0bcc70",
+      "blockNumber": 8926259,
+      "blockTimestamp": 1754495376,
+      "isActive": true
+    }
+  ],
+  "plugin": [
+    {
+      "id": "ethereum-sepolia-0xbfcdb62b152a56ba39c66ebaddf5b33901fbb80dac60b54673cfe52f52a56404-0xfC907E0a59D555C7caBB1B110E1630d9576cE29e",
+      "transactionHash": "0xbfcdb62b152a56ba39c66ebaddf5b33901fbb80dac60b54673cfe52f52a56404",
+      "blockNumber": 8925961,
+      "blockTimestamp": 1754491788,
+      "network": "ethereum-sepolia",
+      "address": "0xfC907E0a59D555C7caBB1B110E1630d9576cE29e",
+      "implementationAddress": "0x76CD4C07D808fb39102F0546d6fD5Eea0f0dcA3D",
+      "interfaceType": "lockToVote",
+      "status": "installed",
+      "isSupported": true,
+      "daoAddress": "0xD61D75AeD575ba58Ca3430D9f05D43F9A5c6954f",
+      "tokenAddress": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+      "pluginSetupRepoAddress": "0xa6e1AE08bC718aBC40B3E00c71ddB8Ecb47120Dc",
+      "sender": "0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759",
+      "release": "1",
+      "build": "1",
+      "subdomain": "lock-to-vote-plugin-1753985088",
+      "permissions": [
+        {
+          "operation": 0,
+          "where": "0xD61D75AeD575ba58Ca3430D9f05D43F9A5c6954f",
+          "who": "0xfC907E0a59D555C7caBB1B110E1630d9576cE29e",
+          "condition": "0x0000000000000000000000000000000000000000",
+          "permissionId": "0xbf04b4486c9663d805744005c3da000eda93de6e3308a4a7a812eb565327b78d"
+        },
+        {
+          "operation": 0,
+          "where": "0xfC907E0a59D555C7caBB1B110E1630d9576cE29e",
+          "who": "0xD61D75AeD575ba58Ca3430D9f05D43F9A5c6954f",
+          "condition": "0x0000000000000000000000000000000000000000",
+          "permissionId": "0x371f7eb46741163a91bb271e73a2a58ae7a0b6bc80c10a8c7e03ae2e4bc0e425"
+        },
+        {
+          "operation": 0,
+          "where": "0xfC907E0a59D555C7caBB1B110E1630d9576cE29e",
+          "who": "0xD61D75AeD575ba58Ca3430D9f05D43F9A5c6954f",
+          "condition": "0x0000000000000000000000000000000000000000",
+          "permissionId": "0x821b6e3a557148015a918c89e5d092e878a69854a2d1a410635f771bd5a8a3f5"
+        },
+        {
+          "operation": 0,
+          "where": "0xfC907E0a59D555C7caBB1B110E1630d9576cE29e",
+          "who": "0xD61D75AeD575ba58Ca3430D9f05D43F9A5c6954f",
+          "condition": "0x0000000000000000000000000000000000000000",
+          "permissionId": "0x568cc693d84eb1901f8bcecba154cbdef23ca3cf67efc0a0b698528a06c660f7"
+        },
+        {
+          "operation": 0,
+          "where": "0xfC907E0a59D555C7caBB1B110E1630d9576cE29e",
+          "who": "0xD61D75AeD575ba58Ca3430D9f05D43F9A5c6954f",
+          "condition": "0x0000000000000000000000000000000000000000",
+          "permissionId": "0x4707e94b25cfce1a7c363508fbb838c35864388ad77284b248282b9746982b9b"
+        },
+        {
+          "operation": 2,
+          "where": "0xfC907E0a59D555C7caBB1B110E1630d9576cE29e",
+          "who": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+          "condition": "0x47C216181C743D3a6D6Cf28056bd8f7a87801AEC",
+          "permissionId": "0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90"
+        },
+        {
+          "operation": 0,
+          "where": "0xfC907E0a59D555C7caBB1B110E1630d9576cE29e",
+          "who": "0x33b5843C8CB796E4bEC119Fc086a0e0848c945D5",
+          "condition": "0x0000000000000000000000000000000000000000",
+          "permissionId": "0x28959d3c8d9c85fe68b3927a0425322ccc2f64692cea992da81e150c47353017"
+        },
+        {
+          "operation": 0,
+          "where": "0xfC907E0a59D555C7caBB1B110E1630d9576cE29e",
+          "who": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+          "condition": "0x0000000000000000000000000000000000000000",
+          "permissionId": "0xf281525e53675515a6ba7cc7bea8a81e649b3608423ee2d73be1752cea887889"
+        }
+      ],
+      "uninstalled": {
+        "status": false,
+        "transactionHash": null,
+        "blockNumber": null,
+        "blockTimestamp": null
+      },
+      "hasTarget": false,
+      "isProcess": true,
+      "isBody": true,
+      "isSubPlugin": false,
+      "metadataIpfs": "ipfs://QmVopsbb5HhZXt6aiorHeqMez6i3C3qL52wmgM3XmdEQAo",
+      "name": "Lock To Vote",
+      "description": "sdf",
+      "processKey": "LTV",
+      "votingEscrow": null,
+      "conditionAddress": null,
+      "lockManagerAddress": "0x33b5843C8CB796E4bEC119Fc086a0e0848c945D5",
+      "subPlugins": [],
+      "links": []
+    }
+  ],
+  "dao": {
+    "id": "ethereum-sepolia-0xD61D75AeD575ba58Ca3430D9f05D43F9A5c6954f",
+    "isActive": true,
+    "isHidden": false,
+    "network": "ethereum-sepolia",
+    "transactionHash": "0x07fde731b4050ac36427d9e94ccbdd10a407078521b09f9e1f9c14a9f7663aa6",
+    "blockNumber": 8925940,
+    "blockTimestamp": 1754491536,
+    "address": "0xD61D75AeD575ba58Ca3430D9f05D43F9A5c6954f",
+    "implementationAddress": "0x824d4AAD1cbF2327c4C429E3c97F968Ee19344F8",
+    "creatorAddress": "0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759",
+    "ens": null,
+    "subdomain": null,
+    "metadataIpfs": "ipfs://QmNhSB6vnAaP4YgfxrPDukKJVYCiN6ZuZwVaBb2TbPZifi",
+    "name": "2025-08-06 lock to vote testing",
+    "description": "asdf",
+    "avatar": null,
+    "version": "1.4.0",
+    "metrics": {
+      "tvlUSD": 0,
+      "proposalsCreated": 6,
+      "proposalsExecuted": 3,
+      "uniqueVoters": 4,
+      "votes": 5,
+      "members": 2
+    },
+    "links": []
+  },
+  "pluginMetrics": [
+    {
+      "id": "ethereum-sepolia-0xE3217A7790BB9bb60D4712B86E96B5f77AF7a747-0xfC907E0a59D555C7caBB1B110E1630d9576cE29e",
+      "network": "ethereum-sepolia",
+      "address": "0xE3217A7790BB9bb60D4712B86E96B5f77AF7a747",
+      "pluginAddress": "0xfC907E0a59D555C7caBB1B110E1630d9576cE29e",
+      "delegateReceivedCount": 0,
+      "voteCount": 1,
+      "proposalCount": 0,
+      "lastActivity": 1754495376,
+      "firstActivity": 1754495376
+    },
+    {
+      "id": "ethereum-sepolia-0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759-0xfC907E0a59D555C7caBB1B110E1630d9576cE29e",
+      "network": "ethereum-sepolia",
+      "address": "0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759",
+      "pluginAddress": "0xfC907E0a59D555C7caBB1B110E1630d9576cE29e",
+      "delegateReceivedCount": 0,
+      "voteCount": 2,
+      "proposalCount": 2,
+      "lastActivity": 1754495148,
+      "firstActivity": 1754495148
+    }
+  ]
+}

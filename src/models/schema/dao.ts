@@ -61,14 +61,11 @@ class Metrics {
     customName,
   },
 })
-@index({ id: 1 }, { unique: true })
 @index({ address: 1, blockNumber: 1, name: 1, creatorAddress: 1, tvlUSD: 1 })
 @index({ isHidden: 1, isActive: 1, 'metrics.tvlUSD': -1 })
 @index({ address: 1, isActive: 1, isHidden: 1 })
 @index({ blockNumber: -1, address: 1, isActive: 1, isHidden: 1 })
-@index({ id: 1 }, { unique: true })
 @index({ address: 1, isActive: 1, network: 1, isHidden: 1 })
-@index({ address: 1, blockNumber: 1, name: 1, creatorAddress: 1, tvlUSD: 1 })
 @index({ address: 1, creatorAddress: 1, isActive: 1, isHidden: 1 })
 @index({ network: 1, creatorAddress: 1, isActive: 1, isHidden: 1 })
 @index({ address: 1, transactionHash: 1, isActive: 1, isHidden: 1 })
@@ -80,10 +77,8 @@ class Metrics {
 @index({ network: 1, transactionHash: 1, isActive: 1, isHidden: 1 })
 @index({ address: 1, name: 1, isActive: 1, isHidden: 1 })
 @index({ address: 1, ens: 1, isActive: 1, isHidden: 1 })
-@index({ address: 1, isActive: 1, isHidden: 1 })
 @index({ network: 1, isActive: 1, isHidden: 1 })
 @index({ network: 1, isActive: 1, name: 1, isHidden: 1 })
-@index({ isHidden: 1, isActive: 1, 'metrics.tvlUSD': -1 })
 @index({ network: 1 })
 export default class Dao extends Model {
   @prop({ type: () => String, required: true, unique: true })
@@ -244,6 +239,9 @@ export default class Dao extends Model {
           address: 1,
           implementationAddress: 1,
           name: 1,
+          enableOfacCheck: 1,
+          blockedCountries: 1,
+          termsConditionsUrl: 1,
           description: 1,
           processKey: 1,
           slug: 1,
@@ -251,17 +249,20 @@ export default class Dao extends Model {
           isSupported: 1,
           interfaceType: 1,
           conditionAddress: 1,
+          lockManagerAddress: 1,
           // status: 1,
           release: 1,
           build: 1,
           subdomain: 1,
           isProcess: 1,
+          proposalCreationConditionAddress: 1,
           isBody: 1,
           isSubPlugin: 1,
           totalStages: 1,
           subPlugins: 1,
           stageIndex: 1,
           parentPlugin: 1,
+          tokenAddress: 1,
           votingEscrow: 1,
         },
         {
@@ -367,17 +368,23 @@ export default class Dao extends Model {
           isSupported: 1,
           interfaceType: 1,
           conditionAddress: 1,
+          lockManagerAddress: 1,
+          enableOfacCheck: 1,
+          blockedCountries: 1,
+          termsConditionsUrl: 1,
           // status: 1,
           release: 1,
           build: 1,
           subdomain: 1,
           isProcess: 1,
+          proposalCreationConditionAddress: 1,
           isBody: 1,
           isSubPlugin: 1,
           totalStages: 1,
           subPlugins: 1,
           stageIndex: 1,
           parentPlugin: 1,
+          tokenAddress: 1,
           votingEscrow: 1,
         },
       ),
@@ -574,18 +581,24 @@ export default class Dao extends Model {
           isSupported: 1,
           interfaceType: 1,
           conditionAddress: 1,
+          lockManagerAddress: 1,
           metadataIpfs: 1,
+          enableOfacCheck: 1,
+          blockedCountries: 1,
+          termsConditionsUrl: 1,
           // status: 1,
           release: 1,
           build: 1,
           subdomain: 1,
           isProcess: 1,
+          proposalCreationConditionAddress: 1,
           isBody: 1,
           isSubPlugin: 1,
           totalStages: 1,
           subPlugins: 1,
           stageIndex: 1,
           parentPlugin: 1,
+          tokenAddress: 1,
           votingEscrow: 1,
         },
         { settings: true, token: true },
@@ -646,18 +659,24 @@ export default class Dao extends Model {
           isSupported: 1,
           interfaceType: 1,
           conditionAddress: 1,
+          lockManagerAddress: 1,
           // status: 1,
           release: 1,
           build: 1,
           subdomain: 1,
           isProcess: 1,
+          proposalCreationConditionAddress: 1,
           isBody: 1,
           isSubPlugin: 1,
           totalStages: 1,
           subPlugins: 1,
           stageIndex: 1,
           parentPlugin: 1,
+          tokenAddress: 1,
           votingEscrow: 1,
+          enableOfacCheck: 1,
+          blockedCountries: 1,
+          termsConditionsUrl: 1,
         },
       ),
       {
@@ -827,6 +846,159 @@ export default class Dao extends Model {
     }
 
     return await this.save(tOpts)
+  }
+
+  static async countUniqueMembers(address: HexAddress, network: NetworksEnum, tOpts?: SaveOptions): Promise<number> {
+    const MEMBER_COLLECTION_CONFIG = [
+      {
+        interfaceTypes: ['tokenVoting'],
+        collection: 'TokenMember',
+        memberAddressField: 'memberAddress',
+        matchField: 'tokenAddress', // Field in a collection to match
+        sourceField: '$plugins.tokenAddress', // Source value from plugin
+        resultAlias: 'tokenMembers',
+      },
+      {
+        interfaceTypes: ['tokenVoting'],
+        collection: 'Lock',
+        memberAddressField: 'delegateReceiverAddress',
+        matchField: 'tokenAddress', // Field in a collection to match
+        sourceField: '$plugins.tokenAddress', // Source value from plugin
+        resultAlias: 'veGovernanceMembers',
+      },
+      {
+        interfaceTypes: ['lockToVote'],
+        collection: 'LockToVoteMember',
+        memberAddressField: 'memberAddress',
+        matchField: 'lockManagerAddress', // Field in a collection to match
+        sourceField: '$plugins.lockManagerAddress', // Source value from plugin
+        resultAlias: 'lockMembers',
+      },
+      {
+        interfaceTypes: ['multisig', 'admin'],
+        collection: 'PluginMember',
+        memberAddressField: 'memberAddress',
+        matchField: 'pluginAddress', // Field in collection to match
+        sourceField: '$plugins.address', // Source value from plugin
+        resultAlias: 'pluginMembers',
+      },
+    ]
+
+    const pipeline: any[] = [
+      {
+        $match: {
+          address,
+          network,
+        },
+      },
+      {
+        $lookup: {
+          from: 'Plugin',
+          let: {
+            daoAddress: '$address',
+            network: '$network',
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$daoAddress', '$$daoAddress'] },
+                    { $eq: ['$network', '$$network'] },
+                    { $eq: ['$status', 'installed'] },
+                    { $eq: ['$isSupported', true] },
+                  ],
+                },
+              },
+            },
+          ],
+          as: 'plugins',
+        },
+      },
+      {
+        $unwind: '$plugins',
+      },
+    ]
+
+    const facetStage: Record<string, any[]> = {}
+    MEMBER_COLLECTION_CONFIG.forEach(config => {
+      facetStage[config.resultAlias] = [
+        {
+          $lookup: {
+            from: config.collection,
+            let: {
+              targetValue: config.sourceField,
+              network: '$plugins.network',
+              interfaceType: '$plugins.interfaceType',
+            },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      config.interfaceTypes.length === 1
+                        ? { $eq: ['$$interfaceType', config.interfaceTypes[0]] }
+                        : { $in: ['$$interfaceType', config.interfaceTypes] },
+                      { $eq: [`$${config.matchField}`, '$$targetValue'] },
+                      { $eq: ['$network', '$$network'] },
+                    ],
+                  },
+                },
+              },
+              {
+                $project: {
+                  memberAddress: `$${config.memberAddressField}`,
+                },
+              },
+            ],
+            as: config.resultAlias,
+          },
+        },
+        {
+          $project: {
+            [config.resultAlias]: 1,
+          },
+        },
+      ]
+    })
+
+    pipeline.push({
+      $facet: facetStage,
+    })
+
+    pipeline.push(
+      {
+        $addFields: {
+          allMembers: {
+            $concatArrays: MEMBER_COLLECTION_CONFIG.map(config => {
+              return {
+                $reduce: {
+                  input: `$${config.resultAlias}`,
+                  initialValue: [],
+                  in: {
+                    $concatArrays: ['$$value', `$$this.${config.resultAlias}`],
+                  },
+                },
+              }
+            }),
+          },
+        },
+      },
+      {
+        $unwind: '$allMembers',
+      },
+      {
+        $group: {
+          _id: '$allMembers.memberAddress',
+        },
+      },
+      {
+        $count: 'uniqueMembersCount',
+      },
+    )
+
+    const result = await this.aggregate(pipeline, tOpts)
+    return result.length > 0 ? result[0].uniqueMembersCount : 0
   }
 
   async reload(tOpts?: SaveOptions) {

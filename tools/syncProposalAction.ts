@@ -12,8 +12,8 @@ export const SyncProposalAction: IService = {
   start: async () => {
     await ProviderModule.connectToAllNetworks()
     const proposals = await Models.Proposal.find({
-      daoAddress: '0x8112b792C31d94C186e7e3Ad2c35b07534084ce2',
-      network: NetworksEnum.cornMainnet,
+      network: { $in: [NetworksEnum.zksyncMainnet, NetworksEnum.ethereumMainnet] },
+      $or: [{ 'actions.inputData.contract': { $regex: ':' } }, { 'actions.inputData.proxyName': { $regex: ':' } }],
     })
 
     logger.info(`Found ${proposals.length} proposals with rawActions`, llo({ proposals: proposals.length }))

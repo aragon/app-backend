@@ -37,11 +37,13 @@ export enum IPluginStatus {
 }
 
 export enum IPluginSlug {
+  locktovote = 'locktovote',
   tokenvoting = 'tokenvoting',
   multisig = 'multisig',
   admin = 'admin',
   gauge = 'gauge',
   spp = 'core',
+  capitalDistributor = 'capitalDistributor',
 }
 
 export enum IEventLogPluginSettings {
@@ -57,6 +59,8 @@ export enum IPluginInterfaceType {
   spp = 'spp',
   gauge = 'gauge',
   unknown = 'unknown',
+  lockToVote = 'lockToVote',
+  capitalDistributor = 'capitalDistributor',
 }
 
 export interface ISettingVotingEscrow {

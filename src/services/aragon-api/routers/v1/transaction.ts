@@ -6,7 +6,6 @@ import TransactionController from '@api/controllers/transaction'
 import {
   type HexAddress,
   type IPairParams,
-  type ITransactionCategory,
   type ITransactionExtraParams,
   type ITransactionIndexCheckType,
   type NetworksEnum,
@@ -21,7 +20,6 @@ const TransactionRouter = {
       network: ctx.query.network as NetworksEnum,
       daoAddress: ctx.query.address as HexAddress,
       tokenAddress: ctx.query.tokenAddress as HexAddress,
-      category: ctx.query.category as ITransactionCategory,
       fromAddress: ctx.query.fromAddress as HexAddress,
       toAddress: ctx.query.toAddress as HexAddress,
     }
@@ -67,7 +65,7 @@ const TransactionRouter = {
     )
   },
 
-  router() {
+  router(): Router {
     const router = new Router()
 
     /**

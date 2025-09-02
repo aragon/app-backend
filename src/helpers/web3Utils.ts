@@ -3,8 +3,8 @@ import {
   type ILogInfo,
   type IMetadata,
   type IProposalMetadata,
-  ITransactionType,
   type NetworksEnum,
+  type ICampaignMetadata,
 } from '@types'
 import { AbiCoder, ethers, getAddress, Interface, type Log, type LogDescription, type TransactionReceipt } from 'ethers'
 import logger from '@logger'
@@ -187,24 +187,6 @@ const Web3Utils = {
     return { from, to, amount: Number(amount) }
   },
 
-  getActionTransactionType(from: string | null, to: string | null, daoAddress: string): ITransactionType {
-    // If from/to both aren't equal to dao, it means
-    // dao must have been approved for the `tokenId`
-    // and played the role of transferring between 2 parties.
-    if (from !== daoAddress && to !== daoAddress) {
-      return ITransactionType.externalTransfer
-    }
-
-    if (from !== daoAddress && to === daoAddress) {
-      // 1. some party `y` approved `x` tokenId to the dao.
-      // 2. dao calls transferFrom as an action to transfer it from `y` to itself.
-      return ITransactionType.deposit
-    }
-
-    // from is dao address, to is some other address
-    return ITransactionType.withdraw
-  },
-
   getMethodSignature(data: any): string {
     return data.slice(0, 10)
   },
@@ -298,6 +280,9 @@ const Web3Utils = {
       links: [],
       stageNames: [],
       processKey: null,
+      blockedCountries: [],
+      termsConditionsUrl: null,
+      enableOfacCheck: null,
     }
 
     if (!metadata) {
@@ -326,6 +311,18 @@ const Web3Utils = {
 
     if (metadata.processKey) {
       parsedMetadata.processKey = metadata.processKey
+    }
+
+    if (metadata.blockedCountries && Array.isArray(metadata.blockedCountries)) {
+      parsedMetadata.blockedCountries = metadata.blockedCountries.filter((country: any) => typeof country === 'string')
+    }
+
+    if (metadata.termsConditionsUrl) {
+      parsedMetadata.termsConditionsUrl = metadata.termsConditionsUrl.toString()
+    }
+
+    if (typeof metadata.enableOfacCheck === 'boolean') {
+      parsedMetadata.enableOfacCheck = metadata.enableOfacCheck
     }
 
     return parsedMetadata
@@ -369,6 +366,37 @@ const Web3Utils = {
 
     if (metadata?.media?.header) {
       parsedMetadata.media!.logo = metadata.media.logo
+    }
+
+    return parsedMetadata
+  },
+
+  parseCampaignMetadata(metadata: any): any {
+    const parsedMetadata: ICampaignMetadata = {
+      title: null,
+      description: null,
+      resources: [],
+      type: null,
+    }
+
+    if (!metadata) {
+      return parsedMetadata
+    }
+
+    if (metadata.title) {
+      parsedMetadata.title = metadata.title
+    }
+
+    if (metadata.description) {
+      parsedMetadata.description = metadata.description
+    }
+
+    if (metadata.resources && metadata.resources.length > 0) {
+      parsedMetadata.resources = metadata.resources
+    }
+
+    if (metadata.type) {
+      parsedMetadata.type = metadata.type
     }
 
     return parsedMetadata

@@ -29,6 +29,8 @@ import RabbitMQHelper from '@src/helpers/rabbitMQ'
 import configIndexer from '@indexer/configIndexer'
 import { IDaoLogs } from '@types'
 import ProviderModule from '@modules/provider'
+import { Interface } from 'ethers'
+import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 
 describe('Indexer:Plugin', () => {
   let sandbox: SinonSandbox
@@ -380,6 +382,47 @@ describe('Indexer:Plugin', () => {
       expect(createdPlugin.status).to.eq(IPluginStatus.installed)
       expect(verboseStub.calledWith('Updated document - Installed plugin' as any)).to.be.true
     })
+
+    it('should warn if plugin is not in preInstall status', async () => {
+      // Create a plugin with installed status instead of preInstall
+      await Models.Plugin.create({
+        status: IPluginStatus.installed, // Already installed, not preInstall
+        network: rawPlugin.network,
+        blockNumber: rawPlugin.blockNumber,
+        transactionHash: rawPlugin.transactionHash,
+        address: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        sender: rawPlugin.sender,
+        release: rawPlugin.release,
+        build: rawPlugin.build,
+        permissions: rawPlugin.permissions,
+        subdomain: rawPlugin?.subdomain,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+      })
+
+      const warnStub = sandbox.stub(logger, 'warn')
+      const verboseStub = sandbox.stub(logger, 'verbose')
+      const updateSpy = sandbox.spy(DbOperations, 'updateDocument')
+
+      const logPlugin = await Models.LogPluginSetupProcessor.findOne({ pluginAddress: rawPlugin.address })
+
+      await PluginHandler.installPlugin(logPlugin)
+
+      // Verify warning was logged
+      expect(warnStub.calledOnce).to.be.true
+      expect(warnStub.calledWith('Plugin not in preInstall status' as any)).to.be.true
+
+      // Verify plugin was not updated
+      expect(updateSpy.notCalled).to.be.true
+      expect(verboseStub.notCalled).to.be.true
+
+      // Verify plugin status didn't change
+      const unchangedPlugin = await Models.Plugin.findOne({
+        address: rawPlugin.address,
+      })
+      expect(unchangedPlugin.status).to.eq(IPluginStatus.installed)
+    })
   })
 
   describe('updatePlugin', () => {
@@ -712,6 +755,280 @@ describe('Indexer:Plugin', () => {
       expect(updated?.status).to.equal(IPluginStatus.deprecated)
     })
 
+    it('should handle lockToVote plugin with lockManagerAddress', async () => {
+      rawPlugin.daoAddress = '0xdaoAddress'
+
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.lockToVote,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+      })
+
+      sandbox.stub(logger, 'verbose').resolves()
+      const handleVersionUpgradeStub = sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
+
+      await Models.LogPluginSetupProcessor.create({
+        ...ListLogPluginSetupProcessor[2],
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      })
+      const eventUpdateApplied = await Models.LogPluginSetupProcessor.create({
+        ...ListLogPluginSetupProcessor[3],
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      })
+
+      const existingPlugin = await Models.Plugin.create({
+        status: IPluginStatus.installed,
+        network: rawPlugin.network,
+        blockNumber: 1000,
+        transactionHash: 'oldTx',
+        address: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: '0xLockManager123',
+        tokenAddress: '0xToken123',
+        isSupported: true,
+      })
+
+      const newPlugin = {
+        id: 'new-plugin-id',
+        address: rawPlugin.address,
+        blockNumber: 2000,
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        transactionHash: '0xnewtx',
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: null,
+        tokenAddress: null,
+        isSupported: false,
+        update: sandbox.stub().resolves({}),
+      }
+
+      sandbox.stub(PluginHandler, '_createPlugin').resolves(newPlugin as any)
+
+      await PluginHandler.updatePlugin(eventUpdateApplied as any)
+
+      expect(handleVersionUpgradeStub.calledOnce).to.be.true
+      expect(newPlugin.update.calledOnce).to.be.true
+      expect(newPlugin.update.args[0][0]).to.deep.include({
+        lockManagerAddress: '0xLockManager123',
+        tokenAddress: '0xToken123',
+        isSupported: true,
+      })
+
+      const updated = await Models.Plugin.findOne({
+        id: existingPlugin.id,
+      })
+      expect(updated?.status).to.equal(IPluginStatus.deprecated)
+      expect(updated?.uninstalled.status).to.be.true
+    })
+
+    it('should not copy lockManagerAddress if new plugin already has one', async () => {
+      rawPlugin.daoAddress = '0xdaoAddress'
+
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.lockToVote,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+      })
+
+      sandbox.stub(logger, 'verbose').resolves()
+      const handleVersionUpgradeStub = sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
+
+      await Models.LogPluginSetupProcessor.create({
+        ...ListLogPluginSetupProcessor[2],
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      })
+      const eventUpdateApplied = await Models.LogPluginSetupProcessor.create({
+        ...ListLogPluginSetupProcessor[3],
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      })
+
+      await Models.Plugin.create({
+        status: IPluginStatus.installed,
+        network: rawPlugin.network,
+        blockNumber: 1000,
+        transactionHash: 'oldTx',
+        address: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: '0xLockManagerOld',
+        tokenAddress: '0xTokenOld',
+        isSupported: true,
+      })
+
+      const newPlugin = {
+        id: 'new-plugin-id',
+        address: rawPlugin.address,
+        blockNumber: 2000,
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        transactionHash: '0xnewtx',
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: '0xLockManagerNew',
+        tokenAddress: '0xTokenNew',
+        isSupported: false,
+        update: sandbox.stub().resolves({}),
+      }
+
+      sandbox.stub(PluginHandler, '_createPlugin').resolves(newPlugin as any)
+
+      await PluginHandler.updatePlugin(eventUpdateApplied as any)
+
+      expect(handleVersionUpgradeStub.calledOnce).to.be.true
+      expect(newPlugin.update.calledOnce).to.be.true
+      expect(newPlugin.update.args[0][0]).to.deep.include({
+        isSupported: true,
+      })
+      expect(newPlugin.update.args[0][0]).to.not.have.property('lockManagerAddress')
+      expect(newPlugin.update.args[0][0]).to.not.have.property('tokenAddress')
+    })
+
+    it('should not copy lockManagerAddress if existing plugin has no lockManagerAddress', async () => {
+      rawPlugin.daoAddress = '0xdaoAddress'
+
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.lockToVote,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+      })
+
+      sandbox.stub(logger, 'verbose').resolves()
+      const handleVersionUpgradeStub = sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
+
+      await Models.LogPluginSetupProcessor.create({
+        ...ListLogPluginSetupProcessor[2],
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      })
+      const eventUpdateApplied = await Models.LogPluginSetupProcessor.create({
+        ...ListLogPluginSetupProcessor[3],
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      })
+
+      await Models.Plugin.create({
+        status: IPluginStatus.installed,
+        network: rawPlugin.network,
+        blockNumber: 1000,
+        transactionHash: 'oldTx',
+        address: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: null,
+        tokenAddress: '0xToken123',
+        isSupported: true,
+      })
+
+      const newPlugin = {
+        id: 'new-plugin-id',
+        address: rawPlugin.address,
+        blockNumber: 2000,
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        transactionHash: '0xnewtx',
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: null,
+        tokenAddress: null,
+        isSupported: false,
+        update: sandbox.stub().resolves({}),
+      }
+
+      sandbox.stub(PluginHandler, '_createPlugin').resolves(newPlugin as any)
+
+      await PluginHandler.updatePlugin(eventUpdateApplied as any)
+
+      expect(handleVersionUpgradeStub.calledOnce).to.be.true
+      expect(newPlugin.update.calledOnce).to.be.true
+      expect(newPlugin.update.args[0][0]).to.deep.include({
+        isSupported: true,
+      })
+      expect(newPlugin.update.args[0][0]).to.not.have.property('lockManagerAddress')
+      expect(newPlugin.update.args[0][0]).to.not.have.property('tokenAddress')
+    })
+
+    it('should handle different interface types between existing lockToVote and new non-lockToVote plugins', async () => {
+      rawPlugin.daoAddress = '0xdaoAddress'
+
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.tokenVoting,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+      })
+
+      sandbox.stub(logger, 'verbose').resolves()
+      const handleVersionUpgradeStub = sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
+
+      await Models.LogPluginSetupProcessor.create({
+        ...ListLogPluginSetupProcessor[2],
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      })
+      const eventUpdateApplied = await Models.LogPluginSetupProcessor.create({
+        ...ListLogPluginSetupProcessor[3],
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      })
+
+      const existingPlugin = await Models.Plugin.create({
+        status: IPluginStatus.installed,
+        network: rawPlugin.network,
+        blockNumber: 1000,
+        transactionHash: 'oldTx',
+        address: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: '0xLockManager123',
+        tokenAddress: '0xToken123',
+        isSupported: true,
+      })
+
+      const newPlugin = {
+        id: 'new-plugin-id',
+        address: rawPlugin.address,
+        blockNumber: 2000,
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        transactionHash: '0xnewtx',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: null,
+        isSupported: false,
+        update: sandbox.stub().resolves({}),
+      }
+
+      sandbox.stub(PluginHandler, '_createPlugin').resolves(newPlugin as any)
+
+      await PluginHandler.updatePlugin(eventUpdateApplied as any)
+
+      expect(handleVersionUpgradeStub.calledOnce).to.be.true
+      expect(newPlugin.update.calledOnce).to.be.true
+      expect(newPlugin.update.args[0][0]).to.deep.include({
+        isSupported: true,
+      })
+      expect(newPlugin.update.args[0][0]).to.not.have.property('lockManagerAddress')
+      expect(newPlugin.update.args[0][0]).to.not.have.property('tokenAddress')
+
+      const updated = await Models.Plugin.findOne({
+        id: existingPlugin.id,
+      })
+      expect(updated?.status).to.equal(IPluginStatus.deprecated)
+    })
+
     it('should handle case when no existing plugin is found', async () => {
       rawPlugin.daoAddress = '0xdaoAddress'
 
@@ -999,16 +1316,19 @@ describe('Indexer:Plugin', () => {
       const pluginDb = {
         address: '0xplugin',
         network: NetworksEnum.ethereumSepolia,
-        status: 'pending',
+        status: IPluginStatus.uninstalled,
       }
 
       sandbox.stub(Models.Dao, 'findByAddress').resolves(daoDb)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginDb)
 
+      const InstallationAppliedTopicHash = new Interface(PluginSetupProcessor.abi).getEvent(
+        'InstallationApplied',
+      )?.topicHash!
       const txReceipt = {
         logs: [
           {
-            topics: ['0x74e616c7264536b98a5ec234d051ae6ce1305bf05c85f9ddc112364440ccf129'],
+            topics: [InstallationAppliedTopicHash],
             address: '0x1234567890123456789012345678901234567890',
             blockNumber: 1234,
             transactionHash: '0xtxhash',
@@ -1019,7 +1339,7 @@ describe('Indexer:Plugin', () => {
       }
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
 
-      const findLogsStub = sandbox.stub(Web3Utils, 'findLogsByName').returns([
+      sandbox.stub(Web3Utils, 'findLogsByName').returns([
         {
           parsed: { name: 'InstallationApplied' },
           txLog: {
@@ -1033,14 +1353,27 @@ describe('Indexer:Plugin', () => {
       ] as any)
 
       // Stub parseInfoLog to prevent the address validation error
-      const parseInfoLogStub = sandbox.stub(Web3Utils, 'parseInfoLog').returns({
-        address: '0x1234567890123456789012345678901234567890',
-        blockNumber: 1234,
-        transactionHash: '0xtxhash',
-        transactionIndex: 0,
-        logIndex: 0,
-        network: NetworksEnum.ethereumSepolia,
-      } as any)
+      const parseInfoLogStub = sandbox
+        .stub(Web3Utils, 'parseInfoLog')
+        .onFirstCall()
+        .returns({
+          network: NetworksEnum.ethereumSepolia,
+          address: '0x1234567890123456789012345678901234567890',
+          blockNumber: 1234,
+          transactionHash: '0xtxhash',
+          transactionIndex: 0,
+          logIndex: 0,
+          eventName: 'InstallationApplied',
+        } as any)
+        .returns({
+          network: NetworksEnum.ethereumSepolia,
+          address: '0x1234567890123456789012345678901234567890',
+          blockNumber: 1234,
+          transactionHash: '0xtxhash',
+          transactionIndex: 0,
+          logIndex: 1,
+          eventName: 'Event',
+        } as any)
 
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
 
@@ -1053,7 +1386,7 @@ describe('Indexer:Plugin', () => {
       await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info as any)
 
       expect(getTransactionReceiptStub.calledOnce).to.be.true
-      expect(parseInfoLogStub.calledOnce).to.be.true
+      expect(parseInfoLogStub.called).to.be.true
       expect(updateDocumentStub.notCalled).to.be.true
     })
 
@@ -1130,7 +1463,7 @@ describe('Indexer:Plugin', () => {
         id: 'plugin-123',
         address: '0xplugin',
         network: NetworksEnum.ethereumSepolia,
-        status: 'pending',
+        status: IPluginStatus.uninstalled,
         processKey: 'processKey123',
       }
 
@@ -1186,7 +1519,7 @@ describe('Indexer:Plugin', () => {
         id: 'plugin-123',
         address: '0xplugin',
         network: NetworksEnum.ethereumSepolia,
-        status: 'pending',
+        status: IPluginStatus.uninstalled,
         processKey: 'processKey123',
       }
 
@@ -1241,7 +1574,7 @@ describe('Indexer:Plugin', () => {
       sandbox.stub(Models.Dao, 'findByAddress').rejects(error)
       const loggerErrorStub = sandbox.stub(logger, 'error')
       sandbox.stub(Web3Helper, 'getTransactionReceipt').rejects(error)
-      sandbox.stub(GovernanceVeHandler, '_handleTokenDelegation').rejects(new Error('fake error'))
+      sandbox.stub(GovernanceVeHandler, 'delegateTokens').rejects(new Error('fake error'))
 
       const info = {
         transactionHash: '0xtxhash',
@@ -1528,6 +1861,77 @@ describe('Indexer:Plugin', () => {
       })
 
       expect(plugin.conditionAddress).to.equal(existingConditionAddress)
+    })
+  })
+
+  describe('findProposalConditionAddress', () => {
+    it('should return condition address when CREATE_PROPOSAL_PERMISSION exists', () => {
+      const permissions = [
+        {
+          permissionId: '0x' + 'other'.padStart(64, '0'),
+          condition: '0x1111111111111111111111111111111111111111',
+        },
+        {
+          permissionId: '0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90',
+          condition: '0x2222222222222222222222222222222222222222',
+        },
+      ]
+
+      const result = PluginHandler.findProposalConditionAddress(permissions)
+      expect(result).to.eq('0x2222222222222222222222222222222222222222')
+    })
+
+    it('should return ZeroAddress when CREATE_PROPOSAL_PERMISSION does not exist', () => {
+      const permissions = [
+        {
+          permissionId: '0x' + 'other'.padStart(64, '0'),
+          condition: '0x1111111111111111111111111111111111111111',
+        },
+      ]
+
+      const result = PluginHandler.findProposalConditionAddress(permissions)
+      expect(result).to.eq('0x0000000000000000000000000000000000000000')
+    })
+
+    it('should return ZeroAddress when permissions array is empty', () => {
+      const result = PluginHandler.findProposalConditionAddress([])
+      expect(result).to.eq('0x0000000000000000000000000000000000000000')
+    })
+
+    it('should set proposalCreationConditionAddress when creating plugin', async () => {
+      const permissions = [
+        {
+          permissionId: '0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90',
+          condition: '0x3333333333333333333333333333333333333333',
+        },
+      ]
+
+      const mockPluginLog = {
+        ...ListLogPluginSetupProcessor[0],
+        permissions: permissions,
+        address: ListLogPluginSetupProcessor[0].pluginAddress,
+      }
+
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.tokenVoting,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+      })
+
+      const spyFindProposalConditionAddress = sandbox.spy(PluginHandler, 'findProposalConditionAddress')
+
+      await PluginHandler._createPlugin(mockPluginLog as any)
+
+      expect(spyFindProposalConditionAddress.calledOnce).to.be.true
+      expect(spyFindProposalConditionAddress.calledWith(permissions)).to.be.true
+
+      const createdPlugin = await Models.Plugin.findOne({
+        address: mockPluginLog.pluginAddress,
+      })
+
+      expect(createdPlugin).to.not.be.null
+      expect(createdPlugin.proposalCreationConditionAddress).to.equal('0x3333333333333333333333333333333333333333')
     })
   })
 })

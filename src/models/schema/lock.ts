@@ -70,7 +70,8 @@ export class LockExit {
     customName,
   },
 })
-@index({ id: 1 }, { unique: true })
+@index({ tokenAddress: 1, network: 1 })
+@index({ network: 1, tokenAddress: 1, delegateReceiverAddress: 1 })
 export default class Lock extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -130,6 +131,9 @@ export default class Lock extends Model {
 
   @prop({ type: () => LockWithdraw, _id: false, default: {} })
   public lockWithdraw!: LockWithdraw
+
+  @prop({ type: () => String, default: null })
+  public delegateReceiverAddress!: HexAddress
 
   static async create(rawData: Partial<Lock>, tOpts?: SaveOptions) {
     if (!rawData.id) {
@@ -354,11 +358,20 @@ export default class Lock extends Model {
         $match: {
           network,
           tokenAddress,
+          delegateReceiverAddress: { $ne: null },
+          'lockWithdraw.status': { $ne: true },
+          'lockExit.status': { $ne: true },
         },
       },
       {
         $addFields: {
-          isActive: { $eq: ['$lockExit.status', false] },
+          isActive: {
+            $and: [
+              { $eq: ['$lockExit.status', false] },
+              { $eq: ['$lockWithdraw.status', false] },
+              { $ne: ['$delegateReceiverAddress', null] },
+            ],
+          },
           activeTime: { $subtract: [settings.currentTime, '$epochStartAt'] },
         },
       },
@@ -404,6 +417,7 @@ export default class Lock extends Model {
         $project: {
           _id: 1,
           memberAddress: 1,
+          delegateReceiverAddress: 1,
           lockVotingPower: '$votingPower',
           tokenId: 1,
           network: 1,
@@ -414,45 +428,9 @@ export default class Lock extends Model {
         },
       },
       {
-        $lookup: {
-          from: ICollectionNames.MemberBalance,
-          let: {
-            lockTokenId: '$tokenId',
-            lockNetwork: '$network',
-            lockTokenAddress: '$tokenAddress',
-          },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    { $in: ['$$lockTokenId', '$tokenIds'] },
-                    { $eq: ['$network', '$$lockNetwork'] },
-                    { $eq: ['$tokenAddress', '$$lockTokenAddress'] },
-                  ],
-                },
-              },
-            },
-          ],
-          as: 'currentHolder',
-        },
-      },
-      {
-        $addFields: {
-          currentHolder: {
-            $arrayElemAt: ['$currentHolder', 0],
-          },
-        },
-      },
-      {
-        $match: {
-          'currentHolder.address': { $exists: true },
-        },
-      },
-      {
         $group: {
           _id: {
-            memberAddress: '$currentHolder.address',
+            memberAddress: '$delegateReceiverAddress',
             network: '$network',
             tokenAddress: '$tokenAddress',
           },
@@ -461,6 +439,7 @@ export default class Lock extends Model {
             $push: {
               tokenId: '$tokenId',
               lockVotingPower: '$lockVotingPower',
+              originalMemberAddress: '$memberAddress',
             },
           },
           activeLocks: {
@@ -473,6 +452,7 @@ export default class Lock extends Model {
                   lockVotingPower: '$lockVotingPower',
                   isActive: '$isActive',
                   epochStartAt: '$epochStartAt',
+                  originalMemberAddress: '$memberAddress',
                 },
                 else: '$$REMOVE',
               },
@@ -540,7 +520,7 @@ export default class Lock extends Model {
           },
         },
       },
-      AggregationQueryHelper.memberMetrics(
+      AggregationQueryHelper.pluginMetrics(
         {
           memberAddress: '$memberInfo.address',
           network,
@@ -548,14 +528,28 @@ export default class Lock extends Model {
         },
         'memberMetrics',
         {
-          _id: 0,
           lastActivity: 1,
           firstActivity: 1,
-          delegateReceivedCount: 1,
           voteCount: 1,
           proposalCount: 1,
         },
       ),
+      {
+        $addFields: {
+          memberMetrics: {
+            $cond: {
+              if: { $gt: [{ $size: '$memberMetrics' }, 0] },
+              then: { $arrayElemAt: ['$memberMetrics', 0] },
+              else: {
+                voteCount: 0,
+                proposalCount: 0,
+                firstActivity: null,
+                lastActivity: null,
+              },
+            },
+          },
+        },
+      },
       {
         $project: {
           address: '$memberInfo.address',
@@ -563,18 +557,10 @@ export default class Lock extends Model {
           avatar: '$memberInfo.avatar',
           votingPower: 1,
           metrics: {
-            $ifNull: [
-              {
-                $arrayElemAt: ['$memberMetrics', 0],
-              },
-              {
-                lastActivity: null,
-                firstActivity: null,
-                delegateReceivedCount: 0,
-                voteCount: 0,
-                proposalCount: 0,
-              },
-            ],
+            voteCount: '$memberMetrics.voteCount',
+            proposalCount: '$memberMetrics.proposalCount',
+            firstActivity: '$memberMetrics.firstActivity',
+            lastActivity: '$memberMetrics.lastActivity',
           },
         },
       },

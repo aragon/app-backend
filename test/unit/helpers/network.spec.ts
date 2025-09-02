@@ -4,6 +4,8 @@ import { expect } from 'chai'
 import { NetworkHelper } from '@helpers/network'
 import { NetworksEnum } from '@types'
 import ProviderModule from '@modules/provider'
+import config from '@config'
+import utils from '@helpers/utils'
 
 describe('Helpers: Network', () => {
   let sandbox: SinonSandbox
@@ -38,5 +40,44 @@ describe('Helpers: Network', () => {
     sandbox.stub(ProviderModule, 'getProvider').returns(undefined)
     const activeNetworks = NetworkHelper.supportedNetworks()
     expect(activeNetworks).to.be.empty
+  })
+
+  describe('getAverageBlockTime', () => {
+    it('should return correct average block time in milliseconds', () => {
+      sandbox.stub(config, 'NODES').value({
+        ETHEREUM_MAINNET: {
+          INTERVAL_BLOCK_TIME: 12,
+        },
+        POLYGON_MAINNET: {
+          INTERVAL_BLOCK_TIME: 2,
+        },
+      })
+
+      const networkToAragonStub = sandbox.stub(utils, 'networkToAragon')
+      networkToAragonStub.withArgs(NetworksEnum.ethereumMainnet).returns('ETHEREUM_MAINNET')
+      networkToAragonStub.withArgs(NetworksEnum.polygonMainnet).returns('POLYGON_MAINNET')
+      networkToAragonStub.returns('')
+
+      const ethBlockTime = NetworkHelper.getAverageBlockTime(NetworksEnum.ethereumMainnet)
+      expect(ethBlockTime).to.equal(12000) // 12 seconds * 1000 = 12000ms
+
+      const polyBlockTime = NetworkHelper.getAverageBlockTime(NetworksEnum.polygonMainnet)
+      expect(polyBlockTime).to.equal(2000) // 2 seconds * 1000 = 2000ms
+    })
+
+    it('should use network configuration correctly', () => {
+      const mockConfig = {
+        ETHEREUM_MAINNET: {
+          INTERVAL_BLOCK_TIME: 15,
+        },
+      }
+      sandbox.stub(config, 'NODES').value(mockConfig)
+      const networkToAragonStub = sandbox.stub(utils, 'networkToAragon').returns('ETHEREUM_MAINNET')
+
+      const blockTime = NetworkHelper.getAverageBlockTime(NetworksEnum.ethereumMainnet)
+
+      expect(blockTime).to.equal(15000)
+      expect(networkToAragonStub.calledWith(NetworksEnum.ethereumMainnet)).to.be.true
+    })
   })
 })

@@ -33,12 +33,6 @@ export interface IContractAbi {
   proxyName?: string | null
 }
 
-export interface IContractDeployInfo {
-  blockNumber: number
-  transactionHash: HexAddress | null
-  address: HexAddress
-}
-
 export interface ISelectorActionData {
   functionName: string
   contractName: string

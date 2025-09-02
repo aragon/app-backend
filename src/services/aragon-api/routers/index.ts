@@ -41,7 +41,7 @@ const MainRouter = {
    * - Explicit versioning via /v1/* and /v2/* paths
    * - Root paths (/*) use v2 where available, falling back to v1
    */
-  router() {
+  router(): Router {
     const mainRouter = new Router()
 
     // Initialize all routers

@@ -27,6 +27,7 @@ import { MetadataHandler } from '@handlers/metadataHandler'
 import RabbitMQHelper from '@src/helpers/rabbitMQ'
 import { ethers, Interface } from 'ethers'
 import { DAO } from '@artifacts/dao'
+import { IPermission } from '@src/types/permission'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PluginHandler' })
 
@@ -268,9 +269,7 @@ export const PluginHandler = {
       address: plugin.address,
     })
 
-    if (existingLog) {
-      return
-    }
+    if (existingLog) return
 
     const document: Partial<Plugin> = {
       status: IPluginStatus.installed,
@@ -287,6 +286,7 @@ export const PluginHandler = {
       permissions: plugin.permissions,
       subdomain: plugin.subdomain,
       tokenAddress: plugin.tokenAddress,
+      proposalCreationConditionAddress: PluginHandler.findProposalConditionAddress(plugin.permissions || []),
     }
 
     const pluginInfo = await PluginDetector.detectPluginType(plugin.address, plugin.network)
@@ -303,6 +303,10 @@ export const PluginHandler = {
 
     if (document.interfaceType === IPluginInterfaceType.spp) {
       document.isProcess = true
+      document.isBody = false
+      document.isSubPlugin = false
+    } else if (document.interfaceType === IPluginInterfaceType.capitalDistributor) {
+      document.isProcess = false
       document.isBody = false
       document.isSubPlugin = false
     } else {
@@ -337,9 +341,7 @@ export const PluginHandler = {
           { session },
         )
 
-        if (existingLog) {
-          return
-        }
+        if (existingLog) return
 
         const pluginRepo = await Models.PluginRepo.findSubdomain(pluginLog.pluginSetupRepo, pluginLog.network, {
           session,
@@ -358,7 +360,9 @@ export const PluginHandler = {
           build: pluginLog.build,
           permissions: pluginLog.permissions,
           subdomain: pluginRepo?.subdomain,
+          proposalCreationConditionAddress: PluginHandler.findProposalConditionAddress(pluginLog.permissions || []),
         }
+
         const pluginInfo = await PluginDetector.detectPluginType(pluginLog.pluginAddress, pluginLog.network)
         document.interfaceType = pluginInfo?.type
 
@@ -375,6 +379,10 @@ export const PluginHandler = {
 
         if (document.interfaceType === IPluginInterfaceType.spp) {
           document.isProcess = true
+          document.isBody = false
+          document.isSubPlugin = false
+        } else if (document.interfaceType === IPluginInterfaceType.capitalDistributor) {
+          document.isProcess = false
           document.isBody = false
           document.isSubPlugin = false
         } else {
@@ -523,6 +531,16 @@ export const PluginHandler = {
             updateParams.tokenAddress = existingPlugin.tokenAddress
           }
 
+          if (
+            plugin.interfaceType === IPluginInterfaceType.lockToVote &&
+            existingPlugin.interfaceType === IPluginInterfaceType.lockToVote &&
+            !plugin.lockManagerAddress &&
+            existingPlugin.lockManagerAddress
+          ) {
+            updateParams.lockManagerAddress = existingPlugin.lockManagerAddress
+            updateParams.tokenAddress = existingPlugin.tokenAddress
+          }
+
           if (Object.keys(updateParams).length > 0) {
             await plugin.update(updateParams, { session })
           }
@@ -637,7 +655,7 @@ export const PluginHandler = {
 
       const executePermissionId = ethers.id('EXECUTE_PERMISSION')
 
-      if (pluginDb.status === IPluginStatus.installed) {
+      if (pluginDb.status !== IPluginStatus.uninstalled) {
         return
       }
 
@@ -653,11 +671,12 @@ export const PluginHandler = {
         const lastAppliedLogIndex = lastAppliedLog.logIndex
 
         const nextPermissionEvent = txReceipt.logs.find((log: any) => {
+          const parsedLog = Web3Utils.parseInfoLog(log, 'Event', info.network)
           const isPermissionEvent =
-            log.address === daoDb.address &&
+            parsedLog.address === daoDb.address &&
             (log.topics[0] === GrantedTopicHash || log.topics[0] === RevokeTopicHash) &&
             log.topics[1] === executePermissionId
-          return isPermissionEvent && log.logIndex > lastAppliedLogIndex
+          return isPermissionEvent && parsedLog.logIndex > lastAppliedLogIndex
         })
 
         if (!nextPermissionEvent) {
@@ -787,5 +806,14 @@ export const PluginHandler = {
         conditionAddress,
       },
     })
+  },
+
+  findProposalConditionAddress(permissions: any[]): HexAddress {
+    const proposalPermissionId = ethers.id(IPermission.CREATE_PROPOSAL_PERMISSION)
+    const permission = permissions.find(p => p.permissionId === proposalPermissionId)
+    if (permission) {
+      return permission.condition
+    }
+    return ethers.ZeroAddress
   },
 }

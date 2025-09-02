@@ -3,8 +3,10 @@ import { ethers, FunctionFragment, hexlify, Interface } from 'ethers'
 import FourByte from '@helpers/4byte'
 import Web3Helper from '@helpers/web3'
 import type Proposal from '@models/schema/proposal'
+import type Plugin from '@models/schema/plugin'
 import {
   type HexAddress,
+  IPluginInterfaceType,
   type IProposalAction,
   type IProposalActionInputData,
   type IProposalActionInputDataParameter,
@@ -41,10 +43,11 @@ import { ERC20 } from '@artifacts/ERC20'
 import { ERC721 } from '@artifacts/ERC721'
 import { ERC1155 } from '@artifacts/ERC1155'
 import Utils from '@helpers/utils'
-import { ProxyMember } from '@modules/proxyMember'
+import { MemberGovernanceFactory } from '@src/governance'
 import Web3Utils from '@helpers/web3Utils'
 import { IBlockScoutAddressType } from '@src/types/blockScout'
 import ProxyWeb3Provider from '@modules/proxyProvider'
+import type Token from '@models/schema/token'
 const llo = logger.logMeta.bind(null, { service: 'helpers:DecodeActions' })
 
 interface Signature {
@@ -69,7 +72,9 @@ class DecodeActions {
       const nativeToken = await Models.Token.findByTokenAddressAndNetwork(ethers.ZeroAddress, document.network!)
       const token = nativeToken.pickFields()
 
-      const member = await ProxyMember.createMember(action.to)
+      // Create base member and get member info
+      await MemberGovernanceFactory.createBaseMember(action.to)
+      const member = await Models.Member.findByAddress(action.to)
       const dao = await Models.Dao.findByAddress(document.daoAddress, document.network)
       const toInfo = await ProxyWeb3Provider.searchDetailsOfContract({
         address: action.to,
@@ -130,7 +135,7 @@ class DecodeActions {
       removeAddresses: this._parseRemoveMemberAction.bind(this),
       setMetadata: this._parseUpdateDaoMetadata.bind(this),
       updateMultisigSettings: this._parseMultiSigSettingUpdateAction.bind(this),
-      updateVotingSettings: this._parseTokenVotingSettingUpdateAction.bind(this),
+      updateVotingSettings: this._parseVotingSettingUpdateAction.bind(this),
       updateStages: this._parseStageUpdatedOnSppAction.bind(this),
     }
 
@@ -197,7 +202,9 @@ class DecodeActions {
       network: document.network!,
     })
 
-    const member = await ProxyMember.createMember(receiver)
+    // Create base member and get member info
+    await MemberGovernanceFactory.createBaseMember(receiver)
+    const member = await Models.Member.findByAddress(receiver)
 
     if (!member) {
       logger.error('Missing member', llo({ member, receiver, decodedData }))
@@ -268,12 +275,13 @@ class DecodeActions {
 
     const membersInfo = await Promise.all(
       decodedData.parameters[0].value.map(async (address: HexAddress) => {
-        const member = await ProxyMember.createMember(address)
+        await MemberGovernanceFactory.createBaseMember(address)
+        const member = await Models.Member.findByAddress(address)
         return { address: member?.address || address, ens: member?.ens, avatar: member?.avatar }
       }),
     )
 
-    const currentMembersInfo = await Models.DaoMemberMapping.findAllMembersOfPlugin({
+    const currentMembersInfo = await Models.PluginMember.findAllMembersOfPlugin({
       pluginAddress: document.pluginAddress!,
       network: document.network!,
     })
@@ -298,12 +306,13 @@ class DecodeActions {
 
     const membersInfo = await Promise.all(
       decodedData.parameters[0].value.map(async (address: HexAddress) => {
-        const member = await ProxyMember.createMember(address)
+        await MemberGovernanceFactory.createBaseMember(address)
+        const member = await Models.Member.findByAddress(address)
         return { address: member?.address || address, ens: member?.ens, avatar: member?.avatar }
       }),
     )
 
-    const currentMembersInfo = await Models.DaoMemberMapping.findAllMembersOfPlugin({
+    const currentMembersInfo = await Models.PluginMember.findAllMembersOfPlugin({
       pluginAddress: document.pluginAddress!,
       network: document.network!,
     })
@@ -442,7 +451,7 @@ class DecodeActions {
     }
   }
 
-  async _parseTokenVotingSettingUpdateAction(
+  async _parseVotingSettingUpdateAction(
     decodedData: IProposalActionInputData,
     action: IRawAction,
     document: Partial<Proposal>,
@@ -452,11 +461,36 @@ class DecodeActions {
     }
 
     const pluginDetails = await Models.Plugin.findByAddress(action.to, document.network!)
+
     if (!pluginDetails?.tokenAddress) {
       return null
     }
+
     const votingToken = await ProxyToken.saveAndGetToken(pluginDetails.tokenAddress, pluginDetails.network)
 
+    if (
+      pluginDetails.interfaceType !== IPluginInterfaceType.lockToVote &&
+      pluginDetails.interfaceType !== IPluginInterfaceType.tokenVoting
+    ) {
+      logger.warn(
+        `Unsupported plugin type for voting settings update: ${pluginDetails.interfaceType}`,
+        llo({ pluginDetails, decodedData }),
+      )
+      return null
+    }
+
+    return pluginDetails.interfaceType === IPluginInterfaceType.tokenVoting
+      ? this._parseTokenVotingSettingUpdateAction(decodedData, action, document, pluginDetails, votingToken)
+      : this._parseLockToVoteVotingSettingUpdateAction(decodedData, action, document, pluginDetails, votingToken)
+  }
+
+  async _parseTokenVotingSettingUpdateAction(
+    decodedData: IProposalActionInputData,
+    action: IRawAction,
+    document: Partial<Proposal>,
+    pluginDetails: Plugin,
+    votingToken: Token | null,
+  ) {
     const activeSettings = await Models.Setting.findLastSettingByBlockNumber(
       pluginDetails.address,
       document.blockNumber!,
@@ -474,10 +508,10 @@ class DecodeActions {
       : {}
 
     return {
+      type: ProposalActionType.UpdateTokenVoteSettings,
       network: pluginDetails.network,
       ...action,
       inputData: decodedData,
-      type: ProposalActionType.UpdateVoteSettings,
       existingSettings,
       proposedSettings: {
         votingMode: Number(decodedData.parameters[0].value[0]),
@@ -485,6 +519,47 @@ class DecodeActions {
         minParticipation: Number(decodedData.parameters[0].value[2]),
         minDuration: Number(decodedData.parameters[0].value[3]),
         minProposerVotingPower: Number(decodedData.parameters[0].value[4]),
+      },
+    }
+  }
+
+  async _parseLockToVoteVotingSettingUpdateAction(
+    decodedData: IProposalActionInputData,
+    action: IRawAction,
+    document: Partial<Proposal>,
+    pluginDetails: Plugin,
+    votingToken: Token | null,
+  ) {
+    const activeSettings = await Models.Setting.findLastSettingByBlockNumber(
+      pluginDetails.address,
+      document.blockNumber!,
+    )
+
+    const existingSettings = activeSettings
+      ? {
+          votingMode: activeSettings?.votingMode,
+          supportThreshold: activeSettings?.supportThreshold,
+          minParticipation: activeSettings?.minParticipation,
+          minApprovalRatio: activeSettings?.minApprovalRatio,
+          minDuration: activeSettings?.minDuration, // it's actually proposalDuration in the case of lock to vote
+          minProposerVotingPower: activeSettings?.minProposerVotingPower,
+          token: votingToken?.pickFields(),
+        }
+      : {}
+
+    return {
+      type: ProposalActionType.UpdateLockToVoteVoteSettings,
+      network: pluginDetails.network,
+      ...action,
+      inputData: decodedData,
+      existingSettings,
+      proposedSettings: {
+        votingMode: Number(decodedData.parameters[0].value[0]),
+        supportThreshold: Number(decodedData.parameters[0].value[1]),
+        minParticipation: Number(decodedData.parameters[0].value[2]),
+        minApprovalRatio: Number(decodedData.parameters[0].value[3]), // this is additional param in lock to vote!
+        minDuration: Number(decodedData.parameters[0].value[4]),
+        minProposerVotingPower: Number(decodedData.parameters[0].value[5]),
       },
     }
   }
@@ -613,12 +688,17 @@ class DecodeActions {
       if (!response || response.count === 0) {
         const functionDetails = await this.parseContractNetspec(functionSelector, action, network)
         if (functionDetails) {
+          const parameterTypes = functionDetails.inputs
+            .map((input: IProposalActionInputDataParameter) => input.type)
+            .join(',')
+          const textSignature = `${functionDetails.functionName}(${parameterTypes})`
+
           return {
             function: functionDetails.functionName,
             contract: functionDetails.contractName,
             parameters: functionDetails.inputs,
             notice: functionDetails.notice,
-            textSignature: functionDetails.functionName,
+            textSignature,
             proxyName: functionDetails.proxyName,
             implementationAddress: functionDetails.implementationAddress,
           } as any

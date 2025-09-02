@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "types": ["node", "mocha"],
+    "types": ["node", "mocha", "chai", "chai-as-promised"],
     "target": "es2020",
     "module": "commonjs",
     "moduleResolution": "node",

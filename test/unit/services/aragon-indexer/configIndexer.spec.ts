@@ -5,7 +5,10 @@ import { DAORegistry } from '@artifacts/daoRegistry'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import { Multisig } from '@artifacts/Multisig'
 import { TokenVoting } from '@artifacts/TokenVoting'
+import { LockToVote } from '@artifacts/LockToVote'
+import { LockManager } from '@artifacts/LockManager'
 import { ExecuteSelectorCondition } from '@artifacts/ExecuteSelectorCondition'
+import { CapitalDistributor } from '@artifacts/CapitalDistributor'
 
 describe('ConfigIndexer', () => {
   it('should be an array of configurations', () => {
@@ -18,8 +21,20 @@ describe('ConfigIndexer', () => {
       ConfigIndexer.forEach((config, index) => {
         expect(config.event, `Config at index ${index} missing event`).to.be.a('string')
         expect(config.enableHistorical, `Config at index ${index} missing enableHistorical`).to.be.a('boolean')
-        expect(config.topic, `Config at index ${index} missing topic`).to.be.a('string')
-        expect(config.topic, `Config at index ${index} has invalid topic`).to.match(/^0x[a-fA-F0-9]{64}$/)
+
+        // Handle both string and array topics
+        if (Array.isArray(config.topic)) {
+          expect(config.topic, `Config at index ${index} missing topic`).to.be.an('array')
+          config.topic.forEach((topicHash, topicIndex) => {
+            expect(topicHash, `Config at index ${index}, topic ${topicIndex} has invalid format`).to.match(
+              /^0x[a-fA-F0-9]{64}$/,
+            )
+          })
+        } else {
+          expect(config.topic, `Config at index ${index} missing topic`).to.be.a('string')
+          expect(config.topic, `Config at index ${index} has invalid topic`).to.match(/^0x[a-fA-F0-9]{64}$/)
+        }
+
         expect(config.config, `Config at index ${index} missing config`).to.be.an('array')
 
         // Allow empty config array for specific events like Transfer
@@ -58,7 +73,7 @@ describe('ConfigIndexer', () => {
     })
 
     it('should have unique topic hashes', () => {
-      const topics = ConfigIndexer.map(config => config.topic)
+      const topics = ConfigIndexer.flatMap(config => (Array.isArray(config.topic) ? config.topic : [config.topic]))
       const uniqueTopics = new Set(topics)
       expect(uniqueTopics.size).to.equal(topics.length)
     })
@@ -76,6 +91,7 @@ describe('ConfigIndexer', () => {
         'UninstallationApplied',
         'UninstallationPrepared',
         'MetadataSet',
+        'CampaignCreated',
       ]
 
       historicalEvents.forEach(eventName => {
@@ -95,6 +111,12 @@ describe('ConfigIndexer', () => {
         'Transfer',
         'SelectorAllowed',
         'SelectorDisallowed',
+        'PayoutClaimed',
+        'CampaignPaused',
+        'CampaignResumed',
+        'CampaignEnded',
+        'MerkleCampaignSet',
+        'MerkleCampaignUpdated',
       ]
 
       realtimeOnlyEvents.forEach(eventName => {
@@ -132,13 +154,17 @@ describe('ConfigIndexer', () => {
         expect(config!.config[0].abi).to.equal(Multisig.abi)
       })
 
-      // Test TokenVoting events use TokenVoting ABI
-      const tokenVotingEvents = ['VotingSettingsUpdated', 'VoteCast']
-      tokenVotingEvents.forEach(eventName => {
-        const config = ConfigIndexer.find(c => c.event === eventName)
-        expect(config).to.exist
-        expect(config!.config[0].abi).to.equal(TokenVoting.abi)
-      })
+      // Test VotingSettingsUpdated has both TokenVoting and LockToVote ABIs
+      const votingSettingsConfig = ConfigIndexer.find(c => c.event === 'VotingSettingsUpdated')
+      expect(votingSettingsConfig).to.exist
+      expect(votingSettingsConfig!.config.length).to.equal(2)
+      expect(votingSettingsConfig!.config[0].abi).to.equal(TokenVoting.abi)
+      expect(votingSettingsConfig!.config[1].abi).to.equal(LockToVote.abi)
+
+      // Test VoteCast uses TokenVoting ABI
+      const voteCastConfig = ConfigIndexer.find(c => c.event === 'VoteCast')
+      expect(voteCastConfig).to.exist
+      expect(voteCastConfig!.config[0].abi).to.equal(TokenVoting.abi)
     })
   })
 
@@ -238,6 +264,65 @@ describe('ConfigIndexer', () => {
         const config = ConfigIndexer.find(c => c.event === eventName)
         expect(config, `VE event ${eventName} should exist`).to.exist
       })
+    })
+
+    it('should have all LockManager events', () => {
+      const lockManagerEvents = ['BalanceLocked', 'BalanceUnlocked']
+      lockManagerEvents.forEach(eventName => {
+        const config = ConfigIndexer.find(c => c.event === eventName)
+        expect(config, `LockManager event ${eventName} should exist`).to.exist
+        expect(config!.config[0].abi).to.equal(LockManager.abi)
+        expect(config!.enableHistorical).to.be.false
+      })
+    })
+
+    it('should have VoteCleared event for LockToVote', () => {
+      const config = ConfigIndexer.find(c => c.event === 'VoteCleared')
+      expect(config, 'VoteCleared event should exist').to.exist
+      expect(config!.config[0].abi).to.equal(LockToVote.abi)
+      expect(config!.enableHistorical).to.be.false
+    })
+
+    it('should have all Capital Distributor events', () => {
+      const capitalDistributorEvents = [
+        'CampaignCreated',
+        'PayoutClaimed',
+        'CampaignPaused',
+        'CampaignResumed',
+        'CampaignEnded',
+        'MerkleCampaignSet',
+        'MerkleCampaignUpdated',
+      ]
+
+      capitalDistributorEvents.forEach(eventName => {
+        const config = ConfigIndexer.find(c => c.event === eventName)
+        expect(config, `Capital Distributor event ${eventName} should exist`).to.exist
+        expect(config!.config[0].abi).to.equal(CapitalDistributor.abi)
+
+        // Only CampaignCreated should have historical enabled
+        if (eventName === 'CampaignCreated') {
+          expect(config!.enableHistorical).to.be.true
+        } else {
+          expect(config!.enableHistorical).to.be.false
+        }
+      })
+    })
+
+    it('should have correct topic hashes for Capital Distributor events', () => {
+      const campaignCreatedConfig = ConfigIndexer.find(c => c.event === 'CampaignCreated')
+      expect(campaignCreatedConfig!.topic).to.equal(
+        new Interface(CapitalDistributor.abi).getEvent('CampaignCreated')?.topicHash,
+      )
+
+      const payoutClaimedConfig = ConfigIndexer.find(c => c.event === 'PayoutClaimed')
+      expect(payoutClaimedConfig!.topic).to.equal(
+        new Interface(CapitalDistributor.abi).getEvent('PayoutClaimed')?.topicHash,
+      )
+
+      const merkleCampaignSetConfig = ConfigIndexer.find(c => c.event === 'MerkleCampaignSet')
+      expect(merkleCampaignSetConfig!.topic).to.equal(
+        new Interface(CapitalDistributor.abi).getEvent('MerkleCampaignSet')?.topicHash,
+      )
     })
   })
 })

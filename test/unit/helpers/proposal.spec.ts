@@ -80,6 +80,19 @@ describe('Helpers: ProposalHelper', () => {
       await ProposalHelper.getProposal(mockParams as any)
       expect(getSppSubPluginProposalsStub.calledOnce).to.be.true
     })
+
+    it('should return null when plugin has unknown interface type', async () => {
+      const mockParams = {
+        plugin: {
+          address: '0xpluginAddress',
+          interfaceType: 'unknown' as any,
+        },
+        proposalIndex: 1,
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const result = await ProposalHelper.getProposal(mockParams as any)
+      expect(result).to.be.null
+    })
   })
 
   describe('getBodyResult', () => {

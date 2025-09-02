@@ -17,6 +17,7 @@ SERVICES=(
   "service-aragon-admin-api"
   "service-aragon-indexer"
   "service-aragon-dao"
+  "service-aragon-gateway"
   "service-aragon-plugins"
   "service-aragon-rates"
   "service-aragon-requeue"

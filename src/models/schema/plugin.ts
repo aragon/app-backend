@@ -92,10 +92,10 @@ class Link {
     customName,
   },
 })
-@index({ id: 1 }, { unique: true })
 @index({ network: 1, address: 1, daoAddress: 1, tokenAddress: 1 })
 @index({ network: 1, tokenAddress: 1 })
 @index({ network: 1, status: 1, interfaceType: 1 })
+@index({ daoAddress: 1, network: 1, status: 1, isSupported: 1, interfaceType: 1 })
 @index({ address: 1 })
 @index({ network: 1, 'votingEscrow.escrowAddress': 1 })
 @index({ conditionAddress: 1, network: 1, status: 1 })
@@ -205,6 +205,21 @@ export default class Plugin extends Model {
 
   @prop({ type: () => String, default: null })
   public conditionAddress?: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public lockManagerAddress?: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public proposalCreationConditionAddress?: HexAddress
+
+  @prop({ type: () => Boolean, default: null })
+  public enableOfacCheck?: boolean
+
+  @prop({ type: () => [String], default: [] })
+  public blockedCountries?: string[]
+
+  @prop({ type: () => String, default: null })
+  public termsConditionsUrl?: string
 
   static async create(rawData: Partial<Plugin>, tOpts?: SaveOptions) {
     if (!rawData.id) {

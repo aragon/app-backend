@@ -2,7 +2,7 @@ import { Interface } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import ProviderModule from '@modules/provider'
-import { IEventLogMember, ITransferSide, NetworksEnum } from '@types'
+import { IEventLogMember, ITransactionSide, NetworksEnum } from '@types'
 import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 import Web3Helper from '@helpers/web3'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
@@ -109,7 +109,7 @@ describe('Manual: Delegate', () => {
     let member1Metrics = await Models.MemberMetrics.findOne({ address: member1 })
 
     expect(member1Txs).to.have.length(1)
-    expect(member1Txs[0].side).to.eq(ITransferSide.incoming)
+    expect(member1Txs[0].side).to.eq(ITransactionSide.deposit)
     expect(member1Txs[0].from).to.eq(member2)
     expect(member1Txs[0].to).to.eq(member1)
     expect(member1Txs[0].memberBalance).to.eq('1000000000000000000')
@@ -124,7 +124,7 @@ describe('Manual: Delegate', () => {
     let member2Metrics = await Models.MemberMetrics.findOne({ address: member2 })
 
     expect(member2Txs).to.have.length(1)
-    expect(member2Txs[0].side).to.eq(ITransferSide.outgoing)
+    expect(member2Txs[0].side).to.eq(ITransactionSide.withdraw)
     expect(member2Txs[0].from).to.eq(member2)
     expect(member2Txs[0].to).to.eq(member1)
     expect(member2Txs[0].memberBalance).to.eq('1000000000000000000')
@@ -149,14 +149,13 @@ describe('Manual: Delegate', () => {
 
     // test member1 have a transaction, balance and correct metrics
     member1Txs = await Models.MemberTransaction.find({ address: member1 }).sort({ createdAt: -1 })
-    member1Balance = await Models.MemberBalance.findOne({ address: member1 })
+    member1Balance = await Models.TokenMember.findOne({ address: member1 })
     member1Metrics = await Models.MemberMetrics.findOne({ address: member1 })
 
     expect(member1Txs).to.have.length(2)
-    expect(member1Txs[0].side).to.eq(ITransferSide.incoming)
+    expect(member1Txs[0].side).to.eq(ITransactionSide.deposit)
     expect(member1Txs[0].from).to.eq(member3)
     expect(member1Txs[0].to).to.eq(member1)
-    expect(member1Txs[0].memberBalance).to.eq('1000000000000000000')
     expect(member1Txs[0].memberVotingPower).to.eq('3000000000000000000')
     expect(member1Balance.votingPower).to.eq('3000000000000000000')
     expect(member1Balance.amount).to.eq('0')
@@ -168,7 +167,7 @@ describe('Manual: Delegate', () => {
     let member3Metrics = await Models.MemberMetrics.findOne({ address: member3 })
 
     expect(member3Txs).to.have.length(1)
-    expect(member3Txs[0].side).to.eq(ITransferSide.outgoing)
+    expect(member3Txs[0].side).to.eq(ITransactionSide.withdraw)
     expect(member3Txs[0].from).to.eq(member3)
     expect(member3Txs[0].to).to.eq(member1)
     expect(member3Txs[0].memberBalance).to.eq('1000000000000000000')
@@ -197,7 +196,7 @@ describe('Manual: Delegate', () => {
     member1Metrics = await Models.MemberMetrics.findOne({ address: member1 })
 
     expect(member1Txs).to.have.length(3)
-    expect(member1Txs[0].side).to.eq(ITransferSide.incoming)
+    expect(member1Txs[0].side).to.eq(ITransactionSide.deposit)
     expect(member1Txs[0].from).to.eq(member4)
     expect(member1Txs[0].to).to.eq(member1)
     expect(member1Txs[0].memberBalance).to.eq('1000000000000000000')
@@ -212,7 +211,7 @@ describe('Manual: Delegate', () => {
     let member4Metrics = await Models.MemberMetrics.findOne({ address: member4 })
 
     expect(member4Txs).to.have.length(1)
-    expect(member4Txs[0].side).to.eq(ITransferSide.outgoing)
+    expect(member4Txs[0].side).to.eq(ITransactionSide.withdraw)
     expect(member4Txs[0].from).to.eq(member4)
     expect(member4Txs[0].to).to.eq(member1)
     expect(member4Txs[0].memberBalance).to.eq('1000000000000000000')
@@ -238,7 +237,7 @@ describe('Manual: Delegate', () => {
     member1Metrics = await Models.MemberMetrics.findOne({ address: member1 })
 
     expect(member1Txs).to.have.length(4)
-    expect(member1Txs[0].side).to.eq(ITransferSide.outgoing)
+    expect(member1Txs[0].side).to.eq(ITransactionSide.withdraw)
     expect(member1Txs[0].from).to.eq(member1)
     expect(member1Txs[0].to).to.eq(member2)
     expect(member1Txs[0].memberBalance).to.eq('1000000000000000000')
@@ -253,7 +252,7 @@ describe('Manual: Delegate', () => {
     member2Metrics = await Models.MemberMetrics.findOne({ address: member2 })
 
     expect(member2Txs).to.have.length(2)
-    expect(member2Txs[0].side).to.eq(ITransferSide.incoming)
+    expect(member2Txs[0].side).to.eq(ITransactionSide.deposit)
     expect(member2Txs[0].from).to.eq(member1)
     expect(member2Txs[0].to).to.eq(member2)
     expect(member2Txs[0].memberBalance).to.eq('1000000000000000000')
@@ -279,7 +278,7 @@ describe('Manual: Delegate', () => {
     member1Metrics = await Models.MemberMetrics.findOne({ address: member1 })
 
     expect(member1Txs).to.have.length(5)
-    expect(member1Txs[0].side).to.eq(ITransferSide.outgoing)
+    expect(member1Txs[0].side).to.eq(ITransactionSide.withdraw)
     expect(member1Txs[0].from).to.eq(member1)
     expect(member1Txs[0].to).to.eq(member2)
     expect(member1Txs[0].memberBalance).to.eq('1000000000000000000')
@@ -294,7 +293,7 @@ describe('Manual: Delegate', () => {
     member2Metrics = await Models.MemberMetrics.findOne({ address: member2 })
 
     expect(member2Txs).to.have.length(3)
-    expect(member2Txs[0].side).to.eq(ITransferSide.incoming)
+    expect(member2Txs[0].side).to.eq(ITransactionSide.deposit)
     expect(member2Txs[0].from).to.eq(member1)
     expect(member2Txs[0].to).to.eq(member2)
     expect(member2Txs[0].memberBalance).to.eq('1000000000000000000')

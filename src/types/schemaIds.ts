@@ -1,9 +1,9 @@
 import {
   type HexAddress,
   type IEventLogPluginType,
-  type ITransactionCategory,
   type LogServicePattern,
   type NetworksEnum,
+  type TransferTokenType,
 } from '@src/types/index'
 
 export interface IVoteIdParams {
@@ -62,6 +62,12 @@ export interface ILogMetadataIdParams {
   logIndex: number
 }
 
+export interface ILockToVoteMemberIdParams {
+  network: NetworksEnum
+  lockManagerAddress: HexAddress
+  memberAddress: HexAddress
+}
+
 export interface IPluginRepoIdParams {
   network: NetworksEnum
   transactionHash: HexAddress
@@ -89,28 +95,8 @@ export interface ILogPluginSetupProcessorIdParams {
   event: IEventLogPluginType
 }
 
-export interface IMemberTransactionIdParams {
-  network: NetworksEnum
-  transactionHash: HexAddress
-  transactionIndex: number
-  logIndex: number
-  address: HexAddress
-}
-
 export interface IMemberIdParams {
   address: HexAddress
-}
-
-export interface IMemberMetricsIdParams {
-  network: NetworksEnum
-  address: HexAddress
-  pluginAddress: HexAddress
-}
-
-export interface IMemberBalanceIdParams {
-  network: NetworksEnum
-  address: HexAddress
-  tokenAddress: HexAddress
 }
 
 export interface IPluginIdParams {
@@ -132,10 +118,16 @@ export interface ITokenIdParams {
 
 export interface ITransactionIdParams {
   transactionHash: HexAddress
-  category: ITransactionCategory
   network: NetworksEnum
-  uniqueId: string
   daoAddress: HexAddress
+  logIndex?: number
+  transactionIndex?: number
+  type: TransferTokenType
+  tokenAddress?: string
+  tokenId?: string
+  proposalId?: string
+  batchIndex?: number
+  actionIndex?: number
 }
 
 export interface IDaoPermissionId {
@@ -152,4 +144,35 @@ export interface ISelectorPermissionIdParams {
   transactionIndex: number
   logIndex: number
   conditionAddress: HexAddress
+}
+
+export interface ICampaignParams {
+  pluginAddress: HexAddress
+  network: NetworksEnum
+  campaignId: string
+}
+
+export interface IRewardParams {
+  pluginAddress: HexAddress
+  network: NetworksEnum
+  campaignId: string
+  userAddress: HexAddress
+}
+
+export interface IPluginMemberIdParams {
+  network: NetworksEnum
+  pluginAddress: HexAddress
+  memberAddress: HexAddress
+}
+
+export interface ITokenMemberIdParams {
+  network: NetworksEnum
+  tokenAddress: HexAddress
+  memberAddress: HexAddress
+}
+
+export interface IPluginMetricsIdParams {
+  network: NetworksEnum
+  pluginAddress: HexAddress
+  memberAddress: HexAddress
 }

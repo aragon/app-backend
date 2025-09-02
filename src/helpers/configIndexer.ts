@@ -1,20 +1,24 @@
 import logger from '@logger'
 import {
   IndexerType,
-  IEnumIndexerService,
   ITokenType,
   NetworksEnum,
   type IPluginInterfaceType,
   type LogServicePattern,
   type LogServiceInfo,
-  type DepositLogService,
-  type WithdrawLogService,
   type IndexerLogService,
   type PluginLogService,
   type DaoLogService,
   type TokenLogService,
   type PermissionLogService,
   type TransferListLogService,
+  type LockManagerLogService,
+  type TokenDepositLogService,
+  type TokenWithdrawLogService,
+  type NativeDepositLogService,
+  type NativeWithdrawLogService,
+  type HexAddress,
+  type CampaignStrategyLogService,
 } from '@src/types'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ConfigIndexerHelper' })
@@ -34,16 +38,6 @@ const getValidNetworks = (): string[] => {
 const ConfigIndexerHelper = {
   // Builder functions for creating type-safe logService values
   builders: {
-    deposit: (network: NetworksEnum, address: string): DepositLogService => {
-      const service = `${IndexerType.deposit}-${network}-${address}-${IEnumIndexerService.depositTxs}`
-      return service as DepositLogService
-    },
-
-    withdraw: (network: NetworksEnum, address: string): WithdrawLogService => {
-      const service = `${IndexerType.withdraw}-${network}-${address}-${IEnumIndexerService.withdrawTxs}`
-      return service as WithdrawLogService
-    },
-
     indexer: (network: NetworksEnum): IndexerLogService => {
       const service = `${IndexerType.indexer}-${network}`
       return service as IndexerLogService
@@ -69,6 +63,11 @@ const ConfigIndexerHelper = {
       return service as TransferListLogService
     },
 
+    lockManager: (network: NetworksEnum, address: HexAddress): LockManagerLogService => {
+      const service = `${IndexerType.lockManager}-${network}-${address}`
+      return service as LockManagerLogService
+    },
+
     token: (tokenType: ITokenType, network: NetworksEnum, address: string): TokenLogService => {
       // Validate token type
       if (!ConfigIndexerHelper.utils.isValidTokenTypeForLogService(tokenType)) {
@@ -77,16 +76,47 @@ const ConfigIndexerHelper = {
       const service = `${tokenType}-${network}-${address}`
       return service as TokenLogService
     },
+
+    nativeDeposit: (network: NetworksEnum, address: string): NativeDepositLogService => {
+      const service = `${IndexerType.nativeDeposit}-${network}-${address}`
+      return service as NativeDepositLogService
+    },
+
+    nativeWithdraw: (network: NetworksEnum, address: string): NativeWithdrawLogService => {
+      const service = `${IndexerType.nativeWithdraw}-${network}-${address}`
+      return service as NativeWithdrawLogService
+    },
+
+    tokenDeposit: (network: NetworksEnum, address: string): TokenDepositLogService => {
+      const service = `${IndexerType.tokenDeposit}-${network}-${address}`
+      return service as TokenDepositLogService
+    },
+
+    tokenWithdraw: (network: NetworksEnum, address: string): TokenWithdrawLogService => {
+      const service = `${IndexerType.tokenWithdraw}-${network}-${address}`
+      return service as TokenWithdrawLogService
+    },
+
+    // // @deprecated - These are kept for backward compatibility with migrations
+    // deposit: (network: NetworksEnum, address: string): any => {
+    //   const service = `deposit-${network}-${address}-depositTxs`
+    //   return service
+    // },
+    //
+    // // @deprecated - These are kept for backward compatibility with migrations
+    // withdraw: (network: NetworksEnum, address: string): any => {
+    //   const service = `withdraw-${network}-${address}-withdrawTxs`
+    //   return service
+    // },
+
+    campaignAllocationStrategy: (network: NetworksEnum, address: HexAddress): CampaignStrategyLogService => {
+      const service = `${IndexerType.campaignStrategy}-${network}-${address}`
+      return service as CampaignStrategyLogService
+    },
   },
 
   // Type guard functions for runtime checks
   guards: {
-    isDeposit: (service: LogServicePattern): service is DepositLogService =>
-      service?.startsWith(`${IndexerType.deposit}-`) ?? false,
-
-    isWithdraw: (service: LogServicePattern): service is WithdrawLogService =>
-      service?.startsWith(`${IndexerType.withdraw}-`) ?? false,
-
     isIndexer: (service: LogServicePattern): service is IndexerLogService =>
       service?.startsWith(`${IndexerType.indexer}-`) ?? false,
 
@@ -106,16 +136,40 @@ const ConfigIndexerHelper = {
     isTransferList: (service: LogServicePattern): service is TransferListLogService =>
       service?.startsWith(`${IndexerType.transferList}-`) ?? false,
 
+    isLockManager: (service: LogServicePattern): service is LockManagerLogService =>
+      service?.startsWith(`${IndexerType.lockManager}-`) ?? false,
+
+    isTokenDeposit: (service: LogServicePattern): service is TokenDepositLogService =>
+      service?.startsWith(`${IndexerType.tokenDeposit}-`) ?? false,
+
+    isTokenWithdraw: (service: LogServicePattern): service is TokenWithdrawLogService =>
+      service?.startsWith(`${IndexerType.tokenWithdraw}-`) ?? false,
+
+    isNativeDeposit: (service: LogServicePattern): service is NativeDepositLogService =>
+      service?.startsWith(`${IndexerType.nativeDeposit}-`) ?? false,
+
+    isNativeWithdraw: (service: LogServicePattern): service is NativeWithdrawLogService =>
+      service?.startsWith(`${IndexerType.nativeWithdraw}-`) ?? false,
+
+    isCampaignStrategy: (service: LogServicePattern): service is CampaignStrategyLogService =>
+      service?.startsWith(`${IndexerType.campaignStrategy}-`) ?? false,
+
     isPlugin: (service: LogServicePattern): service is PluginLogService => {
       if (service === null) return false
       // If it's not any of the other types, and it's not null, it should be a plugin
       return (
-        !ConfigIndexerHelper.guards.isDeposit(service) &&
-        !ConfigIndexerHelper.guards.isWithdraw(service) &&
         !ConfigIndexerHelper.guards.isIndexer(service) &&
         !ConfigIndexerHelper.guards.isDao(service) &&
         !ConfigIndexerHelper.guards.isPermission(service) &&
-        !ConfigIndexerHelper.guards.isToken(service)
+        !ConfigIndexerHelper.guards.isToken(service) &&
+        !ConfigIndexerHelper.guards.isTransferList(service) &&
+        !ConfigIndexerHelper.guards.isLockManager(service) &&
+        !ConfigIndexerHelper.guards.isTokenDeposit(service) &&
+        !ConfigIndexerHelper.guards.isTokenWithdraw(service) &&
+        !ConfigIndexerHelper.guards.isNativeDeposit(service) &&
+        !ConfigIndexerHelper.guards.isNativeWithdraw(service) &&
+        !ConfigIndexerHelper.guards.isLockManager(service) &&
+        !ConfigIndexerHelper.guards.isCampaignStrategy(service)
       )
     },
   },
@@ -157,30 +211,6 @@ const ConfigIndexerHelper = {
       }
 
       const parts = service.split('-')
-
-      if (ConfigIndexerHelper.guards.isDeposit(service)) {
-        // deposit-{network}-{address}-depositTxs
-        const addressParts = parts.slice(3, -1) // Everything between 'deposit' and 'depositTxs'
-        const { network } = extractNetwork(parts, 1)
-        return {
-          type: IndexerType.deposit,
-          address: addressParts.join('-'),
-          service: parts[parts.length - 1] as IEnumIndexerService.depositTxs,
-          network,
-        }
-      }
-
-      if (ConfigIndexerHelper.guards.isWithdraw(service)) {
-        // withdraw-{network}-{address}-withdrawTxs
-        const addressParts = parts.slice(3, -1) // Everything between 'withdraw' and 'withdrawTxs'
-        const { network } = extractNetwork(parts, 1)
-        return {
-          type: IndexerType.withdraw,
-          address: addressParts.join('-'),
-          service: parts[parts.length - 1] as IEnumIndexerService.withdrawTxs,
-          network,
-        }
-      }
 
       if (ConfigIndexerHelper.guards.isIndexer(service)) {
         // indexer-{network}
@@ -230,6 +260,71 @@ const ConfigIndexerHelper = {
         }
       }
 
+      if (ConfigIndexerHelper.guards.isLockManager(service)) {
+        // lockManager-{network}-{address}
+        const { network, remainingParts } = extractNetwork(parts, 1)
+        const networkIndex = remainingParts.indexOf(network)
+        const addressParts = remainingParts.slice(networkIndex + 1)
+
+        return {
+          type: IndexerType.lockManager,
+          network,
+          address: addressParts.join('-'),
+        }
+      }
+
+      if (ConfigIndexerHelper.guards.isTokenDeposit(service)) {
+        // tokenDeposit-{network}-{address}
+        const { network, remainingParts } = extractNetwork(parts, 1)
+        const networkIndex = remainingParts.indexOf(network)
+        const addressParts = remainingParts.slice(networkIndex + 1)
+
+        return {
+          type: IndexerType.tokenDeposit,
+          network,
+          address: addressParts.join('-'),
+        }
+      }
+
+      if (ConfigIndexerHelper.guards.isTokenWithdraw(service)) {
+        // tokenWithdraw-{network}-{address}
+        const { network, remainingParts } = extractNetwork(parts, 1)
+        const networkIndex = remainingParts.indexOf(network)
+        const addressParts = remainingParts.slice(networkIndex + 1)
+
+        return {
+          type: IndexerType.tokenWithdraw,
+          network,
+          address: addressParts.join('-'),
+        }
+      }
+
+      if (ConfigIndexerHelper.guards.isNativeDeposit(service)) {
+        // nativeDeposit-{network}-{address}
+        const { network, remainingParts } = extractNetwork(parts, 1)
+        const networkIndex = remainingParts.indexOf(network)
+        const addressParts = remainingParts.slice(networkIndex + 1)
+
+        return {
+          type: IndexerType.nativeDeposit,
+          network,
+          address: addressParts.join('-'),
+        }
+      }
+
+      if (ConfigIndexerHelper.guards.isNativeWithdraw(service)) {
+        // nativeWithdraw-{network}-{address}
+        const { network, remainingParts } = extractNetwork(parts, 1)
+        const networkIndex = remainingParts.indexOf(network)
+        const addressParts = remainingParts.slice(networkIndex + 1)
+
+        return {
+          type: IndexerType.nativeWithdraw,
+          network,
+          address: addressParts.join('-'),
+        }
+      }
+
       if (ConfigIndexerHelper.guards.isToken(service)) {
         // {tokenType}-{network}-{address}
         const tokenType = parts[0] as ITokenType
@@ -258,6 +353,19 @@ const ConfigIndexerHelper = {
         return result
       }
 
+      if (ConfigIndexerHelper.guards.isCampaignStrategy(service)) {
+        // campaignStrategy-{network}-{address}
+        const { network, remainingParts } = extractNetwork(parts, 1)
+        const networkIndex = remainingParts.indexOf(network)
+        const addressParts = remainingParts.slice(networkIndex + 1)
+
+        return {
+          type: IndexerType.campaignStrategy,
+          network,
+          address: addressParts.join('-'),
+        }
+      }
+
       // Default to plugin pattern
       // {interfaceType}-{network}-{address}
       const interfaceType = parts[0]
@@ -282,13 +390,17 @@ const ConfigIndexerHelper = {
         return null
       }
 
-      if (ConfigIndexerHelper.guards.isDeposit(service)) return IndexerType.deposit
-      if (ConfigIndexerHelper.guards.isWithdraw(service)) return IndexerType.withdraw
       if (ConfigIndexerHelper.guards.isIndexer(service)) return IndexerType.indexer
       if (ConfigIndexerHelper.guards.isDao(service)) return IndexerType.dao
       if (ConfigIndexerHelper.guards.isToken(service)) return IndexerType.token
       if (ConfigIndexerHelper.guards.isPermission(service)) return IndexerType.permission
-      if (ConfigIndexerHelper.guards.isTransferList(service)) return IndexerType.transferList // Add this line
+      if (ConfigIndexerHelper.guards.isTransferList(service)) return IndexerType.transferList
+      if (ConfigIndexerHelper.guards.isLockManager(service)) return IndexerType.lockManager
+      if (ConfigIndexerHelper.guards.isTokenDeposit(service)) return IndexerType.tokenDeposit
+      if (ConfigIndexerHelper.guards.isTokenWithdraw(service)) return IndexerType.tokenWithdraw
+      if (ConfigIndexerHelper.guards.isNativeDeposit(service)) return IndexerType.nativeDeposit
+      if (ConfigIndexerHelper.guards.isNativeWithdraw(service)) return IndexerType.nativeWithdraw
+      if (ConfigIndexerHelper.guards.isCampaignStrategy(service)) return IndexerType.campaignStrategy
       if (ConfigIndexerHelper.guards.isPlugin(service)) return IndexerType.plugin
 
       return null
@@ -330,13 +442,17 @@ const ConfigIndexerHelper = {
 
       // Check if it matches any of our patterns
       return (
-        ConfigIndexerHelper.guards.isDeposit(service) ||
-        ConfigIndexerHelper.guards.isWithdraw(service) ||
         ConfigIndexerHelper.guards.isIndexer(service) ||
         ConfigIndexerHelper.guards.isDao(service) ||
         ConfigIndexerHelper.guards.isToken(service) ||
         ConfigIndexerHelper.guards.isPermission(service) ||
         ConfigIndexerHelper.guards.isTransferList(service) ||
+        ConfigIndexerHelper.guards.isLockManager(service) ||
+        ConfigIndexerHelper.guards.isTokenDeposit(service) ||
+        ConfigIndexerHelper.guards.isTokenWithdraw(service) ||
+        ConfigIndexerHelper.guards.isNativeDeposit(service) ||
+        ConfigIndexerHelper.guards.isNativeWithdraw(service) ||
+        ConfigIndexerHelper.guards.isCampaignStrategy(service) ||
         (ConfigIndexerHelper.guards.isPlugin(service) && hasValidNetwork)
       )
     },

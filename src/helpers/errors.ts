@@ -53,6 +53,10 @@ const ERRORS: IErrorMap = {
     status: 400,
     description: 'Proposal not found',
   },
+  [ErrorKeyEnum.campaignInvalid]: {
+    status: 400,
+    description: 'Campaign is invalid or cannot be modified',
+  },
 }
 
 const throwError = (message: string, detail: IErrorDetail = {}) => {

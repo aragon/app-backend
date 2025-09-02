@@ -11,42 +11,72 @@ export enum IndexerType {
   token = 'token',
   permission = 'permission',
   transferList = 'transferList',
+  lockManager = 'lockManager',
+  tokenDeposit = 'tokenDeposit',
+  tokenWithdraw = 'tokenWithdraw',
+  nativeDeposit = 'nativeDeposit',
+  nativeWithdraw = 'nativeWithdraw',
+  campaignStrategy = 'campaignStrategy',
 }
 
 export enum IEnumIndexerService {
-  depositTxs = 'depositTxs',
-  withdrawTxs = 'withdrawTxs',
+  tokenDeposit = 'tokenDeposit',
+  tokenWithdraw = 'tokenWithdraw',
 }
 
 // Define a discriminated union for all possible logService patterns
 export type LogServicePattern =
-  | DepositLogService
-  | WithdrawLogService
   | IndexerLogService
   | PluginLogService
   | DaoLogService
   | TokenLogService
   | PermissionLogService
   | TransferListLogService
+  | LockManagerLogService
+  | TokenDepositLogService
+  | TokenWithdrawLogService
+  | NativeDepositLogService
+  | NativeWithdrawLogService
+  | CampaignStrategyLogService
   | null
 
 // Individual pattern types
-export type DepositLogService = `${IndexerType.deposit}-${NetworksEnum}-${string}-${IEnumIndexerService.depositTxs}`
-export type WithdrawLogService = `${IndexerType.withdraw}-${NetworksEnum}-${string}-${IEnumIndexerService.withdrawTxs}`
 export type IndexerLogService = `${IndexerType.indexer}-${NetworksEnum}`
 export type PluginLogService = `${IPluginInterfaceType}-${NetworksEnum}-${string}`
 export type DaoLogService = `${IndexerType.dao}-${NetworksEnum}-${string}`
 export type PermissionLogService = `${IndexerType.permission}-${NetworksEnum}-${string}`
 export type TransferListLogService = `${IndexerType.transferList}-${NetworksEnum}-${string}`
 export type TokenLogService = `${ITokenType}-${NetworksEnum}-${string}`
+export type LockManagerLogService = `${IndexerType.lockManager}-${NetworksEnum}-${string}`
+export type CampaignStrategyLogService = `${IndexerType.campaignStrategy}-${NetworksEnum}-${string}`
+export type TokenDepositLogService = `${IndexerType.tokenDeposit}-${NetworksEnum}-${string}`
+export type TokenWithdrawLogService = `${IndexerType.tokenWithdraw}-${NetworksEnum}-${string}`
+export type NativeDepositLogService = `${IndexerType.nativeDeposit}-${NetworksEnum}-${string}`
+export type NativeWithdrawLogService = `${IndexerType.nativeWithdraw}-${NetworksEnum}-${string}`
 
 // Type for parsed log service info
 export type LogServiceInfo =
-  | { type: IndexerType.deposit; network: NetworksEnum; address: string; service: IEnumIndexerService.depositTxs }
-  | { type: IndexerType.withdraw; network: NetworksEnum; address: string; service: IEnumIndexerService.withdrawTxs }
+  | {
+      type: IndexerType.deposit
+      network: NetworksEnum
+      address: string
+      service: IEnumIndexerService.tokenDeposit
+    }
+  | {
+      type: IndexerType.withdraw
+      network: NetworksEnum
+      address: string
+      service: IEnumIndexerService.tokenWithdraw
+    }
   | { type: IndexerType.indexer; network: NetworksEnum }
   | { type: IndexerType.dao; network: NetworksEnum; address: string }
   | { type: IndexerType.permission; network: NetworksEnum; address: string }
   | { type: IndexerType.transferList; network: NetworksEnum; address: string }
   | { type: IndexerType.plugin; interfaceType: IPluginInterfaceType; network: NetworksEnum; address: string }
   | { type: IndexerType.token; tokenType: ITokenType; network: NetworksEnum; address: string }
+  | { type: IndexerType.lockManager; network: NetworksEnum; address: string }
+  | { type: IndexerType.tokenDeposit; network: NetworksEnum; address: string }
+  | { type: IndexerType.tokenWithdraw; network: NetworksEnum; address: string }
+  | { type: IndexerType.nativeDeposit; network: NetworksEnum; address: string }
+  | { type: IndexerType.nativeWithdraw; network: NetworksEnum; address: string }
+  | { type: IndexerType.campaignStrategy; network: NetworksEnum; address: string }

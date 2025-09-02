@@ -5,9 +5,10 @@ import securityMiddleware from './security'
 import loggerMiddleware from './logger'
 import errorMiddleware from './error'
 import JwtHelper from '@helpers/jwt'
+import type Router from '@koa/router'
 
-export default (mainRouter: any, opts?: { useJWT: boolean }) => {
-  const middlewares: any = []
+export default (mainRouter: Router, opts?: { useJWT: boolean }): any => {
+  const middlewares: any[] = []
 
   middlewares.push(loggerMiddleware())
   middlewares.push(errorMiddleware())

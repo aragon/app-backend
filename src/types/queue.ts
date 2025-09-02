@@ -31,7 +31,6 @@ export interface IQueueDao {
   address: HexAddress
   network: NetworksEnum
   blockNumber?: number
-  proposalId?: string
 }
 
 export interface IQueuePlugin {
@@ -76,12 +75,6 @@ export interface IQueueMessage {
   params: IQueueProposalMetrics | IQueueDao | any
 }
 
-export interface IQueueRealtimeTransactions {
-  daoAddresses: HexAddress[]
-  network: NetworksEnum
-  transactionHash: HexAddress
-}
-
 export interface ISendOptions {
   waitResponse?: boolean
   timeout?: number // reject response after timeout
@@ -95,4 +88,10 @@ export interface IGetLockVotingPowerBatch {
     timestamp: number
     network: NetworksEnum
   }>
+}
+
+export interface IThrottleOptions {
+  maxQueueSize?: number // Maximum number of messages allowed in queue (default: 50)
+  retryDelay?: number // Delay in ms between retry attempts (default: 3000)
+  logContext?: any // Additional context for logging
 }

@@ -15,7 +15,7 @@ import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import ModelUtils, { utcDateProp } from '@models/utils/models'
 import { assert } from '@errors'
-import { AggregationQueryHelper } from '@models/utils/aggregation'
+import { Models } from '@dbModels'
 
 const customName = ICollectionNames.Token
 
@@ -31,7 +31,6 @@ const customName = ICollectionNames.Token
     customName,
   },
 })
-@index({ id: 1 }, { unique: true })
 @index({ name: -1 })
 @index({ refetch: 1 })
 @index({ address: 1, network: 1 })
@@ -210,11 +209,7 @@ export default class Token extends Model {
   }
 
   async countHolders(tOpts?: SaveOptions) {
-    const response = await this.model(customName)
-      .aggregate(AggregationQueryHelper.memberCountByToken(this.address, this.network))
-      .session(tOpts?.session)
-
-    return response.length > 0 ? response[0].memberCount : 0
+    return await Models.TokenMember.countHoldersWithVotingPower(this.address, this.network, tOpts)
   }
 
   async reload(tOpts?: SaveOptions) {

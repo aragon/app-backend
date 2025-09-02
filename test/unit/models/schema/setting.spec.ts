@@ -4,7 +4,7 @@ import { expect } from 'chai'
 import Setting from '@models/schema/setting'
 import { Models } from '@dbModels'
 import { fakeSettings } from '@test/mock/fakeSettings'
-import { ISettingStatus, NetworksEnum } from '@types'
+import { IPluginInterfaceType, IPluginStatus, ISettingStatus, NetworksEnum } from '@types'
 
 describe('Model: Setting', () => {
   let sandbox: SinonSandbox
@@ -113,6 +113,42 @@ describe('Model: Setting', () => {
     expect(activeSetting?.status).to.eq(ISettingStatus.active)
   })
 
+  it('Should find active Settings with tokenAddress filter', async () => {
+    const settings = [
+      {
+        id: 'xx-token',
+        blockNumber: 1,
+        pluginAddress: '0xaa',
+        daoAddress: '0xdd',
+        tokenAddress: '0xtoken123',
+        network: NetworksEnum.polygonMainnet,
+        transactionHash: '0x',
+        status: ISettingStatus.active,
+      },
+      {
+        id: 'xx-token2',
+        blockNumber: 2,
+        pluginAddress: '0xbb',
+        daoAddress: '0xdd',
+        tokenAddress: '0xtoken456',
+        network: NetworksEnum.polygonMainnet,
+        transactionHash: '0x',
+        status: ISettingStatus.active,
+      },
+    ]
+
+    await Models.Setting.insertMany(settings)
+
+    const activeSetting = await Models.Setting.findActive({
+      tokenAddress: '0xtoken123',
+      network: NetworksEnum.polygonMainnet,
+    })
+
+    expect(activeSetting?.id).to.eq('xx-token')
+    expect(activeSetting?.tokenAddress).to.eq('0xtoken123')
+    expect(activeSetting?.status).to.eq(ISettingStatus.active)
+  })
+
   it('Should correctly find the last setting by blockNumber', async () => {
     const settings = [
       {
@@ -208,6 +244,32 @@ describe('Model: Setting', () => {
     await createdLogDao.reload()
 
     expect(createdLogDao.fromTxHash).to.eq(rawSetting.fromTxHash)
+  })
+
+  it('Should getPlugin', async () => {
+    // Create a plugin for testing
+    const pluginData = {
+      id: 'plugin-1',
+      address: rawSetting.pluginAddress,
+      network: rawSetting.network,
+      daoAddress: rawSetting.daoAddress,
+      name: 'TestPlugin',
+      interfaceType: IPluginInterfaceType.tokenVoting,
+      isSupported: true,
+      status: IPluginStatus.installed,
+      blockNumber: 100,
+      transactionHash: '0xtest123',
+    }
+    await Models.Plugin.create(pluginData)
+
+    // Create setting and test getPlugin
+    const createdSetting = await Models.Setting.create(rawSetting)
+    const plugin = await createdSetting.getPlugin()
+
+    expect(plugin).to.not.be.null
+    expect(plugin?.address).to.eq(rawSetting.pluginAddress)
+    expect(plugin?.network).to.eq(rawSetting.network)
+    expect(plugin?.name).to.eq('TestPlugin')
   })
 
   describe('findWithPagination', () => {
