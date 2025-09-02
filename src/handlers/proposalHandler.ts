@@ -199,8 +199,9 @@ export const ProposalHandler = {
           value: w.value,
           data: w.data,
         })),
-        decoding: parsedEvent.args?.actions?.length > 0,
       }
+
+      document.decoding = !!document.rawActions?.length
 
       // in case startDate is 0 we need to fetch it from the contract
       if (document.startDate === 0) {
