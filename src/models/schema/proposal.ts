@@ -84,10 +84,10 @@ class Media {
 
 class Simulation {
   @prop({ type: () => String, default: null })
-  public url!: string
+  public url!: string | null
 
   @prop({ type: () => Number, default: null })
-  public runAt!: number
+  public runAt!: number | null
 }
 
 class Settings {
