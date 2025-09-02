@@ -15,7 +15,7 @@ import { TaskSchedulerState } from '@state/taskSchedulerState'
 import config from '@config'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 
-describe.only('AragonDao: index', () => {
+describe('AragonDao: index', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
