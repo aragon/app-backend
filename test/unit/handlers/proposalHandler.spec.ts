@@ -2350,6 +2350,143 @@ describe('ProposalHandler', () => {
 
       expect(errorLoggerStub.calledOnceWith('Error VoteCast Proposal' as any)).to.be.true
     })
+
+    it('should handle voteCast for lockToVote proposal without tokenAddress', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0xLockToVoteTx',
+        address: '0xplugin-address',
+        blockNumber: 30,
+        network,
+        eventName: 'voteCast',
+        transactionIndex: 2,
+        logIndex: 3,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: 10n,
+          voter: '0x3333333333333333333333333333333333333333',
+          voteOption: 1n,
+          votingPower: 750n,
+        },
+      }
+
+      const proposal = {
+        daoAddress: '0xdao-address',
+        settings: {
+          // No tokenAddress for lockToVote
+          minApprovals: 3,
+          votingMode: 1,
+        },
+        network,
+        proposalIndex: '10',
+      }
+
+      const plugin = {
+        address: '0xplugin-address',
+        daoAddress: '0xdao-address',
+        subdomain: 'dao.subdomain',
+        interfaceType: IPluginInterfaceType.lockToVote,
+        isSupported: true,
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
+      sandbox.stub(Models.Vote, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Vote, 'findVoteOnPlugin').resolves(null)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1900000000)
+
+      // ProxyToken.saveAndGetToken should NOT be called for lockToVote
+      const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken')
+
+      const updateActivityStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      const governanceMock = {
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(governanceMock as any)
+
+      const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
+
+      await ProposalHandler.voteCast(fakeEvent as any, info)
+
+      const savedVote = await Models.Vote.findOne({
+        network,
+        transactionHash: info.transactionHash,
+        proposalIndex: '10',
+      })
+
+      expect(savedVote).to.exist
+      expect(savedVote.memberAddress).to.eq('0x3333333333333333333333333333333333333333')
+      expect(savedVote.pluginAddress).to.eq('0xplugin-address')
+      expect(savedVote.voteOption).to.eq(1)
+      expect(savedVote.votingPower).to.eq('750')
+      expect(savedVote.blockTimestamp).to.eq(1900000000)
+      expect(savedVote.tokenAddress).to.be.null // No tokenAddress for lockToVote
+
+      // ProxyToken.saveAndGetToken should NOT have been called
+      expect(proxyTokenStub.called).to.be.false
+
+      expect(updateActivityStub.calledOnceWith('0x3333333333333333333333333333333333333333', 30)).to.be.true
+      expect(governanceMock.updatePluginMetrics.calledOnce).to.be.true
+      expect(governanceMock.updateDaoMetrics.calledOnce).to.be.true
+      expect(rabbitMQStub.calledOnce).to.be.true
+      expect(verboseLoggerStub.calledOnceWith('Created new document - New Vote - VoteCast' as any)).to.be.true
+    })
+
+    it('should call ProxyToken.saveAndGetToken only when tokenAddress exists in proposal settings', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0xTokenVoteTx',
+        address: '0xplugin-address',
+        blockNumber: 35,
+        network,
+        eventName: 'voteCast',
+        transactionIndex: 2,
+        logIndex: 3,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: 11n,
+          voter: '0x4444444444444444444444444444444444444444',
+          voteOption: 2n,
+          votingPower: 1500n,
+        },
+      }
+
+      const proposalWithToken = {
+        daoAddress: '0xdao-address',
+        settings: { tokenAddress: '0xtoken-address' },
+        network,
+        proposalIndex: '11',
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(PluginList[0] as any)
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposalWithToken as any)
+      sandbox.stub(Models.Vote, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Vote, 'findVoteOnPlugin').resolves(null)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(2000000000)
+
+      // ProxyToken.saveAndGetToken SHOULD be called when tokenAddress exists
+      const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
+
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      const governanceMock = {
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(governanceMock as any)
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      sandbox.stub(logger, 'verbose')
+
+      await ProposalHandler.voteCast(fakeEvent as any, info)
+
+      // ProxyToken.saveAndGetToken SHOULD have been called with the token address
+      expect(proxyTokenStub.calledOnce).to.be.true
+      expect(proxyTokenStub.calledWith('0xtoken-address', network)).to.be.true
+    })
   })
 
   describe('proposalExecuted', () => {
