@@ -2165,9 +2165,7 @@ describe('ProposalHandler', () => {
 
       // Check MemberGovernanceFactory.create was called with correct params
       expect(createStub.calledOnce).to.be.true
-      expect(
-        createStub.calledWith(plugin),
-      ).to.be.true
+      expect(createStub.calledWith(plugin)).to.be.true
 
       // Check that updatePluginMetrics was called with correct params
       expect(governanceMock.updatePluginMetrics.calledOnce).to.be.true
