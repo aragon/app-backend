@@ -394,7 +394,7 @@ describe('AragonPlugins: index', () => {
       const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
         type: 'NonGovernanceToken',
       } as any)
-      const loggerStub = sandbox.stub(logger, 'warn')
+      const loggerStub = sandbox.stub(logger, 'error')
 
       await AragonPluginsService.start()
 
@@ -649,7 +649,7 @@ describe('AragonPlugins: index', () => {
       const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
         type: 'NonGovernanceToken',
       } as any)
-      const loggerStub = sandbox.stub(logger, 'warn')
+      const loggerStub = sandbox.stub(logger, 'error')
 
       await AragonPluginsService.start()
 
