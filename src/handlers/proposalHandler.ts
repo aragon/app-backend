@@ -199,9 +199,8 @@ export const ProposalHandler = {
           value: w.value,
           data: w.data,
         })),
+        decoding: parsedEvent.args?.actions?.length > 0,
       }
-
-      document.decoding = !!document.rawActions?.length
 
       // in case startDate is 0 we need to fetch it from the contract
       if (document.startDate === 0) {
@@ -484,16 +483,13 @@ export const ProposalHandler = {
         daoAddress: proposal.daoAddress,
         pluginAddress: info.address,
         memberAddress: parsedEvent.args.voter,
-        tokenAddress: proposal?.settings?.tokenAddress,
+        tokenAddress: proposal.settings.tokenAddress,
         proposalIndex: parsedEvent.args.proposalId.toString(),
         voteOption: Number(parsedEvent.args.voteOption),
         votingPower: parsedEvent.args.votingPower.toString(),
       }
 
-      // lockToVote gov doesn't have any token in setting
-      if (proposal?.settings?.tokenAddress) {
-        await ProxyToken.saveAndGetToken(proposal.settings.tokenAddress, proposal.network)
-      }
+      await ProxyToken.saveAndGetToken(proposal.settings.tokenAddress, proposal.network)
 
       // find existing voting
       const existingMemberVote = await Models.Vote.findVoteOnPlugin({
@@ -526,11 +522,7 @@ export const ProposalHandler = {
       // always update plugin metrics
       const relatedPlugin = await Models.Plugin.findByAddress(info.address, info.network)
       if (relatedPlugin) {
-        const governance = MemberGovernanceFactory.create({
-          address: relatedPlugin.tokenAddress || info.address,
-          network: info.network,
-          interfaceType: relatedPlugin.interfaceType,
-        })
+        const governance = MemberGovernanceFactory.createFromPlugin(relatedPlugin)
 
         await governance.updatePluginMetrics({
           memberAddress: document.memberAddress!,
