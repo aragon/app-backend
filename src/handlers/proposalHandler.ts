@@ -8,7 +8,7 @@ import {
   type IRawAction,
   ITokenVotingLogs,
 } from '@types'
-import { Interface, type LogDescription } from 'ethers'
+import { ethers, Interface, type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import IPFSModule from '@modules/ipfs'
 import type Vote from '@models/schema/vote'
@@ -28,6 +28,7 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { assert } from '@errors'
 import Web3Utils from '@helpers/web3Utils'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
+import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:ProposalHandler' })
 export const ProposalHandler = {
@@ -585,6 +586,15 @@ export const ProposalHandler = {
       })
 
       if (!proposal) return
+
+      const hashDaoUpgradeAction = proposal.rawActions?.find((action: any) => {
+        const methodHash = ethers.id('upgradeToAndCall(address,bytes)').slice(0, 10)
+        return action.data?.startsWith(methodHash)
+      })
+
+      if (hashDaoUpgradeAction && hashDaoUpgradeAction.to === proposal.daoAddress) {
+        await DaoRegistryHandler.handleVersionUpgrade(proposal.daoAddress, info)
+      }
 
       await Promise.allSettled([
         RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
