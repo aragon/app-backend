@@ -10,15 +10,15 @@ export const MultisigHandler = {
   membersAdded: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const { address, network } = info
 
-    const exitingPlugin = await Models.Plugin.findByAddress(address, network)
+    const existingPlugin = await Models.Plugin.findByAddress(address, network)
 
-    if (!exitingPlugin) {
+    if (!existingPlugin) {
       logger.warn('Plugin not found', llo(info))
       return
     }
 
     // Create multisig governance instance
-    const governance = MemberGovernanceFactory.createFromPlugin(exitingPlugin)
+    const governance = MemberGovernanceFactory.createFromPlugin(existingPlugin)
 
     const { members } = parsedEvent.args
     for (const memberAddress of members) {
