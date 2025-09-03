@@ -16,7 +16,7 @@ describe('Controller: QueueAdmin', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
-    rabbitMQ = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+    rabbitMQ = sandbox.stub(RabbitMQHelper, 'sendMessage')
   })
 
   afterEach(() => {
@@ -104,7 +104,7 @@ describe('Controller: QueueAdmin', () => {
       const generateSlugStub = sandbox.stub(PluginSlug, 'generateSlug').resolves()
 
       // Mock RabbitMQ
-      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const sendMessageStub = rabbitMQ.resolves()
 
       // Mock ProxyToken.saveAndGetToken
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
@@ -173,7 +173,7 @@ describe('Controller: QueueAdmin', () => {
       sandbox.stub(Models.PluginSlug, 'findOne').resolves({ pluginAddress, network, slug: 'existing-slug' })
 
       // Mock RabbitMQ
-      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const sendMessageStub = rabbitMQ.resolves()
 
       // Mock ProxyToken.saveAndGetToken
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken')
@@ -238,7 +238,7 @@ describe('Controller: QueueAdmin', () => {
       sandbox.stub(PluginSlug, 'generateSlug').resolves()
 
       // Mock RabbitMQ
-      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      rabbitMQ.resolves()
 
       // Mock ProxyToken.saveAndGetToken
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({} as any)
@@ -303,8 +303,7 @@ describe('Controller: QueueAdmin', () => {
       sandbox.stub(Models.PluginSlug, 'findOne').resolves({ pluginAddress: '0x456', slug: 'existing-slug' })
 
       // Restore the original stub and create a new one that rejects
-      rabbitMQ.restore()
-      sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('RabbitMQ error'))
+      rabbitMQ.rejects(new Error('RabbitMQ error'))
 
       await expect(QueueAdminController.queuePlugins(params)).to.be.rejectedWith(Error, 'RabbitMQ error')
     })
@@ -381,9 +380,7 @@ describe('Controller: QueueAdmin', () => {
       const params = { address: '0x123', network: 'mainnet' }
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0x123', network: NetworksEnum.ethereumSepolia })
 
-      // Restore the original stub and create a new one that rejects
-      rabbitMQ.restore()
-      sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('RabbitMQ error'))
+      rabbitMQ.rejects(new Error('RabbitMQ error'))
 
       await expect(QueueAdminController.queueDaoTransactions(params)).to.be.rejectedWith(Error, 'RabbitMQ error')
     })
@@ -417,9 +414,7 @@ describe('Controller: QueueAdmin', () => {
       const params = { address: '0x123', network: 'mainnet' }
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0x123', network: NetworksEnum.ethereumSepolia })
 
-      // Restore the original stub and create a new one that rejects
-      rabbitMQ.restore()
-      sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('RabbitMQ error'))
+      rabbitMQ.rejects(new Error('RabbitMQ error'))
 
       await expect(QueueAdminController.queueDaoMetrics(params)).to.be.rejectedWith(Error, 'RabbitMQ error')
     })
@@ -503,9 +498,7 @@ describe('Controller: QueueAdmin', () => {
         .stub(Models.Proposal, 'findOne')
         .resolves({ proposalIndex: '1', pluginAddress: '0x456', network: 'mainnet' })
 
-      // Restore the original stub and create a new one that rejects
-      rabbitMQ.restore()
-      sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('RabbitMQ error'))
+      rabbitMQ.rejects(new Error('RabbitMQ error'))
 
       await expect(QueueAdminController.queueProposalMetrics(params)).to.be.rejectedWith(Error, 'RabbitMQ error')
     })
