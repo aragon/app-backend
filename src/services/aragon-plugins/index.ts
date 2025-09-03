@@ -95,9 +95,9 @@ const AragonPluginsService: IService & { pluginQueue: (params: IQueuePlugin) => 
 
           await LogTokenVoting.start(plugin, token, isHistorical)
         } else {
-          logger.warn(
+          logger.error(
             'Sync plugin: token not governance erc20 or escrowAdapter',
-            llo({ plugin: plugin.address, token: token.address }),
+            llo({ plugin: plugin?.address, token: token?.address }),
           )
         }
         break
