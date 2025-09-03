@@ -522,11 +522,20 @@ describe('Model: Dao', () => {
       ]
 
       sandbox.stub(Models.Plugin, 'find').resolves(mockPlugins)
-      sandbox.stub(Models.LockToVoteMember, 'distinct').resolves(['0xmember1', '0xmember2'])
+      
+      const lockToVoteStub = sandbox.stub(Models.LockToVoteMember, 'distinct')
+      lockToVoteStub.resolves(['0xmember1', '0xmember2'])
 
       const count = await Models.Dao.countUniqueMembers(mockDaoAddress, mockNetwork)
 
       expect(count).to.eq(2)
+      
+      // Verify votingPower filter is applied
+      expect(lockToVoteStub.firstCall.args[1]).to.deep.equal({
+        lockManagerAddress: '0xlockmanager1',
+        network: mockNetwork,
+        votingPower: { $ne: '0' },
+      })
     })
 
     it('should handle errors in individual plugin queries gracefully', async () => {

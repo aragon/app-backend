@@ -864,56 +864,90 @@ export default class Dao extends Model {
       // Step 2: Collect all unique member addresses using Set
       const uniqueMembers = new Set<string>()
 
-      // Step 3: Process each plugin type separately
+      // Step 3: Build queries for all plugins in parallel
+      const memberQueries: Promise<string[]>[] = []
+
       for (const plugin of plugins) {
-        try {
-          if (plugin.interfaceType === IPluginInterfaceType.tokenVoting && plugin.tokenAddress) {
-            // Query TokenMember collection
-            const tokenMembers = await Models.TokenMember.distinct('memberAddress', {
+        if (plugin.interfaceType === IPluginInterfaceType.tokenVoting && plugin.tokenAddress) {
+          // Query TokenMember collection - with votingPower filter (consistent with rest of codebase)
+          memberQueries.push(
+            Models.TokenMember.distinct('memberAddress', {
               tokenAddress: plugin.tokenAddress,
               network,
               votingPower: { $ne: '0' },
-            })
-            for (const member of tokenMembers) {
-              uniqueMembers.add(member)
-            }
+            }).catch(error => {
+              logger.error('Error counting TokenMember for plugin - requires investigation', {
+                plugin: plugin.address,
+                interfaceType: plugin.interfaceType,
+                daoAddress: address,
+                network,
+                error,
+              })
+              return []
+            }),
+          )
 
-            // Query Lock collection for veGovernance
-            const lockMembers = await Models.Lock.distinct('delegateReceiverAddress', {
+          // Query Lock collection for veGovernance - no votingPower filter needed
+          memberQueries.push(
+            Models.Lock.distinct('delegateReceiverAddress', {
               tokenAddress: plugin.tokenAddress,
               network,
-            })
-            for (const member of lockMembers) {
-              uniqueMembers.add(member)
-            }
-          } else if (plugin.interfaceType === IPluginInterfaceType.lockToVote && plugin.lockManagerAddress) {
-            // Query LockToVoteMember collection
-            const lockToVoteMembers = await Models.LockToVoteMember.distinct('memberAddress', {
+            }).catch(error => {
+              logger.error('Error counting Lock members for plugin - requires investigation', {
+                plugin: plugin.address,
+                interfaceType: plugin.interfaceType,
+                daoAddress: address,
+                network,
+                error,
+              })
+              return []
+            }),
+          )
+        } else if (plugin.interfaceType === IPluginInterfaceType.lockToVote && plugin.lockManagerAddress) {
+          // Query LockToVoteMember collection - with votingPower filter (consistent with rest of codebase)
+          memberQueries.push(
+            Models.LockToVoteMember.distinct('memberAddress', {
               lockManagerAddress: plugin.lockManagerAddress,
               network,
-            })
-            for (const member of lockToVoteMembers) {
-              uniqueMembers.add(member)
-            }
-          } else if ([IPluginInterfaceType.multisig, IPluginInterfaceType.admin].includes(plugin.interfaceType)) {
-            // Query PluginMember collection
-            const pluginMembers = await Models.PluginMember.distinct('memberAddress', {
+              votingPower: { $ne: '0' },
+            }).catch(error => {
+              logger.error('Error counting LockToVoteMember for plugin - requires investigation', {
+                plugin: plugin.address,
+                interfaceType: plugin.interfaceType,
+                daoAddress: address,
+                network,
+                error,
+              })
+              return []
+            }),
+          )
+        } else if ([IPluginInterfaceType.multisig, IPluginInterfaceType.admin].includes(plugin.interfaceType)) {
+          // Query PluginMember collection - no votingPower filter needed
+          memberQueries.push(
+            Models.PluginMember.distinct('memberAddress', {
               pluginAddress: plugin.address,
               network,
-            })
-            for (const member of pluginMembers) {
-              uniqueMembers.add(member)
-            }
-          }
-        } catch (error) {
-          // Log ERROR (not warning) - if any query fails, we need to investigate
-          logger.error('Error counting members for plugin - requires investigation', {
-            plugin: plugin.address,
-            interfaceType: plugin.interfaceType,
-            daoAddress: address,
-            network,
-            error,
-          })
+            }).catch(error => {
+              logger.error('Error counting PluginMember for plugin - requires investigation', {
+                plugin: plugin.address,
+                interfaceType: plugin.interfaceType,
+                daoAddress: address,
+                network,
+                error,
+              })
+              return []
+            }),
+          )
+        }
+      }
+
+      // Step 4: Execute all queries in parallel
+      const allMemberArrays = await Promise.all(memberQueries)
+
+      // Step 5: Combine all results into unique set
+      for (const memberArray of allMemberArrays) {
+        for (const member of memberArray) {
+          uniqueMembers.add(member)
         }
       }
 
