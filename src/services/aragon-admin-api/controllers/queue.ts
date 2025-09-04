@@ -6,6 +6,7 @@ import type Plugin from '@models/schema/plugin'
 import { PluginSlug } from '@helpers/pluginSlug'
 import logger from '@logger'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import { ProxyToken } from '@modules/proxyToken'
 
 const llo = logger.logMeta.bind(null, { service: 'QueueAdminController' })
 
@@ -31,6 +32,10 @@ const QueueAdminController = {
         if (!pluginSlug) {
           await PluginSlug.generateSlug(plugin, plugin?.processKey)
           logger.verbose('Force queue generate slug plugin', llo({ address: plugin.address, network: plugin.network }))
+        }
+
+        if (plugin.tokenAddress) {
+          await ProxyToken.saveAndGetToken(plugin.tokenAddress, plugin.network)
         }
 
         await RabbitMQHelper.sendMessage(EnumQueueName.requeue, {

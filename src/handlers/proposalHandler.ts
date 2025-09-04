@@ -484,13 +484,16 @@ export const ProposalHandler = {
         daoAddress: proposal.daoAddress,
         pluginAddress: info.address,
         memberAddress: parsedEvent.args.voter,
-        tokenAddress: proposal.settings.tokenAddress,
+        tokenAddress: proposal?.settings?.tokenAddress,
         proposalIndex: parsedEvent.args.proposalId.toString(),
         voteOption: Number(parsedEvent.args.voteOption),
         votingPower: parsedEvent.args.votingPower.toString(),
       }
 
-      await ProxyToken.saveAndGetToken(proposal.settings.tokenAddress, proposal.network)
+      // lockToVote gov doesn't have any token in setting
+      if (proposal?.settings?.tokenAddress) {
+        await ProxyToken.saveAndGetToken(proposal.settings.tokenAddress, proposal.network)
+      }
 
       // find existing voting
       const existingMemberVote = await Models.Vote.findVoteOnPlugin({

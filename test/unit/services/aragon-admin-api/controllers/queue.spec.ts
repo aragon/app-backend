@@ -8,6 +8,7 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import { PluginSlug } from '@helpers/pluginSlug'
 import logger from '@logger'
 import * as errors from '@errors'
+import { ProxyToken } from '@modules/proxyToken'
 
 describe('Controller: QueueAdmin', () => {
   let sandbox: SinonSandbox
@@ -15,7 +16,7 @@ describe('Controller: QueueAdmin', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
-    rabbitMQ = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+    rabbitMQ = sandbox.stub(RabbitMQHelper, 'sendMessage')
   })
 
   afterEach(() => {
@@ -63,6 +64,195 @@ describe('Controller: QueueAdmin', () => {
       expect(stubSlug.called).to.be.false
       expect(rabbitMQ.calledOnce).to.be.true
       expect(loggerStub.calledWith('Force queue plugin' as any)).to.be.true
+    })
+
+    it('should call ProxyToken.saveAndGetToken when plugin has tokenAddress', async () => {
+      const daoAddress = '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254'
+      const pluginAddress = '0x1234567890123456789012345678901234567890'
+      const tokenAddress = '0xB2f5bC5e7Bb39081811e6a9FE98F6fCa5F5b78a7'
+      const network = NetworksEnum.ethereumMainnet
+
+      // Mock the DAO
+      const mockDao = { address: daoAddress, network }
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(mockDao)
+
+      // Mock plugins - one with tokenAddress, one without
+      const mockPlugins = [
+        {
+          address: pluginAddress,
+          network,
+          tokenAddress, // This plugin has a token
+          daoAddress,
+          isSupported: true,
+          status: IPluginStatus.installed,
+          processKey: 'plugin1',
+        },
+        {
+          address: '0x9876543210987654321098765432109876543210',
+          network,
+          tokenAddress: null, // This plugin doesn't have a token
+          daoAddress,
+          isSupported: true,
+          status: IPluginStatus.installed,
+          processKey: 'plugin2',
+        },
+      ]
+      sandbox.stub(Models.Plugin, 'find').resolves(mockPlugins)
+
+      // Mock PluginSlug
+      sandbox.stub(Models.PluginSlug, 'findOne').resolves(null)
+      const generateSlugStub = sandbox.stub(PluginSlug, 'generateSlug').resolves()
+
+      // Mock RabbitMQ
+      const sendMessageStub = rabbitMQ.resolves()
+
+      // Mock ProxyToken.saveAndGetToken
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        address: tokenAddress,
+        symbol: 'TEST',
+        name: 'Test Token',
+        decimals: 18,
+      } as any)
+
+      // Execute the function
+      const result = await QueueAdminController.queuePlugins({
+        address: daoAddress,
+        network,
+      })
+
+      // Assertions
+      expect(result).to.be.true
+
+      // Verify ProxyToken.saveAndGetToken was called only for the plugin with tokenAddress
+      expect(saveAndGetTokenStub.callCount).to.equal(1)
+      expect(saveAndGetTokenStub.firstCall.args[0]).to.equal(tokenAddress)
+      expect(saveAndGetTokenStub.firstCall.args[1]).to.equal(network)
+
+      // Verify PluginSlug.generateSlug was called for both plugins
+      expect(generateSlugStub.callCount).to.equal(2)
+
+      // Verify RabbitMQ messages were sent for both plugins
+      expect(sendMessageStub.callCount).to.equal(2)
+      expect(sendMessageStub.firstCall.args[0]).to.equal(EnumQueueName.requeue)
+
+      // Check that messages were sent for both plugins (order doesn't matter)
+      const sentMessages = sendMessageStub.getCalls().map(call => call.args[1])
+      expect(sentMessages).to.have.deep.members([
+        { id: pluginAddress, params: { address: pluginAddress, network } },
+        {
+          id: '0x9876543210987654321098765432109876543210',
+          params: { address: '0x9876543210987654321098765432109876543210', network },
+        },
+      ])
+    })
+
+    it('should not call ProxyToken.saveAndGetToken when plugin has no tokenAddress', async () => {
+      const daoAddress = '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254'
+      const pluginAddress = '0x1234567890123456789012345678901234567890'
+      const network = NetworksEnum.ethereumMainnet
+
+      // Mock the DAO
+      const mockDao = { address: daoAddress, network }
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(mockDao)
+
+      // Mock plugin without tokenAddress
+      const mockPlugins = [
+        {
+          address: pluginAddress,
+          network,
+          tokenAddress: null, // No token
+          daoAddress,
+          isSupported: true,
+          status: IPluginStatus.installed,
+          processKey: 'plugin1',
+        },
+      ]
+      sandbox.stub(Models.Plugin, 'find').resolves(mockPlugins)
+
+      // Mock PluginSlug
+      sandbox.stub(Models.PluginSlug, 'findOne').resolves({ pluginAddress, network, slug: 'existing-slug' })
+
+      // Mock RabbitMQ
+      const sendMessageStub = rabbitMQ.resolves()
+
+      // Mock ProxyToken.saveAndGetToken
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken')
+
+      // Execute the function
+      const result = await QueueAdminController.queuePlugins({
+        address: daoAddress,
+        network,
+      })
+
+      // Assertions
+      expect(result).to.be.true
+
+      // Verify ProxyToken.saveAndGetToken was NOT called
+      expect(saveAndGetTokenStub.callCount).to.equal(0)
+
+      // Verify RabbitMQ message was sent
+      expect(sendMessageStub.callCount).to.equal(1)
+    })
+
+    it('should handle multiple plugins with mixed tokenAddress presence', async () => {
+      const daoAddress = '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254'
+      const network = NetworksEnum.ethereumMainnet
+      const tokenAddress1 = '0xAAAA567890123456789012345678901234567890'
+      const tokenAddress2 = '0xBBBB567890123456789012345678901234567890'
+
+      // Mock the DAO
+      const mockDao = { address: daoAddress, network }
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(mockDao)
+
+      // Mock plugins with mixed tokenAddress presence
+      const mockPlugins = [
+        {
+          address: '0x1111111111111111111111111111111111111111',
+          network,
+          tokenAddress: tokenAddress1,
+          daoAddress,
+          isSupported: true,
+          status: IPluginStatus.installed,
+        },
+        {
+          address: '0x2222222222222222222222222222222222222222',
+          network,
+          tokenAddress: null,
+          daoAddress,
+          isSupported: true,
+          status: IPluginStatus.installed,
+        },
+        {
+          address: '0x3333333333333333333333333333333333333333',
+          network,
+          tokenAddress: tokenAddress2,
+          daoAddress,
+          isSupported: true,
+          status: IPluginStatus.installed,
+        },
+      ]
+      sandbox.stub(Models.Plugin, 'find').resolves(mockPlugins)
+
+      // Mock PluginSlug
+      sandbox.stub(Models.PluginSlug, 'findOne').resolves(null)
+      sandbox.stub(PluginSlug, 'generateSlug').resolves()
+
+      // Mock RabbitMQ
+      rabbitMQ.resolves()
+
+      // Mock ProxyToken.saveAndGetToken
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({} as any)
+
+      // Execute the function
+      await QueueAdminController.queuePlugins({
+        address: daoAddress,
+        network,
+      })
+
+      // Verify ProxyToken.saveAndGetToken was called only for plugins with tokenAddress
+      expect(saveAndGetTokenStub.callCount).to.equal(2)
+      expect(saveAndGetTokenStub.firstCall.args[0]).to.equal(tokenAddress1)
+      expect(saveAndGetTokenStub.secondCall.args[0]).to.equal(tokenAddress2)
     })
 
     it('should throw error if DAO not found for queuePlugins', async () => {
@@ -113,8 +303,7 @@ describe('Controller: QueueAdmin', () => {
       sandbox.stub(Models.PluginSlug, 'findOne').resolves({ pluginAddress: '0x456', slug: 'existing-slug' })
 
       // Restore the original stub and create a new one that rejects
-      rabbitMQ.restore()
-      sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('RabbitMQ error'))
+      rabbitMQ.rejects(new Error('RabbitMQ error'))
 
       await expect(QueueAdminController.queuePlugins(params)).to.be.rejectedWith(Error, 'RabbitMQ error')
     })
@@ -191,9 +380,7 @@ describe('Controller: QueueAdmin', () => {
       const params = { address: '0x123', network: 'mainnet' }
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0x123', network: NetworksEnum.ethereumSepolia })
 
-      // Restore the original stub and create a new one that rejects
-      rabbitMQ.restore()
-      sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('RabbitMQ error'))
+      rabbitMQ.rejects(new Error('RabbitMQ error'))
 
       await expect(QueueAdminController.queueDaoTransactions(params)).to.be.rejectedWith(Error, 'RabbitMQ error')
     })
@@ -227,9 +414,7 @@ describe('Controller: QueueAdmin', () => {
       const params = { address: '0x123', network: 'mainnet' }
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0x123', network: NetworksEnum.ethereumSepolia })
 
-      // Restore the original stub and create a new one that rejects
-      rabbitMQ.restore()
-      sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('RabbitMQ error'))
+      rabbitMQ.rejects(new Error('RabbitMQ error'))
 
       await expect(QueueAdminController.queueDaoMetrics(params)).to.be.rejectedWith(Error, 'RabbitMQ error')
     })
@@ -313,9 +498,7 @@ describe('Controller: QueueAdmin', () => {
         .stub(Models.Proposal, 'findOne')
         .resolves({ proposalIndex: '1', pluginAddress: '0x456', network: 'mainnet' })
 
-      // Restore the original stub and create a new one that rejects
-      rabbitMQ.restore()
-      sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('RabbitMQ error'))
+      rabbitMQ.rejects(new Error('RabbitMQ error'))
 
       await expect(QueueAdminController.queueProposalMetrics(params)).to.be.rejectedWith(Error, 'RabbitMQ error')
     })
