@@ -526,11 +526,7 @@ export const ProposalHandler = {
       // always update plugin metrics
       const relatedPlugin = await Models.Plugin.findByAddress(info.address, info.network)
       if (relatedPlugin) {
-        const governance = MemberGovernanceFactory.create({
-          address: relatedPlugin.tokenAddress || info.address,
-          network: info.network,
-          interfaceType: relatedPlugin.interfaceType,
-        })
+        const governance = MemberGovernanceFactory.createFromPlugin(relatedPlugin)
 
         await governance.updatePluginMetrics({
           memberAddress: document.memberAddress!,

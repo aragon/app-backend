@@ -2145,7 +2145,7 @@ describe('ProposalHandler', () => {
 
       const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
       const createBaseMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-      const createStub = sandbox.stub(MemberGovernanceFactory, 'create').returns(governanceMock as any)
+      const createStub = sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(governanceMock as any)
       const verboseLoggerStub = sandbox.stub(logger, 'verbose')
 
       await ProposalHandler.voteCast(fakeEvent as any, info)
@@ -2165,13 +2165,7 @@ describe('ProposalHandler', () => {
 
       // Check MemberGovernanceFactory.create was called with correct params
       expect(createStub.calledOnce).to.be.true
-      expect(
-        createStub.calledWith({
-          address: '0xtoken-address',
-          network,
-          interfaceType: IPluginInterfaceType.tokenVoting,
-        }),
-      ).to.be.true
+      expect(createStub.calledWith(plugin)).to.be.true
 
       // Check that updatePluginMetrics was called with correct params
       expect(governanceMock.updatePluginMetrics.calledOnce).to.be.true

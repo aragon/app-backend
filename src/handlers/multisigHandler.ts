@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type ILogInfo, IPluginInterfaceType } from '@types'
+import { type ILogInfo } from '@types'
 import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import { MemberGovernanceFactory } from '@src/governance'
@@ -10,15 +10,15 @@ export const MultisigHandler = {
   membersAdded: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const { address, network } = info
 
-    const exitingPlugin = await Models.Plugin.findByAddress(address, network)
+    const existingPlugin = await Models.Plugin.findByAddress(address, network)
 
-    if (!exitingPlugin) {
+    if (!existingPlugin) {
       logger.warn('Plugin not found', llo(info))
       return
     }
 
     // Create multisig governance instance
-    const governance = MemberGovernanceFactory.createFromPlugin(exitingPlugin)
+    const governance = MemberGovernanceFactory.createFromPlugin(existingPlugin)
 
     const { members } = parsedEvent.args
     for (const memberAddress of members) {
@@ -30,19 +30,15 @@ export const MultisigHandler = {
   membersRemoved: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const { address, network } = info
 
-    const exitingPlugin = await Models.Plugin.findByAddress(address, network)
+    const existingPlugin = await Models.Plugin.findByAddress(address, network)
 
-    if (!exitingPlugin) {
+    if (!existingPlugin) {
       logger.warn('Plugin not found', llo(info))
       return
     }
 
     // Create multisig governance instance
-    const governance = MemberGovernanceFactory.create({
-      address,
-      network,
-      interfaceType: IPluginInterfaceType.multisig,
-    })
+    const governance = MemberGovernanceFactory.createFromPlugin(existingPlugin)
 
     const { members } = parsedEvent.args
     for (const memberAddress of members) {
