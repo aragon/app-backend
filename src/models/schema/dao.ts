@@ -11,6 +11,7 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   IPluginStatus,
+  IPluginInterfaceType,
   NetworksEnum,
 } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
@@ -18,6 +19,8 @@ import * as _ from 'lodash'
 import ModelUtils from '@models/utils/models'
 import { assert } from '@errors'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
+import { Models } from '@dbModels'
+import logger from '@logger'
 
 const customName = ICollectionNames.Dao
 
@@ -848,157 +851,115 @@ export default class Dao extends Model {
     return await this.save(tOpts)
   }
 
-  static async countUniqueMembers(address: HexAddress, network: NetworksEnum, tOpts?: SaveOptions): Promise<number> {
-    const MEMBER_COLLECTION_CONFIG = [
-      {
-        interfaceTypes: ['tokenVoting'],
-        collection: 'TokenMember',
-        memberAddressField: 'memberAddress',
-        matchField: 'tokenAddress', // Field in a collection to match
-        sourceField: '$plugins.tokenAddress', // Source value from plugin
-        resultAlias: 'tokenMembers',
-      },
-      {
-        interfaceTypes: ['tokenVoting'],
-        collection: 'Lock',
-        memberAddressField: 'delegateReceiverAddress',
-        matchField: 'tokenAddress', // Field in a collection to match
-        sourceField: '$plugins.tokenAddress', // Source value from plugin
-        resultAlias: 'veGovernanceMembers',
-      },
-      {
-        interfaceTypes: ['lockToVote'],
-        collection: 'LockToVoteMember',
-        memberAddressField: 'memberAddress',
-        matchField: 'lockManagerAddress', // Field in a collection to match
-        sourceField: '$plugins.lockManagerAddress', // Source value from plugin
-        resultAlias: 'lockMembers',
-      },
-      {
-        interfaceTypes: ['multisig', 'admin'],
-        collection: 'PluginMember',
-        memberAddressField: 'memberAddress',
-        matchField: 'pluginAddress', // Field in collection to match
-        sourceField: '$plugins.address', // Source value from plugin
-        resultAlias: 'pluginMembers',
-      },
-    ]
+  static async countUniqueMembers(address: HexAddress, network: NetworksEnum, _tOpts?: SaveOptions): Promise<number> {
+    try {
+      // Step 1: Get all plugins for this DAO
+      const plugins = await Models.Plugin.find({
+        daoAddress: address,
+        network,
+        status: IPluginStatus.installed,
+        isSupported: true,
+      })
 
-    const pipeline: any[] = [
-      {
-        $match: {
-          address,
-          network,
-        },
-      },
-      {
-        $lookup: {
-          from: 'Plugin',
-          let: {
-            daoAddress: '$address',
-            network: '$network',
-          },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    { $eq: ['$daoAddress', '$$daoAddress'] },
-                    { $eq: ['$network', '$$network'] },
-                    { $eq: ['$status', 'installed'] },
-                    { $eq: ['$isSupported', true] },
-                  ],
-                },
-              },
-            },
-          ],
-          as: 'plugins',
-        },
-      },
-      {
-        $unwind: '$plugins',
-      },
-    ]
+      // Step 2: Collect all unique member addresses using Set
+      const uniqueMembers = new Set<string>()
 
-    const facetStage: Record<string, any[]> = {}
-    MEMBER_COLLECTION_CONFIG.forEach(config => {
-      facetStage[config.resultAlias] = [
-        {
-          $lookup: {
-            from: config.collection,
-            let: {
-              targetValue: config.sourceField,
-              network: '$plugins.network',
-              interfaceType: '$plugins.interfaceType',
-            },
-            pipeline: [
-              {
-                $match: {
-                  $expr: {
-                    $and: [
-                      config.interfaceTypes.length === 1
-                        ? { $eq: ['$$interfaceType', config.interfaceTypes[0]] }
-                        : { $in: ['$$interfaceType', config.interfaceTypes] },
-                      { $eq: [`$${config.matchField}`, '$$targetValue'] },
-                      { $eq: ['$network', '$$network'] },
-                    ],
-                  },
-                },
-              },
-              {
-                $project: {
-                  memberAddress: `$${config.memberAddressField}`,
-                },
-              },
-            ],
-            as: config.resultAlias,
-          },
-        },
-        {
-          $project: {
-            [config.resultAlias]: 1,
-          },
-        },
-      ]
-    })
+      // Step 3: Build queries for all plugins in parallel
+      const memberQueries: Promise<string[]>[] = []
 
-    pipeline.push({
-      $facet: facetStage,
-    })
-
-    pipeline.push(
-      {
-        $addFields: {
-          allMembers: {
-            $concatArrays: MEMBER_COLLECTION_CONFIG.map(config => {
-              return {
-                $reduce: {
-                  input: `$${config.resultAlias}`,
-                  initialValue: [],
-                  in: {
-                    $concatArrays: ['$$value', `$$this.${config.resultAlias}`],
-                  },
-                },
-              }
+      for (const plugin of plugins) {
+        if (plugin.interfaceType === IPluginInterfaceType.tokenVoting && plugin.tokenAddress) {
+          // Query TokenMember collection - with votingPower filter (consistent with rest of codebase)
+          memberQueries.push(
+            Models.TokenMember.distinct('memberAddress', {
+              tokenAddress: plugin.tokenAddress,
+              network,
+              votingPower: { $ne: '0' },
+            }).catch(error => {
+              logger.error('Error counting TokenMember for plugin - requires investigation', {
+                plugin: plugin.address,
+                interfaceType: plugin.interfaceType,
+                daoAddress: address,
+                network,
+                error,
+              })
+              return []
             }),
-          },
-        },
-      },
-      {
-        $unwind: '$allMembers',
-      },
-      {
-        $group: {
-          _id: '$allMembers.memberAddress',
-        },
-      },
-      {
-        $count: 'uniqueMembersCount',
-      },
-    )
+          )
 
-    const result = await this.aggregate(pipeline, tOpts)
-    return result.length > 0 ? result[0].uniqueMembersCount : 0
+          // Query Lock collection for veGovernance - no votingPower filter needed
+          memberQueries.push(
+            Models.Lock.distinct('delegateReceiverAddress', {
+              tokenAddress: plugin.tokenAddress,
+              network,
+            }).catch(error => {
+              logger.error('Error counting Lock members for plugin - requires investigation', {
+                plugin: plugin.address,
+                interfaceType: plugin.interfaceType,
+                daoAddress: address,
+                network,
+                error,
+              })
+              return []
+            }),
+          )
+        } else if (plugin.interfaceType === IPluginInterfaceType.lockToVote && plugin.lockManagerAddress) {
+          // Query LockToVoteMember collection - with votingPower filter (consistent with rest of codebase)
+          memberQueries.push(
+            Models.LockToVoteMember.distinct('memberAddress', {
+              lockManagerAddress: plugin.lockManagerAddress,
+              network,
+              votingPower: { $ne: '0' },
+            }).catch(error => {
+              logger.error('Error counting LockToVoteMember for plugin - requires investigation', {
+                plugin: plugin.address,
+                interfaceType: plugin.interfaceType,
+                daoAddress: address,
+                network,
+                error,
+              })
+              return []
+            }),
+          )
+        } else if ([IPluginInterfaceType.multisig, IPluginInterfaceType.admin].includes(plugin.interfaceType)) {
+          // Query PluginMember collection - no votingPower filter needed
+          memberQueries.push(
+            Models.PluginMember.distinct('memberAddress', {
+              pluginAddress: plugin.address,
+              network,
+            }).catch(error => {
+              logger.error('Error counting PluginMember for plugin - requires investigation', {
+                plugin: plugin.address,
+                interfaceType: plugin.interfaceType,
+                daoAddress: address,
+                network,
+                error,
+              })
+              return []
+            }),
+          )
+        }
+      }
+
+      // Step 4: Execute all queries in parallel
+      const allMemberArrays = await Promise.all(memberQueries)
+
+      // Step 5: Combine all results into unique set
+      for (const memberArray of allMemberArrays) {
+        for (const member of memberArray) {
+          uniqueMembers.add(member)
+        }
+      }
+
+      return uniqueMembers.size
+    } catch (error) {
+      logger.error('Failed to count unique members for DAO', {
+        daoAddress: address,
+        network,
+        error,
+      })
+      return 0
+    }
   }
 
   async reload(tOpts?: SaveOptions) {
