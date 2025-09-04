@@ -4,7 +4,7 @@ export const LockManager = {
       anonymous: false,
       inputs: [
         {
-          indexed: false,
+          indexed: true,
           internalType: 'address',
           name: 'voter',
           type: 'address',
@@ -23,7 +23,7 @@ export const LockManager = {
       anonymous: false,
       inputs: [
         {
-          indexed: false,
+          indexed: true,
           internalType: 'address',
           name: 'voter',
           type: 'address',
