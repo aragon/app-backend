@@ -4,13 +4,13 @@ export const LockToVote = {
       anonymous: false,
       inputs: [
         {
-          indexed: false,
+          indexed: true,
           internalType: 'uint256',
           name: 'proposalId',
           type: 'uint256',
         },
         {
-          indexed: false,
+          indexed: true,
           internalType: 'address',
           name: 'voter',
           type: 'address',
