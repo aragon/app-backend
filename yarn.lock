@@ -968,32 +968,10 @@
     micromatch "^4.0.0"
     p-reduce "^2.0.0"
 
-"@semantic-release/github@^11.0.0":
-  version "11.0.3"
-  resolved "https://registry.npmjs.org/@semantic-release/github/-/github-11.0.3.tgz"
-  integrity sha512-T2fKUyFkHHkUNa5XNmcsEcDPuG23hwBKptfUVcFXDVG2cSjXXZYDOfVYwfouqbWo/8UefotLaoGfQeK+k3ep6A==
-  dependencies:
-    "@octokit/core" "^7.0.0"
-    "@octokit/plugin-paginate-rest" "^13.0.0"
-    "@octokit/plugin-retry" "^8.0.0"
-    "@octokit/plugin-throttling" "^11.0.0"
-    "@semantic-release/error" "^4.0.0"
-    aggregate-error "^5.0.0"
-    debug "^4.3.4"
-    dir-glob "^3.0.1"
-    globby "^14.0.0"
-    http-proxy-agent "^7.0.0"
-    https-proxy-agent "^7.0.0"
-    issue-parser "^7.0.0"
-    lodash-es "^4.17.21"
-    mime "^4.0.0"
-    p-filter "^4.0.0"
-    url-join "^5.0.0"
-
-"@semantic-release/github@^11.0.4":
-  version "11.0.4"
-  resolved "https://registry.yarnpkg.com/@semantic-release/github/-/github-11.0.4.tgz#dfc665acea9d7cb6385ce1b3838467bea8f696c5"
-  integrity sha512-fU/nLSjkp9DmB0h7FVO5imhhWJMvq2LjD4+3lz3ZAzpDLY9+KYwC+trJ+g7LbZeJv9y3L9fSFSg2DduUpiT6bw==
+"@semantic-release/github@^11.0.0", "@semantic-release/github@^11.0.5":
+  version "11.0.5"
+  resolved "https://registry.yarnpkg.com/@semantic-release/github/-/github-11.0.5.tgz#0d9226d6bdddb4178c918510c57ddcbbae336a45"
+  integrity sha512-wJamzHteXwBdopvkTD6BJjPz1UHLm20twlVCSMA9zpd3B5KrOQX137jfTbNJT6ZVz3pXtg0S1DroQl4wifJ4WQ==
   dependencies:
     "@octokit/core" "^7.0.0"
     "@octokit/plugin-paginate-rest" "^13.0.0"
@@ -1031,10 +1009,10 @@
     semver "^7.1.2"
     tempy "^3.0.0"
 
-"@semantic-release/release-notes-generator@^14.0.0-beta.1", "@semantic-release/release-notes-generator@^14.0.3":
-  version "14.0.3"
-  resolved "https://registry.npmjs.org/@semantic-release/release-notes-generator/-/release-notes-generator-14.0.3.tgz"
-  integrity sha512-XxAZRPWGwO5JwJtS83bRdoIhCiYIx8Vhr+u231pQAsdFIAbm19rSVJLdnBN+Avvk7CKvNQE/nJ4y7uqKH6WTiw==
+"@semantic-release/release-notes-generator@^14.0.0-beta.1", "@semantic-release/release-notes-generator@^14.1.0":
+  version "14.1.0"
+  resolved "https://registry.yarnpkg.com/@semantic-release/release-notes-generator/-/release-notes-generator-14.1.0.tgz#ac47bd214b48130e71578d9acefb1b1272854070"
+  integrity sha512-CcyDRk7xq+ON/20YNR+1I/jP7BYKICr1uKd1HHpROSnnTdGqOTburi4jcRiTYz0cpfhxSloQO3cGhnoot7IEkA==
   dependencies:
     conventional-changelog-angular "^8.0.0"
     conventional-changelog-writer "^8.0.0"
@@ -1463,19 +1441,19 @@
     "@types/node" "*"
     form-data "^4.0.0"
 
-"@types/node@*", "@types/node@22.7.5":
+"@types/node@*", "@types/node@^24.3.1":
+  version "24.3.1"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-24.3.1.tgz#b0a3fb2afed0ef98e8d7f06d46ef6349047709f3"
+  integrity sha512-3vXmQDXy+woz+gnrTvuvNrPzekOi+Ds0ReMxw0LzBiK3a+1k0kQn9f2NWk+lgD4rJehFUmYy2gMhJ2ZI+7YP9g==
+  dependencies:
+    undici-types "~7.10.0"
+
+"@types/node@22.7.5":
   version "22.7.5"
   resolved "https://registry.npmjs.org/@types/node/-/node-22.7.5.tgz"
   integrity sha512-jML7s2NAzMWc//QSJ1a3prpk78cOPchGvXJsC3C6R6PSMoooztvRVQEz89gmBTBY1SPMaqo5teB4uNHPdetShQ==
   dependencies:
     undici-types "~6.19.2"
-
-"@types/node@^24.3.0":
-  version "24.3.0"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-24.3.0.tgz#89b09f45cb9a8ee69466f18ee5864e4c3eb84dec"
-  integrity sha512-aPTXCrfwnDLj4VvXrm+UUCQjNEvJgNA8s5F1cvwQU+3KNltTOkBm1j30uNLyqqPNe7gE3KFzImYoZEfLhp4Yow==
-  dependencies:
-    undici-types "~7.10.0"
 
 "@types/normalize-package-data@^2.4.3":
   version "2.4.4"
@@ -1822,10 +1800,10 @@ amqp-connection-manager@^4.1.14:
   dependencies:
     promise-breaker "^6.0.0"
 
-amqplib@^0.10.8:
-  version "0.10.8"
-  resolved "https://registry.npmjs.org/amqplib/-/amqplib-0.10.8.tgz"
-  integrity sha512-Tfn1O9sFgAP8DqeMEpt2IacsVTENBpblB3SqLdn0jK2AeX8iyCvbptBc8lyATT9bQ31MsjVwUSQ1g8f4jHOUfw==
+amqplib@^0.10.9:
+  version "0.10.9"
+  resolved "https://registry.yarnpkg.com/amqplib/-/amqplib-0.10.9.tgz#5b744c21d624f9307d0399e4d339b7354675831c"
+  integrity sha512-jwSftI4QjS3mizvnSnOrPGYiUnm1vI2OP1iXeOUz5pb74Ua0nbf6nPyyTzuiCLEE3fMpaJORXh2K/TQ08H5xGA==
   dependencies:
     buffer-more-ints "~1.0.0"
     url-parse "~1.5.10"
@@ -2850,15 +2828,15 @@ dayjs-plugin-utc@^0.1.2:
   resolved "https://registry.npmjs.org/dayjs-plugin-utc/-/dayjs-plugin-utc-0.1.2.tgz"
   integrity sha512-ExERH5o3oo6jFOdkvMP3gytTCQ9Ksi5PtylclJWghr7k7m3o2U5QrwtdiJkOxLOH4ghr0EKhpqGefzGz1VvVJg==
 
-dayjs@^1.11.10:
-  version "1.11.13"
-  resolved "https://registry.npmjs.org/dayjs/-/dayjs-1.11.13.tgz"
-  integrity sha512-oaMBel6gjolK862uaPQOVTA7q3TZhuSvuMQAAglQDOWYO9A91IrAOUJEyKVlqJlHE0vq5p5UXxzdPfMH/x6xNg==
+dayjs@^1.11.18:
+  version "1.11.18"
+  resolved "https://registry.yarnpkg.com/dayjs/-/dayjs-1.11.18.tgz#835fa712aac52ab9dec8b1494098774ed7070a11"
+  integrity sha512-zFBQ7WFRvVRhKcWoUh+ZA1g2HVgUbsZm9sbddh8EC5iv93sui8DVVz1Npvz+r6meo9VKfa8NyLWBsQK1VvIKPA==
 
-debug@4, debug@4.x, debug@^4.0.0, debug@^4.1.0, debug@^4.1.1, debug@^4.3.1, debug@^4.3.2, debug@^4.3.4, debug@^4.3.5:
-  version "4.4.0"
-  resolved "https://registry.npmjs.org/debug/-/debug-4.4.0.tgz"
-  integrity sha512-6WTZ/IxCY/T6BALoZHaE4ctp9xm+Z5kY/pzYaCHRFeyVhojxlrm+46y68HA6hr0TcwEssoxNiDEUJQjfPZ/RYA==
+debug@4, debug@4.x, debug@^4.0.0, debug@^4.1.0, debug@^4.1.1, debug@^4.3.1, debug@^4.3.2, debug@^4.3.4, debug@^4.3.5, debug@^4.3.6, debug@^4.4.1:
+  version "4.4.1"
+  resolved "https://registry.yarnpkg.com/debug/-/debug-4.4.1.tgz#e5a8bc6cbc4c6cd3e64308b0693a3d4fa550189b"
+  integrity sha512-KcKCqiftBJcZr++7ykoDIEwSa3XWowTfNPo92BYxjXiyYEVrUQh2aLyhxBCwww+heortUFxEJYcRzosstTEBYQ==
   dependencies:
     ms "^2.1.3"
 
@@ -2868,13 +2846,6 @@ debug@^3.2.7:
   integrity sha512-CFjzYYAi4ThfiQvizrFQevTTXHtnCqWfe7x1AhgEscTz6ZbLbfoLRLPugTQyBth6f8ZERVUSyWHFD/7Wu4t1XQ==
   dependencies:
     ms "^2.1.1"
-
-debug@^4.3.6, debug@^4.4.1:
-  version "4.4.1"
-  resolved "https://registry.yarnpkg.com/debug/-/debug-4.4.1.tgz#e5a8bc6cbc4c6cd3e64308b0693a3d4fa550189b"
-  integrity sha512-KcKCqiftBJcZr++7ykoDIEwSa3XWowTfNPo92BYxjXiyYEVrUQh2aLyhxBCwww+heortUFxEJYcRzosstTEBYQ==
-  dependencies:
-    ms "^2.1.3"
 
 decamelize@^1.2.0:
   version "1.2.0"
@@ -5806,10 +5777,10 @@ mkdirp@^3.0.1:
   resolved "https://registry.npmjs.org/mkdirp/-/mkdirp-3.0.1.tgz"
   integrity sha512-+NsyUUAZDmo6YVHzL/stxSu3t9YS1iljliy3BSDrXJ/dkn1KYdmtZODGGjLcc9XLgVVpH4KshHB8XmZgMhaBXg==
 
-mocha@^11.1.0:
-  version "11.7.1"
-  resolved "https://registry.yarnpkg.com/mocha/-/mocha-11.7.1.tgz#91948fecd624fb4bd154ed260b7e1ad3910d7c7a"
-  integrity sha512-5EK+Cty6KheMS/YLPPMJC64g5V61gIR25KsRItHw6x4hEKT6Njp1n9LOlH4gpevuwMVS66SXaBBpg+RWZkza4A==
+mocha@^11.7.2:
+  version "11.7.2"
+  resolved "https://registry.yarnpkg.com/mocha/-/mocha-11.7.2.tgz#3c0079fe5cc2f8ea86d99124debcc42bb1ab22b5"
+  integrity sha512-lkqVJPmqqG/w5jmmFtiRvtA2jkDyNVUcefFJKb2uyX4dekk8Okgqop3cgbFiaIvj8uCRJVTP5x9dfxGyXm2jvQ==
   dependencies:
     browser-stdout "^1.3.1"
     chokidar "^4.0.1"
