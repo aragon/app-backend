@@ -232,7 +232,7 @@ describe('Model: Campaign', () => {
 
   describe('findByEntityId', () => {
     it('Should find campaign by entity id', async () => {
-      const createdCampaign = await Models.Campaign.create(rawCampaign)
+      await Models.Campaign.create(rawCampaign)
       const entityId = Models.Campaign.getEntityId({
         network: rawCampaign.network!,
         pluginAddress: rawCampaign.pluginAddress!,

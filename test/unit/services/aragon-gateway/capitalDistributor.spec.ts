@@ -4,7 +4,7 @@ import { expect } from 'chai'
 import { NetworksEnum, HexAddress, IPluginInterfaceType } from '@types'
 import { Models } from '@dbModels'
 import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
-import { MemberGovernanceFactory, CapitalDistributorGovernance } from '@src/governance'
+import { MemberGovernanceFactory } from '@src/governance'
 import logger from '@logger'
 
 describe('Service: CapitalDistributorGateway', () => {

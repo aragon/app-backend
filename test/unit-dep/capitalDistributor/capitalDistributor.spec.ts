@@ -13,7 +13,6 @@ import logger from '@logger'
 import RabbitMQ from '@modules/rabbitMQ'
 import utils from '@helpers/utils'
 import { PluginList } from '@test/mock/fakePlugins'
-import * as process from 'node:process'
 
 describe('Capital Distributor', () => {
   let sandbox: SinonSandbox
