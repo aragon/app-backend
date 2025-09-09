@@ -39,9 +39,8 @@ const CapitalDistributorGateway = {
         },
         { upsert: true, new: true },
       )
+      logger.info('Merkle data Generation completed', llo({ params, timeTaken: `${Date.now() - startTime}ms` }))
     }
-
-    logger.info('Merkle data Generation completed', llo({ params, timeTaken: `${Date.now() - startTime}ms` }))
   },
 }
 

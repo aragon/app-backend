@@ -10,6 +10,7 @@ import { MemberInfo } from '@services/aragon-gateway/memberInfo'
 import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 import Plugin from '@services/aragon-gateway/plugin'
 import ProxyWeb3Provider from '@modules/proxyProvider'
+import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
 
 describe('AragonGateway: index', () => {
   let sandbox: SinonSandbox
@@ -29,13 +30,14 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      expect(processStub.callCount).to.equal(6)
+      expect(processStub.callCount).to.equal(7)
       expect(processStub.calledWith(EnumQueueName.contractInfo)).to.be.true
       expect(processStub.calledWith(EnumQueueName.memberBalance)).to.be.true
       expect(processStub.calledWith(EnumQueueName.contractDecoder)).to.be.true
       expect(processStub.calledWith(EnumQueueName.canCreateProposal)).to.be.true
       expect(processStub.calledWith(EnumQueueName.pluginInstallationData)).to.be.true
       expect(processStub.calledWith(EnumQueueName.getTokenStats)).to.be.true
+      expect(processStub.calledWith(EnumQueueName.syncMerkleProofs)).to.be.true
 
       expect(loggerStub.calledOnceWith('AragonGatewayService service started' as any)).to.be.true
     })
@@ -187,6 +189,33 @@ describe('AragonGateway: index', () => {
         }),
       ).to.be.true
       expect(result).to.deep.equal({ holders: 10, transfers: 0 })
+    })
+
+    it('should handle syncMerkleProofs queue', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const syncMerkleProofsStub = sandbox.stub(CapitalDistributorGateway, 'generateMerkleData').resolves()
+
+      await AragonGatewayService.start()
+
+      const handler = processStub.getCall(6).args[1]
+      const queueName = processStub.getCall(6).args[0]
+
+      await handler({
+        params: {
+          pluginAddress: '0xPluginAddress',
+          network: NetworksEnum.ethereumMainnet,
+          campaignId: 'campaign-001',
+        },
+      } as any)
+
+      expect(queueName).to.eq(EnumQueueName.syncMerkleProofs)
+      expect(
+        syncMerkleProofsStub.calledOnceWith({
+          pluginAddress: '0xPluginAddress',
+          network: NetworksEnum.ethereumMainnet,
+          campaignId: 'campaign-001',
+        } as any),
+      ).to.be.true
     })
   })
 })

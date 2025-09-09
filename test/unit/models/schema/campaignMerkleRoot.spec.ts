@@ -63,7 +63,7 @@ describe('Model: CampaignMerkleRoot', () => {
     const created = await Models.CampaignMerkleRoot.create(rawCampaignMerkleRoot)
     expect(created.totalMembers).to.eq(rawCampaignMerkleRoot.totalMembers)
 
-    await created.updateOne({
+    await created.update({
       totalMembers: 200,
     })
 

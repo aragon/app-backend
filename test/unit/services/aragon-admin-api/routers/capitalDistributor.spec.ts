@@ -296,7 +296,7 @@ describe('Router: CapitalDistributorAdmin', () => {
       // Check that router has the expected structure
       const stack = router.stack
       expect(stack).to.exist
-      expect(stack.length).to.equal(3) // uploadMembersList, generateMerkleData, getCampaignDetails
+      expect(stack.length).to.equal(4)
     })
   })
 })

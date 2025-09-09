@@ -63,4 +63,20 @@ export default class CampaignMerkleRoot extends Model {
   static async findByParams(pluginAddress: HexAddress, network: NetworksEnum, campaignId: string) {
     return await this.findOne({ pluginAddress, network, campaignId })
   }
+
+  async update(params: Partial<CampaignMerkleRoot>, tOpts?: SaveOptions) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (this.schema.tree[key]) {
+        if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
+          this[key] = value
+        }
+      }
+    })
+
+    return await this.save(tOpts)
+  }
+
+  async reload(tOpts?: SaveOptions) {
+    return await this.model(customName).findById(this._id, tOpts)
+  }
 }

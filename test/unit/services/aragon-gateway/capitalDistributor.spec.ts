@@ -83,14 +83,12 @@ describe('Service: CapitalDistributorGateway', () => {
     it('should return early when plugin not found', async () => {
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
       const governanceStub = sandbox.stub(MemberGovernanceFactory, 'createFromPlugin')
-      const campaignMerkleRootStub = sandbox.stub(Models.CampaignMerkleRoot, 'findOneAndUpdate')
 
       await CapitalDistributorGateway.generateMerkleData(mockParams)
 
       expect(Models.Plugin.findByAddress.calledWith(mockParams.pluginAddress, mockParams.network)).to.be.true
       expect(loggerWarnStub.calledWith('Plugin not found or invalid interface type')).to.be.true
       expect(governanceStub.called).to.be.false
-      expect(campaignMerkleRootStub).to.be.false
     })
 
     it('should return early when plugin has wrong interface type', async () => {
@@ -103,14 +101,12 @@ describe('Service: CapitalDistributorGateway', () => {
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin)
       const governanceStub = sandbox.stub(MemberGovernanceFactory, 'createFromPlugin')
-      const campaignMerkleRootStub = sandbox.stub(Models.CampaignMerkleRoot, 'findOneAndUpdate')
 
       await CapitalDistributorGateway.generateMerkleData(mockParams)
 
       expect(Models.Plugin.findByAddress.calledWith(mockParams.pluginAddress, mockParams.network)).to.be.true
       expect(loggerWarnStub.calledWith('Plugin not found or invalid interface type')).to.be.true
       expect(governanceStub.called).to.be.false
-      expect(campaignMerkleRootStub).to.be.false
     })
 
     it('should handle governance response without success', async () => {

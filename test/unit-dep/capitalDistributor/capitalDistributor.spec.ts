@@ -13,6 +13,7 @@ import logger from '@logger'
 import RabbitMQ from '@modules/rabbitMQ'
 import utils from '@helpers/utils'
 import { PluginList } from '@test/mock/fakePlugins'
+import * as process from 'node:process'
 
 describe('Capital Distributor', () => {
   let sandbox: SinonSandbox
@@ -169,7 +170,7 @@ describe('Capital Distributor', () => {
   })
 
 
-  it.only('should handle bulk merkle list for the capital distributor stuff', async function ()  {
+  it.skip('should handle bulk merkle list for the capital distributor stuff', async function ()  {
     this.timeout(100000000000)
     const listFile = '/Users/sishirpokhrel/Projects/aragon/tools/airdrop_addresses_final.json'
 
@@ -217,7 +218,7 @@ describe('Capital Distributor', () => {
     })
 
 
-    setInterval(async () => {
+    const timer = setInterval(async () => {
       const status = await CapitalDistributorAdminController.getMerkleGenerationStatus({
         ...campaignParm
       })
@@ -225,13 +226,9 @@ describe('Capital Distributor', () => {
         status,
       })
 
-      const campaignDetail = await CapitalDistributorAdminController.getCampaignDetails({
-        ...campaignParm
-      })
-
-      logger.info('Campaign detail', {
-        campaignDetail,
-      } as any)
+      if(status) {
+        clearTimeout(timer);
+      }
 
     }, 1000)
 

@@ -7,7 +7,7 @@ import * as errors from '@errors'
 import { MemberGovernanceFactory } from '@src/governance'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 
-describe.only('Controller: CapitalDistributorAdmin', () => {
+describe('Controller: CapitalDistributorAdmin', () => {
   let sandbox: sinon.SinonSandbox
 
   beforeEach(() => {
