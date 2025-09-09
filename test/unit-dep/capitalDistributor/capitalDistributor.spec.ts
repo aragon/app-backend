@@ -169,8 +169,7 @@ describe('Capital Distributor', () => {
     expect(pluginFromResponse.isSubPlugin).to.be.eq(false)
   })
 
-
-  it.skip('should handle bulk merkle list for the capital distributor stuff', async function ()  {
+  it.skip('should handle bulk merkle list for the capital distributor stuff', async function () {
     this.timeout(100000000000)
     const listFile = '/Users/sishirpokhrel/Projects/aragon/tools/airdrop_addresses_final.json'
 
@@ -180,7 +179,7 @@ describe('Capital Distributor', () => {
       interfaceType: IPluginInterfaceType.capitalDistributor,
       network: NetworksEnum.ethereumSepolia,
       daoAddress: '0x7f268357A8c2552623316ecBE2D7f32A9f0624C',
-      tokenAddress: null
+      tokenAddress: null,
     })
 
     const campaignParm = {
@@ -210,30 +209,26 @@ describe('Capital Distributor', () => {
 
     const time = Date.now()
     await CapitalDistributorAdminController.generateMerkleData({
-     ...campaignParm
+      ...campaignParm,
     })
     const timeElapsed = Date.now() - time
     logger.info('Time taken to generate merkle tree', {
       timeInMs: timeElapsed,
     })
 
-
     const timer = setInterval(async () => {
       const status = await CapitalDistributorAdminController.getMerkleGenerationStatus({
-        ...campaignParm
+        ...campaignParm,
       })
       logger.info('Merkle generation status', {
         status,
       })
 
-      if(status) {
-        clearTimeout(timer);
+      if (status) {
+        clearTimeout(timer)
       }
-
     }, 1000)
 
     await utils.wait(100000)
-
   })
-
 })

@@ -216,14 +216,16 @@ describe('Controller: CapitalDistributorAdmin', () => {
         network: mockParams.network,
       })
 
-      expect(rabbitMQStub.calledWith(EnumQueueName.syncMerkleProofs, {
-        id: `${mockParams.pluginAddress}-${mockParams.network}-${mockParams.campaignId}`,
-        params: {
-          campaignId: mockParams.campaignId,
-          pluginAddress: mockParams.pluginAddress,
-          network: mockParams.network,
-        },
-      })).to.be.true
+      expect(
+        rabbitMQStub.calledWith(EnumQueueName.syncMerkleProofs, {
+          id: `${mockParams.pluginAddress}-${mockParams.network}-${mockParams.campaignId}`,
+          params: {
+            campaignId: mockParams.campaignId,
+            pluginAddress: mockParams.pluginAddress,
+            network: mockParams.network,
+          },
+        }),
+      ).to.be.true
     })
 
     it('should throw error when plugin is not found', async () => {
@@ -298,11 +300,13 @@ describe('Controller: CapitalDistributorAdmin', () => {
 
       expect(pluginStub.calledWith(mockParams.pluginAddress, mockParams.network)).to.be.true
       expect(factoryStub.calledWith(mockPlugin)).to.be.true
-      expect(mockGovernance.getMerkleGenerationStatus.calledWith({
-        campaignId: mockParams.campaignId,
-        pluginAddress: mockParams.pluginAddress,
-        network: mockParams.network,
-      })).to.be.true
+      expect(
+        mockGovernance.getMerkleGenerationStatus.calledWith({
+          campaignId: mockParams.campaignId,
+          pluginAddress: mockParams.pluginAddress,
+          network: mockParams.network,
+        }),
+      ).to.be.true
     })
 
     it('should throw error when plugin is not found', async () => {

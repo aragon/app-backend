@@ -54,7 +54,7 @@ describe('Model: CampaignMerkleRoot', () => {
     const found = await Models.CampaignMerkleRoot.findByParams(
       rawCampaignMerkleRoot.pluginAddress as HexAddress,
       rawCampaignMerkleRoot.network as NetworksEnum,
-      rawCampaignMerkleRoot.campaignId!
+      rawCampaignMerkleRoot.campaignId!,
     )
     expect(found?.id).to.eq(created.id)
   })

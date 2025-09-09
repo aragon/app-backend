@@ -61,20 +61,22 @@ describe('Service: CapitalDistributorGateway', () => {
         campaignId: mockParams.campaignId,
       })
 
-      expect(campaignMerkleRootStub.calledWith(
-        { id: expectedId },
-        {
-          $set: {
-            id: expectedId,
-            pluginAddress: mockParams.pluginAddress,
-            network: mockParams.network,
-            campaignId: mockParams.campaignId,
-            merkleRoot: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
-            totalMembers: 100,
+      expect(
+        campaignMerkleRootStub.calledWith(
+          { id: expectedId },
+          {
+            $set: {
+              id: expectedId,
+              pluginAddress: mockParams.pluginAddress,
+              network: mockParams.network,
+              campaignId: mockParams.campaignId,
+              merkleRoot: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+              totalMembers: 100,
+            },
           },
-        },
-        { upsert: true, new: true },
-      )).to.be.true
+          { upsert: true, new: true },
+        ),
+      ).to.be.true
 
       expect(loggerInfoStub.calledWith('Generating merkle data')).to.be.true
       expect(loggerInfoStub.calledWith('Merkle data Generation completed')).to.be.true
@@ -186,20 +188,22 @@ describe('Service: CapitalDistributorGateway', () => {
         campaignId: mockParams.campaignId,
       })
 
-      expect(campaignMerkleRootStub.calledWith(
-        { id: expectedId },
-        {
-          $set: {
-            id: expectedId,
-            pluginAddress: mockParams.pluginAddress,
-            network: mockParams.network,
-            campaignId: mockParams.campaignId,
-            merkleRoot: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
-            totalMembers: 0,
+      expect(
+        campaignMerkleRootStub.calledWith(
+          { id: expectedId },
+          {
+            $set: {
+              id: expectedId,
+              pluginAddress: mockParams.pluginAddress,
+              network: mockParams.network,
+              campaignId: mockParams.campaignId,
+              merkleRoot: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+              totalMembers: 0,
+            },
           },
-        },
-        { upsert: true, new: true },
-      )).to.be.true
+          { upsert: true, new: true },
+        ),
+      ).to.be.true
     })
 
     it('should measure and log execution time', async () => {
