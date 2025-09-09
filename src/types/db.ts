@@ -25,6 +25,7 @@ import type Campaign from '@models/schema/campaign'
 import type CampaignReward from '@models/schema/campaignReward'
 import type LockToVoteMember from '@models/schema/lockToVoteMember'
 import type Migration from '@models/schema/migration'
+import type CampaignMerkleRoot from '@models/schema/campaignMerkleRoot'
 
 export interface IMongoModel {
   Migration: typeof Migration
@@ -54,6 +55,7 @@ export interface IMongoModel {
   PluginMember: typeof PluginMember
   PluginMetrics: typeof PluginMetrics
   LockToVoteMember: typeof LockToVoteMember
+  CampaignMerkleRoot: typeof CampaignMerkleRoot
 }
 
 export enum ICollectionNames {
@@ -67,6 +69,7 @@ export enum ICollectionNames {
   LogMetadata = 'LogMetadata',
   LogPluginSetupProcessor = 'LogPluginSetupProcessor',
   Member = 'Member',
+  CampaignMerkleRoot = 'CampaignMerkleRoot',
   Plugin = 'Plugin',
   PluginRepo = 'PluginRepo',
   PluginSlug = 'PluginSlug',

@@ -10,6 +10,7 @@ import {
   type ICampaignApiParams,
   type IUserCampaignStatus,
   type IMembersResponse,
+  type IMerkleProofSync,
 } from '@types'
 import { assertExposable } from '@errors'
 import logger from '@logger'
@@ -329,6 +330,23 @@ export class CapitalDistributorGovernance extends BaseGovernance {
       campaignId,
       merkleRoot: campaign.merkleRoot || null,
       active: campaign.active,
+    }
+  }
+
+  async getMerkleGenerationStatus(params: IMerkleProofSync) {
+    const { campaignId, pluginAddress, network } = params
+    const campaignMerkleRoot = await Models.CampaignMerkleRoot.findByParams(pluginAddress, network, campaignId)
+
+    if (!campaignMerkleRoot) {
+      return null
+    }
+
+    return {
+      campaignId: campaignMerkleRoot.campaignId,
+      pluginAddress: campaignMerkleRoot.pluginAddress,
+      network: campaignMerkleRoot.network,
+      merkleRoot: campaignMerkleRoot.merkleRoot,
+      totalMembers: campaignMerkleRoot.totalMembers,
     }
   }
 

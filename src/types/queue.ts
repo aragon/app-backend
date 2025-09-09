@@ -21,6 +21,7 @@ export enum EnumQueueName {
   pluginInstallationData = 'plugin.installation.data',
   getTokenStats = 'token.stats',
   logSelectorPermission = 'log.selector.permission',
+  syncMerkleProofs = 'sync.merkle.proofs',
 }
 
 export interface IQueueAllMetrics {
@@ -94,4 +95,10 @@ export interface IThrottleOptions {
   maxQueueSize?: number // Maximum number of messages allowed in queue (default: 50)
   retryDelay?: number // Delay in ms between retry attempts (default: 3000)
   logContext?: any // Additional context for logging
+}
+
+export interface IMerkleProofSync {
+  campaignId: string
+  pluginAddress: HexAddress
+  network: NetworksEnum
 }

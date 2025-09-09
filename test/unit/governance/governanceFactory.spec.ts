@@ -11,6 +11,7 @@ import {
   LockToVoteGovernance,
   MultisigGovernance,
   AdminGovernance,
+  CapitalDistributorGovernance,
 } from '@src/governance'
 import { NetworksEnum, IPluginInterfaceType, ITokenType, type HexAddress } from '@types'
 import Web3Utils from '@helpers/web3Utils'
@@ -156,6 +157,20 @@ describe('Governance:GovernanceFactory', () => {
         })
 
         expect(result).to.be.instanceOf(AdminGovernance)
+        expect(result?.['address']).to.equal(testAddress)
+        expect(result?.['network']).to.equal(testNetwork)
+      })
+    })
+
+    describe('capitalDistributor interface type', () => {
+      it('should create CapitalDistributorGovernance', () => {
+        const result = MemberGovernanceFactory.create({
+          address: testAddress,
+          network: testNetwork,
+          interfaceType: IPluginInterfaceType.capitalDistributor,
+        })
+
+        expect(result).to.be.instanceOf(CapitalDistributorGovernance)
         expect(result?.['address']).to.equal(testAddress)
         expect(result?.['network']).to.equal(testNetwork)
       })
@@ -315,6 +330,20 @@ describe('Governance:GovernanceFactory', () => {
         const result = MemberGovernanceFactory.createFromPlugin(plugin as any)
 
         expect(result).to.be.instanceOf(AdminGovernance)
+        expect(result?.['address']).to.equal(testAddress)
+        expect(result?.['network']).to.equal(testNetwork)
+      })
+    })
+
+    describe('capitalDistributor plugins', () => {
+      it('should create CapitalDistributorGovernance for capitalDistributor plugin', () => {
+        const plugin = createPlugin({
+          interfaceType: IPluginInterfaceType.capitalDistributor,
+        })
+
+        const result = MemberGovernanceFactory.createFromPlugin(plugin as any)
+
+        expect(result).to.be.instanceOf(CapitalDistributorGovernance)
         expect(result?.['address']).to.equal(testAddress)
         expect(result?.['network']).to.equal(testNetwork)
       })

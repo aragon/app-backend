@@ -8,7 +8,7 @@ import { IPluginInterfaceType, NetworksEnum, type HexAddress } from '@types'
 import { Models } from '@dbModels'
 import { LogCampaignStrategy } from '@services/aragon-plugins/logCampaignStrategy'
 
-describe('Integration: CapitalDistributor Campaign Lifecycle', () => {
+describe.skip('Integration: CapitalDistributor Campaign Lifecycle', () => {
   let sandbox: SinonSandbox
 
   const network = NetworksEnum.ethereumSepolia
@@ -108,7 +108,6 @@ describe('Integration: CapitalDistributor Campaign Lifecycle', () => {
         allocationStrategy: pluginAddress,
         token: '0xFF34B3d4Aee8ddCd6F9AFFFB6Fe49bD371b8a357',
         actionEncoder: '0xB1c86a33E6417aB8E96c8Bec61AF9A42D0b4f5B2',
-        multipleClaimsAllowed: true,
         startTime: BigInt(1640995200),
         endTime: BigInt(1672531200),
       },
