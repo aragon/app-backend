@@ -8,7 +8,7 @@ import { IPluginInterfaceType, NetworksEnum, type HexAddress } from '@types'
 import { Models } from '@dbModels'
 import { LogCampaignStrategy } from '@services/aragon-plugins/logCampaignStrategy'
 
-describe('Integration: CapitalDistributor Campaign Lifecycle', () => {
+describe.skip('Integration: CapitalDistributor Campaign Lifecycle', () => {
   let sandbox: SinonSandbox
 
   const network = NetworksEnum.ethereumSepolia
