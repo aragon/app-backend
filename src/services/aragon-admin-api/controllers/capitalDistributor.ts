@@ -39,6 +39,12 @@ const CapitalDistributorAdminController = {
         network,
       },
     })
+
+    return {
+      message: 'Merkle data generation started',
+      campaignId,
+      pluginAddress,
+    }
   },
 
   getMerkleGenerationStatus: async (params: IMerkleProofSync) => {
