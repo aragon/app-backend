@@ -22,16 +22,7 @@ export const CapitalDistributorHandler = {
     }
 
     try {
-      const {
-        campaignId,
-        metadataURI,
-        allocationStrategy,
-        token,
-        actionEncoder,
-        multipleClaimsAllowed,
-        startTime,
-        endTime,
-      } = parsedEvent.args
+      const { campaignId, metadataURI, allocationStrategy, token, actionEncoder, startTime, endTime } = parsedEvent.args
 
       const existingCampaign = await Models.Campaign.findExisting({
         pluginAddress: address,

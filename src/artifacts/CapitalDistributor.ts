@@ -38,12 +38,6 @@ export const CapitalDistributor = {
         },
         {
           indexed: false,
-          internalType: 'bool',
-          name: 'multipleClaimsAllowed',
-          type: 'bool',
-        },
-        {
-          indexed: false,
           internalType: 'uint256',
           name: 'startTime',
           type: 'uint256',

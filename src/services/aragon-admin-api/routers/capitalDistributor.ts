@@ -63,6 +63,17 @@ const CapitalDistributorAdminRouter = {
     ctx.body = await CapitalDistributorAdminController.generateMerkleData(formattedParams)
   },
 
+  getMerkleSyncStatus: async function (ctx: RouterContext) {
+    const params = {
+      campaignId: ctx.params.campaignId,
+      pluginAddress: ctx.params.pluginAddress,
+      network: ctx.params.network,
+    }
+
+    const formattedParams = await ValidationSchema.validateParams(CapitalDistributorSchema.campaignParams, params)
+    ctx.body = await CapitalDistributorAdminController.getMerkleGenerationStatus(formattedParams)
+  },
+
   router(): Router {
     const router = new Router()
     const authedAdmin = AuthMiddleware.authAssertAdmin()
@@ -80,6 +91,12 @@ const CapitalDistributorAdminRouter = {
       '/sync-merkle-tree/:pluginAddress/:network/:campaignId',
       authedAdmin,
       CapitalDistributorAdminRouter.generateMerkleData,
+    )
+
+    router.get(
+      '/sync-merkle-tree/:pluginAddress/:network/:campaignId/status',
+      authedAdmin,
+      CapitalDistributorAdminRouter.getMerkleSyncStatus,
     )
 
     return router

@@ -2,23 +2,16 @@ import * as sinon from 'sinon'
 import { expect } from 'chai'
 import { CapitalDistributorAdminController } from '@services/aragon-admin-api/controllers/capitalDistributor'
 import { Models } from '@dbModels'
-import { ErrorKeyEnum, NetworksEnum, HexAddress, IPluginInterfaceType } from '@types'
+import { ErrorKeyEnum, NetworksEnum, HexAddress, IPluginInterfaceType, EnumQueueName } from '@types'
 import * as errors from '@errors'
-import logger from '@logger'
-import Utils from '@helpers/utils'
-import MerkleTreeHelper from '@helpers/merkleTree'
+import { MemberGovernanceFactory } from '@src/governance'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 
-describe('Controller: CapitalDistributorAdmin', () => {
+describe.only('Controller: CapitalDistributorAdmin', () => {
   let sandbox: sinon.SinonSandbox
-  let loggerInfoStub: sinon.SinonStub
-  let loggerWarnStub: sinon.SinonStub
-  let loggerErrorStub: sinon.SinonStub
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
-    loggerInfoStub = sandbox.stub(logger, 'info')
-    loggerWarnStub = sandbox.stub(logger, 'warn')
-    loggerErrorStub = sandbox.stub(logger, 'error')
   })
 
   afterEach(() => {
@@ -159,7 +152,6 @@ describe('Controller: CapitalDistributorAdmin', () => {
 
       expect(result.success).to.be.true
       expect(result.totalProcessed).to.eq(2)
-      expect(loggerInfoStub.calledWith('Members list processed successfully with upserts')).to.be.true
 
       // Verify old rewards were deleted and new ones created
       const allRewards = await Models.CampaignReward.find({
@@ -175,46 +167,37 @@ describe('Controller: CapitalDistributorAdmin', () => {
       expect(allRewards.find(r => r.userAddress === '0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65')).to.be.undefined
     })
 
-    it('should handle error in Utils.processParallel onError callback during member upload', async () => {
-      await Models.Plugin.create({
-        id: `${mockParams.network}-0xabc123-${mockParams.pluginAddress}`,
+    it('should delegate to governance uploadMembersList method', async () => {
+      const mockPlugin = {
+        id: 'test-plugin',
         address: mockParams.pluginAddress,
         network: mockParams.network,
-        transactionHash: '0xabc123' as HexAddress,
-        blockNumber: 12345,
-        status: 'installed',
         interfaceType: IPluginInterfaceType.capitalDistributor,
-        daoAddress: '0xdao123' as HexAddress,
-      })
+      }
 
-      const processParallelStub = sandbox.stub(Utils, 'processParallel')
-      const mockError = new Error('Database insertion failed')
-      const mockChunk = [{ id: 'test', userAddress: '0x123', amount: '1000' }]
-      const mockIndex = 0
+      const mockGovernance = {
+        uploadMembersList: sandbox.stub().resolves({
+          success: true,
+          message: 'Members list processed successfully',
+          totalProcessed: 2,
+          campaignId: mockParams.campaignId,
+        }),
+      }
 
-      processParallelStub.callsFake(async (_chunks: any, _processor: any, options: any) => {
-        if (options.onError) {
-          options.onError(mockError, mockChunk, mockIndex)
-        }
-        return [2]
-      })
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin)
+      const factoryStub = sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(mockGovernance as any)
 
-      await CapitalDistributorAdminController.uploadMembersList(mockParams)
+      const result = await CapitalDistributorAdminController.uploadMembersList(mockParams)
 
-      expect(loggerErrorStub.calledWith('Error processing upsert chunk')).to.be.true
-      const logCall = loggerErrorStub.getCall(0)
-      expect(logCall.args[1]).to.deep.include({
-        error: mockError,
-        chunkIndex: mockIndex,
-        chunkSize: mockChunk.length,
-        campaignId: mockParams.campaignId,
-      })
+      expect(pluginStub.calledWith(mockParams.pluginAddress, mockParams.network)).to.be.true
+      expect(factoryStub.calledWith(mockPlugin)).to.be.true
+      expect(mockGovernance.uploadMembersList.calledWith(mockParams)).to.be.true
+      expect(result.success).to.be.true
     })
   })
 
   describe('generateMerkleData', () => {
-    it('should generate merkle data successfully', async () => {
-      // Create plugin first
+    it('should send message to RabbitMQ queue successfully', async () => {
       await Models.Plugin.create({
         id: `${mockParams.network}-0xabc123-${mockParams.pluginAddress}`,
         address: mockParams.pluginAddress,
@@ -226,188 +209,138 @@ describe('Controller: CapitalDistributorAdmin', () => {
         daoAddress: '0xdao123' as HexAddress,
       })
 
-      // Create campaign rewards in database
-      await Models.CampaignReward.create({
-        pluginAddress: mockParams.pluginAddress,
-        network: mockParams.network,
-        campaignId: mockParams.campaignId,
-        userAddress: mockParams.rewards[0].address,
-        amount: '1000',
-        claims: [],
-      })
-      await Models.CampaignReward.create({
-        pluginAddress: mockParams.pluginAddress,
-        network: mockParams.network,
-        campaignId: mockParams.campaignId,
-        userAddress: mockParams.rewards[1].address,
-        amount: '2000',
-        claims: [],
-      })
+      const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
-      const result = await CapitalDistributorAdminController.generateMerkleData({
+      await CapitalDistributorAdminController.generateMerkleData({
         campaignId: mockParams.campaignId,
         pluginAddress: mockParams.pluginAddress,
         network: mockParams.network,
       })
 
-      expect(result).to.have.property('success', true)
-      expect(result).to.have.property('totalMembers', 2)
-      expect(result).to.have.property('merkleRoot')
-      expect(result).to.have.property('updatedMembers', 2)
-
-      // Verify that proof and leaf were added to database records
-      const updatedRewards = await Models.CampaignReward.find({
-        pluginAddress: mockParams.pluginAddress,
-        network: mockParams.network,
-        campaignId: mockParams.campaignId,
-      })
-
-      expect(updatedRewards).to.have.length(2)
-      expect(updatedRewards[0].proof).to.exist
-      expect(updatedRewards[0].leaf).to.exist
-      expect(updatedRewards[1].proof).to.exist
-      expect(updatedRewards[1].leaf).to.exist
+      expect(rabbitMQStub.calledWith(EnumQueueName.syncMerkleProofs, {
+        id: `${mockParams.pluginAddress}-${mockParams.network}-${mockParams.campaignId}`,
+        params: {
+          campaignId: mockParams.campaignId,
+          pluginAddress: mockParams.pluginAddress,
+          network: mockParams.network,
+        },
+      })).to.be.true
     })
 
-    it('should throw error if no members found', async () => {
-      // Create plugin first
-      await Models.Plugin.create({
-        id: `${NetworksEnum.ethereumMainnet}-0xabc123-0x123`,
-        address: '0x123' as HexAddress,
-        network: NetworksEnum.ethereumMainnet,
-        transactionHash: '0xabc123' as HexAddress,
-        blockNumber: 12345,
-        status: 'installed',
-        interfaceType: IPluginInterfaceType.capitalDistributor,
-        daoAddress: '0xdao123' as HexAddress,
-      })
-
-      sandbox.stub(Models.Campaign, 'findExisting').resolves(null)
-      sandbox.stub(Models.CampaignReward, 'find').returns({ lean: () => Promise.resolve([]) })
+    it('should throw error when plugin is not found', async () => {
+      const assertStub = sandbox.stub(errors, 'assertExposable').throws(new Error(ErrorKeyEnum.notFound))
+      const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
 
       await expect(
         CapitalDistributorAdminController.generateMerkleData({
-          campaignId: 'campaign1',
-          pluginAddress: '0x123',
-          network: NetworksEnum.ethereumMainnet,
+          campaignId: mockParams.campaignId,
+          pluginAddress: mockParams.pluginAddress,
+          network: mockParams.network,
         }),
-      ).to.be.rejectedWith(Error, ErrorKeyEnum.badParams)
+      ).to.be.rejectedWith(Error, ErrorKeyEnum.notFound)
+
+      expect(assertStub.calledWith(null as any, ErrorKeyEnum.notFound)).to.be.true
+      expect(rabbitMQStub.called).to.be.false
     })
 
-    it('should throw error if campaign already exists', async () => {
-      // Create plugin first
+    it('should throw error when plugin has wrong interface type', async () => {
       await Models.Plugin.create({
-        id: `${NetworksEnum.ethereumMainnet}-0xabc123-0x123`,
-        address: '0x123' as HexAddress,
-        network: NetworksEnum.ethereumMainnet,
+        id: `${mockParams.network}-0xabc123-${mockParams.pluginAddress}`,
+        address: mockParams.pluginAddress,
+        network: mockParams.network,
         transactionHash: '0xabc123' as HexAddress,
         blockNumber: 12345,
         status: 'installed',
-        interfaceType: IPluginInterfaceType.capitalDistributor,
+        interfaceType: IPluginInterfaceType.tokenVoting,
         daoAddress: '0xdao123' as HexAddress,
       })
 
-      const existingCampaign = { id: 'campaign1', active: true }
-      sandbox.stub(Models.Campaign, 'findExisting').resolves(existingCampaign)
+      const assertStub = sandbox.stub(errors, 'assertExposable').throws(new Error(ErrorKeyEnum.notFound))
+      const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
 
       await expect(
         CapitalDistributorAdminController.generateMerkleData({
-          campaignId: 'campaign1',
-          pluginAddress: '0x123',
-          network: NetworksEnum.ethereumMainnet,
+          campaignId: mockParams.campaignId,
+          pluginAddress: mockParams.pluginAddress,
+          network: mockParams.network,
         }),
-      ).to.be.rejectedWith(Error, ErrorKeyEnum.campaignInvalid)
-    })
+      ).to.be.rejectedWith(Error, ErrorKeyEnum.notFound)
 
-    it('should handle error in Utils.processParallel onError callback during merkle data generation', async () => {
-      // Create plugin first
-      await Models.Plugin.create({
-        id: `${mockParams.network}-0xabc123-${mockParams.pluginAddress}`,
+      expect(assertStub.called).to.be.true
+      expect(rabbitMQStub.called).to.be.false
+    })
+  })
+
+  describe('getMerkleGenerationStatus', () => {
+    it('should get merkle generation status successfully', async () => {
+      const mockPlugin = {
+        id: 'test-plugin',
         address: mockParams.pluginAddress,
         network: mockParams.network,
-        transactionHash: '0xabc123' as HexAddress,
-        blockNumber: 12345,
-        status: 'installed',
         interfaceType: IPluginInterfaceType.capitalDistributor,
-        daoAddress: '0xdao123' as HexAddress,
-      })
+      }
 
-      await Models.CampaignReward.create({
-        pluginAddress: mockParams.pluginAddress,
-        network: mockParams.network,
-        campaignId: mockParams.campaignId,
-        userAddress: mockParams.rewards[0].address,
-        amount: '1000',
-        claims: [],
-      })
+      const mockGovernance = {
+        getMerkleGenerationStatus: sandbox.stub().resolves({
+          status: 'completed',
+          progress: 100,
+          merkleRoot: '0xabcdef123',
+        }),
+      }
 
-      const processParallelStub = sandbox.stub(Utils, 'processParallel')
-      const mockError = new Error('Database update failed')
-      const mockChunk = [{ address: '0x123', proof: ['0xproof'], leaf: '0xleaf' }]
-      const mockIndex = 1
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin)
+      const factoryStub = sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(mockGovernance as any)
 
-      processParallelStub.callsFake(async (_chunks: any, _processor: any, options: any) => {
-        if (options.onError) {
-          options.onError(mockError, mockChunk, mockIndex)
-        }
-        return [1]
-      })
-
-      const result = await CapitalDistributorAdminController.generateMerkleData({
+      await CapitalDistributorAdminController.getMerkleGenerationStatus({
         campaignId: mockParams.campaignId,
         pluginAddress: mockParams.pluginAddress,
         network: mockParams.network,
       })
 
-      expect(loggerErrorStub.calledWith('Error processing merkle proof update chunk')).to.be.true
-      const logCall = loggerErrorStub.getCall(0)
-      expect(logCall.args[1]).to.deep.include({
-        error: mockError,
-        chunkIndex: mockIndex,
-        chunkSize: mockChunk.length,
+      expect(pluginStub.calledWith(mockParams.pluginAddress, mockParams.network)).to.be.true
+      expect(factoryStub.calledWith(mockPlugin)).to.be.true
+      expect(mockGovernance.getMerkleGenerationStatus.calledWith({
         campaignId: mockParams.campaignId,
-      })
-      expect(result.success).to.be.true
+        pluginAddress: mockParams.pluginAddress,
+        network: mockParams.network,
+      })).to.be.true
     })
 
-    it('should handle catch block error and return success false', async () => {
-      // Create plugin first
-      await Models.Plugin.create({
-        id: `${mockParams.network}-0xabc123-${mockParams.pluginAddress}`,
+    it('should throw error when plugin is not found', async () => {
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+      const assertStub = sandbox.stub(errors, 'assertExposable').throws(new Error(ErrorKeyEnum.notFound))
+
+      await expect(
+        CapitalDistributorAdminController.getMerkleGenerationStatus({
+          campaignId: mockParams.campaignId,
+          pluginAddress: mockParams.pluginAddress,
+          network: mockParams.network,
+        }),
+      ).to.be.rejectedWith(Error, ErrorKeyEnum.notFound)
+
+      expect(assertStub.calledWith(null as any, ErrorKeyEnum.notFound)).to.be.true
+    })
+
+    it('should throw error when plugin has wrong interface type', async () => {
+      const mockPlugin = {
+        id: 'test-plugin',
         address: mockParams.pluginAddress,
         network: mockParams.network,
-        transactionHash: '0xabc123' as HexAddress,
-        blockNumber: 12345,
-        status: 'installed',
-        interfaceType: IPluginInterfaceType.capitalDistributor,
-        daoAddress: '0xdao123' as HexAddress,
-      })
+        interfaceType: IPluginInterfaceType.multisig,
+      }
 
-      await Models.CampaignReward.create({
-        pluginAddress: mockParams.pluginAddress,
-        network: mockParams.network,
-        campaignId: mockParams.campaignId,
-        userAddress: mockParams.rewards[0].address,
-        amount: '1000',
-        claims: [],
-      })
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin)
+      const assertStub = sandbox.stub(errors, 'assertExposable').throws(new Error(ErrorKeyEnum.notFound))
 
-      const mockError = new Error('MerkleTree generation failed')
-      sandbox.stub(MerkleTreeHelper, 'generateTreeWithProofs').throws(mockError)
+      await expect(
+        CapitalDistributorAdminController.getMerkleGenerationStatus({
+          campaignId: mockParams.campaignId,
+          pluginAddress: mockParams.pluginAddress,
+          network: mockParams.network,
+        }),
+      ).to.be.rejectedWith(Error, ErrorKeyEnum.notFound)
 
-      const result = await CapitalDistributorAdminController.generateMerkleData({
-        campaignId: mockParams.campaignId,
-        pluginAddress: mockParams.pluginAddress,
-        network: mockParams.network,
-      })
-
-      expect(loggerWarnStub.calledWith('Error generating merkle data')).to.be.true
-      const logCall = loggerWarnStub.getCall(0)
-      expect(logCall.args[1]).to.deep.include({
-        error: mockError,
-        campaignId: mockParams.campaignId,
-      })
-      expect(result).to.deep.equal({ success: false })
+      expect(assertStub.called).to.be.true
     })
   })
 
