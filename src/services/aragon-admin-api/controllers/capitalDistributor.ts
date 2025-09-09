@@ -8,13 +8,9 @@ const CapitalDistributorAdminController = {
     const { pluginAddress, network } = params
 
     const plugin = await Models.Plugin.findByAddress(pluginAddress, network)
-    assertExposable(plugin, ErrorKeyEnum.notFound)
+    assertExposable(plugin && plugin.interfaceType === IPluginInterfaceType.capitalDistributor, ErrorKeyEnum.notFound)
 
-    const governance = MemberGovernanceFactory.create({
-      address: pluginAddress,
-      network,
-      interfaceType: IPluginInterfaceType.capitalDistributor,
-    }) as CapitalDistributorGovernance
+    const governance = MemberGovernanceFactory.createFromPlugin(plugin) as CapitalDistributorGovernance
     return await governance.uploadMembersList(params)
   },
 
@@ -24,11 +20,10 @@ const CapitalDistributorAdminController = {
     network: NetworksEnum
   }): Promise<any> => {
     const { campaignId, pluginAddress, network } = params
-    const governance = MemberGovernanceFactory.create({
-      address: pluginAddress,
-      network,
-      interfaceType: IPluginInterfaceType.capitalDistributor,
-    }) as CapitalDistributorGovernance
+    const plugin = await Models.Plugin.findByAddress(pluginAddress, network)
+    assertExposable(plugin && plugin.interfaceType === IPluginInterfaceType.capitalDistributor, ErrorKeyEnum.notFound)
+
+    const governance = MemberGovernanceFactory.createFromPlugin(plugin) as CapitalDistributorGovernance
     return await governance.generateMerkleData({ campaignId })
   },
 
@@ -38,11 +33,11 @@ const CapitalDistributorAdminController = {
     network: NetworksEnum
   }): Promise<any> => {
     const { campaignId, pluginAddress, network } = params
-    const governance = MemberGovernanceFactory.create({
-      address: pluginAddress,
-      network,
-      interfaceType: IPluginInterfaceType.capitalDistributor,
-    }) as CapitalDistributorGovernance
+
+    const plugin = await Models.Plugin.findByAddress(pluginAddress, network)
+    assertExposable(plugin && plugin.interfaceType === IPluginInterfaceType.capitalDistributor, ErrorKeyEnum.notFound)
+
+    const governance = MemberGovernanceFactory.createFromPlugin(plugin) as CapitalDistributorGovernance
     return await governance.getCampaignDetails({ campaignId })
   },
 }

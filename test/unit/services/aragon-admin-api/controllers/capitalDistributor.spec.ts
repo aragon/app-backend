@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { expect } from 'chai'
 import { CapitalDistributorAdminController } from '@services/aragon-admin-api/controllers/capitalDistributor'
 import { Models } from '@dbModels'
-import { ErrorKeyEnum, NetworksEnum, HexAddress } from '@types'
+import { ErrorKeyEnum, NetworksEnum, HexAddress, IPluginInterfaceType } from '@types'
 import * as errors from '@errors'
 import logger from '@logger'
 import Utils from '@helpers/utils'
@@ -44,7 +44,7 @@ describe('Controller: CapitalDistributorAdmin', () => {
         transactionHash: '0xabc123' as HexAddress,
         blockNumber: 12345,
         status: 'installed',
-        interfaceType: 'capitalDistributor',
+        interfaceType: IPluginInterfaceType.capitalDistributor,
         daoAddress: '0xdao123' as HexAddress,
       })
 
@@ -98,7 +98,7 @@ describe('Controller: CapitalDistributorAdmin', () => {
         transactionHash: '0xabc123' as HexAddress,
         blockNumber: 12345,
         status: 'installed',
-        interfaceType: 'capitalDistributor',
+        interfaceType: IPluginInterfaceType.capitalDistributor,
         daoAddress: '0xdao123' as HexAddress,
       })
 
@@ -134,7 +134,7 @@ describe('Controller: CapitalDistributorAdmin', () => {
         transactionHash: '0xabc123' as HexAddress,
         blockNumber: 12345,
         status: 'installed',
-        interfaceType: 'capitalDistributor',
+        interfaceType: IPluginInterfaceType.capitalDistributor,
         daoAddress: '0xdao123' as HexAddress,
       })
 
@@ -183,7 +183,7 @@ describe('Controller: CapitalDistributorAdmin', () => {
         transactionHash: '0xabc123' as HexAddress,
         blockNumber: 12345,
         status: 'installed',
-        interfaceType: 'capitalDistributor',
+        interfaceType: IPluginInterfaceType.capitalDistributor,
         daoAddress: '0xdao123' as HexAddress,
       })
 
@@ -214,7 +214,19 @@ describe('Controller: CapitalDistributorAdmin', () => {
 
   describe('generateMerkleData', () => {
     it('should generate merkle data successfully', async () => {
-      // Create campaign rewards in database first
+      // Create plugin first
+      await Models.Plugin.create({
+        id: `${mockParams.network}-0xabc123-${mockParams.pluginAddress}`,
+        address: mockParams.pluginAddress,
+        network: mockParams.network,
+        transactionHash: '0xabc123' as HexAddress,
+        blockNumber: 12345,
+        status: 'installed',
+        interfaceType: IPluginInterfaceType.capitalDistributor,
+        daoAddress: '0xdao123' as HexAddress,
+      })
+
+      // Create campaign rewards in database
       await Models.CampaignReward.create({
         pluginAddress: mockParams.pluginAddress,
         network: mockParams.network,
@@ -258,9 +270,20 @@ describe('Controller: CapitalDistributorAdmin', () => {
     })
 
     it('should throw error if no members found', async () => {
+      // Create plugin first
+      await Models.Plugin.create({
+        id: `${NetworksEnum.ethereumMainnet}-0xabc123-0x123`,
+        address: '0x123' as HexAddress,
+        network: NetworksEnum.ethereumMainnet,
+        transactionHash: '0xabc123' as HexAddress,
+        blockNumber: 12345,
+        status: 'installed',
+        interfaceType: IPluginInterfaceType.capitalDistributor,
+        daoAddress: '0xdao123' as HexAddress,
+      })
+
       sandbox.stub(Models.Campaign, 'findExisting').resolves(null)
       sandbox.stub(Models.CampaignReward, 'find').returns({ lean: () => Promise.resolve([]) })
-      const assertStub = sandbox.stub(errors, 'assertExposable').throws(new Error(ErrorKeyEnum.badParams))
 
       await expect(
         CapitalDistributorAdminController.generateMerkleData({
@@ -269,14 +292,23 @@ describe('Controller: CapitalDistributorAdmin', () => {
           network: NetworksEnum.ethereumMainnet,
         }),
       ).to.be.rejectedWith(Error, ErrorKeyEnum.badParams)
-
-      expect(assertStub.calledWith(false, ErrorKeyEnum.badParams)).to.be.true
     })
 
     it('should throw error if campaign already exists', async () => {
+      // Create plugin first
+      await Models.Plugin.create({
+        id: `${NetworksEnum.ethereumMainnet}-0xabc123-0x123`,
+        address: '0x123' as HexAddress,
+        network: NetworksEnum.ethereumMainnet,
+        transactionHash: '0xabc123' as HexAddress,
+        blockNumber: 12345,
+        status: 'installed',
+        interfaceType: IPluginInterfaceType.capitalDistributor,
+        daoAddress: '0xdao123' as HexAddress,
+      })
+
       const existingCampaign = { id: 'campaign1', active: true }
       sandbox.stub(Models.Campaign, 'findExisting').resolves(existingCampaign)
-      const assertStub = sandbox.stub(errors, 'assertExposable').throws(new Error(ErrorKeyEnum.campaignInvalid))
 
       await expect(
         CapitalDistributorAdminController.generateMerkleData({
@@ -285,11 +317,21 @@ describe('Controller: CapitalDistributorAdmin', () => {
           network: NetworksEnum.ethereumMainnet,
         }),
       ).to.be.rejectedWith(Error, ErrorKeyEnum.campaignInvalid)
-
-      expect(assertStub.calledWith(false, ErrorKeyEnum.campaignInvalid)).to.be.true
     })
 
     it('should handle error in Utils.processParallel onError callback during merkle data generation', async () => {
+      // Create plugin first
+      await Models.Plugin.create({
+        id: `${mockParams.network}-0xabc123-${mockParams.pluginAddress}`,
+        address: mockParams.pluginAddress,
+        network: mockParams.network,
+        transactionHash: '0xabc123' as HexAddress,
+        blockNumber: 12345,
+        status: 'installed',
+        interfaceType: IPluginInterfaceType.capitalDistributor,
+        daoAddress: '0xdao123' as HexAddress,
+      })
+
       await Models.CampaignReward.create({
         pluginAddress: mockParams.pluginAddress,
         network: mockParams.network,
@@ -329,6 +371,18 @@ describe('Controller: CapitalDistributorAdmin', () => {
     })
 
     it('should handle catch block error and return success false', async () => {
+      // Create plugin first
+      await Models.Plugin.create({
+        id: `${mockParams.network}-0xabc123-${mockParams.pluginAddress}`,
+        address: mockParams.pluginAddress,
+        network: mockParams.network,
+        transactionHash: '0xabc123' as HexAddress,
+        blockNumber: 12345,
+        status: 'installed',
+        interfaceType: IPluginInterfaceType.capitalDistributor,
+        daoAddress: '0xdao123' as HexAddress,
+      })
+
       await Models.CampaignReward.create({
         pluginAddress: mockParams.pluginAddress,
         network: mockParams.network,
@@ -359,6 +413,18 @@ describe('Controller: CapitalDistributorAdmin', () => {
 
   describe('getCampaignDetails', () => {
     it('should retrieve campaign details with member count', async () => {
+      // Create plugin first
+      await Models.Plugin.create({
+        id: `${mockParams.network}-0xabc123-${mockParams.pluginAddress}`,
+        address: mockParams.pluginAddress,
+        network: mockParams.network,
+        transactionHash: '0xabc123' as HexAddress,
+        blockNumber: 12345,
+        status: 'installed',
+        interfaceType: IPluginInterfaceType.capitalDistributor,
+        daoAddress: '0xdao123' as HexAddress,
+      })
+
       // Create campaign in database
       await Models.Campaign.create({
         pluginAddress: mockParams.pluginAddress,
