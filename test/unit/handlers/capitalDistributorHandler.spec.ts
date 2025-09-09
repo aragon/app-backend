@@ -59,7 +59,6 @@ describe('Handler: CapitalDistributor', () => {
           allocationStrategy: '0x1234567890123456789012345678901234567890' as HexAddress,
           token: '0xA0b86a33E6441E13C7D3a1F1f432bE40e2dca91a' as HexAddress,
           actionEncoder: '0x9876543210987654321098765432109876543210' as HexAddress,
-          multipleClaimsAllowed: true,
           startTime: BigInt(1640995200),
           endTime: BigInt(1672531200),
         },
@@ -94,7 +93,6 @@ describe('Handler: CapitalDistributor', () => {
       expect(createdCampaign?.allocationStrategy).to.eq(parsedEvent.args.allocationStrategy)
       expect(createdCampaign?.token).to.eq(parsedEvent.args.token)
       expect(createdCampaign?.payoutEncoder).to.eq(parsedEvent.args.actionEncoder)
-      expect(createdCampaign?.multipleClaimsAllowed).to.eq(true)
       expect(createdCampaign?.startTime).to.eq(1640995200)
       expect(createdCampaign?.endTime).to.eq(1672531200)
       expect(createdCampaign?.active).to.eq(true)
@@ -244,7 +242,6 @@ describe('Handler: CapitalDistributor', () => {
         allocationStrategy: logInfo.address, // Using address as allocation strategy for this test
         token: '0xtoken1234567890123456789012345678901234' as HexAddress,
         payoutEncoder: '0xencoder123456789012345678901234567890' as HexAddress,
-        multipleClaimsAllowed: true,
         startTime: 1640995200,
         endTime: 1672531200,
         active: true,
@@ -317,7 +314,6 @@ describe('Handler: CapitalDistributor', () => {
         allocationStrategy: logInfo.address, // Using address as allocation strategy for this test
         token: '0xtoken1234567890123456789012345678901234' as HexAddress,
         payoutEncoder: '0xencoder123456789012345678901234567890' as HexAddress,
-        multipleClaimsAllowed: true,
         startTime: 1640995200,
         endTime: 1672531200,
         active: true,
@@ -394,7 +390,6 @@ describe('Handler: CapitalDistributor', () => {
         allocationStrategy: logInfo.address,
         token: '0xtoken1234567890123456789012345678901234' as HexAddress,
         payoutEncoder: '0xencoder123456789012345678901234567890' as HexAddress,
-        multipleClaimsAllowed: true,
         startTime: 1640995200,
         endTime: 1672531200,
         active: true,
@@ -448,7 +443,6 @@ describe('Handler: CapitalDistributor', () => {
         allocationStrategy: logInfo.address,
         token: '0xtoken1234567890123456789012345678901234' as HexAddress,
         payoutEncoder: '0xencoder123456789012345678901234567890' as HexAddress,
-        multipleClaimsAllowed: true,
         startTime: 1640995200,
         endTime: 1672531200,
         active: true,
@@ -570,7 +564,6 @@ describe('Handler: CapitalDistributor', () => {
         allocationStrategy: logInfo.address,
         token: '0xtoken1234567890123456789012345678901234' as HexAddress,
         payoutEncoder: '0xencoder123456789012345678901234567890' as HexAddress,
-        multipleClaimsAllowed: true,
         startTime: 1640995200,
         endTime: 1672531200,
         active: true,
@@ -634,7 +627,6 @@ describe('Handler: CapitalDistributor', () => {
         allocationStrategy: logInfo.address,
         token: '0xtoken1234567890123456789012345678901234' as HexAddress,
         payoutEncoder: '0xencoder123456789012345678901234567890' as HexAddress,
-        multipleClaimsAllowed: true,
         startTime: 1640995200,
         endTime: 1672531200,
         active: true,
@@ -720,7 +712,6 @@ describe('Handler: CapitalDistributor', () => {
         allocationStrategy: logInfo.address,
         token: '0xtoken1234567890123456789012345678901234' as HexAddress,
         payoutEncoder: '0xencoder123456789012345678901234567890' as HexAddress,
-        multipleClaimsAllowed: true,
         startTime: 1640995200,
         endTime: 1672531200,
         active: true,
@@ -762,7 +753,6 @@ describe('Handler: CapitalDistributor', () => {
         allocationStrategy: logInfo.address,
         token: '0xtoken1234567890123456789012345678901234' as HexAddress,
         payoutEncoder: '0xencoder123456789012345678901234567890' as HexAddress,
-        multipleClaimsAllowed: true,
         startTime: 1640995200,
         endTime: 1672531200,
         active: false,
@@ -804,7 +794,6 @@ describe('Handler: CapitalDistributor', () => {
         allocationStrategy: logInfo.address,
         token: '0xtoken1234567890123456789012345678901234' as HexAddress,
         payoutEncoder: '0xencoder123456789012345678901234567890' as HexAddress,
-        multipleClaimsAllowed: true,
         startTime: 1640995200,
         endTime: 1672531200,
         active: true,

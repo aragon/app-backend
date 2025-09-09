@@ -46,7 +46,6 @@ export const CapitalDistributorHandler = {
         allocationStrategy,
         token,
         payoutEncoder: actionEncoder,
-        multipleClaimsAllowed,
         startTime: Number(startTime),
         endTime: Number(endTime),
         active: true,

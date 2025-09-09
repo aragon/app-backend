@@ -91,9 +91,6 @@ export default class Campaign extends Model {
   @prop({ type: () => String, required: true })
   public payoutEncoder!: HexAddress
 
-  @prop({ type: () => Boolean, required: true })
-  public multipleClaimsAllowed!: boolean
-
   @prop({ type: () => Number, required: true })
   public startTime!: number
 
@@ -424,7 +421,6 @@ export default class Campaign extends Model {
       startTime: '$startTime',
       endTime: '$endTime',
       active: '$active',
-      multipleClaimsAllowed: '$multipleClaimsAllowed',
       strategy: {
         root: { $ifNull: ['$merkleRoot', ''] },
       },

@@ -22,7 +22,6 @@ describe('Model: Campaign', () => {
       allocationStrategy: '0x1234567890abcdef1234567890abcdef12345678' as HexAddress,
       token: '0xA0b86a33E6441D05d6E4C83c5c7E72d4e9B17c2' as HexAddress,
       payoutEncoder: '0xfedcba0987654321fedcba0987654321fedcba09' as HexAddress,
-      multipleClaimsAllowed: true,
       startTime: 1640995200,
       endTime: 1672531200,
       active: true,
