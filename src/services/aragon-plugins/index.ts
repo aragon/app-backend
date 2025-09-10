@@ -89,9 +89,10 @@ const AragonPluginsService: IService & { pluginQueue: (params: IQueuePlugin) => 
 
         if (
           (token?.type === ITokenType.ERC20 ||
-            (token?.type === ITokenType.ERC721 && token?.type === ITokenType.escrowAdapter)) &&
-          token.isGovernance &&
-          token.hasDelegate
+            token?.type === ITokenType.ERC721 ||
+            token?.type === ITokenType.escrowAdapter) &&
+          token?.isGovernance &&
+          token?.hasDelegate
         ) {
           logger.info(
             'Sync plugin: token is ERC20 or escrowAdapter',
