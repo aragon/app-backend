@@ -28,7 +28,7 @@ describe('Integ: Token', () => {
       address: '0xPluginAddress',
       network: NetworksEnum.ethereumSepolia,
       interfaceType: IPluginInterfaceType.tokenVoting,
-      tokenAddress
+      tokenAddress,
     })
 
     const startStub = sandbox.stub(LogTokenVoting, 'start').resolves()
@@ -39,6 +39,5 @@ describe('Integ: Token', () => {
     })
 
     expect(startStub.called).to.be.true
-
   })
 })
