@@ -214,4 +214,8 @@ export interface IConfig {
     TOKEN_RATES_CONCURRENCY: number
     TOKEN_HOLDERS_THRESHOLD: number
   }
+
+  FILE_UPLOADS: {
+    MAX_FILE_SIZE_MB: number
+  }
 }
