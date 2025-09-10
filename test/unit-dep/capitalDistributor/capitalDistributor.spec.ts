@@ -21,13 +21,10 @@ describe('Capital Distributor', () => {
   it('should sync the capital distributor event', async () => {
     const txHashes = [
       '0x5aaabf7b94e33d015c2bf8f542b7622cae69628dc6a4ddc975905c83b85fa377',
-      '0x45cdc71ef2a57be0829d75b5ed2d8dfc74313f65f4d735b1fae46d6e27de2d8a'
+      '0x45cdc71ef2a57be0829d75b5ed2d8dfc74313f65f4d735b1fae46d6e27de2d8a',
     ]
 
-    await UnitDepUtils.handleEventsFromTxHashes(
-      txHashes,
-      NetworksEnum.ethereumSepolia,
-    )
+    await UnitDepUtils.handleEventsFromTxHashes(txHashes, NetworksEnum.ethereumSepolia)
 
     const campaign = await Models.Campaign.findOne({})
     expect(campaign).to.be.exist
