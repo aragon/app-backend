@@ -587,7 +587,7 @@ export const ProposalHandler = {
 
       if (!proposal) return
 
-      const hashDaoUpgradeAction = proposal.rawActions?.find((action: any) => {
+      const hashDaoUpgradeAction = proposal.rawActions?.find((action: IRawAction) => {
         const methodHash = ethers.id('upgradeToAndCall(address,bytes)').slice(0, 10)
         return action.data?.startsWith(methodHash)
       })
