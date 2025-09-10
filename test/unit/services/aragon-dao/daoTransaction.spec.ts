@@ -495,4 +495,269 @@ describe('AragonDao: DaoTransactions', () => {
       })
     })
   })
+
+  describe('resetTransactions function', () => {
+    let dbTxStub: any
+    let transactionDeleteStub: sinon.SinonStub
+    let configIndexerDeleteStub: sinon.SinonStub
+
+    beforeEach(() => {
+      // Setup stubs for Models.Transaction and Models.ConfigIndexer
+      transactionDeleteStub = sandbox.stub().resolves({ deletedCount: 10 })
+      configIndexerDeleteStub = sandbox.stub().resolves({ deletedCount: 4 })
+
+      modelsStub.Transaction = {
+        deleteMany: transactionDeleteStub,
+      }
+      modelsStub.ConfigIndexer = {
+        deleteMany: configIndexerDeleteStub,
+      }
+
+      // Mock DbTx.executeTxFn to immediately call the callback
+      dbTxStub = {
+        executeTxFn: sandbox.stub().callsFake(async callback => {
+          const mockSession = {
+            commitTransaction: sandbox.stub().resolves(),
+            endSession: sandbox.stub().resolves(),
+            abortTransaction: sandbox.stub().resolves(),
+          }
+          return callback({ session: mockSession })
+        }),
+      }
+
+      // Re-initialize DaoTransactions with the new stubs
+      const BlockchainLogCrawlerMock = function (this: any, config: any) {
+        this.crawl = sandbox.stub().resolves()
+      }
+
+      DaoTransactions = proxyquire('@services/aragon-dao/daoTransactions', {
+        '@dbModels': { Models: modelsStub },
+        '@logger': { default: loggerStub },
+        '@modules/blockchainLogCrawler': { default: BlockchainLogCrawlerMock },
+        '@helpers/configIndexer': { default: configIndexerHelperStub },
+        '@handlers/daoTransferHanlder': { DaoTransferHandler: daoTransferHandlerStub },
+        '@modules/dbTx': { default: dbTxStub },
+        ethers: { zeroPadValue: zeroPadValueStub },
+      }).DaoTransactions
+    })
+
+    it('should delete all transactions for a DAO', async () => {
+      await DaoTransactions.resetTransactions({
+        daoAddress: '0xDAO123',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      // Verify Transaction.deleteMany was called with correct parameters
+      expect(modelsStub.Transaction.deleteMany.calledOnce).to.be.true
+      const transactionDeleteCall = modelsStub.Transaction.deleteMany.getCall(0)
+      expect(transactionDeleteCall.args[0]).to.deep.equal({
+        daoAddress: '0xDAO123',
+        network: NetworksEnum.ethereumMainnet,
+      })
+      expect(transactionDeleteCall.args[1]).to.have.property('session')
+    })
+
+    it('should delete all ConfigIndexer entries for a DAO', async () => {
+      await DaoTransactions.resetTransactions({
+        daoAddress: '0xDAO456',
+        network: NetworksEnum.polygonMainnet,
+      })
+
+      // Verify ConfigIndexer builders were called
+      expect(configIndexerHelperStub.builders.tokenDeposit.calledOnce).to.be.true
+      expect(configIndexerHelperStub.builders.tokenDeposit.calledWith(NetworksEnum.polygonMainnet, '0xDAO456')).to.be
+        .true
+
+      expect(configIndexerHelperStub.builders.nativeDeposit.calledOnce).to.be.true
+      expect(configIndexerHelperStub.builders.nativeDeposit.calledWith(NetworksEnum.polygonMainnet, '0xDAO456')).to.be
+        .true
+
+      expect(configIndexerHelperStub.builders.tokenWithdraw.calledOnce).to.be.true
+      expect(configIndexerHelperStub.builders.tokenWithdraw.calledWith(NetworksEnum.polygonMainnet, '0xDAO456')).to.be
+        .true
+
+      expect(configIndexerHelperStub.builders.nativeWithdraw.calledOnce).to.be.true
+      expect(configIndexerHelperStub.builders.nativeWithdraw.calledWith(NetworksEnum.polygonMainnet, '0xDAO456')).to.be
+        .true
+
+      // Verify ConfigIndexer.deleteMany was called with correct service names
+      expect(modelsStub.ConfigIndexer.deleteMany.calledOnce).to.be.true
+      const configDeleteCall = modelsStub.ConfigIndexer.deleteMany.getCall(0)
+      expect(configDeleteCall.args[0]).to.deep.equal({
+        service: {
+          $in: ['tokenDeposit-service', 'nativeDeposit-service', 'tokenWithdraw-service', 'nativeWithdraw-service'],
+        },
+      })
+      expect(configDeleteCall.args[1]).to.have.property('session')
+    })
+
+    it('should use database transaction for atomic operations', async () => {
+      await DaoTransactions.resetTransactions({
+        daoAddress: '0xDAO789',
+        network: NetworksEnum.baseMainnet,
+      })
+
+      // Verify DbTx.executeTxFn was called
+      expect(dbTxStub.executeTxFn.calledOnce).to.be.true
+
+      // Verify session was committed and ended
+      const callback = dbTxStub.executeTxFn.getCall(0).args[0]
+      const mockSession = {
+        commitTransaction: sandbox.stub().resolves(),
+        endSession: sandbox.stub().resolves(),
+      }
+
+      await callback({ session: mockSession })
+
+      expect(mockSession.commitTransaction.calledOnce).to.be.true
+      expect(mockSession.endSession.calledOnce).to.be.true
+    })
+
+    it('should handle errors during transaction deletion', async () => {
+      const deleteError = new Error('Database connection failed')
+      transactionDeleteStub.rejects(deleteError)
+
+      dbTxStub.executeTxFn.callsFake(async callback => {
+        const mockSession = {
+          commitTransaction: sandbox.stub().resolves(),
+          endSession: sandbox.stub().resolves(),
+          abortTransaction: sandbox.stub().resolves(),
+        }
+        try {
+          return await callback({ session: mockSession })
+        } catch (error) {
+          await mockSession.abortTransaction()
+          throw error
+        }
+      })
+
+      try {
+        await DaoTransactions.resetTransactions({
+          daoAddress: '0xDAOError',
+          network: NetworksEnum.ethereumMainnet,
+        })
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error.message).to.equal('Database connection failed')
+      }
+
+      expect(transactionDeleteStub.calledOnce).to.be.true
+    })
+
+    it('should handle errors during ConfigIndexer deletion', async () => {
+      const deleteError = new Error('ConfigIndexer deletion failed')
+      configIndexerDeleteStub.rejects(deleteError)
+
+      dbTxStub.executeTxFn.callsFake(async callback => {
+        const mockSession = {
+          commitTransaction: sandbox.stub().resolves(),
+          endSession: sandbox.stub().resolves(),
+          abortTransaction: sandbox.stub().resolves(),
+        }
+        try {
+          return await callback({ session: mockSession })
+        } catch (error) {
+          await mockSession.abortTransaction()
+          throw error
+        }
+      })
+
+      try {
+        await DaoTransactions.resetTransactions({
+          daoAddress: '0xDAOError',
+          network: NetworksEnum.ethereumMainnet,
+        })
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error.message).to.equal('ConfigIndexer deletion failed')
+      }
+
+      expect(configIndexerDeleteStub.calledOnce).to.be.true
+    })
+
+    it('should work with different networks', async () => {
+      const networks = [
+        NetworksEnum.ethereumMainnet,
+        NetworksEnum.polygonMainnet,
+        NetworksEnum.baseMainnet,
+        NetworksEnum.arbitrumMainnet,
+        NetworksEnum.optimismMainnet,
+      ]
+
+      for (const network of networks) {
+        // Reset stubs
+        transactionDeleteStub.resetHistory()
+        configIndexerDeleteStub.resetHistory()
+        configIndexerHelperStub.builders.tokenDeposit.resetHistory()
+        configIndexerHelperStub.builders.nativeDeposit.resetHistory()
+        configIndexerHelperStub.builders.tokenWithdraw.resetHistory()
+        configIndexerHelperStub.builders.nativeWithdraw.resetHistory()
+
+        await DaoTransactions.resetTransactions({
+          daoAddress: '0xDAONetwork',
+          network,
+        })
+
+        // Verify correct network was used
+        expect(transactionDeleteStub.calledOnce).to.be.true
+        expect(transactionDeleteStub.getCall(0).args[0].network).to.equal(network)
+
+        // Verify ConfigIndexer builders were called with correct network
+        expect(configIndexerHelperStub.builders.tokenDeposit.calledWith(network, '0xDAONetwork')).to.be.true
+        expect(configIndexerHelperStub.builders.nativeDeposit.calledWith(network, '0xDAONetwork')).to.be.true
+        expect(configIndexerHelperStub.builders.tokenWithdraw.calledWith(network, '0xDAONetwork')).to.be.true
+        expect(configIndexerHelperStub.builders.nativeWithdraw.calledWith(network, '0xDAONetwork')).to.be.true
+      }
+    })
+
+    it('should handle concurrent reset calls for different DAOs', async () => {
+      const resetPromises = [
+        DaoTransactions.resetTransactions({
+          daoAddress: '0xDAO1',
+          network: NetworksEnum.ethereumMainnet,
+        }),
+        DaoTransactions.resetTransactions({
+          daoAddress: '0xDAO2',
+          network: NetworksEnum.polygonMainnet,
+        }),
+        DaoTransactions.resetTransactions({
+          daoAddress: '0xDAO3',
+          network: NetworksEnum.baseMainnet,
+        }),
+      ]
+
+      await Promise.all(resetPromises)
+
+      // Verify all calls were made
+      expect(transactionDeleteStub.callCount).to.equal(3)
+      expect(configIndexerDeleteStub.callCount).to.equal(3)
+      expect(dbTxStub.executeTxFn.callCount).to.equal(3)
+    })
+
+    it('should delete nothing if no transactions exist', async () => {
+      transactionDeleteStub.resolves({ deletedCount: 0 })
+      configIndexerDeleteStub.resolves({ deletedCount: 0 })
+
+      await DaoTransactions.resetTransactions({
+        daoAddress: '0xDAOEmpty',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      expect(transactionDeleteStub.calledOnce).to.be.true
+      expect(configIndexerDeleteStub.calledOnce).to.be.true
+    })
+
+    it('should handle special characters in DAO address', async () => {
+      const specialAddress = '0xDaO$pecial123!@#'
+
+      await DaoTransactions.resetTransactions({
+        daoAddress: specialAddress,
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      expect(transactionDeleteStub.getCall(0).args[0].daoAddress).to.equal(specialAddress)
+      expect(configIndexerHelperStub.builders.tokenDeposit.calledWith(NetworksEnum.ethereumMainnet, specialAddress)).to
+        .be.true
+    })
+  })
 })

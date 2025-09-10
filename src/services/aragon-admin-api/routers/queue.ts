@@ -4,6 +4,7 @@ import GenericSchema from '@admin-api/routers/schema/generic'
 import QueueAdminController from '@admin-api/controllers/queue'
 import AuthMiddleware from '@middlewares/auth'
 import { type IAQueueDao, type IAQueueProposal, type NetworksEnum } from '@types'
+import Utils from '@helpers/utils'
 
 const QueueAdminRouter = {
   queueDaoPlugins: async function (ctx: RouterContext) {
@@ -19,11 +20,12 @@ const QueueAdminRouter = {
 
   queueDaoTransactions: async function (ctx: RouterContext) {
     const params = {
-      address: ctx.params.daoAddress,
+      daoAddress: ctx.params.daoAddress,
       network: ctx.params.network,
+      reset: Utils.parseBoolean(ctx.query.reset),
     }
 
-    const formattedValues = await ValidationSchema.validateParams(GenericSchema.defaultParams, params)
+    const formattedValues = await ValidationSchema.validateParams(GenericSchema.daoTransactionParams, params)
 
     ctx.body = await QueueAdminController.queueDaoTransactions(formattedValues)
   },

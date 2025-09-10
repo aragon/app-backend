@@ -1,4 +1,4 @@
-import { type HexAddress, IDaoTransferLogs, type NetworksEnum, LockErc721Token } from '@types'
+import { IDaoTransferLogs, LockErc721Token, type IQueueDaoTransactions } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import { Interface, zeroPadValue } from 'ethers'
@@ -9,6 +9,7 @@ import { DaoV2 } from '@artifacts/daoV2'
 import { ERC20 } from '@artifacts/ERC20'
 import { ERC721 } from '@artifacts/ERC721'
 import { DaoTransferHandler } from '@handlers/daoTransferHanlder'
+import DbTx from '@modules/dbTx'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:DaoTransactions' })
 
@@ -21,13 +22,17 @@ const erc20Interface = new Interface(ERC20.abi)
 const erc20TransferTopic = erc20Interface.getEvent(LockErc721Token.Transfer)?.topicHash!
 
 export const DaoTransactions = {
-  start: async ({ daoAddress, network }: { daoAddress: HexAddress; network: NetworksEnum }) => {
+  start: async ({ daoAddress, network, reset }: IQueueDaoTransactions) => {
     try {
       const startTime = Date.now()
       logger.verbose('Start DaoTransactions', llo({ daoAddress, startTime }))
 
       const daoDb = await Models.Dao.findByAddress(daoAddress, network)
       if (!daoDb) return
+
+      if (reset) {
+        await DaoTransactions.resetTransactions({ daoAddress, network })
+      }
 
       // deposit - ERC20/ERC721 transfers to DAO (any token contract)
       const crawlerIncomingTokenTransfers = new BlockchainLogCrawler({
@@ -167,5 +172,31 @@ export const DaoTransactions = {
     } catch (error) {
       logger.error('Error start DaoTransactions', llo({ daoAddress, error }))
     }
+  },
+
+  resetTransactions: async ({ daoAddress, network }: IQueueDaoTransactions) => {
+    const tokenDeposit = ConfigIndexerHelper.builders.tokenDeposit(network, daoAddress)
+    const nativeDeposit = ConfigIndexerHelper.builders.nativeDeposit(network, daoAddress)
+    const tokenWithdraw = ConfigIndexerHelper.builders.tokenWithdraw(network, daoAddress)
+    const nativeWithdraw = ConfigIndexerHelper.builders.nativeWithdraw(network, daoAddress)
+
+    await DbTx.executeTxFn(async ({ session }) => {
+      await Models.Transaction.deleteMany(
+        {
+          daoAddress,
+          network,
+        },
+        { session },
+      )
+      await Models.ConfigIndexer.deleteMany(
+        {
+          service: { $in: [tokenDeposit, nativeDeposit, tokenWithdraw, nativeWithdraw] },
+        },
+        { session },
+      )
+
+      await session.commitTransaction()
+      await session.endSession()
+    })
   },
 }
