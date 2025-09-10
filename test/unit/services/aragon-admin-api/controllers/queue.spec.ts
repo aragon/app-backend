@@ -3,7 +3,14 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import QueueAdminController from '@services/aragon-admin-api/controllers/queue'
 import { Models } from '@dbModels'
-import { EnumQueueName, ErrorKeyEnum, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
+import {
+  EnumQueueName,
+  ErrorKeyEnum,
+  IPluginInterfaceType,
+  IPluginStatus,
+  type IQueueDaoTransactions,
+  NetworksEnum,
+} from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { PluginSlug } from '@helpers/pluginSlug'
 import logger from '@logger'
@@ -354,7 +361,11 @@ describe('Controller: QueueAdmin', () => {
 
   describe('queueDaoTransactions', () => {
     it('should call rabbitMQ with correct params for queue dao transactions', async () => {
-      const params = { address: '0x123', network: 'mainnet' }
+      const params = {
+        daoAddress: '0x123',
+        network: NetworksEnum.ethereumSepolia,
+        reset: true,
+      } as IQueueDaoTransactions
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0x123', network: NetworksEnum.ethereumSepolia })
       sandbox.stub(logger, 'verbose')
 
@@ -365,19 +376,27 @@ describe('Controller: QueueAdmin', () => {
       expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.daoTransactions)
       expect(rabbitMQ.firstCall.args[1]).to.deep.equal({
         id: '0x123',
-        params: { address: '0x123', network: NetworksEnum.ethereumSepolia },
+        params: { address: '0x123', network: NetworksEnum.ethereumSepolia, reset: true },
       })
     })
 
     it('should throw error if DAO not found', async () => {
-      const params = { address: '0x123', network: 'mainnet' }
+      const params = {
+        daoAddress: '0x123',
+        network: NetworksEnum.ethereumSepolia,
+        reset: true,
+      } as IQueueDaoTransactions
       sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
 
       await expect(QueueAdminController.queueDaoTransactions(params)).to.be.rejectedWith(Error, ErrorKeyEnum.notFound)
     })
 
     it('should handle RabbitMQ errors in queueDaoTransactions', async () => {
-      const params = { address: '0x123', network: 'mainnet' }
+      const params = {
+        daoAddress: '0x123',
+        network: NetworksEnum.ethereumSepolia,
+        reset: true,
+      } as IQueueDaoTransactions
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0x123', network: NetworksEnum.ethereumSepolia })
 
       rabbitMQ.rejects(new Error('RabbitMQ error'))

@@ -86,18 +86,19 @@ describe('AragonDao: index', () => {
 
       const handler = processStub.getCall(1).args[1]
       const queueName = processStub.getCall(1).args[0]
-      await handler({ params: { address: '0xDaoAddress', network: NetworksEnum.ethereumMainnet } } as any)
+      await handler({ params: { daoAddress: '0xDaoAddress', network: NetworksEnum.ethereumMainnet } } as any)
 
       expect(queueName).to.eq(EnumQueueName.daoTransactions)
       expect(
         daoTransactionsStub.calledOnceWith({
           daoAddress: '0xDaoAddress',
           network: NetworksEnum.ethereumMainnet,
+          reset: undefined,
         }),
       ).to.be.true
     })
 
-    it('should handle daoTransactions queue with proposalId', async () => {
+    it('should handle daoTransactions queue with reset', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const daoTransactionsStub = sandbox.stub(DaoTransactions, 'start').resolves()
 
@@ -106,7 +107,7 @@ describe('AragonDao: index', () => {
       const handler = processStub.getCall(1).args[1]
       const queueName = processStub.getCall(1).args[0]
       await handler({
-        params: { address: '0xDaoAddress', network: NetworksEnum.ethereumMainnet, proposalId: '1' },
+        params: { daoAddress: '0xDaoAddress', network: NetworksEnum.ethereumMainnet, reset: true },
       } as any)
 
       expect(queueName).to.eq(EnumQueueName.daoTransactions)
@@ -114,6 +115,7 @@ describe('AragonDao: index', () => {
         daoTransactionsStub.calledOnceWith({
           daoAddress: '0xDaoAddress',
           network: NetworksEnum.ethereumMainnet,
+          reset: true,
         }),
       ).to.be.true
     })

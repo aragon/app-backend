@@ -28,6 +28,12 @@ export interface IQueueAllMetrics {
   network: NetworksEnum
 }
 
+export interface IQueueDaoTransactions {
+  daoAddress: HexAddress
+  network: NetworksEnum
+  reset?: boolean
+}
+
 export interface IQueueDao {
   address: HexAddress
   network: NetworksEnum
