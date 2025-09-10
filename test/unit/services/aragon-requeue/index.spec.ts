@@ -501,7 +501,7 @@ describe('AragonRequeue: index', () => {
       expect(daoTransactionsCalls.length).to.equal(2)
 
       const queuedDaos = daoTransactionsCalls.map(call => ({
-        address: call.args[1].params.address,
+        address: call.args[1].params.daoAddress,
         network: call.args[1].params.network,
       }))
 
@@ -592,7 +592,7 @@ describe('AragonRequeue: index', () => {
         .filter(call => call.args[0] === EnumQueueName.daoTransactions)
 
       expect(daoTransactionsCalls.length).to.equal(1)
-      expect(daoTransactionsCalls[0].args[1].params.address).to.equal('0xDao4444444444444444444444444444444444444')
+      expect(daoTransactionsCalls[0].args[1].params.daoAddress).to.equal('0xDao4444444444444444444444444444444444444')
     })
 
     it('should verify aggregation pipeline returns correct missing configs information', async () => {
@@ -694,7 +694,7 @@ describe('AragonRequeue: index', () => {
       expect(daoTransactionsCalls.length).to.equal(2)
 
       // Verify the aggregation returned correct data
-      const queuedAddresses = daoTransactionsCalls.map(call => call.args[1].params.address)
+      const queuedAddresses = daoTransactionsCalls.map(call => call.args[1].params.daoAddress)
 
       // Complete DAO should NOT be queued
       expect(queuedAddresses).to.not.include('0xDaoComplete11111111111111111111111111111')
@@ -772,7 +772,7 @@ describe('AragonRequeue: index', () => {
       daoTransactionsCalls.forEach(call => {
         expect(call.args[1]).to.have.property('id')
         expect(call.args[1]).to.have.property('params')
-        expect(call.args[1].params).to.have.property('address')
+        expect(call.args[1].params).to.have.property('daoAddress')
         expect(call.args[1].params).to.have.property('network')
         expect(call.args[1].params.network).to.equal('ethereum-mainnet')
       })

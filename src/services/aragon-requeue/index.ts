@@ -105,7 +105,7 @@ const AragonReQueueService: IService = {
       onDocument: async (dao: any) => {
         await RabbitMQHelper.sendMessageWithThrottle(EnumQueueName.daoTransactions, {
           id: dao.address,
-          params: { address: dao.address, network: dao.network },
+          params: { daoAddress: dao.address, network: dao.network },
         })
 
         logger.verbose(
