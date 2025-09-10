@@ -8,7 +8,7 @@ export const Queue: IService = {
     const daoAddress = ''
     const network = NetworksEnum.zksyncMainnet
     await QueueAdminController.queuePlugins({ address: daoAddress, network })
-    await QueueAdminController.queueDaoTransactions({ address: daoAddress, network })
+    await QueueAdminController.queueDaoTransactions({ daoAddress, network })
     await QueueAdminController.queueDaoAssets({ address: daoAddress, network })
   },
 
