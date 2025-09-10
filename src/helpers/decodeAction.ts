@@ -369,10 +369,10 @@ class DecodeActions {
             name: existingMetadata.name,
             description: existingMetadata.description,
             avatar: existingMetadata.avatar,
-            links: existingMetadata.links,
+            links: existingMetadata.links || [],
             logo: existingMetadata.logo,
             processKey: existingMetadata.processKey,
-            stageNames: existingMetadata.stageNames,
+            stageNames: existingMetadata.stageNames || [],
           }
         : {}
 
