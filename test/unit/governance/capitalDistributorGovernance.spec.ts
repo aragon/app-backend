@@ -8,7 +8,7 @@ import { CapitalDistributorGovernance } from '@src/governance'
 import { NetworksEnum, type HexAddress } from '@types'
 import MerkleTreeHelper from '@helpers/merkleTree'
 
-describe.only('Governance:CapitalDistributorGovernance', () => {
+describe('Governance:CapitalDistributorGovernance', () => {
   let sandbox: SinonSandbox
   let capitalDistributorGovernance: CapitalDistributorGovernance
   let loggerInfoStub: sinon.SinonStub
