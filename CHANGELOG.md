@@ -1,3 +1,10 @@
+# [0.9.0](https://github.com/aragon/app-backend/compare/v0.8.0...v0.9.0) (2025-09-10)
+
+
+### Features
+
+* **daoTransactions:** standardize parameter naming to daoAddress in messaging ([785cd0d](https://github.com/aragon/app-backend/commit/785cd0d73fdbb36a8c37829a783c742a2fdd5dc1))
+
 # [0.8.0](https://github.com/aragon/app-backend/compare/v0.7.0...v0.8.0) (2025-08-22)
 
 
