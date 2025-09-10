@@ -318,7 +318,7 @@ describe('Governance:CapitalDistributorGovernance', () => {
         ],
       }
 
-      sandbox.stub(MerkleTreeHelper, 'generateTreeWithProofs').returns(mockMerkleResult)
+      sandbox.stub(MerkleTreeHelper, 'generateTreeWithProofs').resolves(mockMerkleResult)
 
       const result = await capitalDistributorGovernance.generateMerkleData({
         campaignId: testCampaignId,

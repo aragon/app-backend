@@ -195,14 +195,14 @@ describe('MerkleTreeHelper', () => {
   })
 
   describe('generateTreeWithProofs', () => {
-    it('should generate tree with proofs for all members', () => {
+    it('should generate tree with proofs for all members', async () => {
       const rewards: IRewardEntry[] = [
         { address: '0x1111111111111111111111111111111111111111', amount: '1000000000000000000' },
         { address: '0x2222222222222222222222222222222222222222', amount: '2000000000000000000' },
         { address: '0x3333333333333333333333333333333333333333', amount: '3000000000000000000' },
       ]
 
-      const result = MerkleTreeHelper.generateTreeWithProofs(rewards)
+      const result = await MerkleTreeHelper.generateTreeWithProofs(rewards)
 
       expect(result).to.have.property('merkleRoot')
       expect(result).to.have.property('members')
@@ -222,13 +222,13 @@ describe('MerkleTreeHelper', () => {
       })
     })
 
-    it('should generate checksummed addresses', () => {
+    it('should generate checksummed addresses', async () => {
       const rewards: IRewardEntry[] = [
         { address: '0xd8da6bf26964af9d7eed9e03e53415d37aa96045', amount: '1000000000000000000' }, // lowercase
         { address: '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed', amount: '2000000000000000000' }, // mixed case
       ]
 
-      const result = MerkleTreeHelper.generateTreeWithProofs(rewards)
+      const result = await MerkleTreeHelper.generateTreeWithProofs(rewards)
 
       result.members.forEach((member, index) => {
         expect(member.address).to.equal(getAddress(rewards[index].address))
@@ -236,14 +236,14 @@ describe('MerkleTreeHelper', () => {
       })
     })
 
-    it('should generate valid proofs for all members', () => {
+    it('should generate valid proofs for all members', async () => {
       const rewards: IRewardEntry[] = [
         { address: '0x1111111111111111111111111111111111111111', amount: '1000000000000000000' },
         { address: '0x2222222222222222222222222222222222222222', amount: '2000000000000000000' },
         { address: '0x3333333333333333333333333333333333333333', amount: '3000000000000000000' },
       ]
 
-      const result = MerkleTreeHelper.generateTreeWithProofs(rewards)
+      const result = await MerkleTreeHelper.generateTreeWithProofs(rewards)
 
       // Create tree to verify proofs
       const leaves = rewards.map(reward => ({
@@ -258,12 +258,12 @@ describe('MerkleTreeHelper', () => {
       })
     })
 
-    it('should handle single reward entry', () => {
+    it('should handle single reward entry', async () => {
       const rewards: IRewardEntry[] = [
         { address: '0x1111111111111111111111111111111111111111', amount: '1000000000000000000' },
       ]
 
-      const result = MerkleTreeHelper.generateTreeWithProofs(rewards)
+      const result = await MerkleTreeHelper.generateTreeWithProofs(rewards)
 
       expect(result.merkleRoot).to.match(/^0x[a-f0-9]{64}$/i)
       expect(result.members).to.have.length(1)
@@ -271,13 +271,13 @@ describe('MerkleTreeHelper', () => {
       expect(result.members[0].proof).to.have.length(0) // Single leaf has empty proof
     })
 
-    it('should handle zero amounts', () => {
+    it('should handle zero amounts', async () => {
       const rewards: IRewardEntry[] = [
         { address: '0x1111111111111111111111111111111111111111', amount: '0' },
         { address: '0x2222222222222222222222222222222222222222', amount: '1000000000000000000' },
       ]
 
-      const result = MerkleTreeHelper.generateTreeWithProofs(rewards)
+      const result = await MerkleTreeHelper.generateTreeWithProofs(rewards)
 
       expect(result.merkleRoot).to.match(/^0x[a-f0-9]{64}$/i)
       expect(result.members).to.have.length(2)
@@ -285,47 +285,47 @@ describe('MerkleTreeHelper', () => {
       expect(result.members[1].amount).to.equal('1000000000000000000')
     })
 
-    it('should handle large amounts', () => {
+    it('should handle large amounts', async () => {
       const largeAmount = '115792089237316195423570985008687907853269984665640564039457584007913129639935'
       const rewards: IRewardEntry[] = [{ address: '0x1111111111111111111111111111111111111111', amount: largeAmount }]
 
-      const result = MerkleTreeHelper.generateTreeWithProofs(rewards)
+      const result = await MerkleTreeHelper.generateTreeWithProofs(rewards)
 
       expect(result.merkleRoot).to.match(/^0x[a-f0-9]{64}$/i)
       expect(result.members).to.have.length(1)
       expect(result.members[0].amount).to.equal(largeAmount)
     })
 
-    it('should handle empty rewards array', () => {
+    it('should handle empty rewards array', async () => {
       const rewards: IRewardEntry[] = []
 
-      const result = MerkleTreeHelper.generateTreeWithProofs(rewards)
+      const result = await MerkleTreeHelper.generateTreeWithProofs(rewards)
 
       expect(result.merkleRoot).to.be.a('string')
       expect(result.members).to.be.an('array')
       expect(result.members).to.have.length(0)
     })
 
-    it('should generate consistent results for same input', () => {
+    it('should generate consistent results for same input', async () => {
       const rewards: IRewardEntry[] = [
         { address: '0x1111111111111111111111111111111111111111', amount: '1000000000000000000' },
         { address: '0x2222222222222222222222222222222222222222', amount: '2000000000000000000' },
       ]
 
-      const result1 = MerkleTreeHelper.generateTreeWithProofs(rewards)
-      const result2 = MerkleTreeHelper.generateTreeWithProofs(rewards)
+      const result1 = await MerkleTreeHelper.generateTreeWithProofs(rewards)
+      const result2 = await MerkleTreeHelper.generateTreeWithProofs(rewards)
 
       expect(result1.merkleRoot).to.equal(result2.merkleRoot)
       expect(result1.members).to.deep.equal(result2.members)
     })
 
-    it('should handle duplicate addresses with different amounts', () => {
+    it('should handle duplicate addresses with different amounts', async () => {
       const rewards: IRewardEntry[] = [
         { address: '0xd8da6bf26964af9d7eed9e03e53415d37aa96045', amount: '1000000000000000000' },
         { address: '0xd8da6bf26964af9d7eed9e03e53415d37aa96045', amount: '2000000000000000000' },
       ]
 
-      const result = MerkleTreeHelper.generateTreeWithProofs(rewards)
+      const result = await MerkleTreeHelper.generateTreeWithProofs(rewards)
 
       expect(result.merkleRoot).to.match(/^0x[a-f0-9]{64}$/i)
       expect(result.members).to.have.length(2)
@@ -334,11 +334,11 @@ describe('MerkleTreeHelper', () => {
       expect(result.members[0].leaf).to.not.equal(result.members[1].leaf)
     })
 
-    it('should rethrow errors that occur during processing', () => {
+    it('should rethrow errors that occur during processing', async () => {
       // Create a rewards array with an invalid address that will cause getAddress to throw
       const invalidRewards = [{ address: 'not-a-valid-address', amount: '1000' }] as any
 
-      expect(() => MerkleTreeHelper.generateTreeWithProofs(invalidRewards)).to.throw()
+      await expect(MerkleTreeHelper.generateTreeWithProofs(invalidRewards)).to.be.rejected
     })
   })
 })
