@@ -376,7 +376,7 @@ describe('Controller: QueueAdmin', () => {
       expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.daoTransactions)
       expect(rabbitMQ.firstCall.args[1]).to.deep.equal({
         id: '0x123',
-        params: { address: '0x123', network: NetworksEnum.ethereumSepolia, reset: true },
+        params: { daoAddress: '0x123', network: NetworksEnum.ethereumSepolia, reset: true },
       })
     })
 
