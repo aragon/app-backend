@@ -30,11 +30,13 @@ import { ToolsFixBrokenTx } from '@tools/fixBrokenTx'
 import ToolsVeGovernance from '@tools/veGovernance'
 import FixSppPair from '@tools/fixSppPair'
 import { CleanUpTasks } from '@tools/cleanUpTasks'
+import { DaoTransaction } from '@tools/daoTransactions'
 
 const { TOOL_RUN } = process.env
 const llo = logger.logMeta.bind(null, { TOOL_RUN })
 
 const runners = {
+  DaoTransaction,
   ToolsVeGovernance,
   Queue,
   SyncMemberVP,

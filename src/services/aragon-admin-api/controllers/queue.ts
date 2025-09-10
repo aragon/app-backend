@@ -75,7 +75,7 @@ const QueueAdminController = {
 
     await RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
       id: dao.address,
-      params: { address: dao.address, network: dao.network, reset: params.reset },
+      params: { daoAddress: dao.address, network: dao.network, reset: params.reset },
     })
 
     logger.verbose('Force queue dao transactions', llo({ address: params.daoAddress, network: params.network }))
