@@ -242,7 +242,7 @@ const UnitDepUtils = {
     })
   },
 
-  async syncACompleteDao(daoAddress: string, network: NetworksEnum) {
+  async syncACompleteDao(daoAddress: string, network: NetworksEnum, fromBlock?: number) {
     const pspAddress = {
       [NetworksEnum.ethereumSepolia]: '0xC24188a73dc09aA7C721f96Ad8857B469C01dC9f',
     }
@@ -252,7 +252,7 @@ const UnitDepUtils = {
 
     const daoLogs = await provider.getLogs({
       address: daoAddress,
-      fromBlock: 0,
+      fromBlock: fromBlock ?? 0,
       toBlock: 'latest',
       topics: [
         configIndexer
@@ -263,7 +263,7 @@ const UnitDepUtils = {
 
     const pspLogs = await provider.getLogs({
       address: pspAddress[network],
-      fromBlock: 0,
+      fromBlock: fromBlock ?? 0,
       toBlock: 'latest',
       topics: [
         [configIndexer.filter(config => config.event === 'InstallationPrepared')[0].topic],
