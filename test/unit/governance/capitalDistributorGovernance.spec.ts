@@ -8,7 +8,7 @@ import { CapitalDistributorGovernance } from '@src/governance'
 import { NetworksEnum, type HexAddress } from '@types'
 import MerkleTreeHelper from '@helpers/merkleTree'
 
-describe('Governance:CapitalDistributorGovernance', () => {
+describe.only('Governance:CapitalDistributorGovernance', () => {
   let sandbox: SinonSandbox
   let capitalDistributorGovernance: CapitalDistributorGovernance
   let loggerInfoStub: sinon.SinonStub
@@ -225,6 +225,40 @@ describe('Governance:CapitalDistributorGovernance', () => {
       expect(result.totalInserted).to.equal(0)
       expect(result.totalUpdated).to.equal(0)
       expect(result.totalDeleted).to.equal(0)
+    })
+
+    describe('address validation', () => {
+      it('should reject duplicate addresses', async () => {
+        const rewards = [
+          { address: '0x1111111111111111111111111111111111111111', amount: '100' },
+          { address: '0x1111111111111111111111111111111111111111', amount: '200' },
+        ]
+
+        await expect(
+          capitalDistributorGovernance.uploadMembersList({
+            campaignId: testCampaignId,
+            pluginAddress: testPluginAddress,
+            network: testNetwork,
+            rewards,
+          }),
+        ).to.be.rejected
+      })
+
+      it('should reject invalid addresses', async () => {
+        const rewards = [
+          { address: 'invalid-address', amount: '100' },
+          { address: '0x2222222222222222222222222222222222222222', amount: '200' },
+        ]
+
+        await expect(
+          capitalDistributorGovernance.uploadMembersList({
+            campaignId: testCampaignId,
+            pluginAddress: testPluginAddress,
+            network: testNetwork,
+            rewards,
+          }),
+        ).to.be.rejected
+      })
     })
   })
 
