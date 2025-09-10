@@ -2529,7 +2529,7 @@ describe('ProposalHandler', () => {
       expect(
         rabbitMQStub.calledWith(EnumQueueName.daoTransactions, {
           id: proposal.daoAddress,
-          params: { address: proposal.daoAddress, network },
+          params: { daoAddress: proposal.daoAddress, network },
         }),
       ).to.be.true
       expect(

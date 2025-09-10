@@ -64,7 +64,7 @@ export const DaoRegistryHandler = {
     await Promise.allSettled([
       RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
         id: dao.address,
-        params: { address: dao.address, network: dao.network },
+        params: { daoAddress: dao.address, network: dao.network },
       }),
       RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
         id: dao.address,
@@ -106,7 +106,7 @@ export const DaoRegistryHandler = {
     await Promise.all([
       RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
         id: daoAddress,
-        params: { address: daoAddress, network: info.network },
+        params: { daoAddress, network: info.network },
       }),
       RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
         id: daoAddress,
