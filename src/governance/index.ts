@@ -110,6 +110,14 @@ export class MemberGovernanceFactory {
         })
       }
 
+      if (plugin.interfaceType === IPluginInterfaceType.capitalDistributor) {
+        return MemberGovernanceFactory.create({
+          address: plugin.address,
+          network: plugin.network,
+          interfaceType: IPluginInterfaceType.capitalDistributor,
+        })
+      }
+
       // If we reach here, the plugin type is not supported
       throw new Error(`Unsupported plugin interface type: ${plugin.interfaceType}`)
     } catch (error) {

@@ -2,6 +2,7 @@ import logger from '@logger'
 import {
   EnumConnection,
   EnumQueueName,
+  type IMerkleProofSync,
   type IQueueCanCreateProposal,
   type IQueueContractInfo,
   type IQueueMemberBalanceInfo,
@@ -15,6 +16,7 @@ import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 import config from '@config'
 import Plugin from '@services/aragon-gateway/plugin'
 import ProxyWeb3Provider from '@modules/proxyProvider'
+import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
 
 const llo = logger.logMeta.bind(null, { service: 'service:GatewayService' })
 
@@ -53,6 +55,10 @@ const AragonGatewayService: IService = {
         address: job.params.address,
         network: job.params.network,
       })
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.syncMerkleProofs, async (job: { params: IMerkleProofSync }) => {
+      await CapitalDistributorGateway.generateMerkleData(job.params)
     })
 
     logger.info('AragonGatewayService service started', llo({}))

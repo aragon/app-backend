@@ -19,7 +19,9 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       'SUPPORTED_ENS_NETWORKS',
       Object.values(SupportedEnsNetworksEnum),
     ),
-
+    FILE_UPLOADS: {
+      MAX_FILE_SIZE_MB: utils.configParser(sourceConfig, 'number', 'FILE_UPLOADS_MAX_FILE_SIZE_MB', 100 * 1024 * 1024),
+    },
     RABBITMQ: {
       URI: utils.configParser(sourceConfig, 'string', 'RABBITMQ_URI', 'amqp://guest:guest@rabbitmq:5672'),
       TIMEOUT: utils.configParser(sourceConfig, 'number', 'RABBITMQ_TIMEOUT', 60000),

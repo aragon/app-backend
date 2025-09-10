@@ -1,10 +1,5 @@
 import { type NetworksEnum } from '@src/types/networks'
 
-export interface IAQueueToken {
-  address: string
-  network: string
-}
-
 export interface IAQueueDao {
   address: string
   network: string

@@ -10,6 +10,7 @@ import {
   type ICampaignApiParams,
   type IUserCampaignStatus,
   type IMembersResponse,
+  type IMerkleProofSync,
 } from '@types'
 import { assertExposable } from '@errors'
 import logger from '@logger'
@@ -42,6 +43,12 @@ export class CapitalDistributorGovernance extends BaseGovernance {
     if (existingCampaign?.active || existingCampaign?.ended) {
       assertExposable(false, ErrorKeyEnum.campaignInvalid)
     }
+
+    const uniqueAddresses = new Set(rewards.map(reward => reward.address.toLowerCase()))
+    assertExposable(uniqueAddresses.size === rewards.length, ErrorKeyEnum.duplicateAddresses)
+
+    const validAddresses = rewards.every(reward => ethers.isAddress(reward.address))
+    assertExposable(validAddresses, ErrorKeyEnum.badParams)
 
     return await this.bulkUpsertRewards(campaignId, rewards)
   }
@@ -199,11 +206,17 @@ export class CapitalDistributorGovernance extends BaseGovernance {
       assertExposable(false, ErrorKeyEnum.campaignInvalid)
     }
 
-    const members = await Models.CampaignReward.find({
-      pluginAddress: this.address,
-      network: this.network,
-      campaignId,
-    }).lean()
+    const members = await Models.CampaignReward.find(
+      {
+        pluginAddress: this.address,
+        network: this.network,
+        campaignId,
+      },
+      {
+        userAddress: 1,
+        amount: 1,
+      },
+    ).lean()
 
     assertExposable(members && members.length > 0, ErrorKeyEnum.badParams)
 
@@ -213,74 +226,75 @@ export class CapitalDistributorGovernance extends BaseGovernance {
     }))
 
     try {
-      const merkleResult = MerkleTreeHelper.generateTreeWithProofs(rewardEntries)
+      logger.info('Generating merkle data', this.llo({ campaignId }))
 
-      const result = await DbTx.executeTxFn(async ({ session }) => {
-        const memberChunks = Utils.chunkArray(merkleResult.members, BATCH_SIZE)
+      const timerStart = Date.now()
+      const merkleResult = await MerkleTreeHelper.generateTreeWithProofs(rewardEntries)
 
-        const updateProcessor = async (chunk: any[]) => {
-          const bulkOps = chunk.map(member => ({
-            updateOne: {
-              filter: {
-                pluginAddress: this.address,
-                network: this.network,
-                campaignId,
-                userAddress: member.address,
-              },
-              update: {
-                $set: {
-                  proof: member.proof,
-                  leaf: member.leaf,
-                },
+      logger.info('Merkle tree generated', this.llo({ campaignId, durationMs: Date.now() - timerStart }))
+
+      const memberChunks = Utils.chunkArray(merkleResult.members, BATCH_SIZE)
+
+      const updateProcessor = async (chunk: any[]) => {
+        const bulkOps = chunk.map(member => ({
+          updateOne: {
+            filter: {
+              pluginAddress: this.address,
+              network: this.network,
+              campaignId,
+              userAddress: member.address,
+            },
+            update: {
+              $set: {
+                proof: member.proof,
+                leaf: member.leaf,
               },
             },
-          }))
-
-          const writeResult = await Models.CampaignReward.bulkWrite(bulkOps, { session })
-          return writeResult.modifiedCount || 0
-        }
-
-        const updateResults = await Utils.processParallel(memberChunks, updateProcessor, {
-          concurrency: CONCURRENCY_LIMIT,
-          batchSize: BATCH_SIZE,
-          onError: (error: any, chunk: any, index: any) => {
-            logger.error(
-              'Error processing merkle proof update chunk',
-              this.llo({
-                error,
-                chunkIndex: index,
-                chunkSize: chunk?.length,
-                campaignId,
-              }),
-            )
           },
-        })
+        }))
 
-        const totalUpdated = updateResults.reduce((sum: any, count: any) => sum + count, 0)
+        const writeResult = await Models.CampaignReward.bulkWrite(bulkOps)
+        return writeResult.modifiedCount || 0
+      }
 
-        await session.commitTransaction()
-        await session.endSession()
-
-        logger.info(
-          'Merkle data generated and saved to database with batching',
-          this.llo({
-            campaignId,
-            merkleRoot: merkleResult.merkleRoot,
-            totalMembers: merkleResult.members.length,
-            totalUpdated,
-          }),
-        )
-
-        return {
-          success: true,
-          merkleRoot: merkleResult.merkleRoot,
-          totalMembers: merkleResult.members.length,
-          updatedMembers: totalUpdated,
-          campaignId,
-        }
+      const updateResults = await Utils.processParallel(memberChunks, updateProcessor, {
+        concurrency: CONCURRENCY_LIMIT,
+        batchSize: BATCH_SIZE,
+        onError: (error: any, chunk: any, index: any) => {
+          logger.error(
+            'Error processing merkle proof update chunk',
+            this.llo({
+              error,
+              chunkIndex: index,
+              chunkSize: chunk?.length,
+              campaignId,
+            }),
+          )
+        },
+        onProgress: (processed: number, total: number) => {
+          logger.info('Merkle proof update progress', this.llo({ campaignId, processed, total }))
+        },
       })
 
-      return result
+      const totalUpdated = updateResults.reduce((sum: any, count: any) => sum + count, 0)
+
+      logger.info(
+        'Merkle data generated and saved to database with batching',
+        this.llo({
+          campaignId,
+          merkleRoot: merkleResult.merkleRoot,
+          totalMembers: merkleResult.members.length,
+          totalUpdated,
+        }),
+      )
+
+      return {
+        success: true,
+        merkleRoot: merkleResult.merkleRoot,
+        totalMembers: merkleResult.members.length,
+        updatedMembers: totalUpdated,
+        campaignId,
+      }
     } catch (e) {
       logger.warn('Error generating merkle data', this.llo({ error: e, campaignId }))
       return {
@@ -329,6 +343,23 @@ export class CapitalDistributorGovernance extends BaseGovernance {
       campaignId,
       merkleRoot: campaign.merkleRoot || null,
       active: campaign.active,
+    }
+  }
+
+  async getMerkleGenerationStatus(params: IMerkleProofSync) {
+    const { campaignId, pluginAddress, network } = params
+    const campaignMerkleRoot = await Models.CampaignMerkleRoot.findByParams(pluginAddress, network, campaignId)
+
+    if (!campaignMerkleRoot) {
+      return null
+    }
+
+    return {
+      campaignId: campaignMerkleRoot.campaignId,
+      pluginAddress: campaignMerkleRoot.pluginAddress,
+      network: campaignMerkleRoot.network,
+      merkleRoot: campaignMerkleRoot.merkleRoot,
+      totalMembers: campaignMerkleRoot.totalMembers,
     }
   }
 

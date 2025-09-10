@@ -6,6 +6,7 @@ import {
   type IQueueAllMetrics,
   type IQueueContractInfo,
   type IQueueDao,
+  type IQueueDaoTransactions,
   type IQueueProposalMetrics,
   type IService,
 } from '@types'
@@ -34,9 +35,9 @@ const AragonDaoService: IService = {
     })
 
     await RabbitMQHelper.process(EnumQueueName.daoTransactions, async job => {
-      const { address, network } = job.params as IQueueDao
+      const { daoAddress, network, reset } = job.params as IQueueDaoTransactions
 
-      await DaoTransactions.start({ daoAddress: address, network })
+      await DaoTransactions.start({ daoAddress, network, reset })
     })
 
     await RabbitMQHelper.process(EnumQueueName.daoAssets, async job => {

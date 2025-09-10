@@ -386,7 +386,6 @@ export interface ICampaignResponse {
   startTime: number
   endTime: number
   active: boolean
-  multipleClaimsAllowed: boolean
   userData: {
     status: 'claimable' | 'claimed'
     claims: Array<{

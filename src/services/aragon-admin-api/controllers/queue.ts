@@ -1,4 +1,10 @@
-import { type IAQueueDao, type IAQueueProposal, IPluginInterfaceType, type NetworksEnum } from '@src/types'
+import {
+  type IAQueueDao,
+  type IAQueueProposal,
+  IPluginInterfaceType,
+  type IQueueDaoTransactions,
+  type NetworksEnum,
+} from '@src/types'
 import { Models } from '@dbModels'
 import { EnumQueueName, ErrorKeyEnum, IPluginStatus } from '@types'
 import { assertExposable } from '@errors'
@@ -63,16 +69,16 @@ const QueueAdminController = {
     return true
   },
 
-  queueDaoTransactions: async (params: IAQueueDao): Promise<any> => {
-    const dao = await Models.Dao.findByAddress(params.address, params.network)
+  queueDaoTransactions: async (params: IQueueDaoTransactions): Promise<any> => {
+    const dao = await Models.Dao.findByAddress(params.daoAddress, params.network)
     assertExposable(dao, ErrorKeyEnum.notFound)
 
     await RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
       id: dao.address,
-      params: { address: dao.address, network: dao.network },
+      params: { address: dao.address, network: dao.network, reset: params.reset },
     })
 
-    logger.verbose('Force queue dao transactions', llo({ address: params.address, network: params.network }))
+    logger.verbose('Force queue dao transactions', llo({ address: params.daoAddress, network: params.network }))
     return true
   },
 

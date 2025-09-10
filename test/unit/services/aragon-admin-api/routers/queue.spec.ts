@@ -46,14 +46,18 @@ describe('Router: QueueAdmin', () => {
 
     const ctx: any = {
       params,
+      query: {
+        reset: true,
+      },
     }
 
     await QueueAdminRouter.queueDaoTransactions(ctx)
 
     expect(ctx.body).to.eq(true)
     expect(stubCtrl.calledOnce).to.be.true
-    expect(stubCtrl.args[0][0].address).to.eq(params.daoAddress)
+    expect(stubCtrl.args[0][0].daoAddress).to.eq(params.daoAddress)
     expect(stubCtrl.args[0][0].network).to.eq(params.network)
+    expect(stubCtrl.args[0][0].reset).to.eq(true)
   })
 
   it('queueDaoAssets', async () => {

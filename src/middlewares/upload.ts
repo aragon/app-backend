@@ -1,5 +1,6 @@
 import multer from '@koa/multer'
 import { type RouterContext } from '@koa/router'
+import config from '@config'
 
 const storage = multer.memoryStorage()
 
@@ -15,7 +16,7 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024,
+    fileSize: config.FILE_UPLOADS.MAX_FILE_SIZE_MB,
     files: 1,
   },
 })
