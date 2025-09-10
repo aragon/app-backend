@@ -1,17 +1,13 @@
 import RabbitMQ from '@modules/rabbitMQ'
-import { type EnumQueueName, type IQueueMessage } from '@types'
+import { type EnumQueueName, type IQueueMessage, type ISendOptions, type IThrottleOptions } from '@types'
 import logger from '@logger'
 import { type ConfirmChannel, type ConsumeMessage, type Options } from 'amqplib'
 import { v4 as uuidv4 } from 'uuid'
 import { Mutex } from 'async-mutex'
 import config from '@config'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:RabbitMQHelper' })
-
-export interface ISendOptions {
-  waitResponse?: boolean
-  timeout?: number
-}
 
 const RabbitMQHelper = {
   activeJobs: new Map<string, boolean>(),
@@ -158,44 +154,46 @@ const RabbitMQHelper = {
   ): Promise<any> {
     const correlationId = uuidv4()
     try {
-      const response = await new Promise(resolve => {
+      const response = await new Promise((resolve, reject) => {
         const timeoutId = setTimeout(async () => {
-          logger.warn('Timeout waiting for response', { queueName, correlationId })
+          logger.warn('Timeout waiting for response', { queueName, correlationId, payload, opts })
           resolve(null)
         }, opts.timeout || 5000)
-        channelWrapper.addSetup(async (channel: ConfirmChannel) => {
-          const { queue: replyQueue } = await channel.assertQueue('', { exclusive: true })
-          const { consumerTag } = await channel.consume(replyQueue, async (msg: ConsumeMessage | null) => {
-            if (!msg) return null
-            if (msg.properties.correlationId === correlationId) {
-              try {
-                channel.ack(msg)
-              } catch (ackErr) {
-                logger.warn('Failed to ack ephemeral msg', llo({ queueName, ackErr }))
+        channelWrapper
+          .addSetup(async (channel: ConfirmChannel) => {
+            const { queue: replyQueue } = await channel.assertQueue('', { exclusive: true })
+            const { consumerTag } = await channel.consume(replyQueue, async (msg: ConsumeMessage | null) => {
+              if (!msg) return null
+              if (msg.properties.correlationId === correlationId) {
+                try {
+                  channel.ack(msg)
+                } catch (ackErr) {
+                  logger.warn('Failed to ack ephemeral msg', llo({ queueName, ackErr }))
+                }
+                clearTimeout(timeoutId)
+                resolve(RabbitMQHelper.parseData(msg))
               }
-              clearTimeout(timeoutId)
-              resolve(RabbitMQHelper.parseData(msg))
+            })
+            const publishOpts: Options.Publish = {
+              persistent: true,
+              correlationId,
+              replyTo: replyQueue,
+              contentType: 'application/json',
+            }
+            const queueResult = await channelWrapper.sendToQueue(queueName, payload, publishOpts)
+            if (!queueResult) {
+              if (consumerTag) {
+                try {
+                  await channel.cancel(consumerTag)
+                } catch (cancelErr) {
+                  logger.warn('Failed to cancel ephemeral consumer on timeout', llo({ queueName, cancelErr }))
+                }
+              }
+              logger.error('Failed to send message to queue', llo({ queueName, correlationId, payload }))
+              resolve(null)
             }
           })
-          const publishOpts: Options.Publish = {
-            persistent: true,
-            correlationId,
-            replyTo: replyQueue,
-            contentType: 'application/json',
-          }
-          const queueResult = await channelWrapper.sendToQueue(queueName, payload, publishOpts)
-          if (!queueResult) {
-            if (consumerTag) {
-              try {
-                await channel.cancel(consumerTag)
-              } catch (cancelErr) {
-                logger.warn('Failed to cancel ephemeral consumer on timeout', llo({ queueName, cancelErr }))
-              }
-            }
-            logger.error('Failed to send message to queue', llo({ queueName, correlationId, payload }))
-            resolve(null)
-          }
-        })
+          .catch(reject)
       })
       return response
     } catch (err) {
@@ -217,6 +215,46 @@ const RabbitMQHelper = {
     } catch (err) {
       logger.error('getQueueMessageCount error', llo({ queueName, err }))
       return null
+    }
+  },
+
+  async sendMessageWithThrottle(
+    queueName: EnumQueueName,
+    payload: { id: string; params: any },
+    options?: IThrottleOptions,
+  ): Promise<void> {
+    const maxQueueSize = options?.maxQueueSize ?? config.RABBITMQ.MAX_QUEUE_SIZE
+    const retryDelay = options?.retryDelay ?? config.RABBITMQ.THROTTLE_RETRY_DELAY
+
+    // Extract params as the logging context to avoid duplication
+    const logContext = { ...payload.params, ...(options?.logContext ?? {}) }
+
+    while (true) {
+      const count = await RabbitMQHelper.getQueueMessageCount(queueName)
+
+      if (count === null) {
+        logger.error(
+          `Unable to get message count for queue "${queueName}". Retrying...`,
+          llo({ ...logContext, messageId: payload.id }),
+        )
+        await utils.wait(retryDelay)
+        continue
+      }
+
+      if (count < maxQueueSize) {
+        await RabbitMQHelper.sendMessage(queueName, payload)
+        logger.verbose(
+          `Message sent to queue "${queueName}"`,
+          llo({ queueName, messageId: payload.id, count: count + 1, ...logContext }),
+        )
+        break
+      } else {
+        logger.warn(
+          `Queue "${queueName}" has reached the limit. Waiting...`,
+          llo({ queueName, waitingMessageId: payload.id, count, maxQueueSize, ...logContext }),
+        )
+        await utils.wait(retryDelay)
+      }
     }
   },
 }

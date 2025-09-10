@@ -323,7 +323,7 @@ describe('Helpers:Web3BatchHelper', () => {
         ],
       }
 
-      sandbox.stub(ProviderModule, 'getProviderUrl').resolves('https://mock-rpc.example.com')
+      sandbox.stub(ProviderModule, 'getProviderUrl').returns('https://mock-rpc.example.com')
       sandbox.stub(axios, 'post').resolves(mockResponse)
 
       const results = await Web3BatchHelper._executeSingleBatch(mockRequests, NetworksEnum.ethereumMainnet)
@@ -342,7 +342,7 @@ describe('Helpers:Web3BatchHelper', () => {
         data: [{ id: '1', error: { code: -32000, message: 'RPC error' } }],
       }
 
-      sandbox.stub(ProviderModule, 'getProviderUrl').resolves('https://mock-rpc.example.com')
+      sandbox.stub(ProviderModule, 'getProviderUrl').returns('https://mock-rpc.example.com')
       sandbox.stub(axios, 'post').resolves(mockResponse)
 
       const results = await Web3BatchHelper._executeSingleBatch(mockRequests, NetworksEnum.ethereumMainnet)
@@ -362,7 +362,7 @@ describe('Helpers:Web3BatchHelper', () => {
       ]
 
       const axiosError = new Error('Network error')
-      sandbox.stub(ProviderModule, 'getProviderUrl').resolves('https://mock-rpc.example.com')
+      sandbox.stub(ProviderModule, 'getProviderUrl').returns('https://mock-rpc.example.com')
       sandbox.stub(axios, 'post').rejects(axiosError)
 
       try {

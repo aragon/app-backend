@@ -114,9 +114,12 @@ export const ProxyToken = {
       network,
     })
 
+    // Set the type from token detection
     if (basicToken && tokenTypeInfo.type === ITokenType.escrowAdapter) {
       basicToken.type = tokenTypeInfo.type
-      basicToken.underlying = wrappedToken
+      if (tokenTypeInfo.type === ITokenType.escrowAdapter) {
+        basicToken.underlying = wrappedToken
+      }
     }
 
     return basicToken

@@ -88,6 +88,8 @@ export interface IConfig {
     RECONNECT_TIME_SECONDS: number
     CLEAN_QUEUE: boolean
     HEARTBEAT_INTERVAL_SECONDS: number
+    MAX_QUEUE_SIZE: number
+    THROTTLE_RETRY_DELAY: number
   }
   NODE_CONFIG: {
     MAX_RECONNECT_ATTEMPTS: number
@@ -211,5 +213,9 @@ export interface IConfig {
     TOKEN_RATES_BATCH_SIZE: number
     TOKEN_RATES_CONCURRENCY: number
     TOKEN_HOLDERS_THRESHOLD: number
+  }
+
+  FILE_UPLOADS: {
+    MAX_FILE_SIZE_MB: number
   }
 }

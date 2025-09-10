@@ -59,6 +59,7 @@ describe('AragonPlugins: index', () => {
       const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
         type: ITokenType.ERC20,
         isGovernance: true,
+        hasDelegate: true,
       } as any)
       const logTokenVotingStub = sandbox.stub(LogTokenVoting, 'start').resolves()
 
@@ -336,6 +337,7 @@ describe('AragonPlugins: index', () => {
       const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
         type: ITokenType.ERC20,
         isGovernance: true,
+        hasDelegate: true,
       } as any)
       const logTokenVotingStub = sandbox.stub(LogTokenVoting, 'start').resolves()
 
@@ -365,6 +367,7 @@ describe('AragonPlugins: index', () => {
       const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
         type: ITokenType.escrowAdapter,
         isGovernance: true,
+        hasDelegate: true,
       } as any)
       const logTokenVotingStub = sandbox.stub(LogTokenVoting, 'start').resolves()
 
@@ -394,7 +397,7 @@ describe('AragonPlugins: index', () => {
       const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
         type: 'NonGovernanceToken',
       } as any)
-      const loggerStub = sandbox.stub(logger, 'warn')
+      const loggerStub = sandbox.stub(logger, 'error')
 
       await AragonPluginsService.start()
 
@@ -591,6 +594,7 @@ describe('AragonPlugins: index', () => {
       const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
         type: ITokenType.ERC20,
         isGovernance: true,
+        hasDelegate: true,
       } as any)
       const logTokenVotingStub = sandbox.stub(LogTokenVoting, 'start').resolves()
 
@@ -620,6 +624,7 @@ describe('AragonPlugins: index', () => {
       const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
         type: ITokenType.escrowAdapter,
         isGovernance: true,
+        hasDelegate: true,
       } as any)
       const logTokenVotingStub = sandbox.stub(LogTokenVoting, 'start').resolves()
 
@@ -649,7 +654,7 @@ describe('AragonPlugins: index', () => {
       const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
         type: 'NonGovernanceToken',
       } as any)
-      const loggerStub = sandbox.stub(logger, 'warn')
+      const loggerStub = sandbox.stub(logger, 'error')
 
       await AragonPluginsService.start()
 

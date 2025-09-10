@@ -54,9 +54,6 @@ const ProxyWeb3Provider: IWeb3Provider & { forward: any; getProvider: any; getDe
   fetchTokenHolderAndSupply: async function (params) {
     return ProxyWeb3Provider.forward(IWeb3ProxyMethod.fetchTokenHolderAndSupply)(params)
   },
-  fetchAddressTxns: async function (params) {
-    return ProxyWeb3Provider.forward(IWeb3ProxyMethod.fetchAddressTxns)(params)
-  },
   fetchTokenPrice: async function (params) {
     return ProxyWeb3Provider.forward(IWeb3ProxyMethod.fetchTokenPrice)(params)
   },

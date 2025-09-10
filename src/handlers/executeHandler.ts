@@ -3,14 +3,14 @@ import { type ILogInfo, IPluginStatus } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import Web3Helper from '@helpers/web3'
-import { ContractInfo } from '@services/aragon-dao/contractInfo'
+import { ContractInfo } from '@services/aragon-gateway/contractInfo'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:ExecuteHandler' })
 
 export const ExecuteHandler = {
   async selectorAllowed(parsedEvent: LogDescription, info: ILogInfo) {
     try {
-      const { selector, where } = parsedEvent.args as any
+      const { selector, where } = parsedEvent.args
       const { network, transactionHash, transactionIndex, logIndex, blockNumber } = info
 
       const plugin = await Models.Plugin.findOne({
@@ -73,7 +73,7 @@ export const ExecuteHandler = {
 
   async selectorDisallowed(parsedEvent: LogDescription, info: ILogInfo) {
     try {
-      const { selector, where } = parsedEvent.args as any
+      const { selector, where } = parsedEvent.args
 
       const plugin = await Models.Plugin.findOne({
         conditionAddress: info.address,
@@ -138,7 +138,7 @@ export const ExecuteHandler = {
 
   async nativeTransfersAllowed(parsedEvent: LogDescription, info: ILogInfo) {
     try {
-      const { where } = parsedEvent.args as any
+      const { where } = parsedEvent.args
       const { network, transactionHash, transactionIndex, logIndex, blockNumber } = info
 
       const plugin = await Models.Plugin.findOne({
@@ -206,7 +206,7 @@ export const ExecuteHandler = {
 
   async nativeTransfersDisallowed(parsedEvent: LogDescription, info: ILogInfo) {
     try {
-      const { where } = parsedEvent.args as any
+      const { where } = parsedEvent.args
 
       const plugin = await Models.Plugin.findOne({
         conditionAddress: info.address,

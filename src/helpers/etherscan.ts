@@ -35,7 +35,7 @@ const EtherscanHelper = {
     }
   },
 
-  fetchAllTransactions: async ({ contractAddress, startBlock = 0, endBlock = 'latest', network }) => {
+  fetchNormalTransactions: async ({ contractAddress, startBlock = 0, endBlock = 'latest', network }) => {
     const params = {
       module: 'account',
       action: 'txlist',
@@ -46,9 +46,67 @@ const EtherscanHelper = {
     }
 
     try {
-      return await EtherscanHelper._rpCall(params, network)
+      const txs = await EtherscanHelper._rpCall(params, network)
+      return txs.filter(tx => BigInt(tx.value) > 0 && tx.methodId === '0x' && tx.isError !== '1')
     } catch (error) {
-      logger.error('Error fetchAllTransactions', llo({ error }))
+      logger.error('Error fetchNormalTransactions', llo({ error }))
+      throw error
+    }
+  },
+
+  fetchInternalTransactions: async ({ contractAddress, startBlock = 0, endBlock = 'latest', network }) => {
+    const params = {
+      module: 'account',
+      action: 'txlistinternal',
+      address: contractAddress,
+      startblock: startBlock,
+      endblock: endBlock,
+      sort: 'asc',
+    }
+
+    try {
+      const txs = await EtherscanHelper._rpCall(params, network)
+      return txs.filter(tx => BigInt(tx.value) > 0 && tx.type === 'call' && tx.isError !== '1')
+    } catch (error) {
+      logger.error('Error fetchInternalTransactions', llo({ error }))
+      throw error
+    }
+  },
+
+  fetchErc721Transactions: async ({ contractAddress, startBlock = 0, endBlock = 'latest', network }) => {
+    const params = {
+      module: 'account',
+      action: 'tokennfttx',
+      address: contractAddress,
+      startblock: startBlock,
+      endblock: endBlock,
+      sort: 'asc',
+    }
+
+    try {
+      const txs = await EtherscanHelper._rpCall(params, network)
+      return txs.filter(tx => tx.tokenID && tx.isError !== '1')
+    } catch (error) {
+      logger.error('Error fetchErc721Transactions', llo({ error }))
+      throw error
+    }
+  },
+
+  fetchErc20Transactions: async ({ contractAddress, startBlock = 0, endBlock = 'latest', network }) => {
+    const params = {
+      module: 'account',
+      action: 'tokentx',
+      address: contractAddress,
+      startblock: startBlock,
+      endblock: endBlock,
+      sort: 'asc',
+    }
+
+    try {
+      const txs = await EtherscanHelper._rpCall(params, network)
+      return txs.filter((tx: { isError: string }) => tx.isError !== '1')
+    } catch (error) {
+      logger.error('Error fetchErc20Transactions', llo({ error }))
       throw error
     }
   },

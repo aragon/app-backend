@@ -9,6 +9,19 @@ describe('Module: bottleneck', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    // Clear all limiters to ensure fresh state for each test
+    BottleneckModule.nodeLimiters = {}
+    BottleneckModule.transferLimiters = {}
+    BottleneckModule.coinGeckoLimiters = {}
+    BottleneckModule.covalentLimiters = {}
+    BottleneckModule.fourBytesLimiters = {}
+    BottleneckModule.alchemyENSLimiters = {}
+    BottleneckModule.alchemyBalanceLimiters = {}
+    BottleneckModule.alchemyBathRequestLimiters = {}
+    BottleneckModule.etherScanLimiters = {}
+    BottleneckModule.blockScoutLimiters = {}
+    BottleneckModule.chilizLimiters = {}
+    BottleneckModule.duneLimiters = {}
   })
 
   afterEach(() => {
@@ -122,8 +135,8 @@ describe('Module: bottleneck', () => {
     })
 
     it('returns different instances for different networks', () => {
-      const limiter1 = BottleneckModule.getAlchemyENSLimiter(NetworksEnum.ethereumMainnet)
-      const limiter2 = BottleneckModule.getAlchemyENSLimiter(NetworksEnum.ethereumSepolia)
+      const limiter1 = BottleneckModule.getAlchemyBatchRequest(NetworksEnum.ethereumMainnet)
+      const limiter2 = BottleneckModule.getAlchemyBatchRequest(NetworksEnum.ethereumSepolia)
 
       expect(limiter1).not.eq(limiter2)
     })
@@ -143,6 +156,82 @@ describe('Module: bottleneck', () => {
     it('returns different instances for different networks', () => {
       const limiter1 = BottleneckModule.getAlchemyENSLimiter(NetworksEnum.ethereumMainnet)
       const limiter2 = BottleneckModule.getAlchemyENSLimiter(NetworksEnum.ethereumSepolia)
+
+      expect(limiter1).not.eq(limiter2)
+    })
+  })
+
+  describe('getAlchemyBalanceLimiter', () => {
+    it('returns the same instance for the same network', () => {
+      const limiter1 = BottleneckModule.getAlchemyBalanceLimiter(NetworksEnum.ethereumMainnet)
+      const limiter2 = BottleneckModule.getAlchemyBalanceLimiter(NetworksEnum.ethereumMainnet)
+
+      expect(limiter1).to.eq(limiter2)
+
+      const limiter3 = BottleneckModule.alchemyBalanceLimiters[NetworksEnum.ethereumMainnet]
+      expect(limiter3).to.eq(limiter1)
+    })
+
+    it('returns different instances for different networks', () => {
+      const limiter1 = BottleneckModule.getAlchemyBalanceLimiter(NetworksEnum.ethereumMainnet)
+      const limiter2 = BottleneckModule.getAlchemyBalanceLimiter(NetworksEnum.ethereumSepolia)
+
+      expect(limiter1).not.eq(limiter2)
+    })
+  })
+
+  describe('getEtherScanLimiter', () => {
+    it('returns the same instance for the same network', () => {
+      const limiter1 = BottleneckModule.getEtherScanLimiter(NetworksEnum.ethereumMainnet)
+      const limiter2 = BottleneckModule.getEtherScanLimiter(NetworksEnum.ethereumMainnet)
+
+      expect(limiter1).to.eq(limiter2)
+
+      const limiter3 = BottleneckModule.etherScanLimiters[NetworksEnum.ethereumMainnet]
+      expect(limiter3).to.eq(limiter1)
+    })
+
+    it('returns different instances for different networks', () => {
+      const limiter1 = BottleneckModule.getEtherScanLimiter(NetworksEnum.ethereumMainnet)
+      const limiter2 = BottleneckModule.getEtherScanLimiter(NetworksEnum.ethereumSepolia)
+
+      expect(limiter1).not.eq(limiter2)
+    })
+  })
+
+  describe('getBlockScoutLimiter', () => {
+    it('returns the same instance for the same network', () => {
+      const limiter1 = BottleneckModule.getBlockScoutLimiter(NetworksEnum.ethereumMainnet)
+      const limiter2 = BottleneckModule.getBlockScoutLimiter(NetworksEnum.ethereumMainnet)
+
+      expect(limiter1).to.eq(limiter2)
+
+      const limiter3 = BottleneckModule.blockScoutLimiters[NetworksEnum.ethereumMainnet]
+      expect(limiter3).to.eq(limiter1)
+    })
+
+    it('returns different instances for different networks', () => {
+      const limiter1 = BottleneckModule.getBlockScoutLimiter(NetworksEnum.ethereumMainnet)
+      const limiter2 = BottleneckModule.getBlockScoutLimiter(NetworksEnum.ethereumSepolia)
+
+      expect(limiter1).not.eq(limiter2)
+    })
+  })
+
+  describe('getChilizLimiter', () => {
+    it('returns the same instance for the same network', () => {
+      const limiter1 = BottleneckModule.getChilizLimiter(NetworksEnum.ethereumMainnet)
+      const limiter2 = BottleneckModule.getChilizLimiter(NetworksEnum.ethereumMainnet)
+
+      expect(limiter1).to.eq(limiter2)
+
+      const limiter3 = BottleneckModule.chilizLimiters[NetworksEnum.ethereumMainnet]
+      expect(limiter3).to.eq(limiter1)
+    })
+
+    it('returns different instances for different networks', () => {
+      const limiter1 = BottleneckModule.getChilizLimiter(NetworksEnum.ethereumMainnet)
+      const limiter2 = BottleneckModule.getChilizLimiter(NetworksEnum.ethereumSepolia)
 
       expect(limiter1).not.eq(limiter2)
     })

@@ -13,6 +13,7 @@ import type Plugin from '@models/schema/plugin'
 import configIndexer from '@indexer/configIndexer'
 import type Token from '@models/schema/token'
 import ConfigIndexerHelper from '@helpers/configIndexer'
+import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogTokenVoting' })
 
@@ -110,9 +111,21 @@ export const LogTokenVoting = {
     const configTVLogs = configIndexer.filter((item: IIndexerConfig) =>
       Object.values(ITokenVotingLogs).includes(item.event as any),
     )
-    const configGovLogs = configIndexer.filter((item: IIndexerConfig) =>
-      Object.values(IGovernanceErc20Logs).includes(item.event as any),
-    )
+    const configGovLogs = configIndexer
+      .filter((item: IIndexerConfig) => Object.values(IGovernanceErc20Logs).includes(item.event as any))
+      .map((item: IIndexerConfig) => {
+        // Override the handler for DelegateVotesChanged to use batch handler
+        if (item.event === IGovernanceErc20Logs.DelegateVotesChanged) {
+          return {
+            ...item,
+            config: item.config.map(cfg => ({
+              ...cfg,
+              handler: GovernanceErc20Handler.delegateVotesChangedBatch,
+            })),
+          }
+        }
+        return item
+      })
 
     const pluginCrawler = new BlockchainLogCrawler({
       onlyHistorical: isHistorical,
@@ -129,6 +142,12 @@ export const LogTokenVoting = {
     logger.verbose('Start Token Sync', llo({ ...infoLogs, ...{ syncStrategy: 'BlockchainLogCrawler', startTime } }))
 
     const tokenCrawler = new BlockchainLogCrawler({
+      parallel: {
+        enable: true,
+        autoScale: true,
+        useBatch: true,
+        batchSize: 1000,
+      },
       onlyHistorical: isHistorical,
       network: plugin.network,
       events: [...configGovLogs],
@@ -137,6 +156,40 @@ export const LogTokenVoting = {
       onError: async (error: any, log: any) => LogTokenVoting.processError(error, plugin, log),
       logService: ConfigIndexerHelper.builders.token(token.type, token.network, token.address),
       stopOnError: true,
+      filterLogs: async (logs: any[]) => {
+        // Since tokenCrawler only fetches DelegateVotesChanged events, all logs are DelegateVotesChanged
+        // Filter out duplicate events keeping only the highest block number per delegate
+
+        if (logs.length === 0) {
+          return logs
+        }
+
+        // Always use the most optimized approach: Sort + Set
+        // O(n log n) for sort + O(n) for filtering = most efficient
+        logs.sort((a, b) => Number(b.blockNumber) - Number(a.blockNumber))
+
+        const seen = new Set<string>()
+        const filtered: any = []
+
+        for (let i = 0; i < logs.length; i++) {
+          const delegateAddress = logs[i].topics[1]
+          if (!seen.has(delegateAddress)) {
+            seen.add(delegateAddress)
+            filtered.push(logs[i])
+          }
+        }
+
+        logger.verbose(
+          'Filtered DelegateVotesChanged logs',
+          llo({
+            totalLogs: logs.length,
+            filteredLogs: filtered.length,
+            duplicatesRemoved: logs.length - filtered.length,
+          }),
+        )
+
+        return filtered
+      },
     })
 
     const crawlers: any = [pluginCrawler, tokenCrawler]

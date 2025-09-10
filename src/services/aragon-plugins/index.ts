@@ -17,6 +17,7 @@ import { LogSpp } from '@services/aragon-plugins/logSPP'
 import { LogTokenVoting } from '@services/aragon-plugins/logTokenVoting'
 import { LogGauge } from '@plugins/logGauge'
 import { LogSelectorPermission } from '@services/aragon-plugins/logSelectorPermission'
+import { LogCapitalDistributor } from '@services/aragon-plugins/logCapitalDistributor'
 import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'service:PluginSyncService' })
@@ -86,7 +87,13 @@ const AragonPluginsService: IService & { pluginQueue: (params: IQueuePlugin) => 
           network: plugin.network,
         })
 
-        if ((token?.type === ITokenType.ERC20 || token?.type === ITokenType.escrowAdapter) && token.isGovernance) {
+        if (
+          (token?.type === ITokenType.ERC20 ||
+            token?.type === ITokenType.ERC721 ||
+            token?.type === ITokenType.escrowAdapter) &&
+          token?.isGovernance &&
+          token?.hasDelegate
+        ) {
           logger.info(
             'Sync plugin: token is ERC20 or escrowAdapter',
             llo({ plugin: plugin.address, token: token.address, tokenTye: token.type }),
@@ -94,9 +101,9 @@ const AragonPluginsService: IService & { pluginQueue: (params: IQueuePlugin) => 
 
           await LogTokenVoting.start(plugin, token, isHistorical)
         } else {
-          logger.warn(
+          logger.error(
             'Sync plugin: token not governance erc20 or escrowAdapter',
-            llo({ plugin: plugin.address, token: token.address }),
+            llo({ plugin: plugin?.address, token: token?.address }),
           )
         }
         break
@@ -116,6 +123,11 @@ const AragonPluginsService: IService & { pluginQueue: (params: IQueuePlugin) => 
         } else {
           logger.warn('Sync plugin: token not ERC721', llo({ plugin: plugin.address, token: token.address }))
         }
+        break
+      }
+      case IPluginInterfaceType.capitalDistributor: {
+        logger.info('Sync plugin: Capital Distributor', llo({ plugin: plugin.address }))
+        await LogCapitalDistributor.start(plugin)
         break
       }
       default: {

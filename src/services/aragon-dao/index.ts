@@ -2,16 +2,12 @@ import logger from '@logger'
 import {
   EnumConnection,
   EnumQueueName,
-  type IGetLockVotingPowerBatch,
-  type IGetVotingPower,
   type IProposalInfo,
   type IQueueAllMetrics,
-  type IQueueCanCreateProposal,
   type IQueueContractInfo,
   type IQueueDao,
-  type IQueueMemberBalanceInfo,
+  type IQueueDaoTransactions,
   type IQueueProposalMetrics,
-  type IRawAction,
   type IService,
 } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
@@ -19,15 +15,12 @@ import { DaoAssets } from '@services/aragon-dao/daoAssets'
 import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
-import { ContractInfo } from '@services/aragon-dao/contractInfo'
-import { MemberInfo } from '@services/aragon-dao/memberInfo'
-import ActionDecoder from '@services/aragon-dao/actionDecoder'
 import { AllMetrics } from '@services/aragon-dao/allMetrics'
 import config from '@config'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import TokenFetcher from '@services/aragon-dao/tokenFetcher'
-import Plugin from '@services/aragon-dao/plugin'
 import ProxyWeb3Provider from '@modules/proxyProvider'
+import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 
 const llo = logger.logMeta.bind(null, { service: 'service:DaoService' })
 
@@ -42,9 +35,9 @@ const AragonDaoService: IService = {
     })
 
     await RabbitMQHelper.process(EnumQueueName.daoTransactions, async job => {
-      const { address, network, proposalId } = job.params as IQueueDao
+      const { daoAddress, network, reset } = job.params as IQueueDaoTransactions
 
-      await DaoTransactions.start({ daoAddress: address, network, proposalId })
+      await DaoTransactions.start({ daoAddress, network, reset })
     })
 
     await RabbitMQHelper.process(EnumQueueName.daoAssets, async job => {
@@ -70,51 +63,16 @@ const AragonDaoService: IService = {
       await ProposalMetrics.proposalTokenVotingMetrics({ proposalIndex, pluginAddress, network })
     })
 
-    await RabbitMQHelper.process(EnumQueueName.contractInfo, async (job: any) => {
-      const { address, network } = job.params as IQueueContractInfo
-      return await ContractInfo.getContractInfo(network, address)
-    })
-
-    await RabbitMQHelper.process(EnumQueueName.getVotingPower, async (job: any) => {
-      const { userAddress, tokenAddress, network } = job.params as IGetVotingPower
-      return await MemberInfo.getVotingPower(userAddress, tokenAddress, network)
-    })
-
-    await RabbitMQHelper.process(EnumQueueName.getLockVotingPowerBatch, async (job: any) => {
-      const { locks } = job.params as IGetLockVotingPowerBatch
-      return await MemberInfo.getLockVotingPowerBatch(locks)
-    })
-
-    await RabbitMQHelper.process(EnumQueueName.memberBalance, async (job: any) => {
-      const { userAddress, tokenAddress, network, pluginAddress } = job.params as IQueueMemberBalanceInfo
-      return await MemberInfo.getByTokenAddress(userAddress, pluginAddress, tokenAddress, network)
-    })
-
-    await RabbitMQHelper.process(EnumQueueName.contractDecoder, async (job: any) => {
-      const { from, to, data, value, network } = job.params as IRawAction
-      return await ActionDecoder.decode({ from, to, data, value, network })
-    })
-
-    await RabbitMQHelper.process(EnumQueueName.proposalActions, async (job: any) => {
-      const { id } = job.params as IProposalInfo
-      return await ActionDecoder.proposalActionDecoder(id)
-    })
-
-    await RabbitMQHelper.process(EnumQueueName.canCreateProposal, async (job: any) => {
-      const { pluginAddress, memberAddress, network } = job.params as IQueueCanCreateProposal
-      return await MemberInfo.canCreateProposal(pluginAddress, memberAddress, network)
-    })
-
-    await RabbitMQHelper.process(EnumQueueName.pluginInstallationData, async (job: any) => {
-      const { address, network } = job.params as IQueueContractInfo
-      return await Plugin.getInstallationData(address, network)
-    })
-
     await RabbitMQHelper.process(EnumQueueName.getTokenStats, async (job: { params: IQueueContractInfo }) => {
       return await ProxyWeb3Provider.getTokenCounters({
         address: job.params.address,
         network: job.params.network,
       })
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.proposalActions, async (job: any) => {
+      const { id } = job.params as IProposalInfo
+      return await ActionDecoder.proposalActionDecoder(id)
     })
 
     const tasks = [[{ fetchRates: TokenFetcher }]]

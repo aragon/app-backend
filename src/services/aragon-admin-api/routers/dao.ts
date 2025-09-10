@@ -17,7 +17,7 @@ const DaoAdminRouter = {
     ctx.body = await DaoAdminController.setVisibilityStatus(formattedValues)
   },
 
-  router() {
+  router(): Router {
     const router = new Router()
     const authedAdmin = AuthMiddleware.authAssertAdmin()
 

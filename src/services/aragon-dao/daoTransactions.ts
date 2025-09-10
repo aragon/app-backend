@@ -1,41 +1,28 @@
-import {
-  type HexAddress,
-  type IRawAction,
-  ITokenType,
-  ITransactionCategory,
-  ITransactionType,
-  type NetworksEnum,
-} from '@types'
+import { IDaoTransferLogs, LockErc721Token, type IQueueDaoTransactions } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
-import DbTx from '@modules/dbTx'
-import type Transaction from '@models/schema/transaction'
-import Web3Helper from '@helpers/web3'
+import { Interface, zeroPadValue } from 'ethers'
+import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import ConfigIndexerHelper from '@helpers/configIndexer'
 import { DAO } from '@artifacts/dao'
-import { Multisig } from '@artifacts/Multisig'
-import Web3Utils from '@helpers/web3Utils'
-import { ProxyToken } from '@modules/proxyToken'
-import utils from '@helpers/utils'
-import ProxyProvider from '@modules/proxyProvider'
-import type Proposal from '@models/schema/proposal'
-import { ethers } from 'ethers'
+import { DaoV2 } from '@artifacts/daoV2'
+import { ERC20 } from '@artifacts/ERC20'
+import { ERC721 } from '@artifacts/ERC721'
+import { DaoTransferHandler } from '@handlers/daoTransferHanlder'
+import DbTx from '@modules/dbTx'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:DaoTransactions' })
 
-/**
- * The DaoTransactions uses the alchemy_getAssetTransfers to fetch DAO transfers.
- * Due to a low limit on the method, the service should run alone.
- */
+const daoInterface = new Interface(DAO.abi)
+const daoV2Interface = new Interface(DaoV2.abi)
+const nativeTokenDepositedTopic = daoInterface.getEvent(IDaoTransferLogs.NativeTokenDeposited)?.topicHash!
+const executedTopic = daoInterface.getEvent(IDaoTransferLogs.Executed)?.topicHash!
+const executedV2Topic = daoV2Interface.getEvent(IDaoTransferLogs.Executed)?.topicHash!
+const erc20Interface = new Interface(ERC20.abi)
+const erc20TransferTopic = erc20Interface.getEvent(LockErc721Token.Transfer)?.topicHash!
+
 export const DaoTransactions = {
-  start: async ({
-    daoAddress,
-    network,
-    proposalId,
-  }: {
-    daoAddress: HexAddress
-    network: NetworksEnum
-    proposalId?: string
-  }) => {
+  start: async ({ daoAddress, network, reset }: IQueueDaoTransactions) => {
     try {
       const startTime = Date.now()
       logger.verbose('Start DaoTransactions', llo({ daoAddress, startTime }))
@@ -43,34 +30,142 @@ export const DaoTransactions = {
       const daoDb = await Models.Dao.findByAddress(daoAddress, network)
       if (!daoDb) return
 
-      /**
-       * on proposal execute native transfer is not supported on some networks
-       */
-      if (proposalId) {
-        const proposal = await Models.Proposal.findByEntityId(proposalId)
-
-        if (proposal) {
-          await DaoTransactions.parseTransactionFromProposalAction(proposal)
-        }
+      if (reset) {
+        await DaoTransactions.resetTransactions({ daoAddress, network })
       }
 
-      // check if network support internal transfer and proposalId
-      const txns = await ProxyProvider.fetchAddressTxns({
-        address: daoDb.address,
+      // deposit - ERC20/ERC721 transfers to DAO (any token contract)
+      const crawlerIncomingTokenTransfers = new BlockchainLogCrawler({
+        isTopicObject: true,
         network: daoDb.network,
-        blockNumber: daoDb.blockNumber,
+        events: [
+          {
+            event: LockErc721Token.Transfer, // ERC20/ERC721 Transfer event where DAO is receiver
+            topic: [
+              erc20TransferTopic, // Transfer event signature
+              null, // from address (any address can send)
+              zeroPadValue(daoDb.address, 32), // to address (DAO as receiver)
+            ],
+            config: [
+              {
+                abi: ERC20.abi,
+                handler: DaoTransferHandler.incomingErc20Transfer,
+              },
+              {
+                abi: ERC721.abi,
+                handler: DaoTransferHandler.incomingErc721Transfer,
+              },
+            ],
+          },
+        ],
+        fromBlock: daoDb?.blockNumber,
+        onError: async (error: any, log: any) => {
+          logger.error('Error crawling transfer events', llo({ error, log }))
+        },
+        logService: ConfigIndexerHelper.builders.tokenDeposit(daoDb.network, daoDb.address),
+        stopOnError: true,
       })
 
-      if (!txns?.length) {
-        logger.verbose('No transactions found', llo({ daoId: daoDb.id, daoAddress }))
-        return
-      }
+      // deposit - Native token deposits to DAO contract
+      const crawlerIncomingNativeDeposits = new BlockchainLogCrawler({
+        network: daoDb.network,
+        events: [
+          {
+            event: IDaoTransferLogs.NativeTokenDeposited,
+            topic: nativeTokenDepositedTopic,
+            config: [
+              {
+                abi: DAO.abi,
+                handler: DaoTransferHandler.incomingNativeDeposits,
+              },
+            ],
+          },
+        ],
+        address: [daoDb.address], // Listen only to DAO contract for native deposits
+        fromBlock: daoDb?.blockNumber,
+        onError: async (error: any, log: any) => {
+          logger.error('Error crawling native deposit events', llo({ error, log }))
+        },
+        logService: ConfigIndexerHelper.builders.nativeDeposit(daoDb.network, daoDb.address),
+        stopOnError: true,
+      })
 
-      await Promise.all(
-        txns.map(async (tx: any) => {
-          await DaoTransactions.saveTransaction(tx, tx.type, daoDb.address, daoDb.network)
-        }),
-      )
+      // withdraw - ERC20/ERC721 transfers from DAO (any token contract)
+      const crawlerOutgoingTokenTransfers = new BlockchainLogCrawler({
+        isTopicObject: true,
+        network: daoDb.network,
+        events: [
+          {
+            event: LockErc721Token.Transfer, // ERC20/ERC721 Transfer event where DAO is sender
+            topic: [
+              erc20TransferTopic, // Transfer event signature
+              zeroPadValue(daoDb.address, 32), // from address (DAO as sender)
+              null, // to address (any address can receive)
+            ],
+            config: [
+              {
+                abi: ERC20.abi,
+                handler: DaoTransferHandler.withdrawErc20Transfer,
+              },
+              {
+                abi: ERC721.abi,
+                handler: DaoTransferHandler.withdrawErc721Transfer,
+              },
+            ],
+          },
+        ],
+        fromBlock: daoDb?.blockNumber,
+        onError: async (error: any, log: any) => {
+          logger.error('Error crawling transfer events', llo({ error, log }))
+        },
+        logService: ConfigIndexerHelper.builders.tokenWithdraw(daoDb.network, daoDb.address),
+        stopOnError: true,
+      })
+
+      // withdraw - Native transfers from DAO via Executed events
+      const crawlerOutgoingNativeTransfers = new BlockchainLogCrawler({
+        network: daoDb.network,
+        events: [
+          {
+            event: IDaoTransferLogs.Executed,
+            topic: executedTopic,
+            config: [
+              {
+                abi: DAO.abi,
+                handler: DaoTransferHandler.withdrawNativeDeposits,
+              },
+            ],
+          },
+          {
+            event: IDaoTransferLogs.Executed,
+            topic: executedV2Topic,
+            config: [
+              {
+                abi: DaoV2.abi,
+                handler: DaoTransferHandler.withdrawNativeDeposits,
+              },
+            ],
+          },
+        ],
+        address: [daoDb.address], // Listen only to DAO contract for Executed events
+        fromBlock: daoDb?.blockNumber,
+        onError: async (error: any, log: any) => {
+          logger.error('Error crawling Executed events', llo({ error, log }))
+        },
+        logService: ConfigIndexerHelper.builders.nativeWithdraw(daoDb.network, daoDb.address),
+        stopOnError: true,
+      })
+
+      // Crawl events - all crawlers
+      const crawlers: BlockchainLogCrawler[] = [
+        crawlerIncomingTokenTransfers,
+        crawlerIncomingNativeDeposits,
+        crawlerOutgoingTokenTransfers,
+        crawlerOutgoingNativeTransfers,
+      ]
+
+      // Process crawlers in parallel for better performance
+      await Promise.all(crawlers.map(async (crawler: BlockchainLogCrawler) => crawler.crawl()))
 
       const duration = Date.now() - startTime
       logger.verbose('End DaoTransactions', llo({ daoId: daoDb.id, daoAddress, duration: `${duration}ms` }))
@@ -79,186 +174,29 @@ export const DaoTransactions = {
     }
   },
 
-  parseTransactionFromProposalAction: async (proposal: Proposal) => {
-    const actions: IRawAction[] = proposal.rawActions.filter(a => BigInt(a.value) > 0)
-    await Promise.all(
-      actions?.map(async (action: IRawAction, index) => {
-        const uniqueId = `${proposal.id}-${index}`
+  resetTransactions: async ({ daoAddress, network }: IQueueDaoTransactions) => {
+    const tokenDeposit = ConfigIndexerHelper.builders.tokenDeposit(network, daoAddress)
+    const nativeDeposit = ConfigIndexerHelper.builders.nativeDeposit(network, daoAddress)
+    const tokenWithdraw = ConfigIndexerHelper.builders.tokenWithdraw(network, daoAddress)
+    const nativeWithdraw = ConfigIndexerHelper.builders.nativeWithdraw(network, daoAddress)
 
-        const existingTx = await Models.Transaction.findOne({ uniqueId })
-
-        if (existingTx) {
-          logger.verbose(
-            'Manual internal transaction already exists',
-            llo({
-              uniqueId,
-              logId: existingTx.id,
-            }),
-          )
-          return
-        }
-
-        const rawTx: Partial<Transaction> = {
-          transactionHash: proposal.executed.transactionHash!,
-          uniqueId,
-          blockNumber: proposal.executed.blockNumber!,
-          blockTimestamp: proposal.executed.blockTimestamp!,
-          network: proposal.network,
-          type: ITransactionType.withdraw,
-          daoAddress: proposal.daoAddress,
-          pluginAddress: proposal.pluginAddress,
-          fromAddress: proposal.daoAddress,
-          toAddress: action.to,
-          value: ethers.formatEther(action.value),
-          category: ITransactionCategory.Internal,
-          proposalIndex: proposal.proposalIndex,
-        }
-
-        const tokenAddress = utils.zeroAddress
-        const token = await ProxyToken.saveAndGetToken(tokenAddress, proposal.network)
-        if (!token) return
-        rawTx.tokenAddress = token.address
-
-        try {
-          const params = {
-            ...(token.type === ITokenType.native ? { symbol: token.symbol || undefined } : { address: token.address }),
-            network: proposal.network,
-            date: proposal.executed.blockTimestamp!,
-          }
-
-          const tokenPrice = await ProxyProvider.fetchHistoricalTokenPrice(params)
-
-          rawTx.token = {
-            network: proposal.network,
-            address: token.address,
-            symbol: token.symbol,
-            name: token?.name,
-            type: token.type,
-            logo: token.logo,
-            decimals: token.decimals,
-            snapshot: {
-              priceUsd: tokenPrice,
-              priceUpdatedAt: proposal.executed.blockTimestamp!,
-            },
-          }
-
-          rawTx.amountUsd = (parseFloat(rawTx.value!) * parseFloat(tokenPrice)).toFixed(2)
-
-          return await DbTx.executeTxFn(async ({ session }) => {
-            const logDb = await Models.Transaction.create(rawTx, { session } as any)
-            await session.commitTransaction()
-            await session.endSession()
-            logger.verbose('New Transaction', llo({ logId: logDb?.id }))
-            return logDb
-          })
-        } catch (error) {
-          logger.error('Error saveTransaction', llo({ error, uniqueId: rawTx.uniqueId }))
-        }
-      }),
-    )
-  },
-
-  saveTransaction: async (tx: any, type: ITransactionType, daoAddress: HexAddress, network: NetworksEnum) => {
-    try {
-      /**
-       * If the transaction is a proposal execution
-       * We get two events from the DAO contract
-       * - Executed (The address when the proposal was executed is the DAO address)
-       * - ProposalExecuted (The proposalIndex is the topic of the log)
-       */
-
-      let pluginAddress: string | undefined
-      let proposalIndex: string | undefined
-
-      const existingLog = await Models.Transaction.findExistingLog({
-        transactionHash: tx.hash,
-        network,
-        category: tx.category,
-        uniqueId: tx.uniqueId,
-      })
-
-      if (existingLog) {
-        logger.verbose('Transaction already saved', llo({ logId: existingLog.id }))
-        return
-      }
-
-      const transactionReceipt = await Web3Helper.getTransactionReceipt(tx.hash, network)
-
-      if (transactionReceipt) {
-        const proposalExecutionLog = Web3Utils.findLogsByName(transactionReceipt, 'Executed', DAO.abi)
-        if (proposalExecutionLog?.length) {
-          daoAddress = proposalExecutionLog[0].txLog.address
-
-          const proposalIdLog = Web3Utils.findLogsByName(transactionReceipt, 'ProposalExecuted', Multisig.abi)
-          pluginAddress = proposalIdLog[0].txLog.address
-
-          if (proposalIdLog?.length) {
-            proposalIndex = proposalIdLog[0].txLog.topics[1].toString()
-          }
-        }
-      }
-
-      const tokenAddress = tx.rawContract?.address || utils.zeroAddress
-      const token = await ProxyToken.saveAndGetToken(tokenAddress, network)
-      if (!token) return
-
-      const rawTx: Partial<Transaction> = {
-        transactionHash: tx.hash,
-        uniqueId: tx.uniqueId,
-        blockNumber: Number(tx.blockNum),
-        blockTimestamp: tx.blockTimestamp,
-        network,
-        type,
-        daoAddress,
-        pluginAddress,
-        fromAddress: tx.from,
-        toAddress: tx.to,
-        value: tx.value?.toString() || '0',
-        tokenId: tx.tokenId ? BigInt(tx.tokenId).toString() : undefined,
-        erc721TokenId: tx.erc721TokenId ? BigInt(tx.erc721TokenId).toString() : undefined,
-        erc1155Metadata: tx.erc1155Metadata?.map((w: any) => ({
-          tokenId: BigInt(w.tokenId)?.toString(),
-          value: w.value?.toString(),
-        })),
-        category: tx.category,
-        proposalIndex,
-      }
-
-      rawTx.tokenAddress = token.address
-
-      const params = {
-        ...(token.type === ITokenType.native ? { symbol: token.symbol || undefined } : { address: token.address }),
-        network,
-        date: tx.blockTimestamp,
-      }
-
-      const tokenPrice = await ProxyProvider.fetchHistoricalTokenPrice(params)
-
-      rawTx.token = {
-        network,
-        address: token.address,
-        symbol: token.symbol,
-        name: token?.name,
-        type: token.type,
-        logo: token.logo,
-        decimals: token.decimals,
-        snapshot: {
-          priceUsd: tokenPrice,
-          priceUpdatedAt: tx.blockTimestamp,
+    await DbTx.executeTxFn(async ({ session }) => {
+      await Models.Transaction.deleteMany(
+        {
+          daoAddress,
+          network,
         },
-      }
+        { session },
+      )
+      await Models.ConfigIndexer.deleteMany(
+        {
+          service: { $in: [tokenDeposit, nativeDeposit, tokenWithdraw, nativeWithdraw] },
+        },
+        { session },
+      )
 
-      rawTx.amountUsd = (parseFloat(rawTx.value || '0') * parseFloat(tokenPrice)).toFixed(2)
-
-      return await DbTx.executeTxFn(async ({ session }) => {
-        const logDb = await Models.Transaction.create(rawTx, { session } as any)
-        await session.commitTransaction()
-        await session.endSession()
-        logger.verbose('New Transaction', llo({ logId: logDb?.id }))
-        return logDb
-      })
-    } catch (error) {
-      logger.error('Error saveTransaction', llo({ error, logId: `${daoAddress}-${network}`, txHash: tx.hash }))
-    }
+      await session.commitTransaction()
+      await session.endSession()
+    })
   },
 }

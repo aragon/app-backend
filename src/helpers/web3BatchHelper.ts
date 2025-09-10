@@ -145,6 +145,8 @@ const Web3BatchHelper = {
         'Consider reducing your block range',
         'Query returned more than 1000000 results',
         'Cannot create a string longer',
+        'Response is too big',
+        'Block range is too large',
       ].includes(message)
     })
   },
@@ -181,7 +183,7 @@ const Web3BatchHelper = {
    */
   async _executeSingleBatch<T>(requests: BatchRequestItem[], network: NetworksEnum): Promise<BatchResponse<T>[]> {
     try {
-      const providerUrl = await ProviderModule.getProviderUrl(network)
+      const providerUrl = ProviderModule.getProviderUrl(network)
 
       const batchRequests = requests.map(req => ({
         jsonrpc: '2.0',

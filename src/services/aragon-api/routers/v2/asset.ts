@@ -38,7 +38,7 @@ const AssetRouter = {
     )
   },
 
-  router() {
+  router(): Router {
     const router = new Router()
 
     /**

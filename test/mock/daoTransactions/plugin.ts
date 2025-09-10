@@ -1,0 +1,51 @@
+import { NetworksEnum } from '@types'
+
+export const pluginForDaoTransactions = [
+  // dao1
+  {
+    id: 'ethereum-mainnet-0x0e2888e5f8967babeb910355e82840c3d2f90f75603a8a483305a75655f3d203-0x7aE19BB2c7675e4c7765DCC30Fd6783e89aA9773',
+    transactionHash: '0x0e2888e5f8967babeb910355e82840c3d2f90f75603a8a483305a75655f3d203',
+    blockNumber: 17689687,
+    blockTimestamp: 1689313235,
+    network: NetworksEnum.ethereumMainnet,
+    address: '0x7aE19BB2c7675e4c7765DCC30Fd6783e89aA9773',
+    implementationAddress: '0xd4bfb6C688b2982A3b432F2Fc6C35117532A2C27',
+    interfaceType: 'tokenVoting',
+    status: 'installed',
+    isSupported: true,
+    daoAddress: '0x1703ed1bFacC04b7eB654b297aA4E52EBC008722',
+    tokenAddress: '0xBeC06361c9451C8C493e74D6a1Df8428cdce5D53',
+    pluginSetupRepoAddress: '0xb7401cD221ceAFC54093168B814Cc3d42579287f',
+    sender: '0xA03C2182af8eC460D498108C92E8638a580b94d4',
+    release: '1',
+    build: '1',
+    subdomain: 'token-voting',
+    isProcess: true,
+    isBody: true,
+    isSubPlugin: false,
+  },
+
+  // dao2
+  {
+    id: 'ethereum-mainnet-0xd294638d201a2791b8ce73e18396cd12cfeab67de651a5af9e670dcaa049555e-0x945Fd2ADF620cB3d4a26C87c62e88DaE4fbcD6F5',
+    transactionHash: '0xd294638d201a2791b8ce73e18396cd12cfeab67de651a5af9e670dcaa049555e',
+    blockNumber: 19429835,
+    blockTimestamp: 1710377783,
+    network: 'ethereum-mainnet',
+    address: '0x945Fd2ADF620cB3d4a26C87c62e88DaE4fbcD6F5',
+    implementationAddress: '0xd4bfb6C688b2982A3b432F2Fc6C35117532A2C27',
+    interfaceType: 'tokenVoting',
+    status: 'installed',
+    isSupported: true,
+    daoAddress: '0x085b9Ae289ba0Cd053F1974D93aD26979f0B5629',
+    tokenAddress: '0x114B56ed5aEbad95176e33c39BefD444E90fe3Db',
+    pluginSetupRepoAddress: '0xb7401cD221ceAFC54093168B814Cc3d42579287f',
+    sender: '0xf96e6FD76BD0A15580604e1Ea5818D448b1041C0',
+    release: '1',
+    build: '2',
+    subdomain: 'token-voting',
+    isProcess: true,
+    isBody: true,
+    isSubPlugin: false,
+  },
+]

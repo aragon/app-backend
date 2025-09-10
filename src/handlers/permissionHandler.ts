@@ -1,16 +1,8 @@
 import logger from '@logger'
 import { type LogDescription, ethers } from 'ethers'
-import {
-  EnumQueueName,
-  type HexAddress,
-  IEventLogPermission,
-  type ILogInfo,
-  IPluginInterfaceType,
-  type NetworksEnum,
-} from '@types'
+import { type HexAddress, IEventLogPermission, type ILogInfo, IPluginInterfaceType, type NetworksEnum } from '@types'
 import { Models } from '@dbModels'
-import { ProxyMember } from '@modules/proxyMember'
-import RabbitMQHelper from '@helpers/rabbitMQ'
+import { MemberGovernanceFactory } from '@src/governance'
 import { IPermission } from '@src/types/permission'
 import { PluginHandler } from '@handlers/pluginHandler'
 import DbTx from '@modules/dbTx'
@@ -140,34 +132,30 @@ export const PermissionHandler = {
       return
     }
 
+    // Create admin governance instance
+    const governance = MemberGovernanceFactory.create({
+      address: pluginAddress,
+      network,
+      interfaceType: IPluginInterfaceType.admin,
+    })
+
     if (!add) {
-      await ProxyMember.removeFromDao({
-        memberAddress: where,
-        daoAddress: pluginExisted.daoAddress,
-        pluginAddress,
-        network,
-      })
-      await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-        id: pluginExisted.daoAddress,
-        params: { address: pluginExisted.daoAddress, network: pluginExisted.network },
-      })
-      logger.info('Remove member from DAO', llo({ daoAddress, pluginAddress, network, where }))
+      // Use the governance instance to handle member removal
+      await governance.delete(where)
+
+      await governance.updateDaoMetrics()
+      logger.verbose('Remove member from DAO', llo({ daoAddress, pluginAddress, network, where }))
 
       return
     }
 
-    await ProxyMember.addToDao({
-      memberAddress: where,
-      daoAddress: pluginExisted.daoAddress,
-      pluginAddress,
-      network,
-    })
-    await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-      id: pluginExisted.daoAddress,
-      params: { address: pluginExisted.daoAddress, network: pluginExisted.network },
-    })
+    // Use the governance instance to handle member creation
+    // This will handle both Member and PluginMember creation
+    await governance.getOrCreate(where)
 
-    logger.info('Add member to DAO', llo({ daoAddress, pluginAddress, network, where }))
+    await governance.updateDaoMetrics()
+
+    logger.verbose('Add member to DAO', llo({ daoAddress, pluginAddress, network, where }))
   },
 
   validateAndGetConditionAddress: (conditionAddress: HexAddress | undefined): HexAddress | undefined => {

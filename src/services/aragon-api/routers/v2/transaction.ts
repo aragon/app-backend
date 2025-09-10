@@ -6,9 +6,10 @@ import {
   type HexAddress,
   type IPaginationParams,
   type IPairParams,
-  type ITransactionCategory,
   type ITransactionExtraParams,
   type ITransactionIndexCheckType,
+  type ITransactionSide,
+  type ITransactionType,
   type NetworksEnum,
 } from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
@@ -21,9 +22,10 @@ const TransactionRouter = {
         network: ctx.query.network as NetworksEnum,
         daoAddress: ctx.query.address as HexAddress,
         tokenAddress: ctx.query.tokenAddress as HexAddress,
-        category: ctx.query.category as ITransactionCategory,
         fromAddress: ctx.query.fromAddress as HexAddress,
         toAddress: ctx.query.toAddress as HexAddress,
+        side: ctx.query.side as ITransactionSide,
+        type: ctx.query.type as ITransactionType,
       },
       pairParams: {
         daoId: ctx.query.daoId as string,
@@ -62,7 +64,7 @@ const TransactionRouter = {
     )
   },
 
-  router() {
+  router(): Router {
     const router = new Router()
 
     /**

@@ -1,23 +1,19 @@
 import logger from '@logger'
 import { type LogDescription } from 'ethers'
-import { type HexAddress, type ILogInfo } from '@types'
+import { type ILogInfo, IPluginInterfaceType, ITokenType } from '@types'
 import { Models } from '@dbModels'
-import { ProxyMember } from '@modules/proxyMember'
-import Web3Helper from '@helpers/web3'
-import { EnumQueueName, ITransferSide, ITransferType } from '@types'
-import utils from '@helpers/utils'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import { ProxyToken } from '@modules/proxyToken'
-import GovernanceErc20Helper from '@src/helpers/governanceErc20'
+import { MemberGovernanceFactory, VeGovernance } from '@src/governance'
 import type Plugin from '@models/schema/plugin'
-import type MemberTransaction from '@models/schema/memberTransaction'
-import DbOperations from '@models/utils/dbOperations'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:GovernanceVeHandler' })
 
 export const GovernanceVeHandler = {
   delegateTokens: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const plugins = await Models.Plugin.findAllByTokenAddress(info.address, info.network)
+    const plugins = await Models.Plugin.find({
+      tokenAddress: info.address,
+      network: info.network,
+    })
+
     if (!plugins || plugins.length === 0) return
 
     const fromAddress = parsedEvent.args.sender
@@ -25,31 +21,48 @@ export const GovernanceVeHandler = {
     const tokenIds = parsedEvent.args.tokenIds.map((id: any) => id.toString())
 
     try {
-      await GovernanceVeHandler._handleTokenDelegation(
-        parsedEvent,
-        info,
-        fromAddress,
-        ITransferSide.outgoing,
-        plugins,
-        tokenIds,
-      )
+      const isSelfDelegation = fromAddress === toAddress
 
-      if (fromAddress === toAddress) {
-        logger.verbose(
-          'Self-delegation detected, skipping incoming delegation handling',
-          llo({ info, fromAddress, toAddress }),
-        )
-        return
+      // Create base members
+      await MemberGovernanceFactory.createBaseMember(fromAddress, info.blockNumber)
+      if (!isSelfDelegation) {
+        await MemberGovernanceFactory.createBaseMember(toAddress, info.blockNumber)
       }
 
-      await GovernanceVeHandler._handleTokenDelegation(
-        parsedEvent,
-        info,
-        toAddress,
-        ITransferSide.incoming,
-        plugins,
+      // Create a VE governance instance for delegation updates
+      const governance = MemberGovernanceFactory.createFromPlugin(plugins[0])
+
+      await governance.update(toAddress, {
         tokenIds,
+        delegateReceiverAddress: toAddress,
+      })
+
+      // Update plugin metrics
+      await Promise.all(
+        plugins.map(async (plugin: Plugin) => {
+          const governance = MemberGovernanceFactory.createFromPlugin(plugin)
+
+          await governance.updatePluginMetrics({
+            memberAddress: fromAddress,
+            pluginAddress: plugin.address,
+            daoAddress: plugin.daoAddress,
+            network: info.network,
+            lastActivity: info.blockNumber,
+          })
+
+          if (!isSelfDelegation) {
+            await governance.updatePluginMetrics({
+              memberAddress: toAddress,
+              pluginAddress: plugin.address,
+              daoAddress: plugin.daoAddress,
+              network: info.network,
+              lastActivity: info.blockNumber,
+            })
+          }
+        }),
       )
+
+      await governance.updateDaoMetrics()
 
       logger.verbose('Delegate tokens VeGovernance', llo({ info, fromAddress, toAddress, tokenIds }))
     } catch (error) {
@@ -58,40 +71,44 @@ export const GovernanceVeHandler = {
   },
 
   unDelegateTokens: async (parsedEvent: LogDescription, info: ILogInfo) => {
-    const plugins = await Models.Plugin.findAllByTokenAddress(info.address, info.network)
+    const plugins = await Models.Plugin.find({
+      tokenAddress: info.address,
+      network: info.network,
+    })
     if (!plugins || plugins.length === 0) return
 
-    const toAddress = parsedEvent.args.sender
-    const fromAddress = parsedEvent.args.delegatee
+    const fromAddress = parsedEvent.args.sender
     const tokenIds = parsedEvent.args.tokenIds.map((id: any) => id.toString())
 
     try {
-      await GovernanceVeHandler._handleTokenDelegation(
-        parsedEvent,
-        info,
-        fromAddress,
-        ITransferSide.outgoing,
-        plugins,
+      await MemberGovernanceFactory.createBaseMember(fromAddress, info.blockNumber)
+
+      const governance = MemberGovernanceFactory.createFromPlugin(plugins[0])
+
+      await governance.update(fromAddress, {
         tokenIds,
+        delegateReceiverAddress: null,
+      })
+
+      await Promise.all(
+        plugins.map(async (plugin: Plugin) => {
+          const governance = MemberGovernanceFactory.createFromPlugin(plugin)
+
+          await governance.updatePluginMetrics({
+            memberAddress: fromAddress,
+            pluginAddress: plugin.address,
+            daoAddress: plugin.daoAddress,
+            network: info.network,
+            lastActivity: info.blockNumber,
+          })
+        }),
       )
 
-      if (fromAddress === toAddress) {
-        logger.verbose('Self-delegation detected, skipping delegation handling', llo({ info, fromAddress, toAddress }))
-        return
-      }
+      await governance.updateDaoMetrics()
 
-      await GovernanceVeHandler._handleTokenDelegation(
-        parsedEvent,
-        info,
-        toAddress,
-        ITransferSide.incoming,
-        plugins,
-        tokenIds,
-      )
-
-      logger.verbose('Undelegate tokens VeGovernance', llo({ info, fromAddress, toAddress, tokenIds }))
+      logger.verbose('Undelegate tokens VeGovernance', llo({ info, fromAddress, tokenIds }))
     } catch (error) {
-      logger.error('UnDelegateTokens error', llo({ error, info, fromAddress, toAddress }))
+      logger.error('UnDelegateTokens error', llo({ error, info, fromAddress }))
     }
   },
 
@@ -102,88 +119,36 @@ export const GovernanceVeHandler = {
     })
 
     if (plugins.length === 0) {
-      logger.error('Plugin not found for deposit event', llo({ info }))
+      logger.warn('Plugin not found for deposit event', llo({ info }))
       return
     }
-
-    /**
-     * Extracting addresses from the first plugin
-     * since they are expected to be the same across all plugins
-     */
-
-    const escrowAddress = plugins[0].votingEscrow.escrowAddress
-    const tokenAddress = plugins[0].tokenAddress
-    const nftLockAddress = plugins[0].votingEscrow.nftLockAddress
-    const exitQueueAddress = plugins[0].votingEscrow.exitQueueAddress
 
     const memberAddress = parsedEvent.args.depositor
-    const tokenId = parsedEvent.args.tokenId.toString()
-    const amount = parsedEvent.args.value.toString()
-    const epochStartAt = Number(parsedEvent.args.startTs)
-    const totalLocked = parsedEvent.args.newTotalLocked.toString()
 
-    const lockParams = {
+    await MemberGovernanceFactory.createBaseMember(memberAddress, info.blockNumber)
+
+    const governance = MemberGovernanceFactory.create({
+      address: info.address,
       network: info.network,
-      transactionHash: info.transactionHash,
-      transactionIndex: info.transactionIndex,
-      logIndex: info.logIndex,
-      tokenAddress: plugins[0].tokenAddress,
-      memberAddress,
-      tokenId,
-      escrowAddress,
-    }
-
-    const existingLock = await Models.Lock.findExistingLog(lockParams)
-    if (existingLock) {
-      logger.warn(
-        'Deposit VeGovernance - Lock already exists',
-        llo({ info, memberAddress, tokenId, escrow: escrowAddress }),
-      )
-      return
-    }
-
-    const blockTimestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
-    await ProxyMember.createMember(memberAddress)
-
-    await Models.Lock.create({
-      network: info.network,
-      transactionHash: info.transactionHash,
-      transactionIndex: info.transactionIndex,
-      logIndex: info.logIndex,
-      blockNumber: info.blockNumber,
-      blockTimestamp,
-      escrowAddress,
-      memberAddress,
-      nftAddress: nftLockAddress,
-      tokenAddress,
-      tokenId,
-      amount,
-      epochStartAt,
-      totalLocked,
-      exitQueueAddress,
+      interfaceType: IPluginInterfaceType.tokenVoting,
+      tokenType: ITokenType.escrowAdapter,
     })
 
-    logger.verbose('Deposit VeGovernance - Lock created', llo({ info, memberAddress, tokenId, escrow: escrowAddress }))
+    await governance.getOrCreate(memberAddress, { parsedEvent, info })
 
-    const memberBalance = await ProxyMember.getBalances({
-      address: memberAddress,
-      tokenAddress,
-      network: info.network,
-    })
-
-    // Only update amount, don't attach tokens yet (tokens will be attached on delegation)
-    await DbOperations.updateDocument(
-      memberBalance!,
-      {
-        amount: (Number(memberBalance!.amount) + 1).toString(),
-        lastSyncAmountBlockNumber: info.blockNumber,
-      },
-      info,
-      'MemberBalance Update on deposit',
-      llo,
+    await Promise.all(
+      plugins.map(async (plugin: Plugin) => {
+        await governance.updatePluginMetrics({
+          memberAddress,
+          pluginAddress: plugin.address,
+          daoAddress: plugin.daoAddress,
+          network: info.network,
+          lastActivity: info.blockNumber,
+        })
+      }),
     )
 
-    await GovernanceVeHandler._handleDaoMemberShipOnLockEvents(plugins, memberAddress, info, true)
+    logger.verbose('Deposit VeGovernance - Lock created', llo({ info, memberAddress }))
   },
 
   withdraw: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -193,79 +158,50 @@ export const GovernanceVeHandler = {
     })
 
     if (plugins.length === 0) {
-      logger.error('Plugin not found for withdraw event', llo({ info }))
+      logger.warn('Plugin not found for withdraw event', llo({ info }))
       return
     }
-
-    const escrowAddress = info.address
 
     const memberAddress = parsedEvent.args.depositor
-    const tokenId = parsedEvent.args.tokenId.toString()
-    const amount = parsedEvent.args.value.toString()
-    const epochEndAt = Number(parsedEvent.args.ts)
-    const totalLocked = parsedEvent.args.newTotalLocked.toString()
 
-    const memberLockParams = {
-      escrowAddress,
-      network: info.network,
-      memberAddress,
-      tokenId,
-    }
+    try {
+      await MemberGovernanceFactory.createBaseMember(memberAddress, info.blockNumber)
 
-    const existingLock = await Models.Lock.findLockMember(memberLockParams)
-    if (!existingLock) {
-      logger.error(
-        'Lock not found for withdraw event',
-        llo({
-          info,
-          memberAddress,
-          tokenId,
-          escrowAddress,
+      const veGovernance = new VeGovernance(info.address, info.network)
+
+      await veGovernance.lockWithdrawn(memberAddress, {
+        parsedEvent,
+        info,
+        lastActivity: info.blockNumber,
+      })
+
+      // Update plugin metrics for all plugins
+      await Promise.all(
+        plugins.map(async (plugin: Plugin) => {
+          const pluginGovernance = MemberGovernanceFactory.create({
+            address: plugin.tokenAddress,
+            network: info.network,
+            interfaceType: IPluginInterfaceType.tokenVoting,
+            tokenType: ITokenType.escrowAdapter,
+          })
+
+          await pluginGovernance.updatePluginMetrics({
+            memberAddress,
+            pluginAddress: plugin.address,
+            daoAddress: plugin.daoAddress,
+            network: info.network,
+            lastActivity: info.blockNumber,
+          })
         }),
       )
-      return
+
+      logger.verbose(
+        'Withdraw VeGovernance',
+        llo({ info, memberAddress, tokenId: parsedEvent.args.tokenId.toString() }),
+      )
+    } catch (error) {
+      logger.error('Withdraw error', llo({ error, info, memberAddress }))
     }
-
-    if (existingLock.lockWithdraw?.status) return
-
-    const blockTimestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
-
-    await existingLock.update({
-      lockWithdraw: {
-        status: true,
-        transactionHash: info.transactionHash,
-        blockNumber: info.blockNumber,
-        blockTimestamp,
-        totalLocked,
-        amount,
-        epochEndAt,
-      },
-    })
-
-    logger.verbose('Withdraw VeGovernance', llo({ info, memberAddress, tokenId }))
-
-    const memberBalance = await ProxyMember.getBalances({
-      address: memberAddress,
-      tokenAddress: plugins[0].tokenAddress,
-      network: info.network,
-    })
-
-    const currentTokenIds = memberBalance!.tokenIds || []
-    const tokenIdsToSave = currentTokenIds.filter(id => id !== tokenId.toString())
-
-    await DbOperations.updateDocument(
-      memberBalance!,
-      {
-        amount: (Number(memberBalance!.amount) - 1).toString(),
-        tokenIds: tokenIdsToSave,
-        lastSyncAmountBlockNumber: info.blockNumber,
-      },
-      info,
-      'MemberBalance Update on withdraw',
-      llo,
-    )
-
-    await GovernanceVeHandler._handleDaoMemberShipOnLockEvents(plugins, memberAddress, info, false)
   },
 
   exitQueued: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -275,47 +211,50 @@ export const GovernanceVeHandler = {
     })
 
     if (plugins.length === 0) {
-      logger.error('Plugin not found for exitQueued event', llo({ info }))
+      logger.warn('Plugin not found for exitQueued event', llo({ info }))
       return
     }
 
     const memberAddress = parsedEvent.args.holder
     const tokenId = parsedEvent.args.tokenId.toString()
-    const exitDateAt = Number(parsedEvent.args.exitDate)
-    const blockTimestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
 
-    const memberLock = await Models.Lock.findLockMember({
-      network: info.network,
-      exitQueueAddress: info.address,
-      tokenId,
-      memberAddress,
-    })
+    try {
+      // Create a base member using MemberGovernanceFactory
+      await MemberGovernanceFactory.createBaseMember(memberAddress, info.blockNumber)
+      // Create a VE governance instance using the exitQueueAddress from the first plugin
+      const veGovernance = new VeGovernance(plugins[0].tokenAddress, info.network)
 
-    if (!memberLock) {
-      logger.error(
-        'Lock not found for exitQueued event',
-        llo({
-          info,
-          memberAddress,
-          tokenId,
+      // Process exit queued through VeGovernance
+      await veGovernance.exitQueued(memberAddress, {
+        parsedEvent,
+        info,
+        lastActivity: info.blockNumber,
+      })
+
+      // Update plugin metrics for all plugins
+      await Promise.all(
+        plugins.map(async (plugin: Plugin) => {
+          const pluginGovernance = MemberGovernanceFactory.create({
+            address: plugin.tokenAddress,
+            network: info.network,
+            interfaceType: IPluginInterfaceType.tokenVoting,
+            tokenType: ITokenType.escrowAdapter,
+          })
+
+          await pluginGovernance.updatePluginMetrics({
+            memberAddress,
+            pluginAddress: plugin.address,
+            daoAddress: plugin.daoAddress,
+            network: info.network,
+            lastActivity: info.blockNumber,
+          })
         }),
       )
-      return
+
+      logger.verbose('Exit queued VeGovernance', llo({ info, memberAddress, tokenId }))
+    } catch (error) {
+      logger.error('ExitQueued error', llo({ error, info, memberAddress }))
     }
-
-    if (memberLock.lockExit?.status) return
-
-    await memberLock.update({
-      lockExit: {
-        status: true,
-        transactionHash: info.transactionHash,
-        blockNumber: info.blockNumber,
-        blockTimestamp,
-        exitDateAt,
-      },
-    })
-
-    logger.verbose('Exit queued VeGovernance', llo({ info, memberAddress, tokenId }))
   },
 
   minDepositSet: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -326,7 +265,7 @@ export const GovernanceVeHandler = {
     })
 
     if (plugins.length === 0) {
-      logger.error('Plugin not found for minDepositSet event', llo({ info }))
+      logger.warn('Plugin not found for minDepositSet event', llo({ info }))
       return
     }
 
@@ -370,7 +309,7 @@ export const GovernanceVeHandler = {
     })
 
     if (plugins.length === 0) {
-      logger.error('Plugin not found for minLockSet event', llo({ info }))
+      logger.warn('Plugin not found for minLockSet event', llo({ info }))
       return
     }
 
@@ -402,196 +341,6 @@ export const GovernanceVeHandler = {
         await activePluginSetting.save()
 
         logger.verbose('minLockSet VeGovernance', llo({ info }))
-      }),
-    )
-  },
-
-  _handleTokenDelegation: async (
-    parsedEvent: LogDescription,
-    info: ILogInfo,
-    memberAddress: string,
-    transferSide: ITransferSide,
-    plugins: any[],
-    tokenIds: string[],
-  ) => {
-    try {
-      const existingLog = await Models.MemberTransaction.findExistingLog({
-        network: info.network,
-        transactionHash: info.transactionHash,
-        transactionIndex: info.transactionIndex,
-        logIndex: info.logIndex,
-        address: memberAddress,
-      })
-
-      if (existingLog) {
-        return
-      }
-
-      await ProxyMember.createMember(memberAddress)
-
-      const token = await ProxyToken.saveAndGetToken(info.address, info.network)
-      if (!token) {
-        logger.error('handleTokenDelegation token not found', llo({ info }))
-        return
-      }
-
-      const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
-
-      const tokenBalanceDb = await ProxyMember.getBalances({
-        address: memberAddress,
-        tokenAddress: info.address,
-        network: info.network,
-      })
-
-      const currentTokenIds = tokenBalanceDb?.tokenIds || []
-      let tokenIdsToSave: string[]
-
-      const isSelfDelegation = parsedEvent.args.sender === parsedEvent.args.delegatee
-
-      if (isSelfDelegation) {
-        tokenIdsToSave = [...new Set([...currentTokenIds, ...tokenIds])]
-      } else {
-        if (transferSide === ITransferSide.incoming) {
-          tokenIdsToSave = [...currentTokenIds, ...tokenIds]
-        } else {
-          tokenIdsToSave = currentTokenIds.filter(id => !tokenIds.includes(id))
-        }
-      }
-
-      // TODO on l2 the we need to adjust the blockNumber and it should use as offset +1
-      const votingPower = await GovernanceErc20Helper.getPastVotes(
-        memberAddress,
-        info.address,
-        info.blockNumber,
-        blockTimestamp || 0,
-        info.network,
-        token.clockMode,
-      )
-
-      await DbOperations.updateDocument(
-        tokenBalanceDb!,
-        {
-          amount: tokenIdsToSave.length.toString(),
-          blockNumber: info.blockNumber,
-          tokenIds: tokenIdsToSave,
-        },
-        info,
-        'MemberBalance Update on delegation',
-        llo,
-      )
-
-      const memberTransaction = await Models.MemberTransaction.create({
-        network: info.network,
-        transactionHash: info.transactionHash,
-        transactionIndex: info.transactionIndex,
-        logIndex: info.logIndex,
-        blockNumber: info.blockNumber,
-        blockTimestamp,
-        address: memberAddress,
-        type: ITransferType.delegate,
-        side: transferSide,
-        from: parsedEvent.args.sender,
-        to: parsedEvent.args.delegatee,
-        amount: tokenIdsToSave.length.toString(),
-        tokenAddress: info.address,
-        memberVotingPower: votingPower.toString(),
-        memberBalance: tokenIdsToSave.length.toString(),
-      })
-
-      await GovernanceVeHandler._handleDaoMemberShip(memberTransaction, plugins, info)
-
-      await Promise.all(
-        plugins.map(async (plugin: any) => {
-          await ProxyMember.updateDelegationMetrics({
-            memberAddress,
-            pluginAddress: plugin.address,
-            tokenAddress: info.address,
-            network: info.network,
-          })
-
-          await ProxyMember.updateActivity({
-            memberAddress,
-            pluginAddress: plugin.address,
-            blockNumber: info.blockNumber,
-            network: info.network,
-          })
-        }),
-      )
-    } catch (error) {
-      logger.error('Error handling token delegation', llo({ error, info, memberAddress, transferSide, tokenIds }))
-    }
-  },
-
-  _handleDaoMemberShip: async (memberTx: MemberTransaction, plugins: Plugin[], info: ILogInfo) => {
-    const userBalance = BigInt(memberTx.memberVotingPower || '0')
-
-    await Promise.all([
-      ...plugins.map(async (plugin: any) => {
-        const memberShipParams = {
-          memberAddress: memberTx.address,
-          daoAddress: plugin.daoAddress,
-          network: plugin.network,
-          pluginAddress: plugin.address,
-          tokenAddress: plugin.tokenAddress,
-        }
-
-        const isMember = await ProxyMember.isMemberOfDao(memberShipParams)
-        const meetsRequirements = userBalance > 0n
-
-        if (!isMember && meetsRequirements) {
-          await ProxyMember.addToDao(memberShipParams)
-        } else if (isMember && !meetsRequirements) {
-          await ProxyMember.removeFromDao(memberShipParams)
-        }
-      }),
-    ])
-
-    const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
-    await Promise.all(
-      uniqueDaoList.map(async (daoAddress: string) => {
-        await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-          id: daoAddress,
-          params: { address: daoAddress, network: info.network },
-        })
-      }),
-    )
-  },
-
-  _handleDaoMemberShipOnLockEvents: async (
-    plugins: Plugin[],
-    memberAddress: HexAddress,
-    info: ILogInfo,
-    addToDao: boolean,
-  ) => {
-    await Promise.all(
-      plugins.map(async (plugin: any) => {
-        const memberShipParams = {
-          memberAddress,
-          daoAddress: plugin.daoAddress,
-          network: plugin.network,
-          pluginAddress: plugin.address,
-          tokenAddress: plugin.tokenAddress,
-        }
-
-        const isMember = await ProxyMember.isMemberOfDao(memberShipParams)
-        if (addToDao && !isMember) {
-          await ProxyMember.addToDao(memberShipParams)
-        }
-
-        if (!addToDao && isMember) {
-          await ProxyMember.removeFromDao(memberShipParams)
-        }
-      }),
-    )
-
-    const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
-
-    await Promise.all(
-      uniqueDaoList.map(async (daoAddress: string) => {
-        await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-          id: daoAddress,
-          params: { address: daoAddress, network: info.network },
-        })
       }),
     )
   },

@@ -1,4 +1,4 @@
-import { index, modelOptions, prop } from '@typegoose/typegoose'
+import { index, modelOptions, prop, Severity } from '@typegoose/typegoose'
 import {
   HexAddress,
   ICollectionNames,
@@ -14,6 +14,7 @@ import ModelUtils from '@models/utils/models'
 
 const customName = ICollectionNames.SelectorPermission
 
+@modelOptions({ schemaOptions: { _id: false }, options: { allowMixed: Severity.ALLOW } })
 export class ActionDecoded {
   @prop({ type: () => String, default: null })
   public functionName!: string | null
@@ -58,9 +59,9 @@ export class Disallowed {
   },
   options: {
     customName,
+    allowMixed: Severity.WARN,
   },
 })
-@index({ id: 1 }, { unique: true })
 @index({ pluginAddress: 1, daoAddress: 1, conditionAddress: 1 })
 @index({ network: 1, transactionHash: 1 })
 @index({ pluginAddress: 1, selector: 1 })

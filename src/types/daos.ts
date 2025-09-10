@@ -12,6 +12,10 @@ export interface IMetadata {
   links?: DaoResourceLink[]
   stageNames?: string[]
   processKey?: string | null
+  // Capital Distributor specific fields
+  blockedCountries?: string[]
+  termsConditionsUrl?: string | null
+  enableOfacCheck?: boolean | null
 }
 
 export interface IProposalMetadata {
@@ -26,6 +30,13 @@ export interface IProposalMetadata {
     header?: string | null
     logo?: string | null
   }
+}
+
+export interface ICampaignMetadata {
+  title?: string | null
+  description?: string | null
+  type?: string | null
+  resources?: DaoResourceLink[]
 }
 
 export interface IPermission {
@@ -98,10 +109,19 @@ export interface IProposalActionOnChain {
 
 export type IProposalOnChain = IProposalTokenVotingOnChain | IProposalMultisigOnChain | IProposalSPPOnChain | null
 
-export interface IDaoMemberMappingData {
+export interface IDaoMember {
   network: NetworksEnum
   memberAddress: HexAddress
   daoAddress: HexAddress
   pluginAddress: HexAddress
   tokenAddress?: HexAddress
 }
+
+export interface MembershipData {
+  tokenAddress?: string
+  lockManagerAddress?: string
+  pluginAddress?: string
+  network: string
+}
+
+export type NetworkGroupedAddresses = Record<string, string[]>

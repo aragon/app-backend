@@ -90,7 +90,7 @@ const DaoRouter = {
     ctx.body = await DaoController.getDaoByEns(formattedValues.ens, formattedValues.network)
   },
 
-  router() {
+  router(): Router {
     const router = new Router()
 
     /**

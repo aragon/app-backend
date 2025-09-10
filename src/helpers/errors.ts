@@ -53,6 +53,14 @@ const ERRORS: IErrorMap = {
     status: 400,
     description: 'Proposal not found',
   },
+  [ErrorKeyEnum.campaignInvalid]: {
+    status: 400,
+    description: 'Campaign is invalid or cannot be modified',
+  },
+  [ErrorKeyEnum.duplicateAddresses]: {
+    status: 400,
+    description: 'Duplicate addresses found in the members list',
+  },
 }
 
 const throwError = (message: string, detail: IErrorDetail = {}) => {

@@ -1,0 +1,291 @@
+import logger from '@logger'
+import { type ILogInfo } from '@types'
+import { type LogDescription } from 'ethers'
+import { Models } from '@dbModels'
+import Web3Helper from '@helpers/web3'
+import Web3Utils from '@helpers/web3Utils'
+import IPFSModule from '@modules/ipfs'
+import { LogCampaignStrategy } from '@services/aragon-plugins/logCampaignStrategy'
+import { ProxyToken } from '@modules/proxyToken'
+
+const llo = logger.logMeta.bind(null, { service: 'handlers:CapitalDistributorHandler' })
+
+export const CapitalDistributorHandler = {
+  campaignCreated: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const { address, network, blockNumber, transactionHash } = info
+
+    const plugin = await Models.Plugin.findByAddress(address, network)
+
+    if (!plugin) {
+      logger.warn('Plugin not found', llo(info))
+      return
+    }
+
+    try {
+      const { campaignId, metadataUri, allocationStrategy, token, actionEncoder, startTime, endTime } = parsedEvent.args
+
+      const existingCampaign = await Models.Campaign.findExisting({
+        pluginAddress: address,
+        network,
+        campaignId: campaignId.toString(),
+      })
+
+      if (existingCampaign) {
+        logger.warn('Campaign already exists', llo({ campaignId: campaignId.toString(), address, network }))
+        return
+      }
+
+      const campaignData = {
+        pluginAddress: address,
+        network,
+        transactionHash,
+        blockNumber,
+        blockTimestamp: await Web3Helper.getBlockTimestamp(blockNumber, network),
+        campaignId: campaignId.toString(),
+        metadataURI: metadataUri,
+        allocationStrategy,
+        token,
+        payoutEncoder: actionEncoder,
+        startTime: Number(startTime),
+        endTime: Number(endTime),
+        active: true,
+      }
+
+      const campaign = await Models.Campaign.create(campaignData)
+
+      await ProxyToken.saveAndGetToken(token, network)
+
+      const campaignMetadataUrl = Web3Utils.extractMetadataUri(metadataUri)!
+
+      const rawMetadata = await IPFSModule.fetchMetadata(campaignMetadataUrl, { retries: 4 })
+      if (rawMetadata) {
+        const parsedMetadata = Web3Utils.parseCampaignMetadata(rawMetadata)
+
+        const campaignMetadata = {
+          title: parsedMetadata.title,
+          description: parsedMetadata.description,
+          resources: parsedMetadata.resources,
+          type: parsedMetadata.type,
+        }
+        await campaign.updateMetadata(campaignMetadata)
+      }
+
+      logger.info(
+        'Campaign Created. Starting allocation strategy crawler',
+        llo({
+          campaignId: campaignId.toString(),
+          allocationStrategy,
+          network,
+        }),
+      )
+
+      const totalRewards = await Models.CampaignReward.calculateTotalRewards(address, network, campaignId.toString())
+
+      await campaign.updateTotalRewards(totalRewards)
+      await LogCampaignStrategy.start(allocationStrategy, network, blockNumber)
+    } catch (error) {
+      logger.error('Error processing CampaignCreated event', llo({ error, info }))
+    }
+  },
+
+  merkleCampaignSet: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const { address, network } = info
+
+    try {
+      const { campaignId, merkleRoot } = parsedEvent.args
+
+      const campaign = await Models.Campaign.findOne({
+        allocationStrategy: address,
+        network,
+        campaignId: campaignId.toString(),
+      })
+
+      if (!campaign) {
+        logger.warn(
+          'Campaign not found for merkle root update',
+          llo({
+            campaignId: campaignId.toString(),
+            address,
+            network,
+          }),
+        )
+        return
+      }
+
+      await campaign.updateMerkleRoot(merkleRoot)
+
+      logger.info(
+        'Merkle root set for campaign',
+        llo({
+          campaignId: campaignId.toString(),
+          address,
+          network,
+          merkleRoot,
+        }),
+      )
+    } catch (error) {
+      logger.error('Error processing MerkleCampaignSet event', llo({ error, info }))
+    }
+  },
+
+  merkleCampaignUpdated: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const { address, network } = info
+
+    try {
+      const { campaignId, newMerkleRoot } = parsedEvent.args
+
+      const campaign = await Models.Campaign.findOne({
+        allocationStrategy: address,
+        network,
+        campaignId: campaignId.toString(),
+      })
+
+      if (!campaign) {
+        logger.warn(
+          'Campaign not found for merkle root update',
+          llo({
+            campaignId: campaignId.toString(),
+            address,
+            network,
+          }),
+        )
+        return
+      }
+
+      await campaign.updateMerkleRoot(newMerkleRoot)
+
+      logger.info(
+        'Merkle root updated for campaign',
+        llo({
+          campaignId: campaignId.toString(),
+          address,
+          network,
+          newMerkleRoot,
+        }),
+      )
+    } catch (error) {
+      logger.error('Error processing MerkleCampaignUpdated event', llo({ error, info }))
+    }
+  },
+
+  payoutClaimed: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const { address, network, blockNumber, transactionHash } = info
+
+    const plugin = await Models.Plugin.findByAddress(address, network)
+
+    if (!plugin) {
+      logger.warn('Plugin not found', llo(info))
+      return
+    }
+
+    try {
+      const { campaignId, recipient, amount } = parsedEvent.args
+
+      let reward = await Models.CampaignReward.findRewardForCampaign(address, network, campaignId.toString(), recipient)
+
+      if (!reward) {
+        reward = await Models.CampaignReward.create({
+          pluginAddress: address,
+          network,
+          campaignId: campaignId.toString(),
+          userAddress: recipient,
+          amount,
+        })
+      }
+
+      const alreadyExistingClaim = reward.claims.find((claim: any) => claim.transactionHash === transactionHash)
+      if (alreadyExistingClaim) {
+        return
+      }
+
+      const blockTimestamp = await Web3Helper.getBlockTimestamp(blockNumber, network)
+
+      await reward.addClaim(amount.toString(), transactionHash, blockNumber, blockTimestamp)
+
+      const campaign = await Models.Campaign.findCampaignById(address, network, campaignId.toString())
+      if (campaign) {
+        await campaign.incrementClaimCount()
+        await campaign.addToTotalClaimed(amount.toString())
+      }
+
+      logger.info(
+        'Payout claimed',
+        llo({
+          campaignId: campaignId.toString(),
+          recipient,
+          amount: amount.toString(),
+          address,
+          network,
+        }),
+      )
+    } catch (error) {
+      logger.error('Error processing PayoutClaimed event', llo({ error, info }))
+    }
+  },
+
+  updateCampaignActiveState: async (address: string, network: string, campaignId: string, active: boolean) => {
+    const plugin = await Models.Plugin.findByAddress(address, network)
+
+    if (!plugin) {
+      logger.warn('Plugin not found', llo({ address, network, campaignId }))
+      return
+    }
+
+    try {
+      const campaign = await Models.Campaign.findCampaignById(address, network, campaignId)
+
+      if (!campaign) {
+        logger.warn(
+          'Campaign not found for',
+          llo({
+            campaignId,
+            address,
+            network,
+          }),
+        )
+        return
+      }
+
+      await campaign.update({ active })
+
+      logger.info(
+        'Campaign status updated',
+        llo({
+          campaignId,
+          address,
+          network,
+          active,
+        }),
+      )
+
+      return campaign
+    } catch (error) {
+      logger.error('Error processing Campaign event', llo({ error, address, network, campaignId }))
+    }
+  },
+
+  campaignPaused: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const { address, network } = info
+    const { campaignId } = parsedEvent.args
+    await CapitalDistributorHandler.updateCampaignActiveState(address, network, campaignId.toString(), false)
+  },
+
+  campaignResumed: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const { address, network } = info
+    const { campaignId } = parsedEvent.args
+    await CapitalDistributorHandler.updateCampaignActiveState(address, network, campaignId.toString(), true)
+  },
+
+  campaignEnded: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const { address, network } = info
+    const { campaignId } = parsedEvent.args
+    const campaign = await CapitalDistributorHandler.updateCampaignActiveState(
+      address,
+      network,
+      campaignId.toString(),
+      false,
+    )
+
+    await campaign?.update({ ended: true })
+  },
+}

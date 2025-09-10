@@ -4,9 +4,9 @@ import { expect } from 'chai'
 import ExternalLogger from '@src/logger/external'
 import Formats from '@src/logger/format'
 import config from '@config'
-import * as logNodejs from 'logzio-nodejs'
 import * as sentry from '@sentry/node'
 import Transport from 'winston-transport'
+import proxyquire from 'proxyquire'
 
 const sentryInitOriginal = sentry.init
 
@@ -56,7 +56,7 @@ describe('Logger: ExternalLogger', () => {
       expect(stubCallback.calledOnce).to.be.true
     })
 
-    it.skip('Should log with logzio', () => {
+    it('Should log with logzio', () => {
       const oldConfigLogzioServerName = config.LOG.LOGZIO_SERVER_NAME
       const oldConfigLogzioKey = config.LOG.LOGZIO_KEY
       const oldConfigLogzioHost = config.LOG.LOGZIO_HOST
@@ -68,9 +68,15 @@ describe('Logger: ExternalLogger', () => {
         log: sandbox.stub(),
       }
 
-      const stubLogzioCreateLogger = sandbox.stub(logNodejs, 'createLogger').returns(mockLogzio as any)
+      const stubLogzioCreateLogger = sandbox.stub().returns(mockLogzio)
 
-      const externalLogger: any = new ExternalLogger({
+      const { default: MockedExternalLogger } = proxyquire.noCallThru()('@src/logger/external', {
+        'logzio-nodejs': {
+          createLogger: stubLogzioCreateLogger,
+        },
+      })
+
+      const externalLogger: any = new MockedExternalLogger({
         name: 'external-logger',
         level: 'verbose',
       })
@@ -104,10 +110,9 @@ describe('Logger: ExternalLogger', () => {
       expect(
         mockLogzio.log.calledWith({
           level: 'info',
-          machine: 'machine1',
           message: 'message1',
+          machine: 'machine1',
           meta: { p: 'p1' },
-          error: undefined,
         }),
       ).to.be.true
     })

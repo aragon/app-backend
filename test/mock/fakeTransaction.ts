@@ -1,13 +1,12 @@
-import { NetworksEnum, ITransactionType, ITransactionCategory, ITokenType } from '@types'
+import { NetworksEnum, ITransactionType, ITokenType, ITransactionSide } from '@types'
 
 export const FakeTransaction = {
   transactionHash: '0x14c9c85a416679f1b3e89e98e5c1e5d99bb4426d11c5c9e2694d6c9ead52637e',
-  uniqueId: '0x123213',
   blockNumber: 40941880,
   blockTimestamp: 1680186396,
   network: NetworksEnum.polygonMainnet,
-  type: ITransactionType.deposit,
-  category: ITransactionCategory.ERC20,
+  side: ITransactionSide.deposit,
+  type: ITransactionType.erc20,
   fromAddress: '0x42c9a3f034592c39028aea70a6e69fbc6ccf6c31',
   toAddress: '0x19e246564b3264fed309d3d004f807d5887e5521',
   value: '1.34553',

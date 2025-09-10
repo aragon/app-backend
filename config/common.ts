@@ -19,14 +19,18 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       'SUPPORTED_ENS_NETWORKS',
       Object.values(SupportedEnsNetworksEnum),
     ),
-
+    FILE_UPLOADS: {
+      MAX_FILE_SIZE_MB: utils.configParser(sourceConfig, 'number', 'FILE_UPLOADS_MAX_FILE_SIZE_MB', 100 * 1024 * 1024),
+    },
     RABBITMQ: {
       URI: utils.configParser(sourceConfig, 'string', 'RABBITMQ_URI', 'amqp://guest:guest@rabbitmq:5672'),
-      TIMEOUT: utils.configParser(sourceConfig, 'number', 'RABBITMQ_TIMEOUT', 30000),
+      TIMEOUT: utils.configParser(sourceConfig, 'number', 'RABBITMQ_TIMEOUT', 60000),
       DEFAULT_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'RABBITMQ_DEFAULT_CONCURRENCY', 25),
       CLEAN_QUEUE: utils.configParser(sourceConfig, 'bool', 'RABBITMQ_CLEAN_QUEUE', false),
       RECONNECT_TIME_SECONDS: utils.configParser(sourceConfig, 'number', 'RABBITMQ_RECONNECT_TIME_SECONDS', 5),
       HEARTBEAT_INTERVAL_SECONDS: utils.configParser(sourceConfig, 'number', 'RABBITMQ_HEARTBEAT_INTERVAL_SECONDS', 30),
+      MAX_QUEUE_SIZE: utils.configParser(sourceConfig, 'number', 'RABBITMQ_MAX_QUEUE_SIZE', 50),
+      THROTTLE_RETRY_DELAY: utils.configParser(sourceConfig, 'number', 'RABBITMQ_THROTTLE_RETRY_DELAY', 3000),
     },
 
     NODE_CONFIG: {

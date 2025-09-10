@@ -1,7 +1,4 @@
-export interface IAQueueToken {
-  address: string
-  network: string
-}
+import { type NetworksEnum } from '@src/types/networks'
 
 export interface IAQueueDao {
   address: string
@@ -26,4 +23,16 @@ export enum IJwtTokenType {
 
 export enum IJwtAuthType {
   auth = 'auth',
+}
+
+export interface IARewardAllocation {
+  address: string
+  amount: string
+}
+
+export interface IAAddMembersListParams {
+  campaignId: string
+  pluginAddress: string
+  network: NetworksEnum
+  rewards: IARewardAllocation[]
 }

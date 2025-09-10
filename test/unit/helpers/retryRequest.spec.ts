@@ -331,13 +331,6 @@ describe('Helpers:RetryRequest', () => {
       expect(RetryRequest.isErrorRelatedToServerIssue(error)).to.be.true
     })
 
-    it('should return true for whitelisted method: alchemy_getAssetTransfers', () => {
-      const error = {
-        requestBody: JSON.stringify({ method: 'alchemy_getAssetTransfers' }),
-      }
-      expect(RetryRequest.isErrorRelatedToServerIssue(error)).to.be.true
-    })
-
     it('should return true for whitelisted method: eth_getBlockByNumber', () => {
       const error = {
         requestBody: JSON.stringify({ method: 'eth_getBlockByNumber' }),

@@ -360,3 +360,46 @@ export interface ITransactionIndexingStatusResponse {
   isSupported?: boolean
   interfaceType?: IPluginInterfaceType
 }
+
+export interface ICampaignApiParams {
+  pluginAddress?: HexAddress
+  network?: NetworksEnum
+  userAddress?: HexAddress
+  status?: 'claimed' | 'claimable'
+  campaignId?: string
+}
+
+export interface ICampaignResponse {
+  campaignId: string
+  title: string
+  description: string
+  type: string
+  resources: any
+  token: {
+    address: string
+    network: NetworksEnum
+    symbol: string
+    name: string
+    decimals: number
+    priceUsd: string
+  }
+  startTime: number
+  endTime: number
+  active: boolean
+  userData: {
+    status: 'claimable' | 'claimed'
+    claims: Array<{
+      amount: string
+      transactionHash: string
+      blockNumber: number
+      blockTimestamp: number
+    }>
+    proofs?: string[]
+    leaf?: string
+    totalAmount: string
+    totalClaimed: string
+  }
+  strategy: {
+    root: string
+  }
+}

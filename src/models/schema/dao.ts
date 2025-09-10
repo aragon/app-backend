@@ -11,6 +11,7 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   IPluginStatus,
+  IPluginInterfaceType,
   NetworksEnum,
 } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
@@ -18,6 +19,8 @@ import * as _ from 'lodash'
 import ModelUtils from '@models/utils/models'
 import { assert } from '@errors'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
+import { Models } from '@dbModels'
+import logger from '@logger'
 
 const customName = ICollectionNames.Dao
 
@@ -61,14 +64,11 @@ class Metrics {
     customName,
   },
 })
-@index({ id: 1 }, { unique: true })
 @index({ address: 1, blockNumber: 1, name: 1, creatorAddress: 1, tvlUSD: 1 })
 @index({ isHidden: 1, isActive: 1, 'metrics.tvlUSD': -1 })
 @index({ address: 1, isActive: 1, isHidden: 1 })
 @index({ blockNumber: -1, address: 1, isActive: 1, isHidden: 1 })
-@index({ id: 1 }, { unique: true })
 @index({ address: 1, isActive: 1, network: 1, isHidden: 1 })
-@index({ address: 1, blockNumber: 1, name: 1, creatorAddress: 1, tvlUSD: 1 })
 @index({ address: 1, creatorAddress: 1, isActive: 1, isHidden: 1 })
 @index({ network: 1, creatorAddress: 1, isActive: 1, isHidden: 1 })
 @index({ address: 1, transactionHash: 1, isActive: 1, isHidden: 1 })
@@ -80,10 +80,8 @@ class Metrics {
 @index({ network: 1, transactionHash: 1, isActive: 1, isHidden: 1 })
 @index({ address: 1, name: 1, isActive: 1, isHidden: 1 })
 @index({ address: 1, ens: 1, isActive: 1, isHidden: 1 })
-@index({ address: 1, isActive: 1, isHidden: 1 })
 @index({ network: 1, isActive: 1, isHidden: 1 })
 @index({ network: 1, isActive: 1, name: 1, isHidden: 1 })
-@index({ isHidden: 1, isActive: 1, 'metrics.tvlUSD': -1 })
 @index({ network: 1 })
 export default class Dao extends Model {
   @prop({ type: () => String, required: true, unique: true })
@@ -244,6 +242,9 @@ export default class Dao extends Model {
           address: 1,
           implementationAddress: 1,
           name: 1,
+          enableOfacCheck: 1,
+          blockedCountries: 1,
+          termsConditionsUrl: 1,
           description: 1,
           processKey: 1,
           slug: 1,
@@ -251,17 +252,20 @@ export default class Dao extends Model {
           isSupported: 1,
           interfaceType: 1,
           conditionAddress: 1,
+          lockManagerAddress: 1,
           // status: 1,
           release: 1,
           build: 1,
           subdomain: 1,
           isProcess: 1,
+          proposalCreationConditionAddress: 1,
           isBody: 1,
           isSubPlugin: 1,
           totalStages: 1,
           subPlugins: 1,
           stageIndex: 1,
           parentPlugin: 1,
+          tokenAddress: 1,
           votingEscrow: 1,
         },
         {
@@ -367,17 +371,23 @@ export default class Dao extends Model {
           isSupported: 1,
           interfaceType: 1,
           conditionAddress: 1,
+          lockManagerAddress: 1,
+          enableOfacCheck: 1,
+          blockedCountries: 1,
+          termsConditionsUrl: 1,
           // status: 1,
           release: 1,
           build: 1,
           subdomain: 1,
           isProcess: 1,
+          proposalCreationConditionAddress: 1,
           isBody: 1,
           isSubPlugin: 1,
           totalStages: 1,
           subPlugins: 1,
           stageIndex: 1,
           parentPlugin: 1,
+          tokenAddress: 1,
           votingEscrow: 1,
         },
       ),
@@ -574,18 +584,24 @@ export default class Dao extends Model {
           isSupported: 1,
           interfaceType: 1,
           conditionAddress: 1,
+          lockManagerAddress: 1,
           metadataIpfs: 1,
+          enableOfacCheck: 1,
+          blockedCountries: 1,
+          termsConditionsUrl: 1,
           // status: 1,
           release: 1,
           build: 1,
           subdomain: 1,
           isProcess: 1,
+          proposalCreationConditionAddress: 1,
           isBody: 1,
           isSubPlugin: 1,
           totalStages: 1,
           subPlugins: 1,
           stageIndex: 1,
           parentPlugin: 1,
+          tokenAddress: 1,
           votingEscrow: 1,
         },
         { settings: true, token: true },
@@ -646,18 +662,24 @@ export default class Dao extends Model {
           isSupported: 1,
           interfaceType: 1,
           conditionAddress: 1,
+          lockManagerAddress: 1,
           // status: 1,
           release: 1,
           build: 1,
           subdomain: 1,
           isProcess: 1,
+          proposalCreationConditionAddress: 1,
           isBody: 1,
           isSubPlugin: 1,
           totalStages: 1,
           subPlugins: 1,
           stageIndex: 1,
           parentPlugin: 1,
+          tokenAddress: 1,
           votingEscrow: 1,
+          enableOfacCheck: 1,
+          blockedCountries: 1,
+          termsConditionsUrl: 1,
         },
       ),
       {
@@ -827,6 +849,117 @@ export default class Dao extends Model {
     }
 
     return await this.save(tOpts)
+  }
+
+  static async countUniqueMembers(address: HexAddress, network: NetworksEnum, _tOpts?: SaveOptions): Promise<number> {
+    try {
+      // Step 1: Get all plugins for this DAO
+      const plugins = await Models.Plugin.find({
+        daoAddress: address,
+        network,
+        status: IPluginStatus.installed,
+        isSupported: true,
+      })
+
+      // Step 2: Collect all unique member addresses using Set
+      const uniqueMembers = new Set<string>()
+
+      // Step 3: Build queries for all plugins in parallel
+      const memberQueries: Promise<string[]>[] = []
+
+      for (const plugin of plugins) {
+        if (plugin.interfaceType === IPluginInterfaceType.tokenVoting && plugin.tokenAddress) {
+          // Query TokenMember collection - with votingPower filter (consistent with rest of codebase)
+          memberQueries.push(
+            Models.TokenMember.distinct('memberAddress', {
+              tokenAddress: plugin.tokenAddress,
+              network,
+              votingPower: { $ne: '0' },
+            }).catch(error => {
+              logger.error('Error counting TokenMember for plugin - requires investigation', {
+                plugin: plugin.address,
+                interfaceType: plugin.interfaceType,
+                daoAddress: address,
+                network,
+                error,
+              })
+              return []
+            }),
+          )
+
+          // Query Lock collection for veGovernance - no votingPower filter needed
+          memberQueries.push(
+            Models.Lock.distinct('delegateReceiverAddress', {
+              tokenAddress: plugin.tokenAddress,
+              network,
+            }).catch(error => {
+              logger.error('Error counting Lock members for plugin - requires investigation', {
+                plugin: plugin.address,
+                interfaceType: plugin.interfaceType,
+                daoAddress: address,
+                network,
+                error,
+              })
+              return []
+            }),
+          )
+        } else if (plugin.interfaceType === IPluginInterfaceType.lockToVote && plugin.lockManagerAddress) {
+          // Query LockToVoteMember collection - with votingPower filter (consistent with rest of codebase)
+          memberQueries.push(
+            Models.LockToVoteMember.distinct('memberAddress', {
+              lockManagerAddress: plugin.lockManagerAddress,
+              network,
+              votingPower: { $ne: '0' },
+            }).catch(error => {
+              logger.error('Error counting LockToVoteMember for plugin - requires investigation', {
+                plugin: plugin.address,
+                interfaceType: plugin.interfaceType,
+                daoAddress: address,
+                network,
+                error,
+              })
+              return []
+            }),
+          )
+        } else if ([IPluginInterfaceType.multisig, IPluginInterfaceType.admin].includes(plugin.interfaceType)) {
+          // Query PluginMember collection - no votingPower filter needed
+          memberQueries.push(
+            Models.PluginMember.distinct('memberAddress', {
+              pluginAddress: plugin.address,
+              network,
+            }).catch(error => {
+              logger.error('Error counting PluginMember for plugin - requires investigation', {
+                plugin: plugin.address,
+                interfaceType: plugin.interfaceType,
+                daoAddress: address,
+                network,
+                error,
+              })
+              return []
+            }),
+          )
+        }
+      }
+
+      // Step 4: Execute all queries in parallel
+      const allMemberArrays = await Promise.all(memberQueries)
+
+      // Step 5: Combine all results into unique set
+      for (const memberArray of allMemberArrays) {
+        for (const member of memberArray) {
+          uniqueMembers.add(member)
+        }
+      }
+
+      return uniqueMembers.size
+    } catch (error) {
+      logger.error('Failed to count unique members for DAO', {
+        daoAddress: address,
+        network,
+        error,
+      })
+      return 0
+    }
   }
 
   async reload(tOpts?: SaveOptions) {

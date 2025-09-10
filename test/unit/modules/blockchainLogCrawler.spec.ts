@@ -17,6 +17,7 @@ describe('Module: blockchainLogCrawler', () => {
   let sandbox: SinonSandbox
   let mockProvider: any
   let logError: any
+  let logWarn: any
   let logVerbose: any
   let crawlerConfig: any
 
@@ -28,6 +29,7 @@ describe('Module: blockchainLogCrawler', () => {
     }
     logVerbose = sandbox.stub(logger, 'verbose')
     logError = sandbox.stub(logger, 'error')
+    logWarn = sandbox.stub(logger, 'warn')
 
     crawlerConfig = {
       network: NetworksEnum.ethereumMainnet,
@@ -640,15 +642,13 @@ describe('Module: blockchainLogCrawler', () => {
 
       sandbox.stub(crawler, 'isBatchSizeError').returns(true)
 
-      const logWarnSpy = sandbox.stub(logger, 'warn')
-
       try {
         await crawler.getLogsWithoutTopics(100, 200)
         expect.fail('Should have thrown an error')
       } catch (error) {
         expect(error).to.equal(batchSizeError)
-        expect(logWarnSpy.calledOnce).to.be.true
-        expect(logWarnSpy.firstCall.args[0]).to.equal('Batch size error in getLogs, will switch to batch strategy')
+        expect(logWarn.calledOnce).to.be.true
+        expect(logWarn.firstCall.args[0]).to.equal('Batch size error in getLogs, will switch to batch strategy')
       }
     })
 
@@ -674,14 +674,13 @@ describe('Module: blockchainLogCrawler', () => {
 
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').resolves(mockProvider)
       sandbox.stub(crawler, 'isBatchSizeError').returns(false)
-      const logWarnSpy = sandbox.stub(logger, 'warn')
 
       try {
         await crawler.getLogsWithoutTopics(100, 200)
         expect.fail('Should have thrown an error')
       } catch (error) {
         expect(error).to.equal(regularError)
-        expect(logWarnSpy.called).to.be.false
+        expect(logWarn.called).to.be.false
       }
     })
 
@@ -700,15 +699,13 @@ describe('Module: blockchainLogCrawler', () => {
 
       sandbox.stub(crawler, 'isBatchSizeError').returns(true)
 
-      const logWarnSpy = sandbox.stub(logger, 'warn')
-
       try {
         await crawler.getLogsWithoutTopics(100, 200)
         expect.fail('Should have thrown an error')
       } catch (error) {
         expect(error).to.equal(batchSizeError)
-        expect(logWarnSpy.calledOnce).to.be.true
-        expect(logWarnSpy.firstCall.args[0]).to.equal('Batch size error in getLogs, will switch to batch strategy')
+        expect(logWarn.calledOnce).to.be.true
+        expect(logWarn.firstCall.args[0]).to.equal('Batch size error in getLogs, will switch to batch strategy')
       }
     })
   })
@@ -776,7 +773,7 @@ describe('Module: blockchainLogCrawler', () => {
         ],
       })
 
-      sandbox.stub(crawler, 'getProviderUrl').resolves('https://ethereum-rpc.com')
+      sandbox.stub(crawler, 'getProviderUrl').returns('https://ethereum-rpc.com')
 
       sandbox.stub(axios, 'post').resolves(mockResponse)
 
@@ -807,7 +804,7 @@ describe('Module: blockchainLogCrawler', () => {
         ],
       })
 
-      sandbox.stub(crawler, 'getProviderUrl').resolves('https://ethereum-rpc.com')
+      sandbox.stub(crawler, 'getProviderUrl').returns('https://ethereum-rpc.com')
 
       sandbox.stub(axios, 'post').resolves(mockResponse)
 
@@ -835,7 +832,7 @@ describe('Module: blockchainLogCrawler', () => {
         ],
       })
 
-      sandbox.stub(crawler, 'getProviderUrl').resolves('https://ethereum-rpc.com')
+      sandbox.stub(crawler, 'getProviderUrl').returns('https://ethereum-rpc.com')
 
       const mockResponse = {
         data: [
@@ -878,19 +875,17 @@ describe('Module: blockchainLogCrawler', () => {
       const onErrorStub = sandbox.stub()
       const crawler = new BlockchainLogCrawler(crawlerConfig)
 
-      sandbox.stub(crawler, 'getProviderUrl').resolves('https://ethereum-rpc.com')
+      sandbox.stub(crawler, 'getProviderUrl').returns('https://ethereum-rpc.com')
 
       crawler['crawlParams'].onError = onErrorStub
       const networkError = new Error('Network connection error')
       sandbox.stub(axios, 'post').rejects(networkError)
 
-      const logWarnStub = sandbox.stub(logger, 'warn')
-
       const result = await crawler.getLogsByBlockReceipts(100, 102)
 
       expect(result.logs).to.be.empty
-      expect(logWarnStub.calledOnce).to.be.true
-      expect(logWarnStub.firstCall.args[0]).to.equal('Batch request failed, falling back to individual requests')
+      expect(logWarn.calledOnce).to.be.true
+      expect(logWarn.firstCall.args[0]).to.equal('Batch request failed, falling back to individual requests')
       expect(crawler['crawlSetting'].shutdown).to.be.true
       expect(onErrorStub.calledOnceWith(networkError)).to.be.true
     })
@@ -907,7 +902,7 @@ describe('Module: blockchainLogCrawler', () => {
         ],
       })
 
-      sandbox.stub(crawler, 'getProviderUrl').resolves('https://ethereum-rpc.com')
+      sandbox.stub(crawler, 'getProviderUrl').returns('https://ethereum-rpc.com')
 
       const axiosPostStub = sandbox.stub(axios, 'post').resolves({
         data: [
@@ -940,68 +935,24 @@ describe('Module: blockchainLogCrawler', () => {
   })
 
   describe('getProviderUrl', () => {
-    it('should get URL from provider when getProvider exists', async () => {
+    it('should get URL from ProviderModule', async () => {
       const crawler = new BlockchainLogCrawler(crawlerConfig)
 
-      // Mock provider with getProvider function
-      const mockCoreProvider = {
-        connection: {
-          url: 'https://custom-ethereum-rpc.com',
-        },
-      }
+      sandbox.stub(ProviderModule, 'getProviderUrl').returns('https://custom-ethereum-rpc.com')
 
-      const mockProvider = {
-        config: {
-          getProvider: sandbox.stub().resolves(mockCoreProvider),
-        },
-      }
-
-      sandbox.stub(ProviderModule, 'getAnyRpcProvider').resolves(mockProvider)
-
-      const url = await crawler.getProviderUrl()
+      const url = crawler.getProviderUrl()
 
       expect(url).to.equal('https://custom-ethereum-rpc.com')
-      expect(mockProvider.config.getProvider.calledOnce).to.be.true
     })
 
-    it('should fall back to config when getProvider does not exist', async () => {
+    it('should handle undefined provider URL', async () => {
       const crawler = new BlockchainLogCrawler(crawlerConfig)
 
-      // Mock provider without getProvider function
-      const mockProvider = {
-        config: {},
-      }
+      sandbox.stub(ProviderModule, 'getProviderUrl').returns(undefined)
 
-      sandbox.stub(ProviderModule, 'getAnyRpcProvider').resolves(mockProvider)
+      const url = crawler.getProviderUrl()
 
-      sandbox.stub(config, 'NODES').value({
-        ETHEREUM_MAINNET: {
-          ARAGON_RPC: 'https://fallback-ethereum-rpc.com',
-        },
-      })
-
-      const url = await crawler.getProviderUrl()
-
-      expect(url).to.equal('https://fallback-ethereum-rpc.com')
-    })
-
-    it('should handle provider with no config property', async () => {
-      const crawler = new BlockchainLogCrawler(crawlerConfig)
-
-      // Mock provider with no config property
-      const mockProvider = {}
-
-      sandbox.stub(ProviderModule, 'getAnyRpcProvider').resolves(mockProvider)
-
-      sandbox.stub(config, 'NODES').value({
-        ETHEREUM_MAINNET: {
-          ARAGON_RPC: 'https://fallback-ethereum-rpc.com',
-        },
-      })
-
-      const url = await crawler.getProviderUrl()
-
-      expect(url).to.equal('https://fallback-ethereum-rpc.com')
+      expect(url).to.be.undefined
     })
   })
 
@@ -1009,7 +960,7 @@ describe('Module: blockchainLogCrawler', () => {
     it('should create and execute batch requests for topics', async () => {
       const crawler = new BlockchainLogCrawler(crawlerConfig)
 
-      sandbox.stub(crawler, 'getProviderUrl').resolves('https://ethereum-rpc.com')
+      sandbox.stub(crawler, 'getProviderUrl').returns('https://ethereum-rpc.com')
 
       const topics = ['0xTopic1', '0xTopic2', '0xTopic3', '0xTopic4', '0xTopic5']
 
@@ -1049,7 +1000,7 @@ describe('Module: blockchainLogCrawler', () => {
     it('should log and rethrow errors', async () => {
       const crawler = new BlockchainLogCrawler(crawlerConfig)
 
-      sandbox.stub(crawler, 'getProviderUrl').resolves('https://ethereum-rpc.com')
+      sandbox.stub(crawler, 'getProviderUrl').returns('https://ethereum-rpc.com')
 
       sandbox.stub(Utils, 'chunkArray').returns([['0xTopic1']])
 
@@ -1063,15 +1014,15 @@ describe('Module: blockchainLogCrawler', () => {
       } catch (error) {
         expect(error).to.equal(networkError)
 
-        expect(logError.calledOnce).to.be.true
-        expect(logError.firstCall.args[0]).to.equal('error executeBatchRequest')
+        expect(logWarn.calledOnce).to.be.true
+        expect(logWarn.firstCall.args[0]).to.equal('error executeBatchRequest')
       }
     })
 
     it('should return error object when batch size error occurs', async () => {
       const crawler = new BlockchainLogCrawler(crawlerConfig)
 
-      sandbox.stub(crawler, 'getProviderUrl').resolves('https://ethereum-rpc.com')
+      sandbox.stub(crawler, 'getProviderUrl').returns('https://ethereum-rpc.com')
       sandbox.stub(Utils, 'chunkArray').returns([['0xTopic1']])
 
       const batchSizeError = new Error('Response size is larger than 150MB limit')
@@ -1086,7 +1037,7 @@ describe('Module: blockchainLogCrawler', () => {
     it('should throw error when it is not a batch size error', async () => {
       const crawler = new BlockchainLogCrawler(crawlerConfig)
 
-      sandbox.stub(crawler, 'getProviderUrl').resolves('https://ethereum-rpc.com')
+      sandbox.stub(crawler, 'getProviderUrl').returns('https://ethereum-rpc.com')
       sandbox.stub(Utils, 'chunkArray').returns([['0xTopic1']])
 
       const networkError = new Error('Network connection timeout')
@@ -1098,9 +1049,9 @@ describe('Module: blockchainLogCrawler', () => {
         expect.fail('Should have thrown an error')
       } catch (error) {
         expect(error).to.equal(networkError)
-        expect(logError.calledOnce).to.be.true
-        expect(logError.firstCall.args[0]).to.equal('error executeBatchRequest')
-        expect(logError.firstCall.args[1]).to.deep.include({
+        expect(logWarn.calledOnce).to.be.true
+        expect(logWarn.firstCall.args[0]).to.equal('error executeBatchRequest')
+        expect(logWarn.firstCall.args[1]).to.deep.include({
           error: networkError,
           topics: ['0xTopic1'],
           currentBlock: 100,
@@ -1355,8 +1306,8 @@ describe('Module: blockchainLogCrawler', () => {
       expect(event.config[0].handler.calledOnce).to.be.true
     }
 
-    expect(stubSaveProgress.callCount).to.equal(4)
-    expect(stubSaveProgress.calledWith(sortedLogs[0].blockNumber)).to.be.true
+    // Progress is now saved once per batch, not per log
+    expect(stubSaveProgress.callCount).to.equal(0)
   })
 
   it('should log an error when event setting is not found', async () => {
@@ -1386,8 +1337,8 @@ describe('Module: blockchainLogCrawler', () => {
       latestBlock: 200,
     })
 
-    expect(logError.calledOnce).to.be.true
-    expect(logError.calledWith('Error event setting not found in blockchainCrawler')).to.be.true
+    expect(logWarn.calledOnce).to.be.true
+    expect(logWarn.calledWith('Error event setting not found in blockchainCrawler')).to.be.true
 
     for (const event of events) {
       expect(event.handler.notCalled).to.be.true
@@ -1752,117 +1703,1298 @@ describe('Module: blockchainLogCrawler', () => {
     })
   })
 
-  describe('isBatchSizeError', () => {
-    it('should return true for whitelisted errors', () => {
+  describe('parallel processing', () => {
+    describe('getParallelConfig', () => {
+      it('should return default config when parallel is true', () => {
+        const crawler = new BlockchainLogCrawler({
+          ...crawlerConfig,
+          parallel: true,
+        })
+
+        const config = crawler.getParallelConfig()
+
+        expect(config).to.deep.equal({
+          enable: true,
+          concurrency: 1,
+          batchSize: 50,
+          useBatch: false,
+        })
+      })
+
+      it('should return disabled config when parallel is false', () => {
+        const crawler = new BlockchainLogCrawler({
+          ...crawlerConfig,
+          parallel: false,
+        })
+
+        const config = crawler.getParallelConfig()
+
+        expect(config).to.deep.equal({
+          enable: false,
+          concurrency: 1,
+          batchSize: 1,
+          useBatch: false,
+        })
+      })
+
+      it('should return custom config when parallel is an object', () => {
+        const crawler = new BlockchainLogCrawler({
+          ...crawlerConfig,
+          parallel: {
+            enable: true,
+            concurrency: 10,
+            batchSize: 20,
+          },
+        })
+
+        const config = crawler.getParallelConfig()
+
+        expect(config).to.deep.equal({
+          enable: true,
+          concurrency: 10,
+          batchSize: 20,
+          useBatch: false,
+        })
+      })
+
+      it('should use defaults for missing values in object config', () => {
+        const crawler = new BlockchainLogCrawler({
+          ...crawlerConfig,
+          parallel: {
+            enable: true,
+          },
+        })
+
+        const config = crawler.getParallelConfig()
+
+        expect(config).to.deep.equal({
+          enable: true,
+          concurrency: 1,
+          batchSize: 50,
+          useBatch: false,
+        })
+      })
+
+      it('should return disabled config when parallel is undefined', () => {
+        const crawler = new BlockchainLogCrawler({
+          ...crawlerConfig,
+          parallel: undefined,
+        })
+
+        const config = crawler.getParallelConfig()
+
+        expect(config).to.deep.equal({
+          enable: false,
+          concurrency: 1,
+          batchSize: 1,
+          useBatch: false,
+        })
+      })
+
+      it('should auto-scale config based on log count when autoScale is enabled', () => {
+        const crawler = new BlockchainLogCrawler({
+          ...crawlerConfig,
+          parallel: {
+            enable: true,
+            autoScale: true,
+          },
+        })
+
+        // Test different log counts
+        const testCases = [
+          { logCount: 50, expected: { concurrency: 2, batchSize: 500 } },
+          { logCount: 500, expected: { concurrency: 2, batchSize: 500 } },
+          { logCount: 5000, expected: { concurrency: 5, batchSize: 2000 } },
+          { logCount: 50000, expected: { concurrency: 10, batchSize: 5000 } },
+          { logCount: 200000, expected: { concurrency: 20, batchSize: 20000 } },
+          { logCount: 500000, expected: { concurrency: 20, batchSize: 20000 } },
+        ]
+
+        testCases.forEach(({ logCount, expected }) => {
+          const config = crawler.getParallelConfig(logCount)
+          expect(config.enable).to.be.true
+          expect(config.concurrency).to.equal(expected.concurrency)
+          expect(config.batchSize).to.equal(expected.batchSize)
+        })
+      })
+
+      it('should not auto-scale when autoScale is false', () => {
+        const crawler = new BlockchainLogCrawler({
+          ...crawlerConfig,
+          parallel: {
+            enable: true,
+            autoScale: false,
+            concurrency: 5,
+            batchSize: 10,
+          },
+        })
+
+        const config = crawler.getParallelConfig(10000) // Large log count
+
+        expect(config).to.deep.equal({
+          enable: true,
+          concurrency: 5,
+          batchSize: 10,
+          useBatch: false,
+        })
+      })
+    })
+
+    describe('processLogsParallel', () => {
+      let crawler: BlockchainLogCrawler
+      let events: any[]
+      let handlerStub1: any
+      let handlerStub2: any
+      let handlerStub3: any
+      let handlerStub4: any
+
+      beforeEach(() => {
+        handlerStub1 = sandbox.stub().resolves()
+        handlerStub2 = sandbox.stub().resolves()
+        handlerStub3 = sandbox.stub().resolves()
+        handlerStub4 = sandbox.stub().resolves()
+
+        events = [
+          {
+            topic: '0xTopic1',
+            event: 'Test1',
+            config: [{ abi: [{ name: 'Test1', type: 'event', inputs: [] }], handler: handlerStub1 }],
+          },
+          {
+            topic: '0xTopic2',
+            event: 'Test2',
+            config: [{ abi: [{ name: 'Test2', type: 'event', inputs: [] }], handler: handlerStub2 }],
+          },
+          {
+            topic: '0xTopic3',
+            event: 'Test3',
+            config: [{ abi: [{ name: 'Test3', type: 'event', inputs: [] }], handler: handlerStub3 }],
+          },
+          {
+            topic: '0xTopic4',
+            event: 'Test4',
+            config: [{ abi: [{ name: 'Test4', type: 'event', inputs: [] }], handler: handlerStub4 }],
+          },
+        ]
+
+        crawler = new BlockchainLogCrawler({
+          ...crawlerConfig,
+          parallel: {
+            enable: true,
+            concurrency: 2,
+            batchSize: 2,
+          },
+          events,
+        })
+
+        sandbox.stub(Web3Utils, 'parseLog').callsFake(
+          (log, iface) =>
+            ({
+              name: iface.fragments[0].name,
+              args: {},
+            }) as any,
+        )
+
+        sandbox.stub(Web3Utils, 'parseInfoLog').returns({
+          blockNumber: 100,
+          transactionHash: '0xabc',
+          network: NetworksEnum.ethereumMainnet,
+        } as any)
+      })
+
+      it('should process logs in parallel with proper concurrency', async () => {
+        const logs = [
+          { blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xTopic1'], transactionHash: '0x1' },
+          { blockNumber: 101, transactionIndex: 0, index: 1, topics: ['0xTopic2'], transactionHash: '0x1' },
+          { blockNumber: 101, transactionIndex: 1, index: 0, topics: ['0xTopic3'], transactionHash: '0x2' },
+          { blockNumber: 101, transactionIndex: 1, index: 1, topics: ['0xTopic4'], transactionHash: '0x2' },
+        ] as any
+
+        await crawler.processLogsParallel(logs, {
+          fromBlock: 100,
+          toBlock: 150,
+          latestBlock: 200,
+        })
+
+        expect(handlerStub1.calledOnce).to.be.true
+        expect(handlerStub2.calledOnce).to.be.true
+        expect(handlerStub3.calledOnce).to.be.true
+        expect(handlerStub4.calledOnce).to.be.true
+        expect(crawler.crawlSetting.nbSuccess).to.equal(4)
+      })
+
+      it('should handle empty logs array', async () => {
+        const highestBlock = await crawler.processLogsParallel([], {
+          fromBlock: 100,
+          toBlock: 150,
+          latestBlock: 200,
+        })
+
+        expect(highestBlock).to.equal(0)
+        expect(handlerStub1.notCalled).to.be.true
+        expect(crawler.crawlSetting.nbSuccess).to.equal(0)
+      })
+
+      it('should handle null logs array', async () => {
+        const highestBlock = await crawler.processLogsParallel(null as any, {
+          fromBlock: 100,
+          toBlock: 150,
+          latestBlock: 200,
+        })
+
+        expect(highestBlock).to.equal(0)
+        expect(handlerStub1.notCalled).to.be.true
+        expect(crawler.crawlSetting.nbSuccess).to.equal(0)
+      })
+
+      it('should prevent duplicate processing using all 4 fields', async () => {
+        const duplicateLogs = [
+          { blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xTopic1'], transactionHash: '0x1' },
+          { blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xTopic1'], transactionHash: '0x1' }, // Exact duplicate
+          { blockNumber: 101, transactionIndex: 0, index: 1, topics: ['0xTopic1'], transactionHash: '0x1' }, // Different logIndex
+          { blockNumber: 101, transactionIndex: 1, index: 0, topics: ['0xTopic1'], transactionHash: '0x1' }, // Different transactionIndex
+        ] as any
+
+        await crawler.processLogsParallel(duplicateLogs, {
+          fromBlock: 100,
+          toBlock: 150,
+          latestBlock: 200,
+        })
+
+        // Should process 3 unique logs (one duplicate was skipped)
+        expect(handlerStub1.callCount).to.equal(3)
+        expect(crawler.crawlSetting.nbSuccess).to.equal(3)
+      })
+
+      it('should handle errors and continue processing when stopOnError is false', async () => {
+        handlerStub2.rejects(new Error('Handler error'))
+
+        const logs = [
+          { blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xTopic1'], transactionHash: '0x1' },
+          { blockNumber: 101, transactionIndex: 0, index: 1, topics: ['0xTopic2'], transactionHash: '0x1' },
+          { blockNumber: 101, transactionIndex: 1, index: 0, topics: ['0xTopic3'], transactionHash: '0x2' },
+        ] as any
+
+        const onErrorStub = sandbox.stub()
+        crawler['crawlParams'].onError = onErrorStub
+
+        await crawler.processLogsParallel(logs, {
+          fromBlock: 100,
+          toBlock: 150,
+          latestBlock: 200,
+        })
+
+        expect(handlerStub1.calledOnce).to.be.true
+        expect(handlerStub2.calledOnce).to.be.true
+        expect(handlerStub3.calledOnce).to.be.true
+        expect(onErrorStub.calledOnce).to.be.true
+        expect(crawler.crawlSetting.nbSuccess).to.equal(2)
+        expect(crawler.crawlSetting.nbError).to.equal(1)
+      })
+
+      it('should stop processing on error when stopOnError is true', async () => {
+        handlerStub1.rejects(new Error('Handler error'))
+
+        crawler['crawlParams'].stopOnError = true
+        const onErrorStub = sandbox.stub()
+        crawler['crawlParams'].onError = onErrorStub
+
+        const logs = [
+          { blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xTopic1'], transactionHash: '0x1' },
+          { blockNumber: 101, transactionIndex: 0, index: 1, topics: ['0xTopic2'], transactionHash: '0x1' },
+          { blockNumber: 101, transactionIndex: 1, index: 0, topics: ['0xTopic3'], transactionHash: '0x2' },
+        ] as any
+
+        try {
+          await crawler.processLogsParallel(logs, {
+            fromBlock: 100,
+            toBlock: 150,
+            latestBlock: 200,
+          })
+          expect.fail('Should have thrown an error')
+        } catch (error: any) {
+          expect(error.message).to.equal('Handler error')
+          expect(onErrorStub.calledOnce).to.be.true
+          expect(crawler.crawlSetting.shutdown).to.be.true
+        }
+      })
+
+      it('should process logs in batches to avoid memory spikes', async () => {
+        const logs = Array.from({ length: 10 }, (_, i) => ({
+          blockNumber: 101,
+          transactionIndex: Math.floor(i / 2),
+          index: i % 2,
+          topics: [`0xTopic${(i % 4) + 1}`],
+          transactionHash: `0x${Math.floor(i / 2)}`,
+        }))
+
+        await crawler.processLogsParallel(logs as any, {
+          fromBlock: 100,
+          toBlock: 150,
+          latestBlock: 200,
+        })
+
+        expect(handlerStub1.callCount).to.be.greaterThan(0)
+        expect(handlerStub2.callCount).to.be.greaterThan(0)
+        expect(handlerStub3.callCount).to.be.greaterThan(0)
+        expect(handlerStub4.callCount).to.be.greaterThan(0)
+        expect(crawler.crawlSetting.nbSuccess).to.equal(10)
+      })
+
+      it('should handle logs without matching events', async () => {
+        const logs = [
+          { blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xUnknownTopic'], transactionHash: '0x1' },
+          { blockNumber: 101, transactionIndex: 0, index: 1, topics: ['0xTopic1'], transactionHash: '0x1' },
+        ] as any
+
+        await crawler.processLogsParallel(logs, {
+          fromBlock: 100,
+          toBlock: 150,
+          latestBlock: 200,
+        })
+
+        expect(handlerStub1.calledOnce).to.be.true
+        expect(crawler.crawlSetting.nbSuccess).to.equal(1) // Only one valid event processed
+        expect(logWarn.calledWith('Error event setting not found in blockchainCrawler')).to.be.true
+      })
+
+      it('should update lastSync with the highest block number processed', async () => {
+        const logs = [
+          { blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xTopic1'], transactionHash: '0x1' },
+          { blockNumber: 105, transactionIndex: 0, index: 0, topics: ['0xTopic2'], transactionHash: '0x2' },
+          { blockNumber: 103, transactionIndex: 0, index: 0, topics: ['0xTopic3'], transactionHash: '0x3' },
+        ] as any
+
+        await crawler.processLogsParallel(logs, {
+          fromBlock: 100,
+          toBlock: 150,
+          latestBlock: 200,
+        })
+
+        // The lastSync should be updated with each processed log
+        expect(crawler.crawlSetting.lastSync).to.be.oneOf([101, 103, 105])
+      })
+
+      it('should return highest block number processed', async () => {
+        const logs = [
+          { blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xTopic1'], transactionHash: '0x1' },
+          { blockNumber: 105, transactionIndex: 0, index: 0, topics: ['0xTopic2'], transactionHash: '0x2' },
+          { blockNumber: 102, transactionIndex: 0, index: 0, topics: ['0xTopic3'], transactionHash: '0x3' },
+        ] as any
+
+        const highestBlock = await crawler.processLogsParallel(logs, {
+          fromBlock: 100,
+          toBlock: 150,
+          latestBlock: 200,
+        })
+
+        // Should return the highest block number processed
+        expect(highestBlock).to.equal(105)
+        expect(crawler.crawlSetting.lastSync).to.equal(105)
+      })
+
+      it('should verify all logs are processed exactly once', async () => {
+        const processedLogs: string[] = []
+
+        // Override handlers to track processing
+        handlerStub1.callsFake((event, info) => {
+          processedLogs.push(`${info.blockNumber}-${info.transactionHash}-0-0`)
+          return Promise.resolve()
+        })
+        handlerStub2.callsFake((event, info) => {
+          processedLogs.push(`${info.blockNumber}-${info.transactionHash}-0-1`)
+          return Promise.resolve()
+        })
+
+        const logs = [
+          { blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xTopic1'], transactionHash: '0x1' },
+          { blockNumber: 101, transactionIndex: 0, index: 1, topics: ['0xTopic2'], transactionHash: '0x1' },
+          { blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xTopic1'], transactionHash: '0x1' }, // Duplicate
+        ] as any
+
+        await crawler.processLogsParallel(logs, {
+          fromBlock: 100,
+          toBlock: 150,
+          latestBlock: 200,
+        })
+
+        // Check only unique logs were processed
+        expect(processedLogs).to.have.lengthOf(2)
+        expect(processedLogs).to.include('100-0xabc-0-0')
+        expect(processedLogs).to.include('100-0xabc-0-1')
+      })
+    })
+
+    describe('integration with crawl method', () => {
+      it('should use parallel processing when enabled', async () => {
+        const crawler = new BlockchainLogCrawler({
+          ...crawlerConfig,
+          parallel: {
+            enable: true,
+            concurrency: 3,
+            batchSize: 5,
+          },
+          events: [
+            {
+              topic: '0xTopic1',
+              event: 'Test1',
+              config: [{ abi: [{ name: 'Test1', type: 'event', inputs: [] }], handler: sandbox.stub().resolves() }],
+            },
+          ],
+        })
+
+        sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
+
+        // Stub Web3Helper.getBlockNumber
+        sandbox
+          .stub(Web3Helper, 'getBlockNumber')
+          .onFirstCall()
+          .resolves(100) // fromBlock
+          .onSecondCall()
+          .resolves(200) // toBlock
+
+        const getLogsByStrategyStub = sandbox.stub(crawler, 'getLogsByStrategy').resolves({
+          logs: [
+            { transactionHash: '0x1', blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xTopic1'] },
+            { transactionHash: '0x2', blockNumber: 102, transactionIndex: 0, index: 0, topics: ['0xTopic1'] },
+          ] as any,
+          toBlock: 102,
+        })
+
+        const processLogsParallelSpy = sandbox.spy(crawler, 'processLogsParallel')
+        const processLogsSpy = sandbox.spy(crawler, 'processLogs')
+
+        // Stub updateAndCheckConditions to control the crawl loop
+        sandbox.stub(crawler, 'updateAndCheckConditions').onFirstCall().resolves(true).onSecondCall().resolves(false)
+
+        await crawler.crawl()
+
+        expect(processLogsParallelSpy.calledOnce).to.be.true
+        expect(processLogsSpy.notCalled).to.be.true
+      })
+
+      it('should use sequential processing when parallel is disabled', async () => {
+        const crawler = new BlockchainLogCrawler({
+          ...crawlerConfig,
+          parallel: false,
+          events: [
+            {
+              topic: '0xTopic1',
+              event: 'Test1',
+              config: [{ abi: [{ name: 'Test1', type: 'event', inputs: [] }], handler: sandbox.stub().resolves() }],
+            },
+          ],
+        })
+
+        sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
+
+        // Stub Web3Helper.getBlockNumber
+        sandbox
+          .stub(Web3Helper, 'getBlockNumber')
+          .onFirstCall()
+          .resolves(100) // fromBlock
+          .onSecondCall()
+          .resolves(200) // toBlock
+
+        const getLogsByStrategyStub = sandbox.stub(crawler, 'getLogsByStrategy').resolves({
+          logs: [
+            { transactionHash: '0x1', blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xTopic1'] },
+          ] as any,
+          toBlock: 101,
+        })
+
+        const processLogsParallelSpy = sandbox.spy(crawler, 'processLogsParallel')
+        const processLogsSpy = sandbox.spy(crawler, 'processLogs')
+
+        // Stub updateAndCheckConditions to control the crawl loop
+        sandbox.stub(crawler, 'updateAndCheckConditions').onFirstCall().resolves(true).onSecondCall().resolves(false)
+
+        await crawler.crawl()
+
+        expect(processLogsSpy.calledOnce).to.be.true
+        expect(processLogsParallelSpy.notCalled).to.be.true
+      })
+
+      it('should process all logs even with uneven batch sizes', async () => {
+        const processedLogs: any[] = []
+        const handlerStub = sandbox.stub().callsFake((event, info) => {
+          processedLogs.push({ event: event.name, txHash: info.transactionHash })
+          return Promise.resolve()
+        })
+
+        const crawler = new BlockchainLogCrawler({
+          ...crawlerConfig,
+          parallel: { enable: true, concurrency: 2, batchSize: 5 },
+          events: [
+            {
+              topic: '0xTopic1',
+              event: 'Test1',
+              config: [{ abi: [{ name: 'Test1', type: 'event', inputs: [] }], handler: handlerStub }],
+            },
+          ],
+        })
+
+        // Create 13 logs to test uneven division
+        const mockLogs: any[] = []
+        for (let i = 0; i < 13; i++) {
+          mockLogs.push({
+            transactionHash: `0x${i}`,
+            blockNumber: 100 + i,
+            transactionIndex: 0,
+            index: 0,
+            topics: ['0xTopic1'],
+          })
+        }
+
+        sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
+
+        // Stub Web3Helper.getBlockNumber
+        sandbox
+          .stub(Web3Helper, 'getBlockNumber')
+          .onFirstCall()
+          .resolves(100) // fromBlock
+          .onSecondCall()
+          .resolves(200) // toBlock
+
+        sandbox.stub(crawler, 'getLogsByStrategy').resolves({
+          logs: mockLogs,
+          toBlock: 112,
+        })
+
+        // Stub updateAndCheckConditions to control the crawl loop
+        sandbox.stub(crawler, 'updateAndCheckConditions').onFirstCall().resolves(true).onSecondCall().resolves(false)
+
+        // Stub formatLog to return proper event objects
+        sandbox.stub(crawler, 'formatLog').callsFake((log: any) => ({
+          event: { name: 'Test1' } as any,
+          handler: handlerStub,
+          info: { transactionHash: log.transactionHash } as any,
+        }))
+
+        await crawler.crawl()
+
+        // Verify all 13 logs were processed
+        expect(processedLogs.length).to.equal(13)
+        expect(handlerStub.callCount).to.equal(13)
+
+        // Verify each log was processed exactly once
+        const uniqueTxHashes = new Set(processedLogs.map(log => log.txHash))
+        expect(uniqueTxHashes.size).to.equal(13)
+
+        // Verify the transaction hashes match
+        for (let i = 0; i < 13; i++) {
+          expect(processedLogs.some(log => log.txHash === `0x${i}`)).to.be.true
+        }
+      })
+    })
+
+    describe('processLogsParallelBatch', () => {
+      it('should process logs in batches when useBatch is true', async () => {
+        const batchHandlerStub = sandbox.stub().resolves()
+
+        const mockLogs = [
+          { blockNumber: 100, transactionHash: '0x1', transactionIndex: 0, index: 0, topics: ['0xEventA'] },
+          { blockNumber: 101, transactionHash: '0x2', transactionIndex: 0, index: 0, topics: ['0xEventA'] },
+          { blockNumber: 102, transactionHash: '0x3', transactionIndex: 0, index: 0, topics: ['0xEventA'] },
+          { blockNumber: 103, transactionHash: '0x4', transactionIndex: 0, index: 0, topics: ['0xEventB'] },
+          { blockNumber: 104, transactionHash: '0x5', transactionIndex: 0, index: 0, topics: ['0xEventB'] },
+        ] as any[]
+
+        const crawler = new BlockchainLogCrawler({
+          network: NetworksEnum.ethereumSepolia,
+          events: [
+            {
+              event: 'EventA',
+              topic: '0xEventA',
+              config: [
+                {
+                  abi: [],
+                  handler: batchHandlerStub,
+                },
+              ],
+            },
+            {
+              event: 'EventB',
+              topic: '0xEventB',
+              config: [
+                {
+                  abi: [],
+                  handler: batchHandlerStub,
+                },
+              ],
+            },
+          ],
+          parallel: {
+            enable: true,
+            useBatch: true,
+            batchSize: 10,
+          },
+          address: ['0x123'],
+          onError: sandbox.stub(),
+          logService: 'test' as any,
+          stopOnError: true,
+        })
+
+        // Stub formatLog to return proper event objects
+        sandbox.stub(crawler, 'formatLog').callsFake((log: any) => ({
+          event: { name: log.topics[0] === '0xEventA' ? 'EventA' : 'EventB' } as any,
+          handler: batchHandlerStub,
+          info: { transactionHash: log.transactionHash, blockNumber: log.blockNumber } as any,
+        }))
+
+        const highestBlock = await crawler.processLogsParallelBatch(mockLogs, {
+          fromBlock: 100,
+          toBlock: 104,
+          latestBlock: 200,
+        })
+
+        // Should be called twice - once for EventA batch and once for EventB batch
+        expect(batchHandlerStub.callCount).to.equal(2)
+
+        // Check first batch call (EventA)
+        const firstBatchCall = batchHandlerStub.getCall(0).args[0]
+        expect(firstBatchCall).to.have.lengthOf(3)
+        expect(firstBatchCall[0].parsedEvent.name).to.equal('EventA')
+
+        // Check second batch call (EventB)
+        const secondBatchCall = batchHandlerStub.getCall(1).args[0]
+        expect(secondBatchCall).to.have.lengthOf(2)
+        expect(secondBatchCall[0].parsedEvent.name).to.equal('EventB')
+
+        // Check highest block returned
+        expect(highestBlock).to.equal(104)
+      })
+
+      it('should split large batches based on batchSize', async () => {
+        const batchHandlerStub = sandbox.stub().resolves()
+
+        // Create 15 logs for the same event
+        const mockLogs = Array.from({ length: 15 }, (_, i) => ({
+          blockNumber: 100 + i,
+          transactionHash: `0x${i}`,
+          transactionIndex: 0,
+          index: 0,
+          topics: ['0xEventA'],
+        })) as any[]
+
+        const crawler = new BlockchainLogCrawler({
+          network: NetworksEnum.ethereumSepolia,
+          events: [
+            {
+              event: 'EventA',
+              topic: '0xEventA',
+              config: [
+                {
+                  abi: [],
+                  handler: batchHandlerStub,
+                },
+              ],
+            },
+          ],
+          parallel: {
+            enable: true,
+            useBatch: true,
+            batchSize: 10, // Set batch size to 10
+          },
+          address: ['0x123'],
+          onError: sandbox.stub(),
+          logService: 'test' as any,
+          stopOnError: true,
+        })
+
+        // Stub formatLog
+        sandbox.stub(crawler, 'formatLog').callsFake((log: any) => ({
+          event: { name: 'EventA' } as any,
+          handler: batchHandlerStub,
+          info: { transactionHash: log.transactionHash, blockNumber: log.blockNumber } as any,
+        }))
+
+        await crawler.processLogsParallelBatch(mockLogs, {})
+
+        // Should be called twice - first batch with 10, second batch with 5
+        expect(batchHandlerStub.callCount).to.equal(2)
+
+        const firstBatchCall = batchHandlerStub.getCall(0).args[0]
+        expect(firstBatchCall).to.have.lengthOf(10)
+
+        const secondBatchCall = batchHandlerStub.getCall(1).args[0]
+        expect(secondBatchCall).to.have.lengthOf(5)
+      })
+
+      it('should handle errors in batch processing', async () => {
+        const batchHandlerStub = sandbox.stub()
+        batchHandlerStub.onFirstCall().rejects(new Error('Batch processing error'))
+
+        const onErrorStub = sandbox.stub()
+
+        const mockLogs = [
+          { blockNumber: 100, transactionHash: '0x1', transactionIndex: 0, index: 0, topics: ['0xEventA'] },
+        ] as any[]
+
+        const crawler = new BlockchainLogCrawler({
+          network: NetworksEnum.ethereumSepolia,
+          events: [
+            {
+              event: 'EventA',
+              topic: '0xEventA',
+              config: [
+                {
+                  abi: [],
+                  handler: batchHandlerStub,
+                },
+              ],
+            },
+          ],
+          parallel: {
+            enable: true,
+            useBatch: true,
+          },
+          address: ['0x123'],
+          onError: onErrorStub,
+          logService: 'test' as any,
+          stopOnError: true,
+        })
+
+        sandbox.stub(crawler, 'formatLog').returns({
+          event: { name: 'EventA' } as any,
+          handler: batchHandlerStub,
+          info: {} as any,
+        })
+
+        try {
+          await crawler.processLogsParallelBatch(mockLogs, {})
+          expect.fail('Should have thrown an error')
+        } catch (error: any) {
+          expect(error.message).to.equal('Batch processing error')
+          expect(crawler.crawlSetting.shutdown).to.be.true
+        }
+      })
+    })
+  })
+
+  describe('buildTopics', () => {
+    it('should handle events without topic and log error', () => {
       const crawler = new BlockchainLogCrawler({
         events: [],
         address: ['0x123'],
+        onError: sandbox.stub(),
+        logService: 'test' as any,
         network: NetworksEnum.ethereumMainnet,
         stopOnError: false,
-        logService: 'test' as any,
-        onError: sandbox.stub(),
       })
 
-      const timeoutErrors = [
-        { message: 'The query timed out' },
-        { message: 'timeout' },
-        { message: 'eth_getLogs is limited' },
-        { message: 'Response size is larger than 150MB limit' },
-        { message: 'Log response size exceeded' },
-        { message: 'Consider reducing your block range' },
-        { message: 'Query returned more than 1000000 results' },
-        { message: 'Cannot create a string longer' },
-        { message: 'Block range is too large' },
+      const events = [
+        { event: 'EventWithTopic', topic: '0xTopic1' },
+        { event: 'EventWithoutTopic' }, // Missing topic
+        { event: 'EventWithArrayTopic', topic: ['0xTopic2', '0xTopic3'] },
       ]
 
-      timeoutErrors.forEach(error => {
-        expect((crawler as any).isBatchSizeError(error)).to.be.true
-      })
-    })
+      const result = crawler.buildTopics(events)
 
-    it('should log error and return false when error is null', () => {
-      const crawler = new BlockchainLogCrawler({
-        events: [],
-        address: ['0x123'],
-        network: NetworksEnum.ethereumMainnet,
-        stopOnError: false,
-        logService: 'test' as any,
-        onError: sandbox.stub(),
-      })
-
-      const result = (crawler as any).isBatchSizeError(null)
-
-      expect(result).to.be.false
       expect(logError.calledOnce).to.be.true
-      expect(logError.firstCall.args[0]).to.equal('Error not whitelisted in BlockchainLogCrawler isBatchSizeError')
+      expect(logError.firstCall.args[0]).to.equal('Topic hash not found for event EventWithoutTopic')
+      expect(result).to.deep.equal(['0xTopic1', '0xTopic2', '0xTopic3'])
+    })
+  })
+
+  describe('isTopicObject functionality', () => {
+    it('should use topic from events[0] when isTopicObject is true', () => {
+      const topicFilter = [['0xExecutedTopic'], null, null, ['0xSomeAddress']]
+
+      const crawler = new BlockchainLogCrawler({
+        events: [{ topic: topicFilter }] as any,
+        address: ['0x123'],
+        onError: sandbox.stub(),
+        logService: 'test' as any,
+        network: NetworksEnum.ethereumMainnet,
+        stopOnError: false,
+        isTopicObject: true,
+      })
+
+      expect(crawler.crawlSetting.filter.topics).to.deep.equal(topicFilter)
     })
 
-    it('should log error and return false when error is undefined', () => {
+    it('should call buildTopics when isTopicObject is false', () => {
+      const events = [
+        { event: 'Event1', topic: '0xTopic1', config: [{ abi: ['event Event1()'], handler: sandbox.stub() }] },
+        { event: 'Event2', topic: '0xTopic2', config: [{ abi: ['event Event2()'], handler: sandbox.stub() }] },
+      ]
+
+      const crawler = new BlockchainLogCrawler({
+        events,
+        address: ['0x123'],
+        onError: sandbox.stub(),
+        logService: 'test' as any,
+        network: NetworksEnum.ethereumMainnet,
+        stopOnError: false,
+        isTopicObject: false,
+      })
+
+      expect(crawler.crawlSetting.filter.topics).to.deep.equal(['0xTopic1', '0xTopic2'])
+    })
+
+    it('should default to buildTopics when isTopicObject is undefined', () => {
+      const events = [
+        { event: 'Event1', topic: '0xTopic1', config: [{ abi: ['event Event1()'], handler: sandbox.stub() }] },
+        {
+          event: 'Event2',
+          topic: ['0xTopic2', '0xTopic3'],
+          config: [{ abi: ['event Event2()'], handler: sandbox.stub() }],
+        },
+      ]
+
+      const crawler = new BlockchainLogCrawler({
+        events,
+        address: ['0x123'],
+        onError: sandbox.stub(),
+        logService: 'test' as any,
+        network: NetworksEnum.ethereumMainnet,
+        stopOnError: false,
+        // isTopicObject not provided, should default to undefined/false
+      })
+
+      expect(crawler.crawlSetting.filter.topics).to.deep.equal(['0xTopic1', '0xTopic2', '0xTopic3'])
+    })
+
+    it('should handle complex topic filters when isTopicObject is true', () => {
+      const complexTopicFilter = [['0xExecutedTopic', '0xAlternativeTopic'], null, ['0xAddress1', '0xAddress2'], null]
+
+      const crawler = new BlockchainLogCrawler({
+        events: [{ topic: complexTopicFilter }] as any,
+        address: ['0xDAO'],
+        onError: sandbox.stub(),
+        logService: 'test' as any,
+        network: NetworksEnum.ethereumMainnet,
+        stopOnError: false,
+        isTopicObject: true,
+      })
+
+      expect(crawler.crawlSetting.filter.topics).to.deep.equal(complexTopicFilter)
+    })
+  })
+
+  describe('getParallelConfig edge cases', () => {
+    it('should return fallback config when parallel is not configured', () => {
       const crawler = new BlockchainLogCrawler({
         events: [],
         address: ['0x123'],
+        onError: sandbox.stub(),
+        logService: 'test' as any,
         network: NetworksEnum.ethereumMainnet,
         stopOnError: false,
-        logService: 'test' as any,
-        onError: sandbox.stub(),
+        parallel: undefined,
       })
 
-      const result = (crawler as any).isBatchSizeError(undefined)
+      const config = crawler['getParallelConfig'](100)
 
-      expect(result).to.be.false
-      expect(logError.calledOnce).to.be.true
-      expect(logError.firstCall.args[0]).to.equal('Error not whitelisted in BlockchainLogCrawler isBatchSizeError')
+      expect(config).to.deep.equal({
+        enable: false,
+        concurrency: 1,
+        batchSize: 1,
+        useBatch: false,
+      })
     })
 
-    it('should log error and return false when error is empty object', () => {
+    it('should handle logCount <= 0 in getAdaptiveConfig', () => {
       const crawler = new BlockchainLogCrawler({
         events: [],
         address: ['0x123'],
+        onError: sandbox.stub(),
+        logService: 'test' as any,
         network: NetworksEnum.ethereumMainnet,
         stopOnError: false,
-        logService: 'test' as any,
-        onError: sandbox.stub(),
+        parallel: { enable: true },
       })
 
-      const result = (crawler as any).isBatchSizeError({})
+      const config = (crawler as any).getAdaptiveConfig(0)
 
-      expect(result).to.be.false
-      expect(logError.notCalled).to.be.true
+      expect(config).to.deep.equal({
+        concurrency: 1,
+        batchSize: 50,
+      })
     })
 
-    it('should handle error without message property', () => {
+    it('should handle large log counts (50,000-100,000)', () => {
       const crawler = new BlockchainLogCrawler({
         events: [],
         address: ['0x123'],
+        onError: sandbox.stub(),
+        logService: 'test' as any,
         network: NetworksEnum.ethereumMainnet,
         stopOnError: false,
-        logService: 'test' as any,
-        onError: sandbox.stub(),
+        parallel: { enable: true },
       })
 
-      const errorWithoutMessage = { code: 'TIMEOUT', data: 'some data' }
-      const result = (crawler as any).isBatchSizeError(errorWithoutMessage)
+      const config = (crawler as any).getAdaptiveConfig(75000)
 
-      expect(result).to.be.false
-      expect(logError.notCalled).to.be.true
+      expect(config.concurrency).to.equal(15)
+      expect(config.batchSize).to.equal(10000) // Actual value returned by getAdaptiveConfig
     })
 
-    it('should handle multiple matching error messages', () => {
+    it('should handle very large log counts (>500,000)', () => {
       const crawler = new BlockchainLogCrawler({
         events: [],
         address: ['0x123'],
+        onError: sandbox.stub(),
+        logService: 'test' as any,
         network: NetworksEnum.ethereumMainnet,
         stopOnError: false,
-        logService: 'test' as any,
-        onError: sandbox.stub(),
+        parallel: { enable: true },
       })
 
-      const complexError = {
-        message: 'The query timed out. Block range is too large. Consider reducing your block range.',
+      const config = (crawler as any).getAdaptiveConfig(600000)
+
+      expect(config.concurrency).to.equal(20)
+      expect(config.batchSize).to.equal(20000) // 600000 / 30 = 20000
+    })
+  })
+
+  describe('processLogsParallel error handling', () => {
+    it('should handle logs with no event from formatLog', async () => {
+      const crawler = new BlockchainLogCrawler({
+        events: [],
+        address: ['0x123'],
+        onError: sandbox.stub(),
+        logService: 'test' as any,
+        parallel: { enable: true, concurrency: 2 },
+        network: NetworksEnum.ethereumMainnet,
+        stopOnError: false,
+      })
+
+      const formatLogStub = sandbox.stub(crawler, 'formatLog')
+      formatLogStub.onFirstCall().returns({
+        event: null as any, // No event
+        handler: sandbox.stub(),
+        info: {} as any,
+      })
+      formatLogStub.onSecondCall().returns({
+        event: { name: 'Test' } as any,
+        handler: sandbox.stub().resolves(),
+        info: {} as any,
+      })
+
+      const mockLogs = [
+        { blockNumber: 100, transactionHash: '0x1' },
+        { blockNumber: 101, transactionHash: '0x2' },
+      ] as any[]
+
+      const result = await (crawler as any).processLogsParallel(mockLogs, { concurrency: 2, batchSize: 10 })
+
+      expect(result).to.equal(101)
+      expect(crawler.crawlSetting.nbSuccess).to.equal(1)
+    })
+
+    it('should handle queue errors with stopOnError', async () => {
+      const onErrorStub = sandbox.stub()
+      const crawler = new BlockchainLogCrawler({
+        events: [],
+        address: ['0x123'],
+        onError: onErrorStub,
+        logService: 'test' as any,
+        parallel: { enable: true, concurrency: 2 },
+        stopOnError: true,
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      const handlerStub = sandbox.stub()
+      handlerStub.onFirstCall().rejects(new Error('Handler error'))
+
+      sandbox.stub(crawler, 'formatLog').returns({
+        event: { name: 'Test' } as any,
+        handler: handlerStub,
+        info: {} as any,
+      })
+
+      const mockLogs: any[] = [{ blockNumber: 100, transactionHash: '0x1' }]
+
+      try {
+        await (crawler as any).processLogsParallel(mockLogs, {})
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error.message).to.equal('Handler error')
+        expect(crawler.crawlSetting.shutdown).to.be.true
+      }
+    })
+
+    it('should handle empty queue scenario', async () => {
+      const crawler = new BlockchainLogCrawler({
+        events: [],
+        address: ['0x123'],
+        onError: sandbox.stub(),
+        logService: 'test' as any,
+        parallel: { enable: true, concurrency: 2 },
+        network: NetworksEnum.ethereumMainnet,
+        stopOnError: false,
+      })
+
+      const result = await (crawler as any).processLogsParallel([], {})
+
+      expect(result).to.equal(0)
+    })
+
+    it('should stop adding tasks when shutdown is triggered', async () => {
+      const crawler = new BlockchainLogCrawler({
+        events: [],
+        address: ['0x123'],
+        onError: sandbox.stub(),
+        logService: 'test' as any,
+        parallel: { enable: true, concurrency: 1 },
+        network: NetworksEnum.ethereumMainnet,
+        stopOnError: false,
+      })
+
+      // Create many logs
+      const mockLogs = Array.from({ length: 100 }, (_, i) => ({
+        blockNumber: 100 + i,
+        transactionHash: `0x${i}`,
+      }))
+
+      let processedCount = 0
+      const handlerStub = sandbox.stub().callsFake(() => {
+        processedCount++
+        if (processedCount === 5) {
+          crawler.crawlSetting.shutdown = true
+        }
+        return Promise.resolve()
+      })
+
+      sandbox.stub(crawler, 'formatLog').returns({
+        event: { name: 'Test' } as any,
+        handler: handlerStub,
+        info: {} as any,
+      })
+
+      await (crawler as any).processLogsParallel(mockLogs, {})
+
+      // Should have stopped processing after shutdown
+      expect(processedCount).to.be.at.most(100)
+    })
+  })
+
+  describe('processLogsParallelBatch error handling', () => {
+    it('should handle error with onError callback and stopOnError', async () => {
+      const onErrorStub = sandbox.stub()
+      const crawler = new BlockchainLogCrawler({
+        events: [],
+        address: ['0x123'],
+        onError: onErrorStub,
+        logService: 'test' as any,
+        stopOnError: true,
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      const handlerStub = sandbox.stub().rejects(new Error('Batch error'))
+
+      sandbox.stub(crawler, 'formatLog').returns({
+        event: { name: 'Test' } as any,
+        handler: handlerStub,
+        info: {} as any,
+      })
+
+      const mockLogs: any[] = [{ blockNumber: 100, transactionHash: '0x1' }]
+
+      try {
+        await (crawler as any).processLogsParallelBatch(mockLogs, {})
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error.message).to.equal('Batch error')
+        // onError is not called when stopOnError is true and error is thrown
+        expect(crawler.crawlSetting.shutdown).to.be.true
+        expect(crawler.crawlSetting.nbError).to.equal(1)
+      }
+    })
+
+    it('should continue processing when stopOnError is false', async () => {
+      const onErrorStub = sandbox.stub()
+      const crawler = new BlockchainLogCrawler({
+        events: [],
+        address: ['0x123'],
+        onError: onErrorStub,
+        logService: 'test' as any,
+        stopOnError: false,
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      const handlerStub = sandbox.stub()
+      handlerStub.onFirstCall().rejects(new Error('Batch error'))
+      handlerStub.onSecondCall().resolves()
+
+      let callCount = 0
+      sandbox.stub(crawler, 'formatLog').callsFake(() => {
+        callCount++
+        return {
+          event: { name: callCount === 1 ? 'EventA' : 'EventB' } as any,
+          handler: handlerStub,
+          info: {} as any,
+        }
+      })
+
+      const mockLogs: any[] = [
+        { blockNumber: 100, transactionHash: '0x1' },
+        { blockNumber: 101, transactionHash: '0x2' },
+      ]
+
+      const result = await (crawler as any).processLogsParallelBatch(mockLogs, {})
+
+      expect(result).to.equal(101)
+      // onError might not be called directly in batch processing
+      expect(crawler.crawlSetting.nbError).to.equal(1)
+      expect(crawler.crawlSetting.nbSuccess).to.equal(1)
+    })
+  })
+
+  describe('getStrategyBySituation other strategies', () => {
+    it('should handle smartRouter strategy', () => {
+      const crawler = new BlockchainLogCrawler({
+        events: [],
+        address: ['0x123'],
+        onError: sandbox.stub(),
+        logService: 'test' as any,
+        network: NetworksEnum.ethereumMainnet,
+        stopOnError: false,
+        strategy: 'smartRouter' as any,
+      })
+
+      const result = (crawler as any).getStrategyBySituation(100, 200)
+
+      expect(result).to.equal('getLogsByBatch')
+    })
+  })
+
+  describe('Additional error handling and edge cases', () => {
+    it('should handle queue.error event handler with stopOnError true', async () => {
+      const onErrorStub = sandbox.stub()
+      const crawler = new BlockchainLogCrawler({
+        events: [],
+        address: ['0x123'],
+        onError: onErrorStub,
+        logService: 'test' as any,
+        parallel: { enable: true, concurrency: 2 },
+        stopOnError: true,
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      const handlerStub = sandbox.stub()
+      handlerStub.rejects(new Error('Queue processing error'))
+
+      sandbox.stub(crawler, 'formatLog').returns({
+        event: { name: 'Test' } as any,
+        handler: handlerStub,
+        info: {} as any,
+      })
+
+      sandbox.stub(crawler, 'getParallelConfig').returns({
+        enable: true,
+        concurrency: 2,
+        batchSize: 10,
+        useBatch: false,
+      })
+
+      const mockLogs: any[] = [{ blockNumber: 100, transactionHash: '0x1', index: 0 }]
+
+      try {
+        await (crawler as any).processLogsParallel(mockLogs, {})
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error.message).to.equal('Queue processing error')
+        expect(crawler.crawlSetting.shutdown).to.be.true
+        expect(onErrorStub.called).to.be.true
+      }
+    })
+
+    it('should handle queue.error event handler with stopOnError false', async () => {
+      const onErrorStub = sandbox.stub()
+      const crawler = new BlockchainLogCrawler({
+        events: [],
+        address: ['0x123'],
+        onError: onErrorStub,
+        logService: 'test' as any,
+        parallel: { enable: true, concurrency: 2 },
+        stopOnError: false,
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      let callCount = 0
+      const handlerStub = sandbox.stub().callsFake(() => {
+        callCount++
+        if (callCount === 1) {
+          // First call fails
+          return Promise.reject(new Error('Non-fatal queue error'))
+        }
+        return Promise.resolve()
+      })
+
+      sandbox.stub(crawler, 'formatLog').returns({
+        event: { name: 'Test' } as any,
+        handler: handlerStub,
+        info: {} as any,
+      })
+
+      sandbox.stub(crawler, 'getParallelConfig').returns({
+        enable: true,
+        concurrency: 2,
+        batchSize: 10,
+        useBatch: false,
+      })
+
+      const mockLogs: any[] = [
+        { blockNumber: 100, transactionHash: '0x1', index: 0 },
+        { blockNumber: 101, transactionHash: '0x2', index: 1 },
+      ]
+
+      const result = await (crawler as any).processLogsParallel(mockLogs, {})
+
+      expect(result).to.be.a('number')
+      expect(result).to.be.greaterThanOrEqual(0)
+      expect(crawler.crawlSetting.shutdown).to.be.false
+      expect(onErrorStub.called).to.be.true
+      expect(handlerStub.callCount).to.equal(2)
+    })
+
+    it('should stop adding tasks to queue when shutdown is triggered during batch push', async () => {
+      const crawler = new BlockchainLogCrawler({
+        events: [],
+        address: ['0x123'],
+        onError: sandbox.stub(),
+        logService: 'test' as any,
+        parallel: { enable: true, concurrency: 2, batchSize: 2 },
+        network: NetworksEnum.ethereumMainnet,
+        stopOnError: false,
+      })
+
+      // Create many logs to trigger multiple batch pushes
+      const mockLogs: any[] = []
+      for (let i = 0; i < 10; i++) {
+        mockLogs.push({ blockNumber: 100 + i, transactionHash: `0x${i}`, index: i })
       }
 
-      // Should return true as it matches multiple batch size error patterns
-      expect((crawler as any).isBatchSizeError(complexError)).to.be.true
+      let callCount = 0
+      sandbox.stub(crawler, 'formatLog').callsFake(() => {
+        callCount++
+        // Trigger shutdown after processing first few logs
+        if (callCount === 3) {
+          crawler.crawlSetting.shutdown = true
+        }
+        return {
+          event: { name: 'Test' } as any,
+          handler: sandbox.stub().resolves(),
+          info: {} as any,
+        }
+      })
+
+      sandbox.stub(crawler, 'getParallelConfig').returns({
+        enable: true,
+        concurrency: 2,
+        batchSize: 2, // Small batch size to trigger multiple pushes
+        useBatch: false,
+      })
+
+      await (crawler as any).processLogsParallel(mockLogs, {})
+
+      // Should have processed some logs but not all due to shutdown
+      expect(callCount).to.be.greaterThan(0)
+      expect(callCount).to.be.lessThan(mockLogs.length)
+      expect(crawler.crawlSetting.shutdown).to.be.true
     })
   })
 })

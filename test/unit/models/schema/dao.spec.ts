@@ -428,4 +428,142 @@ describe('Model: Dao', () => {
     expect(createdDao.metrics.votes).to.eq(1000)
     expect(createdDao.metrics.tvlUSD).to.eq(100000)
   })
+
+  describe('countUniqueMembers', () => {
+    const mockDaoAddress = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
+    const mockNetwork = NetworksEnum.polygonMainnet
+
+    beforeEach(async () => {
+      // Create test DAO
+      await Models.Dao.create({
+        address: mockDaoAddress,
+        network: mockNetwork,
+        creatorAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+        isActive: true,
+        isHidden: false,
+        blockNumber: 1000,
+        blockTimestamp: 1699577224,
+      })
+    })
+
+    it('should return 0 when no plugins exist', async () => {
+      // Mock Plugin.find to return empty array
+      sandbox.stub(Models.Plugin, 'find').resolves([])
+
+      const count = await Models.Dao.countUniqueMembers(mockDaoAddress, mockNetwork)
+      expect(count).to.eq(0)
+    })
+
+    it('should count unique members across different governance types', async () => {
+      // Mock plugins of different types
+      const mockPlugins = [
+        {
+          address: '0xplugin1',
+          interfaceType: IPluginInterfaceType.tokenVoting,
+          tokenAddress: '0xtoken1',
+        },
+        {
+          address: '0xplugin2',
+          interfaceType: IPluginInterfaceType.multisig,
+        },
+      ]
+
+      sandbox.stub(Models.Plugin, 'find').resolves(mockPlugins)
+
+      // Mock distinct calls for TokenMember
+      sandbox.stub(Models.TokenMember, 'distinct').withArgs('memberAddress').resolves(['0xmember1', '0xmember2'])
+
+      // Mock distinct calls for Lock
+      sandbox.stub(Models.Lock, 'distinct').withArgs('delegateReceiverAddress').resolves(['0xmember3'])
+
+      // Mock distinct calls for PluginMember
+      sandbox.stub(Models.PluginMember, 'distinct').withArgs('memberAddress').resolves(['0xmember2', '0xmember4'])
+
+      const count = await Models.Dao.countUniqueMembers(mockDaoAddress, mockNetwork)
+
+      // Should have 4 unique members (member2 is counted only once)
+      expect(count).to.eq(4)
+    })
+
+    it('should return 0 when Plugin.find fails', async () => {
+      // Mock Plugin.find to throw error
+      sandbox.stub(Models.Plugin, 'find').rejects(new Error('Database error'))
+
+      const count = await Models.Dao.countUniqueMembers(mockDaoAddress, mockNetwork)
+
+      expect(count).to.eq(0)
+    })
+
+    it('should handle token voting plugins correctly', async () => {
+      const mockPlugins = [
+        {
+          address: '0xplugin1',
+          interfaceType: IPluginInterfaceType.tokenVoting,
+          tokenAddress: '0xtoken1',
+        },
+      ]
+
+      sandbox.stub(Models.Plugin, 'find').resolves(mockPlugins)
+      sandbox.stub(Models.TokenMember, 'distinct').resolves(['0xmember1', '0xmember2'])
+      sandbox.stub(Models.Lock, 'distinct').resolves(['0xmember3'])
+
+      const count = await Models.Dao.countUniqueMembers(mockDaoAddress, mockNetwork)
+
+      expect(count).to.eq(3)
+    })
+
+    it('should handle lockToVote plugins correctly', async () => {
+      const mockPlugins = [
+        {
+          address: '0xplugin1',
+          interfaceType: IPluginInterfaceType.lockToVote,
+          lockManagerAddress: '0xlockmanager1',
+        },
+      ]
+
+      sandbox.stub(Models.Plugin, 'find').resolves(mockPlugins)
+
+      const lockToVoteStub = sandbox.stub(Models.LockToVoteMember, 'distinct')
+      lockToVoteStub.resolves(['0xmember1', '0xmember2'])
+
+      const count = await Models.Dao.countUniqueMembers(mockDaoAddress, mockNetwork)
+
+      expect(count).to.eq(2)
+
+      // Verify votingPower filter is applied
+      expect(lockToVoteStub.firstCall.args[1]).to.deep.equal({
+        lockManagerAddress: '0xlockmanager1',
+        network: mockNetwork,
+        votingPower: { $ne: '0' },
+      })
+    })
+
+    it('should handle errors in individual plugin queries gracefully', async () => {
+      const mockPlugins = [
+        {
+          address: '0xplugin1',
+          interfaceType: IPluginInterfaceType.tokenVoting,
+          tokenAddress: '0xtoken1',
+        },
+        {
+          address: '0xplugin2',
+          interfaceType: IPluginInterfaceType.multisig,
+        },
+      ]
+
+      sandbox.stub(Models.Plugin, 'find').resolves(mockPlugins)
+
+      // TokenMember query fails
+      sandbox.stub(Models.TokenMember, 'distinct').rejects(new Error('Query failed'))
+      sandbox.stub(Models.Lock, 'distinct').resolves([])
+
+      // PluginMember query succeeds
+      sandbox.stub(Models.PluginMember, 'distinct').resolves(['0xmember1', '0xmember2'])
+
+      const count = await Models.Dao.countUniqueMembers(mockDaoAddress, mockNetwork)
+
+      // Should still count members from successful queries
+      expect(count).to.eq(2)
+    })
+  })
 })

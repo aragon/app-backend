@@ -1,4 +1,4 @@
-import { type HexAddress, ITokenType, type NetworksEnum, ITransactionCategory } from '@types'
+import { type HexAddress, ITokenType, type NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
 import logger from '@logger'
@@ -56,17 +56,6 @@ const TokenUtils = {
       logger.error('Error checking if token is syncable', llo({ tokenAddress, network, error: e }))
       return false
     }
-  },
-  getCategories: () => {
-    const category = [
-      ITransactionCategory.ERC20,
-      ITransactionCategory.ERC721,
-      ITransactionCategory.ERC1155,
-      // ITransactionCategory.Internal,
-      ITransactionCategory.External,
-    ]
-
-    return category
   },
 }
 

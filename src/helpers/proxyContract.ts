@@ -16,7 +16,6 @@ const ProxyContractHelper = {
    * 0x363d3d373d3d3d363d73[20-byte implementation address]5af43d82803e903d91602b57fd5bf3
    *
    **/
-
   _getImplementationForMinimalProxy(byteCode: string): HexAddress | null {
     const minimalProxyPattern = '0x363d3d373d3d3d363d73'
     const minimalProxyPatternLength = minimalProxyPattern.length
@@ -68,7 +67,29 @@ const ProxyContractHelper = {
     }
   },
 
-  async getImplementationAddress(address: string, network: NetworksEnum): Promise<HexAddress | null> {
+  async getImplementationAddress(
+    address: string,
+    network: NetworksEnum,
+    depth: number = 0,
+    visited = new Set<string>(),
+  ): Promise<HexAddress | null> {
+    // Prevent infinite recursion
+    if (depth > 5) {
+      logger.warn('Maximum recursion depth reached for proxy resolution', llo({ address, network, depth }))
+      return null
+    }
+
+    // Prevent circular references
+    if (visited.has(address.toLowerCase())) {
+      logger.warn(
+        'Circular reference detected in proxy resolution',
+        llo({ address, network, visited: Array.from(visited) }),
+      )
+      return null
+    }
+
+    visited.add(address.toLowerCase())
+
     const provider = ProviderModule.getAnyRpcProvider(network)
     try {
       // Check EIP-1967 slot first
@@ -100,9 +121,53 @@ const ProxyContractHelper = {
         implementationAddress = await ProxyContractHelper._fallBackImplementationViaViewCall(address, network)
       }
 
+      // we can also encounter a beacon proxy, so we need to check for that
+      if (!implementationAddress) {
+        implementationAddress = await ProxyContractHelper._getBeaconProxyImplementationAddress(
+          address,
+          network,
+          depth,
+          visited,
+        )
+      }
+
       return implementationAddress
     } catch (error) {
       logger.warn('Failed to fetch implementation address', llo({ error, address, network }))
+      return null
+    }
+  },
+
+  _getBeaconProxyImplementationAddress: async (
+    address: string,
+    network: NetworksEnum,
+    depth: number = 0,
+    visited: Set<string> = new Set(),
+  ) => {
+    const hash = ethers.keccak256(ethers.toUtf8Bytes('eip1967.proxy.beacon'))
+    const slot = '0x' + (BigInt(hash) - 1n).toString(16)
+
+    try {
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      const method = provider.getStorageAt ? 'getStorageAt' : 'getStorage'
+
+      const slotValue = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => provider[method](address, slot)),
+      )
+
+      if (!slotValue || slotValue === '0x' || slotValue.length < 42) {
+        return null
+      }
+
+      const beaconAddress = getAddress('0x' + slotValue.slice(-40))
+
+      if (beaconAddress === ZeroAddress) {
+        return null
+      }
+
+      return ProxyContractHelper.getImplementationAddress(beaconAddress, network, depth + 1, visited)
+    } catch (e) {
+      logger.warn('Failed to fetch beacon proxy implementation address', llo({ error: e, address, network }))
       return null
     }
   },

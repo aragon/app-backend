@@ -26,6 +26,11 @@ import { VotingEscrow } from '@artifacts/VotingEscrow'
 import { DaoV2 } from '@artifacts/daoV2'
 import { ExecuteSelectorCondition } from '@artifacts/ExecuteSelectorCondition'
 import { ExecuteHandler } from '@handlers/executeHandler'
+import LockManagerHandler from '@handlers/lockManagerHandler'
+import { LockManager } from '@artifacts/LockManager'
+import { LockToVote } from '@artifacts/LockToVote'
+import { CapitalDistributor } from '@artifacts/CapitalDistributor'
+import { CapitalDistributorHandler } from '@handlers/capitalDistributorHandler'
 
 const IndexerEventConfig: IIndexerConfig[] = [
   // historical and realtime on startup
@@ -137,10 +142,17 @@ const IndexerEventConfig: IIndexerConfig[] = [
   {
     event: 'VotingSettingsUpdated',
     enableHistorical: false,
-    topic: new Interface(TokenVoting.abi).getEvent('VotingSettingsUpdated')?.topicHash!,
+    topic: [
+      new Interface(TokenVoting.abi).getEvent('VotingSettingsUpdated')?.topicHash!,
+      new Interface(LockToVote.abi).getEvent('VotingSettingsUpdated')?.topicHash!,
+    ],
     config: [
       {
         abi: TokenVoting.abi,
+        handler: PluginSettingHandler.votingSettingsUpdated,
+      },
+      {
+        abi: LockToVote.abi,
         handler: PluginSettingHandler.votingSettingsUpdated,
       },
     ],
@@ -451,6 +463,118 @@ const IndexerEventConfig: IIndexerConfig[] = [
       {
         abi: ExecuteSelectorCondition.abi,
         handler: ExecuteHandler.nativeTransfersDisallowed,
+      },
+    ],
+  },
+  {
+    event: 'BalanceLocked',
+    enableHistorical: false,
+    topic: new Interface(LockManager.abi).getEvent('BalanceLocked')?.topicHash!,
+    config: [
+      {
+        abi: LockManager.abi,
+        handler: LockManagerHandler.balanceLocked,
+      },
+    ],
+  },
+  {
+    event: 'BalanceUnlocked',
+    enableHistorical: false,
+    topic: new Interface(LockManager.abi).getEvent('BalanceUnlocked')?.topicHash!,
+    config: [
+      {
+        abi: LockManager.abi,
+        handler: LockManagerHandler.balanceUnlocked,
+      },
+    ],
+  },
+  {
+    event: 'VoteCleared',
+    enableHistorical: false,
+    topic: new Interface(LockToVote.abi).getEvent('VoteCleared')?.topicHash!,
+    config: [
+      {
+        abi: LockToVote.abi,
+        handler: ProposalHandler.voteCleared,
+      },
+    ],
+  },
+
+  // Capital Distributor events
+  {
+    event: 'CampaignCreated',
+    enableHistorical: true,
+    topic: new Interface(CapitalDistributor.abi).getEvent('CampaignCreated')?.topicHash!,
+    config: [
+      {
+        abi: CapitalDistributor.abi,
+        handler: CapitalDistributorHandler.campaignCreated,
+      },
+    ],
+  },
+  {
+    event: 'PayoutClaimed',
+    enableHistorical: false,
+    topic: new Interface(CapitalDistributor.abi).getEvent('PayoutClaimed')?.topicHash!,
+    config: [
+      {
+        abi: CapitalDistributor.abi,
+        handler: CapitalDistributorHandler.payoutClaimed,
+      },
+    ],
+  },
+  {
+    event: 'CampaignPaused',
+    enableHistorical: false,
+    topic: new Interface(CapitalDistributor.abi).getEvent('CampaignPaused')?.topicHash!,
+    config: [
+      {
+        abi: CapitalDistributor.abi,
+        handler: CapitalDistributorHandler.campaignPaused,
+      },
+    ],
+  },
+  {
+    event: 'CampaignResumed',
+    enableHistorical: false,
+    topic: new Interface(CapitalDistributor.abi).getEvent('CampaignResumed')?.topicHash!,
+    config: [
+      {
+        abi: CapitalDistributor.abi,
+        handler: CapitalDistributorHandler.campaignResumed,
+      },
+    ],
+  },
+  {
+    event: 'CampaignEnded',
+    enableHistorical: false,
+    topic: new Interface(CapitalDistributor.abi).getEvent('CampaignEnded')?.topicHash!,
+    config: [
+      {
+        abi: CapitalDistributor.abi,
+        handler: CapitalDistributorHandler.campaignEnded,
+      },
+    ],
+  },
+  {
+    event: 'MerkleCampaignSet',
+    enableHistorical: false,
+    topic: new Interface(CapitalDistributor.abi).getEvent('MerkleCampaignSet')?.topicHash!,
+    config: [
+      {
+        abi: CapitalDistributor.abi,
+        handler: CapitalDistributorHandler.merkleCampaignSet,
+      },
+    ],
+  },
+  {
+    event: 'MerkleCampaignUpdated',
+    enableHistorical: false,
+    topic: new Interface(CapitalDistributor.abi).getEvent('MerkleCampaignUpdated')?.topicHash!,
+    config: [
+      {
+        abi: CapitalDistributor.abi,
+        handler: CapitalDistributorHandler.merkleCampaignUpdated,
       },
     ],
   },

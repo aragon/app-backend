@@ -20,6 +20,7 @@ import { LogSpp } from '@plugins/logSPP'
 import PluginRepoMockData from '@test/unit-dep/mockData/pluginRepo.json'
 import ProviderModule from '@modules/provider'
 import { ethers } from 'ethers'
+import { LogLockToVote } from '@plugins/logLockToVote'
 const UnitDepUtils = {
   getData: async (
     abi: any,
@@ -230,6 +231,10 @@ const UnitDepUtils = {
             await LogSpp.start(plugin)
             break
           }
+          case IPluginInterfaceType.lockToVote: {
+            await LogLockToVote.start(plugin)
+            break
+          }
           default:
             break
         }
@@ -237,17 +242,17 @@ const UnitDepUtils = {
     })
   },
 
-  async syncACompleteDao(daoAddress: string, network: NetworksEnum) {
+  async syncACompleteDao(daoAddress: string, network: NetworksEnum, fromBlock?: number) {
     const pspAddress = {
       [NetworksEnum.ethereumSepolia]: '0xC24188a73dc09aA7C721f96Ad8857B469C01dC9f',
     }
     await Models.PluginRepo.insertMany(PluginRepoMockData[network])
     const provider = ProviderModule.getAnyRpcProvider(network)
-    const pspTopicAddressFilter = ethers.AbiCoder.defaultAbiCoder().encode(['address'], [daoAddress])
+    const daoAddressFilter = ethers.AbiCoder.defaultAbiCoder().encode(['address'], [daoAddress])
 
     const daoLogs = await provider.getLogs({
       address: daoAddress,
-      fromBlock: 0,
+      fromBlock: fromBlock ?? 0,
       toBlock: 'latest',
       topics: [
         configIndexer
@@ -258,12 +263,12 @@ const UnitDepUtils = {
 
     const pspLogs = await provider.getLogs({
       address: pspAddress[network],
-      fromBlock: 0,
+      fromBlock: fromBlock ?? 0,
       toBlock: 'latest',
       topics: [
         [configIndexer.filter(config => config.event === 'InstallationPrepared')[0].topic],
         null,
-        [pspTopicAddressFilter],
+        [daoAddressFilter],
       ],
     })
 
@@ -274,6 +279,32 @@ const UnitDepUtils = {
     const receipts = await Promise.all(
       txHashesUnique.map(async (txHash: string) => {
         return await Web3Helper.getTransactionReceipt(txHash, NetworksEnum.ethereumSepolia)
+      }),
+    )
+
+    const parsedLogs = (
+      await Promise.all(
+        receipts.map(async receipt => {
+          if (!receipt) {
+            logger.warn('Transaction receipt not found', { receipt })
+            return false
+          }
+          return await UnitDepUtils.parseLogsByConfig(receipt.logs as any, network)
+        }),
+      )
+    ).filter(Boolean)
+
+    for (const parsedLog of parsedLogs) {
+      for (const { event, handler, info } of parsedLog) {
+        await handler(event, info)
+      }
+    }
+  },
+
+  handleEventsFromTxHashes: async (txHashes: string[], network: NetworksEnum) => {
+    const receipts = await Promise.all(
+      txHashes.map(async (txHash: string) => {
+        return await Web3Helper.getTransactionReceipt(txHash, network)
       }),
     )
 

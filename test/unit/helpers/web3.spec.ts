@@ -1280,8 +1280,78 @@ describe('Helpers:Web3', () => {
     })
   })
 
-  describe('isMember', () => {
-    it('should return true when address is a member of the plugin', async () => {
+  describe('isMember token voting', () => {
+    it('should return true when address is a member of the token voting', async () => {
+      const stubIsMember = sandbox.stub().resolves(true)
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { isMember: stubIsMember }
+          },
+        },
+      })
+
+      const pluginAddress = '0xPluginAddress'
+      const memberAddress = '0xMemberAddress'
+      const network = NetworksEnum.ethereumMainnet
+
+      const result = await MockedWeb3Helper.isTokenVotingMember(pluginAddress, memberAddress, network)
+
+      expect(result).to.be.true
+      expect(stubIsMember.calledOnce).to.be.true
+      expect(stubIsMember.calledWith(memberAddress)).to.be.true
+    })
+
+    it('should return false when address is not a member of the token voting', async () => {
+      const stubIsMember = sandbox.stub().resolves(false)
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { isMember: stubIsMember }
+          },
+        },
+      })
+
+      const pluginAddress = '0xPluginAddress'
+      const memberAddress = '0xMemberAddress'
+      const network = NetworksEnum.ethereumMainnet
+
+      const result = await MockedWeb3Helper.isTokenVotingMember(pluginAddress, memberAddress, network)
+
+      expect(result).to.be.false
+      expect(stubIsMember.calledOnce).to.be.true
+      expect(stubIsMember.calledWith(memberAddress)).to.be.true
+    })
+
+    it('should return false when an error occurs', async () => {
+      const stubIsMember = sandbox.stub().rejects(new Error('Contract call failed'))
+      const stubLogger = sandbox.stub(logger, 'error')
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { isMember: stubIsMember }
+          },
+        },
+      })
+
+      const pluginAddress = '0xPluginAddress'
+      const memberAddress = '0xMemberAddress'
+      const network = NetworksEnum.ethereumMainnet
+
+      const result = await MockedWeb3Helper.isTokenVotingMember(pluginAddress, memberAddress, network)
+
+      expect(result).to.be.false
+      expect(stubIsMember.calledOnce).to.be.true
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubLogger.calledWith('Error isTokenVotingMember' as any)).to.be.true
+    })
+  })
+
+  describe('isMember multisig', () => {
+    it('should return true when address is a member of the plugin multisig', async () => {
       const stubConfigState = {
         getConfigItem: sandbox.stub().returns({}),
       }
@@ -1302,7 +1372,7 @@ describe('Helpers:Web3', () => {
       const memberAddress = '0xMemberAddress'
       const network = NetworksEnum.ethereumMainnet
 
-      const result = await MockedWeb3Helper.isMember(pluginAddress, memberAddress, network)
+      const result = await MockedWeb3Helper.isMultisigMember(pluginAddress, memberAddress, network)
 
       expect(result).to.be.true
       expect(stubIsMember.calledOnce).to.be.true
@@ -1330,7 +1400,7 @@ describe('Helpers:Web3', () => {
       const memberAddress = '0xMemberAddress'
       const network = NetworksEnum.ethereumMainnet
 
-      const result = await MockedWeb3Helper.isMember(pluginAddress, memberAddress, network)
+      const result = await MockedWeb3Helper.isMultisigMember(pluginAddress, memberAddress, network)
 
       expect(result).to.be.false
       expect(stubIsMember.calledOnce).to.be.true
@@ -1359,7 +1429,7 @@ describe('Helpers:Web3', () => {
       const memberAddress = '0xMemberAddress'
       const network = NetworksEnum.ethereumMainnet
 
-      const result = await MockedWeb3Helper.isMember(pluginAddress, memberAddress, network)
+      const result = await MockedWeb3Helper.isMultisigMember(pluginAddress, memberAddress, network)
 
       expect(result).to.be.false
       expect(stubIsMember.calledOnce).to.be.true

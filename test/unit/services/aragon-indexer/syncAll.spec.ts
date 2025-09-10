@@ -90,76 +90,18 @@ describe('AragonIndexer: SyncAll', () => {
   })
 
   describe('onDocument', () => {
-    it('should send a message to the queue if below the limit', async () => {
-      const plugin = { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet }
-      const getMessageCountStub = sandbox.stub(RabbitMQHelper, 'getQueueMessageCount').resolves(20)
-      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      const waitStub = sandbox.stub(utils, 'wait')
-      const loggerStub = sandbox.stub(logger, 'verbose')
+    it('should send a message to the queue using sendMessageWithThrottle', async () => {
+      const plugin = { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, id: 'plugin-1' }
+      const sendMessageWithThrottleStub = sandbox.stub(RabbitMQHelper, 'sendMessageWithThrottle').resolves()
 
       await SyncAll.onDocument(plugin as any)
 
-      expect(getMessageCountStub.calledOnceWith(EnumQueueName.requeue)).to.be.true
       expect(
-        sendMessageStub.calledOnceWith(EnumQueueName.requeue, {
+        sendMessageWithThrottleStub.calledOnceWith(EnumQueueName.requeue, {
           id: plugin.address,
-          params: { address: plugin.address, network: plugin.network },
+          params: { address: plugin.address, network: plugin.network, pluginId: plugin.id },
         }),
       ).to.be.true
-      expect(loggerStub.calledWithMatch('Message sent to queue' as any)).to.be.true
-      expect(waitStub.notCalled).to.be.true
-    })
-
-    it('should retry sending a message when the queue is full', async () => {
-      const plugin = { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet }
-      const getMessageCountStub = sandbox
-        .stub(RabbitMQHelper, 'getQueueMessageCount')
-        .onCall(0)
-        .resolves(50) // Full queue
-        .onCall(1)
-        .resolves(25) // Below limit on retry
-      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      const waitStub = sandbox.stub(utils, 'wait').resolves()
-      const loggerWarnStub = sandbox.stub(logger, 'warn')
-      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
-
-      await SyncAll.onDocument(plugin as any)
-
-      expect(getMessageCountStub.callCount).to.equal(2)
-      expect(waitStub.calledOnce).to.be.true
-      expect(loggerWarnStub.calledWithMatch('Queue "log.requeue" has reached the limit. Waiting...' as any)).to.be.true
-      expect(sendMessageStub.calledOnce).to.be.true
-      expect(loggerVerboseStub.calledWithMatch('Message sent to queue "log.requeue"' as any)).to.be.true
-    })
-
-    it('should log an error and retry when unable to get message count', async () => {
-      const plugin = { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet }
-
-      const getMessageCountStub = sandbox
-        .stub(RabbitMQHelper, 'getQueueMessageCount')
-        .onCall(0)
-        .resolves(null)
-        .onCall(1)
-        .resolves(40)
-
-      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      const waitStub = sandbox.stub(utils, 'wait').resolves()
-      const loggerErrorStub = sandbox.stub(logger, 'error')
-      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
-
-      await SyncAll.onDocument(plugin as any)
-
-      expect(getMessageCountStub.calledTwice).to.be.true
-      expect(loggerErrorStub.calledOnce).to.be.true
-      expect(
-        loggerErrorStub.calledWith(
-          `Unable to get message count for queue "${EnumQueueName.requeue}". Retrying...` as any,
-        ),
-      ).to.be.true
-
-      expect(waitStub.calledOnce).to.be.true
-      expect(sendMessageStub.calledOnce).to.be.true
-      expect(loggerVerboseStub.args[0][0]).to.be.eq(`Message sent to queue "${EnumQueueName.requeue}"` as any)
     })
 
     it('should handle the aggregation query and handle the crawler', async () => {

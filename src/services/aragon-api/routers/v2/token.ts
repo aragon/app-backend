@@ -32,7 +32,7 @@ const TokenRouter = {
     ctx.body = await TokenController.getTokenStats(result.params)
   },
 
-  router() {
+  router(): Router {
     const router = new Router()
 
     /**

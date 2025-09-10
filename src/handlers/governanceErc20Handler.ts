@@ -1,39 +1,25 @@
 import logger from '@logger'
 import { type LogDescription } from 'ethers'
-import { EnumQueueName, type HexAddress, type ILogInfo, ITransferSide, ITransferType } from '@types'
+import { type ILogInfo, IPluginInterfaceType, type NetworksEnum } from '@types'
 import utils from '@helpers/utils'
-import { ProxyMember } from '@modules/proxyMember'
-import DbTx from '@modules/dbTx'
-import Web3Helper from '@helpers/web3'
-import { Models } from '@dbModels'
+import { MemberGovernanceFactory } from '@src/governance'
+import { Erc20Governance } from '@src/governance/erc20Governance'
 import type Plugin from '@models/schema/plugin'
-import RabbitMQHelper from '@helpers/rabbitMQ'
+import { Models } from '@dbModels'
 import { ProxyToken } from '@modules/proxyToken'
-import type MemberTransaction from '@models/schema/memberTransaction'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:GovernanceErc20Handler' })
 
 export const GovernanceErc20Handler = {
   // it triggers for each user the previous and new votingPower
-  delegateVotesChanged: async (parsedEvent: LogDescription, info: ILogInfo, isHistorical?: boolean) => {
+  delegateVotesChanged: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const plugins = await Models.Plugin.findAllByTokenAddress(info.address, info.network)
     if (!plugins || plugins.length === 0) return
 
     try {
-      const memberAddress = parsedEvent.args.delegate
-      const tokenAddress = info.address
-      const network = info.network
+      const { delegate: memberAddress } = parsedEvent.args
 
       if (memberAddress === utils.zeroAddress) return
-
-      const existingLog = await Models.MemberTransaction.findExistingLog({
-        network,
-        transactionHash: info.transactionHash,
-        transactionIndex: info.transactionIndex,
-        logIndex: info.logIndex,
-        address: memberAddress,
-      })
-      if (existingLog) return
 
       const token = await ProxyToken.saveAndGetToken(info.address, info.network)
       if (!token) {
@@ -41,124 +27,274 @@ export const GovernanceErc20Handler = {
         return
       }
 
-      await ProxyMember.createMember(memberAddress)
-      const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
-
-      const memberTokenBalanceDb = await ProxyMember.getBalances({
-        address: memberAddress,
-        tokenAddress: info.address,
-        network: info.network,
-      })
-
       const newBalance = BigInt(parsedEvent?.args?.newBalance || 0)
-      const previousBalance = BigInt(parsedEvent?.args?.previousBalance || 0)
+      const lastActivity = info.blockNumber
 
-      let side: ITransferSide
-      let from: HexAddress | null = null
-      let to: HexAddress | null = null
-      if (newBalance > previousBalance) {
-        side = ITransferSide.incoming
-        to = memberAddress
-      } else {
-        side = ITransferSide.outgoing
-        from = memberAddress
-      }
+      // Create ERC20 governance instance for token operations
+      const governance = MemberGovernanceFactory.createFromPlugin(plugins[0])
 
-      // save member transaction
-      const memberTx = await DbTx.executeTxFn(async ({ session }) => {
-        await memberTokenBalanceDb?.update(
-          {
-            votingPower: newBalance.toString(),
-          },
-          { session },
-        )
-
-        const logDb = await Models.MemberTransaction.create(
-          {
-            network,
-            transactionHash: info.transactionHash,
-            transactionIndex: info.transactionIndex,
-            logIndex: info.logIndex,
-            blockNumber: info.blockNumber,
-            blockTimestamp,
-            address: memberAddress,
-            type: ITransferType.delegate,
-            side,
-            amount: BigInt(parsedEvent?.args?.value || 0).toString(),
-            tokenAddress,
-            memberVotingPower: newBalance.toString(),
-            from,
-            to,
-          },
-          { session },
-        )
-        await session.commitTransaction()
-        await session.endSession()
-        logger.verbose('Transfer outgoing - MemberTransaction', llo({ logId: logDb?.id, info }))
-        return logDb
+      // Update, will create member if not exists, update or create the token member
+      await governance.update(memberAddress, {
+        votingPower: newBalance.toString(),
+        lastActivity,
       })
 
-      await GovernanceErc20Handler._handleDaoMemberShip(memberTx, plugins, info, isHistorical)
-
+      // Update plugin metrics for all plugins using this token
       await Promise.all(
-        plugins.map(async (plg: Plugin) => {
-          await ProxyMember.updateDelegationMetrics({
+        plugins.map(async (plugin: Plugin) => {
+          await governance.updatePluginMetrics({
             memberAddress,
-            pluginAddress: plg.address,
-            tokenAddress,
-            network,
-          })
-
-          await ProxyMember.updateActivity({
-            memberAddress,
-            pluginAddress: plg.address,
-            blockNumber: info.blockNumber,
-            network,
+            pluginAddress: plugin.address,
+            daoAddress: plugin.daoAddress,
+            network: plugin.network,
+            lastActivity: info.blockNumber,
           })
         }),
       )
+
+      await governance.updateDaoMetrics()
     } catch (error) {
       logger.error('DelegateVotesChanged - error', llo({ error, parsedEvent, info }))
     }
   },
 
-  _handleDaoMemberShip: async (
-    memberTx: Partial<MemberTransaction>,
-    plugins: Plugin[],
-    info: ILogInfo,
-    isHistorical?: boolean,
-  ) => {
-    await Promise.all([
-      ...plugins.map(async (plugin: Plugin) => {
-        const memberShipParams = {
-          memberAddress: memberTx.address!,
-          daoAddress: plugin.daoAddress,
-          network: plugin.network,
-          pluginAddress: plugin.address,
-          tokenAddress: plugin.tokenAddress,
+  // Batch version to handle multiple delegate votes changed events
+  delegateVotesChangedBatch: async (events: Array<{ parsedEvent: LogDescription; info: ILogInfo }>) => {
+    try {
+      // Filter out zero addresses and prepare data
+      const validEvents = events.filter(({ parsedEvent }) => parsedEvent.args.delegate !== utils.zeroAddress)
+
+      if (validEvents.length === 0) return
+
+      // Group events by member to handle each member's updates together
+      const eventsByMember = new Map<string, Array<{ parsedEvent: LogDescription; info: ILogInfo }>>()
+
+      // Use for...of loop for better performance
+      for (const event of validEvents) {
+        const memberAddress = event.parsedEvent.args.delegate.toLowerCase()
+        const existing = eventsByMember.get(memberAddress)
+        if (existing) {
+          existing.push(event)
+        } else {
+          eventsByMember.set(memberAddress, [event])
+        }
+      }
+
+      // Process each member's events to get only the latest
+      const latestEventsPerMember: Array<{ parsedEvent: LogDescription; info: ILogInfo }> = []
+
+      // Use for...of with Map entries for better performance
+      for (const [, memberEvents] of eventsByMember) {
+        // Find the event with the highest block number without sorting the entire array
+        let latestEvent = memberEvents[0]
+        for (let i = 1; i < memberEvents.length; i++) {
+          if (memberEvents[i].info.blockNumber > latestEvent.info.blockNumber) {
+            latestEvent = memberEvents[i]
+          }
+        }
+        latestEventsPerMember.push(latestEvent)
+      }
+
+      // Try batch operation without transaction for parallel processing
+      // Transactions cause conflicts when multiple batches run in parallel
+      try {
+        // Prepare batch data for members
+        const memberData = latestEventsPerMember.map(({ parsedEvent, info }) => ({
+          memberAddress: parsedEvent.args.delegate,
+          lastActivity: info.blockNumber,
+        }))
+
+        // Create/update base members in batch without session (no transaction)
+        await Erc20Governance.createMembersBatchNoTx(memberData)
+
+        // Group updates by token-network to create governance instances
+        const updatesByTokenNetwork = new Map<
+          string,
+          Array<{
+            memberAddress: string
+            votingPower: string
+            lastVPBlockNumber: number
+          }>
+        >()
+
+        latestEventsPerMember.forEach(({ parsedEvent, info }) => {
+          const key = `${info.address}-${info.network}`
+          const update = {
+            memberAddress: parsedEvent.args.delegate,
+            votingPower: BigInt(parsedEvent?.args?.newBalance || 0).toString(),
+            lastVPBlockNumber: info.blockNumber,
+          }
+          const existing = updatesByTokenNetwork.get(key)
+          if (existing) {
+            existing.push(update)
+          } else {
+            updatesByTokenNetwork.set(key, [update])
+          }
+        })
+
+        // Update voting powers in batch for each token
+        for (const [key, updates] of updatesByTokenNetwork) {
+          const [tokenAddress, ...networkParts] = key.split('-')
+          const network = networkParts.join('-')
+          const governance = new Erc20Governance(tokenAddress, network as NetworksEnum)
+          await governance.updateTokenMemberVPBatchNoTx(updates)
         }
 
-        const isMember = await ProxyMember.isMemberOfDao(memberShipParams)
-        const meetsRequirements = BigInt(memberTx?.memberVotingPower!) > 0n
+        // Get unique token-network combinations using reduce
+        const uniqueTokenNetworks = latestEventsPerMember.reduce<Array<{ tokenAddress: string; network: string }>>(
+          (acc, { info }) => {
+            const key = `${info.address}-${info.network}`
+            if (!acc.some(item => `${item.tokenAddress}-${item.network}` === key)) {
+              acc.push({ tokenAddress: info.address, network: info.network })
+            }
+            return acc
+          },
+          [],
+        )
 
-        if (!isMember && meetsRequirements) {
-          await ProxyMember.addToDao(memberShipParams)
-        } else if (isMember && !meetsRequirements) {
-          await ProxyMember.removeFromDao(memberShipParams)
-        }
-      }),
-    ])
+        // Fetch all plugins for all unique token-network combinations
+        const pluginPromises = uniqueTokenNetworks.map(({ tokenAddress, network }) =>
+          Models.Plugin.findAllByTokenAddress(tokenAddress, network),
+        )
+        const pluginArrays = await Promise.all(pluginPromises)
+        const allPlugins = pluginArrays.flat()
 
-    if (!isHistorical) {
-      const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')
-      await Promise.all(
-        uniqueDaoList.map(async (daoAddress: string) => {
-          await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-            id: daoAddress,
-            params: { address: daoAddress, network: info.network },
+        // Create a map of token-network to plugins for quick lookup using reduce
+        const pluginMap = allPlugins.reduce<Record<string, Plugin[]>>((map, plugin) => {
+          const key = `${plugin.tokenAddress}-${plugin.network}`
+          if (!map[key]) {
+            map[key] = []
+          }
+          map[key].push(plugin)
+          return map
+        }, {})
+
+        // Prepare plugin metrics updates using flatMap
+        const pluginMetricsUpdates = latestEventsPerMember.flatMap(({ parsedEvent, info }) => {
+          const key = `${info.address}-${info.network}`
+          const plugins = pluginMap[key] || []
+
+          return plugins.map(plugin => ({
+            memberAddress: parsedEvent.args.delegate,
+            pluginAddress: plugin.address,
+            daoAddress: plugin.daoAddress,
+            network: info.network,
+            lastActivity: info.blockNumber,
+          }))
+        })
+
+        // Update plugin metrics in batch without session
+        if (pluginMetricsUpdates.length > 0) {
+          // Group metrics updates by network to create governance instances
+          const metricsByNetwork = new Map<
+            NetworksEnum,
+            Array<{
+              memberAddress: string
+              pluginAddress: string
+              daoAddress?: string
+              lastActivity?: number
+            }>
+          >()
+
+          pluginMetricsUpdates.forEach(update => {
+            const existing = metricsByNetwork.get(update.network)
+            if (existing) {
+              existing.push(update)
+            } else {
+              metricsByNetwork.set(update.network, [update])
+            }
           })
-        }),
-      )
+
+          // Update metrics for each network using Erc20Governance
+          // We use the first available token address for each network
+          for (const [network, updates] of metricsByNetwork) {
+            const tokenNetworkItem = uniqueTokenNetworks.find(item => item.network === network)
+            if (tokenNetworkItem) {
+              const governance = new Erc20Governance(tokenNetworkItem.tokenAddress, network)
+              await governance.updatePluginMetricsBatchNoTx(updates)
+              await governance.updateDaoMetrics()
+            }
+          }
+        }
+      } catch (txError) {
+        // If batch transaction fails, fall back to individual processing
+        logger.warn(
+          'Batch transaction failed, falling back to individual processing',
+          llo({
+            error: txError,
+            eventCount: latestEventsPerMember.length,
+          }),
+        )
+
+        // Process each member individually without transaction to ensure no data loss
+        const failedMembers: string[] = []
+
+        for (const event of latestEventsPerMember) {
+          try {
+            const { parsedEvent, info } = event
+            const memberAddress = parsedEvent.args.delegate
+
+            // Create governance instance for token operations
+            const governance = MemberGovernanceFactory.create({
+              address: info.address, // token address
+              network: info.network,
+              interfaceType: IPluginInterfaceType.tokenVoting,
+            })
+
+            await governance.update(memberAddress, {
+              votingPower: BigInt(parsedEvent?.args?.newBalance || 0).toString(),
+              lastActivity: info.blockNumber,
+            })
+
+            // Update plugin metrics for this member
+            const plugins = await Models.Plugin.findAllByTokenAddress(info.address, info.network)
+            if (plugins.length > 0) {
+              await Promise.all(
+                plugins.map(async (plugin: Plugin) => {
+                  await governance.updatePluginMetrics({
+                    memberAddress,
+                    pluginAddress: plugin.address,
+                    daoAddress: plugin.daoAddress,
+                    network: plugin.network,
+                    lastActivity: info.blockNumber,
+                  })
+                }),
+              )
+            }
+          } catch (individualError) {
+            logger.error(
+              'Failed to process individual member',
+              llo({
+                error: individualError,
+                memberAddress: event.parsedEvent.args.delegate,
+                blockNumber: event.info.blockNumber,
+              }),
+            )
+            failedMembers.push(event.parsedEvent.args.delegate)
+          }
+        }
+
+        if (failedMembers.length > 0) {
+          logger.error(
+            'Some members failed to process',
+            llo({
+              failedMembers,
+              totalFailed: failedMembers.length,
+              totalProcessed: latestEventsPerMember.length,
+            }),
+          )
+        } else {
+          logger.info(
+            'All members processed successfully via fallback',
+            llo({
+              totalProcessed: latestEventsPerMember.length,
+            }),
+          )
+        }
+      }
+    } catch (error) {
+      logger.error('DelegateVotesChangedBatch - error', llo({ error, eventCount: events.length }))
+      throw error // Re-throw to ensure proper error handling
     }
   },
 }
