@@ -11,7 +11,7 @@ import logger from '@logger'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 
-describe.only('Indexer: DaoTransferHandler', () => {
+describe('Indexer: DaoTransferHandler', () => {
   let sandbox: SinonSandbox
   let mockToken: any
   let proxyTokenStub: any
