@@ -44,6 +44,12 @@ export class CapitalDistributorGovernance extends BaseGovernance {
       assertExposable(false, ErrorKeyEnum.campaignInvalid)
     }
 
+    const uniqueAddresses = new Set(rewards.map(reward => reward.address.toLowerCase()))
+    assertExposable(uniqueAddresses.size === rewards.length, ErrorKeyEnum.duplicateAddresses)
+
+    const validAddresses = rewards.every(reward => ethers.isAddress(reward.address))
+    assertExposable(validAddresses, ErrorKeyEnum.badParams)
+
     return await this.bulkUpsertRewards(campaignId, rewards)
   }
 
