@@ -15,7 +15,7 @@ export const CapitalDistributor = {
         {
           indexed: false,
           internalType: 'bytes',
-          name: 'metadataURI',
+          name: 'metadataUri',
           type: 'bytes',
         },
         {
@@ -26,27 +26,27 @@ export const CapitalDistributor = {
         },
         {
           indexed: false,
-          internalType: 'address',
+          internalType: 'contract IERC20',
           name: 'token',
           type: 'address',
         },
         {
           indexed: false,
-          internalType: 'address',
+          internalType: 'contract IPayoutActionEncoder',
           name: 'actionEncoder',
           type: 'address',
         },
         {
           indexed: false,
-          internalType: 'uint256',
+          internalType: 'uint64',
           name: 'startTime',
-          type: 'uint256',
+          type: 'uint64',
         },
         {
           indexed: false,
-          internalType: 'uint256',
+          internalType: 'uint64',
           name: 'endTime',
-          type: 'uint256',
+          type: 'uint64',
         },
       ],
       name: 'CampaignCreated',

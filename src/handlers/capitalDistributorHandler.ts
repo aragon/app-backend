@@ -22,7 +22,7 @@ export const CapitalDistributorHandler = {
     }
 
     try {
-      const { campaignId, metadataURI, allocationStrategy, token, actionEncoder, startTime, endTime } = parsedEvent.args
+      const { campaignId, metadataUri, allocationStrategy, token, actionEncoder, startTime, endTime } = parsedEvent.args
 
       const existingCampaign = await Models.Campaign.findExisting({
         pluginAddress: address,
@@ -42,7 +42,7 @@ export const CapitalDistributorHandler = {
         blockNumber,
         blockTimestamp: await Web3Helper.getBlockTimestamp(blockNumber, network),
         campaignId: campaignId.toString(),
-        metadataURI,
+        metadataURI: metadataUri,
         allocationStrategy,
         token,
         payoutEncoder: actionEncoder,
@@ -55,7 +55,7 @@ export const CapitalDistributorHandler = {
 
       await ProxyToken.saveAndGetToken(token, network)
 
-      const campaignMetadataUrl = Web3Utils.extractMetadataUri(metadataURI)!
+      const campaignMetadataUrl = Web3Utils.extractMetadataUri(metadataUri)!
 
       const rawMetadata = await IPFSModule.fetchMetadata(campaignMetadataUrl, { retries: 4 })
       if (rawMetadata) {

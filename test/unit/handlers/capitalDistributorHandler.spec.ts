@@ -55,7 +55,7 @@ describe('Handler: CapitalDistributor', () => {
       parsedEvent = {
         args: {
           campaignId: BigInt(1),
-          metadataURI: 'https://ipfs.io/ipfs/QmTest123',
+          metadataUri: 'https://ipfs.io/ipfs/QmTest123',
           allocationStrategy: '0x1234567890123456789012345678901234567890' as HexAddress,
           token: '0xA0b86a33E6441E13C7D3a1F1f432bE40e2dca91a' as HexAddress,
           actionEncoder: '0x9876543210987654321098765432109876543210' as HexAddress,
