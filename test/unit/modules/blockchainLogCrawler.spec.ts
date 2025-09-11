@@ -55,10 +55,12 @@ describe('Module: blockchainLogCrawler', () => {
           {
             topic: '0xTopic',
             event: 'Test',
-            config: [{
-              abi: [{ name: 'Test', type: 'event' }],
-              handler: sandbox.stub().resolves()
-            }]
+            config: [
+              {
+                abi: [{ name: 'Test', type: 'event' }],
+                handler: sandbox.stub().resolves(),
+              },
+            ],
           },
         ],
       })
@@ -66,9 +68,12 @@ describe('Module: blockchainLogCrawler', () => {
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
 
       // Stub Web3Helper.getBlockNumber
-      sandbox.stub(Web3Helper, 'getBlockNumber')
-        .onFirstCall().resolves(100) // fromBlock
-        .onSecondCall().resolves(200) // toBlock
+      sandbox
+        .stub(Web3Helper, 'getBlockNumber')
+        .onFirstCall()
+        .resolves(100) // fromBlock
+        .onSecondCall()
+        .resolves(200) // toBlock
 
       // Stub required methods
       sandbox.stub(crawler, 'getStrategyBySituation').returns(ICrawStrategy.getLogsByBatch)
@@ -192,15 +197,18 @@ describe('Module: blockchainLogCrawler', () => {
       const crawler = new BlockchainLogCrawler({
         ...crawlerConfig,
         skipLogProcessing: true,
-        logService: null // Don't use logService to avoid ConfigIndexer
+        logService: null, // Don't use logService to avoid ConfigIndexer
       })
 
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
 
       // Stub Web3Helper.getBlockNumber
-      sandbox.stub(Web3Helper, 'getBlockNumber')
-        .onFirstCall().resolves(100) // fromBlock
-        .onSecondCall().resolves(200) // toBlock
+      sandbox
+        .stub(Web3Helper, 'getBlockNumber')
+        .onFirstCall()
+        .resolves(100) // fromBlock
+        .onSecondCall()
+        .resolves(200) // toBlock
 
       // Stub required methods
       sandbox.stub(crawler, 'getStrategyBySituation').returns(ICrawStrategy.getLogsByBatch)
@@ -215,7 +223,9 @@ describe('Module: blockchainLogCrawler', () => {
 
       sandbox.stub(crawler, 'updateAndCheckConditions').onFirstCall().resolves(true).onSecondCall().resolves(false)
 
-      const formatLogStub = sandbox.stub((crawler as any).logProcessingEngine, 'formatLog').callsFake((log: any) => ({ ...log, formatted: true }) as any)
+      const formatLogStub = sandbox
+        .stub((crawler as any).logProcessingEngine, 'formatLog')
+        .callsFake((log: any) => ({ ...log, formatted: true }) as any)
 
       const processLogsSpy = sandbox.spy((crawler as any).logProcessingEngine, 'processLogs')
 
@@ -230,15 +240,18 @@ describe('Module: blockchainLogCrawler', () => {
     it('should break the loop when shutdown is triggered', async () => {
       const crawler = new BlockchainLogCrawler({
         ...crawlerConfig,
-        logService: null // Don't use logService to avoid ConfigIndexer
+        logService: null, // Don't use logService to avoid ConfigIndexer
       })
 
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
 
       // Stub Web3Helper.getBlockNumber
-      sandbox.stub(Web3Helper, 'getBlockNumber')
-        .onFirstCall().resolves(100) // fromBlock
-        .onSecondCall().resolves(200) // toBlock
+      sandbox
+        .stub(Web3Helper, 'getBlockNumber')
+        .onFirstCall()
+        .resolves(100) // fromBlock
+        .onSecondCall()
+        .resolves(200) // toBlock
 
       // Stub required methods
       sandbox.stub(crawler, 'getStrategyBySituation').returns(ICrawStrategy.getLogsByBatch)
@@ -296,15 +309,18 @@ describe('Module: blockchainLogCrawler', () => {
     it('should handle empty logs correctly', async () => {
       const crawler = new BlockchainLogCrawler({
         ...crawlerConfig,
-        logService: null // Don't use logService to avoid ConfigIndexer
+        logService: null, // Don't use logService to avoid ConfigIndexer
       })
 
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
 
       // Stub Web3Helper.getBlockNumber
-      sandbox.stub(Web3Helper, 'getBlockNumber')
-        .onFirstCall().resolves(100) // fromBlock
-        .onSecondCall().resolves(200) // toBlock
+      sandbox
+        .stub(Web3Helper, 'getBlockNumber')
+        .onFirstCall()
+        .resolves(100) // fromBlock
+        .onSecondCall()
+        .resolves(200) // toBlock
 
       // Stub required methods
       sandbox.stub(crawler, 'getStrategyBySituation').returns(ICrawStrategy.getLogsByBatch)
@@ -433,21 +449,19 @@ describe('Module: blockchainLogCrawler', () => {
       const batchSizeError = { error: { code: -32000, message: 'Response size is larger than 150MB limit' } }
 
       let callCount = 0
-      const executeBatchStub = sandbox
-        .stub(crawler, 'executeBatchRequest')
-        .callsFake(async () => {
-          callCount++
-          if (callCount === 1) {
-            // First call returns batch size error
-            return [batchSizeError]
-          } else if (callCount === 2) {
-            // Second call returns success
-            return [{ result: [{ blockNumber: '0x65', transactionIndex: '0x1', logIndex: '0x0' }] }]
-          } else {
-            // Safety: should not get here
-            throw new Error(`Unexpected call count: ${callCount}`)
-          }
-        })
+      const executeBatchStub = sandbox.stub(crawler, 'executeBatchRequest').callsFake(async () => {
+        callCount++
+        if (callCount === 1) {
+          // First call returns batch size error
+          return [batchSizeError]
+        } else if (callCount === 2) {
+          // Second call returns success
+          return [{ result: [{ blockNumber: '0x65', transactionIndex: '0x1', logIndex: '0x0' }] }]
+        } else {
+          // Safety: should not get here
+          throw new Error(`Unexpected call count: ${callCount}`)
+        }
+      })
 
       const result = await crawler.getLogsByBatch(100, 200)
 
@@ -466,7 +480,9 @@ describe('Module: blockchainLogCrawler', () => {
         ],
       })
 
-      const rateLimitError = { error: { code: -32005, message: 'Too many requests, reason: call rate limit exhausted' } }
+      const rateLimitError = {
+        error: { code: -32005, message: 'Too many requests, reason: call rate limit exhausted' },
+      }
       const executeBatchStub = sandbox
         .stub(crawler, 'executeBatchRequest')
         .onFirstCall()
@@ -1956,7 +1972,9 @@ describe('Module: blockchainLogCrawler', () => {
         })
 
         // Stub Web3Utils methods
-        sandbox.stub(Web3Utils, 'parseLog').callsFake((log: any) => ({ name: log.topics[0] === '0xEvent1' ? 'Event1' : 'Event2' } as any))
+        sandbox
+          .stub(Web3Utils, 'parseLog')
+          .callsFake((log: any) => ({ name: log.topics[0] === '0xEvent1' ? 'Event1' : 'Event2' }) as any)
         sandbox.stub(Web3Utils, 'parseInfoLog').returns({ blockNumber: 100 } as any)
 
         const mockLogs = [
@@ -2037,7 +2055,7 @@ describe('Module: blockchainLogCrawler', () => {
               config: [{ abi: [{ name: 'Event1', type: 'event' }], handler: handler1 }],
             },
             {
-              topic: '0xUnknown',  // Add the unknown event to the config so it's found
+              topic: '0xUnknown', // Add the unknown event to the config so it's found
               event: 'Unknown',
               config: [{ abi: [{ name: 'Unknown', type: 'event' }], handler: sandbox.stub() }],
             },
@@ -2051,8 +2069,8 @@ describe('Module: blockchainLogCrawler', () => {
 
         // Stub Web3Utils to return null for unknown topic (simulating parse failure)
         const parseLogStub = sandbox.stub(Web3Utils, 'parseLog')
-        parseLogStub.onFirstCall().returns(null)  // First log fails to parse
-        parseLogStub.onSecondCall().returns({ name: 'Event1' } as any)  // Second log parses successfully
+        parseLogStub.onFirstCall().returns(null) // First log fails to parse
+        parseLogStub.onSecondCall().returns({ name: 'Event1' } as any) // Second log parses successfully
         sandbox.stub(Web3Utils, 'parseInfoLog').returns({ blockNumber: 100 } as any)
 
         const mockLogs = [
@@ -2211,8 +2229,8 @@ describe('Module: blockchainLogCrawler', () => {
         ] as any
 
         const onErrorStub = sandbox.stub()
-        crawler['crawlParams'].onError = onErrorStub;
-        (crawler as any).logProcessingEngine.onError = onErrorStub
+        crawler['crawlParams'].onError = onErrorStub
+        ;(crawler as any).logProcessingEngine.onError = onErrorStub
 
         await crawler.processLogsParallel(logs, {
           fromBlock: 100,
@@ -2232,11 +2250,11 @@ describe('Module: blockchainLogCrawler', () => {
         handlerStub1.rejects(new Error('Handler error'))
 
         // Update both crawlParams and logProcessingEngine's stopOnError
-        crawler['crawlParams'].stopOnError = true;
-        (crawler as any).logProcessingEngine.stopOnError = true
+        crawler['crawlParams'].stopOnError = true
+        ;(crawler as any).logProcessingEngine.stopOnError = true
         const onErrorStub = sandbox.stub()
-        crawler['crawlParams'].onError = onErrorStub;
-        (crawler as any).logProcessingEngine.onError = onErrorStub
+        crawler['crawlParams'].onError = onErrorStub
+        ;(crawler as any).logProcessingEngine.onError = onErrorStub
 
         const logs = [
           { blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xTopic1'], transactionHash: '0x1' },
@@ -2722,7 +2740,9 @@ describe('Module: blockchainLogCrawler', () => {
         })
 
         // Stub Web3Utils methods
-        sandbox.stub(Web3Utils, 'parseLog').callsFake((log: any) => ({ name: log.topics[0] === '0xEvent1' ? 'Event1' : 'Event2' } as any))
+        sandbox
+          .stub(Web3Utils, 'parseLog')
+          .callsFake((log: any) => ({ name: log.topics[0] === '0xEvent1' ? 'Event1' : 'Event2' }) as any)
         sandbox.stub(Web3Utils, 'parseInfoLog').returns({ blockNumber: 100 } as any)
 
         const mockLogs = [
@@ -3299,7 +3319,9 @@ describe('Module: blockchainLogCrawler', () => {
         info: {} as any,
       })
 
-      const mockLogs: any[] = [{ blockNumber: 100, transactionHash: '0x1', transactionIndex: 0, index: 0, topics: ['0xTest'] }]
+      const mockLogs: any[] = [
+        { blockNumber: 100, transactionHash: '0x1', transactionIndex: 0, index: 0, topics: ['0xTest'] },
+      ]
 
       try {
         await (crawler as any).logProcessingEngine.processLogsParallelBatch(
@@ -3414,7 +3436,7 @@ describe('Module: blockchainLogCrawler', () => {
           { enable: true, concurrency: 2, batchSize: 10, useBatch: false },
           'test',
           '0x123',
-          'test'
+          'test',
         )
         expect.fail('Should have thrown an error')
       } catch (error: any) {
@@ -3469,7 +3491,7 @@ describe('Module: blockchainLogCrawler', () => {
         { enable: true, concurrency: 2, batchSize: 10, useBatch: false },
         'test',
         '0x123',
-        'test'
+        'test',
       )
 
       expect(result).to.be.a('number')
@@ -3525,7 +3547,7 @@ describe('Module: blockchainLogCrawler', () => {
         { enable: true, concurrency: 2, batchSize: 2, useBatch: false },
         'test',
         '0x123',
-        'test'
+        'test',
       )
 
       // Verify that shutdown was triggered during processing
@@ -3646,7 +3668,12 @@ describe('Module: blockchainLogCrawler', () => {
       getBlockNumberStub.onSecondCall().resolves(1000) // latestBlock
       sandbox.stub((crawler as any).progressTracker, 'getStartingBlock').resolves(100)
       sandbox.stub(crawler as any, 'getServiceStartBlock').resolves(100)
-      sandbox.stub(crawler as any, 'updateAndCheckConditions').onFirstCall().resolves(true).onSecondCall().resolves(false)
+      sandbox
+        .stub(crawler as any, 'updateAndCheckConditions')
+        .onFirstCall()
+        .resolves(true)
+        .onSecondCall()
+        .resolves(false)
       sandbox.stub(crawler, 'getStrategyBySituation').returns(ICrawStrategy.getLogsByBatch)
       sandbox.stub(crawler, 'getOffsetToBlockNumber').callsFake((block: number) => block)
 

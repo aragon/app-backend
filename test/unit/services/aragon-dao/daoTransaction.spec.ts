@@ -69,7 +69,7 @@ describe('AragonDao: DaoTransactions', () => {
       this.crawl = sandbox.stub().resolves()
       this.crawlSetting = {
         crawling: false,
-        shutdown: false
+        shutdown: false,
       }
       crawlerInstances.push(this)
     }
@@ -347,7 +347,7 @@ describe('AragonDao: DaoTransactions', () => {
         this.crawl = sandbox.stub().rejects(new Error('Crawl failed'))
         this.crawlSetting = {
           crawling: false,
-          shutdown: false
+          shutdown: false,
         }
       }
 

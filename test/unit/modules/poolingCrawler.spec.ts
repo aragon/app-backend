@@ -72,12 +72,12 @@ describe('Module: PoolingCrawler', () => {
 
     it('should handle errors during start', async () => {
       const error = new Error('Test error')
-      
+
       const loggerStub = sandbox.stub(logger, 'error')
-      
+
       // Stub the entire PoolingCrawler.start method to simulate error handling
       const originalStart = PoolingCrawler.start
-      PoolingCrawler.start = async function() {
+      PoolingCrawler.start = async function () {
         try {
           throw error
         } catch (e) {

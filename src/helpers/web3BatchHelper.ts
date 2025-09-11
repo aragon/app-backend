@@ -2,7 +2,13 @@ import logger from '@logger'
 import axios from 'axios'
 import ProviderModule from '@src/modules/provider'
 import { ethers } from 'ethers'
-import { type NetworksEnum, type HexAddress, type BatchRequestItem, type BatchResponse, CrawlerErrorType } from '@src/types'
+import {
+  type NetworksEnum,
+  type HexAddress,
+  type BatchRequestItem,
+  type BatchResponse,
+  CrawlerErrorType,
+} from '@src/types'
 import Web3Helper from '@helpers/web3'
 import config from '@config'
 import { CrawlerErrorHandler } from '@modules/crawlers'
