@@ -545,7 +545,7 @@ export const PluginHandler = {
       isBody: previousPlugin.isBody,
       isProcess: previousPlugin.isProcess,
       isSubPlugin: previousPlugin.isSubPlugin,
-      parentPlugin: previousPlugin.address,
+      parentPlugin: previousPlugin.parentPlugin,
       isSupported: previousPlugin.isSupported,
     }
 
