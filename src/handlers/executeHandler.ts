@@ -36,14 +36,16 @@ export const ExecuteHandler = {
 
       const selectorInfo = await ContractInfo.parseSignature(selector, where, network)
 
-      const decoded = {
-        functionName: selectorInfo.functionName,
-        contractName: selectorInfo.contractName,
-        proxyName: selectorInfo.proxyName,
-        implementationAddress: selectorInfo.implementationAddress,
-        inputs: selectorInfo.inputs,
-        notice: selectorInfo.notice,
-      }
+      const decoded = selectorInfo
+        ? {
+            functionName: selectorInfo.functionName,
+            contractName: selectorInfo.contractName,
+            proxyName: selectorInfo.proxyName,
+            implementationAddress: selectorInfo.implementationAddress,
+            inputs: selectorInfo.inputs,
+            notice: selectorInfo.notice,
+          }
+        : {}
 
       const selectorRecord = await Models.SelectorPermission.create({
         blockNumber,
