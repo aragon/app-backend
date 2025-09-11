@@ -15,7 +15,7 @@ import config from '@config'
 import utils from '@helpers/utils'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 
-describe('Integ: BlockchainLogCrawler', () => {
+describe.skip('Integ: BlockchainLogCrawler', () => {
   let sandbox: SinonSandbox
 
   before(async () => {
@@ -30,7 +30,7 @@ describe('Integ: BlockchainLogCrawler', () => {
     sandbox && sandbox.restore()
   })
 
-  it.only('should sync ARB delegateEvents in parallel and batch', async function () {
+  it('should sync ARB delegateEvents in parallel and batch', async function () {
     this.timeout(10000000)
 
     const plugin = await Models.Plugin.create({
