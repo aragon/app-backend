@@ -24,8 +24,8 @@ const PoolingCrawler = {
 
   async start({ logService, network }: { logService: LogServicePattern; network: NetworksEnum }) {
     try {
-      if (this.instances.has(network)) {
-        return this.instances.get(network)!.crawl()
+      if (PoolingCrawler.instances.has(network)) {
+        return PoolingCrawler.instances.get(network)!.crawl()
       }
 
       const poolingCrawler = new BlockchainLogCrawler({
@@ -38,10 +38,11 @@ const PoolingCrawler = {
         batchSize: 0.01,
       })
 
-      this.instances.set(network, poolingCrawler)
+      PoolingCrawler.instances.set(network, poolingCrawler)
       return poolingCrawler.crawl()
     } catch (error) {
-      logger.error('PoolingCrawler start', llo({ network, error }))
+      logger.error('PoolingCrawler error', llo({ network, error }))
+      throw error
     }
   },
 
