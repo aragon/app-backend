@@ -61,8 +61,8 @@ class TaskScheduler {
           )
 
           await Models.TaskService.findOneAndUpdate(
-            { serviceName }, 
-            { $unset: { lockedUntil: 1, lockedBy: 1, lockedAt: 1, hostname: 1, instanceId: 1 } }
+            { serviceName },
+            { $unset: { lockedUntil: 1, lockedBy: 1, lockedAt: 1, hostname: 1, instanceId: 1 } },
           )
         } else {
           // Process exists, lock is valid

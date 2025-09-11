@@ -543,14 +543,14 @@ describe('Modules: TaskScheduler', () => {
   describe('Lock Management', () => {
     it('should acquire and release lock correctly', async () => {
       const serviceName = getUniqueServiceName('lockLifecycle')
-      
+
       let taskStarted = false
       let taskCompleted = false
-      
-      const task1 = { 
+
+      const task1 = {
         start: sandbox.stub().callsFake(async () => {
           taskStarted = true
-          
+
           // Check lock while task is running
           const taskServiceDuring = await Models.TaskService.findOne({ serviceName })
           expect(taskServiceDuring).to.exist
@@ -559,18 +559,18 @@ describe('Modules: TaskScheduler', () => {
           expect(taskServiceDuring.lockedAt).to.exist
           expect(taskServiceDuring.hostname).to.eq(os.hostname())
           expect(taskServiceDuring.instanceId).to.eq(`${os.hostname()}-${process.pid}`)
-          
+
           // Check that lock expiration is in the future
           const now = dayjs.utc()
           const lockExpiry = dayjs(taskServiceDuring.lockedUntil)
           expect(lockExpiry.isAfter(now)).to.be.true
-          
+
           // Simulate some work
           await Utils.wait(100)
-          
+
           taskCompleted = true
           return 'done'
-        })
+        }),
       }
       const taskFn = () => [[{ task1 }]]
 
@@ -621,17 +621,17 @@ describe('Modules: TaskScheduler', () => {
       const loggerDebugStub = sandbox.stub(logger, 'debug')
 
       let taskExecuted = false
-      const task1 = { 
+      const task1 = {
         start: sandbox.stub().callsFake(async () => {
           taskExecuted = true
-          
+
           // Verify lock is now held by current process
           const taskService = await Models.TaskService.findOne({ serviceName })
           expect(taskService.lockedBy).to.eq(process.pid)
           expect(taskService.hostname).to.eq(os.hostname())
-          
+
           return 'done'
-        })
+        }),
       }
       const taskFn = () => [[{ task1 }]]
 
@@ -697,8 +697,11 @@ describe('Modules: TaskScheduler', () => {
       const debugCalls = loggerDebugStub.getCalls()
       const foundLockHeld = debugCalls.some(call => {
         const firstArg = call.args[0] as unknown as string
-        return firstArg && firstArg.includes && 
+        return (
+          firstArg &&
+          firstArg.includes &&
           (firstArg.includes('Lock held by active process') || firstArg.includes('Could not acquire lock'))
+        )
       })
       expect(foundLockHeld).to.be.true
 
@@ -714,20 +717,20 @@ describe('Modules: TaskScheduler', () => {
 
     it('should release lock after task completes', async () => {
       const serviceName = getUniqueServiceName('releaseLock')
-      
+
       let lockCheckResolve: any
       const lockCheckPromise = new Promise(resolve => {
         lockCheckResolve = resolve
       })
 
-      const task1 = { 
+      const task1 = {
         start: sandbox.stub().callsFake(async () => {
           // Verify lock is acquired while task is running
           const taskService = await Models.TaskService.findOne({ serviceName })
           expect(taskService.lockedBy).to.eq(process.pid)
           lockCheckResolve()
           return 'done'
-        })
+        }),
       }
       const taskFn = () => [[{ task1 }]]
 
@@ -745,7 +748,7 @@ describe('Modules: TaskScheduler', () => {
       expect(taskServiceAfter).to.exist
       expect(taskServiceAfter.lockedBy).to.be.undefined
       expect(taskServiceAfter.lockedUntil).to.be.undefined
-      
+
       scheduler.stopTask(serviceName)
     })
 
@@ -765,22 +768,22 @@ describe('Modules: TaskScheduler', () => {
       })
 
       let taskExecuted = false
-      const task1 = { 
+      const task1 = {
         start: sandbox.stub().callsFake(async () => {
           taskExecuted = true
-          
+
           // Verify new lock was acquired
           const taskService = await Models.TaskService.findOne({ serviceName })
           expect(taskService.lockedBy).to.eq(process.pid)
           expect(taskService.hostname).to.eq(os.hostname())
-          
+
           // New lock should be in the future
           const now = dayjs.utc()
           const lockExpiry = dayjs(taskService.lockedUntil)
           expect(lockExpiry.isAfter(now)).to.be.true
-          
+
           return 'done'
-        })
+        }),
       }
       const taskFn = () => [[{ task1 }]]
 
@@ -800,8 +803,8 @@ describe('Modules: TaskScheduler', () => {
 
     it('should include lock information in TaskService document', async () => {
       const serviceName = getUniqueServiceName('lockInfo')
-      
-      const task1 = { 
+
+      const task1 = {
         start: sandbox.stub().callsFake(async () => {
           // Check that all lock information fields are present
           const taskService = await Models.TaskService.findOne({ serviceName })
@@ -810,15 +813,15 @@ describe('Modules: TaskScheduler', () => {
           expect(taskService.lockedUntil).to.exist
           expect(taskService.hostname).to.eq(os.hostname())
           expect(taskService.instanceId).to.eq(`${os.hostname()}-${process.pid}`)
-          
+
           // Verify lockedAt is recent
           const lockedAt = dayjs(taskService.lockedAt)
           const now = dayjs.utc()
           const diffSeconds = now.diff(lockedAt, 'seconds')
           expect(diffSeconds).to.be.lessThan(5)
-          
+
           return 'done'
-        })
+        }),
       }
       const taskFn = () => [[{ task1 }]]
 
@@ -835,32 +838,32 @@ describe('Modules: TaskScheduler', () => {
 
     it('should handle concurrent lock attempts correctly', async () => {
       const serviceName = getUniqueServiceName('concurrent')
-      
+
       let task1Executed = false
       let task2Executed = false
 
       // First task that holds lock for a while
-      const task1 = { 
+      const task1 = {
         start: sandbox.stub().callsFake(async () => {
           task1Executed = true
-          
+
           // Verify lock is held by scheduler1
           const taskService = await Models.TaskService.findOne({ serviceName })
           expect(taskService.lockedBy).to.eq(process.pid)
-          
+
           // Hold the lock for a bit
           await Utils.wait(200)
           return 'done'
-        })
+        }),
       }
       const taskFn1 = () => [[{ task1 }]]
 
       // Second task that should not execute
-      const task2 = { 
+      const task2 = {
         start: sandbox.stub().callsFake(async () => {
           task2Executed = true
           return 'done'
-        })
+        }),
       }
       const taskFn2 = () => [[{ task2 }]]
 
@@ -877,7 +880,7 @@ describe('Modules: TaskScheduler', () => {
       // Second scheduler tries to acquire lock while first is running
       const loggerDebugStub = sandbox.stub(logger, 'debug')
       const scheduler2 = new TaskScheduler()
-      
+
       await scheduler2.startTask(serviceName, {
         fn: taskFn2,
         interval: 5000,
@@ -899,7 +902,7 @@ describe('Modules: TaskScheduler', () => {
 
       // First task should have been executed
       expect(task1Executed).to.be.true
-      
+
       // Second task should not have been executed
       expect(task2Executed).to.be.false
       expect(task2.start.called).to.be.false
