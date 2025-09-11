@@ -427,7 +427,7 @@ describe('Transfers: Erc721TransferProcessor', () => {
       getBlockTimestampStub.resolves(1625000000)
       fetchTokenPriceStub.resolves('0.00') // No price data
 
-      const result = await processor['addTokenMetadata'](data as any)
+      const result = (await processor['addTokenMetadata'](data as any)) as any
 
       expect(result.amountUsd).to.equal('0.00')
     })
