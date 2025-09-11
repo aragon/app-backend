@@ -473,102 +473,106 @@ export const PluginHandler = {
     }
 
     try {
-      const plugin = await PluginHandler._createPlugin(rawPlugin as any)
-      if (!plugin) return
+      const newPlugin = await PluginHandler._createPlugin(rawPlugin as any)
+      if (!newPlugin) return
 
-      /**
-       * If the dao itself is updated, we need to update the dao version and implementation
-       */
-      await DaoRegistryHandler.handleVersionUpgrade(plugin.daoAddress, {
-        network: plugin.network,
-        transactionHash: plugin.transactionHash,
-        blockNumber: plugin.blockNumber,
+      const previousPlugin = await Models.Plugin.findOne({
+        network: pluginLog.network,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        address: rawPlugin.address,
+        status: IPluginStatus.installed,
+        blockNumber: { $lt: newPlugin.blockNumber },
       })
 
-      /**
-       * If the plugin has metadata, we need to update the metadata to the new plugin
-       */
       const lastSavedMetadata = await Models.LogMetadata.getLatestMetadata(
-        plugin.network,
-        plugin.address,
+        newPlugin.network,
+        newPlugin.address,
         IMetadataTargetField.pluginAddress,
       )
 
-      if (lastSavedMetadata) {
-        await MetadataHandler._updatePluginMetadata(lastSavedMetadata)
+      if (!previousPlugin) {
+        logger.warn('Previous plugin not found for update', llo({ pluginLog }))
+        return
       }
 
+      await DaoRegistryHandler.handleVersionUpgrade(newPlugin.daoAddress, {
+        network: newPlugin.network,
+        transactionHash: newPlugin.transactionHash,
+        blockNumber: newPlugin.blockNumber,
+      })
+
       await DbTx.executeTxFn(async ({ session }) => {
-        const existingPlugin = await Models.Plugin.findOne(
+        const inheritedProperties = PluginHandler._getInheritedProperties(previousPlugin, newPlugin)
+
+        await previousPlugin.update(
           {
-            network: pluginLog.network,
-            daoAddress: rawPlugin.daoAddress,
-            pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
-            address: rawPlugin.address,
-            status: IPluginStatus.installed,
-            blockNumber: { $lt: plugin.blockNumber },
-          },
-          null,
-          { session },
-        )
-
-        if (existingPlugin) {
-          /**
-           * After the plugin is updated we have to copy the existing plugin token.
-           * We need to be sure that both updated and current plugin is token voting
-           */
-
-          const updateParams: any = {}
-          if (plugin.isSupported !== existingPlugin.isSupported) {
-            updateParams.isSupported = existingPlugin.isSupported
-          }
-
-          if (
-            plugin.interfaceType === IPluginInterfaceType.tokenVoting &&
-            existingPlugin.interfaceType === IPluginInterfaceType.tokenVoting &&
-            !plugin.tokenAddress
-          ) {
-            updateParams.tokenAddress = existingPlugin.tokenAddress
-          }
-
-          if (
-            plugin.interfaceType === IPluginInterfaceType.lockToVote &&
-            existingPlugin.interfaceType === IPluginInterfaceType.lockToVote &&
-            !plugin.lockManagerAddress &&
-            existingPlugin.lockManagerAddress
-          ) {
-            updateParams.lockManagerAddress = existingPlugin.lockManagerAddress
-            updateParams.tokenAddress = existingPlugin.tokenAddress
-          }
-
-          if (Object.keys(updateParams).length > 0) {
-            await plugin.update(updateParams, { session })
-          }
-
-          const document = {
             status: IPluginStatus.deprecated,
             isSupported: false,
             uninstalled: {
               status: true,
-              blockNumber: plugin.blockNumber,
-              blockTimestamp: plugin.blockTimestamp,
-              transactionHash: plugin.transactionHash,
+              blockNumber: newPlugin.blockNumber,
+              blockTimestamp: newPlugin.blockTimestamp,
+              transactionHash: newPlugin.transactionHash,
             },
-          }
+          },
+          { session },
+        )
 
-          await existingPlugin.update(document, { session })
-          await session.commitTransaction()
-          await session.endSession()
-          logger.verbose('Updated document - Deprecated plugin', llo({ documentId: existingPlugin.id }))
+        if (Object.keys(inheritedProperties).length > 0) {
+          await newPlugin.update(inheritedProperties, { session })
+        }
 
-          if (Object.keys(updateParams).length > 0) {
-            logger.verbose('Updated document - Add plugin token address', llo({ documentId: plugin.id }))
-          }
+        await session.commitTransaction()
+        await session.endSession()
+
+        logger.verbose('Updated document - Deprecated plugin', llo({ documentId: previousPlugin.id }))
+        if (Object.keys(inheritedProperties).length > 0) {
+          logger.verbose('Updated document - Inherited properties', llo({ documentId: newPlugin.id }))
         }
       })
+
+      if (lastSavedMetadata) {
+        await MetadataHandler._updatePluginMetadata(lastSavedMetadata)
+      }
     } catch (error) {
       logger.error('Error UpdatePlugin', llo({ pluginLog, error }))
     }
+  },
+
+  _getInheritedProperties: (previousPlugin: Plugin, newPlugin: Plugin): Partial<Plugin> => {
+    const inheritedProps: any = {
+      isBody: previousPlugin.isBody,
+      isProcess: previousPlugin.isProcess,
+      isSubPlugin: previousPlugin.isSubPlugin,
+      parentPlugin: previousPlugin.address,
+      isSupported: previousPlugin.isSupported,
+    }
+
+    if (
+      newPlugin.interfaceType === IPluginInterfaceType.tokenVoting &&
+      previousPlugin.interfaceType === IPluginInterfaceType.tokenVoting &&
+      !newPlugin.tokenAddress &&
+      previousPlugin.tokenAddress
+    ) {
+      inheritedProps.tokenAddress = previousPlugin.tokenAddress
+    }
+
+    if (previousPlugin.votingEscrow) {
+      inheritedProps.votingEscrow = previousPlugin.votingEscrow
+    }
+
+    if (
+      newPlugin.interfaceType === IPluginInterfaceType.lockToVote &&
+      previousPlugin.interfaceType === IPluginInterfaceType.lockToVote &&
+      !newPlugin.lockManagerAddress &&
+      previousPlugin.lockManagerAddress
+    ) {
+      inheritedProps.lockManagerAddress = previousPlugin.lockManagerAddress
+      inheritedProps.tokenAddress = previousPlugin.tokenAddress
+    }
+
+    return inheritedProps
   },
 
   uninstallPluginWithPermissionRevoke: async (

@@ -31,6 +31,7 @@ import { IDaoLogs } from '@types'
 import ProviderModule from '@modules/provider'
 import { Interface } from 'ethers'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
+import { PluginList } from '@test/mock/fakePlugins'
 
 describe('Indexer:Plugin', () => {
   let sandbox: SinonSandbox
@@ -429,7 +430,7 @@ describe('Indexer:Plugin', () => {
     it('should updatePlugin', async () => {
       rawPlugin.tokenAddress = '0x00'
       rawPlugin.isSupported = true
-      rawPlugin.daoAddress = '0xdaoAddress'
+      rawPlugin.daoAddress = '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254'
 
       sandbox.stub(PluginDetector, 'detectPluginType').resolves({
         type: IPluginInterfaceType.tokenVoting,
@@ -444,22 +445,36 @@ describe('Indexer:Plugin', () => {
       const eventUpdateApplied = await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[3])
 
       const loggerVerboseStub = sandbox.stub(logger, 'verbose')
-      const existingPlugin = await PluginHandler._createPlugin(rawPlugin as any)
-      await existingPlugin?.update({ isSupported: true, blockNumber: 1000 }) // Lower block number
+
+      // Create existing plugin directly in database
+      await Models.Plugin.create({
+        status: IPluginStatus.installed,
+        network: rawPlugin.network,
+        blockNumber: 1000, // Lower block number
+        transactionHash: 'oldTx',
+        address: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        isSupported: true,
+      })
 
       const newPlugin = {
         id: 'new-plugin-id',
-        address: ListLogPluginSetupProcessor[3].pluginAddress,
+        address: rawPlugin.address,
         blockNumber: 2000,
         network: NetworksEnum.ethereumMainnet,
         daoAddress: rawPlugin.daoAddress,
-        pluginSetupRepoAddress: '0xrepoAddress',
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
         transactionHash: '0xnewtx',
         isSupported: false,
+        blockTimestamp: 1620000000,
+        interfaceType: IPluginInterfaceType.tokenVoting,
         update: sandbox.stub().resolves({}),
       }
 
       const spyCreatePlugin = sandbox.stub(PluginHandler, '_createPlugin').resolves(newPlugin as any)
+      const spyGetInheritedProperties = sandbox.spy(PluginHandler, '_getInheritedProperties')
 
       await PluginHandler.updatePlugin(eventUpdateApplied as any)
 
@@ -472,11 +487,12 @@ describe('Indexer:Plugin', () => {
           blockNumber: newPlugin.blockNumber,
         }),
       ).to.be.true
-      expect(loggerVerboseStub.calledOnce).to.be.true
+      expect(spyGetInheritedProperties.calledOnce).to.be.true
+      expect(loggerVerboseStub.calledTwice).to.be.true
     })
 
     it('should update plugin metadata when metadata exists', async () => {
-      rawPlugin.daoAddress = '0xdaoAddress'
+      rawPlugin.daoAddress = '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254'
 
       sandbox.stub(PluginDetector, 'detectPluginType').resolves({
         type: IPluginInterfaceType.tokenVoting,
@@ -512,6 +528,18 @@ describe('Indexer:Plugin', () => {
       const getLatestMetadataStub = sandbox.stub(Models.LogMetadata, 'getLatestMetadata').resolves(mockMetadata)
       const updatePluginMetadataStub = sandbox.stub(MetadataHandler, '_updatePluginMetadata').resolves()
 
+      await Models.Plugin.create({
+        ...PluginList[0],
+        network: rawPlugin.network,
+        address: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        isSupported: true,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        tokenAddress: '0x00',
+        blockNumber: 100,
+      })
       // Create plugin
       const newPlugin = {
         id: 'new-plugin-id',
@@ -526,12 +554,11 @@ describe('Indexer:Plugin', () => {
       }
 
       sandbox.stub(PluginHandler, '_createPlugin').resolves(newPlugin as any)
-      sandbox.stub(Models.Plugin, 'findOne').resolves(null)
       sandbox.stub(logger, 'verbose').resolves()
 
       await PluginHandler.updatePlugin(eventUpdateApplied as any)
 
-      // Assertions
+      // Assertions - this test expects no previous plugin to be found
       expect(getLatestMetadataStub.calledOnce).to.be.true
       expect(getLatestMetadataStub.calledWith(newPlugin.network, newPlugin.address, IMetadataTargetField.pluginAddress))
         .to.be.true
@@ -583,15 +610,14 @@ describe('Indexer:Plugin', () => {
       }
 
       sandbox.stub(PluginHandler, '_createPlugin').resolves(newPlugin as any)
-      sandbox.stub(Models.Plugin, 'findOne').resolves(null)
       sandbox.stub(logger, 'verbose').resolves()
 
       await PluginHandler.updatePlugin(eventUpdateApplied as any)
 
-      // Assertions
+      // Assertions - this test expects no previous plugin to be found
       expect(getLatestMetadataStub.calledOnce).to.be.true
       expect(updatePluginMetadataStub.called).to.be.false
-      expect(handleVersionUpgradeStub.calledOnce).to.be.true
+      expect(handleVersionUpgradeStub.calledOnce).to.be.false // Should not be called when no previous plugin
     })
 
     it('should log warning if rawPlugin is not found', async () => {
@@ -680,6 +706,7 @@ describe('Indexer:Plugin', () => {
       expect(newPlugin.update.args[0][0]).to.deep.include({
         tokenAddress: '0xdifferentToken',
         isSupported: true,
+        parentPlugin: existingPlugin.address,
       })
 
       // Verify the existing plugin is deprecated
@@ -747,6 +774,7 @@ describe('Indexer:Plugin', () => {
       expect(newPlugin.update.calledOnce).to.be.true
       expect(newPlugin.update.args[0][0]).to.deep.include({
         isSupported: true,
+        parentPlugin: existingPlugin.address,
       })
 
       const updated = await Models.Plugin.findOne({
@@ -818,6 +846,7 @@ describe('Indexer:Plugin', () => {
         lockManagerAddress: '0xLockManager123',
         tokenAddress: '0xToken123',
         isSupported: true,
+        parentPlugin: existingPlugin.address,
       })
 
       const updated = await Models.Plugin.findOne({
@@ -1040,6 +1069,7 @@ describe('Indexer:Plugin', () => {
       })
 
       const handleVersionUpgradeStub = sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
+      const loggerWarnStub = sandbox.stub(logger, 'warn')
 
       await Models.LogPluginSetupProcessor.create({
         ...ListLogPluginSetupProcessor[2],
@@ -1064,6 +1094,7 @@ describe('Indexer:Plugin', () => {
         pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
         transactionHash: '0xnewtx',
         interfaceType: IPluginInterfaceType.tokenVoting,
+        blockTimestamp: 1620000000,
         update: sandbox.stub().resolves({}),
       }
 
@@ -1071,9 +1102,11 @@ describe('Indexer:Plugin', () => {
 
       await PluginHandler.updatePlugin(eventUpdateApplied as any)
 
-      expect(handleVersionUpgradeStub.calledOnce).to.be.true
+      expect(handleVersionUpgradeStub.called).to.be.false
       expect(newPlugin.update.called).to.be.false
       expect(findOneStub.calledOnce).to.be.true
+      expect(loggerWarnStub.calledOnce).to.be.true
+      expect(loggerWarnStub.calledWith('Previous plugin not found for update' as any)).to.be.true
     })
 
     it('should handle different interface types between existing and updated plugins', async () => {
@@ -1138,6 +1171,7 @@ describe('Indexer:Plugin', () => {
 
       expect(newPlugin.update.args[0][0]).to.deep.include({
         isSupported: true,
+        parentPlugin: existingPlugin.address,
       })
       expect(newPlugin.update.args[0][0]).to.not.have.property('tokenAddress')
 
