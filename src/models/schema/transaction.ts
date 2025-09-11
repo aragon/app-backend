@@ -205,10 +205,6 @@ export default class Transaction extends Model {
         // If actionIndex is present, it's a native transfer from a batch Executed event
         if (actionIndex !== undefined && actionIndex !== null) {
           const idWithAction = `${daoAddress}-${network}-${txHash}-native-action${actionIndex}`
-          logger.verbose('Generating ID for batch native transfer', {
-            actionIndex,
-            generatedId: idWithAction,
-          })
           return idWithAction
         }
         return `${daoAddress}-${network}-${txHash}-native`
