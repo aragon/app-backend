@@ -282,6 +282,25 @@ describe('Transfers: Erc20TransferProcessor', () => {
       expect(errorStub.calledOnce).to.be.true
       expect(errorStub.firstCall.args[0]).to.include('Error saving transfer')
     })
+
+    it('should return undefined when addTokenMetadata returns null (scam token)', async () => {
+      const transferData = {
+        transactionHash: '0xScamTokenTx',
+        blockNumber: 12345,
+        network: NetworksEnum.ethereumMainnet,
+        tokenAddress: '0xScamToken',
+      }
+
+      checkExistingStub.resolves(null)
+      addTokenMetadataStub.resolves(null)
+
+      const result = await processor.save(transferData as any)
+
+      expect(checkExistingStub.calledOnceWith(transferData)).to.be.true
+      expect(addTokenMetadataStub.calledOnceWith(transferData)).to.be.true
+      expect(persistStub.called).to.be.false
+      expect(result).to.be.undefined
+    })
   })
 
   describe('checkExisting', () => {
@@ -402,7 +421,7 @@ describe('Transfers: Erc20TransferProcessor', () => {
       saveAndGetTokenStub.resolves(mockToken as any)
       fetchTokenPriceStub.resolves('1.00')
 
-      const result = await processor['addTokenMetadata'](data as any)
+      const result = (await processor['addTokenMetadata'](data as any)) as any
 
       expect(getBlockTimestampStub.called).to.be.false
       expect(result.blockTimestamp).to.equal(1625111111)
@@ -429,27 +448,24 @@ describe('Transfers: Erc20TransferProcessor', () => {
       getBlockTimestampStub.resolves(1625000000)
       fetchTokenPriceStub.resolves('3000.00')
 
-      const result = await processor['addTokenMetadata'](data as any)
+      const result = (await processor['addTokenMetadata'](data as any)) as any
 
       expect(saveAndGetTokenStub.calledWith(utils.zeroAddress, NetworksEnum.ethereumMainnet)).to.be.true
       expect(result.amountUsd).to.equal('3000.00')
     })
 
-    it('should throw error if token not found', async () => {
+    it('should return null if token not found (scam token)', async () => {
       const data = {
-        tokenAddress: '0xInvalidToken',
+        tokenAddress: '0xScamToken',
         network: NetworksEnum.ethereumMainnet,
       }
 
       saveAndGetTokenStub.resolves(null)
       const errorStub = sandbox.stub(logger, 'error')
 
-      try {
-        await processor['addTokenMetadata'](data as any)
-        expect.fail('Should have thrown an error')
-      } catch (error: any) {
-        expect(error.message).to.equal('Token information not found')
-      }
+      const result = await processor['addTokenMetadata'](data as any)
+
+      expect(result).to.be.null
       expect(errorStub.calledOnce).to.be.true
       expect(errorStub.firstCall.args[0]).to.include('Failed to get token information')
     })
