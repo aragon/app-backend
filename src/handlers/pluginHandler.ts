@@ -547,6 +547,7 @@ export const PluginHandler = {
       isSubPlugin: previousPlugin.isSubPlugin,
       parentPlugin: previousPlugin.parentPlugin,
       isSupported: previousPlugin.isSupported,
+      stageIndex: previousPlugin.stageIndex,
     }
 
     if (
