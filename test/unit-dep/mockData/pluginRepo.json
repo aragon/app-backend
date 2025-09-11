@@ -11,5 +11,84 @@
       "subdomain": "token-voting",
       "pluginRepo": "0x424F4cA6FA9c24C03f2396DF0E96057eD11CF7dF"
     }
+  ],
+  "chiliz-mainnet": [
+    {
+      "id": "chiliz-mainnet-0x8db900ad2b756fbd3f03a2f5757121cd007eb72680695d68e3455241f156866e-0-18",
+      "transactionHash": "0x8db900ad2b756fbd3f03a2f5757121cd007eb72680695d68e3455241f156866e",
+      "transactionIndex": 0,
+      "logIndex": 18,
+      "blockNumber": 23759214,
+      "blockTimestamp": 1748017644,
+      "network": "chiliz-mainnet",
+      "subdomain": "admin",
+      "pluginRepo": "0x339541B013F0eDAA5e415788B094B7647B43c921"
+    },
+    {
+      "id": "chiliz-mainnet-0x8db900ad2b756fbd3f03a2f5757121cd007eb72680695d68e3455241f156866e-0-35",
+      "transactionHash": "0x8db900ad2b756fbd3f03a2f5757121cd007eb72680695d68e3455241f156866e",
+      "transactionIndex": 0,
+      "logIndex": 35,
+      "blockNumber": 23759214,
+      "blockTimestamp": 1748017644,
+      "network": "chiliz-mainnet",
+      "subdomain": "multisig",
+      "pluginRepo": "0x60C2b0B6CB2EB83349eB770f76a1C6dF611E5f03"
+    },
+    {
+      "id": "chiliz-mainnet-0x8db900ad2b756fbd3f03a2f5757121cd007eb72680695d68e3455241f156866e-0-55",
+      "transactionHash": "0x8db900ad2b756fbd3f03a2f5757121cd007eb72680695d68e3455241f156866e",
+      "transactionIndex": 0,
+      "logIndex": 55,
+      "blockNumber": 23759214,
+      "blockTimestamp": 1748017644,
+      "network": "chiliz-mainnet",
+      "subdomain": "token-voting",
+      "pluginRepo": "0x62c82a443692A1bE4D0421b1E4678F0dff8F3c1B"
+    },
+    {
+      "id": "chiliz-mainnet-0x8db900ad2b756fbd3f03a2f5757121cd007eb72680695d68e3455241f156866e-0-75",
+      "transactionHash": "0x8db900ad2b756fbd3f03a2f5757121cd007eb72680695d68e3455241f156866e",
+      "transactionIndex": 0,
+      "logIndex": 75,
+      "blockNumber": 23759214,
+      "blockTimestamp": 1748017644,
+      "network": "chiliz-mainnet",
+      "subdomain": "spp",
+      "pluginRepo": "0x48CEBbc661FafCFC274Ce2034a04d459ba774E3D"
+    },
+    {
+      "id": "chiliz-mainnet-0xf86c4ab69f0f3454abc9bacad4ffec44fdffd4ae16d143cfea7d464bd00bf903-1-13",
+      "transactionHash": "0xf86c4ab69f0f3454abc9bacad4ffec44fdffd4ae16d143cfea7d464bd00bf903",
+      "transactionIndex": 1,
+      "logIndex": 13,
+      "blockNumber": 26692306,
+      "blockTimestamp": 1756820749,
+      "network": "chiliz-mainnet",
+      "subdomain": "lock-to-vote",
+      "pluginRepo": "0x17dC8133774366a9E1BBc01a9E6a890F1eFF817e"
+    },
+    {
+      "id": "chiliz-mainnet-0xbbb091f02288ac2cbf41d346256ab1564949e60131b638ba1fe4135d2ad8ec7e-1-13",
+      "transactionHash": "0xbbb091f02288ac2cbf41d346256ab1564949e60131b638ba1fe4135d2ad8ec7e",
+      "transactionIndex": 1,
+      "logIndex": 13,
+      "blockNumber": 26935658,
+      "blockTimestamp": 1757551316,
+      "network": "chiliz-mainnet",
+      "subdomain": "lock-2-vote-dev",
+      "pluginRepo": "0xa79782E2f4c727e1919eAe0F7bEf28Fde076AcE1"
+    },
+    {
+      "id": "chiliz-mainnet-0xc0a747686513226f0d3e4ec9b5148ed2f8d75c47db979d775315023897f22ffa-1-13",
+      "transactionHash": "0xc0a747686513226f0d3e4ec9b5148ed2f8d75c47db979d775315023897f22ffa",
+      "transactionIndex": 1,
+      "logIndex": 13,
+      "blockNumber": 26935696,
+      "blockTimestamp": 1757551430,
+      "network": "chiliz-mainnet",
+      "subdomain": "lock-2-vote",
+      "pluginRepo": "0x43F3F0A229c69340E49104EA5202ae9e25DEc06B"
+    }
   ]
 }

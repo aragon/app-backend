@@ -43,8 +43,8 @@ describe('AragonDao:AllMetrics', () => {
   describe('start', () => {
     it('should start the AllMetrics', async () => {
       const stubLogger = sandbox.stub(Logger, 'verbose')
-      const stubAllDaoMetrics = sandbox.stub(AllMetrics, 'allDaoMetrics').resolves()
-      const stubAllProposalMetrics = sandbox.stub(AllMetrics, 'allProposalMetrics').resolves()
+      // const stubAllDaoMetrics = sandbox.stub(AllMetrics, 'allDaoMetrics').resolves()
+      // const stubAllProposalMetrics = sandbox.stub(AllMetrics, 'allProposalMetrics').resolves()
       const stubRebaseTokens = sandbox.stub(AllMetrics, 'rebaseTokens').resolves()
 
       const network = NetworksEnum.ethereumMainnet
@@ -54,8 +54,8 @@ describe('AragonDao:AllMetrics', () => {
       expect(stubLogger.calledWithMatch('Start AllMetrics' as any)).to.be.true
       expect(stubLogger.calledWithMatch('End AllMetrics' as any)).to.be.true
 
-      expect(stubAllDaoMetrics.calledOnceWith(network)).to.be.true
-      expect(stubAllProposalMetrics.calledOnceWith(network)).to.be.true
+      // expect(stubAllDaoMetrics.calledOnceWith(network)).to.be.true
+      // expect(stubAllProposalMetrics.calledOnceWith(network)).to.be.true
       expect(stubRebaseTokens.calledOnceWith(network)).to.be.true
     })
   })

@@ -15,7 +15,7 @@ const CapitalDistributorAdminRouter = {
       network: ctx.params.network,
     }
 
-    let rewards: any[]
+    let rewards: any[] = []
 
     if (ctx.file) {
       const fileData = UploadMiddleware.parseJsonFile(ctx)
@@ -25,12 +25,9 @@ const CapitalDistributorAdminRouter = {
       }
 
       rewards = fileData
-    } else {
-      const body = ctx.request.body
-      const formattedBody = await ValidationSchema.validateParams(CapitalDistributorSchema.addMembersListBody, body)
-      rewards = formattedBody.rewards
     }
 
+    await ValidationSchema.validateParams(CapitalDistributorSchema.addMembersListBody, rewards)
     const formattedParams = await ValidationSchema.validateParams(CapitalDistributorSchema.addMembersListParams, params)
 
     const combinedParams = {
