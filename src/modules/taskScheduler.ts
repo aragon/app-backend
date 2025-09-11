@@ -263,13 +263,11 @@ class TaskScheduler {
     process.on('uncaughtException', async error => {
       logger.error('Uncaught exception, releasing locks', llo({ error }))
       await this.releaseAllLocks()
-      process.exit(1)
     })
 
     process.on('unhandledRejection', async (reason, promise) => {
       logger.error('Unhandled rejection, releasing locks', llo({ reason, promise }))
       await this.releaseAllLocks()
-      process.exit(1)
     })
 
     this.shutdownHandlersRegistered = true
