@@ -4,6 +4,7 @@ import { IEnumTaskStatus } from '@types'
 import dayjs from '@helpers/dayjs'
 import { throwError } from '@errors'
 import MongoRetryHelper from '@helpers/mongoRetry'
+import * as os from 'os'
 
 const llo = logger.logMeta.bind(null, { service: 'service:TaskScheduler' })
 
@@ -24,6 +25,9 @@ interface TaskState {
 class TaskScheduler {
   private tasks: Record<string, TaskState> = {}
   private taskRunners: Record<string, () => Promise<void>> = {}
+  private readonly hostname: string = os.hostname()
+  private readonly instanceId: string = `${os.hostname()}-${process.pid}`
+  private shutdownHandlersRegistered: boolean = false
 
   public getTaskStatus(): { key: string; running: boolean }[] {
     return Object.keys(this.tasks).map(key => ({
@@ -37,6 +41,44 @@ class TaskScheduler {
     const lockExpiresAt = dayjs().utc().add(5, 'minutes').toDate()
 
     try {
+      // First, check if there's an existing lock held by a potentially dead process
+      const existingLock = await Models.TaskService.findOne({ serviceName })
+
+      if (existingLock?.lockedBy && existingLock.lockedUntil && dayjs(existingLock.lockedUntil).isAfter(now)) {
+        // Check if the process holding the lock is still alive
+        const isProcessAlive = this.isProcessAlive(existingLock.lockedBy)
+
+        if (!isProcessAlive) {
+          // Process doesn't exist, clear the stale lock
+          logger.warn(
+            'Clearing stale lock from dead process',
+            llo({
+              serviceName,
+              deadPid: existingLock.lockedBy,
+              currentPid: process.pid,
+              instanceId: this.instanceId,
+            }),
+          )
+
+          await Models.TaskService.findOneAndUpdate(
+            { serviceName },
+            { $unset: { lockedUntil: 1, lockedBy: 1, lockedAt: 1, hostname: 1, instanceId: 1 } },
+          )
+        } else {
+          // Process exists, lock is valid
+          logger.debug(
+            'Lock held by active process',
+            llo({
+              serviceName,
+              pid: existingLock.lockedBy,
+              expiresAt: existingLock.lockedUntil,
+            }),
+          )
+          return false
+        }
+      }
+
+      // Now try to acquire the lock
       const result = await MongoRetryHelper.retryOperation(
         () =>
           Models.TaskService.findOneAndUpdate(
@@ -48,6 +90,9 @@ class TaskScheduler {
               $set: {
                 lockedUntil: lockExpiresAt,
                 lockedBy: process.pid,
+                lockedAt: now,
+                hostname: this.hostname,
+                instanceId: this.instanceId,
               },
             },
             {
@@ -59,6 +104,18 @@ class TaskScheduler {
           retryDelay: 500,
         },
       )
+
+      if (result) {
+        logger.debug(
+          'Lock acquired successfully',
+          llo({
+            serviceName,
+            pid: process.pid,
+            instanceId: this.instanceId,
+            expiresAt: lockExpiresAt,
+          }),
+        )
+      }
 
       return !!result
     } catch (error) {
@@ -73,7 +130,7 @@ class TaskScheduler {
         Models.TaskService.findOneAndUpdate(
           { serviceName },
           {
-            $unset: { lockedUntil: 1, lockedBy: 1 },
+            $unset: { lockedUntil: 1, lockedBy: 1, lockedAt: 1, hostname: 1, instanceId: 1 },
           },
         ),
       {
@@ -147,7 +204,79 @@ class TaskScheduler {
     )
   }
 
+  private isProcessAlive(pid: number): boolean {
+    try {
+      // Send signal 0 to check if process exists (doesn't actually send a signal)
+      process.kill(pid, 0)
+      return true
+    } catch (err: any) {
+      // ESRCH means process doesn't exist, EPERM means it exists but we don't have permission
+      return err.code === 'EPERM'
+    }
+  }
+
+  private async releaseAllLocks(): Promise<void> {
+    const taskNames = Object.keys(this.tasks)
+    if (taskNames.length === 0) return
+
+    logger.info(
+      'Releasing all locks on shutdown',
+      llo({
+        tasks: taskNames,
+        pid: process.pid,
+        instanceId: this.instanceId,
+      }),
+    )
+
+    await Promise.all(
+      taskNames.map(taskName =>
+        Models.TaskService.findOneAndUpdate(
+          { serviceName: taskName, lockedBy: process.pid },
+          { $unset: { lockedUntil: 1, lockedBy: 1, lockedAt: 1, hostname: 1, instanceId: 1 } },
+        ).catch(err => logger.error('Error releasing lock on shutdown', llo({ taskName, error: err }))),
+      ),
+    )
+  }
+
+  private registerShutdownHandlers(): void {
+    if (this.shutdownHandlersRegistered) return
+
+    const gracefulShutdown = async (signal: string) => {
+      logger.info('Received shutdown signal, cleaning up...', llo({ signal, pid: process.pid }))
+
+      // Stop all tasks
+      this.stopAllTasks()
+
+      // Release all locks
+      await this.releaseAllLocks()
+
+      logger.info('Shutdown cleanup complete', llo({ signal }))
+      process.exit(0)
+    }
+
+    // Register handlers for different shutdown signals
+    process.on('SIGTERM', async () => gracefulShutdown('SIGTERM'))
+    process.on('SIGINT', async () => gracefulShutdown('SIGINT'))
+    process.on('beforeExit', async () => gracefulShutdown('beforeExit'))
+
+    // Handle unexpected exits
+    process.on('uncaughtException', async error => {
+      logger.error('Uncaught exception, releasing locks', llo({ error }))
+      await this.releaseAllLocks()
+    })
+
+    process.on('unhandledRejection', async (reason, promise) => {
+      logger.error('Unhandled rejection, releasing locks', llo({ reason, promise }))
+      await this.releaseAllLocks()
+    })
+
+    this.shutdownHandlersRegistered = true
+    logger.debug('Shutdown handlers registered', llo({ pid: process.pid }))
+  }
+
   public async startTask(key: string, options: TaskOptions): Promise<void> {
+    // Register shutdown handlers on first task start
+    this.registerShutdownHandlers()
     const { fn, interval, onError, runNow = false, stopOnError, checkInterval = 15 * 60 * 1000 } = options
 
     if (this.tasks[key]) {

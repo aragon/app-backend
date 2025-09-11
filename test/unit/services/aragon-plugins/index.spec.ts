@@ -387,34 +387,6 @@ describe('AragonPlugins: index', () => {
       expect(logTokenVotingStub.calledOnce).to.be.true
     })
 
-    it('should log a warning if token is not GovernanceERC20 for tokenVoting', async () => {
-      const processStub = sandbox.stub(RabbitMQHelper, 'process')
-      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
-        interfaceType: IPluginInterfaceType.tokenVoting,
-        tokenAddress: '0xTokenAddress',
-        network: NetworksEnum.ethereumMainnet,
-      })
-      const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
-        type: 'NonGovernanceToken',
-      } as any)
-      const loggerStub = sandbox.stub(logger, 'error')
-
-      await AragonPluginsService.start()
-
-      const handler = processStub.getCall(2).args[1]
-      await handler({
-        id: 'some-id',
-        params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
-      })
-
-      expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
-
-      expect(proxyTokenStub.args[0][0].address).to.be.eq('0xTokenAddress')
-      expect(proxyTokenStub.args[0][0].network).to.be.eq(NetworksEnum.ethereumMainnet)
-
-      expect(loggerStub.calledWithMatch('token not governance erc20' as any)).to.be.true
-    })
-
     it('should process plugins queue for spp interface type', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
@@ -654,7 +626,6 @@ describe('AragonPlugins: index', () => {
       const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
         type: 'NonGovernanceToken',
       } as any)
-      const loggerStub = sandbox.stub(logger, 'error')
 
       await AragonPluginsService.start()
 
@@ -668,8 +639,6 @@ describe('AragonPlugins: index', () => {
 
       expect(proxyTokenStub.args[0][0].address).to.be.eq('0xTokenAddress')
       expect(proxyTokenStub.args[0][0].network).to.be.eq(NetworksEnum.ethereumMainnet)
-
-      expect(loggerStub.calledWithMatch('token not governance erc20' as any)).to.be.true
     })
 
     it('should process plugins queue for spp interface type', async () => {

@@ -95,16 +95,13 @@ const AragonPluginsService: IService & { pluginQueue: (params: IQueuePlugin) => 
           token?.hasDelegate
         ) {
           logger.info(
-            'Sync plugin: token is ERC20 or escrowAdapter',
+            'Sync tokenVoting plugin',
             llo({ plugin: plugin.address, token: token.address, tokenTye: token.type }),
           )
 
           await LogTokenVoting.start(plugin, token, isHistorical)
         } else {
-          logger.error(
-            'Sync plugin: token not governance erc20 or escrowAdapter',
-            llo({ plugin: plugin?.address, token: token?.address }),
-          )
+          logger.warn('Sync plugin token not supported', llo({ plugin: plugin?.address, token: token?.address }))
         }
         break
       }

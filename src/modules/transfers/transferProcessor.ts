@@ -48,7 +48,9 @@ export abstract class TransferProcessor {
       }
 
       const enrichedData = await this.addTokenMetadata(transferData)
-      return await this.persist(enrichedData)
+      if (enrichedData) {
+        return await this.persist(enrichedData)
+      }
     } catch (error) {
       logger.error('Error saving transfer', llo({ error, txHash: transferData.transactionHash }))
       return undefined
@@ -84,13 +86,13 @@ export abstract class TransferProcessor {
     })
   }
 
-  protected async addTokenMetadata(data: ISaveTransactionParams): Promise<Partial<Transaction>> {
+  protected async addTokenMetadata(data: ISaveTransactionParams): Promise<Partial<Transaction> | null> {
     const tokenAddress = data.tokenAddress || utils.zeroAddress
     const token = await ProxyToken.saveAndGetToken(tokenAddress, data.network)
 
     if (!token) {
       logger.error('Failed to get token information', llo({ tokenAddress, network: data.network, type: data.type }))
-      throw new Error('Token information not found')
+      return null
     }
 
     const timestamp = data.blockTimestamp || (await Web3Helper.getBlockTimestamp(data.blockNumber, data.network))

@@ -245,6 +245,7 @@ const UnitDepUtils = {
   async syncACompleteDao(daoAddress: string, network: NetworksEnum, fromBlock?: number) {
     const pspAddress = {
       [NetworksEnum.ethereumSepolia]: '0xC24188a73dc09aA7C721f96Ad8857B469C01dC9f',
+      [NetworksEnum.chilizMainnet]: '0xD39Fd78987000C1aa96209d76bec576F31DbC9bE',
     }
     await Models.PluginRepo.insertMany(PluginRepoMockData[network])
     const provider = ProviderModule.getAnyRpcProvider(network)

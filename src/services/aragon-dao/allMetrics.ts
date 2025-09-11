@@ -16,8 +16,8 @@ const llo = logger.logMeta.bind(null, { service: 'service:dao:DaoAssets' })
 export const AllMetrics = {
   start: async ({ network }: { network: NetworksEnum }) => {
     logger.verbose('Start AllMetrics', llo())
-    await AllMetrics.allDaoMetrics(network)
-    await AllMetrics.allProposalMetrics(network)
+    // await AllMetrics.allDaoMetrics(network)
+    // await AllMetrics.allProposalMetrics(network)
     await AllMetrics.rebaseTokens(network)
     logger.verbose('End AllMetrics', llo())
   },
