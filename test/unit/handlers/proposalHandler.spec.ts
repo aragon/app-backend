@@ -28,7 +28,7 @@ import ProposalHelper from '@helpers/proposal'
 import { PluginList } from '@test/mock/fakePlugins'
 import DecodeActions from '@helpers/decodeAction'
 import DbOperations from '@models/utils/dbOperations'
-import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import Web3Utils from '@helpers/web3Utils'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
 

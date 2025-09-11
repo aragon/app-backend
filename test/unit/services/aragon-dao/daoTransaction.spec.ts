@@ -67,6 +67,10 @@ describe('AragonDao: DaoTransactions', () => {
     const BlockchainLogCrawlerMock = function (this: any, config: any) {
       crawlerConfigs.push(config)
       this.crawl = sandbox.stub().resolves()
+      this.crawlSetting = {
+        crawling: false,
+        shutdown: false
+      }
       crawlerInstances.push(this)
     }
 
@@ -74,7 +78,8 @@ describe('AragonDao: DaoTransactions', () => {
     DaoTransactions = proxyquire('@services/aragon-dao/daoTransactions', {
       '@dbModels': { Models: modelsStub },
       '@logger': { default: loggerStub },
-      '@modules/blockchainLogCrawler': { default: BlockchainLogCrawlerMock },
+      '@modules/proxyToken': { ProxyToken: proxyTokenStub },
+      '@modules/crawlers': { BlockchainLogCrawler: BlockchainLogCrawlerMock },
       '@helpers/configIndexer': { default: configIndexerHelperStub },
       '@handlers/daoTransferHanlder': { DaoTransferHandler: daoTransferHandlerStub },
       ethers: { zeroPadValue: zeroPadValueStub },
@@ -340,12 +345,17 @@ describe('AragonDao: DaoTransactions', () => {
       const BlockchainLogCrawlerMock = function (this: any, config: any) {
         crawlerConfigs.push(config)
         this.crawl = sandbox.stub().rejects(new Error('Crawl failed'))
+        this.crawlSetting = {
+          crawling: false,
+          shutdown: false
+        }
       }
 
       DaoTransactions = proxyquire('@services/aragon-dao/daoTransactions', {
         '@dbModels': { Models: modelsStub },
         '@logger': { default: loggerStub },
-        '@modules/blockchainLogCrawler': { default: BlockchainLogCrawlerMock },
+        '@modules/proxyToken': { ProxyToken: proxyTokenStub },
+        '@modules/crawlers': { BlockchainLogCrawler: BlockchainLogCrawlerMock },
         '@helpers/configIndexer': { default: configIndexerHelperStub },
         '@handlers/daoTransferHanlder': { DaoTransferHandler: daoTransferHandlerStub },
         ethers: { zeroPadValue: zeroPadValueStub },

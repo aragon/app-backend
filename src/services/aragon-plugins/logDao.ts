@@ -1,6 +1,6 @@
 import logger from '@logger'
 import { IDaoLogs, type IIndexerConfig } from '@types'
-import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import type Dao from '@models/schema/dao'
 import configIndexer from '@indexer/configIndexer'
 import ConfigIndexerHelper from '@helpers/configIndexer'

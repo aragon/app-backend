@@ -4,7 +4,7 @@ import { TaskSchedulerState } from '@state/taskSchedulerState'
 import { NetworkHelper } from '@helpers/network'
 import configIndexer from '@indexer/configIndexer'
 import utils from '@helpers/utils'
-import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import { SyncAll } from '@indexer/syncAll'
 
 import { CustomInstall } from '@indexer/customInstall'

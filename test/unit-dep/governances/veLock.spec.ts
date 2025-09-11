@@ -16,7 +16,7 @@ import { DaoRegistryHandler } from '@src/handlers/daoRegistryHandler'
 import { DAORegistry } from '@src/aragonContracts'
 import ProxyWeb3Provider from '@src/modules/proxyProvider'
 
-describe.skip('Integ: VeLock', () => {
+describe('Integ: VeLock', () => {
   let sandbox: sinon.SinonSandbox
 
   beforeEach(() => {
@@ -28,7 +28,7 @@ describe.skip('Integ: VeLock', () => {
     sandbox.restore()
   })
 
-  describe.skip(`VeLock Test`, () => {
+  describe.skip('VeLock flow', () => {
     const networks = [
       {
         network: NetworksEnum.ethereumSepolia,
@@ -37,7 +37,7 @@ describe.skip('Integ: VeLock', () => {
     ]
 
     for (const { network, daoAddress } of networks) {
-      it(`should handle veLock all events properly ${network}`, async function () {
+      it(`should handle veLock events properly ${network}`, async function () {
         this.timeout(100000000)
 
         await UnitDepUtils.syncACompleteDao(daoAddress, network)

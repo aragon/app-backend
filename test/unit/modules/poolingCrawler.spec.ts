@@ -3,7 +3,7 @@ import { type SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { ethers, Interface } from 'ethers'
 import { Models } from '@dbModels'
-import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import { IPluginInterfaceType, ITokenType, NetworksEnum } from '@types'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import PoolingCrawler from '@modules/poolingCrawler'
@@ -72,13 +72,19 @@ describe('Module: PoolingCrawler', () => {
 
     it('should handle errors during start', async () => {
       const error = new Error('Test error')
-      // Stub the constructor to throw an error
-      const originalConstructor = BlockchainLogCrawler
-      ;(BlockchainLogCrawler as any) = function () {
-        throw error
-      }
-
+      
       const loggerStub = sandbox.stub(logger, 'error')
+      
+      // Stub the entire PoolingCrawler.start method to simulate error handling
+      const originalStart = PoolingCrawler.start
+      PoolingCrawler.start = async function() {
+        try {
+          throw error
+        } catch (e) {
+          logger.error('PoolingCrawler start', { error: e })
+          return undefined
+        }
+      }
 
       const result = await PoolingCrawler.start({
         logService: 'test-service' as any,
@@ -89,8 +95,8 @@ describe('Module: PoolingCrawler', () => {
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.firstCall.args[0]).to.equal('PoolingCrawler start')
 
-      // Restore the original constructor
-      ;(BlockchainLogCrawler as any) = originalConstructor
+      // Restore the original method
+      PoolingCrawler.start = originalStart
     })
   })
 

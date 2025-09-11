@@ -1,6 +1,6 @@
 import { Models } from '@dbModels'
 import { NetworksEnum } from '@types'
-import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import { PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandler'
 import { Interface, zeroPadValue } from 'ethers'

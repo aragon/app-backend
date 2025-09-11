@@ -2,7 +2,7 @@ import { IDaoTransferLogs, LockErc721Token, type IQueueDaoTransactions } from '@
 import { Models } from '@dbModels'
 import logger from '@logger'
 import { Interface, zeroPadValue } from 'ethers'
-import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import ConfigIndexerHelper from '@helpers/configIndexer'
 import { DAO } from '@artifacts/dao'
 import { DaoV2 } from '@artifacts/daoV2'

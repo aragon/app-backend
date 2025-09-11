@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import logger from '@logger'
 import { LogTokenVoting } from '@plugins/logTokenVoting'
-import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import { NetworksEnum, ITokenType } from '@types'
 import { expect } from 'chai'
 
@@ -20,6 +20,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
   describe('start', async () => {
     it('should start veGovernance flow for escrowAdapter token type', async () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      const endStub = sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       const verboseStub = sandbox.stub(logger, 'verbose')
 
       const token = {
@@ -46,6 +47,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
 
     it('should start erc20Governance flow for ERC20 token type', async () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      const endStub = sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       const verboseStub = sandbox.stub(logger, 'verbose')
 
       const token = {
