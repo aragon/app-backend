@@ -87,7 +87,7 @@ describe('Module: PoolingCrawler', () => {
 
       expect(result).to.be.undefined
       expect(loggerStub.calledOnce).to.be.true
-      expect(loggerStub.firstCall.args[0]).to.equal('PoolingCrawler start')
+      expect(loggerStub.firstCall.args[0]).to.equal('PoolingCrawler error')
 
       // Restore the original constructor
       ;(BlockchainLogCrawler as any) = originalConstructor

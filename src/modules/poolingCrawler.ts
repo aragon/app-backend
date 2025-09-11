@@ -42,7 +42,6 @@ const PoolingCrawler = {
       return poolingCrawler.crawl()
     } catch (error) {
       logger.error('PoolingCrawler error', llo({ network, error }))
-      throw error
     }
   },
 
