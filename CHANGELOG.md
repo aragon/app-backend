@@ -1,3 +1,27 @@
+# [0.11.0](https://github.com/aragon/app-backend/compare/v0.10.0...v0.11.0) (2025-09-11)
+
+
+### Bug Fixes
+
+* **capitalDistributor:** refactor rewards handling to simplify validation and improve structure ([5389484](https://github.com/aragon/app-backend/commit/5389484ee9b9bab43998dcfb355fc561a48062c3))
+* **erc20TransferProcessor:** handle scam tokens by returning null instead of throwing errors ([b1e26cb](https://github.com/aragon/app-backend/commit/b1e26cbf06ea36c049a24c6dcdcd9ff7a93a5e72))
+* **erc721TransferProcessor:** cast result of addTokenMetadata to any for type consistency ([15a874f](https://github.com/aragon/app-backend/commit/15a874ff7ee3e54aec35cc2cdcce13244d42af40))
+* **executeHandler:** simplify decoded object assignment with conditional fallback ([5095949](https://github.com/aragon/app-backend/commit/5095949d0ae16c9aab80473a9da931a12d8bd256))
+* **pluginHandler:** add stageIndex and parentPlugin properties to plugin updates ([f85f73d](https://github.com/aragon/app-backend/commit/f85f73d235d7694f81348e2815fe9ba4cd6ea1a2))
+* **pluginHandler:** enhance plugin update logic and add inherited properties handling ([19fdcb9](https://github.com/aragon/app-backend/commit/19fdcb911e9ea988697f575c9262bc0497771b81))
+* **pluginHandler:** enhance plugin update logic and add inherited properties handling ([8882c41](https://github.com/aragon/app-backend/commit/8882c4183c059d0c0078d485b6fe16838acf5dc9))
+* rename address parameter to daoAddress in queue and index tests for clarity ([e34eb87](https://github.com/aragon/app-backend/commit/e34eb8739c7941d5a60ade17dd2879816aebf087))
+
+
+### Features
+
+* **logz:** errors ([bc86754](https://github.com/aragon/app-backend/commit/bc867547db204e65b8dab213e646bed3740143a5))
+* **logz:** errors ([bfdcdf8](https://github.com/aragon/app-backend/commit/bfdcdf8889d078f2a943da9477e0c29a4c9ecda4))
+* **taskService:** add lock management fields and improve task locking logic ([e833998](https://github.com/aragon/app-backend/commit/e8339981e608e3ecbe0aa38cb7171fc30c5df6da))
+* **taskService:** add lock management fields and improve task locking logic ([d28c118](https://github.com/aragon/app-backend/commit/d28c11884f8e24ade17dd8a826c185b865e51d68))
+* **taskService:** add lock management fields and improve task locking logic ([6def11f](https://github.com/aragon/app-backend/commit/6def11fc1000dc06a555603cfe9bb67027159cc6))
+* **taskService:** add lock management fields and improve task locking logic ([4c6cafa](https://github.com/aragon/app-backend/commit/4c6cafa8174cbfde27b47099415c8389ba5310ef))
+
 # [0.10.0](https://github.com/aragon/app-backend/compare/v0.9.0...v0.10.0) (2025-09-11)
 
 
