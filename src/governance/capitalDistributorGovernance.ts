@@ -79,7 +79,9 @@ export class CapitalDistributorGovernance extends BaseGovernance {
       let totalUpdated = 0
       let totalDeleted = 0
 
-      const upsertOps = rewards.map(({ address, amount }) => {
+      const sortedRewards = rewards.sort((a, b) => a.address.toLowerCase().localeCompare(b.address.toLowerCase()))
+
+      const upsertOps = sortedRewards.map(({ address, amount }) => {
         const normalizedAddress = ethers.getAddress(address)
         const existingReward = existingRewardsMap.get(normalizedAddress.toLowerCase())
 
