@@ -157,6 +157,17 @@ export interface IConfig {
     GATEWAY_URI: string
   }
 
+  TENDERLY: {
+    API_URL: string
+    PROJECT: string
+    USER: string
+    ACCESS_KEY: string
+    MAX_CONCURRENT: number
+    MIN_TIME: number
+    SHARING_BASE_URL: string
+    RE_SIMULATION_TIME: number
+  }
+
   CONTRACTS: {
     ENS_REGISTRY: string
   }

@@ -207,14 +207,12 @@ export const FetchRates = {
         holders: tokenMetrics.totalHolders,
         totalSupply: tokenMetrics.totalSupply,
         priceUsd: tokenUpdate.priceUsd,
-        logo: tokenUpdate.logo,
       }
 
       if (
         token.priceUsd === rawTokenUpdate.priceUsd &&
         token.holders === rawTokenUpdate.holders &&
-        token.totalSupply === rawTokenUpdate.totalSupply &&
-        token.logo === rawTokenUpdate.logo
+        token.totalSupply === rawTokenUpdate.totalSupply
       ) {
         return
       }

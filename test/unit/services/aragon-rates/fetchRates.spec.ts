@@ -11,6 +11,7 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import { FakeAsset } from '@test/mock/fakeAsset'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 import dayjs from '@helpers/dayjs'
+import DbTx from '@modules/dbTx'
 
 describe('AragonRates: FetchRates', () => {
   let sandbox: SinonSandbox
@@ -105,6 +106,16 @@ describe('AragonRates: FetchRates', () => {
         totalSupply: '1',
         priceUsd: '1.1',
       })
+
+      // Setup DbTx stub for all tests in this describe block
+      sandbox.stub(DbTx, 'executeTxFn').callsFake(async (callback: any) => {
+        await callback({
+          session: {
+            commitTransaction: async () => {},
+            endSession: async () => {},
+          },
+        })
+      })
     })
 
     it('should return early if fetchTokenPrice returns null', async () => {
@@ -147,13 +158,11 @@ describe('AragonRates: FetchRates', () => {
     it('should return early if token data is identical to fetched update', async () => {
       const priceUpdate = {
         priceUsd: '1.1',
-        logo: 'fake-logo',
       }
 
       const holdersUpdate = {
         totalHolders: 1,
         totalSupply: '1',
-        logo: 'fake-logo',
       }
 
       sandbox.stub(ProxyWeb3Provider, 'fetchTokenPrice').resolves(priceUpdate)
@@ -167,13 +176,11 @@ describe('AragonRates: FetchRates', () => {
     it('should update token with skipFetchRate if shouldSkipFetch returns true', async () => {
       const priceUpdate = {
         priceUsd: '1.2',
-        logo: 'fake-logo',
       }
 
       const holdersUpdate = {
         totalHolders: 2,
         totalSupply: '2',
-        logo: 'fake-logo',
       }
 
       sandbox.stub(ProxyWeb3Provider, 'fetchTokenPrice').resolves(priceUpdate)
@@ -196,7 +203,6 @@ describe('AragonRates: FetchRates', () => {
           priceUsd: '1.2',
           lastUpdatedAt: mockDate,
           skipFetchRate: true,
-          logo: 'fake-logo',
         }),
       ).to.be.true
     })
@@ -204,13 +210,11 @@ describe('AragonRates: FetchRates', () => {
     it('should update token with fetched data when shouldSkipFetch returns false', async () => {
       const priceUpdate = {
         priceUsd: '1.2',
-        logo: 'fake-logo',
       }
 
       const holdersUpdate = {
         totalHolders: 2,
         totalSupply: '2',
-        logo: 'fake-logo',
       }
 
       sandbox.stub(ProxyWeb3Provider, 'fetchTokenPrice').resolves(priceUpdate)
@@ -231,7 +235,6 @@ describe('AragonRates: FetchRates', () => {
           holders: 2,
           totalSupply: '2',
           priceUsd: '1.2',
-          logo: 'fake-logo',
           lastUpdatedAt: mockDate,
         }),
       ).to.be.true
@@ -262,6 +265,16 @@ describe('AragonRates: FetchRates', () => {
         holders: 1,
         totalSupply: '1',
         priceUsd: '1.1',
+      })
+
+      // Setup DbTx stub for all tests in this describe block
+      sandbox.stub(DbTx, 'executeTxFn').callsFake(async (callback: any) => {
+        await callback({
+          session: {
+            commitTransaction: async () => {},
+            endSession: async () => {},
+          },
+        })
       })
     })
 
