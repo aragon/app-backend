@@ -9,6 +9,7 @@ import {
   type IProposalIdParams,
   type IProposalsResponse,
   IReportResultType,
+  ISimulationStatus,
   NetworksEnum,
 } from '@types'
 import { Model, type SaveOptions, Schema } from 'mongoose'
@@ -88,6 +89,9 @@ class Simulation {
 
   @prop({ type: () => Number, default: null })
   public runAt!: number | null
+
+  @prop({ type: () => String, enum: ISimulationStatus, default: null })
+  public status!: ISimulationStatus | null
 }
 
 class Settings {

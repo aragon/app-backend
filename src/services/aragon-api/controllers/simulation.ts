@@ -1,7 +1,7 @@
 import { Models } from '@dbModels'
 import TenderlyModule from '@modules/tenderly'
 import logger from '@logger'
-import { type NetworksEnum, IPluginStatus, ErrorKeyEnum, ISimulationStatus } from '@types'
+import { type NetworksEnum, IPluginStatus, ErrorKeyEnum, type ISimulationStatus } from '@types'
 import * as Errors from '@errors'
 import { Interface, ethers } from 'ethers'
 import { DAO } from '@artifacts/dao'
