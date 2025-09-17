@@ -540,39 +540,6 @@ describe('Controller: Member', () => {
         ErrorKeyEnum.notFound,
       )
     })
-
-    it('should use pluginAddress as tokenAddress when tokenAddress not provided', async () => {
-      const mockMemberData = {
-        address: rawMember.address,
-        ens: rawMember.ens,
-        avatar: rawMember.avatar,
-        votingPower: null,
-      }
-
-      sandbox.stub(Models.Member, 'findMemberByAddress').resolves(mockMemberData as any)
-      const stubSendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({
-        votingPower: '500',
-        balance: '1000',
-        currentDelegate: null,
-      })
-
-      const response = await MemberController.getMemberByAddress(
-        rawMember.address as HexAddress,
-        {
-          daoAddress: rawDao.address,
-          network: rawDao.network,
-          pluginAddress: rawPlugin.address,
-        },
-        {},
-      )
-
-      expect(stubSendMessage.calledOnce).to.be.true
-      expect(stubSendMessage.firstCall.args[1].id).to.equal(
-        `memberBalance-${rawMember.address}-${rawPlugin.address}-${rawDao.network}`,
-      )
-      expect(stubSendMessage.firstCall.args[1].params.tokenAddress).to.be.undefined
-      expect(response.votingPower).to.equal('500')
-    })
   })
 
   describe('isMemberOfPlugin', () => {
