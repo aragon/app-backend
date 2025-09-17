@@ -145,7 +145,7 @@ class SimulationController {
     Errors.assertExposable(proposal?.simulation?.url, ErrorKeyEnum.notFound, 404)
     return {
       url: proposal.simulation.url,
-      status: ISimulationStatus.SUCCESS,
+      status: proposal.simulation.status,
       runAt: proposal.simulation.runAt,
     }
   }
