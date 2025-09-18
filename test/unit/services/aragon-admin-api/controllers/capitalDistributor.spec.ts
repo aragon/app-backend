@@ -28,7 +28,7 @@ describe('Controller: CapitalDistributorAdmin', () => {
     ],
   }
 
-  describe.only('uploadMembersList', () => {
+  describe('uploadMembersList', () => {
     it('should upload members list successfully when no existing campaign', async () => {
       await Models.Plugin.create({
         id: `${mockParams.network}-0xabc123-${mockParams.pluginAddress}`,
