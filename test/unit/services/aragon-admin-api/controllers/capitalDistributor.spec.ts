@@ -60,9 +60,9 @@ describe('Controller: CapitalDistributorAdmin', () => {
       const secondReward = savedRewards.find(r => r.userAddress === mockParams.rewards[1].address)
 
       expect(firstReward).to.exist
-      expect(firstReward?.amount).to.eq('1000')
+      expect(firstReward?.amount).to.eq('2000')
       expect(secondReward).to.exist
-      expect(secondReward?.amount).to.eq('2000')
+      expect(secondReward?.amount).to.eq('1000')
     })
 
     it('should throw error when plugin is not found', async () => {
