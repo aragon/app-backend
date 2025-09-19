@@ -44,7 +44,7 @@ describe('Controller: CapitalDistributorAdmin', () => {
       const result = await CapitalDistributorAdminController.uploadMembersList(mockParams)
 
       expect(result.success).to.be.true
-      expect(result.message).to.eq('Members list processed successfully')
+      expect(result.message).to.eq('Members list replaced successfully')
       expect(result.totalProcessed).to.eq(2)
       expect(result.campaignId).to.eq('campaign1')
 
