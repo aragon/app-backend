@@ -127,9 +127,9 @@ describe('Governance:CapitalDistributorGovernance', () => {
       })
 
       expect(result.success).to.be.true
-      expect(result.totalInserted).to.equal(1)
+      expect(result.totalInserted).to.equal(2)
       expect(result.totalUpdated).to.equal(1)
-      expect(result.totalDeleted).to.equal(1)
+      expect(result.totalDeleted).to.equal(2)
 
       const savedRewards = await Models.CampaignReward.find({
         pluginAddress: testPluginAddress,
