@@ -88,7 +88,7 @@ export class CapitalDistributorGovernance extends BaseGovernance {
         { session },
       )
 
-      const insertOps = rewards.map(({ address, amount }, index) => {
+      const insertOps = rewards.map(({ address, amount }) => {
         const normalizedAddress = ethers.getAddress(address)
         const existingReward = existingRewardsMap.get(normalizedAddress.toLowerCase())
 
