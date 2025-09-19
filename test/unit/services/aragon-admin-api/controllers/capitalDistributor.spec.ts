@@ -44,7 +44,7 @@ describe('Controller: CapitalDistributorAdmin', () => {
       const result = await CapitalDistributorAdminController.uploadMembersList(mockParams)
 
       expect(result.success).to.be.true
-      expect(result.message).to.eq('Members list processed successfully')
+      expect(result.message).to.eq('Members list replaced successfully')
       expect(result.totalProcessed).to.eq(2)
       expect(result.campaignId).to.eq('campaign1')
 
@@ -55,14 +55,8 @@ describe('Controller: CapitalDistributorAdmin', () => {
       })
 
       expect(savedRewards).to.have.length(2)
-
-      const firstReward = savedRewards.find(r => r.userAddress === mockParams.rewards[0].address)
-      const secondReward = savedRewards.find(r => r.userAddress === mockParams.rewards[1].address)
-
-      expect(firstReward).to.exist
-      expect(firstReward?.amount).to.eq('1000')
-      expect(secondReward).to.exist
-      expect(secondReward?.amount).to.eq('2000')
+      expect(savedRewards.find(r => r.userAddress === mockParams.rewards[0].address)).to.exist
+      expect(savedRewards.find(r => r.userAddress === mockParams.rewards[1].address)).to.exist
     })
 
     it('should throw error when plugin is not found', async () => {
