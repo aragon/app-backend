@@ -1,3 +1,13 @@
+## [0.11.1](https://github.com/aragon/app-backend/compare/v0.11.0...v0.11.1) (2025-09-19)
+
+
+### Bug Fixes
+
+* **capitalDistributor:** replace members list with preserved claims and update totals ([ac33bec](https://github.com/aragon/app-backend/commit/ac33bec82422da02b449d73b5485a84b89b99e41))
+* **capitalDistributor:** simplify insertOps mapping by removing unused index parameter ([0b25b8e](https://github.com/aragon/app-backend/commit/0b25b8ecf5bda5ab604a5ef32859e195c9bdf116))
+* **capitalDistributor:** streamline reward existence checks in tests ([4a3dff3](https://github.com/aragon/app-backend/commit/4a3dff3aed2a52fc00d012a2f6bdb0a514303fb5))
+* **capitalDistributor:** update success message for uploadMembersList to reflect replacement ([78323f8](https://github.com/aragon/app-backend/commit/78323f8c5861211defb773c8de7ebbe1383e4502))
+
 # [0.11.0](https://github.com/aragon/app-backend/compare/v0.10.0...v0.11.0) (2025-09-11)
 
 
