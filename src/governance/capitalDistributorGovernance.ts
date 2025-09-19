@@ -79,66 +79,54 @@ export class CapitalDistributorGovernance extends BaseGovernance {
       let totalUpdated = 0
       let totalDeleted = 0
 
-      const upsertOps = rewards.map(({ address, amount }) => {
+      await Models.CampaignReward.deleteMany(
+        {
+          pluginAddress: this.address,
+          network: this.network,
+          campaignId,
+        },
+        { session },
+      )
+
+      const insertOps = rewards.map(({ address, amount }) => {
         const normalizedAddress = ethers.getAddress(address)
         const existingReward = existingRewardsMap.get(normalizedAddress.toLowerCase())
 
-        if (existingReward) {
-          return {
-            updateOne: {
-              filter: {
+        return {
+          insertOne: {
+            document: {
+              id: Models.CampaignReward.getEntityId({
                 pluginAddress: this.address,
                 network: this.network,
                 campaignId,
                 userAddress: normalizedAddress,
-              },
-              update: { $set: { amount } },
+              }),
+              pluginAddress: this.address,
+              network: this.network,
+              campaignId,
+              userAddress: normalizedAddress,
+              amount,
+              totalClaimed: (existingReward as any)?.totalClaimed || '0',
+              claims: (existingReward as any)?.claims || [],
             },
-          }
-        } else {
-          return {
-            insertOne: {
-              document: {
-                id: Models.CampaignReward.getEntityId({
-                  pluginAddress: this.address,
-                  network: this.network,
-                  campaignId,
-                  userAddress: normalizedAddress,
-                }),
-                pluginAddress: this.address,
-                network: this.network,
-                campaignId,
-                userAddress: normalizedAddress,
-                amount,
-                totalClaimed: '0',
-                claims: [],
-              },
-            },
-          }
+          },
         }
       })
 
-      const usersToDelete = existingRewards
-        .filter((existing: any) => !newRewardsMap.has(existing.userAddress.toLowerCase()))
-        .map((reward: any) => reward.userAddress)
+      if (insertOps.length > 0) {
+        const insertChunks = Utils.chunkArray(insertOps, BATCH_SIZE)
 
-      if (upsertOps.length > 0) {
-        const upsertChunks = Utils.chunkArray(upsertOps, BATCH_SIZE)
-
-        const upsertProcessor = async (chunk: any[]) => {
+        const insertProcessor = async (chunk: any[]) => {
           const writeResult = await Models.CampaignReward.bulkWrite(chunk, { session })
-          return {
-            inserted: writeResult.insertedCount || 0,
-            updated: writeResult.modifiedCount || 0,
-          }
+          return writeResult.insertedCount || 0
         }
 
-        const upsertResults = await Utils.processParallel(upsertChunks, upsertProcessor, {
+        const insertResults = await Utils.processParallel(insertChunks, insertProcessor, {
           concurrency: CONCURRENCY_LIMIT,
           batchSize: BATCH_SIZE,
           onError: (error: any, chunk: any, index: any) => {
             logger.error(
-              'Error processing upsert chunk',
+              'Error processing insert chunk',
               this.llo({
                 error,
                 chunkIndex: index,
@@ -149,29 +137,19 @@ export class CapitalDistributorGovernance extends BaseGovernance {
           },
         })
 
-        totalInserted = upsertResults.reduce((sum: any, result: any) => sum + result.inserted, 0)
-        totalUpdated = upsertResults.reduce((sum: any, result: any) => sum + result.updated, 0)
+        totalInserted = insertResults.reduce((sum: any, count: any) => sum + count, 0)
       }
 
-      // 3. Delete users not in the new list
-      if (usersToDelete.length > 0) {
-        const deleteResult = await Models.CampaignReward.deleteMany(
-          {
-            pluginAddress: this.address,
-            network: this.network,
-            campaignId,
-            userAddress: { $in: usersToDelete },
-          },
-          { session },
-        )
-        totalDeleted = deleteResult.deletedCount || 0
-      }
+      totalDeleted = existingRewards.length
+      totalUpdated = existingRewards.filter((existing: any) =>
+        newRewardsMap.has(existing.userAddress.toLowerCase()),
+      ).length
 
       await session.commitTransaction()
       await session.endSession()
 
       logger.info(
-        'Members list processed successfully with upserts',
+        'Members list replaced successfully with preserved claims',
         this.llo({
           campaignId,
           totalInserted,
@@ -183,7 +161,7 @@ export class CapitalDistributorGovernance extends BaseGovernance {
 
       return {
         success: true,
-        message: 'Members list processed successfully',
+        message: 'Members list replaced successfully',
         totalInserted,
         totalUpdated,
         totalDeleted,
@@ -206,17 +184,11 @@ export class CapitalDistributorGovernance extends BaseGovernance {
       assertExposable(false, ErrorKeyEnum.campaignInvalid)
     }
 
-    const members = await Models.CampaignReward.find(
-      {
-        pluginAddress: this.address,
-        network: this.network,
-        campaignId,
-      },
-      {
-        userAddress: 1,
-        amount: 1,
-      },
-    ).lean()
+    const members = await Models.CampaignReward.find({
+      pluginAddress: this.address,
+      network: this.network,
+      campaignId,
+    }).lean()
 
     assertExposable(members && members.length > 0, ErrorKeyEnum.badParams)
 
