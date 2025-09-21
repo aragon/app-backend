@@ -7,8 +7,9 @@ import {
   type IProposalSPPOnChain,
   type IRawAction,
   ITokenVotingLogs,
+  KnownActionSignature,
 } from '@types'
-import { ethers, Interface, type LogDescription } from 'ethers'
+import { Interface, type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import IPFSModule from '@modules/ipfs'
 import type Vote from '@models/schema/vote'
@@ -27,6 +28,7 @@ import { TokenVoting } from '@src/aragonContracts'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { assert } from '@errors'
 import Web3Utils from '@helpers/web3Utils'
+import web3Utils from '@helpers/web3Utils'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 
@@ -588,7 +590,7 @@ export const ProposalHandler = {
       if (!proposal) return
 
       const hashDaoUpgradeAction = proposal.rawActions?.find((action: IRawAction) => {
-        const methodHash = ethers.id('upgradeToAndCall(address,bytes)').slice(0, 10)
+        const methodHash = web3Utils.getFunctionSelector(KnownActionSignature.UpgradeToAndCall)
         return action.data?.startsWith(methodHash)
       })
 
