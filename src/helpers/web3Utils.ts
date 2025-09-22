@@ -5,6 +5,7 @@ import {
   type IProposalMetadata,
   type NetworksEnum,
   type ICampaignMetadata,
+  type KnownActionSignature,
 } from '@types'
 import { AbiCoder, ethers, getAddress, Interface, type Log, type LogDescription, type TransactionReceipt } from 'ethers'
 import logger from '@logger'
@@ -55,6 +56,10 @@ const Web3Utils = {
         logger.error('Unsupported function selector', llo({ functionSelector }))
         return null
     }
+  },
+
+  getFunctionSelector(action: KnownActionSignature): string {
+    return ethers.id(action).slice(0, 10)
   },
 
   getERC721TransferABI(functionSelector: string): string[] | null {

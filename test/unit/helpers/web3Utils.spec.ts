@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
-import { ITransactionType, NetworksEnum } from '@types'
+import { KnownActionSignature, NetworksEnum } from '@types'
 import { AbiCoder, Interface } from 'ethers'
 import logger from '@logger'
 import BigNumber from 'bignumber.js'
@@ -75,6 +75,13 @@ describe('Helpers:Web3Utils', () => {
 
     it('should have correct ERC1155_safeBatchTransferFrom', () => {
       expect(Web3Utils.ERC1155_safeBatchTransferFrom).to.equal('0x2eb2c2d6')
+    })
+  })
+
+  describe('getFunctionSelector', () => {
+    it('should return correct function selector', () => {
+      const result = Web3Utils.getFunctionSelector(KnownActionSignature.Mint)
+      expect(result).to.equal('0x40c10f19')
     })
   })
 
