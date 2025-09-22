@@ -15,6 +15,7 @@ class BottleneckModule {
   static blockScoutLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static chilizLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static duneLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
+  static tenderlyLimiter: Bottleneck | null = null
 
   static getNodeLimiter(network: NetworksEnum) {
     if (!this.nodeLimiters[network]) {
@@ -134,6 +135,16 @@ class BottleneckModule {
       })
     }
     return this.duneLimiters[network]
+  }
+
+  static getTenderlyLimiter() {
+    if (!this.tenderlyLimiter) {
+      this.tenderlyLimiter = new Bottleneck({
+        maxConcurrent: config.TENDERLY.MAX_CONCURRENT,
+        minTime: config.TENDERLY.MIN_TIME,
+      })
+    }
+    return this.tenderlyLimiter
   }
 }
 
