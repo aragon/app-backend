@@ -88,7 +88,7 @@ export class CapitalDistributorGovernance extends BaseGovernance {
         { session },
       )
 
-      const insertOps = rewards.map(({ address, amount }) => {
+      const insertOps = rewards.map(({ address, amount }, index) => {
         const normalizedAddress = ethers.getAddress(address)
         const existingReward = existingRewardsMap.get(normalizedAddress.toLowerCase())
 
@@ -108,6 +108,7 @@ export class CapitalDistributorGovernance extends BaseGovernance {
               amount,
               totalClaimed: (existingReward as any)?.totalClaimed || '0',
               claims: (existingReward as any)?.claims || [],
+              index,
             },
           },
         }
@@ -188,7 +189,7 @@ export class CapitalDistributorGovernance extends BaseGovernance {
       pluginAddress: this.address,
       network: this.network,
       campaignId,
-    }).lean()
+    }).sort({ index: 1 })
 
     assertExposable(members && members.length > 0, ErrorKeyEnum.badParams)
 
