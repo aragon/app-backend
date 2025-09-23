@@ -130,6 +130,8 @@ services:
     networks:
       - internal-net
       - public-net
+    deploy:
+      replicas: 2
 
   service-aragon-gateway:
     image: service-aragon-gateway-${ENV_SUFFIX}
