@@ -24,6 +24,7 @@ export const DaoTransferHandler = {
       logger.verbose(
         'ERC20 Transfer to DAO',
         llo({
+          network: info.network,
           from: parsedEvent.args.from ?? parsedEvent.args[0],
           to: parsedEvent.args.to ?? parsedEvent.args[1],
           value: (parsedEvent.args.amount ?? parsedEvent.args.value ?? parsedEvent.args[2]).toString(),
@@ -49,6 +50,7 @@ export const DaoTransferHandler = {
       logger.verbose(
         'ERC721 Transfer to DAO',
         llo({
+          network: info.network,
           from: parsedEvent.args.from ?? parsedEvent.args[0],
           to: parsedEvent.args.to ?? parsedEvent.args[1],
           tokenId: (parsedEvent.args.tokenId ?? parsedEvent.args[2]).toString(),
@@ -78,6 +80,7 @@ export const DaoTransferHandler = {
       logger.verbose(
         'ERC20 Transfer from DAO',
         llo({
+          network: info.network,
           from: parsedEvent.args.from ?? parsedEvent.args[0],
           to: parsedEvent.args.to ?? parsedEvent.args[1],
           value: (parsedEvent.args.amount ?? parsedEvent.args.value ?? parsedEvent.args[2]).toString(),
@@ -103,6 +106,7 @@ export const DaoTransferHandler = {
       logger.verbose(
         'NFT Transfer from DAO',
         llo({
+          network: info.network,
           from: parsedEvent.args.from ?? parsedEvent.args[0],
           to: parsedEvent.args.to ?? parsedEvent.args[1],
           tokenId: (parsedEvent.args.tokenId ?? parsedEvent.args[2]).toString(),
@@ -131,6 +135,7 @@ export const DaoTransferHandler = {
     logger.verbose(
       'Native Token Deposited to DAO',
       llo({
+        network: info.network,
         sender: parsedEvent.args.sender ?? parsedEvent.args[0], // sender address
         amount: (parsedEvent.args.amount ?? parsedEvent.args[1]).toString(), // amount in wei
         daoAddress: info.address,
@@ -207,6 +212,7 @@ export const DaoTransferHandler = {
             logger.verbose(
               'Native transfer saved from Executed event',
               llo({
+                network: info.network,
                 to,
                 value: value.toString(),
                 txHash: info.transactionHash,
