@@ -79,7 +79,7 @@ export const AllMetrics = {
       model: Models.TokenMember,
       onDocument: async (doc: TokenMember) => {
         const blockNumber = doc.lastVPBlockNumber || doc.blockNumber
-        const token = await ProxyToken.saveAndGetToken(doc.tokenAddress, doc.network, false)
+        const token = await ProxyToken.saveAndGetToken(doc.tokenAddress, doc.network)
         const blockTimestamp = await Web3Helper.getBlockTimestamp(blockNumber, doc.network)
         const memberVotingPower = await GovernanceErc20Helper.getPastVotes(
           doc.memberAddress,

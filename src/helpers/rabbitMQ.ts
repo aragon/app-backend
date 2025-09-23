@@ -62,13 +62,13 @@ const RabbitMQHelper = {
             // Unique key per queue and message ID
             const uniqueKey = `${queueName}-${data?.id}`
 
-            const release = await this.mutex.acquire()
+            const release = await RabbitMQHelper.mutex.acquire()
             try {
-              if (this.activeJobs.has(uniqueKey)) {
+              if (RabbitMQHelper.activeJobs.has(uniqueKey)) {
                 channel.ack(msg)
                 return
               }
-              this.activeJobs.set(uniqueKey, true)
+              RabbitMQHelper.activeJobs.set(uniqueKey, true)
             } finally {
               release()
             }
@@ -81,10 +81,10 @@ const RabbitMQHelper = {
                   contentType: 'application/json',
                 })
               }
-              const releaseFinal = await this.mutex.acquire()
+              const releaseFinal = await RabbitMQHelper.mutex.acquire()
               try {
-                this.activeJobs.delete(uniqueKey) // Remove the job from active jobs map
-                this.queuedMessages.delete(uniqueKey) // Remove from queuedMessages
+                RabbitMQHelper.activeJobs.delete(uniqueKey) // Remove the job from active jobs map
+                RabbitMQHelper.queuedMessages.delete(uniqueKey) // Remove from queuedMessages
               } finally {
                 releaseFinal()
               }
@@ -109,13 +109,13 @@ const RabbitMQHelper = {
     const uniqueKey = `${queueName}-${payload.id}`
 
     if (!opts.waitResponse) {
-      const release = await this.mutex.acquire()
+      const release = await RabbitMQHelper.mutex.acquire()
       try {
-        if (this.queuedMessages.has(uniqueKey)) {
+        if (RabbitMQHelper.queuedMessages.has(uniqueKey)) {
           logger.warn('Skipping duplicate message', llo({ uniqueKey }))
           return
         }
-        this.queuedMessages.add(uniqueKey)
+        RabbitMQHelper.queuedMessages.add(uniqueKey)
       } finally {
         release()
       }
