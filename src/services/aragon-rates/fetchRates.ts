@@ -178,8 +178,7 @@ export const FetchRates = {
           },
           { session },
         )
-        await session.commitTransaction()
-        await session.endSession()
+        await DbTx.safeCommit(session)
         logger.verbose(
           'Token rate updated',
           llo({ logId: logDb.id, tokenSymbol: logDb.symbol, tokenType: logDb.type, priceUsd: logDb.priceUsd }),
@@ -234,8 +233,7 @@ export const FetchRates = {
           },
           { session },
         )
-        await session.commitTransaction()
-        await session.endSession()
+        await DbTx.safeCommit(session)
         logger.verbose(
           'Token rate updated',
           llo({ logId: logDb.id, tokenSymbol: logDb.symbol, tokenType: logDb.type, priceUsd: logDb.priceUsd }),

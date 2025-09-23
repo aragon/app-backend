@@ -329,11 +329,11 @@ describe('Transfers: NativeTransferProcessor', () => {
 
       expect(result).to.not.be.undefined
       // Note: amountUsd depends on ProxyProvider.fetchHistoricalTokenPrice which returns '0.00' in test environment
-      expect(result?.amountUsd).to.equal('0.00') // ProxyProvider returns 0 in test
+      expect(result?.amountUsd).to.equal('0') // ProxyProvider returns 0 in test
 
       // Verify in database
       const savedTx = await Models.Transaction.findOne({ transactionHash: '0xusdtest' })
-      expect(savedTx?.amountUsd).to.equal('0.00')
+      expect(savedTx?.amountUsd).to.equal('0')
     })
   })
 
@@ -505,7 +505,7 @@ describe('Transfers: NativeTransferProcessor', () => {
       expect(result?.value).to.equal('0.5')
       expect(result?.side).to.equal(ITransactionSide.deposit)
       // Note: amountUsd depends on ProxyProvider.fetchHistoricalTokenPrice which returns '0.00' in test environment
-      expect(result?.amountUsd).to.equal('0.00') // ProxyProvider returns 0 in test
+      expect(result?.amountUsd).to.equal('0') // ProxyProvider returns 0 in test
 
       // Verify it's actually in the database
       const dbTransaction = await Models.Transaction.findOne({ transactionHash: '0xnativedeposit' })
