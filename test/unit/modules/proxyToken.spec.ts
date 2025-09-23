@@ -60,9 +60,9 @@ describe('Modules: ProxyToken', () => {
       sandbox.stub(Models.Token, 'findExistingLog').resolves(existingToken)
       const updateTokenMetricsStub = sandbox.stub(ProxyToken, 'updateTokenMetrics').resolves(existingToken)
 
-      const result = await ProxyToken.saveAndGetToken(tokenAddress, network)
+      const result = await ProxyToken.saveAndGetToken(tokenAddress, network, true)
 
-      expect(updateTokenMetricsStub.calledWith(existingToken, tokenAddress, network, false)).to.be.true
+      expect(updateTokenMetricsStub.calledWith(existingToken, tokenAddress, network, true)).to.be.true
       expect(result).to.equal(existingToken)
     })
 
