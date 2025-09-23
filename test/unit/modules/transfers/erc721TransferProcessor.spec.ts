@@ -346,12 +346,10 @@ describe('Transfers: Erc721TransferProcessor', () => {
   describe('addTokenMetadata (inherited)', () => {
     let saveAndGetTokenStub: sinon.SinonStub
     let getBlockTimestampStub: sinon.SinonStub
-    let fetchTokenPriceStub: sinon.SinonStub
 
     beforeEach(() => {
       saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken')
       getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp')
-      fetchTokenPriceStub = sandbox.stub(processor as any, 'fetchTokenPrice')
     })
 
     it('should enrich NFT transfer data with token information', async () => {
@@ -376,13 +374,11 @@ describe('Transfers: Erc721TransferProcessor', () => {
 
       saveAndGetTokenStub.resolves(mockToken as any)
       getBlockTimestampStub.resolves(1625000000)
-      fetchTokenPriceStub.resolves('50000.00') // Floor price
 
       const result = await processor['addTokenMetadata'](data as any)
 
       expect(saveAndGetTokenStub.calledWith('0xBAYC', NetworksEnum.ethereumMainnet)).to.be.true
       expect(getBlockTimestampStub.calledWith(12345, NetworksEnum.ethereumMainnet)).to.be.true
-      expect(fetchTokenPriceStub.calledWith(mockToken, 1625000000)).to.be.true
 
       expect(result).to.deep.equal({
         ...data,
@@ -397,11 +393,11 @@ describe('Transfers: Erc721TransferProcessor', () => {
           logo: 'bayc.png',
           decimals: 0,
           snapshot: {
-            priceUsd: '50000.00',
+            priceUsd: '0',
             priceUpdatedAt: 1625000000,
           },
         },
-        amountUsd: '50000.00', // 1 * 50000
+        amountUsd: '0',
       })
     })
 
@@ -425,11 +421,10 @@ describe('Transfers: Erc721TransferProcessor', () => {
 
       saveAndGetTokenStub.resolves(mockToken as any)
       getBlockTimestampStub.resolves(1625000000)
-      fetchTokenPriceStub.resolves('0.00') // No price data
 
       const result = (await processor['addTokenMetadata'](data as any)) as any
 
-      expect(result.amountUsd).to.equal('0.00')
+      expect(result.amountUsd).to.equal('0')
     })
   })
 

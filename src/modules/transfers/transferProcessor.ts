@@ -96,7 +96,6 @@ export abstract class TransferProcessor {
     }
 
     const timestamp = data.blockTimestamp || (await Web3Helper.getBlockTimestamp(data.blockNumber, data.network))
-    const tokenPrice = await this.fetchTokenPrice(token, timestamp)
 
     return {
       ...data,
@@ -111,11 +110,11 @@ export abstract class TransferProcessor {
         logo: token.logo,
         decimals: token.decimals,
         snapshot: {
-          priceUsd: tokenPrice,
+          priceUsd: '0',
           priceUpdatedAt: timestamp,
         },
       },
-      amountUsd: (parseFloat(data.value) * parseFloat(tokenPrice)).toFixed(2),
+      amountUsd: '0',
     }
   }
 

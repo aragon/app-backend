@@ -178,8 +178,7 @@ export const FetchRates = {
           },
           { session },
         )
-        await session.commitTransaction()
-        await session.endSession()
+        await DbTx.safeCommit(session)
         logger.verbose(
           'Token rate updated',
           llo({ logId: logDb.id, tokenSymbol: logDb.symbol, tokenType: logDb.type, priceUsd: logDb.priceUsd }),
@@ -207,12 +206,14 @@ export const FetchRates = {
         holders: tokenMetrics.totalHolders,
         totalSupply: tokenMetrics.totalSupply,
         priceUsd: tokenUpdate.priceUsd,
+        logo: tokenUpdate.logo,
       }
 
       if (
         token.priceUsd === rawTokenUpdate.priceUsd &&
         token.holders === rawTokenUpdate.holders &&
-        token.totalSupply === rawTokenUpdate.totalSupply
+        token.totalSupply === rawTokenUpdate.totalSupply &&
+        token.logo === rawTokenUpdate.logo
       ) {
         return
       }
@@ -232,8 +233,7 @@ export const FetchRates = {
           },
           { session },
         )
-        await session.commitTransaction()
-        await session.endSession()
+        await DbTx.safeCommit(session)
         logger.verbose(
           'Token rate updated',
           llo({ logId: logDb.id, tokenSymbol: logDb.symbol, tokenType: logDb.type, priceUsd: logDb.priceUsd }),

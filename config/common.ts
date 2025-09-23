@@ -26,7 +26,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       URI: utils.configParser(sourceConfig, 'string', 'RABBITMQ_URI', 'amqp://guest:guest@rabbitmq:5672'),
       TIMEOUT: utils.configParser(sourceConfig, 'number', 'RABBITMQ_TIMEOUT', 60000),
       DEFAULT_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'RABBITMQ_DEFAULT_CONCURRENCY', 25),
-      CLEAN_QUEUE: utils.configParser(sourceConfig, 'bool', 'RABBITMQ_CLEAN_QUEUE', false),
       RECONNECT_TIME_SECONDS: utils.configParser(sourceConfig, 'number', 'RABBITMQ_RECONNECT_TIME_SECONDS', 5),
       HEARTBEAT_INTERVAL_SECONDS: utils.configParser(sourceConfig, 'number', 'RABBITMQ_HEARTBEAT_INTERVAL_SECONDS', 30),
       MAX_QUEUE_SIZE: utils.configParser(sourceConfig, 'number', 'RABBITMQ_MAX_QUEUE_SIZE', 50),
@@ -470,6 +469,17 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'PINATA_GATEWAY_URI',
         'https://aragon-1.mypinata.cloud/ipfs',
       ),
+    },
+
+    TENDERLY: {
+      API_URL: utils.configParser(sourceConfig, 'string', 'TENDERLY_API_URL', 'https://api.tenderly.co/api/v1'),
+      PROJECT: utils.configParser(sourceConfig, 'string', 'TENDERLY_PROJECT', null),
+      USER: utils.configParser(sourceConfig, 'string', 'TENDERLY_USER', null),
+      ACCESS_KEY: utils.configParser(sourceConfig, 'string', 'TENDERLY_ACCESS_KEY', null),
+      MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'TENDERLY_MAX_CONCURRENT', 1),
+      MIN_TIME: utils.configParser(sourceConfig, 'number', 'TENDERLY_MIN_TIME', 3000),
+      SHARING_BASE_URL: utils.configParser(sourceConfig, 'string', 'TENDERLY_SHARING_BASE_URL', 'https://www.tdly.co'),
+      RE_SIMULATION_TIME: utils.configParser(sourceConfig, 'number', 'TENDERLY_RE_SIMULATION_TIME', 1000 * 60 * 10),
     },
 
     CONTRACTS: {

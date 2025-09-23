@@ -46,5 +46,6 @@ export enum ErrorKeyEnum {
   tokenExpired = 'tokenExpired',
   blockscoutNotImplemented = 'blockscoutNotImplemented',
   campaignInvalid = 'campaignInvalid',
+  badSimulationRequest = 'badSimulationRequest',
   duplicateAddresses = 'duplicateAddresses',
 }

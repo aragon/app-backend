@@ -86,7 +86,6 @@ export interface IConfig {
     TIMEOUT: number
     DEFAULT_CONCURRENCY: number
     RECONNECT_TIME_SECONDS: number
-    CLEAN_QUEUE: boolean
     HEARTBEAT_INTERVAL_SECONDS: number
     MAX_QUEUE_SIZE: number
     THROTTLE_RETRY_DELAY: number
@@ -155,6 +154,17 @@ export interface IConfig {
   PINATA: {
     JWT: string
     GATEWAY_URI: string
+  }
+
+  TENDERLY: {
+    API_URL: string
+    PROJECT: string
+    USER: string
+    ACCESS_KEY: string
+    MAX_CONCURRENT: number
+    MIN_TIME: number
+    SHARING_BASE_URL: string
+    RE_SIMULATION_TIME: number
   }
 
   CONTRACTS: {

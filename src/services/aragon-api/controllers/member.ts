@@ -51,7 +51,7 @@ const MemberController = {
     const member = await Models.Member.findMemberByAddress(address, extraParams)
 
     assertExposable(member, ErrorKeyEnum.notFound)
-    if ((extraParams.tokenAddress || extraParams.pluginAddress) && extraParams.network) {
+    if (extraParams.pluginAddress && extraParams.tokenAddress && extraParams.network) {
       try {
         const balanceInfo = (await RabbitMQHelper.sendMessage(
           EnumQueueName.memberBalance,

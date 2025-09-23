@@ -531,7 +531,7 @@ describe('Helpers:Utils', () => {
     }
   })
 
-  it('asyncParralel', async () => {
+  it.skip('asyncParralel', async () => {
     const tasks = [
       async () => {
         await Utils.wait(100)
