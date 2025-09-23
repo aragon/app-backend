@@ -275,7 +275,7 @@ describe('Governance:GovernanceFactory', () => {
           MemberGovernanceFactory.createFromPlugin(plugin as any)
         }).to.throw('Unsupported plugin interface type: tokenVoting')
 
-        expect(loggerErrorStub.calledWith('Unable to create governance from plugin')).to.be.true
+        expect(loggerWarnStub.calledWith('Unable to create governance from plugin')).to.be.true
       })
     })
 
@@ -359,7 +359,7 @@ describe('Governance:GovernanceFactory', () => {
           MemberGovernanceFactory.createFromPlugin(plugin as any)
         }).to.throw('Unsupported plugin interface type: spp')
 
-        expect(loggerErrorStub.calledWith('Unable to create governance from plugin')).to.be.true
+        expect(loggerWarnStub.calledWith('Unable to create governance from plugin')).to.be.true
       })
 
       it('should throw error for gauge plugin', () => {
@@ -371,7 +371,7 @@ describe('Governance:GovernanceFactory', () => {
           MemberGovernanceFactory.createFromPlugin(plugin as any)
         }).to.throw('Unsupported plugin interface type: gauge')
 
-        expect(loggerErrorStub.calledWith('Unable to create governance from plugin')).to.be.true
+        expect(loggerWarnStub.calledWith('Unable to create governance from plugin')).to.be.true
       })
 
       it('should throw error for unknown plugin', () => {
@@ -383,7 +383,7 @@ describe('Governance:GovernanceFactory', () => {
           MemberGovernanceFactory.createFromPlugin(plugin as any)
         }).to.throw('Unsupported plugin interface type: unknown')
 
-        expect(loggerErrorStub.calledWith('Unable to create governance from plugin')).to.be.true
+        expect(loggerWarnStub.calledWith('Unable to create governance from plugin')).to.be.true
       })
     })
   })
