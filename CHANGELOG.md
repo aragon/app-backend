@@ -1,3 +1,38 @@
+# [0.12.0](https://github.com/aragon/app-backend/compare/v0.11.1...v0.12.0) (2025-09-23)
+
+
+### Bug Fixes
+
+* **capitalDistributor:** correct reward amounts in uploadMembersList tests ([a64547c](https://github.com/aragon/app-backend/commit/a64547cf47dea8ea3b57d815b1f2f0d6158fe5c5))
+* **capitalDistributor:** remove exclusive focus from uploadMembersList test suite ([21211c0](https://github.com/aragon/app-backend/commit/21211c0b4e394e39aad79198f6efff5af2d4f399))
+* **capitalDistributor:** replace members list with preserved claims and update totals ([bc4895e](https://github.com/aragon/app-backend/commit/bc4895e64ba643591b80c57e6be872da30aedc0f))
+* **capitalDistributor:** simplify insertOps mapping by removing unused index parameter ([4f8d96c](https://github.com/aragon/app-backend/commit/4f8d96cf39e48dd9b1882cce598b4a1cf68d45fa))
+* **capitalDistributor:** sort rewards by address before upserting ([e236137](https://github.com/aragon/app-backend/commit/e236137c9666d6b8303f11375a9e39a07c88a1e2))
+* **capitalDistributor:** streamline reward existence checks in tests ([6293c6a](https://github.com/aragon/app-backend/commit/6293c6a64dae630782fefafec1e85280b12af738))
+* **capitalDistributor:** update success message for uploadMembersList to reflect replacement ([bc23e47](https://github.com/aragon/app-backend/commit/bc23e47b350122e246f961faf43922120e71d296))
+* **fetchRates:** include logo in token update comparison for consistency ([085f278](https://github.com/aragon/app-backend/commit/085f278cac60d13fad4fcc6c6b819ab125ec579a))
+* **fetchRates:** include logo in token updates for consistency ([23519d3](https://github.com/aragon/app-backend/commit/23519d33497f094cc2c56153bcea65ba92e2b114))
+* **member:** update tokenAddress handling logic in member retrieval ([3054d6c](https://github.com/aragon/app-backend/commit/3054d6c87ecdd551894c04609d3904eecee5a77a))
+* remove redundant import and update function selector reference in proposalHandler ([e779522](https://github.com/aragon/app-backend/commit/e779522897461dc6af3ffe7ca44521e4b3814dde))
+
+
+### Features
+
+* add function selector for UpgradeToAndCall action and update related imports ([db5576e](https://github.com/aragon/app-backend/commit/db5576e3723633d01f44214431cc58ddbe3ed9df))
+* add index property to CampaignReward and update insert operations ([baebe45](https://github.com/aragon/app-backend/commit/baebe45f070f3383a71d3fa9de8b7838d407af26))
+* add migration to fix DAO version and implementation address ([29e68e0](https://github.com/aragon/app-backend/commit/29e68e01f7dc9e4f05bc75428f69a969258e4417))
+* add migration to fix DAO version for executed proposals ([2e1c2ab](https://github.com/aragon/app-backend/commit/2e1c2abe0c08b36327d031e07dcd5ad8f26ff2ed))
+* add network information to logs and refactor active job management ([1b91663](https://github.com/aragon/app-backend/commit/1b91663105184e5f283970ed3d3f431c576f29f6))
+* add network information to logs and refactor active job management ([3f3ff2d](https://github.com/aragon/app-backend/commit/3f3ff2de1e59c1c65dca363b1f7ff967b80f1913))
+* **AragonReQueueService:** remove DAO crawler logic and adjust related tests ([f083fe5](https://github.com/aragon/app-backend/commit/f083fe56e66d2638c255ace72083c2204e1aabf5))
+* implement DAO upgrade handling in ProposalHandler ([5e41a9d](https://github.com/aragon/app-backend/commit/5e41a9de68cc9c0bc5e05a4f5d81d3844c6c730e))
+* refactor token handling and improve transaction safety ([7ecda54](https://github.com/aragon/app-backend/commit/7ecda5474d69529385bb69d092c35076eba5d05e))
+* refactor token handling and improve transaction safety ([eb74389](https://github.com/aragon/app-backend/commit/eb743898460331d3034adb1e6457b1be50fa0dc2))
+* remove token price fetching and set default values for amountUsd ([1f64a72](https://github.com/aragon/app-backend/commit/1f64a728a4102398ec3893382dc762a155520b33))
+* **tenderly:** implement simulation controller and router for Tenderly integration ([8d6e191](https://github.com/aragon/app-backend/commit/8d6e1915bb01bdc4ae08072b31820409aab9a516))
+* update simulation status retrieval in simulation.ts ([fd30884](https://github.com/aragon/app-backend/commit/fd30884743065be072775634146cf05945ed5cac))
+* update token price handling to set default amountUsd to zero ([54d51c4](https://github.com/aragon/app-backend/commit/54d51c4a713eac7be434294b1a5bccad9b7358f8))
+
 ## [0.11.1](https://github.com/aragon/app-backend/compare/v0.11.0...v0.11.1) (2025-09-19)
 
 
