@@ -1,6 +1,6 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 import { type ITokenType } from '@src/types/token'
-import { type ISettingStatus } from '@src/types/plugin'
+import { type IPluginInterfaceType, type IPluginStatus, type ISettingStatus } from '@src/types/plugin'
 import { type ITransactionSide, type ITransactionType } from '@types'
 
 export interface ITokenExtraParams {
@@ -135,4 +135,13 @@ export interface IPaginationMetadata {
 export interface IPaginatedResult<T> {
   data: T[]
   metadata: IPaginationMetadata
+}
+
+export interface IGetPluginsByDaoParams {
+  daoAddress: HexAddress
+  network: NetworksEnum
+  interfaceType?: IPluginInterfaceType
+  status?: IPluginStatus | 'all'
+  isProcess?: boolean
+  isSupported?: boolean
 }

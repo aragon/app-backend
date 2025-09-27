@@ -1,6 +1,6 @@
 import Joi from 'joi'
 import ValidationSchema from '@helpers/validationSchema'
-import { NetworksEnum } from '@types'
+import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 
 const PluginSchema = {
   getInstallationData: Joi.object({
@@ -8,6 +8,22 @@ const PluginSchema = {
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
       .required(),
+  }),
+
+  getPluginsByDao: Joi.object({
+    daoAddress: ValidationSchema.joiAddress.required(),
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
+    interfaceType: Joi.string()
+      .valid(...Object.values(IPluginInterfaceType))
+      .optional(),
+    status: Joi.string()
+      .valid(...Object.values(IPluginStatus), 'all')
+      .optional()
+      .default('all'),
+    isProcess: Joi.boolean().optional(),
+    isSupported: Joi.boolean().optional(),
   }),
 }
 

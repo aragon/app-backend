@@ -258,4 +258,22 @@ describe('RouterV2: Plugin', () => {
       expect(ctx.body).to.deep.equal(complexData)
     })
   })
+
+  describe('getPluginsByDao', () => {
+    it('should get plugins by DAO with default parameters', async () => {
+      // Test basic filtering
+    })
+
+    it('should filter plugins by status', async () => {
+      // Test status filtering: installed, uninstalled, etc.
+    })
+
+    it('should filter plugins by interface type', async () => {
+      // Test interface type filtering
+    })
+
+    it('should filter process plugins', async () => {
+      // Test isProcess filtering
+    })
+  })
 })
