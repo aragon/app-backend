@@ -274,4 +274,316 @@ describe('Model: Plugin', () => {
     expect(reloadedPlugin.transactionHash).to.be.eq(plugin.transactionHash)
     expect(reloadedPlugin.address).to.be.eq(plugin.address)
   })
+
+  describe('findByDaoWithFilters', () => {
+    const daoAddress = '0x1234567890123456789012345678901234567890'
+    const network = NetworksEnum.ethereumMainnet
+
+    beforeEach(async () => {
+      // Create test plugins with various combinations of properties
+      await Models.Plugin.create({
+        ...rawPlugin,
+        daoAddress,
+        network,
+        status: IPluginStatus.installed,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        isProcess: false,
+        isSupported: true,
+        address: '0xPlugin1',
+        transactionHash: '0xHash1',
+      })
+
+      await Models.Plugin.create({
+        ...rawPlugin,
+        daoAddress,
+        network,
+        status: IPluginStatus.uninstalled,
+        interfaceType: IPluginInterfaceType.multisig,
+        isProcess: true,
+        isSupported: true,
+        address: '0xPlugin2',
+        transactionHash: '0xHash2',
+      })
+
+      await Models.Plugin.create({
+        ...rawPlugin,
+        daoAddress,
+        network,
+        status: IPluginStatus.installed,
+        interfaceType: IPluginInterfaceType.admin,
+        isProcess: false,
+        isSupported: false,
+        address: '0xPlugin3',
+        transactionHash: '0xHash3',
+      })
+
+      await Models.Plugin.create({
+        ...rawPlugin,
+        daoAddress,
+        network,
+        status: IPluginStatus.preInstall,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        isProcess: true,
+        isSupported: true,
+        address: '0xPlugin4',
+        transactionHash: '0xHash4',
+      })
+
+      // Plugin for different DAO (should not be returned)
+      await Models.Plugin.create({
+        ...rawPlugin,
+        daoAddress: '0xDifferentDao',
+        network,
+        status: IPluginStatus.installed,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        isProcess: false,
+        isSupported: true,
+        address: '0xPlugin5',
+        transactionHash: '0xHash5',
+      })
+
+      // Plugin for different network (should not be returned)
+      await Models.Plugin.create({
+        ...rawPlugin,
+        daoAddress,
+        network: NetworksEnum.polygonMainnet,
+        status: IPluginStatus.installed,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        isProcess: false,
+        isSupported: true,
+        address: '0xPlugin6',
+        transactionHash: '0xHash6',
+      })
+    })
+
+    it('should return all plugins for DAO when status is "all"', async () => {
+      const plugins = await Models.Plugin.findByDaoWithFilters({
+        daoAddress,
+        network,
+        status: 'all',
+      })
+
+      expect(plugins).to.have.lengthOf(4)
+      expect(plugins.every(p => p.daoAddress === daoAddress)).to.be.true
+      expect(plugins.every(p => p.network === network)).to.be.true
+    })
+
+    it('should filter by status when status is not "all"', async () => {
+      const plugins = await Models.Plugin.findByDaoWithFilters({
+        daoAddress,
+        network,
+        status: IPluginStatus.installed,
+      })
+
+      expect(plugins).to.have.lengthOf(2)
+      expect(plugins.every(p => p.status === IPluginStatus.installed)).to.be.true
+      expect(plugins.map(p => p.address)).to.include.members(['0xPlugin1', '0xPlugin3'])
+    })
+
+    it('should filter by interfaceType', async () => {
+      const plugins = await Models.Plugin.findByDaoWithFilters({
+        daoAddress,
+        network,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+      })
+
+      expect(plugins).to.have.lengthOf(2)
+      expect(plugins.every(p => p.interfaceType === IPluginInterfaceType.tokenVoting)).to.be.true
+      expect(plugins.map(p => p.address)).to.include.members(['0xPlugin1', '0xPlugin4'])
+    })
+
+    it('should filter by isProcess=true', async () => {
+      const plugins = await Models.Plugin.findByDaoWithFilters({
+        daoAddress,
+        network,
+        isProcess: true,
+      })
+
+      expect(plugins).to.have.lengthOf(2)
+      expect(plugins.every(p => p.isProcess === true)).to.be.true
+      expect(plugins.map(p => p.address)).to.include.members(['0xPlugin2', '0xPlugin4'])
+    })
+
+    it('should filter by isProcess=false', async () => {
+      const plugins = await Models.Plugin.findByDaoWithFilters({
+        daoAddress,
+        network,
+        isProcess: false,
+      })
+
+      expect(plugins).to.have.lengthOf(2)
+      expect(plugins.every(p => p.isProcess === false)).to.be.true
+      expect(plugins.map(p => p.address)).to.include.members(['0xPlugin1', '0xPlugin3'])
+    })
+
+    it('should filter by isSupported=true', async () => {
+      const plugins = await Models.Plugin.findByDaoWithFilters({
+        daoAddress,
+        network,
+        isSupported: true,
+      })
+
+      expect(plugins).to.have.lengthOf(3)
+      expect(plugins.every(p => p.isSupported === true)).to.be.true
+      expect(plugins.map(p => p.address)).to.include.members(['0xPlugin1', '0xPlugin2', '0xPlugin4'])
+    })
+
+    it('should filter by isSupported=false', async () => {
+      const plugins = await Models.Plugin.findByDaoWithFilters({
+        daoAddress,
+        network,
+        isSupported: false,
+      })
+
+      expect(plugins).to.have.lengthOf(1)
+      expect(plugins[0].isSupported).to.be.false
+      expect(plugins[0].address).to.equal('0xPlugin3')
+    })
+
+    it('should combine multiple filters: status + interfaceType', async () => {
+      const plugins = await Models.Plugin.findByDaoWithFilters({
+        daoAddress,
+        network,
+        status: IPluginStatus.installed,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+      })
+
+      expect(plugins).to.have.lengthOf(1)
+      expect(plugins[0].status).to.equal(IPluginStatus.installed)
+      expect(plugins[0].interfaceType).to.equal(IPluginInterfaceType.tokenVoting)
+      expect(plugins[0].address).to.equal('0xPlugin1')
+    })
+
+    it('should combine multiple filters: interfaceType + isProcess + isSupported', async () => {
+      const plugins = await Models.Plugin.findByDaoWithFilters({
+        daoAddress,
+        network,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        isProcess: true,
+        isSupported: true,
+      })
+
+      expect(plugins).to.have.lengthOf(1)
+      expect(plugins[0].interfaceType).to.equal(IPluginInterfaceType.tokenVoting)
+      expect(plugins[0].isProcess).to.be.true
+      expect(plugins[0].isSupported).to.be.true
+      expect(plugins[0].address).to.equal('0xPlugin4')
+    })
+
+    it('should combine all filters', async () => {
+      const plugins = await Models.Plugin.findByDaoWithFilters({
+        daoAddress,
+        network,
+        status: IPluginStatus.installed,
+        interfaceType: IPluginInterfaceType.admin,
+        isProcess: false,
+        isSupported: false,
+      })
+
+      expect(plugins).to.have.lengthOf(1)
+      expect(plugins[0].status).to.equal(IPluginStatus.installed)
+      expect(plugins[0].interfaceType).to.equal(IPluginInterfaceType.admin)
+      expect(plugins[0].isProcess).to.be.false
+      expect(plugins[0].isSupported).to.be.false
+      expect(plugins[0].address).to.equal('0xPlugin3')
+    })
+
+    it('should return empty array when no plugins match filters', async () => {
+      const plugins = await Models.Plugin.findByDaoWithFilters({
+        daoAddress,
+        network,
+        status: IPluginStatus.deprecated,
+      })
+
+      expect(plugins).to.be.an('array')
+      expect(plugins).to.have.lengthOf(0)
+    })
+
+    it('should return plugins sorted by blockNumber descending', async () => {
+      // Create plugins with different block numbers
+      await Models.Plugin.create({
+        ...rawPlugin,
+        daoAddress,
+        network,
+        status: IPluginStatus.installed,
+        address: '0xPlugin7',
+        transactionHash: '0xHash7',
+        blockNumber: 1000,
+      })
+
+      await Models.Plugin.create({
+        ...rawPlugin,
+        daoAddress,
+        network,
+        status: IPluginStatus.installed,
+        address: '0xPlugin8',
+        transactionHash: '0xHash8',
+        blockNumber: 2000,
+      })
+
+      await Models.Plugin.create({
+        ...rawPlugin,
+        daoAddress,
+        network,
+        status: IPluginStatus.installed,
+        address: '0xPlugin9',
+        transactionHash: '0xHash9',
+        blockNumber: 1500,
+      })
+
+      const plugins = await Models.Plugin.findByDaoWithFilters({
+        daoAddress,
+        network,
+        status: IPluginStatus.installed,
+      })
+
+      // Should be sorted by blockNumber descending
+      // Filter to only the plugins we just created to test sorting
+      const testPlugins = plugins.filter(p => ['0xPlugin7', '0xPlugin8', '0xPlugin9'].includes(p.address))
+      expect(testPlugins).to.have.lengthOf(3)
+      expect(testPlugins[0].blockNumber).to.equal(2000)
+      expect(testPlugins[1].blockNumber).to.equal(1500)
+      expect(testPlugins[2].blockNumber).to.equal(1000)
+    })
+
+    it('should not include isProcess filter when undefined', async () => {
+      const plugins = await Models.Plugin.findByDaoWithFilters({
+        daoAddress,
+        network,
+        isProcess: undefined,
+      })
+
+      // Should return all plugins regardless of isProcess value
+      expect(plugins).to.have.lengthOf(4)
+      expect(plugins.some(p => p.isProcess === true)).to.be.true
+      expect(plugins.some(p => p.isProcess === false)).to.be.true
+    })
+
+    it('should not include isSupported filter when undefined', async () => {
+      const plugins = await Models.Plugin.findByDaoWithFilters({
+        daoAddress,
+        network,
+        isSupported: undefined,
+      })
+
+      // Should return all plugins regardless of isSupported value
+      expect(plugins).to.have.lengthOf(4)
+      expect(plugins.some(p => p.isSupported === true)).to.be.true
+      expect(plugins.some(p => p.isSupported === false)).to.be.true
+    })
+
+    it('should return lean documents (plain objects)', async () => {
+      const plugins = await Models.Plugin.findByDaoWithFilters({
+        daoAddress,
+        network,
+      })
+
+      // Lean documents should not have mongoose methods
+      expect(plugins[0].save).to.be.undefined
+      expect(plugins[0].update).to.be.undefined
+      // But should have data properties
+      expect(plugins[0]).to.have.property('address')
+      expect(plugins[0]).to.have.property('network')
+    })
+  })
 })

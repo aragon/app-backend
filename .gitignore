@@ -11,3 +11,7 @@ environments
 aws-new
 remote
 .env.docker
+
+# Claude AI assistant files
+CLAUDE.md
+.claude/*

@@ -79,11 +79,6 @@ export interface IPluginExtraParams {
   pluginAddress: HexAddress
 }
 
-export interface IPluginByDaoExtraParams {
-  daoAddress: HexAddress
-  network: NetworksEnum
-}
-
 export interface IMemberExtraParams {
   daoAddress?: HexAddress
   network?: NetworksEnum

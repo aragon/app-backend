@@ -10,11 +10,14 @@ const PluginSchema = {
       .required(),
   }),
 
-  getPluginsByDao: Joi.object({
+  getPluginsByDaoUrlParams: Joi.object({
     daoAddress: ValidationSchema.joiAddress.required(),
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
       .required(),
+  }),
+
+  getPluginsByDaoQueryParams: Joi.object({
     interfaceType: Joi.string()
       .valid(...Object.values(IPluginInterfaceType))
       .optional(),

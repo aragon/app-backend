@@ -5,7 +5,7 @@ import type {
   IPluginExtraParams,
   NetworksEnum,
   IPluginInterfaceType,
-  IPluginByDaoExtraParams,
+  IGetPluginsByDaoParams,
 } from '@types'
 import ValidationSchema from '@helpers/validationSchema'
 import PluginSchema from '@api/routers/schema/plugin'
@@ -29,27 +29,35 @@ const PluginRouter = {
 
   async getPluginsByDao(ctx: RouterContext) {
     const result = await ValidationSchema.validateRoute(ctx, {
+      params: {
+        network: ctx.params.network,
+        daoAddress: ctx.params.daoAddress,
+      },
       extraParams: {
-        daoAddress: ctx.query.daoAddress as HexAddress,
-        network: ctx.query.network as NetworksEnum,
-        interfaceType: ctx.query.type as IPluginInterfaceType,
+        interfaceType: ctx.query.interfaceType as IPluginInterfaceType,
         status: (ctx.query.status as IPluginStatus | 'all') || 'all',
         isProcess: Utils.parseBoolean(ctx.query.isProcess),
         isSupported: Utils.parseBoolean(ctx.query.isSupported),
       },
       schemas: {
-        extra: PluginSchema.getPluginsByDao,
+        params: PluginSchema.getPluginsByDaoUrlParams,
+        extra: PluginSchema.getPluginsByDaoQueryParams,
       },
     })
 
-    ctx.body = await PluginsController.getPluginsByDao(result.extraParams as IPluginByDaoExtraParams)
+    const controllerParams = {
+      ...result.params,
+      ...result.extraParams,
+    }
+
+    ctx.body = await PluginsController.getPluginsByDao(controllerParams as IGetPluginsByDaoParams)
   },
 
   router(): Router {
     const router = new Router()
 
     router.get('/installation-data', PluginRouter.getInstallationData)
-    router.get('/by-dao', PluginRouter.getPluginsByDao)
+    router.get('/by-dao/:network/:daoAddress', PluginRouter.getPluginsByDao)
 
     return router
   },
