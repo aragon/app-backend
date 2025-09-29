@@ -4,7 +4,7 @@ import App from '@services/aragon-api/app'
 import config from '@config'
 
 const AragonAPIService: IService = {
-  NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.RABBITMQ],
+  NEED_CONNECTIONS: [EnumConnection.MONGODB],
   options: { mongoSync: config.MONGO_DB.SYNC_MODELS },
 
   async start() {

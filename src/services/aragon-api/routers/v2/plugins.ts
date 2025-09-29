@@ -1,6 +1,13 @@
 import Router, { type RouterContext } from '@koa/router'
-import type { IPluginStatus, HexAddress, IPluginExtraParams, NetworksEnum, IPluginInterfaceType } from '@types'
-import ValidationSchema, { RequireRules } from '@helpers/validationSchema'
+import type {
+  IPluginStatus,
+  HexAddress,
+  IPluginExtraParams,
+  NetworksEnum,
+  IPluginInterfaceType,
+  IPluginByDaoExtraParams,
+} from '@types'
+import ValidationSchema from '@helpers/validationSchema'
 import PluginSchema from '@api/routers/schema/plugin'
 import PluginsController from '@api/controllers/plugins'
 import Utils from '@src/helpers/utils'
@@ -30,13 +37,12 @@ const PluginRouter = {
         isProcess: Utils.parseBoolean(ctx.query.isProcess),
         isSupported: Utils.parseBoolean(ctx.query.isSupported),
       },
-      requireRule: RequireRules.allRequired('daoAddress', 'network'),
       schemas: {
         extra: PluginSchema.getPluginsByDao,
       },
     })
 
-    ctx.body = await PluginsController.getPluginsByDao(result.extraParams)
+    ctx.body = await PluginsController.getPluginsByDao(result.extraParams as IPluginByDaoExtraParams)
   },
 
   router(): Router {

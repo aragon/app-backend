@@ -24,32 +24,7 @@ const PluginsController = {
   },
   getPluginsByDao: async (params: IGetPluginsByDaoParams) => {
     try {
-      const filter: any = {
-        daoAddress: params.daoAddress,
-        network: params.network,
-      }
-
-      // Filter by plugin interface type (e.g., 'spp' for processes)
-      if (params.interfaceType) {
-        filter.interfaceType = params.interfaceType
-      }
-
-      // Filter by installation status
-      if (params.status && params.status !== 'all') {
-        filter.status = params.status
-      }
-
-      // Filter by process flag
-      if (params.isProcess !== undefined) {
-        filter.isProcess = params.isProcess
-      }
-
-      // Filter by supported flag
-      if (params.isSupported !== undefined) {
-        filter.isSupported = params.isSupported
-      }
-
-      const plugins = await Models.Plugin.find(filter).sort({ blockNumber: -1 }).lean().exec()
+      const plugins = await Models.Plugin.findByDaoWithFilters(params)
 
       logger.info(
         'Retrieved plugins by DAO',
@@ -57,12 +32,7 @@ const PluginsController = {
           daoAddress: params.daoAddress,
           network: params.network,
           count: plugins.length,
-          filters: {
-            interfaceType: params.interfaceType,
-            status: params.status,
-            isProcess: params.isProcess,
-            isSupported: params.isSupported,
-          },
+          filters: params,
         }),
       )
 
