@@ -151,10 +151,7 @@ describe('Controller: Plugin', () => {
         status: 'all' as const,
       }
 
-      await expect(PluginController.getPluginsByDao(params)).to.be.rejectedWith(
-        Error,
-        'Database connection failed',
-      )
+      await expect(PluginController.getPluginsByDao(params)).to.be.rejectedWith(Error, 'Database connection failed')
 
       expect(findByDaoWithFiltersStub.calledOnce).to.be.true
       expect(loggerWarnStub.calledOnce).to.be.true
@@ -170,11 +167,7 @@ describe('Controller: Plugin', () => {
     it('should log retrieved plugin count in info log', async () => {
       const status = 'installed' as const
       const interfaceType = 'tokenVoting' as const
-      const mockPlugins = [
-        { address: '0xPlugin1' },
-        { address: '0xPlugin2' },
-        { address: '0xPlugin3' },
-      ]
+      const mockPlugins = [{ address: '0xPlugin1' }, { address: '0xPlugin2' }, { address: '0xPlugin3' }]
       findByDaoWithFiltersStub.resolves(mockPlugins)
 
       const params: any = {

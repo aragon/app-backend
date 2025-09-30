@@ -33,10 +33,12 @@ describe('RouterV2: Plugin', () => {
 
       expect(controllerStub.calledOnce).to.be.true
       expect(
-        controllerStub.calledWith(sinon.match({
-          pluginAddress: getAddress(pluginAddress),
-          network,
-        })),
+        controllerStub.calledWith(
+          sinon.match({
+            pluginAddress: getAddress(pluginAddress),
+            network,
+          }),
+        ),
       ).to.be.true
 
       expect(ctx.body).to.equal(installationData)
@@ -58,10 +60,12 @@ describe('RouterV2: Plugin', () => {
 
       expect(controllerStub.calledOnce).to.be.true
       expect(
-        controllerStub.calledWith(sinon.match({
-          pluginAddress: checksummedAddress,
-          network,
-        })),
+        controllerStub.calledWith(
+          sinon.match({
+            pluginAddress: checksummedAddress,
+            network,
+          }),
+        ),
       ).to.be.true
 
       expect(ctx.body).to.equal(installationData)
@@ -221,10 +225,12 @@ describe('RouterV2: Plugin', () => {
 
         expect(controllerStub.calledOnce).to.be.true
         expect(
-          controllerStub.calledWith(sinon.match({
-            pluginAddress: getAddress(pluginAddress),
-            network,
-          })),
+          controllerStub.calledWith(
+            sinon.match({
+              pluginAddress: getAddress(pluginAddress),
+              network,
+            }),
+          ),
         ).to.be.true
         expect(ctx.body).to.equal(`data-for-${network}`)
       }
@@ -279,11 +285,13 @@ describe('RouterV2: Plugin', () => {
 
       expect(controllerStub.calledOnce).to.be.true
       expect(
-        controllerStub.calledWith(sinon.match({
-          daoAddress: getAddress(daoAddress),
-          network,
-          status: 'all',
-        })),
+        controllerStub.calledWith(
+          sinon.match({
+            daoAddress: getAddress(daoAddress),
+            network,
+            status: 'all',
+          }),
+        ),
       ).to.be.true
 
       expect(ctx.body).to.deep.equal(mockPlugins)
@@ -306,11 +314,13 @@ describe('RouterV2: Plugin', () => {
 
       expect(controllerStub.calledOnce).to.be.true
       expect(
-        controllerStub.calledWith(sinon.match({
-          daoAddress: checksummedAddress,
-          network,
-          status: 'all',
-        })),
+        controllerStub.calledWith(
+          sinon.match({
+            daoAddress: checksummedAddress,
+            network,
+            status: 'all',
+          }),
+        ),
       ).to.be.true
 
       expect(ctx.body).to.deep.equal(mockPlugins)
@@ -333,12 +343,14 @@ describe('RouterV2: Plugin', () => {
 
       expect(controllerStub.calledOnce).to.be.true
       expect(
-        controllerStub.calledWith(sinon.match({
-          daoAddress: getAddress(daoAddress),
-          network,
-          interfaceType,
-          status: 'all',
-        })),
+        controllerStub.calledWith(
+          sinon.match({
+            daoAddress: getAddress(daoAddress),
+            network,
+            interfaceType,
+            status: 'all',
+          }),
+        ),
       ).to.be.true
 
       expect(ctx.body).to.deep.equal(mockPlugins)
@@ -361,11 +373,13 @@ describe('RouterV2: Plugin', () => {
 
       expect(controllerStub.calledOnce).to.be.true
       expect(
-        controllerStub.calledWith(sinon.match({
-          daoAddress: getAddress(daoAddress),
-          network,
-          status,
-        })),
+        controllerStub.calledWith(
+          sinon.match({
+            daoAddress: getAddress(daoAddress),
+            network,
+            status,
+          }),
+        ),
       ).to.be.true
 
       expect(ctx.body).to.deep.equal(mockPlugins)
@@ -387,12 +401,14 @@ describe('RouterV2: Plugin', () => {
 
       expect(controllerStub.calledOnce).to.be.true
       expect(
-        controllerStub.calledWith(sinon.match({
-          daoAddress: getAddress(daoAddress),
-          network,
-          isProcess: true,
-          status: 'all',
-        })),
+        controllerStub.calledWith(
+          sinon.match({
+            daoAddress: getAddress(daoAddress),
+            network,
+            isProcess: true,
+            status: 'all',
+          }),
+        ),
       ).to.be.true
 
       expect(ctx.body).to.deep.equal(mockPlugins)
@@ -414,12 +430,14 @@ describe('RouterV2: Plugin', () => {
 
       expect(controllerStub.calledOnce).to.be.true
       expect(
-        controllerStub.calledWith(sinon.match({
-          daoAddress: getAddress(daoAddress),
-          network,
-          isSupported: true,
-          status: 'all',
-        })),
+        controllerStub.calledWith(
+          sinon.match({
+            daoAddress: getAddress(daoAddress),
+            network,
+            isSupported: true,
+            status: 'all',
+          }),
+        ),
       ).to.be.true
 
       expect(ctx.body).to.deep.equal(mockPlugins)
@@ -441,12 +459,14 @@ describe('RouterV2: Plugin', () => {
 
       expect(controllerStub.calledOnce).to.be.true
       expect(
-        controllerStub.calledWith(sinon.match({
-          daoAddress: getAddress(daoAddress),
-          network,
-          isProcess: false,
-          status: 'all',
-        })),
+        controllerStub.calledWith(
+          sinon.match({
+            daoAddress: getAddress(daoAddress),
+            network,
+            isProcess: false,
+            status: 'all',
+          }),
+        ),
       ).to.be.true
     })
 
@@ -466,12 +486,14 @@ describe('RouterV2: Plugin', () => {
 
       expect(controllerStub.calledOnce).to.be.true
       expect(
-        controllerStub.calledWith(sinon.match({
-          daoAddress: getAddress(daoAddress),
-          network,
-          isSupported: false,
-          status: 'all',
-        })),
+        controllerStub.calledWith(
+          sinon.match({
+            daoAddress: getAddress(daoAddress),
+            network,
+            isSupported: false,
+            status: 'all',
+          }),
+        ),
       ).to.be.true
     })
 
@@ -498,14 +520,16 @@ describe('RouterV2: Plugin', () => {
 
       expect(controllerStub.calledOnce).to.be.true
       expect(
-        controllerStub.calledWith(sinon.match({
-          daoAddress: getAddress(daoAddress),
-          network,
-          interfaceType,
-          status,
-          isSupported: true,
-          isProcess: false,
-        })),
+        controllerStub.calledWith(
+          sinon.match({
+            daoAddress: getAddress(daoAddress),
+            network,
+            interfaceType,
+            status,
+            isSupported: true,
+            isProcess: false,
+          }),
+        ),
       ).to.be.true
 
       expect(ctx.body).to.deep.equal(mockPlugins)
@@ -762,11 +786,13 @@ describe('RouterV2: Plugin', () => {
 
         expect(controllerStub.calledOnce).to.be.true
         expect(
-          controllerStub.calledWith(sinon.match({
-            daoAddress: getAddress(daoAddress),
-            network,
-            status: 'all',
-          })),
+          controllerStub.calledWith(
+            sinon.match({
+              daoAddress: getAddress(daoAddress),
+              network,
+              status: 'all',
+            }),
+          ),
         ).to.be.true
         expect(ctx.body).to.deep.equal([{ network }])
       }
@@ -791,11 +817,13 @@ describe('RouterV2: Plugin', () => {
 
       expect(controllerStub.calledOnce).to.be.true
       expect(
-        controllerStub.calledWith(sinon.match({
-          daoAddress: getAddress(daoAddress),
-          network,
-          status: 'all',
-        })),
+        controllerStub.calledWith(
+          sinon.match({
+            daoAddress: getAddress(daoAddress),
+            network,
+            status: 'all',
+          }),
+        ),
       ).to.be.true
 
       expect(ctx.body).to.deep.equal(mockPlugins)
@@ -830,12 +858,14 @@ describe('RouterV2: Plugin', () => {
 
         expect(controllerStub.calledOnce).to.be.true
         expect(
-          controllerStub.calledWith(sinon.match({
-            daoAddress: getAddress(daoAddress),
-            network,
-            interfaceType,
-            status: 'all',
-          })),
+          controllerStub.calledWith(
+            sinon.match({
+              daoAddress: getAddress(daoAddress),
+              network,
+              interfaceType,
+              status: 'all',
+            }),
+          ),
         ).to.be.true
       }
     })
@@ -860,11 +890,13 @@ describe('RouterV2: Plugin', () => {
 
         expect(controllerStub.calledOnce).to.be.true
         expect(
-          controllerStub.calledWith(sinon.match({
-            daoAddress: getAddress(daoAddress),
-            network,
-            status,
-          })),
+          controllerStub.calledWith(
+            sinon.match({
+              daoAddress: getAddress(daoAddress),
+              network,
+              status,
+            }),
+          ),
         ).to.be.true
       }
     })
