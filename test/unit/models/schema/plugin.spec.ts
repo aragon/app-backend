@@ -356,11 +356,10 @@ describe('Model: Plugin', () => {
       })
     })
 
-    it('should return all plugins for DAO when status is "all"', async () => {
+    it('should return all plugins for DAO when status is not provided', async () => {
       const plugins = await Models.Plugin.findByDaoWithFilters({
         daoAddress,
         network,
-        status: 'all',
       })
 
       expect(plugins).to.have.lengthOf(4)
@@ -368,7 +367,7 @@ describe('Model: Plugin', () => {
       expect(plugins.every(p => p.network === network)).to.be.true
     })
 
-    it('should filter by status when status is not "all"', async () => {
+    it('should filter by status when status is provided', async () => {
       const plugins = await Models.Plugin.findByDaoWithFilters({
         daoAddress,
         network,

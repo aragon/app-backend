@@ -317,7 +317,6 @@ describe('RouterV2: Plugin', () => {
           sinon.match({
             daoAddress: checksummedAddress,
             network,
-            status: 'all',
           }),
         ),
       ).to.be.true
@@ -347,7 +346,6 @@ describe('RouterV2: Plugin', () => {
             daoAddress: getAddress(daoAddress),
             network,
             interfaceType,
-            status: 'all',
           }),
         ),
       ).to.be.true
@@ -405,7 +403,6 @@ describe('RouterV2: Plugin', () => {
             daoAddress: getAddress(daoAddress),
             network,
             isProcess: true,
-            status: 'all',
           }),
         ),
       ).to.be.true
@@ -434,7 +431,6 @@ describe('RouterV2: Plugin', () => {
             daoAddress: getAddress(daoAddress),
             network,
             isSupported: true,
-            status: 'all',
           }),
         ),
       ).to.be.true
@@ -463,7 +459,6 @@ describe('RouterV2: Plugin', () => {
             daoAddress: getAddress(daoAddress),
             network,
             isProcess: false,
-            status: 'all',
           }),
         ),
       ).to.be.true
@@ -490,7 +485,6 @@ describe('RouterV2: Plugin', () => {
             daoAddress: getAddress(daoAddress),
             network,
             isSupported: false,
-            status: 'all',
           }),
         ),
       ).to.be.true
@@ -787,42 +781,11 @@ describe('RouterV2: Plugin', () => {
             sinon.match({
               daoAddress: getAddress(daoAddress),
               network,
-              status: 'all',
             }),
           ),
         ).to.be.true
         expect(ctx.body).to.deep.equal([{ network }])
       }
-    })
-
-    it('should handle status="all" explicitly', async () => {
-      const daoAddress = '0xe2e445489b0356D3087efF7e79DB7Ff3f16c4fEA'
-      const network = NetworksEnum.polygonMainnet
-      const mockPlugins = [
-        { address: '0xPlugin1', status: 'installed' },
-        { address: '0xPlugin2', status: 'uninstalled' },
-      ]
-
-      const controllerStub = sandbox.stub(PluginController, 'getPluginsByDao').resolves(mockPlugins)
-
-      const ctx: any = {
-        params: { daoAddress, network },
-        query: { status: 'all' },
-      }
-
-      await PluginRouter.getPluginsByDao(ctx)
-
-      expect(controllerStub.calledOnce).to.be.true
-      expect(
-        controllerStub.calledWith(
-          sinon.match({
-            daoAddress: getAddress(daoAddress),
-            network,
-          }),
-        ),
-      ).to.be.true
-
-      expect(ctx.body).to.deep.equal(mockPlugins)
     })
 
     it('should handle all valid interfaceType values', async () => {
@@ -859,7 +822,6 @@ describe('RouterV2: Plugin', () => {
               daoAddress: getAddress(daoAddress),
               network,
               interfaceType,
-              status: 'all',
             }),
           ),
         ).to.be.true
