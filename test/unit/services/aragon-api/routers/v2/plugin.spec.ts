@@ -3,7 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import PluginRouter from '@api/routers/v2/plugins'
 import PluginController from '@api/controllers/plugins'
-import { NetworksEnum } from '@types'
+import { IEventLogPluginType, NetworksEnum } from '@types'
 import { getAddress } from 'ethers'
 
 describe('RouterV2: Plugin', () => {
@@ -857,6 +857,373 @@ describe('RouterV2: Plugin', () => {
           ),
         ).to.be.true
       }
+    })
+  })
+
+  describe('getLogPluginSetupProcessor', () => {
+    it('should call controller with correct args and return log data', async () => {
+      const pluginAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+      const network = NetworksEnum.ethereumMainnet
+      const event = IEventLogPluginType.InstallationApplied
+      const mockLogData = [
+        {
+          id: 'log-1',
+          transactionHash: '0x123',
+          event: IEventLogPluginType.InstallationApplied,
+        },
+      ]
+
+      const controllerStub = sandbox.stub(PluginController, 'getLogPluginSetupProcessor').resolves(mockLogData as any)
+
+      const ctx: any = {
+        params: { pluginAddress, network, event },
+        query: {},
+      }
+
+      await PluginRouter.getLogPluginSetupProcessor(ctx)
+
+      expect(controllerStub.calledOnce).to.be.true
+      expect(
+        controllerStub.calledWith(
+          sandbox.match({
+            pluginAddress: getAddress(pluginAddress),
+            network,
+            event,
+          }),
+        ),
+      ).to.be.true
+
+      expect(ctx.body).to.deep.equal(mockLogData)
+    })
+
+    it('should handle lowercase address and checksum it', async () => {
+      const pluginAddress = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2' // lowercase
+      const checksummedAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+      const network = NetworksEnum.ethereumMainnet
+      const event = IEventLogPluginType.InstallationPrepared
+      const mockLogData = []
+
+      const controllerStub = sandbox.stub(PluginController, 'getLogPluginSetupProcessor').resolves(mockLogData as any)
+
+      const ctx: any = {
+        params: { pluginAddress, network, event },
+        query: {},
+      }
+
+      await PluginRouter.getLogPluginSetupProcessor(ctx)
+
+      expect(controllerStub.calledOnce).to.be.true
+      expect(
+        controllerStub.calledWith(
+          sandbox.match({
+            pluginAddress: checksummedAddress,
+            network,
+            event,
+          }),
+        ),
+      ).to.be.true
+
+      expect(ctx.body).to.deep.equal(mockLogData)
+    })
+
+    it('should handle all valid event types', async () => {
+      const pluginAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+      const network = NetworksEnum.ethereumMainnet
+      const events = [
+        IEventLogPluginType.InstallationPrepared,
+        IEventLogPluginType.InstallationApplied,
+        IEventLogPluginType.UninstallationPrepared,
+        IEventLogPluginType.UninstallationApplied,
+        IEventLogPluginType.UpdatePrepared,
+        IEventLogPluginType.UpdateApplied,
+      ]
+
+      const controllerStub = sandbox.stub(PluginController, 'getLogPluginSetupProcessor')
+
+      for (const event of events) {
+        controllerStub.reset()
+        controllerStub.resolves([{ event }] as any)
+
+        const ctx: any = {
+          params: { pluginAddress, network, event },
+          query: {},
+        }
+
+        await PluginRouter.getLogPluginSetupProcessor(ctx)
+
+        expect(controllerStub.calledOnce).to.be.true
+        expect(
+          controllerStub.calledWith(
+            sandbox.match({
+              pluginAddress: getAddress(pluginAddress),
+              network,
+              event,
+            }),
+          ),
+        ).to.be.true
+        expect(ctx.body).to.deep.equal([{ event }])
+      }
+    })
+
+    it('should handle different network values', async () => {
+      const pluginAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+      const event = IEventLogPluginType.InstallationApplied
+      const networks = [NetworksEnum.polygonMainnet, NetworksEnum.arbitrumMainnet, NetworksEnum.baseMainnet]
+
+      const controllerStub = sandbox.stub(PluginController, 'getLogPluginSetupProcessor')
+
+      for (const network of networks) {
+        controllerStub.reset()
+        controllerStub.resolves([{ network }] as any)
+
+        const ctx: any = {
+          params: { pluginAddress, network, event },
+          query: {},
+        }
+
+        await PluginRouter.getLogPluginSetupProcessor(ctx)
+
+        expect(controllerStub.calledOnce).to.be.true
+        expect(
+          controllerStub.calledWith({
+            pluginAddress: getAddress(pluginAddress),
+            network,
+            event,
+          }),
+        ).to.be.true
+        expect(ctx.body).to.deep.equal([{ network }])
+      }
+    })
+
+    it('should handle empty response from controller', async () => {
+      const pluginAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+      const network = NetworksEnum.ethereumMainnet
+      const event = IEventLogPluginType.InstallationApplied
+
+      const controllerStub = sandbox.stub(PluginController, 'getLogPluginSetupProcessor').resolves([] as any)
+
+      const ctx: any = {
+        params: { pluginAddress, network, event },
+        query: {},
+      }
+
+      await PluginRouter.getLogPluginSetupProcessor(ctx)
+
+      expect(controllerStub.calledOnce).to.be.true
+      expect(ctx.body).to.deep.equal([])
+    })
+
+    it('should handle null response from controller', async () => {
+      const pluginAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+      const network = NetworksEnum.ethereumMainnet
+      const event = IEventLogPluginType.InstallationApplied
+
+      const controllerStub = sandbox.stub(PluginController, 'getLogPluginSetupProcessor').resolves(null as any)
+
+      const ctx: any = {
+        params: { pluginAddress, network, event },
+        query: {},
+      }
+
+      await PluginRouter.getLogPluginSetupProcessor(ctx)
+
+      expect(controllerStub.calledOnce).to.be.true
+      expect(ctx.body).to.be.null
+    })
+
+    it('should handle undefined response from controller', async () => {
+      const pluginAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+      const network = NetworksEnum.ethereumMainnet
+      const event = IEventLogPluginType.InstallationApplied
+
+      const controllerStub = sandbox.stub(PluginController, 'getLogPluginSetupProcessor').resolves(undefined as any)
+
+      const ctx: any = {
+        params: { pluginAddress, network, event },
+        query: {},
+      }
+
+      await PluginRouter.getLogPluginSetupProcessor(ctx)
+
+      expect(controllerStub.calledOnce).to.be.true
+      expect(ctx.body).to.be.undefined
+    })
+
+    it('should fail validation when pluginAddress is missing', async () => {
+      const network = NetworksEnum.ethereumMainnet
+      const event = IEventLogPluginType.InstallationApplied
+
+      const ctx: any = {
+        params: { network, event },
+        query: {},
+      }
+
+      let error: any
+      try {
+        await PluginRouter.getLogPluginSetupProcessor(ctx)
+      } catch (e) {
+        error = e
+      }
+
+      expect(error).to.exist
+      expect(error.message).to.equal('badParams')
+      expect(error.exposeMeta.validationError.errors[0]).to.include('"pluginAddress" is required')
+    })
+
+    it('should fail validation when network is missing', async () => {
+      const pluginAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+      const event = IEventLogPluginType.InstallationApplied
+
+      const ctx: any = {
+        params: { pluginAddress, event },
+        query: {},
+      }
+
+      let error: any
+      try {
+        await PluginRouter.getLogPluginSetupProcessor(ctx)
+      } catch (e) {
+        error = e
+      }
+
+      expect(error).to.exist
+      expect(error.message).to.equal('badParams')
+      expect(error.exposeMeta.validationError.errors[0]).to.include('"network" is required')
+    })
+
+    it('should fail validation when event is missing', async () => {
+      const pluginAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+      const network = NetworksEnum.ethereumMainnet
+
+      const ctx: any = {
+        params: { pluginAddress, network },
+        query: {},
+      }
+
+      let error: any
+      try {
+        await PluginRouter.getLogPluginSetupProcessor(ctx)
+      } catch (e) {
+        error = e
+      }
+
+      expect(error).to.exist
+      expect(error.message).to.equal('badParams')
+      expect(error.exposeMeta.validationError.errors[0]).to.include('"event" is required')
+    })
+
+    it('should fail validation when pluginAddress is invalid', async () => {
+      const pluginAddress = '0xinvalid'
+      const network = NetworksEnum.ethereumMainnet
+      const event = IEventLogPluginType.InstallationApplied
+
+      const ctx: any = {
+        params: { pluginAddress, network, event },
+        query: {},
+      }
+
+      let error: any
+      try {
+        await PluginRouter.getLogPluginSetupProcessor(ctx)
+      } catch (e) {
+        error = e
+      }
+
+      expect(error).to.exist
+      expect(error.message).to.equal('badParams')
+      expect(error.exposeMeta.validationError.errors[0]).to.include('"pluginAddress" is not a valid address')
+    })
+
+    it('should fail validation when network is invalid', async () => {
+      const pluginAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+      const network = 'invalid-network'
+      const event = IEventLogPluginType.InstallationApplied
+
+      const ctx: any = {
+        params: { pluginAddress, network, event },
+        query: {},
+      }
+
+      let error: any
+      try {
+        await PluginRouter.getLogPluginSetupProcessor(ctx)
+      } catch (e) {
+        error = e
+      }
+
+      expect(error).to.exist
+      expect(error.message).to.equal('badParams')
+      expect(error.exposeMeta.validationError.errors[0]).to.include('"network"')
+    })
+
+    it('should fail validation when event is invalid', async () => {
+      const pluginAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+      const network = NetworksEnum.ethereumMainnet
+      const event = 'InvalidEvent'
+
+      const ctx: any = {
+        params: { pluginAddress, network, event },
+        query: {},
+      }
+
+      let error: any
+      try {
+        await PluginRouter.getLogPluginSetupProcessor(ctx)
+      } catch (e) {
+        error = e
+      }
+
+      expect(error).to.exist
+      expect(error.message).to.equal('badParams')
+      expect(error.exposeMeta.validationError.errors[0]).to.include('"event"')
+    })
+
+    it('should handle complex log data response', async () => {
+      const pluginAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+      const network = NetworksEnum.ethereumMainnet
+      const event = IEventLogPluginType.InstallationApplied
+      const complexData = [
+        {
+          id: 'log-1',
+          transactionHash: '0xabc123',
+          transactionIndex: 1,
+          logIndex: 0,
+          event: IEventLogPluginType.InstallationApplied,
+          network,
+          blockNumber: 12345678,
+          timestamp: 1234567890,
+          data: {
+            dao: '0xDao123',
+            plugin: pluginAddress,
+          },
+        },
+        {
+          id: 'log-2',
+          transactionHash: '0xdef456',
+          transactionIndex: 2,
+          logIndex: 1,
+          event: IEventLogPluginType.InstallationApplied,
+          network,
+          blockNumber: 12345679,
+          timestamp: 1234567891,
+          data: {
+            dao: '0xDao456',
+            plugin: pluginAddress,
+          },
+        },
+      ]
+
+      const controllerStub = sandbox.stub(PluginController, 'getLogPluginSetupProcessor').resolves(complexData as any)
+
+      const ctx: any = {
+        params: { network, pluginAddress, event },
+        query: {},
+      }
+
+      await PluginRouter.getLogPluginSetupProcessor(ctx)
+
+      expect(controllerStub.calledOnce).to.be.true
+      expect(ctx.body).to.deep.equal(complexData)
     })
   })
 })

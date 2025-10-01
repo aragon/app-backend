@@ -4,7 +4,7 @@ import { expect } from 'chai'
 import PluginController from '@services/aragon-api/controllers/plugins'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import config from '@config'
-import { NetworksEnum, EnumQueueName } from '@types'
+import { IEventLogPluginType, NetworksEnum, EnumQueueName } from '@types'
 import logger from '@logger'
 import { Models } from '@src/models'
 
@@ -184,6 +184,127 @@ describe('Controller: Plugin', () => {
         count: 3,
         filters: params,
       })
+    })
+  })
+
+  describe('getLogPluginSetupProcessor', () => {
+    const pluginAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+    const network = NetworksEnum.ethereumMainnet
+    const event = IEventLogPluginType.InstallationApplied
+    let findOneStub: sinon.SinonStub
+
+    beforeEach(() => {
+      findOneStub = sandbox.stub(Models.LogPluginSetupProcessor, 'findOne')
+    })
+
+    it('should call Models.LogPluginSetupProcessor.findOne with correct params and return log data', async () => {
+      const mockLogData = {
+        id: 'log-1',
+        pluginAddress,
+        network,
+        event,
+        transactionHash: '0xabc123',
+        blockNumber: 12345678,
+      }
+      findOneStub.resolves(mockLogData)
+
+      const params = {
+        pluginAddress,
+        network,
+        event,
+      }
+
+      const result = await PluginController.getLogPluginSetupProcessor(params)
+
+      expect(findOneStub.calledOnce).to.be.true
+      expect(findOneStub.calledWith(params)).to.be.true
+      expect(result).to.deep.equal(mockLogData)
+    })
+
+    it('should return null when no log data is found', async () => {
+      findOneStub.resolves(null)
+
+      const params = {
+        pluginAddress,
+        network,
+        event,
+      }
+
+      const result = await PluginController.getLogPluginSetupProcessor(params)
+
+      expect(findOneStub.calledOnce).to.be.true
+      expect(findOneStub.calledWith(params)).to.be.true
+      expect(result).to.be.null
+    })
+
+    it('should handle different event types', async () => {
+      const events = [
+        IEventLogPluginType.InstallationPrepared,
+        IEventLogPluginType.InstallationApplied,
+        IEventLogPluginType.UninstallationPrepared,
+        IEventLogPluginType.UninstallationApplied,
+        IEventLogPluginType.UpdatePrepared,
+        IEventLogPluginType.UpdateApplied,
+      ]
+
+      for (const eventType of events) {
+        findOneStub.reset()
+        const mockLogData = { id: `log-${eventType}`, event: eventType }
+        findOneStub.resolves(mockLogData)
+
+        const params = {
+          pluginAddress,
+          network,
+          event: eventType,
+        }
+
+        const result = await PluginController.getLogPluginSetupProcessor(params)
+
+        expect(findOneStub.calledOnce).to.be.true
+        expect(findOneStub.calledWith(params)).to.be.true
+        expect(result).to.deep.equal(mockLogData)
+      }
+    })
+
+    it('should handle different networks', async () => {
+      const networks = [NetworksEnum.ethereumMainnet, NetworksEnum.polygonMainnet, NetworksEnum.arbitrumMainnet]
+
+      for (const testNetwork of networks) {
+        findOneStub.reset()
+        const mockLogData = { id: `log-${testNetwork}`, network: testNetwork }
+        findOneStub.resolves(mockLogData)
+
+        const params = {
+          pluginAddress,
+          network: testNetwork,
+          event,
+        }
+
+        const result = await PluginController.getLogPluginSetupProcessor(params)
+
+        expect(findOneStub.calledOnce).to.be.true
+        expect(findOneStub.calledWith(params)).to.be.true
+        expect(result).to.deep.equal(mockLogData)
+      }
+    })
+
+    it('should re-throw when model throws error', async () => {
+      const modelError = new Error('Database query failed')
+      findOneStub.rejects(modelError)
+
+      const params = {
+        pluginAddress,
+        network,
+        event,
+      }
+
+      await expect(PluginController.getLogPluginSetupProcessor(params)).to.be.rejectedWith(
+        Error,
+        'Database query failed',
+      )
+
+      expect(findOneStub.calledOnce).to.be.true
+      expect(findOneStub.calledWith(params)).to.be.true
     })
   })
 })
