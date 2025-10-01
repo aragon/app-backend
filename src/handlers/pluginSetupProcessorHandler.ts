@@ -310,7 +310,7 @@ export const PluginSetupProcessorHandler = {
       transactionHash: info.transactionHash,
       transactionIndex: info.transactionIndex,
       logIndex: info.logIndex,
-      permissions: Utils.parsePermissions(parsedEvent.args?.preparedSetupData?.permissions),
+      permissions: utils.parsePermissions(parsedEvent.args?.preparedSetupData?.permissions),
       sender: parsedEvent.args.sender,
       daoAddress,
       preparedSetupId: parsedEvent.args.preparedSetupId,
