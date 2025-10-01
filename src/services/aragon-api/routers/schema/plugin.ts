@@ -22,9 +22,8 @@ const PluginSchema = {
       .valid(...Object.values(IPluginInterfaceType))
       .optional(),
     status: Joi.string()
-      .valid(...Object.values(IPluginStatus), 'all')
-      .optional()
-      .default('all'),
+      .valid(...Object.values(IPluginStatus))
+      .optional(),
     isProcess: Joi.boolean().optional(),
     isSupported: Joi.boolean().optional(),
   }),

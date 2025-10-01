@@ -91,7 +91,6 @@ describe('Controller: Plugin', () => {
       const params = {
         daoAddress,
         network,
-        status: 'all' as const,
       }
 
       const result = await PluginController.getPluginsByDao(params)
@@ -131,7 +130,6 @@ describe('Controller: Plugin', () => {
       const params = {
         daoAddress,
         network,
-        status: 'all' as const,
       }
 
       const result = await PluginController.getPluginsByDao(params)
@@ -148,7 +146,6 @@ describe('Controller: Plugin', () => {
       const params = {
         daoAddress,
         network,
-        status: 'all' as const,
       }
 
       await expect(PluginController.getPluginsByDao(params)).to.be.rejectedWith(Error, 'Database connection failed')

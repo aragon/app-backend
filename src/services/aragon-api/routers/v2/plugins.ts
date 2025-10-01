@@ -1,12 +1,5 @@
 import Router, { type RouterContext } from '@koa/router'
-import type {
-  IPluginStatus,
-  HexAddress,
-  IPluginExtraParams,
-  NetworksEnum,
-  IPluginInterfaceType,
-  IGetPluginsByDaoParams,
-} from '@types'
+import type { HexAddress, IPluginExtraParams, NetworksEnum, IPluginInterfaceType, IGetPluginsByDaoParams } from '@types'
 import ValidationSchema from '@helpers/validationSchema'
 import PluginSchema from '@api/routers/schema/plugin'
 import PluginsController from '@api/controllers/plugins'
@@ -35,7 +28,7 @@ const PluginRouter = {
       },
       extraParams: {
         interfaceType: ctx.query.interfaceType as IPluginInterfaceType,
-        status: (ctx.query.status as IPluginStatus | 'all') || 'all',
+        status: ctx.query.status,
         isProcess: Utils.parseBoolean(ctx.query.isProcess),
         isSupported: Utils.parseBoolean(ctx.query.isSupported),
       },

@@ -347,7 +347,7 @@ export default class Plugin extends Model {
     daoAddress: HexAddress
     network: NetworksEnum
     interfaceType?: IPluginInterfaceType
-    status?: IPluginStatus | 'all'
+    status?: IPluginStatus
     isProcess?: boolean
     isSupported?: boolean
   }) {
@@ -360,7 +360,7 @@ export default class Plugin extends Model {
       filter.interfaceType = interfaceType
     }
 
-    if (status && status !== 'all') {
+    if (status) {
       filter.status = status
     }
 

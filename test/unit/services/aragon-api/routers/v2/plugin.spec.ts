@@ -289,7 +289,6 @@ describe('RouterV2: Plugin', () => {
           sinon.match({
             daoAddress: getAddress(daoAddress),
             network,
-            status: 'all',
           }),
         ),
       ).to.be.true
@@ -732,7 +731,6 @@ describe('RouterV2: Plugin', () => {
           sinon.match({
             daoAddress: getAddress(daoAddress),
             network,
-            status: 'all',
           }),
         ),
       ).to.be.true
@@ -760,7 +758,6 @@ describe('RouterV2: Plugin', () => {
           sinon.match({
             daoAddress: getAddress(daoAddress),
             network,
-            status: 'all',
           }),
         ),
       ).to.be.true
@@ -821,7 +818,6 @@ describe('RouterV2: Plugin', () => {
           sinon.match({
             daoAddress: getAddress(daoAddress),
             network,
-            status: 'all',
           }),
         ),
       ).to.be.true
@@ -873,7 +869,7 @@ describe('RouterV2: Plugin', () => {
     it('should handle all valid status values', async () => {
       const daoAddress = '0xe2e445489b0356D3087efF7e79DB7Ff3f16c4fEA'
       const network = NetworksEnum.polygonMainnet
-      const statuses = ['preInstall', 'installed', 'deprecated', 'uninstalled', 'all'] as const
+      const statuses = ['preInstall', 'installed', 'deprecated', 'uninstalled'] as const
 
       const controllerStub = sandbox.stub(PluginController, 'getPluginsByDao')
 
