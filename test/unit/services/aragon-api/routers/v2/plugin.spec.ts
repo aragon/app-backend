@@ -34,7 +34,7 @@ describe('RouterV2: Plugin', () => {
       expect(controllerStub.calledOnce).to.be.true
       expect(
         controllerStub.calledWith(
-          sinon.match({
+          sandbox.match({
             pluginAddress: getAddress(pluginAddress),
             network,
           }),
@@ -61,7 +61,7 @@ describe('RouterV2: Plugin', () => {
       expect(controllerStub.calledOnce).to.be.true
       expect(
         controllerStub.calledWith(
-          sinon.match({
+          sandbox.match({
             pluginAddress: checksummedAddress,
             network,
           }),
@@ -226,7 +226,7 @@ describe('RouterV2: Plugin', () => {
         expect(controllerStub.calledOnce).to.be.true
         expect(
           controllerStub.calledWith(
-            sinon.match({
+            sandbox.match({
               pluginAddress: getAddress(pluginAddress),
               network,
             }),
@@ -286,7 +286,7 @@ describe('RouterV2: Plugin', () => {
       expect(controllerStub.calledOnce).to.be.true
       expect(
         controllerStub.calledWith(
-          sinon.match({
+          sandbox.match({
             daoAddress: getAddress(daoAddress),
             network,
           }),
@@ -314,7 +314,7 @@ describe('RouterV2: Plugin', () => {
       expect(controllerStub.calledOnce).to.be.true
       expect(
         controllerStub.calledWith(
-          sinon.match({
+          sandbox.match({
             daoAddress: checksummedAddress,
             network,
           }),
@@ -342,7 +342,7 @@ describe('RouterV2: Plugin', () => {
       expect(controllerStub.calledOnce).to.be.true
       expect(
         controllerStub.calledWith(
-          sinon.match({
+          sandbox.match({
             daoAddress: getAddress(daoAddress),
             network,
             interfaceType,
@@ -371,7 +371,7 @@ describe('RouterV2: Plugin', () => {
       expect(controllerStub.calledOnce).to.be.true
       expect(
         controllerStub.calledWith(
-          sinon.match({
+          sandbox.match({
             daoAddress: getAddress(daoAddress),
             network,
             status,
@@ -399,7 +399,7 @@ describe('RouterV2: Plugin', () => {
       expect(controllerStub.calledOnce).to.be.true
       expect(
         controllerStub.calledWith(
-          sinon.match({
+          sandbox.match({
             daoAddress: getAddress(daoAddress),
             network,
             isProcess: true,
@@ -427,7 +427,7 @@ describe('RouterV2: Plugin', () => {
       expect(controllerStub.calledOnce).to.be.true
       expect(
         controllerStub.calledWith(
-          sinon.match({
+          sandbox.match({
             daoAddress: getAddress(daoAddress),
             network,
             isSupported: true,
@@ -455,7 +455,7 @@ describe('RouterV2: Plugin', () => {
       expect(controllerStub.calledOnce).to.be.true
       expect(
         controllerStub.calledWith(
-          sinon.match({
+          sandbox.match({
             daoAddress: getAddress(daoAddress),
             network,
             isProcess: false,
@@ -481,7 +481,7 @@ describe('RouterV2: Plugin', () => {
       expect(controllerStub.calledOnce).to.be.true
       expect(
         controllerStub.calledWith(
-          sinon.match({
+          sandbox.match({
             daoAddress: getAddress(daoAddress),
             network,
             isSupported: false,
@@ -514,7 +514,7 @@ describe('RouterV2: Plugin', () => {
       expect(controllerStub.calledOnce).to.be.true
       expect(
         controllerStub.calledWith(
-          sinon.match({
+          sandbox.match({
             daoAddress: getAddress(daoAddress),
             network,
             interfaceType,
@@ -722,7 +722,7 @@ describe('RouterV2: Plugin', () => {
       // parseBoolean returns undefined for invalid values, so it won't be in the call
       expect(
         controllerStub.calledWith(
-          sinon.match({
+          sandbox.match({
             daoAddress: getAddress(daoAddress),
             network,
           }),
@@ -749,7 +749,7 @@ describe('RouterV2: Plugin', () => {
       // parseBoolean returns undefined for invalid values, so it won't be in the call
       expect(
         controllerStub.calledWith(
-          sinon.match({
+          sandbox.match({
             daoAddress: getAddress(daoAddress),
             network,
           }),
@@ -778,7 +778,7 @@ describe('RouterV2: Plugin', () => {
         expect(controllerStub.calledOnce).to.be.true
         expect(
           controllerStub.calledWith(
-            sinon.match({
+            sandbox.match({
               daoAddress: getAddress(daoAddress),
               network,
             }),
@@ -818,7 +818,7 @@ describe('RouterV2: Plugin', () => {
         expect(controllerStub.calledOnce).to.be.true
         expect(
           controllerStub.calledWith(
-            sinon.match({
+            sandbox.match({
               daoAddress: getAddress(daoAddress),
               network,
               interfaceType,
@@ -849,7 +849,7 @@ describe('RouterV2: Plugin', () => {
         expect(controllerStub.calledOnce).to.be.true
         expect(
           controllerStub.calledWith(
-            sinon.match({
+            sandbox.match({
               daoAddress: getAddress(daoAddress),
               network,
               status,
