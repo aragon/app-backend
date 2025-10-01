@@ -1,6 +1,6 @@
 import Joi from 'joi'
 import ValidationSchema from '@helpers/validationSchema'
-import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
+import { IEventLogPluginType, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 
 const PluginSchema = {
   getInstallationData: Joi.object({
@@ -26,6 +26,16 @@ const PluginSchema = {
       .optional(),
     isProcess: Joi.boolean().optional(),
     isSupported: Joi.boolean().optional(),
+  }),
+
+  getLogPluginSetupProcessor: Joi.object({
+    pluginAddress: ValidationSchema.joiAddress.required(),
+    event: Joi.string()
+      .valid(...Object.values(IEventLogPluginType))
+      .required(),
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
   }),
 }
 

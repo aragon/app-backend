@@ -1,8 +1,13 @@
-import { EnumQueueName, type IGetPluginsByDaoParams, type IPluginExtraParams } from '@types'
+import {
+  EnumQueueName,
+  type ILogPluginSetupProcessorParams,
+  type IGetPluginsByDaoParams,
+  type IPluginExtraParams,
+} from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import config from '@config'
 import logger from '@logger'
-import { Models } from '@src/models'
+import { Models } from '@dbModels'
 
 const llo = logger.logMeta.bind(null, { service: 'PluginsController' })
 
@@ -41,6 +46,10 @@ const PluginsController = {
       logger.warn('Error while getting plugins by DAO', llo({ error, params }))
       throw error
     }
+  },
+
+  getLogPluginSetupProcessor: async (extraParams: ILogPluginSetupProcessorParams) => {
+    return await Models.LogPluginSetupProcessor.findOne(extraParams)
   },
 }
 
