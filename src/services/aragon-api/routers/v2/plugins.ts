@@ -1,5 +1,13 @@
 import Router, { type RouterContext } from '@koa/router'
-import type { HexAddress, IPluginExtraParams, NetworksEnum, IPluginInterfaceType, IGetPluginsByDaoParams } from '@types'
+import {
+  type HexAddress,
+  type IEventLogPluginType,
+  type IGetPluginsByDaoParams,
+  type ILogPluginSetupProcessorParams,
+  type IPluginExtraParams,
+  type IPluginInterfaceType,
+  type NetworksEnum,
+} from '@types'
 import ValidationSchema from '@helpers/validationSchema'
 import PluginSchema from '@api/routers/schema/plugin'
 import PluginsController from '@api/controllers/plugins'
@@ -46,11 +54,27 @@ const PluginRouter = {
     ctx.body = await PluginsController.getPluginsByDao(controllerParams as IGetPluginsByDaoParams)
   },
 
+  getLogPluginSetupProcessor: async function (ctx: RouterContext) {
+    const result = await ValidationSchema.validateRoute(ctx, {
+      params: {
+        pluginAddress: ctx.params.pluginAddress,
+        network: ctx.params.network as NetworksEnum,
+        event: ctx.params.event as IEventLogPluginType,
+      },
+      schemas: {
+        params: PluginSchema.getLogPluginSetupProcessor,
+      },
+    })
+
+    ctx.body = await PluginsController.getLogPluginSetupProcessor(result.params as ILogPluginSetupProcessorParams)
+  },
+
   router(): Router {
     const router = new Router()
 
     router.get('/installation-data', PluginRouter.getInstallationData)
     router.get('/by-dao/:network/:daoAddress', PluginRouter.getPluginsByDao)
+    router.get('/logs/:pluginAddress/:network/:event', PluginRouter.getLogPluginSetupProcessor)
 
     return router
   },
