@@ -34,6 +34,7 @@ export enum IPluginStatus {
   installed = 'installed',
   deprecated = 'deprecated',
   uninstalled = 'uninstalled',
+  abandoned = 'abandoned',
 }
 
 export enum IPluginSlug {
