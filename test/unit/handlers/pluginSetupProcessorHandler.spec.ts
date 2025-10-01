@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import logger from '@logger'
-import { IEventLogPluginType, ILogInfo, IPluginInterfaceType, NetworksEnum } from '@types'
+import { IEventLogPluginType, ILogInfo, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { beforeEach } from 'mocha'
 import { PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandler'
 import { Models } from '@dbModels'
@@ -961,6 +961,31 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         },
       }
 
+      const subPlugin = await Models.Plugin.create({
+        id: 'test-plugin-1',
+        address: '0xsubplugin-1',
+        daoAddress: fakeEvent.args.dao,
+        tokenAddress: '0xTokenAddress',
+        network: logInfo.network,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: 'installed',
+        transactionHash: '0xhash',
+        blockNumber: 1000,
+      })
+
+      const plugin = await Models.Plugin.create({
+        id: 'test-plugin',
+        address: fakeEvent.args.plugin,
+        daoAddress: fakeEvent.args.dao,
+        tokenAddress: '0xTokenAddress',
+        network: logInfo.network,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: 'uninstalled',
+        transactionHash: '0xhash',
+        blockNumber: 1000,
+        subPlugins: [{ addresses: [subPlugin.address] }],
+      })
+
       const loggerStub = sandbox.stub(logger, 'verbose')
       const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
       const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
@@ -979,24 +1004,27 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
           event: IEventLogPluginType.UninstallationApplied,
         }),
       ).to.be.true
-      expect(loggerStub.calledOnce).to.be.true
+      expect(loggerStub.calledTwice).to.be.true
 
-      const pluginDb = await Models.LogPluginSetupProcessor.findExistingLog({
+      const logPluginDb = await Models.LogPluginSetupProcessor.findExistingLog({
         network: logInfo.network,
         transactionHash: logInfo.transactionHash,
         transactionIndex: logInfo.transactionIndex,
         logIndex: logInfo.logIndex,
         event: IEventLogPluginType.UninstallationApplied,
       })
-      expect(pluginDb.transactionHash).to.eq(logInfo.transactionHash)
-      expect(pluginDb.blockNumber).to.eq(logInfo.blockNumber)
-      expect(pluginDb.network).to.eq(logInfo.network)
-      expect(pluginDb.event).to.eq(IEventLogPluginType.UninstallationApplied)
-      expect(pluginDb.daoAddress).to.eq(fakeEvent.args.dao)
-      expect(pluginDb.preparedSetupId).to.eq(fakeEvent.args.preparedSetupId)
-      expect(pluginDb.pluginAddress).to.eq(fakeEvent.args.plugin)
+      expect(logPluginDb.transactionHash).to.eq(logInfo.transactionHash)
+      expect(logPluginDb.blockNumber).to.eq(logInfo.blockNumber)
+      expect(logPluginDb.network).to.eq(logInfo.network)
+      expect(logPluginDb.event).to.eq(IEventLogPluginType.UninstallationApplied)
+      expect(logPluginDb.daoAddress).to.eq(fakeEvent.args.dao)
+      expect(logPluginDb.preparedSetupId).to.eq(fakeEvent.args.preparedSetupId)
+      expect(logPluginDb.pluginAddress).to.eq(fakeEvent.args.plugin)
       expect(PluginSetupProcessorHandlerAggLogStub.calledOnce).to.be.true
       expect(PluginSetupProcessorHandlerAggLogStub.calledWith(IPluginActionType.uninstalled)).to.be.true
+
+      const updatedSubPlugin = await subPlugin.reload()
+      expect(updatedSubPlugin.status).to.eq(IPluginStatus.abandoned)
     })
 
     it('dao not found error', async () => {
