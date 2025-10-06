@@ -768,6 +768,7 @@ class BlockchainLogCrawler {
       'Cannot create a string longer',
       'Response is too big',
       'Block range is too large',
+      'invalid block range params', // only on optimism
     ]
 
     return messages.some(msg => error.message?.includes(msg))
