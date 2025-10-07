@@ -1004,7 +1004,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
           event: IEventLogPluginType.UninstallationApplied,
         }),
       ).to.be.true
-      expect(loggerStub.calledTwice).to.be.true
+      expect(loggerStub.calledOnce).to.be.true
 
       const logPluginDb = await Models.LogPluginSetupProcessor.findExistingLog({
         network: logInfo.network,
