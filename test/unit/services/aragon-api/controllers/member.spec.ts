@@ -393,9 +393,17 @@ describe('Controller: Member', () => {
       }
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin)
 
-      await expect(
-        MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams),
-      ).to.be.rejectedWith('Unsupported plugin interface type: tokenVoting')
+      const result = await MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams)
+
+      expect(result).to.deep.equal({
+        metadata: {
+          page: 1,
+          pageSize: 10,
+          totalRecords: 0,
+          totalPages: 1,
+        },
+        data: [],
+      })
     })
 
     it('should handle lockToVote plugin with no lockManagerAddress', async () => {

@@ -80,6 +80,7 @@ class Metrics {
 @index({ network: 1, transactionHash: 1, isActive: 1, isHidden: 1 })
 @index({ address: 1, name: 1, isActive: 1, isHidden: 1 })
 @index({ address: 1, ens: 1, isActive: 1, isHidden: 1 })
+@index({ network: 1, description: 1, isActive: 1, isHidden: 1 })
 @index({ network: 1, isActive: 1, isHidden: 1 })
 @index({ network: 1, isActive: 1, name: 1, isHidden: 1 })
 @index({ network: 1 })
@@ -199,6 +200,7 @@ export default class Dao extends Model {
         'creatorAddress',
         'ens',
         'name',
+        'description',
         'subdomain',
         'transactionHash',
       ]),
