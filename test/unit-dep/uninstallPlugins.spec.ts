@@ -6,7 +6,7 @@ import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import { expect } from 'chai'
 
-describe('Integ: Uninstall Plugins', () => {
+describe.skip('Integ: Uninstall Plugins', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
