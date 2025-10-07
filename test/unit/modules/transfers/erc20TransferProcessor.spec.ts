@@ -455,13 +455,13 @@ describe('Transfers: Erc20TransferProcessor', () => {
       }
 
       saveAndGetTokenStub.resolves(null)
-      const errorStub = sandbox.stub(logger, 'error')
+      const warnStub = sandbox.stub(logger, 'warn')
 
       const result = await processor['addTokenMetadata'](data as any)
 
       expect(result).to.be.null
-      expect(errorStub.calledOnce).to.be.true
-      expect(errorStub.firstCall.args[0]).to.include('Failed to get token information')
+      expect(warnStub.calledOnce).to.be.true
+      expect(warnStub.firstCall.args[0]).to.include('Failed to get token information. Possible Scan Token')
     })
   })
 
