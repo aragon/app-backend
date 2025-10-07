@@ -350,7 +350,7 @@ export const PluginSetupProcessorHandler = {
     })
     if (existingLog) return
 
-    const pluginLog: Partial<LogPluginSetupProcessor> = {
+    const logDb = await Models.LogPluginSetupProcessor.create({
       event: IEventLogPluginType.UninstallationApplied,
       network: info.network,
       transactionHash: info.transactionHash,
@@ -360,15 +360,8 @@ export const PluginSetupProcessorHandler = {
       preparedSetupId: parsedEvent.args.preparedSetupId,
       pluginAddress: parsedEvent.args.plugin,
       blockNumber: info.blockNumber,
-    }
+    })
 
-    const logDb = await DbOperations.createDocument(
-      Models.LogPluginSetupProcessor,
-      pluginLog,
-      info,
-      'New UninstallationApplied',
-      llo,
-    )
     await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.uninstalled, logDb)
 
     const plugin = await Models.Plugin.findOne({
