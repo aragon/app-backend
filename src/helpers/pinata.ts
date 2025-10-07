@@ -18,7 +18,8 @@ const PinataHelper = {
       const data = await response.json()
       return typeof data === 'string' ? JSON.parse(data) : data
     } catch (error: any) {
-      if (!error?.message?.include('is not valid JSON')) {
+      const msg = typeof error?.message === 'string' ? error.message : ''
+      if (!msg.includes('is not valid JSON')) {
         logger.error('Pinata failed to fetch data', llo({ cid, error }))
       }
       return null
