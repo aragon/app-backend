@@ -461,7 +461,7 @@ describe('Transfers: Erc20TransferProcessor', () => {
 
       expect(result).to.be.null
       expect(warnStub.calledOnce).to.be.true
-      expect(warnStub.firstCall.args[0]).to.include('Failed to get token information. Possible Scan Token')
+      expect(warnStub.firstCall.args[0]).to.include('Failed to get token information. Possible Scam Token')
     })
   })
 

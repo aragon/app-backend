@@ -92,7 +92,7 @@ export abstract class TransferProcessor {
 
     if (!token) {
       logger.warn(
-        'Failed to get token information. Possible Scan Token',
+        'Failed to get token information. Possible Scam Token',
         llo({ tokenAddress, network: data.network, type: data.type }),
       )
       return null
