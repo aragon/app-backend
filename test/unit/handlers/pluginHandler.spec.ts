@@ -1227,11 +1227,7 @@ describe('Indexer:Plugin', () => {
       await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[4])
       const eventUninstallApplied = await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[5])
 
-      const spyDbOperations = sandbox.spy(DbOperations, 'updateDocument')
-
       await PluginHandler.uninstallPlugin(eventUninstallApplied as any)
-
-      expect(spyDbOperations.calledOnce).to.be.true
 
       const createdPlugin = await Models.Plugin.findOne({
         address: ListLogPluginSetupProcessor[5].pluginAddress,

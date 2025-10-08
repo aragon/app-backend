@@ -91,7 +91,10 @@ export abstract class TransferProcessor {
     const token = await ProxyToken.saveAndGetToken(tokenAddress, data.network)
 
     if (!token) {
-      logger.error('Failed to get token information', llo({ tokenAddress, network: data.network, type: data.type }))
+      logger.warn(
+        'Failed to get token information. Possible Scam Token',
+        llo({ tokenAddress, network: data.network, type: data.type }),
+      )
       return null
     }
 

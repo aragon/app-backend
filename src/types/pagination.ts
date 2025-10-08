@@ -1,7 +1,7 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 import { type ITokenType } from '@src/types/token'
-import { type ISettingStatus } from '@src/types/plugin'
-import { type ITransactionSide, type ITransactionType } from '@types'
+import { type IPluginInterfaceType, type IPluginStatus, type ISettingStatus } from '@src/types/plugin'
+import { type IEventLogPluginType, type ITransactionSide, type ITransactionType } from '@types'
 
 export interface ITokenExtraParams {
   network?: NetworksEnum
@@ -74,6 +74,12 @@ export interface IDaoExtraParams {
   excludeDaoId?: string | undefined
 }
 
+export interface ILogPluginSetupProcessorParams {
+  network: NetworksEnum
+  pluginAddress: HexAddress
+  event: IEventLogPluginType
+}
+
 export interface IPluginExtraParams {
   network: NetworksEnum
   pluginAddress: HexAddress
@@ -135,4 +141,13 @@ export interface IPaginationMetadata {
 export interface IPaginatedResult<T> {
   data: T[]
   metadata: IPaginationMetadata
+}
+
+export interface IGetPluginsByDaoParams {
+  daoAddress: HexAddress
+  network: NetworksEnum
+  interfaceType?: IPluginInterfaceType
+  status?: IPluginStatus | 'all'
+  isProcess?: boolean
+  isSupported?: boolean
 }
