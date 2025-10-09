@@ -1,3 +1,37 @@
+# [0.13.0](https://github.com/aragon/app-backend/compare/v0.12.0...v0.13.0) (2025-10-09)
+
+
+### Bug Fixes
+
+* **blockchain:** remove invalid block range params message for Optimism ([fca4468](https://github.com/aragon/app-backend/commit/fca4468f9b84c318bb97d4aa37823b89d07cf548))
+* **blockchain:** remove invalid block range params message for Optimism ([5bf399f](https://github.com/aragon/app-backend/commit/5bf399f98435198538f32f426b03afe49394c386))
+* **governance:** update logger calls from error to warning for unsupported plugin types ([e19557f](https://github.com/aragon/app-backend/commit/e19557f547b93cbf7ce8240248dfc39010425f21))
+* **memberController:** handle errors in member pagination and return empty response ([37d1d0a](https://github.com/aragon/app-backend/commit/37d1d0ab2557f7e1cbf915932d733d09cdf12fca))
+* **plugin:** adjust OFFSET_TO_BLOCK default value and refine plugin address filtering ([4009f35](https://github.com/aragon/app-backend/commit/4009f35f5888eb65bec929c20e8c5f804aa9648c))
+* **plugin:** adjust OFFSET_TO_BLOCK default value and refine plugin address filtering ([3bb3460](https://github.com/aragon/app-backend/commit/3bb3460d8b73ebd1781479dc4a5b8a726e483f69))
+* **plugin:** adjust OFFSET_TO_BLOCK default value and refine plugin address filtering ([b07d6fc](https://github.com/aragon/app-backend/commit/b07d6fcb2fb6ae52af74f71db1c884bba180492b))
+* **plugin:** prevent updating plugin if used by other plugins ([6f0ea5b](https://github.com/aragon/app-backend/commit/6f0ea5bb06cd0b553e0ef14f37b4d376f73b3ffa))
+* **plugin:** prevent updating plugin if used by other plugins ([b2cb2bb](https://github.com/aragon/app-backend/commit/b2cb2bb6be9cf62b8f61067f34e415274f3e2c87))
+
+
+### Features
+
+* add description index and update regex for search functionality ([abba4b5](https://github.com/aragon/app-backend/commit/abba4b5d63dfa269d96939282ba6c69689186d03))
+* **blockchain:** add error message for invalid block range parameters on optimism ([f5fdcfe](https://github.com/aragon/app-backend/commit/f5fdcfe87bc95b0f3cc836f320c07e699e7dcb37))
+* implement backend exploration for plugins/by-dao with installation status ([fe95d8e](https://github.com/aragon/app-backend/commit/fe95d8e8b12e23e8851ae460d7070ea61a864b9e))
+* **logging:** change error logging to warning for token information retrieval failures ([ca4dca8](https://github.com/aragon/app-backend/commit/ca4dca88e252261be65ab13e470669ca9312461b))
+* **logging:** change error logging to warning for token information retrieval failures ([ea2f706](https://github.com/aragon/app-backend/commit/ea2f7061c560082f6e1aa716b0441f6921e378ce))
+* **plugin:** add abandoned status for uninstalled plugins and update subPlugin handling ([d6713f9](https://github.com/aragon/app-backend/commit/d6713f91242f721b90012b0fb8dbb691422aec8c))
+* **plugin:** add abandoned status for uninstalled plugins and update subPlugin handling ([00e82d6](https://github.com/aragon/app-backend/commit/00e82d6f162d3e2b6ae1b2d15580db45ddad9938))
+* **plugin:** add log plugin setup processor endpoint and validation schema ([b07d17e](https://github.com/aragon/app-backend/commit/b07d17eea79959b1dbdd15b43286a6b37e1976e8))
+* **plugin:** add log plugin setup processor endpoint and validation schema ([f5a36aa](https://github.com/aragon/app-backend/commit/f5a36aa96a292d82103c283696c3188976218c02))
+* **plugin:** enhance permissions parsing for setup data ([d9c475f](https://github.com/aragon/app-backend/commit/d9c475f71946e281141fdfbc3a335baed64688cd))
+* **plugin:** set default plugin address for log plugin setup ([56cfa92](https://github.com/aragon/app-backend/commit/56cfa92ae72b38043769612a35614af2b40002a4))
+* sanitize search input for regex functionality in models ([61685c0](https://github.com/aragon/app-backend/commit/61685c0cdf25de21e6ffe20b699b0d05c268f954))
+* **search:** escape special characters in search input for regex compatibility ([50ecdf8](https://github.com/aragon/app-backend/commit/50ecdf8641cae2e7d825a7eb82f7d61402cf7e37))
+* **search:** strip unwaneted character that could case mongo error ([2a580a4](https://github.com/aragon/app-backend/commit/2a580a42a50e8965562dbc40e7dbf5811816c2a4))
+* **search:** update regex to allow partial matches in search functionality ([7c91deb](https://github.com/aragon/app-backend/commit/7c91deb36c013801c4981cfb8d57dc8f81bb0e42))
+
 # [0.12.0](https://github.com/aragon/app-backend/compare/v0.11.1...v0.12.0) (2025-09-23)
 
 
