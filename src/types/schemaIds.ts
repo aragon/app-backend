@@ -39,6 +39,11 @@ export interface ILockIdParams {
   escrowAddress: HexAddress
 }
 
+export interface IGaugeIdParams {
+  network: NetworksEnum
+  address: HexAddress
+}
+
 export interface IAssetIdParams {
   network: NetworksEnum
   daoAddress: HexAddress

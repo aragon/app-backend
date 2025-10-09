@@ -54,6 +54,11 @@ export interface IProposalExtraParams {
   isSubProposal?: boolean
 }
 
+export interface IGaugeExtraParams {
+  network?: NetworksEnum
+  pluginAddress?: HexAddress
+}
+
 export interface IAssetExtraParams {
   network?: NetworksEnum
   daoAddress?: HexAddress
