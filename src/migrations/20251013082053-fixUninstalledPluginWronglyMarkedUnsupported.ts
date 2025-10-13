@@ -54,7 +54,7 @@ export const fixUninstalledPluginWronglyMarkedUnsupportedMigration: IMigration =
                       $eq: ['$$repo', '$pluginRepo'],
                     },
                     {
-                      $eq: ['$$network', '$$network'],
+                      $eq: ['$network', '$$network'],
                     },
                   ],
                 },
@@ -100,9 +100,16 @@ export const fixUninstalledPluginWronglyMarkedUnsupportedMigration: IMigration =
     try {
       const plugins = await Models.Plugin.aggregate(aggregationPipeline)
       for (const plugin of plugins) {
-        await plugin.update({
-          isSupported: true,
-        })
+        await Models.Plugin.updateOne(
+          {
+            address: plugin.pluginAddress,
+            daoAddress: plugin.daoAddress,
+            network: plugin.network,
+          },
+          {
+            isSupported: true,
+          }
+        )
         logger.info(
           'Updated plugin',
           llo({ plugin: plugin.pluginAddress, dao: plugin.daoAddress, network: plugin.network }),
