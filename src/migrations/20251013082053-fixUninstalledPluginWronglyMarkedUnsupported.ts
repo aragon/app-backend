@@ -51,7 +51,7 @@ export const fixUninstalledPluginWronglyMarkedUnsupportedMigration: IMigration =
                       $eq: ['$$repo', '$pluginRepo'],
                     },
                     {
-                      $eq: ['$$network', '$$network'],
+                      $eq: ['$network', '$$network'],
                     },
                   ],
                 },
