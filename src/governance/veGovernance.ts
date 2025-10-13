@@ -272,7 +272,7 @@ export class VeGovernance extends BaseGovernance {
 
         const holderAddress = parsedEvent.args.holder
         const tokenId = parsedEvent.args.tokenId.toString()
-        const exitDateAt = Number(parsedEvent.args.exitDate)
+        const exitDateAt = Number(parsedEvent.args.exitDate || parsedEvent.args.queuedAt)
 
         const memberLockParams = {
           network: this.network,
