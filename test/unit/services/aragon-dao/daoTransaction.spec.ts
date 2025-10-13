@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { expect } from 'chai'
 import proxyquire from 'proxyquire'
-import { NetworksEnum, IDaoTransferLogs, LockErc721Token } from '@types'
+import { NetworksEnum, IDaoTransferLogs, TokenTransfer } from '@types'
 
 describe('AragonDao: DaoTransactions', () => {
   let sandbox: sinon.SinonSandbox
@@ -138,7 +138,7 @@ describe('AragonDao: DaoTransactions', () => {
       expect(incomingTransferCrawler.network).to.equal(NetworksEnum.ethereumMainnet)
       expect(incomingTransferCrawler.isTopicObject).to.be.true
       expect(incomingTransferCrawler.events).to.exist
-      expect(incomingTransferCrawler.events[0].event).to.equal(LockErc721Token.Transfer)
+      expect(incomingTransferCrawler.events[0].event).to.equal(TokenTransfer.Transfer)
       expect(incomingTransferCrawler.events[0].config).to.have.lengthOf(2) // ERC20 and ERC721 handlers
       expect(incomingTransferCrawler.fromBlock).to.equal(mockDao.blockNumber)
       expect(incomingTransferCrawler.stopOnError).to.be.true
@@ -157,7 +157,7 @@ describe('AragonDao: DaoTransactions', () => {
       const outgoingTransferCrawler = crawlerConfigs[2]
       expect(outgoingTransferCrawler.network).to.equal(NetworksEnum.ethereumMainnet)
       expect(outgoingTransferCrawler.isTopicObject).to.be.true
-      expect(outgoingTransferCrawler.events[0].event).to.equal(LockErc721Token.Transfer)
+      expect(outgoingTransferCrawler.events[0].event).to.equal(TokenTransfer.Transfer)
       expect(outgoingTransferCrawler.events[0].config).to.have.lengthOf(2) // ERC20 and ERC721 handlers
       expect(outgoingTransferCrawler.fromBlock).to.equal(mockDao.blockNumber)
       expect(outgoingTransferCrawler.stopOnError).to.be.true

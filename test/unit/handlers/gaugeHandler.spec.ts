@@ -72,6 +72,7 @@ describe('Handler: gaugeHandler', () => {
 
       extractMetadataUriStub.returns('ipfs://QmTest123')
       fetchMetadataStub.resolves(mockMetadata)
+      const verboseStub = sandbox.stub(logger, 'verbose')
 
       await GaugeHandler.gaugeCreated(parsedEvent, mockInfo)
 
@@ -96,6 +97,8 @@ describe('Handler: gaugeHandler', () => {
       expect(extractMetadataUriStub.calledOnce).to.be.true
       expect(fetchMetadataStub.calledOnce).to.be.true
       expect(fetchMetadataStub.calledWith('ipfs://QmTest123', { retries: 4 })).to.be.true
+      expect(verboseStub.calledOnce).to.be.true
+      expect(verboseStub.args[0][0]).to.equal('Gauge created')
     })
 
     it('should handle IPFS metadata fetch errors gracefully', async () => {

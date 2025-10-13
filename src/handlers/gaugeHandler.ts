@@ -30,6 +30,8 @@ export const GaugeHandler = {
         avatar: ipfsMetadata?.avatar!,
         isActive: false,
       })
+
+      logger.verbose('Gauge created', llo({ address: parsedEvent.args.gauge }))
     } catch (error) {
       logger.error('Error creating gauge', llo({ error, info, parsedEvent }))
     }
