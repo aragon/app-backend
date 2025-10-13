@@ -108,7 +108,7 @@ export const fixUninstalledPluginWronglyMarkedUnsupportedMigration: IMigration =
           },
           {
             isSupported: true,
-          }
+          },
         )
         logger.info(
           'Updated plugin',
