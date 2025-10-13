@@ -391,6 +391,27 @@ describe('Model: Dao', () => {
       expect(result.metadata.page).to.eq(1)
       expect(result.metadata.totalPages).to.eq(1)
     })
+
+    it('should exclude dao when excludedDao is provided', async () => {
+      const extraParams = {
+        excludedDao: {
+          daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+          network: NetworksEnum.polygonMainnet,
+        },
+      }
+      const extraQueryData = {
+        daoAddresses: ['0x17366cae2b9c6c3055e9e3c78936a69006be5409', '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'],
+      }
+
+      const result = await Models.Dao.findWithPagination({
+        extraParams,
+        paginationParams: { page: 1, pageSize: 10 },
+        extraQueryData,
+      })
+
+      expect(result.data.length).to.eq(1)
+      expect(result.data[0].address).to.eq('0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2')
+    })
   })
 
   it('should getDaoDetails', async () => {
