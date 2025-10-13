@@ -18,10 +18,10 @@ const customName = ICollectionNames.VoteEpoch
     customName,
   },
 })
-@index({ network: 1, blockNumber: 1, daoAddress: 1, pluginAddress: 1, memberAddress: 1 })
-@index({ network: 1, pluginAddress: 1, proposalIndex: 1 })
-@index({ network: 1, pluginAddress: 1, memberAddress: 1, proposalIndex: 1, blockNumber: -1 })
-@index({ pluginAddress: 1, memberAddress: 1, proposalIndex: 1 })
+@index({ network: 1, blockNumber: 1, daoAddress: 1, gaugeAddress: 1, memberAddress: 1 })
+@index({ network: 1, gaugeAddress: 1, epochId: 1 })
+@index({ network: 1, gaugeAddress: 1, memberAddress: 1, epochId: 1, blockNumber: -1 })
+@index({ gaugeAddress: 1, memberAddress: 1, epochId: 1 })
 @index({ network: 1, transactionHash: 1 })
 export default class VoteEpoch extends Model {
   @prop({ type: () => String, required: true, unique: true })
@@ -65,7 +65,7 @@ export default class VoteEpoch extends Model {
 
   static async create(rawData: Partial<VoteEpoch>, tOpts?: SaveOptions) {
     if (!rawData.id) {
-      assert(!!rawData.network, 'pluginAddress is required')
+      assert(!!rawData.network, 'network is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.transactionIndex || rawData.transactionIndex === 0, 'transactionIndex is required')
       assert(!!rawData.logIndex || rawData.logIndex === 0, 'logIndex is required')
