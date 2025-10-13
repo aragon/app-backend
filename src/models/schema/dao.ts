@@ -211,11 +211,18 @@ export default class Dao extends Model {
     filter.isActive = { $eq: true }
 
     if (extraQueryData.daoAddresses?.length! > 0) {
-      filter.address = { $in: extraQueryData.daoAddresses }
+      let filteredDaoAddresses = extraQueryData.daoAddresses
+
+      if (extraParams.excludedDao) {
+        filteredDaoAddresses = extraQueryData.daoAddresses!.filter(
+          address => address !== extraParams.excludedDao!.daoAddress,
+        )
+      }
+
+      filter.address = { $in: filteredDaoAddresses }
     }
 
     if (extraParams.memberAddress && extraQueryData.daoAddresses?.length === 0) {
-      // no dao for member
       return ModelUtils.paginateEmptyResponse(request.limit)
     }
 
