@@ -381,7 +381,7 @@ const IndexerEventConfig: IIndexerConfig[] = [
   {
     event: 'ExitQueued',
     enableHistorical: false,
-    topic: [new Interface(ExitQueue.abi).getEvent('ExitQueued')?.topicHash!],
+    topic: new Interface(ExitQueue.abi).getEvent('ExitQueued')?.topicHash!,
     config: [
       {
         abi: ExitQueue.abi,
