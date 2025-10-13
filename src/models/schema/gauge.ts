@@ -53,8 +53,17 @@ export default class Gauge extends Model {
   @prop({ type: () => String, default: null })
   public name!: string
 
-  @prop({ type: () => Number, default: null })
+  @prop({ type: () => String, default: null })
   public description!: string
+
+  @prop({ type: () => [String], default: null })
+  public links!: string[]
+
+  @prop({ type: () => String, default: null })
+  public avatar!: string
+
+  @prop({ type: () => Boolean, default: false })
+  public isActive!: boolean
 
   static async create(rawData: Partial<Gauge>, tOpts?: SaveOptions) {
     if (!rawData.id) {
@@ -134,6 +143,10 @@ export default class Gauge extends Model {
     })
 
     return await this.save(tOpts)
+  }
+
+  async getPlugin(tOpts?: SaveOptions) {
+    return await this.model(ICollectionNames.Plugin).findOne({ address: this.pluginAddress }, tOpts)
   }
 
   async reload(tOpts?: SaveOptions) {
