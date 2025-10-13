@@ -27,7 +27,7 @@ const customName = ICollectionNames.Gauge
     customName,
   },
 })
-@index({ daoAddress: 1, tokenAddress: 1, network: 1, amountUsd: -1 })
+@index({ daoAddress: 1, pluginAddress: 1, network: 1, amountUsd: -1 })
 export default class Gauge extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
