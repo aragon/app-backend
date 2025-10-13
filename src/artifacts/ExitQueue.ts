@@ -130,6 +130,21 @@ export const ExitQueue = {
     },
     {
       type: 'event',
+      name: 'ExitQueuedV2',
+      inputs: [
+        { name: 'tokenId', type: 'uint256', indexed: true, internalType: 'uint256' },
+        {
+          name: 'holder',
+          type: 'address',
+          indexed: true,
+          internalType: 'address',
+        },
+        { name: 'queuedAt', type: 'uint48', indexed: false, internalType: 'uint256' },
+      ],
+      anonymous: false,
+    },
+    {
+      type: 'event',
       name: 'ExitQueued',
       inputs: [
         { name: 'tokenId', type: 'uint256', indexed: true, internalType: 'uint256' },

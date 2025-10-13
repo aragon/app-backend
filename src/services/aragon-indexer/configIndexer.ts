@@ -381,7 +381,18 @@ const IndexerEventConfig: IIndexerConfig[] = [
   {
     event: 'ExitQueued',
     enableHistorical: false,
-    topic: new Interface(ExitQueue.abi).getEvent('ExitQueued')?.topicHash!,
+    topic: [new Interface(ExitQueue.abi).getEvent('ExitQueued')?.topicHash!],
+    config: [
+      {
+        abi: ExitQueue.abi,
+        handler: GovernanceVeHandler.exitQueued,
+      },
+    ],
+  },
+  {
+    event: 'ExitQueuedV2',
+    enableHistorical: false,
+    topic: new Interface(ExitQueue.abi).getEvent('ExitQueuedV2')?.topicHash!,
     config: [
       {
         abi: ExitQueue.abi,
