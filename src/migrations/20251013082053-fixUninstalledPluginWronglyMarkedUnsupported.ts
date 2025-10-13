@@ -6,7 +6,10 @@ const llo = logger.logMeta.bind(null, { service: 'Migration: fixUninstalledPlugi
 
 export const fixUninstalledPluginWronglyMarkedUnsupportedMigration: IMigration = {
   start: async () => {
-    logger.info('Starting migration', llo({ migration: '20251013082053-fixUninstalledPluginWronglyMarkedUnsupported' }))
+    logger.info(
+      'Starting Plugin migration',
+      llo({ migration: '20251013082053-fixUninstalledPluginWronglyMarkedUnsupported' }),
+    )
     const aggregationPipeline = [
       {
         $match: {
