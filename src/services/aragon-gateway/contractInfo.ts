@@ -45,6 +45,7 @@ export const ContractInfo = {
       contractDetails[0].SourceCode,
       contractDetails[0].ContractName,
       JSON.parse(contractDetails[0].ABI || '[]'),
+      contractDetails[0].CompilerVersion,
     )
 
     if (!parsed?.length) return null
