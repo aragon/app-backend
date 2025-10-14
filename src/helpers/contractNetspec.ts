@@ -278,7 +278,7 @@ function isVyperOrSolidityContract(source: string): CompilerType | null {
 
 export function extractNatSpec(source: string, compilerVersion?: string) {
   // If a compiler version is provided, use it to determine the compiler type
-  let compilerType: CompilerType | null = null
+  let compilerType: CompilerType | null
   if (compilerVersion) {
     compilerType = detectCompilerFromVersion(compilerVersion)
   } else {
