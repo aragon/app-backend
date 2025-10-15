@@ -301,6 +301,12 @@ const IndexerEventConfig: IIndexerConfig[] = [
     ],
   },
   {
+    event: 'Transfer',
+    enableHistorical: false,
+    topic: new Interface(GovernanceERC20.abi).getEvent('Transfer')?.topicHash!,
+    config: [],
+  },
+  {
     event: 'NativeTokenDeposited',
     enableHistorical: false,
     topic: new Interface(DAO.abi).getEvent('NativeTokenDeposited')?.topicHash!,
