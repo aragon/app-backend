@@ -757,6 +757,7 @@ class DecodeActions {
         contractDetails[0].SourceCode,
         contractDetails[0].ContractName,
         contractAbi,
+        contractDetails[0].CompilerVersion,
       )
 
       const signatures = this._getSignaturesFromAbi(results, contractDetails[0].ContractName)
