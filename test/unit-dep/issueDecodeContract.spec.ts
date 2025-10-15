@@ -38,7 +38,6 @@ describe('Integ: Issue Decode Contract Spec', () => {
           contractDetails[0].SourceCode,
           contractDetails[0].ContractName,
           contractAbi,
-          contractDetails[0].CompilerVersion,
         )
       } else {
         console.log('No source code found for contract:', implementationAddress, 'on network:', network)

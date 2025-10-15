@@ -13,7 +13,7 @@ import ProxyContractHelper from '@helpers/proxyContract'
 import { ProxyToken } from '@modules/proxyToken'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 
-describe.only('Integ: ProxyWeb3 && Web3Helper', () => {
+describe('Integ: ProxyWeb3 && Web3Helper', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -244,7 +244,7 @@ describe.only('Integ: ProxyWeb3 && Web3Helper', () => {
     expect(proxyAddress).to.be.eq('0x52Af16664155608b845BE18aa29620EbF6eA2D3a')
   })
 
-  it.only('should get the clock mode to work properly when getting the pastSupply', async () => {
+  it('should get the clock mode to work properly when getting the pastSupply', async () => {
     const token = '0xBB774BffdCAd6A5Bc25B614B494Ac7922Af339Ce'
     const network = NetworksEnum.ethereumSepolia
     const timestamp = Math.floor(Date.now() / 1000)
