@@ -536,7 +536,10 @@ export const PluginSettingHandler = {
           const relatedPlugin = await Models.Plugin.findByAddress(subPlugin.address, info.network)
 
           if (!relatedPlugin) {
-            logger.error('Plugin not found - pairSppPlugins', llo({ ...info, address: subPlugin.address }))
+            logger.warn(
+              'Plugin not found - pairSppPlugins. External Address',
+              llo({ ...info, address: subPlugin.address }),
+            )
             return
           }
 
