@@ -108,7 +108,6 @@ describe('ConfigIndexer', () => {
         'ProposalCreated',
         'ProposalExecuted',
         'VoteCast',
-        'Transfer',
         'SelectorAllowed',
         'SelectorDisallowed',
         'PayoutClaimed',
@@ -129,11 +128,6 @@ describe('ConfigIndexer', () => {
 
   describe('Handler configurations', () => {
     it('should have multiple handlers for specific events', () => {
-      // Test Transfer event has empty config (intentionally)
-      const transferConfig = ConfigIndexer.find(c => c.event === 'Transfer')
-      expect(transferConfig).to.exist
-      expect(transferConfig!.config.length).to.equal(0)
-
       // Test NativeTokenDeposited has multiple handlers
       const nativeTokenConfig = ConfigIndexer.find(c => c.event === 'NativeTokenDeposited')
       expect(nativeTokenConfig).to.exist
