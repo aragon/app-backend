@@ -297,7 +297,12 @@ export function extractNatSpec(source: string, compilerVersion?: string) {
 function detectCompilerFromVersion(compilerVersion: string): CompilerType | null {
   const version = compilerVersion.toLowerCase().trim()
 
-  if (version.includes('solc') || version.includes('solidity') || version.includes('commit') || /^(v|zkvm-)?0\.[4-9]\./.test(version)) {
+  if (
+    version.includes('solc') ||
+    version.includes('solidity') ||
+    version.includes('commit') ||
+    /^(v|zkvm-)?0\.[4-9]\./.test(version)
+  ) {
     return CompilerType.SOLIDITY
   }
 
