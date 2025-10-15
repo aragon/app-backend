@@ -174,7 +174,8 @@ function isVyperOrSolidityContract(source: string): CompilerType | null {
   let inMultilineComment = false
   let inTripleQuote = false
 
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
     const trimmed = line.trim()
 
     if (!trimmed) continue
@@ -243,7 +244,7 @@ function isVyperOrSolidityContract(source: string): CompilerType | null {
             vyperScore += 10
             break
           case 'decorator': {
-            const nextLineIdx = lines.indexOf(line) + 1
+            const nextLineIdx = i + 1
             if (nextLineIdx < lines.length && /^def\s+/.test(lines[nextLineIdx].trim())) {
               vyperScore += 8
             } else {
@@ -296,7 +297,7 @@ export function extractNatSpec(source: string, compilerVersion?: string) {
 function detectCompilerFromVersion(compilerVersion: string): CompilerType | null {
   const version = compilerVersion.toLowerCase().trim()
 
-  if (version.includes('solc') || version.includes('solidity|commit') || /^(v|zkvm-)?0\.[4-9]\./.test(version)) {
+  if (version.includes('solc') || version.includes('solidity') || version.includes('commit') || /^(v|zkvm-)?0\.[4-9]\./.test(version)) {
     return CompilerType.SOLIDITY
   }
 
@@ -404,8 +405,8 @@ function extractVyperNatSpec(source: string) {
         natspecDetails = concatNatspecDetails(natspecDetails, newDetails)
         break
       case '#':
-        if (source.substring(pos, pos + 2) === '##') {
-          ;[pos, newDetails] = scanVyperComment(source, pos)
+        if (source[pos] === '#') {
+          ;[pos, newDetails] = scanVyperComment(source, pos - 1)
           natspecDetails = concatNatspecDetails(natspecDetails, newDetails)
         } else {
           ;[match, pos] = scanFirst(source, pos, ['\n'])
