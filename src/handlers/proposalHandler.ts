@@ -53,10 +53,12 @@ export const ProposalHandler = {
         proposal.blockNumber,
       )
 
+      const fromBlock = lastSavedProposal ? lastSavedProposal.blockNumber : plugin.blockNumber
+      const toBlock = proposal.blockNumber === fromBlock ? proposal.blockNumber! + 1 : proposal.blockNumber
       const crawler = new BlockchainLogCrawler({
         skipLogProcessing: true,
-        fromBlock: lastSavedProposal ? lastSavedProposal.blockNumber : plugin.blockNumber,
-        toBlock: proposal.blockNumber,
+        fromBlock,
+        toBlock,
         logService: null,
         network: proposal.network!,
         address: proposal.pluginAddress,
