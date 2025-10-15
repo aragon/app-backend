@@ -383,6 +383,15 @@ export const PluginSetupProcessorHandler = {
 
           if (!existingPlugin) return // nothing to update
 
+          // check if its used by any other plugins
+          const otherPlugin = await Models.Plugin.findOne({
+            'subPlugins.addresses': pluginAddress,
+            network: info.network,
+            address: { $ne: plugin.address },
+          })
+
+          if (otherPlugin) return
+
           const uninstalledPlugin = await DbOperations.updateDocument(
             existingPlugin,
             {

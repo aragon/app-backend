@@ -390,6 +390,17 @@ const IndexerEventConfig: IIndexerConfig[] = [
     ],
   },
   {
+    event: 'ExitQueuedV2',
+    enableHistorical: false,
+    topic: new Interface(ExitQueue.abi).getEvent('ExitQueuedV2')?.topicHash!,
+    config: [
+      {
+        abi: ExitQueue.abi,
+        handler: GovernanceVeHandler.exitQueued,
+      },
+    ],
+  },
+  {
     event: 'MinLockSet',
     enableHistorical: false,
     topic: new Interface(ExitQueue.abi).getEvent('MinLockSet')?.topicHash!,

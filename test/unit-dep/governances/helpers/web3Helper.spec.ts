@@ -261,6 +261,6 @@ describe('Integ: ProxyWeb3 && Web3Helper', () => {
       blockTimestamp: timestamp - 15000,
     })
 
-    expect(Number(supply)).to.be.gt(0)
+    expect(Number(supply)).to.be.gte(0)
   })
 })

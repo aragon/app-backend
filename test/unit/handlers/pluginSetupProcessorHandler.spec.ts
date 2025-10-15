@@ -1081,6 +1081,109 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(stubLogPluginSetupProcessor.calledOnce).to.be.true
       expect(stubLogger.notCalled).to.be.true
     })
+
+    it('should NOT uninstall subplugin when it is used by multiple plugins', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionIndex: 2,
+        logIndex: 2,
+        transactionHash: '0x123',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          metadata: 'fake-metadata',
+          dao: '0x456',
+          preparedSetupId: '0x453',
+          plugin: '0x450', // plugin1 address
+        },
+      }
+
+      // Create the shared subplugin
+      const subPlugin1 = await Models.Plugin.create({
+        id: 'test-subplugin-1',
+        address: '0xsubplugin-1',
+        daoAddress: fakeEvent.args.dao,
+        tokenAddress: '0xTokenAddress',
+        network: logInfo.network,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: 'installed',
+        transactionHash: '0xhash',
+        blockNumber: 1000,
+      })
+
+      // Create plugin1 (the one being uninstalled)
+      const plugin1 = await Models.Plugin.create({
+        id: 'test-plugin-1',
+        address: fakeEvent.args.plugin,
+        daoAddress: fakeEvent.args.dao,
+        tokenAddress: '0xTokenAddress',
+        network: logInfo.network,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: 'uninstalled',
+        transactionHash: '0xhash',
+        blockNumber: 1000,
+        subPlugins: [{ addresses: [subPlugin1.address], stageIndex: 0 }],
+      })
+
+      // Create plugin2 (still using the same subplugin)
+      const plugin2 = await Models.Plugin.create({
+        id: 'test-plugin-2',
+        address: '0x451', // different address from plugin1
+        daoAddress: fakeEvent.args.dao,
+        tokenAddress: '0xTokenAddress',
+        network: logInfo.network,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: 'installed', // still installed
+        transactionHash: '0xhash2',
+        blockNumber: 1001,
+        subPlugins: [{ addresses: [subPlugin1.address], stageIndex: 0 }],
+      })
+
+      const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
+      const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      const PluginSetupProcessorHandlerAggLogStub = sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler')
+
+      await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent as any, logInfo)
+
+      expect(stubFindDao.calledOnce).to.be.true
+      expect(
+        findTxSpy.calledWith({
+          network: logInfo.network,
+          transactionHash: logInfo.transactionHash,
+          transactionIndex: logInfo.transactionIndex,
+          logIndex: logInfo.logIndex,
+          event: IEventLogPluginType.UninstallationApplied,
+        }),
+      ).to.be.true
+
+      const logPluginDb = await Models.LogPluginSetupProcessor.findExistingLog({
+        network: logInfo.network,
+        transactionHash: logInfo.transactionHash,
+        transactionIndex: logInfo.transactionIndex,
+        logIndex: logInfo.logIndex,
+        event: IEventLogPluginType.UninstallationApplied,
+      })
+      expect(logPluginDb.transactionHash).to.eq(logInfo.transactionHash)
+      expect(logPluginDb.blockNumber).to.eq(logInfo.blockNumber)
+      expect(logPluginDb.network).to.eq(logInfo.network)
+      expect(logPluginDb.event).to.eq(IEventLogPluginType.UninstallationApplied)
+      expect(logPluginDb.daoAddress).to.eq(fakeEvent.args.dao)
+      expect(logPluginDb.preparedSetupId).to.eq(fakeEvent.args.preparedSetupId)
+      expect(logPluginDb.pluginAddress).to.eq(fakeEvent.args.plugin)
+      expect(PluginSetupProcessorHandlerAggLogStub.calledOnce).to.be.true
+      expect(PluginSetupProcessorHandlerAggLogStub.calledWith(IPluginActionType.uninstalled)).to.be.true
+
+      // Verify subplugin1 is NOT marked as abandoned because it's still used by plugin2
+      const updatedSubPlugin1 = await subPlugin1.reload()
+      expect(updatedSubPlugin1.status).to.eq('installed') // Should remain installed
+
+      // Verify plugin2 is still installed and untouched
+      const updatedPlugin2 = await plugin2.reload()
+      expect(updatedPlugin2.status).to.eq('installed')
+    })
   })
 
   describe('uninstallationPrepared', () => {

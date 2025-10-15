@@ -210,16 +210,22 @@ export default class Dao extends Model {
     filter.isHidden = { $ne: true }
     filter.isActive = { $eq: true }
 
-    if (extraQueryData.daoAddresses?.length! > 0) {
-      filter.address = { $in: extraQueryData.daoAddresses }
+    if (extraQueryData.daoAddresses && extraQueryData.daoAddresses.length > 0) {
+      let filteredDaoAddresses = extraQueryData.daoAddresses
+
+      if (extraParams.excludedDao?.daoAddress) {
+        const excludedAddress = extraParams.excludedDao.daoAddress
+        filteredDaoAddresses = extraQueryData.daoAddresses.filter(address => address !== excludedAddress)
+      }
+
+      filter.address = { $in: filteredDaoAddresses }
     }
 
     if (extraParams.memberAddress && extraQueryData.daoAddresses?.length === 0) {
-      // no dao for member
       return ModelUtils.paginateEmptyResponse(request.limit)
     }
 
-    if (extraParams.networks?.length! > 0) {
+    if (extraParams.networks && extraParams.networks.length > 0) {
       filter.network = { $in: extraParams.networks }
     }
 
