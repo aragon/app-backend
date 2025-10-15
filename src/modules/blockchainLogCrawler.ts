@@ -156,6 +156,9 @@ class BlockchainLogCrawler {
           })
         } else {
           sortedLogs?.map(log => rawLogs.push(this.formatLog(log)))
+          if (sortedLogs?.length > 0) {
+            highestBlockProcessed = Math.max(...sortedLogs.map(log => Number(log.blockNumber)))
+          }
         }
         // Save progress once after processing (both parallel and sequential)
         // Use the highest block actually processed, or toBlock if no logs were processed
