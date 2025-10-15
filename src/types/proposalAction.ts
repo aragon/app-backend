@@ -333,4 +333,5 @@ export interface IEtherScanSource {
   SourceCode: string
   ABI: string
   ContractName: string
+  CompilerVersion?: string
 }

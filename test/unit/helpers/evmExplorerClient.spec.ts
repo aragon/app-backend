@@ -84,6 +84,7 @@ describe('Helpers: EvmExplorerClient', () => {
           SourceCode: 'pragma solidity ^0.8.0; contract Test {}',
           ContractName: 'TestContract',
           ABI: '[{"type":"constructor"}]',
+          CompilerVersion: undefined,
         },
       ])
     })
@@ -98,6 +99,7 @@ describe('Helpers: EvmExplorerClient', () => {
               SourceCode: 'contract RouteTest {}',
               ContractName: 'RouteTestContract',
               ABI: '[]',
+              CompilerVersion: 'vyper',
             },
           ],
         },
@@ -128,6 +130,7 @@ describe('Helpers: EvmExplorerClient', () => {
           SourceCode: 'contract RouteTest {}',
           ContractName: 'RouteTestContract',
           ABI: '[]',
+          CompilerVersion: 'vyper',
         },
       ])
     })
@@ -142,6 +145,7 @@ describe('Helpers: EvmExplorerClient', () => {
               SourceCode: 'contract ChilizTest {}',
               ContractName: 'ChilizTestContract',
               ABI: '[]',
+              CompilerVersion: 'solc',
             },
           ],
         },
@@ -168,6 +172,7 @@ describe('Helpers: EvmExplorerClient', () => {
           SourceCode: 'contract ChilizTest {}',
           ContractName: 'ChilizTestContract',
           ABI: '[]',
+          CompilerVersion: 'solc',
         },
       ])
     })
@@ -182,6 +187,7 @@ describe('Helpers: EvmExplorerClient', () => {
               SourceCode: 'contract BlockScoutTest {}',
               ContractName: 'BlockScoutTestContract',
               ABI: '[]',
+              CompilerVersion: 'solc',
             },
           ],
         },
@@ -216,6 +222,7 @@ describe('Helpers: EvmExplorerClient', () => {
           SourceCode: 'contract BlockScoutTest {}',
           ContractName: 'BlockScoutTestContract',
           ABI: '[]',
+          CompilerVersion: 'solc',
         },
       ])
     })
@@ -230,6 +237,7 @@ describe('Helpers: EvmExplorerClient', () => {
               SourceCode: 'contract ZkSyncTest {}',
               ContractName: 'ZkSyncTestContract',
               ABI: '[]',
+              CompilerVersion: 'solc',
             },
           ],
         },
@@ -263,6 +271,7 @@ describe('Helpers: EvmExplorerClient', () => {
           SourceCode: 'contract ZkSyncTest {}',
           ContractName: 'ZkSyncTestContract',
           ABI: '[]',
+          CompilerVersion: 'solc',
         },
       ])
     })
@@ -382,6 +391,7 @@ describe('Helpers: EvmExplorerClient', () => {
           SourceCode: 'pragma solidity ^0.8.0; contract ERC1967Proxy {}',
           ContractName: 'ERC1967Proxy',
           ABI: '[{"type":"constructor"}]',
+          CompilerVersion: undefined,
         },
       ])
     })
@@ -419,6 +429,7 @@ describe('Helpers: EvmExplorerClient', () => {
           SourceCode: 'pragma solidity ^0.8.0; contract SimpleContract {}',
           ContractName: 'SimpleContract',
           ABI: '[{"type":"constructor"}]',
+          CompilerVersion: undefined,
         },
       ])
     })
