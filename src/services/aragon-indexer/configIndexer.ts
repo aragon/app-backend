@@ -301,12 +301,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
     ],
   },
   {
-    event: 'Transfer',
-    enableHistorical: false,
-    topic: new Interface(GovernanceERC20.abi).getEvent('Transfer')?.topicHash!,
-    config: [],
-  },
-  {
     event: 'NativeTokenDeposited',
     enableHistorical: false,
     topic: new Interface(DAO.abi).getEvent('NativeTokenDeposited')?.topicHash!,
@@ -382,6 +376,17 @@ const IndexerEventConfig: IIndexerConfig[] = [
     event: 'ExitQueued',
     enableHistorical: false,
     topic: new Interface(ExitQueue.abi).getEvent('ExitQueued')?.topicHash!,
+    config: [
+      {
+        abi: ExitQueue.abi,
+        handler: GovernanceVeHandler.exitQueued,
+      },
+    ],
+  },
+  {
+    event: 'ExitQueuedV2',
+    enableHistorical: false,
+    topic: new Interface(ExitQueue.abi).getEvent('ExitQueuedV2')?.topicHash!,
     config: [
       {
         abi: ExitQueue.abi,
