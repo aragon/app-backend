@@ -1,3 +1,10 @@
+# [0.14.0](https://github.com/aragon/app-backend/compare/v0.13.0...v0.14.0) (2025-10-15)
+
+
+### Features
+
+* **natspec:** add support for Vyper contracts and compiler version detection ([906100e](https://github.com/aragon/app-backend/commit/906100e6407910557dd61b76c486119dfc311fae))
+
 # [0.13.0](https://github.com/aragon/app-backend/compare/v0.12.0...v0.13.0) (2025-10-09)
 
 
