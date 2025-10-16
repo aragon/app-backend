@@ -1283,7 +1283,7 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(updateDocumentStub.thirdCall.args[3]).to.deep.equal('Update sub-plugin')
     })
 
-    it('should log an error if sub-plugin is not found', async () => {
+    it('should log an warn if sub-plugin is not found', async () => {
       const plugin = { address: '0xmain-plugin' } as any
       const settings = {
         stages: [
@@ -1297,13 +1297,13 @@ describe('Indexer: PluginSettingHandler', () => {
       const info = { network: NetworksEnum.ethereumMainnet } as any
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
-      const loggerStub = sandbox.stub(logger, 'error')
+      const loggerStub = sandbox.stub(logger, 'warn')
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
 
       await PluginSettingHandler.pairSppPlugins(plugin, settings, info)
 
       expect(loggerStub.calledOnce).to.be.true
-      expect(loggerStub.firstCall.args[0]).to.equal('Plugin not found - pairSppPlugins')
+      expect(loggerStub.firstCall.args[0]).to.equal('Plugin not found - pairSppPlugins. External Address')
       expect(updateDocumentStub.calledOnce).to.be.true
     })
   })
