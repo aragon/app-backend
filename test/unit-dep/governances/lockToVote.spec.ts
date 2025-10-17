@@ -40,7 +40,7 @@ describe.skip('Integ: LockToVote', () => {
         expect(plugin.isSupported).to.be.true
         expect(plugin.lockManagerAddress).to.be.not.null
         expect(plugin).to.exist
-        const setting = await Models.PluginSetting.findOne({
+        const setting = await Models.Setting.findOne({
           pluginAddress: plugin.address,
         })
 

@@ -1,11 +1,11 @@
 import { Models } from '@dbModels'
-import { type IAssetResponse, type ICampaignApiParams, type IPaginatedResult, type IPaginationParams } from '@types'
+import { type IGaugeResponse, type ICampaignApiParams, type IPaginatedResult, type IPaginationParams } from '@types'
 
 const GaugeController = {
   getGaugesWithPagination: async (
     paginationParams: IPaginationParams = {},
     params: ICampaignApiParams = {},
-  ): Promise<IPaginatedResult<IAssetResponse>> => {
+  ): Promise<IPaginatedResult<IGaugeResponse>> => {
     return await Models.Gauge.findWithPagination({ params, paginationParams })
   },
 }

@@ -403,3 +403,17 @@ export interface ICampaignResponse {
     root: string
   }
 }
+
+export interface IGaugeResponse {
+  network: NetworksEnum
+  blockNumber: NetworksEnum
+  transactionHash: NetworksEnum
+  address: HexAddress
+  pluginAddress: HexAddress
+  creatorAddress: HexAddress
+  name: string
+  description: string
+  links: string
+  avatar: string
+  isActive: boolean
+}
