@@ -31,6 +31,7 @@ const ProviderModule = {
     [NetworksEnum.zksyncMainnet]: AlchemyNetwork.ZKSYNC_MAINNET,
     [NetworksEnum.optimismMainnet]: AlchemyNetwork.OPT_MAINNET,
     [NetworksEnum.chilizMainnet]: AlchemyNetwork.CHILIZ_MAINNET,
+    [NetworksEnum.avaxMainnet]: AlchemyNetwork.AVAX_MAINNET,
   },
 
   // Maps raw config keys to your NetworksEnum.
@@ -46,6 +47,7 @@ const ProviderModule = {
     PEAQ_MAINNET: NetworksEnum.peaqMainnet,
     CHILIZ_MAINNET: NetworksEnum.chilizMainnet,
     CORN_MAINNET: NetworksEnum.cornMainnet,
+    AVAX_MAINNET: NetworksEnum.avaxMainnet,
   },
   networkChainMap: {
     [NetworksEnum.ethereumMainnet]: 1,
@@ -59,6 +61,7 @@ const ProviderModule = {
     [NetworksEnum.peaqMainnet]: 3338,
     [NetworksEnum.chilizMainnet]: 88888,
     [NetworksEnum.cornMainnet]: 21000000,
+    [NetworksEnum.avaxMainnet]: 43114,
   },
 
   // Converts a config key to a NetworksEnum.

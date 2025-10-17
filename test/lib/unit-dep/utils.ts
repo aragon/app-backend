@@ -219,7 +219,7 @@ const UnitDepUtils = {
               network: plugin.network,
             })
 
-            if (token?.type === ITokenType.ERC20 && token.isGovernance) {
+            if ((token?.type === ITokenType.ERC20 || token?.type === ITokenType.escrowAdapter) && token.isGovernance) {
               logger.info('Sync plugin: token is ERC20')
 
               await LogTokenVoting.start(plugin, token, isHistorical)

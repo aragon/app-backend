@@ -170,6 +170,7 @@ class EvmExplorerClient {
           SourceCode: response.result[0].SourceCode,
           ContractName,
           ABI: response.result[0].ABI,
+          CompilerVersion: response.result[0].CompilerVersion || response.result[0].CompilerType,
         },
       ]
     }
