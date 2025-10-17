@@ -5,7 +5,9 @@ import logger from '@logger'
 import Web3Utils from '@helpers/web3Utils'
 import IPFSModule from '@modules/ipfs'
 import Web3Helper from '@helpers/web3'
-import type VoteEpoch from '@models/schema/voteEpoch'
+import type VoteGauge from '@models/schema/voteGauge'
+import { GaugeGovernance } from '@src/governance'
+import { GaugeMetrics } from '@services/aragon-dao/gaugeMetrics'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:GaugeHandler' })
 
@@ -19,11 +21,13 @@ export const GaugeHandler = {
         logger.warn('Duplicate gauge found', llo({ info, parsedEvent }))
         return
       }
-
+      const plugin = await gauge.getPlugin()
       const metadataUri = Web3Utils.extractMetadataUri(parsedEvent.args.metadataURI)
       const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, { retries: 4 })
 
-      await Models.Gauge.create({
+      const governance = new GaugeGovernance(plugin.address, plugin.network)
+
+      await governance.createGauge({
         blockNumber: info.blockNumber,
         transactionHash: info.transactionHash,
         network: info.network,
@@ -34,7 +38,7 @@ export const GaugeHandler = {
         description: ipfsMetadata?.description!,
         links: ipfsMetadata?.links!,
         avatar: ipfsMetadata?.avatar!,
-        isActive: false,
+        isActive: true,
       })
 
       logger.verbose('Gauge created', llo({ address: parsedEvent.args.gauge }))
@@ -123,8 +127,9 @@ export const GaugeHandler = {
 
     try {
       const plugin = await gauge.getPlugin()
+      const epochId = parsedEvent.args.epoch.toString()
 
-      const existingLog = await Models.VoteEpoch.findExistingLog({
+      const existingLog = await Models.VoteGauge.findExistingLog({
         network: info.network,
         transactionHash: info.transactionHash,
         transactionIndex: info.transactionIndex,
@@ -132,7 +137,7 @@ export const GaugeHandler = {
       })
       if (existingLog) return
 
-      const document: Partial<VoteEpoch> = {
+      const document: Partial<VoteGauge> = {
         network: info.network,
         transactionHash: info.transactionHash,
         transactionIndex: info.transactionIndex,
@@ -142,13 +147,20 @@ export const GaugeHandler = {
         daoAddress: plugin.daoAddress,
         gaugeAddress: gauge.address,
         memberAddress: parsedEvent.args.voter,
-        epochId: parsedEvent.args.epoch.toString(),
+        epochId,
         votingPower: parsedEvent.args.votingPowerCastForGauge.toString(),
       }
 
-      await Models.VoteEpoch.create(document)
+      await Models.VoteGauge.create(document)
 
-      logger.verbose('Gauge voted', llo({ address: gauge.address, epochId: document.epochId }))
+      await GaugeMetrics.epochGaugeMetrics({
+        epochId,
+        gaugeAddress: gauge.address,
+        pluginAddress: gauge.pluginAddress,
+        network: gauge.network,
+      })
+
+      logger.verbose('Gauge voted', llo({ address: gauge.address, epochId }))
     } catch (error) {
       logger.error('Error gaugeVoted', llo({ error, info, parsedEvent }))
     }
@@ -175,16 +187,18 @@ export const GaugeHandler = {
     }
 
     try {
-      // Find the VoteEpoch by voter, gauge, epoch, and network (not by the Reset transaction)
-      const existingVote = await Models.VoteEpoch.findOne({
+      const epochId = parsedEvent.args.epoch.toString()
+
+      // Find the VoteGauge by voter, gauge, epoch, and network (not by the Reset transaction)
+      const existingVote = await Models.VoteGauge.findOne({
         network: info.network,
         gaugeAddress: parsedEvent.args.gauge,
         memberAddress: parsedEvent.args.voter,
-        epochId: parsedEvent.args.epoch.toString(),
+        epochId,
       })
 
       if (!existingVote) {
-        logger.warn('No voteEpoch found gaugeReset', llo({ info, parsedEvent }))
+        logger.warn('No voteGauge found gaugeReset', llo({ info, parsedEvent }))
         return
       }
 
@@ -192,7 +206,14 @@ export const GaugeHandler = {
         resetVoteTransactionHash: info.transactionHash,
       })
 
-      logger.verbose('Gauge reset vote', llo({ address: gauge.address, epochId: parsedEvent.args.epoch }))
+      await GaugeMetrics.epochGaugeMetrics({
+        epochId,
+        gaugeAddress: gauge.address,
+        pluginAddress: gauge.pluginAddress,
+        network: gauge.network,
+      })
+
+      logger.verbose('Gauge reset vote', llo({ address: gauge.address, epochId }))
     } catch (error) {
       logger.error('Error gaugeReset', llo({ error, info, parsedEvent }))
     }

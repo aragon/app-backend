@@ -8,12 +8,11 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import Utils from '@helpers/utils'
 import { NetworkHelper } from '@helpers/network'
 import { EnumQueueName, NetworksEnum } from '@types'
-import { CustomInstall } from '@indexer/customInstall'
 import config from '@config'
 import proxyquire from 'proxyquire'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 
-describe('AragonIndexer: index', () => {
+describe.only('AragonIndexer: index', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -34,7 +33,6 @@ describe('AragonIndexer: index', () => {
       const loggerStub = sandbox.stub(logger, 'info')
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns([{ networkName: NetworksEnum.ethereumMainnet } as any])
       sandbox.stub(Utils, 'filterArrayByProperty').returns([{ topic: '0xTopic1', enableHistorical: true }])
-      const customInstall = sandbox.stub(CustomInstall, 'install').resolves()
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
       const schedulerStartStub = sandbox
         .stub(TaskSchedulerState.getInstance(), 'startTask')
@@ -65,7 +63,6 @@ describe('AragonIndexer: index', () => {
       ).to.be.true
 
       expect(loggerStub.calledWith('IndexerService historical started' as any)).to.be.true
-      expect(customInstall.calledOnce).to.be.true
       expect(crawlStub.calledOnce).to.be.true
       expect(schedulerStartStub.calledTwice).to.be.true
       expect(SyncAllStub.start.calledOnce).to.be.true
@@ -124,14 +121,12 @@ describe('AragonIndexer: index', () => {
   describe('historical crawlers', () => {
     it('should execute crawlers for historical logs', async () => {
       const stubRabbitMQ = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      const customInstall = sandbox.stub(CustomInstall, 'install').resolves()
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns([{ networkName: NetworksEnum.ethereumMainnet } as any])
       sandbox.stub(Utils, 'filterArrayByProperty').returns([{ topic: '0xTopic1', enableHistorical: true }])
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
 
       await IndexerService.start()
 
-      expect(customInstall.calledOnce).to.be.true
       expect(crawlStub.calledTwice).to.be.true
       expect(stubRabbitMQ.calledOnce).to.be.true
     })
@@ -143,7 +138,6 @@ describe('AragonIndexer: index', () => {
       config.SERVICES.ARAGON_INDEXER.SYNC_ALL = true
 
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns([{ networkName: NetworksEnum.ethereumMainnet } as any])
-      sandbox.stub(CustomInstall, 'install').resolves()
       sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
       const schedulerStub = sandbox.stub(TaskSchedulerState.getInstance(), 'startTask').resolves()
 

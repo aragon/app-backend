@@ -1,0 +1,53 @@
+import { BaseGovernance } from '@governance/baseGovernance'
+import { Models } from '@dbModels'
+import type Gauge from '@models/schema/gauge'
+import logger from '@logger'
+import { GaugeMetrics } from '@services/aragon-dao/gaugeMetrics'
+
+export class GaugeGovernance extends BaseGovernance {
+  async getOrCreate(): Promise<any> {
+    logger.warn('Gauge governance does not implement getOrCreate member', this.llo({}))
+    return null
+  }
+
+  async create(): Promise<any> {
+    logger.warn('Gauge governance does not implement create member', this.llo({}))
+    return null
+  }
+
+  async update(): Promise<any> {
+    logger.warn('Gauge governance does not implement update member', this.llo({}))
+    return null
+  }
+
+  async delete(): Promise<boolean> {
+    logger.warn('Gauge governance does not implement delete member', this.llo({}))
+    return false
+  }
+
+  async findOne(): Promise<any> {
+    logger.warn('Gauge governance does not implement findOne member', this.llo({}))
+    return null
+  }
+
+  async findAndPaginateMembers(): Promise<any> {
+    logger.warn('Gauge governance does not implement findAndPaginateMembers members', this.llo({}))
+    return null
+  }
+
+  async updateDaoMetrics(): Promise<any> {
+    logger.warn('Gauge governance does not implement updateDaoMetrics', this.llo({}))
+    return null
+  }
+
+  async createGauge(rawGauge: Partial<Gauge>, session?: any): Promise<Gauge[]> {
+    const gauge = await Models.Gauge.create(rawGauge, { session })
+    await GaugeMetrics.epochGaugeMetrics({
+      epochId: null,
+      gaugeAddress: gauge.address,
+      pluginAddress: gauge.pluginAddress,
+      network: gauge.network,
+    })
+    return gauge
+  }
+}

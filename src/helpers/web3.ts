@@ -586,6 +586,20 @@ const Web3Helper = {
       return false
     }
   },
+
+  async getGaugeEpochId(gaugeAddress: HexAddress, network: NetworksEnum) {
+    try {
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      const gaugeInstance = new Contract(gaugeAddress, GaugeVoter.abi, provider)
+      const epochId = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => gaugeInstance.epochId()),
+      )
+      return Number(epochId).toString()
+    } catch (error) {
+      logger.error('Error isTokenVotingMember', llo({ gaugeAddress, network, error }))
+      return null
+    }
+  },
 }
 
 export default Web3Helper

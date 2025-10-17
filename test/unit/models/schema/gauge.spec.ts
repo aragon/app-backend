@@ -21,7 +21,10 @@ describe('Model: Gauge', () => {
       creatorAddress: '0x3333333333333333333333333333333333333333',
       name: 'Test Gauge',
       description: 'Test gauge description',
-      links: ['https://example.com', 'https://docs.example.com'],
+      links: [
+        { name: 'Website', url: 'https://example.com' },
+        { name: 'Docs', url: 'https://docs.example.com' },
+      ],
       avatar: 'https://example.com/avatar.png',
       isActive: false,
     }
@@ -116,13 +119,13 @@ describe('Model: Gauge', () => {
     await createdGauge.update({
       name: 'Updated Gauge Name',
       isActive: true,
-      links: ['https://updated.com'],
+      links: [{ name: 'Updated Link', url: 'https://updated.com' }],
       avatar: 'https://updated.com/avatar.png',
     })
 
     expect(createdGauge.name).to.eq('Updated Gauge Name')
     expect(createdGauge.isActive).to.eq(true)
-    expect(createdGauge.links).to.deep.eq(['https://updated.com'])
+    expect(createdGauge.links).to.deep.eq([{ name: 'Updated Link', url: 'https://updated.com' }])
     expect(createdGauge.avatar).to.eq('https://updated.com/avatar.png')
   })
 

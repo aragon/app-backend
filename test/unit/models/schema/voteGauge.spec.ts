@@ -3,11 +3,11 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { NetworksEnum } from '@types'
 import { Models } from '@dbModels'
-import VoteEpoch from '@models/schema/voteEpoch'
+import VoteGauge from '@models/schema/voteGauge'
 
-describe('Model: VoteEpoch', () => {
+describe.only('Model: VoteGauge', () => {
   let sandbox: SinonSandbox
-  let rawVoteEpoch: Partial<VoteEpoch>
+  let rawVoteEpoch: Partial<VoteGauge>
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
@@ -31,9 +31,9 @@ describe('Model: VoteEpoch', () => {
     sandbox?.restore()
   })
 
-  describe('Create VoteEpoch', () => {
-    it('Should create VoteEpoch', async () => {
-      const createdVoteEpoch = await Models.VoteEpoch.create(rawVoteEpoch)
+  describe('Create VoteGauge', () => {
+    it('Should create VoteGauge', async () => {
+      const createdVoteEpoch = await Models.VoteGauge.create(rawVoteEpoch)
 
       expect(createdVoteEpoch.id).to.exist
       expect(createdVoteEpoch.transactionHash).to.eq(rawVoteEpoch.transactionHash)
@@ -49,8 +49,8 @@ describe('Model: VoteEpoch', () => {
       expect(createdVoteEpoch.votingPower).to.eq(rawVoteEpoch.votingPower)
     })
 
-    it('Should create VoteEpoch with id already present', async () => {
-      const entityId = Models.VoteEpoch.getEntityId({
+    it('Should create VoteGauge with id already present', async () => {
+      const entityId = Models.VoteGauge.getEntityId({
         network: rawVoteEpoch.network!,
         transactionHash: rawVoteEpoch.transactionHash!,
         transactionIndex: rawVoteEpoch.transactionIndex!,
@@ -58,8 +58,8 @@ describe('Model: VoteEpoch', () => {
       })
 
       rawVoteEpoch.id = entityId
-      const getEntityIdSpy = sandbox.spy(Models.VoteEpoch, 'getEntityId')
-      const createdVoteEpoch = await Models.VoteEpoch.create(rawVoteEpoch)
+      const getEntityIdSpy = sandbox.spy(Models.VoteGauge, 'getEntityId')
+      const createdVoteEpoch = await Models.VoteGauge.create(rawVoteEpoch)
 
       expect(getEntityIdSpy.called).to.be.false
       expect(createdVoteEpoch.id).to.eq(entityId)
@@ -67,7 +67,7 @@ describe('Model: VoteEpoch', () => {
 
     it('Should fail when network is not present', async () => {
       await expect(
-        Models.VoteEpoch.create({
+        Models.VoteGauge.create({
           transactionHash: rawVoteEpoch.transactionHash,
           transactionIndex: rawVoteEpoch.transactionIndex,
           logIndex: rawVoteEpoch.logIndex,
@@ -82,7 +82,7 @@ describe('Model: VoteEpoch', () => {
 
     it('Should fail when transactionHash is not present', async () => {
       await expect(
-        Models.VoteEpoch.create({
+        Models.VoteGauge.create({
           network: rawVoteEpoch.network,
           transactionIndex: rawVoteEpoch.transactionIndex,
           logIndex: rawVoteEpoch.logIndex,
@@ -97,7 +97,7 @@ describe('Model: VoteEpoch', () => {
 
     it('Should fail when transactionIndex is not present', async () => {
       await expect(
-        Models.VoteEpoch.create({
+        Models.VoteGauge.create({
           network: rawVoteEpoch.network,
           transactionHash: rawVoteEpoch.transactionHash,
           logIndex: rawVoteEpoch.logIndex,
@@ -112,7 +112,7 @@ describe('Model: VoteEpoch', () => {
 
     it('Should fail when logIndex is not present', async () => {
       await expect(
-        Models.VoteEpoch.create({
+        Models.VoteGauge.create({
           network: rawVoteEpoch.network,
           transactionHash: rawVoteEpoch.transactionHash,
           transactionIndex: rawVoteEpoch.transactionIndex,
@@ -127,13 +127,13 @@ describe('Model: VoteEpoch', () => {
 
     it('Should allow transactionIndex to be 0', async () => {
       rawVoteEpoch.transactionIndex = 0
-      const createdVoteEpoch = await Models.VoteEpoch.create(rawVoteEpoch)
+      const createdVoteEpoch = await Models.VoteGauge.create(rawVoteEpoch)
       expect(createdVoteEpoch.transactionIndex).to.eq(0)
     })
 
     it('Should allow logIndex to be 0', async () => {
       rawVoteEpoch.logIndex = 0
-      const createdVoteEpoch = await Models.VoteEpoch.create(rawVoteEpoch)
+      const createdVoteEpoch = await Models.VoteGauge.create(rawVoteEpoch)
       expect(createdVoteEpoch.logIndex).to.eq(0)
     })
   })
@@ -143,13 +143,13 @@ describe('Model: VoteEpoch', () => {
     const network = NetworksEnum.ethereumMainnet
     const transactionIndex = 1
     const logIndex = 2
-    const entityId = Models.VoteEpoch.getEntityId({ network, transactionHash, transactionIndex, logIndex })
+    const entityId = Models.VoteGauge.getEntityId({ network, transactionHash, transactionIndex, logIndex })
     expect(entityId).to.eq(`${network}-${transactionHash}-${transactionIndex}-${logIndex}`)
   })
 
   it('Should findExistingLog', async () => {
-    const createdVoteEpoch = await Models.VoteEpoch.create(rawVoteEpoch)
-    const foundVoteEpoch = await Models.VoteEpoch.findExistingLog({
+    const createdVoteEpoch = await Models.VoteGauge.create(rawVoteEpoch)
+    const foundVoteEpoch = await Models.VoteGauge.findExistingLog({
       network: createdVoteEpoch.network,
       transactionHash: createdVoteEpoch.transactionHash,
       transactionIndex: createdVoteEpoch.transactionIndex,
@@ -159,13 +159,13 @@ describe('Model: VoteEpoch', () => {
   })
 
   it('Should findByEntityId', async () => {
-    const createdVoteEpoch = await Models.VoteEpoch.create(rawVoteEpoch)
-    const foundVoteEpoch = await Models.VoteEpoch.findByEntityId(createdVoteEpoch.id)
+    const createdVoteEpoch = await Models.VoteGauge.create(rawVoteEpoch)
+    const foundVoteEpoch = await Models.VoteGauge.findByEntityId(createdVoteEpoch.id)
     expect(foundVoteEpoch?.id).to.eq(createdVoteEpoch.id)
   })
 
-  it('Should update VoteEpoch', async () => {
-    const createdVoteEpoch = await Models.VoteEpoch.create(rawVoteEpoch)
+  it('Should update VoteGauge', async () => {
+    const createdVoteEpoch = await Models.VoteGauge.create(rawVoteEpoch)
     expect(createdVoteEpoch.votingPower).to.eq(rawVoteEpoch.votingPower)
     expect(createdVoteEpoch.resetVoteTransactionHash).to.be.null
 
@@ -180,7 +180,7 @@ describe('Model: VoteEpoch', () => {
   })
 
   it('Should reload', async () => {
-    const createdVoteEpoch = await Models.VoteEpoch.create(rawVoteEpoch)
+    const createdVoteEpoch = await Models.VoteGauge.create(rawVoteEpoch)
     const reloadedVoteEpoch = await createdVoteEpoch.reload()
 
     expect(reloadedVoteEpoch.transactionHash).to.eq(rawVoteEpoch.transactionHash)
@@ -188,7 +188,7 @@ describe('Model: VoteEpoch', () => {
     expect(reloadedVoteEpoch.epochId).to.eq(rawVoteEpoch.epochId)
   })
 
-  it('Should create VoteEpoch without optional fields', async () => {
+  it('Should create VoteGauge without optional fields', async () => {
     const minimalVoteEpoch = {
       transactionHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
       transactionIndex: 0,
@@ -201,7 +201,7 @@ describe('Model: VoteEpoch', () => {
       epochId: '2',
     }
 
-    const createdVoteEpoch = await Models.VoteEpoch.create(minimalVoteEpoch)
+    const createdVoteEpoch = await Models.VoteGauge.create(minimalVoteEpoch)
     expect(createdVoteEpoch.id).to.exist
     expect(createdVoteEpoch.blockTimestamp).to.be.undefined
     expect(createdVoteEpoch.votingPower).to.be.null

@@ -181,3 +181,10 @@ export interface IPluginMetricsIdParams {
   pluginAddress: HexAddress
   memberAddress: HexAddress
 }
+
+export interface IGaugeMetricsIdParams {
+  network: NetworksEnum
+  pluginAddress: HexAddress
+  gaugeAddress: HexAddress
+  epochId: string
+}

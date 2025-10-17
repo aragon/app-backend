@@ -7,6 +7,7 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   NetworksEnum,
+  type DaoResourceLink,
 } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
@@ -57,7 +58,7 @@ export default class Gauge extends Model {
   public description!: string
 
   @prop({ type: () => [String], default: null })
-  public links!: string[]
+  public links!: DaoResourceLink[]
 
   @prop({ type: () => String, default: null })
   public avatar!: string
@@ -105,6 +106,9 @@ export default class Gauge extends Model {
       ...ModelUtils.createFilter(paginationParams, ['network', 'pluginAddress']),
       ...dynamicFilter,
     }
+
+    // only active
+    filter.isActive = true
 
     const currentPage = request.skip / request.limit + 1
     const [data, totalRecords] = await Promise.all([

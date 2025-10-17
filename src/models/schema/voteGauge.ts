@@ -4,7 +4,7 @@ import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 
-const customName = ICollectionNames.VoteEpoch
+const customName = ICollectionNames.VoteGauge
 
 @modelOptions({
   schemaOptions: {
@@ -18,12 +18,12 @@ const customName = ICollectionNames.VoteEpoch
     customName,
   },
 })
-@index({ network: 1, blockNumber: 1, daoAddress: 1, gaugeAddress: 1, memberAddress: 1 })
+@index({ network: 1, blockNumber: 1, gaugeAddress: 1, memberAddress: 1 })
 @index({ network: 1, gaugeAddress: 1, epochId: 1 })
 @index({ network: 1, gaugeAddress: 1, memberAddress: 1, epochId: 1, blockNumber: -1 })
 @index({ gaugeAddress: 1, memberAddress: 1, epochId: 1 })
 @index({ network: 1, transactionHash: 1 })
-export default class VoteEpoch extends Model {
+export default class VoteGauge extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
 
@@ -46,9 +46,6 @@ export default class VoteEpoch extends Model {
   public network!: NetworksEnum
 
   @prop({ type: () => String, required: true })
-  public daoAddress!: HexAddress
-
-  @prop({ type: () => String, required: true })
   public gaugeAddress!: HexAddress
 
   @prop({ type: () => String, required: true })
@@ -63,7 +60,7 @@ export default class VoteEpoch extends Model {
   @prop({ type: () => String, default: null })
   public resetVoteTransactionHash!: HexAddress
 
-  static async create(rawData: Partial<VoteEpoch>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<VoteGauge>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')
@@ -94,7 +91,41 @@ export default class VoteEpoch extends Model {
     return await this.findOne({ id: entityId }, null, tOpts)
   }
 
-  async update(params: Partial<VoteEpoch>, tOpts?: SaveOptions) {
+  static async countActiveVotesByEpochAndGauge(epochId: string, gaugeAddress: HexAddress, network: NetworksEnum) {
+    return this.countDocuments({
+      epochId,
+      gaugeAddress,
+      network,
+      resetVoteTransactionHash: null,
+    })
+  }
+
+  static async sumActiveVotingPowerByEpochAndGauge(
+    epochId: string,
+    gaugeAddress: HexAddress,
+    network: NetworksEnum,
+    tOpts?: SaveOptions,
+  ): Promise<string> {
+    const votes = await this.find(
+      {
+        epochId,
+        gaugeAddress,
+        network,
+        resetVoteTransactionHash: null,
+      },
+      { votingPower: 1 },
+      tOpts,
+    ).lean()
+
+    // Sum all voting powers using BigInt to maintain precision
+    const totalVotingPower = votes.reduce((sum, vote) => {
+      return vote.votingPower ? sum + BigInt(vote.votingPower) : sum
+    }, BigInt(0))
+
+    return totalVotingPower.toString()
+  }
+
+  async update(params: Partial<VoteGauge>, tOpts?: SaveOptions) {
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
