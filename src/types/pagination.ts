@@ -54,7 +54,7 @@ export interface IProposalExtraParams {
   isSubProposal?: boolean
 }
 
-export interface IGaugeExtraParams {
+export interface IGaugeParams {
   network?: NetworksEnum
   pluginAddress?: HexAddress
 }

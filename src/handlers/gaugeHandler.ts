@@ -14,6 +14,12 @@ export const GaugeHandler = {
     // event GaugeCreated(address indexed gauge, address indexed creator, string metadataURI);
 
     try {
+      const gauge = await Models.Gauge.findOne({ address: parsedEvent.args.gauge, network: info.network })
+      if (gauge) {
+        logger.warn('Duplicate gauge found', llo({ info, parsedEvent }))
+        return
+      }
+
       const metadataUri = Web3Utils.extractMetadataUri(parsedEvent.args.metadataURI)
       const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, { retries: 4 })
 

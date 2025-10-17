@@ -1,7 +1,7 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
-  type IGaugeExtraParams,
+  type IGaugeParams,
   type IGaugeIdParams,
   ICollectionNames,
   type IPaginatedResult,
@@ -93,14 +93,14 @@ export default class Gauge extends Model {
   }
 
   static async findWithPagination({
-    extraParams = {},
+    params = {},
     paginationParams = {},
   }: {
-    extraParams?: IGaugeExtraParams
+    params?: IGaugeParams
     paginationParams?: IPaginationParams
   }): Promise<IPaginatedResult<any>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
-    const dynamicFilter = Object.fromEntries(Object.entries(extraParams).filter(([_, v]) => v !== undefined))
+    const dynamicFilter = Object.fromEntries(Object.entries(params).filter(([_, v]) => v !== undefined))
     const filter = {
       ...ModelUtils.createFilter(paginationParams, ['network', 'pluginAddress']),
       ...dynamicFilter,
