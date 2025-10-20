@@ -1,7 +1,6 @@
 import logger from '@logger'
 import { Models } from '@dbModels'
 import { type NetworksEnum } from '@types'
-import DbTx from '@modules/dbTx'
 import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:GaugeMetrics' })
@@ -38,42 +37,31 @@ export const GaugeMetrics = {
     const voteCount = await Models.VoteGauge.countActiveVotesByEpochAndGauge(lastEpochId, gaugeAddress, network)
     const votingPower = await Models.VoteGauge.sumActiveVotingPowerByEpochAndGauge(lastEpochId, gaugeAddress, network)
 
-    return await DbTx.executeTxFn(async ({ session }) => {
-      const gaugeMetrics = await Models.GaugeMetrics.findByGaugeAndEpoch(
-        {
-          network,
-          pluginAddress,
-          gaugeAddress,
-          epochId: lastEpochId,
-        },
-        { session },
-      )
-
-      if (!gaugeMetrics) {
-        // create metrics
-        await Models.GaugeMetrics.create(
-          {
-            network,
-            pluginAddress,
-            gaugeAddress,
-            epochId: lastEpochId,
-            voteCount,
-            votingPower,
-          },
-          { session },
-        )
-        logger.verbose('New Gauge metrics', llo({ gaugeAddress, lastEpochId, network }))
-      } else {
-        // update metrics
-        await gaugeMetrics.update(
-          {
-            voteCount,
-            votingPower,
-          },
-          { session },
-        )
-        logger.verbose('Update Gauge metrics', llo({ gaugeAddress, lastEpochId, network }))
-      }
+    const gaugeMetrics = await Models.GaugeMetrics.findByGaugeAndEpoch({
+      network,
+      pluginAddress,
+      gaugeAddress,
+      epochId: lastEpochId,
     })
+
+    if (!gaugeMetrics) {
+      // create metrics
+      await Models.GaugeMetrics.create({
+        network,
+        pluginAddress,
+        gaugeAddress,
+        epochId: lastEpochId,
+        voteCount,
+        votingPower,
+      })
+      logger.verbose('New Gauge metrics', llo({ gaugeAddress, lastEpochId, network }))
+    } else {
+      // update metrics
+      await gaugeMetrics.update({
+        voteCount,
+        votingPower,
+      })
+      logger.verbose('Update Gauge metrics', llo({ gaugeAddress, lastEpochId, network }))
+    }
   },
 }

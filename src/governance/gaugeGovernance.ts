@@ -41,8 +41,8 @@ export class GaugeGovernance extends BaseGovernance {
     return null
   }
 
-  async createGauge(rawGauge: Partial<Gauge>, session?: any): Promise<Gauge[]> {
-    const gauge = await Models.Gauge.create(rawGauge, { session })
+  async createGauge(rawGauge: Partial<Gauge>): Promise<Gauge[]> {
+    const gauge = await Models.Gauge.create(rawGauge)
     await GaugeMetrics.epochGaugeMetrics({
       epochId: await Web3Helper.getGaugeEpochId(gauge.pluginAddress, gauge.network),
       gaugeAddress: gauge.address,

@@ -79,14 +79,18 @@ export default class GaugeMetrics extends Model {
     return await this.findOne({ id: entityId }, null, tOpts)
   }
 
-  static async findByGaugeAndEpoch(
-    network: NetworksEnum,
-    pluginAddress: HexAddress,
-    gaugeAddress: HexAddress,
-    epochId: HexAddress,
-    tOpts?: SaveOptions,
-  ) {
-    return await this.find({ network, pluginAddress, gaugeAddress, epochId }, null, tOpts)
+  static async findByGaugeAndEpoch({
+    network,
+    pluginAddress,
+    gaugeAddress,
+    epochId,
+  }: {
+    epochId: string | null
+    gaugeAddress: string
+    pluginAddress: string
+    network: NetworksEnum
+  }) {
+    return await this.find({ network, pluginAddress, gaugeAddress, epochId })
   }
 
   async update(params: Partial<GaugeMetrics>, tOpts?: SaveOptions) {
