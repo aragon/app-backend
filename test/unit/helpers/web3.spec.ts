@@ -1456,10 +1456,10 @@ describe('Helpers:Web3', () => {
         },
       })
 
-      const gaugeAddress = '0xGaugeAddress'
+      const pluginAddress = '0xPluginAddress'
       const network = NetworksEnum.ethereumMainnet
 
-      const result = await MockedWeb3Helper.getGaugeEpochId(gaugeAddress, network)
+      const result = await MockedWeb3Helper.getGaugeEpochId(pluginAddress, network)
 
       expect(result).to.equal('123')
       expect(stubEpochId.calledOnce).to.be.true
@@ -1483,10 +1483,10 @@ describe('Helpers:Web3', () => {
         },
       })
 
-      const gaugeAddress = '0xGaugeAddress'
+      const pluginAddress = '0xPluginAddress'
       const network = NetworksEnum.ethereumMainnet
 
-      const result = await MockedWeb3Helper.getGaugeEpochId(gaugeAddress, network)
+      const result = await MockedWeb3Helper.getGaugeEpochId(pluginAddress, network)
 
       expect(result).to.be.null
       expect(stubEpochId.calledOnce).to.be.true

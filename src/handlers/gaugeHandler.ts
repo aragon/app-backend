@@ -21,7 +21,12 @@ export const GaugeHandler = {
         logger.warn('Duplicate gauge found', llo({ info, parsedEvent }))
         return
       }
-      const plugin = await gauge.getPlugin()
+      const plugin = await Models.Plugin.findOne({ address: info.address, network: info.network })
+
+      if (!plugin) {
+        logger.warn('plugin not found in gaugeCreated', llo({ info, parsedEvent }))
+        return
+      }
       const metadataUri = Web3Utils.extractMetadataUri(parsedEvent.args.metadataURI)
       const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, { retries: 4 })
 

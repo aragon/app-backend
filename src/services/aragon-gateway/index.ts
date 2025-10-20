@@ -2,6 +2,7 @@ import logger from '@logger'
 import {
   EnumConnection,
   EnumQueueName,
+  type IGetGaugeEpochId,
   type IMerkleProofSync,
   type IQueueCanCreateProposal,
   type IQueueContractInfo,
@@ -59,6 +60,10 @@ const AragonGatewayService: IService = {
 
     await RabbitMQHelper.process(EnumQueueName.syncMerkleProofs, async (job: { params: IMerkleProofSync }) => {
       await CapitalDistributorGateway.generateMerkleData(job.params)
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.gaugeEpochId, async (job: { params: IGetGaugeEpochId }) => {
+      return await Plugin.getGaugeEpochId(job.params.pluginAddress, job.params.network)
     })
 
     logger.info('AragonGatewayService service started', llo({}))

@@ -27,7 +27,7 @@ export const GaugeMetrics = {
     let lastEpochId: string | null = epochId
 
     if (!lastEpochId) {
-      lastEpochId = await Web3Helper.getGaugeEpochId(gaugeAddress, network)
+      lastEpochId = await Web3Helper.getGaugeEpochId(pluginAddress, network)
     }
 
     if (!lastEpochId) {

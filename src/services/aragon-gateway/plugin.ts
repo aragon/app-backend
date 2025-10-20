@@ -52,6 +52,10 @@ const Plugin = {
       return null
     }
   },
+
+  getGaugeEpochId: async (pluginAddress: HexAddress, network: NetworksEnum) => {
+    return await Web3Helper.getGaugeEpochId(pluginAddress, network)
+  },
 }
 
 export default Plugin

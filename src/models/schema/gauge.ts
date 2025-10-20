@@ -13,6 +13,7 @@ import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
+import { AggregationQueryHelper } from '@models/utils/aggregation'
 
 const customName = ICollectionNames.Gauge
 
@@ -101,20 +102,77 @@ export default class Gauge extends Model {
     paginationParams?: IPaginationParams
   }): Promise<IPaginatedResult<any>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
-    const dynamicFilter = Object.fromEntries(Object.entries(params).filter(([_, v]) => v !== undefined))
+    const dynamicFilter = Object.fromEntries(
+      Object.entries(params).filter(([key, v]) => v !== undefined && key !== 'epochId'),
+    )
     const filter = {
       ...ModelUtils.createFilter(paginationParams, ['network', 'pluginAddress']),
       ...dynamicFilter,
     }
 
-    // only active
-    filter.isActive = true
+    const query: any = [
+      {
+        $match: {
+          ...filter,
+          isActive: true,
+        },
+      },
+      { $sort: request.sort },
+      { $skip: request.skip },
+      { $limit: request.limit },
+      AggregationQueryHelper.gaugeMetrics(
+        {
+          gaugeAddress: '$address',
+          network: '$network',
+          epochId: params.epochId,
+        },
+        'gaugeMetrics',
+        {
+          voteCount: 1,
+          votingPower: 1,
+          epochId: 1,
+        },
+      ),
+      {
+        $addFields: {
+          metrics: {
+            $cond: {
+              if: { $gt: [{ $size: '$gaugeMetrics' }, 0] },
+              then: {
+                voteCount: { $arrayElemAt: ['$gaugeMetrics.voteCount', 0] },
+                votingPower: { $arrayElemAt: ['$gaugeMetrics.votingPower', 0] },
+                epochId: { $arrayElemAt: ['$gaugeMetrics.epochId', 0] },
+              },
+              else: {
+                voteCount: 0,
+                votingPower: '0',
+                epochId: params.epochId,
+              },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          network: 1,
+          blockNumber: 1,
+          transactionHash: 1,
+          address: 1,
+          pluginAddress: 1,
+          creatorAddress: 1,
+          name: 1,
+          description: 1,
+          links: 1,
+          avatar: 1,
+          isActive: 1,
+          metrics: 1,
+        },
+      },
+    ]
 
     const currentPage = request.skip / request.limit + 1
-    const [data, totalRecords] = await Promise.all([
-      this.aggregate([{ $match: filter }, { $sort: request.sort }, { $skip: request.skip }, { $limit: request.limit }]),
-      this.countDocuments(filter),
-    ])
+    const [data, totalRecords] = await Promise.all([this.aggregate(query), this.countDocuments(filter)])
 
     const totalPages = Math.ceil(totalRecords / request.limit)
 

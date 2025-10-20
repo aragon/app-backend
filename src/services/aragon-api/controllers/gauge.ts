@@ -1,11 +1,32 @@
 import { Models } from '@dbModels'
-import { type IGaugeResponse, type ICampaignApiParams, type IPaginatedResult, type IPaginationParams } from '@types'
+import {
+  EnumQueueName,
+  type IGaugeParams,
+  type IGaugeResponse,
+  type IGetGaugeEpochId,
+  type IPaginatedResult,
+  type IPaginationParams,
+} from '@types'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import config from '@config'
 
 const GaugeController = {
   getGaugesWithPagination: async (
     paginationParams: IPaginationParams = {},
-    params: ICampaignApiParams = {},
+    params: IGaugeParams = {},
   ): Promise<IPaginatedResult<IGaugeResponse>> => {
+    params.epochId = await RabbitMQHelper.sendMessage(
+      EnumQueueName.gaugeEpochId,
+      {
+        id: `${params.pluginAddress}-${params.network}`,
+        params: {
+          pluginAddress: params.pluginAddress!,
+          network: params.network!,
+        } satisfies IGetGaugeEpochId,
+      },
+      { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
+    )
+
     return await Models.Gauge.findWithPagination({ params, paginationParams })
   },
 }

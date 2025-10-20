@@ -20,6 +20,8 @@ import {
   ICollectionNames,
   ISettingStatus,
   type IAggLockToVoteMemberParams,
+  type IAggGaugeMetricsParams,
+  type IAggGaugeMetricsProjectFields,
 } from '@types'
 
 export const AggregationQueryHelper = {
@@ -658,6 +660,57 @@ export const AggregationQueryHelper = {
     return {
       $lookup: {
         from: ICollectionNames.PluginMetrics,
+        let: letVariables,
+        pipeline,
+        as,
+      },
+    }
+  },
+
+  gaugeMetrics: (
+    { gaugeAddress, epochId, network }: IAggGaugeMetricsParams,
+    as: string = 'gaugeMetrics',
+    project?: IAggGaugeMetricsProjectFields,
+  ) => {
+    const letVariables: any = {}
+    const matchConditions: any[] = []
+
+    if (gaugeAddress) {
+      letVariables.gaugeAddress = gaugeAddress
+      matchConditions.push({ $eq: ['$$gaugeAddress', '$gaugeAddress'] })
+    }
+
+    if (network) {
+      letVariables.network = network
+      matchConditions.push({ $eq: ['$$network', '$network'] })
+    }
+
+    if (epochId) {
+      letVariables.epochId = epochId
+      matchConditions.push({ $eq: ['$$epochId', '$epochId'] })
+    }
+
+    const pipeline: any[] = []
+
+    if (matchConditions.length > 0) {
+      pipeline.push({
+        $match: {
+          $expr: {
+            $and: matchConditions,
+          },
+        },
+      })
+    }
+
+    if (project) {
+      pipeline.push({
+        $project: project,
+      })
+    }
+
+    return {
+      $lookup: {
+        from: ICollectionNames.GaugeMetrics,
         let: letVariables,
         pipeline,
         as,

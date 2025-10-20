@@ -168,6 +168,7 @@ describe('Model: Gauge', () => {
           creatorAddress: '0xCreatorAddress1111111111111111111111',
           name: 'Gauge 1',
           description: 'First test gauge',
+          isActive: true,
         },
         {
           network: NetworksEnum.ethereumMainnet,
@@ -178,6 +179,7 @@ describe('Model: Gauge', () => {
           creatorAddress: '0xCreatorAddress2222222222222222222222',
           name: 'Gauge 2',
           description: 'Second test gauge',
+          isActive: true,
         },
         {
           network: NetworksEnum.polygonMainnet,
@@ -188,6 +190,7 @@ describe('Model: Gauge', () => {
           creatorAddress: '0xCreatorAddress3333333333333333333333',
           name: 'Gauge 3',
           description: 'Third test gauge',
+          isActive: true,
         },
       ]
 
@@ -199,7 +202,7 @@ describe('Model: Gauge', () => {
         data,
         metadata: { totalRecords, page, pageSize, totalPages },
       } = await Models.Gauge.findWithPagination({
-        extraParams: {},
+        params: {},
         paginationParams: {},
       })
 
@@ -208,6 +211,23 @@ describe('Model: Gauge', () => {
       expect(page).to.eq(1)
       expect(totalPages).to.eq(1)
       expect(pageSize).to.eq(10)
+
+      // Verify response structure
+      data.forEach((gauge: any) => {
+        expect(gauge).to.have.property('network')
+        expect(gauge).to.have.property('blockNumber')
+        expect(gauge).to.have.property('transactionHash')
+        expect(gauge).to.have.property('address')
+        expect(gauge).to.have.property('pluginAddress')
+        expect(gauge).to.have.property('creatorAddress')
+        expect(gauge).to.have.property('name')
+        expect(gauge).to.have.property('description')
+        expect(gauge).to.have.property('isActive')
+        expect(gauge).to.have.property('metrics')
+        expect(gauge.metrics).to.have.property('voteCount')
+        expect(gauge.metrics).to.have.property('votingPower')
+        expect(gauge.metrics).to.have.property('epochId')
+      })
     })
 
     it('Should find pagination with network filter', async () => {
@@ -215,7 +235,7 @@ describe('Model: Gauge', () => {
         data,
         metadata: { totalRecords, page, pageSize, totalPages },
       } = await Models.Gauge.findWithPagination({
-        extraParams: {
+        params: {
           network: NetworksEnum.ethereumMainnet,
         },
         paginationParams: {},
@@ -226,6 +246,11 @@ describe('Model: Gauge', () => {
       expect(page).to.eq(1)
       expect(totalPages).to.eq(1)
       expect(pageSize).to.eq(10)
+
+      // Verify all returned gauges have the correct network
+      data.forEach((gauge: any) => {
+        expect(gauge.network).to.eq(NetworksEnum.ethereumMainnet)
+      })
     })
 
     it('Should find pagination with pluginAddress filter', async () => {
@@ -233,7 +258,7 @@ describe('Model: Gauge', () => {
         data,
         metadata: { totalRecords, page, pageSize, totalPages },
       } = await Models.Gauge.findWithPagination({
-        extraParams: {
+        params: {
           pluginAddress: '0xPluginAddress11111111111111111111111',
         },
         paginationParams: {},
@@ -244,6 +269,9 @@ describe('Model: Gauge', () => {
       expect(page).to.eq(1)
       expect(totalPages).to.eq(1)
       expect(pageSize).to.eq(10)
+
+      // Verify the returned gauge has correct pluginAddress
+      expect(data[0].pluginAddress).to.eq('0xPluginAddress11111111111111111111111')
     })
 
     it('Should find pagination with combined filters', async () => {
@@ -251,7 +279,7 @@ describe('Model: Gauge', () => {
         data,
         metadata: { totalRecords, page, pageSize, totalPages },
       } = await Models.Gauge.findWithPagination({
-        extraParams: {
+        params: {
           network: NetworksEnum.ethereumMainnet,
           pluginAddress: '0xPluginAddress11111111111111111111111',
         },
@@ -263,6 +291,56 @@ describe('Model: Gauge', () => {
       expect(page).to.eq(1)
       expect(totalPages).to.eq(1)
       expect(pageSize).to.eq(10)
+
+      // Verify combined filters
+      expect(data[0].network).to.eq(NetworksEnum.ethereumMainnet)
+      expect(data[0].pluginAddress).to.eq('0xPluginAddress11111111111111111111111')
+    })
+
+    it('Should find pagination with epochId - default metrics when no GaugeMetrics exists', async () => {
+      const epochId = '5'
+      const {
+        data,
+        metadata: { totalRecords },
+      } = await Models.Gauge.findWithPagination({
+        params: {
+          epochId,
+        },
+        paginationParams: {},
+      })
+
+      expect(data.length).to.eq(3)
+      expect(totalRecords).to.eq(3)
+
+      // Verify all gauges have default metrics with the provided epochId
+      data.forEach((gauge: any) => {
+        expect(gauge.metrics).to.deep.equal({
+          voteCount: 0,
+          votingPower: '0',
+          epochId,
+        })
+      })
+    })
+
+    it('Should find pagination with epochId and other filters', async () => {
+      const epochId = '10'
+      const { data } = await Models.Gauge.findWithPagination({
+        params: {
+          network: NetworksEnum.ethereumMainnet,
+          epochId,
+        },
+        paginationParams: {},
+      })
+
+      expect(data.length).to.eq(2)
+
+      // Verify metrics structure with epochId
+      data.forEach((gauge: any) => {
+        expect(gauge.network).to.eq(NetworksEnum.ethereumMainnet)
+        expect(gauge.metrics.epochId).to.eq(epochId)
+        expect(gauge.metrics.voteCount).to.eq(0)
+        expect(gauge.metrics.votingPower).to.eq('0')
+      })
     })
 
     it('Should not found documents when page exceeds total', async () => {
@@ -272,7 +350,7 @@ describe('Model: Gauge', () => {
       }
 
       const result = await Models.Gauge.findWithPagination({
-        extraParams: {},
+        params: {},
         paginationParams: opts,
       })
 
@@ -287,7 +365,7 @@ describe('Model: Gauge', () => {
         data,
         metadata: { totalRecords, page, pageSize, totalPages },
       } = await Models.Gauge.findWithPagination({
-        extraParams: {},
+        params: {},
         paginationParams: {
           page: 1,
           pageSize: 2,
@@ -306,7 +384,7 @@ describe('Model: Gauge', () => {
         data,
         metadata: { totalRecords, page, pageSize, totalPages },
       } = await Models.Gauge.findWithPagination({
-        extraParams: {},
+        params: {},
         paginationParams: {
           page: 2,
           pageSize: 2,
@@ -318,6 +396,35 @@ describe('Model: Gauge', () => {
       expect(page).to.eq(2)
       expect(totalPages).to.eq(2)
       expect(pageSize).to.eq(2)
+    })
+
+    it('Should only return active gauges', async () => {
+      // Create an inactive gauge
+      await Models.Gauge.create({
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 999,
+        transactionHash: '0x9999999999999999999999999999999999999999999999999999999999999999',
+        address: '0xInactiveGauge99999999999999999999999',
+        pluginAddress: '0xPluginAddress99999999999999999999999',
+        creatorAddress: '0xCreatorAddress9999999999999999999999',
+        name: 'Inactive Gauge',
+        description: 'This gauge is inactive',
+        isActive: false,
+      })
+
+      const { data, metadata } = await Models.Gauge.findWithPagination({
+        params: {},
+        paginationParams: {},
+      })
+
+      // Should still only return 3 active gauges, not 4
+      expect(data.length).to.eq(3)
+      expect(metadata.totalRecords).to.eq(3)
+
+      // Verify all returned gauges are active
+      data.forEach((gauge: any) => {
+        expect(gauge.isActive).to.be.true
+      })
     })
   })
 })

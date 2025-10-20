@@ -3,6 +3,7 @@ import { Models } from '@dbModels'
 import type Gauge from '@models/schema/gauge'
 import logger from '@logger'
 import { GaugeMetrics } from '@services/aragon-dao/gaugeMetrics'
+import Web3Helper from '@helpers/web3'
 
 export class GaugeGovernance extends BaseGovernance {
   async getOrCreate(): Promise<any> {
@@ -43,7 +44,7 @@ export class GaugeGovernance extends BaseGovernance {
   async createGauge(rawGauge: Partial<Gauge>, session?: any): Promise<Gauge[]> {
     const gauge = await Models.Gauge.create(rawGauge, { session })
     await GaugeMetrics.epochGaugeMetrics({
-      epochId: null,
+      epochId: await Web3Helper.getGaugeEpochId(gauge.pluginAddress, gauge.network),
       gaugeAddress: gauge.address,
       pluginAddress: gauge.pluginAddress,
       network: gauge.network,

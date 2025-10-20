@@ -57,6 +57,7 @@ export interface IProposalExtraParams {
 export interface IGaugeParams {
   network?: NetworksEnum
   pluginAddress?: HexAddress
+  epochId?: string
 }
 
 export interface IAssetExtraParams {
