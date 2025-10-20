@@ -4,11 +4,8 @@ import { expect } from 'chai'
 import ExternalLogger from '@src/logger/external'
 import Formats from '@src/logger/format'
 import config from '@config'
-import * as sentry from '@sentry/node'
 import Transport from 'winston-transport'
 import proxyquire from 'proxyquire'
-
-const sentryInitOriginal = sentry.init
 
 describe('Logger: ExternalLogger', () => {
   let sandbox: SinonSandbox
@@ -119,24 +116,24 @@ describe('Logger: ExternalLogger', () => {
 
     describe('Sentry', () => {
       let stubCallback: any
+      let MockedExternalLogger: any
+
       beforeEach(() => {
         oldConfigSentryDSN = config.LOG.SENTRY_DSN
         config.LOG.SENTRY_DSN = 'sentry-dsn'
 
         mockSentry = {
+          init: sandbox.stub(),
           setExtra: sandbox.stub(),
           captureMessage: sandbox.stub(),
+          close: sandbox.stub(),
         }
 
-        stubSentryInit =
-          sentry.init === sentryInitOriginal ? sandbox.stub(sentry, 'init').returns(mockSentry) : sentry.init
+        stubSentryInit = mockSentry.init
 
-        externalLogger = new ExternalLogger({
-          name: 'external-logger',
-          level: 'verbose',
-        })
-        externalLogger.sentry.setExtra = mockSentry.setExtra
-        externalLogger.sentry.captureMessage = mockSentry.captureMessage
+        MockedExternalLogger = proxyquire.noCallThru()('@src/logger/external', {
+          '@sentry/node': mockSentry,
+        }).default
 
         stubCallback = sandbox.stub()
       })
@@ -146,6 +143,11 @@ describe('Logger: ExternalLogger', () => {
       })
 
       it('Should not log with sentry no error message', () => {
+        externalLogger = new MockedExternalLogger({
+          name: 'external-logger',
+          level: 'verbose',
+        })
+
         expect(stubSentryInit.calledOnce).to.be.true
         expect(
           stubSentryInit.calledWith({
@@ -172,6 +174,11 @@ describe('Logger: ExternalLogger', () => {
       })
 
       it('Should not log with sentry error exposed message', () => {
+        externalLogger = new MockedExternalLogger({
+          name: 'external-logger',
+          level: 'verbose',
+        })
+
         const error: any = new Error('fake-error1')
         error.exposeCustom_ = true
 
@@ -193,6 +200,11 @@ describe('Logger: ExternalLogger', () => {
       })
 
       it('Should log with sentry error', () => {
+        externalLogger = new MockedExternalLogger({
+          name: 'external-logger',
+          level: 'verbose',
+        })
+
         const log = {
           level: 'error',
           machine: 'machine1',
@@ -214,6 +226,11 @@ describe('Logger: ExternalLogger', () => {
       })
 
       it('Should log with sentry error with user', () => {
+        externalLogger = new MockedExternalLogger({
+          name: 'external-logger',
+          level: 'verbose',
+        })
+
         const log = {
           level: 'error',
           machine: 'machine1',
