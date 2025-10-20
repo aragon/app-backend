@@ -93,7 +93,9 @@ describe('Service: GaugeMetrics', () => {
         .stub(Models.VoteGauge, 'sumActiveVotingPowerByEpochAndGauge')
         .resolves('15000000000000000000')
 
-      const findMetricsStub = sandbox.stub(Models.GaugeMetrics, 'findByGaugeAndEpoch').resolves(mockExistingMetrics as any)
+      const findMetricsStub = sandbox
+        .stub(Models.GaugeMetrics, 'findByGaugeAndEpoch')
+        .resolves(mockExistingMetrics as any)
 
       const executeTxStub = sandbox.stub(DbTx, 'executeTxFn').callsFake(async (fn: any) => {
         return await fn({ session: 'mock-session' })
@@ -300,9 +302,7 @@ describe('Service: GaugeMetrics', () => {
 
       const findGaugeStub = sandbox.stub(Models.Gauge, 'findOne').resolves(mockGauge as any)
       const countVotesStub = sandbox.stub(Models.VoteGauge, 'countActiveVotesByEpochAndGauge').resolves(0)
-      const sumVotingPowerStub = sandbox
-        .stub(Models.VoteGauge, 'sumActiveVotingPowerByEpochAndGauge')
-        .resolves('0')
+      const sumVotingPowerStub = sandbox.stub(Models.VoteGauge, 'sumActiveVotingPowerByEpochAndGauge').resolves('0')
 
       const findMetricsStub = sandbox.stub(Models.GaugeMetrics, 'findByGaugeAndEpoch').resolves(null)
       const createMetricsStub = sandbox.stub(Models.GaugeMetrics, 'create').resolves({} as any)
