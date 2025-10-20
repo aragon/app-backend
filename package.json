@@ -96,7 +96,7 @@
     "dot-only-hunter": "^1.0.3",
     "dotenv": "^16.5.0",
     "ethers": "^6.15.0",
-    "joi": "^17.12.2",
+    "joi": "^18.0.1",
     "jsonwebtoken": "^9.0.2",
     "koa": "^3.0.1",
     "koa-bodyparser": "^4.4.1",
