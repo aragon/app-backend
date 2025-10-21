@@ -141,6 +141,7 @@ export const GaugeHandler = {
         logIndex: info.logIndex,
       })
       if (existingLog) return
+      const settings = await plugin.getActiveSettings()
 
       const document: Partial<VoteGauge> = {
         network: info.network,
@@ -154,6 +155,7 @@ export const GaugeHandler = {
         memberAddress: parsedEvent.args.voter,
         epochId,
         votingPower: parsedEvent.args.votingPowerCastForGauge.toString(),
+        persistentVote: !settings.enabledUpdatedVotingPowerHook, // if false keep vote across all epochs
       }
 
       await Models.VoteGauge.create(document)
@@ -163,6 +165,7 @@ export const GaugeHandler = {
         gaugeAddress: gauge.address,
         pluginAddress: gauge.pluginAddress,
         network: gauge.network,
+        votingPower: parsedEvent.args.totalVotingPowerInGauge.toString(),
       })
 
       logger.verbose('Gauge voted', llo({ address: gauge.address, epochId }))
@@ -209,6 +212,7 @@ export const GaugeHandler = {
 
       await existingVote.update({
         resetVoteTransactionHash: info.transactionHash,
+        persistentVote: false,
       })
 
       await GaugeMetrics.epochGaugeMetrics({
@@ -216,6 +220,7 @@ export const GaugeHandler = {
         gaugeAddress: gauge.address,
         pluginAddress: gauge.pluginAddress,
         network: gauge.network,
+        votingPower: parsedEvent.args.totalVotingPowerInGauge.toString(),
       })
 
       logger.verbose('Gauge reset vote', llo({ address: gauge.address, epochId }))

@@ -560,6 +560,7 @@ const Web3Helper = {
 
     return token
   },
+
   async isMultisigMember(pluginAddress: HexAddress, memberAddress: HexAddress, network: NetworksEnum) {
     try {
       const provider = ProviderModule.getAnyRpcProvider(network)
@@ -573,6 +574,7 @@ const Web3Helper = {
       return false
     }
   },
+
   async isTokenVotingMember(pluginAddress: HexAddress, memberAddress: HexAddress, network: NetworksEnum) {
     try {
       const provider = ProviderModule.getAnyRpcProvider(network)
@@ -598,6 +600,44 @@ const Web3Helper = {
     } catch (error) {
       logger.error('Error isTokenVotingMember', llo({ pluginAddress, network, error }))
       return null
+    }
+  },
+
+  getIVotesAdapterAddress: async (pluginAddress: HexAddress, network: NetworksEnum): Promise<HexAddress | null> => {
+    try {
+      const abi = ['function ivotesAdapter() view returns (address)']
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      const gaugePluginContract = new ethers.Contract(pluginAddress, abi, provider)
+
+      const iVotesAdapterAddress = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(NetworksEnum.ethereumMainnet).schedule(async () =>
+          gaugePluginContract.ivotesAdapter(),
+        ),
+      )
+
+      if (iVotesAdapterAddress === ethers.ZeroAddress) {
+        return null
+      }
+
+      return iVotesAdapterAddress
+    } catch (error) {
+      return null
+    }
+  },
+
+  getEnableUpdateVotingPowerHookFlag: async (pluginAddress: HexAddress, network: NetworksEnum): Promise<boolean> => {
+    try {
+      const abi = ['function enableUpdateVotingPowerHook() view returns (bool)']
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      const gaugePluginContract = new ethers.Contract(pluginAddress, abi, provider)
+
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(NetworksEnum.ethereumMainnet).schedule(async () =>
+          gaugePluginContract.enableUpdateVotingPowerHook(),
+        ),
+      )
+    } catch (error) {
+      return false
     }
   },
 }

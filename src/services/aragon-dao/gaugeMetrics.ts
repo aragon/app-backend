@@ -10,11 +10,13 @@ export const GaugeMetrics = {
     epochId,
     gaugeAddress,
     pluginAddress,
+    votingPower,
     network,
   }: {
     epochId: string | null
     gaugeAddress: string
     pluginAddress: string
+    votingPower: string
     network: NetworksEnum
   }) => {
     const gauge = await Models.Gauge.findOne({ address: gaugeAddress, network })
@@ -35,8 +37,6 @@ export const GaugeMetrics = {
     }
 
     const voteCount = await Models.VoteGauge.countActiveVotesByEpochAndGauge(lastEpochId, gaugeAddress, network)
-    const votingPower = await Models.VoteGauge.sumActiveVotingPowerByEpochAndGauge(lastEpochId, gaugeAddress, network)
-
     const gaugeMetrics = await Models.GaugeMetrics.findByGaugeAndEpoch({
       network,
       pluginAddress,

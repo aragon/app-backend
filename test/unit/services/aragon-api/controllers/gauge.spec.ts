@@ -323,8 +323,8 @@ describe('Controller: Gauge', () => {
 
       await GaugeController.getGaugesWithPagination({}, filterParams)
 
-      expect(rabbitMQStub.args[0][2].timeout).to.eq(config.RABBITMQ.TIMEOUT)
-      expect(rabbitMQStub.args[0][2].waitResponse).to.be.true
+      expect(rabbitMQStub.args[0]?.[2]?.timeout).to.eq(config.RABBITMQ.TIMEOUT)
+      expect(rabbitMQStub.args[0]?.[2]?.waitResponse).to.be.true
     })
 
     it('should use correct queue name for epochId request', async () => {

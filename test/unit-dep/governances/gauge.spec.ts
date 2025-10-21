@@ -7,7 +7,7 @@ import { expect } from 'chai'
 import { LogGauge } from '@plugins/logGauge'
 import GaugeController from '@api/controllers/gauge'
 
-describe.only('Integ: Gauge', () => {
+describe('Integ: Gauge', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -18,7 +18,7 @@ describe.only('Integ: Gauge', () => {
     sandbox && sandbox.restore()
   })
 
-  describe.only('Gauge flow', () => {
+  describe('Gauge flow', () => {
     const networks = [
       {
         network: NetworksEnum.ethereumSepolia,
@@ -62,6 +62,10 @@ describe.only('Integ: Gauge', () => {
         expect(apiGauges.data[0].pluginAddress).to.exist
         expect(apiGauges.data[0].creatorAddress).to.exist
         expect(apiGauges.data[0].isActive).to.exist
+        const data = apiGauges.data[0] as any
+        expect(data.metrics.voteCount).to.eq(0)
+        expect(data.metrics.votingPower).to.eq('0')
+        expect(data.metrics.epochId).to.eq(null) // because rabbitmq is not working on dep test
       })
     }
   })

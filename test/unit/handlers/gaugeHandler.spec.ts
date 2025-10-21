@@ -443,7 +443,6 @@ describe('Handler: gaugeHandler', () => {
       })
 
       expect(voteGauge).to.exist
-      expect(voteGauge.daoAddress).to.equal(mockPlugin.daoAddress)
       expect(voteGauge.gaugeAddress).to.equal(gauge.address)
       expect(voteGauge.memberAddress).to.equal('0xVoter11111111111111111111111111111111111')
       expect(voteGauge.epochId).to.equal('1')
@@ -462,6 +461,7 @@ describe('Handler: gaugeHandler', () => {
           gaugeAddress: gauge.address,
           pluginAddress: gauge.pluginAddress,
           network: gauge.network,
+          votingPower: '5000000000000000000',
         }),
       ).to.be.true
     })
@@ -510,7 +510,6 @@ describe('Handler: gaugeHandler', () => {
         transactionIndex: mockInfo.transactionIndex,
         logIndex: mockInfo.logIndex,
         blockNumber: mockInfo.blockNumber,
-        daoAddress: mockPlugin.daoAddress,
         gaugeAddress: gauge.address,
         memberAddress: '0xVoter33333333333333333333333333333333333',
         epochId: '1',
@@ -627,7 +626,6 @@ describe('Handler: gaugeHandler', () => {
         transactionIndex: mockInfo.transactionIndex,
         logIndex: mockInfo.logIndex,
         blockNumber: mockInfo.blockNumber,
-        daoAddress: mockPlugin.daoAddress,
         gaugeAddress: gauge.address,
         memberAddress: '0xVoter66666666666666666666666666666666666',
         epochId: '1',
@@ -641,6 +639,7 @@ describe('Handler: gaugeHandler', () => {
           gauge: gauge.address,
           epoch: BigInt(1),
           votingPowerRemovedFromGauge: BigInt(1000000000000000000),
+          totalVotingPowerInGauge: BigInt(2000000000000000000),
         },
       } as any
 
@@ -674,6 +673,7 @@ describe('Handler: gaugeHandler', () => {
           gaugeAddress: gauge.address,
           pluginAddress: gauge.pluginAddress,
           network: gauge.network,
+          votingPower: '2000000000000000000',
         }),
       ).to.be.true
     })
@@ -801,6 +801,7 @@ describe('Handler: gaugeHandler', () => {
           gauge: gaugeAddress,
           epoch: BigInt(1),
           votingPowerCastForGauge: BigInt(1000000000000000000),
+          totalVotingPowerInGauge: BigInt(1000000000000000000),
         },
       } as any
 
@@ -877,6 +878,7 @@ describe('Handler: gaugeHandler', () => {
             gauge: gaugeAddress,
             epoch: BigInt(1),
             votingPowerCastForGauge: BigInt((i + 1) * 1000000000000000000),
+            totalVotingPowerInGauge: BigInt((i + 1) * 1000000000000000000),
           },
         } as any
 

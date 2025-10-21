@@ -205,18 +205,17 @@ describe('Plugin', () => {
 
   describe('getGaugeEpochId', () => {
     const pluginAddress = '0x9999999999999999999999999999999999999990'
-    const gaugeAddress = '0x9999999999999999999999999999999999999999'
     const network = NetworksEnum.ethereumMainnet
     const epochId = '5'
 
     it('should return epochId from Web3Helper', async () => {
-      sandbox.stub(Web3Helper, 'getGaugeEpochId').resolves(epochId)
+      const getGaugeEpochIdStub = sandbox.stub(Web3Helper, 'getGaugeEpochId').resolves(epochId)
 
       const result = await Plugin.getGaugeEpochId(pluginAddress, network)
 
       expect(result).to.equal(epochId)
-      expect(Web3Helper.getGaugeEpochId.calledOnce).to.be.true
-      expect(Web3Helper.getGaugeEpochId.calledWith(pluginAddress, network)).to.be.true
+      expect(getGaugeEpochIdStub.calledOnce).to.be.true
+      expect(getGaugeEpochIdStub.calledWith(pluginAddress, network)).to.be.true
     })
 
     it('should handle different epochId values', async () => {
@@ -230,12 +229,12 @@ describe('Plugin', () => {
 
     it('should handle different networks', async () => {
       const arbitrumNetwork = NetworksEnum.arbitrumMainnet
-      sandbox.stub(Web3Helper, 'getGaugeEpochId').resolves(epochId)
+      const getGaugeEpochIdStub = sandbox.stub(Web3Helper, 'getGaugeEpochId').resolves(epochId)
 
       const result = await Plugin.getGaugeEpochId(pluginAddress, arbitrumNetwork)
 
       expect(result).to.equal(epochId)
-      expect(Web3Helper.getGaugeEpochId.calledWith(pluginAddress, arbitrumNetwork)).to.be.true
+      expect(getGaugeEpochIdStub.calledWith(pluginAddress, arbitrumNetwork)).to.be.true
     })
 
     it('should propagate errors from Web3Helper', async () => {

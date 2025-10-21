@@ -7,6 +7,7 @@ import Logger from '@logger'
 import { GaugeGovernance, BaseGovernance } from '@src/governance'
 import { NetworksEnum, type HexAddress } from '@types'
 import { GaugeMetrics } from '@services/aragon-dao/gaugeMetrics'
+import Web3Helper from '@helpers/web3'
 
 describe('Governance:GaugeGovernance', () => {
   let sandbox: SinonSandbox
@@ -129,10 +130,12 @@ describe('Governance:GaugeGovernance', () => {
   describe('createGauge', () => {
     let createGaugeStub: sinon.SinonStub
     let epochGaugeMetricsStub: sinon.SinonStub
+    let getGaugeEpochIdStub: sinon.SinonStub
 
     beforeEach(() => {
       createGaugeStub = sandbox.stub(Models.Gauge, 'create')
       epochGaugeMetricsStub = sandbox.stub(GaugeMetrics, 'epochGaugeMetrics').resolves()
+      getGaugeEpochIdStub = sandbox.stub(Web3Helper, 'getGaugeEpochId').resolves(null)
     })
 
     it('should create gauge and trigger metrics calculation', async () => {
@@ -156,7 +159,10 @@ describe('Governance:GaugeGovernance', () => {
 
       expect(result).to.deep.equal(createdGauge)
       expect(createGaugeStub.calledOnce).to.be.true
-      expect(createGaugeStub.calledWith(rawGauge, { session: undefined })).to.be.true
+      expect(createGaugeStub.calledWith(rawGauge)).to.be.true
+
+      expect(getGaugeEpochIdStub.calledOnce).to.be.true
+      expect(getGaugeEpochIdStub.calledWith(testPluginAddress, testNetwork)).to.be.true
 
       expect(epochGaugeMetricsStub.calledOnce).to.be.true
       expect(
@@ -165,11 +171,12 @@ describe('Governance:GaugeGovernance', () => {
           gaugeAddress: testGaugeAddress,
           pluginAddress: testPluginAddress,
           network: testNetwork,
+          votingPower: '0',
         }),
       ).to.be.true
     })
 
-    it('should create gauge with session', async () => {
+    it('should create gauge with different epochId from Web3Helper', async () => {
       const rawGauge = {
         address: testGaugeAddress,
         pluginAddress: testPluginAddress,
@@ -184,17 +191,27 @@ describe('Governance:GaugeGovernance', () => {
         blockNumber: 200,
       }
 
-      const mockSession = { id: 'mock-session' }
+      const epochId = '5'
+      getGaugeEpochIdStub.resolves(epochId)
 
       createGaugeStub.resolves(createdGauge as any)
 
-      const result = await gaugeGovernance.createGauge(rawGauge, mockSession)
+      const result = await gaugeGovernance.createGauge(rawGauge)
 
       expect(result).to.deep.equal(createdGauge)
       expect(createGaugeStub.calledOnce).to.be.true
-      expect(createGaugeStub.calledWith(rawGauge, { session: mockSession })).to.be.true
+      expect(getGaugeEpochIdStub.calledWith(testPluginAddress, testNetwork)).to.be.true
 
       expect(epochGaugeMetricsStub.calledOnce).to.be.true
+      expect(
+        epochGaugeMetricsStub.calledWith({
+          epochId,
+          gaugeAddress: testGaugeAddress,
+          pluginAddress: testPluginAddress,
+          network: testNetwork,
+          votingPower: '0',
+        }),
+      ).to.be.true
     })
 
     it('should call GaugeMetrics.epochGaugeMetrics with null epochId', async () => {
@@ -220,6 +237,7 @@ describe('Governance:GaugeGovernance', () => {
       expect(callArgs.gaugeAddress).to.equal(testGaugeAddress)
       expect(callArgs.pluginAddress).to.equal(testPluginAddress)
       expect(callArgs.network).to.equal(testNetwork)
+      expect(callArgs.votingPower).to.equal('0')
     })
 
     it('should handle partial gauge data', async () => {

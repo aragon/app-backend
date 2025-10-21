@@ -60,6 +60,9 @@ export default class VoteGauge extends Model {
   @prop({ type: () => String, default: null })
   public resetVoteTransactionHash!: HexAddress
 
+  @prop({ type: () => Boolean, default: false })
+  public persistentVote?: boolean
+
   static async create(rawData: Partial<VoteGauge>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
@@ -91,38 +94,29 @@ export default class VoteGauge extends Model {
     return await this.findOne({ id: entityId }, null, tOpts)
   }
 
-  static async countActiveVotesByEpochAndGauge(epochId: string, gaugeAddress: HexAddress, network: NetworksEnum) {
-    return this.countDocuments({
-      epochId,
-      gaugeAddress,
-      network,
-      resetVoteTransactionHash: null,
-    })
-  }
-
-  static async sumActiveVotingPowerByEpochAndGauge(
+  static async countActiveVotesByEpochAndGauge(
     epochId: string,
     gaugeAddress: HexAddress,
     network: NetworksEnum,
-    tOpts?: SaveOptions,
-  ): Promise<string> {
-    const votes = await this.find(
-      {
-        epochId,
-        gaugeAddress,
-        network,
-        resetVoteTransactionHash: null,
-      },
-      { votingPower: 1 },
-      tOpts,
-    ).lean()
-
-    // Sum all voting powers using BigInt to maintain precision
-    const totalVotingPower = votes.reduce((sum, vote) => {
-      return vote.votingPower ? sum + BigInt(vote.votingPower) : sum
-    }, BigInt(0))
-
-    return totalVotingPower.toString()
+  ) {
+    return this.countDocuments({
+      $or: [
+        // count all votes on epochId
+        {
+          epochId,
+          gaugeAddress,
+          network,
+          resetVoteTransactionHash: null,
+        },
+        // count all persistent votes on diff epochs
+        {
+          gaugeAddress,
+          network,
+          resetVoteTransactionHash: null,
+          persistentVote: true,
+        },
+      ],
+    })
   }
 
   async update(params: Partial<VoteGauge>, tOpts?: SaveOptions) {

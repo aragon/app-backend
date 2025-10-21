@@ -5,7 +5,7 @@ import { NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import VoteGauge from '@models/schema/voteGauge'
 
-describe.only('Model: VoteGauge', () => {
+describe('Model: VoteGauge', () => {
   let sandbox: SinonSandbox
   let rawVoteEpoch: Partial<VoteGauge>
 
@@ -19,7 +19,6 @@ describe.only('Model: VoteGauge', () => {
       blockNumber: 12345678,
       blockTimestamp: 1234567890,
       network: NetworksEnum.ethereumMainnet,
-      daoAddress: '0x1111111111111111111111111111111111111111',
       gaugeAddress: '0x2222222222222222222222222222222222222222',
       memberAddress: '0x3333333333333333333333333333333333333333',
       epochId: '1',
@@ -42,7 +41,6 @@ describe.only('Model: VoteGauge', () => {
       expect(createdVoteEpoch.blockNumber).to.eq(rawVoteEpoch.blockNumber)
       expect(createdVoteEpoch.blockTimestamp).to.eq(rawVoteEpoch.blockTimestamp)
       expect(createdVoteEpoch.network).to.eq(rawVoteEpoch.network)
-      expect(createdVoteEpoch.daoAddress).to.eq(rawVoteEpoch.daoAddress)
       expect(createdVoteEpoch.gaugeAddress).to.eq(rawVoteEpoch.gaugeAddress)
       expect(createdVoteEpoch.memberAddress).to.eq(rawVoteEpoch.memberAddress)
       expect(createdVoteEpoch.epochId).to.eq(rawVoteEpoch.epochId)
@@ -72,12 +70,11 @@ describe.only('Model: VoteGauge', () => {
           transactionIndex: rawVoteEpoch.transactionIndex,
           logIndex: rawVoteEpoch.logIndex,
           blockNumber: rawVoteEpoch.blockNumber,
-          daoAddress: rawVoteEpoch.daoAddress,
           gaugeAddress: rawVoteEpoch.gaugeAddress,
           memberAddress: rawVoteEpoch.memberAddress,
           epochId: rawVoteEpoch.epochId,
         }),
-      ).to.be.rejectedWith('pluginAddress is required')
+      ).to.be.rejectedWith('network is required')
     })
 
     it('Should fail when transactionHash is not present', async () => {
@@ -87,7 +84,6 @@ describe.only('Model: VoteGauge', () => {
           transactionIndex: rawVoteEpoch.transactionIndex,
           logIndex: rawVoteEpoch.logIndex,
           blockNumber: rawVoteEpoch.blockNumber,
-          daoAddress: rawVoteEpoch.daoAddress,
           gaugeAddress: rawVoteEpoch.gaugeAddress,
           memberAddress: rawVoteEpoch.memberAddress,
           epochId: rawVoteEpoch.epochId,
@@ -102,7 +98,6 @@ describe.only('Model: VoteGauge', () => {
           transactionHash: rawVoteEpoch.transactionHash,
           logIndex: rawVoteEpoch.logIndex,
           blockNumber: rawVoteEpoch.blockNumber,
-          daoAddress: rawVoteEpoch.daoAddress,
           gaugeAddress: rawVoteEpoch.gaugeAddress,
           memberAddress: rawVoteEpoch.memberAddress,
           epochId: rawVoteEpoch.epochId,
@@ -117,7 +112,6 @@ describe.only('Model: VoteGauge', () => {
           transactionHash: rawVoteEpoch.transactionHash,
           transactionIndex: rawVoteEpoch.transactionIndex,
           blockNumber: rawVoteEpoch.blockNumber,
-          daoAddress: rawVoteEpoch.daoAddress,
           gaugeAddress: rawVoteEpoch.gaugeAddress,
           memberAddress: rawVoteEpoch.memberAddress,
           epochId: rawVoteEpoch.epochId,
@@ -195,7 +189,6 @@ describe.only('Model: VoteGauge', () => {
       logIndex: 1,
       blockNumber: 12345678,
       network: NetworksEnum.ethereumMainnet,
-      daoAddress: '0x1111111111111111111111111111111111111111',
       gaugeAddress: '0x2222222222222222222222222222222222222222',
       memberAddress: '0x3333333333333333333333333333333333333333',
       epochId: '2',
