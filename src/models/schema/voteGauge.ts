@@ -94,11 +94,7 @@ export default class VoteGauge extends Model {
     return await this.findOne({ id: entityId }, null, tOpts)
   }
 
-  static async countActiveVotesByEpochAndGauge(
-    epochId: string,
-    gaugeAddress: HexAddress,
-    network: NetworksEnum,
-  ) {
+  static async countActiveVotesByEpochAndGauge(epochId: string, gaugeAddress: HexAddress, network: NetworksEnum) {
     return this.countDocuments({
       $or: [
         // count all votes on epochId
