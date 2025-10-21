@@ -31,6 +31,7 @@ export enum NetworksEnum {
   peaqMainnet = 'peaq-mainnet',
   chilizMainnet = 'chiliz-mainnet',
   cornMainnet = 'corn-mainnet',
+  avaxMainnet = 'avax-mainnet',
 }
 
 export enum StatusNetworkEnum {
