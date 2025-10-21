@@ -46,6 +46,9 @@ export default class VoteGauge extends Model {
   public network!: NetworksEnum
 
   @prop({ type: () => String, required: true })
+  public pluginAddress!: HexAddress
+
+  @prop({ type: () => String, required: true })
   public gaugeAddress!: HexAddress
 
   @prop({ type: () => String, required: true })

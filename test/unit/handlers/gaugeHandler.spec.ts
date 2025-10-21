@@ -3,7 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { GaugeHandler } from '@handlers/gaugeHandler'
 import { Models } from '@dbModels'
-import { NetworksEnum, IPluginStatus, IPluginInterfaceType } from '@types'
+import { NetworksEnum, IPluginStatus, IPluginInterfaceType, ISettingStatus } from '@types'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import IPFSModule from '@modules/ipfs'
@@ -32,6 +32,22 @@ describe('Handler: gaugeHandler', () => {
       daoAddress: '0x9876543210987654321098765432109876543210',
       pluginSetupRepoAddress: '0x1111111111111111111111111111111111111111',
       interfaceType: IPluginInterfaceType.tokenVoting,
+    })
+
+    // Create settings for the plugin
+    await Models.Setting.create({
+      network: NetworksEnum.ethereumMainnet,
+      blockNumber: 12345,
+      transactionHash: '0x123abc',
+      pluginAddress: mockPlugin.address,
+      daoAddress: mockPlugin.daoAddress,
+      supportThreshold: 500000,
+      minParticipation: 150000,
+      minDuration: 86400,
+      minProposerVotingPower: '0',
+      votingMode: 0,
+      enabledUpdatedVotingPowerHook: false,
+      status: ISettingStatus.active,
     })
 
     // Mock info object that will be passed to all handlers
@@ -91,7 +107,7 @@ describe('Handler: gaugeHandler', () => {
       expect(savedGauge.description).to.equal('This is a test gauge for voting')
       expect(savedGauge.links).to.deep.equal(['https://example.com', 'https://docs.example.com'])
       expect(savedGauge.avatar).to.equal('https://example.com/avatar.png')
-      expect(savedGauge.isActive).to.be.false
+      expect(savedGauge.isActive).to.be.true
       expect(savedGauge.blockNumber).to.equal(mockInfo.blockNumber)
       expect(savedGauge.transactionHash).to.equal(mockInfo.transactionHash)
 
@@ -443,6 +459,7 @@ describe('Handler: gaugeHandler', () => {
       })
 
       expect(voteGauge).to.exist
+      expect(voteGauge.pluginAddress).to.equal(mockPlugin.address)
       expect(voteGauge.gaugeAddress).to.equal(gauge.address)
       expect(voteGauge.memberAddress).to.equal('0xVoter11111111111111111111111111111111111')
       expect(voteGauge.epochId).to.equal('1')
@@ -510,6 +527,7 @@ describe('Handler: gaugeHandler', () => {
         transactionIndex: mockInfo.transactionIndex,
         logIndex: mockInfo.logIndex,
         blockNumber: mockInfo.blockNumber,
+        pluginAddress: mockPlugin.address,
         gaugeAddress: gauge.address,
         memberAddress: '0xVoter33333333333333333333333333333333333',
         epochId: '1',
@@ -626,6 +644,7 @@ describe('Handler: gaugeHandler', () => {
         transactionIndex: mockInfo.transactionIndex,
         logIndex: mockInfo.logIndex,
         blockNumber: mockInfo.blockNumber,
+        pluginAddress: mockPlugin.address,
         gaugeAddress: gauge.address,
         memberAddress: '0xVoter66666666666666666666666666666666666',
         epochId: '1',
@@ -782,9 +801,19 @@ describe('Handler: gaugeHandler', () => {
 
       let gauge = await Models.Gauge.findOne({ address: gaugeAddress })
       expect(gauge).to.exist
+      expect(gauge.isActive).to.be.true
+
+      // Step 2: Deactivate gauge (to test deactivation)
+      const deactivateEvent = {
+        args: { gauge: gaugeAddress },
+      } as any
+
+      await GaugeHandler.gaugeDeactivated(deactivateEvent, mockInfo)
+
+      gauge = await Models.Gauge.findOne({ address: gaugeAddress })
       expect(gauge.isActive).to.be.false
 
-      // Step 2: Activate gauge
+      // Step 3: Activate gauge again
       const activateEvent = {
         args: { gauge: gaugeAddress },
       } as any

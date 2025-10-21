@@ -30,7 +30,7 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      expect(processStub.callCount).to.equal(7)
+      expect(processStub.callCount).to.equal(8)
       expect(processStub.calledWith(EnumQueueName.contractInfo)).to.be.true
       expect(processStub.calledWith(EnumQueueName.memberBalance)).to.be.true
       expect(processStub.calledWith(EnumQueueName.contractDecoder)).to.be.true
@@ -38,6 +38,7 @@ describe('AragonGateway: index', () => {
       expect(processStub.calledWith(EnumQueueName.pluginInstallationData)).to.be.true
       expect(processStub.calledWith(EnumQueueName.getTokenStats)).to.be.true
       expect(processStub.calledWith(EnumQueueName.syncMerkleProofs)).to.be.true
+      expect(processStub.calledWith(EnumQueueName.gaugeEpochId)).to.be.true
 
       expect(loggerStub.calledOnceWith('AragonGatewayService service started' as any)).to.be.true
     })

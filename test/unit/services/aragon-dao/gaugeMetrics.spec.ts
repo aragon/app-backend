@@ -6,7 +6,6 @@ import { Models } from '@dbModels'
 import { NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
-import DbTx from '@modules/dbTx'
 
 describe('Service: GaugeMetrics', () => {
   let sandbox: SinonSandbox
@@ -39,10 +38,6 @@ describe('Service: GaugeMetrics', () => {
       const findMetricsStub = sandbox.stub(Models.GaugeMetrics, 'findByGaugeAndEpoch').resolves(null)
       const createMetricsStub = sandbox.stub(Models.GaugeMetrics, 'create').resolves({} as any)
 
-      const executeTxStub = sandbox.stub(DbTx, 'executeTxFn').callsFake(async (fn: any) => {
-        return await fn({ session: 'mock-session' })
-      })
-
       const verboseStub = sandbox.stub(logger, 'verbose')
 
       await GaugeMetrics.epochGaugeMetrics({
@@ -59,7 +54,6 @@ describe('Service: GaugeMetrics', () => {
       expect(countVotesStub.calledOnce).to.be.true
       expect(countVotesStub.calledWith(epochId, gaugeAddress, network)).to.be.true
 
-      expect(executeTxStub.calledOnce).to.be.true
       expect(findMetricsStub.calledOnce).to.be.true
       expect(createMetricsStub.calledOnce).to.be.true
 
@@ -91,10 +85,6 @@ describe('Service: GaugeMetrics', () => {
         .stub(Models.GaugeMetrics, 'findByGaugeAndEpoch')
         .resolves(mockExistingMetrics as any)
 
-      const executeTxStub = sandbox.stub(DbTx, 'executeTxFn').callsFake(async (fn: any) => {
-        return await fn({ session: 'mock-session' })
-      })
-
       const verboseStub = sandbox.stub(logger, 'verbose')
 
       await GaugeMetrics.epochGaugeMetrics({
@@ -107,18 +97,14 @@ describe('Service: GaugeMetrics', () => {
 
       expect(findGaugeStub.calledOnce).to.be.true
       expect(countVotesStub.calledOnce).to.be.true
-      expect(executeTxStub.calledOnce).to.be.true
       expect(findMetricsStub.calledOnce).to.be.true
 
       expect(mockExistingMetrics.update.calledOnce).to.be.true
       expect(
-        mockExistingMetrics.update.calledWith(
-          {
-            voteCount: 25,
-            votingPower: '15000000000000000000',
-          },
-          { session: 'mock-session' },
-        ),
+        mockExistingMetrics.update.calledWith({
+          voteCount: 25,
+          votingPower: '15000000000000000000',
+        }),
       ).to.be.true
 
       expect(verboseStub.calledOnce).to.be.true
@@ -135,7 +121,6 @@ describe('Service: GaugeMetrics', () => {
       const findGaugeStub = sandbox.stub(Models.Gauge, 'findOne').resolves(null)
       const warnStub = sandbox.stub(logger, 'warn')
       const countVotesStub = sandbox.stub(Models.VoteGauge, 'countActiveVotesByEpochAndGauge')
-      const executeTxStub = sandbox.stub(DbTx, 'executeTxFn')
 
       await GaugeMetrics.epochGaugeMetrics({
         epochId,
@@ -149,9 +134,8 @@ describe('Service: GaugeMetrics', () => {
       expect(warnStub.calledOnce).to.be.true
       expect(warnStub.args[0][0]).to.equal('Gauge not found')
 
-      // Should not proceed to count votes or execute transaction
+      // Should not proceed to count votes
       expect(countVotesStub.called).to.be.false
-      expect(executeTxStub.called).to.be.false
     })
 
     it('should get epochId from Web3Helper when not provided', async () => {
@@ -174,10 +158,6 @@ describe('Service: GaugeMetrics', () => {
       const findMetricsStub = sandbox.stub(Models.GaugeMetrics, 'findByGaugeAndEpoch').resolves(null)
       const createMetricsStub = sandbox.stub(Models.GaugeMetrics, 'create').resolves({} as any)
 
-      const executeTxStub = sandbox.stub(DbTx, 'executeTxFn').callsFake(async (fn: any) => {
-        return await fn({ session: 'mock-session' })
-      })
-
       sandbox.stub(logger, 'verbose')
 
       await GaugeMetrics.epochGaugeMetrics({
@@ -191,7 +171,6 @@ describe('Service: GaugeMetrics', () => {
       expect(getGaugeEpochIdStub.calledOnce).to.be.true
       expect(getGaugeEpochIdStub.calledWith(pluginAddress, network)).to.be.true
       expect(countVotesStub.calledWith(retrievedEpochId, gaugeAddress, network)).to.be.true
-      expect(executeTxStub.calledOnce).to.be.true
       expect(createMetricsStub.calledOnce).to.be.true
     })
 
@@ -211,7 +190,6 @@ describe('Service: GaugeMetrics', () => {
       const getGaugeEpochIdStub = sandbox.stub(Web3Helper, 'getGaugeEpochId').resolves(null)
       const errorStub = sandbox.stub(logger, 'error')
       const countVotesStub = sandbox.stub(Models.VoteGauge, 'countActiveVotesByEpochAndGauge')
-      const executeTxStub = sandbox.stub(DbTx, 'executeTxFn')
 
       await GaugeMetrics.epochGaugeMetrics({
         epochId: null,
@@ -226,9 +204,8 @@ describe('Service: GaugeMetrics', () => {
       expect(errorStub.calledOnce).to.be.true
       expect(errorStub.args[0][0]).to.equal('Error getting gauge lastEpochId')
 
-      // Should not proceed to count votes or execute transaction
+      // Should not proceed to count votes
       expect(countVotesStub.called).to.be.false
-      expect(executeTxStub.called).to.be.false
     })
 
     it('should pass correct parameters to create when creating new metrics', async () => {
@@ -251,10 +228,6 @@ describe('Service: GaugeMetrics', () => {
 
       const createMetricsStub = sandbox.stub(Models.GaugeMetrics, 'create').resolves({} as any)
 
-      sandbox.stub(DbTx, 'executeTxFn').callsFake(async (fn: any) => {
-        return await fn({ session: 'mock-session' })
-      })
-
       sandbox.stub(logger, 'verbose')
 
       await GaugeMetrics.epochGaugeMetrics({
@@ -267,17 +240,14 @@ describe('Service: GaugeMetrics', () => {
 
       expect(createMetricsStub.calledOnce).to.be.true
       expect(
-        createMetricsStub.calledWith(
-          {
-            network,
-            pluginAddress,
-            gaugeAddress,
-            epochId,
-            voteCount,
-            votingPower,
-          },
-          { session: 'mock-session' },
-        ),
+        createMetricsStub.calledWith({
+          network,
+          pluginAddress,
+          gaugeAddress,
+          epochId,
+          voteCount,
+          votingPower,
+        }),
       ).to.be.true
     })
 
@@ -300,10 +270,6 @@ describe('Service: GaugeMetrics', () => {
       const findMetricsStub = sandbox.stub(Models.GaugeMetrics, 'findByGaugeAndEpoch').resolves(null)
       const createMetricsStub = sandbox.stub(Models.GaugeMetrics, 'create').resolves({} as any)
 
-      const executeTxStub = sandbox.stub(DbTx, 'executeTxFn').callsFake(async (fn: any) => {
-        return await fn({ session: 'mock-session' })
-      })
-
       const verboseStub = sandbox.stub(logger, 'verbose')
 
       await GaugeMetrics.epochGaugeMetrics({
@@ -316,7 +282,6 @@ describe('Service: GaugeMetrics', () => {
 
       expect(findGaugeStub.calledOnce).to.be.true
       expect(countVotesStub.calledOnce).to.be.true
-      expect(executeTxStub.calledOnce).to.be.true
       expect(findMetricsStub.calledOnce).to.be.true
       expect(createMetricsStub.calledOnce).to.be.true
       expect(verboseStub.calledOnce).to.be.true

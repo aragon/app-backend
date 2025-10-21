@@ -141,12 +141,12 @@ describe('Model: GaugeMetrics', () => {
 
   it('Should findByGaugeAndEpoch', async () => {
     const createdMetrics = await Models.GaugeMetrics.create(rawGaugeMetrics)
-    const foundMetrics = await Models.GaugeMetrics.findByGaugeAndEpoch(
-      createdMetrics.network,
-      createdMetrics.pluginAddress!,
-      createdMetrics.gaugeAddress,
-      createdMetrics.epochId,
-    )
+    const foundMetrics = await Models.GaugeMetrics.findByGaugeAndEpoch({
+      network: createdMetrics.network,
+      pluginAddress: createdMetrics.pluginAddress!,
+      gaugeAddress: createdMetrics.gaugeAddress,
+      epochId: createdMetrics.epochId,
+    })
 
     expect(foundMetrics).to.have.lengthOf(1)
     expect(foundMetrics[0].id).to.eq(createdMetrics.id)

@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import {
   EnumQueueName,
+  ErrorKeyEnum,
   type IGaugeParams,
   type IGaugeResponse,
   type IGetGaugeEpochId,
@@ -9,6 +10,7 @@ import {
 } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import config from '@config'
+import { assertExposable } from '@errors'
 
 const GaugeController = {
   getGaugesWithPagination: async (
@@ -26,6 +28,8 @@ const GaugeController = {
       },
       { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
     )
+
+    assertExposable(!!params.epochId, ErrorKeyEnum.notFound, undefined, undefined, params)
 
     return await Models.Gauge.findWithPagination({ params, paginationParams })
   },

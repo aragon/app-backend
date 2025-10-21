@@ -19,6 +19,7 @@ import PluginRouter from '@api/routers/v2/plugins'
 import ExecuteSelectorRouter from '@api/routers/v2/executeSelector'
 import CapitalDistributorRouter from '@api/routers/v2/capitalDistributor'
 import SimulationRouter from '@api/routers/v2/simulation'
+import GaugeRouter from '@api/routers/v2/gauge'
 
 describe('RouterV2: V2Router', () => {
   let sandbox: SinonSandbox
@@ -55,6 +56,7 @@ describe('RouterV2: V2Router', () => {
     stubRouter(ExecuteSelectorRouter, 'execute-selectors')
     stubRouter(CapitalDistributorRouter, 'capital-distributors')
     stubRouter(SimulationRouter, 'simulations')
+    stubRouter(GaugeRouter, 'gauge')
 
     await utils.wait(100) // Small wait to ensure stubs are applied
 
@@ -78,6 +80,7 @@ describe('RouterV2: V2Router', () => {
       ExecuteSelectorRouter,
       CapitalDistributorRouter,
       SimulationRouter,
+      GaugeRouter,
     ]
     expect(use.callCount).to.be.eq(routers.length)
 

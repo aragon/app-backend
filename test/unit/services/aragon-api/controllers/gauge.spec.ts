@@ -55,15 +55,10 @@ describe('Controller: Gauge', () => {
         },
       }
 
-      const findOneStub = sandbox.stub(Models.Gauge, 'findOne').resolves(mockGauge as any)
       const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(epochId)
       const findWithPaginationStub = sandbox.stub(Models.Gauge, 'findWithPagination').resolves(mockResponse)
 
       const response = await GaugeController.getGaugesWithPagination(paginationParams, filterParams)
-
-      // Verify findOne was called with correct params
-      expect(findOneStub.calledOnce).to.be.true
-      expect(findOneStub.calledWith({ pluginAddress, network })).to.be.true
 
       // Verify RabbitMQ message was sent with correct params
       expect(rabbitMQStub.calledOnce).to.be.true
@@ -71,7 +66,7 @@ describe('Controller: Gauge', () => {
       expect(rabbitMQStub.args[0][1]).to.deep.eq({
         id: `${pluginAddress}-${network}`,
         params: {
-          gaugeAddress,
+          pluginAddress,
           network,
         },
       })
@@ -93,7 +88,7 @@ describe('Controller: Gauge', () => {
       expect(response).to.deep.eq(mockResponse)
     })
 
-    it('should throw error when gauge is not found', async () => {
+    it('should throw error when epochId is not returned from RabbitMQ', async () => {
       const pluginAddress = '0xPluginNotFound111111111111111111111111'
       const network = NetworksEnum.ethereumMainnet
 
@@ -102,14 +97,15 @@ describe('Controller: Gauge', () => {
         pluginAddress,
       }
 
-      sandbox.stub(Models.Gauge, 'findOne').resolves(null)
+      // Stub RabbitMQ to return null/undefined epochId
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(null)
 
       try {
         await GaugeController.getGaugesWithPagination({}, filterParams)
         expect.fail('Should have thrown an error')
       } catch (error: any) {
         expect(error).to.exist
-        expect(error.key).to.eq(ErrorKeyEnum.notFound)
+        expect(error.message).to.eq(ErrorKeyEnum.notFound)
       }
     })
 
@@ -148,7 +144,6 @@ describe('Controller: Gauge', () => {
         },
       }
 
-      sandbox.stub(Models.Gauge, 'findOne').resolves(mockGauge as any)
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(epochId)
       const findWithPaginationStub = sandbox.stub(Models.Gauge, 'findWithPagination').resolves(mockResponse)
 
@@ -187,7 +182,6 @@ describe('Controller: Gauge', () => {
         },
       }
 
-      sandbox.stub(Models.Gauge, 'findOne').resolves(mockGauge as any)
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(epochId)
       const findWithPaginationStub = sandbox.stub(Models.Gauge, 'findWithPagination').resolves(mockResponse)
 
@@ -224,7 +218,6 @@ describe('Controller: Gauge', () => {
         },
       }
 
-      sandbox.stub(Models.Gauge, 'findOne').resolves(mockGauge as any)
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(epochId)
       sandbox.stub(Models.Gauge, 'findWithPagination').resolves(mockResponse)
 
@@ -253,7 +246,6 @@ describe('Controller: Gauge', () => {
         isActive: true,
       }
 
-      sandbox.stub(Models.Gauge, 'findOne').resolves(mockGauge as any)
       sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('RabbitMQ connection error'))
 
       try {
@@ -262,37 +254,6 @@ describe('Controller: Gauge', () => {
       } catch (error: any) {
         expect(error).to.be.an('error')
         expect(error.message).to.equal('RabbitMQ connection error')
-      }
-    })
-
-    it('should handle when findWithPagination throws an error', async () => {
-      const pluginAddress = '0xPlugin666666666666666666666666666666666'
-      const network = NetworksEnum.ethereumMainnet
-      const gaugeAddress = '0xGauge6666666666666666666666666666666666'
-      const epochId = '7'
-
-      const filterParams: any = {
-        network,
-        pluginAddress,
-      }
-
-      const mockGauge = {
-        address: gaugeAddress,
-        pluginAddress,
-        network,
-        isActive: true,
-      }
-
-      sandbox.stub(Models.Gauge, 'findOne').resolves(mockGauge as any)
-      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(epochId)
-      sandbox.stub(Models.Gauge, 'findWithPagination').rejects(new Error('DB connection error'))
-
-      try {
-        await GaugeController.getGaugesWithPagination({}, filterParams)
-        expect.fail('Should have thrown an error')
-      } catch (error: any) {
-        expect(error).to.be.an('error')
-        expect(error.message).to.equal('DB connection error')
       }
     })
 
@@ -314,7 +275,6 @@ describe('Controller: Gauge', () => {
         isActive: true,
       }
 
-      sandbox.stub(Models.Gauge, 'findOne').resolves(mockGauge as any)
       const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(epochId)
       sandbox.stub(Models.Gauge, 'findWithPagination').resolves({
         data: [],
@@ -345,7 +305,6 @@ describe('Controller: Gauge', () => {
         isActive: true,
       }
 
-      sandbox.stub(Models.Gauge, 'findOne').resolves(mockGauge as any)
       const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(epochId)
       sandbox.stub(Models.Gauge, 'findWithPagination').resolves({
         data: [],

@@ -58,7 +58,7 @@ export default class Gauge extends Model {
   @prop({ type: () => String, default: null })
   public description!: string
 
-  @prop({ type: () => [String], default: null })
+  @prop({ type: () => Array, default: null })
   public links!: DaoResourceLink[]
 
   @prop({ type: () => String, default: null })
@@ -172,7 +172,10 @@ export default class Gauge extends Model {
     ]
 
     const currentPage = request.skip / request.limit + 1
-    const [data, totalRecords] = await Promise.all([this.aggregate(query), this.countDocuments(filter)])
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate(query),
+      this.countDocuments({ ...filter, isActive: true }),
+    ])
 
     const totalPages = Math.ceil(totalRecords / request.limit)
 
