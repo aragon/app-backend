@@ -71,6 +71,72 @@ describe('Handler: gaugeHandler', () => {
   })
 
   describe('gaugeCreated', () => {
+    it('should warn and return early if gauge already exists', async () => {
+      // Create a gauge first
+      await Models.Gauge.create({
+        network: mockInfo.network,
+        blockNumber: mockInfo.blockNumber,
+        transactionHash: mockInfo.transactionHash,
+        address: '0xGaugeDuplicate111111111111111111111111',
+        pluginAddress: mockPlugin.address,
+        creatorAddress: '0xCreator1111111111111111111111111111111',
+        name: 'Existing Gauge',
+        description: 'Already exists',
+        isActive: true,
+      })
+
+      const parsedEvent = {
+        args: {
+          gauge: '0xGaugeDuplicate111111111111111111111111',
+          creator: '0xCreator1111111111111111111111111111111',
+          metadataURI: 'ipfs://QmTest123',
+        },
+      } as any
+
+      const warnStub = sandbox.stub(logger, 'warn')
+
+      await GaugeHandler.gaugeCreated(parsedEvent, mockInfo)
+
+      expect(warnStub.calledOnce).to.be.true
+      expect(warnStub.args[0][0]).to.equal('Duplicate gauge found')
+
+      // Verify fetchMetadata was not called
+      expect(fetchMetadataStub.called).to.be.false
+    })
+
+    it('should warn and return early if plugin not found', async () => {
+      const parsedEvent = {
+        args: {
+          gauge: '0xGaugeNoPlugin11111111111111111111111111',
+          creator: '0xCreator1111111111111111111111111111111',
+          metadataURI: 'ipfs://QmTest123',
+        },
+      } as any
+
+      const warnStub = sandbox.stub(logger, 'warn')
+
+      // Use a different network so plugin won't be found
+      const differentNetworkInfo = {
+        ...mockInfo,
+        address: '0xNonExistentPlugin111111111111111111111',
+        network: NetworksEnum.arbitrumMainnet,
+      }
+
+      await GaugeHandler.gaugeCreated(parsedEvent, differentNetworkInfo)
+
+      expect(warnStub.calledOnce).to.be.true
+      expect(warnStub.args[0][0]).to.equal('plugin not found in gaugeCreated')
+
+      // Verify fetchMetadata was not called
+      expect(fetchMetadataStub.called).to.be.false
+
+      // Verify no gauge was created
+      const savedGauge = await Models.Gauge.findOne({
+        address: '0xGaugeNoPlugin11111111111111111111111111',
+      })
+      expect(savedGauge).to.be.null
+    })
+
     it('should create a new gauge with metadata from IPFS', async () => {
       const parsedEvent = {
         args: {
