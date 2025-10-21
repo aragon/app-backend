@@ -12,7 +12,7 @@ import config from '@config'
 import proxyquire from 'proxyquire'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 
-describe.only('AragonIndexer: index', () => {
+describe('AragonIndexer: index', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
