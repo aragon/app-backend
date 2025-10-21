@@ -6,6 +6,7 @@ import { Models } from '@dbModels'
 import { expect } from 'chai'
 import { LogGauge } from '@plugins/logGauge'
 import GaugeController from '@api/controllers/gauge'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 
 describe('Integ: Gauge', () => {
   let sandbox: SinonSandbox
@@ -30,7 +31,7 @@ describe('Integ: Gauge', () => {
       it(`should handle veLock all events properly ${network}`, async function () {
         this.timeout(100000000)
 
-        UnitDepUtils.stubRabbitmqSend(sandbox)
+        const rabbitMQStub = UnitDepUtils.stubRabbitmqSend(sandbox) as any
 
         await UnitDepUtils.syncACompleteDao(daoAddress, network)
         const plugin = await Models.Plugin.findOne({
@@ -43,6 +44,8 @@ describe('Integ: Gauge', () => {
         const dbGauges = await Models.Gauge.find({ pluginAddress: plugin.address, network: plugin.network })
         expect(dbGauges?.length > 0).to.be.true
 
+        rabbitMQStub.restore()
+        sandbox.stub(RabbitMQHelper, 'sendMessage').resolves('0')
         const apiGauges = await GaugeController.getGaugesWithPagination(
           {
             page: 1,
@@ -65,7 +68,7 @@ describe('Integ: Gauge', () => {
         const data = apiGauges.data[0] as any
         expect(data.metrics.voteCount).to.eq(0)
         expect(data.metrics.votingPower).to.eq('0')
-        expect(data.metrics.epochId).to.eq(null) // because rabbitmq is not working on dep test
+        expect(data.metrics.epochId).to.eq('0')
       })
     }
   })

@@ -21,6 +21,7 @@ import PluginRepoMockData from '@test/unit-dep/mockData/pluginRepo.json'
 import ProviderModule from '@modules/provider'
 import { ethers } from 'ethers'
 import { LogLockToVote } from '@plugins/logLockToVote'
+import BottleneckModule from '@modules/bottleneck'
 
 const UnitDepUtils = {
   getData: async (
@@ -194,7 +195,7 @@ const UnitDepUtils = {
   },
 
   stubRabbitmqSend: (sandbox: any) => {
-    sandbox.stub(RabbitMQHelper, 'sendMessage').callsFake(async (queue: string, job: any) => {
+    return sandbox.stub(RabbitMQHelper, 'sendMessage').callsFake(async (queue: string, job: any) => {
       if (queue === EnumQueueName.plugins) {
         const { address, network, isHistorical } = job.params as IQueuePlugin
 
@@ -251,35 +252,40 @@ const UnitDepUtils = {
     await Models.PluginRepo.insertMany(PluginRepoMockData[network])
     const provider = ProviderModule.getAnyRpcProvider(network)
     const daoAddressFilter = ethers.AbiCoder.defaultAbiCoder().encode(['address'], [daoAddress])
+    const limiter = BottleneckModule.getNodeLimiter(network)
 
-    const daoLogs = await provider.getLogs({
-      address: daoAddress,
-      fromBlock: fromBlock ?? 0,
-      toBlock: 'latest',
-      topics: [
-        configIndexer
-          .filter(config => config.event === 'Granted' || config.event === 'Revoked')
-          .map(config => config.topic),
-      ],
-    })
+    const daoLogs = (await limiter.schedule(() =>
+      provider.getLogs({
+        address: daoAddress,
+        fromBlock: fromBlock ?? 0,
+        toBlock: 'latest',
+        topics: [
+          configIndexer
+            .filter(config => config.event === 'Granted' || config.event === 'Revoked')
+            .map(config => config.topic),
+        ],
+      }),
+    )) as Log[]
 
-    const pspLogs = await provider.getLogs({
-      address: pspAddress[network],
-      fromBlock: fromBlock ?? 0,
-      toBlock: 'latest',
-      topics: [
-        configIndexer
-          .filter(
-            config =>
-              config.event === 'InstallationPrepared' ||
-              config.event === 'UninstallationPrepared' ||
-              config.event === 'UpdatePrepared',
-          )
-          .map(config => config.topic),
-        null,
-        [daoAddressFilter],
-      ],
-    })
+    const pspLogs = (await limiter.schedule(() =>
+      provider.getLogs({
+        address: pspAddress[network],
+        fromBlock: fromBlock ?? 0,
+        toBlock: 'latest',
+        topics: [
+          configIndexer
+            .filter(
+              config =>
+                config.event === 'InstallationPrepared' ||
+                config.event === 'UninstallationPrepared' ||
+                config.event === 'UpdatePrepared',
+            )
+            .map(config => config.topic),
+          null,
+          [daoAddressFilter],
+        ],
+      }),
+    )) as Log[]
 
     const allLogs = [...daoLogs, ...pspLogs].sort((a, b) => a.blockNumber - b.blockNumber)
 
