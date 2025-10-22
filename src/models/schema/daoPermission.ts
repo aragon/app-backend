@@ -1,8 +1,17 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, ICollectionNames, type IDaoPermissionId, IEventLogPermission, NetworksEnum } from '@types'
+import {
+  HexAddress,
+  ICollectionNames,
+  type IDaoPermissionId,
+  IEventLogPermission,
+  NetworksEnum,
+  type IPaginatedResult,
+  type IPaginationParams,
+} from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import { assert } from '@errors'
 import * as _ from 'lodash'
+import ModelUtils from '@models/utils/models'
 
 const customName = ICollectionNames.DaoPermission
 
@@ -121,5 +130,100 @@ export default class DaoPermission extends Model {
 
   async reload(tOpts?: SaveOptions) {
     return await this.model(customName).findById(this._id, tOpts)
+  }
+
+  static async findWithPagination({
+    extraParams,
+    paginationParams = {},
+  }: {
+    extraParams: { daoAddress: HexAddress; network: NetworksEnum }
+    paginationParams?: IPaginationParams
+  }): Promise<IPaginatedResult<any>> {
+    const request = ModelUtils.paginateAndSort(paginationParams)
+    const filter = {
+      daoAddress: extraParams.daoAddress,
+      network: extraParams.network,
+    }
+
+    const currentPage = request.skip / request.limit + 1
+
+    const aggQuery: any = [
+      { $match: filter },
+      { $sort: { blockNumber: -1 as const, transactionIndex: -1 as const, logIndex: -1 as const } },
+      {
+        $group: {
+          _id: {
+            daoAddress: '$daoAddress',
+            network: '$network',
+            permissionId: '$permissionId',
+            whoAddress: '$whoAddress',
+            whereAddress: '$whereAddress',
+          },
+          lastEvent: { $first: '$event' },
+          blockNumber: { $first: '$blockNumber' },
+          transactionHash: { $first: '$transactionHash' },
+          permissionId: { $first: '$permissionId' },
+          whoAddress: { $first: '$whoAddress' },
+          whereAddress: { $first: '$whereAddress' },
+          conditionAddress: { $first: '$conditionAddress' },
+          daoAddress: { $first: '$daoAddress' },
+          network: { $first: '$network' },
+        },
+      },
+      { $match: { lastEvent: IEventLogPermission.Granted } },
+      { $sort: request?.sort },
+      { $skip: request?.skip },
+      { $limit: request?.limit },
+      {
+        $project: {
+          _id: 0,
+          daoAddress: 1,
+          network: 1,
+          permissionId: 1,
+          whoAddress: 1,
+          whereAddress: 1,
+          conditionAddress: 1,
+          blockNumber: 1,
+          transactionHash: 1,
+        },
+      },
+    ]
+
+    const aggCountQuery: any = [
+      { $match: filter },
+      { $sort: { blockNumber: -1 as const, transactionIndex: -1 as const, logIndex: -1 as const } },
+      {
+        $group: {
+          _id: {
+            daoAddress: '$daoAddress',
+            network: '$network',
+            permissionId: '$permissionId',
+            whoAddress: '$whoAddress',
+            whereAddress: '$whereAddress',
+          },
+          lastEvent: { $first: '$event' },
+        },
+      },
+      { $match: { lastEvent: IEventLogPermission.Granted } },
+      { $count: 'totalRecords' },
+    ]
+
+    const [data, totalRecords] = await Promise.all([this.aggregate(aggQuery), this.aggregate(aggCountQuery)])
+    const _totalRecords = totalRecords?.[0]?.totalRecords ?? 0
+    const totalPages = Math.ceil(_totalRecords / request.limit)
+
+    if (currentPage > totalPages) {
+      return ModelUtils.paginateEmptyResponse(request.limit)
+    }
+
+    return {
+      metadata: {
+        page: currentPage,
+        pageSize: request.limit,
+        totalPages,
+        totalRecords: _totalRecords,
+      },
+      data: data as any,
+    }
   }
 }
