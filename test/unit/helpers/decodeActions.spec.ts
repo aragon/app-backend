@@ -2341,8 +2341,8 @@ describe('Helpers: DecodeActions', () => {
 
     const stubExtractMetadataUri = sandbox.stub(Web3Utils, 'extractMetadataUri').returns('https://link')
     // Re-configure the existing stub instead of creating a new one
-    const ipfsFetchStubb = Ipfs.fetchMetadata as sinon.SinonStub
-    ipfsFetchStubb.resolves({
+    const ipfsFetchStub = Ipfs.fetchMetadata as sinon.SinonStub
+    ipfsFetchStub.resolves({
       name: 'Gauge info',
     })
 
@@ -2350,6 +2350,6 @@ describe('Helpers: DecodeActions', () => {
     expect(result?.type).to.be.eq(ProposalActionType.RegisterGauge)
     expect(result?.gaugeMetadata).to.deep.equal({ name: 'Gauge info' })
     expect(stubExtractMetadataUri.calledOnce).to.be.true
-    expect(ipfsFetchStubb.calledOnce).to.be.true
+    expect(ipfsFetchStub.calledOnce).to.be.true
   })
 })
