@@ -137,6 +137,7 @@ class DecodeActions {
       updateMultisigSettings: this._parseMultiSigSettingUpdateAction.bind(this),
       updateVotingSettings: this._parseVotingSettingUpdateAction.bind(this),
       updateStages: this._parseStageUpdatedOnSppAction.bind(this),
+      registerGauge: this._parseRegisterGauge.bind(this),
     }
 
     for (const pattern in actionHandlers) {
@@ -676,6 +677,35 @@ class DecodeActions {
       receiver: { address: metadata.to },
       amount: metadata.value,
       token: metadata.token,
+    }
+  }
+
+  async _parseRegisterGauge(decodedData: IProposalActionInputData, action: IRawAction) {
+    if (decodedData.textSignature !== KnownActionSignature.RegisterGauge) {
+      return null
+    }
+
+    const ipfsUrl = Web3Utils.extractMetadataUri(decodedData.parameters[3].value)
+
+    if (!ipfsUrl) {
+      return null
+    }
+
+    try {
+      const gaugeMetadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
+
+      if (!gaugeMetadata) {
+        return null
+      }
+
+      return {
+        ...action,
+        type: ProposalActionType.RegisterGauge,
+        inputData: decodedData,
+        gaugeMetadata,
+      }
+    } catch (e) {
+      return null
     }
   }
 

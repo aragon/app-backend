@@ -14,6 +14,7 @@ export enum ProposalActionType {
   UpdateLockToVoteVoteSettings = 'UpdateLockToVoteVoteSettings',
   StagesUpdated = 'StagesUpdated',
   MetadataPluginUpdate = 'MetadataPluginUpdate',
+  RegisterGauge = 'RegisterGauge',
 }
 
 export interface IRawAction {
@@ -40,6 +41,7 @@ export enum KnownActionSignature {
   UpdateVoteSettings = 'updateVotingSettings(tuple)',
   StagesUpdated = 'updateStages(tuple[])',
   UpgradeToAndCall = 'upgradeToAndCall(address,bytes)',
+  RegisterGauge = 'registerGauge(address,uint8,address,bytes)',
 }
 
 export interface ITransfacerActionMeta {

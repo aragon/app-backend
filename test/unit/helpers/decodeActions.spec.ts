@@ -2313,4 +2313,43 @@ describe('Helpers: DecodeActions', () => {
       })
     })
   })
+
+  it('should parse _parseRegisterGauge', async () => {
+    const decodeActions = new DecodeActions()
+    const baseAction = {
+      textSignature: 'registerGauge(address,uint8,address,bytes)',
+      function: 'registerGauge',
+      contract: 'GaugeRegistrar',
+      parameters: [
+        { name: '_qiToken', type: 'address', value: '0xQiToken' },
+        { name: '_incentive', type: 'uint8', value: 0 },
+        { name: '_rewardController', type: 'address', value: '0xRewardController' },
+        {
+          name: '_metadataURI',
+          type: 'bytes',
+          value:
+            '0x697066733a2f2f516d4e753239435378354276596a506a786d716e6a6a6d5a68326e6a4e4b6e68346a7a566b5a6d476d4778667458',
+        },
+      ],
+    }
+
+    const action = {
+      to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+      value: 0n,
+      data: '0x00',
+    }
+
+    const stubExtractMetadataUri = sandbox.stub(Web3Utils, 'extractMetadataUri').returns('https://link')
+    // Re-configure the existing stub instead of creating a new one
+    const ipfsFetchStubb = Ipfs.fetchMetadata as sinon.SinonStub
+    ipfsFetchStubb.resolves({
+      name: 'Gauge info',
+    })
+
+    const result = await decodeActions._parseRegisterGauge(baseAction, action)
+    expect(result?.type).to.be.eq(ProposalActionType.RegisterGauge)
+    expect(result?.gaugeMetadata).to.deep.equal({ name: 'Gauge info' })
+    expect(stubExtractMetadataUri.calledOnce).to.be.true
+    expect(ipfsFetchStubb.calledOnce).to.be.true
+  })
 })
