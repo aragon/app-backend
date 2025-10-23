@@ -1,3 +1,34 @@
+# [0.15.0](https://github.com/aragon/app-backend/compare/v0.14.0...v0.15.0) (2025-10-23)
+
+
+### Bug Fixes
+
+* **blockchainLogCrawler:** add missing newline at end of file ([32f2e07](https://github.com/aragon/app-backend/commit/32f2e07dbc18db623816bf8fde02b827b1213756))
+
+
+### Features
+
+* **config:** add Transfer event configuration with empty handlers ([9d5c8e1](https://github.com/aragon/app-backend/commit/9d5c8e15124081b26188d0f5c6af4e833ba6c48d))
+* **configIndexer:** add Transfer event configuration ([12b5cb6](https://github.com/aragon/app-backend/commit/12b5cb6fec2e0b9774df41b32389feaa013142c4))
+* **configIndexer:** add Transfer event configuration ([8057359](https://github.com/aragon/app-backend/commit/80573590a2fb789dc0a13063aee0c78f6c03ab36))
+* **config:** remove unused Transfer event configuration ([409a63d](https://github.com/aragon/app-backend/commit/409a63d1da09d60e66fb2e35a4494e6868bf841f))
+* **config:** update AVAX mainnet configuration parameters and add Transfer event ([871ad2d](https://github.com/aragon/app-backend/commit/871ad2d7c34e59a78fed7d54b673e2e01cfc716e))
+* **config:** update AVAX mainnet configuration parameters and fix test code ([ad6f165](https://github.com/aragon/app-backend/commit/ad6f1659308fda45f220fffae00a8ed58f9e0487))
+* **contractNetspec:** add move coverage for contract netpsec helper adding vyper support test ([432548e](https://github.com/aragon/app-backend/commit/432548e77788eb46e8361a25f4da6693f7cc397d))
+* **crawler:** refactor highest block processed state even though no logs found ([51671c3](https://github.com/aragon/app-backend/commit/51671c3f9094d9303f879bb7abd2807357627621))
+* **crawler:** refactor highest block processed state even though no logs found ([5c7d1eb](https://github.com/aragon/app-backend/commit/5c7d1ebf833ffabfb8130d1738f151b5f2c16883))
+* **crawler:** update highest block processed logic to handle empty sorted logs ([108a671](https://github.com/aragon/app-backend/commit/108a67125ac4d8564b3ad6c120084e37058810d1))
+* **dao:** add exclusion filter for specified DAO addresses in pagination query ([503c30d](https://github.com/aragon/app-backend/commit/503c30dc6f91d6488d4088915f8d00c6799012b9))
+* **dao:** improve filtering logic for DAO addresses and networks ([7ae9c1a](https://github.com/aragon/app-backend/commit/7ae9c1a4d9acf4380d301c04c415ab3188375664))
+* **exitQueue:** add ExitQueuedV2 event and update related configurations ([b38c930](https://github.com/aragon/app-backend/commit/b38c930e505cd348ecdf18b95506b4b846b5647d))
+* **exitQueue:** add ExitQueuedV2 event and update related configurations ([8161246](https://github.com/aragon/app-backend/commit/8161246cca4e3ce9ef733fe8892ca91591c97f02))
+* **natspec:** add compiler version handling and detection for Solidity and Vyper contracts ([ccc2c83](https://github.com/aragon/app-backend/commit/ccc2c836d327563651495435aad93443fcb83e47))
+* **networks:** add AVAX mainnet configuration and mappings ([0caed4b](https://github.com/aragon/app-backend/commit/0caed4b941974b5cf502e9a5ec68bc73c7fe3cf7))
+* **networks:** add AVAX mainnet configuration and mappings ([e68ca99](https://github.com/aragon/app-backend/commit/e68ca99ed5380fd162070ebb110866f91f677e13))
+* **networks:** fix AVAX mainnet mapping syntax ([ab6d700](https://github.com/aragon/app-backend/commit/ab6d700e43af8abf4a81ea3b2452a45489090d00))
+* **networks:** update AVAX mainnet configuration parameters ([9ec2c34](https://github.com/aragon/app-backend/commit/9ec2c343250159c974a1ad59b87d490a14e3268b))
+* **proposalHandler:** simplify block number assignment in case of from and to same ([b6305dd](https://github.com/aragon/app-backend/commit/b6305dd49d9fa1c42a940bbd7c2ca80b205a90ea))
+
 # [0.14.0](https://github.com/aragon/app-backend/compare/v0.13.0...v0.14.0) (2025-10-15)
 
 
