@@ -128,8 +128,9 @@ export default class Gauge extends Model {
         },
         'gaugeMetrics',
         {
-          voteCount: 1,
-          votingPower: 1,
+          totalMemberVoteCount: 1,
+          currentEpochVotingPower: 1,
+          totalGaugeVotingPower: 1,
           epochId: 1,
         },
       ),
@@ -139,13 +140,15 @@ export default class Gauge extends Model {
             $cond: {
               if: { $gt: [{ $size: '$gaugeMetrics' }, 0] },
               then: {
-                voteCount: { $arrayElemAt: ['$gaugeMetrics.voteCount', 0] },
-                votingPower: { $arrayElemAt: ['$gaugeMetrics.votingPower', 0] },
+                totalMemberVoteCount: { $arrayElemAt: ['$gaugeMetrics.totalMemberVoteCount', 0] },
+                currentEpochVotingPower: { $arrayElemAt: ['$gaugeMetrics.currentEpochVotingPower', 0] },
+                totalGaugeVotingPower: { $arrayElemAt: ['$gaugeMetrics.totalGaugeVotingPower', 0] },
                 epochId: { $arrayElemAt: ['$gaugeMetrics.epochId', 0] },
               },
               else: {
-                voteCount: 0,
-                votingPower: '0',
+                totalMemberVoteCount: 0,
+                currentEpochVotingPower: '0',
+                totalGaugeVotingPower: '0',
                 epochId: params.epochId,
               },
             },

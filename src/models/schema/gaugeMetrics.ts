@@ -41,10 +41,13 @@ export default class GaugeMetrics extends Model {
   public pluginAddress?: HexAddress
 
   @prop({ type: () => Number, default: 0 })
-  public voteCount!: number
+  public totalMemberVoteCount!: number
 
   @prop({ type: () => String, default: '0' })
-  public votingPower!: string
+  public currentEpochVotingPower!: string
+
+  @prop({ type: () => String, default: '0' })
+  public totalGaugeVotingPower!: string
 
   @prop({ type: () => String, required: true })
   public epochId!: string

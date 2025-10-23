@@ -60,6 +60,12 @@ export interface IGaugeParams {
   epochId?: string
 }
 
+export interface IGaugeEpochMetricParams {
+  network: NetworksEnum
+  pluginAddress: HexAddress
+  memberAddress?: HexAddress
+}
+
 export interface IAssetExtraParams {
   network?: NetworksEnum
   daoAddress?: HexAddress

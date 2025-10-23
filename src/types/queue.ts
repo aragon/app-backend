@@ -20,6 +20,7 @@ export enum EnumQueueName {
   canCreateProposal = 'can.create.proposal',
   pluginInstallationData = 'plugin.installation.data',
   gaugeEpochId = 'plugin.gauge.epochId',
+  gaugeInfo = 'plugin.gauge.info',
   getTokenStats = 'token.stats',
   logSelectorPermission = 'log.selector.permission',
   syncMerkleProofs = 'sync.merkle.proofs',
@@ -113,4 +114,24 @@ export interface IMerkleProofSync {
 export interface IGetGaugeEpochId {
   pluginAddress: HexAddress
   network: NetworksEnum
+}
+
+export interface IGetGaugeInfoId {
+  pluginAddress: HexAddress
+  memberAddress?: HexAddress
+  network: NetworksEnum
+}
+
+export interface IGaugeInfo {
+  pluginAddress: HexAddress
+  network: NetworksEnum
+  enableUpdateVotingPowerHook: boolean
+  epochId: string | null
+  currentEpochStart: number | null
+  epochVoteStart: number | null
+  epochVoteEnd: number | null
+  totalVotingPower: string
+  memberAddress?: HexAddress
+  memberUsedVotingPower?: string
+  memberVotingPower?: string
 }

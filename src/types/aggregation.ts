@@ -246,7 +246,8 @@ export interface IAggPluginMetricsProjectFields {
 }
 
 export interface IAggGaugeMetricsProjectFields {
-  voteCount: 1
-  votingPower: 1
+  totalMemberVoteCount: 1
+  currentEpochVotingPower: 1
+  totalGaugeVotingPower: 1
   epochId: 1
 }

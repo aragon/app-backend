@@ -9,6 +9,14 @@ const GaugeSchema = {
       .valid(...Object.values(NetworksEnum))
       .required(),
   }),
+
+  getGaugeEpochMetricsParams: Joi.object({
+    pluginAddress: ValidationSchema.joiAddress.required(),
+    memberAddress: ValidationSchema.joiAddress.optional(),
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
+  }),
 }
 
 export default GaugeSchema

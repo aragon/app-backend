@@ -194,7 +194,7 @@ export const PluginSetupProcessorHandler = {
 
     if (pluginDb?.interfaceType === IPluginInterfaceType.gauge) {
       // mark as an active plugin with no settings
-      pluginDb.iVotesAddress = await Web3Helper.getIVotesAdapterAddress(pluginDb.address, pluginDb.network)
+      pluginDb.iVotesAddress = await GaugeHelper.getIVotesAdapterAddress(pluginDb.address, pluginDb.network)
 
       // create manual settings for gauge
       await PluginSettingHandler.gaugeSettings(pluginDb, info)

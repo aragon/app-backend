@@ -165,7 +165,8 @@ export const GaugeHandler = {
         gaugeAddress: gauge.address,
         pluginAddress: gauge.pluginAddress,
         network: gauge.network,
-        votingPower: parsedEvent.args.totalVotingPowerInGauge.toString(),
+        currentEpochVotingPower: parsedEvent.args.totalVotingPowerInGauge.toString(),
+        totalGaugeVotingPower: parsedEvent.args.totalVotingPowerInContract.toString(),
       })
 
       logger.verbose('Gauge voted', llo({ address: gauge.address, epochId }))
@@ -220,7 +221,8 @@ export const GaugeHandler = {
         gaugeAddress: gauge.address,
         pluginAddress: gauge.pluginAddress,
         network: gauge.network,
-        votingPower: parsedEvent.args.totalVotingPowerInGauge.toString(),
+        currentEpochVotingPower: parsedEvent.args.totalVotingPowerInGauge.toString(),
+        totalGaugeVotingPower: parsedEvent.args.totalVotingPowerInContract.toString(),
       })
 
       logger.verbose('Gauge reset vote', llo({ address: gauge.address, epochId }))

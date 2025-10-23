@@ -24,6 +24,7 @@ import Web3Utils from '@helpers/web3Utils'
 import PluginDetector from '@helpers/pluginDetector'
 import GovernanceVeHelper from '@helpers/governanceVe'
 import { LockToVote } from '@artifacts/LockToVote'
+import GaugeHelper from '@helpers/gauge'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PluginSettingHandler' })
 
@@ -340,7 +341,7 @@ export const PluginSettingHandler = {
       pluginAddress: plugin.address,
       pluginSubdomain: plugin.subdomain,
       network: plugin.network,
-      enabledUpdatedVotingPowerHook: await Web3Helper.getEnableUpdateVotingPowerHookFlag(
+      enabledUpdatedVotingPowerHook: await GaugeHelper.getEnableUpdateVotingPowerHookFlag(
         plugin.address,
         plugin.network,
       ),

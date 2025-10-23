@@ -2,11 +2,15 @@ import { Models } from '@dbModels'
 import {
   EnumQueueName,
   ErrorKeyEnum,
+  type IGaugeEpochMetricParams,
+  type IGaugeInfo,
   type IGaugeParams,
   type IGaugeResponse,
   type IGetGaugeEpochId,
+  type IGetGaugeInfoId,
   type IPaginatedResult,
   type IPaginationParams,
+  IPluginInterfaceType,
 } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import config from '@config'
@@ -32,6 +36,36 @@ const GaugeController = {
     assertExposable(!!params.epochId, ErrorKeyEnum.notFound, undefined, undefined, params)
 
     return await Models.Gauge.findWithPagination({ params, paginationParams })
+  },
+
+  getGaugeEpochMetrics: async (params: IGaugeEpochMetricParams): Promise<IGaugeInfo> => {
+    const plugin = await Models.Plugin.findOne({
+      interfaceType: IPluginInterfaceType.gauge,
+      address: params.pluginAddress,
+    })
+    assertExposable(!!plugin, ErrorKeyEnum.notFound, undefined, undefined, {
+      pluginAddress: params.pluginAddress,
+      memberAddress: params.memberAddress,
+    })
+
+    const gaugeInfo = await RabbitMQHelper.sendMessage(
+      EnumQueueName.gaugeInfo,
+      {
+        id: `${plugin.pluginAddress}-${plugin.network}`,
+        params: {
+          pluginAddress: plugin.pluginAddress!,
+          memberAddress: params.memberAddress,
+          network: plugin.network!,
+        } satisfies IGetGaugeInfoId,
+      },
+      { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
+    )
+    assertExposable(!!gaugeInfo, ErrorKeyEnum.notFound, undefined, undefined, {
+      pluginAddress: params.pluginAddress,
+      memberAddress: params.memberAddress,
+    })
+
+    return gaugeInfo
   },
 }
 

@@ -4,8 +4,13 @@ import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import Utils from '@helpers/utils'
+import GaugeHelper from '@helpers/gauge'
 
 const Plugin = {
+  getGaugeEpochId: async (pluginAddress: HexAddress, network: NetworksEnum) => {
+    return await GaugeHelper.getGaugeEpochId(pluginAddress, network)
+  },
+
   getInstallationData: async (pluginAddress: HexAddress, network: NetworksEnum) => {
     const [pluginDb, installationLog] = await Promise.all([
       Models.Plugin.findByAddress(pluginAddress, network),
@@ -51,10 +56,6 @@ const Plugin = {
     } catch (_error: any) {
       return null
     }
-  },
-
-  getGaugeEpochId: async (pluginAddress: HexAddress, network: NetworksEnum) => {
-    return await Web3Helper.getGaugeEpochId(pluginAddress, network)
   },
 }
 

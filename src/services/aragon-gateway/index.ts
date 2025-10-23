@@ -3,6 +3,7 @@ import {
   EnumConnection,
   EnumQueueName,
   type IGetGaugeEpochId,
+  type IGetGaugeInfoId,
   type IMerkleProofSync,
   type IQueueCanCreateProposal,
   type IQueueContractInfo,
@@ -18,6 +19,8 @@ import config from '@config'
 import Plugin from '@services/aragon-gateway/plugin'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
+import GaugeHelper from '@helpers/gauge'
+import { GaugeInfo } from '@services/aragon-gateway/gauge'
 
 const llo = logger.logMeta.bind(null, { service: 'service:GatewayService' })
 
@@ -63,7 +66,12 @@ const AragonGatewayService: IService = {
     })
 
     await RabbitMQHelper.process(EnumQueueName.gaugeEpochId, async (job: { params: IGetGaugeEpochId }) => {
-      return await Plugin.getGaugeEpochId(job.params.pluginAddress, job.params.network)
+      return await GaugeHelper.getGaugeEpochId(job.params.pluginAddress, job.params.network)
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.gaugeInfo, async job => {
+      const { pluginAddress, memberAddress, network } = job.params as IGetGaugeInfoId
+      return await GaugeInfo.getGaugeInfo({ pluginAddress, memberAddress, network })
     })
 
     logger.info('AragonGatewayService service started', llo({}))
