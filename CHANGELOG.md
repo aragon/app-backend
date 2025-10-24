@@ -1,3 +1,18 @@
+# [0.16.0](https://github.com/aragon/app-backend/compare/v0.15.0...v0.16.0) (2025-10-24)
+
+
+### Bug Fixes
+
+* **device.spec:** remove leading whitespace from user agent string ([c0390dc](https://github.com/aragon/app-backend/commit/c0390dc298bb497271ff515fc9da8082abb93b95))
+* **external.spec:** update Sentry new package ([ff6d300](https://github.com/aragon/app-backend/commit/ff6d300ea62f252e8c7b16a5f5448d6c375fc8c7))
+* **migration:** correct syntax in uninstalled plugin migration script ([1b82c7b](https://github.com/aragon/app-backend/commit/1b82c7b174a7c14aae1f0aba3f0fbb9fbec20851))
+
+
+### Features
+
+* **migration:** add migration to fix uninstalled plugins wrongly marked as unsupported ([91ec9da](https://github.com/aragon/app-backend/commit/91ec9da66f2d8109d9a859612a0b06b1c53a4044))
+* **migration:** enhance logging for uninstalled plugin migration process ([558fa14](https://github.com/aragon/app-backend/commit/558fa14496564d564a413237d8ba0b03a36791bd))
+
 # [0.15.0](https://github.com/aragon/app-backend/compare/v0.14.0...v0.15.0) (2025-10-23)
 
 
