@@ -37,7 +37,7 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
         )
         await Utils.wait(retryDelay(retryCount))
         retryCount++
-      } else if (['SERVER_ERROR', 'TIMEOUT'].includes(error?.code) && isErrorRelatedToServerIssue(error)) {
+      } else if (isErrorRelatedToServerIssue(error)) {
         logger.warn(
           'Warn, retrying on alchemy server error...',
           llo({ retryCount, wait: retryDelay(retryCount), error }),
@@ -78,6 +78,13 @@ export function canBeRetried(error: any): boolean {
 }
 
 export function isErrorRelatedToServerIssue(error: any): boolean {
+  const whitelistCode = ['SERVER_ERROR', 'TIMEOUT', 'ECONNRESET']
+  const errorCode = error?.errorCode || error?.code || error?.error?.code_str
+
+  if (!whitelistCode.includes(errorCode)) {
+    return false
+  }
+
   try {
     const parsedReqBody = JSON.parse(error?.requestBody || '{}')
     const method = parsedReqBody?.method
