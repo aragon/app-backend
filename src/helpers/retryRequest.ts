@@ -79,7 +79,7 @@ export function canBeRetried(error: any): boolean {
 
 export function isErrorRelatedToServerIssue(error: any): boolean {
   const whitelistCode = ['SERVER_ERROR', 'TIMEOUT', 'ECONNRESET']
-  const errorCode = error?.errorCode || error?.code || error?.error?.code_str
+  const errorCode = error?.code || error?.code_str || error?.errorCode || error?.error?.code_str
 
   if (!whitelistCode.includes(errorCode)) {
     return false
