@@ -326,6 +326,7 @@ describe('Helpers:RetryRequest', () => {
   describe('isErrorRelatedToServerIssue', () => {
     it('should return true for whitelisted method: eth_blockNumber', () => {
       const error = {
+        code: 'SERVER_ERROR',
         requestBody: JSON.stringify({ method: 'eth_blockNumber' }),
       }
       expect(RetryRequest.isErrorRelatedToServerIssue(error)).to.be.true
@@ -333,6 +334,7 @@ describe('Helpers:RetryRequest', () => {
 
     it('should return true for whitelisted method: eth_getBlockByNumber', () => {
       const error = {
+        code: 'SERVER_ERROR',
         requestBody: JSON.stringify({ method: 'eth_getBlockByNumber' }),
       }
       expect(RetryRequest.isErrorRelatedToServerIssue(error)).to.be.true
@@ -340,6 +342,7 @@ describe('Helpers:RetryRequest', () => {
 
     it('should return true for whitelisted method: eth_getBlockReceipts', () => {
       const error = {
+        code: 'SERVER_ERROR',
         requestBody: JSON.stringify({ method: 'eth_getBlockReceipts' }),
       }
       expect(RetryRequest.isErrorRelatedToServerIssue(error)).to.be.true
@@ -347,6 +350,7 @@ describe('Helpers:RetryRequest', () => {
 
     it('should return true for whitelisted method: eth_getTransactionReceipt', () => {
       const error = {
+        code: 'SERVER_ERROR',
         requestBody: JSON.stringify({ method: 'eth_getTransactionReceipt' }),
       }
       expect(RetryRequest.isErrorRelatedToServerIssue(error)).to.be.true
@@ -361,6 +365,7 @@ describe('Helpers:RetryRequest', () => {
 
     it('should return true if method is "eth_getLogs" with same fromBlock and toBlock', () => {
       const error = {
+        code: 'TIMEOUT',
         requestBody: JSON.stringify({
           method: 'eth_getLogs',
           params: [{ fromBlock: '0x10', toBlock: '0x10' }],
@@ -381,6 +386,7 @@ describe('Helpers:RetryRequest', () => {
 
     it('should return false if requestBody is malformed JSON', () => {
       const error = {
+        code: 'SERVER_ERROR',
         requestBody: '{invalid_json}',
       }
       const warnStub = sandbox.stub(Logger, 'warn')
