@@ -45,7 +45,8 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
         await Utils.wait(retryDelay(retryCount))
         retryCount++
       } else {
-        // logger.warn('Error in Retry Request', llo({ error }))
+        error.retryCount = retryCount
+        error.expCode = error?.code || error?.code_str || error?.errorCode || error?.error?.code_str || 'unknown'
         throw error
       }
     }
