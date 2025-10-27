@@ -393,7 +393,21 @@ describe('Helpers:RetryRequest', () => {
 
       expect(RetryRequest.isErrorRelatedToServerIssue(error)).to.be.false
       expect(warnStub.calledOnce).to.be.true
-      expect(warnStub.calledWithMatch('Error parsing request body for isErrorRelatedToServerIssue' as any)).to.be.true
+      expect(warnStub.calledWithMatch('Failed to parse request data as JSON' as any)).to.be.true
+    })
+
+    it('should return false if config.data is malformed JSON', () => {
+      const error = {
+        code: 'ECONNRESET',
+        config: {
+          data: 'not-json-at-all',
+        },
+      }
+      const warnStub = sandbox.stub(Logger, 'warn')
+
+      expect(RetryRequest.isErrorRelatedToServerIssue(error)).to.be.false
+      expect(warnStub.calledOnce).to.be.true
+      expect(warnStub.calledWithMatch('Failed to parse request data as JSON' as any)).to.be.true
     })
 
     it('should return false if requestBody is undefined', () => {
@@ -410,6 +424,69 @@ describe('Helpers:RetryRequest', () => {
 
     it('should return false if error is undefined', () => {
       expect(RetryRequest.isErrorRelatedToServerIssue(undefined)).to.be.false
+    })
+
+    it('should parse axios error structure using config.data', () => {
+      const error = {
+        code: 'ECONNRESET',
+        config: {
+          data: JSON.stringify({ method: 'eth_getBlockReceipts' }),
+        },
+      }
+      expect(RetryRequest.isErrorRelatedToServerIssue(error)).to.be.true
+    })
+
+    it('should handle batch requests (array) with whitelisted methods', () => {
+      const error = {
+        code: 'ECONNRESET',
+        config: {
+          data: JSON.stringify([
+            { jsonrpc: '2.0', id: 'block-1', method: 'eth_getBlockReceipts', params: ['0x1'] },
+            { jsonrpc: '2.0', id: 'block-2', method: 'eth_getBlockReceipts', params: ['0x2'] },
+          ]),
+        },
+      }
+      expect(RetryRequest.isErrorRelatedToServerIssue(error)).to.be.true
+    })
+
+    it('should handle batch requests with eth_getLogs same block', () => {
+      const error = {
+        config: {
+          data: JSON.stringify([{ method: 'eth_getLogs', params: [{ fromBlock: '0x10', toBlock: '0x10' }] }]),
+        },
+      }
+      expect(RetryRequest.isErrorRelatedToServerIssue(error)).to.be.true
+    })
+
+    it('should return false for batch requests with no whitelisted methods', () => {
+      const error = {
+        config: {
+          data: JSON.stringify([
+            { method: 'eth_getBalance', params: ['0x123'] },
+            { method: 'eth_call', params: [{}] },
+          ]),
+        },
+      }
+      expect(RetryRequest.isErrorRelatedToServerIssue(error)).to.be.false
+    })
+
+    it('should return true if batch has at least one whitelisted method', () => {
+      const error = {
+        config: {
+          data: JSON.stringify([
+            { method: 'eth_getBalance', params: ['0x123'] },
+            { method: 'eth_getBlockReceipts', params: ['0x1'] },
+          ]),
+        },
+      }
+      expect(RetryRequest.isErrorRelatedToServerIssue(error)).to.be.true
+    })
+
+    it('should fallback to requestBody if config.data is not present', () => {
+      const error = {
+        requestBody: JSON.stringify({ method: 'eth_blockNumber' }),
+      }
+      expect(RetryRequest.isErrorRelatedToServerIssue(error)).to.be.true
     })
   })
 })
