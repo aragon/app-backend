@@ -91,8 +91,17 @@ export function canBeRetried(error: any): boolean {
 
 export function isErrorRelatedToServerIssue(error: any): boolean {
   try {
-    const requestData = error?.config?.data || error?.requestBody || '{}'
-    const parsedReqBody = JSON.parse(requestData)
+    const requestData = error?.config?.data || error?.requestBody
+    if (!requestData) return false
+
+    let parsedReqBody: any = null
+    try {
+      parsedReqBody = JSON.parse(requestData)
+    } catch (parseError) {
+      logger.warn('Failed to parse request data as JSON', { requestData, parseError })
+      return false
+    }
+
     const whitelistMethods = [
       'eth_blockNumber',
       'eth_getBlockByNumber',
@@ -100,21 +109,18 @@ export function isErrorRelatedToServerIssue(error: any): boolean {
       'eth_getTransactionReceipt',
     ]
 
-    if (Array.isArray(parsedReqBody)) {
-      return parsedReqBody.some(req => {
-        const method = req?.method
-        const params = req?.params?.[0]
-        const isEthGetLogsWithSameBlock = method === 'eth_getLogs' && params?.fromBlock === params?.toBlock
-        return isEthGetLogsWithSameBlock || whitelistMethods.includes(method)
-      })
+    const isRequestWhitelisted = (req: any) => {
+      const method = req?.method
+      const params = req?.params?.[0]
+      const isEthGetLogsWithSameBlock = method === 'eth_getLogs' && params?.fromBlock === params?.toBlock
+      return isEthGetLogsWithSameBlock || whitelistMethods.includes(method)
     }
 
-    const method = parsedReqBody?.method
-    const params = parsedReqBody?.params?.[0]
-    const isEthGetLogsWithSameBlock = method === 'eth_getLogs' && params?.fromBlock === params?.toBlock
-    const isFromWhitelistMethods = whitelistMethods.includes(method)
+    if (Array.isArray(parsedReqBody)) {
+      return parsedReqBody.some(isRequestWhitelisted)
+    }
 
-    return isEthGetLogsWithSameBlock || isFromWhitelistMethods
+    return isRequestWhitelisted(parsedReqBody)
   } catch (e) {
     logger.warn('Error parsing request body for isErrorRelatedToServerIssue', { error, e })
     return false
