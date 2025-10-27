@@ -149,7 +149,7 @@ export default class DaoPermission extends Model {
 
     const aggQuery: any = [
       { $match: filter },
-      { $sort: { blockNumber: -1 as const, transactionIndex: -1 as const, logIndex: -1 as const } },
+      { $sort: { blockNumber: -1, transactionIndex: -1, logIndex: -1 } },
       {
         $group: {
           _id: {
@@ -191,7 +191,7 @@ export default class DaoPermission extends Model {
 
     const aggCountQuery: any = [
       { $match: filter },
-      { $sort: { blockNumber: -1 as const, transactionIndex: -1 as const, logIndex: -1 as const } },
+      { $sort: { blockNumber: -1, transactionIndex: -1, logIndex: -1 } },
       {
         $group: {
           _id: {
