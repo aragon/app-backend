@@ -152,7 +152,7 @@ describe.skip('Integ: BlockchainLogCrawler', () => {
     })
   })
 
-  it.only('should sync BRG delegateEvents in parallel and batch', async function () {
+  it('should sync BRG delegateEvents in parallel and batch', async function () {
     this.timeout(10000000)
 
     const plugin = await Models.Plugin.create({
