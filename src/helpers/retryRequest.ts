@@ -44,6 +44,10 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
         )
         await Utils.wait(retryDelay(retryCount))
         retryCount++
+      } else if (serverNotAvailableError(error)) {
+        logger.warn('Server not available, retrying...', llo({ retryCount, wait: retryDelay(retryCount), error }))
+        await Utils.wait(retryDelay(retryCount))
+        retryCount++
       } else {
         error.retryCount = retryCount
         error.expCode = error?.code || error?.code_str || error?.errorCode || error?.error?.code_str || 'unknown'
@@ -53,6 +57,13 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
   }
 
   throw new Error(`Request failed after ${maxRetries} retries`)
+}
+
+export function serverNotAvailableError(error: any): boolean {
+  const whitelistCode = ['SERVER_ERROR', 'TIMEOUT', 'ECONNRESET']
+  const errorCode = error?.code || error?.code_str || error?.errorCode || error?.error?.code_str
+
+  return whitelistCode.includes(errorCode)
 }
 
 export async function retryResult<T>(fn: () => Promise<T>, retries: number, delay: number): Promise<T | null> {
@@ -79,17 +90,18 @@ export function canBeRetried(error: any): boolean {
 }
 
 export function isErrorRelatedToServerIssue(error: any): boolean {
-  const whitelistCode = ['SERVER_ERROR', 'TIMEOUT', 'ECONNRESET']
-  const errorCode = error?.code || error?.code_str || error?.errorCode || error?.error?.code_str
-
-  if (!whitelistCode.includes(errorCode)) {
-    return false
-  }
-
   try {
-    const parsedReqBody = JSON.parse(error?.requestBody || '{}')
-    const method = parsedReqBody?.method
-    const params = parsedReqBody?.params?.[0]
+    const requestData = error?.config?.data || error?.requestBody
+    if (!requestData) return false
+
+    let parsedReqBody: any = null
+    try {
+      parsedReqBody = JSON.parse(requestData)
+    } catch (parseError) {
+      logger.warn('Failed to parse request data as JSON', { requestData, parseError })
+      return false
+    }
+
     const whitelistMethods = [
       'eth_blockNumber',
       'eth_getBlockByNumber',
@@ -97,10 +109,18 @@ export function isErrorRelatedToServerIssue(error: any): boolean {
       'eth_getTransactionReceipt',
     ]
 
-    const isEthGetLogsWithSameBlock = method === 'eth_getLogs' && params?.fromBlock === params?.toBlock
-    const isFromWhitelistMethods = whitelistMethods.includes(method)
+    const isRequestWhitelisted = (req: any) => {
+      const method = req?.method
+      const params = req?.params?.[0]
+      const isEthGetLogsWithSameBlock = method === 'eth_getLogs' && params?.fromBlock === params?.toBlock
+      return isEthGetLogsWithSameBlock || whitelistMethods.includes(method)
+    }
 
-    return isEthGetLogsWithSameBlock || isFromWhitelistMethods
+    if (Array.isArray(parsedReqBody)) {
+      return parsedReqBody.some(isRequestWhitelisted)
+    }
+
+    return isRequestWhitelisted(parsedReqBody)
   } catch (e) {
     logger.warn('Error parsing request body for isErrorRelatedToServerIssue', { error, e })
     return false
