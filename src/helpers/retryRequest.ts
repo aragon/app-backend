@@ -2,7 +2,6 @@ import logger from '@logger'
 import Utils from '@helpers/utils'
 import { assert } from '@errors'
 import config from '@config'
-import { boolean } from 'joi'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:RetryRequestHelper' })
 
