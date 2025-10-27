@@ -452,9 +452,7 @@ describe('Helpers:RetryRequest', () => {
     it('should handle batch requests with eth_getLogs same block', () => {
       const error = {
         config: {
-          data: JSON.stringify([
-            { method: 'eth_getLogs', params: [{ fromBlock: '0x10', toBlock: '0x10' }] },
-          ]),
+          data: JSON.stringify([{ method: 'eth_getLogs', params: [{ fromBlock: '0x10', toBlock: '0x10' }] }]),
         },
       }
       expect(RetryRequest.isErrorRelatedToServerIssue(error)).to.be.true
