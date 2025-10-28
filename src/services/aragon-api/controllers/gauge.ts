@@ -50,9 +50,9 @@ const GaugeController = {
     const gaugeInfo = await RabbitMQHelper.sendMessage(
       EnumQueueName.gaugeInfo,
       {
-        id: `${plugin.pluginAddress}-${plugin.network}`,
+        id: `${plugin.address}-${plugin.network}`,
         params: {
-          pluginAddress: plugin.pluginAddress!,
+          pluginAddress: plugin.address!,
           memberAddress: params.memberAddress,
           network: plugin.network!,
         } satisfies IGetGaugeInfoId,
