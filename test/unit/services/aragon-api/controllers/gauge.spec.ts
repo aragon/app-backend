@@ -7,7 +7,7 @@ import { EnumQueueName, ErrorKeyEnum, NetworksEnum } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import config from '@config'
 
-describe('Controller: Gauge', () => {
+describe.only('Controller: Gauge', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -345,6 +345,7 @@ describe('Controller: Gauge', () => {
       const response = await GaugeController.getGaugeEpochMetrics({
         pluginAddress,
         memberAddress,
+        network
       })
 
       expect(findOneStub.calledOnce).to.be.true
@@ -381,6 +382,7 @@ describe('Controller: Gauge', () => {
         await GaugeController.getGaugeEpochMetrics({
           pluginAddress,
           memberAddress,
+          network: NetworksEnum.ethereumMainnet,
         })
         expect.fail('Should have thrown an error')
       } catch (error: any) {
@@ -407,6 +409,7 @@ describe('Controller: Gauge', () => {
         await GaugeController.getGaugeEpochMetrics({
           pluginAddress,
           memberAddress,
+          network
         })
         expect.fail('Should have thrown an error')
       } catch (error: any) {
@@ -442,6 +445,7 @@ describe('Controller: Gauge', () => {
       const response = await GaugeController.getGaugeEpochMetrics({
         pluginAddress,
         memberAddress,
+        network
       })
 
       expect(rabbitMQStub.args[0][1].id).to.eq(`${pluginAddress}-${network}`)
@@ -472,6 +476,7 @@ describe('Controller: Gauge', () => {
       await GaugeController.getGaugeEpochMetrics({
         pluginAddress,
         memberAddress,
+        network
       })
 
       expect(rabbitMQStub.args[0]?.[2]?.timeout).to.eq(config.RABBITMQ.TIMEOUT)
@@ -496,6 +501,7 @@ describe('Controller: Gauge', () => {
         await GaugeController.getGaugeEpochMetrics({
           pluginAddress,
           memberAddress,
+          network
         })
         expect.fail('Should have thrown an error')
       } catch (error: any) {
