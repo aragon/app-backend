@@ -17,6 +17,7 @@ describe('Handler: gaugeHandler', () => {
   let getBlockTimestampStub: any
   let extractMetadataUriStub: any
   let fetchMetadataStub: any
+  let gaugeMetricsStub: any
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
@@ -64,6 +65,7 @@ describe('Handler: gaugeHandler', () => {
     getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp')
     extractMetadataUriStub = sandbox.stub(Web3Utils, 'extractMetadataUri')
     fetchMetadataStub = sandbox.stub(IPFSModule, 'fetchMetadata')
+    gaugeMetricsStub = sandbox.stub(GaugeMetrics, 'epochGaugeMetrics').resolves()
   })
 
   afterEach(async () => {
@@ -512,7 +514,6 @@ describe('Handler: gaugeHandler', () => {
 
       getBlockTimestampStub.resolves(1620000001)
       const verboseStub = sandbox.stub(logger, 'verbose')
-      const gaugeMetricsStub = sandbox.stub(GaugeMetrics, 'epochGaugeMetrics').resolves()
 
       await GaugeHandler.gaugeVoted(parsedEvent, mockInfo)
 
@@ -544,7 +545,8 @@ describe('Handler: gaugeHandler', () => {
           gaugeAddress: gauge.address,
           pluginAddress: gauge.pluginAddress,
           network: gauge.network,
-          votingPower: '5000000000000000000',
+          currentEpochVotingPower: '5000000000000000000',
+          totalGaugeVotingPower: '10000000000000000000',
         }),
       ).to.be.true
     })
@@ -725,6 +727,8 @@ describe('Handler: gaugeHandler', () => {
           epoch: BigInt(1),
           votingPowerRemovedFromGauge: BigInt(1000000000000000000),
           totalVotingPowerInGauge: BigInt(2000000000000000000),
+          totalVotingPowerInContract: BigInt(150000000000000000000),
+          timestamp: BigInt(1620000002),
         },
       } as any
 
@@ -736,7 +740,6 @@ describe('Handler: gaugeHandler', () => {
       }
 
       const verboseStub = sandbox.stub(logger, 'verbose')
-      const gaugeMetricsStub = sandbox.stub(GaugeMetrics, 'epochGaugeMetrics').resolves()
 
       await GaugeHandler.gaugeReset(parsedEvent, resetInfo)
 
@@ -758,7 +761,8 @@ describe('Handler: gaugeHandler', () => {
           gaugeAddress: gauge.address,
           pluginAddress: gauge.pluginAddress,
           network: gauge.network,
-          votingPower: '2000000000000000000',
+          currentEpochVotingPower: '2000000000000000000',
+          totalGaugeVotingPower: '150000000000000000000',
         }),
       ).to.be.true
     })
@@ -897,6 +901,7 @@ describe('Handler: gaugeHandler', () => {
           epoch: BigInt(1),
           votingPowerCastForGauge: BigInt(1000000000000000000),
           totalVotingPowerInGauge: BigInt(1000000000000000000),
+          totalVotingPowerInContract: BigInt(5000000000000000000),
         },
       } as any
 
@@ -925,6 +930,8 @@ describe('Handler: gaugeHandler', () => {
           voter: voterAddress,
           gauge: gaugeAddress,
           epoch: BigInt(1),
+          totalVotingPowerInGauge: BigInt(500000000000000000),
+          totalVotingPowerInContract: BigInt(3000000000000000000),
         },
       } as any
 
@@ -974,6 +981,7 @@ describe('Handler: gaugeHandler', () => {
             epoch: BigInt(1),
             votingPowerCastForGauge: BigInt((i + 1) * 1000000000000000000),
             totalVotingPowerInGauge: BigInt((i + 1) * 1000000000000000000),
+            totalVotingPowerInContract: BigInt((i + 1) * 5000000000000000000),
           },
         } as any
 
