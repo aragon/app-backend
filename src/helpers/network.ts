@@ -24,7 +24,6 @@ export const NetworkHelper = {
   },
   getAverageBlockTime(network: NetworksEnum): number {
     const networkConfig = config.NODES[utils.networkToAragon(network)]
-    const timeInSec = networkConfig.INTERVAL_BLOCK_TIME
-    return timeInSec * 1000
+    return networkConfig.INTERVAL_BLOCK_TIME
   },
 }
