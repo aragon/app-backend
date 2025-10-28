@@ -13,6 +13,7 @@ import ExecuteSelectorRouter from '@api/routers/v2/executeSelector'
 import SimulationRouter from '@api/routers/v2/simulation'
 import CapitalDistributorRouter from '@api/routers/v2/capitalDistributor'
 import GaugeRouter from '@api/routers/v2/gauge'
+import PermissionRouter from '@api/routers/v2/permission'
 
 const V2Router = {
   router(): Router {
@@ -32,6 +33,7 @@ const V2Router = {
     const simulationRouter = SimulationRouter.router()
     const capitalDistributorRouter = CapitalDistributorRouter.router()
     const gaugeRouter = GaugeRouter.router()
+    const permissionRouter = PermissionRouter.router()
 
     router.use('/assets', assetRouter.routes(), assetRouter.allowedMethods())
     router.use('/daos', daoRouter.routes(), daoRouter.allowedMethods())
@@ -47,6 +49,7 @@ const V2Router = {
     router.use('/simulations', simulationRouter.routes(), simulationRouter.allowedMethods())
     router.use('/capital-distributor', capitalDistributorRouter.routes(), capitalDistributorRouter.allowedMethods())
     router.use('/gauge', gaugeRouter.routes(), gaugeRouter.allowedMethods())
+    router.use('/permissions', permissionRouter.routes(), permissionRouter.allowedMethods())
 
     return router
   },

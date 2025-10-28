@@ -431,7 +431,7 @@ class BlockchainLogCrawler {
             }),
           ),
         )
-        return response.data
+        return Array.isArray(response.data) ? response.data : [response.data]
       }
 
       // Handle regular topic hashes (chunk them for batch processing)
@@ -462,7 +462,7 @@ class BlockchainLogCrawler {
         ),
       )
 
-      return response.data
+      return Array.isArray(response.data) ? response.data : [response.data]
     } catch (error: any) {
       if (this.isBatchSizeError(error)) {
         return [{ error }]
