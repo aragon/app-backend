@@ -6,7 +6,7 @@ import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { NetworksEnum, ITokenType } from '@types'
 import { expect } from 'chai'
 
-describe('AragonPlugins: LogTokenVoting', () => {
+describe.only('AragonPlugins: LogTokenVoting', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {

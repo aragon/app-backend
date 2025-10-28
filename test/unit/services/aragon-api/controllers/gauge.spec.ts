@@ -345,7 +345,7 @@ describe('Controller: Gauge', () => {
       const response = await GaugeController.getGaugeEpochMetrics({
         pluginAddress,
         memberAddress,
-        network
+        network,
       })
 
       expect(findOneStub.calledOnce).to.be.true
@@ -409,7 +409,7 @@ describe('Controller: Gauge', () => {
         await GaugeController.getGaugeEpochMetrics({
           pluginAddress,
           memberAddress,
-          network
+          network,
         })
         expect.fail('Should have thrown an error')
       } catch (error: any) {
@@ -445,7 +445,7 @@ describe('Controller: Gauge', () => {
       const response = await GaugeController.getGaugeEpochMetrics({
         pluginAddress,
         memberAddress,
-        network
+        network,
       })
 
       expect(rabbitMQStub.args[0][1].id).to.eq(`${pluginAddress}-${network}`)
@@ -476,7 +476,7 @@ describe('Controller: Gauge', () => {
       await GaugeController.getGaugeEpochMetrics({
         pluginAddress,
         memberAddress,
-        network
+        network,
       })
 
       expect(rabbitMQStub.args[0]?.[2]?.timeout).to.eq(config.RABBITMQ.TIMEOUT)
@@ -501,7 +501,7 @@ describe('Controller: Gauge', () => {
         await GaugeController.getGaugeEpochMetrics({
           pluginAddress,
           memberAddress,
-          network
+          network,
         })
         expect.fail('Should have thrown an error')
       } catch (error: any) {
