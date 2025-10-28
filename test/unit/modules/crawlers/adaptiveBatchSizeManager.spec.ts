@@ -286,8 +286,6 @@ describe('Module: AdaptiveBatchSizeManager', () => {
       manager.recordBatchSizeError()
       expect(manager.getState().isInHighActivityZone).to.be.true
 
-      const currentSize = manager.getCurrentBatchSize()
-
       // Record only 2 empty ranges to avoid exiting high activity zone
       // (3 successes with low density would exit the zone)
       manager.recordSuccess(0, 1000)
@@ -352,10 +350,7 @@ describe('Module: AdaptiveBatchSizeManager', () => {
     })
 
     it('should learn from successful patterns', () => {
-      const density = 5 // medium-high density
-      const successfulBatchSize = manager.getCurrentBatchSize()
-
-      // Record successful fetch with this density
+      // Record successful fetch with medium-high density (5 events/block)
       manager.recordSuccess(5000, 1000)
 
       // Next time we see similar density, should use learned size

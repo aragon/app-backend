@@ -188,7 +188,6 @@ describe('Module: CrawlerErrorHandler', () => {
       const error = new Error('rate limit exceeded')
       await errorHandler.handleError(error)
 
-      const analysis1 = errorHandler.analyzeError(error)
       expect(logWarnStub.getCall(0).args[1]).to.have.property('retryCount', 0)
 
       await errorHandler.handleError(error)
