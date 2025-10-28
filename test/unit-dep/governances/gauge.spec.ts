@@ -32,9 +32,10 @@ describe('Integ: Gauge', () => {
       it(`should handle gauge all events properly ${network}`, async function () {
         this.timeout(100000000)
 
+        const fromBlock = 9325905
         const rabbitMQStub = UnitDepUtils.stubRabbitmqSend(sandbox) as any
 
-        await UnitDepUtils.syncACompleteDao(daoAddress, network)
+        await UnitDepUtils.syncACompleteDao(daoAddress, network, fromBlock)
         const plugin = await Models.Plugin.findOne({
           interfaceType: IPluginInterfaceType.gauge,
         })
