@@ -4,6 +4,7 @@ import Plugin from '@services/aragon-gateway/plugin'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
+import GaugeHelper from '@helpers/gauge'
 import { expect } from 'chai'
 import { IEventLogPluginType, NetworksEnum } from '@types'
 import Utils from '@helpers/utils'
@@ -209,7 +210,7 @@ describe('Plugin', () => {
     const epochId = '5'
 
     it('should return epochId from Web3Helper', async () => {
-      const getGaugeEpochIdStub = sandbox.stub(Web3Helper, 'getGaugeEpochId').resolves(epochId)
+      const getGaugeEpochIdStub = sandbox.stub(GaugeHelper, 'getGaugeEpochId').resolves(epochId)
 
       const result = await Plugin.getGaugeEpochId(pluginAddress, network)
 
@@ -220,7 +221,7 @@ describe('Plugin', () => {
 
     it('should handle different epochId values', async () => {
       const differentEpochId = '100'
-      sandbox.stub(Web3Helper, 'getGaugeEpochId').resolves(differentEpochId)
+      sandbox.stub(GaugeHelper, 'getGaugeEpochId').resolves(differentEpochId)
 
       const result = await Plugin.getGaugeEpochId(pluginAddress, network)
 
@@ -229,7 +230,7 @@ describe('Plugin', () => {
 
     it('should handle different networks', async () => {
       const arbitrumNetwork = NetworksEnum.arbitrumMainnet
-      const getGaugeEpochIdStub = sandbox.stub(Web3Helper, 'getGaugeEpochId').resolves(epochId)
+      const getGaugeEpochIdStub = sandbox.stub(GaugeHelper, 'getGaugeEpochId').resolves(epochId)
 
       const result = await Plugin.getGaugeEpochId(pluginAddress, arbitrumNetwork)
 
@@ -239,7 +240,7 @@ describe('Plugin', () => {
 
     it('should propagate errors from Web3Helper', async () => {
       const error = new Error('Web3 connection error')
-      sandbox.stub(Web3Helper, 'getGaugeEpochId').rejects(error)
+      sandbox.stub(GaugeHelper, 'getGaugeEpochId').rejects(error)
 
       try {
         await Plugin.getGaugeEpochId(pluginAddress, network)
@@ -251,7 +252,7 @@ describe('Plugin', () => {
     })
 
     it('should handle null/undefined return from Web3Helper', async () => {
-      sandbox.stub(Web3Helper, 'getGaugeEpochId').resolves(null as any)
+      sandbox.stub(GaugeHelper, 'getGaugeEpochId').resolves(null as any)
 
       const result = await Plugin.getGaugeEpochId(pluginAddress, network)
 

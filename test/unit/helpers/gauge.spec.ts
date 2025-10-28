@@ -4,6 +4,8 @@ import { expect } from 'chai'
 import GaugeHelper from '@helpers/gauge'
 import Web3Helper from '@helpers/web3'
 import { NetworksEnum } from '@types'
+import * as proxyquire from 'proxyquire'
+import logger from '@logger'
 
 describe('Helpers: Gauge', () => {
   let sandbox: SinonSandbox
@@ -61,6 +63,60 @@ describe('Helpers: Gauge', () => {
       expect(stubGetVotingEscrowAddress.calledOnceWith(pluginAddress, network)).to.be.true
       expect(stubGetLockTokenAddress.notCalled).to.be.true
       expect(result).to.be.null
+    })
+  })
+
+  describe('getGaugeEpochId', () => {
+    it('should return the epochId as a string when successful', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubEpochId = sandbox.stub().resolves(123n)
+
+      const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
+        ethers: {
+          Contract: function () {
+            return { epochId: stubEpochId }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const pluginAddress = '0xPluginAddress'
+      const network = NetworksEnum.ethereumMainnet
+
+      const result = await MockedGaugeHelper.getGaugeEpochId(pluginAddress, network)
+
+      expect(result).to.equal('123')
+      expect(stubEpochId.calledOnce).to.be.true
+    })
+
+    it('should return null when an error occurs', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const stubEpochId = sandbox.stub().rejects(new Error('Contract call failed'))
+
+      const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
+        ethers: {
+          Contract: function () {
+            return { epochId: stubEpochId }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const pluginAddress = '0xPluginAddress'
+      const network = NetworksEnum.ethereumMainnet
+
+      const result = await MockedGaugeHelper.getGaugeEpochId(pluginAddress, network)
+
+      expect(result).to.be.null
+      expect(stubEpochId.calledOnce).to.be.true
     })
   })
 })

@@ -199,9 +199,11 @@ describe('RouterV2: Gauge', () => {
         methods: layer.methods,
       }))
 
-      expect(routes).to.have.lengthOf(1)
+      expect(routes).to.have.lengthOf(2)
       expect(routes[0].path).to.equal('/:pluginAddress/:network')
       expect(routes[0].methods).to.include('GET')
+      expect(routes[1].path).to.equal('/epochMetrics/:pluginAddress/:network')
+      expect(routes[1].methods).to.include('GET')
     })
 
     it('should create a new router instance each time', () => {

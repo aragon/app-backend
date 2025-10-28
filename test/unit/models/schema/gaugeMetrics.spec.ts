@@ -18,8 +18,9 @@ describe('Model: GaugeMetrics', () => {
       gaugeAddress: '0x2222222222222222222222222222222222222222',
       daoAddress: '0x3333333333333333333333333333333333333333',
       epochId: '1',
-      voteCount: 10,
-      votingPower: '1000000000000000000',
+      totalMemberVoteCount: 10,
+      currentEpochVotingPower: '1000000000000000000',
+      totalGaugeVotingPower: '5000000000000000000',
     }
   })
 
@@ -37,8 +38,9 @@ describe('Model: GaugeMetrics', () => {
       expect(createdMetrics.gaugeAddress).to.eq(rawGaugeMetrics.gaugeAddress)
       expect(createdMetrics.daoAddress).to.eq(rawGaugeMetrics.daoAddress)
       expect(createdMetrics.epochId).to.eq(rawGaugeMetrics.epochId)
-      expect(createdMetrics.voteCount).to.eq(rawGaugeMetrics.voteCount)
-      expect(createdMetrics.votingPower).to.eq(rawGaugeMetrics.votingPower)
+      expect(createdMetrics.totalMemberVoteCount).to.eq(rawGaugeMetrics.totalMemberVoteCount)
+      expect(createdMetrics.currentEpochVotingPower).to.eq(rawGaugeMetrics.currentEpochVotingPower)
+      expect(createdMetrics.totalGaugeVotingPower).to.eq(rawGaugeMetrics.totalGaugeVotingPower)
     })
 
     it('Should create GaugeMetrics with id already present', async () => {
@@ -107,8 +109,8 @@ describe('Model: GaugeMetrics', () => {
 
       const createdMetrics = await Models.GaugeMetrics.create(minimalMetrics)
 
-      expect(createdMetrics.voteCount).to.eq(0)
-      expect(createdMetrics.votingPower).to.eq('0')
+      expect(createdMetrics.totalMemberVoteCount).to.eq(0)
+      expect(createdMetrics.currentEpochVotingPower).to.eq('0')
       expect(createdMetrics.daoAddress).to.be.undefined
     })
   })
@@ -154,16 +156,16 @@ describe('Model: GaugeMetrics', () => {
 
   it('Should update GaugeMetrics', async () => {
     const createdMetrics = await Models.GaugeMetrics.create(rawGaugeMetrics)
-    expect(createdMetrics.voteCount).to.eq(10)
-    expect(createdMetrics.votingPower).to.eq('1000000000000000000')
+    expect(createdMetrics.totalMemberVoteCount).to.eq(10)
+    expect(createdMetrics.currentEpochVotingPower).to.eq('1000000000000000000')
 
     await createdMetrics.update({
-      voteCount: 25,
-      votingPower: '5000000000000000000',
+      totalMemberVoteCount: 25,
+      currentEpochVotingPower: '5000000000000000000',
     })
 
-    expect(createdMetrics.voteCount).to.eq(25)
-    expect(createdMetrics.votingPower).to.eq('5000000000000000000')
+    expect(createdMetrics.totalMemberVoteCount).to.eq(25)
+    expect(createdMetrics.currentEpochVotingPower).to.eq('5000000000000000000')
   })
 
   it('Should not update with same values', async () => {
@@ -171,8 +173,8 @@ describe('Model: GaugeMetrics', () => {
     const saveSpy = sandbox.spy(createdMetrics, 'save')
 
     await createdMetrics.update({
-      voteCount: 10, // Same as original
-      votingPower: '1000000000000000000', // Same as original
+      totalMemberVoteCount: 10, // Same as original
+      currentEpochVotingPower: '1000000000000000000', // Same as original
     })
 
     // Save should be called once (from update method)
@@ -192,39 +194,39 @@ describe('Model: GaugeMetrics', () => {
     const largeVotingPower = '99999999999999999999999999999999'
     const metricsWithLargeValue = {
       ...rawGaugeMetrics,
-      votingPower: largeVotingPower,
+      currentEpochVotingPower: largeVotingPower,
     }
 
     const createdMetrics = await Models.GaugeMetrics.create(metricsWithLargeValue)
-    expect(createdMetrics.votingPower).to.eq(largeVotingPower)
+    expect(createdMetrics.currentEpochVotingPower).to.eq(largeVotingPower)
 
     // Verify it can be retrieved correctly
     const foundMetrics = await Models.GaugeMetrics.findByEntityId(createdMetrics.id)
-    expect(foundMetrics?.votingPower).to.eq(largeVotingPower)
+    expect(foundMetrics?.currentEpochVotingPower).to.eq(largeVotingPower)
   })
 
   it('Should track multiple epochs for same gauge', async () => {
     const epoch1Data = {
       ...rawGaugeMetrics,
       epochId: '10',
-      voteCount: 10,
-      votingPower: '1000000000000000000',
+      totalMemberVoteCount: 10,
+      currentEpochVotingPower: '1000000000000000000',
     }
     const epoch1 = await Models.GaugeMetrics.create(epoch1Data)
 
     const epoch2Data = {
       ...rawGaugeMetrics,
       epochId: '11',
-      voteCount: 15,
-      votingPower: '2000000000000000000',
+      totalMemberVoteCount: 15,
+      currentEpochVotingPower: '2000000000000000000',
     }
     const epoch2 = await Models.GaugeMetrics.create(epoch2Data)
 
     const epoch3Data = {
       ...rawGaugeMetrics,
       epochId: '12',
-      voteCount: 20,
-      votingPower: '3000000000000000000',
+      totalMemberVoteCount: 20,
+      currentEpochVotingPower: '3000000000000000000',
     }
     const epoch3 = await Models.GaugeMetrics.create(epoch3Data)
 
@@ -233,8 +235,8 @@ describe('Model: GaugeMetrics', () => {
     expect(epoch3.epochId).to.eq('12')
 
     // Verify each has different vote counts
-    expect(epoch1.voteCount).to.eq(10)
-    expect(epoch2.voteCount).to.eq(15)
-    expect(epoch3.voteCount).to.eq(20)
+    expect(epoch1.totalMemberVoteCount).to.eq(10)
+    expect(epoch2.totalMemberVoteCount).to.eq(15)
+    expect(epoch3.totalMemberVoteCount).to.eq(20)
   })
 })

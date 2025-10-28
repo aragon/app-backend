@@ -7,7 +7,7 @@ import Logger from '@logger'
 import { GaugeGovernance, BaseGovernance } from '@src/governance'
 import { NetworksEnum, type HexAddress } from '@types'
 import { GaugeMetrics } from '@services/aragon-dao/gaugeMetrics'
-import Web3Helper from '@helpers/web3'
+import GaugeHelper from '@helpers/gauge'
 
 describe('Governance:GaugeGovernance', () => {
   let sandbox: SinonSandbox
@@ -135,7 +135,7 @@ describe('Governance:GaugeGovernance', () => {
     beforeEach(() => {
       createGaugeStub = sandbox.stub(Models.Gauge, 'create')
       epochGaugeMetricsStub = sandbox.stub(GaugeMetrics, 'epochGaugeMetrics').resolves()
-      getGaugeEpochIdStub = sandbox.stub(Web3Helper, 'getGaugeEpochId').resolves(null)
+      getGaugeEpochIdStub = sandbox.stub(GaugeHelper, 'getGaugeEpochId').resolves(null)
     })
 
     it('should create gauge and trigger metrics calculation', async () => {
@@ -171,7 +171,8 @@ describe('Governance:GaugeGovernance', () => {
           gaugeAddress: testGaugeAddress,
           pluginAddress: testPluginAddress,
           network: testNetwork,
-          votingPower: '0',
+          currentEpochVotingPower: '0',
+          totalGaugeVotingPower: '0',
         }),
       ).to.be.true
     })
@@ -209,7 +210,8 @@ describe('Governance:GaugeGovernance', () => {
           gaugeAddress: testGaugeAddress,
           pluginAddress: testPluginAddress,
           network: testNetwork,
-          votingPower: '0',
+          currentEpochVotingPower: '0',
+          totalGaugeVotingPower: '0',
         }),
       ).to.be.true
     })
@@ -237,7 +239,8 @@ describe('Governance:GaugeGovernance', () => {
       expect(callArgs.gaugeAddress).to.equal(testGaugeAddress)
       expect(callArgs.pluginAddress).to.equal(testPluginAddress)
       expect(callArgs.network).to.equal(testNetwork)
-      expect(callArgs.votingPower).to.equal('0')
+      expect(callArgs.currentEpochVotingPower).to.equal('0')
+      expect(callArgs.totalGaugeVotingPower).to.equal('0')
     })
 
     it('should handle partial gauge data', async () => {

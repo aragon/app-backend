@@ -224,8 +224,9 @@ describe('Model: Gauge', () => {
         expect(gauge).to.have.property('description')
         expect(gauge).to.have.property('isActive')
         expect(gauge).to.have.property('metrics')
-        expect(gauge.metrics).to.have.property('voteCount')
-        expect(gauge.metrics).to.have.property('votingPower')
+        expect(gauge.metrics).to.have.property('totalMemberVoteCount')
+        expect(gauge.metrics).to.have.property('currentEpochVotingPower')
+        expect(gauge.metrics).to.have.property('totalGaugeVotingPower')
         expect(gauge.metrics).to.have.property('epochId')
       })
     })
@@ -315,8 +316,9 @@ describe('Model: Gauge', () => {
       // Verify all gauges have default metrics with the provided epochId
       data.forEach((gauge: any) => {
         expect(gauge.metrics).to.deep.equal({
-          voteCount: 0,
-          votingPower: '0',
+          totalMemberVoteCount: 0,
+          currentEpochVotingPower: '0',
+          totalGaugeVotingPower: '0',
           epochId,
         })
       })
@@ -338,8 +340,9 @@ describe('Model: Gauge', () => {
       data.forEach((gauge: any) => {
         expect(gauge.network).to.eq(NetworksEnum.ethereumMainnet)
         expect(gauge.metrics.epochId).to.eq(epochId)
-        expect(gauge.metrics.voteCount).to.eq(0)
-        expect(gauge.metrics.votingPower).to.eq('0')
+        expect(gauge.metrics.totalMemberVoteCount).to.eq(0)
+        expect(gauge.metrics.currentEpochVotingPower).to.eq('0')
+        expect(gauge.metrics.totalGaugeVotingPower).to.eq('0')
       })
     })
 
