@@ -87,7 +87,7 @@ export class ProgressTracker {
       })
 
       if (existingConfig) {
-        // Update existing config, using $max to keep highest block number for concurrent updates
+        // Update the existing config, using $max to keep the highest block number for concurrent updates
         const result = await Models.ConfigIndexer.findOneAndUpdate(
           {
             id: existingConfig.id,
