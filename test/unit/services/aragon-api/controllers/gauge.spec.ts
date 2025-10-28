@@ -316,4 +316,192 @@ describe('Controller: Gauge', () => {
       expect(rabbitMQStub.args[0][0]).to.eq(EnumQueueName.gaugeEpochId)
     })
   })
+
+  describe('getGaugeEpochMetrics', () => {
+    it('should get gauge epoch metrics successfully', async () => {
+      const pluginAddress = '0xPlugin111111111111111111111111111111111'
+      const memberAddress = '0xMember1111111111111111111111111111111111'
+      const network = NetworksEnum.ethereumMainnet
+
+      const mockPlugin = {
+        address: pluginAddress,
+        network,
+        interfaceType: 'gauge',
+      }
+
+      const mockGaugeInfo = {
+        pluginAddress,
+        network,
+        memberAddress,
+        epochId: '5',
+        totalVotingPower: '1000000000000000000',
+        memberVotingPower: '100000000000000000',
+        memberUsedVotingPower: '50000000000000000',
+      }
+
+      const findOneStub = sandbox.stub(Models.Plugin, 'findOne').resolves(mockPlugin as any)
+      const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(mockGaugeInfo)
+
+      const response = await GaugeController.getGaugeEpochMetrics({
+        pluginAddress,
+        memberAddress,
+      })
+
+      expect(findOneStub.calledOnce).to.be.true
+      expect(findOneStub.args[0][0]).to.deep.eq({
+        interfaceType: 'gauge',
+        address: pluginAddress,
+      })
+
+      expect(rabbitMQStub.calledOnce).to.be.true
+      expect(rabbitMQStub.args[0][0]).to.eq(EnumQueueName.gaugeInfo)
+      expect(rabbitMQStub.args[0][1]).to.deep.eq({
+        id: `${pluginAddress}-${network}`,
+        params: {
+          pluginAddress,
+          memberAddress,
+          network,
+        },
+      })
+      expect(rabbitMQStub.args[0][2]).to.deep.eq({
+        waitResponse: true,
+        timeout: config.RABBITMQ.TIMEOUT,
+      })
+
+      expect(response).to.deep.eq(mockGaugeInfo)
+    })
+
+    it('should throw error when plugin not found', async () => {
+      const pluginAddress = '0xPluginNotFound111111111111111111111111'
+      const memberAddress = '0xMember1111111111111111111111111111111111'
+
+      sandbox.stub(Models.Plugin, 'findOne').resolves(null)
+
+      try {
+        await GaugeController.getGaugeEpochMetrics({
+          pluginAddress,
+          memberAddress,
+        })
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error).to.exist
+        expect(error.message).to.eq(ErrorKeyEnum.notFound)
+      }
+    })
+
+    it('should throw error when gaugeInfo is not returned from RabbitMQ', async () => {
+      const pluginAddress = '0xPlugin222222222222222222222222222222222'
+      const memberAddress = '0xMember2222222222222222222222222222222222'
+      const network = NetworksEnum.ethereumMainnet
+
+      const mockPlugin = {
+        address: pluginAddress,
+        network,
+        interfaceType: 'gauge',
+      }
+
+      sandbox.stub(Models.Plugin, 'findOne').resolves(mockPlugin as any)
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(null)
+
+      try {
+        await GaugeController.getGaugeEpochMetrics({
+          pluginAddress,
+          memberAddress,
+        })
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error).to.exist
+        expect(error.message).to.eq(ErrorKeyEnum.notFound)
+      }
+    })
+
+    it('should handle different network types', async () => {
+      const pluginAddress = '0xPlugin333333333333333333333333333333333'
+      const memberAddress = '0xMember3333333333333333333333333333333333'
+      const network = NetworksEnum.arbitrumMainnet
+
+      const mockPlugin = {
+        address: pluginAddress,
+        network,
+        interfaceType: 'gauge',
+      }
+
+      const mockGaugeInfo = {
+        pluginAddress,
+        network,
+        memberAddress,
+        epochId: '10',
+        totalVotingPower: '5000000000000000000',
+        memberVotingPower: '500000000000000000',
+        memberUsedVotingPower: '250000000000000000',
+      }
+
+      sandbox.stub(Models.Plugin, 'findOne').resolves(mockPlugin as any)
+      const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(mockGaugeInfo)
+
+      const response = await GaugeController.getGaugeEpochMetrics({
+        pluginAddress,
+        memberAddress,
+      })
+
+      expect(rabbitMQStub.args[0][1].id).to.eq(`${pluginAddress}-${network}`)
+      expect(response).to.deep.eq(mockGaugeInfo)
+    })
+
+    it('should pass correct RabbitMQ timeout from config', async () => {
+      const pluginAddress = '0xPlugin444444444444444444444444444444444'
+      const memberAddress = '0xMember4444444444444444444444444444444444'
+      const network = NetworksEnum.ethereumMainnet
+
+      const mockPlugin = {
+        address: pluginAddress,
+        network,
+        interfaceType: 'gauge',
+      }
+
+      const mockGaugeInfo = {
+        pluginAddress,
+        network,
+        memberAddress,
+        epochId: '3',
+      }
+
+      sandbox.stub(Models.Plugin, 'findOne').resolves(mockPlugin as any)
+      const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(mockGaugeInfo)
+
+      await GaugeController.getGaugeEpochMetrics({
+        pluginAddress,
+        memberAddress,
+      })
+
+      expect(rabbitMQStub.args[0]?.[2]?.timeout).to.eq(config.RABBITMQ.TIMEOUT)
+      expect(rabbitMQStub.args[0]?.[2]?.waitResponse).to.be.true
+    })
+
+    it('should handle when RabbitMQ throws an error', async () => {
+      const pluginAddress = '0xPlugin555555555555555555555555555555555'
+      const memberAddress = '0xMember5555555555555555555555555555555555'
+      const network = NetworksEnum.ethereumMainnet
+
+      const mockPlugin = {
+        address: pluginAddress,
+        network,
+        interfaceType: 'gauge',
+      }
+
+      sandbox.stub(Models.Plugin, 'findOne').resolves(mockPlugin as any)
+      sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('RabbitMQ connection error'))
+
+      try {
+        await GaugeController.getGaugeEpochMetrics({
+          pluginAddress,
+          memberAddress,
+        })
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error).to.be.an('error')
+        expect(error.message).to.equal('RabbitMQ connection error')
+      }
+    })
+  })
 })
