@@ -7,7 +7,7 @@ import { EnumQueueName, ErrorKeyEnum, NetworksEnum } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import config from '@config'
 
-describe.only('Controller: Gauge', () => {
+describe('Controller: Gauge', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
