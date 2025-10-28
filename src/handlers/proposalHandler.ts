@@ -272,7 +272,7 @@ export const ProposalHandler = {
       }
 
       if (relatedPlugin.interfaceType === IPluginInterfaceType.tokenVoting && !document?.settings?.tokenAddress) {
-        logger.error(
+        logger.warn(
           'Error ProposalHandler.proposalCreated - tokenAddress is missing',
           llo({
             ...info,

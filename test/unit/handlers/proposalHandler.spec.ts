@@ -1180,7 +1180,7 @@ describe('ProposalHandler', () => {
       sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
       sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      const stubError = sandbox.stub(logger, 'error')
+      const stubWarn = sandbox.stub(logger, 'warn')
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
 
@@ -1193,7 +1193,7 @@ describe('ProposalHandler', () => {
       expect(savedProposal).to.exist
       expect(savedProposal.settings).to.be.null
       expect(savedProposal.snapshot.totalSupply).to.be.eq('0')
-      expect(stubError.calledOnceWith('Error ProposalHandler.proposalCreated - tokenAddress is missing' as any))
+      expect(stubWarn.calledOnceWith('Error ProposalHandler.proposalCreated - tokenAddress is missing' as any))
     })
 
     it('should handle when proposalMetadata is null', async () => {
