@@ -12,6 +12,7 @@ import { CustomInstall } from '@indexer/customInstall'
 import config from '@config'
 import proxyquire from 'proxyquire'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import { Models } from '@dbModels'
 
 describe('AragonIndexer: index', () => {
   let sandbox: SinonSandbox
@@ -128,11 +129,13 @@ describe('AragonIndexer: index', () => {
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns([{ networkName: NetworksEnum.ethereumMainnet } as any])
       sandbox.stub(Utils, 'filterArrayByProperty').returns([{ topic: '0xTopic1', enableHistorical: true }])
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      sandbox.stub(Models.ConfigIndexer, 'findExistingLog').resolves(null)
+      sandbox.stub(TaskSchedulerState.getInstance(), 'startTask').resolves()
 
       await IndexerService.start()
 
       expect(customInstall.calledOnce).to.be.true
-      expect(crawlStub.calledTwice).to.be.true
+      expect(crawlStub.calledOnce).to.be.true
       expect(stubRabbitMQ.calledOnce).to.be.true
     })
   })

@@ -1302,7 +1302,7 @@ describe('ProposalHandler', () => {
 
       const result = await ProposalHandler.proposalCreated(fakeEvent as any, info)
 
-      expect(errorLoggerStub.args[1][0]).to.eq('Error findIncrementalId - incrementalId is null')
+      expect(errorLoggerStub.args[0][0]).to.eq('Error findIncrementalId - incrementalId is null')
       expect(createStub.called).to.be.false
       expect(result?.newProposal).to.be.undefined
       expect(result?.relatedPlugin).to.be.undefined

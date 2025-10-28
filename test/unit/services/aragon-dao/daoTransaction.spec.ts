@@ -320,7 +320,7 @@ describe('AragonDao: DaoTransactions', () => {
       DaoTransactions = proxyquire('@services/aragon-dao/daoTransactions', {
         '@dbModels': { Models: modelsStub },
         '@logger': { default: loggerStub },
-        '@modules/blockchainLogCrawler': { default: BlockchainLogCrawlerMock },
+        '@modules/crawlers': { BlockchainLogCrawler: BlockchainLogCrawlerMock },
         '@helpers/configIndexer': { default: configIndexerHelperStub },
         '@handlers/daoTransferHanlder': { DaoTransferHandler: daoTransferHandlerStub },
         ethers: { zeroPadValue: zeroPadValueStub },
@@ -386,7 +386,7 @@ describe('AragonDao: DaoTransactions', () => {
       DaoTransactions = proxyquire('@services/aragon-dao/daoTransactions', {
         '@dbModels': { Models: modelsStub },
         '@logger': { default: loggerStub },
-        '@modules/blockchainLogCrawler': { default: BlockchainLogCrawlerMock },
+        '@modules/crawlers': { BlockchainLogCrawler: BlockchainLogCrawlerMock },
         '@helpers/configIndexer': { default: configIndexerHelperStub },
         '@handlers/daoTransferHanlder': { DaoTransferHandler: daoTransferHandlerStub },
         ethers: { zeroPadValue: zeroPadValueStub },

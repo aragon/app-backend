@@ -81,7 +81,7 @@ describe('Module: PoolingCrawler', () => {
         try {
           throw error
         } catch (e) {
-          logger.error('PoolingCrawler start', { error: e })
+          logger.error('PoolingCrawler error', { error: e })
           return undefined
         }
       }
