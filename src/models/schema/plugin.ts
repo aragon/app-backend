@@ -336,6 +336,45 @@ export default class Plugin extends Model {
     return plugin?.[0]?.id ?? undefined
   }
 
+  static async findByDaoWithFilters({
+    daoAddress,
+    network,
+    interfaceType,
+    status,
+    isProcess,
+    isSupported,
+  }: {
+    daoAddress: HexAddress
+    network: NetworksEnum
+    interfaceType?: IPluginInterfaceType
+    status?: IPluginStatus
+    isProcess?: boolean
+    isSupported?: boolean
+  }) {
+    const filter: any = {
+      daoAddress,
+      network,
+    }
+
+    if (interfaceType) {
+      filter.interfaceType = interfaceType
+    }
+
+    if (status) {
+      filter.status = status
+    }
+
+    if (isProcess !== undefined) {
+      filter.isProcess = isProcess
+    }
+
+    if (isSupported !== undefined) {
+      filter.isSupported = isSupported
+    }
+
+    return await this.find(filter).sort({ blockNumber: -1 }).lean().exec()
+  }
+
   async update(params: Partial<Plugin>, tOpts?: SaveOptions) {
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {

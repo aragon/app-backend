@@ -43,6 +43,15 @@ export default class TaskService extends Model {
   @prop({ type: () => Number })
   public lockedBy?: number
 
+  @prop({ type: () => Date })
+  public lockedAt?: Date
+
+  @prop({ type: () => String })
+  public hostname?: string
+
+  @prop({ type: () => String })
+  public instanceId?: string
+
   static async create(rawData: Partial<TaskService>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       rawData.id = this.getEntityId()

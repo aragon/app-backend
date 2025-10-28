@@ -26,7 +26,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       URI: utils.configParser(sourceConfig, 'string', 'RABBITMQ_URI', 'amqp://guest:guest@rabbitmq:5672'),
       TIMEOUT: utils.configParser(sourceConfig, 'number', 'RABBITMQ_TIMEOUT', 60000),
       DEFAULT_CONCURRENCY: utils.configParser(sourceConfig, 'number', 'RABBITMQ_DEFAULT_CONCURRENCY', 25),
-      CLEAN_QUEUE: utils.configParser(sourceConfig, 'bool', 'RABBITMQ_CLEAN_QUEUE', false),
       RECONNECT_TIME_SECONDS: utils.configParser(sourceConfig, 'number', 'RABBITMQ_RECONNECT_TIME_SECONDS', 5),
       HEARTBEAT_INTERVAL_SECONDS: utils.configParser(sourceConfig, 'number', 'RABBITMQ_HEARTBEAT_INTERVAL_SECONDS', 30),
       MAX_QUEUE_SIZE: utils.configParser(sourceConfig, 'number', 'RABBITMQ_MAX_QUEUE_SIZE', 50),
@@ -296,7 +295,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ARBITRUM_MAINNET_ALCHEMY_API_KEY', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_ARBITRUM_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ARBITRUM_MAINNET_FROM_BLOCK', 2441204),
-        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ARBITRUM_MAINNET_OFFSET_TO_BLOCK', 0),
+        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ARBITRUM_MAINNET_OFFSET_TO_BLOCK', 4),
         POOLING_INTERVAL: utils.configParser(
           sourceConfig,
           'number',
@@ -382,7 +381,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_OPTIMISM_MAINNET_ALCHEMY_API_KEY', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_OPTIMISM_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_OPTIMISM_MAINNET_FROM_BLOCK', 135600980),
-        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_OPTIMISM_MAINNET_OFFSET_TO_BLOCK', 0),
+        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_OPTIMISM_MAINNET_OFFSET_TO_BLOCK', 4),
         POOLING_INTERVAL: utils.configParser(
           sourceConfig,
           'number',
@@ -440,6 +439,17 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'https://explorer-corn-maizenet.t.conduit.xyz/api/',
         ),
         BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_CORN_MAINNET_BLOCKSCOUT_API_KEY', null),
+      },
+      AVAX_MAINNET: {
+        ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_AVAX_MAINNET_ALCHEMY_API_KEY', null),
+        ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_AVAX_MAINNET_ARAGON_RPC', null),
+        FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_AVAX_MAINNET_FROM_BLOCK', 66967621),
+        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_AVAX_MAINNET_OFFSET_TO_BLOCK', 2),
+        POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_AVAX_MAINNET_POOLING_INTERVAL', 2 * 1000),
+        CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_AVAX_MAINNET_CONFIRMATION_BLOCKS', 2),
+        INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_AVAX_MAINNET_INTERVAL_BLOCK_TIME', 1),
+        BLOCKSCOUT_API_URL: utils.configParser(sourceConfig, 'string', 'NODES_AVAX_MAINNET_BLOCKSCOUT_API_URL', null),
+        BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_AVAX_MAINNET_BLOCKSCOUT_API_KEY', null),
       },
     },
 
@@ -550,6 +560,17 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'PINATA_GATEWAY_URI',
         'https://aragon-1.mypinata.cloud/ipfs',
       ),
+    },
+
+    TENDERLY: {
+      API_URL: utils.configParser(sourceConfig, 'string', 'TENDERLY_API_URL', 'https://api.tenderly.co/api/v1'),
+      PROJECT: utils.configParser(sourceConfig, 'string', 'TENDERLY_PROJECT', null),
+      USER: utils.configParser(sourceConfig, 'string', 'TENDERLY_USER', null),
+      ACCESS_KEY: utils.configParser(sourceConfig, 'string', 'TENDERLY_ACCESS_KEY', null),
+      MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'TENDERLY_MAX_CONCURRENT', 1),
+      MIN_TIME: utils.configParser(sourceConfig, 'number', 'TENDERLY_MIN_TIME', 3000),
+      SHARING_BASE_URL: utils.configParser(sourceConfig, 'string', 'TENDERLY_SHARING_BASE_URL', 'https://www.tdly.co'),
+      RE_SIMULATION_TIME: utils.configParser(sourceConfig, 'number', 'TENDERLY_RE_SIMULATION_TIME', 1000 * 60 * 10),
     },
 
     CONTRACTS: {

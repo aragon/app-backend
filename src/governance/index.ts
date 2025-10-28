@@ -121,7 +121,7 @@ export class MemberGovernanceFactory {
       // If we reach here, the plugin type is not supported
       throw new Error(`Unsupported plugin interface type: ${plugin.interfaceType}`)
     } catch (error) {
-      logger.error('Unable to create governance from plugin', llo({ plugin, error }))
+      logger.warn('Unable to create governance from plugin', llo({ plugin, error }))
       throw error
     }
   }

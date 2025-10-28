@@ -106,7 +106,7 @@ export const ListLogPluginSetupProcessor = [
     preparedSetupId: '0xddd8827a7d1b03fdabe8570ef5f63d775632b38f5c8464ad7c754400184699b5',
     appliedSetupId: null,
     pluginSetupRepo: '0x5A5035E7E8aeff220540F383a9cf8c35929bcF31',
-    pluginAddress: null,
+    pluginAddress: '0x563Ebb4972bb6fABb1128c5895A31B6FAC2f6e14',
     sender: '0x0bD654d08C5e0e5646096957acF5f8fb186F58Bd',
     release: '1',
     build: '2',

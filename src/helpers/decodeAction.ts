@@ -137,6 +137,7 @@ class DecodeActions {
       updateMultisigSettings: this._parseMultiSigSettingUpdateAction.bind(this),
       updateVotingSettings: this._parseVotingSettingUpdateAction.bind(this),
       updateStages: this._parseStageUpdatedOnSppAction.bind(this),
+      registerGauge: this._parseRegisterGauge.bind(this),
     }
 
     for (const pattern in actionHandlers) {
@@ -679,6 +680,35 @@ class DecodeActions {
     }
   }
 
+  async _parseRegisterGauge(decodedData: IProposalActionInputData, action: IRawAction) {
+    if (decodedData.textSignature !== KnownActionSignature.RegisterGauge) {
+      return null
+    }
+
+    const ipfsUrl = Web3Utils.extractMetadataUri(decodedData.parameters[3].value)
+
+    if (!ipfsUrl) {
+      return null
+    }
+
+    try {
+      const gaugeMetadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
+
+      if (!gaugeMetadata) {
+        return null
+      }
+
+      return {
+        ...action,
+        type: ProposalActionType.RegisterGauge,
+        inputData: decodedData,
+        gaugeMetadata,
+      }
+    } catch (e) {
+      return null
+    }
+  }
+
   async _decodeFallback(action: IRawAction, network: NetworksEnum): Promise<IProposalActionInputData | null> {
     try {
       const dataHex = hexlify(action.data)
@@ -757,6 +787,7 @@ class DecodeActions {
         contractDetails[0].SourceCode,
         contractDetails[0].ContractName,
         contractAbi,
+        contractDetails[0].CompilerVersion,
       )
 
       const signatures = this._getSignaturesFromAbi(results, contractDetails[0].ContractName)

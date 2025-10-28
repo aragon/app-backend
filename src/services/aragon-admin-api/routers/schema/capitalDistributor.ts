@@ -19,17 +19,15 @@ const CapitalDistributorSchema = {
       .required(),
   }),
 
-  addMembersListBody: Joi.object({
-    rewards: Joi.array()
-      .items(
-        Joi.object({
-          address: ValidationSchema.joiAddress.required(),
-          amount: Joi.string().pattern(/^\d+$/).required(),
-        }),
-      )
-      .min(1)
-      .required(),
-  }),
+  addMembersListBody: Joi.array()
+    .items(
+      Joi.object({
+        address: ValidationSchema.joiAddress.required(),
+        amount: Joi.string().pattern(/^\d+$/).required(),
+      }),
+    )
+    .min(1)
+    .required(),
 }
 
 export default CapitalDistributorSchema

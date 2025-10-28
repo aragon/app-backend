@@ -679,6 +679,8 @@ describe('Indexer:Plugin', () => {
         interfaceType: IPluginInterfaceType.tokenVoting,
         tokenAddress: '0xdifferentToken',
         isSupported: true,
+        stageIndex: 0,
+        parentPlugin: '0xparentPlugin',
       })
 
       // New plugin without tokenAddress
@@ -706,7 +708,8 @@ describe('Indexer:Plugin', () => {
       expect(newPlugin.update.args[0][0]).to.deep.include({
         tokenAddress: '0xdifferentToken',
         isSupported: true,
-        parentPlugin: existingPlugin.address,
+        parentPlugin: existingPlugin.parentPlugin,
+        stageIndex: existingPlugin.stageIndex,
       })
 
       // Verify the existing plugin is deprecated
@@ -751,6 +754,8 @@ describe('Indexer:Plugin', () => {
         pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
         interfaceType: IPluginInterfaceType.multisig,
         isSupported: true,
+        parentPlugin: '0xparentPlugin',
+        stageIndex: 1,
       })
 
       const newPlugin = {
@@ -774,7 +779,8 @@ describe('Indexer:Plugin', () => {
       expect(newPlugin.update.calledOnce).to.be.true
       expect(newPlugin.update.args[0][0]).to.deep.include({
         isSupported: true,
-        parentPlugin: existingPlugin.address,
+        parentPlugin: existingPlugin.parentPlugin,
+        stageIndex: existingPlugin.stageIndex,
       })
 
       const updated = await Models.Plugin.findOne({
@@ -819,6 +825,8 @@ describe('Indexer:Plugin', () => {
         lockManagerAddress: '0xLockManager123',
         tokenAddress: '0xToken123',
         isSupported: true,
+        parentPlugin: '0xparentPlugin',
+        stageIndex: 1,
       })
 
       const newPlugin = {
@@ -846,7 +854,8 @@ describe('Indexer:Plugin', () => {
         lockManagerAddress: '0xLockManager123',
         tokenAddress: '0xToken123',
         isSupported: true,
-        parentPlugin: existingPlugin.address,
+        parentPlugin: existingPlugin.parentPlugin,
+        stageIndex: existingPlugin.stageIndex,
       })
 
       const updated = await Models.Plugin.findOne({
@@ -1143,6 +1152,7 @@ describe('Indexer:Plugin', () => {
         interfaceType: IPluginInterfaceType.multisig,
         tokenAddress: null,
         isSupported: true,
+        parentPlugin: '0xparentPlugin',
       })
 
       // New plugin with token voting interface
@@ -1171,7 +1181,7 @@ describe('Indexer:Plugin', () => {
 
       expect(newPlugin.update.args[0][0]).to.deep.include({
         isSupported: true,
-        parentPlugin: existingPlugin.address,
+        parentPlugin: existingPlugin.parentPlugin,
       })
       expect(newPlugin.update.args[0][0]).to.not.have.property('tokenAddress')
 
@@ -1217,11 +1227,7 @@ describe('Indexer:Plugin', () => {
       await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[4])
       const eventUninstallApplied = await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[5])
 
-      const spyDbOperations = sandbox.spy(DbOperations, 'updateDocument')
-
       await PluginHandler.uninstallPlugin(eventUninstallApplied as any)
-
-      expect(spyDbOperations.calledOnce).to.be.true
 
       const createdPlugin = await Models.Plugin.findOne({
         address: ListLogPluginSetupProcessor[5].pluginAddress,

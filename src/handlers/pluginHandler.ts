@@ -49,7 +49,7 @@ export const PluginHandler = {
   }): Promise<IQueryGetPlugin | undefined> {
     const filter: any = { event: { $in: events } }
 
-    if (pluginAddress && events[0] !== IEventLogPluginType.UninstallationPrepared) {
+    if (pluginAddress) {
       filter.pluginAddress = pluginAddress
     }
     if (daoAddress) {
@@ -545,8 +545,9 @@ export const PluginHandler = {
       isBody: previousPlugin.isBody,
       isProcess: previousPlugin.isProcess,
       isSubPlugin: previousPlugin.isSubPlugin,
-      parentPlugin: previousPlugin.address,
+      parentPlugin: previousPlugin.parentPlugin,
       isSupported: previousPlugin.isSupported,
+      stageIndex: previousPlugin.stageIndex,
     }
 
     if (

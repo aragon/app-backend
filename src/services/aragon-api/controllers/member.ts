@@ -17,6 +17,7 @@ import PairDataModule from '@modules/pairData'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import config from '@config'
 import { MemberGovernanceFactory } from '@src/governance'
+import ModelUtils from '@models/utils/models'
 
 const MemberController = {
   getMembersWithPagination: async (
@@ -35,11 +36,15 @@ const MemberController = {
     const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
     assertExposable(plugin, ErrorKeyEnum.notFound)
 
-    const governance = MemberGovernanceFactory.createFromPlugin(plugin)
-    return governance.findAndPaginateMembers({
-      paginationParams,
-      extraParams,
-    })
+    try {
+      const governance = MemberGovernanceFactory.createFromPlugin(plugin)
+      return governance.findAndPaginateMembers({
+        paginationParams,
+        extraParams,
+      })
+    } catch (error) {
+      return ModelUtils.paginateEmptyResponse(paginationParams.pageSize!)
+    }
   },
 
   getMemberByAddress: async (
@@ -51,7 +56,7 @@ const MemberController = {
     const member = await Models.Member.findMemberByAddress(address, extraParams)
 
     assertExposable(member, ErrorKeyEnum.notFound)
-    if ((extraParams.tokenAddress || extraParams.pluginAddress) && extraParams.network) {
+    if (extraParams.pluginAddress && extraParams.tokenAddress && extraParams.network) {
       try {
         const balanceInfo = (await RabbitMQHelper.sendMessage(
           EnumQueueName.memberBalance,

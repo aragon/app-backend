@@ -11,3 +11,10 @@ environments
 aws-new
 remote
 .env.docker
+
+# Claude AI assistant files
+CLAUDE.md
+.claude/*
+
+# Zed editor configuration (personal dev setup)
+.zed/

@@ -343,12 +343,10 @@ describe('Transfers: Erc20TransferProcessor', () => {
   describe('addTokenMetadata', () => {
     let saveAndGetTokenStub: sinon.SinonStub
     let getBlockTimestampStub: sinon.SinonStub
-    let fetchTokenPriceStub: sinon.SinonStub
 
     beforeEach(() => {
       saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken')
       getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp')
-      fetchTokenPriceStub = sandbox.stub(processor as any, 'fetchTokenPrice')
     })
 
     it('should enrich transfer data with token information', async () => {
@@ -371,13 +369,11 @@ describe('Transfers: Erc20TransferProcessor', () => {
 
       saveAndGetTokenStub.resolves(mockToken as any)
       getBlockTimestampStub.resolves(1625000000)
-      fetchTokenPriceStub.resolves('2.50')
 
       const result = await processor['addTokenMetadata'](data as any)
 
       expect(saveAndGetTokenStub.calledWith('0xTokenAddress', NetworksEnum.ethereumMainnet)).to.be.true
       expect(getBlockTimestampStub.calledWith(12345, NetworksEnum.ethereumMainnet)).to.be.true
-      expect(fetchTokenPriceStub.calledWith(mockToken, 1625000000)).to.be.true
 
       expect(result).to.deep.equal({
         ...data,
@@ -392,11 +388,11 @@ describe('Transfers: Erc20TransferProcessor', () => {
           logo: 'logo.png',
           decimals: 18,
           snapshot: {
-            priceUsd: '2.50',
+            priceUsd: '0',
             priceUpdatedAt: 1625000000,
           },
         },
-        amountUsd: '251.25', // 100.5 * 2.50
+        amountUsd: '0',
       })
     })
 
@@ -419,13 +415,12 @@ describe('Transfers: Erc20TransferProcessor', () => {
       }
 
       saveAndGetTokenStub.resolves(mockToken as any)
-      fetchTokenPriceStub.resolves('1.00')
 
       const result = (await processor['addTokenMetadata'](data as any)) as any
 
       expect(getBlockTimestampStub.called).to.be.false
       expect(result.blockTimestamp).to.equal(1625111111)
-      expect(result.amountUsd).to.equal('10.00')
+      expect(result.amountUsd).to.equal('0')
     })
 
     it('should use zero address if tokenAddress not provided', async () => {
@@ -446,12 +441,11 @@ describe('Transfers: Erc20TransferProcessor', () => {
 
       saveAndGetTokenStub.resolves(mockToken as any)
       getBlockTimestampStub.resolves(1625000000)
-      fetchTokenPriceStub.resolves('3000.00')
 
       const result = (await processor['addTokenMetadata'](data as any)) as any
 
       expect(saveAndGetTokenStub.calledWith(utils.zeroAddress, NetworksEnum.ethereumMainnet)).to.be.true
-      expect(result.amountUsd).to.equal('3000.00')
+      expect(result.amountUsd).to.equal('0')
     })
 
     it('should return null if token not found (scam token)', async () => {
@@ -461,13 +455,13 @@ describe('Transfers: Erc20TransferProcessor', () => {
       }
 
       saveAndGetTokenStub.resolves(null)
-      const errorStub = sandbox.stub(logger, 'error')
+      const warnStub = sandbox.stub(logger, 'warn')
 
       const result = await processor['addTokenMetadata'](data as any)
 
       expect(result).to.be.null
-      expect(errorStub.calledOnce).to.be.true
-      expect(errorStub.firstCall.args[0]).to.include('Failed to get token information')
+      expect(warnStub.calledOnce).to.be.true
+      expect(warnStub.firstCall.args[0]).to.include('Failed to get token information. Possible Scam Token')
     })
   })
 

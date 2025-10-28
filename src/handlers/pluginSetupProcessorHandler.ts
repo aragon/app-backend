@@ -6,11 +6,11 @@ import {
   type ILogInfo,
   IPluginActionType,
   IPluginInterfaceType,
+  IPluginStatus,
   ISPPLogs,
 } from '@types'
 import { Interface, type LogDescription, type TransactionReceipt } from 'ethers'
 import { Models } from '@dbModels'
-import Utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 import { ProxyToken } from '@modules/proxyToken'
 import { PluginHandler } from '@src/handlers/pluginHandler'
@@ -27,6 +27,8 @@ import Web3Utils from '@helpers/web3Utils'
 import VotingEscrowDetector from '@helpers/votingEscrowDetector'
 import GovernanceVeHelper from '@helpers/governanceVe'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
+import { PluginSlug } from '@helpers/pluginSlug'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:pluginSetupProcessorHandler' })
 
@@ -74,7 +76,7 @@ export const PluginSetupProcessorHandler = {
           transactionHash: info.transactionHash,
           transactionIndex: info.transactionIndex,
           logIndex: info.logIndex,
-          permissions: Utils.parsePermissions(parsedEvent.args?.preparedSetupData?.permissions),
+          permissions: utils.parsePermissions(parsedEvent.args?.preparedSetupData?.permissions),
           sender: parsedEvent.args.sender,
           daoAddress,
           preparedSetupId: parsedEvent.args.preparedSetupId,
@@ -229,7 +231,7 @@ export const PluginSetupProcessorHandler = {
       transactionHash: info.transactionHash,
       transactionIndex: info.transactionIndex,
       logIndex: info.logIndex,
-      permissions: Utils.parsePermissions(parsedEvent.args?.preparedSetupData?.permissions),
+      permissions: utils.parsePermissions(parsedEvent.args?.preparedSetupData?.permissions),
       sender: parsedEvent.args.sender,
       daoAddress,
       preparedSetupId: parsedEvent.args.preparedSetupId,
@@ -308,12 +310,14 @@ export const PluginSetupProcessorHandler = {
       transactionHash: info.transactionHash,
       transactionIndex: info.transactionIndex,
       logIndex: info.logIndex,
-      permissions: Utils.parsePermissions(parsedEvent.args?.preparedSetupData?.permissions),
+      permissions: utils.parsePermissions(
+        parsedEvent.args?.preparedSetupData?.permissions || parsedEvent?.args?.permissions,
+      ),
       sender: parsedEvent.args.sender,
       daoAddress,
       preparedSetupId: parsedEvent.args.preparedSetupId,
       pluginSetupRepo: parsedEvent.args.pluginSetupRepo,
-      pluginAddress: parsedEvent.args.plugin,
+      pluginAddress: parsedEvent.args.plugin || parsedEvent.args.setupPayload.plugin,
       release: parsedEvent.args.versionTag.release,
       build: parsedEvent.args.versionTag.build,
       blockNumber: info.blockNumber,
@@ -346,7 +350,7 @@ export const PluginSetupProcessorHandler = {
     })
     if (existingLog) return
 
-    const pluginLog: Partial<LogPluginSetupProcessor> = {
+    const logDb = await Models.LogPluginSetupProcessor.create({
       event: IEventLogPluginType.UninstallationApplied,
       network: info.network,
       transactionHash: info.transactionHash,
@@ -356,16 +360,61 @@ export const PluginSetupProcessorHandler = {
       preparedSetupId: parsedEvent.args.preparedSetupId,
       pluginAddress: parsedEvent.args.plugin,
       blockNumber: info.blockNumber,
-    }
+    })
 
-    const logDb = await DbOperations.createDocument(
-      Models.LogPluginSetupProcessor,
-      pluginLog,
-      info,
-      'New UninstallationApplied',
-      llo,
-    )
     await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.uninstalled, logDb)
+
+    const plugin = await Models.Plugin.findOne({
+      network: logDb.network,
+      daoAddress: logDb.daoAddress,
+      address: logDb.pluginAddress,
+      status: IPluginStatus.uninstalled,
+    })
+
+    if (plugin?.subPlugins?.length) {
+      const addresses = [...new Set(plugin.subPlugins.flatMap(w => w.addresses))]
+
+      await utils.asyncParallel(
+        addresses.map(pluginAddress => async () => {
+          const existingPlugin = await Models.Plugin.findOne({
+            network: info.network,
+            address: pluginAddress,
+          })
+
+          if (!existingPlugin) return // nothing to update
+
+          // check if its used by any other plugins
+          const otherPlugin = await Models.Plugin.findOne({
+            'subPlugins.addresses': pluginAddress,
+            network: info.network,
+            address: { $ne: plugin.address },
+          })
+
+          if (otherPlugin) return
+
+          const uninstalledPlugin = await DbOperations.updateDocument(
+            existingPlugin,
+            {
+              status: IPluginStatus.abandoned,
+              uninstalled: {
+                status: true,
+                transactionHash: plugin.transactionHash,
+                blockNumber: plugin.blockNumber,
+                blockTimestamp: 0,
+              },
+            },
+            { logId: existingPlugin.id },
+            'Uninstall plugin',
+            llo,
+          )
+
+          await PluginSlug.deleteSlug(uninstalledPlugin)
+        }),
+        (error: { message: any }) => {
+          logger.error(`Failed to uninstall subPlugin: ${error.message}`, { error })
+        },
+      )
+    }
   },
 
   findAndUpdateTokenAddress: async (pluginDb: Plugin, info: ILogInfo) => {

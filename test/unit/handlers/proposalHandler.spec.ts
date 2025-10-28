@@ -31,6 +31,7 @@ import DbOperations from '@models/utils/dbOperations'
 import { BlockchainLogCrawler } from '@modules/crawlers'
 import Web3Utils from '@helpers/web3Utils'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
+import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 
 describe('ProposalHandler', () => {
   let sandbox: SinonSandbox
@@ -2621,6 +2622,44 @@ describe('ProposalHandler', () => {
       await ProposalHandler.proposalExecuted(fakeEvent as any, info)
 
       expect(rabbitMQStub.notCalled).to.be.true
+    })
+
+    it('should handle DAO upgrade action when proposal contains upgradeToAndCall', async () => {
+      const proposal = await Models.Proposal.create({
+        ...ProposalList[0],
+        rawActions: [
+          {
+            data: '0x4f1ef286000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000',
+            to: ProposalList[0].daoAddress,
+          },
+        ],
+      })
+      const network = proposal.network
+      const info: ILogInfo = {
+        transactionHash: '0xExecutedTx',
+        address: '0xplugin-address',
+        blockNumber: 20,
+        network,
+        eventName: 'ProposalExecuted',
+        transactionIndex: 1,
+        logIndex: 2,
+      } as any
+      const fakeEvent = {
+        args: {
+          proposalId: 1n,
+        },
+      }
+
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const daoRegistryStub = sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
+      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
+
+      await ProposalHandler.proposalExecuted(fakeEvent as any, info)
+
+      expect(daoRegistryStub.calledOnceWith(proposal.daoAddress, info)).to.be.true
+      expect(verboseLoggerStub.calledOnceWith('Updated proposal executed' as any)).to.be.true
     })
   })
 

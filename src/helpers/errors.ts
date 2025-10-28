@@ -61,6 +61,10 @@ const ERRORS: IErrorMap = {
     status: 400,
     description: 'Duplicate addresses found in the members list',
   },
+  [ErrorKeyEnum.badSimulationRequest]: {
+    status: 400,
+    description: 'Bad simulation request',
+  },
 }
 
 const throwError = (message: string, detail: IErrorDetail = {}) => {

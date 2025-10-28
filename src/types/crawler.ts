@@ -341,6 +341,7 @@ export enum IVotingEscrowAdapterLogs {
 export enum IExitQueueLogs {
   ExitQueued = 'ExitQueued',
   MinLockSet = 'MinLockSet',
+  ExitQueuedV2 = 'ExitQueuedV2',
 }
 
 export enum ISelectorPermissionLogs {

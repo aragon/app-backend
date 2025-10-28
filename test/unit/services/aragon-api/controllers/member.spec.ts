@@ -393,9 +393,17 @@ describe('Controller: Member', () => {
       }
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin)
 
-      await expect(
-        MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams),
-      ).to.be.rejectedWith('Unsupported plugin interface type: tokenVoting')
+      const result = await MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams)
+
+      expect(result).to.deep.equal({
+        metadata: {
+          page: 1,
+          pageSize: 10,
+          totalRecords: 0,
+          totalPages: 1,
+        },
+        data: [],
+      })
     })
 
     it('should handle lockToVote plugin with no lockManagerAddress', async () => {
@@ -539,39 +547,6 @@ describe('Controller: Member', () => {
       await expect(MemberController.getMemberByAddress('0xNonExistent' as HexAddress, {}, {})).to.be.rejectedWith(
         ErrorKeyEnum.notFound,
       )
-    })
-
-    it('should use pluginAddress as tokenAddress when tokenAddress not provided', async () => {
-      const mockMemberData = {
-        address: rawMember.address,
-        ens: rawMember.ens,
-        avatar: rawMember.avatar,
-        votingPower: null,
-      }
-
-      sandbox.stub(Models.Member, 'findMemberByAddress').resolves(mockMemberData as any)
-      const stubSendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({
-        votingPower: '500',
-        balance: '1000',
-        currentDelegate: null,
-      })
-
-      const response = await MemberController.getMemberByAddress(
-        rawMember.address as HexAddress,
-        {
-          daoAddress: rawDao.address,
-          network: rawDao.network,
-          pluginAddress: rawPlugin.address,
-        },
-        {},
-      )
-
-      expect(stubSendMessage.calledOnce).to.be.true
-      expect(stubSendMessage.firstCall.args[1].id).to.equal(
-        `memberBalance-${rawMember.address}-${rawPlugin.address}-${rawDao.network}`,
-      )
-      expect(stubSendMessage.firstCall.args[1].params.tokenAddress).to.be.undefined
-      expect(response.votingPower).to.equal('500')
     })
   })
 

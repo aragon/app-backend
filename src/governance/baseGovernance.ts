@@ -116,17 +116,23 @@ export abstract class BaseGovernance {
       }
 
       // Create new pluginMetrics document with counts
-      const proposalCount = await Models.Proposal.countDocuments({
-        creatorAddress: parsedAddress,
-        pluginAddress: params.pluginAddress,
-        network: params.network,
-      })
+      const proposalCount = await Models.Proposal.countDocuments(
+        {
+          creatorAddress: parsedAddress,
+          pluginAddress: params.pluginAddress,
+          network: params.network,
+        },
+        { session },
+      )
 
-      const voteCount = await Models.Vote.countDocuments({
-        memberAddress: parsedAddress,
-        pluginAddress: params.pluginAddress,
-        network: params.network,
-      })
+      const voteCount = await Models.Vote.countDocuments(
+        {
+          memberAddress: parsedAddress,
+          pluginAddress: params.pluginAddress,
+          network: params.network,
+        },
+        { session },
+      )
 
       const newPluginMetrics = await Models.PluginMetrics.create(
         {
@@ -175,8 +181,7 @@ export abstract class BaseGovernance {
 
         if (!pluginMetrics) {
           logger.warn('Failed to get or create PluginMetrics for update', this.llo({ params }))
-          await session.commitTransaction()
-          await session.endSession()
+          await DbTx.safeCommit(session)
           return null
         }
 
@@ -207,8 +212,7 @@ export abstract class BaseGovernance {
 
         const updated = await pluginMetrics.update(updateData, { session })
 
-        await session.commitTransaction()
-        await session.endSession()
+        await DbTx.safeCommit(session)
 
         logger.verbose(
           'Updated PluginMetrics',

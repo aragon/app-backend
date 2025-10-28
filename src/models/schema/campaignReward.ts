@@ -69,6 +69,9 @@ export default class CampaignReward extends Model {
   @prop({ type: () => String, default: null })
   public leaf!: string | null
 
+  @prop({ type: () => Number, default: 0 })
+  public index!: number
+
   static async create(rawData: Partial<CampaignReward>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.pluginAddress, 'pluginAddress is required')

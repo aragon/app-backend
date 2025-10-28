@@ -21,6 +21,7 @@ import PluginRepoMockData from '@test/unit-dep/mockData/pluginRepo.json'
 import ProviderModule from '@modules/provider'
 import { ethers } from 'ethers'
 import { LogLockToVote } from '@plugins/logLockToVote'
+
 const UnitDepUtils = {
   getData: async (
     abi: any,
@@ -218,7 +219,7 @@ const UnitDepUtils = {
               network: plugin.network,
             })
 
-            if (token?.type === ITokenType.ERC20 && token.isGovernance) {
+            if ((token?.type === ITokenType.ERC20 || token?.type === ITokenType.escrowAdapter) && token.isGovernance) {
               logger.info('Sync plugin: token is ERC20')
 
               await LogTokenVoting.start(plugin, token, isHistorical)
@@ -267,7 +268,14 @@ const UnitDepUtils = {
       fromBlock: fromBlock ?? 0,
       toBlock: 'latest',
       topics: [
-        [configIndexer.filter(config => config.event === 'InstallationPrepared')[0].topic],
+        configIndexer
+          .filter(
+            config =>
+              config.event === 'InstallationPrepared' ||
+              config.event === 'UninstallationPrepared' ||
+              config.event === 'UpdatePrepared',
+          )
+          .map(config => config.topic),
         null,
         [daoAddressFilter],
       ],

@@ -44,8 +44,9 @@ const ModelUtils = {
 
     // Search functionality using regex
     if (search && searchBy.length > 0) {
+      const cleanSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
       filter.$or = searchBy.map(field => ({
-        [field]: { $regex: `^${search}`, $options: 'i' }, // Starts with search term, case-insensitive
+        [field]: { $regex: `${cleanSearch}`, $options: 'i' }, // Whole-word, case-insensitive match
       }))
     }
 

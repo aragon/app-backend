@@ -9,6 +9,7 @@ import {
   type IProposalIdParams,
   type IProposalsResponse,
   IReportResultType,
+  ISimulationStatus,
   NetworksEnum,
 } from '@types'
 import { Model, type SaveOptions, Schema } from 'mongoose'
@@ -80,6 +81,17 @@ class Media {
 
   @prop({ type: () => String, default: null })
   public logo!: string | null
+}
+
+class Simulation {
+  @prop({ type: () => String, default: null })
+  public url!: string | null
+
+  @prop({ type: () => Number, default: null })
+  public runAt!: number | null
+
+  @prop({ type: () => String, enum: ISimulationStatus, default: null })
+  public status!: ISimulationStatus | null
 }
 
 class Settings {
@@ -339,6 +351,9 @@ export default class Proposal extends Model {
 
   @prop({ type: () => [ExternalBodyResult], _id: false, default: [] })
   public results!: ExternalBodyResult[]
+
+  @prop({ type: () => Simulation, _id: false, default: {} })
+  public simulation!: Simulation
 
   static async create(rawData: Partial<Proposal>, tOpts?: SaveOptions) {
     if (!rawData.id) {
