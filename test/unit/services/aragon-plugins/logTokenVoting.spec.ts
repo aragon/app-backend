@@ -5,12 +5,14 @@ import { LogTokenVoting } from '@plugins/logTokenVoting'
 import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
 import { NetworksEnum, ITokenType } from '@types'
 import { expect } from 'chai'
+import Web3Helper from '@helpers/web3'
 
-describe.only('AragonPlugins: LogTokenVoting', () => {
+describe('AragonPlugins: LogTokenVoting', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(Web3Helper, 'getBlockNumber').resolves()
   })
 
   afterEach(() => {

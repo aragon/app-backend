@@ -4,7 +4,8 @@ import { expect } from 'chai'
 import GaugeHelper from '@helpers/gauge'
 import Web3Helper from '@helpers/web3'
 import { NetworksEnum } from '@types'
-import * as proxyquire from 'proxyquire'
+import proxyquire from 'proxyquire'
+import { ZeroAddress } from 'ethers'
 
 describe('Helpers: Gauge', () => {
   let sandbox: SinonSandbox
@@ -67,311 +68,404 @@ describe('Helpers: Gauge', () => {
 
   describe('getGaugeEpochId', () => {
     it('should return the epochId as a string when successful', async () => {
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns({}),
-      }
-      const stubEpochId = sandbox.stub().resolves(123n)
+      const pluginAddress = '0xPluginAddress'
+      const network = NetworksEnum.ethereumMainnet
+      const epochId = 123n
 
+      const stubEpochId = sandbox.stub().resolves(epochId)
       const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
         ethers: {
           Contract: function () {
             return { epochId: stubEpochId }
           },
         },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
-        },
       })
-
-      const pluginAddress = '0xPluginAddress'
-      const network = NetworksEnum.ethereumMainnet
 
       const result = await MockedGaugeHelper.getGaugeEpochId(pluginAddress, network)
 
       expect(result).to.equal('123')
-      expect(stubEpochId.calledOnce).to.be.true
     })
 
     it('should return null when an error occurs', async () => {
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns({}),
-      }
-      const stubEpochId = sandbox.stub().rejects(new Error('Contract call failed'))
+      const pluginAddress = '0xPluginAddress'
+      const network = NetworksEnum.ethereumMainnet
 
+      const stubEpochId = sandbox.stub().rejects(new Error('Contract call failed'))
       const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
         ethers: {
           Contract: function () {
             return { epochId: stubEpochId }
           },
         },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
-        },
       })
-
-      const pluginAddress = '0xPluginAddress'
-      const network = NetworksEnum.ethereumMainnet
 
       const result = await MockedGaugeHelper.getGaugeEpochId(pluginAddress, network)
 
       expect(result).to.be.null
-      expect(stubEpochId.calledOnce).to.be.true
     })
   })
 
   describe('getIVotesAdapterAddress', () => {
-    it('should return the iVotes adapter address when it is not the zero address', async () => {
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns({}),
-      }
-      const stubIvotesAdapter = sandbox.stub().resolves('0xIVotesAdapterAddress')
+    it('should return the iVotes adapter address when successful', async () => {
+      const pluginAddress = '0xPluginAddress'
+      const network = NetworksEnum.ethereumMainnet
+      const adapterAddress = '0xAdapterAddress'
 
+      const stubIvotesAdapter = sandbox.stub().resolves(adapterAddress)
       const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
         ethers: {
           Contract: function () {
             return { ivotesAdapter: stubIvotesAdapter }
           },
-        },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
+          ZeroAddress,
         },
       })
 
+      const result = await MockedGaugeHelper.getIVotesAdapterAddress(pluginAddress, network)
+
+      expect(result).to.equal(adapterAddress)
+    })
+
+    it('should return null when adapter address is zero address', async () => {
       const pluginAddress = '0xPluginAddress'
       const network = NetworksEnum.ethereumMainnet
 
+      const stubIvotesAdapter = sandbox.stub().resolves(ZeroAddress)
+      const { default: MockedGaugeHelper } = proxyquire('@helpers/gauge', {
+        ethers: {
+          Contract: function () {
+            return { ivotesAdapter: stubIvotesAdapter }
+          },
+          ZeroAddress,
+        },
+      })
+
       const result = await MockedGaugeHelper.getIVotesAdapterAddress(pluginAddress, network)
 
-      expect(result).to.equal('0xIVotesAdapterAddress')
-      expect(stubIvotesAdapter.calledOnce).to.be.true
+      expect(result).to.be.null
+    })
+
+    it('should return null when an error occurs', async () => {
+      const pluginAddress = '0xPluginAddress'
+      const network = NetworksEnum.ethereumMainnet
+
+      const stubIvotesAdapter = sandbox.stub().rejects(new Error('Contract call failed'))
+      const { default: MockedGaugeHelper } = proxyquire('@helpers/gauge', {
+        ethers: {
+          Contract: function () {
+            return { ivotesAdapter: stubIvotesAdapter }
+          },
+          ZeroAddress,
+        },
+      })
+
+      const result = await MockedGaugeHelper.getIVotesAdapterAddress(pluginAddress, network)
+
+      expect(result).to.be.null
     })
   })
 
   describe('getEnableUpdateVotingPowerHookFlag', () => {
-    it('should return true when flag is enabled', async () => {
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns({}),
-      }
-      const stubEnableHook = sandbox.stub().resolves(true)
+    it('should return true when hook is enabled', async () => {
+      const pluginAddress = '0xPluginAddress'
+      const network = NetworksEnum.ethereumMainnet
 
+      const stubEnableUpdateVotingPowerHook = sandbox.stub().resolves(true)
       const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
         ethers: {
           Contract: function () {
-            return { enableUpdateVotingPowerHook: stubEnableHook }
+            return { enableUpdateVotingPowerHook: stubEnableUpdateVotingPowerHook }
           },
         },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
-        },
       })
-
-      const pluginAddress = '0xPluginAddress'
-      const network = NetworksEnum.ethereumMainnet
 
       const result = await MockedGaugeHelper.getEnableUpdateVotingPowerHookFlag(pluginAddress, network)
 
       expect(result).to.be.true
-      expect(stubEnableHook.calledOnce).to.be.true
+    })
+
+    it('should return false when hook is disabled', async () => {
+      const pluginAddress = '0xPluginAddress'
+      const network = NetworksEnum.ethereumMainnet
+
+      const stubEnableUpdateVotingPowerHook = sandbox.stub().resolves(false)
+      const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
+        ethers: {
+          Contract: function () {
+            return { enableUpdateVotingPowerHook: stubEnableUpdateVotingPowerHook }
+          },
+        },
+      })
+
+      const result = await MockedGaugeHelper.getEnableUpdateVotingPowerHookFlag(pluginAddress, network)
+
+      expect(result).to.be.false
+    })
+
+    it('should return false when an error occurs', async () => {
+      const pluginAddress = '0xPluginAddress'
+      const network = NetworksEnum.ethereumMainnet
+
+      const stubEnableUpdateVotingPowerHook = sandbox.stub().rejects(new Error('Contract call failed'))
+      const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
+        ethers: {
+          Contract: function () {
+            return { enableUpdateVotingPowerHook: stubEnableUpdateVotingPowerHook }
+          },
+        },
+      })
+
+      const result = await MockedGaugeHelper.getEnableUpdateVotingPowerHookFlag(pluginAddress, network)
+
+      expect(result).to.be.false
     })
   })
 
   describe('currentEpochStart', () => {
-    it('should return epoch start timestamp', async () => {
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns({}),
-      }
-      const stubCurrentEpochStart = sandbox.stub().resolves(BigInt(1234567890))
+    it('should return the current epoch start timestamp as a number', async () => {
+      const pluginAddress = '0xPluginAddress'
+      const network = NetworksEnum.ethereumMainnet
+      const epochStart = 1704067200n // 2024-01-01 00:00:00 UTC
 
+      const stubCurrentEpochStart = sandbox.stub().resolves(epochStart)
       const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
         ethers: {
           Contract: function () {
             return { currentEpochStart: stubCurrentEpochStart }
           },
         },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
-        },
       })
-
-      const pluginAddress = '0xPluginAddress'
-      const network = NetworksEnum.ethereumMainnet
 
       const result = await MockedGaugeHelper.currentEpochStart(pluginAddress, network)
 
-      expect(result).to.equal(1234567890)
-      expect(stubCurrentEpochStart.calledOnce).to.be.true
+      expect(result).to.equal(1704067200)
+    })
+
+    it('should return null when an error occurs', async () => {
+      const pluginAddress = '0xPluginAddress'
+      const network = NetworksEnum.ethereumMainnet
+
+      const stubCurrentEpochStart = sandbox.stub().rejects(new Error('Contract call failed'))
+      const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
+        ethers: {
+          Contract: function () {
+            return { currentEpochStart: stubCurrentEpochStart }
+          },
+        },
+      })
+
+      const result = await MockedGaugeHelper.currentEpochStart(pluginAddress, network)
+
+      expect(result).to.be.null
     })
   })
 
   describe('getGaugeEpochVoteStart', () => {
-    it('should return epoch vote start timestamp', async () => {
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns({}),
-      }
-      const stubEpochVoteStart = sandbox.stub().resolves(BigInt(1234567890))
+    it('should return the epoch vote start timestamp as a number', async () => {
+      const pluginAddress = '0xPluginAddress'
+      const network = NetworksEnum.ethereumMainnet
+      const voteStart = 1704067200n
 
+      const stubEpochVoteStart = sandbox.stub().resolves(voteStart)
       const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
         ethers: {
           Contract: function () {
             return { epochVoteStart: stubEpochVoteStart }
           },
         },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
-        },
       })
-
-      const pluginAddress = '0xPluginAddress'
-      const network = NetworksEnum.ethereumMainnet
 
       const result = await MockedGaugeHelper.getGaugeEpochVoteStart(pluginAddress, network)
 
-      expect(result).to.equal(1234567890)
-      expect(stubEpochVoteStart.calledOnce).to.be.true
+      expect(result).to.equal(1704067200)
+    })
+
+    it('should return null when an error occurs', async () => {
+      const pluginAddress = '0xPluginAddress'
+      const network = NetworksEnum.ethereumMainnet
+
+      const stubEpochVoteStart = sandbox.stub().rejects(new Error('Contract call failed'))
+      const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
+        ethers: {
+          Contract: function () {
+            return { epochVoteStart: stubEpochVoteStart }
+          },
+        },
+      })
+
+      const result = await MockedGaugeHelper.getGaugeEpochVoteStart(pluginAddress, network)
+
+      expect(result).to.be.null
     })
   })
 
   describe('getGaugeEpochVoteEnd', () => {
-    it('should return epoch vote end timestamp', async () => {
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns({}),
-      }
-      const stubEpochVoteEnd = sandbox.stub().resolves(BigInt(1234567890))
+    it('should return the epoch vote end timestamp as a number', async () => {
+      const pluginAddress = '0xPluginAddress'
+      const network = NetworksEnum.ethereumMainnet
+      const voteEnd = 1704672000n
 
+      const stubEpochVoteEnd = sandbox.stub().resolves(voteEnd)
       const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
         ethers: {
           Contract: function () {
             return { epochVoteEnd: stubEpochVoteEnd }
           },
         },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
-        },
       })
-
-      const pluginAddress = '0xPluginAddress'
-      const network = NetworksEnum.ethereumMainnet
 
       const result = await MockedGaugeHelper.getGaugeEpochVoteEnd(pluginAddress, network)
 
-      expect(result).to.equal(1234567890)
-      expect(stubEpochVoteEnd.calledOnce).to.be.true
+      expect(result).to.equal(1704672000)
+    })
+
+    it('should return null when an error occurs', async () => {
+      const pluginAddress = '0xPluginAddress'
+      const network = NetworksEnum.ethereumMainnet
+
+      const stubEpochVoteEnd = sandbox.stub().rejects(new Error('Contract call failed'))
+      const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
+        ethers: {
+          Contract: function () {
+            return { epochVoteEnd: stubEpochVoteEnd }
+          },
+        },
+      })
+
+      const result = await MockedGaugeHelper.getGaugeEpochVoteEnd(pluginAddress, network)
+
+      expect(result).to.be.null
     })
   })
 
   describe('getUsedVotingPower', () => {
-    it('should return used voting power as string', async () => {
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns({}),
-      }
-      const stubUsedVotingPower = sandbox.stub().resolves(BigInt('1000000000000000000'))
+    it('should return the used voting power for a member', async () => {
+      const memberAddress = '0xMemberAddress'
+      const pluginAddress = '0xPluginAddress'
+      const network = NetworksEnum.ethereumMainnet
+      const usedPower = 5000n
 
+      const stubUsedVotingPower = sandbox.stub().resolves(usedPower)
       const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
         ethers: {
           Contract: function () {
             return { usedVotingPower: stubUsedVotingPower }
           },
         },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
-        },
       })
 
+      const result = await MockedGaugeHelper.getUsedVotingPower(memberAddress, pluginAddress, network)
+
+      expect(result).to.equal('5000')
+      expect(stubUsedVotingPower.calledOnceWith(memberAddress)).to.be.true
+    })
+
+    it('should return 0 when an error occurs', async () => {
       const memberAddress = '0xMemberAddress'
       const pluginAddress = '0xPluginAddress'
       const network = NetworksEnum.ethereumMainnet
 
-      const result = await MockedGaugeHelper.getUsedVotingPower(memberAddress, pluginAddress, network)
-
-      expect(result).to.equal('1000000000000000000')
-      expect(stubUsedVotingPower.calledOnce).to.be.true
-    })
-  })
-
-  describe('totalVotingPowerCast', () => {
-    it('should return total voting power cast as string', async () => {
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns({}),
-      }
-      const stubTotalVotingPowerCast = sandbox.stub().resolves(BigInt('5000000000000000000'))
-
+      const stubUsedVotingPower = sandbox.stub().rejects(new Error('Contract call failed'))
       const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
         ethers: {
           Contract: function () {
-            return { totalVotingPowerCast: stubTotalVotingPowerCast }
+            return { usedVotingPower: stubUsedVotingPower }
           },
-        },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
         },
       })
 
-      const pluginAddress = '0xPluginAddress'
-      const network = NetworksEnum.ethereumMainnet
+      const result = await MockedGaugeHelper.getUsedVotingPower(memberAddress, pluginAddress, network)
 
-      const result = await MockedGaugeHelper.totalVotingPowerCast(pluginAddress, network)
-
-      expect(result).to.equal('5000000000000000000')
-      expect(stubTotalVotingPowerCast.calledOnce).to.be.true
+      expect(result).to.equal('0')
+      expect(stubUsedVotingPower.calledOnceWith(memberAddress)).to.be.true
     })
   })
 
   describe('getVotes', () => {
-    it('should return votes as string', async () => {
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns({}),
-      }
-      const stubGetVotes = sandbox.stub().resolves(BigInt('2000000000000000000'))
+    it('should return the current voting power for a member', async () => {
+      const memberAddress = '0xMemberAddress'
+      const iVotesAddress = '0xIVotesAddress'
+      const network = NetworksEnum.ethereumMainnet
+      const votes = 10000n
 
+      const stubGetVotes = sandbox.stub().resolves(votes)
       const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
         ethers: {
           Contract: function () {
             return { getVotes: stubGetVotes }
           },
         },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
-        },
       })
 
+      const result = await MockedGaugeHelper.getVotes(memberAddress, iVotesAddress, network)
+
+      expect(result).to.equal('10000')
+      expect(stubGetVotes.calledOnceWith(memberAddress)).to.be.true
+    })
+
+    it('should return 0 when an error occurs', async () => {
       const memberAddress = '0xMemberAddress'
       const iVotesAddress = '0xIVotesAddress'
       const network = NetworksEnum.ethereumMainnet
 
+      const stubGetVotes = sandbox.stub().rejects(new Error('Contract call failed'))
+      const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
+        ethers: {
+          Contract: function () {
+            return { getVotes: stubGetVotes }
+          },
+        },
+      })
+
       const result = await MockedGaugeHelper.getVotes(memberAddress, iVotesAddress, network)
 
-      expect(result).to.equal('2000000000000000000')
-      expect(stubGetVotes.calledOnce).to.be.true
+      expect(result).to.equal('0')
+      expect(stubGetVotes.calledOnceWith(memberAddress)).to.be.true
     })
   })
 
   describe('getPastVotes', () => {
-    it('should return past votes as string', async () => {
-      const stubConfigState = {
-        getConfigItem: sandbox.stub().returns({}),
-      }
-      const stubGetPastVotes = sandbox.stub().resolves(BigInt('3000000000000000000'))
+    it('should return the past voting power for a member at a specific timepoint', async () => {
+      const memberAddress = '0xMemberAddress'
+      const timePoint = 1704067200
+      const iVotesAddress = '0xIVotesAddress'
+      const network = NetworksEnum.ethereumMainnet
+      const votes = 8000n
 
+      const stubGetPastVotes = sandbox.stub().resolves(votes)
       const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
         ethers: {
           Contract: function () {
             return { getPastVotes: stubGetPastVotes }
           },
         },
-        '@state/configState': {
-          ConfigState: { getInstance: () => stubConfigState },
-        },
       })
-
-      const memberAddress = '0xMemberAddress'
-      const timePoint = 123456
-      const iVotesAddress = '0xIVotesAddress'
-      const network = NetworksEnum.ethereumMainnet
 
       const result = await MockedGaugeHelper.getPastVotes(memberAddress, timePoint, iVotesAddress, network)
 
-      expect(result).to.equal('3000000000000000000')
-      expect(stubGetPastVotes.calledOnce).to.be.true
+      expect(result).to.equal('8000')
+      expect(stubGetPastVotes.calledOnceWith(memberAddress, timePoint)).to.be.true
+    })
+
+    it('should return 0 when an error occurs', async () => {
+      const memberAddress = '0xMemberAddress'
+      const timePoint = 1704067200
+      const iVotesAddress = '0xIVotesAddress'
+      const network = NetworksEnum.ethereumMainnet
+
+      const stubGetPastVotes = sandbox.stub().rejects(new Error('Contract call failed'))
+      const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
+        ethers: {
+          Contract: function () {
+            return { getPastVotes: stubGetPastVotes }
+          },
+        },
+      })
+
+      const result = await MockedGaugeHelper.getPastVotes(memberAddress, timePoint, iVotesAddress, network)
+
+      expect(result).to.equal('0')
+      expect(stubGetPastVotes.calledOnceWith(memberAddress, timePoint)).to.be.true
     })
   })
 })

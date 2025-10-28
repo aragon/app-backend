@@ -1,12 +1,13 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
-import { IPluginInterfaceType, NetworksEnum } from '@types'
+import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import { expect } from 'chai'
 import { LogGauge } from '@plugins/logGauge'
 import GaugeController from '@api/controllers/gauge'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import { GaugeInfo } from '@services/aragon-gateway/gauge'
 
 describe('Integ: Gauge', () => {
   let sandbox: SinonSandbox
@@ -28,7 +29,7 @@ describe('Integ: Gauge', () => {
     ]
 
     for (const { network, daoAddress } of networks) {
-      it(`should handle veLock all events properly ${network}`, async function () {
+      it(`should handle gauge all events properly ${network}`, async function () {
         this.timeout(100000000)
 
         const rabbitMQStub = UnitDepUtils.stubRabbitmqSend(sandbox) as any
@@ -66,10 +67,48 @@ describe('Integ: Gauge', () => {
         expect(apiGauges.data[0].creatorAddress).to.exist
         expect(apiGauges.data[0].isActive).to.exist
         const data = apiGauges.data[0] as any
-        expect(data.metrics.voteCount).to.eq(0)
-        expect(data.metrics.votingPower).to.eq('0')
+        expect(data.metrics.totalMemberVoteCount).to.eq(0)
+        expect(data.metrics.currentEpochVotingPower).to.eq('0')
+        expect(data.metrics.totalGaugeVotingPower).to.eq('0')
         expect(data.metrics.epochId).to.eq('0')
       })
     }
+  })
+
+  it(`getGaugeInfo - should handle gauge fetch live info`, async function () {
+    const network = NetworksEnum.ethereumSepolia
+    const pluginAddress = '0x9910F6A4e536f90b00b771EeD6B08BAdb5c43717'
+
+    const plugin = await Models.Plugin.create({
+      id: `${network}-${pluginAddress}-0`,
+      transactionHash: '0xplugintx',
+      blockNumber: 50,
+      network,
+      address: pluginAddress,
+      interfaceType: IPluginInterfaceType.tokenVoting,
+      status: IPluginStatus.installed,
+      daoAddress: '0x0A00c7BA3B0e23363991D4BA7E83a10Fc48969d8',
+      iVotesAddress: '0x2fD483f98B7344f5DFfA943bC0D787d6760813df',
+      isSupported: true,
+    })
+
+    const gaugeInfo = await GaugeInfo.getGaugeInfo({
+      pluginAddress,
+      memberAddress: '0x0A00c7BA3B0e23363991D4BA7E83a10Fc48969d8',
+      network,
+    })
+
+    console.log(gaugeInfo)
+    expect(gaugeInfo?.pluginAddress).to.equal(plugin.address)
+    expect(gaugeInfo?.network).to.equal(plugin.network)
+    expect(BigInt(gaugeInfo?.epochId!) >= BigInt(1456)).to.be.true
+    expect(BigInt(gaugeInfo?.totalVotingPower!) >= BigInt(0)).to.be.true
+    expect(gaugeInfo?.enableUpdateVotingPowerHook).to.equal(true)
+    expect(gaugeInfo?.currentEpochStart).to.be.gte(1761177600)
+    expect(gaugeInfo?.epochVoteStart).to.be.gte(1761177600)
+    expect(gaugeInfo?.epochVoteEnd).to.be.gte(1761177600)
+    expect(gaugeInfo?.memberAddress).to.eq('0x0A00c7BA3B0e23363991D4BA7E83a10Fc48969d8')
+    expect(BigInt(gaugeInfo?.memberUsedVotingPower!) >= BigInt(0)).to.be.true
+    expect(BigInt(gaugeInfo?.memberVotingPower!) >= BigInt(0)).to.be.true
   })
 })

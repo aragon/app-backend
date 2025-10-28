@@ -209,7 +209,7 @@ describe('Plugin', () => {
     const network = NetworksEnum.ethereumMainnet
     const epochId = '5'
 
-    it('should return epochId from Web3Helper', async () => {
+    it('should return epochId from GaugeHelper', async () => {
       const getGaugeEpochIdStub = sandbox.stub(GaugeHelper, 'getGaugeEpochId').resolves(epochId)
 
       const result = await Plugin.getGaugeEpochId(pluginAddress, network)
@@ -238,8 +238,8 @@ describe('Plugin', () => {
       expect(getGaugeEpochIdStub.calledWith(pluginAddress, arbitrumNetwork)).to.be.true
     })
 
-    it('should propagate errors from Web3Helper', async () => {
-      const error = new Error('Web3 connection error')
+    it('should propagate errors from GaugeHelper', async () => {
+      const error = new Error('Gauge connection error')
       sandbox.stub(GaugeHelper, 'getGaugeEpochId').rejects(error)
 
       try {
@@ -247,11 +247,11 @@ describe('Plugin', () => {
         expect.fail('Should have thrown an error')
       } catch (err: any) {
         expect(err).to.equal(error)
-        expect(err.message).to.equal('Web3 connection error')
+        expect(err.message).to.equal('Gauge connection error')
       }
     })
 
-    it('should handle null/undefined return from Web3Helper', async () => {
+    it('should handle null/undefined return from GaugeHelper', async () => {
       sandbox.stub(GaugeHelper, 'getGaugeEpochId').resolves(null as any)
 
       const result = await Plugin.getGaugeEpochId(pluginAddress, network)

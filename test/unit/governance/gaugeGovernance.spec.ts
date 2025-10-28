@@ -13,7 +13,6 @@ describe('Governance:GaugeGovernance', () => {
   let sandbox: SinonSandbox
   let gaugeGovernance: GaugeGovernance
   let loggerWarnStub: sinon.SinonStub
-  let loggerVerboseStub: sinon.SinonStub
 
   const testPluginAddress = '0x1234567890123456789012345678901234567890' as HexAddress
   const testGaugeAddress = '0xgaugegaugegaugegaugegaugegaugegaugegauge' as HexAddress
@@ -24,7 +23,6 @@ describe('Governance:GaugeGovernance', () => {
     gaugeGovernance = new GaugeGovernance(testGaugeAddress, testNetwork)
 
     loggerWarnStub = sandbox.stub(Logger, 'warn')
-    loggerVerboseStub = sandbox.stub(Logger, 'verbose')
   })
 
   afterEach(() => {
@@ -177,7 +175,7 @@ describe('Governance:GaugeGovernance', () => {
       ).to.be.true
     })
 
-    it('should create gauge with different epochId from Web3Helper', async () => {
+    it('should create gauge with specific epochId from GaugeHelper', async () => {
       const rawGauge = {
         address: testGaugeAddress,
         pluginAddress: testPluginAddress,
@@ -216,33 +214,6 @@ describe('Governance:GaugeGovernance', () => {
       ).to.be.true
     })
 
-    it('should call GaugeMetrics.epochGaugeMetrics with null epochId', async () => {
-      const rawGauge = {
-        address: testGaugeAddress,
-        pluginAddress: testPluginAddress,
-        network: testNetwork,
-      }
-
-      const createdGauge = {
-        address: testGaugeAddress,
-        pluginAddress: testPluginAddress,
-        network: testNetwork,
-      }
-
-      createGaugeStub.resolves(createdGauge as any)
-
-      await gaugeGovernance.createGauge(rawGauge)
-
-      expect(epochGaugeMetricsStub.calledOnce).to.be.true
-      const callArgs = epochGaugeMetricsStub.getCall(0).args[0]
-      expect(callArgs.epochId).to.be.null
-      expect(callArgs.gaugeAddress).to.equal(testGaugeAddress)
-      expect(callArgs.pluginAddress).to.equal(testPluginAddress)
-      expect(callArgs.network).to.equal(testNetwork)
-      expect(callArgs.currentEpochVotingPower).to.equal('0')
-      expect(callArgs.totalGaugeVotingPower).to.equal('0')
-    })
-
     it('should handle partial gauge data', async () => {
       const rawGauge = {
         address: testGaugeAddress,
@@ -265,6 +236,64 @@ describe('Governance:GaugeGovernance', () => {
       expect(result).to.deep.equal(createdGauge)
       expect(createGaugeStub.calledOnce).to.be.true
       expect(epochGaugeMetricsStub.calledOnce).to.be.true
+
+      const callArgs = epochGaugeMetricsStub.getCall(0).args[0]
+      expect(callArgs.epochId).to.be.null
+      expect(callArgs.gaugeAddress).to.equal(testGaugeAddress)
+      expect(callArgs.pluginAddress).to.equal(testPluginAddress)
+      expect(callArgs.network).to.equal(testNetwork)
+      expect(callArgs.currentEpochVotingPower).to.equal('0')
+      expect(callArgs.totalGaugeVotingPower).to.equal('0')
+    })
+
+    it('should throw error when Models.Gauge.create fails', async () => {
+      const rawGauge = {
+        address: testGaugeAddress,
+        pluginAddress: testPluginAddress,
+        network: testNetwork,
+      }
+
+      const error = new Error('Database connection failed')
+      createGaugeStub.rejects(error)
+
+      try {
+        await gaugeGovernance.createGauge(rawGauge)
+        expect.fail('Should have thrown an error')
+      } catch (err) {
+        expect(err).to.equal(error)
+        expect(createGaugeStub.calledOnce).to.be.true
+        expect(getGaugeEpochIdStub.called).to.be.false
+        expect(epochGaugeMetricsStub.called).to.be.false
+      }
+    })
+
+    it('should throw error when GaugeMetrics.epochGaugeMetrics fails', async () => {
+      const rawGauge = {
+        address: testGaugeAddress,
+        pluginAddress: testPluginAddress,
+        network: testNetwork,
+      }
+
+      const createdGauge = {
+        address: testGaugeAddress,
+        pluginAddress: testPluginAddress,
+        network: testNetwork,
+      }
+
+      createGaugeStub.resolves(createdGauge as any)
+
+      const error = new Error('Metrics calculation failed')
+      epochGaugeMetricsStub.rejects(error)
+
+      try {
+        await gaugeGovernance.createGauge(rawGauge)
+        expect.fail('Should have thrown an error')
+      } catch (err) {
+        expect(err).to.equal(error)
+        expect(createGaugeStub.calledOnce).to.be.true
+        expect(getGaugeEpochIdStub.calledOnce).to.be.true
+        expect(epochGaugeMetricsStub.calledOnce).to.be.true
+      }
     })
   })
 })

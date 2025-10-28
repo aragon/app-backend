@@ -1,12 +1,11 @@
 import { type HexAddress, NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
 import ProviderModule from '@modules/provider'
-import { Contract } from 'ethers'
+import { Contract, ZeroAddress } from 'ethers'
 import { GaugeVoter } from '@artifacts/GaugeVoter'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
 import logger from '@logger'
-import Utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:GaugeHelper' })
 
@@ -50,7 +49,7 @@ const GaugeHelper = {
         ),
       )
 
-      if (iVotesAdapterAddress === Utils.zeroAddress) {
+      if (iVotesAdapterAddress === ZeroAddress) {
         return null
       }
 

@@ -24,8 +24,8 @@ describe('Service: GaugeMetrics', () => {
       const pluginAddress = '0xPlugin1111111111111111111111111111111'
       const network = NetworksEnum.ethereumMainnet
       const epochId = '5'
-      const currentEpochVotingPower = '5000000000000000000'
-      const totalGaugeVotingPower = '10000000000000000000'
+      const currentEpochVotingPower = '8000000000000000000'
+      const totalGaugeVotingPower = '5000000000000000000'
 
       const mockGauge = {
         address: gaugeAddress,
@@ -68,8 +68,8 @@ describe('Service: GaugeMetrics', () => {
       const pluginAddress = '0xPlugin2222222222222222222222222222222'
       const network = NetworksEnum.ethereumMainnet
       const epochId = '10'
-      const currentEpochVotingPower = '15000000000000000000'
-      const totalGaugeVotingPower = '30000000000000000000'
+      const currentEpochVotingPower = '20000000000000000000'
+      const totalGaugeVotingPower = '15000000000000000000'
 
       const mockGauge = {
         address: gaugeAddress,
@@ -107,8 +107,8 @@ describe('Service: GaugeMetrics', () => {
       expect(
         mockExistingMetrics.update.calledWith({
           totalMemberVoteCount: 25,
-          currentEpochVotingPower: '15000000000000000000',
-          totalGaugeVotingPower: '30000000000000000000',
+          currentEpochVotingPower: '20000000000000000000',
+          totalGaugeVotingPower: '15000000000000000000',
         }),
       ).to.be.true
 
@@ -121,8 +121,8 @@ describe('Service: GaugeMetrics', () => {
       const pluginAddress = '0xPlugin3333333333333333333333333333333'
       const network = NetworksEnum.ethereumMainnet
       const epochId = '1'
-      const currentEpochVotingPower = '1000000000000000000'
-      const totalGaugeVotingPower = '5000000000000000000'
+      const currentEpochVotingPower = '3000000000000000000'
+      const totalGaugeVotingPower = '1000000000000000000'
 
       const findGaugeStub = sandbox.stub(Models.Gauge, 'findOne').resolves(null)
       const warnStub = sandbox.stub(logger, 'warn')
@@ -150,8 +150,8 @@ describe('Service: GaugeMetrics', () => {
       const pluginAddress = '0xPlugin4444444444444444444444444444444'
       const network = NetworksEnum.ethereumMainnet
       const retrievedEpochId = '15'
-      const currentEpochVotingPower = '2000000000000000000'
-      const totalGaugeVotingPower = '8000000000000000000'
+      const currentEpochVotingPower = '4000000000000000000'
+      const totalGaugeVotingPower = '2000000000000000000'
 
       const mockGauge = {
         address: gaugeAddress,
@@ -187,8 +187,8 @@ describe('Service: GaugeMetrics', () => {
       const gaugeAddress = '0xGauge44444444444444444444444444444444'
       const pluginAddress = '0xPlugin5555555555555555555555555555555'
       const network = NetworksEnum.ethereumMainnet
-      const currentEpochVotingPower = '3000000000000000000'
-      const totalGaugeVotingPower = '12000000000000000000'
+      const currentEpochVotingPower = '5000000000000000000'
+      const totalGaugeVotingPower = '3000000000000000000'
 
       const mockGauge = {
         address: gaugeAddress,
@@ -225,8 +225,8 @@ describe('Service: GaugeMetrics', () => {
       const network = NetworksEnum.ethereumMainnet
       const epochId = '20'
       const totalMemberVoteCount = 42
-      const currentEpochVotingPower = '8888888888888888888'
-      const totalGaugeVotingPower = '20000000000000000000'
+      const currentEpochVotingPower = '10000000000000000000'
+      const totalGaugeVotingPower = '8888888888888888888'
 
       const mockGauge = {
         address: gaugeAddress,
