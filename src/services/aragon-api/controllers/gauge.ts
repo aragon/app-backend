@@ -45,7 +45,6 @@ const GaugeController = {
     })
     assertExposable(!!plugin, ErrorKeyEnum.notFound, undefined, undefined, {
       pluginAddress: params.pluginAddress,
-      memberAddress: params.memberAddress,
     })
 
     const gaugeInfo = await RabbitMQHelper.sendMessage(
