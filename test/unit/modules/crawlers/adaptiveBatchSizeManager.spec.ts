@@ -378,8 +378,6 @@ describe('Module: AdaptiveBatchSizeManager', () => {
       manager.recordBatchSizeError()
       expect(manager.getState().isInHighActivityZone).to.be.true
 
-      const reducedSize = manager.getCurrentBatchSize()
-
       // Gradually recover with successful fetches
       const config = manager.getConfig()
       for (let i = 0; i < config.successThresholdForGrowth * 2; i++) {
