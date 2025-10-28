@@ -18,7 +18,7 @@ const llo = logger.logMeta.bind(null, { service: 'modules:EventCrawler' })
 
 class BlockchainLogCrawler {
   private readonly crawlParams: ICrawlParam
-  public readonly crawlSetting: ICrawlSetting
+  public crawlSetting: ICrawlSetting
   private readonly adaptiveBatchManager: AdaptiveBatchSizeManager
   private readonly batchRequestManager: BatchRequestManager
   private readonly errorHandler: CrawlerErrorHandler
