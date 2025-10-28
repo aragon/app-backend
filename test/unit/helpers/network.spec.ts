@@ -59,10 +59,10 @@ describe('Helpers: Network', () => {
       networkToAragonStub.returns('')
 
       const ethBlockTime = NetworkHelper.getAverageBlockTime(NetworksEnum.ethereumMainnet)
-      expect(ethBlockTime).to.equal(12000) // 12 seconds * 1000 = 12000ms
+      expect(ethBlockTime).to.equal(12)
 
       const polyBlockTime = NetworkHelper.getAverageBlockTime(NetworksEnum.polygonMainnet)
-      expect(polyBlockTime).to.equal(2000) // 2 seconds * 1000 = 2000ms
+      expect(polyBlockTime).to.equal(2)
     })
 
     it('should use network configuration correctly', () => {
@@ -76,7 +76,7 @@ describe('Helpers: Network', () => {
 
       const blockTime = NetworkHelper.getAverageBlockTime(NetworksEnum.ethereumMainnet)
 
-      expect(blockTime).to.equal(15000)
+      expect(blockTime).to.equal(15)
       expect(networkToAragonStub.calledWith(NetworksEnum.ethereumMainnet)).to.be.true
     })
   })
