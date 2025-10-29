@@ -305,12 +305,11 @@ export const PluginHandler = {
       document.isProcess = true
       document.isBody = false
       document.isSubPlugin = false
-    } else if (document.interfaceType === IPluginInterfaceType.capitalDistributor) {
-      document.isProcess = false
+    } else if (
+      document.interfaceType === IPluginInterfaceType.capitalDistributor ||
+      document.interfaceType === IPluginInterfaceType.gauge
+    ) {
       document.isBody = false
-      document.isSubPlugin = false
-    } else if (document.interfaceType === IPluginInterfaceType.gauge) {
-      document.isBody = true
       document.isProcess = false
       document.isSubPlugin = false
     } else {
@@ -385,13 +384,12 @@ export const PluginHandler = {
           document.isProcess = true
           document.isBody = false
           document.isSubPlugin = false
-        } else if (document.interfaceType === IPluginInterfaceType.capitalDistributor) {
+        } else if (
+          document.interfaceType === IPluginInterfaceType.capitalDistributor ||
+          document.interfaceType === IPluginInterfaceType.gauge
+        ) {
           document.isProcess = false
           document.isBody = false
-          document.isSubPlugin = false
-        } else if (document.interfaceType === IPluginInterfaceType.gauge) {
-          document.isProcess = false
-          document.isBody = true
           document.isSubPlugin = false
         } else {
           document.isProcess = true
