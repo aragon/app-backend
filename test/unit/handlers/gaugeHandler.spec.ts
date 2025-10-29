@@ -677,7 +677,10 @@ describe('Handler: gaugeHandler', () => {
 
       const errorStub = sandbox.stub(logger, 'error')
 
-      await GaugeHandler.gaugeVoted(parsedEvent, mockInfo)
+      await GaugeHandler.gaugeVoted(parsedEvent, {
+        ...mockInfo,
+        address: '0xNonExistentPlugin111111111111111111111',
+      })
 
       expect(errorStub.calledOnce).to.be.true
       expect(errorStub.args[0][0]).to.equal('Error gaugeVoted')

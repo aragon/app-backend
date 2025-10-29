@@ -21,7 +21,7 @@ export const GaugeMetrics = {
     totalGaugeVotingPower: string
     network: NetworksEnum
   }) => {
-    const gauge = await Models.Gauge.findOne({ address: gaugeAddress, network })
+    const gauge = await Models.Gauge.findOne({ address: gaugeAddress, network, pluginAddress })
     if (!gauge) {
       logger.warn('Gauge not found', llo({ gaugeAddress, network }))
       return
@@ -40,6 +40,7 @@ export const GaugeMetrics = {
 
     const totalMemberVoteCount = await Models.VoteGauge.countActiveVotesByEpochAndGauge(
       lastEpochId,
+      pluginAddress,
       gaugeAddress,
       network,
     )

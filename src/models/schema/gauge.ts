@@ -71,9 +71,11 @@ export default class Gauge extends Model {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.address, 'address is required')
+      assert(!!rawData.pluginAddress, 'pluginAddress is required')
       rawData.id = this.getEntityId({
         network: rawData?.network!,
         address: rawData?.address!,
+        pluginAddress: rawData?.pluginAddress!,
       })
     }
     const data = new this(rawData)
@@ -81,7 +83,7 @@ export default class Gauge extends Model {
   }
 
   static getEntityId(params: IGaugeIdParams) {
-    const entityId = `${params.network}-${params.address}`
+    const entityId = `${params.network}-${params.address}-${params.pluginAddress}`
     return entityId
   }
 

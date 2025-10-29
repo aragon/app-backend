@@ -17,7 +17,9 @@ export const resetGaugesMigration: IMigration = {
     try {
       logger.info('Migration completed successfully', llo({ migration: '20251028161115-resetGauges' }))
 
-      const plugins = await Models.Plugin.find({ interfaceType: IPluginInterfaceType.gauge })
+      const plugins = await Models.Plugin.find({
+        interfaceType: IPluginInterfaceType.gauge,
+      })
 
       await utils.asyncParallel(
         plugins.map((plugin: Plugin) => async () => {
