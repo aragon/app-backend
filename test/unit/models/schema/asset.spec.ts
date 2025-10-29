@@ -83,6 +83,30 @@ describe('Model: Asset', () => {
     expect(createdAsset.amount).to.eq('90')
   })
 
+  it('Should not update required field with falsy value', async () => {
+    const createdAsset = await Models.Asset.create(rawAsset)
+    const originalDaoAddress = createdAsset.daoAddress
+
+    // Try to update required field with null - should not update
+    await createdAsset.update({
+      daoAddress: null as any,
+    })
+
+    expect(createdAsset.daoAddress).to.eq(originalDaoAddress)
+  })
+
+  it('Should skip update when field does not exist in schema', async () => {
+    const createdAsset = await Models.Asset.create(rawAsset)
+
+    // Try to update with non-existent field
+    await createdAsset.update({
+      nonExistentField: 'some value',
+    } as any)
+
+    // Should not throw error, just skip the field
+    expect(createdAsset).to.exist
+  })
+
   describe('Pagination', () => {
     beforeEach(async () => {
       const fakeAsset = [

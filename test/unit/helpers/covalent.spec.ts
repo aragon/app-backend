@@ -327,5 +327,78 @@ describe('Helpers: Covalent', () => {
       })
       expect(loggerStub.calledWith('Covalent fails getTokenSupplyAndHolders' as any)).to.be.true
     })
+
+    it('should call getTokenSupplyAndHolders without blockHeight parameter', async () => {
+      const rpcCallStub = sandbox
+        .stub(CovalentHelper, '_rpCall')
+        .resolves({ pagination: { total_count: 50 }, items: [{ total_supply: '999' }] } as any)
+
+      const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+      const network = NetworksEnum.ethereumMainnet
+
+      const result = await CovalentHelper.getTokenSupplyAndHolders(address, network)
+
+      expect(rpcCallStub.calledOnce).to.be.true
+      expect(result).to.deep.eq({
+        totalSupply: '999',
+        totalHolders: 50,
+      })
+
+      // Verify the path doesn't include block-height when undefined
+      expect(rpcCallStub.args[0][0]).to.not.include('block-height')
+    })
+  })
+
+  describe('_parseToken', () => {
+    it('should handle token with no valid prices', () => {
+      const token = {
+        contract_address: '0xtoken',
+        contract_name: 'Test Token',
+        contract_ticker_symbol: 'TST',
+        contract_decimals: 18,
+        logo_url: 'https://logo.url',
+        prices: null, // or undefined, or []
+        supports_erc: ['erc20'],
+      }
+
+      const result = CovalentHelper._parseToken(token as any, NetworksEnum.ethereumMainnet, false)
+
+      expect(result.priceUsd).to.equal('0')
+      expect(result.address).to.not.equal(utils.zeroAddress)
+    })
+
+    it('should use default decimals when contract_decimals is 0 and type is not ERC20', () => {
+      const token = {
+        contract_address: '0xtoken',
+        contract_name: 'NFT Token',
+        contract_ticker_symbol: 'NFT',
+        contract_decimals: 0,
+        logo_url: 'https://logo.url',
+        prices: [{ price: 100 }],
+        supports_erc: ['erc721'],
+      }
+
+      const result = CovalentHelper._parseToken(token as any, NetworksEnum.ethereumMainnet, false)
+
+      expect(result.decimals).to.equal(0)
+      expect(result.type).to.equal(ITokenType.ERC721)
+    })
+
+    it('should use default decimals 18 when contract_decimals is falsy and type is ERC20', () => {
+      const token = {
+        contract_address: '0xtoken',
+        contract_name: 'ERC20 Token',
+        contract_ticker_symbol: 'ERC',
+        contract_decimals: 0,
+        logo_url: 'https://logo.url',
+        prices: [{ price: 100 }],
+        supports_erc: ['erc20'],
+      }
+
+      const result = CovalentHelper._parseToken(token as any, NetworksEnum.ethereumMainnet, false)
+
+      expect(result.decimals).to.equal(18)
+      expect(result.type).to.equal(ITokenType.ERC20)
+    })
   })
 })

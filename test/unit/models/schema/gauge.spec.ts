@@ -129,6 +129,42 @@ describe('Model: Gauge', () => {
     expect(createdGauge.avatar).to.eq('https://updated.com/avatar.png')
   })
 
+  it('Should not update required field with falsy value', async () => {
+    const createdGauge = await Models.Gauge.create(rawGauge)
+    const originalAddress = createdGauge.address
+
+    // Try to update required field with null - should not update
+    await createdGauge.update({
+      address: null as any,
+    })
+
+    expect(createdGauge.address).to.eq(originalAddress)
+  })
+
+  it('Should skip update when field does not exist in schema', async () => {
+    const createdGauge = await Models.Gauge.create(rawGauge)
+
+    // Try to update with non-existent field
+    await createdGauge.update({
+      nonExistentField: 'some value',
+    } as any)
+
+    // Should not throw error, just skip the field
+    expect(createdGauge).to.exist
+  })
+
+  it('Should not update when value is same as current', async () => {
+    const createdGauge = await Models.Gauge.create(rawGauge)
+    const originalName = createdGauge.name
+
+    // Update with same value
+    await createdGauge.update({
+      name: originalName,
+    })
+
+    expect(createdGauge.name).to.eq(originalName)
+  })
+
   it('Should reload', async () => {
     const createdGauge = await Models.Gauge.create(rawGauge)
     const reloadedGauge = await createdGauge.reload()

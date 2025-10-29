@@ -609,6 +609,36 @@ describe('Helpers: EvmExplorerClient', () => {
         blockNumber: 0,
       })
     })
+
+    it('should use address parameter when contractAddress and blockNumber are missing', async () => {
+      const mockResponse = {
+        data: {
+          status: '1',
+          message: 'OK',
+          result: [
+            {
+              txHash: '0xsometxhash',
+            },
+          ],
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+
+      const result = await evmExplorerClient.fetchContractCreation(EvmExplorerEnum.ETHERSCAN, address, network)
+
+      expect(axiosStub.calledOnce).to.be.true
+      expect(result).to.deep.equal({
+        address: ethers.getAddress(address),
+        transactionHash: '0xsometxhash',
+        blockNumber: 0,
+      })
+    })
   })
 
   describe('ZkSync network handling', () => {

@@ -359,6 +359,63 @@ describe('ChilizProvider', () => {
         type: ITokenType.unknown,
       })
     })
+
+    it('should use || operators for null/undefined token result fields', async () => {
+      // Arrange
+      const address = '0xtoken'
+      const network = NetworksEnum.chilizMainnet
+      const mockTokenResponse = {
+        message: 'OK',
+        result: {
+          name: null, // Line 148: tokenResponse.result.name || null
+          symbol: undefined, // Line 149: tokenResponse.result.symbol || null
+          decimals: null, // Line 150: tokenResponse.result.decimals || 0
+          type: undefined, // Lines 151-156: various type checks with fallback to ITokenType.unknown
+          totalSupply: null, // Line 157: tokenResponse.result.totalSupply || '0'
+        },
+      }
+
+      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(mockTokenResponse)
+
+      // Act
+      const result = await ChilizProvider.fetchBasicTokenInfo({ address, network })
+
+      // Assert
+      expect(rpcCallStub.calledOnce).to.be.true
+      expect(result).to.deep.include({
+        address,
+        name: null, // Line 148: null || null = null
+        symbol: null, // Line 149: undefined || null = null
+        decimals: 0, // Line 150: null || 0 = 0
+        type: ITokenType.unknown, // Lines 151-156: undefined type -> ITokenType.unknown
+        totalSupply: '0', // Line 157: null || '0' = '0'
+        totalHolders: '0', // Line 158: always '0' in this code
+      })
+    })
+
+    it('should handle ERC-721 type detection with || operator', async () => {
+      // Arrange
+      const address = '0xtoken'
+      const network = NetworksEnum.chilizMainnet
+      const mockTokenResponse = {
+        message: 'OK',
+        result: {
+          name: 'NFT Token',
+          symbol: 'NFT',
+          decimals: 0,
+          type: 'ERC-721', // Test ERC-721 detection
+          totalSupply: '10000',
+        },
+      }
+
+      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(mockTokenResponse)
+
+      // Act
+      const result = await ChilizProvider.fetchBasicTokenInfo({ address, network })
+
+      // Assert
+      expect(result.type).to.equal(ITokenType.ERC721) // Lines 154-155
+    })
   })
 
   describe('fetchTokenHolderAndSupply', () => {
@@ -683,7 +740,6 @@ describe('ChilizProvider', () => {
 
       await ChilizProvider.fetchContractCreation({ address, network })
 
-      // Test validation function - covers line 66
       expect(validationFn(null)).to.be.false
       expect(validationFn({ transactionHash: null })).to.be.false
       expect(validationFn({ transactionHash: '0xabc' })).to.be.true
@@ -711,7 +767,6 @@ describe('ChilizProvider', () => {
 
       await ChilizProvider.fetchContractSourceCode({ address, network })
 
-      // Test error handler logs correctly - covers line 96
       const mockError = new Error('Source code fetch failed')
       errorHandler(mockError, EvmExplorerEnum.ROUTESCAN, 1)
 

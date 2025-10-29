@@ -652,6 +652,41 @@ describe('Governance:CapitalDistributorGovernance', () => {
     })
   })
 
+  describe('getMerkleGenerationStatus', () => {
+    it('should return null when no merkle root exists', async () => {
+      const result = await capitalDistributorGovernance.getMerkleGenerationStatus({
+        campaignId: testCampaignId,
+        pluginAddress: testPluginAddress,
+        network: testNetwork,
+      })
+
+      expect(result).to.be.null
+    })
+
+    it('should return merkle root data when it exists', async () => {
+      await Models.CampaignMerkleRoot.create({
+        pluginAddress: testPluginAddress,
+        network: testNetwork,
+        campaignId: testCampaignId,
+        merkleRoot: '0x123abc',
+        totalMembers: 10,
+        blockNumber: 1000,
+        blockTimestamp: 1640995200,
+        transactionHash: '0xabc123',
+      })
+
+      const result = await capitalDistributorGovernance.getMerkleGenerationStatus({
+        campaignId: testCampaignId,
+        pluginAddress: testPluginAddress,
+        network: testNetwork,
+      })
+
+      expect(result).to.not.be.null
+      expect(result!.merkleRoot).to.equal('0x123abc')
+      expect(result!.campaignId).to.equal(testCampaignId)
+    })
+  })
+
   describe('BaseGovernance empty method implementations', () => {
     it('should return null for getOrCreate', async () => {
       const result = await capitalDistributorGovernance.getOrCreate()

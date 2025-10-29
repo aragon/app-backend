@@ -148,5 +148,29 @@ describe('AragonIndexer: index', () => {
       expect(schedulerStub.args[1][0]).to.eq('allPlugins')
       config.SERVICES.ARAGON_INDEXER.SYNC_ALL = configBackup
     })
+
+    it('should handle errors during pooling logs task', async () => {
+      const error = new Error('Pooling error')
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+
+      sandbox.stub(NetworkHelper, 'supportedNetworks').returns([{ networkName: NetworksEnum.ethereumMainnet } as any])
+      sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      const stubSendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
+
+      const schedulerStub = sandbox
+        .stub(TaskSchedulerState.getInstance(), 'startTask')
+        .callsFake(async (taskName: string, options: any) => {
+          if (taskName === 'indexer-ethereum-mainnet' && options.onError) {
+            await options.onError(error)
+          }
+        })
+
+      await IndexerService.start()
+
+      expect(stubSendMessage.calledOnce).to.be.true
+      expect(loggerErrorStub.calledOnce).to.be.true
+      expect(loggerErrorStub.calledWith('Error pooling logs' as any)).to.be.true
+      expect(schedulerStub.called).to.be.true
+    })
   })
 })

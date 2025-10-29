@@ -124,6 +124,68 @@ describe('Indexer:Plugin', () => {
   })
 
   describe('preInstallPlugin', () => {
+    it('should preInstallPlugin capitalDistributor', async () => {
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      const spyFindExistingLog = sandbox.spy(Models.Plugin, 'findExistingLog')
+
+      sandbox.stub(Models.PluginRepo, 'findSubdomain').resolves({ subdomain: 'capital-distributor' })
+      const detectPluginTypeStub = sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.capitalDistributor,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+      })
+
+      const logVerboseStub = sandbox.stub(logger, 'verbose')
+
+      const logPlugin = await Models.LogPluginSetupProcessor.findOne({ pluginAddress: rawPlugin.address })
+      await PluginHandler.preInstallPlugin(logPlugin)
+
+      expect(detectPluginTypeStub.calledOnce).to.be.true
+      expect(spyFindExistingLog.calledOnce).to.be.true
+      expect(logVerboseStub.calledOnceWith('Created new document - New PreInstall Plugin' as any)).to.be.true
+
+      const createdPlugin = await Models.Plugin.findOne({
+        address: ListLogPluginSetupProcessor[1].pluginAddress,
+        status: IPluginStatus.preInstall,
+      })
+      expect(createdPlugin).to.not.be.null
+      expect(createdPlugin.isProcess).to.be.false
+      expect(createdPlugin.isBody).to.be.false
+      expect(createdPlugin.isSubPlugin).to.be.false
+    })
+
+    it('should preInstallPlugin gauge', async () => {
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      const spyFindExistingLog = sandbox.spy(Models.Plugin, 'findExistingLog')
+
+      sandbox.stub(Models.PluginRepo, 'findSubdomain').resolves({ subdomain: 'gauge' })
+      const detectPluginTypeStub = sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.gauge,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+      })
+
+      const logVerboseStub = sandbox.stub(logger, 'verbose')
+
+      const logPlugin = await Models.LogPluginSetupProcessor.findOne({ pluginAddress: rawPlugin.address })
+      await PluginHandler.preInstallPlugin(logPlugin)
+
+      expect(detectPluginTypeStub.calledOnce).to.be.true
+      expect(spyFindExistingLog.calledOnce).to.be.true
+      expect(logVerboseStub.calledOnceWith('Created new document - New PreInstall Plugin' as any)).to.be.true
+
+      const createdPlugin = await Models.Plugin.findOne({
+        address: ListLogPluginSetupProcessor[1].pluginAddress,
+        status: IPluginStatus.preInstall,
+      })
+      expect(createdPlugin).to.not.be.null
+      expect(createdPlugin.isBody).to.be.true
+      expect(createdPlugin.isProcess).to.be.false
+      expect(createdPlugin.isSubPlugin).to.be.false
+    })
+
     it('should preInstallPlugin SPP', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
       const spyFindExistingLog = sandbox.spy(Models.Plugin, 'findExistingLog')
@@ -232,6 +294,66 @@ describe('Indexer:Plugin', () => {
   })
 
   describe('_createPlugin', () => {
+    it('_createPlugin capitalDistributor', async () => {
+      const spyFindExistingLog = sandbox.spy(Models.Plugin, 'findExistingLog')
+      const spyCreateDocument = sandbox.spy(DbOperations, 'createDocument')
+
+      const detectPluginTypeStub = sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.capitalDistributor,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+      })
+
+      const logVerboseStub = sandbox.stub(logger, 'verbose')
+
+      await PluginHandler._createPlugin(rawPlugin as any)
+
+      expect(detectPluginTypeStub.calledOnce).to.be.true
+      expect(spyFindExistingLog.calledOnce).to.be.true
+      expect(spyCreateDocument.calledOnce).to.be.true
+      expect(logVerboseStub.calledOnceWith('Created new document - New Create Plugin' as any)).to.be.true
+
+      const createdPlugin = await Models.Plugin.findOne({
+        address: ListLogPluginSetupProcessor[1].pluginAddress,
+        status: IPluginStatus.installed,
+      })
+      expect(createdPlugin).to.not.be.null
+      expect(createdPlugin.isProcess).to.be.false
+      expect(createdPlugin.isBody).to.be.false
+      expect(createdPlugin.isSubPlugin).to.be.false
+    })
+
+    it('_createPlugin gauge', async () => {
+      const spyFindExistingLog = sandbox.spy(Models.Plugin, 'findExistingLog')
+      const spyCreateDocument = sandbox.spy(DbOperations, 'createDocument')
+
+      const detectPluginTypeStub = sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.gauge,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+      })
+
+      const logVerboseStub = sandbox.stub(logger, 'verbose')
+
+      await PluginHandler._createPlugin(rawPlugin as any)
+
+      expect(detectPluginTypeStub.calledOnce).to.be.true
+      expect(spyFindExistingLog.calledOnce).to.be.true
+      expect(spyCreateDocument.calledOnce).to.be.true
+      expect(logVerboseStub.calledOnceWith('Created new document - New Create Plugin' as any)).to.be.true
+
+      const createdPlugin = await Models.Plugin.findOne({
+        address: ListLogPluginSetupProcessor[1].pluginAddress,
+        status: IPluginStatus.installed,
+      })
+      expect(createdPlugin).to.not.be.null
+      expect(createdPlugin.isProcess).to.be.false
+      expect(createdPlugin.isBody).to.be.true
+      expect(createdPlugin.isSubPlugin).to.be.false
+    })
+
     it('should not update a plugin if it does not exist', async () => {
       const stubLogger = sandbox.stub(logger, 'warn')
       const findExistingLogStub = sandbox.stub(Models.Plugin, 'findExistingLog').resolves(true)
@@ -1116,6 +1238,84 @@ describe('Indexer:Plugin', () => {
       expect(findOneStub.calledOnce).to.be.true
       expect(loggerWarnStub.calledOnce).to.be.true
       expect(loggerWarnStub.calledWith('Previous plugin not found for update' as any)).to.be.true
+    })
+
+    it('should inherit votingEscrow from previous plugin', async () => {
+      rawPlugin.daoAddress = '0xdaoAddress'
+
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.tokenVoting,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+      })
+
+      sandbox.stub(logger, 'verbose').resolves()
+      const handleVersionUpgradeStub = sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
+
+      await Models.LogPluginSetupProcessor.create({
+        ...ListLogPluginSetupProcessor[2],
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      })
+      const eventUpdateApplied = await Models.LogPluginSetupProcessor.create({
+        ...ListLogPluginSetupProcessor[3],
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      })
+
+      const votingEscrowData = {
+        curveAddress: '0xCurve123',
+        exitQueueAddress: '0xExitQueue123',
+        escrowAddress: '0xEscrow123',
+        clockAddress: '0xClock123',
+        nftLockAddress: '0xNftLock123',
+        underlying: '0xUnderlying123',
+      }
+
+      const existingPlugin = await Models.Plugin.create({
+        status: IPluginStatus.installed,
+        network: rawPlugin.network,
+        blockNumber: 1000,
+        transactionHash: 'oldTx',
+        address: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        votingEscrow: votingEscrowData,
+        isSupported: true,
+      })
+
+      const newPlugin = {
+        id: 'new-plugin-id',
+        address: rawPlugin.address,
+        blockNumber: 2000,
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        transactionHash: '0xnewtx',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        votingEscrow: null,
+        isSupported: false,
+        update: sandbox.stub().resolves({}),
+      }
+
+      sandbox.stub(PluginHandler, '_createPlugin').resolves(newPlugin as any)
+
+      await PluginHandler.updatePlugin(eventUpdateApplied as any)
+
+      expect(handleVersionUpgradeStub.calledOnce).to.be.true
+      expect(newPlugin.update.calledOnce).to.be.true
+      expect(newPlugin.update.args[0][0].isSupported).to.be.true
+      expect(newPlugin.update.args[0][0].votingEscrow).to.exist
+      expect(newPlugin.update.args[0][0].votingEscrow.curveAddress).to.equal(votingEscrowData.curveAddress)
+      expect(newPlugin.update.args[0][0].votingEscrow.escrowAddress).to.equal(votingEscrowData.escrowAddress)
+      expect(newPlugin.update.args[0][0].votingEscrow.exitQueueAddress).to.equal(votingEscrowData.exitQueueAddress)
+
+      const updated = await Models.Plugin.findOne({
+        id: existingPlugin.id,
+      })
+      expect(updated?.status).to.equal(IPluginStatus.deprecated)
     })
 
     it('should handle different interface types between existing and updated plugins', async () => {

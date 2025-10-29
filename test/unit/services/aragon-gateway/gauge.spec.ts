@@ -5,6 +5,7 @@ import { GaugeInfo } from '@services/aragon-gateway/gauge'
 import { Models } from '@dbModels'
 import GaugeHelper from '@helpers/gauge'
 import { NetworksEnum } from '@types'
+import logger from '@logger'
 
 describe('Gateway: Gauge', () => {
   let sandbox: SinonSandbox
@@ -153,13 +154,23 @@ describe('Gateway: Gauge', () => {
 
     it('should return null when plugin not found', async () => {
       const pluginAddress = '0xPluginNotFound111111111111111111111111'
+      const memberAddress = '0xMember1111111111111111111111111111111111'
       const network = NetworksEnum.ethereumMainnet
 
+      const loggerWarnStub = sandbox.stub(logger, 'warn')
       sandbox.stub(Models.Plugin, 'findOne').resolves(null)
+      sandbox.stub(GaugeHelper, 'getGaugeEpochId').resolves('1')
+      sandbox.stub(GaugeHelper, 'totalVotingPowerCast').resolves('0')
+      sandbox.stub(GaugeHelper, 'getEnableUpdateVotingPowerHookFlag').resolves(false)
+      sandbox.stub(GaugeHelper, 'currentEpochStart').resolves(0)
+      sandbox.stub(GaugeHelper, 'getGaugeEpochVoteStart').resolves(0)
+      sandbox.stub(GaugeHelper, 'getGaugeEpochVoteEnd').resolves(0)
 
-      const result = await GaugeInfo.getGaugeInfo({ pluginAddress, network })
+      const result = await GaugeInfo.getGaugeInfo({ pluginAddress, memberAddress, network })
 
       expect(result).to.be.null
+      expect(loggerWarnStub.calledOnce).to.be.true
+      expect(loggerWarnStub.calledWith('plugin not found - getGaugeInfo' as any)).to.be.true
     })
 
     it('should return null when an error occurs', async () => {

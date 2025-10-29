@@ -172,6 +172,30 @@ describe('Model: GaugeMetrics', () => {
     expect(createdMetrics.totalGaugeVotingPower).to.eq('5000000000000000000')
   })
 
+  it('Should not update required field with falsy value', async () => {
+    const createdMetrics = await Models.GaugeMetrics.create(rawGaugeMetrics)
+    const originalNetwork = createdMetrics.network
+
+    // Try to update required field with null - should not update
+    await createdMetrics.update({
+      network: null as any,
+    })
+
+    expect(createdMetrics.network).to.eq(originalNetwork)
+  })
+
+  it('Should skip update when field does not exist in schema', async () => {
+    const createdMetrics = await Models.GaugeMetrics.create(rawGaugeMetrics)
+
+    // Try to update with non-existent field
+    await createdMetrics.update({
+      nonExistentField: 'some value',
+    } as any)
+
+    // Should not throw error, just skip the field
+    expect(createdMetrics).to.exist
+  })
+
   it('Should not update with same values', async () => {
     const createdMetrics = await Models.GaugeMetrics.create(rawGaugeMetrics)
     const saveSpy = sandbox.spy(createdMetrics, 'save')

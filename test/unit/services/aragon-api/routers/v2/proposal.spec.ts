@@ -263,6 +263,24 @@ describe('RouterV2: Proposal', () => {
       expect(stubCtrl.calledOnce).to.be.true
       expect(stubCtrl.args[0][1]?.incrementalId).to.be.undefined
     })
+
+    it('Should handle incrementalId as 0 when empty string is provided', async () => {
+      const filterParams = {
+        daoId: 'ethereum-mainnet-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        incrementalId: '',
+      }
+
+      const stubCtrl = sandbox.stub(ProposalController, 'getProposalsWithPagination').returns(true as any)
+
+      const ctx: any = {
+        query: filterParams,
+      }
+
+      await ProposalRouter.getWithPagination(ctx)
+
+      expect(stubCtrl.calledOnce).to.be.true
+      expect(stubCtrl.args[0][1]?.incrementalId).to.equal(0)
+    })
   })
 
   describe('getProposalById', () => {

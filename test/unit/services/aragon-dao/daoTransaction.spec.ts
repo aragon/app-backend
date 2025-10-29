@@ -333,6 +333,64 @@ describe('AragonDao: DaoTransactions', () => {
       // Order might vary due to parallel execution
       expect(resolveOrder).to.include.members([0, 1, 2, 3])
     })
+
+    it('should call resetTransactions when reset parameter is true', async () => {
+      // Setup stubs for resetTransactions internal dependencies
+      const transactionDeleteStub = sandbox.stub().resolves({ deletedCount: 5 })
+      const configIndexerDeleteStub = sandbox.stub().resolves({ deletedCount: 4 })
+
+      modelsStub.Transaction = {
+        deleteMany: transactionDeleteStub,
+      }
+      modelsStub.ConfigIndexer = {
+        deleteMany: configIndexerDeleteStub,
+      }
+
+      // Mock DbTx.executeTxFn to immediately call the callback
+      const dbTxStub = {
+        executeTxFn: sandbox.stub().callsFake(async callback => {
+          const mockSession = {
+            commitTransaction: sandbox.stub().resolves(),
+            endSession: sandbox.stub().resolves(),
+            abortTransaction: sandbox.stub().resolves(),
+          }
+          return callback({ session: mockSession })
+        }),
+      }
+
+      // Re-initialize DaoTransactions with the new stubs
+      const BlockchainLogCrawlerMock = function (this: any, config: any) {
+        crawlerConfigs.push(config)
+        this.crawl = sandbox.stub().resolves()
+        crawlerInstances.push(this)
+      }
+
+      DaoTransactions = proxyquire('@services/aragon-dao/daoTransactions', {
+        '@dbModels': { Models: modelsStub },
+        '@logger': { default: loggerStub },
+        '@modules/blockchainLogCrawler': { default: BlockchainLogCrawlerMock },
+        '@helpers/configIndexer': { default: configIndexerHelperStub },
+        '@handlers/daoTransferHanlder': { DaoTransferHandler: daoTransferHandlerStub },
+        '@modules/dbTx': { default: dbTxStub },
+        ethers: { zeroPadValue: zeroPadValueStub },
+      }).DaoTransactions
+
+      await DaoTransactions.start({
+        daoAddress: mockDao.address,
+        network: NetworksEnum.ethereumMainnet,
+        reset: true,
+      })
+
+      // Verify resetTransactions was called by checking internal operations
+      expect(transactionDeleteStub.calledOnce).to.be.true
+      expect(transactionDeleteStub.getCall(0).args[0]).to.deep.equal({
+        daoAddress: mockDao.address,
+        network: NetworksEnum.ethereumMainnet,
+      })
+      expect(configIndexerDeleteStub.calledOnce).to.be.true
+      expect(dbTxStub.executeTxFn.calledOnce).to.be.true
+      expect(crawlerConfigs.length).to.equal(4)
+    })
   })
 
   describe('Error handling in start', () => {

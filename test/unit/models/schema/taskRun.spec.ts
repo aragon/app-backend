@@ -94,6 +94,30 @@ describe('Model: TaskRun', () => {
     expect(createdTaskRun.serviceName).to.eq(rawTaskRun.serviceName)
   })
 
+  it('Should not update required field with falsy value', async () => {
+    const createdTaskRun = await Models.TaskRun.create(rawTaskRun)
+    const originalServiceName = createdTaskRun.serviceName
+
+    // Try to update required field with null - should not update
+    await createdTaskRun.update({
+      serviceName: null as any,
+    })
+
+    expect(createdTaskRun.serviceName).to.eq(originalServiceName)
+  })
+
+  it('Should skip update when field does not exist in schema', async () => {
+    const createdTaskRun = await Models.TaskRun.create(rawTaskRun)
+
+    // Try to update with non-existent field
+    await createdTaskRun.update({
+      nonExistentField: 'some value',
+    } as any)
+
+    // Should not throw error, just skip the field
+    expect(createdTaskRun).to.exist
+  })
+
   it('Should getRecentRuns', async () => {
     const serviceName = 'test-service'
     // Create multiple task runs

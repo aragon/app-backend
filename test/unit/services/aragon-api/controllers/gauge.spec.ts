@@ -315,6 +315,19 @@ describe('Controller: Gauge', () => {
 
       expect(rabbitMQStub.args[0][0]).to.eq(EnumQueueName.gaugeEpochId)
     })
+
+    it('should use default empty objects when no parameters provided', async () => {
+      const epochId = '5'
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(epochId)
+      sandbox.stub(Models.Gauge, 'findWithPagination').resolves({
+        data: [],
+        metadata: { page: 1, pageSize: 10, totalPages: 0, totalRecords: 0 },
+      })
+
+      const result = await GaugeController.getGaugesWithPagination()
+
+      expect(result.data).to.be.an('array')
+    })
   })
 
   describe('getGaugeEpochMetrics', () => {

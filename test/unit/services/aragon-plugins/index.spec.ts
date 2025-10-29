@@ -13,6 +13,7 @@ import { LogSpp } from '@plugins/logSPP'
 import { LogGauge } from '@plugins/logGauge'
 import { LogMultiSig } from '@plugins/logMultisig'
 import { LogSelectorPermission } from '@plugins/logSelectorPermission'
+import { LogCapitalDistributor } from '@plugins/logCapitalDistributor'
 
 describe('AragonPlugins: index', () => {
   let sandbox: SinonSandbox
@@ -428,6 +429,30 @@ describe('AragonPlugins: index', () => {
       expect(logGaugeStub.calledOnceWith(mockPlugin, false)).to.be.true
     })
 
+    it('should process plugins queue for capitalDistributor interface type', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const mockPlugin = {
+        address: '0xPluginAddress',
+        interfaceType: IPluginInterfaceType.capitalDistributor,
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
+      const logCapitalDistributorStub = sandbox.stub(LogCapitalDistributor, 'start').resolves()
+      const loggerInfoStub = sandbox.stub(logger, 'info')
+
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(2).args[1]
+      await handler({
+        id: 'some-id',
+        params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
+      })
+
+      expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(loggerInfoStub.calledWith('Sync plugin: Capital Distributor' as any)).to.be.true
+      expect(logCapitalDistributorStub.calledOnceWith(mockPlugin)).to.be.true
+    })
+
     it('should log an error if plugin is missing', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
@@ -646,6 +671,30 @@ describe('AragonPlugins: index', () => {
 
       expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
       expect(logGaugeStub.calledOnceWith(mockPlugin, false)).to.be.true
+    })
+
+    it('should process plugins queue for capitalDistributor interface type', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const mockPlugin = {
+        address: '0xPluginAddress',
+        interfaceType: IPluginInterfaceType.capitalDistributor,
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
+      const logCapitalDistributorStub = sandbox.stub(LogCapitalDistributor, 'start').resolves()
+      const loggerInfoStub = sandbox.stub(logger, 'info')
+
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(3).args[1]
+      await handler({
+        id: 'some-id',
+        params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
+      })
+
+      expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(loggerInfoStub.calledWith('Sync plugin: Capital Distributor' as any)).to.be.true
+      expect(logCapitalDistributorStub.calledOnceWith(mockPlugin)).to.be.true
     })
 
     it('should log an error if plugin is missing', async () => {

@@ -88,7 +88,6 @@ describe('Modules: RabbitMQ', () => {
       expect(loggerInfoStub.calledWith('RabbitMQ connected' as any)).to.be.true
       expect(startNoopIntervalStub.calledOnce).to.be.true
 
-      // Verify channels were set up properly (lines 92-94)
       for (const queueName of Object.values(EnumQueueName)) {
         expect(RabbitMQ.channelsMap.has(queueName)).to.be.true
       }
@@ -99,7 +98,6 @@ describe('Modules: RabbitMQ', () => {
       const loggerVerboseStub = sandbox.stub(logger, 'verbose')
       const startNoopIntervalStub = sandbox.stub(RabbitMQ, 'startNoopInterval')
 
-      // Make assertQueue fail for testing error handling (lines 95-98)
       const setupError = new Error('Queue assertion failed')
       mockChannel.assertQueue.rejects(setupError)
 

@@ -186,6 +186,106 @@ describe('RouterV2: Gauge', () => {
     })
   })
 
+  describe('getGaugeEpochMetrics', () => {
+    it('should get gauge epoch metrics with all params', async () => {
+      const pluginAddress = '0x1234567890123456789012345678901234567890'
+      const network = NetworksEnum.ethereumMainnet
+      const memberAddress = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045'
+
+      const paginationParams = {
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'blockNumber',
+      }
+
+      const stubCtrl = sandbox.stub(GaugeController, 'getGaugeEpochMetrics').returns(true as any)
+
+      const ctx: any = {
+        params: {
+          pluginAddress,
+          network,
+        },
+        query: {
+          memberAddress,
+          ...paginationParams,
+        },
+      }
+
+      await GaugeRouter.getGaugeEpochMetrics(ctx)
+
+      expect(ctx.body).to.eq(true)
+      expect(stubCtrl.calledOnce).to.be.true
+
+      const missingParams = {
+        endDateProp: undefined,
+        startDateProp: undefined,
+        endDate: undefined,
+        startDate: undefined,
+        search: undefined,
+      }
+
+      expect(stubCtrl.args[0][0]).to.deep.eq({
+        pluginAddress,
+        network,
+        memberAddress,
+      })
+    })
+
+    it('should get gauge epoch metrics with different network', async () => {
+      const pluginAddress = '0xABcdEFABcdEFabcdEfAbCdefabcdeFABcDEFabCD'
+      const network = NetworksEnum.arbitrumMainnet
+      const memberAddress = '0x9999999999999999999999999999999999999999'
+
+      const stubCtrl = sandbox.stub(GaugeController, 'getGaugeEpochMetrics').returns(true as any)
+
+      const ctx: any = {
+        params: {
+          pluginAddress,
+          network,
+        },
+        query: {
+          memberAddress,
+        },
+      }
+
+      await GaugeRouter.getGaugeEpochMetrics(ctx)
+
+      expect(ctx.body).to.eq(true)
+      expect(stubCtrl.calledOnce).to.be.true
+      expect(stubCtrl.args[0][0]).to.deep.eq({
+        pluginAddress,
+        network,
+        memberAddress,
+      })
+    })
+
+    it('should get gauge epoch metrics without memberAddress', async () => {
+      const pluginAddress = '0x5555555555555555555555555555555555555555'
+      const network = NetworksEnum.polygonMainnet
+
+      const stubCtrl = sandbox.stub(GaugeController, 'getGaugeEpochMetrics').returns(true as any)
+
+      const ctx: any = {
+        params: {
+          pluginAddress,
+          network,
+        },
+        query: {},
+      }
+
+      await GaugeRouter.getGaugeEpochMetrics(ctx)
+
+      expect(ctx.body).to.eq(true)
+      expect(stubCtrl.calledOnce).to.be.true
+      expect(stubCtrl.args[0][0]).to.deep.eq({
+        pluginAddress,
+        network,
+        memberAddress: undefined,
+      })
+    })
+  })
+
   describe('router', () => {
     it('should create router instance', () => {
       const router = GaugeRouter.router()
