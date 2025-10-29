@@ -151,8 +151,7 @@ describe('Model: GaugeMetrics', () => {
       epochId: createdMetrics.epochId,
     })
 
-    expect(foundMetrics).to.have.lengthOf(1)
-    expect(foundMetrics[0].id).to.eq(createdMetrics.id)
+    expect(foundMetrics.id).to.eq(createdMetrics.id)
   })
 
   it('Should update GaugeMetrics', async () => {
