@@ -23,7 +23,6 @@ export const resetGaugesMigration: IMigration = {
 
       await utils.asyncParallel(
         plugins.map((plugin: Plugin) => async () => {
-          // remove config indexer
           await Models.ConfigIndexer.deleteOne({
             service: ConfigIndexerHelper.builders.plugin(plugin.interfaceType, plugin.network, plugin.address),
           })
@@ -47,6 +46,11 @@ export const resetGaugesMigration: IMigration = {
           await Models.GaugeMetrics.deleteMany({ pluginAddress: plugin.address, network: plugin.network })
           await Models.VoteGauge.deleteMany({ pluginAddress: plugin.address, network: plugin.network })
 
+          await plugin.update({
+            isBody: false,
+            isProcess: false,
+            isSubPlugin: false,
+          })
           // re-sync
           await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
             id: plugin.address,
