@@ -51,10 +51,10 @@ describe('Service: GaugeMetrics', () => {
       })
 
       expect(findGaugeStub.calledOnce).to.be.true
-      expect(findGaugeStub.calledWith({ address: gaugeAddress, network })).to.be.true
+      expect(findGaugeStub.calledWith({ address: gaugeAddress, network, pluginAddress })).to.be.true
 
       expect(countVotesStub.calledOnce).to.be.true
-      expect(countVotesStub.calledWith(epochId, gaugeAddress, network)).to.be.true
+      expect(countVotesStub.calledWith(epochId, pluginAddress, gaugeAddress, network)).to.be.true
 
       expect(findMetricsStub.calledOnce).to.be.true
       expect(createMetricsStub.calledOnce).to.be.true
@@ -179,7 +179,7 @@ describe('Service: GaugeMetrics', () => {
 
       expect(getGaugeEpochIdStub.calledOnce).to.be.true
       expect(getGaugeEpochIdStub.calledWith(pluginAddress, network)).to.be.true
-      expect(countVotesStub.calledWith(retrievedEpochId, gaugeAddress, network)).to.be.true
+      expect(countVotesStub.calledWith(retrievedEpochId, pluginAddress, gaugeAddress, network)).to.be.true
       expect(createMetricsStub.calledOnce).to.be.true
     })
 

@@ -16,15 +16,22 @@ export const GaugeHandler = {
     // event GaugeCreated(address indexed gauge, address indexed creator, string metadataURI);
 
     try {
-      const gauge = await Models.Gauge.findOne({ address: parsedEvent.args.gauge, network: info.network })
-      if (gauge) {
-        logger.warn('Duplicate gauge found', llo({ info, parsedEvent }))
-        return
-      }
-      const plugin = await Models.Plugin.findOne({ address: info.address, network: info.network })
+      const [plugin, gauge] = await Promise.all([
+        Models.Plugin.findOne({ address: info.address, network: info.network }),
+        Models.Gauge.findOne({
+          address: parsedEvent.args.gauge,
+          network: info.network,
+          pluginAddress: info.address,
+        }),
+      ])
 
       if (!plugin) {
         logger.warn('plugin not found in gaugeCreated', llo({ info, parsedEvent }))
+        return
+      }
+
+      if (gauge) {
+        logger.warn('Duplicate gauge found', llo({ info, parsedEvent }))
         return
       }
       const metadataUri = Web3Utils.extractMetadataUri(parsedEvent.args.metadataURI)
@@ -56,7 +63,11 @@ export const GaugeHandler = {
     // event GaugeActivated(address indexed gauge);
 
     try {
-      const gauge = await Models.Gauge.findOne({ address: parsedEvent.args.gauge, network: info.network })
+      const gauge = await Models.Gauge.findOne({
+        address: parsedEvent.args.gauge,
+        network: info.network,
+        pluginAddress: info.address,
+      })
       if (!gauge) {
         logger.warn('No gauge found activated', llo({ info, parsedEvent }))
         return
@@ -73,7 +84,11 @@ export const GaugeHandler = {
     // event GaugeDeactivated(address indexed gauge);
 
     try {
-      const gauge = await Models.Gauge.findOne({ address: parsedEvent.args.gauge, network: info.network })
+      const gauge = await Models.Gauge.findOne({
+        address: parsedEvent.args.gauge,
+        network: info.network,
+        pluginAddress: info.address,
+      })
       if (!gauge) {
         logger.warn('No gauge found deactivated', llo({ info, parsedEvent }))
         return
@@ -88,7 +103,11 @@ export const GaugeHandler = {
 
   gaugeUpdateMetadata: async (parsedEvent: LogDescription, info: ILogInfo) => {
     //  event GaugeMetadataUpdated(address indexed gauge, string metadataURI);
-    const gauge = await Models.Gauge.findOne({ address: parsedEvent.args.gauge, network: info.network })
+    const gauge = await Models.Gauge.findOne({
+      address: parsedEvent.args.gauge,
+      network: info.network,
+      pluginAddress: info.address,
+    })
     if (!gauge) {
       logger.warn('No gauge found update metadata', llo({ info, parsedEvent }))
       return
@@ -124,7 +143,11 @@ export const GaugeHandler = {
     //   uint256 timestamp
     // );
 
-    const gauge = await Models.Gauge.findOne({ address: parsedEvent.args.gauge, network: info.network })
+    const gauge = await Models.Gauge.findOne({
+      address: parsedEvent.args.gauge,
+      network: info.network,
+      pluginAddress: info.address,
+    })
     if (!gauge) {
       logger.warn('No gauge found gaugeVoted', llo({ info, parsedEvent }))
       return
@@ -189,7 +212,11 @@ export const GaugeHandler = {
     //     timestamp: block.timestamp
     //   });
 
-    const gauge = await Models.Gauge.findOne({ address: parsedEvent.args.gauge, network: info.network })
+    const gauge = await Models.Gauge.findOne({
+      address: parsedEvent.args.gauge,
+      network: info.network,
+      pluginAddress: info.address,
+    })
     if (!gauge) {
       logger.warn('No gauge found gaugeReset', llo({ info, parsedEvent }))
       return

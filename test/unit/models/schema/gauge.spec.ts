@@ -92,8 +92,8 @@ describe('Model: Gauge', () => {
   it('Should getEntityId', async () => {
     const address = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
     const network = NetworksEnum.ethereumMainnet
-    const entityId = Models.Gauge.getEntityId({ address, network })
-    expect(entityId).to.eq(`${network}-${address}`)
+    const entityId = Models.Gauge.getEntityId({ address, network, pluginAddress: rawGauge.pluginAddress })
+    expect(entityId).to.eq(`${network}-${address}-${rawGauge.pluginAddress}`)
   })
 
   it('Should findExistingLog', async () => {
@@ -101,6 +101,7 @@ describe('Model: Gauge', () => {
     const foundGauge = await Models.Gauge.findExistingLog({
       address: createdGauge.address,
       network: createdGauge.network,
+      pluginAddress: createdGauge.pluginAddress,
     })
     expect(foundGauge?.id).to.eq(createdGauge.id)
   })

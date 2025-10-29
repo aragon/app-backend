@@ -285,7 +285,12 @@ describe('Model: VoteGauge', () => {
     })
 
     it('Should count active votes for specific epoch and gauge', async () => {
-      const count = await Models.VoteGauge.countActiveVotesByEpochAndGauge('1', testGaugeAddress, testNetwork)
+      const count = await Models.VoteGauge.countActiveVotesByEpochAndGauge(
+        '1',
+        rawVoteEpoch.pluginAddress,
+        testGaugeAddress,
+        testNetwork,
+      )
 
       // Should count:
       // - 2 votes from epoch 1 with resetVoteTransactionHash=null
@@ -305,7 +310,12 @@ describe('Model: VoteGauge', () => {
         resetVoteTransactionHash: '0xResetTx22222222222222222222222222222222222222222222222222222222',
       })
 
-      const count = await Models.VoteGauge.countActiveVotesByEpochAndGauge('1', testGaugeAddress, testNetwork)
+      const count = await Models.VoteGauge.countActiveVotesByEpochAndGauge(
+        '1',
+        rawVoteEpoch.pluginAddress,
+        testGaugeAddress,
+        testNetwork,
+      )
 
       // Should now only count:
       // - 1 vote from epoch 1 (one was reset)
@@ -331,7 +341,12 @@ describe('Model: VoteGauge', () => {
         persistentVote: true,
       })
 
-      const count = await Models.VoteGauge.countActiveVotesByEpochAndGauge('1', testGaugeAddress, testNetwork)
+      const count = await Models.VoteGauge.countActiveVotesByEpochAndGauge(
+        '1',
+        rawVoteEpoch.pluginAddress,
+        testGaugeAddress,
+        testNetwork,
+      )
 
       // Should count:
       // - 2 votes from epoch 1
@@ -341,7 +356,12 @@ describe('Model: VoteGauge', () => {
     })
 
     it('Should return 0 when no active votes exist', async () => {
-      const count = await Models.VoteGauge.countActiveVotesByEpochAndGauge('999', testGaugeAddress, testNetwork)
+      const count = await Models.VoteGauge.countActiveVotesByEpochAndGauge(
+        '999',
+        rawVoteEpoch.pluginAddress,
+        testGaugeAddress,
+        testNetwork,
+      )
 
       // Should only count persistent votes (1 from epoch 0)
       expect(count).to.eq(1)
@@ -350,6 +370,7 @@ describe('Model: VoteGauge', () => {
     it('Should filter by network', async () => {
       const count = await Models.VoteGauge.countActiveVotesByEpochAndGauge(
         '1',
+        rawVoteEpoch.pluginAddress,
         testGaugeAddress,
         NetworksEnum.polygonMainnet,
       )

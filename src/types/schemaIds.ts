@@ -42,6 +42,7 @@ export interface ILockIdParams {
 export interface IGaugeIdParams {
   network: NetworksEnum
   address: HexAddress
+  pluginAddress: HexAddress
 }
 
 export interface IAssetIdParams {
