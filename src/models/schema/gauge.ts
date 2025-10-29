@@ -127,6 +127,7 @@ export default class Gauge extends Model {
           gaugeAddress: '$address',
           network: '$network',
           epochId: params.epochId,
+          pluginAddress: params.pluginAddress,
         },
         'gaugeMetrics',
         {

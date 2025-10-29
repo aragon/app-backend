@@ -668,7 +668,7 @@ export const AggregationQueryHelper = {
   },
 
   gaugeMetrics: (
-    { gaugeAddress, epochId, network }: IAggGaugeMetricsParams,
+    { gaugeAddress, epochId, network, pluginAddress }: IAggGaugeMetricsParams,
     as: string = 'gaugeMetrics',
     project?: IAggGaugeMetricsProjectFields,
   ) => {
@@ -688,6 +688,11 @@ export const AggregationQueryHelper = {
     if (epochId) {
       letVariables.epochId = epochId
       matchConditions.push({ $eq: ['$$epochId', '$epochId'] })
+    }
+
+    if (pluginAddress) {
+      letVariables.pluginAddress = pluginAddress
+      matchConditions.push({ $eq: ['$$pluginAddress', '$pluginAddress'] })
     }
 
     const pipeline: any[] = []

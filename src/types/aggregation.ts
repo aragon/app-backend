@@ -236,6 +236,7 @@ export interface IAggGaugeMetricsParams {
   gaugeAddress: string
   network: string
   epochId?: string
+  pluginAddress?: string
 }
 
 export interface IAggPluginMetricsProjectFields {
