@@ -93,7 +93,7 @@ export default class GaugeMetrics extends Model {
     pluginAddress: string
     network: NetworksEnum
   }) {
-    return await this.find({ network, pluginAddress, gaugeAddress, epochId })
+    return await this.findOne({ network, pluginAddress, gaugeAddress, epochId })
   }
 
   async update(params: Partial<GaugeMetrics>, tOpts?: SaveOptions) {

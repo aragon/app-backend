@@ -6,6 +6,9 @@ import { ProxyToken } from '@modules/proxyToken'
 import { Models } from '@dbModels'
 import { LogTokenVoting } from '@plugins/logTokenVoting'
 import AragonPluginsService from '@plugins/index'
+import UnitDepUtils from '@test/lib/unit-dep/utils'
+import { Interface } from 'ethers'
+import { GaugeVoter } from '@artifacts/GaugeVoter'
 
 describe('Integ: Token', () => {
   let sandbox: SinonSandbox
@@ -39,5 +42,15 @@ describe('Integ: Token', () => {
     })
 
     expect(startStub.called).to.be.true
+  })
+
+  it('should test guage voting', async function () {
+    this.timeout(100000000)
+
+    const daoAddress = '0x6361CbCB86121FB3cb4FA358AECB0E96119A7314'
+    const network = NetworksEnum.ethereumSepolia
+
+    UnitDepUtils.stubRabbitmqSend(sandbox)
+    await UnitDepUtils.syncACompleteDao(daoAddress, network)
   })
 })

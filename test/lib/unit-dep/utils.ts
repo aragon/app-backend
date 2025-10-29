@@ -22,6 +22,7 @@ import ProviderModule from '@modules/provider'
 import { ethers } from 'ethers'
 import { LogLockToVote } from '@plugins/logLockToVote'
 import BottleneckModule from '@modules/bottleneck'
+import { LogGauge } from '@plugins/logGauge'
 
 const UnitDepUtils = {
   getData: async (
@@ -235,6 +236,10 @@ const UnitDepUtils = {
           }
           case IPluginInterfaceType.lockToVote: {
             await LogLockToVote.start(plugin)
+            break
+          }
+          case IPluginInterfaceType.gauge: {
+            await LogGauge.start(plugin, isHistorical)
             break
           }
           default:

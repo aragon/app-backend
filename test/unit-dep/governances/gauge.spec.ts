@@ -112,4 +112,14 @@ describe('Integ: Gauge', () => {
     expect(BigInt(gaugeInfo?.memberUsedVotingPower!) >= BigInt(0)).to.be.true
     expect(BigInt(gaugeInfo?.memberVotingPower!) >= BigInt(0)).to.be.true
   })
+
+  it.skip('should test guage voting from top to buttom', async function () {
+    this.timeout(100000000)
+
+    const daoAddress = '0x6361CbCB86121FB3cb4FA358AECB0E96119A7314'
+    const network = NetworksEnum.ethereumSepolia
+
+    UnitDepUtils.stubRabbitmqSend(sandbox)
+    await UnitDepUtils.syncACompleteDao(daoAddress, network)
+  })
 })
