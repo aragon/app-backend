@@ -7,8 +7,6 @@ import { Models } from '@dbModels'
 import { LogTokenVoting } from '@plugins/logTokenVoting'
 import AragonPluginsService from '@plugins/index'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
-import { Interface } from 'ethers'
-import { GaugeVoter } from '@artifacts/GaugeVoter'
 
 describe('Integ: Token', () => {
   let sandbox: SinonSandbox
