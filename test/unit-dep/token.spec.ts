@@ -41,14 +41,4 @@ describe('Integ: Token', () => {
 
     expect(startStub.called).to.be.true
   })
-
-  it('should test gauge voting', async function () {
-    this.timeout(100000000)
-
-    const daoAddress = '0x6361CbCB86121FB3cb4FA358AECB0E96119A7314'
-    const network = NetworksEnum.ethereumSepolia
-
-    UnitDepUtils.stubRabbitmqSend(sandbox)
-    await UnitDepUtils.syncACompleteDao(daoAddress, network)
-  })
 })

@@ -33,14 +33,15 @@ describe.skip('Integ: VeLock', () => {
       {
         network: NetworksEnum.ethereumSepolia,
         daoAddress: '0x9418fcf1Aa0dCEB9090F2bBA06E70d94E10e46b1',
+        fromBlock: 8713501,
       },
     ]
 
-    for (const { network, daoAddress } of networks) {
+    for (const { network, daoAddress, fromBlock } of networks) {
       it(`should handle veLock all events properly ${network}`, async function () {
         this.timeout(100000000)
 
-        await UnitDepUtils.syncACompleteDao(daoAddress, network)
+        await UnitDepUtils.syncACompleteDao(daoAddress, network, fromBlock)
         const plugins = await Models.Plugin.find({
           daoAddress,
         })

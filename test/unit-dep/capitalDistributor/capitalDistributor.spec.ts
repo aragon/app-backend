@@ -2,16 +2,17 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { NetworksEnum } from '@types'
 import { Models } from '@dbModels'
-import RabbitMQ from '@modules/rabbitMQ'
 import UnitDepUtils from '@test/lib/unit-dep/utils'
 import { expect } from 'chai'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 
 describe('Capital Distributor', () => {
   let sandbox: SinonSandbox
+  let rabbitMQ: any
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
-    RabbitMQ.connect()
+    rabbitMQ = sandbox.stub(RabbitMQHelper, 'sendMessage')
   })
 
   afterEach(() => {

@@ -368,10 +368,11 @@ describe('Integ: Plugin', () => {
       this.timeout(100000)
       const daoAddress = '0x0AB0902f1d4AF089Af6dcDD512E9BFe40b20f679'
       const network = NetworksEnum.ethereumSepolia
+      const fromBlock = 8691469
       sandbox.restore()
       UnitDepUtils.stubRabbitmqSend(sandbox)
 
-      await UnitDepUtils.syncACompleteDao(daoAddress, network)
+      await UnitDepUtils.syncACompleteDao(daoAddress, network, fromBlock)
     })
 
     it('should revoke and grant permission to plugin', async function () {

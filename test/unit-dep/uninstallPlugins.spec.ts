@@ -22,16 +22,17 @@ describe.skip('Integ: Uninstall Plugins', () => {
       {
         network: NetworksEnum.ethereumSepolia,
         daoAddress: '0x109052a3beaD6ab63958e42feD30694243ed1A8a',
+        fromBlock: 9360716,
       },
     ]
 
-    for (const { network, daoAddress } of networks) {
+    for (const { network, daoAddress, fromBlock } of networks) {
       it(`should handle uninstall all plugins properly ${network}`, async function () {
         this.timeout(100000000)
 
         UnitDepUtils.stubRabbitmqSend(sandbox)
 
-        await UnitDepUtils.syncACompleteDao(daoAddress, network)
+        await UnitDepUtils.syncACompleteDao(daoAddress, network, fromBlock)
 
         const plugins = await Models.Plugin.find({ daoAddress }).lean()
         const allPlugins = plugins.filter(w => w.interfaceType !== IPluginInterfaceType.admin)
