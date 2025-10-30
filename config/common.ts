@@ -38,7 +38,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     },
 
     BATCH_REQUEST: {
-      DEFAULT_SIZE: utils.configParser(sourceConfig, 'number', 'BATCH_REQUEST_DEFAULT_SIZE', 500),
+      DEFAULT_SIZE: utils.configParser(sourceConfig, 'number', 'BATCH_REQUEST_DEFAULT_SIZE', 50),
     },
     ANKR_CONFIG: {
       API_URL: utils.configParser(sourceConfig, 'string', 'ANKR_API_URL', 'https://rpc.ankr.com'),
@@ -58,10 +58,10 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'BLOCKCHAIN_LOG_CRAWLER_ONE_BLOCK_PER_TIME_MIN_THRESHOLD',
         5,
       ),
-      DEFAULT_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_DEFAULT_BATCH_SIZE', 30),
-      BLOCK_LOW_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_LOW_RANGE', 5),
-      BLOCK_MEDIUM_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_MEDIUM_RANGE', 20),
-      BLOCK_HIGH_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_HIGH_RANGE', 40),
+      DEFAULT_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_DEFAULT_BATCH_SIZE', 5),
+      BLOCK_LOW_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_LOW_RANGE', 2),
+      BLOCK_MEDIUM_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_MEDIUM_RANGE', 5),
+      BLOCK_HIGH_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_HIGH_RANGE', 10),
     },
 
     ETHERSCAN_API: {

@@ -155,7 +155,7 @@ const Web3BatchHelper = {
    * Reduce the batch threshold by half
    */
   _reduceThreshold(currentThreshold: number): number {
-    return Math.max(Math.floor(currentThreshold / 2), 1)
+    return Math.max(Math.floor(currentThreshold / 3), 1)
   },
 
   /**

@@ -770,6 +770,9 @@ class BlockchainLogCrawler {
       'Cannot create a string longer',
       'Response is too big',
       'Block range is too large',
+      'response too large',
+      'stream has been aborted',
+      'code -32003',
     ]
 
     return messages.some(msg => error.message?.includes(msg))
