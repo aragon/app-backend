@@ -7,7 +7,7 @@ import { NetworksEnum } from '@types'
 import GaugeHelper from '@helpers/gauge'
 import logger from '@logger'
 
-describe.only('Service: GaugeMetrics', () => {
+describe('Service: GaugeMetrics', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
