@@ -445,7 +445,7 @@ export const PluginHandler = {
           return
         }
 
-        const document = {
+        const document: Partial<Plugin> = {
           status: IPluginStatus.installed,
           pluginSetupRepoAddress: rawPlugin?.pluginSetupRepoAddress,
         }

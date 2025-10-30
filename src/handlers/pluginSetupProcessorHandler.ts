@@ -193,9 +193,6 @@ export const PluginSetupProcessorHandler = {
     await PluginSettingHandler.handlePluginSettingByType(pluginDb, txReceipt!, info)
 
     if (pluginDb?.interfaceType === IPluginInterfaceType.gauge) {
-      // mark as an active plugin with no settings
-      pluginDb.iVotesAddress = await GaugeHelper.getIVotesAdapterAddress(pluginDb.address, pluginDb.network)
-
       // create manual settings for gauge
       await PluginSettingHandler.gaugeSettings(pluginDb, info)
     }
@@ -432,7 +429,7 @@ export const PluginSetupProcessorHandler = {
         tokenAddress = await Web3Helper.getVotingToken(pluginDb.address, info.network)
         break
       case IPluginInterfaceType.gauge:
-        tokenAddress = await GaugeHelper.getTokenAddress(pluginDb.address, info.network)
+        tokenAddress = await GaugeHelper.getIVotesAdapterAddress(pluginDb.address, info.network)
 
         break
       case IPluginInterfaceType.lockToVote:

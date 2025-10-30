@@ -41,6 +41,12 @@ describe('Integ: Gauge', () => {
         })
         expect(plugin.isSupported).to.be.true
 
+        const token = await Models.Token.findOne({
+          address: plugin.tokenAddress,
+        })
+        expect(token.symbol).to.exist
+        expect(token.name).to.exist
+
         await LogGauge.start(plugin)
 
         const dbGauges = await Models.Gauge.find({ pluginAddress: plugin.address, network: plugin.network })
@@ -76,7 +82,7 @@ describe('Integ: Gauge', () => {
     }
   })
 
-  it(`getGaugeInfo - should handle gauge fetch live info`, async function () {
+  it('getGaugeInfo - should handle gauge fetch live info', async function () {
     const network = NetworksEnum.ethereumSepolia
     const pluginAddress = '0x9910F6A4e536f90b00b771EeD6B08BAdb5c43717'
 
@@ -89,7 +95,7 @@ describe('Integ: Gauge', () => {
       interfaceType: IPluginInterfaceType.tokenVoting,
       status: IPluginStatus.installed,
       daoAddress: '0x0A00c7BA3B0e23363991D4BA7E83a10Fc48969d8',
-      iVotesAddress: '0x2fD483f98B7344f5DFfA943bC0D787d6760813df',
+      tokenAddress: '0x2fD483f98B7344f5DFfA943bC0D787d6760813df',
       isSupported: true,
     })
 
@@ -99,7 +105,6 @@ describe('Integ: Gauge', () => {
       network,
     })
 
-    console.log(gaugeInfo)
     expect(gaugeInfo?.pluginAddress).to.equal(plugin.address)
     expect(gaugeInfo?.network).to.equal(plugin.network)
     expect(BigInt(gaugeInfo?.epochId!) >= BigInt(1456)).to.be.true
@@ -111,15 +116,5 @@ describe('Integ: Gauge', () => {
     expect(gaugeInfo?.memberAddress).to.eq('0x0A00c7BA3B0e23363991D4BA7E83a10Fc48969d8')
     expect(BigInt(gaugeInfo?.memberUsedVotingPower!) >= BigInt(0)).to.be.true
     expect(BigInt(gaugeInfo?.memberVotingPower!) >= BigInt(0)).to.be.true
-  })
-
-  it.skip('should test guage voting from top to buttom', async function () {
-    this.timeout(100000000)
-
-    const daoAddress = '0x6361CbCB86121FB3cb4FA358AECB0E96119A7314'
-    const network = NetworksEnum.ethereumSepolia
-
-    UnitDepUtils.stubRabbitmqSend(sandbox)
-    await UnitDepUtils.syncACompleteDao(daoAddress, network)
   })
 })

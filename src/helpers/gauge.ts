@@ -10,7 +10,7 @@ import logger from '@logger'
 const llo = logger.logMeta.bind(null, { service: 'helpers:GaugeHelper' })
 
 const GaugeHelper = {
-  async getTokenAddress(pluginAddress: string, network: NetworksEnum): Promise<string | null> {
+  async getLockNftTokenAddress(pluginAddress: string, network: NetworksEnum): Promise<string | null> {
     try {
       const escrowAddress = await Web3Helper.getVotingEscrowAddress(pluginAddress, network)
 
@@ -163,17 +163,17 @@ const GaugeHelper = {
     }
   },
 
-  async getVotes(memberAddress: HexAddress, iVotesAddress: HexAddress, network: NetworksEnum): Promise<string> {
+  async getVotes(memberAddress: HexAddress, tokenAddress: HexAddress, network: NetworksEnum): Promise<string> {
     const provider = ProviderModule.getAnyRpcProvider(network)
     const abi = ['function getVotes(address account) external view returns (uint256)']
-    const contract = new Contract(iVotesAddress, abi, provider)
+    const contract = new Contract(tokenAddress, abi, provider)
     try {
       const vp = await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network).schedule(async () => contract.getVotes(memberAddress)),
       )
       return BigInt(vp).toString()
     } catch (error) {
-      logger.error('Error getting votes', llo({ memberAddress, iVotesAddress, network, error }))
+      logger.error('Error getting votes', llo({ memberAddress, tokenAddress, network, error }))
       return '0'
     }
   },
@@ -181,19 +181,19 @@ const GaugeHelper = {
   async getPastVotes(
     memberAddress: HexAddress,
     timePoint: number,
-    iVotesAddress: HexAddress,
+    tokenAddress: HexAddress,
     network: NetworksEnum,
   ): Promise<string> {
     const provider = ProviderModule.getAnyRpcProvider(network)
     const abi = ['function getPastVotes(address account, uint256 timepoint) external view returns (uint256);']
-    const contract = new Contract(iVotesAddress, abi, provider)
+    const contract = new Contract(tokenAddress, abi, provider)
     try {
       const vp = await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network).schedule(async () => contract.getPastVotes(memberAddress, timePoint)),
       )
       return BigInt(vp).toString()
     } catch (error) {
-      logger.error('Error getting votes', llo({ memberAddress, iVotesAddress, network, error }))
+      logger.error('Error getting votes', llo({ memberAddress, tokenAddress, network, error }))
       return '0'
     }
   },

@@ -7,7 +7,7 @@ import { NetworksEnum } from '@types'
 import proxyquire from 'proxyquire'
 import { ZeroAddress } from 'ethers'
 
-describe('Helpers: Gauge', () => {
+describe.only('Helpers: Gauge', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -18,7 +18,7 @@ describe('Helpers: Gauge', () => {
     sandbox.restore()
   })
 
-  describe('getTokenAddress', () => {
+  describe('getLockNftTokenAddress', () => {
     it('should return the lock token address when escrowAddress is found', async () => {
       const pluginAddress = '0xPluginAddress'
       const network = NetworksEnum.ethereumMainnet
@@ -28,7 +28,7 @@ describe('Helpers: Gauge', () => {
       const stubGetVotingEscrowAddress = sandbox.stub(Web3Helper, 'getVotingEscrowAddress').resolves(escrowAddress)
       const stubGetLockTokenAddress = sandbox.stub(Web3Helper, 'getLockTokenAddress').resolves(tokenAddress)
 
-      const result = await GaugeHelper.getTokenAddress(pluginAddress, network)
+      const result = await GaugeHelper.getLockNftTokenAddress(pluginAddress, network)
 
       expect(stubGetVotingEscrowAddress.calledOnceWith(pluginAddress, network)).to.be.true
       expect(stubGetLockTokenAddress.calledOnceWith(escrowAddress, network)).to.be.true
@@ -42,7 +42,7 @@ describe('Helpers: Gauge', () => {
       const stubGetVotingEscrowAddress = sandbox.stub(Web3Helper, 'getVotingEscrowAddress').resolves(null)
       const stubGetLockTokenAddress = sandbox.stub(Web3Helper, 'getLockTokenAddress')
 
-      const result = await GaugeHelper.getTokenAddress(pluginAddress, network)
+      const result = await GaugeHelper.getLockNftTokenAddress(pluginAddress, network)
 
       expect(stubGetVotingEscrowAddress.calledOnceWith(pluginAddress, network)).to.be.true
       expect(stubGetLockTokenAddress.notCalled).to.be.true
@@ -58,7 +58,7 @@ describe('Helpers: Gauge', () => {
         .rejects(new Error('Error fetching escrow address'))
       const stubGetLockTokenAddress = sandbox.stub(Web3Helper, 'getLockTokenAddress')
 
-      const result = await GaugeHelper.getTokenAddress(pluginAddress, network)
+      const result = await GaugeHelper.getLockNftTokenAddress(pluginAddress, network)
 
       expect(stubGetVotingEscrowAddress.calledOnceWith(pluginAddress, network)).to.be.true
       expect(stubGetLockTokenAddress.notCalled).to.be.true
@@ -384,7 +384,7 @@ describe('Helpers: Gauge', () => {
   describe('getVotes', () => {
     it('should return the current voting power for a member', async () => {
       const memberAddress = '0xMemberAddress'
-      const iVotesAddress = '0xIVotesAddress'
+      const tokenAddress = '0xTokenAddress'
       const network = NetworksEnum.ethereumMainnet
       const votes = 10000n
 
@@ -397,7 +397,7 @@ describe('Helpers: Gauge', () => {
         },
       })
 
-      const result = await MockedGaugeHelper.getVotes(memberAddress, iVotesAddress, network)
+      const result = await MockedGaugeHelper.getVotes(memberAddress, tokenAddress, network)
 
       expect(result).to.equal('10000')
       expect(stubGetVotes.calledOnceWith(memberAddress)).to.be.true
@@ -405,7 +405,7 @@ describe('Helpers: Gauge', () => {
 
     it('should return 0 when an error occurs', async () => {
       const memberAddress = '0xMemberAddress'
-      const iVotesAddress = '0xIVotesAddress'
+      const tokenAddress = '0xTokenAddress'
       const network = NetworksEnum.ethereumMainnet
 
       const stubGetVotes = sandbox.stub().rejects(new Error('Contract call failed'))
@@ -417,7 +417,7 @@ describe('Helpers: Gauge', () => {
         },
       })
 
-      const result = await MockedGaugeHelper.getVotes(memberAddress, iVotesAddress, network)
+      const result = await MockedGaugeHelper.getVotes(memberAddress, tokenAddress, network)
 
       expect(result).to.equal('0')
       expect(stubGetVotes.calledOnceWith(memberAddress)).to.be.true
@@ -428,7 +428,7 @@ describe('Helpers: Gauge', () => {
     it('should return the past voting power for a member at a specific timepoint', async () => {
       const memberAddress = '0xMemberAddress'
       const timePoint = 1704067200
-      const iVotesAddress = '0xIVotesAddress'
+      const tokenAddress = '0xTokenAddress'
       const network = NetworksEnum.ethereumMainnet
       const votes = 8000n
 
@@ -441,7 +441,7 @@ describe('Helpers: Gauge', () => {
         },
       })
 
-      const result = await MockedGaugeHelper.getPastVotes(memberAddress, timePoint, iVotesAddress, network)
+      const result = await MockedGaugeHelper.getPastVotes(memberAddress, timePoint, tokenAddress, network)
 
       expect(result).to.equal('8000')
       expect(stubGetPastVotes.calledOnceWith(memberAddress, timePoint)).to.be.true
@@ -450,7 +450,7 @@ describe('Helpers: Gauge', () => {
     it('should return 0 when an error occurs', async () => {
       const memberAddress = '0xMemberAddress'
       const timePoint = 1704067200
-      const iVotesAddress = '0xIVotesAddress'
+      const tokenAddress = '0xTokenAddress'
       const network = NetworksEnum.ethereumMainnet
 
       const stubGetPastVotes = sandbox.stub().rejects(new Error('Contract call failed'))
@@ -462,7 +462,7 @@ describe('Helpers: Gauge', () => {
         },
       })
 
-      const result = await MockedGaugeHelper.getPastVotes(memberAddress, timePoint, iVotesAddress, network)
+      const result = await MockedGaugeHelper.getPastVotes(memberAddress, timePoint, tokenAddress, network)
 
       expect(result).to.equal('0')
       expect(stubGetPastVotes.calledOnceWith(memberAddress, timePoint)).to.be.true

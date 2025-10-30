@@ -27,13 +27,11 @@ export const resetGaugesMigration: IMigration = {
             service: ConfigIndexerHelper.builders.plugin(plugin.interfaceType, plugin.network, plugin.address),
           })
 
-          if (!plugin.iVotesAddress) {
-            // fetch iVotesAddress if missing
-            const iVotesAddress = await GaugeHelper.getIVotesAdapterAddress(plugin.address, plugin.network)
-            await plugin.update({
-              iVotesAddress: iVotesAddress!,
-            })
-          }
+          // fetch right tokenAddress
+          const tokenAddress = await GaugeHelper.getIVotesAdapterAddress(plugin.address, plugin.network)
+          await plugin.update({
+            tokenAddress: tokenAddress!,
+          })
 
           // fetch gauge settings
           await PluginSettingHandler.gaugeSettings(plugin, {

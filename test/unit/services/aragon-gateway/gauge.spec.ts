@@ -19,16 +19,16 @@ describe('Gateway: Gauge', () => {
   })
 
   describe('getGaugeInfo', () => {
-    it('should return gauge info with member data when memberAddress and iVotesAddress exist', async () => {
+    it('should return gauge info with member data when memberAddress and tokenAddress exist', async () => {
       const pluginAddress = '0xPlugin111111111111111111111111111111111'
       const memberAddress = '0xMember1111111111111111111111111111111111'
-      const iVotesAddress = '0xIVotes1111111111111111111111111111111111'
+      const tokenAddress = '0xIVotes1111111111111111111111111111111111'
       const network = NetworksEnum.ethereumMainnet
 
       const mockPlugin = {
         address: pluginAddress,
         network,
-        iVotesAddress,
+        tokenAddress,
       }
 
       sandbox.stub(Models.Plugin, 'findOne').resolves(mockPlugin as any)
@@ -61,14 +61,14 @@ describe('Gateway: Gauge', () => {
     it('should use getPastVotes when enableUpdateVotingPowerHook is false', async () => {
       const pluginAddress = '0xPlugin222222222222222222222222222222222'
       const memberAddress = '0xMember2222222222222222222222222222222222'
-      const iVotesAddress = '0xIVotes2222222222222222222222222222222222'
+      const tokenAddress = '0xIVotes2222222222222222222222222222222222'
       const network = NetworksEnum.ethereumMainnet
       const currentEpochStart = 1234567890
 
       const mockPlugin = {
         address: pluginAddress,
         network,
-        iVotesAddress,
+        tokenAddress,
       }
 
       sandbox.stub(Models.Plugin, 'findOne').resolves(mockPlugin as any)
@@ -84,7 +84,7 @@ describe('Gateway: Gauge', () => {
       const result = await GaugeInfo.getGaugeInfo({ pluginAddress, memberAddress, network })
 
       expect(getPastVotesStub.calledOnce).to.be.true
-      expect(getPastVotesStub.args[0]).to.deep.equal([memberAddress, currentEpochStart, iVotesAddress, network])
+      expect(getPastVotesStub.args[0]).to.deep.equal([memberAddress, currentEpochStart, tokenAddress, network])
       expect(result?.memberVotingPower).to.equal('200000000000000000')
     })
 
@@ -119,7 +119,7 @@ describe('Gateway: Gauge', () => {
       })
     })
 
-    it('should return gauge info without member data when iVotesAddress not found', async () => {
+    it('should return gauge info without member data when tokenAddress not found', async () => {
       const pluginAddress = '0xPlugin444444444444444444444444444444444'
       const memberAddress = '0xMember4444444444444444444444444444444444'
       const network = NetworksEnum.ethereumMainnet
@@ -127,7 +127,7 @@ describe('Gateway: Gauge', () => {
       const mockPlugin = {
         address: pluginAddress,
         network,
-        iVotesAddress: null,
+        tokenAddress: null,
       }
 
       sandbox.stub(Models.Plugin, 'findOne').resolves(mockPlugin as any)
@@ -269,13 +269,13 @@ describe('Gateway: Gauge', () => {
     it('should handle when currentEpochStart is 0', async () => {
       const pluginAddress = '0xPlugin999999999999999999999999999999999'
       const memberAddress = '0xMember9999999999999999999999999999999999'
-      const iVotesAddress = '0xIVotes9999999999999999999999999999999999'
+      const tokenAddress = '0xIVotes9999999999999999999999999999999999'
       const network = NetworksEnum.ethereumMainnet
 
       const mockPlugin = {
         address: pluginAddress,
         network,
-        iVotesAddress,
+        tokenAddress,
       }
 
       sandbox.stub(Models.Plugin, 'findOne').resolves(mockPlugin as any)

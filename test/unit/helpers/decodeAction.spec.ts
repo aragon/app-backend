@@ -969,7 +969,7 @@ describe('Helpers: DecodeActions', () => {
       const contractAddress = '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F'
       const network = NetworksEnum.ethereumMainnet
 
-      const getImplementationAddressStub = sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
+      sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
       // Re-configure the existing stub instead of creating a new one
       const getContractSourceCode = ProxyWeb3Provider.fetchContractSourceCode as sinon.SinonStub
       getContractSourceCode.resolves([
@@ -1084,7 +1084,7 @@ describe('Helpers: DecodeActions', () => {
         },
       ])
 
-      const getImplementationAddressStub = sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
+      sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
       // Re-configure the existing stub instead of creating a new one
       const getContractSourceCode = ProxyWeb3Provider.fetchContractSourceCode as sinon.SinonStub
       getContractSourceCode.resolves([

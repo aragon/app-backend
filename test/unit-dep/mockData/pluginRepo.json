@@ -90,5 +90,18 @@
       "subdomain": "lock-2-vote",
       "pluginRepo": "0x43F3F0A229c69340E49104EA5202ae9e25DEc06B"
     }
+  ],
+  "base-mainnet": [
+    {
+      "id": "base-mainnet-0x28a168df2dfae7b6aac9bca2cf6d0858df6f226a0b306cb20466f173fe310597-147-280",
+      "transactionHash": "0x28a168df2dfae7b6aac9bca2cf6d0858df6f226a0b306cb20466f173fe310597",
+      "transactionIndex": 147,
+      "logIndex": 280,
+      "blockNumber": 27155704,
+      "blockTimestamp": 1741100755,
+      "network": "base-mainnet",
+      "subdomain": "ynd-gauge-test-voter-11",
+      "pluginRepo": "0x570C25470827e35C698F5de2a1eb0B3987dFc908"
+    }
   ]
 }

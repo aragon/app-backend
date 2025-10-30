@@ -7,7 +7,7 @@ import { NetworksEnum } from '@types'
 import GaugeHelper from '@helpers/gauge'
 import logger from '@logger'
 
-describe('Service: GaugeMetrics', () => {
+describe.only('Service: GaugeMetrics', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -159,11 +159,11 @@ describe('Service: GaugeMetrics', () => {
         pluginAddress,
       }
 
-      const findGaugeStub = sandbox.stub(Models.Gauge, 'findOne').resolves(mockGauge as any)
+      sandbox.stub(Models.Gauge, 'findOne').resolves(mockGauge as any)
       const getGaugeEpochIdStub = sandbox.stub(GaugeHelper, 'getGaugeEpochId').resolves(retrievedEpochId)
       const countVotesStub = sandbox.stub(Models.VoteGauge, 'countActiveVotesByEpochAndGauge').resolves(5)
 
-      const findMetricsStub = sandbox.stub(Models.GaugeMetrics, 'findByGaugeAndEpoch').resolves(null)
+      sandbox.stub(Models.GaugeMetrics, 'findByGaugeAndEpoch').resolves(null)
       const createMetricsStub = sandbox.stub(Models.GaugeMetrics, 'create').resolves({} as any)
 
       sandbox.stub(logger, 'verbose')

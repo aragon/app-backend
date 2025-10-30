@@ -141,7 +141,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
       expect(crawlStub.calledTwice).to.be.true
     })
 
-    it('should return items unchanged when plugin has no iVotesAddress', async () => {
+    it('should return items unchanged when plugin has no tokenAddress', async () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
       sandbox.stub(logger, 'verbose')
 
@@ -157,7 +157,6 @@ describe('AragonPlugins: LogTokenVoting', () => {
         network: token.network,
         blockNumber: 200,
         interfaceType: 'tokenVoting',
-        // No iVotesAddress - this should make the config items return unchanged
       } as any
 
       await LogTokenVoting.erc20Governance(plugin, token)

@@ -208,9 +208,6 @@ export default class Plugin extends Model {
   public conditionAddress?: HexAddress
 
   @prop({ type: () => String, default: null })
-  public iVotesAddress?: HexAddress
-
-  @prop({ type: () => String, default: null })
   public lockManagerAddress?: HexAddress
 
   @prop({ type: () => String, default: null })

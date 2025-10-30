@@ -33,7 +33,7 @@ describe('migration: resetGauges', () => {
         network: NetworksEnum.ethereumMainnet,
         interfaceType: IPluginInterfaceType.gauge,
         status: IPluginStatus.installed,
-        iVotesAddress: '0xIVotesAddress123',
+        tokenAddress: '0xTokenAddress123',
         blockNumber: 1000,
         transactionHash: '0xabc123',
       })
@@ -106,13 +106,13 @@ describe('migration: resetGauges', () => {
     it('should log error when reset fails', async () => {
       // Arrange
       const loggerErrorStub = sandbox.stub(logger, 'error')
-      const plugin = await Models.Plugin.create({
+      await Models.Plugin.create({
         address: '0x1234567890aBcDeF1234567890AbcDef12345678',
         daoAddress: '0xabCDef1234567890abCdEF1234567890ABcDeF12',
         network: NetworksEnum.ethereumMainnet,
         interfaceType: IPluginInterfaceType.gauge,
         status: IPluginStatus.installed,
-        iVotesAddress: '0xIVotesAddress123',
+        tokenAddress: '0xTokenAddress123',
         blockNumber: 1000,
         transactionHash: '0xabc123',
       })

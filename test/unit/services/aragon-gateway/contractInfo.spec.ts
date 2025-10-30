@@ -87,9 +87,7 @@ describe('AragonDao: contractInfo', () => {
     it('should return contract info when mainData is null but implementationData exists', async () => {
       let fetchVerifiedContractDataStub = sandbox.stub(ContractInfo, 'fetchVerifiedContractData')
 
-      let getImplementationAddressStub = sandbox
-        .stub(ProxyContract, 'getImplementationAddress')
-        .resolves('0ximplementationAddress')
+      sandbox.stub(ProxyContract, 'getImplementationAddress').resolves('0ximplementationAddress')
 
       fetchVerifiedContractDataStub.onFirstCall().resolves(null)
       fetchVerifiedContractDataStub.onSecondCall().resolves({ name: 'ImplName', functions: [{ name: 'function2' }] })
@@ -109,9 +107,7 @@ describe('AragonDao: contractInfo', () => {
     it('should handle when only mainData has functions (no implementationData functions)', async () => {
       let fetchVerifiedContractDataStub = sandbox.stub(ContractInfo, 'fetchVerifiedContractData')
 
-      let getImplementationAddressStub = sandbox
-        .stub(ProxyContract, 'getImplementationAddress')
-        .resolves('0ximplementationAddress')
+      sandbox.stub(ProxyContract, 'getImplementationAddress').resolves('0ximplementationAddress')
 
       fetchVerifiedContractDataStub
         .onFirstCall()

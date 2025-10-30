@@ -44,12 +44,12 @@ export const GaugeInfo = {
         epochVoteEnd,
       }
 
-      if (memberAddress && plugin.iVotesAddress) {
+      if (memberAddress && plugin.tokenAddress) {
         const [memberUsedVotingPower, memberVotingPower] = await Promise.all([
           GaugeHelper.getUsedVotingPower(memberAddress, pluginAddress, network),
           enableUpdateVotingPowerHook
-            ? GaugeHelper.getVotes(memberAddress, plugin.iVotesAddress, network)
-            : GaugeHelper.getPastVotes(memberAddress, currentEpochStart || 0, plugin.iVotesAddress, network),
+            ? GaugeHelper.getVotes(memberAddress, plugin.tokenAddress, network)
+            : GaugeHelper.getPastVotes(memberAddress, currentEpochStart || 0, plugin.tokenAddress, network),
         ])
 
         gaugeInfo.memberAddress = memberAddress
