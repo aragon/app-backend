@@ -87,15 +87,12 @@ services:
     restart: unless-stopped
     networks:
       - internal-net
-    # volumes:
-    #   - ./rabbitmq/data:/var/lib/rabbitmq
-    #   - ./rabbitmq/etc:/etc/rabbitmq
 
   # --------------------------------------------------
   # Migration Service (runs once and exits)
   # --------------------------------------------------
   migration:
-    image: registry.cn-qingdao.aliyuncs.com/freechain/cddao-service-migration:${ENV_SUFFIX}
+    image: service-migration-${ENV_SUFFIX}
     container_name: service-migration-${ENV_SUFFIX}
     build:
       context: .
@@ -114,7 +111,7 @@ services:
   # Microservices
   # --------------------------------------------------
   service-aragon-api:
-    image: registry.cn-qingdao.aliyuncs.com/freechain/cddao-service-aragon-api:${ENV_SUFFIX}
+    image: service-aragon-api-${ENV_SUFFIX}
     container_name: service-aragon-api-${ENV_SUFFIX}
     build:
       context: .
@@ -137,7 +134,7 @@ services:
       - public-net
 
   service-aragon-admin-api:
-    image: registry.cn-qingdao.aliyuncs.com/freechain/cddao-service-aragon-admin-api:${ENV_SUFFIX}
+    image: service-aragon-admin-api-${ENV_SUFFIX}
     container_name: service-aragon-admin-api-${ENV_SUFFIX}
     build:
       context: .
@@ -160,7 +157,7 @@ services:
       - public-net
 
   service-aragon-indexer:
-    image: registry.cn-qingdao.aliyuncs.com/freechain/cddao-service-aragon-indexer:${ENV_SUFFIX}
+    image: service-aragon-indexer-${ENV_SUFFIX}
     container_name: service-aragon-indexer-${ENV_SUFFIX}
     build:
       context: .
@@ -181,7 +178,7 @@ services:
       - public-net
 
   service-aragon-dao:
-    image: registry.cn-qingdao.aliyuncs.com/freechain/cddao-service-aragon-dao:${ENV_SUFFIX}
+    image: service-aragon-dao-${ENV_SUFFIX}
     container_name: service-aragon-dao-${ENV_SUFFIX}
     build:
       context: .
@@ -202,7 +199,7 @@ services:
       - public-net
 
   service-aragon-gateway:
-    image: registry.cn-qingdao.aliyuncs.com/freechain/cddao-service-aragon-gateway:${ENV_SUFFIX}
+    image: service-aragon-gateway-${ENV_SUFFIX}
     container_name: service-aragon-gateway-${ENV_SUFFIX}
     build:
       context: .
@@ -223,7 +220,7 @@ services:
       - public-net
 
   service-aragon-plugins:
-    image: registry.cn-qingdao.aliyuncs.com/freechain/cddao-service-aragon-plugins:${ENV_SUFFIX}
+    image: service-aragon-plugins-${ENV_SUFFIX}
     build:
       context: .
     env_file:
@@ -245,7 +242,7 @@ services:
       replicas: 2
 
   service-aragon-rates:
-    image: registry.cn-qingdao.aliyuncs.com/freechain/cddao-service-aragon-rates:${ENV_SUFFIX}
+    image: service-aragon-rates-${ENV_SUFFIX}
     container_name: service-aragon-rates-${ENV_SUFFIX}
     build:
       context: .
@@ -266,7 +263,7 @@ services:
       - public-net
 
   service-aragon-requeue:
-    image: registry.cn-qingdao.aliyuncs.com/freechain/cddao-service-aragon-requeue:${ENV_SUFFIX}
+    image: service-aragon-requeue-${ENV_SUFFIX}
     container_name: service-aragon-requeue-${ENV_SUFFIX}
     build:
       context: .

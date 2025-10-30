@@ -1,5 +1,5 @@
-import { Interface } from 'ethers'
-import { type IIndexerConfig } from '@types'
+import { Interface, type LogDescription } from 'ethers'
+import { type IIndexerConfig, type ILogInfo } from '@types'
 import { DAORegistry } from '@artifacts/daoRegistry'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import { PluginRepoRegistry } from '@artifacts/pluginRepoRegistry'
@@ -31,6 +31,7 @@ import { LockManager } from '@artifacts/LockManager'
 import { LockToVote } from '@artifacts/LockToVote'
 import { CapitalDistributor } from '@artifacts/CapitalDistributor'
 import { CapitalDistributorHandler } from '@handlers/capitalDistributorHandler'
+import { IcoPlugin } from '@artifacts/IcoPlugin'
 
 const IndexerEventConfig: IIndexerConfig[] = [
   // historical and realtime on startup
@@ -586,6 +587,127 @@ const IndexerEventConfig: IIndexerConfig[] = [
       {
         abi: CapitalDistributor.abi,
         handler: CapitalDistributorHandler.merkleCampaignUpdated,
+      },
+    ],
+  },
+  // ICO Plugin events
+  {
+    event: 'MetadataSet',
+    enableHistorical: true,
+    topic: new Interface(IcoPlugin.abi).getEvent('MetadataSet')?.topicHash!,
+    config: [
+      {
+        abi: IcoPlugin.abi,
+        handler: MetadataHandler.metadataSet,
+      },
+    ],
+  },
+  {
+    event: 'MetadataUpdated',
+    enableHistorical: true,
+    topic: new Interface(IcoPlugin.abi).getEvent('MetadataUpdated')?.topicHash!,
+    config: [
+      {
+        abi: IcoPlugin.abi,
+        handler: MetadataHandler.metadataSet,
+      },
+    ],
+  },
+  {
+    event: 'TargetSet',
+    enableHistorical: true,
+    topic: new Interface(IcoPlugin.abi).getEvent('TargetSet')?.topicHash!,
+    config: [
+      {
+        abi: IcoPlugin.abi,
+        handler: async (_parsedEvent: LogDescription, _info: ILogInfo) => {
+          // Implement handler for TargetSet
+          return Promise.resolve()
+        },
+      },
+    ],
+  },
+  {
+    event: 'TokensExchanged',
+    enableHistorical: false,
+    topic: new Interface(IcoPlugin.abi).getEvent('TokensExchanged')?.topicHash!,
+    config: [
+      {
+        abi: IcoPlugin.abi,
+        handler: async (_parsedEvent: LogDescription, _info: ILogInfo) => {
+          // Implement handler for TokensExchanged
+          return Promise.resolve()
+        },
+      },
+    ],
+  },
+  {
+    event: 'TradingPairCreated',
+    enableHistorical: true,
+    topic: new Interface(IcoPlugin.abi).getEvent('TradingPairCreated')?.topicHash!,
+    config: [
+      {
+        abi: IcoPlugin.abi,
+        handler: async (_parsedEvent: LogDescription, _info: ILogInfo) => {
+          // Implement handler for TradingPairCreated
+          return Promise.resolve()
+        },
+      },
+    ],
+  },
+  {
+    event: 'TradingPairRemoved',
+    enableHistorical: true,
+    topic: new Interface(IcoPlugin.abi).getEvent('TradingPairRemoved')?.topicHash!,
+    config: [
+      {
+        abi: IcoPlugin.abi,
+        handler: async (_parsedEvent: LogDescription, _info: ILogInfo) => {
+          // Implement handler for TradingPairRemoved
+          return Promise.resolve()
+        },
+      },
+    ],
+  },
+  {
+    event: 'TradingPairStatusChanged',
+    enableHistorical: false,
+    topic: new Interface(IcoPlugin.abi).getEvent('TradingPairStatusChanged')?.topicHash!,
+    config: [
+      {
+        abi: IcoPlugin.abi,
+        handler: async (_parsedEvent: LogDescription, _info: ILogInfo) => {
+          // Implement handler for TradingPairStatusChanged
+          return Promise.resolve()
+        },
+      },
+    ],
+  },
+  {
+    event: 'TradingPairUpdated',
+    enableHistorical: false,
+    topic: new Interface(IcoPlugin.abi).getEvent('TradingPairUpdated')?.topicHash!,
+    config: [
+      {
+        abi: IcoPlugin.abi,
+        handler: async (_parsedEvent: LogDescription, _info: ILogInfo) => {
+          // Implement handler for TradingPairUpdated
+          return Promise.resolve()
+        },
+      },
+    ],
+  },
+  {
+    event: 'Upgraded',
+    enableHistorical: false,
+    topic: new Interface(IcoPlugin.abi).getEvent('Upgraded')?.topicHash!,
+    config: [
+      {
+        abi: IcoPlugin.abi,
+        handler: async (_parsedEvent: LogDescription, _info: ILogInfo) => {
+          // Implement handler for Upgraded
+          return Promise.resolve()
+        },
       },
     ],
   },

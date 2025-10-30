@@ -316,20 +316,26 @@ export const ProposalHandler = {
       await MemberGovernanceFactory.createBaseMember(newProposal.creatorAddress, info.blockNumber)
 
       // Spp have no members don't need to update plugin metrics
-      if (relatedPlugin.interfaceType !== IPluginInterfaceType.spp) {
+      // ICO plugins don't have governance, so we skip plugin metrics update
+      if (
+        relatedPlugin.interfaceType !== IPluginInterfaceType.spp &&
+        relatedPlugin.interfaceType !== IPluginInterfaceType.ico
+      ) {
         // Create governance instance based on plugin type
         const governance = MemberGovernanceFactory.createFromPlugin(relatedPlugin)
 
         // Update plugin metrics and increment proposal count
-        await governance.updatePluginMetrics({
-          memberAddress: newProposal.creatorAddress,
-          pluginAddress,
-          network: info.network,
-          daoAddress: newProposal.daoAddress,
-          lastActivity: newProposal.blockNumber,
-        })
+        if (governance) {
+          await governance.updatePluginMetrics({
+            memberAddress: newProposal.creatorAddress,
+            pluginAddress,
+            network: info.network,
+            daoAddress: newProposal.daoAddress,
+            lastActivity: newProposal.blockNumber,
+          })
 
-        await governance.updateDaoMetrics()
+          await governance.updateDaoMetrics()
+        }
       }
 
       const allMessages: Promise<any>[] = []
@@ -424,19 +430,25 @@ export const ProposalHandler = {
 
       // Get plugin to determine an interface type
       const relatedPlugin = await Models.Plugin.findByAddress(info.address, info.network)
-      if (relatedPlugin) {
+      if (
+        relatedPlugin &&
+        relatedPlugin.interfaceType !== IPluginInterfaceType.spp &&
+        relatedPlugin.interfaceType !== IPluginInterfaceType.ico
+      ) {
         // Create governance instance based on a plugin type
         const governance = MemberGovernanceFactory.createFromPlugin(relatedPlugin)
 
-        await governance.updatePluginMetrics({
-          memberAddress: document.memberAddress!,
-          pluginAddress: info.address,
-          network: info.network,
-          daoAddress: proposal?.daoAddress,
-          lastActivity: info?.blockNumber,
-        })
+        if (governance) {
+          await governance.updatePluginMetrics({
+            memberAddress: document.memberAddress!,
+            pluginAddress: info.address,
+            network: info.network,
+            daoAddress: proposal?.daoAddress,
+            lastActivity: info?.blockNumber,
+          })
 
-        await governance.updateDaoMetrics()
+          await governance.updateDaoMetrics()
+        }
       }
 
       await RabbitMQHelper.sendMessage(EnumQueueName.proposalMultisigMetrics, {
@@ -529,17 +541,23 @@ export const ProposalHandler = {
 
       // always update plugin metrics
       const relatedPlugin = await Models.Plugin.findByAddress(info.address, info.network)
-      if (relatedPlugin) {
+      if (
+        relatedPlugin &&
+        relatedPlugin.interfaceType !== IPluginInterfaceType.spp &&
+        relatedPlugin.interfaceType !== IPluginInterfaceType.ico
+      ) {
         const governance = MemberGovernanceFactory.createFromPlugin(relatedPlugin)
 
-        await governance.updatePluginMetrics({
-          memberAddress: document.memberAddress!,
-          pluginAddress: info.address,
-          network: info.network,
-          daoAddress: proposal.daoAddress,
-          lastActivity: info?.blockNumber,
-        })
-        await governance.updateDaoMetrics()
+        if (governance) {
+          await governance.updatePluginMetrics({
+            memberAddress: document.memberAddress!,
+            pluginAddress: info.address,
+            network: info.network,
+            daoAddress: proposal.daoAddress,
+            lastActivity: info?.blockNumber,
+          })
+          await governance.updateDaoMetrics()
+        }
       }
 
       // Proposal metrics

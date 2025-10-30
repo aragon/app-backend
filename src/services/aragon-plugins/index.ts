@@ -18,6 +18,7 @@ import { LogTokenVoting } from '@services/aragon-plugins/logTokenVoting'
 import { LogGauge } from '@plugins/logGauge'
 import { LogSelectorPermission } from '@services/aragon-plugins/logSelectorPermission'
 import { LogCapitalDistributor } from '@services/aragon-plugins/logCapitalDistributor'
+import { LogIcoPlugin } from '@services/aragon-plugins/logIcoPlugin'
 import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'service:PluginSyncService' })
@@ -125,6 +126,11 @@ const AragonPluginsService: IService & { pluginQueue: (params: IQueuePlugin) => 
       case IPluginInterfaceType.capitalDistributor: {
         logger.info('Sync plugin: Capital Distributor', llo({ plugin: plugin.address }))
         await LogCapitalDistributor.start(plugin)
+        break
+      }
+      case IPluginInterfaceType.ico: {
+        logger.info('Sync plugin: ICO', llo({ plugin: plugin.address }))
+        await LogIcoPlugin.start(plugin)
         break
       }
       default: {

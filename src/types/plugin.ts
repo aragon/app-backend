@@ -45,6 +45,8 @@ export enum IPluginSlug {
   gauge = 'gauge',
   spp = 'core',
   capitalDistributor = 'capitalDistributor',
+  ico = 'ico',
+  drawing = 'drawing',
 }
 
 export enum IEventLogPluginSettings {
@@ -62,6 +64,8 @@ export enum IPluginInterfaceType {
   unknown = 'unknown',
   lockToVote = 'lockToVote',
   capitalDistributor = 'capitalDistributor',
+  ico = 'ico',
+  drawing = 'drawing',
 }
 
 export interface ISettingVotingEscrow {

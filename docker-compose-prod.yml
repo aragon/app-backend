@@ -12,7 +12,7 @@ services:
     volumes:
       - mongo1_data:/data/db
     networks:
-      - internal-net
+      - cddao-internal-net
 
   mongo2:
     image: registry.cn-qingdao.aliyuncs.com/freechain/mongodb:8.0
@@ -24,7 +24,7 @@ services:
     volumes:
       - mongo2_data:/data/db
     networks:
-      - internal-net
+      - cddao-internal-net
 
   mongo3:
     image: registry.cn-qingdao.aliyuncs.com/freechain/mongodb:8.0
@@ -36,7 +36,7 @@ services:
     volumes:
       - mongo3_data:/data/db
     networks:
-      - internal-net
+      - cddao-internal-net
 
   mongo-init-replica:
     image: registry.cn-qingdao.aliyuncs.com/freechain/mongodb:8.0
@@ -64,11 +64,8 @@ services:
       echo 'Replica set initialized.'
       "
     networks:
-      - internal-net
+      - cddao-internal-net
 
-  # --------------------------------------------------
-  # RabbitMQ
-  # --------------------------------------------------
   rabbitmq:
     image: registry.cn-qingdao.aliyuncs.com/freechain/rabbitmq:3.9-management-alpine
     container_name: rabbitmq-${ENV_SUFFIX}
@@ -86,20 +83,11 @@ services:
       start_period: 10s
     restart: unless-stopped
     networks:
-      - internal-net
-    # volumes:
-    #   - ./rabbitmq/data:/var/lib/rabbitmq
-    #   - ./rabbitmq/etc:/etc/rabbitmq
+      - cddao-internal-net
 
-  # --------------------------------------------------
-  # Migration Service (runs once and exits)
-  # --------------------------------------------------
   migration:
     image: registry.cn-qingdao.aliyuncs.com/freechain/cddao-service-migration:${ENV_SUFFIX}
     container_name: service-migration-${ENV_SUFFIX}
-    build:
-      context: .
-      dockerfile: Dockerfile
     env_file:
       - .env.aragon-indexer-${ENV_SUFFIX} # Use the same env file as the indexer
     depends_on:
@@ -108,7 +96,7 @@ services:
     command: bash -c "yarn wait:rabbitmq && yarn mig:run && echo 'Migration Service completed'"
     restart: "no"  # Don't restart after completion
     networks:
-      - internal-net
+      - cddao-internal-net
 
   # --------------------------------------------------
   # Microservices
@@ -116,8 +104,6 @@ services:
   service-aragon-api:
     image: registry.cn-qingdao.aliyuncs.com/freechain/cddao-service-aragon-api:${ENV_SUFFIX}
     container_name: service-aragon-api-${ENV_SUFFIX}
-    build:
-      context: .
     ports:
       - '${SERVICES_API_PORT}:${SERVICES_API_PORT}'
     env_file:
@@ -133,14 +119,12 @@ services:
       start_period: 10s
     restart: unless-stopped
     networks:
-      - internal-net
-      - public-net
+      - cddao-internal-net
+      - cddao-public-net
 
   service-aragon-admin-api:
     image: registry.cn-qingdao.aliyuncs.com/freechain/cddao-service-aragon-admin-api:${ENV_SUFFIX}
     container_name: service-aragon-admin-api-${ENV_SUFFIX}
-    build:
-      context: .
     ports:
       - '${SERVICES_ADMIN_API_PORT}:${SERVICES_ADMIN_API_PORT}'
     env_file:
@@ -156,14 +140,12 @@ services:
       start_period: 10s
     restart: unless-stopped
     networks:
-      - internal-net
-      - public-net
+      - cddao-internal-net
+      - cddao-public-net
 
   service-aragon-indexer:
     image: registry.cn-qingdao.aliyuncs.com/freechain/cddao-service-aragon-indexer:${ENV_SUFFIX}
     container_name: service-aragon-indexer-${ENV_SUFFIX}
-    build:
-      context: .
     env_file:
       - .env.aragon-indexer-${ENV_SUFFIX}
     depends_on:
@@ -177,14 +159,12 @@ services:
       start_period: 10s
     restart: unless-stopped
     networks:
-      - internal-net
-      - public-net
+      - cddao-internal-net
+      - cddao-public-net
 
   service-aragon-dao:
     image: registry.cn-qingdao.aliyuncs.com/freechain/cddao-service-aragon-dao:${ENV_SUFFIX}
     container_name: service-aragon-dao-${ENV_SUFFIX}
-    build:
-      context: .
     env_file:
       - .env.aragon-dao-${ENV_SUFFIX}
     depends_on:
@@ -198,14 +178,12 @@ services:
       start_period: 10s
     restart: unless-stopped
     networks:
-      - internal-net
-      - public-net
+      - cddao-internal-net
+      - cddao-public-net
 
   service-aragon-gateway:
     image: registry.cn-qingdao.aliyuncs.com/freechain/cddao-service-aragon-gateway:${ENV_SUFFIX}
     container_name: service-aragon-gateway-${ENV_SUFFIX}
-    build:
-      context: .
     env_file:
       - .env.aragon-gateway-${ENV_SUFFIX}
     depends_on:
@@ -219,13 +197,11 @@ services:
       start_period: 10s
     restart: unless-stopped
     networks:
-      - internal-net
-      - public-net
+      - cddao-internal-net
+      - cddao-public-net
 
   service-aragon-plugins:
     image: registry.cn-qingdao.aliyuncs.com/freechain/cddao-service-aragon-plugins:${ENV_SUFFIX}
-    build:
-      context: .
     env_file:
       - .env.aragon-plugins-${ENV_SUFFIX}
     depends_on:
@@ -239,16 +215,14 @@ services:
       start_period: 10s
     restart: unless-stopped
     networks:
-      - internal-net
-      - public-net
+      - cddao-internal-net
+      - cddao-public-net
     deploy:
       replicas: 2
 
   service-aragon-rates:
     image: registry.cn-qingdao.aliyuncs.com/freechain/cddao-service-aragon-rates:${ENV_SUFFIX}
     container_name: service-aragon-rates-${ENV_SUFFIX}
-    build:
-      context: .
     env_file:
       - .env.aragon-rates-${ENV_SUFFIX}
     depends_on:
@@ -262,14 +236,12 @@ services:
       start_period: 10s
     restart: unless-stopped
     networks:
-      - internal-net
-      - public-net
+      - cddao-internal-net
+      - cddao-public-net
 
   service-aragon-requeue:
     image: registry.cn-qingdao.aliyuncs.com/freechain/cddao-service-aragon-requeue:${ENV_SUFFIX}
     container_name: service-aragon-requeue-${ENV_SUFFIX}
-    build:
-      context: .
     env_file:
       - .env.aragon-requeue-${ENV_SUFFIX}
     depends_on:
@@ -283,16 +255,16 @@ services:
       start_period: 10s
     restart: unless-stopped
     networks:
-      - internal-net
-      - public-net
+      - cddao-internal-net
+      - cddao-public-net
 
 networks:
-  internal-net:
+  cddao-internal-net:
     external: true
-    name: internal-net
-  public-net:
+    name: cddao-internal-net
+  cddao-public-net:
     external: true
-    name: public-net
+    name: cddao-public-net
 
 volumes:
   mongo1_data:

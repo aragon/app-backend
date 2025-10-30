@@ -57,6 +57,18 @@ export const pluginMembersMigration: IMigration = {
               return
             }
 
+            // Skip ICO plugins as they don't have governance
+            if (plugin.interfaceType === IPluginInterfaceType.ico) {
+              logger.verbose(
+                'Skipping ICO plugin in migration',
+                llo({
+                  pluginAddress: daoMemberMapping.pluginAddress,
+                  network: daoMemberMapping.network,
+                }),
+              )
+              return
+            }
+
             // Create governance instance based on plugin type
             const governance = MemberGovernanceFactory.create({
               address: plugin.tokenAddress || daoMemberMapping.pluginAddress,
@@ -66,24 +78,28 @@ export const pluginMembersMigration: IMigration = {
 
             // For non-token plugins, add as plugin member
             if (!plugin.tokenAddress) {
-              await governance.create(daoMemberMapping.memberAddress, {
-                lastActivity: memberMetrics?.lastActivity,
-              })
+              if (governance) {
+                await governance.create(daoMemberMapping.memberAddress, {
+                  lastActivity: memberMetrics?.lastActivity,
+                })
+              }
             }
 
             // Update plugin metrics
-            const newMemberMetrics = await governance.updatePluginMetrics({
-              memberAddress: daoMemberMapping.memberAddress!,
-              pluginAddress: daoMemberMapping.pluginAddress,
-              network: daoMemberMapping.network,
-              daoAddress: daoMemberMapping.daoAddress,
-              lastActivity: memberMetrics?.lastActivity,
-            })
-
-            if (newMemberMetrics && memberMetrics?.firstActivity) {
-              newMemberMetrics?.update({
-                firstActivity: memberMetrics?.firstActivity,
+            if (governance) {
+              const newMemberMetrics = await governance.updatePluginMetrics({
+                memberAddress: daoMemberMapping.memberAddress!,
+                pluginAddress: daoMemberMapping.pluginAddress,
+                network: daoMemberMapping.network,
+                daoAddress: daoMemberMapping.daoAddress,
+                lastActivity: memberMetrics?.lastActivity,
               })
+
+              if (newMemberMetrics && memberMetrics?.firstActivity) {
+                newMemberMetrics?.update({
+                  firstActivity: memberMetrics?.firstActivity,
+                })
+              }
             }
 
             processedCount++

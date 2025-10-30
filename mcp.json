@@ -1,0 +1,34 @@
+{
+  "mcpServers": {
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://localhost/mydb"]
+    },
+    "Framelink Figma MCP": {
+      "command": "npx",
+      "args": ["-y", "figma-developer-mcp", "--figma-api-key=FIGMA_API_ACCESS_TOKEN", "--stdio"]
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@latest"]
+    },
+    "redis": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-redis", "REDIS_URL"]
+    },
+    "aragon-backend": {
+      "command": "sh",
+      "args": [
+        "-c",
+        "cd /Users/aos/projects/cddao/app-backend && ENV_SUFFIX=dev SERVICES_API_PORT=3000 SERVICES_ADMIN_API_PORT=3001 RABBITMQ_AMQP_PORT=5672 RABBITMQ_MANAGEMENT_PORT=15672 RABBITMQ_DEFAULT_USER=guest RABBITMQ_DEFAULT_PASS=guest docker-compose -f docker-compose.yml up -d"
+      ]
+    },
+    "aragon-backend-prod": {
+      "command": "sh",
+      "args": [
+        "-c",
+        "cd /Users/aos/projects/cddao/app-backend && ENV_SUFFIX=prod SERVICES_API_PORT=3000 SERVICES_ADMIN_API_PORT=3001 RABBITMQ_AMQP_PORT=5672 RABBITMQ_MANAGEMENT_PORT=15672 RABBITMQ_DEFAULT_USER=guest RABBITMQ_DEFAULT_PASS=guest docker-compose -f docker-compose.yml up -d"
+      ]
+    }
+  }
+}

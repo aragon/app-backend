@@ -7,6 +7,7 @@ import { LockToVoteGovernance } from './lockToVoteGovernance'
 import { MultisigGovernance } from './multisigGovernance'
 import { AdminGovernance } from './adminGovernance'
 import { CapitalDistributorGovernance } from './capitalDistributorGovernance'
+import { IcoGovernance } from './icoGovernance'
 import Web3Utils from '@helpers/web3Utils'
 import DbTx from '@modules/dbTx'
 import type Member from '@models/schema/member'
@@ -21,6 +22,7 @@ export { LockToVoteGovernance }
 export { MultisigGovernance }
 export { AdminGovernance }
 export { CapitalDistributorGovernance }
+export { IcoGovernance }
 
 const llo = logger.logMeta.bind(null, { service: 'MemberGovernanceFactory' })
 
@@ -53,6 +55,10 @@ const llo = logger.logMeta.bind(null, { service: 'MemberGovernanceFactory' })
  *   - `network`: The blockchain network
  *
  * - **Capital Distributor Governance**:
+ *   - `address`: The plugin address
+ *   - `network`: The blockchain network
+ *
+ * - **ICO Governance**:
  *   - `address`: The plugin address
  *   - `network`: The blockchain network
  */
@@ -118,6 +124,11 @@ export class MemberGovernanceFactory {
         })
       }
 
+      // Handle ICO plugins - they don't have governance, so we return a special ICO governance instance
+      if (plugin.interfaceType === IPluginInterfaceType.ico) {
+        return new IcoGovernance(plugin.address, plugin.network)
+      }
+
       // If we reach here, the plugin type is not supported
       throw new Error(`Unsupported plugin interface type: ${plugin.interfaceType}`)
     } catch (error) {
@@ -162,12 +173,16 @@ export class MemberGovernanceFactory {
         // the address is the pluginAddress
         return new CapitalDistributorGovernance(params.address, params.network)
 
+      case IPluginInterfaceType.ico:
+        // ICO plugins don't have governance, so we return a special ICO governance instance
+        return new IcoGovernance(params.address, params.network)
+
       case IPluginInterfaceType.spp:
       case IPluginInterfaceType.gauge:
       case IPluginInterfaceType.unknown:
       default:
-        logger.warn('Unsupported plugin interface type, returning null', llo(params))
-        throw new Error('Unsupported plugin interface type')
+        logger.warn('Unsupported plugin interface type, throwing error', llo(params))
+        throw new Error(`Unsupported plugin interface type: ${params.interfaceType}`)
     }
   }
 

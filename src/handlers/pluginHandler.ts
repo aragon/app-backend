@@ -309,6 +309,10 @@ export const PluginHandler = {
       document.isProcess = false
       document.isBody = false
       document.isSubPlugin = false
+    } else if (document.interfaceType === IPluginInterfaceType.ico) {
+      document.isProcess = false
+      document.isBody = false
+      document.isSubPlugin = false
     } else {
       document.isProcess = true
       document.isBody = true
@@ -382,6 +386,10 @@ export const PluginHandler = {
           document.isBody = false
           document.isSubPlugin = false
         } else if (document.interfaceType === IPluginInterfaceType.capitalDistributor) {
+          document.isProcess = false
+          document.isBody = false
+          document.isSubPlugin = false
+        } else if (document.interfaceType === IPluginInterfaceType.ico) {
           document.isProcess = false
           document.isBody = false
           document.isSubPlugin = false

@@ -160,6 +160,21 @@ export enum ISelectorPermissionLogs {
   NativeTransfersDisallowed = 'NativeTransfersDisallowed',
 }
 
+export enum IIcoPluginLogs {
+  MetadataSet = 'MetadataSet',
+  PluginMetadataUpdated = 'PluginMetadataUpdated',
+  PluginTargetConfigUpdated = 'PluginTargetConfigUpdated',
+  PluginUpgraded = 'PluginUpgraded',
+  SalePlanConfigUpdated = 'SalePlanConfigUpdated',
+  SalePlanCreated = 'SalePlanCreated',
+  SupportedTokenConfigUpdated = 'SupportedTokenConfigUpdated',
+  TargetSet = 'TargetSet',
+  TokensExchanged = 'TokensExchanged',
+  TradingPairConfigUpdated = 'TradingPairConfigUpdated',
+  TradingPairCreated = 'TradingPairCreated',
+  Upgraded = 'Upgraded',
+}
+
 export interface ICapitalDistributorStats {
   totalClaimed: string // Sum of all claimed amounts from events
   totalClaimable: string // Sum of the claimable amounts for all campaigns

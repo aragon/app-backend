@@ -162,3 +162,17 @@ growth of decentralized governance.
 ## License
 
 [GNU AGPLv3](./LICENSE)
+
+#### 增加一个新的插件数据采集功能需要:
+1. 定义新的插件类型枚举
+2. 在 PluginDetector 中添加类型检测逻辑
+3. 在 PluginSettingHandler 中添加设置处理函数
+4. 添加必要的事件枚举
+5. 创建和导入相应的ABI文件
+6. 更新数据模型以支持新插件的特定字段
+
+# 在服务器上创建内部网络
+docker network create internal-net
+
+# 在服务器上创建公共网络
+docker network create public-net

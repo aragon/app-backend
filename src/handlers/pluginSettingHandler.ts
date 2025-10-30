@@ -62,6 +62,9 @@ export const PluginSettingHandler = {
         eventName = IEventLogPluginSettings.StagesUpdated
         handler = PluginSettingHandler.sppSettingsUpdated
         break
+      case IPluginInterfaceType.ico:
+        // ICO plugins don't have settings events, so we return early
+        return
       default:
         return
     }

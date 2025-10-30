@@ -36,6 +36,13 @@ const PluginDetector = {
     'getCampaignPayout(uint256,address,bytes)',
   ],
 
+  ICO_FUNCTIONS: [
+    'createSalePlan(uint256,uint256,uint256,uint256)',
+    'createTradingPair(uint256,uint256,uint256)',
+    'exchangeTokens(uint256,uint256)',
+    'addSupportedToken(address,bool)',
+  ],
+
   _generateFunctionHash(functionSignature: string): string {
     return keccak256(Buffer.from(functionSignature)).slice(0, 10)
   },
@@ -93,6 +100,8 @@ const PluginDetector = {
         pluginDetails.type = IPluginInterfaceType.admin
       } else if (hasFunctions(PluginDetector.GAUGE_VOTER_FUNCTIONS)) {
         pluginDetails.type = IPluginInterfaceType.gauge
+      } else if (hasFunctions(PluginDetector.ICO_FUNCTIONS)) {
+        pluginDetails.type = IPluginInterfaceType.ico
       } else {
         pluginDetails.type = IPluginInterfaceType.unknown
       }
