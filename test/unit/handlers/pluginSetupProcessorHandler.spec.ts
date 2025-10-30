@@ -25,7 +25,7 @@ import VotingEscrowDetector from '@helpers/votingEscrowDetector'
 import GovernanceVeHelper from '@helpers/governanceVe'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
 
-describe.only('Indexer: PluginSetupProcessorHandler', () => {
+describe('Indexer: PluginSetupProcessorHandler', () => {
   let sandbox: SinonSandbox
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
