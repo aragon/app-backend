@@ -37,10 +37,9 @@ const PluginDetector = {
   ],
 
   ICO_FUNCTIONS: [
-    'createSalePlan(uint256,uint256,uint256,uint256)',
-    'createTradingPair(uint256,uint256,uint256)',
-    'exchangeTokens(uint256,uint256)',
-    'addSupportedToken(address,bool)',
+    'createTradingPair((address,address,uint256,uint256,uint64,uint64,uint8))',
+    'exchangeTokens(uint16,uint256)',
+    'setMetadata(bytes)',
   ],
 
   _generateFunctionHash(functionSignature: string): string {

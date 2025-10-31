@@ -24,6 +24,7 @@ import Web3Utils from '@helpers/web3Utils'
 import PluginDetector from '@helpers/pluginDetector'
 import GovernanceVeHelper from '@helpers/governanceVe'
 import { LockToVote } from '@artifacts/LockToVote'
+import { IcoPlugin } from '@artifacts/IcoPlugin'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PluginSettingHandler' })
 
@@ -38,7 +39,7 @@ export const PluginSettingHandler = {
   handlePluginSettingByType: async (plugin: Plugin, txReceipt: TransactionReceipt, info: ILogInfo) => {
     let abi: any
     let abi2: any
-    let eventName: IEventLogPluginSettings
+    let eventName: IEventLogPluginSettings | string
     let handler: (parsedEvent: LogDescription, info: ILogInfo) => Promise<Plugin | undefined>
     switch (plugin.interfaceType) {
       case IPluginInterfaceType.lockToVote:
@@ -63,8 +64,10 @@ export const PluginSettingHandler = {
         handler = PluginSettingHandler.sppSettingsUpdated
         break
       case IPluginInterfaceType.ico:
-        // ICO plugins don't have settings events, so we return early
-        return
+        abi = IcoPlugin.abi
+        eventName = IEventLogPluginSettings.TradingPairUpdated
+        handler = PluginSettingHandler.icoTradingPairUpdated
+        break
       default:
         return
     }
@@ -80,6 +83,68 @@ export const PluginSettingHandler = {
       const plugin = await handler(settingLog.parsed!, infoPluginSetup)
       if (plugin) return plugin
     }
+  },
+
+  icoTradingPairUpdated: async (parsedEvent: LogDescription, info: ILogInfo): Promise<Plugin | undefined> => {
+    const { address: pluginAddress, transactionHash, blockNumber, network } = info
+
+    const relatedPlugin = await Models.Plugin.findByAddress(pluginAddress, network)
+
+    if (!relatedPlugin) {
+      logger.warn('Plugin not found', llo(info))
+      return
+    }
+
+    // Fix: Check for ICO plugin type instead of token voting
+    if (relatedPlugin.interfaceType !== IPluginInterfaceType.ico) {
+      logger.warn('Plugin is not an ICO plugin', llo(info))
+      return
+    }
+
+    const existingLog = await Models.Setting.findExistingLog({
+      transactionHash,
+      pluginAddress,
+    })
+
+    if (existingLog) {
+      logger.verbose('Skipping ICO settings update - existing log found', llo(info))
+      return
+    }
+
+    const activePluginSetting = await Models.Setting.findActive({
+      network: info.network,
+      pluginAddress,
+    })
+
+    const settingLog = {
+      blockNumber,
+      blockTimestamp: (await Web3Helper.getBlockTimestamp(blockNumber, network)) || undefined,
+      transactionHash,
+      status: ISettingStatus.active,
+      daoAddress: relatedPlugin.daoAddress,
+      pluginAddress,
+      pluginSubdomain: relatedPlugin.subdomain,
+      tokenAddress: relatedPlugin.tokenAddress,
+      network,
+    }
+
+    await DbOperations.createDocument(Models.Setting, settingLog, info, 'New Setting - icoSettingsUpdated', llo)
+
+    if (activePluginSetting) {
+      await DbOperations.updateDocument(
+        activePluginSetting,
+        {
+          inactiveAtBlockNumber: blockNumber,
+          status: ISettingStatus.inactive,
+        },
+        { logId: activePluginSetting.id, info },
+        'Update ico inactive plugin',
+        llo,
+      )
+    }
+
+    await PluginSettingHandler.isSupported(relatedPlugin, info)
+    return relatedPlugin
   },
 
   lockToVoteSettingsUpdated: async (parsedEvent: LogDescription, info: ILogInfo): Promise<Plugin | undefined> => {

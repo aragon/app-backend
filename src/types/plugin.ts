@@ -53,6 +53,7 @@ export enum IEventLogPluginSettings {
   MultisigSettingsUpdated = 'MultisigSettingsUpdated',
   VotingSettingsUpdated = 'VotingSettingsUpdated',
   StagesUpdated = 'StagesUpdated',
+  TradingPairUpdated = 'TradingPairUpdated',
 }
 
 export enum IPluginInterfaceType {

@@ -157,6 +157,24 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(result).to.be.undefined
       expect(stubFind.notCalled).to.be.true
     })
+
+    it('should process ico settings log', async () => {
+      const txReceipt = { logs: [{ topics: ['0xico'], data: '0x05' }] } as any
+      const plugin = { address: '0xplugin', interfaceType: IPluginInterfaceType.ico } as any
+      const info = { network: NetworksEnum.ethereumMainnet } as any
+
+      const settingLogs = [{ parsed: 'icoLog', txLog: { address: '0xplugin' } }]
+      const findLogsStub = sandbox.stub(Web3Utils, 'findLogsByName').returns(settingLogs as any)
+      const parseInfoLogStub = sandbox.stub(Web3Utils, 'parseInfoLog').returns('icoInfo' as any)
+      const icoStub = sandbox.stub(PluginSettingHandler, 'icoTradingPairUpdated').resolves({ address: '0xico-plugin' } as any)
+
+      const result = await PluginSettingHandler.handlePluginSettingByType(plugin, txReceipt, info)
+
+      expect(findLogsStub.calledOnce).to.be.true
+      expect(parseInfoLogStub.calledOnce).to.be.true
+      expect(icoStub.calledOnceWith('icoLog' as any, 'icoInfo' as any)).to.be.true
+      expect(result).to.deep.equal({ address: '0xico-plugin' })
+    })
   })
 
   describe('votingSettingsUpdated', () => {
@@ -446,6 +464,47 @@ describe('Indexer: PluginSettingHandler', () => {
 
       expect(isSupportedStub.notCalled).to.be.true
       expect(stubError.calledOnceWith('votingSettingsUpdated token not found' as any)).to.be.true
+    })
+  })
+
+  describe('icoSettingsUpdated', () => {
+    let plugin: any
+    let txReceipt: any
+    let info: ILogInfo
+
+    beforeEach(() => {
+      plugin = {
+        address: '0xplugin',
+        daoAddress: '0xdao',
+        subdomain: 'ico',
+        tokenAddress: '0xtoken',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      txReceipt = {
+        logs: [],
+      }
+
+      info = {
+        address: '0xplugin',
+        transactionHash: '0xtransaction',
+        blockNumber: 100,
+        transactionIndex: 0,
+        logIndex: 0,
+        eventName: '',
+        network: NetworksEnum.ethereumMainnet,
+      }
+    })
+
+    it('should not create settings when no relevant events are present', async () => {
+      // No relevant events
+      const parsedEvent = {
+        args: {}
+      }
+      
+      const result = await PluginSettingHandler.icoTradingPairUpdated(parsedEvent as any, info)
+
+      expect(result).to.be.undefined
     })
   })
 
