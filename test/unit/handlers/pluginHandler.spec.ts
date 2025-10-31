@@ -181,7 +181,7 @@ describe('Indexer:Plugin', () => {
         status: IPluginStatus.preInstall,
       })
       expect(createdPlugin).to.not.be.null
-      expect(createdPlugin.isBody).to.be.true
+      expect(createdPlugin.isBody).to.be.false
       expect(createdPlugin.isProcess).to.be.false
       expect(createdPlugin.isSubPlugin).to.be.false
     })
@@ -350,7 +350,7 @@ describe('Indexer:Plugin', () => {
       })
       expect(createdPlugin).to.not.be.null
       expect(createdPlugin.isProcess).to.be.false
-      expect(createdPlugin.isBody).to.be.true
+      expect(createdPlugin.isBody).to.be.false
       expect(createdPlugin.isSubPlugin).to.be.false
     })
 
