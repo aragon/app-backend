@@ -359,10 +359,7 @@ describe('RouterV2: CapitalDistributor', () => {
             txHash: '0xabc123...',
           },
         ],
-        proof: [
-          '0x1234567890abcdef...',
-          '0xfedcba0987654321...',
-        ],
+        proof: ['0x1234567890abcdef...', '0xfedcba0987654321...'],
         leaf: '0x9876543210fedcba...',
         isFullyClaimed: false,
       }
