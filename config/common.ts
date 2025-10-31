@@ -38,7 +38,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     },
 
     BATCH_REQUEST: {
-      DEFAULT_SIZE: utils.configParser(sourceConfig, 'number', 'BATCH_REQUEST_DEFAULT_SIZE', 50),
+      DEFAULT_SIZE: utils.configParser(sourceConfig, 'number', 'BATCH_REQUEST_DEFAULT_SIZE', 500),
     },
     ANKR_CONFIG: {
       API_URL: utils.configParser(sourceConfig, 'string', 'ANKR_API_URL', 'https://rpc.ankr.com'),
