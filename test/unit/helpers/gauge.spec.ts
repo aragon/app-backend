@@ -7,7 +7,7 @@ import { NetworksEnum } from '@types'
 import proxyquire from 'proxyquire'
 import { ZeroAddress } from 'ethers'
 
-describe.only('Helpers: Gauge', () => {
+describe('Helpers: Gauge', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
