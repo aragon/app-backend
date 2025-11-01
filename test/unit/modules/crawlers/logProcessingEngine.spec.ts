@@ -129,7 +129,11 @@ describe('Module: LogProcessingEngine', () => {
 
   describe('sortLogs', () => {
     it('should sort logs by block number ascending', () => {
-      const logs = [createMockLog({ blockNumber: 3000 }), createMockLog({ blockNumber: 1000 }), createMockLog({ blockNumber: 2000 })]
+      const logs = [
+        createMockLog({ blockNumber: 3000 }),
+        createMockLog({ blockNumber: 1000 }),
+        createMockLog({ blockNumber: 2000 }),
+      ]
 
       const sorted = engine.sortLogs(logs)
 
@@ -174,7 +178,10 @@ describe('Module: LogProcessingEngine', () => {
 
   describe('buildTopics', () => {
     it('should build topics from events', () => {
-      const events = [{ topic: '0xtopic1', event: 'Event1' }, { topic: '0xtopic2', event: 'Event2' }]
+      const events = [
+        { topic: '0xtopic1', event: 'Event1' },
+        { topic: '0xtopic2', event: 'Event2' },
+      ]
 
       const topics = engine.buildTopics(events)
 
@@ -184,7 +191,11 @@ describe('Module: LogProcessingEngine', () => {
     })
 
     it('should filter out events without topic', () => {
-      const events = [{ topic: '0xtopic1', event: 'Event1' }, { topic: null, event: 'Event2' }, { topic: '0xtopic3', event: 'Event3' }]
+      const events = [
+        { topic: '0xtopic1', event: 'Event1' },
+        { topic: null, event: 'Event2' },
+        { topic: '0xtopic3', event: 'Event3' },
+      ]
 
       const topics = engine.buildTopics(events)
 
@@ -203,7 +214,10 @@ describe('Module: LogProcessingEngine', () => {
     })
 
     it('should flatten arrays of topics', () => {
-      const events = [{ topic: ['0xtopic1', '0xtopic2'], event: 'Event1' }, { topic: '0xtopic3', event: 'Event2' }]
+      const events = [
+        { topic: ['0xtopic1', '0xtopic2'], event: 'Event1' },
+        { topic: '0xtopic3', event: 'Event2' },
+      ]
 
       const topics = engine.buildTopics(events)
 
@@ -370,7 +384,11 @@ describe('Module: LogProcessingEngine', () => {
     })
 
     it('should process logs sequentially', async () => {
-      const logs = [createMockLog({ blockNumber: 1000 }), createMockLog({ blockNumber: 1001 }), createMockLog({ blockNumber: 1002 })]
+      const logs = [
+        createMockLog({ blockNumber: 1000 }),
+        createMockLog({ blockNumber: 1001 }),
+        createMockLog({ blockNumber: 1002 }),
+      ]
 
       const context = createContext()
       const highestBlock = await engine.processLogs(logs, context)
@@ -515,7 +533,11 @@ describe('Module: LogProcessingEngine', () => {
     })
 
     it('should process logs in parallel', async () => {
-      const logs = [createMockLog({ blockNumber: 1000 }), createMockLog({ blockNumber: 1001 }), createMockLog({ blockNumber: 1002 })]
+      const logs = [
+        createMockLog({ blockNumber: 1000 }),
+        createMockLog({ blockNumber: 1001 }),
+        createMockLog({ blockNumber: 1002 }),
+      ]
 
       const parallelConfig: IParallelConfig = { enable: true, concurrency: 2 }
       const highestBlock = await engine.processLogsParallel(logs, createContext(), parallelConfig)
@@ -636,7 +658,9 @@ describe('Module: LogProcessingEngine', () => {
     })
 
     it('should process logs in batches for regular handlers', async () => {
-      const logs = Array.from({ length: 10 }, (_, i) => createMockLog({ blockNumber: 1000 + i, transactionHash: `0xtx${i}` }))
+      const logs = Array.from({ length: 10 }, (_, i) =>
+        createMockLog({ blockNumber: 1000 + i, transactionHash: `0xtx${i}` }),
+      )
 
       const parallelConfig: IParallelConfig = { enable: true, batchSize: 5, concurrency: 2 }
       const highestBlock = await engine.processLogsParallelBatch(logs, createContext(), parallelConfig)
@@ -665,7 +689,9 @@ describe('Module: LogProcessingEngine', () => {
         network: NetworksEnum.ethereumMainnet,
       })
 
-      const logs = Array.from({ length: 3 }, (_, i) => createMockLog({ blockNumber: 1000 + i, transactionHash: `0xtx${i}` }))
+      const logs = Array.from({ length: 3 }, (_, i) =>
+        createMockLog({ blockNumber: 1000 + i, transactionHash: `0xtx${i}` }),
+      )
 
       const parallelConfig: IParallelConfig = { enable: true, batchSize: 10 }
       await customEngine.processLogsParallelBatch(logs, createContext(), parallelConfig)
@@ -695,7 +721,9 @@ describe('Module: LogProcessingEngine', () => {
         network: NetworksEnum.ethereumMainnet,
       })
 
-      const logs = Array.from({ length: 15 }, (_, i) => createMockLog({ blockNumber: 1000 + i, transactionHash: `0xtx${i}` }))
+      const logs = Array.from({ length: 15 }, (_, i) =>
+        createMockLog({ blockNumber: 1000 + i, transactionHash: `0xtx${i}` }),
+      )
 
       const parallelConfig: IParallelConfig = { enable: true, batchSize: 5 }
       await customEngine.processLogsParallelBatch(logs, createContext(), parallelConfig)
@@ -740,7 +768,9 @@ describe('Module: LogProcessingEngine', () => {
         network: NetworksEnum.ethereumMainnet,
       })
 
-      const logs = Array.from({ length: 3 }, (_, i) => createMockLog({ blockNumber: 1000 + i, transactionHash: `0xtx${i}` }))
+      const logs = Array.from({ length: 3 }, (_, i) =>
+        createMockLog({ blockNumber: 1000 + i, transactionHash: `0xtx${i}` }),
+      )
 
       const parallelConfig: IParallelConfig = { enable: true, batchSize: 10 }
       await customEngine.processLogsParallelBatch(logs, createContext(), parallelConfig)
@@ -871,7 +901,15 @@ describe('Module: LogProcessingEngine', () => {
   describe('resetStats', () => {
     it('should reset all statistics to zero', async () => {
       sandbox.stub(Web3Utils, 'parseLog').returns({ name: 'Transfer', args: [] as any } as any)
-      sandbox.stub(Web3Utils, 'parseInfoLog').returns({ address: '0x', blockNumber: 1000, network: NetworksEnum.ethereumMainnet, transactionIndex: 0, logIndex: 0, transactionHash: '0xtx', eventName: 'Transfer' })
+      sandbox.stub(Web3Utils, 'parseInfoLog').returns({
+        address: '0x',
+        blockNumber: 1000,
+        network: NetworksEnum.ethereumMainnet,
+        transactionIndex: 0,
+        logIndex: 0,
+        transactionHash: '0xtx',
+        eventName: 'Transfer',
+      })
 
       const logs = [createMockLog({ blockNumber: 5000 })]
       await engine.processLogs(logs, createContext())
@@ -891,7 +929,15 @@ describe('Module: LogProcessingEngine', () => {
 
     it('should clear processed keys for deduplication', async () => {
       sandbox.stub(Web3Utils, 'parseLog').returns({ name: 'Transfer', args: [] as any } as any)
-      sandbox.stub(Web3Utils, 'parseInfoLog').returns({ address: '0x', blockNumber: 1000, network: NetworksEnum.ethereumMainnet, transactionIndex: 0, logIndex: 0, transactionHash: '0xtx', eventName: 'Transfer' })
+      sandbox.stub(Web3Utils, 'parseInfoLog').returns({
+        address: '0x',
+        blockNumber: 1000,
+        network: NetworksEnum.ethereumMainnet,
+        transactionIndex: 0,
+        logIndex: 0,
+        transactionHash: '0xtx',
+        eventName: 'Transfer',
+      })
 
       const log = createMockLog({ blockNumber: 1000, transactionHash: '0xtx1' })
       await engine.processLogsParallel([log], createContext(), { enable: true, concurrency: 1 })
@@ -971,7 +1017,10 @@ describe('Module: LogProcessingEngine', () => {
 
       engine.resetStats()
 
-      const logs2 = [createMockLog({ blockNumber: 1000, transactionHash: '0xtx1' }), createMockLog({ blockNumber: 2000, transactionHash: '0xtx2' })]
+      const logs2 = [
+        createMockLog({ blockNumber: 1000, transactionHash: '0xtx1' }),
+        createMockLog({ blockNumber: 2000, transactionHash: '0xtx2' }),
+      ]
 
       const highestPar = await engine.processLogsParallel(logs2, createContext(), { enable: true, concurrency: 2 })
       expect(highestPar).to.equal(2000)
@@ -997,7 +1046,15 @@ describe('Module: LogProcessingEngine', () => {
   describe('Edge cases', () => {
     it('should handle logs without block number', async () => {
       sandbox.stub(Web3Utils, 'parseLog').returns({ name: 'Transfer', args: [] as any } as any)
-      sandbox.stub(Web3Utils, 'parseInfoLog').returns({ address: '0x', blockNumber: 0, network: NetworksEnum.ethereumMainnet, transactionIndex: 0, logIndex: 0, transactionHash: '0xtx', eventName: 'Transfer' })
+      sandbox.stub(Web3Utils, 'parseInfoLog').returns({
+        address: '0x',
+        blockNumber: 0,
+        network: NetworksEnum.ethereumMainnet,
+        transactionIndex: 0,
+        logIndex: 0,
+        transactionHash: '0xtx',
+        eventName: 'Transfer',
+      })
 
       const logs = [createMockLog({ blockNumber: undefined as any })]
       const highestBlock = await engine.processLogs(logs, createContext())
@@ -1007,7 +1064,15 @@ describe('Module: LogProcessingEngine', () => {
 
     it('should handle concurrent parallel processing', async () => {
       sandbox.stub(Web3Utils, 'parseLog').returns({ name: 'Transfer', args: [] as any } as any)
-      sandbox.stub(Web3Utils, 'parseInfoLog').returns({ address: '0x', blockNumber: 1000, network: NetworksEnum.ethereumMainnet, transactionIndex: 0, logIndex: 0, transactionHash: '0xtx', eventName: 'Transfer' })
+      sandbox.stub(Web3Utils, 'parseInfoLog').returns({
+        address: '0x',
+        blockNumber: 1000,
+        network: NetworksEnum.ethereumMainnet,
+        transactionIndex: 0,
+        logIndex: 0,
+        transactionHash: '0xtx',
+        eventName: 'Transfer',
+      })
 
       const logs1 = [createMockLog({ blockNumber: 1000, transactionHash: '0xtx1' })]
       const logs2 = [createMockLog({ blockNumber: 2000, transactionHash: '0xtx2' })]
@@ -1023,7 +1088,15 @@ describe('Module: LogProcessingEngine', () => {
 
     it('should handle handler returning undefined', async () => {
       sandbox.stub(Web3Utils, 'parseLog').returns({ name: 'Transfer', args: [] as any } as any)
-      sandbox.stub(Web3Utils, 'parseInfoLog').returns({ address: '0x', blockNumber: 1000, network: NetworksEnum.ethereumMainnet, transactionIndex: 0, logIndex: 0, transactionHash: '0xtx', eventName: 'Transfer' })
+      sandbox.stub(Web3Utils, 'parseInfoLog').returns({
+        address: '0x',
+        blockNumber: 1000,
+        network: NetworksEnum.ethereumMainnet,
+        transactionIndex: 0,
+        logIndex: 0,
+        transactionHash: '0xtx',
+        eventName: 'Transfer',
+      })
 
       mockHandler.resolves(undefined)
       const logs = [createMockLog()]
