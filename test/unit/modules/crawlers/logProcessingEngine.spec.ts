@@ -1,6 +1,6 @@
 import { expect } from 'chai'
 import sinon, { type SinonSandbox, type SinonStub } from 'sinon'
-import { type Log, Interface } from 'ethers'
+import { type Log } from 'ethers'
 import { LogProcessingEngine } from '@modules/crawlers/logProcessingEngine'
 import { NetworksEnum, type IIndexerConfig, type IProcessingContext, type IParallelConfig } from '@types'
 import logger from '@logger'
