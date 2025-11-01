@@ -412,6 +412,17 @@ const IndexerEventConfig: IIndexerConfig[] = [
     ],
   },
   {
+    event: 'ExitFeePercentAdjusted',
+    enableHistorical: false,
+    topic: new Interface(ExitQueue.abi).getEvent('ExitFeePercentAdjusted')?.topicHash!,
+    config: [
+      {
+        abi: ExitQueue.abi,
+        handler: PluginSettingHandler.exitFeePercentAdjusted,
+      },
+    ],
+  },
+  {
     event: 'TokensDelegated',
     enableHistorical: false,
     topic: new Interface(VotingEscrow.abi).getEvent('TokensDelegated')?.topicHash!,

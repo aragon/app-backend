@@ -33,6 +33,20 @@ export const ExitQueue = {
     },
     {
       type: 'function',
+      name: 'minFeePercent',
+      inputs: [],
+      outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }],
+      stateMutability: 'view',
+    },
+    {
+      type: 'function',
+      name: 'minCooldown',
+      inputs: [],
+      outputs: [{ name: '', type: 'uint48', internalType: 'uint48' }],
+      stateMutability: 'view',
+    },
+    {
+      type: 'function',
       name: 'minLock',
       inputs: [],
       outputs: [{ name: '', type: 'uint48', internalType: 'uint48' }],
@@ -162,6 +176,22 @@ export const ExitQueue = {
       type: 'event',
       name: 'FeePercentSet',
       inputs: [{ name: 'feePercent', type: 'uint256', indexed: false, internalType: 'uint256' }],
+      anonymous: false,
+    },
+    {
+      type: 'event',
+      name: 'ExitFeePercentAdjusted',
+      inputs: [
+        { name: 'maxFeePercent', type: 'uint256', indexed: false, internalType: 'uint256' },
+        { name: 'minFeePercent', type: 'uint256', indexed: false, internalType: 'uint256' },
+        { name: 'minCooldown', type: 'uint48', indexed: false, internalType: 'uint48' },
+        {
+          name: 'feeType',
+          type: 'uint8',
+          indexed: false,
+          internalType: 'enum IDynamicExitQueueEventsAndErrors.ExitFeeType',
+        },
+      ],
       anonymous: false,
     },
     {
