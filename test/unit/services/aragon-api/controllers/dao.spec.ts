@@ -55,7 +55,7 @@ describe('Controller: Dao', () => {
       const stubPairExtraQueryData = sandbox.stub(PairDataModule, 'pairExtraQueryData').resolves({})
       const stubFindWithPagination = sandbox.stub(Models.Dao, 'findWithPagination').resolves(mockResponse)
 
-      const result = await DaoController.getDaosWithPagination()
+      const result = await DaoController.getDaosWithPagination({}, {})
 
       expect(stubPairFromPaginationParams.calledOnce).to.be.true
       expect(stubPairFromPaginationParams.calledWith({})).to.be.true
