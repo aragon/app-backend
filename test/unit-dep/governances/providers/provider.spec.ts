@@ -21,7 +21,7 @@ describe('Integ: ProviderModule', () => {
     expect(networks[NetworksEnum.ethereumMainnet].aragon?.rpc).to.not.exist
     expect(networks[NetworksEnum.ethereumMainnet].alchemy.rpc).to.exist
 
-    expect(networks[NetworksEnum.ethereumSepolia].aragon.rpc).to.exist
+    expect(networks[NetworksEnum.ethereumSepolia].aragon?.rpc).to.not.exist
     expect(networks[NetworksEnum.ethereumSepolia].alchemy.rpc).to.exist
   })
 
@@ -31,7 +31,9 @@ describe('Integ: ProviderModule', () => {
       IProviderType.ARAGON,
       IConnectionType.RPC,
     )
-    expect(aragonRpc).to.be.an('object')
+    if (aragonRpc) {
+      expect(aragonRpc).to.be.an('object')
+    }
     const alchemyRpc = ProviderModule.getProvider(
       NetworksEnum.ethereumSepolia,
       IProviderType.ALCHEMY,

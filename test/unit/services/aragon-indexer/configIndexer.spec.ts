@@ -9,6 +9,7 @@ import { LockToVote } from '@artifacts/LockToVote'
 import { LockManager } from '@artifacts/LockManager'
 import { ExecuteSelectorCondition } from '@artifacts/ExecuteSelectorCondition'
 import { CapitalDistributor } from '@artifacts/CapitalDistributor'
+import { ExitQueue } from '@artifacts/ExitQueue'
 
 describe('ConfigIndexer', () => {
   it('should be an array of configurations', () => {
@@ -259,11 +260,20 @@ describe('ConfigIndexer', () => {
         'MinLockSet',
         'TokensDelegated',
         'TokensUndelegated',
+        'ExitFeePercentAdjusted',
       ]
       veEvents.forEach(eventName => {
         const config = ConfigIndexer.find(c => c.event === eventName)
         expect(config, `VE event ${eventName} should exist`).to.exist
       })
+    })
+
+    it('should have correct ExitFeePercentAdjusted event configuration', () => {
+      const config = ConfigIndexer.find(c => c.event === 'ExitFeePercentAdjusted')
+      expect(config, 'ExitFeePercentAdjusted event should exist').to.exist
+      expect(config!.enableHistorical).to.be.false
+      expect(config!.config[0].abi).to.equal(ExitQueue.abi)
+      expect(config!.topic).to.equal(new Interface(ExitQueue.abi).getEvent('ExitFeePercentAdjusted')?.topicHash)
     })
 
     it('should have all LockManager events', () => {

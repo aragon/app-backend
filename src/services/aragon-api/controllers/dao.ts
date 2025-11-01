@@ -17,8 +17,8 @@ import PairDataModule from '@modules/pairData'
 
 const DaoController = {
   getDaosWithPagination: async (
-    paginationParams: IPaginationParams = {},
-    extraParams: IDaoExtraParams = {},
+    paginationParams: IPaginationParams,
+    extraParams: IDaoExtraParams,
   ): Promise<IPaginatedResult<IDaoResponse>> => {
     paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
     const extraQueryData = await PairDataModule.pairExtraQueryData(extraParams)
@@ -44,8 +44,8 @@ const DaoController = {
   },
 
   getDaosByMember: async (
-    paginationParams: IPaginationParams = {},
-    extraParams: IDaoExtraParams = {},
+    paginationParams: IPaginationParams,
+    extraParams: IDaoExtraParams,
   ): Promise<IPaginatedResult<IDaoResponse>> => {
     paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
     extraParams.memberAddress = await PairDataModule.checkIFEns(extraParams.memberAddress!)

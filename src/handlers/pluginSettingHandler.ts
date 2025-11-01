@@ -567,6 +567,12 @@ export const PluginSettingHandler = {
       plugin.votingEscrow?.curveAddress!,
       info.network,
     )
+    const feePercent = await GovernanceVeHelper.getFeePercent(plugin.votingEscrow?.exitQueueAddress!, info.network)
+    const minFeePercent = await GovernanceVeHelper.getMinFeePercent(
+      plugin.votingEscrow?.exitQueueAddress!,
+      info.network,
+    )
+    const minCooldown = await GovernanceVeHelper.getMinCooldown(plugin.votingEscrow?.exitQueueAddress!, info.network)
 
     return {
       minDeposit: minDeposit.toString(),
@@ -575,7 +581,66 @@ export const PluginSettingHandler = {
       maxTime: Number(maxTime),
       slope: slope.toString(),
       bias: bias.toString(),
+      feePercent: feePercent.toString(),
+      minFeePercent: minFeePercent.toString(),
+      minCooldown: Number(minCooldown),
     }
+  },
+
+  exitFeePercentAdjusted: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const minFeePercent = parsedEvent.args.minFeePercent.toString()
+    const minCooldown = Number(parsedEvent.args.minCooldown)
+
+    const plugins = await Models.Plugin.find({
+      'votingEscrow.exitQueueAddress': info.address,
+      network: info.network,
+    })
+
+    if (plugins.length === 0) {
+      logger.warn('Plugin not found for exitFeePercentAdjusted event', llo({ info }))
+      return
+    }
+
+    await Promise.all(
+      plugins.map(async (plugin: any) => {
+        const activePluginSetting = await Models.Setting.findActive({
+          network: info.network,
+          pluginAddress: plugin.address,
+        })
+
+        if (!activePluginSetting) {
+          logger.error(
+            'Active plugin setting not found for exitFeePercentAdjusted event',
+            llo({
+              info,
+              pluginAddress: plugin.address,
+            }),
+          )
+          return
+        }
+
+        if (!activePluginSetting.votingEscrow) {
+          activePluginSetting.votingEscrow = {}
+        }
+
+        let hasChanges = false
+
+        if (activePluginSetting.votingEscrow.minFeePercent !== minFeePercent) {
+          activePluginSetting.votingEscrow.minFeePercent = minFeePercent
+          hasChanges = true
+        }
+
+        if (activePluginSetting.votingEscrow.minCooldown !== minCooldown) {
+          activePluginSetting.votingEscrow.minCooldown = minCooldown
+          hasChanges = true
+        }
+
+        if (hasChanges) {
+          await activePluginSetting.save()
+          logger.verbose('exitFeePercentAdjusted VeGovernance', llo({ info }))
+        }
+      }),
+    )
   },
 
   isSupported: async (plugin: Plugin, info: ILogInfo): Promise<void> => {

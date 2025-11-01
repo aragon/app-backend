@@ -481,6 +481,132 @@ describe('Helpers: GovernanceVe', () => {
     })
   })
 
+  describe('getFeePercent', () => {
+    it('Should make a successful getFeePercent call', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const getFeePercentStub = sandbox.stub().resolves(1000n)
+
+      const { default: MockedGovernanceVeHelper } = proxyquire.noCallThru()('@helpers/governanceVe', {
+        ethers: {
+          Contract: function () {
+            return { feePercent: getFeePercentStub }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedGovernanceVeHelper.getFeePercent('0x123', NetworksEnum.ethereumMainnet)
+      expect(result).to.eq(1000n)
+      expect(getFeePercentStub.calledOnce).to.be.true
+    })
+
+    it('should handle errors in getFeePercent', async () => {
+      const expectedResult = new Error('RPC Call Failed')
+      const getFeePercentStub = sandbox.stub().rejects(expectedResult)
+
+      const { default: MockedGovernanceVeHelper } = proxyquire.noCallThru()('@helpers/governanceVe', {
+        ethers: {
+          Contract: function () {
+            return { feePercent: getFeePercentStub }
+          },
+        },
+      })
+
+      const result = await MockedGovernanceVeHelper.getFeePercent('0x123', NetworksEnum.ethereumMainnet)
+      expect(result).to.eq(0n)
+      expect(getFeePercentStub.calledOnce).to.be.true
+    })
+  })
+
+  describe('getMinFeePercent', () => {
+    it('Should make a successful getMinFeePercent call', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const getMinFeePercentStub = sandbox.stub().resolves(500n)
+
+      const { default: MockedGovernanceVeHelper } = proxyquire.noCallThru()('@helpers/governanceVe', {
+        ethers: {
+          Contract: function () {
+            return { minFeePercent: getMinFeePercentStub }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedGovernanceVeHelper.getMinFeePercent('0x123', NetworksEnum.ethereumMainnet)
+      expect(result).to.eq(500n)
+      expect(getMinFeePercentStub.calledOnce).to.be.true
+    })
+
+    it('should handle errors in getMinFeePercent', async () => {
+      const expectedResult = new Error('RPC Call Failed')
+      const getMinFeePercentStub = sandbox.stub().rejects(expectedResult)
+
+      const { default: MockedGovernanceVeHelper } = proxyquire.noCallThru()('@helpers/governanceVe', {
+        ethers: {
+          Contract: function () {
+            return { minFeePercent: getMinFeePercentStub }
+          },
+        },
+      })
+
+      const result = await MockedGovernanceVeHelper.getMinFeePercent('0x123', NetworksEnum.ethereumMainnet)
+      expect(result).to.eq(0n)
+      expect(getMinFeePercentStub.calledOnce).to.be.true
+    })
+  })
+
+  describe('getMinCooldown', () => {
+    it('Should make a successful getMinCooldown call', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const getMinCooldownStub = sandbox.stub().resolves(1800n)
+
+      const { default: MockedGovernanceVeHelper } = proxyquire.noCallThru()('@helpers/governanceVe', {
+        ethers: {
+          Contract: function () {
+            return { minCooldown: getMinCooldownStub }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedGovernanceVeHelper.getMinCooldown('0x123', NetworksEnum.ethereumMainnet)
+      expect(result).to.eq(1800n)
+      expect(getMinCooldownStub.calledOnce).to.be.true
+    })
+
+    it('should handle errors in getMinCooldown', async () => {
+      const expectedResult = new Error('RPC Call Failed')
+      const getMinCooldownStub = sandbox.stub().rejects(expectedResult)
+
+      const { default: MockedGovernanceVeHelper } = proxyquire.noCallThru()('@helpers/governanceVe', {
+        ethers: {
+          Contract: function () {
+            return { minCooldown: getMinCooldownStub }
+          },
+        },
+      })
+
+      const result = await MockedGovernanceVeHelper.getMinCooldown('0x123', NetworksEnum.ethereumMainnet)
+      expect(result).to.eq(0n)
+      expect(getMinCooldownStub.calledOnce).to.be.true
+    })
+  })
+
   describe('getUnderlyingTokenNameAndSymbol', () => {
     it('Should make a successful getUnderlyingTokenNameAndSymbol call', async () => {
       const adapterAddress = '0x123'
