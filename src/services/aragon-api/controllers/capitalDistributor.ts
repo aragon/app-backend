@@ -15,8 +15,8 @@ import { MemberGovernanceFactory, type CapitalDistributorGovernance } from '@src
 
 const CapitalDistributorController = {
   getCampaignsWithPagination: async (
-    paginationParams: IPaginationParams = {},
-    params: ICampaignApiParams = {},
+    paginationParams: IPaginationParams,
+    params: ICampaignApiParams,
   ): Promise<IPaginatedResult<ICampaignResponse>> => {
     assertExposable(!!params.pluginAddress, ErrorKeyEnum.badParams)
     assertExposable(!!params.network, ErrorKeyEnum.badParams)

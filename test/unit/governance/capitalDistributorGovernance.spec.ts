@@ -653,26 +653,15 @@ describe('Governance:CapitalDistributorGovernance', () => {
   })
 
   describe('getMerkleGenerationStatus', () => {
-    it('should return null when no merkle root exists', async () => {
-      const result = await capitalDistributorGovernance.getMerkleGenerationStatus({
-        campaignId: testCampaignId,
-        pluginAddress: testPluginAddress,
-        network: testNetwork,
-      })
+    it('should return merkle generation status when campaignMerkleRoot exists', async () => {
+      const mockMerkleRoot = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
 
-      expect(result).to.be.null
-    })
-
-    it('should return merkle root data when it exists', async () => {
       await Models.CampaignMerkleRoot.create({
         pluginAddress: testPluginAddress,
         network: testNetwork,
         campaignId: testCampaignId,
-        merkleRoot: '0x123abc',
-        totalMembers: 10,
-        blockNumber: 1000,
-        blockTimestamp: 1640995200,
-        transactionHash: '0xabc123',
+        merkleRoot: mockMerkleRoot,
+        totalMembers: 100,
       })
 
       const result = await capitalDistributorGovernance.getMerkleGenerationStatus({
@@ -682,8 +671,21 @@ describe('Governance:CapitalDistributorGovernance', () => {
       })
 
       expect(result).to.not.be.null
-      expect(result!.merkleRoot).to.equal('0x123abc')
       expect(result!.campaignId).to.equal(testCampaignId)
+      expect(result!.pluginAddress).to.equal(testPluginAddress)
+      expect(result!.network).to.equal(testNetwork)
+      expect(result!.merkleRoot).to.equal(mockMerkleRoot)
+      expect(result!.totalMembers).to.equal(100)
+    })
+
+    it('should return null when campaignMerkleRoot does not exist', async () => {
+      const result = await capitalDistributorGovernance.getMerkleGenerationStatus({
+        campaignId: 'non-existent-campaign',
+        pluginAddress: testPluginAddress,
+        network: testNetwork,
+      })
+
+      expect(result).to.be.null
     })
   })
 

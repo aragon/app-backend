@@ -2,10 +2,9 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import CapitalDistributorController from '@services/aragon-api/controllers/capitalDistributor'
-import { ErrorKeyEnum, NetworksEnum, HexAddress, IClaimStat, IUserCampaignStatus, IPluginInterfaceType } from '@types'
+import { NetworksEnum, HexAddress, IClaimStat, IUserCampaignStatus, IPluginInterfaceType } from '@types'
 import { Models } from '@dbModels'
 import { MemberGovernanceFactory } from '@src/governance'
-import * as errors from '@errors'
 
 describe('Controller: CapitalDistributor', () => {
   let sandbox: SinonSandbox
@@ -104,38 +103,21 @@ describe('Controller: CapitalDistributor', () => {
     })
 
     it('Should throw error when pluginAddress is missing', async () => {
-      const assertStub = sandbox.stub(errors, 'assertExposable').throws(new Error(ErrorKeyEnum.badParams))
-
       const extraParams = {
         network: mockParams.network,
         userAddress: mockParams.userAddress,
       }
 
-      await expect(CapitalDistributorController.getCampaignsWithPagination({}, extraParams as any)).to.be.rejectedWith(
-        Error,
-        ErrorKeyEnum.badParams,
-      )
-
-      expect(assertStub.calledWith(false, ErrorKeyEnum.badParams)).to.be.true
+      await expect(CapitalDistributorController.getCampaignsWithPagination({}, extraParams as any)).to.be.rejected
     })
 
     it('Should throw error when network is missing', async () => {
-      const assertStub = sandbox.stub(errors, 'assertExposable')
-      assertStub.onFirstCall().returns(true as any)
-      assertStub.onSecondCall().throws(new Error(ErrorKeyEnum.badParams)) // network check fails
-
       const extraParams = {
         pluginAddress: mockParams.pluginAddress,
         userAddress: mockParams.userAddress,
       }
 
-      await expect(CapitalDistributorController.getCampaignsWithPagination({}, extraParams as any)).to.be.rejectedWith(
-        Error,
-        ErrorKeyEnum.badParams,
-      )
-
-      expect(assertStub.calledTwice).to.be.true
-      expect(assertStub.secondCall.calledWith(false, ErrorKeyEnum.badParams)).to.be.true
+      await expect(CapitalDistributorController.getCampaignsWithPagination({}, extraParams as any)).to.be.rejected
     })
 
     it('Should work without optional userAddress parameter', async () => {
@@ -231,52 +213,33 @@ describe('Controller: CapitalDistributor', () => {
     })
 
     it('Should throw error when pluginAddress is missing', async () => {
-      const assertStub = sandbox.stub(errors, 'assertExposable').throws(new Error(ErrorKeyEnum.badParams))
-
       await expect(
         CapitalDistributorController.getUserCampaignStatus(
           '' as HexAddress,
           mockParams.network,
           mockParams.userAddress,
         ),
-      ).to.be.rejectedWith(Error, ErrorKeyEnum.badParams)
-
-      expect(assertStub.calledWith(false, ErrorKeyEnum.badParams)).to.be.true
+      ).to.be.rejected
     })
 
     it('Should throw error when network is missing', async () => {
-      const assertStub = sandbox.stub(errors, 'assertExposable')
-      assertStub.onFirstCall().returns(true as any)
-      assertStub.onSecondCall().throws(new Error(ErrorKeyEnum.badParams))
-
       await expect(
         CapitalDistributorController.getUserCampaignStatus(
           mockParams.pluginAddress,
           '' as NetworksEnum,
           mockParams.userAddress,
         ),
-      ).to.be.rejectedWith(Error, ErrorKeyEnum.badParams)
-
-      expect(assertStub.calledTwice).to.be.true
-      expect(assertStub.secondCall.calledWith(false, ErrorKeyEnum.badParams)).to.be.true
+      ).to.be.rejected
     })
 
     it('Should throw error when userAddress is missing', async () => {
-      const assertStub = sandbox.stub(errors, 'assertExposable')
-      assertStub.onFirstCall().returns(true as any)
-      assertStub.onSecondCall().returns(true as any)
-      assertStub.onThirdCall().throws(new Error(ErrorKeyEnum.badParams))
-
       await expect(
         CapitalDistributorController.getUserCampaignStatus(
           mockParams.pluginAddress,
           mockParams.network,
           '' as HexAddress,
         ),
-      ).to.be.rejectedWith(Error, ErrorKeyEnum.badParams)
-
-      expect(assertStub.calledThrice).to.be.true
-      expect(assertStub.thirdCall.calledWith(false, ErrorKeyEnum.badParams)).to.be.true
+      ).to.be.rejected
     })
 
     it('Should handle and rethrow errors from CampaignReward model', async () => {

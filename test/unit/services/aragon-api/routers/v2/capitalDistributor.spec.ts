@@ -348,13 +348,19 @@ describe('RouterV2: CapitalDistributor', () => {
     it('Should get user campaign reward successfully', async () => {
       const mockResult = {
         exists: true,
-        campaignId: '1',
+        campaignId: 'campaign-001',
         userAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
         amount: '1000000000000000000',
         totalClaimed: '500000000000000000',
-        claims: [],
-        proof: ['0xproof1', '0xproof2'],
-        leaf: '0xleaf',
+        claims: [
+          {
+            amount: '500000000000000000',
+            timestamp: '1640995200',
+            txHash: '0xabc123...',
+          },
+        ],
+        proof: ['0x1234567890abcdef...', '0xfedcba0987654321...'],
+        leaf: '0x9876543210fedcba...',
         isFullyClaimed: false,
       }
 
@@ -363,7 +369,7 @@ describe('RouterV2: CapitalDistributor', () => {
           pluginAddress: '0x1234567890123456789012345678901234567890' as HexAddress,
           network: NetworksEnum.ethereumMainnet,
           userAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' as HexAddress,
-          campaignId: '1',
+          campaignId: 'campaign-001',
         },
       }
 
@@ -375,7 +381,7 @@ describe('RouterV2: CapitalDistributor', () => {
           pluginAddress: '0x1234567890123456789012345678901234567890',
           network: 'ethereum',
           userAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-          campaignId: '1',
+          campaignId: 'campaign-001',
         },
       }
 
@@ -398,7 +404,7 @@ describe('RouterV2: CapitalDistributor', () => {
           pluginAddress: '0x1234567890123456789012345678901234567890' as HexAddress,
           network: NetworksEnum.ethereumMainnet,
           userAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' as HexAddress,
-          campaignId: '2',
+          campaignId: 'campaign-001',
         },
       }
 
@@ -410,7 +416,7 @@ describe('RouterV2: CapitalDistributor', () => {
           pluginAddress: '0x1234567890123456789012345678901234567890',
           network: 'ethereum',
           userAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-          campaignId: '2',
+          campaignId: 'campaign-001',
         },
       }
 
@@ -436,7 +442,7 @@ describe('RouterV2: CapitalDistributor', () => {
           pluginAddress: '0x1234567890123456789012345678901234567890',
           network: 'ethereum',
           userAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-          campaignId: 'invalid',
+          campaignId: '',
         },
       }
 
@@ -451,7 +457,7 @@ describe('RouterV2: CapitalDistributor', () => {
           pluginAddress: '0x1234567890123456789012345678901234567890' as HexAddress,
           network: NetworksEnum.ethereumMainnet,
           userAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' as HexAddress,
-          campaignId: '1',
+          campaignId: 'campaign-001',
         },
       }
 
@@ -466,12 +472,53 @@ describe('RouterV2: CapitalDistributor', () => {
           pluginAddress: '0x1234567890123456789012345678901234567890',
           network: 'ethereum',
           userAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-          campaignId: '1',
+          campaignId: 'campaign-001',
         },
       }
 
       await expect(CapitalDistributorRouter.getUserCampaignReward(ctx)).to.be.rejectedWith('Campaign not found')
 
+      expect(controllerStub.calledOnce).to.be.true
+    })
+
+    it('Should handle case when reward does not exist', async () => {
+      const mockResult = {
+        exists: false,
+        campaignId: 'campaign-001',
+        userAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+        amount: '0',
+        totalClaimed: '0',
+        claims: [],
+        proof: [],
+        leaf: null,
+        isFullyClaimed: false,
+      }
+
+      const validationResult = {
+        params: {
+          pluginAddress: '0x1234567890123456789012345678901234567890' as HexAddress,
+          network: NetworksEnum.ethereumMainnet,
+          userAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' as HexAddress,
+          campaignId: 'campaign-001',
+        },
+      }
+
+      sandbox.stub(ValidationSchema, 'validateRoute').resolves(validationResult as any)
+      const controllerStub = sandbox.stub(CapitalDistributorController, 'getUserCampaignReward').resolves(mockResult)
+
+      const ctx: any = {
+        query: {
+          pluginAddress: '0x1234567890123456789012345678901234567890',
+          network: 'ethereum',
+          userAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+          campaignId: 'campaign-001',
+        },
+      }
+
+      await CapitalDistributorRouter.getUserCampaignReward(ctx)
+
+      expect(ctx.body).to.deep.eq(mockResult)
+      expect(ctx.body.exists).to.be.false
       expect(controllerStub.calledOnce).to.be.true
     })
   })

@@ -66,6 +66,8 @@ export interface IMemberLockResponse {
     transactionHash: HexAddress | null
     blockNumber: number | null
     blockTimestamp: number | null
+    holder: HexAddress | null
+    tokenId: string | null
     exitDateAt: number | null
   }
   lockWithdraw: {

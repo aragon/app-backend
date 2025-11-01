@@ -609,6 +609,41 @@ describe('Governance:VeGovernance', () => {
       expect(updatedLock?.lockExit?.status).to.be.true
       expect(updatedLock?.lockExit?.transactionHash).to.equal('0xexittx')
       expect(updatedLock?.lockExit?.exitDateAt).to.equal(1680004000)
+      expect(updatedLock?.lockExit?.holder).to.equal(memberAddress)
+      expect(updatedLock?.lockExit?.tokenId).to.equal('444')
+
+      expect(loggerVerboseStub.calledWith('Exit queued processed in VeGovernance')).to.be.true
+    })
+
+    it('should process exit queue with queuedAt when exitDate is not provided', async () => {
+      const result = await veGovernance.exitQueued(memberAddress, {
+        info: {
+          transactionHash: '0xexittx2',
+          blockNumber: 260,
+          address: '0xexitqueueaddress',
+        },
+        parsedEvent: {
+          args: {
+            holder: memberAddress,
+            tokenId: 444,
+            queuedAt: 1680005000,
+          },
+        },
+      } as any)
+
+      expect(result).to.exist
+      expect(result?.tokenId).to.equal('444')
+
+      // Verify lock was updated in database
+      const updatedLock = await Models.Lock.findOne({
+        tokenId: '444',
+        exitQueueAddress: '0xexitqueueaddress',
+      })
+      expect(updatedLock?.lockExit?.status).to.be.true
+      expect(updatedLock?.lockExit?.transactionHash).to.equal('0xexittx2')
+      expect(updatedLock?.lockExit?.exitDateAt).to.equal(1680005000)
+      expect(updatedLock?.lockExit?.holder).to.equal(memberAddress)
+      expect(updatedLock?.lockExit?.tokenId).to.equal('444')
 
       expect(loggerVerboseStub.calledWith('Exit queued processed in VeGovernance')).to.be.true
     })

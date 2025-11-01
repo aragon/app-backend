@@ -123,6 +123,42 @@ const GovernanceVeHelper = {
     }
   },
 
+  async getFeePercent(exitQueueAddress: HexAddress, network: NetworksEnum): Promise<bigint> {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const contract = new Contract(exitQueueAddress, ExitQueue.abi, provider)
+    try {
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.feePercent()),
+      )
+    } catch (error) {
+      return 0n
+    }
+  },
+
+  async getMinFeePercent(exitQueueAddress: HexAddress, network: NetworksEnum): Promise<bigint> {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const contract = new Contract(exitQueueAddress, ExitQueue.abi, provider)
+    try {
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.minFeePercent()),
+      )
+    } catch (error) {
+      return 0n
+    }
+  },
+
+  async getMinCooldown(exitQueueAddress: HexAddress, network: NetworksEnum): Promise<bigint> {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const contract = new Contract(exitQueueAddress, ExitQueue.abi, provider)
+    try {
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.minCooldown()),
+      )
+    } catch (error) {
+      return 0n
+    }
+  },
+
   async getMaxTime(curveAddress: HexAddress, network: NetworksEnum): Promise<bigint> {
     const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(curveAddress, LinearIncreasingCurve.abi, provider)

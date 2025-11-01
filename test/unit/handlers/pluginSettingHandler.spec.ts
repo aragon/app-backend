@@ -305,6 +305,9 @@ describe('Indexer: PluginSettingHandler', () => {
         maxTime: 7200,
         slope: '0.1',
         bias: '1000',
+        feePercent: '1000',
+        minFeePercent: '500',
+        minCooldown: 1800,
       })
       const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
       await PluginSettingHandler.votingSettingsUpdated(parsedEvent as any, info as any)
@@ -1366,7 +1369,10 @@ describe('Indexer: PluginSettingHandler', () => {
       const getMaxTimeStub = sandbox.stub(GovernanceVeHelper, 'getMaxTime').resolves(BigInt('31536000')) // 1 year in seconds
       const getSlopeStub = sandbox
         .stub(GovernanceVeHelper, 'getSettingFromCoefficients')
-        .resolves({ bias: BigInt('100'), slope: BigInt('100') }) // slope value
+        .resolves({ bias: BigInt('100'), slope: BigInt('100') })
+      const getFeePercentStub = sandbox.stub(GovernanceVeHelper, 'getFeePercent').resolves(BigInt('1000'))
+      const getMinFeePercentStub = sandbox.stub(GovernanceVeHelper, 'getMinFeePercent').resolves(BigInt('500'))
+      const getMinCooldownStub = sandbox.stub(GovernanceVeHelper, 'getMinCooldown').resolves(BigInt('1800'))
 
       const result = await PluginSettingHandler.votingEscrowSettings(plugin, info)
 
@@ -1376,6 +1382,9 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(getCooldownStub.calledOnceWith('0xexitqueue456', NetworksEnum.ethereumMainnet)).to.be.true
       expect(getMaxTimeStub.calledOnceWith('0xcurve789', NetworksEnum.ethereumMainnet)).to.be.true
       expect(getSlopeStub.calledOnceWith('0xcurve789', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(getFeePercentStub.calledOnceWith('0xexitqueue456', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(getMinFeePercentStub.calledOnceWith('0xexitqueue456', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(getMinCooldownStub.calledOnceWith('0xexitqueue456', NetworksEnum.ethereumMainnet)).to.be.true
 
       // Verify the returned object structure and values
       expect(result).to.deep.equal({
@@ -1385,6 +1394,9 @@ describe('Indexer: PluginSettingHandler', () => {
         maxTime: 31536000,
         slope: '100',
         bias: '100',
+        feePercent: '1000',
+        minFeePercent: '500',
+        minCooldown: 1800,
       })
     })
   })

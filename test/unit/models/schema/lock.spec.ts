@@ -40,6 +40,8 @@ describe('Model: Lock', () => {
         blockNumber: null,
         blockTimestamp: null,
         exitDateAt: null,
+        tokenId: null,
+        holder: null,
       },
       lockWithdraw: {
         status: false,

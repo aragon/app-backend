@@ -304,7 +304,6 @@ describe('RouterV2: Vote', () => {
 
         await VoteRouter.getWithPagination(ctx)
 
-        console.log(stubCtrl.args[0]?.[1]?.includeInfo)
         expect(stubCtrl.args[0]?.[1]?.includeInfo).to.equal(testCase.expected)
       }
     })

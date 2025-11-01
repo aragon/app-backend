@@ -41,6 +41,18 @@ export class VotingEscrowSetting {
   // Time in seconds between unlock and withdrawal (actually not needed as the ExitQueued event already emits when the tokens can be withdrawn through the exitDate parameter)
   @prop({ type: () => Number, default: null })
   public cooldown!: number
+
+  // Current fee percentage charged on early exit (set on the ExitQueue contract)
+  @prop({ type: () => String, default: null })
+  public feePercent!: string
+
+  // Minimum fee percentage charged on early exit (set on the ExitQueue contract)
+  @prop({ type: () => String, default: null })
+  public minFeePercent!: string
+
+  // Minimum cooldown period required before exit (set on the ExitQueue contract)
+  @prop({ type: () => Number, default: null })
+  public minCooldown!: number
 }
 
 export class PluginSetting {
@@ -307,6 +319,7 @@ export default class Setting extends Model {
           minProposerVotingPower: 1,
           token: 1,
           stages: 1,
+          votingEscrow: 1,
         },
       },
     ]
@@ -374,6 +387,7 @@ export default class Setting extends Model {
           minDuration: 1,
           minProposerVotingPower: 1,
           token: 1,
+          votingEscrow: 1,
         },
       },
     ]

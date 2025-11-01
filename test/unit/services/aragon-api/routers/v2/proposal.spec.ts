@@ -431,8 +431,6 @@ describe('RouterV2: Proposal', () => {
 
       expect(ctx.body).to.eq(true)
       expect(stubCtrl.calledOnce).to.be.true
-      console.log(stubCtrl.args[0])
-      console.log(getAddress(params.id))
       expect(stubCtrl.calledWith(params.id)).to.be.true
     })
   })
