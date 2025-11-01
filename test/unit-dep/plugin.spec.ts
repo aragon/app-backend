@@ -9,7 +9,6 @@ import {
   NetworksEnum,
 } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
-import UnitDepUtils from '@test/lib/unit-dep/utils'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import { DAORegistry } from '@artifacts/daoRegistry'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
@@ -22,13 +21,14 @@ import { Multisig } from '@artifacts/Multisig'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import Plugins from '@test/unit-dep/mockData/sppPairMockPlugin.json'
 import Web3Helper from '@helpers/web3'
+import { LibUtils } from '@test/lib/unit-dep/lib'
 
 describe('Integ: Plugin', () => {
   let sandbox: SinonSandbox
   let rabbitMqStub: any
 
   before(async () => {
-    await UnitDepUtils.registerPluginRepos()
+    await LibUtils.registerPluginRepos(NetworksEnum.ethereumSepolia)
   })
 
   beforeEach(() => {
@@ -47,7 +47,7 @@ describe('Integ: Plugin', () => {
     const pluginAddress = '0x957f7145BA7B633165519C2f313a05E359cDc2E4'
 
     const daoCreationTxHash = '0x69f1c90f66b5af323ae093bade7134f502bef5c10e313ceee4e694998a9815a3'
-    const daoRegisteredEvents = await UnitDepUtils.getData(
+    const daoRegisteredEvents = await LibUtils.getData(
       DAORegistry.abi,
       'DAORegistered',
       daoCreationTxHash,
@@ -61,7 +61,7 @@ describe('Integ: Plugin', () => {
     const dao = await Models.Dao.findOne({ address: daoAddress })
     expect(dao?.address).to.eq(daoAddress)
 
-    const multisigPluginPreparedEvents = await UnitDepUtils.getData(
+    const multisigPluginPreparedEvents = await LibUtils.getData(
       PluginSetupProcessor.abi,
       IEventLogPluginType.InstallationPrepared,
       daoCreationTxHash,
@@ -72,7 +72,7 @@ describe('Integ: Plugin', () => {
       await PluginSetupProcessorHandler.installationPrepared(event, logInfo)
     }
 
-    const multisigPluginAppliedEvents = await UnitDepUtils.getData(
+    const multisigPluginAppliedEvents = await LibUtils.getData(
       PluginSetupProcessor.abi,
       IEventLogPluginType.InstallationApplied,
       daoCreationTxHash,
@@ -134,7 +134,7 @@ describe('Integ: Plugin', () => {
     })
 
     const receipt = await Web3Helper.getTransactionReceipt(txHash, network)
-    const parsedLogs = await UnitDepUtils.parseLogsByConfig(receipt!.logs as any, network)
+    const parsedLogs = await LibUtils.parseLogsByConfig(receipt!.logs as any, network)
 
     for (const log of parsedLogs) {
       await log.handler(log.event, log.info)
@@ -181,7 +181,7 @@ describe('Integ: Plugin', () => {
       decimals: 18,
     } as any)
 
-    const daoRegisteredEvents = await UnitDepUtils.getData(
+    const daoRegisteredEvents = await LibUtils.getData(
       DAORegistry.abi,
       'DAORegistered',
       daoCreationTxHash,
@@ -192,7 +192,7 @@ describe('Integ: Plugin', () => {
       await DaoRegistryHandler.daoRegistered(event, logInfo)
     }
 
-    const adminPluginPreparedEvents = await UnitDepUtils.getData(
+    const adminPluginPreparedEvents = await LibUtils.getData(
       PluginSetupProcessor.abi,
       'InstallationPrepared',
       daoCreationTxHash,
@@ -203,7 +203,7 @@ describe('Integ: Plugin', () => {
       await PluginSetupProcessorHandler.installationPrepared(event, logInfo)
     }
 
-    const adminPluginAppliedEvents = await UnitDepUtils.getData(
+    const adminPluginAppliedEvents = await LibUtils.getData(
       PluginSetupProcessor.abi,
       'InstallationApplied',
       daoCreationTxHash,
@@ -243,14 +243,14 @@ describe('Integ: Plugin', () => {
     let pluginCount = 1 //admin plugin counts as 1
 
     for (const { txHash } of adminPluginTxHash.reverse()) {
-      const prepareLogs = await UnitDepUtils.getData(
+      const prepareLogs = await LibUtils.getData(
         PluginSetupProcessor.abi,
         'InstallationPrepared',
         txHash,
         NetworksEnum.ethereumSepolia,
       )
 
-      const appliedLogs = await UnitDepUtils.getData(
+      const appliedLogs = await LibUtils.getData(
         PluginSetupProcessor.abi,
         'InstallationApplied',
         txHash,
@@ -345,7 +345,7 @@ describe('Integ: Plugin', () => {
     })
 
     // contract deployed
-    const tx1 = await UnitDepUtils.getData(
+    const tx1 = await LibUtils.getData(
       Multisig.abi,
       IEventLogPluginSettings.MultisigSettingsUpdated,
       '0x2c884b15e057fbf5318caf21b008e06154ecd80ab20537bc17296ddf29cf456f',
@@ -364,17 +364,6 @@ describe('Integ: Plugin', () => {
   })
 
   describe.skip('Installation And Uninstallation Of Plugin Via Revoke And Grant ', () => {
-    it('should install properly plugins and dao', async function () {
-      this.timeout(100000)
-      const daoAddress = '0x0AB0902f1d4AF089Af6dcDD512E9BFe40b20f679'
-      const network = NetworksEnum.ethereumSepolia
-      const fromBlock = 8691469
-      sandbox.restore()
-      UnitDepUtils.stubRabbitmqSend(sandbox)
-
-      await UnitDepUtils.syncACompleteDao(daoAddress, network, fromBlock)
-    })
-
     it('should revoke and grant permission to plugin', async function () {
       this.timeout(1000000)
       const revokeTxHash = '0x9ef64afa23ef2ced4dbfec481c31dd7a17441fc6b6c586d14104a10e59342966'
@@ -399,26 +388,20 @@ describe('Integ: Plugin', () => {
       }
 
       //install dao
-      const logsDaoInstall = await UnitDepUtils.parseLogsByConfig(daoTxReceipts?.logs! as any, network)
+      const logsDaoInstall = await LibUtils.parseLogsByConfig(daoTxReceipts?.logs! as any, network)
 
       for (const ev of logsDaoInstall) {
         await ev.handler(ev.event, ev.info)
       }
 
       //install plugin
-      const logsPrepare = await UnitDepUtils.parseLogsByConfig(
-        pluginInstallationTxReceiptPrepare?.logs! as any,
-        network,
-      )
+      const logsPrepare = await LibUtils.parseLogsByConfig(pluginInstallationTxReceiptPrepare?.logs! as any, network)
       for (const ev of logsPrepare) {
         await ev.handler(ev.event, ev.info)
       }
 
       //install plugin applied
-      const logsApplied = await UnitDepUtils.parseLogsByConfig(
-        pluginInstallationTxReceiptApplied?.logs! as any,
-        network,
-      )
+      const logsApplied = await LibUtils.parseLogsByConfig(pluginInstallationTxReceiptApplied?.logs! as any, network)
       for (const ev of logsApplied) {
         await ev.handler(ev.event, ev.info)
       }
@@ -438,7 +421,7 @@ describe('Integ: Plugin', () => {
 
       //here is the revoke and grant happening
 
-      const logsRevokeAndGrant = await UnitDepUtils.parseLogsByConfig(revokeTxReceipt.logs as any, network)
+      const logsRevokeAndGrant = await LibUtils.parseLogsByConfig(revokeTxReceipt.logs as any, network)
       const logsRevoked = logsRevokeAndGrant[0]
 
       let plugin = await Models.Plugin.findByAddress(logsRevoked.event.args.who, network)

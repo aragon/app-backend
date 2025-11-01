@@ -1,12 +1,12 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import UnitDepUtils from '@test/lib/unit-dep/utils'
 import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import { expect } from 'chai'
 import GaugeController from '@api/controllers/gauge'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { GaugeInfo } from '@services/aragon-gateway/gauge'
+import { LibUtils } from '@test/lib/unit-dep/lib'
 
 describe('Integ: Gauge', () => {
   let sandbox: SinonSandbox
@@ -25,16 +25,23 @@ describe('Integ: Gauge', () => {
         network: NetworksEnum.ethereumSepolia,
         daoAddress: '0x0A00c7BA3B0e23363991D4BA7E83a10Fc48969d8',
         fromBlock: 9325905,
+        toBlock: 9430412,
       },
     ]
 
-    for (const { network, daoAddress, fromBlock } of networks) {
+    for (const { network, daoAddress, fromBlock, toBlock } of networks) {
       it(`should handle gauge all events properly ${network}`, async function () {
         this.timeout(100000000)
 
-        const rabbitMQStub = UnitDepUtils.stubRabbitmqSend(sandbox) as any
-
-        await UnitDepUtils.syncACompleteDao(daoAddress, network, fromBlock)
+        const libUtils = new LibUtils({
+          daoAddress,
+          network,
+          config: {
+            sandbox,
+            blockLimit: toBlock,
+          },
+        })
+        await libUtils.syncCompleteDao(fromBlock)
 
         const plugin = await Models.Plugin.findOne({
           interfaceType: IPluginInterfaceType.gauge,
@@ -52,7 +59,7 @@ describe('Integ: Gauge', () => {
         const dbGauges = await Models.Gauge.find({ pluginAddress: plugin.address, network: plugin.network })
         expect(dbGauges?.length > 0).to.be.true
 
-        rabbitMQStub.restore()
+        libUtils.rabbitMQStub.restore()
         sandbox.stub(RabbitMQHelper, 'sendMessage').resolves('0')
         const apiGauges = await GaugeController.getGaugesWithPagination(
           {

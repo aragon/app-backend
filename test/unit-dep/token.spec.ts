@@ -6,7 +6,6 @@ import { ProxyToken } from '@modules/proxyToken'
 import { Models } from '@dbModels'
 import { LogTokenVoting } from '@plugins/logTokenVoting'
 import AragonPluginsService from '@plugins/index'
-import UnitDepUtils from '@test/lib/unit-dep/utils'
 
 describe('Integ: Token', () => {
   let sandbox: SinonSandbox

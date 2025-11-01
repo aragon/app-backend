@@ -2,10 +2,10 @@ import sinon from 'sinon'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import { NetworksEnum } from '@types'
-import UnitDepUtils from '@test/lib/unit-dep/utils'
 import { expect } from 'chai'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { LogSelectorPermission } from '@plugins/logSelectorPermission'
+import { LibUtils } from '@test/lib/unit-dep/lib'
 
 describe('Integ: ExecuteSelector', () => {
   let sandbox: sinon.SinonSandbox
@@ -23,7 +23,7 @@ describe('Integ: ExecuteSelector', () => {
   async function getParsedLogs(txHash: string) {
     const receipt = await Web3Helper.getTransactionReceipt(txHash, network)
     if (!receipt) return false
-    return await UnitDepUtils.parseLogsByConfig(receipt.logs as any, network)
+    return await LibUtils.parseLogsByConfig(receipt.logs as any, network)
   }
 
   describe('complete executeSelector flow', () => {
