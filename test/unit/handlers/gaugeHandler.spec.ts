@@ -523,6 +523,7 @@ describe('Handler: gaugeHandler', () => {
         transactionHash: mockInfo.transactionHash,
         transactionIndex: mockInfo.transactionIndex,
         logIndex: mockInfo.logIndex,
+        pluginAddress: mockPlugin.address,
       })
 
       expect(voteGauge).to.exist

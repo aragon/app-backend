@@ -72,11 +72,13 @@ export default class VoteGauge extends Model {
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.transactionIndex || rawData.transactionIndex === 0, 'transactionIndex is required')
       assert(!!rawData.logIndex || rawData.logIndex === 0, 'logIndex is required')
+      assert(!!rawData.pluginAddress, 'pluginAddress is required')
       rawData.id = this.getEntityId({
         network: rawData?.network!,
         transactionHash: rawData?.transactionHash!,
         transactionIndex: rawData?.transactionIndex!,
         logIndex: rawData?.logIndex!,
+        pluginAddress: rawData?.pluginAddress!,
       })
     }
     const data = new this(rawData)
@@ -84,7 +86,7 @@ export default class VoteGauge extends Model {
   }
 
   static getEntityId(params: IVoteIdParams) {
-    const entityId = `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}`
+    const entityId = `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}-${params.pluginAddress}`
     return entityId
   }
 

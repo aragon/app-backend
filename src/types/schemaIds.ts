@@ -11,6 +11,7 @@ export interface IVoteIdParams {
   transactionHash: HexAddress
   transactionIndex: number
   logIndex: number
+  pluginAddress: HexAddress
 }
 
 export interface ILockExtraParams {

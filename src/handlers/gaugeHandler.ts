@@ -162,6 +162,7 @@ export const GaugeHandler = {
         transactionHash: info.transactionHash,
         transactionIndex: info.transactionIndex,
         logIndex: info.logIndex,
+        pluginAddress: gauge.pluginAddress,
       })
       if (existingLog) return
       const settings = await plugin.getActiveSettings()
@@ -230,6 +231,7 @@ export const GaugeHandler = {
         network: info.network,
         gaugeAddress: parsedEvent.args.gauge,
         memberAddress: parsedEvent.args.voter,
+        pluginAddress: info.address,
         epochId,
       })
 

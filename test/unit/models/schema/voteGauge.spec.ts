@@ -46,6 +46,7 @@ describe('Model: VoteGauge', () => {
       expect(createdVoteEpoch.memberAddress).to.eq(rawVoteEpoch.memberAddress)
       expect(createdVoteEpoch.epochId).to.eq(rawVoteEpoch.epochId)
       expect(createdVoteEpoch.votingPower).to.eq(rawVoteEpoch.votingPower)
+      expect(createdVoteEpoch.pluginAddress).to.eq(rawVoteEpoch.pluginAddress)
     })
 
     it('Should create VoteGauge with id already present', async () => {
@@ -54,6 +55,7 @@ describe('Model: VoteGauge', () => {
         transactionHash: rawVoteEpoch.transactionHash!,
         transactionIndex: rawVoteEpoch.transactionIndex!,
         logIndex: rawVoteEpoch.logIndex!,
+        pluginAddress: rawVoteEpoch.pluginAddress!,
       })
 
       rawVoteEpoch.id = entityId
@@ -72,6 +74,7 @@ describe('Model: VoteGauge', () => {
           logIndex: rawVoteEpoch.logIndex,
           blockNumber: rawVoteEpoch.blockNumber,
           gaugeAddress: rawVoteEpoch.gaugeAddress,
+          pluginAddress: rawVoteEpoch.pluginAddress,
           memberAddress: rawVoteEpoch.memberAddress,
           epochId: rawVoteEpoch.epochId,
         }),
@@ -86,6 +89,7 @@ describe('Model: VoteGauge', () => {
           logIndex: rawVoteEpoch.logIndex,
           blockNumber: rawVoteEpoch.blockNumber,
           gaugeAddress: rawVoteEpoch.gaugeAddress,
+          pluginAddress: rawVoteEpoch.pluginAddress,
           memberAddress: rawVoteEpoch.memberAddress,
           epochId: rawVoteEpoch.epochId,
         }),
@@ -100,6 +104,7 @@ describe('Model: VoteGauge', () => {
           logIndex: rawVoteEpoch.logIndex,
           blockNumber: rawVoteEpoch.blockNumber,
           gaugeAddress: rawVoteEpoch.gaugeAddress,
+          pluginAddress: rawVoteEpoch.pluginAddress,
           memberAddress: rawVoteEpoch.memberAddress,
           epochId: rawVoteEpoch.epochId,
         }),
@@ -114,6 +119,7 @@ describe('Model: VoteGauge', () => {
           transactionIndex: rawVoteEpoch.transactionIndex,
           blockNumber: rawVoteEpoch.blockNumber,
           gaugeAddress: rawVoteEpoch.gaugeAddress,
+          pluginAddress: rawVoteEpoch.pluginAddress,
           memberAddress: rawVoteEpoch.memberAddress,
           epochId: rawVoteEpoch.epochId,
         }),
@@ -134,12 +140,19 @@ describe('Model: VoteGauge', () => {
   })
 
   it('Should getEntityId', async () => {
+    const pluginAddress = '0xPlugin'
     const transactionHash = '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890'
     const network = NetworksEnum.ethereumMainnet
     const transactionIndex = 1
     const logIndex = 2
-    const entityId = Models.VoteGauge.getEntityId({ network, transactionHash, transactionIndex, logIndex })
-    expect(entityId).to.eq(`${network}-${transactionHash}-${transactionIndex}-${logIndex}`)
+    const entityId = Models.VoteGauge.getEntityId({
+      network,
+      transactionHash,
+      transactionIndex,
+      logIndex,
+      pluginAddress,
+    })
+    expect(entityId).to.eq(`${network}-${transactionHash}-${transactionIndex}-${logIndex}-${pluginAddress}`)
   })
 
   it('Should findExistingLog', async () => {
@@ -149,6 +162,7 @@ describe('Model: VoteGauge', () => {
       transactionHash: createdVoteEpoch.transactionHash,
       transactionIndex: createdVoteEpoch.transactionIndex,
       logIndex: createdVoteEpoch.logIndex,
+      pluginAddress: createdVoteEpoch.pluginAddress,
     })
     expect(foundVoteEpoch?.id).to.eq(createdVoteEpoch.id)
   })
