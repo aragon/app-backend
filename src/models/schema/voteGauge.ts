@@ -1,5 +1,5 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, ICollectionNames, type IVoteIdParams, NetworksEnum } from '@types'
+import { HexAddress, ICollectionNames, type IVoteGaugeIdParams, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
@@ -85,12 +85,12 @@ export default class VoteGauge extends Model {
     return await data.save(tOpts)
   }
 
-  static getEntityId(params: IVoteIdParams) {
+  static getEntityId(params: IVoteGaugeIdParams) {
     const entityId = `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}-${params.pluginAddress}`
     return entityId
   }
 
-  static async findExistingLog(params: IVoteIdParams, tOpts?: SaveOptions) {
+  static async findExistingLog(params: IVoteGaugeIdParams, tOpts?: SaveOptions) {
     const entityId = this.getEntityId(params)
     return await this.findByEntityId(entityId, tOpts)
   }
