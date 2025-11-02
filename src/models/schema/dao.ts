@@ -190,7 +190,9 @@ export default class Dao extends Model {
           key !== 'pluginAddress' &&
           key !== 'memberAddress' &&
           key !== 'excludeDaoId' &&
-          key !== 'excludedDao',
+          key !== 'excludedDao' &&
+          key !== 'daoAddresses' && // 排除daoAddresses字段
+          key !== 'daoIds', // 排除daoIds字段
       ),
     )
     const filter = {
@@ -209,6 +211,11 @@ export default class Dao extends Model {
 
     filter.isHidden = { $ne: true }
     filter.isActive = { $eq: true }
+
+    // 如果提供了daoIds，则添加到过滤条件中
+    if (extraQueryData.daoIds && extraQueryData.daoIds.length > 0) {
+      filter.id = { $in: extraQueryData.daoIds }
+    }
 
     if (extraQueryData.daoAddresses && extraQueryData.daoAddresses.length > 0) {
       let filteredDaoAddresses = extraQueryData.daoAddresses

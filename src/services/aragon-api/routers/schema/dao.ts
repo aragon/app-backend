@@ -7,12 +7,16 @@ const DaoSchema = {
     networks: ValidationSchema.joiNetworks.optional(),
     address: ValidationSchema.joiAddress.optional(),
     pluginAddress: ValidationSchema.joiAddress.optional(),
+    daoIds: Joi.array().items(ValidationSchema.joiDaoId).optional(),
+    daoAddresses: Joi.array().items(ValidationSchema.joiAddress).optional(),
   }),
 
   getExtraParamsV2: Joi.object({
-    networks: ValidationSchema.joiNetworks.required(),
+    networks: ValidationSchema.joiNetworks.optional(), // 改为可选
     address: ValidationSchema.joiAddress.optional(),
     pluginAddress: ValidationSchema.joiAddress.optional(),
+    daoIds: Joi.array().items(ValidationSchema.joiDaoId).optional(),
+    daoAddresses: Joi.array().items(ValidationSchema.joiAddress).optional(),
   }),
 
   getDaosByMember: Joi.object({

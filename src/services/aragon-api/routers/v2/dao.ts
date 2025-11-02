@@ -6,12 +6,25 @@ import { type HexAddress, type IDaoExtraParams, type IPaginationParams, type Net
 
 const DaoRouter = {
   getWithPagination: async function (ctx: RouterContext) {
+    // 处理 daoIds 参数，确保它是数组格式
+    let daoIds: string[] | undefined
+    if (ctx.query.daoIds) {
+      if (Array.isArray(ctx.query.daoIds)) {
+        daoIds = ctx.query.daoIds
+      } else if (typeof ctx.query.daoIds === 'string') {
+        // 如果是逗号分隔的字符串，拆分为数组
+        daoIds = ctx.query.daoIds.split(',').map(id => id.trim())
+      }
+    }
+
     const result = await ValidationSchema.validateRoute(ctx, {
       paginationSort: 'metrics.tvlUSD',
       extraParams: {
         networks: ctx.query.networks as [NetworksEnum],
         address: ctx.query.address as HexAddress,
         pluginAddress: ctx.query.pluginAddress as HexAddress,
+        daoIds,
+        daoAddresses: ctx.query.daoAddresses as HexAddress[],
       },
       schemas: {
         extra: DaoSchema.getExtraParamsV2,

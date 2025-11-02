@@ -40,13 +40,13 @@ const ValidationSchema = {
       return parts
     }),
   ),
-  joiDaoId: Joi.string().custom(value => {
+  joiDaoId: Joi.string().custom((value, helpers) => {
     try {
       const regex = new RegExp(`(${Object.values(NetworksEnum).join('|')})-(0x[0-9a-fA-F]{40})`)
       const match = value.match(regex)
 
       if (!match || match.length !== 3) {
-        return value
+        return helpers.error('string.invalid', { value })
       }
 
       const [, network, address] = match
@@ -55,7 +55,7 @@ const ValidationSchema = {
       const formattedValue = `${network}-${checksumAddress}`
       return formattedValue
     } catch (error) {
-      return value
+      return helpers.error('string.invalid', { value })
     }
   }, 'Dao Id validation'),
   joiTransactionHash: Joi.string()

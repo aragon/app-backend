@@ -29,7 +29,7 @@ export interface ICanVoteParams {
 export interface ICanCreateProposalParams {
   memberAddress: HexAddress
   pluginAddress: HexAddress
-  network: HexAddress
+  network: NetworksEnum
 }
 
 export interface IPairParams {
@@ -72,6 +72,8 @@ export interface IDaoExtraParams {
         network: NetworksEnum
       }
   excludeDaoId?: string | undefined
+  daoIds?: string[] | undefined
+  daoAddresses?: HexAddress[] | undefined
 }
 
 export interface ILogPluginSetupProcessorParams {
@@ -108,6 +110,7 @@ export interface IExtraQueryData {
   daoAddresses?: HexAddress[]
   memberAddresses?: HexAddress[]
   tokenAddress?: HexAddress
+  daoIds?: string[]
 }
 
 export interface ISettingExtraParams {

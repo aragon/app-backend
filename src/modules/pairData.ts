@@ -13,6 +13,8 @@ const PairDataModule = {
   pairExtraQueryData: async <
     T extends {
       pluginAddress?: HexAddress
+      daoIds?: string[]
+      daoAddresses?: HexAddress[]
     },
   >(
     extraParams: T,
@@ -22,6 +24,16 @@ const PairDataModule = {
     if (extraParams.pluginAddress) {
       const plugin = await Models.Plugin.findOne({ address: extraParams.pluginAddress })
       extraQueryData.daoAddresses = plugin?.daoAddress ? [plugin.daoAddress] : []
+    }
+
+    // 处理daoIds参数
+    if (extraParams.daoIds && extraParams.daoIds.length > 0) {
+      extraQueryData.daoIds = extraParams.daoIds
+    }
+
+    // 处理daoAddresses参数
+    if (extraParams.daoAddresses && extraParams.daoAddresses.length > 0) {
+      extraQueryData.daoAddresses = extraParams.daoAddresses
     }
 
     return extraQueryData
