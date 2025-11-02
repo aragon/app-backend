@@ -3,7 +3,7 @@ import { type ITokenType } from '@src/types/token'
 import { type IActionMetadata } from '@src/types/proposalAction'
 import { type IPluginInterfaceType, type IReportResultType } from '@src/types/plugin'
 import type Router from '@koa/router'
-import { DaoResourceLink } from '@src/types/daos'
+import { type DaoResourceLink } from '@src/types/daos'
 
 export interface VersionedRouter {
   v1: Router
