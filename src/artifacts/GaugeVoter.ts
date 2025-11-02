@@ -264,12 +264,6 @@ export const GaugeVoter = {
         {
           indexed: false,
           internalType: 'uint256',
-          name: 'tokenId',
-          type: 'uint256',
-        },
-        {
-          indexed: false,
-          internalType: 'uint256',
           name: 'votingPowerRemovedFromGauge',
           type: 'uint256',
         },
@@ -340,12 +334,6 @@ export const GaugeVoter = {
           indexed: true,
           internalType: 'uint256',
           name: 'epoch',
-          type: 'uint256',
-        },
-        {
-          indexed: false,
-          internalType: 'uint256',
-          name: 'tokenId',
           type: 'uint256',
         },
         {

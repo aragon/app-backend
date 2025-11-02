@@ -110,16 +110,7 @@ const AragonPluginsService: IService & { pluginQueue: (params: IQueuePlugin) => 
         break
       }
       case IPluginInterfaceType.gauge: {
-        const token = await Models.Token.findOne({
-          address: plugin.tokenAddress,
-          network: plugin.network,
-        })
-        if (token?.type === ITokenType.ERC721) {
-          logger.info('Sync plugin: token is ERC721', llo({ plugin: plugin.address, token: token.address }))
-          await LogGauge.start(plugin, token, isHistorical)
-        } else {
-          logger.warn('Sync plugin: token not ERC721', llo({ plugin: plugin.address, token: token.address }))
-        }
+        await LogGauge.start(plugin, isHistorical)
         break
       }
       case IPluginInterfaceType.capitalDistributor: {

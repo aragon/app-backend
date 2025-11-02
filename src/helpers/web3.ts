@@ -40,9 +40,10 @@ const Web3Helper = {
     if (blockNumber === 'latest' || blockNumber === undefined) {
       try {
         const provider = ProviderModule.getAnyRpcProvider(network)
-        return await retryRequest(async () =>
+        const blockNumber = await retryRequest(async () =>
           BottleneckModule.getNodeLimiter(network).schedule(async () => provider.getBlockNumber()),
         )
+        return Number(blockNumber)
       } catch (error) {
         logger.error('Error getBlockNumber', llo({ blockNumber, network, error }))
         return -1
@@ -560,6 +561,7 @@ const Web3Helper = {
 
     return token
   },
+
   async isMultisigMember(pluginAddress: HexAddress, memberAddress: HexAddress, network: NetworksEnum) {
     try {
       const provider = ProviderModule.getAnyRpcProvider(network)
@@ -573,6 +575,7 @@ const Web3Helper = {
       return false
     }
   },
+
   async isTokenVotingMember(pluginAddress: HexAddress, memberAddress: HexAddress, network: NetworksEnum) {
     try {
       const provider = ProviderModule.getAnyRpcProvider(network)

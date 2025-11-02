@@ -1,17 +1,17 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { NetworksEnum } from '@types'
-import UnitDepUtils from '@test/lib/unit-dep/utils'
 import { Models } from '@dbModels'
 import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { ProposalHandler } from '@handlers/proposalHandler'
 import { expect } from 'chai'
+import { LibUtils } from '@test/lib/unit-dep/lib'
 
 describe('Integ: Proposal', () => {
   let sandbox: SinonSandbox
 
   before(async () => {
-    await UnitDepUtils.registerPluginRepos()
+    await LibUtils.registerPluginRepos(NetworksEnum.ethereumSepolia)
   })
 
   beforeEach(() => {
@@ -176,7 +176,7 @@ describe('Integ: Proposal', () => {
       totalStages: 1,
     })
 
-    const resultEvents = await UnitDepUtils.getData(
+    const resultEvents = await LibUtils.getData(
       StagedProposalProcessor.abi,
       'ProposalResultReported',
       txHash,

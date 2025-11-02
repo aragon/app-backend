@@ -4,6 +4,7 @@ import Plugin from '@services/aragon-gateway/plugin'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
+import GaugeHelper from '@helpers/gauge'
 import { expect } from 'chai'
 import { IEventLogPluginType, NetworksEnum } from '@types'
 import Utils from '@helpers/utils'
@@ -198,6 +199,62 @@ describe('Plugin', () => {
       sandbox.stub(Web3Utils, 'findLogsByName').returns([parsedLog as any])
 
       const result = await Plugin.getInstallationData(pluginAddress, network)
+
+      expect(result).to.be.null
+    })
+  })
+
+  describe('getGaugeEpochId', () => {
+    const pluginAddress = '0x9999999999999999999999999999999999999990'
+    const network = NetworksEnum.ethereumMainnet
+    const epochId = '5'
+
+    it('should return epochId from GaugeHelper', async () => {
+      const getGaugeEpochIdStub = sandbox.stub(GaugeHelper, 'getGaugeEpochId').resolves(epochId)
+
+      const result = await Plugin.getGaugeEpochId(pluginAddress, network)
+
+      expect(result).to.equal(epochId)
+      expect(getGaugeEpochIdStub.calledOnce).to.be.true
+      expect(getGaugeEpochIdStub.calledWith(pluginAddress, network)).to.be.true
+    })
+
+    it('should handle different epochId values', async () => {
+      const differentEpochId = '100'
+      sandbox.stub(GaugeHelper, 'getGaugeEpochId').resolves(differentEpochId)
+
+      const result = await Plugin.getGaugeEpochId(pluginAddress, network)
+
+      expect(result).to.equal(differentEpochId)
+    })
+
+    it('should handle different networks', async () => {
+      const arbitrumNetwork = NetworksEnum.arbitrumMainnet
+      const getGaugeEpochIdStub = sandbox.stub(GaugeHelper, 'getGaugeEpochId').resolves(epochId)
+
+      const result = await Plugin.getGaugeEpochId(pluginAddress, arbitrumNetwork)
+
+      expect(result).to.equal(epochId)
+      expect(getGaugeEpochIdStub.calledWith(pluginAddress, arbitrumNetwork)).to.be.true
+    })
+
+    it('should propagate errors from GaugeHelper', async () => {
+      const error = new Error('Gauge connection error')
+      sandbox.stub(GaugeHelper, 'getGaugeEpochId').rejects(error)
+
+      try {
+        await Plugin.getGaugeEpochId(pluginAddress, network)
+        expect.fail('Should have thrown an error')
+      } catch (err: any) {
+        expect(err).to.equal(error)
+        expect(err.message).to.equal('Gauge connection error')
+      }
+    })
+
+    it('should handle null/undefined return from GaugeHelper', async () => {
+      sandbox.stub(GaugeHelper, 'getGaugeEpochId').resolves(null as any)
+
+      const result = await Plugin.getGaugeEpochId(pluginAddress, network)
 
       expect(result).to.be.null
     })

@@ -71,6 +71,30 @@ describe('Model: CampaignMerkleRoot', () => {
     expect(created.totalMembers).to.eq(200)
   })
 
+  it('Should not update required field with falsy value', async () => {
+    const created = await Models.CampaignMerkleRoot.create(rawCampaignMerkleRoot)
+    const originalPluginAddress = created.pluginAddress
+
+    // Try to update required field with null - should not update
+    await created.update({
+      pluginAddress: null as any,
+    })
+
+    expect(created.pluginAddress).to.eq(originalPluginAddress)
+  })
+
+  it('Should skip update when field does not exist in schema', async () => {
+    const created = await Models.CampaignMerkleRoot.create(rawCampaignMerkleRoot)
+
+    // Try to update with non-existent field
+    await created.update({
+      nonExistentField: 'some value',
+    } as any)
+
+    // Should not throw error, just skip the field
+    expect(created).to.exist
+  })
+
   it('Should create with auto-generated id when id is not provided', async () => {
     const created = await Models.CampaignMerkleRoot.create(rawCampaignMerkleRoot)
     const expectedId = Models.CampaignMerkleRoot.getEntityId({

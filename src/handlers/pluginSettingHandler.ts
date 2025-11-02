@@ -24,6 +24,7 @@ import Web3Utils from '@helpers/web3Utils'
 import PluginDetector from '@helpers/pluginDetector'
 import GovernanceVeHelper from '@helpers/governanceVe'
 import { LockToVote } from '@artifacts/LockToVote'
+import GaugeHelper from '@helpers/gauge'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PluginSettingHandler' })
 
@@ -328,6 +329,25 @@ export const PluginSettingHandler = {
     }
 
     return relatedPlugin
+  },
+
+  gaugeSettings: async (plugin: Plugin, info: ILogInfo) => {
+    const settingLog = {
+      blockNumber: info.blockNumber,
+      blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, plugin.network)) || undefined,
+      transactionHash: info.transactionHash,
+      status: ISettingStatus.active,
+      daoAddress: plugin.daoAddress,
+      pluginAddress: plugin.address,
+      pluginSubdomain: plugin.subdomain,
+      network: plugin.network,
+      enabledUpdatedVotingPowerHook: await GaugeHelper.getEnableUpdateVotingPowerHookFlag(
+        plugin.address,
+        plugin.network,
+      ),
+    }
+
+    await DbOperations.createDocument(Models.Setting, settingLog, info, 'New Setting - gaugeSettingsUpdated', llo)
   },
 
   sppSettingsUpdated: async (parsedEvent: LogDescription, info: ILogInfo): Promise<Plugin | undefined> => {

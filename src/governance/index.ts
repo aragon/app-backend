@@ -7,6 +7,7 @@ import { LockToVoteGovernance } from './lockToVoteGovernance'
 import { MultisigGovernance } from './multisigGovernance'
 import { AdminGovernance } from './adminGovernance'
 import { CapitalDistributorGovernance } from './capitalDistributorGovernance'
+import { GaugeGovernance } from './gaugeGovernance'
 import Web3Utils from '@helpers/web3Utils'
 import DbTx from '@modules/dbTx'
 import type Member from '@models/schema/member'
@@ -21,8 +22,18 @@ export { LockToVoteGovernance }
 export { MultisigGovernance }
 export { AdminGovernance }
 export { CapitalDistributorGovernance }
+export { GaugeGovernance }
 
 const llo = logger.logMeta.bind(null, { service: 'MemberGovernanceFactory' })
+
+type GovernanceType =
+  | VeGovernance
+  | Erc20Governance
+  | LockToVoteGovernance
+  | MultisigGovernance
+  | AdminGovernance
+  | CapitalDistributorGovernance
+  | GaugeGovernance
 
 /**
  * Factory class for creating governance instances based on plugin interface type.
@@ -57,7 +68,8 @@ const llo = logger.logMeta.bind(null, { service: 'MemberGovernanceFactory' })
  *   - `network`: The blockchain network
  */
 export class MemberGovernanceFactory {
-  static createFromPlugin(plugin: Plugin): BaseGovernance {
+  // Implementation - returns union of all types
+  static createFromPlugin(plugin: Plugin): GovernanceType {
     try {
       // Handle token voting plugins
       if (plugin.interfaceType === IPluginInterfaceType.tokenVoting) {
@@ -81,6 +93,14 @@ export class MemberGovernanceFactory {
             interfaceType: IPluginInterfaceType.tokenVoting,
           })
         }
+      }
+
+      if (plugin.interfaceType === IPluginInterfaceType.gauge) {
+        return MemberGovernanceFactory.create({
+          address: plugin.address,
+          network: plugin.network,
+          interfaceType: IPluginInterfaceType.gauge,
+        })
       }
 
       // Handle lock to vote governance
@@ -134,7 +154,7 @@ export class MemberGovernanceFactory {
     extraParams?: {
       escrowAdapterAddress?: HexAddress
     }
-  }): BaseGovernance {
+  }): GovernanceType {
     switch (params.interfaceType) {
       case IPluginInterfaceType.tokenVoting:
         switch (params.tokenType) {
@@ -162,8 +182,11 @@ export class MemberGovernanceFactory {
         // the address is the pluginAddress
         return new CapitalDistributorGovernance(params.address, params.network)
 
-      case IPluginInterfaceType.spp:
       case IPluginInterfaceType.gauge:
+        // the address is the pluginAddress
+        return new GaugeGovernance(params.address, params.network)
+
+      case IPluginInterfaceType.spp:
       case IPluginInterfaceType.unknown:
       default:
         logger.warn('Unsupported plugin interface type, returning null', llo(params))

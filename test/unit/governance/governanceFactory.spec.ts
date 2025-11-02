@@ -12,6 +12,7 @@ import {
   MultisigGovernance,
   AdminGovernance,
   CapitalDistributorGovernance,
+  GaugeGovernance,
 } from '@src/governance'
 import { NetworksEnum, IPluginInterfaceType, ITokenType, type HexAddress } from '@types'
 import Web3Utils from '@helpers/web3Utils'
@@ -176,6 +177,20 @@ describe('Governance:GovernanceFactory', () => {
       })
     })
 
+    describe('gauge interface type', () => {
+      it('should create GaugeGovernance', () => {
+        const result = MemberGovernanceFactory.create({
+          address: testAddress,
+          network: testNetwork,
+          interfaceType: IPluginInterfaceType.gauge,
+        })
+
+        expect(result).to.be.instanceOf(GaugeGovernance)
+        expect(result?.['address']).to.equal(testAddress)
+        expect(result?.['network']).to.equal(testNetwork)
+      })
+    })
+
     describe('unsupported interface types', () => {
       it('should throw error for spp interface type', () => {
         expect(() => {
@@ -183,18 +198,6 @@ describe('Governance:GovernanceFactory', () => {
             address: testAddress,
             network: testNetwork,
             interfaceType: IPluginInterfaceType.spp,
-          })
-        }).to.throw('Unsupported plugin interface type')
-
-        expect(loggerWarnStub.calledWith('Unsupported plugin interface type, returning null')).to.be.true
-      })
-
-      it('should throw error for gauge interface type', () => {
-        expect(() => {
-          MemberGovernanceFactory.create({
-            address: testAddress,
-            network: testNetwork,
-            interfaceType: IPluginInterfaceType.gauge,
           })
         }).to.throw('Unsupported plugin interface type')
 
@@ -349,6 +352,20 @@ describe('Governance:GovernanceFactory', () => {
       })
     })
 
+    describe('gauge plugins', () => {
+      it('should create GaugeGovernance for gauge plugin', () => {
+        const plugin = createPlugin({
+          interfaceType: IPluginInterfaceType.gauge,
+        })
+
+        const result = MemberGovernanceFactory.createFromPlugin(plugin as any)
+
+        expect(result).to.be.instanceOf(GaugeGovernance)
+        expect(result?.['address']).to.equal(testAddress)
+        expect(result?.['network']).to.equal(testNetwork)
+      })
+    })
+
     describe('unsupported plugins', () => {
       it('should throw error for spp plugin', () => {
         const plugin = createPlugin({
@@ -358,18 +375,6 @@ describe('Governance:GovernanceFactory', () => {
         expect(() => {
           MemberGovernanceFactory.createFromPlugin(plugin as any)
         }).to.throw('Unsupported plugin interface type: spp')
-
-        expect(loggerWarnStub.calledWith('Unable to create governance from plugin')).to.be.true
-      })
-
-      it('should throw error for gauge plugin', () => {
-        const plugin = createPlugin({
-          interfaceType: IPluginInterfaceType.gauge,
-        })
-
-        expect(() => {
-          MemberGovernanceFactory.createFromPlugin(plugin as any)
-        }).to.throw('Unsupported plugin interface type: gauge')
 
         expect(loggerWarnStub.calledWith('Unable to create governance from plugin')).to.be.true
       })

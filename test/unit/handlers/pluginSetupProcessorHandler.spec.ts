@@ -802,20 +802,22 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(true as any)
       const findVotingEscrowStub = sandbox.stub(PluginSetupProcessorHandler, 'findVotingEscrow').resolves(null)
-      const getGaugeTokenStub = sandbox.stub(GaugeHelper, 'getTokenAddress').resolves('0xToken')
       const getLockManagerStub = sandbox.stub(LockToVoteHelper, 'getLockManager').resolves('0xGaugeLockManager')
+      const getVotingTokenGaugeStub = sandbox.stub(GaugeHelper, 'getIVotesAdapterAddress').resolves('0xToken')
+
       await PluginSetupProcessorHandler.findAndUpdateTokenAddress(plugin, logInfo)
 
       expect(proxyTokenStub.calledOnce).to.be.true
+      expect(getVotingTokenGaugeStub.calledOnce).to.be.true
+      expect(findVotingEscrowStub.calledOnce).to.be.true
+      expect(getLockManagerStub.calledOnce).to.be.true
+      expect(proxyTokenStub.calledWith('0xToken', logInfo.network)).to.be.true
+      expect(getVotingTokenGaugeStub.calledWith(plugin.address, logInfo.network)).to.be.true
+      expect(getLockManagerStub.calledWith(logInfo.network, plugin.address)).to.be.true
+
       const reloadedPlugin = await Models.Plugin.findOne({ address: plugin.address })
       expect(reloadedPlugin.tokenAddress).to.eq('0xToken')
       expect(reloadedPlugin.lockManagerAddress).to.eq('0xGaugeLockManager')
-      expect(findVotingEscrowStub.calledOnce).to.be.true
-      expect(getGaugeTokenStub.calledOnce).to.be.true
-      expect(getLockManagerStub.calledOnce).to.be.true
-      expect(getGaugeTokenStub.calledWith(plugin.address, logInfo.network)).to.be.true
-      expect(getLockManagerStub.calledWith(logInfo.network, plugin.address)).to.be.true
-      expect(proxyTokenStub.calledWith('0xToken', logInfo.network)).to.be.true
     })
 
     it('should handle when plugin is lockToVote', async () => {

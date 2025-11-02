@@ -5,6 +5,7 @@ import {
   type IPluginIdParams,
   IPluginInterfaceType,
   IPluginStatus,
+  ISettingStatus,
   NetworksEnum,
 } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
@@ -389,6 +390,16 @@ export default class Plugin extends Model {
     })
 
     return await this.save(tOpts)
+  }
+
+  async getActiveSettings(tOpts?: SaveOptions) {
+    return await this.model(ICollectionNames.Setting).findOne(
+      {
+        pluginAddress: this.address,
+        status: ISettingStatus.active,
+      },
+      tOpts,
+    )
   }
 
   async reload(tOpts?: SaveOptions) {
