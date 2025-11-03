@@ -22,7 +22,7 @@ describe('Integ: Proposal', () => {
     sandbox && sandbox.restore()
   })
 
-  it.only('proposalResultReport - update spp proposal on external body result', async function () {
+  it('proposalResultReport - update spp proposal on external body result', async function () {
     this.timeout(10000000)
 
     const network = NetworksEnum.ethereumSepolia
