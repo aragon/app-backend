@@ -592,7 +592,7 @@ describe('AragonDao: DaoTransactions', () => {
       }
 
       // Re-initialize DaoTransactions with the new stubs
-      const BlockchainLogCrawlerMock = function (this: any, config: any) {
+      const BlockchainLogCrawlerMock = function (this: any, _config: any) {
         this.crawl = sandbox.stub().resolves()
       }
 

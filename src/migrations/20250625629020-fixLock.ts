@@ -5,7 +5,7 @@ import DBCrawler from '@models/utils/crawler'
 import type Lock from '@models/schema/lock'
 import Web3Helper from '@helpers/web3'
 import configIndexer from '@indexer/configIndexer'
-import UnitDepUtils from '@test/lib/unit-dep/utils'
+import { LibUtils } from '@test/lib/unit-dep/lib'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: fixGoveranceVe' })
 
@@ -82,7 +82,7 @@ export const FixGovernanceVeMigration: IMigration & IMigHelper & { fixLock: any;
 
     const sortedLogs = filteredLogs.sort((a, b) => a.index - b.index)
 
-    const parsedLogs = await UnitDepUtils.parseLogsByConfig(sortedLogs, network)
+    const parsedLogs = await LibUtils.parseLogsByConfig(sortedLogs, network)
 
     for (const { event, handler, info } of parsedLogs) {
       await handler(event, info)

@@ -985,7 +985,7 @@ describe('Helpers: DecodeActions', () => {
           ]),
         },
       ])
-      const parseNetspecStub = sandbox.stub(ContractNetspecHelper, 'parseNetspec').returns([
+      sandbox.stub(ContractNetspecHelper, 'parseNetspec').returns([
         {
           inputs: [],
           notice: 'Test function',
@@ -1094,7 +1094,7 @@ describe('Helpers: DecodeActions', () => {
           ABI: '[]',
         },
       ])
-      const parseNetspecStub = sandbox.stub(ContractNetspecHelper, 'parseNetspec').returns([])
+      sandbox.stub(ContractNetspecHelper, 'parseNetspec').returns([])
 
       const result = await decodeActions.parseContractNetspec(
         functionSelector,
