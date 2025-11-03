@@ -408,8 +408,6 @@ describe('ChilizProvider', () => {
         },
       }
 
-      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(mockTokenResponse)
-
       // Act
       const result = await ChilizProvider.fetchBasicTokenInfo({ address, network })
 

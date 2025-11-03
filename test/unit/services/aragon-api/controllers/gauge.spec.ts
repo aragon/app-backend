@@ -127,13 +127,6 @@ describe('Controller: Gauge', () => {
         pluginAddress,
       }
 
-      const mockGauge = {
-        address: gaugeAddress,
-        pluginAddress,
-        network,
-        isActive: true,
-      }
-
       const mockResponse = {
         data: [],
         metadata: {
@@ -201,13 +194,6 @@ describe('Controller: Gauge', () => {
         pluginAddress,
       }
 
-      const mockGauge = {
-        address: gaugeAddress,
-        pluginAddress,
-        network,
-        isActive: true,
-      }
-
       const mockResponse = {
         data: [],
         metadata: {
@@ -239,13 +225,6 @@ describe('Controller: Gauge', () => {
         pluginAddress,
       }
 
-      const mockGauge = {
-        address: gaugeAddress,
-        pluginAddress,
-        network,
-        isActive: true,
-      }
-
       sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('RabbitMQ connection error'))
 
       try {
@@ -266,13 +245,6 @@ describe('Controller: Gauge', () => {
       const filterParams: any = {
         network,
         pluginAddress,
-      }
-
-      const mockGauge = {
-        address: gaugeAddress,
-        pluginAddress,
-        network,
-        isActive: true,
       }
 
       const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(epochId)
@@ -296,13 +268,6 @@ describe('Controller: Gauge', () => {
       const filterParams: any = {
         network,
         pluginAddress,
-      }
-
-      const mockGauge = {
-        address: gaugeAddress,
-        pluginAddress,
-        network,
-        isActive: true,
       }
 
       const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(epochId)

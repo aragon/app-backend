@@ -116,10 +116,6 @@ describe('migration: resetGauges', () => {
         blockNumber: 1000,
         transactionHash: '0xabc123',
       })
-
-      // Make ConfigIndexer.deleteMany fail
-      const deleteManyStub = sandbox.stub(Models.ConfigIndexer, 'deleteOne').rejects(new Error('Delete failed'))
-
       // Act
       await resetGaugesMigration.start()
 
