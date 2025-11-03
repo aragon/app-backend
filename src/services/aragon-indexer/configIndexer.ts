@@ -31,6 +31,8 @@ import { LockManager } from '@artifacts/LockManager'
 import { LockToVote } from '@artifacts/LockToVote'
 import { CapitalDistributor } from '@artifacts/CapitalDistributor'
 import { CapitalDistributorHandler } from '@handlers/capitalDistributorHandler'
+import { GaugeVoter } from '@artifacts/GaugeVoter'
+import { GaugeHandler } from '@handlers/gaugeHandler'
 
 const IndexerEventConfig: IIndexerConfig[] = [
   // historical and realtime on startup
@@ -597,6 +599,73 @@ const IndexerEventConfig: IIndexerConfig[] = [
       {
         abi: CapitalDistributor.abi,
         handler: CapitalDistributorHandler.merkleCampaignUpdated,
+      },
+    ],
+  },
+  // Gauge
+  {
+    event: 'GaugeCreated',
+    enableHistorical: false,
+    topic: new Interface(GaugeVoter.abi).getEvent('GaugeCreated')?.topicHash!,
+    config: [
+      {
+        abi: GaugeVoter.abi,
+        handler: GaugeHandler.gaugeCreated,
+      },
+    ],
+  },
+  {
+    event: 'GaugeActivated',
+    enableHistorical: false,
+    topic: new Interface(GaugeVoter.abi).getEvent('GaugeActivated')?.topicHash!,
+    config: [
+      {
+        abi: GaugeVoter.abi,
+        handler: GaugeHandler.gaugeActivated,
+      },
+    ],
+  },
+  {
+    event: 'GaugeDeactivated',
+    enableHistorical: false,
+    topic: new Interface(GaugeVoter.abi).getEvent('GaugeDeactivated')?.topicHash!,
+    config: [
+      {
+        abi: GaugeVoter.abi,
+        handler: GaugeHandler.gaugeDeactivated,
+      },
+    ],
+  },
+  {
+    event: 'GaugeMetadataUpdated',
+    enableHistorical: false,
+    topic: new Interface(GaugeVoter.abi).getEvent('GaugeMetadataUpdated')?.topicHash!,
+    config: [
+      {
+        abi: GaugeVoter.abi,
+        handler: GaugeHandler.gaugeUpdateMetadata,
+      },
+    ],
+  },
+  {
+    event: 'Voted',
+    enableHistorical: false,
+    topic: new Interface(GaugeVoter.abi).getEvent('Voted')?.topicHash!,
+    config: [
+      {
+        abi: GaugeVoter.abi,
+        handler: GaugeHandler.gaugeVoted,
+      },
+    ],
+  },
+  {
+    event: 'Reset',
+    enableHistorical: false,
+    topic: new Interface(GaugeVoter.abi).getEvent('Reset')?.topicHash!,
+    config: [
+      {
+        abi: GaugeVoter.abi,
+        handler: GaugeHandler.gaugeReset,
       },
     ],
   },

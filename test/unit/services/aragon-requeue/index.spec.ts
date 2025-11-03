@@ -380,5 +380,32 @@ describe('AragonRequeue: index', () => {
       expect(loggerVerboseStub.called).to.be.true
       expect(loggerInfoStub.called).to.be.true
     })
+
+    it('should handle errors during document processing', async () => {
+      const dbData = [
+        {
+          id: 'ethereum-mainnet-gauge-ethereum-mainnet-0x69E8D5151d71d4cde35b5076aF3023C7D54d379E',
+          network: 'ethereum-mainnet',
+          service: 'gauge-ethereum-mainnet-0x69E8D5151d71d4cde35b5076aF3023C7D54d379E',
+          lastSync: 22082879,
+        },
+      ]
+
+      await Promise.all(dbData.map(async data => Models.ConfigIndexer.create(data)))
+
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+      const loggerInfoStub = sandbox.stub(logger, 'info').resolves()
+
+      // Make RabbitMQ throw an error to trigger the onError callback
+      const stubRabbitMq = sandbox.stub(RabbitMQHelper, 'sendMessageWithThrottle').rejects(new Error('RabbitMQ error'))
+
+      await AragonReQueueService.start()
+
+      // Verify that the error was logged
+      expect(loggerErrorStub.called).to.be.true
+      expect(loggerErrorStub.calledWith('Error re-queue' as any)).to.be.true
+      expect(loggerInfoStub.called).to.be.true
+      expect(stubRabbitMq.callCount).to.equal(1)
+    })
   })
 })

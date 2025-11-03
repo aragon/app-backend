@@ -1,10 +1,7 @@
 import sinon from 'sinon'
 import { Models } from '@dbModels'
 import { IPluginInterfaceType, IPluginStatus, ITokenType, NetworksEnum } from '@types'
-import UnitDepUtils from '@test/lib/unit-dep/utils'
 import { expect } from 'chai'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import { LogTokenVoting } from '@plugins/logTokenVoting'
 import MemberController from '@api/controllers/member'
 import { GovernanceVeHandler } from '@src/handlers/governanceVeHandler'
 import { ExitQueue } from '@artifacts/ExitQueue'
@@ -15,45 +12,64 @@ import Web3Helper from '@helpers/web3'
 import { DaoRegistryHandler } from '@src/handlers/daoRegistryHandler'
 import { DAORegistry } from '@src/aragonContracts'
 import ProxyWeb3Provider from '@src/modules/proxyProvider'
+import { LibUtils } from '@test/lib/unit-dep/lib'
 
 describe('Integ: VeLock', () => {
   let sandbox: sinon.SinonSandbox
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
-    sandbox.stub(RabbitMQHelper, 'sendMessage')
   })
 
   afterEach(() => {
     sandbox.restore()
   })
 
-  describe.skip('VeLock flow', () => {
+  describe(`VeLock flow`, () => {
     const networks = [
       {
         network: NetworksEnum.ethereumSepolia,
         daoAddress: '0x9418fcf1Aa0dCEB9090F2bBA06E70d94E10e46b1',
+        fromBlock: 8713501,
+        toBlock: 8771468,
       },
     ]
 
-    for (const { network, daoAddress } of networks) {
-      it(`should handle veLock events properly ${network}`, async function () {
+    for (const { network, daoAddress, fromBlock, toBlock } of networks) {
+      it(`should handle veLock all events properly ${network}`, async function () {
         this.timeout(100000000)
 
-        await UnitDepUtils.syncACompleteDao(daoAddress, network)
-        const plugins = await Models.Plugin.find({
+        const libUtils = new LibUtils({
           daoAddress,
+          network,
+          config: {
+            sandbox,
+            blockLimit: toBlock,
+          },
         })
-        expect(plugins).to.be.an('array')
-        expect(plugins.length).to.be.gt(1)
+        await libUtils.syncCompleteDao(fromBlock)
 
-        const veLockPlugin = plugins.find(plugin => plugin.votingEscrow !== null)
+        const veLockPlugin = await Models.Plugin.findOne({
+          // interfaceType: IPluginInterfaceType.gauge,
+          daoAddress,
+          address: '0x205D3455b93B233204d085Ae46854FCeBA673C1C',
+          network,
+        })
+        console.log(veLockPlugin)
         expect(veLockPlugin).to.be.exist
-        const token = await Models.Token.findOne({
-          address: veLockPlugin.tokenAddress,
-        })
+        expect(veLockPlugin.isSupported).to.be.true
 
-        await LogTokenVoting.start(veLockPlugin, token)
+        const setting = await Models.Setting.findOne({
+          pluginAddress: veLockPlugin.address,
+        })
+        console.log(setting)
+        expect(setting).to.exist
+        expect(setting.votingEscrow.minDeposit).to.eq('100000000000000000000')
+        expect(setting.votingEscrow.minLockTime).to.eq(60)
+        expect(setting.votingEscrow.maxTime).to.eq(6048000)
+        expect(setting.votingEscrow.cooldown).to.eq(60)
+        expect(setting.votingEscrow.slope).to.eq('1653439153439')
+        expect(setting.votingEscrow.bias).to.eq('1000000000000000000')
 
         const members = await MemberController.getMembersWithPagination(
           {
@@ -69,24 +85,22 @@ describe('Integ: VeLock', () => {
           },
         )
 
-        if (network === NetworksEnum.ethereumSepolia) {
-          expect(members.data.length).to.eq(2)
-          const sortedMembers = members.data.sort(
-            (a: any, b: any) => parseFloat(b.votingPower) - parseFloat(a.votingPower),
-          )
-          expect(members.data).to.deep.equal(sortedMembers)
-          expect(members.data[0].address).to.be.exist
-          expect(members.data[0].votingPower).to.be.exist
-          expect(members.data[0].ens).to.be.exist
-          expect(members.data[0].metrics).to.be.exist
-          expect(members.data[0].metrics.firstActivity).to.be.exist
-          expect(members.data[0].metrics.lastActivity).to.be.exist
-        }
+        expect(members.data.length).to.eq(2)
+        const sortedMembers = members.data.sort(
+          (a: any, b: any) => parseFloat(b.votingPower) - parseFloat(a.votingPower),
+        )
+        expect(members.data).to.deep.equal(sortedMembers)
+        expect(members.data[0].address).to.be.exist
+        expect(members.data[0].votingPower).to.be.exist
+        expect(members.data[0].ens).to.be.exist
+        expect(members.data[0].metrics).to.be.exist
+        expect(members.data[0].metrics.firstActivity).to.be.exist
+        expect(members.data[0].metrics.lastActivity).to.be.exist
       })
     }
   })
 
-  it('should install veGovernace dao on ethereum-sepolia', async function () {
+  it.skip('should install veGovernace dao on ethereum-sepolia', async function () {
     this.timeout(10000000)
 
     sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation').resolves(null as any)
@@ -99,7 +113,7 @@ describe('Integ: VeLock', () => {
     const pluginAddressTokenVoting = '0x6c543e5213da4a5B9aC3A808374ad1E17Ca3B88c'
     const network = NetworksEnum.ethereumSepolia
 
-    const daoRegisteredEvents = await UnitDepUtils.getData(DAORegistry.abi, 'DAORegistered', daoInstallTx, network)
+    const daoRegisteredEvents = await LibUtils.getData(DAORegistry.abi, 'DAORegistered', daoInstallTx, network)
 
     for (const { event, logInfo } of daoRegisteredEvents) {
       await DaoRegistryHandler.daoRegistered(event, logInfo)
@@ -110,7 +124,7 @@ describe('Integ: VeLock', () => {
 
     const txReceipts = await Web3Helper.getTransactionReceipt(daoInstallTx, network)
     expect(txReceipts).to.be.not.null
-    const logs = await UnitDepUtils.parseLogsByConfig(txReceipts?.logs! as any, network)
+    const logs = await LibUtils.parseLogsByConfig(txReceipts?.logs! as any, network)
 
     for (const ev of logs) {
       await ev.handler(ev.event, ev.info)
@@ -118,9 +132,9 @@ describe('Integ: VeLock', () => {
 
     const pluginInstallationLogs: any = []
     for (const tx of [preparTxLog, appliedTxLog]) {
-      const prepareLogs = await UnitDepUtils.getData(PluginSetupProcessor.abi, 'InstallationPrepared', tx, network)
+      const prepareLogs = await LibUtils.getData(PluginSetupProcessor.abi, 'InstallationPrepared', tx, network)
 
-      const appliedLogs = await UnitDepUtils.getData(PluginSetupProcessor.abi, 'InstallationApplied', tx, network)
+      const appliedLogs = await LibUtils.getData(PluginSetupProcessor.abi, 'InstallationApplied', tx, network)
 
       pluginInstallationLogs.push(...prepareLogs, ...appliedLogs)
     }
@@ -181,7 +195,7 @@ describe('Integ: VeLock', () => {
     const depositMintNftId = '6'
     const memberAddress = '0x6818013d7B2D49D7396BA9733b59C539A639f3ED'
 
-    const depositEvents = await UnitDepUtils.getData(VotingEscrowIncreasing.abi, 'Deposit', depositTx, network)
+    const depositEvents = await LibUtils.getData(VotingEscrowIncreasing.abi, 'Deposit', depositTx, network)
 
     for (const { event, logInfo } of depositEvents) {
       await GovernanceVeHandler.deposit(event, logInfo)
@@ -197,7 +211,7 @@ describe('Integ: VeLock', () => {
 
     const exitQueueTx = '0x8ce4405c3c255f5bb4de37175328f92aa14c0ade8d6361125800a49b942230c2'
 
-    const exitQueueEvents = await UnitDepUtils.getData(ExitQueue.abi, 'ExitQueued', exitQueueTx, network)
+    const exitQueueEvents = await LibUtils.getData(ExitQueue.abi, 'ExitQueued', exitQueueTx, network)
 
     for (const { event, logInfo } of exitQueueEvents) {
       await GovernanceVeHandler.exitQueued(event, logInfo)

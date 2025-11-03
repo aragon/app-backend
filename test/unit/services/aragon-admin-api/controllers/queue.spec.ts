@@ -672,5 +672,69 @@ describe('Controller: QueueAdmin', () => {
 
       expect(result).to.be.false
     })
+
+    it('should return actionsCount as 0 when proposal has no actions array', async () => {
+      const params = {
+        incrementalId: 1,
+        pluginAddress: '0x456',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const pluginStub = {
+        address: '0x456',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const proposalStub = {
+        id: 'proposal123',
+        incrementalId: 1,
+        daoAddress: '0xdao456',
+        network: NetworksEnum.ethereumMainnet,
+        pluginAddress: '0x456',
+        update: sandbox.stub().resolves(true),
+        actions: null, // No actions array
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginStub)
+      sandbox.stub(Models.Proposal, 'findByProposalIncrementalId').resolves(proposalStub)
+
+      const result = await QueueAdminController.recalculateProposalActions(params)
+
+      expect(rabbitMQ.calledOnce).to.be.true
+      expect(result.success).to.be.true
+      expect(result.data.actionsCount).to.equal(0) // Should be 0 due to || 0 operator
+    })
+
+    it('should return actionsCount as 0 when proposal actions array is undefined', async () => {
+      const params = {
+        incrementalId: 1,
+        pluginAddress: '0x456',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const pluginStub = {
+        address: '0x456',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const proposalStub = {
+        id: 'proposal123',
+        incrementalId: 1,
+        daoAddress: '0xdao456',
+        network: NetworksEnum.ethereumMainnet,
+        pluginAddress: '0x456',
+        update: sandbox.stub().resolves(true),
+        // actions: undefined - not setting it at all
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginStub)
+      sandbox.stub(Models.Proposal, 'findByProposalIncrementalId').resolves(proposalStub)
+
+      const result = await QueueAdminController.recalculateProposalActions(params)
+
+      expect(rabbitMQ.calledOnce).to.be.true
+      expect(result.success).to.be.true
+      expect(result.data.actionsCount).to.equal(0) // Should be 0 due to || 0 operator
+    })
   })
 })

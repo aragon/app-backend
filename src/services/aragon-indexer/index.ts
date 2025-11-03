@@ -6,8 +6,6 @@ import configIndexer from '@indexer/configIndexer'
 import utils from '@helpers/utils'
 import { BlockchainLogCrawler } from '@modules/crawlers'
 import { SyncAll } from '@indexer/syncAll'
-
-import { CustomInstall } from '@indexer/customInstall'
 import config from '@config'
 import PoolingCrawler from '@modules/poolingCrawler'
 import { Models } from '@dbModels'
@@ -25,7 +23,6 @@ const AragonIndexerService: IService & { repeaters: any } = {
     logger.info('IndexerService historical started', llo({}))
 
     const networks = NetworkHelper.supportedNetworks()
-    await CustomInstall.install()
 
     await Promise.all(
       networks.map(async ({ networkName }) => {

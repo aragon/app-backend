@@ -253,7 +253,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_POLYGON_MAINNET_ALCHEMY_API_KEY', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_POLYGON_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_MAINNET_FROM_BLOCK', 40830344),
-        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_MAINNET_OFFSET_TO_BLOCK', 0),
+        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_MAINNET_OFFSET_TO_BLOCK', 2),
         POOLING_INTERVAL: utils.configParser(
           sourceConfig,
           'number',

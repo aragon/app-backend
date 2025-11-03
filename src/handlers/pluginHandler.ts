@@ -305,9 +305,12 @@ export const PluginHandler = {
       document.isProcess = true
       document.isBody = false
       document.isSubPlugin = false
-    } else if (document.interfaceType === IPluginInterfaceType.capitalDistributor) {
-      document.isProcess = false
+    } else if (
+      document.interfaceType === IPluginInterfaceType.capitalDistributor ||
+      document.interfaceType === IPluginInterfaceType.gauge
+    ) {
       document.isBody = false
+      document.isProcess = false
       document.isSubPlugin = false
     } else {
       document.isProcess = true
@@ -381,7 +384,10 @@ export const PluginHandler = {
           document.isProcess = true
           document.isBody = false
           document.isSubPlugin = false
-        } else if (document.interfaceType === IPluginInterfaceType.capitalDistributor) {
+        } else if (
+          document.interfaceType === IPluginInterfaceType.capitalDistributor ||
+          document.interfaceType === IPluginInterfaceType.gauge
+        ) {
           document.isProcess = false
           document.isBody = false
           document.isSubPlugin = false
@@ -439,7 +445,7 @@ export const PluginHandler = {
           return
         }
 
-        const document = {
+        const document: Partial<Plugin> = {
           status: IPluginStatus.installed,
           pluginSetupRepoAddress: rawPlugin?.pluginSetupRepoAddress,
         }

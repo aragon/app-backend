@@ -84,6 +84,30 @@ describe('Model: Token', () => {
     expect(createdToken.address).to.eq('0x162433c934aA74ba147E05150B1206b2C922f71d')
   })
 
+  it('Should not update required field with falsy value', async () => {
+    const createdToken = await Models.Token.create(rawToken)
+    const originalNetwork = createdToken.network
+
+    // Try to update required field with null - should not update
+    await createdToken.update({
+      network: null as any,
+    })
+
+    expect(createdToken.network).to.eq(originalNetwork)
+  })
+
+  it('Should skip update when field does not exist in schema', async () => {
+    const createdToken = await Models.Token.create(rawToken)
+
+    // Try to update with non-existent field
+    await createdToken.update({
+      nonExistentField: 'some value',
+    } as any)
+
+    // Should not throw error, just skip the field
+    expect(createdToken).to.exist
+  })
+
   it('Should find Token by address and networks', async () => {
     const createdToken = await Models.Token.create(rawToken)
     const token = await Models.Token.findByTokenAddressAndNetwork(

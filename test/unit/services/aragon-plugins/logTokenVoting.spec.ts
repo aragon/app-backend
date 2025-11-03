@@ -2,15 +2,18 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import logger from '@logger'
 import { LogTokenVoting } from '@plugins/logTokenVoting'
-import { BlockchainLogCrawler } from '@modules/crawlers'
-import { NetworksEnum, ITokenType } from '@types'
+import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { NetworksEnum, ITokenType, IGovernanceErc20Logs } from '@types'
 import { expect } from 'chai'
+import Web3Helper from '@helpers/web3'
+import proxyquire from 'proxyquire'
 
 describe('AragonPlugins: LogTokenVoting', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(Web3Helper, 'getBlockNumber').resolves()
   })
 
   afterEach(() => {
@@ -20,7 +23,6 @@ describe('AragonPlugins: LogTokenVoting', () => {
   describe('start', async () => {
     it('should start veGovernance flow for escrowAdapter token type', async () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
-      const endStub = sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       const verboseStub = sandbox.stub(logger, 'verbose')
 
       const token = {
@@ -47,7 +49,6 @@ describe('AragonPlugins: LogTokenVoting', () => {
 
     it('should start erc20Governance flow for ERC20 token type', async () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
-      const endStub = sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       const verboseStub = sandbox.stub(logger, 'verbose')
 
       const token = {
@@ -118,6 +119,29 @@ describe('AragonPlugins: LogTokenVoting', () => {
     })
 
     it('should return items unchanged when event is not DelegateVotesChanged', async () => {
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      sandbox.stub(logger, 'verbose')
+
+      const token = {
+        address: '0x123',
+        network: NetworksEnum.ethereumSepolia,
+        type: ITokenType.ERC20,
+        blockNumber: 100,
+      } as any
+      const plugin = {
+        address: '0x456',
+        tokenAddress: token.address,
+        network: token.network,
+        blockNumber: 200,
+        interfaceType: 'tokenVoting',
+      } as any
+
+      await LogTokenVoting.erc20Governance(plugin, token)
+
+      expect(crawlStub.calledTwice).to.be.true
+    })
+
+    it('should return items unchanged when plugin has no tokenAddress', async () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
       sandbox.stub(logger, 'verbose')
 
@@ -473,6 +497,162 @@ describe('AragonPlugins: LogTokenVoting', () => {
 
       expect(delegateALog.blockNumber).to.equal(200n)
       expect(delegateBLog.blockNumber).to.equal(300n)
+    })
+
+    it('should properly map config items based on event type', async () => {
+      const mockConfigIndexer = [
+        {
+          event: 'DelegateVotesChanged',
+          config: [{ handler: 'original-handler-1', validator: 'validator-1' }],
+        },
+        {
+          event: 'OtherGovernanceEvent',
+          config: [{ handler: 'original-handler-2', validator: 'validator-2' }],
+        },
+      ]
+
+      let tokenCrawlerConfig: any = null
+      const BlockchainLogCrawlerMock = function (this: any, config: any) {
+        // Capture the second crawler (tokenCrawler) config
+        if (config.address && config.address[0] === '0x456') {
+          tokenCrawlerConfig = config
+        }
+        this.crawl = sandbox.stub().resolves()
+        this.end = sandbox.stub().resolves()
+        this.crawlSetting = { lastSync: 1000 }
+      }
+
+      const GovernanceErc20HandlerMock = {
+        delegateVotesChangedBatch: 'batch-handler',
+      }
+
+      // Mock IGovernanceErc20Logs to have multiple values
+      const mockGovernanceErc20Logs = {
+        DelegateVotesChanged: 'DelegateVotesChanged',
+        OtherGovernanceEvent: 'OtherGovernanceEvent',
+      }
+
+      const LogTokenVotingProxy = proxyquire('@plugins/logTokenVoting', {
+        '@logger': { default: logger },
+        '@indexer/configIndexer': { default: mockConfigIndexer },
+        '@modules/blockchainLogCrawler': { default: BlockchainLogCrawlerMock },
+        '@handlers/governanceErc20Handler': { GovernanceErc20Handler: GovernanceErc20HandlerMock },
+        '@types': {
+          IGovernanceErc20Logs: mockGovernanceErc20Logs,
+          NetworksEnum: NetworksEnum,
+          ITokenType: ITokenType,
+        },
+      }).LogTokenVoting
+
+      sandbox.stub(logger, 'verbose')
+
+      const pluginStub = {
+        address: '0x123',
+        tokenAddress: '0x456',
+        network: NetworksEnum.ethereumSepolia,
+        blockNumber: 100,
+        interfaceType: 'tokenVoting',
+      } as any
+
+      const tokenStub = {
+        address: '0x456',
+        blockNumber: 200,
+        network: NetworksEnum.ethereumSepolia,
+        type: ITokenType.ERC20,
+      } as any
+
+      await LogTokenVotingProxy.erc20Governance(pluginStub, tokenStub)
+
+      // Verify tokenCrawler config was captured
+      expect(tokenCrawlerConfig).to.not.be.null
+      expect(tokenCrawlerConfig.events).to.have.length(2)
+
+      // Find the DelegateVotesChanged event - should have modified handler
+      const delegateVotesChangedEvent = tokenCrawlerConfig.events.find((e: any) => e.event === 'DelegateVotesChanged')
+      expect(delegateVotesChangedEvent).to.exist
+      expect(delegateVotesChangedEvent.config[0].handler).to.equal('batch-handler')
+
+      const otherEvent = tokenCrawlerConfig.events.find((e: any) => e.event === 'OtherGovernanceEvent')
+      expect(otherEvent).to.exist
+      expect(otherEvent.config[0].handler).to.equal('original-handler-2')
+    })
+
+    it('should execute filterLogs function with various log scenarios', async () => {
+      let capturedFilterLogs: any = null
+      const BlockchainLogCrawlerMock = function (this: any, config: any) {
+        // Capture filterLogs from tokenCrawler (second crawler)
+        if (config.filterLogs && config.address && config.address[0] === '0x456') {
+          capturedFilterLogs = config.filterLogs
+        }
+        this.crawl = sandbox.stub().resolves()
+        this.end = sandbox.stub().resolves()
+        this.crawlSetting = { lastSync: 1000 }
+      }
+
+      const mockConfigIndexer = [
+        {
+          event: IGovernanceErc20Logs.DelegateVotesChanged,
+          config: [{ handler: 'handler', validator: 'validator' }],
+        },
+      ]
+
+      const LogTokenVotingProxy = proxyquire('@plugins/logTokenVoting', {
+        '@logger': { default: logger },
+        '@indexer/configIndexer': { default: mockConfigIndexer },
+        '@modules/blockchainLogCrawler': { default: BlockchainLogCrawlerMock },
+      }).LogTokenVoting
+
+      const verboseStub = sandbox.stub(logger, 'verbose')
+
+      const pluginStub = {
+        address: '0x123',
+        tokenAddress: '0x456',
+        network: NetworksEnum.ethereumSepolia,
+        blockNumber: 100,
+        interfaceType: 'tokenVoting',
+      } as any
+
+      const tokenStub = {
+        address: '0x456',
+        blockNumber: 200,
+        network: NetworksEnum.ethereumSepolia,
+        type: ITokenType.ERC20,
+      } as any
+
+      await LogTokenVotingProxy.erc20Governance(pluginStub, tokenStub)
+
+      expect(capturedFilterLogs).to.not.be.null
+
+      const emptyResult = await capturedFilterLogs([])
+      expect(emptyResult).to.deep.equal([])
+
+      const logsWithDuplicates = [
+        { topics: ['0xevent', '0xdelegate1'], blockNumber: 100n },
+        { topics: ['0xevent', '0xdelegate2'], blockNumber: 101n },
+        { topics: ['0xevent', '0xdelegate1'], blockNumber: 102n }, // duplicate, higher block
+        { topics: ['0xevent', '0xdelegate3'], blockNumber: 103n },
+        { topics: ['0xevent', '0xdelegate2'], blockNumber: 99n }, // duplicate, lower block
+      ]
+
+      const filteredResult = await capturedFilterLogs(logsWithDuplicates)
+
+      // Should keep highest block numbers for each delegate
+      expect(filteredResult).to.have.length(3)
+      expect(filteredResult[0].topics[1]).to.equal('0xdelegate3') // block 103
+      expect(filteredResult[1].topics[1]).to.equal('0xdelegate1') // block 102 (not 100)
+      expect(filteredResult[2].topics[1]).to.equal('0xdelegate2') // block 101 (not 99)
+
+      expect(verboseStub.calledWith('Filtered DelegateVotesChanged logs' as any)).to.be.true
+
+      // Test 3: Single log (no duplicates)
+      verboseStub.resetHistory()
+      const singleLog = [{ topics: ['0xevent', '0xdelegate1'], blockNumber: 100n }]
+      const singleResult = await capturedFilterLogs(singleLog)
+      expect(singleResult).to.have.length(1)
+      expect(singleResult[0].topics[1]).to.equal('0xdelegate1')
+
+      // Verify logging for single log
+      expect(verboseStub.calledWith('Filtered DelegateVotesChanged logs' as any)).to.be.true
     })
   })
 

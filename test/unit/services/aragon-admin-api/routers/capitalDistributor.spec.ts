@@ -288,6 +288,85 @@ describe('Router: CapitalDistributorAdmin', () => {
     })
   })
 
+  describe('getMerkleSyncStatus', () => {
+    it('should validate params and call controller to get merkle sync status', async () => {
+      const mockCtx = {
+        params: {
+          campaignId: 'campaign1',
+          pluginAddress: '0x123',
+          network: 'ethereumMainnet',
+        },
+        body: null,
+      }
+
+      const formattedParams = {
+        campaignId: 'campaign1',
+        pluginAddress: '0x123',
+        network: 'ethereumMainnet',
+      }
+
+      const controllerResult = {
+        status: 'completed',
+        progress: 100,
+        totalMembers: 150,
+        processedMembers: 150,
+        merkleRoot: '0xabc123',
+      }
+
+      sandbox.stub(ValidationSchema, 'validateParams').resolves(formattedParams)
+      sandbox.stub(CapitalDistributorAdminController, 'getMerkleGenerationStatus').resolves(controllerResult as any)
+
+      await CapitalDistributorAdminRouter.getMerkleSyncStatus(mockCtx as any)
+
+      expect(mockCtx.body).to.deep.equal(controllerResult)
+    })
+
+    it('should handle validation errors for getMerkleSyncStatus', async () => {
+      const mockCtx = {
+        params: {
+          campaignId: '',
+          pluginAddress: '0x123',
+          network: 'ethereumMainnet',
+        },
+        body: null,
+      }
+
+      const validationError = new Error('Invalid campaign ID')
+      sandbox.stub(ValidationSchema, 'validateParams').throws(validationError)
+
+      await expect(CapitalDistributorAdminRouter.getMerkleSyncStatus(mockCtx as any)).to.be.rejectedWith(
+        Error,
+        'Invalid campaign ID',
+      )
+    })
+
+    it('should handle controller errors for getMerkleSyncStatus', async () => {
+      const mockCtx = {
+        params: {
+          campaignId: 'campaign1',
+          pluginAddress: '0x123',
+          network: 'ethereumMainnet',
+        },
+        body: null,
+      }
+
+      const formattedParams = {
+        campaignId: 'campaign1',
+        pluginAddress: '0x123',
+        network: 'ethereumMainnet',
+      }
+
+      const controllerError = new Error('Merkle generation not started')
+      sandbox.stub(ValidationSchema, 'validateParams').resolves(formattedParams)
+      sandbox.stub(CapitalDistributorAdminController, 'getMerkleGenerationStatus').rejects(controllerError)
+
+      await expect(CapitalDistributorAdminRouter.getMerkleSyncStatus(mockCtx as any)).to.be.rejectedWith(
+        Error,
+        'Merkle generation not started',
+      )
+    })
+  })
+
   describe('router', () => {
     it('should create router with correct routes', () => {
       const router = CapitalDistributorAdminRouter.router()

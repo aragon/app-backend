@@ -70,6 +70,30 @@ describe('Model: ConfigIndexer', () => {
     expect(createdConfigIndexer.lastSync).to.eq(11)
   })
 
+  it('Should not update required field with falsy value', async () => {
+    const createdConfigIndexer = await Models.ConfigIndexer.create(rawConfigIndexer)
+    const originalService = createdConfigIndexer.service
+
+    // Try to update required field with null - should not update
+    await createdConfigIndexer.update({
+      service: null as any,
+    })
+
+    expect(createdConfigIndexer.service).to.eq(originalService)
+  })
+
+  it('Should skip update when field does not exist in schema', async () => {
+    const createdConfigIndexer = await Models.ConfigIndexer.create(rawConfigIndexer)
+
+    // Try to update with non-existent field
+    await createdConfigIndexer.update({
+      nonExistentField: 'some value',
+    } as any)
+
+    // Should not throw error, just skip the field
+    expect(createdConfigIndexer).to.exist
+  })
+
   it('Should reload', async () => {
     const createdConfigIndexer = await Models.ConfigIndexer.create(rawConfigIndexer)
     await createdConfigIndexer.reload()

@@ -232,9 +232,23 @@ export interface IAggPluginMetricsParams {
   network: string
 }
 
+export interface IAggGaugeMetricsParams {
+  gaugeAddress: string
+  network: string
+  epochId?: string
+  pluginAddress?: string
+}
+
 export interface IAggPluginMetricsProjectFields {
   voteCount?: 1
   proposalCount?: 1
   lastActivity?: 1
   firstActivity?: 1
+}
+
+export interface IAggGaugeMetricsProjectFields {
+  totalMemberVoteCount: 1
+  currentEpochVotingPower: 1
+  totalGaugeVotingPower: 1
+  epochId: 1
 }

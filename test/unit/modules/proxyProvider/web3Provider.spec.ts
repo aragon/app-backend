@@ -781,11 +781,9 @@ describe('Web3Provider', () => {
       // Ankr returns null
       const ankrStub = sandbox.stub(AnkrHelper, 'getTokenHoldersCount').resolves(null)
 
-      // BlockScout returns zeros (line 172: blockScoutAvailable = false)
       const blockScoutStats = { holders: 0, transfers: 0 }
       const blockScoutStub = sandbox.stub(BlockScoutHelper, 'getTokenCounters').resolves(blockScoutStats)
 
-      // Covalent returns zero holders (line 178: covalentAvailable = false)
       const covalentStats = { totalHolders: 0, totalSupply: '0' }
       const covalentStub = sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves(covalentStats)
 

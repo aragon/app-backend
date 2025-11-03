@@ -755,6 +755,31 @@ describe('Controller: Dao', () => {
 
       expect(result).to.deep.equal(['0xDao1', '0xDao2'])
     })
+
+    it('should return empty array when all grouped networks have empty address arrays', async () => {
+      const memberAddress = '0xMemberAddress'
+      const networkFilter = {}
+
+      // Return data but with null/undefined addresses that will be filtered by groupByNetwork
+      const tokenMembersWithBadData = [
+        { tokenAddress: null, network: NetworksEnum.ethereumMainnet },
+        { tokenAddress: undefined, network: NetworksEnum.polygonMainnet },
+      ]
+
+      sandbox.stub(Models.TokenMember, 'aggregate').resolves(tokenMembersWithBadData as any)
+      sandbox.stub(Models.Lock, 'aggregate').resolves([])
+      sandbox.stub(Models.LockToVoteMember, 'aggregate').resolves([])
+      sandbox.stub(Models.PluginMember, 'aggregate').resolves([])
+
+      const stubPluginDistinct = sandbox.stub(Models.Plugin, 'distinct')
+
+      const result = await DaoController.getDaosOfMemberInNetwork(memberAddress, networkFilter)
+
+      // Should return empty array because groupByNetwork filters out null/undefined addresses
+      // and orQueries.length === 0 after processing
+      expect(stubPluginDistinct.called).to.be.false
+      expect(result).to.deep.equal([])
+    })
   })
 
   describe('groupByNetwork', () => {

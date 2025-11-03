@@ -793,6 +793,117 @@ describe('AragonDao: memberInfo', () => {
       expect(pluginStub.calledOnce).to.be.true
       expect(result).to.be.false
     })
+
+    it('should return false for lockToVote when both votingPower and requiredVotingPower are 0', async () => {
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: '0xLockManagerAddress',
+        proposalCreationConditionAddress: '0xConditionAddress',
+      } as any)
+
+      const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
+
+      const getLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves('0')
+      const getRequiredVotingPowerStub = sandbox
+        .stub(LockToVoteHelper, 'getRequiredVotingPowerForProposal')
+        .resolves('0')
+
+      const result = await MemberInfo.canCreateProposal(
+        '0xPluginAddress',
+        '0xMemberAddress',
+        NetworksEnum.ethereumSepolia,
+      )
+
+      expect(pluginStub.calledOnce).to.be.true
+      expect(settingsStub.calledOnce).to.be.true
+      expect(getLockedBalanceStub.calledOnce).to.be.true
+      expect(getRequiredVotingPowerStub.calledOnce).to.be.true
+      expect(result).to.be.false
+    })
+
+    it('should return false for lockToVote when votingPower is null', async () => {
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: '0xLockManagerAddress',
+        proposalCreationConditionAddress: '0xConditionAddress',
+      } as any)
+
+      const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
+
+      const getLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves(null)
+      const getRequiredVotingPowerStub = sandbox
+        .stub(LockToVoteHelper, 'getRequiredVotingPowerForProposal')
+        .resolves('100')
+
+      const result = await MemberInfo.canCreateProposal(
+        '0xPluginAddress',
+        '0xMemberAddress',
+        NetworksEnum.ethereumSepolia,
+      )
+
+      expect(pluginStub.calledOnce).to.be.true
+      expect(settingsStub.calledOnce).to.be.true
+      expect(getLockedBalanceStub.calledOnce).to.be.true
+      expect(getRequiredVotingPowerStub.calledOnce).to.be.true
+      expect(result).to.be.false
+    })
+
+    it('should return false for lockToVote when requiredVotingPower is null', async () => {
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: '0xLockManagerAddress',
+        proposalCreationConditionAddress: '0xConditionAddress',
+      } as any)
+
+      const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
+
+      const getLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves('100')
+      const getRequiredVotingPowerStub = sandbox
+        .stub(LockToVoteHelper, 'getRequiredVotingPowerForProposal')
+        .resolves(null)
+
+      const result = await MemberInfo.canCreateProposal(
+        '0xPluginAddress',
+        '0xMemberAddress',
+        NetworksEnum.ethereumSepolia,
+      )
+
+      expect(pluginStub.calledOnce).to.be.true
+      expect(settingsStub.calledOnce).to.be.true
+      expect(getLockedBalanceStub.calledOnce).to.be.true
+      expect(getRequiredVotingPowerStub.calledOnce).to.be.true
+      expect(result).to.be.false
+    })
+
+    it('should return false for multisig when settings is null', async () => {
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xDaoAddress',
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.multisig,
+      } as any)
+
+      const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves(null)
+
+      const result = await MemberInfo.canCreateProposal(
+        '0xPluginAddress',
+        '0xMemberAddress',
+        NetworksEnum.ethereumSepolia,
+      )
+
+      expect(pluginStub.calledOnce).to.be.true
+      expect(settingsStub.calledOnce).to.be.true
+      expect(result).to.be.false
+    })
   })
 
   describe('getVotingPower', () => {
@@ -902,6 +1013,35 @@ describe('AragonDao: memberInfo', () => {
       const web3BatchHelperStub = sandbox
         .stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch')
         .rejects(new Error('Test error'))
+
+      const result = await MemberInfo.getLockVotingPowerBatch(locks)
+
+      expect(web3BatchHelperStub.calledOnce).to.be.true
+      expect(result).to.deep.equal([
+        { tokenId: 'token1', votingPower: '0' },
+        { tokenId: 'token2', votingPower: '0' },
+      ])
+    })
+
+    it('should return zero voting power when results is null or not an array', async () => {
+      const locks = [
+        {
+          lockId: 'lock1',
+          tokenId: 'token1',
+          escrowAddress: '0xEscrowAddress1',
+          timestamp: 123456,
+          network: NetworksEnum.ethereumSepolia,
+        },
+        {
+          lockId: 'lock2',
+          tokenId: 'token2',
+          escrowAddress: '0xEscrowAddress2',
+          timestamp: 123457,
+          network: NetworksEnum.ethereumSepolia,
+        },
+      ]
+
+      const web3BatchHelperStub = sandbox.stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch').resolves(null as any)
 
       const result = await MemberInfo.getLockVotingPowerBatch(locks)
 

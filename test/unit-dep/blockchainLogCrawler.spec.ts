@@ -1,25 +1,25 @@
-import { expect } from 'chai'
+import PoolingCrawler from '@modules/poolingCrawler'
 import { SinonSandbox } from 'sinon'
-import UnitDepUtils from '@test/lib/unit-dep/utils'
 import * as sinon from 'sinon'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import config from '@config'
+import utils from '@helpers/utils'
 import logger from '@logger'
+import { TaskSchedulerState } from '@state/taskSchedulerState'
 import ConfigIndexerHelper from '@helpers/configIndexer'
 import { IGovernanceErc20Logs, type IIndexerConfig, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import { BlockchainLogCrawler } from '@modules/crawlers'
 import configIndexer from '@indexer/configIndexer'
 import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
-import PoolingCrawler from '@modules/poolingCrawler'
-import config from '@config'
-import utils from '@helpers/utils'
-import { TaskSchedulerState } from '@state/taskSchedulerState'
+import { LibUtils } from '@test/lib/unit-dep/lib'
 
 describe.skip('Integ: BlockchainLogCrawler', () => {
   let sandbox: SinonSandbox
+  const network = NetworksEnum.arbitrumMainnet
 
   before(async () => {
-    await UnitDepUtils.registerPluginRepos()
+    await LibUtils.registerPluginRepos(network)
   })
 
   beforeEach(() => {
@@ -38,7 +38,7 @@ describe.skip('Integ: BlockchainLogCrawler', () => {
       transactionHash: '0xa60f066b6f34fd6bbd5a77e7a5c22b4165efd819a860c49ee8b5b4435f66c8dc',
       blockNumber: 331489081,
       blockTimestamp: 1745942228,
-      network: 'arbitrum-mainnet',
+      network,
       address: '0xdf7D3741a21dD3201690C18C731AE734cC5fb400',
       implementationAddress: '0xf52F568f41D2b337a2A949d7898BBa2fe077e941',
       interfaceType: 'tokenVoting',
@@ -70,7 +70,7 @@ describe.skip('Integ: BlockchainLogCrawler', () => {
     })
     const token = await Models.Token.create({
       id: '0x912CE59144191C1204E64559FE8253a0e49E6548-arbitrum-mainnet',
-      network: 'arbitrum-mainnet',
+      network,
       transactionHash: '0x9cdbb4672b549c26d97cac29f9cd73c1951656e0622ba4b9ed0abff2ee58698d',
       blockNumber: 70398215,
       type: 'ERC20',
@@ -101,7 +101,6 @@ describe.skip('Integ: BlockchainLogCrawler', () => {
       clockMode: 'blocknumber',
     })
 
-    const networkName = NetworksEnum.arbitrumMainnet
     const startTime = Date.now()
 
     logger.verbose('Start Token Sync', { startTime })
@@ -133,7 +132,7 @@ describe.skip('Integ: BlockchainLogCrawler', () => {
         batchSize: 1000,
         autoScale: true,
       },
-      network: networkName,
+      network,
       events: [...configGovLogs],
       address: [token.address],
       fromBlock: token?.blockNumber || plugin?.blockNumber,
@@ -160,7 +159,7 @@ describe.skip('Integ: BlockchainLogCrawler', () => {
       transactionHash: '0x6796a9641df93d7902c073eaa8b45019c27e53fb3872f761a2d0a3005da4cd41',
       blockNumber: 40941779,
       blockTimestamp: 1680186182,
-      network: 'polygon-mainnet',
+      network: NetworksEnum.polygonMainnet,
       address: '0x9d5586b4B048Ba9fa847Ae5F169352dc080b3eb3',
       implementationAddress: '0x8725b5f8247a0db0A5c6D86Db6Fb7A98F2Bd27f5',
       interfaceType: 'tokenVoting',
@@ -196,7 +195,7 @@ describe.skip('Integ: BlockchainLogCrawler', () => {
     })
     const token = await Models.Token.create({
       id: '0x613ef3f5959688c3b422A545906F844b6f8c8F35-polygon-mainnet',
-      network: 'polygon-mainnet',
+      network: NetworksEnum.polygonMainnet,
       transactionHash: '0x6796a9641df93d7902c073eaa8b45019c27e53fb3872f761a2d0a3005da4cd41',
       blockNumber: 40941779,
       type: 'ERC20',
@@ -232,14 +231,9 @@ describe.skip('Integ: BlockchainLogCrawler', () => {
 
     logger.verbose('Start Token Sync', { startTime })
 
-    // const configGovLogs = configIndexer.filter((item: IIndexerConfig) =>
-    //   Object.values(IGovernanceErc20Logs).includes(item.event as any),
-    // )
-
     const configGovLogs = configIndexer
       .filter((item: IIndexerConfig) => Object.values(IGovernanceErc20Logs).includes(item.event as any))
       .map((item: IIndexerConfig) => {
-        // Override the handler for DelegateVotesChanged to use batch handler
         if (item.event === IGovernanceErc20Logs.DelegateVotesChanged) {
           return {
             ...item,
@@ -286,7 +280,7 @@ describe.skip('Integ: BlockchainLogCrawler', () => {
       transactionHash: '0xa60f066b6f34fd6bbd5a77e7a5c22b4165efd819a860c49ee8b5b4435f66c8dc',
       blockNumber: 331489081,
       blockTimestamp: 1745942228,
-      network: 'arbitrum-mainnet',
+      network,
       address: '0xdf7D3741a21dD3201690C18C731AE734cC5fb400',
       implementationAddress: '0xf52F568f41D2b337a2A949d7898BBa2fe077e941',
       interfaceType: 'tokenVoting',
@@ -318,7 +312,7 @@ describe.skip('Integ: BlockchainLogCrawler', () => {
     })
     const token = await Models.Token.create({
       id: '0x912CE59144191C1204E64559FE8253a0e49E6548-arbitrum-mainnet',
-      network: 'arbitrum-mainnet',
+      network,
       transactionHash: '0x9cdbb4672b549c26d97cac29f9cd73c1951656e0622ba4b9ed0abff2ee58698d',
       blockNumber: 70398215,
       type: 'ERC20',
@@ -349,7 +343,6 @@ describe.skip('Integ: BlockchainLogCrawler', () => {
       clockMode: 'blocknumber',
     })
 
-    const networkName = NetworksEnum.arbitrumMainnet
     const startTime = Date.now()
 
     logger.verbose('Start Token Sync', { startTime })
@@ -363,7 +356,7 @@ describe.skip('Integ: BlockchainLogCrawler', () => {
         enable: true,
         autoScale: true,
       },
-      network: networkName,
+      network,
       events: [...configGovLogs],
       address: [token.address],
       fromBlock: token?.blockNumber || plugin?.blockNumber,
@@ -390,7 +383,7 @@ describe.skip('Integ: BlockchainLogCrawler', () => {
       transactionHash: '0xa60f066b6f34fd6bbd5a77e7a5c22b4165efd819a860c49ee8b5b4435f66c8dc',
       blockNumber: 331489081,
       blockTimestamp: 1745942228,
-      network: 'arbitrum-mainnet',
+      network,
       address: '0xdf7D3741a21dD3201690C18C731AE734cC5fb400',
       implementationAddress: '0xf52F568f41D2b337a2A949d7898BBa2fe077e941',
       interfaceType: 'tokenVoting',
@@ -422,7 +415,7 @@ describe.skip('Integ: BlockchainLogCrawler', () => {
     })
     const token = await Models.Token.create({
       id: '0x912CE59144191C1204E64559FE8253a0e49E6548-arbitrum-mainnet',
-      network: 'arbitrum-mainnet',
+      network,
       transactionHash: '0x9cdbb4672b549c26d97cac29f9cd73c1951656e0622ba4b9ed0abff2ee58698d',
       blockNumber: 70398215,
       type: 'ERC20',
@@ -453,7 +446,6 @@ describe.skip('Integ: BlockchainLogCrawler', () => {
       clockMode: 'blocknumber',
     })
 
-    const networkName = NetworksEnum.arbitrumMainnet
     const startTime = Date.now()
 
     logger.verbose('Start Token Sync', { startTime })
@@ -464,7 +456,7 @@ describe.skip('Integ: BlockchainLogCrawler', () => {
 
     const tokenCrawler = new BlockchainLogCrawler({
       parallel: false, // Disable parallel processing for standard/sequential mode
-      network: networkName,
+      network,
       events: [...configGovLogs],
       address: [token.address],
       fromBlock: token?.blockNumber || plugin?.blockNumber,
@@ -483,15 +475,15 @@ describe.skip('Integ: BlockchainLogCrawler', () => {
     })
   })
 
-  it('should install ERC20 governance dao on arbitrum-mainnet + proposal and totalSupply', async function () {
-    this.timeout(10000000) // 10000 seconds for stress test
+  it('should install ERC20 governance dao on ARB + proposal and totalSupply', async function () {
+    this.timeout(10000000)
 
     await Models.Plugin.create({
       id: 'arbitrum-mainnet-0xa60f066b6f34fd6bbd5a77e7a5c22b4165efd819a860c49ee8b5b4435f66c8dc-0xdf7D3741a21dD3201690C18C731AE734cC5fb400',
       transactionHash: '0xa60f066b6f34fd6bbd5a77e7a5c22b4165efd819a860c49ee8b5b4435f66c8dc',
       blockNumber: 331489081,
       blockTimestamp: 1745942228,
-      network: 'arbitrum-mainnet',
+      network,
       address: '0xdf7D3741a21dD3201690C18C731AE734cC5fb400',
       implementationAddress: '0xf52F568f41D2b337a2A949d7898BBa2fe077e941',
       interfaceType: 'tokenVoting',
@@ -523,7 +515,7 @@ describe.skip('Integ: BlockchainLogCrawler', () => {
     })
     await Models.Token.create({
       id: '0x912CE59144191C1204E64559FE8253a0e49E6548-arbitrum-mainnet',
-      network: 'arbitrum-mainnet',
+      network,
       transactionHash: '0x9cdbb4672b549c26d97cac29f9cd73c1951656e0622ba4b9ed0abff2ee58698d',
       blockNumber: 70398215,
       type: 'ERC20',
