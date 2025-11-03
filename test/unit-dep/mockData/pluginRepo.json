@@ -193,5 +193,95 @@
       "subdomain": "spp",
       "pluginRepo": "0x2784e9500f8f60C1267e819f216682a88A37d56D"
     }
+  ],
+  "zksync-mainnet": [
+    {
+      "id": "zksync-mainnet-0xdd9f906a3ddc400ff6d8f353c3f8540703ec1d93f46ee22a27c50988843ff033-5-41",
+      "transactionHash": "0xdd9f906a3ddc400ff6d8f353c3f8540703ec1d93f46ee22a27c50988843ff033",
+      "transactionIndex": 5,
+      "logIndex": 41,
+      "blockNumber": 37460864,
+      "blockTimestamp": 1719312914,
+      "network": "zksync-mainnet",
+      "subdomain": "token-voting",
+      "pluginRepo": "0xE8F4C59f83CeE31A867E61c9959533A6e95ebCB3"
+    },
+    {
+      "id": "zksync-mainnet-0xd4f1a80e036298cb47c6af4e3f51ece4b7e56f7acda6d9b6b19f261b1fefd2c2-3-24",
+      "transactionHash": "0xd4f1a80e036298cb47c6af4e3f51ece4b7e56f7acda6d9b6b19f261b1fefd2c2",
+      "transactionIndex": 3,
+      "logIndex": 24,
+      "blockNumber": 57482711,
+      "blockTimestamp": 1741699856,
+      "network": "zksync-mainnet",
+      "subdomain": "spp",
+      "pluginRepo": "0xE294451cB4B7aA4a8136dA6474b8b4C6C5a69973"
+    },
+    {
+      "id": "zksync-mainnet-0x415f57dda3267adff7abb6aeb5fbd2a16a74ad0b0794853e17adb16e89c1074a-1-15",
+      "transactionHash": "0x415f57dda3267adff7abb6aeb5fbd2a16a74ad0b0794853e17adb16e89c1074a",
+      "transactionIndex": 1,
+      "logIndex": 15,
+      "blockNumber": 57479660,
+      "blockTimestamp": 1741695616,
+      "network": "zksync-mainnet",
+      "subdomain": "admin",
+      "pluginRepo": "0x2BAb29B3483F8972f6112c68a4076e79c3035E02"
+    },
+    {
+      "id": "zksync-mainnet-0xdb4438278e5fe751dcf0eb67e9b389d9439369e18d0cb0d519cd6c0c4b3da848-5-35",
+      "transactionHash": "0xdb4438278e5fe751dcf0eb67e9b389d9439369e18d0cb0d519cd6c0c4b3da848",
+      "transactionIndex": 5,
+      "logIndex": 35,
+      "blockNumber": 37460877,
+      "blockTimestamp": 1719312927,
+      "network": "zksync-mainnet",
+      "subdomain": "multisig",
+      "pluginRepo": "0x83f88d380073c8F929fAB649F3d016649c101D3A"
+    },
+    {
+      "id": "zksync-mainnet-0x61be5972a637e4699760d9a6b5cd0e5e4656a6fc647c6e2953c7f78b27e4fa72-3-26",
+      "transactionHash": "0x61be5972a637e4699760d9a6b5cd0e5e4656a6fc647c6e2953c7f78b27e4fa72",
+      "transactionIndex": 3,
+      "logIndex": 26,
+      "blockNumber": 37460851,
+      "blockTimestamp": 1719312901,
+      "network": "zksync-mainnet",
+      "subdomain": "address-list-voting",
+      "pluginRepo": "0x5BC82E4473e01f57716FC7f1361d424B54968e17"
+    },
+    {
+      "id": "zksync-mainnet-0x92d87c97d524a437b258fefbcbf178e00d1ce084d2859eecaa1a90857a9a4fe9-0-11",
+      "transactionHash": "0x92d87c97d524a437b258fefbcbf178e00d1ce084d2859eecaa1a90857a9a4fe9",
+      "transactionIndex": 0,
+      "logIndex": 11,
+      "blockNumber": 64700216,
+      "blockTimestamp": 1758018140,
+      "network": "zksync-mainnet",
+      "subdomain": "lock-to-vote-plugin-1758017859",
+      "pluginRepo": "0xe56CBcFD89cdd5Abc42F081c9567A2C2d52580d3"
+    },
+    {
+      "id": "zksync-mainnet-0x4b4358cf012121b8ac37f0162cb80e6076cdf7d71900c53d2ea3b14b99651601-2-20",
+      "transactionHash": "0x4b4358cf012121b8ac37f0162cb80e6076cdf7d71900c53d2ea3b14b99651601",
+      "transactionIndex": 2,
+      "logIndex": 20,
+      "blockNumber": 64700397,
+      "blockTimestamp": 1758018636,
+      "network": "zksync-mainnet",
+      "subdomain": "lock-to-vote-plugin-1758018514",
+      "pluginRepo": "0x7A968405a1Ff873Ca3E35ff5eFce51ef2E35b9Cd"
+    },
+    {
+      "id": "zksync-mainnet-0xb3aaec67289bdce638a0c57eb6f98cfb56d1b06c14b1f0694351a197ec7eacd0-0-11",
+      "transactionHash": "0xb3aaec67289bdce638a0c57eb6f98cfb56d1b06c14b1f0694351a197ec7eacd0",
+      "transactionIndex": 0,
+      "logIndex": 11,
+      "blockNumber": 64700595,
+      "blockTimestamp": 1758019181,
+      "network": "zksync-mainnet",
+      "subdomain": "lock-2-vote",
+      "pluginRepo": "0xd0f0Bc285F4D27417ECd8C027BB6746690ba72b2"
+    }
   ]
 }
