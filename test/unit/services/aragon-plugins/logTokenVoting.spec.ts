@@ -514,7 +514,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
       let tokenCrawlerConfig: any = null
       let crawlerCount = 0
       const BlockchainLogCrawlerMock = function (this: any, config: any) {
-        // Capture the second crawler (tokenCrawler) config
+        // Capture the second crawler (tokenCrawler)
         crawlerCount++
         if (crawlerCount === 2) {
           tokenCrawlerConfig = config
@@ -537,7 +537,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
       const LogTokenVotingProxy = proxyquire('@plugins/logTokenVoting', {
         '@logger': { default: logger },
         '@indexer/configIndexer': { default: mockConfigIndexer },
-        '@modules/blockchainLogCrawler': { default: BlockchainLogCrawlerMock },
+        '@modules/crawlers': { BlockchainLogCrawler: BlockchainLogCrawlerMock },
         '@handlers/governanceErc20Handler': { GovernanceErc20Handler: GovernanceErc20HandlerMock },
         '@types': {
           IGovernanceErc20Logs: mockGovernanceErc20Logs,
@@ -583,7 +583,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
       let capturedFilterLogs: any = null
       let crawlerCount = 0
       const BlockchainLogCrawlerMock = function (this: any, config: any) {
-        // Capture filterLogs from tokenCrawler (second crawler)
+        // Capture filterLogs from second crawler (tokenCrawler)
         crawlerCount++
         if (crawlerCount === 2 && config.filterLogs) {
           capturedFilterLogs = config.filterLogs
@@ -603,7 +603,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
       const LogTokenVotingProxy = proxyquire('@plugins/logTokenVoting', {
         '@logger': { default: logger },
         '@indexer/configIndexer': { default: mockConfigIndexer },
-        '@modules/blockchainLogCrawler': { default: BlockchainLogCrawlerMock },
+        '@modules/crawlers': { BlockchainLogCrawler: BlockchainLogCrawlerMock },
       }).LogTokenVoting
 
       const verboseStub = sandbox.stub(logger, 'verbose')
