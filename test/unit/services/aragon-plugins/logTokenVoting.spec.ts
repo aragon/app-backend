@@ -512,9 +512,11 @@ describe('AragonPlugins: LogTokenVoting', () => {
       ]
 
       let tokenCrawlerConfig: any = null
+      let crawlerCount = 0
       const BlockchainLogCrawlerMock = function (this: any, config: any) {
         // Capture the second crawler (tokenCrawler) config
-        if (config.address && config.address[0] === '0x456') {
+        crawlerCount++
+        if (crawlerCount === 2) {
           tokenCrawlerConfig = config
         }
         this.crawl = sandbox.stub().resolves()
@@ -579,9 +581,11 @@ describe('AragonPlugins: LogTokenVoting', () => {
 
     it('should execute filterLogs function with various log scenarios', async () => {
       let capturedFilterLogs: any = null
+      let crawlerCount = 0
       const BlockchainLogCrawlerMock = function (this: any, config: any) {
         // Capture filterLogs from tokenCrawler (second crawler)
-        if (config.filterLogs && config.address && config.address[0] === '0x456') {
+        crawlerCount++
+        if (crawlerCount === 2 && config.filterLogs) {
           capturedFilterLogs = config.filterLogs
         }
         this.crawl = sandbox.stub().resolves()

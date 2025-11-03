@@ -397,12 +397,25 @@ describe('ChilizProvider', () => {
       // Arrange
       const address = '0xtoken'
       const network = NetworksEnum.chilizMainnet
+      const mockTokenResponse = {
+        message: 'OK',
+        result: {
+          name: 'Test NFT',
+          symbol: 'TNFT',
+          decimals: 0,
+          type: 'ERC-721',
+          totalSupply: '100',
+        },
+      }
+
+      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(mockTokenResponse)
 
       // Act
       const result = await ChilizProvider.fetchBasicTokenInfo({ address, network })
 
       // Assert
-      expect(result.type).to.equal(ITokenType.ERC721) // Lines 154-155
+      expect(rpcCallStub.calledOnce).to.be.true
+      expect(result.type).to.equal(ITokenType.ERC721)
     })
   })
 

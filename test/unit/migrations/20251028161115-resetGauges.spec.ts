@@ -116,6 +116,10 @@ describe('migration: resetGauges', () => {
         blockNumber: 1000,
         transactionHash: '0xabc123',
       })
+
+      // Make gaugeSettings throw an error to trigger the reset error
+      gaugeSettingsStub.rejects(new Error('Gauge settings failed'))
+
       // Act
       await resetGaugesMigration.start()
 
