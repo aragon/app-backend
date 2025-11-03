@@ -41,7 +41,7 @@ export enum KnownActionSignature {
   UpdateVoteSettings = 'updateVotingSettings(tuple)',
   StagesUpdated = 'updateStages(tuple[])',
   UpgradeToAndCall = 'upgradeToAndCall(address,bytes)',
-  RegisterGauge = 'registerGauge(address,uint8,address,bytes)',
+  RegisterGauge = 'registerGauge(address,uint8,address,string)',
 }
 
 export interface ITransfacerActionMeta {
