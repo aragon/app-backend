@@ -79,6 +79,7 @@ export interface IConfig {
     CHILIZ_MAINNET?: IRawNodeConfig
     CORN_MAINNET?: IRawNodeConfig
     AVAX_MAINNET?: IRawNodeConfig
+    KATANA_MAINNET?: IRawNodeConfig
   }
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
   SUPPORTED_NETWORKS: NetworksEnum[]
