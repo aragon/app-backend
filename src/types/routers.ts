@@ -3,6 +3,7 @@ import { type ITokenType } from '@src/types/token'
 import { type IActionMetadata } from '@src/types/proposalAction'
 import { type IPluginInterfaceType, type IReportResultType } from '@src/types/plugin'
 import type Router from '@koa/router'
+import { type DaoResourceLink } from '@src/types/daos'
 
 export interface VersionedRouter {
   v1: Router
@@ -66,6 +67,8 @@ export interface IMemberLockResponse {
     transactionHash: HexAddress | null
     blockNumber: number | null
     blockTimestamp: number | null
+    holder: HexAddress | null
+    tokenId: string | null
     exitDateAt: number | null
   }
   lockWithdraw: {
@@ -116,7 +119,7 @@ export interface IDaoResponse {
   name: string
   description: string
   avatar: string
-  links: string[]
+  links: DaoResourceLink[]
   plugins: {
     transactionHash: HexAddress
     blockNumber: number
@@ -402,4 +405,18 @@ export interface ICampaignResponse {
   strategy: {
     root: string
   }
+}
+
+export interface IGaugeResponse {
+  network: NetworksEnum
+  blockNumber: number
+  transactionHash: NetworksEnum
+  address: HexAddress
+  pluginAddress: HexAddress
+  creatorAddress: HexAddress
+  name: string
+  description: string
+  links: DaoResourceLink[]
+  avatar: string
+  isActive: boolean
 }

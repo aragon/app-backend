@@ -969,7 +969,7 @@ describe('Helpers: DecodeActions', () => {
       const contractAddress = '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F'
       const network = NetworksEnum.ethereumMainnet
 
-      const getImplementationAddressStub = sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
+      sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
       // Re-configure the existing stub instead of creating a new one
       const getContractSourceCode = ProxyWeb3Provider.fetchContractSourceCode as sinon.SinonStub
       getContractSourceCode.resolves([
@@ -1084,7 +1084,7 @@ describe('Helpers: DecodeActions', () => {
         },
       ])
 
-      const getImplementationAddressStub = sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
+      sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
       // Re-configure the existing stub instead of creating a new one
       const getContractSourceCode = ProxyWeb3Provider.fetchContractSourceCode as sinon.SinonStub
       getContractSourceCode.resolves([
@@ -1267,6 +1267,98 @@ describe('Helpers: DecodeActions', () => {
 
       const result = await decodeActions._parseVotingSettingUpdateAction(baseAction, action, {} as any)
       expect(result).to.be.null
+    })
+
+    it('should return null when plugin has no tokenAddress', async () => {
+      const decodeActions = new DecodeActions()
+      const mockPlugin = {
+        address: '0x2222222222222222222222222222222222222222',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.multisig,
+        tokenAddress: null,
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
+
+      const baseAction = {
+        textSignature: KnownActionSignature.UpdateVoteSettings,
+        parameters: [],
+      }
+
+      const action = {
+        to: '0x2222222222222222222222222222222222222222',
+        value: 0n,
+        data: '0x',
+      }
+
+      const document = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1000,
+      }
+
+      const result = await decodeActions._parseVotingSettingUpdateAction(baseAction as any, action, document as any)
+
+      expect(result).to.be.null
+    })
+
+    it('should return null and log warning for unsupported plugin type', async () => {
+      const decodeActions = new DecodeActions()
+      const mockPlugin = {
+        address: '0x3333333333333333333333333333333333333333',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.multisig,
+        tokenAddress: '0xtoken',
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({} as any)
+      const loggerWarnStub = sandbox.stub(Logger, 'warn')
+
+      const baseAction = {
+        textSignature: KnownActionSignature.UpdateVoteSettings,
+        parameters: [],
+      }
+
+      const action = {
+        to: '0x3333333333333333333333333333333333333333',
+        value: 0n,
+        data: '0x',
+      }
+
+      const document = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1000,
+      }
+
+      const result = await decodeActions._parseVotingSettingUpdateAction(baseAction as any, action, document as any)
+
+      expect(result).to.be.null
+      expect(loggerWarnStub.calledOnce).to.be.true
+    })
+
+    it('should return undefined when plugin not found in multisig settings', async () => {
+      const decodeActions = new DecodeActions()
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+
+      const baseAction = {
+        textSignature: KnownActionSignature.UpdateMultiSigSettings,
+        parameters: [],
+      }
+
+      const action = {
+        to: '0x1111111111111111111111111111111111111111',
+        value: 0n,
+        data: '0x',
+      }
+
+      const document = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1000,
+      }
+
+      const result = await decodeActions._parseMultiSigSettingUpdateAction(baseAction as any, action, document as any)
+
+      expect(result).to.be.undefined
     })
 
     it('should parse the multisign settings', async () => {
@@ -2312,5 +2404,126 @@ describe('Helpers: DecodeActions', () => {
         existingSettings: [],
       })
     })
+  })
+
+  it('should parse _parseRegisterGauge', async () => {
+    const decodeActions = new DecodeActions()
+    const baseAction = {
+      textSignature: 'registerGauge(address,uint8,address,bytes)',
+      function: 'registerGauge',
+      contract: 'GaugeRegistrar',
+      parameters: [
+        { name: '_qiToken', type: 'address', value: '0xQiToken' },
+        { name: '_incentive', type: 'uint8', value: 0 },
+        { name: '_rewardController', type: 'address', value: '0xRewardController' },
+        {
+          name: '_metadataURI',
+          type: 'bytes',
+          value:
+            '0x697066733a2f2f516d4e753239435378354276596a506a786d716e6a6a6d5a68326e6a4e4b6e68346a7a566b5a6d476d4778667458',
+        },
+      ],
+    }
+
+    const action = {
+      to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+      value: 0n,
+      data: '0x00',
+    }
+
+    const stubExtractMetadataUri = sandbox.stub(Web3Utils, 'extractMetadataUri').returns('https://link')
+    // Re-configure the existing stub instead of creating a new one
+    const ipfsFetchStub = Ipfs.fetchMetadata as sinon.SinonStub
+    ipfsFetchStub.resolves({
+      name: 'Gauge info',
+    })
+
+    const result = await decodeActions._parseRegisterGauge(baseAction, action)
+    expect(result?.type).to.be.eq(ProposalActionType.RegisterGauge)
+    expect(result?.gaugeMetadata).to.deep.equal({ name: 'Gauge info' })
+    expect(stubExtractMetadataUri.calledOnce).to.be.true
+    expect(ipfsFetchStub.calledOnce).to.be.true
+  })
+
+  it('should return null when _parseRegisterGauge signature does not match', async () => {
+    const decodeActions = new DecodeActions()
+    const baseAction = {
+      textSignature: 'wrongSignature',
+      parameters: [],
+    }
+
+    const action = {
+      to: '0x4444444444444444444444444444444444444444',
+      value: 0n,
+      data: '0x',
+    }
+
+    const result = await decodeActions._parseRegisterGauge(baseAction as any, action)
+
+    expect(result).to.be.null
+  })
+
+  it('should return null when ipfsUrl is not found in _parseRegisterGauge', async () => {
+    const decodeActions = new DecodeActions()
+    sandbox.stub(Web3Utils, 'extractMetadataUri').returns(null)
+
+    const baseAction = {
+      textSignature: KnownActionSignature.RegisterGauge,
+      parameters: [{}, {}, {}, { value: 'no-ipfs' }],
+    }
+
+    const action = {
+      to: '0x5555555555555555555555555555555555555555',
+      value: 0n,
+      data: '0x',
+    }
+
+    const result = await decodeActions._parseRegisterGauge(baseAction as any, action)
+
+    expect(result).to.be.null
+  })
+
+  it('should return null when gaugeMetadata is null in _parseRegisterGauge', async () => {
+    const decodeActions = new DecodeActions()
+    sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://test')
+    const ipfsFetchStub = Ipfs.fetchMetadata as sinon.SinonStub
+    ipfsFetchStub.resolves(null)
+
+    const baseAction = {
+      textSignature: KnownActionSignature.RegisterGauge,
+      parameters: [{}, {}, {}, { value: 'metadata' }],
+    }
+
+    const action = {
+      to: '0x6666666666666666666666666666666666666666',
+      value: 0n,
+      data: '0x',
+    }
+
+    const result = await decodeActions._parseRegisterGauge(baseAction as any, action)
+
+    expect(result).to.be.null
+  })
+
+  it('should return null when fetchMetadata throws error in _parseRegisterGauge', async () => {
+    const decodeActions = new DecodeActions()
+    sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://test')
+    const ipfsFetchStub = Ipfs.fetchMetadata as sinon.SinonStub
+    ipfsFetchStub.rejects(new Error('IPFS error'))
+
+    const baseAction = {
+      textSignature: KnownActionSignature.RegisterGauge,
+      parameters: [{}, {}, {}, { value: 'metadata' }],
+    }
+
+    const action = {
+      to: '0x7777777777777777777777777777777777777777',
+      value: 0n,
+      data: '0x',
+    }
+
+    const result = await decodeActions._parseRegisterGauge(baseAction as any, action)
+
+    expect(result).to.be.null
   })
 })

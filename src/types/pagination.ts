@@ -54,6 +54,18 @@ export interface IProposalExtraParams {
   isSubProposal?: boolean
 }
 
+export interface IGaugeParams {
+  network?: NetworksEnum
+  pluginAddress?: HexAddress
+  epochId?: string
+}
+
+export interface IGaugeEpochMetricParams {
+  network: NetworksEnum
+  pluginAddress: HexAddress
+  memberAddress?: HexAddress
+}
+
 export interface IAssetExtraParams {
   network?: NetworksEnum
   daoAddress?: HexAddress

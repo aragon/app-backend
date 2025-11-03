@@ -96,6 +96,39 @@ describe('Indexer: PluginRepoRegistryHandler', () => {
       expect(stubCreate.notCalled).to.be.true
     })
 
+    it('should handle when getBlockTimestamp returns null', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionIndex: 2,
+        logIndex: 2,
+        transactionHash: '0x789',
+        address: '0x456',
+        eventName: 'test',
+      }
+
+      const fakeEvent = {
+        args: {
+          pluginRepo: '0x789',
+          subdomain: 'test2',
+        },
+      }
+
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(0)
+
+      await PluginRepoRegistryHandler.pluginRepoRegistered(fakeEvent as any, logInfo)
+
+      const savedPluginRepoLog = await Models.PluginRepo.findExistingLog({
+        network: logInfo.network,
+        transactionHash: logInfo.transactionHash,
+        transactionIndex: logInfo.transactionIndex,
+        logIndex: logInfo.logIndex,
+      })
+
+      expect(savedPluginRepoLog).to.exist
+      expect(savedPluginRepoLog.blockTimestamp).to.be.undefined
+    })
+
     it('should throw error', async () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,

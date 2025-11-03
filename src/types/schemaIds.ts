@@ -13,6 +13,14 @@ export interface IVoteIdParams {
   logIndex: number
 }
 
+export interface IVoteGaugeIdParams {
+  network: NetworksEnum
+  transactionHash: HexAddress
+  transactionIndex: number
+  logIndex: number
+  pluginAddress?: HexAddress
+}
+
 export interface ILockExtraParams {
   network?: NetworksEnum
   escrowAddress?: HexAddress
@@ -37,6 +45,12 @@ export interface ILockIdParams {
   memberAddress: HexAddress
   tokenId: string
   escrowAddress: HexAddress
+}
+
+export interface IGaugeIdParams {
+  network: NetworksEnum
+  address: HexAddress
+  pluginAddress: HexAddress
 }
 
 export interface IAssetIdParams {
@@ -175,4 +189,11 @@ export interface IPluginMetricsIdParams {
   network: NetworksEnum
   pluginAddress: HexAddress
   memberAddress: HexAddress
+}
+
+export interface IGaugeMetricsIdParams {
+  network: NetworksEnum
+  pluginAddress: HexAddress
+  gaugeAddress: HexAddress
+  epochId: string
 }

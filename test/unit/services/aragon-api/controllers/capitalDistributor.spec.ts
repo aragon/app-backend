@@ -191,6 +191,23 @@ describe('Controller: CapitalDistributor', () => {
         'Database connection failed',
       )
     })
+
+    it('Should use default empty objects when no parameters provided', async () => {
+      const mockResult = {
+        metadata: { page: 1, pageSize: 10, totalPages: 0, totalRecords: 0 },
+        data: [],
+      }
+
+      sandbox.stub(Models.Campaign, 'getCampaignsWithPagination').resolves(mockResult as any)
+      const assertStub = sandbox.stub(errors, 'assertExposable')
+      assertStub.onFirstCall().throws(new Error(ErrorKeyEnum.badParams))
+
+      await expect(CapitalDistributorController.getCampaignsWithPagination({} as any, {} as any)).to.be.rejectedWith(
+        ErrorKeyEnum.badParams,
+      )
+
+      expect(assertStub.calledWith(false, ErrorKeyEnum.badParams)).to.be.true
+    })
   })
 
   describe('getUserCampaignStatus', () => {

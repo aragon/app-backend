@@ -61,6 +61,70 @@ describe('AragonDao: contractInfo', () => {
         functions: [{ name: 'function1' }, { name: 'function2' }],
       })
     })
+
+    it('should return contract info when not a proxy', async () => {
+      let fetchVerifiedContractDataStub = sandbox.stub(ContractInfo, 'fetchVerifiedContractData')
+
+      let getImplementationAddressStub = sandbox.stub(ProxyContract, 'getImplementationAddress').resolves('0xaddress')
+
+      fetchVerifiedContractDataStub.onFirstCall().resolves({ name: 'ContractName', functions: [{ name: 'function1' }] })
+
+      let result = await ContractInfo.getContractInfo(NetworksEnum.ethereumSepolia, '0xaddress')
+
+      expect(fetchVerifiedContractDataStub.calledOnce).to.be.true
+      expect(getImplementationAddressStub.calledOnce).to.be.true
+
+      expect(result).to.deep.equal({
+        implementationAddress: null,
+        address: '0xaddress',
+        network: NetworksEnum.ethereumSepolia,
+        name: 'ContractName',
+        proxyName: null,
+        functions: [{ name: 'function1' }],
+      })
+    })
+
+    it('should return contract info when mainData is null but implementationData exists', async () => {
+      let fetchVerifiedContractDataStub = sandbox.stub(ContractInfo, 'fetchVerifiedContractData')
+
+      sandbox.stub(ProxyContract, 'getImplementationAddress').resolves('0ximplementationAddress')
+
+      fetchVerifiedContractDataStub.onFirstCall().resolves(null)
+      fetchVerifiedContractDataStub.onSecondCall().resolves({ name: 'ImplName', functions: [{ name: 'function2' }] })
+
+      let result = await ContractInfo.getContractInfo(NetworksEnum.ethereumSepolia, '0xaddress')
+
+      expect(fetchVerifiedContractDataStub.calledTwice).to.be.true
+
+      expect(result?.implementationAddress).to.equal('0ximplementationAddress')
+      expect(result?.address).to.equal('0xaddress')
+      expect(result?.network).to.equal(NetworksEnum.ethereumSepolia)
+      expect(result?.name).to.equal('ImplName')
+      expect(result?.functions).to.deep.equal([{ name: 'function2' }])
+      // proxyName will be undefined when mainData is null, which is acceptable
+    })
+
+    it('should handle when only mainData has functions (no implementationData functions)', async () => {
+      let fetchVerifiedContractDataStub = sandbox.stub(ContractInfo, 'fetchVerifiedContractData')
+
+      sandbox.stub(ProxyContract, 'getImplementationAddress').resolves('0ximplementationAddress')
+
+      fetchVerifiedContractDataStub
+        .onFirstCall()
+        .resolves({ name: 'ProxyName', functions: [{ name: 'function1' }, { name: 'function2' }] })
+      fetchVerifiedContractDataStub.onSecondCall().resolves({ name: 'ImplName', functions: [] })
+
+      let result = await ContractInfo.getContractInfo(NetworksEnum.ethereumSepolia, '0xaddress')
+
+      expect(result).to.deep.equal({
+        implementationAddress: '0ximplementationAddress',
+        address: '0xaddress',
+        network: NetworksEnum.ethereumSepolia,
+        name: 'ImplName',
+        proxyName: 'ProxyName',
+        functions: [{ name: 'function1' }, { name: 'function2' }],
+      })
+    })
   })
 
   describe('fetchVerifiedContractData', () => {
@@ -151,6 +215,64 @@ describe('AragonDao: contractInfo', () => {
         name: 'contractName',
         functions: [
           { name: 'function1', type: 'function', stateMutability: 'payable', parameters: [], notice: 'Test' },
+        ],
+      })
+    })
+
+    it('should parse non-empty ABI', async () => {
+      const mockABI = [
+        {
+          name: 'transfer',
+          type: 'function',
+          inputs: [
+            { name: 'to', type: 'address' },
+            { name: 'amount', type: 'uint256' },
+          ],
+          stateMutability: 'nonpayable',
+        },
+      ]
+
+      let fetchContractSourceCodeStub = sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves([
+        {
+          SourceCode: 'sourceCode',
+          ContractName: 'ERC20Token',
+          ABI: JSON.stringify(mockABI),
+          CompilerVersion: 'v0.8.0',
+        },
+      ])
+
+      const parseNetspecStub = sandbox.stub(ContractNetspecHelper, 'parseNetspec').returns([
+        {
+          name: 'transfer',
+          inputs: [
+            { name: 'to', type: 'address' },
+            { name: 'amount', type: 'uint256' },
+          ],
+          notice: 'Transfer tokens',
+          type: 'function',
+          stateMutability: 'nonpayable',
+        },
+      ])
+
+      let result = await ContractInfo.fetchVerifiedContractData(NetworksEnum.ethereumSepolia, '0xaddress')
+
+      expect(fetchContractSourceCodeStub.calledOnce).to.be.true
+      expect(parseNetspecStub.calledOnce).to.be.true
+      expect(parseNetspecStub.args[0][2]).to.be.deep.eq(mockABI)
+      expect(parseNetspecStub.args[0][3]).to.be.eq('v0.8.0')
+      expect(result).to.be.deep.eq({
+        name: 'ERC20Token',
+        functions: [
+          {
+            name: 'transfer',
+            type: 'function',
+            stateMutability: 'nonpayable',
+            parameters: [
+              { name: 'to', type: 'address' },
+              { name: 'amount', type: 'uint256' },
+            ],
+            notice: 'Transfer tokens',
+          },
         ],
       })
     })

@@ -160,6 +160,27 @@ describe('Helpers: LockToVoteHelper', () => {
       expect(result).to.be.null
       expect(getLockedBalanceStub.calledOnce).to.be.true
     })
+
+    it('should handle when getLockedBalance returns 0 or null', async () => {
+      const getLockedBalanceStub = sandbox.stub().resolves(0n)
+
+      const { default: MockedLockToVoteHelper } = proxyquire.noCallThru()('@helpers/lockToVoteHelper', {
+        ethers: {
+          Contract: function () {
+            return { getLockedBalance: getLockedBalanceStub }
+          },
+        },
+      })
+
+      const result = await MockedLockToVoteHelper.getUserLockedBalance(
+        NetworksEnum.ethereumMainnet,
+        '0xLockManager123',
+        '0xUser456',
+      )
+
+      expect(result).to.equal('0')
+      expect(getLockedBalanceStub.calledOnce).to.be.true
+    })
   })
 
   describe('getCurrentTotalSupply', () => {

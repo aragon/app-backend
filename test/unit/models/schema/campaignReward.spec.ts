@@ -340,6 +340,16 @@ describe('Model: CampaignReward', () => {
 
       expect(totalClaimable).to.eq('1300000000000000000')
     })
+
+    it('Should return 0 when user has no claimable rewards', async () => {
+      const totalClaimable = await Models.CampaignReward.getTotalClaimableByAddress(
+        rawReward.pluginAddress!,
+        rawReward.network!,
+        '0x9999999999999999999999999999999999999999' as HexAddress,
+      )
+
+      expect(totalClaimable).to.eq('0')
+    })
   })
 
   describe('calculateTotalRewards', () => {
@@ -403,6 +413,17 @@ describe('Model: CampaignReward', () => {
       expect(status.totalClaimed).to.eq('700000000000000000')
       expect(status.totalClaimable).to.eq('1100000000000000000')
     })
+
+    it('Should return zeros when user has no rewards', async () => {
+      const status = await Models.CampaignReward.getUserCampaignStatus(
+        rawReward.pluginAddress!,
+        rawReward.network!,
+        '0x9999999999999999999999999999999999999999' as HexAddress,
+      )
+
+      expect(status.totalClaimed).to.eq('0')
+      expect(status.totalClaimable).to.eq('0')
+    })
   })
 
   describe('update', () => {
@@ -429,6 +450,18 @@ describe('Model: CampaignReward', () => {
       })
 
       expect(createdReward.amount).to.eq(originalAmount)
+    })
+
+    it('Should skip update when field does not exist in schema', async () => {
+      const createdReward = await Models.CampaignReward.create(rawReward)
+
+      // Try to update with non-existent field
+      await createdReward.update({
+        nonExistentField: 'some value',
+      } as any)
+
+      // Should not throw error, just skip the field
+      expect(createdReward).to.exist
     })
   })
 

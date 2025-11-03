@@ -26,6 +26,9 @@ import type CampaignReward from '@models/schema/campaignReward'
 import type LockToVoteMember from '@models/schema/lockToVoteMember'
 import type Migration from '@models/schema/migration'
 import type CampaignMerkleRoot from '@models/schema/campaignMerkleRoot'
+import type Gauge from '@models/schema/gauge'
+import type VoteGauge from '@models/schema/voteGauge'
+import type GaugeMetrics from '@models/schema/gaugeMetrics'
 
 export interface IMongoModel {
   Migration: typeof Migration
@@ -56,6 +59,9 @@ export interface IMongoModel {
   PluginMetrics: typeof PluginMetrics
   LockToVoteMember: typeof LockToVoteMember
   CampaignMerkleRoot: typeof CampaignMerkleRoot
+  Gauge: typeof Gauge
+  VoteGauge: typeof VoteGauge
+  GaugeMetrics: typeof GaugeMetrics
 }
 
 export enum ICollectionNames {
@@ -87,6 +93,9 @@ export enum ICollectionNames {
   PluginMember = 'PluginMember',
   PluginMetrics = 'PluginMetrics',
   LockToVoteMember = 'LockToVoteMember',
+  Gauge = 'Gauge',
+  VoteGauge = 'VoteGauge',
+  GaugeMetrics = 'GaugeMetrics',
 }
 
 export enum ITransactionIndexCheckType {

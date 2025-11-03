@@ -71,6 +71,9 @@ export interface ISettingVotingEscrow {
   maxTime: number
   slope: string
   bias: string
+  feePercent: string
+  minFeePercent: string
+  minCooldown: number
 }
 
 export enum ISettingStatus {

@@ -13,6 +13,7 @@ import { LogSpp } from '@plugins/logSPP'
 import { LogGauge } from '@plugins/logGauge'
 import { LogMultiSig } from '@plugins/logMultisig'
 import { LogSelectorPermission } from '@plugins/logSelectorPermission'
+import { LogCapitalDistributor } from '@plugins/logCapitalDistributor'
 
 describe('AragonPlugins: index', () => {
   let sandbox: SinonSandbox
@@ -408,14 +409,12 @@ describe('AragonPlugins: index', () => {
 
     it('should process plugins queue for gauge interface type', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
-      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+      const mockPlugin = {
         interfaceType: IPluginInterfaceType.gauge,
         tokenAddress: '0xTokenAddress',
         network: NetworksEnum.ethereumMainnet,
-      })
-      const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
-        type: ITokenType.ERC721,
-      } as any)
+      }
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
       const logGaugeStub = sandbox.stub(LogGauge, 'start').resolves()
 
       await AragonPluginsService.start()
@@ -427,24 +426,19 @@ describe('AragonPlugins: index', () => {
       })
 
       expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
-
-      expect(proxyTokenStub.args[0][0].address).to.be.eq('0xTokenAddress')
-      expect(proxyTokenStub.args[0][0].network).to.be.eq(NetworksEnum.ethereumMainnet)
-
-      expect(logGaugeStub.calledOnce).to.be.true
+      expect(logGaugeStub.calledOnceWith(mockPlugin, false)).to.be.true
     })
 
-    it('should log a warning if token is not ERC721 for gauge interface type', async () => {
+    it('should process plugins queue for capitalDistributor interface type', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
-      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
-        interfaceType: IPluginInterfaceType.gauge,
-        tokenAddress: '0xTokenAddress',
+      const mockPlugin = {
+        address: '0xPluginAddress',
+        interfaceType: IPluginInterfaceType.capitalDistributor,
         network: NetworksEnum.ethereumMainnet,
-      })
-      const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
-        type: 'NonGovernanceToken',
-      } as any)
-      const loggerStub = sandbox.stub(logger, 'warn')
+      }
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
+      const logCapitalDistributorStub = sandbox.stub(LogCapitalDistributor, 'start').resolves()
+      const loggerInfoStub = sandbox.stub(logger, 'info')
 
       await AragonPluginsService.start()
 
@@ -455,11 +449,29 @@ describe('AragonPlugins: index', () => {
       })
 
       expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(loggerInfoStub.calledWith('Sync plugin: Capital Distributor' as any)).to.be.true
+      expect(logCapitalDistributorStub.calledOnceWith(mockPlugin)).to.be.true
+    })
 
-      expect(proxyTokenStub.args[0][0].address).to.be.eq('0xTokenAddress')
-      expect(proxyTokenStub.args[0][0].network).to.be.eq(NetworksEnum.ethereumMainnet)
+    it('should process plugins queue for capitalDistributor interface type', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.capitalDistributor,
+        address: '0xPluginAddress',
+      })
+      const logCapitalDistributorStub = sandbox.stub(LogCapitalDistributor, 'start').resolves()
+      sandbox.stub(logger, 'info')
 
-      expect(loggerStub.calledWithMatch('Sync plugin: token not ERC721' as any)).to.be.true
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(2).args[1]
+      await handler({
+        id: 'some-id',
+        params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
+      })
+
+      expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(logCapitalDistributorStub.calledOnce).to.be.true
     })
 
     it('should log an error if plugin is missing', async () => {
@@ -662,14 +674,12 @@ describe('AragonPlugins: index', () => {
 
     it('should process plugins queue for gauge interface type', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
-      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+      const mockPlugin = {
         interfaceType: IPluginInterfaceType.gauge,
         tokenAddress: '0xTokenAddress',
         network: NetworksEnum.ethereumMainnet,
-      })
-      const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
-        type: ITokenType.ERC721,
-      } as any)
+      }
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
       const logGaugeStub = sandbox.stub(LogGauge, 'start').resolves()
 
       await AragonPluginsService.start()
@@ -681,24 +691,19 @@ describe('AragonPlugins: index', () => {
       })
 
       expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
-
-      expect(proxyTokenStub.args[0][0].address).to.be.eq('0xTokenAddress')
-      expect(proxyTokenStub.args[0][0].network).to.be.eq(NetworksEnum.ethereumMainnet)
-
-      expect(logGaugeStub.calledOnce).to.be.true
+      expect(logGaugeStub.calledOnceWith(mockPlugin, false)).to.be.true
     })
 
-    it('should log a warning if token is not ERC721 for gauge interface type', async () => {
+    it('should process plugins queue for capitalDistributor interface type', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
-      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
-        interfaceType: IPluginInterfaceType.gauge,
-        tokenAddress: '0xTokenAddress',
+      const mockPlugin = {
+        address: '0xPluginAddress',
+        interfaceType: IPluginInterfaceType.capitalDistributor,
         network: NetworksEnum.ethereumMainnet,
-      })
-      const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
-        type: 'NonGovernanceToken',
-      } as any)
-      const loggerStub = sandbox.stub(logger, 'warn')
+      }
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
+      const logCapitalDistributorStub = sandbox.stub(LogCapitalDistributor, 'start').resolves()
+      const loggerInfoStub = sandbox.stub(logger, 'info')
 
       await AragonPluginsService.start()
 
@@ -709,11 +714,29 @@ describe('AragonPlugins: index', () => {
       })
 
       expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(loggerInfoStub.calledWith('Sync plugin: Capital Distributor' as any)).to.be.true
+      expect(logCapitalDistributorStub.calledOnceWith(mockPlugin)).to.be.true
+    })
 
-      expect(proxyTokenStub.args[0][0].address).to.be.eq('0xTokenAddress')
-      expect(proxyTokenStub.args[0][0].network).to.be.eq(NetworksEnum.ethereumMainnet)
+    it('should process plugins queue for capitalDistributor interface type', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.capitalDistributor,
+        address: '0xPluginAddress',
+      })
+      const logCapitalDistributorStub = sandbox.stub(LogCapitalDistributor, 'start').resolves()
+      sandbox.stub(logger, 'info')
 
-      expect(loggerStub.calledWithMatch('Sync plugin: token not ERC721' as any)).to.be.true
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(3).args[1]
+      await handler({
+        id: 'some-id',
+        params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
+      })
+
+      expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(logCapitalDistributorStub.calledOnce).to.be.true
     })
 
     it('should log an error if plugin is missing', async () => {

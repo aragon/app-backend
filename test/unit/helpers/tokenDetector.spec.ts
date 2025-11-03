@@ -148,9 +148,7 @@ describe('Helper: TokenDetector', () => {
   })
 
   it('should getCode from address if implementation is zero address', async () => {
-    const getImplementationAddressStub = sandbox
-      .stub(ProxyContractHelper, 'getImplementationAddress')
-      .resolves(utils.zeroAddress)
+    sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(utils.zeroAddress)
     sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
       getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(TokenDetector.ERC721)),
     } as any)

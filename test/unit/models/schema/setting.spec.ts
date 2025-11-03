@@ -21,6 +21,9 @@ describe('Model: Setting', () => {
         slope: '1',
         bias: '22',
         cooldown: 86400,
+        feePercent: '0',
+        minCooldown: 0,
+        minFeePercent: '0',
       },
     }
   })

@@ -54,6 +54,12 @@ export class LockExit {
   @prop({ type: () => Number, default: null })
   public blockTimestamp!: number | null
 
+  @prop({ type: () => String, default: null })
+  public holder!: HexAddress | null
+
+  @prop({ type: () => String, default: null })
+  public tokenId!: string | null
+
   @prop({ type: () => Number, default: null })
   public exitDateAt!: number | null
 }

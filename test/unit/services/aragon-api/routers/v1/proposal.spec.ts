@@ -213,6 +213,61 @@ describe('RouterV1: Proposal', () => {
     expect(stubCtrl.calledWith(getAddress(params.id) as any)).to.be.true
   })
 
+  describe('getWithPagination - incrementalId tests', () => {
+    it('Should handle incrementalId as 0', async () => {
+      const filterParams = {
+        network: NetworksEnum.ethereumMainnet,
+        incrementalId: 0,
+      }
+
+      const stubCtrl = sandbox.stub(ProposalController, 'getProposalsWithPagination').returns(true as any)
+
+      const ctx: any = {
+        query: filterParams,
+      }
+
+      await ProposalRouter.getWithPagination(ctx)
+
+      expect(stubCtrl.calledOnce).to.be.true
+      expect(stubCtrl.args[0][1]?.incrementalId).to.equal(0)
+    })
+
+    it('Should handle incrementalId as 0 when empty string is provided', async () => {
+      const filterParams = {
+        network: NetworksEnum.ethereumMainnet,
+        incrementalId: '',
+      }
+
+      const stubCtrl = sandbox.stub(ProposalController, 'getProposalsWithPagination').returns(true as any)
+
+      const ctx: any = {
+        query: filterParams,
+      }
+
+      await ProposalRouter.getWithPagination(ctx)
+
+      expect(stubCtrl.calledOnce).to.be.true
+      expect(stubCtrl.args[0][1]?.incrementalId).to.equal(0)
+    })
+
+    it('Should handle incrementalId as undefined when not provided', async () => {
+      const filterParams = {
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const stubCtrl = sandbox.stub(ProposalController, 'getProposalsWithPagination').returns(true as any)
+
+      const ctx: any = {
+        query: filterParams,
+      }
+
+      await ProposalRouter.getWithPagination(ctx)
+
+      expect(stubCtrl.calledOnce).to.be.true
+      expect(stubCtrl.args[0][1]?.incrementalId).to.be.undefined
+    })
+  })
+
   it('Should check if a member can create a proposal', async () => {
     const ctx: any = {
       query: {

@@ -1,4 +1,4 @@
-import { IDaoTransferLogs, LockErc721Token, type IQueueDaoTransactions } from '@types'
+import { IDaoTransferLogs, type IQueueDaoTransactions, NetworksEnum, TokenTransfer } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import { Interface, zeroPadValue } from 'ethers'
@@ -19,7 +19,7 @@ const nativeTokenDepositedTopic = daoInterface.getEvent(IDaoTransferLogs.NativeT
 const executedTopic = daoInterface.getEvent(IDaoTransferLogs.Executed)?.topicHash!
 const executedV2Topic = daoV2Interface.getEvent(IDaoTransferLogs.Executed)?.topicHash!
 const erc20Interface = new Interface(ERC20.abi)
-const erc20TransferTopic = erc20Interface.getEvent(LockErc721Token.Transfer)?.topicHash!
+const erc20TransferTopic = erc20Interface.getEvent(TokenTransfer.Transfer)?.topicHash!
 
 export const DaoTransactions = {
   start: async ({ daoAddress, network, reset }: IQueueDaoTransactions) => {
@@ -40,7 +40,7 @@ export const DaoTransactions = {
         network: daoDb.network,
         events: [
           {
-            event: LockErc721Token.Transfer, // ERC20/ERC721 Transfer event where DAO is receiver
+            event: TokenTransfer.Transfer, // ERC20/ERC721 Transfer event where DAO is receiver
             topic: [
               erc20TransferTopic, // Transfer event signature
               null, // from address (any address can send)
@@ -96,7 +96,7 @@ export const DaoTransactions = {
         network: daoDb.network,
         events: [
           {
-            event: LockErc721Token.Transfer, // ERC20/ERC721 Transfer event where DAO is sender
+            event: TokenTransfer.Transfer, // ERC20/ERC721 Transfer event where DAO is sender
             topic: [
               erc20TransferTopic, // Transfer event signature
               zeroPadValue(daoDb.address, 32), // from address (DAO as sender)
@@ -157,12 +157,13 @@ export const DaoTransactions = {
       })
 
       // Crawl events - all crawlers
-      const crawlers: BlockchainLogCrawler[] = [
-        crawlerIncomingTokenTransfers,
-        crawlerIncomingNativeDeposits,
-        crawlerOutgoingTokenTransfers,
-        crawlerOutgoingNativeTransfers,
-      ]
+      const crawlers: BlockchainLogCrawler[] = [crawlerIncomingTokenTransfers, crawlerOutgoingTokenTransfers]
+
+      // on zksync native token is also a erc20
+      if (network !== NetworksEnum.zksyncMainnet) {
+        crawlers.push(crawlerIncomingNativeDeposits)
+        crawlers.push(crawlerOutgoingNativeTransfers)
+      }
 
       // Process crawlers in parallel for better performance
       await Promise.all(crawlers.map(async (crawler: BlockchainLogCrawler) => crawler.crawl()))

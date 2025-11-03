@@ -21,8 +21,8 @@ import ModelUtils from '@models/utils/models'
 
 const MemberController = {
   getMembersWithPagination: async (
-    paginationParams: IPaginationParams = {},
-    extraParams: IMemberExtraParams = {},
+    paginationParams: IPaginationParams,
+    extraParams: IMemberExtraParams,
     pairParams: IPairParams = {},
   ): Promise<IPaginatedResult<IMembersResponse>> => {
     extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
@@ -49,8 +49,8 @@ const MemberController = {
 
   getMemberByAddress: async (
     address: HexAddress,
-    extraParams: IMemberExtraParams = {},
-    pairParams: IPairParams = {},
+    extraParams: IMemberExtraParams,
+    pairParams: IPairParams,
   ): Promise<IMembersResponse> => {
     extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
     const member = await Models.Member.findMemberByAddress(address, extraParams)
