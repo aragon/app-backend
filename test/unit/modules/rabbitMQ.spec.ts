@@ -56,7 +56,7 @@ describe('Modules: RabbitMQ', () => {
   describe('connect', () => {
     it('should establish a connection and set up channels', async () => {
       const loggerInfoStub = sandbox.stub(logger, 'info')
-      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
+      sandbox.stub(logger, 'verbose')
       const startNoopIntervalStub = sandbox.stub(RabbitMQ, 'startNoopInterval')
 
       // Start connection
@@ -95,8 +95,8 @@ describe('Modules: RabbitMQ', () => {
 
     it('should handle channel setup errors', async () => {
       const loggerErrorStub = sandbox.stub(logger, 'error')
-      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
-      const startNoopIntervalStub = sandbox.stub(RabbitMQ, 'startNoopInterval')
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(RabbitMQ, 'startNoopInterval')
 
       const setupError = new Error('Queue assertion failed')
       mockChannel.assertQueue.rejects(setupError)
@@ -402,8 +402,7 @@ describe('Modules: RabbitMQ', () => {
       const loggerErrorStub = sandbox.stub(logger, 'error')
       sandbox.stub(logger, 'info')
 
-      const addSetupStub = sandbox.stub().rejects(new Error('Noop failed'))
-      mockChannel.addSetup = addSetupStub
+      mockChannel.addSetup = sandbox.stub().rejects(new Error('Noop failed'))
       RabbitMQ.channelsMap.set(EnumQueueName.contractInfo, mockChannel)
 
       RabbitMQ.startNoopInterval()

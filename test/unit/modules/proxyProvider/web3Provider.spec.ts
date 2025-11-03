@@ -11,8 +11,6 @@ import utils from '@helpers/utils'
 import Alchemy from '@helpers/alchemy'
 import Web3Utils from '@helpers/web3Utils'
 import { RateModule } from '@modules/rates'
-import { UnitTestUtils } from '@test/lib/utils'
-import ProviderModule from '@modules/provider'
 import AnkrHelper from '@helpers/ankrHelper'
 import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
 

@@ -397,16 +397,6 @@ describe('ChilizProvider', () => {
       // Arrange
       const address = '0xtoken'
       const network = NetworksEnum.chilizMainnet
-      const mockTokenResponse = {
-        message: 'OK',
-        result: {
-          name: 'NFT Token',
-          symbol: 'NFT',
-          decimals: 0,
-          type: 'ERC-721', // Test ERC-721 detection
-          totalSupply: '10000',
-        },
-      }
 
       // Act
       const result = await ChilizProvider.fetchBasicTokenInfo({ address, network })

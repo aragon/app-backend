@@ -28,50 +28,6 @@ describe('Integ: Proposal', () => {
     const network = NetworksEnum.ethereumSepolia
     const txHash = '0x3bd7bb1f7ae85868ffd9cf7eeeb74c499c1372349a138108f4c3591841aed3b4'
 
-    const plugin = await Models.Plugin.create({
-      id: 'ethereum-sepolia-0x36cc7b686c5fb0a2f5660d96c8a3094e8f79d6cc429744c78d665a100cf043a1-0x86313457a83Ad93e01a620Cd91A28808b2A048fc',
-      transactionHash: '0x36cc7b686c5fb0a2f5660d96c8a3094e8f79d6cc429744c78d665a100cf043a1',
-      blockNumber: 8185121,
-      blockTimestamp: 1745487984,
-      network: 'ethereum-sepolia',
-      address: '0x86313457a83Ad93e01a620Cd91A28808b2A048fc',
-      implementationAddress: '0x6C5C467c94bcc594DeE61CFa0e8cCa24d835d894',
-      interfaceType: 'spp',
-      status: 'installed',
-      isSupported: true,
-      daoAddress: '0xfd05BC8ec5774751F908A3b430F0c0D1382ad8b2',
-      tokenAddress: null,
-      pluginSetupRepoAddress: '0xda62D32C14E8CA78958d6fdC0142A575b0cd6Ad4',
-      sender: '0x7a20760b89EF507759DD2c5A0d1f1657614341A9',
-      release: '1',
-      build: '1',
-      subdomain: 'spp',
-      permissions: [],
-      uninstalled: {
-        status: false,
-        transactionHash: null,
-        blockNumber: null,
-        blockTimestamp: null,
-      },
-      hasTarget: false,
-      isProcess: true,
-      isBody: false,
-      isSubPlugin: false,
-      metadataIpfs: 'ipfs://QmWYfsDTpgtzF3w3Jc6Trvo1t1JhnPWEEmN58BStCKQHfb',
-      name: 'External test',
-      description: null,
-      processKey: 'EXT',
-      subPlugins: [
-        {
-          addresses: ['0x92e9d0Cd7f5E87a2B2b19661aAa4C2e6D019472F', '0x45B7de03cbFc5163446557B2FF209a0aFfcbDC5E'],
-          stageIndex: 0,
-        },
-      ],
-      links: [],
-      createdAt: '2025-04-24T09:46:29.103+0000',
-      updatedAt: '2025-04-24T09:46:53.014+0000',
-      totalStages: 1,
-    })
     const proposal = await Models.Proposal.create({
       id: '0xb28a2e8a6bab79da7bd74ddad069ec31ba0200019b0ee31cc720496365e9df7f-0x86313457a83Ad93e01a620Cd91A28808b2A048fc-39086013580276791839085490461993454292970741380284618386117700367461939173604',
       transactionHash: '0xb28a2e8a6bab79da7bd74ddad069ec31ba0200019b0ee31cc720496365e9df7f',

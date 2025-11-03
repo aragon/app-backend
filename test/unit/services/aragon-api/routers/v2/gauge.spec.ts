@@ -217,14 +217,6 @@ describe('RouterV2: Gauge', () => {
       expect(ctx.body).to.eq(true)
       expect(stubCtrl.calledOnce).to.be.true
 
-      const missingParams = {
-        endDateProp: undefined,
-        startDateProp: undefined,
-        endDate: undefined,
-        startDate: undefined,
-        search: undefined,
-      }
-
       expect(stubCtrl.args[0][0]).to.deep.eq({
         pluginAddress,
         network,

@@ -112,7 +112,6 @@ describe('Controller: Gauge', () => {
     it('should handle different network and pagination params', async () => {
       const pluginAddress = '0xPlugin222222222222222222222222222222222'
       const network = NetworksEnum.arbitrumMainnet
-      const gaugeAddress = '0xGauge2222222222222222222222222222222222'
       const epochId = '10'
 
       const paginationParams = {
@@ -186,7 +185,6 @@ describe('Controller: Gauge', () => {
     it('should handle when findWithPagination returns empty results', async () => {
       const pluginAddress = '0xPlugin444444444444444444444444444444444'
       const network = NetworksEnum.baseMainnet
-      const gaugeAddress = '0xGauge4444444444444444444444444444444444'
       const epochId = '1'
 
       const filterParams: any = {
@@ -218,7 +216,6 @@ describe('Controller: Gauge', () => {
     it('should handle when RabbitMQ throws an error', async () => {
       const pluginAddress = '0xPlugin555555555555555555555555555555555'
       const network = NetworksEnum.ethereumMainnet
-      const gaugeAddress = '0xGauge5555555555555555555555555555555555'
 
       const filterParams: any = {
         network,
@@ -239,7 +236,6 @@ describe('Controller: Gauge', () => {
     it('should pass correct RabbitMQ timeout from config', async () => {
       const pluginAddress = '0xPlugin777777777777777777777777777777777'
       const network = NetworksEnum.ethereumMainnet
-      const gaugeAddress = '0xGauge7777777777777777777777777777777777'
       const epochId = '3'
 
       const filterParams: any = {
@@ -262,7 +258,6 @@ describe('Controller: Gauge', () => {
     it('should use correct queue name for epochId request', async () => {
       const pluginAddress = '0xPlugin888888888888888888888888888888888'
       const network = NetworksEnum.ethereumMainnet
-      const gaugeAddress = '0xGauge8888888888888888888888888888888888'
       const epochId = '15'
 
       const filterParams: any = {
