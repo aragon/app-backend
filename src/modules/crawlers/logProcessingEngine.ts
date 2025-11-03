@@ -186,6 +186,7 @@ export class LogProcessingEngine {
         const { handler, event, info } = this.formatLog(log)
 
         if (!event) {
+          highestBlockNumber = Math.max(highestBlockNumber, log.blockNumber)
           continue
         }
 
