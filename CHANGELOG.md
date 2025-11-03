@@ -1,3 +1,10 @@
+## [0.16.1](https://github.com/aragon/app-backend/compare/v0.16.0...v0.16.1) (2025-11-03)
+
+
+### Bug Fixes
+
+* **blockchainLogCrawler:** ensure response data is always returned as an array ([fa08068](https://github.com/aragon/app-backend/commit/fa080687c6f14c0cf4e88e57b3655b597325f0bb))
+
 # [0.16.0](https://github.com/aragon/app-backend/compare/v0.15.0...v0.16.0) (2025-10-24)
 
 
