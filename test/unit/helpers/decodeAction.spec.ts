@@ -2409,7 +2409,7 @@ describe('Helpers: DecodeActions', () => {
   it('should parse _parseRegisterGauge', async () => {
     const decodeActions = new DecodeActions()
     const baseAction = {
-      textSignature: 'registerGauge(address,uint8,address,bytes)',
+      textSignature: 'registerGauge(address,uint8,address,string)',
       function: 'registerGauge',
       contract: 'GaugeRegistrar',
       parameters: [
