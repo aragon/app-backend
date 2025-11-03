@@ -5,6 +5,7 @@ import DecodeActions from '@helpers/decodeAction'
 import { expect } from 'chai'
 import { ProxyToken } from '@modules/proxyToken'
 import CovalentHelper from '@helpers/covalent'
+import IPFSModule from '@modules/ipfs'
 
 describe('Integ: decodeAction', () => {
   let sandbox: SinonSandbox
@@ -15,6 +16,34 @@ describe('Integ: decodeAction', () => {
 
   afterEach(() => {
     sandbox && sandbox.restore()
+  })
+
+  describe('decode gauge registrar actions', () => {
+    it('should parse properly registerGauge action', async () => {
+      const action = {
+        data: '0x0de61ed00000000000000000000000006818013d7b2d49d7396ba9733b59c539a639f3ed00000000000000000000000000000000000000000000000000000000000000000000000000000000000000006818013d7b2d49d7396ba9733b59c539a639f3ed0000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000006c3078363937303636373333613266326635313664363137313637343636663332353936373736376137333738333735343332343635323438356137373334376135333437343436333434333835393638373835323661333637313530333636613462343336313662343233310000000000000000000000000000000000000000',
+        to: '0x97BBC8D5F563d2193aE96600bBc787b55458745d',
+        value: '0',
+      }
+
+      const decodeAction = new DecodeActions()
+      const fetchMetadataStub = sandbox.stub(IPFSModule, 'fetchMetadata').resolves({
+        name: 'Test gauge',
+      })
+
+      const decoded: any = await decodeAction.decodeData(action, {
+        network: NetworksEnum.ethereumSepolia,
+        daoAddress: '0xDaoAddress',
+        blockNumber: 7051636,
+      })
+
+      expect(decoded?.type).to.be.eq(ProposalActionType.RegisterGauge)
+      expect(decoded?.gaugeMetadata).to.deep.eq({
+        name: 'Test gauge',
+      })
+      expect(fetchMetadataStub.calledOnce).to.be.true
+      expect(fetchMetadataStub.args[0][0]).to.eq('ipfs://QmaqgFo2Ygvzsx7T2FRHZw4zSGDcD8YhxRj6qP6jKCakB1')
+    })
   })
 
   describe.skip('decodeAction when mint is wired data', () => {
