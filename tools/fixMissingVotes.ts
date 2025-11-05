@@ -1,5 +1,5 @@
 import { EnumConnection, type IService, ITokenVotingLogs, NetworksEnum } from '@types'
-import UnitDepUtils from '@test/lib/unit-dep/utils'
+import { LibUtils } from '@test/lib/unit-dep/lib'
 import { TokenVoting } from '@artifacts/TokenVoting'
 import { ProposalHandler } from '@handlers/proposalHandler'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
@@ -15,7 +15,7 @@ export const FixMissingVotes: IService | any = {
     const network = NetworksEnum.ethereumSepolia
     await Promise.all(
       FixMissingVotes.transactions.map(async (txHash: string) => {
-        const tx = await UnitDepUtils.getData(TokenVoting.abi, ITokenVotingLogs.VoteCast, txHash, network)
+        const tx = await LibUtils.getData(TokenVoting.abi, ITokenVotingLogs.VoteCast, txHash, network)
 
         for (const { event, logInfo } of tx) {
           await ProposalHandler.voteCast(event, logInfo)
