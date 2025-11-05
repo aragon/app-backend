@@ -143,6 +143,7 @@ describe('Helpers:Utils', () => {
       'chiliz-mainnet': 'CHILIZ_MAINNET',
       'corn-mainnet': 'CORN_MAINNET',
       'avax-mainnet': 'AVAX_MAINNET',
+      'katana-mainnet': 'KATANA_MAINNET',
     }
 
     Object.keys(NetworksEnum).forEach(key => {

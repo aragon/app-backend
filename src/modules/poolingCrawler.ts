@@ -78,9 +78,9 @@ const PoolingCrawler = {
   async filterLogs(logs: Log[], network: NetworksEnum, includeTransfer = false) {
     try {
       if (includeTransfer) {
-        return PoolingCrawler._filterTransferLogs(logs, network)
+        return await PoolingCrawler._filterTransferLogs(logs, network)
       } else {
-        return PoolingCrawler._filterDelegateVotesLogs(logs, network)
+        return await PoolingCrawler._filterDelegateVotesLogs(logs, network)
       }
     } catch (error) {
       logger.error('PoolingCrawler filterLogs', llo({ network, error }))
