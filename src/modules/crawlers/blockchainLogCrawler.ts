@@ -60,10 +60,8 @@ class BlockchainLogCrawler {
     const adaptiveConfig = opts.batchSize
       ? {
           ...opts.adaptiveConfig,
+          maxBatchDays: opts.batchSize,
           initialBatchDays: opts.batchSize,
-          // For real-time: allow reducing to 1/10th of provided batchSize
-          // e.g., 0.01 days can reduce to 0.001 days (~86 seconds = ~4 blocks for 20s chains)
-          // This ensures we can reduce but maintain a safe minimum (at least 2-5 blocks)
           minBatchDays: opts.adaptiveConfig?.minBatchDays ?? Math.max(opts.batchSize / 10, 0.001),
         }
       : opts.adaptiveConfig

@@ -59,7 +59,7 @@ const PoolingCrawler = {
         onError: async (error: any) => logger.error('Error Indexer', llo({ network, error })),
         logService,
         stopOnError: true,
-        batchSize: 0.01,
+        batchSize: 0.05,
         skipLogProcessing: includeTransfer,
       })
 
