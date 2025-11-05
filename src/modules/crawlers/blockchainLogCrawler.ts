@@ -261,6 +261,7 @@ class BlockchainLogCrawler {
     }
 
     if (this.crawlParams.skipLogProcessing) {
+      this.crawlSetting.crawling = false
       return rawLogs
     }
 
