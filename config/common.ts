@@ -74,9 +74,9 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'Response is too big',
         'too large',
       ]),
-      BLOCK_LOW_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_LOW_RANGE', 5),
-      BLOCK_MEDIUM_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_MEDIUM_RANGE', 20),
-      BLOCK_HIGH_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_HIGH_RANGE', 40),
+      BLOCK_LOW_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_LOW_RANGE', 15),
+      BLOCK_MEDIUM_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_MEDIUM_RANGE', 40),
+      BLOCK_HIGH_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_HIGH_RANGE', 70),
       // Adaptive batch size configuration
       ADAPTIVE: {
         INITIAL_BATCH_DAYS: utils.configParser(

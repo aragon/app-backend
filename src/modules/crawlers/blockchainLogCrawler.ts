@@ -170,7 +170,6 @@ class BlockchainLogCrawler {
 
         this.crawlSetting.nbTotal += allLogs.length
         const sortedLogs = this.logProcessingEngine.sortLogs(allLogs)
-        let highestBlockProcessed = 0
 
         if (sortedLogs.length === 0) {
           logger.verbose(
@@ -196,7 +195,7 @@ class BlockchainLogCrawler {
           }
 
           if (parallelConfig.enable) {
-            highestBlockProcessed = parallelConfig.useBatch
+            parallelConfig.useBatch
               ? await this.logProcessingEngine.processLogsParallelBatch(sortedLogs, context, parallelConfig)
               : await this.logProcessingEngine.processLogsParallel(
                   sortedLogs,
@@ -209,7 +208,7 @@ class BlockchainLogCrawler {
                   this.crawlParams.logService || undefined,
                 )
           } else {
-            highestBlockProcessed = await this.logProcessingEngine.processLogs(
+            await this.logProcessingEngine.processLogs(
               sortedLogs,
               context,
               this.crawlParams.strategy,
@@ -225,14 +224,10 @@ class BlockchainLogCrawler {
           this.crawlSetting.lastSync = stats.lastSync
         } else {
           sortedLogs?.map(log => rawLogs.push(this.logProcessingEngine.formatLog(log)))
-          if (sortedLogs?.length > 0) {
-            highestBlockProcessed = Math.max(...sortedLogs.map(log => Number(log.blockNumber)))
-          }
         }
 
         if (this.crawlParams.logService && !this.crawlParams.skipLogProcessing) {
-          const progressBlock = highestBlockProcessed > 0 ? highestBlockProcessed : toBlock
-          await this.onSaveProgress(progressBlock)
+          await this.onSaveProgress(toBlock)
         }
 
         if (this.crawlSetting.shutdown) break
