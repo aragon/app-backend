@@ -43,7 +43,6 @@ describe('Integ: Token', () => {
     expect(startStub.called).to.be.true
   })
 
-
   it.skip('test the crawler issue', async function () {
     this.timeout(10000000000)
     const network = NetworksEnum.cornMainnet
@@ -53,7 +52,7 @@ describe('Integ: Token', () => {
     await Models.ConfigIndexer.create({
       network,
       service: logService,
-      lastSync: blockNumber
+      lastSync: blockNumber,
     })
 
     await PoolingCrawler.start({
