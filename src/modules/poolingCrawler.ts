@@ -134,14 +134,16 @@ const PoolingCrawler = {
 
     const daoAddressesSet = new Set(daoAddresses)
 
-    process.nextTick(async () => {
-      if (network === NetworksEnum.peaqMainnet) await utils.wait(config.NODES.PEAQ_MAINNET.INTERVAL_BLOCK_TIME * 1000)
-      await Promise.all(
-        [...daoAddressesSet].map(async daoAddress =>
-          DaoRegistryHandler.nativeTransfer(null as any, { address: daoAddress, network } as any),
-        ),
-      )
-    })
+    if (daoAddressesSet.size !== 0) {
+      process.nextTick(async () => {
+        if (network === NetworksEnum.peaqMainnet) await utils.wait(config.NODES.PEAQ_MAINNET.INTERVAL_BLOCK_TIME * 1000)
+        await Promise.all(
+          [...daoAddressesSet].map(async daoAddress =>
+            DaoRegistryHandler.nativeTransfer(null as any, { address: daoAddress, network } as any),
+          ),
+        )
+      })
+    }
 
     return logs.filter(log => !topicsToHandle.has(log.topics[0]))
   },
