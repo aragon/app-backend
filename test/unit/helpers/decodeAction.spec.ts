@@ -15,7 +15,6 @@ import Ipfs from '@modules/ipfs'
 import { Models } from '@dbModels'
 import { MemberGovernanceFactory } from '@src/governance'
 import BlockScoutHelper from '@helpers/blockScout'
-import { IBlockScoutAddressType } from '@src/types/blockScout'
 import Web3Utils from '@helpers/web3Utils'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 
@@ -985,7 +984,7 @@ describe.only('Helpers: DecodeActions', () => {
           ]),
         },
       ])
-      const parseNetspecStub = sandbox.stub(ContractNetspecHelper, 'parseNetspec').returns([
+      sandbox.stub(ContractNetspecHelper, 'parseNetspec').returns([
         {
           inputs: [],
           notice: 'Test function',
@@ -1094,7 +1093,7 @@ describe.only('Helpers: DecodeActions', () => {
           ABI: '[]',
         },
       ])
-      const parseNetspecStub = sandbox.stub(ContractNetspecHelper, 'parseNetspec').returns([])
+      sandbox.stub(ContractNetspecHelper, 'parseNetspec').returns([])
 
       const result = await decodeActions.parseContractNetspec(
         functionSelector,
