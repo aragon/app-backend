@@ -18,7 +18,7 @@ import BlockScoutHelper from '@helpers/blockScout'
 import Web3Utils from '@helpers/web3Utils'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 
-describe.only('Helpers: DecodeActions', () => {
+describe('Helpers: DecodeActions', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
