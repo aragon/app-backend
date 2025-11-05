@@ -6,6 +6,8 @@ import { ProxyToken } from '@modules/proxyToken'
 import { Models } from '@dbModels'
 import { LogTokenVoting } from '@plugins/logTokenVoting'
 import AragonPluginsService from '@plugins/index'
+import ConfigIndexerHelper from '@helpers/configIndexer'
+import PoolingCrawler from '@modules/poolingCrawler'
 
 describe('Integ: Token', () => {
   let sandbox: SinonSandbox
@@ -39,5 +41,24 @@ describe('Integ: Token', () => {
     })
 
     expect(startStub.called).to.be.true
+  })
+
+
+  it.skip('test the crawler issue', async function () {
+    this.timeout(10000000000)
+    const network = NetworksEnum.cornMainnet
+    const blockNumber = 913077
+    const logService = ConfigIndexerHelper.builders.indexer(network)
+
+    await Models.ConfigIndexer.create({
+      network,
+      service: logService,
+      lastSync: blockNumber
+    })
+
+    await PoolingCrawler.start({
+      logService,
+      network,
+    })
   })
 })

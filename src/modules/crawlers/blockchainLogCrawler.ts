@@ -55,8 +55,21 @@ class BlockchainLogCrawler {
       isTopicObject: opts.isTopicObject,
     })
 
+    // If batchSize is provided (real-time syncing), use it as the initial batch size
+    // Otherwise use default config (60 days for historical crawling)
+    const adaptiveConfig = opts.batchSize
+      ? {
+          ...opts.adaptiveConfig,
+          initialBatchDays: opts.batchSize,
+          // For real-time: allow reducing to 1/10th of provided batchSize
+          // e.g., 0.01 days can reduce to 0.001 days (~86 seconds = ~4 blocks for 20s chains)
+          // This ensures we can reduce but maintain a safe minimum (at least 2-5 blocks)
+          minBatchDays: opts.adaptiveConfig?.minBatchDays ?? Math.max(opts.batchSize / 10, 0.001),
+        }
+      : opts.adaptiveConfig
+
     // Always use adaptive batch manager - it's superior to static batch sizing
-    this.adaptiveBatchManager = new AdaptiveBatchSizeManager(opts.network, opts.adaptiveConfig)
+    this.adaptiveBatchManager = new AdaptiveBatchSizeManager(opts.network, adaptiveConfig)
     const initialBatchSize = this.adaptiveBatchManager.getCurrentBatchSize()
 
     this.logProcessingEngine = new LogProcessingEngine({
@@ -293,6 +306,7 @@ class BlockchainLogCrawler {
     while (!success) {
       try {
         const response = await this.executeBatchRequest(topics!, currentBlock, toBlock)
+
         const { successfulResponses, failedResponses, batchSizeErrors, rateLimitErrors } =
           this.batchRequestManager.processBatchResponse(response)
 

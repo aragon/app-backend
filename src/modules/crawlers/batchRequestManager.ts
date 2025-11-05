@@ -146,7 +146,7 @@ export class BatchRequestManager {
       ),
     )
 
-    return response.data as IRPCResponse[]
+    return Array.isArray(response.data) ? response.data : ([response.data] as IRPCResponse[])
   }
 
   /**
@@ -197,7 +197,7 @@ export class BatchRequestManager {
       ),
     )
 
-    return response.data as IRPCResponse[]
+    return Array.isArray(response.data) ? response.data : ([response.data] as IRPCResponse[])
   }
 
   /**
