@@ -21,6 +21,7 @@ import { TaskSchedulerState } from '@state/taskSchedulerState'
 import TokenFetcher from '@services/aragon-dao/tokenFetcher'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 import ActionDecoder from '@services/aragon-gateway/actionDecoder'
+import { TransferIndexer } from '@services/aragon-dao/transferIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'service:DaoService' })
 
@@ -90,6 +91,8 @@ const AragonDaoService: IService = {
 
     const scheduler = TaskSchedulerState.getInstance()
     await scheduler.startTask('token-re-fetch', taskOptions)
+
+    await TransferIndexer.start()
 
     logger.info('AragonDaoService service started', llo({}))
   },
