@@ -108,14 +108,18 @@ export default class Gauge extends Model {
     const gaugeParams = params ?? {}
     const { status, ...paramsWithoutStatus } = gaugeParams
     const dynamicFilter = Object.fromEntries(
-      Object.entries(paramsWithoutStatus).filter(([key, v]) => v !== undefined && key !== 'epochId'),
+      Object.entries(paramsWithoutStatus).filter(
+        ([key, v]) => v !== undefined && key !== 'epochId' && key !== 'status',
+      ),
     )
     const filter: Record<string, any> = {
       ...ModelUtils.createFilter(paginationParams, ['network', 'pluginAddress']),
       ...dynamicFilter,
     }
 
-    filter.isActive = status === IGaugeStatus.active
+    if (status) {
+      filter.isActive = status !== IGaugeStatus.inactive
+    }
 
     const query: any = [
       {
