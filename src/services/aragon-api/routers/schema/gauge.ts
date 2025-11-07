@@ -10,6 +10,10 @@ const GaugeSchema = {
       .required(),
   }),
 
+  getGaugeQuery: Joi.object({
+    status: Joi.string().valid('active', 'inactive').optional(),
+  }),
+
   getGaugeEpochMetricsParams: Joi.object({
     pluginAddress: ValidationSchema.joiAddress.required(),
     memberAddress: ValidationSchema.joiAddress.optional(),

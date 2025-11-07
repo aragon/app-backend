@@ -104,20 +104,25 @@ export default class Gauge extends Model {
     paginationParams?: IPaginationParams
   }): Promise<IPaginatedResult<any>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
+    const gaugeParams = params ?? {}
+    const { status, ...paramsWithoutStatus } = gaugeParams
     const dynamicFilter = Object.fromEntries(
-      Object.entries(params).filter(([key, v]) => v !== undefined && key !== 'epochId'),
+      Object.entries(paramsWithoutStatus).filter(([key, v]) => v !== undefined && key !== 'epochId'),
     )
-    const filter = {
+    const filter: Record<string, any> = {
       ...ModelUtils.createFilter(paginationParams, ['network', 'pluginAddress']),
       ...dynamicFilter,
     }
 
+    if (status === 'active') {
+      filter.isActive = true
+    } else if (status === 'inactive') {
+      filter.isActive = false
+    }
+
     const query: any = [
       {
-        $match: {
-          ...filter,
-          isActive: true,
-        },
+        $match: filter,
       },
       { $sort: request.sort },
       { $skip: request.skip },
@@ -126,8 +131,8 @@ export default class Gauge extends Model {
         {
           gaugeAddress: '$address',
           network: '$network',
-          epochId: params.epochId,
-          pluginAddress: params.pluginAddress,
+          epochId: gaugeParams.epochId,
+          pluginAddress: gaugeParams.pluginAddress,
         },
         'gaugeMetrics',
         {
@@ -152,7 +157,7 @@ export default class Gauge extends Model {
                 totalMemberVoteCount: 0,
                 currentEpochVotingPower: '0',
                 totalGaugeVotingPower: '0',
-                epochId: params.epochId,
+                epochId: gaugeParams.epochId,
               },
             },
           },
@@ -178,10 +183,7 @@ export default class Gauge extends Model {
     ]
 
     const currentPage = request.skip / request.limit + 1
-    const [data, totalRecords] = await Promise.all([
-      this.aggregate(query),
-      this.countDocuments({ ...filter, isActive: true }),
-    ])
+    const [data, totalRecords] = await Promise.all([this.aggregate(query), this.countDocuments(filter)])
 
     const totalPages = Math.ceil(totalRecords / request.limit)
 
