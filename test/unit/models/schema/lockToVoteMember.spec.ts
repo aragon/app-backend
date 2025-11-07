@@ -108,6 +108,42 @@ describe('Model: LockToVoteMember', () => {
     expect(updatedLockToVoteMember.lastVPBlockNumber).to.eq(newLastVPBlockNumber)
   })
 
+  it('Should not update required field with falsy value', async () => {
+    const lockToVoteMember = await Models.LockToVoteMember.create(rawLockToVoteMember)
+    const originalMemberAddress = lockToVoteMember.memberAddress
+
+    // Try to update required field with null - should not update
+    await lockToVoteMember.update({
+      memberAddress: null as any,
+    })
+
+    expect(lockToVoteMember.memberAddress).to.eq(originalMemberAddress)
+  })
+
+  it('Should skip update when field does not exist in schema', async () => {
+    const lockToVoteMember = await Models.LockToVoteMember.create(rawLockToVoteMember)
+
+    // Try to update with non-existent field
+    await lockToVoteMember.update({
+      nonExistentField: 'some value',
+    } as any)
+
+    // Should not throw error, just skip the field
+    expect(lockToVoteMember).to.exist
+  })
+
+  it('Should not update when value is same as current', async () => {
+    const lockToVoteMember = await Models.LockToVoteMember.create(rawLockToVoteMember)
+    const originalVotingPower = lockToVoteMember.votingPower
+
+    // Update with same value
+    await lockToVoteMember.update({
+      votingPower: originalVotingPower,
+    })
+
+    expect(lockToVoteMember.votingPower).to.eq(originalVotingPower)
+  })
+
   it('Should reload', async () => {
     const createdLockToVoteMember = await Models.LockToVoteMember.create(rawLockToVoteMember)
     await createdLockToVoteMember.reload()

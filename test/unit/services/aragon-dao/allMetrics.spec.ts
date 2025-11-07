@@ -93,6 +93,21 @@ describe('AragonDao:AllMetrics', () => {
       expect(crawlerStub.calledOnce).to.be.true
       expect(stubDaoMetrics.notCalled).to.be.true
     })
+
+    it('should process allDaoMetrics without network parameter', async () => {
+      const stubLogger = sandbox.stub(logger, 'verbose')
+      const stubDaoMetrics = sandbox.stub(DaoMetrics, 'onDocument').resolves()
+
+      const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
+        await this.onDocument({ id: 'testDao' } as any)
+      })
+
+      await AllMetrics.allDaoMetrics()
+
+      expect(stubLogger.calledWith('End allDaoMetrics' as any)).to.be.true
+      expect(stubDaoMetrics.calledOnceWith({ id: 'testDao' } as any)).to.be.true
+      expect(crawlerStub.calledOnce).to.be.true
+    })
   })
 
   describe('allProposalMetrics', () => {
@@ -185,6 +200,31 @@ describe('AragonDao:AllMetrics', () => {
       expect(crawlerStub.calledOnce).to.be.true
       expect(stubLogger.calledWith('End allProposalMetrics' as any)).to.be.true
     })
+
+    it('should process allProposalMetrics without network parameter', async () => {
+      const stubLogger = sandbox.stub(logger, 'verbose')
+      const stubProposalMetrics = sandbox.stub(ProposalMetrics, 'proposalTokenVotingMetrics').resolves()
+      const stubFindPlugin = sandbox
+        .stub(Models.Plugin, 'findByAddress')
+        .resolves({ interfaceType: IPluginInterfaceType.tokenVoting, isSupported: true } as any)
+
+      const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
+        await this.onDocument({ pluginAddress: '0x123', proposalIndex: '1', network: NetworksEnum.ethereumMainnet })
+      })
+
+      await AllMetrics.allProposalMetrics()
+
+      expect(stubFindPlugin.calledOnce).to.be.true
+      expect(
+        stubProposalMetrics.calledOnceWith({
+          pluginAddress: '0x123',
+          proposalIndex: '1',
+          network: NetworksEnum.ethereumMainnet,
+        }),
+      ).to.be.true
+      expect(crawlerStub.calledOnce).to.be.true
+      expect(stubLogger.calledWith('End allProposalMetrics' as any)).to.be.true
+    })
   })
 
   describe('rebaseTokens', () => {
@@ -242,6 +282,38 @@ describe('AragonDao:AllMetrics', () => {
       await AllMetrics.rebaseTokens(NetworksEnum.ethereumSepolia)
 
       expect(stubLoggerError.calledOnceWith('Error SyncMemberVP' as any)).to.be.true
+      expect(crawlerStub.calledOnce).to.be.true
+    })
+
+    it('should use blockNumber when lastVPBlockNumber is not set', async () => {
+      const stubLogger = sandbox.stub(logger, 'verbose')
+      const stubGetBlockTimestamp = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123456)
+      const stubGetPastVotes = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('500')
+
+      const { ProxyToken } = require('@modules/proxyToken')
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ clockMode: 'BlockNumber' })
+
+      const docStub = {
+        update: sandbox.stub().resolves(),
+        memberAddress: '0x123',
+        tokenAddress: '0x01403157c847B2c0291c05DF5055876eB4e039bc',
+        lastVPBlockNumber: undefined,
+        blockNumber: 200,
+        votingPower: '300',
+        network: NetworksEnum.ethereumSepolia,
+      }
+
+      const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
+        await this.onDocument(docStub)
+        return { nbSuccess: 1, nbError: 0, nbTotal: 1 }
+      })
+
+      await AllMetrics.rebaseTokens(NetworksEnum.ethereumSepolia)
+
+      expect(stubGetBlockTimestamp.calledWith(200, NetworksEnum.ethereumSepolia)).to.be.true
+      expect(stubGetPastVotes.calledOnce).to.be.true
+      expect(docStub.update.calledOnceWith({ votingPower: '500', lastVPBlockNumber: 200 })).to.be.true
+      expect(stubLogger.calledWith('End rebaseTokens' as any)).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
     })
   })

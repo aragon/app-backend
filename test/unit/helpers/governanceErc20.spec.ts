@@ -237,6 +237,22 @@ describe('Helpers: GovernanceErc20', () => {
       expect(getMemberVotingPowerStub.callCount).to.equal(3) // initial + 2 retries
       expect(result).to.equal('0')
     })
+
+    it('should use default options when not provided', async () => {
+      const getMemberVotingPowerStub = sandbox.stub(Web3BatchHelper, 'getMemberVotingPower')
+      getMemberVotingPowerStub.resolves({ votingPower: '500', error: false })
+
+      const result = await GovernanceErc20Helper._getPastVotesForFallback(
+        '0x123',
+        '0x456',
+        12345678,
+        1622547800,
+        NetworksEnum.ethereumMainnet,
+      )
+
+      expect(getMemberVotingPowerStub.calledOnce).to.be.true
+      expect(result).to.equal('500')
+    })
   })
 
   describe('getVotes', () => {

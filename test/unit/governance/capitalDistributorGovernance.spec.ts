@@ -652,6 +652,43 @@ describe('Governance:CapitalDistributorGovernance', () => {
     })
   })
 
+  describe('getMerkleGenerationStatus', () => {
+    it('should return merkle generation status when campaignMerkleRoot exists', async () => {
+      const mockMerkleRoot = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
+
+      await Models.CampaignMerkleRoot.create({
+        pluginAddress: testPluginAddress,
+        network: testNetwork,
+        campaignId: testCampaignId,
+        merkleRoot: mockMerkleRoot,
+        totalMembers: 100,
+      })
+
+      const result = await capitalDistributorGovernance.getMerkleGenerationStatus({
+        campaignId: testCampaignId,
+        pluginAddress: testPluginAddress,
+        network: testNetwork,
+      })
+
+      expect(result).to.not.be.null
+      expect(result!.campaignId).to.equal(testCampaignId)
+      expect(result!.pluginAddress).to.equal(testPluginAddress)
+      expect(result!.network).to.equal(testNetwork)
+      expect(result!.merkleRoot).to.equal(mockMerkleRoot)
+      expect(result!.totalMembers).to.equal(100)
+    })
+
+    it('should return null when campaignMerkleRoot does not exist', async () => {
+      const result = await capitalDistributorGovernance.getMerkleGenerationStatus({
+        campaignId: 'non-existent-campaign',
+        pluginAddress: testPluginAddress,
+        network: testNetwork,
+      })
+
+      expect(result).to.be.null
+    })
+  })
+
   describe('BaseGovernance empty method implementations', () => {
     it('should return null for getOrCreate', async () => {
       const result = await capitalDistributorGovernance.getOrCreate()

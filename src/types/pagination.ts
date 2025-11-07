@@ -9,6 +9,11 @@ export interface ITokenExtraParams {
   isGovernance?: boolean
 }
 
+export enum IGaugeStatus {
+  active = 'active',
+  inactive = 'inactive',
+}
+
 export interface IVoteExtraParams {
   network?: NetworksEnum
   daoAddress?: HexAddress
@@ -52,6 +57,19 @@ export interface IProposalExtraParams {
   daoInfo?: boolean
   isExecuted?: boolean
   isSubProposal?: boolean
+}
+
+export interface IGaugeParams {
+  network?: NetworksEnum
+  pluginAddress?: HexAddress
+  epochId?: string
+  status?: 'active' | 'inactive'
+}
+
+export interface IGaugeEpochMetricParams {
+  network: NetworksEnum
+  pluginAddress: HexAddress
+  memberAddress?: HexAddress
 }
 
 export interface IAssetExtraParams {

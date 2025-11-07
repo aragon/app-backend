@@ -3,6 +3,8 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { Models } from '@dbModels'
 import { FakeDaoPermissions } from '@test/mock/fakeDaoPermission'
+import { NetworksEnum } from '@types'
+
 describe('Dao Permission', () => {
   let sandbox: SinonSandbox
   beforeEach(() => {
@@ -219,5 +221,164 @@ describe('Dao Permission', () => {
     const updatedLog = await existingLog.reload()
 
     expect(updatedLog.permissionId).to.be.equal('0x1234')
+  })
+
+  describe('findWithPagination', () => {
+    it('should return only active granted permissions', async () => {
+      const daoAddress = '0x5B72fbB65339a8A0032C2d823520d697a0265c50'
+      const network = NetworksEnum.ethereumSepolia
+
+      await Models.DaoPermission.create({
+        network,
+        blockNumber: 100,
+        transactionHash: '0x01',
+        transactionIndex: 0,
+        logIndex: 0,
+        daoAddress,
+        permissionId: '0xPERM1',
+        whoAddress: '0xWHO1',
+        whereAddress: '0xWHERE1',
+        event: 'Granted',
+      })
+
+      await Models.DaoPermission.create({
+        network,
+        blockNumber: 200,
+        transactionHash: '0x02',
+        transactionIndex: 0,
+        logIndex: 0,
+        daoAddress,
+        permissionId: '0xPERM1',
+        whoAddress: '0xWHO1',
+        whereAddress: '0xWHERE1',
+        event: 'Revoked',
+      })
+
+      await Models.DaoPermission.create({
+        network,
+        blockNumber: 150,
+        transactionHash: '0x03',
+        transactionIndex: 0,
+        logIndex: 0,
+        daoAddress,
+        permissionId: '0xPERM2',
+        whoAddress: '0xWHO2',
+        whereAddress: '0xWHERE2',
+        event: 'Granted',
+      })
+
+      const result = await Models.DaoPermission.findWithPagination({
+        extraParams: { daoAddress, network },
+        paginationParams: { pageSize: 10, page: 1 },
+      })
+
+      expect(result.data).to.have.lengthOf(1)
+      expect(result.data[0].permissionId).to.equal('0xPERM2')
+      expect(result.data[0].whoAddress).to.equal('0xWHO2')
+      expect(result.data[0].whereAddress).to.equal('0xWHERE2')
+      expect(result.metadata.totalRecords).to.equal(1)
+    })
+
+    it('should handle pagination correctly', async () => {
+      const daoAddress = '0xDAO123'
+      const network = NetworksEnum.ethereumSepolia
+
+      for (let i = 0; i < 25; i++) {
+        await Models.DaoPermission.create({
+          network,
+          blockNumber: 100 + i,
+          transactionHash: `0x${i.toString().padStart(64, '0')}`,
+          transactionIndex: 0,
+          logIndex: i,
+          daoAddress,
+          permissionId: `0xPERM${i}`,
+          whoAddress: `0xWHO${i}`,
+          whereAddress: `0xWHERE${i}`,
+          event: 'Granted',
+        })
+      }
+
+      const page1 = await Models.DaoPermission.findWithPagination({
+        extraParams: { daoAddress, network },
+        paginationParams: { pageSize: 10, page: 1 },
+      })
+
+      expect(page1.data).to.have.lengthOf(10)
+      expect(page1.metadata.totalRecords).to.equal(25)
+      expect(page1.metadata.totalPages).to.equal(3)
+      expect(page1.metadata.page).to.equal(1)
+
+      const page2 = await Models.DaoPermission.findWithPagination({
+        extraParams: { daoAddress, network },
+        paginationParams: { pageSize: 10, page: 2 },
+      })
+
+      expect(page2.data).to.have.lengthOf(10)
+      expect(page2.metadata.page).to.equal(2)
+      expect(page2.metadata.totalRecords).to.equal(25)
+
+      const page3 = await Models.DaoPermission.findWithPagination({
+        extraParams: { daoAddress, network },
+        paginationParams: { pageSize: 10, page: 3 },
+      })
+
+      expect(page3.data).to.have.lengthOf(5)
+      expect(page3.metadata.page).to.equal(3)
+      expect(page3.metadata.totalRecords).to.equal(25)
+    })
+
+    it('should return latest event per permission group', async () => {
+      const daoAddress = '0xDAO456'
+      const network = NetworksEnum.ethereumSepolia
+
+      await Models.DaoPermission.create({
+        network,
+        blockNumber: 100,
+        transactionHash: '0x01',
+        transactionIndex: 0,
+        logIndex: 0,
+        daoAddress,
+        permissionId: '0xPERM1',
+        whoAddress: '0xWHO1',
+        whereAddress: '0xWHERE1',
+        event: 'Granted',
+      })
+
+      await Models.DaoPermission.create({
+        network,
+        blockNumber: 150,
+        transactionHash: '0x02',
+        transactionIndex: 0,
+        logIndex: 0,
+        daoAddress,
+        permissionId: '0xPERM1',
+        whoAddress: '0xWHO1',
+        whereAddress: '0xWHERE1',
+        event: 'Revoked',
+      })
+
+      await Models.DaoPermission.create({
+        network,
+        blockNumber: 200,
+        transactionHash: '0x03',
+        transactionIndex: 0,
+        logIndex: 0,
+        daoAddress,
+        permissionId: '0xPERM1',
+        whoAddress: '0xWHO1',
+        whereAddress: '0xWHERE1',
+        event: 'Granted',
+      })
+
+      const result = await Models.DaoPermission.findWithPagination({
+        extraParams: { daoAddress, network },
+        paginationParams: { pageSize: 10, page: 1 },
+      })
+
+      expect(result.data).to.have.lengthOf(1)
+      expect(result.data[0].permissionId).to.equal('0xPERM1')
+      expect(result.data[0].blockNumber).to.equal(200)
+      expect(result.metadata.totalRecords).to.equal(1)
+    })
   })
 })

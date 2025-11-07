@@ -45,7 +45,6 @@ import { ERC1155 } from '@artifacts/ERC1155'
 import Utils from '@helpers/utils'
 import { MemberGovernanceFactory } from '@src/governance'
 import Web3Utils from '@helpers/web3Utils'
-import { IBlockScoutAddressType } from '@src/types/blockScout'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 import type Token from '@models/schema/token'
 const llo = logger.logMeta.bind(null, { service: 'helpers:DecodeActions' })
@@ -137,6 +136,7 @@ class DecodeActions {
       updateMultisigSettings: this._parseMultiSigSettingUpdateAction.bind(this),
       updateVotingSettings: this._parseVotingSettingUpdateAction.bind(this),
       updateStages: this._parseStageUpdatedOnSppAction.bind(this),
+      registerGauge: this._parseRegisterGauge.bind(this),
     }
 
     for (const pattern in actionHandlers) {
@@ -197,10 +197,7 @@ class DecodeActions {
     const receiver = decodedData.parameters[0].value
     const tokenAddress = action.to
 
-    const tokenDetails = await ProxyWeb3Provider.searchDetailsOfContract({
-      address: tokenAddress,
-      network: document.network!,
-    })
+    const tokenDetails = await ProxyToken.saveAndGetToken(tokenAddress, document.network!)
 
     // Create base member and get member info
     await MemberGovernanceFactory.createBaseMember(receiver)
@@ -210,7 +207,7 @@ class DecodeActions {
       logger.error('Missing member', llo({ member, receiver, decodedData }))
     }
 
-    if (!tokenDetails || tokenDetails.type !== IBlockScoutAddressType.TOKEN) {
+    if (!tokenDetails) {
       return {
         ...action,
         inputData: decodedData,
@@ -234,7 +231,7 @@ class DecodeActions {
       }
     }
 
-    const [currentBalance, tokenInfo, token] = await Promise.all([
+    const [currentBalance, tokenInfo] = await Promise.all([
       Web3Helper.getTokenBalanceAtBlock({
         tokenAddress,
         address: receiver,
@@ -242,7 +239,6 @@ class DecodeActions {
         blockNumber: document.blockNumber!,
       }),
       Covalent.getTokenSupplyAndHolders(tokenAddress, document.network!, document.blockNumber),
-      ProxyToken.saveAndGetToken(tokenAddress, document.network!),
     ])
 
     return {
@@ -258,12 +254,12 @@ class DecodeActions {
       totalSupply: tokenInfo.totalSupply,
       holdersCount: tokenInfo.totalHolders,
       token: {
-        address: token!.address,
-        name: token!.name,
-        symbol: token!.symbol,
-        decimals: token!.decimals,
-        logo: token!.logo,
-        priceUsd: token!.priceUsd,
+        address: tokenDetails.address,
+        name: tokenDetails.name,
+        symbol: tokenDetails.symbol,
+        decimals: tokenDetails.decimals,
+        logo: tokenDetails.logo,
+        priceUsd: tokenDetails.priceUsd,
       },
     }
   }
@@ -676,6 +672,35 @@ class DecodeActions {
       receiver: { address: metadata.to },
       amount: metadata.value,
       token: metadata.token,
+    }
+  }
+
+  async _parseRegisterGauge(decodedData: IProposalActionInputData, action: IRawAction) {
+    if (decodedData.textSignature !== KnownActionSignature.RegisterGauge) {
+      return null
+    }
+
+    const ipfsUrl = Web3Utils.extractMetadataUri(decodedData.parameters[3].value)
+
+    if (!ipfsUrl) {
+      return null
+    }
+
+    try {
+      const gaugeMetadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
+
+      if (!gaugeMetadata) {
+        return null
+      }
+
+      return {
+        ...action,
+        type: ProposalActionType.RegisterGauge,
+        inputData: decodedData,
+        gaugeMetadata,
+      }
+    } catch (e) {
+      return null
     }
   }
 

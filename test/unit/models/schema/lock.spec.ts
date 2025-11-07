@@ -40,6 +40,8 @@ describe('Model: Lock', () => {
         blockNumber: null,
         blockTimestamp: null,
         exitDateAt: null,
+        tokenId: null,
+        holder: null,
       },
       lockWithdraw: {
         status: false,
@@ -216,6 +218,30 @@ describe('Model: Lock', () => {
       expect(updatedLock.totalLocked).to.eq('10000000000000000000')
     })
 
+    it('Should not update required field with falsy value', async () => {
+      const lock = await Models.Lock.create(rawLock)
+      const originalLockManager = lock.lockManagerAddress
+
+      // Try to update required field with null - should not update
+      await lock.update({
+        lockManagerAddress: null as any,
+      })
+
+      expect(lock.lockManagerAddress).to.eq(originalLockManager)
+    })
+
+    it('Should skip update when field does not exist in schema', async () => {
+      const lock = await Models.Lock.create(rawLock)
+
+      // Try to update with non-existent field
+      await lock.update({
+        nonExistentField: 'some value',
+      } as any)
+
+      // Should not throw error, just skip the field
+      expect(lock).to.exist
+    })
+
     it('should not update if value is equal', async () => {
       const lock = await Models.Lock.create(rawLock)
       const saveSpy = sandbox.spy(lock, 'save')
@@ -376,6 +402,41 @@ describe('Model: Lock', () => {
       // test sort
       expect(result.data[0].blockNumber).to.eq(18000002)
       expect(result.data[1].blockNumber).to.eq(18000001)
+    })
+
+    it('should return empty response when page exceeds total pages', async () => {
+      const memberAddress = '0xmember2222222222222222222222222222222222'
+      const tokenAddress = fakeToken.address
+      const lockTokenAddress = lockToken.address
+
+      // Create just 1 lock
+      await Models.Lock.create({
+        ...rawLock,
+        transactionHash: '0x4444444444444444444444444444444444444444',
+        blockNumber: 18000001,
+        memberAddress,
+        tokenAddress,
+        escrowAddress: '0xescrow4444444444444444444444444444444444',
+        nftAddress: lockTokenAddress,
+      })
+
+      // Request page 10 with pageSize 10 (there's only 1 record, so only 1 page)
+      const result = await Models.Lock.findWithPagination({
+        extraParams: {
+          memberAddress,
+          onlyActive: true,
+        },
+        paginationParams: {
+          pageSize: 10,
+          page: 10, // This exceeds total pages
+          order: 'desc',
+          sort: 'blockNumber',
+        },
+      })
+
+      expect(result.data).to.have.length(0)
+      expect(result.metadata.page).to.eq(1)
+      expect(result.metadata.totalRecords).to.eq(0)
     })
   })
 

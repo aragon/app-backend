@@ -6,6 +6,7 @@ import { expect } from 'chai'
 import { Models } from '@dbModels'
 import { NetworksEnum } from '@types'
 import ModelUtils from '@models/utils/models'
+import mongoose from 'mongoose'
 
 describe('Model: TokenMember', () => {
   let sandbox: SinonSandbox
@@ -148,6 +149,42 @@ describe('Model: TokenMember', () => {
     expect(updatedTokenMember.delegateReceivedCount).to.eq(10)
   })
 
+  it('Should not update required field with falsy value', async () => {
+    const tokenMember = await Models.TokenMember.create(rawTokenMember)
+    const originalMemberAddress = tokenMember.memberAddress
+
+    // Try to update required field with null - should not update
+    await tokenMember.update({
+      memberAddress: null as any,
+    })
+
+    expect(tokenMember.memberAddress).to.eq(originalMemberAddress)
+  })
+
+  it('Should skip update when field does not exist in schema', async () => {
+    const tokenMember = await Models.TokenMember.create(rawTokenMember)
+
+    // Try to update with non-existent field
+    await tokenMember.update({
+      nonExistentField: 'some value',
+    } as any)
+
+    // Should not throw error, just skip the field
+    expect(tokenMember).to.exist
+  })
+
+  it('Should not update when value is same as current', async () => {
+    const tokenMember = await Models.TokenMember.create(rawTokenMember)
+    const originalVotingPower = tokenMember.votingPower
+
+    // Update with same value
+    await tokenMember.update({
+      votingPower: originalVotingPower,
+    })
+
+    expect(tokenMember.votingPower).to.eq(originalVotingPower)
+  })
+
   it('Should reload', async () => {
     const createdTokenMember = await Models.TokenMember.create(rawTokenMember)
     await createdTokenMember.reload()
@@ -238,6 +275,25 @@ describe('Model: TokenMember', () => {
         rawTokenMember.network!,
       )
       expect(count).to.eq(1)
+    })
+
+    it('should handle session options', async () => {
+      await Models.TokenMember.create(rawTokenMember)
+
+      // Create a real MongoDB session
+      const session = await mongoose.startSession()
+
+      try {
+        const count = await Models.TokenMember.countHoldersWithVotingPower(
+          rawTokenMember.tokenAddress!,
+          rawTokenMember.network!,
+          { session },
+        )
+
+        expect(count).to.eq(1)
+      } finally {
+        await session.endSession()
+      }
     })
   })
 

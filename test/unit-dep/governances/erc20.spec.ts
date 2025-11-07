@@ -2,7 +2,6 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
-import UnitDepUtils from '@test/lib/unit-dep/utils'
 import { DAORegistry } from '@artifacts/daoRegistry'
 import { IPluginInterfaceType, IPluginStatus, ITokenType, NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
@@ -15,13 +14,13 @@ import { TokenVoting } from '@artifacts/TokenVoting'
 import { ProposalHandler } from '@handlers/proposalHandler'
 import { RateModule } from '@modules/rates'
 import BlockScoutHelper from '@helpers/blockScout'
+import { LibUtils } from '@test/lib/unit-dep/lib'
 
 describe('Integ: ERC20', () => {
   let sandbox: SinonSandbox
 
-  before(async () => {
-    await UnitDepUtils.registerPluginRepos()
-  })
+  before(async () => {})
+
   beforeEach(() => {
     sandbox = sinon.createSandbox()
     sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
@@ -43,7 +42,7 @@ describe('Integ: ERC20', () => {
     const pluginAddressTokenVoting = '0xfd30f6A658A82e8D2CBBCcea429371ac545ef62a'
     const network = NetworksEnum.ethereumSepolia
 
-    const daoRegisteredEvents = await UnitDepUtils.getData(DAORegistry.abi, 'DAORegistered', daoInstallTx, network)
+    const daoRegisteredEvents = await LibUtils.getData(DAORegistry.abi, 'DAORegistered', daoInstallTx, network)
 
     for (const { event, logInfo } of daoRegisteredEvents) {
       await DaoRegistryHandler.daoRegistered(event, logInfo)
@@ -54,7 +53,7 @@ describe('Integ: ERC20', () => {
 
     const txReceipts = await Web3Helper.getTransactionReceipt(daoInstallTx, network)
     expect(txReceipts).to.be.not.null
-    const logs = await UnitDepUtils.parseLogsByConfig(txReceipts?.logs! as any, network)
+    const logs = await LibUtils.parseLogsByConfig(txReceipts?.logs! as any, network)
 
     for (const ev of logs) {
       await ev.handler(ev.event, ev.info)
@@ -62,9 +61,9 @@ describe('Integ: ERC20', () => {
 
     const pluginInstallationLogs: any = []
     for (const tx of [preparTxLog, appliedTxLog]) {
-      const prepareLogs = await UnitDepUtils.getData(PluginSetupProcessor.abi, 'InstallationPrepared', tx, network)
+      const prepareLogs = await LibUtils.getData(PluginSetupProcessor.abi, 'InstallationPrepared', tx, network)
 
-      const appliedLogs = await UnitDepUtils.getData(PluginSetupProcessor.abi, 'InstallationApplied', tx, network)
+      const appliedLogs = await LibUtils.getData(PluginSetupProcessor.abi, 'InstallationApplied', tx, network)
 
       pluginInstallationLogs.push(...prepareLogs, ...appliedLogs)
     }
@@ -111,12 +110,7 @@ describe('Integ: ERC20', () => {
 
     const proposalCreatedTx = '0xf322ab4c771f8973b5481e2f4245f8a0645701842462ebda4300ea079e62538b'
 
-    const proposalCreatedEvents = await UnitDepUtils.getData(
-      TokenVoting.abi,
-      'ProposalCreated',
-      proposalCreatedTx,
-      network,
-    )
+    const proposalCreatedEvents = await LibUtils.getData(TokenVoting.abi, 'ProposalCreated', proposalCreatedTx, network)
 
     for (const { event, logInfo } of proposalCreatedEvents) {
       await ProposalHandler.proposalCreated(event, logInfo)
@@ -164,7 +158,7 @@ describe('Integ: ERC20', () => {
     const pluginAddressTokenVoting = '0x25Cf379C804d5e1A7a2D9862cd73cEcC193990FF'
     const network = NetworksEnum.zksyncSepolia
 
-    const daoRegisteredEvents = await UnitDepUtils.getData(DAORegistry.abi, 'DAORegistered', daoInstallTx, network)
+    const daoRegisteredEvents = await LibUtils.getData(DAORegistry.abi, 'DAORegistered', daoInstallTx, network)
 
     for (const { event, logInfo } of daoRegisteredEvents) {
       await DaoRegistryHandler.daoRegistered(event, logInfo)
@@ -175,7 +169,7 @@ describe('Integ: ERC20', () => {
 
     const txReceipts = await Web3Helper.getTransactionReceipt(daoInstallTx, network)
     expect(txReceipts).to.be.not.null
-    const logs = await UnitDepUtils.parseLogsByConfig(txReceipts?.logs! as any, network)
+    const logs = await LibUtils.parseLogsByConfig(txReceipts?.logs! as any, network)
 
     for (const ev of logs) {
       await ev.handler(ev.event, ev.info)
@@ -194,9 +188,9 @@ describe('Integ: ERC20', () => {
 
     const pluginInstallationLogs: any = []
     for (const tx of [preparTxLog, appliedTxLog]) {
-      const prepareLogs = await UnitDepUtils.getData(PluginSetupProcessor.abi, 'InstallationPrepared', tx, network)
+      const prepareLogs = await LibUtils.getData(PluginSetupProcessor.abi, 'InstallationPrepared', tx, network)
 
-      const appliedLogs = await UnitDepUtils.getData(PluginSetupProcessor.abi, 'InstallationApplied', tx, network)
+      const appliedLogs = await LibUtils.getData(PluginSetupProcessor.abi, 'InstallationApplied', tx, network)
 
       pluginInstallationLogs.push(...prepareLogs, ...appliedLogs)
     }
@@ -303,7 +297,7 @@ describe('Integ: ERC20', () => {
     const pluginAddressTokenVoting = '0x49839b948178C0f9D7884C92EfA14074C0b08f05'
     const network = NetworksEnum.ethereumSepolia
 
-    const daoRegisteredEvents = await UnitDepUtils.getData(DAORegistry.abi, 'DAORegistered', daoInstallTx, network)
+    const daoRegisteredEvents = await LibUtils.getData(DAORegistry.abi, 'DAORegistered', daoInstallTx, network)
 
     for (const { event, logInfo } of daoRegisteredEvents) {
       await DaoRegistryHandler.daoRegistered(event, logInfo)
@@ -314,7 +308,7 @@ describe('Integ: ERC20', () => {
 
     const txReceipts = await Web3Helper.getTransactionReceipt(daoInstallTx, network)
     expect(txReceipts).to.be.not.null
-    const logs = await UnitDepUtils.parseLogsByConfig(txReceipts?.logs! as any, network)
+    const logs = await LibUtils.parseLogsByConfig(txReceipts?.logs! as any, network)
 
     for (const ev of logs) {
       await ev.handler(ev.event, ev.info)
@@ -333,9 +327,9 @@ describe('Integ: ERC20', () => {
 
     const pluginInstallationLogs: any = []
     for (const tx of [preparTxLog, appliedTxLog]) {
-      const prepareLogs = await UnitDepUtils.getData(PluginSetupProcessor.abi, 'InstallationPrepared', tx, network)
+      const prepareLogs = await LibUtils.getData(PluginSetupProcessor.abi, 'InstallationPrepared', tx, network)
 
-      const appliedLogs = await UnitDepUtils.getData(PluginSetupProcessor.abi, 'InstallationApplied', tx, network)
+      const appliedLogs = await LibUtils.getData(PluginSetupProcessor.abi, 'InstallationApplied', tx, network)
 
       pluginInstallationLogs.push(...prepareLogs, ...appliedLogs)
     }
@@ -441,7 +435,7 @@ describe('Integ: ERC20', () => {
     const pluginAddress = '0x5dB93850d843aF581d8b87C350Aa849a13a88e40'
     const network = NetworksEnum.polygonMainnet
 
-    const daoRegisteredEvents = await UnitDepUtils.getData(DAORegistry.abi, 'DAORegistered', daoInstallTx, network)
+    const daoRegisteredEvents = await LibUtils.getData(DAORegistry.abi, 'DAORegistered', daoInstallTx, network)
 
     for (const { event, logInfo } of daoRegisteredEvents) {
       await DaoRegistryHandler.daoRegistered(event, logInfo)
@@ -452,10 +446,10 @@ describe('Integ: ERC20', () => {
 
     const pluginInstallationLogs: any = []
     for (const tx of [inPreparTxLog, inAppliedTxLog, upPreparTxLog, upAppliedTxLog]) {
-      const inPrepareLogs = await UnitDepUtils.getData(PluginSetupProcessor.abi, 'InstallationPrepared', tx, network)
-      const inAppliedLogs = await UnitDepUtils.getData(PluginSetupProcessor.abi, 'InstallationApplied', tx, network)
-      const upPrepareLogs = await UnitDepUtils.getData(PluginSetupProcessor.abi, 'UpdatePrepared', tx, network)
-      const upAppliedLogs = await UnitDepUtils.getData(PluginSetupProcessor.abi, 'UpdateApplied', tx, network)
+      const inPrepareLogs = await LibUtils.getData(PluginSetupProcessor.abi, 'InstallationPrepared', tx, network)
+      const inAppliedLogs = await LibUtils.getData(PluginSetupProcessor.abi, 'InstallationApplied', tx, network)
+      const upPrepareLogs = await LibUtils.getData(PluginSetupProcessor.abi, 'UpdatePrepared', tx, network)
+      const upAppliedLogs = await LibUtils.getData(PluginSetupProcessor.abi, 'UpdateApplied', tx, network)
 
       pluginInstallationLogs.push(...inPrepareLogs, ...inAppliedLogs, ...upPrepareLogs, ...upAppliedLogs)
     }

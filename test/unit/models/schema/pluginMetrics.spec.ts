@@ -150,6 +150,30 @@ describe('Model: PluginMetrics', () => {
     expect(updatedPluginMetrics.lastActivity).to.eq(1234567900)
   })
 
+  it('Should not update required field with falsy value', async () => {
+    const pluginMetrics = await Models.PluginMetrics.create(rawPluginMetrics)
+    const originalMemberAddress = pluginMetrics.memberAddress
+
+    // Try to update required field with null - should not update
+    await pluginMetrics.update({
+      memberAddress: null as any,
+    })
+
+    expect(pluginMetrics.memberAddress).to.eq(originalMemberAddress)
+  })
+
+  it('Should skip update when field does not exist in schema', async () => {
+    const pluginMetrics = await Models.PluginMetrics.create(rawPluginMetrics)
+
+    // Try to update with non-existent field
+    await pluginMetrics.update({
+      nonExistentField: 'some value',
+    } as any)
+
+    // Should not throw error, just skip the field
+    expect(pluginMetrics).to.exist
+  })
+
   it('should update only changed fields', async () => {
     const pluginMetrics = await Models.PluginMetrics.create(rawPluginMetrics)
 

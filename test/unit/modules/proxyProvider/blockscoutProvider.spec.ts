@@ -452,6 +452,67 @@ describe('Modules: BlockScoutProvider', () => {
         expect(getTokenFullDetailsStub.calledOnce).to.be.true
         expect(getTokenFullDetailsStub.calledWith(address, network)).to.be.true
       })
+
+      it('should handle token with null/undefined name and symbol using || operators', async () => {
+        const tokenDetailsWithNullValues = {
+          address,
+          name: null,
+          symbol: undefined,
+          decimals: 18,
+          type: null, // Test || ITokenType.unknown operator on line 76
+          logo: null,
+          priceUsd: null,
+          totalSupply: null,
+          totalHolders: null,
+        }
+
+        sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves(tokenDetailsWithNullValues as any)
+
+        const result = await BlockScoutProvider.fetchBasicTokenInfo({ address, network })
+
+        // Line 73: tokenDetails.name || null
+        expect(result.name).to.equal(null)
+        // Line 74: tokenDetails.symbol || null (not in uncovered list but similar)
+        expect(result.symbol).to.equal(null)
+        // Line 76: tokenDetails.type || ITokenType.unknown
+        expect(result.type).to.equal(ITokenType.unknown)
+      })
+
+      it('should filter scam tokens when name or symbol are null/undefined using || operators', async () => {
+        const mockTokenWithNullName = {
+          address: '0xa0b86a33e6776896ada63c629b4ed1d8fe7dbcc3',
+          name: null,
+          symbol: 'SCAM',
+          decimals: 18,
+          priceUsd: '1.0',
+          type: ITokenType.ERC20,
+        }
+
+        const mockTokenBalance = {
+          contractAddress: '0xa0b86a33e6776896ada63c629b4ed1d8fe7dbcc3',
+          tokenBalance: '1000000000000000000',
+          tokenName: null,
+          tokenSymbol: 'SCAM',
+          tokenDecimals: '18',
+          tokenType: 'ERC-20',
+        }
+
+        const getTokenBalancesStub = sandbox.stub(BlockScoutHelper, 'getTokenBalances').resolves([mockTokenBalance])
+        const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(mockTokenWithNullName as any)
+        // Line 23: analyzeIfScamToken(token?.name || '', token?.symbol || '')
+        // When name is null, it should use '' (empty string) - testing the || '' operator
+        const analyzeIfScamTokenStub = sandbox.stub(TokenUtils, 'analyzeIfScamToken').returns(true)
+
+        const result = await BlockScoutProvider.getTokenBalances({
+          address: '0x1234567890abcdef1234567890abcdef12345678',
+          network: NetworksEnum.ethereumMainnet,
+        })
+
+        expect(analyzeIfScamTokenStub.calledOnce).to.be.true
+        // Verify it was called with '' for null name and 'SCAM' for symbol
+        expect(analyzeIfScamTokenStub.calledWith('', 'SCAM')).to.be.true
+        expect(result).to.have.length(0)
+      })
     })
 
     describe('edge cases', () => {

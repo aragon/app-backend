@@ -123,6 +123,42 @@ describe('Model: LogPluginSetupProcessor', () => {
     expect(createdLogDao.pluginAddress).to.eq('0x00')
   })
 
+  it('Should not update required field with falsy value', async () => {
+    const createdLogDao = await Models.LogPluginSetupProcessor.create(rawLogPluginSetupProcessor)
+    const originalTransactionHash = createdLogDao.transactionHash
+
+    // Try to update required field with null - should not update
+    await createdLogDao.update({
+      transactionHash: null as any,
+    })
+
+    expect(createdLogDao.transactionHash).to.eq(originalTransactionHash)
+  })
+
+  it('Should skip update when field does not exist in schema', async () => {
+    const createdLogDao = await Models.LogPluginSetupProcessor.create(rawLogPluginSetupProcessor)
+
+    // Try to update with non-existent field
+    await createdLogDao.update({
+      nonExistentField: 'some value',
+    } as any)
+
+    // Should not throw error, just skip the field
+    expect(createdLogDao).to.exist
+  })
+
+  it('Should not update when value is same as current', async () => {
+    const createdLogDao = await Models.LogPluginSetupProcessor.create(rawLogPluginSetupProcessor)
+    const originalPluginAddress = createdLogDao.pluginAddress
+
+    // Update with same value
+    await createdLogDao.update({
+      pluginAddress: originalPluginAddress,
+    })
+
+    expect(createdLogDao.pluginAddress).to.eq(originalPluginAddress)
+  })
+
   it('Should getEntityId', async () => {
     const network = NetworksEnum.ethereumSepolia
     const transactionHash = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'

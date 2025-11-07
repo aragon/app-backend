@@ -72,8 +72,17 @@ export enum ITokenVotingLogs {
   MetadataSet = 'MetadataSet',
 }
 
-export enum LockErc721Token {
+export enum TokenTransfer {
   Transfer = 'Transfer',
+}
+
+export enum GaugeLogs {
+  GaugeCreated = 'GaugeCreated',
+  GaugeActivated = 'GaugeActivated',
+  GaugeDeactivated = 'GaugeDeactivated',
+  GaugeMetadataUpdated = 'GaugeMetadataUpdated',
+  Voted = 'Voted',
+  Reset = 'Reset',
 }
 
 export enum IGovernanceErc20Logs {
