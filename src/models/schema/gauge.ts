@@ -8,6 +8,7 @@ import {
   type IPaginationParams,
   NetworksEnum,
   type DaoResourceLink,
+  IGaugeStatus,
 } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
@@ -114,11 +115,7 @@ export default class Gauge extends Model {
       ...dynamicFilter,
     }
 
-    if (status === 'active') {
-      filter.isActive = true
-    } else if (status === 'inactive') {
-      filter.isActive = false
-    }
+    filter.isActive = status === IGaugeStatus.active
 
     const query: any = [
       {

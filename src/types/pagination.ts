@@ -9,6 +9,11 @@ export interface ITokenExtraParams {
   isGovernance?: boolean
 }
 
+export enum IGaugeStatus {
+  active = 'active',
+  inactive = 'inactive',
+}
+
 export interface IVoteExtraParams {
   network?: NetworksEnum
   daoAddress?: HexAddress

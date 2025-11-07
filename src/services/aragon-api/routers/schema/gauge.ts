@@ -1,6 +1,6 @@
 import Joi from 'joi'
 import ValidationSchema from '@helpers/validationSchema'
-import { NetworksEnum } from '@types'
+import { IGaugeStatus, NetworksEnum } from '@types'
 
 const GaugeSchema = {
   getGaugeParams: Joi.object({
@@ -11,7 +11,9 @@ const GaugeSchema = {
   }),
 
   getGaugeQuery: Joi.object({
-    status: Joi.string().valid('active', 'inactive').optional(),
+    status: Joi.string()
+      .valid(...Object.values(IGaugeStatus))
+      .optional(),
   }),
 
   getGaugeEpochMetricsParams: Joi.object({
