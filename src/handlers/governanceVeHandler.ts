@@ -12,6 +12,7 @@ export const GovernanceVeHandler = {
     const plugins = await Models.Plugin.find({
       tokenAddress: info.address,
       network: info.network,
+      interfaceType: IPluginInterfaceType.tokenVoting,
     })
 
     if (!plugins || plugins.length === 0) return
@@ -74,6 +75,7 @@ export const GovernanceVeHandler = {
     const plugins = await Models.Plugin.find({
       tokenAddress: info.address,
       network: info.network,
+      interfaceType: IPluginInterfaceType.tokenVoting,
     })
     if (!plugins || plugins.length === 0) return
 
