@@ -229,6 +229,17 @@ describe('Model: Gauge', () => {
           description: 'Third test gauge',
           isActive: true,
         },
+        {
+          network: NetworksEnum.polygonMainnet,
+          blockNumber: 12345681,
+          transactionHash: '0x4444444444444444444444444444444444444444444444444444444444444444',
+          address: '0xGauge4Address444444444444444444444444',
+          pluginAddress: '0xPluginAddress44444444444444444444444',
+          creatorAddress: '0xCreatorAddress4444444444444444444444',
+          name: 'Gauge 4',
+          description: 'Fourth test gauge',
+          isActive: false,
+        },
       ]
 
       await Promise.all(fakeGauges.map(g => Models.Gauge.create(g)))
@@ -243,8 +254,8 @@ describe('Model: Gauge', () => {
         paginationParams: {},
       })
 
-      expect(data.length).to.eq(3)
-      expect(totalRecords).to.eq(3)
+      expect(data.length).to.eq(4)
+      expect(totalRecords).to.eq(4)
       expect(page).to.eq(1)
       expect(totalPages).to.eq(1)
       expect(pageSize).to.eq(10)
@@ -347,8 +358,8 @@ describe('Model: Gauge', () => {
         paginationParams: {},
       })
 
-      expect(data.length).to.eq(3)
-      expect(totalRecords).to.eq(3)
+      expect(data.length).to.eq(4)
+      expect(totalRecords).to.eq(4)
 
       // Verify all gauges have default metrics with the provided epochId
       data.forEach((gauge: any) => {
@@ -413,7 +424,7 @@ describe('Model: Gauge', () => {
       })
 
       expect(data.length).to.eq(2)
-      expect(totalRecords).to.eq(3)
+      expect(totalRecords).to.eq(4)
       expect(page).to.eq(1)
       expect(totalPages).to.eq(2)
       expect(pageSize).to.eq(2)
@@ -431,39 +442,52 @@ describe('Model: Gauge', () => {
         },
       })
 
-      expect(data.length).to.eq(1)
-      expect(totalRecords).to.eq(3)
+      expect(data.length).to.eq(2)
+      expect(totalRecords).to.eq(4)
       expect(page).to.eq(2)
       expect(totalPages).to.eq(2)
       expect(pageSize).to.eq(2)
     })
 
-    it('Should only return active gauges', async () => {
-      // Create an inactive gauge
-      await Models.Gauge.create({
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 999,
-        transactionHash: '0x9999999999999999999999999999999999999999999999999999999999999999',
-        address: '0xInactiveGauge99999999999999999999999',
-        pluginAddress: '0xPluginAddress99999999999999999999999',
-        creatorAddress: '0xCreatorAddress9999999999999999999999',
-        name: 'Inactive Gauge',
-        description: 'This gauge is inactive',
-        isActive: false,
-      })
-
+    it('Should return gauges with both statuses when status filter is not provided', async () => {
       const { data, metadata } = await Models.Gauge.findWithPagination({
         params: {},
         paginationParams: {},
       })
 
-      // Should still only return 3 active gauges, not 4
+      expect(data.length).to.eq(4)
+      expect(metadata.totalRecords).to.eq(4)
+      expect(data.some((gauge: any) => gauge.isActive)).to.be.true
+      expect(data.some((gauge: any) => !gauge.isActive)).to.be.true
+    })
+
+    it('Should only return active gauges when status filter is active', async () => {
+      const { data, metadata } = await Models.Gauge.findWithPagination({
+        params: {
+          status: 'active',
+        },
+        paginationParams: {},
+      })
+
       expect(data.length).to.eq(3)
       expect(metadata.totalRecords).to.eq(3)
-
-      // Verify all returned gauges are active
       data.forEach((gauge: any) => {
         expect(gauge.isActive).to.be.true
+      })
+    })
+
+    it('Should only return inactive gauges when status filter is inactive', async () => {
+      const { data, metadata } = await Models.Gauge.findWithPagination({
+        params: {
+          status: 'inactive',
+        },
+        paginationParams: {},
+      })
+
+      expect(data.length).to.eq(1)
+      expect(metadata.totalRecords).to.eq(1)
+      data.forEach((gauge: any) => {
+        expect(gauge.isActive).to.be.false
       })
     })
   })
