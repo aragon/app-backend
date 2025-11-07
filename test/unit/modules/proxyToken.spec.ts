@@ -876,6 +876,71 @@ describe('Modules: ProxyToken', () => {
       expect(result).to.be.null
     })
 
+    it('should continue and save token if not syncable but is governance token', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      const tokenTypeInfo = {
+        type: ITokenType.ERC20,
+        isGovernance: true, // Governance token
+        hasDelegate: true,
+        hasBalanceOfERC20: true,
+        hasBalanceOfERC777: false,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        hasClockMode: false,
+        proxy: false,
+        implementationAddress: null,
+      }
+
+      const tokenDetails = {
+        name: 'Governance Token',
+        symbol: 'GOV',
+        decimals: 18,
+        type: ITokenType.ERC20,
+      }
+
+      sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo as any)
+      sandbox.stub(ProxyToken, 'wrapTokenDetails').resolves(tokenDetails)
+      sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
+
+      // Token is not syncable but is governance
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(false)
+
+      sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(1000000n)
+      sandbox.stub(Web3Utils, 'isWhitelistedToken').returns(true)
+      sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation').resolves({
+        blockNumber: 123456,
+        transactionHash: '0xtxhash',
+        address: tokenAddress,
+      })
+      sandbox.stub(ProxyWeb3Provider, 'fetchTokenPrice').resolves({ priceUsd: '0' })
+      sandbox.stub(TokenUtils, 'firstValid').returns('0')
+      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(true)
+
+      const createStub = sandbox.stub(Models.Token, 'create').resolves({
+        id: 'new-token-123',
+        address: tokenAddress,
+        network,
+      })
+
+      sandbox.stub(logger, 'verbose')
+
+      const result = await ProxyToken.createNewToken(tokenAddress, network)
+
+      // Should NOT return null because it's a governance token
+      expect(result).to.not.be.null
+      expect(createStub.calledOnce).to.be.true
+
+      const createArgs = createStub.firstCall.args[0]
+      expect(createArgs.address).to.equal(tokenAddress)
+      expect(createArgs.isGovernance).to.equal(true)
+      expect(createArgs.name).to.equal('Governance Token')
+      expect(createArgs.symbol).to.equal('GOV')
+    })
+
     it('should handle native tokens differently', async () => {
       const tokenAddress = '0x123456789abcdef'
       const network = NetworksEnum.ethereumMainnet
