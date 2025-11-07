@@ -105,20 +105,15 @@ export default class Gauge extends Model {
     paginationParams?: IPaginationParams
   }): Promise<IPaginatedResult<any>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
-    const gaugeParams = params ?? {}
-    const { status, ...paramsWithoutStatus } = gaugeParams
     const dynamicFilter = Object.fromEntries(
-      Object.entries(paramsWithoutStatus).filter(
-        ([key, v]) => v !== undefined && key !== 'epochId' && key !== 'status',
-      ),
+      Object.entries(params).filter(([key, v]) => v !== undefined && !['epochId', 'status'].includes(key)),
     )
     const filter: Record<string, any> = {
       ...ModelUtils.createFilter(paginationParams, ['network', 'pluginAddress']),
       ...dynamicFilter,
     }
-
-    if (status) {
-      filter.isActive = status !== IGaugeStatus.inactive
+    if (params.status) {
+      filter.isActive = params.status !== IGaugeStatus.inactive
     }
 
     const query: any = [
@@ -132,8 +127,8 @@ export default class Gauge extends Model {
         {
           gaugeAddress: '$address',
           network: '$network',
-          epochId: gaugeParams.epochId,
-          pluginAddress: gaugeParams.pluginAddress,
+          epochId: params.epochId,
+          pluginAddress: params.pluginAddress,
         },
         'gaugeMetrics',
         {
@@ -158,7 +153,7 @@ export default class Gauge extends Model {
                 totalMemberVoteCount: 0,
                 currentEpochVotingPower: '0',
                 totalGaugeVotingPower: '0',
-                epochId: gaugeParams.epochId,
+                epochId: params.epochId,
               },
             },
           },
