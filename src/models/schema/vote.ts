@@ -361,6 +361,7 @@ export default class Vote extends Model {
           id: 1,
           transactionHash: 1,
           proposalIndex: 1,
+          pluginAddress: '$pluginAddress',
           title: 1,
           description: 1,
           summary: 1,
