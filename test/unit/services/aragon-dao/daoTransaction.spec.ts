@@ -524,6 +524,106 @@ describe('AragonDao: DaoTransactions', () => {
         configIndexerHelperStub.builders.nativeWithdraw.calledWith(NetworksEnum.polygonMainnet, polygonDao.address),
       ).to.be.true
     })
+
+    it('should exclude native transfer crawlers for zkSync mainnet', async () => {
+      // Reset for this test
+      crawlerConfigs = []
+      crawlerInstances = []
+      configIndexerHelperStub.builders.tokenDeposit.resetHistory()
+      configIndexerHelperStub.builders.nativeDeposit.resetHistory()
+      configIndexerHelperStub.builders.tokenWithdraw.resetHistory()
+      configIndexerHelperStub.builders.nativeWithdraw.resetHistory()
+
+      const zkSyncDao = {
+        ...mockDao,
+        network: NetworksEnum.zksyncMainnet,
+      }
+      modelsStub.Dao.findByAddress.resolves(zkSyncDao)
+
+      await DaoTransactions.start({
+        daoAddress: zkSyncDao.address,
+        network: NetworksEnum.zksyncMainnet,
+      })
+
+      // All 4 crawlers are instantiated, but only 2 should have crawl() called
+      expect(crawlerInstances.length).to.equal(4)
+
+      // Check which crawlers had their crawl() method called
+      const crawledInstances = crawlerInstances.filter(instance => instance.crawl.called)
+      expect(crawledInstances.length).to.equal(2)
+
+      // Verify the crawlers that were called are token transfer crawlers
+      const crawledConfigs = crawledInstances.map(instance => {
+        const index = crawlerInstances.indexOf(instance)
+        return crawlerConfigs[index]
+      })
+
+      crawledConfigs.forEach(config => {
+        expect(config.events[0].event).to.equal(TokenTransfer.Transfer)
+      })
+
+      // Verify the native crawlers were NOT executed (their crawl() was not called)
+      const nativeCrawlers = crawlerInstances.filter((instance, index) => {
+        const config = crawlerConfigs[index]
+        return config.events.some(
+          (event: any) =>
+            event.event === IDaoTransferLogs.NativeTokenDeposited || event.event === IDaoTransferLogs.Executed,
+        )
+      })
+      nativeCrawlers.forEach(crawler => {
+        expect(crawler.crawl.called, 'Native crawler should not have been executed').to.be.false
+      })
+    })
+
+    it('should include all 4 crawlers for non-zkSync networks', async () => {
+      const networks = [
+        NetworksEnum.ethereumMainnet,
+        NetworksEnum.polygonMainnet,
+        NetworksEnum.baseMainnet,
+        NetworksEnum.arbitrumMainnet,
+      ]
+
+      for (const network of networks) {
+        // Reset for each iteration
+        crawlerConfigs = []
+        configIndexerHelperStub.builders.tokenDeposit.resetHistory()
+        configIndexerHelperStub.builders.nativeDeposit.resetHistory()
+        configIndexerHelperStub.builders.tokenWithdraw.resetHistory()
+        configIndexerHelperStub.builders.nativeWithdraw.resetHistory()
+
+        const testDao = {
+          ...mockDao,
+          network,
+        }
+        modelsStub.Dao.findByAddress.resolves(testDao)
+
+        await DaoTransactions.start({
+          daoAddress: testDao.address,
+          network,
+        })
+
+        // Verify all 4 crawlers were created
+        expect(crawlerConfigs.length, `${network} should have 4 crawlers`).to.equal(4)
+
+        // Verify native deposit crawler is present
+        const hasNativeDepositCrawler = crawlerConfigs.some(config =>
+          config.events.some((event: any) => event.event === IDaoTransferLogs.NativeTokenDeposited),
+        )
+        expect(hasNativeDepositCrawler, `${network} should have native deposit crawler`).to.be.true
+
+        // Verify native withdraw crawler is present
+        const hasExecutedEventCrawler = crawlerConfigs.some(config =>
+          config.events.some((event: any) => event.event === IDaoTransferLogs.Executed),
+        )
+        expect(hasExecutedEventCrawler, `${network} should have native withdraw crawler`).to.be.true
+
+        // Verify all ConfigIndexer builders were called
+        expect(configIndexerHelperStub.builders.tokenDeposit.calledWith(network, testDao.address)).to.be.true
+        expect(configIndexerHelperStub.builders.nativeDeposit.calledWith(network, testDao.address)).to.be.true
+        expect(configIndexerHelperStub.builders.tokenWithdraw.calledWith(network, testDao.address)).to.be.true
+        expect(configIndexerHelperStub.builders.nativeWithdraw.calledWith(network, testDao.address)).to.be.true
+      }
+    })
   })
 
   describe('Block number handling', () => {

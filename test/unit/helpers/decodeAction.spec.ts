@@ -15,7 +15,6 @@ import Ipfs from '@modules/ipfs'
 import { Models } from '@dbModels'
 import { MemberGovernanceFactory } from '@src/governance'
 import BlockScoutHelper from '@helpers/blockScout'
-import { IBlockScoutAddressType } from '@src/types/blockScout'
 import Web3Utils from '@helpers/web3Utils'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 
@@ -1826,10 +1825,6 @@ describe('Helpers: DecodeActions', () => {
         network: NetworksEnum.ethereumSepolia,
       }
 
-      const searchDetailsStub = sandbox.stub(BlockScoutHelper, 'searchDetails').resolves({
-        type: IBlockScoutAddressType.TOKEN,
-      } as any)
-
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
         name: 'MockToken',
@@ -1861,7 +1856,6 @@ describe('Helpers: DecodeActions', () => {
       expect(result!.totalSupply).to.be.eq('1000000000000000000')
       expect(result!.holdersCount).to.be.eq(1)
       expect(tokenBalanceAtBlockStub.calledOnce).to.be.true
-      expect(searchDetailsStub.calledOnce).to.be.true
     })
 
     it('should return not proper info when the token is not exist on-chain', async () => {
@@ -1897,10 +1891,6 @@ describe('Helpers: DecodeActions', () => {
         network: NetworksEnum.ethereumSepolia,
       }
 
-      const searchDetailsStub = sandbox.stub(BlockScoutHelper, 'searchDetails').resolves({
-        type: IBlockScoutAddressType.ADDRESS,
-      } as any)
-
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken')
 
       const covalentTokenInfo = sandbox.stub(Covalent, 'getTokenSupplyAndHolders')
@@ -1915,10 +1905,9 @@ describe('Helpers: DecodeActions', () => {
       expect(loggerStub.calledOnce).to.be.true
       expect(createBaseMemberStub.calledOnce).to.be.true
       expect(result?.type).to.be.eq(ProposalActionType.Mint)
-      expect(saveAndGetTokenStub.calledOnce).to.be.false
+      expect(saveAndGetTokenStub.calledOnce).to.be.true
       expect(covalentTokenInfo.calledOnce).to.be.false
       expect(tokenBalanceAtBlockStub.calledOnce).to.be.false
-      expect(searchDetailsStub.calledOnce).to.be.true
       expect(result!.totalSupply).to.be.eq('0')
       expect(result!.holdersCount).to.be.eq(0)
     })
@@ -2409,7 +2398,7 @@ describe('Helpers: DecodeActions', () => {
   it('should parse _parseRegisterGauge', async () => {
     const decodeActions = new DecodeActions()
     const baseAction = {
-      textSignature: 'registerGauge(address,uint8,address,bytes)',
+      textSignature: 'registerGauge(address,uint8,address,string)',
       function: 'registerGauge',
       contract: 'GaugeRegistrar',
       parameters: [

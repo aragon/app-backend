@@ -1,4 +1,4 @@
-import { IDaoTransferLogs, TokenTransfer, type IQueueDaoTransactions } from '@types'
+import { IDaoTransferLogs, type IQueueDaoTransactions, NetworksEnum, TokenTransfer } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import { Interface, zeroPadValue } from 'ethers'
@@ -157,12 +157,13 @@ export const DaoTransactions = {
       })
 
       // Crawl events - all crawlers
-      const crawlers: BlockchainLogCrawler[] = [
-        crawlerIncomingTokenTransfers,
-        crawlerIncomingNativeDeposits,
-        crawlerOutgoingTokenTransfers,
-        crawlerOutgoingNativeTransfers,
-      ]
+      const crawlers: BlockchainLogCrawler[] = [crawlerIncomingTokenTransfers, crawlerOutgoingTokenTransfers]
+
+      // on zksync native token is also a erc20
+      if (network !== NetworksEnum.zksyncMainnet) {
+        crawlers.push(crawlerIncomingNativeDeposits)
+        crawlers.push(crawlerOutgoingNativeTransfers)
+      }
 
       // Process crawlers in parallel for better performance
       await Promise.all(crawlers.map(async (crawler: BlockchainLogCrawler) => crawler.crawl()))

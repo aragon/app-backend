@@ -12,14 +12,29 @@ const GaugeRouter = {
         pluginAddress: ctx.params.pluginAddress,
         network: ctx.params.network as NetworksEnum,
       },
+      extraParams: {
+        status: ctx.query.status as string,
+      },
       schemas: {
         params: GaugeSchema.getGaugeParams,
+        extra: GaugeSchema.getGaugeQuery,
       },
+    })
+
+    const controllerParams: IGaugeParams = {
+      ...(result.params as IGaugeParams),
+      ...(result.extraParams as Partial<IGaugeParams>),
+    }
+
+    Object.keys(controllerParams).forEach(key => {
+      if (controllerParams[key as keyof IGaugeParams] === undefined) {
+        delete controllerParams[key as keyof IGaugeParams]
+      }
     })
 
     ctx.body = await GaugeController.getGaugesWithPagination(
       result.paginationParams as IPaginationParams,
-      result.params as IGaugeParams,
+      controllerParams,
     )
   },
 
