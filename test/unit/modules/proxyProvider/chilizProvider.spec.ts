@@ -400,11 +400,11 @@ describe('ChilizProvider', () => {
       const mockTokenResponse = {
         message: 'OK',
         result: {
-          name: 'NFT Token',
-          symbol: 'NFT',
+          name: 'Test NFT',
+          symbol: 'TNFT',
           decimals: 0,
-          type: 'ERC-721', // Test ERC-721 detection
-          totalSupply: '10000',
+          type: 'ERC-721',
+          totalSupply: '100',
         },
       }
 
@@ -414,7 +414,8 @@ describe('ChilizProvider', () => {
       const result = await ChilizProvider.fetchBasicTokenInfo({ address, network })
 
       // Assert
-      expect(result.type).to.equal(ITokenType.ERC721) // Lines 154-155
+      expect(rpcCallStub.calledOnce).to.be.true
+      expect(result.type).to.equal(ITokenType.ERC721)
     })
   })
 

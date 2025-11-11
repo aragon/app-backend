@@ -1,6 +1,6 @@
 import logger from '@logger'
 import { ISelectorPermissionLogs, type IIndexerConfig } from '@types'
-import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import configIndexer from '@indexer/configIndexer'
 import type Plugin from '@models/schema/plugin'
 import ProxyWeb3Provider from '@src/modules/proxyProvider'

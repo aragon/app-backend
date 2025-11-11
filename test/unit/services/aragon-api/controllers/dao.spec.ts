@@ -298,8 +298,6 @@ describe('Controller: Dao', () => {
         networks: [NetworksEnum.ethereumMainnet, NetworksEnum.polygonMainnet],
       }
 
-      const mockMappings = [{ daoAddress: '0xDao1' }, { daoAddress: '0xDao2' }]
-
       const mockResponse = {
         data: [
           { id: '1', address: '0xDao1' },
@@ -353,12 +351,6 @@ describe('Controller: Dao', () => {
         daoAddress: '0xDao2',
         network: NetworksEnum.ethereumMainnet,
       }
-
-      const mockMappings = [
-        { daoAddress: '0xDao1' },
-        { daoAddress: '0xDao2' }, // This should be excluded
-        { daoAddress: '0xDao3' },
-      ]
 
       const mockResponse = {
         data: [
@@ -441,13 +433,6 @@ describe('Controller: Dao', () => {
         networks: [NetworksEnum.ethereumMainnet, NetworksEnum.polygonMainnet],
       }
 
-      const mockMappings1 = [{ daoAddress: '0xDao1' }, { daoAddress: '0xDao2' }]
-
-      const mockMappings2 = [
-        { daoAddress: '0xDao2' }, // Duplicate
-        { daoAddress: '0xDao3' },
-      ]
-
       const mockResponse = {
         data: [
           { id: '1', address: '0xDao1' },
@@ -491,8 +476,6 @@ describe('Controller: Dao', () => {
 
       const resolvedAddress = '0xResolvedAddress'
 
-      const mockMappings = [{ daoAddress: '0xDao1' }]
-
       const mockResponse = {
         data: [{ id: '1', address: '0xDao1' }],
         metadata: { page: 1, totalPages: 1, totalRecords: 1 },
@@ -524,13 +507,6 @@ describe('Controller: Dao', () => {
         memberAddress: '0xMemberAddress',
         networks: [NetworksEnum.ethereumMainnet],
       }
-
-      const mockMappings = [
-        { daoAddress: '0xDao1' },
-        { daoAddress: null },
-        { daoAddress: undefined },
-        { daoAddress: '0xDao2' },
-      ]
 
       const mockResponse = {
         data: [
@@ -588,35 +564,6 @@ describe('Controller: Dao', () => {
       sandbox.stub(Models.Lock, 'aggregate').resolves(veMembersWithNetwork)
       sandbox.stub(Models.LockToVoteMember, 'aggregate').resolves(lockMembersWithNetwork)
       sandbox.stub(Models.PluginMember, 'aggregate').resolves(pluginMembersWithNetwork)
-
-      // Expected query structure
-      const expectedQuery = {
-        $or: [
-          {
-            tokenAddress: { $in: ['0xToken1', '0xToken2'] },
-            interfaceType: 'tokenVoting',
-            network: NetworksEnum.ethereumMainnet,
-          },
-          {
-            tokenAddress: { $in: ['0xVeToken1'] },
-            interfaceType: 'tokenVoting',
-            network: NetworksEnum.ethereumMainnet,
-          },
-          {
-            lockManagerAddress: { $in: ['0xLockManager1'] },
-            interfaceType: 'lockToVote',
-            network: NetworksEnum.ethereumMainnet,
-          },
-          {
-            address: { $in: ['0xPlugin1', '0xPlugin2'] },
-            interfaceType: { $in: ['multisig', 'admin'] },
-            network: NetworksEnum.ethereumMainnet,
-          },
-        ],
-        status: 'installed',
-        isSupported: true,
-        network: NetworksEnum.ethereumMainnet,
-      }
 
       const stubPluginDistinct = sandbox.stub(Models.Plugin, 'distinct').resolves(expectedDaoAddresses)
 
@@ -710,24 +657,6 @@ describe('Controller: Dao', () => {
       sandbox.stub(Models.Lock, 'aggregate').resolves([])
       sandbox.stub(Models.LockToVoteMember, 'aggregate').resolves([])
       sandbox.stub(Models.PluginMember, 'aggregate').resolves(pluginMembersWithNetwork)
-
-      // Expected query should have two separate entries for the same plugin address on different networks
-      const expectedQuery = {
-        $or: [
-          {
-            address: { $in: ['0xSamePlugin'] },
-            interfaceType: { $in: ['multisig', 'admin'] },
-            network: NetworksEnum.ethereumMainnet,
-          },
-          {
-            address: { $in: ['0xSamePlugin'] },
-            interfaceType: { $in: ['multisig', 'admin'] },
-            network: NetworksEnum.polygonMainnet,
-          },
-        ],
-        status: 'installed',
-        isSupported: true,
-      }
 
       const stubPluginDistinct = sandbox.stub(Models.Plugin, 'distinct').resolves(['0xDao1', '0xDao2'])
 

@@ -95,18 +95,6 @@ describe('Helpers: Covalent', () => {
     })
 
     it('should getToken with zeroAddress', async () => {
-      const expectedToken = {
-        address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-        network: NetworksEnum.ethereumMainnet,
-        logo: 'https://www.datocms-assets.com/86369/1669619533-ethereum.png',
-        name: 'Ether',
-        symbol: 'ETH',
-        decimals: 18,
-        priceUsd: '4021.0115',
-        holders: 0,
-        totalSupply: '0',
-        lastUpdatedAt: '2024-03-13T02:45:39.390Z',
-      }
       const mockResponse = [TokenList[1]]
 
       const rpcCallStub = sandbox.stub(CovalentHelper, '_rpCall').resolves(mockResponse as any)

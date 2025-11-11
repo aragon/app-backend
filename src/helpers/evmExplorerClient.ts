@@ -187,6 +187,34 @@ class EvmExplorerClient {
     }
     return { address, transactionHash: '', blockNumber: 0 }
   }
+
+  private fetchTokenInfo(explorerType: EvmExplorerEnum, address: HexAddress, network: NetworksEnum) {
+    try {
+      const params = {
+        module: 'token',
+        action: 'tokeninfo',
+        contractaddress: address,
+      }
+
+      const response = this.apiCall(explorerType, params, network)
+      return this.parseTokenInfoResponse(response)
+    } catch (error) {
+      logger.warn('Error fetching token info', llo({ error, address, network, explorerType }))
+      return {}
+    }
+  }
+
+  private parseTokenInfoResponse(response: any): any {
+    if (response?.status === '1' && response?.message === 'OK' && response?.result?.length > 0) {
+      return {
+        name: response.result[0].tokenName,
+        symbol: response.result[0].symbol,
+        decimals: response.result[0].tokenDecimal || response.result[0].divisor || 0,
+        priceUsd: response.result[0].tokenPriceUSD || '0',
+        totalSupply: response.result[0].totalSupply || '0',
+      }
+    }
+  }
 }
 
 export const evmExplorerClient = new EvmExplorerClient()

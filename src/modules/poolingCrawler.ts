@@ -3,7 +3,7 @@ import { DAO } from '@artifacts/dao'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { IPluginInterfaceType, IPluginStatus, type LogServicePattern, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
-import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import configIndexer from '@indexer/configIndexer'
 import logger from '@logger'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
@@ -20,25 +20,50 @@ const transferTopic = govTokenInterface.getEvent('Transfer')?.topicHash!
 const delegateVotesChangedTopic = govTokenInterface.getEvent('DelegateVotesChanged')?.topicHash!
 
 const PoolingCrawler = {
-  instances: new Map<NetworksEnum, BlockchainLogCrawler>(),
+  instances: new Map<string, BlockchainLogCrawler>(),
 
-  async start({ logService, network }: { logService: LogServicePattern; network: NetworksEnum }) {
+  async start({
+    logService,
+    network,
+    includeTransfer = false,
+  }: {
+    logService: LogServicePattern
+    network: NetworksEnum
+    includeTransfer?: boolean
+  }) {
     try {
-      if (PoolingCrawler.instances.has(network)) {
-        return PoolingCrawler.instances.get(network)!.crawl()
+      const instanceKey = `${network}-${includeTransfer ? 'transfer' : 'main'}`
+      if (PoolingCrawler.instances.has(instanceKey as NetworksEnum)) {
+        return PoolingCrawler.instances.get(instanceKey as NetworksEnum)!.crawl()
       }
 
       const poolingCrawler = new BlockchainLogCrawler({
         network,
-        events: configIndexer,
-        filterLogs: async (logs: any) => PoolingCrawler.filterLogs(logs, network),
+        events: includeTransfer
+          ? [
+              {
+                event: 'Transfer',
+                enableHistorical: false,
+                topic: new Interface(GovernanceERC20.abi).getEvent('Transfer')?.topicHash!,
+                config: [],
+              },
+              {
+                event: 'NativeTokenDeposited',
+                enableHistorical: false,
+                topic: new Interface(DAO.abi).getEvent('NativeTokenDeposited')?.topicHash!,
+                config: [],
+              },
+            ]
+          : configIndexer,
+        filterLogs: async (logs: any) => PoolingCrawler.filterLogs(logs, network, includeTransfer),
         onError: async (error: any) => logger.error('Error Indexer', llo({ network, error })),
         logService,
         stopOnError: true,
-        batchSize: 0.01,
+        batchSize: 0.05,
+        skipLogProcessing: includeTransfer,
       })
 
-      PoolingCrawler.instances.set(network, poolingCrawler)
+      PoolingCrawler.instances.set(instanceKey, poolingCrawler)
       return poolingCrawler.crawl()
     } catch (error) {
       logger.error('PoolingCrawler error', llo({ network, error }))
@@ -50,81 +75,66 @@ const PoolingCrawler = {
     return Array.from(uniqueArray)
   },
 
-  async filterLogs(logs: Log[], network: NetworksEnum) {
+  async filterLogs(logs: Log[], network: NetworksEnum, includeTransfer = false) {
     try {
-      const topicsToFilterOut = new Set([nativeTokenDepositedTopic, transferTopic, delegateVotesChangedTopic])
-
-      let i = logs.length
-      const nativeTokenDepositedLogs: Log[] = []
-      const transferLogs: Log[] = []
-      const delegateVotesChangedLogs: Log[] = []
-
-      while (i--) {
-        const log = logs[i]
-        if (log.topics.length === 0 || !topicsToFilterOut.has(log.topics[0])) continue
-
-        if (log.topics[0] === nativeTokenDepositedTopic) {
-          nativeTokenDepositedLogs.push(log)
-        } else if (log.topics[0] === transferTopic) {
-          transferLogs.push(log)
-        } else {
-          delegateVotesChangedLogs.push(log)
-        }
+      if (includeTransfer) {
+        return await PoolingCrawler._filterTransferLogs(logs, network)
+      } else {
+        return await PoolingCrawler._filterDelegateVotesLogs(logs, network)
       }
+    } catch (error) {
+      logger.error('PoolingCrawler filterLogs', llo({ network, error }))
+      return logs
+    }
+  },
 
-      const transferLogCache = new Map<Log, string | null>()
+  async _filterTransferLogs(logs: Log[], network: NetworksEnum) {
+    const topicsToHandle = new Set([nativeTokenDepositedTopic, transferTopic])
 
-      const getDecodedTransferAddresses = (logs: Log[]): string[] =>
-        logs
-          .map(log => {
-            if (transferLogCache.has(log)) return transferLogCache.get(log)
-            const address = PoolingCrawler._getReceiverAddress(log)
-            if (!address) return false
-            transferLogCache.set(log, address)
-            return transferLogCache.get(log)
-          })
-          .filter(Boolean) as string[]
+    let i = logs.length
+    const nativeTokenDepositedLogs: Log[] = []
+    const transferLogs: Log[] = []
 
-      const tokenTransferReceiverAddresses = PoolingCrawler._getUniqueArrayItems(
-        getDecodedTransferAddresses(transferLogs),
-      )
+    while (i--) {
+      const log = logs[i]
+      if (log.topics.length === 0 || !topicsToHandle.has(log.topics[0])) continue
 
-      const nativeTransferReceiverAddresses = PoolingCrawler._getUniqueArrayItems(
-        nativeTokenDepositedLogs.map(log => ethers.getAddress(log.address)),
-      )
+      if (log.topics[0] === nativeTokenDepositedTopic) {
+        nativeTokenDepositedLogs.push(log)
+      } else if (log.topics[0] === transferTopic) {
+        transferLogs.push(log)
+      }
+    }
 
-      const delegateVotesChangedTokenAddresses = PoolingCrawler._getUniqueArrayItems(
-        delegateVotesChangedLogs.map(log => ethers.getAddress(log.address)),
-      )
+    const transferLogCache = new Map<Log, string | null>()
 
-      const transferTokenAddresses = PoolingCrawler._getUniqueArrayItems(
-        transferLogs.map(log => ethers.getAddress(log.address)),
-      )
+    const getDecodedTransferAddresses = (logs: Log[]): string[] =>
+      logs
+        .map(log => {
+          if (transferLogCache.has(log)) return transferLogCache.get(log)
+          const address = PoolingCrawler._getReceiverAddress(log)
+          if (!address) return false
+          transferLogCache.set(log, address)
+          return transferLogCache.get(log)
+        })
+        .filter(Boolean) as string[]
 
-      const [daoAddresses, pluginTokenAddresses, validTokenAddresses] = await Promise.all([
-        Models.Dao.distinct('address', {
-          address: { $in: [...tokenTransferReceiverAddresses, ...nativeTransferReceiverAddresses] },
-          network,
-        }),
-        Models.Plugin.distinct('tokenAddress', {
-          tokenAddress: { $in: [...new Set([...delegateVotesChangedTokenAddresses, ...transferTokenAddresses])] },
-          status: IPluginStatus.installed,
-          isSupported: true,
-          interfaceType: IPluginInterfaceType.tokenVoting,
-          network,
-        }),
-        Models.Token.distinct('address', {
-          address: { $in: [...new Set([...delegateVotesChangedTokenAddresses, ...transferTokenAddresses])] },
-          ignoreTransfer: { $ne: true },
-          hasDelegate: true, // only tokens that have delegate votes need to be synced
-          network,
-        }),
-      ])
+    const tokenTransferReceiverAddresses = PoolingCrawler._getUniqueArrayItems(
+      getDecodedTransferAddresses(transferLogs),
+    )
 
-      const tokenAddresses = pluginTokenAddresses.filter(addr => validTokenAddresses.includes(addr))
-      const daoAddressesSet = new Set(daoAddresses)
-      const tokenAddressesSet = new Set(tokenAddresses)
+    const nativeTransferReceiverAddresses = PoolingCrawler._getUniqueArrayItems(
+      nativeTokenDepositedLogs.map(log => ethers.getAddress(log.address)),
+    )
 
+    const daoAddresses = await Models.Dao.distinct('address', {
+      address: { $in: [...tokenTransferReceiverAddresses, ...nativeTransferReceiverAddresses] },
+      network,
+    })
+
+    const daoAddressesSet = new Set(daoAddresses)
+
+    if (daoAddressesSet.size !== 0) {
       process.nextTick(async () => {
         if (network === NetworksEnum.peaqMainnet) await utils.wait(config.NODES.PEAQ_MAINNET.INTERVAL_BLOCK_TIME * 1000)
         await Promise.all(
@@ -133,17 +143,52 @@ const PoolingCrawler = {
           ),
         )
       })
-
-      return logs.filter(log => {
-        if (!topicsToFilterOut.has(log.topics[0])) return true
-        // NOTE: we don't pass Transfer logs
-        // if (log.topics[0] === transferTopic && !tokenAddressesSet.has(ethers.getAddress(log.address))) return false
-        return !(log.topics[0] === delegateVotesChangedTopic && !tokenAddressesSet.has(ethers.getAddress(log.address)))
-      })
-    } catch (error) {
-      logger.error('PoolingCrawler filterLogs', llo({ network, error }))
-      return logs
     }
+
+    return logs.filter(log => !topicsToHandle.has(log.topics[0]))
+  },
+
+  async _filterDelegateVotesLogs(logs: Log[], network: NetworksEnum) {
+    const delegateVotesChangedLogs: Log[] = []
+
+    let i = logs.length
+    while (i--) {
+      const log = logs[i]
+      if (log.topics.length === 0) continue
+
+      if (log.topics[0] === delegateVotesChangedTopic) {
+        delegateVotesChangedLogs.push(log)
+      }
+    }
+
+    const delegateVotesChangedTokenAddresses = PoolingCrawler._getUniqueArrayItems(
+      delegateVotesChangedLogs.map(log => ethers.getAddress(log.address)),
+    )
+
+    // Query to find valid token addresses for DelegateVotesChanged
+    const [pluginTokenAddresses, validTokenAddresses] = await Promise.all([
+      Models.Plugin.distinct('tokenAddress', {
+        tokenAddress: { $in: delegateVotesChangedTokenAddresses },
+        status: IPluginStatus.installed,
+        isSupported: true,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        network,
+      }),
+      Models.Token.distinct('address', {
+        address: { $in: delegateVotesChangedTokenAddresses },
+        ignoreTransfer: { $ne: true },
+        hasDelegate: true, // only tokens that have delegate votes need to be synced
+        network,
+      }),
+    ])
+
+    const tokenAddresses = pluginTokenAddresses.filter(addr => validTokenAddresses.includes(addr))
+    const tokenAddressesSet = new Set(tokenAddresses)
+
+    return logs.filter(log => {
+      if (log.topics[0] !== delegateVotesChangedTopic) return true
+      return log.topics[0] === delegateVotesChangedTopic && tokenAddressesSet.has(ethers.getAddress(log.address))
+    })
   },
 
   _getReceiverAddress: (log: Log) => {

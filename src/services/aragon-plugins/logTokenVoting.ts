@@ -8,7 +8,7 @@ import {
   IVotingEscrowAdapterLogs,
   ITokenType,
 } from '@types'
-import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import type Plugin from '@models/schema/plugin'
 import configIndexer from '@indexer/configIndexer'
 import type Token from '@models/schema/token'

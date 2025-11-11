@@ -9,7 +9,7 @@ import {
 import { Models } from '@dbModels'
 import logger from '@logger'
 import configIndexer from '@indexer/configIndexer'
-import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import type Plugin from '@models/schema/plugin'
 
 const llo = logger.logMeta.bind(null, { service: 'Tools: ToolsEnsFetch' })

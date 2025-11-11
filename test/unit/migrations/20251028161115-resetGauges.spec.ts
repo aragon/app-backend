@@ -117,8 +117,8 @@ describe('migration: resetGauges', () => {
         transactionHash: '0xabc123',
       })
 
-      // Make ConfigIndexer.deleteMany fail
-      const deleteManyStub = sandbox.stub(Models.ConfigIndexer, 'deleteOne').rejects(new Error('Delete failed'))
+      // Make gaugeSettings throw an error to trigger the reset error
+      gaugeSettingsStub.rejects(new Error('Gauge settings failed'))
 
       // Act
       await resetGaugesMigration.start()

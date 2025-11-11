@@ -3,7 +3,7 @@ import { Models } from '@dbModels'
 import sinon from 'sinon'
 import Web3Helper from '@helpers/web3'
 import { NetworksEnum } from '@types'
-import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import configIndexer from '@indexer/configIndexer'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 describe.skip('ToolsFixSettingIssue', () => {

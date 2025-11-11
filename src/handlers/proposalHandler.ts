@@ -25,7 +25,7 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import DbTx from '@modules/dbTx'
 import ProposalHelper from '@helpers/proposal'
 import { TokenVoting } from '@src/aragonContracts'
-import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import { assert } from '@errors'
 import Web3Utils from '@helpers/web3Utils'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
@@ -272,7 +272,7 @@ export const ProposalHandler = {
       }
 
       if (relatedPlugin.interfaceType === IPluginInterfaceType.tokenVoting && !document?.settings?.tokenAddress) {
-        logger.error(
+        logger.warn(
           'Error ProposalHandler.proposalCreated - tokenAddress is missing',
           llo({
             ...info,

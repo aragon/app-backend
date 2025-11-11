@@ -1,7 +1,7 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import logger from '@logger'
-import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { LogGauge } from '@plugins/logGauge'
@@ -20,6 +20,7 @@ describe('AragonPlugins: LogGauge', () => {
   describe('start', () => {
     it('should start the LogGauge and process logs successfully', async () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      const endStub = sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       const verboseStub = sandbox.stub(logger, 'verbose')
 
       const pluginStub = {
@@ -61,6 +62,7 @@ describe('AragonPlugins: LogGauge', () => {
           await (this as any).crawlParams.onError(error, { logIndex: 1, transactionHash: '0xhash' })
         }
       })
+      const endStub = sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
 
       const processErrorStub = sandbox.stub(LogGauge, 'processError').resolves()
 

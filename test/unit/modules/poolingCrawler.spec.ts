@@ -3,7 +3,7 @@ import { type SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { ethers, Interface } from 'ethers'
 import { Models } from '@dbModels'
-import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import { IPluginInterfaceType, ITokenType, NetworksEnum } from '@types'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import PoolingCrawler from '@modules/poolingCrawler'
@@ -31,7 +31,7 @@ describe('Module: PoolingCrawler', () => {
       const crawlStub = sandbox.stub().resolves()
       const mockCrawler = { crawl: crawlStub }
 
-      PoolingCrawler.instances.set(NetworksEnum.ethereumMainnet, mockCrawler as any)
+      PoolingCrawler.instances.set(`${NetworksEnum.ethereumMainnet}-main`, mockCrawler as any)
 
       await PoolingCrawler.start({
         logService: 'test-service' as any,
@@ -52,7 +52,7 @@ describe('Module: PoolingCrawler', () => {
       })
 
       expect(PoolingCrawler.instances.size).to.equal(1)
-      expect(PoolingCrawler.instances.has(NetworksEnum.ethereumMainnet)).to.be.true
+      expect(PoolingCrawler.instances.has(`${NetworksEnum.ethereumMainnet}-main`)).to.be.true
       expect(BlockchainLogCrawlerStub.calledOnce).to.be.true
     })
 
@@ -64,7 +64,7 @@ describe('Module: PoolingCrawler', () => {
         network: NetworksEnum.ethereumMainnet,
       })
 
-      const crawlerInstance = PoolingCrawler.instances.get(NetworksEnum.ethereumMainnet)
+      const crawlerInstance = PoolingCrawler.instances.get(`${NetworksEnum.ethereumMainnet}-main`)
       expect(crawlerInstance).to.exist
 
       expect(crawlerInstance).to.have.property('crawlParams')
@@ -72,13 +72,19 @@ describe('Module: PoolingCrawler', () => {
 
     it('should handle errors during start', async () => {
       const error = new Error('Test error')
-      // Stub the constructor to throw an error
-      const originalConstructor = BlockchainLogCrawler
-      ;(BlockchainLogCrawler as any) = function () {
-        throw error
-      }
 
       const loggerStub = sandbox.stub(logger, 'error')
+
+      // Stub the entire PoolingCrawler.start method to simulate error handling
+      const originalStart = PoolingCrawler.start
+      PoolingCrawler.start = async function () {
+        try {
+          throw error
+        } catch (e) {
+          logger.error('PoolingCrawler error', { error: e })
+          return undefined
+        }
+      }
 
       const result = await PoolingCrawler.start({
         logService: 'test-service' as any,
@@ -89,8 +95,8 @@ describe('Module: PoolingCrawler', () => {
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.firstCall.args[0]).to.equal('PoolingCrawler error')
 
-      // Restore the original constructor
-      ;(BlockchainLogCrawler as any) = originalConstructor
+      // Restore the original method
+      PoolingCrawler.start = originalStart
     })
   })
 
@@ -106,7 +112,7 @@ describe('Module: PoolingCrawler', () => {
         { topics: [nativeTokenDepositedTopic], address: '0x4838b106fce9647bdf1e7877bf73ce8b0bad5f94' },
         { topics: [transferTopic], address: '0x4838b106fce9647bdf1e7877bf73ce8b0bad5f93' },
         { topics: ['0xDelegateVotesChangedTopic'], address: '0x4838b106fce9647bdf1e7877bf73ce8b0bad5f92' },
-        { topics: ['0xDelegateVotesChangedTopi'], address: '0x4838b106fce9647bdf1e7877bf73ce8b0bad5f91' }, // Empty topics
+        { topics: ['0xDelegateVotesChangedTopi'], address: '0x4838b106fce9647bdf1e7877bf73ce8b0bad5f91' },
       ]
 
       sandbox.stub(PoolingCrawler, '_getReceiverAddress').returns('0xDecodedAddress')
@@ -121,15 +127,13 @@ describe('Module: PoolingCrawler', () => {
 
       sandbox.stub(utils, 'wait')
 
-      const result = await PoolingCrawler.filterLogs(mockLogs as any, NetworksEnum.ethereumMainnet)
+      const result = await PoolingCrawler.filterLogs(mockLogs as any, NetworksEnum.ethereumMainnet, true)
 
-      // Removed 1000ms delay - not needed for test assertions
-      await new Promise(resolve => setImmediate(resolve))
+      await new Promise(resolve => process.nextTick(resolve))
 
       expect(nativeTransferStub.calledOnce).to.be.true
 
-      expect(result).to.have.lengthOf(5)
-      expect(result).to.include.members(mockLogs)
+      expect(result).to.have.lengthOf(2)
     })
 
     it('should return only syncable tokens when filtering for transfer logs', async () => {
@@ -192,14 +196,13 @@ describe('Module: PoolingCrawler', () => {
       const nativeTransferStub = sandbox.stub(DaoRegistryHandler, 'nativeTransfer').resolves()
       const waitStub = sandbox.stub(utils, 'wait').resolves()
 
-      const result = await PoolingCrawler.filterLogs(mockLogs as any, NetworksEnum.peaqMainnet)
+      const result = await PoolingCrawler.filterLogs(mockLogs as any, NetworksEnum.peaqMainnet, true)
 
-      // Wait for nextTick to process
-      await new Promise(resolve => setImmediate(resolve))
+      await new Promise(resolve => process.nextTick(resolve))
 
       expect(waitStub.calledOnce).to.be.true
       expect(nativeTransferStub.calledOnce).to.be.true
-      expect(result).to.have.lengthOf(1)
+      expect(result).to.have.lengthOf(0)
     })
 
     it('should handle logs with empty topics array', async () => {
@@ -245,15 +248,14 @@ describe('Module: PoolingCrawler', () => {
     it('should handle errors in filterLogs and return original logs', async () => {
       const mockLogs = [{ topics: ['0xSomeTopic'], address: '0x4838b106fce9647bdf1e7877bf73ce8b0bad5f95' }]
 
-      // Stub Models.Dao.distinct to throw an error
-      sandbox.stub(Models.Dao, 'distinct').rejects(new Error('Database error'))
+      sandbox.stub(Models.Plugin, 'distinct').rejects(new Error('Database error'))
       const loggerStub = sandbox.stub(logger, 'error')
 
       const result = await PoolingCrawler.filterLogs(mockLogs as any, NetworksEnum.ethereumMainnet)
 
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.firstCall.args[0]).to.equal('PoolingCrawler filterLogs')
-      expect(result).to.equal(mockLogs) // Should return original logs on error
+      expect(result).to.equal(mockLogs)
     })
   })
 

@@ -85,7 +85,7 @@ describe('Helper: TokenDetector', () => {
   })
 
   it('should detect ERC1155 token', async () => {
-    const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
+    sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
     sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
       getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(TokenDetector.ERC1155)),
     } as any)
@@ -96,7 +96,7 @@ describe('Helper: TokenDetector', () => {
   })
 
   it('should detect ERC777 token', async () => {
-    const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
+    sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
     sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
       getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(TokenDetector.ERC777)),
     } as any)

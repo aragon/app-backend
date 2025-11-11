@@ -62,6 +62,9 @@ export interface IConfig {
   }
   BATCH_REQUEST: {
     DEFAULT_SIZE: number
+    MAX_RETRIES: number
+    BASE_BACKOFF_MS: number
+    MAX_BACKOFF_MS: number
   }
   NODES: {
     ETHEREUM_MAINNET: IRawNodeConfig
@@ -76,6 +79,7 @@ export interface IConfig {
     CHILIZ_MAINNET?: IRawNodeConfig
     CORN_MAINNET?: IRawNodeConfig
     AVAX_MAINNET?: IRawNodeConfig
+    KATANA_MAINNET?: IRawNodeConfig
   }
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
   SUPPORTED_NETWORKS: NetworksEnum[]
@@ -185,9 +189,24 @@ export interface IConfig {
   BLOCKCHAIN_LOG_CRAWLER: {
     ONE_BLOCK_PER_TIME_MIN_THRESHOLD: number
     DEFAULT_BATCH_SIZE: number
+    ERROR_BATCH_SIZE: string[]
     BLOCK_LOW_RANGE: number
     BLOCK_MEDIUM_RANGE: number
     BLOCK_HIGH_RANGE: number
+    ADAPTIVE: {
+      INITIAL_BATCH_DAYS: number
+      MIN_BATCH_DAYS: number
+      MAX_BATCH_DAYS: number
+      REDUCTION_FACTOR: number
+      GROWTH_FACTOR: number
+      SUCCESS_THRESHOLD_FOR_GROWTH: number
+      DENSITY_THRESHOLDS: {
+        VERY_HIGH: number
+        HIGH: number
+        MEDIUM: number
+        LOW: number
+      }
+    }
   }
 
   SERVICES: {

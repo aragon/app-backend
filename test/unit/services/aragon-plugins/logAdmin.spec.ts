@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import logger from '@logger'
 import { LogAdmin } from '@plugins/logAdmin'
-import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import { IPluginInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { Interface } from 'ethers'
@@ -29,6 +29,7 @@ describe('AragonPlugins: LogAdmin', () => {
     it('should start the LogAdmin', async () => {
       sandbox.stub(LogAdmin, '_syncAdminMember').resolves()
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      const endStub = sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
 
       await LogAdmin.start({
         address: '0x123',
@@ -56,6 +57,7 @@ describe('AragonPlugins: LogAdmin', () => {
           await (this as any).crawlParams.onError(error, 'log')
         }
       })
+      const endStub = sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
 
       const processErrorStub = sandbox.stub(LogAdmin, 'processError').resolves()
 
