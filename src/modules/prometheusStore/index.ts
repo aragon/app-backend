@@ -41,11 +41,11 @@ export class PrometheusStore {
   async start() {
     logger.info('Starting metrics collection', llo({ serviceName: this.serviceName }))
 
-    await this.collectAndStore()
-
     if (this.storeIntervalId || this.cleanupIntervalId) {
       await this.stop()
     }
+
+    await this.collectAndStore()
 
     this.storeIntervalId = setInterval(async () => {
       await this.collectAndStore()
