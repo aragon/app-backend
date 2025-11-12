@@ -41,7 +41,7 @@ describe('Module: PrometheusStore', () => {
       const registry = store.getRegistry()
       const metrics = await registry.metrics()
 
-      expect(metrics).to.include('test_service_')
+      expect(metrics).to.include('service="test-service"')
     })
   })
 

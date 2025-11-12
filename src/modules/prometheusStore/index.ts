@@ -17,11 +17,9 @@ export class PrometheusStore {
     this.serviceName = serviceName
     this.registry = new Registry()
 
-    const sanitizedPrefix = serviceName.replace(/-/g, '_')
-
     collectDefaultMetrics({
       register: this.registry,
-      prefix: `${sanitizedPrefix}_`,
+      labels: { service: serviceName },
     })
 
     logger.info('PrometheusStore initialized', llo({ serviceName }))
