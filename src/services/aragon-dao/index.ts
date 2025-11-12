@@ -9,6 +9,7 @@ import {
   type IQueueDaoTransactions,
   type IQueueProposalMetrics,
   type IService,
+  EnumServiceName,
 } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { DaoAssets } from '@services/aragon-dao/daoAssets'
@@ -25,6 +26,7 @@ import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 const llo = logger.logMeta.bind(null, { service: 'service:DaoService' })
 
 const AragonDaoService: IService = {
+  name: EnumServiceName.ARAGON_DAO,
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
   options: { mongoSync: config.MONGO_DB.SYNC_MODELS },
 

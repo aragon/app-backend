@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { EnumConnection, type IService } from '@types'
+import { EnumConnection, EnumServiceName, type IService } from '@types'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import config from '@config'
 import { FetchRates } from '@services/aragon-rates/fetchRates'
@@ -7,6 +7,7 @@ import { FetchRates } from '@services/aragon-rates/fetchRates'
 const llo = logger.logMeta.bind(null, { service: 'service:RatesService' })
 
 const AragonRatesService: IService = {
+  name: EnumServiceName.ARAGON_RATES,
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
   options: { mongoSync: config.MONGO_DB.SYNC_MODELS },
 

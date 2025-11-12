@@ -1,11 +1,12 @@
 import logger from '@logger'
-import { EnumConnection, type IService } from '@types'
+import { EnumConnection, EnumServiceName, type IService } from '@types'
 import config from '@config'
 import { TransferIndexer } from '@services/aragon-transfers/transferIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'service:AragonTransfers' })
 
 const AragonTransfers: IService = {
+  name: EnumServiceName.ARAGON_TRANSFERS,
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
   options: { mongoSync: config.MONGO_DB.SYNC_MODELS },
 

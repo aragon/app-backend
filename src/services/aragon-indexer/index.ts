@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { EnumConnection, EnumQueueName, type IService } from '@types'
+import { EnumConnection, EnumQueueName, EnumServiceName, type IService } from '@types'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import { NetworkHelper } from '@helpers/network'
 import configIndexer from '@indexer/configIndexer'
@@ -15,6 +15,7 @@ import ConfigIndexerHelper from '@helpers/configIndexer'
 const llo = logger.logMeta.bind(null, { service: 'service:IndexerService' })
 
 const AragonIndexerService: IService & { repeaters: any } = {
+  name: EnumServiceName.ARAGON_INDEXER,
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
   options: { mongoSync: config.MONGO_DB.SYNC_MODELS },
   repeaters: {},
