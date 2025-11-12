@@ -213,7 +213,7 @@ describe('Module: PrometheusStore', () => {
       await clock.tickAsync(300000)
 
       expect(deleteStub.calledOnce).to.be.true
-      expect(loggerInfoStub.calledWith('Cleaned up old metrics')).to.be.true
+      expect(loggerInfoStub.calledWith('Cleaned up old metrics' as any)).to.be.true
     })
 
     it('does not log when no metrics deleted', async () => {
