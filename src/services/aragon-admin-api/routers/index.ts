@@ -17,7 +17,7 @@ const MainAdminRouter = {
 
     mainAdminRouter.use(statusAdminRouter.routes(), statusAdminRouter.allowedMethods())
     mainAdminRouter.get('/health', ctx => (ctx.status = 200))
-    mainAdminRouter.use('/metrics', metricsAdminRouter.routes, metricsAdminRouter.allowedMethods())
+    mainAdminRouter.use('/metrics', metricsAdminRouter.routes(), metricsAdminRouter.allowedMethods())
     mainAdminRouter.use('/queue', syncAdminRouter.routes(), syncAdminRouter.allowedMethods())
     mainAdminRouter.use('/dao', daoAdminRouter.routes(), daoAdminRouter.allowedMethods())
     mainAdminRouter.use(
