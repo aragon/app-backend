@@ -43,6 +43,10 @@ export class PrometheusStore {
 
     await this.collectAndStore()
 
+    if (this.storeIntervalId || this.cleanupIntervalId) {
+      await this.stop()
+    }
+
     this.storeIntervalId = setInterval(async () => {
       await this.collectAndStore()
     }, this.STORE_INTERVAL_MS)
