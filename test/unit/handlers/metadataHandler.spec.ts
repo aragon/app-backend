@@ -13,7 +13,7 @@ import { PluginSlug } from '@helpers/pluginSlug'
 import Web3Utils from '@helpers/web3Utils'
 import { DaoList } from '@test/mock/fakeDao'
 
-describe.only('Indexer: MetadataHandler', () => {
+describe('Indexer: MetadataHandler', () => {
   let sandbox: SinonSandbox
   let logInfo: ILogInfo
 
@@ -102,7 +102,7 @@ describe.only('Indexer: MetadataHandler', () => {
         args: { metadata: 'fake-metadata' },
       }
 
-      const pluginFindStub = sandbox.stub(Models.Plugin, 'findByAddress').callsFake(async (...args) => {
+      const pluginFindStub = sandbox.stub(Models.Plugin, 'findByAddress').callsFake(async () => {
         pluginFindStub.restore() // Restore the original method after the first call
         return Promise.resolve({
           address: '0x123',
@@ -724,7 +724,7 @@ describe.only('Indexer: MetadataHandler', () => {
         fakeParentDao.subDaos = [child1Address, child2Address]
 
         const parentDao = await Models.Dao.create(fakeParentDao)
-        const child1Dao = await Models.Dao.create({
+        await Models.Dao.create({
           ...DaoList[2],
           address: child1Address,
           network,
@@ -1015,13 +1015,13 @@ describe.only('Indexer: MetadataHandler', () => {
         fakeParentDao.subDaos = [child1Address, child2Address]
 
         const parentDao = await Models.Dao.create(fakeParentDao)
-        const child1Dao = await Models.Dao.create({
+        await Models.Dao.create({
           ...DaoList[2],
           address: child1Address,
           network,
           parentDao: fakeParentDao.address,
         })
-        const child2Dao = await Models.Dao.create({
+        await Models.Dao.create({
           ...DaoList[3],
           address: child2Address,
           network,

@@ -14,11 +14,11 @@ describe('Integ: Token', () => {
   const network = NetworksEnum.ethereumSepolia
   const dao1 = {
     address: '0x74188b9d8CCfe236B0A20de171d79e233357154B',
-    blockNumber:9639027
+    blockNumber: 9639027,
   }
   const dao2 = {
     address: '0xc699e406aE34f755dC248507Ca3cb035FD468De6',
-    blockNumber:9632588
+    blockNumber: 9632588,
   }
   const iLogInfoParent = {
     network,
@@ -27,7 +27,7 @@ describe('Integ: Token', () => {
     transactionHash: '0xaTxHash',
     address: dao1.address as HexAddress,
     eventName: IMultiSigLogs.MetadataSet,
-    blockNumber: 0
+    blockNumber: 0,
   }
 
   const metadataOfParent = {
@@ -51,7 +51,7 @@ describe('Integ: Token', () => {
     transactionHash: '0xbTxHash',
     address: dao2.address as HexAddress,
     eventName: IMultiSigLogs.MetadataSet,
-    blockNumber: 0
+    blockNumber: 0,
   }
 
   const metadataOfChild = {
@@ -77,7 +77,7 @@ describe('Integ: Token', () => {
       network,
       config: {
         sandbox,
-      }
+      },
     })
   })
 
@@ -85,8 +85,7 @@ describe('Integ: Token', () => {
     sandbox && sandbox.restore()
   })
 
-  it.only('test get logDaoMetadata', async function () {
-
+  it('test get logDaoMetadata', async function () {
     this.timeout(1000000000)
 
     await libUtils.syncCompleteDao(dao1.blockNumber - 1)
@@ -95,7 +94,7 @@ describe('Integ: Token', () => {
 
     await libUtils.syncCompleteDao(dao2.blockNumber - 1)
 
-    const childMetadataUpdateBlockNumber = await Web3Helper.getBlockNumber(undefined, network) - 10
+    const childMetadataUpdateBlockNumber = (await Web3Helper.getBlockNumber(undefined, network)) - 10
     const parentMetadataUpdateBlockNumber = childMetadataUpdateBlockNumber + 5
 
     iLogInfoParent.blockNumber = parentMetadataUpdateBlockNumber
@@ -106,21 +105,30 @@ describe('Integ: Token', () => {
       return '0x' + hex
     }
 
-    sandbox.stub(IPFSModule, 'fetchMetadata')
-      .onFirstCall().resolves(metadataOfParent)
-      .onSecondCall().resolves(metadataOfChild)
+    sandbox
+      .stub(IPFSModule, 'fetchMetadata')
+      .onFirstCall()
+      .resolves(metadataOfParent)
+      .onSecondCall()
+      .resolves(metadataOfChild)
 
-    await MetadataHandler.metadataSet({
-      args: {
-        metadata: ipfsUriToHex('ipfs://QmX8YL32g7NBeEy33khGWwdfiPSv6Ku3K3fhns9pJxzjgT'),
-      }
-    } as any, iLogInfoParent)
+    await MetadataHandler.metadataSet(
+      {
+        args: {
+          metadata: ipfsUriToHex('ipfs://QmX8YL32g7NBeEy33khGWwdfiPSv6Ku3K3fhns9pJxzjgT'),
+        },
+      } as any,
+      iLogInfoParent,
+    )
 
-    await MetadataHandler.metadataSet({
-      args: {
-        metadata: ipfsUriToHex('ipfs://QmY7z3bG7gbcEwY33khGWwdfiPSv6Ku3K3fhns9pJxzjgU'),
-      }
-    } as any, iLogInfoChild)
+    await MetadataHandler.metadataSet(
+      {
+        args: {
+          metadata: ipfsUriToHex('ipfs://QmY7z3bG7gbcEwY33khGWwdfiPSv6Ku3K3fhns9pJxzjgU'),
+        },
+      } as any,
+      iLogInfoChild,
+    )
 
     const dao1Db = await Models.Dao.findByAddress(dao1.address as HexAddress, network)
     const dao2Db = await Models.Dao.findByAddress(dao2.address as HexAddress, network)
@@ -131,18 +139,21 @@ describe('Integ: Token', () => {
     sandbox.restore()
     sandbox.stub(IPFSModule, 'fetchMetadata').resolves({
       ...metadataOfParent,
-      subDaos: []
+      subDaos: [],
     })
 
-    await MetadataHandler.metadataSet({
-      args: {
-        metadata: ipfsUriToHex('ipfs://QmX8YL32g7NBeEy33khGWwdfiPSv6Ku3K3fhns9pJxzjgT'),
-      }
-    } as any, {
-      ...iLogInfoParent,
-      blockNumber: parentMetadataUpdateBlockNumber + 1,
-      transactionHash: '0xupdatedTxHashOfMetadata'
-    })
+    await MetadataHandler.metadataSet(
+      {
+        args: {
+          metadata: ipfsUriToHex('ipfs://QmX8YL32g7NBeEy33khGWwdfiPSv6Ku3K3fhns9pJxzjgT'),
+        },
+      } as any,
+      {
+        ...iLogInfoParent,
+        blockNumber: parentMetadataUpdateBlockNumber + 1,
+        transactionHash: '0xupdatedTxHashOfMetadata',
+      },
+    )
 
     const dao1DbUpdated = await Models.Dao.findByAddress(dao1.address as HexAddress, network)
     const dao2DbUpdated = await Models.Dao.findByAddress(dao2.address as HexAddress, network)
@@ -154,15 +165,18 @@ describe('Integ: Token', () => {
     sandbox.stub(IPFSModule, 'fetchMetadata').resolves(metadataOfParent)
 
     //let's now again put the metadata on the parent dao to make sure the relationship is re-established
-    await MetadataHandler.metadataSet({
-      args: {
-        metadata: ipfsUriToHex('ipfs://QmX8YL32g7NBeEy33khGWwdfiPSv6Ku3K3fhns9pJxzjgT'),
-      }
-    } as any, {
-      ...iLogInfoParent,
-      blockNumber: parentMetadataUpdateBlockNumber + 2,
-      transactionHash: '0xupdatedTxHashOfMetadataAgain'
-    })
+    await MetadataHandler.metadataSet(
+      {
+        args: {
+          metadata: ipfsUriToHex('ipfs://QmX8YL32g7NBeEy33khGWwdfiPSv6Ku3K3fhns9pJxzjgT'),
+        },
+      } as any,
+      {
+        ...iLogInfoParent,
+        blockNumber: parentMetadataUpdateBlockNumber + 2,
+        transactionHash: '0xupdatedTxHashOfMetadataAgain',
+      },
+    )
 
     const dao1DbReUpdated = await Models.Dao.findByAddress(dao1.address as HexAddress, network)
     const dao2DbReUpdated = await Models.Dao.findByAddress(dao2.address as HexAddress, network)
@@ -174,18 +188,21 @@ describe('Integ: Token', () => {
     sandbox.restore()
     sandbox.stub(IPFSModule, 'fetchMetadata').resolves({
       ...metadataOfChild,
-      parentDao: null
+      parentDao: null,
     })
 
-    await MetadataHandler.metadataSet({
-      args: {
-        metadata: ipfsUriToHex('ipfs://QmY7z3bG7gbcEwY33khGWwdfiPSv6Ku3K3fhns9pJxzjgU'),
-      }
-    } as any, {
-      ...iLogInfoChild,
-      blockNumber: childMetadataUpdateBlockNumber + 1,
-      transactionHash: '0xupdatedTxHashOfChildMetadata'
-    })
+    await MetadataHandler.metadataSet(
+      {
+        args: {
+          metadata: ipfsUriToHex('ipfs://QmY7z3bG7gbcEwY33khGWwdfiPSv6Ku3K3fhns9pJxzjgU'),
+        },
+      } as any,
+      {
+        ...iLogInfoChild,
+        blockNumber: childMetadataUpdateBlockNumber + 1,
+        transactionHash: '0xupdatedTxHashOfChildMetadata',
+      },
+    )
 
     const dao1DbFinal = await Models.Dao.findByAddress(dao1.address as HexAddress, network)
     const dao2DbFinal = await Models.Dao.findByAddress(dao2.address as HexAddress, network)
@@ -196,26 +213,25 @@ describe('Integ: Token', () => {
     sandbox.restore()
     sandbox.stub(IPFSModule, 'fetchMetadata').resolves(metadataOfChild)
 
-    await MetadataHandler.metadataSet({
-      args: {
-        metadata: ipfsUriToHex('ipfs://QmX8YL32g7NBeEy33khGWwdfiPSv6Ku3K3fhns9pJxzjgT'),
-      }
-    } as any, {
-      ...iLogInfoChild,
-      blockNumber: childMetadataUpdateBlockNumber + 5,
-      transactionHash: '0xupdatedTxHashOfMetadataFinal'
-    })
+    await MetadataHandler.metadataSet(
+      {
+        args: {
+          metadata: ipfsUriToHex('ipfs://QmX8YL32g7NBeEy33khGWwdfiPSv6Ku3K3fhns9pJxzjgT'),
+        },
+      } as any,
+      {
+        ...iLogInfoChild,
+        blockNumber: childMetadataUpdateBlockNumber + 5,
+        transactionHash: '0xupdatedTxHashOfMetadataFinal',
+      },
+    )
 
     //now Let's query the get dao endpoint to make sure the parent-child relationship is re-established
 
-    const daoApiData = await DaoController.getDaoByAddress(
-      dao1.address,
-      network,
-    )
+    const daoApiData = await DaoController.getDaoByAddress(dao1.address, network)
 
     expect(daoApiData.address).to.be.eq(dao1.address)
     expect(daoApiData.subDaos).to.be.an('array').with.lengthOf(1)
     expect(daoApiData.subDaos![0].address).to.be.eq(dao2.address)
   })
-
 })

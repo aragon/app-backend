@@ -94,7 +94,7 @@ const ProposalController = {
     paginationParams?: IPaginationParams
   }) => {
     const dao = await Models.Dao.findByAddress(params.daoAddress, params.network)
-    assertExposable(dao && dao.subDaos?.length, ErrorKeyEnum.daoNotFound)
+    assertExposable(dao?.subDaos?.length, ErrorKeyEnum.daoNotFound)
 
     return await Models.Proposal.findByDaoHierarchy({
       daoAddress: params.daoAddress,
