@@ -11,6 +11,7 @@ import {
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
+import { AggregationQueryHelper } from '@models/utils/aggregation'
 
 const customName = ICollectionNames.Plugin
 
@@ -374,6 +375,71 @@ export default class Plugin extends Model {
     }
 
     return await this.find(filter).sort({ blockNumber: -1 }).lean().exec()
+  }
+
+  static async findByDaoWithDetails({ daoAddress, network }: { daoAddress: HexAddress; network: NetworksEnum }) {
+    const aggQuery: any = [
+      {
+        $match: {
+          daoAddress,
+          network,
+          status: IPluginStatus.installed,
+        },
+      },
+      {
+        $sort: { blockNumber: -1 as const },
+      },
+      AggregationQueryHelper.setting(
+        {
+          pluginAddress: '$address',
+          network: '$network',
+        },
+        'settings',
+      ),
+      AggregationQueryHelper.token(
+        {
+          address: '$tokenAddress',
+          network: '$network',
+        },
+        'token',
+      ),
+      {
+        $addFields: {
+          settings: { $arrayElemAt: ['$settings', 0] },
+          token: { $arrayElemAt: ['$token', 0] },
+        },
+      },
+      AggregationQueryHelper.pluginSlug(
+        {
+          pluginAddress: '$address',
+          network: '$network',
+        },
+        'pluginSlug',
+      ),
+      {
+        $addFields: {
+          slug: { $arrayElemAt: ['$pluginSlug.slug', 0] },
+        },
+      },
+      {
+        $project: {
+          permissions: 0,
+          uninstalled: 0,
+          hasTarget: 0,
+          sender: 0,
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          plugins: { $push: '$$ROOT' },
+        },
+      },
+      ...AggregationQueryHelper.pluginDetailsWithNestedSubPlugins(network),
+    ]
+
+    const result = await this.aggregate(aggQuery)
+    return result?.[0]?.plugins || []
   }
 
   async update(params: Partial<Plugin>, tOpts?: SaveOptions) {

@@ -28,28 +28,30 @@ const PluginsController = {
     }
   },
   getPluginsByDao: async (params: IGetPluginsByDaoParams) => {
-    try {
-      const plugins = await Models.Plugin.findByDaoWithFilters(params)
+    return await Models.Plugin.findByDaoWithFilters(params)
+  },
 
-      logger.info(
-        'Retrieved plugins by DAO',
-        llo({
-          daoAddress: params.daoAddress,
-          network: params.network,
-          count: plugins.length,
-          filters: params,
-        }),
-      )
+  getPluginsByDaoWithDetails: async (params: IGetPluginsByDaoParams) => {
+    return await Models.Plugin.findByDaoWithDetails({
+      daoAddress: params.daoAddress,
+      network: params.network,
+    })
+  },
 
-      return plugins
-    } catch (error) {
-      logger.warn('Error while getting plugins by DAO', llo({ error, params }))
-      throw error
+  getPluginsByDaoHierarchy: async (params: IGetPluginsByDaoParams) => {
+    const dao = await Models.Dao.findByAddress(params.daoAddress, params.network)
+    if (!dao || dao.subDaos?.length === 0) {
+      return []
     }
+
+    return await Models.Dao.findPluginsByDaoHierarchy({
+      daoAddress: params.daoAddress,
+      network: params.network,
+    })
   },
 
   getLogPluginSetupProcessor: async (extraParams: ILogPluginSetupProcessorParams) => {
-    return await Models.LogPluginSetupProcessor.findOne(extraParams)
+    return await Models.LogPluginSetupProcespsor.findOne(extraParams)
   },
 }
 

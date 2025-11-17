@@ -87,6 +87,21 @@ const ProposalController = {
       rawActions: proposal.rawActions || [],
     }
   },
+
+  getProposalsByDaoHierarchy: async (params: {
+    daoAddress: string
+    network: string
+    paginationParams?: IPaginationParams
+  }) => {
+    const dao = await Models.Dao.findByAddress(params.daoAddress, params.network)
+    assertExposable(dao && dao.subDaos?.length, ErrorKeyEnum.daoNotFound)
+
+    return await Models.Proposal.findByDaoHierarchy({
+      daoAddress: params.daoAddress,
+      network: params.network,
+      paginationParams: params.paginationParams,
+    })
+  },
 }
 
 export default ProposalController

@@ -1128,6 +1128,150 @@ export default class Proposal extends Model {
     }
   }
 
+  static async findByDaoHierarchy({
+    daoAddress,
+    network,
+    paginationParams = {},
+  }: {
+    daoAddress: HexAddress
+    network: NetworksEnum
+    paginationParams?: IPaginationParams
+  }) {
+    const request = ModelUtils.paginateAndSort(paginationParams)
+
+    const aggQuery: any = [
+      {
+        $facet: {
+          proposals: [
+            AggregationQueryHelper.pluginsFromDaoHierarchy({ daoAddress, network }, 'hierarchyPlugins'),
+            {
+              $unwind: {
+                path: '$hierarchyPlugins',
+                preserveNullAndEmptyArrays: false,
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                pluginAddress: '$hierarchyPlugins.address',
+              },
+            },
+            {
+              $group: {
+                _id: null,
+                pluginAddresses: { $addToSet: '$pluginAddress' },
+              },
+            },
+            {
+              $lookup: {
+                from: ICollectionNames.Proposal,
+                let: { plugins: '$pluginAddresses' },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $and: [{ $in: ['$pluginAddress', '$$plugins'] }, { $eq: ['$network', network] }],
+                      },
+                    },
+                  },
+                  {
+                    $sort: { blockNumber: -1 as const },
+                  },
+                  {
+                    $skip: request.skip,
+                  },
+                  {
+                    $limit: request.limit,
+                  },
+                ],
+                as: 'proposals',
+              },
+            },
+            {
+              $unwind: {
+                path: '$proposals',
+                preserveNullAndEmptyArrays: false,
+              },
+            },
+            {
+              $replaceRoot: {
+                newRoot: '$proposals',
+              },
+            },
+          ],
+          total: [
+            AggregationQueryHelper.pluginsFromDaoHierarchy({ daoAddress, network }, 'hierarchyPlugins'),
+            {
+              $unwind: {
+                path: '$hierarchyPlugins',
+                preserveNullAndEmptyArrays: false,
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                pluginAddress: '$hierarchyPlugins.address',
+              },
+            },
+            {
+              $group: {
+                _id: null,
+                pluginAddresses: { $addToSet: '$pluginAddress' },
+              },
+            },
+            {
+              $lookup: {
+                from: ICollectionNames.Proposal,
+                let: { plugins: '$pluginAddresses' },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $and: [{ $in: ['$pluginAddress', '$$plugins'] }, { $eq: ['$network', network] }],
+                      },
+                    },
+                  },
+                  {
+                    $count: 'count',
+                  },
+                ],
+                as: 'totalCount',
+              },
+            },
+            {
+              $unwind: {
+                path: '$totalCount',
+                preserveNullAndEmptyArrays: true,
+              },
+            },
+            {
+              $project: {
+                totalRecords: { $ifNull: ['$totalCount.count', 0] },
+              },
+            },
+          ],
+        },
+      },
+    ]
+
+    const result = await this.aggregate(aggQuery)
+
+    const proposals = result?.[0]?.proposals || []
+    const totalRecords = result?.[0]?.total?.[0]?.totalRecords || 0
+    const currentPage = request.skip / request.limit + 1
+    const totalPages = Math.ceil(totalRecords / request.limit)
+
+    return {
+      metadata: {
+        page: currentPage,
+        pageSize: request.limit,
+        totalPages,
+        totalRecords,
+      },
+      data: proposals,
+    }
+  }
+
   async update(params: Partial<Proposal>, tOpts?: SaveOptions) {
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {

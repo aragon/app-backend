@@ -288,6 +288,8 @@ const Web3Utils = {
       blockedCountries: [],
       termsConditionsUrl: null,
       enableOfacCheck: null,
+      subDaos: [],
+      parentDao: null,
     }
 
     if (!metadata) {
@@ -328,6 +330,26 @@ const Web3Utils = {
 
     if (typeof metadata.enableOfacCheck === 'boolean') {
       parsedMetadata.enableOfacCheck = metadata.enableOfacCheck
+    }
+
+    if (metadata.subDaos && Array.isArray(metadata.subDaos)) {
+      parsedMetadata.subDaos = metadata.subDaos
+        .map((dao: any) => {
+          try {
+            return getAddress(dao)
+          } catch {
+            return undefined
+          }
+        })
+        .filter((addr): addr is HexAddress => !!addr)
+    }
+
+    if (metadata.parentDao) {
+      try {
+        parsedMetadata.parentDao = getAddress(metadata.parentDao)
+      } catch {
+        parsedMetadata.parentDao = null
+      }
     }
 
     return parsedMetadata

@@ -120,17 +120,6 @@ export interface IDaoResponse {
   description: string
   avatar: string
   links: DaoResourceLink[]
-  plugins: {
-    transactionHash: HexAddress
-    blockNumber: number
-    address: HexAddress
-    implementationAddress: HexAddress | null
-    tokenAddress: string
-    pluginSetupRepoAddress: HexAddress
-    release: string
-    build: string
-    subdomain: string
-  }[]
   tvlUSD: number
   metrics: {
     proposalsCreated: number
@@ -140,6 +129,8 @@ export interface IDaoResponse {
     members: number
   }
   isHidden: boolean
+  subDaos: IDaoResponse[] | null
+  parentDao: IDaoResponse | null
 }
 
 export interface IPluginResponse {
