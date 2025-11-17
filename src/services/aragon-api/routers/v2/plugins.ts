@@ -68,20 +68,6 @@ const PluginRouter = {
     ctx.body = await PluginsController.getPluginsByDaoWithDetails(result.params as IGetPluginsByDaoParams)
   },
 
-  async getPluginsByDaoHierarchy(ctx: RouterContext) {
-    const result = await ValidationSchema.validateRoute(ctx, {
-      params: {
-        network: ctx.params.network,
-        daoAddress: ctx.params.daoAddress,
-      },
-      schemas: {
-        params: PluginSchema.getPluginsByDaoUrlParams,
-      },
-    })
-
-    ctx.body = await PluginsController.getPluginsByDaoHierarchy(result.params as IGetPluginsByDaoParams)
-  },
-
   getLogPluginSetupProcessor: async function (ctx: RouterContext) {
     const result = await ValidationSchema.validateRoute(ctx, {
       params: {
@@ -103,7 +89,6 @@ const PluginRouter = {
     router.get('/installation-data', PluginRouter.getInstallationData)
     router.get('/by-dao/:network/:daoAddress', PluginRouter.getPluginsByDao)
     router.get('/by-dao/:network/:daoAddress/details', PluginRouter.getPluginsByDaoWithDetails)
-    router.get('/by-dao/:network/:daoAddress/hierarchy', PluginRouter.getPluginsByDaoHierarchy)
     router.get('/logs/:pluginAddress/:network/:event', PluginRouter.getLogPluginSetupProcessor)
 
     return router

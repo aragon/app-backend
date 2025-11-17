@@ -377,11 +377,17 @@ export default class Plugin extends Model {
     return await this.find(filter).sort({ blockNumber: -1 }).lean().exec()
   }
 
-  static async findByDaoWithDetails({ daoAddress, network }: { daoAddress: HexAddress; network: NetworksEnum }) {
+  static async findByDaoAddressesWithDetails({
+    daoAddresses,
+    network,
+  }: {
+    daoAddresses: HexAddress[]
+    network: NetworksEnum
+  }) {
     const aggQuery: any = [
       {
         $match: {
-          daoAddress,
+          daoAddress: { $in: daoAddresses },
           network,
           status: IPluginStatus.installed,
         },

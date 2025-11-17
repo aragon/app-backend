@@ -32,20 +32,11 @@ const PluginsController = {
   },
 
   getPluginsByDaoWithDetails: async (params: IGetPluginsByDaoParams) => {
-    return await Models.Plugin.findByDaoWithDetails({
-      daoAddress: params.daoAddress,
-      network: params.network,
-    })
-  },
+    const daoDetails = await Models.Dao.findByAddress(params.daoAddress, params.network)
+    const daoAddresses = [params.daoAddress, ...(daoDetails?.subDaos || [])]
 
-  getPluginsByDaoHierarchy: async (params: IGetPluginsByDaoParams) => {
-    const dao = await Models.Dao.findByAddress(params.daoAddress, params.network)
-    if (!dao || dao.subDaos?.length === 0) {
-      return []
-    }
-
-    return await Models.Dao.findPluginsByDaoHierarchy({
-      daoAddress: params.daoAddress,
+    return await Models.Plugin.findByDaoAddressesWithDetails({
+      daoAddresses,
       network: params.network,
     })
   },
