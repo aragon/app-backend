@@ -121,15 +121,19 @@ export abstract class BaseGovernance {
         { session },
       )
 
-      // Atomic upsert - finds existing or creates new without race condition
+      const entityId = Models.PluginMetrics.getEntityId({
+        memberAddress: parsedAddress,
+        pluginAddress: params.pluginAddress,
+        network: params.network,
+      })
+
       const pluginMetrics = await Models.PluginMetrics.findOneAndUpdate(
         {
-          memberAddress: parsedAddress,
-          pluginAddress: params.pluginAddress,
-          network: params.network,
+          id: entityId,
         },
         {
           $setOnInsert: {
+            id: entityId,
             memberAddress: parsedAddress,
             pluginAddress: params.pluginAddress,
             daoAddress: params.daoAddress,
@@ -187,17 +191,23 @@ export abstract class BaseGovernance {
         }
 
         // Query the database for current counts
-        const proposalCount = await Models.Proposal.countDocuments({
-          creatorAddress: parsedAddress,
-          pluginAddress: params.pluginAddress,
-          network: params.network,
-        })
+        const proposalCount = await Models.Proposal.countDocuments(
+          {
+            creatorAddress: parsedAddress,
+            pluginAddress: params.pluginAddress,
+            network: params.network,
+          },
+          { session },
+        )
 
-        const voteCount = await Models.Vote.countDocuments({
-          memberAddress: parsedAddress,
-          pluginAddress: params.pluginAddress,
-          network: params.network,
-        })
+        const voteCount = await Models.Vote.countDocuments(
+          {
+            memberAddress: parsedAddress,
+            pluginAddress: params.pluginAddress,
+            network: params.network,
+          },
+          { session },
+        )
 
         const updateData: any = {
           voteCount,
