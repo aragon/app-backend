@@ -264,7 +264,7 @@ export const ProposalHandler = {
             'Error ProposalHandler.proposalCreated - totalSupply is 0',
             llo({
               ...info,
-              parsedEvent,
+              parsedEvent: parsedEvent.args,
               pluginAddress,
             }),
           )
@@ -276,7 +276,7 @@ export const ProposalHandler = {
           'Error ProposalHandler.proposalCreated - tokenAddress is missing',
           llo({
             ...info,
-            parsedEvent,
+            parsedEvent: parsedEvent.args,
             pluginAddress,
           }),
         )
