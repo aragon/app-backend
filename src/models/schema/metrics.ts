@@ -18,7 +18,7 @@ const customName = ICollectionNames.Metrics
   },
 })
 @index({ serviceName: 1 })
-@index({ createdAt: 1 }, { expireAfterSeconds: 300 })
+@index({ createdAt: 1 })
 export default class Metrics extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
