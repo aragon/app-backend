@@ -106,25 +106,6 @@ const ProposalRouter = {
     }
   },
 
-  getProposalsByDaoHierarchy: async function (ctx: RouterContext) {
-    const result = await ValidationSchema.validateRoute(ctx, {
-      params: {
-        network: ctx.params.network,
-        daoAddress: ctx.params.daoAddress,
-      },
-      paginationSort: 'blockNumber',
-      schemas: {
-        params: ProposalSchema.getProposalsByDaoHierarchy,
-      },
-    })
-
-    ctx.body = await ProposalController.getProposalsByDaoHierarchy({
-      daoAddress: result.params.daoAddress,
-      network: result.params.network,
-      paginationParams: result.paginationParams,
-    })
-  },
-
   router(): Router {
     const router = new Router()
 
@@ -174,16 +155,6 @@ const ProposalRouter = {
      * @apiSampleRequest /proposal/:id/actions
      */
     router.get('/:id/actions', ProposalRouter.getProposalDecodedActions)
-
-    /**
-     * @api {get} /:network/:daoAddress/hierarchy Get Proposals from DAO Hierarchy
-     * @apiName ProposalHierarchy
-     * @apiGroup Proposals
-     * @apiDescription Get all proposals from DAO, parent DAO, and subDAOs
-     *
-     * @apiSampleRequest /proposal/:network/:daoAddress/hierarchy
-     */
-    router.get('/:network/:daoAddress/hierarchy', ProposalRouter.getProposalsByDaoHierarchy)
 
     return router
   },

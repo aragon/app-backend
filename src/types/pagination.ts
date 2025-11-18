@@ -49,6 +49,7 @@ export interface IPairParams {
 export interface IProposalExtraParams {
   network?: NetworksEnum
   daoAddress?: HexAddress
+  daoAddresses?: HexAddress[]
   pluginAddress?: HexAddress
   creatorAddress?: HexAddress
   pluginAddresses?: HexAddress[]

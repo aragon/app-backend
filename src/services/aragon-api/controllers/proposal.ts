@@ -50,6 +50,23 @@ const ProposalController = {
   ): Promise<IPaginatedResult<IProposalsResponse>> => {
     paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
     extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
+
+    const hasOnlyDaoAndNetwork =
+      extraParams.daoAddress &&
+      extraParams.network &&
+      !extraParams.pluginAddress &&
+      !extraParams.creatorAddress &&
+      !extraParams.isSubProposal &&
+      !extraParams.proposalIndex &&
+      !extraParams.incrementalId
+
+    if (hasOnlyDaoAndNetwork) {
+      const dao = await Models.Dao.findByAddress(extraParams.daoAddress, extraParams.network)
+      if (dao?.subDaos?.length) {
+        extraParams.daoAddresses = [extraParams.daoAddress, ...dao.subDaos]
+      }
+    }
+
     return await Models.Proposal.findWithPagination({ extraParams, paginationParams })
   },
 
@@ -86,21 +103,6 @@ const ProposalController = {
       actions: proposal.actions || [],
       rawActions: proposal.rawActions || [],
     }
-  },
-
-  getProposalsByDaoHierarchy: async (params: {
-    daoAddress: string
-    network: string
-    paginationParams?: IPaginationParams
-  }) => {
-    const dao = await Models.Dao.findByAddress(params.daoAddress, params.network)
-    assertExposable(dao?.subDaos?.length, ErrorKeyEnum.daoNotFound)
-
-    return await Models.Proposal.findByDaoHierarchy({
-      daoAddress: params.daoAddress,
-      network: params.network,
-      paginationParams: params.paginationParams,
-    })
   },
 }
 
