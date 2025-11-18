@@ -433,6 +433,24 @@ export default class Dao extends Model {
         },
       },
       {
+        $addFields: {
+          'metrics.tvlUSD': {
+            $add: [
+              { $ifNull: ['$metrics.tvlUSD', 0] },
+              {
+                $reduce: {
+                  input: '$subDaos',
+                  initialValue: 0,
+                  in: {
+                    $add: ['$$value', { $ifNull: ['$$this.metrics.tvlUSD', 0] }],
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+      {
         $project: {
           _id: 0,
           id: 1,

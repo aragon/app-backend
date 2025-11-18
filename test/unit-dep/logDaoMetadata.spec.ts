@@ -9,7 +9,7 @@ import { Models } from '@dbModels'
 import { expect } from 'chai'
 import DaoController from '@api/controllers/dao'
 
-describe.only('Integ: Token', () => {
+describe('Integ: Metadata Handler For Sub Daos', () => {
   let sandbox: SinonSandbox
   const network = NetworksEnum.ethereumSepolia
   const dao1 = {

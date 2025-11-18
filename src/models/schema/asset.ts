@@ -85,63 +85,129 @@ export default class Asset extends Model {
     paginationParams?: IPaginationParams
   }): Promise<IPaginatedResult<any>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
-    const dynamicFilter = Object.fromEntries(Object.entries(extraParams).filter(([_, v]) => v !== undefined))
+    const dynamicFilter = Object.fromEntries(
+      Object.entries(extraParams).filter(([key, v]) => v !== undefined && key !== 'daoAddresses'),
+    )
     const filter = {
       ...ModelUtils.createFilter(paginationParams, ['network', 'daoAddress', 'tokenAddress']),
       ...dynamicFilter,
     }
 
+    if (extraParams?.daoAddresses?.length! > 0) {
+      filter.daoAddress = { $in: extraParams.daoAddresses }
+    }
+
+    const shouldGroupByToken = extraParams?.daoAddresses?.length! > 0
+
     const currentPage = request.skip / request.limit + 1
-    const [data, totalRecords] = await Promise.all([
-      this.aggregate([
-        { $match: filter },
-        AggregationQueryHelper.token(
-          {
-            network: '$network',
-            address: '$tokenAddress',
-          },
-          'tokenDetails',
-          {
-            _id: 0,
-            network: 1,
-            address: 1,
-            symbol: 1,
-            name: 1,
-            type: 1,
-            logo: 1,
-            isGovernance: 1,
-            ignoreTransfer: 1,
-            hasDelegate: 1,
-            underlying: 1,
-            decimals: 1,
-            priceUsd: 1,
-            mintableByDao: 1,
-          },
-        ),
+
+    const pipeline: any[] = [
+      { $match: filter },
+      AggregationQueryHelper.token(
         {
-          $unwind: {
-            path: '$tokenDetails',
-            preserveNullAndEmptyArrays: true,
-          },
+          network: '$network',
+          address: '$tokenAddress',
         },
+        'tokenDetails',
         {
-          $addFields: {
-            amountUsd: {
-              $cond: {
-                if: {
-                  $and: [{ $gt: ['$tokenDetails.priceUsd', 0] }, { $gt: ['$tokenDetails.decimals', 0] }],
-                },
-                then: {
-                  $multiply: [{ $toDecimal: '$amount' }, { $toDecimal: '$tokenDetails.priceUsd' }],
-                },
-                else: 0,
+          _id: 0,
+          network: 1,
+          address: 1,
+          symbol: 1,
+          name: 1,
+          type: 1,
+          logo: 1,
+          isGovernance: 1,
+          ignoreTransfer: 1,
+          hasDelegate: 1,
+          underlying: 1,
+          decimals: 1,
+          priceUsd: 1,
+          mintableByDao: 1,
+        },
+      ),
+      {
+        $unwind: {
+          path: '$tokenDetails',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $addFields: {
+          amountUsd: {
+            $cond: {
+              if: {
+                $and: [{ $gt: ['$tokenDetails.priceUsd', 0] }, { $gt: ['$tokenDetails.decimals', 0] }],
               },
+              then: {
+                $multiply: [{ $toDecimal: '$amount' }, { $toDecimal: '$tokenDetails.priceUsd' }],
+              },
+              else: 0,
             },
           },
         },
-        { $sort: request.sort },
-        { $skip: request.skip },
-        { $limit: request.limit },
+      },
+    ]
+
+    if (shouldGroupByToken) {
+      pipeline.push({
+        $group: {
+          _id: {
+            tokenAddress: '$tokenAddress',
+            network: '$network',
+          },
+          totalAmount: {
+            $sum: {
+              $convert: {
+                input: '$amount',
+                to: 'decimal',
+                onError: { $toDecimal: '0' },
+                onNull: { $toDecimal: '0' },
+              },
+            },
+          },
+          totalAmountUsd: {
+            $sum: '$amountUsd',
+          },
+          network: {
+            $first: '$network',
+          },
+          tokenAddress: {
+            $first: '$tokenAddress',
+          },
+          tokenDetails: {
+            $first: '$tokenDetails',
+          },
+        },
+      })
+      pipeline.push({
+        $addFields: {
+          totalAmount: {
+            $cond: {
+              if: { $eq: ['$totalAmount', { $toDecimal: '0' }] },
+              then: '0',
+              else: {
+                $convert: {
+                  input: '$totalAmount',
+                  to: 'string',
+                  onError: {
+                    $toString: { $round: ['$totalAmount', 0] },
+                  },
+                },
+              },
+            },
+          },
+          amountUsd: '$totalAmountUsd',
+        },
+      })
+    }
+
+    pipeline.push({ $sort: request.sort })
+    pipeline.push({ $skip: request.skip })
+    pipeline.push({ $limit: request.limit })
+
+    if (!shouldGroupByToken) {
+      pipeline.push(
         AggregationQueryHelper.dao(
           {
             network: '$network',
@@ -155,43 +221,63 @@ export default class Asset extends Model {
             avatar: 1,
           },
         ),
-        {
-          $addFields: {
-            dao: {
-              $cond: {
-                if: { $gt: [{ $size: '$daoInfo' }, 0] },
-                then: {
-                  address: { $arrayElemAt: ['$daoInfo.address', 0] },
-                  ens: { $arrayElemAt: ['$daoInfo.ens', 0] },
-                  avatar: { $arrayElemAt: ['$daoInfo.avatar', 0] },
-                },
-                else: {
-                  address: '$daoAddress',
-                  ens: null,
-                  avatar: null,
-                },
+      )
+      pipeline.push({
+        $addFields: {
+          dao: {
+            $cond: {
+              if: { $gt: [{ $size: '$daoInfo' }, 0] },
+              then: {
+                address: { $arrayElemAt: ['$daoInfo.address', 0] },
+                ens: { $arrayElemAt: ['$daoInfo.ens', 0] },
+                avatar: { $arrayElemAt: ['$daoInfo.avatar', 0] },
+              },
+              else: {
+                address: '$daoAddress',
+                ens: null,
+                avatar: null,
               },
             },
           },
         },
+      })
+      pipeline.push({
+        $addFields: {
+          daoInfo: '$$REMOVE',
+        },
+      })
+    }
+
+    pipeline.push({
+      $project: {
+        _id: 0,
+        network: 1,
+        dao: !extraParams.daoAddress ? '$$REMOVE' : 1,
+        amount: '$totalAmount',
+        token: '$tokenDetails',
+        amountUsd: { $toString: '$amountUsd' },
+      },
+    })
+
+    let totalRecords: number
+
+    if (shouldGroupByToken) {
+      const countPipeline = [
+        { $match: filter },
         {
-          $addFields: {
-            daoInfo: '$$REMOVE',
+          $group: {
+            _id: { tokenAddress: '$tokenAddress', network: '$network' },
           },
         },
-        {
-          $project: {
-            _id: 0,
-            network: 1,
-            dao: !extraParams.daoAddress ? '$$REMOVE' : 1,
-            amount: 1,
-            token: '$tokenDetails',
-            amountUsd: { $toString: '$amountUsd' },
-          },
-        },
-      ]),
-      this.countDocuments(filter),
-    ])
+        { $count: 'total' },
+      ]
+      const countResult = await this.aggregate(countPipeline)
+      totalRecords = countResult[0]?.total || 0
+    } else {
+      totalRecords = await this.countDocuments(filter)
+    }
+
+    const [data] = await Promise.all([this.aggregate(pipeline)])
 
     const totalPages = Math.ceil(totalRecords / request.limit)
 

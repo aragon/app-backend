@@ -76,6 +76,7 @@ export interface IGaugeEpochMetricParams {
 export interface IAssetExtraParams {
   network?: NetworksEnum
   daoAddress?: HexAddress
+  daoAddresses?: HexAddress[]
   tokenAddress?: HexAddress
 }
 
