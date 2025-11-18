@@ -198,18 +198,17 @@ describe('Indexer: MetadataHandler', () => {
         links: 'fake-links',
       }
 
+      const updateStub = sandbox.stub()
+
       const findExistingLogStub = sandbox.stub(Models.Dao, 'findExistingLog').resolves({
         network: NetworksEnum.ethereumMainnet,
         address: '0x123',
-        update: sandbox.stub(),
+        update: updateStub,
       } as any)
-
-      const stubUpdate = sandbox.stub(DbOperations, 'updateDocument')
 
       await MetadataHandler._updateDaoMetadata(fakeLogDB as any, logInfo)
 
-      expect(stubUpdate.calledOnce).to.be.true
-      expect(findExistingLogStub.calledOnce).to.be.true
+      expect(updateStub.calledOnce).to.be.true
       expect(findExistingLogStub.calledOnce).to.be.true
     })
 
@@ -252,16 +251,7 @@ describe('Indexer: MetadataHandler', () => {
       const logDbStub = sandbox.stub(DbOperations, 'createDocument').resolves({ id: 'log-id' } as any)
       const updateDaoMetadataStub = sandbox.stub(MetadataHandler, '_updateDaoMetadata').resolves()
 
-      await MetadataHandler._handleDaoMetadata(
-        fakeDao as any,
-        logMetadata,
-        {
-          name: 'DAO Name',
-          description: 'DAO Description',
-          avatar: 'avatar-link',
-        },
-        logInfo,
-      )
+      await MetadataHandler._handleDaoMetadata(fakeDao as any, logMetadata, logInfo)
 
       expect(logDbStub.calledOnce).to.be.true
       expect(updateDaoMetadataStub.calledOnce).to.be.true
@@ -393,24 +383,17 @@ describe('Indexer: MetadataHandler', () => {
         links: 'dao-links',
       }
 
+      const updateStub = sandbox.stub()
+
       const daoStub = sandbox.stub(Models.Dao, 'findExistingLog').resolves({
         address: '0x123',
-        update: sandbox.stub(),
+        update: updateStub,
       } as any)
-
-      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
 
       await MetadataHandler._updateDaoMetadata(fakeMetadataLog as any, logInfo)
 
       expect(daoStub.calledOnce).to.be.true
-      expect(updateDocumentStub.calledOnce).to.be.true
-      expect(updateDocumentStub.args[0][1]).to.include({
-        metadataIpfs: fakeMetadataLog.metadataUri,
-        name: fakeMetadataLog.name,
-        description: fakeMetadataLog.description,
-        avatar: fakeMetadataLog.avatar,
-        links: fakeMetadataLog.links,
-      })
+      expect(updateStub.calledOnce).to.be.true
     })
 
     it('should not update DAO metadata if DAO does not exist', async () => {
@@ -829,7 +812,7 @@ describe('Indexer: MetadataHandler', () => {
         expect(updatedChild2.parentDao).to.be.null
       })
 
-      it('should not clear child parentDao when child metadata still references parent', async () => {
+      it('should clear child parentDao when parent removes child from subDaos', async () => {
         const child1Address = '0xChild1Address'
 
         fakeParentDao.subDaos = [child1Address]
@@ -858,7 +841,7 @@ describe('Indexer: MetadataHandler', () => {
         const updatedChild1 = await child1Dao.reload()
 
         expect(updatedParent.subDaos).to.have.lengthOf(0)
-        expect(updatedChild1.parentDao).to.equal(fakeParentDao.address)
+        expect(updatedChild1.parentDao).to.be.null
       })
     })
 

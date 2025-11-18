@@ -19,6 +19,7 @@ import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
 import { PluginSlug } from '@helpers/pluginSlug'
 import Utils from '@helpers/utils'
 import Web3Utils from '@helpers/web3Utils'
+import DbTx from '@modules/dbTx'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:MetadataHandler' })
 
@@ -65,7 +66,7 @@ export const MetadataHandler = {
       }
 
       if (daoExists) {
-        await MetadataHandler._handleDaoMetadata(daoExists, logMetadata, ipfsMetadata, info)
+        await MetadataHandler._handleDaoMetadata(daoExists, logMetadata, info)
       } else if (pluginExists) {
         await MetadataHandler._handlePluginMetadata(pluginExists, logMetadata, ipfsMetadata, info)
       }
@@ -74,12 +75,7 @@ export const MetadataHandler = {
     }
   },
 
-  _handleDaoMetadata: async (
-    dao: Dao,
-    logMetadata: Partial<LogMetadata>,
-    ipfsMetadata: IMetadata | null,
-    info: ILogInfo,
-  ) => {
+  _handleDaoMetadata: async (dao: Dao, logMetadata: Partial<LogMetadata>, info: ILogInfo) => {
     logMetadata.metadataType = IMetadataType.dao
     logMetadata.daoAddress = dao.address
 
@@ -141,7 +137,7 @@ export const MetadataHandler = {
    * 3. Relationships are validated against LogMetadata (event audit log)
    * 4. Both sides of the relationship must agree (bidirectional validation)
    */
-  _updateDaoMetadata: async (metadataLog: LogMetadata, _info: ILogInfo) => {
+  _updateDaoMetadata: async (metadataLog: LogMetadata, info: ILogInfo) => {
     const dao = await Models.Dao.findExistingLog({
       network: metadataLog.network,
       address: metadataLog.daoAddress,
@@ -162,77 +158,83 @@ export const MetadataHandler = {
     const newParentAddress = metadataLog.parentDao
     const oldParentAddress = dao.parentDao
 
-    let validatedParent: string | null = null
+    await DbTx.executeTxFn(async ({ session }) => {
+      let validatedParent: string | null = null
 
-    if (newParentAddress && newParentAddress !== currentDaoAddress) {
-      const parentMetadata = await Models.LogMetadata.getLatestMetadata(
-        network,
-        newParentAddress,
-        IMetadataTargetField.daoAddress,
-      )
-      const isValidParent = parentMetadata?.id && parentMetadata.subDaos?.includes(currentDaoAddress)
+      if (newParentAddress && newParentAddress !== currentDaoAddress) {
+        const parentMetadata = await Models.LogMetadata.getLatestMetadata(
+          network,
+          newParentAddress,
+          IMetadataTargetField.daoAddress,
+          { session },
+        )
+        const isValidParent = parentMetadata?.id && parentMetadata.subDaos?.includes(currentDaoAddress)
 
-      if (isValidParent) {
-        validatedParent = newParentAddress
-      }
-    }
-
-    const parentChanged = validatedParent !== oldParentAddress
-
-    if (parentChanged && oldParentAddress) {
-      const oldParentDao = await Models.Dao.findByAddress(oldParentAddress, network)
-      if (oldParentDao?.subDaos) {
-        const updatedSubDaos = oldParentDao.subDaos.filter((addr: HexAddress) => addr !== currentDaoAddress)
-        await oldParentDao.update({ subDaos: updatedSubDaos })
-      }
-    }
-
-    if (parentChanged && validatedParent) {
-      const parentDao = await Models.Dao.findByAddress(validatedParent, network)
-      if (parentDao) {
-        const currentSubDaos = parentDao.subDaos || []
-        const updatedSubDaos = [...new Set([...currentSubDaos, currentDaoAddress])]
-        await parentDao.update({ subDaos: updatedSubDaos })
-      }
-    }
-
-    document.parentDao = validatedParent
-
-    const newSubDaoAddresses = metadataLog.subDaos || []
-    const oldSubDaoAddresses = dao.subDaos || []
-    const uniqueNewSubDaos = [...new Set(newSubDaoAddresses)].filter((addr: string) => addr !== currentDaoAddress)
-
-    const validatedSubDaos: HexAddress[] = []
-
-    for (const subDaoAddress of uniqueNewSubDaos) {
-      const subDaoMetadata = await Models.LogMetadata.getLatestMetadata(
-        network,
-        subDaoAddress,
-        IMetadataTargetField.daoAddress,
-      )
-      const isValidChild = subDaoMetadata?.id && subDaoMetadata.parentDao === currentDaoAddress
-
-      if (isValidChild) {
-        validatedSubDaos.push(subDaoAddress)
-
-        const subDao = await Models.Dao.findByAddress(subDaoAddress, network)
-        if (subDao && subDao.parentDao !== currentDaoAddress) {
-          await subDao.update({ parentDao: currentDaoAddress })
+        if (isValidParent) {
+          validatedParent = newParentAddress
         }
       }
-    }
 
-    const removedSubDaos = oldSubDaoAddresses.filter((addr: string) => !validatedSubDaos.includes(addr))
+      const parentChanged = validatedParent !== oldParentAddress
 
-    for (const subDaoAddress of removedSubDaos) {
-      const subDao = await Models.Dao.findByAddress(subDaoAddress, network)
-      if (subDao && subDao.parentDao === currentDaoAddress) {
-        await subDao.update({ parentDao: null })
+      if (parentChanged && oldParentAddress) {
+        const oldParentDao = await Models.Dao.findByAddress(oldParentAddress, network, { session })
+        if (oldParentDao?.subDaos) {
+          const updatedSubDaos = oldParentDao.subDaos.filter((addr: HexAddress) => addr !== currentDaoAddress)
+          await oldParentDao.update({ subDaos: updatedSubDaos }, { session })
+        }
       }
-    }
 
-    document.subDaos = validatedSubDaos
+      if (parentChanged && validatedParent) {
+        const parentDao = await Models.Dao.findByAddress(validatedParent, network, { session })
+        if (parentDao) {
+          const currentSubDaos = parentDao.subDaos || []
+          const updatedSubDaos = [...new Set([...currentSubDaos, currentDaoAddress])]
+          await parentDao.update({ subDaos: updatedSubDaos }, { session })
+        }
+      }
 
-    await DbOperations.updateDocument(dao, document, { logId: metadataLog.id }, 'Update Dao Metadata', llo)
+      document.parentDao = validatedParent
+
+      const newSubDaoAddresses = metadataLog.subDaos || []
+      const oldSubDaoAddresses = dao.subDaos || []
+      const uniqueNewSubDaos = [...new Set(newSubDaoAddresses)].filter((addr: string) => addr !== currentDaoAddress)
+
+      const validatedSubDaos: HexAddress[] = []
+
+      for (const subDaoAddress of uniqueNewSubDaos) {
+        const subDaoMetadata = await Models.LogMetadata.getLatestMetadata(
+          network,
+          subDaoAddress,
+          IMetadataTargetField.daoAddress,
+          { session },
+        )
+        const isValidChild = subDaoMetadata?.id && subDaoMetadata.parentDao === currentDaoAddress
+
+        if (isValidChild) {
+          validatedSubDaos.push(subDaoAddress)
+
+          const subDao = await Models.Dao.findByAddress(subDaoAddress, network, { session })
+          if (subDao && subDao.parentDao !== currentDaoAddress) {
+            await subDao.update({ parentDao: currentDaoAddress }, { session })
+          }
+        }
+      }
+
+      const removedSubDaos = oldSubDaoAddresses.filter((addr: string) => !validatedSubDaos.includes(addr))
+
+      for (const subDaoAddress of removedSubDaos) {
+        const subDao = await Models.Dao.findByAddress(subDaoAddress, network, { session })
+        if (subDao && subDao.parentDao === currentDaoAddress) {
+          await subDao.update({ parentDao: null }, { session })
+        }
+      }
+
+      document.subDaos = validatedSubDaos
+      await dao.update(document, { session })
+      await DbTx.safeCommit(session)
+
+      logger.info('Updated dao metadata', llo({ daoAddress: dao.address, network, info }))
+    })
   },
 }
