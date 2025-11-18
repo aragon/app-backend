@@ -117,6 +117,7 @@ export interface IMemberExtraParams {
 export interface ITransactionExtraParams {
   network?: NetworksEnum
   daoAddress?: HexAddress
+  daoAddresses?: HexAddress[]
   tokenAddress?: HexAddress
   fromAddress?: HexAddress
   toAddress?: HexAddress

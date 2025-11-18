@@ -27,6 +27,23 @@ const TransactionController = {
   ): Promise<IPaginatedResult<ITransactionResponse>> => {
     paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
     extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
+
+    const hasOnlyDaoAndNetwork =
+      extraParams.daoAddress &&
+      extraParams.network &&
+      !extraParams.tokenAddress &&
+      !extraParams.fromAddress &&
+      !extraParams.toAddress &&
+      !extraParams.side &&
+      !extraParams.type
+
+    if (hasOnlyDaoAndNetwork) {
+      const dao = await Models.Dao.findByAddress(extraParams.daoAddress, extraParams.network)
+      if (dao?.subDaos?.length) {
+        extraParams.daoAddresses = [extraParams.daoAddress, ...dao.subDaos]
+      }
+    }
+
     const result = await Models.Transaction.findWithPagination({ extraParams, paginationParams })
     result.data = result.data.map((m: Transaction) => m.filterKeys())
 

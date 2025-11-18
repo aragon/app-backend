@@ -64,6 +64,8 @@ const ProposalController = {
       const dao = await Models.Dao.findByAddress(extraParams.daoAddress, extraParams.network)
       if (dao?.subDaos?.length) {
         extraParams.daoAddresses = [extraParams.daoAddress, ...dao.subDaos]
+        paginationParams.sort = 'blockNumber'
+        paginationParams.order = 'desc'
       }
     }
 
