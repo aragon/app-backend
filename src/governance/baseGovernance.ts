@@ -102,20 +102,7 @@ export abstract class BaseGovernance {
     if (!parsedAddress) return null
 
     try {
-      const existingPluginMetrics = await this.findExistingPluginMetricsByLog(
-        {
-          memberAddress: parsedAddress,
-          pluginAddress: params.pluginAddress,
-          network: params.network,
-        },
-        session,
-      )
-
-      if (existingPluginMetrics) {
-        return existingPluginMetrics
-      }
-
-      // Create new pluginMetrics document with counts
+      // Calculate counts for potential creation
       const proposalCount = await Models.Proposal.countDocuments(
         {
           creatorAddress: parsedAddress,
@@ -134,30 +121,44 @@ export abstract class BaseGovernance {
         { session },
       )
 
-      const newPluginMetrics = await Models.PluginMetrics.create(
+      // Atomic upsert - finds existing or creates new without race condition
+      const pluginMetrics = await Models.PluginMetrics.findOneAndUpdate(
         {
           memberAddress: parsedAddress,
           pluginAddress: params.pluginAddress,
-          daoAddress: params.daoAddress,
           network: params.network,
-          voteCount,
-          proposalCount,
-          firstActivity: params.lastActivity,
-          lastActivity: params.lastActivity,
         },
-        { session },
+        {
+          $setOnInsert: {
+            memberAddress: parsedAddress,
+            pluginAddress: params.pluginAddress,
+            daoAddress: params.daoAddress,
+            network: params.network,
+            voteCount,
+            proposalCount,
+            firstActivity: params.lastActivity,
+            lastActivity: params.lastActivity,
+          },
+        },
+        {
+          upsert: true,
+          new: true,
+          session,
+        },
       )
 
-      logger.verbose(
-        'Created new PluginMetrics',
-        this.llo({
-          memberAddress: parsedAddress,
-          pluginAddress: params.pluginAddress,
-          daoAddress: params.daoAddress,
-        }),
-      )
+      if (pluginMetrics.createdAt?.getTime() === pluginMetrics.updatedAt?.getTime()) {
+        logger.verbose(
+          'Created new PluginMetrics',
+          this.llo({
+            memberAddress: parsedAddress,
+            pluginAddress: params.pluginAddress,
+            daoAddress: params.daoAddress,
+          }),
+        )
+      }
 
-      return newPluginMetrics
+      return pluginMetrics
     } catch (error) {
       logger.error('Error getting or creating plugin metrics', this.llo({ error, params }))
       return null
