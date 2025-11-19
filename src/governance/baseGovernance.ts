@@ -102,20 +102,7 @@ export abstract class BaseGovernance {
     if (!parsedAddress) return null
 
     try {
-      const existingPluginMetrics = await this.findExistingPluginMetricsByLog(
-        {
-          memberAddress: parsedAddress,
-          pluginAddress: params.pluginAddress,
-          network: params.network,
-        },
-        session,
-      )
-
-      if (existingPluginMetrics) {
-        return existingPluginMetrics
-      }
-
-      // Create new pluginMetrics document with counts
+      // Calculate counts for potential creation
       const proposalCount = await Models.Proposal.countDocuments(
         {
           creatorAddress: parsedAddress,
@@ -134,30 +121,48 @@ export abstract class BaseGovernance {
         { session },
       )
 
-      const newPluginMetrics = await Models.PluginMetrics.create(
+      const entityId = Models.PluginMetrics.getEntityId({
+        memberAddress: parsedAddress,
+        pluginAddress: params.pluginAddress,
+        network: params.network,
+      })
+
+      const pluginMetrics = await Models.PluginMetrics.findOneAndUpdate(
         {
-          memberAddress: parsedAddress,
-          pluginAddress: params.pluginAddress,
-          daoAddress: params.daoAddress,
-          network: params.network,
-          voteCount,
-          proposalCount,
-          firstActivity: params.lastActivity,
-          lastActivity: params.lastActivity,
+          id: entityId,
         },
-        { session },
+        {
+          $setOnInsert: {
+            id: entityId,
+            memberAddress: parsedAddress,
+            pluginAddress: params.pluginAddress,
+            daoAddress: params.daoAddress,
+            network: params.network,
+            voteCount,
+            proposalCount,
+            firstActivity: params.lastActivity,
+            lastActivity: params.lastActivity,
+          },
+        },
+        {
+          upsert: true,
+          new: true,
+          session,
+        },
       )
 
-      logger.verbose(
-        'Created new PluginMetrics',
-        this.llo({
-          memberAddress: parsedAddress,
-          pluginAddress: params.pluginAddress,
-          daoAddress: params.daoAddress,
-        }),
-      )
+      if (pluginMetrics.createdAt?.getTime() === pluginMetrics.updatedAt?.getTime()) {
+        logger.verbose(
+          'Created new PluginMetrics',
+          this.llo({
+            memberAddress: parsedAddress,
+            pluginAddress: params.pluginAddress,
+            daoAddress: params.daoAddress,
+          }),
+        )
+      }
 
-      return newPluginMetrics
+      return pluginMetrics
     } catch (error) {
       logger.error('Error getting or creating plugin metrics', this.llo({ error, params }))
       return null
@@ -186,17 +191,23 @@ export abstract class BaseGovernance {
         }
 
         // Query the database for current counts
-        const proposalCount = await Models.Proposal.countDocuments({
-          creatorAddress: parsedAddress,
-          pluginAddress: params.pluginAddress,
-          network: params.network,
-        })
+        const proposalCount = await Models.Proposal.countDocuments(
+          {
+            creatorAddress: parsedAddress,
+            pluginAddress: params.pluginAddress,
+            network: params.network,
+          },
+          { session },
+        )
 
-        const voteCount = await Models.Vote.countDocuments({
-          memberAddress: parsedAddress,
-          pluginAddress: params.pluginAddress,
-          network: params.network,
-        })
+        const voteCount = await Models.Vote.countDocuments(
+          {
+            memberAddress: parsedAddress,
+            pluginAddress: params.pluginAddress,
+            network: params.network,
+          },
+          { session },
+        )
 
         const updateData: any = {
           voteCount,
