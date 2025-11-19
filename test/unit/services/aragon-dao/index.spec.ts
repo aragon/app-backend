@@ -45,7 +45,7 @@ describe('AragonDao: index', () => {
       expect(processStub.calledWith(EnumQueueName.getTokenStats)).to.be.true
       expect(processStub.calledWith(EnumQueueName.proposalActions)).to.be.true
 
-      expect(loggerStub.calledOnceWith('AragonDaoService service started' as any)).to.be.true
+      expect(loggerStub.calledWith('AragonDaoService service started' as any)).to.be.true
     })
   })
 

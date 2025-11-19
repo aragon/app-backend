@@ -1,6 +1,6 @@
 import logger from '@logger'
 import { type IIndexerConfig, ICapitalDistributorLogs } from '@types'
-import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import type Plugin from '@models/schema/plugin'
 import configIndexer from '@indexer/configIndexer'
 import ConfigIndexerHelper from '@helpers/configIndexer'

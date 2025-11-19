@@ -28,7 +28,7 @@ describe('Integ: Proposal', () => {
     const network = NetworksEnum.ethereumSepolia
     const txHash = '0x3bd7bb1f7ae85868ffd9cf7eeeb74c499c1372349a138108f4c3591841aed3b4'
 
-    const plugin = await Models.Plugin.create({
+    await Models.Plugin.create({
       id: 'ethereum-sepolia-0x36cc7b686c5fb0a2f5660d96c8a3094e8f79d6cc429744c78d665a100cf043a1-0x86313457a83Ad93e01a620Cd91A28808b2A048fc',
       transactionHash: '0x36cc7b686c5fb0a2f5660d96c8a3094e8f79d6cc429744c78d665a100cf043a1',
       blockNumber: 8185121,

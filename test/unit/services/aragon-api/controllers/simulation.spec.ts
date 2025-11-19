@@ -6,6 +6,7 @@ import { NetworksEnum, IPluginStatus, ISimulationStatus } from '@types'
 import { Models } from '@dbModels'
 import TenderlyModule from '@modules/tenderly'
 import config from '@config'
+import DbOperations from '@models/utils/dbOperations'
 
 describe('Controller: Simulation', () => {
   let sandbox: SinonSandbox
@@ -164,6 +165,7 @@ describe('Controller: Simulation', () => {
         runAt: 1234567890,
         status: ISimulationStatus.SUCCESS,
       })
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
 
       const result = await SimulationController.simulateProposal('proposal-123')
 
@@ -174,8 +176,8 @@ describe('Controller: Simulation', () => {
         network: NetworksEnum.ethereumMainnet,
       })
 
-      expect(mockProposal.update.calledOnce).to.be.true
-      const updateCall = mockProposal.update.firstCall.args[0]
+      expect(updateDocumentStub.calledOnce).to.be.true
+      const updateCall = updateDocumentStub.firstCall.args[1]
       expect(updateCall.simulation.status).to.equal(ISimulationStatus.SUCCESS)
       expect(updateCall.simulation.url).to.equal('https://tenderly.co/simulation/456')
     })
@@ -224,10 +226,11 @@ describe('Controller: Simulation', () => {
       sandbox.stub(TenderlyModule, 'simulate').resolves({
         status: ISimulationStatus.FAILED,
       })
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
 
       await SimulationController.simulateProposal('proposal-123')
 
-      const updateCall = mockProposal.update.firstCall.args[0]
+      const updateCall = updateDocumentStub.firstCall.args[1]
       expect(updateCall.simulation.runAt).to.be.instanceOf(Date)
     })
 

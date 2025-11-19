@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import logger from '@logger'
 import { LogDao } from '@plugins/logDao'
-import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
 
@@ -20,6 +20,7 @@ describe('AragonPlugins: LogDao', () => {
   describe('start', async () => {
     it('should start the LogDao', async () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      const endStub = sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       const verboseStub = sandbox.stub(logger, 'verbose')
       await LogDao.start({
         address: '0x123',
@@ -45,6 +46,7 @@ describe('AragonPlugins: LogDao', () => {
           await (this as any).crawlParams.onError(error, 'log')
         }
       })
+      const endStub = sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
 
       const processErrorStub = sandbox.stub(LogDao, 'processError').resolves()
 

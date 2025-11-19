@@ -4,6 +4,19 @@ export enum EnumConnection {
   RABBITMQ = 'RABBITMQ',
 }
 
+export enum EnumServiceName {
+  ARAGON_DAO = 'aragon-dao',
+  ARAGON_INDEXER = 'aragon-indexer',
+  ARAGON_TRANSFERS = 'aragon-transfers',
+  ARAGON_API = 'aragon-api',
+  ARAGON_ADMIN_API = 'aragon-admin-api',
+  ARAGON_GATEWAY = 'aragon-gateway',
+  ARAGON_PLUGINS = 'aragon-plugins',
+  ARAGON_RATES = 'aragon-rates',
+  ARAGON_REQUEUE = 'aragon-requeue',
+  ARAGON_MIGRATION = 'aragon-migration',
+}
+
 export interface IMigration {
   start: () => Promise<any>
 
@@ -19,6 +32,7 @@ export interface IOptionService {
 }
 
 export interface IService {
+  name: EnumServiceName
   options?: IOptionService
   NEED_CONNECTIONS: EnumConnection[]
   start: () => Promise<any>

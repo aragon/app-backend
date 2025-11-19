@@ -23,6 +23,7 @@ const Utils = {
     [NetworksEnum.chilizMainnet]: 'CHILIZ_MAINNET',
     [NetworksEnum.cornMainnet]: 'CORN_MAINNET',
     [NetworksEnum.avaxMainnet]: 'AVAX_MAINNET',
+    [NetworksEnum.katanaMainnet]: 'KATANA_MAINNET',
   },
 
   networkToAragon: (network: NetworksEnum) => Utils.aragonNetworkMap[network],

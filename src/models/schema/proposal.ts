@@ -712,6 +712,13 @@ export default class Proposal extends Model {
           stageExecutions: 1,
           results: 1,
           media: 1,
+          hasSimulation: {
+            $cond: {
+              if: { $and: [{ $ne: ['$simulation.url', null] }, { $ne: ['$simulation.status', null] }] },
+              then: true,
+              else: false,
+            },
+          },
           settings: {
             $mergeObjects: [
               '$settings',
@@ -1056,6 +1063,13 @@ export default class Proposal extends Model {
           hasActions: AggregationQueryHelper.computeHasActions(),
           decoding: 1,
           stageExecutions: 1,
+          hasSimulation: {
+            $cond: {
+              if: { $and: [{ $ne: ['$simulation.url', null] }, { $ne: ['$simulation.status', null] }] },
+              then: true,
+              else: false,
+            },
+          },
           results: 1,
           media: 1,
           settings: {

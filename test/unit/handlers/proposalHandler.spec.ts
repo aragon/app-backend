@@ -28,7 +28,7 @@ import ProposalHelper from '@helpers/proposal'
 import { PluginList } from '@test/mock/fakePlugins'
 import DecodeActions from '@helpers/decodeAction'
 import DbOperations from '@models/utils/dbOperations'
-import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import Web3Utils from '@helpers/web3Utils'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
@@ -1180,7 +1180,7 @@ describe('ProposalHandler', () => {
       sandbox.stub(ProposalHandler, 'findIncrementalId').resolves(1)
       sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      const stubError = sandbox.stub(logger, 'error')
+      const stubWarn = sandbox.stub(logger, 'warn')
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
 
@@ -1193,7 +1193,7 @@ describe('ProposalHandler', () => {
       expect(savedProposal).to.exist
       expect(savedProposal.settings).to.be.null
       expect(savedProposal.snapshot.totalSupply).to.be.eq('0')
-      expect(stubError.calledOnceWith('Error ProposalHandler.proposalCreated - tokenAddress is missing' as any))
+      expect(stubWarn.calledOnceWith('Error ProposalHandler.proposalCreated - tokenAddress is missing' as any))
     })
 
     it('should handle when proposalMetadata is null', async () => {
@@ -1302,7 +1302,7 @@ describe('ProposalHandler', () => {
 
       const result = await ProposalHandler.proposalCreated(fakeEvent as any, info)
 
-      expect(errorLoggerStub.args[1][0]).to.eq('Error findIncrementalId - incrementalId is null')
+      expect(errorLoggerStub.args[0][0]).to.eq('Error findIncrementalId - incrementalId is null')
       expect(createStub.called).to.be.false
       expect(result?.newProposal).to.be.undefined
       expect(result?.relatedPlugin).to.be.undefined

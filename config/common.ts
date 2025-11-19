@@ -39,6 +39,9 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
 
     BATCH_REQUEST: {
       DEFAULT_SIZE: utils.configParser(sourceConfig, 'number', 'BATCH_REQUEST_DEFAULT_SIZE', 500),
+      MAX_RETRIES: utils.configParser(sourceConfig, 'number', 'BATCH_REQUEST_MAX_RETRIES', 3),
+      BASE_BACKOFF_MS: utils.configParser(sourceConfig, 'number', 'BATCH_REQUEST_BASE_BACKOFF_MS', 500),
+      MAX_BACKOFF_MS: utils.configParser(sourceConfig, 'number', 'BATCH_REQUEST_MAX_BACKOFF_MS', 5000),
     },
     ANKR_CONFIG: {
       API_URL: utils.configParser(sourceConfig, 'string', 'ANKR_API_URL', 'https://rpc.ankr.com'),
@@ -59,9 +62,86 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         5,
       ),
       DEFAULT_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_DEFAULT_BATCH_SIZE', 30),
-      BLOCK_LOW_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_LOW_RANGE', 5),
-      BLOCK_MEDIUM_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_MEDIUM_RANGE', 20),
-      BLOCK_HIGH_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_HIGH_RANGE', 40),
+      ERROR_BATCH_SIZE: utils.configParser(sourceConfig, 'array', 'BLOCKCHAIN_LOG_CRAWLER_ERROR_BATCH_SIZE', [
+        'The query timed out',
+        'timeout',
+        'eth_getLogs is limited',
+        'Response size is larger than 150MB limit',
+        'Log response size exceeded',
+        'Consider reducing your block range',
+        'Query returned more than 1000000 results',
+        'Cannot create a string longer',
+        'Response is too big',
+        'too large',
+      ]),
+      BLOCK_LOW_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_LOW_RANGE', 15),
+      BLOCK_MEDIUM_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_MEDIUM_RANGE', 40),
+      BLOCK_HIGH_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_HIGH_RANGE', 70),
+      // Adaptive batch size configuration
+      ADAPTIVE: {
+        INITIAL_BATCH_DAYS: utils.configParser(
+          sourceConfig,
+          'number',
+          'BLOCKCHAIN_LOG_CRAWLER_ADAPTIVE_INITIAL_BATCH_DAYS',
+          60, // 60 days for all networks
+        ),
+        MIN_BATCH_DAYS: utils.configParser(
+          sourceConfig,
+          'number',
+          'BLOCKCHAIN_LOG_CRAWLER_ADAPTIVE_MIN_BATCH_DAYS',
+          0.05, // 1.2 hours minimum
+        ),
+        MAX_BATCH_DAYS: utils.configParser(
+          sourceConfig,
+          'number',
+          'BLOCKCHAIN_LOG_CRAWLER_ADAPTIVE_MAX_BATCH_DAYS',
+          365, // 1 year maximum
+        ),
+        REDUCTION_FACTOR: utils.configParser(
+          sourceConfig,
+          'number',
+          'BLOCKCHAIN_LOG_CRAWLER_ADAPTIVE_REDUCTION_FACTOR',
+          2, // Divide by 2 on error - faster recovery
+        ),
+        GROWTH_FACTOR: utils.configParser(
+          sourceConfig,
+          'number',
+          'BLOCKCHAIN_LOG_CRAWLER_ADAPTIVE_GROWTH_FACTOR',
+          1.5, // Multiply by 1.5 on consecutive successes - more conservative growth
+        ),
+        SUCCESS_THRESHOLD_FOR_GROWTH: utils.configParser(
+          sourceConfig,
+          'number',
+          'BLOCKCHAIN_LOG_CRAWLER_ADAPTIVE_SUCCESS_THRESHOLD',
+          3, // Grow after 3 consecutive successes - more stable
+        ),
+        DENSITY_THRESHOLDS: {
+          VERY_HIGH: utils.configParser(
+            sourceConfig,
+            'number',
+            'BLOCKCHAIN_LOG_CRAWLER_ADAPTIVE_DENSITY_VERY_HIGH',
+            50, // > 50 events/block
+          ),
+          HIGH: utils.configParser(
+            sourceConfig,
+            'number',
+            'BLOCKCHAIN_LOG_CRAWLER_ADAPTIVE_DENSITY_HIGH',
+            10, // > 10 events/block
+          ),
+          MEDIUM: utils.configParser(
+            sourceConfig,
+            'number',
+            'BLOCKCHAIN_LOG_CRAWLER_ADAPTIVE_DENSITY_MEDIUM',
+            2, // > 2 events/block
+          ),
+          LOW: utils.configParser(
+            sourceConfig,
+            'number',
+            'BLOCKCHAIN_LOG_CRAWLER_ADAPTIVE_DENSITY_LOW',
+            0.5, // < 0.5 events/block
+          ),
+        },
+      },
     },
 
     ETHERSCAN_API: {
@@ -370,6 +450,17 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_AVAX_MAINNET_INTERVAL_BLOCK_TIME', 1),
         BLOCKSCOUT_API_URL: utils.configParser(sourceConfig, 'string', 'NODES_AVAX_MAINNET_BLOCKSCOUT_API_URL', null),
         BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_AVAX_MAINNET_BLOCKSCOUT_API_KEY', null),
+      },
+      KATANA_MAINNET: {
+        ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_KATANA_MAINNET_ALCHEMY_API_KEY', null),
+        ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_KATANA_MAINNET_ARAGON_RPC', null),
+        FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_FROM_BLOCK', 15080181),
+        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_OFFSET_TO_BLOCK', 0),
+        POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_POOLING_INTERVAL', 2 * 1000),
+        CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_CONFIRMATION_BLOCKS', 1),
+        INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_INTERVAL_BLOCK_TIME', 1),
+        BLOCKSCOUT_API_URL: utils.configParser(sourceConfig, 'string', 'NODES_KATANA_MAINNET_BLOCKSCOUT_API_URL', null),
+        BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_KATANA_MAINNET_BLOCKSCOUT_API_KEY', null),
       },
     },
 

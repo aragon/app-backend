@@ -1,4 +1,4 @@
-import { EnumConnection, IMigrationStatus, type IService } from '@types'
+import { EnumConnection, EnumServiceName, IMigrationStatus, type IService } from '@types'
 import logger from '@logger'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -9,6 +9,7 @@ import Mongo from '@modules/mongo'
 const llo = logger.logMeta.bind(null, { service: 'MigrationService' })
 
 class MigrationService implements IService {
+  name: EnumServiceName = EnumServiceName.ARAGON_MIGRATION
   NEED_CONNECTIONS = [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ]
   options = { mongoSync: false }
   private readonly migrationsPath = path.resolve(process.cwd(), 'src/migrations')
