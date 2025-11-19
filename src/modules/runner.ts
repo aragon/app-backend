@@ -3,10 +3,12 @@ import { TooBusyMonitor } from '@helpers/monitoring'
 import { type IService } from '@types'
 import logger from '@logger'
 import Connections from './connections'
+import { PrometheusStore } from '@modules/prometheusStore'
 
 const llo = logger.logMeta.bind(null, { service: 'runner' })
 
 let stopping = false
+let prometheusStore: PrometheusStore | null = null
 
 export async function stopApp(app: IService, code: number, timeToKill = 20 * 1000) {
   setTimeout(() => {
@@ -22,6 +24,9 @@ export async function stopApp(app: IService, code: number, timeToKill = 20 * 100
 
   try {
     // Handle both sync and async stop methods
+    if (prometheusStore) {
+      await prometheusStore.stop()
+    }
     await Promise.resolve(app.stop())
     await Connections.close()
     process.exit(code) // eslint-disable-line no-process-exit
@@ -59,7 +64,7 @@ async function runApp(app: IService) {
     logger.info(
       'Starting service',
       llo({
-        service: app.constructor.name,
+        service: app.name,
         connections: neededConnections,
         options: app.options,
       }),
@@ -71,10 +76,14 @@ async function runApp(app: IService) {
     // Start the service
     await app.start()
 
+    // Start prometheus metrics collection
+    prometheusStore = PrometheusStore.getInstance(app.name)
+    await prometheusStore.start()
+
     logger.info(
       'Service started successfully',
       llo({
-        service: app.constructor.name,
+        service: app.name,
       }),
     )
   } catch (error) {

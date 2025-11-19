@@ -29,6 +29,7 @@ import type CampaignMerkleRoot from '@models/schema/campaignMerkleRoot'
 import type Gauge from '@models/schema/gauge'
 import type VoteGauge from '@models/schema/voteGauge'
 import type GaugeMetrics from '@models/schema/gaugeMetrics'
+import type Metrics from '@models/schema/metrics'
 
 export interface IMongoModel {
   Migration: typeof Migration
@@ -62,6 +63,7 @@ export interface IMongoModel {
   Gauge: typeof Gauge
   VoteGauge: typeof VoteGauge
   GaugeMetrics: typeof GaugeMetrics
+  Metrics: typeof Metrics
 }
 
 export enum ICollectionNames {
@@ -96,6 +98,7 @@ export enum ICollectionNames {
   Gauge = 'Gauge',
   VoteGauge = 'VoteGauge',
   GaugeMetrics = 'GaugeMetrics',
+  Metrics = 'Metrics',
 }
 
 export enum ITransactionIndexCheckType {
