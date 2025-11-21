@@ -6,10 +6,10 @@ import MainAdminRouter from '@admin-api/routers/index'
 import StatusAdminRouter from '@admin-api/routers/status'
 import QueueAdminRouter from '@admin-api/routers/queue'
 import DaoAdminRouter from '@admin-api/routers/dao'
-import utils from '@helpers/utils'
 import Koa from 'koa'
 import supertest from 'supertest'
 import CapitalDistributorAdminRouter from '@admin-api/routers/capitalDistributor'
+import MetricsAdminRouter from '@admin-api/routers/metrics'
 
 describe('Router: MainAdminRouter', () => {
   let sandbox: SinonSandbox
@@ -36,13 +36,20 @@ describe('Router: MainAdminRouter', () => {
     stubRouter(QueueAdminRouter, 'queue')
     stubRouter(DaoAdminRouter, 'dao')
     stubRouter(CapitalDistributorAdminRouter, 'capital-distributor')
+    stubRouter(MetricsAdminRouter, 'metrics')
 
     // Removed unnecessary 1000ms wait
 
     const mainRouter = MainAdminRouter.router()
     expect(mainRouter instanceof Router).to.be.true
 
-    const routers = [StatusAdminRouter, QueueAdminRouter, DaoAdminRouter, CapitalDistributorAdminRouter]
+    const routers = [
+      StatusAdminRouter,
+      QueueAdminRouter,
+      DaoAdminRouter,
+      CapitalDistributorAdminRouter,
+      MetricsAdminRouter,
+    ]
     expect(use.callCount).to.be.eq(routers.length)
     expect(use.calledWith(`statusRoutes`, `statusAllowedMethod`)).to.be.true
 

@@ -2,6 +2,7 @@ import logger from '@logger'
 import {
   EnumConnection,
   EnumQueueName,
+  EnumServiceName,
   IndexerType,
   IPluginInterfaceType,
   ITokenType,
@@ -17,6 +18,7 @@ import ConfigIndexerHelper from '@src/helpers/configIndexer'
 const llo = logger.logMeta.bind(null, { service: 'service:AragonReQueue' })
 
 const AragonReQueueService: IService = {
+  name: EnumServiceName.ARAGON_REQUEUE,
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.RABBITMQ],
 
   start: async function () {

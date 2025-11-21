@@ -975,7 +975,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         blockNumber: 1000,
       })
 
-      const plugin = await Models.Plugin.create({
+      await Models.Plugin.create({
         id: 'test-plugin',
         address: fakeEvent.args.plugin,
         daoAddress: fakeEvent.args.dao,
@@ -1117,7 +1117,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       })
 
       // Create plugin1 (the one being uninstalled)
-      const plugin1 = await Models.Plugin.create({
+      await Models.Plugin.create({
         id: 'test-plugin-1',
         address: fakeEvent.args.plugin,
         daoAddress: fakeEvent.args.dao,

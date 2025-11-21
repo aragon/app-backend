@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import logger from '@logger'
 import { LogCampaignStrategy } from '@plugins/logCampaignStrategy'
-import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
 

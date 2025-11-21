@@ -2,11 +2,25 @@ import logger from '@logger'
 import axios from 'axios'
 import ProviderModule from '@src/modules/provider'
 import { ethers } from 'ethers'
-import { type NetworksEnum, type HexAddress, type BatchRequestItem, type BatchResponse } from '@src/types'
+import {
+  type NetworksEnum,
+  type HexAddress,
+  type BatchRequestItem,
+  type BatchResponse,
+  CrawlerErrorType,
+} from '@src/types'
 import Web3Helper from '@helpers/web3'
 import config from '@config'
+import { CrawlerErrorHandler } from '@modules/crawlers'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3BatchHelper' })
+
+// Initialize a shared error handler instance for batch processing
+const errorHandler = new CrawlerErrorHandler({
+  maxRetries: config.BATCH_REQUEST.MAX_RETRIES,
+  baseBackoffMs: config.BATCH_REQUEST.BASE_BACKOFF_MS,
+  maxBackoffMs: config.BATCH_REQUEST.MAX_BACKOFF_MS,
+})
 
 const Web3BatchHelper = {
   /**
@@ -129,25 +143,21 @@ const Web3BatchHelper = {
 
   /**
    * Determine if we should reduce batch size based on error types
+   * Delegates to CrawlerErrorHandler for consistent error classification
    */
   _shouldReduceBatchSize(errors: Error[], currentThreshold: number): boolean {
     if (errors.length === 0 || currentThreshold <= 1) {
       return false
     }
 
+    // Use CrawlerErrorHandler to classify errors
     return errors.some(error => {
-      const message = error.message
-      return [
-        'The query timed out',
-        'timeout',
-        'Response size is larger than 150MB limit',
-        'Log response size exceeded',
-        'Consider reducing your block range',
-        'Query returned more than 1000000 results',
-        'Cannot create a string longer',
-        'Response is too big',
-        'Block range is too large',
-      ].includes(message)
+      const analysis = errorHandler.analyzeError(error)
+      // Reduce batch size for batch size errors or network timeouts
+      return (
+        analysis.type === CrawlerErrorType.BATCH_SIZE_ERROR ||
+        (analysis.type === CrawlerErrorType.NETWORK_ERROR && error.message.toLowerCase().includes('timeout'))
+      )
     })
   },
 

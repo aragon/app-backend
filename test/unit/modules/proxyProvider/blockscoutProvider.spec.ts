@@ -497,10 +497,9 @@ describe('Modules: BlockScoutProvider', () => {
           tokenType: 'ERC-20',
         }
 
-        const getTokenBalancesStub = sandbox.stub(BlockScoutHelper, 'getTokenBalances').resolves([mockTokenBalance])
-        const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(mockTokenWithNullName as any)
+        sandbox.stub(BlockScoutHelper, 'getTokenBalances').resolves([mockTokenBalance])
+        sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(mockTokenWithNullName as any)
         // Line 23: analyzeIfScamToken(token?.name || '', token?.symbol || '')
-        // When name is null, it should use '' (empty string) - testing the || '' operator
         const analyzeIfScamTokenStub = sandbox.stub(TokenUtils, 'analyzeIfScamToken').returns(true)
 
         const result = await BlockScoutProvider.getTokenBalances({

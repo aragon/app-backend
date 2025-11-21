@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import logger from '@logger'
 import { LogMultiSig } from '@plugins/logMultisig'
-import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import { IPluginInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 
@@ -20,11 +20,14 @@ describe('AragonPlugins: LogMultiSig', () => {
   describe('start', async () => {
     it('should start the LogDao', async () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
-      const verboseStub = sandbox.stub(logger, 'verbose')
+      const endStub = sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
+      const verboseStub = sandbox.stub(logger, 'verbose').returns(logger)
+
       await LogMultiSig.start({
         address: '0x123',
         network: NetworksEnum.ethereumSepolia,
       } as any)
+
       expect(crawlStub.calledOnce).to.be.true
       expect(verboseStub.calledWith('Start LogMultiSig' as any)).to.be.true
       expect(verboseStub.calledTwice).to.be.true
@@ -46,6 +49,7 @@ describe('AragonPlugins: LogMultiSig', () => {
           await (this as any).crawlParams.onError(error, { logIndex: 1, transactionHash: '0xhash' })
         }
       })
+      const endStub = sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
 
       const processErrorStub = sandbox.stub(LogMultiSig, 'processError').resolves()
 

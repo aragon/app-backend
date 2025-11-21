@@ -48,6 +48,7 @@ const ProviderModule = {
     CHILIZ_MAINNET: NetworksEnum.chilizMainnet,
     CORN_MAINNET: NetworksEnum.cornMainnet,
     AVAX_MAINNET: NetworksEnum.avaxMainnet,
+    KATANA_MAINNET: NetworksEnum.katanaMainnet,
   },
   networkChainMap: {
     [NetworksEnum.ethereumMainnet]: 1,
@@ -62,6 +63,7 @@ const ProviderModule = {
     [NetworksEnum.chilizMainnet]: 88888,
     [NetworksEnum.cornMainnet]: 21000000,
     [NetworksEnum.avaxMainnet]: 43114,
+    [NetworksEnum.katanaMainnet]: 747474,
   },
 
   // Converts a config key to a NetworksEnum.

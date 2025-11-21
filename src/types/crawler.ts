@@ -2,6 +2,196 @@ import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 import type { LogServicePattern } from '@types'
 import type { IFormattedLog, ILogInfo } from '@src/types/eventLogs'
 import { type Filter, type Log, type LogDescription } from 'ethers'
+export type { TopicFilter } from 'ethers'
+
+// ============================================
+// Adaptive Batch Size Manager Types
+// ============================================
+
+/**
+ * Configuration for adaptive batch sizing behavior
+ *
+ * @property initialBatchDays - Starting batch size in days (default: 60 days)
+ * @property minBatchDays - Minimum batch size in days (default: 0.05 = 1.2 hours)
+ * @property maxBatchDays - Maximum batch size in days (default: 365 = 1 year)
+ * @property reductionFactor - Factor to reduce batch size on error (default: 2)
+ * @property growthFactor - Factor to grow batch size on success (default: 1.5)
+ * @property successThresholdForGrowth - Consecutive successes before growing (default: 3)
+ * @property densityThresholds - Event density thresholds for optimization
+ */
+export interface IAdaptiveBatchConfig {
+  initialBatchDays?: number
+  minBatchDays?: number
+  maxBatchDays?: number
+  reductionFactor?: number
+  growthFactor?: number
+  successThresholdForGrowth?: number
+  densityThresholds?: {
+    veryHigh?: number // > 50 events/block (default)
+    high?: number // > 10 events/block (default)
+    medium?: number // > 1 event/block (default)
+    low?: number // > 0.1 events/block (default)
+  }
+}
+
+/**
+ * Internal state for adaptive batch sizing
+ * Tracks the current state of the adaptive batch manager
+ */
+export interface IAdaptiveBatchState {
+  currentBatchSize: number // Current batch size in blocks
+  originalBatchSize: number // Original/initial batch size in blocks
+  consecutiveSuccesses: number // Number of consecutive successful fetches
+  consecutiveErrors: number // Number of consecutive errors
+  lastEventDensity: number // Events per block in last fetch
+  reductionCount: number // Times batch size was reduced
+  isInHighActivityZone: boolean // Currently in high activity zone (dense events)
+  lastSuccessfulBatchSize: number // Last batch size that worked successfully
+  totalEventsProcessed: number // Total events processed so far
+  totalBlocksProcessed: number // Total blocks processed so far
+  consecutiveEmptyRanges: number // Track consecutive empty ranges for skip-ahead optimization
+}
+
+// ============================================
+// Batch Request Manager Types
+// ============================================
+
+/**
+ * Configuration for batch request manager
+ */
+export interface IBatchRequestConfig {
+  network: NetworksEnum
+  address?: string | string[]
+  isTopicObject?: boolean // Whether topics is a complex filter object
+}
+
+/**
+ * RPC request structure for JSON-RPC 2.0
+ */
+export interface IRPCRequest {
+  jsonrpc: '2.0'
+  id: string
+  method: string
+  params: any[]
+}
+
+/**
+ * RPC response structure
+ */
+export interface IRPCResponse {
+  jsonrpc?: '2.0'
+  id?: string
+  result?: any
+  error?: {
+    code: number
+    message: string
+    data?: any
+  }
+}
+
+/**
+ * Batch response processing result
+ */
+export interface IBatchProcessingResult {
+  successfulResponses: IRPCResponse[]
+  failedResponses: IRPCResponse[]
+  batchSizeErrors: IRPCResponse[]
+  rateLimitErrors: IRPCResponse[]
+}
+
+// ============================================
+// Crawler Error Handler Types
+// ============================================
+
+/**
+ * Types of errors the crawler can encounter
+ */
+export enum CrawlerErrorType {
+  RATE_LIMITED = 'RATE_LIMITED',
+  BATCH_SIZE_ERROR = 'BATCH_SIZE_ERROR',
+  NETWORK_ERROR = 'NETWORK_ERROR',
+  UNKNOWN = 'UNKNOWN',
+}
+
+/**
+ * Configuration for error handler
+ */
+export interface IErrorHandlerConfig {
+  maxRetries?: number
+  baseBackoffMs?: number
+  maxBackoffMs?: number
+  stopOnError?: boolean
+}
+
+/**
+ * Error analysis result
+ */
+export interface IErrorAnalysis {
+  type: CrawlerErrorType
+  shouldRetry: boolean
+  backoffMs?: number
+  message: string
+}
+
+// ============================================
+// Log Processing Engine Types
+// ============================================
+
+/**
+ * Configuration for log processing engine
+ */
+export interface ILogProcessingConfig {
+  events: IIndexerConfig[]
+  isTopicObject: boolean
+  onlyHistorical?: boolean
+  stopOnError?: boolean
+  onError?: (error: Error, log?: Log) => void
+}
+
+/**
+ * Context for processing a batch of logs
+ */
+export interface IProcessingContext {
+  fromBlock: number
+  toBlock: number
+  latestBlock: number
+}
+
+/**
+ * Processing statistics
+ */
+export interface IProcessingStats {
+  nbSuccess: number
+  nbError: number
+  nbTotal: number
+  lastSync: number
+}
+
+// ============================================
+// Progress Tracker Types
+// ============================================
+
+/**
+ * Configuration for progress tracker
+ */
+export interface IProgressTrackerConfig {
+  network: NetworksEnum
+  service: LogServicePattern
+  initialBlock?: number
+}
+
+/**
+ * Progress information returned by the tracker
+ */
+export interface IProgressInfo {
+  lastSync: number
+  isEnded: boolean
+  exists: boolean
+}
+
+// ============================================
+// Indexer Configuration Types
+// ============================================
 
 export interface IIndexerConfigHandler {
   abi: any[]
@@ -48,6 +238,7 @@ export interface ICrawlParam {
   skipLogProcessing?: boolean
   isTopicObject?: boolean
   batchSize?: number
+  adaptiveConfig?: IAdaptiveBatchConfig
 }
 
 export interface ICrawlSetting {

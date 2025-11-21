@@ -9,7 +9,7 @@ import { TaskSchedulerState } from '@state/taskSchedulerState'
 import ConfigIndexerHelper from '@helpers/configIndexer'
 import { IGovernanceErc20Logs, type IIndexerConfig, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
-import BlockchainLogCrawler from '@modules/blockchainLogCrawler'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import configIndexer from '@indexer/configIndexer'
 import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 import { LibUtils } from '@test/lib/unit-dep/lib'
@@ -21,6 +21,7 @@ describe.skip('Integ: BlockchainLogCrawler', () => {
   before(async () => {
     await LibUtils.registerPluginRepos(network)
   })
+
   beforeEach(() => {
     sandbox = sinon.createSandbox()
     sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
@@ -132,6 +133,127 @@ describe.skip('Integ: BlockchainLogCrawler', () => {
         autoScale: true,
       },
       network,
+      events: [...configGovLogs],
+      address: [token.address],
+      fromBlock: token?.blockNumber || plugin?.blockNumber,
+      onError: async (error: any, log: any) => {
+        console.error('Error LogTokenVoting', { error, log })
+      },
+      logService: ConfigIndexerHelper.builders.token(token.type, token.network, token.address),
+      stopOnError: true,
+    })
+
+    await tokenCrawler.crawl()
+
+    logger.verbose('End LogTokenVoting', {
+      startTime,
+      endTime: Date.now(),
+    })
+  })
+
+  it('should sync BRG delegateEvents in parallel and batch', async function () {
+    this.timeout(10000000)
+
+    const plugin = await Models.Plugin.create({
+      id: 'polygon-mainnet-0x6796a9641df93d7902c073eaa8b45019c27e53fb3872f761a2d0a3005da4cd41-0x9d5586b4B048Ba9fa847Ae5F169352dc080b3eb3',
+      transactionHash: '0x6796a9641df93d7902c073eaa8b45019c27e53fb3872f761a2d0a3005da4cd41',
+      blockNumber: 40941779,
+      blockTimestamp: 1680186182,
+      network: NetworksEnum.polygonMainnet,
+      address: '0x9d5586b4B048Ba9fa847Ae5F169352dc080b3eb3',
+      implementationAddress: '0x8725b5f8247a0db0A5c6D86Db6Fb7A98F2Bd27f5',
+      interfaceType: 'tokenVoting',
+      status: 'installed',
+      isSupported: true,
+      daoAddress: '0x19E246564b3264fed309D3D004f807D5887e5521',
+      tokenAddress: '0x613ef3f5959688c3b422A545906F844b6f8c8F35',
+      pluginSetupRepoAddress: '0xae67aea0B830ed4504B36670B5Fa70c5C386Bb58',
+      sender: '0x51Ead12DEcD31ea75e1046EdFAda14dd639789b8',
+      release: '1',
+      build: '1',
+      subdomain: 'token-voting',
+      permissions: [],
+      uninstalled: {
+        status: false,
+        transactionHash: null,
+        blockNumber: null,
+        blockTimestamp: null,
+      },
+      isProcess: true,
+      isBody: true,
+      isSubPlugin: false,
+      metadataIpfs: null,
+      name: null,
+      description: null,
+      processKey: null,
+      subPlugins: [],
+      links: [],
+      __v: 1,
+      blockedCountries: [],
+      hasTarget: false,
+      proposalCreationConditionAddress: '0x0000000000000000000000000000000000000000',
+    })
+    const token = await Models.Token.create({
+      id: '0x613ef3f5959688c3b422A545906F844b6f8c8F35-polygon-mainnet',
+      network: NetworksEnum.polygonMainnet,
+      transactionHash: '0x6796a9641df93d7902c073eaa8b45019c27e53fb3872f761a2d0a3005da4cd41',
+      blockNumber: 40941779,
+      type: 'ERC20',
+      address: '0x613ef3f5959688c3b422A545906F844b6f8c8F35',
+      mintableByDao: false,
+      implementationAddress: '0x7B0189345261375c2dE9185Ca4CEbc1974827C09',
+      logo: '',
+      skipFetchRate: true,
+      isGovernance: true,
+      name: 'barukimang',
+      symbol: 'BRG',
+      decimals: 18,
+      underlying: null,
+      holders: 2,
+      totalSupply: '10053000000000000000000',
+      priceChangeOnDayUsd: '0',
+      priceUsd: '0',
+      hasDelegate: true,
+      hasBalanceOfERC20: true,
+      hasBalanceOfERC777: false,
+      hasName: true,
+      hasSymbol: true,
+      hasDecimals: true,
+      hasTotalSupply: true,
+      hasClockMode: false,
+      ignoreTransfer: false,
+      refetch: false,
+      clockMode: 'blocknumber',
+    })
+
+    const networkName = NetworksEnum.polygonMainnet
+    const startTime = Date.now()
+
+    logger.verbose('Start Token Sync', { startTime })
+
+    const configGovLogs = configIndexer
+      .filter((item: IIndexerConfig) => Object.values(IGovernanceErc20Logs).includes(item.event as any))
+      .map((item: IIndexerConfig) => {
+        if (item.event === IGovernanceErc20Logs.DelegateVotesChanged) {
+          return {
+            ...item,
+            config: item.config.map(cfg => ({
+              ...cfg,
+              handler: GovernanceErc20Handler.delegateVotesChangedBatch,
+            })),
+          }
+        }
+        return item
+      })
+
+    const tokenCrawler = new BlockchainLogCrawler({
+      parallel: {
+        enable: true,
+        useBatch: true,
+        batchSize: 1000,
+        autoScale: true,
+      },
+      network: networkName,
       events: [...configGovLogs],
       address: [token.address],
       fromBlock: token?.blockNumber || plugin?.blockNumber,

@@ -2,6 +2,7 @@ import logger from '@logger'
 import {
   EnumConnection,
   EnumQueueName,
+  EnumServiceName,
   IPluginInterfaceType,
   type IQueueDao,
   type IQueuePlugin,
@@ -23,6 +24,7 @@ import config from '@config'
 const llo = logger.logMeta.bind(null, { service: 'service:PluginSyncService' })
 
 const AragonPluginsService: IService & { pluginQueue: (params: IQueuePlugin) => Promise<void> } = {
+  name: EnumServiceName.ARAGON_PLUGINS,
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
   options: { mongoSync: config.MONGO_DB.SYNC_MODELS },
 

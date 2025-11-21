@@ -6,6 +6,7 @@ import * as Errors from '@errors'
 import { Interface, ethers } from 'ethers'
 import { DAO } from '@artifacts/dao'
 import config from '@config'
+import DbOperations from '@models/utils/dbOperations'
 
 const llo = logger.logMeta.bind(null, { service: 'simulation-controller' })
 
@@ -119,13 +120,19 @@ class SimulationController {
       llo({ proposalId, network: proposal.network }),
     )
 
-    await proposal.update({
-      simulation: {
-        status: result.status,
-        url: result.url,
-        runAt: result.runAt ? new Date(result.runAt) : new Date(),
+    await DbOperations.updateDocument(
+      proposal,
+      {
+        simulation: {
+          status: result.status,
+          url: result.url,
+          runAt: result.runAt ? new Date(result.runAt) : new Date(),
+        },
       },
-    })
+      { proposalId, network: proposal.network },
+      'simulation-update',
+      llo,
+    )
 
     return {
       status: result.status,

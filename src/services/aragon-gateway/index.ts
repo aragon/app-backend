@@ -2,6 +2,7 @@ import logger from '@logger'
 import {
   EnumConnection,
   EnumQueueName,
+  EnumServiceName,
   type IGetGaugeEpochId,
   type IGetGaugeInfoId,
   type IMerkleProofSync,
@@ -25,6 +26,7 @@ import { GaugeInfo } from '@services/aragon-gateway/gauge'
 const llo = logger.logMeta.bind(null, { service: 'service:GatewayService' })
 
 const AragonGatewayService: IService = {
+  name: EnumServiceName.ARAGON_GATEWAY,
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
   options: { mongoSync: config.MONGO_DB.SYNC_MODELS },
 
