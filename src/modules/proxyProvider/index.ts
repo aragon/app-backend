@@ -3,6 +3,7 @@ import Web3Provider from '@modules/proxyProvider/web3Provider'
 import PeaqProvider from '@modules/proxyProvider/peaqProvider'
 import ChilizProvider from '@modules/proxyProvider/chilizProvider'
 import CornProvider from '@modules/proxyProvider/cornProvider'
+import KatanaProvider from '@modules/proxyProvider/katanaProvider'
 
 const ProxyWeb3Provider: IWeb3Provider & { forward: any; getProvider: any; getDefaultProvider: any } = {
   getProvider(network: NetworksEnum) {
@@ -13,6 +14,8 @@ const ProxyWeb3Provider: IWeb3Provider & { forward: any; getProvider: any; getDe
         return ChilizProvider
       case NetworksEnum.cornMainnet:
         return CornProvider
+      case NetworksEnum.katanaMainnet:
+        return KatanaProvider
       default:
         return Web3Provider
     }

@@ -749,4 +749,397 @@ describe('Helpers: EvmExplorerClient', () => {
       expect(callArgs[0]).to.equal('https://api.routescan.io/v2/network/mainnet/evm/1/custom/path')
     })
   })
+
+  describe('getTokenBalances', () => {
+    const address = '0x1234567890abcdef1234567890abcdef12345678'
+    const network = NetworksEnum.ethereumMainnet
+
+    it('should fetch token balances successfully', async () => {
+      const mockResponse = {
+        data: {
+          result: [
+            {
+              TokenAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+              TokenName: 'USD Coin',
+              TokenSymbol: 'USDC',
+              TokenDivisor: '6',
+              TokenQuantity: '1000000000',
+              TokenPriceUSD: '1.00',
+            },
+            {
+              TokenAddress: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+              TokenName: 'Tether USD',
+              TokenSymbol: 'USDT',
+              TokenDivisor: '6',
+              TokenQuantity: '2000000000',
+              TokenPriceUSD: '0.99',
+            },
+          ],
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+
+      const result = await evmExplorerClient.getTokenBalances(EvmExplorerEnum.ETHERSCAN, address, network)
+
+      expect(axiosStub.calledOnce).to.be.true
+      expect(result).to.have.lengthOf(2)
+      expect(result[0]).to.deep.include({
+        contractAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        name: 'USD Coin',
+        symbol: 'USDC',
+        decimals: 6,
+        originalBalance: '1000000000',
+        priceUsd: '1.00',
+      })
+      expect(result[1]).to.deep.include({
+        contractAddress: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+        name: 'Tether USD',
+        symbol: 'USDT',
+        decimals: 6,
+        originalBalance: '2000000000',
+        priceUsd: '0.99',
+      })
+    })
+
+    it('should filter out tokens with empty TokenName', async () => {
+      const mockResponse = {
+        data: {
+          result: [
+            {
+              TokenAddress: '0xtoken1',
+              TokenName: 'Valid Token',
+              TokenSymbol: 'VLD',
+              TokenDivisor: '18',
+              TokenQuantity: '1000000000000000000',
+              TokenPriceUSD: '1.00',
+            },
+            {
+              TokenAddress: '0xtoken2',
+              TokenName: '',
+              TokenSymbol: 'EMPTY',
+              TokenDivisor: '18',
+              TokenQuantity: '2000000000000000000',
+              TokenPriceUSD: '2.00',
+            },
+          ],
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+
+      const result = await evmExplorerClient.getTokenBalances(EvmExplorerEnum.ETHERSCAN, address, network)
+
+      expect(axiosStub.calledOnce).to.be.true
+      expect(result).to.have.lengthOf(1)
+      expect(result[0].name).to.equal('Valid Token')
+    })
+
+    it('should filter out tokens with empty TokenSymbol', async () => {
+      const mockResponse = {
+        data: {
+          result: [
+            {
+              TokenAddress: '0xtoken1',
+              TokenName: 'Valid Token',
+              TokenSymbol: 'VLD',
+              TokenDivisor: '18',
+              TokenQuantity: '1000000000000000000',
+              TokenPriceUSD: '1.00',
+            },
+            {
+              TokenAddress: '0xtoken2',
+              TokenName: 'No Symbol Token',
+              TokenSymbol: '',
+              TokenDivisor: '18',
+              TokenQuantity: '2000000000000000000',
+              TokenPriceUSD: '2.00',
+            },
+          ],
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+
+      const result = await evmExplorerClient.getTokenBalances(EvmExplorerEnum.ETHERSCAN, address, network)
+
+      expect(axiosStub.calledOnce).to.be.true
+      expect(result).to.have.lengthOf(1)
+      expect(result[0].symbol).to.equal('VLD')
+    })
+
+    it('should filter out tokens with empty TokenDivisor', async () => {
+      const mockResponse = {
+        data: {
+          result: [
+            {
+              TokenAddress: '0xtoken1',
+              TokenName: 'Valid Token',
+              TokenSymbol: 'VLD',
+              TokenDivisor: '18',
+              TokenQuantity: '1000000000000000000',
+              TokenPriceUSD: '1.00',
+            },
+            {
+              TokenAddress: '0xtoken2',
+              TokenName: 'No Divisor Token',
+              TokenSymbol: 'NODIV',
+              TokenDivisor: '',
+              TokenQuantity: '2000000000000000000',
+              TokenPriceUSD: '2.00',
+            },
+          ],
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+
+      const result = await evmExplorerClient.getTokenBalances(EvmExplorerEnum.ETHERSCAN, address, network)
+
+      expect(axiosStub.calledOnce).to.be.true
+      expect(result).to.have.lengthOf(1)
+      expect(result[0].decimals).to.equal(18)
+    })
+
+    it('should return empty array when result is empty', async () => {
+      const mockResponse = {
+        data: {
+          result: [],
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+
+      const result = await evmExplorerClient.getTokenBalances(EvmExplorerEnum.ETHERSCAN, address, network)
+
+      expect(axiosStub.calledOnce).to.be.true
+      expect(result).to.deep.equal([])
+    })
+
+    it('should return empty array when result is null', async () => {
+      const mockResponse = {
+        data: {
+          result: null,
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+
+      const result = await evmExplorerClient.getTokenBalances(EvmExplorerEnum.ETHERSCAN, address, network)
+
+      expect(axiosStub.calledOnce).to.be.true
+      expect(result).to.deep.equal([])
+    })
+
+    it('should return empty array when response is null', async () => {
+      const mockResponse = {
+        data: null,
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+
+      const result = await evmExplorerClient.getTokenBalances(EvmExplorerEnum.ETHERSCAN, address, network)
+
+      expect(axiosStub.calledOnce).to.be.true
+      expect(result).to.deep.equal([])
+    })
+
+    it('should handle API errors gracefully and return empty array', async () => {
+      const error = new Error('Network error')
+      const axiosStub = sandbox.stub(axios, 'get').rejects(error)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+
+      const result = await evmExplorerClient.getTokenBalances(EvmExplorerEnum.ETHERSCAN, address, network)
+
+      expect(axiosStub.calledOnce).to.be.true
+      expect(loggerStub.called).to.be.true
+      expect(result).to.deep.equal([])
+    })
+
+    it('should return empty array for unsupported explorer type', async () => {
+      const result = await evmExplorerClient.getTokenBalances('unsupported' as EvmExplorerEnum, address, network)
+
+      expect(result).to.deep.equal([])
+    })
+
+    it('should correctly build API params for token balances request', async () => {
+      const mockResponse = {
+        data: {
+          result: [],
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+
+      await evmExplorerClient.getTokenBalances(EvmExplorerEnum.ETHERSCAN, address, network)
+
+      expect(axiosStub.calledOnce).to.be.true
+      const callArgs = axiosStub.firstCall.args
+      expect((callArgs[1] as any).params).to.deep.include({
+        module: 'account',
+        action: 'addresstokenbalance',
+        address,
+        apikey: 'test-api-key',
+        chainid: 1,
+      })
+    })
+
+    it('should filter out all tokens when none have valid data', async () => {
+      const mockResponse = {
+        data: {
+          result: [
+            {
+              TokenAddress: '0xtoken1',
+              TokenName: '',
+              TokenSymbol: '',
+              TokenDivisor: '',
+              TokenQuantity: '1000',
+              TokenPriceUSD: '1.00',
+            },
+            {
+              TokenAddress: '0xtoken2',
+              TokenName: 'Name Only',
+              TokenSymbol: '',
+              TokenDivisor: '',
+              TokenQuantity: '2000',
+              TokenPriceUSD: '2.00',
+            },
+          ],
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+
+      const result = await evmExplorerClient.getTokenBalances(EvmExplorerEnum.ETHERSCAN, address, network)
+
+      expect(axiosStub.calledOnce).to.be.true
+      expect(result).to.deep.equal([])
+    })
+
+    it('should work with different explorer types', async () => {
+      const mockResponse = {
+        data: {
+          result: [
+            {
+              TokenAddress: '0xtoken1',
+              TokenName: 'Test Token',
+              TokenSymbol: 'TEST',
+              TokenDivisor: '18',
+              TokenQuantity: '1000000000000000000',
+              TokenPriceUSD: '1.00',
+            },
+          ],
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ROUTESCAN_API').value({
+        BASE_URI: 'https://api.routescan.io/v2/network/mainnet/evm',
+      })
+
+      const result = await evmExplorerClient.getTokenBalances(EvmExplorerEnum.ROUTESCAN, address, network)
+
+      expect(axiosStub.calledOnce).to.be.true
+      expect(result).to.have.lengthOf(1)
+      expect(result[0].name).to.equal('Test Token')
+    })
+
+    it('should handle tokens with various decimal values', async () => {
+      const mockResponse = {
+        data: {
+          result: [
+            {
+              TokenAddress: '0xtoken1',
+              TokenName: 'Token 6 Decimals',
+              TokenSymbol: 'T6',
+              TokenDivisor: '6',
+              TokenQuantity: '1000000',
+              TokenPriceUSD: '1.00',
+            },
+            {
+              TokenAddress: '0xtoken2',
+              TokenName: 'Token 18 Decimals',
+              TokenSymbol: 'T18',
+              TokenDivisor: '18',
+              TokenQuantity: '1000000000000000000',
+              TokenPriceUSD: '2.00',
+            },
+            {
+              TokenAddress: '0xtoken3',
+              TokenName: 'Token 8 Decimals',
+              TokenSymbol: 'T8',
+              TokenDivisor: '8',
+              TokenQuantity: '100000000',
+              TokenPriceUSD: '3.00',
+            },
+          ],
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+
+      const result = await evmExplorerClient.getTokenBalances(EvmExplorerEnum.ETHERSCAN, address, network)
+
+      expect(axiosStub.calledOnce).to.be.true
+      expect(result).to.have.lengthOf(3)
+      expect(result[0].decimals).to.equal(6)
+      expect(result[1].decimals).to.equal(18)
+      expect(result[2].decimals).to.equal(8)
+    })
+  })
 })

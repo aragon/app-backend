@@ -5,6 +5,7 @@ export enum IWeb3ProxyMethod {
   getTokenBalances = 'getTokenBalances',
   fetchContractCreation = 'fetchContractCreation',
   fetchContractSourceCode = 'fetchContractSourceCode',
+  fetchTokenBalances = 'fetchTokenBalances',
   fetchBasicTokenInfo = 'fetchBasicTokenInfo',
   fetchTokenHolderAndSupply = 'fetchTokenHolderAndSupply',
   fetchTokenPrice = 'fetchTokenPrice',
@@ -60,6 +61,10 @@ export interface IWeb3TokenBalance {
   contractAddress: HexAddress
   tokenBalance: string
   originalBalance?: any
+  decimals?: number
+  name?: string
+  symbol?: string
+  priceUsd?: string
 }
 
 export interface IWeb3ContractCreation {

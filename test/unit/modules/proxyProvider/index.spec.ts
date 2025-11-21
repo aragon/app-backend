@@ -6,6 +6,7 @@ import PeaqProvider from '@modules/proxyProvider/peaqProvider'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 import ChilizProvider from '@modules/proxyProvider/chilizProvider'
 import CornProvider from '@modules/proxyProvider/cornProvider' // Updated import
+import KatanaProvider from '@modules/proxyProvider/katanaProvider'
 
 describe('ProxyWeb3Provider', () => {
   let sandbox: sinon.SinonSandbox
@@ -37,6 +38,11 @@ describe('ProxyWeb3Provider', () => {
     it('should return CornProvider for cornMainnet network', () => {
       const provider = ProxyWeb3Provider.getProvider(NetworksEnum.cornMainnet)
       expect(provider).to.equal(CornProvider)
+    })
+
+    it('should return KatanaProvider for katanaMainnet network', () => {
+      const provider = ProxyWeb3Provider.getProvider(NetworksEnum.katanaMainnet)
+      expect(provider).to.equal(KatanaProvider)
     })
   })
 
