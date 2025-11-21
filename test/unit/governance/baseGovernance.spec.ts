@@ -623,9 +623,9 @@ describe('Governance:BaseGovernance', () => {
     })
 
     it('should handle errors and return null', async () => {
-      // Force an error by making findOneAndUpdate fail
+      // Force an error by making countDocuments fail
       sandbox.restore()
-      sandbox.stub(Models.PluginMetrics, 'findOneAndUpdate').rejects(new Error('Database error'))
+      sandbox.stub(Models.PluginMetrics, 'findExistingLog').rejects(new Error('Database error'))
       loggerErrorStub = sandbox.stub(Logger, 'error')
 
       const result = await testGovernance.getOrCreatePluginMetrics({
