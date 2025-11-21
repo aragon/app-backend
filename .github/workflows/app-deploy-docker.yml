@@ -369,8 +369,10 @@ jobs:
           
           if [[ "$ENVIRONMENT" == "production" ]]; then
             SLACK_URL=$(op read "op://kv_backend2_infra/slack_hook_prod/credential")
+            MENTION=$(op read "op://kv_backend2_infra/slack_hook_prod/username")
           else
             SLACK_URL=$(op read "op://kv_backend2_infra/slack_hook_nonprod/credential")
+            MENTION=$(op read "op://kv_backend2_infra/slack_hook_nonprod/username")
           fi
 
           if [[ "$STATUS" == "success" ]]; then
@@ -386,7 +388,8 @@ jobs:
             Environment: $ENVIRONMENT
             Branch: $BRANCH
             Attempted by: $ACTOR
-            Details: $RUN_URL"
+            Details: $RUN_URL
+            ${MENTION}"
 
             curl -X POST \
             -H 'Content-type: application/json; charset=utf-8' \
