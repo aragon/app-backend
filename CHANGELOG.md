@@ -1,3 +1,54 @@
+# [0.18.0](https://github.com/aragon/app-backend/compare/v0.17.0...v0.18.0) (2025-11-21)
+
+
+### Bug Fixes
+
+* **crawler:** add comprehensive unit tests for adaptive batch size and error handling modules ([b10b7d3](https://github.com/aragon/app-backend/commit/b10b7d38d3ce9f813d39ed5d77afa00572f35dec))
+* lint, formatter ([83f4ea4](https://github.com/aragon/app-backend/commit/83f4ea4a1debd37d7b8db205bb11945f213b1784))
+* lint, formatter ([570012a](https://github.com/aragon/app-backend/commit/570012a28d87e62bd3c11b8cb1c07cf97285de31))
+* **logCrawler:** improve progress tracking by correctly determining highest block processed ([ce8e780](https://github.com/aragon/app-backend/commit/ce8e78007c7518f75e2efc30fe4828ff85b4cb03))
+* **logCrawler:** merged development ([2c1c06f](https://github.com/aragon/app-backend/commit/2c1c06fb23af11108eda0c5b07c9fc4037991939))
+* **logCrawler:** merged development ([ef02abb](https://github.com/aragon/app-backend/commit/ef02abbaf180e357688178b1dfdb92b6a7cd16ef))
+
+
+### Features
+
+* **aragon-transfers:** implement AragonTransfers service with TransferIndexer integration ([63f93d2](https://github.com/aragon/app-backend/commit/63f93d2d1e1eae54f890cf0d16239693305bffa1))
+* **batch:** enhance response handling and adaptive batch size configuration ([b013260](https://github.com/aragon/app-backend/commit/b013260b8c010ecd5ec081ca625fcdb63e9aa867))
+* **config:** add KATANA_MAINNET configuration and update related enums ([ebddfb2](https://github.com/aragon/app-backend/commit/ebddfb20c3845f486a1987573cbe6ed11563c31c))
+* **crawler:** disable crawling when skipLogProcessing is enabled ([6bd649d](https://github.com/aragon/app-backend/commit/6bd649d0e6f9e615880140625b010766fd0285c5))
+* **crawler:** enhance crawler by adjusting batch size for pooling ([5cd88a6](https://github.com/aragon/app-backend/commit/5cd88a6202d7f2f08b2755972df324d6bff5e276))
+* **crawler:** optimize log processing by removing unused variable and adjusting block range setting ([921da80](https://github.com/aragon/app-backend/commit/921da8029b363d9cc341ea36d83590342e64bd26))
+* **deployment:** add service-aragon-transfers to deployment and health check scripts ([34ba6f6](https://github.com/aragon/app-backend/commit/34ba6f65bfdf0827ab20eda0b2f01ae88522c07a))
+* **gauge:** add gauge governance and metrics handling, update related interfaces and tests ([a19513a](https://github.com/aragon/app-backend/commit/a19513a0fd053e49cd454c831d732d9740b1528c))
+* **governance:** optimize plugin metrics handling with entity ID for atomic upsert ([aac56d7](https://github.com/aragon/app-backend/commit/aac56d700b40492eebe4962e0f6d0d78a777d9e1))
+* **governance:** refactor plugin metrics handling with atomic upsert and error logging ([870258b](https://github.com/aragon/app-backend/commit/870258b656c7ed3112e68a055aa5341eb7defd94))
+* **index:** add logic to stop intervals before starting new ones ([d5b149a](https://github.com/aragon/app-backend/commit/d5b149ab32164a076b279a59eb805c4364cf8610))
+* **index:** ensure metrics collection starts after stopping existing intervals ([6a86a8d](https://github.com/aragon/app-backend/commit/6a86a8d616cff1d2bd1e14978939cc45f30727cd))
+* **indexer:** implement TransferIndexer for handling transfer logs and update pooling logic ([dbfed9f](https://github.com/aragon/app-backend/commit/dbfed9f5fe47349e9660a9c46c0e2c7b41097df3))
+* **logTokenVoting:** update import path for BlockchainLogCrawler module ([805f25b](https://github.com/aragon/app-backend/commit/805f25b230734c06a6b764ba0041ae831735dc36))
+* **log:** update highest block number tracking in log processing ([08bcd2d](https://github.com/aragon/app-backend/commit/08bcd2d064086e88ce5dad3d7b987c3f2a015fe8))
+* **metrics:** implement Prometheus metrics collection and management ([f12b3cd](https://github.com/aragon/app-backend/commit/f12b3cdddc8e471aa748599dd66bced29caab2d6))
+* **metrics:** remove expiration from createdAt index in Metrics model ([4bcfe3a](https://github.com/aragon/app-backend/commit/4bcfe3acc46418deaf9d3353ac720194ad0d521b))
+* **migration:** add ARAGON_MIGRATION service name to MigrationService ([e4a9873](https://github.com/aragon/app-backend/commit/e4a9873b39933965bee9eabb56fc05bc8490ed1d))
+* **pooling:** add check for empty daoAddressesSet before processing transfers ([b0c7e85](https://github.com/aragon/app-backend/commit/b0c7e85715ec63f50499df73af5a9148cba1fe3f))
+* **pooling:** update filterLogs to include transfer logs and adjust network instance naming ([b0e0d02](https://github.com/aragon/app-backend/commit/b0e0d02d1fd21e7577b269bf63c44515c15f0067))
+* **prometheus:** update metrics prefixing to use labels instead of sanitized service name ([0688fd1](https://github.com/aragon/app-backend/commit/0688fd1ea143d13a00deea917d5c009fa4ab0f8b))
+* **proposal:** add hasSimulation field to check simulation URL and status ([46d5691](https://github.com/aragon/app-backend/commit/46d5691d0cb5aa143ade4e9302bfb82e2d51e294))
+* **proposal:** update parsedEvent logging to include event arguments ([ab83662](https://github.com/aragon/app-backend/commit/ab836625d5a8847db79a8afa38263c5842188628))
+* refactor BlockchainLogCrawler to improve module organization ([647fd35](https://github.com/aragon/app-backend/commit/647fd351e6a78ccb4024be33d7bf1c9fddbb1fb1))
+* refactor imports from UnitDepUtils to LibUtils for consistency ([75db523](https://github.com/aragon/app-backend/commit/75db52352365dde91e2a341ea79a349baa5048ca))
+* **simulation:** enhance simulation tests with DbOperations updateDocument stubs ([4ebe23c](https://github.com/aragon/app-backend/commit/4ebe23caceeefd6d9fa2c102f9668d539e8e79ae))
+* **tests:** add test case for updating spp proposal with external body result ([b91b855](https://github.com/aragon/app-backend/commit/b91b855b6a0499c2f6480fbe90d9ff06a0d01672))
+* **tests:** add test case for updating spp proposal with external body result ([4e2e9f8](https://github.com/aragon/app-backend/commit/4e2e9f888a25e506dc7627afbc091be6c8f0ef1f))
+* **tests:** clean up test files by removing unused mock variables and comments ([218d6f6](https://github.com/aragon/app-backend/commit/218d6f61a26f6835ba0402139209e833a94120ba))
+* **tests:** clean up test files by removing unused mock variables and comments ([adea132](https://github.com/aragon/app-backend/commit/adea13226e8b728bfe88826587fa4640b78841a0))
+* **tests:** enhance test coverage by adding error handling scenarios and updating module imports ([bcb1271](https://github.com/aragon/app-backend/commit/bcb12711a89281ec41e03e3d74312476d5e1e042))
+* **tests:** fix syntax in token.spec.ts and enable crawler issue test ([4640481](https://github.com/aragon/app-backend/commit/4640481e622220abd7a6a382e01bae08571f2fe7))
+* **tests:** format log processing tests for improved readability ([c7ae9c5](https://github.com/aragon/app-backend/commit/c7ae9c572d4e1298d36ba151e072f1756c5cdb68))
+* **tests:** update import path for BlockchainLogCrawler and improve comments for clarity ([ba5529b](https://github.com/aragon/app-backend/commit/ba5529b03a4460293bc8038f40a656496fbd0651))
+* **vote:** add pluginAddress field to vote object ([42e02f6](https://github.com/aragon/app-backend/commit/42e02f6a5e6a5dfdd2a05caf8d70d46791d07675))
+
 # [0.17.0](https://github.com/aragon/app-backend/compare/v0.16.1...v0.17.0) (2025-11-07)
 
 
