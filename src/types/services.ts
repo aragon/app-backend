@@ -32,7 +32,7 @@ export interface IOptionService {
 }
 
 export interface IService {
-  name: EnumServiceName
+  name?: EnumServiceName
   options?: IOptionService
   NEED_CONNECTIONS: EnumConnection[]
   start: () => Promise<any>
