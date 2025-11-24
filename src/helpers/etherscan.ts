@@ -19,6 +19,7 @@ const EtherscanHelper = {
     [NetworksEnum.zksyncSepolia]: '0x000000000000000000000000000000000000800A',
     [NetworksEnum.optimismMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
     [NetworksEnum.avaxMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+    [NetworksEnum.katanaMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
   },
 
   axiosInstance: () =>

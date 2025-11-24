@@ -5,7 +5,6 @@ export enum IWeb3ProxyMethod {
   getTokenBalances = 'getTokenBalances',
   fetchContractCreation = 'fetchContractCreation',
   fetchContractSourceCode = 'fetchContractSourceCode',
-  fetchTokenBalances = 'fetchTokenBalances',
   fetchBasicTokenInfo = 'fetchBasicTokenInfo',
   fetchTokenHolderAndSupply = 'fetchTokenHolderAndSupply',
   fetchTokenPrice = 'fetchTokenPrice',

@@ -362,7 +362,7 @@ const Utils = {
     return filteredValues.some(value => value !== undefined)
   },
 
-  parseTokenBalance(amount: string, decimals: string) {
+  parseTokenBalance(amount: string, decimals: string | number) {
     if (!decimals) {
       return amount
     }
