@@ -12,14 +12,15 @@ const KatanaProvider: Pick<IWeb3Provider, 'getTokenBalances'> = {
     return (
       await Promise.all(
         tokensBalance.map(async (tokenBalance: IWeb3TokenBalance) => {
-          if (tokenBalance.contractAddress === EtherscanHelper.nativeTokens[network]) {
-            tokenBalance.contractAddress = utils.zeroAddress
-          }
-          const token = await ProxyToken.saveAndGetToken(tokenBalance.contractAddress, network)
+          const contractAddress =
+            tokenBalance.contractAddress === EtherscanHelper.nativeTokens[network]
+              ? utils.zeroAddress
+              : tokenBalance.contractAddress
+          const token = await ProxyToken.saveAndGetToken(contractAddress, network)
           if (!token) return null
 
           return {
-            contractAddress: Web3Utils.parseAddress(tokenBalance.contractAddress) || tokenBalance.contractAddress,
+            contractAddress: Web3Utils.parseAddress(contractAddress) || contractAddress,
             tokenBalance: tokenBalance.tokenBalance,
             originalBalance: tokenBalance.originalBalance,
             priceUsd: tokenBalance.priceUsd,
