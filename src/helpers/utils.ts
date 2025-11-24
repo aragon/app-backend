@@ -3,6 +3,7 @@ import { assert } from '@errors'
 import async from 'async'
 import dayjs from '@helpers/dayjs'
 import type Plugin from '@models/schema/plugin'
+import { ethers } from 'ethers'
 
 const Utils = {
   noop: (): number => 0,
@@ -359,6 +360,17 @@ const Utils = {
       .map(([_, value]) => value)
 
     return filteredValues.some(value => value !== undefined)
+  },
+
+  parseTokenBalance(amount: string, decimals: string | number) {
+    if (!decimals) {
+      return amount
+    }
+    try {
+      return ethers.formatUnits(amount, Number(decimals))
+    } catch (error) {
+      return amount
+    }
   },
 
   parseBoolean: (value: any): boolean | undefined => {

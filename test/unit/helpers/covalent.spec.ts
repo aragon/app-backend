@@ -35,10 +35,10 @@ describe('Helpers: Covalent', () => {
     )
     expect(CovalentHelper.nativeTokens[NetworksEnum.baseMainnet]).to.equal('0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE')
     expect(CovalentHelper.nativeTokens[NetworksEnum.zksyncMainnet]).to.equal(
-      '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+      '0x000000000000000000000000000000000000800A',
     )
     expect(CovalentHelper.nativeTokens[NetworksEnum.zksyncSepolia]).to.equal(
-      '0x000000000000000000000000000000000000800a',
+      '0x000000000000000000000000000000000000800A',
     )
   })
 

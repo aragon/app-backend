@@ -19,6 +19,42 @@ describe('Helpers: Etherscan', () => {
     sandbox && sandbox.restore()
   })
 
+  describe('nativeTokens', () => {
+    it('should have correct native token addresses for supported networks', () => {
+      expect(EtherscanHelper.nativeTokens[NetworksEnum.ethereumMainnet]).to.equal(
+        '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+      )
+      expect(EtherscanHelper.nativeTokens[NetworksEnum.ethereumSepolia]).to.equal(
+        '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+      )
+      expect(EtherscanHelper.nativeTokens[NetworksEnum.polygonMainnet]).to.equal(
+        '0x0000000000000000000000000000000000001010',
+      )
+      expect(EtherscanHelper.nativeTokens[NetworksEnum.arbitrumMainnet]).to.equal(
+        '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+      )
+      expect(EtherscanHelper.nativeTokens[NetworksEnum.baseMainnet]).to.equal(
+        '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+      )
+      expect(EtherscanHelper.nativeTokens[NetworksEnum.zksyncMainnet]).to.equal(
+        '0x000000000000000000000000000000000000800A',
+      )
+      expect(EtherscanHelper.nativeTokens[NetworksEnum.zksyncSepolia]).to.equal(
+        '0x000000000000000000000000000000000000800A',
+      )
+      expect(EtherscanHelper.nativeTokens[NetworksEnum.optimismMainnet]).to.equal(
+        '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+      )
+      expect(EtherscanHelper.nativeTokens[NetworksEnum.avaxMainnet]).to.equal(
+        '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+      )
+    })
+
+    it('should return undefined for unsupported networks', () => {
+      expect(EtherscanHelper.nativeTokens['unsupported-network']).to.be.undefined
+    })
+  })
+
   it('axiosInstance', async () => {
     const stubAxios = sandbox.stub(axios, 'create')
     EtherscanHelper.axiosInstance()
@@ -871,6 +907,73 @@ describe('Helpers: Etherscan', () => {
       expect(result).to.equal('0')
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.firstCall.args[0]).to.equal('Error getTokenMetrics')
+    })
+
+    it('should return "0" when response is null', async () => {
+      sandbox.stub(EtherscanHelper, '_rpCall').resolves(null)
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      const result = await EtherscanHelper.getTokenMetrics('0x123', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.equal('0')
+      expect(loggerStub.called).to.be.false
+    })
+
+    it('should return "0" when response is undefined', async () => {
+      sandbox.stub(EtherscanHelper, '_rpCall').resolves(undefined)
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      const result = await EtherscanHelper.getTokenMetrics('0x123', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.equal('0')
+      expect(loggerStub.called).to.be.false
+    })
+
+    it('should return "0" when response has no status field', async () => {
+      sandbox.stub(EtherscanHelper, '_rpCall').resolves({ result: '100000' })
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      const result = await EtherscanHelper.getTokenMetrics('0x123', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.equal('0')
+      expect(loggerStub.called).to.be.false
+    })
+
+    it('should return "0" when response has status "1" but missing result field', async () => {
+      sandbox.stub(EtherscanHelper, '_rpCall').resolves({ status: '1' })
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      const result = await EtherscanHelper.getTokenMetrics('0x123', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.equal('0')
+      expect(loggerStub.called).to.be.false
+    })
+
+    it('should return "0" when response is an empty object', async () => {
+      sandbox.stub(EtherscanHelper, '_rpCall').resolves({})
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      const result = await EtherscanHelper.getTokenMetrics('0x123', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.equal('0')
+      expect(loggerStub.called).to.be.false
+    })
+
+    it('should handle different networks correctly', async () => {
+      const mockSupply = { result: '500000000000000000000', status: '1' }
+      const rpcCallStub = sandbox.stub(EtherscanHelper, '_rpCall').resolves(mockSupply)
+
+      const networks = [NetworksEnum.polygonMainnet, NetworksEnum.baseMainnet, NetworksEnum.arbitrumMainnet]
+
+      for (const network of networks) {
+        rpcCallStub.resetHistory()
+
+        const result = await EtherscanHelper.getTokenMetrics('0xToken', network)
+
+        expect(result).to.equal('500000000000000000000')
+        expect(rpcCallStub.calledOnce).to.be.true
+        expect(rpcCallStub.firstCall.args[1]).to.equal(network)
+      }
     })
   })
 })
