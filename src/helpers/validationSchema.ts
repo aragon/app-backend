@@ -40,24 +40,28 @@ const ValidationSchema = {
       return parts
     }),
   ),
-  joiDaoId: Joi.string().custom(value => {
-    try {
-      const regex = new RegExp(`(${Object.values(NetworksEnum).join('|')})-(0x[0-9a-fA-F]{40})`)
-      const match = value.match(regex)
+  joiDaoId: Joi.string()
+    .custom((value, helpers) => {
+      try {
+        const regex = new RegExp(`^(${Object.values(NetworksEnum).join('|')})-(0x[0-9a-fA-F]{40})$`)
+        const match = value.match(regex)
 
-      if (!match || match.length !== 3) {
-        return value
+        if (!match || match.length !== 3) {
+          return helpers.error('string.invalid', { value })
+        }
+
+        const [, network, address] = match
+        const checksumAddress = getAddress(address)
+
+        const formattedValue = `${network}-${checksumAddress}`
+        return formattedValue
+      } catch (error) {
+        return helpers.error('string.invalid', { value })
       }
-
-      const [, network, address] = match
-      const checksumAddress = getAddress(address)
-
-      const formattedValue = `${network}-${checksumAddress}`
-      return formattedValue
-    } catch (error) {
-      return value
-    }
-  }, 'Dao Id validation'),
+    }, 'Dao Id validation')
+    .messages({
+      'string.invalid': '{{#label}} is not a valid daoId',
+    }),
   joiTransactionHash: Joi.string()
     .pattern(/^0x[a-fA-F0-9]{64}$/, { name: 'valid transaction hash' })
     .messages({
