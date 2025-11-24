@@ -151,7 +151,7 @@ class EvmExplorerClient {
           })) ?? []
       )
     } catch (error) {
-      logger.warn('Error fetching contract source code', llo({ error, address, network, explorerType }))
+      logger.warn('Error fetching token balances', llo({ error, address, network, explorerType }))
       return []
     }
   }
