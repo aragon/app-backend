@@ -40,7 +40,7 @@ describe('Logger: ExternalLogger', () => {
       expect(externalLogger.logzioLogger).not.to.exist
     })
 
-    describe('Skip WriteConflict errors', () => {
+    describe('Skip transient MongoDB errors', () => {
       it('Should skip logging when error has WriteConflict code (112)', () => {
         const externalLogger = new ExternalLogger({
           name: 'external-logger',
@@ -70,6 +70,42 @@ describe('Logger: ExternalLogger', () => {
 
         const error: any = new Error('Some MongoDB error')
         error.codeName = 'WriteConflict'
+
+        externalLogger.log({ level: 'error', message: 'test', error }, stubCallback)
+
+        expect(spyFormatMeta.called).to.be.false
+        expect(stubCallback.calledOnce).to.be.true
+      })
+
+      it('Should skip logging when error has LockTimeout codeName', () => {
+        const externalLogger = new ExternalLogger({
+          name: 'external-logger',
+          level: 'verbose',
+        })
+
+        const spyFormatMeta = sandbox.spy(Formats, 'formatMeta')
+        const stubCallback = sandbox.stub()
+
+        const error: any = new Error('Lock acquisition timeout')
+        error.codeName = 'LockTimeout'
+
+        externalLogger.log({ level: 'error', message: 'test', error }, stubCallback)
+
+        expect(spyFormatMeta.called).to.be.false
+        expect(stubCallback.calledOnce).to.be.true
+      })
+
+      it('Should skip logging when error has NoSuchTransaction codeName', () => {
+        const externalLogger = new ExternalLogger({
+          name: 'external-logger',
+          level: 'verbose',
+        })
+
+        const spyFormatMeta = sandbox.spy(Formats, 'formatMeta')
+        const stubCallback = sandbox.stub()
+
+        const error: any = new Error('Transaction no longer exists')
+        error.codeName = 'NoSuchTransaction'
 
         externalLogger.log({ level: 'error', message: 'test', error }, stubCallback)
 

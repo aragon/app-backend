@@ -7,34 +7,51 @@ import { type ExternalLoggerOptions } from '@types'
 import { type ILogzioLogger } from 'logzio-nodejs'
 import Utils from '@helpers/utils'
 
-// Error codes/patterns to skip sending to external logging services
-const SKIPPED_ERROR_PATTERNS = {
-  // MongoDB WriteConflict - transient error that should be retried, not logged externally
+// MongoDB transient transaction errors to skip from external logging
+// These are expected errors that should be retried, not logged externally
+// Aligned with DbTx.isErrorConflict() for consistency
+const TRANSIENT_ERROR_PATTERNS = {
+  // WriteConflict - concurrent write detected
   // Note: codeName is "WriteConflict" (no space), but error message contains "Write conflict" (with space)
   writeConflict: {
     code: 112,
     codeName: 'WriteConflict',
     messagePattern: /Write\s?conflict/i, // Matches both "WriteConflict" and "Write conflict"
   },
+  // LockTimeout - transaction lock acquisition timeout
+  lockTimeout: {
+    codeName: 'LockTimeout',
+  },
+  // NoSuchTransaction - transaction no longer exists (already committed/aborted)
+  noSuchTransaction: {
+    codeName: 'NoSuchTransaction',
+  },
 }
 
 /**
  * Check if an error should be skipped from external logging
- * These are typically transient errors that are expected and should be retried
+ * These are typically transient MongoDB transaction errors that are expected and should be retried
+ * Aligned with DbTx.isErrorConflict() for consistency
  */
 function shouldSkipExternalLogging(info: any): boolean {
   const error = info?.error
   if (!error) return false
 
-  const { writeConflict } = SKIPPED_ERROR_PATTERNS
+  const { writeConflict, lockTimeout, noSuchTransaction } = TRANSIENT_ERROR_PATTERNS
 
-  // Check by error code
+  // Check WriteConflict by error code
   if (error.code === writeConflict.code) return true
 
-  // Check by codeName
-  if (error.codeName === writeConflict.codeName) return true
+  // Check by codeName (WriteConflict, LockTimeout, NoSuchTransaction)
+  if (
+    error.codeName === writeConflict.codeName ||
+    error.codeName === lockTimeout.codeName ||
+    error.codeName === noSuchTransaction.codeName
+  ) {
+    return true
+  }
 
-  // Check by message pattern
+  // Check WriteConflict by message pattern
   if (error.message && writeConflict.messagePattern.test(error.message)) return true
 
   return false
