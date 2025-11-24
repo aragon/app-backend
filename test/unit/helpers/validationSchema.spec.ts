@@ -5,7 +5,6 @@ import Joi from 'joi'
 import { ErrorKeyEnum, NetworksEnum } from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
 import dayjs from '@helpers/dayjs'
-import { getAddress } from 'ethers'
 import Utils from '@helpers/utils'
 import ModelUtils from '@models/utils/models'
 
@@ -232,28 +231,106 @@ describe('Helpers:ValidationSchema', () => {
       )
     })
 
-    it('joiDaoId should validate', async () => {
-      const validDaoId = 'ethereum-mainnet-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254'
-      const checksumAddress = '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254'
-      const expectedDaoId = `ethereum-mainnet-${checksumAddress}`
+    describe('joiDaoId', () => {
+      it('should validate and return formatted daoId with checksummed address', async () => {
+        const validDaoId = 'ethereum-mainnet-0x0eb63a3565942d16c1c1211bd78f1b3dcfe1a254'
+        const checksumAddress = '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254'
+        const expectedDaoId = `ethereum-mainnet-${checksumAddress}`
 
-      const res = await ValidationSchema.joiDaoId.validateAsync(validDaoId)
-      expect(res).to.equal(expectedDaoId)
+        const res = await ValidationSchema.joiDaoId.validateAsync(validDaoId)
+        expect(res).to.equal(expectedDaoId)
+      })
 
-      const resultInvalid = await ValidationSchema.joiDaoId.validateAsync(
-        'invalid-network-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
-      )
-      const resultValid = await ValidationSchema.joiDaoId.validateAsync('ethereum-mainnet-0x123')
-      expect(resultInvalid).to.equal('invalid-network-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254')
-      expect(resultValid).to.equal('ethereum-mainnet-0x123')
+      it('should validate daoId with already checksummed address', async () => {
+        const validDaoId = 'polygon-mainnet-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254'
+        const res = await ValidationSchema.joiDaoId.validateAsync(validDaoId)
+        expect(res).to.equal(validDaoId)
+      })
 
-      const notId = await ValidationSchema.joiDaoId.validateAsync('test')
-      expect(notId).to.equal('test')
+      it('should reject invalid network', async () => {
+        const invalidDaoId = 'invalid-network-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254'
 
-      const value = 'fake-value'
-      sandbox.stub(global, 'RegExp').throws(new Error('RegExp error'))
-      const resultValue = await ValidationSchema.joiDaoId.validateAsync(value)
-      expect(resultValue).to.equal(value)
+        await expect(ValidationSchema.joiDaoId.validateAsync(invalidDaoId)).to.be.rejectedWith(
+          Error,
+          '"value" is not a valid daoId',
+        )
+      })
+
+      it('should reject invalid address format (too short)', async () => {
+        const invalidDaoId = 'ethereum-mainnet-0x123'
+
+        await expect(ValidationSchema.joiDaoId.validateAsync(invalidDaoId)).to.be.rejectedWith(
+          Error,
+          '"value" is not a valid daoId',
+        )
+      })
+
+      it('should reject non-daoId format', async () => {
+        const notDaoId = 'test'
+
+        await expect(ValidationSchema.joiDaoId.validateAsync(notDaoId)).to.be.rejectedWith(
+          Error,
+          '"value" is not a valid daoId',
+        )
+      })
+
+      it('should reject when missing address part', async () => {
+        const invalidDaoId = 'ethereum-mainnet-'
+
+        await expect(ValidationSchema.joiDaoId.validateAsync(invalidDaoId)).to.be.rejectedWith(
+          Error,
+          '"value" is not a valid daoId',
+        )
+      })
+
+      it('should reject when missing network part', async () => {
+        const invalidDaoId = '-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254'
+
+        await expect(ValidationSchema.joiDaoId.validateAsync(invalidDaoId)).to.be.rejectedWith(
+          Error,
+          '"value" is not a valid daoId',
+        )
+      })
+
+      it('should reject invalid hex characters in address', async () => {
+        const invalidDaoId = 'ethereum-mainnet-0xZZZZa3565942d16c1c1211bd78f1b3dcfe1a254'
+
+        await expect(ValidationSchema.joiDaoId.validateAsync(invalidDaoId)).to.be.rejectedWith(
+          Error,
+          '"value" is not a valid daoId',
+        )
+      })
+
+      it('should reject address with wrong length (too long)', async () => {
+        // 41 hex characters instead of 40 - regex won't match
+        const invalidDaoId = 'ethereum-mainnet-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A2541'
+
+        await expect(ValidationSchema.joiDaoId.validateAsync(invalidDaoId)).to.be.rejectedWith(
+          Error,
+          '"value" is not a valid daoId',
+        )
+      })
+
+      it('should handle RegExp throwing error', async () => {
+        const value = 'fake-value'
+        sandbox.stub(global, 'RegExp').throws(new Error('RegExp error'))
+
+        await expect(ValidationSchema.joiDaoId.validateAsync(value)).to.be.rejectedWith(
+          Error,
+          '"value" is not a valid daoId',
+        )
+      })
+
+      it('should work with different valid networks', async () => {
+        const networks = ['ethereum-mainnet', 'polygon-mainnet', 'arbitrum-mainnet']
+        const address = '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254'
+
+        for (const network of networks) {
+          const daoId = `${network}-${address}`
+          const res = await ValidationSchema.joiDaoId.validateAsync(daoId)
+          expect(res).to.equal(daoId)
+        }
+      })
     })
 
     it('should allow endDate to be after startDate', async () => {
