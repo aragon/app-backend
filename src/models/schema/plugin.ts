@@ -401,6 +401,18 @@ export default class Plugin extends Model {
           network: '$network',
         },
         'settings',
+        {
+          _id: 0,
+          onlyListed: 1,
+          minApprovals: 1,
+          votingMode: 1,
+          supportThreshold: 1,
+          minParticipation: 1,
+          minDuration: 1,
+          minProposerVotingPower: 1,
+          stages: 1,
+          votingEscrow: 1,
+        },
       ),
       AggregationQueryHelper.token(
         {
@@ -408,11 +420,28 @@ export default class Plugin extends Model {
           network: '$network',
         },
         'token',
+        {
+          _id: 0,
+          network: 1,
+          address: 1,
+          symbol: 1,
+          name: 1,
+          decimals: 1,
+          logo: 1,
+          isGovernance: 1,
+          ignoreTransfer: 1,
+          hasDelegate: 1,
+          underlying: 1,
+          type: 1,
+          totalSupply: 1,
+          mintableByDao: 1,
+        },
       ),
       {
         $addFields: {
-          settings: { $arrayElemAt: ['$settings', 0] },
-          token: { $arrayElemAt: ['$token', 0] },
+          settings: {
+            $mergeObjects: [{ $arrayElemAt: ['$settings', 0] }, { token: { $arrayElemAt: ['$token', 0] } }],
+          },
         },
       },
       AggregationQueryHelper.pluginSlug(
@@ -429,10 +458,14 @@ export default class Plugin extends Model {
       },
       {
         $project: {
+          _id: 0,
+          __v: 0,
           permissions: 0,
           uninstalled: 0,
           hasTarget: 0,
           sender: 0,
+          token: 0,
+          pluginSlug: 0,
         },
       },
       {
