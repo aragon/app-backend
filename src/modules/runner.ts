@@ -77,7 +77,7 @@ async function runApp(app: IService) {
     await app.start()
 
     // Start prometheus metrics collection
-    prometheusStore = PrometheusStore.getInstance(app.name)
+    prometheusStore = PrometheusStore.getInstance(app.name!)
     await prometheusStore.start()
 
     logger.info(
