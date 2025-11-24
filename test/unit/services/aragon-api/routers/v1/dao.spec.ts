@@ -153,8 +153,9 @@ describe('RouterV1: Dao', () => {
   })
 
   it('Should getDaoById', async () => {
+    const daoId = 'ethereum-mainnet-0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
     const params = {
-      id: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+      id: daoId,
     }
 
     const stubCtrl = sandbox.stub(DaoController, 'getDaoById').returns(true as any)
@@ -167,7 +168,7 @@ describe('RouterV1: Dao', () => {
 
     expect(ctx.body).to.eq(true)
     expect(stubCtrl.calledOnce).to.be.true
-    expect(stubCtrl.calledWith(params.id)).to.be.true
+    expect(stubCtrl.calledWith(daoId)).to.be.true
   })
 
   it('Should getDaoByAddress', async () => {

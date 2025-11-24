@@ -38,7 +38,7 @@ describe('RouterV2: Proposal', () => {
       }
       const pairParams = {
         onlyActive: 'true',
-        daoId: '0x0',
+        daoId: 'ethereum-mainnet-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
       }
 
       const stubCtrl = sandbox.stub(ProposalController, 'getProposalsWithPagination').returns(true as any)
@@ -80,7 +80,10 @@ describe('RouterV2: Proposal', () => {
         ...missingParams,
       })
       expect(stubCtrl.args[0][1]).to.deep.eq(expectedExtraParams)
-      expect(stubCtrl.args[0][2]).to.deep.eq({ onlyActive: true, daoId: '0x0' })
+      expect(stubCtrl.args[0][2]).to.deep.eq({
+        onlyActive: true,
+        daoId: 'ethereum-mainnet-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+      })
     })
 
     it('Should get proposal with pagination - daoId', async () => {
