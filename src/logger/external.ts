@@ -10,10 +10,11 @@ import Utils from '@helpers/utils'
 // Error codes/patterns to skip sending to external logging services
 const SKIPPED_ERROR_PATTERNS = {
   // MongoDB WriteConflict - transient error that should be retried, not logged externally
+  // Note: codeName is "WriteConflict" (no space), but error message contains "Write conflict" (with space)
   writeConflict: {
     code: 112,
     codeName: 'WriteConflict',
-    messagePattern: /Write conflict/i,
+    messagePattern: /Write\s?conflict/i, // Matches both "WriteConflict" and "Write conflict"
   },
 }
 

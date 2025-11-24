@@ -77,7 +77,7 @@ describe('Logger: ExternalLogger', () => {
         expect(stubCallback.calledOnce).to.be.true
       })
 
-      it('Should skip logging when error message contains "Write conflict"', () => {
+      it('Should skip logging when error message contains "Write conflict" (with space)', () => {
         const externalLogger = new ExternalLogger({
           name: 'external-logger',
           level: 'verbose',
@@ -86,7 +86,24 @@ describe('Logger: ExternalLogger', () => {
         const spyFormatMeta = sandbox.spy(Formats, 'formatMeta')
         const stubCallback = sandbox.stub()
 
-        const error = new Error('Write conflict during plan execution')
+        const error = new Error('Caused by :: Write conflict during plan execution')
+
+        externalLogger.log({ level: 'error', message: 'test', error }, stubCallback)
+
+        expect(spyFormatMeta.called).to.be.false
+        expect(stubCallback.calledOnce).to.be.true
+      })
+
+      it('Should skip logging when error message contains "WriteConflict" (no space)', () => {
+        const externalLogger = new ExternalLogger({
+          name: 'external-logger',
+          level: 'verbose',
+        })
+
+        const spyFormatMeta = sandbox.spy(Formats, 'formatMeta')
+        const stubCallback = sandbox.stub()
+
+        const error = new Error('WriteConflict error occurred')
 
         externalLogger.log({ level: 'error', message: 'test', error }, stubCallback)
 
