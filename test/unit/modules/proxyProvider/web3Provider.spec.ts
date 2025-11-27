@@ -1,17 +1,16 @@
 import { expect } from 'chai'
 import sinon from 'sinon'
-import { ITokenType, NetworksEnum } from '@types'
+import { NetworksEnum } from '@types'
 import logger from '@logger'
 import Web3Provider from '@modules/proxyProvider/web3Provider'
 import { ProxyToken } from '@modules/proxyToken'
 import Web3Helper from '@helpers/web3'
 import BlockScoutHelper from '@helpers/blockScout'
-import CoinGeckoHelper from '@helpers/coinGecko'
 import utils from '@helpers/utils'
 import Alchemy from '@helpers/alchemy'
 import Web3Utils from '@helpers/web3Utils'
 import { RateModule } from '@modules/rates'
-import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
+import { EvmExplorerEnum } from '@helpers/evmExplorerClient'
 
 describe('Web3Provider', () => {
   let sandbox: any

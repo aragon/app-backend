@@ -1,4 +1,3 @@
-import { type NetworksEnum } from '@types'
 import dayjs from '@helpers/dayjs'
 import CoinGeckoHelper from '@helpers/coinGecko'
 import axios from 'axios'

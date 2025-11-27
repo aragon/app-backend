@@ -2,7 +2,7 @@ import { EnumConnection, type IService, ITokenType, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import BlockScout from '@helpers/blockScout'
-import { RateModule } from '@modules/rates'
+import CoinGeckoHelper from '@helpers/coinGecko'
 
 const llo = logger.logMeta.bind(null, { service: 'tools:SyncToken' })
 
@@ -36,9 +36,9 @@ export const SyncToken: IService = {
       counter++
 
       const tokenInfo = await BlockScout.getTokenFullDetails(token.address, token.network)
-      const tokenRate = await RateModule.fetchRate(token.address, token.network)
+      const tokenRate = await CoinGeckoHelper.getToken(token.address, token.network)
 
-      if (tokenInfo && tokenRate.decimals !== null) {
+      if (tokenInfo && tokenRate && tokenRate.decimals !== null) {
         const skipFetchRate = tokenRate.priceUsd === '0'
         await token.update({
           priceUsd: tokenRate.priceUsd,

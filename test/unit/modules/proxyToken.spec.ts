@@ -210,15 +210,13 @@ describe('Modules: ProxyToken', () => {
       } as any
 
       sandbox.stub(logger, 'verbose')
-      sandbox
-        .stub(Web3Helper, 'getTokenInfo')
-        .resolves({
-          address: tokenAddress,
-          name: 'Test',
-          symbol: 'TST',
-          decimals: 18,
-          totalSupply: '1000000000000000000000',
-        })
+      sandbox.stub(Web3Helper, 'getTokenInfo').resolves({
+        address: tokenAddress,
+        name: 'Test',
+        symbol: 'TST',
+        decimals: 18,
+        totalSupply: '1000000000000000000000',
+      })
       sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
       sandbox.stub(CoinGeckoHelper, 'getToken').resolves({ priceUsd: '1234.56', logo: 'test-logo' } as any)
 
