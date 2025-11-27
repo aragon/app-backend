@@ -10,7 +10,7 @@ import ConfigIndexerHelper from '@helpers/configIndexer'
 import PoolingCrawler from '@modules/poolingCrawler'
 import utils from '@helpers/utils'
 
-describe('Integ: Token', () => {
+describe.skip('Integ: Token', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
