@@ -12,9 +12,9 @@ import { PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandl
 import ProxyWeb3Provider from '@modules/proxyProvider'
 import { TokenVoting } from '@artifacts/TokenVoting'
 import { ProposalHandler } from '@handlers/proposalHandler'
-import CoinGeckoHelper from '@helpers/coinGecko'
 import BlockScoutHelper from '@helpers/blockScout'
 import { LibUtils } from '@test/lib/unit-dep/lib'
+import CoinGeckoHelper from '@helpers/coinGecko'
 
 describe('Integ: ERC20', () => {
   let sandbox: SinonSandbox
@@ -127,7 +127,7 @@ describe('Integ: ERC20', () => {
   it('should install dao with spp and sub plugins zksync-sepolia', async function () {
     this.timeout(10000000)
 
-    sandbox.stub(RateModule, 'fetchRateWithCovalent').resolves({
+    sandbox.stub(CoinGeckoHelper, 'getToken').resolves({
       address: '0x00',
       decimals: 18,
       name: 'Wrapped Ether',
@@ -135,7 +135,10 @@ describe('Integ: ERC20', () => {
       priceUsd: '1000',
       type: ITokenType.ERC20,
       logo: 'https://example.com/logo.png',
-      lastUpdatedAt: new Date(),
+      lastUpdatedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      network: NetworksEnum.zksyncSepolia,
+      totalSupply: '1000000000000000000',
     })
 
     sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves({
@@ -266,7 +269,7 @@ describe('Integ: ERC20', () => {
   it('should install dao with spp and sub plugins', async function () {
     this.timeout(10000000)
 
-    sandbox.stub(RateModule, 'fetchRateWithCovalent').resolves({
+    sandbox.stub(CoinGeckoHelper, 'getToken').resolves({
       address: '0x00',
       decimals: 18,
       name: 'Wrapped Ether',
@@ -274,7 +277,10 @@ describe('Integ: ERC20', () => {
       priceUsd: '1000',
       type: ITokenType.ERC20,
       logo: 'https://example.com/logo.png',
-      lastUpdatedAt: new Date(),
+      lastUpdatedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      network: NetworksEnum.ethereumSepolia,
+      totalSupply: '1000000000000000000',
     })
 
     sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves({
@@ -405,7 +411,7 @@ describe('Integ: ERC20', () => {
   it.skip('should install dao and update plugin', async function () {
     this.timeout(10000000)
 
-    sandbox.stub(RateModule, 'fetchRateWithCovalent').resolves({
+    sandbox.stub(CoinGeckoHelper, 'getToken').resolves({
       address: '0x00',
       decimals: 18,
       name: 'Wrapped Ether',
@@ -413,7 +419,10 @@ describe('Integ: ERC20', () => {
       priceUsd: '1000',
       type: ITokenType.ERC20,
       logo: 'https://example.com/logo.png',
-      lastUpdatedAt: new Date(),
+      lastUpdatedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      network: NetworksEnum.polygonMainnet,
+      totalSupply: '1000000000000000000',
     })
 
     sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves({

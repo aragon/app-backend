@@ -1,6 +1,5 @@
 import { Models } from '@dbModels'
 import {
-  EnumQueueName,
   ErrorKeyEnum,
   type HexAddress,
   type IPaginatedResult,
@@ -12,7 +11,6 @@ import {
 import { assertExposable } from '@errors'
 import type Token from '@models/schema/token'
 import { ProxyToken } from '@modules/proxyToken'
-import RabbitMQHelper from '@helpers/rabbitMQ'
 
 const TokenController = {
   getTokensWithPagination: async (

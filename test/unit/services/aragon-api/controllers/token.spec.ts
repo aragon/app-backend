@@ -2,13 +2,12 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import TokenController from '@services/aragon-api/controllers/token'
-import { EnumQueueName, ErrorKeyEnum, ITokenType, NetworksEnum } from '@types'
+import { ErrorKeyEnum, ITokenType, NetworksEnum } from '@types'
 import CoinGeckoHelper from '@helpers/coinGecko'
 import { Models } from '@dbModels'
 import dayjs from '@helpers/dayjs'
 import Token from '@models/schema/token'
 import { ProxyToken } from '@modules/proxyToken'
-import RabbitMQHelper from '@helpers/rabbitMQ'
 
 describe('Controller: Token', () => {
   let sandbox: SinonSandbox

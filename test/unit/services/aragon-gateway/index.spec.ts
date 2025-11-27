@@ -12,8 +12,6 @@ import Plugin from '@services/aragon-gateway/plugin'
 import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
 import GaugeHelper from '@helpers/gauge'
 import { GaugeInfo } from '@services/aragon-gateway/gauge'
-import Web3Helper from '@helpers/web3'
-import CoinGeckoHelper from '@helpers/coinGecko'
 
 describe('AragonGateway: index', () => {
   let sandbox: SinonSandbox

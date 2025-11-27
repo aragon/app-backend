@@ -1,6 +1,6 @@
 import { expect } from 'chai'
 import sinon from 'sinon'
-import { NetworksEnum, ITokenType } from '@types'
+import { NetworksEnum } from '@types'
 import logger from '@logger'
 import { ethers } from 'ethers'
 import utils from '@helpers/utils'

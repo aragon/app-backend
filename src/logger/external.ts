@@ -51,10 +51,7 @@ function shouldSkipExternalLogging(info: any): boolean {
     return true
   }
 
-  // Check WriteConflict by message pattern
-  if (error.message && writeConflict.messagePattern.test(error.message)) return true
-
-  return false
+  return error.message && writeConflict.messagePattern.test(error.message)
 }
 
 class ExternalLogger extends Transport {
