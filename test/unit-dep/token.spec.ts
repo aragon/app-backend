@@ -62,7 +62,7 @@ describe.skip('Integ: Token', () => {
     })
   })
 
-  it.only('should test why the token has no price', async function () {
+  it('should test why the token has no price', async function () {
     this.timeout(100000000000)
     const tokens = [
       {
