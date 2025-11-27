@@ -125,18 +125,32 @@ describe('Module: DbTx', () => {
   describe('Utility Functions', () => {
     it('isErrorConflict should correctly identify conflict errors', () => {
       const conflictErrors = [
-        { message: 'WriteConflict detected' },
+        { code: 112 }, // MongoDB WriteConflict error code
+        { message: 'WriteConflict detected' }, // No space
+        { message: 'Caused by :: Write conflict during plan execution' }, // With space (actual MongoDB message)
         { codeName: 'WriteConflict' },
         { codeName: 'LockTimeout' },
+        { codeName: 'NoSuchTransaction' },
       ]
 
       conflictErrors.forEach(error => {
         const result = DbTx.isErrorConflict(error)
-        expect(result).to.be.true
+        expect(result, `Expected ${JSON.stringify(error)} to be a conflict error`).to.be.true
       })
 
-      const nonConflictError = { message: 'Some other error' }
-      expect(DbTx.isErrorConflict(nonConflictError)).to.be.false
+      const nonConflictErrors = [
+        { message: 'Some other error' },
+        { code: 11000 }, // Duplicate key error
+        { codeName: 'DuplicateKey' },
+        {},
+        null,
+        undefined,
+      ]
+
+      nonConflictErrors.forEach(error => {
+        const result = DbTx.isErrorConflict(error)
+        expect(result, `Expected ${JSON.stringify(error)} to NOT be a conflict error`).to.be.false
+      })
     })
 
     it('isErrorDuplicateKey should correctly identify duplicate key errors', () => {

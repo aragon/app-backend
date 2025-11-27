@@ -1,12 +1,19 @@
 import logger from '@logger'
 import axios from 'axios'
 import config from '@config'
-import { type HexAddress, type IEtherScanSource, type IWeb3ContractCreation, NetworksEnum } from '@types'
+import {
+  type HexAddress,
+  type IWeb3TokenBalance,
+  type IEtherScanSource,
+  type IWeb3ContractCreation,
+  NetworksEnum,
+} from '@types'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
 import utils from '@helpers/utils'
 import { ethers } from 'ethers'
+import Web3Utils from '@helpers/web3Utils'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:EvmExplorerClient' })
 
@@ -114,6 +121,41 @@ class EvmExplorerClient {
     }
   }
 
+  async getTokenBalances(
+    explorerType: EvmExplorerEnum,
+    address: HexAddress,
+    network: NetworksEnum,
+  ): Promise<IWeb3TokenBalance[]> {
+    try {
+      const params = {
+        module: 'account',
+        action: 'addresstokenbalance',
+        address,
+      }
+
+      const response = await this.apiCall(explorerType, params, network)
+
+      return (
+        response?.result
+          ?.filter(
+            (token: any) => token.TokenName.length > 0 && token.TokenSymbol.length > 0 && token.TokenDivisor.length > 0,
+          )
+          ?.map((token: any) => ({
+            contractAddress: Web3Utils.parseAddress(token.TokenAddress) || token.TokenAddress,
+            name: token.TokenName,
+            symbol: token.TokenSymbol,
+            decimals: Number(token.TokenDivisor),
+            tokenBalance: utils.parseTokenBalance(token.TokenQuantity, Number(token.TokenDivisor)),
+            originalBalance: token.TokenQuantity,
+            priceUsd: token.TokenPriceUSD,
+          })) ?? []
+      )
+    } catch (error) {
+      logger.warn('Error fetching token balances', llo({ error, address, network, explorerType }))
+      return []
+    }
+  }
+
   async fetchContractSourceCode(
     explorerType: EvmExplorerEnum,
     address: HexAddress,
@@ -200,7 +242,7 @@ class EvmExplorerClient {
       return this.parseTokenInfoResponse(response)
     } catch (error) {
       logger.warn('Error fetching token info', llo({ error, address, network, explorerType }))
-      return null
+      return {}
     }
   }
 

@@ -38,6 +38,10 @@ export interface IWeb3TokenBalance {
   contractAddress: HexAddress
   tokenBalance: string
   originalBalance?: any
+  decimals?: number
+  name?: string
+  symbol?: string
+  priceUsd?: string
 }
 
 export interface IWeb3ContractCreation {

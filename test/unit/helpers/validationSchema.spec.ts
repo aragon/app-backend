@@ -240,20 +240,36 @@ describe('Helpers:ValidationSchema', () => {
       const res = await ValidationSchema.joiDaoId.validateAsync(validDaoId)
       expect(res).to.equal(expectedDaoId)
 
-      const resultInvalid = await ValidationSchema.joiDaoId.validateAsync(
-        'invalid-network-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+      // Valid daoId with lowercase address should be checksummed
+      const lowercaseDaoId = 'ethereum-mainnet-0x0eb63a3565942d16c1c1211bd78f1b3dcfe1a254'
+      const lowercaseRes = await ValidationSchema.joiDaoId.validateAsync(lowercaseDaoId)
+      expect(lowercaseRes).to.equal(expectedDaoId)
+    })
+
+    it('joiDaoId should reject invalid network', async () => {
+      await expect(
+        ValidationSchema.joiDaoId.validateAsync('invalid-network-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254'),
+      ).to.be.rejectedWith(Error, '"value" is not a valid daoId')
+    })
+
+    it('joiDaoId should reject invalid address format', async () => {
+      await expect(ValidationSchema.joiDaoId.validateAsync('ethereum-mainnet-0x123')).to.be.rejectedWith(
+        Error,
+        '"value" is not a valid daoId',
       )
-      const resultValid = await ValidationSchema.joiDaoId.validateAsync('ethereum-mainnet-0x123')
-      expect(resultInvalid).to.equal('invalid-network-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254')
-      expect(resultValid).to.equal('ethereum-mainnet-0x123')
+    })
 
-      const notId = await ValidationSchema.joiDaoId.validateAsync('test')
-      expect(notId).to.equal('test')
+    it('joiDaoId should reject non-daoId strings', async () => {
+      await expect(ValidationSchema.joiDaoId.validateAsync('test')).to.be.rejectedWith(
+        Error,
+        '"value" is not a valid daoId',
+      )
+    })
 
-      const value = 'fake-value'
-      sandbox.stub(global, 'RegExp').throws(new Error('RegExp error'))
-      const resultValue = await ValidationSchema.joiDaoId.validateAsync(value)
-      expect(resultValue).to.equal(value)
+    it('joiDaoId should reject address only', async () => {
+      await expect(
+        ValidationSchema.joiDaoId.validateAsync('0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254'),
+      ).to.be.rejectedWith(Error, '"value" is not a valid daoId')
     })
 
     it('should allow endDate to be after startDate', async () => {
