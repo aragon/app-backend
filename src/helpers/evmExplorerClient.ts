@@ -196,22 +196,6 @@ class EvmExplorerClient {
     }
   }
 
-  async fetchTokenInfo(explorerType: EvmExplorerEnum, address: HexAddress, network: NetworksEnum) {
-    try {
-      const params = {
-        module: 'token',
-        action: 'tokeninfo',
-        contractaddress: address,
-      }
-
-      const response = await this.apiCall(explorerType, params, network)
-      return this.parseTokenInfoResponse(response)
-    } catch (error) {
-      logger.warn('Error fetching token info', llo({ error, address, network, explorerType }))
-      return undefined
-    }
-  }
-
   // Parser methods
   private parseSourceCodeResponse(response: any): IEtherScanSource[] | null {
     if (
@@ -246,6 +230,22 @@ class EvmExplorerClient {
     return { address, transactionHash: '', blockNumber: 0 }
   }
 
+  async fetchTokenInfo(explorerType: EvmExplorerEnum, address: HexAddress, network: NetworksEnum) {
+    try {
+      const params = {
+        module: 'token',
+        action: 'tokeninfo',
+        contractaddress: address,
+      }
+
+      const response = await this.apiCall(explorerType, params, network)
+      return this.parseTokenInfoResponse(response)
+    } catch (error) {
+      logger.warn('Error fetching token info', llo({ error, address, network, explorerType }))
+      return null
+    }
+  }
+
   private parseTokenInfoResponse(response: any): any {
     if (response?.status === '1' && response?.message === 'OK' && response?.result?.length > 0) {
       return {
@@ -255,6 +255,26 @@ class EvmExplorerClient {
         priceUsd: response.result[0].tokenPriceUSD || '0',
         totalSupply: response.result[0].totalSupply || '0',
       }
+    }
+  }
+
+  async fetchNativeTokenPrice(explorerType: EvmExplorerEnum, network: NetworksEnum): Promise<string> {
+    try {
+      const params = {
+        module: 'stats',
+        action: 'ethprice',
+      }
+
+      const response = await this.apiCall(explorerType, params, network)
+
+      if (response?.status === '1' && response?.message === 'OK' && response?.result?.ethusd) {
+        return response.result.ethusd
+      }
+
+      return '0'
+    } catch (error) {
+      logger.warn('Error fetching native token price', llo({ error, network, explorerType }))
+      return '0'
     }
   }
 }

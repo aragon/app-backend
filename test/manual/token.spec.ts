@@ -4,7 +4,7 @@ import ProviderModule from '@modules/provider'
 import { ITokenType, NetworksEnum } from '@types'
 import { ProxyToken } from '@modules/proxyToken'
 import TokenDetector from '@helpers/tokenDetector'
-import CovalentHelper from '@helpers/covalent'
+import CoinGeckoHelper from '@helpers/coinGecko'
 import { Models } from '@dbModels'
 import { expect } from 'chai'
 import ProxyWeb3Provider from '@modules/proxyProvider'
@@ -37,8 +37,8 @@ describe('Manual: Token', () => {
       isGovernance: true,
       implementationAddress: null,
     } as any)
-    sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves({
-      totalHolders: 1,
+    sandbox.stub(CoinGeckoHelper, 'getToken').resolves({
+      holders: 1,
       totalSupply: '1',
     } as any)
     sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation').resolves({

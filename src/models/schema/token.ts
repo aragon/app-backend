@@ -32,7 +32,6 @@ const customName = ICollectionNames.Token
   },
 })
 @index({ name: -1 })
-@index({ refetch: 1 })
 @index({ address: 1, network: 1 })
 @index({ address: 1, ignoreTransfer: 1, network: 1 })
 @index({ lastUpdatedAt: 1, network: 1, skipFetchRate: 1 })
@@ -126,9 +125,6 @@ export default class Token extends Model {
 
   @prop({ type: String, enum: IClockMode, default: null })
   public clockMode!: IClockMode
-
-  @prop({ type: () => Boolean, default: false })
-  public refetch!: boolean
 
   static async create(rawData: Partial<Token>, tOpts?: SaveOptions) {
     if (!rawData.id) {
