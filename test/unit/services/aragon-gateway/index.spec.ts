@@ -9,10 +9,11 @@ import { ContractInfo } from '@services/aragon-gateway/contractInfo'
 import { MemberInfo } from '@services/aragon-gateway/memberInfo'
 import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 import Plugin from '@services/aragon-gateway/plugin'
-import ProxyWeb3Provider from '@modules/proxyProvider'
 import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
 import GaugeHelper from '@helpers/gauge'
 import { GaugeInfo } from '@services/aragon-gateway/gauge'
+import Web3Helper from '@helpers/web3'
+import CoinGeckoHelper from '@helpers/coinGecko'
 
 describe('AragonGateway: index', () => {
   let sandbox: SinonSandbox
@@ -32,13 +33,12 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      expect(processStub.callCount).to.equal(9)
+      expect(processStub.callCount).to.equal(8)
       expect(processStub.calledWith(EnumQueueName.contractInfo)).to.be.true
       expect(processStub.calledWith(EnumQueueName.memberBalance)).to.be.true
       expect(processStub.calledWith(EnumQueueName.contractDecoder)).to.be.true
       expect(processStub.calledWith(EnumQueueName.canCreateProposal)).to.be.true
       expect(processStub.calledWith(EnumQueueName.pluginInstallationData)).to.be.true
-      expect(processStub.calledWith(EnumQueueName.getTokenStats)).to.be.true
       expect(processStub.calledWith(EnumQueueName.syncMerkleProofs)).to.be.true
       expect(processStub.calledWith(EnumQueueName.gaugeEpochId)).to.be.true
       expect(processStub.calledWith(EnumQueueName.gaugeInfo)).to.be.true
@@ -167,42 +167,14 @@ describe('AragonGateway: index', () => {
       expect(result).to.equal('{"installationData":"test"}')
     })
 
-    it('should handle getTokenStats queue', async () => {
-      const processStub = sandbox.stub(RabbitMQHelper, 'process')
-      const getTokenCountersStub = sandbox
-        .stub(ProxyWeb3Provider, 'getTokenCounters')
-        .resolves({ holders: 10, transfers: 0 })
-
-      await AragonGatewayService.start()
-
-      const handler = processStub.getCall(5).args[1]
-      const queueName = processStub.getCall(5).args[0]
-
-      const result = await handler({
-        params: {
-          address: '0xTokenAddress',
-          network: NetworksEnum.ethereumMainnet,
-        },
-      } as any)
-
-      expect(queueName).to.eq(EnumQueueName.getTokenStats)
-      expect(
-        getTokenCountersStub.calledOnceWith({
-          address: '0xTokenAddress',
-          network: NetworksEnum.ethereumMainnet,
-        }),
-      ).to.be.true
-      expect(result).to.deep.equal({ holders: 10, transfers: 0 })
-    })
-
     it('should handle syncMerkleProofs queue', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const syncMerkleProofsStub = sandbox.stub(CapitalDistributorGateway, 'generateMerkleData').resolves()
 
       await AragonGatewayService.start()
 
-      const handler = processStub.getCall(6).args[1]
-      const queueName = processStub.getCall(6).args[0]
+      const handler = processStub.getCall(5).args[1]
+      const queueName = processStub.getCall(5).args[0]
 
       await handler({
         params: {
@@ -228,8 +200,8 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      const handler = processStub.getCall(7).args[1]
-      const queueName = processStub.getCall(7).args[0]
+      const handler = processStub.getCall(6).args[1]
+      const queueName = processStub.getCall(6).args[0]
 
       const result = await handler({
         params: {
@@ -255,8 +227,8 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      const handler = processStub.getCall(8).args[1]
-      const queueName = processStub.getCall(8).args[0]
+      const handler = processStub.getCall(7).args[1]
+      const queueName = processStub.getCall(7).args[0]
 
       const result = await handler({
         params: {

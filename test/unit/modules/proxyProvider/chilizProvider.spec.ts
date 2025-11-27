@@ -5,8 +5,8 @@ import logger from '@logger'
 import { ethers } from 'ethers'
 import utils from '@helpers/utils'
 import ChilizProvider from '@modules/proxyProvider/chilizProvider'
-import RouteScanHelper from '@helpers/routeScanHelper'
 import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
+import { IBlockScoutAddressType } from '@src/types/blockScout'
 
 describe('ChilizProvider', () => {
   let sandbox: any
@@ -247,470 +247,44 @@ describe('ChilizProvider', () => {
     })
   })
 
-  describe('fetchBasicTokenInfo', () => {
-    it('should fetch native token info for zero address', async () => {
-      // Arrange
-      const address = utils.zeroAddress
-      const network = NetworksEnum.chilizMainnet
-      const mockPriceResponse = {
-        message: 'OK',
-        result: { coin_usd: '0.15' },
-      }
-
-      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(mockPriceResponse)
-
-      // Act
-      const result = await ChilizProvider.fetchBasicTokenInfo({ address, network })
-
-      // Assert
-      expect(rpcCallStub.calledOnce).to.be.true
-      expect(rpcCallStub.firstCall.args[1]).to.deep.equal({
-        module: 'stats',
-        action: 'coinprice',
-      })
-
-      expect(result).to.include({
-        address,
-        name: 'Chiliz',
-        symbol: 'CHZ',
-        decimals: 18,
-        type: ITokenType.native,
-        priceUsd: '0.15',
-      })
-    })
-
-    it('should handle price fetch failure for native token', async () => {
-      // Arrange
-      const address = utils.zeroAddress
-      const network = NetworksEnum.chilizMainnet
-
-      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').rejects(new Error('Price API Error'))
-
-      // Act
-      const result = await ChilizProvider.fetchBasicTokenInfo({ address, network })
-
-      // Assert
-      expect(rpcCallStub.calledOnce).to.be.true
-      expect(result).to.include({
-        address,
-        name: 'Chiliz',
-        symbol: 'CHZ',
-        decimals: 18,
-        type: ITokenType.native,
-        priceUsd: '0',
-      })
-    })
-
-    it('should fetch token details for non-zero address', async () => {
-      // Arrange
-      const address = '0xtoken'
-      const network = NetworksEnum.chilizMainnet
-      const mockTokenResponse = {
-        message: 'OK',
-        result: {
-          name: 'Test Token',
-          symbol: 'TEST',
-          decimals: 18,
-          type: 'ERC-20',
-          totalSupply: '1000000',
-        },
-      }
-
-      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(mockTokenResponse)
-
-      // Act
-      const result = await ChilizProvider.fetchBasicTokenInfo({ address, network })
-
-      // Assert
-      expect(rpcCallStub.calledOnce).to.be.true
-      expect(rpcCallStub.firstCall.args[1]).to.deep.equal({
-        module: 'token',
-        action: 'getToken',
-        contractaddress: address,
-      })
-
-      expect(result).to.include({
-        address,
-        name: 'Test Token',
-        symbol: 'TEST',
-        decimals: 18,
-        type: ITokenType.ERC20,
-        totalSupply: '1000000',
-      })
-    })
-
-    it('should handle API failure for token info', async () => {
-      // Arrange
-      const address = '0xtoken'
-      const network = NetworksEnum.chilizMainnet
-
-      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').rejects(new Error('API Error'))
-
-      // Act
-      const result = await ChilizProvider.fetchBasicTokenInfo({ address, network })
-      expect(rpcCallStub.calledOnce).to.be.true
-
-      // Assert
-      expect(result).to.include({
-        address,
-        name: null,
-        symbol: null,
-        decimals: 0,
-        type: ITokenType.unknown,
-      })
-    })
-
-    it('should use || operators for null/undefined token result fields', async () => {
-      // Arrange
-      const address = '0xtoken'
-      const network = NetworksEnum.chilizMainnet
-      const mockTokenResponse = {
-        message: 'OK',
-        result: {
-          name: null, // Line 148: tokenResponse.result.name || null
-          symbol: undefined, // Line 149: tokenResponse.result.symbol || null
-          decimals: null, // Line 150: tokenResponse.result.decimals || 0
-          type: undefined, // Lines 151-156: various type checks with fallback to ITokenType.unknown
-          totalSupply: null, // Line 157: tokenResponse.result.totalSupply || '0'
-        },
-      }
-
-      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(mockTokenResponse)
-
-      // Act
-      const result = await ChilizProvider.fetchBasicTokenInfo({ address, network })
-
-      // Assert
-      expect(rpcCallStub.calledOnce).to.be.true
-      expect(result).to.deep.include({
-        address,
-        name: null, // Line 148: null || null = null
-        symbol: null, // Line 149: undefined || null = null
-        decimals: 0, // Line 150: null || 0 = 0
-        type: ITokenType.unknown, // Lines 151-156: undefined type -> ITokenType.unknown
-        totalSupply: '0', // Line 157: null || '0' = '0'
-        totalHolders: '0', // Line 158: always '0' in this code
-      })
-    })
-
-    it('should handle ERC-721 type detection with || operator', async () => {
-      // Arrange
-      const address = '0xtoken'
-      const network = NetworksEnum.chilizMainnet
-      const mockTokenResponse = {
-        message: 'OK',
-        result: {
-          name: 'Test NFT',
-          symbol: 'TNFT',
-          decimals: 0,
-          type: 'ERC-721',
-          totalSupply: '100',
-        },
-      }
-
-      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(mockTokenResponse)
-
-      // Act
-      const result = await ChilizProvider.fetchBasicTokenInfo({ address, network })
-
-      // Assert
-      expect(rpcCallStub.calledOnce).to.be.true
-      expect(result.type).to.equal(ITokenType.ERC721)
-    })
-  })
-
-  describe('fetchTokenHolderAndSupply', () => {
-    it('should extract and return holder and supply data from token info', async () => {
-      // Arrange
-      const address = '0xtoken'
-      const network = NetworksEnum.chilizMainnet
-
-      const fetchBasicTokenInfoStub = sandbox.stub(ChilizProvider, 'fetchBasicTokenInfo').resolves({
-        totalHolders: '123',
-        totalSupply: '1000000000000000000000',
-      } as any)
-
-      // Act
-      const result = await ChilizProvider.fetchTokenHolderAndSupply({ address, network })
-
-      // Assert
-      expect(fetchBasicTokenInfoStub.calledOnce).to.be.true
-      expect(fetchBasicTokenInfoStub.firstCall.args[0]).to.deep.equal({ address, network })
-
-      expect(result).to.deep.equal({
-        totalHolders: '123',
-        totalSupply: '1000000000000000000000',
-      })
-    })
-  })
-
-  describe('fetchTokenPrice', () => {
-    it('should fetch native token price for zero address', async () => {
-      // Arrange
-      const address = utils.zeroAddress
-      const network = NetworksEnum.chilizMainnet
-      const mockResponse = {
-        message: 'OK',
-        result: { coin_usd: '0.15' },
-      }
-
-      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').resolves(mockResponse)
-
-      // Act
-      const result = await ChilizProvider.fetchTokenPrice({ address, network })
-
-      // Assert
-      expect(rpcCallStub.calledOnce).to.be.true
-      expect(result).to.deep.equal({
-        priceUsd: '0.15',
-      })
-    })
-
-    it('should return default price when native price fetch fails', async () => {
-      // Arrange
-      const address = utils.zeroAddress
-      const network = NetworksEnum.chilizMainnet
-
-      const rpcCallStub = sandbox.stub(ChilizProvider, '_rpcCall').rejects(new Error('API Error'))
-
-      // Act
-      const result = await ChilizProvider.fetchTokenPrice({ address, network })
-
-      // Assert
-      expect(rpcCallStub.calledOnce).to.be.true
-      expect(result).to.deep.equal({
-        priceUsd: '0',
-      })
-    })
-
-    it('should return default price for non-zero address', async () => {
-      // Arrange
-      const address = '0xtoken'
-      const network = NetworksEnum.chilizMainnet
-
-      // Act
-      const result = await ChilizProvider.fetchTokenPrice({ address, network })
-
-      // Assert
-      expect(result).to.deep.equal({
-        priceUsd: '0',
-      })
-    })
-  })
-
   describe('searchDetailsOfContract', () => {
-    it('should return token details when token type is known', async () => {
-      // Arrange
-      const address = '0xtoken'
-      const network = NetworksEnum.chilizMainnet
-      const tokenInfo = {
-        name: 'Test Token',
-        type: ITokenType.ERC20,
-      }
-
-      const fetchBasicTokenInfoStub = sandbox.stub(ChilizProvider, 'fetchBasicTokenInfo').resolves(tokenInfo as any)
-
-      // Act
-      const result = await ChilizProvider.searchDetailsOfContract({ address, network })
-
-      // Assert
-      expect(fetchBasicTokenInfoStub.calledOnce).to.be.true
-      expect(result).to.deep.equal({
-        type: 'token',
-        name: 'Test Token',
-      })
-    })
-
-    it('should fallback to contract source code when token type is unknown', async () => {
+    it('should return contract name from source code', async () => {
       // Arrange
       const address = '0xcontract'
       const network = NetworksEnum.chilizMainnet
-      const tokenInfo = { type: ITokenType.unknown }
-      const contractInfo = [{ ContractName: 'TestContract' }]
+      const sourceCode = [{ ContractName: 'TestContract' }]
 
-      const fetchBasicTokenInfoStub = sandbox.stub(ChilizProvider, 'fetchBasicTokenInfo').resolves(tokenInfo as any)
       const fetchContractSourceCodeStub = sandbox
         .stub(ChilizProvider, 'fetchContractSourceCode')
-        .resolves(contractInfo as any)
+        .resolves(sourceCode as any)
 
       // Act
       const result = await ChilizProvider.searchDetailsOfContract({ address, network })
 
       // Assert
-      expect(fetchBasicTokenInfoStub.calledOnce).to.be.true
       expect(fetchContractSourceCodeStub.calledOnce).to.be.true
       expect(result).to.deep.equal({
-        type: 'address',
+        type: IBlockScoutAddressType.ADDRESS,
         name: 'TestContract',
       })
     })
 
-    it('should handle case when contract source code is not available', async () => {
+    it('should return null name when contract source code is not available', async () => {
       // Arrange
       const address = '0xcontract'
       const network = NetworksEnum.chilizMainnet
-      const tokenInfo = { type: ITokenType.unknown }
 
-      sandbox.stub(ChilizProvider, 'fetchBasicTokenInfo').resolves(tokenInfo as any)
-      sandbox.stub(ChilizProvider, 'fetchContractSourceCode').resolves(null)
+      const fetchContractSourceCodeStub = sandbox.stub(ChilizProvider, 'fetchContractSourceCode').resolves(null as any)
 
       // Act
       const result = await ChilizProvider.searchDetailsOfContract({ address, network })
 
       // Assert
+      expect(fetchContractSourceCodeStub.calledOnce).to.be.true
       expect(result).to.deep.equal({
-        type: 'address',
+        type: IBlockScoutAddressType.ADDRESS,
         name: null,
       })
-    })
-  })
-
-  describe('getTokenCounters', () => {
-    it('should return token counters using routescan', async () => {
-      // Arrange
-      const address = '0xtoken'
-      const network = NetworksEnum.chilizMainnet
-
-      const routeScanStub = sandbox.stub(RouteScanHelper, 'fetchTokenHoldersCount').resolves(10)
-
-      // Act
-      const result = await ChilizProvider.getTokenCounters({ address, network })
-
-      // Assert
-      expect(routeScanStub.calledOnce).to.be.true
-      expect(routeScanStub.firstCall.args[0]).to.deep.eq({
-        network,
-        address,
-      })
-
-      expect(result).to.deep.equal({
-        transfers: 0,
-        holders: 10,
-      })
-    })
-  })
-
-  describe('_rpcCall', () => {
-    let axiosStub: any
-    let bottleneckStub: any
-    let retryRequestStub: any
-
-    beforeEach(() => {
-      axiosStub = sandbox.stub()
-      bottleneckStub = {
-        schedule: sandbox.stub().callsFake(async (fn: Function) => fn()),
-      }
-      retryRequestStub = sandbox.stub().callsFake(async (fn: Function) => fn())
-
-      // Mock the modules
-      sandbox.stub(require('axios'), 'get').callsFake(axiosStub)
-      sandbox.stub(require('@helpers/retryRequest'), 'retryRequest').callsFake(retryRequestStub)
-      sandbox.stub(require('@modules/bottleneck'), 'default').value({
-        getChilizLimiter: sandbox.stub().returns(bottleneckStub),
-      })
-    })
-
-    it('should make successful API call', async () => {
-      // Arrange
-      const path = 'api'
-      const params = { module: 'account', action: 'balance', address: '0x123' }
-      const network = NetworksEnum.chilizMainnet
-      const mockResponseData = { message: 'OK', result: '1000000000000000000' }
-
-      axiosStub.resolves({ data: mockResponseData })
-
-      // Act
-      const result = await ChilizProvider._rpcCall(path, params, network)
-
-      // Assert
-      expect(retryRequestStub.calledOnce).to.be.true
-      expect(bottleneckStub.schedule.calledOnce).to.be.true
-      expect(axiosStub.calledOnce).to.be.true
-      expect(axiosStub.firstCall.args[0]).to.equal('https://scan.chiliz.com/api')
-      expect(axiosStub.firstCall.args[1]).to.deep.equal({ params })
-      expect(result).to.deep.equal(mockResponseData)
-    })
-
-    it('should handle axios errors', async () => {
-      // Arrange
-      const path = 'api'
-      const params = { module: 'account', action: 'balance' }
-      const network = NetworksEnum.chilizMainnet
-      const error = new Error('Network Error')
-
-      axiosStub.rejects(error)
-
-      // Act & Assert
-      try {
-        await ChilizProvider._rpcCall(path, params, network)
-        expect.fail('Should have thrown an error')
-      } catch (thrownError) {
-        expect(thrownError).to.equal(error)
-      }
-    })
-
-    it('should construct correct URL for different paths', async () => {
-      // Arrange
-      const path = 'token-counters'
-      const params = { id: '0xtoken' }
-      const network = NetworksEnum.chilizMainnet
-      const mockResponseData = { token_holder_count: 100 }
-
-      axiosStub.resolves({ data: mockResponseData })
-
-      // Act
-      await ChilizProvider._rpcCall(path, params, network)
-
-      // Assert
-      expect(axiosStub.firstCall.args[0]).to.equal('https://scan.chiliz.com/token-counters')
-    })
-
-    it('should handle bottleneck rate limiting', async () => {
-      // Arrange
-      const path = 'api'
-      const params = { module: 'stats', action: 'coinprice' }
-      const network = NetworksEnum.chilizMainnet
-      const mockResponseData = { message: 'OK', result: { coin_usd: '0.15' } }
-
-      let scheduledFunction: Function
-      bottleneckStub.schedule.callsFake((fn: Function) => {
-        scheduledFunction = fn
-        return fn()
-      })
-
-      axiosStub.resolves({ data: mockResponseData })
-
-      // Act
-      const result = await ChilizProvider._rpcCall(path, params, network)
-
-      // Assert
-      expect(bottleneckStub.schedule.calledOnce).to.be.true
-      expect(typeof scheduledFunction!).to.equal('function')
-      expect(result).to.deep.equal(mockResponseData)
-    })
-
-    it('should handle retry mechanism', async () => {
-      // Arrange
-      const path = 'api'
-      const params = { module: 'account', action: 'tokenlist' }
-      const network = NetworksEnum.chilizMainnet
-      const mockResponseData = { message: 'OK', result: [] }
-
-      let retryFunction: Function
-      retryRequestStub.callsFake((fn: Function) => {
-        retryFunction = fn
-        return fn()
-      })
-
-      axiosStub.resolves({ data: mockResponseData })
-
-      // Act
-      const result = await ChilizProvider._rpcCall(path, params, network)
-
-      // Assert
-      expect(retryRequestStub.calledOnce).to.be.true
-      expect(typeof retryFunction!).to.equal('function')
-      expect(result).to.deep.equal(mockResponseData)
     })
   })
 

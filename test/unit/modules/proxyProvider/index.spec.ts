@@ -5,7 +5,7 @@ import Web3Provider from '@modules/proxyProvider/web3Provider'
 import PeaqProvider from '@modules/proxyProvider/peaqProvider'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 import ChilizProvider from '@modules/proxyProvider/chilizProvider'
-import CornProvider from '@modules/proxyProvider/cornProvider' // Updated import
+import CornProvider from '@modules/proxyProvider/cornProvider'
 
 describe('ProxyWeb3Provider', () => {
   let sandbox: sinon.SinonSandbox
@@ -162,16 +162,12 @@ describe('ProxyWeb3Provider', () => {
       })
     }
 
-    // Test all proxy methods
+    // Test all proxy methods that exist in IWeb3ProxyMethod
     testProxyMethod('getNativeBalance', IWeb3ProxyMethod.getNativeBalance)
     testProxyMethod('getTokenBalances', IWeb3ProxyMethod.getTokenBalances)
     testProxyMethod('fetchContractCreation', IWeb3ProxyMethod.fetchContractCreation)
     testProxyMethod('fetchContractSourceCode', IWeb3ProxyMethod.fetchContractSourceCode)
-    testProxyMethod('fetchBasicTokenInfo', IWeb3ProxyMethod.fetchBasicTokenInfo)
-    testProxyMethod('fetchTokenHolderAndSupply', IWeb3ProxyMethod.fetchTokenHolderAndSupply)
-    testProxyMethod('fetchTokenPrice', IWeb3ProxyMethod.fetchTokenPrice)
     testProxyMethod('searchDetailsOfContract', IWeb3ProxyMethod.searchDetailsOfContract)
-    testProxyMethod('getTokenCounters', IWeb3ProxyMethod.getTokenCounters)
     testProxyMethod('fetchHistoricalTokenPrice', IWeb3ProxyMethod.fetchHistoricalTokenPrice)
   })
 })

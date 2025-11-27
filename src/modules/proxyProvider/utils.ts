@@ -1,6 +1,8 @@
-import type { LogServicePattern, NetworksEnum } from '@types'
+import type { LogServicePattern } from '@types'
 import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
+import { EvmExplorerEnum } from '@helpers/evmExplorerClient'
+import { NetworksEnum } from '@types'
 
 const ProxyUtils = {
   updateProgressInConfigIndexer: async (
@@ -52,6 +54,21 @@ const ProxyUtils = {
       return existingConfig
     }
     return null
+  },
+
+  getExplorerClientBasedOnNetwork: (network: NetworksEnum): EvmExplorerEnum => {
+    switch (network) {
+      case NetworksEnum.chilizMainnet:
+      case NetworksEnum.cornMainnet:
+        return EvmExplorerEnum.ROUTESCAN
+      case NetworksEnum.zksyncMainnet:
+      case NetworksEnum.zksyncSepolia:
+        return EvmExplorerEnum.ZKSYNC
+      case NetworksEnum.peaqMainnet:
+        return EvmExplorerEnum.BLOCKSCOUT
+      default:
+        return EvmExplorerEnum.ETHERSCAN
+    }
   },
 }
 

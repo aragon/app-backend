@@ -48,23 +48,11 @@ const ProxyWeb3Provider: IWeb3Provider & { forward: any; getProvider: any; getDe
   fetchContractSourceCode: async function (params) {
     return ProxyWeb3Provider.forward(IWeb3ProxyMethod.fetchContractSourceCode)(params)
   },
-  fetchBasicTokenInfo: async function (params) {
-    return ProxyWeb3Provider.forward(IWeb3ProxyMethod.fetchBasicTokenInfo)(params)
-  },
-  fetchTokenHolderAndSupply: async function (params) {
-    return ProxyWeb3Provider.forward(IWeb3ProxyMethod.fetchTokenHolderAndSupply)(params)
-  },
-  fetchTokenPrice: async function (params) {
-    return ProxyWeb3Provider.forward(IWeb3ProxyMethod.fetchTokenPrice)(params)
-  },
   searchDetailsOfContract: async function (params) {
     return ProxyWeb3Provider.forward(IWeb3ProxyMethod.searchDetailsOfContract)(params)
   },
   fetchHistoricalTokenPrice: async function (params) {
     return ProxyWeb3Provider.forward(IWeb3ProxyMethod.fetchHistoricalTokenPrice)(params)
-  },
-  getTokenCounters: async function (params) {
-    return ProxyWeb3Provider.forward(IWeb3ProxyMethod.getTokenCounters)(params)
   },
 }
 

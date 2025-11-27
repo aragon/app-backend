@@ -12,9 +12,9 @@ import { IPermission } from '@src/types/permission'
 import { type ClientSession, type SaveOptions } from 'mongoose'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 import TokenUtils from '@helpers/tokenUtils'
-import CovalentHelper from '@helpers/covalent'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import GovernanceVeHelper from '@helpers/governanceVe'
+import CoinGeckoHelper from '@helpers/coinGecko'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:ProxyToken' })
 
@@ -65,32 +65,20 @@ export const ProxyToken = {
     let updates: Partial<Token> = {}
 
     if (shouldUpdate || forceUpdate) {
-      if (token.type !== ITokenType.native && token.hasDelegate) {
-        const tokenDetails = await ProxyWeb3Provider.fetchBasicTokenInfo({
-          address: tokenAddress,
-          network,
-        })
+      const isNativeToken = token.type === ITokenType.native
+      const isTestnet = CoinGeckoHelper.isTestNetwork(network)
 
-        const tokenMetrics = await ProxyWeb3Provider.fetchTokenHolderAndSupply({
-          address: tokenAddress,
-          network,
-        })
+      const totalSupply =
+        !isNativeToken && token.hasTotalSupply ? await Web3Helper.getTokenTotalSupply(tokenAddress, network) : null
 
-        updates = {
-          priceUsd: tokenDetails.priceUsd,
-          holders: tokenMetrics.totalHolders,
-          totalSupply: tokenMetrics.totalSupply,
-          lastUpdatedAt: dayjs.utc().toDate(),
-        }
-      } else {
-        const tokenDetails = await ProxyWeb3Provider.fetchTokenPrice({
-          address: tokenAddress,
-          network,
-        })
-        updates = {
-          priceUsd: tokenDetails.priceUsd,
-          lastUpdatedAt: dayjs.utc().toDate(),
-        }
+      const coingeckoInfo =
+        !isTestnet || isNativeToken ? (await CoinGeckoHelper.getToken(tokenAddress, network)) || null : null
+
+      updates = {
+        totalSupply: (totalSupply ?? token.totalSupply ?? '0').toString(),
+        priceUsd: coingeckoInfo ? coingeckoInfo.priceUsd : token.priceUsd,
+        logo: coingeckoInfo ? coingeckoInfo.logo : token.logo,
+        lastUpdatedAt: dayjs.utc().toDate(),
       }
 
       await token.update(updates, { session })
@@ -105,28 +93,30 @@ export const ProxyToken = {
   wrapTokenDetails: async (tokenTypeInfo: ITokenInfo, tokenAddress: HexAddress, network: NetworksEnum) => {
     let wrappedToken: HexAddress | null = tokenAddress
 
-    // check if its an escrow adapter then find the underlying token as it won't exit on blockscout
     if (tokenTypeInfo.type === ITokenType.escrowAdapter) {
       const plugin = await Models.Plugin.findByTokenAddress(tokenAddress, network)
       if (plugin?.votingEscrow?.underlying) {
         wrappedToken = plugin.votingEscrow.underlying
       }
     }
+    const isTestnet = CoinGeckoHelper.isTestNetwork(network)
+    const coinGeckoTokenInfo =
+      isTestnet && tokenTypeInfo.type !== ITokenType.native
+        ? null
+        : (await CoinGeckoHelper.getToken(wrappedToken!, network)) || null
 
-    const basicToken = await ProxyWeb3Provider.fetchBasicTokenInfo({
+    return {
       address: wrappedToken!,
       network,
-    })
-
-    // Set the type from token detection
-    if (basicToken && tokenTypeInfo.type === ITokenType.escrowAdapter) {
-      basicToken.type = tokenTypeInfo.type
-      if (tokenTypeInfo.type === ITokenType.escrowAdapter) {
-        basicToken.underlying = wrappedToken
-      }
+      type: tokenTypeInfo.type,
+      name: coinGeckoTokenInfo?.name || '',
+      symbol: coinGeckoTokenInfo?.symbol || '',
+      decimals: coinGeckoTokenInfo?.decimals || 18,
+      totalSupply: coinGeckoTokenInfo?.totalSupply || '0',
+      logo: coinGeckoTokenInfo?.logo || '',
+      priceUsd: coinGeckoTokenInfo?.priceUsd || '0',
+      underlying: tokenTypeInfo.type === ITokenType.escrowAdapter ? wrappedToken : undefined,
     }
-
-    return basicToken
   },
 
   createNewToken: async (
@@ -144,14 +134,14 @@ export const ProxyToken = {
     const rawToken: Partial<Token & { isScamToken: boolean }> = {
       network,
       address: tokenAddress,
-      name: tokenDetails?.name,
-      symbol: tokenDetails?.symbol,
-      decimals: tokenDetails?.decimals,
-      logo: tokenDetails?.logo,
-      type: tokenDetails?.type || tokenTypeInfo.type,
-      holders: tokenDetails?.totalHolders,
-      totalSupply: tokenDetails?.totalSupply,
-      underlying: tokenDetails?.underlying,
+      name: tokenDetails.name,
+      symbol: tokenDetails.symbol,
+      decimals: tokenDetails.decimals,
+      logo: tokenDetails.logo,
+      type: tokenDetails.type || tokenTypeInfo.type,
+      totalSupply: tokenDetails.totalSupply,
+      priceUsd: tokenDetails.priceUsd,
+      underlying: tokenDetails.underlying,
       isGovernance: tokenTypeInfo.isGovernance,
       hasDelegate: tokenTypeInfo.hasDelegate,
       hasBalanceOfERC20: tokenTypeInfo.hasBalanceOfERC20,
@@ -187,7 +177,7 @@ export const ProxyToken = {
       }
 
       if (rawToken.type !== ITokenType.escrowAdapter) {
-        const isTokenSyncable = await TokenUtils.isTokenSyncable(tokenAddress, network)
+        const isTokenSyncable = await TokenUtils.isTokenSyncable(tokenAddress, network, tokenDetails)
         if (!isTokenSyncable && !tokenTypeInfo.isGovernance) {
           return null
         }
@@ -217,29 +207,14 @@ export const ProxyToken = {
         rawToken.blockNumber = infoCreation?.blockNumber
         rawToken.transactionHash = infoCreation?.transactionHash
       }
-
-      if (rawToken.type !== ITokenType.unknown && !rawToken.holders && rawToken.holders === 0) {
-        const metrics = await ProxyWeb3Provider.fetchTokenHolderAndSupply({
-          address: tokenAddress,
-          network,
-        })
-        rawToken.holders = metrics?.totalHolders
-        rawToken.totalSupply = metrics?.totalSupply
-        if (rawToken.totalSupply === '0' && rawToken.isGovernance) {
-          rawToken.refetch = true
-        }
-      }
     }
 
-    const tokenRate =
-      CovalentHelper.skipTestNetworks.includes(network) || rawToken.isGovernance
-        ? { priceUsd: '0' }
-        : await ProxyWeb3Provider.fetchTokenPrice({
-            address: tokenAddress,
-            network,
-          })
-    rawToken.priceUsd = TokenUtils.firstValid(tokenRate.priceUsd, tokenDetails?.priceUsd) || '0'
-    rawToken.skipFetchRate = TokenUtils.shouldSkipFetch(rawToken, tokenRate)
+    // For testnet or governance tokens, the price is always '0'
+    if (CoinGeckoHelper.isTestNetwork(network)) {
+      rawToken.priceUsd = '0'
+    }
+
+    rawToken.skipFetchRate = TokenUtils.shouldSkipFetch(rawToken, { priceUsd: rawToken.priceUsd || '0' })
 
     // Save token and commit transaction
     const savedToken = await Models.Token.create(rawToken, { session })

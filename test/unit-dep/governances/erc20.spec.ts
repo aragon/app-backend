@@ -12,7 +12,7 @@ import { PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandl
 import ProxyWeb3Provider from '@modules/proxyProvider'
 import { TokenVoting } from '@artifacts/TokenVoting'
 import { ProposalHandler } from '@handlers/proposalHandler'
-import { RateModule } from '@modules/rates'
+import CoinGeckoHelper from '@helpers/coinGecko'
 import BlockScoutHelper from '@helpers/blockScout'
 import { LibUtils } from '@test/lib/unit-dep/lib'
 

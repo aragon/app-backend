@@ -3,7 +3,7 @@ import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import { NetworksEnum } from '@types'
 import Web3Helper from '@helpers/web3'
-import CovalentHelper from '@helpers/covalent'
+import CoinGeckoHelper from '@helpers/coinGecko'
 import Web3Utils from '@helpers/web3Utils'
 import Web3Provider from '@modules/proxyProvider/web3Provider'
 import { BlockchainLogCrawler } from '@modules/crawlers'
@@ -63,8 +63,7 @@ describe('Integ: ProxyWeb3 && Web3Helper', () => {
   it('getTokenBalances', async () => {
     const address = '0x951dcBafc1D80B9cD612915e9CcF5Ada06d6566E'
     const network = NetworksEnum.ethereumMainnet
-    sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves({ totalSupply: '0', totalHolders: 0 } as any)
-    sandbox.stub(CovalentHelper, 'getToken').resolves(null as any)
+    sandbox.stub(CoinGeckoHelper, 'getToken').resolves(null as any)
 
     const tokenBalances = await Web3Provider.getTokenBalances({
       address,

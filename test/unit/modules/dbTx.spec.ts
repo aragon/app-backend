@@ -12,8 +12,6 @@ import { fakeAlchemyTransfer } from '@test/mock/fakeAlchemyTransfer'
 import type Dao from '@models/schema/dao'
 import { ProxyToken } from '@modules/proxyToken'
 import Web3Helper from '@helpers/web3'
-import { RateModule } from '@modules/rates'
-import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
 import Web3Utils from '@helpers/web3Utils'
 
 describe('Module: DbTx', () => {
@@ -110,7 +108,6 @@ describe('Module: DbTx', () => {
 
     sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(expectedTransaction.token as any)
     sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1)
-    sandbox.stub(RateModule, 'fetchRate').resolves({ priceUsd: '20' } as any)
     sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({ logs: fakeLogs } as any)
     sandbox.stub(Web3Utils, 'findLogsByName').returns([{ txLog: fakeLogs[0] }] as any)
 

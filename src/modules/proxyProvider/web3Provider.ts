@@ -6,10 +6,8 @@ import Alchemy from '@helpers/alchemy'
 import Web3Utils from '@helpers/web3Utils'
 import BlockScoutHelper from '@helpers/blockScout'
 import Web3Helper from '@helpers/web3'
-import CovalentHelper from '@helpers/covalent'
-import { RateModule } from '@modules/rates'
-import AnkrHelper from '@helpers/ankrHelper'
 import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
+import { RateModule } from '@modules/rates'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ProxyWeb3' })
 
@@ -114,41 +112,6 @@ const Web3Provider: IWeb3Provider = {
     return result || null
   },
 
-  fetchBasicTokenInfo: async ({ address, network }) => {
-    if (address === utils.zeroAddress) {
-      return await CovalentHelper.getToken(address, network)
-    }
-    const tokenDetails = await BlockScoutHelper.getTokenFullDetails(address, network)
-    if (!tokenDetails) {
-      return await CovalentHelper.getToken(address, network)
-    }
-    return tokenDetails
-  },
-
-  fetchTokenHolderAndSupply: async ({ address, network }) => {
-    const covalentHolders = await CovalentHelper.getTokenSupplyAndHolders(address, network)
-    if (covalentHolders) {
-      return covalentHolders
-    }
-
-    const blockScoutHolders = await BlockScoutHelper.getTokenFullDetails(address, network)
-    if (blockScoutHolders) {
-      return {
-        totalHolders: blockScoutHolders.totalHolders,
-        totalSupply: blockScoutHolders.totalSupply,
-      }
-    }
-
-    return {
-      totalHolders: 0,
-      totalSupply: '0',
-    }
-  },
-
-  fetchTokenPrice: async ({ network, address, pastDays }: any): Promise<any> => {
-    return await RateModule.fetchRate(address, network, pastDays)
-  },
-
   searchDetailsOfContract: async ({ address, network }) => {
     return await BlockScoutHelper.searchDetails(address, network)
   },
@@ -160,31 +123,6 @@ const Web3Provider: IWeb3Provider = {
       symbol,
       timestamp: date,
     })
-  },
-
-  getTokenCounters: async ({ address, network }) => {
-    const ankrStats = await AnkrHelper.getTokenHoldersCount(address, network)
-    if (ankrStats) {
-      return ankrStats
-    }
-
-    const blockScoutStats = await BlockScoutHelper.getTokenCounters(address, network)
-    const blockScoutAvailable = !(blockScoutStats?.holders === 0 && blockScoutStats.transfers === 0)
-    if (blockScoutAvailable) {
-      return blockScoutStats
-    }
-
-    const covalentStats = await CovalentHelper.getTokenSupplyAndHolders(address, network)
-    const covalentAvailable = !(covalentStats && covalentStats.totalHolders === 0)
-
-    if (covalentAvailable) {
-      return {
-        holders: covalentStats.totalHolders,
-        transfers: 0,
-      }
-    }
-
-    return { holders: 0, transfers: 0 }
   },
 }
 

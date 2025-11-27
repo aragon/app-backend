@@ -188,7 +188,7 @@ class EvmExplorerClient {
     return { address, transactionHash: '', blockNumber: 0 }
   }
 
-  private fetchTokenInfo(explorerType: EvmExplorerEnum, address: HexAddress, network: NetworksEnum) {
+  async fetchTokenInfo(explorerType: EvmExplorerEnum, address: HexAddress, network: NetworksEnum) {
     try {
       const params = {
         module: 'token',
@@ -196,11 +196,11 @@ class EvmExplorerClient {
         contractaddress: address,
       }
 
-      const response = this.apiCall(explorerType, params, network)
+      const response = await this.apiCall(explorerType, params, network)
       return this.parseTokenInfoResponse(response)
     } catch (error) {
       logger.warn('Error fetching token info', llo({ error, address, network, explorerType }))
-      return {}
+      return null
     }
   }
 
@@ -213,6 +213,26 @@ class EvmExplorerClient {
         priceUsd: response.result[0].tokenPriceUSD || '0',
         totalSupply: response.result[0].totalSupply || '0',
       }
+    }
+  }
+
+  async fetchNativeTokenPrice(explorerType: EvmExplorerEnum, network: NetworksEnum): Promise<string> {
+    try {
+      const params = {
+        module: 'stats',
+        action: 'ethprice',
+      }
+
+      const response = await this.apiCall(explorerType, params, network)
+
+      if (response?.status === '1' && response?.message === 'OK' && response?.result?.ethusd) {
+        return response.result.ethusd
+      }
+
+      return '0'
+    } catch (error) {
+      logger.warn('Error fetching native token price', llo({ error, network, explorerType }))
+      return '0'
     }
   }
 }
