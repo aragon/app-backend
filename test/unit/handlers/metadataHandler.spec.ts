@@ -116,7 +116,7 @@ describe('Indexer: MetadataHandler', () => {
         eventName: 'test',
       }
 
-      const pluginFindStub = sandbox.stub(Models.Plugin, 'findByAddress').callsFake(async (...args) => {
+      const pluginFindStub = sandbox.stub(Models.Plugin, 'findByAddress').callsFake(async (..._args) => {
         pluginFindStub.restore() // Restore the original method after the first call
         return Promise.resolve({
           address: '0x123',
