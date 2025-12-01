@@ -1,18 +1,17 @@
 import {
-  type IAlchemyNodeConnection,
   type IAragonNodeConfig,
   type IConnectionType,
   type IAlchemyConfig,
+  type IDrpcConfig,
   type IProviderProxy,
   IProviderType,
   type IRawNodeConfig,
   NetworksEnum,
 } from '@types'
 import { JsonRpcProvider } from 'ethers'
-import { AlchemyNetwork, alchemyNetworkToUrl } from '@types'
+import { AlchemyNetwork, alchemyNetworkToUrl, DrpcNetwork, drpcNetworkToUrl } from '@types'
 import config from '@config'
 import logger from '@logger'
-import { type INodeConnection } from '@src/types/node'
 import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:Provider' })
@@ -34,6 +33,21 @@ const ProviderModule = {
     [NetworksEnum.avaxMainnet]: AlchemyNetwork.AVAX_MAINNET,
   },
 
+  // Maps NetworksEnum values to DRPC network identifiers.
+  // Only networks supported by DRPC are mapped here.
+  drpcNetworksMap: {
+    [NetworksEnum.ethereumMainnet]: DrpcNetwork.ETH_MAINNET,
+    [NetworksEnum.ethereumSepolia]: DrpcNetwork.ETH_SEPOLIA,
+    [NetworksEnum.polygonMainnet]: DrpcNetwork.POLYGON_MAINNET,
+    [NetworksEnum.baseMainnet]: DrpcNetwork.BASE_MAINNET,
+    [NetworksEnum.arbitrumMainnet]: DrpcNetwork.ARB_MAINNET,
+    [NetworksEnum.zksyncSepolia]: DrpcNetwork.ZKSYNC_SEPOLIA,
+    [NetworksEnum.zksyncMainnet]: DrpcNetwork.ZKSYNC_MAINNET,
+    [NetworksEnum.optimismMainnet]: DrpcNetwork.OPT_MAINNET,
+    [NetworksEnum.avaxMainnet]: DrpcNetwork.AVAX_MAINNET,
+    [NetworksEnum.katanaMainnet]: DrpcNetwork.KATANA_MAINNET,
+  },
+
   // Maps raw config keys to your NetworksEnum.
   networksMap: {
     ETHEREUM_MAINNET: NetworksEnum.ethereumMainnet,
@@ -50,6 +64,7 @@ const ProviderModule = {
     AVAX_MAINNET: NetworksEnum.avaxMainnet,
     KATANA_MAINNET: NetworksEnum.katanaMainnet,
   },
+
   networkChainMap: {
     [NetworksEnum.ethereumMainnet]: 1,
     [NetworksEnum.ethereumSepolia]: 11155111,
@@ -74,6 +89,11 @@ const ProviderModule = {
   // Converts a NetworksEnum to the corresponding Alchemy network string.
   parseAlchemyNetwork: (network: NetworksEnum): AlchemyNetwork => {
     return ProviderModule.alchemyNetworksMap[network]
+  },
+
+  // Converts a NetworksEnum to the corresponding DRPC network string.
+  parseDrpcNetwork: (network: NetworksEnum): DrpcNetwork | undefined => {
+    return ProviderModule.drpcNetworksMap[network]
   },
 
   getChainId: (network: NetworksEnum): number => {
@@ -116,11 +136,30 @@ const ProviderModule = {
         } else {
           logger.warn(`Custom (Aragon) node for ${networkEnum} is not configured.`, llo({ network: networkEnum }))
         }
+
+        // Connect the DRPC node if an API key is provided and network is supported.
+        if (rawConfig.DRPC_API_KEY) {
+          const drpcNetwork = ProviderModule.parseDrpcNetwork(networkEnum)
+          if (drpcNetwork) {
+            const drpcConfig: IDrpcConfig = {
+              providerType: IProviderType.DRPC,
+              drpcApiKey: rawConfig.DRPC_API_KEY,
+              fromBlock: rawConfig.FROM_BLOCK,
+              confirmationBlocks: rawConfig.CONFIRMATION_BLOCKS,
+              intervalBlockTime: rawConfig.INTERVAL_BLOCK_TIME,
+            }
+            await ProviderModule.connectToNetwork(networkEnum, drpcConfig)
+          } else {
+            logger.warn(`DRPC does not support network ${networkEnum}.`, llo({ network: networkEnum }))
+          }
+        } else {
+          logger.warn(`DRPC node for ${networkEnum} is not configured.`, llo({ network: networkEnum }))
+        }
       }),
     )
   },
 
-  async connectToNetwork(network: NetworksEnum, nodeConfig: IAlchemyConfig | IAragonNodeConfig) {
+  async connectToNetwork(network: NetworksEnum, nodeConfig: IAlchemyConfig | IAragonNodeConfig | IDrpcConfig) {
     ProviderModule.providerProxies[network] = ProviderModule.providerProxies[network] || {}
 
     if (nodeConfig.providerType === IProviderType.ALCHEMY) {
@@ -136,17 +175,25 @@ const ProviderModule = {
       const alchemyUrl = `https://${alchemyHost}/v2/${alchemyConfig.alchemyApiKey}`
       const rpcProvider = new JsonRpcProvider(alchemyUrl)
 
-      const alchemyConnection: IAlchemyNodeConnection = {
-        rpc: rpcProvider,
-      }
-      ProviderModule.providerProxies[network].alchemy = alchemyConnection
+      ProviderModule.providerProxies[network].alchemy = { rpc: rpcProvider }
     } else if (nodeConfig.providerType === IProviderType.ARAGON) {
       const aragonConfig = nodeConfig as IAragonNodeConfig
       const rpcProvider = new JsonRpcProvider(aragonConfig.rpcEndpoint)
-      const aragonConnection: INodeConnection = {
-        rpc: rpcProvider,
+
+      ProviderModule.providerProxies[network].aragon = { rpc: rpcProvider }
+    } else if (nodeConfig.providerType === IProviderType.DRPC) {
+      const drpcConfig = nodeConfig as IDrpcConfig
+      const drpcNetwork = ProviderModule.parseDrpcNetwork(network)
+
+      if (!drpcNetwork) {
+        logger.warn(`DRPC network not found for ${network}`, llo({ network }))
+        return
       }
-      ProviderModule.providerProxies[network].aragon = aragonConnection
+
+      const drpcUrl = drpcNetworkToUrl(drpcNetwork, drpcConfig.drpcApiKey)
+      const rpcProvider = new JsonRpcProvider(drpcUrl)
+
+      ProviderModule.providerProxies[network].drpc = { rpc: rpcProvider }
     }
   },
 
@@ -159,7 +206,9 @@ const ProviderModule = {
   getAnyRpcProvider(network: NetworksEnum): any {
     const providerProxy = ProviderModule.providerProxies[network]
     if (!providerProxy) return
+    // Priority order: aragon → drpc → alchemy
     if (providerProxy.aragon?.rpc) return providerProxy.aragon.rpc
+    if (providerProxy.drpc?.rpc) return providerProxy.drpc.rpc
     if (providerProxy.alchemy?.rpc) return providerProxy.alchemy.rpc
     return undefined
   },
@@ -174,11 +223,22 @@ const ProviderModule = {
     const providerProxy = ProviderModule.providerProxies[network]
     if (!providerProxy) return undefined
 
+    const networkKey = utils.networkToAragon(network)
+
+    // Priority order: aragon → drpc → alchemy
     // Check if we have an Aragon provider first (priority)
     if (providerProxy.aragon) {
-      const networkKey = utils.networkToAragon(network)
       if (config.NODES?.[networkKey]) {
         return config.NODES[networkKey].ARAGON_RPC
+      }
+    }
+
+    // Check if we have a DRPC provider
+    if (providerProxy.drpc) {
+      const drpcNetwork = ProviderModule.parseDrpcNetwork(network)
+      const apiKey = config.NODES?.[networkKey]?.DRPC_API_KEY
+      if (drpcNetwork && apiKey) {
+        return drpcNetworkToUrl(drpcNetwork, apiKey)
       }
     }
 
@@ -187,7 +247,6 @@ const ProviderModule = {
       const alchemyNetwork = ProviderModule.parseAlchemyNetwork(network)
       const alchemyHost = alchemyNetworkToUrl[alchemyNetwork]
       if (alchemyHost) {
-        const networkKey = utils.networkToAragon(network)
         const apiKey = config.NODES?.[networkKey]?.ALCHEMY_API_KEY
         if (apiKey) {
           return `https://${alchemyHost}/v2/${apiKey}`

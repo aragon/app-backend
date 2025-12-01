@@ -20,6 +20,7 @@ interface ITokenData {
 export interface IRawNodeConfig {
   ALCHEMY_API_KEY: string
   ARAGON_RPC: string
+  DRPC_API_KEY?: string
   FROM_BLOCK: number
   OFFSET_TO_BLOCK: number
   POOLING_INTERVAL: number
@@ -84,7 +85,6 @@ export interface IConfig {
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
   SUPPORTED_NETWORKS: NetworksEnum[]
   WHITELIST_TOKENS: ITokenData[]
-  CUSTOM_INSTALL: boolean
   DEFAULT_CURRENCY: string
   RABBITMQ: {
     URI: string
