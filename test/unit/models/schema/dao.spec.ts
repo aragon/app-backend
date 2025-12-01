@@ -587,4 +587,182 @@ describe('Model: Dao', () => {
       expect(count).to.eq(2)
     })
   })
+
+  describe('WithoutPlugins API Methods', () => {
+    beforeEach(async () => {
+      const parentDao = {
+        blockTimestamp: 1919577224,
+        avatar: 'parent-avatar',
+        name: 'parent-dao',
+        description: 'parent-description',
+        address: '0x1111111111111111111111111111111111111111',
+        creatorAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+        network: NetworksEnum.polygonMainnet,
+        metrics: {
+          members: 15,
+          proposalsCreated: 5,
+          proposalsExecuted: 3,
+          uniqueVoters: 100,
+          votes: 500,
+          tvlUSD: 50000,
+        },
+        isHidden: false,
+        isActive: true,
+        parentDao: null,
+        subDaos: ['0x2222222222222222222222222222222222222222'],
+      }
+
+      const childDao = {
+        blockTimestamp: 1819577224,
+        avatar: 'child-avatar',
+        name: 'child-dao',
+        description: 'child-description',
+        address: '0x2222222222222222222222222222222222222222',
+        creatorAddress: '0x837b3ca530064776a04192b54eCa937fc1fF2d8C',
+        network: NetworksEnum.polygonMainnet,
+        metrics: {
+          members: 10,
+          proposalsCreated: 3,
+          proposalsExecuted: 2,
+          uniqueVoters: 50,
+          votes: 200,
+          tvlUSD: 20000,
+        },
+        isHidden: false,
+        isActive: true,
+        parentDao: '0x1111111111111111111111111111111111111111',
+        subDaos: [],
+      }
+
+      await Promise.all([Models.Dao.create(parentDao as any), Models.Dao.create(childDao as any)])
+    })
+
+    describe('findWithPaginationWithoutPlugins', () => {
+      it('should return DAOs without plugins', async () => {
+        const result = await Models.Dao.findWithPaginationWithoutPlugins({
+          extraParams: {},
+          paginationParams: {},
+          extraQueryData: {},
+        })
+
+        expect(result.data.length).to.eq(2)
+        expect(result.metadata.totalRecords).to.eq(2)
+        // V3 should NOT include plugins
+        expect(result.data[0]).to.not.have.property('plugins')
+      })
+
+      it('should return empty pagination response when memberAddress is provided and extraQueryData.daoAddresses is empty', async () => {
+        const paginationParams = { page: 1, pageSize: 10 }
+        const extraParams = { memberAddress: '0xMemberAddress' }
+        const extraQueryData = { daoAddresses: [] }
+
+        const result = await Models.Dao.findWithPaginationWithoutPlugins({
+          extraParams,
+          paginationParams,
+          extraQueryData,
+        })
+
+        const expected = ModelUtils.paginateEmptyResponse(paginationParams.pageSize)
+        expect(result).to.deep.equal(expected)
+      })
+
+      it('should filter by networks', async () => {
+        const result = await Models.Dao.findWithPaginationWithoutPlugins({
+          extraParams: {
+            networks: [NetworksEnum.polygonMainnet],
+          },
+          paginationParams: {},
+          extraQueryData: {},
+        })
+
+        expect(result.data.length).to.eq(2)
+        result.data.forEach(dao => {
+          expect(dao.network).to.eq(NetworksEnum.polygonMainnet)
+        })
+      })
+
+      it('should exclude dao when excludedDao is provided', async () => {
+        const extraParams = {
+          excludedDao: {
+            daoAddress: '0x1111111111111111111111111111111111111111',
+            network: NetworksEnum.polygonMainnet,
+          },
+        }
+        const extraQueryData = {
+          daoAddresses: ['0x1111111111111111111111111111111111111111', '0x2222222222222222222222222222222222222222'],
+        }
+
+        const result = await Models.Dao.findWithPaginationWithoutPlugins({
+          extraParams,
+          paginationParams: { page: 1, pageSize: 10 },
+          extraQueryData,
+        })
+
+        expect(result.data.length).to.eq(1)
+        expect(result.data[0].address).to.eq('0x2222222222222222222222222222222222222222')
+      })
+    })
+
+    describe('getDaoDetailsWithoutPlugins', () => {
+      it('should return DAO details without plugins', async () => {
+        const aggregateStub = sandbox.stub(Models.Dao, 'aggregate').returns([
+          {
+            address: '0x1111111111111111111111111111111111111111',
+            name: 'parent-dao',
+            parentDao: null,
+            subDaos: [{ address: '0x2222222222222222222222222222222222222222' }],
+          },
+        ] as any)
+
+        const result = await Models.Dao.getDaoDetailsWithoutPlugins(
+          '0x1111111111111111111111111111111111111111',
+          NetworksEnum.polygonMainnet,
+        )
+
+        expect(aggregateStub.calledOnce).to.be.true
+        expect(result).to.have.property('address')
+        expect(result).to.not.have.property('plugins')
+      })
+
+      it('should include parentDao and subDaos in response', async () => {
+        sandbox.stub(Models.Dao, 'aggregate').returns([
+          {
+            address: '0x1111111111111111111111111111111111111111',
+            name: 'parent-dao',
+            parentDao: null,
+            subDaos: [
+              {
+                address: '0x2222222222222222222222222222222222222222',
+                name: 'child-dao',
+              },
+            ],
+            metrics: { tvlUSD: 70000 },
+          },
+        ] as any)
+
+        const result = await Models.Dao.getDaoDetailsWithoutPlugins(
+          '0x1111111111111111111111111111111111111111',
+          NetworksEnum.polygonMainnet,
+        )
+
+        expect(result).to.have.property('parentDao')
+        expect(result).to.have.property('subDaos')
+        expect(result.subDaos).to.be.an('array')
+      })
+
+      it('should aggregate TVL from subDaos', async () => {
+        // Restore sandbox to use real aggregate for this test
+        sandbox.restore()
+
+        // Query the parent DAO
+        const result = await Models.Dao.getDaoDetailsWithoutPlugins(
+          '0x1111111111111111111111111111111111111111',
+          NetworksEnum.polygonMainnet,
+        )
+
+        // Parent TVL (50000) + Child TVL (20000) = 70000
+        expect(result.metrics.tvlUSD).to.eq(70000)
+      })
+    })
+  })
 })

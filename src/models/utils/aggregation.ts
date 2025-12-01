@@ -844,7 +844,8 @@ export const AggregationQueryHelper = {
     }
   },
 
-  pluginDetailsWithNestedSubPlugins: (network: string) => {
+  pluginDetailsWithNestedSubPlugins: (network: string, useNetworkFieldRef = false) => {
+    const networkValue = useNetworkFieldRef ? '$network' : network
     return [
       {
         $addFields: {
@@ -882,7 +883,7 @@ export const AggregationQueryHelper = {
       AggregationQueryHelper.plugin(
         {
           addresses: '$allPluginAddresses',
-          network,
+          network: networkValue,
           status: IPluginStatus.installed,
         },
         'allPluginDocs',

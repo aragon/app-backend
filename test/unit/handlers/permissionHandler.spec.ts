@@ -9,6 +9,7 @@ import { ethers } from 'ethers'
 import { MemberGovernanceFactory } from '@src/governance'
 import { PluginHandler } from '@handlers/pluginHandler'
 import Utils from '@helpers/utils'
+import { IPermission } from '@src/types/permission'
 
 describe('Indexer: Permission Handler', () => {
   let sandbox: SinonSandbox
@@ -601,6 +602,309 @@ describe('Indexer: Permission Handler', () => {
 
       expect(findExistingLog.calledOnce).to.be.true
       expect(loggerInfo.notCalled).to.be.true
+    })
+  })
+
+  describe('handleDaoLinkingOnGrant', () => {
+    const network = NetworksEnum.ethereumSepolia
+    const parentDaoAddress = '0x1111111111111111111111111111111111111111'
+    const childDaoAddress = '0x2222222222222222222222222222222222222222'
+
+    it('should link DAOs when parent triggers and child permission already exists', async () => {
+      const parentToSubPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
+
+      const mockParentDao = {
+        address: parentDaoAddress,
+        parentDao: null,
+        subDaos: [],
+        update: sandbox.stub().resolves(),
+      }
+      const mockChildDao = {
+        address: childDaoAddress,
+        parentDao: null,
+        subDaos: [],
+        update: sandbox.stub().resolves(),
+      }
+
+      sandbox.stub(Models.Dao, 'findByAddress').callsFake(addr => {
+        if (addr === parentDaoAddress) return Promise.resolve(mockParentDao)
+        if (addr === childDaoAddress) return Promise.resolve(mockChildDao)
+        return Promise.resolve(null)
+      })
+
+      sandbox.stub(Models.DaoPermission, 'findActiveAcknowledgementPermission').resolves({ id: 'existing' } as any)
+
+      const linkDaosStub = sandbox.stub(PermissionHandler, 'linkDaos').resolves()
+
+      await PermissionHandler.handleDaoLinkingOnGrant(
+        parentDaoAddress,
+        childDaoAddress,
+        parentToSubPermissionId,
+        network,
+      )
+
+      expect(linkDaosStub.calledOnce).to.be.true
+      expect(linkDaosStub.calledWith(mockParentDao, mockChildDao, network)).to.be.true
+    })
+
+    it('should link DAOs when child triggers and parent permission already exists', async () => {
+      const subToParentPermissionId = ethers.id(IPermission.SUB_DAO_TO_PARENT_ACKNOWLEDGEMENT_PERMISSION_ID)
+
+      const mockParentDao = {
+        address: parentDaoAddress,
+        parentDao: null,
+        subDaos: [],
+        update: sandbox.stub().resolves(),
+      }
+      const mockChildDao = {
+        address: childDaoAddress,
+        parentDao: null,
+        subDaos: [],
+        update: sandbox.stub().resolves(),
+      }
+
+      sandbox.stub(Models.Dao, 'findByAddress').callsFake(addr => {
+        if (addr === parentDaoAddress) return Promise.resolve(mockParentDao)
+        if (addr === childDaoAddress) return Promise.resolve(mockChildDao)
+        return Promise.resolve(null)
+      })
+
+      sandbox.stub(Models.DaoPermission, 'findActiveAcknowledgementPermission').resolves({ id: 'existing' } as any)
+
+      const linkDaosStub = sandbox.stub(PermissionHandler, 'linkDaos').resolves()
+
+      await PermissionHandler.handleDaoLinkingOnGrant(
+        childDaoAddress,
+        parentDaoAddress,
+        subToParentPermissionId,
+        network,
+      )
+
+      expect(linkDaosStub.calledOnce).to.be.true
+      expect(linkDaosStub.calledWith(mockParentDao, mockChildDao, network)).to.be.true
+    })
+
+    it('should not link when counterpart permission does not exist', async () => {
+      const parentToSubPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
+
+      const mockParentDao = {
+        address: parentDaoAddress,
+        parentDao: null,
+        subDaos: [],
+      }
+      const mockChildDao = {
+        address: childDaoAddress,
+        parentDao: null,
+        subDaos: [],
+      }
+
+      sandbox.stub(Models.Dao, 'findByAddress').callsFake(addr => {
+        if (addr === parentDaoAddress) return Promise.resolve(mockParentDao)
+        if (addr === childDaoAddress) return Promise.resolve(mockChildDao)
+        return Promise.resolve(null)
+      })
+
+      sandbox.stub(Models.DaoPermission, 'findActiveAcknowledgementPermission').resolves(null)
+
+      const linkDaosStub = sandbox.stub(PermissionHandler, 'linkDaos').resolves()
+      sandbox.stub(logger, 'verbose')
+
+      await PermissionHandler.handleDaoLinkingOnGrant(
+        parentDaoAddress,
+        childDaoAddress,
+        parentToSubPermissionId,
+        network,
+      )
+
+      expect(linkDaosStub.called).to.be.false
+    })
+
+    it('should reject linking when parent DAO is already a child', async () => {
+      const parentToSubPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
+
+      const mockParentDao = {
+        address: parentDaoAddress,
+        parentDao: '0x3333333333333333333333333333333333333333',
+        subDaos: [],
+      }
+      const mockChildDao = {
+        address: childDaoAddress,
+        parentDao: null,
+        subDaos: [],
+      }
+
+      sandbox.stub(Models.Dao, 'findByAddress').callsFake(addr => {
+        if (addr === parentDaoAddress) return Promise.resolve(mockParentDao)
+        if (addr === childDaoAddress) return Promise.resolve(mockChildDao)
+        return Promise.resolve(null)
+      })
+
+      const linkDaosStub = sandbox.stub(PermissionHandler, 'linkDaos').resolves()
+      sandbox.stub(logger, 'warn')
+
+      await PermissionHandler.handleDaoLinkingOnGrant(
+        parentDaoAddress,
+        childDaoAddress,
+        parentToSubPermissionId,
+        network,
+      )
+
+      expect(linkDaosStub.called).to.be.false
+    })
+
+    it('should reject linking when child DAO already has sub-DAOs (is a parent)', async () => {
+      const parentToSubPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
+
+      const mockParentDao = {
+        address: parentDaoAddress,
+        parentDao: null,
+        subDaos: [],
+      }
+      const mockChildDao = {
+        address: childDaoAddress,
+        parentDao: null,
+        subDaos: ['0x4444444444444444444444444444444444444444'],
+      }
+
+      sandbox.stub(Models.Dao, 'findByAddress').callsFake(addr => {
+        if (addr === parentDaoAddress) return Promise.resolve(mockParentDao)
+        if (addr === childDaoAddress) return Promise.resolve(mockChildDao)
+        return Promise.resolve(null)
+      })
+
+      const linkDaosStub = sandbox.stub(PermissionHandler, 'linkDaos').resolves()
+      sandbox.stub(logger, 'warn')
+
+      await PermissionHandler.handleDaoLinkingOnGrant(
+        parentDaoAddress,
+        childDaoAddress,
+        parentToSubPermissionId,
+        network,
+      )
+
+      expect(linkDaosStub.called).to.be.false
+    })
+
+    it('should reject linking when child DAO already has a different parent', async () => {
+      const parentToSubPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
+
+      const mockParentDao = {
+        address: parentDaoAddress,
+        parentDao: null,
+        subDaos: [],
+      }
+      const mockChildDao = {
+        address: childDaoAddress,
+        parentDao: '0x5555555555555555555555555555555555555555',
+        subDaos: [],
+      }
+
+      sandbox.stub(Models.Dao, 'findByAddress').callsFake(addr => {
+        if (addr === parentDaoAddress) return Promise.resolve(mockParentDao)
+        if (addr === childDaoAddress) return Promise.resolve(mockChildDao)
+        return Promise.resolve(null)
+      })
+
+      const linkDaosStub = sandbox.stub(PermissionHandler, 'linkDaos').resolves()
+      sandbox.stub(logger, 'warn')
+
+      await PermissionHandler.handleDaoLinkingOnGrant(
+        parentDaoAddress,
+        childDaoAddress,
+        parentToSubPermissionId,
+        network,
+      )
+
+      expect(linkDaosStub.called).to.be.false
+    })
+
+    it('should skip linking when one or both DAOs do not exist', async () => {
+      const parentToSubPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
+
+      const linkDaosStub = sandbox.stub(PermissionHandler, 'linkDaos').resolves()
+      sandbox.stub(logger, 'verbose')
+
+      await PermissionHandler.handleDaoLinkingOnGrant(
+        parentDaoAddress,
+        childDaoAddress,
+        parentToSubPermissionId,
+        network,
+      )
+
+      expect(linkDaosStub.called).to.be.false
+    })
+  })
+
+  describe('handleDaoUnlinkingOnRevoke', () => {
+    const network = NetworksEnum.ethereumSepolia
+    const parentDaoAddress = '0x1111111111111111111111111111111111111111'
+    const childDaoAddress = '0x2222222222222222222222222222222222222222'
+
+    it('should unlink DAOs when permission is revoked', async () => {
+      const parentToSubPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
+
+      const mockParentDao = {
+        address: parentDaoAddress,
+        parentDao: null,
+        subDaos: [childDaoAddress],
+      }
+      const mockChildDao = {
+        address: childDaoAddress,
+        parentDao: parentDaoAddress,
+        subDaos: [],
+      }
+
+      sandbox.stub(Models.Dao, 'findByAddress').callsFake(addr => {
+        if (addr === parentDaoAddress) return Promise.resolve(mockParentDao)
+        if (addr === childDaoAddress) return Promise.resolve(mockChildDao)
+        return Promise.resolve(null)
+      })
+
+      const unlinkDaosStub = sandbox.stub(PermissionHandler, 'unlinkDaos').resolves()
+
+      await PermissionHandler.handleDaoUnlinkingOnRevoke(
+        parentDaoAddress,
+        childDaoAddress,
+        parentToSubPermissionId,
+        network,
+      )
+
+      expect(unlinkDaosStub.calledOnce).to.be.true
+      expect(unlinkDaosStub.calledWith(mockParentDao, mockChildDao, network)).to.be.true
+    })
+
+    it('should not unlink if link does not exist', async () => {
+      const parentToSubPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
+
+      const mockParentDao = {
+        address: parentDaoAddress,
+        parentDao: null,
+        subDaos: [],
+      }
+      const mockChildDao = {
+        address: childDaoAddress,
+        parentDao: null,
+        subDaos: [],
+      }
+
+      sandbox.stub(Models.Dao, 'findByAddress').callsFake(addr => {
+        if (addr === parentDaoAddress) return Promise.resolve(mockParentDao)
+        if (addr === childDaoAddress) return Promise.resolve(mockChildDao)
+        return Promise.resolve(null)
+      })
+
+      const unlinkDaosStub = sandbox.stub(PermissionHandler, 'unlinkDaos').resolves()
+
+      await PermissionHandler.handleDaoUnlinkingOnRevoke(
+        parentDaoAddress,
+        childDaoAddress,
+        parentToSubPermissionId,
+        network,
+      )
+
+      expect(unlinkDaosStub.called).to.be.false
     })
   })
 })
