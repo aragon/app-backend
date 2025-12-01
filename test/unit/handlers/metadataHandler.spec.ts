@@ -11,7 +11,6 @@ import DbOperations from '@models/utils/dbOperations'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import { PluginSlug } from '@helpers/pluginSlug'
 import Web3Utils from '@helpers/web3Utils'
-import { DaoList } from '@test/mock/fakeDao'
 
 describe('Indexer: MetadataHandler', () => {
   let sandbox: SinonSandbox
