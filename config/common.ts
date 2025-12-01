@@ -340,7 +340,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         DRPC_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_DRPC_API_KEY', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_FROM_BLOCK', 37460765), // zkSync ERA
-        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_OFFSET_TO_BLOCK', 1),
+        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_OFFSET_TO_BLOCK', 2),
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_POOLING_INTERVAL', 5 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_INTERVAL_BLOCK_TIME', 3),
@@ -357,7 +357,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         DRPC_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_DRPC_API_KEY', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_FROM_BLOCK', 145462155),
-        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_OFFSET_TO_BLOCK', 1),
+        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_OFFSET_TO_BLOCK', 2),
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_POOLING_INTERVAL', 5 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_INTERVAL_BLOCK_TIME', 5),
