@@ -11,6 +11,7 @@ import {
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
 import { assert } from '@errors'
+import { AggregationQueryHelper } from '@models/utils/aggregation'
 
 const customName = ICollectionNames.Plugin
 
@@ -374,6 +375,110 @@ export default class Plugin extends Model {
     }
 
     return await this.find(filter).sort({ blockNumber: -1 }).lean().exec()
+  }
+
+  static async findByDaoAddressesWithDetails({
+    daoAddresses,
+    network,
+  }: {
+    daoAddresses: HexAddress[]
+    network: NetworksEnum
+  }) {
+    const aggQuery: any = [
+      {
+        $match: {
+          daoAddress: { $in: daoAddresses },
+          network,
+          status: IPluginStatus.installed,
+        },
+      },
+      {
+        $sort: { blockNumber: -1 as const },
+      },
+      AggregationQueryHelper.setting(
+        {
+          pluginAddress: '$address',
+          network: '$network',
+        },
+        'settings',
+        {
+          _id: 0,
+          onlyListed: 1,
+          minApprovals: 1,
+          votingMode: 1,
+          supportThreshold: 1,
+          minParticipation: 1,
+          minDuration: 1,
+          minProposerVotingPower: 1,
+          stages: 1,
+          votingEscrow: 1,
+        },
+      ),
+      AggregationQueryHelper.token(
+        {
+          address: '$tokenAddress',
+          network: '$network',
+        },
+        'token',
+        {
+          _id: 0,
+          network: 1,
+          address: 1,
+          symbol: 1,
+          name: 1,
+          decimals: 1,
+          logo: 1,
+          isGovernance: 1,
+          ignoreTransfer: 1,
+          hasDelegate: 1,
+          underlying: 1,
+          type: 1,
+          totalSupply: 1,
+          mintableByDao: 1,
+        },
+      ),
+      {
+        $addFields: {
+          settings: {
+            $mergeObjects: [{ $arrayElemAt: ['$settings', 0] }, { token: { $arrayElemAt: ['$token', 0] } }],
+          },
+        },
+      },
+      AggregationQueryHelper.pluginSlug(
+        {
+          pluginAddress: '$address',
+          network: '$network',
+        },
+        'pluginSlug',
+      ),
+      {
+        $addFields: {
+          slug: { $arrayElemAt: ['$pluginSlug.slug', 0] },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          __v: 0,
+          permissions: 0,
+          uninstalled: 0,
+          hasTarget: 0,
+          sender: 0,
+          token: 0,
+          pluginSlug: 0,
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          plugins: { $push: '$$ROOT' },
+        },
+      },
+      ...AggregationQueryHelper.pluginDetailsWithNestedSubPlugins(network),
+    ]
+
+    const result = await this.aggregate(aggQuery)
+    return result?.[0]?.plugins || []
   }
 
   async update(params: Partial<Plugin>, tOpts?: SaveOptions) {

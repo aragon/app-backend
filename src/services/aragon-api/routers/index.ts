@@ -3,6 +3,7 @@ import Router from '@koa/router'
 import StatusRouter from '@api/status'
 import V1Router from './v1'
 import V2Router from './v2'
+import V3Router from './v3'
 
 const MainRouter = {
   /**
@@ -48,6 +49,7 @@ const MainRouter = {
     const statusRouter = StatusRouter.router()
     const v1Router = V1Router.router()
     const v2Router = V2Router.router()
+    const v3Router = V3Router.router()
 
     // Mount non-versioned endpoints
     mainRouter.get('/health', ctx => (ctx.status = 200))
@@ -56,6 +58,7 @@ const MainRouter = {
     // Mount explicit version paths
     mainRouter.use('/v1', v1Router.routes(), v1Router.allowedMethods())
     mainRouter.use('/v2', v2Router.routes(), v2Router.allowedMethods())
+    mainRouter.use('/v3', v3Router.routes(), v3Router.allowedMethods())
 
     // Set up root path versioning with fallback
     MainRouter.createVersionedRootPaths(mainRouter, v1Router, v2Router)

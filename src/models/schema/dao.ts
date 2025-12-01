@@ -84,6 +84,8 @@ class Metrics {
 @index({ network: 1, isActive: 1, isHidden: 1 })
 @index({ network: 1, isActive: 1, name: 1, isHidden: 1 })
 @index({ network: 1 })
+@index({ parentDao: 1, isActive: 1, isHidden: 1 })
+@index({ subDaos: 1, isActive: 1, isHidden: 1 })
 export default class Dao extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -139,6 +141,12 @@ export default class Dao extends Model {
   @prop({ type: () => String, default: null })
   public version!: string
 
+  @prop({ type: () => String, default: null })
+  public parentDao?: string | null
+
+  @prop({ type: () => [String], default: [] })
+  public subDaos?: string[]
+
   @prop({ type: () => Metrics, _id: false, default: {} })
   public metrics?: Metrics
 
@@ -172,6 +180,317 @@ export default class Dao extends Model {
     return await this.findOne({ address, network }, null, tOpts)
   }
 
+  /**
+   * DAO pagination without plugins (uses separate plugins endpoint)
+   * Includes parentDao/subDaos support
+   */
+  static async findWithPaginationWithoutPlugins({
+    extraParams = {},
+    paginationParams = {},
+    extraQueryData = {},
+  }: {
+    extraParams?: IDaoExtraParams
+    paginationParams?: IPaginationParams
+    extraQueryData: IExtraQueryData
+  }): Promise<IPaginatedResult<IDaoResponse>> {
+    const request = ModelUtils.paginateAndSort(paginationParams)
+    const dynamicFilter = Object.fromEntries(
+      Object.entries(extraParams).filter(
+        ([key, value]) =>
+          value !== undefined &&
+          key !== 'networks' &&
+          key !== 'pluginAddress' &&
+          key !== 'memberAddress' &&
+          key !== 'excludeDaoId' &&
+          key !== 'excludedDao',
+      ),
+    )
+    const filter = {
+      ...ModelUtils.createFilter(paginationParams, [
+        'address',
+        'implementationAddress',
+        'creatorAddress',
+        'ens',
+        'name',
+        'description',
+        'subdomain',
+        'transactionHash',
+      ]),
+      ...dynamicFilter,
+    }
+
+    filter.isHidden = { $ne: true }
+    filter.isActive = { $eq: true }
+
+    if (extraQueryData.daoAddresses && extraQueryData.daoAddresses.length > 0) {
+      let filteredDaoAddresses = extraQueryData.daoAddresses
+
+      if (extraParams.excludedDao?.daoAddress) {
+        const excludedAddress = extraParams.excludedDao.daoAddress
+        filteredDaoAddresses = extraQueryData.daoAddresses.filter(address => address !== excludedAddress)
+      }
+
+      filter.address = { $in: filteredDaoAddresses }
+    }
+
+    if (extraParams.memberAddress && extraQueryData.daoAddresses?.length === 0) {
+      return ModelUtils.paginateEmptyResponse(request.limit)
+    }
+
+    if (extraParams.networks && extraParams.networks.length > 0) {
+      filter.network = { $in: extraParams.networks }
+    }
+
+    const aggQuery = [
+      { $match: filter },
+      { $sort: request?.sort },
+      { $skip: request?.skip },
+      { $limit: request?.limit },
+      AggregationQueryHelper.member(
+        {
+          memberAddress: '$creatorAddress',
+        },
+        'creator',
+      ),
+      {
+        $addFields: {
+          creator: {
+            $cond: {
+              if: { $gt: [{ $size: '$creator' }, 0] },
+              then: {
+                address: { $arrayElemAt: ['$creator.address', 0] },
+                ens: { $arrayElemAt: ['$creator.ens', 0] },
+                avatar: { $arrayElemAt: ['$creator.avatar', 0] },
+              },
+              else: {
+                address: '$creatorAddress',
+                ens: null,
+                avatar: null,
+              },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          creatorAddress: '$$REMOVE',
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          __v: 0,
+          isActive: 0,
+          isHidden: 0,
+          createdAt: 0,
+          updatedAt: 0,
+        },
+      },
+    ]
+
+    const currentPage = request.skip / request.limit + 1
+
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate(aggQuery),
+      this.aggregate([{ $match: filter }, { $count: 'totalRecords' }]),
+    ])
+
+    const _totalRecords = totalRecords?.[0]?.totalRecords ?? 0
+    const totalPages = Math.ceil(_totalRecords / request.limit)
+
+    if (currentPage > totalPages) {
+      return ModelUtils.paginateEmptyResponse(request.limit)
+    }
+
+    return {
+      metadata: {
+        page: currentPage,
+        pageSize: request.limit,
+        totalPages,
+        totalRecords: _totalRecords,
+      },
+      data: data as any,
+    }
+  }
+
+  /**
+   * DAO details without plugins (uses separate plugins endpoint)
+   * Includes parentDao/subDaos lookup with aggregated TVL
+   */
+  static async getDaoDetailsWithoutPlugins(address: HexAddress, network: NetworksEnum) {
+    const query = [
+      {
+        $match: {
+          address,
+          network,
+          isHidden: { $ne: true },
+          isActive: { $eq: true },
+        },
+      },
+      AggregationQueryHelper.member(
+        {
+          memberAddress: '$creatorAddress',
+        },
+        'creator',
+      ),
+      {
+        $addFields: {
+          creator: {
+            $cond: {
+              if: { $gt: [{ $size: '$creator' }, 0] },
+              then: {
+                address: { $arrayElemAt: ['$creator.address', 0] },
+                ens: { $arrayElemAt: ['$creator.ens', 0] },
+                avatar: { $arrayElemAt: ['$creator.avatar', 0] },
+              },
+              else: {
+                address: '$creatorAddress',
+                ens: null,
+                avatar: null,
+              },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          creatorAddress: '$$REMOVE',
+        },
+      },
+      {
+        $lookup: {
+          from: ICollectionNames.Dao,
+          let: { parentDaoId: '$parentDao' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$address', '$$parentDaoId'] },
+                    { $eq: ['$isActive', true] },
+                    { $ne: ['$isHidden', true] },
+                  ],
+                },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                id: 1,
+                network: 1,
+                address: 1,
+                name: 1,
+                description: 1,
+                avatar: 1,
+                ens: 1,
+                subdomain: 1,
+                links: 1,
+                metrics: 1,
+                transactionHash: 1,
+                blockNumber: 1,
+                blockTimestamp: 1,
+                version: 1,
+              },
+            },
+          ],
+          as: 'parentDao',
+        },
+      },
+      {
+        $addFields: {
+          parentDao: { $arrayElemAt: ['$parentDao', 0] },
+        },
+      },
+      {
+        $lookup: {
+          from: ICollectionNames.Dao,
+          let: { subDaoIds: '$subDaos' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $in: ['$address', '$$subDaoIds'] },
+                    { $eq: ['$isActive', true] },
+                    { $ne: ['$isHidden', true] },
+                  ],
+                },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                id: 1,
+                network: 1,
+                address: 1,
+                name: 1,
+                description: 1,
+                avatar: 1,
+                ens: 1,
+                subdomain: 1,
+                links: 1,
+                metrics: 1,
+                transactionHash: 1,
+                blockNumber: 1,
+                blockTimestamp: 1,
+              },
+            },
+          ],
+          as: 'subDaos',
+        },
+      },
+      {
+        $addFields: {
+          'metrics.tvlUSD': {
+            $add: [
+              { $ifNull: ['$metrics.tvlUSD', 0] },
+              {
+                $reduce: {
+                  input: '$subDaos',
+                  initialValue: 0,
+                  in: {
+                    $add: ['$$value', { $ifNull: ['$$this.metrics.tvlUSD', 0] }],
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          id: 1,
+          isSupported: 1,
+          network: 1,
+          transactionHash: 1,
+          blockNumber: 1,
+          blockTimestamp: 1,
+          address: 1,
+          implementationAddress: 1,
+          creator: 1,
+          ens: 1,
+          subdomain: 1,
+          metadataIpfs: 1,
+          name: 1,
+          description: 1,
+          avatar: 1,
+          version: 1,
+          parentDao: 1,
+          subDaos: 1,
+          metrics: 1,
+          links: 1,
+        },
+      },
+    ]
+
+    const results = await this.aggregate(query)
+    return results?.[0] as IMembersResponse
+  }
+
+  /**
+   * DAO pagination with plugins included in response
+   */
   static async findWithPagination({
     extraParams = {},
     paginationParams = {},
@@ -261,7 +580,6 @@ export default class Dao extends Model {
           interfaceType: 1,
           conditionAddress: 1,
           lockManagerAddress: 1,
-          // status: 1,
           release: 1,
           build: 1,
           subdomain: 1,
@@ -325,173 +643,7 @@ export default class Dao extends Model {
       },
 
       // populate plugin in settings
-      {
-        $addFields: {
-          allPluginAddresses: {
-            $reduce: {
-              input: '$plugins',
-              initialValue: [],
-              in: {
-                $concatArrays: [
-                  '$$value',
-                  {
-                    $reduce: {
-                      input: { $ifNull: ['$$this.settings.stages', []] },
-                      initialValue: [],
-                      in: {
-                        $concatArrays: [
-                          '$$value',
-                          {
-                            $map: {
-                              input: { $ifNull: ['$$this.plugins', []] },
-                              as: 'stagePlugin',
-                              in: '$$stagePlugin.address',
-                            },
-                          },
-                        ],
-                      },
-                    },
-                  },
-                ],
-              },
-            },
-          },
-        },
-      },
-      AggregationQueryHelper.plugin(
-        {
-          addresses: '$allPluginAddresses',
-          network: '$network',
-          status: IPluginStatus.installed,
-        },
-        'allPluginDocs',
-        {
-          _id: 0,
-          transactionHash: 1,
-          blockTimestamp: 1,
-          address: 1,
-          implementationAddress: 1,
-          name: 1,
-          description: 1,
-          processKey: 1,
-          slug: 1,
-          links: 1,
-          isSupported: 1,
-          interfaceType: 1,
-          conditionAddress: 1,
-          lockManagerAddress: 1,
-          enableOfacCheck: 1,
-          blockedCountries: 1,
-          termsConditionsUrl: 1,
-          // status: 1,
-          release: 1,
-          build: 1,
-          subdomain: 1,
-          isProcess: 1,
-          proposalCreationConditionAddress: 1,
-          isBody: 1,
-          isSubPlugin: 1,
-          totalStages: 1,
-          subPlugins: 1,
-          stageIndex: 1,
-          parentPlugin: 1,
-          tokenAddress: 1,
-          votingEscrow: 1,
-        },
-      ),
-      {
-        $addFields: {
-          plugins: {
-            $map: {
-              input: '$plugins',
-              as: 'plugin',
-              in: {
-                $mergeObjects: [
-                  '$$plugin',
-                  {
-                    settings: {
-                      $cond: {
-                        if: { $gt: ['$$plugin.settings', null] },
-                        then: {
-                          $mergeObjects: [
-                            '$$plugin.settings',
-                            {
-                              stages: {
-                                $map: {
-                                  input: { $ifNull: ['$$plugin.settings.stages', []] },
-                                  as: 'stage',
-                                  in: {
-                                    $mergeObjects: [
-                                      '$$stage',
-                                      {
-                                        plugins: {
-                                          $map: {
-                                            input: { $ifNull: ['$$stage.plugins', []] },
-                                            as: 'stagePlugin',
-                                            in: {
-                                              $let: {
-                                                vars: {
-                                                  stagePluginClean: {
-                                                    $arrayToObject: {
-                                                      $filter: {
-                                                        input: {
-                                                          $objectToArray: '$$stagePlugin',
-                                                        },
-                                                        as: 'field',
-                                                        cond: {
-                                                          $not: {
-                                                            $in: ['$$field.k', ['isManual', 'allowedBody']],
-                                                          },
-                                                        },
-                                                      },
-                                                    },
-                                                  },
-                                                  matchedPlugin: {
-                                                    $arrayElemAt: [
-                                                      {
-                                                        $filter: {
-                                                          input: '$allPluginDocs',
-                                                          as: 'pluginDoc',
-                                                          cond: {
-                                                            $eq: ['$$pluginDoc.address', '$$stagePlugin.address'],
-                                                          },
-                                                        },
-                                                      },
-                                                      0,
-                                                    ],
-                                                  },
-                                                },
-                                                in: {
-                                                  $mergeObjects: ['$$stagePluginClean', '$$matchedPlugin'],
-                                                },
-                                              },
-                                            },
-                                          },
-                                        },
-                                      },
-                                    ],
-                                  },
-                                },
-                              },
-                            },
-                          ],
-                        },
-                        else: null,
-                      },
-                    },
-                  },
-                ],
-              },
-            },
-          },
-        },
-      },
-      {
-        $project: {
-          allPluginAddresses: 0,
-          allPluginDocs: 0,
-        },
-      },
+      ...AggregationQueryHelper.pluginDetailsWithNestedSubPlugins('', true),
 
       {
         $project: {
@@ -530,7 +682,10 @@ export default class Dao extends Model {
     }
   }
 
-  // INFO: for multiple plugins we cannot extract the voting power and balance of the members
+  /**
+   * V2 API: DAO details with plugins included in response
+   * Original behavior before v3 separation
+   */
   static async getDaoDetails(address: HexAddress, network: NetworksEnum) {
     const query = [
       {
@@ -597,7 +752,6 @@ export default class Dao extends Model {
           enableOfacCheck: 1,
           blockedCountries: 1,
           termsConditionsUrl: 1,
-          // status: 1,
           release: 1,
           build: 1,
           subdomain: 1,
@@ -616,173 +770,7 @@ export default class Dao extends Model {
       ),
 
       // populate plugin in settings
-      {
-        $addFields: {
-          allPluginAddresses: {
-            $reduce: {
-              input: '$plugins',
-              initialValue: [],
-              in: {
-                $concatArrays: [
-                  '$$value',
-                  {
-                    $reduce: {
-                      input: { $ifNull: ['$$this.settings.stages', []] },
-                      initialValue: [],
-                      in: {
-                        $concatArrays: [
-                          '$$value',
-                          {
-                            $map: {
-                              input: { $ifNull: ['$$this.plugins', []] },
-                              as: 'stagePlugin',
-                              in: '$$stagePlugin.address',
-                            },
-                          },
-                        ],
-                      },
-                    },
-                  },
-                ],
-              },
-            },
-          },
-        },
-      },
-      AggregationQueryHelper.plugin(
-        {
-          addresses: '$allPluginAddresses',
-          network: '$network',
-          status: IPluginStatus.installed,
-        },
-        'allPluginDocs',
-        {
-          _id: 0,
-          transactionHash: 1,
-          blockTimestamp: 1,
-          address: 1,
-          implementationAddress: 1,
-          name: 1,
-          description: 1,
-          processKey: 1,
-          slug: 1,
-          links: 1,
-          isSupported: 1,
-          interfaceType: 1,
-          conditionAddress: 1,
-          lockManagerAddress: 1,
-          // status: 1,
-          release: 1,
-          build: 1,
-          subdomain: 1,
-          isProcess: 1,
-          proposalCreationConditionAddress: 1,
-          isBody: 1,
-          isSubPlugin: 1,
-          totalStages: 1,
-          subPlugins: 1,
-          stageIndex: 1,
-          parentPlugin: 1,
-          tokenAddress: 1,
-          votingEscrow: 1,
-          enableOfacCheck: 1,
-          blockedCountries: 1,
-          termsConditionsUrl: 1,
-        },
-      ),
-      {
-        $addFields: {
-          plugins: {
-            $map: {
-              input: '$plugins',
-              as: 'plugin',
-              in: {
-                $mergeObjects: [
-                  '$$plugin',
-                  {
-                    settings: {
-                      $cond: {
-                        if: { $gt: ['$$plugin.settings', null] },
-                        then: {
-                          $mergeObjects: [
-                            '$$plugin.settings',
-                            {
-                              stages: {
-                                $map: {
-                                  input: { $ifNull: ['$$plugin.settings.stages', []] },
-                                  as: 'stage',
-                                  in: {
-                                    $mergeObjects: [
-                                      '$$stage',
-                                      {
-                                        plugins: {
-                                          $map: {
-                                            input: { $ifNull: ['$$stage.plugins', []] },
-                                            as: 'stagePlugin',
-                                            in: {
-                                              $let: {
-                                                vars: {
-                                                  stagePluginClean: {
-                                                    $arrayToObject: {
-                                                      $filter: {
-                                                        input: {
-                                                          $objectToArray: '$$stagePlugin',
-                                                        },
-                                                        as: 'field',
-                                                        cond: {
-                                                          $not: {
-                                                            $in: ['$$field.k', ['isManual', 'allowedBody']],
-                                                          },
-                                                        },
-                                                      },
-                                                    },
-                                                  },
-                                                  matchedPlugin: {
-                                                    $arrayElemAt: [
-                                                      {
-                                                        $filter: {
-                                                          input: '$allPluginDocs',
-                                                          as: 'pluginDoc',
-                                                          cond: {
-                                                            $eq: ['$$pluginDoc.address', '$$stagePlugin.address'],
-                                                          },
-                                                        },
-                                                      },
-                                                      0,
-                                                    ],
-                                                  },
-                                                },
-                                                in: {
-                                                  $mergeObjects: ['$$stagePluginClean', '$$matchedPlugin'],
-                                                },
-                                              },
-                                            },
-                                          },
-                                        },
-                                      },
-                                    ],
-                                  },
-                                },
-                              },
-                            },
-                          ],
-                        },
-                        else: null,
-                      },
-                    },
-                  },
-                ],
-              },
-            },
-          },
-        },
-      },
-      {
-        $project: {
-          allPluginAddresses: 0,
-          allPluginDocs: 0,
-        },
-      },
+      ...AggregationQueryHelper.pluginDetailsWithNestedSubPlugins('', true),
 
       {
         $addFields: {
