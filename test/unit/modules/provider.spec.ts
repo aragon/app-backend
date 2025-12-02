@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import ProviderModule from '@modules/provider'
-import { IProviderType, NetworksEnum, AlchemyNetwork } from '@types'
+import { IProviderType, NetworksEnum, AlchemyNetwork, DrpcNetwork } from '@types'
 import config from '@config'
 import proxyquire from 'proxyquire'
 import logger from '@logger'
@@ -42,6 +42,19 @@ describe('Module: provider', () => {
     expect(ProviderModule.alchemyNetworksMap[NetworksEnum.zksyncMainnet]).to.equal(AlchemyNetwork.ZKSYNC_MAINNET)
     expect(ProviderModule.alchemyNetworksMap[NetworksEnum.optimismMainnet]).to.equal(AlchemyNetwork.OPT_MAINNET)
     expect(ProviderModule.alchemyNetworksMap[NetworksEnum.chilizMainnet]).to.equal(AlchemyNetwork.CHILIZ_MAINNET)
+  })
+
+  it('drpcNetworksMap', () => {
+    expect(ProviderModule.drpcNetworksMap[NetworksEnum.ethereumMainnet]).to.equal(DrpcNetwork.ETH_MAINNET)
+    expect(ProviderModule.drpcNetworksMap[NetworksEnum.ethereumSepolia]).to.equal(DrpcNetwork.ETH_SEPOLIA)
+    expect(ProviderModule.drpcNetworksMap[NetworksEnum.polygonMainnet]).to.equal(DrpcNetwork.POLYGON_MAINNET)
+    expect(ProviderModule.drpcNetworksMap[NetworksEnum.baseMainnet]).to.equal(DrpcNetwork.BASE_MAINNET)
+    expect(ProviderModule.drpcNetworksMap[NetworksEnum.arbitrumMainnet]).to.equal(DrpcNetwork.ARB_MAINNET)
+    expect(ProviderModule.drpcNetworksMap[NetworksEnum.zksyncSepolia]).to.equal(DrpcNetwork.ZKSYNC_SEPOLIA)
+    expect(ProviderModule.drpcNetworksMap[NetworksEnum.zksyncMainnet]).to.equal(DrpcNetwork.ZKSYNC_MAINNET)
+    expect(ProviderModule.drpcNetworksMap[NetworksEnum.optimismMainnet]).to.equal(DrpcNetwork.OPT_MAINNET)
+    expect(ProviderModule.drpcNetworksMap[NetworksEnum.avaxMainnet]).to.equal(DrpcNetwork.AVAX_MAINNET)
+    expect(ProviderModule.drpcNetworksMap[NetworksEnum.katanaMainnet]).to.equal(DrpcNetwork.KATANA_MAINNET)
   })
 
   it('should correctly parseNetworkChain', () => {
@@ -123,6 +136,22 @@ describe('Module: provider', () => {
 
     const result9 = ProviderModule.parseAlchemyNetwork(NetworksEnum.chilizMainnet)
     expect(result9).to.equal(AlchemyNetwork.CHILIZ_MAINNET)
+  })
+
+  it('should correctly parseDrpcNetwork', () => {
+    expect(ProviderModule.parseDrpcNetwork(NetworksEnum.ethereumMainnet)).to.equal(DrpcNetwork.ETH_MAINNET)
+    expect(ProviderModule.parseDrpcNetwork(NetworksEnum.ethereumSepolia)).to.equal(DrpcNetwork.ETH_SEPOLIA)
+    expect(ProviderModule.parseDrpcNetwork(NetworksEnum.polygonMainnet)).to.equal(DrpcNetwork.POLYGON_MAINNET)
+    expect(ProviderModule.parseDrpcNetwork(NetworksEnum.baseMainnet)).to.equal(DrpcNetwork.BASE_MAINNET)
+    expect(ProviderModule.parseDrpcNetwork(NetworksEnum.arbitrumMainnet)).to.equal(DrpcNetwork.ARB_MAINNET)
+    expect(ProviderModule.parseDrpcNetwork(NetworksEnum.zksyncSepolia)).to.equal(DrpcNetwork.ZKSYNC_SEPOLIA)
+    expect(ProviderModule.parseDrpcNetwork(NetworksEnum.zksyncMainnet)).to.equal(DrpcNetwork.ZKSYNC_MAINNET)
+    expect(ProviderModule.parseDrpcNetwork(NetworksEnum.optimismMainnet)).to.equal(DrpcNetwork.OPT_MAINNET)
+    expect(ProviderModule.parseDrpcNetwork(NetworksEnum.avaxMainnet)).to.equal(DrpcNetwork.AVAX_MAINNET)
+    expect(ProviderModule.parseDrpcNetwork(NetworksEnum.katanaMainnet)).to.equal(DrpcNetwork.KATANA_MAINNET)
+    // Networks not supported by DRPC should return undefined
+    expect(ProviderModule.parseDrpcNetwork(NetworksEnum.chilizMainnet)).to.be.undefined
+    expect(ProviderModule.parseDrpcNetwork(NetworksEnum.peaqMainnet)).to.be.undefined
   })
 
   it('connectToAllNetworks should call connectToNetwork for each node configured', async () => {
@@ -216,6 +245,49 @@ describe('Module: provider', () => {
       const proxy = ProviderModule.providerProxies[network]
       expect(proxy.aragon).to.exist
     })
+
+    it('connectToNetwork should configure a DRPC connection', async () => {
+      const providerStub = { on: sandbox.stub() }
+      const { default: ProviderModule } = proxyquire.noCallThru()('@modules/provider', {
+        ethers: {
+          JsonRpcProvider: function () {
+            return providerStub
+          },
+        },
+      })
+
+      const network = NetworksEnum.ethereumMainnet
+      const drpcConfig = {
+        providerType: IProviderType.DRPC,
+        drpcApiKey: 'test-drpc-key',
+        fromBlock: 0,
+        confirmationBlocks: 12,
+        intervalBlockTime: 15,
+      }
+
+      await ProviderModule.connectToNetwork(network, drpcConfig)
+
+      const proxy = ProviderModule.providerProxies[network]
+      expect(proxy.drpc).to.exist
+      expect(proxy.drpc.rpc).to.equal(providerStub)
+    })
+
+    it('connectToNetwork should warn when DRPC network not supported', async () => {
+      const warnStub = sandbox.stub(logger, 'warn')
+      const network = NetworksEnum.chilizMainnet // Chiliz is not supported by DRPC
+      const drpcConfig = {
+        providerType: IProviderType.DRPC,
+        drpcApiKey: 'test-drpc-key',
+        fromBlock: 0,
+        confirmationBlocks: 12,
+        intervalBlockTime: 15,
+      }
+
+      await ProviderModule.connectToNetwork(network, drpcConfig)
+
+      expect(warnStub.calledOnce).to.be.true
+      expect(warnStub.firstCall.args[0]).to.include('DRPC network not found')
+    })
   })
 
   describe('getProvider', () => {
@@ -237,6 +309,20 @@ describe('Module: provider', () => {
       }
       expect(ProviderModule.getAnyRpcProvider(network)).to.equal(fakeAragonRpc)
       ProviderModule.providerProxies[network].aragon = undefined
+      expect(ProviderModule.getAnyRpcProvider(network)).to.equal(fakeAlchemyRpc)
+    })
+
+    it('getAnyRpcProvider should return DRPC rpc when Aragon is unavailable', () => {
+      const network = NetworksEnum.ethereumMainnet
+      const fakeDrpcRpc = {}
+      const fakeAlchemyRpc = {}
+      ProviderModule.providerProxies[network] = {
+        drpc: { rpc: fakeDrpcRpc },
+        alchemy: { rpc: fakeAlchemyRpc },
+      }
+      // Should return DRPC since Aragon is unavailable (priority: aragon → drpc → alchemy)
+      expect(ProviderModule.getAnyRpcProvider(network)).to.equal(fakeDrpcRpc)
+      ProviderModule.providerProxies[network].drpc = undefined
       expect(ProviderModule.getAnyRpcProvider(network)).to.equal(fakeAlchemyRpc)
     })
   })
@@ -285,9 +371,11 @@ describe('Module: provider', () => {
 
       await ProviderModule.connectToAllNetworks()
 
-      expect(warnStub.calledOnce).to.be.true
-      const warnCall = warnStub.firstCall
-      expect(warnCall.args[0]).to.include('Alchemy node for ethereum-mainnet is not configured')
+      // Should warn about both missing Alchemy and DRPC
+      expect(warnStub.calledTwice).to.be.true
+      const alchemyWarn = warnStub.getCalls().find((c) => String(c.args[0]).includes('Alchemy node'))
+      expect(alchemyWarn).to.not.be.undefined
+      expect(alchemyWarn!.args[0]).to.include('Alchemy node for ethereum-mainnet is not configured')
       expect(connectStub.calledOnce).to.be.true // Should still connect Aragon RPC
     })
 
@@ -306,9 +394,11 @@ describe('Module: provider', () => {
 
       await ProviderModule.connectToAllNetworks()
 
-      expect(warnStub.calledOnce).to.be.true
-      const warnCall = warnStub.firstCall
-      expect(warnCall.args[0]).to.include('Custom (Aragon) node for ethereum-mainnet is not configured')
+      // Should warn about both missing Aragon and DRPC
+      expect(warnStub.calledTwice).to.be.true
+      const aragonWarn = warnStub.getCalls().find((c) => String(c.args[0]).includes('Aragon'))
+      expect(aragonWarn).to.not.be.undefined
+      expect(aragonWarn!.args[0]).to.include('Custom (Aragon) node for ethereum-mainnet is not configured')
       expect(connectStub.calledOnce).to.be.true // Should still connect Alchemy
     })
 
@@ -334,6 +424,21 @@ describe('Module: provider', () => {
       const result = ProviderModule.getProviderUrl(NetworksEnum.ethereumMainnet)
 
       expect(result).to.equal(testRpc)
+    })
+
+    it('getProviderUrl should return DRPC URL when only DRPC provider exists', () => {
+      ProviderModule.providerProxies[NetworksEnum.ethereumMainnet] = {
+        drpc: { rpc: {} },
+      }
+      sandbox.stub(config, 'NODES').value({
+        ETHEREUM_MAINNET: {
+          DRPC_API_KEY: 'test-drpc-key',
+        },
+      })
+
+      const result = ProviderModule.getProviderUrl(NetworksEnum.ethereumMainnet)
+
+      expect(result).to.equal('https://lb.drpc.org/ogrpc?network=ethereum&dkey=test-drpc-key')
     })
 
     it('getProviderUrl should return Alchemy URL when only Alchemy provider exists', () => {
