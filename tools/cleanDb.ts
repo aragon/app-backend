@@ -1,14 +1,15 @@
-import { EnumConnection, type IService, NetworksEnum } from '@types'
+import { EnumConnection, EnumServiceName, type IService, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
 
 const llo = logger.logMeta.bind(null, { service: 'Tools: CleanDb' })
 
 export const CleanDb: IService = {
-  NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
+  name: EnumServiceName.ARAGON_TOOLS,
+  NEED_CONNECTIONS: [EnumConnection.MONGODB],
 
   start: async () => {
-    const networkToDelete = NetworksEnum.cornMainnet
+    const networkToDelete = NetworksEnum.katanaMainnet
 
     try {
       // Iterate over all models in Models
