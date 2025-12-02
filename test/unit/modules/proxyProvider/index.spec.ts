@@ -174,6 +174,5 @@ describe('ProxyWeb3Provider', () => {
     testProxyMethod('fetchContractCreation', IWeb3ProxyMethod.fetchContractCreation)
     testProxyMethod('fetchContractSourceCode', IWeb3ProxyMethod.fetchContractSourceCode)
     testProxyMethod('searchDetailsOfContract', IWeb3ProxyMethod.searchDetailsOfContract)
-    testProxyMethod('fetchHistoricalTokenPrice', IWeb3ProxyMethod.fetchHistoricalTokenPrice)
   })
 })

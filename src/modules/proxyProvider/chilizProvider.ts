@@ -126,10 +126,6 @@ const ChilizProvider: Omit<IWeb3Provider, 'getNativeBalance'> & {
       throw error
     }
   },
-
-  fetchHistoricalTokenPrice: async () => {
-    return '0'
-  },
 }
 
 export default ChilizProvider
