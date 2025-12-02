@@ -8,6 +8,7 @@ import { ProxyToken } from '@modules/proxyToken'
 import Web3Utils from '@helpers/web3Utils'
 import EtherscanHelper from '@helpers/etherscan'
 import utils from '@helpers/utils'
+import { Models } from '@dbModels'
 
 describe('Modules: KatanaProvider', () => {
   let sandbox: SinonSandbox
@@ -281,6 +282,147 @@ describe('Modules: KatanaProvider', () => {
       expect(saveAndGetTokenStub.firstCall.args).to.deep.equal(['0xtoken1', network])
       expect(saveAndGetTokenStub.secondCall.args).to.deep.equal(['0xtoken2', network])
       expect(saveAndGetTokenStub.thirdCall.args).to.deep.equal(['0xtoken3', network])
+    })
+  })
+
+  describe('fetchBasicTokenInfo', () => {
+    it('should fetch token info from database for native token (zeroAddress)', async () => {
+      // Arrange
+      const address = utils.zeroAddress
+      const network = NetworksEnum.katanaMainnet
+      const mockToken = {
+        name: 'Ether',
+        symbol: 'ETH',
+        decimals: 18,
+        priceUsd: '2500.00',
+      }
+
+      sandbox.stub(Models.Token, 'findOne').resolves(mockToken as any)
+
+      // Act
+      const result = await KatanaProvider.fetchBasicTokenInfo({ address, network })
+
+      // Assert
+      expect(result).to.deep.equal({
+        name: 'Ether',
+        symbol: 'ETH',
+        decimals: 18,
+        priceUsd: '2500.00',
+      })
+    })
+
+    it('should query database with ethereumMainnet for native token', async () => {
+      // Arrange
+      const address = utils.zeroAddress
+      const network = NetworksEnum.katanaMainnet
+
+      const findOneStub = sandbox.stub(Models.Token, 'findOne').resolves(null)
+
+      // Act
+      await KatanaProvider.fetchBasicTokenInfo({ address, network })
+
+      // Assert
+      expect(findOneStub.calledOnce).to.be.true
+      expect(findOneStub.firstCall.args[0]).to.deep.equal({
+        address: utils.zeroAddress,
+        network: NetworksEnum.ethereumMainnet,
+      })
+    })
+
+    it('should return undefined values when native token is not found in database', async () => {
+      // Arrange
+      const address = utils.zeroAddress
+      const network = NetworksEnum.katanaMainnet
+
+      sandbox.stub(Models.Token, 'findOne').resolves(null)
+
+      // Act
+      const result = await KatanaProvider.fetchBasicTokenInfo({ address, network })
+
+      // Assert
+      expect(result).to.deep.equal({
+        name: undefined,
+        symbol: undefined,
+        decimals: undefined,
+        priceUsd: undefined,
+      })
+    })
+
+    it('should use evmExplorerClient for non-native token addresses', async () => {
+      // Arrange
+      const address = '0x1234567890abcdef1234567890abcdef12345678'
+      const network = NetworksEnum.katanaMainnet
+      const mockTokenInfo = {
+        name: 'Test Token',
+        symbol: 'TEST',
+        decimals: 18,
+        totalSupply: '1000000000000000000000',
+      }
+
+      const fetchTokenInfoStub = sandbox.stub(evmExplorerClient, 'fetchTokenInfo').resolves(mockTokenInfo)
+
+      // Act
+      const result = await KatanaProvider.fetchBasicTokenInfo({ address, network })
+
+      // Assert
+      expect(result).to.deep.equal(mockTokenInfo)
+      expect(fetchTokenInfoStub.calledOnce).to.be.true
+      expect(fetchTokenInfoStub.firstCall.args[0]).to.equal(EvmExplorerEnum.ETHERSCAN)
+      expect(fetchTokenInfoStub.firstCall.args[1]).to.equal(address)
+      expect(fetchTokenInfoStub.firstCall.args[2]).to.equal(network)
+    })
+
+    it('should call evmExplorerClient with ETHERSCAN explorer type for non-native tokens', async () => {
+      // Arrange
+      const address = '0xabc1234567890abcdef1234567890abcdef12345'
+      const network = NetworksEnum.katanaMainnet
+
+      const fetchTokenInfoStub = sandbox.stub(evmExplorerClient, 'fetchTokenInfo').resolves(null as any)
+
+      // Act
+      await KatanaProvider.fetchBasicTokenInfo({ address, network })
+
+      // Assert
+      expect(fetchTokenInfoStub.calledOnce).to.be.true
+      expect(fetchTokenInfoStub.firstCall.args[0]).to.equal(EvmExplorerEnum.ETHERSCAN)
+    })
+
+    it('should return null when evmExplorerClient returns null for non-native token', async () => {
+      // Arrange
+      const address = '0x1234567890abcdef1234567890abcdef12345678'
+      const network = NetworksEnum.katanaMainnet
+
+      sandbox.stub(evmExplorerClient, 'fetchTokenInfo').resolves(null as any)
+
+      // Act
+      const result = await KatanaProvider.fetchBasicTokenInfo({ address, network })
+
+      // Assert
+      expect(result).to.be.null
+    })
+
+    it('should handle partial token data from database', async () => {
+      // Arrange
+      const address = utils.zeroAddress
+      const network = NetworksEnum.katanaMainnet
+      const mockToken = {
+        name: 'Ether',
+        symbol: 'ETH',
+        // decimals and priceUsd are missing
+      }
+
+      sandbox.stub(Models.Token, 'findOne').resolves(mockToken as any)
+
+      // Act
+      const result = await KatanaProvider.fetchBasicTokenInfo({ address, network })
+
+      // Assert
+      expect(result).to.deep.equal({
+        name: 'Ether',
+        symbol: 'ETH',
+        decimals: undefined,
+        priceUsd: undefined,
+      })
     })
   })
 })

@@ -1,18 +1,13 @@
 import { type IWeb3Provider } from '@types'
-import BlockScoutProvider from '@modules/proxyProvider/blockscoutProvider'
 import RouteScanHelper from '@helpers/routeScanHelper'
 import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
 
 const CornProvider: Pick<
   IWeb3Provider,
-  'getTokenCounters' | 'getTokenBalances' | 'fetchBasicTokenInfo' | 'fetchContractSourceCode' | 'fetchContractCreation'
+  'getTokenCounters' | 'getTokenBalances' | 'fetchContractSourceCode' | 'fetchContractCreation'
 > = {
   getTokenBalances: async ({ address, network }) => {
-    return BlockScoutProvider.getTokenBalances({ address, network })
-  },
-
-  fetchBasicTokenInfo: async ({ address, network }) => {
-    return BlockScoutProvider.fetchBasicTokenInfo({ address, network })
+    return evmExplorerClient.getTokenBalances(EvmExplorerEnum.ROUTESCAN, address, network)
   },
 
   fetchContractSourceCode: async ({ address, network }) => {

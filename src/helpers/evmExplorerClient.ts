@@ -196,6 +196,22 @@ class EvmExplorerClient {
     }
   }
 
+  async fetchTokenInfo(explorerType: EvmExplorerEnum, address: HexAddress, network: NetworksEnum) {
+    try {
+      const params = {
+        module: 'token',
+        action: 'tokeninfo',
+        contractaddress: address,
+      }
+
+      const response = await this.apiCall(explorerType, params, network)
+      return this.parseTokenInfoResponse(response)
+    } catch (error) {
+      logger.warn('Error fetching token info', llo({ error, address, network, explorerType }))
+      return undefined
+    }
+  }
+
   // Parser methods
   private parseSourceCodeResponse(response: any): IEtherScanSource[] | null {
     if (
@@ -228,22 +244,6 @@ class EvmExplorerClient {
       }
     }
     return { address, transactionHash: '', blockNumber: 0 }
-  }
-
-  private async fetchTokenInfo(explorerType: EvmExplorerEnum, address: HexAddress, network: NetworksEnum) {
-    try {
-      const params = {
-        module: 'token',
-        action: 'tokeninfo',
-        contractaddress: address,
-      }
-
-      const response = await this.apiCall(explorerType, params, network)
-      return this.parseTokenInfoResponse(response)
-    } catch (error) {
-      logger.warn('Error fetching token info', llo({ error, address, network, explorerType }))
-      return {}
-    }
   }
 
   private parseTokenInfoResponse(response: any): any {
