@@ -6,7 +6,6 @@ export enum IWeb3ProxyMethod {
   fetchContractCreation = 'fetchContractCreation',
   fetchContractSourceCode = 'fetchContractSourceCode',
   searchDetailsOfContract = 'searchDetailsOfContract',
-  fetchHistoricalTokenPrice = 'fetchHistoricalTokenPrice',
 }
 
 export interface IWeb3Provider {
@@ -21,17 +20,6 @@ export interface IWeb3Provider {
   }) => Promise<IWeb3ContractCreation>
   fetchContractSourceCode: ({ address, network }: { address: string; network: NetworksEnum }) => Promise<any>
   searchDetailsOfContract: ({ address, network }: { address: string; network: NetworksEnum }) => Promise<any>
-  fetchHistoricalTokenPrice: ({
-    address,
-    network,
-    date,
-    symbol,
-  }: {
-    address?: string
-    network: NetworksEnum
-    date?: string | number
-    symbol?: string
-  }) => Promise<any>
 }
 
 export interface IWeb3TokenBalance {

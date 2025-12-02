@@ -288,17 +288,6 @@ describe('ChilizProvider', () => {
     })
   })
 
-  describe('fetchHistoricalTokenPrice', () => {
-    it('should return 0 for historical token price', async () => {
-      // fetchHistoricalTokenPrice accepts any arguments but doesn't use them
-      const result = await ChilizProvider.fetchHistoricalTokenPrice({
-        address: '0x123',
-        network: NetworksEnum.chilizMainnet,
-      } as any)
-      expect(result).to.equal('0')
-    })
-  })
-
   describe('fetchContractCreation - validation and error handling', () => {
     it('should validate contract creation result and handle errors', async () => {
       const address = '0xcontract'

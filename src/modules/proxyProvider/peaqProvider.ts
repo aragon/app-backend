@@ -1,8 +1,6 @@
 import SubscanApi from '@helpers/subscanApi'
 import { ITokenType, type IWeb3Provider } from '@types'
-import utils from '@helpers/utils'
 import { ethers } from 'ethers'
-import dayjs from 'dayjs'
 
 const PeaqProvider: Omit<IWeb3Provider, 'getNativeBalance'> = {
   getTokenBalances: async ({ address, network }) => {
@@ -45,17 +43,6 @@ const PeaqProvider: Omit<IWeb3Provider, 'getNativeBalance'> = {
       name: null,
       type: ITokenType.unknown,
     }
-  },
-
-  fetchHistoricalTokenPrice: async ({ address, network, date }: any) => {
-    if (address === utils.zeroAddress) {
-      const pastDays = date ? Math.round(dayjs.utc().diff(dayjs.utc(date), 'days')) : 30
-      const price = await SubscanApi.getCurrentPrice(network, pastDays)
-      return price || '0'
-    }
-
-    const tokenInfo = await SubscanApi.getTokenFullDetails(address, network)
-    return tokenInfo.priceUsd || '0'
   },
 }
 

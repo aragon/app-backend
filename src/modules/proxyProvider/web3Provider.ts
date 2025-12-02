@@ -7,7 +7,6 @@ import Web3Utils from '@helpers/web3Utils'
 import BlockScoutHelper from '@helpers/blockScout'
 import Web3Helper from '@helpers/web3'
 import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
-import { RateModule } from '@modules/rates'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ProxyWeb3' })
 
@@ -114,15 +113,6 @@ const Web3Provider: IWeb3Provider = {
 
   searchDetailsOfContract: async ({ address, network }) => {
     return await BlockScoutHelper.searchDetails(address, network)
-  },
-
-  fetchHistoricalTokenPrice: async ({ symbol, address, network, date }) => {
-    return await RateModule.fetchHistoricalRate({
-      address,
-      network,
-      symbol,
-      timestamp: date,
-    })
   },
 }
 

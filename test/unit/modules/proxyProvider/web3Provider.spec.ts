@@ -9,7 +9,6 @@ import BlockScoutHelper from '@helpers/blockScout'
 import utils from '@helpers/utils'
 import Alchemy from '@helpers/alchemy'
 import Web3Utils from '@helpers/web3Utils'
-import { RateModule } from '@modules/rates'
 import { EvmExplorerEnum } from '@helpers/evmExplorerClient'
 
 describe('Web3Provider', () => {
@@ -337,30 +336,6 @@ describe('Web3Provider', () => {
         EvmExplorerEnum.BLOCKSCOUT,
         EvmExplorerEnum.ROUTESCAN,
       ])
-    })
-  })
-
-  describe('fetchHistoricalTokenPrice', () => {
-    it('should forward to RateModule.fetchHistoricalRate', async () => {
-      const address = '0xtoken'
-      const network = NetworksEnum.ethereumMainnet
-      const symbol = 'TKN'
-      const date = '2023-01-01'
-      const historicalRateData = '15.25'
-
-      const fetchHistoricalRateStub = sandbox.stub(RateModule, 'fetchHistoricalRate').resolves(historicalRateData)
-
-      const result = await Web3Provider.fetchHistoricalTokenPrice({ address, network, symbol, date })
-
-      expect(
-        fetchHistoricalRateStub.calledOnceWith({
-          address,
-          network,
-          symbol,
-          timestamp: date,
-        }),
-      ).to.be.true
-      expect(result).to.equal(historicalRateData)
     })
   })
 

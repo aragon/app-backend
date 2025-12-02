@@ -4,7 +4,6 @@ import { NetworksEnum, ITokenType } from '@types'
 import logger from '@logger'
 import SubscanApi from '@helpers/subscanApi'
 import { ethers } from 'ethers'
-import utils from '@helpers/utils'
 import PeaqProvider from '@modules/proxyProvider/peaqProvider'
 
 describe('PeaqProvider', () => {
@@ -140,116 +139,6 @@ describe('PeaqProvider', () => {
       expect(getContractSourceCodeStub.firstCall.args[0]).to.equal(address)
       expect(getContractSourceCodeStub.firstCall.args[1]).to.equal(network)
       expect(result).to.equal(sourceCode)
-    })
-  })
-
-  describe('fetchHistoricalTokenPrice', () => {
-    it('should fetch historical native token price for zero address', async () => {
-      // Arrange
-      const address = utils.zeroAddress
-      const network = NetworksEnum.peaqMainnet
-      const date = '2023-01-15'
-      const price = '8.75'
-
-      // Mock dayjs calculations
-      const dayjs = require('dayjs')
-      const utc = require('dayjs/plugin/utc')
-      dayjs.extend(utc)
-
-      const getCurrentPriceStub = sandbox.stub(SubscanApi, 'getCurrentPrice').resolves(price)
-      const getTokenFullDetailsStub = sandbox.stub(SubscanApi, 'getTokenFullDetails')
-
-      // Act
-      const result = await PeaqProvider.fetchHistoricalTokenPrice({ address, network, date })
-
-      // Assert
-      expect(getCurrentPriceStub.calledOnce).to.be.true
-      expect(getCurrentPriceStub.firstCall.args[0]).to.equal(network)
-      expect(getCurrentPriceStub.firstCall.args[1]).to.be.a('number')
-      expect(getTokenFullDetailsStub.notCalled).to.be.true
-
-      expect(result).to.be.equal(price)
-    })
-
-    it('should use default 30 days when no date provided for native token', async () => {
-      // Arrange
-      const address = utils.zeroAddress
-      const network = NetworksEnum.peaqMainnet
-      const price = '12.50'
-
-      const getCurrentPriceStub = sandbox.stub(SubscanApi, 'getCurrentPrice').resolves(price)
-
-      // Act
-      const result = await PeaqProvider.fetchHistoricalTokenPrice({ address, network })
-
-      // Assert
-      expect(getCurrentPriceStub.calledOnce).to.be.true
-      expect(getCurrentPriceStub.firstCall.args[0]).to.equal(network)
-      expect(getCurrentPriceStub.firstCall.args[1]).to.equal(30)
-
-      expect(result).to.be.equal(price)
-    })
-
-    it('should handle null price for historical native token', async () => {
-      // Arrange
-      const address = utils.zeroAddress
-      const network = NetworksEnum.peaqMainnet
-      const date = '2023-01-01'
-
-      const getCurrentPriceStub = sandbox.stub(SubscanApi, 'getCurrentPrice').resolves(null as any)
-
-      // Act
-      const result = await PeaqProvider.fetchHistoricalTokenPrice({ address, network, date })
-
-      // Assert
-      expect(getCurrentPriceStub.calledOnce).to.be.true
-      expect(result).to.be.equal('0')
-    })
-
-    it('should fetch token details for non-zero address', async () => {
-      // Arrange
-      const address = '0xtoken'
-      const network = NetworksEnum.peaqMainnet
-      const date = '2023-01-01'
-      const tokenInfo = {
-        name: 'Test Token',
-        symbol: 'TEST',
-        priceUsd: '5.25',
-      }
-
-      const getCurrentPriceStub = sandbox.stub(SubscanApi, 'getCurrentPrice')
-      const getTokenFullDetailsStub = sandbox.stub(SubscanApi, 'getTokenFullDetails').resolves(tokenInfo as any)
-
-      // Act
-      const result = await PeaqProvider.fetchHistoricalTokenPrice({ address, network, date })
-
-      // Assert
-      expect(getCurrentPriceStub.notCalled).to.be.true
-      expect(getTokenFullDetailsStub.calledOnce).to.be.true
-      expect(getTokenFullDetailsStub.firstCall.args[0]).to.equal(address)
-      expect(getTokenFullDetailsStub.firstCall.args[1]).to.equal(network)
-
-      expect(result).to.deep.equal('5.25')
-    })
-
-    it('should handle null price for historical token', async () => {
-      // Arrange
-      const address = '0xtoken'
-      const network = NetworksEnum.peaqMainnet
-      const tokenInfo = {
-        name: 'Test Token',
-        symbol: 'TEST',
-        priceUsd: null,
-      }
-
-      const getTokenFullDetailsStub = sandbox.stub(SubscanApi, 'getTokenFullDetails').resolves(tokenInfo as any)
-
-      // Act
-      const result = await PeaqProvider.fetchHistoricalTokenPrice({ address, network })
-
-      // Assert
-      expect(getTokenFullDetailsStub.calledOnce).to.be.true
-      expect(result).to.be.equal('0')
     })
   })
 
