@@ -78,6 +78,7 @@ export interface IAssetExtraParams {
   daoAddress?: HexAddress
   daoAddresses?: HexAddress[]
   tokenAddress?: HexAddress
+  onlyParent?: boolean
 }
 
 export interface IDaoExtraParams {

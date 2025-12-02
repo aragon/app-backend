@@ -9,6 +9,7 @@ const AssetSchema = {
       .optional(),
     daoAddress: ValidationSchema.joiAddress.optional(),
     tokenAddress: ValidationSchema.joiAddress.optional(),
+    onlyParent: Joi.boolean().optional(),
   }),
 
   getDaoById: Joi.object({

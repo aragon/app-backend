@@ -85,8 +85,9 @@ export default class Asset extends Model {
     paginationParams?: IPaginationParams
   }): Promise<IPaginatedResult<any>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
+    const ignoredParams = ['daoAddresses', 'onlyParent']
     const dynamicFilter = Object.fromEntries(
-      Object.entries(extraParams).filter(([key, v]) => v !== undefined && key !== 'daoAddresses'),
+      Object.entries(extraParams).filter(([key, v]) => v !== undefined && !ignoredParams.includes(key)),
     )
     const filter = {
       ...ModelUtils.createFilter(paginationParams, ['network', 'daoAddress', 'tokenAddress']),
