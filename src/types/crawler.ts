@@ -360,6 +360,14 @@ export enum ISelectorPermissionLogs {
   NativeTransfersDisallowed = 'NativeTransfersDisallowed',
 }
 
+export enum IPolicyLogs {
+  // Source events
+  SourceSettingsUpdated = 'SourceSettingsUpdated',
+  PluginDefined = 'PluginDefined',
+  // Model events
+  ModelSettingsUpdated = 'ModelSettingsUpdated',
+}
+
 export interface ICapitalDistributorStats {
   totalClaimed: string // Sum of all claimed amounts from events
   totalClaimable: string // Sum of the claimable amounts for all campaigns

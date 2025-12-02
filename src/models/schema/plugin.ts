@@ -173,6 +173,9 @@ export default class Plugin extends Model {
   @prop({ type: () => Boolean, default: false })
   public isSubPlugin?: boolean
 
+  @prop({ type: () => Boolean, default: false })
+  public isPolicy?: boolean
+
   // SPP plugin
   @prop({ type: () => Number })
   public totalStages?: number

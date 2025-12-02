@@ -1,6 +1,7 @@
 import logger from '@logger'
 import {
   IEventLogPluginSettings,
+  IEventLogPluginType,
   type ILogInfo,
   IPluginInterfaceType,
   IPluginStatus,
@@ -25,6 +26,7 @@ import PluginDetector from '@helpers/pluginDetector'
 import GovernanceVeHelper from '@helpers/governanceVe'
 import { LockToVote } from '@artifacts/LockToVote'
 import GaugeHelper from '@helpers/gauge'
+import PolicyHelper from '@helpers/policyHelper'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PluginSettingHandler' })
 
@@ -661,6 +663,125 @@ export const PluginSettingHandler = {
         }
       }),
     )
+  },
+
+  /**
+   * Create policy settings for router/claimer plugins
+   * - Source data: fetched via on-chain calls
+   * - Model data: fetched via on-chain calls
+   * - Creates a Setting record with embedded policy data
+   */
+  linkPolicySourceAndModel: async (pluginDb: Plugin, info: ILogInfo) => {
+    try {
+      const { address: pluginAddress, network, interfaceType, daoAddress } = pluginDb
+
+      const strategyType = await PolicyHelper.getStrategyType(pluginAddress, network)
+
+      const sourceAddress = await PolicyHelper.getSourceAddress(pluginAddress, network)
+      if (!sourceAddress) {
+        logger.warn('No source addresses found for policy plugin', llo({ pluginAddress, network }))
+        return
+      }
+
+      const sourceData = await PolicyHelper.getSourceData(sourceAddress, network)
+      if (!sourceData) {
+        logger.warn('Failed to fetch source data', llo({ sourceAddress, network }))
+        return
+      }
+
+      const preparedLog = await Models.LogPluginSetupProcessor.findByPluginAddress(
+        pluginAddress,
+        network,
+        IEventLogPluginType.InstallationPrepared,
+      )
+
+      if (!preparedLog?.transactionHash) {
+        logger.warn('InstallationPrepared log not found for plugin', llo({ pluginAddress, network }))
+        return
+      }
+
+      const tx = await Web3Helper.getTransaction(preparedLog.transactionHash, network)
+      if (!tx?.data) {
+        logger.warn('Transaction not found', llo({ transactionHash: preparedLog.transactionHash, network }))
+        return
+      }
+
+      const installationData = PolicyHelper.decodeInstallationData(tx.data)
+      if (!installationData) {
+        logger.warn('Failed to decode installation data', llo({ pluginAddress, network }))
+        return
+      }
+
+      const modelAddress = PolicyHelper.getModelAddress(interfaceType, installationData)
+      if (!modelAddress) {
+        logger.warn('Failed to get model address', llo({ pluginAddress, interfaceType, network }))
+        return
+      }
+
+      // Get model data
+      const modelData = await PolicyHelper.getModelData(modelAddress, network)
+      if (!modelData) {
+        logger.warn('Failed to fetch model data', llo({ modelAddress, network }))
+        return
+      }
+
+      // Check for existing active setting
+      const existingSetting = await Models.Setting.findActive({
+        pluginAddress,
+        network,
+      })
+
+      if (existingSetting?.policy) {
+        logger.verbose('Policy setting already exists', llo({ pluginAddress, network }))
+        return
+      }
+
+      // Create policy setting data
+      const policySetting = {
+        strategyType,
+        source: {
+          address: sourceData.address,
+          type: sourceData.type,
+          vaultAddress: sourceData.vaultAddress,
+          tokenAddress: sourceData.tokenAddress,
+          amountPerEpoch: sourceData.amountPerEpoch,
+          maxSourceBalance: sourceData.maxSourceBalance,
+          epochInterval: sourceData.epochInterval,
+          requiredBalance: sourceData.requiredBalance,
+          targetAmount: sourceData.targetAmount,
+        },
+        model: {
+          address: modelData.address,
+          type: modelData.type,
+          recipients: modelData.recipients,
+          ratios: modelData.ratios,
+          gaugeVoterAddress: modelData.gaugeVoterAddress,
+          brackets: modelData.brackets,
+        },
+      }
+
+      if (existingSetting) {
+        await existingSetting.update({ policy: policySetting })
+        logger.verbose('Updated existing setting with policy data', llo({ pluginAddress, network }))
+      } else {
+        await Models.Setting.create({
+          transactionHash: info.transactionHash,
+          blockNumber: info.blockNumber,
+          network,
+          status: ISettingStatus.active,
+          daoAddress,
+          pluginAddress,
+          policy: policySetting,
+        })
+        logger.verbose('Created new policy setting', llo({ pluginAddress, network }))
+      }
+
+      if (!pluginDb.isPolicy) {
+        await pluginDb.update({ isPolicy: true })
+      }
+    } catch (error) {
+      logger.error('Error creating policy settings', llo({ error, pluginAddress: pluginDb.address }))
+    }
   },
 
   isSupported: async (plugin: Plugin, info: ILogInfo): Promise<void> => {

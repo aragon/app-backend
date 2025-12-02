@@ -62,6 +62,8 @@ export enum IPluginInterfaceType {
   unknown = 'unknown',
   lockToVote = 'lockToVote',
   capitalDistributor = 'capitalDistributor',
+  router = 'router',
+  claimer = 'claimer',
 }
 
 export interface ISettingVotingEscrow {
