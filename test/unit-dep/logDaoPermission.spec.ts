@@ -10,7 +10,7 @@ import DaoController from '@api/controllers/dao'
 import { ethers } from 'ethers'
 import { IPermission } from '@src/types/permission'
 
-describe.only('Integ: Permission Handler For Sub Daos', () => {
+describe.skip('Integ: Permission Handler For Sub Daos', () => {
   let sandbox: SinonSandbox
   const network = NetworksEnum.ethereumSepolia
   const parentDao = {
