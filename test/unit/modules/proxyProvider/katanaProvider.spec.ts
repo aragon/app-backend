@@ -392,13 +392,13 @@ describe('Modules: KatanaProvider', () => {
       const address = '0x1234567890abcdef1234567890abcdef12345678'
       const network = NetworksEnum.katanaMainnet
 
-      sandbox.stub(evmExplorerClient, 'fetchTokenInfo').resolves(null as any)
+      sandbox.stub(evmExplorerClient, 'fetchTokenInfo').resolves(undefined)
 
       // Act
       const result = await KatanaProvider.fetchBasicTokenInfo({ address, network })
 
       // Assert
-      expect(result).to.be.null
+      expect(result).to.be.undefined
     })
 
     it('should handle partial token data from database', async () => {
