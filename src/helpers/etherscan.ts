@@ -1,7 +1,7 @@
 import logger from '@logger'
 import axios from 'axios'
 import config from '@config'
-import { type HexAddress, type NetworksEnum } from '@types'
+import { type HexAddress, NetworksEnum } from '@types'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
@@ -9,6 +9,19 @@ import ProviderModule from '@modules/provider'
 const llo = logger.logMeta.bind(null, { service: 'helpers:EtherscanHelper' })
 
 const EtherscanHelper = {
+  nativeTokens: {
+    [NetworksEnum.ethereumMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+    [NetworksEnum.ethereumSepolia]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+    [NetworksEnum.polygonMainnet]: '0x0000000000000000000000000000000000001010',
+    [NetworksEnum.arbitrumMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+    [NetworksEnum.baseMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+    [NetworksEnum.zksyncMainnet]: '0x000000000000000000000000000000000000800A',
+    [NetworksEnum.zksyncSepolia]: '0x000000000000000000000000000000000000800A',
+    [NetworksEnum.optimismMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+    [NetworksEnum.avaxMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+    [NetworksEnum.katanaMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+  },
+
   axiosInstance: () =>
     axios.create({
       baseURL: config.ETHERSCAN_API.BASE_URI,
@@ -120,7 +133,7 @@ const EtherscanHelper = {
 
     try {
       const response = await EtherscanHelper._rpCall({ ...params, action: 'tokensupply' }, network)
-      if (response && response.status === '1') {
+      if (response && response.status === '1' && response.result) {
         return response.result
       }
       return '0'

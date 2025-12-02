@@ -1,4 +1,5 @@
 name: Docker Deployment
+run-name: Docker deployment to ${{ inputs.environment }}
 
 on:
   workflow_dispatch:
@@ -357,6 +358,8 @@ jobs:
       # Step 10: Send deployment notification
       - name: Send deployment notification
         if: always()
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
         run: |
           STATUS="${{ job.status }}"
           ENVIRONMENT="${{ needs.validate.outputs.environment }}"
@@ -364,21 +367,39 @@ jobs:
           ACTOR="${{ github.actor }}"
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           
-          if [[ "$STATUS" == "success" ]]; then
-            echo "✅ Deployment successful!"
-            echo "📋 Summary:"
-            echo "   Environment: $ENVIRONMENT"
-            echo "   Branch: $BRANCH"
-            echo "   Deployed by: $ACTOR"
-            echo "   Details: $RUN_URL"
+          if [[ "$ENVIRONMENT" == "production" ]]; then
+            SLACK_URL=$(op read "op://kv_backend2_infra/slack_hook_prod/credential")
+            MENTION=$(op read "op://kv_backend2_infra/slack_hook_prod/username")
           else
-            echo "❌ Deployment failed!"
-            echo "📋 Summary:"
-            echo "   Environment: $ENVIRONMENT"
-            echo "   Branch: $BRANCH"
-            echo "   Attempted by: $ACTOR"
-            echo "   Details: $RUN_URL"
+            SLACK_URL=$(op read "op://kv_backend2_infra/slack_hook_nonprod/credential")
+            MENTION=$(op read "op://kv_backend2_infra/slack_hook_nonprod/username")
           fi
+
+          if [[ "$STATUS" == "success" ]]; then
+            MESSAGE="  ✅ Backend Deployment successful!
+            📋 Summary:
+            Environment: $ENVIRONMENT
+            Branch: $BRANCH
+            Deployed by: $ACTOR
+            Details: $RUN_URL"
+          else
+            MESSAGE=" ❌ Backend Deployment failed!
+            📋 Summary:
+            Environment: $ENVIRONMENT
+            Branch: $BRANCH
+            Attempted by: $ACTOR
+            Details: $RUN_URL
+            ${MENTION}"
+
+            curl -X POST \
+            -H 'Content-type: application/json; charset=utf-8' \
+            --data "{ \"text\": \"${MESSAGE}\" }" \
+            "${SLACK_URL}"
+          fi
+
+          echo ${MESSAGE}
+
+          
 
   # Run E2E tests after deployment
   e2e-tests:

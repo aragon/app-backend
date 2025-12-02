@@ -16,11 +16,14 @@ const DbTx = {
   },
 
   isErrorConflict(error: any): boolean {
+    // Note: codeName is "WriteConflict" (no space), but error message contains "Write conflict" (with space)
+    const writeConflictPattern = /Write\s?conflict/i
     return [
-      error?.message?.includes('WriteConflict'),
+      error?.code === 112, // MongoDB WriteConflict error code
       error?.codeName === 'WriteConflict',
       error?.codeName === 'LockTimeout',
       error?.codeName === 'NoSuchTransaction',
+      error?.message && writeConflictPattern.test(error.message),
     ].some(Boolean)
   },
 
