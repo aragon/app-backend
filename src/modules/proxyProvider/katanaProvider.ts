@@ -1,11 +1,12 @@
-import { type IWeb3Provider, type IWeb3TokenBalance } from '@types'
+import { type IWeb3Provider, type IWeb3TokenBalance, NetworksEnum } from '@types'
 import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
 import utils from '@helpers/utils'
 import { ProxyToken } from '@modules/proxyToken'
 import Web3Utils from '@helpers/web3Utils'
 import EtherscanHelper from '@helpers/etherscan'
+import { Models } from '@dbModels'
 
-const KatanaProvider: Pick<IWeb3Provider, 'getTokenBalances'> = {
+const KatanaProvider: Pick<IWeb3Provider, 'getTokenBalances' | 'fetchBasicTokenInfo'> = {
   getTokenBalances: async ({ address, network }) => {
     const tokensBalance = await evmExplorerClient.getTokenBalances(EvmExplorerEnum.ETHERSCAN, address, network)
 
@@ -28,6 +29,20 @@ const KatanaProvider: Pick<IWeb3Provider, 'getTokenBalances'> = {
         }),
       )
     ).filter(Boolean) as IWeb3TokenBalance[]
+  },
+
+  fetchBasicTokenInfo: async ({ address, network }) => {
+    if (address === utils.zeroAddress) {
+      const token = await Models.Token.findOne({ address, network: NetworksEnum.ethereumMainnet })
+      return {
+        name: token?.name,
+        symbol: token?.symbol,
+        decimals: token?.decimals,
+        priceUsd: token?.priceUsd,
+      }
+    } else {
+      return await evmExplorerClient.fetchTokenInfo(EvmExplorerEnum.ETHERSCAN, address, network)
+    }
   },
 }
 
