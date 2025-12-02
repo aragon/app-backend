@@ -73,6 +73,9 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'Response is too big',
         'too large',
         'Request failed with timeout',
+        'query exceeds max results',
+        'request timed out',
+        'Please retry',
       ]),
       BLOCK_LOW_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_LOW_RANGE', 15),
       BLOCK_MEDIUM_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_MEDIUM_RANGE', 40),
@@ -283,7 +286,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         DRPC_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_DRPC_API_KEY', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_FROM_BLOCK', 2094724),
-        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_OFFSET_TO_BLOCK', 0),
+        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_OFFSET_TO_BLOCK', 4),
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_POOLING_INTERVAL', 5 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_INTERVAL_BLOCK_TIME', 12),
@@ -337,7 +340,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         DRPC_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_DRPC_API_KEY', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_FROM_BLOCK', 37460765), // zkSync ERA
-        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_OFFSET_TO_BLOCK', 0),
+        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_OFFSET_TO_BLOCK', 2),
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_POOLING_INTERVAL', 5 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_INTERVAL_BLOCK_TIME', 3),
@@ -354,7 +357,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         DRPC_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_DRPC_API_KEY', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_FROM_BLOCK', 145462155),
-        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_OFFSET_TO_BLOCK', 0),
+        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_OFFSET_TO_BLOCK', 2),
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_POOLING_INTERVAL', 5 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_INTERVAL_BLOCK_TIME', 5),
@@ -468,7 +471,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         DRPC_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_KATANA_MAINNET_DRPC_API_KEY', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_KATANA_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_FROM_BLOCK', 15080181),
-        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_OFFSET_TO_BLOCK', 0),
+        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_OFFSET_TO_BLOCK', 2),
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_POOLING_INTERVAL', 2 * 1000),
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_INTERVAL_BLOCK_TIME', 1),
