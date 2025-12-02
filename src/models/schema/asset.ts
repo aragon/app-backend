@@ -253,7 +253,7 @@ export default class Asset extends Model {
         _id: 0,
         network: 1,
         dao: !extraParams.daoAddress ? '$$REMOVE' : 1,
-        amount: '$totalAmount',
+        amount: { $ifNull: ['$totalAmount', '$amount'] },
         token: '$tokenDetails',
         amountUsd: { $toString: '$amountUsd' },
       },
