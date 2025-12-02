@@ -266,10 +266,9 @@ export default class Transaction extends Model {
   }): Promise<IPaginatedResult<ITransactionResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
 
+    const ignoredParams = ['daoAddresses', 'onlyParent', 'tokenAddress']
     const dynamicFilter = Object.fromEntries(
-      Object.entries(extraParams).filter(
-        ([key, value]) => value !== undefined && key !== 'tokenAddress' && key !== 'daoAddresses',
-      ),
+      Object.entries(extraParams).filter(([key, value]) => value !== undefined && !ignoredParams.includes(key)),
     )
     const filter = {
       ...ModelUtils.createFilter(paginationParams, [

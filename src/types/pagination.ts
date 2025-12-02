@@ -124,6 +124,7 @@ export interface ITransactionExtraParams {
   toAddress?: HexAddress
   side?: ITransactionSide
   type?: ITransactionType
+  onlyParent?: boolean
 }
 
 export interface IExtraQueryData {
