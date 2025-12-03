@@ -1,8 +1,9 @@
-import type { LogServicePattern } from '@types'
+import type { IWeb3TokenBalance, LogServicePattern, NetworksEnum } from '@types'
 import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
 import { EvmExplorerEnum } from '@helpers/evmExplorerClient'
-import { NetworksEnum } from '@types'
+import { ProxyToken } from '@modules/proxyToken'
+import Web3Utils from '@helpers/web3Utils'
 
 const ProxyUtils = {
   updateProgressInConfigIndexer: async (
@@ -54,6 +55,27 @@ const ProxyUtils = {
       return existingConfig
     }
     return null
+  },
+
+  enrichTokenBalances: async (
+    tokensBalance: IWeb3TokenBalance[],
+    network: NetworksEnum,
+  ): Promise<IWeb3TokenBalance[]> => {
+    return (
+      await Promise.all(
+        tokensBalance.map(async (tokenBalance: IWeb3TokenBalance) => {
+          const token = await ProxyToken.saveAndGetToken(tokenBalance.contractAddress, network)
+          if (!token) return null
+
+          return {
+            contractAddress: Web3Utils.parseAddress(tokenBalance.contractAddress) || tokenBalance.contractAddress,
+            tokenBalance: tokenBalance.tokenBalance,
+            originalBalance: tokenBalance.originalBalance,
+            priceUsd: tokenBalance.priceUsd,
+          }
+        }),
+      )
+    ).filter(Boolean) as IWeb3TokenBalance[]
   },
 
   getExplorerClientBasedOnNetwork: (network: NetworksEnum): EvmExplorerEnum => {

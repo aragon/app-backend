@@ -4,8 +4,7 @@ import { NetworksEnum, IWeb3ProxyMethod } from '@types'
 import Web3Provider from '@modules/proxyProvider/web3Provider'
 import PeaqProvider from '@modules/proxyProvider/peaqProvider'
 import ProxyWeb3Provider from '@modules/proxyProvider'
-import ChilizProvider from '@modules/proxyProvider/chilizProvider'
-import CornProvider from '@modules/proxyProvider/cornProvider' // Updated import
+import RoutescanProvider from '@modules/proxyProvider/routescanProvider'
 import KatanaProvider from '@modules/proxyProvider/katanaProvider'
 
 describe('ProxyWeb3Provider', () => {
@@ -30,14 +29,14 @@ describe('ProxyWeb3Provider', () => {
       expect(provider).to.equal(Web3Provider)
     })
 
-    it('should return ChillizProvider for chilizMainnet network', () => {
+    it('should return RoutescanProvider for chilizMainnet network', () => {
       const provider = ProxyWeb3Provider.getProvider(NetworksEnum.chilizMainnet)
-      expect(provider).to.equal(ChilizProvider)
+      expect(provider).to.equal(RoutescanProvider)
     })
 
-    it('should return CornProvider for cornMainnet network', () => {
+    it('should return RoutescanProvider for cornMainnet network', () => {
       const provider = ProxyWeb3Provider.getProvider(NetworksEnum.cornMainnet)
-      expect(provider).to.equal(CornProvider)
+      expect(provider).to.equal(RoutescanProvider)
     })
 
     it('should return KatanaProvider for katanaMainnet network', () => {
