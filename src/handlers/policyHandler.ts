@@ -3,7 +3,6 @@ import type { LogDescription } from 'ethers'
 import { type ILogInfo, type HexAddress, IPolicySourceType } from '@types'
 import { Models } from '@dbModels'
 import { ProxyToken } from '@modules/proxyToken'
-import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'handler:PolicyHandler' })
 
@@ -270,7 +269,7 @@ export const PolicyHandler = {
     const setting = await Models.Setting.findActive({ pluginAddress, network })
 
     if (!setting?.policy) {
-      logger.warn('No Setting found for plugin address', llo({ pluginAddress, network }))
+      logger.warn('No Setting found for plugin address', llo({ pluginAddress, network, info }))
       return
     }
 
@@ -316,7 +315,7 @@ export const PolicyHandler = {
     const setting = await Models.Setting.findActive({ pluginAddress, network })
 
     if (!setting?.policy) {
-      logger.warn('No Setting found for plugin address', llo({ pluginAddress, network }))
+      logger.warn('No Setting found for plugin address', llo({ pluginAddress, network, info }))
       return
     }
 
@@ -362,7 +361,7 @@ export const PolicyHandler = {
     const setting = await Models.Setting.findActive({ pluginAddress, network })
 
     if (!setting?.policy) {
-      logger.warn('No Setting found for plugin address', llo({ pluginAddress, network }))
+      logger.warn('No Setting found for plugin address', llo({ pluginAddress, network, info }))
       return
     }
 
@@ -396,7 +395,7 @@ export const PolicyHandler = {
     const setting = await Models.Setting.findActive({ pluginAddress, network })
 
     if (!setting?.policy) {
-      logger.warn('No Setting found for plugin address', llo({ pluginAddress, network }))
+      logger.warn('No Setting found for plugin address', llo({ pluginAddress, network, info }))
       return
     }
 

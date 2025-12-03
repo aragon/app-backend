@@ -694,7 +694,7 @@ export const PluginSettingHandler = {
       }
 
       const policySetting: IPolicySetting = {
-        policyKey,
+        policyId: policyKey,
         strategyType,
       }
 
@@ -754,13 +754,13 @@ export const PluginSettingHandler = {
         logger.verbose('Created new policy setting', llo({ pluginAddress, network }))
       }
 
-      if (!pluginDb.isPolicy) {
-        await pluginDb.update({ isPolicy: true })
-      }
+      await pluginDb.update({ isPolicy: true })
 
       if (policySetting.source?.tokenAddress) {
         await ProxyToken.saveAndGetToken(policySetting.source.tokenAddress, network)
       }
+
+      logger.verbose('Policy settings created', llo({ pluginAddress, network }))
 
       return true
     } catch (error) {

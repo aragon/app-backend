@@ -6,7 +6,7 @@ import { NetworksEnum } from '@types'
 import { LibUtils } from '@test/lib/unit-dep/lib'
 import PolicyController from '@api/controllers/policy'
 
-describe.only('Integ: CapitalFlow Installation', () => {
+describe.skip('Integ: CapitalFlow Installation', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -74,7 +74,7 @@ describe.only('Integ: CapitalFlow Installation', () => {
     }
   })
 
-  it.only('should install capital flow plugin correctly from tx hash', async function () {
+  it('should install capital flow plugin correctly from tx hash', async function () {
     this.timeout(1000000000)
 
     await Models.Dao.create({

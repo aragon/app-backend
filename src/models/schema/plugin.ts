@@ -555,41 +555,60 @@ export default class Plugin extends Model {
       {
         $addFields: {
           strategy: {
+            policyId: '$policyData.policyId',
             type: '$policyData.strategyType',
             model: {
-              type: '$policyData.model.type',
-              address: '$policyData.model.address',
-              recipients: '$policyData.model.recipients',
-              ratios: '$policyData.model.ratios',
-              gaugeVoterAddress: '$policyData.model.gaugeVoterAddress',
+              $cond: {
+                if: { $ifNull: ['$policyData.model.address', false] },
+                then: {
+                  type: '$policyData.model.type',
+                  address: '$policyData.model.address',
+                  recipients: '$policyData.model.recipients',
+                  ratios: '$policyData.model.ratios',
+                  gaugeVoterAddress: '$policyData.model.gaugeVoterAddress',
+                },
+                else: null,
+              },
             },
             source: {
-              type: '$policyData.source.type',
-              address: '$policyData.source.address',
-              vaultAddress: '$policyData.source.vaultAddress',
-              token: {
-                $cond: {
-                  if: { $gt: [{ $size: { $ifNull: ['$sourceToken', []] } }, 0] },
-                  then: { $arrayElemAt: ['$sourceToken', 0] },
-                  else: null,
+              $cond: {
+                if: { $ifNull: ['$policyData.source.address', false] },
+                then: {
+                  type: '$policyData.source.type',
+                  address: '$policyData.source.address',
+                  vaultAddress: '$policyData.source.vaultAddress',
+                  token: {
+                    $cond: {
+                      if: { $gt: [{ $size: { $ifNull: ['$sourceToken', []] } }, 0] },
+                      then: { $arrayElemAt: ['$sourceToken', 0] },
+                      else: {
+                        address: '$policyData.source.tokenAddress',
+                        symbol: null,
+                        name: null,
+                        decimals: null,
+                        logo: null,
+                      },
+                    },
+                  },
+                  amountPerEpoch: '$policyData.source.amountPerEpoch',
+                  maxSourceBalance: '$policyData.source.maxSourceBalance',
+                  epochInterval: '$policyData.source.epochInterval',
                 },
+                else: null,
               },
-              amountPerEpoch: '$policyData.source.amountPerEpoch',
-              maxSourceBalance: '$policyData.source.maxSourceBalance',
-              epochInterval: '$policyData.source.epochInterval',
             },
             subRouters: {
               $cond: {
                 if: { $gt: [{ $size: { $ifNull: ['$policyData.subRouters', []] } }, 0] },
                 then: '$policyData.subRouters',
-                else: null,
+                else: [],
               },
             },
             subClaimers: {
               $cond: {
                 if: { $gt: [{ $size: { $ifNull: ['$policyData.subClaimers', []] } }, 0] },
                 then: '$policyData.subClaimers',
-                else: null,
+                else: [],
               },
             },
           },
@@ -598,15 +617,21 @@ export default class Plugin extends Model {
       {
         $project: {
           _id: 0,
-          __v: 0,
-          permissions: 0,
-          uninstalled: 0,
-          hasTarget: 0,
-          sender: 0,
-          settings: 0,
-          pluginSlug: 0,
-          policyData: 0,
-          sourceToken: 0,
+          name: 1,
+          description: 1,
+          links: 1,
+          policyKey: 1,
+          address: 1,
+          interfaceType: 1,
+          strategy: 1,
+          release: 1,
+          build: 1,
+          blockTimestamp: 1,
+          transactionHash: 1,
+          metadataIpfs: 1,
+          network: 1,
+          daoAddress: 1,
+          slug: 1,
         },
       },
     ]

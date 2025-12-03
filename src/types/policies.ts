@@ -58,7 +58,7 @@ export interface IPolicyModelData {
  * - MultiClaimerPlugin: has subClaimers[] only
  */
 export interface IPolicySetting {
-  policyKey: string
+  policyId: string
   strategyType: IPolicyStrategyType
   source?: IPolicySourceData | null
   model?: IPolicyModelData | null
