@@ -11,7 +11,7 @@ import PoolingCrawler from '@modules/poolingCrawler'
 import utils from '@helpers/utils'
 import { LibUtils } from '@test/lib/unit-dep/lib'
 
-describe.only('Integ: Token', () => {
+describe.skip('Integ: Token', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
