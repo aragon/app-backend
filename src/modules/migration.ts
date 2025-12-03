@@ -81,7 +81,7 @@ class MigrationService implements IService {
         break
       }
 
-      await this.executeMigration(filename!)
+      await this.executeMigration(filename)
     }
 
     // Sync MongoDB indexes after migrations
