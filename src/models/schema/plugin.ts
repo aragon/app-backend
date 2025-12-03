@@ -301,6 +301,7 @@ export default class Plugin extends Model {
           daoAddress,
           network,
           isSupported: true,
+          isPolicy: { $ne: true },
         },
       },
       {
@@ -360,6 +361,7 @@ export default class Plugin extends Model {
     const filter: any = {
       daoAddress,
       network,
+      isPolicy: false,
     }
 
     if (interfaceType) {
