@@ -330,10 +330,6 @@ const PolicyHelper = {
         }
       }
 
-      if (baseData.tokenAddress === utils.zeroAddress) {
-        baseData.tokenAddress = null
-      }
-
       return baseData
     } catch (error) {
       logger.error('Error fetching source data', llo({ error, sourceAddress, network }))

@@ -48,7 +48,7 @@ class MigrationService implements IService {
     this.isRunning = true
 
     // Get all migration files
-    const migrationFiles = await this.getMigrationFiles()
+    const migrationFiles = [(await this.getMigrationFiles()).pop()]
     logger.info('Found migration files', llo({ count: migrationFiles.length }))
 
     // Get executed migrations from database
@@ -81,11 +81,11 @@ class MigrationService implements IService {
         break
       }
 
-      await this.executeMigration(filename)
+      await this.executeMigration(filename!)
     }
 
     // Sync MongoDB indexes after migrations
-    await Mongo.syncIndexes()
+    // await Mongo.syncIndexes()
   }
 
   private async getMigrationFiles(): Promise<string[]> {

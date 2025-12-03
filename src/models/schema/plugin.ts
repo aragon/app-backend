@@ -533,7 +533,7 @@ export default class Plugin extends Model {
       {
         $addFields: {
           policyData: { $arrayElemAt: ['$settings.policy', 0] },
-          policyKey: { $arrayElemAt: ['$settings.policy.policyKey', 0] },
+          policyKey: '$processKey',
           slug: { $arrayElemAt: ['$pluginSlug.slug', 0] },
         },
       },
@@ -577,6 +577,20 @@ export default class Plugin extends Model {
               amountPerEpoch: '$policyData.source.amountPerEpoch',
               maxSourceBalance: '$policyData.source.maxSourceBalance',
               epochInterval: '$policyData.source.epochInterval',
+            },
+            subRouters: {
+              $cond: {
+                if: { $gt: [{ $size: { $ifNull: ['$policyData.subRouters', []] } }, 0] },
+                then: '$policyData.subRouters',
+                else: null,
+              },
+            },
+            subClaimers: {
+              $cond: {
+                if: { $gt: [{ $size: { $ifNull: ['$policyData.subClaimers', []] } }, 0] },
+                then: '$policyData.subClaimers',
+                else: null,
+              },
             },
           },
         },

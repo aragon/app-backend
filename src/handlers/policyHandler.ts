@@ -37,7 +37,7 @@ export const PolicyHandler = {
     setting.policy.source = {
       ...setting.policy.source,
       vaultAddress: sourceData._vault,
-      tokenAddress: sourceData._vaultToken === utils.zeroAddress ? null : sourceData._vaultToken,
+      tokenAddress: sourceData._vaultToken,
       amountPerEpoch: sourceData._amountPerEpoch.toString(),
       maxSourceBalance: sourceData._maxSourceBalance.toString(),
       epochInterval: Number(sourceData._epochInterval),
