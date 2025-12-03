@@ -271,6 +271,22 @@ describe('Web3Provider', () => {
         EvmExplorerEnum.ROUTESCAN,
       ])
     })
+
+    it('should log warning when onError callback is triggered', async () => {
+      const address = '0xcontract'
+      const network = NetworksEnum.ethereumMainnet
+
+      const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').callsFake(async (explorers, fn, options) => {
+        options.onError(new Error('Test error'), EvmExplorerEnum.BLOCKSCOUT, 0)
+        return { blockNumber: 100, transactionHash: '0xtxhash', address }
+      })
+
+      await Web3Provider.fetchContractCreation({ address, network })
+
+      expect(fallbackCallStub.calledOnce).to.be.true
+      expect(loggerWarnStub.calledOnce).to.be.true
+      expect(loggerWarnStub.firstCall.args[0]).to.include('Failed to fetch contract creation')
+    })
   })
 
   describe('fetchContractSourceCode', () => {
@@ -336,6 +352,22 @@ describe('Web3Provider', () => {
         EvmExplorerEnum.BLOCKSCOUT,
         EvmExplorerEnum.ROUTESCAN,
       ])
+    })
+
+    it('should log warning when onError callback is triggered', async () => {
+      const address = '0xcontract'
+      const network = NetworksEnum.ethereumMainnet
+
+      const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').callsFake(async (explorers, fn, options) => {
+        options.onError(new Error('Test error'), EvmExplorerEnum.ETHERSCAN, 0)
+        return [{ SourceCode: 'code', ContractName: 'Test', ABI: '[]' }]
+      })
+
+      await Web3Provider.fetchContractSourceCode({ address, network })
+
+      expect(fallbackCallStub.calledOnce).to.be.true
+      expect(loggerWarnStub.calledOnce).to.be.true
+      expect(loggerWarnStub.firstCall.args[0]).to.include('Failed to fetch contract source code')
     })
   })
 
