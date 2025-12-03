@@ -3,9 +3,9 @@ import axios from 'axios'
 import config from '@config'
 import {
   type HexAddress,
+  type IWeb3TokenBalance,
   type IEtherScanSource,
   type IWeb3ContractCreation,
-  type IWeb3TokenBalance,
   NetworksEnum,
 } from '@types'
 import { retryRequest } from '@helpers/retryRequest'

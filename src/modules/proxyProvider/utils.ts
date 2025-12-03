@@ -1,4 +1,4 @@
-import type { IWeb3TokenBalance, LogServicePattern, NetworksEnum } from '@types'
+import type { LogServicePattern, NetworksEnum } from '@types'
 import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
 import { ProxyToken } from '@modules/proxyToken'
