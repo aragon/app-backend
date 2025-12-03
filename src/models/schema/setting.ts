@@ -122,7 +122,7 @@ export class PolicyModelSetting {
 
 export class PolicySetting {
   @prop({ type: () => String, default: null })
-  public policyKey!: string
+  public policyId!: string
 
   @prop({ type: () => String, enum: IPolicyStrategyType, default: null })
   public strategyType!: IPolicyStrategyType
@@ -132,6 +132,12 @@ export class PolicySetting {
 
   @prop({ type: () => PolicyModelSetting, _id: false, default: null })
   public model!: PolicyModelSetting
+
+  @prop({ type: () => [String], default: [] })
+  public subRouters!: HexAddress[]
+
+  @prop({ type: () => [String], default: [] })
+  public subClaimers!: HexAddress[]
 }
 
 export class PluginSetting {

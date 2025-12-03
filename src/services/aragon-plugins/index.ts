@@ -8,7 +8,6 @@ import {
   type IQueuePlugin,
   type IService,
   ITokenType,
-  type HexAddress,
 } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { LogAdmin } from '@services/aragon-plugins/logAdmin'
@@ -124,12 +123,8 @@ const AragonPluginsService: IService & { pluginQueue: (params: IQueuePlugin) => 
       }
       case IPluginInterfaceType.claimer:
       case IPluginInterfaceType.router: {
-        const sourceAndModelAddress = await Models.Setting.getPolicyAndSourceAddresses(plugin.address, plugin.network)
-        logger.info(
-          `Sync plugin: ${plugin.interfaceType}`,
-          llo({ network: plugin.network, plugin: plugin.address, sourceAndModelAddress }),
-        )
-        await Promise.all(sourceAndModelAddress.map(async (addr: HexAddress) => LogPolicy.start(addr, plugin.network)))
+        logger.info(`Sync plugin: ${plugin.interfaceType}`, llo({ network: plugin.network, plugin: plugin.address }))
+        await LogPolicy.start(plugin.address, plugin.network)
         break
       }
       default: {

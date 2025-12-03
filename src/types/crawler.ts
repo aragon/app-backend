@@ -360,10 +360,17 @@ export enum ISelectorPermissionLogs {
   NativeTransfersDisallowed = 'NativeTransfersDisallowed',
 }
 
-export enum IPolicyLogs {
+// Events from source/model contracts (SourceSettingsUpdated, ModelSettingsUpdated, PluginDefined)
+export enum IPolicySourceModelLogs {
   SourceSettingsUpdated = 'SourceSettingsUpdated',
   PluginDefined = 'PluginDefined',
   ModelSettingsUpdated = 'ModelSettingsUpdated',
+}
+
+// Events from plugin contracts (RouterSettingsUpdated, ClaimerSettingsUpdated)
+export enum IPolicyPluginSettingsLogs {
+  RouterSettingsUpdated = 'RouterSettingsUpdated',
+  ClaimerSettingsUpdated = 'ClaimerSettingsUpdated',
 }
 
 export interface ICapitalDistributorStats {

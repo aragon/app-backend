@@ -208,14 +208,8 @@ export class LibUtils {
           }
           case IPluginInterfaceType.claimer:
           case IPluginInterfaceType.router: {
-            const sourceAndModelAddress = await Models.Setting.getPolicyAndSourceAddresses(
-              plugin.address,
-              plugin.network,
-            )
-            logger.info(`Sync plugin: ${plugin.interfaceType} - ${plugin.address}`)
-            await Promise.all(
-              sourceAndModelAddress.map(async (addr: HexAddress) => LogPolicy.start(addr, plugin.network)),
-            )
+            logger.info(`Sync plugin: ${plugin.interfaceType}`, { network: plugin.network, plugin: plugin.address })
+            await LogPolicy.start(plugin.address, plugin.network)
             break
           }
           default:

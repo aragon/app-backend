@@ -522,6 +522,93 @@ export const RouterPluginBase = {
   ],
 }
 
+// RouterPlugin - standard router with model
+export const RouterPlugin = {
+  _format: 'hh-sol-artifact-1',
+  contractName: 'RouterPlugin',
+  sourceName: 'src/RouterPlugin.sol',
+  abi: [
+    {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: false,
+          internalType: 'contract IRouterModel',
+          name: 'routerModel',
+          type: 'address',
+        },
+      ],
+      name: 'RouterSettingsUpdated',
+      type: 'event',
+    },
+    {
+      inputs: [],
+      name: 'routerModel',
+      outputs: [{ internalType: 'contract IRouterModel', name: '', type: 'address' }],
+      stateMutability: 'view',
+      type: 'function',
+    },
+  ],
+}
+
+// MultiRouterPlugin - aggregates multiple routers
+export const MultiRouterPlugin = {
+  _format: 'hh-sol-artifact-1',
+  contractName: 'MultiRouterPlugin',
+  sourceName: 'src/MultiRouterPlugin.sol',
+  abi: [
+    {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: false,
+          internalType: 'contract RouterPluginBase[]',
+          name: 'subrouters',
+          type: 'address[]',
+        },
+      ],
+      name: 'RouterSettingsUpdated',
+      type: 'event',
+    },
+    {
+      inputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+      name: 'subrouters',
+      outputs: [{ internalType: 'contract RouterPluginBase', name: '', type: 'address' }],
+      stateMutability: 'view',
+      type: 'function',
+    },
+  ],
+}
+
+// MultiDispatchPlugin - dispatches to multiple routers
+export const MultiDispatchPlugin = {
+  _format: 'hh-sol-artifact-1',
+  contractName: 'MultiDispatchPlugin',
+  sourceName: 'src/MultiDispatchPlugin.sol',
+  abi: [
+    {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: false,
+          internalType: 'contract RouterPluginBase[]',
+          name: 'subrouters',
+          type: 'address[]',
+        },
+      ],
+      name: 'RouterSettingsUpdated',
+      type: 'event',
+    },
+    {
+      inputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+      name: 'subrouters',
+      outputs: [{ internalType: 'contract RouterPluginBase', name: '', type: 'address' }],
+      stateMutability: 'view',
+      type: 'function',
+    },
+  ],
+}
+
 export const BracketsModel = {
   _format: 'hh-sol-artifact-1',
   contractName: 'BracketsModel',
@@ -613,6 +700,64 @@ export const ClaimerPluginBase = {
       inputs: [],
       name: 'pluginId',
       outputs: [{ internalType: 'string', name: '', type: 'string' }],
+      stateMutability: 'view',
+      type: 'function',
+    },
+  ],
+}
+
+// ClaimerPlugin - standard claimer with model
+export const ClaimerPlugin = {
+  _format: 'hh-sol-artifact-1',
+  contractName: 'ClaimerPlugin',
+  sourceName: 'src/ClaimerPlugin.sol',
+  abi: [
+    {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: false,
+          internalType: 'contract IClaimerModel',
+          name: '_claimerModel',
+          type: 'address',
+        },
+      ],
+      name: 'ClaimerSettingsUpdated',
+      type: 'event',
+    },
+    {
+      inputs: [],
+      name: 'claimerModel',
+      outputs: [{ internalType: 'contract IClaimerModel', name: '', type: 'address' }],
+      stateMutability: 'view',
+      type: 'function',
+    },
+  ],
+}
+
+// MultiClaimerPlugin - aggregates multiple claimers
+export const MultiClaimerPlugin = {
+  _format: 'hh-sol-artifact-1',
+  contractName: 'MultiClaimerPlugin',
+  sourceName: 'src/MultiClaimerPlugin.sol',
+  abi: [
+    {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: false,
+          internalType: 'contract ClaimerPluginBase[]',
+          name: 'subclaimers',
+          type: 'address[]',
+        },
+      ],
+      name: 'ClaimerSettingsUpdated',
+      type: 'event',
+    },
+    {
+      inputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+      name: 'subclaimers',
+      outputs: [{ internalType: 'contract ClaimerPluginBase', name: '', type: 'address' }],
       stateMutability: 'view',
       type: 'function',
     },

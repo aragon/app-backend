@@ -1,12 +1,13 @@
 import logger from '@logger'
 import {
   IEventLogPluginSettings,
-  IEventLogPluginType,
   type ILogInfo,
   IPluginInterfaceType,
   IPluginStatus,
   ISettingStatus,
   type ISettingVotingEscrow,
+  IPolicyStrategyType,
+  type IPolicySetting,
 } from '@types'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
@@ -667,92 +668,74 @@ export const PluginSettingHandler = {
 
   /**
    * Create policy settings for router/claimer plugins
-   * - Source data: fetched via on-chain calls
-   * - Model data: extracted from InstallationPrepared event, then fetched on-chain
-   * - Creates a Setting record with embedded policy data
+   * Handles different plugin types:
+   * - RouterPlugin/ClaimerPlugin: has source + model
+   * - BurnRouterPlugin/UniswapRouter: has source only (no model)
+   * - MultiRouterPlugin/MultiDispatchPlugin: has subRouters[] only
+   * - MultiClaimerPlugin: has subClaimers[] only
    */
   linkPolicySourceAndModel: async (pluginDb: Plugin, info: ILogInfo) => {
     try {
-      const { address: pluginAddress, network, interfaceType, daoAddress } = pluginDb
+      const { address: pluginAddress, network, daoAddress } = pluginDb
 
-      const [strategyResult, sourceAddress, preparedLog] = await Promise.all([
-        PolicyHelper.getStrategyTypeAndPluginId(pluginAddress, network),
-        PolicyHelper.getSourceAddress(pluginAddress, network),
-        Models.LogPluginSetupProcessor.findByPluginAddress(
-          pluginAddress,
-          network,
-          IEventLogPluginType.InstallationPrepared,
-        ),
-      ])
+      const strategyResult = await PolicyHelper.getStrategyTypeAndPluginId(pluginAddress, network)
 
       if (!strategyResult) {
         logger.warn('Failed to get strategy type', llo({ pluginAddress, network }))
         return
       }
 
-      if (!sourceAddress) {
-        logger.warn('No source addresses found for policy plugin', llo({ pluginAddress, network }))
-        return
-      }
-
-      if (!preparedLog) {
-        logger.warn('No InstallationPrepared log found for policy plugin', llo({ pluginAddress, network }))
-        return
-      }
-
-      const [sourceData, receipt] = await Promise.all([
-        PolicyHelper.getSourceData(sourceAddress, network),
-        Web3Helper.getTransactionReceipt(preparedLog.transactionHash, network),
-      ])
-
-      if (!sourceData) {
-        logger.warn('Failed to fetch source data', llo({ sourceAddress, network }))
-        return
-      }
-
-      const modelAddress = PolicyHelper.getModelAddressFromEvent(receipt!, pluginAddress, interfaceType)
-      if (!modelAddress) {
-        logger.warn('Failed to get model address from event', llo({ pluginAddress, interfaceType, network }))
-        return
-      }
-
-      const [modelData, existingSetting] = await Promise.all([
-        PolicyHelper.getModelData(modelAddress, network),
-        Models.Setting.findActive({ pluginAddress, network }),
-      ])
-
-      if (!modelData) {
-        logger.warn('Failed to fetch model data', llo({ modelAddress, network }))
-        return
-      }
+      const { strategyType, policyKey } = strategyResult
+      const existingSetting = await Models.Setting.findActive({ pluginAddress, network })
 
       if (existingSetting?.policy) {
         logger.verbose('Policy setting already exists', llo({ pluginAddress, network }))
         return
       }
 
-      const policySetting = {
-        policyKey: strategyResult.policyKey,
-        strategyType: strategyResult.strategyType,
-        source: {
-          address: sourceData.address,
-          type: sourceData.type,
-          vaultAddress: sourceData.vaultAddress,
-          tokenAddress: sourceData.tokenAddress,
-          amountPerEpoch: sourceData.amountPerEpoch,
-          maxSourceBalance: sourceData.maxSourceBalance,
-          epochInterval: sourceData.epochInterval,
-          requiredBalance: sourceData.requiredBalance,
-          targetAmount: sourceData.targetAmount,
-        },
-        model: {
-          address: modelData.address,
-          type: modelData.type,
-          recipients: modelData.recipients,
-          ratios: modelData.ratios,
-          gaugeVoterAddress: modelData.gaugeVoterAddress,
-          brackets: modelData.brackets,
-        },
+      const policySetting: IPolicySetting = {
+        policyKey,
+        strategyType,
+      }
+
+      const hasSource = [
+        IPolicyStrategyType.router,
+        IPolicyStrategyType.claimer,
+        IPolicyStrategyType.burnRouter,
+        IPolicyStrategyType.uniswapRouter,
+      ].includes(strategyType)
+
+      if (hasSource) {
+        const sourceAddress = await PolicyHelper.getSourceAddress(pluginAddress, network)
+        if (sourceAddress) {
+          const sourceData = await PolicyHelper.getSourceData(sourceAddress, network)
+          policySetting.source = sourceData
+
+          if (sourceData?.tokenAddress) {
+            await ProxyToken.saveAndGetToken(sourceData.tokenAddress, network)
+          }
+        }
+      }
+
+      const hasModel = [IPolicyStrategyType.router, IPolicyStrategyType.claimer].includes(strategyType)
+
+      if (hasModel) {
+        const modelAddress = await PolicyHelper.getModelAddress(pluginAddress, network, strategyType)
+        if (modelAddress) {
+          policySetting.model = await PolicyHelper.getModelData(modelAddress, network)
+        }
+      }
+
+      const hasSubRouters = [IPolicyStrategyType.multiRouter, IPolicyStrategyType.multiDispatch].includes(strategyType)
+
+      if (hasSubRouters) {
+        const subRouters = await PolicyHelper.getSubRouters(pluginAddress, network)
+        policySetting.subRouters = subRouters.length > 0 ? subRouters : null
+      }
+
+      if (strategyType === IPolicyStrategyType.multiClaimer) {
+        const subClaimers = await PolicyHelper.getSubClaimers(pluginAddress, network)
+        policySetting.subClaimers = subClaimers.length > 0 ? subClaimers : null
       }
 
       if (existingSetting) {
@@ -774,9 +757,11 @@ export const PluginSettingHandler = {
       if (!pluginDb.isPolicy) {
         await pluginDb.update({ isPolicy: true })
       }
-      if (sourceData.tokenAddress) {
-        await ProxyToken.saveAndGetToken(sourceData.tokenAddress, network)
+
+      if (policySetting.source?.tokenAddress) {
+        await ProxyToken.saveAndGetToken(policySetting.source.tokenAddress, network)
       }
+
       return true
     } catch (error) {
       logger.error('Error creating policy settings', llo({ error, pluginAddress: pluginDb.address }))

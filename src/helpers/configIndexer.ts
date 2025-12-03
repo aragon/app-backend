@@ -20,6 +20,7 @@ import {
   type HexAddress,
   type CampaignStrategyLogService,
   type PolicyContractLogService,
+  type PolicyPluginLogService,
 } from '@src/types'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ConfigIndexerHelper' })
@@ -118,6 +119,11 @@ const ConfigIndexerHelper = {
     policyContract: (network: NetworksEnum, address: string): PolicyContractLogService => {
       const service = `${IndexerType.policyContract}-${network}-${address}`
       return service as PolicyContractLogService
+    },
+
+    policyPlugin: (network: NetworksEnum, address: string): PolicyPluginLogService => {
+      const service = `${IndexerType.policyPlugin}-${network}-${address}`
+      return service as PolicyPluginLogService
     },
   },
 

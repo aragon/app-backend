@@ -39,6 +39,10 @@ import {
   EqualRatioModel,
   AddressGaugeRatioModel,
   BracketsModel,
+  RouterPlugin,
+  ClaimerPlugin,
+  MultiRouterPlugin,
+  MultiClaimerPlugin,
 } from '@artifacts/CapitalRouter'
 import { PolicyHandler } from '@handlers/policyHandler'
 
@@ -720,6 +724,43 @@ const IndexerEventConfig: IIndexerConfig[] = [
       {
         abi: BracketsModel.abi,
         handler: PolicyHandler.bracketsModelSettingsUpdated,
+      },
+    ],
+  },
+  // Policy Plugin events (RouterSettingsUpdated, ClaimerSettingsUpdated)
+  {
+    event: 'RouterSettingsUpdated',
+    enableHistorical: false,
+    topic: [
+      new Interface(RouterPlugin.abi).getEvent('RouterSettingsUpdated')?.topicHash!,
+      new Interface(MultiRouterPlugin.abi).getEvent('RouterSettingsUpdated')?.topicHash!,
+    ],
+    config: [
+      {
+        abi: RouterPlugin.abi,
+        handler: PolicyHandler.routerSettingsUpdated,
+      },
+      {
+        abi: MultiRouterPlugin.abi,
+        handler: PolicyHandler.multiRouterSettingsUpdated,
+      },
+    ],
+  },
+  {
+    event: 'ClaimerSettingsUpdated',
+    enableHistorical: false,
+    topic: [
+      new Interface(ClaimerPlugin.abi).getEvent('ClaimerSettingsUpdated')?.topicHash!,
+      new Interface(MultiClaimerPlugin.abi).getEvent('ClaimerSettingsUpdated')?.topicHash!,
+    ],
+    config: [
+      {
+        abi: ClaimerPlugin.abi,
+        handler: PolicyHandler.claimerSettingsUpdated,
+      },
+      {
+        abi: MultiClaimerPlugin.abi,
+        handler: PolicyHandler.multiClaimerSettingsUpdated,
       },
     ],
   },

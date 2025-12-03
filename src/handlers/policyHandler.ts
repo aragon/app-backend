@@ -246,4 +246,164 @@ export const PolicyHandler = {
 
     logger.info('Updated Setting with BracketsModel data', llo({ modelAddress, pluginAddress: setting.pluginAddress }))
   },
+
+  /**
+   * Handle RouterSettingsUpdated event from RouterPlugin
+   * Event: RouterSettingsUpdated(IRouterModel routerModel)
+   * Updates the model address in policy settings
+   */
+  routerSettingsUpdated: async (event: LogDescription, info: ILogInfo) => {
+    const pluginAddress = info.address
+    const network = info.network
+    const modelAddress = event.args.routerModel as HexAddress
+
+    logger.info(
+      'RouterSettingsUpdated event received',
+      llo({
+        pluginAddress,
+        modelAddress,
+        blockNumber: info.blockNumber,
+        txHash: info.transactionHash,
+      }),
+    )
+
+    const setting = await Models.Setting.findActive({ pluginAddress, network })
+
+    if (!setting?.policy) {
+      logger.warn('No Setting found for plugin address', llo({ pluginAddress, network }))
+      return
+    }
+
+    // Update model address - model data will be populated by model events
+    if (!setting.policy.model) {
+      setting.policy.model = {
+        address: modelAddress,
+        type: null as any,
+        recipients: [],
+        ratios: [],
+        gaugeVoterAddress: null,
+        brackets: [],
+      }
+    } else {
+      setting.policy.model.address = modelAddress
+    }
+
+    await setting.save()
+
+    logger.info('Updated Setting with router model', llo({ pluginAddress, modelAddress }))
+  },
+
+  /**
+   * Handle ClaimerSettingsUpdated event from ClaimerPlugin
+   * Event: ClaimerSettingsUpdated(IClaimerModel _claimerModel)
+   * Updates the model address in policy settings
+   */
+  claimerSettingsUpdated: async (event: LogDescription, info: ILogInfo) => {
+    const pluginAddress = info.address
+    const network = info.network
+    const modelAddress = event.args._claimerModel as HexAddress
+
+    logger.info(
+      'ClaimerSettingsUpdated event received',
+      llo({
+        pluginAddress,
+        modelAddress,
+        blockNumber: info.blockNumber,
+        txHash: info.transactionHash,
+      }),
+    )
+
+    const setting = await Models.Setting.findActive({ pluginAddress, network })
+
+    if (!setting?.policy) {
+      logger.warn('No Setting found for plugin address', llo({ pluginAddress, network }))
+      return
+    }
+
+    // Update model address - model data will be populated by model events
+    if (!setting.policy.model) {
+      setting.policy.model = {
+        address: modelAddress,
+        type: null as any,
+        recipients: [],
+        ratios: [],
+        gaugeVoterAddress: null,
+        brackets: [],
+      }
+    } else {
+      setting.policy.model.address = modelAddress
+    }
+
+    await setting.save()
+
+    logger.info('Updated Setting with claimer model', llo({ pluginAddress, modelAddress }))
+  },
+
+  /**
+   * Handle RouterSettingsUpdated event from MultiRouterPlugin / MultiDispatchPlugin
+   * Event: RouterSettingsUpdated(RouterPluginBase[] subrouters)
+   * Updates the subRouters array in policy settings
+   */
+  multiRouterSettingsUpdated: async (event: LogDescription, info: ILogInfo) => {
+    const pluginAddress = info.address
+    const network = info.network
+    const subRouters = event.args.subrouters as string[]
+
+    logger.info(
+      'MultiRouter RouterSettingsUpdated event received',
+      llo({
+        pluginAddress,
+        subRouters,
+        blockNumber: info.blockNumber,
+        txHash: info.transactionHash,
+      }),
+    )
+
+    const setting = await Models.Setting.findActive({ pluginAddress, network })
+
+    if (!setting?.policy) {
+      logger.warn('No Setting found for plugin address', llo({ pluginAddress, network }))
+      return
+    }
+
+    setting.policy.subRouters = subRouters.length > 0 ? subRouters : null
+
+    await setting.save()
+
+    logger.info('Updated Setting with subRouters', llo({ pluginAddress, subRouters }))
+  },
+
+  /**
+   * Handle ClaimerSettingsUpdated event from MultiClaimerPlugin
+   * Event: ClaimerSettingsUpdated(ClaimerPluginBase[] subclaimers)
+   * Updates the subClaimers array in policy settings
+   */
+  multiClaimerSettingsUpdated: async (event: LogDescription, info: ILogInfo) => {
+    const pluginAddress = info.address
+    const network = info.network
+    const subClaimers = event.args.subclaimers as string[]
+
+    logger.info(
+      'MultiClaimer ClaimerSettingsUpdated event received',
+      llo({
+        pluginAddress,
+        subClaimers,
+        blockNumber: info.blockNumber,
+        txHash: info.transactionHash,
+      }),
+    )
+
+    const setting = await Models.Setting.findActive({ pluginAddress, network })
+
+    if (!setting?.policy) {
+      logger.warn('No Setting found for plugin address', llo({ pluginAddress, network }))
+      return
+    }
+
+    setting.policy.subClaimers = subClaimers.length > 0 ? subClaimers : null
+
+    await setting.save()
+
+    logger.info('Updated Setting with subClaimers', llo({ pluginAddress, subClaimers }))
+  },
 }

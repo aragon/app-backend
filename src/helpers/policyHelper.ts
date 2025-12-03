@@ -26,6 +26,10 @@ import {
   RequiredBalanceSource,
   FixedBalanceSource,
   BracketsModel,
+  RouterPlugin,
+  ClaimerPlugin,
+  MultiRouterPlugin,
+  MultiClaimerPlugin,
 } from '@artifacts/CapitalRouter'
 import PolicyDetector from '@helpers/policyDetector'
 import Web3Utils from '@helpers/web3Utils'
@@ -59,7 +63,7 @@ const PLUGIN_ID_TO_STRATEGY: Record<string, IPolicyStrategyType> = {
 
 const PolicyHelper = {
   /**
-   * Get strategy type and pluginId by calling pluginId() on-chain
+   * Get a strategy type and pluginId by calling pluginId() on-chain
    * Returns both the raw pluginId (for policyKey) and the mapped strategyType
    */
   getStrategyTypeAndPluginId: async (
@@ -434,6 +438,100 @@ const PolicyHelper = {
     } catch (error) {
       logger.error('Error fetching model data', llo({ error, modelAddress, network }))
       return null
+    }
+  },
+
+  /**
+   * Get model address via on-chain call for RouterPlugin or ClaimerPlugin
+   * - RouterPlugin: calls routerModel()
+   * - ClaimerPlugin: calls claimerModel()
+   */
+  getModelAddress: async (
+    pluginAddress: HexAddress,
+    network: NetworksEnum,
+    strategyType: IPolicyStrategyType,
+  ): Promise<HexAddress | null> => {
+    try {
+      const provider = ProviderModule.getAnyRpcProvider(network)
+
+      if (strategyType === IPolicyStrategyType.router) {
+        const contract = new Contract(pluginAddress, RouterPlugin.abi, provider)
+        const modelAddress = await retryRequest(async () =>
+          BottleneckModule.getNodeLimiter(network).schedule(async () => contract.routerModel()),
+        )
+        return modelAddress !== utils.zeroAddress ? modelAddress : null
+      }
+
+      if (strategyType === IPolicyStrategyType.claimer) {
+        const contract = new Contract(pluginAddress, ClaimerPlugin.abi, provider)
+        const modelAddress = await retryRequest(async () =>
+          BottleneckModule.getNodeLimiter(network).schedule(async () => contract.claimerModel()),
+        )
+        return modelAddress !== utils.zeroAddress ? modelAddress : null
+      }
+
+      return null
+    } catch (error) {
+      logger.error('Error fetching model address', llo({ error, pluginAddress, network }))
+      return null
+    }
+  },
+
+  /**
+   * Get subrouters array for MultiRouterPlugin or MultiDispatchPlugin
+   * Iterates until revert
+   */
+  getSubRouters: async (pluginAddress: HexAddress, network: NetworksEnum): Promise<string[]> => {
+    try {
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      const contract = new Contract(pluginAddress, MultiRouterPlugin.abi, provider)
+
+      const subRouters: string[] = []
+      let i = 0
+
+      while (true) {
+        try {
+          const address = await BottleneckModule.getNodeLimiter(network).schedule(async () => contract.subrouters(i))
+          subRouters.push(address)
+          i++
+        } catch {
+          break
+        }
+      }
+
+      return subRouters
+    } catch (error) {
+      logger.error('Error fetching subrouters', llo({ error, pluginAddress, network }))
+      return []
+    }
+  },
+
+  /**
+   * Get subclaimers array for MultiClaimerPlugin
+   * Iterates until revert
+   */
+  getSubClaimers: async (pluginAddress: HexAddress, network: NetworksEnum): Promise<string[]> => {
+    try {
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      const contract = new Contract(pluginAddress, MultiClaimerPlugin.abi, provider)
+
+      const subClaimers: string[] = []
+      let i = 0
+
+      while (true) {
+        try {
+          const address = await BottleneckModule.getNodeLimiter(network).schedule(async () => contract.subclaimers(i))
+          subClaimers.push(address)
+          i++
+        } catch {
+          break
+        }
+      }
+
+      return subClaimers
+    } catch (error) {
+      logger.error('Error fetching subclaimers', llo({ error, pluginAddress, network }))
+      return []
     }
   },
 }
