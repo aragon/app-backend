@@ -668,77 +668,72 @@ export const PluginSettingHandler = {
   /**
    * Create policy settings for router/claimer plugins
    * - Source data: fetched via on-chain calls
-   * - Model data: fetched via on-chain calls
+   * - Model data: extracted from InstallationPrepared event, then fetched on-chain
    * - Creates a Setting record with embedded policy data
    */
   linkPolicySourceAndModel: async (pluginDb: Plugin, info: ILogInfo) => {
     try {
       const { address: pluginAddress, network, interfaceType, daoAddress } = pluginDb
 
-      const strategyType = await PolicyHelper.getStrategyType(pluginAddress, network)
+      const [strategyResult, sourceAddress, preparedLog] = await Promise.all([
+        PolicyHelper.getStrategyTypeAndPluginId(pluginAddress, network),
+        PolicyHelper.getSourceAddress(pluginAddress, network),
+        Models.LogPluginSetupProcessor.findByPluginAddress(
+          pluginAddress,
+          network,
+          IEventLogPluginType.InstallationPrepared,
+        ),
+      ])
 
-      const sourceAddress = await PolicyHelper.getSourceAddress(pluginAddress, network)
+      if (!strategyResult) {
+        logger.warn('Failed to get strategy type', llo({ pluginAddress, network }))
+        return
+      }
+
       if (!sourceAddress) {
         logger.warn('No source addresses found for policy plugin', llo({ pluginAddress, network }))
         return
       }
 
-      const sourceData = await PolicyHelper.getSourceData(sourceAddress, network)
+      if (!preparedLog) {
+        logger.warn('No InstallationPrepared log found for policy plugin', llo({ pluginAddress, network }))
+        return
+      }
+
+      const [sourceData, receipt] = await Promise.all([
+        PolicyHelper.getSourceData(sourceAddress, network),
+        Web3Helper.getTransactionReceipt(preparedLog.transactionHash, network),
+      ])
+
       if (!sourceData) {
         logger.warn('Failed to fetch source data', llo({ sourceAddress, network }))
         return
       }
 
-      const preparedLog = await Models.LogPluginSetupProcessor.findByPluginAddress(
-        pluginAddress,
-        network,
-        IEventLogPluginType.InstallationPrepared,
-      )
-
-      if (!preparedLog?.transactionHash) {
-        logger.warn('InstallationPrepared log not found for plugin', llo({ pluginAddress, network }))
-        return
-      }
-
-      const tx = await Web3Helper.getTransaction(preparedLog.transactionHash, network)
-      if (!tx?.data) {
-        logger.warn('Transaction not found', llo({ transactionHash: preparedLog.transactionHash, network }))
-        return
-      }
-
-      const installationData = PolicyHelper.decodeInstallationData(tx.data)
-      if (!installationData) {
-        logger.warn('Failed to decode installation data', llo({ pluginAddress, network }))
-        return
-      }
-
-      const modelAddress = PolicyHelper.getModelAddress(interfaceType, installationData)
+      const modelAddress = PolicyHelper.getModelAddressFromEvent(receipt!, pluginAddress, interfaceType)
       if (!modelAddress) {
-        logger.warn('Failed to get model address', llo({ pluginAddress, interfaceType, network }))
+        logger.warn('Failed to get model address from event', llo({ pluginAddress, interfaceType, network }))
         return
       }
 
-      // Get model data
-      const modelData = await PolicyHelper.getModelData(modelAddress, network)
+      const [modelData, existingSetting] = await Promise.all([
+        PolicyHelper.getModelData(modelAddress, network),
+        Models.Setting.findActive({ pluginAddress, network }),
+      ])
+
       if (!modelData) {
         logger.warn('Failed to fetch model data', llo({ modelAddress, network }))
         return
       }
-
-      // Check for existing active setting
-      const existingSetting = await Models.Setting.findActive({
-        pluginAddress,
-        network,
-      })
 
       if (existingSetting?.policy) {
         logger.verbose('Policy setting already exists', llo({ pluginAddress, network }))
         return
       }
 
-      // Create policy setting data
       const policySetting = {
-        strategyType,
+        policyKey: strategyResult.policyKey,
+        strategyType: strategyResult.strategyType,
         source: {
           address: sourceData.address,
           type: sourceData.type,
@@ -779,6 +774,10 @@ export const PluginSettingHandler = {
       if (!pluginDb.isPolicy) {
         await pluginDb.update({ isPolicy: true })
       }
+      if (sourceData.tokenAddress) {
+        await ProxyToken.saveAndGetToken(sourceData.tokenAddress, network)
+      }
+      return true
     } catch (error) {
       logger.error('Error creating policy settings', llo({ error, pluginAddress: pluginDb.address }))
     }

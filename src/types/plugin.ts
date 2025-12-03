@@ -45,6 +45,8 @@ export enum IPluginSlug {
   gauge = 'gauge',
   spp = 'core',
   capitalDistributor = 'capitalDistributor',
+  router = 'router',
+  claimer = 'claimer',
 }
 
 export enum IEventLogPluginSettings {

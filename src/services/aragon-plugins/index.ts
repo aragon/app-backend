@@ -8,6 +8,7 @@ import {
   type IQueuePlugin,
   type IService,
   ITokenType,
+  type HexAddress,
 } from '@types'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { LogAdmin } from '@services/aragon-plugins/logAdmin'
@@ -20,6 +21,7 @@ import { LogGauge } from '@plugins/logGauge'
 import { LogSelectorPermission } from '@services/aragon-plugins/logSelectorPermission'
 import { LogCapitalDistributor } from '@services/aragon-plugins/logCapitalDistributor'
 import config from '@config'
+import { LogPolicy } from '@plugins/logPolicy'
 
 const llo = logger.logMeta.bind(null, { service: 'service:PluginSyncService' })
 
@@ -118,6 +120,16 @@ const AragonPluginsService: IService & { pluginQueue: (params: IQueuePlugin) => 
       case IPluginInterfaceType.capitalDistributor: {
         logger.info('Sync plugin: Capital Distributor', llo({ plugin: plugin.address }))
         await LogCapitalDistributor.start(plugin)
+        break
+      }
+      case IPluginInterfaceType.claimer:
+      case IPluginInterfaceType.router: {
+        const sourceAndModelAddress = await Models.Setting.getPolicyAndSourceAddresses(plugin.address, plugin.network)
+        logger.info(
+          `Sync plugin: ${plugin.interfaceType}`,
+          llo({ network: plugin.network, plugin: plugin.address, sourceAndModelAddress }),
+        )
+        await Promise.all(sourceAndModelAddress.map(async (addr: HexAddress) => LogPolicy.start(addr, plugin.network)))
         break
       }
       default: {

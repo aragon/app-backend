@@ -327,7 +327,7 @@ export const FixedBalanceSource = {
     },
     {
       inputs: [],
-      name: 'targetAmount',
+      name: 'sourceBalance',
       outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
       stateMutability: 'view',
       type: 'function',

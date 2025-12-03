@@ -8,6 +8,7 @@ const PolicySchema = {
       .valid(...Object.values(NetworksEnum))
       .required(),
     daoAddress: ValidationSchema.joiAddress.required(),
+    onlyParent: Joi.boolean().optional(),
   }),
 }
 

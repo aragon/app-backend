@@ -2,6 +2,8 @@ import logger from '@logger'
 import type { LogDescription } from 'ethers'
 import { type ILogInfo, type HexAddress, IPolicySourceType } from '@types'
 import { Models } from '@dbModels'
+import { ProxyToken } from '@modules/proxyToken'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'handler:PolicyHandler' })
 
@@ -35,10 +37,14 @@ export const PolicyHandler = {
     setting.policy.source = {
       ...setting.policy.source,
       vaultAddress: sourceData._vault,
-      tokenAddress: sourceData._vaultToken,
-      amountPerEpoch: sourceData._amountPerEpoch,
-      maxSourceBalance: sourceData._maxSourceBalance,
-      epochInterval: sourceData._epochInterval,
+      tokenAddress: sourceData._vaultToken === utils.zeroAddress ? null : sourceData._vaultToken,
+      amountPerEpoch: sourceData._amountPerEpoch.toString(),
+      maxSourceBalance: sourceData._maxSourceBalance.toString(),
+      epochInterval: Number(sourceData._epochInterval),
+    }
+
+    if (setting.policy.source.tokenAddress) {
+      await ProxyToken.saveAndGetToken(sourceData._vaultToken, network)
     }
 
     await setting.save()

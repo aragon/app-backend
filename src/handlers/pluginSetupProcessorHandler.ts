@@ -210,8 +210,10 @@ export const PluginSetupProcessorHandler = {
       pluginDb?.interfaceType === IPluginInterfaceType.router ||
       pluginDb?.interfaceType === IPluginInterfaceType.claimer
     ) {
-      await PluginSettingHandler.linkPolicySourceAndModel(pluginDb, info)
-      await PluginSettingHandler.isSupported(pluginDb, info)
+      const linkStatus = await PluginSettingHandler.linkPolicySourceAndModel(pluginDb, info)
+      if (linkStatus) {
+        await PluginSettingHandler.isSupported(pluginDb, info)
+      }
     }
 
     await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {

@@ -174,3 +174,10 @@ export interface IGetPluginsByDaoParams {
   isProcess?: boolean
   isSupported?: boolean
 }
+
+export interface IGetPoliciesByDaoParams {
+  daoAddress: HexAddress
+  daoAddresses?: HexAddress[]
+  network: NetworksEnum
+  onlyParent?: boolean
+}

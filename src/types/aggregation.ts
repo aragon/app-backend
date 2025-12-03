@@ -124,6 +124,7 @@ export interface IAggSettingProjectFields {
   minProposerVotingPower?: 1
   stages?: 1
   votingEscrow?: 1
+  policy?: 1
 }
 
 export interface IAggMemberParams {

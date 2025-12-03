@@ -1,14 +1,17 @@
-import { Contract, AbiCoder, Interface } from 'ethers'
+import { Contract, AbiCoder, type TransactionReceipt } from 'ethers'
 import logger from '@logger'
 import {
   IPluginInterfaceType,
   type NetworksEnum,
-  IPolicySourceType,
-  IPolicyModelType,
+  // IPolicySourceType,
+  // IPolicyModelType,
   IPolicyStrategyType,
   type IPolicySourceData,
   type IPolicyModelData,
   type HexAddress,
+  IEventLogPluginType,
+  type IPolicyModelBracket,
+  IPolicySourceType,
 } from '@types'
 import ProviderModule from '@modules/provider'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
@@ -22,8 +25,13 @@ import {
   StreamBalanceSource,
   RequiredBalanceSource,
   FixedBalanceSource,
+  BracketsModel,
 } from '@artifacts/CapitalRouter'
 import PolicyDetector from '@helpers/policyDetector'
+import Web3Utils from '@helpers/web3Utils'
+import BottleneckModule from '@modules/bottleneck'
+import { retryRequest } from '@helpers/retryRequest'
+import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'helper:PolicyHelper' })
 
@@ -51,14 +59,25 @@ const PLUGIN_ID_TO_STRATEGY: Record<string, IPolicyStrategyType> = {
 
 const PolicyHelper = {
   /**
-   * Get a strategy type by calling pluginId() on-chain
+   * Get strategy type and pluginId by calling pluginId() on-chain
+   * Returns both the raw pluginId (for policyKey) and the mapped strategyType
    */
-  getStrategyType: async (pluginAddress: HexAddress, network: NetworksEnum): Promise<IPolicyStrategyType | null> => {
+  getStrategyTypeAndPluginId: async (
+    pluginAddress: HexAddress,
+    network: NetworksEnum,
+  ): Promise<{ strategyType: IPolicyStrategyType; policyKey: string } | null> => {
     try {
       const provider = ProviderModule.getAnyRpcProvider(network)
       const contract = new Contract(pluginAddress, RouterPluginBase.abi, provider)
-      const pluginId = await contract.pluginId()
-      return PLUGIN_ID_TO_STRATEGY[pluginId] ?? null
+
+      const pluginId = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.pluginId()),
+      )
+
+      const strategyType = PLUGIN_ID_TO_STRATEGY[pluginId]
+      if (!strategyType) return null
+
+      return { strategyType, policyKey: pluginId }
     } catch (error) {
       logger.error('Error fetching plugin strategy type', llo({ error, pluginAddress, network }))
       return null
@@ -72,7 +91,11 @@ const PolicyHelper = {
     try {
       const provider = ProviderModule.getAnyRpcProvider(network)
       const contract = new Contract(pluginAddress, PluginSourcesAbi, provider)
-      const addresses = await contract.sources()
+
+      const addresses = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.sources()),
+      )
+
       return addresses[0]
     } catch (error) {
       logger.error('Error fetching source addresses', llo({ error, pluginAddress, network }))
@@ -81,46 +104,176 @@ const PolicyHelper = {
   },
 
   /**
-   * Decode the prepareInstallation call input to get the installation data (bytes)
+   * Fetch drain source data (vault + token)
    */
-  decodeInstallationData: (txInput: string): string | null => {
-    try {
-      const iface = new Interface(PluginSetupProcessor.abi)
-      const decoded = iface.parseTransaction({ data: txInput })
+  _getDrainSourceData: async (
+    sourceAddress: string,
+    network: NetworksEnum,
+  ): Promise<{ vaultAddress: string; tokenAddress: string }> => {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const contract = new Contract(sourceAddress, DrainBalanceSource.abi, provider)
 
-      if (decoded?.name === 'prepareInstallation') {
-        return decoded.args._params.data
-      }
+    const [vaultAddress, tokenAddress] = await Promise.all([
+      retryRequest(async () => BottleneckModule.getNodeLimiter(network).schedule(async () => contract.vault())),
+      retryRequest(async () => BottleneckModule.getNodeLimiter(network).schedule(async () => contract.token())),
+    ])
 
-      return null
-    } catch (error) {
-      logger.error('Error decoding prepareInstallation tx', llo({ error }))
-      return null
-    }
+    return { vaultAddress, tokenAddress }
   },
 
   /**
-   * Decode installation params and return the model address
-   * Router: abi.encode(routerSource, isStreamingSource, routerModel)
-   * Claimer: abi.encode(claimerSource, claimerModel)
+   * Fetch required source data (vault + token + requiredBalance)
    */
-  getModelAddress: (interfaceType: string, installationData: string): string | null => {
-    try {
-      const abiCoder = AbiCoder.defaultAbiCoder()
+  _getRequiredSourceData: async (sourceAddress: string, network: NetworksEnum): Promise<{ tokenAddress: string }> => {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const contract = new Contract(sourceAddress, RequiredBalanceSource.abi, provider)
 
-      if (interfaceType === IPluginInterfaceType.router) {
-        const decoded = abiCoder.decode(['address', 'bool', 'address'], installationData)
-        return decoded[2]
-      } else if (interfaceType === IPluginInterfaceType.claimer) {
-        const decoded = abiCoder.decode(['address', 'address'], installationData)
-        return decoded[1]
-      }
+    const [tokenAddress] = await Promise.all([
+      // retryRequest(async () => BottleneckModule.getNodeLimiter(network).schedule(async () => contract.vault())),
+      retryRequest(async () => BottleneckModule.getNodeLimiter(network).schedule(async () => contract.token())),
+      // retryRequest(async () =>
+      //   BottleneckModule.getNodeLimiter(network).schedule(async () => contract.requiredBalance()),
+      // ),
+    ])
 
-      return null
-    } catch (error) {
-      logger.error('Error decoding model address', llo({ error, interfaceType }))
-      return null
+    return { tokenAddress }
+  },
+
+  /**
+   * Fetch stream source data (token)
+   */
+  _getStreamSourceData: async (sourceAddress: string, network: NetworksEnum): Promise<{ tokenAddress: string }> => {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const contract = new Contract(sourceAddress, StreamBalanceSource.abi, provider)
+
+    const tokenAddress = await retryRequest(async () =>
+      BottleneckModule.getNodeLimiter(network).schedule(async () => contract.token()),
+    )
+
+    return { tokenAddress }
+  },
+
+  /**
+   * Fetch fixed source data (token + targetAmount)
+   */
+  _getFixedSourceData: async (
+    sourceAddress: string,
+    network: NetworksEnum,
+  ): Promise<{ tokenAddress: string; targetAmount: string }> => {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const contract = new Contract(sourceAddress, FixedBalanceSource.abi, provider)
+
+    const [tokenAddress, targetAmount] = await Promise.all([
+      retryRequest(async () => BottleneckModule.getNodeLimiter(network).schedule(async () => contract.token())),
+      retryRequest(async () => BottleneckModule.getNodeLimiter(network).schedule(async () => contract.sourceBalance())),
+    ])
+
+    return { tokenAddress, targetAmount: targetAmount.toString() }
+  },
+
+  /**
+   * Fetch gauge model data (gaugeVoter)
+   */
+  _getGaugeModelData: async (modelAddress: string, network: NetworksEnum): Promise<{ gaugeVoterAddress: string }> => {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const contract = new Contract(modelAddress, AddressGaugeRatioModel.abi, provider)
+
+    const gaugeVoterAddress = await retryRequest(async () =>
+      BottleneckModule.getNodeLimiter(network).schedule(async () => contract.gaugeVoter()),
+    )
+
+    return { gaugeVoterAddress }
+  },
+
+  /**
+   * Fetch ratio model data (recipients + ratios)
+   */
+  _getRatioModelData: async (
+    modelAddress: string,
+    network: NetworksEnum,
+  ): Promise<{ recipients: string[]; ratios: number[] }> => {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const contract = new Contract(modelAddress, RatioModel.abi, provider)
+
+    const count = await retryRequest(async () =>
+      BottleneckModule.getNodeLimiter(network).schedule(async () => contract.recipientCount(0)),
+    )
+
+    const recipientCount = Number(count)
+    const fetchPromises: Promise<[string, bigint]>[] = []
+
+    for (let i = 0; i < recipientCount; i++) {
+      fetchPromises.push(
+        Promise.all([
+          retryRequest(async () =>
+            BottleneckModule.getNodeLimiter(network).schedule(async () => contract.recipients(i)),
+          ),
+          retryRequest(async () => BottleneckModule.getNodeLimiter(network).schedule(async () => contract.ratios(i))),
+        ]),
+      )
     }
+
+    const results = await Promise.all(fetchPromises)
+    const recipients = results.map(([recipient]) => recipient)
+    const ratios = results.map(([, ratio]) => Number(ratio))
+
+    return { recipients, ratios }
+  },
+
+  /**
+   * Fetch equal ratio model data (recipients)
+   */
+  _getEqualRatioModelData: async (modelAddress: string, network: NetworksEnum): Promise<{ recipients: string[] }> => {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const contract = new Contract(modelAddress, EqualRatioModel.abi, provider)
+
+    const count = await retryRequest(async () =>
+      BottleneckModule.getNodeLimiter(network).schedule(async () => contract.recipientCount(0)),
+    )
+
+    const recipientCount = Number(count)
+    const fetchPromises: Promise<string>[] = []
+
+    for (let i = 0; i < recipientCount; i++) {
+      fetchPromises.push(
+        retryRequest(async () => BottleneckModule.getNodeLimiter(network).schedule(async () => contract.recipients(i))),
+      )
+    }
+
+    const recipients = await Promise.all(fetchPromises)
+
+    return { recipients }
+  },
+
+  /**
+   * Fetch brackets model data by iterating until it reverts
+   */
+  _getBracketsModelData: async (
+    modelAddress: string,
+    network: NetworksEnum,
+  ): Promise<{ brackets: IPolicyModelBracket[] }> => {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const contract = new Contract(modelAddress, BracketsModel.abi, provider)
+
+    const brackets: IPolicyModelBracket[] = []
+    let i = 0
+
+    while (true) {
+      try {
+        const bracket = await BottleneckModule.getNodeLimiter(network).schedule(async () => contract.brackets(i))
+
+        brackets.push({
+          threshold: bracket.threshold.toString(),
+          routerModelAddress: bracket.routerModel !== utils.zeroAddress ? bracket.routerModel : null,
+          claimerModelAddress: bracket.claimerModel !== utils.zeroAddress ? bracket.claimerModel : null,
+        })
+        i++
+      } catch {
+        break
+      }
+    }
+
+    return { brackets }
   },
 
   /**
@@ -136,8 +289,6 @@ const PolicyHelper = {
         return null
       }
 
-      const provider = ProviderModule.getAnyRpcProvider(network)
-
       const baseData: IPolicySourceData = {
         address: sourceAddress,
         type: sourceType,
@@ -152,31 +303,31 @@ const PolicyHelper = {
 
       switch (sourceType) {
         case IPolicySourceType.drain: {
-          const contract = new Contract(sourceAddress, DrainBalanceSource.abi, provider)
-          baseData.vaultAddress = await contract.vault()
-          baseData.tokenAddress = await contract.token()
+          const data = await PolicyHelper._getDrainSourceData(sourceAddress, network)
+          baseData.vaultAddress = data.vaultAddress
+          baseData.tokenAddress = data.tokenAddress
           break
         }
         case IPolicySourceType.required: {
-          const contract = new Contract(sourceAddress, RequiredBalanceSource.abi, provider)
-          baseData.vaultAddress = await contract.vault()
-          baseData.tokenAddress = await contract.token()
-          const reqBalance = await contract.requiredBalance()
-          baseData.requiredBalance = reqBalance.toString()
+          const data = await PolicyHelper._getRequiredSourceData(sourceAddress, network)
+          baseData.tokenAddress = data.tokenAddress
           break
         }
         case IPolicySourceType.streamBalance: {
-          const contract = new Contract(sourceAddress, StreamBalanceSource.abi, provider)
-          baseData.tokenAddress = await contract.token()
+          const data = await PolicyHelper._getStreamSourceData(sourceAddress, network)
+          baseData.tokenAddress = data.tokenAddress
           break
         }
         case IPolicySourceType.fixed: {
-          const contract = new Contract(sourceAddress, FixedBalanceSource.abi, provider)
-          baseData.tokenAddress = await contract.token()
-          const targetAmount = await contract.targetAmount()
-          baseData.targetAmount = targetAmount.toString()
+          const data = await PolicyHelper._getFixedSourceData(sourceAddress, network)
+          baseData.tokenAddress = data.tokenAddress
+          baseData.targetAmount = data.targetAmount
           break
         }
+      }
+
+      if (baseData.tokenAddress === utils.zeroAddress) {
+        baseData.tokenAddress = null
       }
 
       return baseData
@@ -187,11 +338,57 @@ const PolicyHelper = {
   },
 
   /**
+   * Extract model address from InstallationPrepared event in transaction receipt.
+   * The event contains a ` data ` field with encoded installation params.
+   * Router: abi.encode(routerSource, isStreamingSource, routerModel)
+   * Claimer: abi.encode(claimerSource, claimerModel)
+   */
+  getModelAddressFromEvent: (
+    txReceipt: TransactionReceipt,
+    pluginAddress: HexAddress,
+    interfaceType: string,
+  ): string | null => {
+    try {
+      const logs = Web3Utils.findLogsByName(
+        txReceipt,
+        IEventLogPluginType.InstallationPrepared,
+        PluginSetupProcessor.abi,
+      )
+
+      const matchingLog = logs.find(log => {
+        if (!log.parsed) return false
+        const eventPluginAddress = log.parsed.args.plugin
+        return eventPluginAddress === pluginAddress
+      })
+
+      if (!matchingLog?.parsed) {
+        logger.warn('InstallationPrepared event not found for plugin', llo({ pluginAddress }))
+        return null
+      }
+
+      const installationData = matchingLog.parsed.args.data
+
+      const abiCoder = AbiCoder.defaultAbiCoder()
+
+      if (interfaceType === IPluginInterfaceType.router) {
+        const decoded = abiCoder.decode(['address', 'bool', 'address'], installationData)
+        return decoded[2]
+      } else if (interfaceType === IPluginInterfaceType.claimer) {
+        const decoded = abiCoder.decode(['address', 'address'], installationData)
+        return decoded[1]
+      }
+      return null
+    } catch (error) {
+      logger.error('Error extracting model address from event', llo({ error, pluginAddress }))
+      return null
+    }
+  },
+
+  /**
    * Fetch model data on-chain based on the detected type
    */
   getModelData: async (modelAddress: string, network: NetworksEnum): Promise<IPolicyModelData | null> => {
     try {
-      const provider = ProviderModule.getAnyRpcProvider(network)
       const modelType = await PolicyDetector.detectModelType(modelAddress, network)
 
       if (!modelType) {
@@ -208,54 +405,30 @@ const PolicyHelper = {
         brackets: [],
       }
 
-      switch (modelType) {
-        case IPolicyModelType.addressGauge:
-        case IPolicyModelType.tokenGauge: {
-          const contract = new Contract(modelAddress, AddressGaugeRatioModel.abi, provider)
-          baseData.gaugeVoterAddress = await contract.gaugeVoter()
-          break
-        }
-        case IPolicyModelType.ratio: {
-          const contract = new Contract(modelAddress, RatioModel.abi, provider)
-          const recipients: string[] = []
-          const ratios: number[] = []
-          let i = 0
-          while (true) {
-            try {
-              const recipient = await contract.recipients(i)
-              const ratio = await contract.ratios(i)
-              recipients.push(recipient)
-              ratios.push(Number(ratio))
-              i++
-            } catch {
-              break
-            }
-          }
-          baseData.recipients = recipients
-          baseData.ratios = ratios
-          break
-        }
-        case IPolicyModelType.equalRatio: {
-          const contract = new Contract(modelAddress, EqualRatioModel.abi, provider)
-          const recipients: string[] = []
-          let i = 0
-          while (true) {
-            try {
-              const recipient = await contract.recipients(i)
-              recipients.push(recipient)
-              i++
-            } catch {
-              break
-            }
-          }
-          baseData.recipients = recipients
-          break
-        }
-        case IPolicyModelType.brackets: {
-          // TODO: Implement brackets fetching if needed
-          break
-        }
-      }
+      // switch (modelType) {
+      //   case IPolicyModelType.addressGauge:
+      //   case IPolicyModelType.tokenGauge: {
+      //     const data = await PolicyHelper._getGaugeModelData(modelAddress, network)
+      //     baseData.gaugeVoterAddress = data.gaugeVoterAddress
+      //     break
+      //   }
+      //   case IPolicyModelType.ratio: {
+      //     const data = await PolicyHelper._getRatioModelData(modelAddress, network)
+      //     baseData.recipients = data.recipients
+      //     baseData.ratios = data.ratios
+      //     break
+      //   }
+      //   case IPolicyModelType.equalRatio: {
+      //     const data = await PolicyHelper._getEqualRatioModelData(modelAddress, network)
+      //     baseData.recipients = data.recipients
+      //     break
+      //   }
+      //   case IPolicyModelType.brackets: {
+      //     const data = await PolicyHelper._getBracketsModelData(modelAddress, network)
+      //     baseData.brackets = data.brackets
+      //     break
+      //   }
+      // }
 
       return baseData
     } catch (error) {

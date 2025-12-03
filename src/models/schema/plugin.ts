@@ -2,6 +2,7 @@ import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
   ICollectionNames,
+  type IGetPoliciesByDaoParams,
   type IPluginIdParams,
   IPluginInterfaceType,
   IPluginStatus,
@@ -393,6 +394,7 @@ export default class Plugin extends Model {
           daoAddress: { $in: daoAddresses },
           network,
           status: IPluginStatus.installed,
+          isPolicy: { $ne: true },
         },
       },
       {
@@ -482,6 +484,118 @@ export default class Plugin extends Model {
 
     const result = await this.aggregate(aggQuery)
     return result?.[0]?.plugins || []
+  }
+
+  /**
+   * Find all policy plugins (router/claimer) for a DAO with their settings
+   * Returns plugin structure with strategy field populated from settings
+   */
+  static async findPoliciesByDao({ daoAddress, daoAddresses, network }: IGetPoliciesByDaoParams) {
+    const matchFilter: any = {
+      network,
+      isPolicy: true,
+      status: IPluginStatus.installed,
+    }
+
+    if (daoAddresses?.length) {
+      matchFilter.daoAddress = { $in: daoAddresses }
+    } else {
+      matchFilter.daoAddress = daoAddress
+    }
+
+    const aggQuery: any = [
+      {
+        $match: matchFilter,
+      },
+      {
+        $sort: { blockNumber: -1 as const },
+      },
+      AggregationQueryHelper.setting(
+        {
+          pluginAddress: '$address',
+          network: '$network',
+        },
+        'settings',
+        {
+          _id: 0,
+          policy: 1,
+        },
+      ),
+      AggregationQueryHelper.pluginSlug(
+        {
+          pluginAddress: '$address',
+          network: '$network',
+        },
+        'pluginSlug',
+      ),
+      {
+        $addFields: {
+          policyData: { $arrayElemAt: ['$settings.policy', 0] },
+          policyKey: { $arrayElemAt: ['$settings.policy.policyKey', 0] },
+          slug: { $arrayElemAt: ['$pluginSlug.slug', 0] },
+        },
+      },
+      AggregationQueryHelper.token(
+        {
+          address: '$policyData.source.tokenAddress',
+          network: '$network',
+        },
+        'sourceToken',
+        {
+          _id: 0,
+          address: 1,
+          symbol: 1,
+          name: 1,
+          decimals: 1,
+          logo: 1,
+        },
+      ),
+      {
+        $addFields: {
+          strategy: {
+            type: '$policyData.strategyType',
+            model: {
+              type: '$policyData.model.type',
+              address: '$policyData.model.address',
+              recipients: '$policyData.model.recipients',
+              ratios: '$policyData.model.ratios',
+              gaugeVoterAddress: '$policyData.model.gaugeVoterAddress',
+            },
+            source: {
+              type: '$policyData.source.type',
+              address: '$policyData.source.address',
+              vaultAddress: '$policyData.source.vaultAddress',
+              token: {
+                $cond: {
+                  if: { $gt: [{ $size: { $ifNull: ['$sourceToken', []] } }, 0] },
+                  then: { $arrayElemAt: ['$sourceToken', 0] },
+                  else: null,
+                },
+              },
+              amountPerEpoch: '$policyData.source.amountPerEpoch',
+              maxSourceBalance: '$policyData.source.maxSourceBalance',
+              epochInterval: '$policyData.source.epochInterval',
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          __v: 0,
+          permissions: 0,
+          uninstalled: 0,
+          hasTarget: 0,
+          sender: 0,
+          settings: 0,
+          pluginSlug: 0,
+          policyData: 0,
+          sourceToken: 0,
+        },
+      },
+    ]
+
+    return this.aggregate(aggQuery)
   }
 
   async update(params: Partial<Plugin>, tOpts?: SaveOptions) {

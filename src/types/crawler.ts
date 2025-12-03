@@ -361,10 +361,8 @@ export enum ISelectorPermissionLogs {
 }
 
 export enum IPolicyLogs {
-  // Source events
   SourceSettingsUpdated = 'SourceSettingsUpdated',
   PluginDefined = 'PluginDefined',
-  // Model events
   ModelSettingsUpdated = 'ModelSettingsUpdated',
 }
 

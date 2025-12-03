@@ -25,6 +25,7 @@ import { LogTokenVoting } from '@plugins/logTokenVoting'
 import { LogSpp } from '@plugins/logSPP'
 import { LogLockToVote } from '@plugins/logLockToVote'
 import { LogGauge } from '@plugins/logGauge'
+import { LogPolicy } from '@plugins/logPolicy'
 
 interface ILibParams {
   daoAddress: HexAddress
@@ -203,6 +204,18 @@ export class LibUtils {
           }
           case IPluginInterfaceType.gauge: {
             await LogGauge.start(plugin, isHistorical)
+            break
+          }
+          case IPluginInterfaceType.claimer:
+          case IPluginInterfaceType.router: {
+            const sourceAndModelAddress = await Models.Setting.getPolicyAndSourceAddresses(
+              plugin.address,
+              plugin.network,
+            )
+            logger.info(`Sync plugin: ${plugin.interfaceType} - ${plugin.address}`)
+            await Promise.all(
+              sourceAndModelAddress.map(async (addr: HexAddress) => LogPolicy.start(addr, plugin.network)),
+            )
             break
           }
           default:

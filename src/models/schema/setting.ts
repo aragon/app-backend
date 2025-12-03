@@ -79,7 +79,7 @@ export class PolicySourceSetting {
   @prop({ type: () => String, default: null })
   public maxSourceBalance!: string
 
-  @prop({ type: () => Number, default: null })
+  @prop({ type: () => Number, default: 0 })
   public epochInterval!: number
 
   @prop({ type: () => String, default: null })
@@ -121,6 +121,9 @@ export class PolicyModelSetting {
 }
 
 export class PolicySetting {
+  @prop({ type: () => String, default: null })
+  public policyKey!: string
+
   @prop({ type: () => String, enum: IPolicyStrategyType, default: null })
   public strategyType!: IPolicyStrategyType
 
@@ -532,16 +535,26 @@ export default class Setting extends Model {
   }
 
   static async findByPolicySourceAddress(sourceAddress: HexAddress, network: NetworksEnum) {
-    return await this.findOne({
+    return this.findOne({
       network,
       'policy.source.address': sourceAddress,
     })
   }
 
   static async findByPolicyModelAddress(modelAddress: HexAddress, network: NetworksEnum) {
-    return await this.findOne({
+    return this.findOne({
       network,
       'policy.model.address': modelAddress,
     })
+  }
+
+  static async getPolicyAndSourceAddresses(pluginAddress: HexAddress, network: NetworksEnum) {
+    const setting = await this.findOne({
+      pluginAddress,
+      network,
+      status: ISettingStatus.active,
+    })
+
+    return [setting?.policy?.model?.address || null, setting?.policy?.source?.address || null]
   }
 }
