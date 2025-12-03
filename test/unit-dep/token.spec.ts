@@ -157,7 +157,7 @@ describe.skip('Integ: Token', () => {
     }
   })
 
-  it.only('should do a test of sync a complete dao', async function () {
+  it('should do a test of sync a complete dao', async function () {
     this.timeout(10000000000)
     const network = NetworksEnum.arbitrumMainnet
     const daoAddress = '0x108f48E558078C8eF2eb428E0774d7eCd01F6B1d'
