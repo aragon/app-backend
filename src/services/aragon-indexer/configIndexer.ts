@@ -33,6 +33,14 @@ import { CapitalDistributor } from '@artifacts/CapitalDistributor'
 import { CapitalDistributorHandler } from '@handlers/capitalDistributorHandler'
 import { GaugeVoter } from '@artifacts/GaugeVoter'
 import { GaugeHandler } from '@handlers/gaugeHandler'
+import {
+  StreamBalanceSource,
+  RatioModel,
+  EqualRatioModel,
+  AddressGaugeRatioModel,
+  BracketsModel,
+} from '@artifacts/CapitalRouter'
+import { PolicyHandler } from '@handlers/policyHandler'
 
 const IndexerEventConfig: IIndexerConfig[] = [
   // historical and realtime on startup
@@ -660,6 +668,58 @@ const IndexerEventConfig: IIndexerConfig[] = [
       {
         abi: GaugeVoter.abi,
         handler: GaugeHandler.gaugeReset,
+      },
+    ],
+  },
+
+  // Policy Source/Model events
+  {
+    event: 'SourceSettingsUpdated',
+    enableHistorical: false,
+    topic: new Interface(StreamBalanceSource.abi).getEvent('SourceSettingsUpdated')?.topicHash!,
+    config: [
+      {
+        abi: StreamBalanceSource.abi,
+        handler: PolicyHandler.sourceSettingsUpdated,
+      },
+    ],
+  },
+  {
+    event: 'PluginDefined',
+    enableHistorical: false,
+    topic: new Interface(StreamBalanceSource.abi).getEvent('PluginDefined')?.topicHash!,
+    config: [
+      {
+        abi: StreamBalanceSource.abi,
+        handler: PolicyHandler.pluginDefined,
+      },
+    ],
+  },
+  {
+    event: 'ModelSettingsUpdated',
+    enableHistorical: false,
+    topic: [
+      new Interface(RatioModel.abi).getEvent('ModelSettingsUpdated')?.topicHash!,
+      new Interface(EqualRatioModel.abi).getEvent('ModelSettingsUpdated')?.topicHash!,
+      new Interface(AddressGaugeRatioModel.abi).getEvent('ModelSettingsUpdated')?.topicHash!,
+      new Interface(BracketsModel.abi).getEvent('ModelSettingsUpdated')?.topicHash!,
+    ],
+    config: [
+      {
+        abi: RatioModel.abi,
+        handler: PolicyHandler.ratioModelSettingsUpdated,
+      },
+      {
+        abi: EqualRatioModel.abi,
+        handler: PolicyHandler.equalRatioModelSettingsUpdated,
+      },
+      {
+        abi: AddressGaugeRatioModel.abi,
+        handler: PolicyHandler.gaugeModelSettingsUpdated,
+      },
+      {
+        abi: BracketsModel.abi,
+        handler: PolicyHandler.bracketsModelSettingsUpdated,
       },
     ],
   },

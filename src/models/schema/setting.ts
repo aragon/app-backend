@@ -8,6 +8,9 @@ import {
   type ISettingIdParams,
   ISettingStatus,
   NetworksEnum,
+  IPolicyStrategyType,
+  IPolicySourceType,
+  IPolicyModelType,
 } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
@@ -53,6 +56,79 @@ export class VotingEscrowSetting {
   // Minimum cooldown period required before exit (set on the ExitQueue contract)
   @prop({ type: () => Number, default: null })
   public minCooldown!: number
+}
+
+// Policy Source settings (embedded in PolicySetting)
+export class PolicySourceSetting {
+  @prop({ type: () => String, default: null })
+  public address!: HexAddress
+
+  @prop({ type: () => String, enum: IPolicySourceType, default: null })
+  public type!: IPolicySourceType
+
+  @prop({ type: () => String, default: null })
+  public vaultAddress!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public tokenAddress!: HexAddress
+
+  // StreamBalanceSource specific
+  @prop({ type: () => String, default: null })
+  public amountPerEpoch!: string
+
+  @prop({ type: () => String, default: null })
+  public maxSourceBalance!: string
+
+  @prop({ type: () => Number, default: null })
+  public epochInterval!: number
+
+  @prop({ type: () => String, default: null })
+  public requiredBalance!: string
+
+  @prop({ type: () => String, default: null })
+  public targetAmount!: string
+}
+
+export class PolicyModelBracket {
+  @prop({ type: () => String, required: true })
+  public threshold!: string
+
+  @prop({ type: () => String, default: null })
+  public routerModelAddress!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public claimerModelAddress!: HexAddress
+}
+
+export class PolicyModelSetting {
+  @prop({ type: () => String, default: null })
+  public address!: HexAddress
+
+  @prop({ type: () => String, enum: IPolicyModelType, default: null })
+  public type!: IPolicyModelType
+
+  @prop({ type: () => [String], default: [] })
+  public recipients!: string[]
+
+  @prop({ type: () => [Number], default: [] })
+  public ratios!: number[]
+
+  @prop({ type: () => String, default: null })
+  public gaugeVoterAddress!: HexAddress
+
+  @prop({ type: () => [PolicyModelBracket], _id: false, default: [] })
+  public brackets!: PolicyModelBracket[]
+}
+
+export class PolicySetting {
+  @prop({ type: () => String, enum: IPolicyStrategyType, default: null })
+  public strategyType!: IPolicyStrategyType
+
+  @prop({ type: () => PolicySourceSetting, _id: false, default: null })
+  public source!: PolicySourceSetting
+
+  @prop({ type: () => PolicyModelSetting, _id: false, default: null })
+  public model!: PolicyModelSetting
 }
 
 export class PluginSetting {
@@ -183,6 +259,10 @@ export default class Setting extends Model {
   // SPP plugin
   @prop({ type: () => [Stages], _id: false })
   public stages!: Stages[]
+
+  // Policy (Capital Router) plugin
+  @prop({ type: () => PolicySetting, _id: false, default: undefined })
+  public policy!: PolicySetting
 
   static async create(rawData: Partial<Setting>, tOpts?: SaveOptions) {
     if (!rawData.id) {
@@ -320,6 +400,7 @@ export default class Setting extends Model {
           token: 1,
           stages: 1,
           votingEscrow: 1,
+          policy: 1,
         },
       },
     ]
@@ -388,6 +469,7 @@ export default class Setting extends Model {
           minProposerVotingPower: 1,
           token: 1,
           votingEscrow: 1,
+          policy: 1,
         },
       },
     ]
@@ -447,5 +529,19 @@ export default class Setting extends Model {
 
   async reload(tOpts?: SaveOptions) {
     return await this.model(customName).findById(this._id, tOpts)
+  }
+
+  static async findByPolicySourceAddress(sourceAddress: HexAddress, network: NetworksEnum) {
+    return await this.findOne({
+      network,
+      'policy.source.address': sourceAddress,
+    })
+  }
+
+  static async findByPolicyModelAddress(modelAddress: HexAddress, network: NetworksEnum) {
+    return await this.findOne({
+      network,
+      'policy.model.address': modelAddress,
+    })
   }
 }

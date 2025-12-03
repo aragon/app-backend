@@ -206,6 +206,14 @@ export const PluginSetupProcessorHandler = {
       await PluginSettingHandler.isSupported(pluginDb, info)
     }
 
+    if (
+      pluginDb?.interfaceType === IPluginInterfaceType.router ||
+      pluginDb?.interfaceType === IPluginInterfaceType.claimer
+    ) {
+      await PluginSettingHandler.linkPolicySourceAndModel(pluginDb, info)
+      await PluginSettingHandler.isSupported(pluginDb, info)
+    }
+
     await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
       id: pluginDb.address,
       params: { address: pluginDb.address, network: pluginDb.network, isHistorical },
