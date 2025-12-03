@@ -1,7 +1,6 @@
 import type { IWeb3TokenBalance, LogServicePattern, NetworksEnum } from '@types'
 import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
-import { EvmExplorerEnum } from '@helpers/evmExplorerClient'
 import { ProxyToken } from '@modules/proxyToken'
 import Web3Utils from '@helpers/web3Utils'
 
@@ -76,21 +75,6 @@ const ProxyUtils = {
         }),
       )
     ).filter(Boolean) as IWeb3TokenBalance[]
-  },
-
-  getExplorerClientBasedOnNetwork: (network: NetworksEnum): EvmExplorerEnum => {
-    switch (network) {
-      case NetworksEnum.chilizMainnet:
-      case NetworksEnum.cornMainnet:
-        return EvmExplorerEnum.ROUTESCAN
-      case NetworksEnum.zksyncMainnet:
-      case NetworksEnum.zksyncSepolia:
-        return EvmExplorerEnum.ZKSYNC
-      case NetworksEnum.peaqMainnet:
-        return EvmExplorerEnum.BLOCKSCOUT
-      default:
-        return EvmExplorerEnum.ETHERSCAN
-    }
   },
 }
 

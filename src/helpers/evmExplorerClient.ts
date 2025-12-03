@@ -189,10 +189,28 @@ class EvmExplorerClient {
       }
 
       const result = await this.apiCall(explorerType, params, network)
-      return this.parseContractCreationResponse(result, address)
+      const parsed = this.parseContractCreationResponse(result, address)
+
+      if (parsed.transactionHash && !parsed.blockNumber) {
+        const blockNumber = await this.getBlockNumberFromTxHash(parsed.transactionHash, network)
+        return { ...parsed, blockNumber }
+      }
+
+      return parsed
     } catch (error) {
       logger.warn('Error fetching contract creation', llo({ error, address, network, explorerType }))
       return { blockNumber: 0, transactionHash: '', address }
+    }
+  }
+
+  private async getBlockNumberFromTxHash(txHash: string, network: NetworksEnum): Promise<number> {
+    try {
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      const receipt = await provider.getTransactionReceipt(txHash)
+      return receipt?.blockNumber || 0
+    } catch (error) {
+      logger.warn('Error fetching block number from tx hash', llo({ error, txHash, network }))
+      return 0
     }
   }
 
