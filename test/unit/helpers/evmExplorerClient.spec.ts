@@ -1142,4 +1142,374 @@ describe('Helpers: EvmExplorerClient', () => {
       expect(result[2].decimals).to.equal(8)
     })
   })
+
+  describe('fetchTokenInfo', () => {
+    const address = '0x1234567890abcdef1234567890abcdef12345678'
+    const network = NetworksEnum.ethereumMainnet
+
+    it('should fetch token info from Etherscan successfully', async () => {
+      const mockResponse = {
+        data: {
+          status: '1',
+          message: 'OK',
+          result: [
+            {
+              tokenName: 'USD Coin',
+              symbol: 'USDC',
+              tokenDecimal: '6',
+              tokenPriceUSD: '1.00',
+              totalSupply: '50000000000000',
+            },
+          ],
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+
+      const result = await evmExplorerClient.fetchTokenInfo(EvmExplorerEnum.ETHERSCAN, address, network)
+
+      expect(axiosStub.calledOnce).to.be.true
+      const callArgs = axiosStub.firstCall.args
+      expect((callArgs[1] as any).params).to.deep.include({
+        module: 'token',
+        action: 'tokeninfo',
+        contractaddress: address,
+        apikey: 'test-api-key',
+        chainid: 1,
+      })
+
+      expect(result).to.deep.equal({
+        name: 'USD Coin',
+        symbol: 'USDC',
+        decimals: '6',
+        priceUsd: '1.00',
+        totalSupply: '50000000000000',
+      })
+    })
+
+    it('should fetch token info from RouteScan successfully', async () => {
+      const mockResponse = {
+        data: {
+          status: '1',
+          message: 'OK',
+          result: [
+            {
+              tokenName: 'Wrapped Ether',
+              symbol: 'WETH',
+              tokenDecimal: '18',
+              tokenPriceUSD: '2500.00',
+              totalSupply: '100000000000000000000000',
+            },
+          ],
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ROUTESCAN_API').value({
+        BASE_URI: 'https://api.routescan.io/v2/network/mainnet/evm',
+      })
+
+      const result = await evmExplorerClient.fetchTokenInfo(EvmExplorerEnum.ROUTESCAN, address, network)
+
+      expect(axiosStub.calledOnce).to.be.true
+      const callArgs = axiosStub.firstCall.args
+      expect(callArgs[0]).to.equal('https://api.routescan.io/v2/network/mainnet/evm/1/etherscan/api')
+
+      expect(result).to.deep.equal({
+        name: 'Wrapped Ether',
+        symbol: 'WETH',
+        decimals: '18',
+        priceUsd: '2500.00',
+        totalSupply: '100000000000000000000000',
+      })
+    })
+
+    it('should use divisor field when tokenDecimal is not present', async () => {
+      const mockResponse = {
+        data: {
+          status: '1',
+          message: 'OK',
+          result: [
+            {
+              tokenName: 'Test Token',
+              symbol: 'TEST',
+              divisor: '8',
+              tokenPriceUSD: '0.50',
+              totalSupply: '1000000000',
+            },
+          ],
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+
+      const result = await evmExplorerClient.fetchTokenInfo(EvmExplorerEnum.ETHERSCAN, address, network)
+
+      expect(axiosStub.calledOnce).to.be.true
+      expect(result).to.deep.equal({
+        name: 'Test Token',
+        symbol: 'TEST',
+        decimals: '8',
+        priceUsd: '0.50',
+        totalSupply: '1000000000',
+      })
+    })
+
+    it('should return 0 for decimals when neither tokenDecimal nor divisor is present', async () => {
+      const mockResponse = {
+        data: {
+          status: '1',
+          message: 'OK',
+          result: [
+            {
+              tokenName: 'No Decimal Token',
+              symbol: 'NDT',
+              tokenPriceUSD: '0.10',
+              totalSupply: '999999',
+            },
+          ],
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+
+      const result = await evmExplorerClient.fetchTokenInfo(EvmExplorerEnum.ETHERSCAN, address, network)
+
+      expect(axiosStub.calledOnce).to.be.true
+      expect(result.decimals).to.equal(0)
+    })
+
+    it('should return default values when tokenPriceUSD and totalSupply are missing', async () => {
+      const mockResponse = {
+        data: {
+          status: '1',
+          message: 'OK',
+          result: [
+            {
+              tokenName: 'Minimal Token',
+              symbol: 'MIN',
+              tokenDecimal: '18',
+            },
+          ],
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+
+      const result = await evmExplorerClient.fetchTokenInfo(EvmExplorerEnum.ETHERSCAN, address, network)
+
+      expect(axiosStub.calledOnce).to.be.true
+      expect(result).to.deep.equal({
+        name: 'Minimal Token',
+        symbol: 'MIN',
+        decimals: '18',
+        priceUsd: '0',
+        totalSupply: '0',
+      })
+    })
+
+    it('should return undefined when response status is not OK', async () => {
+      const mockResponse = {
+        data: {
+          status: '0',
+          message: 'fail',
+          result: [],
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+
+      const result = await evmExplorerClient.fetchTokenInfo(EvmExplorerEnum.ETHERSCAN, address, network)
+
+      expect(axiosStub.calledOnce).to.be.true
+      expect(result).to.be.undefined
+    })
+
+    it('should return undefined when result is empty', async () => {
+      const mockResponse = {
+        data: {
+          status: '1',
+          message: 'OK',
+          result: [],
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+
+      const result = await evmExplorerClient.fetchTokenInfo(EvmExplorerEnum.ETHERSCAN, address, network)
+
+      expect(axiosStub.calledOnce).to.be.true
+      expect(result).to.be.undefined
+    })
+
+    it('should handle API errors gracefully and return undefined', async () => {
+      const error = new Error('Network error')
+      const axiosStub = sandbox.stub(axios, 'get').rejects(error)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+
+      const result = await evmExplorerClient.fetchTokenInfo(EvmExplorerEnum.ETHERSCAN, address, network)
+
+      expect(axiosStub.calledOnce).to.be.true
+      expect(loggerStub.called).to.be.true
+      expect(result).to.be.undefined
+    })
+
+    it('should return undefined for unsupported explorer type', async () => {
+      const result = await evmExplorerClient.fetchTokenInfo('unsupported' as EvmExplorerEnum, address, network)
+
+      expect(result).to.be.undefined
+    })
+
+    it('should fetch token info from Chiliz successfully', async () => {
+      const mockResponse = {
+        data: {
+          status: '1',
+          message: 'OK',
+          result: [
+            {
+              tokenName: 'Chiliz Token',
+              symbol: 'CHZ',
+              tokenDecimal: '18',
+              tokenPriceUSD: '0.08',
+              totalSupply: '8888888888000000000000000000',
+            },
+          ],
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(config, 'CHILIZ_API_URL').value('https://scan.chiliz.com')
+
+      const result = await evmExplorerClient.fetchTokenInfo(EvmExplorerEnum.CHILIZ, address, NetworksEnum.chilizMainnet)
+
+      expect(axiosStub.calledOnce).to.be.true
+      const callArgs = axiosStub.firstCall.args
+      expect(callArgs[0]).to.equal('https://scan.chiliz.com/api')
+
+      expect(result).to.deep.equal({
+        name: 'Chiliz Token',
+        symbol: 'CHZ',
+        decimals: '18',
+        priceUsd: '0.08',
+        totalSupply: '8888888888000000000000000000',
+      })
+    })
+
+    it('should fetch token info from ZkSync mainnet successfully', async () => {
+      const mockResponse = {
+        data: {
+          status: '1',
+          message: 'OK',
+          result: [
+            {
+              tokenName: 'ZkSync Token',
+              symbol: 'ZK',
+              tokenDecimal: '18',
+              tokenPriceUSD: '0.15',
+              totalSupply: '21000000000000000000000000000',
+            },
+          ],
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(config, 'ZKSYNC_BLOCK_EXPLORER_API').value({
+        MAINNET_BASE_URI: 'https://block-explorer-api.mainnet.zksync.io/api',
+        SEPOLIA_BASE_URI: 'https://block-explorer-api.sepolia.zksync.io/api',
+      })
+
+      const result = await evmExplorerClient.fetchTokenInfo(EvmExplorerEnum.ZKSYNC, address, NetworksEnum.zksyncMainnet)
+
+      expect(axiosStub.calledOnce).to.be.true
+      const callArgs = axiosStub.firstCall.args
+      expect(callArgs[0]).to.equal('https://block-explorer-api.mainnet.zksync.io/api')
+
+      expect(result).to.deep.equal({
+        name: 'ZkSync Token',
+        symbol: 'ZK',
+        decimals: '18',
+        priceUsd: '0.15',
+        totalSupply: '21000000000000000000000000000',
+      })
+    })
+
+    it('should fetch token info from BlockScout successfully', async () => {
+      const mockResponse = {
+        data: {
+          status: '1',
+          message: 'OK',
+          result: [
+            {
+              tokenName: 'BlockScout Token',
+              symbol: 'BST',
+              tokenDecimal: '18',
+              tokenPriceUSD: '0.25',
+              totalSupply: '1000000000000000000000000',
+            },
+          ],
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(utils, 'networkToAragon').returns('ETHEREUM_MAINNET')
+      sandbox.stub(config, 'NODES').value({
+        ETHEREUM_MAINNET: {
+          BLOCKSCOUT_API_URL: 'https://eth.blockscout.com/api',
+          BLOCKSCOUT_API_KEY: 'blockscout-key',
+        },
+      })
+
+      const result = await evmExplorerClient.fetchTokenInfo(EvmExplorerEnum.BLOCKSCOUT, address, network)
+
+      expect(axiosStub.calledOnce).to.be.true
+      const callArgs = axiosStub.firstCall.args
+      expect(callArgs[0]).to.equal('https://eth.blockscout.com/api')
+      expect((callArgs[1] as any).params).to.deep.include({
+        apikey: 'blockscout-key',
+      })
+
+      expect(result).to.deep.equal({
+        name: 'BlockScout Token',
+        symbol: 'BST',
+        decimals: '18',
+        priceUsd: '0.25',
+        totalSupply: '1000000000000000000000000',
+      })
+    })
+  })
 })

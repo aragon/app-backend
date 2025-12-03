@@ -2,7 +2,6 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import CornProvider from '@modules/proxyProvider/cornProvider'
-import BlockScoutProvider from '@modules/proxyProvider/blockscoutProvider'
 import { NetworksEnum } from '@types'
 import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
 
@@ -18,40 +17,23 @@ describe('Modules: CornProvider', () => {
   })
 
   describe('getTokenBalances', () => {
-    it('should delegate to BlockScoutProvider.getTokenBalances', async () => {
+    it('should delegate to evmExplorerClient.getTokenBalances with ROUTESCAN', async () => {
       // Arrange
       const address = '0x1234567890abcdef1234567890abcdef12345678'
       const network = NetworksEnum.cornMainnet
       const expectedResult = [{ tokenBalance: '100', contractAddress: '0xabc' }]
 
-      const blockscoutStub = sandbox.stub(BlockScoutProvider, 'getTokenBalances').resolves(expectedResult)
+      const routeScanStub = sandbox.stub(evmExplorerClient, 'getTokenBalances').resolves(expectedResult as any)
 
       // Act
       const result = await CornProvider.getTokenBalances({ address, network })
 
       // Assert
       expect(result).to.equal(expectedResult)
-      expect(blockscoutStub.calledOnce).to.be.true
-      expect(blockscoutStub.firstCall.args[0]).to.deep.equal({ address, network })
-    })
-  })
-
-  describe('fetchBasicTokenInfo', () => {
-    it('should delegate to BlockScoutProvider.fetchBasicTokenInfo', async () => {
-      // Arrange
-      const address = '0x1234567890abcdef1234567890abcdef12345678'
-      const network = NetworksEnum.cornMainnet
-      const expectedResult = { symbol: 'TEST', name: 'Test Token' }
-
-      const blockscoutStub = sandbox.stub(BlockScoutProvider, 'fetchBasicTokenInfo').resolves(expectedResult)
-
-      // Act
-      const result = await CornProvider.fetchBasicTokenInfo({ address, network })
-
-      // Assert
-      expect(result).to.equal(expectedResult)
-      expect(blockscoutStub.calledOnce).to.be.true
-      expect(blockscoutStub.firstCall.args[0]).to.deep.equal({ address, network })
+      expect(routeScanStub.calledOnce).to.be.true
+      expect(routeScanStub.firstCall.args[0]).to.equal(EvmExplorerEnum.ROUTESCAN)
+      expect(routeScanStub.firstCall.args[1]).to.equal(address)
+      expect(routeScanStub.firstCall.args[2]).to.equal(network)
     })
   })
 
