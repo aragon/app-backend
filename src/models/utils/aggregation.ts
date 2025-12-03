@@ -201,7 +201,7 @@ export const AggregationQueryHelper = {
   },
 
   plugin: (
-    { addresses, daoAddress, pluginAddress, network, status }: IAggPluginParams,
+    { addresses, daoAddress, pluginAddress, network, status, isPolicy }: IAggPluginParams,
     as: string = 'plugin',
     project?: IAggPluginProjectFields,
     includeSubDocuments?: IAggPluginInclude,
@@ -232,6 +232,11 @@ export const AggregationQueryHelper = {
     if (status) {
       letVariables.status = status
       matchConditions.push({ $eq: ['$status', '$$status'] })
+    }
+
+    if (isPolicy !== undefined) {
+      letVariables.isPolicy = isPolicy
+      matchConditions.push({ $eq: ['$isPolicy', '$$isPolicy'] })
     }
 
     const pipeline: any[] = []
@@ -885,6 +890,7 @@ export const AggregationQueryHelper = {
           addresses: '$allPluginAddresses',
           network: networkValue,
           status: IPluginStatus.installed,
+          isPolicy: false,
         },
         'allPluginDocs',
         {

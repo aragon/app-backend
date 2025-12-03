@@ -137,6 +137,7 @@ export interface IAggPluginParams {
   pluginAddress?: string
   network: string | undefined
   status?: IPluginStatus
+  isPolicy?: boolean
 }
 
 export interface IAggPluginInclude {

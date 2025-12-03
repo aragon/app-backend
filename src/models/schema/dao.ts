@@ -559,6 +559,7 @@ export default class Dao extends Model {
           daoAddress: '$address',
           network: '$network',
           status: IPluginStatus.installed,
+          isPolicy: false,
         },
         'plugins',
         {
@@ -731,6 +732,7 @@ export default class Dao extends Model {
           daoAddress: '$address',
           network: '$network',
           status: IPluginStatus.installed,
+          isPolicy: false,
         },
         'plugins',
         {
