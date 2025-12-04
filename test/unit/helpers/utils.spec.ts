@@ -1414,4 +1414,223 @@ describe('Helpers:Utils', () => {
       expect(processor.callCount).to.equal(5)
     })
   })
+
+  describe('static properties', () => {
+    it('should have correct zeroAddress', () => {
+      expect(Utils.zeroAddress).to.equal('0x0000000000000000000000000000000000000000')
+    })
+
+    it('should have correct emptyData', () => {
+      expect(Utils.emptyData).to.equal('0x0000000000000000000000000000000000000000000000000000000000000000')
+    })
+  })
+
+  describe('networkToAragon', () => {
+    it('should return correct aragon network name for each network', () => {
+      expect(Utils.networkToAragon(NetworksEnum.ethereumMainnet)).to.equal('ETHEREUM_MAINNET')
+      expect(Utils.networkToAragon(NetworksEnum.ethereumSepolia)).to.equal('ETHEREUM_SEPOLIA')
+      expect(Utils.networkToAragon(NetworksEnum.polygonMainnet)).to.equal('POLYGON_MAINNET')
+      expect(Utils.networkToAragon(NetworksEnum.baseMainnet)).to.equal('BASE_MAINNET')
+      expect(Utils.networkToAragon(NetworksEnum.arbitrumMainnet)).to.equal('ARBITRUM_MAINNET')
+      expect(Utils.networkToAragon(NetworksEnum.zksyncSepolia)).to.equal('ZKSYNC_SEPOLIA')
+      expect(Utils.networkToAragon(NetworksEnum.zksyncMainnet)).to.equal('ZKSYNC_MAINNET')
+      expect(Utils.networkToAragon(NetworksEnum.optimismMainnet)).to.equal('OPTIMISM_MAINNET')
+    })
+
+    it('should return undefined for unsupported network', () => {
+      expect(Utils.networkToAragon('unsupported-network' as NetworksEnum)).to.be.undefined
+    })
+  })
+
+  describe('parseAvatar', () => {
+    it('should return string when avatar is a string', () => {
+      expect(Utils.parseAvatar('https://example.com/avatar.png')).to.equal('https://example.com/avatar.png')
+    })
+
+    it('should return empty string for empty string input', () => {
+      expect(Utils.parseAvatar('')).to.equal('')
+    })
+
+    it('should return null when avatar is not a string', () => {
+      expect(Utils.parseAvatar(null)).to.be.null
+      expect(Utils.parseAvatar(undefined)).to.be.null
+      expect(Utils.parseAvatar(123)).to.be.null
+      expect(Utils.parseAvatar({ url: 'test' })).to.be.null
+      expect(Utils.parseAvatar(['avatar'])).to.be.null
+      expect(Utils.parseAvatar(true)).to.be.null
+    })
+  })
+
+  describe('parseTokenBalance', () => {
+    it('should parse token balance with decimals correctly', () => {
+      expect(Utils.parseTokenBalance('1000000000000000000', '18')).to.equal('1.0')
+      expect(Utils.parseTokenBalance('1000000', '6')).to.equal('1.0')
+      expect(Utils.parseTokenBalance('100000000', '8')).to.equal('1.0')
+    })
+
+    it('should handle large balances', () => {
+      expect(Utils.parseTokenBalance('1000000000000000000000', '18')).to.equal('1000.0')
+      expect(Utils.parseTokenBalance('5000000000', '6')).to.equal('5000.0')
+    })
+
+    it('should handle zero balance', () => {
+      expect(Utils.parseTokenBalance('0', '18')).to.equal('0.0')
+      expect(Utils.parseTokenBalance('0', '6')).to.equal('0.0')
+    })
+
+    it('should return original amount when decimals is empty', () => {
+      expect(Utils.parseTokenBalance('1000000000000000000', '')).to.equal('1000000000000000000')
+    })
+
+    it('should return original amount when decimals is null/undefined', () => {
+      expect(Utils.parseTokenBalance('1000000000000000000', null as any)).to.equal('1000000000000000000')
+      expect(Utils.parseTokenBalance('1000000000000000000', undefined as any)).to.equal('1000000000000000000')
+    })
+
+    it('should return original amount on parsing error', () => {
+      expect(Utils.parseTokenBalance('invalid', '18')).to.equal('invalid')
+    })
+
+    it('should handle different decimal values', () => {
+      expect(Utils.parseTokenBalance('1000000000', '9')).to.equal('1.0')
+      expect(Utils.parseTokenBalance('100', '2')).to.equal('1.0')
+      expect(Utils.parseTokenBalance('1', '0')).to.equal('1')
+    })
+  })
+
+  describe('filterArrayByProperty', () => {
+    it('should filter array by property that is truthy', () => {
+      const configArray = [
+        { name: 'config1', enabled: true },
+        { name: 'config2', enabled: false },
+        { name: 'config3', enabled: true },
+        { name: 'config4', enabled: undefined },
+      ] as any[]
+
+      const result = Utils.filterArrayByProperty(configArray, 'enabled')
+
+      expect(result).to.have.length(2)
+      expect(result[0].name).to.equal('config1')
+      expect(result[1].name).to.equal('config3')
+    })
+
+    it('should return empty array when no items match', () => {
+      const configArray = [
+        { name: 'config1', enabled: false },
+        { name: 'config2', enabled: null },
+        { name: 'config3', enabled: undefined },
+      ] as any[]
+
+      const result = Utils.filterArrayByProperty(configArray, 'enabled')
+
+      expect(result).to.deep.equal([])
+    })
+
+    it('should return all items when all have truthy property', () => {
+      const configArray = [
+        { name: 'config1', active: true },
+        { name: 'config2', active: 'yes' },
+        { name: 'config3', active: 1 },
+      ] as any[]
+
+      const result = Utils.filterArrayByProperty(configArray, 'active')
+
+      expect(result).to.have.length(3)
+    })
+
+    it('should handle empty array', () => {
+      const result = Utils.filterArrayByProperty([], 'enabled')
+      expect(result).to.deep.equal([])
+    })
+
+    it('should filter by string property values', () => {
+      const configArray = [
+        { name: 'config1', type: 'deposit' },
+        { name: 'config2', type: '' },
+        { name: 'config3', type: 'withdraw' },
+      ] as any[]
+
+      const result = Utils.filterArrayByProperty(configArray, 'type')
+
+      expect(result).to.have.length(2)
+      expect(result[0].name).to.equal('config1')
+      expect(result[1].name).to.equal('config3')
+    })
+
+    it('should filter by numeric property values', () => {
+      const configArray = [
+        { name: 'config1', count: 5 },
+        { name: 'config2', count: 0 },
+        { name: 'config3', count: 10 },
+      ] as any[]
+
+      const result = Utils.filterArrayByProperty(configArray, 'count')
+
+      expect(result).to.have.length(2)
+      expect(result[0].name).to.equal('config1')
+      expect(result[1].name).to.equal('config3')
+    })
+  })
+
+  describe('asyncParallel', () => {
+    it('should execute all tasks in parallel and return results', async () => {
+      const tasks = [async () => 1, async () => 2, async () => 3]
+
+      const onError = sandbox.stub()
+      const result = await Utils.asyncParallel(tasks, onError)
+
+      expect(result).to.have.length(3)
+      expect(result).to.include.members([1, 2, 3])
+      expect(onError.called).to.be.false
+    })
+
+    it('should call onError for tasks that throw and continue with others', async () => {
+      const error1 = new Error('Error 1')
+      const error2 = new Error('Error 2')
+      const tasks = [
+        async () => 1,
+        async () => {
+          throw error1
+        },
+        async () => 2,
+        async () => {
+          throw error2
+        },
+      ]
+
+      const onError = sandbox.stub()
+      const result = await Utils.asyncParallel(tasks, onError)
+
+      expect(result).to.have.length(2)
+      expect(result).to.include.members([1, 2])
+      expect(onError.calledTwice).to.be.true
+      expect(onError.firstCall.args[0]).to.equal(error1)
+      expect(onError.secondCall.args[0]).to.equal(error2)
+    })
+
+    it('should return empty array when all tasks fail', async () => {
+      const tasks = [
+        async () => {
+          throw new Error('Error 1')
+        },
+        async () => {
+          throw new Error('Error 2')
+        },
+      ]
+
+      const onError = sandbox.stub()
+      const result = await Utils.asyncParallel(tasks, onError)
+
+      expect(result).to.deep.equal([])
+      expect(onError.calledTwice).to.be.true
+    })
+
+    it('should handle empty tasks array', async () => {
+      const onError = sandbox.stub()
+      const result = await Utils.asyncParallel([], onError)
+
+      expect(result).to.deep.equal([])
+      expect(onError.called).to.be.false
+    })
+  })
 })

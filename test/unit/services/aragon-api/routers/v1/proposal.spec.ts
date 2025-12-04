@@ -40,7 +40,7 @@ describe('RouterV1: Proposal', () => {
       }
       const pairParams = {
         onlyActive: true,
-        daoId: '0x0',
+        daoId: 'ethereum-mainnet-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
       }
 
       const stubCtrl = sandbox.stub(ProposalController, 'getProposalsWithPagination').returns(true as any)
