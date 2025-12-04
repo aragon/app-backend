@@ -236,7 +236,13 @@ export const AggregationQueryHelper = {
 
     if (isPolicy !== undefined) {
       letVariables.isPolicy = isPolicy
-      matchConditions.push({ $eq: ['$isPolicy', '$$isPolicy'] })
+      if (!isPolicy) {
+        matchConditions.push({
+          $or: [{ $eq: ['$isPolicy', false] }, { $eq: [{ $ifNull: ['$isPolicy', null] }, null] }],
+        })
+      } else {
+        matchConditions.push({ $eq: ['$isPolicy', '$$isPolicy'] })
+      }
     }
 
     const pipeline: any[] = []
