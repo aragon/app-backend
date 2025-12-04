@@ -361,7 +361,7 @@ export default class Plugin extends Model {
     const filter: any = {
       daoAddress,
       network,
-      isPolicy: false,
+      isPolicy: { $ne: true },
     }
 
     if (interfaceType) {
@@ -378,6 +378,10 @@ export default class Plugin extends Model {
 
     if (isSupported !== undefined) {
       filter.isSupported = isSupported
+    }
+
+    filter.interfaceType = {
+      $nin: [IPluginInterfaceType.router, IPluginInterfaceType.claimer],
     }
 
     return await this.find(filter).sort({ blockNumber: -1 }).lean().exec()
