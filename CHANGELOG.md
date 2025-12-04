@@ -1,3 +1,18 @@
+# [0.19.0](https://github.com/aragon/app-backend/compare/v0.18.0...v0.19.0) (2025-12-04)
+
+
+### Features
+
+* **evmExplorerClient:** implement fetchTokenInfo method for retrieving token details ([670b7dd](https://github.com/aragon/app-backend/commit/670b7dda71c98bdf28bf5b897dd5442319217ede))
+* **katana-provider:** implement getTokenBalances method for KatanaProvider ([f963e13](https://github.com/aragon/app-backend/commit/f963e133890ea3bc746e15decf63d457ff74ed4b))
+* **katana:** add Katana mainnet support and update token balance parsing ([42d8143](https://github.com/aragon/app-backend/commit/42d814399db80881439ebd5d51041c3a996e954c))
+* **logging:** implement logic to skip external logging for transient MongoDB WriteConflict errors ([216e34f](https://github.com/aragon/app-backend/commit/216e34f919f02515e782a4a578c189aa45fedd99))
+* **logging:** update transient error handling to skip logging for LockTimeout and NoSuchTransaction ([da265d9](https://github.com/aragon/app-backend/commit/da265d9f05d23a61c47df884d3a30935bf2db9af))
+* **metrics:** refactor plugin metrics creation logic and error handling ([bc376ba](https://github.com/aragon/app-backend/commit/bc376ba778517d38eb32fe6d36b30e9698391266))
+* **tests:** update daoId values in tests with right format ([cb69dab](https://github.com/aragon/app-backend/commit/cb69dab7ec6d54baf3f3bfb76da3473e47709f78))
+* **tests:** update daoId values in tests with right format ([e3a8a32](https://github.com/aragon/app-backend/commit/e3a8a32f768623871f0a1daa502860a77855938b))
+* **validation:** enhance daoId validation and improve error handling for WriteConflict ([530de77](https://github.com/aragon/app-backend/commit/530de77d2a3ac401fe07e02ae45ad268750eb7b2))
+
 # [0.18.0](https://github.com/aragon/app-backend/compare/v0.17.0...v0.18.0) (2025-11-21)
 
 
