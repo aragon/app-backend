@@ -499,6 +499,7 @@ export default class Plugin extends Model {
   static async findPoliciesByDao({ daoAddress, daoAddresses, network }: IGetPoliciesByDaoParams) {
     const matchFilter: any = {
       network,
+      interfaceType: { $in: [IPluginInterfaceType.router, IPluginInterfaceType.claimer] },
       isPolicy: true,
       status: IPluginStatus.installed,
     }
