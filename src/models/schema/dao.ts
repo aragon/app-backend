@@ -316,8 +316,11 @@ export default class Dao extends Model {
   /**
    * DAO details without plugins (uses separate plugins endpoint)
    * Includes parentDao/subDaos lookup with aggregated TVL
+   * @param address - DAO address
+   * @param network - DAO network
+   * @param onlyParent - If true, skips aggregating TVL from subDaos
    */
-  static async getDaoDetailsWithoutPlugins(address: HexAddress, network: NetworksEnum) {
+  static async getDaoDetailsWithoutPlugins(address: HexAddress, network: NetworksEnum, onlyParent?: boolean) {
     const query = [
       {
         $match: {
@@ -439,24 +442,28 @@ export default class Dao extends Model {
           as: 'subDaos',
         },
       },
-      {
-        $addFields: {
-          'metrics.tvlUSD': {
-            $add: [
-              { $ifNull: ['$metrics.tvlUSD', 0] },
-              {
-                $reduce: {
-                  input: '$subDaos',
-                  initialValue: 0,
-                  in: {
-                    $add: ['$$value', { $ifNull: ['$$this.metrics.tvlUSD', 0] }],
-                  },
+      ...(onlyParent
+        ? []
+        : [
+            {
+              $addFields: {
+                'metrics.tvlUSD': {
+                  $add: [
+                    { $ifNull: ['$metrics.tvlUSD', 0] },
+                    {
+                      $reduce: {
+                        input: '$subDaos',
+                        initialValue: 0,
+                        in: {
+                          $add: ['$$value', { $ifNull: ['$$this.metrics.tvlUSD', 0] }],
+                        },
+                      },
+                    },
+                  ],
                 },
               },
-            ],
-          },
-        },
-      },
+            },
+          ]),
       {
         $project: {
           _id: 0,

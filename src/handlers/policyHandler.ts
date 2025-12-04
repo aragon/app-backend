@@ -15,15 +15,6 @@ export const PolicyHandler = {
     const sourceAddress = info.address
     const network = info.network
 
-    logger.info(
-      'SourceSettingsUpdated event received',
-      llo({
-        sourceAddress,
-        blockNumber: info.blockNumber,
-        txHash: info.transactionHash,
-      }),
-    )
-
     const setting = await Models.Setting.findByPolicySourceAddress(sourceAddress, network)
 
     if (!setting || setting.policy.source.type !== IPolicySourceType.streamBalance) {
@@ -60,17 +51,6 @@ export const PolicyHandler = {
     const pluginAddress = event.args.plugin
     const network = info.network
 
-    logger.info(
-      'PluginDefined event received',
-      llo({
-        sourceAddress,
-        pluginAddress,
-        blockNumber: info.blockNumber,
-        txHash: info.transactionHash,
-      }),
-    )
-
-    // Find Setting by source address and verify plugin matches
     const setting = await Models.Setting.findByPolicySourceAddress(sourceAddress, network)
 
     if (!setting) {
@@ -95,17 +75,6 @@ export const PolicyHandler = {
     const network = info.network
     const recipients = event.args.recipientList as string[]
     const ratios = (event.args.ratioList as bigint[]).map(r => Number(r))
-
-    logger.info(
-      'RatioModel ModelSettingsUpdated event received',
-      llo({
-        modelAddress,
-        recipients,
-        ratios,
-        blockNumber: info.blockNumber,
-        txHash: info.transactionHash,
-      }),
-    )
 
     const setting = await Models.Setting.findByPolicyModelAddress(modelAddress, network)
 
@@ -133,16 +102,6 @@ export const PolicyHandler = {
     const modelAddress = info.address
     const network = info.network
     const recipients = event.args.recipientList as string[]
-
-    logger.info(
-      'EqualRatioModel ModelSettingsUpdated event received',
-      llo({
-        modelAddress,
-        recipients,
-        blockNumber: info.blockNumber,
-        txHash: info.transactionHash,
-      }),
-    )
 
     const setting = await Models.Setting.findByPolicyModelAddress(modelAddress, network)
 
@@ -172,16 +131,6 @@ export const PolicyHandler = {
     const modelAddress = info.address
     const network = info.network
     const gaugeVoterAddress = event.args.gaugeVoter as HexAddress
-
-    logger.info(
-      'GaugeModel ModelSettingsUpdated event received',
-      llo({
-        modelAddress,
-        gaugeVoterAddress,
-        blockNumber: info.blockNumber,
-        txHash: info.transactionHash,
-      }),
-    )
 
     const setting = await Models.Setting.findByPolicyModelAddress(modelAddress, network)
 
@@ -219,16 +168,6 @@ export const PolicyHandler = {
       claimerModelAddress: b.claimerModel,
     }))
 
-    logger.info(
-      'BracketsModel ModelSettingsUpdated event received',
-      llo({
-        modelAddress,
-        brackets: formattedBrackets,
-        blockNumber: info.blockNumber,
-        txHash: info.transactionHash,
-      }),
-    )
-
     const setting = await Models.Setting.findByPolicyModelAddress(modelAddress, network)
 
     if (!setting) {
@@ -255,16 +194,6 @@ export const PolicyHandler = {
     const pluginAddress = info.address
     const network = info.network
     const modelAddress = event.args.routerModel as HexAddress
-
-    logger.info(
-      'RouterSettingsUpdated event received',
-      llo({
-        pluginAddress,
-        modelAddress,
-        blockNumber: info.blockNumber,
-        txHash: info.transactionHash,
-      }),
-    )
 
     const setting = await Models.Setting.findActive({ pluginAddress, network })
 
@@ -302,16 +231,6 @@ export const PolicyHandler = {
     const network = info.network
     const modelAddress = event.args._claimerModel as HexAddress
 
-    logger.info(
-      'ClaimerSettingsUpdated event received',
-      llo({
-        pluginAddress,
-        modelAddress,
-        blockNumber: info.blockNumber,
-        txHash: info.transactionHash,
-      }),
-    )
-
     const setting = await Models.Setting.findActive({ pluginAddress, network })
 
     if (!setting?.policy) {
@@ -348,16 +267,6 @@ export const PolicyHandler = {
     const network = info.network
     const subRouters = event.args.subrouters as string[]
 
-    logger.info(
-      'MultiRouter RouterSettingsUpdated event received',
-      llo({
-        pluginAddress,
-        subRouters,
-        blockNumber: info.blockNumber,
-        txHash: info.transactionHash,
-      }),
-    )
-
     const setting = await Models.Setting.findActive({ pluginAddress, network })
 
     if (!setting?.policy) {
@@ -381,16 +290,6 @@ export const PolicyHandler = {
     const pluginAddress = info.address
     const network = info.network
     const subClaimers = event.args.subclaimers as string[]
-
-    logger.info(
-      'MultiClaimer ClaimerSettingsUpdated event received',
-      llo({
-        pluginAddress,
-        subClaimers,
-        blockNumber: info.blockNumber,
-        txHash: info.transactionHash,
-      }),
-    )
 
     const setting = await Models.Setting.findActive({ pluginAddress, network })
 

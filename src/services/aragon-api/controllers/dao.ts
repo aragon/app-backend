@@ -182,22 +182,30 @@ const DaoController = {
     return await Models.Dao.findWithPaginationWithoutPlugins({ extraParams, paginationParams, extraQueryData })
   },
 
-  getDaoByIdWithoutPlugins: async (id: string): Promise<IDaoResponse> => {
+  getDaoByIdWithoutPlugins: async (id: string, onlyParent?: boolean): Promise<IDaoResponse> => {
     const dao = await Models.Dao.findByEntityId(id)
     assertExposable(dao, ErrorKeyEnum.notFound)
-    return await Models.Dao.getDaoDetailsWithoutPlugins(dao.address, dao.network)
+    return await Models.Dao.getDaoDetailsWithoutPlugins(dao.address, dao.network, onlyParent)
   },
 
-  getDaoByAddressWithoutPlugins: async (address: HexAddress, network: NetworksEnum): Promise<IDaoResponse> => {
+  getDaoByAddressWithoutPlugins: async (
+    address: HexAddress,
+    network: NetworksEnum,
+    onlyParent?: boolean,
+  ): Promise<IDaoResponse> => {
     const dao = await Models.Dao.findByAddress(address, network)
     assertExposable(dao, ErrorKeyEnum.notFound)
-    return await Models.Dao.getDaoDetailsWithoutPlugins(dao.address, dao.network)
+    return await Models.Dao.getDaoDetailsWithoutPlugins(dao.address, dao.network, onlyParent)
   },
 
-  getDaoByEnsWithoutPlugins: async (ens: string, network: NetworksEnum): Promise<IDaoResponse> => {
+  getDaoByEnsWithoutPlugins: async (
+    ens: string,
+    network: NetworksEnum,
+    onlyParent?: boolean,
+  ): Promise<IDaoResponse> => {
     const dao = await Models.Dao.findOne({ ens, network, isHidden: { $ne: true }, isActive: { $eq: true } })
     assertExposable(dao, ErrorKeyEnum.notFound)
-    return await Models.Dao.getDaoDetailsWithoutPlugins(dao.address, dao.network)
+    return await Models.Dao.getDaoDetailsWithoutPlugins(dao.address, dao.network, onlyParent)
   },
 
   getDaosByMemberWithoutPlugins: async (

@@ -9,12 +9,6 @@ const DaoSchema = {
     pluginAddress: ValidationSchema.joiAddress.optional(),
   }),
 
-  getExtraParamsV2: Joi.object({
-    networks: ValidationSchema.joiNetworks.required(),
-    address: ValidationSchema.joiAddress.optional(),
-    pluginAddress: ValidationSchema.joiAddress.optional(),
-  }),
-
   getDaosByMember: Joi.object({
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
@@ -26,6 +20,7 @@ const DaoSchema = {
 
   getDaoById: Joi.object({
     id: ValidationSchema.joiDaoId.required(),
+    onlyParent: Joi.boolean().optional(),
   }),
 
   getDaoByAddress: Joi.object({
@@ -33,6 +28,7 @@ const DaoSchema = {
       .valid(...Object.values(NetworksEnum))
       .required(),
     address: ValidationSchema.joiAddress.required(),
+    onlyParent: Joi.boolean().optional(),
   }),
 
   getDaoByEns: Joi.object({
@@ -40,6 +36,7 @@ const DaoSchema = {
       .valid(...Object.values(NetworksEnum))
       .required(),
     ens: ValidationSchema.joiEns.required(),
+    onlyParent: Joi.boolean().optional(),
   }),
 }
 

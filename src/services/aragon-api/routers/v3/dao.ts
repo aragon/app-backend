@@ -18,7 +18,7 @@ const DaoRouterV3 = {
         address: ctx.query.address as HexAddress,
       },
       schemas: {
-        extra: DaoSchema.getExtraParamsV2,
+        extra: DaoSchema.getExtraParams,
       },
     })
 
@@ -51,13 +51,14 @@ const DaoRouterV3 = {
     const result = await ValidationSchema.validateRoute(ctx, {
       params: {
         id: ctx.params.id,
+        onlyParent: ctx.query.onlyParent === 'true',
       },
       schemas: {
         params: DaoSchema.getDaoById,
       },
     })
 
-    ctx.body = await DaoController.getDaoByIdWithoutPlugins(result.params.id)
+    ctx.body = await DaoController.getDaoByIdWithoutPlugins(result.params.id, result.params.onlyParent)
   },
 
   getDaoByAddress: async function (ctx: RouterContext) {
@@ -65,13 +66,18 @@ const DaoRouterV3 = {
       params: {
         network: ctx.params.network,
         address: ctx.params.address,
+        onlyParent: ctx.query.onlyParent === 'true',
       },
       schemas: {
         params: DaoSchema.getDaoByAddress,
       },
     })
 
-    ctx.body = await DaoController.getDaoByAddressWithoutPlugins(result.params.address, result.params.network)
+    ctx.body = await DaoController.getDaoByAddressWithoutPlugins(
+      result.params.address,
+      result.params.network,
+      result.params.onlyParent,
+    )
   },
 
   getDaoByEns: async function (ctx: RouterContext) {
@@ -79,13 +85,18 @@ const DaoRouterV3 = {
       params: {
         network: ctx.params.network,
         ens: ctx.params.ens,
+        onlyParent: ctx.query.onlyParent === 'true',
       },
       schemas: {
         params: DaoSchema.getDaoByEns,
       },
     })
 
-    ctx.body = await DaoController.getDaoByEnsWithoutPlugins(result.params.ens, result.params.network)
+    ctx.body = await DaoController.getDaoByEnsWithoutPlugins(
+      result.params.ens,
+      result.params.network,
+      result.params.onlyParent,
+    )
   },
 
   router(): Router {
