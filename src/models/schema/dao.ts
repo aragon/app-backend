@@ -407,7 +407,7 @@ export default class Dao extends Model {
       {
         $lookup: {
           from: ICollectionNames.Dao,
-          let: { subDaoIds: '$subDaos' },
+          let: { subDaoIds: { $ifNull: ['$subDaos', []] } },
           pipeline: [
             {
               $match: {
