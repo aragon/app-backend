@@ -763,3 +763,149 @@ export const MultiClaimerPlugin = {
     },
   ],
 }
+
+// CowSwapRouterPlugin - swaps tokens via CowSwap
+export const CowSwapRouterPlugin = {
+  _format: 'hh-sol-artifact-1',
+  contractName: 'CowSwapRouterPlugin',
+  sourceName: 'src/CowSwapRouterPlugin.sol',
+  abi: [
+    {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: false,
+          internalType: 'contract IERC20',
+          name: 'targetToken',
+          type: 'address',
+        },
+        {
+          indexed: false,
+          internalType: 'contract IGPv2Settlement',
+          name: 'cowSwapSettlement',
+          type: 'address',
+        },
+        {
+          indexed: false,
+          internalType: 'address',
+          name: 'cowSwapRelayer',
+          type: 'address',
+        },
+      ],
+      name: 'RouterSettingsUpdated',
+      type: 'event',
+    },
+    {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: false,
+          internalType: 'bytes',
+          name: 'orderUid',
+          type: 'bytes',
+        },
+        {
+          indexed: false,
+          internalType: 'address',
+          name: 'sellToken',
+          type: 'address',
+        },
+        {
+          indexed: false,
+          internalType: 'address',
+          name: 'buyToken',
+          type: 'address',
+        },
+        {
+          indexed: false,
+          internalType: 'address',
+          name: 'receiver',
+          type: 'address',
+        },
+        {
+          indexed: false,
+          internalType: 'uint256',
+          name: 'sellAmount',
+          type: 'uint256',
+        },
+        {
+          indexed: false,
+          internalType: 'uint256',
+          name: 'buyAmount',
+          type: 'uint256',
+        },
+        {
+          indexed: false,
+          internalType: 'uint32',
+          name: 'validTo',
+          type: 'uint32',
+        },
+        {
+          indexed: false,
+          internalType: 'bytes32',
+          name: 'appData',
+          type: 'bytes32',
+        },
+      ],
+      name: 'CowSwapOrderPosted',
+      type: 'event',
+    },
+    {
+      inputs: [],
+      name: 'targetToken',
+      outputs: [{ internalType: 'contract IERC20', name: '', type: 'address' }],
+      stateMutability: 'view',
+      type: 'function',
+    },
+    {
+      inputs: [],
+      name: 'cowSwapSettlement',
+      outputs: [{ internalType: 'contract IGPv2Settlement', name: '', type: 'address' }],
+      stateMutability: 'view',
+      type: 'function',
+    },
+    {
+      inputs: [],
+      name: 'cowSwapRelayer',
+      outputs: [{ internalType: 'address', name: '', type: 'address' }],
+      stateMutability: 'view',
+      type: 'function',
+    },
+  ],
+}
+
+// UniswapRouterPlugin - swaps tokens via Uniswap V3
+export const UniswapRouterPlugin = {
+  _format: 'hh-sol-artifact-1',
+  contractName: 'UniswapRouterPlugin',
+  sourceName: 'src/UniswapRouterPlugin.sol',
+  abi: [
+    {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: false,
+          internalType: 'contract ISwapRouter02',
+          name: 'uniswapRouter',
+          type: 'address',
+        },
+      ],
+      name: 'RouterSettingsUpdated',
+      type: 'event',
+    },
+    {
+      inputs: [],
+      name: 'targetToken',
+      outputs: [{ internalType: 'contract IERC20', name: '', type: 'address' }],
+      stateMutability: 'view',
+      type: 'function',
+    },
+    {
+      inputs: [],
+      name: 'uniswapRouter',
+      outputs: [{ internalType: 'contract ISwapRouter02', name: '', type: 'address' }],
+      stateMutability: 'view',
+      type: 'function',
+    },
+  ],
+}

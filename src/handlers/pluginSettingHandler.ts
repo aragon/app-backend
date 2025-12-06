@@ -703,6 +703,7 @@ export const PluginSettingHandler = {
         IPolicyStrategyType.claimer,
         IPolicyStrategyType.burnRouter,
         IPolicyStrategyType.uniswapRouter,
+        IPolicyStrategyType.cowSwapRouter,
       ].includes(strategyType)
 
       if (hasSource) {

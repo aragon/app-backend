@@ -6,7 +6,7 @@ import { NetworksEnum } from '@types'
 import { LibUtils } from '@test/lib/unit-dep/lib'
 import PolicyController from '@api/controllers/policy'
 
-describe.skip('Integ: CapitalFlow Installation', () => {
+describe.only('Integ: CapitalFlow Installation', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -17,7 +17,7 @@ describe.skip('Integ: CapitalFlow Installation', () => {
     sandbox && sandbox.restore()
   })
 
-  it('should install capital flow plugin correctly', async function () {
+  it.only('should install capital flow plugin correctly', async function () {
     this.timeout(1000000000)
     const daoAddress = '0x63d2796a2707F20c75a1348759Bb53e56f01D054'
     const network = NetworksEnum.ethereumSepolia
@@ -29,6 +29,9 @@ describe.skip('Integ: CapitalFlow Installation', () => {
         sandbox,
       },
     })
+
+    // First, sync factory events to populate LogPolicy audit records
+    await LibUtils.syncFactoryEvents(network, 9521883)
 
     await libUtil.syncCompleteDao(9521883)
 

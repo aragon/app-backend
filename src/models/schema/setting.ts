@@ -120,6 +120,23 @@ export class PolicyModelSetting {
   public brackets!: PolicyModelBracket[]
 }
 
+export class PolicySwapSetting {
+  // Target token to swap into
+  @prop({ type: () => String, default: null })
+  public targetTokenAddress!: HexAddress
+
+  // CowSwap specific
+  @prop({ type: () => String, default: null })
+  public cowSwapSettlement!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public cowSwapRelayer!: HexAddress
+
+  // Uniswap specific
+  @prop({ type: () => String, default: null })
+  public uniswapRouter!: HexAddress
+}
+
 export class PolicySetting {
   @prop({ type: () => String, default: null })
   public policyId!: string
@@ -132,6 +149,9 @@ export class PolicySetting {
 
   @prop({ type: () => PolicyModelSetting, _id: false, default: null })
   public model!: PolicyModelSetting
+
+  @prop({ type: () => PolicySwapSetting, _id: false, default: null })
+  public swap!: PolicySwapSetting
 
   @prop({ type: () => [String], default: [] })
   public subRouters!: HexAddress[]

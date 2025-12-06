@@ -1,8 +1,9 @@
 import logger from '@logger'
 import type { LogDescription } from 'ethers'
-import { type ILogInfo, type HexAddress, IPolicySourceType } from '@types'
+import { type ILogInfo, type HexAddress, IPolicySourceType, IEventLogPolicyType } from '@types'
 import { Models } from '@dbModels'
 import { ProxyToken } from '@modules/proxyToken'
+import PolicyHelper from '@helpers/policyHelper'
 
 const llo = logger.logMeta.bind(null, { service: 'handler:PolicyHandler' })
 
@@ -303,5 +304,185 @@ export const PolicyHandler = {
     await setting.save()
 
     logger.info('Updated Setting with subClaimers', llo({ pluginAddress, subClaimers }))
+  },
+
+  /**
+   * Handle RouterSettingsUpdated event from CowSwapRouterPlugin
+   * Event: RouterSettingsUpdated(IERC20 targetToken, IGPv2Settlement cowSwapSettlement, address cowSwapRelayer)
+   * Updates the swap settings in policy
+   */
+  cowSwapRouterSettingsUpdated: async (event: LogDescription, info: ILogInfo) => {
+    const pluginAddress = info.address
+    const network = info.network
+    const targetToken = event.args.targetToken as HexAddress
+    const cowSwapSettlement = event.args.cowSwapSettlement as HexAddress
+    const cowSwapRelayer = event.args.cowSwapRelayer as HexAddress
+
+    const setting = await Models.Setting.findActive({ pluginAddress, network })
+
+    if (!setting?.policy) {
+      logger.warn('No Setting found for plugin address', llo({ pluginAddress, network, info }))
+      return
+    }
+
+    setting.policy.swap = {
+      ...setting.policy.swap,
+      targetTokenAddress: targetToken,
+      cowSwapSettlement,
+      cowSwapRelayer,
+    }
+
+    if (targetToken) {
+      await ProxyToken.saveAndGetToken(targetToken, network)
+    }
+
+    await setting.save()
+
+    logger.info('Updated Setting with CowSwap router settings', llo({ pluginAddress, targetToken, cowSwapSettlement }))
+  },
+
+  /**
+   * Handle RouterSettingsUpdated event from UniswapRouterPlugin
+   * Event: RouterSettingsUpdated(ISwapRouter02 uniswapRouter)
+   * Updates the swap settings in policy
+   */
+  uniswapRouterSettingsUpdated: async (event: LogDescription, info: ILogInfo) => {
+    const pluginAddress = info.address
+    const network = info.network
+    const uniswapRouter = event.args.uniswapRouter as HexAddress
+
+    const setting = await Models.Setting.findActive({ pluginAddress, network })
+
+    if (!setting?.policy) {
+      logger.warn('No Setting found for plugin address', llo({ pluginAddress, network, info }))
+      return
+    }
+
+    const targetToken = await PolicyHelper.getUniswapTargetToken(pluginAddress, network)
+
+    setting.policy.swap = {
+      ...setting.policy.swap,
+      uniswapRouter,
+      targetTokenAddress: targetToken,
+    }
+
+    if (targetToken) {
+      await ProxyToken.saveAndGetToken(targetToken, network)
+    }
+
+    await setting.save()
+
+    logger.info('Updated Setting with Uniswap router settings', llo({ pluginAddress, uniswapRouter, targetToken }))
+  },
+
+  // ==========================================
+  // Factory Deployment Event Handlers
+  // ==========================================
+
+  /**
+   * Generic handler for factory deployment events
+   * Creates a LogPolicy record for audit logging
+   */
+  _handleFactoryDeployment: async (
+    event: LogDescription,
+    info: ILogInfo,
+    eventType: IEventLogPolicyType,
+    addressField: string,
+  ) => {
+    const { transactionHash, transactionIndex, logIndex, blockNumber, network } = info
+    const deployedAddress = event.args[addressField] as HexAddress
+
+    try {
+      await Models.LogPolicy.create({
+        event: eventType,
+        transactionHash,
+        transactionIndex,
+        logIndex,
+        blockNumber,
+        address: deployedAddress,
+        network,
+      })
+
+      logger.info('LogPolicy created for factory deployment', llo({ eventType, deployedAddress, network, blockNumber }))
+    } catch (error: any) {
+      if (error.code === 11000) {
+        logger.verbose('LogPolicy already exists', llo({ eventType, deployedAddress }))
+      } else {
+        logger.error('Failed to create LogPolicy', llo({ error, eventType, deployedAddress }))
+      }
+    }
+  },
+
+  // Source Factory Handlers
+  drainBalanceSourceDeployed: async (event: LogDescription, info: ILogInfo) => {
+    await PolicyHandler._handleFactoryDeployment(
+      event,
+      info,
+      IEventLogPolicyType.DrainBalanceSourceDeployed,
+      'newContract',
+    )
+  },
+
+  requiredBalanceSourceDeployed: async (event: LogDescription, info: ILogInfo) => {
+    await PolicyHandler._handleFactoryDeployment(
+      event,
+      info,
+      IEventLogPolicyType.RequiredBalanceSourceDeployed,
+      'newContract',
+    )
+  },
+
+  streamBalanceSourceDeployed: async (event: LogDescription, info: ILogInfo) => {
+    await PolicyHandler._handleFactoryDeployment(
+      event,
+      info,
+      IEventLogPolicyType.StreamBalanceSourceDeployed,
+      'newContract',
+    )
+  },
+
+  fixedBalanceSourceDeployed: async (event: LogDescription, info: ILogInfo) => {
+    await PolicyHandler._handleFactoryDeployment(
+      event,
+      info,
+      IEventLogPolicyType.FixedBalanceSourceDeployed,
+      'newContract',
+    )
+  },
+
+  // Model Factory Handlers
+  ratioModelDeployed: async (event: LogDescription, info: ILogInfo) => {
+    await PolicyHandler._handleFactoryDeployment(event, info, IEventLogPolicyType.RatioModelDeployed, 'newContract')
+  },
+
+  equalRatioModelDeployed: async (event: LogDescription, info: ILogInfo) => {
+    await PolicyHandler._handleFactoryDeployment(
+      event,
+      info,
+      IEventLogPolicyType.EqualRatioModelDeployed,
+      'newContract',
+    )
+  },
+
+  bracketsModelDeployed: async (event: LogDescription, info: ILogInfo) => {
+    await PolicyHandler._handleFactoryDeployment(event, info, IEventLogPolicyType.BracketsModelDeployed, 'newContract')
+  },
+
+  addressGaugeRatioModelDeployed: async (event: LogDescription, info: ILogInfo) => {
+    await PolicyHandler._handleFactoryDeployment(
+      event,
+      info,
+      IEventLogPolicyType.AddressGaugeRatioModelDeployed,
+      'newContract',
+    )
+  },
+
+  tokenGaugeRatioModelDeployed: async (event: LogDescription, info: ILogInfo) => {
+    await PolicyHandler._handleFactoryDeployment(
+      event,
+      info,
+      IEventLogPolicyType.TokenGaugeRatioModelDeployed,
+      'newContract',
+    )
   },
 }

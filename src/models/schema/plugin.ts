@@ -557,6 +557,21 @@ export default class Plugin extends Model {
           logo: 1,
         },
       ),
+      AggregationQueryHelper.token(
+        {
+          address: '$policyData.swap.targetTokenAddress',
+          network: '$network',
+        },
+        'swapTargetToken',
+        {
+          _id: 0,
+          address: 1,
+          symbol: 1,
+          name: 1,
+          decimals: 1,
+          logo: 1,
+        },
+      ),
       {
         $addFields: {
           strategy: {
@@ -598,6 +613,30 @@ export default class Plugin extends Model {
                   amountPerEpoch: '$policyData.source.amountPerEpoch',
                   maxSourceBalance: '$policyData.source.maxSourceBalance',
                   epochInterval: '$policyData.source.epochInterval',
+                },
+                else: null,
+              },
+            },
+            swap: {
+              $cond: {
+                if: { $ifNull: ['$policyData.swap.targetTokenAddress', false] },
+                then: {
+                  targetToken: {
+                    $cond: {
+                      if: { $gt: [{ $size: { $ifNull: ['$swapTargetToken', []] } }, 0] },
+                      then: { $arrayElemAt: ['$swapTargetToken', 0] },
+                      else: {
+                        address: '$policyData.swap.targetTokenAddress',
+                        symbol: null,
+                        name: null,
+                        decimals: null,
+                        logo: null,
+                      },
+                    },
+                  },
+                  cowSwapSettlement: '$policyData.swap.cowSwapSettlement',
+                  cowSwapRelayer: '$policyData.swap.cowSwapRelayer',
+                  uniswapRouter: '$policyData.swap.uniswapRouter',
                 },
                 else: null,
               },

@@ -1,20 +1,15 @@
-import { Contract, AbiCoder, type TransactionReceipt } from 'ethers'
+import { Contract } from 'ethers'
 import logger from '@logger'
 import {
-  IPluginInterfaceType,
   type NetworksEnum,
-  // IPolicySourceType,
-  // IPolicyModelType,
   IPolicyStrategyType,
   type IPolicySourceData,
   type IPolicyModelData,
   type HexAddress,
-  IEventLogPluginType,
   type IPolicyModelBracket,
   IPolicySourceType,
 } from '@types'
 import ProviderModule from '@modules/provider'
-import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import {
   PluginSourcesAbi,
   DrainBalanceSource,
@@ -30,9 +25,9 @@ import {
   ClaimerPlugin,
   MultiRouterPlugin,
   MultiClaimerPlugin,
+  UniswapRouterPlugin,
 } from '@artifacts/CapitalRouter'
 import PolicyDetector from '@helpers/policyDetector'
-import Web3Utils from '@helpers/web3Utils'
 import BottleneckModule from '@modules/bottleneck'
 import { retryRequest } from '@helpers/retryRequest'
 import utils from '@helpers/utils'
@@ -45,6 +40,7 @@ const POLICY_PLUGIN_IDS = {
   MULTI_ROUTER: 'org.aragon.router.multi',
   BURN_ROUTER: 'org.aragon.router.burn',
   UNISWAP_ROUTER: 'org.aragon.router.uniswap',
+  COWSWAP_ROUTER: 'org.aragon.router.cowswap',
   MULTI_DISPATCH: 'org.aragon.router.multi-dispatch',
   STD_CLAIMER: 'org.aragon.claimer.std',
   MULTI_CLAIMER: 'org.aragon.claimer.multi',
@@ -56,6 +52,7 @@ const PLUGIN_ID_TO_STRATEGY: Record<string, IPolicyStrategyType> = {
   [POLICY_PLUGIN_IDS.MULTI_ROUTER]: IPolicyStrategyType.multiRouter,
   [POLICY_PLUGIN_IDS.BURN_ROUTER]: IPolicyStrategyType.burnRouter,
   [POLICY_PLUGIN_IDS.UNISWAP_ROUTER]: IPolicyStrategyType.uniswapRouter,
+  [POLICY_PLUGIN_IDS.COWSWAP_ROUTER]: IPolicyStrategyType.cowSwapRouter,
   [POLICY_PLUGIN_IDS.MULTI_DISPATCH]: IPolicyStrategyType.multiDispatch,
   [POLICY_PLUGIN_IDS.STD_CLAIMER]: IPolicyStrategyType.claimer,
   [POLICY_PLUGIN_IDS.MULTI_CLAIMER]: IPolicyStrategyType.multiClaimer,
@@ -338,53 +335,6 @@ const PolicyHelper = {
   },
 
   /**
-   * Extract model address from InstallationPrepared event in transaction receipt.
-   * The event contains a ` data ` field with encoded installation params.
-   * Router: abi.encode(routerSource, isStreamingSource, routerModel)
-   * Claimer: abi.encode(claimerSource, claimerModel)
-   */
-  getModelAddressFromEvent: (
-    txReceipt: TransactionReceipt,
-    pluginAddress: HexAddress,
-    interfaceType: string,
-  ): string | null => {
-    try {
-      const logs = Web3Utils.findLogsByName(
-        txReceipt,
-        IEventLogPluginType.InstallationPrepared,
-        PluginSetupProcessor.abi,
-      )
-
-      const matchingLog = logs.find(log => {
-        if (!log.parsed) return false
-        const eventPluginAddress = log.parsed.args.plugin
-        return eventPluginAddress === pluginAddress
-      })
-
-      if (!matchingLog?.parsed) {
-        logger.warn('InstallationPrepared event not found for plugin', llo({ pluginAddress }))
-        return null
-      }
-
-      const installationData = matchingLog.parsed.args.data
-
-      const abiCoder = AbiCoder.defaultAbiCoder()
-
-      if (interfaceType === IPluginInterfaceType.router) {
-        const decoded = abiCoder.decode(['address', 'bool', 'address'], installationData)
-        return decoded[2]
-      } else if (interfaceType === IPluginInterfaceType.claimer) {
-        const decoded = abiCoder.decode(['address', 'address'], installationData)
-        return decoded[1]
-      }
-      return null
-    } catch (error) {
-      logger.error('Error extracting model address from event', llo({ error, pluginAddress }))
-      return null
-    }
-  },
-
-  /**
    * Fetch model data on-chain based on the detected type
    */
   getModelData: async (modelAddress: string, network: NetworksEnum): Promise<IPolicyModelData | null> => {
@@ -404,31 +354,6 @@ const PolicyHelper = {
         gaugeVoterAddress: null,
         brackets: [],
       }
-
-      // switch (modelType) {
-      //   case IPolicyModelType.addressGauge:
-      //   case IPolicyModelType.tokenGauge: {
-      //     const data = await PolicyHelper._getGaugeModelData(modelAddress, network)
-      //     baseData.gaugeVoterAddress = data.gaugeVoterAddress
-      //     break
-      //   }
-      //   case IPolicyModelType.ratio: {
-      //     const data = await PolicyHelper._getRatioModelData(modelAddress, network)
-      //     baseData.recipients = data.recipients
-      //     baseData.ratios = data.ratios
-      //     break
-      //   }
-      //   case IPolicyModelType.equalRatio: {
-      //     const data = await PolicyHelper._getEqualRatioModelData(modelAddress, network)
-      //     baseData.recipients = data.recipients
-      //     break
-      //   }
-      //   case IPolicyModelType.brackets: {
-      //     const data = await PolicyHelper._getBracketsModelData(modelAddress, network)
-      //     baseData.brackets = data.brackets
-      //     break
-      //   }
-      // }
 
       return baseData
     } catch (error) {
@@ -528,6 +453,26 @@ const PolicyHelper = {
     } catch (error) {
       logger.error('Error fetching subclaimers', llo({ error, pluginAddress, network }))
       return []
+    }
+  },
+
+  /**
+   * Get targetToken from UniswapRouterPlugin
+   * Calls targetToken() on-chain
+   */
+  getUniswapTargetToken: async (pluginAddress: HexAddress, network: NetworksEnum): Promise<HexAddress | null> => {
+    try {
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      const contract = new Contract(pluginAddress, UniswapRouterPlugin.abi, provider)
+
+      const targetToken = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.targetToken()),
+      )
+
+      return targetToken !== utils.zeroAddress ? targetToken : null
+    } catch (error) {
+      logger.error('Error fetching uniswap target token', llo({ error, pluginAddress, network }))
+      return null
     }
   },
 }

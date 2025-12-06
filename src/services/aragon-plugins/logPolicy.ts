@@ -58,18 +58,20 @@ export const LogPolicy = {
       Object.values(IPolicySourceModelLogs).includes(item.event as any),
     )
 
-    const contractCreationInfo = await ProxyWeb3Provider.fetchContractCreation({ address, network })
-    if (!contractCreationInfo.blockNumber) {
-      logger.warn('Cannot find contract creation block number', llo({ network, address }))
+    const logPolicyRecord = await Models.LogPolicy.findByAddress(address, network)
+    if (!logPolicyRecord?.blockNumber) {
+      logger.warn('LogPolicy record not found, skipping sync', llo({ network, address }))
       return
     }
+
+    const fromBlock = logPolicyRecord.blockNumber
 
     const crawler = new BlockchainLogCrawler({
       onlyHistorical: true,
       network,
       events: configSourceModelLogs,
       address,
-      fromBlock: contractCreationInfo.blockNumber,
+      fromBlock,
       onError: async (error: any, log: any) => LogPolicy._processError(error, address, network, log),
       logService: ConfigIndexerHelper.builders.policyContract(network, address),
       stopOnError: true,
