@@ -31,7 +31,6 @@ import type VoteGauge from '@models/schema/voteGauge'
 import type GaugeMetrics from '@models/schema/gaugeMetrics'
 import type Metrics from '@models/schema/metrics'
 import type LogPolicy from '@models/schema/logPolicy'
-import { NetworksEnum } from '@src/types/networks'
 
 export interface IMongoModel {
   Migration: typeof Migration
