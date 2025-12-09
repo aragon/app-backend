@@ -1,4 +1,4 @@
-import { NetworksEnum } from '@src/types/networks'
+import { type NetworksEnum } from '@src/types/networks'
 
 export enum IPolicySourceType {
   drain = 'drain',
