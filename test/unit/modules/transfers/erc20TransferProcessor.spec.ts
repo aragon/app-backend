@@ -6,7 +6,6 @@ import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import Web3Helper from '@helpers/web3'
 import { ProxyToken } from '@modules/proxyToken'
-import ProxyProvider from '@modules/proxyProvider'
 import utils from '@helpers/utils'
 import { ITransactionType, ITransactionSide, NetworksEnum, ITokenType } from '@types'
 
@@ -465,77 +464,6 @@ describe('Transfers: Erc20TransferProcessor', () => {
     })
   })
 
-  describe('fetchTokenPrice', () => {
-    let fetchHistoricalTokenPriceStub: sinon.SinonStub
-
-    beforeEach(() => {
-      fetchHistoricalTokenPriceStub = sandbox.stub(ProxyProvider, 'fetchHistoricalTokenPrice')
-    })
-
-    it('should fetch price for native token using symbol', async () => {
-      const token = {
-        type: ITokenType.native,
-        symbol: 'ETH',
-        address: utils.zeroAddress,
-      }
-
-      fetchHistoricalTokenPriceStub.resolves('2500.00')
-
-      const result = await processor['fetchTokenPrice'](token, 1625000000)
-
-      expect(
-        fetchHistoricalTokenPriceStub.calledWith({
-          symbol: 'ETH',
-          network: NetworksEnum.ethereumMainnet,
-          date: 1625000000,
-        }),
-      ).to.be.true
-      expect(result).to.equal('2500.00')
-    })
-
-    it('should fetch price for ERC20 token using address', async () => {
-      const token = {
-        type: ITokenType.ERC20,
-        address: '0xTokenAddress',
-        symbol: 'TEST',
-      }
-
-      fetchHistoricalTokenPriceStub.resolves('10.50')
-
-      const result = await processor['fetchTokenPrice'](token, 1625000000)
-
-      expect(
-        fetchHistoricalTokenPriceStub.calledWith({
-          address: '0xTokenAddress',
-          network: NetworksEnum.ethereumMainnet,
-          date: 1625000000,
-        }),
-      ).to.be.true
-      expect(result).to.equal('10.50')
-    })
-
-    it('should handle undefined symbol for native token', async () => {
-      const token = {
-        type: ITokenType.native,
-        symbol: undefined,
-        address: utils.zeroAddress,
-      }
-
-      fetchHistoricalTokenPriceStub.resolves('0.00')
-
-      const result = await processor['fetchTokenPrice'](token, 1625000000)
-
-      expect(
-        fetchHistoricalTokenPriceStub.calledWith({
-          symbol: undefined,
-          network: NetworksEnum.ethereumMainnet,
-          date: 1625000000,
-        }),
-      ).to.be.true
-      expect(result).to.equal('0.00')
-    })
-  })
-
   describe('persist', () => {
     it('should persist transaction using DbTx', async () => {
       const data = {
@@ -604,7 +532,6 @@ describe('Transfers: Erc20TransferProcessor', () => {
       sandbox.stub(Models.Transaction, 'findExistingLog').resolves(null)
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(mockToken as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1625000000)
-      sandbox.stub(ProxyProvider, 'fetchHistoricalTokenPrice').resolves('1.00')
 
       const mockTransaction = { id: 'tx-deposit-1' }
       sandbox.stub(DbTx, 'executeTxFn').callsFake(async fn => {

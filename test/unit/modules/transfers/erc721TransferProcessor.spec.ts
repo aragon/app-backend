@@ -6,7 +6,6 @@ import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import Web3Helper from '@helpers/web3'
 import { ProxyToken } from '@modules/proxyToken'
-import ProxyProvider from '@modules/proxyProvider'
 import { ITransactionType, ITransactionSide, NetworksEnum, ITokenType } from '@types'
 
 describe('Transfers: Erc721TransferProcessor', () => {
@@ -463,7 +462,6 @@ describe('Transfers: Erc721TransferProcessor', () => {
       sandbox.stub(Models.Transaction, 'findExistingLog').resolves(null)
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(mockToken as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1625000000)
-      sandbox.stub(ProxyProvider, 'fetchHistoricalTokenPrice').resolves('100000.00')
 
       const mockTransaction = { id: 'nft-deposit-1' }
       sandbox.stub(DbTx, 'executeTxFn').callsFake(async fn => {

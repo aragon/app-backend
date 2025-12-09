@@ -1,8 +1,7 @@
 import { type IWeb3Provider, IWeb3ProxyMethod, NetworksEnum } from '@types'
 import Web3Provider from '@modules/proxyProvider/web3Provider'
 import PeaqProvider from '@modules/proxyProvider/peaqProvider'
-import ChilizProvider from '@modules/proxyProvider/chilizProvider'
-import CornProvider from '@modules/proxyProvider/cornProvider'
+import RoutescanProvider from '@modules/proxyProvider/routescanProvider'
 import KatanaProvider from '@modules/proxyProvider/katanaProvider'
 
 const ProxyWeb3Provider: IWeb3Provider & { forward: any; getProvider: any; getDefaultProvider: any } = {
@@ -11,9 +10,8 @@ const ProxyWeb3Provider: IWeb3Provider & { forward: any; getProvider: any; getDe
       case NetworksEnum.peaqMainnet:
         return PeaqProvider
       case NetworksEnum.chilizMainnet:
-        return ChilizProvider
       case NetworksEnum.cornMainnet:
-        return CornProvider
+        return RoutescanProvider
       case NetworksEnum.katanaMainnet:
         return KatanaProvider
       default:
@@ -51,23 +49,8 @@ const ProxyWeb3Provider: IWeb3Provider & { forward: any; getProvider: any; getDe
   fetchContractSourceCode: async function (params) {
     return ProxyWeb3Provider.forward(IWeb3ProxyMethod.fetchContractSourceCode)(params)
   },
-  fetchBasicTokenInfo: async function (params) {
-    return ProxyWeb3Provider.forward(IWeb3ProxyMethod.fetchBasicTokenInfo)(params)
-  },
-  fetchTokenHolderAndSupply: async function (params) {
-    return ProxyWeb3Provider.forward(IWeb3ProxyMethod.fetchTokenHolderAndSupply)(params)
-  },
-  fetchTokenPrice: async function (params) {
-    return ProxyWeb3Provider.forward(IWeb3ProxyMethod.fetchTokenPrice)(params)
-  },
   searchDetailsOfContract: async function (params) {
     return ProxyWeb3Provider.forward(IWeb3ProxyMethod.searchDetailsOfContract)(params)
-  },
-  fetchHistoricalTokenPrice: async function (params) {
-    return ProxyWeb3Provider.forward(IWeb3ProxyMethod.fetchHistoricalTokenPrice)(params)
-  },
-  getTokenCounters: async function (params) {
-    return ProxyWeb3Provider.forward(IWeb3ProxyMethod.getTokenCounters)(params)
   },
 }
 

@@ -4,7 +4,6 @@ import {
   EnumQueueName,
   type IProposalInfo,
   type IQueueAllMetrics,
-  type IQueueContractInfo,
   type IQueueDao,
   type IQueueDaoTransactions,
   type IQueueProposalMetrics,
@@ -18,9 +17,6 @@ import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
 import { AllMetrics } from '@services/aragon-dao/allMetrics'
 import config from '@config'
-import { TaskSchedulerState } from '@state/taskSchedulerState'
-import TokenFetcher from '@services/aragon-dao/tokenFetcher'
-import ProxyWeb3Provider from '@modules/proxyProvider'
 import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 
 const llo = logger.logMeta.bind(null, { service: 'service:DaoService' })
@@ -65,33 +61,10 @@ const AragonDaoService: IService = {
       await ProposalMetrics.proposalTokenVotingMetrics({ proposalIndex, pluginAddress, network })
     })
 
-    await RabbitMQHelper.process(EnumQueueName.getTokenStats, async (job: { params: IQueueContractInfo }) => {
-      return await ProxyWeb3Provider.getTokenCounters({
-        address: job.params.address,
-        network: job.params.network,
-      })
-    })
-
     await RabbitMQHelper.process(EnumQueueName.proposalActions, async (job: any) => {
       const { id } = job.params as IProposalInfo
       return await ActionDecoder.proposalActionDecoder(id)
     })
-
-    const tasks = [[{ fetchRates: TokenFetcher }]]
-
-    const taskOptions = {
-      fn: () => [...tasks],
-      interval: config.SERVICES.ARAGON_DAO.TOKEN_FETCH_INTERVAL,
-      checkInterval: config.SERVICES.ARAGON_DAO.TOKEN_FETCH_INTERVAL / 2,
-      runNow: true,
-      stopOnError: false,
-      onError: (error: any) => {
-        logger.error('Token Fetcher task error', llo({ error }))
-      },
-    }
-
-    const scheduler = TaskSchedulerState.getInstance()
-    await scheduler.startTask('token-re-fetch', taskOptions)
 
     logger.info('AragonDaoService service started', llo({}))
   },

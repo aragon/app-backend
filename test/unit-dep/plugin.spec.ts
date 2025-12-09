@@ -16,7 +16,7 @@ import { PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandl
 import { Models } from '@dbModels'
 import { expect } from 'chai'
 import BlockScoutHelper from '@helpers/blockScout'
-import { RateModule } from '@modules/rates'
+import CoinGeckoHelper from '@helpers/coinGecko'
 import { Multisig } from '@artifacts/Multisig'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import Plugins from '@test/unit-dep/mockData/sppPairMockPlugin.json'
@@ -161,7 +161,7 @@ describe('Integ: Plugin', () => {
   it('should handle plugin installation token voting', async function () {
     this.timeout(10000000)
     const daoCreationTxHash = '0x2a47f99a78b147abb325eb14060b0ed4ba665d6a9d40d7c1a7d145e62c2f755f'
-    sandbox.stub(RateModule, 'fetchRateWithCovalent').resolves({
+    sandbox.stub(CoinGeckoHelper, 'getToken').resolves({
       address: '0x00',
       decimals: 18,
       name: 'Wrapped Ether',
@@ -170,7 +170,7 @@ describe('Integ: Plugin', () => {
       type: ITokenType.ERC20,
       logo: 'https://example.com/logo.png',
       lastUpdatedAt: new Date(),
-    })
+    } as any)
 
     sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves({
       holders: 1,

@@ -4,8 +4,8 @@ import { NetworksEnum, ProposalActionType } from '@types'
 import DecodeActions from '@helpers/decodeAction'
 import { expect } from 'chai'
 import { ProxyToken } from '@modules/proxyToken'
-import CovalentHelper from '@helpers/covalent'
 import IPFSModule from '@modules/ipfs'
+import CoinGeckoHelper from '@helpers/coinGecko'
 
 describe('Integ: decodeAction', () => {
   let sandbox: SinonSandbox
@@ -84,11 +84,10 @@ describe('Integ: decodeAction', () => {
 
       const decodeAction = new DecodeActions()
       const proxyTokenSpy = sandbox.spy(ProxyToken, 'saveAndGetToken')
-      sandbox.stub(CovalentHelper, 'getTokenSupplyAndHolders').resolves({
+      sandbox.stub(CoinGeckoHelper, 'getToken').resolves({
         totalSupply: '0',
-        totalHolders: 0,
-      })
-      sandbox.stub(CovalentHelper, 'getToken').resolves({})
+        holders: 0,
+      } as any)
 
       const decoded: any = await decodeAction.decodeData(action, {
         network: NetworksEnum.ethereumSepolia,

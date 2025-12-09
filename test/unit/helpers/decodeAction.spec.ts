@@ -8,7 +8,7 @@ import Logger from '@logger'
 import { IPluginInterfaceType, ITokenType, KnownActionSignature, NetworksEnum, ProposalActionType } from '@types'
 import { ProxyToken } from '@modules/proxyToken'
 import Web3Helper from '@helpers/web3'
-import Covalent from '@helpers/covalent'
+import CoinGeckoHelper from '@helpers/coinGecko'
 import ProxyContract from '@helpers/proxyContract'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
 import Ipfs from '@modules/ipfs'
@@ -67,10 +67,6 @@ describe('Helpers: DecodeActions', () => {
         inputData: {},
       } as any)
       const getERC20BalanceStub = sandbox.stub(Web3Helper, 'getERC20Balance').resolves(0n)
-      const getTokenInfoWithCovalentStub = sandbox.stub(Covalent, 'getTokenSupplyAndHolders').resolves({
-        totalSupply: '1000000000000000000',
-        totalHolders: 1,
-      })
 
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         address: '0x284803C34A3F049f787E2562e6F8C084bdBC3197',
@@ -89,8 +85,6 @@ describe('Helpers: DecodeActions', () => {
       expect(stubMint.calledOnce).to.be.true
       expect(stubParseContractNetspec.calledOnce).to.be.true
       expect(getERC20BalanceStub.notCalled).to.be.true
-      // Covalent may not be called if _parseMintAction returns early
-      expect(getTokenInfoWithCovalentStub.called).to.be.false
       expect(saveAndGetTokenStub.notCalled).to.be.true
       expect(spyDecodeAbi.calledOnce).to.be.true
       expect(spyDecodeFallback.notCalled).to.be.true
@@ -1834,10 +1828,10 @@ describe('Helpers: DecodeActions', () => {
         type: ITokenType.ERC20,
       } as any)
 
-      const covalentTokenInfo = sandbox.stub(Covalent, 'getTokenSupplyAndHolders').resolves({
+      const coinGeckoTokenInfo = sandbox.stub(CoinGeckoHelper, 'getToken').resolves({
         totalSupply: '1000000000000000000',
-        totalHolders: 1,
-      })
+        holders: 1,
+      } as any)
 
       const createBaseMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
       sandbox.stub(Models.Member, 'findByAddress').resolves({
@@ -1852,7 +1846,7 @@ describe('Helpers: DecodeActions', () => {
       expect(createBaseMemberStub.calledOnce).to.be.true
       expect(result?.type).to.be.eq(ProposalActionType.Mint)
       expect(saveAndGetTokenStub.calledOnce).to.be.true
-      expect(covalentTokenInfo.calledOnce).to.be.true
+      expect(coinGeckoTokenInfo.calledOnce).to.be.true
       expect(result!.totalSupply).to.be.eq('1000000000000000000')
       expect(result!.holdersCount).to.be.eq(1)
       expect(tokenBalanceAtBlockStub.calledOnce).to.be.true
@@ -1893,7 +1887,7 @@ describe('Helpers: DecodeActions', () => {
 
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken')
 
-      const covalentTokenInfo = sandbox.stub(Covalent, 'getTokenSupplyAndHolders')
+      const coinGeckoTokenInfo = sandbox.stub(CoinGeckoHelper, 'getToken')
 
       const loggerStub = sandbox.stub(Logger, 'error')
 
@@ -1906,7 +1900,7 @@ describe('Helpers: DecodeActions', () => {
       expect(createBaseMemberStub.calledOnce).to.be.true
       expect(result?.type).to.be.eq(ProposalActionType.Mint)
       expect(saveAndGetTokenStub.calledOnce).to.be.true
-      expect(covalentTokenInfo.calledOnce).to.be.false
+      expect(coinGeckoTokenInfo.calledOnce).to.be.false
       expect(tokenBalanceAtBlockStub.calledOnce).to.be.false
       expect(result!.totalSupply).to.be.eq('0')
       expect(result!.holdersCount).to.be.eq(0)

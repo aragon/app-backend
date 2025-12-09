@@ -3,10 +3,15 @@ import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import type Token from '@models/schema/token'
-import CovalentHelper from '@helpers/covalent'
-import ProxyProvider from '@modules/proxyProvider'
+import CoinGeckoHelper from '@helpers/coinGecko'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:tokenUtils' })
+
+interface ITokenBasicInfo {
+  name?: string
+  symbol?: string
+  type?: ITokenType
+}
 
 const TokenUtils = {
   firstValid: <T>(...values: (T | null | undefined | '0' | 0)[]): T | null => {
@@ -22,7 +27,7 @@ const TokenUtils = {
     (!token.symbol ||
       token.isGovernance ||
       token.type === ITokenType.unknown ||
-      CovalentHelper.skipTestNetworks.includes(token.network!)) &&
+      CoinGeckoHelper.isTestNetwork(token.network!)) &&
     tokenRate.priceUsd === '0',
 
   analyzeIfScamToken: (name: string, symbol: string) => {
@@ -83,17 +88,21 @@ const TokenUtils = {
     return hasUrl || hasKeywords || hasRedFlags
   },
 
-  isTokenSyncable: async (tokenAddress: HexAddress, network: NetworksEnum): Promise<boolean> => {
+  isTokenSyncable: async (
+    tokenAddress: HexAddress,
+    network: NetworksEnum,
+    prefetchedTokenInfo?: ITokenBasicInfo,
+  ): Promise<boolean> => {
     try {
       const dbToken = await Models.Token.findOne({ address: tokenAddress, network })
       if (dbToken) return true
-      const tokenInfo = await ProxyProvider.fetchBasicTokenInfo({
-        address: tokenAddress,
-        network,
-      })
-      if (tokenInfo && tokenInfo.type !== ITokenType.unknown) {
-        return !TokenUtils.analyzeIfScamToken(tokenInfo.name! || '', tokenInfo.symbol! || '')
+
+      // Use prefetched tokenInfo if provided
+      if (prefetchedTokenInfo && prefetchedTokenInfo.type !== ITokenType.unknown) {
+        return !TokenUtils.analyzeIfScamToken(prefetchedTokenInfo.name || '', prefetchedTokenInfo.symbol || '')
       }
+
+      // Fallback to on-chain data
       const web3TokenDetails = await Web3Helper.getTokenNameAndSymbol(tokenAddress, network)
       if (web3TokenDetails.name && web3TokenDetails.symbol) {
         return !TokenUtils.analyzeIfScamToken(web3TokenDetails.name, web3TokenDetails.symbol)

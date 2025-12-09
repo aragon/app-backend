@@ -144,7 +144,7 @@ describe('Helpers:Subscan', () => {
       expect(result.logo).to.eq(null)
       expect(result.priceUsd).to.eq('1')
       expect(result.totalSupply).to.eq('1000')
-      expect(result.totalHolders).to.eq(10)
+      expect(result.holders).to.eq(10)
       expect(result.lastUpdatedAt).to.exist
       expect(rpCallStub.calledOnce).to.be.true
     })
@@ -163,7 +163,7 @@ describe('Helpers:Subscan', () => {
       expect(result.logo).to.eq(null)
       expect(result.priceUsd).to.eq('0')
       expect(result.totalSupply).to.eq('0')
-      expect(result.totalHolders).to.eq(0)
+      expect(result.holders).to.eq(0)
       !expect(result.lastUpdatedAt).to.not.exist
 
       expect(rpCallStub.calledOnce).to.be.true
@@ -192,7 +192,7 @@ describe('Helpers:Subscan', () => {
       expect(result.logo).to.eq(null)
       expect(result.priceUsd).to.eq('1')
       expect(result.totalSupply).to.eq('1000')
-      expect(result.totalHolders).to.eq(10)
+      expect(result.holders).to.eq(10)
       expect(result.lastUpdatedAt).to.exist
       expect(rpCallStub.calledOnce).to.be.true
     })
@@ -219,7 +219,7 @@ describe('Helpers:Subscan', () => {
       expect(result.logo).to.eq(null)
       expect(result.priceUsd).to.eq('1')
       expect(result.totalSupply).to.eq('1000')
-      expect(result.totalHolders).to.eq(10)
+      expect(result.holders).to.eq(10)
       expect(result.lastUpdatedAt).to.exist
       expect(rpCallStub.calledOnce).to.be.true
     })
@@ -246,7 +246,7 @@ describe('Helpers:Subscan', () => {
       expect(result.logo).to.eq(null)
       expect(result.priceUsd).to.eq('1')
       expect(result.totalSupply).to.eq('1000')
-      expect(result.totalHolders).to.eq(10)
+      expect(result.holders).to.eq(10)
       expect(result.lastUpdatedAt).to.exist
       expect(rpCallStub.calledOnce).to.be.true
     })
@@ -365,7 +365,7 @@ describe('Helpers:Subscan', () => {
         priceUsd: '1',
         type: ITokenType.native,
         totalSupply: '1000000',
-        totalHolders: 100,
+        holders: 100,
       })
       expect(getCurrentPriceStub.calledOnce).to.be.true
       expect(rpCallStub.calledOnce).to.be.true
@@ -385,7 +385,7 @@ describe('Helpers:Subscan', () => {
         priceUsd: '0',
         type: ITokenType.native,
         totalSupply: '0',
-        totalHolders: 0,
+        holders: 0,
       })
       expect(warnStub.calledOnce).to.be.true
       expect(rpCallStub.calledOnce).to.be.true
@@ -439,7 +439,7 @@ describe('Helpers:Subscan', () => {
         logo: null,
         priceUsd: '1',
         totalSupply: '1000',
-        totalHolders: 50,
+        holders: 50,
         lastUpdatedAt: new Date(),
       }
 
@@ -492,7 +492,7 @@ describe('Helpers:Subscan', () => {
         logo: null,
         priceUsd: '1',
         totalSupply: '1000',
-        totalHolders: 25,
+        holders: 25,
         lastUpdatedAt: new Date(),
       }
 
@@ -525,7 +525,7 @@ describe('Helpers:Subscan', () => {
         logo: null,
         priceUsd: '1',
         totalSupply: '1000',
-        totalHolders: 30,
+        holders: 30,
         lastUpdatedAt: new Date(),
       }
 

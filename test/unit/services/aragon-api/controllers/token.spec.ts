@@ -2,13 +2,12 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import TokenController from '@services/aragon-api/controllers/token'
-import { EnumQueueName, ErrorKeyEnum, ITokenType, NetworksEnum } from '@types'
-import CovalentHelper from '@helpers/covalent'
+import { ErrorKeyEnum, ITokenType, NetworksEnum } from '@types'
+import CoinGeckoHelper from '@helpers/coinGecko'
 import { Models } from '@dbModels'
 import dayjs from '@helpers/dayjs'
 import Token from '@models/schema/token'
 import { ProxyToken } from '@modules/proxyToken'
-import RabbitMQHelper from '@helpers/rabbitMQ'
 
 describe('Controller: Token', () => {
   let sandbox: SinonSandbox
@@ -190,7 +189,7 @@ describe('Controller: Token', () => {
 
       await Models.Token.create(rawToken)
 
-      const stubHelper = sandbox.stub(CovalentHelper, 'getToken')
+      const stubHelper = sandbox.stub(CoinGeckoHelper, 'getToken')
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc0'
       const dbToken = await TokenController.getTokenByAddress({
         address,
@@ -222,55 +221,6 @@ describe('Controller: Token', () => {
         }),
       ).to.be.rejectedWith(Error, ErrorKeyEnum.notFound)
       expect(stubSaveAndGetToken.calledOnce).to.be.true
-    })
-  })
-
-  describe('getTokenStats', async () => {
-    it('should successfully retrieve token stats', async () => {
-      const tokenAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
-      const network = NetworksEnum.ethereumMainnet
-      const mockTokenStats = { holders: 10, transfers: 50 }
-
-      // Stub the token find method to return our token
-      const tokenFindStub = sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves(rawToken as any)
-
-      // Stub the RabbitMQ sendMessage method
-      const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(mockTokenStats)
-
-      const result = await TokenController.getTokenStats({ address: tokenAddress, network })
-
-      expect(tokenFindStub.calledOnceWith(tokenAddress, network)).to.be.true
-
-      expect(rabbitMQStub.calledOnce).to.be.true
-      expect(rabbitMQStub.args[0][0]).to.equal(EnumQueueName.getTokenStats)
-      expect(rabbitMQStub.args[0][1]).to.deep.equal({
-        id: `getTokenStats-${tokenAddress}-${network}`,
-        params: {
-          address: tokenAddress,
-          network,
-        },
-      })
-      expect(rabbitMQStub.args[0][2]).to.deep.equal({ waitResponse: true, timeout: 10000 })
-
-      expect(result).to.deep.equal(mockTokenStats)
-    })
-
-    it('should throw an error when token is not found', async () => {
-      const tokenAddress = '0xNonExistentToken'
-      const network = NetworksEnum.ethereumMainnet
-
-      // Stub the token find method to return null
-      sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves(null)
-
-      try {
-        await TokenController.getTokenStats({ address: tokenAddress, network })
-        expect.fail('Expected an error to be thrown')
-      } catch (err: any) {
-        expect(err.message).to.include(ErrorKeyEnum.notFound)
-      }
-
-      // Verify that RabbitMQ.sendMessage was not called
-      expect(sandbox.stub(RabbitMQHelper, 'sendMessage').called).to.be.false
     })
   })
 })
