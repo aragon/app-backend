@@ -12,7 +12,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     SUPPORTED_NETWORKS: utils.configParser(sourceConfig, 'array', 'SUPPORTED_NETWORKS', []),
     DEFAULT_CURRENCY: utils.configParser(sourceConfig, 'string', 'DEFAULT_CURRENCY', 'USD'),
     ENS_DOMAIN: utils.configParser(sourceConfig, 'string', 'ENS_DOMAIN', 'dao.eth'),
-    CUSTOM_INSTALL: utils.configParser(sourceConfig, 'bool', 'CUSTOM_INSTALL', false),
     SUPPORTED_ENS_NETWORKS: utils.configParser(
       sourceConfig,
       'array',
@@ -73,6 +72,10 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'Cannot create a string longer',
         'Response is too big',
         'too large',
+        'Request failed with timeout',
+        'query exceeds max results',
+        'request timed out',
+        'Please retry',
       ]),
       BLOCK_LOW_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_LOW_RANGE', 15),
       BLOCK_MEDIUM_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_MEDIUM_RANGE', 40),
@@ -179,6 +182,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     NODES: {
       ETHEREUM_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_MAINNET_ALCHEMY_API_KEY', null),
+        DRPC_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_MAINNET_DRPC_API_KEY', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ETHEREUM_MAINNET_FROM_BLOCK', 16721812),
         OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ETHEREUM_MAINNET_OFFSET_TO_BLOCK', 0),
@@ -215,6 +219,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
       ETHEREUM_SEPOLIA: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_SEPOLIA_ALCHEMY_API_KEY', null),
+        DRPC_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_SEPOLIA_DRPC_API_KEY', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_SEPOLIA_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ETHEREUM_SEPOLIA_FROM_BLOCK', 4415294),
         OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ETHEREUM_SEPOLIA_OFFSET_TO_BLOCK', 0),
@@ -251,6 +256,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
       POLYGON_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_POLYGON_MAINNET_ALCHEMY_API_KEY', null),
+        DRPC_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_POLYGON_MAINNET_DRPC_API_KEY', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_POLYGON_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_MAINNET_FROM_BLOCK', 40830344),
         OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_MAINNET_OFFSET_TO_BLOCK', 2),
@@ -277,9 +283,10 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
       BASE_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_ALCHEMY_API_KEY', null),
+        DRPC_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_DRPC_API_KEY', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_FROM_BLOCK', 2094724),
-        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_OFFSET_TO_BLOCK', 0),
+        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_OFFSET_TO_BLOCK', 4),
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_POOLING_INTERVAL', 5 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_INTERVAL_BLOCK_TIME', 12),
@@ -293,6 +300,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
       ARBITRUM_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ARBITRUM_MAINNET_ALCHEMY_API_KEY', null),
+        DRPC_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ARBITRUM_MAINNET_DRPC_API_KEY', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_ARBITRUM_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ARBITRUM_MAINNET_FROM_BLOCK', 2441204),
         OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ARBITRUM_MAINNET_OFFSET_TO_BLOCK', 4),
@@ -329,9 +337,10 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
       ZKSYNC_SEPOLIA: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_ALCHEMY_API_KEY', null),
+        DRPC_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_DRPC_API_KEY', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_FROM_BLOCK', 37460765), // zkSync ERA
-        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_OFFSET_TO_BLOCK', 0),
+        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_OFFSET_TO_BLOCK', 2),
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_POOLING_INTERVAL', 5 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_INTERVAL_BLOCK_TIME', 3),
@@ -345,9 +354,10 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
       ZKSYNC_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_ALCHEMY_API_KEY', null),
+        DRPC_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_DRPC_API_KEY', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_FROM_BLOCK', 145462155),
-        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_OFFSET_TO_BLOCK', 0),
+        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_OFFSET_TO_BLOCK', 2),
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_POOLING_INTERVAL', 5 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_INTERVAL_BLOCK_TIME', 5),
@@ -361,6 +371,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
       PEAQ_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_ALCHEMY_API_KEY', null),
+        DRPC_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_DRPC_API_KEY', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_FROM_BLOCK', 4032399),
         OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_OFFSET_TO_BLOCK', 4),
@@ -379,6 +390,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
       OPTIMISM_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_OPTIMISM_MAINNET_ALCHEMY_API_KEY', null),
+        DRPC_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_OPTIMISM_MAINNET_DRPC_API_KEY', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_OPTIMISM_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_OPTIMISM_MAINNET_FROM_BLOCK', 135600980),
         OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_OPTIMISM_MAINNET_OFFSET_TO_BLOCK', 4),
@@ -415,6 +427,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
       CHILIZ_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_CHILIZ_MAINNET_ALCHEMY_API_KEY', null),
+        DRPC_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_CHILIZ_MAINNET_DRPC_API_KEY', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_CHILIZ_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_CHILIZ_MAINNET_FROM_BLOCK', 23759200),
         OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_CHILIZ_MAINNET_OFFSET_TO_BLOCK', 0),
@@ -426,6 +439,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
       CORN_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_CORN_MAINNET_ALCHEMY_API_KEY', null),
+        DRPC_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_CORN_MAINNET_DRPC_API_KEY', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_CORN_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_CORN_MAINNET_FROM_BLOCK', 562229),
         OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_CORN_MAINNET_OFFSET_TO_BLOCK', 0),
@@ -442,6 +456,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
       AVAX_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_AVAX_MAINNET_ALCHEMY_API_KEY', null),
+        DRPC_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_AVAX_MAINNET_DRPC_API_KEY', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_AVAX_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_AVAX_MAINNET_FROM_BLOCK', 66967621),
         OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_AVAX_MAINNET_OFFSET_TO_BLOCK', 2),
@@ -453,9 +468,10 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       },
       KATANA_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_KATANA_MAINNET_ALCHEMY_API_KEY', null),
+        DRPC_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_KATANA_MAINNET_DRPC_API_KEY', null),
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_KATANA_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_FROM_BLOCK', 15080181),
-        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_OFFSET_TO_BLOCK', 0),
+        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_OFFSET_TO_BLOCK', 2),
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_POOLING_INTERVAL', 2 * 1000),
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_INTERVAL_BLOCK_TIME', 1),

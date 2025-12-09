@@ -105,7 +105,7 @@ const Web3Helper = {
   }): Promise<string> {
     let params = {}
     try {
-      const provider = ProviderModule.getAnyRpcProvider(network)
+      const provider = ProviderModule.getProvider(network, IProviderType.ALCHEMY, IConnectionType.RPC)
 
       const abi = ['function balanceOf(address account) view returns (uint256)']
       const iface = new Interface(abi)

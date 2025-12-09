@@ -15,6 +15,7 @@ export enum EnumServiceName {
   ARAGON_RATES = 'aragon-rates',
   ARAGON_REQUEUE = 'aragon-requeue',
   ARAGON_MIGRATION = 'aragon-migration',
+  ARAGON_TOOLS = 'aragon-tools',
 }
 
 export interface IMigration {
