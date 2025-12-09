@@ -19,7 +19,7 @@ import { Models } from '@dbModels'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
 import ProxyContract from '@helpers/proxyContract'
 import { ProxyToken } from '@modules/proxyToken'
-import Covalent from '@helpers/covalent'
+import CoinGeckoHelper from '@helpers/coinGecko'
 import IPFSModule from '@src/modules/ipfs'
 
 import {
@@ -238,7 +238,7 @@ class DecodeActions {
         network: document.network!,
         blockNumber: document.blockNumber!,
       }),
-      Covalent.getTokenSupplyAndHolders(tokenAddress, document.network!, document.blockNumber),
+      CoinGeckoHelper.getToken(tokenAddress, document.network!),
     ])
 
     return {
@@ -251,8 +251,8 @@ class DecodeActions {
         currentBalance: currentBalance.toString(),
         newBalance: (BigInt(decodedData.parameters[1].value) + BigInt(currentBalance)).toString(),
       },
-      totalSupply: tokenInfo.totalSupply,
-      holdersCount: tokenInfo.totalHolders,
+      totalSupply: tokenInfo ? tokenInfo.totalSupply : '0',
+      holdersCount: tokenInfo ? tokenInfo.holders : 0,
       token: {
         address: tokenDetails.address,
         name: tokenDetails.name,

@@ -5,7 +5,6 @@ import Joi from 'joi'
 import { ErrorKeyEnum, NetworksEnum } from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
 import dayjs from '@helpers/dayjs'
-import { getAddress } from 'ethers'
 import Utils from '@helpers/utils'
 import ModelUtils from '@models/utils/models'
 
@@ -500,12 +499,9 @@ describe('Helpers:ValidationSchema', () => {
         schemas: {},
       }
 
-      let error: any
       try {
         await ValidationSchema.validateRoute(mockCtx, config)
-      } catch (e) {
-        error = e
-      }
+      } catch (e) {}
 
       const callArgs = extractStub.firstCall.args
       expect(callArgs[1]).to.equal(mockCtx.query)

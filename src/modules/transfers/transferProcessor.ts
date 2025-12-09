@@ -1,4 +1,4 @@
-import { type ILogInfo, type ISaveTransactionParams, type NetworksEnum, ITokenType } from '@types'
+import { type ILogInfo, type ISaveTransactionParams, type NetworksEnum } from '@types'
 import { ITransactionType } from '@src/types/transfer'
 import { Models } from '@dbModels'
 import logger from '@logger'
@@ -7,7 +7,6 @@ import type Transaction from '@models/schema/transaction'
 import Web3Helper from '@helpers/web3'
 import { ProxyToken } from '@modules/proxyToken'
 import utils from '@helpers/utils'
-import ProxyProvider from '@modules/proxyProvider'
 import type { LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'transfers:TransferProcessor' })
@@ -119,15 +118,6 @@ export abstract class TransferProcessor {
       },
       amountUsd: '0',
     }
-  }
-
-  protected async fetchTokenPrice(token: any, timestamp: number): Promise<string> {
-    const params =
-      token.type === ITokenType.native
-        ? { symbol: token.symbol || undefined, network: this.network, date: timestamp }
-        : { address: token.address, network: this.network, date: timestamp }
-
-    return await ProxyProvider.fetchHistoricalTokenPrice(params)
   }
 
   protected async persist(data: Partial<Transaction>): Promise<Transaction> {
