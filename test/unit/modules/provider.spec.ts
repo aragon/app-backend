@@ -373,7 +373,7 @@ describe('Module: provider', () => {
 
       // Should warn about both missing Alchemy and DRPC
       expect(warnStub.calledTwice).to.be.true
-      const alchemyWarn = warnStub.getCalls().find((c) => String(c.args[0]).includes('Alchemy node'))
+      const alchemyWarn = warnStub.getCalls().find(c => String(c.args[0]).includes('Alchemy node'))
       expect(alchemyWarn).to.not.be.undefined
       expect(alchemyWarn!.args[0]).to.include('Alchemy node for ethereum-mainnet is not configured')
       expect(connectStub.calledOnce).to.be.true // Should still connect Aragon RPC
@@ -396,7 +396,7 @@ describe('Module: provider', () => {
 
       // Should warn about both missing Aragon and DRPC
       expect(warnStub.calledTwice).to.be.true
-      const aragonWarn = warnStub.getCalls().find((c) => String(c.args[0]).includes('Aragon'))
+      const aragonWarn = warnStub.getCalls().find(c => String(c.args[0]).includes('Aragon'))
       expect(aragonWarn).to.not.be.undefined
       expect(aragonWarn!.args[0]).to.include('Custom (Aragon) node for ethereum-mainnet is not configured')
       expect(connectStub.calledOnce).to.be.true // Should still connect Alchemy
