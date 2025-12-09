@@ -1386,7 +1386,7 @@ describe('Helpers: EvmExplorerClient', () => {
 
       expect(axiosStub.calledOnce).to.be.true
       expect(loggerStub.called).to.be.true
-      expect(result).to.be.undefined
+      expect(result).to.be.null
     })
 
     it('should return undefined for unsupported explorer type', async () => {

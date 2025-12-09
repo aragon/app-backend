@@ -120,7 +120,7 @@ const SubscanApiHelper = {
       logo: null,
       lastUpdatedAt: null,
       totalSupply: '0',
-      totalHolders: 0,
+      holders: 0,
     }
     try {
       const path = 'evm/tokens'
@@ -132,7 +132,7 @@ const SubscanApiHelper = {
         const tokenInfo = response.data.list[0]
 
         tokenDetails.totalSupply = tokenInfo.totalSupply
-        tokenDetails.totalHolders = tokenInfo.holders
+        tokenDetails.holders = tokenInfo.holders
         tokenDetails.name = tokenInfo.name
         tokenDetails.symbol = tokenInfo.symbol
         tokenDetails.decimals = tokenInfo.decimals
@@ -222,7 +222,7 @@ const SubscanApiHelper = {
       priceUsd: '0',
       type: ITokenType.native,
       totalSupply: '0',
-      totalHolders: 0,
+      holders: 0,
     }
 
     try {
@@ -236,7 +236,7 @@ const SubscanApiHelper = {
         tokenResponse.logo = null
         tokenResponse.priceUsd = price
         tokenResponse.totalSupply = response.data.token.total_supply
-        tokenResponse.totalHolders = response.data.token.holders
+        tokenResponse.holders = response.data.token.holders
       }
     } catch (error) {
       logger.warn('Error getNativeTokenInfo', llo({ error }))
@@ -284,7 +284,7 @@ const SubscanApiHelper = {
       const response = await SubscanApiHelper._rpCall('evm/token/transfer', params, network)
       if (response?.code === 0 && response?.data?.list?.length > 0) {
         tokenCounter.transfers = response?.data?.count
-        tokenCounter.holders = tokenFullInfo.totalHolders
+        tokenCounter.holders = tokenFullInfo.holders
         return tokenCounter
       }
     } catch (error) {

@@ -9,7 +9,8 @@ import { EnumQueueName, ITokenType, NetworksEnum } from '@types'
 import TokenUtils from '@helpers/tokenUtils'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { FakeAsset } from '@test/mock/fakeAsset'
-import ProxyWeb3Provider from '@modules/proxyProvider'
+import Web3Helper from '@helpers/web3'
+import CoinGeckoHelper from '@helpers/coinGecko'
 import dayjs from '@helpers/dayjs'
 
 describe('AragonRates: FetchRates', () => {
@@ -104,60 +105,13 @@ describe('AragonRates: FetchRates', () => {
         holders: 1,
         totalSupply: '1',
         priceUsd: '1.1',
+        hasTotalSupply: true,
       })
-    })
-
-    it('should return early if fetchTokenPrice returns null', async () => {
-      const fetchTokenPriceStub = sandbox.stub(ProxyWeb3Provider, 'fetchTokenPrice').resolves(null)
-      const fetchTokenHolderAndSupplyStub = sandbox.stub(ProxyWeb3Provider, 'fetchTokenHolderAndSupply').resolves({
-        totalHolders: 2,
-        totalSupply: '2',
-      })
-
-      const skipFetchStub = sandbox.stub(TokenUtils, 'shouldSkipFetch')
-
-      await FetchRates.onMainnetDocument(tokenDb)
-
-      expect(skipFetchStub.notCalled).to.be.true
-      expect(fetchTokenPriceStub.calledOnce).to.be.true
-      expect(fetchTokenHolderAndSupplyStub.calledOnce).to.be.true
-      expect(
-        fetchTokenPriceStub.calledWithMatch({
-          address: tokenDb.address,
-          network: tokenDb.network,
-        }),
-      ).to.be.true
-    })
-
-    it('should return early if fetchTokenHolderAndSupply returns null', async () => {
-      const fetchTokenPriceStub = sandbox.stub(ProxyWeb3Provider, 'fetchTokenPrice').resolves({
-        priceUsd: '1.2',
-      })
-      const fetchTokenHolderAndSupplyStub = sandbox.stub(ProxyWeb3Provider, 'fetchTokenHolderAndSupply').resolves(null)
-
-      const skipFetchStub = sandbox.stub(TokenUtils, 'shouldSkipFetch')
-
-      await FetchRates.onMainnetDocument(tokenDb)
-
-      expect(skipFetchStub.notCalled).to.be.true
-      expect(fetchTokenPriceStub.calledOnce).to.be.true
-      expect(fetchTokenHolderAndSupplyStub.calledOnce).to.be.true
     })
 
     it('should return early if token data is identical to fetched update', async () => {
-      const priceUpdate = {
-        priceUsd: '1.1',
-        logo: 'fake-logo',
-      }
-
-      const holdersUpdate = {
-        totalHolders: 1,
-        totalSupply: '1',
-        logo: 'fake-logo',
-      }
-
-      sandbox.stub(ProxyWeb3Provider, 'fetchTokenPrice').resolves(priceUpdate)
-      sandbox.stub(ProxyWeb3Provider, 'fetchTokenHolderAndSupply').resolves(holdersUpdate)
+      sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(1n)
+      sandbox.stub(CoinGeckoHelper, 'getToken').resolves({ priceUsd: '1.1', logo: 'fake-logo' } as any)
 
       const updateStub = sandbox.stub(tokenDb, 'update')
       await FetchRates.onMainnetDocument(tokenDb)
@@ -165,19 +119,8 @@ describe('AragonRates: FetchRates', () => {
     })
 
     it('should update token with skipFetchRate if shouldSkipFetch returns true', async () => {
-      const priceUpdate = {
-        priceUsd: '1.2',
-        logo: 'fake-logo',
-      }
-
-      const holdersUpdate = {
-        totalHolders: 2,
-        totalSupply: '2',
-        logo: 'fake-logo',
-      }
-
-      sandbox.stub(ProxyWeb3Provider, 'fetchTokenPrice').resolves(priceUpdate)
-      sandbox.stub(ProxyWeb3Provider, 'fetchTokenHolderAndSupply').resolves(holdersUpdate)
+      sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(2n)
+      sandbox.stub(CoinGeckoHelper, 'getToken').resolves({ priceUsd: '1.2', logo: 'new-logo' } as any)
 
       const skipFetchStub = sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(true)
       const mockDate = new Date('2023-01-01T00:00:00Z')
@@ -191,30 +134,18 @@ describe('AragonRates: FetchRates', () => {
       expect(skipFetchStub.calledOnce).to.be.true
       expect(
         updateStub.calledWith({
-          holders: 2,
           totalSupply: '2',
           priceUsd: '1.2',
           lastUpdatedAt: mockDate,
           skipFetchRate: true,
-          logo: 'fake-logo',
+          logo: 'new-logo',
         }),
       ).to.be.true
     })
 
     it('should update token with fetched data when shouldSkipFetch returns false', async () => {
-      const priceUpdate = {
-        priceUsd: '1.2',
-        logo: 'fake-logo',
-      }
-
-      const holdersUpdate = {
-        totalHolders: 2,
-        totalSupply: '2',
-        logo: 'fake-logo',
-      }
-
-      sandbox.stub(ProxyWeb3Provider, 'fetchTokenPrice').resolves(priceUpdate)
-      sandbox.stub(ProxyWeb3Provider, 'fetchTokenHolderAndSupply').resolves(holdersUpdate)
+      sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(2n)
+      sandbox.stub(CoinGeckoHelper, 'getToken').resolves({ priceUsd: '1.2', logo: 'new-logo' } as any)
 
       const skipFetchStub = sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
       const mockDate = new Date('2023-01-01T00:00:00Z')
@@ -228,9 +159,31 @@ describe('AragonRates: FetchRates', () => {
       expect(skipFetchStub.calledOnce).to.be.true
       expect(
         updateStub.calledWith({
-          holders: 2,
           totalSupply: '2',
           priceUsd: '1.2',
+          logo: 'new-logo',
+          lastUpdatedAt: mockDate,
+        }),
+      ).to.be.true
+    })
+
+    it('should keep existing values when CoinGecko returns false', async () => {
+      sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(2n)
+      sandbox.stub(CoinGeckoHelper, 'getToken').resolves(false)
+
+      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
+      const mockDate = new Date('2023-01-01T00:00:00Z')
+      sandbox.stub(dayjs, 'utc').returns({ toDate: () => mockDate } as any)
+
+      const updateStub = sandbox.stub(tokenDb, 'update').resolves(tokenDb)
+      sandbox.stub(logger, 'verbose')
+
+      await FetchRates.onMainnetDocument(tokenDb)
+
+      expect(
+        updateStub.calledWith({
+          totalSupply: '2',
+          priceUsd: '1.1',
           logo: 'fake-logo',
           lastUpdatedAt: mockDate,
         }),
@@ -238,7 +191,7 @@ describe('AragonRates: FetchRates', () => {
     })
 
     it('should log error when an exception occurs', async () => {
-      sandbox.stub(ProxyWeb3Provider, 'fetchTokenPrice').rejects(new Error('API error'))
+      sandbox.stub(Web3Helper, 'getTokenTotalSupply').rejects(new Error('API error'))
 
       const loggerErrorStub = sandbox.stub(logger, 'error')
       await FetchRates.onMainnetDocument(tokenDb)
@@ -265,51 +218,18 @@ describe('AragonRates: FetchRates', () => {
       })
     })
 
-    it('should return early if fetchTokenHolderAndSupply returns null', async () => {
-      const fetchTokenHolderAndSupplyStub = sandbox.stub(ProxyWeb3Provider, 'fetchTokenHolderAndSupply').resolves(null)
+    it('should return early if getTokenTotalSupply returns falsy', async () => {
+      const getTokenTotalSupplyStub = sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(0n)
 
       const updateStub = sandbox.stub(tokenDb, 'update')
       await FetchRates.onTestnetDocument(tokenDb)
 
-      expect(fetchTokenHolderAndSupplyStub.calledOnce).to.be.true
-      expect(updateStub.notCalled).to.be.true
-    })
-
-    it('should return early if totalHolders is missing', async () => {
-      const holdersUpdate = {
-        totalHolders: 0,
-        totalSupply: '2',
-      }
-
-      sandbox.stub(ProxyWeb3Provider, 'fetchTokenHolderAndSupply').resolves(holdersUpdate)
-
-      const updateStub = sandbox.stub(tokenDb, 'update')
-      await FetchRates.onTestnetDocument(tokenDb)
-
-      expect(updateStub.notCalled).to.be.true
-    })
-
-    it('should return early if totalSupply is missing', async () => {
-      const holdersUpdate = {
-        totalHolders: 2,
-        totalSupply: '',
-      }
-
-      sandbox.stub(ProxyWeb3Provider, 'fetchTokenHolderAndSupply').resolves(holdersUpdate)
-
-      const updateStub = sandbox.stub(tokenDb, 'update')
-      await FetchRates.onTestnetDocument(tokenDb)
-
+      expect(getTokenTotalSupplyStub.calledOnce).to.be.true
       expect(updateStub.notCalled).to.be.true
     })
 
     it('should return early if token data is identical to fetched update', async () => {
-      const holdersUpdate = {
-        totalHolders: 1,
-        totalSupply: '1',
-      }
-
-      sandbox.stub(ProxyWeb3Provider, 'fetchTokenHolderAndSupply').resolves(holdersUpdate)
+      sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(1n)
 
       const updateStub = sandbox.stub(tokenDb, 'update')
       await FetchRates.onTestnetDocument(tokenDb)
@@ -318,12 +238,7 @@ describe('AragonRates: FetchRates', () => {
     })
 
     it('should update token with fetched data', async () => {
-      const holdersUpdate = {
-        totalHolders: 2,
-        totalSupply: '2',
-      }
-
-      sandbox.stub(ProxyWeb3Provider, 'fetchTokenHolderAndSupply').resolves(holdersUpdate)
+      sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(2n)
 
       const mockDate = new Date('2023-01-01T00:00:00Z')
       sandbox.stub(dayjs, 'utc').returns({ toDate: () => mockDate } as any)
@@ -335,7 +250,6 @@ describe('AragonRates: FetchRates', () => {
 
       expect(
         updateStub.calledWith({
-          holders: 2,
           totalSupply: '2',
           lastUpdatedAt: mockDate,
         }),
@@ -343,7 +257,7 @@ describe('AragonRates: FetchRates', () => {
     })
 
     it('should log error when an exception occurs', async () => {
-      sandbox.stub(ProxyWeb3Provider, 'fetchTokenHolderAndSupply').rejects(new Error('API error'))
+      sandbox.stub(Web3Helper, 'getTokenTotalSupply').rejects(new Error('API error'))
 
       const loggerErrorStub = sandbox.stub(logger, 'error')
       await FetchRates.onTestnetDocument(tokenDb)

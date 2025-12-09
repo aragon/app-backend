@@ -36,7 +36,7 @@ export interface IToken {
   name: string
   symbol: string
   decimals: number
-  holders: number
+  holders?: number
   totalSupply: string
   priceUsd: string
   lastUpdatedAt: string

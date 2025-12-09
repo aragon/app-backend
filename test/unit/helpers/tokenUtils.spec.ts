@@ -1,8 +1,7 @@
 import { expect } from 'chai'
 import sinon, { SinonSandbox } from 'sinon'
 import TokenUtils from '@helpers/tokenUtils'
-import ProxyProvider from '@modules/proxyProvider'
-import CovalentHelper from '@helpers/covalent'
+import CoinGeckoHelper from '@helpers/coinGecko'
 import Web3Helper from '@helpers/web3'
 import { ITokenType, NetworksEnum } from '@types'
 import type Token from '@models/schema/token'
@@ -53,9 +52,9 @@ describe('TokenUtils', () => {
       expect(TokenUtils.shouldSkipFetch(token, tokenRate)).to.be.true
     })
 
-    it('should return true when token is from skip test networks', () => {
+    it('should return true when token is from test networks', () => {
       const token = { ...baseToken, network: NetworksEnum.ethereumSepolia, symbol: 'TEST' }
-      CovalentHelper.skipTestNetworks = [NetworksEnum.ethereumSepolia]
+      sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(true)
       const tokenRate = { priceUsd: '0' }
       expect(TokenUtils.shouldSkipFetch(token, tokenRate)).to.be.true
     })
@@ -111,13 +110,11 @@ describe('TokenUtils', () => {
 
   describe('isTokenSyncable', () => {
     let findOneStub: sinon.SinonStub
-    let proxyProviderStub: sinon.SinonStub
     let web3HelperStub: sinon.SinonStub
     let analyzeIfScamTokenStub: sinon.SinonStub
 
     beforeEach(() => {
       findOneStub = sandbox.stub(Models.Token, 'findOne')
-      proxyProviderStub = sandbox.stub(ProxyProvider, 'fetchBasicTokenInfo')
       web3HelperStub = sandbox.stub(Web3Helper, 'getTokenNameAndSymbol')
       analyzeIfScamTokenStub = sandbox.stub(TokenUtils, 'analyzeIfScamToken')
     })
@@ -128,57 +125,62 @@ describe('TokenUtils', () => {
       const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
 
       expect(result).to.be.true
-      expect(proxyProviderStub.called).to.be.false
       expect(web3HelperStub.called).to.be.false
     })
 
-    it('should return true if ProxyProvider returns valid non-scam token details', async () => {
+    it('should return true if prefetched tokenInfo is valid non-scam token', async () => {
       findOneStub.resolves(null)
-      proxyProviderStub.resolves({
+      const prefetchedTokenInfo = {
         type: ITokenType.ERC20,
         name: 'TokenName',
         symbol: 'TKN',
-      })
+      }
       analyzeIfScamTokenStub.returns(false)
 
-      const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
+      const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet, prefetchedTokenInfo)
 
       expect(result).to.be.true
       expect(analyzeIfScamTokenStub.calledWith('TokenName', 'TKN')).to.be.true
       expect(web3HelperStub.called).to.be.false
     })
 
-    it('should return false if ProxyProvider returns scam token details', async () => {
+    it('should return false if prefetched tokenInfo is scam token', async () => {
       findOneStub.resolves(null)
-      proxyProviderStub.resolves({
+      const prefetchedTokenInfo = {
         type: ITokenType.ERC20,
         name: 'Claim Free Tokens at scam.com',
         symbol: 'SCAM',
-      })
+      }
       analyzeIfScamTokenStub.returns(true)
 
-      const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
+      const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet, prefetchedTokenInfo)
 
       expect(result).to.be.false
       expect(web3HelperStub.called).to.be.false
     })
 
-    it('should return false if ProxyProvider returns unknown token type', async () => {
+    it('should fallback to Web3Helper if prefetched tokenInfo has unknown type', async () => {
       findOneStub.resolves(null)
-      proxyProviderStub.resolves({
+      const prefetchedTokenInfo = {
         type: ITokenType.unknown,
         name: 'TokenName',
         symbol: 'TKN',
+      }
+      web3HelperStub.resolves({
+        name: 'Web3TokenName',
+        symbol: 'W3T',
       })
+      analyzeIfScamTokenStub.returns(false)
 
-      const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
+      const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet, prefetchedTokenInfo)
 
-      expect(result).to.be.false
+      expect(result).to.be.true
+      expect(web3HelperStub.called).to.be.true
+      expect(analyzeIfScamTokenStub.calledWith('Web3TokenName', 'W3T')).to.be.true
     })
 
-    it('should try Web3Helper if ProxyProvider returns no details', async () => {
+    it('should try Web3Helper if no prefetched tokenInfo provided', async () => {
       findOneStub.resolves(null)
-      proxyProviderStub.resolves(null)
       web3HelperStub.resolves({
         name: 'TokenName',
         symbol: 'TKN',
@@ -193,7 +195,6 @@ describe('TokenUtils', () => {
 
     it('should return false if Web3Helper returns scam token details', async () => {
       findOneStub.resolves(null)
-      proxyProviderStub.resolves(null)
       web3HelperStub.resolves({
         name: 'Claim Rewards',
         symbol: 'scam.io',
@@ -205,9 +206,8 @@ describe('TokenUtils', () => {
       expect(result).to.be.false
     })
 
-    it('should return false if neither ProxyProvider nor Web3Helper returns valid details', async () => {
+    it('should return false if Web3Helper returns no valid details', async () => {
       findOneStub.resolves(null)
-      proxyProviderStub.resolves(null)
       web3HelperStub.resolves({
         name: undefined,
         symbol: undefined,
@@ -226,19 +226,49 @@ describe('TokenUtils', () => {
       expect(result).to.be.false
     })
 
-    it('should handle null values from ProxyProvider properly', async () => {
+    it('should handle null values in prefetched tokenInfo properly', async () => {
       findOneStub.resolves(null)
-      proxyProviderStub.resolves({
+      const prefetchedTokenInfo = {
         type: ITokenType.ERC20,
-        name: null,
-        symbol: null,
-      })
+        name: undefined,
+        symbol: undefined,
+      }
       analyzeIfScamTokenStub.returns(false)
 
-      const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
+      const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet, prefetchedTokenInfo)
 
       expect(result).to.be.true
       expect(analyzeIfScamTokenStub.calledWith('', '')).to.be.true
+    })
+
+    it('should use prefetched tokenInfo and skip Web3Helper call', async () => {
+      findOneStub.resolves(null)
+      const prefetchedTokenInfo = {
+        type: ITokenType.ERC20,
+        name: 'PrefetchedToken',
+        symbol: 'PFT',
+      }
+      analyzeIfScamTokenStub.returns(false)
+
+      const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet, prefetchedTokenInfo)
+
+      expect(result).to.be.true
+      expect(web3HelperStub.called).to.be.false
+      expect(analyzeIfScamTokenStub.calledWith('PrefetchedToken', 'PFT')).to.be.true
+    })
+
+    it('should handle undefined prefetched tokenInfo by falling back to Web3Helper', async () => {
+      findOneStub.resolves(null)
+      web3HelperStub.resolves({
+        name: 'TokenName',
+        symbol: 'TKN',
+      })
+      analyzeIfScamTokenStub.returns(false)
+
+      const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet, undefined)
+
+      expect(result).to.be.true
+      expect(web3HelperStub.called).to.be.true
     })
   })
 })

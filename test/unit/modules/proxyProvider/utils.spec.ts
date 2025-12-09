@@ -4,6 +4,8 @@ import { NetworksEnum } from '@types'
 import logger from '@logger'
 import { Models } from '@dbModels'
 import ProxyUtils from '@modules/proxyProvider/utils'
+import { ProxyToken } from '@modules/proxyToken'
+import Web3Utils from '@helpers/web3Utils'
 
 describe('ProxyUtils', () => {
   let sandbox: sinon.SinonSandbox
@@ -88,6 +90,79 @@ describe('ProxyUtils', () => {
           end: hasMore,
         }),
       ).to.be.true
+    })
+  })
+
+  describe('enrichTokenBalances', () => {
+    it('should enrich token balances with valid tokens', async () => {
+      const network = NetworksEnum.ethereumMainnet
+      const tokensBalance = [
+        { contractAddress: '0xtoken1', tokenBalance: '1000', originalBalance: '1000', priceUsd: '1.5' },
+        { contractAddress: '0xtoken2', tokenBalance: '2000', originalBalance: '2000', priceUsd: '2.5' },
+      ]
+
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken')
+      saveAndGetTokenStub.withArgs('0xtoken1', network).resolves({ address: '0xtoken1' } as any)
+      saveAndGetTokenStub.withArgs('0xtoken2', network).resolves({ address: '0xtoken2' } as any)
+
+      const parseAddressStub = sandbox.stub(Web3Utils, 'parseAddress')
+      parseAddressStub.withArgs('0xtoken1').returns('0xToken1Parsed')
+      parseAddressStub.withArgs('0xtoken2').returns('0xToken2Parsed')
+
+      const result = await ProxyUtils.enrichTokenBalances(tokensBalance, network)
+
+      expect(result).to.have.lengthOf(2)
+      expect(result[0].contractAddress).to.equal('0xToken1Parsed')
+      expect(result[0].tokenBalance).to.equal('1000')
+      expect(result[1].contractAddress).to.equal('0xToken2Parsed')
+    })
+
+    it('should filter out tokens that are not found', async () => {
+      const network = NetworksEnum.ethereumMainnet
+      const tokensBalance = [
+        { contractAddress: '0xtoken1', tokenBalance: '1000', originalBalance: '1000', priceUsd: '1.5' },
+        { contractAddress: '0xtoken2', tokenBalance: '2000', originalBalance: '2000', priceUsd: '2.5' },
+      ]
+
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken')
+      saveAndGetTokenStub.withArgs('0xtoken1', network).resolves({ address: '0xtoken1' } as any)
+      saveAndGetTokenStub.withArgs('0xtoken2', network).resolves(null)
+
+      const parseAddressStub = sandbox.stub(Web3Utils, 'parseAddress')
+      parseAddressStub.withArgs('0xtoken1').returns('0xToken1Parsed')
+
+      const result = await ProxyUtils.enrichTokenBalances(tokensBalance, network)
+
+      expect(result).to.have.lengthOf(1)
+      expect(result[0].contractAddress).to.equal('0xToken1Parsed')
+    })
+
+    it('should use original address when parseAddress returns null', async () => {
+      const network = NetworksEnum.ethereumMainnet
+      const tokensBalance = [
+        { contractAddress: '0xtoken1', tokenBalance: '1000', originalBalance: '1000', priceUsd: '1.5' },
+      ]
+
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ address: '0xtoken1' } as any)
+      sandbox.stub(Web3Utils, 'parseAddress').returns(null)
+
+      const result = await ProxyUtils.enrichTokenBalances(tokensBalance, network)
+
+      expect(result).to.have.lengthOf(1)
+      expect(result[0].contractAddress).to.equal('0xtoken1')
+    })
+
+    it('should return empty array when all tokens are not found', async () => {
+      const network = NetworksEnum.ethereumMainnet
+      const tokensBalance = [
+        { contractAddress: '0xtoken1', tokenBalance: '1000', originalBalance: '1000', priceUsd: '1.5' },
+      ]
+
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
+
+      const result = await ProxyUtils.enrichTokenBalances(tokensBalance, network)
+
+      expect(result).to.be.an('array').that.is.empty
     })
   })
 })

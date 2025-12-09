@@ -24,7 +24,7 @@ export interface ISubScanNativeTokenInfo {
   type: ITokenType
   logo: string | null
   totalSupply: string
-  totalHolders: number
+  holders: number
 }
 
 export interface ISubScanTokenInfo {
@@ -37,7 +37,7 @@ export interface ISubScanTokenInfo {
   logo: string | null
   lastUpdatedAt: string | null | Date
   totalSupply: string
-  totalHolders: number
+  holders: number
 }
 
 export interface ISubScanRawContractDetails {
