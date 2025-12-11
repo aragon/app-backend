@@ -233,7 +233,7 @@ export interface ICrawlParam {
   oneBlockPerTime?: boolean
   filterLogs?: (logs: any) => Promise<any>
   strategy?: ICrawStrategy
-  logService: LogServicePattern
+  logService?: LogServicePattern
   onError: (error: Error, log?: Log) => void
   skipLogProcessing?: boolean
   isTopicObject?: boolean

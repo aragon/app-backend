@@ -1,6 +1,13 @@
 import logger from '@logger'
 import type { LogDescription } from 'ethers'
-import { type ILogInfo, type HexAddress, IPolicySourceType, IEventLogPolicyType } from '@types'
+import {
+  type ILogInfo,
+  type HexAddress,
+  IPolicySourceType,
+  IEventLogPolicyType,
+  IPolicyStrategyType,
+  type NetworksEnum,
+} from '@types'
 import { Models } from '@dbModels'
 import { ProxyToken } from '@modules/proxyToken'
 import PolicyHelper from '@helpers/policyHelper'
@@ -12,14 +19,14 @@ export const PolicyHandler = {
    * Handle SourceSettingsUpdated event from StreamBalanceSource
    * Event: SourceSettingsUpdated(address _vault, IERC20 _vaultToken, uint256 _amountPerEpoch, uint256 _maxSourceBalance, uint256 _epochInterval)
    */
-  sourceSettingsUpdated: async (event: LogDescription, info: ILogInfo) => {
+  streamSourceSettingsUpdated: async (event: LogDescription, info: ILogInfo) => {
     const sourceAddress = info.address
     const network = info.network
 
     const setting = await Models.Setting.findByPolicySourceAddress(sourceAddress, network)
 
     if (!setting || setting.policy.source.type !== IPolicySourceType.streamBalance) {
-      logger.warn('No Setting found for source address', llo({ sourceAddress, network }))
+      logger.warn('No Setting found for stream source address', llo({ sourceAddress, network }))
       return
     }
 
@@ -40,7 +47,39 @@ export const PolicyHandler = {
 
     await setting.save()
 
-    logger.info('Updated Setting with source data', llo({ sourceAddress, pluginAddress: setting.pluginAddress }))
+    logger.info('Updated Setting with stream source data', llo({ sourceAddress, pluginAddress: setting.pluginAddress }))
+  },
+
+  /**
+   * Handle SourceSettingsUpdated event from DrainBalanceSource
+   * Event: SourceSettingsUpdated(address vault, address vaultToken)
+   */
+  drainSourceSettingsUpdated: async (event: LogDescription, info: ILogInfo) => {
+    const sourceAddress = info.address
+    const network = info.network
+
+    const setting = await Models.Setting.findByPolicySourceAddress(sourceAddress, network)
+
+    if (!setting || setting.policy.source.type !== IPolicySourceType.drain) {
+      logger.warn('No Setting found for drain source address', llo({ sourceAddress, network }))
+      return
+    }
+
+    const sourceData = event.args
+
+    setting.policy.source = {
+      ...setting.policy.source,
+      vaultAddress: sourceData.vault,
+      tokenAddress: sourceData.vaultToken,
+    }
+
+    if (setting.policy.source.tokenAddress) {
+      await ProxyToken.saveAndGetToken(sourceData.vaultToken, network)
+    }
+
+    await setting.save()
+
+    logger.info('Updated Setting with drain source data', llo({ sourceAddress, pluginAddress: setting.pluginAddress }))
   },
 
   /**
@@ -187,23 +226,43 @@ export const PolicyHandler = {
   },
 
   /**
-   * Handle RouterSettingsUpdated event from RouterPlugin
-   * Event: RouterSettingsUpdated(IRouterModel routerModel)
-   * Updates the model address in policy settings
+   * Handle RouterSettingsUpdated event from RouterPlugin OR UniswapRouterPlugin
+   *
+   * IMPORTANT: Both plugins emit RouterSettingsUpdated(address) with the SAME topic hash.
+   * This unified handler fetches the setting, checks strategyType, and dispatches accordingly.
    */
   routerSettingsUpdated: async (event: LogDescription, info: ILogInfo) => {
     const pluginAddress = info.address
     const network = info.network
-    const modelAddress = event.args.routerModel as HexAddress
+    const addressArg = event.args[0] as HexAddress
 
     const setting = await Models.Setting.findActive({ pluginAddress, network })
 
     if (!setting?.policy) {
-      logger.warn('No Setting found for plugin address', llo({ pluginAddress, network, info }))
+      logger.warn('No Setting found for plugin address', llo({ pluginAddress, network }))
       return
     }
 
-    // Update model address - model data will be populated by model events
+    if (setting.policy.strategyType === IPolicyStrategyType.uniswapRouter) {
+      await PolicyHandler._handleUniswapRouterSettings(setting, addressArg, pluginAddress, network)
+      return
+    }
+
+    if (setting.policy.strategyType === IPolicyStrategyType.router) {
+      await PolicyHandler._handleRouterSettings(setting, addressArg, pluginAddress)
+      return
+    }
+
+    logger.warn(
+      'RouterSettingsUpdated received for unexpected strategyType',
+      llo({ pluginAddress, strategyType: setting.policy.strategyType }),
+    )
+  },
+
+  /**
+   * Internal handler for standard RouterPlugin settings
+   */
+  _handleRouterSettings: async (setting: any, modelAddress: HexAddress, pluginAddress: HexAddress) => {
     if (!setting.policy.model) {
       setting.policy.model = {
         address: modelAddress,
@@ -218,8 +277,32 @@ export const PolicyHandler = {
     }
 
     await setting.save()
-
     logger.info('Updated Setting with router model', llo({ pluginAddress, modelAddress }))
+  },
+
+  /**
+   * Internal handler for UniswapRouterPlugin settings
+   */
+  _handleUniswapRouterSettings: async (
+    setting: any,
+    uniswapRouter: HexAddress,
+    pluginAddress: HexAddress,
+    network: NetworksEnum,
+  ) => {
+    const targetToken = await PolicyHelper.getUniswapTargetToken(pluginAddress, network)
+
+    setting.policy.swap = {
+      ...setting.policy.swap,
+      uniswapRouter,
+      targetTokenAddress: targetToken,
+    }
+
+    if (targetToken) {
+      await ProxyToken.saveAndGetToken(targetToken, network)
+    }
+
+    await setting.save()
+    logger.info('Updated Setting with Uniswap router settings', llo({ pluginAddress, uniswapRouter, targetToken }))
   },
 
   /**
@@ -234,8 +317,8 @@ export const PolicyHandler = {
 
     const setting = await Models.Setting.findActive({ pluginAddress, network })
 
-    if (!setting?.policy) {
-      logger.warn('No Setting found for plugin address', llo({ pluginAddress, network, info }))
+    if (!setting?.policy || setting.policy.strategyType !== IPolicyStrategyType.claimer) {
+      logger.warn('No Setting found for claimer plugin address', llo({ pluginAddress, network }))
       return
     }
 
@@ -270,8 +353,9 @@ export const PolicyHandler = {
 
     const setting = await Models.Setting.findActive({ pluginAddress, network })
 
-    if (!setting?.policy) {
-      logger.warn('No Setting found for plugin address', llo({ pluginAddress, network, info }))
+    const validTypes = [IPolicyStrategyType.multiRouter, IPolicyStrategyType.multiDispatch]
+    if (!setting?.policy || !validTypes.includes(setting.policy.strategyType)) {
+      logger.warn('No Setting found for multi router plugin address', llo({ pluginAddress, network }))
       return
     }
 
@@ -294,8 +378,8 @@ export const PolicyHandler = {
 
     const setting = await Models.Setting.findActive({ pluginAddress, network })
 
-    if (!setting?.policy) {
-      logger.warn('No Setting found for plugin address', llo({ pluginAddress, network, info }))
+    if (!setting?.policy || setting.policy.strategyType !== IPolicyStrategyType.multiClaimer) {
+      logger.warn('No Setting found for multi claimer plugin address', llo({ pluginAddress, network }))
       return
     }
 
@@ -320,8 +404,8 @@ export const PolicyHandler = {
 
     const setting = await Models.Setting.findActive({ pluginAddress, network })
 
-    if (!setting?.policy) {
-      logger.warn('No Setting found for plugin address', llo({ pluginAddress, network, info }))
+    if (!setting?.policy || setting.policy.strategyType !== IPolicyStrategyType.cowSwapRouter) {
+      logger.warn('No Setting found for cowswap router plugin address', llo({ pluginAddress, network }))
       return
     }
 
@@ -339,40 +423,6 @@ export const PolicyHandler = {
     await setting.save()
 
     logger.info('Updated Setting with CowSwap router settings', llo({ pluginAddress, targetToken, cowSwapSettlement }))
-  },
-
-  /**
-   * Handle RouterSettingsUpdated event from UniswapRouterPlugin
-   * Event: RouterSettingsUpdated(ISwapRouter02 uniswapRouter)
-   * Updates the swap settings in policy
-   */
-  uniswapRouterSettingsUpdated: async (event: LogDescription, info: ILogInfo) => {
-    const pluginAddress = info.address
-    const network = info.network
-    const uniswapRouter = event.args.uniswapRouter as HexAddress
-
-    const setting = await Models.Setting.findActive({ pluginAddress, network })
-
-    if (!setting?.policy) {
-      logger.warn('No Setting found for plugin address', llo({ pluginAddress, network, info }))
-      return
-    }
-
-    const targetToken = await PolicyHelper.getUniswapTargetToken(pluginAddress, network)
-
-    setting.policy.swap = {
-      ...setting.policy.swap,
-      uniswapRouter,
-      targetTokenAddress: targetToken,
-    }
-
-    if (targetToken) {
-      await ProxyToken.saveAndGetToken(targetToken, network)
-    }
-
-    await setting.save()
-
-    logger.info('Updated Setting with Uniswap router settings', llo({ pluginAddress, uniswapRouter, targetToken }))
   },
 
   // ==========================================

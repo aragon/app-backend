@@ -146,7 +146,6 @@ export class LibUtils {
       onError: async (error: any, log: any) => {
         logger.error('Error syncing factory events', { error, log })
       },
-      logService: `policyFactory-${network}` as any,
       stopOnError: true,
     })
 

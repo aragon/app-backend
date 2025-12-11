@@ -35,6 +35,7 @@ import { GaugeVoter } from '@artifacts/GaugeVoter'
 import { GaugeHandler } from '@handlers/gaugeHandler'
 import {
   StreamBalanceSource,
+  DrainBalanceSource,
   RatioModel,
   EqualRatioModel,
   AddressGaugeRatioModel,
@@ -44,7 +45,6 @@ import {
   MultiRouterPlugin,
   MultiClaimerPlugin,
   CowSwapRouterPlugin,
-  UniswapRouterPlugin,
   RouterSourceFactory,
   OmniSourceFactory,
   ClaimerSourceFactory,
@@ -687,11 +687,18 @@ const IndexerEventConfig: IIndexerConfig[] = [
   {
     event: 'SourceSettingsUpdated',
     enableHistorical: false,
-    topic: new Interface(StreamBalanceSource.abi).getEvent('SourceSettingsUpdated')?.topicHash!,
+    topic: [
+      new Interface(StreamBalanceSource.abi).getEvent('SourceSettingsUpdated')?.topicHash!,
+      new Interface(DrainBalanceSource.abi).getEvent('SourceSettingsUpdated')?.topicHash!,
+    ],
     config: [
       {
         abi: StreamBalanceSource.abi,
-        handler: PolicyHandler.sourceSettingsUpdated,
+        handler: PolicyHandler.streamSourceSettingsUpdated,
+      },
+      {
+        abi: DrainBalanceSource.abi,
+        handler: PolicyHandler.drainSourceSettingsUpdated,
       },
     ],
   },
@@ -734,18 +741,19 @@ const IndexerEventConfig: IIndexerConfig[] = [
       },
     ],
   },
-  // Policy Plugin events (RouterSettingsUpdated, ClaimerSettingsUpdated)
+  // RouterSettingsUpdated - Note: RouterPlugin and UniswapRouterPlugin have SAME topic hash
+  // routerSettingsUpdated handler dispatches based on strategyType
   {
     event: 'RouterSettingsUpdated',
     enableHistorical: false,
     topic: [
-      new Interface(RouterPlugin.abi).getEvent('RouterSettingsUpdated')?.topicHash!,
+      new Interface(RouterPlugin.abi).getEvent('RouterSettingsUpdated')?.topicHash!, // Same as UniswapRouterPlugin
       new Interface(MultiRouterPlugin.abi).getEvent('RouterSettingsUpdated')?.topicHash!,
       new Interface(CowSwapRouterPlugin.abi).getEvent('RouterSettingsUpdated')?.topicHash!,
-      new Interface(UniswapRouterPlugin.abi).getEvent('RouterSettingsUpdated')?.topicHash!,
     ],
     config: [
       {
+        // Unified handler for RouterPlugin AND UniswapRouterPlugin (same topic hash)
         abi: RouterPlugin.abi,
         handler: PolicyHandler.routerSettingsUpdated,
       },
@@ -756,10 +764,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
       {
         abi: CowSwapRouterPlugin.abi,
         handler: PolicyHandler.cowSwapRouterSettingsUpdated,
-      },
-      {
-        abi: UniswapRouterPlugin.abi,
-        handler: PolicyHandler.uniswapRouterSettingsUpdated,
       },
     ],
   },

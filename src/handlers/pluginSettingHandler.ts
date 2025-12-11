@@ -4,10 +4,10 @@ import {
   type ILogInfo,
   IPluginInterfaceType,
   IPluginStatus,
+  type IPolicySetting,
+  IPolicyStrategyType,
   ISettingStatus,
   type ISettingVotingEscrow,
-  IPolicyStrategyType,
-  type IPolicySetting,
 } from '@types'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'

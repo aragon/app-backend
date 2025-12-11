@@ -19,6 +19,7 @@ export interface IMetadata {
   // subDao
   subDaos?: HexAddress[] | undefined
   parentDao?: HexAddress | null
+  policyKey?: string | null
 }
 
 export interface IProposalMetadata {

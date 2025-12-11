@@ -35,9 +35,10 @@ const IPFSModule = {
     let data = await PinataHelper.getData(cid)
 
     if (!data) {
-      // try from any source
       data = await IPFSModule._fetchMetadata(cid, opts)
     }
+
+    data = Web3Utils.parseDaoMetadata(data)
 
     if (data?.avatar?.path) {
       data.avatar = data.avatar.path
@@ -65,8 +66,7 @@ const IPFSModule = {
               throw new Error(`HTTP error! Status: ${response.status}`)
             }
 
-            const data = await response.json()
-            return Web3Utils.parseDaoMetadata(data)
+            return await response.json()
           } finally {
             clearTimeout(timeoutId)
           }

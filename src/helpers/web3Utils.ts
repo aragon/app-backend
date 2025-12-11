@@ -314,8 +314,8 @@ const Web3Utils = {
       parsedMetadata.stageNames = metadata.stageNames
     }
 
-    if (metadata.processKey) {
-      parsedMetadata.processKey = metadata.processKey
+    if (metadata.processKey || metadata.policyKey) {
+      parsedMetadata.processKey = metadata.processKey || metadata.policyKey
     }
 
     if (metadata.blockedCountries && Array.isArray(metadata.blockedCountries)) {

@@ -268,6 +268,25 @@ export const DrainBalanceSource = {
   sourceName: 'src/sources/DrainBalanceSource.sol',
   abi: [
     {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: false,
+          internalType: 'address',
+          name: 'vault',
+          type: 'address',
+        },
+        {
+          indexed: false,
+          internalType: 'address',
+          name: 'vaultToken',
+          type: 'address',
+        },
+      ],
+      name: 'SourceSettingsUpdated',
+      type: 'event',
+    },
+    {
       inputs: [],
       name: 'vault',
       outputs: [{ internalType: 'address', name: '', type: 'address' }],
