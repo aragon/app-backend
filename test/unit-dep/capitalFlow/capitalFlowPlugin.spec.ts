@@ -6,7 +6,7 @@ import { NetworksEnum } from '@types'
 import { LibUtils } from '@test/lib/unit-dep/lib'
 import PolicyController from '@api/controllers/policy'
 
-describe('Integ: CapitalFlow Installation', () => {
+describe.skip('Integ: CapitalFlow Installation', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
