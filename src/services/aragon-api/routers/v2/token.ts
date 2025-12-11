@@ -18,20 +18,6 @@ const TokenRouter = {
     ctx.body = await TokenController.getTokenByAddress(result.params)
   },
 
-  getTokenStats: async function (ctx: RouterContext) {
-    const result = await ValidationSchema.validateRoute(ctx, {
-      params: {
-        network: ctx.params.network,
-        address: ctx.params.address,
-      },
-      schemas: {
-        params: TokenSchema.getTokenByAddress,
-      },
-    })
-
-    ctx.body = await TokenController.getTokenStats(result.params)
-  },
-
   router(): Router {
     const router = new Router()
 
@@ -45,7 +31,6 @@ const TokenRouter = {
      *
      */
     router.get('/:network/:address', TokenRouter.getTokenByAddress)
-    router.get('/:network/:address/stats', TokenRouter.getTokenStats)
 
     return router
   },

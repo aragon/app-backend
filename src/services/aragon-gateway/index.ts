@@ -18,7 +18,6 @@ import { MemberInfo } from '@services/aragon-gateway/memberInfo'
 import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 import config from '@config'
 import Plugin from '@services/aragon-gateway/plugin'
-import ProxyWeb3Provider from '@modules/proxyProvider'
 import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
 import GaugeHelper from '@helpers/gauge'
 import { GaugeInfo } from '@services/aragon-gateway/gauge'
@@ -54,13 +53,6 @@ const AragonGatewayService: IService = {
     await RabbitMQHelper.process(EnumQueueName.pluginInstallationData, async (job: any) => {
       const { address, network } = job.params as IQueueContractInfo
       return await Plugin.getInstallationData(address, network)
-    })
-
-    await RabbitMQHelper.process(EnumQueueName.getTokenStats, async (job: { params: IQueueContractInfo }) => {
-      return await ProxyWeb3Provider.getTokenCounters({
-        address: job.params.address,
-        network: job.params.network,
-      })
     })
 
     await RabbitMQHelper.process(EnumQueueName.syncMerkleProofs, async (job: { params: IMerkleProofSync }) => {

@@ -258,9 +258,10 @@ describe('Helpers:Web3', () => {
 
   describe('getTokenBalanceAtBlock', () => {
     it('should get the token balance at a specific block', async () => {
-      const providerSendStub = sandbox.stub().resolves('0x' + ''.padStart(63, '0') + 1)
+      const providerSendStub = sandbox.stub().resolves('0x' + ''.padStart(63, '0') + '1')
 
-      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+      // getTokenBalanceAtBlock uses getProvider with ALCHEMY type, not getAnyRpcProvider
+      sandbox.stub(ProviderModule, 'getProvider').returns({
         call: providerSendStub,
       } as any)
 
@@ -277,7 +278,8 @@ describe('Helpers:Web3', () => {
     it('should throw error if the provider fails', async () => {
       const providerSendStub = sandbox.stub().rejects(new Error('fake-error'))
 
-      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+      // getTokenBalanceAtBlock uses getProvider with ALCHEMY type, not getAnyRpcProvider
+      sandbox.stub(ProviderModule, 'getProvider').returns({
         call: providerSendStub,
       } as any)
 

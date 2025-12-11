@@ -8,7 +8,8 @@ import { EnumQueueName, ITokenType, NetworksEnum } from '@types'
 import config from '@config'
 import TokenUtils from '@helpers/tokenUtils'
 import RabbitMQHelper from '@helpers/rabbitMQ'
-import ProxyWeb3Provider from '@modules/proxyProvider'
+import Web3Helper from '@helpers/web3'
+import CoinGeckoHelper from '@helpers/coinGecko'
 
 const llo = logger.logMeta.bind(null, { service: 'rates:FetchRates' })
 
@@ -154,20 +155,12 @@ export const FetchRates = {
 
   async onTestnetDocument(token: Token) {
     try {
-      const tokenMetrics = await ProxyWeb3Provider.fetchTokenHolderAndSupply({
-        address: token.address,
-        network: token.network,
-      })
+      const onChainSupply = await Web3Helper.getTokenTotalSupply(token.address, token.network)
 
-      if (!tokenMetrics?.totalHolders || !tokenMetrics?.totalSupply) {
-        return
-      }
-
-      if (token.holders === tokenMetrics.totalHolders && token.totalSupply === tokenMetrics.totalSupply) return
+      if (!onChainSupply || token.totalSupply === onChainSupply.toString()) return
 
       const rawTokenUpdate = {
-        holders: tokenMetrics.totalHolders,
-        totalSupply: tokenMetrics.totalSupply,
+        totalSupply: onChainSupply.toString(),
       }
 
       await DbTx.executeTxFn(async ({ session }) => {
@@ -191,36 +184,30 @@ export const FetchRates = {
 
   async onMainnetDocument(token: Token) {
     try {
-      const tokenUpdate = await ProxyWeb3Provider.fetchTokenPrice({
-        address: token.address,
-        network: token.network,
-      })
+      const isNativeToken = token.type === ITokenType.native
+      const totalSupply =
+        !isNativeToken && token.hasTotalSupply
+          ? await Web3Helper.getTokenTotalSupply(token.address, token.network)
+          : null
 
-      const tokenMetrics = await ProxyWeb3Provider.fetchTokenHolderAndSupply({
-        address: token.address,
-        network: token.network,
-      })
-      if (!tokenMetrics || !tokenUpdate) return
+      const coingeckoInfo = await CoinGeckoHelper.getToken(token.address, token.network)
 
-      const rawTokenUpdate = {
-        holders: tokenMetrics.totalHolders,
-        totalSupply: tokenMetrics.totalSupply,
-        priceUsd: tokenUpdate.priceUsd,
-        logo: tokenUpdate.logo,
+      const rawTokenUpdate: Partial<Token> = {
+        totalSupply: (totalSupply ?? token.totalSupply ?? '0').toString(),
+        priceUsd: coingeckoInfo ? coingeckoInfo.priceUsd : token.priceUsd,
+        logo: coingeckoInfo ? coingeckoInfo.logo : token.logo,
       }
 
       if (
         token.priceUsd === rawTokenUpdate.priceUsd &&
-        token.holders === rawTokenUpdate.holders &&
         token.totalSupply === rawTokenUpdate.totalSupply &&
         token.logo === rawTokenUpdate.logo
       ) {
         return
       }
 
-      if (TokenUtils.shouldSkipFetch(token, rawTokenUpdate)) {
+      if (TokenUtils.shouldSkipFetch(token, { priceUsd: rawTokenUpdate.priceUsd || '0' })) {
         Object.assign(rawTokenUpdate, {
-          lastUpdatedAt: dayjs.utc().toDate(),
           skipFetchRate: true,
         })
       }
