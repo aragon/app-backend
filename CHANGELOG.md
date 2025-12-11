@@ -1,3 +1,31 @@
+# [0.20.0](https://github.com/aragon/app-backend/compare/v0.19.0...v0.20.0) (2025-12-11)
+
+
+### Bug Fixes
+
+* **conflict:** proxy provider ([99182ed](https://github.com/aragon/app-backend/commit/99182ed081b35d0b77ed349329379633883a5da9))
+
+
+### Features
+
+* add IWeb3TokenBalance type import to utils ([760c0ba](https://github.com/aragon/app-backend/commit/760c0ba8f01f2d3d29be248d15ce002f9ef7b620))
+* **coingecko:** implement CoinGecko API integration for token retrieval ([e6dd25b](https://github.com/aragon/app-backend/commit/e6dd25b68da8c5468646195ed2c37f462418b0c3))
+* **coingecko:** implement CoinGecko API integration for token retrieval ([673796a](https://github.com/aragon/app-backend/commit/673796a131a9f6178eb416021f89f349cae7d18f))
+* **coingecko:** update token model to use optional holders field and refactor related API calls ([be21c69](https://github.com/aragon/app-backend/commit/be21c69a49ce6d7c85ef9aae26cfa9c65da4ff2e))
+* **coingecko:** update token model to use optional holders field and refactor related API calls ([392bc0b](https://github.com/aragon/app-backend/commit/392bc0bd19641147da22f2c0ed63d23df6c636a0))
+* **common:** add additional error messages for request timeouts ([55e2f51](https://github.com/aragon/app-backend/commit/55e2f51a59f45b580152b7e9160f7d7cb4c7923d))
+* **dependencies:** update package versions for improved stability and features ([5e8527e](https://github.com/aragon/app-backend/commit/5e8527e6ed7eb9765f838389f044417c7704e1de))
+* **evmExplorer:** add block number retrieval for contract creation transactions ([1414ee5](https://github.com/aragon/app-backend/commit/1414ee5779f3506dccd5a880a1401cdf8d851761))
+* **provider:** enhance DRPC support and update provider handling in tests ([05288a4](https://github.com/aragon/app-backend/commit/05288a4b336b8fb7002263e05e25221481d9b16b))
+* **provider:** migrate to DRPC ([1265a56](https://github.com/aragon/app-backend/commit/1265a566c3e10bff087c64886221c079ffa97047))
+* **provider:** migrate to DRPC ([417c5fd](https://github.com/aragon/app-backend/commit/417c5fd258a0fb3119a496d34503f8490edeb6d6))
+* **routescan:** implement RoutescanProvider for token balances and contract details ([439069b](https://github.com/aragon/app-backend/commit/439069bae65017288b5bbc10b5e57de7cef9cbfa))
+* **tests:** add CoinGecko helper tests and integrate token balance enrichment ([cd224b9](https://github.com/aragon/app-backend/commit/cd224b951ad6e8a242997b09ba150a252442b788))
+* **tests:** refactor ChilizProvider tests and add CoinGecko integration tests ([49ea070](https://github.com/aragon/app-backend/commit/49ea070ef8593c36acb33789904a6324f1fad0fb))
+* **tests:** refactor ChilizProvider tests and add CoinGecko integration tests ([4fcca4b](https://github.com/aragon/app-backend/commit/4fcca4b1ccf8b1b16148e80d70ed3b8fa115d019))
+* **tests:** skip integration tests for Token module ([12fef54](https://github.com/aragon/app-backend/commit/12fef54486f8e85ecbd34be8e17622c0b5340a93))
+* **tests:** skip integration tests for Token module ([641e70f](https://github.com/aragon/app-backend/commit/641e70ff5904d49395c81d1b1a3c19858571c05b))
+
 # [0.19.0](https://github.com/aragon/app-backend/compare/v0.18.0...v0.19.0) (2025-12-04)
 
 
