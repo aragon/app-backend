@@ -1,3 +1,10 @@
+# [0.21.0](https://github.com/aragon/app-backend/compare/v0.20.0...v0.21.0) (2025-12-12)
+
+
+### Features
+
+* **common:** add 'retry' to error messages for better clarity ([be9e445](https://github.com/aragon/app-backend/commit/be9e4453896e0727257a833719207c5132d22f5b))
+
 # [0.20.0](https://github.com/aragon/app-backend/compare/v0.19.0...v0.20.0) (2025-12-11)
 
 
