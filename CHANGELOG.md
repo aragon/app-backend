@@ -1,3 +1,10 @@
+## [0.21.1](https://github.com/aragon/app-backend/compare/v0.21.0...v0.21.1) (2025-12-13)
+
+
+### Bug Fixes
+
+* **crawler:** handle unknown crawler errors and remove unused Covalent config ([abe8015](https://github.com/aragon/app-backend/commit/abe8015d8fb938b0645dfef5749cafcff6340137))
+
 # [0.21.0](https://github.com/aragon/app-backend/compare/v0.20.0...v0.21.0) (2025-12-12)
 
 
