@@ -1,6 +1,6 @@
 import logger from '@logger'
 import { type Log, type TopicFilter } from 'ethers'
-import { type ICrawlParam, type ICrawlSetting, ICrawStrategy, type IFormattedLog } from '@types'
+import { type ICrawlParam, type ICrawlSetting, ICrawStrategy, type IFormattedLog, CrawlerErrorType } from '@types'
 import { Models } from '@dbModels'
 import DbTx from '@modules/dbTx'
 import config from '@config'
@@ -466,10 +466,12 @@ class BlockchainLogCrawler {
 
     if (analysis.shouldRetry && analysis.backoffMs) {
       await utils.wait(analysis.backoffMs)
-    } else {
+    } else if (analysis.type === CrawlerErrorType.UNKNOWN) {
+      // Only trigger onError for truly unknown errors
       this.crawlSetting.shutdown = true
       this.crawlParams.onError(this.errorHandler.toError(error))
     }
+    // Known error types (BATCH_SIZE_ERROR, RATE_LIMITED, NETWORK_ERROR) are handled gracefully
 
     this.crawlSetting.nbError++
   }
