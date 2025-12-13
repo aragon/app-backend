@@ -110,8 +110,6 @@ export interface IConfig {
     NODE_TRANSFER_MIN_TIME: number
     COINGECKO_MAX_CONCURRENT: number
     COINGECKO_MIN_TIME: number
-    COVALENT_MAX_CONCURRENT: number
-    COVALENT_MIN_TIME: number
     FOUR_BYTE_MAX_CONCURRENT: number
     FOUR_BYTE_MIN_TIME: number
     ALCHEMY_ENS_MAX_CONCURRENT: number
@@ -140,11 +138,6 @@ export interface IConfig {
     LOGZIO_HOST: string
     LOGZIO_SERVER_NAME: string
     LOGZIO_KEY: string
-  }
-
-  COVALENT: {
-    URI: string
-    API_KEY: string
   }
 
   COINGECKO: {
