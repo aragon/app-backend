@@ -236,19 +236,21 @@ export class BatchRequestManager {
    * @returns Axios response containing batch results
    * @throws Error if provider URL not found
    */
-  async executeBlockReceiptsRequest(requests: IRPCRequest[]): Promise<AxiosResponse> {
+  async executeBlockReceiptsRequest(requests: IRPCRequest[]): Promise<IRPCResponse[]> {
     const url = this.getProviderUrl()
     if (!url) {
       throw new Error(`Provider URL not found for network: ${this.network}`)
     }
 
-    return await retryRequest(async () =>
+    const response: AxiosResponse = await retryRequest(async () =>
       BottleneckModule.getNodeLimiter(this.network).schedule(async () =>
         axios.post(url, requests, {
           headers: { 'Content-Type': 'application/json' },
         }),
       ),
     )
+
+    return Array.isArray(response.data) ? response.data : ([response.data] as IRPCResponse[])
   }
 
   /**

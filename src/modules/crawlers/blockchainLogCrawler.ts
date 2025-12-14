@@ -406,6 +406,21 @@ class BlockchainLogCrawler {
         )
       }
 
+      if (error.message?.includes('response body is not valid JSON')) {
+        logger.error(
+          'RPC returned invalid JSON response',
+          llo({
+            ...this.parseCrawlerInfoLog(),
+            fromBlock: currentBlock,
+            toBlock,
+            errorCode: error.code,
+            errorInfo: error.info,
+            errorShortMessage: error.shortMessage,
+            providerUrl: this.getProviderUrl(),
+          }),
+        )
+      }
+
       throw error
     }
 
@@ -419,10 +434,10 @@ class BlockchainLogCrawler {
 
     try {
       const requests = this.createBlockReceiptsRequests(currentBlock, toBlock)
-      const response = await this.executeBlockReceiptsRequest(requests)
+      const responses = await this.executeBlockReceiptsRequest(requests)
 
-      const validResponses = response.data.filter((resp: any) => !resp.error && resp.result)
-      if (validResponses.length === response.data.length) {
+      const validResponses = responses.filter((resp: any) => !resp.error && resp.result)
+      if (validResponses.length === responses.length) {
         for (const resp of validResponses) {
           const blockReceipts = resp.result
           if (!blockReceipts || blockReceipts.length === 0) continue
