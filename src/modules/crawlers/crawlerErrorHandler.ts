@@ -110,6 +110,7 @@ export class CrawlerErrorHandler {
       'network timeout',
       'socket hang up',
       'connect EHOSTUNREACH',
+      'unknown block',
     ]
 
     const errorMessage = this.getErrorMessage(error).toLowerCase()
