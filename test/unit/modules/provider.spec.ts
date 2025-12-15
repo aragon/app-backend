@@ -209,6 +209,9 @@ describe('Module: provider', () => {
           JsonRpcProvider: function () {
             return providerStub
           },
+          FetchRequest: function () {
+            return { processFunc: null }
+          },
         },
       })
 
@@ -227,6 +230,9 @@ describe('Module: provider', () => {
           },
           JsonRpcProvider: function () {
             return providerStub
+          },
+          FetchRequest: function () {
+            return { processFunc: null }
           },
         },
       })
@@ -252,6 +258,9 @@ describe('Module: provider', () => {
         ethers: {
           JsonRpcProvider: function () {
             return providerStub
+          },
+          FetchRequest: function () {
+            return { processFunc: null }
           },
         },
       })
