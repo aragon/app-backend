@@ -48,6 +48,7 @@ describe('Indexer: MetadataHandler', () => {
       } as any)
 
       const decodeHelper = sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://fake-uri')
+      sandbox.stub(Web3Utils, 'parseDaoMetadata').returns(fakeMetadata as any)
       const fetchHelper = sandbox.stub(IPFSModule, 'fetchMetadata').resolves(fakeMetadata)
 
       await MetadataHandler.metadataSet(fakeEvent as any, logInfo)
@@ -84,6 +85,7 @@ describe('Indexer: MetadataHandler', () => {
       } as any)
 
       const decodeHelper = sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://fake-uri')
+      sandbox.stub(Web3Utils, 'parseDaoMetadata').returns(fakeMetadata as any)
       const fetchHelper = sandbox.stub(IPFSModule, 'fetchMetadata').resolves(fakeMetadata)
       const verboseStub = sandbox.stub(Logger, 'verbose')
 
@@ -126,6 +128,7 @@ describe('Indexer: MetadataHandler', () => {
       })
 
       const decodeHelper = sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://fake-uri')
+      sandbox.stub(Web3Utils, 'parseDaoMetadata').returns(fakeMetadata as any)
       const fetchHelper = sandbox.stub(IPFSModule, 'fetchMetadata').resolves(fakeMetadata)
 
       await MetadataHandler.metadataSet(fakeEvent as any, logInfo)
@@ -162,6 +165,7 @@ describe('Indexer: MetadataHandler', () => {
       } as any)
 
       const decodeHelper = sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://fake-uri')
+      sandbox.stub(Web3Utils, 'parseDaoMetadata').returns(fakeMetadata as any)
       const fetchHelper = sandbox.stub(IPFSModule, 'fetchMetadata').resolves(fakeMetadata)
       const verboseStub = sandbox.stub(Logger, 'verbose')
       const createDocumentStub = sandbox.spy(DbOperations, 'createDocument')

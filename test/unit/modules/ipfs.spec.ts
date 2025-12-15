@@ -2,11 +2,9 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { expect } from 'chai'
 import IPFSModule from '@modules/ipfs'
-import axios from 'axios'
 import logger from '@logger'
 import PinataHelper from '@helpers/pinata'
 import config from '@config'
-import Web3Utils from '@helpers/web3Utils'
 
 describe('Modules: IPFS', () => {
   let sandbox: SinonSandbox
@@ -66,22 +64,20 @@ describe('Modules: IPFS', () => {
   })
 
   describe('_fetchMetadata', function () {
-    it('should _fetchMetadata', async () => {
+    it('should _fetchMetadata and return raw data without parsing', async () => {
+      const rawMetadata = { title: 'Test', description: 'Raw metadata' }
       const stubReq = sandbox.stub(global, 'fetch').resolves({
         ok: true,
-        json: async () => 'ok',
+        json: async () => rawMetadata,
       } as any)
 
-      const stubParseMetadata = sandbox.stub(Web3Utils, 'parseDaoMetadata').returns(true as any)
       const cid = 'bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme'
 
       const metadata = await IPFSModule._fetchMetadata(cid)
 
-      expect(metadata).to.be.true
+      expect(metadata).to.deep.equal(rawMetadata)
       expect(stubReq.calledOnce).to.be.true
       expect(stubReq.calledWith(`https://ipfs.io/ipfs/${cid}`)).to.be.true
-      expect(stubParseMetadata.calledOnce).to.be.true
-      expect(stubParseMetadata.calledWith('ok' as any)).to.be.true
     })
 
     it('should log an error when _fetchMetadata fails', async () => {

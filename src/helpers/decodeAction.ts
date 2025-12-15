@@ -355,10 +355,11 @@ class DecodeActions {
     }
 
     try {
-      const proposedMetadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
-      if (!proposedMetadata) {
+      const rawMetadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
+      if (!rawMetadata) {
         return null
       }
+      const proposedMetadata = Web3Utils.parseDaoMetadata(rawMetadata)
 
       const _existingMetadata: any = existingMetadata
         ? {
@@ -687,11 +688,13 @@ class DecodeActions {
     }
 
     try {
-      const gaugeMetadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
+      const rawMetadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
 
-      if (!gaugeMetadata) {
+      if (!rawMetadata) {
         return null
       }
+
+      const gaugeMetadata = Web3Utils.parseDaoMetadata(rawMetadata)
 
       return {
         ...action,

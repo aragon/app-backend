@@ -33,7 +33,8 @@ export const MetadataHandler = {
 
     try {
       const metadataUri = Web3Utils.extractMetadataUri(parsedEvent.args.metadata)
-      const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, { retries: 4 })
+      const rawMetadata = await IPFSModule.fetchMetadata(metadataUri!, { retries: 4 })
+      const ipfsMetadata = Web3Utils.parseDaoMetadata(rawMetadata!)
 
       const logMetadata = {
         network,
@@ -41,7 +42,7 @@ export const MetadataHandler = {
         transactionIndex,
         logIndex,
         metadataUri: metadataUri!,
-        fetchedMetadata: !!ipfsMetadata,
+        fetchedMetadata: !!rawMetadata,
         blockNumber,
         name: ipfsMetadata?.name!,
         description: ipfsMetadata?.description!,

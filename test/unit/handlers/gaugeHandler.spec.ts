@@ -17,6 +17,7 @@ describe('Handler: gaugeHandler', () => {
   let getBlockTimestampStub: any
   let extractMetadataUriStub: any
   let fetchMetadataStub: any
+  let parseDaoMetadataStub: any
   let gaugeMetricsStub: any
 
   beforeEach(async () => {
@@ -65,6 +66,7 @@ describe('Handler: gaugeHandler', () => {
     getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp')
     extractMetadataUriStub = sandbox.stub(Web3Utils, 'extractMetadataUri')
     fetchMetadataStub = sandbox.stub(IPFSModule, 'fetchMetadata')
+    parseDaoMetadataStub = sandbox.stub(Web3Utils, 'parseDaoMetadata')
     gaugeMetricsStub = sandbox.stub(GaugeMetrics, 'epochGaugeMetrics').resolves()
   })
 
@@ -157,6 +159,7 @@ describe('Handler: gaugeHandler', () => {
 
       extractMetadataUriStub.returns('ipfs://QmTest123')
       fetchMetadataStub.resolves(mockMetadata)
+      parseDaoMetadataStub.returns(mockMetadata)
       const verboseStub = sandbox.stub(logger, 'verbose')
 
       await GaugeHandler.gaugeCreated(parsedEvent, mockInfo)
@@ -406,6 +409,7 @@ describe('Handler: gaugeHandler', () => {
 
       extractMetadataUriStub.returns('ipfs://QmUpdated123')
       fetchMetadataStub.resolves(newMetadata)
+      parseDaoMetadataStub.returns(newMetadata)
       const verboseStub = sandbox.stub(logger, 'verbose')
 
       await GaugeHandler.gaugeUpdateMetadata(parsedEvent, mockInfo)
@@ -863,13 +867,15 @@ describe('Handler: gaugeHandler', () => {
         },
       } as any
 
-      extractMetadataUriStub.returns('ipfs://QmIntegration')
-      fetchMetadataStub.resolves({
+      const integrationMetadata = {
         name: 'Integration Test Gauge',
         description: 'Full lifecycle test',
         links: ['https://integration-test.com'],
         avatar: 'https://integration-test.com/avatar.png',
-      })
+      }
+      extractMetadataUriStub.returns('ipfs://QmIntegration')
+      fetchMetadataStub.resolves(integrationMetadata)
+      parseDaoMetadataStub.returns(integrationMetadata)
 
       await GaugeHandler.gaugeCreated(createEvent, mockInfo)
 

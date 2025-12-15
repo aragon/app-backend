@@ -1970,6 +1970,9 @@ describe('Helpers: DecodeActions', () => {
         name: 'MockDao',
       })
       const stubExtractMetadataUri = sandbox.stub(Web3Utils, 'extractMetadataUri').returns('https://link')
+      const parseDaoMetadataStub = sandbox.stub(Web3Utils, 'parseDaoMetadata').returns({
+        name: 'Updated Dao',
+      } as any)
       // Re-configure the existing stub instead of creating a new one
       const ipfsFetchStubb = Ipfs.fetchMetadata as sinon.SinonStub
       ipfsFetchStubb.resolves({
@@ -1980,6 +1983,7 @@ describe('Helpers: DecodeActions', () => {
       expect(result?.type).to.be.eq(ProposalActionType.MetadataUpdate)
       expect(stubExtractMetadataUri.calledOnce).to.be.true
       expect(ipfsFetchStubb.calledOnce).to.be.true
+      expect(parseDaoMetadataStub.calledOnce).to.be.true
       expect(getMetadataAtBlockNumberStub.calledOnce).to.be.true
     })
 
@@ -2192,6 +2196,7 @@ describe('Helpers: DecodeActions', () => {
       const ipfsStub = Ipfs.fetchMetadata as sinon.SinonStub
       ipfsStub.resolves(mockMetadata)
       sandbox.stub(Web3Utils, 'extractMetadataUri').returns('https://link')
+      sandbox.stub(Web3Utils, 'parseDaoMetadata').returns(mockMetadata as any)
       const parseContractNetspecStub = sandbox.stub(actionDecode, 'parseContractNetspec').resolves({
         functionName: 'setMetadata(bytes)',
         notice: 'notice',
@@ -2415,6 +2420,9 @@ describe('Helpers: DecodeActions', () => {
     }
 
     const stubExtractMetadataUri = sandbox.stub(Web3Utils, 'extractMetadataUri').returns('https://link')
+    const parseDaoMetadataStub = sandbox.stub(Web3Utils, 'parseDaoMetadata').returns({
+      name: 'Gauge info',
+    } as any)
     // Re-configure the existing stub instead of creating a new one
     const ipfsFetchStub = Ipfs.fetchMetadata as sinon.SinonStub
     ipfsFetchStub.resolves({
@@ -2426,6 +2434,7 @@ describe('Helpers: DecodeActions', () => {
     expect(result?.gaugeMetadata).to.deep.equal({ name: 'Gauge info' })
     expect(stubExtractMetadataUri.calledOnce).to.be.true
     expect(ipfsFetchStub.calledOnce).to.be.true
+    expect(parseDaoMetadataStub.calledOnce).to.be.true
   })
 
   it('should return null when _parseRegisterGauge signature does not match', async () => {

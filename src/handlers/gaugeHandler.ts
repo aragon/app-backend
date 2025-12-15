@@ -35,7 +35,8 @@ export const GaugeHandler = {
         return
       }
       const metadataUri = Web3Utils.extractMetadataUri(parsedEvent.args.metadataURI)
-      const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, { retries: 4 })
+      const rawMetadata = await IPFSModule.fetchMetadata(metadataUri!, { retries: 4 })
+      const ipfsMetadata = Web3Utils.parseDaoMetadata(rawMetadata!)
 
       const governance = new GaugeGovernance(plugin.address, plugin.network)
 
@@ -115,7 +116,8 @@ export const GaugeHandler = {
 
     try {
       const metadataUri = Web3Utils.extractMetadataUri(parsedEvent.args.metadataURI)
-      const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, { retries: 4 })
+      const rawMetadata = await IPFSModule.fetchMetadata(metadataUri!, { retries: 4 })
+      const ipfsMetadata = Web3Utils.parseDaoMetadata(rawMetadata!)
 
       await gauge.update({
         name: ipfsMetadata?.name!,

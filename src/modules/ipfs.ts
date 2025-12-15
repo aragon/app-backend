@@ -4,7 +4,6 @@ import { type IMetadata } from '@types'
 import { retry } from '@helpers/fetchRetry'
 import PinataHelper from '@helpers/pinata'
 import config from '@config'
-import Web3Utils from '@helpers/web3Utils'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:IPFSModule' })
 
@@ -37,8 +36,6 @@ const IPFSModule = {
     if (!data) {
       data = await IPFSModule._fetchMetadata(cid, opts)
     }
-
-    data = Web3Utils.parseDaoMetadata(data)
 
     if (data?.avatar?.path) {
       data.avatar = data.avatar.path
