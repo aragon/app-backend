@@ -682,14 +682,8 @@ class DecodeActions {
       return null
     }
 
-    const ipfsUrl = Web3Utils.extractMetadataUri(decodedData.parameters[3].value)
-
-    if (!ipfsUrl) {
-      return null
-    }
-
     try {
-      const gaugeMetadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
+      const gaugeMetadata = await this._fetchMetadata(decodedData.parameters[3].value)
 
       if (!gaugeMetadata) {
         return null
@@ -711,14 +705,8 @@ class DecodeActions {
       return null
     }
 
-    const ipfsUrl = Web3Utils.extractMetadataUri(decodedData.parameters[1].value)
-
-    if (!ipfsUrl) {
-      return null
-    }
-
     try {
-      const gaugeMetadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
+      const gaugeMetadata = await this._fetchMetadata(decodedData.parameters[1].value)
 
       if (!gaugeMetadata) {
         return null
@@ -740,14 +728,8 @@ class DecodeActions {
       return null
     }
 
-    const ipfsUrl = Web3Utils.extractMetadataUri(decodedData.parameters[1].value)
-
-    if (!ipfsUrl) {
-      return null
-    }
-
     try {
-      const gaugeMetadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
+      const gaugeMetadata = await this._fetchMetadata(decodedData.parameters[1].value)
 
       if (!gaugeMetadata) {
         return null
@@ -762,6 +744,16 @@ class DecodeActions {
     } catch (e) {
       return null
     }
+  }
+
+  async _fetchMetadata(metadataHex: string) {
+    const ipfsUrl = Web3Utils.extractMetadataUri(metadataHex)
+
+    if (!ipfsUrl) {
+      return null
+    }
+
+    return await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
   }
 
   async _decodeFallback(action: IRawAction, network: NetworksEnum): Promise<IProposalActionInputData | null> {
