@@ -137,6 +137,8 @@ class DecodeActions {
       updateVotingSettings: this._parseVotingSettingUpdateAction.bind(this),
       updateStages: this._parseStageUpdatedOnSppAction.bind(this),
       registerGauge: this._parseRegisterGauge.bind(this),
+      createGauge: this._parseCreateGauge.bind(this),
+      updateGaugeMetadata: this._parseUpdateGaugeMetadata.bind(this),
     }
 
     for (const pattern in actionHandlers) {
@@ -696,6 +698,64 @@ class DecodeActions {
       return {
         ...action,
         type: ProposalActionType.RegisterGauge,
+        inputData: decodedData,
+        gaugeMetadata,
+      }
+    } catch (e) {
+      return null
+    }
+  }
+
+  async _parseCreateGauge(decodedData: IProposalActionInputData, action: IRawAction) {
+    if (decodedData.textSignature !== KnownActionSignature.CreateGauge) {
+      return null
+    }
+
+    const ipfsUrl = Web3Utils.extractMetadataUri(decodedData.parameters[1].value)
+
+    if (!ipfsUrl) {
+      return null
+    }
+
+    try {
+      const gaugeMetadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
+
+      if (!gaugeMetadata) {
+        return null
+      }
+
+      return {
+        ...action,
+        type: ProposalActionType.CreateGauge,
+        inputData: decodedData,
+        gaugeMetadata,
+      }
+    } catch (e) {
+      return null
+    }
+  }
+
+  async _parseUpdateGaugeMetadata(decodedData: IProposalActionInputData, action: IRawAction) {
+    if (decodedData.textSignature !== KnownActionSignature.UpdateGaugeMetadata) {
+      return null
+    }
+
+    const ipfsUrl = Web3Utils.extractMetadataUri(decodedData.parameters[1].value)
+
+    if (!ipfsUrl) {
+      return null
+    }
+
+    try {
+      const gaugeMetadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
+
+      if (!gaugeMetadata) {
+        return null
+      }
+
+      return {
+        ...action,
+        type: ProposalActionType.UpdateGaugeMetadata,
         inputData: decodedData,
         gaugeMetadata,
       }

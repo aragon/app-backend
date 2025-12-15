@@ -2509,4 +2509,114 @@ describe('Helpers: DecodeActions', () => {
 
     expect(result).to.be.null
   })
+
+  it('should parse _parseCreateGauge', async () => {
+    const decodeActions = new DecodeActions()
+    const baseAction = {
+      textSignature: 'createGauge(address,string)',
+      function: 'createGauge',
+      contract: 'GaugeVoter',
+      parameters: [
+        { name: '_gauge', type: 'address', value: '0xGaugeAddress' },
+        {
+          name: '_metadataURI',
+          type: 'bytes',
+          value:
+            '0x697066733a2f2f516d4e753239435378354276596a506a786d716e6a6a6d5a68326e6a4e4b6e68346a7a566b5a6d476d4778667458',
+        },
+      ],
+    }
+
+    const action = {
+      to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+      value: 0n,
+      data: '0x00',
+    }
+
+    const stubExtractMetadataUri = sandbox.stub(Web3Utils, 'extractMetadataUri').returns('https://link')
+    // Re-configure the existing stub instead of creating a new one
+    const ipfsFetchStub = Ipfs.fetchMetadata as sinon.SinonStub
+    ipfsFetchStub.resolves({
+      name: 'Gauge info',
+    })
+
+    const result = await decodeActions._parseCreateGauge(baseAction, action)
+    expect(result?.type).to.be.eq(ProposalActionType.CreateGauge)
+    expect(result?.gaugeMetadata).to.deep.equal({ name: 'Gauge info' })
+    expect(stubExtractMetadataUri.calledOnce).to.be.true
+    expect(ipfsFetchStub.calledOnce).to.be.true
+  })
+
+  it('should return null when _parseCreateGauge signature does not match', async () => {
+    const decodeActions = new DecodeActions()
+    const baseAction = {
+      textSignature: 'wrongSignature',
+      parameters: [],
+    }
+
+    const action = {
+      to: '0x4444444444444444444444444444444444444444',
+      value: 0n,
+      data: '0x',
+    }
+
+    const result = await decodeActions._parseCreateGauge(baseAction as any, action)
+
+    expect(result).to.be.null
+  })
+
+  it('should parse _parseUpdateGaugeMetadata', async () => {
+    const decodeActions = new DecodeActions()
+    const baseAction = {
+      textSignature: 'updateGaugeMetadata(address,string)',
+      function: 'updateGaugeMetadata',
+      contract: 'GaugeVoter',
+      parameters: [
+        { name: '_gauge', type: 'address', value: '0xGaugeAddress' },
+        {
+          name: '_metadataURI',
+          type: 'bytes',
+          value:
+            '0x697066733a2f2f516d4e753239435378354276596a506a786d716e6a6a6d5a68326e6a4e4b6e68346a7a566b5a6d476d4778667458',
+        },
+      ],
+    }
+
+    const action = {
+      to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+      value: 0n,
+      data: '0x00',
+    }
+
+    const stubExtractMetadataUri = sandbox.stub(Web3Utils, 'extractMetadataUri').returns('https://link')
+    // Re-configure the existing stub instead of creating a new one
+    const ipfsFetchStub = Ipfs.fetchMetadata as sinon.SinonStub
+    ipfsFetchStub.resolves({
+      name: 'Gauge info',
+    })
+
+    const result = await decodeActions._parseUpdateGaugeMetadata(baseAction, action)
+    expect(result?.type).to.be.eq(ProposalActionType.UpdateGaugeMetadata)
+    expect(result?.gaugeMetadata).to.deep.equal({ name: 'Gauge info' })
+    expect(stubExtractMetadataUri.calledOnce).to.be.true
+    expect(ipfsFetchStub.calledOnce).to.be.true
+  })
+
+  it('should return null when _parseUpdateGaugeMetadata signature does not match', async () => {
+    const decodeActions = new DecodeActions()
+    const baseAction = {
+      textSignature: 'wrongSignature',
+      parameters: [],
+    }
+
+    const action = {
+      to: '0x4444444444444444444444444444444444444444',
+      value: 0n,
+      data: '0x',
+    }
+
+    const result = await decodeActions._parseUpdateGaugeMetadata(baseAction as any, action)
+
+    expect(result).to.be.null
+  })
 })
