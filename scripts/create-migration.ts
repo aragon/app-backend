@@ -14,11 +14,17 @@ if (!fs.existsSync(MIGRATIONS_DIR)) {
 const migrationName = process.argv[2]
 
 if (!migrationName) {
+  // biome-ignore lint/suspicious/noConsole: CLI script output
+  console.error('❌ Error: Please provide a migration name')
+  // biome-ignore lint/suspicious/noConsole: CLI script output
+  console.error('Usage: yarn mig:create <migration-name>')
   process.exit(1)
 }
 
 // Validate migration name (alphanumeric and hyphens only)
 if (!/^[a-zA-Z0-9-]+$/.test(migrationName)) {
+  // biome-ignore lint/suspicious/noConsole: CLI script output
+  console.error('❌ Error: Migration name should only contain alphanumeric characters and hyphens')
   process.exit(1)
 }
 
@@ -29,6 +35,8 @@ const filepath = path.join(MIGRATIONS_DIR, `${filename}.ts`)
 
 // Check if file already exists
 if (fs.existsSync(filepath)) {
+  // biome-ignore lint/suspicious/noConsole: CLI script output
+  console.error(`❌ Error: Migration file already exists: ${filename}.ts`)
   process.exit(1)
 }
 
@@ -63,6 +71,10 @@ export default ${migrationName}Migration
 // Write migration file
 try {
   fs.writeFileSync(filepath, template)
-} catch (_error) {
+  // biome-ignore lint/suspicious/noConsole: CLI script output
+  console.log(`✅ Created migration: ${filepath}`)
+} catch (error) {
+  // biome-ignore lint/suspicious/noConsole: CLI script output
+  console.error('❌ Error creating migration file:', error)
   process.exit(1)
 }
