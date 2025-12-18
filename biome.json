@@ -48,7 +48,7 @@
         "noUselessTypeConstraint": "error",
         "noUselessUndefinedInitialization": "error",
         "noVoid": "off",
-        "useLiteralKeys": "off",
+        "useLiteralKeys": "error",
         "useOptionalChain": "error",
         "useRegexLiterals": "error"
       },
