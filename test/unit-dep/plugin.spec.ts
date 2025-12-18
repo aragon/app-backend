@@ -1,5 +1,16 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
+import { DAORegistry } from '@artifacts/daoRegistry'
+import { Multisig } from '@artifacts/Multisig'
+import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
+import { Models } from '@dbModels'
+import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
+import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
+import { PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandler'
+import BlockScoutHelper from '@helpers/blockScout'
+import CoinGeckoHelper from '@helpers/coinGecko'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import Web3Helper from '@helpers/web3'
+import { LibUtils } from '@test/lib/unit-dep/lib'
+import Plugins from '@test/unit-dep/mockData/sppPairMockPlugin.json'
 import {
   IEventLogPluginSettings,
   IEventLogPluginType,
@@ -8,20 +19,9 @@ import {
   ITokenType,
   NetworksEnum,
 } from '@types'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
-import { DAORegistry } from '@artifacts/daoRegistry'
-import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
-import { PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandler'
-import { Models } from '@dbModels'
 import { expect } from 'chai'
-import BlockScoutHelper from '@helpers/blockScout'
-import CoinGeckoHelper from '@helpers/coinGecko'
-import { Multisig } from '@artifacts/Multisig'
-import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
-import Plugins from '@test/unit-dep/mockData/sppPairMockPlugin.json'
-import Web3Helper from '@helpers/web3'
-import { LibUtils } from '@test/lib/unit-dep/lib'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Integ: Plugin', () => {
   let sandbox: SinonSandbox

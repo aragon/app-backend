@@ -1,11 +1,11 @@
-import { type HexAddress, NetworksEnum } from '@types'
-import Web3Helper from '@helpers/web3'
-import ProviderModule from '@modules/provider'
-import { Contract, ZeroAddress } from 'ethers'
 import { GaugeVoter } from '@artifacts/GaugeVoter'
 import { retryRequest } from '@helpers/retryRequest'
-import BottleneckModule from '@modules/bottleneck'
+import Web3Helper from '@helpers/web3'
 import logger from '@logger'
+import BottleneckModule from '@modules/bottleneck'
+import ProviderModule from '@modules/provider'
+import { type HexAddress, NetworksEnum } from '@types'
+import { Contract, ZeroAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:GaugeHelper' })
 
@@ -19,7 +19,7 @@ const GaugeHelper = {
       }
 
       return null
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   },
@@ -32,7 +32,7 @@ const GaugeHelper = {
         BottleneckModule.getNodeLimiter(network).schedule(async () => pluginGaugeInstance.epochId()),
       )
       return Number(epochId).toString()
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   },
@@ -54,7 +54,7 @@ const GaugeHelper = {
       }
 
       return iVotesAdapterAddress
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   },
@@ -70,7 +70,7 @@ const GaugeHelper = {
           gaugePluginContract.enableUpdateVotingPowerHook(),
         ),
       )
-    } catch (error) {
+    } catch (_error) {
       return false
     }
   },
@@ -88,7 +88,7 @@ const GaugeHelper = {
       )
 
       return Number(currentEpochStart)
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   },
@@ -106,7 +106,7 @@ const GaugeHelper = {
       )
 
       return Number(epochVoteStart)
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   },
@@ -124,7 +124,7 @@ const GaugeHelper = {
       )
 
       return Number(epochVoteEnd)
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   },

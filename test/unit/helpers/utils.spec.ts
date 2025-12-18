@@ -1,10 +1,10 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
+import dayjs from '@helpers/dayjs'
 import Utils from '@helpers/utils'
 import logger from '@logger'
-import dayjs from '@helpers/dayjs'
 import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Helpers:Utils', () => {
   let sandbox: SinonSandbox

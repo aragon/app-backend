@@ -1,9 +1,9 @@
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import Utils from '@helpers/utils'
+import RabbitMQModule from '@modules/rabbitMQ'
+import { EnumQueueName } from '@types'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import RabbitMQModule from '@modules/rabbitMQ'
-import Utils from '@helpers/utils'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import { EnumQueueName } from '@types'
 
 describe('RabbitMq Test', () => {
   let sandbox: SinonSandbox

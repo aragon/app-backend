@@ -1,10 +1,10 @@
+import { throwError } from '@errors'
 import Utils from '@helpers/utils'
 import logger from '@logger'
-import MongoDB from './mongo'
 import ProviderModule from '@modules/provider'
-import { throwError } from '@errors'
-import { EnumConnection, type IOptionService } from '@types'
 import RabbitMQ from '@modules/rabbitMQ'
+import { EnumConnection, type IOptionService } from '@types'
+import MongoDB from './mongo'
 
 const llo = logger.logMeta.bind(null, { service: 'Connections' })
 
@@ -171,7 +171,7 @@ const Connections = {
             health[connection] = RabbitMQ.isConnected()
             break
         }
-      } catch (error) {
+      } catch (_error) {
         health[connection] = false
       }
     }

@@ -1,11 +1,11 @@
+import ProxyWeb3Provider from '@modules/proxyProvider'
+import KatanaProvider from '@modules/proxyProvider/katanaProvider'
+import PeaqProvider from '@modules/proxyProvider/peaqProvider'
+import RoutescanProvider from '@modules/proxyProvider/routescanProvider'
+import Web3Provider from '@modules/proxyProvider/web3Provider'
+import { IWeb3ProxyMethod, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import sinon from 'sinon'
-import { NetworksEnum, IWeb3ProxyMethod } from '@types'
-import Web3Provider from '@modules/proxyProvider/web3Provider'
-import PeaqProvider from '@modules/proxyProvider/peaqProvider'
-import ProxyWeb3Provider from '@modules/proxyProvider'
-import RoutescanProvider from '@modules/proxyProvider/routescanProvider'
-import KatanaProvider from '@modules/proxyProvider/katanaProvider'
 
 describe('ProxyWeb3Provider', () => {
   let sandbox: sinon.SinonSandbox

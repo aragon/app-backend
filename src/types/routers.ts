@@ -1,9 +1,9 @@
-import { type ENS, type HexAddress, type NetworksEnum } from './networks'
-import { type ITokenType } from '@src/types/token'
-import { type IActionMetadata } from '@src/types/proposalAction'
-import { type IPluginInterfaceType, type IReportResultType } from '@src/types/plugin'
 import type Router from '@koa/router'
 import { type DaoResourceLink } from '@src/types/daos'
+import { type IPluginInterfaceType, type IReportResultType } from '@src/types/plugin'
+import { type IActionMetadata } from '@src/types/proposalAction'
+import { type ITokenType } from '@src/types/token'
+import { type ENS, type HexAddress, type NetworksEnum } from './networks'
 
 export interface VersionedRouter {
   v1: Router

@@ -1,11 +1,11 @@
+import CoinGeckoHelper from '@helpers/coinGecko'
+import DecodeActions from '@helpers/decodeAction'
+import IPFSModule from '@modules/ipfs'
+import { ProxyToken } from '@modules/proxyToken'
+import { NetworksEnum, ProposalActionType } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { NetworksEnum, ProposalActionType } from '@types'
-import DecodeActions from '@helpers/decodeAction'
-import { expect } from 'chai'
-import { ProxyToken } from '@modules/proxyToken'
-import IPFSModule from '@modules/ipfs'
-import CoinGeckoHelper from '@helpers/coinGecko'
 
 describe('Integ: decodeAction', () => {
   let sandbox: SinonSandbox

@@ -1,6 +1,6 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
-import { type ITokenType } from '@src/types/token'
 import { type IPluginInterfaceType, type IPluginStatus, type ISettingStatus } from '@src/types/plugin'
+import { type ITokenType } from '@src/types/token'
 import { type IEventLogPluginType, type ITransactionSide, type ITransactionType } from '@types'
 
 export interface ITokenExtraParams {

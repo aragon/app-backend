@@ -1,8 +1,8 @@
+import pluginDetector from '@helpers/pluginDetector'
+import ProviderModule from '@modules/provider'
+import { NetworksEnum } from '@types'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { NetworksEnum } from '@types'
-import ProviderModule from '@modules/provider'
-import pluginDetector from '@helpers/pluginDetector'
 
 describe('Manual: DetectPluginType', () => {
   let sandbox: SinonSandbox

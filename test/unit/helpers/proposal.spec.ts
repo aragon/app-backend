@@ -1,10 +1,10 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
+import ProposalHelper from '@helpers/proposal'
+import logger from '@logger'
+import { IPluginInterfaceType, IReportResultType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import proxyquire from 'proxyquire'
-import { NetworksEnum, IPluginInterfaceType, IReportResultType } from '@types'
-import logger from '@logger'
-import ProposalHelper from '@helpers/proposal'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Helpers: ProposalHelper', () => {
   let sandbox: SinonSandbox

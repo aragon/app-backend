@@ -1,15 +1,15 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { Models } from '@dbModels'
 import SettingController from '@api/controllers/setting'
+import { Models } from '@dbModels'
 import Setting from '@models/schema/setting'
+import Token from '@models/schema/token'
 import PairDataModule from '@modules/pairData'
+import { DaoList } from '@test/mock/fakeDao'
 import { fakeSettings } from '@test/mock/fakeSettings'
 import { FakeToken } from '@test/mock/fakeToken'
-import Token from '@models/schema/token'
-import { DaoList } from '@test/mock/fakeDao'
 import { ErrorKeyEnum, HexAddress, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Controller: Setting', () => {
   let sandbox: SinonSandbox

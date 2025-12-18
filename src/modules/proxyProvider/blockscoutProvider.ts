@@ -1,10 +1,10 @@
-import logger from '@logger'
-import { type NetworksEnum } from '@types'
-import utils from '@helpers/utils'
-import { ethers } from 'ethers'
-import { ProxyToken } from '@modules/proxyToken'
-import TokenUtils from '@helpers/tokenUtils'
 import BlockScoutHelper from '@helpers/blockScout'
+import TokenUtils from '@helpers/tokenUtils'
+import utils from '@helpers/utils'
+import logger from '@logger'
+import { ProxyToken } from '@modules/proxyToken'
+import { type NetworksEnum } from '@types'
+import { ethers } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'provider:BlockScoutProvider' })
 

@@ -1,4 +1,24 @@
+import { Models } from '@dbModels'
+import { assert } from '@errors'
+import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
+import DecodeActions from '@helpers/decodeAction'
+import GovernanceErc20Helper from '@helpers/governanceErc20'
+import LockToVoteHelper from '@helpers/lockToVoteHelper'
+import ProposalHelper from '@helpers/proposal'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import Web3Helper from '@helpers/web3'
+import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
+import type Plugin from '@models/schema/plugin'
+import type Proposal from '@models/schema/proposal'
+import type Vote from '@models/schema/vote'
+import DbOperations from '@models/utils/dbOperations'
+import { BlockchainLogCrawler } from '@modules/crawlers'
+import DbTx from '@modules/dbTx'
+import IPFSModule from '@modules/ipfs'
+import { ProxyToken } from '@modules/proxyToken'
+import { TokenVoting } from '@src/aragonContracts'
+import { MemberGovernanceFactory } from '@src/governance'
 import {
   EnumQueueName,
   type ILogInfo,
@@ -10,26 +30,6 @@ import {
   KnownActionSignature,
 } from '@types'
 import { Interface, type LogDescription } from 'ethers'
-import { Models } from '@dbModels'
-import IPFSModule from '@modules/ipfs'
-import type Vote from '@models/schema/vote'
-import Web3Helper from '@helpers/web3'
-import { MemberGovernanceFactory } from '@src/governance'
-import { ProxyToken } from '@modules/proxyToken'
-import type Proposal from '@models/schema/proposal'
-import type Plugin from '@models/schema/plugin'
-import DecodeActions from '@helpers/decodeAction'
-import GovernanceErc20Helper from '@helpers/governanceErc20'
-import DbOperations from '@models/utils/dbOperations'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import DbTx from '@modules/dbTx'
-import ProposalHelper from '@helpers/proposal'
-import { TokenVoting } from '@src/aragonContracts'
-import { BlockchainLogCrawler } from '@modules/crawlers'
-import { assert } from '@errors'
-import Web3Utils from '@helpers/web3Utils'
-import LockToVoteHelper from '@helpers/lockToVoteHelper'
-import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:ProposalHandler' })
 export const ProposalHandler = {
@@ -623,7 +623,7 @@ export const ProposalHandler = {
     try {
       const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri, { retries: 4 })
       return Web3Utils.parseProposalMetadata(ipfsMetadata!)
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   },

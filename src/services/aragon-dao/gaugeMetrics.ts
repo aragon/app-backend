@@ -1,7 +1,7 @@
-import logger from '@logger'
 import { Models } from '@dbModels'
-import { type NetworksEnum } from '@types'
 import GaugeHelper from '@helpers/gauge'
+import logger from '@logger'
+import { type NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:GaugeMetrics' })
 

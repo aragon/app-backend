@@ -1,8 +1,8 @@
-import Router, { type RouterContext } from '@koa/router'
 import CapitalDistributorController from '@api/controllers/capitalDistributor'
-import ValidationSchema from '@helpers/validationSchema'
 import CapitalDistributorSchema from '@api/routers/schema/capitalDistributor'
-import { type HexAddress, type NetworksEnum, type IPaginationParams, type ICampaignApiParams } from '@types'
+import ValidationSchema from '@helpers/validationSchema'
+import Router, { type RouterContext } from '@koa/router'
+import { type HexAddress, type ICampaignApiParams, type IPaginationParams, type NetworksEnum } from '@types'
 
 const CapitalDistributorRouter = {
   getCampaignsWithPagination: async function (ctx: RouterContext) {

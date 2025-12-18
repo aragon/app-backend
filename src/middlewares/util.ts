@@ -1,7 +1,6 @@
-import type Koa from 'koa'
 import { throwExposable } from '@errors'
-import { ErrorKeyEnum } from '@types'
-import { type IUtilMiddleware } from '@types'
+import { ErrorKeyEnum, type IUtilMiddleware } from '@types'
+import type Koa from 'koa'
 
 const UtilMiddleware: IUtilMiddleware = {
   noop: async (ctx: Koa.Context, next: Koa.Next) => await next(),

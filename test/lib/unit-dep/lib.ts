@@ -1,3 +1,18 @@
+import { Models } from '@dbModels'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import Web3Helper from '@helpers/web3'
+import Web3Utils from '@helpers/web3Utils'
+import configIndexer from '@indexer/configIndexer'
+import logger from '@logger'
+import BottleneckModule from '@modules/bottleneck'
+import ProviderModule from '@modules/provider'
+import { LogAdmin } from '@plugins/logAdmin'
+import { LogGauge } from '@plugins/logGauge'
+import { LogLockToVote } from '@plugins/logLockToVote'
+import { LogMultiSig } from '@plugins/logMultisig'
+import { LogSpp } from '@plugins/logSPP'
+import { LogTokenVoting } from '@plugins/logTokenVoting'
+import PluginRepoMockData from '@test/unit-dep/mockData/pluginRepo.json'
 import {
   EnumQueueName,
   HexAddress,
@@ -7,24 +22,8 @@ import {
   ITokenType,
   NetworksEnum,
 } from '@types'
-import Web3Helper from '@helpers/web3'
-import { Interface, Log, type LogDescription } from 'ethers'
-import { Models } from '@dbModels'
-import configIndexer from '@indexer/configIndexer'
-import Web3Utils from '@helpers/web3Utils'
-import logger from '@logger'
-import PluginRepoMockData from '@test/unit-dep/mockData/pluginRepo.json'
-import ProviderModule from '@modules/provider'
-import { ethers } from 'ethers'
-import BottleneckModule from '@modules/bottleneck'
+import { ethers, Interface, Log, type LogDescription } from 'ethers'
 import { SinonSandbox } from 'sinon'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import { LogAdmin } from '@plugins/logAdmin'
-import { LogMultiSig } from '@plugins/logMultisig'
-import { LogTokenVoting } from '@plugins/logTokenVoting'
-import { LogSpp } from '@plugins/logSPP'
-import { LogLockToVote } from '@plugins/logLockToVote'
-import { LogGauge } from '@plugins/logGauge'
 
 interface ILibParams {
   daoAddress: HexAddress

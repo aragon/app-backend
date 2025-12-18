@@ -1,6 +1,6 @@
 import { Models } from '@dbModels'
-import { type NetworksEnum, type LogServicePattern, type IProgressTrackerConfig, type IProgressInfo } from '@types'
 import logger from '@logger'
+import { type IProgressInfo, type IProgressTrackerConfig, type LogServicePattern, type NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'ProgressTracker' })
 

@@ -1,12 +1,12 @@
+import { Models } from '@dbModels'
+import Dao from '@models/schema/dao'
+import ModelUtils from '@models/utils/models'
+import { DaoList } from '@test/mock/fakeDao'
+import { PluginList } from '@test/mock/fakePlugins'
+import { IPluginInterfaceType, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { IPluginInterfaceType, NetworksEnum } from '@types'
-import Dao from '@models/schema/dao'
-import { Models } from '@dbModels'
-import { PluginList } from '@test/mock/fakePlugins'
-import { DaoList } from '@test/mock/fakeDao'
-import ModelUtils from '@models/utils/models'
 
 describe('Model: Dao', () => {
   let sandbox: SinonSandbox

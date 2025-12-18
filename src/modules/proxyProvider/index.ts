@@ -1,8 +1,8 @@
-import { type IWeb3Provider, IWeb3ProxyMethod, NetworksEnum } from '@types'
-import Web3Provider from '@modules/proxyProvider/web3Provider'
+import KatanaProvider from '@modules/proxyProvider/katanaProvider'
 import PeaqProvider from '@modules/proxyProvider/peaqProvider'
 import RoutescanProvider from '@modules/proxyProvider/routescanProvider'
-import KatanaProvider from '@modules/proxyProvider/katanaProvider'
+import Web3Provider from '@modules/proxyProvider/web3Provider'
+import { type IWeb3Provider, IWeb3ProxyMethod, NetworksEnum } from '@types'
 
 const ProxyWeb3Provider: IWeb3Provider & { forward: any; getProvider: any; getDefaultProvider: any } = {
   getProvider(network: NetworksEnum) {

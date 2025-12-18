@@ -1,15 +1,15 @@
+import { retryRequest } from '@helpers/retryRequest'
+import utils from '@helpers/utils'
 import logger from '@logger'
+import BottleneckModule from '@modules/bottleneck'
+import ProviderModule from '@modules/provider'
 import {
-  type NetworksEnum,
+  type IBatchProcessingResult,
   type IBatchRequestConfig,
   type IRPCRequest,
   type IRPCResponse,
-  type IBatchProcessingResult,
+  type NetworksEnum,
 } from '@types'
-import ProviderModule from '@modules/provider'
-import BottleneckModule from '@modules/bottleneck'
-import { retryRequest } from '@helpers/retryRequest'
-import utils from '@helpers/utils'
 import axios, { type AxiosResponse } from 'axios'
 import type { TopicFilter } from 'ethers'
 import { CrawlerErrorHandler } from './crawlerErrorHandler'

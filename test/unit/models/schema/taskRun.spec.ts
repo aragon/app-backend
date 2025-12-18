@@ -1,10 +1,10 @@
+import { Models } from '@dbModels'
+import dayjs from '@helpers/dayjs'
+import TaskRun from '@models/schema/taskRun'
+import { IEnumTaskStatus } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { Models } from '@dbModels'
-import TaskRun from '@models/schema/taskRun'
-import dayjs from '@helpers/dayjs'
-import { IEnumTaskStatus } from '@types'
 
 describe('Model: TaskRun', () => {
   let sandbox: SinonSandbox

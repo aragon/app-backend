@@ -1,11 +1,11 @@
-import RabbitMQ from '@modules/rabbitMQ'
-import { type EnumQueueName, type IQueueMessage, type ISendOptions, type IThrottleOptions } from '@types'
-import logger from '@logger'
-import { type ConfirmChannel, type ConsumeMessage, type Options } from 'amqplib'
-import { v4 as uuidv4 } from 'uuid'
-import { Mutex } from 'async-mutex'
 import config from '@config'
 import utils from '@helpers/utils'
+import logger from '@logger'
+import RabbitMQ from '@modules/rabbitMQ'
+import { type EnumQueueName, type IQueueMessage, type ISendOptions, type IThrottleOptions } from '@types'
+import { type ConfirmChannel, type ConsumeMessage, type Options } from 'amqplib'
+import { Mutex } from 'async-mutex'
+import { v4 as uuidv4 } from 'uuid'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:RabbitMQHelper' })
 

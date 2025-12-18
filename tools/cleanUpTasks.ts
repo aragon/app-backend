@@ -1,7 +1,7 @@
-import { EnumConnection, type IService } from '@types'
 import { Models } from '@dbModels'
 import dayjs from '@helpers/dayjs'
 import logger from '@logger'
+import { EnumConnection, type IService } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'tools:CleanUpTasks' })
 

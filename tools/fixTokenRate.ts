@@ -1,8 +1,8 @@
-import { EnumConnection, type IService, ITokenType, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
-import logger from '@logger'
 import BlockScout from '@helpers/blockScout'
 import CoinGeckoHelper from '@helpers/coinGecko'
+import logger from '@logger'
+import { EnumConnection, type IService, ITokenType, NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'tools:SyncToken' })
 

@@ -1,5 +1,5 @@
-import { SinonSandbox } from 'sinon'
 import { NetworksEnum } from '@types'
+import { SinonSandbox } from 'sinon'
 
 export const UnitTestUtils = {
   getFakeProviders: (sandbox: SinonSandbox) => {

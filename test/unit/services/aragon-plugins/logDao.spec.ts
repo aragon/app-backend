@@ -1,10 +1,10 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
 import logger from '@logger'
-import { LogDao } from '@plugins/logDao'
 import { BlockchainLogCrawler } from '@modules/crawlers'
+import { LogDao } from '@plugins/logDao'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('AragonPlugins: LogDao', () => {
   let sandbox: SinonSandbox

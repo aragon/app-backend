@@ -1,11 +1,11 @@
-import sinon from 'sinon'
+import CoinGeckoHelper from '@helpers/coinGecko'
+import dayjs from '@helpers/dayjs'
+import { RateModule } from '@modules/rates'
+import { NetworksEnum } from '@types'
+import axios from 'axios'
 import { expect } from 'chai'
 import { ZeroAddress } from 'ethers'
-import { NetworksEnum } from '@types'
-import { RateModule } from '@modules/rates'
-import CoinGeckoHelper from '@helpers/coinGecko'
-import axios from 'axios'
-import dayjs from '@helpers/dayjs'
+import sinon from 'sinon'
 
 describe('Modules:RateModule', () => {
   let sandbox: sinon.SinonSandbox

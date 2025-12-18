@@ -1,9 +1,9 @@
+import StatusController from '@api/controllers/status'
+import StatusRouter from '@api/status'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import StatusRouter from '@api/status'
-import StatusController from '@api/controllers/status'
-import { NetworksEnum } from '@types'
 
 describe('Router: Status', () => {
   let sandbox: SinonSandbox

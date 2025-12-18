@@ -1,10 +1,10 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { NetworksEnum } from '@types'
-import proxyquire from 'proxyquire'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
 import ProviderModule from '@modules/provider'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import proxyquire from 'proxyquire'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Helpers: LockToVoteHelper', () => {
   let sandbox: SinonSandbox

@@ -1,7 +1,7 @@
+import logger from '@logger'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import logger from '@logger'
 
 describe('Logger', () => {
   let sandbox: SinonSandbox

@@ -1,7 +1,7 @@
-import logger from '@logger'
-import Utils from '@helpers/utils'
-import { assert } from '@errors'
 import config from '@config'
+import { assert } from '@errors'
+import Utils from '@helpers/utils'
+import logger from '@logger'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:RetryRequestHelper' })
 

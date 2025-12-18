@@ -2,6 +2,9 @@ import {
   type HexAddress,
   type IAggDaoParams,
   type IAggDaoProjectFields,
+  type IAggGaugeMetricsParams,
+  type IAggGaugeMetricsProjectFields,
+  type IAggLockToVoteMemberParams,
   type IAggMemberParams,
   type IAggMemberProjectFields,
   type IAggPluginInclude,
@@ -13,15 +16,12 @@ import {
   type IAggProposalParams,
   type IAggSettingParams,
   type IAggSettingProjectFields,
-  type IAggTokenParams,
-  type IAggTokenProjectFields,
   type IAggTokenMemberParams,
   type IAggTokenMemberProjectFields,
+  type IAggTokenParams,
+  type IAggTokenProjectFields,
   ICollectionNames,
   ISettingStatus,
-  type IAggLockToVoteMemberParams,
-  type IAggGaugeMetricsParams,
-  type IAggGaugeMetricsProjectFields,
 } from '@types'
 
 export const AggregationQueryHelper = {

@@ -1,10 +1,10 @@
+import { Models } from '@dbModels'
+import PluginMetrics from '@models/schema/pluginMetrics'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import { afterEach, beforeEach } from 'mocha'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import PluginMetrics from '@models/schema/pluginMetrics'
-import { afterEach, beforeEach } from 'mocha'
-import { expect } from 'chai'
-import { Models } from '@dbModels'
-import { NetworksEnum } from '@types'
 
 describe('Model: PluginMetrics', () => {
   let sandbox: SinonSandbox

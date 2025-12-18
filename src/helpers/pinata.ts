@@ -1,8 +1,8 @@
-import Pinata, { type PinataPin, type PinataPinOptions } from '@pinata/sdk'
 import config from '@config'
-import logger from '@logger'
-import { type IMetadata } from '@types'
 import utils from '@helpers/utils'
+import logger from '@logger'
+import Pinata, { type PinataPin, type PinataPinOptions } from '@pinata/sdk'
+import { type IMetadata } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:PinataHelper' })
 

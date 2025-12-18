@@ -1,9 +1,9 @@
-import * as sinon from 'sinon'
-import { expect } from 'chai'
-import DaoAdminController from '@services/aragon-admin-api/controllers/dao'
 import { Models } from '@dbModels'
-import { ErrorKeyEnum, NetworksEnum } from '@types'
 import * as errors from '@errors'
+import DaoAdminController from '@services/aragon-admin-api/controllers/dao'
+import { ErrorKeyEnum, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
 
 describe('Controller: DaoAdmin', () => {
   let sandbox: sinon.SinonSandbox

@@ -1,10 +1,10 @@
+import { EvmExplorerEnum, evmExplorerClient } from '@helpers/evmExplorerClient'
+import RoutescanProvider from '@modules/proxyProvider/routescanProvider'
+import ProxyUtils from '@modules/proxyProvider/utils'
+import { IBlockScoutAddressType } from '@src/types/blockScout'
+import { NetworksEnum } from '@types'
 import { expect } from 'chai'
 import sinon from 'sinon'
-import { NetworksEnum } from '@types'
-import RoutescanProvider from '@modules/proxyProvider/routescanProvider'
-import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
-import { IBlockScoutAddressType } from '@src/types/blockScout'
-import ProxyUtils from '@modules/proxyProvider/utils'
 
 describe('RoutescanProvider', () => {
   let sandbox: sinon.SinonSandbox

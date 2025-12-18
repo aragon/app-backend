@@ -1,10 +1,10 @@
+import { Models } from '@dbModels'
+import PluginRepo from '@models/schema/pluginRepo'
+import { FakePluginRepo } from '@test/mock/fakePluginRepo'
+import { expect } from 'chai'
+import { beforeEach } from 'mocha'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import PluginRepo from '@models/schema/pluginRepo'
-import { Models } from '@dbModels'
-import { beforeEach } from 'mocha'
-import { FakePluginRepo } from '@test/mock/fakePluginRepo'
 
 describe('Model: Plugin Repo', () => {
   let sandbox: SinonSandbox

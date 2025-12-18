@@ -1,9 +1,9 @@
-import { EnumConnection, IPluginInterfaceType, type IService } from '@types'
 import { Models } from '@dbModels'
-import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
-import type Proposal from '@models/schema/proposal'
 import logger from '@logger'
+import type Proposal from '@models/schema/proposal'
 import DBCrawler from '@models/utils/crawler'
+import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
+import { EnumConnection, IPluginInterfaceType, type IService } from '@types'
 
 export const RefetchProposalsMetrics: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],

@@ -1,9 +1,9 @@
+import SimulationController from '@api/controllers/simulation'
+import SimulationRouter from '@api/routers/v2/simulation'
+import { ISimulationStatus, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import SimulationRouter from '@api/routers/v2/simulation'
-import SimulationController from '@api/controllers/simulation'
-import { NetworksEnum, ISimulationStatus } from '@types'
 
 describe('RouterV2: Simulation', () => {
   let sandbox: SinonSandbox

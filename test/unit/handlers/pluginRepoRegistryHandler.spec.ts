@@ -1,12 +1,12 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
+import { Models } from '@dbModels'
+import { PluginRepoRegistryHandler } from '@handlers/pluginRepoRegistryHandler'
+import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import { NetworksEnum } from '@types'
+import { expect } from 'chai'
 import { beforeEach } from 'mocha'
-import { PluginRepoRegistryHandler } from '@handlers/pluginRepoRegistryHandler'
-import { Models } from '@dbModels'
-import Web3Helper from '@helpers/web3'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Indexer: PluginRepoRegistryHandler', () => {
   let sandbox: SinonSandbox

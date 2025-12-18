@@ -1,12 +1,12 @@
+import config from '@config'
+import { Models } from '@dbModels'
+import DbOperations from '@models/utils/dbOperations'
+import TenderlyModule from '@modules/tenderly'
+import SimulationController from '@services/aragon-api/controllers/simulation'
+import { IPluginStatus, ISimulationStatus, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import SimulationController from '@services/aragon-api/controllers/simulation'
-import { NetworksEnum, IPluginStatus, ISimulationStatus } from '@types'
-import { Models } from '@dbModels'
-import TenderlyModule from '@modules/tenderly'
-import config from '@config'
-import DbOperations from '@models/utils/dbOperations'
 
 describe('Controller: Simulation', () => {
   let sandbox: SinonSandbox

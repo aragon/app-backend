@@ -1,8 +1,8 @@
+import ProposalHelper from '@helpers/proposal'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { NetworksEnum } from '@types'
-import ProposalHelper from '@helpers/proposal'
 
 describe('Integ: ProposalHelper', () => {
   let sandbox: SinonSandbox

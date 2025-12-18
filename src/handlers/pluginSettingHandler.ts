@@ -1,4 +1,21 @@
+import { LockToVote } from '@artifacts/LockToVote'
+import { Multisig } from '@artifacts/Multisig'
+import { Multisig2 } from '@artifacts/Multisig2'
+import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
+import { TokenVoting } from '@artifacts/TokenVoting'
+import { Models } from '@dbModels'
+import GaugeHelper from '@helpers/gauge'
+import GovernanceVeHelper from '@helpers/governanceVe'
+import MultisigHelper from '@helpers/multisig'
+import PluginDetector from '@helpers/pluginDetector'
+import utils from '@helpers/utils'
+import Web3Helper from '@helpers/web3'
+import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
+import type Plugin from '@models/schema/plugin'
+import type Setting from '@models/schema/setting'
+import DbOperations from '@models/utils/dbOperations'
+import { ProxyToken } from '@modules/proxyToken'
 import {
   IEventLogPluginSettings,
   type ILogInfo,
@@ -7,24 +24,7 @@ import {
   ISettingStatus,
   type ISettingVotingEscrow,
 } from '@types'
-import { Models } from '@dbModels'
-import Web3Helper from '@helpers/web3'
-import type Plugin from '@models/schema/plugin'
-import DbOperations from '@models/utils/dbOperations'
-import type Setting from '@models/schema/setting'
 import { type LogDescription, type TransactionReceipt } from 'ethers'
-import { Multisig } from '@artifacts/Multisig'
-import { TokenVoting } from '@artifacts/TokenVoting'
-import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
-import { ProxyToken } from '@modules/proxyToken'
-import utils from '@helpers/utils'
-import MultisigHelper from '@helpers/multisig'
-import { Multisig2 } from '@artifacts/Multisig2'
-import Web3Utils from '@helpers/web3Utils'
-import PluginDetector from '@helpers/pluginDetector'
-import GovernanceVeHelper from '@helpers/governanceVe'
-import { LockToVote } from '@artifacts/LockToVote'
-import GaugeHelper from '@helpers/gauge'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PluginSettingHandler' })
 

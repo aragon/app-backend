@@ -1,8 +1,8 @@
+import { Models } from '@dbModels'
+import rmDuplicateTransactionZksyncMigration from '@src/migrations/20251103124343-rm-duplicate-transaction-zksync'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import rmDuplicateTransactionZksyncMigration from '@src/migrations/20251103124343-rm-duplicate-transaction-zksync'
-import { Models } from '@dbModels'
 
 describe('migration: resetGauges', () => {
   let sandbox: SinonSandbox

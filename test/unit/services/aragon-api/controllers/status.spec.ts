@@ -1,9 +1,9 @@
+import config from '@config'
+import * as packageJson from '@package'
+import StatusController from '@services/aragon-api/controllers/status'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import config from '@config'
-import StatusController from '@services/aragon-api/controllers/status'
-import * as packageJson from '@package'
 
 describe('Controller: Status', () => {
   let sandbox: SinonSandbox

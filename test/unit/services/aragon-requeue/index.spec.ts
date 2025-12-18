@@ -1,12 +1,12 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
 import { Models } from '@dbModels'
-import AragonReQueueService from '@services/aragon-requeue'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import AragonReQueueService from '@services/aragon-requeue'
 import ConfigIndexerHelper from '@src/helpers/configIndexer'
-import { IPluginInterfaceType, ITokenType, IPluginStatus } from '@types'
+import { IPluginInterfaceType, IPluginStatus, ITokenType } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('AragonRequeue: index', () => {
   let sandbox: SinonSandbox

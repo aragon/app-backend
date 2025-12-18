@@ -1,7 +1,8 @@
-import logger from '@logger'
-import axios from 'axios'
 import config from '@config'
+import dayjs from '@helpers/dayjs'
 import { retryRequest } from '@helpers/retryRequest'
+import utils from '@helpers/utils'
+import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import {
   type HexAddress,
@@ -12,9 +13,8 @@ import {
   ITokenType,
   type NetworksEnum,
 } from '@types'
+import axios from 'axios'
 import { ethers } from 'ethers'
-import utils from '@helpers/utils'
-import dayjs from '@helpers/dayjs'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:SubscanApiHelper' })
 

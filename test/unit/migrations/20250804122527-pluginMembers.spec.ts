@@ -1,12 +1,12 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import mongoose from 'mongoose'
-import pluginMembersMigration from '@src/migrations/20250804122527-pluginMembers'
-import { NetworksEnum, IPluginInterfaceType, IPluginStatus } from '@types'
+import MemberController from '@api/controllers/member'
 import { Models } from '@dbModels'
 import logger from '@logger'
-import MemberController from '@api/controllers/member'
+import pluginMembersMigration from '@src/migrations/20250804122527-pluginMembers'
+import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import mongoose from 'mongoose'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('migration: pluginMembers', () => {
   let sandbox: SinonSandbox

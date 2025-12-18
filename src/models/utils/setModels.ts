@@ -1,8 +1,8 @@
-import * as path from 'path'
-import * as fs from 'fs'
-import { type IMongoModel } from '@types'
 import logger from '@logger'
 import { getModelForClass } from '@typegoose/typegoose'
+import { type IMongoModel } from '@types'
+import * as fs from 'fs'
+import * as path from 'path'
 
 const llo = logger.logMeta.bind(null, { service: 'db:setMongoModels' })
 
@@ -24,9 +24,7 @@ export const setMongoModels = async (): Promise<any> => {
     }
   }
 
-  Object.keys(schemas).forEach(modelName => {
-    console.log('MongoModel', modelName) // eslint-disable-line no-console
-  })
+  Object.keys(schemas).forEach(_modelName => {})
 
   return schemas
 }

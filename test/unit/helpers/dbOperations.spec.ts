@@ -1,11 +1,11 @@
+import { Models } from '@dbModels'
+import Logger from '@logger'
+import DbOperation from '@models/utils/dbOperations'
+import DbTx from '@modules/dbTx'
+import { FakeMember } from '@test/mock/fakeMember'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import DbOperation from '@models/utils/dbOperations'
-import { expect } from 'chai'
-import { Models } from '@dbModels'
-import { FakeMember } from '@test/mock/fakeMember'
-import Logger from '@logger'
-import DbTx from '@modules/dbTx'
 
 const llo = (obj: any) => obj
 

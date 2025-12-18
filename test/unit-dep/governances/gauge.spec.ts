@@ -1,12 +1,12 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
-import { Models } from '@dbModels'
-import { expect } from 'chai'
 import GaugeController from '@api/controllers/gauge'
+import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { GaugeInfo } from '@services/aragon-gateway/gauge'
 import { LibUtils } from '@test/lib/unit-dep/lib'
+import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Integ: Gauge', () => {
   let sandbox: SinonSandbox

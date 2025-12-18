@@ -1,8 +1,8 @@
+import { PrometheusStore } from '@modules/prometheusStore'
+import MetricsAdminController from '@services/aragon-admin-api/controllers/metrics'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import MetricsAdminController from '@services/aragon-admin-api/controllers/metrics'
-import { PrometheusStore } from '@modules/prometheusStore'
 
 describe('Controller: MetricsAdmin', () => {
   let sandbox: SinonSandbox

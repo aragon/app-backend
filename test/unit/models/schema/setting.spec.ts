@@ -1,10 +1,10 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import Setting from '@models/schema/setting'
 import { Models } from '@dbModels'
+import Setting from '@models/schema/setting'
 import { fakeSettings } from '@test/mock/fakeSettings'
 import { IPluginInterfaceType, IPluginStatus, ISettingStatus, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Model: Setting', () => {
   let sandbox: SinonSandbox

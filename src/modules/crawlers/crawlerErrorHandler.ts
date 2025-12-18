@@ -1,7 +1,7 @@
-import logger from '@logger'
 import config from '@config'
 import utils from '@helpers/utils'
-import { CrawlerErrorType, type IErrorHandlerConfig, type IErrorAnalysis } from '@types'
+import logger from '@logger'
+import { CrawlerErrorType, type IErrorAnalysis, type IErrorHandlerConfig } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:CrawlerErrorHandler' })
 

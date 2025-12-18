@@ -1,7 +1,7 @@
+import EnsHelper from '@helpers/ens'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import EnsHelper from '@helpers/ens'
 
 describe('Integ: EnsHelper', () => {
   let sandbox: SinonSandbox

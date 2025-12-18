@@ -1,11 +1,12 @@
-import ProviderModule from '@modules/provider'
 import { Models } from '@dbModels'
-import sinon from 'sinon'
-import Web3Helper from '@helpers/web3'
-import { NetworksEnum } from '@types'
-import { BlockchainLogCrawler } from '@modules/crawlers'
-import configIndexer from '@indexer/configIndexer'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import Web3Helper from '@helpers/web3'
+import configIndexer from '@indexer/configIndexer'
+import { BlockchainLogCrawler } from '@modules/crawlers'
+import ProviderModule from '@modules/provider'
+import { NetworksEnum } from '@types'
+import sinon from 'sinon'
+
 describe.skip('ToolsFixSettingIssue', () => {
   before(async () => {
     await ProviderModule.connectToAllNetworks()

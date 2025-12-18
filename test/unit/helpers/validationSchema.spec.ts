@@ -1,12 +1,12 @@
-import * as sinon from 'sinon'
-import { expect } from 'chai'
-import ValidationSchema, { RequireRules } from '@helpers/validationSchema'
-import Joi from 'joi'
-import { ErrorKeyEnum, NetworksEnum } from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
 import dayjs from '@helpers/dayjs'
 import Utils from '@helpers/utils'
+import ValidationSchema, { RequireRules } from '@helpers/validationSchema'
 import ModelUtils from '@models/utils/models'
+import { ErrorKeyEnum, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import Joi from 'joi'
+import * as sinon from 'sinon'
 
 describe('Helpers:ValidationSchema', () => {
   let sandbox: any

@@ -1,6 +1,6 @@
-import Bottleneck from 'bottleneck'
 import config from '@config'
 import { type NetworksEnum } from '@types'
+import Bottleneck from 'bottleneck'
 
 class BottleneckModule {
   static nodeLimiters: { [key in NetworksEnum]?: Bottleneck } = {}

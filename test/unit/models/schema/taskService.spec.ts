@@ -1,9 +1,9 @@
+import { Models } from '@dbModels'
+import dayjs from '@helpers/dayjs'
+import TaskService from '@models/schema/taskService'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { Models } from '@dbModels'
-import TaskService from '@models/schema/taskService'
-import dayjs from '@helpers/dayjs'
 
 describe('Model: TaskService', () => {
   let sandbox: SinonSandbox

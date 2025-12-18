@@ -1,8 +1,8 @@
-import Koa from 'koa'
-import MainMiddleware from '@middlewares/index'
-import logger from '@logger'
-import config from '@config'
 import MainAdminRouter from '@admin-api/routers/index'
+import config from '@config'
+import logger from '@logger'
+import MainMiddleware from '@middlewares/index'
+import Koa from 'koa'
 
 const llo = logger.logMeta.bind(null, { service: 'admin-api' })
 
