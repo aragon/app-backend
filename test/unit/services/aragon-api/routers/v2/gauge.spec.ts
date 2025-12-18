@@ -1,10 +1,10 @@
+import GaugeController from '@api/controllers/gauge'
+import GaugeRouter from '@api/routers/v2/gauge'
+import Router from '@koa/router'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import GaugeRouter from '@api/routers/v2/gauge'
-import GaugeController from '@api/controllers/gauge'
-import { NetworksEnum } from '@types'
-import Router from '@koa/router'
 
 describe('RouterV2: Gauge', () => {
   let sandbox: SinonSandbox

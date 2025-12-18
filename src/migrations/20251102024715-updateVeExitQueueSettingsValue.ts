@@ -1,7 +1,7 @@
-import { type IMigration, IPluginInterfaceType, ISettingStatus, NetworksEnum } from '@types'
-import logger from '@logger'
 import { Models } from '@dbModels'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
+import logger from '@logger'
+import { type IMigration, IPluginInterfaceType, ISettingStatus, NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: updateVeExitQueueSettingsValue' })
 

@@ -1,18 +1,21 @@
+import config from '@config'
+import utils from '@helpers/utils'
+import logger from '@logger'
 import {
+  AlchemyNetwork,
+  alchemyNetworkToUrl,
+  DrpcNetwork,
+  drpcNetworkToUrl,
+  type IAlchemyConfig,
   type IAragonNodeConfig,
   type IConnectionType,
-  type IAlchemyConfig,
   type IDrpcConfig,
   type IProviderProxy,
   IProviderType,
   type IRawNodeConfig,
   NetworksEnum,
 } from '@types'
-import { JsonRpcProvider, FetchRequest } from 'ethers'
-import { AlchemyNetwork, alchemyNetworkToUrl, DrpcNetwork, drpcNetworkToUrl } from '@types'
-import config from '@config'
-import logger from '@logger'
-import utils from '@helpers/utils'
+import { FetchRequest, JsonRpcProvider } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:Provider' })
 

@@ -1,13 +1,13 @@
+import { Models } from '@dbModels'
+import CoinGeckoHelper from '@helpers/coinGecko'
+import TokenDetector from '@helpers/tokenDetector'
+import ProviderModule from '@modules/provider'
+import ProxyWeb3Provider from '@modules/proxyProvider'
+import { ProxyToken } from '@modules/proxyToken'
+import { ITokenType, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import ProviderModule from '@modules/provider'
-import { ITokenType, NetworksEnum } from '@types'
-import { ProxyToken } from '@modules/proxyToken'
-import TokenDetector from '@helpers/tokenDetector'
-import CoinGeckoHelper from '@helpers/coinGecko'
-import { Models } from '@dbModels'
-import { expect } from 'chai'
-import ProxyWeb3Provider from '@modules/proxyProvider'
 
 describe('Manual: Token', () => {
   let sandbox: SinonSandbox

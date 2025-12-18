@@ -1,14 +1,14 @@
+import config from '@config'
+import ConfigIndexerHelper from '@helpers/configIndexer'
+import { NetworkHelper } from '@helpers/network'
+import utils from '@helpers/utils'
+import logger from '@logger'
+import { TransferIndexer } from '@services/aragon-transfers/transferIndexer'
+import { TaskSchedulerState } from '@state/taskSchedulerState'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { TransferIndexer } from '@services/aragon-transfers/transferIndexer'
-import logger from '@logger'
-import { TaskSchedulerState } from '@state/taskSchedulerState'
-import { NetworkHelper } from '@helpers/network'
-import ConfigIndexerHelper from '@helpers/configIndexer'
-import config from '@config'
-import utils from '@helpers/utils'
-import { NetworksEnum } from '@types'
 
 describe('AragonTransfers: transferIndexer', () => {
   let sandbox: SinonSandbox

@@ -1,7 +1,7 @@
 import { Models } from '@dbModels'
 import logger from '@logger'
-import { EnumConnection, NetworksEnum } from '@src/types'
 import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
+import { EnumConnection, NetworksEnum } from '@src/types'
 
 const llo = logger.logMeta.bind(null, { service: 'Tools: FixBrokenTx' })
 

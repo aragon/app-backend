@@ -1,9 +1,9 @@
-import { EnumConnection, type IService } from '@types'
 import { Models } from '@dbModels'
-import type Member from '@models/schema/member'
-import logger from '@logger'
 import EnsHelper from '@helpers/ens'
+import logger from '@logger'
+import type Member from '@models/schema/member'
 import DbTx from '@modules/dbTx'
+import { EnumConnection, type IService } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'Tools: ToolsEnsFetch' })
 

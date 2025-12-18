@@ -1,9 +1,9 @@
+import config from '@config'
+import JwtHelper from '@helpers/jwt'
+import { expect } from 'chai'
+import jwt, { JwtPayload } from 'jsonwebtoken'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import JwtHelper from '@helpers/jwt'
-import jwt, { JwtPayload } from 'jsonwebtoken'
-import config from '@config'
 
 describe('Helpers: JwtHelper', () => {
   let sandbox: SinonSandbox

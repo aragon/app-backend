@@ -1,10 +1,10 @@
+import Device from '@helpers/device'
+import Logger from '@logger'
+import logger from '@logger'
+import LoggerMiddleware from '@middlewares/logger'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import LoggerMiddleware from '@middlewares/logger'
-import Logger from '@logger'
-import Device from '@helpers/device'
-import logger from '@logger'
 
 describe('middlewares: logger', () => {
   let sandbox: SinonSandbox

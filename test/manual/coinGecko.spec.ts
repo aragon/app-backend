@@ -1,7 +1,7 @@
+import CoinGeckoHelper from '@helpers/coinGecko'
+import { NetworksEnum } from '@types'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { NetworksEnum } from '@types'
-import CoinGeckoHelper from '@helpers/coinGecko'
 
 describe('Manual: CoinGecko', () => {
   let sandbox: SinonSandbox

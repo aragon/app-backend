@@ -1,10 +1,10 @@
-import logger from '@logger'
-import axios from 'axios'
 import config from '@config'
-import { type NetworksEnum } from '@types'
 import { retryRequest } from '@helpers/retryRequest'
+import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
+import { type NetworksEnum } from '@types'
+import axios from 'axios'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:RouteScanHelper' })
 

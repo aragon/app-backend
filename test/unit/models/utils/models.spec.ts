@@ -1,10 +1,10 @@
+import dayjs from '@helpers/dayjs'
+import ModelUtils, { utcDateProp } from '@models/utils/models'
+import { getModelForClass } from '@typegoose/typegoose'
+import { expect } from 'chai'
+import { getAddress } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import ModelUtils, { utcDateProp } from '@models/utils/models'
-import dayjs from '@helpers/dayjs'
-import { getAddress } from 'ethers'
-import { getModelForClass } from '@typegoose/typegoose'
 
 describe('Model/Utils: models', () => {
   let sandbox: SinonSandbox

@@ -1,9 +1,9 @@
+import TooBusyMonitor from '@helpers/monitoring'
+import logger from '@logger'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import TooBusyMonitor from '@helpers/monitoring'
 import Toobusy from 'toobusy-js'
-import logger from '@logger'
 
 describe('Helpers: Monitoring', () => {
   let sandbox: SinonSandbox

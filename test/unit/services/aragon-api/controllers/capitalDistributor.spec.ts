@@ -1,11 +1,11 @@
+import { Models } from '@dbModels'
+import * as errors from '@errors'
+import CapitalDistributorController from '@services/aragon-api/controllers/capitalDistributor'
+import { MemberGovernanceFactory } from '@src/governance'
+import { ErrorKeyEnum, HexAddress, IClaimStat, IPluginInterfaceType, IUserCampaignStatus, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import CapitalDistributorController from '@services/aragon-api/controllers/capitalDistributor'
-import { ErrorKeyEnum, NetworksEnum, HexAddress, IClaimStat, IUserCampaignStatus, IPluginInterfaceType } from '@types'
-import { Models } from '@dbModels'
-import { MemberGovernanceFactory } from '@src/governance'
-import * as errors from '@errors'
 
 describe('Controller: CapitalDistributor', () => {
   let sandbox: SinonSandbox

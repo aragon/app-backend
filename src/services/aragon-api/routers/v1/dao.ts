@@ -1,11 +1,11 @@
-import Router, { type RouterContext } from '@koa/router'
 import DaoController from '@api/controllers/dao'
-import ValidationSchema from '@helpers/validationSchema'
-import ModelUtils from '@models/utils/models'
 import DaoSchema from '@api/routers/schema/dao'
-import { type HexAddress, type IDaoExtraParams, type NetworksEnum } from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
 import Utils from '@helpers/utils'
+import ValidationSchema from '@helpers/validationSchema'
+import Router, { type RouterContext } from '@koa/router'
+import ModelUtils from '@models/utils/models'
+import { type HexAddress, type IDaoExtraParams, type NetworksEnum } from '@types'
 
 const DaoRouter = {
   getWithPagination: async function (ctx: RouterContext) {

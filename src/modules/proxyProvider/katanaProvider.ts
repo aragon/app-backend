@@ -1,6 +1,6 @@
-import { type IWeb3Provider } from '@types'
-import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
+import { EvmExplorerEnum, evmExplorerClient } from '@helpers/evmExplorerClient'
 import ProxyUtils from '@modules/proxyProvider/utils'
+import { type IWeb3Provider } from '@types'
 
 const KatanaProvider: Pick<IWeb3Provider, 'getTokenBalances'> = {
   getTokenBalances: async ({ address, network }) => {

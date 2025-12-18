@@ -1,11 +1,11 @@
-import sinon from 'sinon'
 import { Models } from '@dbModels'
-import Web3Helper from '@helpers/web3'
-import { NetworksEnum } from '@types'
-import { expect } from 'chai'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import Web3Helper from '@helpers/web3'
 import { LogSelectorPermission } from '@plugins/logSelectorPermission'
 import { LibUtils } from '@test/lib/unit-dep/lib'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import sinon from 'sinon'
 
 describe('Integ: ExecuteSelector', () => {
   let sandbox: sinon.SinonSandbox

@@ -1,12 +1,12 @@
-import { EnumQueueName, type IMigration, IPluginInterfaceType } from '@types'
-import logger from '@logger'
 import { Models } from '@dbModels'
-import type Plugin from '@models/schema/plugin'
-import utils from '@helpers/utils'
-import GaugeHelper from '@helpers/gauge'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
-import RabbitMQHelper from '@helpers/rabbitMQ'
 import ConfigIndexerHelper from '@helpers/configIndexer'
+import GaugeHelper from '@helpers/gauge'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import utils from '@helpers/utils'
+import logger from '@logger'
+import type Plugin from '@models/schema/plugin'
+import { EnumQueueName, type IMigration, IPluginInterfaceType } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: resetGauges' })
 

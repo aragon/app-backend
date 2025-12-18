@@ -1,9 +1,9 @@
-import { EnumConnection, type IService } from '@types'
-import ProviderModule from '@modules/provider'
-import logger from '@logger'
 import { Models } from '@dbModels'
+import logger from '@logger'
 import type Proposal from '@models/schema/proposal'
 import DbOperations from '@models/utils/dbOperations'
+import ProviderModule from '@modules/provider'
+import { EnumConnection, type IService } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'tools:fixSettingIssue' })
 

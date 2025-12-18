@@ -1,10 +1,10 @@
-import Router, { type RouterContext } from '@koa/router'
-import ValidationSchema from '@helpers/validationSchema'
-import GenericSchema from '@admin-api/routers/schema/generic'
 import QueueAdminController from '@admin-api/controllers/queue'
+import GenericSchema from '@admin-api/routers/schema/generic'
+import Utils from '@helpers/utils'
+import ValidationSchema from '@helpers/validationSchema'
+import Router, { type RouterContext } from '@koa/router'
 import AuthMiddleware from '@middlewares/auth'
 import { type IAQueueDao, type IAQueueProposal, type NetworksEnum } from '@types'
-import Utils from '@helpers/utils'
 
 const QueueAdminRouter = {
   queueDaoPlugins: async function (ctx: RouterContext) {

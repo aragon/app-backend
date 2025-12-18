@@ -1,7 +1,7 @@
+import { ConfigEvents, ConfigState } from '@state/configState'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { ConfigState, ConfigEvents } from '@state/configState'
 
 describe('State: ConfigState', () => {
   let sandbox: SinonSandbox

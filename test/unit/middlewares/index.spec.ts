@@ -1,12 +1,12 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import Koa from 'koa'
-import supertest from 'supertest'
-import MainMiddleware from '@src/middlewares'
 import MainRouter from '@api/routers'
 import JwtHelper from '@helpers/jwt'
+import MainMiddleware from '@src/middlewares'
 import { ErrorKeyEnum } from '@types'
+import { expect } from 'chai'
+import Koa from 'koa'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
+import supertest from 'supertest'
 
 describe('Middleware: Main', () => {
   let sandbox: SinonSandbox

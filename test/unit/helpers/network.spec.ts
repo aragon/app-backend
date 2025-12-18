@@ -1,11 +1,10 @@
-import sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { NetworkHelper } from '@helpers/network'
-import { NetworksEnum } from '@types'
-import ProviderModule from '@modules/provider'
 import config from '@config'
+import { NetworkHelper } from '@helpers/network'
 import utils from '@helpers/utils'
+import ProviderModule from '@modules/provider'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import sinon, { SinonSandbox } from 'sinon'
 
 describe('Helpers: Network', () => {
   let sandbox: SinonSandbox

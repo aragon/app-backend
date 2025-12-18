@@ -1,11 +1,11 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import mongoose from 'mongoose'
-import veLockerMigration from '@src/migrations/20250820095946-veLocker'
-import { IPluginInterfaceType, IPluginStatus, ITokenType, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
+import veLockerMigration from '@src/migrations/20250820095946-veLocker'
+import { IPluginInterfaceType, IPluginStatus, ITokenType, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import mongoose from 'mongoose'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 import MockVeLockerData from './mockData/mockVeLocker.json'
 
 describe('migration: veLocker', () => {

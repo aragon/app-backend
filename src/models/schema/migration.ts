@@ -1,9 +1,9 @@
+import { assert } from '@errors'
+import { utcDateProp } from '@models/utils/models'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { ICollectionNames, IMigrationStatus } from '@types'
-import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
-import { utcDateProp } from '@models/utils/models'
-import { assert } from '@errors'
+import { Model, type SaveOptions } from 'mongoose'
 
 const customName = ICollectionNames.Migration
 

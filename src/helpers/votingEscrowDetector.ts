@@ -1,9 +1,9 @@
-import { keccak256, ZeroAddress } from 'ethers'
-import { type IVotingEscrowInfo, type NetworksEnum } from '@types'
 import ProxyContractHelper from '@helpers/proxyContract'
-import ProviderModule from '@modules/provider'
-import logger from '@logger'
 import utils from '@helpers/utils'
+import logger from '@logger'
+import ProviderModule from '@modules/provider'
+import { type IVotingEscrowInfo, type NetworksEnum } from '@types'
+import { keccak256, ZeroAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helper:VotingEscrowDetector' })
 

@@ -1,6 +1,6 @@
-import { type IMigration, ITransactionType, NetworksEnum } from '@types'
-import logger from '@logger'
 import { Models } from '@dbModels'
+import logger from '@logger'
+import { type IMigration, ITransactionType, NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: rm-duplicate-transaction-zksync' })
 

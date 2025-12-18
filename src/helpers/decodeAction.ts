@@ -1,9 +1,39 @@
-import logger from '@logger'
-import { ethers, FunctionFragment, hexlify, Interface } from 'ethers'
+import { ERC20 } from '@artifacts/ERC20'
+import { ERC721 } from '@artifacts/ERC721'
+import { ERC1155 } from '@artifacts/ERC1155'
+import { IERC20MintableUpgradeable } from '@artifacts/IERC20MintableUpgradeable'
+import { MajorityVotingBase } from '@artifacts/MajorityVotingBase'
+import { Models } from '@dbModels'
 import FourByte from '@helpers/4byte'
+import CoinGeckoHelper from '@helpers/coinGecko'
+import * as ContractNetspecHelper from '@helpers/contractNetspec'
+import ProxyContract from '@helpers/proxyContract'
+import Utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
-import type Proposal from '@models/schema/proposal'
+import Web3Utils from '@helpers/web3Utils'
+import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
+import type Proposal from '@models/schema/proposal'
+import type Token from '@models/schema/token'
+import ProxyWeb3Provider from '@modules/proxyProvider'
+import { ProxyToken } from '@modules/proxyToken'
+import {
+  AddresslistVoting,
+  DAO,
+  DAOFactory,
+  DAORegistry,
+  GoveranceERC20,
+  MultiSigSetup,
+  Multisig,
+  PluginRepo,
+  PluginRepoFactory,
+  PluginRepoRegistry,
+  StagedProposalProcessor,
+  TokenVoting,
+} from '@src/aragonContracts'
+import { MemberGovernanceFactory } from '@src/governance'
+import IPFSModule from '@src/modules/ipfs'
+import { ProposalActionType } from '@src/types'
 import {
   type HexAddress,
   IPluginInterfaceType,
@@ -14,39 +44,8 @@ import {
   KnownActionSignature,
   type NetworksEnum,
 } from '@types'
-import { ProposalActionType } from '@src/types'
-import { Models } from '@dbModels'
-import * as ContractNetspecHelper from '@helpers/contractNetspec'
-import ProxyContract from '@helpers/proxyContract'
-import { ProxyToken } from '@modules/proxyToken'
-import CoinGeckoHelper from '@helpers/coinGecko'
-import IPFSModule from '@src/modules/ipfs'
+import { ethers, FunctionFragment, hexlify, Interface } from 'ethers'
 
-import {
-  AddresslistVoting,
-  DAO,
-  DAOFactory,
-  DAORegistry,
-  GoveranceERC20,
-  Multisig,
-  MultiSigSetup,
-  PluginRepo,
-  PluginRepoFactory,
-  PluginRepoRegistry,
-  TokenVoting,
-  StagedProposalProcessor,
-} from '@src/aragonContracts'
-
-import { MajorityVotingBase } from '@artifacts/MajorityVotingBase'
-import { IERC20MintableUpgradeable } from '@artifacts/IERC20MintableUpgradeable'
-import { ERC20 } from '@artifacts/ERC20'
-import { ERC721 } from '@artifacts/ERC721'
-import { ERC1155 } from '@artifacts/ERC1155'
-import Utils from '@helpers/utils'
-import { MemberGovernanceFactory } from '@src/governance'
-import Web3Utils from '@helpers/web3Utils'
-import ProxyWeb3Provider from '@modules/proxyProvider'
-import type Token from '@models/schema/token'
 const llo = logger.logMeta.bind(null, { service: 'helpers:DecodeActions' })
 
 interface Signature {
@@ -409,7 +408,7 @@ class DecodeActions {
         proposedMetadata,
         existingMetadata: _existingMetadata,
       }
-    } catch (e) {
+    } catch (_e) {
       return null
     }
   }
@@ -622,7 +621,7 @@ class DecodeActions {
           }),
         }
       })
-    } catch (e) {
+    } catch (_e) {
       stages = []
     }
 
@@ -695,7 +694,7 @@ class DecodeActions {
         inputData: decodedData,
         gaugeMetadata,
       }
-    } catch (e) {
+    } catch (_e) {
       return null
     }
   }
@@ -718,7 +717,7 @@ class DecodeActions {
         inputData: decodedData,
         gaugeMetadata,
       }
-    } catch (e) {
+    } catch (_e) {
       return null
     }
   }
@@ -741,7 +740,7 @@ class DecodeActions {
         inputData: decodedData,
         gaugeMetadata,
       }
-    } catch (e) {
+    } catch (_e) {
       return null
     }
   }

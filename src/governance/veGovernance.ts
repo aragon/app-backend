@@ -1,25 +1,25 @@
-import { BaseGovernance } from './baseGovernance'
 import { Models } from '@dbModels'
+import { assertExposable } from '@errors'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import utils from '@helpers/utils'
+import Web3Utils from '@helpers/web3Utils'
+import logger from '@logger'
+import type Lock from '@models/schema/lock'
+import type Plugin from '@models/schema/plugin'
+import DbTx from '@modules/dbTx'
 import {
-  type HexAddress,
-  type IGovernanceParamsOpts,
-  type NetworksEnum,
-  type IPaginationParams,
-  type IPaginatedResult,
-  type IMembersResponse,
-  type IMemberExtraParams,
   EnumQueueName,
   ErrorKeyEnum,
+  type HexAddress,
+  type IGovernanceParamsOpts,
+  type IMemberExtraParams,
+  type IMembersResponse,
+  type IPaginatedResult,
+  type IPaginationParams,
+  type NetworksEnum,
 } from '@types'
-import type Lock from '@models/schema/lock'
-import Web3Utils from '@helpers/web3Utils'
-import DbTx from '@modules/dbTx'
-import logger from '@logger'
 import { type ClientSession } from 'mongoose'
-import type Plugin from '@models/schema/plugin'
-import utils from '@helpers/utils'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import { assertExposable } from '@errors'
+import { BaseGovernance } from './baseGovernance'
 
 /**
  * VE governance implementation using a Lock model.

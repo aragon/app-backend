@@ -1,12 +1,12 @@
-import * as sinon from 'sinon'
-import { expect } from 'chai'
-import { Erc721TransferProcessor } from '@transfers'
 import { Models } from '@dbModels'
+import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
-import Web3Helper from '@helpers/web3'
 import { ProxyToken } from '@modules/proxyToken'
-import { ITransactionType, ITransactionSide, NetworksEnum, ITokenType } from '@types'
+import { Erc721TransferProcessor } from '@transfers'
+import { ITokenType, ITransactionSide, ITransactionType, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
 
 describe('Transfers: Erc721TransferProcessor', () => {
   let sandbox: sinon.SinonSandbox

@@ -1,6 +1,7 @@
 // src/services/aragon-api/routers/index.ts
-import Router from '@koa/router'
+
 import StatusRouter from '@api/status'
+import Router from '@koa/router'
 import V1Router from './v1'
 import V2Router from './v2'
 

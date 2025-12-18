@@ -1,7 +1,7 @@
-import Router, { type RouterContext } from '@koa/router'
 import ContractController from '@api/controllers/contract'
-import ValidationSchema from '@helpers/validationSchema'
 import ContractDetailsSchema from '@api/routers/schema/contract'
+import ValidationSchema from '@helpers/validationSchema'
+import Router, { type RouterContext } from '@koa/router'
 
 const ContractRouter = {
   async getDetails(ctx: RouterContext) {

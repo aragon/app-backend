@@ -1,14 +1,14 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { MemberInfo } from '@services/aragon-gateway/memberInfo'
+import { Models } from '@dbModels'
+import GovernanceErc20Helper from '@helpers/governanceErc20'
+import LockToVoteHelper from '@helpers/lockToVoteHelper'
 import Web3Helper from '@helpers/web3'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
-import GovernanceErc20Helper from '@helpers/governanceErc20'
+import { ProxyToken } from '@modules/proxyToken'
+import { MemberInfo } from '@services/aragon-gateway/memberInfo'
 import { IPluginInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
-import { ProxyToken } from '@modules/proxyToken'
-import { Models } from '@dbModels'
-import LockToVoteHelper from '@helpers/lockToVoteHelper'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('AragonDao: memberInfo', () => {
   let sandbox: SinonSandbox

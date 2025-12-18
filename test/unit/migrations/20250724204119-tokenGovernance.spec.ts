@@ -1,12 +1,12 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
 import { Models } from '@dbModels'
-import { expect } from 'chai'
-import tokenGovernanceMigration from '@src/migrations/20250724204119-tokenGovernance'
-import { IClockMode, NetworksEnum, ITokenType } from '@types'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import GovernanceVeHelper from '@helpers/governanceVe'
 import logger from '@logger'
+import tokenGovernanceMigration from '@src/migrations/20250724204119-tokenGovernance'
+import { IClockMode, ITokenType, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('migration: migrateTokenGovernance', () => {
   let sandbox: SinonSandbox

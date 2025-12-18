@@ -1,29 +1,35 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import logger from '@logger'
-import { IEventLogPluginType, ILogInfo, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
-import { beforeEach } from 'mocha'
-import { PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandler'
+import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { Models } from '@dbModels'
-import Web3Helper from '@helpers/web3'
+import { MetadataHandler } from '@handlers/metadataHandler'
 import { PluginHandler } from '@handlers/pluginHandler'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
-import { LogAdmin } from '@plugins/logAdmin'
-import { LogSpp } from '@plugins/logSPP'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import { ProxyToken } from '@modules/proxyToken'
-import { IPluginActionType } from '@types'
-import DbOperations from '@models/utils/dbOperations'
+import { PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandler'
 import GaugeHelper from '@helpers/gauge'
-import { PluginList } from '@test/mock/fakePlugins'
-import { Interface } from 'ethers'
-import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
-import { MetadataHandler } from '@handlers/metadataHandler'
-import Web3Utils from '@helpers/web3Utils'
-import VotingEscrowDetector from '@helpers/votingEscrowDetector'
 import GovernanceVeHelper from '@helpers/governanceVe'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import VotingEscrowDetector from '@helpers/votingEscrowDetector'
+import Web3Helper from '@helpers/web3'
+import Web3Utils from '@helpers/web3Utils'
+import logger from '@logger'
+import DbOperations from '@models/utils/dbOperations'
+import { ProxyToken } from '@modules/proxyToken'
+import { LogAdmin } from '@plugins/logAdmin'
+import { LogSpp } from '@plugins/logSPP'
+import { PluginList } from '@test/mock/fakePlugins'
+import {
+  IEventLogPluginType,
+  ILogInfo,
+  IPluginActionType,
+  IPluginInterfaceType,
+  IPluginStatus,
+  NetworksEnum,
+} from '@types'
+import { expect } from 'chai'
+import { Interface } from 'ethers'
+import { beforeEach } from 'mocha'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Indexer: PluginSetupProcessorHandler', () => {
   let sandbox: SinonSandbox

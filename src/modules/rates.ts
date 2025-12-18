@@ -1,10 +1,10 @@
-import dayjs from '@helpers/dayjs'
-import CoinGeckoHelper from '@helpers/coinGecko'
-import axios from 'axios'
 import config from '@config'
+import CoinGeckoHelper from '@helpers/coinGecko'
+import dayjs from '@helpers/dayjs'
 import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
+import axios from 'axios'
 
 export const RateModule = {
   fetchHistoricalRate: async ({ address, network, symbol, timestamp }) => {

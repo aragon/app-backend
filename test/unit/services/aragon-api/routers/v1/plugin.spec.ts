@@ -1,10 +1,10 @@
+import PluginController from '@api/controllers/plugins'
+import PluginRouter from '@api/routers/v1/plugins'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import { getAddress } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import PluginRouter from '@api/routers/v1/plugins'
-import PluginController from '@api/controllers/plugins'
-import { NetworksEnum } from '@types'
-import { getAddress } from 'ethers'
 
 describe('RouterV1: Plugin', () => {
   let sandbox: SinonSandbox

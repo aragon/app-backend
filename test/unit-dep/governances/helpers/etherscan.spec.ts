@@ -1,9 +1,9 @@
-import { expect } from 'chai'
-import sinon from 'sinon'
-import { NetworksEnum } from '@types'
+import { EvmExplorerEnum, evmExplorerClient } from '@helpers/evmExplorerClient'
 import Utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
-import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import sinon from 'sinon'
 
 describe.skip('Integ: etherscan v2', () => {
   let sandbox: sinon.SinonSandbox

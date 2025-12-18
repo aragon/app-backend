@@ -1,7 +1,7 @@
-import { type IAVisibilityStatusParams } from '@src/types'
 import { Models } from '@dbModels'
-import { ErrorKeyEnum } from '@types'
 import { assertExposable } from '@errors'
+import { type IAVisibilityStatusParams } from '@src/types'
+import { ErrorKeyEnum } from '@types'
 
 const DaoAdminController = {
   setVisibilityStatus: async (params: IAVisibilityStatusParams): Promise<any> => {

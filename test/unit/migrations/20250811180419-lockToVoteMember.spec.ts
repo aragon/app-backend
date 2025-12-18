@@ -1,12 +1,12 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import mongoose from 'mongoose'
-import lockToVoteMemberMigration from '@src/migrations/20250811180419-lockToVoteMember'
-import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import MemberController from '@services/aragon-api/controllers/member'
+import lockToVoteMemberMigration from '@src/migrations/20250811180419-lockToVoteMember'
+import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import mongoose from 'mongoose'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('migration: lockToVoteMember', () => {
   let sandbox: SinonSandbox

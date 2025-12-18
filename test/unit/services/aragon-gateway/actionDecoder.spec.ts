@@ -1,14 +1,14 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { NetworksEnum, ProposalActionType } from '@types'
-import { expect } from 'chai'
-import ActionDecoder from '@services/aragon-gateway/actionDecoder'
+import { Models } from '@dbModels'
+import { ProposalHandler } from '@handlers/proposalHandler'
+import BlockScoutHelper from '@helpers/blockScout'
 import DecodeActions from '@helpers/decodeAction'
 import Web3Helper from '@helpers/web3'
+import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 import { MemberGovernanceFactory } from '@src/governance'
-import { Models } from '@dbModels'
-import BlockScoutHelper from '@helpers/blockScout'
-import { ProposalHandler } from '@handlers/proposalHandler'
+import { NetworksEnum, ProposalActionType } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('AragonDao: actionDecoder', () => {
   let sandbox: SinonSandbox

@@ -1,7 +1,8 @@
-import Router, { type RouterContext } from '@koa/router'
-import ValidationSchema, { RequireRules } from '@helpers/validationSchema'
-import SettingSchema from '@api/routers/schema/setting'
 import SettingController from '@api/controllers/setting'
+import PaginationSchema from '@api/routers/schema/pagination'
+import SettingSchema from '@api/routers/schema/setting'
+import ValidationSchema, { RequireRules } from '@helpers/validationSchema'
+import Router, { type RouterContext } from '@koa/router'
 import {
   type HexAddress,
   type IPaginationParams,
@@ -9,7 +10,6 @@ import {
   type ISettingExtraParams,
   type NetworksEnum,
 } from '@types'
-import PaginationSchema from '@api/routers/schema/pagination'
 
 const SettingRouter = {
   getWithPagination: async function (ctx: RouterContext) {

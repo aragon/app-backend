@@ -1,8 +1,8 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
 import { retry } from '@helpers/fetchRetry'
 import utils from '@helpers/utils'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Helpers: FetchRetry', () => {
   let sandbox: SinonSandbox

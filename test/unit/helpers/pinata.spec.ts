@@ -1,10 +1,10 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
+import config from '@config'
 import PinataHelper from '@helpers/pinata'
-import { expect } from 'chai'
 import utils from '@helpers/utils'
 import logger from '@logger'
-import config from '@config'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Helpers: Pinata', () => {
   let sandbox: SinonSandbox

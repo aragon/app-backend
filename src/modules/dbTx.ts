@@ -1,6 +1,6 @@
-import mongoose, { type ClientSession } from 'mongoose'
-import logger from '@logger'
 import config from '@config'
+import logger from '@logger'
+import mongoose, { type ClientSession } from 'mongoose'
 
 const llo = logger.logMeta.bind(null, { service: 'DbTx' })
 

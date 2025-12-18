@@ -1,3 +1,7 @@
+import { assert } from '@errors'
+import Utils from '@helpers/utils'
+import { AggregationQueryHelper } from '@models/utils/aggregation'
+import ModelUtils from '@models/utils/models'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   type ENS,
@@ -10,12 +14,8 @@ import {
   type IPaginationParams,
   IPluginStatus,
 } from '@types'
-import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
-import { assert } from '@errors'
-import ModelUtils from '@models/utils/models'
-import { AggregationQueryHelper } from '@models/utils/aggregation'
-import Utils from '@helpers/utils'
+import { Model, type SaveOptions } from 'mongoose'
 
 const customName = ICollectionNames.Member
 

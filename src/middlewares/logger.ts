@@ -1,8 +1,8 @@
-import { type Context, type Next } from 'koa'
-import { v4 as uuidv4 } from 'uuid'
 import Device from '@helpers/device'
 import logger from '@logger'
 import { EnumLogLevel } from '@types'
+import { type Context, type Next } from 'koa'
+import { v4 as uuidv4 } from 'uuid'
 
 const llo = logger.logMeta.bind(null, { service: 'api:logger' })
 

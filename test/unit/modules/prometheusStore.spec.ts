@@ -1,10 +1,10 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { PrometheusStore } from '@modules/prometheusStore'
 import { Models } from '@dbModels'
 import Logger from '@logger'
+import { PrometheusStore } from '@modules/prometheusStore'
+import { expect } from 'chai'
 import * as promClient from 'prom-client'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Module: PrometheusStore', () => {
   let sandbox: SinonSandbox

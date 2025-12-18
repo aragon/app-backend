@@ -1,10 +1,10 @@
-import { EnumConnection, IPluginInterfaceType, IPluginStatus } from '@types'
-import { NetworkHelper } from '@helpers/network'
-import DBCrawler from '@models/utils/crawler'
 import { Models } from '@dbModels'
-import logger from '@logger'
-import IntegrityUtil from '@tools/integrityCheck/graphUtil'
+import { NetworkHelper } from '@helpers/network'
 import Utils from '@helpers/utils'
+import logger from '@logger'
+import DBCrawler from '@models/utils/crawler'
+import IntegrityUtil from '@tools/integrityCheck/graphUtil'
+import { EnumConnection, IPluginInterfaceType, IPluginStatus } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'tool:IntegrityToolProposalCheck' })
 export const IntegrityToolProposalCheck: any = {

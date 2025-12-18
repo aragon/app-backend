@@ -1,15 +1,15 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
 import config from '@config'
+import GovernanceErc20Helper from '@helpers/governanceErc20'
+import { NetworkHelper } from '@helpers/network'
+import utils from '@helpers/utils'
+import Web3Helper from '@helpers/web3'
+import Web3BatchHelper from '@helpers/web3BatchHelper'
 import logger from '@logger'
 import { IClockMode, NetworksEnum } from '@types'
-import proxyquire from 'proxyquire'
-import Web3Helper from '@helpers/web3'
-import GovernanceErc20Helper from '@helpers/governanceErc20'
 import { expect } from 'chai'
-import Web3BatchHelper from '@helpers/web3BatchHelper'
-import utils from '@helpers/utils'
-import { NetworkHelper } from '@helpers/network'
+import proxyquire from 'proxyquire'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Helpers: GovernanceErc20', () => {
   let sandbox: SinonSandbox

@@ -1,11 +1,11 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import mongoose from 'mongoose'
-import Mongo from '@modules/mongo'
 import config from '@config'
 import { ModelProxy } from '@dbModels'
 import Logger from '@logger'
+import Mongo from '@modules/mongo'
+import { expect } from 'chai'
+import mongoose from 'mongoose'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 import * as tsRetry from 'ts-retry-promise'
 
 describe('Module: mongo', () => {

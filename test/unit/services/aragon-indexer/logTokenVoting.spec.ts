@@ -1,12 +1,12 @@
+import logger from '@logger'
+import { BlockchainLogCrawler } from '@modules/crawlers'
+import ProviderModule from '@modules/provider'
+import { LogTokenVoting } from '@plugins/logTokenVoting'
+import { UnitTestUtils } from '@test/lib/utils'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import logger from '@logger'
-import { LogTokenVoting } from '@plugins/logTokenVoting'
-import { BlockchainLogCrawler } from '@modules/crawlers'
-import { NetworksEnum } from '@types'
-import { UnitTestUtils } from '@test/lib/utils'
-import ProviderModule from '@modules/provider'
 
 describe('AragonIndexer: LogTokenVoting', () => {
   let sandbox: SinonSandbox

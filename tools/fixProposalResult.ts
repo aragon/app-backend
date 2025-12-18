@@ -1,7 +1,7 @@
-import { EnumConnection, type IService, NetworksEnum } from '@types'
-import { LibUtils } from '@test/lib/unit-dep/lib'
 import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { ProposalHandler } from '@handlers/proposalHandler'
+import { LibUtils } from '@test/lib/unit-dep/lib'
+import { EnumConnection, type IService, NetworksEnum } from '@types'
 
 export const FixProposalResult: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],

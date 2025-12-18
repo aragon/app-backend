@@ -1,6 +1,7 @@
 // @ts-nocheck
-import * as sinon from 'sinon'
+
 import mongoose from 'mongoose'
+import * as sinon from 'sinon'
 
 const MethodTypes = Object.freeze({
   aggregate: 'aggregate',

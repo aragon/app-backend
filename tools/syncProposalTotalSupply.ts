@@ -1,6 +1,6 @@
-import { EnumConnection, type IService } from '@types'
 import { Models } from '@dbModels'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
+import { EnumConnection, type IService } from '@types'
 
 export const SyncProposalTotalSupply: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],

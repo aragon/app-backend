@@ -1,12 +1,12 @@
+import { Models } from '@dbModels'
+import { MultisigHandler } from '@handlers/multisigHandler'
+import logger from '@logger'
+import { MemberGovernanceFactory } from '@src/governance'
+import { IEventLogMember, IEventLogPluginType, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import { beforeEach } from 'mocha'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import logger from '@logger'
-import { IEventLogMember, IEventLogPluginType, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
-import { beforeEach } from 'mocha'
-import { MultisigHandler } from '@handlers/multisigHandler'
-import { Models } from '@dbModels'
-import { MemberGovernanceFactory } from '@src/governance'
 
 describe('Indexer: MultisigHandler', () => {
   let sandbox: SinonSandbox

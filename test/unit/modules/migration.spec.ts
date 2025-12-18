@@ -1,12 +1,12 @@
-import * as sinon from 'sinon'
-import { SinonSandbox, SinonStub } from 'sinon'
-import { expect } from 'chai'
-import * as fs from 'fs'
 import { Models } from '@dbModels'
 import logger from '@logger'
-import { IMigrationStatus } from '@types'
-import proxyquire from 'proxyquire'
 import MongoDB from '@modules/mongo'
+import { IMigrationStatus } from '@types'
+import { expect } from 'chai'
+import * as fs from 'fs'
+import proxyquire from 'proxyquire'
+import * as sinon from 'sinon'
+import { SinonSandbox, SinonStub } from 'sinon'
 
 describe('MigrationService', () => {
   let sandbox: SinonSandbox

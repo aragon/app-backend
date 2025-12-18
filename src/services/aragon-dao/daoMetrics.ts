@@ -1,7 +1,7 @@
-import { type HexAddress, type NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import type Dao from '@models/schema/dao'
+import { type HexAddress, type NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:DaoMetrics' })
 

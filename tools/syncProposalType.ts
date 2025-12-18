@@ -1,10 +1,10 @@
-import { EnumConnection, type IService } from '@types'
-import { Models } from '@dbModels'
-import logger from '@logger'
-import Web3Helper from '@helpers/web3'
 import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
+import { Models } from '@dbModels'
 import utils from '@helpers/utils'
+import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
+import logger from '@logger'
+import { EnumConnection, type IService } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'service:SyncProposalType' })
 
@@ -62,11 +62,10 @@ export const SyncProposalType: IService = {
 
                 await activePluginSetting.save()
 
-                const updatedSettings = await Models.Setting.findActive({
+                const _updatedSettings = await Models.Setting.findActive({
                   network: info.network,
                   pluginAddress: relatedPlugin.address,
                 })
-                console.log('after update:', JSON.stringify(updatedSettings, null, 2)) // eslint-disable-line no-console
               }),
             )
           }

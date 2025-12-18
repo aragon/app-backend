@@ -1,10 +1,10 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import ExecuteSelectorController from '@services/aragon-api/controllers/executeSelector'
 import { Models } from '@dbModels'
 import SelectorPermission from '@models/schema/selectorPermission'
+import ExecuteSelectorController from '@services/aragon-api/controllers/executeSelector'
 import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Controller: ExecuteSelector', () => {
   let sandbox: SinonSandbox

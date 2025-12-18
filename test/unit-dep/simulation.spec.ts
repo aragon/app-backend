@@ -1,10 +1,10 @@
-import { expect } from 'chai'
-import { Models } from '@dbModels'
 import SimulationController from '@api/controllers/simulation'
-import { NetworksEnum } from '@types'
-import * as sinon from 'sinon'
 import config from '@config'
+import { Models } from '@dbModels'
 import logger from '@logger'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
 
 describe('SimulationController', () => {
   let pluginFindStub: sinon.SinonStub

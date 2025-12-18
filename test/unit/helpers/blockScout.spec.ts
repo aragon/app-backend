@@ -1,13 +1,13 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
+import config from '@config'
 import BlockScoutHelper from '@helpers/blockScout'
+import * as retryRequestModule from '@helpers/retryRequest'
+import logger from '@logger'
+import BottleneckModule from '@modules/bottleneck'
 import { ITokenType, NetworksEnum } from '@types'
 import axios from 'axios'
-import logger from '@logger'
-import config from '@config'
-import * as retryRequestModule from '@helpers/retryRequest'
-import BottleneckModule from '@modules/bottleneck'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Helpers: BlockScout', () => {
   let sandbox: SinonSandbox

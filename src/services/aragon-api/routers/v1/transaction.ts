@@ -1,8 +1,10 @@
-import Router, { type RouterContext } from '@koa/router'
-import ValidationSchema from '@helpers/validationSchema'
-import ModelUtils from '@models/utils/models'
-import TransactionSchema from '@api/routers/schema/transaction'
 import TransactionController from '@api/controllers/transaction'
+import PaginationSchema from '@api/routers/schema/pagination'
+import TransactionSchema from '@api/routers/schema/transaction'
+import Utils from '@helpers/utils'
+import ValidationSchema from '@helpers/validationSchema'
+import Router, { type RouterContext } from '@koa/router'
+import ModelUtils from '@models/utils/models'
 import {
   type HexAddress,
   type IPairParams,
@@ -10,8 +12,6 @@ import {
   type ITransactionIndexCheckType,
   type NetworksEnum,
 } from '@types'
-import PaginationSchema from '@api/routers/schema/pagination'
-import Utils from '@helpers/utils'
 
 const TransactionRouter = {
   getWithPagination: async function (ctx: RouterContext) {

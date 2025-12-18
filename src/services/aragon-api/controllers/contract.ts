@@ -1,6 +1,6 @@
-import { type NetworksEnum, EnumQueueName, type IRawAction } from '@types'
-import RabbitMQHelper from '@helpers/rabbitMQ'
 import config from '@config'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import { EnumQueueName, type IRawAction, type NetworksEnum } from '@types'
 
 const ContractController = {
   getContractDetails: async ({ network, address }: { network: NetworksEnum; address: string }) => {
@@ -13,7 +13,7 @@ const ContractController = {
         },
         { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
       )
-    } catch (e) {
+    } catch (_e) {
       return { error: true }
     }
   },
@@ -28,7 +28,7 @@ const ContractController = {
         },
         { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
       )
-    } catch (e) {
+    } catch (_e) {
       return { error: true }
     }
   },

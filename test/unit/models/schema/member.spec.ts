@@ -1,12 +1,12 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import Member from '@models/schema/member'
-import { afterEach, beforeEach } from 'mocha'
-import { expect } from 'chai'
 import { Models } from '@dbModels'
+import Member from '@models/schema/member'
+import ModelUtils from '@models/utils/models'
 import { FakeMember } from '@test/mock/fakeMember'
 import { IPluginInterfaceType, NetworksEnum } from '@types'
-import ModelUtils from '@models/utils/models'
+import { expect } from 'chai'
+import { afterEach, beforeEach } from 'mocha'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Model: Member', () => {
   let sandbox: SinonSandbox

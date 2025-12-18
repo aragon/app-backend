@@ -1,18 +1,18 @@
+import config from '@config'
+import utils from '@helpers/utils'
+import Web3Helper from '@helpers/web3'
+import logger from '@logger'
 import {
   type HexAddress,
+  type ICampaignMetadata,
   type ILogInfo,
   type IMetadata,
   type IProposalMetadata,
-  type NetworksEnum,
-  type ICampaignMetadata,
   type KnownActionSignature,
+  type NetworksEnum,
 } from '@types'
-import { AbiCoder, ethers, getAddress, Interface, type Log, type LogDescription, type TransactionReceipt } from 'ethers'
-import logger from '@logger'
-import config from '@config'
 import BigNumber from 'bignumber.js'
-import utils from '@helpers/utils'
-import Web3Helper from '@helpers/web3'
+import { AbiCoder, ethers, getAddress, Interface, type Log, type LogDescription, type TransactionReceipt } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Utils' })
 
@@ -145,7 +145,7 @@ const Web3Utils = {
   decodeCalldata(decodeABI: string[], calldata: any) {
     try {
       return AbiCoder.defaultAbiCoder().decode(decodeABI, calldata)
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   },

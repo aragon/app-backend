@@ -1,7 +1,15 @@
+export interface NatspecTags {
+  notice?: string
+  param?: Record<string, string>
+  return?: string
+  inheritdoc?: string
+  [key: string]: string | Record<string, string> | undefined
+}
+
 export interface NatspecDetails {
   keyword: string
   name: string
-  tags: Record<string, string | Record<string, string>>
+  tags: NatspecTags
 }
 
 export interface NatspecContract {
@@ -48,11 +56,11 @@ export function scanNatspecBlock(source: string, pos: number, terminator: string
   let nextPos = -1
   let ended = false
   if (terminator) scanMatches.push(terminator)
-  const details = {
+  const details: NatspecDetails = {
     keyword: '',
     name: '',
-    tags: {},
-  } satisfies NatspecDetails
+    tags: {} as NatspecTags,
+  }
 
   let prevPos = pos
   ;[match, pos] = scanFirst(source, pos, ['@', ...scanMatches])
@@ -314,11 +322,11 @@ function detectCompilerFromVersion(compilerVersion: string): CompilerType | null
 }
 
 function scanVyperDocstring(source: string, pos: number): [number, NatspecDetails] {
-  const details = {
+  const details: NatspecDetails = {
     keyword: '',
     name: '',
-    tags: {},
-  } satisfies NatspecDetails
+    tags: {} as NatspecTags,
+  }
 
   // Find the closing """
   const endPos = source.indexOf('"""', pos)
@@ -330,17 +338,17 @@ function scanVyperDocstring(source: string, pos: number): [number, NatspecDetail
   for (const line of lines) {
     const trimmed = line.trim()
     if (trimmed.startsWith('@notice')) {
-      details.tags['notice'] = trimmed.substring(7).trim()
+      details.tags.notice = trimmed.substring(7).trim()
     } else if (trimmed.startsWith('@param')) {
       const parts = trimmed.substring(6).trim().split(' ')
       if (parts.length >= 2) {
         const paramName = parts[0]
         const paramDesc = parts.slice(1).join(' ')
-        if (!details.tags['param']) details.tags['param'] = {}
-        ;(details.tags['param'] as Record<string, string>)[paramName] = paramDesc
+        if (!details.tags.param) details.tags.param = {}
+        ;(details.tags.param as Record<string, string>)[paramName] = paramDesc
       }
     } else if (trimmed.startsWith('@return')) {
-      details.tags['return'] = trimmed.substring(7).trim()
+      details.tags.return = trimmed.substring(7).trim()
     }
   }
 
@@ -348,11 +356,11 @@ function scanVyperDocstring(source: string, pos: number): [number, NatspecDetail
 }
 
 function scanVyperComment(source: string, pos: number): [number, NatspecDetails] {
-  const details = {
+  const details: NatspecDetails = {
     keyword: '',
     name: '',
-    tags: {},
-  } satisfies NatspecDetails
+    tags: {} as NatspecTags,
+  }
 
   // Find end of line
   const endPos = source.indexOf('\n', pos)
@@ -360,14 +368,14 @@ function scanVyperComment(source: string, pos: number): [number, NatspecDetails]
   const comment = source.substring(pos + 2, commentEnd).trim() // Skip "##"
 
   if (comment.startsWith('@notice')) {
-    details.tags['notice'] = comment.substring(7).trim()
+    details.tags.notice = comment.substring(7).trim()
   } else if (comment.startsWith('@param')) {
     const parts = comment.substring(6).trim().split(' ')
     if (parts.length >= 2) {
       const paramName = parts[0]
       const paramDesc = parts.slice(1).join(' ')
-      if (!details.tags['param']) details.tags['param'] = {}
-      ;(details.tags['param'] as Record<string, string>)[paramName] = paramDesc
+      if (!details.tags.param) details.tags.param = {}
+      ;(details.tags.param as Record<string, string>)[paramName] = paramDesc
     }
   }
 
@@ -383,11 +391,11 @@ function extractVyperNatSpec(source: string) {
     tags: {},
     details: {},
   }
-  const natspec = {} satisfies Record<string, NatspecContract>
+  const natspec: Record<string, NatspecContract> = {}
   let natspecDetails: NatspecDetails = {
     keyword: '',
     name: '',
-    tags: {},
+    tags: {} as NatspecTags,
   }
   let newDetails: NatspecDetails
 
@@ -427,7 +435,7 @@ function extractVyperNatSpec(source: string) {
         natspecDetails = {
           keyword: '',
           name: '',
-          tags: {},
+          tags: {} as NatspecTags,
         }
         break
       }
@@ -441,7 +449,7 @@ function extractVyperNatSpec(source: string) {
         natspecDetails = {
           keyword: '',
           name: '',
-          tags: {},
+          tags: {} as NatspecTags,
         }
         break
       }
@@ -459,7 +467,7 @@ function extractVyperNatSpec(source: string) {
         natspecDetails = {
           keyword: '',
           name: '',
-          tags: {},
+          tags: {} as NatspecTags,
         }
         break
       }
@@ -473,7 +481,7 @@ function extractVyperNatSpec(source: string) {
   // If no explicit contract found, create a default one
   if (Object.keys(natspec).length === 0) {
     currentContract.name = 'VyperContract'
-    natspec['VyperContract'] = currentContract
+    natspec.VyperContract = currentContract
   }
 
   return natspec
@@ -489,11 +497,11 @@ function extractSolidityNatSpec(source: string) {
     tags: {},
     details: {},
   }
-  const natspec = {} satisfies Record<string, NatspecContract>
+  const natspec: Record<string, NatspecContract> = {}
   let natspecDetails: NatspecDetails = {
     keyword: '',
     name: '',
-    tags: {},
+    tags: {} as NatspecTags,
   }
   let newDetails: NatspecDetails
 
@@ -551,7 +559,7 @@ function extractSolidityNatSpec(source: string) {
         natspecDetails = {
           keyword: '',
           name: '',
-          tags: {},
+          tags: {} as NatspecTags,
         }
         break
       }
@@ -569,7 +577,7 @@ function extractSolidityNatSpec(source: string) {
         natspecDetails = {
           keyword: '',
           name: '',
-          tags: {},
+          tags: {} as NatspecTags,
         }
         pos = posEnd
         break
@@ -594,10 +602,10 @@ export function collapseNatspec(natspec: Record<string, NatspecContract>, contra
       const superNatspec = collapseNatspec(natspec, superClass)
       collapsed.details = Object.fromEntries(
         Object.entries(collapsed.details).map(([name, details]) => {
-          if (details.tags?.['inheritdoc'] !== undefined) {
-            const inheritDetails = natspec[details.tags?.['inheritdoc'] as string]?.details[name]
+          if (details.tags?.inheritdoc !== undefined) {
+            const inheritDetails = natspec[details.tags?.inheritdoc as string]?.details[name]
             if (inheritDetails !== undefined) {
-              details.tags?.['inheritdoc'] && delete details.tags['inheritdoc']
+              details.tags?.inheritdoc && delete details.tags.inheritdoc
               details.tags = { ...inheritDetails.tags, ...(details.tags || {}) }
             }
           }
@@ -686,7 +694,7 @@ export function parseNetspec(SourceCode: any, ContractName: string, ABI: any, Co
       action.notice = notices[action.name].tags.notice as string
       action.inputs.forEach(
         (input: { notice: string; name: string | number }) =>
-          (input.notice = (notices[action.name].tags['param'] as Record<string, string>)?.[input.name]),
+          (input.notice = (notices[action.name].tags.param as Record<string, string>)?.[input.name]),
       )
     }
 

@@ -1,14 +1,14 @@
 import '@test/environment'
+import { Models } from '@dbModels'
+import EnsHelper from '@helpers/ens'
+import Web3Utils from '@helpers/web3Utils'
+import Logger from '@logger'
+import DbTx from '@modules/dbTx'
+import { LockToVoteGovernance } from '@src/governance/lockToVoteGovernance'
+import { type HexAddress, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { Models } from '@dbModels'
-import Logger from '@logger'
-import { LockToVoteGovernance } from '@src/governance/lockToVoteGovernance'
-import EnsHelper from '@helpers/ens'
-import { NetworksEnum, type HexAddress, IPluginInterfaceType, IPluginStatus } from '@types'
-import Web3Utils from '@helpers/web3Utils'
-import DbTx from '@modules/dbTx'
 
 describe('Governance:LockToVoteGovernance', () => {
   let sandbox: SinonSandbox

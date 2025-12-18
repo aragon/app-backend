@@ -1,6 +1,6 @@
-import { EnumConnection, type IService, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import { NetworkHelper } from '@helpers/network'
+import { EnumConnection, type IService, NetworksEnum } from '@types'
 
 export const RevertDbAtBlock: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
@@ -17,7 +17,6 @@ export const RevertDbAtBlock: IService = {
       networks.map(async ({ networkName }) => {
         const atBlockNumber = config[networkName]
         if (!atBlockNumber) {
-          console.log(`No blockNumber configured for ${networkName}. Skipping.`) // eslint-disable-line no-console
           return
         }
 
@@ -27,7 +26,6 @@ export const RevertDbAtBlock: IService = {
             if (model.deleteMany) {
               const hasBlockNumberField = await model.exists({ blockNumber: { $exists: true } })
               if (!hasBlockNumberField) {
-                console.log(`Model ${modelName} does not have a blockNumber field. Skipping.`) // eslint-disable-line no-console
                 return
               }
 
@@ -36,11 +34,8 @@ export const RevertDbAtBlock: IService = {
                   network: networkName,
                   blockNumber: { $gt: atBlockNumber },
                 })
-                const msg = `Deleted ${result.deletedCount} documents in model ${modelName} for ${networkName} with blockNumber > ${atBlockNumber}`
-                console.log(msg) // eslint-disable-line no-console
-              } catch (err) {
-                console.error(`Error deleting documents in model ${modelName} for ${networkName}:`, err) // eslint-disable-line no-console
-              }
+                const _msg = `Deleted ${result.deletedCount} documents in model ${modelName} for ${networkName} with blockNumber > ${atBlockNumber}`
+              } catch (_err) {}
             }
           }),
         )
@@ -51,11 +46,8 @@ export const RevertDbAtBlock: IService = {
             { network: networkName },
             { $set: { lastSync: atBlockNumber } },
           )
-          const msg = `Updated lastSync to ${atBlockNumber} in ConfigIndexer for ${networkName}, matched ${updateResult.matchedCount}, modified ${updateResult.modifiedCount}`
-          console.log(msg) // eslint-disable-line no-console
-        } catch (err) {
-          console.error(`Error updating lastSync in ConfigIndexer for ${networkName}:`, err) // eslint-disable-line no-console
-        }
+          const _msg = `Updated lastSync to ${atBlockNumber} in ConfigIndexer for ${networkName}, matched ${updateResult.matchedCount}, modified ${updateResult.modifiedCount}`
+        } catch (_err) {}
       }),
     )
   },

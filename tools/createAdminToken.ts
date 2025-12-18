@@ -1,6 +1,6 @@
-import { EnumConnection, IJwtTokenType, type IService } from '@types'
-import AuthMiddleware from '@middlewares/auth'
 import logger from '@logger'
+import AuthMiddleware from '@middlewares/auth'
+import { EnumConnection, IJwtTokenType, type IService } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'tool:CreateAdminToken' })
 

@@ -1,10 +1,10 @@
+import { Models } from '@dbModels'
+import Proposal from '@models/schema/proposal'
+import { ProposalList } from '@test/mock/fakeProposal'
+import { expect } from 'chai'
+import { beforeEach } from 'mocha'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import Proposal from '@models/schema/proposal'
-import { Models } from '@dbModels'
-import { beforeEach } from 'mocha'
-import { ProposalList } from '@test/mock/fakeProposal'
 
 describe('Model: Proposal', () => {
   let sandbox: SinonSandbox

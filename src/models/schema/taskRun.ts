@@ -1,7 +1,7 @@
 import { index, modelOptions, prop, Severity } from '@typegoose/typegoose'
-import { Model, type SaveOptions, Schema } from 'mongoose'
-import * as _ from 'lodash'
 import { ICollectionNames, IEnumTaskStatus } from '@types'
+import * as _ from 'lodash'
+import { Model, type SaveOptions, Schema } from 'mongoose'
 import { v4 as uuidv4 } from 'uuid'
 
 const customName = ICollectionNames.TaskRun

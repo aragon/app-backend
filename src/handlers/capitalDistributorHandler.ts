@@ -1,12 +1,12 @@
-import logger from '@logger'
-import { type ILogInfo } from '@types'
-import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
+import logger from '@logger'
 import IPFSModule from '@modules/ipfs'
-import { LogCampaignStrategy } from '@services/aragon-plugins/logCampaignStrategy'
 import { ProxyToken } from '@modules/proxyToken'
+import { LogCampaignStrategy } from '@services/aragon-plugins/logCampaignStrategy'
+import { type ILogInfo } from '@types'
+import { type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:CapitalDistributorHandler' })
 

@@ -1,10 +1,10 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import ContractRouter from '@api/routers/v2/contract'
 import ContractController from '@api/controllers/contract'
+import ContractRouter from '@api/routers/v2/contract'
 import ValidationSchema from '@helpers/validationSchema'
 import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('RouterV2: Contract', () => {
   let sandbox: SinonSandbox

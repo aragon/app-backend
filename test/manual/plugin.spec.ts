@@ -1,14 +1,14 @@
+import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
+import { Models } from '@dbModels'
+import { PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandler'
+import Web3Helper from '@helpers/web3'
+import Web3Utils from '@helpers/web3Utils'
+import ProviderModule from '@modules/provider'
+import { ProxyToken } from '@modules/proxyToken'
+import { IEventLogPluginType, NetworksEnum } from '@types'
 import { Interface } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import ProviderModule from '@modules/provider'
-import { IEventLogPluginType, NetworksEnum } from '@types'
-import Web3Helper from '@helpers/web3'
-import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
-import { PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandler'
-import { Models } from '@dbModels'
-import { ProxyToken } from '@modules/proxyToken'
-import Web3Utils from '@helpers/web3Utils'
 
 describe('Manual: Plugin', () => {
   let sandbox: SinonSandbox

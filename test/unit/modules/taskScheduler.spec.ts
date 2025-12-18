@@ -1,13 +1,13 @@
+import { Models } from '@dbModels'
+import dayjs from '@helpers/dayjs'
+import Utils from '@helpers/utils'
+import logger from '@logger'
+import TaskScheduler from '@modules/taskScheduler'
+import { IEnumTaskStatus } from '@types'
+import { expect } from 'chai'
+import * as os from 'os'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import TaskScheduler from '@modules/taskScheduler'
-import Utils from '@helpers/utils'
-import { Models } from '@dbModels'
-import { IEnumTaskStatus } from '@types'
-import logger from '@logger'
-import dayjs from '@helpers/dayjs'
-import * as os from 'os'
 
 describe('Modules: TaskScheduler', () => {
   let sandbox: SinonSandbox

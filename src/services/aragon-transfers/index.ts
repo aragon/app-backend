@@ -1,7 +1,7 @@
-import logger from '@logger'
-import { EnumConnection, EnumServiceName, type IService } from '@types'
 import config from '@config'
+import logger from '@logger'
 import { TransferIndexer } from '@services/aragon-transfers/transferIndexer'
+import { EnumConnection, EnumServiceName, type IService } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'service:AragonTransfers' })
 

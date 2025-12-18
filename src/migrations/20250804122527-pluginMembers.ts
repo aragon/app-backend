@@ -1,9 +1,9 @@
-import { type IMigration, IPluginInterfaceType } from '@types'
+import { Models } from '@dbModels'
 import logger from '@logger'
+import { MemberGovernanceFactory } from '@src/governance'
+import { type IMigration, IPluginInterfaceType } from '@types'
 import mongoose from 'mongoose'
 import * as pLimit from 'p-limit'
-import { MemberGovernanceFactory } from '@src/governance'
-import { Models } from '@dbModels'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: pluginMembers' })
 

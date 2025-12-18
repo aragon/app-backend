@@ -1,9 +1,9 @@
-import logger from '@logger'
-import { IDaoLogs, type IIndexerConfig } from '@types'
-import { BlockchainLogCrawler } from '@modules/crawlers'
-import type Dao from '@models/schema/dao'
-import configIndexer from '@indexer/configIndexer'
 import ConfigIndexerHelper from '@helpers/configIndexer'
+import configIndexer from '@indexer/configIndexer'
+import logger from '@logger'
+import type Dao from '@models/schema/dao'
+import { BlockchainLogCrawler } from '@modules/crawlers'
+import { IDaoLogs, type IIndexerConfig } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogDao' })
 

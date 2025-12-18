@@ -1,11 +1,11 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import ProviderModule from '@modules/provider'
-import { IConnectionType, IProviderType, NetworksEnum } from '@types'
-import { expect } from 'chai'
 import config from '@config'
 import utils from '@helpers/utils'
 import configIndexer from '@indexer/configIndexer'
+import ProviderModule from '@modules/provider'
+import { IConnectionType, IProviderType, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe.skip('Integ: Batch Request', () => {
   let sandbox: SinonSandbox

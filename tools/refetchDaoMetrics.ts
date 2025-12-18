@@ -1,9 +1,9 @@
-import { EnumConnection, type IService } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
-import DBCrawler from '@models/utils/crawler'
 import type Dao from '@models/schema/dao'
+import DBCrawler from '@models/utils/crawler'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
+import { EnumConnection, type IService } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'Tools: DaoMetrics' })
 

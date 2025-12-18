@@ -1,4 +1,10 @@
+import config from '@config'
 import { Models } from '@dbModels'
+import { assertExposable } from '@errors'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import ModelUtils from '@models/utils/models'
+import PairDataModule from '@modules/pairData'
+import { MemberGovernanceFactory } from '@src/governance'
 import {
   EnumQueueName,
   ErrorKeyEnum,
@@ -12,12 +18,6 @@ import {
   type IPairParams,
   type NetworksEnum,
 } from '@types'
-import { assertExposable } from '@errors'
-import PairDataModule from '@modules/pairData'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import config from '@config'
-import { MemberGovernanceFactory } from '@src/governance'
-import ModelUtils from '@models/utils/models'
 
 const MemberController = {
   getMembersWithPagination: async (
@@ -42,7 +42,7 @@ const MemberController = {
         paginationParams,
         extraParams,
       })
-    } catch (error) {
+    } catch (_error) {
       return ModelUtils.paginateEmptyResponse(paginationParams.pageSize!)
     }
   },
@@ -74,7 +74,7 @@ const MemberController = {
         member.tokenBalance = balanceInfo.balance
         member.votingPower = balanceInfo.votingPower
         member.currentDelegate = balanceInfo.currentDelegate
-      } catch (error) {
+      } catch (_error) {
         return member
       }
     }
