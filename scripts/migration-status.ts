@@ -14,8 +14,30 @@ async function showMigrationStatus() {
     // Get migration status
     const status = await MigrationService.getMigrationStatus()
 
+    // biome-ignore lint/suspicious/noConsole: CLI script output
+    console.log('\n📊 Migration Status:')
+    // biome-ignore lint/suspicious/noConsole: CLI script output
+    console.log('─'.repeat(40))
+    // biome-ignore lint/suspicious/noConsole: CLI script output
+    console.log(`Total migrations:     ${status.total}`)
+    // biome-ignore lint/suspicious/noConsole: CLI script output
+    console.log(`✅ Completed:         ${status.completed}`)
+    // biome-ignore lint/suspicious/noConsole: CLI script output
+    console.log(`❌ Failed:            ${status.failed}`)
+    // biome-ignore lint/suspicious/noConsole: CLI script output
+    console.log(`⏳ Pending:           ${status.pending}`)
+
     if (status.lastExecuted) {
+      // biome-ignore lint/suspicious/noConsole: CLI script output
+      console.log('\n📅 Last executed:')
+      // biome-ignore lint/suspicious/noConsole: CLI script output
+      console.log(`   ${status.lastExecuted.filename}`)
+      // biome-ignore lint/suspicious/noConsole: CLI script output
+      console.log(`   ${status.lastExecuted.executedAt.toLocaleString()}`)
     }
+
+    // biome-ignore lint/suspicious/noConsole: CLI script output
+    console.log('─'.repeat(40))
 
     // Close connections
     await Connections.close()

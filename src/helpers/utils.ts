@@ -141,7 +141,11 @@ const Utils = {
     return str.charAt(0).toLowerCase() + str.slice(1)
   },
 
-  defaultError(error: any): void {},
+  defaultError(error: any): void {
+    /* istanbul ignore next */
+    // biome-ignore lint/suspicious/noConsole: Default error handler for debugging
+    console.error(error)
+  },
 
   enumToObject(data: any) {
     return Object.keys(data).reduce((object, key) => {

@@ -24,7 +24,10 @@ export const setMongoModels = async (): Promise<any> => {
     }
   }
 
-  Object.keys(schemas).forEach(_modelName => {})
+  Object.keys(schemas).forEach(modelName => {
+    // biome-ignore lint/suspicious/noConsole: CLI output for debugging model loading
+    console.log('MongoModel', modelName)
+  })
 
   return schemas
 }
