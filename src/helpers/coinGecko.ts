@@ -23,6 +23,7 @@ interface ICoinGeckoTokenResponse {
       total_supply: string
       price_usd: string
       fdv_usd: string
+      coingecko_coin_id: string
       total_reserve_in_usd: string
       volume_usd: {
         h24: string
@@ -195,6 +196,8 @@ const CoinGeckoHelper = {
       priceUsd: token.price_usd || '0',
       lastUpdatedAt: dayjs().toISOString(),
       createdAt: dayjs().toISOString(),
+      coingeckoCoinId: token.coingecko_coin_id,
+      marketCapUsd: token.market_cap_usd || null,
     }
   },
 }

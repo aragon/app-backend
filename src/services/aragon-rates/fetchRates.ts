@@ -192,10 +192,13 @@ export const FetchRates = {
 
       const coingeckoInfo = await CoinGeckoHelper.getToken(token.address, token.network)
 
+      // Only use CoinGecko data if the token is verified (has coingeckoCoinId and marketCapUsd)
+      const isVerified = coingeckoInfo && coingeckoInfo.coingeckoCoinId && coingeckoInfo.marketCapUsd
+
       const rawTokenUpdate: Partial<Token> = {
         totalSupply: (totalSupply ?? token.totalSupply ?? '0').toString(),
-        priceUsd: coingeckoInfo ? coingeckoInfo.priceUsd : token.priceUsd,
-        logo: coingeckoInfo ? coingeckoInfo.logo : token.logo,
+        priceUsd: isVerified ? coingeckoInfo.priceUsd : '0',
+        logo: isVerified ? coingeckoInfo.logo : token.logo,
       }
 
       if (

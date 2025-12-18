@@ -41,6 +41,8 @@ export interface IToken {
   priceUsd: string
   lastUpdatedAt: string
   createdAt: string
+  coingeckoCoinId?: string
+  marketCapUsd?: string | null
 }
 
 export interface ITokenBalance {
