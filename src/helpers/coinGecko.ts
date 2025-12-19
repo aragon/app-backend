@@ -182,7 +182,6 @@ const CoinGeckoHelper = {
   _parseToken: (response: ICoinGeckoTokenResponse, network: NetworksEnum): IToken => {
     const token = response.data.attributes
 
-    // Dead/scam token detection: if 24h volume < $100, treat price as 0
     const volume24h = parseFloat(token.volume_usd?.h24 || '0')
     const isDeadToken = volume24h < 100
 
