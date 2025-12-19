@@ -23,8 +23,6 @@ interface ICoinGeckoTokenResponse {
       total_supply: string
       price_usd: string
       fdv_usd: string
-      coingecko_coin_id: string | null
-      total_reserve_in_usd: string
       volume_usd: {
         h24: string
       }
