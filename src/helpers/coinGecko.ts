@@ -26,7 +26,6 @@ interface ICoinGeckoTokenResponse {
       volume_usd: {
         h24: string
       }
-      market_cap_usd: string | null
     }
   }
 }
