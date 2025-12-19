@@ -371,5 +371,61 @@ describe('Helpers: CoinGecko', () => {
       expect(result.priceUsd).to.eq('0')
       expect(result.totalSupply).to.eq('0')
     })
+
+    it('should return priceUsd as 0 for dead/scam tokens with low volume', () => {
+      const response = {
+        data: {
+          id: 'scam-token',
+          type: 'token',
+          attributes: {
+            address: '0xdc5cb57711ac6ea18bc9e07404a3fa2a9b4913e9',
+            name: 'ePEPE',
+            symbol: 'ePEPE',
+            image_url: null,
+            decimals: 18,
+            total_supply: '10000000000000000000000000000000.0',
+            price_usd: '780.7875431308',
+            fdv_usd: '7807875431308230.0',
+            coingecko_coin_id: null,
+            total_reserve_in_usd: '0.0000000199368352542132337312',
+            volume_usd: { h24: '0.04652074736' },
+            market_cap_usd: null,
+          },
+        },
+      }
+
+      const result = CoinGeckoHelper._parseToken(response, NetworksEnum.ethereumMainnet)
+
+      expect(result.priceUsd).to.eq('0')
+      expect(result.name).to.eq('ePEPE')
+      expect(result.symbol).to.eq('ePEPE')
+    })
+
+    it('should return actual priceUsd for tokens with sufficient volume', () => {
+      const response = {
+        data: {
+          id: 'legit-token',
+          type: 'token',
+          attributes: {
+            address: '0x1234567890abcdef1234567890abcdef12345678',
+            name: 'Legit Token',
+            symbol: 'LEGIT',
+            image_url: 'https://example.com/logo.png',
+            decimals: 18,
+            total_supply: '1000000000000000000000',
+            price_usd: '1.5',
+            fdv_usd: '1500000',
+            coingecko_coin_id: 'legit-token',
+            total_reserve_in_usd: '500000',
+            volume_usd: { h24: '150000' },
+            market_cap_usd: '1000000',
+          },
+        },
+      }
+
+      const result = CoinGeckoHelper._parseToken(response, NetworksEnum.ethereumMainnet)
+
+      expect(result.priceUsd).to.eq('1.5')
+    })
   })
 })

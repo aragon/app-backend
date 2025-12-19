@@ -23,7 +23,7 @@ interface ICoinGeckoTokenResponse {
       total_supply: string
       price_usd: string
       fdv_usd: string
-      coingecko_coin_id: string
+      coingecko_coin_id: string | null
       total_reserve_in_usd: string
       volume_usd: {
         h24: string
@@ -184,6 +184,10 @@ const CoinGeckoHelper = {
   _parseToken: (response: ICoinGeckoTokenResponse, network: NetworksEnum): IToken => {
     const token = response.data.attributes
 
+    // Dead/scam token detection: if 24h volume < $100, treat price as 0
+    const volume24h = parseFloat(token.volume_usd?.h24 || '0')
+    const isDeadToken = volume24h < 100
+
     return {
       address: Web3Utils.parseAddress(token.address)!,
       network,
@@ -193,7 +197,7 @@ const CoinGeckoHelper = {
       symbol: token.symbol || '',
       decimals: token.decimals || 18,
       totalSupply: token.total_supply || '0',
-      priceUsd: token.price_usd || '0',
+      priceUsd: isDeadToken ? '0' : token.price_usd || '0',
       lastUpdatedAt: dayjs().toISOString(),
       createdAt: dayjs().toISOString(),
       coingeckoCoinId: token.coingecko_coin_id,
