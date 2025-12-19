@@ -381,7 +381,7 @@ describe('Helpers: CoinGecko', () => {
             address: '0xdc5cb57711ac6ea18bc9e07404a3fa2a9b4913e9',
             name: 'ePEPE',
             symbol: 'ePEPE',
-            image_url: null,
+            image_url: '',
             decimals: 18,
             total_supply: '10000000000000000000000000000000.0',
             price_usd: '780.7875431308',
