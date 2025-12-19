@@ -200,8 +200,6 @@ const CoinGeckoHelper = {
       priceUsd: isDeadToken ? '0' : token.price_usd || '0',
       lastUpdatedAt: dayjs().toISOString(),
       createdAt: dayjs().toISOString(),
-      coingeckoCoinId: token.coingecko_coin_id,
-      marketCapUsd: token.market_cap_usd || null,
     }
   },
 }
