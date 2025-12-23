@@ -1,5 +1,5 @@
 import Alchemy from '@helpers/alchemy'
-import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
+import { EvmExplorerEnum } from '@helpers/evmExplorerClient'
 import utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
