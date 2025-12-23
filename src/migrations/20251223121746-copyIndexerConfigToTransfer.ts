@@ -26,7 +26,10 @@ export const copyIndexerConfigToTransferMigration: IMigration = {
         // Check if the transfer config already exists
         const existingTransfer = await ConfigIndexer.findOne({ id: transferId })
         if (existingTransfer) {
-          logger.info('Transfer config already exists, skipping', llo({ service: transferService, network: config.network }))
+          logger.info(
+            'Transfer config already exists, skipping',
+            llo({ service: transferService, network: config.network }),
+          )
           continue
         }
 
@@ -38,11 +41,14 @@ export const copyIndexerConfigToTransferMigration: IMigration = {
           end: config.end,
         })
 
-        logger.info('Created transfer config', llo({
-          service: transferService,
-          network: config.network,
-          lastSync: config.lastSync,
-        }))
+        logger.info(
+          'Created transfer config',
+          llo({
+            service: transferService,
+            network: config.network,
+            lastSync: config.lastSync,
+          }),
+        )
       }
 
       logger.info('Migration completed successfully', llo({ migration: '20251223121746-copyIndexerConfigToTransfer' }))
