@@ -182,7 +182,7 @@ const CoinGeckoHelper = {
     const token = response.data.attributes
 
     const volume24h = parseFloat(token.volume_usd?.h24 || '0')
-    const isDeadToken = volume24h < 100
+    const isDeadToken = volume24h < 10
 
     return {
       address: Web3Utils.parseAddress(token.address)!,
