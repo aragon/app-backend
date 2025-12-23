@@ -111,6 +111,7 @@ export class CrawlerErrorHandler {
       'socket hang up',
       'connect EHOSTUNREACH',
       'unknown block',
+      'ReceiptGen.GetReceipt: txn is a state-sync transaction',
     ]
 
     const errorMessage = this.getErrorMessage(error).toLowerCase()

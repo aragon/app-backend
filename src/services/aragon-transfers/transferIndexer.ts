@@ -16,7 +16,7 @@ export const TransferIndexer = {
 
     await Promise.all(
       networks.map(async ({ networkName }) => {
-        const logService = ConfigIndexerHelper.builders.indexer(networkName)
+        const logService = ConfigIndexerHelper.builders.transfer(networkName)
 
         logger.info('TransferIndexer pooling start', llo({ networkName }))
 
