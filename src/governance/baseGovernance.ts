@@ -1,18 +1,18 @@
 import { Models } from '@dbModels'
+import EnsHelper from '@helpers/ens'
+import Web3Utils from '@helpers/web3Utils'
+import logger from '@logger'
+import type PluginMetrics from '@models/schema/pluginMetrics'
+import DbTx from '@modules/dbTx'
 import {
   type HexAddress,
   type IGovernanceParamsOpts,
-  type NetworksEnum,
-  type IPaginationParams,
-  type IPaginatedResult,
-  type IMembersResponse,
   type IMemberExtraParams,
+  type IMembersResponse,
+  type IPaginatedResult,
+  type IPaginationParams,
+  type NetworksEnum,
 } from '@types'
-import type PluginMetrics from '@models/schema/pluginMetrics'
-import logger from '@logger'
-import Web3Utils from '@helpers/web3Utils'
-import DbTx from '@modules/dbTx'
-import EnsHelper from '@helpers/ens'
 import { type ClientSession } from 'mongoose'
 
 /**

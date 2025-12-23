@@ -1,9 +1,9 @@
 import Router from '@koa/router'
-import StatusAdminRouter from './status'
-import SyncAdminRouter from './queue'
-import DaoAdminRouter from './dao'
 import CapitalDistributorAdminRouter from './capitalDistributor'
+import DaoAdminRouter from './dao'
 import MetricsAdminRouter from './metrics'
+import SyncAdminRouter from './queue'
+import StatusAdminRouter from './status'
 
 const MainAdminRouter = {
   router(): Router {

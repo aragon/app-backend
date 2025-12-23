@@ -1,9 +1,9 @@
+import { Models } from '@dbModels'
+import Utils from '@helpers/utils'
 import logger from '@logger'
 import DBCrawler from '@models/utils/crawler'
-import Utils from '@helpers/utils'
-import { EnumConnection, type IService } from '@types'
-import { Models } from '@dbModels'
 import Web3Helper from '@src/helpers/web3'
+import { EnumConnection, type IService } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'tools:syncUnderlyingToken' })
 

@@ -1,7 +1,8 @@
 // Export classes
-export { BatchRequestManager } from './batchRequestManager'
+
 export { AdaptiveBatchSizeManager } from './adaptiveBatchSizeManager'
-export { CrawlerErrorHandler } from './crawlerErrorHandler'
-export { ProgressTracker } from './progressTracker'
-export { LogProcessingEngine } from './logProcessingEngine'
+export { BatchRequestManager } from './batchRequestManager'
 export { BlockchainLogCrawler } from './blockchainLogCrawler'
+export { CrawlerErrorHandler } from './crawlerErrorHandler'
+export { LogProcessingEngine } from './logProcessingEngine'
+export { ProgressTracker } from './progressTracker'

@@ -1,9 +1,9 @@
-import { expect } from 'chai'
-import sinon, { type SinonSandbox, type SinonStub } from 'sinon'
-import { ProgressTracker } from '@modules/crawlers'
-import { NetworksEnum, LogServicePattern } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
+import { ProgressTracker } from '@modules/crawlers'
+import { LogServicePattern, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import sinon, { type SinonSandbox, type SinonStub } from 'sinon'
 
 describe('Module: ProgressTracker', () => {
   let sandbox: SinonSandbox

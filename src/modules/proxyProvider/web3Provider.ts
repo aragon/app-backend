@@ -1,12 +1,12 @@
-import logger from '@logger'
-import { type IWeb3Provider, type IWeb3TokenBalance, NetworksEnum } from '@types'
-import { ProxyToken } from '@modules/proxyToken'
-import utils from '@helpers/utils'
 import Alchemy from '@helpers/alchemy'
-import Web3Utils from '@helpers/web3Utils'
 import BlockScoutHelper from '@helpers/blockScout'
+import { EvmExplorerEnum, evmExplorerClient } from '@helpers/evmExplorerClient'
+import utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
-import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
+import Web3Utils from '@helpers/web3Utils'
+import logger from '@logger'
+import { ProxyToken } from '@modules/proxyToken'
+import { type IWeb3Provider, type IWeb3TokenBalance, NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ProxyWeb3' })
 

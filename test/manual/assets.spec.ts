@@ -1,9 +1,9 @@
+import { Models } from '@dbModels'
+import ProviderModule from '@modules/provider'
+import { DaoAssets } from '@services/aragon-dao/daoAssets'
+import { NetworksEnum } from '@types'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import ProviderModule from '@modules/provider'
-import { NetworksEnum } from '@types'
-import { DaoAssets } from '@services/aragon-dao/daoAssets'
-import { Models } from '@dbModels'
 
 describe('Manual: Assets', () => {
   let sandbox: SinonSandbox

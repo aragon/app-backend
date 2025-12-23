@@ -1,12 +1,12 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { PluginSlug } from '@helpers/pluginSlug'
-import { IPluginInterfaceType, IPluginSlug, IPluginStatus, NetworksEnum } from '@types'
-import type Plugin from '@models/schema/plugin'
 import { Models } from '@dbModels'
+import { PluginSlug } from '@helpers/pluginSlug'
 import Logger from '@logger'
 import logger from '@logger'
+import type Plugin from '@models/schema/plugin'
+import { IPluginInterfaceType, IPluginSlug, IPluginStatus, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Helpers:PluginSlug', () => {
   let sandbox: SinonSandbox

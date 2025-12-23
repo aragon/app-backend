@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import PairDataModule from '@modules/pairData'
 import {
   type IAssetExtraParams,
   type IAssetResponse,
@@ -6,7 +7,6 @@ import {
   type IPaginationParams,
   type IPairParams,
 } from '@types'
-import PairDataModule from '@modules/pairData'
 
 const AssetController = {
   getAssetsWithPagination: async (

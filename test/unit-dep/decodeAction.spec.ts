@@ -1,11 +1,11 @@
+import CoinGeckoHelper from '@helpers/coinGecko'
+import DecodeActions from '@helpers/decodeAction'
+import IPFSModule from '@modules/ipfs'
+import { ProxyToken } from '@modules/proxyToken'
+import { NetworksEnum, ProposalActionType } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { NetworksEnum, ProposalActionType } from '@types'
-import DecodeActions from '@helpers/decodeAction'
-import { expect } from 'chai'
-import { ProxyToken } from '@modules/proxyToken'
-import IPFSModule from '@modules/ipfs'
-import CoinGeckoHelper from '@helpers/coinGecko'
 
 describe('Integ: decodeAction', () => {
   let sandbox: SinonSandbox
@@ -43,6 +43,60 @@ describe('Integ: decodeAction', () => {
       })
       expect(fetchMetadataStub.calledOnce).to.be.true
       expect(fetchMetadataStub.args[0][0]).to.eq('ipfs://QmaqgFo2Ygvzsx7T2FRHZw4zSGDcD8YhxRj6qP6jKCakB1')
+    })
+  })
+
+  describe('decode GaugeVoter actions', () => {
+    it('should parse properly createGauge action', async () => {
+      const action = {
+        data: '0x071d2171000000000000000000000000b8a55fb41ba5e8996f47e2c5e88ef8d4ef5a95a30000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000006c3078363937303636373333613266326635313664353235363464353837613333346137363734333935383539373836643532343633373731356134363435333536373338363637333338356137343761353835383533366635383332353134313534373234353464363234330000000000000000000000000000000000000000',
+        to: '0x1d8b09B564c931153aDd628187D21085AFf34199',
+        value: '0',
+      }
+
+      const decodeAction = new DecodeActions()
+      const fetchMetadataStub = sandbox.stub(IPFSModule, 'fetchMetadata').resolves({
+        name: 'Test gauge',
+      })
+
+      const decoded: any = await decodeAction.decodeData(action, {
+        network: NetworksEnum.ethereumSepolia,
+        daoAddress: '0xDaoAddress',
+        blockNumber: 7051636,
+      })
+
+      expect(decoded?.type).to.be.eq(ProposalActionType.CreateGauge)
+      expect(decoded?.gaugeMetadata).to.deep.eq({
+        name: 'Test gauge',
+      })
+      expect(fetchMetadataStub.calledOnce).to.be.true
+      expect(fetchMetadataStub.args[0][0]).to.eq('ipfs://QmRVMXz3Jvt9XYxmRF7qZFE5g8fs8ZtzXXSoX2QATrEMbC')
+    })
+
+    it('should parse properly updateGaugeMetadata action', async () => {
+      const action = {
+        data: '0xad288fe8000000000000000000000000b8a55fb41ba5e8996f47e2c5e88ef8d4ef5a95a30000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000006c3078363937303636373333613266326635313664353836323464343633363735373737383536373634313437343737383533353434373333373635383561343137383539363937613739373135343636353633363337346334633735343834313333343733363435373533380000000000000000000000000000000000000000',
+        to: '0x1d8b09B564c931153aDd628187D21085AFf34199',
+        value: '0',
+      }
+
+      const decodeAction = new DecodeActions()
+      const fetchMetadataStub = sandbox.stub(IPFSModule, 'fetchMetadata').resolves({
+        name: 'Test gauge updated',
+      })
+
+      const decoded: any = await decodeAction.decodeData(action, {
+        network: NetworksEnum.ethereumSepolia,
+        daoAddress: '0xDaoAddress',
+        blockNumber: 7051636,
+      })
+
+      expect(decoded?.type).to.be.eq(ProposalActionType.UpdateGaugeMetadata)
+      expect(decoded?.gaugeMetadata).to.deep.eq({
+        name: 'Test gauge updated',
+      })
+      expect(fetchMetadataStub.calledOnce).to.be.true
+      expect(fetchMetadataStub.args[0][0]).to.eq('ipfs://QmXbMF6uwxVvAGGxSTG3vXZAxYizyqTfV67LLuHA3G6Eu8')
     })
   })
 

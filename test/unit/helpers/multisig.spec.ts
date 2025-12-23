@@ -1,10 +1,10 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
+import MultisigHelper from '@helpers/multisig'
+import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import { NetworksEnum } from '@types'
-import Web3Helper from '@helpers/web3'
-import MultisigHelper from '@helpers/multisig'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Helpers: Multisig', () => {
   let sandbox: SinonSandbox

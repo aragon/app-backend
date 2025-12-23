@@ -1,10 +1,10 @@
-import { expect } from 'chai'
-import { ITransactionSide, ITransactionType, NetworksEnum } from '@types'
-import { TransferProcessorFactory } from '@src/modules/transfers/transferProcessorFactory'
+import utils from '@helpers/utils'
 import { Erc20TransferProcessor } from '@src/modules/transfers/erc20TransferProcessor'
 import { Erc721TransferProcessor } from '@src/modules/transfers/erc721TransferProcessor'
 import { NativeTransferProcessor } from '@src/modules/transfers/nativeTransferProcessor'
-import utils from '@helpers/utils'
+import { TransferProcessorFactory } from '@src/modules/transfers/transferProcessorFactory'
+import { ITransactionSide, ITransactionType, NetworksEnum } from '@types'
+import { expect } from 'chai'
 
 describe('Module: TransferProcessorFactory', () => {
   const network = NetworksEnum.ethereumMainnet

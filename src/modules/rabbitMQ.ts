@@ -1,8 +1,8 @@
-import { connect, type AmqpConnectionManager, type ChannelWrapper } from 'amqp-connection-manager'
-import { type ConfirmChannel } from 'amqplib'
 import config from '@config'
 import logger from '@logger'
 import { EnumQueueName } from '@types'
+import { type AmqpConnectionManager, type ChannelWrapper, connect } from 'amqp-connection-manager'
+import { type ConfirmChannel } from 'amqplib'
 
 const llo = logger.logMeta.bind(null, { service: 'rabbitmq' })
 

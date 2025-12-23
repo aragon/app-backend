@@ -1,9 +1,9 @@
-import { type IMigration } from '@types'
-import logger from '@logger'
 import { Models } from '@dbModels'
-import DBCrawler from '@models/utils/crawler'
-import type Plugin from '@models/schema/plugin'
 import { PluginHandler } from '@handlers/pluginHandler'
+import logger from '@logger'
+import type Plugin from '@models/schema/plugin'
+import DBCrawler from '@models/utils/crawler'
+import { type IMigration } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: addProposalConditionAddress' })
 

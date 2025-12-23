@@ -1,11 +1,11 @@
-import logger from '@logger'
-import { EnumQueueName, ICollectionNames, IPluginInterfaceType, IPluginStatus } from '@types'
 import { Models } from '@dbModels'
 import { NetworkHelper } from '@helpers/network'
 import RabbitMQHelper from '@helpers/rabbitMQ'
-import type Plugin from '@models/schema/plugin'
 import Web3Helper from '@helpers/web3'
+import logger from '@logger'
+import type Plugin from '@models/schema/plugin'
 import DBCrawler from '@models/utils/crawler'
+import { EnumQueueName, ICollectionNames, IPluginInterfaceType, IPluginStatus } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:SyncAll' })
 

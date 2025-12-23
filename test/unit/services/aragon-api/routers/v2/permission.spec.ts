@@ -1,9 +1,9 @@
+import PermissionController from '@api/controllers/permission'
+import PermissionRouter from '@api/routers/v2/permission'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import PermissionRouter from '@api/routers/v2/permission'
-import PermissionController from '@api/controllers/permission'
-import { NetworksEnum } from '@types'
 
 describe('RouterV2: Permission', () => {
   let sandbox: SinonSandbox

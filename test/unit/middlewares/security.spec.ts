@@ -1,7 +1,7 @@
+import SecurityMiddleware from '@middlewares/security'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import SecurityMiddleware from '@middlewares/security'
 
 describe('middlewares: security', () => {
   let sandbox: SinonSandbox

@@ -1,9 +1,9 @@
+import { Models } from '@dbModels'
+import Metrics from '@models/schema/metrics'
+import { expect } from 'chai'
+import { afterEach, beforeEach } from 'mocha'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import Metrics from '@models/schema/metrics'
-import { afterEach, beforeEach } from 'mocha'
-import { expect } from 'chai'
-import { Models } from '@dbModels'
 
 describe('Model: Metrics', () => {
   let sandbox: SinonSandbox

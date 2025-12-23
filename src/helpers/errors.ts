@@ -1,4 +1,4 @@
-import { ErrorKeyEnum, type IErrorMap, type IErrorDetail, type IErrorConfig, type IExposableError } from '@types'
+import { ErrorKeyEnum, type IErrorConfig, type IErrorDetail, type IErrorMap, type IExposableError } from '@types'
 
 const ERRORS: IErrorMap = {
   [ErrorKeyEnum.invalidOrigin]: {

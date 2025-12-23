@@ -1,9 +1,9 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
 import { Models } from '@dbModels'
 import { FakeDaoPermissions } from '@test/mock/fakeDaoPermission'
 import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Dao Permission', () => {
   let sandbox: SinonSandbox

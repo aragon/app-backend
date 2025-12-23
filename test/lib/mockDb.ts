@@ -2,8 +2,8 @@
 import { MongoMemoryReplSet } from 'mongodb-memory-server'
 import mongoose from 'mongoose'
 import './sinon-mongoose'
-import { ModelProxy } from '@src/models'
 import config from '@config'
+import { ModelProxy } from '@src/models'
 
 const MockDB = {
   replSet: null as typeof MongoMemoryReplSet | null,

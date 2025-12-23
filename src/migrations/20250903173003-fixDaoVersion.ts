@@ -1,9 +1,9 @@
-import { type IMigration } from '@types'
-import logger from '@logger'
 import { Models } from '@dbModels'
-import DBCrawler from '@models/utils/crawler'
 import ProxyContractHelper from '@helpers/proxyContract'
 import Web3Helper from '@helpers/web3'
+import logger from '@logger'
+import DBCrawler from '@models/utils/crawler'
+import { type IMigration } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: fixDaoVersion' })
 

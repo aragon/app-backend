@@ -1,9 +1,9 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
 import { Models } from '@dbModels'
 import { removeDaoTransactionsMigration } from '@src/migrations/20250828132611-removeDaoTransactions'
-import { NetworksEnum, ITransactionSide, ITransactionType, ITokenType } from '@types'
+import { ITokenType, ITransactionSide, ITransactionType, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Migration: removeDaoTransactions', () => {
   let sandbox: SinonSandbox

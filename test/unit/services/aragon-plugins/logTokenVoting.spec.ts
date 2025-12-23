@@ -1,12 +1,12 @@
+import Web3Helper from '@helpers/web3'
+import logger from '@logger'
+import { BlockchainLogCrawler } from '@modules/crawlers'
+import { LogTokenVoting } from '@plugins/logTokenVoting'
+import { IGovernanceErc20Logs, ITokenType, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import proxyquire from 'proxyquire'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import logger from '@logger'
-import { LogTokenVoting } from '@plugins/logTokenVoting'
-import { BlockchainLogCrawler } from '@modules/crawlers'
-import { NetworksEnum, ITokenType, IGovernanceErc20Logs } from '@types'
-import { expect } from 'chai'
-import Web3Helper from '@helpers/web3'
-import proxyquire from 'proxyquire'
 
 describe('AragonPlugins: LogTokenVoting', () => {
   let sandbox: SinonSandbox

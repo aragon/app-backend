@@ -1,8 +1,8 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
 import BottleneckModule from '@modules/bottleneck'
 import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Module: bottleneck', () => {
   let sandbox: SinonSandbox

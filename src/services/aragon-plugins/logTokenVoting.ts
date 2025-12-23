@@ -1,19 +1,19 @@
+import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
+import ConfigIndexerHelper from '@helpers/configIndexer'
+import configIndexer from '@indexer/configIndexer'
 import logger from '@logger'
+import type Plugin from '@models/schema/plugin'
+import type Token from '@models/schema/token'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import {
+  IExitQueueLogs,
   IGovernanceErc20Logs,
   type IIndexerConfig,
-  ITokenVotingLogs,
-  IExitQueueLogs,
-  IVotingEscrowIncreasingLogs,
-  IVotingEscrowAdapterLogs,
   ITokenType,
+  ITokenVotingLogs,
+  IVotingEscrowAdapterLogs,
+  IVotingEscrowIncreasingLogs,
 } from '@types'
-import { BlockchainLogCrawler } from '@modules/crawlers'
-import type Plugin from '@models/schema/plugin'
-import configIndexer from '@indexer/configIndexer'
-import type Token from '@models/schema/token'
-import ConfigIndexerHelper from '@helpers/configIndexer'
-import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogTokenVoting' })
 

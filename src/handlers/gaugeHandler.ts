@@ -1,13 +1,13 @@
-import { type LogDescription } from 'ethers'
-import { type ILogInfo } from '@types'
 import { Models } from '@dbModels'
-import logger from '@logger'
-import Web3Utils from '@helpers/web3Utils'
-import IPFSModule from '@modules/ipfs'
 import Web3Helper from '@helpers/web3'
+import Web3Utils from '@helpers/web3Utils'
+import logger from '@logger'
 import type VoteGauge from '@models/schema/voteGauge'
-import { GaugeGovernance } from '@src/governance'
+import IPFSModule from '@modules/ipfs'
 import { GaugeMetrics } from '@services/aragon-dao/gaugeMetrics'
+import { GaugeGovernance } from '@src/governance'
+import { type ILogInfo } from '@types'
+import { type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:GaugeHandler' })
 

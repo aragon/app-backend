@@ -1,7 +1,7 @@
-import Router, { type RouterContext } from '@koa/router'
-import ValidationSchema from '@helpers/validationSchema'
-import SimulationSchema from '@api/routers/schema/simulation'
 import SimulationController from '@api/controllers/simulation'
+import SimulationSchema from '@api/routers/schema/simulation'
+import ValidationSchema from '@helpers/validationSchema'
+import Router, { type RouterContext } from '@koa/router'
 
 const SimulationRouter = {
   async simulate(ctx: RouterContext) {

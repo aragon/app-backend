@@ -1,6 +1,6 @@
+import config from '@config'
 import multer from '@koa/multer'
 import { type RouterContext } from '@koa/router'
-import config from '@config'
 
 const storage = multer.memoryStorage()
 
@@ -31,7 +31,7 @@ const UploadMiddleware = {
 
     try {
       return JSON.parse(ctx.file.buffer.toString('utf8'))
-    } catch (error) {
+    } catch (_error) {
       throw new Error('Invalid JSON file format')
     }
   },

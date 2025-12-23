@@ -1,9 +1,10 @@
-import { type IPluginInterfaceType } from '@src/types/plugin'
 import { type NetworksEnum } from '@src/types/networks'
+import { type IPluginInterfaceType } from '@src/types/plugin'
 import { type ITokenType } from '@src/types/token'
 
 export enum IndexerType {
   indexer = 'indexer',
+  transfer = 'transfer',
   deposit = 'deposit',
   withdraw = 'withdraw',
   dao = 'dao',
@@ -27,6 +28,7 @@ export enum IEnumIndexerService {
 // Define a discriminated union for all possible logService patterns
 export type LogServicePattern =
   | IndexerLogService
+  | TransferLogService
   | PluginLogService
   | DaoLogService
   | TokenLogService
@@ -42,6 +44,7 @@ export type LogServicePattern =
 
 // Individual pattern types
 export type IndexerLogService = `${IndexerType.indexer}-${NetworksEnum}`
+export type TransferLogService = `${IndexerType.transfer}-${NetworksEnum}`
 export type PluginLogService = `${IPluginInterfaceType}-${NetworksEnum}-${string}`
 export type DaoLogService = `${IndexerType.dao}-${NetworksEnum}-${string}`
 export type PermissionLogService = `${IndexerType.permission}-${NetworksEnum}-${string}`
@@ -69,6 +72,7 @@ export type LogServiceInfo =
       service: IEnumIndexerService.tokenWithdraw
     }
   | { type: IndexerType.indexer; network: NetworksEnum }
+  | { type: IndexerType.transfer; network: NetworksEnum }
   | { type: IndexerType.dao; network: NetworksEnum; address: string }
   | { type: IndexerType.permission; network: NetworksEnum; address: string }
   | { type: IndexerType.transferList; network: NetworksEnum; address: string }

@@ -1,13 +1,13 @@
+import config from '@config'
+import { Models } from '@dbModels'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import logger from '@logger'
 import {
   EnumQueueName,
-  type ILogPluginSetupProcessorParams,
   type IGetPluginsByDaoParams,
+  type ILogPluginSetupProcessorParams,
   type IPluginExtraParams,
 } from '@types'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import config from '@config'
-import logger from '@logger'
-import { Models } from '@dbModels'
 
 const llo = logger.logMeta.bind(null, { service: 'PluginsController' })
 

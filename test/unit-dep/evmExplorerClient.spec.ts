@@ -1,8 +1,8 @@
-import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
+import { EvmExplorerEnum, evmExplorerClient } from '@helpers/evmExplorerClient'
+import Utils from '@helpers/utils'
+import { NetworksEnum } from '@types'
 import { expect } from 'chai'
 import sinon from 'sinon'
-import { NetworksEnum } from '@types'
-import Utils from '@helpers/utils'
 
 describe('Integ: EvmExplorerClient', () => {
   let sandbox: sinon.SinonSandbox

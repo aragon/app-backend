@@ -1,10 +1,10 @@
+import Alchemy from '@helpers/alchemy'
+import utils from '@helpers/utils'
+import logger from '@logger'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import Alchemy from '@helpers/alchemy'
-import { NetworksEnum } from '@types'
-import logger from '@logger'
-import utils from '@helpers/utils'
 
 describe('Helpers:AlchemyHelper', () => {
   let sandbox: SinonSandbox

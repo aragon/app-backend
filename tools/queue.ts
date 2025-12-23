@@ -1,5 +1,5 @@
-import { EnumConnection, type IService, NetworksEnum } from '@types'
 import QueueAdminController from '@admin-api/controllers/queue'
+import { EnumConnection, type IService, NetworksEnum } from '@types'
 
 export const Queue: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.RABBITMQ],

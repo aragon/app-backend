@@ -1,12 +1,12 @@
+import ProxyContractHelper from '@helpers/proxyContract'
+import VotingEscrowDetector from '@helpers/votingEscrowDetector'
+import ProviderModule from '@modules/provider'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import { ZeroAddress } from 'ethers'
+import { beforeEach } from 'mocha'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import VotingEscrowDetector from '@helpers/votingEscrowDetector'
-import { beforeEach } from 'mocha'
-import { NetworksEnum } from '@types'
-import { ZeroAddress } from 'ethers'
-import { expect } from 'chai'
-import ProxyContractHelper from '@helpers/proxyContract'
-import ProviderModule from '@modules/provider'
 
 describe('Helper: VotingEscrowDetector', () => {
   let sandbox: SinonSandbox

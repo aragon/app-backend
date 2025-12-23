@@ -1,9 +1,9 @@
-import { type LogDescription } from 'ethers'
-import { type ILogInfo, IPluginStatus } from '@types'
 import { Models } from '@dbModels'
-import logger from '@logger'
 import Web3Helper from '@helpers/web3'
+import logger from '@logger'
 import { ContractInfo } from '@services/aragon-gateway/contractInfo'
+import { type ILogInfo, IPluginStatus } from '@types'
+import { type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:ExecuteHandler' })
 

@@ -1,12 +1,12 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
+import config from '@config'
+import PinataHelper from '@helpers/pinata'
+import Web3Utils from '@helpers/web3Utils'
+import logger from '@logger'
 import IPFSModule from '@modules/ipfs'
 import axios from 'axios'
-import logger from '@logger'
-import PinataHelper from '@helpers/pinata'
-import config from '@config'
-import Web3Utils from '@helpers/web3Utils'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Modules: IPFS', () => {
   let sandbox: SinonSandbox

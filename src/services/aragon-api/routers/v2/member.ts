@@ -1,7 +1,9 @@
-import Router, { type RouterContext } from '@koa/router'
-import ValidationSchema, { RequireRules } from '@helpers/validationSchema'
-import MemberSchema from '@api/routers/schema/member'
 import MemberController from '@api/controllers/member'
+import MemberSchema from '@api/routers/schema/member'
+import PaginationSchema from '@api/routers/schema/pagination'
+import Utils from '@helpers/utils'
+import ValidationSchema, { RequireRules } from '@helpers/validationSchema'
+import Router, { type RouterContext } from '@koa/router'
 import {
   type HexAddress,
   type ILockExtraParams,
@@ -10,8 +12,6 @@ import {
   type IPairParams,
   type NetworksEnum,
 } from '@types'
-import PaginationSchema from '@api/routers/schema/pagination'
-import Utils from '@helpers/utils'
 
 const MemberRouter = {
   getMembersWithPagination: async function (ctx: RouterContext) {

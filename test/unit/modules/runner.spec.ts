@@ -1,11 +1,11 @@
+import utils from '@helpers/utils'
+import Connections from '@modules/connections'
+import { PrometheusStore } from '@modules/prometheusStore'
+import Runner from '@modules/runner'
+import { EnumConnection, EnumServiceName } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import Connections from '@modules/connections'
-import Runner from '@modules/runner'
-import { expect } from 'chai'
-import utils from '@helpers/utils'
-import { EnumConnection, EnumServiceName } from '@types'
-import { PrometheusStore } from '@modules/prometheusStore'
 
 // IMPORTANT: This test suite is skipped because it interferes with the test environment
 // The runner module starts the actual application which conflicts with the test setup

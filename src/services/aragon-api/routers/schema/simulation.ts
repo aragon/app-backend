@@ -1,5 +1,5 @@
-import Joi from 'joi'
 import ValidationSchema from '@helpers/validationSchema'
+import Joi from 'joi'
 
 const SimulationSchema = {
   simulate: Joi.object({

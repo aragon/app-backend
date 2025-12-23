@@ -1,14 +1,14 @@
+import config from '@config'
+import ConfigIndexerHelper from '@helpers/configIndexer'
+import { NetworkHelper } from '@helpers/network'
+import utils from '@helpers/utils'
+import logger from '@logger'
+import { TransferIndexer } from '@services/aragon-transfers/transferIndexer'
+import { TaskSchedulerState } from '@state/taskSchedulerState'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { TransferIndexer } from '@services/aragon-transfers/transferIndexer'
-import logger from '@logger'
-import { TaskSchedulerState } from '@state/taskSchedulerState'
-import { NetworkHelper } from '@helpers/network'
-import ConfigIndexerHelper from '@helpers/configIndexer'
-import config from '@config'
-import utils from '@helpers/utils'
-import { NetworksEnum } from '@types'
 
 describe('AragonTransfers: transferIndexer', () => {
   let sandbox: SinonSandbox
@@ -29,11 +29,11 @@ describe('AragonTransfers: transferIndexer', () => {
 
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns(mockNetworks as any)
       sandbox
-        .stub(ConfigIndexerHelper.builders, 'indexer')
+        .stub(ConfigIndexerHelper.builders, 'transfer')
         .withArgs(NetworksEnum.ethereumMainnet)
-        .returns('indexer-ethereum-mainnet' as any)
+        .returns('transfer-ethereum-mainnet' as any)
         .withArgs(NetworksEnum.polygonMainnet)
-        .returns('indexer-polygon-mainnet' as any)
+        .returns('transfer-polygon-mainnet' as any)
 
       sandbox
         .stub(utils, 'networkToAragon')
@@ -60,7 +60,7 @@ describe('AragonTransfers: transferIndexer', () => {
       const mockNetworks = [{ networkName: NetworksEnum.ethereumMainnet }]
 
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns(mockNetworks as any)
-      sandbox.stub(ConfigIndexerHelper.builders, 'indexer').returns('test-log-service' as any)
+      sandbox.stub(ConfigIndexerHelper.builders, 'transfer').returns('transfer-ethereum-mainnet' as any)
       sandbox.stub(utils, 'networkToAragon').returns('ETHEREUM_MAINNET' as any)
 
       const mockScheduler = {
@@ -89,7 +89,7 @@ describe('AragonTransfers: transferIndexer', () => {
       const mockNetworks = [{ networkName: NetworksEnum.ethereumMainnet }]
 
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns(mockNetworks as any)
-      sandbox.stub(ConfigIndexerHelper.builders, 'indexer').returns('test-log-service' as any)
+      sandbox.stub(ConfigIndexerHelper.builders, 'transfer').returns('transfer-ethereum-mainnet' as any)
       sandbox.stub(utils, 'networkToAragon').returns('ETHEREUM_MAINNET' as any)
 
       let capturedParams: any = null
@@ -111,7 +111,7 @@ describe('AragonTransfers: transferIndexer', () => {
       await TransferIndexer.start()
 
       expect(capturedParams).to.deep.equal({
-        logService: 'test-log-service',
+        logService: 'transfer-ethereum-mainnet',
         network: NetworksEnum.ethereumMainnet,
         includeTransfer: true,
       })
@@ -121,7 +121,7 @@ describe('AragonTransfers: transferIndexer', () => {
       const mockNetworks = [{ networkName: NetworksEnum.ethereumMainnet }, { networkName: NetworksEnum.polygonMainnet }]
 
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns(mockNetworks as any)
-      sandbox.stub(ConfigIndexerHelper.builders, 'indexer').returns('test-log-service' as any)
+      sandbox.stub(ConfigIndexerHelper.builders, 'transfer').returns('transfer-ethereum-mainnet' as any)
       sandbox.stub(utils, 'networkToAragon').returns('ETHEREUM_MAINNET' as any)
 
       const mockScheduler = {
@@ -141,7 +141,7 @@ describe('AragonTransfers: transferIndexer', () => {
       const testError = new Error('Pooling error')
 
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns(mockNetworks as any)
-      sandbox.stub(ConfigIndexerHelper.builders, 'indexer').returns('test-log-service' as any)
+      sandbox.stub(ConfigIndexerHelper.builders, 'transfer').returns('transfer-ethereum-mainnet' as any)
       sandbox.stub(utils, 'networkToAragon').returns('ETHEREUM_MAINNET' as any)
 
       const mockScheduler = {
@@ -169,7 +169,7 @@ describe('AragonTransfers: transferIndexer', () => {
       ]
 
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns(mockNetworks as any)
-      sandbox.stub(ConfigIndexerHelper.builders, 'indexer').returns('test-log-service' as any)
+      sandbox.stub(ConfigIndexerHelper.builders, 'transfer').returns('transfer-ethereum-mainnet' as any)
       sandbox.stub(utils, 'networkToAragon').returns('ETHEREUM_MAINNET' as any)
 
       const mockScheduler = {
@@ -187,9 +187,9 @@ describe('AragonTransfers: transferIndexer', () => {
       const mockNetworks = [{ networkName: NetworksEnum.ethereumMainnet }, { networkName: NetworksEnum.polygonMainnet }]
 
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns(mockNetworks as any)
-      const builderStub = sandbox.stub(ConfigIndexerHelper.builders, 'indexer')
-      builderStub.withArgs(NetworksEnum.ethereumMainnet).returns('indexer-ethereum-mainnet' as any)
-      builderStub.withArgs(NetworksEnum.polygonMainnet).returns('indexer-polygon-mainnet' as any)
+      const builderStub = sandbox.stub(ConfigIndexerHelper.builders, 'transfer')
+      builderStub.withArgs(NetworksEnum.ethereumMainnet).returns('transfer-ethereum-mainnet' as any)
+      builderStub.withArgs(NetworksEnum.polygonMainnet).returns('transfer-polygon-mainnet' as any)
 
       sandbox.stub(utils, 'networkToAragon').returns('ETHEREUM_MAINNET' as any)
 
@@ -203,15 +203,15 @@ describe('AragonTransfers: transferIndexer', () => {
 
       expect(builderStub.calledWith(NetworksEnum.ethereumMainnet)).to.be.true
       expect(builderStub.calledWith(NetworksEnum.polygonMainnet)).to.be.true
-      expect(mockScheduler.startTask.args[0][0]).to.equal('indexer-ethereum-mainnet')
-      expect(mockScheduler.startTask.args[1][0]).to.equal('indexer-polygon-mainnet')
+      expect(mockScheduler.startTask.args[0][0]).to.equal('transfer-ethereum-mainnet')
+      expect(mockScheduler.startTask.args[1][0]).to.equal('transfer-polygon-mainnet')
     })
 
     it('should use POOLING_INTERVAL from config for each network', async () => {
       const mockNetworks = [{ networkName: NetworksEnum.ethereumMainnet }]
 
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns(mockNetworks as any)
-      sandbox.stub(ConfigIndexerHelper.builders, 'indexer').returns('test-log-service' as any)
+      sandbox.stub(ConfigIndexerHelper.builders, 'transfer').returns('transfer-ethereum-mainnet' as any)
       sandbox.stub(utils, 'networkToAragon').returns('ETHEREUM_MAINNET' as any)
 
       const mockScheduler = {

@@ -1,10 +1,10 @@
-import { expect } from 'chai'
-import sinon from 'sinon'
-import { NetworksEnum, ITokenType } from '@types'
-import logger from '@logger'
 import SubscanApi from '@helpers/subscanApi'
-import { ethers } from 'ethers'
+import logger from '@logger'
 import PeaqProvider from '@modules/proxyProvider/peaqProvider'
+import { ITokenType, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import { ethers } from 'ethers'
+import sinon from 'sinon'
 
 describe('PeaqProvider', () => {
   let sandbox: any

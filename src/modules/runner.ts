@@ -1,9 +1,9 @@
 /* istanbul ignore file */
 import { TooBusyMonitor } from '@helpers/monitoring'
-import { type IService } from '@types'
 import logger from '@logger'
-import Connections from './connections'
 import { PrometheusStore } from '@modules/prometheusStore'
+import { type IService } from '@types'
+import Connections from './connections'
 
 const llo = logger.logMeta.bind(null, { service: 'runner' })
 

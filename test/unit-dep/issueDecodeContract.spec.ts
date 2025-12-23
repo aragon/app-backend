@@ -1,10 +1,10 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { NetworksEnum } from '@types'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
 import ProxyContract from '@helpers/proxyContract'
 import ProxyWeb3Provider from '@modules/proxyProvider'
+import { NetworksEnum } from '@types'
 import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Integ: Issue Decode Contract Spec', () => {
   let sandbox: SinonSandbox

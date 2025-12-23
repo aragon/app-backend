@@ -1,8 +1,8 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { Model, type SaveOptions } from 'mongoose'
-import * as _ from 'lodash'
-import { v4 as uuidv4 } from 'uuid'
 import { ICollectionNames } from '@types'
+import * as _ from 'lodash'
+import { Model, type SaveOptions } from 'mongoose'
+import { v4 as uuidv4 } from 'uuid'
 
 const customName = ICollectionNames.TaskService
 

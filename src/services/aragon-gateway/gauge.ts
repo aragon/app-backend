@@ -1,7 +1,7 @@
-import { type IGetGaugeInfoId, type IGaugeInfo } from '@types'
 import { Models } from '@dbModels'
 import GaugeHelper from '@helpers/gauge'
 import logger from '@logger'
+import { type IGaugeInfo, type IGetGaugeInfoId } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'aragon-gateway:gauge' })
 

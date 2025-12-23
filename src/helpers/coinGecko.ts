@@ -1,12 +1,12 @@
-import { type IToken, ITokenType, NetworksEnum } from '@types'
 import config from '@config'
 import dayjs from '@helpers/dayjs'
-import axios from 'axios'
-import logger from '@logger'
-import Web3Utils from '@helpers/web3Utils'
 import { retryRequest } from '@helpers/retryRequest'
-import BottleneckModule from '@modules/bottleneck'
 import utils from '@helpers/utils'
+import Web3Utils from '@helpers/web3Utils'
+import logger from '@logger'
+import BottleneckModule from '@modules/bottleneck'
+import { type IToken, ITokenType, NetworksEnum } from '@types'
+import axios from 'axios'
 
 const llo = logger.logMeta.bind(null, { service: 'coinGecko' })
 
@@ -23,11 +23,9 @@ interface ICoinGeckoTokenResponse {
       total_supply: string
       price_usd: string
       fdv_usd: string
-      total_reserve_in_usd: string
       volume_usd: {
         h24: string
       }
-      market_cap_usd: string | null
     }
   }
 }
@@ -183,6 +181,9 @@ const CoinGeckoHelper = {
   _parseToken: (response: ICoinGeckoTokenResponse, network: NetworksEnum): IToken => {
     const token = response.data.attributes
 
+    const volume24h = parseFloat(token.volume_usd?.h24 || '0')
+    const isDeadToken = volume24h < 100
+
     return {
       address: Web3Utils.parseAddress(token.address)!,
       network,
@@ -192,7 +193,7 @@ const CoinGeckoHelper = {
       symbol: token.symbol || '',
       decimals: token.decimals || 18,
       totalSupply: token.total_supply || '0',
-      priceUsd: token.price_usd || '0',
+      priceUsd: isDeadToken ? '0' : token.price_usd || '0',
       lastUpdatedAt: dayjs().toISOString(),
       createdAt: dayjs().toISOString(),
     }

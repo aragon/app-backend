@@ -1,5 +1,5 @@
-import type { LogDescription } from 'ethers'
 import type { ILogInfo } from '@src/types/eventLogs'
+import type { LogDescription } from 'ethers'
 
 export interface IGovernanceParamsOpts {
   tokenIds?: string[]

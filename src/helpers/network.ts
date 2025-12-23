@@ -1,7 +1,7 @@
-import { type ISupportedNetwork, NetworksEnum } from '@types'
-import ProviderModule from '@modules/provider'
 import config from '@config'
 import utils from '@helpers/utils'
+import ProviderModule from '@modules/provider'
+import { type ISupportedNetwork, NetworksEnum } from '@types'
 
 export const NetworkHelper = {
   supportedNetworks(): ISupportedNetwork[] {

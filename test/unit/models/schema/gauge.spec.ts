@@ -1,9 +1,9 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { NetworksEnum, IPluginInterfaceType, IPluginStatus } from '@types'
 import { Models } from '@dbModels'
 import Gauge from '@models/schema/gauge'
+import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Model: Gauge', () => {
   let sandbox: SinonSandbox

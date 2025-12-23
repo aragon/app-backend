@@ -1,10 +1,10 @@
-import { type IMigHelper, type IMigration, ITokenType } from '@types'
-import logger from '@logger'
 import { Models } from '@dbModels'
-import DBCrawler from '@models/utils/crawler'
-import type Token from '@models/schema/token'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import GovernanceVeHelper from '@helpers/governanceVe'
+import logger from '@logger'
+import type Token from '@models/schema/token'
+import DBCrawler from '@models/utils/crawler'
+import { type IMigHelper, type IMigration, ITokenType } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: tokenGovernance' })
 

@@ -1,12 +1,12 @@
+import { Models } from '@dbModels'
+import TokenMember from '@models/schema/tokenMember'
+import ModelUtils from '@models/utils/models'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import { afterEach, beforeEach } from 'mocha'
+import mongoose from 'mongoose'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import TokenMember from '@models/schema/tokenMember'
-import { afterEach, beforeEach } from 'mocha'
-import { expect } from 'chai'
-import { Models } from '@dbModels'
-import { NetworksEnum } from '@types'
-import ModelUtils from '@models/utils/models'
-import mongoose from 'mongoose'
 
 describe('Model: TokenMember', () => {
   let sandbox: SinonSandbox

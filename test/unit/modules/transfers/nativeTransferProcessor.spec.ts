@@ -1,9 +1,9 @@
+import { Models } from '@dbModels'
+import utils from '@helpers/utils'
+import { NativeTransferProcessor } from '@transfers'
+import { type ILogInfo, ITransactionSide, ITransactionType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { ethers } from 'ethers'
-import { NativeTransferProcessor } from '@transfers'
-import { Models } from '@dbModels'
-import { ITransactionType, ITransactionSide, NetworksEnum, type ILogInfo } from '@types'
-import utils from '@helpers/utils'
 
 describe('Transfers: NativeTransferProcessor', () => {
   let processor: NativeTransferProcessor

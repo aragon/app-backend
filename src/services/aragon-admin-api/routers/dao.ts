@@ -1,7 +1,7 @@
-import Router, { type RouterContext } from '@koa/router'
-import ValidationSchema from '@helpers/validationSchema'
-import GenericSchema from '@admin-api/routers/schema/generic'
 import DaoAdminController from '@admin-api/controllers/dao'
+import GenericSchema from '@admin-api/routers/schema/generic'
+import ValidationSchema from '@helpers/validationSchema'
+import Router, { type RouterContext } from '@koa/router'
 import AuthMiddleware from '@middlewares/auth'
 
 const DaoAdminRouter = {

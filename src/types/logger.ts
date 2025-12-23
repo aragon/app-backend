@@ -1,5 +1,5 @@
-import type Transport from 'winston-transport'
 import { type Logger } from 'winston'
+import type Transport from 'winston-transport'
 
 export interface ILogger extends Logger {
   purge?: any

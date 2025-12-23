@@ -1,10 +1,10 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
 import logger from '@logger'
-import { LogLockToVote } from '@plugins/logLockToVote'
 import { BlockchainLogCrawler } from '@modules/crawlers'
+import { LogLockToVote } from '@plugins/logLockToVote'
 import { IPluginInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('AragonPlugins: LogLockToVote', () => {
   let sandbox: SinonSandbox

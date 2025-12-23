@@ -1,17 +1,17 @@
+import config from '@config'
+import Web3Helper from '@helpers/web3'
 import logger from '@logger'
-import axios from 'axios'
+import { CrawlerErrorHandler } from '@modules/crawlers'
 import ProviderModule from '@src/modules/provider'
-import { ethers } from 'ethers'
 import {
-  type NetworksEnum,
-  type HexAddress,
   type BatchRequestItem,
   type BatchResponse,
   CrawlerErrorType,
+  type HexAddress,
+  type NetworksEnum,
 } from '@src/types'
-import Web3Helper from '@helpers/web3'
-import config from '@config'
-import { CrawlerErrorHandler } from '@modules/crawlers'
+import axios from 'axios'
+import { ethers } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3BatchHelper' })
 
@@ -318,11 +318,11 @@ const Web3BatchHelper = {
         try {
           const decoded = this.decodeResult<[bigint]>(['uint256'], result.data)
           return { tokenId, votingPower: decoded[0] }
-        } catch (error) {
+        } catch (_error) {
           return { tokenId, votingPower: 0n }
         }
       })
-    } catch (error) {
+    } catch (_error) {
       return batchParams.map(param => ({
         tokenId: param.tokenId,
         votingPower: 0n,
@@ -596,7 +596,7 @@ const Web3BatchHelper = {
           const decoded = Web3BatchHelper.decodeResult<[bigint]>(['uint256'], vpBlockNumResult.data)
           votingPowerFromBlockNumber = decoded[0].toString()
           hasBlockNumberResult = true
-        } catch (error) {
+        } catch (_error) {
           hasBlockNumberResult = false
         }
       }
@@ -606,7 +606,7 @@ const Web3BatchHelper = {
           const decoded = Web3BatchHelper.decodeResult<[bigint]>(['uint256'], vpTimestampResult.data)
           votingPowerFromTimestamp = decoded[0].toString()
           hasTimestampResult = true
-        } catch (error) {
+        } catch (_error) {
           hasTimestampResult = false
         }
       }
@@ -624,7 +624,7 @@ const Web3BatchHelper = {
         votingPower,
         error: false,
       }
-    } catch (e) {
+    } catch (_e) {
       return { votingPower: '0', error: true }
     }
   },

@@ -1,5 +1,5 @@
-import Router, { type RouterContext } from '@koa/router'
 import StatusController from '@api/controllers/status'
+import Router, { type RouterContext } from '@koa/router'
 
 const StatusRouter = {
   status(ctx: RouterContext) {

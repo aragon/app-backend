@@ -1,3 +1,10 @@
+import { Models } from '@dbModels'
+import { assertExposable } from '@errors'
+import { PluginSlug } from '@helpers/pluginSlug'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import logger from '@logger'
+import type Plugin from '@models/schema/plugin'
+import { ProxyToken } from '@modules/proxyToken'
 import {
   type IAQueueDao,
   type IAQueueProposal,
@@ -5,14 +12,7 @@ import {
   type IQueueDaoTransactions,
   type NetworksEnum,
 } from '@src/types'
-import { Models } from '@dbModels'
 import { EnumQueueName, ErrorKeyEnum, IPluginStatus } from '@types'
-import { assertExposable } from '@errors'
-import type Plugin from '@models/schema/plugin'
-import { PluginSlug } from '@helpers/pluginSlug'
-import logger from '@logger'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import { ProxyToken } from '@modules/proxyToken'
 
 const llo = logger.logMeta.bind(null, { service: 'QueueAdminController' })
 

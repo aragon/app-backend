@@ -1,10 +1,10 @@
-import { EnumConnection, type IService, ISettingStatus, ISPPLogs, NetworksEnum } from '@types'
+import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { Models } from '@dbModels'
-import logger from '@logger'
+import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
-import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
-import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
+import logger from '@logger'
+import { EnumConnection, type IService, ISettingStatus, ISPPLogs, NetworksEnum } from '@types'
 import { Interface } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'Tools: CleanDb' })

@@ -1,14 +1,14 @@
-import { expect } from 'chai'
-import * as sinon from 'sinon'
-import logger from '@logger'
-import { SinonSandbox } from 'sinon'
-import { PermissionHandler } from '@handlers/permissionHandler'
 import { Models } from '@dbModels'
-import { NetworksEnum } from '@types'
-import { ethers } from 'ethers'
-import { MemberGovernanceFactory } from '@src/governance'
+import { PermissionHandler } from '@handlers/permissionHandler'
 import { PluginHandler } from '@handlers/pluginHandler'
 import Utils from '@helpers/utils'
+import logger from '@logger'
+import { MemberGovernanceFactory } from '@src/governance'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import { ethers } from 'ethers'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Indexer: Permission Handler', () => {
   let sandbox: SinonSandbox

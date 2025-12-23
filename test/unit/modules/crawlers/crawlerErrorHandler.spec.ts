@@ -1,9 +1,9 @@
-import { expect } from 'chai'
-import sinon, { type SinonSandbox, type SinonStub } from 'sinon'
+import utils from '@helpers/utils'
+import logger from '@logger'
 import { CrawlerErrorHandler } from '@modules/crawlers'
 import { CrawlerErrorType } from '@types'
-import logger from '@logger'
-import utils from '@helpers/utils'
+import { expect } from 'chai'
+import sinon, { type SinonSandbox, type SinonStub } from 'sinon'
 
 describe('Module: CrawlerErrorHandler', () => {
   let sandbox: SinonSandbox

@@ -1,15 +1,15 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
 import { Models } from '@dbModels'
-import { IWeb3TokenBalance, NetworksEnum } from '@types'
-import Logger from '@logger'
-import { DaoAssets } from '@services/aragon-dao/daoAssets'
-import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
-import { ProxyToken } from '@modules/proxyToken'
 import TokenUtils from '@helpers/tokenUtils'
 import Web3Utils from '@helpers/web3Utils'
+import Logger from '@logger'
 import ProxyWeb3Provider from '@modules/proxyProvider'
+import { ProxyToken } from '@modules/proxyToken'
+import { DaoAssets } from '@services/aragon-dao/daoAssets'
+import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
+import { IWeb3TokenBalance, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('AragonDao:Assets', () => {
   let sandbox: SinonSandbox

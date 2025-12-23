@@ -1,10 +1,10 @@
-import logger from '@logger'
-import { TaskSchedulerState } from '@state/taskSchedulerState'
-import { NetworkHelper } from '@helpers/network'
-import ConfigIndexerHelper from '@helpers/configIndexer'
 import config from '@config'
-import PoolingCrawler from '@modules/poolingCrawler'
+import ConfigIndexerHelper from '@helpers/configIndexer'
+import { NetworkHelper } from '@helpers/network'
 import utils from '@helpers/utils'
+import logger from '@logger'
+import PoolingCrawler from '@modules/poolingCrawler'
+import { TaskSchedulerState } from '@state/taskSchedulerState'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:TransferIndexer' })
 
@@ -16,7 +16,7 @@ export const TransferIndexer = {
 
     await Promise.all(
       networks.map(async ({ networkName }) => {
-        const logService = ConfigIndexerHelper.builders.indexer(networkName)
+        const logService = ConfigIndexerHelper.builders.transfer(networkName)
 
         logger.info('TransferIndexer pooling start', llo({ networkName }))
 

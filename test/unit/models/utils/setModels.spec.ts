@@ -1,10 +1,10 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
+import logger from '@logger'
+import { setMongoModels } from '@models/utils/setModels'
+import { getModelForClass } from '@typegoose/typegoose'
 import { expect } from 'chai'
 import * as fs from 'fs'
-import logger from '@logger'
-import { getModelForClass } from '@typegoose/typegoose'
-import { setMongoModels } from '@models/utils/setModels'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Model/Utils: setModels', () => {
   let sandbox: SinonSandbox

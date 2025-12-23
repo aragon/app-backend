@@ -1,11 +1,11 @@
-import { expect } from 'chai'
-import sinon, { SinonSandbox } from 'sinon'
-import * as amqpConnectionManager from 'amqp-connection-manager'
 import config from '@config'
 import logger from '@logger'
 import RabbitMQ from '@modules/rabbitMQ'
 import { EnumQueueName } from '@types'
+import * as amqpConnectionManager from 'amqp-connection-manager'
+import { expect } from 'chai'
 import { EventEmitter } from 'events'
+import sinon, { SinonSandbox } from 'sinon'
 
 describe('Modules: RabbitMQ', () => {
   let sandbox: SinonSandbox

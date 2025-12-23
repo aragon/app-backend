@@ -1,10 +1,10 @@
-import { EnumConnection } from '@types'
-import logger from '@logger'
 import { Models } from '@dbModels'
-import type Dao from '@models/schema/dao'
 import etherscan from '@helpers/etherscan'
+import logger from '@logger'
+import type Dao from '@models/schema/dao'
 import DBCrawler from '@models/utils/crawler'
 import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
+import { EnumConnection } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'Tools: ToolDaoTransactions' })
 

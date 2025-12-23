@@ -1,15 +1,15 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { CapitalDistributorHandler } from '@handlers/capitalDistributorHandler'
 import { Models } from '@dbModels'
-import { NetworksEnum, HexAddress, IPluginStatus, IPluginInterfaceType } from '@types'
+import { CapitalDistributorHandler } from '@handlers/capitalDistributorHandler'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
-import IPFSModule from '@modules/ipfs'
-import { LogCampaignStrategy } from '@services/aragon-plugins/logCampaignStrategy'
-import { ProxyToken } from '@modules/proxyToken'
 import logger from '@logger'
+import IPFSModule from '@modules/ipfs'
+import { ProxyToken } from '@modules/proxyToken'
+import { LogCampaignStrategy } from '@services/aragon-plugins/logCampaignStrategy'
+import { HexAddress, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Handler: CapitalDistributor', () => {
   let sandbox: SinonSandbox

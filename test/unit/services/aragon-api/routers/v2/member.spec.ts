@@ -1,10 +1,10 @@
+import MemberController from '@api/controllers/member'
+import MemberRouter from '@api/routers/v2/member'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import { getAddress } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import MemberRouter from '@api/routers/v2/member'
-import MemberController from '@api/controllers/member'
-import { NetworksEnum } from '@types'
-import { getAddress } from 'ethers'
 
 describe('RouterV2: Member', () => {
   let sandbox: SinonSandbox

@@ -1,13 +1,13 @@
-import { expect } from 'chai'
-import sinon, { SinonSandbox } from 'sinon'
-import Subscan from '@helpers/subscanApi'
-import axios from 'axios'
-import logger from '@logger'
-import { NetworksEnum, ITokenType, ISubScanTokenBalance } from '@types'
-import utils from '@helpers/utils'
 import dayjs from '@helpers/dayjs'
 import * as retryRequestModule from '@helpers/retryRequest'
+import Subscan from '@helpers/subscanApi'
+import utils from '@helpers/utils'
+import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
+import { ISubScanTokenBalance, ITokenType, NetworksEnum } from '@types'
+import axios from 'axios'
+import { expect } from 'chai'
+import sinon, { SinonSandbox } from 'sinon'
 
 describe('Helpers:Subscan', () => {
   let sandbox: SinonSandbox

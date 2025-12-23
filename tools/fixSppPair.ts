@@ -1,7 +1,7 @@
-import { EnumConnection, type IService, type NetworksEnum } from '@types'
-import logger from '@logger'
 import { Models } from '@dbModels'
 import { ProposalHandler } from '@handlers/proposalHandler'
+import logger from '@logger'
+import { EnumConnection, type IService, type NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'tool:fixSppPair' })
 

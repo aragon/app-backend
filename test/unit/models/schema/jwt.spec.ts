@@ -1,9 +1,9 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { IJwtAuthType } from '@types'
 import { Models } from '@dbModels'
 import Jwt from '@models/schema/jwt'
+import { IJwtAuthType } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Model: Jwt', () => {
   let sandbox: SinonSandbox

@@ -1,12 +1,12 @@
+import config from '@config'
+import logger from '@logger'
+import ProviderModule from '@modules/provider'
+import TenderlyModule from '@modules/tenderly'
+import { ISimulationStatus, NetworksEnum } from '@types'
+import axios from 'axios'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import TenderlyModule from '@modules/tenderly'
-import { NetworksEnum, ISimulationStatus } from '@types'
-import config from '@config'
-import axios from 'axios'
-import ProviderModule from '@modules/provider'
-import logger from '@logger'
 
 describe('Module: tenderly', () => {
   let sandbox: SinonSandbox

@@ -1,7 +1,7 @@
-import { expect } from 'chai'
+import logger from '@logger'
 import RoutescanProvider from '@modules/proxyProvider/routescanProvider'
 import { NetworksEnum } from '@types'
-import logger from '@logger'
+import { expect } from 'chai'
 
 describe('Integ: Routescan Provider', function () {
   this.timeout(6000000)

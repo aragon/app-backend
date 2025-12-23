@@ -1,6 +1,6 @@
-import { EnumConnection, EnumServiceName, type IService, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import logger from '@logger'
+import { EnumConnection, EnumServiceName, type IService, NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'Tools: CleanDb' })
 

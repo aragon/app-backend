@@ -1,5 +1,5 @@
-import { type ITokenMetadata } from '@src/types/token'
 import { type NetworksEnum } from '@src/types/networks'
+import { type ITokenMetadata } from '@src/types/token'
 
 export enum ProposalActionType {
   Transfer = 'Transfer',
@@ -15,6 +15,8 @@ export enum ProposalActionType {
   StagesUpdated = 'StagesUpdated',
   MetadataPluginUpdate = 'MetadataPluginUpdate',
   RegisterGauge = 'RegisterGauge',
+  CreateGauge = 'CreateGauge',
+  UpdateGaugeMetadata = 'UpdateGaugeMetadata',
 }
 
 export interface IRawAction {
@@ -42,6 +44,8 @@ export enum KnownActionSignature {
   StagesUpdated = 'updateStages(tuple[])',
   UpgradeToAndCall = 'upgradeToAndCall(address,bytes)',
   RegisterGauge = 'registerGauge(address,uint8,address,string)',
+  CreateGauge = 'createGauge(address,string)',
+  UpdateGaugeMetadata = 'updateGaugeMetadata(address,string)',
 }
 
 export interface ITransfacerActionMeta {

@@ -1,11 +1,11 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { ITokenType, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import dayjs from '@helpers/dayjs'
-import Token from '@models/schema/token'
 import utils from '@helpers/utils'
+import Token from '@models/schema/token'
+import { ITokenType, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Model: Token', () => {
   let sandbox: SinonSandbox

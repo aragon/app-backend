@@ -1,20 +1,20 @@
-import { BaseGovernance } from './baseGovernance'
 import { Models } from '@dbModels'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import Web3Utils from '@helpers/web3Utils'
+import logger from '@logger'
+import type Plugin from '@models/schema/plugin'
+import DbTx from '@modules/dbTx'
 import {
+  EnumQueueName,
   type HexAddress,
   type IGovernanceParamsOpts,
-  type IPaginationParams,
-  type IPaginatedResult,
-  type IMembersResponse,
   type IMemberExtraParams,
-  EnumQueueName,
+  type IMembersResponse,
+  type IPaginatedResult,
+  type IPaginationParams,
 } from '@types'
-import type Plugin from '@models/schema/plugin'
-import logger from '@logger'
-import Web3Utils from '@helpers/web3Utils'
-import DbTx from '@modules/dbTx'
 import { type ClientSession } from 'mongoose'
-import RabbitMQHelper from '@helpers/rabbitMQ'
+import { BaseGovernance } from './baseGovernance'
 
 /**
  * PluginGovernance provides default member governance implementation using PluginMember model.
