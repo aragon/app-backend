@@ -60,7 +60,6 @@ const PoolingCrawler = {
         logService,
         stopOnError: true,
         batchSize: 0.05,
-        skipLogProcessing: includeTransfer,
       })
 
       PoolingCrawler.instances.set(instanceKey, poolingCrawler)
