@@ -18,11 +18,8 @@ import {
   type TokenDepositLogService,
   type TokenLogService,
   type TokenWithdrawLogService,
-  type NativeDepositLogService,
-  type NativeWithdrawLogService,
-  type HexAddress,
-  type CampaignStrategyLogService,
   type TransferLogService,
+  type TransferListLogService,
 } from '@src/types'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ConfigIndexerHelper' })
