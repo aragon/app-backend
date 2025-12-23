@@ -1,5 +1,4 @@
 import Alchemy from '@helpers/alchemy'
-import BlockScoutHelper from '@helpers/blockScout'
 import { EvmExplorerEnum } from '@helpers/evmExplorerClient'
 import utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
@@ -362,17 +361,33 @@ describe('Web3Provider', () => {
   })
 
   describe('searchDetailsOfContract', () => {
-    it('should forward to BlockScoutHelper.searchDetails', async () => {
+    it('should return contract name when source code is found', async () => {
       const address = '0xcontract'
       const network = NetworksEnum.ethereumMainnet
-      const searchDetails = { name: 'Contract', type: 'token' }
+      const sourceCode = [{ ContractName: 'TestContract' }]
 
-      const searchDetailsStub = sandbox.stub(BlockScoutHelper, 'searchDetails').resolves(searchDetails as any)
+      sandbox.stub(evmExplorerClient, 'fetchContractSourceCode').resolves(sourceCode as any)
 
       const result = await Web3Provider.searchDetailsOfContract({ address, network })
 
-      expect(searchDetailsStub.calledOnceWith(address, network)).to.be.true
-      expect(result).to.equal(searchDetails)
+      expect(result).to.deep.equal({
+        type: 'address',
+        name: 'TestContract',
+      })
+    })
+
+    it('should return null name when source code is not found', async () => {
+      const address = '0xcontract'
+      const network = NetworksEnum.ethereumMainnet
+
+      sandbox.stub(evmExplorerClient, 'fetchContractSourceCode').resolves(null)
+
+      const result = await Web3Provider.searchDetailsOfContract({ address, network })
+
+      expect(result).to.deep.equal({
+        type: 'address',
+        name: null,
+      })
     })
   })
 })

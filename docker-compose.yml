@@ -193,7 +193,7 @@ services:
       - internal-net
       - public-net
     deploy:
-      replicas: 2
+      replicas: 1
 
   service-aragon-rates:
     image: service-aragon-rates-${ENV_SUFFIX}
