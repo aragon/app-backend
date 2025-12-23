@@ -1,5 +1,5 @@
 import Alchemy from '@helpers/alchemy'
-import { EvmExplorerEnum } from '@helpers/evmExplorerClient'
+import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
 import utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
@@ -366,7 +366,12 @@ describe('Web3Provider', () => {
       const network = NetworksEnum.ethereumMainnet
       const sourceCode = [{ ContractName: 'TestContract' }]
 
-      const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').resolves(sourceCode)
+      const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').callsFake(async (explorers, fn, options) => {
+        // Call the inner function to cover it
+        await fn(EvmExplorerEnum.ETHERSCAN)
+        return sourceCode
+      })
+      sandbox.stub(evmExplorerClient, 'fetchContractSourceCode').resolves(sourceCode as any)
 
       const result = await Web3Provider.searchDetailsOfContract({ address, network })
 
@@ -436,9 +441,12 @@ describe('Web3Provider', () => {
       const network = NetworksEnum.ethereumMainnet
 
       const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').callsFake(async (explorers, fn, options) => {
+        // Call both the inner function and onError to cover them
+        await fn(EvmExplorerEnum.ETHERSCAN)
         options.onError(new Error('Test error'), EvmExplorerEnum.ETHERSCAN, 0)
         return [{ ContractName: 'TestContract' }]
       })
+      sandbox.stub(evmExplorerClient, 'fetchContractSourceCode').resolves([{ ContractName: 'TestContract' }] as any)
 
       await Web3Provider.searchDetailsOfContract({ address, network })
 
