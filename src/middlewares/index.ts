@@ -1,11 +1,11 @@
-import compose from 'koa-compose'
-import bodyParser from 'koa-bodyparser'
-import utilsMiddleware from './util'
-import securityMiddleware from './security'
-import loggerMiddleware from './logger'
-import errorMiddleware from './error'
 import JwtHelper from '@helpers/jwt'
 import type Router from '@koa/router'
+import bodyParser from 'koa-bodyparser'
+import compose from 'koa-compose'
+import errorMiddleware from './error'
+import loggerMiddleware from './logger'
+import securityMiddleware from './security'
+import utilsMiddleware from './util'
 
 export default (mainRouter: Router, opts?: { useJWT: boolean }): any => {
   const middlewares: any[] = []

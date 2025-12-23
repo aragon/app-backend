@@ -1,6 +1,6 @@
-import { type HexAddress, type NetworksEnum } from '@types'
-import logger from '@logger'
 import Web3Helper from '@helpers/web3'
+import logger from '@logger'
+import { type HexAddress, type NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:MultisigHelper' })
 

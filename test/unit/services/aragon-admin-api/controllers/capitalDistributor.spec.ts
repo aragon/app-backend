@@ -1,11 +1,11 @@
-import * as sinon from 'sinon'
-import { expect } from 'chai'
-import { CapitalDistributorAdminController } from '@services/aragon-admin-api/controllers/capitalDistributor'
 import { Models } from '@dbModels'
-import { ErrorKeyEnum, NetworksEnum, HexAddress, IPluginInterfaceType, EnumQueueName } from '@types'
 import * as errors from '@errors'
-import { MemberGovernanceFactory } from '@src/governance'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import { CapitalDistributorAdminController } from '@services/aragon-admin-api/controllers/capitalDistributor'
+import { MemberGovernanceFactory } from '@src/governance'
+import { EnumQueueName, ErrorKeyEnum, HexAddress, IPluginInterfaceType, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
 
 describe('Controller: CapitalDistributorAdmin', () => {
   let sandbox: sinon.SinonSandbox

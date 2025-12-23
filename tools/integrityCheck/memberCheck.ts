@@ -1,12 +1,12 @@
-import { EnumConnection, type NetworksEnum } from '@types'
-import GraphUtil from './graphUtil'
 import { Models } from '@dbModels'
-import { ethers } from 'ethers'
-import logger from '@logger'
 import { NetworkHelper } from '@helpers/network'
-import DBCrawler from '@models/utils/crawler'
-import * as fs from 'fs'
 import Utils from '@helpers/utils'
+import logger from '@logger'
+import DBCrawler from '@models/utils/crawler'
+import { EnumConnection, type NetworksEnum } from '@types'
+import { ethers } from 'ethers'
+import * as fs from 'fs'
+import GraphUtil from './graphUtil'
 
 const llo = logger.logMeta.bind(null, { service: 'tool:IntegrityToolMemberCheck' })
 

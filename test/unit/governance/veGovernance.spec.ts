@@ -1,15 +1,15 @@
 import '@test/environment'
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
 import { Models } from '@dbModels'
-import Logger from '@logger'
-import { VeGovernance, BaseGovernance } from '@src/governance'
 import EnsHelper from '@helpers/ens'
-import { NetworksEnum, type HexAddress, ITokenType, EnumQueueName, IPluginInterfaceType, IPluginStatus } from '@types'
-import Web3Utils from '@helpers/web3Utils'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import utils from '@helpers/utils'
+import Web3Utils from '@helpers/web3Utils'
+import Logger from '@logger'
+import { BaseGovernance, VeGovernance } from '@src/governance'
+import { EnumQueueName, type HexAddress, IPluginInterfaceType, IPluginStatus, ITokenType, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Governance:VeGovernance', () => {
   let sandbox: SinonSandbox

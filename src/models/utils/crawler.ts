@@ -1,6 +1,6 @@
-import { type Document, type Model } from 'mongoose'
-import * as async from 'async'
 import logger from '@logger'
+import * as async from 'async'
+import { type Document, type Model } from 'mongoose'
 
 const llo = logger.logMeta.bind(null, { service: 'modules: Crawler' })
 

@@ -1,20 +1,20 @@
+import config from '@config'
 import { Models } from '@dbModels'
+import { assertExposable } from '@errors'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import utils from '@helpers/utils'
+import logger from '@logger'
+import PairDataModule from '@modules/pairData'
 import {
+  EnumQueueName,
   ErrorKeyEnum,
-  type IProposalsResponse,
+  type ICanCreateProposalParams,
   type IPaginatedResult,
   type IPaginationParams,
-  type IProposalExtraParams,
   type IPairParams,
-  EnumQueueName,
-  type ICanCreateProposalParams,
+  type IProposalExtraParams,
+  type IProposalsResponse,
 } from '@types'
-import { assertExposable } from '@errors'
-import PairDataModule from '@modules/pairData'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import config from '@config'
-import logger from '@logger'
-import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'ProposalController' })
 

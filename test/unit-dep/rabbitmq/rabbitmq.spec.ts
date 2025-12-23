@@ -1,11 +1,11 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
+import utils from '@helpers/utils'
 import RabbitMQ from '@modules/rabbitMQ'
 import ReceiverRabbitMQ from '@test/unit-dep/rabbitmq/receiver'
 import SenderRabbitMQ from '@test/unit-dep/rabbitmq/sender'
 import { EnumQueueName } from '@types'
-import utils from '@helpers/utils'
 import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe.skip('Integ: RabbitMQ', () => {
   let sandbox: SinonSandbox

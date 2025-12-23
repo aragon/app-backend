@@ -1,7 +1,7 @@
-import { expect } from 'chai'
-import sinon from 'sinon'
 import MongoRetryHelper from '@helpers/mongoRetry'
 import logger from '@logger'
+import { expect } from 'chai'
+import sinon from 'sinon'
 
 describe('Helpers: MongoRetryHelper', () => {
   let sandbox: sinon.SinonSandbox

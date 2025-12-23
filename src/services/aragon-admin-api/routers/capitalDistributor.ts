@@ -1,10 +1,10 @@
-import Router, { type RouterContext } from '@koa/router'
-import ValidationSchema from '@helpers/validationSchema'
-import CapitalDistributorSchema from '@admin-api/routers/schema/capitalDistributor'
 import { CapitalDistributorAdminController } from '@admin-api/controllers/capitalDistributor'
+import CapitalDistributorSchema from '@admin-api/routers/schema/capitalDistributor'
+import { assertExposable } from '@errors'
+import ValidationSchema from '@helpers/validationSchema'
+import Router, { type RouterContext } from '@koa/router'
 import AuthMiddleware from '@middlewares/auth'
 import UploadMiddleware from '@middlewares/upload'
-import { assertExposable } from '@errors'
 import { ErrorKeyEnum } from '@types'
 
 const CapitalDistributorAdminRouter = {

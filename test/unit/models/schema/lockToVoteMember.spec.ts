@@ -1,11 +1,11 @@
+import { Models } from '@dbModels'
+import LockToVoteMember from '@models/schema/lockToVoteMember'
+import ModelUtils from '@models/utils/models'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import { afterEach, beforeEach } from 'mocha'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import LockToVoteMember from '@models/schema/lockToVoteMember'
-import { afterEach, beforeEach } from 'mocha'
-import { expect } from 'chai'
-import { Models } from '@dbModels'
-import { NetworksEnum } from '@types'
-import ModelUtils from '@models/utils/models'
 
 describe('Model: LockToVoteMember', () => {
   let sandbox: SinonSandbox

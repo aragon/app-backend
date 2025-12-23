@@ -1,10 +1,10 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
 import logger from '@logger'
-import { LogCapitalDistributor } from '@plugins/logCapitalDistributor'
 import { BlockchainLogCrawler } from '@modules/crawlers'
+import { LogCapitalDistributor } from '@plugins/logCapitalDistributor'
 import { IPluginInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('AragonPlugins: LogCapitalDistributor', () => {
   let sandbox: SinonSandbox

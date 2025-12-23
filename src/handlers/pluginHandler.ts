@@ -1,6 +1,22 @@
+import { DAO } from '@artifacts/dao'
+import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import { Models } from '@dbModels'
+import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
+import { MetadataHandler } from '@handlers/metadataHandler'
+import PluginDetector from '@helpers/pluginDetector'
+import { PluginSlug } from '@helpers/pluginSlug'
+import Web3Helper from '@helpers/web3'
+import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
+import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
+import type Plugin from '@models/schema/plugin'
+import { AggregationQueryHelper } from '@models/utils/aggregation'
+import DbOperations from '@models/utils/dbOperations'
+import DbTx from '@modules/dbTx'
+import RabbitMQHelper from '@src/helpers/rabbitMQ'
+import { IPermission } from '@src/types/permission'
 import {
+  EnumQueueName,
   type HexAddress,
   IEventLogPluginType,
   type ILogInfo,
@@ -10,24 +26,8 @@ import {
   IPluginStatus,
   type IQueryGetPlugin,
   type NetworksEnum,
-  EnumQueueName,
 } from '@types'
-import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
-import type Plugin from '@models/schema/plugin'
-import Web3Helper from '@helpers/web3'
-import Web3Utils from '@helpers/web3Utils'
-import { AggregationQueryHelper } from '@models/utils/aggregation'
-import DbOperations from '@models/utils/dbOperations'
-import PluginDetector from '@helpers/pluginDetector'
-import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
-import { PluginSlug } from '@helpers/pluginSlug'
-import DbTx from '@modules/dbTx'
-import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
-import { MetadataHandler } from '@handlers/metadataHandler'
-import RabbitMQHelper from '@src/helpers/rabbitMQ'
 import { ethers, Interface } from 'ethers'
-import { DAO } from '@artifacts/dao'
-import { IPermission } from '@src/types/permission'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PluginHandler' })
 

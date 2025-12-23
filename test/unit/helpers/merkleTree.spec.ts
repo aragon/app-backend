@@ -1,10 +1,10 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { MerkleTree } from 'merkletreejs'
-import { getAddress, solidityPackedKeccak256 } from 'ethers'
 import MerkleTreeHelper from '@helpers/merkleTree'
 import { type IMerkleTreeLeaf, type IRewardEntry } from '@types'
+import { expect } from 'chai'
+import { getAddress, solidityPackedKeccak256 } from 'ethers'
+import { MerkleTree } from 'merkletreejs'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('MerkleTreeHelper', () => {
   let sandbox: SinonSandbox

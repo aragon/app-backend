@@ -1,12 +1,12 @@
-import { type IToken, ITokenType, NetworksEnum } from '@types'
 import config from '@config'
 import dayjs from '@helpers/dayjs'
-import axios from 'axios'
-import logger from '@logger'
-import Web3Utils from '@helpers/web3Utils'
 import { retryRequest } from '@helpers/retryRequest'
-import BottleneckModule from '@modules/bottleneck'
 import utils from '@helpers/utils'
+import Web3Utils from '@helpers/web3Utils'
+import logger from '@logger'
+import BottleneckModule from '@modules/bottleneck'
+import { type IToken, ITokenType, NetworksEnum } from '@types'
+import axios from 'axios'
 
 const llo = logger.logMeta.bind(null, { service: 'coinGecko' })
 

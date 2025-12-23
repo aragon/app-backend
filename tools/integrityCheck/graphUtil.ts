@@ -1,6 +1,7 @@
-import axios from 'axios'
 import { type HexAddress, NetworksEnum } from '@types'
+import axios from 'axios'
 import { ethers } from 'ethers'
+
 const URL = 'https://n-app-backend.aragon.org/graphql'
 
 const IntegrityUtil = {

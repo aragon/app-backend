@@ -1,6 +1,6 @@
-import * as sinon from 'sinon'
-import { expect } from 'chai'
 import UploadMiddleware, { fileFilter } from '@middlewares/upload'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
 
 describe('Middleware: Upload', () => {
   let sandbox: sinon.SinonSandbox

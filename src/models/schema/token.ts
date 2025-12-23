@@ -1,3 +1,6 @@
+import { Models } from '@dbModels'
+import { assert } from '@errors'
+import ModelUtils, { utcDateProp } from '@models/utils/models'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
@@ -11,11 +14,8 @@ import {
   ITokenType,
   NetworksEnum,
 } from '@types'
-import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
-import ModelUtils, { utcDateProp } from '@models/utils/models'
-import { assert } from '@errors'
-import { Models } from '@dbModels'
+import { Model, type SaveOptions } from 'mongoose'
 
 const customName = ICollectionNames.Token
 

@@ -1,11 +1,11 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import Plugin from '@models/schema/plugin'
 import { Models } from '@dbModels'
-import { beforeEach } from 'mocha'
+import Plugin from '@models/schema/plugin'
 import { PluginList } from '@test/mock/fakePlugins'
 import { IPluginInterfaceType, IPluginSlug, IPluginStatus, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import { beforeEach } from 'mocha'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Model: Plugin', () => {
   let sandbox: SinonSandbox

@@ -1,7 +1,7 @@
-import * as sinon from 'sinon'
+import { IDaoTransferLogs, NetworksEnum, TokenTransfer } from '@types'
 import { expect } from 'chai'
 import proxyquire from 'proxyquire'
-import { NetworksEnum, IDaoTransferLogs, TokenTransfer } from '@types'
+import * as sinon from 'sinon'
 
 describe('AragonDao: DaoTransactions', () => {
   let sandbox: sinon.SinonSandbox

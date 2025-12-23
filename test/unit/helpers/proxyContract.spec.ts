@@ -1,12 +1,12 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
 import ProxyContractHelper from '@helpers/proxyContract'
-import { ethers, getAddress } from 'ethers'
-import { NetworksEnum } from '@types'
-import proxyquire from 'proxyquire'
 import Logger from '@logger'
 import ProviderModule from '@modules/provider'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import { ethers, getAddress } from 'ethers'
+import proxyquire from 'proxyquire'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Helpers:ProxyContractHelper', () => {
   let sandbox: SinonSandbox

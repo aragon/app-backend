@@ -1,16 +1,16 @@
-import { type Log, type LogDescription, Interface } from 'ethers'
-import async from 'async'
+import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import {
-  type IIndexerConfig,
   type IFormattedLog,
-  type NetworksEnum,
+  type IIndexerConfig,
   type ILogProcessingConfig,
+  type IParallelConfig,
   type IProcessingContext,
   type IProcessingStats,
-  type IParallelConfig,
+  type NetworksEnum,
 } from '@types'
-import Web3Utils from '@helpers/web3Utils'
+import async from 'async'
+import { Interface, type Log, type LogDescription } from 'ethers'
 import { CrawlerErrorHandler } from './crawlerErrorHandler'
 
 const llo = logger.logMeta.bind(null, { service: 'LogProcessingEngine' })

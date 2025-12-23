@@ -1,6 +1,6 @@
-import { expect } from 'chai'
-import { TaskSchedulerState } from '@state//taskSchedulerState'
 import TaskScheduler from '@modules/taskScheduler'
+import { TaskSchedulerState } from '@state//taskSchedulerState'
+import { expect } from 'chai'
 
 describe('Modules: TaskSchedulerState', () => {
   it('should enforce a singleton pattern', () => {

@@ -1,10 +1,10 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { ITokenType, NetworksEnum } from '@types'
-import { getAddress } from 'ethers'
 import TokenController from '@api/controllers/token'
 import TokenRouter from '@api/routers/v1/token'
+import { ITokenType, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import { getAddress } from 'ethers'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('RouterV1: Token', () => {
   let sandbox: SinonSandbox

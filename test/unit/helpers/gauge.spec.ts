@@ -1,11 +1,11 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
 import GaugeHelper from '@helpers/gauge'
 import Web3Helper from '@helpers/web3'
 import { NetworksEnum } from '@types'
-import proxyquire from 'proxyquire'
+import { expect } from 'chai'
 import { ZeroAddress } from 'ethers'
+import proxyquire from 'proxyquire'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Helpers: Gauge', () => {
   let sandbox: SinonSandbox

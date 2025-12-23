@@ -1,13 +1,13 @@
+import ProxyContractHelper from '@helpers/proxyContract'
+import TokenDetector from '@helpers/tokenDetector'
+import utils from '@helpers/utils'
+import ProviderModule from '@modules/provider'
+import { ITokenType, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import { ZeroAddress } from 'ethers'
+import { beforeEach } from 'mocha'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import TokenDetector from '@helpers/tokenDetector'
-import { beforeEach } from 'mocha'
-import { ITokenType, NetworksEnum } from '@types'
-import { ZeroAddress } from 'ethers'
-import { expect } from 'chai'
-import ProxyContractHelper from '@helpers/proxyContract'
-import ProviderModule from '@modules/provider'
-import utils from '@helpers/utils'
 
 describe('Helper: TokenDetector', () => {
   let sandbox: SinonSandbox

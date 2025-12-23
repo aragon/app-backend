@@ -1,17 +1,17 @@
 import { Models } from '@dbModels'
+import { assertExposable } from '@errors'
+import { type CapitalDistributorGovernance, MemberGovernanceFactory } from '@src/governance'
 import {
   ErrorKeyEnum,
-  type ICampaignResponse,
-  type IPaginationParams,
-  type IPaginatedResult,
-  type ICampaignApiParams,
-  type IUserCampaignStatus,
   type HexAddress,
-  type NetworksEnum,
+  type ICampaignApiParams,
+  type ICampaignResponse,
+  type IPaginatedResult,
+  type IPaginationParams,
   IPluginInterfaceType,
+  type IUserCampaignStatus,
+  type NetworksEnum,
 } from '@types'
-import { assertExposable } from '@errors'
-import { MemberGovernanceFactory, type CapitalDistributorGovernance } from '@src/governance'
 
 const CapitalDistributorController = {
   getCampaignsWithPagination: async (

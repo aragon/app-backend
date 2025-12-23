@@ -1,13 +1,13 @@
+import BlockScoutHelper from '@helpers/blockScout'
+import TokenUtils from '@helpers/tokenUtils'
+import utils from '@helpers/utils'
+import logger from '@logger'
+import BlockScoutProvider from '@modules/proxyProvider/blockscoutProvider'
+import { ProxyToken } from '@modules/proxyToken'
+import { ITokenType, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import BlockScoutProvider from '@modules/proxyProvider/blockscoutProvider'
-import BlockScoutHelper from '@helpers/blockScout'
-import { ProxyToken } from '@modules/proxyToken'
-import TokenUtils from '@helpers/tokenUtils'
-import { ITokenType, NetworksEnum } from '@types'
-import logger from '@logger'
-import utils from '@helpers/utils'
 
 describe('Modules: BlockScoutProvider', () => {
   let sandbox: SinonSandbox

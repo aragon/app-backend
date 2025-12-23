@@ -1,9 +1,9 @@
+import { Models } from '@dbModels'
+import logger from '@logger'
+import removeTokenSyncTagMigration from '@src/migrations/20250802021235-removeTokenSyncTag'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox, SinonStub } from 'sinon'
-import { Models } from '@dbModels'
-import { expect } from 'chai'
-import removeTokenSyncTagMigration from '@src/migrations/20250802021235-removeTokenSyncTag'
-import logger from '@logger'
 
 describe('migration: removeTokenSyncTag', () => {
   let sandbox: SinonSandbox

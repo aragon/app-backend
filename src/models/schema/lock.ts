@@ -1,20 +1,20 @@
+import { assert } from '@errors'
+import { AggregationQueryHelper } from '@models/utils/aggregation'
+import ModelUtils from '@models/utils/models'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
-  type ILockIdParams,
   ICollectionNames,
-  NetworksEnum,
-  type ILockFindMemberParams,
-  type IPaginationParams,
-  type IPaginatedResult,
   type ILockExtraParams,
+  type ILockFindMemberParams,
+  type ILockIdParams,
   type IMemberLockResponse,
+  type IPaginatedResult,
+  type IPaginationParams,
+  NetworksEnum,
 } from '@types'
-import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
-import { assert } from '@errors'
-import ModelUtils from '@models/utils/models'
-import { AggregationQueryHelper } from '@models/utils/aggregation'
+import { Model, type SaveOptions } from 'mongoose'
 
 const customName = ICollectionNames.Lock
 

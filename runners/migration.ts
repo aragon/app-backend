@@ -1,5 +1,5 @@
-import Runner, { stopApp } from '@modules/runner'
 import MigrationService from '@modules/migration'
+import Runner, { stopApp } from '@modules/runner'
 
 // Set up callback to stop after migrations complete
 MigrationService.setOnComplete(async () => {

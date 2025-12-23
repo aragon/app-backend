@@ -1,8 +1,10 @@
-import Router, { type RouterContext } from '@koa/router'
-import ValidationSchema from '@helpers/validationSchema'
-import ModelUtils from '@models/utils/models'
-import ProposalSchema from '@api/routers/schema/proposal'
 import ProposalController from '@api/controllers/proposal'
+import PaginationSchema from '@api/routers/schema/pagination'
+import ProposalSchema from '@api/routers/schema/proposal'
+import Utils from '@helpers/utils'
+import ValidationSchema from '@helpers/validationSchema'
+import Router, { type RouterContext } from '@koa/router'
+import ModelUtils from '@models/utils/models'
 import {
   type HexAddress,
   type ICanCreateProposalParams,
@@ -10,8 +12,6 @@ import {
   type IProposalExtraParams,
   type NetworksEnum,
 } from '@types'
-import PaginationSchema from '@api/routers/schema/pagination'
-import Utils from '@helpers/utils'
 
 const ProposalRouter = {
   getWithPagination: async function (ctx: RouterContext) {

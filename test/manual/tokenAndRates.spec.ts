@@ -1,10 +1,10 @@
+import ProviderModule from '@modules/provider'
+import { ProxyToken } from '@modules/proxyToken'
+import { FetchRates } from '@rates/fetchRates'
+import { ITokenType, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import ProviderModule from '@modules/provider'
-import { ITokenType, NetworksEnum } from '@types'
-import { ProxyToken } from '@modules/proxyToken'
-import { expect } from 'chai'
-import { FetchRates } from '@rates/fetchRates'
 
 describe.skip('Manual: Token and Rates', () => {
   let sandbox: SinonSandbox

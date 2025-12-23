@@ -1,7 +1,6 @@
-import sinon, { SinonSandbox } from 'sinon'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
-
 import { expect } from 'chai'
+import sinon, { SinonSandbox } from 'sinon'
 
 describe('Modules:ContractNetspec', () => {
   let sandbox: SinonSandbox

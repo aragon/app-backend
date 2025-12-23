@@ -1,8 +1,8 @@
+import GovernanceVeHelper from '@helpers/governanceVe'
+import { HexAddress, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { HexAddress, NetworksEnum } from '@types'
-import GovernanceVeHelper from '@helpers/governanceVe'
 
 describe('Integ: GovernanceVeHelper', () => {
   let sandbox: SinonSandbox

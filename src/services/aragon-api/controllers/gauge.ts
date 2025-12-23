@@ -1,4 +1,7 @@
+import config from '@config'
 import { Models } from '@dbModels'
+import { assertExposable } from '@errors'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import {
   EnumQueueName,
   ErrorKeyEnum,
@@ -12,9 +15,6 @@ import {
   type IPaginationParams,
   IPluginInterfaceType,
 } from '@types'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import config from '@config'
-import { assertExposable } from '@errors'
 
 const GaugeController = {
   getGaugesWithPagination: async (

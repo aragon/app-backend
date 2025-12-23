@@ -1,11 +1,11 @@
-import * as sinon from 'sinon'
-import { type SinonSandbox } from 'sinon'
-import { expect } from 'chai'
+import config from '@config'
+import logger from '@logger'
 import AragonTransfersService from '@services/aragon-transfers/index'
 import { TransferIndexer } from '@services/aragon-transfers/transferIndexer'
-import logger from '@logger'
-import config from '@config'
 import { EnumConnection } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { type SinonSandbox } from 'sinon'
 
 describe('AragonTransfers: index', () => {
   let sandbox: SinonSandbox

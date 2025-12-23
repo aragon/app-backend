@@ -1,12 +1,12 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
+import * as ContractNetspecHelper from '@helpers/contractNetspec'
+import DecodeActions from '@helpers/decodeAction'
+import ProxyContract from '@helpers/proxyContract'
+import ProxyWeb3Provider from '@modules/proxyProvider'
 import { ContractInfo } from '@services/aragon-gateway/contractInfo'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
-import ProxyContract from '@helpers/proxyContract'
-import * as ContractNetspecHelper from '@helpers/contractNetspec'
-import ProxyWeb3Provider from '@modules/proxyProvider'
-import DecodeActions from '@helpers/decodeAction'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('AragonDao: contractInfo', () => {
   let sandbox: SinonSandbox

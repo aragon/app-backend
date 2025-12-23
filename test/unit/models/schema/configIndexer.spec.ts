@@ -1,9 +1,9 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import ConfigIndexer from '@models/schema/configIndexer'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Model: ConfigIndexer', () => {
   let sandbox: SinonSandbox

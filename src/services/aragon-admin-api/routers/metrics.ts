@@ -1,5 +1,5 @@
-import Router, { type RouterContext } from '@koa/router'
 import MetricsAdminController from '@admin-api/controllers/metrics'
+import Router, { type RouterContext } from '@koa/router'
 import AuthMiddleware from '@middlewares/auth'
 
 const MetricsAdminRouter = {

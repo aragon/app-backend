@@ -1,9 +1,9 @@
-import * as os from 'os'
-import * as winston from 'winston'
-import * as process from 'process'
-import Utils from '@helpers/utils'
 import config from '@config'
+import Utils from '@helpers/utils'
 import { type ILogFormat } from '@types'
+import * as os from 'os'
+import * as process from 'process'
+import * as winston from 'winston'
 
 const LEVEL = Symbol.for('level')
 const MESSAGE = Symbol.for('message')

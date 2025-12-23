@@ -1,7 +1,7 @@
-import Utils from '@helpers/utils'
-import { EnumConnection, EnumServiceName, type IService } from '@types'
 import AdminApp from '@admin-api/app'
 import config from '@config'
+import Utils from '@helpers/utils'
+import { EnumConnection, EnumServiceName, type IService } from '@types'
 
 const AragonAdminAPIService: IService = {
   name: EnumServiceName.ARAGON_ADMIN_API,

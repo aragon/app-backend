@@ -1,19 +1,19 @@
-import logger from '@logger'
-import axios from 'axios'
 import config from '@config'
-import {
-  type HexAddress,
-  type IWeb3TokenBalance,
-  type IEtherScanSource,
-  type IWeb3ContractCreation,
-  NetworksEnum,
-} from '@types'
 import { retryRequest } from '@helpers/retryRequest'
+import utils from '@helpers/utils'
+import Web3Utils from '@helpers/web3Utils'
+import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
-import utils from '@helpers/utils'
+import {
+  type HexAddress,
+  type IEtherScanSource,
+  type IWeb3ContractCreation,
+  type IWeb3TokenBalance,
+  NetworksEnum,
+} from '@types'
+import axios from 'axios'
 import { ethers } from 'ethers'
-import Web3Utils from '@helpers/web3Utils'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:EvmExplorerClient' })
 

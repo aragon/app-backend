@@ -1,9 +1,9 @@
-import { expect } from 'chai'
+import { Models } from '@dbModels'
+import logger from '@logger'
 import fixProposalActionBrokenNamesMigration from '@src/migrations/20250821110833-fix-proposal-action-broken-names'
 import { NetworksEnum } from '@types'
-import { Models } from '@dbModels'
+import { expect } from 'chai'
 import sinon from 'sinon'
-import logger from '@logger'
 
 describe('migration: fixProposalActionBrokenNames', () => {
   let sandbox: sinon.SinonSandbox

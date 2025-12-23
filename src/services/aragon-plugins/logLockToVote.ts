@@ -1,9 +1,9 @@
-import logger from '@logger'
-import { type IIndexerConfig, ILockManager, ILogToVoteLogs } from '@types'
-import { BlockchainLogCrawler } from '@modules/crawlers'
-import type Plugin from '@models/schema/plugin'
-import configIndexer from '@indexer/configIndexer'
 import ConfigIndexerHelper from '@helpers/configIndexer'
+import configIndexer from '@indexer/configIndexer'
+import logger from '@logger'
+import type Plugin from '@models/schema/plugin'
+import { BlockchainLogCrawler } from '@modules/crawlers'
+import { type IIndexerConfig, ILockManager, ILogToVoteLogs } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogLockToVote' })
 

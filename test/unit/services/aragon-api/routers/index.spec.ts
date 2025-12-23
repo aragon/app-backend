@@ -1,11 +1,11 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import Router from '@koa/router'
 import MainRouter from '@api/routers'
+import Router from '@koa/router'
 import V1Router from '@services/aragon-api/routers/v1'
 import V2Router from '@services/aragon-api/routers/v2'
+import { expect } from 'chai'
 import Koa from 'koa'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 import supertest from 'supertest'
 
 describe('Router: MainRouter', () => {

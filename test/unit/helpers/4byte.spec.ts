@@ -1,9 +1,8 @@
-import sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import FourByteHelper from '@helpers/4byte'
 import config from '@config'
+import FourByteHelper from '@helpers/4byte'
 import Logger from '@logger'
+import { expect } from 'chai'
+import sinon, { SinonSandbox } from 'sinon'
 
 describe('Modules:4Byte', () => {
   let sandbox: SinonSandbox

@@ -1,13 +1,13 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { ITransactionSide, ITransactionType, NetworksEnum } from '@types'
+import TransactionController from '@api/controllers/transaction'
 import { Models } from '@dbModels'
+import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
 import { daoForDaoTransactions } from '@test/mock/daoTransactions/dao'
 import { pluginForDaoTransactions } from '@test/mock/daoTransactions/plugin'
 import { proposalForDaoTransactions } from '@test/mock/daoTransactions/proposal'
-import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
-import TransactionController from '@api/controllers/transaction'
+import { ITransactionSide, ITransactionType, NetworksEnum } from '@types'
 import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe.skip('Integration: DAO Transaction Service', () => {
   let sandbox: SinonSandbox

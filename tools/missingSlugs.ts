@@ -1,7 +1,7 @@
-import { EnumConnection, IPluginStatus, type IService } from '@types'
 import { Models } from '@dbModels'
-import logger from '@logger'
 import { PluginSlug } from '@helpers/pluginSlug'
+import logger from '@logger'
+import { EnumConnection, IPluginStatus, type IService } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'Tools: MissingSlugs' })
 

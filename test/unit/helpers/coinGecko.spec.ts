@@ -1,12 +1,12 @@
+import CoinGeckoHelper from '@helpers/coinGecko'
+import * as retryRequestModule from '@helpers/retryRequest'
+import utils from '@helpers/utils'
+import logger from '@logger'
+import BottleneckModule from '@modules/bottleneck'
+import { ITokenType, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import CoinGeckoHelper from '@helpers/coinGecko'
-import { ITokenType, NetworksEnum } from '@types'
-import logger from '@logger'
-import * as retryRequestModule from '@helpers/retryRequest'
-import BottleneckModule from '@modules/bottleneck'
-import utils from '@helpers/utils'
 
 describe('Helpers: CoinGecko', () => {
   let sandbox: SinonSandbox

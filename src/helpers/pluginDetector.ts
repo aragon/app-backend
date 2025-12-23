@@ -1,9 +1,9 @@
-import { keccak256, ZeroAddress } from 'ethers'
-import { VotingBodyBrandIdentity, type IPluginInfo, IPluginInterfaceType, type NetworksEnum } from '@types'
 import ProxyContractHelper from '@helpers/proxyContract'
-import ProviderModule from '@modules/provider'
-import logger from '@logger'
 import utils from '@helpers/utils'
+import logger from '@logger'
+import ProviderModule from '@modules/provider'
+import { type IPluginInfo, IPluginInterfaceType, type NetworksEnum, VotingBodyBrandIdentity } from '@types'
+import { keccak256, ZeroAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helper:PluginDetector' })
 
@@ -127,7 +127,7 @@ const PluginDetector = {
       }
 
       return VotingBodyBrandIdentity.OTHER
-    } catch (error: any) {
+    } catch (_error: any) {
       return VotingBodyBrandIdentity.OTHER
     }
   },

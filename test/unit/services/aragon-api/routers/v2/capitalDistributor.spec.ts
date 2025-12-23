@@ -1,10 +1,10 @@
+import CapitalDistributorController from '@api/controllers/capitalDistributor'
+import CapitalDistributorRouter from '@api/routers/v2/capitalDistributor'
+import ValidationSchema from '@helpers/validationSchema'
+import { HexAddress, IUserCampaignStatus, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import CapitalDistributorRouter from '@api/routers/v2/capitalDistributor'
-import CapitalDistributorController from '@api/controllers/capitalDistributor'
-import { NetworksEnum, HexAddress, IUserCampaignStatus } from '@types'
-import ValidationSchema from '@helpers/validationSchema'
 
 describe('RouterV2: CapitalDistributor', () => {
   let sandbox: SinonSandbox

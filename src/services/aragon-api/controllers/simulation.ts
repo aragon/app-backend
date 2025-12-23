@@ -1,12 +1,12 @@
-import { Models } from '@dbModels'
-import TenderlyModule from '@modules/tenderly'
-import logger from '@logger'
-import { type NetworksEnum, IPluginStatus, ErrorKeyEnum, type ISimulationStatus } from '@types'
-import * as Errors from '@errors'
-import { Interface, ethers } from 'ethers'
 import { DAO } from '@artifacts/dao'
 import config from '@config'
+import { Models } from '@dbModels'
+import * as Errors from '@errors'
+import logger from '@logger'
 import DbOperations from '@models/utils/dbOperations'
+import TenderlyModule from '@modules/tenderly'
+import { ErrorKeyEnum, IPluginStatus, type ISimulationStatus, type NetworksEnum } from '@types'
+import { ethers, Interface } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'simulation-controller' })
 

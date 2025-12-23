@@ -1,9 +1,9 @@
-import { type HexAddress, type NetworksEnum } from '@types'
-import { Contract, ethers, getAddress, ZeroAddress } from 'ethers'
+import { retryRequest } from '@helpers/retryRequest'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
-import { retryRequest } from '@helpers/retryRequest'
+import { type HexAddress, type NetworksEnum } from '@types'
+import { Contract, ethers, getAddress, ZeroAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ProxyContractHelper' })
 
@@ -36,13 +36,13 @@ const ProxyContractHelper = {
 
     try {
       return await BottleneckModule.getNodeLimiter(network).schedule(async () => contract.getImplementation())
-    } catch (error) {
+    } catch (_error) {
       // ignore
     }
 
     try {
       return await BottleneckModule.getNodeLimiter(network).schedule(async () => contract.implementation())
-    } catch (error) {
+    } catch (_error) {
       // ignore
     }
 
@@ -62,7 +62,7 @@ const ProxyContractHelper = {
       )
       const addressFromStorage = getAddress('0x' + storageValue.slice(-40))
       return addressFromStorage === ZeroAddress ? null : addressFromStorage
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   },

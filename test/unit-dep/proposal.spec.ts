@@ -1,11 +1,11 @@
+import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
+import { Models } from '@dbModels'
+import { ProposalHandler } from '@handlers/proposalHandler'
+import { LibUtils } from '@test/lib/unit-dep/lib'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { NetworksEnum } from '@types'
-import { Models } from '@dbModels'
-import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
-import { ProposalHandler } from '@handlers/proposalHandler'
-import { expect } from 'chai'
-import { LibUtils } from '@test/lib/unit-dep/lib'
 
 describe('Integ: Proposal', () => {
   let sandbox: SinonSandbox

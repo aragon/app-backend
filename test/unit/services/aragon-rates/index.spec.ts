@@ -1,13 +1,13 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import RatesService from '@services/aragon-rates/index'
 import config from '@config'
 import utils from '@helpers/utils'
-import { EnumConnection } from '@types'
-import { TaskSchedulerState } from '@state/taskSchedulerState'
 import logger from '@logger'
 import { FetchRates } from '@services/aragon-rates/fetchRates'
+import RatesService from '@services/aragon-rates/index'
+import { TaskSchedulerState } from '@state/taskSchedulerState'
+import { EnumConnection } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('AragonRates: index', () => {
   let sandbox: SinonSandbox

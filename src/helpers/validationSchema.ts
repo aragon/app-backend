@@ -1,12 +1,13 @@
 // ValidationSchema.ts
-import { ErrorKeyEnum, NetworksEnum } from '@types'
-import { throwExposable } from '@helpers/errors'
-import Joi from 'joi'
-import { getAddress } from 'ethers'
+
 import dayjs from '@helpers/dayjs'
-import { type RouterContext } from '@koa/router'
+import { throwExposable } from '@helpers/errors'
 import Utils from '@helpers/utils'
+import { type RouterContext } from '@koa/router'
 import ModelUtils from '@models/utils/models'
+import { ErrorKeyEnum, NetworksEnum } from '@types'
+import { getAddress } from 'ethers'
+import Joi from 'joi'
 
 const ValidationSchema = {
   Joi,
@@ -16,7 +17,7 @@ const ValidationSchema = {
     .custom((value, helpers) => {
       try {
         return getAddress(value)
-      } catch (error) {
+      } catch (_error) {
         return helpers.error('string.invalid', { value })
       }
     }, 'Address Validation')
@@ -55,7 +56,7 @@ const ValidationSchema = {
 
         const formattedValue = `${network}-${checksumAddress}`
         return formattedValue
-      } catch (error) {
+      } catch (_error) {
         return helpers.error('string.invalid', { value })
       }
     }, 'Dao Id validation')

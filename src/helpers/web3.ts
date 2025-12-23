@@ -1,3 +1,14 @@
+import { ERC20 } from '@artifacts/ERC20'
+import { ERC721 } from '@artifacts/ERC721'
+import { GaugeVoter } from '@artifacts/GaugeVoter'
+import { Multisig } from '@artifacts/Multisig'
+import { TokenVoting } from '@artifacts/TokenVoting'
+import { VotingEscrow } from '@artifacts/VotingEscrow'
+import { retryRequest } from '@helpers/retryRequest'
+import Web3Utils from '@helpers/web3Utils'
+import logger from '@logger'
+import BottleneckModule from '@modules/bottleneck'
+import ProviderModule from '@modules/provider'
 import {
   type HexAddress,
   IConnectionType,
@@ -6,20 +17,8 @@ import {
   type IWeb3TokenBalance,
   NetworksEnum,
 } from '@types'
-import { type Block, Contract, Interface, type TransactionReceipt } from 'ethers'
-import logger from '@logger'
-import { ERC20 } from '@artifacts/ERC20'
-import BottleneckModule from '@modules/bottleneck'
-import { retryRequest } from '@helpers/retryRequest'
-import ProviderModule from '@modules/provider'
-import { Multisig } from '@artifacts/Multisig'
-import { VotingEscrow } from '@artifacts/VotingEscrow'
-import { GaugeVoter } from '@artifacts/GaugeVoter'
-import { TokenVoting } from '@artifacts/TokenVoting'
+import { type Block, Contract, ethers, Interface, type TransactionReceipt } from 'ethers'
 import { type BlockTag } from 'ethers/src.ts/providers/provider'
-import Web3Utils from '@helpers/web3Utils'
-import { ERC721 } from '@artifacts/ERC721'
-import { ethers } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
@@ -31,7 +30,7 @@ const Web3Helper = {
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network).schedule(async () => contract.supportsInterface(interfaceId)),
       )
-    } catch (error) {
+    } catch (_error) {
       return false
     }
   },
@@ -364,7 +363,7 @@ const Web3Helper = {
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network).schedule(async () => contract.balanceOf(address)),
       )
-    } catch (error) {
+    } catch (_error) {
       return 0n
     }
   },
@@ -406,7 +405,7 @@ const Web3Helper = {
       version = await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network).schedule(async () => contract.protocolVersion()),
       )
-    } catch (error) {
+    } catch (_error) {
       version = [1, 0, 0]
     }
     return version.join('.')
@@ -470,7 +469,7 @@ const Web3Helper = {
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(Network).schedule(async () => contract.getVotingToken()),
       )
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   },
@@ -484,7 +483,7 @@ const Web3Helper = {
       )
 
       return response
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   },
@@ -498,7 +497,7 @@ const Web3Helper = {
       )
 
       return response
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   },

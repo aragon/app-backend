@@ -1,7 +1,7 @@
-import { MerkleTree } from 'merkletreejs'
-import { ethers, getAddress, solidityPackedKeccak256 } from 'ethers'
-import { type IMemberWithProof, type IMerkleTreeLeaf, type IMerkleTreeWithProofs, type IRewardEntry } from '@types'
 import logger from '@logger'
+import { type IMemberWithProof, type IMerkleTreeLeaf, type IMerkleTreeWithProofs, type IRewardEntry } from '@types'
+import { ethers, getAddress, solidityPackedKeccak256 } from 'ethers'
+import { MerkleTree } from 'merkletreejs'
 
 const llo = logger.logMeta.bind(null, { service: 'MerkleTreeHelper' })
 const MerkleTreeHelper = {

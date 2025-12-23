@@ -1,12 +1,12 @@
 import '@test/environment'
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
 import { Models } from '@dbModels'
+import MerkleTreeHelper from '@helpers/merkleTree'
 import Logger from '@logger'
 import { CapitalDistributorGovernance } from '@src/governance'
-import { NetworksEnum, type HexAddress } from '@types'
-import MerkleTreeHelper from '@helpers/merkleTree'
+import { type HexAddress, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Governance:CapitalDistributorGovernance', () => {
   let sandbox: SinonSandbox

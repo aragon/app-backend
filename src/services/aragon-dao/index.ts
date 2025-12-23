@@ -1,23 +1,23 @@
+import config from '@config'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import { AllMetrics } from '@services/aragon-dao/allMetrics'
+import { DaoAssets } from '@services/aragon-dao/daoAssets'
+import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
+import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
+import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
+import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 import {
   EnumConnection,
   EnumQueueName,
+  EnumServiceName,
   type IProposalInfo,
   type IQueueAllMetrics,
   type IQueueDao,
   type IQueueDaoTransactions,
   type IQueueProposalMetrics,
   type IService,
-  EnumServiceName,
 } from '@types'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import { DaoAssets } from '@services/aragon-dao/daoAssets'
-import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
-import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
-import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
-import { AllMetrics } from '@services/aragon-dao/allMetrics'
-import config from '@config'
-import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 
 const llo = logger.logMeta.bind(null, { service: 'service:DaoService' })
 

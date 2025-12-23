@@ -1,4 +1,4 @@
-import { NetworksEnum, ITransactionType, ITokenType, ITransactionSide } from '@types'
+import { ITokenType, ITransactionSide, ITransactionType, NetworksEnum } from '@types'
 
 export const FakeTransaction = {
   transactionHash: '0x14c9c85a416679f1b3e89e98e5c1e5d99bb4426d11c5c9e2694d6c9ead52637e',

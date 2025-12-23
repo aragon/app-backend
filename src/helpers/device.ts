@@ -1,7 +1,7 @@
-import parser from 'ua-parser-js'
-import logger from '@logger'
 import { assert } from '@errors'
+import logger from '@logger'
 import { type IDeviceInfo } from '@types'
+import parser from 'ua-parser-js'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:device' })
 

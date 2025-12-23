@@ -1,10 +1,10 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { IMigrationStatus } from '@types'
 import { Models } from '@dbModels'
 import dayjs from '@helpers/dayjs'
 import Migration from '@models/schema/migration'
+import { IMigrationStatus } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Model: Migration', () => {
   let sandbox: SinonSandbox

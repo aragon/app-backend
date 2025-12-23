@@ -1,9 +1,9 @@
+import { Models } from '@dbModels'
+import { LibUtils } from '@test/lib/unit-dep/lib'
+import { IPluginStatus, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { IPluginStatus, NetworksEnum } from '@types'
-import { Models } from '@dbModels'
-import { expect } from 'chai'
-import { LibUtils } from '@test/lib/unit-dep/lib'
 
 describe('Integ: Uninstall Plugins', () => {
   let sandbox: SinonSandbox

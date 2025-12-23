@@ -1,10 +1,10 @@
-import logger from '@logger'
-import axios from 'axios'
 import config from '@config'
 import { retryRequest } from '@helpers/retryRequest'
+import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
-import { type HexAddress, ITokenType, type NetworksEnum } from '@types'
 import { type ITokenFullDetails } from '@src/types/blockScout'
+import { type HexAddress, ITokenType, type NetworksEnum } from '@types'
+import axios from 'axios'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:BlockScoutHelper' })
 

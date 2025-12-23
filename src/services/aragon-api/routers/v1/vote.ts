@@ -1,7 +1,10 @@
-import Router, { type RouterContext } from '@koa/router'
-import ValidationSchema from '@helpers/validationSchema'
-import ModelUtils from '@models/utils/models'
 import VoteController from '@api/controllers/vote'
+import PaginationSchema from '@api/routers/schema/pagination'
+import VoteSchema from '@api/routers/schema/vote'
+import Utils from '@helpers/utils'
+import ValidationSchema from '@helpers/validationSchema'
+import Router, { type RouterContext } from '@koa/router'
+import ModelUtils from '@models/utils/models'
 import {
   type HexAddress,
   type ICanVoteParams,
@@ -9,9 +12,6 @@ import {
   type IVoteExtraParams,
   type NetworksEnum,
 } from '@types'
-import PaginationSchema from '@api/routers/schema/pagination'
-import VoteSchema from '@api/routers/schema/vote'
-import Utils from '@helpers/utils'
 
 const VoteRouter = {
   getWithPagination: async function (ctx: RouterContext) {

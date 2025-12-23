@@ -1,15 +1,15 @@
-import { IPluginInterfaceType, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
+import GovernanceErc20Helper from '@helpers/governanceErc20'
+import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import type Dao from '@models/schema/dao'
-import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
-import DBCrawler from '@models/utils/crawler'
 import type Proposal from '@models/schema/proposal'
-import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
-import Web3Helper from '@helpers/web3'
-import GovernanceErc20Helper from '@helpers/governanceErc20'
-import { ProxyToken } from '@modules/proxyToken'
 import type TokenMember from '@models/schema/tokenMember'
+import DBCrawler from '@models/utils/crawler'
+import { ProxyToken } from '@modules/proxyToken'
+import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
+import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
+import { IPluginInterfaceType, NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'service:dao:DaoAssets' })
 

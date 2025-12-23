@@ -1,10 +1,10 @@
-import { EnumConnection, type IService } from '@types'
-import { DaoAssets } from '@services/aragon-dao/daoAssets'
 import { Models } from '@dbModels'
-import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
-import DBCrawler from '@models/utils/crawler'
-import type Dao from '@models/schema/dao'
 import logger from '@logger'
+import type Dao from '@models/schema/dao'
+import DBCrawler from '@models/utils/crawler'
+import { DaoAssets } from '@services/aragon-dao/daoAssets'
+import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
+import { EnumConnection, type IService } from '@types'
 
 export const SyncDaoAssets: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],

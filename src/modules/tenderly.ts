@@ -1,9 +1,9 @@
-import axios from 'axios'
-import logger from '@logger'
 import config from '@config'
+import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
 import { ISimulationStatus, type NetworksEnum } from '@types'
+import axios from 'axios'
 
 const llo = logger.logMeta.bind(null, { service: 'tenderly-module' })
 

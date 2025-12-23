@@ -1,11 +1,11 @@
-import Router, { type RouterContext } from '@koa/router'
 import TokenController from '@api/controllers/token'
-import ValidationSchema from '@helpers/validationSchema'
+import PaginationSchema from '@api/routers/schema/pagination'
 import TokenSchema from '@api/routers/schema/token'
+import Utils from '@helpers/utils'
+import ValidationSchema from '@helpers/validationSchema'
+import Router, { type RouterContext } from '@koa/router'
 import ModelUtils from '@models/utils/models'
 import { type ITokenExtraParams, type ITokenType, type NetworksEnum } from '@types'
-import PaginationSchema from '@api/routers/schema/pagination'
-import Utils from '@helpers/utils'
 
 const TokenRouter = {
   getWithPagination: async function (ctx: RouterContext) {

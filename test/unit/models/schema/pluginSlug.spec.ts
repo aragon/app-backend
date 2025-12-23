@@ -1,8 +1,8 @@
+import { Models } from '@dbModels'
+import { IPluginSlug, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { IPluginSlug, NetworksEnum } from '@types'
-import { Models } from '@dbModels'
 
 describe('Model: PluginSlug', () => {
   let sandbox: SinonSandbox

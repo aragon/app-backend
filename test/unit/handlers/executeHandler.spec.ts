@@ -1,12 +1,12 @@
+import { Models } from '@dbModels'
+import { ExecuteHandler } from '@handlers/executeHandler'
+import Web3Helper from '@helpers/web3'
+import logger from '@logger'
+import { ContractInfo } from '@services/aragon-gateway/contractInfo'
+import { IPluginStatus, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { ExecuteHandler } from '@handlers/executeHandler'
-import { Models } from '@dbModels'
-import { NetworksEnum, IPluginStatus } from '@types'
-import logger from '@logger'
-import Web3Helper from '@helpers/web3'
-import { ContractInfo } from '@services/aragon-gateway/contractInfo'
 
 describe('ExecuteHandler', () => {
   let sandbox: SinonSandbox

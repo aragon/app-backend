@@ -1,13 +1,13 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { HexAddress, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import Asset from '@models/schema/asset'
+import Token from '@models/schema/token'
 import ModelUtils from '@models/utils/models'
 import { FakeAsset } from '@test/mock/fakeAsset'
 import { FakeToken } from '@test/mock/fakeToken'
-import Token from '@models/schema/token'
+import { HexAddress, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Model: Asset', () => {
   let sandbox: SinonSandbox

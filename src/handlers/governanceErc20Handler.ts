@@ -1,12 +1,12 @@
-import logger from '@logger'
-import { type LogDescription } from 'ethers'
-import { type ILogInfo, IPluginInterfaceType, type NetworksEnum } from '@types'
+import { Models } from '@dbModels'
 import utils from '@helpers/utils'
+import logger from '@logger'
+import type Plugin from '@models/schema/plugin'
+import { ProxyToken } from '@modules/proxyToken'
 import { MemberGovernanceFactory } from '@src/governance'
 import { Erc20Governance } from '@src/governance/erc20Governance'
-import type Plugin from '@models/schema/plugin'
-import { Models } from '@dbModels'
-import { ProxyToken } from '@modules/proxyToken'
+import { type ILogInfo, IPluginInterfaceType, type NetworksEnum } from '@types'
+import { type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:GovernanceErc20Handler' })
 

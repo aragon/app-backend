@@ -1,10 +1,10 @@
-import { EnumConnection, type IService } from '@types'
 import { Models } from '@dbModels'
-import logger from '@logger'
-import DBCrawler from '@models/utils/crawler'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
-import type TokenMember from '@models/schema/tokenMember'
 import Web3Helper from '@helpers/web3'
+import logger from '@logger'
+import type TokenMember from '@models/schema/tokenMember'
+import DBCrawler from '@models/utils/crawler'
+import { EnumConnection, type IService } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'Tools: SyncMemberVP' })
 // 67.5k

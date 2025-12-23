@@ -1,10 +1,10 @@
+import { EvmExplorerEnum, evmExplorerClient } from '@helpers/evmExplorerClient'
+import KatanaProvider from '@modules/proxyProvider/katanaProvider'
+import ProxyUtils from '@modules/proxyProvider/utils'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import KatanaProvider from '@modules/proxyProvider/katanaProvider'
-import { NetworksEnum } from '@types'
-import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
-import ProxyUtils from '@modules/proxyProvider/utils'
 
 describe('Modules: KatanaProvider', () => {
   let sandbox: SinonSandbox

@@ -1,12 +1,12 @@
+import VoteController from '@api/controllers/vote'
+import VoteSchema from '@api/routers/schema/vote'
+import VoteRouter from '@api/routers/v1/vote'
+import ValidationSchema from '@helpers/validationSchema'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as _ from 'lodash'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import VoteRouter from '@api/routers/v1/vote'
-import VoteController from '@api/controllers/vote'
-import { NetworksEnum } from '@types'
-import * as _ from 'lodash'
-import ValidationSchema from '@helpers/validationSchema'
-import VoteSchema from '@api/routers/schema/vote'
 
 describe('RouterV1: Vote', () => {
   let sandbox: SinonSandbox

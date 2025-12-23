@@ -1,10 +1,10 @@
-import { type HexAddress, IEventLogPluginType, type NetworksEnum } from '@src/types'
+import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import { Models } from '@dbModels'
+import GaugeHelper from '@helpers/gauge'
+import Utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
-import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
-import Utils from '@helpers/utils'
-import GaugeHelper from '@helpers/gauge'
+import { type HexAddress, IEventLogPluginType, type NetworksEnum } from '@src/types'
 
 const Plugin = {
   getGaugeEpochId: async (pluginAddress: HexAddress, network: NetworksEnum) => {

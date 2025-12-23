@@ -1,8 +1,8 @@
-import Router, { type RouterContext } from '@koa/router'
 import GaugeController from '@api/controllers/gauge'
-import { type IGaugeEpochMetricParams, type IGaugeParams, type IPaginationParams, type NetworksEnum } from '@types'
-import ValidationSchema from '@helpers/validationSchema'
 import GaugeSchema from '@api/routers/schema/gauge'
+import ValidationSchema from '@helpers/validationSchema'
+import Router, { type RouterContext } from '@koa/router'
+import { type IGaugeEpochMetricParams, type IGaugeParams, type IPaginationParams, type NetworksEnum } from '@types'
 
 const GaugeRouter = {
   getWithPagination: async function (ctx: RouterContext) {
