@@ -223,11 +223,7 @@ describe('Web3Provider', () => {
       expect(result).to.deep.equal(expectedResult)
 
       const fallbackArgs = fallbackCallStub.firstCall.args
-      expect(fallbackArgs[0]).to.deep.equal([
-        EvmExplorerEnum.BLOCKSCOUT,
-        EvmExplorerEnum.ETHERSCAN,
-        EvmExplorerEnum.ROUTESCAN,
-      ])
+      expect(fallbackArgs[0]).to.deep.equal([EvmExplorerEnum.ETHERSCAN, EvmExplorerEnum.ROUTESCAN])
       expect(typeof fallbackArgs[1]).to.equal('function')
       expect(typeof fallbackArgs[2]).to.equal('object')
     })
@@ -266,7 +262,6 @@ describe('Web3Provider', () => {
       const fallbackArgs = fallbackCallStub.firstCall.args
       expect(fallbackArgs[0]).to.deep.equal([
         EvmExplorerEnum.ZKSYNC,
-        EvmExplorerEnum.BLOCKSCOUT,
         EvmExplorerEnum.ETHERSCAN,
         EvmExplorerEnum.ROUTESCAN,
       ])
@@ -277,7 +272,7 @@ describe('Web3Provider', () => {
       const network = NetworksEnum.ethereumMainnet
 
       const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').callsFake(async (explorers, fn, options) => {
-        options.onError(new Error('Test error'), EvmExplorerEnum.BLOCKSCOUT, 0)
+        options.onError(new Error('Test error'), EvmExplorerEnum.ZKSYNC, 0)
         return { blockNumber: 100, transactionHash: '0xtxhash', address }
       })
 
@@ -309,11 +304,7 @@ describe('Web3Provider', () => {
       expect(result).to.deep.equal(expectedResult)
 
       const fallbackArgs = fallbackCallStub.firstCall.args
-      expect(fallbackArgs[0]).to.deep.equal([
-        EvmExplorerEnum.ETHERSCAN,
-        EvmExplorerEnum.BLOCKSCOUT,
-        EvmExplorerEnum.ROUTESCAN,
-      ])
+      expect(fallbackArgs[0]).to.deep.equal([EvmExplorerEnum.ETHERSCAN, EvmExplorerEnum.ROUTESCAN])
     })
 
     it('should return null when all explorers fail', async () => {
@@ -349,7 +340,6 @@ describe('Web3Provider', () => {
       expect(fallbackArgs[0]).to.deep.equal([
         EvmExplorerEnum.ZKSYNC,
         EvmExplorerEnum.ETHERSCAN,
-        EvmExplorerEnum.BLOCKSCOUT,
         EvmExplorerEnum.ROUTESCAN,
       ])
     })

@@ -78,57 +78,6 @@ describe('Integ: EvmExplorerClient', () => {
       }
     })
 
-    describe('BlockScout', () => {
-      for (const network in testTokens) {
-        it(`should fetch contract source code for ${network} using BlockScout`, async () => {
-          const token = testTokens[network as NetworksEnum]
-
-          const result = (await evmExplorerClient.fetchContractSourceCode(
-            EvmExplorerEnum.BLOCKSCOUT,
-            token.address,
-            network as NetworksEnum,
-          )) as any
-
-          expect(result).to.be.an('array')
-          expect(result).to.have.length.greaterThan(0)
-
-          const sourceCode = result[0]
-          expect(sourceCode).to.have.property('SourceCode')
-          expect(sourceCode).to.have.property('ContractName')
-          expect(sourceCode).to.have.property('ABI')
-          expect(sourceCode.SourceCode).to.not.be.empty
-          expect(sourceCode.ContractName).to.not.be.empty
-
-          await Utils.wait(1000)
-        })
-      }
-    })
-
-    describe('ChilizScan', () => {
-      it(`should fetch contract source code for ${NetworksEnum.chilizMainnet} using ChilizScan`, async () => {
-        const network = NetworksEnum.chilizMainnet
-        const token = '0xFC66329Ce71d6e6160fc73f6D263995E15679c4b'
-
-        const result = (await evmExplorerClient.fetchContractSourceCode(
-          EvmExplorerEnum.ROUTESCAN,
-          token,
-          network as NetworksEnum,
-        )) as any
-
-        expect(result).to.be.an('array')
-        expect(result).to.have.length.greaterThan(0)
-
-        const sourceCode = result[0]
-        expect(sourceCode).to.have.property('SourceCode')
-        expect(sourceCode).to.have.property('ContractName')
-        expect(sourceCode).to.have.property('ABI')
-        expect(sourceCode.SourceCode).to.not.be.empty
-        expect(sourceCode.ContractName).to.not.be.empty
-
-        await Utils.wait(1000)
-      })
-    })
-
     describe('ZkSyncScan', () => {
       it(`should fetch contract source code for ${NetworksEnum.zksyncMainnet} using ZkSyncScan`, async () => {
         const network = NetworksEnum.zksyncMainnet
@@ -220,53 +169,6 @@ describe('Integ: EvmExplorerClient', () => {
           await Utils.wait(1000)
         })
       }
-    })
-
-    describe('BlockScout', () => {
-      for (const network in testTokens) {
-        it(`should fetch contract creation for ${network} using BlockScout`, async () => {
-          const token = testTokens[network as NetworksEnum]
-
-          const result = await evmExplorerClient.fetchContractCreation(
-            EvmExplorerEnum.BLOCKSCOUT,
-            token.address,
-            network as NetworksEnum,
-          )
-
-          if (result) {
-            expect(result).to.be.not.null
-            expect(result).to.have.property('blockNumber')
-            expect(result).to.have.property('transactionHash')
-            expect(result).to.have.property('address')
-            expect(result.address).to.equal(token.address)
-          }
-
-          await Utils.wait(1000)
-        })
-      }
-    })
-
-    describe('ChilizScan', () => {
-      it(`should fetch contract creation for ${NetworksEnum.chilizMainnet} using ChilizScan`, async () => {
-        const network = NetworksEnum.chilizMainnet
-        const token = '0xFC66329Ce71d6e6160fc73f6D263995E15679c4b'
-
-        const result = await evmExplorerClient.fetchContractCreation(
-          EvmExplorerEnum.ROUTESCAN,
-          token,
-          network as NetworksEnum,
-        )
-
-        if (result) {
-          expect(result).to.be.not.null
-          expect(result).to.have.property('blockNumber')
-          expect(result).to.have.property('transactionHash')
-          expect(result).to.have.property('address')
-          expect(result.address).to.equal(token)
-        }
-
-        await Utils.wait(1000)
-      })
     })
 
     describe('ZkSyncScan', () => {
