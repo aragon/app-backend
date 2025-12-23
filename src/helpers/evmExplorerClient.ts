@@ -20,8 +20,6 @@ const llo = logger.logMeta.bind(null, { service: 'helpers:EvmExplorerClient' })
 export enum EvmExplorerEnum {
   ETHERSCAN = 'etherscan',
   ROUTESCAN = 'routescan',
-  CHILIZ = 'chiliz',
-  BLOCKSCOUT = 'blockscout',
   ZKSYNC = 'zksync',
 }
 
@@ -54,33 +52,6 @@ class EvmExplorerClient {
         return {
           url: `${config.ROUTESCAN_API.BASE_URI}/${chainId}/${urlSegments || 'etherscan/api'}`,
           params: customParams,
-        }
-      },
-    },
-    [EvmExplorerEnum.BLOCKSCOUT]: {
-      buildUrlAndParams: (network: NetworksEnum, customParams = {}, _urlSegments = '') => {
-        const networkConfig = config.NODES[utils.networkToAragon(network)]
-        if (networkConfig.BLOCKSCOUT_API_KEY === undefined) {
-          return null
-        }
-
-        return {
-          url: `${networkConfig.BLOCKSCOUT_API_URL}`,
-          params: {
-            ...customParams,
-            apikey: networkConfig.BLOCKSCOUT_API_KEY,
-          },
-        }
-      },
-    },
-    [EvmExplorerEnum.CHILIZ]: {
-      buildUrlAndParams: (_network: NetworksEnum, customParams = {}, _urlSegments = '') => {
-        const baseUrl = `${config.CHILIZ_API_URL}/api`
-        return {
-          url: baseUrl,
-          params: {
-            ...customParams,
-          },
         }
       },
     },

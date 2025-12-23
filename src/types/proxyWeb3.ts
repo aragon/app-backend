@@ -1,5 +1,10 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 
+export enum IContractAddressType {
+  ADDRESS = 'address',
+  TOKEN = 'token',
+}
+
 export enum IWeb3ProxyMethod {
   getNativeBalance = 'getNativeBalance',
   getTokenBalances = 'getTokenBalances',

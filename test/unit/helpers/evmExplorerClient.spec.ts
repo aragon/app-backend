@@ -1,7 +1,6 @@
 import config from '@config'
 import { EvmExplorerEnum, evmExplorerClient } from '@helpers/evmExplorerClient'
 import * as retryRequestModule from '@helpers/retryRequest'
-import utils from '@helpers/utils'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
@@ -135,98 +134,6 @@ describe('Helpers: EvmExplorerClient', () => {
       ])
     })
 
-    it('should fetch contract source code from Chiliz successfully', async () => {
-      const mockResponse = {
-        data: {
-          status: '1',
-          message: 'OK',
-          result: [
-            {
-              SourceCode: 'contract ChilizTest {}',
-              ContractName: 'ChilizTestContract',
-              ABI: '[]',
-              CompilerVersion: 'solc',
-            },
-          ],
-        },
-      }
-
-      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
-
-      sandbox.stub(config, 'CHILIZ_API_URL').value('https://scan.chiliz.com')
-
-      const result = await evmExplorerClient.fetchContractSourceCode(EvmExplorerEnum.CHILIZ, address, network)
-
-      expect(axiosStub.calledOnce).to.be.true
-
-      const callArgs = axiosStub.firstCall.args
-      expect(callArgs[0]).to.equal('https://scan.chiliz.com/api')
-      expect((callArgs[1] as any).params).to.deep.include({
-        module: 'contract',
-        action: 'getsourcecode',
-        address,
-      })
-
-      expect(result).to.deep.equal([
-        {
-          SourceCode: 'contract ChilizTest {}',
-          ContractName: 'ChilizTestContract',
-          ABI: '[]',
-          CompilerVersion: 'solc',
-        },
-      ])
-    })
-
-    it('should fetch contract source code from BlockScout successfully', async () => {
-      const mockResponse = {
-        data: {
-          status: '1',
-          message: 'OK',
-          result: [
-            {
-              SourceCode: 'contract BlockScoutTest {}',
-              ContractName: 'BlockScoutTestContract',
-              ABI: '[]',
-              CompilerVersion: 'solc',
-            },
-          ],
-        },
-      }
-
-      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
-      const networkToAragonStub = sandbox.stub(utils, 'networkToAragon').returns('ETHEREUM_MAINNET')
-
-      sandbox.stub(config, 'NODES').value({
-        ETHEREUM_MAINNET: {
-          BLOCKSCOUT_API_URL: 'https://eth.blockscout.com/api',
-          BLOCKSCOUT_API_KEY: 'blockscout-key',
-        },
-      })
-
-      const result = await evmExplorerClient.fetchContractSourceCode(EvmExplorerEnum.BLOCKSCOUT, address, network)
-
-      expect(axiosStub.calledOnce).to.be.true
-      expect(networkToAragonStub.calledOnce).to.be.true
-
-      const callArgs = axiosStub.firstCall.args
-      expect(callArgs[0]).to.equal('https://eth.blockscout.com/api')
-      expect((callArgs[1] as any).params).to.deep.include({
-        module: 'contract',
-        action: 'getsourcecode',
-        address,
-        apikey: 'blockscout-key',
-      })
-
-      expect(result).to.deep.equal([
-        {
-          SourceCode: 'contract BlockScoutTest {}',
-          ContractName: 'BlockScoutTestContract',
-          ABI: '[]',
-          CompilerVersion: 'solc',
-        },
-      ])
-    })
-
     it('should fetch contract source code from ZkSync successfully', async () => {
       const mockResponse = {
         data: {
@@ -323,22 +230,6 @@ describe('Helpers: EvmExplorerClient', () => {
       const result = await evmExplorerClient.fetchContractSourceCode(EvmExplorerEnum.ETHERSCAN, address, network)
 
       expect(axiosStub.calledOnce).to.be.true
-      expect(result).to.be.null
-    })
-
-    it('should return null when BlockScout API key is not configured', async () => {
-      const networkToAragonStub = sandbox.stub(utils, 'networkToAragon').returns('ETHEREUM_MAINNET')
-
-      sandbox.stub(config, 'NODES').value({
-        ETHEREUM_MAINNET: {
-          BLOCKSCOUT_API_URL: 'https://eth.blockscout.com/api',
-          BLOCKSCOUT_API_KEY: undefined,
-        },
-      })
-
-      const result = await evmExplorerClient.fetchContractSourceCode(EvmExplorerEnum.BLOCKSCOUT, address, network)
-
-      expect(networkToAragonStub.calledOnce).to.be.true
       expect(result).to.be.null
     })
 
@@ -1099,7 +990,7 @@ describe('Helpers: EvmExplorerClient', () => {
         data: {
           result: [
             {
-              TokenAddress: '0xtoken1',
+              TokenAddress: '0x78776F919f76C5C71Eee4060128B242f623e4088',
               TokenName: 'Token 6 Decimals',
               TokenSymbol: 'T6',
               TokenDivisor: '6',
@@ -1107,7 +998,7 @@ describe('Helpers: EvmExplorerClient', () => {
               TokenPriceUSD: '1.00',
             },
             {
-              TokenAddress: '0xtoken2',
+              TokenAddress: '0xe521285666451db336aD142c717a45802CfD19B4',
               TokenName: 'Token 18 Decimals',
               TokenSymbol: 'T18',
               TokenDivisor: '18',
@@ -1115,7 +1006,7 @@ describe('Helpers: EvmExplorerClient', () => {
               TokenPriceUSD: '2.00',
             },
             {
-              TokenAddress: '0xtoken3',
+              TokenAddress: '0xEd367806be08402bfc9A76e623623C3b4017A4ca',
               TokenName: 'Token 8 Decimals',
               TokenSymbol: 'T8',
               TokenDivisor: '8',
@@ -1395,41 +1286,6 @@ describe('Helpers: EvmExplorerClient', () => {
       expect(result).to.be.undefined
     })
 
-    it('should fetch token info from Chiliz successfully', async () => {
-      const mockResponse = {
-        data: {
-          status: '1',
-          message: 'OK',
-          result: [
-            {
-              tokenName: 'Chiliz Token',
-              symbol: 'CHZ',
-              tokenDecimal: '18',
-              tokenPriceUSD: '0.08',
-              totalSupply: '8888888888000000000000000000',
-            },
-          ],
-        },
-      }
-
-      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
-      sandbox.stub(config, 'CHILIZ_API_URL').value('https://scan.chiliz.com')
-
-      const result = await evmExplorerClient.fetchTokenInfo(EvmExplorerEnum.CHILIZ, address, NetworksEnum.chilizMainnet)
-
-      expect(axiosStub.calledOnce).to.be.true
-      const callArgs = axiosStub.firstCall.args
-      expect(callArgs[0]).to.equal('https://scan.chiliz.com/api')
-
-      expect(result).to.deep.equal({
-        name: 'Chiliz Token',
-        symbol: 'CHZ',
-        decimals: '18',
-        priceUsd: '0.08',
-        totalSupply: '8888888888000000000000000000',
-      })
-    })
-
     it('should fetch token info from ZkSync mainnet successfully', async () => {
       const mockResponse = {
         data: {
@@ -1465,50 +1321,6 @@ describe('Helpers: EvmExplorerClient', () => {
         decimals: '18',
         priceUsd: '0.15',
         totalSupply: '21000000000000000000000000000',
-      })
-    })
-
-    it('should fetch token info from BlockScout successfully', async () => {
-      const mockResponse = {
-        data: {
-          status: '1',
-          message: 'OK',
-          result: [
-            {
-              tokenName: 'BlockScout Token',
-              symbol: 'BST',
-              tokenDecimal: '18',
-              tokenPriceUSD: '0.25',
-              totalSupply: '1000000000000000000000000',
-            },
-          ],
-        },
-      }
-
-      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
-      sandbox.stub(utils, 'networkToAragon').returns('ETHEREUM_MAINNET')
-      sandbox.stub(config, 'NODES').value({
-        ETHEREUM_MAINNET: {
-          BLOCKSCOUT_API_URL: 'https://eth.blockscout.com/api',
-          BLOCKSCOUT_API_KEY: 'blockscout-key',
-        },
-      })
-
-      const result = await evmExplorerClient.fetchTokenInfo(EvmExplorerEnum.BLOCKSCOUT, address, network)
-
-      expect(axiosStub.calledOnce).to.be.true
-      const callArgs = axiosStub.firstCall.args
-      expect(callArgs[0]).to.equal('https://eth.blockscout.com/api')
-      expect((callArgs[1] as any).params).to.deep.include({
-        apikey: 'blockscout-key',
-      })
-
-      expect(result).to.deep.equal({
-        name: 'BlockScout Token',
-        symbol: 'BST',
-        decimals: '18',
-        priceUsd: '0.25',
-        totalSupply: '1000000000000000000000000',
       })
     })
   })
