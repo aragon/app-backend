@@ -1,8 +1,8 @@
 import { Models } from '@dbModels'
 import { ProposalHandler } from '@handlers/proposalHandler'
-import BlockScoutHelper from '@helpers/blockScout'
 import DecodeActions from '@helpers/decodeAction'
 import Web3Helper from '@helpers/web3'
+import ProxyWeb3Provider from '@modules/proxyProvider'
 import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 import { MemberGovernanceFactory } from '@src/governance'
 import { NetworksEnum, ProposalActionType } from '@types'
@@ -68,7 +68,7 @@ describe('AragonDao: actionDecoder', () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves({
         address: '0xfrom',
       })
-      sandbox.stub(BlockScoutHelper, 'searchDetails').resolves({
+      sandbox.stub(ProxyWeb3Provider, 'searchDetailsOfContract').resolves({
         name: null,
       } as any)
       const response = await ActionDecoder.decode(action)

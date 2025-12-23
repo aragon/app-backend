@@ -1,6 +1,5 @@
 import { Models } from '@dbModels'
 import FourByte from '@helpers/4byte'
-import BlockScoutHelper from '@helpers/blockScout'
 import CoinGeckoHelper from '@helpers/coinGecko'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
 import DecodeActions from '@helpers/decodeAction'
@@ -234,7 +233,7 @@ describe('Helpers: DecodeActions', () => {
         avatar: 'ERC20',
       } as any)
 
-      const findAddressDetailsStub = sandbox.stub(BlockScoutHelper, 'searchDetails').resolves({
+      const findAddressDetailsStub = sandbox.stub(ProxyWeb3Provider, 'searchDetailsOfContract').resolves({
         name: 'Recipient Contract',
       } as any)
 
@@ -254,7 +253,8 @@ describe('Helpers: DecodeActions', () => {
       expect(findTokenStub.calledOnce).to.be.true
       expect(createBaseMemberStub.calledOnce).to.be.true
       expect(findByAddressDaoStub.calledOnce).to.be.true
-      expect(findAddressDetailsStub.calledOnceWith(action.to, NetworksEnum.ethereumSepolia)).to.be.true
+      expect(findAddressDetailsStub.calledOnceWith({ address: action.to, network: NetworksEnum.ethereumSepolia })).to.be
+        .true
       expect(pickFieldsStub.calledOnce).to.be.true
       expect(result.token.address).to.be.eq(token.address)
     })
@@ -294,7 +294,7 @@ describe('Helpers: DecodeActions', () => {
         avatar: 'ERC20',
       } as any)
 
-      const findAddressDetailsStub = sandbox.stub(BlockScoutHelper, 'searchDetails').resolves({
+      const findAddressDetailsStub = sandbox.stub(ProxyWeb3Provider, 'searchDetailsOfContract').resolves({
         name: undefined,
       } as any)
 
@@ -314,7 +314,8 @@ describe('Helpers: DecodeActions', () => {
       expect(findTokenStub.calledOnce).to.be.true
       expect(createBaseMemberStub.calledOnce).to.be.true
       expect(findByAddressDaoStub.calledOnce).to.be.true
-      expect(findAddressDetailsStub.calledOnceWith(action.to, NetworksEnum.ethereumSepolia)).to.be.true
+      expect(findAddressDetailsStub.calledOnceWith({ address: action.to, network: NetworksEnum.ethereumSepolia })).to.be
+        .true
       expect(pickFieldsStub.calledOnce).to.be.true
     })
 

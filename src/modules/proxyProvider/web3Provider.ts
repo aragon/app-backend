@@ -1,12 +1,11 @@
 import Alchemy from '@helpers/alchemy'
-import BlockScoutHelper from '@helpers/blockScout'
 import { EvmExplorerEnum, evmExplorerClient } from '@helpers/evmExplorerClient'
 import utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import { ProxyToken } from '@modules/proxyToken'
-import { type IWeb3Provider, type IWeb3TokenBalance, NetworksEnum } from '@types'
+import { IContractAddressType, type IWeb3Provider, type IWeb3TokenBalance, NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ProxyWeb3' })
 
@@ -112,7 +111,44 @@ const Web3Provider: IWeb3Provider = {
   },
 
   searchDetailsOfContract: async ({ address, network }) => {
-    return await BlockScoutHelper.searchDetails(address, network)
+    const explorers = [EvmExplorerEnum.ETHERSCAN, EvmExplorerEnum.ROUTESCAN]
+    if (network === NetworksEnum.zksyncMainnet || network === NetworksEnum.zksyncSepolia) {
+      explorers.unshift(EvmExplorerEnum.ZKSYNC)
+    }
+
+    const contractInfo = await utils.fallbackCall(
+      explorers,
+      async (explorerType: EvmExplorerEnum) => {
+        return await evmExplorerClient.fetchContractSourceCode(explorerType, address, network)
+      },
+      {
+        validate: (result: any) => !!result,
+        onError: (error: any, explorerType: any, index: any) => {
+          logger.warn(
+            `Failed to fetch contract source code from ${explorerType}`,
+            llo({
+              error: error.message,
+              address,
+              network,
+              explorerType,
+              attemptIndex: index,
+            }),
+          )
+        },
+      },
+    )
+
+    if (!contractInfo || contractInfo.length === 0) {
+      return {
+        type: IContractAddressType.ADDRESS,
+        name: null,
+      }
+    }
+
+    return {
+      type: IContractAddressType.ADDRESS,
+      name: contractInfo[0].ContractName,
+    }
   },
 }
 

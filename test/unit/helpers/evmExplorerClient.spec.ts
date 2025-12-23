@@ -1,7 +1,6 @@
 import config from '@config'
 import { EvmExplorerEnum, evmExplorerClient } from '@helpers/evmExplorerClient'
 import * as retryRequestModule from '@helpers/retryRequest'
-import utils from '@helpers/utils'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'

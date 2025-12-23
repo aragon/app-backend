@@ -1,6 +1,5 @@
 import Alchemy from '@helpers/alchemy'
-import BlockScoutHelper from '@helpers/blockScout'
-import { EvmExplorerEnum } from '@helpers/evmExplorerClient'
+import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
 import utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
@@ -362,17 +361,98 @@ describe('Web3Provider', () => {
   })
 
   describe('searchDetailsOfContract', () => {
-    it('should forward to BlockScoutHelper.searchDetails', async () => {
+    it('should return contract name when source code is found', async () => {
       const address = '0xcontract'
       const network = NetworksEnum.ethereumMainnet
-      const searchDetails = { name: 'Contract', type: 'token' }
+      const sourceCode = [{ ContractName: 'TestContract' }]
 
-      const searchDetailsStub = sandbox.stub(BlockScoutHelper, 'searchDetails').resolves(searchDetails as any)
+      const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').callsFake(async (explorers, fn, options) => {
+        // Call the inner function to cover it
+        await fn(EvmExplorerEnum.ETHERSCAN)
+        return sourceCode
+      })
+      sandbox.stub(evmExplorerClient, 'fetchContractSourceCode').resolves(sourceCode as any)
 
       const result = await Web3Provider.searchDetailsOfContract({ address, network })
 
-      expect(searchDetailsStub.calledOnceWith(address, network)).to.be.true
-      expect(result).to.equal(searchDetails)
+      expect(fallbackCallStub.calledOnce).to.be.true
+      expect(result).to.deep.equal({
+        type: 'address',
+        name: 'TestContract',
+      })
+
+      const fallbackArgs = fallbackCallStub.firstCall.args
+      expect(fallbackArgs[0]).to.deep.equal([EvmExplorerEnum.ETHERSCAN, EvmExplorerEnum.ROUTESCAN])
+    })
+
+    it('should return null name when source code is not found', async () => {
+      const address = '0xcontract'
+      const network = NetworksEnum.ethereumMainnet
+
+      sandbox.stub(utils, 'fallbackCall').resolves(null)
+
+      const result = await Web3Provider.searchDetailsOfContract({ address, network })
+
+      expect(result).to.deep.equal({
+        type: 'address',
+        name: null,
+      })
+    })
+
+    it('should return null name when source code is empty array', async () => {
+      const address = '0xcontract'
+      const network = NetworksEnum.ethereumMainnet
+
+      sandbox.stub(utils, 'fallbackCall').resolves([])
+
+      const result = await Web3Provider.searchDetailsOfContract({ address, network })
+
+      expect(result).to.deep.equal({
+        type: 'address',
+        name: null,
+      })
+    })
+
+    it('should pass zkSync in case of zkSync network', async () => {
+      const address = '0xcontract'
+      const network = NetworksEnum.zksyncMainnet
+      const sourceCode = [{ ContractName: 'TestContract' }]
+
+      const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').resolves(sourceCode)
+
+      const result = await Web3Provider.searchDetailsOfContract({ address, network })
+
+      expect(fallbackCallStub.calledOnce).to.be.true
+      expect(result).to.deep.equal({
+        type: 'address',
+        name: 'TestContract',
+      })
+
+      const fallbackArgs = fallbackCallStub.firstCall.args
+      expect(fallbackArgs[0]).to.deep.equal([
+        EvmExplorerEnum.ZKSYNC,
+        EvmExplorerEnum.ETHERSCAN,
+        EvmExplorerEnum.ROUTESCAN,
+      ])
+    })
+
+    it('should log warning when onError callback is triggered', async () => {
+      const address = '0xcontract'
+      const network = NetworksEnum.ethereumMainnet
+
+      const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').callsFake(async (explorers, fn, options) => {
+        // Call both the inner function and onError to cover them
+        await fn(EvmExplorerEnum.ETHERSCAN)
+        options.onError(new Error('Test error'), EvmExplorerEnum.ETHERSCAN, 0)
+        return [{ ContractName: 'TestContract' }]
+      })
+      sandbox.stub(evmExplorerClient, 'fetchContractSourceCode').resolves([{ ContractName: 'TestContract' }] as any)
+
+      await Web3Provider.searchDetailsOfContract({ address, network })
+
+      expect(fallbackCallStub.calledOnce).to.be.true
+      expect(loggerWarnStub.calledOnce).to.be.true
+      expect(loggerWarnStub.firstCall.args[0]).to.include('Failed to fetch contract source code')
     })
   })
 })

@@ -1,8 +1,7 @@
 import { EvmExplorerEnum, evmExplorerClient } from '@helpers/evmExplorerClient'
 import RoutescanProvider from '@modules/proxyProvider/routescanProvider'
 import ProxyUtils from '@modules/proxyProvider/utils'
-import { IBlockScoutAddressType } from '@src/types/blockScout'
-import { NetworksEnum } from '@types'
+import { IContractAddressType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import sinon from 'sinon'
 
@@ -100,7 +99,7 @@ describe('RoutescanProvider', () => {
       const result = await RoutescanProvider.searchDetailsOfContract({ address, network })
 
       expect(result).to.deep.equal({
-        type: IBlockScoutAddressType.ADDRESS,
+        type: IContractAddressType.ADDRESS,
         name: 'TestContract',
       })
     })
@@ -114,7 +113,7 @@ describe('RoutescanProvider', () => {
       const result = await RoutescanProvider.searchDetailsOfContract({ address, network })
 
       expect(result).to.deep.equal({
-        type: IBlockScoutAddressType.ADDRESS,
+        type: IContractAddressType.ADDRESS,
         name: null,
       })
     })
@@ -128,7 +127,7 @@ describe('RoutescanProvider', () => {
       const result = await RoutescanProvider.searchDetailsOfContract({ address, network })
 
       expect(result).to.deep.equal({
-        type: IBlockScoutAddressType.ADDRESS,
+        type: IContractAddressType.ADDRESS,
         name: null,
       })
     })
