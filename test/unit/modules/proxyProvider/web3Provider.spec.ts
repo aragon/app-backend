@@ -269,11 +269,14 @@ describe('Web3Provider', () => {
     it('should log warning when onError callback is triggered', async () => {
       const address = '0xcontract'
       const network = NetworksEnum.ethereumMainnet
+      const expectedResult = { blockNumber: 100, transactionHash: '0xtxhash', address }
 
       const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').callsFake(async (explorers, fn, options) => {
+        await fn(EvmExplorerEnum.ETHERSCAN)
         options.onError(new Error('Test error'), EvmExplorerEnum.ZKSYNC, 0)
-        return { blockNumber: 100, transactionHash: '0xtxhash', address }
+        return expectedResult
       })
+      sandbox.stub(evmExplorerClient, 'fetchContractCreation').resolves(expectedResult as any)
 
       await Web3Provider.fetchContractCreation({ address, network })
 
@@ -346,11 +349,14 @@ describe('Web3Provider', () => {
     it('should log warning when onError callback is triggered', async () => {
       const address = '0xcontract'
       const network = NetworksEnum.ethereumMainnet
+      const sourceCodeResult = [{ SourceCode: 'code', ContractName: 'Test', ABI: '[]' }]
 
       const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').callsFake(async (explorers, fn, options) => {
+        await fn(EvmExplorerEnum.ETHERSCAN)
         options.onError(new Error('Test error'), EvmExplorerEnum.ETHERSCAN, 0)
-        return [{ SourceCode: 'code', ContractName: 'Test', ABI: '[]' }]
+        return sourceCodeResult
       })
+      sandbox.stub(evmExplorerClient, 'fetchContractSourceCode').resolves(sourceCodeResult as any)
 
       await Web3Provider.fetchContractSourceCode({ address, network })
 
