@@ -567,6 +567,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     COINGECKO: {
       URI: utils.configParser(sourceConfig, 'string', 'COINGECKO_URI', 'https://api.coingecko.com/api/v3'),
       API_KEY: utils.configParser(sourceConfig, 'string', 'COINGECKO_API_KEY', null),
+      DEAD_TOKEN_VOLUME_THRESHOLD: utils.configParser(
+        sourceConfig,
+        'number',
+        'COINGECKO_DEAD_TOKEN_VOLUME_THRESHOLD',
+        10,
+      ),
     },
 
     FOUR_BYTE: {

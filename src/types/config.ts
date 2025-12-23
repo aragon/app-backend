@@ -143,6 +143,7 @@ export interface IConfig {
   COINGECKO: {
     URI: string
     API_KEY: string
+    DEAD_TOKEN_VOLUME_THRESHOLD: number
   }
 
   FOUR_BYTE: {
