@@ -224,7 +224,6 @@ describe('Web3Provider', () => {
 
       const fallbackArgs = fallbackCallStub.firstCall.args
       expect(fallbackArgs[0]).to.deep.equal([
-        EvmExplorerEnum.BLOCKSCOUT,
         EvmExplorerEnum.ETHERSCAN,
         EvmExplorerEnum.ROUTESCAN,
       ])
@@ -266,7 +265,6 @@ describe('Web3Provider', () => {
       const fallbackArgs = fallbackCallStub.firstCall.args
       expect(fallbackArgs[0]).to.deep.equal([
         EvmExplorerEnum.ZKSYNC,
-        EvmExplorerEnum.BLOCKSCOUT,
         EvmExplorerEnum.ETHERSCAN,
         EvmExplorerEnum.ROUTESCAN,
       ])
@@ -277,7 +275,7 @@ describe('Web3Provider', () => {
       const network = NetworksEnum.ethereumMainnet
 
       const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').callsFake(async (explorers, fn, options) => {
-        options.onError(new Error('Test error'), EvmExplorerEnum.BLOCKSCOUT, 0)
+        options.onError(new Error('Test error'), EvmExplorerEnum.ZKSYNC, 0)
         return { blockNumber: 100, transactionHash: '0xtxhash', address }
       })
 
@@ -311,7 +309,6 @@ describe('Web3Provider', () => {
       const fallbackArgs = fallbackCallStub.firstCall.args
       expect(fallbackArgs[0]).to.deep.equal([
         EvmExplorerEnum.ETHERSCAN,
-        EvmExplorerEnum.BLOCKSCOUT,
         EvmExplorerEnum.ROUTESCAN,
       ])
     })
@@ -349,7 +346,6 @@ describe('Web3Provider', () => {
       expect(fallbackArgs[0]).to.deep.equal([
         EvmExplorerEnum.ZKSYNC,
         EvmExplorerEnum.ETHERSCAN,
-        EvmExplorerEnum.BLOCKSCOUT,
         EvmExplorerEnum.ROUTESCAN,
       ])
     })
