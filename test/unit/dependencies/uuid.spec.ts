@@ -1,7 +1,7 @@
+import { expect } from 'chai'
+import { beforeEach } from 'mocha'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { beforeEach } from 'mocha'
-import { expect } from 'chai'
 import { v4 as uuidv4 } from 'uuid'
 
 describe('Dep: uuidv4', () => {

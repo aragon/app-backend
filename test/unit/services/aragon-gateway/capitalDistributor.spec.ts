@@ -1,11 +1,11 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { NetworksEnum, HexAddress, IPluginInterfaceType } from '@types'
 import { Models } from '@dbModels'
+import logger from '@logger'
 import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
 import { MemberGovernanceFactory } from '@src/governance'
-import logger from '@logger'
+import { HexAddress, IPluginInterfaceType, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Service: CapitalDistributorGateway', () => {
   let sandbox: SinonSandbox

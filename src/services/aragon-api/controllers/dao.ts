@@ -1,4 +1,6 @@
 import { Models } from '@dbModels'
+import { assertExposable } from '@errors'
+import PairDataModule from '@modules/pairData'
 import {
   ErrorKeyEnum,
   type HexAddress,
@@ -8,12 +10,10 @@ import {
   type IPaginationParams,
   IPluginInterfaceType,
   IPluginStatus,
-  type NetworksEnum,
   type MembershipData,
   type NetworkGroupedAddresses,
+  type NetworksEnum,
 } from '@types'
-import { assertExposable } from '@errors'
-import PairDataModule from '@modules/pairData'
 
 const DaoController = {
   getDaosWithPagination: async (

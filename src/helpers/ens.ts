@@ -1,11 +1,11 @@
-import { Contract, hexlify, keccak256, toUtf8Bytes, ZeroAddress } from 'ethers'
-import { type DAO_ENS, type ENS, NetworksEnum } from '@types'
-import BottleneckModule from '@modules/bottleneck'
 import { UniversalResolver } from '@artifacts/UniversalResolver'
-import logger from '@logger'
-import { retryRequest } from '@helpers/retryRequest'
-import ProviderModule from '@modules/provider'
 import config from '@config'
+import { retryRequest } from '@helpers/retryRequest'
+import logger from '@logger'
+import BottleneckModule from '@modules/bottleneck'
+import ProviderModule from '@modules/provider'
+import { type DAO_ENS, type ENS, NetworksEnum } from '@types'
+import { Contract, hexlify, keccak256, toUtf8Bytes, ZeroAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helper:EnsHelper' })
 

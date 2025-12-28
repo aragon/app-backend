@@ -1,27 +1,25 @@
-import logger from '@logger'
-import axios from 'axios'
 import config from '@config'
-import {
-  type HexAddress,
-  type IWeb3TokenBalance,
-  type IEtherScanSource,
-  type IWeb3ContractCreation,
-  NetworksEnum,
-} from '@types'
 import { retryRequest } from '@helpers/retryRequest'
+import utils from '@helpers/utils'
+import Web3Utils from '@helpers/web3Utils'
+import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
-import utils from '@helpers/utils'
+import {
+  type HexAddress,
+  type IEtherScanSource,
+  type IWeb3ContractCreation,
+  type IWeb3TokenBalance,
+  NetworksEnum,
+} from '@types'
+import axios from 'axios'
 import { ethers } from 'ethers'
-import Web3Utils from '@helpers/web3Utils'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:EvmExplorerClient' })
 
 export enum EvmExplorerEnum {
   ETHERSCAN = 'etherscan',
   ROUTESCAN = 'routescan',
-  CHILIZ = 'chiliz',
-  BLOCKSCOUT = 'blockscout',
   ZKSYNC = 'zksync',
 }
 
@@ -54,33 +52,6 @@ class EvmExplorerClient {
         return {
           url: `${config.ROUTESCAN_API.BASE_URI}/${chainId}/${urlSegments || 'etherscan/api'}`,
           params: customParams,
-        }
-      },
-    },
-    [EvmExplorerEnum.BLOCKSCOUT]: {
-      buildUrlAndParams: (network: NetworksEnum, customParams = {}, _urlSegments = '') => {
-        const networkConfig = config.NODES[utils.networkToAragon(network)]
-        if (networkConfig.BLOCKSCOUT_API_KEY === undefined) {
-          return null
-        }
-
-        return {
-          url: `${networkConfig.BLOCKSCOUT_API_URL}`,
-          params: {
-            ...customParams,
-            apikey: networkConfig.BLOCKSCOUT_API_KEY,
-          },
-        }
-      },
-    },
-    [EvmExplorerEnum.CHILIZ]: {
-      buildUrlAndParams: (_network: NetworksEnum, customParams = {}, _urlSegments = '') => {
-        const baseUrl = `${config.CHILIZ_API_URL}/api`
-        return {
-          url: baseUrl,
-          params: {
-            ...customParams,
-          },
         }
       },
     },

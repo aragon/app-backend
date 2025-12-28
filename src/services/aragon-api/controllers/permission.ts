@@ -1,5 +1,5 @@
 import { Models } from '@dbModels'
-import { type HexAddress, type NetworksEnum, type IPaginationParams } from '@types'
+import { type HexAddress, type IPaginationParams, type NetworksEnum } from '@types'
 
 const PermissionController = {
   getPermissionsByDao: async (daoAddress: HexAddress, network: NetworksEnum, paginationParams: IPaginationParams) => {

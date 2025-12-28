@@ -1,7 +1,7 @@
-import logger from '@logger'
-import { NetworksEnum, AnkrNetworksEnum, type HexAddress, type AnkrTokenHoldersResponse } from '@src/types'
-import ProviderModule from '@modules/provider'
 import config from '@config'
+import logger from '@logger'
+import ProviderModule from '@modules/provider'
+import { AnkrNetworksEnum, type AnkrTokenHoldersResponse, type HexAddress, NetworksEnum } from '@src/types'
 import axios from 'axios'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:AnkrHelper' })

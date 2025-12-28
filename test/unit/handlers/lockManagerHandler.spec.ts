@@ -1,13 +1,13 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { beforeEach } from 'mocha'
-import LockManagerHandler from '@handlers/lockManagerHandler'
 import { Models } from '@dbModels'
+import LockManagerHandler from '@handlers/lockManagerHandler'
+import LockToVoteHelper from '@helpers/lockToVoteHelper'
 import logger from '@logger'
 import { MemberGovernanceFactory } from '@src/governance'
-import { NetworksEnum, IPluginInterfaceType } from '@types'
-import LockToVoteHelper from '@helpers/lockToVoteHelper'
+import { IPluginInterfaceType, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import { beforeEach } from 'mocha'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Indexer: LockManagerHandler', () => {
   let sandbox: SinonSandbox

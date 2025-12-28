@@ -1,7 +1,7 @@
-import Router, { type RouterContext } from '@koa/router'
 import PermissionController from '@api/controllers/permission'
-import ValidationSchema from '@helpers/validationSchema'
 import PermissionSchema from '@api/routers/schema/permission'
+import ValidationSchema from '@helpers/validationSchema'
+import Router, { type RouterContext } from '@koa/router'
 import { type IPaginationParams } from '@types'
 
 const PermissionRouter = {

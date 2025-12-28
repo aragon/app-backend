@@ -1,7 +1,7 @@
-import { type Next } from 'koa'
+import { ERRORS } from '@errors'
 import { type RouterContext } from '@koa/router'
 import { ErrorKeyEnum, type ICustomError, type IErrorResponse } from '@types'
-import { ERRORS } from '@errors'
+import { type Next } from 'koa'
 
 export default () => async (ctx: RouterContext, next: Next) => {
   try {

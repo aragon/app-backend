@@ -1,9 +1,9 @@
-import { type I4ByteApiResponse, NetworksEnum } from '@types'
 import config from '@config'
-import axios from 'axios'
+import { retryRequest } from '@helpers/retryRequest'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
-import { retryRequest } from '@helpers/retryRequest'
+import { type I4ByteApiResponse, NetworksEnum } from '@types'
+import axios from 'axios'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:FourByte' })
 

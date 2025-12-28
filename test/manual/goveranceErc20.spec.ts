@@ -1,8 +1,8 @@
+import GovernanceErc20Helper from '@helpers/governanceErc20'
+import ProviderModule from '@modules/provider'
+import { IClockMode, NetworksEnum } from '@types'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import ProviderModule from '@modules/provider'
-import GovernanceErc20Helper from '@helpers/governanceErc20'
-import { IClockMode, NetworksEnum } from '@types'
 
 describe('Manual: GovernanceErc20', () => {
   let sandbox: SinonSandbox

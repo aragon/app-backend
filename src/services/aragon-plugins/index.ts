@@ -1,4 +1,15 @@
+import config from '@config'
+import { Models } from '@dbModels'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import { LogGauge } from '@plugins/logGauge'
+import { LogAdmin } from '@services/aragon-plugins/logAdmin'
+import { LogCapitalDistributor } from '@services/aragon-plugins/logCapitalDistributor'
+import { LogDao } from '@services/aragon-plugins/logDao'
+import { LogMultiSig } from '@services/aragon-plugins/logMultisig'
+import { LogSelectorPermission } from '@services/aragon-plugins/logSelectorPermission'
+import { LogSpp } from '@services/aragon-plugins/logSPP'
+import { LogTokenVoting } from '@services/aragon-plugins/logTokenVoting'
 import {
   EnumConnection,
   EnumQueueName,
@@ -9,17 +20,6 @@ import {
   type IService,
   ITokenType,
 } from '@types'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import { LogAdmin } from '@services/aragon-plugins/logAdmin'
-import { Models } from '@dbModels'
-import { LogDao } from '@services/aragon-plugins/logDao'
-import { LogMultiSig } from '@services/aragon-plugins/logMultisig'
-import { LogSpp } from '@services/aragon-plugins/logSPP'
-import { LogTokenVoting } from '@services/aragon-plugins/logTokenVoting'
-import { LogGauge } from '@plugins/logGauge'
-import { LogSelectorPermission } from '@services/aragon-plugins/logSelectorPermission'
-import { LogCapitalDistributor } from '@services/aragon-plugins/logCapitalDistributor'
-import config from '@config'
 
 const llo = logger.logMeta.bind(null, { service: 'service:PluginSyncService' })
 

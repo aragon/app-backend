@@ -1,10 +1,10 @@
+import config from '@config'
+import logger from '@logger'
+import AragonAPIService from '@services/aragon-api/index'
+import { expect } from 'chai'
+import Koa from 'koa'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import AragonAPIService from '@services/aragon-api/index'
-import Koa from 'koa'
-import logger from '@logger'
-import config from '@config'
 
 describe('AragonAPI: index', () => {
   let sandbox: SinonSandbox

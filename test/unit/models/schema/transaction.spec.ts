@@ -1,12 +1,12 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { ITokenType, ITransactionType, ITransactionSide, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
 import Transaction from '@models/schema/transaction'
-import { beforeEach } from 'mocha'
 import ModelUtils from '@models/utils/models'
 import { FakeTransaction } from '@test/mock/fakeTransaction'
+import { ITokenType, ITransactionSide, ITransactionType, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import { beforeEach } from 'mocha'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Model: Transaction', () => {
   let sandbox: SinonSandbox

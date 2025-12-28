@@ -1,8 +1,8 @@
-import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { Model, type SaveOptions } from 'mongoose'
-import * as _ from 'lodash'
-import { ICollectionNames, type IConfigIndexerIdParams, LogServicePattern, NetworksEnum } from '@types'
 import { assert } from '@errors'
+import { index, modelOptions, prop } from '@typegoose/typegoose'
+import { ICollectionNames, type IConfigIndexerIdParams, LogServicePattern, NetworksEnum } from '@types'
+import * as _ from 'lodash'
+import { Model, type SaveOptions } from 'mongoose'
 
 const customName = ICollectionNames.ConfigIndexer
 

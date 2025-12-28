@@ -1,13 +1,13 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import TokenController from '@services/aragon-api/controllers/token'
-import { ErrorKeyEnum, ITokenType, NetworksEnum } from '@types'
-import CoinGeckoHelper from '@helpers/coinGecko'
 import { Models } from '@dbModels'
+import CoinGeckoHelper from '@helpers/coinGecko'
 import dayjs from '@helpers/dayjs'
 import Token from '@models/schema/token'
 import { ProxyToken } from '@modules/proxyToken'
+import TokenController from '@services/aragon-api/controllers/token'
+import { ErrorKeyEnum, ITokenType, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Controller: Token', () => {
   let sandbox: SinonSandbox

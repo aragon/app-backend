@@ -1,8 +1,8 @@
+import ProviderModule from '@modules/provider'
+import { IConnectionType, IProviderType, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { IConnectionType, IProviderType, NetworksEnum } from '@types'
-import ProviderModule from '@modules/provider'
 
 describe('Integ: ProviderModule', () => {
   let sandbox: SinonSandbox

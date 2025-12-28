@@ -1,22 +1,22 @@
 import '@test/environment'
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
 import { Models } from '@dbModels'
-import Logger from '@logger'
-import { BaseGovernance } from '@src/governance/baseGovernance'
 import EnsHelper from '@helpers/ens'
+import Web3Utils from '@helpers/web3Utils'
+import Logger from '@logger'
+import DbTx from '@modules/dbTx'
+import { BaseGovernance } from '@src/governance/baseGovernance'
 import {
-  NetworksEnum,
   type HexAddress,
   IGovernanceParamsOpts,
   IPluginInterfaceType,
   IPluginStatus,
   ITokenType,
+  NetworksEnum,
 } from '@types'
-import Web3Utils from '@helpers/web3Utils'
-import DbTx from '@modules/dbTx'
+import { expect } from 'chai'
 import { ClientSession } from 'mongoose'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 // Create a concrete implementation for testing
 class TestGovernance extends BaseGovernance {

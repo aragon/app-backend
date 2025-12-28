@@ -1,6 +1,6 @@
-import Joi from 'joi'
 import ValidationSchema from '@helpers/validationSchema'
 import { NetworksEnum } from '@types'
+import Joi from 'joi'
 
 const CapitalDistributorSchema = {
   campaignParams: Joi.object({

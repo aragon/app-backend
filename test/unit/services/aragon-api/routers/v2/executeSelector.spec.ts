@@ -1,9 +1,9 @@
+import ExecuteSelectorController from '@api/controllers/executeSelector'
+import ExecuteSelectorRouter from '@api/routers/v2/executeSelector'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import ExecuteSelectorRouter from '@api/routers/v2/executeSelector'
-import ExecuteSelectorController from '@api/controllers/executeSelector'
-import { NetworksEnum } from '@types'
 
 describe('RouterV2: ExecuteSelector', () => {
   let sandbox: SinonSandbox

@@ -1,11 +1,11 @@
-import { ITransactionSide, type NetworksEnum } from '@types'
-import { ITransactionType } from '@src/types/transfer'
 import utils from '@helpers/utils'
+import { ITransactionType } from '@src/types/transfer'
+import { ITransactionSide, type NetworksEnum } from '@types'
 import { type LogDescription } from 'ethers'
-import { type TransferProcessor } from './transferProcessor'
 import { Erc20TransferProcessor } from './erc20TransferProcessor'
 import { Erc721TransferProcessor } from './erc721TransferProcessor'
 import { NativeTransferProcessor } from './nativeTransferProcessor'
+import { type TransferProcessor } from './transferProcessor'
 
 export class TransferProcessorFactory {
   static create(

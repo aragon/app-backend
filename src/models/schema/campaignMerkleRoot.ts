@@ -1,7 +1,7 @@
+import { assert } from '@errors'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { HexAddress, ICollectionNames, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
-import { assert } from '@errors'
 
 const customName = ICollectionNames.CampaignMerkleRoot
 

@@ -1,9 +1,9 @@
-import { type HexAddress, ITokenType, type NetworksEnum } from '@types'
-import Web3Helper from '@helpers/web3'
 import { Models } from '@dbModels'
+import CoinGeckoHelper from '@helpers/coinGecko'
+import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import type Token from '@models/schema/token'
-import CoinGeckoHelper from '@helpers/coinGecko'
+import { type HexAddress, ITokenType, type NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:tokenUtils' })
 

@@ -1,22 +1,22 @@
 import { Models } from '@dbModels'
-import {
-  type HexAddress,
-  type NetworksEnum,
-  ErrorKeyEnum,
-  type IAAddMembersListParams,
-  type ICampaignResponse,
-  type IPaginationParams,
-  type IPaginatedResult,
-  type ICampaignApiParams,
-  type IUserCampaignStatus,
-  type IMembersResponse,
-  type IMerkleProofSync,
-} from '@types'
 import { assertExposable } from '@errors'
-import logger from '@logger'
 import MerkleTreeHelper from '@helpers/merkleTree'
 import Utils from '@helpers/utils'
+import logger from '@logger'
 import DbTx from '@modules/dbTx'
+import {
+  ErrorKeyEnum,
+  type HexAddress,
+  type IAAddMembersListParams,
+  type ICampaignApiParams,
+  type ICampaignResponse,
+  type IMembersResponse,
+  type IMerkleProofSync,
+  type IPaginatedResult,
+  type IPaginationParams,
+  type IUserCampaignStatus,
+  type NetworksEnum,
+} from '@types'
 import { ethers } from 'ethers'
 import { BaseGovernance } from './baseGovernance'
 

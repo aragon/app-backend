@@ -1,7 +1,7 @@
-import { type RouterContext } from '@koa/router'
-import { type IPaginatedResult, type IPaginationParams } from '@types'
 import dayjs from '@helpers/dayjs'
+import { type RouterContext } from '@koa/router'
 import { prop } from '@typegoose/typegoose'
+import { type IPaginatedResult, type IPaginationParams } from '@types'
 import { getAddress } from 'ethers'
 
 export function utcDateProp(options = {}) {
@@ -54,12 +54,12 @@ const ModelUtils = {
     if (startDate || endDate) {
       if (startDate) {
         filter[startDateProp] = filter[startDateProp] || {}
-        filter[startDateProp]['$gte'] = Number(startDate) // startDate in seconds
+        filter[startDateProp].$gte = Number(startDate) // startDate in seconds
       }
 
       if (endDate) {
         filter[endDateProp] = filter[endDateProp] || {}
-        filter[endDateProp]['$lte'] = Number(endDate) // endDate in seconds
+        filter[endDateProp].$lte = Number(endDate) // endDate in seconds
       }
     }
 

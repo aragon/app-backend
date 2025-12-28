@@ -1,12 +1,12 @@
-import { expect } from 'chai'
-import sinon, { SinonSandbox } from 'sinon'
+import config from '@config'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import utils from '@helpers/utils'
+import logger from '@logger'
 import RabbitMQ from '@modules/rabbitMQ'
 import { EnumQueueName } from '@types'
-import utils from '@helpers/utils'
 import { ConfirmChannel } from 'amqplib'
-import logger from '@logger'
-import config from '@config'
+import { expect } from 'chai'
+import sinon, { SinonSandbox } from 'sinon'
 
 describe('Helpers:RabbitMQ', () => {
   let sandbox: SinonSandbox

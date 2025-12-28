@@ -1,14 +1,14 @@
 import '@test/environment'
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
 import { Models } from '@dbModels'
+import EnsHelper from '@helpers/ens'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import Web3Utils from '@helpers/web3Utils'
 import Logger from '@logger'
 import { MultisigGovernance, PluginGovernance } from '@src/governance'
-import EnsHelper from '@helpers/ens'
-import { NetworksEnum, type HexAddress, IPluginInterfaceType, IPluginStatus, EnumQueueName } from '@types'
-import Web3Utils from '@helpers/web3Utils'
-import RabbitMQHelper from '@helpers/rabbitMQ'
+import { EnumQueueName, type HexAddress, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Governance:MultisigGovernance', () => {
   let sandbox: SinonSandbox

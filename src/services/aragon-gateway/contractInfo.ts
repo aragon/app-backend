@@ -1,8 +1,8 @@
-import { type IContractAbi, type ISelectorActionData, type NetworksEnum } from '@types'
-import ProxyContract from '@helpers/proxyContract'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
-import ProxyWeb3Provider from '@modules/proxyProvider'
 import DecodeActions from '@helpers/decodeAction'
+import ProxyContract from '@helpers/proxyContract'
+import ProxyWeb3Provider from '@modules/proxyProvider'
+import { type IContractAbi, type ISelectorActionData, type NetworksEnum } from '@types'
 
 export const ContractInfo = {
   getContractInfo: async (network: NetworksEnum, address: string): Promise<IContractAbi | null> => {

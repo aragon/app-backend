@@ -1,9 +1,9 @@
+import SettingController from '@api/controllers/setting'
+import SettingRouter from '@api/routers/v1/setting'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import SettingRouter from '@api/routers/v1/setting'
-import SettingController from '@api/controllers/setting'
-import { NetworksEnum } from '@types'
 
 describe('RouterV1: Setting', () => {
   let sandbox: SinonSandbox

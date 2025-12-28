@@ -1,22 +1,22 @@
 import '@test/environment'
+import Web3Utils from '@helpers/web3Utils'
+import Logger from '@logger'
+import DbTx from '@modules/dbTx'
+import {
+  AdminGovernance,
+  BaseGovernance,
+  CapitalDistributorGovernance,
+  Erc20Governance,
+  GaugeGovernance,
+  LockToVoteGovernance,
+  MemberGovernanceFactory,
+  MultisigGovernance,
+  VeGovernance,
+} from '@src/governance'
+import { type HexAddress, IPluginInterfaceType, ITokenType, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import Logger from '@logger'
-import {
-  MemberGovernanceFactory,
-  BaseGovernance,
-  Erc20Governance,
-  VeGovernance,
-  LockToVoteGovernance,
-  MultisigGovernance,
-  AdminGovernance,
-  CapitalDistributorGovernance,
-  GaugeGovernance,
-} from '@src/governance'
-import { NetworksEnum, IPluginInterfaceType, ITokenType, type HexAddress } from '@types'
-import Web3Utils from '@helpers/web3Utils'
-import DbTx from '@modules/dbTx'
 
 describe('Governance:GovernanceFactory', () => {
   let sandbox: SinonSandbox

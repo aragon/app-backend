@@ -1,6 +1,6 @@
-import Bottleneck from 'bottleneck'
 import config from '@config'
 import { type NetworksEnum } from '@types'
+import Bottleneck from 'bottleneck'
 
 class BottleneckModule {
   static nodeLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
@@ -11,7 +11,6 @@ class BottleneckModule {
   static alchemyBalanceLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static alchemyBathRequestLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static etherScanLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
-  static blockScoutLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static chilizLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static duneLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static tenderlyLimiter: Bottleneck | null = null
@@ -94,16 +93,6 @@ class BottleneckModule {
       })
     }
     return this.etherScanLimiters[network]
-  }
-
-  static getBlockScoutLimiter(network: NetworksEnum) {
-    if (!this.blockScoutLimiters[network]) {
-      this.blockScoutLimiters[network] = new Bottleneck({
-        maxConcurrent: config.BOTTLENECK.BLOCKSCOUT_API_MAX_CONCURRENT, // Maximum number of concurrent requests
-        minTime: config.BOTTLENECK.BLOCKSCOUT_API_MIN_TIME, // Minimum time (ms) between requests
-      })
-    }
-    return this.blockScoutLimiters[network]
   }
 
   static getChilizLimiter(network: NetworksEnum) {

@@ -1,8 +1,8 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
 import UtilMiddleware from '@middlewares/util'
 import { ErrorKeyEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('middlewares: util', () => {
   let sandbox: SinonSandbox

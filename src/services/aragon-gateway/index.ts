@@ -1,4 +1,13 @@
+import config from '@config'
+import GaugeHelper from '@helpers/gauge'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import ActionDecoder from '@services/aragon-gateway/actionDecoder'
+import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
+import { ContractInfo } from '@services/aragon-gateway/contractInfo'
+import { GaugeInfo } from '@services/aragon-gateway/gauge'
+import { MemberInfo } from '@services/aragon-gateway/memberInfo'
+import Plugin from '@services/aragon-gateway/plugin'
 import {
   EnumConnection,
   EnumQueueName,
@@ -12,15 +21,6 @@ import {
   type IRawAction,
   type IService,
 } from '@types'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import { ContractInfo } from '@services/aragon-gateway/contractInfo'
-import { MemberInfo } from '@services/aragon-gateway/memberInfo'
-import ActionDecoder from '@services/aragon-gateway/actionDecoder'
-import config from '@config'
-import Plugin from '@services/aragon-gateway/plugin'
-import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
-import GaugeHelper from '@helpers/gauge'
-import { GaugeInfo } from '@services/aragon-gateway/gauge'
 
 const llo = logger.logMeta.bind(null, { service: 'service:GatewayService' })
 

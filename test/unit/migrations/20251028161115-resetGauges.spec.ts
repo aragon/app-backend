@@ -1,13 +1,13 @@
+import { Models } from '@dbModels'
+import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
+import ConfigIndexerHelper from '@helpers/configIndexer'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import logger from '@logger'
+import resetGaugesMigration from '@src/migrations/20251028161115-resetGauges'
+import { EnumQueueName, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox, SinonStub } from 'sinon'
-import { expect } from 'chai'
-import resetGaugesMigration from '@src/migrations/20251028161115-resetGauges'
-import { NetworksEnum, IPluginInterfaceType, IPluginStatus, EnumQueueName } from '@types'
-import { Models } from '@dbModels'
-import logger from '@logger'
-import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import ConfigIndexerHelper from '@helpers/configIndexer'
 
 describe('migration: resetGauges', () => {
   let sandbox: SinonSandbox

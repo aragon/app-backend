@@ -1,11 +1,11 @@
+import { Models } from '@dbModels'
+import logger from '@logger'
+import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
+import { ProposalList } from '@test/mock/fakeProposal'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { Models } from '@dbModels'
-import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
-import { NetworksEnum } from '@types'
-import { ProposalList } from '@test/mock/fakeProposal'
-import logger from '@logger'
 
 describe('AragonDao:ProposalMetrics', () => {
   let sandbox: SinonSandbox

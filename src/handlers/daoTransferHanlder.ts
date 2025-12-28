@@ -1,8 +1,8 @@
 import logger from '@logger'
-import { type ILogInfo, ITransactionSide, ITransactionType } from '@types'
-import { type LogDescription } from 'ethers'
 import { ProxyToken } from '@modules/proxyToken'
 import { TransferProcessorFactory } from '@transfers'
+import { type ILogInfo, ITransactionSide, ITransactionType } from '@types'
+import { type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:DaoTransferHandler' })
 

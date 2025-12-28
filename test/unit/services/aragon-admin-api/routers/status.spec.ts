@@ -1,9 +1,9 @@
+import StatusAdminController from '@services/aragon-admin-api/controllers/status'
+import StatusAdminRouter from '@services/aragon-admin-api/routers/status'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import StatusAdminRouter from '@services/aragon-admin-api/routers/status'
-import StatusAdminController from '@services/aragon-admin-api/controllers/status'
-import { NetworksEnum } from '@types'
 
 describe('Router: StatusAdmin', () => {
   let sandbox: SinonSandbox

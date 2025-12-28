@@ -1,10 +1,10 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
 import { Models } from '@dbModels'
-import { NetworksEnum } from '@types'
 import Logger from '@logger'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('AragonDao:DaoMetrics', () => {
   let sandbox: SinonSandbox

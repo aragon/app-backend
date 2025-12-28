@@ -1,6 +1,6 @@
-import Joi from 'joi'
-import { ITokenType, NetworksEnum } from '@types'
 import ValidationSchema from '@helpers/validationSchema'
+import { ITokenType, NetworksEnum } from '@types'
+import Joi from 'joi'
 
 const TokenSchema = {
   getExtraParams: Joi.object({

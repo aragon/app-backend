@@ -1,16 +1,16 @@
+import { assert } from '@errors'
+import ModelUtils from '@models/utils/models'
 import { index, modelOptions, prop, Severity } from '@typegoose/typegoose'
 import {
   HexAddress,
   ICollectionNames,
-  type ISelectorPermissionIdParams,
-  NetworksEnum,
   type IPaginatedResult,
   type IPaginationParams,
+  type ISelectorPermissionIdParams,
+  NetworksEnum,
 } from '@types'
-import { Model, Schema, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
-import { assert } from '@errors'
-import ModelUtils from '@models/utils/models'
+import { Model, type SaveOptions, Schema } from 'mongoose'
 
 const customName = ICollectionNames.SelectorPermission
 

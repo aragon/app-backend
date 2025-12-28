@@ -1,9 +1,9 @@
-import logger from '@logger'
-import { type LogDescription } from 'ethers'
-import { type ILogInfo, IPluginInterfaceType, ITokenType } from '@types'
 import { Models } from '@dbModels'
-import { MemberGovernanceFactory, VeGovernance } from '@src/governance'
+import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
+import { MemberGovernanceFactory, VeGovernance } from '@src/governance'
+import { type ILogInfo, IPluginInterfaceType, ITokenType } from '@types'
+import { type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:GovernanceVeHandler' })
 

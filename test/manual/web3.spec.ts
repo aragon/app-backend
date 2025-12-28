@@ -1,10 +1,10 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import ProviderModule from '@modules/provider'
 import EnsHelper from '@helpers/ens'
 import Web3Helper from '@helpers/web3'
-import { type IWeb3TokenBalance, NetworksEnum } from '@types'
+import ProviderModule from '@modules/provider'
 import Web3Provider from '@modules/proxyProvider/web3Provider'
+import { type IWeb3TokenBalance, NetworksEnum } from '@types'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Manual: Web3', () => {
   let sandbox: SinonSandbox

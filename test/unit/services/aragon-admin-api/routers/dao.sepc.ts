@@ -1,8 +1,8 @@
-import * as sinon from 'sinon'
-import { expect } from 'chai'
-import DaoAdminRouter from '@services/aragon-admin-api/routers/dao'
 import DaoAdminController from '@services/aragon-admin-api/controllers/dao'
+import DaoAdminRouter from '@services/aragon-admin-api/routers/dao'
 import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
 
 describe('Router: DaoAdmin', () => {
   let sandbox: sinon.SinonSandbox

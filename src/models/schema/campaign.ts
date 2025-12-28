@@ -1,19 +1,19 @@
+import { assert } from '@errors'
+import ModelUtils from '@models/utils/models'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
-  ICollectionNames,
-  NetworksEnum,
-  type ICampaignParams,
-  ICampaignType,
-  type IPaginationParams,
-  type IPaginatedResult,
-  type ICampaignResponse,
-  IClaimStat,
   type ICampaignApiParams,
+  type ICampaignParams,
+  type ICampaignResponse,
+  ICampaignType,
+  IClaimStat,
+  ICollectionNames,
+  type IPaginatedResult,
+  type IPaginationParams,
+  NetworksEnum,
 } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
-import { assert } from '@errors'
-import ModelUtils from '@models/utils/models'
 
 const customName = ICollectionNames.Campaign
 

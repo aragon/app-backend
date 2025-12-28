@@ -1,7 +1,7 @@
-import logger from '@logger'
-import { type NetworksEnum, type IAdaptiveBatchConfig, type IAdaptiveBatchState } from '@types'
 import config from '@config'
 import utils from '@helpers/utils'
+import logger from '@logger'
+import { type IAdaptiveBatchConfig, type IAdaptiveBatchState, type NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:AdaptiveBatchSizeManager' })
 

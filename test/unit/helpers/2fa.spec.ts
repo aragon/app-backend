@@ -1,8 +1,8 @@
+import TwoFaHelper from '@helpers/2fa'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
 import speakeasy from 'speakeasy'
-import TwoFaHelper from '@helpers/2fa'
 
 describe('Helpers: 2FA', () => {
   let sandbox: SinonSandbox

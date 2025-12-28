@@ -1,3 +1,7 @@
+import { Models } from '@dbModels'
+import { assertExposable } from '@errors'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import { type CapitalDistributorGovernance, MemberGovernanceFactory } from '@src/governance'
 import {
   EnumQueueName,
   ErrorKeyEnum,
@@ -6,10 +10,6 @@ import {
   IPluginInterfaceType,
   type NetworksEnum,
 } from '@types'
-import { type CapitalDistributorGovernance, MemberGovernanceFactory } from '@src/governance'
-import { Models } from '@dbModels'
-import { assertExposable } from '@errors'
-import RabbitMQHelper from '@helpers/rabbitMQ'
 
 const CapitalDistributorAdminController = {
   uploadMembersList: async (params: IAAddMembersListParams): Promise<any> => {

@@ -1,12 +1,12 @@
+import config from '@config'
+import AnkrHelper from '@helpers/ankrHelper'
+import logger from '@logger'
+import ProviderModule from '@modules/provider'
+import { AnkrNetworksEnum, type HexAddress, NetworksEnum } from '@src/types'
+import axios from 'axios'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import AnkrHelper from '@helpers/ankrHelper'
-import { NetworksEnum, AnkrNetworksEnum, type HexAddress } from '@src/types'
-import axios from 'axios'
-import logger from '@logger'
-import config from '@config'
-import ProviderModule from '@modules/provider'
 
 describe('Helpers: AnkrHelper', () => {
   let sandbox: SinonSandbox

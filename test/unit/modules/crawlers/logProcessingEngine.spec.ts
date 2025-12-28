@@ -1,10 +1,10 @@
-import { expect } from 'chai'
-import sinon, { type SinonSandbox, type SinonStub } from 'sinon'
-import { type Log } from 'ethers'
-import { LogProcessingEngine } from '@modules/crawlers/logProcessingEngine'
-import { NetworksEnum, type IIndexerConfig, type IProcessingContext, type IParallelConfig } from '@types'
-import logger from '@logger'
 import Web3Utils from '@helpers/web3Utils'
+import logger from '@logger'
+import { LogProcessingEngine } from '@modules/crawlers/logProcessingEngine'
+import { type IIndexerConfig, type IParallelConfig, type IProcessingContext, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import { type Log } from 'ethers'
+import sinon, { type SinonSandbox, type SinonStub } from 'sinon'
 
 describe('Module: LogProcessingEngine', () => {
   let sandbox: SinonSandbox

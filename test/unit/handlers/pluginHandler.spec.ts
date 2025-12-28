@@ -1,37 +1,37 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { PluginHandler } from '@handlers/pluginHandler'
+import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import { Models } from '@dbModels'
+import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
+import { MetadataHandler } from '@handlers/metadataHandler'
+import { PluginHandler } from '@handlers/pluginHandler'
+import PluginDetector from '@helpers/pluginDetector'
+import { PluginSlug } from '@helpers/pluginSlug'
+import ProxyContractHelper from '@helpers/proxyContract'
+import Web3Helper from '@helpers/web3'
+import Web3Utils from '@helpers/web3Utils'
+import configIndexer from '@indexer/configIndexer'
+import logger from '@logger'
+import Logger from '@logger'
+import DbOperations from '@models/utils/dbOperations'
+import DbTx from '@modules/dbTx'
+import ProviderModule from '@modules/provider'
+import { DaoRegistryHandler } from '@src/handlers/daoRegistryHandler'
+import RabbitMQHelper from '@src/helpers/rabbitMQ'
+import { ListLogPluginRepo } from '@test/mock/fakeLogPluginRepo'
+import { ListLogPluginSetupProcessor } from '@test/mock/fakeLogPluginSetupProcessor'
+import { PluginList } from '@test/mock/fakePlugins'
 import {
+  IDaoLogs,
   IEventLogPluginType,
+  IMetadataTargetField,
   IPluginInterfaceType,
   IPluginRawStatus,
   IPluginStatus,
   NetworksEnum,
-  IMetadataTargetField,
 } from '@types'
-import { ListLogPluginSetupProcessor } from '@test/mock/fakeLogPluginSetupProcessor'
-import { ListLogPluginRepo } from '@test/mock/fakeLogPluginRepo'
-import DbOperations from '@models/utils/dbOperations'
-import logger from '@logger'
-import Logger from '@logger'
-import ProxyContractHelper from '@helpers/proxyContract'
-import Web3Helper from '@helpers/web3'
-import PluginDetector from '@helpers/pluginDetector'
-import { PluginSlug } from '@helpers/pluginSlug'
-import DbTx from '@modules/dbTx'
-import Web3Utils from '@helpers/web3Utils'
-import { DaoRegistryHandler } from '@src/handlers/daoRegistryHandler'
-import { MetadataHandler } from '@handlers/metadataHandler'
-import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
-import RabbitMQHelper from '@src/helpers/rabbitMQ'
-import configIndexer from '@indexer/configIndexer'
-import { IDaoLogs } from '@types'
-import ProviderModule from '@modules/provider'
+import { expect } from 'chai'
 import { Interface } from 'ethers'
-import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
-import { PluginList } from '@test/mock/fakePlugins'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Indexer:Plugin', () => {
   let sandbox: SinonSandbox
@@ -1562,9 +1562,8 @@ describe('Indexer:Plugin', () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves(daoDb)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginDb)
 
-      const InstallationAppliedTopicHash = new Interface(PluginSetupProcessor.abi).getEvent(
-        'InstallationApplied',
-      )?.topicHash!
+      const InstallationAppliedTopicHash = new Interface(PluginSetupProcessor.abi).getEvent('InstallationApplied')
+        ?.topicHash!
       const txReceipt = {
         logs: [
           {

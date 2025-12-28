@@ -1,11 +1,11 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
+import config from '@config'
 import ExternalLogger from '@src/logger/external'
 import Formats from '@src/logger/format'
-import config from '@config'
-import Transport from 'winston-transport'
+import { expect } from 'chai'
 import proxyquire from 'proxyquire'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
+import Transport from 'winston-transport'
 
 describe('Logger: ExternalLogger', () => {
   let sandbox: SinonSandbox

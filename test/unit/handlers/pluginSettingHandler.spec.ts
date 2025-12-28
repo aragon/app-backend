@@ -1,26 +1,26 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
+import { Models } from '@dbModels'
+import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
+import GovernanceVeHelper from '@helpers/governanceVe'
+import MultisigHelper from '@helpers/multisig'
+import PluginDetector from '@helpers/pluginDetector'
+import Web3Helper from '@helpers/web3'
+import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
+import type Plugin from '@models/schema/plugin'
+import DbOperations from '@models/utils/dbOperations'
+import { ProxyToken } from '@modules/proxyToken'
 import {
-  VotingBodyBrandIdentity,
+  ILogInfo,
   IPluginInterfaceType,
   ISettingStatus,
   ITokenType,
   NetworksEnum,
-  ILogInfo,
+  VotingBodyBrandIdentity,
 } from '@types'
+import { expect } from 'chai'
 import { beforeEach } from 'mocha'
-import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
-import { Models } from '@dbModels'
-import Web3Helper from '@helpers/web3'
-import { ProxyToken } from '@modules/proxyToken'
-import DbOperations from '@models/utils/dbOperations'
-import MultisigHelper from '@helpers/multisig'
-import Web3Utils from '@helpers/web3Utils'
-import PluginDetector from '@helpers/pluginDetector'
-import GovernanceVeHelper from '@helpers/governanceVe'
-import type Plugin from '@models/schema/plugin'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Indexer: PluginSettingHandler', () => {
   let sandbox: SinonSandbox

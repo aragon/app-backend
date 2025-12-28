@@ -1,9 +1,9 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
+import config from '@config'
 import PinataHelper from '@helpers/pinata'
 import ipfs from '@modules/ipfs'
-import config from '@config'
 import Pinata from '@pinata/sdk'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Manual: Pinata', () => {
   let sandbox: SinonSandbox

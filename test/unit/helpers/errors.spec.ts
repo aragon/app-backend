@@ -1,8 +1,8 @@
+import * as Errors from '@errors'
+import { ErrorKeyEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { ErrorKeyEnum } from '@types'
-import * as Errors from '@errors'
 
 describe('Helpers:Errors', () => {
   let sandbox: SinonSandbox

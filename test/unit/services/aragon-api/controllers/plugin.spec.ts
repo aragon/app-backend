@@ -1,12 +1,12 @@
+import config from '@config'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import logger from '@logger'
+import PluginController from '@services/aragon-api/controllers/plugins'
+import { Models } from '@src/models'
+import { EnumQueueName, IEventLogPluginType, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import PluginController from '@services/aragon-api/controllers/plugins'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import config from '@config'
-import { IEventLogPluginType, NetworksEnum, EnumQueueName } from '@types'
-import logger from '@logger'
-import { Models } from '@src/models'
 
 describe('Controller: Plugin', () => {
   let sandbox: SinonSandbox

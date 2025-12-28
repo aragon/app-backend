@@ -1,10 +1,10 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
 import logger from '@logger'
-import { LogMultiSig } from '@plugins/logMultisig'
 import { BlockchainLogCrawler } from '@modules/crawlers'
+import { LogMultiSig } from '@plugins/logMultisig'
 import { IPluginInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('AragonPlugins: LogMultiSig', () => {
   let sandbox: SinonSandbox

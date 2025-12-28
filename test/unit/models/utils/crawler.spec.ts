@@ -1,8 +1,8 @@
+import logger from '@logger'
+import DBCrawler from '@models/utils/crawler'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import DBCrawler from '@models/utils/crawler'
-import logger from '@logger'
 
 describe('Model/Utils: crawler', () => {
   let sandbox: SinonSandbox

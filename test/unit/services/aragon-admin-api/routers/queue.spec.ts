@@ -1,9 +1,9 @@
+import QueueAdminController from '@services/aragon-admin-api/controllers/queue'
+import QueueAdminRouter from '@services/aragon-admin-api/routers/queue'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import QueueAdminRouter from '@services/aragon-admin-api/routers/queue'
-import QueueAdminController from '@services/aragon-admin-api/controllers/queue'
-import { NetworksEnum } from '@types'
 
 describe('Router: QueueAdmin', () => {
   let sandbox: SinonSandbox

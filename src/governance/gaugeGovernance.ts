@@ -1,9 +1,9 @@
-import { BaseGovernance } from '@governance/baseGovernance'
 import { Models } from '@dbModels'
-import type Gauge from '@models/schema/gauge'
-import logger from '@logger'
-import { GaugeMetrics } from '@services/aragon-dao/gaugeMetrics'
+import { BaseGovernance } from '@governance/baseGovernance'
 import GaugeHelper from '@helpers/gauge'
+import logger from '@logger'
+import type Gauge from '@models/schema/gauge'
+import { GaugeMetrics } from '@services/aragon-dao/gaugeMetrics'
 
 export class GaugeGovernance extends BaseGovernance {
   async getOrCreate(): Promise<any> {

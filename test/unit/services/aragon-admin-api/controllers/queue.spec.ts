@@ -1,8 +1,10 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import QueueAdminController from '@services/aragon-admin-api/controllers/queue'
 import { Models } from '@dbModels'
+import * as errors from '@errors'
+import { PluginSlug } from '@helpers/pluginSlug'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import logger from '@logger'
+import { ProxyToken } from '@modules/proxyToken'
+import QueueAdminController from '@services/aragon-admin-api/controllers/queue'
 import {
   EnumQueueName,
   ErrorKeyEnum,
@@ -11,11 +13,9 @@ import {
   type IQueueDaoTransactions,
   NetworksEnum,
 } from '@types'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import { PluginSlug } from '@helpers/pluginSlug'
-import logger from '@logger'
-import * as errors from '@errors'
-import { ProxyToken } from '@modules/proxyToken'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Controller: QueueAdmin', () => {
   let sandbox: SinonSandbox

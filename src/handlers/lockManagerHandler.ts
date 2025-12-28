@@ -1,11 +1,11 @@
-import logger from '@logger'
-import type { LogDescription } from 'ethers'
-import type { ILogInfo } from '@types'
 import { Models } from '@dbModels'
-import { MemberGovernanceFactory } from '@src/governance'
-import { IPluginInterfaceType } from '@types'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
+import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
+import { MemberGovernanceFactory } from '@src/governance'
+import type { ILogInfo } from '@types'
+import { IPluginInterfaceType } from '@types'
+import type { LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'service:handler:LockManagerHandler' })
 

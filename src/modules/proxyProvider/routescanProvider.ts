@@ -1,7 +1,6 @@
-import { type IWeb3Provider } from '@types'
-import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
-import { IBlockScoutAddressType } from '@src/types/blockScout'
+import { EvmExplorerEnum, evmExplorerClient } from '@helpers/evmExplorerClient'
 import ProxyUtils from '@modules/proxyProvider/utils'
+import { IContractAddressType, type IWeb3Provider } from '@types'
 
 const RoutescanProvider: Pick<
   IWeb3Provider,
@@ -25,13 +24,13 @@ const RoutescanProvider: Pick<
 
     if (!contractInfo || contractInfo.length === 0) {
       return {
-        type: IBlockScoutAddressType.ADDRESS,
+        type: IContractAddressType.ADDRESS,
         name: null,
       }
     }
 
     return {
-      type: IBlockScoutAddressType.ADDRESS,
+      type: IContractAddressType.ADDRESS,
       name: contractInfo[0].ContractName,
     }
   },

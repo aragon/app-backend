@@ -1,12 +1,12 @@
+import { Models } from '@dbModels'
+import CoinGeckoHelper from '@helpers/coinGecko'
+import TokenUtils from '@helpers/tokenUtils'
+import Web3Helper from '@helpers/web3'
+import logger from '@logger'
+import type Token from '@models/schema/token'
+import { ITokenType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import sinon, { SinonSandbox } from 'sinon'
-import TokenUtils from '@helpers/tokenUtils'
-import CoinGeckoHelper from '@helpers/coinGecko'
-import Web3Helper from '@helpers/web3'
-import { ITokenType, NetworksEnum } from '@types'
-import type Token from '@models/schema/token'
-import { Models } from '@dbModels'
-import logger from '@logger'
 
 describe('TokenUtils', () => {
   let sandbox: SinonSandbox

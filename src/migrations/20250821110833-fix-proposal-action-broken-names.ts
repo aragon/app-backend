@@ -1,7 +1,7 @@
-import { type IMigration, NetworksEnum } from '@types'
-import logger from '@logger'
 import { Models } from '@dbModels'
+import logger from '@logger'
 import { ProposalHandler } from '@src/handlers/proposalHandler'
+import { type IMigration, NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: fix-proposal-action-broken-names' })
 

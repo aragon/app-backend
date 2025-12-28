@@ -1,7 +1,7 @@
-import logger from '@logger'
 import { Models } from '@dbModels'
-import { type IVoteAggregation, type NetworksEnum } from '@types'
+import logger from '@logger'
 import DbTx from '@modules/dbTx'
+import { type IVoteAggregation, type NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:ProposalMetrics' })
 

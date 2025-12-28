@@ -1,9 +1,9 @@
-import { IPluginInterfaceType, IPluginSlug } from '@types'
+import { Models } from '@dbModels'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
-import { Models } from '@dbModels'
 import type PluginSlugModel from '@models/schema/pluginSlug'
 import DbTx from '@modules/dbTx'
+import { IPluginInterfaceType, IPluginSlug } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:PluginSlug' })
 
@@ -43,7 +43,9 @@ export const PluginSlug = {
   _parseProcessKey: (plugin: Plugin, processKey?: string): string | null => {
     try {
       return processKey
-        ? processKey.toLowerCase().replace(/[^a-z0-9]+/g, '') // Remove non-alphanumeric characters
+        ? processKey
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '') // Remove non-alphanumeric characters
         : PluginSlug._defaultSlug(plugin)
     } catch (error) {
       logger.error('Error parsing processKey', llo({ processKey, error }))

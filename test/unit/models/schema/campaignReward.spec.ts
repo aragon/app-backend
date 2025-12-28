@@ -1,9 +1,9 @@
+import { Models } from '@dbModels'
+import CampaignReward from '@models/schema/campaignReward'
+import { HexAddress, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { NetworksEnum, HexAddress } from '@types'
-import CampaignReward from '@models/schema/campaignReward'
-import { Models } from '@dbModels'
 
 describe('Model: CampaignReward', () => {
   let sandbox: SinonSandbox

@@ -1,12 +1,12 @@
-import { type HexAddress, type NetworksEnum } from '@types'
-import { Contract } from 'ethers'
-import BottleneckModule from '@modules/bottleneck'
-import { retryRequest } from '@helpers/retryRequest'
-import ProviderModule from '@modules/provider'
-import { VotingEscrowIncreasing } from '@artifacts/VotingEscrowIncreasing'
 import { ExitQueue } from '@artifacts/ExitQueue'
 import { LinearIncreasingCurve } from '@artifacts/LinearIncreasingCurve'
+import { VotingEscrowIncreasing } from '@artifacts/VotingEscrowIncreasing'
+import { retryRequest } from '@helpers/retryRequest'
 import Web3Helper from '@helpers/web3'
+import BottleneckModule from '@modules/bottleneck'
+import ProviderModule from '@modules/provider'
+import { type HexAddress, type NetworksEnum } from '@types'
+import { Contract } from 'ethers'
 
 const GovernanceVeHelper = {
   async getEscrowAddress(voterAdapter: HexAddress, network: NetworksEnum): Promise<HexAddress | null> {
@@ -17,7 +17,7 @@ const GovernanceVeHelper = {
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network).schedule(async () => contract.escrow()),
       )
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   },
@@ -30,7 +30,7 @@ const GovernanceVeHelper = {
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network).schedule(async () => contract.clock()),
       )
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   },
@@ -43,7 +43,7 @@ const GovernanceVeHelper = {
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network).schedule(async () => contract.curve()),
       )
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   },
@@ -56,7 +56,7 @@ const GovernanceVeHelper = {
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network).schedule(async () => contract.queue()),
       )
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   },
@@ -69,7 +69,7 @@ const GovernanceVeHelper = {
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network).schedule(async () => contract.lockNFT()),
       )
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   },
@@ -82,7 +82,7 @@ const GovernanceVeHelper = {
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network).schedule(async () => contract.token()),
       )
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   },
@@ -94,7 +94,7 @@ const GovernanceVeHelper = {
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network).schedule(async () => contract.minDeposit()),
       )
-    } catch (error) {
+    } catch (_error) {
       return 0n
     }
   },
@@ -106,7 +106,7 @@ const GovernanceVeHelper = {
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network).schedule(async () => contract.minLock()),
       )
-    } catch (error) {
+    } catch (_error) {
       return 0n
     }
   },
@@ -118,7 +118,7 @@ const GovernanceVeHelper = {
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network).schedule(async () => contract.cooldown()),
       )
-    } catch (error) {
+    } catch (_error) {
       return 0n
     }
   },
@@ -130,7 +130,7 @@ const GovernanceVeHelper = {
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network).schedule(async () => contract.feePercent()),
       )
-    } catch (error) {
+    } catch (_error) {
       return 0n
     }
   },
@@ -142,7 +142,7 @@ const GovernanceVeHelper = {
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network).schedule(async () => contract.minFeePercent()),
       )
-    } catch (error) {
+    } catch (_error) {
       return 0n
     }
   },
@@ -154,7 +154,7 @@ const GovernanceVeHelper = {
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network).schedule(async () => contract.minCooldown()),
       )
-    } catch (error) {
+    } catch (_error) {
       return 0n
     }
   },
@@ -166,7 +166,7 @@ const GovernanceVeHelper = {
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network).schedule(async () => contract.maxTime()),
       )
-    } catch (error) {
+    } catch (_error) {
       return 0n
     }
   },
@@ -187,7 +187,7 @@ const GovernanceVeHelper = {
         bias: coefficients[0] as bigint,
         slope: coefficients[1] as bigint,
       }
-    } catch (error) {
+    } catch (_error) {
       return {
         bias: 0n,
         slope: 0n,
@@ -227,7 +227,7 @@ const GovernanceVeHelper = {
       nameAndSymbol.name = name
       nameAndSymbol.symbol = symbol
       return nameAndSymbol
-    } catch (error: any) {
+    } catch (_error: any) {
       return nameAndSymbol
     }
   },

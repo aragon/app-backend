@@ -1,8 +1,8 @@
-import { type HexAddress, type IIndexerConfig, type IPermission, NetworksEnum } from '@types'
 import { assert } from '@errors'
-import async from 'async'
 import dayjs from '@helpers/dayjs'
 import type Plugin from '@models/schema/plugin'
+import { type HexAddress, type IIndexerConfig, type IPermission, NetworksEnum } from '@types'
+import async from 'async'
 import { ethers } from 'ethers'
 
 const Utils = {
@@ -143,7 +143,8 @@ const Utils = {
 
   defaultError(error: any): void {
     /* istanbul ignore next */
-    console.error(error) // eslint-disable-line no-console
+    // biome-ignore lint/suspicious/noConsole: Default error handler for debugging
+    console.error(error)
   },
 
   enumToObject(data: any) {
@@ -343,7 +344,7 @@ const Utils = {
       const index = parseInt(sIndex, 10)
       assert(!isNaN(index), 'Invalid index format')
       return { slug, index }
-    } catch (error) {
+    } catch (_error) {
       return { slug: undefined, index: undefined }
     }
   },
@@ -368,7 +369,7 @@ const Utils = {
     }
     try {
       return ethers.formatUnits(amount, Number(decimals))
-    } catch (error) {
+    } catch (_error) {
       return amount
     }
   },
@@ -436,7 +437,7 @@ const Utils = {
         const converted = Utils.deepConvertToObject(result.toObject(), visited)
         visited.set(result, converted)
         return converted
-      } catch (error) {}
+      } catch (_error) {}
     }
 
     if (typeof result.toArray === 'function') {
@@ -444,7 +445,7 @@ const Utils = {
         const converted = Utils.deepConvertToObject(result.toArray(), visited)
         visited.set(result, converted)
         return converted
-      } catch (error) {}
+      } catch (_error) {}
     }
 
     if (Array.isArray(result)) {

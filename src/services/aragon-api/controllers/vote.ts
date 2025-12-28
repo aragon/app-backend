@@ -1,13 +1,13 @@
 import { Models } from '@dbModels'
+import PairDataModule from '@modules/pairData'
 import {
+  type ICanVoteParams,
   type IPaginatedResult,
   type IPaginationParams,
   type IPairParams,
   type IVoteExtraParams,
   type IVoteResponse,
-  type ICanVoteParams,
 } from '@types'
-import PairDataModule from '@modules/pairData'
 
 const VoteController = {
   getVoteWithPagination: async (

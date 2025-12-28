@@ -1,11 +1,11 @@
+import MemberController from '@api/controllers/member'
+import { Models } from '@dbModels'
+import Web3Helper from '@helpers/web3'
+import { LibUtils } from '@test/lib/unit-dep/lib'
+import { IMembersResponse, IPluginInterfaceType, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { IMembersResponse, IPluginInterfaceType, NetworksEnum } from '@types'
-import { Models } from '@dbModels'
-import { expect } from 'chai'
-import Web3Helper from '@helpers/web3'
-import MemberController from '@api/controllers/member'
-import { LibUtils } from '@test/lib/unit-dep/lib'
 
 describe('Integ: LockToVote', () => {
   let sandbox: SinonSandbox

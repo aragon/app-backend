@@ -1,8 +1,7 @@
-import { EnumConnection, type IService, ITokenType, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
-import logger from '@logger'
-import BlockScout from '@helpers/blockScout'
 import CoinGeckoHelper from '@helpers/coinGecko'
+import logger from '@logger'
+import { EnumConnection, type IService, ITokenType, NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'tools:SyncToken' })
 
@@ -35,10 +34,9 @@ export const SyncToken: IService = {
     for (const token of tokens) {
       counter++
 
-      const tokenInfo = await BlockScout.getTokenFullDetails(token.address, token.network)
       const tokenRate = await CoinGeckoHelper.getToken(token.address, token.network)
 
-      if (tokenInfo && tokenRate && tokenRate.decimals !== null) {
+      if (tokenRate && tokenRate.decimals !== null) {
         const skipFetchRate = tokenRate.priceUsd === '0'
         await token.update({
           priceUsd: tokenRate.priceUsd,
@@ -49,8 +47,6 @@ export const SyncToken: IService = {
           symbol: tokenRate.symbol,
           decimals: tokenRate.decimals,
           logo: tokenRate.logo,
-          holders: tokenInfo.totalHolders,
-          totalSupply: tokenInfo.totalSupply,
         })
 
         logger.info(

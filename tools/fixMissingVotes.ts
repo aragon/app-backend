@@ -1,10 +1,10 @@
-import { EnumConnection, type IService, ITokenVotingLogs, NetworksEnum } from '@types'
-import { LibUtils } from '@test/lib/unit-dep/lib'
 import { TokenVoting } from '@artifacts/TokenVoting'
+import { Models } from '@dbModels'
 import { ProposalHandler } from '@handlers/proposalHandler'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
-import { Models } from '@dbModels'
 import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
+import { LibUtils } from '@test/lib/unit-dep/lib'
+import { EnumConnection, type IService, ITokenVotingLogs, NetworksEnum } from '@types'
 
 export const FixMissingVotes: IService | any = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],

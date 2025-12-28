@@ -1,7 +1,7 @@
-import logger from '@logger'
 import config from '@config'
 import utils from '@helpers/utils'
-import { CrawlerErrorType, type IErrorHandlerConfig, type IErrorAnalysis } from '@types'
+import logger from '@logger'
+import { CrawlerErrorType, type IErrorAnalysis, type IErrorHandlerConfig } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:CrawlerErrorHandler' })
 
@@ -110,6 +110,8 @@ export class CrawlerErrorHandler {
       'network timeout',
       'socket hang up',
       'connect EHOSTUNREACH',
+      'unknown block',
+      'ReceiptGen.GetReceipt: txn is a state-sync transaction',
     ]
 
     const errorMessage = this.getErrorMessage(error).toLowerCase()

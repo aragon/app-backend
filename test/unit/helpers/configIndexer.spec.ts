@@ -1,9 +1,9 @@
+import ConfigIndexerHelper from '@helpers/configIndexer'
+import logger from '@logger'
+import { IndexerType, ITokenType, LogServicePattern, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { ITokenType, NetworksEnum, IndexerType, LogServicePattern } from '@types'
-import logger from '@logger'
-import ConfigIndexerHelper from '@helpers/configIndexer'
 
 describe('Helpers: ConfigIndexerHelper', () => {
   let sandbox: SinonSandbox

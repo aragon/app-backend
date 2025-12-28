@@ -1,6 +1,6 @@
-import Joi from 'joi'
-import { ITransactionIndexCheckType, ITransactionSide, ITransactionType, NetworksEnum } from '@types'
 import ValidationSchema from '@helpers/validationSchema'
+import { ITransactionIndexCheckType, ITransactionSide, ITransactionType, NetworksEnum } from '@types'
+import Joi from 'joi'
 
 const TransactionSchema = {
   getExtraParams: Joi.object({

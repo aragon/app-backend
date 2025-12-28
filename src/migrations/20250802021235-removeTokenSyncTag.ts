@@ -1,7 +1,7 @@
-import { type IMigration } from '@types'
-import logger from '@logger'
 import { Models } from '@dbModels'
+import logger from '@logger'
 import type ConfigIndexer from '@models/schema/configIndexer'
+import { type IMigration } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: removeTokenSyncTag' })
 

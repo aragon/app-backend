@@ -1,7 +1,8 @@
-import { IPluginInterfaceType, type NetworksEnum } from '@types'
-import { MemberGovernanceFactory, type CapitalDistributorGovernance } from '@src/governance'
 import { Models } from '@dbModels'
 import logger from '@logger'
+import { type CapitalDistributorGovernance, MemberGovernanceFactory } from '@src/governance'
+import { IPluginInterfaceType, type NetworksEnum } from '@types'
+
 const llo = logger.logMeta.bind(null, { service: 'CapitalDistributorGateway' })
 
 const CapitalDistributorGateway = {
