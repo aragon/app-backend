@@ -1,3 +1,46 @@
+# [0.22.0](https://github.com/aragon/app-backend/compare/v0.21.1...v0.22.0) (2025-12-28)
+
+
+### Bug Fixes
+
+* add NatspecTags interface for proper TypeScript typing with dot notation ([f0883f4](https://github.com/aragon/app-backend/commit/f0883f4cb2390a6708df1070026801ab73f01cfb))
+* adjust test coverage threshold for functions in package.json ([b1b2fb5](https://github.com/aragon/app-backend/commit/b1b2fb577c4eb2d3cee54bdaa17824d6802a57bc))
+* **copyIndexerConfigToTransfer:** format logger messages for better readability ([f76cc15](https://github.com/aragon/app-backend/commit/f76cc1596f5a4290681b2e4e2119bde33355df1d))
+* **crawler:** add handling for state-sync transaction errors and improve retry logic for rate limits ([7bf70e2](https://github.com/aragon/app-backend/commit/7bf70e2f14f4669a40257309c67d75a50c9dd1d6))
+* disable useLiteralKeys rule to preserve TypeScript compatibility ([859dfde](https://github.com/aragon/app-backend/commit/859dfde089fa4bd04bb7b626188ace0ee8c93b25))
+* extract common functionality to _fetchMetadata ([cb119ac](https://github.com/aragon/app-backend/commit/cb119aceace0146caba25727bbeb9eb2fc973a5b))
+* restore console error messages in create-migration CLI script ([71a545d](https://github.com/aragon/app-backend/commit/71a545d79dbea177627fd94ae79104eb99463b93))
+* restore console statements in CLI scripts with biome-ignore ([bca9a6a](https://github.com/aragon/app-backend/commit/bca9a6ac8bad1d63235080cf7d1379059f4ba76f))
+
+
+### Features
+
+* **coinGecko:** add coingecko_coin_id to token price data tests ([5a180eb](https://github.com/aragon/app-backend/commit/5a180eb055af3ad63ea64b3e530f97fa8b3c7f14))
+* **coinGecko:** add coingeckoCoinId and marketCapUsd to token price data handling ([460441e](https://github.com/aragon/app-backend/commit/460441e89292a8279b1ee1e0a9422f26ad7163bd))
+* **coinGecko:** add DEAD_TOKEN_VOLUME_THRESHOLD configuration option ([a46d69e](https://github.com/aragon/app-backend/commit/a46d69e21fdf9bfdf5bf1d948e415cf58d7e355d))
+* **coinGecko:** add DEAD_TOKEN_VOLUME_THRESHOLD configuration option ([d6b2bfc](https://github.com/aragon/app-backend/commit/d6b2bfc09407adfc2cc9eae366c40f81572d4dce))
+* **coinGecko:** adjust dead token threshold from 100 to 10 ([ca83eac](https://github.com/aragon/app-backend/commit/ca83eac21e1b0bc2090b5e5afd89cc8b0d24c9c9))
+* **coinGecko:** checking total volume in 24 to detect dead tokens ([63df92c](https://github.com/aragon/app-backend/commit/63df92ce2229537c5d40cb2f8da6ce0879d51d21))
+* **coinGecko:** remove coingecko_coin_id and marketCapUsd from token data structures ([d89c82b](https://github.com/aragon/app-backend/commit/d89c82bd9d43fcf70d5ae521cb7eface239bc7fe))
+* **coinGecko:** remove coingecko_coin_id and marketCapUsd from token interfaces ([46a1cd7](https://github.com/aragon/app-backend/commit/46a1cd73e0b5c0fa289163f99a934c18cbf15679))
+* **coinGecko:** remove coingeckoCoinId and marketCapUsd from token data handling ([77759f7](https://github.com/aragon/app-backend/commit/77759f79fe0bc893f5a226f309fb95c9434b6ca1))
+* **coinGecko:** remove dead token detection comment from _parseToken function ([853a539](https://github.com/aragon/app-backend/commit/853a53903482e34dfdc9b0b675b37f88a457a647))
+* **coinGecko:** update image_url to default to an empty string ([de9f318](https://github.com/aragon/app-backend/commit/de9f3180545588632245e08629e6049d6e68d4de))
+* **configIndexer:** add TransferListLogService type and clean up unused types ([f462f0d](https://github.com/aragon/app-backend/commit/f462f0d77b897d030096b6430f713b07b913ebf9))
+* **crawler:** enhance error handling and response processing in batch requests ([5d530a4](https://github.com/aragon/app-backend/commit/5d530a4187349be7979dbeee2446c48e0bd8ac08))
+* **evmExplorer:** clean up imports in evmExplorerClient and web3Provider tests ([2540185](https://github.com/aragon/app-backend/commit/25401854815b297b8014bdbf4b237314b66e3b46))
+* **evmExplorer:** remove BlockScout references and related tests ([5ae4ced](https://github.com/aragon/app-backend/commit/5ae4ced979d14272b7d5002fef1504775eb67930))
+* **evmExplorer:** remove BlockScout references and replace with ProxyWeb3Provider ([f34a0c9](https://github.com/aragon/app-backend/commit/f34a0c9581916147b36b3b1edebdba7db1a5513c))
+* **evmExplorer:** remove BlockScout references from web3Provider ([c902802](https://github.com/aragon/app-backend/commit/c9028028ca36e5dde157cb46b43ff8a9b2f1e96b))
+* **evmExplorer:** remove BlockScout references from web3Provider ([4ddf81e](https://github.com/aragon/app-backend/commit/4ddf81e94ebeadbfed863b803a0bda22e4a71f0e))
+* implement gauge-voter actions decoding ([98a052c](https://github.com/aragon/app-backend/commit/98a052c361a330b4868b9cf6d27019a80b67afab))
+* **indexer:** add support for transfer log services and enhance related type guards ([54a7577](https://github.com/aragon/app-backend/commit/54a757766c43b3198a67a6cfdf73879dcbebc8cf))
+* **migration:** implement copyIndexerConfigToTransfer migration with logging and error handling ([bc211cd](https://github.com/aragon/app-backend/commit/bc211cdde475c14777cb4807586aae77092f7145))
+* **provider:** enhance JsonRpcProvider with logging for invalid JSON responses ([89313d2](https://github.com/aragon/app-backend/commit/89313d204da09ce611b223627cabdf158312863c))
+* **web3Provider:** remove unused import of evmExplorerClient from tests ([3468bbe](https://github.com/aragon/app-backend/commit/3468bbebab534dd9095dd00b72ead479ab01f383))
+* **web3Provider:** update tests to use evmExplorerClient and enhance fallbackCall stubs ([e1d74eb](https://github.com/aragon/app-backend/commit/e1d74ebecd0d767d94aa17f94edd32c4b1173446))
+* **web3Provider:** update tests to use fallbackCall and add new cases for source code handling ([5367dc2](https://github.com/aragon/app-backend/commit/5367dc2d633bbfe037da40f6068ab4890485671e))
+
 ## [0.21.1](https://github.com/aragon/app-backend/compare/v0.21.0...v0.21.1) (2025-12-13)
 
 
