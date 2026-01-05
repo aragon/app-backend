@@ -122,6 +122,11 @@ export interface IGetGaugeInfoId {
   network: NetworksEnum
 }
 
+export interface IQueueTokenInfo {
+  address: HexAddress
+  network: NetworksEnum
+}
+
 export interface IGaugeInfo {
   pluginAddress: HexAddress
   network: NetworksEnum
