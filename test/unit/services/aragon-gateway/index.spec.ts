@@ -258,7 +258,7 @@ describe('AragonGateway: index', () => {
       const handler = processStub.getCall(8).args[1]
       const queueName = processStub.getCall(8).args[0]
 
-      await handler({
+      const result = await handler({
         params: {
           address: '0xTokenAddress',
           network: NetworksEnum.ethereumMainnet,
@@ -267,6 +267,7 @@ describe('AragonGateway: index', () => {
 
       expect(queueName).to.eq(EnumQueueName.tokenInfo)
       expect(proxyTokenStub.calledOnceWith('0xTokenAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(result).to.be.true
     })
   })
 })

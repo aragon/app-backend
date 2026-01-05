@@ -73,6 +73,7 @@ const AragonGatewayService: IService = {
     await RabbitMQHelper.process(EnumQueueName.tokenInfo, async (job: { params: IQueueTokenInfo }) => {
       const { address, network } = job.params
       await ProxyToken.saveAndGetToken(address, network)
+      return true
     })
 
     logger.info('AragonGatewayService service started', llo({}))

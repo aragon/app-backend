@@ -1,3 +1,4 @@
+import config from '@config'
 import { Models } from '@dbModels'
 import CoinGeckoHelper from '@helpers/coinGecko'
 import dayjs from '@helpers/dayjs'
@@ -169,6 +170,7 @@ describe('Controller: Token', () => {
       expect(stubRabbitMQ.calledOnce).to.be.true
       expect(stubRabbitMQ.firstCall.args[0]).to.eq(EnumQueueName.tokenInfo)
       expect(stubRabbitMQ.firstCall.args[1].params).to.deep.equal({ address, network: NetworksEnum.ethereumMainnet })
+      expect(stubRabbitMQ.firstCall.args[2]).to.deep.equal({ waitResponse: true, timeout: config.RABBITMQ.TIMEOUT })
       expect(stubDbFind.calledTwice).to.be.true
     })
 
