@@ -65,6 +65,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'The query timed out',
         'timeout',
         'retry',
+        'invalid JSON',
         'eth_getLogs is limited',
         'Response size is larger than 150MB limit',
         'Log response size exceeded',
