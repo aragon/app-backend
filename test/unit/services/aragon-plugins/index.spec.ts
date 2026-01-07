@@ -430,6 +430,7 @@ describe('AragonPlugins: index', () => {
       expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
       expect(logGaugeStub.calledOnceWith(mockPlugin, false)).to.be.true
       expect(runEscrowCrawlerStub.calledOnce).to.be.true
+      expect(runEscrowCrawlerStub.calledOnceWith(mockPlugin, { address: '0xTokenAddress' }, false)).to.be.true
     })
 
     it('should process plugins queue for capitalDistributor interface type', async () => {
@@ -698,6 +699,7 @@ describe('AragonPlugins: index', () => {
       expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
       expect(logGaugeStub.calledOnceWith(mockPlugin, false)).to.be.true
       expect(runEscrowCrawlerStub.calledOnce).to.be.true
+      expect(runEscrowCrawlerStub.calledOnceWith(mockPlugin, { address: '0xTokenAddress' }, false)).to.be.true
     })
 
     it('should process plugins queue for capitalDistributor interface type', async () => {
