@@ -220,26 +220,4 @@ describe('Integ: VeLock', () => {
     const updatedLock = await locks[0].reload()
     expect(updatedLock.lockExit.status).to.be.true
   })
-
-  it.only('Investigate veLock lock issue', async function () {
-    this.timeout(1000 * 1000)
-    const daoAddress = '0x76De198A3175d046E10f872927C333D29Ff9B914'
-    const network = NetworksEnum.katanaMainnet
-
-    const libUtils = new LibUtils({
-      daoAddress,
-      network,
-      config: {
-        sandbox,
-      },
-    })
-    await libUtils.syncCompleteDao(17593531)
-
-    const veLockPlugin = await Models.Plugin.findOne({
-      daoAddress,
-      network,
-    })
-    expect(veLockPlugin).to.be.exist
-    expect(veLockPlugin.isSupported).to.be.true
-  })
 })
