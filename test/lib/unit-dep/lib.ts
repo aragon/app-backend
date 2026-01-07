@@ -207,13 +207,12 @@ export class LibUtils {
               address: plugin.tokenAddress,
               network: plugin.network,
             })
-            if(token) {
+            if (token) {
               await Promise.all([
                 LogGauge.start(plugin, isHistorical),
                 LogTokenVoting.runEscrowCrawler(plugin, token!, isHistorical),
               ])
-            }
-            else {
+            } else {
               await LogGauge.start(plugin, isHistorical)
             }
             break
