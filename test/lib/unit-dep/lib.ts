@@ -96,7 +96,9 @@ export class LibUtils {
   }
 
   static async registerPluginRepos(network: NetworksEnum): Promise<void> {
-    await Models.PluginRepo.insertMany(PluginRepoMockData[network])
+    if(PluginRepoMockData[network]) {
+      await Models.PluginRepo.insertMany(PluginRepoMockData[network])
+    }
   }
 
   static async parseLogsByConfig(logs: Log[], network: NetworksEnum): Promise<any> {
@@ -201,7 +203,14 @@ export class LibUtils {
             break
           }
           case IPluginInterfaceType.gauge: {
-            await LogGauge.start(plugin, isHistorical)
+            const token = await Models.Token.findOne({
+              address: plugin.tokenAddress,
+              network: plugin.network,
+            })
+            await Promise.all([
+              LogGauge.start(plugin, isHistorical),
+              LogTokenVoting.runEscrowCrawler(plugin, token),
+            ])
             break
           }
           default:
