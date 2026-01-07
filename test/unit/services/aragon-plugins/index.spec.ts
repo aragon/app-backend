@@ -433,6 +433,34 @@ describe('AragonPlugins: index', () => {
       expect(runEscrowCrawlerStub.calledOnceWith(mockPlugin, { address: '0xTokenAddress' }, false)).to.be.true
     })
 
+    it('should process plugins queue for gauge interface type when token not found', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const mockPlugin = {
+        address: '0xPluginAddress',
+        interfaceType: IPluginInterfaceType.gauge,
+        tokenAddress: '0xTokenAddress',
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
+      sandbox.stub(Models.Token, 'findOne').resolves(null)
+      const logGaugeStub = sandbox.stub(LogGauge, 'start').resolves()
+      const runEscrowCrawlerStub = sandbox.stub(LogTokenVoting, 'runEscrowCrawler').resolves()
+      const loggerWarnStub = sandbox.stub(logger, 'warn')
+
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(2).args[1]
+      await handler({
+        id: 'some-id',
+        params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
+      })
+
+      expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(logGaugeStub.calledOnceWith(mockPlugin, false)).to.be.true
+      expect(runEscrowCrawlerStub.notCalled).to.be.true
+      expect(loggerWarnStub.calledWith('Sync plugin token not found' as any)).to.be.true
+    })
+
     it('should process plugins queue for capitalDistributor interface type', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const mockPlugin = {
@@ -700,6 +728,34 @@ describe('AragonPlugins: index', () => {
       expect(logGaugeStub.calledOnceWith(mockPlugin, false)).to.be.true
       expect(runEscrowCrawlerStub.calledOnce).to.be.true
       expect(runEscrowCrawlerStub.calledOnceWith(mockPlugin, { address: '0xTokenAddress' }, false)).to.be.true
+    })
+
+    it('should process plugins queue for gauge interface type when token not found', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const mockPlugin = {
+        address: '0xPluginAddress',
+        interfaceType: IPluginInterfaceType.gauge,
+        tokenAddress: '0xTokenAddress',
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
+      sandbox.stub(Models.Token, 'findOne').resolves(null)
+      const logGaugeStub = sandbox.stub(LogGauge, 'start').resolves()
+      const runEscrowCrawlerStub = sandbox.stub(LogTokenVoting, 'runEscrowCrawler').resolves()
+      const loggerWarnStub = sandbox.stub(logger, 'warn')
+
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(3).args[1]
+      await handler({
+        id: 'some-id',
+        params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
+      })
+
+      expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(logGaugeStub.calledOnceWith(mockPlugin, false)).to.be.true
+      expect(runEscrowCrawlerStub.notCalled).to.be.true
+      expect(loggerWarnStub.calledWith('Sync plugin token not found' as any)).to.be.true
     })
 
     it('should process plugins queue for capitalDistributor interface type', async () => {
