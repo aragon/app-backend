@@ -76,9 +76,17 @@ export const LogTokenVoting = {
   },
 
   runEscrowCrawler: async (plugin: Plugin, token: Token, isHistorical?: boolean) => {
-    const crawler = LogTokenVoting.buildEscrowCrawler(plugin, token, isHistorical)
-    await crawler.crawl()
-    await crawler.end()
+    if (plugin.votingEscrow && plugin.votingEscrow.escrowAddress && token) {
+      const crawler = LogTokenVoting.buildEscrowCrawler(plugin, token, isHistorical)
+      await crawler.crawl()
+      await crawler.end()
+      return
+    }
+
+    logger.warn(
+      'LogTokenVoting: runEscrowCrawler - missing votingEscrow or token',
+      llo({ pluginAddress: plugin.address, tokenAddress: token?.address }),
+    )
   },
 
   veGovernance: async (plugin: Plugin, token: Token, isHistorical?: boolean) => {

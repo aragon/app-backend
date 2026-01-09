@@ -117,15 +117,10 @@ const AragonPluginsService: IService & { pluginQueue: (params: IQueuePlugin) => 
           network: plugin.network,
         })
 
-        if (token) {
-          await Promise.all([
-            LogGauge.start(plugin, isHistorical),
-            LogTokenVoting.runEscrowCrawler(plugin, token!, isHistorical),
-          ])
-        } else {
-          logger.warn('Sync plugin token not found', llo({ plugin: plugin?.address, token: token?.address }))
-          await LogGauge.start(plugin, isHistorical)
-        }
+        await Promise.all([
+          LogGauge.start(plugin, isHistorical),
+          LogTokenVoting.runEscrowCrawler(plugin, token, isHistorical),
+        ])
 
         break
       }
