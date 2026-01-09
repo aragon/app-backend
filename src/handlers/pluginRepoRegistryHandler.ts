@@ -1,10 +1,10 @@
-import logger from '@logger'
-import { type ILogInfo } from '@types'
-import { type LogDescription } from 'ethers'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
+import logger from '@logger'
 import type PluginRepo from '@models/schema/pluginRepo'
 import DbTx from '@modules/dbTx'
+import { type ILogInfo } from '@types'
+import { type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PluginRepoRegistryHandler' })
 

@@ -1,19 +1,19 @@
+import { assert } from '@errors'
+import { AggregationQueryHelper } from '@models/utils/aggregation'
+import ModelUtils from '@models/utils/models'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
   ICollectionNames,
-  NetworksEnum,
-  type ITokenMemberIdParams,
-  type IPaginationParams,
   type IMemberExtraParams,
-  type IPaginatedResult,
   type IMembersResponse,
+  type IPaginatedResult,
+  type IPaginationParams,
+  type ITokenMemberIdParams,
+  NetworksEnum,
 } from '@types'
-import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
-import { assert } from '@errors'
-import ModelUtils from '@models/utils/models'
-import { AggregationQueryHelper } from '@models/utils/aggregation'
+import { Model, type SaveOptions } from 'mongoose'
 
 const customName = ICollectionNames.TokenMember
 

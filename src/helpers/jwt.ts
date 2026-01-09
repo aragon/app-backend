@@ -1,6 +1,6 @@
-import koaJWT from 'koa-jwt'
-import jwt, { type JwtPayload, type SignOptions } from 'jsonwebtoken'
 import config from '@config'
+import jwt, { type JwtPayload, type SignOptions } from 'jsonwebtoken'
+import koaJWT from 'koa-jwt'
 
 const JwtHelper = {
   JWT_KEY: config.SERVICES.ARAGON_ADMIN_API.JWT_KEY,

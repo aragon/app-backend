@@ -1,4 +1,14 @@
+import config from '@config'
+import GaugeHelper from '@helpers/gauge'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import { ProxyToken } from '@modules/proxyToken'
+import ActionDecoder from '@services/aragon-gateway/actionDecoder'
+import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
+import { ContractInfo } from '@services/aragon-gateway/contractInfo'
+import { GaugeInfo } from '@services/aragon-gateway/gauge'
+import { MemberInfo } from '@services/aragon-gateway/memberInfo'
+import Plugin from '@services/aragon-gateway/plugin'
 import {
   EnumConnection,
   EnumQueueName,
@@ -9,18 +19,10 @@ import {
   type IQueueCanCreateProposal,
   type IQueueContractInfo,
   type IQueueMemberBalanceInfo,
+  type IQueueTokenInfo,
   type IRawAction,
   type IService,
 } from '@types'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import { ContractInfo } from '@services/aragon-gateway/contractInfo'
-import { MemberInfo } from '@services/aragon-gateway/memberInfo'
-import ActionDecoder from '@services/aragon-gateway/actionDecoder'
-import config from '@config'
-import Plugin from '@services/aragon-gateway/plugin'
-import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
-import GaugeHelper from '@helpers/gauge'
-import { GaugeInfo } from '@services/aragon-gateway/gauge'
 
 const llo = logger.logMeta.bind(null, { service: 'service:GatewayService' })
 
@@ -66,6 +68,12 @@ const AragonGatewayService: IService = {
     await RabbitMQHelper.process(EnumQueueName.gaugeInfo, async job => {
       const { pluginAddress, memberAddress, network } = job.params as IGetGaugeInfoId
       return await GaugeInfo.getGaugeInfo({ pluginAddress, memberAddress, network })
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.tokenInfo, async (job: { params: IQueueTokenInfo }) => {
+      const { address, network } = job.params
+      await ProxyToken.saveAndGetToken(address, network)
+      return true
     })
 
     logger.info('AragonGatewayService service started', llo({}))

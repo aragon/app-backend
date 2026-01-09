@@ -1,10 +1,10 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { NetworksEnum } from '@types'
 import { Models } from '@dbModels'
-import { expect } from 'chai'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { LibUtils } from '@test/lib/unit-dep/lib'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Capital Distributor', () => {
   let sandbox: SinonSandbox

@@ -1,3 +1,11 @@
+import { Multisig } from '@artifacts/Multisig'
+import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
+import { TokenVoting } from '@artifacts/TokenVoting'
+import { retryRequest } from '@helpers/retryRequest'
+import logger from '@logger'
+import type Plugin from '@models/schema/plugin'
+import BottleneckModule from '@modules/bottleneck'
+import ProviderModule from '@modules/provider'
 import {
   type HexAddress,
   IPluginInterfaceType,
@@ -9,14 +17,6 @@ import {
   type NetworksEnum,
 } from '@types'
 import { Contract } from 'ethers'
-import logger from '@logger'
-import BottleneckModule from '@modules/bottleneck'
-import { retryRequest } from '@helpers/retryRequest'
-import ProviderModule from '@modules/provider'
-import { TokenVoting } from '@artifacts/TokenVoting'
-import { Multisig } from '@artifacts/Multisig'
-import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
-import type Plugin from '@models/schema/plugin'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ProposalHelper' })
 
@@ -82,7 +82,7 @@ const ProposalHelper = {
           contract.getBodyProposalId(proposalIndex, stage, pluginAddress),
         ),
       )
-    } catch (error) {
+    } catch (_error) {
       return false
     }
   },

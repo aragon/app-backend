@@ -1,12 +1,12 @@
+import Web3Utils from '@helpers/web3Utils'
+import logger from '@logger'
+import ProviderModule from '@modules/provider'
+import Web3Provider from '@modules/proxyProvider/web3Provider'
+import { ProxyToken } from '@modules/proxyToken'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { NetworksEnum } from '@types'
-import ProviderModule from '@modules/provider'
-import { ProxyToken } from '@modules/proxyToken'
-import logger from '@logger'
-import Web3Utils from '@helpers/web3Utils'
-import Web3Provider from '@modules/proxyProvider/web3Provider'
 
 describe('Module: ProxyWeb3', () => {
   let sandbox: SinonSandbox

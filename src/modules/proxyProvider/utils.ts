@@ -1,8 +1,8 @@
-import type { IWeb3TokenBalance, LogServicePattern, NetworksEnum } from '@types'
-import DbTx from '@modules/dbTx'
 import { Models } from '@dbModels'
-import { ProxyToken } from '@modules/proxyToken'
 import Web3Utils from '@helpers/web3Utils'
+import DbTx from '@modules/dbTx'
+import { ProxyToken } from '@modules/proxyToken'
+import type { IWeb3TokenBalance, LogServicePattern, NetworksEnum } from '@types'
 
 const ProxyUtils = {
   updateProgressInConfigIndexer: async (

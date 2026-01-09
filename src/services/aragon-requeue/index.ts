@@ -1,19 +1,19 @@
+import { Models } from '@dbModels'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import type ConfigIndexer from '@models/schema/configIndexer'
+import DBCrawler from '@models/utils/crawler'
+import ConfigIndexerHelper from '@src/helpers/configIndexer'
 import {
   EnumConnection,
   EnumQueueName,
   EnumServiceName,
   IndexerType,
   IPluginInterfaceType,
+  type IService,
   ITokenType,
   NetworksEnum,
-  type IService,
 } from '@types'
-import DBCrawler from '@models/utils/crawler'
-import { Models } from '@dbModels'
-import type ConfigIndexer from '@models/schema/configIndexer'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import ConfigIndexerHelper from '@src/helpers/configIndexer'
 
 const llo = logger.logMeta.bind(null, { service: 'service:AragonReQueue' })
 

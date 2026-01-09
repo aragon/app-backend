@@ -1,10 +1,10 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import IndexerService from '@services/aragon-indexer'
-import { TaskSchedulerState } from '@state/taskSchedulerState'
 import config from '@config'
 import { Models } from '@dbModels'
 import logger from '@logger'
+import IndexerService from '@services/aragon-indexer'
+import { TaskSchedulerState } from '@state/taskSchedulerState'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Manual: Indexer', () => {
   let sandbox: SinonSandbox

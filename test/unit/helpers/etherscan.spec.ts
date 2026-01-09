@@ -1,12 +1,12 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
+import config from '@config'
 import EtherscanHelper from '@helpers/etherscan'
 import logger from '@logger'
+import ProviderModule from '@modules/provider'
 import { NetworksEnum } from '@types'
 import axios from 'axios'
-import config from '@config'
-import ProviderModule from '@modules/provider'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Helpers: Etherscan', () => {
   let sandbox: SinonSandbox

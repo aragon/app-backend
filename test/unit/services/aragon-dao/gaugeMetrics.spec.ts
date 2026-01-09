@@ -1,11 +1,11 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { GaugeMetrics } from '@services/aragon-dao/gaugeMetrics'
 import { Models } from '@dbModels'
-import { NetworksEnum } from '@types'
 import GaugeHelper from '@helpers/gauge'
 import logger from '@logger'
+import { GaugeMetrics } from '@services/aragon-dao/gaugeMetrics'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Service: GaugeMetrics', () => {
   let sandbox: SinonSandbox

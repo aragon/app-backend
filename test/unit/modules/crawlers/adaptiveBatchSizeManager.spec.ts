@@ -1,8 +1,8 @@
-import { expect } from 'chai'
-import sinon, { type SinonSandbox, type SinonStub } from 'sinon'
+import logger from '@logger'
 import { AdaptiveBatchSizeManager } from '@modules/crawlers'
 import { NetworksEnum } from '@types'
-import logger from '@logger'
+import { expect } from 'chai'
+import sinon, { type SinonSandbox, type SinonStub } from 'sinon'
 
 describe('Module: AdaptiveBatchSizeManager', () => {
   let sandbox: SinonSandbox

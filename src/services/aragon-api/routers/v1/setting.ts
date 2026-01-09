@@ -1,11 +1,11 @@
-import Router, { type RouterContext } from '@koa/router'
-import ValidationSchema from '@helpers/validationSchema'
-import ModelUtils from '@models/utils/models'
-import SettingSchema from '@api/routers/schema/setting'
 import SettingController from '@api/controllers/setting'
-import { type HexAddress, type IPairParams, type ISettingExtraParams, type NetworksEnum } from '@types'
 import PaginationSchema from '@api/routers/schema/pagination'
+import SettingSchema from '@api/routers/schema/setting'
 import Utils from '@helpers/utils'
+import ValidationSchema from '@helpers/validationSchema'
+import Router, { type RouterContext } from '@koa/router'
+import ModelUtils from '@models/utils/models'
+import { type HexAddress, type IPairParams, type ISettingExtraParams, type NetworksEnum } from '@types'
 
 const SettingRouter = {
   getWithPagination: async function (ctx: RouterContext) {

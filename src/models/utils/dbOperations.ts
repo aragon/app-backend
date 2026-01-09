@@ -1,5 +1,5 @@
-import DbTx from '@modules/dbTx'
 import logger from '@logger'
+import DbTx from '@modules/dbTx'
 
 class DbOperations {
   static async createDocument(model: any, data: any, info: any, logMsg: string, llo: any, opts?: any): Promise<any> {

@@ -1,4 +1,8 @@
+import PluginsController from '@api/controllers/plugins'
+import PluginSchema from '@api/routers/schema/plugin'
+import ValidationSchema from '@helpers/validationSchema'
 import Router, { type RouterContext } from '@koa/router'
+import Utils from '@src/helpers/utils'
 import {
   type HexAddress,
   type IEventLogPluginType,
@@ -8,10 +12,6 @@ import {
   type IPluginInterfaceType,
   type NetworksEnum,
 } from '@types'
-import ValidationSchema from '@helpers/validationSchema'
-import PluginSchema from '@api/routers/schema/plugin'
-import PluginsController from '@api/controllers/plugins'
-import Utils from '@src/helpers/utils'
 
 const PluginRouter = {
   async getInstallationData(ctx: RouterContext) {

@@ -1,9 +1,9 @@
+import logger from '@logger'
+import DbOperations from '@models/utils/dbOperations'
+import DbTx from '@modules/dbTx'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import DbOperations from '@models/utils/dbOperations'
-import logger from '@logger'
-import DbTx from '@modules/dbTx'
 
 describe('Model/Utils: dbOperations', () => {
   let sandbox: SinonSandbox

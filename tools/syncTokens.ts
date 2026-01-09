@@ -1,9 +1,9 @@
-import { EnumConnection, type IService } from '@types'
 import { Models } from '@dbModels'
 import TokenDetector from '@helpers/tokenDetector'
-import type Token from '@models/schema/token'
 import logger from '@logger'
+import type Token from '@models/schema/token'
 import DBCrawler from '@models/utils/crawler'
+import { EnumConnection, type IService } from '@types'
 
 export const SyncTokens: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],

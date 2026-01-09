@@ -1,10 +1,10 @@
+import GovernanceVeHelper from '@helpers/governanceVe'
+import Web3Helper from '@helpers/web3'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import proxyquire from 'proxyquire'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { NetworksEnum } from '@types'
-import proxyquire from 'proxyquire'
-import Web3Helper from '@helpers/web3'
-import GovernanceVeHelper from '@helpers/governanceVe'
 
 describe('Helpers: GovernanceVe', () => {
   let sandbox: SinonSandbox

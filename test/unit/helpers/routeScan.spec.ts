@@ -1,14 +1,14 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
+import config from '@config'
+import * as retryRequestModule from '@helpers/retryRequest'
 import RouteScanHelper from '@helpers/routeScanHelper'
 import logger from '@logger'
+import BottleneckModule from '@modules/bottleneck'
+import ProviderModule from '@modules/provider'
 import { NetworksEnum } from '@types'
 import axios from 'axios'
-import config from '@config'
-import ProviderModule from '@modules/provider'
-import * as retryRequestModule from '@helpers/retryRequest'
-import BottleneckModule from '@modules/bottleneck'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Helpers: RouteScan', () => {
   let sandbox: SinonSandbox

@@ -1,15 +1,15 @@
-import { type HexAddress, type IWeb3TokenBalance, type NetworksEnum } from '@types'
 import { Models } from '@dbModels'
-import logger from '@logger'
-import DbTx from '@modules/dbTx'
-import type Asset from '@models/schema/asset'
+import TokenUtils from '@helpers/tokenUtils'
 import utils from '@helpers/utils'
+import Web3Utils from '@helpers/web3Utils'
+import logger from '@logger'
+import type Asset from '@models/schema/asset'
+import type Dao from '@models/schema/dao'
+import DbTx from '@modules/dbTx'
+import ProxyWeb3Provider from '@modules/proxyProvider'
 import { ProxyToken } from '@modules/proxyToken'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
-import TokenUtils from '@helpers/tokenUtils'
-import Web3Utils from '@helpers/web3Utils'
-import type Dao from '@models/schema/dao'
-import ProxyWeb3Provider from '@modules/proxyProvider'
+import { type HexAddress, type IWeb3TokenBalance, type NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'service:dao:DaoAssets' })
 

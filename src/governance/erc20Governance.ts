@@ -1,23 +1,23 @@
-import { BaseGovernance } from './baseGovernance'
 import { Models } from '@dbModels'
-import {
-  type HexAddress,
-  type IGovernanceParamsOpts,
-  type NetworksEnum,
-  type IPaginationParams,
-  type IPaginatedResult,
-  type IMembersResponse,
-  type IMemberExtraParams,
-  EnumQueueName,
-} from '@types'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import utils from '@helpers/utils'
+import Web3Utils from '@helpers/web3Utils'
+import logger from '@logger'
 import type Token from '@models/schema/token'
 import type TokenMember from '@models/schema/tokenMember'
-import Web3Utils from '@helpers/web3Utils'
 import DbTx from '@modules/dbTx'
-import logger from '@logger'
+import {
+  EnumQueueName,
+  type HexAddress,
+  type IGovernanceParamsOpts,
+  type IMemberExtraParams,
+  type IMembersResponse,
+  type IPaginatedResult,
+  type IPaginationParams,
+  type NetworksEnum,
+} from '@types'
 import { type ClientSession } from 'mongoose'
-import utils from '@helpers/utils'
-import RabbitMQHelper from '@helpers/rabbitMQ'
+import { BaseGovernance } from './baseGovernance'
 
 /**
  * Token-based governance implementation using TokenMember model.

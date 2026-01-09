@@ -1,10 +1,10 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
+import config from '@config'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import ContractController from '@services/aragon-api/controllers/contract'
 import { EnumQueueName, NetworksEnum } from '@types'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import config from '@config'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Controller: Contract', () => {
   let sandbox: SinonSandbox

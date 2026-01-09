@@ -1,20 +1,69 @@
+import config from '@config'
+import utils from '@helpers/utils'
+import logger from '@logger'
 import {
+  AlchemyNetwork,
+  alchemyNetworkToUrl,
+  DrpcNetwork,
+  drpcNetworkToUrl,
+  type IAlchemyConfig,
   type IAragonNodeConfig,
   type IConnectionType,
-  type IAlchemyConfig,
   type IDrpcConfig,
   type IProviderProxy,
   IProviderType,
   type IRawNodeConfig,
   NetworksEnum,
 } from '@types'
-import { JsonRpcProvider } from 'ethers'
-import { AlchemyNetwork, alchemyNetworkToUrl, DrpcNetwork, drpcNetworkToUrl } from '@types'
-import config from '@config'
-import logger from '@logger'
-import utils from '@helpers/utils'
+import { FetchRequest, JsonRpcProvider } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:Provider' })
+
+/**
+ * Creates a JsonRpcProvider with custom fetch that logs raw response on parse failures
+ */
+function createLoggingProvider(url: string, network: NetworksEnum): JsonRpcProvider {
+  const fetchRequest = new FetchRequest(url)
+
+  fetchRequest.processFunc = async (request, response) => {
+    const bodyText = response.bodyText
+    const requestBody = request.body ? new TextDecoder().decode(request.body) : null
+
+    if (bodyText) {
+      try {
+        JSON.parse(bodyText)
+      } catch {
+        logger.error(
+          'RPC returned invalid JSON response',
+          llo({
+            network,
+            url: url.replace(/[a-zA-Z0-9]{20,}/g, '***'),
+            statusCode: response.statusCode,
+            statusMessage: response.statusMessage,
+            requestBody,
+            responsePreview: bodyText.substring(0, 500),
+            responseLength: bodyText.length,
+          }),
+        )
+      }
+    } else {
+      logger.error(
+        'RPC returned empty response',
+        llo({
+          network,
+          url: url.replace(/[a-zA-Z0-9]{20,}/g, '***'),
+          statusCode: response.statusCode,
+          statusMessage: response.statusMessage,
+          requestBody,
+        }),
+      )
+    }
+
+    return response
+  }
+
+  return new JsonRpcProvider(fetchRequest, undefined, { staticNetwork: true })
+}
 
 const ProviderModule = {
   providerProxies: {} satisfies Record<NetworksEnum | string, IProviderProxy>,
@@ -173,12 +222,12 @@ const ProviderModule = {
       }
 
       const alchemyUrl = `https://${alchemyHost}/v2/${alchemyConfig.alchemyApiKey}`
-      const rpcProvider = new JsonRpcProvider(alchemyUrl)
+      const rpcProvider = createLoggingProvider(alchemyUrl, network)
 
       ProviderModule.providerProxies[network].alchemy = { rpc: rpcProvider }
     } else if (nodeConfig.providerType === IProviderType.ARAGON) {
       const aragonConfig = nodeConfig as IAragonNodeConfig
-      const rpcProvider = new JsonRpcProvider(aragonConfig.rpcEndpoint)
+      const rpcProvider = createLoggingProvider(aragonConfig.rpcEndpoint, network)
 
       ProviderModule.providerProxies[network].aragon = { rpc: rpcProvider }
     } else if (nodeConfig.providerType === IProviderType.DRPC) {
@@ -191,7 +240,7 @@ const ProviderModule = {
       }
 
       const drpcUrl = drpcNetworkToUrl(drpcNetwork, drpcConfig.drpcApiKey)
-      const rpcProvider = new JsonRpcProvider(drpcUrl)
+      const rpcProvider = createLoggingProvider(drpcUrl, network)
 
       ProviderModule.providerProxies[network].drpc = { rpc: rpcProvider }
     }

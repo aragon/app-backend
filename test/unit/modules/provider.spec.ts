@@ -1,11 +1,11 @@
+import config from '@config'
+import logger from '@logger'
+import ProviderModule from '@modules/provider'
+import { AlchemyNetwork, DrpcNetwork, IProviderType, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import proxyquire from 'proxyquire'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import ProviderModule from '@modules/provider'
-import { IProviderType, NetworksEnum, AlchemyNetwork, DrpcNetwork } from '@types'
-import config from '@config'
-import proxyquire from 'proxyquire'
-import logger from '@logger'
 
 describe('Module: provider', () => {
   let sandbox: SinonSandbox
@@ -164,8 +164,6 @@ describe('Module: provider', () => {
         INTERVAL_BLOCK_TIME: 15,
         ETHERSCAN_API_KEY: 'test',
         ETHERSCAN_API_URL: 'test',
-        BLOCKSCOUT_API_URL: 'test',
-        BLOCKSCOUT_API_KEY: 'test',
       },
       POLYGON_MAINNET: {
         ALCHEMY_API_KEY: 'test-alchemy-key2',
@@ -175,8 +173,6 @@ describe('Module: provider', () => {
         INTERVAL_BLOCK_TIME: 15,
         ETHERSCAN_API_KEY: 'test',
         ETHERSCAN_API_URL: 'test',
-        BLOCKSCOUT_API_URL: 'test',
-        BLOCKSCOUT_API_KEY: 'test',
       },
     }
     sandbox.stub(config, 'NODES').value(rawNodes)
@@ -209,6 +205,9 @@ describe('Module: provider', () => {
           JsonRpcProvider: function () {
             return providerStub
           },
+          FetchRequest: function () {
+            return { processFunc: null }
+          },
         },
       })
 
@@ -227,6 +226,9 @@ describe('Module: provider', () => {
           },
           JsonRpcProvider: function () {
             return providerStub
+          },
+          FetchRequest: function () {
+            return { processFunc: null }
           },
         },
       })
@@ -252,6 +254,9 @@ describe('Module: provider', () => {
         ethers: {
           JsonRpcProvider: function () {
             return providerStub
+          },
+          FetchRequest: function () {
+            return { processFunc: null }
           },
         },
       })

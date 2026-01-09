@@ -1,3 +1,8 @@
+import { Models } from '@dbModels'
+import { assert } from '@errors'
+import { Stages } from '@models/schema/setting'
+import { AggregationQueryHelper } from '@models/utils/aggregation'
+import ModelUtils from '@models/utils/models'
 import { index, modelOptions, prop, Severity } from '@typegoose/typegoose'
 import {
   HexAddress,
@@ -12,13 +17,8 @@ import {
   ISimulationStatus,
   NetworksEnum,
 } from '@types'
-import { Model, type SaveOptions, Schema } from 'mongoose'
 import * as _ from 'lodash'
-import { assert } from '@errors'
-import ModelUtils from '@models/utils/models'
-import { AggregationQueryHelper } from '@models/utils/aggregation'
-import { Stages } from '@models/schema/setting'
-import { Models } from '@dbModels'
+import { Model, type SaveOptions, Schema } from 'mongoose'
 
 const customName = ICollectionNames.Proposal
 

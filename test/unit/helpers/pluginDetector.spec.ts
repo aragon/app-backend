@@ -1,12 +1,12 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
 import PluginDetector from '@helpers/pluginDetector'
-import { beforeEach } from 'mocha'
-import { IPluginInterfaceType, VotingBodyBrandIdentity, NetworksEnum } from '@types'
-import { ZeroAddress } from 'ethers'
-import { expect } from 'chai'
 import ProxyContractHelper from '@helpers/proxyContract'
 import ProviderModule from '@modules/provider'
+import { IPluginInterfaceType, NetworksEnum, VotingBodyBrandIdentity } from '@types'
+import { expect } from 'chai'
+import { ZeroAddress } from 'ethers'
+import { beforeEach } from 'mocha'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Helper: PluginDetector', () => {
   let sandbox: SinonSandbox

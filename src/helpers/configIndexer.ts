@@ -1,26 +1,27 @@
 import logger from '@logger'
 import {
-  IndexerType,
-  ITokenType,
-  NetworksEnum,
-  type IPluginInterfaceType,
-  type LogServicePattern,
-  type LogServiceInfo,
-  type IndexerLogService,
-  type PluginLogService,
+  type CampaignStrategyLogService,
   type DaoLogService,
-  type TokenLogService,
-  type PermissionLogService,
-  type TransferListLogService,
+  type HexAddress,
+  type IndexerLogService,
+  IndexerType,
+  type IPluginInterfaceType,
+  ITokenType,
   type LockManagerLogService,
-  type TokenDepositLogService,
-  type TokenWithdrawLogService,
+  type LogServiceInfo,
+  type LogServicePattern,
   type NativeDepositLogService,
   type NativeWithdrawLogService,
-  type HexAddress,
-  type CampaignStrategyLogService,
+  NetworksEnum,
+  type PermissionLogService,
+  type PluginLogService,
   type PolicyContractLogService,
   type PolicyPluginLogService,
+  type TokenDepositLogService,
+  type TokenLogService,
+  type TokenWithdrawLogService,
+  type TransferLogService,
+  type TransferListLogService,
 } from '@src/types'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ConfigIndexerHelper' })
@@ -43,6 +44,11 @@ const ConfigIndexerHelper = {
     indexer: (network: NetworksEnum): IndexerLogService => {
       const service = `${IndexerType.indexer}-${network}`
       return service as IndexerLogService
+    },
+
+    transfer: (network: NetworksEnum): TransferLogService => {
+      const service = `${IndexerType.transfer}-${network}`
+      return service as TransferLogService
     },
 
     plugin: (interfaceType: IPluginInterfaceType, network: NetworksEnum, address: string): PluginLogService => {
@@ -132,6 +138,9 @@ const ConfigIndexerHelper = {
     isIndexer: (service: LogServicePattern): service is IndexerLogService =>
       service?.startsWith(`${IndexerType.indexer}-`) ?? false,
 
+    isTransfer: (service: LogServicePattern): service is TransferLogService =>
+      service?.startsWith(`${IndexerType.transfer}-`) ?? false,
+
     isDao: (service: LogServicePattern): service is DaoLogService =>
       service?.startsWith(`${IndexerType.dao}-`) ?? false,
 
@@ -174,6 +183,7 @@ const ConfigIndexerHelper = {
       // If it's not any of the other types, and it's not null, it should be a plugin
       return (
         !ConfigIndexerHelper.guards.isIndexer(service) &&
+        !ConfigIndexerHelper.guards.isTransfer(service) &&
         !ConfigIndexerHelper.guards.isDao(service) &&
         !ConfigIndexerHelper.guards.isPermission(service) &&
         !ConfigIndexerHelper.guards.isToken(service) &&
@@ -233,6 +243,15 @@ const ConfigIndexerHelper = {
         const { network } = extractNetwork(parts, 1)
         return {
           type: IndexerType.indexer,
+          network,
+        }
+      }
+
+      if (ConfigIndexerHelper.guards.isTransfer(service)) {
+        // transfer-{network}
+        const { network } = extractNetwork(parts, 1)
+        return {
+          type: IndexerType.transfer,
           network,
         }
       }
@@ -420,6 +439,7 @@ const ConfigIndexerHelper = {
       }
 
       if (ConfigIndexerHelper.guards.isIndexer(service)) return IndexerType.indexer
+      if (ConfigIndexerHelper.guards.isTransfer(service)) return IndexerType.transfer
       if (ConfigIndexerHelper.guards.isDao(service)) return IndexerType.dao
       if (ConfigIndexerHelper.guards.isToken(service)) return IndexerType.token
       if (ConfigIndexerHelper.guards.isPermission(service)) return IndexerType.permission
@@ -462,8 +482,8 @@ const ConfigIndexerHelper = {
         if (hasValidNetwork) break
       }
 
-      // For services other than indexer, must have valid network and more parts
-      if (service.startsWith(`${IndexerType.indexer}-`)) {
+      // For indexer and transfer services, only need valid network (no address)
+      if (service.startsWith(`${IndexerType.indexer}-`) || service.startsWith(`${IndexerType.transfer}-`)) {
         return hasValidNetwork
       }
 
@@ -473,6 +493,7 @@ const ConfigIndexerHelper = {
       // Check if it matches any of our patterns
       return (
         ConfigIndexerHelper.guards.isIndexer(service) ||
+        ConfigIndexerHelper.guards.isTransfer(service) ||
         ConfigIndexerHelper.guards.isDao(service) ||
         ConfigIndexerHelper.guards.isToken(service) ||
         ConfigIndexerHelper.guards.isPermission(service) ||

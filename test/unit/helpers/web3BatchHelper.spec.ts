@@ -1,12 +1,12 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import Web3BatchHelper from '@helpers/web3BatchHelper'
-import ProviderModule from '@modules/provider'
 import Web3Helper from '@helpers/web3'
+import Web3BatchHelper from '@helpers/web3BatchHelper'
 import logger from '@logger'
+import ProviderModule from '@modules/provider'
 import { NetworksEnum } from '@types'
 import axios from 'axios'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Helpers:Web3BatchHelper', () => {
   let sandbox: SinonSandbox

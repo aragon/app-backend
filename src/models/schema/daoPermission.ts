@@ -1,17 +1,17 @@
+import { assert } from '@errors'
+import ModelUtils from '@models/utils/models'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
   ICollectionNames,
   type IDaoPermissionId,
   IEventLogPermission,
-  NetworksEnum,
   type IPaginatedResult,
   type IPaginationParams,
+  NetworksEnum,
 } from '@types'
-import { Model, type SaveOptions } from 'mongoose'
-import { assert } from '@errors'
 import * as _ from 'lodash'
-import ModelUtils from '@models/utils/models'
+import { Model, type SaveOptions } from 'mongoose'
 
 const customName = ICollectionNames.DaoPermission
 

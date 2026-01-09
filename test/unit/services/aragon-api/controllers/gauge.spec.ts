@@ -1,11 +1,11 @@
+import config from '@config'
+import { Models } from '@dbModels'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import GaugeController from '@services/aragon-api/controllers/gauge'
+import { EnumQueueName, ErrorKeyEnum, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import GaugeController from '@services/aragon-api/controllers/gauge'
-import { Models } from '@dbModels'
-import { EnumQueueName, ErrorKeyEnum, NetworksEnum } from '@types'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import config from '@config'
 
 describe('Controller: Gauge', () => {
   let sandbox: SinonSandbox

@@ -1,6 +1,6 @@
-import { Registry, collectDefaultMetrics } from 'prom-client'
 import { Models } from '@dbModels'
 import logger from '@logger'
+import { collectDefaultMetrics, Registry } from 'prom-client'
 
 const llo = logger.logMeta.bind(null, { module: 'PrometheusStore' })
 

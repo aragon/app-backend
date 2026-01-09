@@ -1,5 +1,10 @@
+import config from '@config'
 import { Models } from '@dbModels'
+import { assertExposable } from '@errors'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import type Token from '@models/schema/token'
 import {
+  EnumQueueName,
   ErrorKeyEnum,
   type HexAddress,
   type IPaginatedResult,
@@ -8,9 +13,6 @@ import {
   type ITokenResponse,
   type NetworksEnum,
 } from '@types'
-import { assertExposable } from '@errors'
-import type Token from '@models/schema/token'
-import { ProxyToken } from '@modules/proxyToken'
 
 const TokenController = {
   getTokensWithPagination: async (
@@ -27,7 +29,15 @@ const TokenController = {
     let token = await Models.Token.findByTokenAddressAndNetwork(params.address, params.network)
 
     if (!token) {
-      token = await ProxyToken.saveAndGetToken(params.address, params.network)
+      await RabbitMQHelper.sendMessage(
+        EnumQueueName.tokenInfo,
+        {
+          id: `tokenInfo-${params.network}-${params.address}`,
+          params: { address: params.address, network: params.network },
+        },
+        { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
+      )
+      token = await Models.Token.findByTokenAddressAndNetwork(params.address, params.network)
       assertExposable(!!token, ErrorKeyEnum.notFound, undefined, undefined, params)
     }
 

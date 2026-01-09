@@ -1,14 +1,14 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { GaugeHandler } from '@handlers/gaugeHandler'
 import { Models } from '@dbModels'
-import { NetworksEnum, IPluginStatus, IPluginInterfaceType, ISettingStatus } from '@types'
+import { GaugeHandler } from '@handlers/gaugeHandler'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
-import IPFSModule from '@modules/ipfs'
 import logger from '@logger'
+import IPFSModule from '@modules/ipfs'
 import { GaugeMetrics } from '@services/aragon-dao/gaugeMetrics'
+import { IPluginInterfaceType, IPluginStatus, ISettingStatus, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Handler: gaugeHandler', () => {
   let sandbox: SinonSandbox

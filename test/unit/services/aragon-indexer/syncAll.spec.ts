@@ -1,15 +1,15 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import logger from '@logger'
 import { Models } from '@dbModels'
 import { NetworkHelper } from '@helpers/network'
 import RabbitMQHelper from '@helpers/rabbitMQ'
-import Web3Helper from '@helpers/web3'
 import utils from '@helpers/utils'
+import Web3Helper from '@helpers/web3'
 import { SyncAll } from '@indexer/syncAll'
-import { EnumQueueName, NetworksEnum } from '@types'
+import logger from '@logger'
 import DBCrawler from '@models/utils/crawler'
+import { EnumQueueName, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('AragonIndexer: SyncAll', () => {
   let sandbox: SinonSandbox

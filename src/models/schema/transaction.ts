@@ -1,3 +1,8 @@
+import { assert } from '@errors'
+import utils from '@helpers/utils'
+import logger from '@logger'
+import ModelUtils from '@models/utils/models'
+import { ITransactionType } from '@src/types/transfer'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
@@ -11,13 +16,8 @@ import {
   ITransactionSide,
   NetworksEnum,
 } from '@types'
-import { ITransactionType } from '@src/types/transfer'
-import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
-import { assert } from '@errors'
-import ModelUtils from '@models/utils/models'
-import utils from '@helpers/utils'
-import logger from '@logger'
+import { Model, type SaveOptions } from 'mongoose'
 
 const customName = ICollectionNames.Transaction
 

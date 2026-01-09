@@ -1,10 +1,10 @@
-import { EnumConnection, type IService, NetworksEnum } from '@types'
-import logger from '@logger'
 import { Models } from '@dbModels'
-import DBCrawler from '@models/utils/crawler'
-import Utils from '@helpers/utils'
 import EnsHelper from '@helpers/ens'
+import Utils from '@helpers/utils'
+import logger from '@logger'
+import DBCrawler from '@models/utils/crawler'
 import DbOperations from '@models/utils/dbOperations'
+import { EnumConnection, type IService, NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'tools:fixSettingIssue' })
 

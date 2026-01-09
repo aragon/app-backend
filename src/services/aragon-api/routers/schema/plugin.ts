@@ -1,6 +1,6 @@
-import Joi from 'joi'
 import ValidationSchema from '@helpers/validationSchema'
 import { IEventLogPluginType, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
+import Joi from 'joi'
 
 const PluginSchema = {
   getInstallationData: Joi.object({

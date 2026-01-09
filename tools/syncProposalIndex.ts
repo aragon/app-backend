@@ -1,8 +1,8 @@
-import { EnumConnection, type IService } from '@types'
 import { Models } from '@dbModels'
-import { ProposalHandler } from '@src/handlers/proposalHandler'
-import ProviderModule from '@modules/provider'
 import logger from '@logger'
+import ProviderModule from '@modules/provider'
+import { ProposalHandler } from '@src/handlers/proposalHandler'
+import { EnumConnection, type IService } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'Tools' })
 

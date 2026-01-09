@@ -1,11 +1,11 @@
-import { expect } from 'chai'
-import sinon from 'sinon'
-import { NetworksEnum } from '@types'
-import logger from '@logger'
 import { Models } from '@dbModels'
+import Web3Utils from '@helpers/web3Utils'
+import logger from '@logger'
 import ProxyUtils from '@modules/proxyProvider/utils'
 import { ProxyToken } from '@modules/proxyToken'
-import Web3Utils from '@helpers/web3Utils'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import sinon from 'sinon'
 
 describe('ProxyUtils', () => {
   let sandbox: sinon.SinonSandbox

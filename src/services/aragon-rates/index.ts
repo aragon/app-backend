@@ -1,8 +1,8 @@
-import logger from '@logger'
-import { EnumConnection, EnumServiceName, type IService } from '@types'
-import { TaskSchedulerState } from '@state/taskSchedulerState'
 import config from '@config'
+import logger from '@logger'
 import { FetchRates } from '@services/aragon-rates/fetchRates'
+import { TaskSchedulerState } from '@state/taskSchedulerState'
+import { EnumConnection, EnumServiceName, type IService } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'service:RatesService' })
 

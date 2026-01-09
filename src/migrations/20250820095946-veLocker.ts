@@ -1,10 +1,10 @@
-import { type IMigration, IPluginInterfaceType, ITokenType } from '@types'
-import logger from '@logger'
 import { Models } from '@dbModels'
+import logger from '@logger'
+import type Plugin from '@models/schema/plugin'
+import { MemberGovernanceFactory } from '@src/governance'
+import { type IMigration, IPluginInterfaceType, ITokenType } from '@types'
 import mongoose from 'mongoose'
 import * as pLimit from 'p-limit'
-import { MemberGovernanceFactory } from '@src/governance'
-import type Plugin from '@models/schema/plugin'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: veLocker' })
 
@@ -66,7 +66,7 @@ export const VeLockerMigration: IMigration = {
                 },
               })
 
-              if (memberBalanceEntry && memberBalanceEntry.tokenIds.includes(tokenId)) {
+              if (memberBalanceEntry?.tokenIds.includes(tokenId)) {
                 const governance = MemberGovernanceFactory.create({
                   address: lockData.escrowAddress,
                   network: lockData.network,

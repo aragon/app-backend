@@ -1,10 +1,10 @@
-import { EnumConnection, EnumServiceName, IMigrationStatus, type IService } from '@types'
-import logger from '@logger'
-import * as fs from 'fs'
-import * as path from 'path'
-import { glob } from 'glob'
 import { Models } from '@dbModels'
+import logger from '@logger'
 import Mongo from '@modules/mongo'
+import { EnumConnection, EnumServiceName, IMigrationStatus, type IService } from '@types'
+import * as fs from 'fs'
+import { glob } from 'glob'
+import * as path from 'path'
 
 const llo = logger.logMeta.bind(null, { service: 'MigrationService' })
 

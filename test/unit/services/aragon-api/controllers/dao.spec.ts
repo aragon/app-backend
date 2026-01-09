@@ -1,13 +1,13 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import DaoController from '@services/aragon-api/controllers/dao'
-import { ErrorKeyEnum, HexAddress, MembershipData, NetworksEnum } from '@types'
 import { Models } from '@dbModels'
-import { DaoList } from '@test/mock/fakeDao'
 import Dao from '@models/schema/dao'
 import PairDataModule from '@modules/pairData'
+import DaoController from '@services/aragon-api/controllers/dao'
+import { DaoList } from '@test/mock/fakeDao'
 import { FakeMember } from '@test/mock/fakeMember'
+import { ErrorKeyEnum, HexAddress, MembershipData, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Controller: Dao', () => {
   let sandbox: SinonSandbox

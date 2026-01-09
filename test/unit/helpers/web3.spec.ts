@@ -1,14 +1,14 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
 import Web3Helper from '@helpers/web3'
-import { NetworksEnum } from '@types'
+import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
-import proxyquire from 'proxyquire'
+import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
 import { ProxyToken } from '@modules/proxyToken'
-import BottleneckModule from '@modules/bottleneck'
-import Web3Utils from '@helpers/web3Utils'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import proxyquire from 'proxyquire'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Helpers:Web3', () => {
   let sandbox: SinonSandbox

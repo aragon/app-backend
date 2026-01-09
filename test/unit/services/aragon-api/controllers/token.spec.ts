@@ -1,13 +1,14 @@
+import config from '@config'
+import { Models } from '@dbModels'
+import CoinGeckoHelper from '@helpers/coinGecko'
+import dayjs from '@helpers/dayjs'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import Token from '@models/schema/token'
+import TokenController from '@services/aragon-api/controllers/token'
+import { EnumQueueName, ErrorKeyEnum, ITokenType, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import TokenController from '@services/aragon-api/controllers/token'
-import { ErrorKeyEnum, ITokenType, NetworksEnum } from '@types'
-import CoinGeckoHelper from '@helpers/coinGecko'
-import { Models } from '@dbModels'
-import dayjs from '@helpers/dayjs'
-import Token from '@models/schema/token'
-import { ProxyToken } from '@modules/proxyToken'
 
 describe('Controller: Token', () => {
   let sandbox: SinonSandbox
@@ -127,7 +128,7 @@ describe('Controller: Token', () => {
 
   describe('getTokenByAddress', async () => {
     it('getTokenByAddress new token', async () => {
-      const fakeRes = {
+      const fakeToken = {
         address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc0',
         network: NetworksEnum.ethereumMainnet,
         logo: 'https://logos.covalenthq.com/tokens/1/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc0.png',
@@ -144,11 +145,12 @@ describe('Controller: Token', () => {
         },
       }
 
-      const stubSaveAndGetToken = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(fakeRes as any)
+      const stubRabbitMQ = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const stubDbFind = sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork')
+      stubDbFind.onFirstCall().resolves(null)
+      stubDbFind.onSecondCall().resolves(fakeToken as any)
 
-      const stubDbFind = sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves(null)
-
-      const address = fakeRes.address
+      const address = fakeToken.address
       const token = await TokenController.getTokenByAddress({
         address,
         network: NetworksEnum.ethereumMainnet,
@@ -156,20 +158,20 @@ describe('Controller: Token', () => {
 
       expect(token.address).to.eq(address)
       expect(token.network).to.eq(NetworksEnum.ethereumMainnet)
-      expect(token.logo).to.eq(fakeRes.logo)
-      expect(token.name).to.eq(fakeRes.name)
-      expect(token.type).to.eq(fakeRes.type)
-      expect(token.symbol).to.eq(fakeRes.symbol)
-      expect(token.decimals).to.eq(fakeRes.decimals)
-      expect(token.priceUsd).to.eq(fakeRes.priceUsd)
-      expect(token.holders).to.eq(fakeRes.holders)
-      expect(token.totalSupply).to.eq(fakeRes.totalSupply)
-      expect(dayjs(token.lastUpdatedAt).format('YYYY-MM-DDTHH:mm:ss')).to.eq(
-        dayjs(fakeRes.lastUpdatedAt).format('YYYY-MM-DDTHH:mm:ss'),
-      )
+      expect(token.logo).to.eq(fakeToken.logo)
+      expect(token.name).to.eq(fakeToken.name)
+      expect(token.type).to.eq(fakeToken.type)
+      expect(token.symbol).to.eq(fakeToken.symbol)
+      expect(token.decimals).to.eq(fakeToken.decimals)
+      expect(token.priceUsd).to.eq(fakeToken.priceUsd)
+      expect(token.holders).to.eq(fakeToken.holders)
+      expect(token.totalSupply).to.eq(fakeToken.totalSupply)
 
-      expect(stubSaveAndGetToken.calledOnceWith(address, NetworksEnum.ethereumMainnet)).to.be.true
-      expect(stubDbFind.calledOnceWith(address, NetworksEnum.ethereumMainnet)).to.be.true
+      expect(stubRabbitMQ.calledOnce).to.be.true
+      expect(stubRabbitMQ.firstCall.args[0]).to.eq(EnumQueueName.tokenInfo)
+      expect(stubRabbitMQ.firstCall.args[1].params).to.deep.equal({ address, network: NetworksEnum.ethereumMainnet })
+      expect(stubRabbitMQ.firstCall.args[2]).to.deep.equal({ waitResponse: true, timeout: config.RABBITMQ.TIMEOUT })
+      expect(stubDbFind.calledTwice).to.be.true
     })
 
     it('getTokenByAddress existing token', async () => {
@@ -212,7 +214,9 @@ describe('Controller: Token', () => {
     })
 
     it('getTokenByAddress not found', async () => {
-      const stubSaveAndGetToken = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(undefined)
+      const stubRabbitMQ = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const stubDbFind = sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves(null)
+
       const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc1'
       await expect(
         TokenController.getTokenByAddress({
@@ -220,7 +224,9 @@ describe('Controller: Token', () => {
           network: NetworksEnum.ethereumMainnet,
         }),
       ).to.be.rejectedWith(Error, ErrorKeyEnum.notFound)
-      expect(stubSaveAndGetToken.calledOnce).to.be.true
+
+      expect(stubRabbitMQ.calledOnce).to.be.true
+      expect(stubDbFind.calledTwice).to.be.true
     })
   })
 })

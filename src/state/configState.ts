@@ -1,5 +1,5 @@
-import { EventEmitter } from 'events'
 import { type WebSocketProvider } from 'ethers'
+import { EventEmitter } from 'events'
 
 export type IConfigState = Record<string, any>
 

@@ -1,10 +1,10 @@
-import logger from '@logger'
-import { ISelectorPermissionLogs, type IIndexerConfig } from '@types'
-import { BlockchainLogCrawler } from '@modules/crawlers'
-import configIndexer from '@indexer/configIndexer'
-import type Plugin from '@models/schema/plugin'
-import ProxyWeb3Provider from '@src/modules/proxyProvider'
 import ConfigIndexerHelper from '@helpers/configIndexer'
+import configIndexer from '@indexer/configIndexer'
+import logger from '@logger'
+import type Plugin from '@models/schema/plugin'
+import { BlockchainLogCrawler } from '@modules/crawlers'
+import ProxyWeb3Provider from '@src/modules/proxyProvider'
+import { type IIndexerConfig, ISelectorPermissionLogs } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogSelectorPermission' })
 

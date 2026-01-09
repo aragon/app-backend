@@ -1,7 +1,7 @@
-import Router, { type RouterContext } from '@koa/router'
 import DaoController from '@api/controllers/dao'
-import ValidationSchema from '@helpers/validationSchema'
 import DaoSchema from '@api/routers/schema/dao'
+import ValidationSchema from '@helpers/validationSchema'
+import Router, { type RouterContext } from '@koa/router'
 import { type HexAddress, type IDaoExtraParams, type IPaginationParams, type NetworksEnum } from '@types'
 
 const DaoRouter = {

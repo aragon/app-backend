@@ -1,10 +1,10 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
+import config from '@config'
+import * as RetryRequest from '@helpers/retryRequest'
 import Utils from '@helpers/utils'
 import Logger from '@logger'
-import * as RetryRequest from '@helpers/retryRequest'
-import config from '@config'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Helpers:RetryRequest', () => {
   let sandbox: SinonSandbox

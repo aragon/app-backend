@@ -1,11 +1,13 @@
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
+
 const { expect } = chai
-import { ErrorKeyEnum, IJwtTokenType } from '@types'
+
+import { Models } from '@dbModels'
+import TwoFaHelper from '@helpers/2fa'
 import JwtHelper from '@helpers/jwt'
 import AuthMiddleware from '@middlewares/auth'
-import TwoFaHelper from '@helpers/2fa'
-import { Models } from '@dbModels'
+import { ErrorKeyEnum, IJwtTokenType } from '@types'
 
 describe('middlewares: auth', () => {
   let sandbox: SinonSandbox

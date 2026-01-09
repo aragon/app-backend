@@ -1,6 +1,6 @@
-import Toobusy from 'toobusy-js'
 import logger from '@logger'
 import { ErrorKeyEnum } from '@types'
+import Toobusy from 'toobusy-js'
 
 export class TooBusyMonitor {
   public maxLag: number // Maximum lag threshold in milliseconds

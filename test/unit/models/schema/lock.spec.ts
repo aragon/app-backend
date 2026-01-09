@@ -1,13 +1,13 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import Lock from '@models/schema/lock'
-import { afterEach, beforeEach } from 'mocha'
-import { expect } from 'chai'
 import { Models } from '@dbModels'
-import { ITokenType, NetworksEnum } from '@types'
-import { FakeToken } from '@test/mock/fakeToken'
+import Lock from '@models/schema/lock'
 import Token from '@models/schema/token'
 import ModelUtils from '@src/models/utils/models'
+import { FakeToken } from '@test/mock/fakeToken'
+import { ITokenType, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import { afterEach, beforeEach } from 'mocha'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Model: Lock', () => {
   let sandbox: SinonSandbox

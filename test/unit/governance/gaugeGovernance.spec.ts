@@ -1,13 +1,13 @@
 import '@test/environment'
+import { Models } from '@dbModels'
+import GaugeHelper from '@helpers/gauge'
+import Logger from '@logger'
+import { GaugeMetrics } from '@services/aragon-dao/gaugeMetrics'
+import { BaseGovernance, GaugeGovernance } from '@src/governance'
+import { type HexAddress, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { Models } from '@dbModels'
-import Logger from '@logger'
-import { GaugeGovernance, BaseGovernance } from '@src/governance'
-import { NetworksEnum, type HexAddress } from '@types'
-import { GaugeMetrics } from '@services/aragon-dao/gaugeMetrics'
-import GaugeHelper from '@helpers/gauge'
 
 describe('Governance:GaugeGovernance', () => {
   let sandbox: SinonSandbox

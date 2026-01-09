@@ -1,11 +1,11 @@
-import * as sinon from 'sinon'
-import { expect } from 'chai'
-import CapitalDistributorAdminRouter from '@services/aragon-admin-api/routers/capitalDistributor'
-import { CapitalDistributorAdminController } from '@services/aragon-admin-api/controllers/capitalDistributor'
+import * as errors from '@errors'
 import ValidationSchema from '@helpers/validationSchema'
 import UploadMiddleware from '@middlewares/upload'
-import * as errors from '@errors'
+import { CapitalDistributorAdminController } from '@services/aragon-admin-api/controllers/capitalDistributor'
+import CapitalDistributorAdminRouter from '@services/aragon-admin-api/routers/capitalDistributor'
 import { ErrorKeyEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
 
 describe('Router: CapitalDistributorAdmin', () => {
   let sandbox: sinon.SinonSandbox

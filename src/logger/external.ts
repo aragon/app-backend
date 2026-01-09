@@ -1,11 +1,11 @@
-import Transport from 'winston-transport'
-import * as logNodejs from 'logzio-nodejs'
-import * as Sentry from '@sentry/node'
-import Format from './format'
 import config from '@config'
-import { type ExternalLoggerOptions } from '@types'
-import { type ILogzioLogger } from 'logzio-nodejs'
 import Utils from '@helpers/utils'
+import * as Sentry from '@sentry/node'
+import { type ExternalLoggerOptions } from '@types'
+import * as logNodejs from 'logzio-nodejs'
+import { type ILogzioLogger } from 'logzio-nodejs'
+import Transport from 'winston-transport'
+import Format from './format'
 
 // MongoDB transient transaction errors to skip from external logging
 // These are expected errors that should be retried, not logged externally

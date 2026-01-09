@@ -1,18 +1,18 @@
-import logger from '@logger'
-import { type Log, type TopicFilter } from 'ethers'
-import { type ICrawlParam, type ICrawlSetting, ICrawStrategy, type IFormattedLog } from '@types'
-import { Models } from '@dbModels'
-import DbTx from '@modules/dbTx'
 import config from '@config'
-import utils from '@helpers/utils'
-import ProviderModule from '@modules/provider'
+import { Models } from '@dbModels'
 import { retryRequest } from '@helpers/retryRequest'
+import utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
+import logger from '@logger'
+import DbTx from '@modules/dbTx'
+import ProviderModule from '@modules/provider'
+import { CrawlerErrorType, type ICrawlParam, type ICrawlSetting, ICrawStrategy, type IFormattedLog } from '@types'
+import { type Log, type TopicFilter } from 'ethers'
 import { AdaptiveBatchSizeManager } from './adaptiveBatchSizeManager'
 import { BatchRequestManager } from './batchRequestManager'
 import { CrawlerErrorHandler } from './crawlerErrorHandler'
-import { ProgressTracker } from './progressTracker'
 import { LogProcessingEngine } from './logProcessingEngine'
+import { ProgressTracker } from './progressTracker'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:EventCrawler' })
 
@@ -406,6 +406,21 @@ class BlockchainLogCrawler {
         )
       }
 
+      if (error.message?.includes('response body is not valid JSON')) {
+        logger.error(
+          'RPC returned invalid JSON response',
+          llo({
+            ...this.parseCrawlerInfoLog(),
+            fromBlock: currentBlock,
+            toBlock,
+            errorCode: error.code,
+            errorInfo: error.info,
+            errorShortMessage: error.shortMessage,
+            providerUrl: this.getProviderUrl(),
+          }),
+        )
+      }
+
       throw error
     }
 
@@ -419,10 +434,10 @@ class BlockchainLogCrawler {
 
     try {
       const requests = this.createBlockReceiptsRequests(currentBlock, toBlock)
-      const response = await this.executeBlockReceiptsRequest(requests)
+      const responses = await this.executeBlockReceiptsRequest(requests)
 
-      const validResponses = response.data.filter((resp: any) => !resp.error && resp.result)
-      if (validResponses.length === response.data.length) {
+      const validResponses = responses.filter((resp: any) => !resp.error && resp.result)
+      if (validResponses.length === responses.length) {
         for (const resp of validResponses) {
           const blockReceipts = resp.result
           if (!blockReceipts || blockReceipts.length === 0) continue
@@ -466,10 +481,12 @@ class BlockchainLogCrawler {
 
     if (analysis.shouldRetry && analysis.backoffMs) {
       await utils.wait(analysis.backoffMs)
-    } else {
+    } else if (analysis.type === CrawlerErrorType.UNKNOWN) {
+      // Only trigger onError for truly unknown errors
       this.crawlSetting.shutdown = true
       this.crawlParams.onError(this.errorHandler.toError(error))
     }
+    // Known error types (BATCH_SIZE_ERROR, RATE_LIMITED, NETWORK_ERROR) are handled gracefully
 
     this.crawlSetting.nbError++
   }

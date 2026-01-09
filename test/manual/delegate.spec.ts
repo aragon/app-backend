@@ -1,14 +1,14 @@
+import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
+import { Models } from '@dbModels'
+import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
+import Web3Helper from '@helpers/web3'
+import Web3Utils from '@helpers/web3Utils'
+import ProviderModule from '@modules/provider'
+import { IEventLogMember, ITransactionSide, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import { Interface } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import ProviderModule from '@modules/provider'
-import { IEventLogMember, ITransactionSide, NetworksEnum } from '@types'
-import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
-import Web3Helper from '@helpers/web3'
-import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
-import { Models } from '@dbModels'
-import { expect } from 'chai'
-import Web3Utils from '@helpers/web3Utils'
 
 const getData = async (txHash: string, network: NetworksEnum): Promise<{ event: any; logInfo: any }[]> => {
   const txReceipt = await Web3Helper.getTransactionReceipt(txHash, network)

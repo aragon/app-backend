@@ -1,9 +1,9 @@
+import { Models } from '@dbModels'
+import { ProposalHandler } from '@handlers/proposalHandler'
 import DecodeActions from '@helpers/decodeAction'
-import { type IRawAction } from '@types'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
-import { ProposalHandler } from '@handlers/proposalHandler'
-import { Models } from '@dbModels'
+import { type IRawAction } from '@types'
 
 const ActionDecode = {
   decode: async (action: IRawAction) => {

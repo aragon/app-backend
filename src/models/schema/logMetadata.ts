@@ -1,3 +1,4 @@
+import { assert } from '@errors'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
@@ -7,9 +8,8 @@ import {
   IMetadataType,
   NetworksEnum,
 } from '@types'
-import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
-import { assert } from '@errors'
+import { Model, type SaveOptions } from 'mongoose'
 
 const customName = ICollectionNames.LogMetadata
 

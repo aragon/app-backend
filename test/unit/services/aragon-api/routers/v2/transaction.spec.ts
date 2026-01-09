@@ -1,10 +1,10 @@
+import TransactionController from '@api/controllers/transaction'
+import TransactionRouter from '@api/routers/v2/transaction'
+import { ITransactionIndexCheckType, ITransactionSide, ITransactionType, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import { getAddress } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import TransactionRouter from '@api/routers/v2/transaction'
-import TransactionController from '@api/controllers/transaction'
-import { ITransactionIndexCheckType, ITransactionSide, ITransactionType, NetworksEnum } from '@types'
-import { getAddress } from 'ethers'
 
 describe('RouterV2: Transaction', () => {
   let sandbox: SinonSandbox

@@ -1,4 +1,9 @@
 import { Models } from '@dbModels'
+import { assert } from '@errors'
+import logger from '@logger'
+import { type ExternalBodyResult } from '@models/schema/proposal'
+import type Transaction from '@models/schema/transaction'
+import PairDataModule from '@modules/pairData'
 import {
   ErrorKeyEnum,
   IndexCheckTypeToModel,
@@ -11,11 +16,6 @@ import {
   type ITransactionResponse,
   type NetworksEnum,
 } from '@types'
-import type Transaction from '@models/schema/transaction'
-import PairDataModule from '@modules/pairData'
-import { assert } from '@errors'
-import logger from '@logger'
-import { type ExternalBodyResult } from '@models/schema/proposal'
 
 const llo = logger.logMeta.bind(null, { service: 'TransactionController' })
 
@@ -106,7 +106,7 @@ const TransactionController = {
         response.interfaceType = data.interfaceType
       }
       return response
-    } catch (error) {
+    } catch (_error) {
       return response
     }
   },

@@ -1,11 +1,11 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
 import logger from '@logger'
-import { LogSelectorPermission } from '@plugins/logSelectorPermission'
 import { BlockchainLogCrawler } from '@modules/crawlers'
+import { LogSelectorPermission } from '@plugins/logSelectorPermission'
+import ProxyWeb3Provider from '@src/modules/proxyProvider'
 import { IPluginInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
-import ProxyWeb3Provider from '@src/modules/proxyProvider'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('AragonPlugins: LogSelectorPermission', () => {
   let sandbox: SinonSandbox

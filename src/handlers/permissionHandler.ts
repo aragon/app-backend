@@ -1,13 +1,13 @@
-import logger from '@logger'
-import { type LogDescription, ethers } from 'ethers'
-import { type HexAddress, IEventLogPermission, type ILogInfo, IPluginInterfaceType, type NetworksEnum } from '@types'
 import { Models } from '@dbModels'
+import { PluginHandler } from '@handlers/pluginHandler'
+import Utils from '@helpers/utils'
+import logger from '@logger'
+import type Dao from '@models/schema/dao'
+import DbTx from '@modules/dbTx'
 import { MemberGovernanceFactory } from '@src/governance'
 import { IPermission } from '@src/types/permission'
-import { PluginHandler } from '@handlers/pluginHandler'
-import DbTx from '@modules/dbTx'
-import Utils from '@helpers/utils'
-import type Dao from '@models/schema/dao'
+import { type HexAddress, IEventLogPermission, type ILogInfo, IPluginInterfaceType, type NetworksEnum } from '@types'
+import { ethers, type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PermissionHandler' })
 

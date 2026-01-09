@@ -1,10 +1,10 @@
-import { EnumConnection, type IService, NetworksEnum } from '@types'
-import ProviderModule from '@modules/provider'
-import logger from '@logger'
 import { Models } from '@dbModels'
 import TokenDetector from '@helpers/tokenDetector'
 import Web3Helper from '@helpers/web3'
+import logger from '@logger'
+import ProviderModule from '@modules/provider'
 import { LogTokenVoting } from '@plugins/logTokenVoting'
+import { EnumConnection, type IService, NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'service:SyncNectorDao' })
 

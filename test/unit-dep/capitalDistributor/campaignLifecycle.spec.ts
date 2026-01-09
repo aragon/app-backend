@@ -1,12 +1,12 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
+import { Models } from '@dbModels'
+import { CapitalDistributorHandler } from '@handlers/capitalDistributorHandler'
 import { CapitalDistributorAdminController } from '@services/aragon-admin-api/controllers/capitalDistributor'
 import CapitalDistributorController from '@services/aragon-api/controllers/capitalDistributor'
-import { CapitalDistributorHandler } from '@handlers/capitalDistributorHandler'
-import { IPluginInterfaceType, NetworksEnum, type HexAddress } from '@types'
-import { Models } from '@dbModels'
 import { LogCampaignStrategy } from '@services/aragon-plugins/logCampaignStrategy'
+import { type HexAddress, IPluginInterfaceType, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe.skip('Integration: CapitalDistributor Campaign Lifecycle', () => {
   let sandbox: SinonSandbox

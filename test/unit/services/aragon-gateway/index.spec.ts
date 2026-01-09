@@ -1,17 +1,18 @@
+import GaugeHelper from '@helpers/gauge'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import logger from '@logger'
+import { ProxyToken } from '@modules/proxyToken'
+import ActionDecoder from '@services/aragon-gateway/actionDecoder'
+import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
+import { ContractInfo } from '@services/aragon-gateway/contractInfo'
+import { GaugeInfo } from '@services/aragon-gateway/gauge'
+import AragonGatewayService from '@services/aragon-gateway/index'
+import { MemberInfo } from '@services/aragon-gateway/memberInfo'
+import Plugin from '@services/aragon-gateway/plugin'
+import { EnumQueueName, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import AragonGatewayService from '@services/aragon-gateway/index'
-import logger from '@logger'
-import { EnumQueueName, NetworksEnum } from '@types'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import { ContractInfo } from '@services/aragon-gateway/contractInfo'
-import { MemberInfo } from '@services/aragon-gateway/memberInfo'
-import ActionDecoder from '@services/aragon-gateway/actionDecoder'
-import Plugin from '@services/aragon-gateway/plugin'
-import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
-import GaugeHelper from '@helpers/gauge'
-import { GaugeInfo } from '@services/aragon-gateway/gauge'
 
 describe('AragonGateway: index', () => {
   let sandbox: SinonSandbox
@@ -31,7 +32,7 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      expect(processStub.callCount).to.equal(8)
+      expect(processStub.callCount).to.equal(9)
       expect(processStub.calledWith(EnumQueueName.contractInfo)).to.be.true
       expect(processStub.calledWith(EnumQueueName.memberBalance)).to.be.true
       expect(processStub.calledWith(EnumQueueName.contractDecoder)).to.be.true
@@ -40,6 +41,7 @@ describe('AragonGateway: index', () => {
       expect(processStub.calledWith(EnumQueueName.syncMerkleProofs)).to.be.true
       expect(processStub.calledWith(EnumQueueName.gaugeEpochId)).to.be.true
       expect(processStub.calledWith(EnumQueueName.gaugeInfo)).to.be.true
+      expect(processStub.calledWith(EnumQueueName.tokenInfo)).to.be.true
 
       expect(loggerStub.calledOnceWith('AragonGatewayService service started' as any)).to.be.true
     })
@@ -245,6 +247,27 @@ describe('AragonGateway: index', () => {
         }),
       ).to.be.true
       expect(result).to.deep.equal(mockGaugeInfo)
+    })
+
+    it('should handle tokenInfo queue', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
+
+      await AragonGatewayService.start()
+
+      const handler = processStub.getCall(8).args[1]
+      const queueName = processStub.getCall(8).args[0]
+
+      const result = await handler({
+        params: {
+          address: '0xTokenAddress',
+          network: NetworksEnum.ethereumMainnet,
+        },
+      } as any)
+
+      expect(queueName).to.eq(EnumQueueName.tokenInfo)
+      expect(proxyTokenStub.calledOnceWith('0xTokenAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(result).to.be.true
     })
   })
 })

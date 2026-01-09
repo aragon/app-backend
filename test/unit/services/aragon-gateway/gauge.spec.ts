@@ -1,11 +1,11 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { GaugeInfo } from '@services/aragon-gateway/gauge'
 import { Models } from '@dbModels'
 import GaugeHelper from '@helpers/gauge'
-import { NetworksEnum } from '@types'
 import logger from '@logger'
+import { GaugeInfo } from '@services/aragon-gateway/gauge'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Gateway: Gauge', () => {
   let sandbox: SinonSandbox

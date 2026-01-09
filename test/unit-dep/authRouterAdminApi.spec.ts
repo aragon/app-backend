@@ -1,14 +1,14 @@
+import MainAdminRouter from '@admin-api/routers'
+import { Models } from '@dbModels'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import AuthMiddleware from '@middlewares/auth'
+import MainMiddleware from '@src/middlewares'
+import { ErrorKeyEnum, IJwtTokenType, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import Koa from 'koa'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { ErrorKeyEnum, IJwtTokenType, NetworksEnum } from '@types'
-import AuthMiddleware from '@middlewares/auth'
-import MainAdminRouter from '@admin-api/routers'
 import supertest from 'supertest'
-import MainMiddleware from '@src/middlewares'
-import { Models } from '@dbModels'
-import RabbitMQHelper from '@helpers/rabbitMQ'
 
 describe('Integ: AuthRouter Admin API', () => {
   let sandbox: SinonSandbox

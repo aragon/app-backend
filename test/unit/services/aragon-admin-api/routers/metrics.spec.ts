@@ -1,8 +1,8 @@
+import MetricsAdminController from '@services/aragon-admin-api/controllers/metrics'
+import MetricsAdminRouter from '@services/aragon-admin-api/routers/metrics'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import MetricsAdminRouter from '@services/aragon-admin-api/routers/metrics'
-import MetricsAdminController from '@services/aragon-admin-api/controllers/metrics'
 
 describe('Router: MetricsAdmin', () => {
   let sandbox: SinonSandbox

@@ -1,9 +1,9 @@
+import { Models } from '@dbModels'
+import LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
+import { HexAddress, IEventLogPluginType, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { HexAddress, IEventLogPluginType, NetworksEnum } from '@types'
-import LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
-import { Models } from '@dbModels'
 
 describe('Model: LogPluginSetupProcessor', () => {
   let sandbox: SinonSandbox

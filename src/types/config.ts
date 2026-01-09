@@ -26,8 +26,6 @@ export interface IRawNodeConfig {
   POOLING_INTERVAL: number
   CONFIRMATION_BLOCKS: number
   INTERVAL_BLOCK_TIME: number
-  BLOCKSCOUT_API_URL: string
-  BLOCKSCOUT_API_KEY: string
   SUBSCAN_API_KEY?: string
   SUBSCAN_API_URL?: string
 }
@@ -100,8 +98,6 @@ export interface IConfig {
     RECONNECT_INTERVAL: number
   }
   BOTTLENECK: {
-    BLOCKSCOUT_API_MAX_CONCURRENT: number
-    BLOCKSCOUT_API_MIN_TIME: number
     ETHERSCAN_MAX_CONCURRENT: number
     ETHERSCAN_MIN_TIME: number
     NODE_MAX_CONCURRENT: number
@@ -110,8 +106,6 @@ export interface IConfig {
     NODE_TRANSFER_MIN_TIME: number
     COINGECKO_MAX_CONCURRENT: number
     COINGECKO_MIN_TIME: number
-    COVALENT_MAX_CONCURRENT: number
-    COVALENT_MIN_TIME: number
     FOUR_BYTE_MAX_CONCURRENT: number
     FOUR_BYTE_MIN_TIME: number
     ALCHEMY_ENS_MAX_CONCURRENT: number
@@ -142,14 +136,10 @@ export interface IConfig {
     LOGZIO_KEY: string
   }
 
-  COVALENT: {
-    URI: string
-    API_KEY: string
-  }
-
   COINGECKO: {
     URI: string
     API_KEY: string
+    DEAD_TOKEN_VOLUME_THRESHOLD: number
   }
 
   FOUR_BYTE: {

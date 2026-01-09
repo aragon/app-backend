@@ -1,14 +1,14 @@
 import Router from '@koa/router'
 import AssetRouter from './asset'
+import ContractRouter from './contract'
 import DaoRouter from './dao'
 import MemberRouter from './member'
+import PluginRouter from './plugins'
 import ProposalRouter from './proposal'
 import SettingRouter from './setting'
 import TokenRouter from './token'
 import TransactionRouter from './transaction'
 import VoteRouter from './vote'
-import ContractRouter from './contract'
-import PluginRouter from './plugins'
 
 const V1Router = {
   router(): Router {

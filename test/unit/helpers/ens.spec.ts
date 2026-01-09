@@ -1,10 +1,10 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
+import EnsHelper from '@helpers/ens'
+import logger from '@logger'
 import { expect } from 'chai'
 import { keccak256, toUtf8Bytes, ZeroAddress } from 'ethers'
-import EnsHelper from '@helpers/ens'
 import proxyquire from 'proxyquire'
-import logger from '@logger'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Helpers: ENS', () => {
   let sandbox: SinonSandbox

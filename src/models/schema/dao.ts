@@ -1,8 +1,13 @@
+import { Models } from '@dbModels'
+import { assert } from '@errors'
+import logger from '@logger'
+import { AggregationQueryHelper } from '@models/utils/aggregation'
+import ModelUtils from '@models/utils/models'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
+  type DAO_ENS,
   HexAddress,
   ICollectionNames,
-  type DAO_ENS,
   type IDaoExtraParams,
   type IDaoIdParams,
   type IDaoResponse,
@@ -10,17 +15,12 @@ import {
   type IMembersResponse,
   type IPaginatedResult,
   type IPaginationParams,
-  IPluginStatus,
   IPluginInterfaceType,
+  IPluginStatus,
   NetworksEnum,
 } from '@types'
-import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
-import ModelUtils from '@models/utils/models'
-import { assert } from '@errors'
-import { AggregationQueryHelper } from '@models/utils/aggregation'
-import { Models } from '@dbModels'
-import logger from '@logger'
+import { Model, type SaveOptions } from 'mongoose'
 
 const customName = ICollectionNames.Dao
 
@@ -827,7 +827,7 @@ export default class Dao extends Model {
               this[key] = value
 
               if (key === 'address' || key === 'network') {
-                this['id'] = `${this.network}-${this.address}`
+                this.id = `${this.network}-${this.address}`
               }
             }
           }

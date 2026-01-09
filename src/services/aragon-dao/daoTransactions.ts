@@ -1,15 +1,15 @@
-import { IDaoTransferLogs, type IQueueDaoTransactions, NetworksEnum, TokenTransfer } from '@types'
-import { Models } from '@dbModels'
-import logger from '@logger'
-import { Interface, zeroPadValue } from 'ethers'
-import { BlockchainLogCrawler } from '@modules/crawlers'
-import ConfigIndexerHelper from '@helpers/configIndexer'
 import { DAO } from '@artifacts/dao'
 import { DaoV2 } from '@artifacts/daoV2'
 import { ERC20 } from '@artifacts/ERC20'
 import { ERC721 } from '@artifacts/ERC721'
+import { Models } from '@dbModels'
 import { DaoTransferHandler } from '@handlers/daoTransferHanlder'
+import ConfigIndexerHelper from '@helpers/configIndexer'
+import logger from '@logger'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import DbTx from '@modules/dbTx'
+import { IDaoTransferLogs, type IQueueDaoTransactions, NetworksEnum, TokenTransfer } from '@types'
+import { Interface, zeroPadValue } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:DaoTransactions' })
 

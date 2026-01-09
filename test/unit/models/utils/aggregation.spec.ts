@@ -1,8 +1,8 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import { IPluginStatus, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('AggregationQueryHelper', () => {
   let sandbox: SinonSandbox

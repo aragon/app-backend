@@ -1,15 +1,15 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import AssetController from '@services/aragon-api/controllers/asset'
 import { Models } from '@dbModels'
 import Asset from '@models/schema/asset'
+import Dao from '@models/schema/dao'
 import Token from '@models/schema/token'
 import PairDataModule from '@modules/pairData'
+import AssetController from '@services/aragon-api/controllers/asset'
 import { FakeAsset } from '@test/mock/fakeAsset'
-import { FakeToken } from '@test/mock/fakeToken'
-import Dao from '@models/schema/dao'
 import { DaoList } from '@test/mock/fakeDao'
+import { FakeToken } from '@test/mock/fakeToken'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Controller: Asset', () => {
   let sandbox: SinonSandbox

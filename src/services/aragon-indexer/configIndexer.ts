@@ -1,57 +1,57 @@
-import { Interface } from 'ethers'
-import { type IIndexerConfig } from '@types'
-import { DAORegistry } from '@artifacts/daoRegistry'
-import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
-import { PluginRepoRegistry } from '@artifacts/pluginRepoRegistry'
-import { Multisig } from '@artifacts/Multisig'
-import { Multisig2 } from '@artifacts/Multisig2'
-import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
-import { PluginRepoRegistryHandler } from '@src/handlers/pluginRepoRegistryHandler'
-import { MultisigHandler } from '@src/handlers/multisigHandler'
-import { PluginSetupProcessorHandler } from '@src/handlers/pluginSetupProcessorHandler'
-import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
-import { TokenVoting } from '@artifacts/TokenVoting'
+import { CapitalDistributor } from '@artifacts/CapitalDistributor'
 import { DAO } from '@artifacts/dao'
-import { MetadataHandler } from '@src/handlers/metadataHandler'
-import { ProposalHandler } from '@src/handlers/proposalHandler'
-import { GovernanceErc20Handler } from '@src/handlers/governanceErc20Handler'
-import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
-import { SharedLogs } from '@artifacts/shared'
-import { PermissionHandler } from '@src/handlers/permissionHandler'
-import { DaoRegistryHandler } from '@src/handlers/daoRegistryHandler'
-import { VotingEscrowIncreasing } from '@artifacts/VotingEscrowIncreasing'
-import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
-import { ExitQueue } from '@artifacts/ExitQueue'
-import { VotingEscrow } from '@artifacts/VotingEscrow'
+import { DAORegistry } from '@artifacts/daoRegistry'
 import { DaoV2 } from '@artifacts/daoV2'
 import { ExecuteSelectorCondition } from '@artifacts/ExecuteSelectorCondition'
-import { ExecuteHandler } from '@handlers/executeHandler'
-import LockManagerHandler from '@handlers/lockManagerHandler'
+import { ExitQueue } from '@artifacts/ExitQueue'
+import { GaugeVoter } from '@artifacts/GaugeVoter'
+import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { LockManager } from '@artifacts/LockManager'
 import { LockToVote } from '@artifacts/LockToVote'
-import { CapitalDistributor } from '@artifacts/CapitalDistributor'
+import { Multisig } from '@artifacts/Multisig'
+import { Multisig2 } from '@artifacts/Multisig2'
+import { PluginRepoRegistry } from '@artifacts/pluginRepoRegistry'
+import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
+import { SharedLogs } from '@artifacts/shared'
+import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
+import { TokenVoting } from '@artifacts/TokenVoting'
+import { VotingEscrow } from '@artifacts/VotingEscrow'
+import { VotingEscrowIncreasing } from '@artifacts/VotingEscrowIncreasing'
 import { CapitalDistributorHandler } from '@handlers/capitalDistributorHandler'
-import { GaugeVoter } from '@artifacts/GaugeVoter'
+import { ExecuteHandler } from '@handlers/executeHandler'
 import { GaugeHandler } from '@handlers/gaugeHandler'
+import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
+import LockManagerHandler from '@handlers/lockManagerHandler'
+import { PolicyHandler } from '@handlers/policyHandler'
 import {
-  StreamBalanceSource,
-  DrainBalanceSource,
-  RatioModel,
-  EqualRatioModel,
   AddressGaugeRatioModel,
   BracketsModel,
-  RouterPlugin,
   ClaimerPlugin,
-  MultiRouterPlugin,
-  MultiClaimerPlugin,
-  CowSwapRouterPlugin,
-  RouterSourceFactory,
-  OmniSourceFactory,
   ClaimerSourceFactory,
-  RouterModelFactory,
+  CowSwapRouterPlugin,
+  DrainBalanceSource,
+  EqualRatioModel,
+  MultiClaimerPlugin,
+  MultiRouterPlugin,
   OmniModelFactory,
+  OmniSourceFactory,
+  RatioModel,
+  RouterModelFactory,
+  RouterPlugin,
+  RouterSourceFactory,
+  StreamBalanceSource,
 } from '@artifacts/CapitalRouter'
-import { PolicyHandler } from '@handlers/policyHandler'
+import { DaoRegistryHandler } from '@src/handlers/daoRegistryHandler'
+import { GovernanceErc20Handler } from '@src/handlers/governanceErc20Handler'
+import { MetadataHandler } from '@src/handlers/metadataHandler'
+import { MultisigHandler } from '@src/handlers/multisigHandler'
+import { PermissionHandler } from '@src/handlers/permissionHandler'
+import { PluginRepoRegistryHandler } from '@src/handlers/pluginRepoRegistryHandler'
+import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
+import { PluginSetupProcessorHandler } from '@src/handlers/pluginSetupProcessorHandler'
+import { ProposalHandler } from '@src/handlers/proposalHandler'
+import { type IIndexerConfig } from '@types'
+import { Interface } from 'ethers'
 
 const IndexerEventConfig: IIndexerConfig[] = [
   // historical and realtime on startup

@@ -1,13 +1,13 @@
+import config from '@config'
+import Web3Helper from '@helpers/web3'
+import Web3Utils from '@helpers/web3Utils'
+import logger from '@logger'
+import { KnownActionSignature, NetworksEnum } from '@types'
+import BigNumber from 'bignumber.js'
+import { expect } from 'chai'
+import { AbiCoder, Interface } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { KnownActionSignature, NetworksEnum } from '@types'
-import { AbiCoder, Interface } from 'ethers'
-import logger from '@logger'
-import BigNumber from 'bignumber.js'
-import config from '@config'
-import Web3Utils from '@helpers/web3Utils'
-import Web3Helper from '@helpers/web3'
 
 describe('Helpers:Web3Utils', () => {
   let sandbox: SinonSandbox

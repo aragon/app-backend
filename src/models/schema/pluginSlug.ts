@@ -1,7 +1,7 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { HexAddress, ICollectionNames, NetworksEnum } from '@types'
-import { Model, type SaveOptions } from 'mongoose'
 import * as _ from 'lodash'
+import { Model, type SaveOptions } from 'mongoose'
 
 const customName = ICollectionNames.PluginSlug
 

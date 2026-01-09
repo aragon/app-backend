@@ -1,5 +1,5 @@
-import { ITransactionSide, type ISaveTransactionParams, type NetworksEnum, type ILogInfo } from '@types'
 import { ITransactionType } from '@src/types/transfer'
+import { type ILogInfo, type ISaveTransactionParams, ITransactionSide, type NetworksEnum } from '@types'
 import { ethers, type LogDescription } from 'ethers'
 import { TransferProcessor } from './transferProcessor'
 

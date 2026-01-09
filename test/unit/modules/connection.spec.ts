@@ -1,13 +1,13 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import MongoDB from '@modules/mongo'
+import Utils from '@helpers/utils'
 import logger from '@logger'
 import Connections from '@modules/connections'
-import { EnumConnection } from '@types'
+import MongoDB from '@modules/mongo'
 import ProviderModule from '@modules/provider'
 import RabbitMQ from '@modules/rabbitMQ'
-import Utils from '@helpers/utils'
+import { EnumConnection } from '@types'
+import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Module: connection', () => {
   let sandbox: SinonSandbox

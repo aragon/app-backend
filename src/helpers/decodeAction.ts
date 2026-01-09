@@ -1,9 +1,39 @@
-import logger from '@logger'
-import { ethers, FunctionFragment, hexlify, Interface } from 'ethers'
+import { ERC20 } from '@artifacts/ERC20'
+import { ERC721 } from '@artifacts/ERC721'
+import { ERC1155 } from '@artifacts/ERC1155'
+import { IERC20MintableUpgradeable } from '@artifacts/IERC20MintableUpgradeable'
+import { MajorityVotingBase } from '@artifacts/MajorityVotingBase'
+import { Models } from '@dbModels'
 import FourByte from '@helpers/4byte'
+import CoinGeckoHelper from '@helpers/coinGecko'
+import * as ContractNetspecHelper from '@helpers/contractNetspec'
+import ProxyContract from '@helpers/proxyContract'
+import Utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
-import type Proposal from '@models/schema/proposal'
+import Web3Utils from '@helpers/web3Utils'
+import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
+import type Proposal from '@models/schema/proposal'
+import type Token from '@models/schema/token'
+import ProxyWeb3Provider from '@modules/proxyProvider'
+import { ProxyToken } from '@modules/proxyToken'
+import {
+  AddresslistVoting,
+  DAO,
+  DAOFactory,
+  DAORegistry,
+  GoveranceERC20,
+  MultiSigSetup,
+  Multisig,
+  PluginRepo,
+  PluginRepoFactory,
+  PluginRepoRegistry,
+  StagedProposalProcessor,
+  TokenVoting,
+} from '@src/aragonContracts'
+import { MemberGovernanceFactory } from '@src/governance'
+import IPFSModule from '@src/modules/ipfs'
+import { ProposalActionType } from '@src/types'
 import {
   type HexAddress,
   IPluginInterfaceType,
@@ -14,39 +44,8 @@ import {
   KnownActionSignature,
   type NetworksEnum,
 } from '@types'
-import { ProposalActionType } from '@src/types'
-import { Models } from '@dbModels'
-import * as ContractNetspecHelper from '@helpers/contractNetspec'
-import ProxyContract from '@helpers/proxyContract'
-import { ProxyToken } from '@modules/proxyToken'
-import CoinGeckoHelper from '@helpers/coinGecko'
-import IPFSModule from '@src/modules/ipfs'
+import { ethers, FunctionFragment, hexlify, Interface } from 'ethers'
 
-import {
-  AddresslistVoting,
-  DAO,
-  DAOFactory,
-  DAORegistry,
-  GoveranceERC20,
-  Multisig,
-  MultiSigSetup,
-  PluginRepo,
-  PluginRepoFactory,
-  PluginRepoRegistry,
-  TokenVoting,
-  StagedProposalProcessor,
-} from '@src/aragonContracts'
-
-import { MajorityVotingBase } from '@artifacts/MajorityVotingBase'
-import { IERC20MintableUpgradeable } from '@artifacts/IERC20MintableUpgradeable'
-import { ERC20 } from '@artifacts/ERC20'
-import { ERC721 } from '@artifacts/ERC721'
-import { ERC1155 } from '@artifacts/ERC1155'
-import Utils from '@helpers/utils'
-import { MemberGovernanceFactory } from '@src/governance'
-import Web3Utils from '@helpers/web3Utils'
-import ProxyWeb3Provider from '@modules/proxyProvider'
-import type Token from '@models/schema/token'
 const llo = logger.logMeta.bind(null, { service: 'helpers:DecodeActions' })
 
 interface Signature {
@@ -137,6 +136,8 @@ class DecodeActions {
       updateVotingSettings: this._parseVotingSettingUpdateAction.bind(this),
       updateStages: this._parseStageUpdatedOnSppAction.bind(this),
       registerGauge: this._parseRegisterGauge.bind(this),
+      createGauge: this._parseCreateGauge.bind(this),
+      updateGaugeMetadata: this._parseUpdateGaugeMetadata.bind(this),
     }
 
     for (const pattern in actionHandlers) {
@@ -408,7 +409,7 @@ class DecodeActions {
         proposedMetadata,
         existingMetadata: _existingMetadata,
       }
-    } catch (e) {
+    } catch (_e) {
       return null
     }
   }
@@ -621,7 +622,7 @@ class DecodeActions {
           }),
         }
       })
-    } catch (e) {
+    } catch (_e) {
       stages = []
     }
 
@@ -681,20 +682,12 @@ class DecodeActions {
       return null
     }
 
-    const ipfsUrl = Web3Utils.extractMetadataUri(decodedData.parameters[3].value)
-
-    if (!ipfsUrl) {
-      return null
-    }
-
     try {
-      const rawMetadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
+      const gaugeMetadata = await this._fetchMetadata(decodedData.parameters[3].value)
 
-      if (!rawMetadata) {
+      if (!gaugeMetadata) {
         return null
       }
-
-      const gaugeMetadata = Web3Utils.parseDaoMetadata(rawMetadata)
 
       return {
         ...action,
@@ -702,9 +695,65 @@ class DecodeActions {
         inputData: decodedData,
         gaugeMetadata,
       }
-    } catch (e) {
+    } catch (_e) {
       return null
     }
+  }
+
+  async _parseCreateGauge(decodedData: IProposalActionInputData, action: IRawAction) {
+    if (decodedData.textSignature !== KnownActionSignature.CreateGauge) {
+      return null
+    }
+
+    try {
+      const gaugeMetadata = await this._fetchMetadata(decodedData.parameters[1].value)
+
+      if (!gaugeMetadata) {
+        return null
+      }
+
+      return {
+        ...action,
+        type: ProposalActionType.CreateGauge,
+        inputData: decodedData,
+        gaugeMetadata,
+      }
+    } catch (_e) {
+      return null
+    }
+  }
+
+  async _parseUpdateGaugeMetadata(decodedData: IProposalActionInputData, action: IRawAction) {
+    if (decodedData.textSignature !== KnownActionSignature.UpdateGaugeMetadata) {
+      return null
+    }
+
+    try {
+      const gaugeMetadata = await this._fetchMetadata(decodedData.parameters[1].value)
+
+      if (!gaugeMetadata) {
+        return null
+      }
+
+      return {
+        ...action,
+        type: ProposalActionType.UpdateGaugeMetadata,
+        inputData: decodedData,
+        gaugeMetadata,
+      }
+    } catch (_e) {
+      return null
+    }
+  }
+
+  async _fetchMetadata(metadataHex: string) {
+    const ipfsUrl = Web3Utils.extractMetadataUri(metadataHex)
+
+    if (!ipfsUrl) {
+      return null
+    }
+
+    return await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
   }
 
   async _decodeFallback(action: IRawAction, network: NetworksEnum): Promise<IProposalActionInputData | null> {

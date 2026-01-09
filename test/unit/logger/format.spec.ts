@@ -1,7 +1,7 @@
+import Format from '@src/logger/format'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import Format from '@src/logger/format'
 
 describe('Logger: Format', () => {
   let sandbox: SinonSandbox

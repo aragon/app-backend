@@ -1,11 +1,11 @@
-import { ErrorKeyEnum, IJwtAuthType, IJwtTokenType } from '@types'
-import JwtHelper from '@helpers/jwt'
-import { type SignOptions } from 'jsonwebtoken'
-import { assertExposable } from '@errors'
 import { Models } from '@dbModels'
-import type { RouterContext } from '@koa/router'
-import type { Next } from 'koa'
+import { assertExposable } from '@errors'
 import TwoFaHelper from '@helpers/2fa'
+import JwtHelper from '@helpers/jwt'
+import type { RouterContext } from '@koa/router'
+import { ErrorKeyEnum, IJwtAuthType, IJwtTokenType } from '@types'
+import { type SignOptions } from 'jsonwebtoken'
+import type { Next } from 'koa'
 import type { SaveOptions } from 'mongoose'
 
 const AuthMiddleware = {

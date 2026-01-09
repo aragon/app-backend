@@ -1,9 +1,9 @@
-import Router, { type RouterContext } from '@koa/router'
-import ValidationSchema from '@helpers/validationSchema'
 import ExecuteSelectorController from '@api/controllers/executeSelector'
-import { type HexAddress, type IExecuteSelectorExtraParams, type IPaginationParams, type NetworksEnum } from '@types'
 import ExecuteSelectorSchema from '@api/routers/schema/executeSelector'
 import PaginationSchema from '@api/routers/schema/pagination'
+import ValidationSchema from '@helpers/validationSchema'
+import Router, { type RouterContext } from '@koa/router'
+import { type HexAddress, type IExecuteSelectorExtraParams, type IPaginationParams, type NetworksEnum } from '@types'
 
 const ExecuteSelectorRouter = {
   getWithPagination: async function (ctx: RouterContext) {

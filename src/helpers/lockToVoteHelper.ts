@@ -1,8 +1,8 @@
+import { retryRequest } from '@helpers/retryRequest'
+import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
 import { type HexAddress, type NetworksEnum } from '@types'
 import { Contract, Interface } from 'ethers'
-import { retryRequest } from '@helpers/retryRequest'
-import BottleneckModule from '@modules/bottleneck'
 
 const LockToVoteHelper = {
   async getVotingToken(network: NetworksEnum, pluginAddress: HexAddress) {
@@ -19,7 +19,7 @@ const LockToVoteHelper = {
       return await retryRequest(async () =>
         BottleneckModule.getAlchemyBalanceLimiter(network).schedule(async () => managerContract.token()),
       )
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   },
@@ -33,7 +33,7 @@ const LockToVoteHelper = {
       return await retryRequest(async () =>
         BottleneckModule.getAlchemyBalanceLimiter(network).schedule(async () => contract.lockManager()),
       )
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   },
@@ -48,7 +48,7 @@ const LockToVoteHelper = {
         BottleneckModule.getAlchemyBalanceLimiter(network).schedule(async () => contract.getLockedBalance(userAddress)),
       )
       return BigInt(balance || 0).toString()
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   },
@@ -63,7 +63,7 @@ const LockToVoteHelper = {
     try {
       const supply = await provider.call(params, blockTag)
       return BigInt(supply).toString()
-    } catch (error) {
+    } catch (_error) {
       return '0'
     }
   },
@@ -81,7 +81,7 @@ const LockToVoteHelper = {
     try {
       const power = await provider.call(params)
       return BigInt(power).toString()
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   },

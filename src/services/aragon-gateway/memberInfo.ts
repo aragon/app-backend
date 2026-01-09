@@ -1,12 +1,12 @@
+import { Models } from '@dbModels'
+import GovernanceErc20Helper from '@helpers/governanceErc20'
+import LockToVoteHelper from '@helpers/lockToVoteHelper'
 import Web3Helper from '@helpers/web3'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
-import GovernanceErc20Helper from '@helpers/governanceErc20'
-import { type HexAddress, IPluginInterfaceType, type NetworksEnum } from '@types'
-import { ProxyToken } from '@modules/proxyToken'
-import { Models } from '@dbModels'
 import type Plugin from '@models/schema/plugin'
 import type PluginSetting from '@models/schema/setting'
-import LockToVoteHelper from '@helpers/lockToVoteHelper'
+import { ProxyToken } from '@modules/proxyToken'
+import { type HexAddress, IPluginInterfaceType, type NetworksEnum } from '@types'
 
 export const MemberInfo = {
   getVotingPower: async (userAddress: string, tokenAddress: string, network: NetworksEnum): Promise<string> => {
@@ -17,7 +17,7 @@ export const MemberInfo = {
       }
 
       return (await GovernanceErc20Helper.getVotes(userAddress, tokenAddress, network)).toString()
-    } catch (e) {
+    } catch (_e) {
       return '0'
     }
   },
@@ -66,7 +66,7 @@ export const MemberInfo = {
       }
 
       return response
-    } catch (e) {
+    } catch (_e) {
       return response
     }
   },
@@ -96,7 +96,7 @@ export const MemberInfo = {
         default:
           return false
       }
-    } catch (e) {
+    } catch (_e) {
       return false
     }
   },
@@ -178,7 +178,7 @@ export const MemberInfo = {
         tokenId: result.tokenId,
         votingPower: result.votingPower.toString(),
       }))
-    } catch (e) {
+    } catch (_e) {
       return locks.map(lock => ({
         tokenId: lock.tokenId,
         votingPower: '0',

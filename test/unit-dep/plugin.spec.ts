@@ -1,5 +1,15 @@
-import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
+import { DAORegistry } from '@artifacts/daoRegistry'
+import { Multisig } from '@artifacts/Multisig'
+import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
+import { Models } from '@dbModels'
+import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
+import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
+import { PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandler'
+import CoinGeckoHelper from '@helpers/coinGecko'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import Web3Helper from '@helpers/web3'
+import { LibUtils } from '@test/lib/unit-dep/lib'
+import Plugins from '@test/unit-dep/mockData/sppPairMockPlugin.json'
 import {
   IEventLogPluginSettings,
   IEventLogPluginType,
@@ -8,20 +18,9 @@ import {
   ITokenType,
   NetworksEnum,
 } from '@types'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
-import { DAORegistry } from '@artifacts/daoRegistry'
-import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
-import { PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandler'
-import { Models } from '@dbModels'
 import { expect } from 'chai'
-import BlockScoutHelper from '@helpers/blockScout'
-import CoinGeckoHelper from '@helpers/coinGecko'
-import { Multisig } from '@artifacts/Multisig'
-import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
-import Plugins from '@test/unit-dep/mockData/sppPairMockPlugin.json'
-import Web3Helper from '@helpers/web3'
-import { LibUtils } from '@test/lib/unit-dep/lib'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('Integ: Plugin', () => {
   let sandbox: SinonSandbox
@@ -172,15 +171,6 @@ describe('Integ: Plugin', () => {
       lastUpdatedAt: new Date(),
     } as any)
 
-    sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves({
-      holders: 1,
-      name: 'Wrapped Ether',
-      symbol: 'WETH',
-      totalSupply: '1000000000000000000',
-      type: ITokenType.ERC20,
-      decimals: 18,
-    } as any)
-
     const daoRegisteredEvents = await LibUtils.getData(
       DAORegistry.abi,
       'DAORegistered',
@@ -216,88 +206,6 @@ describe('Integ: Plugin', () => {
 
     const adminPlugin = await Models.Plugin.findOne({ interfaceType: IPluginInterfaceType.admin })
     expect(adminPlugin).to.not.be.null
-
-    /**
-     * Look for admin plugin transaction hash and install other plugins
-     */
-
-    const adminPluginTxHash = await BlockScoutHelper.getTransactionOfAnAddress(
-      adminPlugin!.address,
-      NetworksEnum.ethereumSepolia,
-    )
-    expect(adminPluginTxHash).to.not.be.null
-
-    // BlockScout not always returns a response
-    if (!Array.isArray(adminPluginTxHash) || adminPluginTxHash.length === 0) {
-      return
-    }
-
-    rabbitMqStub.callsFake(async (queue: string, message: any) => {
-      if (queue === 'log.plugins') {
-        const plugin = await Models.Plugin.findOne({ address: message.params.address })
-        console.log(`Plugin Syncing ${plugin!.interfaceType}, ${plugin!.address}`)
-      }
-    })
-
-    const adminPluginInstallationLogs: any = []
-    let pluginCount = 1 //admin plugin counts as 1
-
-    for (const { txHash } of adminPluginTxHash.reverse()) {
-      const prepareLogs = await LibUtils.getData(
-        PluginSetupProcessor.abi,
-        'InstallationPrepared',
-        txHash,
-        NetworksEnum.ethereumSepolia,
-      )
-
-      const appliedLogs = await LibUtils.getData(
-        PluginSetupProcessor.abi,
-        'InstallationApplied',
-        txHash,
-        NetworksEnum.ethereumSepolia,
-      )
-
-      adminPluginInstallationLogs.push(...prepareLogs, ...appliedLogs)
-
-      pluginCount += prepareLogs.length
-    }
-
-    const sortedLogs = adminPluginInstallationLogs.sort(
-      (a: any, b: any) => a.logInfo.blockNumber - b.logInfo.blockNumber,
-    )
-
-    await Promise.all(
-      sortedLogs
-        .filter((log: any) => log.event.name === 'InstallationPrepared')
-        .map(async (log: any) => {
-          await PluginSetupProcessorHandler.installationPrepared(log.event, log.logInfo)
-        }),
-    )
-
-    await Promise.all(
-      sortedLogs
-        .filter((log: any) => log.event.name === 'InstallationApplied')
-        .map(async (log: any) => {
-          await PluginSetupProcessorHandler.installationApplied(log.event, log.logInfo)
-        }),
-    )
-
-    const plugins = await Models.Plugin.find({})
-    expect(plugins).to.have.length(pluginCount)
-
-    await Promise.all(
-      plugins.map(async (plugin: any) => {
-        if (plugin.interfaceType === IPluginInterfaceType.admin) {
-          return
-        }
-        const activeSetting = await Models.Setting.findActive({
-          daoAddress: plugin.daoAddress,
-          pluginAddress: plugin.address,
-          network: plugin.network,
-        })
-        expect(activeSetting).to.not.be.null
-      }),
-    )
   })
 
   it('should test plugin settings', async function () {

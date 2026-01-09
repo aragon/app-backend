@@ -1,14 +1,14 @@
-import { ethers, Interface, type Log } from 'ethers'
 import { DAO } from '@artifacts/dao'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
-import { IPluginInterfaceType, IPluginStatus, type LogServicePattern, NetworksEnum } from '@types'
+import config from '@config'
 import { Models } from '@dbModels'
-import { BlockchainLogCrawler } from '@modules/crawlers'
-import configIndexer from '@indexer/configIndexer'
-import logger from '@logger'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import utils from '@helpers/utils'
-import config from '@config'
+import configIndexer from '@indexer/configIndexer'
+import logger from '@logger'
+import { BlockchainLogCrawler } from '@modules/crawlers'
+import { IPluginInterfaceType, IPluginStatus, type LogServicePattern, NetworksEnum } from '@types'
+import { ethers, Interface, type Log } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'module:PoolingFilter' })
 
@@ -60,7 +60,6 @@ const PoolingCrawler = {
         logService,
         stopOnError: true,
         batchSize: 0.05,
-        skipLogProcessing: includeTransfer,
       })
 
       PoolingCrawler.instances.set(instanceKey, poolingCrawler)
@@ -196,7 +195,7 @@ const PoolingCrawler = {
       if (log.topics.length === 3) {
         return ethers.getAddress(`0x${log.topics[2].slice(-40)}`)
       }
-    } catch (error) {}
+    } catch (_error) {}
     return null
   },
 }

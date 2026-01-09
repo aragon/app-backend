@@ -1,7 +1,7 @@
-import Router, { type RouterContext } from '@koa/router'
 import TokenController from '@api/controllers/token'
-import ValidationSchema from '@helpers/validationSchema'
 import TokenSchema from '@api/routers/schema/token'
+import ValidationSchema from '@helpers/validationSchema'
+import Router, { type RouterContext } from '@koa/router'
 
 const TokenRouter = {
   getTokenByAddress: async function (ctx: RouterContext) {

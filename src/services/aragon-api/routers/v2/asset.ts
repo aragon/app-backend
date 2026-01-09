@@ -1,6 +1,8 @@
-import Router, { type RouterContext } from '@koa/router'
-import AssetSchema from '@api/routers/schema/asset'
 import AssetController from '@api/controllers/asset'
+import AssetSchema from '@api/routers/schema/asset'
+import PaginationSchema from '@api/routers/schema/pagination'
+import ValidationSchema, { RequireRules } from '@helpers/validationSchema'
+import Router, { type RouterContext } from '@koa/router'
 import {
   type HexAddress,
   type IAssetExtraParams,
@@ -8,8 +10,6 @@ import {
   type IPairParams,
   type NetworksEnum,
 } from '@types'
-import ValidationSchema, { RequireRules } from '@helpers/validationSchema'
-import PaginationSchema from '@api/routers/schema/pagination'
 
 const AssetRouter = {
   getWithPagination: async function (ctx: RouterContext) {

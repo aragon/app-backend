@@ -1,7 +1,7 @@
+import utils from '@helpers/utils'
+import logger from '@logger'
 import { type NetworksEnum } from '@types'
 import { ethers } from 'ethers'
-import logger from '@logger'
-import utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:AlchemyHelper' })
 

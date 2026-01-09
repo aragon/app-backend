@@ -1,12 +1,12 @@
+import { Models } from '@dbModels'
+import Vote from '@models/schema/vote'
+import ModelUtils from '@models/utils/models'
+import { FakeVote } from '@test/mock/fakeVote'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import { afterEach, beforeEach } from 'mocha'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { NetworksEnum } from '@types'
-import { afterEach, beforeEach } from 'mocha'
-import { expect } from 'chai'
-import { Models } from '@dbModels'
-import ModelUtils from '@models/utils/models'
-import Vote from '@models/schema/vote'
-import { FakeVote } from '@test/mock/fakeVote'
 
 describe('Model: Vote', () => {
   let sandbox: SinonSandbox

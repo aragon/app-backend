@@ -1,22 +1,22 @@
-import { BaseGovernance } from './baseGovernance'
 import { Models } from '@dbModels'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import Web3Utils from '@helpers/web3Utils'
+import logger from '@logger'
+import type LockToVoteMember from '@models/schema/lockToVoteMember'
+import type Plugin from '@models/schema/plugin'
+import DbTx from '@modules/dbTx'
 import {
+  EnumQueueName,
   type HexAddress,
   type IGovernanceParamsOpts,
-  type NetworksEnum,
-  type IPaginationParams,
-  type IPaginatedResult,
-  type IMembersResponse,
   type IMemberExtraParams,
-  EnumQueueName,
+  type IMembersResponse,
+  type IPaginatedResult,
+  type IPaginationParams,
+  type NetworksEnum,
 } from '@types'
-import Web3Utils from '@helpers/web3Utils'
-import DbTx from '@modules/dbTx'
-import type LockToVoteMember from '@models/schema/lockToVoteMember'
-import logger from '@logger'
-import type Plugin from '@models/schema/plugin'
 import { type ClientSession } from 'mongoose'
-import RabbitMQHelper from '@helpers/rabbitMQ'
+import { BaseGovernance } from './baseGovernance'
 
 export class LockToVoteGovernance extends BaseGovernance {
   private readonly lockManagerAddress: HexAddress

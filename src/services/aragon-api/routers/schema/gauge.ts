@@ -1,6 +1,6 @@
-import Joi from 'joi'
 import ValidationSchema from '@helpers/validationSchema'
 import { IGaugeStatus, NetworksEnum } from '@types'
+import Joi from 'joi'
 
 const GaugeSchema = {
   getGaugeParams: Joi.object({

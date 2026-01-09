@@ -1,9 +1,9 @@
-import * as winston from 'winston'
-import ExternalLogger from './external'
 import config from '@config'
-import Formats from './format'
 import Utils from '@helpers/utils'
 import { EnumLogLevel, type ILogger } from '@types'
+import * as winston from 'winston'
+import ExternalLogger from './external'
+import Formats from './format'
 
 const format = winston.format.combine(...[Formats.formatError(), winston.format.timestamp(), Formats.formatMachine()])
 

@@ -1,10 +1,10 @@
+import ProposalController from '@api/controllers/proposal'
+import ProposalRouter from '@api/routers/v2/proposal'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
+import { getAddress } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import ProposalRouter from '@api/routers/v2/proposal'
-import ProposalController from '@api/controllers/proposal'
-import { NetworksEnum } from '@types'
-import { getAddress } from 'ethers'
 
 describe('RouterV2: Proposal', () => {
   let sandbox: SinonSandbox
