@@ -329,6 +329,166 @@ export class VeGovernance extends BaseGovernance {
     }
   }
 
+  async lockSplit(params: {
+    fromTokenId: string
+    newTokenId: string
+    splitAmount1: string
+    splitAmount2: string
+    info: IGovernanceParamsOpts['info']
+  }): Promise<Lock | null> {
+    const { fromTokenId, newTokenId, splitAmount1, splitAmount2, info } = params
+
+    try {
+      return await DbTx.executeTxFn(async ({ session }) => {
+        const plugins = await this.getPlugins(session)
+        if (plugins.length === 0) {
+          logger.error('No plugins found for split', this.llo({ escrowAddress: this.escrowAddress }))
+          return null
+        }
+
+        const { nftLockAddress, exitQueueAddress } = plugins[0].votingEscrow
+        const tokenAddress = plugins[0].tokenAddress
+
+        // Find the original lock
+        const originalLock = await Models.Lock.findOne(
+          {
+            network: this.network,
+            escrowAddress: this.escrowAddress,
+            tokenId: fromTokenId,
+          },
+          null,
+          { session },
+        )
+
+        if (!originalLock) {
+          logger.error('Original lock not found for split', this.llo({ fromTokenId }))
+          return null
+        }
+
+        // Create a new lock for split token - inherits epochStartAt from parent
+        const newLock = await Models.Lock.create(
+          {
+            network: this.network,
+            escrowAddress: this.escrowAddress,
+            transactionHash: info!.transactionHash,
+            transactionIndex: info!.transactionIndex,
+            logIndex: info!.logIndex,
+            blockNumber: info!.blockNumber,
+            memberAddress: originalLock.memberAddress,
+            nftAddress: nftLockAddress,
+            tokenAddress,
+            exitQueueAddress,
+            tokenId: newTokenId,
+            amount: splitAmount2,
+            epochStartAt: originalLock.epochStartAt,
+            splitFromTokenId: fromTokenId,
+          },
+          { session },
+        )
+
+        await originalLock.updateOne({ amount: splitAmount1 }, { session })
+
+        await session.commitTransaction()
+        await session.endSession()
+
+        logger.verbose(
+          'Split processed in VeGovernance',
+          this.llo({
+            fromTokenId,
+            newTokenId,
+            splitAmount1,
+            splitAmount2,
+          }),
+        )
+
+        return newLock
+      })
+    } catch (error) {
+      logger.error('Error in lockSplit', this.llo({ error, fromTokenId, newTokenId }))
+      return null
+    }
+  }
+
+  async lockMerge(params: {
+    fromTokenId: string
+    toTokenId: string
+    newTotalAmount: string
+    info: IGovernanceParamsOpts['info']
+  }): Promise<Lock | null> {
+    const { fromTokenId, toTokenId, newTotalAmount, info } = params
+
+    try {
+      return await DbTx.executeTxFn(async ({ session }) => {
+        // Find the source lock first
+        const fromLock = await Models.Lock.findOne(
+          {
+            network: this.network,
+            escrowAddress: this.escrowAddress,
+            tokenId: fromTokenId,
+          },
+          null,
+          { session },
+        )
+
+        if (!fromLock) {
+          logger.error('Source lock not found for merge', this.llo({ fromTokenId }))
+          return null
+        }
+
+        // Find the destination lock with same owner (contract requires both NFTs have same owner)
+        const toLock = await Models.Lock.findOne(
+          {
+            network: this.network,
+            escrowAddress: this.escrowAddress,
+            tokenId: toTokenId,
+            memberAddress: fromLock.memberAddress,
+          },
+          null,
+          { session },
+        )
+
+        if (!toLock) {
+          logger.error(
+            'Destination lock not found for merge',
+            this.llo({ toTokenId, memberAddress: fromLock.memberAddress }),
+          )
+          return null
+        }
+
+        // Mark the source lock as withdrawn (inactive) since it's burned
+        await fromLock.updateOne(
+          {
+            'lockWithdraw.status': true,
+            'lockWithdraw.transactionHash': info!.transactionHash,
+            'lockWithdraw.blockNumber': info!.blockNumber,
+            amount: '0',
+          },
+          { session },
+        )
+
+        // Update the destination lock with combined amount
+        await toLock.updateOne({ amount: newTotalAmount }, { session })
+
+        await session.commitTransaction()
+        await session.endSession()
+
+        logger.verbose(
+          'Merge processed in VeGovernance',
+          this.llo({
+            fromTokenId,
+            toTokenId,
+            newTotalAmount,
+          }),
+        )
+
+        return toLock
+      })
+    } catch (error) {
+      logger.error('Error in lockMerge', this.llo({ error, fromTokenId, toTokenId }))
+      return null
+    }
+  }
+
   async delete(_memberAddress: HexAddress): Promise<boolean> {
     throw new Error('Update not implemented')
   }

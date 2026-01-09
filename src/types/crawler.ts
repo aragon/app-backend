@@ -341,6 +341,8 @@ export enum IVotingEscrowIncreasingLogs {
   Deposit = 'Deposit',
   Withdraw = 'Withdraw',
   MinDepositSet = 'MinDepositSet',
+  Split = 'Split',
+  Merged = 'Merged',
 }
 
 export enum IVotingEscrowAdapterLogs {
@@ -352,6 +354,7 @@ export enum IExitQueueLogs {
   ExitQueued = 'ExitQueued',
   MinLockSet = 'MinLockSet',
   ExitQueuedV2 = 'ExitQueuedV2',
+  ExitFeePercentAdjusted = 'ExitFeePercentAdjusted',
 }
 
 export enum ISelectorPermissionLogs {
