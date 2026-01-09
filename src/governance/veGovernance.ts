@@ -26,8 +26,8 @@ import { BaseGovernance } from './baseGovernance'
  * Used for VE token governance types.
  */
 export class VeGovernance extends BaseGovernance {
-  protected readonly escrowAddress: HexAddress // lockManager - user lock the tokes
-  protected readonly escrowAdapterAddress: HexAddress | null // used as token of the plugin
+  protected readonly escrowAddress: HexAddress
+  protected readonly escrowAdapterAddress: HexAddress | null
   protected plugins?: Plugin[]
 
   constructor(
@@ -62,7 +62,6 @@ export class VeGovernance extends BaseGovernance {
     if (!parsedAddress) return null
 
     try {
-      // Ensure base member exists
       await BaseGovernance.ensureBaseMember(parsedAddress, params?.lastActivity, session)
 
       const plugins = await this.getPlugins(session)
@@ -72,7 +71,6 @@ export class VeGovernance extends BaseGovernance {
       const { nftLockAddress, exitQueueAddress } = plugins[0].votingEscrow
       const { tokenId, value, startTs, newTotalLocked } = params?.parsedEvent?.args!
 
-      // Check if a lock member exists using findOne
       const existingLockMember = await this.findOne(parsedAddress, session, {
         transactionHash,
         transactionIndex,
@@ -85,7 +83,6 @@ export class VeGovernance extends BaseGovernance {
         return existingLockMember
       }
 
-      // Create a new token member
       const newLockMember = await Models.Lock.create(
         {
           network: this.network,
@@ -126,7 +123,6 @@ export class VeGovernance extends BaseGovernance {
     params: IGovernanceParamsOpts,
     session?: ClientSession,
   ): Promise<Lock | null> {
-    // Simply delegate to getOrCreate since it handles creation when member doesn't exist
     return this.getOrCreate(memberAddress, params, session)
   }
 
@@ -349,7 +345,6 @@ export class VeGovernance extends BaseGovernance {
         const { nftLockAddress, exitQueueAddress } = plugins[0].votingEscrow
         const tokenAddress = plugins[0].tokenAddress
 
-        // Find the original lock
         const originalLock = await Models.Lock.findOne(
           {
             network: this.network,
@@ -365,7 +360,6 @@ export class VeGovernance extends BaseGovernance {
           return null
         }
 
-        // Create a new lock for split token - inherits epochStartAt from parent
         const newLock = await Models.Lock.create(
           {
             network: this.network,
@@ -419,7 +413,6 @@ export class VeGovernance extends BaseGovernance {
 
     try {
       return await DbTx.executeTxFn(async ({ session }) => {
-        // Find the source lock first
         const fromLock = await Models.Lock.findOne(
           {
             network: this.network,
@@ -435,7 +428,6 @@ export class VeGovernance extends BaseGovernance {
           return null
         }
 
-        // Find the destination lock with same owner (contract requires both NFTs have same owner)
         const toLock = await Models.Lock.findOne(
           {
             network: this.network,
@@ -455,7 +447,6 @@ export class VeGovernance extends BaseGovernance {
           return null
         }
 
-        // Mark the source lock as withdrawn (inactive) since it's burned
         await fromLock.updateOne(
           {
             'lockWithdraw.status': true,
@@ -466,7 +457,6 @@ export class VeGovernance extends BaseGovernance {
           { session },
         )
 
-        // Update the destination lock with combined amount
         await toLock.updateOne({ amount: newTotalAmount }, { session })
 
         await session.commitTransaction()
@@ -507,7 +497,6 @@ export class VeGovernance extends BaseGovernance {
     const parsedAddress = Web3Utils.parseAddress(memberAddress)
     if (!parsedAddress) return null
 
-    // Return null if required params are not provided
     if (
       !params?.transactionHash ||
       params?.transactionIndex === undefined ||
@@ -518,8 +507,7 @@ export class VeGovernance extends BaseGovernance {
       return null
     }
 
-    // All params are provided, use findExistingLog
-    const existingLockMember = await Models.Lock.findExistingLog(
+    return Models.Lock.findExistingLog(
       {
         network: this.network,
         escrowAddress: this.escrowAddress,
@@ -532,7 +520,6 @@ export class VeGovernance extends BaseGovernance {
       },
       { session },
     )
-    return existingLockMember
   }
 
   /**

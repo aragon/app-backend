@@ -377,7 +377,6 @@ export const GovernanceVeHandler = {
         info,
       })
 
-      // Update plugin metrics
       await Promise.all(
         plugins.map(async (plugin: Plugin) => {
           const pluginGovernance = MemberGovernanceFactory.create({
@@ -431,7 +430,6 @@ export const GovernanceVeHandler = {
         info,
       })
 
-      // Update plugin metrics
       await Promise.all(
         plugins.map(async (plugin: Plugin) => {
           const pluginGovernance = MemberGovernanceFactory.create({

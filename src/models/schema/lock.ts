@@ -141,7 +141,6 @@ export default class Lock extends Model {
   @prop({ type: () => String, default: null })
   public delegateReceiverAddress!: HexAddress
 
-  // If this lock was created from a split, stores the parent tokenId
   @prop({ type: () => String, default: null })
   public splitFromTokenId!: string | null
 
