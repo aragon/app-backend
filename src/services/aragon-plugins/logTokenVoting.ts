@@ -76,7 +76,7 @@ export const LogTokenVoting = {
   },
 
   runEscrowCrawler: async (plugin: Plugin, token: Token, isHistorical?: boolean) => {
-    if (plugin.votingEscrow && plugin.votingEscrow.escrowAddress && token) {
+    if (plugin.votingEscrow?.escrowAddress && token) {
       const crawler = LogTokenVoting.buildEscrowCrawler(plugin, token, isHistorical)
       await crawler.crawl()
       await crawler.end()
