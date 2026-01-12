@@ -95,7 +95,7 @@ class DecoderLight {
     if (actions.length === 0) return []
     if (actions.length === 1) return [await this.decode(actions[0], network)]
 
-    const uniqueAddresses = [...new Set(actions.map(a => a.to.toLowerCase()))]
+    const uniqueAddresses = [...new Set(actions.map(a => a.to))]
 
     const proxyMap = new Map<string, HexAddress | null>()
     const proxyResults = await Promise.all(
@@ -110,7 +110,7 @@ class DecoderLight {
     uniqueAddresses.forEach(addr => {
       addressesToFetch.add(addr)
       const impl = proxyMap.get(addr)
-      if (impl) addressesToFetch.add(impl.toLowerCase())
+      if (impl) addressesToFetch.add(impl)
     })
 
     const sourceMap = new Map<string, { abi: any[]; source: string; contractName: string } | null>()
@@ -154,18 +154,17 @@ class DecoderLight {
       return this._buildNativeTransferResult(action)
     }
 
-    const addrLower = action.to.toLowerCase()
-    const implementationAddress = context.proxyMap.get(addrLower) ?? null
+    const implementationAddress = context.proxyMap.get(action.to) ?? null
     const targetAddress = implementationAddress || action.to
-    const sourceData = context.sourceMap.get(targetAddress.toLowerCase())
+    const sourceData = context.sourceMap.get(targetAddress)
 
     if (!sourceData) {
       return this._buildBaseResult(action)
     }
 
     let proxyName: string | null = null
-    if (implementationAddress && implementationAddress.toLowerCase() !== addrLower) {
-      const proxySource = context.sourceMap.get(addrLower)
+    if (implementationAddress && implementationAddress !== action.to) {
+      const proxySource = context.sourceMap.get(action.to)
       proxyName = proxySource?.contractName || null
     }
 
