@@ -281,6 +281,46 @@ describe('Web3Provider', () => {
       expect(loggerWarnStub.calledOnce).to.be.true
       expect(loggerWarnStub.firstCall.args[0]).to.include('Failed to fetch contract creation')
     })
+
+    it('should pass zkSync in case of zkSync sepolia network', async () => {
+      const address = '0xcontract'
+      const network = NetworksEnum.zksyncSepolia
+      const expectedResult = {
+        blockNumber: 100,
+        transactionHash: '0xtxhash',
+        address,
+      }
+
+      const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').resolves(expectedResult)
+
+      const result = await Web3Provider.fetchContractCreation({ address, network })
+
+      expect(fallbackCallStub.calledOnce).to.be.true
+      expect(result).to.deep.equal(expectedResult)
+
+      const fallbackArgs = fallbackCallStub.firstCall.args
+      expect(fallbackArgs[0]).to.deep.equal([
+        EvmExplorerEnum.ZKSYNC,
+        EvmExplorerEnum.ETHERSCAN,
+        EvmExplorerEnum.ROUTESCAN,
+      ])
+    })
+
+    it('should validate result with transactionHash', async () => {
+      const address = '0xcontract'
+      const network = NetworksEnum.ethereumMainnet
+
+      const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').callsFake(async (explorers, fn, options) => {
+        const validResult = options.validate({ transactionHash: '0xtx' })
+        const invalidResult = options.validate({ transactionHash: null })
+        expect(validResult).to.be.true
+        expect(invalidResult).to.be.false
+        return { blockNumber: 100, transactionHash: '0xtxhash', address }
+      })
+
+      await Web3Provider.fetchContractCreation({ address, network })
+      expect(fallbackCallStub.calledOnce).to.be.true
+    })
   })
 
   describe('fetchContractSourceCode', () => {
@@ -357,6 +397,48 @@ describe('Web3Provider', () => {
       expect(fallbackCallStub.calledOnce).to.be.true
       expect(loggerWarnStub.calledOnce).to.be.true
       expect(loggerWarnStub.firstCall.args[0]).to.include('Failed to fetch contract source code')
+    })
+
+    it('should pass zkSync in case of zkSync sepolia network', async () => {
+      const address = '0xcontract'
+      const network = NetworksEnum.zksyncSepolia
+      const expectedResult = [
+        {
+          SourceCode: 'contract source code',
+          ContractName: 'TestContract',
+          ABI: '[]',
+        },
+      ]
+
+      const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').resolves(expectedResult)
+
+      const result = await Web3Provider.fetchContractSourceCode({ address, network })
+
+      expect(fallbackCallStub.calledOnce).to.be.true
+      expect(result).to.deep.equal(expectedResult)
+
+      const fallbackArgs = fallbackCallStub.firstCall.args
+      expect(fallbackArgs[0]).to.deep.equal([
+        EvmExplorerEnum.ZKSYNC,
+        EvmExplorerEnum.ETHERSCAN,
+        EvmExplorerEnum.ROUTESCAN,
+      ])
+    })
+
+    it('should validate result presence', async () => {
+      const address = '0xcontract'
+      const network = NetworksEnum.ethereumMainnet
+
+      const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').callsFake(async (explorers, fn, options) => {
+        const validResult = options.validate([{ SourceCode: 'code' }])
+        const invalidResult = options.validate(null)
+        expect(validResult).to.be.true
+        expect(invalidResult).to.be.false
+        return [{ SourceCode: 'code', ContractName: 'Test', ABI: '[]' }]
+      })
+
+      await Web3Provider.fetchContractSourceCode({ address, network })
+      expect(fallbackCallStub.calledOnce).to.be.true
     })
   })
 
@@ -453,6 +535,29 @@ describe('Web3Provider', () => {
       expect(fallbackCallStub.calledOnce).to.be.true
       expect(loggerWarnStub.calledOnce).to.be.true
       expect(loggerWarnStub.firstCall.args[0]).to.include('Failed to fetch contract source code')
+    })
+
+    it('should pass zkSync in case of zkSync sepolia network', async () => {
+      const address = '0xcontract'
+      const network = NetworksEnum.zksyncSepolia
+      const sourceCode = [{ ContractName: 'TestContract' }]
+
+      const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').resolves(sourceCode)
+
+      const result = await Web3Provider.searchDetailsOfContract({ address, network })
+
+      expect(fallbackCallStub.calledOnce).to.be.true
+      expect(result).to.deep.equal({
+        type: 'address',
+        name: 'TestContract',
+      })
+
+      const fallbackArgs = fallbackCallStub.firstCall.args
+      expect(fallbackArgs[0]).to.deep.equal([
+        EvmExplorerEnum.ZKSYNC,
+        EvmExplorerEnum.ETHERSCAN,
+        EvmExplorerEnum.ROUTESCAN,
+      ])
     })
   })
 })
