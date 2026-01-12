@@ -37,7 +37,7 @@ const ContractDetailsSchema = {
       .required(),
   }),
 
-  decodeActionBatchV3: Joi.object({
+  decodeActionBatchV2: Joi.object({
     from: ValidationSchema.joiAddress.required(),
     actions: Joi.array()
       .items(
