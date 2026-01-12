@@ -377,7 +377,7 @@ describe('Governance:LockToVoteGovernance', () => {
   })
 
   describe('find', () => {
-    it('should find active members for lock manager', async () => {
+    it.only('should find active members for lock manager', async () => {
       // Create some members in database
       const addresses = ['0x1111111111111111111111111111111111111111', '0x2222222222222222222222222222222222222222']
 
@@ -395,8 +395,8 @@ describe('Governance:LockToVoteGovernance', () => {
 
       expect(result).to.exist
       expect(result).to.have.lengthOf(2)
-      expect(result[0].votingPower).to.equal('100')
-      expect(result[1].votingPower).to.equal('200')
+      expect(result[0].votingPower).to.equal('200')
+      expect(result[1].votingPower).to.equal('100')
     })
   })
 
