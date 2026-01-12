@@ -448,7 +448,7 @@ describe('Web3Provider', () => {
       const network = NetworksEnum.ethereumMainnet
       const sourceCode = [{ ContractName: 'TestContract' }]
 
-      const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').callsFake(async (explorers, fn, options) => {
+      const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').callsFake(async (_explorers, fn, _options) => {
         // Call the inner function to cover it
         await fn(EvmExplorerEnum.ETHERSCAN)
         return sourceCode
