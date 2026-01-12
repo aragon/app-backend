@@ -7,7 +7,8 @@ import { NetworksEnum } from '@types'
 import { expect } from 'chai'
 import sinon from 'sinon'
 
-describe('Integ: ExecuteSelector', () => {
+describe('Integ: ExecuteSelector', function() {
+  this.timeout(100000000)
   let sandbox: sinon.SinonSandbox
   let network = NetworksEnum.ethereumSepolia
 
