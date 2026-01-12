@@ -246,26 +246,6 @@ class EvmExplorerClient {
       }
     }
   }
-
-  async fetchNativeTokenPrice(explorerType: EvmExplorerEnum, network: NetworksEnum): Promise<string> {
-    try {
-      const params = {
-        module: 'stats',
-        action: 'ethprice',
-      }
-
-      const response = await this.apiCall(explorerType, params, network)
-
-      if (response?.status === '1' && response?.message === 'OK' && response?.result?.ethusd) {
-        return response.result.ethusd
-      }
-
-      return '0'
-    } catch (error) {
-      logger.warn('Error fetching native token price', llo({ error, network, explorerType }))
-      return '0'
-    }
-  }
 }
 
 export const evmExplorerClient = new EvmExplorerClient()

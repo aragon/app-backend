@@ -1309,6 +1309,117 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const updatedPlugin2 = await plugin2.reload()
       expect(updatedPlugin2.status).to.eq('installed')
     })
+
+    it('should skip subplugin when it does not exist in DB', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionIndex: 2,
+        logIndex: 2,
+        transactionHash: '0x123',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          metadata: 'fake-metadata',
+          dao: '0x456',
+          preparedSetupId: '0x453',
+          plugin: '0x450',
+        },
+      }
+
+      // Create plugin with a subplugin address that doesn't exist in DB
+      await Models.Plugin.create({
+        id: 'test-plugin-missing-sub',
+        address: fakeEvent.args.plugin,
+        daoAddress: fakeEvent.args.dao,
+        tokenAddress: '0xTokenAddress',
+        network: logInfo.network,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: 'uninstalled',
+        transactionHash: '0xhash',
+        blockNumber: 1000,
+        subPlugins: [{ addresses: ['0xNonExistentSubPlugin'], stageIndex: 0 }],
+      })
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler')
+
+      // Should not throw error, just skip the non-existent subplugin
+      await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent as any, logInfo)
+
+      // Verify no error occurred and log was created
+      const logPluginDb = await Models.LogPluginSetupProcessor.findExistingLog({
+        network: logInfo.network,
+        transactionHash: logInfo.transactionHash,
+        transactionIndex: logInfo.transactionIndex,
+        logIndex: logInfo.logIndex,
+        event: IEventLogPluginType.UninstallationApplied,
+      })
+      expect(logPluginDb).to.exist
+    })
+
+    it('should log error when subplugin uninstall fails', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionIndex: 2,
+        logIndex: 2,
+        transactionHash: '0x123-error',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          metadata: 'fake-metadata',
+          dao: '0x456',
+          preparedSetupId: '0x453',
+          plugin: '0x450-error',
+        },
+      }
+
+      // Create subplugin
+      const subPlugin = await Models.Plugin.create({
+        id: 'test-subplugin-error',
+        address: '0xsubplugin-error',
+        daoAddress: fakeEvent.args.dao,
+        tokenAddress: '0xTokenAddress',
+        network: logInfo.network,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: 'installed',
+        transactionHash: '0xhash',
+        blockNumber: 1000,
+      })
+
+      // Create plugin with subplugin
+      await Models.Plugin.create({
+        id: 'test-plugin-error',
+        address: fakeEvent.args.plugin,
+        daoAddress: fakeEvent.args.dao,
+        tokenAddress: '0xTokenAddress',
+        network: logInfo.network,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: 'uninstalled',
+        transactionHash: '0xhash',
+        blockNumber: 1000,
+        subPlugins: [{ addresses: [subPlugin.address], stageIndex: 0 }],
+      })
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler')
+
+      // Stub DbOperations.updateDocument to throw an error
+      sandbox.stub(DbOperations, 'updateDocument').rejects(new Error('DB update failed'))
+
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+
+      await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent as any, logInfo)
+
+      // Verify error was logged
+      expect(loggerErrorStub.called).to.be.true
+      expect(loggerErrorStub.args.some((args: any) => args[0].includes('Failed to uninstall subPlugin'))).to.be.true
+    })
   })
 
   describe('uninstallationPrepared', () => {
@@ -1437,6 +1548,61 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       await PluginSetupProcessorHandler.uninstallationPrepared(fakeEvent as any, logInfo)
 
       expect(stubLogger.notCalled).to.be.true
+    })
+
+    it('should use fallback permissions and setupPayload.plugin when primary values are missing', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionIndex: 2,
+        logIndex: 2,
+        transactionHash: '0x123-fallback',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          // No preparedSetupData.permissions - use args.permissions fallback
+          permissions: [
+            {
+              operation: 1,
+              where: 'fallback-where',
+              who: '0x17366cae2b9c6c3055e9e3c78936a69006be5400',
+              condition: 'fallback-condition',
+              permissionId: 'fallback-xxx',
+            },
+          ],
+          dao: '0x456',
+          sender: '0x450',
+          preparedSetupId: '0x453',
+          pluginSetupRepo: '0x452',
+          // No plugin - use setupPayload.plugin fallback
+          setupPayload: {
+            plugin: '0x451-from-setupPayload',
+          },
+          versionTag: {
+            release: '1',
+            build: '1',
+          },
+        },
+      }
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+
+      await PluginSetupProcessorHandler.uninstallationPrepared(fakeEvent as any, logInfo)
+
+      const logPluginDb = await Models.LogPluginSetupProcessor.findExistingLog({
+        network: logInfo.network,
+        transactionHash: logInfo.transactionHash,
+        transactionIndex: logInfo.transactionIndex,
+        logIndex: logInfo.logIndex,
+        event: IEventLogPluginType.UninstallationPrepared,
+      })
+
+      expect(logPluginDb).to.exist
+      expect(logPluginDb.pluginAddress).to.eq('0x451-from-setupPayload')
+      expect(logPluginDb.permissions).to.have.lengthOf(1)
+      expect(logPluginDb.permissions[0].where).to.eq('fallback-where')
     })
   })
 

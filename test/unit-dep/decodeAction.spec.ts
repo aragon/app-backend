@@ -40,6 +40,14 @@ describe('Integ: decodeAction', () => {
       expect(decoded?.type).to.be.eq(ProposalActionType.RegisterGauge)
       expect(decoded?.gaugeMetadata).to.deep.eq({
         name: 'Test gauge',
+        description: null,
+        avatar: null,
+        links: [],
+        stageNames: [],
+        processKey: null,
+        blockedCountries: [],
+        termsConditionsUrl: null,
+        enableOfacCheck: null,
       })
       expect(fetchMetadataStub.calledOnce).to.be.true
       expect(fetchMetadataStub.args[0][0]).to.eq('ipfs://QmaqgFo2Ygvzsx7T2FRHZw4zSGDcD8YhxRj6qP6jKCakB1')
@@ -68,6 +76,14 @@ describe('Integ: decodeAction', () => {
       expect(decoded?.type).to.be.eq(ProposalActionType.CreateGauge)
       expect(decoded?.gaugeMetadata).to.deep.eq({
         name: 'Test gauge',
+        description: null,
+        avatar: null,
+        links: [],
+        stageNames: [],
+        processKey: null,
+        blockedCountries: [],
+        termsConditionsUrl: null,
+        enableOfacCheck: null,
       })
       expect(fetchMetadataStub.calledOnce).to.be.true
       expect(fetchMetadataStub.args[0][0]).to.eq('ipfs://QmRVMXz3Jvt9XYxmRF7qZFE5g8fs8ZtzXXSoX2QATrEMbC')
@@ -94,6 +110,14 @@ describe('Integ: decodeAction', () => {
       expect(decoded?.type).to.be.eq(ProposalActionType.UpdateGaugeMetadata)
       expect(decoded?.gaugeMetadata).to.deep.eq({
         name: 'Test gauge updated',
+        description: null,
+        avatar: null,
+        links: [],
+        stageNames: [],
+        processKey: null,
+        blockedCountries: [],
+        termsConditionsUrl: null,
+        enableOfacCheck: null,
       })
       expect(fetchMetadataStub.calledOnce).to.be.true
       expect(fetchMetadataStub.args[0][0]).to.eq('ipfs://QmXbMF6uwxVvAGGxSTG3vXZAxYizyqTfV67LLuHA3G6Eu8')

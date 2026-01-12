@@ -288,6 +288,66 @@ describe('Indexer: Permission Handler', () => {
       expect(installPluginWithPermissionGrant.args[0][1]).to.be.eq('who')
       expect(installPluginWithPermissionGrant.args[0][2]).to.be.deep.eq(info)
     })
+
+    it('should call handleDaoLinkingOnGrant for PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID', async () => {
+      const parsedEvent = {
+        args: {
+          where: '0x1111111111111111111111111111111111111111',
+          who: '0x2222222222222222222222222222222222222222',
+          permissionId: ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID),
+          condition: undefined,
+        },
+      } as any
+
+      const info = {
+        address: '0xaddress',
+        network: NetworksEnum.ethereumSepolia,
+        transactionHash: 'transactionHash-grant-parent',
+        transactionIndex: 212,
+        logIndex: 213,
+        blockNumber: 1212,
+      } as any
+
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
+      const handleDaoLinkingStub = sandbox.stub(PermissionHandler, 'handleDaoLinkingOnGrant').resolves()
+
+      await PermissionHandler.handleGrantOnDao(parsedEvent, info)
+
+      expect(handleDaoLinkingStub.calledOnce).to.be.true
+      expect(handleDaoLinkingStub.args[0][0]).to.eq(parsedEvent.args.where)
+      expect(handleDaoLinkingStub.args[0][1]).to.eq(parsedEvent.args.who)
+      expect(handleDaoLinkingStub.args[0][2]).to.eq(parsedEvent.args.permissionId)
+      expect(handleDaoLinkingStub.args[0][3]).to.eq(info.network)
+    })
+
+    it('should call handleDaoLinkingOnGrant for SUB_DAO_TO_PARENT_ACKNOWLEDGEMENT_PERMISSION_ID', async () => {
+      const parsedEvent = {
+        args: {
+          where: '0x2222222222222222222222222222222222222222',
+          who: '0x1111111111111111111111111111111111111111',
+          permissionId: ethers.id(IPermission.SUB_DAO_TO_PARENT_ACKNOWLEDGEMENT_PERMISSION_ID),
+          condition: undefined,
+        },
+      } as any
+
+      const info = {
+        address: '0xaddress',
+        network: NetworksEnum.ethereumSepolia,
+        transactionHash: 'transactionHash-grant-sub',
+        transactionIndex: 212,
+        logIndex: 213,
+        blockNumber: 1212,
+      } as any
+
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
+      const handleDaoLinkingStub = sandbox.stub(PermissionHandler, 'handleDaoLinkingOnGrant').resolves()
+
+      await PermissionHandler.handleGrantOnDao(parsedEvent, info)
+
+      expect(handleDaoLinkingStub.calledOnce).to.be.true
+    })
   })
 
   describe('handleRevokeOnDao', () => {
@@ -429,6 +489,66 @@ describe('Indexer: Permission Handler', () => {
       expect(uninstallPluginWithPermissionRevoke.calledOnce).to.be.true
       expect(uninstallPluginWithPermissionRevoke.args[0][0]).to.be.eq('who')
       expect(uninstallPluginWithPermissionRevoke.args[0][1]).to.be.eq('where')
+    })
+
+    it('should call handleDaoUnlinkingOnRevoke for PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID', async () => {
+      const parsedEvent = {
+        args: {
+          where: '0x1111111111111111111111111111111111111111',
+          who: '0x2222222222222222222222222222222222222222',
+          permissionId: ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID),
+          condition: undefined,
+        },
+      } as any
+
+      const info = {
+        address: '0xaddress',
+        network: NetworksEnum.ethereumSepolia,
+        transactionHash: 'transactionHash-revoke-parent',
+        transactionIndex: 212,
+        logIndex: 213,
+        blockNumber: 1212,
+      } as any
+
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
+      const handleDaoUnlinkingStub = sandbox.stub(PermissionHandler, 'handleDaoUnlinkingOnRevoke').resolves()
+
+      await PermissionHandler.handleRevokeOnDao(parsedEvent, info)
+
+      expect(handleDaoUnlinkingStub.calledOnce).to.be.true
+      expect(handleDaoUnlinkingStub.args[0][0]).to.eq(parsedEvent.args.where)
+      expect(handleDaoUnlinkingStub.args[0][1]).to.eq(parsedEvent.args.who)
+      expect(handleDaoUnlinkingStub.args[0][2]).to.eq(parsedEvent.args.permissionId)
+      expect(handleDaoUnlinkingStub.args[0][3]).to.eq(info.network)
+    })
+
+    it('should call handleDaoUnlinkingOnRevoke for SUB_DAO_TO_PARENT_ACKNOWLEDGEMENT_PERMISSION_ID', async () => {
+      const parsedEvent = {
+        args: {
+          where: '0x2222222222222222222222222222222222222222',
+          who: '0x1111111111111111111111111111111111111111',
+          permissionId: ethers.id(IPermission.SUB_DAO_TO_PARENT_ACKNOWLEDGEMENT_PERMISSION_ID),
+          condition: undefined,
+        },
+      } as any
+
+      const info = {
+        address: '0xaddress',
+        network: NetworksEnum.ethereumSepolia,
+        transactionHash: 'transactionHash-revoke-sub',
+        transactionIndex: 212,
+        logIndex: 213,
+        blockNumber: 1212,
+      } as any
+
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
+      const handleDaoUnlinkingStub = sandbox.stub(PermissionHandler, 'handleDaoUnlinkingOnRevoke').resolves()
+
+      await PermissionHandler.handleRevokeOnDao(parsedEvent, info)
+
+      expect(handleDaoUnlinkingStub.calledOnce).to.be.true
     })
 
     it('should return if already exists', async () => {
@@ -894,6 +1014,57 @@ describe('Indexer: Permission Handler', () => {
         if (addr === childDaoAddress) return Promise.resolve(mockChildDao)
         return Promise.resolve(null)
       })
+
+      const unlinkDaosStub = sandbox.stub(PermissionHandler, 'unlinkDaos').resolves()
+
+      await PermissionHandler.handleDaoUnlinkingOnRevoke(
+        parentDaoAddress,
+        childDaoAddress,
+        parentToSubPermissionId,
+        network,
+      )
+
+      expect(unlinkDaosStub.called).to.be.false
+    })
+
+    it('should unlink DAOs using SUB_DAO_TO_PARENT_ACKNOWLEDGEMENT_PERMISSION_ID (else branch)', async () => {
+      const subToParentPermissionId = ethers.id(IPermission.SUB_DAO_TO_PARENT_ACKNOWLEDGEMENT_PERMISSION_ID)
+
+      const mockParentDao = {
+        address: parentDaoAddress,
+        parentDao: null,
+        subDaos: [childDaoAddress],
+      }
+      const mockChildDao = {
+        address: childDaoAddress,
+        parentDao: parentDaoAddress,
+        subDaos: [],
+      }
+
+      sandbox.stub(Models.Dao, 'findByAddress').callsFake(addr => {
+        if (addr === parentDaoAddress) return Promise.resolve(mockParentDao)
+        if (addr === childDaoAddress) return Promise.resolve(mockChildDao)
+        return Promise.resolve(null)
+      })
+
+      const unlinkDaosStub = sandbox.stub(PermissionHandler, 'unlinkDaos').resolves()
+
+      // For subToParentPermissionId: where=childDao, who=parentDao
+      await PermissionHandler.handleDaoUnlinkingOnRevoke(
+        childDaoAddress,
+        parentDaoAddress,
+        subToParentPermissionId,
+        network,
+      )
+
+      expect(unlinkDaosStub.calledOnce).to.be.true
+      expect(unlinkDaosStub.calledWith(mockParentDao, mockChildDao, network)).to.be.true
+    })
+
+    it('should return if DAOs not found', async () => {
+      const parentToSubPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
 
       const unlinkDaosStub = sandbox.stub(PermissionHandler, 'unlinkDaos').resolves()
 
