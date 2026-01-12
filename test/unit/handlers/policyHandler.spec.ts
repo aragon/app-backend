@@ -309,6 +309,26 @@ describe('Indexer: Policy Handler', () => {
       expect((mockSetting.policy.model as any).recipients).to.deep.eq(['0xRecipient1', '0xRecipient2', '0xRecipient3'])
       expect(loggerInfo.calledOnce).to.be.true
     })
+
+    it('should warn if no setting found', async () => {
+      const event = {
+        args: {
+          recipientList: [],
+        },
+      } as any
+
+      const info = {
+        address: '0xModelAddress',
+        network: NetworksEnum.ethereumSepolia,
+      } as any
+
+      sandbox.stub(Models.Setting, 'findByPolicyModelAddress').resolves(null)
+      const loggerWarn = sandbox.stub(logger, 'warn')
+
+      await PolicyHandler.equalRatioModelSettingsUpdated(event, info)
+
+      expect(loggerWarn.calledOnce).to.be.true
+    })
   })
 
   describe('gaugeModelSettingsUpdated', () => {
@@ -340,6 +360,26 @@ describe('Indexer: Policy Handler', () => {
       expect(mockSetting.save.calledOnce).to.be.true
       expect((mockSetting.policy.model as any).gaugeVoterAddress).to.eq('0xGaugeVoterAddress')
       expect(loggerInfo.calledOnce).to.be.true
+    })
+
+    it('should warn if no setting found', async () => {
+      const event = {
+        args: {
+          gaugeVoter: '0xGaugeVoterAddress',
+        },
+      } as any
+
+      const info = {
+        address: '0xModelAddress',
+        network: NetworksEnum.ethereumSepolia,
+      } as any
+
+      sandbox.stub(Models.Setting, 'findByPolicyModelAddress').resolves(null)
+      const loggerWarn = sandbox.stub(logger, 'warn')
+
+      await PolicyHandler.gaugeModelSettingsUpdated(event, info)
+
+      expect(loggerWarn.calledOnce).to.be.true
     })
   })
 
@@ -378,6 +418,26 @@ describe('Indexer: Policy Handler', () => {
         { threshold: '5000', routerModelAddress: '0xRouterModel2', claimerModelAddress: '0xClaimerModel2' },
       ])
       expect(loggerInfo.calledOnce).to.be.true
+    })
+
+    it('should warn if no setting found', async () => {
+      const event = {
+        args: {
+          brackets: [],
+        },
+      } as any
+
+      const info = {
+        address: '0xModelAddress',
+        network: NetworksEnum.ethereumSepolia,
+      } as any
+
+      sandbox.stub(Models.Setting, 'findByPolicyModelAddress').resolves(null)
+      const loggerWarn = sandbox.stub(logger, 'warn')
+
+      await PolicyHandler.bracketsModelSettingsUpdated(event, info)
+
+      expect(loggerWarn.calledOnce).to.be.true
     })
   })
 
@@ -550,6 +610,53 @@ describe('Indexer: Policy Handler', () => {
       expect((mockSetting.policy.model as any).address).to.eq('0xNewModelAddress')
       expect(loggerInfo.calledOnce).to.be.true
     })
+
+    it('should warn if no setting found', async () => {
+      const event = {
+        args: {
+          _claimerModel: '0xModelAddress',
+        },
+      } as any
+
+      const info = {
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumSepolia,
+      } as any
+
+      sandbox.stub(Models.Setting, 'findActive').resolves(null)
+      const loggerWarn = sandbox.stub(logger, 'warn')
+
+      await PolicyHandler.claimerSettingsUpdated(event, info)
+
+      expect(loggerWarn.calledOnce).to.be.true
+    })
+
+    it('should warn if setting has wrong strategy type', async () => {
+      const event = {
+        args: {
+          _claimerModel: '0xModelAddress',
+        },
+      } as any
+
+      const info = {
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumSepolia,
+      } as any
+
+      const mockSetting = {
+        pluginAddress: '0xPluginAddress',
+        policy: {
+          strategyType: IPolicyStrategyType.router,
+        },
+      }
+
+      sandbox.stub(Models.Setting, 'findActive').resolves(mockSetting as any)
+      const loggerWarn = sandbox.stub(logger, 'warn')
+
+      await PolicyHandler.claimerSettingsUpdated(event, info)
+
+      expect(loggerWarn.calledOnce).to.be.true
+    })
   })
 
   describe('multiRouterSettingsUpdated', () => {
@@ -610,6 +717,53 @@ describe('Indexer: Policy Handler', () => {
 
       expect((mockSetting.policy as any).subRouters).to.be.null
     })
+
+    it('should warn if no setting found', async () => {
+      const event = {
+        args: {
+          subrouters: ['0xSubRouter1'],
+        },
+      } as any
+
+      const info = {
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumSepolia,
+      } as any
+
+      sandbox.stub(Models.Setting, 'findActive').resolves(null)
+      const loggerWarn = sandbox.stub(logger, 'warn')
+
+      await PolicyHandler.multiRouterSettingsUpdated(event, info)
+
+      expect(loggerWarn.calledOnce).to.be.true
+    })
+
+    it('should warn if setting has wrong strategy type', async () => {
+      const event = {
+        args: {
+          subrouters: ['0xSubRouter1'],
+        },
+      } as any
+
+      const info = {
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumSepolia,
+      } as any
+
+      const mockSetting = {
+        pluginAddress: '0xPluginAddress',
+        policy: {
+          strategyType: IPolicyStrategyType.claimer,
+        },
+      }
+
+      sandbox.stub(Models.Setting, 'findActive').resolves(mockSetting as any)
+      const loggerWarn = sandbox.stub(logger, 'warn')
+
+      await PolicyHandler.multiRouterSettingsUpdated(event, info)
+
+      expect(loggerWarn.calledOnce).to.be.true
+    })
   })
 
   describe('multiClaimerSettingsUpdated', () => {
@@ -669,6 +823,53 @@ describe('Indexer: Policy Handler', () => {
       await PolicyHandler.multiClaimerSettingsUpdated(event, info)
 
       expect((mockSetting.policy as any).subClaimers).to.be.null
+    })
+
+    it('should warn if no setting found', async () => {
+      const event = {
+        args: {
+          subclaimers: ['0xSubClaimer1'],
+        },
+      } as any
+
+      const info = {
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumSepolia,
+      } as any
+
+      sandbox.stub(Models.Setting, 'findActive').resolves(null)
+      const loggerWarn = sandbox.stub(logger, 'warn')
+
+      await PolicyHandler.multiClaimerSettingsUpdated(event, info)
+
+      expect(loggerWarn.calledOnce).to.be.true
+    })
+
+    it('should warn if setting has wrong strategy type', async () => {
+      const event = {
+        args: {
+          subclaimers: ['0xSubClaimer1'],
+        },
+      } as any
+
+      const info = {
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumSepolia,
+      } as any
+
+      const mockSetting = {
+        pluginAddress: '0xPluginAddress',
+        policy: {
+          strategyType: IPolicyStrategyType.router,
+        },
+      }
+
+      sandbox.stub(Models.Setting, 'findActive').resolves(mockSetting as any)
+      const loggerWarn = sandbox.stub(logger, 'warn')
+
+      await PolicyHandler.multiClaimerSettingsUpdated(event, info)
+
+      expect(loggerWarn.calledOnce).to.be.true
     })
   })
 

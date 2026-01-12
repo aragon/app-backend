@@ -3,6 +3,7 @@ import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import GovernanceVeHelper from '@helpers/governanceVe'
 import MultisigHelper from '@helpers/multisig'
 import PluginDetector from '@helpers/pluginDetector'
+import PolicyHelper from '@helpers/policyHelper'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
@@ -12,6 +13,7 @@ import { ProxyToken } from '@modules/proxyToken'
 import {
   ILogInfo,
   IPluginInterfaceType,
+  IPolicyStrategyType,
   ISettingStatus,
   ITokenType,
   NetworksEnum,
@@ -731,6 +733,91 @@ describe('Indexer: PluginSettingHandler', () => {
 
       expect(pairSppPluginsStub.calledOnceWith(sppPlugin, sppSettings, info)).to.be.true
     })
+
+    it('should not call pairSppPlugins when sppPlugin is not found', async () => {
+      const parsedEvent = {
+        args: {
+          votingMode: 1n,
+          supportThresholdRatio: 200n,
+          minParticipationRatio: 300n,
+          minApprovalRatio: 150n,
+          proposalDuration: 86400n,
+          minProposerVotingPower: 100n,
+        },
+      }
+      const info = {
+        address: '0xlockToVotePlugin',
+        transactionHash: '0x789',
+        blockNumber: 1,
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const relatedPlugin = {
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: '0xlockManager123',
+        daoAddress: '0xdao123',
+        subdomain: 'test.dao',
+        tokenAddress: '0xtoken123',
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(relatedPlugin)
+      sandbox.stub(Models.Setting, 'findExistingLog').resolves(false)
+      sandbox.stub(Models.Setting, 'findActive').resolves(false)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
+      sandbox.stub(DbOperations, 'createDocument').resolves()
+      sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
+      sandbox.stub(Models.Plugin, 'findOne').resolves(null)
+      const pairSppPluginsStub = sandbox.stub(PluginSettingHandler, 'pairSppPlugins').resolves()
+
+      await PluginSettingHandler.lockToVoteSettingsUpdated(parsedEvent as any, info as any)
+
+      expect(pairSppPluginsStub.called).to.be.false
+    })
+
+    it('should not call pairSppPlugins when sppSettings is not found', async () => {
+      const parsedEvent = {
+        args: {
+          votingMode: 1n,
+          supportThresholdRatio: 200n,
+          minParticipationRatio: 300n,
+          minApprovalRatio: 150n,
+          proposalDuration: 86400n,
+          minProposerVotingPower: 100n,
+        },
+      }
+      const info = {
+        address: '0xlockToVotePlugin',
+        transactionHash: '0x789',
+        blockNumber: 1,
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const relatedPlugin = {
+        interfaceType: IPluginInterfaceType.lockToVote,
+        lockManagerAddress: '0xlockManager123',
+        daoAddress: '0xdao123',
+        subdomain: 'test.dao',
+        tokenAddress: '0xtoken123',
+      }
+
+      const sppPlugin = {
+        address: '0xsppPlugin',
+        interfaceType: IPluginInterfaceType.spp,
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(relatedPlugin)
+      sandbox.stub(Models.Setting, 'findExistingLog').resolves(false)
+      sandbox.stub(Models.Setting, 'findActive').onFirstCall().resolves(false).onSecondCall().resolves(null)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123123123)
+      sandbox.stub(DbOperations, 'createDocument').resolves()
+      sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
+      sandbox.stub(Models.Plugin, 'findOne').resolves(sppPlugin)
+      const pairSppPluginsStub = sandbox.stub(PluginSettingHandler, 'pairSppPlugins').resolves()
+
+      await PluginSettingHandler.lockToVoteSettingsUpdated(parsedEvent as any, info as any)
+
+      expect(pairSppPluginsStub.called).to.be.false
+    })
   })
 
   describe('multisigSettingsUpdated', () => {
@@ -1398,6 +1485,413 @@ describe('Indexer: PluginSettingHandler', () => {
         minFeePercent: '500',
         minCooldown: 1800,
       })
+    })
+  })
+
+  describe('linkPolicySourceAndModel', () => {
+    it('should return early if strategy type not found', async () => {
+      const pluginDb = {
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: '0xDaoAddress',
+      } as any
+
+      const info = {
+        transactionHash: '0xTxHash',
+        blockNumber: 100,
+      } as any
+
+      sandbox.stub(PolicyHelper, 'getStrategyTypeAndPluginId').resolves(null)
+      const warnStub = sandbox.stub(logger, 'warn')
+
+      await PluginSettingHandler.linkPolicySourceAndModel(pluginDb, info)
+
+      expect(warnStub.calledOnce).to.be.true
+    })
+
+    it('should return early if policy setting already exists', async () => {
+      const pluginDb = {
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: '0xDaoAddress',
+      } as any
+
+      const info = {
+        transactionHash: '0xTxHash',
+        blockNumber: 100,
+      } as any
+
+      sandbox.stub(PolicyHelper, 'getStrategyTypeAndPluginId').resolves({
+        strategyType: IPolicyStrategyType.router,
+        policyKey: 'policy-key-123',
+      })
+      sandbox.stub(Models.Setting, 'findActive').resolves({
+        policy: { strategyType: IPolicyStrategyType.router },
+      } as any)
+      const verboseStub = sandbox.stub(logger, 'verbose')
+
+      await PluginSettingHandler.linkPolicySourceAndModel(pluginDb, info)
+
+      expect(verboseStub.calledWith('Policy setting already exists' as any)).to.be.true
+    })
+
+    it('should create policy setting for router with source and model', async () => {
+      const pluginDb = {
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: '0xDaoAddress',
+        update: sandbox.stub().resolves(),
+      } as any
+
+      const info = {
+        transactionHash: '0xTxHash',
+        blockNumber: 100,
+      } as any
+
+      sandbox.stub(PolicyHelper, 'getStrategyTypeAndPluginId').resolves({
+        strategyType: IPolicyStrategyType.router,
+        policyKey: 'policy-key-123',
+      })
+      sandbox.stub(Models.Setting, 'findActive').resolves(null)
+      sandbox.stub(PolicyHelper, 'getSourceAddress').resolves('0xSourceAddress')
+      sandbox.stub(PolicyHelper, 'getSourceData').resolves({
+        address: '0xSourceAddress',
+        tokenAddress: '0xTokenAddress',
+      } as any)
+      sandbox.stub(PolicyHelper, 'getModelAddress').resolves('0xModelAddress')
+      sandbox.stub(PolicyHelper, 'getModelData').resolves({
+        address: '0xModelAddress',
+        type: 'ratio',
+      } as any)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
+      const createStub = sandbox.stub(Models.Setting, 'create').resolves()
+
+      const result = await PluginSettingHandler.linkPolicySourceAndModel(pluginDb, info)
+
+      expect(createStub.calledOnce).to.be.true
+      expect(pluginDb.update.calledOnce).to.be.true
+      expect(result).to.be.true
+    })
+
+    it('should create policy setting for burnRouter with source only', async () => {
+      const pluginDb = {
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: '0xDaoAddress',
+        update: sandbox.stub().resolves(),
+      } as any
+
+      const info = {
+        transactionHash: '0xTxHash',
+        blockNumber: 100,
+      } as any
+
+      sandbox.stub(PolicyHelper, 'getStrategyTypeAndPluginId').resolves({
+        strategyType: IPolicyStrategyType.burnRouter,
+        policyKey: 'policy-key-456',
+      })
+      sandbox.stub(Models.Setting, 'findActive').resolves(null)
+      sandbox.stub(PolicyHelper, 'getSourceAddress').resolves('0xSourceAddress')
+      sandbox.stub(PolicyHelper, 'getSourceData').resolves({
+        address: '0xSourceAddress',
+        tokenAddress: '0xTokenAddress',
+      } as any)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
+      const createStub = sandbox.stub(Models.Setting, 'create').resolves()
+
+      const result = await PluginSettingHandler.linkPolicySourceAndModel(pluginDb, info)
+
+      expect(createStub.calledOnce).to.be.true
+      expect(result).to.be.true
+    })
+
+    it('should create policy setting for multiRouter with subRouters', async () => {
+      const pluginDb = {
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: '0xDaoAddress',
+        update: sandbox.stub().resolves(),
+      } as any
+
+      const info = {
+        transactionHash: '0xTxHash',
+        blockNumber: 100,
+      } as any
+
+      sandbox.stub(PolicyHelper, 'getStrategyTypeAndPluginId').resolves({
+        strategyType: IPolicyStrategyType.multiRouter,
+        policyKey: 'policy-key-789',
+      })
+      sandbox.stub(Models.Setting, 'findActive').resolves(null)
+      sandbox.stub(PolicyHelper, 'getSubRouters').resolves(['0xSubRouter1', '0xSubRouter2'])
+      const createStub = sandbox.stub(Models.Setting, 'create').resolves()
+
+      const result = await PluginSettingHandler.linkPolicySourceAndModel(pluginDb, info)
+
+      expect(createStub.calledOnce).to.be.true
+      const createArgs = createStub.firstCall.args[0]
+      expect(createArgs.policy.subRouters).to.deep.eq(['0xSubRouter1', '0xSubRouter2'])
+      expect(result).to.be.true
+    })
+
+    it('should create policy setting for multiClaimer with subClaimers', async () => {
+      const pluginDb = {
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: '0xDaoAddress',
+        update: sandbox.stub().resolves(),
+      } as any
+
+      const info = {
+        transactionHash: '0xTxHash',
+        blockNumber: 100,
+      } as any
+
+      sandbox.stub(PolicyHelper, 'getStrategyTypeAndPluginId').resolves({
+        strategyType: IPolicyStrategyType.multiClaimer,
+        policyKey: 'policy-key-abc',
+      })
+      sandbox.stub(Models.Setting, 'findActive').resolves(null)
+      sandbox.stub(PolicyHelper, 'getSubClaimers').resolves(['0xSubClaimer1', '0xSubClaimer2'])
+      const createStub = sandbox.stub(Models.Setting, 'create').resolves()
+
+      const result = await PluginSettingHandler.linkPolicySourceAndModel(pluginDb, info)
+
+      expect(createStub.calledOnce).to.be.true
+      const createArgs = createStub.firstCall.args[0]
+      expect(createArgs.policy.subClaimers).to.deep.eq(['0xSubClaimer1', '0xSubClaimer2'])
+      expect(result).to.be.true
+    })
+
+    it('should update existing setting instead of creating new one', async () => {
+      const existingSetting = {
+        update: sandbox.stub().resolves(),
+        policy: null,
+      }
+
+      const pluginDb = {
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: '0xDaoAddress',
+        update: sandbox.stub().resolves(),
+      } as any
+
+      const info = {
+        transactionHash: '0xTxHash',
+        blockNumber: 100,
+      } as any
+
+      sandbox.stub(PolicyHelper, 'getStrategyTypeAndPluginId').resolves({
+        strategyType: IPolicyStrategyType.multiDispatch,
+        policyKey: 'policy-key-def',
+      })
+      sandbox.stub(Models.Setting, 'findActive').resolves(existingSetting as any)
+      sandbox.stub(PolicyHelper, 'getSubRouters').resolves([])
+      const createStub = sandbox.stub(Models.Setting, 'create')
+
+      const result = await PluginSettingHandler.linkPolicySourceAndModel(pluginDb, info)
+
+      expect(existingSetting.update.calledOnce).to.be.true
+      expect(createStub.notCalled).to.be.true
+      expect(result).to.be.true
+    })
+
+    it('should log error on exception', async () => {
+      const pluginDb = {
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: '0xDaoAddress',
+      } as any
+
+      const info = {
+        transactionHash: '0xTxHash',
+        blockNumber: 100,
+      } as any
+
+      sandbox.stub(PolicyHelper, 'getStrategyTypeAndPluginId').throws(new Error('Test error'))
+      const errorStub = sandbox.stub(logger, 'error')
+
+      await PluginSettingHandler.linkPolicySourceAndModel(pluginDb, info)
+
+      expect(errorStub.calledOnce).to.be.true
+    })
+  })
+
+  describe('exitFeePercentAdjusted', () => {
+    it('should warn when no plugins found', async () => {
+      const parsedEvent = {
+        args: {
+          minFeePercent: BigInt('500'),
+          minCooldown: BigInt('1800'),
+        },
+      } as any
+
+      const info = {
+        address: '0xExitQueueAddress',
+        network: NetworksEnum.ethereumMainnet,
+      } as any
+
+      sandbox.stub(Models.Plugin, 'find').resolves([])
+      const warnStub = sandbox.stub(logger, 'warn')
+
+      await PluginSettingHandler.exitFeePercentAdjusted(parsedEvent, info)
+
+      expect(warnStub.calledOnce).to.be.true
+      expect(warnStub.firstCall.args[0]).to.equal('Plugin not found for exitFeePercentAdjusted event')
+    })
+
+    it('should log error when active plugin setting not found', async () => {
+      const parsedEvent = {
+        args: {
+          minFeePercent: BigInt('500'),
+          minCooldown: BigInt('1800'),
+        },
+      } as any
+
+      const info = {
+        address: '0xExitQueueAddress',
+        network: NetworksEnum.ethereumMainnet,
+      } as any
+
+      const mockPlugin = { address: '0xPluginAddress' }
+      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin] as any)
+      sandbox.stub(Models.Setting, 'findActive').resolves(null)
+      const errorStub = sandbox.stub(logger, 'error')
+
+      await PluginSettingHandler.exitFeePercentAdjusted(parsedEvent, info)
+
+      expect(errorStub.calledOnce).to.be.true
+      expect(errorStub.firstCall.args[0]).to.equal('Active plugin setting not found for exitFeePercentAdjusted event')
+    })
+
+    it('should update votingEscrow settings when values change', async () => {
+      const parsedEvent = {
+        args: {
+          minFeePercent: BigInt('600'),
+          minCooldown: BigInt('2000'),
+        },
+      } as any
+
+      const info = {
+        address: '0xExitQueueAddress',
+        network: NetworksEnum.ethereumMainnet,
+      } as any
+
+      const mockPlugin = { address: '0xPluginAddress' }
+      const mockSetting = {
+        votingEscrow: {
+          minFeePercent: '500',
+          minCooldown: 1800,
+        },
+        save: sandbox.stub().resolves(),
+      }
+
+      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin] as any)
+      sandbox.stub(Models.Setting, 'findActive').resolves(mockSetting as any)
+      const verboseStub = sandbox.stub(logger, 'verbose')
+
+      await PluginSettingHandler.exitFeePercentAdjusted(parsedEvent, info)
+
+      expect(mockSetting.votingEscrow.minFeePercent).to.equal('600')
+      expect(mockSetting.votingEscrow.minCooldown).to.equal(2000)
+      expect(mockSetting.save.calledOnce).to.be.true
+      expect(verboseStub.calledOnce).to.be.true
+    })
+
+    it('should not save when values are unchanged', async () => {
+      const parsedEvent = {
+        args: {
+          minFeePercent: BigInt('500'),
+          minCooldown: BigInt('1800'),
+        },
+      } as any
+
+      const info = {
+        address: '0xExitQueueAddress',
+        network: NetworksEnum.ethereumMainnet,
+      } as any
+
+      const mockPlugin = { address: '0xPluginAddress' }
+      const mockSetting = {
+        votingEscrow: {
+          minFeePercent: '500',
+          minCooldown: 1800,
+        },
+        save: sandbox.stub().resolves(),
+      }
+
+      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin] as any)
+      sandbox.stub(Models.Setting, 'findActive').resolves(mockSetting as any)
+
+      await PluginSettingHandler.exitFeePercentAdjusted(parsedEvent, info)
+
+      expect(mockSetting.save.called).to.be.false
+    })
+
+    it('should initialize votingEscrow if undefined', async () => {
+      const parsedEvent = {
+        args: {
+          minFeePercent: BigInt('500'),
+          minCooldown: BigInt('1800'),
+        },
+      } as any
+
+      const info = {
+        address: '0xExitQueueAddress',
+        network: NetworksEnum.ethereumMainnet,
+      } as any
+
+      const mockPlugin = { address: '0xPluginAddress' }
+      const mockSetting = {
+        votingEscrow: undefined as any,
+        save: sandbox.stub().resolves(),
+      }
+
+      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin] as any)
+      sandbox.stub(Models.Setting, 'findActive').resolves(mockSetting as any)
+
+      await PluginSettingHandler.exitFeePercentAdjusted(parsedEvent, info)
+
+      expect(mockSetting.votingEscrow).to.not.be.undefined
+      expect(mockSetting.votingEscrow.minFeePercent).to.equal('500')
+      expect(mockSetting.votingEscrow.minCooldown).to.equal(1800)
+      expect(mockSetting.save.calledOnce).to.be.true
+    })
+
+    it('should handle multiple plugins', async () => {
+      const parsedEvent = {
+        args: {
+          minFeePercent: BigInt('700'),
+          minCooldown: BigInt('2500'),
+        },
+      } as any
+
+      const info = {
+        address: '0xExitQueueAddress',
+        network: NetworksEnum.ethereumMainnet,
+      } as any
+
+      const mockPlugins = [{ address: '0xPlugin1' }, { address: '0xPlugin2' }]
+      const mockSetting1 = {
+        votingEscrow: { minFeePercent: '500', minCooldown: 1800 },
+        save: sandbox.stub().resolves(),
+      }
+      const mockSetting2 = {
+        votingEscrow: { minFeePercent: '600', minCooldown: 2000 },
+        save: sandbox.stub().resolves(),
+      }
+
+      sandbox.stub(Models.Plugin, 'find').resolves(mockPlugins as any)
+      const findActiveStub = sandbox.stub(Models.Setting, 'findActive')
+      findActiveStub.onFirstCall().resolves(mockSetting1 as any)
+      findActiveStub.onSecondCall().resolves(mockSetting2 as any)
+
+      await PluginSettingHandler.exitFeePercentAdjusted(parsedEvent, info)
+
+      expect(mockSetting1.save.calledOnce).to.be.true
+      expect(mockSetting2.save.calledOnce).to.be.true
+      expect(mockSetting1.votingEscrow.minFeePercent).to.equal('700')
+      expect(mockSetting2.votingEscrow.minFeePercent).to.equal('700')
     })
   })
 })

@@ -453,6 +453,123 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(PluginSetupProcessorHandlerAggLogStub.calledOnce).to.be.true
       expect(getTransactionReceiptStub.calledOnceWith(logInfo.transactionHash, logInfo.network)).to.be.true
     })
+
+    it('should create new log installationApplied when router plugin and link policy succeeds', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        transactionIndex: 2,
+        logIndex: 2,
+        blockNumber: 1,
+        transactionHash: '0x123',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          metadata: 'fake-metadata',
+          dao: '0x456',
+          preparedSetupId: '0x453',
+          appliedSetupId: '0x452',
+          plugin: '0x450',
+        },
+      }
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler')
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.router,
+      })
+
+      sandbox.stub(PluginSettingHandler, 'handlePluginSettingByType').resolves(undefined as any)
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
+      sandbox.stub(RabbitMQHelper, 'sendMessage')
+
+      const linkPolicyStub = sandbox.stub(PluginSettingHandler, 'linkPolicySourceAndModel').resolves(true)
+      const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported')
+
+      await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, logInfo, true)
+
+      expect(linkPolicyStub.calledOnce).to.be.true
+      expect(isSupportedStub.calledOnce).to.be.true
+    })
+
+    it('should create new log installationApplied when claimer plugin and link policy succeeds', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        transactionIndex: 2,
+        logIndex: 2,
+        blockNumber: 1,
+        transactionHash: '0x123',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          metadata: 'fake-metadata',
+          dao: '0x456',
+          preparedSetupId: '0x453',
+          appliedSetupId: '0x452',
+          plugin: '0x450',
+        },
+      }
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler')
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.claimer,
+      })
+
+      sandbox.stub(PluginSettingHandler, 'handlePluginSettingByType').resolves(undefined as any)
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
+      sandbox.stub(RabbitMQHelper, 'sendMessage')
+
+      const linkPolicyStub = sandbox.stub(PluginSettingHandler, 'linkPolicySourceAndModel').resolves(true)
+      const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported')
+
+      await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, logInfo, true)
+
+      expect(linkPolicyStub.calledOnce).to.be.true
+      expect(isSupportedStub.calledOnce).to.be.true
+    })
+
+    it('should not call isSupported when router plugin link policy fails', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        transactionIndex: 2,
+        logIndex: 2,
+        blockNumber: 1,
+        transactionHash: '0x123',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          metadata: 'fake-metadata',
+          dao: '0x456',
+          preparedSetupId: '0x453',
+          appliedSetupId: '0x452',
+          plugin: '0x450',
+        },
+      }
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler')
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        interfaceType: IPluginInterfaceType.router,
+      })
+
+      sandbox.stub(PluginSettingHandler, 'handlePluginSettingByType').resolves(undefined as any)
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
+      sandbox.stub(RabbitMQHelper, 'sendMessage')
+
+      const linkPolicyStub = sandbox.stub(PluginSettingHandler, 'linkPolicySourceAndModel').resolves(false as any)
+      const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported')
+
+      await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, logInfo, true)
+
+      expect(linkPolicyStub.calledOnce).to.be.true
+      expect(isSupportedStub.called).to.be.false
+    })
   })
 
   describe('installationPrepared', () => {

@@ -137,6 +137,54 @@ describe('Controller: Plugin', () => {
     })
   })
 
+  describe('getPluginsByDaoWithDetails', () => {
+    const daoAddress = '0xe2e445489b0356D3087efF7e79DB7Ff3f16c4fEA'
+    const network = NetworksEnum.polygonMainnet
+    let findByAddressStub: sinon.SinonStub
+    let findByDaoAddressesWithDetailsStub: sinon.SinonStub
+
+    beforeEach(() => {
+      findByAddressStub = sandbox.stub(Models.Dao, 'findByAddress')
+      findByDaoAddressesWithDetailsStub = sandbox.stub(Models.Plugin, 'findByDaoAddressesWithDetails')
+    })
+
+    it('should fetch dao details and return plugins with details', async () => {
+      const mockPlugins = [{ address: '0xPlugin1', details: { setting: 'value' } }]
+      findByAddressStub.resolves({ address: daoAddress, subDaos: [] })
+      findByDaoAddressesWithDetailsStub.resolves(mockPlugins)
+
+      const result = await PluginController.getPluginsByDaoWithDetails({ daoAddress, network })
+
+      expect(findByAddressStub.calledOnceWith(daoAddress, network)).to.be.true
+      expect(findByDaoAddressesWithDetailsStub.calledOnceWith({ daoAddresses: [daoAddress], network })).to.be.true
+      expect(result).to.deep.equal(mockPlugins)
+    })
+
+    it('should include subDaos in daoAddresses when present', async () => {
+      const subDaos = ['0xSubDao1', '0xSubDao2']
+      const mockPlugins = [{ address: '0xPlugin1' }]
+      findByAddressStub.resolves({ address: daoAddress, subDaos })
+      findByDaoAddressesWithDetailsStub.resolves(mockPlugins)
+
+      const result = await PluginController.getPluginsByDaoWithDetails({ daoAddress, network })
+
+      expect(findByDaoAddressesWithDetailsStub.calledOnceWith({ daoAddresses: [daoAddress, ...subDaos], network })).to
+        .be.true
+      expect(result).to.deep.equal(mockPlugins)
+    })
+
+    it('should handle null daoDetails', async () => {
+      const mockPlugins = []
+      findByAddressStub.resolves(null)
+      findByDaoAddressesWithDetailsStub.resolves(mockPlugins)
+
+      const result = await PluginController.getPluginsByDaoWithDetails({ daoAddress, network })
+
+      expect(findByDaoAddressesWithDetailsStub.calledOnceWith({ daoAddresses: [daoAddress], network })).to.be.true
+      expect(result).to.deep.equal(mockPlugins)
+    })
+  })
+
   describe('getLogPluginSetupProcessor', () => {
     const pluginAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
     const network = NetworksEnum.ethereumMainnet

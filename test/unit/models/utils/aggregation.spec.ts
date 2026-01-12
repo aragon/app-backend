@@ -294,4 +294,55 @@ describe('AggregationQueryHelper', () => {
       })
     })
   })
+
+  describe('lockToVoteMember', () => {
+    it('should construct query with lockManagerAddress', () => {
+      const query = AggregationQueryHelper.lockToVoteMember(
+        {
+          lockManagerAddress: '0xLockManager',
+          network: NetworksEnum.ethereumMainnet,
+          memberAddress: '0xMember',
+        },
+        'lockToVoteMember',
+        { votingPower: 1 },
+      )
+
+      expect(query).to.deep.equal({
+        $lookup: {
+          from: 'LockToVoteMember',
+          let: {
+            lockManagerAddress: '0xLockManager',
+            network: NetworksEnum.ethereumMainnet,
+            memberAddress: '0xMember',
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$$lockManagerAddress', '$lockManagerAddress'] },
+                    { $eq: ['$$network', '$network'] },
+                    { $eq: ['$$memberAddress', '$memberAddress'] },
+                  ],
+                },
+              },
+            },
+            {
+              $project: { votingPower: 1 },
+            },
+          ],
+          as: 'lockToVoteMember',
+        },
+      })
+    })
+
+    it('should handle missing lockManagerAddress', () => {
+      const query = AggregationQueryHelper.lockToVoteMember({
+        network: NetworksEnum.ethereumMainnet,
+      } as any)
+
+      expect(query.$lookup.let).to.deep.equal({ network: NetworksEnum.ethereumMainnet })
+      expect(query.$lookup.pipeline[0].$match.$expr.$and).to.deep.equal([{ $eq: ['$$network', '$network'] }])
+    })
+  })
 })

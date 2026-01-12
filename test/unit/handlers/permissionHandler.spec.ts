@@ -907,4 +907,117 @@ describe('Indexer: Permission Handler', () => {
       expect(unlinkDaosStub.called).to.be.false
     })
   })
+
+  describe('linkDaos', () => {
+    const network = NetworksEnum.ethereumSepolia
+    const parentDaoAddress = '0x1111111111111111111111111111111111111111'
+    const childDaoAddress = '0x2222222222222222222222222222222222222222'
+
+    it('should link parent and child DAOs bidirectionally', async () => {
+      const mockParentDao = {
+        address: parentDaoAddress,
+        subDaos: [],
+        update: sandbox.stub().resolves(),
+      }
+      const mockChildDao = {
+        address: childDaoAddress,
+        parentDao: null,
+        update: sandbox.stub().resolves(),
+      }
+
+      sandbox.stub(logger, 'info')
+
+      await PermissionHandler.linkDaos(mockParentDao as any, mockChildDao as any, network)
+
+      expect(mockChildDao.update.calledOnce).to.be.true
+      expect(mockParentDao.update.calledOnce).to.be.true
+    })
+
+    it('should not update child if already linked to parent', async () => {
+      const mockParentDao = {
+        address: parentDaoAddress,
+        subDaos: [],
+        update: sandbox.stub().resolves(),
+      }
+      const mockChildDao = {
+        address: childDaoAddress,
+        parentDao: parentDaoAddress,
+        update: sandbox.stub().resolves(),
+      }
+
+      sandbox.stub(logger, 'info')
+
+      await PermissionHandler.linkDaos(mockParentDao as any, mockChildDao as any, network)
+
+      expect(mockChildDao.update.called).to.be.false
+      expect(mockParentDao.update.calledOnce).to.be.true
+    })
+
+    it('should not add child if already in subDaos', async () => {
+      const mockParentDao = {
+        address: parentDaoAddress,
+        subDaos: [childDaoAddress],
+        update: sandbox.stub().resolves(),
+      }
+      const mockChildDao = {
+        address: childDaoAddress,
+        parentDao: null,
+        update: sandbox.stub().resolves(),
+      }
+
+      sandbox.stub(logger, 'info')
+
+      await PermissionHandler.linkDaos(mockParentDao as any, mockChildDao as any, network)
+
+      expect(mockChildDao.update.calledOnce).to.be.true
+      expect(mockParentDao.update.called).to.be.false
+    })
+  })
+
+  describe('unlinkDaos', () => {
+    const network = NetworksEnum.ethereumSepolia
+    const parentDaoAddress = '0x1111111111111111111111111111111111111111'
+    const childDaoAddress = '0x2222222222222222222222222222222222222222'
+
+    it('should unlink parent and child DAOs bidirectionally', async () => {
+      const mockParentDao = {
+        address: parentDaoAddress,
+        subDaos: [childDaoAddress],
+        update: sandbox.stub().resolves(),
+      }
+      const mockChildDao = {
+        address: childDaoAddress,
+        parentDao: parentDaoAddress,
+        update: sandbox.stub().resolves(),
+      }
+
+      sandbox.stub(logger, 'info')
+
+      await PermissionHandler.unlinkDaos(mockParentDao as any, mockChildDao as any, network)
+
+      expect(mockChildDao.update.calledOnce).to.be.true
+      expect(mockChildDao.update.calledWith({ parentDao: null } as any)).to.be.true
+      expect(mockParentDao.update.calledOnce).to.be.true
+    })
+
+    it('should handle empty subDaos array', async () => {
+      const mockParentDao = {
+        address: parentDaoAddress,
+        subDaos: null,
+        update: sandbox.stub().resolves(),
+      }
+      const mockChildDao = {
+        address: childDaoAddress,
+        parentDao: parentDaoAddress,
+        update: sandbox.stub().resolves(),
+      }
+
+      sandbox.stub(logger, 'info')
+
+      await PermissionHandler.unlinkDaos(mockParentDao as any, mockChildDao as any, network)
+
+      expect(mockChildDao.update.calledOnce).to.be.true
+      expect(mockParentDao.update.calledOnce).to.be.true
+    })
+  })
 })
