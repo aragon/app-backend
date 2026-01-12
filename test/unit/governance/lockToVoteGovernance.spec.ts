@@ -377,7 +377,7 @@ describe('Governance:LockToVoteGovernance', () => {
   })
 
   describe('find', () => {
-    it.only('should find active members for lock manager', async () => {
+    it('should find active members for lock manager', async () => {
       // Create some members in database
       const addresses = ['0x1111111111111111111111111111111111111111', '0x2222222222222222222222222222222222222222']
 
