@@ -105,7 +105,7 @@ export default class VoteGauge extends Model {
     gaugeAddress: HexAddress,
     network: NetworksEnum,
   ) {
-    return this.countDocuments({
+    const uniqueMembers = await this.distinct('memberAddress', {
       $or: [
         // count all votes on epochId
         {
@@ -125,6 +125,7 @@ export default class VoteGauge extends Model {
         },
       ],
     })
+    return uniqueMembers.length
   }
 
   async update(params: Partial<VoteGauge>, tOpts?: SaveOptions) {
