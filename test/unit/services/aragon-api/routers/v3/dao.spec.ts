@@ -77,7 +77,7 @@ describe('RouterV3: Dao', () => {
 
   it('Should getDaoById using WithoutPlugins controller', async () => {
     const params = {
-      id: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+      id: 'ethereum-mainnet-0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
     }
 
     const stubCtrl = sandbox.stub(DaoController, 'getDaoByIdWithoutPlugins').returns(true as any)
@@ -91,7 +91,7 @@ describe('RouterV3: Dao', () => {
 
     expect(ctx.body).to.eq(true)
     expect(stubCtrl.calledOnce).to.be.true
-    expect(stubCtrl.calledWith(params.id)).to.be.true
+    expect(stubCtrl.calledWith(params.id, false)).to.be.true
   })
 
   it('Should getDaoByAddress using WithoutPlugins controller', async () => {

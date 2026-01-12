@@ -19,7 +19,7 @@ describe.only('Integ: CapitalFlow Installation', () => {
 
   it.only('should install capital flow plugin correctly', async function () {
     this.timeout(1000000000)
-    const daoAddress = '0x63d2796a2707F20c75a1348759Bb53e56f01D054'
+    const daoAddress = ''
     const network = NetworksEnum.ethereumSepolia
 
     const libUtil = new LibUtils({

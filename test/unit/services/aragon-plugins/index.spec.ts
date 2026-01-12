@@ -6,6 +6,7 @@ import { LogCapitalDistributor } from '@plugins/logCapitalDistributor'
 import { LogDao } from '@plugins/logDao'
 import { LogGauge } from '@plugins/logGauge'
 import { LogMultiSig } from '@plugins/logMultisig'
+import { LogPolicy } from '@plugins/logPolicy'
 import { LogSelectorPermission } from '@plugins/logSelectorPermission'
 import { LogSpp } from '@plugins/logSPP'
 import { LogTokenVoting } from '@plugins/logTokenVoting'
@@ -472,6 +473,54 @@ describe('AragonPlugins: index', () => {
 
       expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
       expect(logCapitalDistributorStub.calledOnce).to.be.true
+    })
+
+    it('should process plugins queue for claimer interface type', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const mockPlugin = {
+        address: '0xPluginAddress',
+        interfaceType: IPluginInterfaceType.claimer,
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
+      const logPolicyStub = sandbox.stub(LogPolicy, 'start').resolves()
+      const loggerInfoStub = sandbox.stub(logger, 'info')
+
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(2).args[1]
+      await handler({
+        id: 'some-id',
+        params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
+      })
+
+      expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(loggerInfoStub.calledWith(`Sync plugin: ${IPluginInterfaceType.claimer}` as any)).to.be.true
+      expect(logPolicyStub.calledOnceWith(mockPlugin.address, mockPlugin.network)).to.be.true
+    })
+
+    it('should process plugins queue for router interface type', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const mockPlugin = {
+        address: '0xPluginAddress',
+        interfaceType: IPluginInterfaceType.router,
+        network: NetworksEnum.ethereumMainnet,
+      }
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
+      const logPolicyStub = sandbox.stub(LogPolicy, 'start').resolves()
+      const loggerInfoStub = sandbox.stub(logger, 'info')
+
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(2).args[1]
+      await handler({
+        id: 'some-id',
+        params: { address: '0xPluginAddress', network: NetworksEnum.ethereumMainnet, isHistorical: false },
+      })
+
+      expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(loggerInfoStub.calledWith(`Sync plugin: ${IPluginInterfaceType.router}` as any)).to.be.true
+      expect(logPolicyStub.calledOnceWith(mockPlugin.address, mockPlugin.network)).to.be.true
     })
 
     it('should log an error if plugin is missing', async () => {

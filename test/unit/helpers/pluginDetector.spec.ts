@@ -124,6 +124,30 @@ describe('Helper: PluginDetector', () => {
     expect(getImplementationAddressStub.calledWith('0xAddress', NetworksEnum.ethereumMainnet)).to.be.true
   })
 
+  it('should detect router plugin', async () => {
+    const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+      getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(PluginDetector.ROUTER_PLUGIN_FUNCTIONS)),
+    } as any)
+
+    const result = await PluginDetector.detectPluginType('0xAddress', NetworksEnum.ethereumMainnet)
+    expect(result.type).to.equal(IPluginInterfaceType.router)
+    expect(getImplementationAddressStub.calledOnce).to.be.true
+    expect(getImplementationAddressStub.calledWith('0xAddress', NetworksEnum.ethereumMainnet)).to.be.true
+  })
+
+  it('should detect claimer plugin', async () => {
+    const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+      getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(PluginDetector.CLAIMER_PLUGIN_FUNCTIONS)),
+    } as any)
+
+    const result = await PluginDetector.detectPluginType('0xAddress', NetworksEnum.ethereumMainnet)
+    expect(result.type).to.equal(IPluginInterfaceType.claimer)
+    expect(getImplementationAddressStub.calledOnce).to.be.true
+    expect(getImplementationAddressStub.calledWith('0xAddress', NetworksEnum.ethereumMainnet)).to.be.true
+  })
+
   it('should return unknown plugin when bytecode does not match any functions', async () => {
     const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
     sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({

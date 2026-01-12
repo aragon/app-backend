@@ -42,7 +42,7 @@ const PluginsController = {
   },
 
   getLogPluginSetupProcessor: async (extraParams: ILogPluginSetupProcessorParams) => {
-    return await Models.LogPluginSetupProcespsor.findOne(extraParams)
+    return await Models.LogPluginSetupProcessor.findOne(extraParams)
   },
 }
 

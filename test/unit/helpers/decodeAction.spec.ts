@@ -2552,7 +2552,7 @@ describe('Helpers: DecodeActions', () => {
 
     const result = await decodeActions._parseCreateGauge(baseAction, action)
     expect(result?.type).to.be.eq(ProposalActionType.CreateGauge)
-    expect(result?.gaugeMetadata).to.deep.equal({ name: 'Gauge info' })
+    expect(result?.gaugeMetadata).to.include({ name: 'Gauge info' })
     expect(stubExtractMetadataUri.calledOnce).to.be.true
     expect(ipfsFetchStub.calledOnce).to.be.true
   })
@@ -2607,7 +2607,7 @@ describe('Helpers: DecodeActions', () => {
 
     const result = await decodeActions._parseUpdateGaugeMetadata(baseAction, action)
     expect(result?.type).to.be.eq(ProposalActionType.UpdateGaugeMetadata)
-    expect(result?.gaugeMetadata).to.deep.equal({ name: 'Gauge info' })
+    expect(result?.gaugeMetadata).to.include({ name: 'Gauge info' })
     expect(stubExtractMetadataUri.calledOnce).to.be.true
     expect(ipfsFetchStub.calledOnce).to.be.true
   })

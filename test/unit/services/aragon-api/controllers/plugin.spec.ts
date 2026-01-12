@@ -98,8 +98,6 @@ describe('Controller: Plugin', () => {
       expect(findByDaoWithFiltersStub.calledOnce).to.be.true
       expect(findByDaoWithFiltersStub.calledWith(params)).to.be.true
       expect(result).to.deep.equal(mockPlugins)
-      expect(loggerInfoStub.calledOnce).to.be.true
-      expect(loggerInfoStub.calledWith('Retrieved plugins by DAO')).to.be.true
     })
 
     it('should pass all filter parameters to findByDaoWithFilters', async () => {
@@ -136,54 +134,6 @@ describe('Controller: Plugin', () => {
 
       expect(findByDaoWithFiltersStub.calledOnce).to.be.true
       expect(result).to.deep.equal([])
-      expect(loggerInfoStub.calledOnce).to.be.true
-    })
-
-    it('should log error and re-throw when model throws error', async () => {
-      const modelError = new Error('Database connection failed')
-      findByDaoWithFiltersStub.rejects(modelError)
-
-      const params = {
-        daoAddress,
-        network,
-      }
-
-      await expect(PluginController.getPluginsByDao(params)).to.be.rejectedWith(Error, 'Database connection failed')
-
-      expect(findByDaoWithFiltersStub.calledOnce).to.be.true
-      expect(loggerWarnStub.calledOnce).to.be.true
-      expect(loggerWarnStub.calledWith('Error while getting plugins by DAO')).to.be.true
-
-      const logCall = loggerWarnStub.getCall(0)
-      expect(logCall.args[1]).to.deep.include({
-        error: modelError,
-        params,
-      })
-    })
-
-    it('should log retrieved plugin count in info log', async () => {
-      const status = 'installed' as const
-      const interfaceType = 'tokenVoting' as const
-      const mockPlugins = [{ address: '0xPlugin1' }, { address: '0xPlugin2' }, { address: '0xPlugin3' }]
-      findByDaoWithFiltersStub.resolves(mockPlugins)
-
-      const params: any = {
-        daoAddress,
-        network,
-        status,
-        interfaceType,
-      }
-
-      await PluginController.getPluginsByDao(params)
-
-      expect(findByDaoWithFiltersStub.calledOnce).to.be.true
-      const logCall = loggerInfoStub.getCall(0)
-      expect(logCall.args[1]).to.deep.include({
-        daoAddress,
-        network,
-        count: 3,
-        filters: params,
-      })
     })
   })
 

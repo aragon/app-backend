@@ -366,6 +366,10 @@ export default class Plugin extends Model {
 
     if (interfaceType) {
       filter.interfaceType = interfaceType
+    } else {
+      filter.interfaceType = {
+        $nin: [IPluginInterfaceType.router, IPluginInterfaceType.claimer],
+      }
     }
 
     if (status) {
@@ -378,10 +382,6 @@ export default class Plugin extends Model {
 
     if (isSupported !== undefined) {
       filter.isSupported = isSupported
-    }
-
-    filter.interfaceType = {
-      $nin: [IPluginInterfaceType.router, IPluginInterfaceType.claimer],
     }
 
     return await this.find(filter).sort({ blockNumber: -1 }).lean().exec()
