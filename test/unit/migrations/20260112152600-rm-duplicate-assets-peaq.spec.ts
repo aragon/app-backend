@@ -16,7 +16,7 @@ describe('migration: rm duplicate assets', () => {
     sandbox?.restore()
   })
 
-  it('should reset gauge plugin data and send RabbitMQ message', async () => {
+  it('remove duplicate ERC20 assets for native token on Peaq network', async () => {
     await Models.Asset.create({
       id: '0xaBdef33Cd99c1a119aEfFa4dD0d1f47e3293a146-0x0000000000000000000000000000000000000809-peaq-mainnet',
       network: NetworksEnum.peaqMainnet,
