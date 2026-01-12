@@ -26,6 +26,11 @@ describe('PeaqProvider', () => {
       const network = NetworksEnum.peaqMainnet
       const tokens = [
         {
+          contractAddress: '0x0000000000000000000000000000000000000809',
+          tokenBalance: '2000000000000000000',
+          decimals: 18,
+        },
+        {
           contractAddress: '0x5f1680d0c2c5e9d3615a036fbdc7432e7bf246fb',
           tokenBalance: '1000000000000000000',
           decimals: 18,

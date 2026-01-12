@@ -9,7 +9,7 @@ import DbTx from '@modules/dbTx'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 import { ProxyToken } from '@modules/proxyToken'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
-import { type HexAddress, type IWeb3TokenBalance, type NetworksEnum } from '@types'
+import { type HexAddress, type IWeb3TokenBalance, NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'service:dao:DaoAssets' })
 
@@ -180,9 +180,7 @@ export const DaoAssets = {
       await Promise.all(
         tokenBalances
           .filter(token => Number(token.tokenBalance) > 0)
-          .map(async (tokenBalance: IWeb3TokenBalance) => {
-            await DaoAssets._handleErc20Token(document, tokenBalance)
-          }),
+          .map(async (tokenBalance: IWeb3TokenBalance) => DaoAssets._handleErc20Token(document, tokenBalance)),
       )
 
       return { ethBalance, tokenBalances }
