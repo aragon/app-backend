@@ -449,9 +449,12 @@ export class VeGovernance extends BaseGovernance {
 
         await fromLock.updateOne(
           {
-            'lockWithdraw.status': true,
-            'lockWithdraw.transactionHash': info!.transactionHash,
-            'lockWithdraw.blockNumber': info!.blockNumber,
+            lockWithdraw: {
+              status: true,
+              transactionHash: info!.transactionHash,
+              blockNumber: info!.blockNumber,
+              amount: fromLock.amount,
+            },
             amount: '0',
           },
           { session },
