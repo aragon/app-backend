@@ -15,6 +15,7 @@ export enum EnumQueueName {
   getLockVotingPowerBatch = 'member.lockVotingPowerBatch',
   memberBalance = 'member.balance',
   contractDecoder = 'contract.decoder',
+  contractDecoderLight = 'contract.decoder.light',
   tokenInfo = 'token.info',
   proposalActions = 'proposal.actions',
   canCreateProposal = 'can.create.proposal',
@@ -139,4 +140,14 @@ export interface IGaugeInfo {
   memberAddress?: HexAddress
   memberUsedVotingPower?: string
   memberVotingPower?: string
+}
+
+export interface IQueueContractDecoderLight {
+  from: HexAddress
+  actions: Array<{
+    to: string
+    data: string
+    value: string | number
+  }>
+  network: NetworksEnum
 }
