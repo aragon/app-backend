@@ -3,16 +3,13 @@ import TokenUtils from '@helpers/tokenUtils'
 import logger from '@logger'
 import type Token from '@models/schema/token'
 import DBCrawler from '@models/utils/crawler'
-import { type IMigHelper, type IMigration, ITokenType, NetworksEnum } from '@types'
+import { type IMigration, ITokenType, NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: addSpamFieldsToToken' })
 
 const TESTNET_NETWORKS = [NetworksEnum.ethereumSepolia, NetworksEnum.zksyncSepolia]
 
-export const addSpamFieldsToTokenMigration: IMigration & IMigHelper = {
-  countDocs: 0,
-  updatedDocs: 0,
-
+export const addSpamFieldsToTokenMigration: IMigration = {
   start: async () => {
     logger.info('Starting migration', llo({ migration: '20260114110516-addSpamFieldsToToken' }))
 
@@ -20,8 +17,6 @@ export const addSpamFieldsToTokenMigration: IMigration & IMigHelper = {
       const crawler = new DBCrawler({
         model: Models.Token,
         onDocument: async (token: Token) => {
-          addSpamFieldsToTokenMigration.countDocs++
-
           const spamScore = TokenUtils.getSpamScore(token.name || '', token.symbol || '', token.logo)
           const isSpam = TokenUtils.shouldMarkAsSpam({
             name: token.name || '',
@@ -37,7 +32,6 @@ export const addSpamFieldsToTokenMigration: IMigration & IMigHelper = {
             token.spamScore = spamScore
             token.isSpam = isSpam
             await token.save()
-            addSpamFieldsToTokenMigration.updatedDocs = (addSpamFieldsToTokenMigration.updatedDocs || 0) + 1
             logger.verbose(
               'Updated token spam fields',
               llo({
@@ -74,8 +68,6 @@ export const addSpamFieldsToTokenMigration: IMigration & IMigHelper = {
         'Migration completed successfully',
         llo({
           migration: '20260114110516-addSpamFieldsToToken',
-          totalProcessed: addSpamFieldsToTokenMigration.countDocs,
-          totalUpdated: addSpamFieldsToTokenMigration.updatedDocs,
         }),
       )
     } catch (error) {
