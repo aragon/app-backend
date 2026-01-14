@@ -92,9 +92,16 @@ export default class Asset extends Model {
       ...dynamicFilter,
     }
 
-    const spamFilter = includeSpam
-      ? []
-      : [{ $match: { $or: [{ 'tokenDetails.isSpam': { $ne: true } }, { 'tokenDetails.isSpam': { $exists: false } }] } }]
+    const spamFilter =
+      includeSpam === false
+        ? [
+            {
+              $match: {
+                $or: [{ 'tokenDetails.isSpam': { $ne: true } }, { 'tokenDetails.isSpam': { $exists: false } }],
+              },
+            },
+          ]
+        : []
 
     const currentPage = request.skip / request.limit + 1
     const [data, totalRecords] = await Promise.all([
