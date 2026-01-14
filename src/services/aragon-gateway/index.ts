@@ -17,6 +17,7 @@ import {
   type IGetGaugeInfoId,
   type IMerkleProofSync,
   type IQueueCanCreateProposal,
+  type IQueueContractDecoderLight,
   type IQueueContractInfo,
   type IQueueMemberBalanceInfo,
   type IQueueTokenInfo,
@@ -46,6 +47,13 @@ const AragonGatewayService: IService = {
       const { from, to, data, value, network } = job.params as IRawAction
       return await ActionDecoder.decode({ from, to, data, value, network })
     })
+
+    await RabbitMQHelper.process(
+      EnumQueueName.contractDecoderLight,
+      async (job: { params: IQueueContractDecoderLight }) => {
+        return await ActionDecoder.decodeLight(job.params)
+      },
+    )
 
     await RabbitMQHelper.process(EnumQueueName.canCreateProposal, async (job: any) => {
       const { pluginAddress, memberAddress, network } = job.params as IQueueCanCreateProposal

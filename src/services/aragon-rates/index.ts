@@ -2,6 +2,7 @@ import config from '@config'
 import logger from '@logger'
 import { FetchRates } from '@services/aragon-rates/fetchRates'
 import { RefreshScamTokens } from '@services/aragon-rates/refreshScamTokens'
+import { EnsValidator } from '@services/aragon-rates/handlers/ensValidator'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import { EnumConnection, EnumServiceName, type IService } from '@types'
 
@@ -19,7 +20,11 @@ const AragonRatesService: IService = {
 
     // Fetch rates task
     const ratesTaskOptions = {
-      fn: () => [[{ fetchRates: FetchRates }]],
+      fn: () => [
+        [{ fetchRates: FetchRates }],
+        [{ enaValidator: EnsValidator }],
+        [{ refreshScamTokens: RefreshScamTokens }],
+      ],
       interval: config.SERVICES.ARAGON_RATES.RATES_INTERVAL,
       runNow: true,
       stopOnError: false,
@@ -28,18 +33,6 @@ const AragonRatesService: IService = {
       },
     }
     await scheduler.startTask('rates', ratesTaskOptions)
-
-    // Refresh scam tokens task
-    const refreshScamTokensTaskOptions = {
-      fn: () => [[{ refreshScamTokens: RefreshScamTokens }]],
-      interval: config.SERVICES.ARAGON_RATES.REFRESH_SCAM_TOKENS_INTERVAL,
-      runNow: true,
-      stopOnError: false,
-      onError: (error: any) => {
-        logger.error('RefreshScamTokens task error', llo({ error }))
-      },
-    }
-    await scheduler.startTask('refreshScamTokens', refreshScamTokensTaskOptions)
 
     logger.info('RatesService service sync end', llo({}))
   },
