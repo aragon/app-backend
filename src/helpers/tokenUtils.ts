@@ -30,62 +30,130 @@ const TokenUtils = {
       CoinGeckoHelper.isTestNetwork(token.network!)) &&
     tokenRate.priceUsd === '0',
 
-  analyzeIfScamToken: (name: string, symbol: string) => {
+  getScamScore: (name: string, symbol: string): number => {
     const formattedName = (name || '').toLowerCase()
     const formattedSymbol = (symbol || '').toLowerCase()
+    const combined = `${formattedName} ${formattedSymbol}`
 
-    const suspiciousKeywords = [
-      'claim',
-      'reward',
-      'rewards',
-      'join',
-      'stake',
-      'swap',
-      'voucher',
+    let score = 0
+
+    // High-risk keywords (scam-specific) - 2 points each
+    const highRiskKeywords = [
       'airdrop',
-      'bonus',
-      'free',
       'giveaway',
-      'visit',
       'casino',
       'mystery',
-      'box',
-      'earn',
-      'official',
-      'link',
+      'voucher',
+      'visit',
       'ads',
       'promotion',
       'prize',
-      'win',
       'lucky',
-      'gift',
-      'drop',
-      'farming',
-      'mining',
+      'bonus',
+      'free',
     ]
+
+    // Low-risk keywords (can be legit) - 1 point each
+    const lowRiskKeywords = ['claim', 'reward', 'rewards', 'join', 'gift', 'win', 'box', 'official', 'link']
 
     const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-    const keywordPattern = suspiciousKeywords.map(escapeRegExp).join('|')
-    const keywordRegex = new RegExp(`\\b(${keywordPattern})\\b`, 'i')
+    const highRiskPattern = highRiskKeywords.map(escapeRegExp).join('|')
+    const highRiskRegex = new RegExp(`\\b(${highRiskPattern})\\b`, 'i')
 
-    const urlRegex = /(?:https?:\/\/|www\.)[^\s]+|[a-z0-9-]+\.[a-z]{2,63}(?:\/[^\s]*)?/i
+    const lowRiskPattern = lowRiskKeywords.map(escapeRegExp).join('|')
+    const lowRiskRegex = new RegExp(`\\b(${lowRiskPattern})\\b`, 'i')
 
+    // URL in name/symbol - 3 points (strong scam indicator)
+    const urlRegex = /(?:https?:\/\/|www\.)[^\s]+/i
+    if (urlRegex.test(combined)) {
+      score += 3
+    }
+
+    // High-risk keywords - 2 points
+    if (highRiskRegex.test(combined)) {
+      score += 2
+    }
+
+    // Low-risk keywords - 1 point
+    if (lowRiskRegex.test(combined)) {
+      score += 1
+    }
+
+    // Red flags - 2 points each
     const redFlags = [
-      /[▷►▶→]/,
-      /[^\x00-\x7F]/,
-      /\$[A-Z]+\s+.*\./,
+      /[▷►▶→]/, // promotional arrows
+      /\$[A-Z]+\s+.*\./, // $TOKEN visit site pattern
       /use.*official.*link/i,
       /trust.*wallet.*mystery/i,
       /ads:\s*/i,
       /!\s*ads/i,
     ]
 
-    const hasUrl = urlRegex.test(formattedName) || urlRegex.test(formattedSymbol)
-    const hasKeywords = keywordRegex.test(formattedName) || keywordRegex.test(formattedSymbol)
-    const hasRedFlags = redFlags.some(pattern => pattern.test(formattedName) || pattern.test(formattedSymbol))
+    for (const pattern of redFlags) {
+      if (pattern.test(combined)) {
+        score += 2
+      }
+    }
 
-    return hasUrl || hasKeywords || hasRedFlags
+    return score
+  },
+
+  analyzeIfScamToken: (name: string, symbol: string) => {
+    return TokenUtils.getScamScore(name, symbol) >= 3
+  },
+
+  determineIfScam: (
+    name: string,
+    symbol: string,
+    coinGeckoInfo: { priceUsd?: string; name?: string; symbol?: string } | null,
+  ): boolean => {
+    const score = TokenUtils.getScamScore(name, symbol)
+
+    // High score = definite scam, no fallback needed
+    if (score >= 5) {
+      return true
+    }
+
+    // No suspicious signals = not scam
+    if (score === 0) {
+      return false
+    }
+
+    // Borderline (score 1-4): check CoinGecko validation
+    // If CoinGecko has valid data (price > 0 or recognized name/symbol), likely legit
+    const hasCoinGeckoData =
+      coinGeckoInfo &&
+      ((coinGeckoInfo.priceUsd && parseFloat(coinGeckoInfo.priceUsd) > 0) ||
+        (coinGeckoInfo.name && coinGeckoInfo.name.length > 0))
+
+    if (hasCoinGeckoData) {
+      return false // CoinGecko recognizes it, not scam
+    }
+
+    // No CoinGecko data + suspicious score = scam
+    return score >= 2
+  },
+
+  shouldMarkAsScam: (params: {
+    name: string
+    symbol: string
+    tokenType: ITokenType
+    isGovernance: boolean
+    isTestnet: boolean
+    coinGeckoInfo: { priceUsd?: string; name?: string; symbol?: string } | null
+  }): boolean => {
+    const { name, symbol, tokenType, isGovernance, isTestnet, coinGeckoInfo } = params
+
+    if (isTestnet) {
+      return false
+    }
+
+    if (tokenType === ITokenType.escrowAdapter || isGovernance || tokenType === ITokenType.native) {
+      return false
+    }
+
+    return TokenUtils.determineIfScam(name, symbol, coinGeckoInfo)
   },
 
   isTokenSyncable: async (

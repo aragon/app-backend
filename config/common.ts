@@ -578,6 +578,18 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'SERVICES_ARAGON_RATES_RATES_INTERVAL',
           6 * 60 * 60 * 1000,
         ), // 6 hours
+        REFRESH_SCAM_TOKENS_INTERVAL: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_RATES_REFRESH_SCAM_TOKENS_INTERVAL',
+          24 * 60 * 60 * 1000,
+        ), // 24 hours
+        SCAM_SCORE_THRESHOLD: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_RATES_SCAM_SCORE_THRESHOLD',
+          5,
+        ),
       },
     },
 

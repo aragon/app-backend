@@ -226,6 +226,8 @@ export interface IConfig {
     ARAGON_RATES: {
       NAME: string
       RATES_INTERVAL: number
+      REFRESH_SCAM_TOKENS_INTERVAL: number
+      SCAM_SCORE_THRESHOLD: number
     }
   }
 

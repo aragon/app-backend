@@ -38,6 +38,10 @@ export const ProxyToken = {
         )
 
         if (existingToken) {
+          if (existingToken.isScam) {
+            return null
+          }
+
           if (!forceUpdate) {
             return existingToken
           }
@@ -131,7 +135,7 @@ export const ProxyToken = {
       ? await GovernanceErc20Helper.getClockMode(tokenAddress, network)
       : IClockMode.BlockNumber
 
-    const rawToken: Partial<Token & { isScamToken: boolean }> = {
+    const rawToken: Partial<Token> = {
       network,
       address: tokenAddress,
       name: tokenDetails.name,
@@ -176,13 +180,6 @@ export const ProxyToken = {
         rawToken.symbol = await Web3Helper.getTokenSymbol(tokenAddress, network)
       }
 
-      if (rawToken.type !== ITokenType.escrowAdapter) {
-        const isTokenSyncable = await TokenUtils.isTokenSyncable(tokenAddress, network, tokenDetails)
-        if (!isTokenSyncable && !tokenTypeInfo.isGovernance) {
-          return null
-        }
-      }
-
       if (rawToken.type === ITokenType.escrowAdapter) {
         const underlyingTokenInfo = await GovernanceVeHelper.getUnderlyingTokenNameAndSymbol(tokenAddress, network)
         rawToken.name = underlyingTokenInfo.name
@@ -209,17 +206,36 @@ export const ProxyToken = {
       }
     }
 
-    // For testnet or governance tokens, the price is always '0'
-    if (CoinGeckoHelper.isTestNetwork(network)) {
+    const isTestnet = CoinGeckoHelper.isTestNetwork(network)
+
+    if (isTestnet) {
       rawToken.priceUsd = '0'
     }
 
     rawToken.skipFetchRate = TokenUtils.shouldSkipFetch(rawToken, { priceUsd: rawToken.priceUsd || '0' })
 
-    // Save token and commit transaction
+    rawToken.scamScore = TokenUtils.getScamScore(rawToken.name || '', rawToken.symbol || '')
+    rawToken.isScam = TokenUtils.shouldMarkAsScam({
+      name: rawToken.name || '',
+      symbol: rawToken.symbol || '',
+      tokenType: rawToken.type!,
+      isGovernance: rawToken.isGovernance || false,
+      isTestnet,
+      coinGeckoInfo: {
+        priceUsd: tokenDetails.priceUsd,
+        name: tokenDetails.name,
+        symbol: tokenDetails.symbol,
+      },
+    })
+
     const savedToken = await Models.Token.create(rawToken, { session })
     await session?.commitTransaction()
     await session?.endSession()
+
+    if (savedToken.isScam) {
+      logger.verbose('Scam Token Saved', llo({ logId: savedToken.id }))
+      return null
+    }
 
     logger.verbose('New Token Created', llo({ logId: savedToken.id }))
     return savedToken
