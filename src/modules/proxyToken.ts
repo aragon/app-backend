@@ -38,7 +38,7 @@ export const ProxyToken = {
         )
 
         if (existingToken) {
-          if (existingToken.isScam) {
+          if (existingToken.isSpam) {
             return null
           }
 
@@ -214,10 +214,11 @@ export const ProxyToken = {
 
     rawToken.skipFetchRate = TokenUtils.shouldSkipFetch(rawToken, { priceUsd: rawToken.priceUsd || '0' })
 
-    rawToken.scamScore = TokenUtils.getScamScore(rawToken.name || '', rawToken.symbol || '')
-    rawToken.isScam = TokenUtils.shouldMarkAsScam({
+    rawToken.spamScore = TokenUtils.getSpamScore(rawToken.name || '', rawToken.symbol || '', rawToken.logo)
+    rawToken.isSpam = TokenUtils.shouldMarkAsSpam({
       name: rawToken.name || '',
       symbol: rawToken.symbol || '',
+      logo: rawToken.logo || null,
       tokenType: rawToken.type!,
       isGovernance: rawToken.isGovernance || false,
       isTestnet,
@@ -232,8 +233,8 @@ export const ProxyToken = {
     await session?.commitTransaction()
     await session?.endSession()
 
-    if (savedToken.isScam) {
-      logger.verbose('Scam Token Saved', llo({ logId: savedToken.id }))
+    if (savedToken.isSpam) {
+      logger.verbose('Spam Token Saved', llo({ logId: savedToken.id }))
       return null
     }
 

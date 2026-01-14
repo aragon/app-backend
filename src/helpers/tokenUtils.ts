@@ -30,14 +30,17 @@ const TokenUtils = {
       CoinGeckoHelper.isTestNetwork(token.network!)) &&
     tokenRate.priceUsd === '0',
 
-  getScamScore: (name: string, symbol: string): number => {
+  getSpamScore: (name: string, symbol: string, logo?: string | null): number => {
     const formattedName = (name || '').toLowerCase()
     const formattedSymbol = (symbol || '').toLowerCase()
     const combined = `${formattedName} ${formattedSymbol}`
 
     let score = 0
 
-    // High-risk keywords (scam-specific) - 2 points each
+    if (!logo) {
+      score += 1
+    }
+
     const highRiskKeywords = [
       'airdrop',
       'giveaway',
@@ -53,7 +56,6 @@ const TokenUtils = {
       'free',
     ]
 
-    // Low-risk keywords (can be legit) - 1 point each
     const lowRiskKeywords = ['claim', 'reward', 'rewards', 'join', 'gift', 'win', 'box', 'official', 'link']
 
     const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -64,26 +66,22 @@ const TokenUtils = {
     const lowRiskPattern = lowRiskKeywords.map(escapeRegExp).join('|')
     const lowRiskRegex = new RegExp(`\\b(${lowRiskPattern})\\b`, 'i')
 
-    // URL in name/symbol - 3 points (strong scam indicator)
     const urlRegex = /(?:https?:\/\/|www\.)[^\s]+/i
     if (urlRegex.test(combined)) {
       score += 3
     }
 
-    // High-risk keywords - 2 points
     if (highRiskRegex.test(combined)) {
       score += 2
     }
 
-    // Low-risk keywords - 1 point
     if (lowRiskRegex.test(combined)) {
       score += 1
     }
 
-    // Red flags - 2 points each
     const redFlags = [
-      /[▷►▶→]/, // promotional arrows
-      /\$[A-Z]+\s+.*\./, // $TOKEN visit site pattern
+      /[▷►▶→]/,
+      /\$[A-Z]+\s+.*\./,
       /use.*official.*link/i,
       /trust.*wallet.*mystery/i,
       /ads:\s*/i,
@@ -99,51 +97,48 @@ const TokenUtils = {
     return score
   },
 
-  analyzeIfScamToken: (name: string, symbol: string) => {
-    return TokenUtils.getScamScore(name, symbol) >= 3
+  analyzeIfSpamToken: (name: string, symbol: string, logo?: string | null) => {
+    return TokenUtils.getSpamScore(name, symbol, logo) >= 3
   },
 
-  determineIfScam: (
+  determineIfSpam: (
     name: string,
     symbol: string,
+    logo: string | null,
     coinGeckoInfo: { priceUsd?: string; name?: string; symbol?: string } | null,
   ): boolean => {
-    const score = TokenUtils.getScamScore(name, symbol)
+    const score = TokenUtils.getSpamScore(name, symbol, logo)
 
-    // High score = definite scam, no fallback needed
     if (score >= 5) {
       return true
     }
 
-    // No suspicious signals = not scam
     if (score === 0) {
       return false
     }
 
-    // Borderline (score 1-4): check CoinGecko validation
-    // If CoinGecko has valid data (price > 0 or recognized name/symbol), likely legit
     const hasCoinGeckoData =
       coinGeckoInfo &&
       ((coinGeckoInfo.priceUsd && parseFloat(coinGeckoInfo.priceUsd) > 0) ||
         (coinGeckoInfo.name && coinGeckoInfo.name.length > 0))
 
     if (hasCoinGeckoData) {
-      return false // CoinGecko recognizes it, not scam
+      return false
     }
 
-    // No CoinGecko data + suspicious score = scam
     return score >= 2
   },
 
-  shouldMarkAsScam: (params: {
+  shouldMarkAsSpam: (params: {
     name: string
     symbol: string
+    logo: string | null
     tokenType: ITokenType
     isGovernance: boolean
     isTestnet: boolean
     coinGeckoInfo: { priceUsd?: string; name?: string; symbol?: string } | null
   }): boolean => {
-    const { name, symbol, tokenType, isGovernance, isTestnet, coinGeckoInfo } = params
+    const { name, symbol, logo, tokenType, isGovernance, isTestnet, coinGeckoInfo } = params
 
     if (isTestnet) {
       return false
@@ -153,7 +148,7 @@ const TokenUtils = {
       return false
     }
 
-    return TokenUtils.determineIfScam(name, symbol, coinGeckoInfo)
+    return TokenUtils.determineIfSpam(name, symbol, logo, coinGeckoInfo)
   },
 
   isTokenSyncable: async (
@@ -165,15 +160,13 @@ const TokenUtils = {
       const dbToken = await Models.Token.findOne({ address: tokenAddress, network })
       if (dbToken) return true
 
-      // Use prefetched tokenInfo if provided
       if (prefetchedTokenInfo && prefetchedTokenInfo.type !== ITokenType.unknown) {
-        return !TokenUtils.analyzeIfScamToken(prefetchedTokenInfo.name || '', prefetchedTokenInfo.symbol || '')
+        return !TokenUtils.analyzeIfSpamToken(prefetchedTokenInfo.name || '', prefetchedTokenInfo.symbol || '')
       }
 
-      // Fallback to on-chain data
       const web3TokenDetails = await Web3Helper.getTokenNameAndSymbol(tokenAddress, network)
       if (web3TokenDetails.name && web3TokenDetails.symbol) {
-        return !TokenUtils.analyzeIfScamToken(web3TokenDetails.name, web3TokenDetails.symbol)
+        return !TokenUtils.analyzeIfSpamToken(web3TokenDetails.name, web3TokenDetails.symbol)
       }
       return false
     } catch (e) {

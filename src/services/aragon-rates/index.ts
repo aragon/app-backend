@@ -1,7 +1,7 @@
 import config from '@config'
 import logger from '@logger'
 import { FetchRates } from '@services/aragon-rates/fetchRates'
-import { RefreshScamTokens } from '@services/aragon-rates/refreshScamTokens'
+import { RefreshSpamTokens } from '@rates/handlers/refreshSpamTokens'
 import { EnsValidator } from '@services/aragon-rates/handlers/ensValidator'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import { EnumConnection, EnumServiceName, type IService } from '@types'
@@ -23,7 +23,7 @@ const AragonRatesService: IService = {
       fn: () => [
         [{ fetchRates: FetchRates }],
         [{ enaValidator: EnsValidator }],
-        [{ refreshScamTokens: RefreshScamTokens }],
+        [{ refreshSpamTokens: RefreshSpamTokens }],
       ],
       interval: config.SERVICES.ARAGON_RATES.RATES_INTERVAL,
       runNow: true,
@@ -40,7 +40,7 @@ const AragonRatesService: IService = {
   async stop() {
     const scheduler = TaskSchedulerState.getInstance()
     scheduler.stopTask('rates')
-    scheduler.stopTask('refreshScamTokens')
+    scheduler.stopTask('refreshSpamTokens')
 
     logger.info('RatesService service stopped', llo({}))
   },

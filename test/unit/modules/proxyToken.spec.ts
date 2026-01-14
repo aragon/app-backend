@@ -581,7 +581,7 @@ describe('Modules: ProxyToken', () => {
       expect(createArgs.symbol).to.equal('UNDERLYING')
     })
 
-    it('should return null if non-escrowAdapter token is not syncable', async () => {
+    it('should return null if token is marked as spam', async () => {
       const tokenAddress = '0x123456789abcdef'
       const network = NetworksEnum.ethereumMainnet
 
@@ -600,8 +600,8 @@ describe('Modules: ProxyToken', () => {
       const tokenDetails = {
         address: tokenAddress,
         network,
-        name: 'Test Token',
-        symbol: 'TEST',
+        name: 'Free Airdrop https://scam.com',
+        symbol: 'SPAM',
         decimals: 18,
         type: ITokenType.ERC20,
         totalSupply: '1000000',
@@ -612,8 +612,6 @@ describe('Modules: ProxyToken', () => {
 
       sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo as any)
       sandbox.stub(ProxyToken, 'wrapTokenDetails').resolves(tokenDetails)
-
-      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(false)
 
       const result = await ProxyToken.createNewToken(tokenAddress, network)
 
