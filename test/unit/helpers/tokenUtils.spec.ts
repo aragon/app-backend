@@ -268,7 +268,25 @@ describe('TokenUtils', () => {
       analyzeIfSpamTokenStub = sandbox.stub(TokenUtils, 'analyzeIfSpamToken')
     })
 
-    it('should return true if token exists in the database', async () => {
+    it('should return true if non-spam token exists in the database', async () => {
+      findOneStub.resolves({ address: '0x123', network: NetworksEnum.ethereumMainnet, isSpam: false })
+
+      const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.be.true
+      expect(web3HelperStub.called).to.be.false
+    })
+
+    it('should return false if spam token exists in the database', async () => {
+      findOneStub.resolves({ address: '0x123', network: NetworksEnum.ethereumMainnet, isSpam: true })
+
+      const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.be.false
+      expect(web3HelperStub.called).to.be.false
+    })
+
+    it('should return true if token exists without isSpam field (legacy)', async () => {
       findOneStub.resolves({ address: '0x123', network: NetworksEnum.ethereumMainnet })
 
       const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)

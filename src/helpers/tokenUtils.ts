@@ -158,7 +158,7 @@ const TokenUtils = {
   ): Promise<boolean> => {
     try {
       const dbToken = await Models.Token.findOne({ address: tokenAddress, network })
-      if (dbToken) return true
+      if (dbToken) return !dbToken.isSpam
 
       if (prefetchedTokenInfo && prefetchedTokenInfo.type !== ITokenType.unknown) {
         return !TokenUtils.analyzeIfSpamToken(prefetchedTokenInfo.name || '', prefetchedTokenInfo.symbol || '')
