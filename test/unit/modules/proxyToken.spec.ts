@@ -581,39 +581,20 @@ describe('Modules: ProxyToken', () => {
       expect(createArgs.symbol).to.equal('UNDERLYING')
     })
 
-    it('should return null if token is marked as spam', async () => {
+    it('should return null if existing token is marked as spam', async () => {
       const tokenAddress = '0x123456789abcdef'
       const network = NetworksEnum.ethereumMainnet
 
-      const tokenTypeInfo = {
-        type: ITokenType.ERC20,
-        isGovernance: false,
-        hasBalanceOfERC20: true,
-        hasName: true,
-        hasSymbol: true,
-        hasDecimals: true,
-        hasTotalSupply: true,
-        proxy: false,
-        implementationAddress: null,
-      }
-
-      const tokenDetails = {
+      const spamToken = {
+        id: 'spam-token-id',
         address: tokenAddress,
         network,
-        name: 'Free Airdrop https://scam.com',
-        symbol: 'SPAM',
-        decimals: 18,
-        type: ITokenType.ERC20,
-        totalSupply: '1000000',
-        logo: '',
-        priceUsd: '0',
-        underlying: undefined,
+        isSpam: true,
       }
 
-      sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo as any)
-      sandbox.stub(ProxyToken, 'wrapTokenDetails').resolves(tokenDetails)
+      sandbox.stub(Models.Token, 'findExistingLog').resolves(spamToken as any)
 
-      const result = await ProxyToken.createNewToken(tokenAddress, network)
+      const result = await ProxyToken.saveAndGetToken(tokenAddress, network)
 
       expect(result).to.be.null
     })
@@ -720,6 +701,563 @@ describe('Modules: ProxyToken', () => {
       const createArgs = createStub.firstCall.args[0]
       // Price comes from wrapTokenDetails now (on-chain + CoinGecko)
       expect(createArgs.priceUsd).to.equal('2.5')
+    })
+
+    it('should skip processing block for native token type', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      const tokenTypeInfo = {
+        type: ITokenType.native,
+        isGovernance: false,
+        hasDelegate: false,
+        hasBalanceOfERC20: false,
+        hasBalanceOfERC777: false,
+        hasName: false,
+        hasSymbol: false,
+        hasDecimals: false,
+        hasTotalSupply: false,
+        proxy: false,
+        implementationAddress: null,
+        hasUnderlying: false,
+        hasClockMode: false,
+      }
+
+      const tokenDetails = {
+        address: tokenAddress,
+        network,
+        name: 'Ether',
+        symbol: 'ETH',
+        decimals: 18,
+        type: ITokenType.native,
+        totalSupply: '0',
+        logo: '',
+        priceUsd: '2000',
+        underlying: undefined,
+      }
+
+      sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo as any)
+      sandbox.stub(ProxyToken, 'wrapTokenDetails').resolves(tokenDetails)
+      sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
+      sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
+      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
+
+      const isTokenSyncableStub = sandbox.stub(TokenUtils, 'isTokenSyncable')
+
+      const createStub = sandbox.stub(Models.Token, 'create').resolves({
+        id: 'native-token',
+        address: tokenAddress,
+        network,
+      })
+
+      await ProxyToken.createNewToken(tokenAddress, network)
+
+      expect(isTokenSyncableStub.called).to.be.false
+      expect(createStub.calledOnce).to.be.true
+    })
+
+    it('should update type from unknown to detected type', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      const tokenTypeInfo = {
+        type: ITokenType.ERC20,
+        isGovernance: false,
+        hasDelegate: false,
+        hasBalanceOfERC20: true,
+        hasBalanceOfERC777: false,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
+        implementationAddress: null,
+        hasUnderlying: false,
+        hasClockMode: false,
+      }
+
+      const tokenDetails = {
+        address: tokenAddress,
+        network,
+        name: 'Test',
+        symbol: 'TST',
+        decimals: 18,
+        type: ITokenType.unknown,
+        totalSupply: '1000',
+        logo: '',
+        priceUsd: '0',
+        underlying: undefined,
+      }
+
+      sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo as any)
+      sandbox.stub(ProxyToken, 'wrapTokenDetails').resolves(tokenDetails)
+      sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
+      sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
+      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+
+      const createStub = sandbox.stub(Models.Token, 'create').resolves({
+        id: 'token-123',
+        address: tokenAddress,
+        network,
+      })
+
+      await ProxyToken.createNewToken(tokenAddress, network)
+
+      const createArgs = createStub.firstCall.args[0]
+      expect(createArgs.type).to.equal(ITokenType.ERC20)
+    })
+
+    it('should fetch underlying when not in tokenDetails but hasUnderlying is true', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+      const underlyingAddress = '0xunderlyingaddress'
+
+      const tokenTypeInfo = {
+        type: ITokenType.ERC20,
+        isGovernance: false,
+        hasDelegate: false,
+        hasBalanceOfERC20: true,
+        hasBalanceOfERC777: false,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
+        implementationAddress: null,
+        hasUnderlying: true,
+        hasClockMode: false,
+      }
+
+      const tokenDetails = {
+        address: tokenAddress,
+        network,
+        name: 'Test',
+        symbol: 'TST',
+        decimals: 18,
+        type: ITokenType.ERC20,
+        totalSupply: '1000',
+        logo: '',
+        priceUsd: '0',
+        underlying: undefined,
+      }
+
+      sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo as any)
+      sandbox.stub(ProxyToken, 'wrapTokenDetails').resolves(tokenDetails)
+      sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
+      sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
+      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+
+      const getUnderlyingStub = sandbox.stub(Web3Helper, 'getUnderlying').resolves(underlyingAddress)
+
+      const createStub = sandbox.stub(Models.Token, 'create').resolves({
+        id: 'token-123',
+        address: tokenAddress,
+        network,
+      })
+
+      await ProxyToken.createNewToken(tokenAddress, network)
+
+      expect(getUnderlyingStub.calledWith(tokenAddress, network)).to.be.true
+      const createArgs = createStub.firstCall.args[0]
+      expect(createArgs.underlying).to.equal(underlyingAddress)
+    })
+
+    it('should fetch name when not in tokenDetails but hasName is true', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      const tokenTypeInfo = {
+        type: ITokenType.ERC20,
+        isGovernance: false,
+        hasDelegate: false,
+        hasBalanceOfERC20: true,
+        hasBalanceOfERC777: false,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
+        implementationAddress: null,
+        hasUnderlying: false,
+        hasClockMode: false,
+      }
+
+      const tokenDetails = {
+        address: tokenAddress,
+        network,
+        name: undefined,
+        symbol: 'TST',
+        decimals: 18,
+        type: ITokenType.ERC20,
+        totalSupply: '1000',
+        logo: '',
+        priceUsd: '0',
+        underlying: undefined,
+      }
+
+      sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo as any)
+      sandbox.stub(ProxyToken, 'wrapTokenDetails').resolves(tokenDetails as any)
+      sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
+      sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
+      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+
+      const getTokenNameStub = sandbox.stub(Web3Helper, 'getTokenName').resolves('Fetched Name')
+
+      const createStub = sandbox.stub(Models.Token, 'create').resolves({
+        id: 'token-123',
+        address: tokenAddress,
+        network,
+      })
+
+      await ProxyToken.createNewToken(tokenAddress, network)
+
+      expect(getTokenNameStub.calledWith(tokenAddress, network)).to.be.true
+      const createArgs = createStub.firstCall.args[0]
+      expect(createArgs.name).to.equal('Fetched Name')
+    })
+
+    it('should fetch symbol when not in tokenDetails but hasSymbol is true', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      const tokenTypeInfo = {
+        type: ITokenType.ERC20,
+        isGovernance: false,
+        hasDelegate: false,
+        hasBalanceOfERC20: true,
+        hasBalanceOfERC777: false,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
+        implementationAddress: null,
+        hasUnderlying: false,
+        hasClockMode: false,
+      }
+
+      const tokenDetails = {
+        address: tokenAddress,
+        network,
+        name: 'Test',
+        symbol: undefined,
+        decimals: 18,
+        type: ITokenType.ERC20,
+        totalSupply: '1000',
+        logo: '',
+        priceUsd: '0',
+        underlying: undefined,
+      }
+
+      sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo as any)
+      sandbox.stub(ProxyToken, 'wrapTokenDetails').resolves(tokenDetails as any)
+      sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
+      sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
+      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+
+      const getTokenSymbolStub = sandbox.stub(Web3Helper, 'getTokenSymbol').resolves('FETCHED')
+
+      const createStub = sandbox.stub(Models.Token, 'create').resolves({
+        id: 'token-123',
+        address: tokenAddress,
+        network,
+      })
+
+      await ProxyToken.createNewToken(tokenAddress, network)
+
+      expect(getTokenSymbolStub.calledWith(tokenAddress, network)).to.be.true
+      const createArgs = createStub.firstCall.args[0]
+      expect(createArgs.symbol).to.equal('FETCHED')
+    })
+
+    it('should fetch decimals when not in tokenDetails but hasDecimals is true', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      const tokenTypeInfo = {
+        type: ITokenType.ERC20,
+        isGovernance: false,
+        hasDelegate: false,
+        hasBalanceOfERC20: true,
+        hasBalanceOfERC777: false,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
+        implementationAddress: null,
+        hasUnderlying: false,
+        hasClockMode: false,
+      }
+
+      const tokenDetails = {
+        address: tokenAddress,
+        network,
+        name: 'Test',
+        symbol: 'TST',
+        decimals: undefined,
+        type: ITokenType.ERC20,
+        totalSupply: '1000',
+        logo: '',
+        priceUsd: '0',
+        underlying: undefined,
+      }
+
+      sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo as any)
+      sandbox.stub(ProxyToken, 'wrapTokenDetails').resolves(tokenDetails as any)
+      sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
+      sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
+      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+
+      const getTokenDecimalsStub = sandbox.stub(Web3Helper, 'getTokenDecimals').resolves(8)
+
+      const createStub = sandbox.stub(Models.Token, 'create').resolves({
+        id: 'token-123',
+        address: tokenAddress,
+        network,
+      })
+
+      await ProxyToken.createNewToken(tokenAddress, network)
+
+      expect(getTokenDecimalsStub.calledWith(tokenAddress, network)).to.be.true
+      const createArgs = createStub.firstCall.args[0]
+      expect(createArgs.decimals).to.equal(8)
+    })
+
+    it('should fetch totalSupply when not in tokenDetails but hasTotalSupply is true', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      const tokenTypeInfo = {
+        type: ITokenType.ERC20,
+        isGovernance: false,
+        hasDelegate: false,
+        hasBalanceOfERC20: true,
+        hasBalanceOfERC777: false,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
+        implementationAddress: null,
+        hasUnderlying: false,
+        hasClockMode: false,
+      }
+
+      const tokenDetails = {
+        address: tokenAddress,
+        network,
+        name: 'Test',
+        symbol: 'TST',
+        decimals: 18,
+        type: ITokenType.ERC20,
+        totalSupply: undefined,
+        logo: '',
+        priceUsd: '0',
+        underlying: undefined,
+      }
+
+      sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo as any)
+      sandbox.stub(ProxyToken, 'wrapTokenDetails').resolves(tokenDetails as any)
+      sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
+      sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
+      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+
+      const getTokenTotalSupplyStub = sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(5000000000000000000000n)
+
+      const createStub = sandbox.stub(Models.Token, 'create').resolves({
+        id: 'token-123',
+        address: tokenAddress,
+        network,
+      })
+
+      await ProxyToken.createNewToken(tokenAddress, network)
+
+      expect(getTokenTotalSupplyStub.calledWith(tokenAddress, network)).to.be.true
+      const createArgs = createStub.firstCall.args[0]
+      expect(createArgs.totalSupply).to.equal('5000000000000000000000')
+    })
+
+    it('should set underlying from underlyingTokenInfo for escrowAdapter when not set', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+      const underlyingFromInfo = '0xunderlyingfrominfo'
+
+      const tokenTypeInfo = {
+        type: ITokenType.escrowAdapter,
+        isGovernance: false,
+        hasDelegate: false,
+        hasBalanceOfERC20: true,
+        hasBalanceOfERC777: false,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
+        implementationAddress: null,
+        hasUnderlying: false,
+        hasClockMode: false,
+      }
+
+      const tokenDetails = {
+        address: tokenAddress,
+        network,
+        name: 'Escrow Token',
+        symbol: 'ESCROW',
+        decimals: 18,
+        type: ITokenType.escrowAdapter,
+        totalSupply: '1000',
+        logo: '',
+        priceUsd: '0',
+        underlying: undefined,
+      }
+
+      sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo as any)
+      sandbox.stub(ProxyToken, 'wrapTokenDetails').resolves(tokenDetails as any)
+      sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
+      sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
+      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
+
+      sandbox.stub(require('@helpers/governanceVe').default, 'getUnderlyingTokenNameAndSymbol').resolves({
+        name: 'Underlying Name',
+        symbol: 'UND',
+        underlying: underlyingFromInfo,
+      })
+
+      const createStub = sandbox.stub(Models.Token, 'create').resolves({
+        id: 'token-123',
+        address: tokenAddress,
+        network,
+      })
+
+      await ProxyToken.createNewToken(tokenAddress, network)
+
+      const createArgs = createStub.firstCall.args[0]
+      expect(createArgs.underlying).to.equal(underlyingFromInfo)
+      expect(createArgs.name).to.equal('Underlying Name')
+      expect(createArgs.symbol).to.equal('UND')
+    })
+
+    it('should fetch contract creation for whitelisted non-governance token', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      const tokenTypeInfo = {
+        type: ITokenType.ERC20,
+        isGovernance: false,
+        hasDelegate: false,
+        hasBalanceOfERC20: true,
+        hasBalanceOfERC777: false,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
+        implementationAddress: null,
+        hasUnderlying: false,
+        hasClockMode: false,
+      }
+
+      const tokenDetails = {
+        address: tokenAddress,
+        network,
+        name: 'Test',
+        symbol: 'TST',
+        decimals: 18,
+        type: ITokenType.ERC20,
+        totalSupply: '1000',
+        logo: '',
+        priceUsd: '0',
+        underlying: undefined,
+      }
+
+      sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo as any)
+      sandbox.stub(ProxyToken, 'wrapTokenDetails').resolves(tokenDetails)
+      sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
+      sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
+      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+      sandbox.stub(Web3Utils, 'isWhitelistedToken').returns(true)
+
+      const fetchContractCreationStub = sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation').resolves({
+        blockNumber: 999999,
+        transactionHash: '0xwhitelistedtxhash',
+        address: tokenAddress,
+      })
+
+      const createStub = sandbox.stub(Models.Token, 'create').resolves({
+        id: 'token-123',
+        address: tokenAddress,
+        network,
+      })
+
+      await ProxyToken.createNewToken(tokenAddress, network)
+
+      expect(fetchContractCreationStub.calledOnce).to.be.true
+      const createArgs = createStub.firstCall.args[0]
+      expect(createArgs.blockNumber).to.equal(999999)
+      expect(createArgs.transactionHash).to.equal('0xwhitelistedtxhash')
+    })
+
+    it('should not fetch contract creation for non-governance non-whitelisted token', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      const tokenTypeInfo = {
+        type: ITokenType.ERC20,
+        isGovernance: false,
+        hasDelegate: false,
+        hasBalanceOfERC20: true,
+        hasBalanceOfERC777: false,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
+        implementationAddress: null,
+        hasUnderlying: false,
+        hasClockMode: false,
+      }
+
+      const tokenDetails = {
+        address: tokenAddress,
+        network,
+        name: 'Test',
+        symbol: 'TST',
+        decimals: 18,
+        type: ITokenType.ERC20,
+        totalSupply: '1000',
+        logo: '',
+        priceUsd: '0',
+        underlying: undefined,
+      }
+
+      sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo as any)
+      sandbox.stub(ProxyToken, 'wrapTokenDetails').resolves(tokenDetails)
+      sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
+      sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
+      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+      sandbox.stub(Web3Utils, 'isWhitelistedToken').returns(false)
+
+      const fetchContractCreationStub = sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation')
+
+      const createStub = sandbox.stub(Models.Token, 'create').resolves({
+        id: 'token-123',
+        address: tokenAddress,
+        network,
+      })
+
+      await ProxyToken.createNewToken(tokenAddress, network)
+
+      expect(fetchContractCreationStub.called).to.be.false
+      expect(createStub.calledOnce).to.be.true
     })
   })
 
