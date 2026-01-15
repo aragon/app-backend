@@ -42,7 +42,7 @@ const MockDB = {
   _connectMongoDB: async () => {
     MockDB.replSet = new MongoMemoryReplSet({
       binary: {
-        version: '5.0.8',
+        version: '7.0.14',
       },
       instanceOpts: [
         {

@@ -163,6 +163,22 @@ const GaugeHelper = {
     }
   },
 
+  async getGaugeVotes(gaugeAddress: HexAddress, pluginAddress: HexAddress, network: NetworksEnum): Promise<string> {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    // Uses getWriteEpochId() internally - returns correct epoch's data
+    const abi = ['function gaugeVotes(address _address) public view returns (uint256)']
+    const contract = new Contract(pluginAddress, abi, provider)
+    try {
+      const vp = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.gaugeVotes(gaugeAddress)),
+      )
+      return BigInt(vp).toString()
+    } catch (error) {
+      logger.error('Error getting gaugeVotes', llo({ gaugeAddress, pluginAddress, network, error }))
+      return '0'
+    }
+  },
+
   async getVotes(memberAddress: HexAddress, tokenAddress: HexAddress, network: NetworksEnum): Promise<string> {
     const provider = ProviderModule.getAnyRpcProvider(network)
     const abi = ['function getVotes(address account) external view returns (uint256)']

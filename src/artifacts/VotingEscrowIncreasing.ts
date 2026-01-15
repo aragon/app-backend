@@ -277,6 +277,31 @@ export const VotingEscrowIncreasing = {
       ],
       anonymous: false,
     },
+    {
+      type: 'event',
+      name: 'Split',
+      inputs: [
+        { name: '_from', type: 'uint256', indexed: true, internalType: 'uint256' },
+        { name: 'newTokenId', type: 'uint256', indexed: true, internalType: 'uint256' },
+        { name: '_sender', type: 'address', indexed: false, internalType: 'address' },
+        { name: '_splitAmount1', type: 'uint208', indexed: false, internalType: 'uint208' },
+        { name: '_splitAmount2', type: 'uint208', indexed: false, internalType: 'uint208' },
+      ],
+      anonymous: false,
+    },
+    {
+      type: 'event',
+      name: 'Merged',
+      inputs: [
+        { name: '_sender', type: 'address', indexed: false, internalType: 'address' },
+        { name: '_from', type: 'uint256', indexed: true, internalType: 'uint256' },
+        { name: '_to', type: 'uint256', indexed: true, internalType: 'uint256' },
+        { name: '_fromAmount', type: 'uint208', indexed: false, internalType: 'uint208' },
+        { name: '_toAmount', type: 'uint208', indexed: false, internalType: 'uint208' },
+        { name: '_newTotalAmount', type: 'uint208', indexed: false, internalType: 'uint208' },
+      ],
+      anonymous: false,
+    },
     { type: 'error', name: 'AlreadyVoted', inputs: [] },
     {
       type: 'error',

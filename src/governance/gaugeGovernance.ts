@@ -48,8 +48,6 @@ export class GaugeGovernance extends BaseGovernance {
       gaugeAddress: gauge.address,
       pluginAddress: gauge.pluginAddress,
       network: gauge.network,
-      currentEpochVotingPower: '0',
-      totalGaugeVotingPower: '0',
     })
     return gauge
   }

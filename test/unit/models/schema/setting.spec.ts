@@ -24,6 +24,7 @@ describe('Model: Setting', () => {
         feePercent: '0',
         minCooldown: 0,
         minFeePercent: '0',
+        feeType: 0,
       },
     }
   })

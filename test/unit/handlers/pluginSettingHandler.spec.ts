@@ -1400,4 +1400,152 @@ describe('Indexer: PluginSettingHandler', () => {
       })
     })
   })
+
+  describe('exitFeePercentAdjusted', () => {
+    it('should return if no plugins found', async () => {
+      const parsedEvent = {
+        args: {
+          maxFeePercent: 1000n,
+          minFeePercent: 500n,
+          minCooldown: 1800n,
+          feeType: 2n,
+        },
+      }
+      const info = {
+        address: '0xexitQueue456',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      sandbox.stub(Models.Plugin, 'find').resolves([])
+      const stubLogger = sandbox.stub(logger, 'warn')
+
+      await PluginSettingHandler.exitFeePercentAdjusted(parsedEvent as any, info as any)
+
+      expect(stubLogger.calledOnceWith('Plugin not found for exitFeePercentAdjusted event' as any)).to.be.true
+    })
+
+    it('should log error if no active setting found', async () => {
+      const parsedEvent = {
+        args: {
+          maxFeePercent: 1000n,
+          minFeePercent: 500n,
+          minCooldown: 1800n,
+          feeType: 2n,
+        },
+      }
+      const info = {
+        address: '0xexitQueue456',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      sandbox.stub(Models.Plugin, 'find').resolves([{ address: '0xplugin123' }])
+      sandbox.stub(Models.Setting, 'findActive').resolves(null)
+      const stubLogger = sandbox.stub(logger, 'error')
+
+      await PluginSettingHandler.exitFeePercentAdjusted(parsedEvent as any, info as any)
+
+      expect(stubLogger.calledOnceWith('Active plugin setting not found for exitFeePercentAdjusted event' as any)).to.be
+        .true
+    })
+
+    it('should update votingEscrow settings when values change', async () => {
+      const parsedEvent = {
+        args: {
+          maxFeePercent: 1000n,
+          minFeePercent: 500n,
+          minCooldown: 1800n,
+          feeType: 2n,
+        },
+      }
+      const info = {
+        address: '0xexitQueue456',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const activePluginSetting = {
+        votingEscrow: {
+          feePercent: '500',
+          minFeePercent: '250',
+          minCooldown: 900,
+          feeType: 1,
+        },
+        save: sandbox.stub().resolves(),
+      }
+
+      sandbox.stub(Models.Plugin, 'find').resolves([{ address: '0xplugin123' }])
+      sandbox.stub(Models.Setting, 'findActive').resolves(activePluginSetting)
+      const stubLogger = sandbox.stub(logger, 'verbose')
+
+      await PluginSettingHandler.exitFeePercentAdjusted(parsedEvent as any, info as any)
+
+      expect(activePluginSetting.save.calledOnce).to.be.true
+      expect(activePluginSetting.votingEscrow.feePercent).to.equal('1000')
+      expect(activePluginSetting.votingEscrow.minFeePercent).to.equal('500')
+      expect(activePluginSetting.votingEscrow.minCooldown).to.equal(1800)
+      expect(activePluginSetting.votingEscrow.feeType).to.equal(2)
+      expect(stubLogger.calledOnceWith('exitFeePercentAdjusted VeGovernance' as any)).to.be.true
+    })
+
+    it('should not save if values are unchanged', async () => {
+      const parsedEvent = {
+        args: {
+          maxFeePercent: 1000n,
+          minFeePercent: 500n,
+          minCooldown: 1800n,
+          feeType: 2n,
+        },
+      }
+      const info = {
+        address: '0xexitQueue456',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const activePluginSetting = {
+        votingEscrow: {
+          feePercent: '1000',
+          minFeePercent: '500',
+          minCooldown: 1800,
+          feeType: 2,
+        },
+        save: sandbox.stub().resolves(),
+      }
+
+      sandbox.stub(Models.Plugin, 'find').resolves([{ address: '0xplugin123' }])
+      sandbox.stub(Models.Setting, 'findActive').resolves(activePluginSetting)
+      const stubLogger = sandbox.stub(logger, 'verbose')
+
+      await PluginSettingHandler.exitFeePercentAdjusted(parsedEvent as any, info as any)
+
+      expect(activePluginSetting.save.notCalled).to.be.true
+      expect(stubLogger.notCalled).to.be.true
+    })
+
+    it('should initialize votingEscrow if not present', async () => {
+      const parsedEvent = {
+        args: {
+          maxFeePercent: 1000n,
+          minFeePercent: 500n,
+          minCooldown: 1800n,
+          feeType: 2n,
+        },
+      }
+      const info = {
+        address: '0xexitQueue456',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const activePluginSetting = {
+        votingEscrow: null as any,
+        save: sandbox.stub().resolves(),
+      }
+
+      sandbox.stub(Models.Plugin, 'find').resolves([{ address: '0xplugin123' }])
+      sandbox.stub(Models.Setting, 'findActive').resolves(activePluginSetting)
+
+      await PluginSettingHandler.exitFeePercentAdjusted(parsedEvent as any, info as any)
+
+      expect(activePluginSetting.votingEscrow).to.not.be.null
+      expect(activePluginSetting.save.calledOnce).to.be.true
+    })
+  })
 })
