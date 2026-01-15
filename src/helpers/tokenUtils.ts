@@ -101,34 +101,6 @@ const TokenUtils = {
     return TokenUtils.getSpamScore(name, symbol, logo) >= 3
   },
 
-  determineIfSpam: (
-    name: string,
-    symbol: string,
-    logo: string | null,
-    coinGeckoInfo: { priceUsd?: string; name?: string; symbol?: string } | null,
-  ): boolean => {
-    const score = TokenUtils.getSpamScore(name, symbol, logo)
-
-    if (score >= 5) {
-      return true
-    }
-
-    if (score === 0) {
-      return false
-    }
-
-    const hasCoinGeckoData =
-      coinGeckoInfo &&
-      ((coinGeckoInfo.priceUsd && parseFloat(coinGeckoInfo.priceUsd) > 0) ||
-        (coinGeckoInfo.name && coinGeckoInfo.name.length > 0))
-
-    if (hasCoinGeckoData) {
-      return false
-    }
-
-    return score >= 2
-  },
-
   shouldMarkAsSpam: (params: {
     name: string
     symbol: string
@@ -137,18 +109,37 @@ const TokenUtils = {
     isGovernance: boolean
     isTestnet: boolean
     coinGeckoInfo: { priceUsd?: string; name?: string; symbol?: string } | null
-  }): boolean => {
+  }): { spamScore: number; isSpam: boolean } => {
     const { name, symbol, logo, tokenType, isGovernance, isTestnet, coinGeckoInfo } = params
 
+    const spamScore = TokenUtils.getSpamScore(name, symbol, logo)
+
     if (isTestnet) {
-      return false
+      return { spamScore, isSpam: false }
     }
 
     if (tokenType === ITokenType.escrowAdapter || isGovernance || tokenType === ITokenType.native) {
-      return false
+      return { spamScore, isSpam: false }
     }
 
-    return TokenUtils.determineIfSpam(name, symbol, logo, coinGeckoInfo)
+    if (spamScore >= 5) {
+      return { spamScore, isSpam: true }
+    }
+
+    if (spamScore === 0) {
+      return { spamScore, isSpam: false }
+    }
+
+    const hasCoinGeckoData =
+      coinGeckoInfo &&
+      ((coinGeckoInfo.priceUsd && parseFloat(coinGeckoInfo.priceUsd) > 0) ||
+        (coinGeckoInfo.name && coinGeckoInfo.name.length > 0))
+
+    if (hasCoinGeckoData) {
+      return { spamScore, isSpam: false }
+    }
+
+    return { spamScore, isSpam: spamScore >= 2 }
   },
 
   isTokenSyncable: async (

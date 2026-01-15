@@ -147,38 +147,8 @@ describe('TokenUtils', () => {
     })
   })
 
-  describe('determineIfSpam', () => {
-    it('should return true for high score (>= 5) regardless of CoinGecko data', () => {
-      const coinGeckoInfo = { priceUsd: '1.5', name: 'Token', symbol: 'TKN' }
-      expect(TokenUtils.determineIfSpam('Free Airdrop https://scam.com', 'CLAIM', null, coinGeckoInfo)).to.be.true
-    })
-
-    it('should return false for score 0', () => {
-      expect(TokenUtils.determineIfSpam('Ethereum', 'ETH', 'logo', null)).to.be.false
-    })
-
-    it('should return false for borderline score with valid CoinGecko data', () => {
-      const coinGeckoInfo = { priceUsd: '1.5', name: 'Token', symbol: 'TKN' }
-      expect(TokenUtils.determineIfSpam('Free Token', 'FREE', 'logo', coinGeckoInfo)).to.be.false // score = 2
-    })
-
-    it('should return true for borderline score without CoinGecko data', () => {
-      expect(TokenUtils.determineIfSpam('Free Token', 'FREE', 'logo', null)).to.be.true // score = 2, no CoinGecko
-    })
-
-    it('should consider CoinGecko name as valid data even with zero price', () => {
-      const coinGeckoInfo = { priceUsd: '0', name: 'Token', symbol: 'TKN' }
-      expect(TokenUtils.determineIfSpam('Airdrop Token', 'AIR', 'logo', coinGeckoInfo)).to.be.false // score = 2
-    })
-
-    it('should return true for score >= 2 with empty CoinGecko data', () => {
-      const coinGeckoInfo = { priceUsd: '0', name: '', symbol: '' }
-      expect(TokenUtils.determineIfSpam('Airdrop Token', 'AIR', 'logo', coinGeckoInfo)).to.be.true // score = 2
-    })
-  })
-
   describe('shouldMarkAsSpam', () => {
-    it('should return false for testnet tokens', () => {
+    it('should return { spamScore, isSpam: false } for testnet tokens', () => {
       const result = TokenUtils.shouldMarkAsSpam({
         name: 'Free Airdrop',
         symbol: 'SPAM',
@@ -188,10 +158,11 @@ describe('TokenUtils', () => {
         isTestnet: true,
         coinGeckoInfo: null,
       })
-      expect(result).to.be.false
+      expect(result.isSpam).to.be.false
+      expect(result.spamScore).to.be.a('number')
     })
 
-    it('should return false for governance tokens', () => {
+    it('should return { spamScore, isSpam: false } for governance tokens', () => {
       const result = TokenUtils.shouldMarkAsSpam({
         name: 'Free Airdrop',
         symbol: 'SPAM',
@@ -201,10 +172,11 @@ describe('TokenUtils', () => {
         isTestnet: false,
         coinGeckoInfo: null,
       })
-      expect(result).to.be.false
+      expect(result.isSpam).to.be.false
+      expect(result.spamScore).to.be.a('number')
     })
 
-    it('should return false for native tokens', () => {
+    it('should return { spamScore, isSpam: false } for native tokens', () => {
       const result = TokenUtils.shouldMarkAsSpam({
         name: 'Free Airdrop',
         symbol: 'SPAM',
@@ -214,10 +186,11 @@ describe('TokenUtils', () => {
         isTestnet: false,
         coinGeckoInfo: null,
       })
-      expect(result).to.be.false
+      expect(result.isSpam).to.be.false
+      expect(result.spamScore).to.be.a('number')
     })
 
-    it('should return false for escrowAdapter tokens', () => {
+    it('should return { spamScore, isSpam: false } for escrowAdapter tokens', () => {
       const result = TokenUtils.shouldMarkAsSpam({
         name: 'Free Airdrop',
         symbol: 'SPAM',
@@ -227,10 +200,11 @@ describe('TokenUtils', () => {
         isTestnet: false,
         coinGeckoInfo: null,
       })
-      expect(result).to.be.false
+      expect(result.isSpam).to.be.false
+      expect(result.spamScore).to.be.a('number')
     })
 
-    it('should return true for spam token on mainnet', () => {
+    it('should return { spamScore, isSpam: true } for spam token on mainnet', () => {
       const result = TokenUtils.shouldMarkAsSpam({
         name: 'Free Airdrop https://scam.com',
         symbol: 'SPAM',
@@ -240,10 +214,11 @@ describe('TokenUtils', () => {
         isTestnet: false,
         coinGeckoInfo: null,
       })
-      expect(result).to.be.true
+      expect(result.isSpam).to.be.true
+      expect(result.spamScore).to.be.gte(5)
     })
 
-    it('should return false for legit token with CoinGecko data', () => {
+    it('should return { spamScore, isSpam: false } for legit token with CoinGecko data', () => {
       const result = TokenUtils.shouldMarkAsSpam({
         name: 'Airdrop Token',
         symbol: 'AIR',
@@ -253,7 +228,92 @@ describe('TokenUtils', () => {
         isTestnet: false,
         coinGeckoInfo: { priceUsd: '1.5', name: 'Airdrop Token', symbol: 'AIR' },
       })
-      expect(result).to.be.false
+      expect(result.isSpam).to.be.false
+      expect(result.spamScore).to.be.a('number')
+    })
+
+    it('should return isSpam: true for high score (>= 5) regardless of CoinGecko data', () => {
+      const coinGeckoInfo = { priceUsd: '1.5', name: 'Token', symbol: 'TKN' }
+      const result = TokenUtils.shouldMarkAsSpam({
+        name: 'Free Airdrop https://scam.com',
+        symbol: 'CLAIM',
+        logo: null,
+        tokenType: ITokenType.ERC20,
+        isGovernance: false,
+        isTestnet: false,
+        coinGeckoInfo,
+      })
+      expect(result.isSpam).to.be.true
+      expect(result.spamScore).to.be.gte(5)
+    })
+
+    it('should return isSpam: false for score 0', () => {
+      const result = TokenUtils.shouldMarkAsSpam({
+        name: 'Ethereum',
+        symbol: 'ETH',
+        logo: 'logo',
+        tokenType: ITokenType.ERC20,
+        isGovernance: false,
+        isTestnet: false,
+        coinGeckoInfo: null,
+      })
+      expect(result.isSpam).to.be.false
+      expect(result.spamScore).to.equal(0)
+    })
+
+    it('should return isSpam: false for borderline score with valid CoinGecko data', () => {
+      const coinGeckoInfo = { priceUsd: '1.5', name: 'Token', symbol: 'TKN' }
+      const result = TokenUtils.shouldMarkAsSpam({
+        name: 'Free Token',
+        symbol: 'FREE',
+        logo: 'logo',
+        tokenType: ITokenType.ERC20,
+        isGovernance: false,
+        isTestnet: false,
+        coinGeckoInfo,
+      })
+      expect(result.isSpam).to.be.false
+    })
+
+    it('should return isSpam: true for borderline score without CoinGecko data', () => {
+      const result = TokenUtils.shouldMarkAsSpam({
+        name: 'Free Token',
+        symbol: 'FREE',
+        logo: 'logo',
+        tokenType: ITokenType.ERC20,
+        isGovernance: false,
+        isTestnet: false,
+        coinGeckoInfo: null,
+      })
+      expect(result.isSpam).to.be.true
+    })
+
+    it('should consider CoinGecko name as valid data even with zero price', () => {
+      const coinGeckoInfo = { priceUsd: '0', name: 'Token', symbol: 'TKN' }
+      const result = TokenUtils.shouldMarkAsSpam({
+        name: 'Airdrop Token',
+        symbol: 'AIR',
+        logo: 'logo',
+        tokenType: ITokenType.ERC20,
+        isGovernance: false,
+        isTestnet: false,
+        coinGeckoInfo,
+      })
+      expect(result.isSpam).to.be.false
+    })
+
+    it('should return isSpam: true for score >= 2 with empty CoinGecko data', () => {
+      const coinGeckoInfo = { priceUsd: '0', name: '', symbol: '' }
+      const result = TokenUtils.shouldMarkAsSpam({
+        name: 'Airdrop Token',
+        symbol: 'AIR',
+        logo: 'logo',
+        tokenType: ITokenType.ERC20,
+        isGovernance: false,
+        isTestnet: false,
+        coinGeckoInfo,
+      })
+      expect(result.isSpam).to.be.true
     })
   })
 

@@ -61,7 +61,7 @@ describe('AragonRates: index', () => {
 
     await RatesService.stop()
 
-    expect(schedulerStub.stopTask.calledTwice).to.be.true
+    expect(schedulerStub.stopTask.calledOnce).to.be.true
 
     config.SERVICES.ARAGON_RATES.RATES_INTERVAL = configBk
   })

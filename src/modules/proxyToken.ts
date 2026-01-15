@@ -214,8 +214,7 @@ export const ProxyToken = {
 
     rawToken.skipFetchRate = TokenUtils.shouldSkipFetch(rawToken, { priceUsd: rawToken.priceUsd || '0' })
 
-    rawToken.spamScore = TokenUtils.getSpamScore(rawToken.name || '', rawToken.symbol || '', rawToken.logo)
-    rawToken.isSpam = TokenUtils.shouldMarkAsSpam({
+    const spamResult = TokenUtils.shouldMarkAsSpam({
       name: rawToken.name || '',
       symbol: rawToken.symbol || '',
       logo: rawToken.logo || null,
@@ -228,6 +227,8 @@ export const ProxyToken = {
         symbol: tokenDetails.symbol,
       },
     })
+    rawToken.spamScore = spamResult.spamScore
+    rawToken.isSpam = spamResult.isSpam
 
     const savedToken = await Models.Token.create(rawToken, { session })
     await session?.commitTransaction()

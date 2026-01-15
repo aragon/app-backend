@@ -22,7 +22,7 @@ const AragonRatesService: IService = {
     const ratesTaskOptions = {
       fn: () => [
         [{ fetchRates: FetchRates }],
-        [{ enaValidator: EnsValidator }],
+        [{ ensValidator: EnsValidator }],
         [{ refreshSpamTokens: RefreshSpamTokens }],
       ],
       interval: config.SERVICES.ARAGON_RATES.RATES_INTERVAL,
@@ -40,7 +40,6 @@ const AragonRatesService: IService = {
   async stop() {
     const scheduler = TaskSchedulerState.getInstance()
     scheduler.stopTask('rates')
-    scheduler.stopTask('refreshSpamTokens')
 
     logger.info('RatesService service stopped', llo({}))
   },
