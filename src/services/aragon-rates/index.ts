@@ -1,6 +1,7 @@
 import config from '@config'
 import logger from '@logger'
 import { FetchRates } from '@services/aragon-rates/fetchRates'
+import { EnsValidator } from '@services/aragon-rates/handlers/ensValidator'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import { EnumConnection, EnumServiceName, type IService } from '@types'
 
@@ -14,7 +15,7 @@ const AragonRatesService: IService = {
   start: async function () {
     logger.info('RatesService service sync start', llo({}))
 
-    const tasks = [[{ fetchRates: FetchRates }]]
+    const tasks = [[{ fetchRates: FetchRates }], [{ ensValidator: EnsValidator }]]
 
     const taskOptions = {
       fn: () => [...tasks],

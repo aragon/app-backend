@@ -56,6 +56,10 @@ export class VotingEscrowSetting {
   // Minimum cooldown period required before exit (set on the ExitQueue contract)
   @prop({ type: () => Number, default: null })
   public minCooldown!: number
+
+  // Fee type strategy: Fixed (0), Tiered (1), Dynamic (2) (set on the DynamicExitQueue contract)
+  @prop({ type: () => Number, default: null })
+  public feeType!: number
 }
 
 // Policy Source settings (embedded in PolicySetting)

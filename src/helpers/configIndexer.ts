@@ -20,8 +20,8 @@ import {
   type TokenDepositLogService,
   type TokenLogService,
   type TokenWithdrawLogService,
-  type TransferLogService,
   type TransferListLogService,
+  type TransferLogService,
 } from '@src/types'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ConfigIndexerHelper' })

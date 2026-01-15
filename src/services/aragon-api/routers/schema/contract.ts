@@ -36,6 +36,24 @@ const ContractDetailsSchema = {
       .valid(...Object.values(NetworksEnum))
       .required(),
   }),
+
+  decodeActionBatchV2: Joi.object({
+    from: ValidationSchema.joiAddress.required(),
+    actions: Joi.array()
+      .items(
+        Joi.object({
+          to: ValidationSchema.joiAddress.required(),
+          data: Joi.string().required(),
+          value: Joi.alternatives().try(Joi.string(), Joi.number()).allow(null).default('0'),
+        }),
+      )
+      .min(1)
+      .max(30)
+      .required(),
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
+  }),
 }
 
 export default ContractDetailsSchema

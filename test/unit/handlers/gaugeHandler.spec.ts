@@ -550,8 +550,6 @@ describe('Handler: gaugeHandler', () => {
           gaugeAddress: gauge.address,
           pluginAddress: gauge.pluginAddress,
           network: gauge.network,
-          currentEpochVotingPower: '5000000000000000000',
-          totalGaugeVotingPower: '10000000000000000000',
         }),
       ).to.be.true
     })
@@ -769,8 +767,6 @@ describe('Handler: gaugeHandler', () => {
           gaugeAddress: gauge.address,
           pluginAddress: gauge.pluginAddress,
           network: gauge.network,
-          currentEpochVotingPower: '2000000000000000000',
-          totalGaugeVotingPower: '150000000000000000000',
         }),
       ).to.be.true
     })

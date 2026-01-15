@@ -879,4 +879,312 @@ describe('Governance:VeGovernance', () => {
       expect(sendMessageStub.secondCall.args[0]).to.equal(EnumQueueName.daoMetrics)
     })
   })
+
+  describe('lockSplit', () => {
+    beforeEach(async () => {
+      const parsedAddress = Web3Utils.parseAddress(memberAddress)
+      // Create a plugin for testing
+      await Models.Plugin.create({
+        id: `${testNetwork}-0xpluginaddress-0`,
+        transactionHash: '0xplugintx',
+        blockNumber: 50,
+        network: testNetwork,
+        address: '0xpluginaddress',
+        interfaceType: IPluginInterfaceType.lockToVote,
+        status: IPluginStatus.installed,
+        tokenAddress: testTokenAddress,
+        daoAddress: '0xdaoaddress',
+        votingEscrow: {
+          escrowAddress: testEscrowAddress,
+          nftLockAddress: '0xnftaddress',
+          exitQueueAddress: '0xexitqueueaddress',
+        },
+        isSupported: true,
+      })
+
+      // Create original lock for splitting
+      await Models.Lock.create({
+        network: testNetwork,
+        escrowAddress: testEscrowAddress,
+        transactionHash: '0xoriginaltx',
+        transactionIndex: 0,
+        logIndex: 0,
+        blockNumber: 100,
+        memberAddress: parsedAddress,
+        nftAddress: '0xnftaddress',
+        tokenAddress: testTokenAddress,
+        exitQueueAddress: '0xexitqueueaddress',
+        tokenId: '100',
+        amount: '10000000000000000000',
+        epochStartAt: 1680000000,
+        totalLocked: '10000000000000000000',
+      })
+    })
+
+    it('should split lock and create new lock with inherited epochStartAt', async () => {
+      const result = await veGovernance.lockSplit({
+        fromTokenId: '100',
+        newTokenId: '101',
+        splitAmount1: '6000000000000000000',
+        splitAmount2: '4000000000000000000',
+        info: {
+          transactionHash: '0xsplittx',
+          transactionIndex: 1,
+          logIndex: 2,
+          blockNumber: 200,
+          network: testNetwork,
+          address: testEscrowAddress,
+          eventName: 'Split',
+        },
+      })
+
+      expect(result).to.exist
+      expect(result?.tokenId).to.equal('101')
+      expect(result?.amount).to.equal('4000000000000000000')
+      expect(result?.epochStartAt).to.equal(1680000000)
+      expect(result?.splitFromTokenId).to.equal('100')
+
+      // Verify original lock was updated
+      const originalLock = await Models.Lock.findOne({
+        escrowAddress: testEscrowAddress,
+        tokenId: '100',
+      })
+      expect(originalLock?.amount).to.equal('6000000000000000000')
+
+      // Verify new lock was created
+      const newLock = await Models.Lock.findOne({
+        escrowAddress: testEscrowAddress,
+        tokenId: '101',
+      })
+      expect(newLock).to.exist
+      expect(newLock?.amount).to.equal('4000000000000000000')
+      expect(newLock?.epochStartAt).to.equal(1680000000)
+      expect(newLock?.splitFromTokenId).to.equal('100')
+
+      expect(loggerVerboseStub.calledWith('Split processed in VeGovernance')).to.be.true
+    })
+
+    it('should return null if original lock not found', async () => {
+      const result = await veGovernance.lockSplit({
+        fromTokenId: '999',
+        newTokenId: '1000',
+        splitAmount1: '5000000000000000000',
+        splitAmount2: '5000000000000000000',
+        info: {
+          transactionHash: '0xsplittx',
+          transactionIndex: 1,
+          logIndex: 2,
+          blockNumber: 200,
+          network: testNetwork,
+          address: testEscrowAddress,
+          eventName: 'Split',
+        },
+      })
+
+      expect(result).to.be.null
+      expect(loggerErrorStub.calledWith('Original lock not found for split')).to.be.true
+    })
+
+    it('should return null if no plugins found', async () => {
+      // Create governance with different escrow address (no plugins)
+      const otherGovernance = new VeGovernance('0xotheraddress' as any, testNetwork)
+
+      const result = await otherGovernance.lockSplit({
+        fromTokenId: '100',
+        newTokenId: '101',
+        splitAmount1: '5000000000000000000',
+        splitAmount2: '5000000000000000000',
+        info: {
+          transactionHash: '0xsplittx',
+          transactionIndex: 1,
+          logIndex: 2,
+          blockNumber: 200,
+          network: testNetwork,
+          address: '0xotheraddress' as any,
+          eventName: 'Split',
+        },
+      })
+
+      expect(result).to.be.null
+      expect(loggerErrorStub.calledWith('No plugins found for split')).to.be.true
+    })
+  })
+
+  describe('lockMerge', () => {
+    beforeEach(async () => {
+      const parsedAddress = Web3Utils.parseAddress(memberAddress)
+      // Create a plugin for testing
+      await Models.Plugin.create({
+        id: `${testNetwork}-0xpluginaddress-0`,
+        transactionHash: '0xplugintx',
+        blockNumber: 50,
+        network: testNetwork,
+        address: '0xpluginaddress',
+        interfaceType: IPluginInterfaceType.lockToVote,
+        status: IPluginStatus.installed,
+        tokenAddress: testTokenAddress,
+        daoAddress: '0xdaoaddress',
+        votingEscrow: {
+          escrowAddress: testEscrowAddress,
+          nftLockAddress: '0xnftaddress',
+          exitQueueAddress: '0xexitqueueaddress',
+        },
+        isSupported: true,
+      })
+
+      // Create two locks for merging (same owner)
+      await Models.Lock.create({
+        network: testNetwork,
+        escrowAddress: testEscrowAddress,
+        transactionHash: '0xlock1tx',
+        transactionIndex: 0,
+        logIndex: 0,
+        blockNumber: 100,
+        memberAddress: parsedAddress,
+        nftAddress: '0xnftaddress',
+        tokenAddress: testTokenAddress,
+        exitQueueAddress: '0xexitqueueaddress',
+        tokenId: '200',
+        amount: '3000000000000000000',
+        epochStartAt: 1680000000,
+        totalLocked: '3000000000000000000',
+      })
+
+      await Models.Lock.create({
+        network: testNetwork,
+        escrowAddress: testEscrowAddress,
+        transactionHash: '0xlock2tx',
+        transactionIndex: 0,
+        logIndex: 0,
+        blockNumber: 101,
+        memberAddress: parsedAddress,
+        nftAddress: '0xnftaddress',
+        tokenAddress: testTokenAddress,
+        exitQueueAddress: '0xexitqueueaddress',
+        tokenId: '201',
+        amount: '7000000000000000000',
+        epochStartAt: 1680001000,
+        totalLocked: '10000000000000000000',
+      })
+    })
+
+    it('should merge locks and mark source lock as withdrawn', async () => {
+      const result = await veGovernance.lockMerge({
+        fromTokenId: '200',
+        toTokenId: '201',
+        newTotalAmount: '10000000000000000000',
+        info: {
+          transactionHash: '0xmergetx',
+          transactionIndex: 1,
+          logIndex: 2,
+          blockNumber: 300,
+          network: testNetwork,
+          address: testEscrowAddress,
+          eventName: 'Merged',
+        },
+      })
+
+      expect(result).to.exist
+      expect(result?.tokenId).to.equal('201')
+      // Note: result?.amount reflects the pre-update value since updateOne doesn't mutate in-memory
+      // The DB update is verified below via the secondary query
+
+      // Verify source lock was marked as withdrawn
+      const fromLock = await Models.Lock.findOne({
+        escrowAddress: testEscrowAddress,
+        tokenId: '200',
+      })
+      expect(fromLock?.lockWithdraw?.status).to.be.true
+      expect(fromLock?.lockWithdraw?.transactionHash).to.equal('0xmergetx')
+      expect(fromLock?.amount).to.equal('0')
+
+      // Verify destination lock was updated
+      const toLock = await Models.Lock.findOne({
+        escrowAddress: testEscrowAddress,
+        tokenId: '201',
+      })
+      expect(toLock?.amount).to.equal('10000000000000000000')
+
+      expect(loggerVerboseStub.calledWith('Merge processed in VeGovernance')).to.be.true
+    })
+
+    it('should return null if source lock not found', async () => {
+      const result = await veGovernance.lockMerge({
+        fromTokenId: '999',
+        toTokenId: '201',
+        newTotalAmount: '10000000000000000000',
+        info: {
+          transactionHash: '0xmergetx',
+          transactionIndex: 1,
+          logIndex: 2,
+          blockNumber: 300,
+          network: testNetwork,
+          address: testEscrowAddress,
+          eventName: 'Merged',
+        },
+      })
+
+      expect(result).to.be.null
+      expect(loggerErrorStub.calledWith('Source lock not found for merge')).to.be.true
+    })
+
+    it('should return null if destination lock not found', async () => {
+      const result = await veGovernance.lockMerge({
+        fromTokenId: '200',
+        toTokenId: '999',
+        newTotalAmount: '10000000000000000000',
+        info: {
+          transactionHash: '0xmergetx',
+          transactionIndex: 1,
+          logIndex: 2,
+          blockNumber: 300,
+          network: testNetwork,
+          address: testEscrowAddress,
+          eventName: 'Merged',
+        },
+      })
+
+      expect(result).to.be.null
+      expect(loggerErrorStub.calledWith('Destination lock not found for merge')).to.be.true
+    })
+
+    it('should return null if destination lock has different owner', async () => {
+      const otherAddress = '0x9999999999999999999999999999999999999999'
+      // Create a lock with different owner
+      await Models.Lock.create({
+        network: testNetwork,
+        escrowAddress: testEscrowAddress,
+        transactionHash: '0xotherlock',
+        transactionIndex: 0,
+        logIndex: 0,
+        blockNumber: 102,
+        memberAddress: otherAddress,
+        nftAddress: '0xnftaddress',
+        tokenAddress: testTokenAddress,
+        exitQueueAddress: '0xexitqueueaddress',
+        tokenId: '202',
+        amount: '5000000000000000000',
+        epochStartAt: 1680002000,
+        totalLocked: '15000000000000000000',
+      })
+
+      const result = await veGovernance.lockMerge({
+        fromTokenId: '200',
+        toTokenId: '202',
+        newTotalAmount: '8000000000000000000',
+        info: {
+          transactionHash: '0xmergetx',
+          transactionIndex: 1,
+          logIndex: 2,
+          blockNumber: 300,
+          network: testNetwork,
+          address: testEscrowAddress,
+          eventName: 'Merged',
+        },
+      })
+
+      expect(result).to.be.null
+      expect(loggerErrorStub.calledWith('Destination lock not found for merge')).to.be.true
+    })
+  })
 })

@@ -611,8 +611,10 @@ export const PluginSettingHandler = {
   },
 
   exitFeePercentAdjusted: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const feePercent = parsedEvent.args.maxFeePercent.toString()
     const minFeePercent = parsedEvent.args.minFeePercent.toString()
     const minCooldown = Number(parsedEvent.args.minCooldown)
+    const feeType = Number(parsedEvent.args.feeType)
 
     const plugins = await Models.Plugin.find({
       'votingEscrow.exitQueueAddress': info.address,
@@ -648,6 +650,11 @@ export const PluginSettingHandler = {
 
         let hasChanges = false
 
+        if (activePluginSetting.votingEscrow.feePercent !== feePercent) {
+          activePluginSetting.votingEscrow.feePercent = feePercent
+          hasChanges = true
+        }
+
         if (activePluginSetting.votingEscrow.minFeePercent !== minFeePercent) {
           activePluginSetting.votingEscrow.minFeePercent = minFeePercent
           hasChanges = true
@@ -655,6 +662,11 @@ export const PluginSettingHandler = {
 
         if (activePluginSetting.votingEscrow.minCooldown !== minCooldown) {
           activePluginSetting.votingEscrow.minCooldown = minCooldown
+          hasChanges = true
+        }
+
+        if (activePluginSetting.votingEscrow.feeType !== feeType) {
+          activePluginSetting.votingEscrow.feeType = feeType
           hasChanges = true
         }
 
