@@ -179,8 +179,6 @@ describe('AragonRates: RefreshSpamTokens', () => {
           isTestnet: false,
           coinGeckoInfo: {
             priceUsd: coinGeckoData.priceUsd,
-            name: coinGeckoData.name,
-            symbol: coinGeckoData.symbol,
           },
         }),
       ).to.be.true
