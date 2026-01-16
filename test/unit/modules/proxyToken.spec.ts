@@ -1259,6 +1259,196 @@ describe('Modules: ProxyToken', () => {
       expect(fetchContractCreationStub.called).to.be.false
       expect(createStub.calledOnce).to.be.true
     })
+
+    it('should return null when token is identified as spam', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      const tokenTypeInfo = {
+        type: ITokenType.ERC20,
+        isGovernance: false,
+        hasDelegate: false,
+        hasBalanceOfERC20: true,
+        hasBalanceOfERC777: false,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
+        implementationAddress: null,
+        hasUnderlying: false,
+        hasClockMode: false,
+      }
+
+      const tokenDetails = {
+        address: tokenAddress,
+        network,
+        name: 'Spam Token',
+        symbol: 'SPAM',
+        decimals: 18,
+        type: ITokenType.ERC20,
+        totalSupply: '1000',
+        logo: '',
+        priceUsd: '0',
+        underlying: undefined,
+      }
+
+      sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo as any)
+      sandbox.stub(ProxyToken, 'wrapTokenDetails').resolves(tokenDetails)
+      sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
+      sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
+      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
+      sandbox.stub(TokenUtils, 'shouldMarkAsSpam').returns({ spamScore: 7, isSpam: true })
+
+      const savedSpamToken = {
+        id: 'spam-token-123',
+        address: tokenAddress,
+        network,
+        isSpam: true,
+        spamScore: 7,
+      }
+      const createStub = sandbox.stub(Models.Token, 'create').resolves(savedSpamToken)
+      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
+
+      const result = await ProxyToken.createNewToken(tokenAddress, network)
+
+      expect(createStub.calledOnce).to.be.true
+      const createArgs = createStub.firstCall.args[0]
+      expect(createArgs.isSpam).to.be.true
+      expect(createArgs.spamScore).to.equal(7)
+      expect(loggerVerboseStub.calledWith('Spam Token Saved' as any)).to.be.true
+      expect(result).to.be.null
+    })
+
+    it('should set spamScore and isSpam fields correctly for non-spam token', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      const tokenTypeInfo = {
+        type: ITokenType.ERC20,
+        isGovernance: false,
+        hasDelegate: false,
+        hasBalanceOfERC20: true,
+        hasBalanceOfERC777: false,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
+        implementationAddress: null,
+        hasUnderlying: false,
+        hasClockMode: false,
+      }
+
+      const tokenDetails = {
+        address: tokenAddress,
+        network,
+        name: 'Legit Token',
+        symbol: 'LEGIT',
+        decimals: 18,
+        type: ITokenType.ERC20,
+        totalSupply: '1000',
+        logo: 'logo-url',
+        priceUsd: '10.5',
+        underlying: undefined,
+      }
+
+      sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo as any)
+      sandbox.stub(ProxyToken, 'wrapTokenDetails').resolves(tokenDetails)
+      sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
+      sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
+      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
+      sandbox.stub(TokenUtils, 'shouldMarkAsSpam').returns({ spamScore: 2, isSpam: false })
+
+      const savedToken = {
+        id: 'legit-token-123',
+        address: tokenAddress,
+        network,
+        isSpam: false,
+        spamScore: 2,
+      }
+      const createStub = sandbox.stub(Models.Token, 'create').resolves(savedToken)
+      sandbox.stub(logger, 'verbose')
+
+      const result = await ProxyToken.createNewToken(tokenAddress, network)
+
+      expect(createStub.calledOnce).to.be.true
+      const createArgs = createStub.firstCall.args[0]
+      expect(createArgs.isSpam).to.be.false
+      expect(createArgs.spamScore).to.equal(2)
+      expect(result).to.equal(savedToken)
+    })
+
+    it('should pass correct params to shouldMarkAsSpam including coinGecko data', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+
+      const tokenTypeInfo = {
+        type: ITokenType.ERC20,
+        isGovernance: true,
+        hasDelegate: false,
+        hasBalanceOfERC20: true,
+        hasBalanceOfERC777: false,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
+        implementationAddress: null,
+        hasUnderlying: false,
+        hasClockMode: false,
+      }
+
+      const tokenDetails = {
+        address: tokenAddress,
+        network,
+        name: 'CoinGecko Token',
+        symbol: 'CGT',
+        decimals: 18,
+        type: ITokenType.ERC20,
+        totalSupply: '1000',
+        logo: 'cg-logo',
+        priceUsd: '25.0',
+        underlying: undefined,
+      }
+
+      sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo as any)
+      sandbox.stub(ProxyToken, 'wrapTokenDetails').resolves(tokenDetails)
+      sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
+      sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
+      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
+      sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation').resolves({
+        blockNumber: 123,
+        transactionHash: '0xtx',
+        address: tokenAddress,
+      })
+
+      const shouldMarkAsSpamStub = sandbox.stub(TokenUtils, 'shouldMarkAsSpam').returns({ spamScore: 0, isSpam: false })
+
+      sandbox.stub(Models.Token, 'create').resolves({
+        id: 'token-123',
+        address: tokenAddress,
+        network,
+        isSpam: false,
+      })
+      sandbox.stub(logger, 'verbose')
+
+      await ProxyToken.createNewToken(tokenAddress, network)
+
+      expect(shouldMarkAsSpamStub.calledOnce).to.be.true
+      const spamParams = shouldMarkAsSpamStub.firstCall.args[0]
+      expect(spamParams.name).to.equal('CoinGecko Token')
+      expect(spamParams.symbol).to.equal('CGT')
+      expect(spamParams.logo).to.equal('cg-logo')
+      expect(spamParams.tokenType).to.equal(ITokenType.ERC20)
+      expect(spamParams.isGovernance).to.be.true
+      expect(spamParams.isTestnet).to.be.false
+      expect(spamParams.coinGeckoInfo).to.deep.equal({
+        priceUsd: '25.0',
+        name: 'CoinGecko Token',
+        symbol: 'CGT',
+      })
+    })
   })
 
   describe('checkPluginMintAuthorizationIsDao', () => {

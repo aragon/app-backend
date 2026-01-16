@@ -57,7 +57,7 @@ export const RefreshSpamTokens = {
 
       const coinGeckoInfo = await CoinGeckoHelper.getToken(token.address, token.network)
 
-      const { isSpam: stillSpam } = TokenUtils.shouldMarkAsSpam({
+      const { isSpam: stillSpam, spamScore } = TokenUtils.shouldMarkAsSpam({
         name: token.name || '',
         symbol: token.symbol || '',
         logo: token.logo,
@@ -81,6 +81,7 @@ export const RefreshSpamTokens = {
         await token.update(
           {
             isSpam: false,
+            spamScore,
             lastUpdatedAt: dayjs.utc().toDate(),
           },
           { session },

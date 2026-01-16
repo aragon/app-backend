@@ -1,7 +1,7 @@
 import config from '@config'
 import logger from '@logger'
 import { FetchRates } from '@services/aragon-rates/fetchRates'
-import { RefreshSpamTokens } from '@rates/handlers/refreshSpamTokens'
+import { RefreshSpamTokens } from '@services/aragon-rates/handlers/refreshSpamTokens'
 import { EnsValidator } from '@services/aragon-rates/handlers/ensValidator'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import { EnumConnection, EnumServiceName, type IService } from '@types'
