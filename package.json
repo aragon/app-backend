@@ -1,7 +1,7 @@
 {
   "name": "aragon-backend",
   "description": "OpenSource backend services",
-  "version": "0.7.0",
+  "version": "0.22.0",
   "main": "index.ts",
   "license": "AGPL-3.0",
   "author": "Aragon Development Team",
@@ -58,10 +58,25 @@
   },
   "nyc": {
     "all": true,
-    "extension": [".ts"],
-    "include": ["src/**"],
-    "exclude": ["scripts/**", "src/aragonContracts/**", "src/artifacts/**", "src/migrations/**"],
-    "reporter": ["text", "lcov", "html", "json", "text-summary"]
+    "extension": [
+      ".ts"
+    ],
+    "include": [
+      "src/**"
+    ],
+    "exclude": [
+      "scripts/**",
+      "src/aragonContracts/**",
+      "src/artifacts/**",
+      "src/migrations/**"
+    ],
+    "reporter": [
+      "text",
+      "lcov",
+      "html",
+      "json",
+      "text-summary"
+    ]
   },
   "dependencies": {
     "@ethersproject/constants": "^5.7.0",
