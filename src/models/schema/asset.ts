@@ -350,9 +350,7 @@ export default class Asset extends Model {
         $addFields: {
           amountUsd: {
             $cond: {
-              if: {
-                $and: [{ $gt: ['$tokenDetails.priceUsd', 0] }, { $gt: ['$tokenDetails.decimals', 0] }],
-              },
+              if: { $gt: ['$tokenDetails.priceUsd', 0] },
               then: {
                 $multiply: [{ $toDecimal: '$amount' }, { $toDecimal: '$tokenDetails.priceUsd' }],
               },
@@ -364,25 +362,22 @@ export default class Asset extends Model {
       {
         $group: {
           _id: null,
-          totalAmountUsd: { $sum: '$amountUsd' },
-          totalMintableAmountUsd: {
-            $sum: {
-              $cond: [{ $eq: ['$tokenDetails.mintableByDao', true] }, '$amountUsd', 0],
-            },
-          },
+          tvlUsd: { $sum: '$amountUsd' },
         },
       },
       {
         $project: {
           _id: 0,
-          tvl: { $toString: '$totalAmountUsd' },
-          tvlMintable: { $toString: '$totalMintableAmountUsd' },
+          tvlUsd: { $round: [{ $toDouble: '$tvlUsd' }, 2] },
         },
       },
     ]
-
-    const result: any = await this.aggregate(query, tOpts)
-    return result[0] ?? { tvl: '0', tvlMintable: '0' }
+    const aggregate = this.aggregate(query)
+    if (tOpts?.session) {
+      aggregate.session(tOpts.session)
+    }
+    const response = await aggregate
+    return Number(response[0]?.tvlUsd || 0)
   }
 
   async update(params: Partial<Asset>, tOpts?: SaveOptions) {
