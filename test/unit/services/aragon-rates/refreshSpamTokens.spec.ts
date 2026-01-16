@@ -115,7 +115,7 @@ describe('AragonRates: RefreshSpamTokens', () => {
         name: 'Airdrop Token',
         symbol: 'AIR',
       } as any)
-      sandbox.stub(TokenUtils, 'shouldMarkAsSpam').returns(false)
+      sandbox.stub(TokenUtils, 'shouldMarkAsSpam').returns({ spamScore: 0, isSpam: false })
 
       const mockDate = new Date('2023-01-01T00:00:00Z')
       sandbox.stub(dayjs, 'utc').returns({ toDate: () => mockDate } as any)
@@ -136,7 +136,7 @@ describe('AragonRates: RefreshSpamTokens', () => {
     it('should not update token if still marked as spam', async () => {
       sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
       sandbox.stub(CoinGeckoHelper, 'getToken').resolves(undefined)
-      sandbox.stub(TokenUtils, 'shouldMarkAsSpam').returns(true)
+      sandbox.stub(TokenUtils, 'shouldMarkAsSpam').returns({ spamScore: 5, isSpam: true })
 
       const updateStub = sandbox.stub(tokenDb, 'update')
 
@@ -161,7 +161,7 @@ describe('AragonRates: RefreshSpamTokens', () => {
       const coinGeckoData = { priceUsd: '1.5', name: 'Token', symbol: 'TKN' }
       sandbox.stub(CoinGeckoHelper, 'getToken').resolves(coinGeckoData as any)
 
-      const shouldMarkAsSpamStub = sandbox.stub(TokenUtils, 'shouldMarkAsSpam').returns(false)
+      const shouldMarkAsSpamStub = sandbox.stub(TokenUtils, 'shouldMarkAsSpam').returns({ spamScore: 0, isSpam: false })
       sandbox.stub(tokenDb, 'update').resolves(tokenDb)
       sandbox.stub(logger, 'verbose')
       sandbox.stub(dayjs, 'utc').returns({ toDate: () => new Date() } as any)
