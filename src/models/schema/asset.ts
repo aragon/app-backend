@@ -273,36 +273,19 @@ export default class Asset extends Model {
       },
     })
 
-    let totalRecords: number
+    const countPipeline: any[] = [
+      { $match: filter },
+      AggregationQueryHelper.token({ network: '$network', address: '$tokenAddress' }, 'tokenDetails', { isSpam: 1 }),
+      { $unwind: { path: '$tokenDetails', preserveNullAndEmptyArrays: true } },
+      ...spamFilter,
+      ...(shouldGroupByToken ? [{ $group: { _id: { tokenAddress: '$tokenAddress', network: '$network' } } }] : []),
+      { $count: 'total' },
+    ]
 
-    if (shouldGroupByToken) {
-      const countPipeline: any[] = [
-        { $match: filter },
-        AggregationQueryHelper.token({ network: '$network', address: '$tokenAddress' }, 'tokenDetails', { isSpam: 1 }),
-        { $unwind: { path: '$tokenDetails', preserveNullAndEmptyArrays: true } },
-        ...spamFilter,
-        {
-          $group: {
-            _id: { tokenAddress: '$tokenAddress', network: '$network' },
-          },
-        },
-        { $count: 'total' },
-      ]
-      const countResult = await this.aggregate(countPipeline)
-      totalRecords = countResult[0]?.total || 0
-    } else {
-      const countPipeline: any[] = [
-        { $match: filter },
-        AggregationQueryHelper.token({ network: '$network', address: '$tokenAddress' }, 'tokenDetails', { isSpam: 1 }),
-        { $unwind: { path: '$tokenDetails', preserveNullAndEmptyArrays: true } },
-        ...spamFilter,
-        { $count: 'total' },
-      ]
-      const countResult = await this.aggregate(countPipeline)
-      totalRecords = countResult[0]?.total || 0
-    }
-
-    const [data] = await Promise.all([this.aggregate(pipeline)])
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate(pipeline),
+      this.aggregate(countPipeline).then((result: any) => result[0]?.total || 0),
+    ])
 
     const totalPages = Math.ceil(totalRecords / request.limit)
 
