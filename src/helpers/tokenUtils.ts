@@ -30,50 +30,57 @@ const TokenUtils = {
       CoinGeckoHelper.isTestNetwork(token.network!)) &&
     tokenRate.priceUsd === '0',
 
-  analyzeIfScamToken: (name: string, symbol: string) => {
+  getSpamScore: (name: string, symbol: string, logo?: string | null): number => {
     const formattedName = (name || '').toLowerCase()
     const formattedSymbol = (symbol || '').toLowerCase()
+    const combined = `${formattedName} ${formattedSymbol}`
 
-    const suspiciousKeywords = [
-      'claim',
-      'reward',
-      'rewards',
-      'join',
-      'stake',
-      'swap',
-      'voucher',
+    let score = 0
+
+    if (!logo) {
+      score += 1
+    }
+
+    const highRiskKeywords = [
       'airdrop',
-      'bonus',
-      'free',
       'giveaway',
-      'visit',
       'casino',
       'mystery',
-      'box',
-      'earn',
-      'official',
-      'link',
+      'voucher',
+      'visit',
       'ads',
       'promotion',
       'prize',
-      'win',
       'lucky',
-      'gift',
-      'drop',
-      'farming',
-      'mining',
+      'bonus',
+      'free',
     ]
+
+    const lowRiskKeywords = ['claim', 'reward', 'rewards', 'join', 'gift', 'win', 'box', 'official', 'link']
 
     const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-    const keywordPattern = suspiciousKeywords.map(escapeRegExp).join('|')
-    const keywordRegex = new RegExp(`\\b(${keywordPattern})\\b`, 'i')
+    const highRiskPattern = highRiskKeywords.map(escapeRegExp).join('|')
+    const highRiskRegex = new RegExp(`\\b(${highRiskPattern})\\b`, 'i')
 
-    const urlRegex = /(?:https?:\/\/|www\.)[^\s]+|[a-z0-9-]+\.[a-z]{2,63}(?:\/[^\s]*)?/i
+    const lowRiskPattern = lowRiskKeywords.map(escapeRegExp).join('|')
+    const lowRiskRegex = new RegExp(`\\b(${lowRiskPattern})\\b`, 'i')
+
+    const urlRegex = /(?:https?:\/\/|www\.)[^\s]+/i
+    if (urlRegex.test(combined)) {
+      score += 3
+    }
+
+    if (highRiskRegex.test(combined)) {
+      score += 2
+    }
+
+    if (lowRiskRegex.test(combined)) {
+      score += 1
+    }
 
     const redFlags = [
       /[▷►▶→]/,
-      /[^\x00-\x7F]/,
       /\$[A-Z]+\s+.*\./,
       /use.*official.*link/i,
       /trust.*wallet.*mystery/i,
@@ -81,11 +88,58 @@ const TokenUtils = {
       /!\s*ads/i,
     ]
 
-    const hasUrl = urlRegex.test(formattedName) || urlRegex.test(formattedSymbol)
-    const hasKeywords = keywordRegex.test(formattedName) || keywordRegex.test(formattedSymbol)
-    const hasRedFlags = redFlags.some(pattern => pattern.test(formattedName) || pattern.test(formattedSymbol))
+    for (const pattern of redFlags) {
+      if (pattern.test(combined)) {
+        score += 2
+      }
+    }
 
-    return hasUrl || hasKeywords || hasRedFlags
+    return score
+  },
+
+  analyzeIfSpamToken: (name: string, symbol: string, logo?: string | null) => {
+    return TokenUtils.getSpamScore(name, symbol, logo) >= 3
+  },
+
+  shouldMarkAsSpam: (params: {
+    name: string
+    symbol: string
+    logo: string | null
+    tokenType: ITokenType
+    isGovernance: boolean
+    isTestnet: boolean
+    coinGeckoInfo: { priceUsd?: string; name?: string; symbol?: string } | null
+  }): { spamScore: number; isSpam: boolean } => {
+    const { name, symbol, logo, tokenType, isGovernance, isTestnet, coinGeckoInfo } = params
+
+    const spamScore = TokenUtils.getSpamScore(name, symbol, logo)
+
+    if (isTestnet) {
+      return { spamScore, isSpam: false }
+    }
+
+    if (tokenType === ITokenType.escrowAdapter || isGovernance || tokenType === ITokenType.native) {
+      return { spamScore, isSpam: false }
+    }
+
+    if (spamScore >= 5) {
+      return { spamScore, isSpam: true }
+    }
+
+    if (spamScore === 0) {
+      return { spamScore, isSpam: false }
+    }
+
+    const hasCoinGeckoData =
+      coinGeckoInfo &&
+      ((coinGeckoInfo.priceUsd && parseFloat(coinGeckoInfo.priceUsd) > 0) ||
+        (coinGeckoInfo.name && coinGeckoInfo.name.length > 0))
+
+    if (hasCoinGeckoData) {
+      return { spamScore, isSpam: false }
+    }
+
+    return { spamScore, isSpam: spamScore >= 2 }
   },
 
   isTokenSyncable: async (
@@ -95,17 +149,15 @@ const TokenUtils = {
   ): Promise<boolean> => {
     try {
       const dbToken = await Models.Token.findOne({ address: tokenAddress, network })
-      if (dbToken) return true
+      if (dbToken) return !dbToken.isSpam
 
-      // Use prefetched tokenInfo if provided
       if (prefetchedTokenInfo && prefetchedTokenInfo.type !== ITokenType.unknown) {
-        return !TokenUtils.analyzeIfScamToken(prefetchedTokenInfo.name || '', prefetchedTokenInfo.symbol || '')
+        return !TokenUtils.analyzeIfSpamToken(prefetchedTokenInfo.name || '', prefetchedTokenInfo.symbol || '')
       }
 
-      // Fallback to on-chain data
       const web3TokenDetails = await Web3Helper.getTokenNameAndSymbol(tokenAddress, network)
       if (web3TokenDetails.name && web3TokenDetails.symbol) {
-        return !TokenUtils.analyzeIfScamToken(web3TokenDetails.name, web3TokenDetails.symbol)
+        return !TokenUtils.analyzeIfSpamToken(web3TokenDetails.name, web3TokenDetails.symbol)
       }
       return false
     } catch (e) {
