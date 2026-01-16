@@ -3,6 +3,7 @@ import utils from '@helpers/utils'
 import logger from '@logger'
 import { FetchRates } from '@services/aragon-rates/fetchRates'
 import { EnsValidator } from '@services/aragon-rates/handlers/ensValidator'
+import { RefreshSpamTokens } from '@services/aragon-rates/handlers/refreshSpamTokens'
 import RatesService from '@services/aragon-rates/index'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import { EnumConnection } from '@types'
@@ -36,7 +37,11 @@ describe('AragonRates: index', () => {
     const configBk = config.SERVICES.ARAGON_RATES.RATES_INTERVAL
     config.SERVICES.ARAGON_RATES.RATES_INTERVAL = 200
 
-    const taskStubs = [sandbox.stub(FetchRates, 'start').resolves(), sandbox.stub(EnsValidator, 'start').resolves()]
+    const taskStubs = [
+      sandbox.stub(FetchRates, 'start').resolves(),
+      sandbox.stub(EnsValidator, 'start').resolves(),
+      sandbox.stub(RefreshSpamTokens, 'start').resolves(),
+    ]
 
     await RatesService.start()
     await utils.wait(100)

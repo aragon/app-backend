@@ -20,6 +20,7 @@ const AssetRouter = {
         daoAddress: ctx.query.address as HexAddress,
         tokenAddress: ctx.query.tokenAddress as HexAddress,
         onlyParent: ctx.query.onlyParent === 'true',
+        includeSpam: ctx.query.includeSpam === 'true',
       },
       pairParams: {
         daoId: ctx.query.daoId as string,

@@ -85,7 +85,7 @@ export default class Asset extends Model {
     paginationParams?: IPaginationParams
   }): Promise<IPaginatedResult<any>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
-    const ignoredParams = ['daoAddresses', 'onlyParent']
+    const ignoredParams = ['daoAddresses', 'onlyParent', 'includeSpam']
     const dynamicFilter = Object.fromEntries(
       Object.entries(extraParams).filter(([key, v]) => v !== undefined && !ignoredParams.includes(key)),
     )
@@ -99,6 +99,17 @@ export default class Asset extends Model {
     }
 
     const shouldGroupByToken = extraParams?.daoAddresses?.length! > 0
+
+    const spamFilter =
+      extraParams.includeSpam === false
+        ? [
+            {
+              $match: {
+                $or: [{ 'tokenDetails.isSpam': { $ne: true } }, { 'tokenDetails.isSpam': { $exists: false } }],
+              },
+            },
+          ]
+        : []
 
     const currentPage = request.skip / request.limit + 1
 
@@ -125,6 +136,7 @@ export default class Asset extends Model {
           decimals: 1,
           priceUsd: 1,
           mintableByDao: 1,
+          isSpam: 1,
         },
       ),
       {
@@ -133,6 +145,7 @@ export default class Asset extends Model {
           preserveNullAndEmptyArrays: true,
         },
       },
+      ...spamFilter,
       {
         $addFields: {
           amountUsd: {
@@ -263,8 +276,11 @@ export default class Asset extends Model {
     let totalRecords: number
 
     if (shouldGroupByToken) {
-      const countPipeline = [
+      const countPipeline: any[] = [
         { $match: filter },
+        AggregationQueryHelper.token({ network: '$network', address: '$tokenAddress' }, 'tokenDetails', { isSpam: 1 }),
+        { $unwind: { path: '$tokenDetails', preserveNullAndEmptyArrays: true } },
+        ...spamFilter,
         {
           $group: {
             _id: { tokenAddress: '$tokenAddress', network: '$network' },
@@ -275,7 +291,15 @@ export default class Asset extends Model {
       const countResult = await this.aggregate(countPipeline)
       totalRecords = countResult[0]?.total || 0
     } else {
-      totalRecords = await this.countDocuments(filter)
+      const countPipeline: any[] = [
+        { $match: filter },
+        AggregationQueryHelper.token({ network: '$network', address: '$tokenAddress' }, 'tokenDetails', { isSpam: 1 }),
+        { $unwind: { path: '$tokenDetails', preserveNullAndEmptyArrays: true } },
+        ...spamFilter,
+        { $count: 'total' },
+      ]
+      const countResult = await this.aggregate(countPipeline)
+      totalRecords = countResult[0]?.total || 0
     }
 
     const [data] = await Promise.all([this.aggregate(pipeline)])
@@ -326,7 +350,9 @@ export default class Asset extends Model {
         $addFields: {
           amountUsd: {
             $cond: {
-              if: { $gt: ['$tokenDetails.priceUsd', 0] },
+              if: {
+                $and: [{ $gt: ['$tokenDetails.priceUsd', 0] }, { $gt: ['$tokenDetails.decimals', 0] }],
+              },
               then: {
                 $multiply: [{ $toDecimal: '$amount' }, { $toDecimal: '$tokenDetails.priceUsd' }],
               },
@@ -338,22 +364,25 @@ export default class Asset extends Model {
       {
         $group: {
           _id: null,
-          tvlUsd: { $sum: '$amountUsd' },
+          totalAmountUsd: { $sum: '$amountUsd' },
+          totalMintableAmountUsd: {
+            $sum: {
+              $cond: [{ $eq: ['$tokenDetails.mintableByDao', true] }, '$amountUsd', 0],
+            },
+          },
         },
       },
       {
         $project: {
           _id: 0,
-          tvlUsd: { $round: [{ $toDouble: '$tvlUsd' }, 2] },
+          tvl: { $toString: '$totalAmountUsd' },
+          tvlMintable: { $toString: '$totalMintableAmountUsd' },
         },
       },
     ]
-    const aggregate = this.aggregate(query)
-    if (tOpts?.session) {
-      aggregate.session(tOpts.session)
-    }
-    const response = await aggregate
-    return Number(response[0]?.tvlUsd || 0)
+
+    const result: any = await this.aggregate(query, tOpts)
+    return result[0] ?? { tvl: '0', tvlMintable: '0' }
   }
 
   async update(params: Partial<Asset>, tOpts?: SaveOptions) {

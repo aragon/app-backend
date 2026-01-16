@@ -78,48 +78,275 @@ describe('TokenUtils', () => {
     })
   })
 
-  describe('analyzeIfScamToken', () => {
-    it('should identify scam tokens with URLs in name', () => {
-      expect(TokenUtils.analyzeIfScamToken('Visit https://claim.rewards.com', 'TKN')).to.be.true
-      expect(TokenUtils.analyzeIfScamToken('Join www.airdrop.com now', 'TKN')).to.be.true
-      expect(TokenUtils.analyzeIfScamToken('Free Bonus at tokens.com', 'TKN')).to.be.true
+  describe('getSpamScore', () => {
+    it('should return 0 for legitimate tokens with logo', () => {
+      expect(TokenUtils.getSpamScore('Ethereum', 'ETH', 'https://logo.com/eth.png')).to.equal(0)
+      expect(TokenUtils.getSpamScore('Bitcoin', 'BTC', 'https://logo.com/btc.png')).to.equal(0)
+      expect(TokenUtils.getSpamScore('Uniswap', 'UNI', 'https://logo.com/uni.png')).to.equal(0)
     })
 
-    it('should identify scam tokens with URLs in symbol', () => {
-      expect(TokenUtils.analyzeIfScamToken('Token', 'VISIT-claim.io')).to.be.true
-      expect(TokenUtils.analyzeIfScamToken('Token', 'JOIN-www.rewards.io')).to.be.true
+    it('should return 1 for legitimate tokens without logo', () => {
+      expect(TokenUtils.getSpamScore('Ethereum', 'ETH', null)).to.equal(1)
+      expect(TokenUtils.getSpamScore('Ethereum', 'ETH', '')).to.equal(1)
     })
 
-    it('should identify scam tokens with keywords across name and symbol', () => {
-      expect(TokenUtils.analyzeIfScamToken('Visit tokens.com', 'CLAIM')).to.be.true
-      expect(TokenUtils.analyzeIfScamToken('Free Token', 'visit.io')).to.be.true
+    it('should return 3+ for URL in name/symbol', () => {
+      expect(TokenUtils.getSpamScore('Visit https://scam.com', 'TKN', 'logo')).to.be.gte(3)
+      expect(TokenUtils.getSpamScore('Token', 'www.scam.com', 'logo')).to.be.gte(3)
+    })
+
+    it('should return 2 for high-risk keywords', () => {
+      expect(TokenUtils.getSpamScore('Airdrop Token', 'AIR', 'logo')).to.equal(2)
+      expect(TokenUtils.getSpamScore('Free Bonus', 'FREE', 'logo')).to.be.gte(2)
+      expect(TokenUtils.getSpamScore('Casino Token', 'CAS', 'logo')).to.equal(2)
+    })
+
+    it('should return 1 for low-risk keywords with logo', () => {
+      expect(TokenUtils.getSpamScore('Claim Token', 'CLM', 'logo')).to.equal(1)
+      expect(TokenUtils.getSpamScore('Reward Token', 'RWD', 'logo')).to.equal(1)
+    })
+
+    it('should accumulate scores for multiple indicators', () => {
+      // URL (3) + high-risk (2) + low-risk (1) + no logo (1) = 7
+      expect(TokenUtils.getSpamScore('Free Airdrop https://scam.com', 'CLAIM', null)).to.be.gte(6)
+    })
+
+    it('should handle null/undefined inputs', () => {
+      expect(TokenUtils.getSpamScore(null as any, 'TKN', 'logo')).to.equal(0)
+      expect(TokenUtils.getSpamScore('Token', null as any, 'logo')).to.equal(0)
+      expect(TokenUtils.getSpamScore(null as any, null as any, 'logo')).to.equal(0)
+    })
+
+    it('should detect red flags', () => {
+      expect(TokenUtils.getSpamScore('Token ▶ Visit', 'TKN', 'logo')).to.be.gte(2)
+      expect(TokenUtils.getSpamScore('use official link now', 'TKN', 'logo')).to.be.gte(2)
+    })
+  })
+
+  describe('analyzeIfSpamToken', () => {
+    it('should return true when score >= 3', () => {
+      expect(TokenUtils.analyzeIfSpamToken('Visit https://claim.rewards.com', 'TKN')).to.be.true
+      expect(TokenUtils.analyzeIfSpamToken('Free Airdrop', 'TKN', null)).to.be.true
+    })
+
+    it('should return false when score < 3', () => {
+      expect(TokenUtils.analyzeIfSpamToken('Ethereum', 'ETH', 'logo')).to.be.false
+      expect(TokenUtils.analyzeIfSpamToken('Claim Token', 'CLM', 'logo')).to.be.false // score = 1
     })
 
     it('should handle null or undefined inputs', () => {
-      expect(TokenUtils.analyzeIfScamToken(null as any, 'TKN')).to.be.false
-      expect(TokenUtils.analyzeIfScamToken('Token', null as any)).to.be.false
-      expect(TokenUtils.analyzeIfScamToken(null as any, null as any)).to.be.false
+      expect(TokenUtils.analyzeIfSpamToken(null as any, 'TKN', 'logo')).to.be.false
+      expect(TokenUtils.analyzeIfSpamToken('Token', null as any, 'logo')).to.be.false
+      expect(TokenUtils.analyzeIfSpamToken(null as any, null as any, 'logo')).to.be.false
     })
 
     it('should return false for legitimate token names', () => {
-      expect(TokenUtils.analyzeIfScamToken('Ethereum', 'ETH')).to.be.false
-      expect(TokenUtils.analyzeIfScamToken('Bitcoin', 'BTC')).to.be.false
-      expect(TokenUtils.analyzeIfScamToken('Staking Token', 'STK')).to.be.false
+      expect(TokenUtils.analyzeIfSpamToken('Ethereum', 'ETH', 'logo')).to.be.false
+      expect(TokenUtils.analyzeIfSpamToken('Bitcoin', 'BTC', 'logo')).to.be.false
+      expect(TokenUtils.analyzeIfSpamToken('Staking Token', 'STK', 'logo')).to.be.false
+    })
+  })
+
+  describe('shouldMarkAsSpam', () => {
+    it('should return { spamScore, isSpam: false } for testnet tokens', () => {
+      const result = TokenUtils.shouldMarkAsSpam({
+        name: 'Free Airdrop',
+        symbol: 'SPAM',
+        logo: null,
+        tokenType: ITokenType.ERC20,
+        isGovernance: false,
+        isTestnet: true,
+        coinGeckoInfo: null,
+      })
+      expect(result.isSpam).to.be.false
+      expect(result.spamScore).to.be.a('number')
+    })
+
+    it('should return { spamScore, isSpam: false } for governance tokens', () => {
+      const result = TokenUtils.shouldMarkAsSpam({
+        name: 'Free Airdrop',
+        symbol: 'SPAM',
+        logo: null,
+        tokenType: ITokenType.ERC20,
+        isGovernance: true,
+        isTestnet: false,
+        coinGeckoInfo: null,
+      })
+      expect(result.isSpam).to.be.false
+      expect(result.spamScore).to.be.a('number')
+    })
+
+    it('should return { spamScore, isSpam: false } for native tokens', () => {
+      const result = TokenUtils.shouldMarkAsSpam({
+        name: 'Free Airdrop',
+        symbol: 'SPAM',
+        logo: null,
+        tokenType: ITokenType.native,
+        isGovernance: false,
+        isTestnet: false,
+        coinGeckoInfo: null,
+      })
+      expect(result.isSpam).to.be.false
+      expect(result.spamScore).to.be.a('number')
+    })
+
+    it('should return { spamScore, isSpam: false } for escrowAdapter tokens', () => {
+      const result = TokenUtils.shouldMarkAsSpam({
+        name: 'Free Airdrop',
+        symbol: 'SPAM',
+        logo: null,
+        tokenType: ITokenType.escrowAdapter,
+        isGovernance: false,
+        isTestnet: false,
+        coinGeckoInfo: null,
+      })
+      expect(result.isSpam).to.be.false
+      expect(result.spamScore).to.be.a('number')
+    })
+
+    it('should return { spamScore, isSpam: true } for spam token on mainnet', () => {
+      const result = TokenUtils.shouldMarkAsSpam({
+        name: 'Free Airdrop https://scam.com',
+        symbol: 'SPAM',
+        logo: null,
+        tokenType: ITokenType.ERC20,
+        isGovernance: false,
+        isTestnet: false,
+        coinGeckoInfo: null,
+      })
+      expect(result.isSpam).to.be.true
+      expect(result.spamScore).to.be.gte(5)
+    })
+
+    it('should return { spamScore, isSpam: false } for legit token with CoinGecko data', () => {
+      const result = TokenUtils.shouldMarkAsSpam({
+        name: 'Airdrop Token',
+        symbol: 'AIR',
+        logo: 'https://logo.com/air.png',
+        tokenType: ITokenType.ERC20,
+        isGovernance: false,
+        isTestnet: false,
+        coinGeckoInfo: { priceUsd: '1.5', name: 'Airdrop Token', symbol: 'AIR' },
+      })
+      expect(result.isSpam).to.be.false
+      expect(result.spamScore).to.be.a('number')
+    })
+
+    it('should return isSpam: true for high score (>= 5) regardless of CoinGecko data', () => {
+      const coinGeckoInfo = { priceUsd: '1.5', name: 'Token', symbol: 'TKN' }
+      const result = TokenUtils.shouldMarkAsSpam({
+        name: 'Free Airdrop https://scam.com',
+        symbol: 'CLAIM',
+        logo: null,
+        tokenType: ITokenType.ERC20,
+        isGovernance: false,
+        isTestnet: false,
+        coinGeckoInfo,
+      })
+      expect(result.isSpam).to.be.true
+      expect(result.spamScore).to.be.gte(5)
+    })
+
+    it('should return isSpam: false for score 0', () => {
+      const result = TokenUtils.shouldMarkAsSpam({
+        name: 'Ethereum',
+        symbol: 'ETH',
+        logo: 'logo',
+        tokenType: ITokenType.ERC20,
+        isGovernance: false,
+        isTestnet: false,
+        coinGeckoInfo: null,
+      })
+      expect(result.isSpam).to.be.false
+      expect(result.spamScore).to.equal(0)
+    })
+
+    it('should return isSpam: false for borderline score with valid CoinGecko data', () => {
+      const coinGeckoInfo = { priceUsd: '1.5', name: 'Token', symbol: 'TKN' }
+      const result = TokenUtils.shouldMarkAsSpam({
+        name: 'Free Token',
+        symbol: 'FREE',
+        logo: 'logo',
+        tokenType: ITokenType.ERC20,
+        isGovernance: false,
+        isTestnet: false,
+        coinGeckoInfo,
+      })
+      expect(result.isSpam).to.be.false
+    })
+
+    it('should return isSpam: true for borderline score without CoinGecko data', () => {
+      const result = TokenUtils.shouldMarkAsSpam({
+        name: 'Free Token',
+        symbol: 'FREE',
+        logo: 'logo',
+        tokenType: ITokenType.ERC20,
+        isGovernance: false,
+        isTestnet: false,
+        coinGeckoInfo: null,
+      })
+      expect(result.isSpam).to.be.true
+    })
+
+    it('should consider CoinGecko name as valid data even with zero price', () => {
+      const coinGeckoInfo = { priceUsd: '0', name: 'Token', symbol: 'TKN' }
+      const result = TokenUtils.shouldMarkAsSpam({
+        name: 'Airdrop Token',
+        symbol: 'AIR',
+        logo: 'logo',
+        tokenType: ITokenType.ERC20,
+        isGovernance: false,
+        isTestnet: false,
+        coinGeckoInfo,
+      })
+      expect(result.isSpam).to.be.false
+    })
+
+    it('should return isSpam: true for score >= 2 with empty CoinGecko data', () => {
+      const coinGeckoInfo = { priceUsd: '0', name: '', symbol: '' }
+      const result = TokenUtils.shouldMarkAsSpam({
+        name: 'Airdrop Token',
+        symbol: 'AIR',
+        logo: 'logo',
+        tokenType: ITokenType.ERC20,
+        isGovernance: false,
+        isTestnet: false,
+        coinGeckoInfo,
+      })
+      expect(result.isSpam).to.be.true
     })
   })
 
   describe('isTokenSyncable', () => {
     let findOneStub: sinon.SinonStub
     let web3HelperStub: sinon.SinonStub
-    let analyzeIfScamTokenStub: sinon.SinonStub
+    let analyzeIfSpamTokenStub: sinon.SinonStub
 
     beforeEach(() => {
       findOneStub = sandbox.stub(Models.Token, 'findOne')
       web3HelperStub = sandbox.stub(Web3Helper, 'getTokenNameAndSymbol')
-      analyzeIfScamTokenStub = sandbox.stub(TokenUtils, 'analyzeIfScamToken')
+      analyzeIfSpamTokenStub = sandbox.stub(TokenUtils, 'analyzeIfSpamToken')
     })
 
-    it('should return true if token exists in the database', async () => {
+    it('should return true if non-spam token exists in the database', async () => {
+      findOneStub.resolves({ address: '0x123', network: NetworksEnum.ethereumMainnet, isSpam: false })
+
+      const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.be.true
+      expect(web3HelperStub.called).to.be.false
+    })
+
+    it('should return false if spam token exists in the database', async () => {
+      findOneStub.resolves({ address: '0x123', network: NetworksEnum.ethereumMainnet, isSpam: true })
+
+      const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.be.false
+      expect(web3HelperStub.called).to.be.false
+    })
+
+    it('should return true if token exists without isSpam field (legacy)', async () => {
       findOneStub.resolves({ address: '0x123', network: NetworksEnum.ethereumMainnet })
 
       const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
@@ -135,12 +362,12 @@ describe('TokenUtils', () => {
         name: 'TokenName',
         symbol: 'TKN',
       }
-      analyzeIfScamTokenStub.returns(false)
+      analyzeIfSpamTokenStub.returns(false)
 
       const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet, prefetchedTokenInfo)
 
       expect(result).to.be.true
-      expect(analyzeIfScamTokenStub.calledWith('TokenName', 'TKN')).to.be.true
+      expect(analyzeIfSpamTokenStub.calledWith('TokenName', 'TKN')).to.be.true
       expect(web3HelperStub.called).to.be.false
     })
 
@@ -151,7 +378,7 @@ describe('TokenUtils', () => {
         name: 'Claim Free Tokens at scam.com',
         symbol: 'SCAM',
       }
-      analyzeIfScamTokenStub.returns(true)
+      analyzeIfSpamTokenStub.returns(true)
 
       const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet, prefetchedTokenInfo)
 
@@ -170,13 +397,13 @@ describe('TokenUtils', () => {
         name: 'Web3TokenName',
         symbol: 'W3T',
       })
-      analyzeIfScamTokenStub.returns(false)
+      analyzeIfSpamTokenStub.returns(false)
 
       const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet, prefetchedTokenInfo)
 
       expect(result).to.be.true
       expect(web3HelperStub.called).to.be.true
-      expect(analyzeIfScamTokenStub.calledWith('Web3TokenName', 'W3T')).to.be.true
+      expect(analyzeIfSpamTokenStub.calledWith('Web3TokenName', 'W3T')).to.be.true
     })
 
     it('should try Web3Helper if no prefetched tokenInfo provided', async () => {
@@ -185,12 +412,12 @@ describe('TokenUtils', () => {
         name: 'TokenName',
         symbol: 'TKN',
       })
-      analyzeIfScamTokenStub.returns(false)
+      analyzeIfSpamTokenStub.returns(false)
 
       const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
 
       expect(result).to.be.true
-      expect(analyzeIfScamTokenStub.calledWith('TokenName', 'TKN')).to.be.true
+      expect(analyzeIfSpamTokenStub.calledWith('TokenName', 'TKN')).to.be.true
     })
 
     it('should return false if Web3Helper returns scam token details', async () => {
@@ -199,7 +426,7 @@ describe('TokenUtils', () => {
         name: 'Claim Rewards',
         symbol: 'scam.io',
       })
-      analyzeIfScamTokenStub.returns(true)
+      analyzeIfSpamTokenStub.returns(true)
 
       const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet)
 
@@ -233,12 +460,12 @@ describe('TokenUtils', () => {
         name: undefined,
         symbol: undefined,
       }
-      analyzeIfScamTokenStub.returns(false)
+      analyzeIfSpamTokenStub.returns(false)
 
       const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet, prefetchedTokenInfo)
 
       expect(result).to.be.true
-      expect(analyzeIfScamTokenStub.calledWith('', '')).to.be.true
+      expect(analyzeIfSpamTokenStub.calledWith('', '')).to.be.true
     })
 
     it('should use prefetched tokenInfo and skip Web3Helper call', async () => {
@@ -248,13 +475,13 @@ describe('TokenUtils', () => {
         name: 'PrefetchedToken',
         symbol: 'PFT',
       }
-      analyzeIfScamTokenStub.returns(false)
+      analyzeIfSpamTokenStub.returns(false)
 
       const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet, prefetchedTokenInfo)
 
       expect(result).to.be.true
       expect(web3HelperStub.called).to.be.false
-      expect(analyzeIfScamTokenStub.calledWith('PrefetchedToken', 'PFT')).to.be.true
+      expect(analyzeIfSpamTokenStub.calledWith('PrefetchedToken', 'PFT')).to.be.true
     })
 
     it('should handle undefined prefetched tokenInfo by falling back to Web3Helper', async () => {
@@ -263,7 +490,7 @@ describe('TokenUtils', () => {
         name: 'TokenName',
         symbol: 'TKN',
       })
-      analyzeIfScamTokenStub.returns(false)
+      analyzeIfSpamTokenStub.returns(false)
 
       const result = await TokenUtils.isTokenSyncable('0x123', NetworksEnum.ethereumMainnet, undefined)
 
