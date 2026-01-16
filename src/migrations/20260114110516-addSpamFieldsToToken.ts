@@ -17,8 +17,7 @@ export const addSpamFieldsToTokenMigration: IMigration = {
       const crawler = new DBCrawler({
         model: Models.Token,
         onDocument: async (token: Token) => {
-          const spamScore = TokenUtils.getSpamScore(token.name || '', token.symbol || '', token.logo)
-          const isSpam = TokenUtils.shouldMarkAsSpam({
+          const { spamScore, isSpam } = TokenUtils.shouldMarkAsSpam({
             name: token.name || '',
             symbol: token.symbol || '',
             logo: token.logo,
