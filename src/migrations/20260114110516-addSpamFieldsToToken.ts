@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import CoinGeckoHelper from '@helpers/coinGecko'
 import TokenUtils from '@helpers/tokenUtils'
 import logger from '@logger'
 import type Token from '@models/schema/token'
@@ -17,14 +18,22 @@ export const addSpamFieldsToTokenMigration: IMigration = {
       const crawler = new DBCrawler({
         model: Models.Token,
         onDocument: async (token: Token) => {
+          const coinGeckoData = await CoinGeckoHelper.getToken(token.address, token.network)
+
+          const logo = coinGeckoData ? coinGeckoData.logo || null : null
+          const priceUsd = coinGeckoData ? coinGeckoData.priceUsd || '0' : '0'
+
+          token.logo = logo
+          token.priceUsd = priceUsd
+
           const { spamScore, isSpam } = TokenUtils.shouldMarkAsSpam({
             name: token.name || '',
             symbol: token.symbol || '',
-            logo: token.logo,
+            logo,
             tokenType: token.type,
             isGovernance: token.isGovernance,
             isTestnet: TESTNET_NETWORKS.includes(token.network),
-            coinGeckoInfo: token.priceUsd && parseFloat(token.priceUsd) > 0 ? { priceUsd: token.priceUsd } : null,
+            coinGeckoInfo: parseFloat(priceUsd) > 0 ? { priceUsd } : null,
           })
 
           if (spamScore > 0 || isSpam) {
@@ -56,7 +65,8 @@ export const addSpamFieldsToTokenMigration: IMigration = {
           network: { $nin: TESTNET_NETWORKS },
           isGovernance: false,
           type: ITokenType.ERC20,
-          logo: { $in: [null, ''] },
+          $or: [{ logo: { $in: [null, ''] } }, { logo: { $regex: /^https:\/\/logos\.covalenthq\.com\/tok/ } }],
+          isSpam: false,
         },
         batchSize: 1000,
         concurrency: 100,
