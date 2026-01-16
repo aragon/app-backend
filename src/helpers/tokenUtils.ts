@@ -130,7 +130,7 @@ const TokenUtils = {
       return { spamScore, isSpam: false }
     }
 
-    const hasCoinGeckoData = coinGeckoInfo && coinGeckoInfo.priceUsd && parseFloat(coinGeckoInfo.priceUsd) > 0
+    const hasCoinGeckoData = coinGeckoInfo?.priceUsd && parseFloat(coinGeckoInfo.priceUsd) > 0
 
     if (hasCoinGeckoData) {
       return { spamScore, isSpam: false }
