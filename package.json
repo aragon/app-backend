@@ -58,25 +58,10 @@
   },
   "nyc": {
     "all": true,
-    "extension": [
-      ".ts"
-    ],
-    "include": [
-      "src/**"
-    ],
-    "exclude": [
-      "scripts/**",
-      "src/aragonContracts/**",
-      "src/artifacts/**",
-      "src/migrations/**"
-    ],
-    "reporter": [
-      "text",
-      "lcov",
-      "html",
-      "json",
-      "text-summary"
-    ]
+    "extension": [".ts"],
+    "include": ["src/**"],
+    "exclude": ["scripts/**", "src/aragonContracts/**", "src/artifacts/**", "src/migrations/**"],
+    "reporter": ["text", "lcov", "html", "json", "text-summary"]
   },
   "dependencies": {
     "@ethersproject/constants": "^5.7.0",
