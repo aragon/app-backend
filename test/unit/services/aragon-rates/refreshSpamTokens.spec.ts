@@ -127,6 +127,7 @@ describe('AragonRates: RefreshSpamTokens', () => {
 
       expect(
         updateStub.calledWith({
+          spamScore: 0,
           isSpam: false,
           lastUpdatedAt: mockDate,
         }),
