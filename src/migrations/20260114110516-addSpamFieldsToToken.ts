@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import CoinGeckoHelper from '@helpers/coinGecko'
 import TokenUtils from '@helpers/tokenUtils'
 import logger from '@logger'
 import type Token from '@models/schema/token'
@@ -17,6 +18,13 @@ export const addSpamFieldsToTokenMigration: IMigration = {
       const crawler = new DBCrawler({
         model: Models.Token,
         onDocument: async (token: Token) => {
+          const coinGeckoData = await CoinGeckoHelper.getToken(token.address, token.network)
+
+          const coinGeckoInfo =
+            coinGeckoData && coinGeckoData.priceUsd && parseFloat(coinGeckoData.priceUsd) > 0
+              ? { priceUsd: coinGeckoData.priceUsd }
+              : null
+
           const { spamScore, isSpam } = TokenUtils.shouldMarkAsSpam({
             name: token.name || '',
             symbol: token.symbol || '',
@@ -24,23 +32,37 @@ export const addSpamFieldsToTokenMigration: IMigration = {
             tokenType: token.type,
             isGovernance: token.isGovernance,
             isTestnet: TESTNET_NETWORKS.includes(token.network),
-            coinGeckoInfo: token.priceUsd && parseFloat(token.priceUsd) > 0 ? { priceUsd: token.priceUsd } : null,
+            coinGeckoInfo,
           })
 
-          if (spamScore > 0 || isSpam) {
-            token.spamScore = spamScore
-            token.isSpam = isSpam
-            await token.save()
-            logger.verbose(
-              'Updated token spam fields',
-              llo({
-                address: token.address,
-                network: token.network,
-                spamScore,
-                isSpam,
-              }),
-            )
+          const updates: Partial<Token> = {}
+
+          if (coinGeckoData?.logo) {
+            updates.logo = coinGeckoData.logo
           }
+          if (coinGeckoData?.priceUsd) {
+            updates.priceUsd = coinGeckoData.priceUsd
+          }
+
+          updates.spamScore = spamScore
+          updates.isSpam = isSpam
+
+          token.spamScore = spamScore
+          token.isSpam = isSpam
+          if (updates.logo) token.logo = updates.logo
+          if (updates.priceUsd) token.priceUsd = updates.priceUsd
+
+          await token.save()
+
+          logger.verbose(
+            'Updated token spam fields',
+            llo({
+              address: token.address,
+              network: token.network,
+              spamScore,
+              isSpam,
+            }),
+          )
         },
         onError: (error: any, document: any) => {
           logger.error(
