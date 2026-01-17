@@ -18,7 +18,7 @@ export const RefreshSpamTokens = {
     const startTime = Date.now()
     logger.verbose('Start RefreshSpamTokens', llo({ startTime }))
 
-    const spamScoreThreshold = config.SERVICES.ARAGON_RATES.SPAM_SCORE_THRESHOLD
+    const spamScoreThreshold = 2
 
     const crawler = new DBCrawler({
       model: Models.Token,
@@ -67,8 +67,6 @@ export const RefreshSpamTokens = {
         coinGeckoInfo: coinGeckoInfo
           ? {
               priceUsd: coinGeckoInfo.priceUsd,
-              name: coinGeckoInfo.name,
-              symbol: coinGeckoInfo.symbol,
             }
           : null,
       })
