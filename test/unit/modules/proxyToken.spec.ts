@@ -1445,8 +1445,6 @@ describe('Modules: ProxyToken', () => {
       expect(spamParams.isTestnet).to.be.false
       expect(spamParams.coinGeckoInfo).to.deep.equal({
         priceUsd: '25.0',
-        name: 'CoinGecko Token',
-        symbol: 'CGT',
       })
     })
   })
