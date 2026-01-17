@@ -18,10 +18,11 @@ export const addSpamFieldsToTokenMigration: IMigration = {
       const crawler = new DBCrawler({
         model: Models.Token,
         onDocument: async (token: Token) => {
-          const coinGeckoData = await CoinGeckoHelper.getToken(token.address, token.network)
+          const coinGeckoResult = await CoinGeckoHelper.getToken(token.address, token.network)
+          const coinGeckoData = coinGeckoResult || null
 
           const coinGeckoInfo =
-            coinGeckoData && coinGeckoData.priceUsd && parseFloat(coinGeckoData.priceUsd) > 0
+            coinGeckoData?.priceUsd && parseFloat(coinGeckoData.priceUsd) > 0
               ? { priceUsd: coinGeckoData.priceUsd }
               : null
 
@@ -35,22 +36,10 @@ export const addSpamFieldsToTokenMigration: IMigration = {
             coinGeckoInfo,
           })
 
-          const updates: Partial<Token> = {}
-
-          if (coinGeckoData?.logo) {
-            updates.logo = coinGeckoData.logo
-          }
-          if (coinGeckoData?.priceUsd) {
-            updates.priceUsd = coinGeckoData.priceUsd
-          }
-
-          updates.spamScore = spamScore
-          updates.isSpam = isSpam
-
           token.spamScore = spamScore
           token.isSpam = isSpam
-          if (updates.logo) token.logo = updates.logo
-          if (updates.priceUsd) token.priceUsd = updates.priceUsd
+          if (coinGeckoData?.logo) token.logo = coinGeckoData.logo
+          if (coinGeckoData?.priceUsd) token.priceUsd = coinGeckoData.priceUsd
 
           await token.save()
 
