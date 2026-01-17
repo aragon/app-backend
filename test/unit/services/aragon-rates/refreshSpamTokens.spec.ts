@@ -60,7 +60,7 @@ describe('AragonRates: RefreshSpamTokens', () => {
           name: 'Free Airdrop',
           symbol: 'SPAM',
           isSpam: true,
-          spamScore: 3,
+          spamScore: 0,
         },
         {
           address: '0xSpam2',
@@ -69,7 +69,7 @@ describe('AragonRates: RefreshSpamTokens', () => {
           name: 'Bonus Token',
           symbol: 'BONUS',
           isSpam: true,
-          spamScore: 2,
+          spamScore: 1,
         },
       ]
 
@@ -179,8 +179,6 @@ describe('AragonRates: RefreshSpamTokens', () => {
           isTestnet: false,
           coinGeckoInfo: {
             priceUsd: coinGeckoData.priceUsd,
-            name: coinGeckoData.name,
-            symbol: coinGeckoData.symbol,
           },
         }),
       ).to.be.true

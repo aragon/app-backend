@@ -108,7 +108,7 @@ const TokenUtils = {
     tokenType: ITokenType
     isGovernance: boolean
     isTestnet: boolean
-    coinGeckoInfo: { priceUsd?: string; name?: string; symbol?: string } | null
+    coinGeckoInfo: { priceUsd?: string } | null
   }): { spamScore: number; isSpam: boolean } => {
     const { name, symbol, logo, tokenType, isGovernance, isTestnet, coinGeckoInfo } = params
 
@@ -130,10 +130,7 @@ const TokenUtils = {
       return { spamScore, isSpam: false }
     }
 
-    const hasCoinGeckoData =
-      coinGeckoInfo &&
-      ((coinGeckoInfo.priceUsd && parseFloat(coinGeckoInfo.priceUsd) > 0) ||
-        (coinGeckoInfo.name && coinGeckoInfo.name.length > 0))
+    const hasCoinGeckoData = coinGeckoInfo?.priceUsd && parseFloat(coinGeckoInfo.priceUsd) > 0
 
     if (hasCoinGeckoData) {
       return { spamScore, isSpam: false }

@@ -223,8 +223,6 @@ export const ProxyToken = {
       isTestnet,
       coinGeckoInfo: {
         priceUsd: tokenDetails.priceUsd,
-        name: tokenDetails.name,
-        symbol: tokenDetails.symbol,
       },
     })
     rawToken.spamScore = spamResult.spamScore

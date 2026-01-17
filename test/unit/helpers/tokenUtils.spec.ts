@@ -226,14 +226,13 @@ describe('TokenUtils', () => {
         tokenType: ITokenType.ERC20,
         isGovernance: false,
         isTestnet: false,
-        coinGeckoInfo: { priceUsd: '1.5', name: 'Airdrop Token', symbol: 'AIR' },
+        coinGeckoInfo: { priceUsd: '1.5' },
       })
       expect(result.isSpam).to.be.false
       expect(result.spamScore).to.be.a('number')
     })
 
     it('should return isSpam: true for high score (>= 5) regardless of CoinGecko data', () => {
-      const coinGeckoInfo = { priceUsd: '1.5', name: 'Token', symbol: 'TKN' }
       const result = TokenUtils.shouldMarkAsSpam({
         name: 'Free Airdrop https://scam.com',
         symbol: 'CLAIM',
@@ -241,7 +240,7 @@ describe('TokenUtils', () => {
         tokenType: ITokenType.ERC20,
         isGovernance: false,
         isTestnet: false,
-        coinGeckoInfo,
+        coinGeckoInfo: { priceUsd: '1.5' },
       })
       expect(result.isSpam).to.be.true
       expect(result.spamScore).to.be.gte(5)
@@ -261,8 +260,7 @@ describe('TokenUtils', () => {
       expect(result.spamScore).to.equal(0)
     })
 
-    it('should return isSpam: false for borderline score with valid CoinGecko data', () => {
-      const coinGeckoInfo = { priceUsd: '1.5', name: 'Token', symbol: 'TKN' }
+    it('should return isSpam: false for borderline score with valid CoinGecko price', () => {
       const result = TokenUtils.shouldMarkAsSpam({
         name: 'Free Token',
         symbol: 'FREE',
@@ -270,7 +268,7 @@ describe('TokenUtils', () => {
         tokenType: ITokenType.ERC20,
         isGovernance: false,
         isTestnet: false,
-        coinGeckoInfo,
+        coinGeckoInfo: { priceUsd: '1.5' },
       })
       expect(result.isSpam).to.be.false
     })
@@ -288,8 +286,7 @@ describe('TokenUtils', () => {
       expect(result.isSpam).to.be.true
     })
 
-    it('should consider CoinGecko name as valid data even with zero price', () => {
-      const coinGeckoInfo = { priceUsd: '0', name: 'Token', symbol: 'TKN' }
+    it('should return isSpam: true for score >= 2 with zero CoinGecko price', () => {
       const result = TokenUtils.shouldMarkAsSpam({
         name: 'Airdrop Token',
         symbol: 'AIR',
@@ -297,21 +294,7 @@ describe('TokenUtils', () => {
         tokenType: ITokenType.ERC20,
         isGovernance: false,
         isTestnet: false,
-        coinGeckoInfo,
-      })
-      expect(result.isSpam).to.be.false
-    })
-
-    it('should return isSpam: true for score >= 2 with empty CoinGecko data', () => {
-      const coinGeckoInfo = { priceUsd: '0', name: '', symbol: '' }
-      const result = TokenUtils.shouldMarkAsSpam({
-        name: 'Airdrop Token',
-        symbol: 'AIR',
-        logo: 'logo',
-        tokenType: ITokenType.ERC20,
-        isGovernance: false,
-        isTestnet: false,
-        coinGeckoInfo,
+        coinGeckoInfo: { priceUsd: '0' },
       })
       expect(result.isSpam).to.be.true
     })

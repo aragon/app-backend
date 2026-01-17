@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import CoinGeckoHelper from '@helpers/coinGecko'
 import TokenUtils from '@helpers/tokenUtils'
 import logger from '@logger'
 import type Token from '@models/schema/token'
@@ -17,6 +18,14 @@ export const addSpamFieldsToTokenMigration: IMigration = {
       const crawler = new DBCrawler({
         model: Models.Token,
         onDocument: async (token: Token) => {
+          const coinGeckoResult = await CoinGeckoHelper.getToken(token.address, token.network)
+          const coinGeckoData = coinGeckoResult || null
+
+          const coinGeckoInfo =
+            coinGeckoData?.priceUsd && parseFloat(coinGeckoData.priceUsd) > 0
+              ? { priceUsd: coinGeckoData.priceUsd }
+              : null
+
           const { spamScore, isSpam } = TokenUtils.shouldMarkAsSpam({
             name: token.name || '',
             symbol: token.symbol || '',
@@ -24,23 +33,25 @@ export const addSpamFieldsToTokenMigration: IMigration = {
             tokenType: token.type,
             isGovernance: token.isGovernance,
             isTestnet: TESTNET_NETWORKS.includes(token.network),
-            coinGeckoInfo: token.priceUsd && parseFloat(token.priceUsd) > 0 ? { priceUsd: token.priceUsd } : null,
+            coinGeckoInfo,
           })
 
-          if (spamScore > 0 || isSpam) {
-            token.spamScore = spamScore
-            token.isSpam = isSpam
-            await token.save()
-            logger.verbose(
-              'Updated token spam fields',
-              llo({
-                address: token.address,
-                network: token.network,
-                spamScore,
-                isSpam,
-              }),
-            )
-          }
+          token.spamScore = spamScore
+          token.isSpam = isSpam
+          if (coinGeckoData?.logo) token.logo = coinGeckoData.logo
+          if (coinGeckoData?.priceUsd) token.priceUsd = coinGeckoData.priceUsd
+
+          await token.save()
+
+          logger.verbose(
+            'Updated token spam fields',
+            llo({
+              address: token.address,
+              network: token.network,
+              spamScore,
+              isSpam,
+            }),
+          )
         },
         onError: (error: any, document: any) => {
           logger.error(
