@@ -214,7 +214,15 @@ describe('Helpers: ENS', () => {
   })
 
   // Note: isEnsExpired and resolveEnsToAddress are tested via E2E integration tests
-  // (test/unit-dep/services/ensValidator.spec.ts) since they require complex provider mocking
+  // (test/unit-dep/services/ensValidator.spec.ts) since proxyquire cannot properly mock @modules/provider
+
+  describe('isEnsExpired', () => {
+    it('should return false when label is empty', async () => {
+      // This test works because it returns early before calling the provider
+      const result = await EnsHelper.isEnsExpired('.eth' as any)
+      expect(result).to.be.false
+    })
+  })
 
   describe('isEnsValidForAddress', () => {
     it('should return true when ENS is valid and forward resolution matches', async () => {
@@ -259,6 +267,27 @@ describe('Helpers: ENS', () => {
 
       expect(result).to.be.true
       expect(isExpiredStub.called).to.be.false // Should not check expiration for dao.eth
+    })
+
+    it('should return false when forward resolution returns null', async () => {
+      const address = '0x1234567890abcdef1234567890abcdef12345678'
+
+      sandbox.stub(EnsHelper, 'isEnsExpired').resolves(false)
+      sandbox.stub(EnsHelper, 'resolveEnsToAddress').resolves(null)
+      sandbox.stub(logger, 'info')
+
+      const result = await EnsHelper.isEnsValidForAddress('noresolution.eth', address)
+      expect(result).to.be.false
+    })
+
+    it('should return false on error', async () => {
+      const address = '0x1234567890abcdef1234567890abcdef12345678'
+
+      sandbox.stub(EnsHelper, 'isEnsExpired').rejects(new Error('validation error'))
+      sandbox.stub(logger, 'silly')
+
+      const result = await EnsHelper.isEnsValidForAddress('error.eth', address)
+      expect(result).to.be.false
     })
   })
 
