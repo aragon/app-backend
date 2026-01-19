@@ -137,3 +137,95 @@ describe('Integ: EnsValidator', () => {
     })
   })
 })
+
+/**
+ * E2E Integration Tests - Real blockchain calls (no mocking)
+ * These tests call the actual Universal Resolver on Ethereum mainnet
+ * Uses real data similar to development database
+ */
+describe('Integ E2E: EnsValidator with real blockchain calls', () => {
+  beforeEach(async () => {
+    await Models.Member.deleteMany({})
+  })
+
+  afterEach(async () => {
+    await Models.Member.deleteMany({})
+  })
+
+  describe('Test E2E-1: Real expired ENS should be cleared', () => {
+    it('should clear ENS for address with expired ENS (ctzofinfinity.eth)', async () => {
+      // Real address from development DB with EXPIRED ENS
+      // ctzofinfinity.eth expired on December 21, 2024
+      const expiredAddress = '0x096178d2362b3D6c988c3400fe44811c97959F77'
+      const expiredEns = 'ctzofinfinity.eth'
+
+      // Pre-populate database with expired ENS (simulating development DB state)
+      await Models.Member.create({
+        address: expiredAddress,
+        ens: expiredEns,
+      })
+
+      // Verify initial state
+      const beforeMember = await Models.Member.findOne({ address: expiredAddress })
+      expect(beforeMember?.ens).to.eq(expiredEns)
+
+      // Run validator - NO MOCKING, real blockchain call
+      await EnsValidator.start()
+
+      // Verify: ENS should be cleared (set to null) because it's expired
+      const afterMember = await Models.Member.findOne({ address: expiredAddress })
+      expect(afterMember?.ens).to.be.null
+    })
+  })
+
+  describe('Test E2E-2: Real valid ENS should remain unchanged', () => {
+    it('should keep ENS for address with valid active ENS', async () => {
+      // Real address with VALID ENS (vitalik.eth is a well-known active ENS)
+      const validAddress = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045'
+      const validEns = 'vitalik.eth'
+
+      await Models.Member.create({
+        address: validAddress,
+        ens: validEns,
+      })
+
+      // Run validator - NO MOCKING
+      await EnsValidator.start()
+
+      // Verify: ENS should remain unchanged
+      const member = await Models.Member.findOne({ address: validAddress })
+      expect(member?.ens).to.eq(validEns)
+    })
+  })
+
+  describe('Test E2E-3: Mixed real ENS states', () => {
+    it('should handle multiple members with different ENS states', async () => {
+      // Member 1: Valid ENS (vitalik.eth)
+      const validAddress = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045'
+      const validEns = 'vitalik.eth'
+
+      // Member 2: Expired ENS (ctzofinfinity.eth)
+      const expiredAddress = '0x096178d2362b3D6c988c3400fe44811c97959F77'
+      const expiredEns = 'ctzofinfinity.eth'
+
+      // Member 3: No ENS (should be skipped)
+      const noEnsAddress = '0x0000000000000000000000000000000000000001'
+
+      await Models.Member.create({ address: validAddress, ens: validEns })
+      await Models.Member.create({ address: expiredAddress, ens: expiredEns })
+      await Models.Member.create({ address: noEnsAddress, ens: null })
+
+      // Run validator
+      await EnsValidator.start()
+
+      // Verify results
+      const m1 = await Models.Member.findOne({ address: validAddress })
+      const m2 = await Models.Member.findOne({ address: expiredAddress })
+      const m3 = await Models.Member.findOne({ address: noEnsAddress })
+
+      expect(m1?.ens).to.eq(validEns) // Valid - unchanged
+      expect(m2?.ens).to.be.null // Expired - cleared
+      expect(m3?.ens).to.be.null // No ENS - still null
+    })
+  })
+})
