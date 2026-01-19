@@ -21,7 +21,6 @@ describe('Helpers: ENS', () => {
   // (test/unit-dep/services/ensValidator.spec.ts) since it requires complex provider mocking
 
   it('should fail', async () => {
-    const ensName = 'test.eth'
     const stubConfigState = {
       getConfigItem: sandbox.stub().returns({}),
     }
@@ -213,15 +212,23 @@ describe('Helpers: ENS', () => {
     })
   })
 
-  // Note: isEnsExpired and resolveEnsToAddress are tested via E2E integration tests
-  // (test/unit-dep/services/ensValidator.spec.ts) since proxyquire cannot properly mock @modules/provider
-
   describe('isEnsExpired', () => {
     it('should return false when label is empty', async () => {
       // This test works because it returns early before calling the provider
       const result = await EnsHelper.isEnsExpired('.eth' as any)
       expect(result).to.be.false
     })
+
+    // Note: isEnsExpired and resolveEnsToAddress are tested via E2E integration tests
+    // (test/unit-dep/services/ensValidator.spec.ts) since they require Contract mocking
+    // that doesn't work well with proxyquire and TypeScript path aliases.
+    // The isEnsValidForAddress tests below cover the logic by stubbing these methods.
+  })
+
+  describe('resolveEnsToAddress', () => {
+    // Note: resolveEnsToAddress implementation is tested via E2E integration tests
+    // (test/unit-dep/services/ensValidator.spec.ts) with real blockchain calls.
+    // Unit tests for this function would require complex Contract mocking.
   })
 
   describe('isEnsValidForAddress', () => {
