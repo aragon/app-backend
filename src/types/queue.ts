@@ -25,6 +25,7 @@ export enum EnumQueueName {
   getTokenStats = 'token.stats',
   logSelectorPermission = 'log.selector.permission',
   syncMerkleProofs = 'sync.merkle.proofs',
+  metadataRefetch = 'metadata.refetch',
 }
 
 export interface IQueueAllMetrics {

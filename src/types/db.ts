@@ -13,6 +13,7 @@ import type LockToVoteMember from '@models/schema/lockToVoteMember'
 import type LogMetadata from '@models/schema/logMetadata'
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
 import type Member from '@models/schema/member'
+import type MetadataRefetch from '@models/schema/metadataRefetch'
 import type Metrics from '@models/schema/metrics'
 import type Migration from '@models/schema/migration'
 import type Plugin from '@models/schema/plugin'
@@ -43,6 +44,7 @@ export interface IMongoModel {
   LogMetadata: typeof LogMetadata
   LogPluginSetupProcessor: typeof LogPluginSetupProcessor
   Member: typeof Member
+  MetadataRefetch: typeof MetadataRefetch
   Plugin: typeof Plugin
   PluginRepo: typeof PluginRepo
   PluginSlug: typeof PluginSlug
@@ -77,6 +79,7 @@ export enum ICollectionNames {
   LogMetadata = 'LogMetadata',
   LogPluginSetupProcessor = 'LogPluginSetupProcessor',
   Member = 'Member',
+  MetadataRefetch = 'MetadataRefetch',
   CampaignMerkleRoot = 'CampaignMerkleRoot',
   Plugin = 'Plugin',
   PluginRepo = 'PluginRepo',
