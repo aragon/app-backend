@@ -228,6 +228,7 @@ export interface IConfig {
       RATES_INTERVAL: number
       REFRESH_SPAM_TOKENS_INTERVAL: number
       SPAM_SCORE_THRESHOLD: number
+      CMS_SPAM_TOKENS_URL: string
     }
   }
 

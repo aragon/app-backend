@@ -82,6 +82,9 @@ export default class Token extends Model {
   public spamScore!: number
 
   @prop({ type: () => String, default: null })
+  public spamSource!: 'cms' | null
+
+  @prop({ type: () => String, default: null })
   public name!: string | null
 
   @prop({ type: () => String, default: null, uppercase: true })

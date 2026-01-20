@@ -590,6 +590,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'SERVICES_ARAGON_RATES_SPAM_SCORE_THRESHOLD',
           5,
         ),
+        CMS_SPAM_TOKENS_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'SERVICES_ARAGON_RATES_CMS_SPAM_TOKENS_URL',
+          'https://raw.githubusercontent.com/aragon/app-cms/refs/heads/main/scam-tokens.json',
+        ),
       },
     },
 

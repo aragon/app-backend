@@ -81,3 +81,5 @@ export enum IClockMode {
   BlockNumber = 'blocknumber',
   Timestamp = 'timestamp',
 }
+
+export type ICmsSpamTokens = Partial<Record<NetworksEnum, HexAddress[]>>
