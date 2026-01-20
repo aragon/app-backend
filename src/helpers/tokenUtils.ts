@@ -96,7 +96,7 @@ const TokenUtils = {
     }
 
     const redFlags = [
-      /[▷►▶→🎁💰🚀💎🔥✨🎉🏆💵💲🤑]/,
+      /[▷►▶→🎁💰🚀💎🔥✨🎉🏆💵💲🤑]/u,
       /\$[A-Z]+\s+.*\./,
       /use.*official.*link/i,
       /trust.*wallet.*mystery/i,
