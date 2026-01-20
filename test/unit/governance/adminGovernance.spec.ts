@@ -361,6 +361,7 @@ describe('Governance:AdminGovernance', () => {
     })
 
     it('should handle single admin member correctly', async () => {
+      await adminGovernance.create(memberAddress)
       const result = await adminGovernance.findOne(memberAddress)
 
       expect(result).to.exist
