@@ -91,7 +91,7 @@ const TokenUtils = {
       const regex = new RegExp(`\\b${escapeRegExp(keyword)}\\b`, 'gi')
       const matches = combined.match(regex)
       if (matches) {
-        score += matches.length
+        score += 1 * matches.length
       }
     }
 
