@@ -356,7 +356,7 @@ export class VeGovernance extends BaseGovernance {
         )
 
         if (!originalLock) {
-          logger.error('Original lock not found for split', this.llo({ fromTokenId }))
+          logger.warn('Original lock not found for split', this.llo({ fromTokenId }))
           return null
         }
 
@@ -424,7 +424,7 @@ export class VeGovernance extends BaseGovernance {
         )
 
         if (!fromLock) {
-          logger.error('Source lock not found for merge', this.llo({ fromTokenId }))
+          logger.warn('Source lock not found for merge', this.llo({ fromTokenId }))
           return null
         }
 
@@ -440,7 +440,7 @@ export class VeGovernance extends BaseGovernance {
         )
 
         if (!toLock) {
-          logger.error(
+          logger.warn(
             'Destination lock not found for merge',
             this.llo({ toTokenId, memberAddress: fromLock.memberAddress }),
           )

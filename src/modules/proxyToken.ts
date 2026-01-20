@@ -24,32 +24,17 @@ export const ProxyToken = {
     network: NetworksEnum,
     forceUpdate: boolean = false,
   ): Promise<null | Token> => {
+    const parsedTokenAddress = Web3Utils.parseAddress(tokenAddress) || tokenAddress
+
+    const preCheckToken = await Models.Token.findExistingLog({ address: parsedTokenAddress, network })
+    if (preCheckToken?.isSpam) return null
+    if (preCheckToken && !forceUpdate) return preCheckToken
+
     try {
       return await DbTx.executeTxFn(async ({ session }) => {
-        const parsedTokenAddress = Web3Utils.parseAddress(tokenAddress) || tokenAddress
-
-        // Check for existing token
-        const existingToken = await Models.Token.findExistingLog(
-          {
-            address: parsedTokenAddress,
-            network,
-          },
-          { session },
-        )
-
-        if (existingToken) {
-          if (existingToken.isSpam) {
-            return null
-          }
-
-          if (!forceUpdate) {
-            return existingToken
-          }
-
-          return ProxyToken.updateTokenMetrics(existingToken, parsedTokenAddress, network, forceUpdate, session)
+        if (preCheckToken) {
+          return ProxyToken.updateTokenMetrics(preCheckToken, parsedTokenAddress, network, forceUpdate, session)
         }
-
-        // Create a new token
         return await ProxyToken.createNewToken(parsedTokenAddress, network, session)
       })
     } catch (error) {

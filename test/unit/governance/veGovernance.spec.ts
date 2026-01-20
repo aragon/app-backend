@@ -982,7 +982,7 @@ describe('Governance:VeGovernance', () => {
       })
 
       expect(result).to.be.null
-      expect(loggerErrorStub.calledWith('Original lock not found for split')).to.be.true
+      expect(loggerWarnStub.calledWith('Original lock not found for split')).to.be.true
     })
 
     it('should return null if no plugins found', async () => {
@@ -1125,7 +1125,7 @@ describe('Governance:VeGovernance', () => {
       })
 
       expect(result).to.be.null
-      expect(loggerErrorStub.calledWith('Source lock not found for merge')).to.be.true
+      expect(loggerWarnStub.calledWith('Source lock not found for merge')).to.be.true
     })
 
     it('should return null if destination lock not found', async () => {
@@ -1145,7 +1145,7 @@ describe('Governance:VeGovernance', () => {
       })
 
       expect(result).to.be.null
-      expect(loggerErrorStub.calledWith('Destination lock not found for merge')).to.be.true
+      expect(loggerWarnStub.calledWith('Destination lock not found for merge')).to.be.true
     })
 
     it('should return null if destination lock has different owner', async () => {
@@ -1184,7 +1184,7 @@ describe('Governance:VeGovernance', () => {
       })
 
       expect(result).to.be.null
-      expect(loggerErrorStub.calledWith('Destination lock not found for merge')).to.be.true
+      expect(loggerWarnStub.calledWith('Destination lock not found for merge')).to.be.true
     })
   })
 })
