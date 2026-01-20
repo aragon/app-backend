@@ -594,7 +594,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           sourceConfig,
           'string',
           'SERVICES_ARAGON_RATES_CMS_SPAM_TOKENS_URL',
-          'https://raw.githubusercontent.com/aragon/app-cms/refs/heads/main/scam-tokens.json',
+          'https://raw.githubusercontent.com/aragon/app-cms/refs/heads/main/spam-tokens.json',
         ),
       },
     },

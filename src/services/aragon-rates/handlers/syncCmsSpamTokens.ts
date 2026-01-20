@@ -3,6 +3,7 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import { type ICmsSpamTokens } from '@types'
 import axios from 'axios'
+import { ethers } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'rates:SyncCmsSpamTokens' })
 
@@ -71,7 +72,7 @@ export const SyncCmsSpamTokens = {
 
   buildTokenIds: (networkTokens: ICmsSpamTokens): string[] => {
     return Object.entries(networkTokens).flatMap(([network, addresses]) =>
-      (addresses || []).map(addr => `${addr.toLowerCase()}-${network}`),
+      (addresses || []).map(addr => `${ethers.getAddress(addr)}-${network}`),
     )
   },
 }
