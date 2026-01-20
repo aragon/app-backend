@@ -34,6 +34,7 @@ const TokenUtils = {
     const formattedName = (name || '').toLowerCase()
     const formattedSymbol = (symbol || '').toLowerCase()
     const combined = `${formattedName} ${formattedSymbol}`
+    const normalized = combined.replace(/(\w)\s+(?=\w)/g, '$1')
 
     let score = 0
 
@@ -56,40 +57,59 @@ const TokenUtils = {
       'free',
     ]
 
-    const lowRiskKeywords = ['claim', 'reward', 'rewards', 'join', 'gift', 'win', 'box', 'official', 'link']
+    const lowRiskKeywords = [
+      'claim',
+      'reward',
+      'rewards',
+      'join',
+      'gift',
+      'win',
+      'box',
+      'official',
+      'link',
+      'sign',
+      'confirm',
+    ]
 
     const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-    const highRiskPattern = highRiskKeywords.map(escapeRegExp).join('|')
-    const highRiskRegex = new RegExp(`\\b(${highRiskPattern})\\b`, 'i')
-
-    const lowRiskPattern = lowRiskKeywords.map(escapeRegExp).join('|')
-    const lowRiskRegex = new RegExp(`\\b(${lowRiskPattern})\\b`, 'i')
-
     const urlRegex = /(?:https?:\/\/|www\.)[^\s]+/i
-    if (urlRegex.test(combined)) {
+    const shortUrlRegex = /\b[a-z0-9-]+\.(ly|io|co|me|link|site|click|top|win|vip|gg|app)\b/i
+    if (urlRegex.test(combined) || shortUrlRegex.test(combined) || shortUrlRegex.test(normalized)) {
       score += 3
     }
 
-    if (highRiskRegex.test(combined)) {
-      score += 2
+    for (const keyword of highRiskKeywords) {
+      const regex = new RegExp(`\\b${escapeRegExp(keyword)}\\b`, 'gi')
+      const matches = combined.match(regex)
+      if (matches) {
+        score += 2 * matches.length
+      }
     }
 
-    if (lowRiskRegex.test(combined)) {
-      score += 1
+    for (const keyword of lowRiskKeywords) {
+      const regex = new RegExp(`\\b${escapeRegExp(keyword)}\\b`, 'gi')
+      const matches = combined.match(regex)
+      if (matches) {
+        score += matches.length
+      }
     }
 
     const redFlags = [
-      /[▷►▶→]/,
+      /[▷►▶→🎁💰🚀💎🔥✨🎉🏆💵💲🤑]/u,
       /\$[A-Z]+\s+.*\./,
       /use.*official.*link/i,
       /trust.*wallet.*mystery/i,
       /ads:\s*/i,
       /!\s*ads/i,
+      /!\s*\$\d+/i,
+      /\$\d{3,}/,
+      /claim[a-z]*\.(io|com|net|org)/i,
+      /(bonus|free|gift|airdrop|reward)[a-z-]*\.(net|org|com|io)/i,
     ]
 
     for (const pattern of redFlags) {
-      if (pattern.test(combined)) {
+      if (pattern.test(combined) || pattern.test(normalized)) {
         score += 2
       }
     }
