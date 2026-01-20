@@ -2,6 +2,7 @@ import { Models } from '@dbModels'
 import { SyncCmsSpamTokens } from '@services/aragon-rates/handlers/syncCmsSpamTokens'
 import { ITokenType, NetworksEnum } from '@types'
 import { expect } from 'chai'
+import config from '@config'
 
 describe('Integ: Scam Token Sync From CMS', () => {
   const ethSpamToken = '0x2747eE1EE8490Ce2f1853600c28a3846353d9d31'
@@ -31,6 +32,9 @@ describe('Integ: Scam Token Sync From CMS', () => {
       isSpam: false,
       spamSource: null,
     })
+
+    config.SERVICES.ARAGON_RATES.CMS_SPAM_TOKENS_URL =
+      'https://raw.githubusercontent.com/aragon/app-cms/de593e61d114f2cbbf989d54c0176ecc527a81f2/spam-tokens.json'
 
     await SyncCmsSpamTokens.start()
 
