@@ -46,7 +46,12 @@ export default class MetadataRefetch extends Model {
   @prop({ type: () => String, enum: MetadataRefetchStatus, default: MetadataRefetchStatus.pending })
   public status!: MetadataRefetchStatus
 
-  static getEntityId(params: { metadataUri: string; entityType: MetadataEntityType; entityId: string; network: NetworksEnum }) {
+  static getEntityId(params: {
+    metadataUri: string
+    entityType: MetadataEntityType
+    entityId: string
+    network: NetworksEnum
+  }) {
     return `${params.network}-${params.entityType}-${params.entityId}-${params.metadataUri}`
   }
 

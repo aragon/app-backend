@@ -330,12 +330,9 @@ describe('Services: aragon-gateway/MetadataRefetch', () => {
       it('Should return false when Proposal not found', async () => {
         sandbox.stub(Models.Proposal, 'findOne').resolves(null)
 
-        const result = await MetadataRefetchProcessor._updateEntity(
-          MetadataEntityType.Proposal,
-          '12345',
-          network,
-          { title: 'Test' },
-        )
+        const result = await MetadataRefetchProcessor._updateEntity(MetadataEntityType.Proposal, '12345', network, {
+          title: 'Test',
+        })
 
         expect(result).to.be.false
         expect(loggerWarnStub.calledWith('Proposal not found for metadata update')).to.be.true
@@ -368,7 +365,12 @@ describe('Services: aragon-gateway/MetadataRefetch', () => {
           avatar: 'https://example.com/avatar.png',
         }
 
-        const result = await MetadataRefetchProcessor._updateEntity(MetadataEntityType.Gauge, entityId, network, metadata)
+        const result = await MetadataRefetchProcessor._updateEntity(
+          MetadataEntityType.Gauge,
+          entityId,
+          network,
+          metadata,
+        )
 
         expect(result).to.be.true
         expect(mockUpdate.calledOnce).to.be.true

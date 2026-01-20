@@ -55,7 +55,10 @@ export const MetadataRefetchProcessor = {
       }
 
       // Still pending - will be picked up by scheduled job later
-      logger.verbose('MetadataRefetch still pending, will retry later', llo({ id, retryCount: refetchRecord.retryCount }))
+      logger.verbose(
+        'MetadataRefetch still pending, will retry later',
+        llo({ id, retryCount: refetchRecord.retryCount }),
+      )
       return false
     } catch (error) {
       logger.error('Error processing metadata refetch', llo({ id, error }))

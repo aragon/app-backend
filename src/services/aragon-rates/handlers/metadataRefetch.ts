@@ -25,7 +25,10 @@ export const MetadataRefetchScheduler = {
         return
       }
 
-      logger.info(`Found ${pendingRecords.length} pending metadata refetch records`, llo({ count: pendingRecords.length }))
+      logger.info(
+        `Found ${pendingRecords.length} pending metadata refetch records`,
+        llo({ count: pendingRecords.length }),
+      )
 
       // Process each record sequentially to avoid overwhelming IPFS
       for (const record of pendingRecords) {

@@ -23,7 +23,12 @@ const IPFSModule = {
 
   fetchMetadata: async (
     ipfsUrl: string,
-    opts?: { retries?: number; delay?: number; timeout?: number; onFetchFailed?: (metadataUri: string) => Promise<void> },
+    opts?: {
+      retries?: number
+      delay?: number
+      timeout?: number
+      onFetchFailed?: (metadataUri: string) => Promise<void>
+    },
   ): Promise<IMetadata | null> => {
     const cid = ipfsUrl?.replace('ipfs://', '')
 

@@ -10,7 +10,14 @@ import type Plugin from '@models/schema/plugin'
 import DbOperations from '@models/utils/dbOperations'
 import IPFSModule from '@modules/ipfs'
 import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
-import { type ILogInfo, type IMetadata, IMetadataType, IPluginInterfaceType, IPluginStatus, MetadataEntityType } from '@types'
+import {
+  type ILogInfo,
+  type IMetadata,
+  IMetadataType,
+  IPluginInterfaceType,
+  IPluginStatus,
+  MetadataEntityType,
+} from '@types'
 import { type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:MetadataHandler' })
