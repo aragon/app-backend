@@ -89,15 +89,6 @@ describe('Governance:AdminGovernance', () => {
     })
 
     it('should return existing PluginMember', async () => {
-      const parsedAddress = Web3Utils.parseAddress(memberAddress)
-      // Create existing member in database
-      const existingMember = await Models.PluginMember.create({
-        memberAddress: parsedAddress,
-        pluginAddress: testPluginAddress,
-        daoAddress: testDaoAddress,
-        network: testNetwork,
-      })
-
       const result = await adminGovernance.getOrCreate(memberAddress)
 
       expect(result).to.exist
@@ -370,15 +361,6 @@ describe('Governance:AdminGovernance', () => {
     })
 
     it('should handle single admin member correctly', async () => {
-      const parsedAddress = Web3Utils.parseAddress(memberAddress)
-      // Create an admin member
-      const adminMember = await Models.PluginMember.create({
-        memberAddress: parsedAddress,
-        pluginAddress: testPluginAddress,
-        daoAddress: testDaoAddress,
-        network: testNetwork,
-      })
-
       const result = await adminGovernance.findOne(memberAddress)
 
       expect(result).to.exist
