@@ -1,7 +1,7 @@
 {
   "name": "aragon-backend",
   "description": "OpenSource backend services",
-  "version": "0.7.0",
+  "version": "0.22.0",
   "main": "index.ts",
   "license": "AGPL-3.0",
   "author": "Aragon Development Team",
@@ -39,7 +39,7 @@
     "test:unit": "ts-node -r tsconfig-paths/register test/test.config.ts --unit",
     "test:unit-dep": "ts-node -r tsconfig-paths/register test/test.config.ts --unit-dep",
     "test:unit:coverage": "rm -rf coverage .nyc_output && nyc --debug --no-clean --temp-dir=.nyc_output/ yarn test:unit",
-    "test:coverage:check": "nyc check-coverage --temp-dir=.nyc_output/ --statements 98 --branches 90 --functions 97 --lines 98",
+    "test:coverage:check": "nyc check-coverage --temp-dir=.nyc_output/ --statements 98 --branches 90 --functions 97.97 --lines 98",
     "docker:test:unit-dep": "docker-compose up -d --build unit-dep",
     "docker:unit-dep-dependencies": "docker-compose up -d --build mongo1 mongo2 mongo3 mongo-init-replica rabbitmq",
     "docker:mongo": "docker-compose up -d --build mongo1 mongo2 mongo3 mongo-init-replica",

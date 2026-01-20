@@ -89,15 +89,6 @@ describe('Governance:AdminGovernance', () => {
     })
 
     it('should return existing PluginMember', async () => {
-      const parsedAddress = Web3Utils.parseAddress(memberAddress)
-      // Create existing member in database
-      const existingMember = await Models.PluginMember.create({
-        memberAddress: parsedAddress,
-        pluginAddress: testPluginAddress,
-        daoAddress: testDaoAddress,
-        network: testNetwork,
-      })
-
       const result = await adminGovernance.getOrCreate(memberAddress)
 
       expect(result).to.exist
@@ -370,15 +361,7 @@ describe('Governance:AdminGovernance', () => {
     })
 
     it('should handle single admin member correctly', async () => {
-      const parsedAddress = Web3Utils.parseAddress(memberAddress)
-      // Create an admin member
-      const adminMember = await Models.PluginMember.create({
-        memberAddress: parsedAddress,
-        pluginAddress: testPluginAddress,
-        daoAddress: testDaoAddress,
-        network: testNetwork,
-      })
-
+      await adminGovernance.create(memberAddress)
       const result = await adminGovernance.findOne(memberAddress)
 
       expect(result).to.exist
@@ -481,7 +464,8 @@ describe('Governance:AdminGovernance', () => {
 
       expect(result).to.exist
       expect(result.data).to.have.lengthOf(5)
-      expect(result.data[0].address.toLowerCase()).to.include('0000000000000000000000000000000000000000')
+      // With createdAt desc sort, last created (i=4) comes first
+      expect(result.data[0].address.toLowerCase()).to.include('0000000000000000000000000000000000000004')
     })
   })
 

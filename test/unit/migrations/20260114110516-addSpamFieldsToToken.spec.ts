@@ -24,7 +24,8 @@ describe('migration: addSpamFieldsToToken', () => {
   it('should update spam fields for tokens with spam-like names when CoinGecko returns no data', async () => {
     coinGeckoStub.resolves(false)
 
-    await Models.Token.create({
+    await Models.Token.collection.insertOne({
+      id: '0xSpamToken1-ethereum-mainnet',
       address: '0xSpamToken1',
       network: NetworksEnum.ethereumMainnet,
       type: ITokenType.ERC20,
@@ -53,7 +54,8 @@ describe('migration: addSpamFieldsToToken', () => {
       name: 'Airdrop Token',
     })
 
-    await Models.Token.create({
+    await Models.Token.collection.insertOne({
+      id: '0xLegitToken-ethereum-mainnet',
       address: '0xLegitToken',
       network: NetworksEnum.ethereumMainnet,
       type: ITokenType.ERC20,
@@ -83,7 +85,8 @@ describe('migration: addSpamFieldsToToken', () => {
       name: 'Claim Token',
     })
 
-    await Models.Token.create({
+    await Models.Token.collection.insertOne({
+      id: '0xTokenWithLogo-ethereum-mainnet',
       address: '0xTokenWithLogo',
       network: NetworksEnum.ethereumMainnet,
       type: ITokenType.ERC20,
@@ -107,7 +110,8 @@ describe('migration: addSpamFieldsToToken', () => {
   it('should mark as spam when CoinGecko returns no data and token has spam indicators', async () => {
     coinGeckoStub.resolves(false)
 
-    await Models.Token.create({
+    await Models.Token.collection.insertOne({
+      id: '0xBonusToken-polygon-mainnet',
       address: '0xBonusToken',
       network: NetworksEnum.polygonMainnet,
       type: ITokenType.ERC20,

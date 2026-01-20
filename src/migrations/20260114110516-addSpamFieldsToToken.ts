@@ -18,38 +18,40 @@ export const addSpamFieldsToTokenMigration: IMigration = {
       const crawler = new DBCrawler({
         model: Models.Token,
         onDocument: async (token: Token) => {
-          const coinGeckoData = await CoinGeckoHelper.getToken(token.address, token.network)
+          const coinGeckoResult = await CoinGeckoHelper.getToken(token.address, token.network)
+          const coinGeckoData = coinGeckoResult || null
 
-          const logo = coinGeckoData ? coinGeckoData.logo || null : null
-          const priceUsd = coinGeckoData ? coinGeckoData.priceUsd || '0' : '0'
-
-          token.logo = logo
-          token.priceUsd = priceUsd
+          const coinGeckoInfo =
+            coinGeckoData?.priceUsd && parseFloat(coinGeckoData.priceUsd) > 0
+              ? { priceUsd: coinGeckoData.priceUsd }
+              : null
 
           const { spamScore, isSpam } = TokenUtils.shouldMarkAsSpam({
             name: token.name || '',
             symbol: token.symbol || '',
-            logo,
+            logo: token.logo,
             tokenType: token.type,
             isGovernance: token.isGovernance,
             isTestnet: TESTNET_NETWORKS.includes(token.network),
-            coinGeckoInfo: parseFloat(priceUsd) > 0 ? { priceUsd } : null,
+            coinGeckoInfo,
           })
 
-          if (spamScore > 0 || isSpam) {
-            token.spamScore = spamScore
-            token.isSpam = isSpam
-            await token.save()
-            logger.verbose(
-              'Updated token spam fields',
-              llo({
-                address: token.address,
-                network: token.network,
-                spamScore,
-                isSpam,
-              }),
-            )
-          }
+          token.spamScore = spamScore
+          token.isSpam = isSpam
+          if (coinGeckoData?.logo) token.logo = coinGeckoData.logo
+          if (coinGeckoData?.priceUsd) token.priceUsd = coinGeckoData.priceUsd
+
+          await token.save()
+
+          logger.verbose(
+            'Updated token spam fields',
+            llo({
+              address: token.address,
+              network: token.network,
+              spamScore,
+              isSpam,
+            }),
+          )
         },
         onError: (error: any, document: any) => {
           logger.error(
@@ -65,8 +67,8 @@ export const addSpamFieldsToTokenMigration: IMigration = {
           network: { $nin: TESTNET_NETWORKS },
           isGovernance: false,
           type: ITokenType.ERC20,
-          $or: [{ logo: { $in: [null, ''] } }, { logo: { $regex: /^https:\/\/logos\.covalenthq\.com\/tok/ } }],
-          isSpam: false,
+          $or: [{ logo: { $in: [null, ''] } }, { logo: { $regex: '^https://logos\\.covalenthq\\.com/tok' } }],
+          isSpam: { $exists: false },
         },
         batchSize: 1000,
         concurrency: 100,

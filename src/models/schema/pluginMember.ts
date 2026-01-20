@@ -123,7 +123,7 @@ export default class PluginMember extends Model {
     const searchFilter = ModelUtils.createFilter(paginationParams, ['memberInfo.ens', 'memberInfo.address'])
 
     const currentPage = request.skip / request.limit + 1
-    const query: any = [
+    const baseQuery: any = [
       {
         $match: filter,
       },
@@ -173,24 +173,31 @@ export default class PluginMember extends Model {
           },
         },
       },
-      {
-        $project: {
-          _id: 0,
-          address: '$memberInfo.address',
-          ens: '$memberInfo.ens',
-          avatar: '$memberInfo.avatar',
-          metrics: '$memberMetrics',
-          firstActivity: '$memberInfo.firstActivity',
-          lastActivity: '$memberInfo.lastActivity',
-        },
-      },
     ]
 
-    const aggQuery = [...query, { $sort: request?.sort }, { $skip: request?.skip }, { $limit: request?.limit }]
+    const projectStage = {
+      $project: {
+        _id: 0,
+        address: '$memberInfo.address',
+        ens: '$memberInfo.ens',
+        avatar: '$memberInfo.avatar',
+        metrics: '$memberMetrics',
+        firstActivity: '$memberInfo.firstActivity',
+        lastActivity: '$memberInfo.lastActivity',
+      },
+    }
+
+    const aggQuery = [
+      ...baseQuery,
+      { $sort: request?.sort },
+      { $skip: request?.skip },
+      { $limit: request?.limit },
+      projectStage,
+    ]
 
     const [data, totalRecords] = await Promise.all([
       this.aggregate(aggQuery),
-      this.aggregate([...query, { $count: 'totalRecords' }]).then(results =>
+      this.aggregate([...baseQuery, { $count: 'totalRecords' }]).then(results =>
         results[0] ? results[0].totalRecords : 0,
       ),
     ])
