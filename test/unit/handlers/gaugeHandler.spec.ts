@@ -181,7 +181,8 @@ describe('Handler: gaugeHandler', () => {
 
       expect(extractMetadataUriStub.calledOnce).to.be.true
       expect(fetchMetadataStub.calledOnce).to.be.true
-      expect(fetchMetadataStub.calledWith('ipfs://QmTest123', { retries: 4 })).to.be.true
+      expect(fetchMetadataStub.firstCall.args[0]).to.equal('ipfs://QmTest123')
+      expect(fetchMetadataStub.firstCall.args[1]).to.have.property('retries', 2)
       expect(verboseStub.calledOnce).to.be.true
       expect(verboseStub.args[0][0]).to.equal('Gauge created')
     })

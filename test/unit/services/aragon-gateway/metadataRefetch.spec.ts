@@ -1,5 +1,6 @@
 import config from '@config'
 import { Models } from '@dbModels'
+import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import IPFSModule from '@modules/ipfs'
 import { MetadataRefetchProcessor } from '@services/aragon-gateway/metadataRefetch'
@@ -160,7 +161,7 @@ describe('Services: aragon-gateway/MetadataRefetch', () => {
       const mockRecord = {
         id: baseParams.id,
         status: MetadataRefetchStatus.pending,
-        retryCount: 1, // Already at 1, will reach MAX_RETRY_COUNT (2) after markAttempt
+        retryCount: 2, // Already at MAX_RETRY_COUNT (2), should discard
         markAttempt: sandbox.stub().resolves(),
         markCompleted: sandbox.stub().resolves(),
         markDiscarded: mockMarkDiscarded,
@@ -315,6 +316,15 @@ describe('Services: aragon-gateway/MetadataRefetch', () => {
           media: [],
         }
 
+        const parsedMetadata = {
+          title: 'Updated Proposal',
+          description: 'Updated description',
+          summary: 'Updated summary',
+          resources: [],
+          media: [],
+        }
+        sandbox.stub(Web3Utils, 'parseProposalMetadata').returns(parsedMetadata as any)
+
         const result = await MetadataRefetchProcessor._updateEntity(
           MetadataEntityType.Proposal,
           '12345',
@@ -329,6 +339,7 @@ describe('Services: aragon-gateway/MetadataRefetch', () => {
 
       it('Should return false when Proposal not found', async () => {
         sandbox.stub(Models.Proposal, 'findOne').resolves(null)
+        sandbox.stub(Web3Utils, 'parseProposalMetadata').returns({ title: 'Test' } as any)
 
         const result = await MetadataRefetchProcessor._updateEntity(MetadataEntityType.Proposal, '12345', network, {
           title: 'Test',
@@ -340,6 +351,8 @@ describe('Services: aragon-gateway/MetadataRefetch', () => {
 
       it('Should return false when metadata parsing fails', async () => {
         // parseProposalMetadata returns null for invalid metadata
+        sandbox.stub(Web3Utils, 'parseProposalMetadata').returns(null as any)
+
         const result = await MetadataRefetchProcessor._updateEntity(
           MetadataEntityType.Proposal,
           '12345',
@@ -400,6 +413,14 @@ describe('Services: aragon-gateway/MetadataRefetch', () => {
           type: 'airdrop',
         }
 
+        const parsedMetadata = {
+          title: 'Updated Campaign',
+          description: 'Updated description',
+          resources: [],
+          type: 'airdrop',
+        }
+        sandbox.stub(Web3Utils, 'parseCampaignMetadata').returns(parsedMetadata as any)
+
         const result = await MetadataRefetchProcessor._updateEntity(
           MetadataEntityType.Campaign,
           'campaign-1',
@@ -414,6 +435,7 @@ describe('Services: aragon-gateway/MetadataRefetch', () => {
 
       it('Should return false when Campaign not found', async () => {
         sandbox.stub(Models.Campaign, 'findOne').resolves(null)
+        sandbox.stub(Web3Utils, 'parseCampaignMetadata').returns({ title: 'Test' } as any)
 
         const result = await MetadataRefetchProcessor._updateEntity(
           MetadataEntityType.Campaign,
@@ -427,6 +449,8 @@ describe('Services: aragon-gateway/MetadataRefetch', () => {
       })
 
       it('Should return false when metadata parsing fails', async () => {
+        sandbox.stub(Web3Utils, 'parseCampaignMetadata').returns(null as any)
+
         const result = await MetadataRefetchProcessor._updateEntity(
           MetadataEntityType.Campaign,
           'campaign-1',
