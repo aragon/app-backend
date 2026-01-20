@@ -67,7 +67,7 @@ export const addSpamFieldsToTokenMigration: IMigration = {
           network: { $nin: TESTNET_NETWORKS },
           isGovernance: false,
           type: ITokenType.ERC20,
-          logo: { $in: [null, ''] },
+          $or: [{ logo: { $in: [null, ''] } }, { logo: { $regex: /^https:\/\/logos\.covalenthq\.com\/tok/ } }],
         },
         batchSize: 1000,
         concurrency: 100,
