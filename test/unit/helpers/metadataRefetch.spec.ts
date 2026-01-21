@@ -395,9 +395,14 @@ describe('Helpers: MetadataRefetch', () => {
         sandbox.stub(Models.Proposal, 'findOne').resolves(null)
         sandbox.stub(Web3Utils, 'parseProposalMetadata').returns({ title: 'Test' } as any)
 
-        const result = await MetadataRefetchHelper.applyRefetchedMetadata(MetadataEntityType.Proposal, '12345', network, {
-          title: 'Test',
-        })
+        const result = await MetadataRefetchHelper.applyRefetchedMetadata(
+          MetadataEntityType.Proposal,
+          '12345',
+          network,
+          {
+            title: 'Test',
+          },
+        )
 
         expect(result).to.be.false
         expect(loggerWarnStub.calledWith('Proposal not found for metadata update')).to.be.true
