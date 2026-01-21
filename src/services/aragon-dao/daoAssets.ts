@@ -178,8 +178,10 @@ export const DaoAssets = {
         await DaoAssets._handleNativeToken(document, ethBalance)
       }
 
-      await Utils.asyncForEach(tokenBalances.filter(token => Number(token.tokenBalance) > 0), async (tokenBalance:IWeb3TokenBalance) =>
-        await DaoAssets._handleErc20Token(document, tokenBalance))
+      await Utils.asyncForEach(
+        tokenBalances.filter(token => Number(token.tokenBalance) > 0),
+        async (tokenBalance: IWeb3TokenBalance) => await DaoAssets._handleErc20Token(document, tokenBalance),
+      )
 
       return { ethBalance, tokenBalances }
     } catch (error) {
