@@ -138,11 +138,12 @@ describe('Services: aragon-rates/handlers/MetadataRefetchScheduler', () => {
     }
 
     it('Should mark attempt before fetching', async () => {
-      const mockMarkAttempt = sandbox.stub().resolves()
-      const mockRecord = {
+      const mockRecord: any = {
         ...baseRecord,
         retryCount: 0,
-        markAttempt: mockMarkAttempt,
+        markAttempt: sandbox.stub().callsFake(async function (this: any) {
+          this.retryCount = (this.retryCount || 0) + 1
+        }),
         markCompleted: sandbox.stub().resolves(),
         markDiscarded: sandbox.stub().resolves(),
       }
@@ -150,15 +151,17 @@ describe('Services: aragon-rates/handlers/MetadataRefetchScheduler', () => {
 
       await MetadataRefetchScheduler._processRecord(mockRecord)
 
-      expect(mockMarkAttempt.calledOnce).to.be.true
+      expect(mockRecord.markAttempt.calledOnce).to.be.true
       expect(fetchMetadataStub.calledOnce).to.be.true
     })
 
     it('Should call fetchMetadata with correct params and retries=4', async () => {
-      const mockRecord = {
+      const mockRecord: any = {
         ...baseRecord,
         retryCount: 0,
-        markAttempt: sandbox.stub().resolves(),
+        markAttempt: sandbox.stub().callsFake(async function (this: any) {
+          this.retryCount = (this.retryCount || 0) + 1
+        }),
         markCompleted: sandbox.stub().resolves(),
         markDiscarded: sandbox.stub().resolves(),
       }
@@ -173,10 +176,12 @@ describe('Services: aragon-rates/handlers/MetadataRefetchScheduler', () => {
 
     it('Should mark completed on successful fetch and entity update', async () => {
       const mockMarkCompleted = sandbox.stub().resolves()
-      const mockRecord = {
+      const mockRecord: any = {
         ...baseRecord,
         retryCount: 0,
-        markAttempt: sandbox.stub().resolves(),
+        markAttempt: sandbox.stub().callsFake(async function (this: any) {
+          this.retryCount = (this.retryCount || 0) + 1
+        }),
         markCompleted: mockMarkCompleted,
         markDiscarded: sandbox.stub().resolves(),
       }
@@ -194,10 +199,12 @@ describe('Services: aragon-rates/handlers/MetadataRefetchScheduler', () => {
 
     it('Should discard after max retries when fetch fails', async () => {
       const mockMarkDiscarded = sandbox.stub().resolves()
-      const mockRecord = {
+      const mockRecord: any = {
         ...baseRecord,
         retryCount: 1, // Will be 2 after markAttempt, which equals MAX_RETRY_COUNT
-        markAttempt: sandbox.stub().resolves(),
+        markAttempt: sandbox.stub().callsFake(async function (this: any) {
+          this.retryCount = (this.retryCount || 0) + 1
+        }),
         markCompleted: sandbox.stub().resolves(),
         markDiscarded: mockMarkDiscarded,
       }
@@ -210,10 +217,12 @@ describe('Services: aragon-rates/handlers/MetadataRefetchScheduler', () => {
     })
 
     it('Should keep pending when fetch fails but under max retries', async () => {
-      const mockRecord = {
+      const mockRecord: any = {
         ...baseRecord,
         retryCount: 0, // Will be 1 after markAttempt, still under MAX_RETRY_COUNT
-        markAttempt: sandbox.stub().resolves(),
+        markAttempt: sandbox.stub().callsFake(async function (this: any) {
+          this.retryCount = (this.retryCount || 0) + 1
+        }),
         markCompleted: sandbox.stub().resolves(),
         markDiscarded: sandbox.stub().resolves(),
       }
@@ -228,10 +237,12 @@ describe('Services: aragon-rates/handlers/MetadataRefetchScheduler', () => {
 
     it('Should not mark completed when entity update fails', async () => {
       const mockMarkCompleted = sandbox.stub().resolves()
-      const mockRecord = {
+      const mockRecord: any = {
         ...baseRecord,
         retryCount: 0,
-        markAttempt: sandbox.stub().resolves(),
+        markAttempt: sandbox.stub().callsFake(async function (this: any) {
+          this.retryCount = (this.retryCount || 0) + 1
+        }),
         markCompleted: mockMarkCompleted,
         markDiscarded: sandbox.stub().resolves(),
       }

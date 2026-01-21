@@ -47,9 +47,9 @@ export const MetadataRefetchScheduler = {
    * Process a single metadata refetch record
    */
   _processRecord: async (record: any): Promise<void> => {
-    const { id, metadataUri, entityType, entityId, network, retryCount } = record
+    const { id, metadataUri, entityType, entityId, network } = record
 
-    // Mark the attempt
+    // Mark the attempt (increments retryCount and saves)
     await record.markAttempt()
 
     // Try to fetch metadata
@@ -66,14 +66,14 @@ export const MetadataRefetchScheduler = {
       }
     }
 
-    // Check if we've exceeded max retries (retryCount was already incremented by markAttempt)
-    if (retryCount + 1 >= config.IPFS.METADATA_REFETCH_MAX_RETRY) {
+    // Check if we've exceeded max retries (record.retryCount was already incremented by markAttempt)
+    if (record.retryCount >= config.IPFS.METADATA_REFETCH_MAX_RETRY) {
       await record.markDiscarded()
-      logger.warn('Scheduled MetadataRefetch discarded after max retries', llo({ id, retryCount: retryCount + 1 }))
+      logger.warn('Scheduled MetadataRefetch discarded after max retries', llo({ id, retryCount: record.retryCount }))
       return
     }
 
     // Still pending - will be picked up in next scheduled run
-    logger.verbose('Scheduled MetadataRefetch still pending', llo({ id, retryCount: retryCount + 1 }))
+    logger.verbose('Scheduled MetadataRefetch still pending', llo({ id, retryCount: record.retryCount }))
   },
 }
