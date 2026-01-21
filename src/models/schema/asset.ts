@@ -6,8 +6,8 @@ import {
   HexAddress,
   type IAssetExtraParams,
   type IAssetIdParams,
+  type IAssetPaginatedResult,
   ICollectionNames,
-  type IPaginatedResult,
   type IPaginationParams,
   NetworksEnum,
 } from '@types'
@@ -83,7 +83,7 @@ export default class Asset extends Model {
   }: {
     extraParams?: IAssetExtraParams
     paginationParams?: IPaginationParams
-  }): Promise<IPaginatedResult<any>> {
+  }): Promise<IAssetPaginatedResult<any>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const ignoredParams = ['daoAddresses', 'onlyParent', 'includeSpam']
     const dynamicFilter = Object.fromEntries(
@@ -273,18 +273,25 @@ export default class Asset extends Model {
       },
     })
 
-    const countPipeline: any[] = [
+    const baseCountPipeline: any[] = [
       { $match: filter },
       AggregationQueryHelper.token({ network: '$network', address: '$tokenAddress' }, 'tokenDetails', { isSpam: 1 }),
       { $unwind: { path: '$tokenDetails', preserveNullAndEmptyArrays: true } },
-      ...spamFilter,
-      ...(shouldGroupByToken ? [{ $group: { _id: { tokenAddress: '$tokenAddress', network: '$network' } } }] : []),
-      { $count: 'total' },
     ]
 
-    const [data, totalRecords] = await Promise.all([
+    const groupByTokenStage = shouldGroupByToken
+      ? [{ $group: { _id: { tokenAddress: '$tokenAddress', network: '$network' } } }]
+      : []
+
+    const countPipeline = [...baseCountPipeline, ...spamFilter, ...groupByTokenStage, { $count: 'total' }]
+
+    const spamOnlyFilter = [{ $match: { 'tokenDetails.isSpam': true } }]
+    const spamCountPipeline = [...baseCountPipeline, ...spamOnlyFilter, ...groupByTokenStage, { $count: 'total' }]
+
+    const [data, totalRecords, spamCount] = await Promise.all([
       this.aggregate(pipeline),
       this.aggregate(countPipeline).then((result: any) => result[0]?.total || 0),
+      this.aggregate(spamCountPipeline).then((result: any) => result[0]?.total || 0),
     ])
 
     const totalPages = Math.ceil(totalRecords / request.limit)
@@ -299,6 +306,7 @@ export default class Asset extends Model {
         pageSize: request.limit,
         totalPages,
         totalRecords,
+        spamCount,
       },
       data,
     }

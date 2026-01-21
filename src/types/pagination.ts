@@ -167,6 +167,14 @@ export interface IPaginatedResult<T> {
   metadata: IPaginationMetadata
 }
 
+export interface IAssetPaginationMetadata extends IPaginationMetadata {
+  spamCount?: number
+}
+
+export interface IAssetPaginatedResult<T> extends Omit<IPaginatedResult<T>, 'metadata'> {
+  metadata: IAssetPaginationMetadata
+}
+
 export interface IGetPluginsByDaoParams {
   daoAddress: HexAddress
   network: NetworksEnum

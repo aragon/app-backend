@@ -2,8 +2,8 @@ import { Models } from '@dbModels'
 import PairDataModule from '@modules/pairData'
 import {
   type IAssetExtraParams,
+  type IAssetPaginatedResult,
   type IAssetResponse,
-  type IPaginatedResult,
   type IPaginationParams,
   type IPairParams,
 } from '@types'
@@ -13,7 +13,7 @@ const AssetController = {
     paginationParams: IPaginationParams = {},
     extraParams: IAssetExtraParams = {},
     pairParams: IPairParams = {},
-  ): Promise<IPaginatedResult<IAssetResponse>> => {
+  ): Promise<IAssetPaginatedResult<IAssetResponse>> => {
     extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
 
     const hasOnlyDaoAndNetwork = extraParams.daoAddress && extraParams.network && !extraParams.tokenAddress
@@ -25,7 +25,7 @@ const AssetController = {
       }
     }
 
-    return await Models.Asset.findWithPagination({ extraParams, paginationParams })
+    return Models.Asset.findWithPagination({ extraParams, paginationParams })
   },
 }
 

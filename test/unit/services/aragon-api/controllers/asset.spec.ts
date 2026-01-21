@@ -161,6 +161,7 @@ describe('Controller: Asset', () => {
           page: 1,
           totalPages: 0,
           totalRecords: 0,
+          spamCount: 0,
         },
       })
 
@@ -170,6 +171,7 @@ describe('Controller: Asset', () => {
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(0)
       expect(response.metadata.totalRecords).to.eq(0)
+      expect(response.metadata.spamCount).to.eq(0)
     })
 
     it('should handle when findWithPagination throws an error', async () => {
@@ -339,6 +341,23 @@ describe('Controller: Asset', () => {
       expect(spyReq.calledOnce).to.be.true
       const callArgs = spyReq.firstCall.args[0]
       expect(callArgs.extraParams.daoAddresses).to.be.undefined
+    })
+
+    it('should include spam metadata in response', async () => {
+      const paginationParams = {
+        pageSize: 10,
+        page: 1,
+      }
+
+      const filterParams: any = {
+        network: rawAsset.network,
+        daoAddress: rawAsset.daoAddress,
+      }
+
+      const response = await AssetController.getAssetsWithPagination(paginationParams, filterParams)
+
+      expect(response.metadata).to.have.property('spamCount')
+      expect(response.metadata.spamCount).to.be.a('number')
     })
   })
 })
