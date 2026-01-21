@@ -7,6 +7,7 @@ import logger from '@logger'
 import type Token from '@models/schema/token'
 import DBCrawler from '@models/utils/crawler'
 import DbTx from '@modules/dbTx'
+import { SpamSource } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'rates:RefreshSpamTokens' })
 
@@ -29,6 +30,7 @@ export const RefreshSpamTokens = {
       where: {
         isSpam: true,
         spamScore: { $lt: spamScoreThreshold },
+        spamSource: { $ne: SpamSource.CMS },
       },
       batchSize: RefreshSpamTokens.batchSize,
       concurrency: RefreshSpamTokens.concurrency,
