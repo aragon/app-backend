@@ -74,7 +74,7 @@ export const SyncCmsSpamTokens = {
       (addresses || []).flatMap(addr => {
         try {
           return [`${ethers.getAddress(addr)}-${network}`]
-        } catch (error) {
+        } catch (_error) {
           logger.warn('Skipping invalid CMS spam token address', llo({ network, addr }))
           return []
         }
