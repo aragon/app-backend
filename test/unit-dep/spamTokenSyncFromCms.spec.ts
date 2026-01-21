@@ -1,10 +1,10 @@
 import { Models } from '@dbModels'
 import { SyncCmsSpamTokens } from '@services/aragon-rates/handlers/syncCmsSpamTokens'
-import { ITokenType, NetworksEnum } from '@types'
+import { ITokenType, NetworksEnum, SpamSource } from '@types'
 import { expect } from 'chai'
 import config from '@config'
 
-describe('Integ: Scam Token Sync From CMS', () => {
+describe('Integ: Spam Token Sync From CMS', () => {
   const ethSpamToken = '0x2747eE1EE8490Ce2f1853600c28a3846353d9d31'
   const polySpamToken = '0xcf68f02d7dD6a4642AE6a77f6A3676D0CBC834c9'
 
@@ -48,8 +48,8 @@ describe('Integ: Scam Token Sync From CMS', () => {
     })
 
     expect(updatedEthToken?.isSpam).to.be.true
-    expect(updatedEthToken?.spamSource).to.equal('cms')
+    expect(updatedEthToken?.spamSource).to.equal(SpamSource.CMS)
     expect(updatedPolyToken?.isSpam).to.be.true
-    expect(updatedPolyToken?.spamSource).to.equal('cms')
+    expect(updatedPolyToken?.spamSource).to.equal(SpamSource.CMS)
   })
 })
