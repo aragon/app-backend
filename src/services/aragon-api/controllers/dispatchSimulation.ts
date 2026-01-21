@@ -31,9 +31,8 @@ class DispatchSimulationController {
   ): Promise<IDispatchSimulationSummary> {
     logger.info('Starting dispatch simulation', llo({ policyAddress, network, from }))
 
-    // Validate policy exists and is installed
     const policy = await Models.Plugin.findOne({
-      address: policyAddress.toLowerCase(),
+      address: policyAddress,
       network,
       isPolicy: true,
       status: IPluginStatus.installed,

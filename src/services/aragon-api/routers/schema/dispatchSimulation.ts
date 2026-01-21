@@ -1,4 +1,5 @@
 import ValidationSchema from '@helpers/validationSchema'
+import { NetworksEnum } from '@types'
 import Joi from 'joi'
 
 /**
@@ -9,7 +10,7 @@ const DispatchSimulationSchema = {
   simulateDispatch: Joi.object({
     policyAddress: ValidationSchema.joiAddress.required(),
     network: Joi.string()
-      .valid(...Object.values(require('@types').NetworksEnum))
+      .valid(...Object.values(NetworksEnum))
       .required(),
     from: ValidationSchema.joiAddress.required(),
     data: Joi.string().optional(),
