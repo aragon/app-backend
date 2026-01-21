@@ -13,6 +13,7 @@ import {
   type ITokenResponse,
   ITokenType,
   NetworksEnum,
+  SpamSource,
 } from '@types'
 import * as _ from 'lodash'
 import { Model, type SaveOptions } from 'mongoose'
@@ -35,6 +36,7 @@ const customName = ICollectionNames.Token
 @index({ address: 1, network: 1 })
 @index({ address: 1, ignoreTransfer: 1, network: 1 })
 @index({ lastUpdatedAt: 1, network: 1, skipFetchRate: 1 })
+@index({ spamSource: 1 })
 export default class Token extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -81,8 +83,8 @@ export default class Token extends Model {
   @prop({ type: () => Number, default: 0 })
   public spamScore!: number
 
-  @prop({ type: () => String, default: null })
-  public spamSource!: 'cms' | null
+  @prop({ type: () => String, enum: SpamSource, default: null })
+  public spamSource!: SpamSource | null
 
   @prop({ type: () => String, default: null })
   public name!: string | null

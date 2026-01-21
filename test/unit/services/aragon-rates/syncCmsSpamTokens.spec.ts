@@ -1,7 +1,7 @@
 import { Models } from '@dbModels'
 import logger from '@logger'
 import { SyncCmsSpamTokens } from '@services/aragon-rates/handlers/syncCmsSpamTokens'
-import { ITokenType, NetworksEnum } from '@types'
+import { ITokenType, NetworksEnum, SpamSource } from '@types'
 import axios from 'axios'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
@@ -49,7 +49,7 @@ describe('AragonRates: SyncCmsSpamTokens', () => {
 
       const updatedToken = await Models.Token.findByEntityId(token.id)
       expect(updatedToken?.isSpam).to.be.true
-      expect(updatedToken?.spamSource).to.equal('cms')
+      expect(updatedToken?.spamSource).to.equal(SpamSource.CMS)
     })
 
     it('should unmark tokens when removed from CMS list', async () => {
@@ -61,7 +61,7 @@ describe('AragonRates: SyncCmsSpamTokens', () => {
         symbol: 'FP',
         decimals: 18,
         isSpam: true,
-        spamSource: 'cms',
+        spamSource: SpamSource.CMS,
       })
 
       sandbox.stub(axios, 'get').resolves({
@@ -106,13 +106,11 @@ describe('AragonRates: SyncCmsSpamTokens', () => {
 
     it('should handle fetch errors gracefully', async () => {
       sandbox.stub(axios, 'get').rejects(new Error('Network error'))
-      const loggerWarn = sandbox.stub(logger, 'warn')
       const loggerError = sandbox.stub(logger, 'error')
 
       await SyncCmsSpamTokens.start()
 
-      expect(loggerError.calledWith('Error fetching CMS spam tokens' as any)).to.be.true
-      expect(loggerWarn.calledWith('Failed to fetch CMS spam tokens data' as any)).to.be.true
+      expect(loggerError.firstCall.args[0]).to.include('Error fetching CMS spam tokens')
     })
 
     it('should handle multiple networks', async () => {
@@ -150,9 +148,9 @@ describe('AragonRates: SyncCmsSpamTokens', () => {
       const updatedPolyToken = await Models.Token.findByEntityId(polyToken.id)
 
       expect(updatedEthToken?.isSpam).to.be.true
-      expect(updatedEthToken?.spamSource).to.equal('cms')
+      expect(updatedEthToken?.spamSource).to.equal(SpamSource.CMS)
       expect(updatedPolyToken?.isSpam).to.be.true
-      expect(updatedPolyToken?.spamSource).to.equal('cms')
+      expect(updatedPolyToken?.spamSource).to.equal(SpamSource.CMS)
     })
 
     it('should skip updateMany when no tokens need updating', async () => {
@@ -164,7 +162,7 @@ describe('AragonRates: SyncCmsSpamTokens', () => {
         symbol: 'AS',
         decimals: 18,
         isSpam: true,
-        spamSource: 'cms',
+        spamSource: SpamSource.CMS,
       })
 
       sandbox.stub(axios, 'get').resolves({
@@ -209,6 +207,40 @@ describe('AragonRates: SyncCmsSpamTokens', () => {
       const ids = SyncCmsSpamTokens.buildTokenIds(networkTokens)
 
       expect(ids).to.deep.equal([])
+    })
+
+    it('should skip invalid addresses and log warning', () => {
+      const validAddr = '0x7777777777777777777777777777777777777777'
+      const invalidAddr = '0xinvalid'
+
+      const networkTokens = {
+        [NetworksEnum.ethereumMainnet]: [validAddr, invalidAddr],
+      }
+
+      const loggerWarn = sandbox.stub(logger, 'warn')
+
+      const ids = SyncCmsSpamTokens.buildTokenIds(networkTokens)
+
+      expect(ids).to.have.length(1)
+      expect(ids[0]).to.include('ethereum-mainnet')
+      expect(loggerWarn.calledOnce).to.be.true
+      expect(loggerWarn.firstCall.args[0]).to.include('Skipping invalid CMS spam token address')
+    })
+
+    it('should handle CMS data with unknown tokens not in database', async () => {
+      const unknownTokenAddr = '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+
+      sandbox.stub(axios, 'get').resolves({
+        data: {
+          [NetworksEnum.ethereumMainnet]: [unknownTokenAddr],
+        },
+      })
+      sandbox.stub(logger, 'verbose')
+
+      await SyncCmsSpamTokens.start()
+
+      const token = await Models.Token.findOne({ address: unknownTokenAddr })
+      expect(token).to.be.null
     })
   })
 })

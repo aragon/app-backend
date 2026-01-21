@@ -1,7 +1,7 @@
 import config from '@config'
 import { Models } from '@dbModels'
 import logger from '@logger'
-import { type ICmsSpamTokens } from '@types'
+import { type ICmsSpamTokens, SpamSource } from '@types'
 import axios from 'axios'
 import { ethers } from 'ethers'
 
@@ -16,7 +16,6 @@ export const SyncCmsSpamTokens = {
       const cmsData = await SyncCmsSpamTokens.fetchCmsData()
 
       if (!cmsData) {
-        logger.warn('Failed to fetch CMS spam tokens data', llo({}))
         return
       }
 
@@ -30,16 +29,16 @@ export const SyncCmsSpamTokens = {
         if (toMarkCount > 0) {
           const markResult = await Models.Token.updateMany(
             { id: { $in: cmsIds }, isSpam: false },
-            { $set: { isSpam: true, spamSource: 'cms' } },
+            { $set: { isSpam: true, spamSource: SpamSource.CMS } },
           )
           markedSpam = markResult.modifiedCount
         }
       }
 
-      const toUnmarkCount = await Models.Token.countDocuments({ spamSource: 'cms', id: { $nin: cmsIds } })
+      const toUnmarkCount = await Models.Token.countDocuments({ spamSource: SpamSource.CMS, id: { $nin: cmsIds } })
       if (toUnmarkCount > 0) {
         const unmarkResult = await Models.Token.updateMany(
-          { spamSource: 'cms', id: { $nin: cmsIds } },
+          { spamSource: SpamSource.CMS, id: { $nin: cmsIds } },
           { $set: { isSpam: false, spamSource: null } },
         )
         unmarkedSpam = unmarkResult.modifiedCount
@@ -72,7 +71,14 @@ export const SyncCmsSpamTokens = {
 
   buildTokenIds: (networkTokens: ICmsSpamTokens): string[] => {
     return Object.entries(networkTokens).flatMap(([network, addresses]) =>
-      (addresses || []).map(addr => `${ethers.getAddress(addr)}-${network}`),
+      (addresses || []).flatMap(addr => {
+        try {
+          return [`${ethers.getAddress(addr)}-${network}`]
+        } catch (error) {
+          logger.warn('Skipping invalid CMS spam token address', llo({ network, addr }))
+          return []
+        }
+      }),
     )
   },
 }
