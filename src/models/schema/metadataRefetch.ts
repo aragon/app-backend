@@ -82,12 +82,21 @@ export default class MetadataRefetch extends Model {
       network: rawData.network!,
     })
 
-    const existing = await this.findOne({ id: entityId }, null, tOpts)
-    if (existing) {
-      return existing
-    }
+    // Use findOneAndUpdate with upsert to avoid race conditions
+    const result = await this.findOneAndUpdate(
+      { id: entityId },
+      {
+        $setOnInsert: {
+          ...rawData,
+          id: entityId,
+          status: MetadataRefetchStatus.pending,
+          retryCount: 0,
+        },
+      },
+      { new: true, upsert: true, ...tOpts },
+    )
 
-    return await this.create({ ...rawData, id: entityId }, tOpts)
+    return result as MetadataRefetch
   }
 
   static async findPendingForRetry(intervalMs: number, tOpts?: SaveOptions): Promise<MetadataRefetch[]> {

@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import MetadataRefetchHelper from '@helpers/metadataRefetch'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import { EnumQueueName, MetadataEntityType, MetadataRefetchStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
@@ -12,6 +13,7 @@ describe('Helpers: MetadataRefetch', () => {
   let loggerInfoStub: sinon.SinonStub
   let loggerErrorStub: sinon.SinonStub
   let loggerVerboseStub: sinon.SinonStub
+  let loggerWarnStub: sinon.SinonStub
   let sendMessageStub: sinon.SinonStub
   let findOrCreateStub: sinon.SinonStub
 
@@ -20,6 +22,7 @@ describe('Helpers: MetadataRefetch', () => {
     loggerInfoStub = sandbox.stub(logger, 'info')
     loggerErrorStub = sandbox.stub(logger, 'error')
     loggerVerboseStub = sandbox.stub(logger, 'verbose')
+    loggerWarnStub = sandbox.stub(logger, 'warn')
     sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
     findOrCreateStub = sandbox.stub(Models.MetadataRefetch, 'findOrCreate')
   })
@@ -268,6 +271,279 @@ describe('Helpers: MetadataRefetch', () => {
 
       await callback('ipfs://QmUri2')
       expect(findOrCreateStub.firstCall.args[0].metadataUri).to.eq('ipfs://QmUri2')
+    })
+  })
+
+  describe('applyRefetchedMetadata', () => {
+    const network = NetworksEnum.ethereumMainnet
+    const entityId = '0x1111111111111111111111111111111111111111'
+
+    describe('Dao', () => {
+      it('Should update Dao metadata successfully', async () => {
+        const mockUpdate = sandbox.stub().resolves()
+        const mockDao = { update: mockUpdate }
+        sandbox.stub(Models.Dao, 'findByAddress').resolves(mockDao as any)
+
+        const metadata = {
+          name: 'Updated DAO',
+          description: 'Updated description',
+          avatar: 'https://example.com/avatar.png',
+          links: [{ name: 'Website', url: 'https://example.com' }],
+        }
+
+        const result = await MetadataRefetchHelper.applyRefetchedMetadata(
+          MetadataEntityType.Dao,
+          entityId,
+          network,
+          metadata,
+        )
+
+        expect(result).to.be.true
+        expect(mockUpdate.calledOnce).to.be.true
+        expect(loggerVerboseStub.calledWith('Applied refetched metadata to Dao')).to.be.true
+      })
+
+      it('Should return false when Dao not found', async () => {
+        sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
+
+        const result = await MetadataRefetchHelper.applyRefetchedMetadata(MetadataEntityType.Dao, entityId, network, {})
+
+        expect(result).to.be.false
+        expect(loggerWarnStub.calledWith('Dao not found for metadata update')).to.be.true
+      })
+    })
+
+    describe('Plugin', () => {
+      it('Should update Plugin metadata successfully', async () => {
+        const mockUpdate = sandbox.stub().resolves()
+        const mockPlugin = { update: mockUpdate }
+        sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
+
+        const metadata = {
+          name: 'Updated Plugin',
+          description: 'Updated description',
+          links: [],
+          processKey: 'test-key',
+          blockedCountries: ['US'],
+          termsConditionsUrl: 'https://terms.example.com',
+          enableOfacCheck: true,
+        }
+
+        const result = await MetadataRefetchHelper.applyRefetchedMetadata(
+          MetadataEntityType.Plugin,
+          entityId,
+          network,
+          metadata,
+        )
+
+        expect(result).to.be.true
+        expect(mockUpdate.calledOnce).to.be.true
+        expect(loggerVerboseStub.calledWith('Applied refetched metadata to Plugin')).to.be.true
+      })
+
+      it('Should return false when Plugin not found', async () => {
+        sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+
+        const result = await MetadataRefetchHelper.applyRefetchedMetadata(
+          MetadataEntityType.Plugin,
+          entityId,
+          network,
+          {},
+        )
+
+        expect(result).to.be.false
+        expect(loggerWarnStub.calledWith('Plugin not found for metadata update')).to.be.true
+      })
+    })
+
+    describe('Proposal', () => {
+      it('Should update Proposal metadata successfully', async () => {
+        const mockUpdate = sandbox.stub().resolves()
+        const mockProposal = { update: mockUpdate }
+        sandbox.stub(Models.Proposal, 'findOne').resolves(mockProposal as any)
+
+        const metadata = {
+          title: 'Updated Proposal',
+          description: 'Updated description',
+          summary: 'Updated summary',
+          resources: [],
+          media: [],
+        }
+
+        const parsedMetadata = {
+          title: 'Updated Proposal',
+          description: 'Updated description',
+          summary: 'Updated summary',
+          resources: [],
+          media: [],
+        }
+        sandbox.stub(Web3Utils, 'parseProposalMetadata').returns(parsedMetadata as any)
+
+        const result = await MetadataRefetchHelper.applyRefetchedMetadata(
+          MetadataEntityType.Proposal,
+          '12345',
+          network,
+          metadata,
+        )
+
+        expect(result).to.be.true
+        expect(mockUpdate.calledOnce).to.be.true
+        expect(loggerVerboseStub.calledWith('Applied refetched metadata to Proposal')).to.be.true
+      })
+
+      it('Should return false when Proposal not found', async () => {
+        sandbox.stub(Models.Proposal, 'findOne').resolves(null)
+        sandbox.stub(Web3Utils, 'parseProposalMetadata').returns({ title: 'Test' } as any)
+
+        const result = await MetadataRefetchHelper.applyRefetchedMetadata(MetadataEntityType.Proposal, '12345', network, {
+          title: 'Test',
+        })
+
+        expect(result).to.be.false
+        expect(loggerWarnStub.calledWith('Proposal not found for metadata update')).to.be.true
+      })
+
+      it('Should return false when metadata parsing fails', async () => {
+        sandbox.stub(Web3Utils, 'parseProposalMetadata').returns(null as any)
+
+        const result = await MetadataRefetchHelper.applyRefetchedMetadata(
+          MetadataEntityType.Proposal,
+          '12345',
+          network,
+          null as any,
+        )
+
+        expect(result).to.be.false
+        expect(loggerWarnStub.calledWith('Failed to parse proposal metadata')).to.be.true
+      })
+    })
+
+    describe('Gauge', () => {
+      it('Should update Gauge metadata successfully', async () => {
+        const mockUpdate = sandbox.stub().resolves()
+        const mockGauge = { update: mockUpdate }
+        sandbox.stub(Models.Gauge, 'findOne').resolves(mockGauge as any)
+
+        const metadata = {
+          name: 'Updated Gauge',
+          description: 'Updated description',
+          links: [],
+          avatar: 'https://example.com/avatar.png',
+        }
+
+        const result = await MetadataRefetchHelper.applyRefetchedMetadata(
+          MetadataEntityType.Gauge,
+          entityId,
+          network,
+          metadata,
+        )
+
+        expect(result).to.be.true
+        expect(mockUpdate.calledOnce).to.be.true
+        expect(loggerVerboseStub.calledWith('Applied refetched metadata to Gauge')).to.be.true
+      })
+
+      it('Should return false when Gauge not found', async () => {
+        sandbox.stub(Models.Gauge, 'findOne').resolves(null)
+
+        const result = await MetadataRefetchHelper.applyRefetchedMetadata(
+          MetadataEntityType.Gauge,
+          entityId,
+          network,
+          {},
+        )
+
+        expect(result).to.be.false
+        expect(loggerWarnStub.calledWith('Gauge not found for metadata update')).to.be.true
+      })
+    })
+
+    describe('Campaign', () => {
+      it('Should update Campaign metadata successfully', async () => {
+        const mockUpdateMetadata = sandbox.stub().resolves()
+        const mockCampaign = { updateMetadata: mockUpdateMetadata }
+        sandbox.stub(Models.Campaign, 'findOne').resolves(mockCampaign as any)
+
+        const metadata = {
+          title: 'Updated Campaign',
+          description: 'Updated description',
+          resources: [],
+          type: 'airdrop',
+        }
+
+        const parsedMetadata = {
+          title: 'Updated Campaign',
+          description: 'Updated description',
+          resources: [],
+          type: 'airdrop',
+        }
+        sandbox.stub(Web3Utils, 'parseCampaignMetadata').returns(parsedMetadata as any)
+
+        const result = await MetadataRefetchHelper.applyRefetchedMetadata(
+          MetadataEntityType.Campaign,
+          'campaign-1',
+          network,
+          metadata,
+        )
+
+        expect(result).to.be.true
+        expect(mockUpdateMetadata.calledOnce).to.be.true
+        expect(loggerVerboseStub.calledWith('Applied refetched metadata to Campaign')).to.be.true
+      })
+
+      it('Should return false when Campaign not found', async () => {
+        sandbox.stub(Models.Campaign, 'findOne').resolves(null)
+        sandbox.stub(Web3Utils, 'parseCampaignMetadata').returns({ title: 'Test' } as any)
+
+        const result = await MetadataRefetchHelper.applyRefetchedMetadata(
+          MetadataEntityType.Campaign,
+          'campaign-1',
+          network,
+          { title: 'Test' },
+        )
+
+        expect(result).to.be.false
+        expect(loggerWarnStub.calledWith('Campaign not found for metadata update')).to.be.true
+      })
+
+      it('Should return false when metadata parsing fails', async () => {
+        sandbox.stub(Web3Utils, 'parseCampaignMetadata').returns(null as any)
+
+        const result = await MetadataRefetchHelper.applyRefetchedMetadata(
+          MetadataEntityType.Campaign,
+          'campaign-1',
+          network,
+          null as any,
+        )
+
+        expect(result).to.be.false
+        expect(loggerWarnStub.calledWith('Failed to parse campaign metadata')).to.be.true
+      })
+    })
+
+    describe('Unknown entity type', () => {
+      it('Should return false for unknown entity type', async () => {
+        const result = await MetadataRefetchHelper.applyRefetchedMetadata(
+          'UnknownType' as MetadataEntityType,
+          entityId,
+          network,
+          {},
+        )
+
+        expect(result).to.be.false
+        expect(loggerWarnStub.calledWith('Unknown entity type for metadata update')).to.be.true
+      })
+    })
+
+    describe('Error handling', () => {
+      it('Should return false and log error when update throws', async () => {
+        sandbox.stub(Models.Dao, 'findByAddress').rejects(new Error('Database error'))
+
+        const result = await MetadataRefetchHelper.applyRefetchedMetadata(MetadataEntityType.Dao, entityId, network, {})
+
+        expect(result).to.be.false
+        expect(loggerErrorStub.calledWith('Error applying refetched metadata')).to.be.true
+      })
     })
   })
 })
