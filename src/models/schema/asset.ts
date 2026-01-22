@@ -209,13 +209,16 @@ export default class Asset extends Model {
       { $unwind: { path: '$tokenDetails', preserveNullAndEmptyArrays: true } },
     ]
     const countPipeline = [...baseCountPipeline, ...spamFilter, { $count: 'total' }]
-    const spamCountPipeline = [...baseCountPipeline, ...[{ $match: { 'tokenDetails.isSpam': true } }], { $count: 'total' }]
-
+    const spamCountPipeline = [
+      ...baseCountPipeline,
+      ...[{ $match: { 'tokenDetails.isSpam': true } }],
+      { $count: 'total' },
+    ]
 
     const [data, totalRecords, spamCount] = await Promise.all([
       this.aggregate(pipeline),
       this.aggregate(countPipeline).then((result: any) => result[0]?.total || 0),
-      this.aggregate(spamCountPipeline).then((result: any) => result[0]?.total || 0)
+      this.aggregate(spamCountPipeline).then((result: any) => result[0]?.total || 0),
     ])
 
     const totalPages = Math.ceil(totalRecords / request.limit)
