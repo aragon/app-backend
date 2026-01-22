@@ -2,7 +2,12 @@ import config from '@config'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
-import { ISimulationStatus, type NetworksEnum } from '@types'
+import {
+  ISimulationStatus,
+  type ITenderlyFullResult,
+  type ITenderlyFullSimulationResponse,
+  type NetworksEnum,
+} from '@types'
 import axios from 'axios'
 
 const llo = logger.logMeta.bind(null, { service: 'tenderly-module' })
@@ -86,6 +91,71 @@ const TenderlyModule = {
     }
 
     return false
+  },
+
+  /**
+   * Run full simulation with asset_changes, contracts, and call_trace
+   * Used for dispatch simulation summary
+   */
+  async simulateFull(
+    simulation: { to: string; data: string; value?: string; from: string },
+    network: NetworksEnum,
+  ): Promise<ITenderlyFullResult | false> {
+    if (!TenderlyModule.isConfigured()) {
+      logger.warn('Tenderly not configured', llo({}))
+      return false
+    }
+
+    const simulationData = {
+      network_id: ProviderModule.getChainId(network).toString(),
+      from: simulation.from,
+      input: simulation.data,
+      to: simulation.to,
+      gas: 8000000,
+      gas_price: '0',
+      value: simulation.value || '0',
+      save: true,
+      save_if_fails: true,
+      simulation_type: 'full',
+    }
+
+    logger.info('Running full Tenderly simulation', llo({ network, to: simulation.to, from: simulation.from }))
+
+    const response = (await TenderlyModule.rpcCall(`${TenderlyModule.baseUrl()}/simulate`, simulationData)) as
+      | ITenderlyFullSimulationResponse
+      | undefined
+
+    if (!response?.simulation?.id) {
+      logger.warn('Tenderly simulation failed - no simulation id', llo({ network }))
+      return false
+    }
+
+    const shareableUrl = await TenderlyModule.createShareableUrl(response.simulation.id)
+    const errorMessage = response.transaction?.error_info?.error_message
+    const status = errorMessage ? ISimulationStatus.FAILED : ISimulationStatus.SUCCESS
+
+    const transactionInfo = response.transaction?.transaction_info
+
+    logger.info(
+      'Tenderly full simulation completed',
+      llo({
+        network,
+        simulationId: response.simulation.id,
+        status,
+        assetChangesCount: transactionInfo?.asset_changes?.length ?? 0,
+        contractsCount: response.contracts?.length ?? 0,
+      }),
+    )
+
+    return {
+      status,
+      shareUrl: shareableUrl || undefined,
+      assetChanges: transactionInfo?.asset_changes ?? [],
+      balanceChanges: transactionInfo?.balance_changes ?? [],
+      callTrace: transactionInfo?.call_trace,
+      contracts: response.contracts ?? [],
+      error: errorMessage,
+    }
   },
 }
 
