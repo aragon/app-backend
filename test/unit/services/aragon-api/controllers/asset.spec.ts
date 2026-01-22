@@ -294,5 +294,81 @@ describe('Controller: Asset', () => {
       // The response should still be structured correctly
       expect(response).be.undefined
     })
+
+    it('should return spamCount in metadata', async () => {
+      const spamTokenAddress = '0x1234567890123456789012345678901234567890'
+      const spamAssetId = `${rawAsset.daoAddress}-${spamTokenAddress}-${rawAsset.network}`
+
+      await Models.Token.create({
+        ...rawToken,
+        id: `${spamTokenAddress}-${rawAsset.network}`,
+        address: spamTokenAddress,
+        isSpam: true,
+      })
+
+      await Models.Asset.create({
+        id: spamAssetId,
+        network: rawAsset.network,
+        daoAddress: rawAsset.daoAddress,
+        tokenAddress: spamTokenAddress,
+        amount: '50',
+      })
+
+      const filterParams: any = {
+        network: rawAsset.network,
+        daoAddress: rawAsset.daoAddress,
+      }
+
+      const response = await AssetController.getAssetsWithPagination({}, filterParams)
+
+      expect(response.metadata).to.have.property('spamCount')
+      expect(response.metadata.spamCount).to.eq(1)
+      expect(response.metadata.totalRecords).to.eq(2)
+    })
+
+    it('should return spamCount 0 when no spam assets exist', async () => {
+      const filterParams: any = {
+        network: rawAsset.network,
+        daoAddress: rawAsset.daoAddress,
+      }
+
+      const response = await AssetController.getAssetsWithPagination({}, filterParams)
+
+      expect(response.metadata).to.have.property('spamCount')
+      expect(response.metadata.spamCount).to.eq(0)
+      expect(response.metadata.totalRecords).to.eq(1)
+    })
+
+    it('should exclude spam assets from totalRecords when includeSpam is false', async () => {
+      const spamTokenAddress = '0x1234567890123456789012345678901234567890'
+      const spamAssetId = `${rawAsset.daoAddress}-${spamTokenAddress}-${rawAsset.network}`
+
+      await Models.Token.create({
+        ...rawToken,
+        id: `${spamTokenAddress}-${rawAsset.network}`,
+        address: spamTokenAddress,
+        isSpam: true,
+      })
+
+      await Models.Asset.create({
+        id: spamAssetId,
+        network: rawAsset.network,
+        daoAddress: rawAsset.daoAddress,
+        tokenAddress: spamTokenAddress,
+        amount: '50',
+      })
+
+      const filterParams: any = {
+        network: rawAsset.network,
+        daoAddress: rawAsset.daoAddress,
+        includeSpam: false,
+      }
+
+      const response = await AssetController.getAssetsWithPagination({}, filterParams)
+
+      expect(response.metadata.spamCount).to.eq(1)
+      expect(response.metadata.totalRecords).to.eq(1)
+      expect(response.data).to.have.lengthOf(1)
+    })
   })
 })

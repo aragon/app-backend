@@ -1,7 +1,6 @@
 import { Models } from '@dbModels'
 import Asset from '@models/schema/asset'
 import Token from '@models/schema/token'
-import ModelUtils from '@models/utils/models'
 import { FakeAsset } from '@test/mock/fakeAsset'
 import { FakeToken } from '@test/mock/fakeToken'
 import { HexAddress, NetworksEnum } from '@types'
@@ -161,21 +160,20 @@ describe('Model: Asset', () => {
     })
 
     it('should find with pagination empty result', async () => {
-      const spyUtils = sandbox.spy(ModelUtils, 'paginateEmptyResponse')
       const {
         data,
-        metadata: { totalRecords, page, pageSize, totalPages },
+        metadata: { totalRecords, page, pageSize, totalPages, spamCount },
       } = await Models.Asset.findWithPagination({
         extraParams: { daoAddress: '0x0000000000000000000000000000000000000000' },
         paginationParams: {},
       })
 
-      expect(spyUtils.calledOnce).to.be.true
       expect(data.length).to.eq(0)
       expect(totalRecords).to.eq(0)
       expect(page).to.eq(1)
       expect(totalPages).to.eq(1)
       expect(pageSize).to.eq(10)
+      expect(spamCount).to.eq(0)
     })
   })
 
