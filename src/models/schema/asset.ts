@@ -6,8 +6,8 @@ import {
   HexAddress,
   type IAssetExtraParams,
   type IAssetIdParams,
+  type IAssetPaginatedResult,
   ICollectionNames,
-  type IPaginatedResult,
   type IPaginationParams,
   NetworksEnum,
 } from '@types'
@@ -83,7 +83,7 @@ export default class Asset extends Model {
   }: {
     extraParams?: IAssetExtraParams
     paginationParams?: IPaginationParams
-  }): Promise<IPaginatedResult<any>> {
+  }): Promise<IAssetPaginatedResult<any>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const { includeSpam, ...filterableParams } = extraParams
     const dynamicFilter = Object.fromEntries(Object.entries(filterableParams).filter(([_, v]) => v !== undefined))
@@ -104,113 +104,118 @@ export default class Asset extends Model {
         : []
 
     const currentPage = request.skip / request.limit + 1
-    const [data, totalRecords] = await Promise.all([
-      this.aggregate([
-        { $match: filter },
-        AggregationQueryHelper.token(
-          {
-            network: '$network',
-            address: '$tokenAddress',
-          },
-          'tokenDetails',
-          {
-            _id: 0,
-            network: 1,
-            address: 1,
-            symbol: 1,
-            name: 1,
-            type: 1,
-            logo: 1,
-            isGovernance: 1,
-            ignoreTransfer: 1,
-            hasDelegate: 1,
-            underlying: 1,
-            decimals: 1,
-            priceUsd: 1,
-            mintableByDao: 1,
-            isSpam: 1,
-          },
-        ),
+    const pipeline = [
+      { $match: filter },
+      AggregationQueryHelper.token(
         {
-          $unwind: {
-            path: '$tokenDetails',
-            preserveNullAndEmptyArrays: true,
+          network: '$network',
+          address: '$tokenAddress',
+        },
+        'tokenDetails',
+        {
+          _id: 0,
+          network: 1,
+          address: 1,
+          symbol: 1,
+          name: 1,
+          type: 1,
+          logo: 1,
+          isGovernance: 1,
+          ignoreTransfer: 1,
+          hasDelegate: 1,
+          underlying: 1,
+          decimals: 1,
+          priceUsd: 1,
+          mintableByDao: 1,
+          isSpam: 1,
+        },
+      ),
+      {
+        $unwind: {
+          path: '$tokenDetails',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      ...spamFilter,
+      {
+        $addFields: {
+          amountUsd: {
+            $cond: {
+              if: {
+                $and: [{ $gt: ['$tokenDetails.priceUsd', 0] }, { $gt: ['$tokenDetails.decimals', 0] }],
+              },
+              then: {
+                $multiply: [{ $toDecimal: '$amount' }, { $toDecimal: '$tokenDetails.priceUsd' }],
+              },
+              else: 0,
+            },
           },
         },
-        ...spamFilter,
+      },
+      { $sort: request.sort },
+      { $skip: request.skip },
+      { $limit: request.limit },
+      AggregationQueryHelper.dao(
         {
-          $addFields: {
-            amountUsd: {
-              $cond: {
-                if: {
-                  $and: [{ $gt: ['$tokenDetails.priceUsd', 0] }, { $gt: ['$tokenDetails.decimals', 0] }],
-                },
-                then: {
-                  $multiply: [{ $toDecimal: '$amount' }, { $toDecimal: '$tokenDetails.priceUsd' }],
-                },
-                else: 0,
+          network: '$network',
+          address: '$daoAddress',
+        },
+        'daoInfo',
+        {
+          _id: 1,
+          address: 1,
+          ens: 1,
+          avatar: 1,
+        },
+      ),
+      {
+        $addFields: {
+          dao: {
+            $cond: {
+              if: { $gt: [{ $size: '$daoInfo' }, 0] },
+              then: {
+                address: { $arrayElemAt: ['$daoInfo.address', 0] },
+                ens: { $arrayElemAt: ['$daoInfo.ens', 0] },
+                avatar: { $arrayElemAt: ['$daoInfo.avatar', 0] },
+              },
+              else: {
+                address: '$daoAddress',
+                ens: null,
+                avatar: null,
               },
             },
           },
         },
-        { $sort: request.sort },
-        { $skip: request.skip },
-        { $limit: request.limit },
-        AggregationQueryHelper.dao(
-          {
-            network: '$network',
-            address: '$daoAddress',
-          },
-          'daoInfo',
-          {
-            _id: 1,
-            address: 1,
-            ens: 1,
-            avatar: 1,
-          },
-        ),
-        {
-          $addFields: {
-            dao: {
-              $cond: {
-                if: { $gt: [{ $size: '$daoInfo' }, 0] },
-                then: {
-                  address: { $arrayElemAt: ['$daoInfo.address', 0] },
-                  ens: { $arrayElemAt: ['$daoInfo.ens', 0] },
-                  avatar: { $arrayElemAt: ['$daoInfo.avatar', 0] },
-                },
-                else: {
-                  address: '$daoAddress',
-                  ens: null,
-                  avatar: null,
-                },
-              },
-            },
-          },
+      },
+      {
+        $addFields: {
+          daoInfo: '$$REMOVE',
         },
-        {
-          $addFields: {
-            daoInfo: '$$REMOVE',
-          },
+      },
+      {
+        $project: {
+          _id: 0,
+          network: 1,
+          dao: !filterableParams.daoAddress ? '$$REMOVE' : 1,
+          amount: 1,
+          token: '$tokenDetails',
+          amountUsd: { $toString: '$amountUsd' },
         },
-        {
-          $project: {
-            _id: 0,
-            network: 1,
-            dao: !filterableParams.daoAddress ? '$$REMOVE' : 1,
-            amount: 1,
-            token: '$tokenDetails',
-            amountUsd: { $toString: '$amountUsd' },
-          },
-        },
-      ]),
-      this.aggregate([
-        { $match: filter },
-        AggregationQueryHelper.token({ network: '$network', address: '$tokenAddress' }, 'tokenDetails', { isSpam: 1 }),
-        { $unwind: { path: '$tokenDetails', preserveNullAndEmptyArrays: true } },
-        ...spamFilter,
-        { $count: 'total' },
-      ]).then((result: any) => result[0]?.total || 0),
+      },
+    ]
+    const baseCountPipeline: any[] = [
+      { $match: filter },
+      AggregationQueryHelper.token({ network: '$network', address: '$tokenAddress' }, 'tokenDetails', { isSpam: 1 }),
+      { $unwind: { path: '$tokenDetails', preserveNullAndEmptyArrays: true } },
+    ]
+    const countPipeline = [...baseCountPipeline, ...spamFilter, { $count: 'total' }]
+    const spamCountPipeline = [...baseCountPipeline, ...[{ $match: { 'tokenDetails.isSpam': true } }], { $count: 'total' }]
+
+
+    const [data, totalRecords, spamCount] = await Promise.all([
+      this.aggregate(pipeline),
+      this.aggregate(countPipeline).then((result: any) => result[0]?.total || 0),
+      this.aggregate(spamCountPipeline).then((result: any) => result[0]?.total || 0)
     ])
 
     const totalPages = Math.ceil(totalRecords / request.limit)
@@ -225,6 +230,7 @@ export default class Asset extends Model {
         pageSize: request.limit,
         totalPages,
         totalRecords,
+        spamCount,
       },
       data,
     }

@@ -162,6 +162,14 @@ export interface IPaginatedResult<T> {
   metadata: IPaginationMetadata
 }
 
+export interface IAssetPaginationMetadata extends IPaginationMetadata {
+  spamCount?: number
+}
+
+export interface IAssetPaginatedResult<T> extends Omit<IPaginatedResult<T>, 'metadata'> {
+  metadata: IAssetPaginationMetadata
+}
+
 export interface IGetPluginsByDaoParams {
   daoAddress: HexAddress
   network: NetworksEnum
@@ -169,4 +177,11 @@ export interface IGetPluginsByDaoParams {
   status?: IPluginStatus | 'all'
   isProcess?: boolean
   isSupported?: boolean
+}
+
+export interface IGetPoliciesByDaoParams {
+  daoAddress: HexAddress
+  daoAddresses?: HexAddress[]
+  network: NetworksEnum
+  onlyParent?: boolean
 }
