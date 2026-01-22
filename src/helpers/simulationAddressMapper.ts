@@ -79,18 +79,21 @@ export class AddressMapper {
       })
     }
 
-    // Contract names from Tenderly response
+    // Contracts from Tenderly response.
+    // Tenderly does not always provide `contract_name`, but the address is still a contract.
+    // If a name is provided, keep it for UI display.
     contracts?.forEach(contract => {
-      if (!contract.address || !contract.contract_name) {
+      if (!contract.address) {
         return
       }
       const addr = contract.address.toLowerCase()
       if (!this.addressMap.has(addr)) {
+        const hasName = Boolean(contract.contract_name)
         this.addressMap.set(addr, {
           address: addr,
-          label: contract.contract_name,
+          label: contract.contract_name ?? this.truncateAddress(addr),
           role: 'contract',
-          isKnown: true,
+          isKnown: hasName,
           avatar: null,
           ens: null,
         })

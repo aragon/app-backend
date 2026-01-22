@@ -8,6 +8,8 @@ import * as Errors from '@errors'
 import { createAddressMapper } from '@helpers/simulationAddressMapper'
 import { processSimulation } from '@helpers/simulationProcessor'
 import logger from '@logger'
+import BottleneckModule from '@modules/bottleneck'
+import ProviderModule from '@modules/provider'
 import TenderlyModule from '@modules/tenderly'
 import {
   ErrorKeyEnum,
@@ -20,6 +22,52 @@ import {
 const llo = logger.logMeta.bind(null, { service: 'dispatch-simulation-controller' })
 
 class DispatchSimulationController {
+  /**
+   * Best-effort on-chain contract detection for addresses.
+   */
+  private static async enrichMapperWithOnChainContracts(params: {
+    network: NetworksEnum
+    addresses: string[]
+    mapper: ReturnType<typeof createAddressMapper>
+  }): Promise<void> {
+    const { network, addresses, mapper } = params
+
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    if (!provider) {
+      logger.warn('No RPC provider available for contract detection', llo({ network }))
+      return
+    }
+
+    // Keep it cheap: only check a limited set of unique unknown addresses.
+    const unique = Array.from(new Set(addresses.map(a => a.toLowerCase()))).slice(0, 50)
+
+    await Promise.all(
+      unique.map(async address => {
+        const resolved = mapper.resolve(address)
+        if (resolved.role !== 'wallet') {
+          return
+        }
+
+        try {
+          const code = await BottleneckModule.getNodeLimiter(network).schedule(async () => provider.getCode(address))
+          if (typeof code === 'string' && code !== '0x') {
+            // Mark as contract, but keep it "unknown" unless we have a label/ENS.
+            mapper.addMapping(address, { role: 'contract', isKnown: false })
+          }
+        } catch (error: any) {
+          logger.debug(
+            'Contract detection failed',
+            llo({
+              network,
+              address,
+              error: error?.message ?? String(error),
+            }),
+          )
+        }
+      }),
+    )
+  }
+
   /**
    * Simulate dispatch and return processed summary with address mappings
    */
@@ -96,6 +144,14 @@ class DispatchSimulationController {
       dao,
       network,
       contracts: tenderlyResult.contracts,
+    })
+
+    // Tenderly does not always include all contracts in `contracts[]` (e.g. swap pools),
+    // but those addresses can still appear in asset transfers. Detect them on-chain.
+    await DispatchSimulationController.enrichMapperWithOnChainContracts({
+      network,
+      mapper,
+      addresses: tenderlyResult.assetChanges.flatMap(change => [change.from, change.to]).filter(Boolean),
     })
 
     // Process simulation into summary groups

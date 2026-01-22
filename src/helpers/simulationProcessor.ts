@@ -176,22 +176,6 @@ export function processSimulation(
   tenderlyResult: ITenderlyFullResult,
   mapper: AddressMapper,
 ): IDispatchSimulationSummary {
-  // Enrich mapper with contract names when available
-  tenderlyResult.contracts?.forEach(contract => {
-    if (!contract.address || !contract.contract_name) {
-      return
-    }
-    const resolved = mapper.resolve(contract.address)
-    if (resolved.isKnown) {
-      return
-    }
-    mapper.addMapping(contract.address, {
-      label: contract.contract_name,
-      role: 'contract',
-      isKnown: true,
-    })
-  })
-
   if (tenderlyResult.error || tenderlyResult.status === ISimulationStatus.FAILED) {
     return {
       status: 'failed',
