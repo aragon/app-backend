@@ -14,7 +14,7 @@ const DaoRouter = {
         pluginAddress: ctx.query.pluginAddress as HexAddress,
       },
       schemas: {
-        extra: DaoSchema.getExtraParamsV2,
+        extra: DaoSchema.getExtraParams,
       },
     })
 

@@ -21,6 +21,7 @@ import {
   type IAggTokenParams,
   type IAggTokenProjectFields,
   ICollectionNames,
+  IPluginStatus,
   ISettingStatus,
 } from '@types'
 
@@ -200,7 +201,7 @@ export const AggregationQueryHelper = {
   },
 
   plugin: (
-    { addresses, daoAddress, pluginAddress, network, status }: IAggPluginParams,
+    { addresses, daoAddress, pluginAddress, network, status, isPolicy }: IAggPluginParams,
     as: string = 'plugin',
     project?: IAggPluginProjectFields,
     includeSubDocuments?: IAggPluginInclude,
@@ -231,6 +232,17 @@ export const AggregationQueryHelper = {
     if (status) {
       letVariables.status = status
       matchConditions.push({ $eq: ['$status', '$$status'] })
+    }
+
+    if (isPolicy !== undefined) {
+      letVariables.isPolicy = isPolicy
+      if (!isPolicy) {
+        matchConditions.push({
+          $or: [{ $eq: ['$isPolicy', false] }, { $eq: [{ $ifNull: ['$isPolicy', null] }, null] }],
+        })
+      } else {
+        matchConditions.push({ $eq: ['$isPolicy', '$$isPolicy'] })
+      }
     }
 
     const pipeline: any[] = []
@@ -769,4 +781,251 @@ export const AggregationQueryHelper = {
     }
   },
   computeHasActions: () => ({ $cond: [{ $gt: [{ $size: { $ifNull: ['$rawActions', []] } }, 0] }, true, false] }),
+
+  pluginsFromDaoHierarchy: (
+    { daoAddress, network }: { daoAddress: string; network: string },
+    as: string = 'plugins',
+  ) => {
+    return {
+      $lookup: {
+        from: ICollectionNames.Dao,
+        let: { targetDaoAddress: daoAddress },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [{ $eq: ['$address', '$$targetDaoAddress'] }, { $eq: ['$network', network] }],
+              },
+            },
+          },
+          {
+            $limit: 1,
+          },
+          {
+            $addFields: {
+              relatedDaoAddresses: {
+                $concatArrays: [
+                  ['$$targetDaoAddress'],
+                  {
+                    $cond: {
+                      if: { $ne: ['$parentDao', null] },
+                      then: ['$parentDao'],
+                      else: [],
+                    },
+                  },
+                  { $ifNull: ['$subDaos', []] },
+                ],
+              },
+            },
+          },
+          {
+            $lookup: {
+              from: ICollectionNames.Plugin,
+              let: { relatedDaos: '$relatedDaoAddresses' },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: {
+                      $and: [
+                        { $in: ['$daoAddress', '$$relatedDaos'] },
+                        { $eq: ['$network', network] },
+                        { $eq: ['$status', IPluginStatus.installed] },
+                      ],
+                    },
+                  },
+                },
+              ],
+              as: 'plugins',
+            },
+          },
+          {
+            $unwind: {
+              path: '$plugins',
+              preserveNullAndEmptyArrays: false,
+            },
+          },
+          {
+            $replaceRoot: {
+              newRoot: '$plugins',
+            },
+          },
+        ],
+        as,
+      },
+    }
+  },
+
+  pluginDetailsWithNestedSubPlugins: (network: string, useNetworkFieldRef = false) => {
+    const networkValue = useNetworkFieldRef ? '$network' : network
+    return [
+      {
+        $addFields: {
+          allPluginAddresses: {
+            $reduce: {
+              input: '$plugins',
+              initialValue: [],
+              in: {
+                $concatArrays: [
+                  '$$value',
+                  {
+                    $reduce: {
+                      input: { $ifNull: ['$$this.settings.stages', []] },
+                      initialValue: [],
+                      in: {
+                        $concatArrays: [
+                          '$$value',
+                          {
+                            $map: {
+                              input: { $ifNull: ['$$this.plugins', []] },
+                              as: 'stagePlugin',
+                              in: '$$stagePlugin.address',
+                            },
+                          },
+                        ],
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+      AggregationQueryHelper.plugin(
+        {
+          addresses: '$allPluginAddresses',
+          network: networkValue,
+          status: IPluginStatus.installed,
+          isPolicy: false,
+        },
+        'allPluginDocs',
+        {
+          _id: 0,
+          transactionHash: 1,
+          blockTimestamp: 1,
+          address: 1,
+          implementationAddress: 1,
+          name: 1,
+          description: 1,
+          processKey: 1,
+          slug: 1,
+          links: 1,
+          isSupported: 1,
+          interfaceType: 1,
+          conditionAddress: 1,
+          lockManagerAddress: 1,
+          enableOfacCheck: 1,
+          blockedCountries: 1,
+          termsConditionsUrl: 1,
+          release: 1,
+          build: 1,
+          subdomain: 1,
+          isProcess: 1,
+          proposalCreationConditionAddress: 1,
+          isBody: 1,
+          isSubPlugin: 1,
+          totalStages: 1,
+          subPlugins: 1,
+          stageIndex: 1,
+          parentPlugin: 1,
+          tokenAddress: 1,
+          votingEscrow: 1,
+        },
+      ),
+      {
+        $addFields: {
+          plugins: {
+            $map: {
+              input: '$plugins',
+              as: 'plugin',
+              in: {
+                $mergeObjects: [
+                  '$$plugin',
+                  {
+                    settings: {
+                      $cond: {
+                        if: { $gt: ['$$plugin.settings', null] },
+                        then: {
+                          $mergeObjects: [
+                            '$$plugin.settings',
+                            {
+                              stages: {
+                                $map: {
+                                  input: { $ifNull: ['$$plugin.settings.stages', []] },
+                                  as: 'stage',
+                                  in: {
+                                    $mergeObjects: [
+                                      '$$stage',
+                                      {
+                                        plugins: {
+                                          $map: {
+                                            input: { $ifNull: ['$$stage.plugins', []] },
+                                            as: 'stagePlugin',
+                                            in: {
+                                              $let: {
+                                                vars: {
+                                                  stagePluginClean: {
+                                                    $arrayToObject: {
+                                                      $filter: {
+                                                        input: {
+                                                          $objectToArray: '$$stagePlugin',
+                                                        },
+                                                        as: 'field',
+                                                        cond: {
+                                                          $not: {
+                                                            $in: ['$$field.k', ['isManual', 'allowedBody']],
+                                                          },
+                                                        },
+                                                      },
+                                                    },
+                                                  },
+                                                  matchedPlugin: {
+                                                    $arrayElemAt: [
+                                                      {
+                                                        $filter: {
+                                                          input: '$allPluginDocs',
+                                                          as: 'pluginDoc',
+                                                          cond: {
+                                                            $eq: ['$$pluginDoc.address', '$$stagePlugin.address'],
+                                                          },
+                                                        },
+                                                      },
+                                                      0,
+                                                    ],
+                                                  },
+                                                },
+                                                in: {
+                                                  $mergeObjects: ['$$stagePluginClean', '$$matchedPlugin'],
+                                                },
+                                              },
+                                            },
+                                          },
+                                        },
+                                      },
+                                    ],
+                                  },
+                                },
+                              },
+                            },
+                          ],
+                        },
+                        else: null,
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          allPluginAddresses: 0,
+          allPluginDocs: 0,
+        },
+      },
+    ]
+  },
 }

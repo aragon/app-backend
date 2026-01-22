@@ -16,7 +16,16 @@ const AssetController = {
   ): Promise<IAssetPaginatedResult<IAssetResponse>> => {
     extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
 
-    return await Models.Asset.findWithPagination({ extraParams, paginationParams })
+    const hasOnlyDaoAndNetwork = extraParams.daoAddress && extraParams.network && !extraParams.tokenAddress
+
+    if (hasOnlyDaoAndNetwork) {
+      const dao = await Models.Dao.findByAddress(extraParams.daoAddress, extraParams.network)
+      if (dao?.subDaos?.length && !extraParams.onlyParent) {
+        extraParams.daoAddresses = [extraParams.daoAddress, ...dao.subDaos]
+      }
+    }
+
+    return Models.Asset.findWithPagination({ extraParams, paginationParams })
   },
 }
 

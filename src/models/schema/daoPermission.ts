@@ -112,6 +112,32 @@ export default class DaoPermission extends Model {
     })
   }
 
+  /**
+   * Check if a DAO acknowledgement permission is currently granted (not revoked)
+   * Returns the latest permission event if granted, null if revoked or not found
+   */
+  static async findActiveAcknowledgementPermission(
+    network: NetworksEnum,
+    daoAddress: HexAddress,
+    whoAddress: HexAddress,
+    permissionId: string,
+  ): Promise<DaoPermission | null> {
+    const result = await this.aggregate([
+      {
+        $match: {
+          network,
+          daoAddress,
+          whoAddress,
+          permissionId,
+        },
+      },
+      { $sort: { blockNumber: -1, transactionIndex: -1, logIndex: -1 } },
+      { $limit: 1 },
+      { $match: { event: IEventLogPermission.Granted } },
+    ])
+    return result?.[0] || null
+  }
+
   async update(params: Partial<IDaoPermissionId>, tOpts?: SaveOptions) {
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
