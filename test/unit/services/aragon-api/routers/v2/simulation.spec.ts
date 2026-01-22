@@ -98,7 +98,7 @@ describe('RouterV2: Simulation', () => {
       const router = SimulationRouter.router()
 
       expect(router).to.exist
-      expect(router.stack).to.have.lengthOf(3)
+      expect(router.stack).to.have.lengthOf(4)
 
       const routes = router.stack.map((layer: any) => ({
         path: layer.path,
@@ -109,6 +109,7 @@ describe('RouterV2: Simulation', () => {
         { path: '/:network/plugin/:pluginAddress/simulate', methods: ['POST'] },
         { path: '/proposal/:proposalId', methods: ['POST'] },
         { path: '/proposal/:proposalId', methods: ['HEAD', 'GET'] },
+        { path: '/:network/dispatch/:policyAddress', methods: ['POST'] },
       ])
     })
 

@@ -14,7 +14,7 @@ import {
   type ITenderlyAssetChange,
   type ITenderlyFullResult,
 } from '@types'
-import { type AddressMapper } from './simulationAddressMapper'
+import { type AddressMapper } from './addressMapper'
 
 // ============================================================================
 // Helper Functions
