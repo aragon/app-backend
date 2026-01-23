@@ -76,6 +76,7 @@ export interface IAssetExtraParams {
   network?: NetworksEnum
   daoAddress?: HexAddress
   tokenAddress?: HexAddress
+  includeSpam?: boolean
 }
 
 export interface IDaoExtraParams {

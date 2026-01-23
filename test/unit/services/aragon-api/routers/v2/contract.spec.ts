@@ -78,4 +78,45 @@ describe('RouterV2: Contract', () => {
       expect(controllerStub.calledOnceWith(validatedParams)).to.be.true
     })
   })
+
+  describe('decodeActionBatch', () => {
+    it('should decode batch actions and return results', async () => {
+      const validatedParams = {
+        network: NetworksEnum.ethereumMainnet,
+        from: '0xDAO',
+        actions: [
+          { to: '0xRecipient1', data: '0x', value: '1000' },
+          { to: '0xRecipient2', data: '0x', value: '2000' },
+        ],
+      } as any
+
+      const mockResponse = [
+        { type: 'TransferNative', from: '0xDAO', to: '0xRecipient1' },
+        { type: 'TransferNative', from: '0xDAO', to: '0xRecipient2' },
+      ] as any
+
+      sandbox.stub(ValidationSchema, 'validateParams').resolves(validatedParams)
+      const controllerStub = sandbox.stub(ContractController, 'decodeContractDataBatch').resolves(mockResponse)
+
+      const ctx: any = {
+        params: {
+          network: NetworksEnum.ethereumMainnet,
+          from: '0xDAO',
+        },
+        query: {},
+        request: {
+          body: [
+            { to: '0xRecipient1', data: '0x', value: '1000' },
+            { to: '0xRecipient2', data: '0x', value: '2000' },
+          ],
+        },
+        body: null,
+      }
+
+      await ContractRouter.decodeActionBatch(ctx)
+
+      expect(controllerStub.calledOnceWith(validatedParams)).to.be.true
+      expect(ctx.body).to.deep.equal(mockResponse)
+    })
+  })
 })

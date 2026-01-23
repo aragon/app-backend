@@ -100,4 +100,61 @@ describe('Controller: Contract', () => {
       expect(result).to.deep.equal({ error: true })
     })
   })
+
+  describe('decodeContractDataBatch', () => {
+    it('should return decoded batch data when RabbitMQ returns a response', async () => {
+      const mockResponse = [{ type: 'TransferNative' }, { type: 'Transfer' }] as any
+      const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(mockResponse)
+
+      const params = {
+        from: '0xDAO' as any,
+        actions: [
+          { to: '0xRecipient1', data: '0x12345678', value: '0' },
+          { to: '0xRecipient2', data: '0x87654321', value: '0' },
+        ],
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const result = await ContractController.decodeContractDataBatch(params)
+
+      expect(rabbitMqStub.calledOnce).to.be.true
+      expect(rabbitMqStub.firstCall.args[0]).to.equal(EnumQueueName.contractDecoderLight)
+      expect(rabbitMqStub.firstCall.args[1].params).to.deep.equal(params)
+      expect(result).to.deep.equal(mockResponse)
+    })
+
+    it('should generate correct message id from actions', async () => {
+      const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves([])
+
+      const params = {
+        from: '0xDAO' as any,
+        actions: [
+          { to: '0xContract1', data: '0x12345678aabbccdd', value: '0' },
+          { to: '0xContract2', data: '0x87654321eeffgghh', value: '0' },
+        ],
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      await ContractController.decodeContractDataBatch(params)
+
+      const messageId = rabbitMqStub.firstCall.args[1].id
+      expect(messageId).to.include('contractDecoderLight-ethereum-mainnet')
+      expect(messageId).to.include('0xContract1-0x12345678')
+      expect(messageId).to.include('0xContract2-0x87654321')
+    })
+
+    it('should return an error response if RabbitMQ throws an exception', async () => {
+      sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('RabbitMQ Error'))
+
+      const params = {
+        from: '0xDAO' as any,
+        actions: [{ to: '0xRecipient', data: '0x', value: '0' }],
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const result = await ContractController.decodeContractDataBatch(params)
+
+      expect(result).to.deep.equal({ error: true })
+    })
+  })
 })

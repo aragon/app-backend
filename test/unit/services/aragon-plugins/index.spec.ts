@@ -415,7 +415,9 @@ describe('AragonPlugins: index', () => {
         network: NetworksEnum.ethereumMainnet,
       }
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
+      sandbox.stub(Models.Token, 'findOne').resolves({ address: '0xTokenAddress' } as any)
       const logGaugeStub = sandbox.stub(LogGauge, 'start').resolves()
+      const runEscrowCrawlerStub = sandbox.stub(LogTokenVoting, 'runEscrowCrawler').resolves()
 
       await AragonPluginsService.start()
 
@@ -427,6 +429,8 @@ describe('AragonPlugins: index', () => {
 
       expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
       expect(logGaugeStub.calledOnceWith(mockPlugin, false)).to.be.true
+      expect(runEscrowCrawlerStub.calledOnce).to.be.true
+      expect(runEscrowCrawlerStub.calledOnceWith(mockPlugin, { address: '0xTokenAddress' }, false)).to.be.true
     })
 
     it('should process plugins queue for capitalDistributor interface type', async () => {
@@ -680,7 +684,9 @@ describe('AragonPlugins: index', () => {
         network: NetworksEnum.ethereumMainnet,
       }
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
+      sandbox.stub(Models.Token, 'findOne').resolves({ address: '0xTokenAddress' } as any)
       const logGaugeStub = sandbox.stub(LogGauge, 'start').resolves()
+      const runEscrowCrawlerStub = sandbox.stub(LogTokenVoting, 'runEscrowCrawler').resolves()
 
       await AragonPluginsService.start()
 
@@ -692,6 +698,8 @@ describe('AragonPlugins: index', () => {
 
       expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
       expect(logGaugeStub.calledOnceWith(mockPlugin, false)).to.be.true
+      expect(runEscrowCrawlerStub.calledOnce).to.be.true
+      expect(runEscrowCrawlerStub.calledOnceWith(mockPlugin, { address: '0xTokenAddress' }, false)).to.be.true
     })
 
     it('should process plugins queue for capitalDistributor interface type', async () => {

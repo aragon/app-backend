@@ -1,3 +1,4 @@
+export * from './actionDecoder'
 export * from './admin'
 export * from './aggregation'
 export * from './alchemyNetwork'

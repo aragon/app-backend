@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import { ProposalHandler } from '@handlers/proposalHandler'
 import DecodeActions from '@helpers/decodeAction'
+import DecoderLight from '@helpers/decoderLight'
 import Web3Helper from '@helpers/web3'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 import ActionDecoder from '@services/aragon-gateway/actionDecoder'
@@ -125,6 +126,46 @@ describe('AragonDao: actionDecoder', () => {
       await ActionDecoder.proposalActionDecoder(id)
 
       expect(parseActionsStub.calledOnceWith(proposal)).to.be.true
+    })
+  })
+
+  describe('decodeLight', () => {
+    it('should decode batch of actions using DecoderLight', async () => {
+      const params = {
+        from: '0xDAO' as any,
+        actions: [
+          { to: '0xRecipient1', data: '0x', value: '1000' },
+          { to: '0xRecipient2', data: '0x', value: '2000' },
+        ],
+        network: NetworksEnum.ethereumSepolia,
+      }
+
+      const mockResults = [
+        { type: ProposalActionType.TransferNative, from: '0xDAO', to: '0xRecipient1' },
+        { type: ProposalActionType.TransferNative, from: '0xDAO', to: '0xRecipient2' },
+      ]
+
+      const decodeBatchStub = sandbox.stub(DecoderLight.prototype, 'decodeBatch').resolves(mockResults as any)
+
+      const response = await ActionDecoder.decodeLight(params)
+
+      expect(decodeBatchStub.calledOnce).to.be.true
+      expect(response).to.deep.equal(mockResults)
+    })
+
+    it('should pass from address to each action', async () => {
+      const params = {
+        from: '0xDAO' as any,
+        actions: [{ to: '0xRecipient', data: '0x', value: '1000' }],
+        network: NetworksEnum.ethereumSepolia,
+      }
+
+      const decodeBatchStub = sandbox.stub(DecoderLight.prototype, 'decodeBatch').resolves([])
+
+      await ActionDecoder.decodeLight(params)
+
+      const calledActions = decodeBatchStub.firstCall.args[0]
+      expect(calledActions[0].from).to.equal('0xDAO')
     })
   })
 })

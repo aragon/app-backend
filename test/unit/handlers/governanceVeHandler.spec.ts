@@ -3024,4 +3024,337 @@ describe('Handler:GovernanceVeHandler', () => {
       ).to.be.true
     })
   })
+
+  describe('split', () => {
+    it('should skip if plugin not found', async () => {
+      const stubLogger = sandbox.stub(logger, 'warn')
+      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
+
+      const mockInfo = {
+        address: '0x001DdEdc2139d9948e8dcC936C1Ab2314D9181E8',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+        transactionHash: '0xsplithash',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+      const mockEvent = {
+        args: {
+          _from: 100n,
+          newTokenId: 101n,
+          _sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          _splitAmount1: 6000000000000000000n,
+          _splitAmount2: 4000000000000000000n,
+        },
+      } as any
+
+      await GovernanceVeHandler.split(mockEvent, mockInfo)
+
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubLogger.calledWith('Plugin not found for split event' as any)).to.be.true
+      expect(stubCreateBaseMember.notCalled).to.be.true
+    })
+
+    it('should process split successfully (happy path)', async () => {
+      // Create a plugin with escrowAddress
+      await Models.Plugin.create({
+        id: 'test-plugin-split',
+        address: '0xSplitPlugin',
+        daoAddress: '0xDAOSplit',
+        tokenAddress: '0xTokenSplit',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabcSplit',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xSplitEscrowAddress',
+          nftLockAddress: '0xNftSplit',
+          exitQueueAddress: '0xExitSplit',
+        },
+      })
+
+      // Create original lock
+      await Models.Lock.create({
+        id: 'test-lock-split-original',
+        network: NetworksEnum.ethereumMainnet,
+        escrowAddress: '0xSplitEscrowAddress',
+        memberAddress: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+        tokenId: '100',
+        transactionHash: '0xoriginallock',
+        transactionIndex: 0,
+        logIndex: 0,
+        blockNumber: 50,
+        tokenAddress: '0xTokenSplit',
+        nftAddress: '0xNftSplit',
+        amount: '10000000000000000000',
+        epochStartAt: 1680000000,
+        totalLocked: '10000000000000000000',
+        exitQueueAddress: '0xExitSplit',
+      })
+
+      const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
+      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      const mockGovernance = createMockGovernance()
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      const mockInfo = {
+        address: '0xSplitEscrowAddress',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 200,
+        transactionHash: '0xsplittx',
+        transactionIndex: 1,
+        logIndex: 2,
+      } as any
+      const mockEvent = {
+        args: {
+          _from: 100n,
+          newTokenId: 101n,
+          _sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          _splitAmount1: 6000000000000000000n,
+          _splitAmount2: 4000000000000000000n,
+        },
+      } as any
+
+      await GovernanceVeHandler.split(mockEvent, mockInfo)
+
+      expect(stubCreateBaseMember.calledOnce).to.be.true
+      expect(stubCreateBaseMember.calledWith('0x65D9d3887aa9a9ee78901E96819B574160E4EAC5', 200)).to.be.true
+
+      expect(mockGovernance.updatePluginMetrics.calledOnce).to.be.true
+      expect(stubLoggerVerbose.calledWith('Split VeGovernance' as any)).to.be.true
+    })
+
+    it('should log error if split fails', async () => {
+      // Create a plugin
+      await Models.Plugin.create({
+        id: 'test-plugin-split-error',
+        address: '0xSplitPluginError',
+        daoAddress: '0xDAOSplitError',
+        tokenAddress: '0xTokenSplitError',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabcSplitError',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xSplitEscrowError',
+          nftLockAddress: '0xNftSplitError',
+          exitQueueAddress: '0xExitSplitError',
+        },
+      })
+
+      const stubLoggerError = sandbox.stub(logger, 'error')
+      const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
+
+      // Make createBaseMember throw an error
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').rejects(new Error('Failed to create member'))
+
+      const mockGovernance = createMockGovernance()
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      const mockInfo = {
+        address: '0xSplitEscrowError',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 200,
+        transactionHash: '0xspliterrortx',
+        transactionIndex: 1,
+        logIndex: 2,
+      } as any
+      const mockEvent = {
+        args: {
+          _from: 100n,
+          newTokenId: 101n,
+          _sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          _splitAmount1: 6000000000000000000n,
+          _splitAmount2: 4000000000000000000n,
+        },
+      } as any
+
+      await GovernanceVeHandler.split(mockEvent, mockInfo)
+
+      expect(stubLoggerError.calledOnce).to.be.true
+      expect(stubLoggerError.calledWith('Split error' as any)).to.be.true
+      expect(stubLoggerVerbose.notCalled).to.be.true
+    })
+  })
+
+  describe('merge', () => {
+    it('should skip if plugin not found', async () => {
+      const stubLogger = sandbox.stub(logger, 'warn')
+      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
+
+      const mockInfo = {
+        address: '0x001DdEdc2139d9948e8dcC936C1Ab2314D9181E8',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+        transactionHash: '0xmergehash',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+      const mockEvent = {
+        args: {
+          _sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          _from: 200n,
+          _to: 201n,
+          _fromAmount: 3000000000000000000n,
+          _toAmount: 7000000000000000000n,
+          _newTotalAmount: 10000000000000000000n,
+        },
+      } as any
+
+      await GovernanceVeHandler.merge(mockEvent, mockInfo)
+
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubLogger.calledWith('Plugin not found for merge event' as any)).to.be.true
+      expect(stubCreateBaseMember.notCalled).to.be.true
+    })
+
+    it('should process merge successfully (happy path)', async () => {
+      const memberAddress = '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5'
+
+      // Create a plugin with escrowAddress
+      await Models.Plugin.create({
+        id: 'test-plugin-merge',
+        address: '0xMergePlugin',
+        daoAddress: '0xDAOMerge',
+        tokenAddress: '0xTokenMerge',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabcMerge',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xMergeEscrowAddress',
+          nftLockAddress: '0xNftMerge',
+          exitQueueAddress: '0xExitMerge',
+        },
+      })
+
+      // Create two locks for merging
+      await Models.Lock.create({
+        id: 'test-lock-merge-from',
+        network: NetworksEnum.ethereumMainnet,
+        escrowAddress: '0xMergeEscrowAddress',
+        memberAddress: memberAddress,
+        tokenId: '200',
+        transactionHash: '0xfromlock',
+        transactionIndex: 0,
+        logIndex: 0,
+        blockNumber: 50,
+        tokenAddress: '0xTokenMerge',
+        nftAddress: '0xNftMerge',
+        amount: '3000000000000000000',
+        epochStartAt: 1680000000,
+        totalLocked: '3000000000000000000',
+        exitQueueAddress: '0xExitMerge',
+      })
+
+      await Models.Lock.create({
+        id: 'test-lock-merge-to',
+        network: NetworksEnum.ethereumMainnet,
+        escrowAddress: '0xMergeEscrowAddress',
+        memberAddress: memberAddress,
+        tokenId: '201',
+        transactionHash: '0xtolock',
+        transactionIndex: 0,
+        logIndex: 0,
+        blockNumber: 51,
+        tokenAddress: '0xTokenMerge',
+        nftAddress: '0xNftMerge',
+        amount: '7000000000000000000',
+        epochStartAt: 1680001000,
+        totalLocked: '10000000000000000000',
+        exitQueueAddress: '0xExitMerge',
+      })
+
+      const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
+      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      const mockGovernance = createMockGovernance()
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      const mockInfo = {
+        address: '0xMergeEscrowAddress',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 300,
+        transactionHash: '0xmergetx',
+        transactionIndex: 1,
+        logIndex: 2,
+      } as any
+      const mockEvent = {
+        args: {
+          _sender: memberAddress,
+          _from: 200n,
+          _to: 201n,
+          _fromAmount: 3000000000000000000n,
+          _toAmount: 7000000000000000000n,
+          _newTotalAmount: 10000000000000000000n,
+        },
+      } as any
+
+      await GovernanceVeHandler.merge(mockEvent, mockInfo)
+
+      expect(stubCreateBaseMember.calledOnce).to.be.true
+      expect(stubCreateBaseMember.calledWith(memberAddress, 300)).to.be.true
+
+      expect(mockGovernance.updatePluginMetrics.calledOnce).to.be.true
+      expect(stubLoggerVerbose.calledWith('Merge VeGovernance' as any)).to.be.true
+    })
+
+    it('should log error if merge fails', async () => {
+      // Create a plugin
+      await Models.Plugin.create({
+        id: 'test-plugin-merge-error',
+        address: '0xMergePluginError',
+        daoAddress: '0xDAOMergeError',
+        tokenAddress: '0xTokenMergeError',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabcMergeError',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xMergeEscrowError',
+          nftLockAddress: '0xNftMergeError',
+          exitQueueAddress: '0xExitMergeError',
+        },
+      })
+
+      const stubLoggerError = sandbox.stub(logger, 'error')
+      const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
+
+      // Make createBaseMember throw an error
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').rejects(new Error('Failed to create member'))
+
+      const mockGovernance = createMockGovernance()
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      const mockInfo = {
+        address: '0xMergeEscrowError',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 300,
+        transactionHash: '0xmergeerrortx',
+        transactionIndex: 1,
+        logIndex: 2,
+      } as any
+      const mockEvent = {
+        args: {
+          _sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          _from: 200n,
+          _to: 201n,
+          _fromAmount: 3000000000000000000n,
+          _toAmount: 7000000000000000000n,
+          _newTotalAmount: 10000000000000000000n,
+        },
+      } as any
+
+      await GovernanceVeHandler.merge(mockEvent, mockInfo)
+
+      expect(stubLoggerError.calledOnce).to.be.true
+      expect(stubLoggerError.calledWith('Merge error' as any)).to.be.true
+      expect(stubLoggerVerbose.notCalled).to.be.true
+    })
+  })
 })

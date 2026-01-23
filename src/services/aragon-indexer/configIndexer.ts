@@ -375,6 +375,28 @@ const IndexerEventConfig: IIndexerConfig[] = [
     ],
   },
   {
+    event: 'Split',
+    enableHistorical: false,
+    topic: new Interface(VotingEscrowIncreasing.abi).getEvent('Split')?.topicHash!,
+    config: [
+      {
+        abi: VotingEscrowIncreasing.abi,
+        handler: GovernanceVeHandler.split,
+      },
+    ],
+  },
+  {
+    event: 'Merged',
+    enableHistorical: false,
+    topic: new Interface(VotingEscrowIncreasing.abi).getEvent('Merged')?.topicHash!,
+    config: [
+      {
+        abi: VotingEscrowIncreasing.abi,
+        handler: GovernanceVeHandler.merge,
+      },
+    ],
+  },
+  {
     event: 'ExitQueued',
     enableHistorical: false,
     topic: new Interface(ExitQueue.abi).getEvent('ExitQueued')?.topicHash!,

@@ -75,6 +75,12 @@ export default class Token extends Model {
   @prop({ type: () => Boolean, default: false })
   public isGovernance!: boolean
 
+  @prop({ type: () => Boolean, default: false })
+  public isSpam!: boolean
+
+  @prop({ type: () => Number, default: 0 })
+  public spamScore!: number
+
   @prop({ type: () => String, default: null })
   public name!: string | null
 

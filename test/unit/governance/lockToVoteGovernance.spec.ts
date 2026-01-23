@@ -395,8 +395,8 @@ describe('Governance:LockToVoteGovernance', () => {
 
       expect(result).to.exist
       expect(result).to.have.lengthOf(2)
-      expect(result[0].votingPower).to.equal('100')
-      expect(result[1].votingPower).to.equal('200')
+      expect(result[0].votingPower).to.equal('200')
+      expect(result[1].votingPower).to.equal('100')
     })
   })
 

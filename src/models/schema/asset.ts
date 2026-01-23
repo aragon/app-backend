@@ -85,11 +85,23 @@ export default class Asset extends Model {
     paginationParams?: IPaginationParams
   }): Promise<IPaginatedResult<any>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
-    const dynamicFilter = Object.fromEntries(Object.entries(extraParams).filter(([_, v]) => v !== undefined))
+    const { includeSpam, ...filterableParams } = extraParams
+    const dynamicFilter = Object.fromEntries(Object.entries(filterableParams).filter(([_, v]) => v !== undefined))
     const filter = {
       ...ModelUtils.createFilter(paginationParams, ['network', 'daoAddress', 'tokenAddress']),
       ...dynamicFilter,
     }
+
+    const spamFilter =
+      includeSpam === false
+        ? [
+            {
+              $match: {
+                $or: [{ 'tokenDetails.isSpam': { $ne: true } }, { 'tokenDetails.isSpam': { $exists: false } }],
+              },
+            },
+          ]
+        : []
 
     const currentPage = request.skip / request.limit + 1
     const [data, totalRecords] = await Promise.all([
@@ -116,6 +128,7 @@ export default class Asset extends Model {
             decimals: 1,
             priceUsd: 1,
             mintableByDao: 1,
+            isSpam: 1,
           },
         ),
         {
@@ -124,6 +137,7 @@ export default class Asset extends Model {
             preserveNullAndEmptyArrays: true,
           },
         },
+        ...spamFilter,
         {
           $addFields: {
             amountUsd: {
@@ -183,14 +197,20 @@ export default class Asset extends Model {
           $project: {
             _id: 0,
             network: 1,
-            dao: !extraParams.daoAddress ? '$$REMOVE' : 1,
+            dao: !filterableParams.daoAddress ? '$$REMOVE' : 1,
             amount: 1,
             token: '$tokenDetails',
             amountUsd: { $toString: '$amountUsd' },
           },
         },
       ]),
-      this.countDocuments(filter),
+      this.aggregate([
+        { $match: filter },
+        AggregationQueryHelper.token({ network: '$network', address: '$tokenAddress' }, 'tokenDetails', { isSpam: 1 }),
+        { $unwind: { path: '$tokenDetails', preserveNullAndEmptyArrays: true } },
+        ...spamFilter,
+        { $count: 'total' },
+      ]).then((result: any) => result[0]?.total || 0),
     ])
 
     const totalPages = Math.ceil(totalRecords / request.limit)

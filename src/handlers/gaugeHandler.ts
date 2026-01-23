@@ -179,7 +179,7 @@ export const GaugeHandler = {
         memberAddress: parsedEvent.args.voter,
         epochId,
         votingPower: parsedEvent.args.votingPowerCastForGauge.toString(),
-        persistentVote: !settings.enabledUpdatedVotingPowerHook, // if false keep vote across all epochs
+        persistentVote: settings.enabledUpdatedVotingPowerHook, // if true, votes persist (stored in epoch 0 on-chain)
       }
 
       await Models.VoteGauge.create(document)
@@ -189,8 +189,6 @@ export const GaugeHandler = {
         gaugeAddress: gauge.address,
         pluginAddress: gauge.pluginAddress,
         network: gauge.network,
-        currentEpochVotingPower: parsedEvent.args.totalVotingPowerInGauge.toString(),
-        totalGaugeVotingPower: parsedEvent.args.totalVotingPowerInContract.toString(),
       })
 
       logger.verbose('Gauge voted', llo({ address: gauge.address, epochId }))
@@ -226,14 +224,30 @@ export const GaugeHandler = {
     try {
       const epochId = parsedEvent.args.epoch.toString()
 
-      // Find the VoteGauge by voter, gauge, epoch, and network (not by the Reset transaction)
-      const existingVote = await Models.VoteGauge.findOne({
+      const alreadyProcessed = await Models.VoteGauge.findOne({
         network: info.network,
         gaugeAddress: parsedEvent.args.gauge,
         memberAddress: parsedEvent.args.voter,
         pluginAddress: info.address,
         epochId,
+        resetVoteTransactionHash: info.transactionHash,
       })
+      if (alreadyProcessed) return
+
+      // Find the VoteGauge by voter, gauge, epoch, and network that hasn't been reset yet
+      // Sort by blockNumber/logIndex ascending to find the oldest vote (the one being reset)
+      const existingVote = await Models.VoteGauge.findOne(
+        {
+          network: info.network,
+          gaugeAddress: parsedEvent.args.gauge,
+          memberAddress: parsedEvent.args.voter,
+          pluginAddress: info.address,
+          epochId,
+          resetVoteTransactionHash: null,
+        },
+        null,
+        { sort: { blockNumber: 1, logIndex: 1 } },
+      )
 
       if (!existingVote) {
         logger.warn('No voteGauge found gaugeReset', llo({ info, parsedEvent }))
@@ -242,7 +256,6 @@ export const GaugeHandler = {
 
       await existingVote.update({
         resetVoteTransactionHash: info.transactionHash,
-        persistentVote: false,
       })
 
       await GaugeMetrics.epochGaugeMetrics({
@@ -250,8 +263,6 @@ export const GaugeHandler = {
         gaugeAddress: gauge.address,
         pluginAddress: gauge.pluginAddress,
         network: gauge.network,
-        currentEpochVotingPower: parsedEvent.args.totalVotingPowerInGauge.toString(),
-        totalGaugeVotingPower: parsedEvent.args.totalVotingPowerInContract.toString(),
       })
 
       logger.verbose('Gauge reset vote', llo({ address: gauge.address, epochId }))

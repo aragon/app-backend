@@ -2,6 +2,7 @@ import config from '@config'
 import GaugeHelper from '@helpers/gauge'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import { ProxyToken } from '@modules/proxyToken'
 import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
 import { ContractInfo } from '@services/aragon-gateway/contractInfo'
@@ -16,8 +17,10 @@ import {
   type IGetGaugeInfoId,
   type IMerkleProofSync,
   type IQueueCanCreateProposal,
+  type IQueueContractDecoderLight,
   type IQueueContractInfo,
   type IQueueMemberBalanceInfo,
+  type IQueueTokenInfo,
   type IRawAction,
   type IService,
 } from '@types'
@@ -45,6 +48,13 @@ const AragonGatewayService: IService = {
       return await ActionDecoder.decode({ from, to, data, value, network })
     })
 
+    await RabbitMQHelper.process(
+      EnumQueueName.contractDecoderLight,
+      async (job: { params: IQueueContractDecoderLight }) => {
+        return await ActionDecoder.decodeLight(job.params)
+      },
+    )
+
     await RabbitMQHelper.process(EnumQueueName.canCreateProposal, async (job: any) => {
       const { pluginAddress, memberAddress, network } = job.params as IQueueCanCreateProposal
       return await MemberInfo.canCreateProposal(pluginAddress, memberAddress, network)
@@ -66,6 +76,12 @@ const AragonGatewayService: IService = {
     await RabbitMQHelper.process(EnumQueueName.gaugeInfo, async job => {
       const { pluginAddress, memberAddress, network } = job.params as IGetGaugeInfoId
       return await GaugeInfo.getGaugeInfo({ pluginAddress, memberAddress, network })
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.tokenInfo, async (job: { params: IQueueTokenInfo }) => {
+      const { address, network } = job.params
+      await ProxyToken.saveAndGetToken(address, network)
+      return true
     })
 
     logger.info('AragonGatewayService service started', llo({}))

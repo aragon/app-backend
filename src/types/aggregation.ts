@@ -80,6 +80,7 @@ export interface IAggTokenProjectFields {
   priceUsd?: 1
   lastUpdatedAt?: 1
   mintableByDao?: 1
+  isSpam?: 1
 }
 
 export interface IAggProposalParams {
