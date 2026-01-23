@@ -240,6 +240,8 @@ export interface ICrawlParam {
   isTopicObject?: boolean
   batchSize?: number
   adaptiveConfig?: IAdaptiveBatchConfig
+  enableReorgDetection?: boolean
+  reorgDepth?: number // max depth to check for reorg fork point (default: 10)
 }
 
 export interface ICrawlSetting {
