@@ -88,7 +88,7 @@
     "koa": "^3.0.3",
     "koa-bodyparser": "^4.4.1",
     "koa-jwt": "^4.0.4",
-    "lodash": "^4.17.21",
+    "lodash": "^4.17.23",
     "logzio-nodejs": "^2.5.0",
     "merkletreejs": "^0.6.0",
     "mongoose": "^8.19.2",
