@@ -60,4 +60,11 @@ export default class BlockVerification extends Model {
     this.status = BlockStatus.reorged
     return await this.save(tOpts)
   }
+
+  async updateCanonicalHash(newBlockHash: string, newParentHash: string, tOpts?: SaveOptions) {
+    this.blockHash = newBlockHash
+    this.parentHash = newParentHash
+    this.status = BlockStatus.reorged
+    return await this.save(tOpts)
+  }
 }

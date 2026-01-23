@@ -82,12 +82,15 @@ export class ReorgDetector {
       }
 
       if (currentBlock.parentHash !== prevRecord.blockHash) {
-        // REORG DETECTED - find the fork point by walking back
         const forkPoint = await this.findForkPoint(currentBlockNumber)
         const reorgDepth = forkPoint ? currentBlockNumber - forkPoint : 1
 
-        // Mark the reorged block
-        await prevRecord.markReorged()
+        const canonicalPrevBlock = await Web3Helper.getBlock(prevBlockNumber, this.network)
+        if (canonicalPrevBlock?.hash && canonicalPrevBlock?.parentHash) {
+          await prevRecord.updateCanonicalHash(canonicalPrevBlock.hash, canonicalPrevBlock.parentHash)
+        } else {
+          await prevRecord.markReorged()
+        }
 
         logger.error(
           'REORG DETECTED',
@@ -145,12 +148,14 @@ export class ReorgDetector {
         }
 
         if (canonicalBlock.hash === record.blockHash) {
-          // Found the fork point - this block matches
           return blockNumber
         }
 
-        // Mark this block as reorged too
-        await record.markReorged()
+        if (canonicalBlock.parentHash) {
+          await record.updateCanonicalHash(canonicalBlock.hash, canonicalBlock.parentHash)
+        } else {
+          await record.markReorged()
+        }
       }
 
       // Couldn't find fork point within maxDepth
