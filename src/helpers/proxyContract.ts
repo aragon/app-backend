@@ -1,4 +1,4 @@
-import BytecodeHelper from '@helpers/bytecodeHelper'
+import ContractHelper from '@helpers/contractHelper'
 import { retryRequest } from '@helpers/retryRequest'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
@@ -113,7 +113,7 @@ const ProxyContractHelper = {
 
       // Check minimal proxy pattern if other slots failed
       if (!implementationAddress) {
-        const code = await BytecodeHelper.getBytecode(address, network)
+        const code = await ContractHelper.getBytecode(address, network)
         implementationAddress = code ? ProxyContractHelper._getImplementationForMinimalProxy(code) : null
       }
 

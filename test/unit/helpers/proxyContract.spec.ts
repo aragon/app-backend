@@ -1,4 +1,4 @@
-import BytecodeHelper from '@helpers/bytecodeHelper'
+import ContractHelper from '@helpers/contractHelper'
 import ProxyContractHelper from '@helpers/proxyContract'
 import Logger from '@logger'
 import ProviderModule from '@modules/provider'
@@ -248,7 +248,7 @@ describe('Helpers:ProxyContractHelper', () => {
         getStorage: getStorageStub,
       }
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').callsFake(_ => providerStub as any)
-      sandbox.stub(BytecodeHelper, 'getBytecode').resolves(byteCode)
+      sandbox.stub(ContractHelper, 'getBytecode').resolves(byteCode)
 
       const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.ethereumMainnet)
       expect(result).to.equal(getAddress(`0x${implementationAddress}`))
@@ -263,7 +263,7 @@ describe('Helpers:ProxyContractHelper', () => {
         getStorage: getStorageStub,
       }
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').callsFake(_ => providerStub as any)
-      sandbox.stub(BytecodeHelper, 'getBytecode').resolves('someBytecode')
+      sandbox.stub(ContractHelper, 'getBytecode').resolves('someBytecode')
 
       const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.ethereumMainnet)
       expect(minimalProxyStub.calledOnce).to.be.true
@@ -280,7 +280,7 @@ describe('Helpers:ProxyContractHelper', () => {
         getStorage: getStorageStub,
       }
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').callsFake(_ => providerStub as any)
-      sandbox.stub(BytecodeHelper, 'getBytecode').resolves('someBytecode')
+      sandbox.stub(ContractHelper, 'getBytecode').resolves('someBytecode')
 
       const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.ethereumMainnet)
       expect(result).to.be.null
@@ -316,7 +316,7 @@ describe('Helpers:ProxyContractHelper', () => {
       }
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').callsFake(_ => providerStub as any)
       sandbox.stub(ProxyContractHelper, 'getAddressFromStorage').resolves(null)
-      sandbox.stub(BytecodeHelper, 'getBytecode').resolves('someBytecode')
+      sandbox.stub(ContractHelper, 'getBytecode').resolves('someBytecode')
 
       const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.ethereumMainnet)
 
@@ -340,7 +340,7 @@ describe('Helpers:ProxyContractHelper', () => {
       }
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').callsFake(_ => providerStub as any)
       sandbox.stub(ProxyContractHelper, 'getAddressFromStorage').resolves(null)
-      sandbox.stub(BytecodeHelper, 'getBytecode').resolves('someBytecode')
+      sandbox.stub(ContractHelper, 'getBytecode').resolves('someBytecode')
 
       const result = await ProxyContractHelper.getImplementationAddress('0xProxyAddress', NetworksEnum.ethereumMainnet)
 
@@ -387,7 +387,7 @@ describe('Helpers:ProxyContractHelper', () => {
       sandbox.stub(ProxyContractHelper, 'getAddressFromStorage').resolves(null)
       sandbox.stub(ProxyContractHelper, '_getImplementationForMinimalProxy').returns(null)
       sandbox.stub(ProxyContractHelper, '_fallBackImplementationViaViewCall').resolves(null)
-      sandbox.stub(BytecodeHelper, 'getBytecode').resolves('someBytecode')
+      sandbox.stub(ContractHelper, 'getBytecode').resolves('someBytecode')
 
       const result = await ProxyContractHelper.getImplementationAddress(addresses[0], NetworksEnum.ethereumMainnet)
 
@@ -419,7 +419,7 @@ describe('Helpers:ProxyContractHelper', () => {
       }
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').callsFake(_ => providerStub as any)
       sandbox.stub(ProxyContractHelper, 'getAddressFromStorage').resolves(null)
-      sandbox.stub(BytecodeHelper, 'getBytecode').resolves('someBytecode')
+      sandbox.stub(ContractHelper, 'getBytecode').resolves('someBytecode')
 
       const result = await ProxyContractHelper.getImplementationAddress(proxyAddress, NetworksEnum.ethereumMainnet)
 

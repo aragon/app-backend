@@ -1,4 +1,4 @@
-import BytecodeHelper from '@helpers/bytecodeHelper'
+import ContractHelper from '@helpers/contractHelper'
 import ProxyContractHelper from '@helpers/proxyContract'
 import utils from '@helpers/utils'
 import logger from '@logger'
@@ -67,7 +67,7 @@ const PluginDetector = {
 
     try {
       const contractCodeAddress = contractAddress === utils.zeroAddress ? address : contractAddress
-      const bytecode = await BytecodeHelper.getBytecode(contractCodeAddress, network)
+      const bytecode = await ContractHelper.getBytecode(contractCodeAddress, network)
       if (!bytecode) return pluginDetails
 
       const code = bytecode
@@ -114,7 +114,7 @@ const PluginDetector = {
         return VotingBodyBrandIdentity.EOA
       }
 
-      const code = await BytecodeHelper.getBytecode(address, network)
+      const code = await ContractHelper.getBytecode(address, network)
 
       if (!code) {
         return VotingBodyBrandIdentity.EOA

@@ -1,4 +1,4 @@
-import BytecodeHelper from '@helpers/bytecodeHelper'
+import ContractHelper from '@helpers/contractHelper'
 import ProxyContractHelper from '@helpers/proxyContract'
 import utils from '@helpers/utils'
 import logger from '@logger'
@@ -49,7 +49,7 @@ const VotingEscrowDetector = {
 
     try {
       const contractCodeAddress = contractAddress === utils.zeroAddress ? address : contractAddress
-      const bytecode = await BytecodeHelper.getBytecode(contractCodeAddress, network)
+      const bytecode = await ContractHelper.getBytecode(contractCodeAddress, network)
       if (!bytecode) return contractDetails
 
       const code = bytecode

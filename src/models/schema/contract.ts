@@ -52,6 +52,9 @@ export default class Contract extends Model {
   @prop({ type: () => Boolean, default: false })
   public isVerified!: boolean
 
+  @prop({ type: () => String, default: null })
+  public compilerVersion!: string | null
+
   static async create(rawData: Partial<Contract>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.address, 'address is required')
