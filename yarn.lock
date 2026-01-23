@@ -5182,7 +5182,7 @@ mongodb-memory-server-core@11.0.1:
     tslib "^2.8.1"
     yauzl "^3.2.0"
 
-mongodb-memory-server@11.0.1:
+mongodb-memory-server@^11.0.1:
   version "11.0.1"
   resolved "https://registry.yarnpkg.com/mongodb-memory-server/-/mongodb-memory-server-11.0.1.tgz#6d2848f41460989ef7253d86e2632f387ac4d62a"
   integrity sha512-nUlKovSJZBh7q5hPsewFRam9H66D08Ne18nyknkNalfXMPtK1Og3kOcuqQhcX88x/pghSZPIJHrLbxNFW3OWiw==
