@@ -13,6 +13,7 @@ import { BatchRequestManager } from './batchRequestManager'
 import { CrawlerErrorHandler } from './crawlerErrorHandler'
 import { LogProcessingEngine } from './logProcessingEngine'
 import { ProgressTracker } from './progressTracker'
+import { ReorgDetector } from './reorgDetector'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:EventCrawler' })
 
@@ -24,6 +25,7 @@ class BlockchainLogCrawler {
   private readonly errorHandler: CrawlerErrorHandler
   private readonly progressTracker?: ProgressTracker
   private readonly logProcessingEngine: LogProcessingEngine
+  private readonly reorgDetector?: ReorgDetector
 
   constructor(opts: ICrawlParam) {
     this.crawlParams = {
@@ -85,6 +87,10 @@ class BlockchainLogCrawler {
         service: opts.logService,
         initialBlock: opts.fromBlock || config.NODES[utils.networkToAragon(opts.network)].FROM_BLOCK,
       })
+
+      if (opts.enableReorgDetection) {
+        this.reorgDetector = new ReorgDetector(opts.network, opts.logService, opts.reorgDepth)
+      }
     }
 
     this.crawlSetting = {
@@ -161,6 +167,19 @@ class BlockchainLogCrawler {
       }
 
       try {
+        if (this.reorgDetector) {
+          const reorgResult = await this.reorgDetector.detectReorg(currentBlock)
+          if (reorgResult.reorgDetected) {
+            logger.warn(
+              'Reorg detected, continuing with current chain state',
+              llo({
+                ...this.parseCrawlerInfoLog(),
+                reorgedBlockNumber: reorgResult.reorgedBlockNumber,
+              }),
+            )
+          }
+        }
+
         const result: any = await this.getLogsByStrategy(currentBlock, latestBlock)
 
         const toBlock = result.toBlock
@@ -228,6 +247,10 @@ class BlockchainLogCrawler {
 
         if (this.crawlParams.logService && !this.crawlParams.skipLogProcessing) {
           await this.onSaveProgress(toBlock)
+
+          if (this.reorgDetector) {
+            await this.reorgDetector.recordBlock(toBlock)
+          }
         }
 
         if (this.crawlSetting.shutdown) break

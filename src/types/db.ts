@@ -1,4 +1,6 @@
 import type Asset from '@models/schema/asset'
+import type BlockVerification from '@models/schema/blockVerification'
+export { BlockStatus } from '@models/schema/blockVerification'
 import type Campaign from '@models/schema/campaign'
 import type CampaignMerkleRoot from '@models/schema/campaignMerkleRoot'
 import type CampaignReward from '@models/schema/campaignReward'
@@ -34,6 +36,7 @@ import type VoteGauge from '@models/schema/voteGauge'
 export interface IMongoModel {
   Migration: typeof Migration
   Asset: typeof Asset
+  BlockVerification: typeof BlockVerification
   ConfigIndexer: typeof ConfigIndexer
   Campaign: typeof Campaign
   CampaignReward: typeof CampaignReward
@@ -69,6 +72,7 @@ export interface IMongoModel {
 export enum ICollectionNames {
   Migration = 'Migration',
   Asset = 'Asset',
+  BlockVerification = 'BlockVerification',
   Campaign = 'Campaign',
   ConfigIndexer = 'ConfigIndexer',
   Dao = 'Dao',
@@ -167,4 +171,9 @@ export enum IMigrationStatus {
 
 export enum ICampaignType {
   MERKLE_ROOT = 'MERKLE_ROOT',
+}
+
+export enum BlockStatus {
+  verified = 'verified',
+  reorged = 'reorged',
 }
