@@ -8,8 +8,9 @@ import { ContractInfo } from '@services/aragon-gateway/contractInfo'
 import { GaugeInfo } from '@services/aragon-gateway/gauge'
 import AragonGatewayService from '@services/aragon-gateway/index'
 import { MemberInfo } from '@services/aragon-gateway/memberInfo'
+import { MetadataRefetchProcessor } from '@services/aragon-gateway/metadataRefetch'
 import Plugin from '@services/aragon-gateway/plugin'
-import { EnumQueueName, NetworksEnum } from '@types'
+import { EnumQueueName, MetadataEntityType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -32,7 +33,7 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      expect(processStub.callCount).to.equal(10)
+      expect(processStub.callCount).to.equal(11)
       expect(processStub.calledWith(EnumQueueName.contractInfo)).to.be.true
       expect(processStub.calledWith(EnumQueueName.memberBalance)).to.be.true
       expect(processStub.calledWith(EnumQueueName.contractDecoder)).to.be.true
@@ -43,6 +44,7 @@ describe('AragonGateway: index', () => {
       expect(processStub.calledWith(EnumQueueName.gaugeEpochId)).to.be.true
       expect(processStub.calledWith(EnumQueueName.gaugeInfo)).to.be.true
       expect(processStub.calledWith(EnumQueueName.tokenInfo)).to.be.true
+      expect(processStub.calledWith(EnumQueueName.metadataRefetch)).to.be.true
 
       expect(loggerStub.calledOnceWith('AragonGatewayService service started' as any)).to.be.true
     })
@@ -293,6 +295,38 @@ describe('AragonGateway: index', () => {
 
       expect(queueName).to.eq(EnumQueueName.tokenInfo)
       expect(proxyTokenStub.calledOnceWith('0xTokenAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(result).to.be.true
+    })
+
+    it('should handle metadataRefetch queue', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const processRefetchStub = sandbox.stub(MetadataRefetchProcessor, 'processRefetch').resolves(true)
+
+      await AragonGatewayService.start()
+
+      const handler = processStub.getCall(10).args[1]
+      const queueName = processStub.getCall(10).args[0]
+
+      const result = await handler({
+        params: {
+          id: 'test-id',
+          metadataUri: 'ipfs://QmTest123',
+          entityType: MetadataEntityType.Dao,
+          entityId: '0x1111111111111111111111111111111111111111',
+          network: NetworksEnum.ethereumMainnet,
+        },
+      } as any)
+
+      expect(queueName).to.eq(EnumQueueName.metadataRefetch)
+      expect(
+        processRefetchStub.calledOnceWith({
+          id: 'test-id',
+          metadataUri: 'ipfs://QmTest123',
+          entityType: MetadataEntityType.Dao,
+          entityId: '0x1111111111111111111111111111111111111111',
+          network: NetworksEnum.ethereumMainnet,
+        }),
+      ).to.be.true
       expect(result).to.be.true
     })
   })
