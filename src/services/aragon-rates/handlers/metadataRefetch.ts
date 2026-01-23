@@ -49,8 +49,12 @@ export const MetadataRefetchScheduler = {
   _processRecord: async (record: any): Promise<void> => {
     const { id, metadataUri, entityType, entityId, network } = record
 
-    // Mark the attempt (increments retryCount and saves)
-    await record.markAttempt()
+    // Mark the attempt (increments retryCount and saves) - use returned document for updated retryCount
+    record = await record.markAttempt()
+    if (!record) {
+      logger.warn('Record not found during markAttempt', llo({ id }))
+      return
+    }
 
     // Try to fetch metadata
     const metadata = await IPFSModule.fetchMetadata(metadataUri, { retries: 4 })

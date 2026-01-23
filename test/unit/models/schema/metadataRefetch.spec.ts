@@ -325,9 +325,10 @@ describe('Model: MetadataRefetch', () => {
       const created = await Models.MetadataRefetch.create(rawRefetch)
       expect(created.retryCount).to.eq(0)
 
-      await created.markAttempt()
+      const updated = await created.markAttempt()
 
-      expect(created.retryCount).to.eq(1)
+      expect(updated).to.not.be.null
+      expect(updated!.retryCount).to.eq(1)
     })
 
     it('Should set lastAttemptAt to current time', async () => {
@@ -335,33 +336,51 @@ describe('Model: MetadataRefetch', () => {
       expect(created.lastAttemptAt).to.be.null
 
       const beforeMark = Date.now()
-      await created.markAttempt()
+      const updated = await created.markAttempt()
       const afterMark = Date.now()
 
-      expect(created.lastAttemptAt).to.not.be.null
-      expect(created.lastAttemptAt!.getTime()).to.be.at.least(beforeMark)
-      expect(created.lastAttemptAt!.getTime()).to.be.at.most(afterMark)
+      expect(updated).to.not.be.null
+      expect(updated!.lastAttemptAt).to.not.be.null
+      expect(updated!.lastAttemptAt!.getTime()).to.be.at.least(beforeMark)
+      expect(updated!.lastAttemptAt!.getTime()).to.be.at.most(afterMark)
     })
 
-    it('Should increment retryCount on multiple calls', async () => {
-      const created = await Models.MetadataRefetch.create(rawRefetch)
+    it('Should increment retryCount on multiple calls (atomic)', async () => {
+      let record = await Models.MetadataRefetch.create(rawRefetch)
 
-      await created.markAttempt()
-      expect(created.retryCount).to.eq(1)
+      record = (await record.markAttempt())!
+      expect(record.retryCount).to.eq(1)
 
-      await created.markAttempt()
-      expect(created.retryCount).to.eq(2)
+      record = (await record.markAttempt())!
+      expect(record.retryCount).to.eq(2)
 
-      await created.markAttempt()
-      expect(created.retryCount).to.eq(3)
+      record = (await record.markAttempt())!
+      expect(record.retryCount).to.eq(3)
     })
 
-    it('Should return the updated document', async () => {
+    it('Should return the updated document with new reference', async () => {
       const created = await Models.MetadataRefetch.create(rawRefetch)
       const updated = await created.markAttempt()
 
-      expect(updated).to.eq(created)
-      expect(updated.retryCount).to.eq(1)
+      expect(updated).to.not.be.null
+      expect(updated!.id).to.eq(created.id)
+      expect(updated!.retryCount).to.eq(1)
+    })
+
+    it('Should persist the updated retryCount in database', async () => {
+      const created = await Models.MetadataRefetch.create(rawRefetch)
+      await created.markAttempt()
+
+      const found = await Models.MetadataRefetch.findByEntityId(created.id)
+      expect(found!.retryCount).to.eq(1)
+    })
+
+    it('Should return null if document not found', async () => {
+      const created = await Models.MetadataRefetch.create(rawRefetch)
+      await Models.MetadataRefetch.deleteOne({ _id: created._id })
+
+      const updated = await created.markAttempt()
+      expect(updated).to.be.null
     })
   })
 

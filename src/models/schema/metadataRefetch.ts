@@ -19,7 +19,7 @@ const customName = ICollectionNames.MetadataRefetch
     customName,
   },
 })
-@index({ status: 1, retryCount: 1, lastAttemptAt: 1 })
+@index({ status: 1, lastAttemptAt: 1, retryCount: 1 })
 @index({ entityType: 1, entityId: 1, network: 1 })
 export default class MetadataRefetch extends Model {
   @prop({ type: () => String, required: true, unique: true })
@@ -117,11 +117,20 @@ export default class MetadataRefetch extends Model {
     return await this.findOne({ id: entityId }, null, tOpts)
   }
 
-  async markAttempt(tOpts?: SaveOptions): Promise<MetadataRefetch> {
-    this.retryCount = (this.retryCount || 0) + 1
-    this.lastAttemptAt = new Date()
-    logger.verbose('MetadataRefetch markAttempt', llo({ id: this.id, retryCount: this.retryCount }))
-    return await this.save(tOpts)
+  async markAttempt(tOpts?: SaveOptions): Promise<MetadataRefetch | null> {
+    const updated = await this.model(customName).findOneAndUpdate(
+      { _id: this._id },
+      { $inc: { retryCount: 1 }, $set: { lastAttemptAt: new Date() } },
+      { new: true, ...tOpts },
+    )
+
+    if (!updated) {
+      logger.warn('MetadataRefetch not found for markAttempt', llo({ id: this.id }))
+      return null
+    }
+
+    logger.verbose('MetadataRefetch markAttempt', llo({ id: updated.id, retryCount: updated.retryCount }))
+    return updated as MetadataRefetch
   }
 
   async markCompleted(tOpts?: SaveOptions): Promise<MetadataRefetch> {

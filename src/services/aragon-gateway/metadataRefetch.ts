@@ -17,7 +17,7 @@ export const MetadataRefetchProcessor = {
 
     try {
       // Find the refetch record
-      const refetchRecord = await Models.MetadataRefetch.findByEntityId(id)
+      let refetchRecord = await Models.MetadataRefetch.findByEntityId(id)
       if (!refetchRecord) {
         logger.warn('MetadataRefetch record not found', llo({ id }))
         return false
@@ -29,8 +29,12 @@ export const MetadataRefetchProcessor = {
         return true
       }
 
-      // Mark attempt
-      await refetchRecord.markAttempt()
+      // Mark attempt - use returned document for updated retryCount
+      refetchRecord = await refetchRecord.markAttempt()
+      if (!refetchRecord) {
+        logger.warn('Record not found during markAttempt', llo({ id }))
+        return false
+      }
 
       // Try to fetch metadata with more retries for the queue consumer
       const metadata = await IPFSModule.fetchMetadata(metadataUri, { retries: 4 })

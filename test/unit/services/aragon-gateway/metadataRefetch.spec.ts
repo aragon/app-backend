@@ -89,33 +89,57 @@ describe('Services: aragon-gateway/MetadataRefetch', () => {
     })
 
     it('Should mark attempt before fetching', async () => {
-      const mockMarkAttempt = sandbox.stub().resolves()
-      const mockRecord = {
+      const mockRecord: any = {
         id: baseParams.id,
         status: MetadataRefetchStatus.pending,
         retryCount: 0,
-        markAttempt: mockMarkAttempt,
         markCompleted: sandbox.stub().resolves(),
         markDiscarded: sandbox.stub().resolves(),
       }
+      mockRecord.markAttempt = sandbox.stub().callsFake(async function () {
+        mockRecord.retryCount++
+        return mockRecord
+      })
       findByEntityIdStub.resolves(mockRecord)
       fetchMetadataStub.resolves(null)
 
       await MetadataRefetchProcessor.processRefetch(baseParams)
 
-      expect(mockMarkAttempt.calledOnce).to.be.true
+      expect(mockRecord.markAttempt.calledOnce).to.be.true
       expect(fetchMetadataStub.calledOnce).to.be.true
     })
 
-    it('Should call fetchMetadata with correct params and retries=4', async () => {
-      const mockRecord = {
+    it('Should return false when markAttempt returns null', async () => {
+      const mockRecord: any = {
         id: baseParams.id,
         status: MetadataRefetchStatus.pending,
         retryCount: 0,
-        markAttempt: sandbox.stub().resolves(),
+        markAttempt: sandbox.stub().resolves(null),
         markCompleted: sandbox.stub().resolves(),
         markDiscarded: sandbox.stub().resolves(),
       }
+      findByEntityIdStub.resolves(mockRecord)
+
+      const result = await MetadataRefetchProcessor.processRefetch(baseParams)
+
+      expect(result).to.be.false
+      expect(mockRecord.markAttempt.calledOnce).to.be.true
+      expect(fetchMetadataStub.called).to.be.false
+      expect(loggerWarnStub.calledWith('Record not found during markAttempt')).to.be.true
+    })
+
+    it('Should call fetchMetadata with correct params and retries=4', async () => {
+      const mockRecord: any = {
+        id: baseParams.id,
+        status: MetadataRefetchStatus.pending,
+        retryCount: 0,
+        markCompleted: sandbox.stub().resolves(),
+        markDiscarded: sandbox.stub().resolves(),
+      }
+      mockRecord.markAttempt = sandbox.stub().callsFake(async function () {
+        mockRecord.retryCount++
+        return mockRecord
+      })
       findByEntityIdStub.resolves(mockRecord)
       fetchMetadataStub.resolves(null)
 
@@ -128,14 +152,17 @@ describe('Services: aragon-gateway/MetadataRefetch', () => {
 
     it('Should mark completed on successful fetch and entity update', async () => {
       const mockMarkCompleted = sandbox.stub().resolves()
-      const mockRecord = {
+      const mockRecord: any = {
         id: baseParams.id,
         status: MetadataRefetchStatus.pending,
         retryCount: 0,
-        markAttempt: sandbox.stub().resolves(),
         markCompleted: mockMarkCompleted,
         markDiscarded: sandbox.stub().resolves(),
       }
+      mockRecord.markAttempt = sandbox.stub().callsFake(async function () {
+        mockRecord.retryCount++
+        return mockRecord
+      })
       findByEntityIdStub.resolves(mockRecord)
 
       const metadata = { name: 'Test', description: 'Test desc' }
@@ -158,14 +185,17 @@ describe('Services: aragon-gateway/MetadataRefetch', () => {
 
     it('Should discard after max retries when fetch fails', async () => {
       const mockMarkDiscarded = sandbox.stub().resolves()
-      const mockRecord = {
+      const mockRecord: any = {
         id: baseParams.id,
         status: MetadataRefetchStatus.pending,
-        retryCount: 2, // Already at MAX_RETRY_COUNT (2), should discard
-        markAttempt: sandbox.stub().resolves(),
+        retryCount: 1, // Will be 2 after markAttempt, which equals MAX_RETRY_COUNT
         markCompleted: sandbox.stub().resolves(),
         markDiscarded: mockMarkDiscarded,
       }
+      mockRecord.markAttempt = sandbox.stub().callsFake(async function () {
+        mockRecord.retryCount++
+        return mockRecord
+      })
       findByEntityIdStub.resolves(mockRecord)
       fetchMetadataStub.resolves(null)
 
@@ -177,14 +207,17 @@ describe('Services: aragon-gateway/MetadataRefetch', () => {
     })
 
     it('Should keep pending when fetch fails but under max retries', async () => {
-      const mockRecord = {
+      const mockRecord: any = {
         id: baseParams.id,
         status: MetadataRefetchStatus.pending,
         retryCount: 0, // Will be 1 after markAttempt, still under MAX_RETRY_COUNT
-        markAttempt: sandbox.stub().resolves(),
         markCompleted: sandbox.stub().resolves(),
         markDiscarded: sandbox.stub().resolves(),
       }
+      mockRecord.markAttempt = sandbox.stub().callsFake(async function () {
+        mockRecord.retryCount++
+        return mockRecord
+      })
       findByEntityIdStub.resolves(mockRecord)
       fetchMetadataStub.resolves(null)
 
@@ -198,14 +231,17 @@ describe('Services: aragon-gateway/MetadataRefetch', () => {
 
     it('Should not mark completed when entity update fails', async () => {
       const mockMarkCompleted = sandbox.stub().resolves()
-      const mockRecord = {
+      const mockRecord: any = {
         id: baseParams.id,
         status: MetadataRefetchStatus.pending,
         retryCount: 0,
-        markAttempt: sandbox.stub().resolves(),
         markCompleted: mockMarkCompleted,
         markDiscarded: sandbox.stub().resolves(),
       }
+      mockRecord.markAttempt = sandbox.stub().callsFake(async function () {
+        mockRecord.retryCount++
+        return mockRecord
+      })
       findByEntityIdStub.resolves(mockRecord)
 
       const metadata = { name: 'Test' }

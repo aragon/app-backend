@@ -130,6 +130,8 @@ const MetadataRefetchHelper = {
   },
 
   _applyPluginMetadata: async (address: string, network: NetworksEnum, metadata: any): Promise<boolean> => {
+    if (!metadata) return false
+
     const plugin = await Models.Plugin.findByAddress(address, network)
     if (!plugin) {
       logger.warn('Plugin not found for metadata update', llo({ address, network }))
@@ -176,6 +178,8 @@ const MetadataRefetchHelper = {
   },
 
   _applyGaugeMetadata: async (address: string, network: NetworksEnum, metadata: any): Promise<boolean> => {
+    if (!metadata) return false
+
     const gauge = await Models.Gauge.findOne({ address, network })
     if (!gauge) {
       logger.warn('Gauge not found for metadata update', llo({ address, network }))

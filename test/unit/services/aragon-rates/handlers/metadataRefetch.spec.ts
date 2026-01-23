@@ -64,30 +64,37 @@ describe('Services: aragon-rates/handlers/MetadataRefetchScheduler', () => {
     })
 
     it('Should process each pending record', async () => {
-      const mockRecords = [
-        {
-          id: 'record-1',
-          metadataUri: 'ipfs://Qm1',
-          entityType: MetadataEntityType.Dao,
-          entityId: '0x1111111111111111111111111111111111111111',
-          network: NetworksEnum.ethereumMainnet,
-          retryCount: 1,
-          markAttempt: sandbox.stub().resolves(),
-          markCompleted: sandbox.stub().resolves(),
-          markDiscarded: sandbox.stub().resolves(),
-        },
-        {
-          id: 'record-2',
-          metadataUri: 'ipfs://Qm2',
-          entityType: MetadataEntityType.Plugin,
-          entityId: '0x2222222222222222222222222222222222222222',
-          network: NetworksEnum.ethereumMainnet,
-          retryCount: 0,
-          markAttempt: sandbox.stub().resolves(),
-          markCompleted: sandbox.stub().resolves(),
-          markDiscarded: sandbox.stub().resolves(),
-        },
-      ]
+      const mockRecord1: any = {
+        id: 'record-1',
+        metadataUri: 'ipfs://Qm1',
+        entityType: MetadataEntityType.Dao,
+        entityId: '0x1111111111111111111111111111111111111111',
+        network: NetworksEnum.ethereumMainnet,
+        retryCount: 1,
+        markCompleted: sandbox.stub().resolves(),
+        markDiscarded: sandbox.stub().resolves(),
+      }
+      mockRecord1.markAttempt = sandbox.stub().callsFake(async function () {
+        mockRecord1.retryCount++
+        return mockRecord1
+      })
+
+      const mockRecord2: any = {
+        id: 'record-2',
+        metadataUri: 'ipfs://Qm2',
+        entityType: MetadataEntityType.Plugin,
+        entityId: '0x2222222222222222222222222222222222222222',
+        network: NetworksEnum.ethereumMainnet,
+        retryCount: 0,
+        markCompleted: sandbox.stub().resolves(),
+        markDiscarded: sandbox.stub().resolves(),
+      }
+      mockRecord2.markAttempt = sandbox.stub().callsFake(async function () {
+        mockRecord2.retryCount++
+        return mockRecord2
+      })
+
+      const mockRecords = [mockRecord1, mockRecord2]
       findPendingForRetryStub.resolves(mockRecords)
       fetchMetadataStub.resolves(null)
 
@@ -141,12 +148,13 @@ describe('Services: aragon-rates/handlers/MetadataRefetchScheduler', () => {
       const mockRecord: any = {
         ...baseRecord,
         retryCount: 0,
-        markAttempt: sandbox.stub().callsFake(async function (this: any) {
-          this.retryCount = (this.retryCount || 0) + 1
-        }),
         markCompleted: sandbox.stub().resolves(),
         markDiscarded: sandbox.stub().resolves(),
       }
+      mockRecord.markAttempt = sandbox.stub().callsFake(async function () {
+        mockRecord.retryCount++
+        return mockRecord
+      })
       fetchMetadataStub.resolves(null)
 
       await MetadataRefetchScheduler._processRecord(mockRecord)
@@ -159,12 +167,13 @@ describe('Services: aragon-rates/handlers/MetadataRefetchScheduler', () => {
       const mockRecord: any = {
         ...baseRecord,
         retryCount: 0,
-        markAttempt: sandbox.stub().callsFake(async function (this: any) {
-          this.retryCount = (this.retryCount || 0) + 1
-        }),
         markCompleted: sandbox.stub().resolves(),
         markDiscarded: sandbox.stub().resolves(),
       }
+      mockRecord.markAttempt = sandbox.stub().callsFake(async function () {
+        mockRecord.retryCount++
+        return mockRecord
+      })
       fetchMetadataStub.resolves(null)
 
       await MetadataRefetchScheduler._processRecord(mockRecord)
@@ -179,12 +188,13 @@ describe('Services: aragon-rates/handlers/MetadataRefetchScheduler', () => {
       const mockRecord: any = {
         ...baseRecord,
         retryCount: 0,
-        markAttempt: sandbox.stub().callsFake(async function (this: any) {
-          this.retryCount = (this.retryCount || 0) + 1
-        }),
         markCompleted: mockMarkCompleted,
         markDiscarded: sandbox.stub().resolves(),
       }
+      mockRecord.markAttempt = sandbox.stub().callsFake(async function () {
+        mockRecord.retryCount++
+        return mockRecord
+      })
 
       const metadata = { name: 'Test', description: 'Test desc' }
       fetchMetadataStub.resolves(metadata)
@@ -202,12 +212,13 @@ describe('Services: aragon-rates/handlers/MetadataRefetchScheduler', () => {
       const mockRecord: any = {
         ...baseRecord,
         retryCount: 1, // Will be 2 after markAttempt, which equals MAX_RETRY_COUNT
-        markAttempt: sandbox.stub().callsFake(async function (this: any) {
-          this.retryCount = (this.retryCount || 0) + 1
-        }),
         markCompleted: sandbox.stub().resolves(),
         markDiscarded: mockMarkDiscarded,
       }
+      mockRecord.markAttempt = sandbox.stub().callsFake(async function () {
+        mockRecord.retryCount++
+        return mockRecord
+      })
       fetchMetadataStub.resolves(null)
 
       await MetadataRefetchScheduler._processRecord(mockRecord)
@@ -220,12 +231,13 @@ describe('Services: aragon-rates/handlers/MetadataRefetchScheduler', () => {
       const mockRecord: any = {
         ...baseRecord,
         retryCount: 0, // Will be 1 after markAttempt, still under MAX_RETRY_COUNT
-        markAttempt: sandbox.stub().callsFake(async function (this: any) {
-          this.retryCount = (this.retryCount || 0) + 1
-        }),
         markCompleted: sandbox.stub().resolves(),
         markDiscarded: sandbox.stub().resolves(),
       }
+      mockRecord.markAttempt = sandbox.stub().callsFake(async function () {
+        mockRecord.retryCount++
+        return mockRecord
+      })
       fetchMetadataStub.resolves(null)
 
       await MetadataRefetchScheduler._processRecord(mockRecord)
@@ -240,12 +252,13 @@ describe('Services: aragon-rates/handlers/MetadataRefetchScheduler', () => {
       const mockRecord: any = {
         ...baseRecord,
         retryCount: 0,
-        markAttempt: sandbox.stub().callsFake(async function (this: any) {
-          this.retryCount = (this.retryCount || 0) + 1
-        }),
         markCompleted: mockMarkCompleted,
         markDiscarded: sandbox.stub().resolves(),
       }
+      mockRecord.markAttempt = sandbox.stub().callsFake(async function () {
+        mockRecord.retryCount++
+        return mockRecord
+      })
 
       const metadata = { name: 'Test' }
       fetchMetadataStub.resolves(metadata)
@@ -254,6 +267,22 @@ describe('Services: aragon-rates/handlers/MetadataRefetchScheduler', () => {
       await MetadataRefetchScheduler._processRecord(mockRecord)
 
       expect(mockMarkCompleted.called).to.be.false
+    })
+
+    it('Should return early if markAttempt returns null', async () => {
+      const mockRecord: any = {
+        ...baseRecord,
+        retryCount: 0,
+        markAttempt: sandbox.stub().resolves(null),
+        markCompleted: sandbox.stub().resolves(),
+        markDiscarded: sandbox.stub().resolves(),
+      }
+
+      await MetadataRefetchScheduler._processRecord(mockRecord)
+
+      expect(mockRecord.markAttempt.calledOnce).to.be.true
+      expect(fetchMetadataStub.called).to.be.false
+      expect(loggerWarnStub.calledWith('Record not found during markAttempt')).to.be.true
     })
   })
 })
