@@ -1,6 +1,6 @@
+import BytecodeHelper from '@helpers/bytecodeHelper'
 import ProxyContractHelper from '@helpers/proxyContract'
 import VotingEscrowDetector from '@helpers/votingEscrowDetector'
-import ProviderModule from '@modules/provider'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { ZeroAddress } from 'ethers'
@@ -36,9 +36,9 @@ describe('Helper: VotingEscrowDetector', () => {
 
   it('should detect voting escrow contract with all required functions', async () => {
     const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-      getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(VotingEscrowDetector.VOTING_ESCROW_FUNCTIONS)),
-    } as any)
+    sandbox
+      .stub(BytecodeHelper, 'getBytecode')
+      .resolves(simulateBytecodeForFunctions(VotingEscrowDetector.VOTING_ESCROW_FUNCTIONS))
 
     const result = await VotingEscrowDetector.isVotingEscrow('0xAddress', NetworksEnum.ethereumMainnet)
 
@@ -53,9 +53,7 @@ describe('Helper: VotingEscrowDetector', () => {
     const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
     const partialFunctions = ['createLock(uint256)', 'curve()', 'lockNFT()'] // Missing some required functions
 
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-      getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(partialFunctions)),
-    } as any)
+    sandbox.stub(BytecodeHelper, 'getBytecode').resolves(simulateBytecodeForFunctions(partialFunctions))
 
     const result = await VotingEscrowDetector.isVotingEscrow('0xAddress', NetworksEnum.ethereumMainnet)
 
@@ -68,9 +66,7 @@ describe('Helper: VotingEscrowDetector', () => {
 
   it('should return false status when bytecode does not match any voting escrow functions', async () => {
     const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-      getCode: sandbox.stub().resolves('0xUnrelatedBytecodeThatDoesNotMatchAnyFunctionHashes'),
-    } as any)
+    sandbox.stub(BytecodeHelper, 'getBytecode').resolves('0xUnrelatedBytecodeThatDoesNotMatchAnyFunctionHashes')
 
     const result = await VotingEscrowDetector.isVotingEscrow('0xAddress', NetworksEnum.ethereumMainnet)
 
@@ -83,9 +79,7 @@ describe('Helper: VotingEscrowDetector', () => {
 
   it('should return false status when contract has no bytecode', async () => {
     const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-      getCode: sandbox.stub().resolves('0x'),
-    } as any)
+    sandbox.stub(BytecodeHelper, 'getBytecode').resolves(null)
 
     const result = await VotingEscrowDetector.isVotingEscrow('0xAddress', NetworksEnum.ethereumMainnet)
 
@@ -101,9 +95,9 @@ describe('Helper: VotingEscrowDetector', () => {
       .stub(ProxyContractHelper, 'getImplementationAddress')
       .resolves(implementationAddress)
 
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-      getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(VotingEscrowDetector.VOTING_ESCROW_FUNCTIONS)),
-    } as any)
+    sandbox
+      .stub(BytecodeHelper, 'getBytecode')
+      .resolves(simulateBytecodeForFunctions(VotingEscrowDetector.VOTING_ESCROW_FUNCTIONS))
 
     const result = await VotingEscrowDetector.isVotingEscrow('0xProxyAddress', NetworksEnum.ethereumMainnet)
 
@@ -116,9 +110,7 @@ describe('Helper: VotingEscrowDetector', () => {
 
   it('should handle an error when fetching bytecode', async () => {
     const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-      getCode: sandbox.stub().rejects(new Error('Failed to fetch bytecode')),
-    } as any)
+    sandbox.stub(BytecodeHelper, 'getBytecode').rejects(new Error('Failed to fetch bytecode'))
 
     const result = await VotingEscrowDetector.isVotingEscrow('0xAddress', NetworksEnum.ethereumMainnet)
 
@@ -130,9 +122,9 @@ describe('Helper: VotingEscrowDetector', () => {
 
   it('should handle proxy contract that returns to zero address', async () => {
     const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-      getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(VotingEscrowDetector.VOTING_ESCROW_FUNCTIONS)),
-    } as any)
+    sandbox
+      .stub(BytecodeHelper, 'getBytecode')
+      .resolves(simulateBytecodeForFunctions(VotingEscrowDetector.VOTING_ESCROW_FUNCTIONS))
 
     const result = await VotingEscrowDetector.isVotingEscrow('0xAddress', NetworksEnum.ethereumMainnet)
 
@@ -165,9 +157,7 @@ describe('Helper: VotingEscrowDetector', () => {
       sandbox.restore()
       sandbox = sinon.createSandbox()
       sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
-      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-        getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(incompleteFunctions)),
-      } as any)
+      sandbox.stub(BytecodeHelper, 'getBytecode').resolves(simulateBytecodeForFunctions(incompleteFunctions))
 
       const result = await VotingEscrowDetector.isVotingEscrow('0xAddress', NetworksEnum.ethereumMainnet)
 

@@ -3,6 +3,7 @@ import type Campaign from '@models/schema/campaign'
 import type CampaignMerkleRoot from '@models/schema/campaignMerkleRoot'
 import type CampaignReward from '@models/schema/campaignReward'
 import type ConfigIndexer from '@models/schema/configIndexer'
+import type Contract from '@models/schema/contract'
 import type Dao from '@models/schema/dao'
 import type DaoPermission from '@models/schema/daoPermission'
 import type Gauge from '@models/schema/gauge'
@@ -37,6 +38,7 @@ export interface IMongoModel {
   ConfigIndexer: typeof ConfigIndexer
   Campaign: typeof Campaign
   CampaignReward: typeof CampaignReward
+  Contract: typeof Contract
   Dao: typeof Dao
   DaoPermission: typeof DaoPermission
   Jwt: typeof Jwt
@@ -71,6 +73,7 @@ export enum ICollectionNames {
   Asset = 'Asset',
   Campaign = 'Campaign',
   ConfigIndexer = 'ConfigIndexer',
+  Contract = 'Contract',
   Dao = 'Dao',
   DaoPermission = 'DaoPermission',
   Jwt = 'Jwt',

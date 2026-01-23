@@ -1,7 +1,7 @@
+import BytecodeHelper from '@helpers/bytecodeHelper'
 import ProxyContractHelper from '@helpers/proxyContract'
 import utils from '@helpers/utils'
 import logger from '@logger'
-import ProviderModule from '@modules/provider'
 import { type IVotingEscrowInfo, type NetworksEnum } from '@types'
 import { keccak256, ZeroAddress } from 'ethers'
 
@@ -33,7 +33,6 @@ const VotingEscrowDetector = {
       }
     }
 
-    const provider = ProviderModule.getAnyRpcProvider(network)
     let contractAddress = address
 
     // Check if the contract is a proxy and get its implementation address
@@ -50,11 +49,12 @@ const VotingEscrowDetector = {
 
     try {
       const contractCodeAddress = contractAddress === utils.zeroAddress ? address : contractAddress
-      const bytecode = await provider.getCode(contractCodeAddress)
-      if (!bytecode || bytecode === '0x') return contractDetails
+      const bytecode = await BytecodeHelper.getBytecode(contractCodeAddress, network)
+      if (!bytecode) return contractDetails
 
+      const code = bytecode
       function hasFunction(signature: string): boolean {
-        return bytecode.includes(VotingEscrowDetector._generateFunctionHash(signature).replace('0x', ''))
+        return code.includes(VotingEscrowDetector._generateFunctionHash(signature).replace('0x', ''))
       }
 
       function hasFunctions(functions: string[]): boolean {
