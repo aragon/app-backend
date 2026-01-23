@@ -133,6 +133,47 @@ describe('Helper: ContractHelper', () => {
       expect(getAnyRpcProviderStub.called).to.be.false
       expect(getNodeLimiterStub.called).to.be.false
     })
+
+    it('should treat cached 0x as cache miss and fetch from chain', async () => {
+      // This handles the case where getSourceCode wrote fake '0x' bytecode
+      const getBytecodeStub = sandbox.stub(Models.Contract, 'getBytecode').resolves('0x')
+      const createStub = sandbox.stub(Models.Contract, 'create').resolves({} as any)
+      const getCodeStub = sandbox.stub().resolves(testBytecode)
+
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+        getCode: getCodeStub,
+      } as any)
+
+      sandbox.stub(BottleneckModule, 'getNodeLimiter').returns({
+        schedule: (fn: () => Promise<string>) => fn(),
+      } as any)
+
+      const result = await ContractHelper.getBytecode(testAddress, testNetwork)
+
+      expect(result).to.equal(testBytecode)
+      expect(getBytecodeStub.calledOnceWith(testAddress, testNetwork)).to.be.true
+      expect(getCodeStub.calledOnceWith(testAddress)).to.be.true
+      expect(createStub.calledOnce).to.be.true
+    })
+
+    it('should return null when cached 0x and chain also returns 0x', async () => {
+      sandbox.stub(Models.Contract, 'getBytecode').resolves('0x')
+      const createStub = sandbox.stub(Models.Contract, 'create')
+      const getCodeStub = sandbox.stub().resolves('0x')
+
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+        getCode: getCodeStub,
+      } as any)
+
+      sandbox.stub(BottleneckModule, 'getNodeLimiter').returns({
+        schedule: (fn: () => Promise<string>) => fn(),
+      } as any)
+
+      const result = await ContractHelper.getBytecode(testAddress, testNetwork)
+
+      expect(result).to.be.null
+      expect(createStub.called).to.be.false
+    })
   })
 
   describe('getSourceCode', () => {
@@ -264,6 +305,74 @@ describe('Helper: ContractHelper', () => {
         },
       ])
       expect(findOneStub.calledOnce).to.be.true
+    })
+
+    it('should not write fake bytecode when no cached record exists', async () => {
+      sandbox.stub(Models.Contract, 'findOne').resolves(null)
+      const findOneAndUpdateStub = sandbox.stub(Models.Contract, 'findOneAndUpdate').resolves({} as any)
+      sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves([
+        {
+          SourceCode: testSourceCode,
+          ABI: testAbi,
+          ContractName: testContractName,
+          CompilerVersion: testCompilerVersion,
+        },
+      ])
+
+      await ContractHelper.getSourceCode(testAddress, testNetwork)
+
+      expect(findOneAndUpdateStub.calledOnce).to.be.true
+      const updateData = findOneAndUpdateStub.firstCall.args[1]
+      expect(updateData.bytecode).to.be.undefined
+      expect(updateData.bytecodeHash).to.be.undefined
+    })
+
+    it('should not write fake bytecode when cached record has 0x bytecode', async () => {
+      sandbox.stub(Models.Contract, 'findOne').resolves({
+        bytecode: '0x',
+        bytecodeHash: keccak256('0x'),
+      } as any)
+      const findOneAndUpdateStub = sandbox.stub(Models.Contract, 'findOneAndUpdate').resolves({} as any)
+      sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves([
+        {
+          SourceCode: testSourceCode,
+          ABI: testAbi,
+          ContractName: testContractName,
+          CompilerVersion: testCompilerVersion,
+        },
+      ])
+
+      await ContractHelper.getSourceCode(testAddress, testNetwork)
+
+      expect(findOneAndUpdateStub.calledOnce).to.be.true
+      const updateData = findOneAndUpdateStub.firstCall.args[1]
+      expect(updateData.bytecode).to.be.undefined
+      expect(updateData.bytecodeHash).to.be.undefined
+    })
+
+    it('should preserve existing meaningful bytecode when updating', async () => {
+      const existingBytecode = '0x6080604052348015600f57600080fd5b50603f80601d6000396000f3fe'
+      const existingBytecodeHash = keccak256(existingBytecode)
+      sandbox.stub(Models.Contract, 'findOne').resolves({
+        bytecode: existingBytecode,
+        bytecodeHash: existingBytecodeHash,
+      } as any)
+      const findOneAndUpdateStub = sandbox.stub(Models.Contract, 'findOneAndUpdate').resolves({} as any)
+      sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves([
+        {
+          SourceCode: testSourceCode,
+          ABI: testAbi,
+          ContractName: testContractName,
+          CompilerVersion: testCompilerVersion,
+        },
+      ])
+
+      await ContractHelper.getSourceCode(testAddress, testNetwork)
+
+      expect(findOneAndUpdateStub.calledOnce).to.be.true
+      const updateData = findOneAndUpdateStub.firstCall.args[1]
+      expect(updateData.bytecode).to.equal(existingBytecode)
+      expect(updateData.bytecodeHash).to.equal(existingBytecodeHash)
     })
   })
 })

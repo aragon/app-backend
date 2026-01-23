@@ -7,9 +7,9 @@ import { keccak256 } from 'ethers'
 
 const ContractHelper = {
   async getBytecode(address: HexAddress, network: NetworksEnum): Promise<string | null> {
-    // 1. Check DB first
+    // 1. Check DB first (treat '0x' as cache miss - may be fake data from getSourceCode)
     const cached = await Models.Contract.getBytecode(address, network)
-    if (cached) return cached
+    if (cached && cached !== '0x') return cached
 
     // 2. Fetch from chain
     const provider = ProviderModule.getAnyRpcProvider(network)
@@ -50,23 +50,24 @@ const ContractHelper = {
     if (!sourceData || sourceData.length === 0 || !sourceData[0].ABI) return null
 
     // 3. Store in DB
-    const bytecodeHash = cached?.bytecodeHash || keccak256('0x')
-    await Models.Contract.findOneAndUpdate(
-      { id: Models.Contract.getEntityId({ address, network }) },
-      {
-        id: Models.Contract.getEntityId({ address, network }),
-        address,
-        network,
-        bytecode: cached?.bytecode || '0x',
-        bytecodeHash,
-        sourceCode: sourceData[0].SourceCode,
-        abi: sourceData[0].ABI,
-        contractName: sourceData[0].ContractName,
-        compilerVersion: sourceData[0].CompilerVersion || null,
-        isVerified: true,
-      },
-      { upsert: true },
-    )
+    const updateData: any = {
+      id: Models.Contract.getEntityId({ address, network }),
+      address,
+      network,
+      sourceCode: sourceData[0].SourceCode,
+      abi: sourceData[0].ABI,
+      contractName: sourceData[0].ContractName,
+      compilerVersion: sourceData[0].CompilerVersion || null,
+      isVerified: true,
+    }
+    // Preserve existing meaningful bytecode/bytecodeHash if already cached
+    if (cached?.bytecode && cached.bytecode !== '0x' && cached.bytecodeHash) {
+      updateData.bytecode = cached.bytecode
+      updateData.bytecodeHash = cached.bytecodeHash
+    }
+    await Models.Contract.findOneAndUpdate({ id: Models.Contract.getEntityId({ address, network }) }, updateData, {
+      upsert: true,
+    })
 
     return sourceData
   },
