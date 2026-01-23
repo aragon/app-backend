@@ -1,6 +1,5 @@
 import type Asset from '@models/schema/asset'
 import type BlockVerification from '@models/schema/blockVerification'
-export { BlockStatus } from '@models/schema/blockVerification'
 import type Campaign from '@models/schema/campaign'
 import type CampaignMerkleRoot from '@models/schema/campaignMerkleRoot'
 import type CampaignReward from '@models/schema/campaignReward'
