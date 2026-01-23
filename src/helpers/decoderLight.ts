@@ -1,8 +1,8 @@
+import ContractHelper from '@helpers/contractHelper'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
 import ProxyContract from '@helpers/proxyContract'
 import Utils from '@helpers/utils'
 import logger from '@logger'
-import ProxyWeb3Provider from '@modules/proxyProvider'
 import {
   type HexAddress,
   type ILightDecodeResult,
@@ -70,10 +70,7 @@ class DecoderLight {
     const implementationAddress = await ProxyContract.getImplementationAddress(action.to, network)
     const targetAddress = implementationAddress || action.to
 
-    const sourceCode = await ProxyWeb3Provider.fetchContractSourceCode({
-      address: targetAddress,
-      network,
-    })
+    const sourceCode = await ContractHelper.getSourceCode(targetAddress, network)
 
     if (!sourceCode || sourceCode.length === 0 || !sourceCode[0].ABI) {
       return this._buildBaseResult(action)
@@ -81,10 +78,7 @@ class DecoderLight {
 
     let proxyName: string | null = null
     if (implementationAddress && implementationAddress !== action.to) {
-      const proxySource = await ProxyWeb3Provider.fetchContractSourceCode({
-        address: action.to,
-        network,
-      })
+      const proxySource = await ContractHelper.getSourceCode(action.to, network)
       proxyName = proxySource?.[0]?.ContractName || null
     }
 
@@ -116,7 +110,7 @@ class DecoderLight {
     const sourceMap = new Map<string, { abi: any[]; source: string; contractName: string } | null>()
     const sourceResults = await Promise.all(
       [...addressesToFetch].map(async addr => {
-        const source = await ProxyWeb3Provider.fetchContractSourceCode({ address: addr, network })
+        const source = await ContractHelper.getSourceCode(addr, network)
         if (source && source.length > 0 && source[0].ABI) {
           try {
             return {
