@@ -362,15 +362,43 @@ class BlockchainLogCrawler {
         }
 
         if (rateLimitErrors.length > 0) {
+          logger.warn(
+            'getLogsByBatch rate limit error, retrying',
+            llo({
+              ...this.parseCrawlerInfoLog(),
+              currentBlock,
+              toBlock,
+              error: rateLimitErrors[0].error,
+            }),
+          )
           await this.handleErrors(rateLimitErrors[0].error)
           continue
         }
 
         const error = failedResponses[0].error
+        logger.warn(
+          'getLogsByBatch RPC error, shutting down crawl',
+          llo({
+            ...this.parseCrawlerInfoLog(),
+            currentBlock,
+            toBlock,
+            failedCount: failedResponses.length,
+            errors: failedResponses.map((r: any) => r.error),
+          }),
+        )
         await this.handleErrors(error)
         this.crawlSetting.shutdown = true
         break
-      } catch (error) {
+      } catch (error: any) {
+        logger.warn(
+          'getLogsByBatch exception, shutting down crawl',
+          llo({
+            ...this.parseCrawlerInfoLog(),
+            currentBlock,
+            toBlock,
+            error: error.message,
+          }),
+        )
         await this.handleErrors(error)
         this.crawlSetting.shutdown = true
         break
@@ -442,6 +470,18 @@ class BlockchainLogCrawler {
             providerUrl: this.getProviderUrl(),
           }),
         )
+      } else if (!this.isBatchSizeError(error)) {
+        // Log any other errors that aren't batch size related
+        logger.warn(
+          'getLogsWithoutTopics RPC error',
+          llo({
+            ...this.parseCrawlerInfoLog(),
+            fromBlock: currentBlock,
+            toBlock,
+            error: error.message,
+            errorCode: error.code,
+          }),
+        )
       }
 
       throw error
@@ -476,6 +516,19 @@ class BlockchainLogCrawler {
           }))
         }
       } else {
+        const failedResponses = responses.filter((resp: any) => resp.error || !resp.result)
+        logger.warn(
+          'getBlockReceipts partial failure, shutting down crawl',
+          llo({
+            ...this.parseCrawlerInfoLog(),
+            currentBlock,
+            toBlock,
+            totalResponses: responses.length,
+            validCount: validResponses.length,
+            failedCount: failedResponses.length,
+            errors: failedResponses.map((r: any) => r.error),
+          }),
+        )
         this.crawlSetting.shutdown = true
       }
     } catch (batchError: any) {
