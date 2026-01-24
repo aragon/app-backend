@@ -52,6 +52,7 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
       } else {
         error.retryCount = retryCount
         error.expCode = error?.code || error?.code_str || error?.errorCode || error?.error?.code_str || 'unknown'
+        logger.warn('Request failed, not retrying', llo({ retryCount, errorCode, expCode: error.expCode, error }))
         throw error
       }
     }
