@@ -161,6 +161,7 @@ describe('Controller: Asset', () => {
           page: 1,
           totalPages: 0,
           totalRecords: 0,
+          spamCount: 0,
         },
       })
 
@@ -170,6 +171,7 @@ describe('Controller: Asset', () => {
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(0)
       expect(response.metadata.totalRecords).to.eq(0)
+      expect(response.metadata.spamCount).to.eq(0)
     })
 
     it('should handle when findWithPagination throws an error', async () => {
@@ -293,6 +295,52 @@ describe('Controller: Asset', () => {
 
       // The response should still be structured correctly
       expect(response).be.undefined
+    })
+
+    it('should include subDaos when dao has subDaos and onlyParent is false', async () => {
+      const subDaoAddress = '0xSubDao1234567890123456789012345678901234'
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({
+        address: rawAsset.daoAddress,
+        subDaos: [subDaoAddress],
+      } as any)
+
+      const paginationParams: any = {}
+      const filterParams: any = {
+        network: rawAsset.network,
+        daoAddress: rawAsset.daoAddress,
+        onlyParent: false,
+      }
+
+      const spyReq = sandbox.spy(Models.Asset, 'findWithPagination')
+
+      await AssetController.getAssetsWithPagination(paginationParams, filterParams)
+
+      expect(spyReq.calledOnce).to.be.true
+      const callArgs = spyReq.firstCall.args[0]
+      expect(callArgs.extraParams.daoAddresses).to.deep.equal([rawAsset.daoAddress, subDaoAddress])
+    })
+
+    it('should not include subDaos when onlyParent is true', async () => {
+      const subDaoAddress = '0xSubDao1234567890123456789012345678901234'
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({
+        address: rawAsset.daoAddress,
+        subDaos: [subDaoAddress],
+      } as any)
+
+      const paginationParams: any = {}
+      const filterParams: any = {
+        network: rawAsset.network,
+        daoAddress: rawAsset.daoAddress,
+        onlyParent: true,
+      }
+
+      const spyReq = sandbox.spy(Models.Asset, 'findWithPagination')
+
+      await AssetController.getAssetsWithPagination(paginationParams, filterParams)
+
+      expect(spyReq.calledOnce).to.be.true
+      const callArgs = spyReq.firstCall.args[0]
+      expect(callArgs.extraParams.daoAddresses).to.be.undefined
     })
 
     it('should return spamCount in metadata', async () => {

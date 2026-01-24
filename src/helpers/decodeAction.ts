@@ -357,10 +357,11 @@ class DecodeActions {
     }
 
     try {
-      const proposedMetadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
-      if (!proposedMetadata) {
+      const rawMetadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
+      if (!rawMetadata) {
         return null
       }
+      const proposedMetadata = Web3Utils.parseDaoMetadata(rawMetadata)
 
       const _existingMetadata: any = existingMetadata
         ? {
@@ -753,7 +754,10 @@ class DecodeActions {
       return null
     }
 
-    return await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
+    const metadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
+    if (!metadata) return null
+
+    return Web3Utils.parseDaoMetadata(metadata)
   }
 
   async _decodeFallback(action: IRawAction, network: NetworksEnum): Promise<IProposalActionInputData | null> {

@@ -21,10 +21,13 @@ import {
   type ILogInfo,
   IPluginInterfaceType,
   IPluginStatus,
+  type IPolicySetting,
+  IPolicyStrategyType,
   ISettingStatus,
   type ISettingVotingEscrow,
 } from '@types'
 import { type LogDescription, type TransactionReceipt } from 'ethers'
+import PolicyHelper from '@helpers/policyHelper'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PluginSettingHandler' })
 
@@ -673,6 +676,109 @@ export const PluginSettingHandler = {
         }
       }),
     )
+  },
+
+  /**
+   * Create policy settings for router/claimer plugins
+   * Handles different plugin types:
+   * - RouterPlugin/ClaimerPlugin: has source + model
+   * - BurnRouterPlugin/UniswapRouter: has source only (no model)
+   * - MultiRouterPlugin/MultiDispatchPlugin: has subRouters[] only
+   * - MultiClaimerPlugin: has subClaimers[] only
+   */
+  linkPolicySourceAndModel: async (pluginDb: Plugin, info: ILogInfo) => {
+    try {
+      const { address: pluginAddress, network, daoAddress } = pluginDb
+
+      const strategyResult = await PolicyHelper.getStrategyTypeAndPluginId(pluginAddress, network)
+
+      if (!strategyResult) {
+        logger.warn('Failed to get strategy type', llo({ pluginAddress, network }))
+        return
+      }
+
+      const { strategyType, policyKey } = strategyResult
+      const existingSetting = await Models.Setting.findActive({ pluginAddress, network })
+
+      if (existingSetting?.policy) {
+        logger.verbose('Policy setting already exists', llo({ pluginAddress, network }))
+        return
+      }
+
+      const policySetting: IPolicySetting = {
+        policyId: policyKey,
+        strategyType,
+      }
+
+      const hasSource = [
+        IPolicyStrategyType.router,
+        IPolicyStrategyType.claimer,
+        IPolicyStrategyType.burnRouter,
+        IPolicyStrategyType.uniswapRouter,
+        IPolicyStrategyType.cowSwapRouter,
+      ].includes(strategyType)
+
+      if (hasSource) {
+        const sourceAddress = await PolicyHelper.getSourceAddress(pluginAddress, network)
+        if (sourceAddress) {
+          const sourceData = await PolicyHelper.getSourceData(sourceAddress, network)
+          policySetting.source = sourceData
+
+          if (sourceData?.tokenAddress) {
+            await ProxyToken.saveAndGetToken(sourceData.tokenAddress, network)
+          }
+        }
+      }
+
+      const hasModel = [IPolicyStrategyType.router, IPolicyStrategyType.claimer].includes(strategyType)
+
+      if (hasModel) {
+        const modelAddress = await PolicyHelper.getModelAddress(pluginAddress, network, strategyType)
+        if (modelAddress) {
+          policySetting.model = await PolicyHelper.getModelData(modelAddress, network)
+        }
+      }
+
+      const hasSubRouters = [IPolicyStrategyType.multiRouter, IPolicyStrategyType.multiDispatch].includes(strategyType)
+
+      if (hasSubRouters) {
+        const subRouters = await PolicyHelper.getSubRouters(pluginAddress, network)
+        policySetting.subRouters = subRouters.length > 0 ? subRouters : null
+      }
+
+      if (strategyType === IPolicyStrategyType.multiClaimer) {
+        const subClaimers = await PolicyHelper.getSubClaimers(pluginAddress, network)
+        policySetting.subClaimers = subClaimers.length > 0 ? subClaimers : null
+      }
+
+      if (existingSetting) {
+        await existingSetting.update({ policy: policySetting })
+        logger.verbose('Updated existing setting with policy data', llo({ pluginAddress, network }))
+      } else {
+        await Models.Setting.create({
+          transactionHash: info.transactionHash,
+          blockNumber: info.blockNumber,
+          network,
+          status: ISettingStatus.active,
+          daoAddress,
+          pluginAddress,
+          policy: policySetting,
+        })
+        logger.verbose('Created new policy setting', llo({ pluginAddress, network }))
+      }
+
+      await pluginDb.update({ isPolicy: true })
+
+      if (policySetting.source?.tokenAddress) {
+        await ProxyToken.saveAndGetToken(policySetting.source.tokenAddress, network)
+      }
+
+      logger.verbose('Policy settings created', llo({ pluginAddress, network }))
+
+      return true
+    } catch (error) {
+      logger.error('Error creating policy settings', llo({ error, pluginAddress: pluginDb.address }))
+    }
   },
 
   isSupported: async (plugin: Plugin, info: ILogInfo): Promise<void> => {

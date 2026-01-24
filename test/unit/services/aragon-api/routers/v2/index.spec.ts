@@ -6,6 +6,7 @@ import ExecuteSelectorRouter from '@api/routers/v2/executeSelector'
 import GaugeRouter from '@api/routers/v2/gauge'
 import PermissionRouter from '@api/routers/v2/permission'
 import PluginRouter from '@api/routers/v2/plugins'
+import PolicyRouter from '@api/routers/v2/policy'
 import SettingRouter from '@api/routers/v2/setting'
 import SimulationRouter from '@api/routers/v2/simulation'
 import TokenRouter from '@api/routers/v2/token'
@@ -59,6 +60,7 @@ describe('RouterV2: V2Router', () => {
     stubRouter(SimulationRouter, 'simulations')
     stubRouter(GaugeRouter, 'gauge')
     stubRouter(PermissionRouter, 'permissions')
+    stubRouter(PolicyRouter, 'policies')
 
     await utils.wait(100) // Small wait to ensure stubs are applied
 
@@ -84,6 +86,7 @@ describe('RouterV2: V2Router', () => {
       SimulationRouter,
       GaugeRouter,
       PermissionRouter,
+      PolicyRouter,
     ]
     expect(use.callCount).to.be.eq(routers.length)
 
@@ -107,6 +110,7 @@ describe('RouterV2: V2Router', () => {
     expectRouter('/capital-distributor', 'capital-distributors')
     expectRouter('/simulations', 'simulations')
     expectRouter('/permissions', 'permissions')
+    expectRouter('/policies', 'policies')
   })
 
   it('Should create a functional router that can be used in a Koa app', async () => {

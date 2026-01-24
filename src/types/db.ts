@@ -32,6 +32,7 @@ import type TokenMember from '@models/schema/tokenMember'
 import type Transaction from '@models/schema/transaction'
 import type Vote from '@models/schema/vote'
 import type VoteGauge from '@models/schema/voteGauge'
+import type LogPolicy from '@models/schema/logPolicy'
 
 export interface IMongoModel {
   Migration: typeof Migration
@@ -68,6 +69,7 @@ export interface IMongoModel {
   VoteGauge: typeof VoteGauge
   GaugeMetrics: typeof GaugeMetrics
   Metrics: typeof Metrics
+  LogPolicy: typeof LogPolicy
 }
 
 export enum ICollectionNames {
@@ -105,6 +107,7 @@ export enum ICollectionNames {
   VoteGauge = 'VoteGauge',
   GaugeMetrics = 'GaugeMetrics',
   Metrics = 'Metrics',
+  LogPolicy = 'LogPolicy',
 }
 
 export enum ITransactionIndexCheckType {

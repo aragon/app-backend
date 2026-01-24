@@ -49,6 +49,7 @@ export interface IPairParams {
 export interface IProposalExtraParams {
   network?: NetworksEnum
   daoAddress?: HexAddress
+  daoAddresses?: HexAddress[]
   pluginAddress?: HexAddress
   creatorAddress?: HexAddress
   pluginAddresses?: HexAddress[]
@@ -75,7 +76,9 @@ export interface IGaugeEpochMetricParams {
 export interface IAssetExtraParams {
   network?: NetworksEnum
   daoAddress?: HexAddress
+  daoAddresses?: HexAddress[]
   tokenAddress?: HexAddress
+  onlyParent?: boolean
   includeSpam?: boolean
 }
 
@@ -116,11 +119,13 @@ export interface IMemberExtraParams {
 export interface ITransactionExtraParams {
   network?: NetworksEnum
   daoAddress?: HexAddress
+  daoAddresses?: HexAddress[]
   tokenAddress?: HexAddress
   fromAddress?: HexAddress
   toAddress?: HexAddress
   side?: ITransactionSide
   type?: ITransactionType
+  onlyParent?: boolean
 }
 
 export interface IExtraQueryData {

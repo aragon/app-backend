@@ -35,6 +35,8 @@ const PluginDetector = {
     'getCampaignStrategyId(uint256)',
     'getCampaignPayout(uint256,address,bytes)',
   ],
+  ROUTER_PLUGIN_FUNCTIONS: ['dispatch()', 'isStreamingSource()', 'actions()'],
+  CLAIMER_PLUGIN_FUNCTIONS: ['claim(bytes)', 'actions(bytes)'],
 
   _generateFunctionHash(functionSignature: string): string {
     return keccak256(Buffer.from(functionSignature)).slice(0, 10)
@@ -93,6 +95,10 @@ const PluginDetector = {
         pluginDetails.type = IPluginInterfaceType.admin
       } else if (hasFunctions(PluginDetector.GAUGE_VOTER_FUNCTIONS)) {
         pluginDetails.type = IPluginInterfaceType.gauge
+      } else if (hasFunctions(PluginDetector.ROUTER_PLUGIN_FUNCTIONS)) {
+        pluginDetails.type = IPluginInterfaceType.router
+      } else if (hasFunctions(PluginDetector.CLAIMER_PLUGIN_FUNCTIONS)) {
+        pluginDetails.type = IPluginInterfaceType.claimer
       } else {
         pluginDetails.type = IPluginInterfaceType.unknown
       }

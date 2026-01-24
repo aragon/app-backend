@@ -26,7 +26,7 @@ const MetadataRefetchHelper = {
     try {
       const { metadataUri, entityType, entityId, network } = params
 
-      // Create or find existing record
+      // Create or find an existing record
       const refetchRecord = await Models.MetadataRefetch.findOrCreate({
         metadataUri,
         entityType,
