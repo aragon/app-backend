@@ -68,8 +68,10 @@ MICROSERVICES=(
   #service-aragon-gateway done HA
   service-aragon-admin-api
   service-aragon-indexer
+  service-aragon-indexer-l2
   service-aragon-dao
   service-aragon-transfers
+  service-aragon-transfers-l2
   service-aragon-plugins
   service-aragon-rates
   service-aragon-requeue

@@ -89,6 +89,7 @@ services:
       - internal-net
       - public-net
 
+  # Ethereum networks indexer (mainnet + sepolia)
   service-aragon-indexer:
     image: service-aragon-indexer-${ENV_SUFFIX}
     container_name: service-aragon-indexer-${ENV_SUFFIX}
@@ -96,6 +97,32 @@ services:
       context: .
     env_file:
       - .env.aragon-indexer-${ENV_SUFFIX}
+    environment:
+      - ENABLED_NETWORKS=ethereum-mainnet,ethereum-sepolia
+    depends_on:
+      - rabbitmq
+    command: bash -c "yarn wait:rabbitmq && yarn service:aragon-indexer"
+    healthcheck:
+      test: ['CMD-SHELL', "pgrep -f 'service:aragon-indexer' > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - internal-net
+      - public-net
+
+  # L2 networks indexer (arbitrum, base, polygon, zksync)
+  service-aragon-indexer-l2:
+    image: service-aragon-indexer-l2-${ENV_SUFFIX}
+    container_name: service-aragon-indexer-l2-${ENV_SUFFIX}
+    build:
+      context: .
+    env_file:
+      - .env.aragon-indexer-${ENV_SUFFIX}
+    environment:
+      - ENABLED_NETWORKS=arbitrum-mainnet,arbitrum-sepolia,base-mainnet,base-sepolia,polygon-mainnet,zksync-mainnet,zksync-sepolia
     depends_on:
       - rabbitmq
     command: bash -c "yarn wait:rabbitmq && yarn service:aragon-indexer"
@@ -131,6 +158,7 @@ services:
       - internal-net
       - public-net
 
+  # Ethereum networks transfers (mainnet + sepolia)
   service-aragon-transfers:
     image: service-aragon-transfers-${ENV_SUFFIX}
     container_name: service-aragon-transfers-${ENV_SUFFIX}
@@ -138,6 +166,32 @@ services:
       context: .
     env_file:
       - .env.aragon-transfers-${ENV_SUFFIX}
+    environment:
+      - ENABLED_NETWORKS=ethereum-mainnet,ethereum-sepolia
+    depends_on:
+      - rabbitmq
+    command: bash -c "yarn wait:rabbitmq && yarn service:aragon-transfers"
+    healthcheck:
+      test: [ 'CMD-SHELL', "pgrep -f 'service:aragon-transfers' > /dev/null || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - internal-net
+      - public-net
+
+  # L2 networks transfers (arbitrum, base, polygon, zksync)
+  service-aragon-transfers-l2:
+    image: service-aragon-transfers-l2-${ENV_SUFFIX}
+    container_name: service-aragon-transfers-l2-${ENV_SUFFIX}
+    build:
+      context: .
+    env_file:
+      - .env.aragon-transfers-${ENV_SUFFIX}
+    environment:
+      - ENABLED_NETWORKS=arbitrum-mainnet,arbitrum-sepolia,base-mainnet,base-sepolia,polygon-mainnet,zksync-mainnet,zksync-sepolia
     depends_on:
       - rabbitmq
     command: bash -c "yarn wait:rabbitmq && yarn service:aragon-transfers"
