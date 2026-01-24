@@ -1,7 +1,11 @@
 import { Models } from '@dbModels'
+import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
 import TenderlyModule from '@modules/tenderly'
-import { simulateDispatchSummary } from '@modules/dispatchSimulation/dispatchSimulationService'
+import dispatchSimulationService, {
+  simulateDispatchSummary,
+} from '@modules/dispatchSimulation/dispatchSimulationService'
+import { createAddressMapper } from '@modules/dispatchSimulation/addressMapper'
 import { IPluginStatus, ISimulationStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
@@ -203,6 +207,143 @@ describe('Module: dispatchSimulation/dispatchSimulationService', () => {
       expect(contractItem).to.exist
       expect(contractItem!.label).to.equal('UniswapV3Pool')
       expect(contractItem!.role).to.equal('contract')
+    })
+  })
+
+  describe('enrichMapperWithOnChainContracts', () => {
+    it('should detect contract and update mapper when provider returns bytecode', async () => {
+      const mockProvider = {
+        getCode: sinon.stub().resolves('0x608060405234801561001057600080fd5b50'),
+      }
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
+
+      const mockLimiter = {
+        schedule: sinon.stub().callsFake(async (fn: () => Promise<any>) => fn()),
+      }
+      sandbox.stub(BottleneckModule, 'getNodeLimiter').returns(mockLimiter as any)
+
+      const mapper = createAddressMapper({ network: NetworksEnum.ethereumMainnet })
+      const unknownAddress = '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+
+      // Before: address is unknown wallet
+      expect(mapper.resolve(unknownAddress).role).to.equal('wallet')
+
+      await dispatchSimulationService.enrichMapperWithOnChainContracts({
+        network: NetworksEnum.ethereumMainnet,
+        addresses: [unknownAddress],
+        mapper,
+      })
+
+      // After: address is detected as contract
+      expect(mapper.resolve(unknownAddress).role).to.equal('contract')
+      expect(mapper.resolve(unknownAddress).isKnown).to.equal(false)
+    })
+
+    it('should not update mapper when provider returns empty bytecode (0x)', async () => {
+      const mockProvider = {
+        getCode: sinon.stub().resolves('0x'),
+      }
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
+
+      const mockLimiter = {
+        schedule: sinon.stub().callsFake(async (fn: () => Promise<any>) => fn()),
+      }
+      sandbox.stub(BottleneckModule, 'getNodeLimiter').returns(mockLimiter as any)
+
+      const mapper = createAddressMapper({ network: NetworksEnum.ethereumMainnet })
+      const unknownAddress = '0xBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB'
+
+      await dispatchSimulationService.enrichMapperWithOnChainContracts({
+        network: NetworksEnum.ethereumMainnet,
+        addresses: [unknownAddress],
+        mapper,
+      })
+
+      // Address remains wallet since no contract code
+      expect(mapper.resolve(unknownAddress).role).to.equal('wallet')
+    })
+
+    it('should skip address if already known (not wallet)', async () => {
+      const mockProvider = {
+        getCode: sinon.stub().resolves('0x608060405234801561001057600080fd5b50'),
+      }
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
+
+      const mockLimiter = {
+        schedule: sinon.stub().callsFake(async (fn: () => Promise<any>) => fn()),
+      }
+      sandbox.stub(BottleneckModule, 'getNodeLimiter').returns(mockLimiter as any)
+
+      const contractAddress = '0xCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC'
+      const mapper = createAddressMapper({
+        network: NetworksEnum.ethereumMainnet,
+        contracts: [{ address: contractAddress, contract_name: 'KnownContract' }],
+      })
+
+      await dispatchSimulationService.enrichMapperWithOnChainContracts({
+        network: NetworksEnum.ethereumMainnet,
+        addresses: [contractAddress],
+        mapper,
+      })
+
+      // getCode should not be called since address is already known as contract
+      expect(mockProvider.getCode.called).to.be.false
+    })
+
+    it('should handle provider error gracefully and continue', async () => {
+      const mockProvider = {
+        getCode: sinon.stub().rejects(new Error('RPC error')),
+      }
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
+
+      const mockLimiter = {
+        schedule: sinon.stub().callsFake(async (fn: () => Promise<any>) => fn()),
+      }
+      sandbox.stub(BottleneckModule, 'getNodeLimiter').returns(mockLimiter as any)
+
+      const mapper = createAddressMapper({ network: NetworksEnum.ethereumMainnet })
+      const unknownAddress = '0xDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD'
+
+      // Should not throw
+      await dispatchSimulationService.enrichMapperWithOnChainContracts({
+        network: NetworksEnum.ethereumMainnet,
+        addresses: [unknownAddress],
+        mapper,
+      })
+
+      // Address remains wallet since detection failed
+      expect(mapper.resolve(unknownAddress).role).to.equal('wallet')
+    })
+
+    it('should deduplicate and limit addresses to 50', async () => {
+      const mockProvider = {
+        getCode: sinon.stub().resolves('0x608060405234801561001057600080fd5b50'),
+      }
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
+
+      const mockLimiter = {
+        schedule: sinon.stub().callsFake(async (fn: () => Promise<any>) => fn()),
+      }
+      sandbox.stub(BottleneckModule, 'getNodeLimiter').returns(mockLimiter as any)
+
+      const mapper = createAddressMapper({ network: NetworksEnum.ethereumMainnet })
+
+      // Create 60 addresses (more than limit of 50), starting from 1 to avoid burn address (0x000...000)
+      const addresses: string[] = []
+      for (let i = 1; i <= 60; i++) {
+        addresses.push(`0x${i.toString(16).padStart(40, '0')}`)
+      }
+      // Add duplicates
+      addresses.push(addresses[0], addresses[1])
+
+      await dispatchSimulationService.enrichMapperWithOnChainContracts({
+        network: NetworksEnum.ethereumMainnet,
+        addresses,
+        mapper,
+      })
+
+      // Should only call getCode 50 times (limit) despite 62 addresses (60 unique + 2 duplicates)
+      expect(mockProvider.getCode.callCount).to.equal(50)
     })
   })
 })
