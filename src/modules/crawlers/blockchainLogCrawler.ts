@@ -453,10 +453,23 @@ class BlockchainLogCrawler {
           }))
         }
       } else {
-        this.crawlSetting.shutdown = true
+        const failedResponses = responses.filter((resp: any) => resp.error || !resp.result)
+        logger.warn(
+          'getBlockReceipts partial failure, falling back to getLogsWithoutTopics',
+          llo({
+            ...this.parseCrawlerInfoLog(),
+            currentBlock,
+            toBlock,
+            totalResponses: responses.length,
+            validCount: validResponses.length,
+            failedCount: failedResponses.length,
+            errors: failedResponses.map((r: any) => r.error),
+          }),
+        )
+        return this.getLogsWithoutTopics(currentBlock, toBlock)
       }
     } catch (batchError: any) {
-      logger.warn('Batch request failed, falling back to individual requests', {
+      logger.warn('getBlockReceipts failed, falling back to individual requests', {
         error: batchError.message,
         currentBlock,
         toBlock,
