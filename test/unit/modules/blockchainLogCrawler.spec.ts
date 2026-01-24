@@ -2434,7 +2434,7 @@ describe('Module: blockchainLogCrawler', () => {
           .onSecondCall()
           .resolves(200) // toBlock
 
-        const getLogsByStrategyStub = sandbox.stub(crawler, 'getLogsByStrategy').resolves({
+        sandbox.stub(crawler, 'getLogsByStrategy').resolves({
           logs: [
             { transactionHash: '0x1', blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xTopic1'] },
             { transactionHash: '0x2', blockNumber: 102, transactionIndex: 0, index: 0, topics: ['0xTopic1'] },
@@ -2489,7 +2489,7 @@ describe('Module: blockchainLogCrawler', () => {
           .onSecondCall()
           .resolves(200) // toBlock
 
-        const getLogsByStrategyStub = sandbox.stub(crawler, 'getLogsByStrategy').resolves({
+        sandbox.stub(crawler, 'getLogsByStrategy').resolves({
           logs: [
             { transactionHash: '0x1', blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xTopic1'] },
           ] as any,
