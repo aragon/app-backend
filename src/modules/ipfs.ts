@@ -23,7 +23,12 @@ const IPFSModule = {
 
   fetchMetadata: async (
     ipfsUrl: string,
-    opts?: { retries?: number; delay?: number; timeout?: number },
+    opts?: {
+      retries?: number
+      delay?: number
+      timeout?: number
+      onFetchFailed?: (metadataUri: string) => Promise<void>
+    },
   ): Promise<IMetadata | null> => {
     const cid = ipfsUrl?.replace('ipfs://', '')
 
@@ -40,6 +45,15 @@ const IPFSModule = {
 
     if (data?.avatar?.path) {
       data.avatar = data.avatar.path
+    }
+
+    // Call onFetchFailed callback if fetch failed and callback is provided
+    if (!data && opts?.onFetchFailed) {
+      try {
+        await opts.onFetchFailed(ipfsUrl)
+      } catch (error) {
+        logger.error('Error in onFetchFailed callback', llo({ ipfsUrl, error }))
+      }
     }
 
     return data

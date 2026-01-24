@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import MetadataRefetchHelper from '@helpers/metadataRefetch'
 import { PluginSlug } from '@helpers/pluginSlug'
 import Utils from '@helpers/utils'
 import Web3Utils from '@helpers/web3Utils'
@@ -9,7 +10,14 @@ import type Plugin from '@models/schema/plugin'
 import DbOperations from '@models/utils/dbOperations'
 import IPFSModule from '@modules/ipfs'
 import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
-import { type ILogInfo, type IMetadata, IMetadataType, IPluginInterfaceType, IPluginStatus } from '@types'
+import {
+  type ILogInfo,
+  type IMetadata,
+  IMetadataType,
+  IPluginInterfaceType,
+  IPluginStatus,
+  MetadataEntityType,
+} from '@types'
 import { type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:MetadataHandler' })
@@ -33,8 +41,14 @@ export const MetadataHandler = {
 
     try {
       const metadataUri = Web3Utils.extractMetadataUri(parsedEvent.args.metadata)
-      const rawMetadata = await IPFSModule.fetchMetadata(metadataUri!, { retries: 4 })
-      const ipfsMetadata = Web3Utils.parseDaoMetadata(rawMetadata!)
+      const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, {
+        retries: 2,
+        onFetchFailed: MetadataRefetchHelper.createFailedCallback(
+          daoExists ? MetadataEntityType.Dao : MetadataEntityType.Plugin,
+          daoExists ? daoExists.address : pluginExists!.address,
+          network,
+        ),
+      })
 
       const logMetadata = {
         network,
@@ -42,7 +56,7 @@ export const MetadataHandler = {
         transactionIndex,
         logIndex,
         metadataUri: metadataUri!,
-        fetchedMetadata: !!rawMetadata,
+        fetchedMetadata: !!ipfsMetadata,
         blockNumber,
         name: ipfsMetadata?.name!,
         description: ipfsMetadata?.description!,

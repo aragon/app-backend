@@ -1,8 +1,9 @@
 import config from '@config'
 import logger from '@logger'
 import { FetchRates } from '@services/aragon-rates/fetchRates'
-import { RefreshSpamTokens } from '@services/aragon-rates/handlers/refreshSpamTokens'
 import { EnsValidator } from '@services/aragon-rates/handlers/ensValidator'
+import { MetadataRefetchScheduler } from '@services/aragon-rates/handlers/metadataRefetch'
+import { RefreshSpamTokens } from '@services/aragon-rates/handlers/refreshSpamTokens'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import { EnumConnection, EnumServiceName, type IService } from '@types'
 
@@ -24,6 +25,7 @@ const AragonRatesService: IService = {
         [{ fetchRates: FetchRates }],
         [{ ensValidator: EnsValidator }],
         [{ refreshSpamTokens: RefreshSpamTokens }],
+        [{ metadataRefetch: MetadataRefetchScheduler }],
       ],
       interval: config.SERVICES.ARAGON_RATES.RATES_INTERVAL,
       runNow: true,

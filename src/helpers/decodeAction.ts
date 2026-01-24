@@ -6,6 +6,7 @@ import { MajorityVotingBase } from '@artifacts/MajorityVotingBase'
 import { Models } from '@dbModels'
 import FourByte from '@helpers/4byte'
 import CoinGeckoHelper from '@helpers/coinGecko'
+import ContractHelper from '@helpers/contractHelper'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
 import ProxyContract from '@helpers/proxyContract'
 import Utils from '@helpers/utils'
@@ -818,17 +819,11 @@ class DecodeActions {
       implementationAddress = rawAction.to
     }
 
-    const contractDetails = await ProxyWeb3Provider.fetchContractSourceCode({
-      address: implementationAddress,
-      network,
-    })
+    const contractDetails = await ContractHelper.getSourceCode(implementationAddress, network)
 
     let proxyDetails: any = null
     if (implementationAddress !== rawAction.to) {
-      proxyDetails = await ProxyWeb3Provider.fetchContractSourceCode({
-        address: rawAction.to,
-        network,
-      })
+      proxyDetails = await ContractHelper.getSourceCode(rawAction.to, network)
     }
 
     if (contractDetails && contractDetails.length > 0 && contractDetails[0].SourceCode !== '') {

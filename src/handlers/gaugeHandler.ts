@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import MetadataRefetchHelper from '@helpers/metadataRefetch'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
@@ -6,7 +7,7 @@ import type VoteGauge from '@models/schema/voteGauge'
 import IPFSModule from '@modules/ipfs'
 import { GaugeMetrics } from '@services/aragon-dao/gaugeMetrics'
 import { GaugeGovernance } from '@src/governance'
-import { type ILogInfo } from '@types'
+import { type ILogInfo, MetadataEntityType } from '@types'
 import { type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:GaugeHandler' })
@@ -35,8 +36,14 @@ export const GaugeHandler = {
         return
       }
       const metadataUri = Web3Utils.extractMetadataUri(parsedEvent.args.metadataURI)
-      const rawMetadata = await IPFSModule.fetchMetadata(metadataUri!, { retries: 4 })
-      const ipfsMetadata = Web3Utils.parseDaoMetadata(rawMetadata!)
+      const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, {
+        retries: 2,
+        onFetchFailed: MetadataRefetchHelper.createFailedCallback(
+          MetadataEntityType.Gauge,
+          parsedEvent.args.gauge,
+          info.network,
+        ),
+      })
 
       const governance = new GaugeGovernance(plugin.address, plugin.network)
 
@@ -116,8 +123,14 @@ export const GaugeHandler = {
 
     try {
       const metadataUri = Web3Utils.extractMetadataUri(parsedEvent.args.metadataURI)
-      const rawMetadata = await IPFSModule.fetchMetadata(metadataUri!, { retries: 4 })
-      const ipfsMetadata = Web3Utils.parseDaoMetadata(rawMetadata!)
+      const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, {
+        retries: 2,
+        onFetchFailed: MetadataRefetchHelper.createFailedCallback(
+          MetadataEntityType.Gauge,
+          parsedEvent.args.gauge,
+          info.network,
+        ),
+      })
 
       await gauge.update({
         name: ipfsMetadata?.name!,
