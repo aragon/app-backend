@@ -261,7 +261,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_POOLING_INTERVAL', 5 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_INTERVAL_BLOCK_TIME', 12),
-        REORG_DEPTH: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_REORG_DEPTH', 0),
+        REORG_DEPTH: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_REORG_DEPTH', 1),
       },
       ARBITRUM_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ARBITRUM_MAINNET_ALCHEMY_API_KEY', null),
@@ -287,7 +287,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'NODES_ARBITRUM_MAINNET_INTERVAL_BLOCK_TIME',
           2,
         ),
-        REORG_DEPTH: utils.configParser(sourceConfig, 'number', 'NODES_ARBITRUM_MAINNET_REORG_DEPTH', 0),
+        REORG_DEPTH: utils.configParser(sourceConfig, 'number', 'NODES_ARBITRUM_MAINNET_REORG_DEPTH', 1),
       },
       ZKSYNC_SEPOLIA: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_ALCHEMY_API_KEY', null),
@@ -327,7 +327,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'NODES_PEAQ_MAINNET_SUBSCAN_API_URL',
           'https://peaq.api.subscan.io/',
         ),
-        REORG_DEPTH: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_REORG_DEPTH', 0),
+        REORG_DEPTH: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_REORG_DEPTH', 1),
       },
       OPTIMISM_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_OPTIMISM_MAINNET_ALCHEMY_API_KEY', null),
@@ -353,7 +353,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'NODES_OPTIMISM_MAINNET_INTERVAL_BLOCK_TIME',
           5,
         ),
-        REORG_DEPTH: utils.configParser(sourceConfig, 'number', 'NODES_OPTIMISM_MAINNET_REORG_DEPTH', 0),
+        REORG_DEPTH: utils.configParser(sourceConfig, 'number', 'NODES_OPTIMISM_MAINNET_REORG_DEPTH', 1),
       },
       CHILIZ_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_CHILIZ_MAINNET_ALCHEMY_API_KEY', null),
@@ -364,7 +364,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_CHILIZ_MAINNET_POOLING_INTERVAL', 3 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_CHILIZ_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_CHILIZ_MAINNET_INTERVAL_BLOCK_TIME', 5),
-        REORG_DEPTH: utils.configParser(sourceConfig, 'number', 'NODES_CHILIZ_MAINNET_REORG_DEPTH', 0),
+        REORG_DEPTH: utils.configParser(sourceConfig, 'number', 'NODES_CHILIZ_MAINNET_REORG_DEPTH', 1),
       },
       CORN_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_CORN_MAINNET_ALCHEMY_API_KEY', null),
@@ -375,7 +375,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_CORN_MAINNET_POOLING_INTERVAL', 10 * 1000),
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_CORN_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_CORN_MAINNET_INTERVAL_BLOCK_TIME', 19),
-        REORG_DEPTH: utils.configParser(sourceConfig, 'number', 'NODES_CORN_MAINNET_REORG_DEPTH', 0),
+        REORG_DEPTH: utils.configParser(sourceConfig, 'number', 'NODES_CORN_MAINNET_REORG_DEPTH', 1),
       },
       AVAX_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_AVAX_MAINNET_ALCHEMY_API_KEY', null),
@@ -386,7 +386,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_AVAX_MAINNET_POOLING_INTERVAL', 3 * 1000),
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_AVAX_MAINNET_CONFIRMATION_BLOCKS', 2),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_AVAX_MAINNET_INTERVAL_BLOCK_TIME', 1),
-        REORG_DEPTH: utils.configParser(sourceConfig, 'number', 'NODES_AVAX_MAINNET_REORG_DEPTH', 0),
+        REORG_DEPTH: utils.configParser(sourceConfig, 'number', 'NODES_AVAX_MAINNET_REORG_DEPTH', 1),
       },
       KATANA_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_KATANA_MAINNET_ALCHEMY_API_KEY', null),
@@ -397,7 +397,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_POOLING_INTERVAL', 2 * 1000),
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_INTERVAL_BLOCK_TIME', 1),
-        REORG_DEPTH: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_REORG_DEPTH', 0),
+        REORG_DEPTH: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_REORG_DEPTH', 1),
       },
     },
 
