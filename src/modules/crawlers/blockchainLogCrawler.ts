@@ -518,7 +518,7 @@ class BlockchainLogCrawler {
       } else {
         const failedResponses = responses.filter((resp: any) => resp.error || !resp.result)
         logger.warn(
-          'getBlockReceipts partial failure, shutting down crawl',
+          'getBlockReceipts partial failure, falling back to getLogsWithoutTopics',
           llo({
             ...this.parseCrawlerInfoLog(),
             currentBlock,
@@ -529,16 +529,18 @@ class BlockchainLogCrawler {
             errors: failedResponses.map((r: any) => r.error),
           }),
         )
-        this.crawlSetting.shutdown = true
+        // Fallback to getLogsWithoutTopics instead of shutting down
+        return this.getLogsWithoutTopics(currentBlock, toBlock)
       }
     } catch (batchError: any) {
-      logger.warn('Batch request failed, falling back to individual requests', {
+      logger.warn('getBlockReceipts batch request failed, falling back to getLogsWithoutTopics', {
+        ...this.parseCrawlerInfoLog(),
         error: batchError.message,
         currentBlock,
         toBlock,
       })
-      this.crawlSetting.shutdown = true
-      this.crawlParams.onError(batchError)
+
+      return this.getLogsWithoutTopics(currentBlock, toBlock)
     }
 
     if (this.crawlParams.filterLogs) {
