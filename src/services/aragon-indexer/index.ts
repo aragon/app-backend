@@ -23,7 +23,7 @@ const AragonIndexerService: IService & { repeaters: any } = {
   start: async function () {
     logger.info('IndexerService historical started', llo({}))
 
-    const networks = NetworkHelper.supportedNetworks()
+    const networks = NetworkHelper.enabledNetworks()
 
     await Promise.all(
       networks.map(async ({ networkName }) => {

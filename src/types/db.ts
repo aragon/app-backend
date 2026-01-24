@@ -1,9 +1,9 @@
 import type Asset from '@models/schema/asset'
+import type BlockVerification from '@models/schema/blockVerification'
 import type Campaign from '@models/schema/campaign'
 import type CampaignMerkleRoot from '@models/schema/campaignMerkleRoot'
 import type CampaignReward from '@models/schema/campaignReward'
 import type ConfigIndexer from '@models/schema/configIndexer'
-import type Contract from '@models/schema/contract'
 import type Dao from '@models/schema/dao'
 import type DaoPermission from '@models/schema/daoPermission'
 import type Gauge from '@models/schema/gauge'
@@ -14,7 +14,6 @@ import type LockToVoteMember from '@models/schema/lockToVoteMember'
 import type LogMetadata from '@models/schema/logMetadata'
 import type LogPluginSetupProcessor from '@models/schema/logPluginSetupProcessor'
 import type Member from '@models/schema/member'
-import type MetadataRefetch from '@models/schema/metadataRefetch'
 import type Metrics from '@models/schema/metrics'
 import type Migration from '@models/schema/migration'
 import type Plugin from '@models/schema/plugin'
@@ -37,17 +36,16 @@ import type LogPolicy from '@models/schema/logPolicy'
 export interface IMongoModel {
   Migration: typeof Migration
   Asset: typeof Asset
+  BlockVerification: typeof BlockVerification
   ConfigIndexer: typeof ConfigIndexer
   Campaign: typeof Campaign
   CampaignReward: typeof CampaignReward
-  Contract: typeof Contract
   Dao: typeof Dao
   DaoPermission: typeof DaoPermission
   Jwt: typeof Jwt
   LogMetadata: typeof LogMetadata
   LogPluginSetupProcessor: typeof LogPluginSetupProcessor
   Member: typeof Member
-  MetadataRefetch: typeof MetadataRefetch
   Plugin: typeof Plugin
   PluginRepo: typeof PluginRepo
   PluginSlug: typeof PluginSlug
@@ -75,16 +73,15 @@ export interface IMongoModel {
 export enum ICollectionNames {
   Migration = 'Migration',
   Asset = 'Asset',
+  BlockVerification = 'BlockVerification',
   Campaign = 'Campaign',
   ConfigIndexer = 'ConfigIndexer',
-  Contract = 'Contract',
   Dao = 'Dao',
   DaoPermission = 'DaoPermission',
   Jwt = 'Jwt',
   LogMetadata = 'LogMetadata',
   LogPluginSetupProcessor = 'LogPluginSetupProcessor',
   Member = 'Member',
-  MetadataRefetch = 'MetadataRefetch',
   CampaignMerkleRoot = 'CampaignMerkleRoot',
   Plugin = 'Plugin',
   PluginRepo = 'PluginRepo',
@@ -176,4 +173,9 @@ export enum IMigrationStatus {
 
 export enum ICampaignType {
   MERKLE_ROOT = 'MERKLE_ROOT',
+}
+
+export enum BlockStatus {
+  verified = 'verified',
+  reorged = 'reorged',
 }

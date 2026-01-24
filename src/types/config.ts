@@ -26,6 +26,7 @@ export interface IRawNodeConfig {
   POOLING_INTERVAL: number
   CONFIRMATION_BLOCKS: number
   INTERVAL_BLOCK_TIME: number
+  REORG_DEPTH: number
   SUBSCAN_API_KEY?: string
   SUBSCAN_API_URL?: string
 }
@@ -82,6 +83,7 @@ export interface IConfig {
   }
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
   SUPPORTED_NETWORKS: NetworksEnum[]
+  ENABLED_NETWORKS: NetworksEnum[]
   WHITELIST_TOKENS: ITokenData[]
   DEFAULT_CURRENCY: string
   RABBITMQ: {
@@ -170,8 +172,6 @@ export interface IConfig {
     METADATA_FETCH_RETRY: number
     METADATA_FETCH_DELAY: number
     METADATA_FETCH_TIMEOUT: number
-    METADATA_REFETCH_MAX_RETRY: number
-    METADATA_REFETCH_INTERVAL_MS: number
   }
 
   RETRY_REQUEST: {

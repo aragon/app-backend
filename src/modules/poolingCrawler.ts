@@ -60,6 +60,8 @@ const PoolingCrawler = {
         logService,
         stopOnError: true,
         batchSize: 0.05,
+        enableReorgDetection: !includeTransfer && config.NODES[utils.networkToAragon(network)].REORG_DEPTH > 0,
+        reorgDepth: config.NODES[utils.networkToAragon(network)].REORG_DEPTH,
       })
 
       PoolingCrawler.instances.set(instanceKey, poolingCrawler)
