@@ -1,7 +1,6 @@
 import config from '@config'
 import { retry } from '@helpers/fetchRetry'
 import PinataHelper from '@helpers/pinata'
-import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import { type PinataPin } from '@pinata/sdk'
 import { type IMetadata } from '@types'

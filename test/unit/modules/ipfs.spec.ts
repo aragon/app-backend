@@ -1,6 +1,5 @@
 import config from '@config'
 import PinataHelper from '@helpers/pinata'
-import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import IPFSModule from '@modules/ipfs'
 import { expect } from 'chai'
@@ -191,8 +190,8 @@ describe('Modules: IPFS', () => {
     it('should call onFetchFailed callback when fetch fails and callback is provided', async function () {
       const cidV0 = 'ipfs://QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM'
 
-      const stubPinataGetData = sandbox.stub(PinataHelper, 'getData').resolves(null)
-      const stubFetchMetadata = sandbox.stub(IPFSModule, '_fetchMetadata').resolves(null)
+      sandbox.stub(PinataHelper, 'getData').resolves(null)
+      sandbox.stub(IPFSModule, '_fetchMetadata').resolves(null)
       const onFetchFailedStub = sandbox.stub().resolves()
 
       const result = await IPFSModule.fetchMetadata(cidV0, { onFetchFailed: onFetchFailedStub })
@@ -205,7 +204,7 @@ describe('Modules: IPFS', () => {
       const cidV0 = 'ipfs://QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM'
       const expectedMetadata = { name: 'Example' }
 
-      const stubPinataGetData = sandbox.stub(PinataHelper, 'getData').resolves(expectedMetadata)
+      sandbox.stub(PinataHelper, 'getData').resolves(expectedMetadata)
       const onFetchFailedStub = sandbox.stub().resolves()
 
       const result = await IPFSModule.fetchMetadata(cidV0, { onFetchFailed: onFetchFailedStub })
@@ -217,8 +216,8 @@ describe('Modules: IPFS', () => {
     it('should handle errors in onFetchFailed callback gracefully', async function () {
       const cidV0 = 'ipfs://QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM'
 
-      const stubPinataGetData = sandbox.stub(PinataHelper, 'getData').resolves(null)
-      const stubFetchMetadata = sandbox.stub(IPFSModule, '_fetchMetadata').resolves(null)
+      sandbox.stub(PinataHelper, 'getData').resolves(null)
+      sandbox.stub(IPFSModule, '_fetchMetadata').resolves(null)
       const onFetchFailedStub = sandbox.stub().rejects(new Error('Callback error'))
       const loggerErrorStub = sandbox.stub(logger, 'error')
 
@@ -232,8 +231,8 @@ describe('Modules: IPFS', () => {
     it('should not call onFetchFailed callback when callback is not provided', async function () {
       const cidV0 = 'ipfs://QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM'
 
-      const stubPinataGetData = sandbox.stub(PinataHelper, 'getData').resolves(null)
-      const stubFetchMetadata = sandbox.stub(IPFSModule, '_fetchMetadata').resolves(null)
+      sandbox.stub(PinataHelper, 'getData').resolves(null)
+      sandbox.stub(IPFSModule, '_fetchMetadata').resolves(null)
 
       // Should not throw when callback is not provided
       const result = await IPFSModule.fetchMetadata(cidV0)
