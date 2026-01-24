@@ -172,6 +172,8 @@ export interface IConfig {
     METADATA_FETCH_RETRY: number
     METADATA_FETCH_DELAY: number
     METADATA_FETCH_TIMEOUT: number
+    METADATA_REFETCH_MAX_RETRY: number
+    METADATA_REFETCH_INTERVAL_MS: number
   }
 
   RETRY_REQUEST: {
