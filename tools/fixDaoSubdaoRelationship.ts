@@ -17,11 +17,21 @@ import {
 const llo = logger.logMeta.bind(null, { service: 'tool:fixDaoSubdaoRelationship' })
 
 const NETWORK = NetworksEnum.ethereumSepolia
-const PARENT_DAO = '0xE8fd9Fe445A037ee07fb98FDD4b146d939140De5'
-const SUB_DAOS = [
-  '0x2491Ab6738bBccef4058e912e236A48Be4227452',
-  '0x9D80B3585624ff501c4cc288Feee0EA24EF3e6c7',
-  '0x97C582C18Ce33aA3135f56BB3A9D71480c9ed6a4',
+
+// Multiple DAO sets to fix
+const DAO_SETS: { parent: HexAddress; subDaos: HexAddress[] }[] = [
+  {
+    parent: '0xEB4813f79E18bbd62F9222CC98F5049B872F5c04',
+    subDaos: ['0x74e75f87B7514c09cF70bEd5B1982c7B34d6196c', '0xb8A55fb41bA5e8996F47e2C5E88EF8D4ef5a95A3'],
+  },
+  {
+    parent: '0xE8fd9Fe445A037ee07fb98FDD4b146d939140De5',
+    subDaos: [
+      '0x2491Ab6738bBccef4058e912e236A48Be4227452',
+      '0x9D80B3585624ff501c4cc288Feee0EA24EF3e6c7',
+      '0x97C582C18Ce33aA3135f56BB3A9D71480c9ed6a4',
+    ],
+  },
 ]
 
 export const FixDaoSubdaoRelationship: IService = {
@@ -30,15 +40,22 @@ export const FixDaoSubdaoRelationship: IService = {
   start: async () => {
     logger.info('Starting fixDaoSubdaoRelationship tool', llo())
 
-    // Step 1: Update parent DAO with subDaos array
-    await updateParentDao()
+    for (const daoSet of DAO_SETS) {
+      logger.info('Processing DAO set', llo({ parent: daoSet.parent, subDaos: daoSet.subDaos }))
 
-    // Step 2: Update each subDAO with parentDao reference
-    await updateSubDaos()
+      // Step 1: Update parent DAO with subDaos array
+      await updateParentDao(daoSet.parent, daoSet.subDaos)
 
-    // Step 3: Find and process unknown plugins from these DAOs
-    const allDaoAddresses = [PARENT_DAO, ...SUB_DAOS]
-    await processUnknownPlugins(allDaoAddresses)
+      // Step 2: Update each subDAO with parentDao reference
+      await updateSubDaos(daoSet.parent, daoSet.subDaos)
+
+      // Step 3: Find and process unknown plugins from these DAOs
+      const allDaoAddresses = [daoSet.parent, ...daoSet.subDaos]
+      await processUnknownPlugins(allDaoAddresses)
+    }
+
+    // Step 4: Fix Gauge plugin settings
+    await fixGaugePluginSettings()
 
     logger.info('Finished fixDaoSubdaoRelationship tool', llo())
   },
@@ -46,27 +63,57 @@ export const FixDaoSubdaoRelationship: IService = {
   stop: async () => {},
 }
 
-async function updateParentDao() {
-  const parentDao = await Models.Dao.findByAddress(PARENT_DAO, NETWORK)
-  if (!parentDao) {
-    logger.error('Parent DAO not found', llo({ address: PARENT_DAO, network: NETWORK }))
+async function fixGaugePluginSettings() {
+  const pluginAddress = '0x1d8b09B564c931153aDd628187D21085AFf34199'
+  const network = NETWORK
+
+  const pluginDb = await Models.Plugin.findOne({ address: pluginAddress, network })
+  if (!pluginDb) {
+    logger.info('Plugin not found before update', llo({ address: pluginAddress, network }))
     return
   }
 
-  await parentDao.update({ subDaos: SUB_DAOS })
-  logger.info('Updated parent DAO with subDaos', llo({ address: PARENT_DAO, subDaos: SUB_DAOS }))
+  const settingDb = await Models.Setting.findActive({ pluginAddress: pluginAddress, network })
+  if (!settingDb) {
+    logger.info('Setting not found', llo({ address: pluginAddress, network }))
+    return
+  }
+
+  settingDb.votingEscrow = await PluginSettingHandler.votingEscrowSettings(pluginDb, {
+    address: pluginAddress,
+    network,
+    blockNumber: pluginDb.blockNumber ?? 0,
+    transactionHash: pluginDb.transactionHash ?? '',
+    logIndex: 0,
+    transactionIndex: 0,
+    eventName: IEventLogPluginType.InstallationApplied,
+  })
+
+  await settingDb.save()
+  logger.info('Updated votingEscrow settings in Setting', llo({ address: pluginAddress, network }))
 }
 
-async function updateSubDaos() {
-  for (const subDaoAddress of SUB_DAOS) {
+async function updateParentDao(parentDaoAddress: HexAddress, subDaoAddresses: HexAddress[]) {
+  const parentDao = await Models.Dao.findByAddress(parentDaoAddress, NETWORK)
+  if (!parentDao) {
+    logger.error('Parent DAO not found', llo({ address: parentDaoAddress, network: NETWORK }))
+    return
+  }
+
+  await parentDao.update({ subDaos: subDaoAddresses })
+  logger.info('Updated parent DAO with subDaos', llo({ address: parentDaoAddress, subDaos: subDaoAddresses }))
+}
+
+async function updateSubDaos(parentDaoAddress: HexAddress, subDaoAddresses: HexAddress[]) {
+  for (const subDaoAddress of subDaoAddresses) {
     const subDao = await Models.Dao.findByAddress(subDaoAddress, NETWORK)
     if (!subDao) {
       logger.warn('SubDAO not found', llo({ address: subDaoAddress, network: NETWORK }))
       continue
     }
 
-    await subDao.update({ parentDao: PARENT_DAO })
-    logger.info('Updated subDAO with parentDao', llo({ address: subDaoAddress, parentDao: PARENT_DAO }))
+    await subDao.update({ parentDao: parentDaoAddress })
+    logger.info('Updated subDAO with parentDao', llo({ address: subDaoAddress, parentDao: parentDaoAddress }))
   }
 }
 
