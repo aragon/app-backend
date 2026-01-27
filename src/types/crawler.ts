@@ -355,6 +355,7 @@ export enum IExitQueueLogs {
   MinLockSet = 'MinLockSet',
   ExitQueuedV2 = 'ExitQueuedV2',
   ExitFeePercentAdjusted = 'ExitFeePercentAdjusted',
+  ExitCancelled = 'ExitCancelled',
 }
 
 export enum ISelectorPermissionLogs {

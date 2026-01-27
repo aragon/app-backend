@@ -195,6 +195,29 @@ const GovernanceVeHelper = {
     }
   },
 
+  async getNftOwnerOf(
+    nftLockAddress: HexAddress,
+    tokenId: string,
+    network: NetworksEnum,
+    blockNumber?: number,
+  ): Promise<HexAddress | null> {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const abi = ['function ownerOf(uint256 tokenId) view returns (address)']
+    const contract = new Contract(nftLockAddress, abi, provider)
+    try {
+      let blockTag: string | 'latest' = 'latest'
+      if (blockNumber) {
+        const adjustedBlock = await Web3Helper.getChainAdjustedBlockNumber(blockNumber, network)
+        blockTag = `0x${BigInt(adjustedBlock).toString(16)}`
+      }
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.ownerOf(tokenId, { blockTag })),
+      )
+    } catch (_error) {
+      return null
+    }
+  },
+
   async getUnderlyingTokenNameAndSymbol(
     adapterAddress: HexAddress,
     network: NetworksEnum,

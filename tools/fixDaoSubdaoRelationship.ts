@@ -64,33 +64,40 @@ export const FixDaoSubdaoRelationship: IService = {
 }
 
 async function fixGaugePluginSettings() {
-  const pluginAddress = '0x1d8b09B564c931153aDd628187D21085AFf34199'
+  const pluginAddresses = ['0xB81d5F0f8B441Af365dbB3C6E92E7b2DCe57e85D', '0x1d8b09B564c931153aDd628187D21085AFf34199']
   const network = NETWORK
 
-  const pluginDb = await Models.Plugin.findOne({ address: pluginAddress, network })
-  if (!pluginDb) {
-    logger.info('Plugin not found before update', llo({ address: pluginAddress, network }))
-    return
+  for (const pluginAddress of pluginAddresses) {
+    const pluginDb = await Models.Plugin.findOne({ address: pluginAddress, network })
+    if (!pluginDb) {
+      logger.info('Plugin not found before update', llo({ address: pluginAddress, network }))
+      return
+    }
+
+    if (pluginDb.interfaceType !== IPluginInterfaceType.gauge || pluginDb.votingEscrow?.escrowAddress === null) {
+      logger.info('Plugin is not a gauge or votingEscrow already set to null', llo({ address: pluginAddress, network }))
+      return
+    }
+
+    const settingDb = await Models.Setting.findActive({ pluginAddress: pluginAddress, network })
+    if (!settingDb) {
+      logger.info('Setting not found', llo({ address: pluginAddress, network }))
+      return
+    }
+
+    settingDb.votingEscrow = await PluginSettingHandler.votingEscrowSettings(pluginDb, {
+      address: pluginAddress,
+      network,
+      blockNumber: pluginDb.blockNumber ?? 0,
+      transactionHash: pluginDb.transactionHash ?? '',
+      logIndex: 0,
+      transactionIndex: 0,
+      eventName: IEventLogPluginType.InstallationApplied,
+    })
+
+    await settingDb.save()
+    logger.info('Updated votingEscrow settings in Setting', llo({ address: pluginAddress, network }))
   }
-
-  const settingDb = await Models.Setting.findActive({ pluginAddress: pluginAddress, network })
-  if (!settingDb) {
-    logger.info('Setting not found', llo({ address: pluginAddress, network }))
-    return
-  }
-
-  settingDb.votingEscrow = await PluginSettingHandler.votingEscrowSettings(pluginDb, {
-    address: pluginAddress,
-    network,
-    blockNumber: pluginDb.blockNumber ?? 0,
-    transactionHash: pluginDb.transactionHash ?? '',
-    logIndex: 0,
-    transactionIndex: 0,
-    eventName: IEventLogPluginType.InstallationApplied,
-  })
-
-  await settingDb.save()
-  logger.info('Updated votingEscrow settings in Setting', llo({ address: pluginAddress, network }))
 }
 
 async function updateParentDao(parentDaoAddress: HexAddress, subDaoAddresses: HexAddress[]) {

@@ -124,4 +124,20 @@ describe('Integ: Gauge', () => {
     expect(BigInt(gaugeInfo?.memberUsedVotingPower!) >= BigInt(0)).to.be.true
     expect(BigInt(gaugeInfo?.memberVotingPower!) >= BigInt(0)).to.be.true
   })
+
+  it.only('should sync gauge voting dao from scratch', async function () {
+    this.timeout(100000000)
+
+    const network = NetworksEnum.katanaMainnet
+    const daoAddress = '0x76De198A3175d046E10f872927C333D29Ff9B914'
+
+    const libUtils = new LibUtils({
+      daoAddress,
+      network,
+      config: {
+        sandbox,
+      },
+    })
+    await libUtils.syncCompleteDao(17593530)
+  })
 })

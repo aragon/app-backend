@@ -1414,6 +1414,226 @@ describe('Handler:GovernanceVeHandler', () => {
     })
   })
 
+  describe('exitCancelled', () => {
+    it('should skip if plugin not found', async () => {
+      const stubLogger = sandbox.stub(logger, 'warn')
+      const stubLockFindOne = sandbox.stub(Models.Lock, 'findOne')
+      const stubCreateMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
+
+      const mockInfo = {
+        address: '0x001DdEdc2139d9948e8dcC936C1Ab2314D9181E8',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 123,
+        transactionHash: '0xhash',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+      const mockEvent = {
+        args: {
+          holder: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          tokenId: 123n,
+        },
+      } as any
+
+      await GovernanceVeHandler.exitCancelled(mockEvent, mockInfo)
+
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubLogger.calledWith('Plugin not found for exitCancelled event' as any)).to.be.true
+      expect(stubLockFindOne.notCalled).to.be.true
+      expect(stubCreateMember.notCalled).to.be.true
+    })
+
+    it('should process exitCancelled successfully (happy path)', async () => {
+      await Models.Plugin.create({
+        id: 'test-plugin-exitcancel',
+        address: '0xCCC',
+        daoAddress: '0xDAOC',
+        tokenAddress: '0xTokenC',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabcC',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xEscrowC',
+          nftLockAddress: '0xNftC',
+          exitQueueAddress: '0xExitQueueCancel',
+        },
+      })
+
+      await Models.Lock.create({
+        id: 'test-lock-exitcancel-happy',
+        network: NetworksEnum.ethereumMainnet,
+        escrowAddress: '0xEscrowC',
+        memberAddress: '0x6666666666666666666666666666666666666666',
+        tokenId: '888',
+        transactionHash: '0xoriginallock',
+        transactionIndex: 1,
+        logIndex: 1,
+        blockNumber: 100,
+        tokenAddress: '0xTokenC',
+        nftAddress: '0xNftC',
+        amount: '10000',
+        epochStartAt: 1650000000,
+        totalLocked: '30000',
+        exitQueueAddress: '0xExitQueueCancel',
+        lockExit: {
+          status: true,
+          transactionHash: '0xexitqueuetx',
+          blockNumber: 150,
+          exitDateAt: 1650500000,
+        },
+      })
+
+      const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
+      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      const mockGovernance = {
+        updatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      const mockInfo = {
+        address: '0xExitQueueCancel',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 200,
+        transactionHash: '0xcanceltx',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+      const mockEvent = {
+        args: {
+          holder: '0x6666666666666666666666666666666666666666',
+          tokenId: 888n,
+        },
+      } as any
+
+      await GovernanceVeHandler.exitCancelled(mockEvent, mockInfo)
+
+      expect(stubCreateBaseMember.calledOnce).to.be.true
+      expect(stubCreateBaseMember.calledWith('0x6666666666666666666666666666666666666666', 200)).to.be.true
+
+      const updatedLock = await Models.Lock.findOne({
+        network: NetworksEnum.ethereumMainnet,
+        exitQueueAddress: '0xExitQueueCancel',
+        tokenId: '888',
+      })
+      expect(updatedLock).to.exist
+      expect(updatedLock.lockExit).to.be.null
+      expect(updatedLock.memberAddress).to.equal('0x6666666666666666666666666666666666666666')
+
+      expect(mockGovernance.updatePluginMetrics.calledOnce).to.be.true
+      expect(stubLoggerVerbose.called).to.be.true
+    })
+
+    it('should log error if lock not found', async () => {
+      await Models.Plugin.create({
+        id: 'test-plugin-exitcancel-notfound',
+        address: '0xDDD',
+        daoAddress: '0xDAOD',
+        tokenAddress: '0xTokenD',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabcD',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xEscrowD',
+          nftLockAddress: '0xNftD',
+          exitQueueAddress: '0xExitQueueCancelNotFound',
+        },
+      })
+
+      const stubLoggerError = sandbox.stub(logger, 'error')
+      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      const mockGovernance = {
+        updatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      const mockInfo = {
+        address: '0xExitQueueCancelNotFound',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 210,
+        transactionHash: '0xcanceltx2',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+      const mockEvent = {
+        args: {
+          holder: '0x7777777777777777777777777777777777777777',
+          tokenId: 999n,
+        },
+      } as any
+
+      await GovernanceVeHandler.exitCancelled(mockEvent, mockInfo)
+
+      expect(stubLoggerError.called).to.be.true
+      const errorCalls = stubLoggerError.getCalls().filter(call => {
+        const firstArg = call.args[0]
+        return firstArg && (firstArg as any).includes && (firstArg as any).includes('Lock not found')
+      })
+      expect(errorCalls.length).to.be.greaterThan(0)
+
+      expect(stubCreateBaseMember.calledOnce).to.be.true
+      expect(mockGovernance.updatePluginMetrics.calledOnce).to.be.true
+    })
+
+    it('should log error and continue when exitCancelled fails', async () => {
+      await Models.Plugin.create({
+        id: 'test-plugin-exitcancel-error',
+        address: '0xEEE',
+        daoAddress: '0xDAOE',
+        tokenAddress: '0xTokenE',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabcE',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xEscrowE',
+          nftLockAddress: '0xNftE',
+          exitQueueAddress: '0xExitQueueCancelError',
+        },
+      })
+
+      const stubLoggerError = sandbox.stub(logger, 'error')
+      const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
+
+      const createMemberError = new Error('Failed to create base member')
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').rejects(createMemberError)
+
+      const mockGovernance = {
+        updatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      const mockInfo = {
+        address: '0xExitQueueCancelError',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 220,
+        transactionHash: '0xcancelerror',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+      const mockEvent = {
+        args: {
+          holder: '0x8888888888888888888888888888888888888888',
+          tokenId: 1111n,
+        },
+      } as any
+
+      await GovernanceVeHandler.exitCancelled(mockEvent, mockInfo)
+
+      expect(stubLoggerError.calledOnce).to.be.true
+      expect(stubLoggerError.calledWith('ExitCancelled error' as any)).to.be.true
+
+      expect(stubLoggerVerbose.notCalled).to.be.true
+      expect(mockGovernance.updatePluginMetrics.notCalled).to.be.true
+    })
+  })
+
   describe('minDepositSet', () => {
     it('should skip if plugin not found', async () => {
       const stubLogger = sandbox.stub(logger, 'warn')

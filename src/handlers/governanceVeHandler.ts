@@ -402,6 +402,56 @@ export const GovernanceVeHandler = {
     }
   },
 
+  exitCancelled: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const plugins = await Models.Plugin.find({
+      'votingEscrow.exitQueueAddress': info.address,
+      network: info.network,
+    })
+
+    if (plugins.length === 0) {
+      logger.warn('Plugin not found for exitCancelled event', llo({ info }))
+      return
+    }
+
+    const memberAddress = parsedEvent.args.holder
+    const tokenId = parsedEvent.args.tokenId.toString()
+
+    try {
+      await MemberGovernanceFactory.createBaseMember(memberAddress, info.blockNumber)
+
+      const veGovernance = new VeGovernance(plugins[0].tokenAddress, info.network)
+
+      await veGovernance.exitCancelled(memberAddress, {
+        parsedEvent,
+        info,
+        lastActivity: info.blockNumber,
+      })
+
+      await Promise.all(
+        plugins.map(async (plugin: Plugin) => {
+          const pluginGovernance = MemberGovernanceFactory.create({
+            address: plugin.tokenAddress,
+            network: info.network,
+            interfaceType: IPluginInterfaceType.tokenVoting,
+            tokenType: ITokenType.escrowAdapter,
+          })
+
+          await pluginGovernance.updatePluginMetrics({
+            memberAddress,
+            pluginAddress: plugin.address,
+            daoAddress: plugin.daoAddress,
+            network: info.network,
+            lastActivity: info.blockNumber,
+          })
+        }),
+      )
+
+      logger.verbose('Exit cancelled VeGovernance', llo({ info, memberAddress, tokenId }))
+    } catch (error) {
+      logger.error('ExitCancelled error', llo({ error, info, memberAddress }))
+    }
+  },
+
   merge: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const plugins = await Models.Plugin.find({
       'votingEscrow.escrowAddress': info.address,

@@ -293,7 +293,7 @@ export const VotingEscrowIncreasing = {
       type: 'event',
       name: 'Merged',
       inputs: [
-        { name: '_sender', type: 'address', indexed: false, internalType: 'address' },
+        { name: '_sender', type: 'address', indexed: true, internalType: 'address' },
         { name: '_from', type: 'uint256', indexed: true, internalType: 'uint256' },
         { name: '_to', type: 'uint256', indexed: true, internalType: 'uint256' },
         { name: '_fromAmount', type: 'uint208', indexed: false, internalType: 'uint208' },
