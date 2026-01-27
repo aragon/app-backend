@@ -339,6 +339,12 @@ export class VeGovernance extends BaseGovernance {
   }): Promise<Lock | null> {
     const { fromTokenId, newTokenId, splitAmount1, splitAmount2, info } = params
     const plugins = await this.getPlugins()
+
+    if (plugins.length === 0) {
+      logger.error('No plugins found for split', this.llo({ escrowAddress: this.escrowAddress }))
+      return null
+    }
+
     const { nftLockAddress, exitQueueAddress } = plugins[0].votingEscrow
 
     // Fetch owners separately - they could be different if transferred in same block
@@ -349,11 +355,6 @@ export class VeGovernance extends BaseGovernance {
 
     try {
       return await DbTx.executeTxFn(async ({ session }) => {
-        if (plugins.length === 0) {
-          logger.error('No plugins found for split', this.llo({ escrowAddress: this.escrowAddress }))
-          return null
-        }
-
         const tokenAddress = plugins[0].tokenAddress
 
         const originalLock = await Models.Lock.findOne(

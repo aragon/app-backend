@@ -1,5 +1,6 @@
 import { Models } from '@dbModels'
 import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
+import GovernanceVeHelper from '@helpers/governanceVe'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
@@ -937,10 +938,11 @@ describe('Handler:GovernanceVeHandler', () => {
       }
       sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
 
-      const stubFindLockMember = sandbox.stub(Models.Lock, 'findLockMember').resolves({
+      const mockLock = {
         lockExit: { status: false },
-        update: sandbox.stub().resolves(),
-      } as any)
+        updateOne: sandbox.stub().resolves(),
+      }
+      const stubFindOne = sandbox.stub(Models.Lock, 'findOne').resolves(mockLock as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1650009999)
       sandbox.stub(logger, 'verbose')
       sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
@@ -963,11 +965,11 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.exitQueued(mockEvent, mockInfo)
 
-      // Verify findLockMember was called with tokenId as string
-      expect(stubFindLockMember.calledOnce).to.be.true
-      const findLockMemberArgs = stubFindLockMember.firstCall.args[0]
-      expect(findLockMemberArgs.tokenId).to.equal('9999999999999999999')
-      expect(typeof findLockMemberArgs.tokenId).to.equal('string')
+      // Verify findOne was called with tokenId as string
+      expect(stubFindOne.calledOnce).to.be.true
+      const findOneArgs = stubFindOne.firstCall.args[0]
+      expect(findOneArgs.tokenId).to.equal('9999999999999999999')
+      expect(typeof findOneArgs.tokenId).to.equal('string')
     })
 
     it('should process exitQueued successfully (happy path)', async () => {
@@ -3296,6 +3298,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
       const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
       const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(GovernanceVeHelper, 'getNftOwnerOf').resolves('0x65D9d3887aa9a9ee78901E96819B574160E4EAC5')
 
       const mockGovernance = createMockGovernance()
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
@@ -3472,6 +3475,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
       const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
       const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(GovernanceVeHelper, 'getNftOwnerOf').resolves(memberAddress)
 
       const mockGovernance = createMockGovernance()
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)

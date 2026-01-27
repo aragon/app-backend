@@ -376,6 +376,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       sandbox.stub(LogSpp, 'start')
       const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported')
       const handleFromReceiptStub = sandbox.stub(PluginSettingHandler, 'handlePluginSettingByType').resolves([] as any)
+      sandbox.stub(PluginSettingHandler, 'gaugeSettings').resolves()
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
 
       const rabbiMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
