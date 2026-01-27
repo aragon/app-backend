@@ -12,10 +12,7 @@ export const ResyncDaoVeGovernance: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.RABBITMQ],
 
   start: async () => {
-    logger.info(
-      'Starting resyncDaoVeGovernance tool',
-      llo({ daoAddress: DAO_ADDRESS, network: NETWORK }),
-    )
+    logger.info('Starting resyncDaoVeGovernance tool', llo({ daoAddress: DAO_ADDRESS, network: NETWORK }))
 
     const plugins = await Models.Plugin.find({ daoAddress: DAO_ADDRESS, network: NETWORK })
     if (plugins.length === 0) {
@@ -104,10 +101,7 @@ async function getRecordCounts(
   }
 }
 
-async function deleteRecords(
-  escrowAddress: HexAddress,
-  gaugePluginAddress: HexAddress,
-) {
+async function deleteRecords(escrowAddress: HexAddress, gaugePluginAddress: HexAddress) {
   const lockResult = await Models.Lock.deleteMany({ escrowAddress, network: NETWORK })
   logger.info('Deleted Lock records', llo({ deletedCount: lockResult.deletedCount }))
 
