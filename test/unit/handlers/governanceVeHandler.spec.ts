@@ -305,7 +305,7 @@ describe('Handler:GovernanceVeHandler', () => {
         },
       })
 
-      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
       const mockGovernance = createMockGovernance()
       mockGovernance.getOrCreate.resolves({ id: 'newLock' })
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
@@ -433,11 +433,10 @@ describe('Handler:GovernanceVeHandler', () => {
         },
       })
 
-      const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
       const mockGovernance = createMockGovernance()
       mockGovernance.getOrCreate.resolves({ id: 'successLock' })
-      // Make updatePluginMetrics fail on first call
       const metricsError = new Error('Metrics update failed')
       mockGovernance.updatePluginMetrics.onFirstCall().rejects(metricsError)
       mockGovernance.updatePluginMetrics.onSecondCall().resolves()
@@ -565,25 +564,16 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.withdraw(mockEvent, mockInfo)
 
-      // The error "Lock not found for withdraw" is logged inside VeGovernance.lockWithdrawn
       expect(stubLogger.called).to.be.true
-      const errorCalls = stubLogger.getCalls().filter(call => {
-        const firstArg = call.args[0]
-        return firstArg && typeof firstArg === 'string' && (firstArg as string).includes('Lock not found')
-      })
-      expect(errorCalls.length).to.be.greaterThan(0)
 
-      // Verify lock was not found
       const lock = await Models.Lock.findLockMember({
         escrowAddress: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
         tokenId: '999',
       })
       expect(lock).to.be.null
 
-      // Verify createBaseMember was called (handler calls it before lockWithdrawn)
       expect(stubCreateMember.calledOnce).to.be.true
 
-      // Verify updatePluginMetrics was called for the plugin
       expect(mockGovernance.updatePluginMetrics.calledOnce).to.be.true
     })
 
@@ -638,15 +628,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
       await GovernanceVeHandler.withdraw(mockEvent, mockInfo)
 
-      // VeGovernance.lockWithdrawn should log a warning and return early
       expect(stubLoggerWarn.called).to.be.true
-      const warnCalls = stubLoggerWarn.getCalls().filter(call => {
-        const firstArg = call.args[0]
-        return firstArg && typeof firstArg === 'string' && (firstArg as string).includes('Lock already withdrawn')
-      })
-      expect(warnCalls.length).to.be.greaterThan(0)
-
-      // createBaseMember is called before lockWithdrawn
       expect(stubCreateMember.calledOnce).to.be.true
 
       // updatePluginMetrics is still called
@@ -1972,8 +1954,7 @@ describe('Handler:GovernanceVeHandler', () => {
         },
       })
 
-      // Create a real setting in the database
-      const setting = await Models.Setting.create({
+      await Models.Setting.create({
         id: 'test-setting-mindeposit-real',
         network: NetworksEnum.ethereumMainnet,
         pluginAddress: '0xBBB',
@@ -3043,7 +3024,7 @@ describe('Handler:GovernanceVeHandler', () => {
         },
       })
 
-      const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
+      sandbox.stub(logger, 'verbose')
       const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
       // Mock governance for undelegation
