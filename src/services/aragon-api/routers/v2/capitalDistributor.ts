@@ -3,6 +3,7 @@ import CapitalDistributorSchema from '@api/routers/schema/capitalDistributor'
 import ValidationSchema from '@helpers/validationSchema'
 import Router, { type RouterContext } from '@koa/router'
 import { type HexAddress, type ICampaignApiParams, type IPaginationParams, type NetworksEnum } from '@types'
+import type { IPrepareCampaignFromGauge } from '@types'
 
 const CapitalDistributorRouter = {
   getCampaignsWithPagination: async function (ctx: RouterContext) {
@@ -63,6 +64,30 @@ const CapitalDistributorRouter = {
       userAddress: result.params.userAddress,
       campaignId: result.params.campaignId,
     })
+  },
+
+  prepareCampaignFromGauge: async function (ctx: RouterContext) {
+    const result = await ValidationSchema.validateRoute(ctx, {
+      params: ctx.request.body as IPrepareCampaignFromGauge,
+      schemas: {
+        params: CapitalDistributorSchema.prepareCampaignFromGauge,
+      },
+    })
+
+    ctx.body = await CapitalDistributorController.prepareCampaignFromGauge(result.params)
+  },
+
+  getPrepareStatus: async function (ctx: RouterContext) {
+    const result = await ValidationSchema.validateRoute(ctx, {
+      params: {
+        prepareId: ctx.params.prepareId as string,
+      },
+      schemas: {
+        params: CapitalDistributorSchema.getPrepareStatus,
+      },
+    })
+
+    ctx.body = await CapitalDistributorController.getPrepareStatus(result.params.prepareId)
   },
 
   router(): Router {
@@ -129,6 +154,41 @@ const CapitalDistributorRouter = {
      * @apiSampleRequest /capital-distributor/campaign/reward?pluginAddress=0x123&network=ethereum&userAddress=0x456&campaignId=1
      */
     router.get('/campaign/reward', CapitalDistributorRouter.getUserCampaignReward)
+
+    /**
+     * @api {post} /campaign/prepare Prepare Campaign from Gauge Votes
+     * @apiName PrepareCampaignFromGauge
+     * @apiGroup CapitalDistributor
+     * @apiDescription Prepare a campaign distribution based on gauge voting power
+     *
+     * @apiBody {String} daoAddress DAO address
+     * @apiBody {String} network Network name
+     * @apiBody {String} gaugePluginAddress Gauge voter plugin address
+     * @apiBody {String} tokenAddress Token to distribute
+     * @apiBody {String} totalAmount Total amount to distribute (wei)
+     * @apiBody {String} [capitalDistributorAddress] Capital distributor plugin (auto-detected if not provided)
+     * @apiBody {String} [epochId] Epoch ID (uses current if not provided)
+     * @apiBody {Object} [metadata] Campaign metadata { title, description, resources }
+     *
+     * @apiSuccess {String} prepareId Unique prepare ID for tracking
+     * @apiSuccess {String} status Current status (pending)
+     */
+    router.post('/campaign/prepare', CapitalDistributorRouter.prepareCampaignFromGauge)
+
+    /**
+     * @api {get} /campaign/prepare/:prepareId/status Get Prepare Status
+     * @apiName GetPrepareStatus
+     * @apiGroup CapitalDistributor
+     * @apiDescription Get the status of a campaign preparation
+     *
+     * @apiParam {String} prepareId Prepare ID from the prepare endpoint
+     *
+     * @apiSuccess {String} prepareId Prepare ID
+     * @apiSuccess {String} status Current status (pending, processing, completed, failed)
+     * @apiSuccess {String} [merkleRoot] Merkle root (only when completed)
+     * @apiSuccess {Number} totalMembers Number of recipients
+     */
+    router.get('/campaign/prepare/:prepareId/status', CapitalDistributorRouter.getPrepareStatus)
 
     return router
   },

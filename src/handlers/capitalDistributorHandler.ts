@@ -101,18 +101,19 @@ export const CapitalDistributorHandler = {
 
     try {
       const { campaignId, merkleRoot } = parsedEvent.args
+      const actualCampaignId = campaignId.toString()
 
       const campaign = await Models.Campaign.findOne({
         allocationStrategy: address,
         network,
-        campaignId: campaignId.toString(),
+        campaignId: actualCampaignId,
       })
 
       if (!campaign) {
         logger.warn(
           'Campaign not found for merkle root update',
           llo({
-            campaignId: campaignId.toString(),
+            campaignId: actualCampaignId,
             address,
             network,
           }),
@@ -122,10 +123,50 @@ export const CapitalDistributorHandler = {
 
       await campaign.updateMerkleRoot(merkleRoot)
 
+      const existingMerkleRoot = await Models.CampaignMerkleRoot.findOne({
+        pluginAddress: campaign.pluginAddress,
+        network,
+        merkleRoot,
+      })
+
+      if (existingMerkleRoot && existingMerkleRoot.campaignId !== actualCampaignId) {
+        const oldCampaignId = existingMerkleRoot.campaignId
+        const pluginAddress = existingMerkleRoot.pluginAddress
+
+        await existingMerkleRoot.update({ campaignId: actualCampaignId })
+
+        const updatedCount = await Models.CampaignReward.updateCampaignId(
+          pluginAddress,
+          network,
+          oldCampaignId,
+          actualCampaignId,
+        )
+
+        const campaignPrepare = await Models.CampaignPrepare.findOne({
+          capitalDistributorAddress: pluginAddress,
+          network,
+          campaignId: oldCampaignId,
+        })
+
+        if (campaignPrepare) {
+          await campaignPrepare.update({ campaignId: actualCampaignId })
+        }
+
+        logger.info(
+          'Campaign ID correction completed',
+          llo({
+            merkleRoot,
+            oldCampaignId,
+            actualCampaignId,
+            updatedRewards: updatedCount,
+          }),
+        )
+      }
+
       logger.info(
         'Merkle root set for campaign',
         llo({
-          campaignId: campaignId.toString(),
+          campaignId: actualCampaignId,
           address,
           network,
           merkleRoot,

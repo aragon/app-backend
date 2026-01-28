@@ -1,6 +1,7 @@
 import type Asset from '@models/schema/asset'
 import type Campaign from '@models/schema/campaign'
 import type CampaignMerkleRoot from '@models/schema/campaignMerkleRoot'
+import type CampaignPrepare from '@models/schema/campaignPrepare'
 import type CampaignReward from '@models/schema/campaignReward'
 import type ConfigIndexer from '@models/schema/configIndexer'
 import type Contract from '@models/schema/contract'
@@ -65,6 +66,7 @@ export interface IMongoModel {
   PluginMetrics: typeof PluginMetrics
   LockToVoteMember: typeof LockToVoteMember
   CampaignMerkleRoot: typeof CampaignMerkleRoot
+  CampaignPrepare: typeof CampaignPrepare
   Gauge: typeof Gauge
   VoteGauge: typeof VoteGauge
   GaugeMetrics: typeof GaugeMetrics
@@ -86,6 +88,7 @@ export enum ICollectionNames {
   Member = 'Member',
   MetadataRefetch = 'MetadataRefetch',
   CampaignMerkleRoot = 'CampaignMerkleRoot',
+  CampaignPrepare = 'CampaignPrepare',
   Plugin = 'Plugin',
   PluginRepo = 'PluginRepo',
   PluginSlug = 'PluginSlug',
@@ -176,4 +179,11 @@ export enum IMigrationStatus {
 
 export enum ICampaignType {
   MERKLE_ROOT = 'MERKLE_ROOT',
+}
+
+export enum CampaignPrepareStatus {
+  pending = 'pending',
+  processing = 'processing',
+  completed = 'completed',
+  failed = 'failed',
 }

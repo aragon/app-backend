@@ -26,6 +26,7 @@ export enum EnumQueueName {
   logSelectorPermission = 'log.selector.permission',
   syncMerkleProofs = 'sync.merkle.proofs',
   metadataRefetch = 'metadata.refetch',
+  prepareCampaignFromGauge = 'campaign.prepare.gauge',
 }
 
 export interface IQueueAllMetrics {
@@ -151,4 +152,20 @@ export interface IQueueContractDecoderLight {
     value: string | number
   }>
   network: NetworksEnum
+}
+
+export interface IPrepareCampaignFromGauge {
+  prepareId: string
+  daoAddress: HexAddress
+  network: NetworksEnum
+  capitalDistributorAddress: HexAddress
+  gaugePluginAddress: HexAddress
+  epochId?: string // Optional - gateway fetches current epoch if not provided
+  tokenAddress: HexAddress
+  totalAmount: string
+  metadata?: {
+    title?: string
+    description?: string
+    resources?: Array<{ name: string; url: string }>
+  }
 }

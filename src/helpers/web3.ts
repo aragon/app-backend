@@ -91,6 +91,34 @@ const Web3Helper = {
     }
   },
 
+  async getNumCampaigns(pluginAddress: HexAddress, network: NetworksEnum): Promise<string> {
+    try {
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      const abi = ['function numCampaigns() view returns (uint256)']
+      const contract = new Contract(pluginAddress, abi, provider)
+      const numCampaigns = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.numCampaigns()),
+      )
+      return numCampaigns.toString()
+    } catch (_error) {
+      return '0'
+    }
+  },
+
+  async getTokenBalance(ownerAddress: HexAddress, tokenAddress: HexAddress, network: NetworksEnum): Promise<string> {
+    try {
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      const abi = ['function balanceOf(address account) view returns (uint256)']
+      const contract = new Contract(tokenAddress, abi, provider)
+      const balance = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.balanceOf(ownerAddress)),
+      )
+      return balance.toString()
+    } catch (_error) {
+      return '0'
+    }
+  },
+
   async getTokenBalanceAtBlock({
     address,
     tokenAddress,

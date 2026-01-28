@@ -17,6 +17,7 @@ import {
   type IGetGaugeEpochId,
   type IGetGaugeInfoId,
   type IMerkleProofSync,
+  type IPrepareCampaignFromGauge,
   type IQueueCanCreateProposal,
   type IQueueContractDecoderLight,
   type IQueueContractInfo,
@@ -70,6 +71,13 @@ const AragonGatewayService: IService = {
     await RabbitMQHelper.process(EnumQueueName.syncMerkleProofs, async (job: { params: IMerkleProofSync }) => {
       await CapitalDistributorGateway.generateMerkleData(job.params)
     })
+
+    await RabbitMQHelper.process(
+      EnumQueueName.prepareCampaignFromGauge,
+      async (job: { params: IPrepareCampaignFromGauge }) => {
+        await CapitalDistributorGateway.prepareCampaignFromGauge(job.params)
+      },
+    )
 
     await RabbitMQHelper.process(EnumQueueName.gaugeEpochId, async (job: { params: IGetGaugeEpochId }) => {
       return await GaugeHelper.getGaugeEpochId(job.params.pluginAddress, job.params.network)
