@@ -8,7 +8,7 @@ import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
-describe.only('Helpers: CoinGecko', () => {
+describe('Helpers: CoinGecko', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
