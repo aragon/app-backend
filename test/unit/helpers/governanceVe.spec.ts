@@ -732,4 +732,87 @@ describe('Helpers: GovernanceVe', () => {
       expect(getTokenNameAndSymbolStub.calledOnceWith(underlyingAddress)).to.be.true
     })
   })
+
+  describe('getNftOwnerOf', () => {
+    it('Should make a successful getNftOwnerOf call without blockNumber', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const ownerOfStub = sandbox.stub().resolves('0x1234567890123456789012345678901234567890')
+
+      const { default: MockedGovernanceVeHelper } = proxyquire.noCallThru()('@helpers/governanceVe', {
+        ethers: {
+          Contract: function () {
+            return { ownerOf: ownerOfStub }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedGovernanceVeHelper.getNftOwnerOf(
+        '0xNftLockAddress',
+        '123',
+        NetworksEnum.ethereumMainnet,
+      )
+      expect(result).to.eq('0x1234567890123456789012345678901234567890')
+      expect(ownerOfStub.calledOnce).to.be.true
+      expect(ownerOfStub.calledWith('123', { blockTag: 'latest' })).to.be.true
+    })
+
+    it('Should make a successful getNftOwnerOf call with blockNumber', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const ownerOfStub = sandbox.stub().resolves('0x1234567890123456789012345678901234567890')
+
+      sandbox.stub(Web3Helper, 'getChainAdjustedBlockNumber').resolves(12345)
+
+      const { default: MockedGovernanceVeHelper } = proxyquire.noCallThru()('@helpers/governanceVe', {
+        ethers: {
+          Contract: function () {
+            return { ownerOf: ownerOfStub }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+        '@helpers/web3': Web3Helper,
+      })
+
+      const result = await MockedGovernanceVeHelper.getNftOwnerOf(
+        '0xNftLockAddress',
+        '456',
+        NetworksEnum.ethereumMainnet,
+        12345,
+      )
+      expect(result).to.eq('0x1234567890123456789012345678901234567890')
+      expect(ownerOfStub.calledOnce).to.be.true
+      expect(ownerOfStub.calledWith('456', { blockTag: '0x3039' })).to.be.true
+    })
+
+    it('should handle errors in getNftOwnerOf', async () => {
+      const expectedResult = new Error('RPC Call Failed')
+      const ownerOfStub = sandbox.stub().rejects(expectedResult)
+
+      const { default: MockedGovernanceVeHelper } = proxyquire.noCallThru()('@helpers/governanceVe', {
+        ethers: {
+          Contract: function () {
+            return { ownerOf: ownerOfStub }
+          },
+        },
+      })
+
+      const result = await MockedGovernanceVeHelper.getNftOwnerOf(
+        '0xNftLockAddress',
+        '789',
+        NetworksEnum.ethereumMainnet,
+      )
+      expect(result).to.be.null
+      expect(ownerOfStub.calledOnce).to.be.true
+    })
+  })
 })

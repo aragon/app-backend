@@ -13,6 +13,7 @@ import FixMissingVotes from '@tools/fixMissingVotes'
 import FixProposalResult from '@tools/fixProposalResult'
 import FixSppPair from '@tools/fixSppPair'
 import ManualSyncToken from '@tools/fixTokenRate'
+import FixDaoSubdaoRelationship from '@tools/fixDaoSubdaoRelationship'
 import IntegrityToolMemberCheck from '@tools/integrityCheck/memberCheck'
 import IntegrityToolProposalCheck from '@tools/integrityCheck/proposalCheck'
 import ToolsMissingSlugs from '@tools/missingSlugs'
@@ -31,6 +32,7 @@ import SyncProposalTotalSupply from '@tools/syncProposalTotalSupply'
 import SyncProposalType from '@tools/syncProposalType'
 import SyncTokens from '@tools/syncTokens'
 import ToolsVeGovernance from '@tools/veGovernance'
+import ResyncDaoVeGovernance from '@tools/resyncDaoVeGovernance'
 
 const { TOOL_RUN } = process.env
 const llo = logger.logMeta.bind(null, { TOOL_RUN })
@@ -67,6 +69,8 @@ const runners = {
   ToolsFixBrokenTx,
   FixSppPair,
   CleanUpTasks,
+  FixDaoSubdaoRelationship,
+  ResyncDaoVeGovernance,
 }
 
 const appToRun = runners[TOOL_RUN!]

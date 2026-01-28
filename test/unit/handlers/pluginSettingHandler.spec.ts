@@ -1,5 +1,6 @@
 import { Models } from '@dbModels'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
+import GaugeHelper from '@helpers/gauge'
 import GovernanceVeHelper from '@helpers/governanceVe'
 import MultisigHelper from '@helpers/multisig'
 import PluginDetector from '@helpers/pluginDetector'
@@ -732,6 +733,79 @@ describe('Indexer: PluginSettingHandler', () => {
       await PluginSettingHandler.lockToVoteSettingsUpdated(parsedEvent as any, info as any)
 
       expect(pairSppPluginsStub.calledOnceWith(sppPlugin, sppSettings, info)).to.be.true
+    })
+  })
+
+  describe('gaugeSettings', () => {
+    it('should create gauge settings with votingEscrow when exitQueueAddress exists', async () => {
+      const plugin = {
+        address: '0xplugin',
+        daoAddress: '0xdao',
+        subdomain: 'gauge.plugin',
+        network: NetworksEnum.ethereumMainnet,
+        votingEscrow: {
+          escrowAddress: '0xescrow',
+          exitQueueAddress: '0xexitQueue',
+          curveAddress: '0xcurve',
+        },
+      } as any
+
+      const info = {
+        blockNumber: 100,
+        transactionHash: '0xtx',
+        network: NetworksEnum.ethereumMainnet,
+      } as ILogInfo
+
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123456789)
+      sandbox.stub(GaugeHelper, 'getEnableUpdateVotingPowerHookFlag').resolves(true)
+      const votingEscrowStub = sandbox.stub(PluginSettingHandler, 'votingEscrowSettings').resolves({
+        minDeposit: '100',
+        minLockTime: 3600,
+        cooldown: 3600,
+        maxTime: 7200,
+        slope: '100',
+        bias: '100',
+        feePercent: '1000',
+        minFeePercent: '500',
+        minCooldown: 1800,
+      })
+      const createDocumentStub = sandbox.stub(DbOperations, 'createDocument').resolves()
+
+      await PluginSettingHandler.gaugeSettings(plugin, info)
+
+      expect(votingEscrowStub.calledOnce).to.be.true
+      expect(createDocumentStub.calledOnce).to.be.true
+      const settingData = createDocumentStub.firstCall.args[1]
+      expect(settingData.votingEscrow).to.not.be.null
+      expect(settingData.enabledUpdatedVotingPowerHook).to.be.true
+    })
+
+    it('should create gauge settings with null votingEscrow when exitQueueAddress is missing', async () => {
+      const plugin = {
+        address: '0xplugin',
+        daoAddress: '0xdao',
+        subdomain: 'gauge.plugin',
+        network: NetworksEnum.ethereumMainnet,
+        votingEscrow: {},
+      } as any
+
+      const info = {
+        blockNumber: 100,
+        transactionHash: '0xtx',
+        network: NetworksEnum.ethereumMainnet,
+      } as ILogInfo
+
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123456789)
+      sandbox.stub(GaugeHelper, 'getEnableUpdateVotingPowerHookFlag').resolves(false)
+      const votingEscrowStub = sandbox.stub(PluginSettingHandler, 'votingEscrowSettings')
+      const createDocumentStub = sandbox.stub(DbOperations, 'createDocument').resolves()
+
+      await PluginSettingHandler.gaugeSettings(plugin, info)
+
+      expect(votingEscrowStub.notCalled).to.be.true
+      expect(createDocumentStub.calledOnce).to.be.true
+      const settingData = createDocumentStub.firstCall.args[1]
+      expect(settingData.votingEscrow).to.be.null
     })
   })
 

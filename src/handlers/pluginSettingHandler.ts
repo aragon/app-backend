@@ -348,8 +348,10 @@ export const PluginSettingHandler = {
         plugin.address,
         plugin.network,
       ),
+      votingEscrow: plugin.votingEscrow?.exitQueueAddress
+        ? await PluginSettingHandler.votingEscrowSettings(plugin, info)
+        : null,
     }
-
     await DbOperations.createDocument(Models.Setting, settingLog, info, 'New Setting - gaugeSettingsUpdated', llo)
   },
 
