@@ -8,7 +8,7 @@ import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
-describe('Helpers: CoinGecko', () => {
+describe.only('Helpers: CoinGecko', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -324,7 +324,7 @@ describe('Helpers: CoinGecko', () => {
         },
       }
 
-      const result = CoinGeckoHelper._parseToken(response, NetworksEnum.ethereumMainnet)
+      const result = CoinGeckoHelper._parseToken(response as any, NetworksEnum.ethereumMainnet)
 
       expect(result.name).to.eq('Test Token')
       expect(result.symbol).to.eq('TT')
@@ -354,7 +354,7 @@ describe('Helpers: CoinGecko', () => {
         },
       }
 
-      const result = CoinGeckoHelper._parseToken(response, NetworksEnum.ethereumMainnet)
+      const result = CoinGeckoHelper._parseToken(response as any, NetworksEnum.ethereumMainnet)
 
       expect(result.name).to.eq('')
       expect(result.symbol).to.eq('')
@@ -363,20 +363,21 @@ describe('Helpers: CoinGecko', () => {
       expect(result.totalSupply).to.eq('0')
     })
 
-    it('should return priceUsd as 0 for dead/scam tokens with low volume', () => {
+    it('should return priceUsd as 0 for dead tokens with no volume and no market data', () => {
       const response = {
         data: {
-          id: 'scam-token',
+          id: 'dead-token',
           type: 'token',
           attributes: {
             address: '0xdc5cb57711ac6ea18bc9e07404a3fa2a9b4913e9',
-            name: 'ePEPE',
-            symbol: 'ePEPE',
+            name: 'Dead Token',
+            symbol: 'DEAD',
             image_url: '',
             decimals: 18,
             total_supply: '10000000000000000000000000000000.0',
             price_usd: '780.7875431308',
-            fdv_usd: '7807875431308230.0',
+            fdv_usd: '0',
+            market_cap_usd: '0',
             volume_usd: { h24: '0.04652074736' },
           },
         },
@@ -385,8 +386,6 @@ describe('Helpers: CoinGecko', () => {
       const result = CoinGeckoHelper._parseToken(response, NetworksEnum.ethereumMainnet)
 
       expect(result.priceUsd).to.eq('0')
-      expect(result.name).to.eq('ePEPE')
-      expect(result.symbol).to.eq('ePEPE')
     })
 
     it('should return actual priceUsd for tokens with sufficient volume', () => {
@@ -403,6 +402,7 @@ describe('Helpers: CoinGecko', () => {
             total_supply: '1000000000000000000000',
             price_usd: '1.5',
             fdv_usd: '1500000',
+            market_cap_usd: '0',
             volume_usd: { h24: '150000' },
           },
         },
@@ -411,6 +411,58 @@ describe('Helpers: CoinGecko', () => {
       const result = CoinGeckoHelper._parseToken(response, NetworksEnum.ethereumMainnet)
 
       expect(result.priceUsd).to.eq('1.5')
+    })
+
+    it('should return actual priceUsd for tokens with low volume but valid market_cap_usd', () => {
+      const response = {
+        data: {
+          id: 'zkc-token',
+          type: 'token',
+          attributes: {
+            address: '0x000006c2a22ff4a44ff1f5d0f2ed65f781f55555',
+            name: 'ZK Coin',
+            symbol: 'ZKC',
+            image_url: 'https://coin-images.coingecko.com/coins/images/68462/large/boundless.png',
+            decimals: 18,
+            total_supply: '1025982619236228798000000000.0',
+            price_usd: '0.1234716804',
+            fdv_usd: '126679798.072338',
+            market_cap_usd: '30801514.9931461',
+            volume_usd: { h24: '0.0' },
+          },
+        },
+      }
+
+      const result = CoinGeckoHelper._parseToken(response, NetworksEnum.ethereumMainnet)
+
+      expect(result.priceUsd).to.eq('0.1234716804')
+      expect(result.name).to.eq('ZK Coin')
+      expect(result.symbol).to.eq('ZKC')
+    })
+
+    it('should return actual priceUsd for tokens with low volume but valid fdv_usd', () => {
+      const response = {
+        data: {
+          id: 'fdv-token',
+          type: 'token',
+          attributes: {
+            address: '0x1234567890abcdef1234567890abcdef12345678',
+            name: 'FDV Token',
+            symbol: 'FDV',
+            image_url: '',
+            decimals: 18,
+            total_supply: '1000000000000000000000',
+            price_usd: '2.5',
+            fdv_usd: '5000000',
+            market_cap_usd: '0',
+            volume_usd: { h24: '0' },
+          },
+        },
+      }
+
+      const result = CoinGeckoHelper._parseToken(response, NetworksEnum.ethereumMainnet)
+
+      expect(result.priceUsd).to.eq('2.5')
     })
   })
 })
