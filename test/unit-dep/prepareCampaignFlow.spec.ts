@@ -19,7 +19,7 @@ import { getAddress, Wallet } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox, SinonStub } from 'sinon'
 
-describe.only('Integration: Prepare Campaign Flow', () => {
+describe('Integration: Prepare Campaign Flow', () => {
   let sandbox: SinonSandbox
   let rabbitMQStub: SinonStub
 
@@ -167,7 +167,7 @@ describe.only('Integration: Prepare Campaign Flow', () => {
     sandbox?.restore()
   })
 
-  it.only('should complete the full prepare campaign flow from frontend to database', async function () {
+  it('should complete the full prepare campaign flow from frontend to database', async function () {
     this.timeout(60000)
 
     // Step 1: Frontend calls getPrepareMessage to get EIP-712 typed data
