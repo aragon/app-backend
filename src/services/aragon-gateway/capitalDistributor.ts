@@ -1,37 +1,100 @@
 import { Models } from '@dbModels'
 import GaugeHelper from '@helpers/gauge'
-import { retryRequest } from '@helpers/retryRequest'
+import Web3Helper from '@helpers/web3'
 import logger from '@logger'
-import BottleneckModule from '@modules/bottleneck'
-import ProviderModule from '@modules/provider'
 import { type CapitalDistributorGovernance, MemberGovernanceFactory } from '@src/governance'
 import {
+  CampaignPrepareProgress,
   CampaignPrepareStatus,
   type HexAddress,
   IPluginInterfaceType,
   type IPrepareCampaignFromGauge,
   type NetworksEnum,
 } from '@types'
-import { Contract, getAddress } from 'ethers'
-import Web3Helper from '@helpers/web3'
+import { getAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'CapitalDistributorGateway' })
+
+type RewardEntry = { address: string; amount: string }
+
+const buildRewardsFromGaugeVotes = async (params: {
+  gaugePluginAddress: HexAddress
+  network: NetworksEnum
+  epochId: string
+  totalAmount: string
+}): Promise<{ rewards: RewardEntry[]; error?: string }> => {
+  const { gaugePluginAddress, network, epochId, totalAmount } = params
+
+  const votes = await Models.VoteGauge.find({
+    pluginAddress: gaugePluginAddress,
+    network,
+    epochId,
+    resetVoteTransactionHash: null,
+  }).lean()
+
+  if (votes.length === 0) {
+    return { rewards: [], error: 'No votes found for epoch' }
+  }
+
+  const memberVotingPower: Record<string, bigint> = {}
+  let totalVotingPower = 0n
+
+  for (const vote of votes) {
+    const memberAddress = getAddress(vote.memberAddress)
+    const votingPower = BigInt(vote.votingPower || '0')
+
+    if (!memberVotingPower[memberAddress]) {
+      memberVotingPower[memberAddress] = 0n
+    }
+    memberVotingPower[memberAddress] += votingPower
+    totalVotingPower += votingPower
+  }
+
+  if (totalVotingPower === 0n) {
+    return { rewards: [], error: 'Total voting power is zero' }
+  }
+
+  const totalAmountBigInt = BigInt(totalAmount)
+  const rewards: RewardEntry[] = []
+
+  for (const [memberAddress, votingPower] of Object.entries(memberVotingPower)) {
+    const amount = (votingPower * totalAmountBigInt) / totalVotingPower
+    if (amount > 0n) {
+      rewards.push({
+        address: memberAddress,
+        amount: amount.toString(),
+      })
+    }
+  }
+
+  if (rewards.length === 0) {
+    return { rewards: [], error: 'No rewards calculated' }
+  }
+
+  return { rewards }
+}
 
 const CapitalDistributorGateway = {
   prepareCampaignFromGauge: async (params: IPrepareCampaignFromGauge): Promise<void> => {
     const startTime = Date.now()
-    const { prepareId, daoAddress, network, capitalDistributorAddress, gaugePluginAddress, tokenAddress, totalAmount } =
-      params
+    const { prepareId } = params
+
+    const campaignPrepare = await Models.CampaignPrepare.findByPrepareId(prepareId)
+    if (!campaignPrepare) {
+      logger.error('CampaignPrepare not found', llo({ prepareId }))
+      return
+    }
+
+    const { daoAddress, network, capitalDistributorAddress, gaugePluginAddress, tokenAddress, totalAmount } =
+      campaignPrepare
 
     try {
-      const campaignPrepare = await Models.CampaignPrepare.findByPrepareId(prepareId)
-      if (!campaignPrepare) {
-        logger.error('CampaignPrepare not found', llo({ prepareId }))
-        return
-      }
-      await campaignPrepare.update({ status: CampaignPrepareStatus.processing })
+      await campaignPrepare.update({
+        status: CampaignPrepareStatus.processing,
+        progress: CampaignPrepareProgress.fetchingEpoch,
+      })
 
-      let epochId = params.epochId
+      let epochId = campaignPrepare.epochId
       if (!epochId) {
         const currentEpochId = await GaugeHelper.getGaugeEpochId(gaugePluginAddress, network)
         if (!currentEpochId) {
@@ -43,9 +106,12 @@ const CapitalDistributorGateway = {
         await campaignPrepare.update({ epochId })
       }
 
-      const campaignId = await Web3Helper.getNumCampaigns(capitalDistributorAddress, network)
+      await campaignPrepare.update({ progress: CampaignPrepareProgress.validatingBalance })
 
-      const daoTokenBalance = await Web3Helper.getTokenBalance(daoAddress, tokenAddress, network)
+      const [campaignId, daoTokenBalance] = await Promise.all([
+        Web3Helper.getNumCampaigns(capitalDistributorAddress, network),
+        Web3Helper.getTokenBalance(daoAddress, tokenAddress, network),
+      ])
 
       if (BigInt(daoTokenBalance) < BigInt(totalAmount)) {
         logger.warn('Insufficient token balance', llo({ prepareId, daoTokenBalance, totalAmount }))
@@ -53,57 +119,22 @@ const CapitalDistributorGateway = {
         return
       }
 
-      const votes = await Models.VoteGauge.find({
-        pluginAddress: gaugePluginAddress,
+      await campaignPrepare.update({ progress: CampaignPrepareProgress.buildingRewards })
+
+      const { rewards, error } = await buildRewardsFromGaugeVotes({
+        gaugePluginAddress,
         network,
         epochId,
-        resetVoteTransactionHash: null,
-      }).lean()
+        totalAmount,
+      })
 
-      if (votes.length === 0) {
-        logger.warn('No votes found for epoch', llo({ prepareId, epochId }))
+      if (error) {
+        logger.warn(error, llo({ prepareId, epochId }))
         await campaignPrepare.update({ status: CampaignPrepareStatus.failed })
         return
       }
 
-      const memberVotingPower: Record<string, bigint> = {}
-      let totalVotingPower = 0n
-
-      for (const vote of votes) {
-        const memberAddress = getAddress(vote.memberAddress)
-        const votingPower = BigInt(vote.votingPower || '0')
-
-        if (!memberVotingPower[memberAddress]) {
-          memberVotingPower[memberAddress] = 0n
-        }
-        memberVotingPower[memberAddress] += votingPower
-        totalVotingPower += votingPower
-      }
-
-      if (totalVotingPower === 0n) {
-        logger.warn('Total voting power is zero', llo({ prepareId, epochId }))
-        await campaignPrepare.update({ status: CampaignPrepareStatus.failed })
-        return
-      }
-
-      const totalAmountBigInt = BigInt(totalAmount)
-      const rewards: Array<{ address: string; amount: string }> = []
-
-      for (const [memberAddress, votingPower] of Object.entries(memberVotingPower)) {
-        const amount = (votingPower * totalAmountBigInt) / totalVotingPower
-        if (amount > 0n) {
-          rewards.push({
-            address: memberAddress,
-            amount: amount.toString(),
-          })
-        }
-      }
-
-      if (rewards.length === 0) {
-        logger.warn('No rewards calculated', llo({ prepareId, epochId }))
-        await campaignPrepare.update({ status: CampaignPrepareStatus.failed })
-        return
-      }
+      await campaignPrepare.update({ progress: CampaignPrepareProgress.uploadingMembers })
 
       const governance = MemberGovernanceFactory.create({
         address: capitalDistributorAddress,
@@ -118,19 +149,26 @@ const CapitalDistributorGateway = {
         rewards,
       })
 
-      await CapitalDistributorGateway.generateMerkleData({
+      await campaignPrepare.update({ progress: CampaignPrepareProgress.generatingMerkle })
+
+      const merkleRoot = await CapitalDistributorGateway.generateMerkleData({
         campaignId,
         pluginAddress: capitalDistributorAddress,
         network,
       })
 
-      logger.info('Generated merkle data', llo({ prepareId, campaignId }))
+      if (!merkleRoot) {
+        logger.warn('Failed to generate merkle root', llo({ prepareId, campaignId }))
+        await campaignPrepare.update({ status: CampaignPrepareStatus.failed })
+        return
+      }
 
       await campaignPrepare.update({
         status: CampaignPrepareStatus.completed,
+        progress: CampaignPrepareProgress.done,
         totalMembers: rewards.length,
         epochId,
-        campaignId,
+        merkleRoot,
       })
 
       logger.info(
@@ -139,11 +177,7 @@ const CapitalDistributorGateway = {
       )
     } catch (error) {
       logger.error('Error preparing campaign from gauge', llo({ prepareId, error }))
-
-      const campaignPrepare = await Models.CampaignPrepare.findByPrepareId(prepareId)
-      if (campaignPrepare) {
-        await campaignPrepare.update({ status: CampaignPrepareStatus.failed })
-      }
+      await campaignPrepare.update({ status: CampaignPrepareStatus.failed })
     }
   },
 
@@ -151,14 +185,15 @@ const CapitalDistributorGateway = {
     campaignId: string
     pluginAddress: string
     network: NetworksEnum
-  }): Promise<any> => {
+  }): Promise<string | null> => {
     const startTime = Date.now()
     logger.info('Generating merkle data', llo({ params }))
     const { campaignId, pluginAddress, network } = params
+
     const plugin = await Models.Plugin.findByAddress(pluginAddress, network)
     if (!plugin || plugin.interfaceType !== IPluginInterfaceType.capitalDistributor) {
       logger.warn('Plugin not found or invalid interface type', llo({ params }))
-      return
+      return null
     }
 
     const governance = MemberGovernanceFactory.createFromPlugin(plugin) as CapitalDistributorGovernance
@@ -181,8 +216,11 @@ const CapitalDistributorGateway = {
         },
         { upsert: true, new: true },
       )
-      logger.info('Merkle data Generation completed', llo({ params, timeTaken: `${Date.now() - startTime}ms` }))
+      logger.info('Merkle data generation completed', llo({ params, timeTaken: `${Date.now() - startTime}ms` }))
+      return response.merkleRoot
     }
+
+    return null
   },
 }
 

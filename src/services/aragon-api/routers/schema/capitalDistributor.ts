@@ -12,30 +12,28 @@ const CapitalDistributorSchema = {
     status: Joi.string().valid('claimed', 'claimable').optional(),
   }),
 
+  getPrepareMessage: Joi.object({
+    daoAddress: ValidationSchema.joiAddress.required(),
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
+  }),
+
   prepareCampaignFromGauge: Joi.object({
     daoAddress: ValidationSchema.joiAddress.required(),
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
       .required(),
     gaugePluginAddress: ValidationSchema.joiAddress.required(),
+    capitalDistributorAddress: ValidationSchema.joiAddress.required(),
     tokenAddress: ValidationSchema.joiAddress.required(),
     totalAmount: Joi.string()
       .pattern(/^[0-9]+$/)
       .required(),
-    capitalDistributorAddress: ValidationSchema.joiAddress.optional(),
+    metadataUri: Joi.string().required(),
     epochId: Joi.string().optional(),
-    metadata: Joi.object({
-      title: Joi.string().optional(),
-      description: Joi.string().optional(),
-      resources: Joi.array()
-        .items(
-          Joi.object({
-            name: Joi.string().required(),
-            url: Joi.string().uri().required(),
-          }),
-        )
-        .optional(),
-    }).optional(),
+    nonce: Joi.string().required(),
+    signature: Joi.string().required(),
   }),
 
   getPrepareStatus: Joi.object({

@@ -34,6 +34,7 @@ import type Transaction from '@models/schema/transaction'
 import type Vote from '@models/schema/vote'
 import type VoteGauge from '@models/schema/voteGauge'
 import type LogPolicy from '@models/schema/logPolicy'
+import type SignatureNonce from '@models/schema/signatureNonce'
 
 export interface IMongoModel {
   Migration: typeof Migration
@@ -72,6 +73,7 @@ export interface IMongoModel {
   GaugeMetrics: typeof GaugeMetrics
   Metrics: typeof Metrics
   LogPolicy: typeof LogPolicy
+  SignatureNonce: typeof SignatureNonce
 }
 
 export enum ICollectionNames {
@@ -111,6 +113,7 @@ export enum ICollectionNames {
   GaugeMetrics = 'GaugeMetrics',
   Metrics = 'Metrics',
   LogPolicy = 'LogPolicy',
+  SignatureNonce = 'SignatureNonce',
 }
 
 export enum ITransactionIndexCheckType {
@@ -186,4 +189,14 @@ export enum CampaignPrepareStatus {
   processing = 'processing',
   completed = 'completed',
   failed = 'failed',
+}
+
+export enum CampaignPrepareProgress {
+  queued = 'queued',
+  fetchingEpoch = 'fetching_epoch',
+  validatingBalance = 'validating_balance',
+  buildingRewards = 'building_rewards',
+  uploadingMembers = 'uploading_members',
+  generatingMerkle = 'generating_merkle',
+  done = 'done',
 }

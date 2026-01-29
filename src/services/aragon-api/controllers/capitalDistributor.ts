@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import { assertExposable } from '@errors'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import EIP712AuthModule, { EIP712ActionType } from '@modules/eip712Auth'
 import { type CapitalDistributorGovernance, MemberGovernanceFactory } from '@src/governance'
 import {
   CampaignPrepareStatus,
@@ -12,7 +13,6 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   IPluginInterfaceType,
-  type IPrepareCampaignFromGauge,
   type IUserCampaignStatus,
   type NetworksEnum,
 } from '@types'
@@ -58,50 +58,83 @@ const CapitalDistributorController = {
     return await governance.getUserCampaignReward({ campaignId, userAddress })
   },
 
-  prepareCampaignFromGauge: async (params: {
-    daoAddress: HexAddress
-    network: NetworksEnum
-    gaugePluginAddress: HexAddress
-    tokenAddress: HexAddress
-    totalAmount: string
-    capitalDistributorAddress?: HexAddress
-    epochId?: string
-    metadata?: {
-      title?: string
-      description?: string
-      resources?: Array<{ name: string; url: string }>
-    }
-  }): Promise<{ prepareId: string; status: CampaignPrepareStatus }> => {
-    const { daoAddress, network, gaugePluginAddress, tokenAddress, totalAmount, metadata } = params
+  getPrepareMessage: async (params: { daoAddress: HexAddress; network: NetworksEnum }) => {
+    const { daoAddress, network } = params
 
     const dao = await Models.Dao.findByAddress(daoAddress, network)
     assertExposable(dao, ErrorKeyEnum.notFound)
 
-    const gaugePlugin = await Models.Plugin.findByAddress(gaugePluginAddress, network)
-    assertExposable(gaugePlugin, ErrorKeyEnum.notFound)
-    assertExposable(gaugePlugin.daoAddress === daoAddress, ErrorKeyEnum.badParams)
-    assertExposable(gaugePlugin.interfaceType === IPluginInterfaceType.gauge, ErrorKeyEnum.badParams)
+    const { typedData, nonce, expiresAt } = await EIP712AuthModule.generateMessage({
+      daoAddress,
+      network,
+      action: EIP712ActionType.prepareCampaign,
+    })
 
-    let capitalDistributorAddress = params.capitalDistributorAddress
-    if (!capitalDistributorAddress) {
-      const capitalDistributorPlugin = await Models.Plugin.findOne({
+    return { typedData, nonce, expiresAt }
+  },
+
+  prepareCampaignFromGauge: async (params: {
+    daoAddress: HexAddress
+    network: NetworksEnum
+    gaugePluginAddress: HexAddress
+    capitalDistributorAddress: HexAddress
+    tokenAddress: HexAddress
+    totalAmount: string
+    metadataUri: string
+    epochId?: string
+    nonce: string
+    signature: string
+  }): Promise<{ prepareId: string; status: CampaignPrepareStatus }> => {
+    const {
+      daoAddress,
+      network,
+      gaugePluginAddress,
+      capitalDistributorAddress,
+      tokenAddress,
+      totalAmount,
+      metadataUri,
+      nonce,
+      signature,
+    } = params
+
+    const authResult = await EIP712AuthModule.verifyAndConsume({
+      daoAddress,
+      network,
+      nonce,
+      signature,
+      action: EIP712ActionType.prepareCampaign,
+    })
+
+    assertExposable(authResult.valid, ErrorKeyEnum.unauthorized)
+
+    const memberCheck = await EIP712AuthModule.checkMultisigMember({
+      signer: authResult.signer!,
+      daoAddress,
+      network,
+    })
+    assertExposable(memberCheck.authorized, ErrorKeyEnum.unauthorized)
+
+    assertExposable(BigInt(totalAmount) > 0n, ErrorKeyEnum.badParams)
+
+    const [dao, gaugePlugin, capitalDistributorPlugin] = await Promise.all([
+      Models.Dao.findByAddress(daoAddress, network),
+      Models.Plugin.findOne({
+        address: gaugePluginAddress,
+        daoAddress,
+        network,
+        interfaceType: IPluginInterfaceType.gauge,
+      }),
+      Models.Plugin.findOne({
+        address: capitalDistributorAddress,
         daoAddress,
         network,
         interfaceType: IPluginInterfaceType.capitalDistributor,
-      })
-      assertExposable(capitalDistributorPlugin, ErrorKeyEnum.notFound)
-      capitalDistributorAddress = capitalDistributorPlugin.address
-    } else {
-      const capitalDistributorPlugin = await Models.Plugin.findByAddress(capitalDistributorAddress, network)
-      assertExposable(capitalDistributorPlugin, ErrorKeyEnum.notFound)
-      assertExposable(capitalDistributorPlugin.daoAddress === daoAddress, ErrorKeyEnum.badParams)
-      assertExposable(
-        capitalDistributorPlugin.interfaceType === IPluginInterfaceType.capitalDistributor,
-        ErrorKeyEnum.badParams,
-      )
-    }
+      }),
+    ])
 
-    assertExposable(BigInt(totalAmount) > 0n, ErrorKeyEnum.badParams)
+    assertExposable(dao, ErrorKeyEnum.notFound)
+    assertExposable(gaugePlugin, ErrorKeyEnum.notFound)
+    assertExposable(capitalDistributorPlugin, ErrorKeyEnum.notFound)
 
     const campaignPrepare = await Models.CampaignPrepare.create({
       daoAddress,
@@ -111,25 +144,13 @@ const CapitalDistributorController = {
       epochId: params.epochId || '',
       tokenAddress,
       totalAmount,
+      metadataUri,
       status: CampaignPrepareStatus.pending,
-      metadata,
     })
-
-    const queueParams: IPrepareCampaignFromGauge = {
-      prepareId: campaignPrepare.id,
-      daoAddress,
-      network,
-      capitalDistributorAddress: capitalDistributorAddress!,
-      gaugePluginAddress,
-      epochId: params.epochId || '',
-      tokenAddress,
-      totalAmount,
-      metadata,
-    }
 
     await RabbitMQHelper.sendMessage(EnumQueueName.prepareCampaignFromGauge, {
       id: campaignPrepare.id,
-      params: queueParams,
+      params: { prepareId: campaignPrepare.id },
     })
 
     return {
@@ -142,9 +163,10 @@ const CapitalDistributorController = {
     const campaignPrepare = await Models.CampaignPrepare.findByPrepareId(prepareId)
     assertExposable(campaignPrepare, ErrorKeyEnum.notFound)
 
-    const result: any = {
+    return {
       prepareId: campaignPrepare.id,
       status: campaignPrepare.status,
+      progress: campaignPrepare.progress,
       daoAddress: campaignPrepare.daoAddress,
       network: campaignPrepare.network,
       capitalDistributorAddress: campaignPrepare.capitalDistributorAddress,
@@ -153,22 +175,9 @@ const CapitalDistributorController = {
       tokenAddress: campaignPrepare.tokenAddress,
       totalAmount: campaignPrepare.totalAmount,
       totalMembers: campaignPrepare.totalMembers,
-      campaignId: campaignPrepare.campaignId,
-      metadata: campaignPrepare.metadata,
+      merkleRoot: campaignPrepare.merkleRoot,
+      metadataUri: campaignPrepare.metadataUri,
     }
-
-    if (campaignPrepare.status === CampaignPrepareStatus.completed && campaignPrepare.campaignId) {
-      const merkleRoot = await Models.CampaignMerkleRoot.findByParams(
-        campaignPrepare.capitalDistributorAddress,
-        campaignPrepare.network,
-        campaignPrepare.campaignId,
-      )
-      if (merkleRoot) {
-        result.merkleRoot = merkleRoot.merkleRoot
-      }
-    }
-
-    return result
   },
 }
 

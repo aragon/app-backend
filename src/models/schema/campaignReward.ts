@@ -261,19 +261,6 @@ export default class CampaignReward extends Model {
     return result[0]?.totalRewards?.toString() || '0'
   }
 
-  static async updateCampaignId(
-    pluginAddress: HexAddress,
-    network: NetworksEnum,
-    oldCampaignId: string,
-    newCampaignId: string,
-  ) {
-    const result = await this.updateMany(
-      { pluginAddress, network, campaignId: oldCampaignId },
-      { $set: { campaignId: newCampaignId } },
-    )
-    return result.modifiedCount
-  }
-
   static async getUserCampaignStatus(
     pluginAddress: HexAddress,
     network: NetworksEnum,

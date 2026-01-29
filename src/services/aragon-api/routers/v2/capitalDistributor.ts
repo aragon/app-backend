@@ -3,7 +3,6 @@ import CapitalDistributorSchema from '@api/routers/schema/capitalDistributor'
 import ValidationSchema from '@helpers/validationSchema'
 import Router, { type RouterContext } from '@koa/router'
 import { type HexAddress, type ICampaignApiParams, type IPaginationParams, type NetworksEnum } from '@types'
-import type { IPrepareCampaignFromGauge } from '@types'
 
 const CapitalDistributorRouter = {
   getCampaignsWithPagination: async function (ctx: RouterContext) {
@@ -66,9 +65,23 @@ const CapitalDistributorRouter = {
     })
   },
 
+  getPrepareMessage: async function (ctx: RouterContext) {
+    const result = await ValidationSchema.validateRoute(ctx, {
+      params: {
+        daoAddress: ctx.query.daoAddress as HexAddress,
+        network: ctx.query.network as NetworksEnum,
+      },
+      schemas: {
+        params: CapitalDistributorSchema.getPrepareMessage,
+      },
+    })
+
+    ctx.body = await CapitalDistributorController.getPrepareMessage(result.params)
+  },
+
   prepareCampaignFromGauge: async function (ctx: RouterContext) {
     const result = await ValidationSchema.validateRoute(ctx, {
-      params: ctx.request.body as IPrepareCampaignFromGauge,
+      params: ctx.request.body,
       schemas: {
         params: CapitalDistributorSchema.prepareCampaignFromGauge,
       },
@@ -156,19 +169,36 @@ const CapitalDistributorRouter = {
     router.get('/campaign/reward', CapitalDistributorRouter.getUserCampaignReward)
 
     /**
+     * @api {get} /campaign/prepare/message Get EIP-712 Message to Sign
+     * @apiName GetPrepareMessage
+     * @apiGroup CapitalDistributor
+     * @apiDescription Get EIP-712 typed data message for signing before preparing campaign
+     *
+     * @apiParam {String} daoAddress DAO address
+     * @apiParam {String} network Network name
+     *
+     * @apiSuccess {Object} typedData EIP-712 typed data for signing
+     * @apiSuccess {String} nonce Unique nonce (required for prepare endpoint)
+     * @apiSuccess {Number} expiresAt Expiry timestamp (5 minutes)
+     */
+    router.get('/campaign/prepare/message', CapitalDistributorRouter.getPrepareMessage)
+
+    /**
      * @api {post} /campaign/prepare Prepare Campaign from Gauge Votes
      * @apiName PrepareCampaignFromGauge
      * @apiGroup CapitalDistributor
-     * @apiDescription Prepare a campaign distribution based on gauge voting power
+     * @apiDescription Prepare a campaign distribution based on gauge voting power (requires signature)
      *
      * @apiBody {String} daoAddress DAO address
      * @apiBody {String} network Network name
      * @apiBody {String} gaugePluginAddress Gauge voter plugin address
+     * @apiBody {String} capitalDistributorAddress Capital distributor plugin address
      * @apiBody {String} tokenAddress Token to distribute
      * @apiBody {String} totalAmount Total amount to distribute (wei)
-     * @apiBody {String} [capitalDistributorAddress] Capital distributor plugin (auto-detected if not provided)
+     * @apiBody {String} metadataUri IPFS URI for campaign metadata
      * @apiBody {String} [epochId] Epoch ID (uses current if not provided)
-     * @apiBody {Object} [metadata] Campaign metadata { title, description, resources }
+     * @apiBody {String} nonce Nonce from /campaign/prepare/message endpoint
+     * @apiBody {String} signature EIP-712 signature from wallet
      *
      * @apiSuccess {String} prepareId Unique prepare ID for tracking
      * @apiSuccess {String} status Current status (pending)

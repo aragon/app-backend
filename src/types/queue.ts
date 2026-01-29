@@ -156,16 +156,4 @@ export interface IQueueContractDecoderLight {
 
 export interface IPrepareCampaignFromGauge {
   prepareId: string
-  daoAddress: HexAddress
-  network: NetworksEnum
-  capitalDistributorAddress: HexAddress
-  gaugePluginAddress: HexAddress
-  epochId?: string // Optional - gateway fetches current epoch if not provided
-  tokenAddress: HexAddress
-  totalAmount: string
-  metadata?: {
-    title?: string
-    description?: string
-    resources?: Array<{ name: string; url: string }>
-  }
 }

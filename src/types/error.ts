@@ -47,4 +47,5 @@ export enum ErrorKeyEnum {
   campaignInvalid = 'campaignInvalid',
   badSimulationRequest = 'badSimulationRequest',
   duplicateAddresses = 'duplicateAddresses',
+  unauthorized = 'unauthorized',
 }

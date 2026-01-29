@@ -1,8 +1,20 @@
 import { Models } from '@dbModels'
 import * as errors from '@errors'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import EIP712AuthModule, { EIP712ActionType } from '@modules/eip712Auth'
 import CapitalDistributorController from '@services/aragon-api/controllers/capitalDistributor'
 import { MemberGovernanceFactory } from '@src/governance'
-import { ErrorKeyEnum, HexAddress, IClaimStat, IPluginInterfaceType, IUserCampaignStatus, NetworksEnum } from '@types'
+import {
+  CampaignPrepareProgress,
+  CampaignPrepareStatus,
+  EnumQueueName,
+  ErrorKeyEnum,
+  HexAddress,
+  IClaimStat,
+  IPluginInterfaceType,
+  IUserCampaignStatus,
+  NetworksEnum,
+} from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -386,6 +398,201 @@ describe('Controller: CapitalDistributor', () => {
           campaignId: testCampaignId,
         }),
       ).to.be.rejectedWith('Governance error')
+    })
+  })
+
+  describe('getPrepareMessage', () => {
+    const testDaoAddress = '0xDAO1234567890123456789012345678901234567' as HexAddress
+
+    it('should return typed data for valid DAO', async () => {
+      const mockDao = { address: testDaoAddress, network: mockParams.network }
+      const mockTypedData = {
+        domain: { name: 'Aragon Campaign', version: '1', chainId: 1 },
+        types: { PrepareCampaign: [] },
+        primaryType: 'PrepareCampaign',
+        message: {
+          action: EIP712ActionType.prepareCampaign,
+          daoAddress: testDaoAddress,
+          nonce: 'test-nonce',
+          expiresAt: 123456,
+        },
+      }
+      const mockNonce = 'test-nonce'
+      const mockExpiresAt = 123456
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(mockDao as any)
+      sandbox.stub(EIP712AuthModule, 'generateMessage').resolves({
+        typedData: mockTypedData as any,
+        nonce: mockNonce,
+        expiresAt: mockExpiresAt,
+      })
+
+      const result = await CapitalDistributorController.getPrepareMessage({
+        daoAddress: testDaoAddress,
+        network: mockParams.network,
+      })
+
+      expect(result.typedData).to.deep.equal(mockTypedData)
+      expect(result.nonce).to.equal(mockNonce)
+      expect(result.expiresAt).to.equal(mockExpiresAt)
+    })
+
+    it('should throw notFound when DAO does not exist', async () => {
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
+      const assertStub = sandbox.stub(errors, 'assertExposable').throws(new Error(ErrorKeyEnum.notFound))
+
+      await expect(
+        CapitalDistributorController.getPrepareMessage({
+          daoAddress: testDaoAddress,
+          network: mockParams.network,
+        }),
+      ).to.be.rejectedWith(ErrorKeyEnum.notFound)
+
+      expect(assertStub.calledWith(null, ErrorKeyEnum.notFound)).to.be.true
+    })
+  })
+
+  describe('prepareCampaignFromGauge', () => {
+    const testDaoAddress = '0xDAO1234567890123456789012345678901234567' as HexAddress
+    const testGaugePluginAddress = '0xGauge12345678901234567890123456789012345' as HexAddress
+    const testCapitalDistributorAddress = '0xCapital123456789012345678901234567890123' as HexAddress
+    const testTokenAddress = '0xToken12345678901234567890123456789012345' as HexAddress
+    const testSignerAddress = '0xSigner1234567890123456789012345678901234' as HexAddress
+
+    const validParams = {
+      daoAddress: testDaoAddress,
+      network: NetworksEnum.ethereumMainnet,
+      gaugePluginAddress: testGaugePluginAddress,
+      capitalDistributorAddress: testCapitalDistributorAddress,
+      tokenAddress: testTokenAddress,
+      totalAmount: '1000000000000000000',
+      metadataUri: 'ipfs://QmTest',
+      nonce: 'test-nonce',
+      signature: '0xsignature',
+    }
+
+    it('should create campaign prepare and send to queue', async () => {
+      sandbox.stub(EIP712AuthModule, 'verifyAndConsume').resolves({ valid: true, signer: testSignerAddress })
+      sandbox.stub(EIP712AuthModule, 'checkMultisigMember').resolves({ authorized: true })
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: testDaoAddress } as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves({ address: testGaugePluginAddress } as any)
+
+      const mockCampaignPrepare = {
+        id: 'prepare-test-123',
+        status: CampaignPrepareStatus.pending,
+      }
+      sandbox.stub(Models.CampaignPrepare, 'create').resolves(mockCampaignPrepare as any)
+
+      const rabbitStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      const result = await CapitalDistributorController.prepareCampaignFromGauge(validParams)
+
+      expect(result.prepareId).to.equal('prepare-test-123')
+      expect(result.status).to.equal(CampaignPrepareStatus.pending)
+      expect(rabbitStub.calledOnce).to.be.true
+      expect(rabbitStub.firstCall.args[0]).to.equal(EnumQueueName.prepareCampaignFromGauge)
+    })
+
+    it('should throw unauthorized when signature is invalid', async () => {
+      sandbox.stub(EIP712AuthModule, 'verifyAndConsume').resolves({ valid: false, error: 'Invalid signature' })
+      const assertStub = sandbox.stub(errors, 'assertExposable').throws(new Error(ErrorKeyEnum.unauthorized))
+
+      await expect(CapitalDistributorController.prepareCampaignFromGauge(validParams)).to.be.rejectedWith(
+        ErrorKeyEnum.unauthorized,
+      )
+
+      expect(assertStub.calledWith(false, ErrorKeyEnum.unauthorized)).to.be.true
+    })
+
+    it('should throw unauthorized when signer is not multisig member', async () => {
+      sandbox.stub(EIP712AuthModule, 'verifyAndConsume').resolves({ valid: true, signer: testSignerAddress })
+      sandbox.stub(EIP712AuthModule, 'checkMultisigMember').resolves({ authorized: false, error: 'Not a member' })
+      const assertStub = sandbox.stub(errors, 'assertExposable')
+      assertStub.onFirstCall().returns(true as any)
+      assertStub.onSecondCall().throws(new Error(ErrorKeyEnum.unauthorized))
+
+      await expect(CapitalDistributorController.prepareCampaignFromGauge(validParams)).to.be.rejectedWith(
+        ErrorKeyEnum.unauthorized,
+      )
+
+      expect(assertStub.secondCall.calledWith(false, ErrorKeyEnum.unauthorized)).to.be.true
+    })
+
+    it('should throw badParams when totalAmount is zero', async () => {
+      sandbox.stub(EIP712AuthModule, 'verifyAndConsume').resolves({ valid: true, signer: testSignerAddress })
+      sandbox.stub(EIP712AuthModule, 'checkMultisigMember').resolves({ authorized: true })
+      const assertStub = sandbox.stub(errors, 'assertExposable')
+      assertStub.onFirstCall().returns(true as any)
+      assertStub.onSecondCall().returns(true as any)
+      assertStub.onThirdCall().throws(new Error(ErrorKeyEnum.badParams))
+
+      await expect(
+        CapitalDistributorController.prepareCampaignFromGauge({
+          ...validParams,
+          totalAmount: '0',
+        }),
+      ).to.be.rejectedWith(ErrorKeyEnum.badParams)
+    })
+
+    it('should throw notFound when DAO does not exist', async () => {
+      sandbox.stub(EIP712AuthModule, 'verifyAndConsume').resolves({ valid: true, signer: testSignerAddress })
+      sandbox.stub(EIP712AuthModule, 'checkMultisigMember').resolves({ authorized: true })
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
+      sandbox.stub(Models.Plugin, 'findOne').resolves({ address: testGaugePluginAddress } as any)
+
+      const assertStub = sandbox.stub(errors, 'assertExposable')
+      assertStub.onCall(0).returns(true as any) // valid signature
+      assertStub.onCall(1).returns(true as any) // authorized member
+      assertStub.onCall(2).returns(true as any) // totalAmount > 0
+      assertStub.onCall(3).throws(new Error(ErrorKeyEnum.notFound)) // dao not found
+
+      await expect(CapitalDistributorController.prepareCampaignFromGauge(validParams)).to.be.rejectedWith(
+        ErrorKeyEnum.notFound,
+      )
+    })
+  })
+
+  describe('getPrepareStatus', () => {
+    const testPrepareId = 'prepare-test-123'
+
+    it('should return prepare status with all fields', async () => {
+      const mockPrepare = {
+        id: testPrepareId,
+        status: CampaignPrepareStatus.completed,
+        progress: CampaignPrepareProgress.done,
+        daoAddress: '0xDAO1234567890123456789012345678901234567',
+        network: NetworksEnum.ethereumMainnet,
+        capitalDistributorAddress: '0xCapital123456789012345678901234567890123',
+        gaugePluginAddress: '0xGauge12345678901234567890123456789012345',
+        epochId: '5',
+        tokenAddress: '0xToken12345678901234567890123456789012345',
+        totalAmount: '1000000000000000000',
+        totalMembers: 100,
+        merkleRoot: '0xmerkleroot123',
+        metadataUri: 'ipfs://QmTest',
+      }
+
+      sandbox.stub(Models.CampaignPrepare, 'findByPrepareId').resolves(mockPrepare as any)
+
+      const result = await CapitalDistributorController.getPrepareStatus(testPrepareId)
+
+      expect(result.prepareId).to.equal(testPrepareId)
+      expect(result.status).to.equal(CampaignPrepareStatus.completed)
+      expect(result.progress).to.equal(CampaignPrepareProgress.done)
+      expect(result.daoAddress).to.equal(mockPrepare.daoAddress)
+      expect(result.merkleRoot).to.equal(mockPrepare.merkleRoot)
+      expect(result.totalMembers).to.equal(100)
+    })
+
+    it('should throw notFound when prepare does not exist', async () => {
+      sandbox.stub(Models.CampaignPrepare, 'findByPrepareId').resolves(null)
+      const assertStub = sandbox.stub(errors, 'assertExposable').throws(new Error(ErrorKeyEnum.notFound))
+
+      await expect(CapitalDistributorController.getPrepareStatus(testPrepareId)).to.be.rejectedWith(
+        ErrorKeyEnum.notFound,
+      )
+
+      expect(assertStub.calledWith(null, ErrorKeyEnum.notFound)).to.be.true
     })
   })
 })

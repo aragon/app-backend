@@ -65,6 +65,10 @@ const ERRORS: IErrorMap = {
     status: 400,
     description: 'Bad simulation request',
   },
+  [ErrorKeyEnum.unauthorized]: {
+    status: 401,
+    description: 'Unauthorized',
+  },
 }
 
 const throwError = (message: string, detail: IErrorDetail = {}) => {

@@ -1,16 +1,10 @@
 import { assert } from '@errors'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { CampaignPrepareStatus, HexAddress, ICollectionNames, NetworksEnum } from '@types'
+import { CampaignPrepareProgress, CampaignPrepareStatus, HexAddress, ICollectionNames, NetworksEnum } from '@types'
 import * as _ from 'lodash'
 import { Model, type SaveOptions } from 'mongoose'
 
 const customName = ICollectionNames.CampaignPrepare
-
-export interface ICampaignPrepareMetadata {
-  title?: string
-  description?: string
-  resources?: Array<{ name: string; url: string }>
-}
 
 @modelOptions({
   schemaOptions: {
@@ -44,7 +38,7 @@ export default class CampaignPrepare extends Model {
   @prop({ type: () => String, required: true })
   public gaugePluginAddress!: HexAddress
 
-  @prop({ type: () => String, required: true })
+  @prop({ type: () => String, default: '' })
   public epochId!: string
 
   @prop({ type: () => String, required: true })
@@ -57,13 +51,16 @@ export default class CampaignPrepare extends Model {
   public totalMembers!: number
 
   @prop({ type: () => String })
-  public campaignId?: string // The actual campaignId from numCampaigns
+  public merkleRoot?: string
 
   @prop({ type: () => String, enum: CampaignPrepareStatus, default: CampaignPrepareStatus.pending })
   public status!: CampaignPrepareStatus
 
-  @prop({ type: () => Object })
-  public metadata?: ICampaignPrepareMetadata
+  @prop({ type: () => String, enum: CampaignPrepareProgress, default: CampaignPrepareProgress.queued })
+  public progress!: CampaignPrepareProgress
+
+  @prop({ type: () => String, required: true })
+  public metadataUri!: string
 
   static async create(rawData: Partial<CampaignPrepare>, tOpts?: SaveOptions) {
     if (!rawData.id) {

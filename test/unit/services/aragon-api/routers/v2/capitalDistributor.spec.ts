@@ -1,7 +1,7 @@
 import CapitalDistributorController from '@api/controllers/capitalDistributor'
 import CapitalDistributorRouter from '@api/routers/v2/capitalDistributor'
 import ValidationSchema from '@helpers/validationSchema'
-import { HexAddress, IUserCampaignStatus, NetworksEnum } from '@types'
+import { CampaignPrepareProgress, CampaignPrepareStatus, HexAddress, IUserCampaignStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -523,12 +523,214 @@ describe('RouterV2: CapitalDistributor', () => {
     })
   })
 
+  describe('getPrepareMessage', () => {
+    it('Should get prepare message successfully', async () => {
+      const mockResult = {
+        nonce: 'test-nonce-uuid',
+        expiresAt: Date.now() + 300000,
+        typedData: {
+          domain: { name: 'Aragon Campaign', version: '1', chainId: 1 },
+          types: { PrepareCampaign: [] },
+          primaryType: 'PrepareCampaign',
+          message: {},
+        },
+      }
+
+      const validationResult = {
+        params: {
+          daoAddress: '0x1234567890123456789012345678901234567890' as HexAddress,
+          network: NetworksEnum.ethereumMainnet,
+        },
+      }
+
+      const validationStub = sandbox.stub(ValidationSchema, 'validateRoute').resolves(validationResult as any)
+      const controllerStub = sandbox.stub(CapitalDistributorController, 'getPrepareMessage').resolves(mockResult as any)
+
+      const ctx: any = {
+        query: {
+          daoAddress: '0x1234567890123456789012345678901234567890',
+          network: 'ethereum',
+        },
+      }
+
+      await CapitalDistributorRouter.getPrepareMessage(ctx)
+
+      expect(ctx.body).to.deep.eq(mockResult)
+      expect(validationStub.calledOnce).to.be.true
+      expect(controllerStub.calledOnce).to.be.true
+      expect(controllerStub.args[0][0]).to.deep.eq(validationResult.params)
+    })
+
+    it('Should handle validation errors', async () => {
+      const validationError = new Error('Invalid daoAddress')
+      sandbox.stub(ValidationSchema, 'validateRoute').rejects(validationError)
+
+      const ctx: any = {
+        query: {
+          daoAddress: 'invalid-address',
+          network: 'ethereum',
+        },
+      }
+
+      await expect(CapitalDistributorRouter.getPrepareMessage(ctx)).to.be.rejectedWith('Invalid daoAddress')
+    })
+  })
+
+  describe('prepareCampaignFromGauge', () => {
+    it('Should prepare campaign from gauge successfully', async () => {
+      const mockResult = {
+        prepareId: 'prepare-ethereum-0x1234-1234567890',
+        status: CampaignPrepareStatus.pending,
+      }
+
+      const validationResult = {
+        params: {
+          daoAddress: '0x1234567890123456789012345678901234567890' as HexAddress,
+          network: NetworksEnum.ethereumMainnet,
+          gaugePluginAddress: '0x2222222222222222222222222222222222222222' as HexAddress,
+          capitalDistributorAddress: '0x3333333333333333333333333333333333333333' as HexAddress,
+          tokenAddress: '0x4444444444444444444444444444444444444444' as HexAddress,
+          totalAmount: '1000000000000000000',
+          metadataUri: 'ipfs://QmTest',
+          nonce: 'test-nonce',
+          signature: '0x1234567890',
+        },
+      }
+
+      const validationStub = sandbox.stub(ValidationSchema, 'validateRoute').resolves(validationResult as any)
+      const controllerStub = sandbox
+        .stub(CapitalDistributorController, 'prepareCampaignFromGauge')
+        .resolves(mockResult as any)
+
+      const ctx: any = {
+        request: {
+          body: validationResult.params,
+        },
+      }
+
+      await CapitalDistributorRouter.prepareCampaignFromGauge(ctx)
+
+      expect(ctx.body).to.deep.eq(mockResult)
+      expect(validationStub.calledOnce).to.be.true
+      expect(controllerStub.calledOnce).to.be.true
+      expect(controllerStub.args[0][0]).to.deep.eq(validationResult.params)
+    })
+
+    it('Should handle validation errors', async () => {
+      const validationError = new Error('Invalid signature')
+      sandbox.stub(ValidationSchema, 'validateRoute').rejects(validationError)
+
+      const ctx: any = {
+        request: {
+          body: {
+            daoAddress: '0x1234567890123456789012345678901234567890',
+            network: 'ethereum',
+          },
+        },
+      }
+
+      await expect(CapitalDistributorRouter.prepareCampaignFromGauge(ctx)).to.be.rejectedWith('Invalid signature')
+    })
+
+    it('Should handle controller errors', async () => {
+      const validationResult = {
+        params: {
+          daoAddress: '0x1234567890123456789012345678901234567890' as HexAddress,
+          network: NetworksEnum.ethereumMainnet,
+          nonce: 'test-nonce',
+          signature: '0x1234567890',
+        },
+      }
+
+      const controllerError = new Error('Signer is not a multisig member')
+      sandbox.stub(ValidationSchema, 'validateRoute').resolves(validationResult as any)
+      sandbox.stub(CapitalDistributorController, 'prepareCampaignFromGauge').rejects(controllerError)
+
+      const ctx: any = {
+        request: {
+          body: validationResult.params,
+        },
+      }
+
+      await expect(CapitalDistributorRouter.prepareCampaignFromGauge(ctx)).to.be.rejectedWith(
+        'Signer is not a multisig member',
+      )
+    })
+  })
+
+  describe('getPrepareStatus', () => {
+    it('Should get prepare status successfully', async () => {
+      const mockResult = {
+        prepareId: 'prepare-ethereum-0x1234-1234567890',
+        status: CampaignPrepareStatus.completed,
+        progress: CampaignPrepareProgress.done,
+        merkleRoot: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+        totalMembers: 100,
+      }
+
+      const validationResult = {
+        params: {
+          prepareId: 'prepare-ethereum-0x1234-1234567890',
+        },
+      }
+
+      const validationStub = sandbox.stub(ValidationSchema, 'validateRoute').resolves(validationResult as any)
+      const controllerStub = sandbox.stub(CapitalDistributorController, 'getPrepareStatus').resolves(mockResult as any)
+
+      const ctx: any = {
+        params: {
+          prepareId: 'prepare-ethereum-0x1234-1234567890',
+        },
+      }
+
+      await CapitalDistributorRouter.getPrepareStatus(ctx)
+
+      expect(ctx.body).to.deep.eq(mockResult)
+      expect(validationStub.calledOnce).to.be.true
+      expect(controllerStub.calledOnce).to.be.true
+      expect(controllerStub.args[0][0]).to.eq(validationResult.params.prepareId)
+    })
+
+    it('Should handle validation errors', async () => {
+      const validationError = new Error('Invalid prepareId')
+      sandbox.stub(ValidationSchema, 'validateRoute').rejects(validationError)
+
+      const ctx: any = {
+        params: {
+          prepareId: '',
+        },
+      }
+
+      await expect(CapitalDistributorRouter.getPrepareStatus(ctx)).to.be.rejectedWith('Invalid prepareId')
+    })
+
+    it('Should handle controller errors when prepare not found', async () => {
+      const validationResult = {
+        params: {
+          prepareId: 'non-existent-id',
+        },
+      }
+
+      const controllerError = new Error('CampaignPrepare not found')
+      sandbox.stub(ValidationSchema, 'validateRoute').resolves(validationResult as any)
+      sandbox.stub(CapitalDistributorController, 'getPrepareStatus').rejects(controllerError)
+
+      const ctx: any = {
+        params: {
+          prepareId: 'non-existent-id',
+        },
+      }
+
+      await expect(CapitalDistributorRouter.getPrepareStatus(ctx)).to.be.rejectedWith('CampaignPrepare not found')
+    })
+  })
+
   describe('router', () => {
-    it('Should return a router with all three routes configured', () => {
+    it('Should return a router with all six routes configured', () => {
       const router = CapitalDistributorRouter.router()
 
       expect(router).to.exist
-      expect(router.stack).to.have.length(3)
+      expect(router.stack).to.have.length(6)
 
       // Check campaigns route
       expect(router.stack[0].path).to.eq('/campaigns')
@@ -541,6 +743,18 @@ describe('RouterV2: CapitalDistributor', () => {
       // Check campaign/reward route
       expect(router.stack[2].path).to.eq('/campaign/reward')
       expect(router.stack[2].methods).to.include('GET')
+
+      // Check campaign/prepare/message route
+      expect(router.stack[3].path).to.eq('/campaign/prepare/message')
+      expect(router.stack[3].methods).to.include('GET')
+
+      // Check campaign/prepare route (POST)
+      expect(router.stack[4].path).to.eq('/campaign/prepare')
+      expect(router.stack[4].methods).to.include('POST')
+
+      // Check campaign/prepare/:prepareId/status route
+      expect(router.stack[5].path).to.eq('/campaign/prepare/:prepareId/status')
+      expect(router.stack[5].methods).to.include('GET')
     })
   })
 })
