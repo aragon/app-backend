@@ -81,7 +81,7 @@ const CapitalDistributorRouter = {
 
   prepareCampaignFromGauge: async function (ctx: RouterContext) {
     const result = await ValidationSchema.validateRoute(ctx, {
-      params: ctx.request.body,
+      params: ctx.request.body as Record<string, any>,
       schemas: {
         params: CapitalDistributorSchema.prepareCampaignFromGauge,
       },

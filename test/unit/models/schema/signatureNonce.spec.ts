@@ -90,6 +90,51 @@ describe('Model: SignatureNonce', () => {
     })
   })
 
+  describe('findValidNonce', () => {
+    it('should find valid unused nonce', async () => {
+      const generated = await Models.SignatureNonce.generate({
+        daoAddress: testDaoAddress,
+        network: testNetwork,
+        action: testAction,
+      })
+
+      const found = await Models.SignatureNonce.findValidNonce(generated.nonce)
+
+      expect(found).to.exist
+      expect(found!.nonce).to.equal(generated.nonce)
+      expect(found!.usedAt).to.be.null
+    })
+
+    it('should return null for already used nonce', async () => {
+      const generated = await Models.SignatureNonce.generate({
+        daoAddress: testDaoAddress,
+        network: testNetwork,
+        action: testAction,
+      })
+
+      await Models.SignatureNonce.consumeNonce(generated.nonce)
+
+      const found = await Models.SignatureNonce.findValidNonce(generated.nonce)
+
+      expect(found).to.be.null
+    })
+
+    it('should return null for expired nonce', async () => {
+      const generated = await Models.SignatureNonce.generate({
+        daoAddress: testDaoAddress,
+        network: testNetwork,
+        action: testAction,
+      })
+
+      generated.expiresAt = Date.now() - 1000
+      await generated.save()
+
+      const found = await Models.SignatureNonce.findValidNonce(generated.nonce)
+
+      expect(found).to.be.null
+    })
+  })
+
   describe('consumeNonce', () => {
     it('should consume valid unused nonce', async () => {
       const generated = await Models.SignatureNonce.generate({

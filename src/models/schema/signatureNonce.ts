@@ -66,24 +66,33 @@ export default class SignatureNonce extends Model {
   }
 
   static async consumeNonce(nonce: string): Promise<SignatureNonce | null> {
-    const nonceDoc = await this.findOne({ nonce })
+    const now = Date.now()
 
-    if (!nonceDoc) {
-      return null
-    }
+    // Atomic operation to prevent race conditions
+    const updatedDoc = await this.findOneAndUpdate(
+      {
+        nonce,
+        usedAt: null,
+        expiresAt: { $gt: now },
+      },
+      {
+        $set: { usedAt: now },
+      },
+      {
+        new: true,
+      },
+    )
 
-    if (nonceDoc.usedAt) {
-      return null // Already used
-    }
+    return updatedDoc
+  }
 
-    if (Date.now() > nonceDoc.expiresAt) {
-      return null // Expired
-    }
-
-    nonceDoc.usedAt = Date.now()
-    await nonceDoc.save()
-
-    return nonceDoc
+  static async findValidNonce(nonce: string): Promise<SignatureNonce | null> {
+    const now = Date.now()
+    return await this.findOne({
+      nonce,
+      usedAt: null,
+      expiresAt: { $gt: now },
+    })
   }
 
   get isExpired(): boolean {

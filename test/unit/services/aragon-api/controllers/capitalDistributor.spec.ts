@@ -448,7 +448,7 @@ describe('Controller: CapitalDistributor', () => {
         }),
       ).to.be.rejectedWith(ErrorKeyEnum.notFound)
 
-      expect(assertStub.calledWith(null, ErrorKeyEnum.notFound)).to.be.true
+      expect(assertStub.calledWith(null as any, ErrorKeyEnum.notFound)).to.be.true
     })
   })
 
@@ -592,7 +592,7 @@ describe('Controller: CapitalDistributor', () => {
         ErrorKeyEnum.notFound,
       )
 
-      expect(assertStub.calledWith(null, ErrorKeyEnum.notFound)).to.be.true
+      expect(assertStub.calledWith(null as any, ErrorKeyEnum.notFound)).to.be.true
     })
   })
 })

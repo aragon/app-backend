@@ -33,7 +33,7 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      expect(processStub.callCount).to.equal(11)
+      expect(processStub.callCount).to.equal(12)
       expect(processStub.calledWith(EnumQueueName.contractInfo)).to.be.true
       expect(processStub.calledWith(EnumQueueName.memberBalance)).to.be.true
       expect(processStub.calledWith(EnumQueueName.contractDecoder)).to.be.true
@@ -41,6 +41,7 @@ describe('AragonGateway: index', () => {
       expect(processStub.calledWith(EnumQueueName.canCreateProposal)).to.be.true
       expect(processStub.calledWith(EnumQueueName.pluginInstallationData)).to.be.true
       expect(processStub.calledWith(EnumQueueName.syncMerkleProofs)).to.be.true
+      expect(processStub.calledWith(EnumQueueName.prepareCampaignFromGauge)).to.be.true
       expect(processStub.calledWith(EnumQueueName.gaugeEpochId)).to.be.true
       expect(processStub.calledWith(EnumQueueName.gaugeInfo)).to.be.true
       expect(processStub.calledWith(EnumQueueName.tokenInfo)).to.be.true
@@ -228,8 +229,8 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      const handler = processStub.getCall(7).args[1]
-      const queueName = processStub.getCall(7).args[0]
+      const handler = processStub.getCall(8).args[1]
+      const queueName = processStub.getCall(8).args[0]
 
       const result = await handler({
         params: {
@@ -255,8 +256,8 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      const handler = processStub.getCall(8).args[1]
-      const queueName = processStub.getCall(8).args[0]
+      const handler = processStub.getCall(9).args[1]
+      const queueName = processStub.getCall(9).args[0]
 
       const result = await handler({
         params: {
@@ -283,8 +284,8 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      const handler = processStub.getCall(9).args[1]
-      const queueName = processStub.getCall(9).args[0]
+      const handler = processStub.getCall(10).args[1]
+      const queueName = processStub.getCall(10).args[0]
 
       const result = await handler({
         params: {
@@ -304,8 +305,8 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      const handler = processStub.getCall(10).args[1]
-      const queueName = processStub.getCall(10).args[0]
+      const handler = processStub.getCall(11).args[1]
+      const queueName = processStub.getCall(11).args[0]
 
       const result = await handler({
         params: {

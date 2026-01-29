@@ -128,7 +128,8 @@ const EIP712AuthModule = {
   }): Promise<{ valid: boolean; signer?: HexAddress; error?: string }> => {
     const { daoAddress, network, nonce, signature, action } = params
 
-    const nonceDoc = await Models.SignatureNonce.consumeNonce(nonce)
+    // First, find the nonce WITHOUT consuming it to verify signature
+    const nonceDoc = await Models.SignatureNonce.findValidNonce(nonce)
 
     if (!nonceDoc) {
       return { valid: false, error: 'Invalid, expired, or already used nonce' }
@@ -146,8 +147,10 @@ const EIP712AuthModule = {
       return { valid: false, error: 'Nonce does not match action' }
     }
 
+    // Verify signature BEFORE consuming the nonce
+    let signer: HexAddress
     try {
-      const signer = EIP712AuthModule.recoverSigner({
+      signer = EIP712AuthModule.recoverSigner({
         daoAddress,
         network,
         nonce,
@@ -155,11 +158,17 @@ const EIP712AuthModule = {
         action,
         signature,
       })
-
-      return { valid: true, signer }
     } catch {
       return { valid: false, error: 'Invalid signature' }
     }
+
+    // Only consume the nonce after successful signature verification
+    const consumed = await Models.SignatureNonce.consumeNonce(nonce)
+    if (!consumed) {
+      return { valid: false, error: 'Invalid, expired, or already used nonce' }
+    }
+
+    return { valid: true, signer }
   },
 
   checkMultisigMember: async (params: {

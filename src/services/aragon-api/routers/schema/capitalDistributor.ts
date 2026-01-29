@@ -30,10 +30,14 @@ const CapitalDistributorSchema = {
     totalAmount: Joi.string()
       .pattern(/^[0-9]+$/)
       .required(),
-    metadataUri: Joi.string().required(),
+    metadataUri: Joi.string()
+      .pattern(/^ipfs:\/\/.+$/)
+      .required(),
     epochId: Joi.string().optional(),
     nonce: Joi.string().required(),
-    signature: Joi.string().required(),
+    signature: Joi.string()
+      .pattern(/^0x[0-9a-fA-F]{130}$/)
+      .required(),
   }),
 
   getPrepareStatus: Joi.object({

@@ -213,13 +213,15 @@ describe('Module: eip712Auth', () => {
     })
 
     it('should return valid result with signer for valid signature', async () => {
-      sandbox.stub(Models.SignatureNonce, 'consumeNonce').resolves({
+      const mockNonceDoc = {
         nonce: TEST_NONCE,
         daoAddress: TEST_DAO_ADDRESS,
         network: TEST_NETWORK,
         action: EIP712ActionType.prepareCampaign,
         expiresAt: TEST_EXPIRES_AT,
-      } as any)
+      }
+      sandbox.stub(Models.SignatureNonce, 'findValidNonce').resolves(mockNonceDoc as any)
+      sandbox.stub(Models.SignatureNonce, 'consumeNonce').resolves(mockNonceDoc as any)
 
       const result = await EIP712AuthModule.verifyAndConsume({
         daoAddress: TEST_DAO_ADDRESS,
@@ -235,7 +237,7 @@ describe('Module: eip712Auth', () => {
     })
 
     it('should return error for invalid nonce', async () => {
-      sandbox.stub(Models.SignatureNonce, 'consumeNonce').resolves(null)
+      sandbox.stub(Models.SignatureNonce, 'findValidNonce').resolves(null)
 
       const result = await EIP712AuthModule.verifyAndConsume({
         daoAddress: TEST_DAO_ADDRESS,
@@ -250,7 +252,7 @@ describe('Module: eip712Auth', () => {
     })
 
     it('should return error when daoAddress does not match', async () => {
-      sandbox.stub(Models.SignatureNonce, 'consumeNonce').resolves({
+      sandbox.stub(Models.SignatureNonce, 'findValidNonce').resolves({
         nonce: TEST_NONCE,
         daoAddress: '0xdifferentdaoaddress1234567890123456789012',
         network: TEST_NETWORK,
@@ -271,7 +273,7 @@ describe('Module: eip712Auth', () => {
     })
 
     it('should return error when network does not match', async () => {
-      sandbox.stub(Models.SignatureNonce, 'consumeNonce').resolves({
+      sandbox.stub(Models.SignatureNonce, 'findValidNonce').resolves({
         nonce: TEST_NONCE,
         daoAddress: TEST_DAO_ADDRESS,
         network: NetworksEnum.polygonMainnet,
@@ -292,7 +294,7 @@ describe('Module: eip712Auth', () => {
     })
 
     it('should return error when action does not match', async () => {
-      sandbox.stub(Models.SignatureNonce, 'consumeNonce').resolves({
+      sandbox.stub(Models.SignatureNonce, 'findValidNonce').resolves({
         nonce: TEST_NONCE,
         daoAddress: TEST_DAO_ADDRESS,
         network: TEST_NETWORK,
@@ -313,7 +315,7 @@ describe('Module: eip712Auth', () => {
     })
 
     it('should return error for invalid signature', async () => {
-      sandbox.stub(Models.SignatureNonce, 'consumeNonce').resolves({
+      sandbox.stub(Models.SignatureNonce, 'findValidNonce').resolves({
         nonce: TEST_NONCE,
         daoAddress: TEST_DAO_ADDRESS,
         network: TEST_NETWORK,
@@ -331,6 +333,49 @@ describe('Module: eip712Auth', () => {
 
       expect(result.valid).to.be.false
       expect(result.error).to.equal('Invalid signature')
+    })
+
+    it('should not consume nonce when signature verification fails', async () => {
+      sandbox.stub(Models.SignatureNonce, 'findValidNonce').resolves({
+        nonce: TEST_NONCE,
+        daoAddress: TEST_DAO_ADDRESS,
+        network: TEST_NETWORK,
+        action: EIP712ActionType.prepareCampaign,
+        expiresAt: TEST_EXPIRES_AT,
+      } as any)
+      const consumeStub = sandbox.stub(Models.SignatureNonce, 'consumeNonce')
+
+      await EIP712AuthModule.verifyAndConsume({
+        daoAddress: TEST_DAO_ADDRESS,
+        network: TEST_NETWORK,
+        nonce: TEST_NONCE,
+        signature: '0x' + '00'.repeat(65),
+        action: EIP712ActionType.prepareCampaign,
+      })
+
+      expect(consumeStub.called).to.be.false
+    })
+
+    it('should return error when nonce consumption fails after signature verification', async () => {
+      sandbox.stub(Models.SignatureNonce, 'findValidNonce').resolves({
+        nonce: TEST_NONCE,
+        daoAddress: TEST_DAO_ADDRESS,
+        network: TEST_NETWORK,
+        action: EIP712ActionType.prepareCampaign,
+        expiresAt: TEST_EXPIRES_AT,
+      } as any)
+      sandbox.stub(Models.SignatureNonce, 'consumeNonce').resolves(null)
+
+      const result = await EIP712AuthModule.verifyAndConsume({
+        daoAddress: TEST_DAO_ADDRESS,
+        network: TEST_NETWORK,
+        nonce: TEST_NONCE,
+        signature: validSignature,
+        action: EIP712ActionType.prepareCampaign,
+      })
+
+      expect(result.valid).to.be.false
+      expect(result.error).to.equal('Invalid, expired, or already used nonce')
     })
   })
 
