@@ -514,5 +514,62 @@ describe('Model: Campaign', () => {
         expect(campaign.userData).to.be.undefined // userData should not exist without userAddress
       })
     })
+
+    it('Should filter by onlyActive=true to return only active campaigns', async () => {
+      // Create an inactive campaign
+      await Models.Campaign.create({
+        ...rawCampaign,
+        campaignId: 'campaign-inactive',
+        active: false,
+        merkleRoot: null,
+        metadata: {
+          name: 'Inactive Campaign',
+          description: 'This campaign is inactive',
+          links: [],
+        } as CampaignMetadata,
+      })
+
+      const result = await Models.Campaign.getCampaignsWithPagination({
+        paginationParams: {},
+        params: {
+          pluginAddress: rawCampaign.pluginAddress!,
+          network: rawCampaign.network!,
+          onlyActive: true,
+        },
+      })
+
+      expect(result.data.length).to.eq(2)
+      result.data.forEach(campaign => {
+        expect(campaign.active).to.eq(true)
+      })
+    })
+
+    it('Should filter by onlyActive=false to return only inactive campaigns', async () => {
+      // Create an inactive campaign
+      await Models.Campaign.create({
+        ...rawCampaign,
+        campaignId: 'campaign-inactive',
+        active: false,
+        merkleRoot: null,
+        metadata: {
+          name: 'Inactive Campaign',
+          description: 'This campaign is inactive',
+          links: [],
+        } as CampaignMetadata,
+      })
+
+      const result = await Models.Campaign.getCampaignsWithPagination({
+        paginationParams: {},
+        params: {
+          pluginAddress: rawCampaign.pluginAddress!,
+          network: rawCampaign.network!,
+          onlyActive: false,
+        },
+      })
+
+      expect(result.data.length).to.eq(1)
+      expect(result.data[0].active).to.eq(false)
+      expect(result.data[0].campaignId).to.eq('campaign-inactive')
+    })
   })
 })

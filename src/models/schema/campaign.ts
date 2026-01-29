@@ -314,6 +314,7 @@ export default class Campaign extends Model {
     const filter: any = {}
     if (params.pluginAddress) filter.pluginAddress = params.pluginAddress
     if (params.network) filter.network = params.network
+    if (params.onlyActive !== undefined) filter.active = params.onlyActive
     return filter
   }
 
