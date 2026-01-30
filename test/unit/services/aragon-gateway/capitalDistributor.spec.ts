@@ -338,7 +338,7 @@ describe('Service: CapitalDistributorGateway', () => {
         interfaceType: IPluginInterfaceType.capitalDistributor,
       } as any)
 
-      sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves(mockLogs)
+      sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves(mockLogs as any)
 
       const mockGovernance = {
         uploadMembersList: sandbox.stub().resolves(),
@@ -399,7 +399,7 @@ describe('Service: CapitalDistributorGateway', () => {
         interfaceType: IPluginInterfaceType.capitalDistributor,
       } as any)
 
-      sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves(mockLogs)
+      sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves(mockLogs as any)
 
       const mockGovernance = {
         uploadMembersList: sandbox.stub().resolves(),
