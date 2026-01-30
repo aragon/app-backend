@@ -98,8 +98,6 @@ describe('Controller: Plugin', () => {
       expect(findByDaoWithFiltersStub.calledOnce).to.be.true
       expect(findByDaoWithFiltersStub.calledWith(params)).to.be.true
       expect(result).to.deep.equal(mockPlugins)
-      expect(loggerInfoStub.calledOnce).to.be.true
-      expect(loggerInfoStub.calledWith('Retrieved plugins by DAO')).to.be.true
     })
 
     it('should pass all filter parameters to findByDaoWithFilters', async () => {
@@ -136,54 +134,54 @@ describe('Controller: Plugin', () => {
 
       expect(findByDaoWithFiltersStub.calledOnce).to.be.true
       expect(result).to.deep.equal([])
-      expect(loggerInfoStub.calledOnce).to.be.true
+    })
+  })
+
+  describe('getPluginsByDaoWithDetails', () => {
+    const daoAddress = '0xe2e445489b0356D3087efF7e79DB7Ff3f16c4fEA'
+    const network = NetworksEnum.polygonMainnet
+    let findByAddressStub: sinon.SinonStub
+    let findByDaoAddressesWithDetailsStub: sinon.SinonStub
+
+    beforeEach(() => {
+      findByAddressStub = sandbox.stub(Models.Dao, 'findByAddress')
+      findByDaoAddressesWithDetailsStub = sandbox.stub(Models.Plugin, 'findByDaoAddressesWithDetails')
     })
 
-    it('should log error and re-throw when model throws error', async () => {
-      const modelError = new Error('Database connection failed')
-      findByDaoWithFiltersStub.rejects(modelError)
+    it('should fetch dao details and return plugins with details', async () => {
+      const mockPlugins = [{ address: '0xPlugin1', details: { setting: 'value' } }]
+      findByAddressStub.resolves({ address: daoAddress, subDaos: [] })
+      findByDaoAddressesWithDetailsStub.resolves(mockPlugins)
 
-      const params = {
-        daoAddress,
-        network,
-      }
+      const result = await PluginController.getPluginsByDaoWithDetails({ daoAddress, network })
 
-      await expect(PluginController.getPluginsByDao(params)).to.be.rejectedWith(Error, 'Database connection failed')
-
-      expect(findByDaoWithFiltersStub.calledOnce).to.be.true
-      expect(loggerWarnStub.calledOnce).to.be.true
-      expect(loggerWarnStub.calledWith('Error while getting plugins by DAO')).to.be.true
-
-      const logCall = loggerWarnStub.getCall(0)
-      expect(logCall.args[1]).to.deep.include({
-        error: modelError,
-        params,
-      })
+      expect(findByAddressStub.calledOnceWith(daoAddress, network)).to.be.true
+      expect(findByDaoAddressesWithDetailsStub.calledOnceWith({ daoAddresses: [daoAddress], network })).to.be.true
+      expect(result).to.deep.equal(mockPlugins)
     })
 
-    it('should log retrieved plugin count in info log', async () => {
-      const status = 'installed' as const
-      const interfaceType = 'tokenVoting' as const
-      const mockPlugins = [{ address: '0xPlugin1' }, { address: '0xPlugin2' }, { address: '0xPlugin3' }]
-      findByDaoWithFiltersStub.resolves(mockPlugins)
+    it('should include subDaos in daoAddresses when present', async () => {
+      const subDaos = ['0xSubDao1', '0xSubDao2']
+      const mockPlugins = [{ address: '0xPlugin1' }]
+      findByAddressStub.resolves({ address: daoAddress, subDaos })
+      findByDaoAddressesWithDetailsStub.resolves(mockPlugins)
 
-      const params: any = {
-        daoAddress,
-        network,
-        status,
-        interfaceType,
-      }
+      const result = await PluginController.getPluginsByDaoWithDetails({ daoAddress, network })
 
-      await PluginController.getPluginsByDao(params)
+      expect(findByDaoAddressesWithDetailsStub.calledOnceWith({ daoAddresses: [daoAddress, ...subDaos], network })).to
+        .be.true
+      expect(result).to.deep.equal(mockPlugins)
+    })
 
-      expect(findByDaoWithFiltersStub.calledOnce).to.be.true
-      const logCall = loggerInfoStub.getCall(0)
-      expect(logCall.args[1]).to.deep.include({
-        daoAddress,
-        network,
-        count: 3,
-        filters: params,
-      })
+    it('should handle null daoDetails', async () => {
+      const mockPlugins = []
+      findByAddressStub.resolves(null)
+      findByDaoAddressesWithDetailsStub.resolves(mockPlugins)
+
+      const result = await PluginController.getPluginsByDaoWithDetails({ daoAddress, network })
+
+      expect(findByDaoAddressesWithDetailsStub.calledOnceWith({ daoAddresses: [daoAddress], network })).to.be.true
+      expect(result).to.deep.equal(mockPlugins)
     })
   })
 

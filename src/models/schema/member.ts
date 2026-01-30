@@ -158,6 +158,7 @@ export default class Member extends Model {
             pluginAddress: extraParams.pluginAddress,
             network: extraParams.network,
             status: IPluginStatus.installed,
+            isPolicy: false,
           },
           'plugin',
           {

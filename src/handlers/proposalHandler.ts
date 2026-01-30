@@ -4,6 +4,7 @@ import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import DecodeActions from '@helpers/decodeAction'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
+import MetadataRefetchHelper from '@helpers/metadataRefetch'
 import ProposalHelper from '@helpers/proposal'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
@@ -28,6 +29,8 @@ import {
   type IRawAction,
   ITokenVotingLogs,
   KnownActionSignature,
+  MetadataEntityType,
+  type NetworksEnum,
 } from '@types'
 import { Interface, type LogDescription } from 'ethers'
 
@@ -148,7 +151,7 @@ export const ProposalHandler = {
       }
 
       const settings = await Models.Setting.findLastSettingByBlockNumber(pluginAddress, info.blockNumber)
-      const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri)
+      const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri, proposalIndex, info.network)
 
       let rawSettings: any = null
 
@@ -619,9 +622,19 @@ export const ProposalHandler = {
     }
   },
 
-  fetchProposalMetadata: async (metadataUri: string): Promise<IProposalMetadata | null> => {
+  fetchProposalMetadata: async (
+    metadataUri: string,
+    entityId?: string,
+    network?: NetworksEnum,
+  ): Promise<IProposalMetadata | null> => {
     try {
-      const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri, { retries: 4 })
+      const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri, {
+        retries: 2,
+        onFetchFailed:
+          entityId && network
+            ? MetadataRefetchHelper.createFailedCallback(MetadataEntityType.Proposal, entityId, network)
+            : undefined,
+      })
       return Web3Utils.parseProposalMetadata(ipfsMetadata!)
     } catch (_error) {
       return null
@@ -1087,7 +1100,11 @@ export const ProposalHandler = {
         }
 
         const metadataUri = Web3Utils.extractMetadataUri(parsedEvent?.args.metadata)!
-        const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri)
+        const proposalMetadata = await ProposalHandler.fetchProposalMetadata(
+          metadataUri,
+          parsedEvent.args.proposalId.toString(),
+          info.network,
+        )
 
         const rawUpdate: Partial<Proposal> = {
           rawActions: parsedEvent.args?.actions?.map((w: IRawAction) => ({

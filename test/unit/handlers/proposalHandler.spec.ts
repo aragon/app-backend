@@ -2686,7 +2686,9 @@ describe('ProposalHandler', () => {
 
       const result = await ProposalHandler.fetchProposalMetadata(metadataUri)
 
-      expect(fetchMetadataStub.calledOnceWith(metadataUri, { retries: 4 })).to.be.true
+      expect(fetchMetadataStub.calledOnce).to.be.true
+      expect(fetchMetadataStub.firstCall.args[0]).to.equal(metadataUri)
+      expect(fetchMetadataStub.firstCall.args[1]).to.have.property('retries', 2)
       expect(parseMetadataStub.calledOnceWith(fakeIpfsMetadata)).to.be.true
       expect(result).to.deep.equal(parsedMetadata)
     })
@@ -2699,7 +2701,9 @@ describe('ProposalHandler', () => {
 
       const result = await ProposalHandler.fetchProposalMetadata(metadataUri)
 
-      expect(fetchMetadataStub.calledOnceWith(metadataUri, { retries: 4 })).to.be.true
+      expect(fetchMetadataStub.calledOnce).to.be.true
+      expect(fetchMetadataStub.firstCall.args[0]).to.equal(metadataUri)
+      expect(fetchMetadataStub.firstCall.args[1]).to.have.property('retries', 2)
       expect(parseMetadataStub.notCalled).to.be.true
       expect(result).to.be.null
     })

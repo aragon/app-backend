@@ -484,7 +484,8 @@ describe('Governance:MultisigGovernance', () => {
 
       expect(result).to.exist
       expect(result.data).to.have.lengthOf(5)
-      expect(result.data[0].address.toLowerCase()).to.include('0000000000000000000000000000000000000000')
+      // With createdAt desc sort, last created (i=4) comes first
+      expect(result.data[0].address.toLowerCase()).to.include('0000000000000000000000000000000000000004')
     })
   })
 

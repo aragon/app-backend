@@ -73,6 +73,32 @@ describe('Helpers: ConfigIndexerHelper', () => {
       })
     })
 
+    describe('transfer', () => {
+      it('should create transfer logService', () => {
+        const network = NetworksEnum.ethereumMainnet
+        const result = ConfigIndexerHelper.builders.transfer(network)
+        expect(result).to.equal(`transfer-${network}`)
+      })
+    })
+
+    describe('policyContract', () => {
+      it('should create policyContract logService', () => {
+        const network = NetworksEnum.ethereumMainnet
+        const address = '0xpolicy123'
+        const result = ConfigIndexerHelper.builders.policyContract(network, address)
+        expect(result).to.equal(`policyContract-${network}-${address}`)
+      })
+    })
+
+    describe('policyPlugin', () => {
+      it('should create policyPlugin logService', () => {
+        const network = NetworksEnum.ethereumMainnet
+        const address = '0xpolicyPlugin123'
+        const result = ConfigIndexerHelper.builders.policyPlugin(network, address)
+        expect(result).to.equal(`policyPlugin-${network}-${address}`)
+      })
+    })
+
     describe('plugin', () => {
       it('should create plugin logService', () => {
         const interfaceType = 'voting' as any
@@ -289,6 +315,32 @@ describe('Helpers: ConfigIndexerHelper', () => {
       })
     })
 
+    describe('isTransfer', () => {
+      it('should return true for transfer service', () => {
+        const service = 'transfer-ethereum-mainnet'
+        expect(ConfigIndexerHelper.guards.isTransfer(service)).to.be.true
+      })
+
+      it('should return false for non-transfer service', () => {
+        expect(ConfigIndexerHelper.guards.isTransfer('dao-ethereum-mainnet-0x123')).to.be.false
+        expect(ConfigIndexerHelper.guards.isTransfer('indexer-ethereum-mainnet')).to.be.false
+        expect(ConfigIndexerHelper.guards.isTransfer(null)).to.be.false
+      })
+    })
+
+    describe('isPolicyContract', () => {
+      it('should return true for policyContract service', () => {
+        const service = 'policyContract-ethereum-mainnet-0x123'
+        expect(ConfigIndexerHelper.guards.isPolicyContract(service)).to.be.true
+      })
+
+      it('should return false for non-policyContract service', () => {
+        expect(ConfigIndexerHelper.guards.isPolicyContract('dao-ethereum-mainnet-0x123')).to.be.false
+        expect(ConfigIndexerHelper.guards.isPolicyContract('indexer-ethereum-mainnet')).to.be.false
+        expect(ConfigIndexerHelper.guards.isPolicyContract(null)).to.be.false
+      })
+    })
+
     describe('isDao', () => {
       it('should return true for dao service', () => {
         const service = 'dao-ethereum-mainnet-0x123'
@@ -491,6 +543,23 @@ describe('Helpers: ConfigIndexerHelper', () => {
         })
       })
 
+      it('should parse transfer service', () => {
+        const result = ConfigIndexerHelper.parser.parse('transfer-ethereum-mainnet')
+        expect(result).to.deep.equal({
+          type: IndexerType.transfer,
+          network: 'ethereum-mainnet',
+        })
+      })
+
+      it('should parse policyContract service', () => {
+        const result = ConfigIndexerHelper.parser.parse('policyContract-ethereum-mainnet-0xpolicy123')
+        expect(result).to.deep.equal({
+          type: IndexerType.policyContract,
+          network: 'ethereum-mainnet',
+          address: '0xpolicy123',
+        })
+      })
+
       it('should parse dao service', () => {
         const result = ConfigIndexerHelper.parser.parse('dao-polygon-mainnet-0x789')
         expect(result).to.deep.equal({
@@ -540,6 +609,10 @@ describe('Helpers: ConfigIndexerHelper', () => {
           IndexerType.campaignStrategy,
         )
         expect(ConfigIndexerHelper.parser.getType('indexer-ethereum-mainnet')).to.equal(IndexerType.indexer)
+        expect(ConfigIndexerHelper.parser.getType('transfer-ethereum-mainnet')).to.equal(IndexerType.transfer)
+        expect(ConfigIndexerHelper.parser.getType('policyContract-ethereum-mainnet-0x123')).to.equal(
+          IndexerType.policyContract,
+        )
         expect(ConfigIndexerHelper.parser.getType('dao-ethereum-mainnet-0x123')).to.equal(IndexerType.dao)
         expect(ConfigIndexerHelper.parser.getType('permission-ethereum-mainnet-0x123')).to.equal(IndexerType.permission)
         expect(ConfigIndexerHelper.parser.getType('ERC20-ethereum-mainnet-0x123')).to.equal(IndexerType.token)
@@ -580,6 +653,8 @@ describe('Helpers: ConfigIndexerHelper', () => {
         expect(ConfigIndexerHelper.validators.isValidLogService('ERC20-ethereum-mainnet-0x123')).to.be.true
         expect(ConfigIndexerHelper.validators.isValidLogService('voting-ethereum-mainnet-0x123' as LogServicePattern))
           .to.be.true
+        expect(ConfigIndexerHelper.validators.isValidLogService('transfer-ethereum-mainnet')).to.be.true
+        expect(ConfigIndexerHelper.validators.isValidLogService('policyContract-ethereum-mainnet-0x123')).to.be.true
       })
 
       it('should return false for invalid services', () => {
@@ -822,6 +897,8 @@ describe('Helpers: ConfigIndexerHelper', () => {
         { service: 'tokenWithdraw-ethereum-mainnet-0xabc', type: IndexerType.tokenWithdraw },
         { service: 'campaignStrategy-ethereum-mainnet-0xdef', type: IndexerType.campaignStrategy },
         { service: 'indexer-ethereum-mainnet', type: IndexerType.indexer },
+        { service: 'transfer-ethereum-mainnet', type: IndexerType.transfer },
+        { service: 'policyContract-ethereum-mainnet-0xpolicy123', type: IndexerType.policyContract },
         { service: 'dao-polygon-mainnet-0x789', type: IndexerType.dao },
         { service: 'permission-ethereum-mainnet-0xperm123', type: IndexerType.permission },
         { service: 'transferList-ethereum-mainnet-0xtransfer123', type: IndexerType.transferList },

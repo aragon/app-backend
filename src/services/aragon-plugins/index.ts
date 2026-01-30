@@ -20,6 +20,7 @@ import {
   type IService,
   ITokenType,
 } from '@types'
+import { LogPolicy } from '@plugins/logPolicy'
 
 const llo = logger.logMeta.bind(null, { service: 'service:PluginSyncService' })
 
@@ -127,6 +128,12 @@ const AragonPluginsService: IService & { pluginQueue: (params: IQueuePlugin) => 
       case IPluginInterfaceType.capitalDistributor: {
         logger.info('Sync plugin: Capital Distributor', llo({ plugin: plugin.address }))
         await LogCapitalDistributor.start(plugin)
+        break
+      }
+      case IPluginInterfaceType.claimer:
+      case IPluginInterfaceType.router: {
+        logger.info(`Sync plugin: ${plugin.interfaceType}`, llo({ network: plugin.network, plugin: plugin.address }))
+        await LogPolicy.start(plugin.address, plugin.network)
         break
       }
       default: {

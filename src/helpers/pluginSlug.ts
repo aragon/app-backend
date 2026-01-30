@@ -29,6 +29,10 @@ export const PluginSlug = {
         return IPluginSlug.gauge
       case IPluginInterfaceType.capitalDistributor:
         return IPluginSlug.capitalDistributor
+      case IPluginInterfaceType.router:
+        return IPluginSlug.router
+      case IPluginInterfaceType.claimer:
+        return IPluginSlug.claimer
       default:
         return null
     }
@@ -212,10 +216,7 @@ export const PluginSlug = {
 
   /**
    * Deletes a PluginSlug based on daoAddress, pluginAddress, network, and slug.
-   * @param daoAddress - The DAO's address.
-   * @param pluginAddress - The Plugin's address.
-   * @param network - The network enum.
-   * @param slug - The slug to delete.
+   * @param plugin - The plugin from db.
    * @returns A boolean indicating whether the deletion was successful.
    */
   deleteSlug: async (plugin: Plugin): Promise<boolean> => {

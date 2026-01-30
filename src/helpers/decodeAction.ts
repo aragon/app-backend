@@ -6,6 +6,7 @@ import { MajorityVotingBase } from '@artifacts/MajorityVotingBase'
 import { Models } from '@dbModels'
 import FourByte from '@helpers/4byte'
 import CoinGeckoHelper from '@helpers/coinGecko'
+import ContractHelper from '@helpers/contractHelper'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
 import ProxyContract from '@helpers/proxyContract'
 import Utils from '@helpers/utils'
@@ -356,10 +357,11 @@ class DecodeActions {
     }
 
     try {
-      const proposedMetadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
-      if (!proposedMetadata) {
+      const rawMetadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
+      if (!rawMetadata) {
         return null
       }
+      const proposedMetadata = Web3Utils.parseDaoMetadata(rawMetadata)
 
       const _existingMetadata: any = existingMetadata
         ? {
@@ -752,7 +754,10 @@ class DecodeActions {
       return null
     }
 
-    return await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
+    const metadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
+    if (!metadata) return null
+
+    return Web3Utils.parseDaoMetadata(metadata)
   }
 
   async _decodeFallback(action: IRawAction, network: NetworksEnum): Promise<IProposalActionInputData | null> {
@@ -814,17 +819,11 @@ class DecodeActions {
       implementationAddress = rawAction.to
     }
 
-    const contractDetails = await ProxyWeb3Provider.fetchContractSourceCode({
-      address: implementationAddress,
-      network,
-    })
+    const contractDetails = await ContractHelper.getSourceCode(implementationAddress, network)
 
     let proxyDetails: any = null
     if (implementationAddress !== rawAction.to) {
-      proxyDetails = await ProxyWeb3Provider.fetchContractSourceCode({
-        address: rawAction.to,
-        network,
-      })
+      proxyDetails = await ContractHelper.getSourceCode(rawAction.to, network)
     }
 
     if (contractDetails && contractDetails.length > 0 && contractDetails[0].SourceCode !== '') {

@@ -142,6 +142,11 @@ describe('Integ: EnsValidator', () => {
  * E2E Integration Tests - Real blockchain calls (no mocking)
  * These tests call the actual Universal Resolver on Ethereum mainnet
  * Uses real data similar to development database
+ *
+ * WARNING: These tests depend on real-world ENS state and may need updates if:
+ * - ctzofinfinity.eth gets renewed (currently expired as of Dec 21, 2024)
+ * - vitalik.eth changes owner or becomes inactive
+ * If tests fail unexpectedly, verify the current state of these ENS domains
  */
 describe('Integ E2E: EnsValidator with real blockchain calls', () => {
   beforeEach(async () => {

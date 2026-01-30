@@ -89,7 +89,9 @@ describe('Modules: ProxyToken', () => {
       const tokenAddress = '0x123456789abcdef'
       const network = NetworksEnum.ethereumMainnet
 
-      sandbox.stub(Web3Utils, 'parseAddress').throws(new Error('Invalid address'))
+      sandbox.stub(Web3Utils, 'parseAddress').returns(tokenAddress)
+      sandbox.stub(Models.Token, 'findExistingLog').resolves(null)
+      sandbox.stub(ProxyToken, 'createNewToken').throws(new Error('DB error'))
       const loggerErrorStub = sandbox.stub(logger, 'error')
 
       const result = await ProxyToken.saveAndGetToken(tokenAddress, network)

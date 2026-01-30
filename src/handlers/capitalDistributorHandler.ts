@@ -1,11 +1,12 @@
 import { Models } from '@dbModels'
+import MetadataRefetchHelper from '@helpers/metadataRefetch'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import IPFSModule from '@modules/ipfs'
 import { ProxyToken } from '@modules/proxyToken'
 import { LogCampaignStrategy } from '@services/aragon-plugins/logCampaignStrategy'
-import { type ILogInfo } from '@types'
+import { type ILogInfo, MetadataEntityType } from '@types'
 import { type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:CapitalDistributorHandler' })
@@ -57,7 +58,14 @@ export const CapitalDistributorHandler = {
 
       const campaignMetadataUrl = Web3Utils.extractMetadataUri(metadataUri)!
 
-      const rawMetadata = await IPFSModule.fetchMetadata(campaignMetadataUrl, { retries: 4 })
+      const rawMetadata = await IPFSModule.fetchMetadata(campaignMetadataUrl, {
+        retries: 2,
+        onFetchFailed: MetadataRefetchHelper.createFailedCallback(
+          MetadataEntityType.Campaign,
+          campaignId.toString(),
+          network,
+        ),
+      })
       if (rawMetadata) {
         const parsedMetadata = Web3Utils.parseCampaignMetadata(rawMetadata)
 

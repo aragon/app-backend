@@ -381,4 +381,200 @@ describe('Dao Permission', () => {
       expect(result.metadata.totalRecords).to.equal(1)
     })
   })
+
+  describe('findActiveAcknowledgementPermission', () => {
+    const network = NetworksEnum.ethereumSepolia
+    const daoAddress = '0x1111111111111111111111111111111111111111'
+    const whoAddress = '0x2222222222222222222222222222222222222222'
+    const permissionId = '0xACKNOWLEDGEMENT_PERMISSION_ID'
+
+    it('should return granted permission when it is the latest event', async () => {
+      await Models.DaoPermission.create({
+        network,
+        blockNumber: 100,
+        transactionHash: '0x01',
+        transactionIndex: 0,
+        logIndex: 0,
+        daoAddress,
+        permissionId,
+        whoAddress,
+        whereAddress: daoAddress,
+        event: 'Granted',
+      })
+
+      const result = await Models.DaoPermission.findActiveAcknowledgementPermission(
+        network,
+        daoAddress,
+        whoAddress,
+        permissionId,
+      )
+
+      expect(result).to.not.be.null
+      expect(result?.event).to.equal('Granted')
+      expect(result?.blockNumber).to.equal(100)
+    })
+
+    it('should return null when the latest event is Revoked', async () => {
+      await Models.DaoPermission.create({
+        network,
+        blockNumber: 100,
+        transactionHash: '0x01',
+        transactionIndex: 0,
+        logIndex: 0,
+        daoAddress,
+        permissionId,
+        whoAddress,
+        whereAddress: daoAddress,
+        event: 'Granted',
+      })
+
+      await Models.DaoPermission.create({
+        network,
+        blockNumber: 200,
+        transactionHash: '0x02',
+        transactionIndex: 0,
+        logIndex: 0,
+        daoAddress,
+        permissionId,
+        whoAddress,
+        whereAddress: daoAddress,
+        event: 'Revoked',
+      })
+
+      const result = await Models.DaoPermission.findActiveAcknowledgementPermission(
+        network,
+        daoAddress,
+        whoAddress,
+        permissionId,
+      )
+
+      expect(result).to.be.null
+    })
+
+    it('should return the permission if granted after being revoked', async () => {
+      await Models.DaoPermission.create({
+        network,
+        blockNumber: 100,
+        transactionHash: '0x01',
+        transactionIndex: 0,
+        logIndex: 0,
+        daoAddress,
+        permissionId,
+        whoAddress,
+        whereAddress: daoAddress,
+        event: 'Granted',
+      })
+
+      await Models.DaoPermission.create({
+        network,
+        blockNumber: 200,
+        transactionHash: '0x02',
+        transactionIndex: 0,
+        logIndex: 0,
+        daoAddress,
+        permissionId,
+        whoAddress,
+        whereAddress: daoAddress,
+        event: 'Revoked',
+      })
+
+      await Models.DaoPermission.create({
+        network,
+        blockNumber: 300,
+        transactionHash: '0x03',
+        transactionIndex: 0,
+        logIndex: 0,
+        daoAddress,
+        permissionId,
+        whoAddress,
+        whereAddress: daoAddress,
+        event: 'Granted',
+      })
+
+      const result = await Models.DaoPermission.findActiveAcknowledgementPermission(
+        network,
+        daoAddress,
+        whoAddress,
+        permissionId,
+      )
+
+      expect(result).to.not.be.null
+      expect(result?.event).to.equal('Granted')
+      expect(result?.blockNumber).to.equal(300)
+    })
+
+    it('should return null when no permission exists', async () => {
+      const result = await Models.DaoPermission.findActiveAcknowledgementPermission(
+        network,
+        daoAddress,
+        whoAddress,
+        permissionId,
+      )
+
+      expect(result).to.be.null
+    })
+
+    it('should correctly sort by block number, transaction index, and log index', async () => {
+      await Models.DaoPermission.create({
+        network,
+        blockNumber: 100,
+        transactionHash: '0x01',
+        transactionIndex: 0,
+        logIndex: 0,
+        daoAddress,
+        permissionId,
+        whoAddress,
+        whereAddress: daoAddress,
+        event: 'Granted',
+      })
+
+      await Models.DaoPermission.create({
+        network,
+        blockNumber: 100,
+        transactionHash: '0x02',
+        transactionIndex: 1,
+        logIndex: 0,
+        daoAddress,
+        permissionId,
+        whoAddress,
+        whereAddress: daoAddress,
+        event: 'Revoked',
+      })
+
+      const result = await Models.DaoPermission.findActiveAcknowledgementPermission(
+        network,
+        daoAddress,
+        whoAddress,
+        permissionId,
+      )
+
+      expect(result).to.be.null
+    })
+
+    it('should only match the exact permission criteria', async () => {
+      const differentWho = '0x3333333333333333333333333333333333333333'
+
+      await Models.DaoPermission.create({
+        network,
+        blockNumber: 100,
+        transactionHash: '0x01',
+        transactionIndex: 0,
+        logIndex: 0,
+        daoAddress,
+        permissionId,
+        whoAddress: differentWho,
+        whereAddress: daoAddress,
+        event: 'Granted',
+      })
+
+      const result = await Models.DaoPermission.findActiveAcknowledgementPermission(
+        network,
+        daoAddress,
+        whoAddress,
+        permissionId,
+      )
+
+      expect(result).to.be.null
+    })
+  })
 })

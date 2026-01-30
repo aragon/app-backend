@@ -125,6 +125,7 @@ export interface IAggSettingProjectFields {
   minProposerVotingPower?: 1
   stages?: 1
   votingEscrow?: 1
+  policy?: 1
 }
 
 export interface IAggMemberParams {
@@ -137,6 +138,7 @@ export interface IAggPluginParams {
   pluginAddress?: string
   network: string | undefined
   status?: IPluginStatus
+  isPolicy?: boolean
 }
 
 export interface IAggPluginInclude {

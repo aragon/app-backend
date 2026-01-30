@@ -20,6 +20,7 @@ import {
 } from '@types'
 import { type ClientSession } from 'mongoose'
 import { BaseGovernance } from './baseGovernance'
+import GovernanceVeHelper from '@helpers/governanceVe'
 
 /**
  * VE governance implementation using a Lock model.
@@ -201,26 +202,28 @@ export class VeGovernance extends BaseGovernance {
         const epochEndAt = Number(parsedEvent.args.ts)
         const totalLocked = parsedEvent.args.newTotalLocked.toString()
 
-        const memberLockParams = {
-          escrowAddress: this.escrowAddress,
-          network: this.network,
-          memberAddress: depositorAddress,
-          tokenId,
-        }
-
-        const existingLock = await Models.Lock.findLockMember(memberLockParams)
+        const existingLock = await Models.Lock.findOne(
+          {
+            escrowAddress: this.escrowAddress,
+            network: this.network,
+            tokenId,
+          },
+          null,
+          { session },
+        )
         if (!existingLock) {
-          logger.error('Lock not found for withdraw', this.llo({ memberLockParams }))
+          logger.error('Lock not found for withdraw', this.llo({ tokenId, escrowAddress: this.escrowAddress }))
           return null
         }
 
         if (existingLock.lockWithdraw?.status) {
-          logger.warn('Lock already withdrawn', this.llo({ memberLockParams }))
+          logger.warn('Lock already withdrawn', this.llo({ tokenId }))
           return existingLock
         }
 
         await existingLock.updateOne(
           {
+            memberAddress: depositorAddress,
             lockWithdraw: {
               status: true,
               transactionHash: info.transactionHash,
@@ -273,26 +276,28 @@ export class VeGovernance extends BaseGovernance {
             ? Number(parsedEvent.args.exitDate || parsedEvent.args.queuedAt)
             : null
 
-        const memberLockParams = {
-          network: this.network,
-          exitQueueAddress: info.address,
-          tokenId,
-          memberAddress: holderAddress,
-        }
-
-        const existingLock = await Models.Lock.findLockMember(memberLockParams)
+        const existingLock = await Models.Lock.findOne(
+          {
+            network: this.network,
+            exitQueueAddress: info.address,
+            tokenId,
+          },
+          null,
+          { session },
+        )
         if (!existingLock) {
-          logger.error('Lock not found for exitQueued', this.llo({ memberLockParams }))
+          logger.error('Lock not found for exitQueued', this.llo({ tokenId, exitQueueAddress: info.address }))
           return null
         }
 
         if (existingLock.lockExit?.status) {
-          logger.warn('Lock already exit queued', this.llo({ memberLockParams }))
+          logger.warn('Lock already exit queued', this.llo({ tokenId }))
           return existingLock
         }
 
         await existingLock.updateOne(
           {
+            memberAddress: holderAddress,
             lockExit: {
               status: true,
               transactionHash: info.transactionHash,
@@ -333,16 +338,23 @@ export class VeGovernance extends BaseGovernance {
     info: IGovernanceParamsOpts['info']
   }): Promise<Lock | null> {
     const { fromTokenId, newTokenId, splitAmount1, splitAmount2, info } = params
+    const plugins = await this.getPlugins()
+
+    if (plugins.length === 0) {
+      logger.error('No plugins found for split', this.llo({ escrowAddress: this.escrowAddress }))
+      return null
+    }
+
+    const { nftLockAddress, exitQueueAddress } = plugins[0].votingEscrow
+
+    // Fetch owners separately - they could be different if transferred in same block
+    const [fromLockOwner, newLockOwner] = await Promise.all([
+      GovernanceVeHelper.getNftOwnerOf(nftLockAddress, fromTokenId, this.network, info!.blockNumber),
+      GovernanceVeHelper.getNftOwnerOf(nftLockAddress, newTokenId, this.network, info!.blockNumber),
+    ])
 
     try {
       return await DbTx.executeTxFn(async ({ session }) => {
-        const plugins = await this.getPlugins(session)
-        if (plugins.length === 0) {
-          logger.error('No plugins found for split', this.llo({ escrowAddress: this.escrowAddress }))
-          return null
-        }
-
-        const { nftLockAddress, exitQueueAddress } = plugins[0].votingEscrow
         const tokenAddress = plugins[0].tokenAddress
 
         const originalLock = await Models.Lock.findOne(
@@ -356,7 +368,7 @@ export class VeGovernance extends BaseGovernance {
         )
 
         if (!originalLock) {
-          logger.error('Original lock not found for split', this.llo({ fromTokenId }))
+          logger.warn('Original lock not found for split', this.llo({ fromTokenId }))
           return null
         }
 
@@ -368,7 +380,7 @@ export class VeGovernance extends BaseGovernance {
             transactionIndex: info!.transactionIndex,
             logIndex: info!.logIndex,
             blockNumber: info!.blockNumber,
-            memberAddress: originalLock.memberAddress,
+            memberAddress: newLockOwner || originalLock.memberAddress,
             nftAddress: nftLockAddress,
             tokenAddress,
             exitQueueAddress,
@@ -380,7 +392,13 @@ export class VeGovernance extends BaseGovernance {
           { session },
         )
 
-        await originalLock.updateOne({ amount: splitAmount1 }, { session })
+        await originalLock.updateOne(
+          {
+            memberAddress: fromLockOwner || originalLock.memberAddress,
+            amount: splitAmount1,
+          },
+          { session },
+        )
 
         await session.commitTransaction()
         await session.endSession()
@@ -403,6 +421,67 @@ export class VeGovernance extends BaseGovernance {
     }
   }
 
+  async exitCancelled(memberAddress: HexAddress, params: IGovernanceParamsOpts): Promise<Lock | null> {
+    const parsedAddress = Web3Utils.parseAddress(memberAddress)
+    if (!parsedAddress) return null
+
+    try {
+      return await DbTx.executeTxFn(async ({ session }) => {
+        const { info, parsedEvent } = params
+        if (!info || !parsedEvent) {
+          logger.error('Missing info or parsedEvent for exitCancelled', this.llo({ memberAddress: parsedAddress }))
+          return null
+        }
+
+        const holderAddress = parsedEvent.args.holder
+        const tokenId = parsedEvent.args.tokenId.toString()
+
+        const existingLock = await Models.Lock.findOne(
+          {
+            network: this.network,
+            exitQueueAddress: info.address,
+            tokenId,
+          },
+          null,
+          { session },
+        )
+        if (!existingLock) {
+          logger.error('Lock not found for exitCancelled', this.llo({ tokenId, exitQueueAddress: info.address }))
+          return null
+        }
+
+        if (!existingLock.lockExit?.status) {
+          logger.warn('Lock not in exit queue', this.llo({ tokenId }))
+          return existingLock
+        }
+
+        await existingLock.updateOne(
+          {
+            memberAddress: holderAddress,
+            lockExit: null,
+          },
+          { session },
+        )
+
+        await session.commitTransaction()
+        await session.endSession()
+
+        logger.verbose(
+          'Exit cancelled processed in VeGovernance',
+          this.llo({
+            memberAddress: holderAddress,
+            tokenId,
+          }),
+        )
+
+        return existingLock
+      })
+    } catch (error) {
+      logger.error('Error in exitCancelled', this.llo({ error, memberAddress: parsedAddress }))
+      return null
+    }
+  }
+
   async lockMerge(params: {
     fromTokenId: string
     toTokenId: string
@@ -410,6 +489,10 @@ export class VeGovernance extends BaseGovernance {
     info: IGovernanceParamsOpts['info']
   }): Promise<Lock | null> {
     const { fromTokenId, toTokenId, newTotalAmount, info } = params
+    const plugins = await this.getPlugins()
+    const nftTokenAddress = plugins[0].votingEscrow.nftLockAddress
+
+    const toOwner = await GovernanceVeHelper.getNftOwnerOf(nftTokenAddress, toTokenId, this.network, info!.blockNumber)
 
     try {
       return await DbTx.executeTxFn(async ({ session }) => {
@@ -424,7 +507,7 @@ export class VeGovernance extends BaseGovernance {
         )
 
         if (!fromLock) {
-          logger.error('Source lock not found for merge', this.llo({ fromTokenId }))
+          logger.warn('Source lock not found for merge', this.llo({ fromTokenId }))
           return null
         }
 
@@ -433,22 +516,19 @@ export class VeGovernance extends BaseGovernance {
             network: this.network,
             escrowAddress: this.escrowAddress,
             tokenId: toTokenId,
-            memberAddress: fromLock.memberAddress,
           },
           null,
           { session },
         )
 
         if (!toLock) {
-          logger.error(
-            'Destination lock not found for merge',
-            this.llo({ toTokenId, memberAddress: fromLock.memberAddress }),
-          )
+          logger.warn('Destination lock not found for merge', this.llo({ toTokenId, info }))
           return null
         }
 
         await fromLock.updateOne(
           {
+            memberAddress: toOwner,
             lockWithdraw: {
               status: true,
               transactionHash: info!.transactionHash,
@@ -460,7 +540,7 @@ export class VeGovernance extends BaseGovernance {
           { session },
         )
 
-        await toLock.updateOne({ amount: newTotalAmount }, { session })
+        await toLock.updateOne({ memberAddress: toOwner, amount: newTotalAmount }, { session })
 
         await session.commitTransaction()
         await session.endSession()

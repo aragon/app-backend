@@ -754,7 +754,12 @@ export default class Proposal extends Model {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const dynamicFilter = Object.fromEntries(
       Object.entries(extraParams).filter(
-        ([key, v]) => v !== undefined && key !== 'daoInfo' && key !== 'isExecuted' && key !== 'pluginAddresses',
+        ([key, v]) =>
+          v !== undefined &&
+          key !== 'daoInfo' &&
+          key !== 'isExecuted' &&
+          key !== 'pluginAddresses' &&
+          key !== 'daoAddresses',
       ),
     )
     const filter = {
@@ -776,6 +781,10 @@ export default class Proposal extends Model {
 
     if (extraParams?.pluginAddresses?.length! > 0) {
       filter.pluginAddress = { $in: extraParams.pluginAddresses }
+    }
+
+    if (extraParams?.daoAddresses?.length! > 0) {
+      filter.daoAddress = { $in: extraParams.daoAddresses }
     }
 
     const query: any = [

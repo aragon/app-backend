@@ -388,8 +388,8 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     },
 
     BOTTLENECK: {
-      ETHERSCAN_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ETHERSCAN_MAX_CONCURRENT', 1),
-      ETHERSCAN_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ETHERSCAN_MIN_TIME', 2000),
+      ETHERSCAN_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ETHERSCAN_MAX_CONCURRENT', 3),
+      ETHERSCAN_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ETHERSCAN_MIN_TIME', 300),
       NODE_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_NODE_MAX_CONCURRENT', 50),
       NODE_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_NODE_MIN_TIME', 50),
       NODE_TRANSFER_MAX_CONCURRENT: utils.configParser(
@@ -512,6 +512,13 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       METADATA_FETCH_RETRY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_FETCH_RETRY', 2),
       METADATA_FETCH_DELAY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_FETCH_DELAY', 500),
       METADATA_FETCH_TIMEOUT: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_FETCH_TIMEOUT', 10000),
+      METADATA_REFETCH_MAX_RETRY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_REFETCH_MAX_RETRY', 2),
+      METADATA_REFETCH_INTERVAL_MS: utils.configParser(
+        sourceConfig,
+        'number',
+        'IPFS_METADATA_REFETCH_INTERVAL_MS',
+        30 * 60 * 1000,
+      ), // 30 minutes
     },
 
     RETRY_REQUEST: {
