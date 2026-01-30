@@ -23,6 +23,7 @@ interface ICoinGeckoTokenResponse {
       total_supply: string
       price_usd: string
       fdv_usd: string
+      market_cap_usd: string
       volume_usd: {
         h24: string
       }
@@ -182,7 +183,11 @@ const CoinGeckoHelper = {
     const token = response.data.attributes
 
     const volume24h = parseFloat(token.volume_usd?.h24 || '0')
-    const isDeadToken = volume24h < config.COINGECKO.DEAD_TOKEN_VOLUME_THRESHOLD
+    const marketCapUsd = parseFloat(token.market_cap_usd || '0')
+    const fdvUsd = parseFloat(token.fdv_usd || '0')
+
+    const hasValidMarketData = marketCapUsd > 0 || fdvUsd > 0
+    const isDeadToken = !hasValidMarketData && volume24h < config.COINGECKO.DEAD_TOKEN_VOLUME_THRESHOLD
 
     return {
       address: Web3Utils.parseAddress(token.address)!,
