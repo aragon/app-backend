@@ -175,7 +175,6 @@ describe('ProposalHandler', () => {
       sandbox.stub(Models.Proposal, 'findLastSavedProposal').resolves({
         blockNumber: 105,
         incrementalId: 5,
-        proposalIndex: '1234567890123',
         pluginAddress: '0xPlugin',
         network: NetworksEnum.ethereumSepolia,
       })
@@ -185,7 +184,7 @@ describe('ProposalHandler', () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves([
         {
           event: { args: { proposalId: { toString: () => '1234567890123' } } },
-          info: { blockNumber: 105, logIndex: 1 },
+          info: { blockNumber: 110, logIndex: 1 },
         },
         {
           event: { args: { proposalId: { toString: () => '0123456789012345' } } },
@@ -201,7 +200,7 @@ describe('ProposalHandler', () => {
       })
 
       expect(crawlStub.calledOnce).to.be.true
-      expect(result).to.equal(6) // lastSavedProposal.incrementalId (5) + proposalIndex (1), lastSaved event present in results
+      expect(result).to.equal(6) // lastSavedProposal.incrementalId (5) + proposalIndex (1)
     })
 
     it('should return null when no logs are found', async () => {
