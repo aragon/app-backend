@@ -33,7 +33,6 @@ const CapitalDistributorSchema = {
     metadataUri: Joi.string()
       .pattern(/^ipfs:\/\/.+$/)
       .required(),
-    epochId: Joi.string().optional(),
     nonce: Joi.string().required(),
     signature: Joi.string()
       .pattern(/^0x[0-9a-fA-F]{130}$/)

@@ -1,7 +1,8 @@
+import { GaugeVoter } from '@artifacts/GaugeVoter'
 import { Models } from '@dbModels'
-import GaugeHelper from '@helpers/gauge'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import { type CapitalDistributorGovernance, MemberGovernanceFactory } from '@src/governance'
 import {
   CampaignPrepareProgress,
@@ -11,7 +12,7 @@ import {
   type IPrepareCampaignFromGauge,
   type NetworksEnum,
 } from '@types'
-import { getAddress } from 'ethers'
+import { getAddress, Interface } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'CapitalDistributorGateway' })
 
@@ -20,58 +21,105 @@ type RewardEntry = { address: string; amount: string }
 const buildRewardsFromGaugeVotes = async (params: {
   gaugePluginAddress: HexAddress
   network: NetworksEnum
-  epochId: string
   totalAmount: string
-}): Promise<{ rewards: RewardEntry[]; error?: string }> => {
-  const { gaugePluginAddress, network, epochId, totalAmount } = params
+}): Promise<{ rewards: RewardEntry[]; totalVotingPower: bigint; error?: string }> => {
+  const { gaugePluginAddress, network, totalAmount } = params
 
-  const votes = await Models.VoteGauge.find({
-    pluginAddress: gaugePluginAddress,
-    network,
-    epochId,
-    resetVoteTransactionHash: null,
-  }).lean()
-
-  if (votes.length === 0) {
-    return { rewards: [], error: 'No votes found for epoch' }
+  const plugin = await Models.Plugin.findByAddress(gaugePluginAddress, network)
+  if (!plugin) {
+    return { rewards: [], totalVotingPower: 0n, error: 'Gauge plugin not found' }
   }
 
+  const crawler = new BlockchainLogCrawler({
+    skipLogProcessing: true,
+    logService: null,
+    fromBlock: plugin.blockNumber,
+    network,
+    address: gaugePluginAddress,
+    stopOnError: false,
+    onError: async (error: any) => logger.error('Error fetching gauge events', llo({ error })),
+    events: [
+      {
+        event: 'Voted',
+        topic: new Interface(GaugeVoter.abi).getEvent('Voted')?.topicHash!,
+        config: [{ abi: GaugeVoter.abi, handler: async () => {} }],
+      },
+      {
+        event: 'Reset',
+        topic: new Interface(GaugeVoter.abi).getEvent('Reset')?.topicHash!,
+        config: [{ abi: GaugeVoter.abi, handler: async () => {} }],
+      },
+    ],
+  })
+
+  const logs = await crawler.crawl()
+
+  if (!logs || logs.length === 0) {
+    return { rewards: [], totalVotingPower: 0n, error: 'No votes found' }
+  }
+
+  // Tally voting power per voter from on-chain events
   const memberVotingPower: Record<string, bigint> = {}
-  let totalVotingPower = 0n
 
-  for (const vote of votes) {
-    const memberAddress = getAddress(vote.memberAddress)
-    const votingPower = BigInt(vote.votingPower || '0')
-
-    if (!memberVotingPower[memberAddress]) {
-      memberVotingPower[memberAddress] = 0n
+  for (const log of logs) {
+    const voter = getAddress(log.event.args.voter)
+    if (!memberVotingPower[voter]) {
+      memberVotingPower[voter] = 0n
     }
-    memberVotingPower[memberAddress] += votingPower
-    totalVotingPower += votingPower
+    if (log.event.name === 'Voted') {
+      memberVotingPower[voter] += BigInt(log.event.args.votingPowerCastForGauge)
+    } else if (log.event.name === 'Reset') {
+      memberVotingPower[voter] -= BigInt(log.event.args.votingPowerRemovedFromGauge)
+    }
+  }
+
+  let totalVotingPower = 0n
+  for (const vp of Object.values(memberVotingPower)) {
+    if (vp > 0n) {
+      totalVotingPower += vp
+    }
   }
 
   if (totalVotingPower === 0n) {
-    return { rewards: [], error: 'Total voting power is zero' }
+    return { rewards: [], totalVotingPower: 0n, error: 'Total voting power is zero' }
   }
 
   const totalAmountBigInt = BigInt(totalAmount)
   const rewards: RewardEntry[] = []
+  let distributedTotal = 0n
+  let topVoterAddress: string | null = null
+  let topVotingPower = 0n
 
   for (const [memberAddress, votingPower] of Object.entries(memberVotingPower)) {
+    if (votingPower <= 0n) continue
     const amount = (votingPower * totalAmountBigInt) / totalVotingPower
     if (amount > 0n) {
       rewards.push({
         address: memberAddress,
         amount: amount.toString(),
       })
+      distributedTotal += amount
+    }
+
+    if (topVoterAddress === null || votingPower > topVotingPower) {
+      topVotingPower = votingPower
+      topVoterAddress = memberAddress
+    }
+  }
+
+  const remainder = totalAmountBigInt - distributedTotal
+  if (remainder > 0n && topVoterAddress) {
+    const topVoterReward = rewards.find(r => r.address === topVoterAddress)
+    if (topVoterReward) {
+      topVoterReward.amount = (BigInt(topVoterReward.amount) + remainder).toString()
     }
   }
 
   if (rewards.length === 0) {
-    return { rewards: [], error: 'No rewards calculated' }
+    return { rewards: [], totalVotingPower, error: 'No rewards calculated' }
   }
 
-  return { rewards }
+  return { rewards, totalVotingPower }
 }
 
 const CapitalDistributorGateway = {
@@ -91,22 +139,8 @@ const CapitalDistributorGateway = {
     try {
       await campaignPrepare.update({
         status: CampaignPrepareStatus.processing,
-        progress: CampaignPrepareProgress.fetchingEpoch,
+        progress: CampaignPrepareProgress.validatingBalance,
       })
-
-      let epochId = campaignPrepare.epochId
-      if (!epochId) {
-        const currentEpochId = await GaugeHelper.getGaugeEpochId(gaugePluginAddress, network)
-        if (!currentEpochId) {
-          logger.warn('Failed to get current epoch', llo({ prepareId, gaugePluginAddress }))
-          await campaignPrepare.update({ status: CampaignPrepareStatus.failed })
-          return
-        }
-        epochId = currentEpochId
-        await campaignPrepare.update({ epochId })
-      }
-
-      await campaignPrepare.update({ progress: CampaignPrepareProgress.validatingBalance })
 
       const [campaignId, daoTokenBalance] = await Promise.all([
         Web3Helper.getNumCampaigns(capitalDistributorAddress, network),
@@ -119,20 +153,26 @@ const CapitalDistributorGateway = {
         return
       }
 
-      await campaignPrepare.update({ progress: CampaignPrepareProgress.buildingRewards })
+      await campaignPrepare.update({ progress: CampaignPrepareProgress.fetchingOnChainVotes })
 
-      const { rewards, error } = await buildRewardsFromGaugeVotes({
+      const { rewards, totalVotingPower, error } = await buildRewardsFromGaugeVotes({
         gaugePluginAddress,
         network,
-        epochId,
         totalAmount,
       })
 
       if (error) {
-        logger.warn(error, llo({ prepareId, epochId }))
+        logger.warn(error, llo({ prepareId }))
         await campaignPrepare.update({ status: CampaignPrepareStatus.failed })
         return
       }
+
+      logger.info(
+        'Votes aggregated',
+        llo({ prepareId, totalVotingPower: totalVotingPower.toString(), rewardCount: rewards.length }),
+      )
+
+      await campaignPrepare.update({ progress: CampaignPrepareProgress.buildingRewards })
 
       await campaignPrepare.update({ progress: CampaignPrepareProgress.uploadingMembers })
 
@@ -167,7 +207,6 @@ const CapitalDistributorGateway = {
         status: CampaignPrepareStatus.completed,
         progress: CampaignPrepareProgress.done,
         totalMembers: rewards.length,
-        epochId,
         merkleRoot,
       })
 

@@ -1,7 +1,7 @@
 import { Models } from '@dbModels'
-import GaugeHelper from '@helpers/gauge'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
 import { MemberGovernanceFactory } from '@src/governance'
 import { CampaignPrepareProgress, CampaignPrepareStatus, HexAddress, IPluginInterfaceType, NetworksEnum } from '@types'
@@ -259,7 +259,6 @@ describe('Service: CapitalDistributorGateway', () => {
       gaugePluginAddress: testGaugePluginAddress,
       tokenAddress: testTokenAddress,
       totalAmount: '1000000000000000000',
-      epochId: '',
       status: CampaignPrepareStatus.pending,
       progress: CampaignPrepareProgress.queued,
       update: sandbox.stub().resolves(),
@@ -279,19 +278,8 @@ describe('Service: CapitalDistributorGateway', () => {
       expect(loggerErrorStub.calledWith('CampaignPrepare not found')).to.be.true
     })
 
-    it('should fail when epoch id cannot be retrieved', async () => {
-      const mockPrepare = createMockCampaignPrepare()
-      sandbox.stub(Models.CampaignPrepare, 'findByPrepareId').resolves(mockPrepare as any)
-      sandbox.stub(GaugeHelper, 'getGaugeEpochId').resolves(null)
-
-      await CapitalDistributorGateway.prepareCampaignFromGauge(prepareParams)
-
-      expect(mockPrepare.update.calledWith({ status: CampaignPrepareStatus.failed })).to.be.true
-    })
-
     it('should fail when token balance is insufficient', async () => {
       const mockPrepare = createMockCampaignPrepare()
-      mockPrepare.epochId = '5'
       sandbox.stub(Models.CampaignPrepare, 'findByPrepareId').resolves(mockPrepare as any)
       sandbox.stub(Web3Helper, 'getNumCampaigns').resolves('0')
       sandbox.stub(Web3Helper, 'getTokenBalance').resolves('100') // Less than totalAmount
@@ -302,34 +290,55 @@ describe('Service: CapitalDistributorGateway', () => {
       expect(loggerWarnStub.calledWith('Insufficient token balance')).to.be.true
     })
 
-    it('should fail when no votes found for epoch', async () => {
+    it('should fail when no votes found', async () => {
       const mockPrepare = createMockCampaignPrepare()
-      mockPrepare.epochId = '5'
       sandbox.stub(Models.CampaignPrepare, 'findByPrepareId').resolves(mockPrepare as any)
       sandbox.stub(Web3Helper, 'getNumCampaigns').resolves('0')
       sandbox.stub(Web3Helper, 'getTokenBalance').resolves('2000000000000000000')
-      sandbox.stub(Models.VoteGauge, 'find').returns({ lean: sandbox.stub().resolves([]) } as any)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        address: testGaugePluginAddress,
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 100,
+      } as any)
+      sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves([])
 
       await CapitalDistributorGateway.prepareCampaignFromGauge(prepareParams)
 
       expect(mockPrepare.update.calledWith({ status: CampaignPrepareStatus.failed })).to.be.true
-      expect(loggerWarnStub.calledWith('No votes found for epoch')).to.be.true
+      expect(loggerWarnStub.calledWith('No votes found')).to.be.true
     })
 
     it('should update progress through all stages on success', async () => {
       const mockPrepare = createMockCampaignPrepare()
-      mockPrepare.epochId = '5'
       sandbox.stub(Models.CampaignPrepare, 'findByPrepareId').resolves(mockPrepare as any)
       sandbox.stub(Web3Helper, 'getNumCampaigns').resolves('0')
       sandbox.stub(Web3Helper, 'getTokenBalance').resolves('2000000000000000000')
 
-      const mockVotes = [
+      const mockLogs = [
         {
-          memberAddress: '0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B',
-          votingPower: '500000000000000000',
+          event: {
+            name: 'Voted',
+            args: {
+              voter: '0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B',
+              votingPowerCastForGauge: '500000000000000000',
+            },
+          },
         },
       ]
-      sandbox.stub(Models.VoteGauge, 'find').returns({ lean: sandbox.stub().resolves(mockVotes) } as any)
+
+      const pluginFindStub = sandbox.stub(Models.Plugin, 'findByAddress')
+      pluginFindStub.withArgs(testGaugePluginAddress, sinon.match.any).resolves({
+        address: testGaugePluginAddress,
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 100,
+      } as any)
+      pluginFindStub.withArgs(testCapitalDistributorAddress, sinon.match.any).resolves({
+        address: testCapitalDistributorAddress,
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.capitalDistributor,
+      } as any)
+
+      sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves(mockLogs)
 
       const mockGovernance = {
         uploadMembersList: sandbox.stub().resolves(),
@@ -340,19 +349,13 @@ describe('Service: CapitalDistributorGateway', () => {
         }),
       }
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
-
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
-        address: testCapitalDistributorAddress,
-        network: NetworksEnum.ethereumMainnet,
-        interfaceType: IPluginInterfaceType.capitalDistributor,
-      } as any)
       sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(mockGovernance as any)
       sandbox.stub(Models.CampaignMerkleRoot, 'findOneAndUpdate').resolves({})
 
       await CapitalDistributorGateway.prepareCampaignFromGauge(prepareParams)
 
       // Verify progress updates were called in order
-      expect(mockPrepare.update.calledWith({ progress: CampaignPrepareProgress.validatingBalance })).to.be.true
+      expect(mockPrepare.update.calledWith({ progress: CampaignPrepareProgress.fetchingOnChainVotes })).to.be.true
       expect(mockPrepare.update.calledWith({ progress: CampaignPrepareProgress.buildingRewards })).to.be.true
       expect(mockPrepare.update.calledWith({ progress: CampaignPrepareProgress.uploadingMembers })).to.be.true
       expect(mockPrepare.update.calledWith({ progress: CampaignPrepareProgress.generatingMerkle })).to.be.true
@@ -361,7 +364,6 @@ describe('Service: CapitalDistributorGateway', () => {
           status: CampaignPrepareStatus.completed,
           progress: CampaignPrepareProgress.done,
           totalMembers: 1,
-          epochId: '5',
           merkleRoot: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
         }),
       ).to.be.true
@@ -369,29 +371,40 @@ describe('Service: CapitalDistributorGateway', () => {
 
     it('should fail when merkle root generation fails', async () => {
       const mockPrepare = createMockCampaignPrepare()
-      mockPrepare.epochId = '5'
       sandbox.stub(Models.CampaignPrepare, 'findByPrepareId').resolves(mockPrepare as any)
       sandbox.stub(Web3Helper, 'getNumCampaigns').resolves('0')
       sandbox.stub(Web3Helper, 'getTokenBalance').resolves('2000000000000000000')
 
-      const mockVotes = [
+      const mockLogs = [
         {
-          memberAddress: '0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B',
-          votingPower: '500000000000000000',
+          event: {
+            name: 'Voted',
+            args: {
+              voter: '0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B',
+              votingPowerCastForGauge: '500000000000000000',
+            },
+          },
         },
       ]
-      sandbox.stub(Models.VoteGauge, 'find').returns({ lean: sandbox.stub().resolves(mockVotes) } as any)
+
+      const pluginFindStub = sandbox.stub(Models.Plugin, 'findByAddress')
+      pluginFindStub.withArgs(testGaugePluginAddress, sinon.match.any).resolves({
+        address: testGaugePluginAddress,
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 100,
+      } as any)
+      pluginFindStub.withArgs(testCapitalDistributorAddress, sinon.match.any).resolves({
+        address: testCapitalDistributorAddress,
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.capitalDistributor,
+      } as any)
+
+      sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves(mockLogs)
 
       const mockGovernance = {
         uploadMembersList: sandbox.stub().resolves(),
       }
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
-
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
-        address: testCapitalDistributorAddress,
-        network: NetworksEnum.ethereumMainnet,
-        interfaceType: IPluginInterfaceType.capitalDistributor,
-      } as any)
 
       const mockGovernanceFromPlugin = {
         generateMerkleData: sandbox.stub().resolves({ success: false }),
@@ -407,7 +420,7 @@ describe('Service: CapitalDistributorGateway', () => {
     it('should catch and log errors', async () => {
       const mockPrepare = createMockCampaignPrepare()
       sandbox.stub(Models.CampaignPrepare, 'findByPrepareId').resolves(mockPrepare as any)
-      sandbox.stub(GaugeHelper, 'getGaugeEpochId').rejects(new Error('Network error'))
+      sandbox.stub(Web3Helper, 'getNumCampaigns').rejects(new Error('Network error'))
 
       await CapitalDistributorGateway.prepareCampaignFromGauge(prepareParams)
 

@@ -81,7 +81,6 @@ const CapitalDistributorController = {
     tokenAddress: HexAddress
     totalAmount: string
     metadataUri: string
-    epochId?: string
     nonce: string
     signature: string
   }): Promise<{ prepareId: string; status: CampaignPrepareStatus }> => {
@@ -141,7 +140,6 @@ const CapitalDistributorController = {
       network,
       capitalDistributorAddress,
       gaugePluginAddress,
-      epochId: params.epochId || '',
       tokenAddress,
       totalAmount,
       metadataUri,
@@ -171,7 +169,6 @@ const CapitalDistributorController = {
       network: campaignPrepare.network,
       capitalDistributorAddress: campaignPrepare.capitalDistributorAddress,
       gaugePluginAddress: campaignPrepare.gaugePluginAddress,
-      epochId: campaignPrepare.epochId,
       tokenAddress: campaignPrepare.tokenAddress,
       totalAmount: campaignPrepare.totalAmount,
       totalMembers: campaignPrepare.totalMembers,

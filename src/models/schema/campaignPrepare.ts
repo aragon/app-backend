@@ -38,9 +38,6 @@ export default class CampaignPrepare extends Model {
   @prop({ type: () => String, required: true })
   public gaugePluginAddress!: HexAddress
 
-  @prop({ type: () => String, default: '' })
-  public epochId!: string
-
   @prop({ type: () => String, required: true })
   public tokenAddress!: HexAddress
 

@@ -39,23 +39,7 @@ describe('Model: CampaignPrepare', () => {
       expect(created.network).to.equal(testNetwork)
       expect(created.status).to.equal(CampaignPrepareStatus.pending)
       expect(created.progress).to.equal(CampaignPrepareProgress.queued)
-      expect(created.epochId).to.equal('')
       expect(created.totalMembers).to.equal(0)
-    })
-
-    it('should create with provided epochId', async () => {
-      const created = await Models.CampaignPrepare.create({
-        daoAddress: testDaoAddress,
-        network: testNetwork,
-        capitalDistributorAddress: testCapitalDistributorAddress,
-        gaugePluginAddress: testGaugePluginAddress,
-        tokenAddress: testTokenAddress,
-        totalAmount: '1000000000000000000',
-        metadataUri: 'ipfs://QmTest',
-        epochId: '5',
-      })
-
-      expect(created.epochId).to.equal('5')
     })
 
     it('should generate unique prepareId with timestamp', async () => {
@@ -171,11 +155,11 @@ describe('Model: CampaignPrepare', () => {
 
       await created.update({
         status: CampaignPrepareStatus.processing,
-        progress: CampaignPrepareProgress.fetchingEpoch,
+        progress: CampaignPrepareProgress.validatingBalance,
       })
 
       expect(created.status).to.equal(CampaignPrepareStatus.processing)
-      expect(created.progress).to.equal(CampaignPrepareProgress.fetchingEpoch)
+      expect(created.progress).to.equal(CampaignPrepareProgress.validatingBalance)
     })
 
     it('should update merkleRoot and totalMembers on completion', async () => {
@@ -196,14 +180,12 @@ describe('Model: CampaignPrepare', () => {
         progress: CampaignPrepareProgress.done,
         merkleRoot: testMerkleRoot,
         totalMembers: 100,
-        epochId: '5',
       })
 
       expect(created.status).to.equal(CampaignPrepareStatus.completed)
       expect(created.progress).to.equal(CampaignPrepareProgress.done)
       expect(created.merkleRoot).to.equal(testMerkleRoot)
       expect(created.totalMembers).to.equal(100)
-      expect(created.epochId).to.equal('5')
     })
 
     it('should not update required field with falsy value', async () => {
@@ -230,8 +212,8 @@ describe('Model: CampaignPrepare', () => {
   describe('progress enum values', () => {
     it('should have all progress states defined', () => {
       expect(CampaignPrepareProgress.queued).to.equal('queued')
-      expect(CampaignPrepareProgress.fetchingEpoch).to.equal('fetching_epoch')
       expect(CampaignPrepareProgress.validatingBalance).to.equal('validating_balance')
+      expect(CampaignPrepareProgress.fetchingOnChainVotes).to.equal('fetching_on_chain_votes')
       expect(CampaignPrepareProgress.buildingRewards).to.equal('building_rewards')
       expect(CampaignPrepareProgress.uploadingMembers).to.equal('uploading_members')
       expect(CampaignPrepareProgress.generatingMerkle).to.equal('generating_merkle')

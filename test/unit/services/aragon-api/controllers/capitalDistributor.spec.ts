@@ -564,7 +564,6 @@ describe('Controller: CapitalDistributor', () => {
         network: NetworksEnum.ethereumMainnet,
         capitalDistributorAddress: '0xCapital123456789012345678901234567890123',
         gaugePluginAddress: '0xGauge12345678901234567890123456789012345',
-        epochId: '5',
         tokenAddress: '0xToken12345678901234567890123456789012345',
         totalAmount: '1000000000000000000',
         totalMembers: 100,

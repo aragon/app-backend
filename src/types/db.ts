@@ -193,8 +193,8 @@ export enum CampaignPrepareStatus {
 
 export enum CampaignPrepareProgress {
   queued = 'queued',
-  fetchingEpoch = 'fetching_epoch',
   validatingBalance = 'validating_balance',
+  fetchingOnChainVotes = 'fetching_on_chain_votes',
   buildingRewards = 'building_rewards',
   uploadingMembers = 'uploading_members',
   generatingMerkle = 'generating_merkle',

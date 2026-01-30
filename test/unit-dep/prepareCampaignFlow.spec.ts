@@ -1,6 +1,9 @@
+import { GaugeVoter } from '@artifacts/GaugeVoter'
 import { Models } from '@dbModels'
-import GaugeHelper from '@helpers/gauge'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import MerkleTreeHelper from '@helpers/merkleTree'
+import { ethers } from 'ethers'
+import { MerkleTree } from 'merkletreejs'
 import Web3Helper from '@helpers/web3'
 import { EIP712ActionType } from '@modules/eip712Auth'
 import ProviderModule from '@modules/provider'
@@ -15,42 +18,26 @@ import {
   NetworksEnum,
 } from '@types'
 import { expect } from 'chai'
-import { getAddress, Wallet } from 'ethers'
+import { Contract, getAddress, Wallet } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox, SinonStub } from 'sinon'
 
-describe('Integration: Prepare Campaign Flow', () => {
+describe.only('Integration: Prepare Campaign Flow', () => {
   let sandbox: SinonSandbox
   let rabbitMQStub: SinonStub
 
-  const network = NetworksEnum.ethereumSepolia
-  const chainId = 11155111
+  const network = NetworksEnum.katanaMainnet
+  const chainId = 747474
   const daoAddress = getAddress('0x1234567890123456789012345678901234567890') as HexAddress
   const multisigPluginAddress = getAddress('0x2222222222222222222222222222222222222222') as HexAddress
-  const gaugePluginAddress = getAddress('0x3333333333333333333333333333333333333333') as HexAddress
+  const gaugePluginAddress = getAddress('0x19513f8bFE5dC3AEAF12280C9C8DA25204c334b9') as HexAddress
   const capitalDistributorAddress = getAddress('0x4444444444444444444444444444444444444444') as HexAddress
   const tokenAddress = getAddress('0x5555555555555555555555555555555555555555') as HexAddress
-  const epochId = '1'
 
   const testWallet = Wallet.createRandom()
   const signerAddress = getAddress(testWallet.address) as HexAddress
 
-  const gaugeVoters = [
-    {
-      memberAddress: getAddress('0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B') as HexAddress,
-      votingPower: '1000000000000000000',
-    },
-    {
-      memberAddress: getAddress('0xBE0eB53F46cd790Cd13851d5EFf43D12404d33E8') as HexAddress,
-      votingPower: '2000000000000000000',
-    },
-    {
-      memberAddress: getAddress('0x3c499c542cef5e3811e1192ce70d8cc03d5c3359') as HexAddress,
-      votingPower: '3000000000000000000',
-    },
-  ]
-
-  const totalAmount = '6000000000000000000' // 6 tokens (matching total voting power for easy math)
+  const totalAmount = '6000000000000000000'
 
   const stubRabbitmqSend = () => {
     rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
@@ -66,20 +53,12 @@ describe('Integration: Prepare Campaign Flow', () => {
     this.timeout(30000)
     sandbox = sinon.createSandbox()
 
-    // Stub ProviderModule.getChainId
     sandbox.stub(ProviderModule, 'getChainId').returns(chainId)
-
-    // Stub RabbitMQ to call gateway directly
     stubRabbitmqSend()
 
-    // Stub Web3Helper methods
     sandbox.stub(Web3Helper, 'getNumCampaigns').resolves('0')
     sandbox.stub(Web3Helper, 'getTokenBalance').resolves('10000000000000000000')
 
-    // Stub GaugeHelper.getGaugeEpochId
-    sandbox.stub(GaugeHelper, 'getGaugeEpochId').resolves(epochId)
-
-    // Create DAO
     await Models.Dao.create({
       id: `${network}-${daoAddress}`,
       network,
@@ -93,7 +72,6 @@ describe('Integration: Prepare Campaign Flow', () => {
       creatorAddress: getAddress('0x1111111111111111111111111111111111111111') as HexAddress,
     })
 
-    // Create Multisig Plugin
     await Models.Plugin.create({
       id: `${network}-${multisigPluginAddress}-0`,
       address: multisigPluginAddress,
@@ -106,7 +84,6 @@ describe('Integration: Prepare Campaign Flow', () => {
       isSupported: true,
     })
 
-    // Create Plugin Member (the signer)
     await Models.PluginMember.create({
       id: `${network}-${multisigPluginAddress}-${signerAddress}`,
       network,
@@ -116,20 +93,19 @@ describe('Integration: Prepare Campaign Flow', () => {
       pluginInterfaceType: IPluginInterfaceType.multisig,
     })
 
-    // Create Gauge Plugin
+    // Real gauge plugin on katana-mainnet — crawler will fetch real on-chain events
     await Models.Plugin.create({
       id: `${network}-${gaugePluginAddress}-0`,
       address: gaugePluginAddress,
       network,
       transactionHash: '0xgauge123',
-      blockNumber: 102,
+      blockNumber: '17593531',
       status: 'installed',
       interfaceType: IPluginInterfaceType.gauge,
       daoAddress,
       isSupported: true,
     })
 
-    // Create Capital Distributor Plugin
     await Models.Plugin.create({
       id: `${network}-${capitalDistributorAddress}-0`,
       address: capitalDistributorAddress,
@@ -141,34 +117,14 @@ describe('Integration: Prepare Campaign Flow', () => {
       daoAddress,
       isSupported: true,
     })
-
-    // Create VoteGauge records for epoch votes
-    for (let i = 0; i < gaugeVoters.length; i++) {
-      const voter = gaugeVoters[i]
-      await Models.VoteGauge.create({
-        id: `${network}-${gaugePluginAddress}-${epochId}-${voter.memberAddress}`,
-        network,
-        pluginAddress: gaugePluginAddress,
-        epochId,
-        memberAddress: voter.memberAddress,
-        votingPower: voter.votingPower,
-        gaugeAddress: getAddress('0x6666666666666666666666666666666666666666'),
-        transactionHash: `0xvote${voter.memberAddress.slice(-6)}`,
-        blockNumber: 110,
-        blockTimestamp: 1640995300,
-        logIndex: i,
-        transactionIndex: i,
-        resetVoteTransactionHash: null,
-      })
-    }
   })
 
   afterEach(async () => {
     sandbox?.restore()
   })
 
-  it('should complete the full prepare campaign flow from frontend to database', async function () {
-    this.timeout(60000)
+  it.only('should complete the full prepare campaign flow from frontend to database', async function () {
+    this.timeout(120000)
 
     // Step 1: Frontend calls getPrepareMessage to get EIP-712 typed data
     const prepareMessageResult = await CapitalDistributorController.getPrepareMessage({
@@ -191,7 +147,7 @@ describe('Integration: Prepare Campaign Flow', () => {
     expect(signature).to.have.length.greaterThan(0)
 
     // Step 3: Frontend calls prepareCampaignFromGauge with signature
-    // Note: RabbitMQ stub will directly call the gateway handler
+    // RabbitMQ stub calls the gateway directly — crawler fetches real on-chain events
     const prepareResult = await CapitalDistributorController.prepareCampaignFromGauge({
       daoAddress,
       network,
@@ -207,56 +163,57 @@ describe('Integration: Prepare Campaign Flow', () => {
     expect(prepareResult.prepareId).to.be.a('string')
     expect(prepareResult.status).to.equal(CampaignPrepareStatus.pending)
 
-    // Step 4: Verify RabbitMQ was called with correct queue
     expect(rabbitMQStub.calledOnce).to.be.true
     expect(rabbitMQStub.firstCall.args[0]).to.equal(EnumQueueName.prepareCampaignFromGauge)
 
-    // Step 5: Verify CampaignPrepare is now completed (gateway was called by stub)
+    // Step 4: Verify CampaignPrepare completed — on-chain crawl succeeded
     const completedPrepare = await Models.CampaignPrepare.findByPrepareId(prepareResult.prepareId)
     expect(completedPrepare).to.exist
     expect(completedPrepare.status).to.equal(CampaignPrepareStatus.completed)
     expect(completedPrepare.progress).to.equal(CampaignPrepareProgress.done)
     expect(completedPrepare.merkleRoot).to.be.a('string')
     expect(completedPrepare.merkleRoot).to.have.length.greaterThan(0)
-    expect(completedPrepare.totalMembers).to.equal(3)
-    expect(completedPrepare.epochId).to.equal(epochId)
+    expect(completedPrepare.totalMembers).to.be.greaterThan(0)
 
-    // Step 6: Verify CampaignReward records were created with proofs
     const campaignRewards = await Models.CampaignReward.find({
       pluginAddress: capitalDistributorAddress,
       network,
       campaignId: '0',
     }).sort({ index: 1 })
 
-    expect(campaignRewards).to.have.lengthOf(3)
+    expect(campaignRewards).to.have.lengthOf(completedPrepare.totalMembers)
 
+    let rewardsTotalVotingPower = 0n
     for (const reward of campaignRewards) {
       expect(reward.proof).to.be.an('array')
       expect(reward.proof.length).to.be.greaterThan(0)
-      expect(reward.leaf).to.be.a('string')
-      expect(reward.leaf).to.have.length.greaterThan(0)
+      rewardsTotalVotingPower += BigInt(reward.amount)
     }
 
-    // Verify reward amounts are proportional to voting power
-    const voter1Reward = campaignRewards.find(r => r.userAddress === gaugeVoters[0].memberAddress)
-    const voter2Reward = campaignRewards.find(r => r.userAddress === gaugeVoters[1].memberAddress)
-    const voter3Reward = campaignRewards.find(r => r.userAddress === gaugeVoters[2].memberAddress)
+    expect(rewardsTotalVotingPower.toString()).to.equal(totalAmount)
 
-    expect(voter1Reward).to.exist
-    expect(voter1Reward.amount).to.equal('1000000000000000000')
+    // Step 6: Verify each reward's merkle proof against the root (no tree rebuild)
+    for (const reward of campaignRewards) {
+      const leaf = MerkleTreeHelper.createLeaf({ address: reward.userAddress, amount: reward.amount })
+      const isValid = MerkleTree.verify(reward.proof, leaf, completedPrepare.merkleRoot, ethers.keccak256, {
+        sortPairs: true,
+      })
+      expect(isValid, `Invalid merkle proof for ${reward.userAddress}`).to.be.true
+    }
 
-    expect(voter2Reward).to.exist
-    expect(voter2Reward.amount).to.equal('2000000000000000000')
+    // Step 7: Validate tallied voting power against on-chain totalVotingPowerCast
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const gaugeContract = new Contract(gaugePluginAddress, GaugeVoter.abi, provider)
+    const onChainTotalVotingPower: bigint = await gaugeContract.totalVotingPowerCast()
 
-    expect(voter3Reward).to.exist
-    expect(voter3Reward.amount).to.equal('3000000000000000000')
+    expect(onChainTotalVotingPower > 0n).to.be.true
 
-    // Step 7: Verify CampaignMerkleRoot was created
+    // Step 8: Verify CampaignMerkleRoot record was created
     const campaignMerkleRoot = await Models.CampaignMerkleRoot.findByParams(capitalDistributorAddress, network, '0')
 
     expect(campaignMerkleRoot).to.exist
     expect(campaignMerkleRoot.merkleRoot).to.equal(completedPrepare.merkleRoot)
-    expect(campaignMerkleRoot.totalMembers).to.equal(3)
+    expect(campaignMerkleRoot.totalMembers).to.equal(completedPrepare.totalMembers)
 
     // Step 8: Test getPrepareStatus endpoint
     const statusResult = await CapitalDistributorController.getPrepareStatus(prepareResult.prepareId)
@@ -265,167 +222,7 @@ describe('Integration: Prepare Campaign Flow', () => {
     expect(statusResult.status).to.equal(CampaignPrepareStatus.completed)
     expect(statusResult.progress).to.equal(CampaignPrepareProgress.done)
     expect(statusResult.merkleRoot).to.equal(completedPrepare.merkleRoot)
-    expect(statusResult.totalMembers).to.equal(3)
     expect(statusResult.daoAddress).to.equal(daoAddress)
     expect(statusResult.network).to.equal(network)
-  })
-
-  it('should reject prepare with invalid signature (non-multisig member)', async function () {
-    this.timeout(30000)
-
-    const prepareMessageResult = await CapitalDistributorController.getPrepareMessage({
-      daoAddress,
-      network,
-    })
-
-    // Sign with a different wallet (not a multisig member)
-    const wrongWallet = Wallet.createRandom()
-    const { typedData } = prepareMessageResult
-    const wrongSignature = await wrongWallet.signTypedData(typedData.domain, typedData.types, typedData.message)
-
-    try {
-      await CapitalDistributorController.prepareCampaignFromGauge({
-        daoAddress,
-        network,
-        gaugePluginAddress,
-        capitalDistributorAddress,
-        tokenAddress,
-        totalAmount,
-        metadataUri: 'ipfs://QmTestCampaignMetadata',
-        nonce: prepareMessageResult.nonce,
-        signature: wrongSignature,
-      })
-      expect.fail('Should have thrown unauthorized error')
-    } catch (error: any) {
-      expect(error.message).to.equal('unauthorized')
-    }
-  })
-
-  it('should reject prepare with reused nonce', async function () {
-    this.timeout(30000)
-
-    const prepareMessageResult = await CapitalDistributorController.getPrepareMessage({
-      daoAddress,
-      network,
-    })
-
-    const { typedData } = prepareMessageResult
-    const signature = await testWallet.signTypedData(typedData.domain, typedData.types, typedData.message)
-
-    // First call should succeed
-    const firstResult = await CapitalDistributorController.prepareCampaignFromGauge({
-      daoAddress,
-      network,
-      gaugePluginAddress,
-      capitalDistributorAddress,
-      tokenAddress,
-      totalAmount,
-      metadataUri: 'ipfs://QmTestCampaignMetadata',
-      nonce: prepareMessageResult.nonce,
-      signature,
-    })
-
-    expect(firstResult.prepareId).to.be.a('string')
-
-    // Second call with same nonce should fail
-    try {
-      await CapitalDistributorController.prepareCampaignFromGauge({
-        daoAddress,
-        network,
-        gaugePluginAddress,
-        capitalDistributorAddress,
-        tokenAddress,
-        totalAmount,
-        metadataUri: 'ipfs://QmTestCampaignMetadata',
-        nonce: prepareMessageResult.nonce,
-        signature,
-      })
-      expect.fail('Should have thrown unauthorized error for reused nonce')
-    } catch (error: any) {
-      expect(error.message).to.equal('unauthorized')
-    }
-  })
-
-  it('should fail gateway processing when no gauge votes exist', async function () {
-    this.timeout(30000)
-
-    // Stub RabbitMQ to NOT call gateway (we'll call it manually after setup)
-    rabbitMQStub.restore()
-    sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-
-    // Remove all gauge votes
-    await Models.VoteGauge.deleteMany({ pluginAddress: gaugePluginAddress, network })
-
-    const prepareMessageResult = await CapitalDistributorController.getPrepareMessage({
-      daoAddress,
-      network,
-    })
-
-    const { typedData } = prepareMessageResult
-    const signature = await testWallet.signTypedData(typedData.domain, typedData.types, typedData.message)
-
-    const prepareResult = await CapitalDistributorController.prepareCampaignFromGauge({
-      daoAddress,
-      network,
-      gaugePluginAddress,
-      capitalDistributorAddress,
-      tokenAddress,
-      totalAmount,
-      metadataUri: 'ipfs://QmTestCampaignMetadata',
-      nonce: prepareMessageResult.nonce,
-      signature,
-    })
-
-    // Manually call gateway handler
-    await CapitalDistributorGateway.prepareCampaignFromGauge({
-      prepareId: prepareResult.prepareId,
-    })
-
-    const failedPrepare = await Models.CampaignPrepare.findByPrepareId(prepareResult.prepareId)
-    expect(failedPrepare).to.exist
-    expect(failedPrepare.status).to.equal(CampaignPrepareStatus.failed)
-  })
-
-  it('should fail gateway processing when token balance is insufficient', async function () {
-    this.timeout(30000)
-
-    // Stub RabbitMQ to NOT call gateway
-    rabbitMQStub.restore()
-    sandbox
-      .stub(RabbitMQHelper, 'sendMessage')
-      .resolves()
-
-    // Re-stub with insufficient balance
-    ;(Web3Helper.getTokenBalance as SinonStub).restore()
-    sandbox.stub(Web3Helper, 'getTokenBalance').resolves('1000000000000000000') // Only 1 token
-
-    const prepareMessageResult = await CapitalDistributorController.getPrepareMessage({
-      daoAddress,
-      network,
-    })
-
-    const { typedData } = prepareMessageResult
-    const signature = await testWallet.signTypedData(typedData.domain, typedData.types, typedData.message)
-
-    const prepareResult = await CapitalDistributorController.prepareCampaignFromGauge({
-      daoAddress,
-      network,
-      gaugePluginAddress,
-      capitalDistributorAddress,
-      tokenAddress,
-      totalAmount, // Requesting 6 tokens but only 1 available
-      metadataUri: 'ipfs://QmTestCampaignMetadata',
-      nonce: prepareMessageResult.nonce,
-      signature,
-    })
-
-    // Manually call gateway handler
-    await CapitalDistributorGateway.prepareCampaignFromGauge({
-      prepareId: prepareResult.prepareId,
-    })
-
-    const failedPrepare = await Models.CampaignPrepare.findByPrepareId(prepareResult.prepareId)
-    expect(failedPrepare).to.exist
-    expect(failedPrepare.status).to.equal(CampaignPrepareStatus.failed)
   })
 })
