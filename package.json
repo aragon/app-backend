@@ -131,7 +131,7 @@
     "@types/supertest": "^6.0.3",
     "@types/toobusy-js": "^0.5.4",
     "@types/ua-parser-js": "^0.7.39",
-    "@types/uuid": "^10.0.0",
+    "@types/uuid": "^11.0.0",
     "@types/ws": "^8.18.1",
     "chai": "^4.3.8",
     "chai-as-promised": "^8.0.2",
