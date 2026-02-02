@@ -175,6 +175,44 @@ describe('ProposalHandler', () => {
       sandbox.stub(Models.Proposal, 'findLastSavedProposal').resolves({
         blockNumber: 105,
         incrementalId: 5,
+        proposalIndex: '1234567890123',
+        pluginAddress: '0xPlugin',
+        network: NetworksEnum.ethereumSepolia,
+      })
+
+      sandbox.stub(Models.Proposal, 'findOne').resolves(null)
+
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves([
+        {
+          event: { args: { proposalId: { toString: () => '1234567890123' } } },
+          info: { blockNumber: 105, logIndex: 1 },
+        },
+        {
+          event: { args: { proposalId: { toString: () => '0123456789012345' } } },
+          info: { blockNumber: 110, logIndex: 2 },
+        },
+      ] as any)
+
+      const result = await ProposalHandler.findIncrementalId({
+        pluginAddress: '0xPlugin',
+        network: NetworksEnum.ethereumSepolia,
+        proposalIndex: '0123456789012345', // More than 10 characters
+        blockNumber: 120,
+      })
+
+      expect(crawlStub.calledOnce).to.be.true
+      expect(result).to.equal(6) // Normal RPC behavior: lastSavedProposal.incrementalId (5) + proposalIndex (1), with lastSaved event present in crawler results
+    })
+
+    it('should handle RPC miss when lastSavedProposal event is not in crawled results', async () => {
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        blockNumber: 100,
+        address: '0xPlugin',
+      })
+      sandbox.stub(Models.Proposal, 'findLastSavedProposal').resolves({
+        blockNumber: 105,
+        incrementalId: 5,
+        proposalIndex: '9999999999999',
         pluginAddress: '0xPlugin',
         network: NetworksEnum.ethereumSepolia,
       })
@@ -195,12 +233,12 @@ describe('ProposalHandler', () => {
       const result = await ProposalHandler.findIncrementalId({
         pluginAddress: '0xPlugin',
         network: NetworksEnum.ethereumSepolia,
-        proposalIndex: '0123456789012345', // More than 10 characters
+        proposalIndex: '0123456789012345',
         blockNumber: 120,
       })
 
       expect(crawlStub.calledOnce).to.be.true
-      expect(result).to.equal(6) // lastSavedProposal.incrementalId (5) + proposalIndex (1)
+      expect(result).to.equal(7) // RPC miss: lastSavedProposal.incrementalId (5) + proposalIndex (1) + 1 offset for missing event
     })
 
     it('should return null when no logs are found', async () => {

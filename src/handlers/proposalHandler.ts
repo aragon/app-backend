@@ -105,7 +105,9 @@ export const ProposalHandler = {
       }
 
       if (lastSavedProposal) {
-        const calculatedIncrementalId = Number(lastSavedProposal.incrementalId) + proposalIndex
+        const lastSavedInResults = proposalIds.includes(lastSavedProposal.proposalIndex)
+        const offset = lastSavedInResults ? proposalIndex : proposalIndex + 1
+        const calculatedIncrementalId = Number(lastSavedProposal.incrementalId) + offset
         const existingProposal = await Models.Proposal.findOne({
           incrementalId: calculatedIncrementalId,
           pluginAddress: proposal.pluginAddress,
@@ -117,7 +119,7 @@ export const ProposalHandler = {
           return null
         }
 
-        return lastSavedProposal.incrementalId + proposalIndex
+        return lastSavedProposal.incrementalId + offset
       }
 
       return proposalIndex
