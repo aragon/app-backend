@@ -361,6 +361,7 @@ export interface ICampaignApiParams {
   userAddress?: HexAddress
   status?: 'claimed' | 'claimable'
   campaignId?: string
+  onlyActive?: boolean
 }
 
 export interface ICampaignResponse {
