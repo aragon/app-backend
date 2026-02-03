@@ -94,10 +94,7 @@ const CoinGeckoHelper = {
       )
       return response.data
     } catch (error: any) {
-      const status = error?.status || error?.response?.status
-      if (!status || status >= 500) {
-        logger.warn('Error in CoinGecko RPC Call', llo({ path, error }))
-      }
+      logger.warn('Error in CoinGecko RPC Call', llo({ path, error }))
       throw error
     }
   },

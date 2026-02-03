@@ -177,6 +177,8 @@ describe('AragonRates: FetchRates', () => {
       const updateArgs = updateStub.firstCall.args[0]
       expect(updateArgs.fetchRateFailCount).to.equal(1)
       expect(updateArgs.nextFetchRateAt).to.be.instanceOf(Date)
+      const expectedDelay = TokenUtils.getNextFetchRateDelay(0)
+      expect(updateArgs.nextFetchRateAt.getTime()).to.be.closeTo(Date.now() + expectedDelay, 5000)
       expect(updateArgs.priceUsd).to.equal('1.1')
       expect(updateArgs.logo).to.equal('fake-logo')
     })

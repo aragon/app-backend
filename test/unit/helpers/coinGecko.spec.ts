@@ -93,7 +93,7 @@ describe('Helpers: CoinGecko', () => {
       }
     })
 
-    it('should not log warning for client errors (4xx)', async () => {
+    it('should log warning for client errors (4xx)', async () => {
       for (const status of [400, 401, 404, 429]) {
         const error = { response: { data: {} }, status }
         sandbox.stub(CoinGeckoHelper.axiosInstance, 'get').rejects(error)
@@ -104,7 +104,7 @@ describe('Helpers: CoinGecko', () => {
           expect.fail('Should have thrown')
         } catch (e) {
           expect(e).to.eq(error)
-          expect(loggerStub.called).to.be.false
+          expect(loggerStub.calledOnce).to.be.true
         }
 
         sandbox.restore()
