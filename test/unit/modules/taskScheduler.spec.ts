@@ -650,7 +650,7 @@ describe('Modules: TaskScheduler', () => {
 
       await Utils.wait(100)
 
-      // Check that stale lock warning was logged
+      // Check that the stale lock warning was logged
       const warnCalls = loggerWarnStub.getCalls()
       const foundStaleLockWarning = warnCalls.some(call => {
         const firstArg = call.args[0] as unknown as string
@@ -658,7 +658,7 @@ describe('Modules: TaskScheduler', () => {
       })
       expect(foundStaleLockWarning).to.be.true
 
-      // Check that new lock was acquired
+      // Check that a new lock was acquired
       const debugCalls = loggerDebugStub.getCalls()
       const foundLockAcquired = debugCalls.some(call => {
         const firstArg = call.args[0] as unknown as string
@@ -666,7 +666,7 @@ describe('Modules: TaskScheduler', () => {
       })
       expect(foundLockAcquired).to.be.true
 
-      // Check that task was executed
+      // Check that the task was executed
       expect(taskExecuted).to.be.true
 
       scheduler.stopTask(serviceName)
