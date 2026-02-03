@@ -34,8 +34,6 @@ const AragonRatesService: IService = {
         logger.error('RatesService task error', llo({ error }))
       },
     }
-    await scheduler.startTask('rates', ratesTaskOptions)
-
     const validatorsTaskOptions = {
       fn: () => [[{ ensValidator: EnsValidator }, { metadataRefetch: MetadataRefetchScheduler }]],
       interval: config.SERVICES.ARAGON_RATES.RATES_INTERVAL,
@@ -45,7 +43,11 @@ const AragonRatesService: IService = {
         logger.error('RatesService validators task error', llo({ error }))
       },
     }
-    await scheduler.startTask('validators', validatorsTaskOptions)
+
+    await Promise.all([
+      scheduler.startTask('rates', ratesTaskOptions),
+      scheduler.startTask('validators', validatorsTaskOptions),
+    ])
 
     logger.info('RatesService service sync end', llo({}))
   },
