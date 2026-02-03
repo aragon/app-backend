@@ -301,7 +301,7 @@ export default class Transaction extends Model {
                 },
               },
             },
-            { $project: { isSpam: 1 } },
+            { $project: { _id: 0, isSpam: 1 } },
             { $limit: 1 },
           ],
           as: '_tokenRef',
