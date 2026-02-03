@@ -24,9 +24,7 @@ const AragonRatesService: IService = {
     const ratesTaskOptions = {
       fn: () => [
         [{ fetchRates: FetchRates }],
-        [{ ensValidator: EnsValidator }],
         [{ refreshSpamTokens: RefreshSpamTokens }],
-        [{ metadataRefetch: MetadataRefetchScheduler }],
         [{ syncCmsSpamTokens: SyncCmsSpamTokens }],
       ],
       interval: config.SERVICES.ARAGON_RATES.RATES_INTERVAL,
@@ -38,12 +36,24 @@ const AragonRatesService: IService = {
     }
     await scheduler.startTask('rates', ratesTaskOptions)
 
+    const validatorsTaskOptions = {
+      fn: () => [[{ ensValidator: EnsValidator }, { metadataRefetch: MetadataRefetchScheduler }]],
+      interval: config.SERVICES.ARAGON_RATES.RATES_INTERVAL,
+      runNow: true,
+      stopOnError: false,
+      onError: (error: any) => {
+        logger.error('RatesService validators task error', llo({ error }))
+      },
+    }
+    await scheduler.startTask('validators', validatorsTaskOptions)
+
     logger.info('RatesService service sync end', llo({}))
   },
 
   async stop() {
     const scheduler = TaskSchedulerState.getInstance()
     scheduler.stopTask('rates')
+    scheduler.stopTask('validators')
 
     logger.info('RatesService service stopped', llo({}))
   },
