@@ -302,7 +302,7 @@ export const ProposalHandler = {
           'Error findIncrementalId - incrementalId is null',
           llo({
             ...info,
-            parsedEvent,
+            parsedEvent: parsedEvent.args,
             pluginAddress,
           }),
         )
@@ -374,7 +374,7 @@ export const ProposalHandler = {
 
       await Promise.allSettled(allMessages)
     } catch (error) {
-      logger.error('Error Create proposal', llo({ ...info, error, parsedEvent }))
+      logger.error('Error Create proposal', llo({ ...info, error, parsedEvent: parsedEvent.args }))
       return undefined
     }
   },
