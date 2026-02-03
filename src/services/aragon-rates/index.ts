@@ -49,6 +49,17 @@ const AragonRatesService: IService = {
       scheduler.startTask('validators', validatorsTaskOptions),
     ])
 
+    const validatorsTaskOptions = {
+      fn: () => [[{ ensValidator: EnsValidator }, { metadataRefetch: MetadataRefetchScheduler }]],
+      interval: config.SERVICES.ARAGON_RATES.RATES_INTERVAL,
+      runNow: true,
+      stopOnError: false,
+      onError: (error: any) => {
+        logger.error('RatesService validators task error', llo({ error }))
+      },
+    }
+    await scheduler.startTask('validators', validatorsTaskOptions)
+
     logger.info('RatesService service sync end', llo({}))
   },
 
