@@ -64,6 +64,18 @@ const Web3Helper = {
     }
   },
 
+  async getBlockByTag(blockTag: 'finalized' | 'safe' | 'latest', network: NetworksEnum): Promise<Block | null> {
+    try {
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => provider.getBlock(blockTag)),
+      )
+    } catch (error) {
+      logger.error('Error getBlockByTag', llo({ blockTag, network, error }))
+      return null
+    }
+  },
+
   async getLogs(filter: { fromBlock: string; toBlock: string; topics: any }, network: NetworksEnum) {
     try {
       const provider = ProviderModule.getAnyRpcProvider(network)

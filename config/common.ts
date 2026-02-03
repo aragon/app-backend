@@ -577,6 +577,24 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         SYNC_ALL: utils.configParser(sourceConfig, 'bool', 'SERVICES_ARAGON_INDEXER_SYNC_ALL', false),
       },
 
+      ARAGON_REORGS: {
+        NAME: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_REORGS_NAME', 'ARAGON-REORGS'),
+        CHECK_INTERVAL: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_REORGS_CHECK_INTERVAL',
+          5 * 60 * 1000,
+        ), // 5 minutes
+        REORG_DEPTH: utils.configParser(sourceConfig, 'number', 'SERVICES_ARAGON_REORGS_REORG_DEPTH', 128),
+        BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'SERVICES_ARAGON_REORGS_BATCH_SIZE', 100),
+        BLOCK_RECORD_TTL: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_REORGS_BLOCK_RECORD_TTL',
+          60 * 24 * 60 * 60,
+        ), // 60 days in seconds
+      },
+
       ARAGON_RATES: {
         NAME: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_RATES_NAME', 'ARAGON-RATES'),
         RATES_INTERVAL: utils.configParser(

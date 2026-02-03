@@ -215,6 +215,7 @@ const Web3Utils = {
       transactionIndex: utils.parseNumber(txLog.transactionIndex),
       logIndex: utils.parseNumber(txLog.index ?? txLog.logIndex),
       eventName,
+      blockHash: txLog.blockHash || null,
     }
   },
 

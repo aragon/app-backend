@@ -10,6 +10,7 @@ export interface ILogInfo {
   address: HexAddress
   eventName: string
   interfaceType?: string
+  blockHash?: string
 }
 
 export interface IFormattedLog {

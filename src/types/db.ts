@@ -1,4 +1,5 @@
 import type Asset from '@models/schema/asset'
+import type BlockRecord from '@models/schema/blockRecord'
 import type Campaign from '@models/schema/campaign'
 import type CampaignMerkleRoot from '@models/schema/campaignMerkleRoot'
 import type CampaignReward from '@models/schema/campaignReward'
@@ -37,6 +38,7 @@ import type LogPolicy from '@models/schema/logPolicy'
 export interface IMongoModel {
   Migration: typeof Migration
   Asset: typeof Asset
+  BlockRecord: typeof BlockRecord
   ConfigIndexer: typeof ConfigIndexer
   Campaign: typeof Campaign
   CampaignReward: typeof CampaignReward
@@ -75,6 +77,7 @@ export interface IMongoModel {
 export enum ICollectionNames {
   Migration = 'Migration',
   Asset = 'Asset',
+  BlockRecord = 'BlockRecord',
   Campaign = 'Campaign',
   ConfigIndexer = 'ConfigIndexer',
   Contract = 'Contract',

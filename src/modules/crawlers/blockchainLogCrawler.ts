@@ -6,7 +6,14 @@ import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import ProviderModule from '@modules/provider'
-import { CrawlerErrorType, type ICrawlParam, type ICrawlSetting, ICrawStrategy, type IFormattedLog } from '@types'
+import {
+  CrawlerErrorType,
+  type ICrawlParam,
+  type ICrawlSetting,
+  ICrawStrategy,
+  type IFormattedLog,
+  type NetworksEnum,
+} from '@types'
 import { type Log, type TopicFilter } from 'ethers'
 import { AdaptiveBatchSizeManager } from './adaptiveBatchSizeManager'
 import { BatchRequestManager } from './batchRequestManager'
@@ -224,6 +231,10 @@ class BlockchainLogCrawler {
           this.crawlSetting.lastSync = stats.lastSync
         } else {
           sortedLogs?.map(log => rawLogs.push(this.logProcessingEngine.formatLog(log)))
+        }
+
+        if (!this.crawlParams.skipLogProcessing) {
+          await this.recordBlockHashes(allLogs, this.crawlParams.network)
         }
 
         if (this.crawlParams.logService && !this.crawlParams.skipLogProcessing) {
@@ -747,6 +758,33 @@ class BlockchainLogCrawler {
       concurrency: 1,
       batchSize: 1,
       useBatch: false,
+    }
+  }
+
+  private async recordBlockHashes(logs: Log[], network: NetworksEnum): Promise<void> {
+    try {
+      if (!logs || logs.length === 0) return
+
+      const blockMap = new Map<number, string>()
+      for (const log of logs) {
+        const blockNumber = Number(log.blockNumber)
+        const blockHash = (log as any).blockHash
+        if (blockNumber && blockHash) {
+          blockMap.set(blockNumber, blockHash)
+        }
+      }
+
+      if (blockMap.size === 0) return
+
+      const records = Array.from(blockMap.entries()).map(([blockNumber, blockHash]) => ({
+        network,
+        blockNumber,
+        blockHash,
+      }))
+
+      await Models.BlockRecord.bulkUpsert(records)
+    } catch (error) {
+      logger.warn('Failed to record block hashes', llo({ network, error }))
     }
   }
 

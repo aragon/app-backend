@@ -232,6 +232,13 @@ export interface IConfig {
       SPAM_SCORE_THRESHOLD: number
       CMS_SPAM_TOKENS_URL: string
     }
+    ARAGON_REORGS: {
+      NAME: string
+      CHECK_INTERVAL: number
+      REORG_DEPTH: number
+      BATCH_SIZE: number
+      BLOCK_RECORD_TTL: number
+    }
   }
 
   CRAWLER_CONFIG: {

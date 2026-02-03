@@ -237,6 +237,27 @@ services:
       - internal-net
       - public-net
 
+  service-aragon-reorgs:
+    image: service-aragon-reorgs-${ENV_SUFFIX}
+    container_name: service-aragon-reorgs-${ENV_SUFFIX}
+    build:
+      context: .
+    env_file:
+      - .env.aragon-reorgs-${ENV_SUFFIX}
+    depends_on:
+      - rabbitmq
+    command: bash -c "yarn wait:rabbitmq && yarn service:aragon-reorgs"
+    healthcheck:
+      test: [ 'CMD-SHELL', "pgrep -f 'service:aragon-reorgs' > /dev/null || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - internal-net
+      - public-net
+
 networks:
   internal-net:
     external: true
