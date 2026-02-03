@@ -35,7 +35,7 @@ const customName = ICollectionNames.Token
 @index({ name: -1 })
 @index({ address: 1, network: 1 })
 @index({ address: 1, ignoreTransfer: 1, network: 1 })
-@index({ lastUpdatedAt: 1, network: 1, skipFetchRate: 1 })
+@index({ lastUpdatedAt: 1, network: 1, skipFetchRate: 1, isSpam: 1, nextFetchRateAt: 1 })
 @index({ spamSource: 1 })
 export default class Token extends Model {
   @prop({ type: () => String, required: true, unique: true })
@@ -70,6 +70,12 @@ export default class Token extends Model {
 
   @prop({ type: () => Boolean, default: false })
   public skipFetchRate!: boolean
+
+  @prop({ type: () => Number, default: 0 })
+  public fetchRateFailCount!: number
+
+  @utcDateProp({ default: null })
+  public nextFetchRateAt!: Date | null
 
   @prop({ type: () => Boolean, default: false })
   public ignoreTransfer!: boolean
@@ -225,7 +231,16 @@ export default class Token extends Model {
 
   filterKeys(keys: string[] = []) {
     const obj = this.toObject()
-    const filtered = _.omit(obj, '_id', '__v', 'createdAt', 'skipFetchRate', 'updatedAt')
+    const filtered = _.omit(
+      obj,
+      '_id',
+      '__v',
+      'createdAt',
+      'skipFetchRate',
+      'updatedAt',
+      'fetchRateFailCount',
+      'nextFetchRateAt',
+    )
     return keys.length ? _.pick(filtered, keys) : filtered
   }
 
