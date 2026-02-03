@@ -32,7 +32,7 @@ const TokenUtils = {
 
   getNextFetchRateDelay: (failCount: number): number => {
     const schedule = [
-      1 * 24 * 60 * 60 * 1000,
+      24 * 60 * 60 * 1000,
       3 * 24 * 60 * 60 * 1000,
       7 * 24 * 60 * 60 * 1000,
       14 * 24 * 60 * 60 * 1000,

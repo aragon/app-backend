@@ -41,7 +41,7 @@ describe('TokenUtils', () => {
 
   describe('getNextFetchRateDelay', () => {
     it('should return 1 day for first failure', () => {
-      expect(TokenUtils.getNextFetchRateDelay(0)).to.equal(1 * 24 * 60 * 60 * 1000)
+      expect(TokenUtils.getNextFetchRateDelay(0)).to.equal(24 * 60 * 60 * 1000)
     })
 
     it('should return 3 days for second failure', () => {
