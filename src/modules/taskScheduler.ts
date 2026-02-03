@@ -28,6 +28,7 @@ class TaskScheduler {
   private readonly hostname: string = os.hostname()
   private readonly instanceId: string = `${os.hostname()}-${process.pid}`
   private shutdownHandlersRegistered: boolean = false
+  private shutdownHandlerRefs: { event: string; handler: (...args: any[]) => void }[] = []
 
   public getTaskStatus(): { key: string; running: boolean }[] {
     return Object.keys(this.tasks).map(key => ({
@@ -254,24 +255,40 @@ class TaskScheduler {
       process.exit(0)
     }
 
+    const addHandler = (event: string, handler: (...args: any[]) => void) => {
+      process.on(event as any, handler)
+      this.shutdownHandlerRefs.push({ event, handler })
+    }
+
     // Register handlers for different shutdown signals
-    process.on('SIGTERM', async () => gracefulShutdown('SIGTERM'))
-    process.on('SIGINT', async () => gracefulShutdown('SIGINT'))
-    process.on('beforeExit', async () => gracefulShutdown('beforeExit'))
+    addHandler('SIGTERM', async () => gracefulShutdown('SIGTERM'))
+    addHandler('SIGINT', async () => gracefulShutdown('SIGINT'))
+    addHandler('beforeExit', async () => gracefulShutdown('beforeExit'))
 
     // Handle unexpected exits
-    process.on('uncaughtException', async error => {
+    addHandler('uncaughtException', async error => {
       logger.error('Uncaught exception, releasing locks', llo({ error }))
       await this.releaseAllLocks()
     })
 
-    process.on('unhandledRejection', async (reason, promise) => {
+    addHandler('unhandledRejection', async (reason, promise) => {
       logger.error('Unhandled rejection, releasing locks', llo({ reason, promise }))
       await this.releaseAllLocks()
     })
 
     this.shutdownHandlersRegistered = true
     logger.debug('Shutdown handlers registered', llo({ pid: process.pid }))
+  }
+
+  private removeShutdownHandlers(): void {
+    if (!this.shutdownHandlersRegistered) return
+
+    for (const { event, handler } of this.shutdownHandlerRefs) {
+      process.removeListener(event as any, handler)
+    }
+
+    this.shutdownHandlerRefs = []
+    this.shutdownHandlersRegistered = false
   }
 
   public async startTask(key: string, options: TaskOptions): Promise<void> {
@@ -523,6 +540,7 @@ class TaskScheduler {
 
   public destroy(): void {
     this.stopAllTasks()
+    this.removeShutdownHandlers()
   }
 }
 

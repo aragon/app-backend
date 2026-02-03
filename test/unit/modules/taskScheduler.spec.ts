@@ -13,6 +13,7 @@ describe('Modules: TaskScheduler', () => {
   let sandbox: SinonSandbox
   let scheduler: TaskScheduler
   let testCounter = 0
+  let allSchedulers: TaskScheduler[] = []
 
   const getUniqueServiceName = (baseName: string) => {
     return `${baseName}-${Date.now()}-${++testCounter}`
@@ -21,11 +22,15 @@ describe('Modules: TaskScheduler', () => {
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
     scheduler = new TaskScheduler()
+    allSchedulers = [scheduler]
   })
 
-  afterEach(() => {
+  afterEach(async () => {
+    for (const s of allSchedulers) {
+      s.destroy()
+    }
+    allSchedulers = []
     sandbox?.restore()
-    scheduler.stopAllTasks()
   })
 
   it('should run task immediately and at the next interval', async () => {
@@ -57,6 +62,7 @@ describe('Modules: TaskScheduler', () => {
     }
 
     const scheduler = new TaskScheduler()
+    allSchedulers.push(scheduler)
     await scheduler.startTask(serviceName, taskOptions)
 
     await Utils.wait(10)
@@ -131,6 +137,7 @@ describe('Modules: TaskScheduler', () => {
     }
 
     const scheduler = new TaskScheduler()
+    allSchedulers.push(scheduler)
     await scheduler.startTask(serviceName, taskOptions)
 
     await Utils.wait(350) // Wait long enough for at least 3 intervals
@@ -869,6 +876,7 @@ describe('Modules: TaskScheduler', () => {
 
       // First scheduler acquires lock
       const scheduler1 = new TaskScheduler()
+      allSchedulers.push(scheduler1)
       const task1Promise = scheduler1.startTask(serviceName, {
         fn: taskFn1,
         interval: 5000,
@@ -880,6 +888,7 @@ describe('Modules: TaskScheduler', () => {
       // Second scheduler tries to acquire lock while first is running
       const loggerDebugStub = sandbox.stub(logger, 'debug')
       const scheduler2 = new TaskScheduler()
+      allSchedulers.push(scheduler2)
 
       await scheduler2.startTask(serviceName, {
         fn: taskFn2,
@@ -919,6 +928,7 @@ describe('Modules: TaskScheduler', () => {
 
       // Create a new scheduler to test handler registration
       const newScheduler = new TaskScheduler()
+      allSchedulers.push(newScheduler)
 
       await newScheduler.startTask(serviceName, {
         fn: taskFn,
@@ -952,6 +962,7 @@ describe('Modules: TaskScheduler', () => {
 
       // Create a new scheduler to test handler registration
       const newScheduler = new TaskScheduler()
+      allSchedulers.push(newScheduler)
 
       await newScheduler.startTask(serviceName, {
         fn: taskFn,
