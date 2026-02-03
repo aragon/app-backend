@@ -325,10 +325,7 @@ describe('Model: Transaction', () => {
         side: ITransactionSide.withdraw,
       })
 
-      const {
-        data,
-        metadata: { totalRecords },
-      } = await Models.Transaction.findWithPagination({
+      const { data } = await Models.Transaction.findWithPagination({
         extraParams: { side: ITransactionSide.deposit },
         paginationParams: {},
       })
@@ -352,10 +349,7 @@ describe('Model: Transaction', () => {
         side: ITransactionSide.withdraw,
       })
 
-      const {
-        data,
-        metadata: { totalRecords },
-      } = await Models.Transaction.findWithPagination({
+      const { data } = await Models.Transaction.findWithPagination({
         extraParams: { side: ITransactionSide.withdraw },
         paginationParams: {},
       })
@@ -381,10 +375,7 @@ describe('Model: Transaction', () => {
         tokenAddress: '0x0000000000000000000000000000000000000000',
       })
 
-      const {
-        data,
-        metadata: { totalRecords },
-      } = await Models.Transaction.findWithPagination({
+      const { data } = await Models.Transaction.findWithPagination({
         extraParams: { type: ITransactionType.erc20 },
         paginationParams: {},
       })
@@ -411,10 +402,7 @@ describe('Model: Transaction', () => {
         tokenAddress: '0xtoken2',
       })
 
-      const {
-        data,
-        metadata: { totalRecords },
-      } = await Models.Transaction.findWithPagination({
+      const { data } = await Models.Transaction.findWithPagination({
         extraParams: { type: ITransactionType.erc721 },
         paginationParams: {},
       })
@@ -440,10 +428,7 @@ describe('Model: Transaction', () => {
         tokenAddress: '0xtoken3',
       })
 
-      const {
-        data,
-        metadata: { totalRecords },
-      } = await Models.Transaction.findWithPagination({
+      const { data } = await Models.Transaction.findWithPagination({
         extraParams: { type: ITransactionType.native },
         paginationParams: {},
       })
@@ -478,10 +463,7 @@ describe('Model: Transaction', () => {
         tokenAddress: '0x0000000000000000000000000000000000000000',
       })
 
-      const {
-        data,
-        metadata: { totalRecords },
-      } = await Models.Transaction.findWithPagination({
+      const { data } = await Models.Transaction.findWithPagination({
         extraParams: {
           side: ITransactionSide.deposit,
           type: ITransactionType.erc20,
@@ -527,10 +509,7 @@ describe('Model: Transaction', () => {
         tokenAddress: '0xtoken6',
       })
 
-      const {
-        data,
-        metadata: { totalRecords },
-      } = await Models.Transaction.findWithPagination({
+      const { data } = await Models.Transaction.findWithPagination({
         extraParams: {
           daoAddress: specificDao,
           side: ITransactionSide.withdraw,
