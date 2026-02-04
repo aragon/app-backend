@@ -1937,7 +1937,7 @@ describe('Helpers: DecodeActions', () => {
       expect(result!.totalSupply).to.be.eq('0')
     })
 
-    it('should retunr null if the signature is not correct for updateDaoMetadata', async () => {
+    it('should return null if the signature is not correct for updateDaoMetadata', async () => {
       const decodeActions = new DecodeActions()
       const baseAction = {
         textSignature: 'mockSig(bytes)',

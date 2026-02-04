@@ -220,7 +220,6 @@ class DecodeActions {
           newBalance: decodedData.parameters[1].value.toString(),
         },
         totalSupply: '0',
-        holdersCount: 0,
         token: {
           address: tokenAddress,
           name: 'Unknown',
