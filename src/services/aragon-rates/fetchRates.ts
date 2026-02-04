@@ -210,6 +210,15 @@ export const FetchRates = {
         nextFetchRateAt: coingeckoInfo ? null : new Date(Date.now() + TokenUtils.getNextFetchRateDelay(failCount - 1)),
       }
 
+      if (
+        token.priceUsd === rawTokenUpdate.priceUsd &&
+        token.totalSupply === rawTokenUpdate.totalSupply &&
+        token.logo === rawTokenUpdate.logo &&
+        token.fetchRateFailCount === rawTokenUpdate.fetchRateFailCount
+      ) {
+        return
+      }
+
       if (TokenUtils.shouldSkipFetch(token, { priceUsd: rawTokenUpdate.priceUsd || '0' })) {
         Object.assign(rawTokenUpdate, {
           skipFetchRate: true,
