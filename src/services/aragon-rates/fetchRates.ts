@@ -214,8 +214,9 @@ export const FetchRates = {
         token.priceUsd === rawTokenUpdate.priceUsd &&
         token.totalSupply === rawTokenUpdate.totalSupply &&
         token.logo === rawTokenUpdate.logo &&
-        token.fetchRateFailCount === rawTokenUpdate.fetchRateFailCount
+        (token.fetchRateFailCount ?? 0) === rawTokenUpdate.fetchRateFailCount
       ) {
+        await token.update({ lastUpdatedAt: dayjs.utc().toDate() })
         return
       }
 

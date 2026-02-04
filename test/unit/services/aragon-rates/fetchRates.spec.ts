@@ -109,13 +109,17 @@ describe('AragonRates: FetchRates', () => {
       })
     })
 
-    it('should return early if token data and backoff are unchanged', async () => {
+    it('should only update lastUpdatedAt if token data and backoff are unchanged', async () => {
       sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(1n)
       sandbox.stub(CoinGeckoHelper, 'getToken').resolves({ priceUsd: '1.1', logo: 'fake-logo' } as any)
 
-      const updateStub = sandbox.stub(tokenDb, 'update')
+      const mockDate = new Date('2023-01-01T00:00:00Z')
+      sandbox.stub(dayjs, 'utc').returns({ toDate: () => mockDate } as any)
+
+      const updateStub = sandbox.stub(tokenDb, 'update').resolves(tokenDb)
       await FetchRates.onMainnetDocument(tokenDb)
-      expect(updateStub.notCalled).to.be.true
+      expect(updateStub.calledOnce).to.be.true
+      expect(updateStub.calledWith({ lastUpdatedAt: mockDate })).to.be.true
     })
 
     it('should update token with skipFetchRate if shouldSkipFetch returns true', async () => {
