@@ -140,7 +140,7 @@ const CoinGeckoHelper = {
     const networkId = CoinGeckoHelper.networkToCoinGecko(network)
 
     if (!networkId) {
-      logger.warn('Network not supported by CoinGecko', llo({ network }))
+      logger.warn('Network not supported by CoinGecko', llo({ network, tokenContractAddress }))
       return false
     }
 
