@@ -93,31 +93,26 @@ describe('Helpers: CoinGecko', () => {
       }
     })
 
-    it('should not log warning for not found errors', async () => {
-      const error = { response: { data: { error: 'coin not found' } }, status: 404 }
-      sandbox.stub(CoinGeckoHelper.axiosInstance, 'get').rejects(error)
-      const loggerStub = sandbox.stub(logger, 'warn')
+    it('should log warning for client errors (4xx)', async () => {
+      for (const status of [400, 401, 404, 429]) {
+        const error = { response: { data: {} }, status }
+        sandbox.stub(CoinGeckoHelper.axiosInstance, 'get').rejects(error)
+        const loggerStub = sandbox.stub(logger, 'warn')
 
-      try {
-        await CoinGeckoHelper._rpCall('/coins/unknown', NetworksEnum.ethereumMainnet)
-        expect.fail('Should have thrown')
-      } catch (e) {
-        expect(e).to.eq(error)
-        expect(loggerStub.called).to.be.false
-      }
-    })
+        try {
+          await CoinGeckoHelper._rpCall('/coins/unknown', NetworksEnum.ethereumMainnet)
+          expect.fail('Should have thrown')
+        } catch (e) {
+          expect(e).to.eq(error)
+          expect(loggerStub.calledOnce).to.be.true
+        }
 
-    it('should not log warning for 401 errors', async () => {
-      const error = { response: { data: { error: 'unauthorized' } }, status: 401 }
-      sandbox.stub(CoinGeckoHelper.axiosInstance, 'get').rejects(error)
-      const loggerStub = sandbox.stub(logger, 'warn')
-
-      try {
-        await CoinGeckoHelper._rpCall('/coins/ethereum', NetworksEnum.ethereumMainnet)
-        expect.fail('Should have thrown')
-      } catch (e) {
-        expect(e).to.eq(error)
-        expect(loggerStub.called).to.be.false
+        sandbox.restore()
+        sandbox = sinon.createSandbox()
+        sandbox.stub(retryRequestModule, 'retryRequest').callsFake(async fn => fn())
+        sandbox.stub(BottleneckModule, 'getCoinGeckoLimiter').returns({
+          schedule: sandbox.stub().callsFake(async fn => fn()),
+        } as any)
       }
     })
   })
@@ -174,14 +169,11 @@ describe('Helpers: CoinGecko', () => {
       expect(result).to.be.false
     })
 
-    it('should not log warning for not found errors in getNativeToken', async () => {
-      const error = { response: { data: { error: 'coin not found' } }, status: 404 }
-      sandbox.stub(CoinGeckoHelper, '_rpCall').rejects(error)
-      const loggerStub = sandbox.stub(logger, 'warn')
+    it('should return false for any error in getNativeToken', async () => {
+      sandbox.stub(CoinGeckoHelper, '_rpCall').rejects(new Error('any error'))
 
       const result = await CoinGeckoHelper.getNativeToken(NetworksEnum.ethereumMainnet)
       expect(result).to.be.false
-      expect(loggerStub.called).to.be.false
     })
   })
 

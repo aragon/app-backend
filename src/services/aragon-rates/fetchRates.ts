@@ -30,7 +30,15 @@ export const FetchRates = {
       where: {
         $and: [
           { skipFetchRate: { $ne: true } },
+          { isSpam: { $ne: true } },
           { network: { $nin: [NetworksEnum.zksyncSepolia, NetworksEnum.ethereumSepolia] } },
+          {
+            $or: [
+              { nextFetchRateAt: { $exists: false } },
+              { nextFetchRateAt: null },
+              { nextFetchRateAt: { $lte: new Date() } },
+            ],
+          },
           {
             $or: [
               { lastUpdatedAt: { $exists: false } },
@@ -192,17 +200,23 @@ export const FetchRates = {
 
       const coingeckoInfo = await CoinGeckoHelper.getToken(token.address, token.network)
 
+      const failCount = (token.fetchRateFailCount || 0) + 1
+
       const rawTokenUpdate: Partial<Token> = {
         totalSupply: (totalSupply ?? token.totalSupply ?? '0').toString(),
         priceUsd: coingeckoInfo ? coingeckoInfo.priceUsd : token.priceUsd,
         logo: coingeckoInfo ? coingeckoInfo.logo : token.logo,
+        fetchRateFailCount: coingeckoInfo ? 0 : failCount,
+        nextFetchRateAt: coingeckoInfo ? null : new Date(Date.now() + TokenUtils.getNextFetchRateDelay(failCount - 1)),
       }
 
       if (
         token.priceUsd === rawTokenUpdate.priceUsd &&
         token.totalSupply === rawTokenUpdate.totalSupply &&
-        token.logo === rawTokenUpdate.logo
+        token.logo === rawTokenUpdate.logo &&
+        (token.fetchRateFailCount ?? 0) === rawTokenUpdate.fetchRateFailCount
       ) {
+        await token.update({ lastUpdatedAt: dayjs.utc().toDate() })
         return
       }
 
