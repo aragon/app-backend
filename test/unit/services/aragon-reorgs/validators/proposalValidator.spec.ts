@@ -1,5 +1,6 @@
 import { Models } from '@dbModels'
 import logger from '@logger'
+import { logCumulative, logOrphan } from '@services/aragon-reorgs/validators/baseValidator'
 import { ProposalValidator } from '@services/aragon-reorgs/validators/proposalValidator'
 import { ProposalList } from '@test/mock/fakeProposal'
 import { NetworksEnum, type ILogInfo } from '@types'
@@ -184,6 +185,128 @@ describe('Validator: ProposalValidator', () => {
     })
   })
 
+  describe('proposalResultReport', () => {
+    it('should log valid when result entry exists', async () => {
+      const proposal = {
+        ...ProposalList[0],
+        network,
+        blockNumber: 50,
+        results: [
+          { transactionHash: '0xabc123', blockNumber: 100, stage: 0, resultType: 1, pluginAddress: '0xPluginAddress' },
+        ],
+      }
+      const created = await Models.Proposal.create(proposal)
+      const verboseSpy = sandbox.spy(logger, 'verbose')
+
+      const parsedEvent = { args: { proposalId: { toString: () => created.proposalIndex } } } as any
+      const info = { ...baseInfo, address: created.pluginAddress }
+
+      await ProposalValidator.proposalResultReport(parsedEvent, info)
+      expect(verboseSpy.calledOnce).to.be.true
+      expect(verboseSpy.firstCall.args[0]).to.include('ProposalResultReported: valid')
+    })
+
+    it('should log error when result entry not found for block', async () => {
+      const proposal = {
+        ...ProposalList[0],
+        network,
+        blockNumber: 50,
+        results: [
+          { transactionHash: '0xother', blockNumber: 999, stage: 0, resultType: 1, pluginAddress: '0xPluginAddress' },
+        ],
+      }
+      const created = await Models.Proposal.create(proposal)
+      const errorSpy = sandbox.spy(logger, 'error')
+
+      const parsedEvent = { args: { proposalId: { toString: () => created.proposalIndex } } } as any
+      const info = { ...baseInfo, address: created.pluginAddress }
+
+      await ProposalValidator.proposalResultReport(parsedEvent, info)
+      expect(errorSpy.calledOnce).to.be.true
+      expect(errorSpy.firstCall.args[0]).to.include('ProposalResultReported: result entry not found')
+    })
+
+    it('should log not found when proposal does not exist', async () => {
+      const errorSpy = sandbox.spy(logger, 'error')
+      const parsedEvent = { args: { proposalId: { toString: () => 'nonexistent' } } } as any
+
+      await ProposalValidator.proposalResultReport(parsedEvent, baseInfo)
+      expect(errorSpy.calledOnce).to.be.true
+      expect(errorSpy.firstCall.args[0]).to.include('ProposalResultReported: record not found')
+    })
+  })
+
+  describe('proposalAdvanced', () => {
+    it('should log valid when stage execution exists', async () => {
+      const proposal = {
+        ...ProposalList[0],
+        network,
+        blockNumber: 50,
+        stageExecutions: [{ blockNumber: 100, transactionHash: '0xabc123' }],
+      }
+      const created = await Models.Proposal.create(proposal)
+      const verboseSpy = sandbox.spy(logger, 'verbose')
+
+      const parsedEvent = { args: { proposalId: { toString: () => created.proposalIndex } } } as any
+      const info = { ...baseInfo, address: created.pluginAddress }
+
+      await ProposalValidator.proposalAdvanced(parsedEvent, info)
+      expect(verboseSpy.calledOnce).to.be.true
+      expect(verboseSpy.firstCall.args[0]).to.include('ProposalAdvanced: valid')
+    })
+
+    it('should log error when stage execution not found for block', async () => {
+      const proposal = {
+        ...ProposalList[0],
+        network,
+        blockNumber: 50,
+        stageExecutions: [{ blockNumber: 999, transactionHash: '0xother' }],
+      }
+      const created = await Models.Proposal.create(proposal)
+      const errorSpy = sandbox.spy(logger, 'error')
+
+      const parsedEvent = { args: { proposalId: { toString: () => created.proposalIndex } } } as any
+      const info = { ...baseInfo, address: created.pluginAddress }
+
+      await ProposalValidator.proposalAdvanced(parsedEvent, info)
+      expect(errorSpy.calledOnce).to.be.true
+      expect(errorSpy.firstCall.args[0]).to.include('ProposalAdvanced: stage execution not found')
+    })
+
+    it('should log not found when proposal does not exist', async () => {
+      const errorSpy = sandbox.spy(logger, 'error')
+      const parsedEvent = { args: { proposalId: { toString: () => 'nonexistent' } } } as any
+
+      await ProposalValidator.proposalAdvanced(parsedEvent, baseInfo)
+      expect(errorSpy.calledOnce).to.be.true
+      expect(errorSpy.firstCall.args[0]).to.include('ProposalAdvanced: record not found')
+    })
+  })
+
+  describe('proposalEdited', () => {
+    it('should log valid when proposal exists and editedTxInfo has no mismatch', async () => {
+      const proposal = { ...ProposalList[0], network, blockNumber: 50 }
+      const created = await Models.Proposal.create(proposal)
+      const verboseSpy = sandbox.spy(logger, 'verbose')
+
+      const parsedEvent = { args: { proposalId: { toString: () => created.proposalIndex } } } as any
+      const info = { ...baseInfo, address: created.pluginAddress }
+
+      await ProposalValidator.proposalEdited(parsedEvent, info)
+      expect(verboseSpy.calledOnce).to.be.true
+      expect(verboseSpy.firstCall.args[0]).to.include('ProposalEdited: valid')
+    })
+
+    it('should log not found when proposal does not exist', async () => {
+      const errorSpy = sandbox.spy(logger, 'error')
+      const parsedEvent = { args: { proposalId: { toString: () => 'nonexistent' } } } as any
+
+      await ProposalValidator.proposalEdited(parsedEvent, baseInfo)
+      expect(errorSpy.calledOnce).to.be.true
+      expect(errorSpy.firstCall.args[0]).to.include('ProposalEdited: record not found')
+    })
+  })
+
   describe('voteCleared', () => {
     it('should log not found when vote does not exist', async () => {
       const errorSpy = sandbox.spy(logger, 'error')
@@ -192,6 +315,22 @@ describe('Validator: ProposalValidator', () => {
       await ProposalValidator.voteCleared(parsedEvent, baseInfo)
       expect(errorSpy.calledOnce).to.be.true
       expect(errorSpy.firstCall.args[0]).to.include('VoteCleared: record not found')
+    })
+  })
+
+  describe('baseValidator utilities', () => {
+    it('should log cumulative event', () => {
+      const errorSpy = sandbox.spy(logger, 'error')
+      logCumulative('MembersAdded', baseInfo)
+      expect(errorSpy.calledOnce).to.be.true
+      expect(errorSpy.firstCall.args[0]).to.include('MembersAdded: cumulative event in reorged block')
+    })
+
+    it('should log orphan record', () => {
+      const errorSpy = sandbox.spy(logger, 'error')
+      logOrphan('Proposal', network, 'entity-123', 100)
+      expect(errorSpy.calledOnce).to.be.true
+      expect(errorSpy.firstCall.args[0]).to.include('Orphan Proposal detected')
     })
   })
 })
