@@ -1920,7 +1920,7 @@ describe('Helpers: DecodeActions', () => {
         network: NetworksEnum.ethereumSepolia,
       }
 
-      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken')
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
 
       const loggerStub = sandbox.stub(Logger, 'error')
 
