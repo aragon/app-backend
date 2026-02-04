@@ -5,7 +5,6 @@ import { IERC20MintableUpgradeable } from '@artifacts/IERC20MintableUpgradeable'
 import { MajorityVotingBase } from '@artifacts/MajorityVotingBase'
 import { Models } from '@dbModels'
 import FourByte from '@helpers/4byte'
-import CoinGeckoHelper from '@helpers/coinGecko'
 import ContractHelper from '@helpers/contractHelper'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
 import ProxyContract from '@helpers/proxyContract'
@@ -233,15 +232,12 @@ class DecodeActions {
       }
     }
 
-    const [currentBalance, tokenInfo] = await Promise.all([
-      Web3Helper.getTokenBalanceAtBlock({
-        tokenAddress,
-        address: receiver,
-        network: document.network!,
-        blockNumber: document.blockNumber!,
-      }),
-      CoinGeckoHelper.getToken(tokenAddress, document.network!),
-    ])
+    const currentBalance = await Web3Helper.getTokenBalanceAtBlock({
+      tokenAddress,
+      address: receiver,
+      network: document.network!,
+      blockNumber: document.blockNumber!,
+    })
 
     return {
       ...action,
@@ -253,8 +249,7 @@ class DecodeActions {
         currentBalance: currentBalance.toString(),
         newBalance: (BigInt(decodedData.parameters[1].value) + BigInt(currentBalance)).toString(),
       },
-      totalSupply: tokenInfo ? tokenInfo.totalSupply : '0',
-      holdersCount: tokenInfo ? tokenInfo.holders : 0,
+      totalSupply: tokenDetails.totalSupply || '0',
       token: {
         address: tokenDetails.address,
         name: tokenDetails.name,
