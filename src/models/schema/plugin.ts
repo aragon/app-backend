@@ -3,6 +3,7 @@ import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
   ICollectionNames,
+  type IGetPoliciesByDaoParams,
   type IPluginIdParams,
   IPluginInterfaceType,
   IPluginStatus,
@@ -11,6 +12,7 @@ import {
 } from '@types'
 import * as _ from 'lodash'
 import { Model, type SaveOptions } from 'mongoose'
+import { AggregationQueryHelper } from '@models/utils/aggregation'
 
 const customName = ICollectionNames.Plugin
 
@@ -172,6 +174,9 @@ export default class Plugin extends Model {
   @prop({ type: () => Boolean, default: false })
   public isSubPlugin?: boolean
 
+  @prop({ type: () => Boolean, default: false })
+  public isPolicy?: boolean
+
   // SPP plugin
   @prop({ type: () => Number })
   public totalStages?: number
@@ -296,6 +301,7 @@ export default class Plugin extends Model {
           daoAddress,
           network,
           isSupported: true,
+          isPolicy: { $ne: true },
         },
       },
       {
@@ -355,10 +361,15 @@ export default class Plugin extends Model {
     const filter: any = {
       daoAddress,
       network,
+      isPolicy: { $ne: true },
     }
 
     if (interfaceType) {
       filter.interfaceType = interfaceType
+    } else {
+      filter.interfaceType = {
+        $nin: [IPluginInterfaceType.router, IPluginInterfaceType.claimer],
+      }
     }
 
     if (status) {
@@ -374,6 +385,302 @@ export default class Plugin extends Model {
     }
 
     return await this.find(filter).sort({ blockNumber: -1 }).lean().exec()
+  }
+
+  static async findByDaoAddressesWithDetails({
+    daoAddresses,
+    network,
+  }: {
+    daoAddresses: HexAddress[]
+    network: NetworksEnum
+  }) {
+    const aggQuery: any = [
+      {
+        $match: {
+          daoAddress: { $in: daoAddresses },
+          network,
+          status: IPluginStatus.installed,
+          isPolicy: { $ne: true },
+        },
+      },
+      {
+        $sort: { blockNumber: -1 as const },
+      },
+      AggregationQueryHelper.setting(
+        {
+          pluginAddress: '$address',
+          network: '$network',
+        },
+        'settings',
+        {
+          _id: 0,
+          onlyListed: 1,
+          minApprovals: 1,
+          votingMode: 1,
+          supportThreshold: 1,
+          minParticipation: 1,
+          minDuration: 1,
+          minProposerVotingPower: 1,
+          stages: 1,
+          votingEscrow: 1,
+        },
+      ),
+      AggregationQueryHelper.token(
+        {
+          address: '$tokenAddress',
+          network: '$network',
+        },
+        'token',
+        {
+          _id: 0,
+          network: 1,
+          address: 1,
+          symbol: 1,
+          name: 1,
+          decimals: 1,
+          logo: 1,
+          isGovernance: 1,
+          ignoreTransfer: 1,
+          hasDelegate: 1,
+          underlying: 1,
+          type: 1,
+          totalSupply: 1,
+          mintableByDao: 1,
+        },
+      ),
+      {
+        $addFields: {
+          settings: {
+            $mergeObjects: [{ $arrayElemAt: ['$settings', 0] }, { token: { $arrayElemAt: ['$token', 0] } }],
+          },
+        },
+      },
+      AggregationQueryHelper.pluginSlug(
+        {
+          pluginAddress: '$address',
+          network: '$network',
+        },
+        'pluginSlug',
+      ),
+      {
+        $addFields: {
+          slug: { $arrayElemAt: ['$pluginSlug.slug', 0] },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          __v: 0,
+          permissions: 0,
+          uninstalled: 0,
+          hasTarget: 0,
+          sender: 0,
+          token: 0,
+          pluginSlug: 0,
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          plugins: { $push: '$$ROOT' },
+        },
+      },
+      ...AggregationQueryHelper.pluginDetailsWithNestedSubPlugins(network),
+    ]
+
+    const result = await this.aggregate(aggQuery)
+    return result?.[0]?.plugins || []
+  }
+
+  /**
+   * Find all policy plugins (router/claimer) for a DAO with their settings
+   * Returns plugin structure with strategy field populated from settings
+   */
+  static async findPoliciesByDao({ daoAddress, daoAddresses, network }: IGetPoliciesByDaoParams) {
+    const matchFilter: any = {
+      network,
+      interfaceType: { $in: [IPluginInterfaceType.router, IPluginInterfaceType.claimer] },
+      isPolicy: true,
+      status: IPluginStatus.installed,
+    }
+
+    if (daoAddresses?.length) {
+      matchFilter.daoAddress = { $in: daoAddresses }
+    } else {
+      matchFilter.daoAddress = daoAddress
+    }
+
+    const aggQuery: any = [
+      {
+        $match: matchFilter,
+      },
+      {
+        $sort: { blockNumber: -1 as const },
+      },
+      AggregationQueryHelper.setting(
+        {
+          pluginAddress: '$address',
+          network: '$network',
+        },
+        'settings',
+        {
+          _id: 0,
+          policy: 1,
+        },
+      ),
+      AggregationQueryHelper.pluginSlug(
+        {
+          pluginAddress: '$address',
+          network: '$network',
+        },
+        'pluginSlug',
+      ),
+      {
+        $addFields: {
+          policyData: { $arrayElemAt: ['$settings.policy', 0] },
+          policyKey: '$processKey',
+          slug: { $arrayElemAt: ['$pluginSlug.slug', 0] },
+        },
+      },
+      AggregationQueryHelper.token(
+        {
+          address: '$policyData.source.tokenAddress',
+          network: '$network',
+        },
+        'sourceToken',
+        {
+          _id: 0,
+          address: 1,
+          symbol: 1,
+          name: 1,
+          decimals: 1,
+          logo: 1,
+        },
+      ),
+      AggregationQueryHelper.token(
+        {
+          address: '$policyData.swap.targetTokenAddress',
+          network: '$network',
+        },
+        'swapTargetToken',
+        {
+          _id: 0,
+          address: 1,
+          symbol: 1,
+          name: 1,
+          decimals: 1,
+          logo: 1,
+        },
+      ),
+      {
+        $addFields: {
+          strategy: {
+            policyId: '$policyData.policyId',
+            type: '$policyData.strategyType',
+            model: {
+              $cond: {
+                if: { $ifNull: ['$policyData.model.address', false] },
+                then: {
+                  type: '$policyData.model.type',
+                  address: '$policyData.model.address',
+                  recipients: '$policyData.model.recipients',
+                  ratios: '$policyData.model.ratios',
+                  gaugeVoterAddress: '$policyData.model.gaugeVoterAddress',
+                },
+                else: null,
+              },
+            },
+            source: {
+              $cond: {
+                if: { $ifNull: ['$policyData.source.address', false] },
+                then: {
+                  type: '$policyData.source.type',
+                  address: '$policyData.source.address',
+                  vaultAddress: '$policyData.source.vaultAddress',
+                  token: {
+                    $cond: {
+                      if: { $gt: [{ $size: { $ifNull: ['$sourceToken', []] } }, 0] },
+                      then: { $arrayElemAt: ['$sourceToken', 0] },
+                      else: {
+                        address: '$policyData.source.tokenAddress',
+                        symbol: null,
+                        name: null,
+                        decimals: null,
+                        logo: null,
+                      },
+                    },
+                  },
+                  amountPerEpoch: '$policyData.source.amountPerEpoch',
+                  maxSourceBalance: '$policyData.source.maxSourceBalance',
+                  epochInterval: '$policyData.source.epochInterval',
+                },
+                else: null,
+              },
+            },
+            swap: {
+              $cond: {
+                if: { $ifNull: ['$policyData.swap.targetTokenAddress', false] },
+                then: {
+                  targetToken: {
+                    $cond: {
+                      if: { $gt: [{ $size: { $ifNull: ['$swapTargetToken', []] } }, 0] },
+                      then: { $arrayElemAt: ['$swapTargetToken', 0] },
+                      else: {
+                        address: '$policyData.swap.targetTokenAddress',
+                        symbol: null,
+                        name: null,
+                        decimals: null,
+                        logo: null,
+                      },
+                    },
+                  },
+                  cowSwapSettlement: '$policyData.swap.cowSwapSettlement',
+                  cowSwapRelayer: '$policyData.swap.cowSwapRelayer',
+                  uniswapRouter: '$policyData.swap.uniswapRouter',
+                },
+                else: null,
+              },
+            },
+            subRouters: {
+              $cond: {
+                if: { $gt: [{ $size: { $ifNull: ['$policyData.subRouters', []] } }, 0] },
+                then: '$policyData.subRouters',
+                else: [],
+              },
+            },
+            subClaimers: {
+              $cond: {
+                if: { $gt: [{ $size: { $ifNull: ['$policyData.subClaimers', []] } }, 0] },
+                then: '$policyData.subClaimers',
+                else: [],
+              },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          name: 1,
+          description: 1,
+          links: 1,
+          policyKey: 1,
+          address: 1,
+          interfaceType: 1,
+          strategy: 1,
+          release: 1,
+          build: 1,
+          blockTimestamp: 1,
+          transactionHash: 1,
+          metadataIpfs: 1,
+          network: 1,
+          daoAddress: 1,
+          slug: 1,
+        },
+      },
+    ]
+
+    return this.aggregate(aggQuery)
   }
 
   async update(params: Partial<Plugin>, tOpts?: SaveOptions) {

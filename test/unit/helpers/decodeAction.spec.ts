@@ -1,6 +1,5 @@
 import { Models } from '@dbModels'
 import FourByte from '@helpers/4byte'
-import CoinGeckoHelper from '@helpers/coinGecko'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
 import DecodeActions from '@helpers/decodeAction'
 import ProxyContract from '@helpers/proxyContract'
@@ -520,6 +519,7 @@ describe('Helpers: DecodeActions', () => {
         textSignature: 'setMetadata(bytes)',
         parameters: [
           {
+            name: 'param0',
             type: 'bytes',
             value:
               '0x697066733a2f2f516d4e753239435378354276596a506a786d716e6a6a6d5a68326e6a4e4b6e68346a7a566b5a6d476d4778667458',
@@ -607,6 +607,46 @@ describe('Helpers: DecodeActions', () => {
       expect(result).to.be.null
       expect(stubFourByte.calledOnce).to.be.true
       expect(stubLogger.calledOnceWith('Error decoding action data' as any)).to.be.true
+    })
+
+    it('should correctly decode data with tuple parameters like callBatched', async () => {
+      const decodeActions = new DecodeActions()
+      // Encoded calldata for callBatched((address,bytes,uint256)[]) with one tuple element:
+      // address=0xef32dc2b02bfa082f11aa6f57154f4079ffe9bbc, data=0x1234, value=1000
+      const data =
+        '0x299a1d77000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000020000000000000000000000000ef32dc2b02bfa082f11aa6f57154f4079ffe9bbc000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000003e800000000000000000000000000000000000000000000000000000000000000021234000000000000000000000000000000000000000000000000000000000000'
+
+      // Re-configure the existing stub instead of creating a new one
+      const stubFourByte = FourByte.getSignatures as sinon.SinonStub
+      stubFourByte.resolves({
+        count: 1,
+        next: null,
+        previous: null,
+        results: [
+          {
+            id: 999999,
+            created_at: '2024-01-01T00:00:00.000000Z',
+            text_signature: 'callBatched((address,bytes,uint256)[])',
+            hex_signature: '0x299a1d77',
+            bytes_signature: ')\x9a\x1dw',
+          },
+        ],
+      })
+
+      const result = await decodeActions._decodeFallback({ data, value: 0, to: '0x123' }, NetworksEnum.ethereumSepolia)
+
+      expect(result).to.not.be.null
+      expect(result?.function).to.equal('callBatched')
+      expect(result?.textSignature).to.equal('callBatched((address,bytes,uint256)[])')
+      // The key assertion: parameters should NOT be empty
+      expect(result?.parameters).to.be.an('array')
+      expect(result?.parameters?.length).to.be.greaterThan(0)
+      // The type should correctly include the full tuple definition (ethers adds spaces)
+      expect(result?.parameters?.[0]?.type).to.include('(address, bytes, uint256)[]')
+      // The value should be the decoded array with our tuple
+      expect(result?.parameters?.[0]?.value).to.be.an('array')
+      expect(result?.parameters?.[0]?.value?.length).to.equal(1)
+      expect(stubFourByte.calledOnce).to.be.true
     })
   })
 
@@ -1827,11 +1867,7 @@ describe('Helpers: DecodeActions', () => {
         decimals: 18,
         logo: 'https://mock.com/logo.png',
         type: ITokenType.ERC20,
-      } as any)
-
-      const coinGeckoTokenInfo = sandbox.stub(CoinGeckoHelper, 'getToken').resolves({
         totalSupply: '1000000000000000000',
-        holders: 1,
       } as any)
 
       const createBaseMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
@@ -1847,9 +1883,7 @@ describe('Helpers: DecodeActions', () => {
       expect(createBaseMemberStub.calledOnce).to.be.true
       expect(result?.type).to.be.eq(ProposalActionType.Mint)
       expect(saveAndGetTokenStub.calledOnce).to.be.true
-      expect(coinGeckoTokenInfo.calledOnce).to.be.true
       expect(result!.totalSupply).to.be.eq('1000000000000000000')
-      expect(result!.holdersCount).to.be.eq(1)
       expect(tokenBalanceAtBlockStub.calledOnce).to.be.true
     })
 
@@ -1886,9 +1920,7 @@ describe('Helpers: DecodeActions', () => {
         network: NetworksEnum.ethereumSepolia,
       }
 
-      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken')
-
-      const coinGeckoTokenInfo = sandbox.stub(CoinGeckoHelper, 'getToken')
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
 
       const loggerStub = sandbox.stub(Logger, 'error')
 
@@ -1901,13 +1933,11 @@ describe('Helpers: DecodeActions', () => {
       expect(createBaseMemberStub.calledOnce).to.be.true
       expect(result?.type).to.be.eq(ProposalActionType.Mint)
       expect(saveAndGetTokenStub.calledOnce).to.be.true
-      expect(coinGeckoTokenInfo.calledOnce).to.be.false
       expect(tokenBalanceAtBlockStub.calledOnce).to.be.false
       expect(result!.totalSupply).to.be.eq('0')
-      expect(result!.holdersCount).to.be.eq(0)
     })
 
-    it('should retunr null if the signature is not correct for updateDaoMetadata', async () => {
+    it('should return null if the signature is not correct for updateDaoMetadata', async () => {
       const decodeActions = new DecodeActions()
       const baseAction = {
         textSignature: 'mockSig(bytes)',
@@ -1971,6 +2001,9 @@ describe('Helpers: DecodeActions', () => {
         name: 'MockDao',
       })
       const stubExtractMetadataUri = sandbox.stub(Web3Utils, 'extractMetadataUri').returns('https://link')
+      const parseDaoMetadataStub = sandbox.stub(Web3Utils, 'parseDaoMetadata').returns({
+        name: 'Updated Dao',
+      } as any)
       // Re-configure the existing stub instead of creating a new one
       const ipfsFetchStubb = Ipfs.fetchMetadata as sinon.SinonStub
       ipfsFetchStubb.resolves({
@@ -1981,6 +2014,7 @@ describe('Helpers: DecodeActions', () => {
       expect(result?.type).to.be.eq(ProposalActionType.MetadataUpdate)
       expect(stubExtractMetadataUri.calledOnce).to.be.true
       expect(ipfsFetchStubb.calledOnce).to.be.true
+      expect(parseDaoMetadataStub.calledOnce).to.be.true
       expect(getMetadataAtBlockNumberStub.calledOnce).to.be.true
     })
 
@@ -2193,6 +2227,7 @@ describe('Helpers: DecodeActions', () => {
       const ipfsStub = Ipfs.fetchMetadata as sinon.SinonStub
       ipfsStub.resolves(mockMetadata)
       sandbox.stub(Web3Utils, 'extractMetadataUri').returns('https://link')
+      sandbox.stub(Web3Utils, 'parseDaoMetadata').returns(mockMetadata as any)
       const parseContractNetspecStub = sandbox.stub(actionDecode, 'parseContractNetspec').resolves({
         functionName: 'setMetadata(bytes)',
         notice: 'notice',
@@ -2416,6 +2451,9 @@ describe('Helpers: DecodeActions', () => {
     }
 
     const stubExtractMetadataUri = sandbox.stub(Web3Utils, 'extractMetadataUri').returns('https://link')
+    const parseDaoMetadataStub = sandbox.stub(Web3Utils, 'parseDaoMetadata').returns({
+      name: 'Gauge info',
+    } as any)
     // Re-configure the existing stub instead of creating a new one
     const ipfsFetchStub = Ipfs.fetchMetadata as sinon.SinonStub
     ipfsFetchStub.resolves({
@@ -2427,6 +2465,7 @@ describe('Helpers: DecodeActions', () => {
     expect(result?.gaugeMetadata).to.deep.equal({ name: 'Gauge info' })
     expect(stubExtractMetadataUri.calledOnce).to.be.true
     expect(ipfsFetchStub.calledOnce).to.be.true
+    expect(parseDaoMetadataStub.calledOnce).to.be.true
   })
 
   it('should return null when _parseRegisterGauge signature does not match', async () => {
@@ -2543,7 +2582,7 @@ describe('Helpers: DecodeActions', () => {
 
     const result = await decodeActions._parseCreateGauge(baseAction, action)
     expect(result?.type).to.be.eq(ProposalActionType.CreateGauge)
-    expect(result?.gaugeMetadata).to.deep.equal({ name: 'Gauge info' })
+    expect(result?.gaugeMetadata).to.include({ name: 'Gauge info' })
     expect(stubExtractMetadataUri.calledOnce).to.be.true
     expect(ipfsFetchStub.calledOnce).to.be.true
   })
@@ -2598,7 +2637,7 @@ describe('Helpers: DecodeActions', () => {
 
     const result = await decodeActions._parseUpdateGaugeMetadata(baseAction, action)
     expect(result?.type).to.be.eq(ProposalActionType.UpdateGaugeMetadata)
-    expect(result?.gaugeMetadata).to.deep.equal({ name: 'Gauge info' })
+    expect(result?.gaugeMetadata).to.include({ name: 'Gauge info' })
     expect(stubExtractMetadataUri.calledOnce).to.be.true
     expect(ipfsFetchStub.calledOnce).to.be.true
   })

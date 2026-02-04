@@ -1,7 +1,7 @@
+import ContractHelper from '@helpers/contractHelper'
 import ProxyContractHelper from '@helpers/proxyContract'
 import TokenDetector from '@helpers/tokenDetector'
 import utils from '@helpers/utils'
-import ProviderModule from '@modules/provider'
 import { ITokenType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { ZeroAddress } from 'ethers'
@@ -39,9 +39,7 @@ describe('Helper: TokenDetector', () => {
       .stub(ProxyContractHelper, 'getImplementationAddress')
       .resolves(contractAddress)
 
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-      getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(TokenDetector.ERC20)),
-    } as any)
+    sandbox.stub(ContractHelper, 'getBytecode').resolves(simulateBytecodeForFunctions(TokenDetector.ERC20))
 
     const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
     expect(result?.type).to.equal(ITokenType.ERC20)
@@ -52,17 +50,15 @@ describe('Helper: TokenDetector', () => {
 
   it('should detect ERC20 Governance token and underlying', async () => {
     const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-      getCode: sandbox
-        .stub()
-        .resolves(
-          simulateBytecodeForFunctions([
-            ...TokenDetector.ERC20,
-            ...TokenDetector.ERC20_VOTES,
-            ...TokenDetector.HAS_UNDERLYING,
-          ]),
-        ),
-    } as any)
+    sandbox
+      .stub(ContractHelper, 'getBytecode')
+      .resolves(
+        simulateBytecodeForFunctions([
+          ...TokenDetector.ERC20,
+          ...TokenDetector.ERC20_VOTES,
+          ...TokenDetector.HAS_UNDERLYING,
+        ]),
+      )
 
     const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
     expect(result.type).to.equal(ITokenType.ERC20)
@@ -74,9 +70,7 @@ describe('Helper: TokenDetector', () => {
 
   it('should detect ERC721 token', async () => {
     sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-      getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(TokenDetector.ERC721)),
-    } as any)
+    sandbox.stub(ContractHelper, 'getBytecode').resolves(simulateBytecodeForFunctions(TokenDetector.ERC721))
 
     const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
     expect(result.type).to.equal(ITokenType.ERC721)
@@ -86,9 +80,7 @@ describe('Helper: TokenDetector', () => {
 
   it('should detect ERC1155 token', async () => {
     sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-      getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(TokenDetector.ERC1155)),
-    } as any)
+    sandbox.stub(ContractHelper, 'getBytecode').resolves(simulateBytecodeForFunctions(TokenDetector.ERC1155))
 
     const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
     expect(result.type).to.equal(ITokenType.ERC1155)
@@ -97,9 +89,7 @@ describe('Helper: TokenDetector', () => {
 
   it('should detect ERC777 token', async () => {
     sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-      getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(TokenDetector.ERC777)),
-    } as any)
+    sandbox.stub(ContractHelper, 'getBytecode').resolves(simulateBytecodeForFunctions(TokenDetector.ERC777))
 
     const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
     expect(result.type).to.equal(ITokenType.ERC777)
@@ -108,9 +98,7 @@ describe('Helper: TokenDetector', () => {
 
   it('should detect escrowAdapter token', async () => {
     const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-      getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(TokenDetector.ESCROW_ADAPTER)),
-    } as any)
+    sandbox.stub(ContractHelper, 'getBytecode').resolves(simulateBytecodeForFunctions(TokenDetector.ESCROW_ADAPTER))
 
     const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
     expect(result.type).to.equal(ITokenType.escrowAdapter)
@@ -122,9 +110,7 @@ describe('Helper: TokenDetector', () => {
 
   it('should detect unknown token', async () => {
     sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-      getCode: sandbox.stub().resolves('0xUnrelatedBytecodeThatDoesNotMatchAnyFunctionHashes'),
-    } as any)
+    sandbox.stub(ContractHelper, 'getBytecode').resolves('0xUnrelatedBytecodeThatDoesNotMatchAnyFunctionHashes')
 
     const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
     expect(result.type).to.equal(ITokenType.unknown)
@@ -136,9 +122,7 @@ describe('Helper: TokenDetector', () => {
     const getImplementationAddressStub = sandbox
       .stub(ProxyContractHelper, 'getImplementationAddress')
       .resolves(contractAddress)
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-      getCode: sandbox.stub().resolves('0x'),
-    } as any)
+    sandbox.stub(ContractHelper, 'getBytecode').resolves(null)
 
     const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
     expect(result.type).to.equal(ITokenType.unknown)
@@ -149,9 +133,7 @@ describe('Helper: TokenDetector', () => {
 
   it('should getCode from address if implementation is zero address', async () => {
     sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(utils.zeroAddress)
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-      getCode: sandbox.stub().resolves(simulateBytecodeForFunctions(TokenDetector.ERC721)),
-    } as any)
+    sandbox.stub(ContractHelper, 'getBytecode').resolves(simulateBytecodeForFunctions(TokenDetector.ERC721))
 
     const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
     expect(result.type).to.equal(ITokenType.ERC721)
@@ -161,9 +143,7 @@ describe('Helper: TokenDetector', () => {
 
   it('should handle an error when fetching bytecode', async () => {
     const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-      getCode: sandbox.stub().rejects(new Error('Failed to fetch bytecode')),
-    } as any)
+    sandbox.stub(ContractHelper, 'getBytecode').rejects(new Error('Failed to fetch bytecode'))
 
     const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
     expect(result.implementationAddress).to.be.null
@@ -175,18 +155,16 @@ describe('Helper: TokenDetector', () => {
 
   it('should detect token with name, symbol, and decimals properties', async () => {
     sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-      getCode: sandbox
-        .stub()
-        .resolves(
-          simulateBytecodeForFunctions([
-            ...TokenDetector.ERC20,
-            ...TokenDetector.HAS_NAME,
-            ...TokenDetector.HAS_SYMBOL,
-            ...TokenDetector.HAS_DECIMALS,
-          ]),
-        ),
-    } as any)
+    sandbox
+      .stub(ContractHelper, 'getBytecode')
+      .resolves(
+        simulateBytecodeForFunctions([
+          ...TokenDetector.ERC20,
+          ...TokenDetector.HAS_NAME,
+          ...TokenDetector.HAS_SYMBOL,
+          ...TokenDetector.HAS_DECIMALS,
+        ]),
+      )
 
     const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
     expect(result.type).to.equal(ITokenType.ERC20)
@@ -197,17 +175,15 @@ describe('Helper: TokenDetector', () => {
 
   it('should detect token with delegate and clockMode properties', async () => {
     sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-      getCode: sandbox
-        .stub()
-        .resolves(
-          simulateBytecodeForFunctions([
-            ...TokenDetector.ERC20,
-            ...TokenDetector.HAS_DELEGATE,
-            ...TokenDetector.HAS_CLOCK_MODE,
-          ]),
-        ),
-    } as any)
+    sandbox
+      .stub(ContractHelper, 'getBytecode')
+      .resolves(
+        simulateBytecodeForFunctions([
+          ...TokenDetector.ERC20,
+          ...TokenDetector.HAS_DELEGATE,
+          ...TokenDetector.HAS_CLOCK_MODE,
+        ]),
+      )
 
     const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
     expect(result.type).to.equal(ITokenType.ERC20)
@@ -217,18 +193,16 @@ describe('Helper: TokenDetector', () => {
 
   it('should detect token with totalSupply and balanceOf properties', async () => {
     sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-      getCode: sandbox
-        .stub()
-        .resolves(
-          simulateBytecodeForFunctions([
-            ...TokenDetector.ERC20,
-            ...TokenDetector.HAS_TOTAL_SUPPLY,
-            ...TokenDetector.HAS_BALANCE_OF_ERC20,
-            ...TokenDetector.HAS_BALANCE_OF_ERC777,
-          ]),
-        ),
-    } as any)
+    sandbox
+      .stub(ContractHelper, 'getBytecode')
+      .resolves(
+        simulateBytecodeForFunctions([
+          ...TokenDetector.ERC20,
+          ...TokenDetector.HAS_TOTAL_SUPPLY,
+          ...TokenDetector.HAS_BALANCE_OF_ERC20,
+          ...TokenDetector.HAS_BALANCE_OF_ERC777,
+        ]),
+      )
 
     const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
     expect(result.type).to.equal(ITokenType.ERC20)

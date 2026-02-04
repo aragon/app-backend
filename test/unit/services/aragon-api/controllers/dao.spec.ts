@@ -776,4 +776,194 @@ describe('Controller: Dao', () => {
       })
     })
   })
+
+  // WithoutPlugins Controller Tests
+  describe('WithoutPlugins API Methods', () => {
+    describe('getDaosWithPaginationWithoutPlugins', () => {
+      it('should call findWithPaginationWithoutPlugins', async () => {
+        const mockPaginationParams = {
+          search: '',
+          pageSize: 10,
+          page: 1,
+          order: 'asc',
+          sort: 'createdAt',
+        }
+
+        const mockResponse = {
+          data: [{ id: '1', address: '0x123' }],
+          metadata: { page: 1, totalPages: 1, totalRecords: 1 },
+        }
+
+        sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves(mockPaginationParams)
+        sandbox.stub(PairDataModule, 'pairExtraQueryData').resolves({})
+        const stubFindWithPaginationWithoutPlugins = sandbox
+          .stub(Models.Dao, 'findWithPaginationWithoutPlugins')
+          .resolves(mockResponse)
+
+        const result = await DaoController.getDaosWithPaginationWithoutPlugins({}, {})
+
+        expect(stubFindWithPaginationWithoutPlugins.calledOnce).to.be.true
+        expect(result).to.deep.equal(mockResponse)
+      })
+    })
+
+    describe('getDaoByIdWithoutPlugins', () => {
+      it('should get dao by id using getDaoDetailsWithoutPlugins', async () => {
+        const mockDao = {
+          id: 'ethereum-mainnet-0x123',
+          address: '0x123',
+          network: NetworksEnum.ethereumMainnet,
+        }
+
+        const mockDaoDetails = {
+          id: mockDao.id,
+          address: mockDao.address,
+          network: mockDao.network,
+          name: 'Test DAO',
+          parentDao: null,
+          subDaos: [],
+        }
+
+        sandbox.stub(Models.Dao, 'findByEntityId').resolves(mockDao)
+        const stubGetDaoDetailsWithoutPlugins = sandbox
+          .stub(Models.Dao, 'getDaoDetailsWithoutPlugins')
+          .resolves(mockDaoDetails)
+
+        const result = await DaoController.getDaoByIdWithoutPlugins(mockDao.id)
+
+        expect(stubGetDaoDetailsWithoutPlugins.calledOnce).to.be.true
+        expect(stubGetDaoDetailsWithoutPlugins.calledWith(mockDao.address, mockDao.network)).to.be.true
+        expect(result).to.deep.equal(mockDaoDetails)
+      })
+
+      it('should throw notFound error when dao not found', async () => {
+        sandbox.stub(Models.Dao, 'findByEntityId').resolves(null)
+
+        try {
+          await DaoController.getDaoByIdWithoutPlugins('non-existent-id')
+          expect.fail('Should have thrown an error')
+        } catch (error: any) {
+          expect(error.message).to.equal(ErrorKeyEnum.notFound)
+        }
+      })
+    })
+
+    describe('getDaoByAddressWithoutPlugins', () => {
+      it('should get dao by address using getDaoDetailsWithoutPlugins', async () => {
+        const mockDao = {
+          id: 'ethereum-mainnet-0x123',
+          address: '0x123' as HexAddress,
+          network: NetworksEnum.ethereumMainnet,
+        }
+
+        const mockDaoDetails = {
+          id: mockDao.id,
+          address: mockDao.address,
+          network: mockDao.network,
+          name: 'Test DAO',
+          parentDao: null,
+          subDaos: [],
+        }
+
+        sandbox.stub(Models.Dao, 'findByAddress').resolves(mockDao)
+        const stubGetDaoDetailsWithoutPlugins = sandbox
+          .stub(Models.Dao, 'getDaoDetailsWithoutPlugins')
+          .resolves(mockDaoDetails)
+
+        const result = await DaoController.getDaoByAddressWithoutPlugins(mockDao.address, mockDao.network)
+
+        expect(stubGetDaoDetailsWithoutPlugins.calledOnce).to.be.true
+        expect(stubGetDaoDetailsWithoutPlugins.calledWith(mockDao.address, mockDao.network)).to.be.true
+        expect(result).to.deep.equal(mockDaoDetails)
+      })
+
+      it('should throw notFound error when dao not found by address', async () => {
+        sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
+
+        try {
+          await DaoController.getDaoByAddressWithoutPlugins('0x999' as HexAddress, NetworksEnum.ethereumMainnet)
+          expect.fail('Should have thrown an error')
+        } catch (error: any) {
+          expect(error.message).to.equal(ErrorKeyEnum.notFound)
+        }
+      })
+    })
+
+    describe('getDaoByEnsWithoutPlugins', () => {
+      it('should get dao by ens using getDaoDetailsWithoutPlugins', async () => {
+        const mockDao = {
+          id: 'ethereum-mainnet-0x123',
+          address: '0x123' as HexAddress,
+          network: NetworksEnum.ethereumMainnet,
+          ens: 'test-dao.eth',
+        }
+
+        const mockDaoDetails = {
+          id: mockDao.id,
+          address: mockDao.address,
+          network: mockDao.network,
+          ens: mockDao.ens,
+          name: 'Test DAO',
+          parentDao: null,
+          subDaos: [],
+        }
+
+        sandbox.stub(Models.Dao, 'findOne').resolves(mockDao)
+        const stubGetDaoDetailsWithoutPlugins = sandbox
+          .stub(Models.Dao, 'getDaoDetailsWithoutPlugins')
+          .resolves(mockDaoDetails)
+
+        const result = await DaoController.getDaoByEnsWithoutPlugins(mockDao.ens, mockDao.network)
+
+        expect(stubGetDaoDetailsWithoutPlugins.calledOnce).to.be.true
+        expect(stubGetDaoDetailsWithoutPlugins.calledWith(mockDao.address, mockDao.network)).to.be.true
+        expect(result).to.deep.equal(mockDaoDetails)
+      })
+
+      it('should throw notFound error when dao not found by ens', async () => {
+        sandbox.stub(Models.Dao, 'findOne').resolves(null)
+
+        try {
+          await DaoController.getDaoByEnsWithoutPlugins('non-existent.eth', NetworksEnum.ethereumMainnet)
+          expect.fail('Should have thrown an error')
+        } catch (error: any) {
+          expect(error.message).to.equal(ErrorKeyEnum.notFound)
+        }
+      })
+    })
+
+    describe('getDaosByMemberWithoutPlugins', () => {
+      it('should call findWithPaginationWithoutPlugins for member daos', async () => {
+        const paginationParams = {
+          search: '',
+          pageSize: 10,
+          page: 1,
+          order: 'asc',
+          sort: 'createdAt',
+        }
+
+        const extraParams = {
+          memberAddress: '0xMemberAddress',
+          networks: [NetworksEnum.ethereumMainnet],
+        }
+
+        const mockResponse = {
+          data: [{ id: '1', address: '0xDao1' }],
+          metadata: { page: 1, totalPages: 1, totalRecords: 1 },
+        }
+
+        sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves(paginationParams)
+        sandbox.stub(PairDataModule, 'checkIFEns').resolves(extraParams.memberAddress)
+        sandbox.stub(DaoController, 'getDaosOfMemberInNetwork').resolves(['0xDao1'])
+        const stubFindWithPaginationWithoutPlugins = sandbox
+          .stub(Models.Dao, 'findWithPaginationWithoutPlugins')
+          .resolves(mockResponse)
+
+        const result = await DaoController.getDaosByMemberWithoutPlugins(paginationParams, extraParams)
+
+        expect(stubFindWithPaginationWithoutPlugins.calledOnce).to.be.true
+        expect(result).to.deep.equal(mockResponse)
+      })
+    })
+  })
 })

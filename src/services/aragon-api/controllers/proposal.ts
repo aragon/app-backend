@@ -50,6 +50,25 @@ const ProposalController = {
   ): Promise<IPaginatedResult<IProposalsResponse>> => {
     paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
     extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
+
+    const hasOnlyDaoAndNetwork =
+      extraParams.daoAddress &&
+      extraParams.network &&
+      !extraParams.pluginAddress &&
+      !extraParams.creatorAddress &&
+      !extraParams.isSubProposal &&
+      !extraParams.proposalIndex &&
+      !extraParams.incrementalId
+
+    if (hasOnlyDaoAndNetwork) {
+      const dao = await Models.Dao.findByAddress(extraParams.daoAddress, extraParams.network)
+      if (dao?.subDaos?.length) {
+        extraParams.daoAddresses = [extraParams.daoAddress, ...dao.subDaos]
+        paginationParams.sort = 'blockNumber'
+        paginationParams.order = 'desc'
+      }
+    }
+
     return await Models.Proposal.findWithPagination({ extraParams, paginationParams })
   },
 
