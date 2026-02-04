@@ -3703,4 +3703,106 @@ describe('Module: blockchainLogCrawler', () => {
       expect(onErrorStub.firstCall.args[0].message).to.equal('Strategy error')
     })
   })
+
+  describe('recordBlockHashes', () => {
+    it('should record block hashes from logs', async () => {
+      const crawler = new BlockchainLogCrawler({
+        ...crawlerConfig,
+        logService: null,
+      })
+
+      const bulkUpsertStub = sandbox.stub(Models.BlockRecord, 'bulkUpsert').resolves()
+
+      const logs = [
+        { blockNumber: 101, blockHash: '0xhash1' },
+        { blockNumber: 102, blockHash: '0xhash2' },
+      ] as any
+
+      await (crawler as any).recordBlockHashes(logs, NetworksEnum.ethereumMainnet)
+
+      expect(bulkUpsertStub.calledOnce).to.be.true
+      const records = bulkUpsertStub.firstCall.args[0]
+      expect(records).to.have.lengthOf(2)
+      expect(records[0]).to.deep.equal({
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 101,
+        blockHash: '0xhash1',
+      })
+      expect(records[1]).to.deep.equal({
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 102,
+        blockHash: '0xhash2',
+      })
+    })
+
+    it('should skip when logs are empty', async () => {
+      const crawler = new BlockchainLogCrawler({
+        ...crawlerConfig,
+        logService: null,
+      })
+
+      const bulkUpsertStub = sandbox.stub(Models.BlockRecord, 'bulkUpsert').resolves()
+
+      await (crawler as any).recordBlockHashes([], NetworksEnum.ethereumMainnet)
+      expect(bulkUpsertStub.notCalled).to.be.true
+
+      await (crawler as any).recordBlockHashes(null, NetworksEnum.ethereumMainnet)
+      expect(bulkUpsertStub.notCalled).to.be.true
+    })
+
+    it('should deduplicate blocks by blockNumber', async () => {
+      const crawler = new BlockchainLogCrawler({
+        ...crawlerConfig,
+        logService: null,
+      })
+
+      const bulkUpsertStub = sandbox.stub(Models.BlockRecord, 'bulkUpsert').resolves()
+
+      const logs = [
+        { blockNumber: 101, blockHash: '0xhash1' },
+        { blockNumber: 101, blockHash: '0xhash1' },
+        { blockNumber: 102, blockHash: '0xhash2' },
+      ] as any
+
+      await (crawler as any).recordBlockHashes(logs, NetworksEnum.ethereumMainnet)
+
+      expect(bulkUpsertStub.calledOnce).to.be.true
+      const records = bulkUpsertStub.firstCall.args[0]
+      expect(records).to.have.lengthOf(2)
+    })
+
+    it('should skip logs without blockHash', async () => {
+      const crawler = new BlockchainLogCrawler({
+        ...crawlerConfig,
+        logService: null,
+      })
+
+      const bulkUpsertStub = sandbox.stub(Models.BlockRecord, 'bulkUpsert').resolves()
+
+      const logs = [{ blockNumber: 101 }, { blockNumber: 102, blockHash: '0xhash2' }] as any
+
+      await (crawler as any).recordBlockHashes(logs, NetworksEnum.ethereumMainnet)
+
+      expect(bulkUpsertStub.calledOnce).to.be.true
+      const records = bulkUpsertStub.firstCall.args[0]
+      expect(records).to.have.lengthOf(1)
+      expect(records[0].blockNumber).to.equal(102)
+    })
+
+    it('should handle bulkUpsert errors gracefully', async () => {
+      const crawler = new BlockchainLogCrawler({
+        ...crawlerConfig,
+        logService: null,
+      })
+
+      sandbox.stub(Models.BlockRecord, 'bulkUpsert').rejects(new Error('DB error'))
+
+      const logs = [{ blockNumber: 101, blockHash: '0xhash1' }] as any
+
+      await (crawler as any).recordBlockHashes(logs, NetworksEnum.ethereumMainnet)
+
+      expect(logWarn.calledOnce).to.be.true
+      expect(logWarn.firstCall.args[0]).to.equal('Failed to record block hashes')
+    })
+  })
 })
