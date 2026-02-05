@@ -176,7 +176,70 @@ describe('RouterV2: CapitalDistributor', () => {
       expect(validationArgs[1].params!.network).to.eq(ctx.query.network)
       expect(validationArgs[1].params!.userAddress).to.eq(ctx.query.userAddress)
       expect(validationArgs[1].params!.status).to.eq(ctx.query.status)
+      expect(validationArgs[1].params!.onlyActive).to.eq(true)
       expect(validationArgs[1].schemas.params).to.exist
+    })
+
+    it('Should default onlyActive to true when not provided', async () => {
+      const validationResult = {
+        paginationParams: {
+          page: 1,
+          pageSize: 10,
+          sort: 'startTime',
+          order: 'desc',
+        },
+        params: {
+          pluginAddress: '0x1234567890123456789012345678901234567890' as HexAddress,
+          network: NetworksEnum.ethereumMainnet,
+        },
+      }
+
+      const validationStub = sandbox.stub(ValidationSchema, 'validateRoute').resolves(validationResult as any)
+      sandbox.stub(CapitalDistributorController, 'getCampaignsWithPagination').resolves({} as any)
+
+      const ctx: any = {
+        query: {
+          pluginAddress: '0x1234567890123456789012345678901234567890',
+          network: 'ethereum',
+        },
+      }
+
+      await CapitalDistributorRouter.getCampaignsWithPagination(ctx)
+
+      const validationArgs = validationStub.args[0]
+      expect(validationArgs[1].params!.onlyActive).to.eq(true)
+    })
+
+    it('Should set onlyActive to false when explicitly passed as false', async () => {
+      const validationResult = {
+        paginationParams: {
+          page: 1,
+          pageSize: 10,
+          sort: 'startTime',
+          order: 'desc',
+        },
+        params: {
+          pluginAddress: '0x1234567890123456789012345678901234567890' as HexAddress,
+          network: NetworksEnum.ethereumMainnet,
+          onlyActive: false,
+        },
+      }
+
+      const validationStub = sandbox.stub(ValidationSchema, 'validateRoute').resolves(validationResult as any)
+      sandbox.stub(CapitalDistributorController, 'getCampaignsWithPagination').resolves({} as any)
+
+      const ctx: any = {
+        query: {
+          pluginAddress: '0x1234567890123456789012345678901234567890',
+          network: 'ethereum',
+          onlyActive: 'false',
+        },
+      }
+
+      await CapitalDistributorRouter.getCampaignsWithPagination(ctx)
+
+      const validationArgs = validationStub.args[0]
+      expect(validationArgs[1].params!.onlyActive).to.eq(false)
     })
 
     it('Should handle validation errors', async () => {

@@ -23,6 +23,7 @@ interface ICoinGeckoTokenResponse {
       total_supply: string
       price_usd: string
       fdv_usd: string
+      market_cap_usd: string
       volume_usd: {
         h24: string
       }
@@ -93,9 +94,7 @@ const CoinGeckoHelper = {
       )
       return response.data
     } catch (error: any) {
-      if (!error?.response?.data?.error?.includes('not found') && error?.status !== 401) {
-        logger.warn('Error in CoinGecko RPC Call', llo({ path, error }))
-      }
+      logger.warn('Error in CoinGecko RPC Call', llo({ path, error }))
       throw error
     }
   },
@@ -128,10 +127,7 @@ const CoinGeckoHelper = {
     try {
       const response = await CoinGeckoHelper._rpCall<any>(path, network)
       return CoinGeckoHelper._parseNativeToken(response, network)
-    } catch (error: any) {
-      if (!error?.response?.data?.error?.includes('not found') && error?.status !== 401) {
-        logger.warn('Error in CoinGecko RPC Call', llo({ path, error }))
-      }
+    } catch {
       return false
     }
   },
@@ -144,7 +140,7 @@ const CoinGeckoHelper = {
     const networkId = CoinGeckoHelper.networkToCoinGecko(network)
 
     if (!networkId) {
-      logger.warn('Network not supported by CoinGecko', llo({ network }))
+      logger.warn('Network not supported by CoinGecko', llo({ network, tokenContractAddress }))
       return false
     }
 
@@ -182,7 +178,11 @@ const CoinGeckoHelper = {
     const token = response.data.attributes
 
     const volume24h = parseFloat(token.volume_usd?.h24 || '0')
-    const isDeadToken = volume24h < config.COINGECKO.DEAD_TOKEN_VOLUME_THRESHOLD
+    const marketCapUsd = parseFloat(token.market_cap_usd || '0')
+    const fdvUsd = parseFloat(token.fdv_usd || '0')
+
+    const hasValidMarketData = marketCapUsd > 0 || fdvUsd > 0
+    const isDeadToken = !hasValidMarketData && volume24h < config.COINGECKO.DEAD_TOKEN_VOLUME_THRESHOLD
 
     return {
       address: Web3Utils.parseAddress(token.address)!,

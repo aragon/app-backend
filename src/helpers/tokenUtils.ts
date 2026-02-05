@@ -30,6 +30,17 @@ const TokenUtils = {
       CoinGeckoHelper.isTestNetwork(token.network!)) &&
     tokenRate.priceUsd === '0',
 
+  getNextFetchRateDelay: (failCount: number): number => {
+    const schedule = [
+      24 * 60 * 60 * 1000,
+      3 * 24 * 60 * 60 * 1000,
+      7 * 24 * 60 * 60 * 1000,
+      14 * 24 * 60 * 60 * 1000,
+      30 * 24 * 60 * 60 * 1000,
+    ]
+    return schedule[Math.min(failCount, schedule.length - 1)]
+  },
+
   getSpamScore: (name: string, symbol: string, logo?: string | null): number => {
     const formattedName = (name || '').toLowerCase()
     const formattedSymbol = (symbol || '').toLowerCase()

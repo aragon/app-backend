@@ -1540,7 +1540,7 @@ describe('Module: blockchainLogCrawler', () => {
     })
 
     expect(updatedConfig).to.exist
-    expect(updatedConfig.lastSync).to.equal(newBlockNumber)
+    expect(updatedConfig.lastSync).to.equal(newBlockNumber + 1)
   })
 
   it('should create a new config if none exists', async () => {
@@ -1575,7 +1575,7 @@ describe('Module: blockchainLogCrawler', () => {
     })
 
     expect(configs).to.have.lengthOf(1)
-    expect(configs[0].lastSync).to.equal(blockNumber)
+    expect(configs[0].lastSync).to.equal(blockNumber + 1)
     expect(configs[0].network).to.equal(NetworksEnum.ethereumMainnet)
     expect(configs[0].service).to.equal(`indexer-${NetworksEnum.ethereumMainnet}`)
   })

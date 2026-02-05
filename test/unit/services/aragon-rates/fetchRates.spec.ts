@@ -109,13 +109,17 @@ describe('AragonRates: FetchRates', () => {
       })
     })
 
-    it('should return early if token data is identical to fetched update', async () => {
+    it('should only update lastUpdatedAt if token data and backoff are unchanged', async () => {
       sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(1n)
       sandbox.stub(CoinGeckoHelper, 'getToken').resolves({ priceUsd: '1.1', logo: 'fake-logo' } as any)
 
-      const updateStub = sandbox.stub(tokenDb, 'update')
+      const mockDate = new Date('2023-01-01T00:00:00Z')
+      sandbox.stub(dayjs, 'utc').returns({ toDate: () => mockDate } as any)
+
+      const updateStub = sandbox.stub(tokenDb, 'update').resolves(tokenDb)
       await FetchRates.onMainnetDocument(tokenDb)
-      expect(updateStub.notCalled).to.be.true
+      expect(updateStub.calledOnce).to.be.true
+      expect(updateStub.calledWith({ lastUpdatedAt: mockDate })).to.be.true
     })
 
     it('should update token with skipFetchRate if shouldSkipFetch returns true', async () => {
@@ -136,40 +140,18 @@ describe('AragonRates: FetchRates', () => {
         updateStub.calledWith({
           totalSupply: '2',
           priceUsd: '1.2',
+          logo: 'new-logo',
+          fetchRateFailCount: 0,
+          nextFetchRateAt: null,
           lastUpdatedAt: mockDate,
           skipFetchRate: true,
-          logo: 'new-logo',
         }),
       ).to.be.true
     })
 
-    it('should update token with fetched data when shouldSkipFetch returns false', async () => {
+    it('should update token with fetched data and reset backoff on success', async () => {
       sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(2n)
       sandbox.stub(CoinGeckoHelper, 'getToken').resolves({ priceUsd: '1.2', logo: 'new-logo' } as any)
-
-      const skipFetchStub = sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
-      const mockDate = new Date('2023-01-01T00:00:00Z')
-      sandbox.stub(dayjs, 'utc').returns({ toDate: () => mockDate } as any)
-
-      const updateStub = sandbox.stub(tokenDb, 'update').resolves(tokenDb)
-      sandbox.stub(logger, 'verbose')
-
-      await FetchRates.onMainnetDocument(tokenDb)
-
-      expect(skipFetchStub.calledOnce).to.be.true
-      expect(
-        updateStub.calledWith({
-          totalSupply: '2',
-          priceUsd: '1.2',
-          logo: 'new-logo',
-          lastUpdatedAt: mockDate,
-        }),
-      ).to.be.true
-    })
-
-    it('should keep existing values when CoinGecko returns false', async () => {
-      sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(2n)
-      sandbox.stub(CoinGeckoHelper, 'getToken').resolves(false)
 
       sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
       const mockDate = new Date('2023-01-01T00:00:00Z')
@@ -183,11 +165,53 @@ describe('AragonRates: FetchRates', () => {
       expect(
         updateStub.calledWith({
           totalSupply: '2',
-          priceUsd: '1.1',
-          logo: 'fake-logo',
+          priceUsd: '1.2',
+          logo: 'new-logo',
+          fetchRateFailCount: 0,
+          nextFetchRateAt: null,
           lastUpdatedAt: mockDate,
         }),
       ).to.be.true
+    })
+
+    it('should increment backoff when CoinGecko returns false', async () => {
+      sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(2n)
+      sandbox.stub(CoinGeckoHelper, 'getToken').resolves(false)
+
+      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
+      const mockDate = new Date('2023-01-01T00:00:00Z')
+      sandbox.stub(dayjs, 'utc').returns({ toDate: () => mockDate } as any)
+
+      const updateStub = sandbox.stub(tokenDb, 'update').resolves(tokenDb)
+      sandbox.stub(logger, 'verbose')
+
+      await FetchRates.onMainnetDocument(tokenDb)
+
+      const updateArgs = updateStub.firstCall.args[0]
+      expect(updateArgs.fetchRateFailCount).to.equal(1)
+      expect(updateArgs.nextFetchRateAt).to.be.instanceOf(Date)
+      const expectedDelay = TokenUtils.getNextFetchRateDelay(0)
+      expect(updateArgs.nextFetchRateAt.getTime()).to.be.closeTo(Date.now() + expectedDelay, 5000)
+      expect(updateArgs.priceUsd).to.equal('1.1')
+      expect(updateArgs.logo).to.equal('fake-logo')
+    })
+
+    it('should increment backoff from existing fail count', async () => {
+      tokenDb.fetchRateFailCount = 3
+      sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(1n)
+      sandbox.stub(CoinGeckoHelper, 'getToken').resolves(false)
+
+      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
+      const mockDate = new Date('2023-01-01T00:00:00Z')
+      sandbox.stub(dayjs, 'utc').returns({ toDate: () => mockDate } as any)
+
+      const updateStub = sandbox.stub(tokenDb, 'update').resolves(tokenDb)
+      sandbox.stub(logger, 'verbose')
+
+      await FetchRates.onMainnetDocument(tokenDb)
+
+      const updateArgs = updateStub.firstCall.args[0]
+      expect(updateArgs.fetchRateFailCount).to.equal(4)
     })
 
     it('should log error when an exception occurs', async () => {

@@ -13,6 +13,7 @@ const CapitalDistributorRouter = {
         network: ctx.query.network as NetworksEnum,
         userAddress: ctx.query.userAddress as HexAddress,
         status: ctx.query.status as 'claimed' | 'claimable',
+        onlyActive: ctx.query.onlyActive !== 'false',
       },
       schemas: {
         params: CapitalDistributorSchema.getCampaignsExtraParams,

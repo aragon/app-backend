@@ -10,6 +10,7 @@ const CapitalDistributorSchema = {
       .required(),
     userAddress: ValidationSchema.joiAddress.optional(),
     status: Joi.string().valid('claimed', 'claimable').optional(),
+    onlyActive: Joi.boolean().optional(),
   }),
 
   getPrepareMessage: Joi.object({
