@@ -12,7 +12,11 @@ import {
   IPluginStatus,
   type IService,
   NetworksEnum,
+  MetadataEntityType,
 } from '@types'
+import IPFSModule from '@modules/ipfs'
+import MetadataRefetchHelper from '@helpers/metadataRefetch'
+import Web3Utils from '@helpers/web3Utils'
 
 const llo = logger.logMeta.bind(null, { service: 'tool:fixDaoSubdaoRelationship' })
 
@@ -56,11 +60,62 @@ export const FixDaoSubdaoRelationship: IService = {
 
     // Step 4: Fix Gauge plugin settings
     await fixGaugePluginSettings()
+    await fixMetadataOfPolicies()
 
     logger.info('Finished fixDaoSubdaoRelationship tool', llo())
   },
 
   stop: async () => {},
+}
+
+async function fixMetadataOfPolicies() {
+  const policies = await Models.Plugin.find({ network: NETWORK, isPolicy: true })
+
+  for (const policy of policies) {
+    if (!policy.metadataIpfs) {
+      logger.warn('Policy has no metadataIpfs, skipping', llo({ address: policy.address }))
+      continue
+    }
+
+    if (policy.processKey) {
+      logger.info(
+        'Policy already has processKey, skipping',
+        llo({ address: policy.address, processKey: policy.processKey }),
+      )
+      continue
+    }
+
+    const ipfsMetadata = await IPFSModule.fetchMetadata(policy.metadataIpfs, {
+      retries: 2,
+      onFetchFailed: MetadataRefetchHelper.createFailedCallback(MetadataEntityType.Plugin, policy.address, NETWORK),
+    })
+
+    if (!ipfsMetadata) {
+      logger.warn('Failed to fetch IPFS metadata for policy', llo({ address: policy.address }))
+      continue
+    }
+
+    const parsedMetadata = Web3Utils.parseDaoMetadata(ipfsMetadata)
+
+    if (!parsedMetadata.processKey) {
+      logger.warn('No processKey found in parsed metadata', llo({ address: policy.address }))
+      continue
+    }
+
+    await policy.update({ processKey: parsedMetadata.processKey })
+    logger.info('Updated Plugin processKey', llo({ address: policy.address, processKey: parsedMetadata.processKey }))
+
+    const logMetadataRecords = await Models.LogMetadata.find({
+      pluginAddress: policy.address,
+      network: NETWORK,
+    })
+
+    for (const logMeta of logMetadataRecords) {
+      await logMeta.update({ processKey: parsedMetadata.processKey })
+    }
+
+    logger.info('Updated LogMetadata processKey', llo({ address: policy.address, count: logMetadataRecords.length }))
+  }
 }
 
 async function fixGaugePluginSettings() {

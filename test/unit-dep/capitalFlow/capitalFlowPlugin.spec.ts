@@ -45,6 +45,7 @@ describe('Integ: CapitalFlow Installation', () => {
       expect(policy).to.have.property('address')
       expect(policy).to.have.property('interfaceType')
       expect(policy).to.have.property('strategy')
+      expect(policy).to.have.property('processKey')
 
       // Verify strategy structure
       expect(policy.strategy).to.have.property('type')
