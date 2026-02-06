@@ -66,6 +66,7 @@ describe('Handler: CapitalDistributor', () => {
     })
 
     it('Should create campaign in database', async () => {
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns('https://ipfs.io/ipfs/QmTest123')
       const saveAndGetStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
       const strategyStartStub = sandbox.stub(LogCampaignStrategy, 'start').resolves()
       const calculateTotalRewardsStub = sandbox
@@ -140,6 +141,7 @@ describe('Handler: CapitalDistributor', () => {
         type: 'distribution',
       }
 
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns('https://ipfs.io/ipfs/QmTest123')
       const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
       const ipfsStub = sandbox.stub(IPFSModule, 'fetchMetadata').resolves(mockMetadata)
       const web3UtilsStub = sandbox.stub(Web3Utils, 'parseCampaignMetadata').returns(mockMetadata)
