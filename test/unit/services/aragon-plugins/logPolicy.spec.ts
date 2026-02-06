@@ -150,11 +150,31 @@ describe('AragonPlugins: LogPolicy', () => {
       expect(verboseStub.calledTwice).to.be.true
     })
 
-    it('should warn and return early if LogPolicy record not found', async () => {
+    it('should fallback to contract creation block when LogPolicy record not found', async () => {
       const address = '0xSourceAddress'
       const network = NetworksEnum.ethereumSepolia
 
       sandbox.stub(Models.LogPolicy, 'findByAddress').resolves(null)
+      sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation').resolves({ blockNumber: 200 } as any)
+      sandbox.stub(ConfigIndexerHelper.builders, 'policyContract').returns({} as any)
+
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      const endStub = sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(logger, 'info')
+
+      await LogPolicy._syncSourceModelContract(address, network)
+
+      expect(crawlStub.calledOnce).to.be.true
+      expect(endStub.calledOnce).to.be.true
+    })
+
+    it('should warn and return early if LogPolicy record not found and contract creation fails', async () => {
+      const address = '0xSourceAddress'
+      const network = NetworksEnum.ethereumSepolia
+
+      sandbox.stub(Models.LogPolicy, 'findByAddress').resolves(null)
+      sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation').resolves({ blockNumber: null } as any)
 
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
       const warnStub = sandbox.stub(logger, 'warn')
@@ -166,24 +186,23 @@ describe('AragonPlugins: LogPolicy', () => {
       expect(crawlStub.called).to.be.false
     })
 
-    it('should warn and return early if LogPolicy record has no blockNumber', async () => {
+    it('should fallback to contract creation block when LogPolicy record has no blockNumber', async () => {
       const address = '0xSourceAddress'
       const network = NetworksEnum.ethereumSepolia
 
-      const mockLogPolicy = {
-        blockNumber: null,
-      }
-
-      sandbox.stub(Models.LogPolicy, 'findByAddress').resolves(mockLogPolicy as any)
+      sandbox.stub(Models.LogPolicy, 'findByAddress').resolves({ blockNumber: null } as any)
+      sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation').resolves({ blockNumber: 300 } as any)
+      sandbox.stub(ConfigIndexerHelper.builders, 'policyContract').returns({} as any)
 
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
-      const warnStub = sandbox.stub(logger, 'warn')
+      const endStub = sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       sandbox.stub(logger, 'verbose')
+      sandbox.stub(logger, 'info')
 
       await LogPolicy._syncSourceModelContract(address, network)
 
-      expect(warnStub.calledOnce).to.be.true
-      expect(crawlStub.called).to.be.false
+      expect(crawlStub.calledOnce).to.be.true
+      expect(endStub.calledOnce).to.be.true
     })
 
     it('should call onError handler when crawler encounters error', async () => {
@@ -284,6 +303,29 @@ describe('AragonPlugins: LogPolicy', () => {
 
       expect(processErrorStub.calledOnce).to.be.true
       expect(processErrorStub.calledWith(error, pluginAddress, network, log)).to.be.true
+    })
+  })
+
+  describe('_resolveFromBlock', () => {
+    it('should return existing block when provided', async () => {
+      const result = await LogPolicy._resolveFromBlock(1000, '0xAddress', NetworksEnum.ethereumSepolia)
+      expect(result).to.eq(1000)
+    })
+
+    it('should fallback to contract creation block when no existing block', async () => {
+      sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation').resolves({ blockNumber: 500 } as any)
+      sandbox.stub(logger, 'info')
+
+      const result = await LogPolicy._resolveFromBlock(undefined, '0xAddress', NetworksEnum.ethereumSepolia)
+      expect(result).to.eq(500)
+    })
+
+    it('should return null when no existing block and contract creation fails', async () => {
+      sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation').resolves({ blockNumber: null } as any)
+      sandbox.stub(logger, 'warn')
+
+      const result = await LogPolicy._resolveFromBlock(undefined, '0xAddress', NetworksEnum.ethereumSepolia)
+      expect(result).to.be.null
     })
   })
 

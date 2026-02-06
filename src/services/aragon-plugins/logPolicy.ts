@@ -59,12 +59,8 @@ export const LogPolicy = {
     )
 
     const logPolicyRecord = await Models.LogPolicy.findByAddress(address, network)
-    if (!logPolicyRecord?.blockNumber) {
-      logger.warn('LogPolicy record not found, skipping sync', llo({ network, address }))
-      return
-    }
-
-    const fromBlock = logPolicyRecord.blockNumber
+    const fromBlock = await LogPolicy._resolveFromBlock(logPolicyRecord?.blockNumber, address, network)
+    if (!fromBlock) return
 
     const crawler = new BlockchainLogCrawler({
       onlyHistorical: true,
@@ -121,6 +117,21 @@ export const LogPolicy = {
       'End LogPolicy _syncPluginContract',
       llo({ network, pluginAddress, lastSync: crawler.crawlSetting.lastSync }),
     )
+  },
+
+  _resolveFromBlock: async (
+    existingBlock: number | undefined,
+    address: HexAddress,
+    network: NetworksEnum,
+  ): Promise<number | null> => {
+    if (existingBlock) return existingBlock
+
+    const contractCreationInfo = await ProxyWeb3Provider.fetchContractCreation({ address, network })
+    if (!contractCreationInfo.blockNumber) {
+      logger.warn('Cannot find contract creation block number', llo({ network, address }))
+      return null
+    }
+    return contractCreationInfo.blockNumber
   },
 
   _processError: async (error: any, address: HexAddress, network: NetworksEnum, log: any) => {
