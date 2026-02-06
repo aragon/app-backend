@@ -397,7 +397,7 @@ describe('Controller: CapitalDistributorAdmin', () => {
         network: mockParams.network,
       })
 
-      expect(result).to.have.property('membersCount', 2)
+      expect(result).to.have.property('totalMembers', 2)
       expect(result).to.have.property('campaignId', mockParams.campaignId)
       expect(result).to.have.property('merkleRoot', '0xmerkleroot123') // Change from merkleRoot to root
     })

@@ -77,8 +77,6 @@ const CapitalDistributorRouter = {
   uploadCampaignMembers: async function (ctx: RouterContext) {
     const body = ctx.request.body as Record<string, any>
 
-    assertExposable(!!ctx.file, ErrorKeyEnum.badParams)
-
     let rewards: any[] = []
 
     if (ctx.file) {

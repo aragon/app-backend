@@ -587,11 +587,11 @@ describe('RouterV2: CapitalDistributor', () => {
   })
 
   describe('router', () => {
-    it('Should return a router with all three routes configured', () => {
+    it('Should return a router with all routes configured', () => {
       const router = CapitalDistributorRouter.router()
 
       expect(router).to.exist
-      expect(router.stack).to.have.length(3)
+      expect(router.stack).to.have.length(5)
 
       // Check campaigns route
       expect(router.stack[0].path).to.eq('/campaigns')
@@ -604,6 +604,14 @@ describe('RouterV2: CapitalDistributor', () => {
       // Check campaign/reward route
       expect(router.stack[2].path).to.eq('/campaign/reward')
       expect(router.stack[2].methods).to.include('GET')
+
+      // Check campaign/upload route
+      expect(router.stack[3].path).to.eq('/campaign/upload')
+      expect(router.stack[3].methods).to.include('POST')
+
+      // Check campaign/prepare/status route
+      expect(router.stack[4].path).to.eq('/campaign/prepare/status')
+      expect(router.stack[4].methods).to.include('GET')
     })
   })
 })

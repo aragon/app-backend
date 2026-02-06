@@ -114,9 +114,9 @@ describe('Model: CampaignMerkleRoot', () => {
     expect(created.id).to.eq(customId)
   })
 
-  it('Should default isDraft to true', async () => {
+  it('Should default isDraft to false', async () => {
     const created = await Models.CampaignMerkleRoot.create(rawCampaignMerkleRoot)
-    expect(created.isDraft).to.be.true
+    expect(created.isDraft).to.be.false
   })
 
   it('Should create with isDraft false when specified', async () => {
