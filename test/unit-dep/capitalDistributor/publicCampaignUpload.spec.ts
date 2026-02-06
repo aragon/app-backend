@@ -16,7 +16,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import Web3Utils from '@helpers/web3Utils'
 
-describe.only('Integration: Public Campaign Upload Flow', () => {
+describe('Integration: Public Campaign Upload Flow', () => {
   let sandbox: SinonSandbox
 
   const network = NetworksEnum.ethereumSepolia
