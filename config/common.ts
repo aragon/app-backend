@@ -593,6 +593,86 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'SERVICES_ARAGON_REORGS_BLOCK_RECORD_TTL',
           60 * 24 * 60 * 60,
         ), // 60 days in seconds
+        FINALIZED_OFFSET_BLOCKS: {
+          ETHEREUM_MAINNET: utils.configParser(
+            sourceConfig,
+            'number',
+            'SERVICES_ARAGON_REORGS_FINALIZED_OFFSET_BLOCKS_ETHEREUM_MAINNET',
+            100,
+          ),
+          ETHEREUM_SEPOLIA: utils.configParser(
+            sourceConfig,
+            'number',
+            'SERVICES_ARAGON_REORGS_FINALIZED_OFFSET_BLOCKS_ETHEREUM_SEPOLIA',
+            100,
+          ),
+          POLYGON_MAINNET: utils.configParser(
+            sourceConfig,
+            'number',
+            'SERVICES_ARAGON_REORGS_FINALIZED_OFFSET_BLOCKS_POLYGON_MAINNET',
+            50,
+          ),
+          BASE_MAINNET: utils.configParser(
+            sourceConfig,
+            'number',
+            'SERVICES_ARAGON_REORGS_FINALIZED_OFFSET_BLOCKS_BASE_MAINNET',
+            1000,
+          ),
+          ARBITRUM_MAINNET: utils.configParser(
+            sourceConfig,
+            'number',
+            'SERVICES_ARAGON_REORGS_FINALIZED_OFFSET_BLOCKS_ARBITRUM_MAINNET',
+            5000,
+          ),
+          OPTIMISM_MAINNET: utils.configParser(
+            sourceConfig,
+            'number',
+            'SERVICES_ARAGON_REORGS_FINALIZED_OFFSET_BLOCKS_OPTIMISM_MAINNET',
+            1000,
+          ),
+          ZKSYNC_MAINNET: utils.configParser(
+            sourceConfig,
+            'number',
+            'SERVICES_ARAGON_REORGS_FINALIZED_OFFSET_BLOCKS_ZKSYNC_MAINNET',
+            15000,
+          ),
+          ZKSYNC_SEPOLIA: utils.configParser(
+            sourceConfig,
+            'number',
+            'SERVICES_ARAGON_REORGS_FINALIZED_OFFSET_BLOCKS_ZKSYNC_SEPOLIA',
+            15000,
+          ),
+          CHILIZ_MAINNET: utils.configParser(
+            sourceConfig,
+            'number',
+            'SERVICES_ARAGON_REORGS_FINALIZED_OFFSET_BLOCKS_CHILIZ_MAINNET',
+            50,
+          ),
+          PEAQ_MAINNET: utils.configParser(
+            sourceConfig,
+            'number',
+            'SERVICES_ARAGON_REORGS_FINALIZED_OFFSET_BLOCKS_PEAQ_MAINNET',
+            30,
+          ),
+          CORN_MAINNET: utils.configParser(
+            sourceConfig,
+            'number',
+            'SERVICES_ARAGON_REORGS_FINALIZED_OFFSET_BLOCKS_CORN_MAINNET',
+            80,
+          ),
+          AVAX_MAINNET: utils.configParser(
+            sourceConfig,
+            'number',
+            'SERVICES_ARAGON_REORGS_FINALIZED_OFFSET_BLOCKS_AVAX_MAINNET',
+            10,
+          ),
+          KATANA_MAINNET: utils.configParser(
+            sourceConfig,
+            'number',
+            'SERVICES_ARAGON_REORGS_FINALIZED_OFFSET_BLOCKS_KATANA_MAINNET',
+            5000,
+          ),
+        },
       },
 
       ARAGON_RATES: {

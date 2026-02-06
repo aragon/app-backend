@@ -102,8 +102,37 @@ describe('Module: ReorgDetector', () => {
       expect(result).to.eq(500)
     })
 
-    it('should return null when block fetch fails', async () => {
+    it('should return null when both finalized and latest fail', async () => {
       sandbox.stub(Web3Helper, 'getBlockByTag').resolves(null)
+
+      const result = await ReorgDetector.getLastFinalizedBlock(network)
+      expect(result).to.be.null
+    })
+
+    it('should fallback to latest minus finalityBlocks when finalized returns block 0', async () => {
+      const stub = sandbox.stub(Web3Helper, 'getBlockByTag')
+      stub.withArgs('finalized', network).resolves({ number: 0 } as any)
+      stub.withArgs('latest', network).resolves({ number: 1000 } as any)
+
+      const result = await ReorgDetector.getLastFinalizedBlock(network)
+      const finalityBlocks = config.SERVICES.ARAGON_REORGS.FINALIZED_OFFSET_BLOCKS.ETHEREUM_MAINNET
+      expect(result).to.eq(1000 - finalityBlocks)
+    })
+
+    it('should fallback to latest minus finalityBlocks when finalized returns null', async () => {
+      const stub = sandbox.stub(Web3Helper, 'getBlockByTag')
+      stub.withArgs('finalized', network).resolves(null)
+      stub.withArgs('latest', network).resolves({ number: 5000 } as any)
+
+      const result = await ReorgDetector.getLastFinalizedBlock(network)
+      const finalityBlocks = config.SERVICES.ARAGON_REORGS.FINALIZED_OFFSET_BLOCKS.ETHEREUM_MAINNET
+      expect(result).to.eq(5000 - finalityBlocks)
+    })
+
+    it('should return null when finalized fails and latest also fails', async () => {
+      const stub = sandbox.stub(Web3Helper, 'getBlockByTag')
+      stub.withArgs('finalized', network).resolves(null)
+      stub.withArgs('latest', network).resolves(null)
 
       const result = await ReorgDetector.getLastFinalizedBlock(network)
       expect(result).to.be.null

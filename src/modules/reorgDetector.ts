@@ -1,5 +1,6 @@
 import config from '@config'
 import { Models } from '@dbModels'
+import utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import { type NetworksEnum } from '@types'
@@ -73,7 +74,26 @@ const ReorgDetector = {
 
   async getLastFinalizedBlock(network: NetworksEnum): Promise<number | null> {
     const block = await Web3Helper.getBlockByTag('finalized', network)
-    return block?.number ?? null
+    if (block?.number && block.number > 0) {
+      return block.number
+    }
+
+    // Fallback for chains where 'finalized' tag is not supported (e.g. Chiliz via Ankr returns block 0)
+    const latestBlock = await Web3Helper.getBlockByTag('latest', network)
+    if (!latestBlock?.number) return null
+
+    const networkKey = utils.networkToAragon(network)
+    const finalityBlocks = config.SERVICES.ARAGON_REORGS.FINALIZED_OFFSET_BLOCKS[networkKey]
+    if (!finalityBlocks) {
+      logger.warn('No FINALIZED_OFFSET_BLOCKS configured for network', llo({ network, networkKey }))
+      return null
+    }
+    const fallbackBlock = latestBlock.number - finalityBlocks
+    logger.verbose(
+      'Using latest - finalizedOffsetBlocks as finalized fallback',
+      llo({ network, latestBlock: latestBlock.number, finalizedOffsetBlocks: finalityBlocks, fallbackBlock }),
+    )
+    return fallbackBlock
   },
 
   async updateBlockRecordHashes(

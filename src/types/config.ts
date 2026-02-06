@@ -238,6 +238,7 @@ export interface IConfig {
       REORG_DEPTH: number
       BATCH_SIZE: number
       BLOCK_RECORD_TTL: number
+      FINALIZED_OFFSET_BLOCKS: Record<string, number>
     }
   }
 
