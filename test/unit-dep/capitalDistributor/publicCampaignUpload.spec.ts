@@ -14,8 +14,9 @@ import { expect } from 'chai'
 import { ethers } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
+import Web3Utils from '@helpers/web3Utils'
 
-describe('Integration: Public Campaign Upload Flow', () => {
+describe.only('Integration: Public Campaign Upload Flow', () => {
   let sandbox: SinonSandbox
 
   const network = NetworksEnum.ethereumSepolia
@@ -167,6 +168,8 @@ describe('Integration: Public Campaign Upload Flow', () => {
       blockNumber: 102,
       blockTimestamp: 1640995300,
     }
+
+    sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://Qads')
 
     await CapitalDistributorHandler.campaignCreated(campaignCreationEvent, logInfo as any)
 

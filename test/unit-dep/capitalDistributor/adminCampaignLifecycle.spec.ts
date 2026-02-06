@@ -1,7 +1,6 @@
 import { Models } from '@dbModels'
 import { CapitalDistributorAdminController } from '@services/aragon-admin-api/controllers/capitalDistributor'
 import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
-import { LogCampaignStrategy } from '@services/aragon-plugins/logCampaignStrategy'
 import { LibUtils } from '@test/lib/unit-dep/lib'
 import { type HexAddress, IPluginInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'

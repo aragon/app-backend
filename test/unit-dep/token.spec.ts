@@ -1,7 +1,5 @@
 import { Models } from '@dbModels'
-import ConfigIndexerHelper from '@helpers/configIndexer'
 import utils from '@helpers/utils'
-import PoolingCrawler from '@modules/poolingCrawler'
 import { ProxyToken } from '@modules/proxyToken'
 import AragonPluginsService from '@plugins/index'
 import { LogTokenVoting } from '@plugins/logTokenVoting'

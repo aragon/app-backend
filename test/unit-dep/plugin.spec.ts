@@ -9,7 +9,6 @@ import CoinGeckoHelper from '@helpers/coinGecko'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import { LibUtils } from '@test/lib/unit-dep/lib'
-import Plugins from '@test/unit-dep/mockData/sppPairMockPlugin.json'
 import {
   IEventLogPluginSettings,
   IEventLogPluginType,
