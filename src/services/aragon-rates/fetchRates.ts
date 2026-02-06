@@ -226,6 +226,21 @@ export const FetchRates = {
         })
       }
 
+      if (!coingeckoInfo && !token.isSpam) {
+        const { isSpam, spamScore } = TokenUtils.shouldMarkAsSpam({
+          name: token.name ?? '',
+          symbol: token.symbol ?? '',
+          logo: token.logo ?? null,
+          tokenType: token.type,
+          isGovernance: token.isGovernance,
+          isTestnet: CoinGeckoHelper.isTestNetwork(token.network),
+          coinGeckoInfo: null,
+        })
+        if (isSpam) {
+          Object.assign(rawTokenUpdate, { isSpam: true, spamScore })
+        }
+      }
+
       await DbTx.executeTxFn(async ({ session }) => {
         const logDb = await token.update(
           {

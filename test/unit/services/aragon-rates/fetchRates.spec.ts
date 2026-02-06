@@ -196,6 +196,43 @@ describe('AragonRates: FetchRates', () => {
       expect(updateArgs.logo).to.equal('fake-logo')
     })
 
+    it('should mark token as spam when CoinGecko fails and spam score is high', async () => {
+      tokenDb.name = '5000USDT.COM'
+      tokenDb.symbol = 'RAFFLE TICKET'
+      tokenDb.logo = null
+      tokenDb.priceUsd = '0'
+      sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(1n)
+      sandbox.stub(CoinGeckoHelper, 'getToken').resolves(false)
+      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
+      const mockDate = new Date('2023-01-01T00:00:00Z')
+      sandbox.stub(dayjs, 'utc').returns({ toDate: () => mockDate } as any)
+
+      const updateStub = sandbox.stub(tokenDb, 'update').resolves(tokenDb)
+      sandbox.stub(logger, 'verbose')
+
+      await FetchRates.onMainnetDocument(tokenDb)
+
+      const updateArgs = updateStub.firstCall.args[0]
+      expect(updateArgs.isSpam).to.be.true
+      expect(updateArgs.spamScore).to.be.gte(2)
+    })
+
+    it('should not mark legitimate token as spam when CoinGecko fails', async () => {
+      sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(1n)
+      sandbox.stub(CoinGeckoHelper, 'getToken').resolves(false)
+      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
+      const mockDate = new Date('2023-01-01T00:00:00Z')
+      sandbox.stub(dayjs, 'utc').returns({ toDate: () => mockDate } as any)
+
+      const updateStub = sandbox.stub(tokenDb, 'update').resolves(tokenDb)
+      sandbox.stub(logger, 'verbose')
+
+      await FetchRates.onMainnetDocument(tokenDb)
+
+      const updateArgs = updateStub.firstCall.args[0]
+      expect(updateArgs.isSpam).to.be.undefined
+    })
+
     it('should increment backoff from existing fail count', async () => {
       tokenDb.fetchRateFailCount = 3
       sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(1n)

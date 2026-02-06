@@ -52,6 +52,12 @@ describe('Module: CrawlerErrorHandler', () => {
       expect(type).to.equal(CrawlerErrorType.BATCH_SIZE_ERROR)
     })
 
+    it('should classify query result limit as batch size error', () => {
+      const error = new Error('query returned more than 10000 results')
+      const type = errorHandler.classifyError(error)
+      expect(type).to.equal(CrawlerErrorType.BATCH_SIZE_ERROR)
+    })
+
     it('should classify network errors', () => {
       const error = new Error('ECONNREFUSED')
       const type = errorHandler.classifyError(error)

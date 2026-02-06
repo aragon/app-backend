@@ -85,7 +85,7 @@ const TokenUtils = {
     const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
     const urlRegex = /(?:https?:\/\/|www\.)[^\s]+/i
-    const shortUrlRegex = /\b[a-z0-9-]+\.(ly|io|co|me|link|site|click|top|win|vip|gg|app)\b/i
+    const shortUrlRegex = /\b[a-z0-9][a-z0-9-]*\.[a-z]{2,}\b/i
     if (urlRegex.test(combined) || shortUrlRegex.test(combined) || shortUrlRegex.test(normalized)) {
       score += 3
     }
