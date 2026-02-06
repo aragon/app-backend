@@ -199,11 +199,11 @@ const CapitalDistributorRouter = {
      * Returns a draft campaignId (UUID) that reconciles to the real on-chain ID after the campaign tx is confirmed.
      *
      * @apiParam (FormData) {File} membersFile JSON file with reward recipients
-     * @apiParam (Body) {String} daoAddress DAO address
-     * @apiParam (Body) {String} userAddress Caller address (must be multisig member)
-     * @apiParam (Body) {String} multisigAddress Multisig plugin address
-     * @apiParam (Body) {String} capitalDistributorAddress Capital distributor plugin address
-     * @apiParam (Body) {String} network Network name
+     * @apiParam (FormData) {String} daoAddress DAO address
+     * @apiParam (FormData) {String} userAddress Caller address (must be multisig member)
+     * @apiParam (FormData) {String} multisigAddress Multisig plugin address
+     * @apiParam (FormData) {String} capitalDistributorAddress Capital distributor plugin address
+     * @apiParam (FormData) {String} network Network name
      *
      * @apiSuccess {Boolean} success Whether the upload succeeded
      * @apiSuccess {Number} totalInserted Number of new rewards created
