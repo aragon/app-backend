@@ -40,7 +40,7 @@ export default class CampaignMerkleRoot extends Model {
   @prop({ type: () => Number, default: 0 })
   public totalMembers!: number
 
-  @prop({ type: () => Boolean, default: true })
+  @prop({ type: () => Boolean, default: false })
   public isDraft!: boolean
 
   static async create(rawData: Partial<CampaignMerkleRoot>, tOpts?: SaveOptions) {

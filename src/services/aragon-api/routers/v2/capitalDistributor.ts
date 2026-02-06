@@ -77,6 +77,8 @@ const CapitalDistributorRouter = {
   uploadCampaignMembers: async function (ctx: RouterContext) {
     const body = ctx.request.body as Record<string, any>
 
+    assertExposable(!!ctx.file, ErrorKeyEnum.badParams)
+
     let rewards: any[] = []
 
     if (ctx.file) {
@@ -190,12 +192,53 @@ const CapitalDistributorRouter = {
      */
     router.get('/campaign/reward', CapitalDistributorRouter.getUserCampaignReward)
 
+    /**
+     * @api {post} /campaign/upload Upload Campaign Members
+     * @apiName UploadCampaignMembers
+     * @apiGroup CapitalDistributor
+     * @apiDescription Upload a JSON file of reward recipients to create a draft campaign.
+     * The file must be a JSON array of { address, amount } objects.
+     * Returns a draft campaignId (UUID) that reconciles to the real on-chain ID after the campaign tx is confirmed.
+     *
+     * @apiParam (FormData) {File} membersFile JSON file with reward recipients
+     * @apiParam (Body) {String} daoAddress DAO address
+     * @apiParam (Body) {String} userAddress Caller address (must be multisig member)
+     * @apiParam (Body) {String} multisigAddress Multisig plugin address
+     * @apiParam (Body) {String} capitalDistributorAddress Capital distributor plugin address
+     * @apiParam (Body) {String} network Network name
+     *
+     * @apiSuccess {Boolean} success Whether the upload succeeded
+     * @apiSuccess {Number} totalInserted Number of new rewards created
+     * @apiSuccess {Number} totalUpdated Number of rewards updated
+     * @apiSuccess {Number} totalDeleted Number of rewards deleted
+     * @apiSuccess {Number} totalProcessed Total rewards processed
+     * @apiSuccess {String} campaignId Draft campaign ID (UUID)
+     */
     router.post(
       '/campaign/upload',
       UploadMiddleware.single('membersFile'),
       CapitalDistributorRouter.uploadCampaignMembers,
     )
 
+    /**
+     * @api {get} /campaign/prepare/status Get Campaign Prepare Status
+     * @apiName GetCampaignPrepareStatus
+     * @apiGroup CapitalDistributor
+     * @apiDescription Poll the merkle tree generation status for a draft campaign.
+     * When merkleRoot is non-null, the data is ready for on-chain submission.
+     *
+     * @apiParam {String} capitalDistributorAddress Capital distributor plugin address
+     * @apiParam {String} network Network name
+     * @apiParam {String} campaignId Draft campaign ID from upload response
+     *
+     * @apiSuccess {String} campaignId Campaign ID
+     * @apiSuccess {String} pluginAddress Plugin address
+     * @apiSuccess {String} network Network name
+     * @apiSuccess {String} merkleRoot Merkle root (null while generating)
+     * @apiSuccess {Number} totalMembers Total number of reward recipients
+     *
+     * @apiSampleRequest /capital-distributor/campaign/prepare/status?capitalDistributorAddress=0x123&network=ethereum-sepolia&campaignId=xK9mR2pL7qNwYvBf3jHt
+     */
     router.get('/campaign/prepare/status', CapitalDistributorRouter.getCampaignPrepareStatus)
 
     return router
