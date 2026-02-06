@@ -325,10 +325,7 @@ describe('Model: Transaction', () => {
         side: ITransactionSide.withdraw,
       })
 
-      const {
-        data,
-        metadata: { totalRecords },
-      } = await Models.Transaction.findWithPagination({
+      const { data } = await Models.Transaction.findWithPagination({
         extraParams: { side: ITransactionSide.deposit },
         paginationParams: {},
       })
@@ -352,10 +349,7 @@ describe('Model: Transaction', () => {
         side: ITransactionSide.withdraw,
       })
 
-      const {
-        data,
-        metadata: { totalRecords },
-      } = await Models.Transaction.findWithPagination({
+      const { data } = await Models.Transaction.findWithPagination({
         extraParams: { side: ITransactionSide.withdraw },
         paginationParams: {},
       })
@@ -381,10 +375,7 @@ describe('Model: Transaction', () => {
         tokenAddress: '0x0000000000000000000000000000000000000000',
       })
 
-      const {
-        data,
-        metadata: { totalRecords },
-      } = await Models.Transaction.findWithPagination({
+      const { data } = await Models.Transaction.findWithPagination({
         extraParams: { type: ITransactionType.erc20 },
         paginationParams: {},
       })
@@ -411,10 +402,7 @@ describe('Model: Transaction', () => {
         tokenAddress: '0xtoken2',
       })
 
-      const {
-        data,
-        metadata: { totalRecords },
-      } = await Models.Transaction.findWithPagination({
+      const { data } = await Models.Transaction.findWithPagination({
         extraParams: { type: ITransactionType.erc721 },
         paginationParams: {},
       })
@@ -440,10 +428,7 @@ describe('Model: Transaction', () => {
         tokenAddress: '0xtoken3',
       })
 
-      const {
-        data,
-        metadata: { totalRecords },
-      } = await Models.Transaction.findWithPagination({
+      const { data } = await Models.Transaction.findWithPagination({
         extraParams: { type: ITransactionType.native },
         paginationParams: {},
       })
@@ -478,10 +463,7 @@ describe('Model: Transaction', () => {
         tokenAddress: '0x0000000000000000000000000000000000000000',
       })
 
-      const {
-        data,
-        metadata: { totalRecords },
-      } = await Models.Transaction.findWithPagination({
+      const { data } = await Models.Transaction.findWithPagination({
         extraParams: {
           side: ITransactionSide.deposit,
           type: ITransactionType.erc20,
@@ -527,10 +509,7 @@ describe('Model: Transaction', () => {
         tokenAddress: '0xtoken6',
       })
 
-      const {
-        data,
-        metadata: { totalRecords },
-      } = await Models.Transaction.findWithPagination({
+      const { data } = await Models.Transaction.findWithPagination({
         extraParams: {
           daoAddress: specificDao,
           side: ITransactionSide.withdraw,
@@ -545,6 +524,123 @@ describe('Model: Transaction', () => {
         expect(tx.side).to.eq(ITransactionSide.withdraw)
         expect(tx.type).to.eq(ITransactionType.erc721)
       })
+    })
+  })
+
+  describe('spam token filtering', () => {
+    const spamTokenAddress = '0xspamToken1111111111111111111111111111111'
+    const legitTokenAddress = '0xlegitToken222222222222222222222222222222'
+    const daoAddress = '0xdaoSpamTest33333333333333333333333333333'
+    const network = NetworksEnum.ethereumMainnet
+
+    beforeEach(async () => {
+      await Models.Token.create({
+        address: spamTokenAddress,
+        network,
+        type: ITokenType.ERC20,
+        name: 'Spam Token',
+        symbol: 'SPAM',
+        isSpam: true,
+      })
+
+      await Models.Token.create({
+        address: legitTokenAddress,
+        network,
+        type: ITokenType.ERC20,
+        name: 'Legit Token',
+        symbol: 'LEGIT',
+        isSpam: false,
+      })
+
+      await Models.Transaction.create({
+        transactionHash: '0xspamTx1',
+        blockNumber: 100,
+        network,
+        side: ITransactionSide.deposit,
+        type: ITransactionType.erc20,
+        fromAddress: '0xfrom1',
+        toAddress: daoAddress,
+        value: '100',
+        tokenAddress: spamTokenAddress,
+        daoAddress,
+        token: {
+          network,
+          type: ITokenType.ERC20,
+          address: spamTokenAddress,
+          name: 'Spam Token',
+          symbol: 'SPAM',
+          decimals: 18,
+        },
+      })
+
+      await Models.Transaction.create({
+        transactionHash: '0xlegitTx1',
+        blockNumber: 101,
+        network,
+        side: ITransactionSide.deposit,
+        type: ITransactionType.erc20,
+        fromAddress: '0xfrom2',
+        toAddress: daoAddress,
+        value: '200',
+        tokenAddress: legitTokenAddress,
+        daoAddress,
+        token: {
+          network,
+          type: ITokenType.ERC20,
+          address: legitTokenAddress,
+          name: 'Legit Token',
+          symbol: 'LEGIT',
+          decimals: 18,
+        },
+      })
+
+      await Models.Transaction.create({
+        transactionHash: '0xnativeTx1',
+        blockNumber: 102,
+        network,
+        side: ITransactionSide.deposit,
+        type: ITransactionType.native,
+        fromAddress: '0xfrom3',
+        toAddress: daoAddress,
+        value: '1000',
+        tokenAddress: '0x0000000000000000000000000000000000000000',
+        daoAddress,
+      })
+    })
+
+    it('should filter out transactions with spam tokens', async () => {
+      const { data, metadata } = await Models.Transaction.findWithPagination({
+        extraParams: { daoAddress, network },
+        paginationParams: {},
+      })
+
+      expect(metadata.totalRecords).to.eq(2)
+      expect(data).to.have.lengthOf(2)
+
+      const tokenAddresses = data.map((tx: any) => tx.token?.address).filter(Boolean)
+      expect(tokenAddresses).to.not.include(spamTokenAddress)
+      expect(tokenAddresses).to.include(legitTokenAddress)
+    })
+
+    it('should keep native transactions with no matching token', async () => {
+      const { data } = await Models.Transaction.findWithPagination({
+        extraParams: { daoAddress, network },
+        paginationParams: {},
+      })
+
+      const nativeTx = data.find((tx: any) => tx.type === ITransactionType.native)
+      expect(nativeTx).to.exist
+    })
+
+    it('should return correct pagination metadata after filtering spam', async () => {
+      const { metadata } = await Models.Transaction.findWithPagination({
+        extraParams: { daoAddress, network },
+        paginationParams: { pageSize: 1 },
+      })
+
+      expect(metadata.totalRecords).to.eq(2)
+      expect(metadata.totalPages).to.eq(2)
+      expect(metadata.pageSize).to.eq(1)
     })
   })
 

@@ -94,9 +94,7 @@ const CoinGeckoHelper = {
       )
       return response.data
     } catch (error: any) {
-      if (!error?.response?.data?.error?.includes('not found') && error?.status !== 401) {
-        logger.warn('Error in CoinGecko RPC Call', llo({ path, error }))
-      }
+      logger.warn('Error in CoinGecko RPC Call', llo({ path, error }))
       throw error
     }
   },
@@ -129,10 +127,7 @@ const CoinGeckoHelper = {
     try {
       const response = await CoinGeckoHelper._rpCall<any>(path, network)
       return CoinGeckoHelper._parseNativeToken(response, network)
-    } catch (error: any) {
-      if (!error?.response?.data?.error?.includes('not found') && error?.status !== 401) {
-        logger.warn('Error in CoinGecko RPC Call', llo({ path, error }))
-      }
+    } catch {
       return false
     }
   },
@@ -145,7 +140,7 @@ const CoinGeckoHelper = {
     const networkId = CoinGeckoHelper.networkToCoinGecko(network)
 
     if (!networkId) {
-      logger.warn('Network not supported by CoinGecko', llo({ network }))
+      logger.warn('Network not supported by CoinGecko', llo({ network, tokenContractAddress }))
       return false
     }
 

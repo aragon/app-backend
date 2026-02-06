@@ -572,6 +572,7 @@ class BlockchainLogCrawler {
     if (this.progressTracker) {
       await this.progressTracker.saveProgress(blockNumber)
     } else {
+      const nextBlock = blockNumber + 1
       try {
         await DbTx.executeTxFn(async ({ session }) => {
           const existingConfig = await Models.ConfigIndexer.findExistingLog(
@@ -583,13 +584,13 @@ class BlockchainLogCrawler {
           )
 
           if (existingConfig) {
-            await existingConfig.update({ lastSync: blockNumber }, { session })
+            await existingConfig.update({ lastSync: nextBlock }, { session })
           } else {
             await Models.ConfigIndexer.create(
               {
                 network: this.crawlParams.network,
                 service: this.crawlParams.logService!,
-                lastSync: blockNumber,
+                lastSync: nextBlock,
               },
               { session },
             )
