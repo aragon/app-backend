@@ -111,6 +111,7 @@ export interface IMerkleProofSync {
   campaignId: string
   pluginAddress: HexAddress
   network: NetworksEnum
+  isDraft?: boolean
 }
 
 export interface IGetGaugeEpochId {

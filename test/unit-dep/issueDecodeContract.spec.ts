@@ -59,10 +59,6 @@ describe('Integ: Issue Decode Contract Spec', () => {
         network: NetworksEnum.zksyncSepolia,
       },
       {
-        address: '0x604953e159562FeEfF38961541415B0C0694Ef5A',
-        network: NetworksEnum.cornMainnet,
-      },
-      {
         address: '0x45312ea0eff7e09c83cbe249fa1d7598c4c8cd4e',
         network: NetworksEnum.ethereumMainnet,
       },

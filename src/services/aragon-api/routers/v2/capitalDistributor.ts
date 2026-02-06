@@ -1,8 +1,16 @@
 import CapitalDistributorController from '@api/controllers/capitalDistributor'
 import CapitalDistributorSchema from '@api/routers/schema/capitalDistributor'
+import { assertExposable } from '@errors'
 import ValidationSchema from '@helpers/validationSchema'
 import Router, { type RouterContext } from '@koa/router'
-import { type HexAddress, type ICampaignApiParams, type IPaginationParams, type NetworksEnum } from '@types'
+import UploadMiddleware from '@middlewares/upload'
+import {
+  ErrorKeyEnum,
+  type HexAddress,
+  type ICampaignApiParams,
+  type IPaginationParams,
+  type NetworksEnum,
+} from '@types'
 
 const CapitalDistributorRouter = {
   getCampaignsWithPagination: async function (ctx: RouterContext) {
@@ -64,6 +72,57 @@ const CapitalDistributorRouter = {
       userAddress: result.params.userAddress,
       campaignId: result.params.campaignId,
     })
+  },
+
+  uploadCampaignMembers: async function (ctx: RouterContext) {
+    const body = ctx.request.body as Record<string, any>
+
+    let rewards: any[] = []
+
+    if (ctx.file) {
+      const fileData = UploadMiddleware.parseJsonFile(ctx)
+
+      if (!Array.isArray(fileData)) {
+        assertExposable(false, ErrorKeyEnum.badParams)
+      }
+
+      rewards = fileData
+    }
+
+    await ValidationSchema.validateParams(CapitalDistributorSchema.uploadCampaignMembersBody, rewards)
+
+    const result = await ValidationSchema.validateRoute(ctx, {
+      params: {
+        daoAddress: body.daoAddress as HexAddress,
+        userAddress: body.userAddress as HexAddress,
+        multisigAddress: body.multisigAddress as HexAddress,
+        capitalDistributorAddress: body.capitalDistributorAddress as HexAddress,
+        network: body.network as NetworksEnum,
+      },
+      schemas: {
+        params: CapitalDistributorSchema.uploadCampaignMembersParams,
+      },
+    })
+
+    ctx.body = await CapitalDistributorController.uploadCampaignMembers({
+      ...result.params,
+      rewards,
+    })
+  },
+
+  getCampaignPrepareStatus: async function (ctx: RouterContext) {
+    const result = await ValidationSchema.validateRoute(ctx, {
+      params: {
+        capitalDistributorAddress: ctx.query.capitalDistributorAddress as HexAddress,
+        network: ctx.query.network as NetworksEnum,
+        campaignId: ctx.query.campaignId as string,
+      },
+      schemas: {
+        params: CapitalDistributorSchema.getCampaignPrepareStatusParams,
+      },
+    })
+
+    ctx.body = await CapitalDistributorController.getCampaignPrepareStatus(result.params)
   },
 
   router(): Router {
@@ -130,6 +189,14 @@ const CapitalDistributorRouter = {
      * @apiSampleRequest /capital-distributor/campaign/reward?pluginAddress=0x123&network=ethereum&userAddress=0x456&campaignId=1
      */
     router.get('/campaign/reward', CapitalDistributorRouter.getUserCampaignReward)
+
+    router.post(
+      '/campaign/upload',
+      UploadMiddleware.single('membersFile'),
+      CapitalDistributorRouter.uploadCampaignMembers,
+    )
+
+    router.get('/campaign/prepare/status', CapitalDistributorRouter.getCampaignPrepareStatus)
 
     return router
   },

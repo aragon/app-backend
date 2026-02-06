@@ -9,7 +9,9 @@ import {
   type HexAddress,
   type IAAddMembersListParams,
   type ICampaignApiParams,
+  type ICampaignPrepareStatus,
   type ICampaignResponse,
+  type ICampaignUploadResult,
   type IMembersResponse,
   type IMerkleProofSync,
   type IPaginatedResult,
@@ -31,7 +33,7 @@ export class CapitalDistributorGovernance extends BaseGovernance {
     })
   }
 
-  async uploadMembersList(params: IAAddMembersListParams): Promise<any> {
+  async uploadMembersList(params: IAAddMembersListParams): Promise<ICampaignUploadResult> {
     const { campaignId, pluginAddress, network, rewards } = params
 
     const existingCampaign = await Models.Campaign.findExisting({
@@ -56,7 +58,7 @@ export class CapitalDistributorGovernance extends BaseGovernance {
   private async bulkUpsertRewards(
     campaignId: string,
     rewards: Array<{ address: string; amount: string }>,
-  ): Promise<any> {
+  ): Promise<ICampaignUploadResult> {
     return await DbTx.executeTxFn(async ({ session }) => {
       const existingRewards = await Models.CampaignReward.find(
         {
@@ -297,7 +299,7 @@ export class CapitalDistributorGovernance extends BaseGovernance {
     return await Models.CampaignReward.getUserCampaignStatus(this.address, this.network, userAddress)
   }
 
-  async getCampaignDetails(params: { campaignId: string }): Promise<any> {
+  async getCampaignDetails(params: { campaignId: string }): Promise<ICampaignPrepareStatus> {
     const { campaignId } = params
 
     const campaign = await Models.Campaign.findCampaignById(this.address, this.network, campaignId)
@@ -312,10 +314,11 @@ export class CapitalDistributorGovernance extends BaseGovernance {
       .lean()
 
     return {
-      membersCount: members.length,
+      totalMembers: members.length,
       campaignId,
       merkleRoot: campaign.merkleRoot || null,
-      active: campaign.active,
+      pluginAddress: this.address,
+      network: this.network,
     }
   }
 

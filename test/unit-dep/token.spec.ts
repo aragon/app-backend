@@ -45,24 +45,6 @@ describe.skip('Integ: Token', () => {
     expect(startStub.called).to.be.true
   })
 
-  it.skip('test the crawler issue', async function () {
-    this.timeout(10000000000)
-    const network = NetworksEnum.cornMainnet
-    const blockNumber = 913077
-    const logService = ConfigIndexerHelper.builders.indexer(network)
-
-    await Models.ConfigIndexer.create({
-      network,
-      service: logService,
-      lastSync: blockNumber,
-    })
-
-    await PoolingCrawler.start({
-      logService,
-      network,
-    })
-  })
-
   it('should test why the token has no price', async function () {
     this.timeout(100000000000)
     const tokens = [
@@ -133,10 +115,6 @@ describe.skip('Integ: Token', () => {
       {
         network: NetworksEnum.peaqMainnet,
         addresses: ['0x0000000000000000000000000000000000000809', '0x2ee4dd6653B0eC4bbcE4eAEedC2D46411707B260'],
-      },
-      {
-        network: NetworksEnum.cornMainnet,
-        addresses: ['0xda5dDd7270381A7C2717aD10D1c0ecB19e3CDFb2', '0x9Aa0EC050ff566f9f939C2a41A0408db7ddBCf75'],
       },
       {
         network: NetworksEnum.avaxMainnet,

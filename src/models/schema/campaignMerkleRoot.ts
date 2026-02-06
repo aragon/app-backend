@@ -19,6 +19,7 @@ const customName = ICollectionNames.CampaignMerkleRoot
 })
 @index({ pluginAddress: 1, network: 1, campaignId: 1 }, { unique: true })
 @index({ pluginAddress: 1, network: 1 })
+@index({ pluginAddress: 1, network: 1, merkleRoot: 1, isDraft: 1 })
 @index({ isApplied: 1 })
 export default class CampaignMerkleRoot extends Model {
   @prop({ type: () => String, required: true, unique: true })
@@ -38,6 +39,9 @@ export default class CampaignMerkleRoot extends Model {
 
   @prop({ type: () => Number, default: 0 })
   public totalMembers!: number
+
+  @prop({ type: () => Boolean, default: true })
+  public isDraft!: boolean
 
   static async create(rawData: Partial<CampaignMerkleRoot>, tOpts?: SaveOptions) {
     if (!rawData.id) {
@@ -62,6 +66,10 @@ export default class CampaignMerkleRoot extends Model {
 
   static async findByParams(pluginAddress: HexAddress, network: NetworksEnum, campaignId: string) {
     return await this.findOne({ pluginAddress, network, campaignId })
+  }
+
+  static async findDraftByMerkleRoot(pluginAddress: HexAddress, network: NetworksEnum, merkleRoot: string) {
+    return await this.findOne({ pluginAddress, network, merkleRoot, isDraft: true })
   }
 
   async update(params: Partial<CampaignMerkleRoot>, tOpts?: SaveOptions) {

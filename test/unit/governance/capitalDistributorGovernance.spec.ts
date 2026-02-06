@@ -580,9 +580,10 @@ describe('Governance:CapitalDistributorGovernance', () => {
       })
 
       expect(result.campaignId).to.equal(testCampaignId)
-      expect(result.membersCount).to.equal(2)
+      expect(result.totalMembers).to.equal(2)
       expect(result.merkleRoot).to.equal('0xmerkleroot123')
-      expect(result.active).to.be.false
+      expect(result.pluginAddress).to.equal(testPluginAddress)
+      expect(result.network).to.equal(testNetwork)
     })
   })
 

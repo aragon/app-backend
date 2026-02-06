@@ -288,6 +288,132 @@ describe('Handler: CapitalDistributor', () => {
       await CapitalDistributorHandler.merkleCampaignSet(parsedEvent, logInfo)
       expect(loggerErrorStub.calledWith('Error processing MerkleCampaignSet event' as any)).to.be.true
     })
+
+    it('Should reconcile draft campaign rewards to real campaignId', async () => {
+      const draftCampaignId = 'draft-uuid-123456789'
+      const realCampaignId = '1'
+      const merkleRoot = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
+
+      // Create draft CampaignMerkleRoot with UUID
+      await Models.CampaignMerkleRoot.create({
+        pluginAddress: logInfo.address,
+        network: logInfo.network,
+        campaignId: draftCampaignId,
+        merkleRoot,
+        totalMembers: 2,
+        isDraft: true,
+      })
+
+      // Create draft CampaignReward records with UUID
+      await Models.CampaignReward.create({
+        pluginAddress: logInfo.address,
+        network: logInfo.network,
+        campaignId: draftCampaignId,
+        userAddress: '0xuser1234567890123456789012345678901234567890' as HexAddress,
+        amount: '1000000000000000000',
+      })
+
+      await Models.CampaignReward.create({
+        pluginAddress: logInfo.address,
+        network: logInfo.network,
+        campaignId: draftCampaignId,
+        userAddress: '0xuser2234567890123456789012345678901234567890' as HexAddress,
+        amount: '2000000000000000000',
+      })
+
+      const loggerInfoStub = sandbox.stub(logger, 'info')
+
+      await CapitalDistributorHandler.merkleCampaignSet({ args: { campaignId: BigInt(1), merkleRoot } } as any, logInfo)
+
+      // Verify CampaignReward records were reconciled to real campaignId
+      const reconciledRewards = await Models.CampaignReward.find({
+        pluginAddress: logInfo.address,
+        network: logInfo.network,
+        campaignId: realCampaignId,
+      })
+      expect(reconciledRewards).to.have.length(2)
+
+      // Verify draft rewards no longer exist
+      const draftRewards = await Models.CampaignReward.find({
+        pluginAddress: logInfo.address,
+        network: logInfo.network,
+        campaignId: draftCampaignId,
+      })
+      expect(draftRewards).to.have.length(0)
+
+      // Verify CampaignMerkleRoot was updated
+      const updatedMerkleRoot = await Models.CampaignMerkleRoot.findByParams(
+        logInfo.address,
+        logInfo.network,
+        realCampaignId,
+      )
+      expect(updatedMerkleRoot?.campaignId).to.eq(realCampaignId)
+      expect(updatedMerkleRoot?.isDraft).to.be.false
+
+      // Verify campaign totalRewards was updated
+      const updatedCampaign = await Models.Campaign.findOne({
+        allocationStrategy: logInfo.address,
+        network: logInfo.network,
+        campaignId: realCampaignId,
+      })
+      expect(updatedCampaign?.totalRewards).to.eq('3000000000000000000')
+      expect(updatedCampaign?.merkleRoot).to.eq(merkleRoot)
+
+      expect(loggerInfoStub.calledWith('Reconciled draft campaign to real campaignId' as any)).to.be.true
+      expect(loggerInfoStub.calledWith('Merkle root set for campaign' as any)).to.be.true
+    })
+
+    it('Should skip reconciliation when existingMerkleData exists (admin flow)', async () => {
+      const realCampaignId = '1'
+      const merkleRoot = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
+
+      // Create CampaignMerkleRoot with real campaignId (admin flow)
+      await Models.CampaignMerkleRoot.create({
+        pluginAddress: logInfo.address,
+        network: logInfo.network,
+        campaignId: realCampaignId,
+        merkleRoot,
+        totalMembers: 2,
+        isDraft: false,
+      })
+
+      const loggerInfoStub = sandbox.stub(logger, 'info')
+
+      await CapitalDistributorHandler.merkleCampaignSet({ args: { campaignId: BigInt(1), merkleRoot } } as any, logInfo)
+
+      // Verify no reconciliation log
+      expect(loggerInfoStub.calledWith('Reconciled draft campaign to real campaignId' as any)).to.be.false
+      expect(loggerInfoStub.calledWith('Merkle root set for campaign' as any)).to.be.true
+
+      // Verify campaign merkle root was still updated
+      const updatedCampaign = await Models.Campaign.findOne({
+        allocationStrategy: logInfo.address,
+        network: logInfo.network,
+        campaignId: realCampaignId,
+      })
+      expect(updatedCampaign?.merkleRoot).to.eq(merkleRoot)
+    })
+
+    it('Should skip reconciliation when no draft found', async () => {
+      const realCampaignId = '1'
+      const merkleRoot = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
+
+      const loggerInfoStub = sandbox.stub(logger, 'info')
+
+      await CapitalDistributorHandler.merkleCampaignSet({ args: { campaignId: BigInt(1), merkleRoot } } as any, logInfo)
+
+      // Verify no reconciliation log
+      expect(loggerInfoStub.calledWith('Reconciled draft campaign to real campaignId' as any)).to.be.false
+      expect(loggerInfoStub.calledWith('Merkle root set for campaign' as any)).to.be.true
+
+      // Verify campaign merkle root was still updated
+      const updatedCampaign = await Models.Campaign.findOne({
+        allocationStrategy: logInfo.address,
+        network: logInfo.network,
+        campaignId: realCampaignId,
+      })
+      expect(updatedCampaign?.merkleRoot).to.eq(merkleRoot)
+    })
   })
 
   describe('merkleCampaignUpdated', () => {
