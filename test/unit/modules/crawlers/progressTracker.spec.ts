@@ -212,9 +212,18 @@ describe('Module: ProgressTracker', () => {
       expect(logVerboseStub.calledWithMatch('Marked service as ended')).to.be.true
     })
 
-    it('should log warning when config does not exist', async () => {
+    it('should create config and mark as ended when config does not exist', async () => {
       await progressTracker.markAsEnded()
-      expect(logWarnStub.calledWithMatch('Cannot mark as ended - config does not exist')).to.be.true
+
+      const config = await Models.ConfigIndexer.findExistingLog({
+        network: testConfig.network,
+        service: testConfig.service,
+      })
+
+      expect(config).to.exist
+      expect(config!.end).to.be.true
+      expect(config!.lastSync).to.equal(testConfig.initialBlock)
+      expect(logVerboseStub.calledWithMatch('Marked service as ended')).to.be.true
     })
 
     it('should handle database errors gracefully', async () => {

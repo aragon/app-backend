@@ -164,24 +164,29 @@ export class ProgressTracker {
 
       if (configIndex) {
         await configIndex.update({ end: true })
-        logger.verbose(
-          'Marked service as ended',
-          llo({
-            service: 'ProgressTracker',
-            network: this.network,
-            logService: this.service,
-          }),
-        )
       } else {
-        logger.warn(
-          'Cannot mark as ended - config does not exist',
-          llo({
-            service: 'ProgressTracker',
-            network: this.network,
-            logService: this.service,
-          }),
-        )
+        const id = Models.ConfigIndexer.getEntityId({
+          network: this.network,
+          service: this.service,
+        })
+
+        await Models.ConfigIndexer.create({
+          id,
+          network: this.network,
+          service: this.service,
+          lastSync: this.initialBlock,
+          end: true,
+        })
       }
+
+      logger.verbose(
+        'Marked service as ended',
+        llo({
+          service: 'ProgressTracker',
+          network: this.network,
+          logService: this.service,
+        }),
+      )
     } catch (error) {
       logger.error(
         'Error marking as ended',
