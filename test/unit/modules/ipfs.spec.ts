@@ -192,8 +192,10 @@ describe('Modules: IPFS', () => {
 
       const result = await IPFSModule.fetchMetadata(cidV1)
 
-      expect(stubFetchMetadata.calledOnceWith('bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme')).to.be.true
-      expect(stubPinataGetData.calledOnceWith('bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme')).to.be.true
+      expect(stubFetchMetadata.calledOnce).to.be.true
+      expect(stubFetchMetadata.firstCall.args[0]).to.eq('bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme')
+      expect(stubPinataGetData.calledOnce).to.be.true
+      expect(stubPinataGetData.firstCall.args[0]).to.eq('bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme')
       expect(stubFetchMetadataDweb.called).to.be.false
       expect(result).to.deep.equal(expectedMetadata)
     })
@@ -208,8 +210,10 @@ describe('Modules: IPFS', () => {
 
       const result = await IPFSModule.fetchMetadata(cidV0)
 
-      expect(stubFetchMetadata.calledOnceWith('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')).to.be.true
-      expect(stubPinataGetData.calledOnceWith('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')).to.be.true
+      expect(stubFetchMetadata.calledOnce).to.be.true
+      expect(stubFetchMetadata.firstCall.args[0]).to.eq('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')
+      expect(stubPinataGetData.calledOnce).to.be.true
+      expect(stubPinataGetData.firstCall.args[0]).to.eq('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')
       expect(stubFetchMetadataDweb.called).to.be.false
       expect(result).to.deep.equal(expectedMetadata)
     })
@@ -224,7 +228,8 @@ describe('Modules: IPFS', () => {
 
       const result = await IPFSModule.fetchMetadata(cidV0)
 
-      expect(stubFetchMetadataDweb.calledOnceWith('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')).to.be.true
+      expect(stubFetchMetadataDweb.calledOnce).to.be.true
+      expect(stubFetchMetadataDweb.firstCall.args[0]).to.eq('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')
       expect(result).to.deep.equal(expectedMetadata)
     })
 
@@ -241,8 +246,10 @@ describe('Modules: IPFS', () => {
 
       const result = await IPFSModule.fetchMetadata(cidV0)
 
-      expect(stubFetchMetadata.calledOnceWith('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')).to.be.true
-      expect(stubPinataGetData.calledOnceWith('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')).to.be.true
+      expect(stubFetchMetadata.calledOnce).to.be.true
+      expect(stubFetchMetadata.firstCall.args[0]).to.eq('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')
+      expect(stubPinataGetData.calledOnce).to.be.true
+      expect(stubPinataGetData.firstCall.args[0]).to.eq('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')
       expect(result?.avatar).to.equal(expectedMetadata.avatar.path)
     })
 
@@ -263,7 +270,8 @@ describe('Modules: IPFS', () => {
 
       const result = await IPFSModule.fetchMetadata(cidV0)
 
-      expect(stubPinataGetData.calledOnceWith('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')).to.be.true
+      expect(stubPinataGetData.calledOnce).to.be.true
+      expect(stubPinataGetData.firstCall.args[0]).to.eq('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')
       expect(stubFetchMetadata.called).to.be.false
       expect(result).to.deep.equal(expectedMetadata)
     })
@@ -280,7 +288,8 @@ describe('Modules: IPFS', () => {
 
       const result = await IPFSModule.fetchMetadata(cidV0)
 
-      expect(stubPinataGetData.calledOnceWith('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')).to.be.true
+      expect(stubPinataGetData.calledOnce).to.be.true
+      expect(stubPinataGetData.firstCall.args[0]).to.eq('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')
       expect(stubFetchMetadata.called).to.be.false
       expect(result).to.deep.equal(expectedMetadata)
     })
@@ -339,6 +348,28 @@ describe('Modules: IPFS', () => {
       const result = await IPFSModule.fetchMetadata(cidV0)
 
       expect(result).to.be.null
+    })
+
+    it('should skip fallback gateways when total timeout budget is exhausted', async function () {
+      const cidV0 = 'ipfs://QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM'
+      const totalTimeout = config.IPFS.METADATA_FETCH_TOTAL_TIMEOUT
+
+      try {
+        config.IPFS.METADATA_FETCH_TOTAL_TIMEOUT = 0
+
+        const stubPinataGetData = sandbox.stub(PinataHelper, 'getData').resolves(null)
+        const stubFetchMetadata = sandbox.stub(IPFSModule, '_fetchMetadata')
+        const stubFetchMetadataDweb = sandbox.stub(IPFSModule, '_fetchMetadataDweb')
+
+        const result = await IPFSModule.fetchMetadata(cidV0)
+
+        expect(result).to.be.null
+        expect(stubPinataGetData.calledOnce).to.be.true
+        expect(stubFetchMetadata.called).to.be.false
+        expect(stubFetchMetadataDweb.called).to.be.false
+      } finally {
+        config.IPFS.METADATA_FETCH_TOTAL_TIMEOUT = totalTimeout
+      }
     })
   })
 

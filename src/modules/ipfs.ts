@@ -35,17 +35,25 @@ const IPFSModule = {
       return null
     }
 
+    const totalTimeout = opts?.timeout ?? config.IPFS.METADATA_FETCH_TOTAL_TIMEOUT
+    const startTime = Date.now()
+
+    const getRemainingTimeout = () => {
+      const remaining = totalTimeout - (Date.now() - startTime)
+      return remaining > 0 ? remaining : 0
+    }
+
     // try with Pinata gateway
-    let data = await PinataHelper.getData(cid, opts?.timeout)
+    let data = await PinataHelper.getData(cid, opts?.timeout ?? config.IPFS.METADATA_FETCH_TIMEOUT)
 
     // fallback to public gateway
-    if (!data) {
-      data = await IPFSModule._fetchMetadata(cid, opts)
+    if (!data && getRemainingTimeout() > 0) {
+      data = await IPFSModule._fetchMetadata(cid, { ...opts, timeout: getRemainingTimeout() })
     }
 
     // fallback to secondary public gateway
-    if (!data) {
-      data = await IPFSModule._fetchMetadataDweb(cid, opts)
+    if (!data && getRemainingTimeout() > 0) {
+      data = await IPFSModule._fetchMetadataDweb(cid, { ...opts, timeout: getRemainingTimeout() })
     }
 
     if (data?.avatar?.path) {
@@ -78,7 +86,7 @@ const IPFSModule = {
     opts?: { retries?: number; delay?: number; timeout?: number },
   ) => {
     try {
-      const url = `${gatewayUri.replace(/\/+$/, '')}/${cid}`
+      const url = `${gatewayUri}/${cid}`
 
       return await retry(
         async () => {
