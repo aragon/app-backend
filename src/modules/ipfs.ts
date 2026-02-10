@@ -38,12 +38,12 @@ const IPFSModule = {
     // try with Pinata gateway
     let data = await PinataHelper.getData(cid)
 
-    // fallback to ipfs.io public gateway
+    // fallback to public gateway
     if (!data) {
       data = await IPFSModule._fetchMetadata(cid, opts)
     }
 
-    // fallback to dweb.link gateway
+    // fallback to secondary public gateway
     if (!data) {
       data = await IPFSModule._fetchMetadataDweb(cid, opts)
     }
@@ -65,22 +65,16 @@ const IPFSModule = {
   },
 
   _fetchMetadata: async (cid: string, opts?: { retries?: number; delay?: number; timeout?: number }) => {
-    return IPFSModule._fetchFromGateway(cid, config.IPFS.PUBLIC_GATEWAY_URI, 'Failed to fetch metadata from IPFS', opts)
+    return IPFSModule._fetchFromGateway(cid, config.IPFS.PUBLIC_GATEWAY_URI, opts)
   },
 
   _fetchMetadataDweb: async (cid: string, opts?: { retries?: number; delay?: number; timeout?: number }) => {
-    return IPFSModule._fetchFromGateway(
-      cid,
-      config.IPFS.DWEB_GATEWAY_URI,
-      'Failed to fetch metadata from dweb.link',
-      opts,
-    )
+    return IPFSModule._fetchFromGateway(cid, config.IPFS.DWEB_GATEWAY_URI, opts)
   },
 
   _fetchFromGateway: async (
     cid: string,
     gatewayUri: string,
-    errorMessage: string,
     opts?: { retries?: number; delay?: number; timeout?: number },
   ) => {
     try {
@@ -89,7 +83,7 @@ const IPFSModule = {
       return await retry(
         async () => {
           const controller = new AbortController()
-          const timeout = opts?.timeout || config.IPFS.METADATA_FETCH_TIMEOUT
+          const timeout = opts?.timeout ?? config.IPFS.METADATA_FETCH_TIMEOUT
           const timeoutId = setTimeout(() => controller.abort(), timeout)
 
           try {
@@ -107,13 +101,13 @@ const IPFSModule = {
           }
         },
         {
-          retries: opts?.retries || config.IPFS.METADATA_FETCH_RETRY,
-          delay: opts?.delay || config.IPFS.METADATA_FETCH_DELAY,
-          timeout: opts?.timeout || config.IPFS.METADATA_FETCH_TIMEOUT,
+          retries: opts?.retries ?? config.IPFS.METADATA_FETCH_RETRY,
+          delay: opts?.delay ?? config.IPFS.METADATA_FETCH_DELAY,
+          timeout: opts?.timeout ?? config.IPFS.METADATA_FETCH_TIMEOUT,
         },
       )
     } catch (error) {
-      logger.error(errorMessage, llo({ cid, error }))
+      logger.error(`Failed to fetch metadata from ${gatewayUri}`, llo({ cid, error }))
       return null
     }
   },

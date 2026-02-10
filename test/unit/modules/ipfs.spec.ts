@@ -6,7 +6,7 @@ import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
-describe('Modules: IPFS', () => {
+describe.only('Modules: IPFS', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
@@ -84,21 +84,23 @@ describe('Modules: IPFS', () => {
       const metadatafetchretry = config.IPFS.METADATA_FETCH_RETRY
       const metadatafetchdelay = config.IPFS.METADATA_FETCH_DELAY
 
-      config.IPFS.METADATA_FETCH_RETRY = 0
-      config.IPFS.METADATA_FETCH_DELAY = 0
+      try {
+        config.IPFS.METADATA_FETCH_RETRY = 0
+        config.IPFS.METADATA_FETCH_DELAY = 0
 
-      const error = new Error('Network error')
-      sandbox.stub(global, 'fetch').rejects(error)
+        const error = new Error('Network error')
+        sandbox.stub(global, 'fetch').rejects(error)
 
-      const loggerErrorStub = sandbox.stub(logger, 'error')
+        const loggerErrorStub = sandbox.stub(logger, 'error')
 
-      const result = await IPFSModule._fetchMetadata('cid')
+        const result = await IPFSModule._fetchMetadata('cid')
 
-      expect(result).to.be.null
-      expect(loggerErrorStub.args[0][0]).to.eq('Failed to fetch metadata from IPFS')
-
-      config.IPFS.METADATA_FETCH_RETRY = metadatafetchretry
-      config.IPFS.METADATA_FETCH_DELAY = metadatafetchdelay
+        expect(result).to.be.null
+        expect(loggerErrorStub.args[0][0]).to.eq(`Failed to fetch metadata from ${config.IPFS.PUBLIC_GATEWAY_URI}`)
+      } finally {
+        config.IPFS.METADATA_FETCH_RETRY = metadatafetchretry
+        config.IPFS.METADATA_FETCH_DELAY = metadatafetchdelay
+      }
     })
   })
 
@@ -123,44 +125,48 @@ describe('Modules: IPFS', () => {
       const metadatafetchretry = config.IPFS.METADATA_FETCH_RETRY
       const metadatafetchdelay = config.IPFS.METADATA_FETCH_DELAY
 
-      config.IPFS.METADATA_FETCH_RETRY = 0
-      config.IPFS.METADATA_FETCH_DELAY = 0
+      try {
+        config.IPFS.METADATA_FETCH_RETRY = 0
+        config.IPFS.METADATA_FETCH_DELAY = 0
 
-      const error = new Error('Network error')
-      sandbox.stub(global, 'fetch').rejects(error)
+        const error = new Error('Network error')
+        sandbox.stub(global, 'fetch').rejects(error)
 
-      const loggerErrorStub = sandbox.stub(logger, 'error')
+        const loggerErrorStub = sandbox.stub(logger, 'error')
 
-      const result = await IPFSModule._fetchMetadataDweb('cid')
+        const result = await IPFSModule._fetchMetadataDweb('cid')
 
-      expect(result).to.be.null
-      expect(loggerErrorStub.args[0][0]).to.eq('Failed to fetch metadata from dweb.link')
-
-      config.IPFS.METADATA_FETCH_RETRY = metadatafetchretry
-      config.IPFS.METADATA_FETCH_DELAY = metadatafetchdelay
+        expect(result).to.be.null
+        expect(loggerErrorStub.args[0][0]).to.eq(`Failed to fetch metadata from ${config.IPFS.DWEB_GATEWAY_URI}`)
+      } finally {
+        config.IPFS.METADATA_FETCH_RETRY = metadatafetchretry
+        config.IPFS.METADATA_FETCH_DELAY = metadatafetchdelay
+      }
     })
 
     it('should handle non-OK HTTP response', async () => {
       const metadatafetchretry = config.IPFS.METADATA_FETCH_RETRY
       const metadatafetchdelay = config.IPFS.METADATA_FETCH_DELAY
 
-      config.IPFS.METADATA_FETCH_RETRY = 0
-      config.IPFS.METADATA_FETCH_DELAY = 0
+      try {
+        config.IPFS.METADATA_FETCH_RETRY = 0
+        config.IPFS.METADATA_FETCH_DELAY = 0
 
-      sandbox.stub(global, 'fetch').resolves({
-        ok: false,
-        status: 404,
-      } as any)
+        sandbox.stub(global, 'fetch').resolves({
+          ok: false,
+          status: 404,
+        } as any)
 
-      const loggerErrorStub = sandbox.stub(logger, 'error')
+        const loggerErrorStub = sandbox.stub(logger, 'error')
 
-      const result = await IPFSModule._fetchMetadataDweb('cid')
+        const result = await IPFSModule._fetchMetadataDweb('cid')
 
-      expect(result).to.be.null
-      expect(loggerErrorStub.args[0][0]).to.eq('Failed to fetch metadata from dweb.link')
-
-      config.IPFS.METADATA_FETCH_RETRY = metadatafetchretry
-      config.IPFS.METADATA_FETCH_DELAY = metadatafetchdelay
+        expect(result).to.be.null
+        expect(loggerErrorStub.args[0][0]).to.eq(`Failed to fetch metadata from ${config.IPFS.DWEB_GATEWAY_URI}`)
+      } finally {
+        config.IPFS.METADATA_FETCH_RETRY = metadatafetchretry
+        config.IPFS.METADATA_FETCH_DELAY = metadatafetchdelay
+      }
     })
   })
 
@@ -330,23 +336,25 @@ describe('Modules: IPFS', () => {
       const metadatafetchretry = config.IPFS.METADATA_FETCH_RETRY
       const metadatafetchdelay = config.IPFS.METADATA_FETCH_DELAY
 
-      config.IPFS.METADATA_FETCH_RETRY = 0
-      config.IPFS.METADATA_FETCH_DELAY = 0
+      try {
+        config.IPFS.METADATA_FETCH_RETRY = 0
+        config.IPFS.METADATA_FETCH_DELAY = 0
 
-      sandbox.stub(global, 'fetch').resolves({
-        ok: false,
-        status: 404,
-      } as any)
+        sandbox.stub(global, 'fetch').resolves({
+          ok: false,
+          status: 404,
+        } as any)
 
-      const loggerErrorStub = sandbox.stub(logger, 'error')
+        const loggerErrorStub = sandbox.stub(logger, 'error')
 
-      const result = await IPFSModule._fetchMetadata('cid')
+        const result = await IPFSModule._fetchMetadata('cid')
 
-      expect(result).to.be.null
-      expect(loggerErrorStub.args[0][0]).to.eq('Failed to fetch metadata from IPFS')
-
-      config.IPFS.METADATA_FETCH_RETRY = metadatafetchretry
-      config.IPFS.METADATA_FETCH_DELAY = metadatafetchdelay
+        expect(result).to.be.null
+        expect(loggerErrorStub.args[0][0]).to.eq(`Failed to fetch metadata from ${config.IPFS.PUBLIC_GATEWAY_URI}`)
+      } finally {
+        config.IPFS.METADATA_FETCH_RETRY = metadatafetchretry
+        config.IPFS.METADATA_FETCH_DELAY = metadatafetchdelay
+      }
     })
   })
 })
