@@ -36,7 +36,7 @@ const IPFSModule = {
     }
 
     // try with Pinata gateway
-    let data = await PinataHelper.getData(cid)
+    let data = await PinataHelper.getData(cid, opts?.timeout)
 
     // fallback to public gateway
     if (!data) {
@@ -78,7 +78,7 @@ const IPFSModule = {
     opts?: { retries?: number; delay?: number; timeout?: number },
   ) => {
     try {
-      const url = `${gatewayUri}/${cid}`
+      const url = `${gatewayUri.replace(/\/+$/, '')}/${cid}`
 
       return await retry(
         async () => {
@@ -92,6 +92,15 @@ const IPFSModule = {
             })
 
             if (!response.ok) {
+              // Skip retry on permanent client errors (4xx), except 408/429 which are transient
+              if (
+                response.status >= 400 &&
+                response.status < 500 &&
+                response.status !== 408 &&
+                response.status !== 429
+              ) {
+                return null
+              }
               throw new Error(`HTTP error! Status: ${response.status}`)
             }
 

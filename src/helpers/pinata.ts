@@ -9,9 +9,9 @@ const llo = logger.logMeta.bind(null, { service: 'helpers:PinataHelper' })
 const PinataHelper = {
   pinata: new Pinata({ pinataJWTKey: config.PINATA.JWT }),
 
-  async getData(cid: string) {
+  async getData(cid: string, timeout?: number) {
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), config.IPFS.METADATA_FETCH_TIMEOUT)
+    const timeoutId = setTimeout(() => controller.abort(), timeout ?? config.IPFS.METADATA_FETCH_TIMEOUT)
 
     try {
       const response = await fetch(`${config.PINATA.GATEWAY_URI}/${cid}`, {

@@ -144,7 +144,18 @@ describe('Modules: IPFS', () => {
       }
     })
 
-    it('should handle non-OK HTTP response', async () => {
+    it('should return null without retrying on 4xx HTTP response', async () => {
+      sandbox.stub(global, 'fetch').resolves({
+        ok: false,
+        status: 404,
+      } as any)
+
+      const result = await IPFSModule._fetchMetadataDweb('cid')
+
+      expect(result).to.be.null
+    })
+
+    it('should retry on 5xx HTTP response', async () => {
       const metadatafetchretry = config.IPFS.METADATA_FETCH_RETRY
       const metadatafetchdelay = config.IPFS.METADATA_FETCH_DELAY
 
@@ -154,7 +165,7 @@ describe('Modules: IPFS', () => {
 
         sandbox.stub(global, 'fetch').resolves({
           ok: false,
-          status: 404,
+          status: 503,
         } as any)
 
         const loggerErrorStub = sandbox.stub(logger, 'error')
@@ -332,7 +343,18 @@ describe('Modules: IPFS', () => {
   })
 
   describe('_fetchMetadata with HTTP errors', function () {
-    it('should handle non-OK HTTP response', async () => {
+    it('should return null without retrying on 4xx HTTP response', async () => {
+      sandbox.stub(global, 'fetch').resolves({
+        ok: false,
+        status: 404,
+      } as any)
+
+      const result = await IPFSModule._fetchMetadata('cid')
+
+      expect(result).to.be.null
+    })
+
+    it('should retry on 5xx HTTP response', async () => {
       const metadatafetchretry = config.IPFS.METADATA_FETCH_RETRY
       const metadatafetchdelay = config.IPFS.METADATA_FETCH_DELAY
 
@@ -342,7 +364,7 @@ describe('Modules: IPFS', () => {
 
         sandbox.stub(global, 'fetch').resolves({
           ok: false,
-          status: 404,
+          status: 500,
         } as any)
 
         const loggerErrorStub = sandbox.stub(logger, 'error')
