@@ -6,7 +6,7 @@ import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
-describe.only('Modules: IPFS', () => {
+describe('Modules: IPFS', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {
