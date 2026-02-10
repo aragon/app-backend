@@ -10,9 +10,13 @@ const PinataHelper = {
   pinata: new Pinata({ pinataJWTKey: config.PINATA.JWT }),
 
   async getData(cid: string) {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), config.IPFS.METADATA_FETCH_TIMEOUT)
+
     try {
       const response = await fetch(`${config.PINATA.GATEWAY_URI}/${cid}`, {
         method: 'GET',
+        signal: controller.signal,
       })
 
       const data = await response.json()
@@ -23,6 +27,8 @@ const PinataHelper = {
         logger.error('Pinata failed to fetch data', llo({ cid, error }))
       }
       return null
+    } finally {
+      clearTimeout(timeoutId)
     }
   },
 

@@ -35,11 +35,17 @@ const IPFSModule = {
       return null
     }
 
-    // try with gateway
+    // try with Pinata gateway
     let data = await PinataHelper.getData(cid)
 
+    // fallback to ipfs.io public gateway
     if (!data) {
       data = await IPFSModule._fetchMetadata(cid, opts)
+    }
+
+    // fallback to dweb.link gateway
+    if (!data) {
+      data = await IPFSModule._fetchMetadataDweb(cid, opts)
     }
 
     if (data?.avatar?.path) {
@@ -59,8 +65,26 @@ const IPFSModule = {
   },
 
   _fetchMetadata: async (cid: string, opts?: { retries?: number; delay?: number; timeout?: number }) => {
+    return IPFSModule._fetchFromGateway(cid, config.IPFS.PUBLIC_GATEWAY_URI, 'Failed to fetch metadata from IPFS', opts)
+  },
+
+  _fetchMetadataDweb: async (cid: string, opts?: { retries?: number; delay?: number; timeout?: number }) => {
+    return IPFSModule._fetchFromGateway(
+      cid,
+      config.IPFS.DWEB_GATEWAY_URI,
+      'Failed to fetch metadata from dweb.link',
+      opts,
+    )
+  },
+
+  _fetchFromGateway: async (
+    cid: string,
+    gatewayUri: string,
+    errorMessage: string,
+    opts?: { retries?: number; delay?: number; timeout?: number },
+  ) => {
     try {
-      const url = `https://ipfs.io/ipfs/${cid}`
+      const url = `${gatewayUri}/${cid}`
 
       return await retry(
         async () => {
@@ -89,7 +113,7 @@ const IPFSModule = {
         },
       )
     } catch (error) {
-      logger.error('Failed to fetch metadata from IPFS', llo({ cid, error }))
+      logger.error(errorMessage, llo({ cid, error }))
       return null
     }
   },

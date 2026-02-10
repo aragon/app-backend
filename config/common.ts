@@ -519,6 +519,8 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'IPFS_METADATA_REFETCH_INTERVAL_MS',
         30 * 60 * 1000,
       ), // 30 minutes
+      PUBLIC_GATEWAY_URI: utils.configParser(sourceConfig, 'string', 'IPFS_PUBLIC_GATEWAY_URI', 'https://ipfs.io/ipfs'),
+      DWEB_GATEWAY_URI: utils.configParser(sourceConfig, 'string', 'IPFS_DWEB_GATEWAY_URI', 'https://dweb.link/ipfs'),
     },
 
     RETRY_REQUEST: {

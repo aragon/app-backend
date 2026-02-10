@@ -172,6 +172,8 @@ export interface IConfig {
     METADATA_FETCH_TIMEOUT: number
     METADATA_REFETCH_MAX_RETRY: number
     METADATA_REFETCH_INTERVAL_MS: number
+    PUBLIC_GATEWAY_URI: string
+    DWEB_GATEWAY_URI: string
   }
 
   RETRY_REQUEST: {
