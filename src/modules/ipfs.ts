@@ -52,12 +52,20 @@ const IPFSModule = {
 
     // fallback to public gateway
     if (!data && getRemainingTimeout() > 0) {
-      data = await IPFSModule._fetchMetadata(cid, { ...opts, timeout: getRemainingTimeout() })
+      data = await IPFSModule._fetchMetadata(cid, {
+        retries: opts?.retries,
+        delay: opts?.delay,
+        timeout: getRemainingTimeout(),
+      })
     }
 
     // fallback to secondary public gateway
     if (!data && getRemainingTimeout() > 0) {
-      data = await IPFSModule._fetchMetadataDweb(cid, { ...opts, timeout: getRemainingTimeout() })
+      data = await IPFSModule._fetchMetadataDweb(cid, {
+        retries: opts?.retries,
+        delay: opts?.delay,
+        timeout: getRemainingTimeout(),
+      })
     }
 
     if (data?.avatar?.path) {
