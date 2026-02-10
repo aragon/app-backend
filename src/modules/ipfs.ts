@@ -43,8 +43,12 @@ const IPFSModule = {
       return remaining > 0 ? remaining : 0
     }
 
-    // try with Pinata gateway
-    let data = await PinataHelper.getData(cid, opts?.timeout ?? config.IPFS.METADATA_FETCH_TIMEOUT)
+    // try with Pinata gateway, respecting the total timeout budget
+    const pinataTimeout = Math.min(getRemainingTimeout(), opts?.timeout ?? config.IPFS.METADATA_FETCH_TIMEOUT)
+    let data: any = null
+    if (pinataTimeout > 0) {
+      data = await PinataHelper.getData(cid, pinataTimeout)
+    }
 
     // fallback to public gateway
     if (!data && getRemainingTimeout() > 0) {
