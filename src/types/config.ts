@@ -208,6 +208,7 @@ export interface IConfig {
       NAME: string
       PORT: number
       TIMEOUT: number
+      DECODE_ACTION_BATCH_LIMIT: number
     }
     ARAGON_ADMIN_API: {
       BASE_URL: string
