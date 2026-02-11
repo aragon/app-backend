@@ -311,6 +311,17 @@ describe('Helpers: MetadataRefetch', () => {
         expect(result).to.be.false
         expect(loggerWarnStub.calledWith('Dao not found for metadata update')).to.be.true
       })
+
+      it('Should return false when metadata is null', async () => {
+        const result = await MetadataRefetchHelper.applyRefetchedMetadata(
+          MetadataEntityType.Dao,
+          entityId,
+          network,
+          null as any,
+        )
+
+        expect(result).to.be.false
+      })
     })
 
     describe('Plugin', () => {

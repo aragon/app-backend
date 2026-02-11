@@ -49,6 +49,7 @@ export const MetadataHandler = {
           network,
         ),
       })
+      const parsedMetadata = Web3Utils.parseDaoMetadata(ipfsMetadata!)
 
       const logMetadata = {
         network,
@@ -58,15 +59,15 @@ export const MetadataHandler = {
         metadataUri: metadataUri!,
         fetchedMetadata: !!ipfsMetadata,
         blockNumber,
-        name: ipfsMetadata?.name!,
-        description: ipfsMetadata?.description!,
-        avatar: Utils.parseAvatar(ipfsMetadata?.avatar),
-        links: ipfsMetadata?.links!,
-        processKey: ipfsMetadata?.processKey!,
-        stageNames: ipfsMetadata?.stageNames!,
-        blockedCountries: ipfsMetadata?.blockedCountries || [],
-        termsConditionsUrl: ipfsMetadata?.termsConditionsUrl || null,
-        enableOfacCheck: ipfsMetadata?.enableOfacCheck || null,
+        name: parsedMetadata.name!,
+        description: parsedMetadata.description!,
+        avatar: Utils.parseAvatar(parsedMetadata.avatar!),
+        links: parsedMetadata.links!,
+        processKey: parsedMetadata.processKey!,
+        stageNames: parsedMetadata.stageNames!,
+        blockedCountries: parsedMetadata.blockedCountries || [],
+        termsConditionsUrl: parsedMetadata.termsConditionsUrl || null,
+        enableOfacCheck: parsedMetadata.enableOfacCheck || null,
       }
 
       if (daoExists) {

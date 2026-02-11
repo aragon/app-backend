@@ -744,6 +744,25 @@ describe('Helpers:Web3Utils', () => {
         blockedCountries: [],
       })
     })
+
+    it('should map policyKey to processKey when processKey is absent', () => {
+      expect(
+        Web3Utils.parseDaoMetadata({
+          name: 'Policy Plugin',
+          policyKey: 'REWARDS',
+        }),
+      ).to.deep.equal({
+        name: 'Policy Plugin',
+        description: null,
+        avatar: null,
+        links: [],
+        stageNames: [],
+        processKey: 'REWARDS',
+        termsConditionsUrl: null,
+        enableOfacCheck: null,
+        blockedCountries: [],
+      })
+    })
   })
 
   describe('parseProposalMetadata', () => {

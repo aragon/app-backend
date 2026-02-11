@@ -29,7 +29,10 @@ describe('Helpers: Pinata', () => {
       const resp = await PinataHelper.getData(cid)
 
       expect(stubFetch.calledOnce).to.be.true
-      expect(stubFetch.calledWith(`${config.PINATA.GATEWAY_URI}/${cid}`, { method: 'GET' })).to.be.true
+      expect(stubFetch.firstCall.args[0]).to.eq(`${config.PINATA.GATEWAY_URI}/${cid}`)
+      const fetchOpts = stubFetch.firstCall.args[1] as any
+      expect(fetchOpts.method).to.eq('GET')
+      expect(fetchOpts.signal).to.be.an.instanceOf(AbortSignal)
       expect(resp).to.deep.equal(fakeContent)
     })
 
@@ -44,7 +47,10 @@ describe('Helpers: Pinata', () => {
       const resp = await PinataHelper.getData(cid)
 
       expect(stubFetch.calledOnce).to.be.true
-      expect(stubFetch.calledWith(`${config.PINATA.GATEWAY_URI}/${cid}`, { method: 'GET' })).to.be.true
+      expect(stubFetch.firstCall.args[0]).to.eq(`${config.PINATA.GATEWAY_URI}/${cid}`)
+      const fetchOpts = stubFetch.firstCall.args[1] as any
+      expect(fetchOpts.method).to.eq('GET')
+      expect(fetchOpts.signal).to.be.an.instanceOf(AbortSignal)
       expect(resp).to.deep.equal({ data: 1 })
     })
 
