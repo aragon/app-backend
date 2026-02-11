@@ -234,7 +234,7 @@ export interface ICrawlParam {
   oneBlockPerTime?: boolean
   filterLogs?: (logs: any) => Promise<any>
   strategy?: ICrawStrategy
-  logService: LogServicePattern
+  logService?: LogServicePattern
   onError: (error: Error, log?: Log) => void
   skipLogProcessing?: boolean
   isTopicObject?: boolean
@@ -341,6 +341,8 @@ export enum IVotingEscrowIncreasingLogs {
   Deposit = 'Deposit',
   Withdraw = 'Withdraw',
   MinDepositSet = 'MinDepositSet',
+  Split = 'Split',
+  Merged = 'Merged',
 }
 
 export enum IVotingEscrowAdapterLogs {
@@ -352,6 +354,8 @@ export enum IExitQueueLogs {
   ExitQueued = 'ExitQueued',
   MinLockSet = 'MinLockSet',
   ExitQueuedV2 = 'ExitQueuedV2',
+  ExitFeePercentAdjusted = 'ExitFeePercentAdjusted',
+  ExitCancelled = 'ExitCancelled',
 }
 
 export enum ISelectorPermissionLogs {
@@ -359,6 +363,19 @@ export enum ISelectorPermissionLogs {
   SelectorDisallowed = 'SelectorDisallowed',
   NativeTransfersAllowed = 'NativeTransfersAllowed',
   NativeTransfersDisallowed = 'NativeTransfersDisallowed',
+}
+
+// Events from source/model contracts (SourceSettingsUpdated, ModelSettingsUpdated, PluginDefined)
+export enum IPolicySourceModelLogs {
+  SourceSettingsUpdated = 'SourceSettingsUpdated',
+  PluginDefined = 'PluginDefined',
+  ModelSettingsUpdated = 'ModelSettingsUpdated',
+}
+
+// Events from plugin contracts (RouterSettingsUpdated, ClaimerSettingsUpdated)
+export enum IPolicyPluginSettingsLogs {
+  RouterSettingsUpdated = 'RouterSettingsUpdated',
+  ClaimerSettingsUpdated = 'ClaimerSettingsUpdated',
 }
 
 export interface ICapitalDistributorStats {

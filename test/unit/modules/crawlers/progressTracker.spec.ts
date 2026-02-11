@@ -78,6 +78,21 @@ describe('Module: ProgressTracker', () => {
       expect(logVerboseStub.calledWithMatch('Found existing progress')).to.be.true
     })
 
+    it('should return next block after saveProgress', async () => {
+      await progressTracker.saveProgress(5000)
+
+      const startingBlock = await progressTracker.getStartingBlock()
+      expect(startingBlock).to.equal(5001)
+    })
+
+    it('should return initialBlock after resetProgress', async () => {
+      await progressTracker.saveProgress(5000)
+      await progressTracker.resetProgress()
+
+      const startingBlock = await progressTracker.getStartingBlock()
+      expect(startingBlock).to.equal(testConfig.initialBlock)
+    })
+
     it('should handle database errors gracefully', async () => {
       // Stub the database call to throw an error
       const findExistingLogStub = sandbox.stub(Models.ConfigIndexer, 'findExistingLog')
@@ -105,7 +120,7 @@ describe('Module: ProgressTracker', () => {
       })
 
       expect(config).to.exist
-      expect(config!.lastSync).to.equal(2000)
+      expect(config!.lastSync).to.equal(2001)
       expect(config!.network).to.equal(testConfig.network)
       expect(config!.service).to.equal(testConfig.service)
       expect(config!.end).to.be.false
@@ -130,7 +145,7 @@ describe('Module: ProgressTracker', () => {
       })
 
       expect(config).to.exist
-      expect(config!.lastSync).to.equal(3000)
+      expect(config!.lastSync).to.equal(3001)
       expect(logVerboseStub.calledWithMatch('Updated progress')).to.be.true
     })
 
@@ -168,8 +183,8 @@ describe('Module: ProgressTracker', () => {
       })
 
       expect(config).to.exist
-      // The last update should win
-      expect(config!.lastSync).to.be.oneOf(updates)
+      // The highest update + 1 should win due to $max
+      expect(config!.lastSync).to.be.oneOf(updates.map(b => b + 1))
     })
   })
 
@@ -366,15 +381,15 @@ describe('Module: ProgressTracker', () => {
       await progressTracker.saveProgress(3000)
       await progressTracker.saveProgress(4000)
 
-      // Step 3: Verify progress
+      // Step 3: Verify progress (saveProgress stores blockNumber + 1)
       const info1 = await progressTracker.getProgressInfo()
-      expect(info1.lastSync).to.equal(4000)
+      expect(info1.lastSync).to.equal(4001)
       expect(info1.isEnded).to.be.false
       expect(info1.exists).to.be.true
 
-      // Step 4: Get starting block again (should return lastSync)
+      // Step 4: Get starting block again (returns lastSync directly)
       startBlock = await progressTracker.getStartingBlock()
-      expect(startBlock).to.equal(4000)
+      expect(startBlock).to.equal(4001)
 
       // Step 5: Mark as ended
       await progressTracker.markAsEnded()
@@ -415,8 +430,8 @@ describe('Module: ProgressTracker', () => {
       const info1 = await tracker1.getProgressInfo()
       const info2 = await tracker2.getProgressInfo()
 
-      expect(info1.lastSync).to.equal(1500)
-      expect(info2.lastSync).to.equal(2500)
+      expect(info1.lastSync).to.equal(1501)
+      expect(info2.lastSync).to.equal(2501)
 
       // Mark one as ended
       await tracker1.markAsEnded()

@@ -67,6 +67,7 @@ describe('RouterV2: Transaction', () => {
         tokenAddress: getAddress(filterParams.tokenAddress),
         side: undefined,
         type: undefined,
+        onlyParent: false,
       })
       expect(stubCtrl.args[0]?.[2]).to.deep.eq({ daoId: undefined })
     })
@@ -115,6 +116,7 @@ describe('RouterV2: Transaction', () => {
         tokenAddress: undefined,
         side: undefined,
         type: undefined,
+        onlyParent: false,
       })
       expect(stubCtrl.args[0]?.[2]).to.deep.eq({ daoId: filterParams.daoId })
     })
@@ -185,6 +187,7 @@ describe('RouterV2: Transaction', () => {
         tokenAddress: getAddress(filterParams.tokenAddress),
         side: undefined,
         type: undefined,
+        onlyParent: false,
       })
     })
 

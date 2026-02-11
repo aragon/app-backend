@@ -53,6 +53,8 @@ describe('RouterV2: Asset', () => {
         daoAddress: filterParams.address,
         network: filterParams.network,
         tokenAddress: filterParams.tokenAddress,
+        onlyParent: false,
+        includeSpam: false,
       })
     })
 
@@ -91,6 +93,8 @@ describe('RouterV2: Asset', () => {
         network: undefined,
         daoAddress: undefined,
         tokenAddress: undefined,
+        onlyParent: false,
+        includeSpam: false,
       })
       expect(stubCtrl.args[0][2]).to.deep.eq(filterParams)
     })
@@ -127,7 +131,13 @@ describe('RouterV2: Asset', () => {
       }
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
       expect(stubCtrl.args[0][1]).to.deep.eq({
-        ...{ daoAddress: undefined, tokenAddress: undefined, network: filterParams.network },
+        ...{
+          daoAddress: undefined,
+          tokenAddress: undefined,
+          network: filterParams.network,
+          onlyParent: false,
+          includeSpam: false,
+        },
       })
       expect(stubCtrl.args[0][2]?.daoId).to.eq(filterParams.daoId)
     })

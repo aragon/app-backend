@@ -164,8 +164,6 @@ describe('Module: provider', () => {
         INTERVAL_BLOCK_TIME: 15,
         ETHERSCAN_API_KEY: 'test',
         ETHERSCAN_API_URL: 'test',
-        BLOCKSCOUT_API_URL: 'test',
-        BLOCKSCOUT_API_KEY: 'test',
       },
       POLYGON_MAINNET: {
         ALCHEMY_API_KEY: 'test-alchemy-key2',
@@ -175,8 +173,6 @@ describe('Module: provider', () => {
         INTERVAL_BLOCK_TIME: 15,
         ETHERSCAN_API_KEY: 'test',
         ETHERSCAN_API_URL: 'test',
-        BLOCKSCOUT_API_URL: 'test',
-        BLOCKSCOUT_API_KEY: 'test',
       },
     }
     sandbox.stub(config, 'NODES').value(rawNodes)

@@ -10,12 +10,10 @@ import TokenMember from '@models/schema/tokenMember'
 import PairDataModule from '@modules/pairData'
 import ProposalController from '@services/aragon-api/controllers/proposal'
 import { FakeMember } from '@test/mock/fakeMember'
-import { fakePluginMembers } from '@test/mock/fakePluginMember'
 import { PluginList } from '@test/mock/fakePlugins'
 import { ProposalList } from '@test/mock/fakeProposal'
 import { fakeSettings } from '@test/mock/fakeSettings'
 import { FakeToken } from '@test/mock/fakeToken'
-import { fakeTokenMembers } from '@test/mock/fakeTokenMember'
 import { ErrorKeyEnum, type HexAddress, IPluginInterfaceType } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
@@ -264,6 +262,30 @@ describe('Controller: Proposal', () => {
 
       expect(spyReq.calledOnce).to.be.true
       expect(response).to.have.property('data').with.lengthOf(1)
+    })
+
+    it('should include subDaos when dao has subDaos and only daoAddress/network provided', async () => {
+      const subDaoAddress = '0xSubDao1234567890123456789012345678901234'
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({
+        address: rawProposal.daoAddress,
+        subDaos: [subDaoAddress],
+      } as any)
+
+      const paginationParams: any = {}
+      const filterParams: any = {
+        network: rawProposal.network,
+        daoAddress: rawProposal.daoAddress,
+      }
+
+      const spyReq = sandbox.spy(Models.Proposal, 'findWithPagination')
+
+      await ProposalController.getProposalsWithPagination(paginationParams, filterParams)
+
+      expect(spyReq.calledOnce).to.be.true
+      const callArgs = spyReq.firstCall.args[0]
+      expect(callArgs.extraParams.daoAddresses).to.deep.equal([rawProposal.daoAddress, subDaoAddress])
+      expect(callArgs.paginationParams.sort).to.equal('blockNumber')
+      expect(callArgs.paginationParams.order).to.equal('desc')
     })
   })
 

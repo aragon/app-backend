@@ -797,6 +797,97 @@ describe('AragonPlugins: LogTokenVoting', () => {
     })
   })
 
+  describe('runEscrowCrawler', () => {
+    it('should build escrow crawler and run crawl and end', async () => {
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      const endStub = sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
+
+      const token = {
+        address: '0x123',
+        network: NetworksEnum.ethereumSepolia,
+        type: ITokenType.escrowAdapter,
+        blockNumber: 100,
+      } as any
+      const plugin = {
+        address: '0x456',
+        tokenAddress: token.address,
+        network: token.network,
+        blockNumber: 200,
+        votingEscrow: {
+          escrowAddress: '0xEscrowAddress',
+          exitQueueAddress: '0xExitQueueAddress',
+        },
+      } as any
+
+      await LogTokenVoting.runEscrowCrawler(plugin, token, false)
+
+      expect(crawlStub.calledOnce).to.be.true
+      expect(endStub.calledOnce).to.be.true
+    })
+
+    it('should pass isHistorical flag to escrow crawler', async () => {
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      const endStub = sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
+
+      const token = {
+        address: '0x123',
+        network: NetworksEnum.ethereumSepolia,
+        type: ITokenType.escrowAdapter,
+      } as any
+      const plugin = {
+        address: '0x456',
+        tokenAddress: token.address,
+        network: token.network,
+        votingEscrow: {
+          escrowAddress: '0xEscrowAddress',
+          exitQueueAddress: '0xExitQueueAddress',
+        },
+      } as any
+
+      await LogTokenVoting.runEscrowCrawler(plugin, token, true)
+
+      expect(crawlStub.calledOnce).to.be.true
+      expect(endStub.calledOnce).to.be.true
+    })
+
+    it('should log warning and skip crawl when votingEscrow is missing', async () => {
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      const endStub = sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
+      const warnStub = sandbox.stub(logger, 'warn')
+
+      const token = { address: '0x123' } as any
+      const plugin = {
+        address: '0x456',
+        votingEscrow: null,
+      } as any
+
+      await LogTokenVoting.runEscrowCrawler(plugin, token, false)
+
+      expect(crawlStub.notCalled).to.be.true
+      expect(endStub.notCalled).to.be.true
+      expect(warnStub.calledWith('LogTokenVoting: runEscrowCrawler - missing votingEscrow or token' as any)).to.be.true
+    })
+
+    it('should log warning and skip crawl when token is null', async () => {
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      const endStub = sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
+      const warnStub = sandbox.stub(logger, 'warn')
+
+      const plugin = {
+        address: '0x456',
+        votingEscrow: {
+          escrowAddress: '0xEscrowAddress',
+        },
+      } as any
+
+      await LogTokenVoting.runEscrowCrawler(plugin, null as any, false)
+
+      expect(crawlStub.notCalled).to.be.true
+      expect(endStub.notCalled).to.be.true
+      expect(warnStub.calledWith('LogTokenVoting: runEscrowCrawler - missing votingEscrow or token' as any)).to.be.true
+    })
+  })
+
   describe('processError', () => {
     it('should log error with complete details', async () => {
       const errorStub = sandbox.stub(logger, 'error')

@@ -65,6 +65,8 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'The query timed out',
         'timeout',
         'retry',
+        'invalid JSON',
+        'not valid JSON',
         'eth_getLogs is limited',
         'Response size is larger than 150MB limit',
         'Log response size exceeded',
@@ -205,18 +207,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'NODES_ETHEREUM_MAINNET_INTERVAL_BLOCK_TIME',
           14,
         ),
-        BLOCKSCOUT_API_URL: utils.configParser(
-          sourceConfig,
-          'string',
-          'NODES_ETHEREUM_MAINNET_BLOCKSCOUT_API_URL',
-          'https://eth.blockscout.com/api/',
-        ),
-        BLOCKSCOUT_API_KEY: utils.configParser(
-          sourceConfig,
-          'string',
-          'NODES_ETHEREUM_MAINNET_BLOCKSCOUT_API_KEY',
-          null,
-        ),
       },
       ETHEREUM_SEPOLIA: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_SEPOLIA_ALCHEMY_API_KEY', null),
@@ -242,18 +232,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'NODES_ETHEREUM_SEPOLIA_INTERVAL_BLOCK_TIME',
           14,
         ),
-        BLOCKSCOUT_API_URL: utils.configParser(
-          sourceConfig,
-          'string',
-          'NODES_ETHEREUM_SEPOLIA_BLOCKSCOUT_API_URL',
-          'https://eth-sepolia.blockscout.com/api/',
-        ),
-        BLOCKSCOUT_API_KEY: utils.configParser(
-          sourceConfig,
-          'string',
-          'NODES_ETHEREUM_SEPOLIA_BLOCKSCOUT_API_KEY',
-          null,
-        ),
       },
       POLYGON_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_POLYGON_MAINNET_ALCHEMY_API_KEY', null),
@@ -269,18 +247,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         ), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_MAINNET_INTERVAL_BLOCK_TIME', 2),
-        BLOCKSCOUT_API_URL: utils.configParser(
-          sourceConfig,
-          'string',
-          'NODES_POLYGON_MAINNET_BLOCKSCOUT_API_URL',
-          'https://polygon.blockscout.com/api/',
-        ),
-        BLOCKSCOUT_API_KEY: utils.configParser(
-          sourceConfig,
-          'string',
-          'NODES_POLYGON_MAINNET_BLOCKSCOUT_API_KEY',
-          null,
-        ),
       },
       BASE_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_ALCHEMY_API_KEY', null),
@@ -291,13 +257,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_POOLING_INTERVAL', 5 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_INTERVAL_BLOCK_TIME', 12),
-        BLOCKSCOUT_API_URL: utils.configParser(
-          sourceConfig,
-          'string',
-          'NODES_BASE_MAINNET_BLOCKSCOUT_API_URL',
-          'https://base.blockscout.com/api/',
-        ),
-        BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_BLOCKSCOUT_API_KEY', null),
       },
       ARBITRUM_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ARBITRUM_MAINNET_ALCHEMY_API_KEY', null),
@@ -323,18 +282,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'NODES_ARBITRUM_MAINNET_INTERVAL_BLOCK_TIME',
           2,
         ),
-        BLOCKSCOUT_API_URL: utils.configParser(
-          sourceConfig,
-          'string',
-          'NODES_ARBITRUM_MAINNET_BLOCKSCOUT_API_URL',
-          'https://arbitrum.blockscout.com/api/',
-        ),
-        BLOCKSCOUT_API_KEY: utils.configParser(
-          sourceConfig,
-          'string',
-          'NODES_ARBITRUM_MAINNET_BLOCKSCOUT_API_KEY',
-          null,
-        ),
       },
       ZKSYNC_SEPOLIA: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_ALCHEMY_API_KEY', null),
@@ -345,13 +292,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_POOLING_INTERVAL', 5 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_INTERVAL_BLOCK_TIME', 3),
-        BLOCKSCOUT_API_URL: utils.configParser(
-          sourceConfig,
-          'string',
-          'NODES_ZKSYNC_SEPOLIA_BLOCKSCOUT_API_URL',
-          'https://zksync-sepolia.blockscout.com/api/',
-        ),
-        BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_BLOCKSCOUT_API_KEY', null),
       },
       ZKSYNC_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_ALCHEMY_API_KEY', null),
@@ -362,13 +302,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_POOLING_INTERVAL', 5 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_INTERVAL_BLOCK_TIME', 5),
-        BLOCKSCOUT_API_URL: utils.configParser(
-          sourceConfig,
-          'string',
-          'NODES_ZKSYNC_MAINNET_BLOCKSCOUT_API_URL',
-          'https://zksync.blockscout.com/api/',
-        ),
-        BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_BLOCKSCOUT_API_KEY', null),
       },
       PEAQ_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_ALCHEMY_API_KEY', null),
@@ -379,8 +312,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_POOLING_INTERVAL', 5 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_INTERVAL_BLOCK_TIME', 10),
-        BLOCKSCOUT_API_URL: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_BLOCKSCOUT_API_URL', null),
-        BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_BLOCKSCOUT_API_KEY', null),
         SUBSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_SUBSCAN_API_KEY', null),
         SUBSCAN_API_URL: utils.configParser(
           sourceConfig,
@@ -413,18 +344,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'NODES_OPTIMISM_MAINNET_INTERVAL_BLOCK_TIME',
           5,
         ),
-        BLOCKSCOUT_API_URL: utils.configParser(
-          sourceConfig,
-          'string',
-          'NODES_OPTIMISM_MAINNET_BLOCKSCOUT_API_URL',
-          'https://optimism.blockscout.com/api/',
-        ),
-        BLOCKSCOUT_API_KEY: utils.configParser(
-          sourceConfig,
-          'string',
-          'NODES_OPTIMISM_MAINNET_BLOCKSCOUT_API_KEY',
-          null,
-        ),
       },
       CHILIZ_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_CHILIZ_MAINNET_ALCHEMY_API_KEY', null),
@@ -435,8 +354,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_CHILIZ_MAINNET_POOLING_INTERVAL', 3 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_CHILIZ_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_CHILIZ_MAINNET_INTERVAL_BLOCK_TIME', 5),
-        BLOCKSCOUT_API_URL: utils.configParser(sourceConfig, 'string', 'NODES_CHILIZ_MAINNET_BLOCKSCOUT_API_URL', null),
-        BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_CHILIZ_MAINNET_BLOCKSCOUT_API_KEY', null),
       },
       CORN_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_CORN_MAINNET_ALCHEMY_API_KEY', null),
@@ -447,13 +364,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_CORN_MAINNET_POOLING_INTERVAL', 10 * 1000),
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_CORN_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_CORN_MAINNET_INTERVAL_BLOCK_TIME', 19),
-        BLOCKSCOUT_API_URL: utils.configParser(
-          sourceConfig,
-          'string',
-          'NODES_CORN_MAINNET_BLOCKSCOUT_API_URL',
-          'https://explorer-corn-maizenet.t.conduit.xyz/api/',
-        ),
-        BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_CORN_MAINNET_BLOCKSCOUT_API_KEY', null),
       },
       AVAX_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_AVAX_MAINNET_ALCHEMY_API_KEY', null),
@@ -464,8 +374,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_AVAX_MAINNET_POOLING_INTERVAL', 3 * 1000),
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_AVAX_MAINNET_CONFIRMATION_BLOCKS', 2),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_AVAX_MAINNET_INTERVAL_BLOCK_TIME', 1),
-        BLOCKSCOUT_API_URL: utils.configParser(sourceConfig, 'string', 'NODES_AVAX_MAINNET_BLOCKSCOUT_API_URL', null),
-        BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_AVAX_MAINNET_BLOCKSCOUT_API_KEY', null),
       },
       KATANA_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_KATANA_MAINNET_ALCHEMY_API_KEY', null),
@@ -476,21 +384,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_POOLING_INTERVAL', 2 * 1000),
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_INTERVAL_BLOCK_TIME', 1),
-        BLOCKSCOUT_API_URL: utils.configParser(sourceConfig, 'string', 'NODES_KATANA_MAINNET_BLOCKSCOUT_API_URL', null),
-        BLOCKSCOUT_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_KATANA_MAINNET_BLOCKSCOUT_API_KEY', null),
       },
     },
 
     BOTTLENECK: {
-      BLOCKSCOUT_API_MAX_CONCURRENT: utils.configParser(
-        sourceConfig,
-        'number',
-        'BOTTLENECK_BLOCKSCOUT_API_MAX_CONCURRENT',
-        1,
-      ),
-      BLOCKSCOUT_API_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_BLOCKSCOUT_API_MIN_TIME', 2000),
-      ETHERSCAN_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ETHERSCAN_MAX_CONCURRENT', 1),
-      ETHERSCAN_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ETHERSCAN_MIN_TIME', 2000),
+      ETHERSCAN_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ETHERSCAN_MAX_CONCURRENT', 3),
+      ETHERSCAN_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ETHERSCAN_MIN_TIME', 300),
       NODE_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_NODE_MAX_CONCURRENT', 50),
       NODE_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_NODE_MIN_TIME', 50),
       NODE_TRANSFER_MAX_CONCURRENT: utils.configParser(
@@ -567,6 +466,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     COINGECKO: {
       URI: utils.configParser(sourceConfig, 'string', 'COINGECKO_URI', 'https://api.coingecko.com/api/v3'),
       API_KEY: utils.configParser(sourceConfig, 'string', 'COINGECKO_API_KEY', null),
+      DEAD_TOKEN_VOLUME_THRESHOLD: utils.configParser(
+        sourceConfig,
+        'number',
+        'COINGECKO_DEAD_TOKEN_VOLUME_THRESHOLD',
+        10,
+      ),
     },
 
     FOUR_BYTE: {
@@ -607,6 +512,13 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       METADATA_FETCH_RETRY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_FETCH_RETRY', 2),
       METADATA_FETCH_DELAY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_FETCH_DELAY', 500),
       METADATA_FETCH_TIMEOUT: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_FETCH_TIMEOUT', 10000),
+      METADATA_REFETCH_MAX_RETRY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_REFETCH_MAX_RETRY', 2),
+      METADATA_REFETCH_INTERVAL_MS: utils.configParser(
+        sourceConfig,
+        'number',
+        'IPFS_METADATA_REFETCH_INTERVAL_MS',
+        30 * 60 * 1000,
+      ), // 30 minutes
     },
 
     RETRY_REQUEST: {
@@ -673,6 +585,24 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'SERVICES_ARAGON_RATES_RATES_INTERVAL',
           6 * 60 * 60 * 1000,
         ), // 6 hours
+        REFRESH_SPAM_TOKENS_INTERVAL: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_RATES_REFRESH_SPAM_TOKENS_INTERVAL',
+          24 * 60 * 60 * 1000,
+        ), // 24 hours
+        SPAM_SCORE_THRESHOLD: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_RATES_SPAM_SCORE_THRESHOLD',
+          5,
+        ),
+        CMS_SPAM_TOKENS_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'SERVICES_ARAGON_RATES_CMS_SPAM_TOKENS_URL',
+          'https://raw.githubusercontent.com/aragon/app-cms/refs/heads/main/spam-tokens.json',
+        ),
       },
     },
 

@@ -17,6 +17,7 @@ describe('Handler: gaugeHandler', () => {
   let getBlockTimestampStub: any
   let extractMetadataUriStub: any
   let fetchMetadataStub: any
+  let parseDaoMetadataStub: any
   let gaugeMetricsStub: any
 
   beforeEach(async () => {
@@ -65,6 +66,7 @@ describe('Handler: gaugeHandler', () => {
     getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp')
     extractMetadataUriStub = sandbox.stub(Web3Utils, 'extractMetadataUri')
     fetchMetadataStub = sandbox.stub(IPFSModule, 'fetchMetadata')
+    parseDaoMetadataStub = sandbox.stub(Web3Utils, 'parseDaoMetadata')
     gaugeMetricsStub = sandbox.stub(GaugeMetrics, 'epochGaugeMetrics').resolves()
   })
 
@@ -157,6 +159,7 @@ describe('Handler: gaugeHandler', () => {
 
       extractMetadataUriStub.returns('ipfs://QmTest123')
       fetchMetadataStub.resolves(mockMetadata)
+      parseDaoMetadataStub.returns(mockMetadata)
       const verboseStub = sandbox.stub(logger, 'verbose')
 
       await GaugeHandler.gaugeCreated(parsedEvent, mockInfo)
@@ -181,7 +184,8 @@ describe('Handler: gaugeHandler', () => {
 
       expect(extractMetadataUriStub.calledOnce).to.be.true
       expect(fetchMetadataStub.calledOnce).to.be.true
-      expect(fetchMetadataStub.calledWith('ipfs://QmTest123', { retries: 4 })).to.be.true
+      expect(fetchMetadataStub.firstCall.args[0]).to.equal('ipfs://QmTest123')
+      expect(fetchMetadataStub.firstCall.args[1]).to.have.property('retries', 2)
       expect(verboseStub.calledOnce).to.be.true
       expect(verboseStub.args[0][0]).to.equal('Gauge created')
     })
@@ -406,6 +410,7 @@ describe('Handler: gaugeHandler', () => {
 
       extractMetadataUriStub.returns('ipfs://QmUpdated123')
       fetchMetadataStub.resolves(newMetadata)
+      parseDaoMetadataStub.returns(newMetadata)
       const verboseStub = sandbox.stub(logger, 'verbose')
 
       await GaugeHandler.gaugeUpdateMetadata(parsedEvent, mockInfo)
@@ -546,8 +551,6 @@ describe('Handler: gaugeHandler', () => {
           gaugeAddress: gauge.address,
           pluginAddress: gauge.pluginAddress,
           network: gauge.network,
-          currentEpochVotingPower: '5000000000000000000',
-          totalGaugeVotingPower: '10000000000000000000',
         }),
       ).to.be.true
     })
@@ -765,8 +768,6 @@ describe('Handler: gaugeHandler', () => {
           gaugeAddress: gauge.address,
           pluginAddress: gauge.pluginAddress,
           network: gauge.network,
-          currentEpochVotingPower: '2000000000000000000',
-          totalGaugeVotingPower: '150000000000000000000',
         }),
       ).to.be.true
     })
@@ -863,13 +864,15 @@ describe('Handler: gaugeHandler', () => {
         },
       } as any
 
-      extractMetadataUriStub.returns('ipfs://QmIntegration')
-      fetchMetadataStub.resolves({
+      const integrationMetadata = {
         name: 'Integration Test Gauge',
         description: 'Full lifecycle test',
         links: ['https://integration-test.com'],
         avatar: 'https://integration-test.com/avatar.png',
-      })
+      }
+      extractMetadataUriStub.returns('ipfs://QmIntegration')
+      fetchMetadataStub.resolves(integrationMetadata)
+      parseDaoMetadataStub.returns(integrationMetadata)
 
       await GaugeHandler.gaugeCreated(createEvent, mockInfo)
 

@@ -1,14 +1,16 @@
 import GaugeHelper from '@helpers/gauge'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import { ProxyToken } from '@modules/proxyToken'
 import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
 import { ContractInfo } from '@services/aragon-gateway/contractInfo'
 import { GaugeInfo } from '@services/aragon-gateway/gauge'
 import AragonGatewayService from '@services/aragon-gateway/index'
 import { MemberInfo } from '@services/aragon-gateway/memberInfo'
+import { MetadataRefetchProcessor } from '@services/aragon-gateway/metadataRefetch'
 import Plugin from '@services/aragon-gateway/plugin'
-import { EnumQueueName, NetworksEnum } from '@types'
+import { EnumQueueName, MetadataEntityType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -31,15 +33,18 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      expect(processStub.callCount).to.equal(8)
+      expect(processStub.callCount).to.equal(11)
       expect(processStub.calledWith(EnumQueueName.contractInfo)).to.be.true
       expect(processStub.calledWith(EnumQueueName.memberBalance)).to.be.true
       expect(processStub.calledWith(EnumQueueName.contractDecoder)).to.be.true
+      expect(processStub.calledWith(EnumQueueName.contractDecoderLight)).to.be.true
       expect(processStub.calledWith(EnumQueueName.canCreateProposal)).to.be.true
       expect(processStub.calledWith(EnumQueueName.pluginInstallationData)).to.be.true
       expect(processStub.calledWith(EnumQueueName.syncMerkleProofs)).to.be.true
       expect(processStub.calledWith(EnumQueueName.gaugeEpochId)).to.be.true
       expect(processStub.calledWith(EnumQueueName.gaugeInfo)).to.be.true
+      expect(processStub.calledWith(EnumQueueName.tokenInfo)).to.be.true
+      expect(processStub.calledWith(EnumQueueName.metadataRefetch)).to.be.true
 
       expect(loggerStub.calledOnceWith('AragonGatewayService service started' as any)).to.be.true
     })
@@ -123,14 +128,39 @@ describe('AragonGateway: index', () => {
       })
     })
 
+    it('should handle contractDecoderLight queue', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const decodeLightStub = sandbox.stub(ActionDecoder, 'decodeLight').resolves([])
+
+      await AragonGatewayService.start()
+
+      const handler = processStub.getCall(3).args[1]
+      const queueName = processStub.getCall(3).args[0]
+      await handler({
+        params: {
+          from: '0xDAO',
+          actions: [{ to: '0xRecipient', data: '0x', value: '1000' }],
+          network: NetworksEnum.ethereumMainnet,
+        },
+      } as any)
+
+      expect(queueName).to.eq(EnumQueueName.contractDecoderLight)
+      expect(decodeLightStub.calledOnce).to.be.true
+      expect(decodeLightStub.args[0][0]).to.deep.equal({
+        from: '0xDAO',
+        actions: [{ to: '0xRecipient', data: '0x', value: '1000' }],
+        network: NetworksEnum.ethereumMainnet,
+      })
+    })
+
     it('should handle canCreateProposal queue', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const memberInfoStub = sandbox.stub(MemberInfo, 'canCreateProposal').resolves()
 
       await AragonGatewayService.start()
 
-      const handler = processStub.getCall(3).args[1]
-      const queueName = processStub.getCall(3).args[0]
+      const handler = processStub.getCall(4).args[1]
+      const queueName = processStub.getCall(4).args[0]
 
       await handler({
         params: {
@@ -150,8 +180,8 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      const handler = processStub.getCall(4).args[1]
-      const queueName = processStub.getCall(4).args[0]
+      const handler = processStub.getCall(5).args[1]
+      const queueName = processStub.getCall(5).args[0]
 
       const result = await handler({
         params: {
@@ -171,8 +201,8 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      const handler = processStub.getCall(5).args[1]
-      const queueName = processStub.getCall(5).args[0]
+      const handler = processStub.getCall(6).args[1]
+      const queueName = processStub.getCall(6).args[0]
 
       await handler({
         params: {
@@ -198,8 +228,8 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      const handler = processStub.getCall(6).args[1]
-      const queueName = processStub.getCall(6).args[0]
+      const handler = processStub.getCall(7).args[1]
+      const queueName = processStub.getCall(7).args[0]
 
       const result = await handler({
         params: {
@@ -225,8 +255,8 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      const handler = processStub.getCall(7).args[1]
-      const queueName = processStub.getCall(7).args[0]
+      const handler = processStub.getCall(8).args[1]
+      const queueName = processStub.getCall(8).args[0]
 
       const result = await handler({
         params: {
@@ -245,6 +275,59 @@ describe('AragonGateway: index', () => {
         }),
       ).to.be.true
       expect(result).to.deep.equal(mockGaugeInfo)
+    })
+
+    it('should handle tokenInfo queue', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
+
+      await AragonGatewayService.start()
+
+      const handler = processStub.getCall(9).args[1]
+      const queueName = processStub.getCall(9).args[0]
+
+      const result = await handler({
+        params: {
+          address: '0xTokenAddress',
+          network: NetworksEnum.ethereumMainnet,
+        },
+      } as any)
+
+      expect(queueName).to.eq(EnumQueueName.tokenInfo)
+      expect(proxyTokenStub.calledOnceWith('0xTokenAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(result).to.be.true
+    })
+
+    it('should handle metadataRefetch queue', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const processRefetchStub = sandbox.stub(MetadataRefetchProcessor, 'processRefetch').resolves(true)
+
+      await AragonGatewayService.start()
+
+      const handler = processStub.getCall(10).args[1]
+      const queueName = processStub.getCall(10).args[0]
+
+      const result = await handler({
+        params: {
+          id: 'test-id',
+          metadataUri: 'ipfs://QmTest123',
+          entityType: MetadataEntityType.Dao,
+          entityId: '0x1111111111111111111111111111111111111111',
+          network: NetworksEnum.ethereumMainnet,
+        },
+      } as any)
+
+      expect(queueName).to.eq(EnumQueueName.metadataRefetch)
+      expect(
+        processRefetchStub.calledOnceWith({
+          id: 'test-id',
+          metadataUri: 'ipfs://QmTest123',
+          entityType: MetadataEntityType.Dao,
+          entityId: '0x1111111111111111111111111111111111111111',
+          network: NetworksEnum.ethereumMainnet,
+        }),
+      ).to.be.true
+      expect(result).to.be.true
     })
   })
 })

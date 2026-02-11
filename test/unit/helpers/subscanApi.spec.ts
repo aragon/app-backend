@@ -23,7 +23,7 @@ describe('Helpers:Subscan', () => {
       }
     })
     // Stub BottleneckModule rate limiter to execute immediately without delays
-    sandbox.stub(BottleneckModule, 'getBlockScoutLimiter').returns({
+    sandbox.stub(BottleneckModule, 'getEtherScanLimiter').returns({
       schedule: sandbox.stub().callsFake(async fn => fn()),
     } as any)
   })

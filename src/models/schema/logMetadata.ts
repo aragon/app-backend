@@ -162,21 +162,25 @@ export default class LogMetadata extends Model {
     network: NetworksEnum,
     address: HexAddress,
     key: string = IMetadataTargetField.pluginAddress,
+    tOpts?: SaveOptions,
   ) {
-    const response = await this.aggregate([
-      {
-        $match: {
-          network,
-          [key]: address,
+    const response = await this.aggregate(
+      [
+        {
+          $match: {
+            network,
+            [key]: address,
+          },
         },
-      },
-      {
-        $sort: {
-          blockNumber: -1,
+        {
+          $sort: {
+            blockNumber: -1,
+          },
         },
-      },
-      { $limit: 1 },
-    ])
+        { $limit: 1 },
+      ],
+      tOpts,
+    )
 
     return response[0] ?? {}
   }

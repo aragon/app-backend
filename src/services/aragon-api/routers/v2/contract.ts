@@ -35,6 +35,21 @@ const ContractRouter = {
     ctx.body = await ContractController.decodeContractData(result.params)
   },
 
+  async decodeActionBatch(ctx: RouterContext) {
+    const result = await ValidationSchema.validateRoute(ctx, {
+      params: {
+        actions: ctx.request.body as any[],
+        network: ctx.params.network,
+        from: ctx.params.from,
+      },
+      schemas: {
+        params: ContractDetailsSchema.decodeActionBatchV2,
+      },
+    })
+
+    ctx.body = await ContractController.decodeContractDataBatch(result.params)
+  },
+
   router(): Router {
     const router = new Router()
 
@@ -46,6 +61,16 @@ const ContractRouter = {
      * @returns {object} - The decoded action data.
      */
     router.post('/:network/:address/decode', ContractRouter.decodeActionData)
+
+    /**
+     * /:network/:from/decode-batch
+     * @description Decode multiple actions in batch (lightweight, parallel).
+     * @param {string} network - The network of the contracts.
+     * @param {string} from - The sender address (e.g. DAO address).
+     * @body {array} - Array of actions [{ to, data, value }].
+     * @returns {array} - The decoded actions.
+     */
+    router.post('/:network/:from/decode-batch', ContractRouter.decodeActionBatch)
 
     /**
      * /:network/:address

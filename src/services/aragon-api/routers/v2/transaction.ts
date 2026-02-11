@@ -26,6 +26,7 @@ const TransactionRouter = {
         toAddress: ctx.query.toAddress as HexAddress,
         side: ctx.query.side as ITransactionSide,
         type: ctx.query.type as ITransactionType,
+        onlyParent: ctx.query.onlyParent === 'true',
       },
       pairParams: {
         daoId: ctx.query.daoId as string,

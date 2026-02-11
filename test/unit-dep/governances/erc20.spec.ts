@@ -5,7 +5,6 @@ import { Models } from '@dbModels'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import { PluginSetupProcessorHandler } from '@handlers/pluginSetupProcessorHandler'
 import { ProposalHandler } from '@handlers/proposalHandler'
-import BlockScoutHelper from '@helpers/blockScout'
 import CoinGeckoHelper from '@helpers/coinGecko'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
@@ -141,15 +140,6 @@ describe('Integ: ERC20', () => {
       totalSupply: '1000000000000000000',
     })
 
-    sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves({
-      holders: 1,
-      name: 'Wrapped Ether',
-      symbol: 'WETH',
-      totalSupply: '1000000000000000000',
-      type: ITokenType.ERC20,
-      decimals: 18,
-    } as any)
-
     const daoInstallTx = '0xa0a797ff754fc57a2386b44dbc208592a5e55506b043d4fbde93009140235fae'
     const preparTxLog = '0xa9c543371b31cafaf31b7ccb945947f5ec1c1d193b761abfa956f32faa757b31'
     const appliedTxLog = '0xb809565937d88ca0d1d2154cd974483ef7a79620d16e2dea8ec86259ca2efccd'
@@ -283,15 +273,6 @@ describe('Integ: ERC20', () => {
       totalSupply: '1000000000000000000',
     })
 
-    sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves({
-      holders: 1,
-      name: 'Wrapped Ether',
-      symbol: 'WETH',
-      totalSupply: '1000000000000000000',
-      type: ITokenType.ERC20,
-      decimals: 18,
-    } as any)
-
     const daoInstallTx = '0x4240289922c9d81f477227a71d9bc700dab27ca119ae62fdbb3fbac48dac124a'
     const preparTxLog = '0x8e7234ddba873c03486135d5eb0e3c66158df726ada8971a6a21299cbcde7571'
     const appliedTxLog = '0x684c6aabcd4fa7050b3c95763ef685ad6849a1ac8dace2105c1536388ad6a8a2'
@@ -424,15 +405,6 @@ describe('Integ: ERC20', () => {
       network: NetworksEnum.polygonMainnet,
       totalSupply: '1000000000000000000',
     })
-
-    sandbox.stub(BlockScoutHelper, 'getTokenFullDetails').resolves({
-      holders: 1,
-      name: 'Wrapped Ether',
-      symbol: 'WETH',
-      totalSupply: '1000000000000000000',
-      type: ITokenType.ERC20,
-      decimals: 18,
-    } as any)
 
     const daoInstallTx = '0x3770cefd724faec40d6a386ed2aad54f979b7512c786cdf14a11901e4e79ecb7'
     const inPreparTxLog = '0xce9858662de955d2f65e27cd812670aac0ec70bc10b8d5d91c18cb508c83fa67'

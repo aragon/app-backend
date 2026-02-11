@@ -36,7 +36,7 @@ const SubscanApiHelper = {
   _rpCall: async (path: string, params: object, network: NetworksEnum, replacedPath?: any) => {
     try {
       const response = await retryRequest(async () =>
-        BottleneckModule.getBlockScoutLimiter(network).schedule(async () =>
+        BottleneckModule.getEtherScanLimiter(network).schedule(async () =>
           SubscanApiHelper.axiosInstance(network).post(replacedPath || `api/scan/${path}`, params),
         ),
       )

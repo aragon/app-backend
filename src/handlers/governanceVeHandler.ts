@@ -346,4 +346,162 @@ export const GovernanceVeHandler = {
       }),
     )
   },
+
+  split: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const plugins = await Models.Plugin.find({
+      'votingEscrow.escrowAddress': info.address,
+      network: info.network,
+    })
+
+    if (plugins.length === 0) {
+      logger.warn('Plugin not found for split event', llo({ info }))
+      return
+    }
+
+    const fromTokenId = parsedEvent.args._from.toString()
+    const newTokenId = parsedEvent.args.newTokenId.toString()
+    const sender = parsedEvent.args._sender
+    const splitAmount1 = parsedEvent.args._splitAmount1.toString()
+    const splitAmount2 = parsedEvent.args._splitAmount2.toString()
+
+    try {
+      await MemberGovernanceFactory.createBaseMember(sender, info.blockNumber)
+
+      const veGovernance = new VeGovernance(info.address, info.network)
+
+      await veGovernance.lockSplit({
+        fromTokenId,
+        newTokenId,
+        splitAmount1,
+        splitAmount2,
+        info,
+      })
+
+      await Promise.all(
+        plugins.map(async (plugin: Plugin) => {
+          const pluginGovernance = MemberGovernanceFactory.create({
+            address: plugin.tokenAddress,
+            network: info.network,
+            interfaceType: IPluginInterfaceType.tokenVoting,
+            tokenType: ITokenType.escrowAdapter,
+          })
+
+          await pluginGovernance.updatePluginMetrics({
+            memberAddress: sender,
+            pluginAddress: plugin.address,
+            daoAddress: plugin.daoAddress,
+            network: info.network,
+            lastActivity: info.blockNumber,
+          })
+        }),
+      )
+
+      logger.verbose('Split VeGovernance', llo({ info, fromTokenId, newTokenId, sender, splitAmount1, splitAmount2 }))
+    } catch (error) {
+      logger.error('Split error', llo({ error, info, fromTokenId, newTokenId }))
+    }
+  },
+
+  exitCancelled: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const plugins = await Models.Plugin.find({
+      'votingEscrow.exitQueueAddress': info.address,
+      network: info.network,
+    })
+
+    if (plugins.length === 0) {
+      logger.warn('Plugin not found for exitCancelled event', llo({ info }))
+      return
+    }
+
+    const memberAddress = parsedEvent.args.holder
+    const tokenId = parsedEvent.args.tokenId.toString()
+
+    try {
+      await MemberGovernanceFactory.createBaseMember(memberAddress, info.blockNumber)
+
+      const veGovernance = new VeGovernance(plugins[0].tokenAddress, info.network)
+
+      await veGovernance.exitCancelled(memberAddress, {
+        parsedEvent,
+        info,
+        lastActivity: info.blockNumber,
+      })
+
+      await Promise.all(
+        plugins.map(async (plugin: Plugin) => {
+          const pluginGovernance = MemberGovernanceFactory.create({
+            address: plugin.tokenAddress,
+            network: info.network,
+            interfaceType: IPluginInterfaceType.tokenVoting,
+            tokenType: ITokenType.escrowAdapter,
+          })
+
+          await pluginGovernance.updatePluginMetrics({
+            memberAddress,
+            pluginAddress: plugin.address,
+            daoAddress: plugin.daoAddress,
+            network: info.network,
+            lastActivity: info.blockNumber,
+          })
+        }),
+      )
+
+      logger.verbose('Exit cancelled VeGovernance', llo({ info, memberAddress, tokenId }))
+    } catch (error) {
+      logger.error('ExitCancelled error', llo({ error, info, memberAddress }))
+    }
+  },
+
+  merge: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const plugins = await Models.Plugin.find({
+      'votingEscrow.escrowAddress': info.address,
+      network: info.network,
+    })
+
+    if (plugins.length === 0) {
+      logger.warn('Plugin not found for merge event', llo({ info }))
+      return
+    }
+
+    const sender = parsedEvent.args._sender
+    const fromTokenId = parsedEvent.args._from.toString()
+    const toTokenId = parsedEvent.args._to.toString()
+    const newTotalAmount = parsedEvent.args._newTotalAmount.toString()
+
+    try {
+      await MemberGovernanceFactory.createBaseMember(sender, info.blockNumber)
+
+      const veGovernance = new VeGovernance(info.address, info.network)
+
+      await veGovernance.lockMerge({
+        fromTokenId,
+        toTokenId,
+        newTotalAmount,
+        info,
+      })
+
+      await Promise.all(
+        plugins.map(async (plugin: Plugin) => {
+          const pluginGovernance = MemberGovernanceFactory.create({
+            address: plugin.tokenAddress,
+            network: info.network,
+            interfaceType: IPluginInterfaceType.tokenVoting,
+            tokenType: ITokenType.escrowAdapter,
+          })
+
+          await pluginGovernance.updatePluginMetrics({
+            memberAddress: sender,
+            pluginAddress: plugin.address,
+            daoAddress: plugin.daoAddress,
+            network: info.network,
+            lastActivity: info.blockNumber,
+          })
+        }),
+      )
+
+      logger.verbose('Merge VeGovernance', llo({ info, fromTokenId, toTokenId, sender, newTotalAmount }))
+    } catch (error) {
+      logger.error('Merge error', llo({ error, info, fromTokenId, toTokenId }))
+    }
+  },
 }

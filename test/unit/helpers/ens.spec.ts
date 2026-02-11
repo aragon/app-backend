@@ -17,52 +17,86 @@ describe('Helpers: ENS', () => {
     sandbox && sandbox.restore()
   })
 
-  it('should getEnsWithUniversalResolver', async () => {
-    const ensName = 'test.eth'
-    const stubConfigState = {
-      getConfigItem: sandbox.stub().returns({}),
-    }
-    const stubReverse = sandbox.stub().resolves([ensName])
-    const { default: MockedEnsHelper } = proxyquire.noCallThru()('@helpers/ens', {
-      ethers: {
-        Contract: function () {
-          return { reverse: stubReverse }
+  describe('getEnsWithUniversalResolver', () => {
+    it('should return null when reverse lookup fails with error', async () => {
+      const stubReverse = sandbox.stub().rejects(new Error('error'))
+      const { default: MockedEnsHelper } = proxyquire.noCallThru()('@helpers/ens', {
+        ethers: {
+          Contract: function () {
+            return { reverse: stubReverse }
+          },
+          hexlify: (str: string) => str,
+          toUtf8Bytes: (str: string) => toUtf8Bytes(str),
+          keccak256: (data: any) => keccak256(data),
         },
-        hexlify: (str: string) => str,
-        toUtf8Bytes: (str: string) => toUtf8Bytes(str),
-        keccak256: (data: any) => keccak256(data),
-      },
-      '@state/configState': {
-        ConfigState: { getInstance: () => stubConfigState },
-      },
+        '@logger': logger,
+      })
+
+      sandbox.stub(logger, 'silly')
+
+      const res = await MockedEnsHelper.getEnsWithUniversalResolver('0x42E6DD8D517abB3E4f6611Ca53a8D1243C183fB0')
+      expect(res).to.eq(null)
     })
 
-    const res = await MockedEnsHelper.getEnsWithUniversalResolver('0x42E6DD8D517abB3E4f6611Ca53a8D1243C183fB0')
-    expect(res).to.eq(ensName)
-  })
-
-  it('should fail', async () => {
-    const ensName = 'test.eth'
-    const stubConfigState = {
-      getConfigItem: sandbox.stub().returns({}),
-    }
-    const stubReverse = sandbox.stub().rejects(new Error('error'))
-    const { default: MockedEnsHelper } = proxyquire.noCallThru()('@helpers/ens', {
-      ethers: {
-        Contract: function () {
-          return { reverse: stubReverse }
+    it('should return null when result[0] is null', async () => {
+      const stubReverse = sandbox.stub().resolves([null])
+      const { default: MockedEnsHelper } = proxyquire.noCallThru()('@helpers/ens', {
+        ethers: {
+          Contract: function () {
+            return { reverse: stubReverse }
+          },
+          hexlify: (str: string) => str,
+          toUtf8Bytes: (str: string) => toUtf8Bytes(str),
+          keccak256: (data: any) => keccak256(data),
         },
-        hexlify: (str: string) => str,
-        toUtf8Bytes: (str: string) => toUtf8Bytes(str),
-        keccak256: (data: any) => keccak256(data),
-      },
-      '@state/configState': {
-        ConfigState: { getInstance: () => stubConfigState },
-      },
+        '@logger': logger,
+      })
+
+      const res = await MockedEnsHelper.getEnsWithUniversalResolver('0x42E6DD8D517abB3E4f6611Ca53a8D1243C183fB0')
+      expect(res).to.eq(null)
     })
 
-    const res = await MockedEnsHelper.getEnsWithUniversalResolver('0x42E6DD8D517abB3E4f6611Ca53a8D1243C183fB0')
-    expect(res).to.eq(null)
+    it('should return null when ENS validation fails', async () => {
+      const stubReverse = sandbox.stub().resolves(['vitalik.eth'])
+      const { default: MockedEnsHelper } = proxyquire.noCallThru()('@helpers/ens', {
+        ethers: {
+          Contract: function () {
+            return { reverse: stubReverse }
+          },
+          hexlify: (str: string) => str,
+          toUtf8Bytes: (str: string) => toUtf8Bytes(str),
+          keccak256: (data: any) => keccak256(data),
+        },
+        '@logger': logger,
+      })
+
+      sandbox.stub(MockedEnsHelper, 'isEnsValidForAddress').resolves(false)
+      sandbox.stub(logger, 'info')
+
+      const res = await MockedEnsHelper.getEnsWithUniversalResolver('0x42E6DD8D517abB3E4f6611Ca53a8D1243C183fB0')
+      expect(res).to.eq(null)
+    })
+
+    it('should return ENS name when validation succeeds', async () => {
+      const expectedEns = 'vitalik.eth'
+      const stubReverse = sandbox.stub().resolves([expectedEns])
+      const { default: MockedEnsHelper } = proxyquire.noCallThru()('@helpers/ens', {
+        ethers: {
+          Contract: function () {
+            return { reverse: stubReverse }
+          },
+          hexlify: (str: string) => str,
+          toUtf8Bytes: (str: string) => toUtf8Bytes(str),
+          keccak256: (data: any) => keccak256(data),
+        },
+        '@logger': logger,
+      })
+
+      sandbox.stub(MockedEnsHelper, 'isEnsValidForAddress').resolves(true)
+
+      const res = await MockedEnsHelper.getEnsWithUniversalResolver('0x42E6DD8D517abB3E4f6611Ca53a8D1243C183fB0')
+      expect(res).to.eq(expectedEns)
+    })
   })
 
   it('should _addressToPacket correctly convert address to packet', () => {
@@ -231,6 +265,254 @@ describe('Helpers: ENS', () => {
 
       await mockedEnsHelper.getDaoEthSubdomain('test')
       expect(loggerErrorStub.calledOnce).to.be.true
+    })
+  })
+
+  describe('isEnsExpired', () => {
+    it('should return false when label is empty', async () => {
+      // This test works because it returns early before calling the provider
+      const result = await EnsHelper.isEnsExpired('.eth' as any)
+      expect(result).to.be.false
+    })
+
+    it('should return true when ENS is expired', async () => {
+      const stubNameExpires = sandbox.stub()
+      // Set expiration to a past date (timestamp in seconds)
+      const pastTimestamp = Math.floor(Date.now() / 1000) - 86400 // 1 day ago
+      stubNameExpires.resolves(BigInt(pastTimestamp))
+
+      const { default: MockedEnsHelper } = proxyquire.noCallThru()('@helpers/ens', {
+        ethers: {
+          Contract: function () {
+            return { nameExpires: stubNameExpires }
+          },
+          keccak256: (data: any) => keccak256(data),
+          toUtf8Bytes: (str: string) => toUtf8Bytes(str),
+        },
+        '@logger': logger,
+      })
+
+      const result = await MockedEnsHelper.isEnsExpired('vitalik.eth')
+      expect(result).to.be.true
+    })
+
+    it('should return false when ENS is not expired', async () => {
+      const stubNameExpires = sandbox.stub()
+      // Set expiration to a future date
+      const futureTimestamp = Math.floor(Date.now() / 1000) + 86400 * 365 // 1 year from now
+      stubNameExpires.resolves(BigInt(futureTimestamp))
+
+      const { default: MockedEnsHelper } = proxyquire.noCallThru()('@helpers/ens', {
+        ethers: {
+          Contract: function () {
+            return { nameExpires: stubNameExpires }
+          },
+          keccak256: (data: any) => keccak256(data),
+          toUtf8Bytes: (str: string) => toUtf8Bytes(str),
+        },
+        '@logger': logger,
+      })
+
+      const result = await MockedEnsHelper.isEnsExpired('vitalik.eth')
+      expect(result).to.be.false
+    })
+
+    it('should check parent domain for subdomains', async () => {
+      const stubNameExpires = sandbox.stub()
+      const futureTimestamp = Math.floor(Date.now() / 1000) + 86400 * 365
+      stubNameExpires.resolves(BigInt(futureTimestamp))
+
+      const { default: MockedEnsHelper } = proxyquire.noCallThru()('@helpers/ens', {
+        ethers: {
+          Contract: function () {
+            return { nameExpires: stubNameExpires }
+          },
+          keccak256: (data: any) => keccak256(data),
+          toUtf8Bytes: (str: string) => toUtf8Bytes(str),
+        },
+        '@logger': logger,
+      })
+
+      const result = await MockedEnsHelper.isEnsExpired('sub.vitalik.eth')
+      expect(result).to.be.false
+      // Verifies that the parent domain 'vitalik' is checked
+      expect(stubNameExpires.calledOnce).to.be.true
+    })
+
+    it('should return false on error', async () => {
+      const stubNameExpires = sandbox.stub().rejects(new Error('contract error'))
+
+      const { default: MockedEnsHelper } = proxyquire.noCallThru()('@helpers/ens', {
+        ethers: {
+          Contract: function () {
+            return { nameExpires: stubNameExpires }
+          },
+          keccak256: (data: any) => keccak256(data),
+          toUtf8Bytes: (str: string) => toUtf8Bytes(str),
+        },
+        '@logger': logger,
+      })
+
+      sandbox.stub(logger, 'silly')
+
+      const result = await MockedEnsHelper.isEnsExpired('error.eth')
+      expect(result).to.be.false
+    })
+  })
+
+  describe('resolveEnsToAddress', () => {
+    it('should resolve ENS name to address', async () => {
+      const expectedAddress = '0x1234567890abcdef1234567890abcdef12345678'
+      const stubResolver = sandbox.stub().resolves('0xresolverAddress')
+      const stubAddr = sandbox.stub().resolves(expectedAddress)
+
+      const { default: MockedEnsHelper } = proxyquire.noCallThru()('@helpers/ens', {
+        ethers: {
+          Contract: function (address: string) {
+            if (address === EnsHelper.ENS_REGISTRY) {
+              return { resolver: stubResolver }
+            }
+            return { addr: stubAddr }
+          },
+          keccak256: (data: any) => keccak256(data),
+          toUtf8Bytes: (str: string) => toUtf8Bytes(str),
+          ZeroAddress,
+        },
+        '@logger': logger,
+      })
+
+      const result = await MockedEnsHelper.resolveEnsToAddress('vitalik.eth')
+      expect(result).to.equal(expectedAddress)
+    })
+
+    it('should return null when resolver address is zero', async () => {
+      const stubResolver = sandbox.stub().resolves(ZeroAddress)
+
+      const { default: MockedEnsHelper } = proxyquire.noCallThru()('@helpers/ens', {
+        ethers: {
+          Contract: function () {
+            return { resolver: stubResolver }
+          },
+          keccak256: (data: any) => keccak256(data),
+          toUtf8Bytes: (str: string) => toUtf8Bytes(str),
+          ZeroAddress,
+        },
+        '@logger': logger,
+      })
+
+      const result = await MockedEnsHelper.resolveEnsToAddress('noresolver.eth')
+      expect(result).to.be.null
+    })
+
+    it('should return null when resolved address is zero', async () => {
+      const stubResolver = sandbox.stub().resolves('0xresolverAddress')
+      const stubAddr = sandbox.stub().resolves(ZeroAddress)
+
+      const { default: MockedEnsHelper } = proxyquire.noCallThru()('@helpers/ens', {
+        ethers: {
+          Contract: function (address: string) {
+            if (address === EnsHelper.ENS_REGISTRY) {
+              return { resolver: stubResolver }
+            }
+            return { addr: stubAddr }
+          },
+          keccak256: (data: any) => keccak256(data),
+          toUtf8Bytes: (str: string) => toUtf8Bytes(str),
+          ZeroAddress,
+        },
+        '@logger': logger,
+      })
+
+      const result = await MockedEnsHelper.resolveEnsToAddress('zeroaddr.eth')
+      expect(result).to.be.null
+    })
+
+    it('should return null on error', async () => {
+      const stubResolver = sandbox.stub().rejects(new Error('contract error'))
+
+      const { default: MockedEnsHelper } = proxyquire.noCallThru()('@helpers/ens', {
+        ethers: {
+          Contract: function () {
+            return { resolver: stubResolver }
+          },
+          keccak256: (data: any) => keccak256(data),
+          toUtf8Bytes: (str: string) => toUtf8Bytes(str),
+          ZeroAddress,
+        },
+        '@logger': logger,
+      })
+
+      sandbox.stub(logger, 'silly')
+
+      const result = await MockedEnsHelper.resolveEnsToAddress('error.eth')
+      expect(result).to.be.null
+    })
+  })
+
+  describe('isEnsValidForAddress', () => {
+    it('should return true when ENS is valid and forward resolution matches', async () => {
+      const address = '0x1234567890abcdef1234567890abcdef12345678'
+
+      sandbox.stub(EnsHelper, 'isEnsExpired').resolves(false)
+      sandbox.stub(EnsHelper, 'resolveEnsToAddress').resolves(address)
+
+      const result = await EnsHelper.isEnsValidForAddress('valid.eth', address)
+      expect(result).to.be.true
+    })
+
+    it('should return false when ENS is expired', async () => {
+      const address = '0x1234567890abcdef1234567890abcdef12345678'
+
+      sandbox.stub(EnsHelper, 'isEnsExpired').resolves(true)
+      sandbox.stub(EnsHelper, 'resolveEnsToAddress').resolves(address)
+      sandbox.stub(logger, 'info')
+
+      const result = await EnsHelper.isEnsValidForAddress('expired.eth', address)
+      expect(result).to.be.false
+    })
+
+    it('should return false when forward resolution does not match', async () => {
+      const address = '0x1234567890abcdef1234567890abcdef12345678'
+      const differentAddress = '0xabcdef1234567890abcdef1234567890abcdef12'
+
+      sandbox.stub(EnsHelper, 'isEnsExpired').resolves(false)
+      sandbox.stub(EnsHelper, 'resolveEnsToAddress').resolves(differentAddress)
+      sandbox.stub(logger, 'info')
+
+      const result = await EnsHelper.isEnsValidForAddress('changed.eth', address)
+      expect(result).to.be.false
+    })
+
+    it('should skip expiration check for dao.eth subdomains', async () => {
+      const address = '0x1234567890abcdef1234567890abcdef12345678'
+      const isExpiredStub = sandbox.stub(EnsHelper, 'isEnsExpired').resolves(true)
+      sandbox.stub(EnsHelper, 'resolveEnsToAddress').resolves(address)
+
+      const result = await EnsHelper.isEnsValidForAddress('mydao.dao.eth', address)
+
+      expect(result).to.be.true
+      expect(isExpiredStub.called).to.be.false // Should not check expiration for dao.eth
+    })
+
+    it('should return false when forward resolution returns null', async () => {
+      const address = '0x1234567890abcdef1234567890abcdef12345678'
+
+      sandbox.stub(EnsHelper, 'isEnsExpired').resolves(false)
+      sandbox.stub(EnsHelper, 'resolveEnsToAddress').resolves(null)
+      sandbox.stub(logger, 'info')
+
+      const result = await EnsHelper.isEnsValidForAddress('noresolution.eth', address)
+      expect(result).to.be.false
+    })
+
+    it('should return false on error', async () => {
+      const address = '0x1234567890abcdef1234567890abcdef12345678'
+
+      sandbox.stub(EnsHelper, 'isEnsExpired').rejects(new Error('validation error'))
+      sandbox.stub(logger, 'silly')
+
+      const result = await EnsHelper.isEnsValidForAddress('error.eth', address)
+      expect(result).to.be.false
     })
   })
 

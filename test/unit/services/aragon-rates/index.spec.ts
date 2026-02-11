@@ -2,6 +2,10 @@ import config from '@config'
 import utils from '@helpers/utils'
 import logger from '@logger'
 import { FetchRates } from '@services/aragon-rates/fetchRates'
+import { SyncCmsSpamTokens } from '@services/aragon-rates/handlers/syncCmsSpamTokens'
+import { EnsValidator } from '@services/aragon-rates/handlers/ensValidator'
+import { MetadataRefetchScheduler } from '@services/aragon-rates/handlers/metadataRefetch'
+import { RefreshSpamTokens } from '@services/aragon-rates/handlers/refreshSpamTokens'
 import RatesService from '@services/aragon-rates/index'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import { EnumConnection } from '@types'
@@ -35,16 +39,34 @@ describe('AragonRates: index', () => {
     const configBk = config.SERVICES.ARAGON_RATES.RATES_INTERVAL
     config.SERVICES.ARAGON_RATES.RATES_INTERVAL = 200
 
-    const taskStubs = [sandbox.stub(FetchRates, 'start').resolves()]
+    const taskStubs = [
+      sandbox.stub(FetchRates, 'start').resolves(),
+      sandbox.stub(EnsValidator, 'start').resolves(),
+      sandbox.stub(MetadataRefetchScheduler, 'start').resolves(),
+      sandbox.stub(RefreshSpamTokens, 'start').resolves(),
+      sandbox.stub(SyncCmsSpamTokens, 'start').resolves(),
+    ]
 
     await RatesService.start()
     await utils.wait(100)
 
-    expect(schedulerStub.startTask.calledOnce).to.be.true
-    const taskOptions = schedulerStub.startTask.firstCall.args[1]
+    expect(schedulerStub.startTask.calledTwice).to.be.true
+    expect(schedulerStub.startTask.firstCall.args[0]).to.equal('rates')
+    expect(schedulerStub.startTask.secondCall.args[0]).to.equal('validators')
 
-    // Simulate the task execution
-    for (const taskGroup of taskOptions.fn()) {
+    const ratesTaskOptions = schedulerStub.startTask.firstCall.args[1]
+    const validatorsTaskOptions = schedulerStub.startTask.secondCall.args[1]
+
+    // Simulate rates task execution (sequential)
+    for (const taskGroup of ratesTaskOptions.fn()) {
+      for (const task of taskGroup) {
+        const taskName = Object.keys(task)[0]
+        await task[taskName].start()
+      }
+    }
+
+    // Simulate validators task execution (parallel)
+    for (const taskGroup of validatorsTaskOptions.fn()) {
       for (const task of taskGroup) {
         const taskName = Object.keys(task)[0]
         await task[taskName].start()
@@ -55,7 +77,7 @@ describe('AragonRates: index', () => {
 
     await RatesService.stop()
 
-    expect(schedulerStub.stopTask.calledOnce).to.be.true
+    expect(schedulerStub.stopTask.calledTwice).to.be.true
 
     config.SERVICES.ARAGON_RATES.RATES_INTERVAL = configBk
   })
@@ -69,6 +91,7 @@ describe('AragonRates: index', () => {
 
     await RatesService.start()
 
-    expect(stubLoggerError.calledOnceWith('RatesService task error' as any)).to.be.true
+    expect(stubLoggerError.calledWith('RatesService task error' as any)).to.be.true
+    expect(stubLoggerError.calledWith('RatesService validators task error' as any)).to.be.true
   })
 })

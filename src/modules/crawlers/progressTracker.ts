@@ -80,6 +80,8 @@ export class ProgressTracker {
    */
   async saveProgress(blockNumber: number): Promise<void> {
     try {
+      const nextBlock = blockNumber + 1
+
       // Check if config exists first
       const existingConfig = await Models.ConfigIndexer.findExistingLog({
         network: this.network,
@@ -93,7 +95,7 @@ export class ProgressTracker {
             id: existingConfig.id,
           },
           {
-            $max: { lastSync: blockNumber },
+            $max: { lastSync: nextBlock },
           },
           {
             new: true,
@@ -107,7 +109,7 @@ export class ProgressTracker {
               service: 'ProgressTracker',
               network: this.network,
               logService: this.service,
-              lastSync: blockNumber,
+              lastSync: nextBlock,
             }),
           )
         }
@@ -122,7 +124,7 @@ export class ProgressTracker {
           id,
           network: this.network,
           service: this.service,
-          lastSync: blockNumber,
+          lastSync: nextBlock,
         })
 
         logger.verbose(
@@ -131,7 +133,7 @@ export class ProgressTracker {
             service: 'ProgressTracker',
             network: this.network,
             logService: this.service,
-            lastSync: blockNumber,
+            lastSync: nextBlock,
           }),
         )
       }

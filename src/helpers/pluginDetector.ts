@@ -1,7 +1,7 @@
+import ContractHelper from '@helpers/contractHelper'
 import ProxyContractHelper from '@helpers/proxyContract'
 import utils from '@helpers/utils'
 import logger from '@logger'
-import ProviderModule from '@modules/provider'
 import { type IPluginInfo, IPluginInterfaceType, type NetworksEnum, VotingBodyBrandIdentity } from '@types'
 import { keccak256, ZeroAddress } from 'ethers'
 
@@ -35,6 +35,8 @@ const PluginDetector = {
     'getCampaignStrategyId(uint256)',
     'getCampaignPayout(uint256,address,bytes)',
   ],
+  ROUTER_PLUGIN_FUNCTIONS: ['dispatch()', 'isStreamingSource()', 'actions()'],
+  CLAIMER_PLUGIN_FUNCTIONS: ['claim(bytes)', 'actions(bytes)'],
 
   _generateFunctionHash(functionSignature: string): string {
     return keccak256(Buffer.from(functionSignature)).slice(0, 10)
@@ -50,7 +52,6 @@ const PluginDetector = {
       }
     }
 
-    const provider = ProviderModule.getAnyRpcProvider(network)
     let contractAddress = address
 
     // Check if the contract is a proxy and get its implementation address
@@ -68,11 +69,12 @@ const PluginDetector = {
 
     try {
       const contractCodeAddress = contractAddress === utils.zeroAddress ? address : contractAddress
-      const bytecode = await provider.getCode(contractCodeAddress)
-      if (!bytecode || bytecode === '0x') return pluginDetails
+      const bytecode = await ContractHelper.getBytecode(contractCodeAddress, network)
+      if (!bytecode) return pluginDetails
 
+      const code = bytecode
       function hasFunction(signature: string): boolean {
-        return bytecode.includes(PluginDetector._generateFunctionHash(signature).replace('0x', ''))
+        return code.includes(PluginDetector._generateFunctionHash(signature).replace('0x', ''))
       }
 
       function hasFunctions(functions: string[]): boolean {
@@ -93,6 +95,10 @@ const PluginDetector = {
         pluginDetails.type = IPluginInterfaceType.admin
       } else if (hasFunctions(PluginDetector.GAUGE_VOTER_FUNCTIONS)) {
         pluginDetails.type = IPluginInterfaceType.gauge
+      } else if (hasFunctions(PluginDetector.ROUTER_PLUGIN_FUNCTIONS)) {
+        pluginDetails.type = IPluginInterfaceType.router
+      } else if (hasFunctions(PluginDetector.CLAIMER_PLUGIN_FUNCTIONS)) {
+        pluginDetails.type = IPluginInterfaceType.claimer
       } else {
         pluginDetails.type = IPluginInterfaceType.unknown
       }
@@ -114,10 +120,9 @@ const PluginDetector = {
         return VotingBodyBrandIdentity.EOA
       }
 
-      const provider = ProviderModule.getAnyRpcProvider(network)
-      const code = await provider.getCode(address)
+      const code = await ContractHelper.getBytecode(address, network)
 
-      if (!code || code === '0x') {
+      if (!code) {
         return VotingBodyBrandIdentity.EOA
       }
 

@@ -424,6 +424,90 @@ describe('Helpers: Gauge', () => {
     })
   })
 
+  describe('totalVotingPowerCast', () => {
+    it('should return the total voting power cast', async () => {
+      const pluginAddress = '0xPluginAddress'
+      const network = NetworksEnum.ethereumMainnet
+      const totalPower = 100000n
+
+      const stubTotalVotingPowerCast = sandbox.stub().resolves(totalPower)
+      const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
+        ethers: {
+          Contract: function () {
+            return { totalVotingPowerCast: stubTotalVotingPowerCast }
+          },
+        },
+      })
+
+      const result = await MockedGaugeHelper.totalVotingPowerCast(pluginAddress, network)
+
+      expect(result).to.equal('100000')
+      expect(stubTotalVotingPowerCast.calledOnce).to.be.true
+    })
+
+    it('should return 0 when an error occurs', async () => {
+      const pluginAddress = '0xPluginAddress'
+      const network = NetworksEnum.ethereumMainnet
+
+      const stubTotalVotingPowerCast = sandbox.stub().rejects(new Error('Contract call failed'))
+      const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
+        ethers: {
+          Contract: function () {
+            return { totalVotingPowerCast: stubTotalVotingPowerCast }
+          },
+        },
+      })
+
+      const result = await MockedGaugeHelper.totalVotingPowerCast(pluginAddress, network)
+
+      expect(result).to.equal('0')
+      expect(stubTotalVotingPowerCast.calledOnce).to.be.true
+    })
+  })
+
+  describe('getGaugeVotes', () => {
+    it('should return the gauge votes for a gauge address', async () => {
+      const gaugeAddress = '0xGaugeAddress'
+      const pluginAddress = '0xPluginAddress'
+      const network = NetworksEnum.ethereumMainnet
+      const gaugeVotes = 50000n
+
+      const stubGaugeVotes = sandbox.stub().resolves(gaugeVotes)
+      const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
+        ethers: {
+          Contract: function () {
+            return { gaugeVotes: stubGaugeVotes }
+          },
+        },
+      })
+
+      const result = await MockedGaugeHelper.getGaugeVotes(gaugeAddress, pluginAddress, network)
+
+      expect(result).to.equal('50000')
+      expect(stubGaugeVotes.calledOnceWith(gaugeAddress)).to.be.true
+    })
+
+    it('should return 0 when an error occurs', async () => {
+      const gaugeAddress = '0xGaugeAddress'
+      const pluginAddress = '0xPluginAddress'
+      const network = NetworksEnum.ethereumMainnet
+
+      const stubGaugeVotes = sandbox.stub().rejects(new Error('Contract call failed'))
+      const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
+        ethers: {
+          Contract: function () {
+            return { gaugeVotes: stubGaugeVotes }
+          },
+        },
+      })
+
+      const result = await MockedGaugeHelper.getGaugeVotes(gaugeAddress, pluginAddress, network)
+
+      expect(result).to.equal('0')
+      expect(stubGaugeVotes.calledOnceWith(gaugeAddress)).to.be.true
+    })
+  })
+
   describe('getPastVotes', () => {
     it('should return the past voting power for a member at a specific timepoint', async () => {
       const memberAddress = '0xMemberAddress'

@@ -22,6 +22,25 @@ import { ExecuteHandler } from '@handlers/executeHandler'
 import { GaugeHandler } from '@handlers/gaugeHandler'
 import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
 import LockManagerHandler from '@handlers/lockManagerHandler'
+import { PolicyHandler } from '@handlers/policyHandler'
+import {
+  AddressGaugeRatioModel,
+  BracketsModel,
+  ClaimerPlugin,
+  ClaimerSourceFactory,
+  CowSwapRouterPlugin,
+  DrainBalanceSource,
+  EqualRatioModel,
+  MultiClaimerPlugin,
+  MultiRouterPlugin,
+  OmniModelFactory,
+  OmniSourceFactory,
+  RatioModel,
+  RouterModelFactory,
+  RouterPlugin,
+  RouterSourceFactory,
+  StreamBalanceSource,
+} from '@artifacts/CapitalRouter'
 import { DaoRegistryHandler } from '@src/handlers/daoRegistryHandler'
 import { GovernanceErc20Handler } from '@src/handlers/governanceErc20Handler'
 import { MetadataHandler } from '@src/handlers/metadataHandler'
@@ -375,6 +394,28 @@ const IndexerEventConfig: IIndexerConfig[] = [
     ],
   },
   {
+    event: 'Split',
+    enableHistorical: false,
+    topic: new Interface(VotingEscrowIncreasing.abi).getEvent('Split')?.topicHash!,
+    config: [
+      {
+        abi: VotingEscrowIncreasing.abi,
+        handler: GovernanceVeHandler.split,
+      },
+    ],
+  },
+  {
+    event: 'Merged',
+    enableHistorical: false,
+    topic: new Interface(VotingEscrowIncreasing.abi).getEvent('Merged')?.topicHash!,
+    config: [
+      {
+        abi: VotingEscrowIncreasing.abi,
+        handler: GovernanceVeHandler.merge,
+      },
+    ],
+  },
+  {
     event: 'ExitQueued',
     enableHistorical: false,
     topic: new Interface(ExitQueue.abi).getEvent('ExitQueued')?.topicHash!,
@@ -393,6 +434,17 @@ const IndexerEventConfig: IIndexerConfig[] = [
       {
         abi: ExitQueue.abi,
         handler: GovernanceVeHandler.exitQueued,
+      },
+    ],
+  },
+  {
+    event: 'ExitCancelled',
+    enableHistorical: false,
+    topic: new Interface(ExitQueue.abi).getEvent('ExitCancelled')?.topicHash!,
+    config: [
+      {
+        abi: ExitQueue.abi,
+        handler: GovernanceVeHandler.exitCancelled,
       },
     ],
   },
@@ -660,6 +712,210 @@ const IndexerEventConfig: IIndexerConfig[] = [
       {
         abi: GaugeVoter.abi,
         handler: GaugeHandler.gaugeReset,
+      },
+    ],
+  },
+
+  // Policy Source/Model events
+  {
+    event: 'SourceSettingsUpdated',
+    enableHistorical: false,
+    topic: [
+      new Interface(StreamBalanceSource.abi).getEvent('SourceSettingsUpdated')?.topicHash!,
+      new Interface(DrainBalanceSource.abi).getEvent('SourceSettingsUpdated')?.topicHash!,
+    ],
+    config: [
+      {
+        abi: StreamBalanceSource.abi,
+        handler: PolicyHandler.streamSourceSettingsUpdated,
+      },
+      {
+        abi: DrainBalanceSource.abi,
+        handler: PolicyHandler.drainSourceSettingsUpdated,
+      },
+    ],
+  },
+  {
+    event: 'PluginDefined',
+    enableHistorical: false,
+    topic: new Interface(StreamBalanceSource.abi).getEvent('PluginDefined')?.topicHash!,
+    config: [
+      {
+        abi: StreamBalanceSource.abi,
+        handler: PolicyHandler.pluginDefined,
+      },
+    ],
+  },
+  {
+    event: 'ModelSettingsUpdated',
+    enableHistorical: false,
+    topic: [
+      new Interface(RatioModel.abi).getEvent('ModelSettingsUpdated')?.topicHash!,
+      new Interface(EqualRatioModel.abi).getEvent('ModelSettingsUpdated')?.topicHash!,
+      new Interface(AddressGaugeRatioModel.abi).getEvent('ModelSettingsUpdated')?.topicHash!,
+      new Interface(BracketsModel.abi).getEvent('ModelSettingsUpdated')?.topicHash!,
+    ],
+    config: [
+      {
+        abi: RatioModel.abi,
+        handler: PolicyHandler.ratioModelSettingsUpdated,
+      },
+      {
+        abi: EqualRatioModel.abi,
+        handler: PolicyHandler.equalRatioModelSettingsUpdated,
+      },
+      {
+        abi: AddressGaugeRatioModel.abi,
+        handler: PolicyHandler.gaugeModelSettingsUpdated,
+      },
+      {
+        abi: BracketsModel.abi,
+        handler: PolicyHandler.bracketsModelSettingsUpdated,
+      },
+    ],
+  },
+  // RouterSettingsUpdated - Note: RouterPlugin and UniswapRouterPlugin have SAME topic hash
+  // routerSettingsUpdated handler dispatches based on strategyType
+  {
+    event: 'RouterSettingsUpdated',
+    enableHistorical: false,
+    topic: [
+      new Interface(RouterPlugin.abi).getEvent('RouterSettingsUpdated')?.topicHash!, // Same as UniswapRouterPlugin
+      new Interface(MultiRouterPlugin.abi).getEvent('RouterSettingsUpdated')?.topicHash!,
+      new Interface(CowSwapRouterPlugin.abi).getEvent('RouterSettingsUpdated')?.topicHash!,
+    ],
+    config: [
+      {
+        // Unified handler for RouterPlugin AND UniswapRouterPlugin (same topic hash)
+        abi: RouterPlugin.abi,
+        handler: PolicyHandler.routerSettingsUpdated,
+      },
+      {
+        abi: MultiRouterPlugin.abi,
+        handler: PolicyHandler.multiRouterSettingsUpdated,
+      },
+      {
+        abi: CowSwapRouterPlugin.abi,
+        handler: PolicyHandler.cowSwapRouterSettingsUpdated,
+      },
+    ],
+  },
+  {
+    event: 'ClaimerSettingsUpdated',
+    enableHistorical: false,
+    topic: [
+      new Interface(ClaimerPlugin.abi).getEvent('ClaimerSettingsUpdated')?.topicHash!,
+      new Interface(MultiClaimerPlugin.abi).getEvent('ClaimerSettingsUpdated')?.topicHash!,
+    ],
+    config: [
+      {
+        abi: ClaimerPlugin.abi,
+        handler: PolicyHandler.claimerSettingsUpdated,
+      },
+      {
+        abi: MultiClaimerPlugin.abi,
+        handler: PolicyHandler.multiClaimerSettingsUpdated,
+      },
+    ],
+  },
+
+  // Policy Factory Deployment Events
+  {
+    event: 'DrainBalanceSourceDeployed',
+    enableHistorical: true,
+    topic: new Interface(RouterSourceFactory.abi).getEvent('DrainBalanceSourceDeployed')?.topicHash!,
+    config: [
+      {
+        abi: RouterSourceFactory.abi,
+        handler: PolicyHandler.drainBalanceSourceDeployed,
+      },
+    ],
+  },
+  {
+    event: 'RequiredBalanceSourceDeployed',
+    enableHistorical: true,
+    topic: new Interface(RouterSourceFactory.abi).getEvent('RequiredBalanceSourceDeployed')?.topicHash!,
+    config: [
+      {
+        abi: RouterSourceFactory.abi,
+        handler: PolicyHandler.requiredBalanceSourceDeployed,
+      },
+    ],
+  },
+  {
+    event: 'StreamBalanceSourceDeployed',
+    enableHistorical: true,
+    topic: new Interface(OmniSourceFactory.abi).getEvent('StreamBalanceSourceDeployed')?.topicHash!,
+    config: [
+      {
+        abi: OmniSourceFactory.abi,
+        handler: PolicyHandler.streamBalanceSourceDeployed,
+      },
+    ],
+  },
+  {
+    event: 'FixedBalanceSourceDeployed',
+    enableHistorical: true,
+    topic: new Interface(ClaimerSourceFactory.abi).getEvent('FixedBalanceSourceDeployed')?.topicHash!,
+    config: [
+      {
+        abi: ClaimerSourceFactory.abi,
+        handler: PolicyHandler.fixedBalanceSourceDeployed,
+      },
+    ],
+  },
+  {
+    event: 'RatioModelDeployed',
+    enableHistorical: true,
+    topic: new Interface(RouterModelFactory.abi).getEvent('RatioModelDeployed')?.topicHash!,
+    config: [
+      {
+        abi: RouterModelFactory.abi,
+        handler: PolicyHandler.ratioModelDeployed,
+      },
+    ],
+  },
+  {
+    event: 'EqualRatioModelDeployed',
+    enableHistorical: true,
+    topic: new Interface(RouterModelFactory.abi).getEvent('EqualRatioModelDeployed')?.topicHash!,
+    config: [
+      {
+        abi: RouterModelFactory.abi,
+        handler: PolicyHandler.equalRatioModelDeployed,
+      },
+    ],
+  },
+  {
+    event: 'BracketsModelDeployed',
+    enableHistorical: true,
+    topic: new Interface(RouterModelFactory.abi).getEvent('BracketsModelDeployed')?.topicHash!,
+    config: [
+      {
+        abi: RouterModelFactory.abi,
+        handler: PolicyHandler.bracketsModelDeployed,
+      },
+    ],
+  },
+  {
+    event: 'AddressGaugeRatioModelDeployed',
+    enableHistorical: true,
+    topic: new Interface(OmniModelFactory.abi).getEvent('AddressGaugeRatioModelDeployed')?.topicHash!,
+    config: [
+      {
+        abi: OmniModelFactory.abi,
+        handler: PolicyHandler.addressGaugeRatioModelDeployed,
+      },
+    ],
+  },
+  {
+    event: 'TokenGaugeRatioModelDeployed',
+    enableHistorical: true,
+    topic: new Interface(OmniModelFactory.abi).getEvent('TokenGaugeRatioModelDeployed')?.topicHash!,
+    config: [
+      {
+        abi: OmniModelFactory.abi,
+        handler: PolicyHandler.tokenGaugeRatioModelDeployed,
       },
     ],
   },

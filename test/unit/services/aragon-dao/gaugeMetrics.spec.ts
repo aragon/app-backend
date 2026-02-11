@@ -36,6 +36,10 @@ describe('Service: GaugeMetrics', () => {
       const findGaugeStub = sandbox.stub(Models.Gauge, 'findOne').resolves(mockGauge as any)
       const countVotesStub = sandbox.stub(Models.VoteGauge, 'countActiveVotesByEpochAndGauge').resolves(10)
 
+      // Stub contract calls
+      sandbox.stub(GaugeHelper, 'getGaugeVotes').resolves(currentEpochVotingPower)
+      sandbox.stub(GaugeHelper, 'totalVotingPowerCast').resolves(totalGaugeVotingPower)
+
       const findMetricsStub = sandbox.stub(Models.GaugeMetrics, 'findByGaugeAndEpoch').resolves(null)
       const createMetricsStub = sandbox.stub(Models.GaugeMetrics, 'create').resolves({} as any)
 
@@ -46,8 +50,6 @@ describe('Service: GaugeMetrics', () => {
         gaugeAddress,
         pluginAddress,
         network,
-        currentEpochVotingPower,
-        totalGaugeVotingPower,
       })
 
       expect(findGaugeStub.calledOnce).to.be.true
@@ -84,6 +86,10 @@ describe('Service: GaugeMetrics', () => {
       const findGaugeStub = sandbox.stub(Models.Gauge, 'findOne').resolves(mockGauge as any)
       const countVotesStub = sandbox.stub(Models.VoteGauge, 'countActiveVotesByEpochAndGauge').resolves(25)
 
+      // Stub contract calls
+      sandbox.stub(GaugeHelper, 'getGaugeVotes').resolves(currentEpochVotingPower)
+      sandbox.stub(GaugeHelper, 'totalVotingPowerCast').resolves(totalGaugeVotingPower)
+
       const findMetricsStub = sandbox
         .stub(Models.GaugeMetrics, 'findByGaugeAndEpoch')
         .resolves(mockExistingMetrics as any)
@@ -95,8 +101,6 @@ describe('Service: GaugeMetrics', () => {
         gaugeAddress,
         pluginAddress,
         network,
-        currentEpochVotingPower,
-        totalGaugeVotingPower,
       })
 
       expect(findGaugeStub.calledOnce).to.be.true
@@ -121,8 +125,6 @@ describe('Service: GaugeMetrics', () => {
       const pluginAddress = '0xPlugin3333333333333333333333333333333'
       const network = NetworksEnum.ethereumMainnet
       const epochId = '1'
-      const currentEpochVotingPower = '3000000000000000000'
-      const totalGaugeVotingPower = '1000000000000000000'
 
       const findGaugeStub = sandbox.stub(Models.Gauge, 'findOne').resolves(null)
       const warnStub = sandbox.stub(logger, 'warn')
@@ -133,8 +135,6 @@ describe('Service: GaugeMetrics', () => {
         gaugeAddress,
         pluginAddress,
         network,
-        currentEpochVotingPower,
-        totalGaugeVotingPower,
       })
 
       expect(findGaugeStub.calledOnce).to.be.true
@@ -163,6 +163,10 @@ describe('Service: GaugeMetrics', () => {
       const getGaugeEpochIdStub = sandbox.stub(GaugeHelper, 'getGaugeEpochId').resolves(retrievedEpochId)
       const countVotesStub = sandbox.stub(Models.VoteGauge, 'countActiveVotesByEpochAndGauge').resolves(5)
 
+      // Stub contract calls
+      sandbox.stub(GaugeHelper, 'getGaugeVotes').resolves(currentEpochVotingPower)
+      sandbox.stub(GaugeHelper, 'totalVotingPowerCast').resolves(totalGaugeVotingPower)
+
       sandbox.stub(Models.GaugeMetrics, 'findByGaugeAndEpoch').resolves(null)
       const createMetricsStub = sandbox.stub(Models.GaugeMetrics, 'create').resolves({} as any)
 
@@ -173,8 +177,6 @@ describe('Service: GaugeMetrics', () => {
         gaugeAddress,
         pluginAddress,
         network,
-        currentEpochVotingPower,
-        totalGaugeVotingPower,
       })
 
       expect(getGaugeEpochIdStub.calledOnce).to.be.true
@@ -187,8 +189,6 @@ describe('Service: GaugeMetrics', () => {
       const gaugeAddress = '0xGauge44444444444444444444444444444444'
       const pluginAddress = '0xPlugin5555555555555555555555555555555'
       const network = NetworksEnum.ethereumMainnet
-      const currentEpochVotingPower = '5000000000000000000'
-      const totalGaugeVotingPower = '3000000000000000000'
 
       const mockGauge = {
         address: gaugeAddress,
@@ -206,8 +206,6 @@ describe('Service: GaugeMetrics', () => {
         gaugeAddress,
         pluginAddress,
         network,
-        currentEpochVotingPower,
-        totalGaugeVotingPower,
       })
 
       expect(findGaugeStub.calledOnce).to.be.true
@@ -238,6 +236,10 @@ describe('Service: GaugeMetrics', () => {
       sandbox.stub(Models.VoteGauge, 'countActiveVotesByEpochAndGauge').resolves(totalMemberVoteCount)
       sandbox.stub(Models.GaugeMetrics, 'findByGaugeAndEpoch').resolves(null)
 
+      // Stub contract calls
+      sandbox.stub(GaugeHelper, 'getGaugeVotes').resolves(currentEpochVotingPower)
+      sandbox.stub(GaugeHelper, 'totalVotingPowerCast').resolves(totalGaugeVotingPower)
+
       const createMetricsStub = sandbox.stub(Models.GaugeMetrics, 'create').resolves({} as any)
 
       sandbox.stub(logger, 'verbose')
@@ -247,8 +249,6 @@ describe('Service: GaugeMetrics', () => {
         gaugeAddress,
         pluginAddress,
         network,
-        currentEpochVotingPower,
-        totalGaugeVotingPower,
       })
 
       expect(createMetricsStub.calledOnce).to.be.true
@@ -282,6 +282,10 @@ describe('Service: GaugeMetrics', () => {
       const findGaugeStub = sandbox.stub(Models.Gauge, 'findOne').resolves(mockGauge as any)
       const countVotesStub = sandbox.stub(Models.VoteGauge, 'countActiveVotesByEpochAndGauge').resolves(0)
 
+      // Stub contract calls
+      sandbox.stub(GaugeHelper, 'getGaugeVotes').resolves(currentEpochVotingPower)
+      sandbox.stub(GaugeHelper, 'totalVotingPowerCast').resolves(totalGaugeVotingPower)
+
       const findMetricsStub = sandbox.stub(Models.GaugeMetrics, 'findByGaugeAndEpoch').resolves(null)
       const createMetricsStub = sandbox.stub(Models.GaugeMetrics, 'create').resolves({} as any)
 
@@ -292,8 +296,6 @@ describe('Service: GaugeMetrics', () => {
         gaugeAddress,
         pluginAddress,
         network,
-        currentEpochVotingPower,
-        totalGaugeVotingPower,
       })
 
       expect(findGaugeStub.calledOnce).to.be.true

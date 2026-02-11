@@ -1,9 +1,7 @@
 import config from '@config'
 import PinataHelper from '@helpers/pinata'
-import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import IPFSModule from '@modules/ipfs'
-import axios from 'axios'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -66,22 +64,20 @@ describe('Modules: IPFS', () => {
   })
 
   describe('_fetchMetadata', function () {
-    it('should _fetchMetadata', async () => {
+    it('should _fetchMetadata and return raw data without parsing', async () => {
+      const rawMetadata = { title: 'Test', description: 'Raw metadata' }
       const stubReq = sandbox.stub(global, 'fetch').resolves({
         ok: true,
-        json: async () => 'ok',
+        json: async () => rawMetadata,
       } as any)
 
-      const stubParseMetadata = sandbox.stub(Web3Utils, 'parseDaoMetadata').returns(true as any)
       const cid = 'bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme'
 
       const metadata = await IPFSModule._fetchMetadata(cid)
 
-      expect(metadata).to.be.true
+      expect(metadata).to.deep.equal(rawMetadata)
       expect(stubReq.calledOnce).to.be.true
       expect(stubReq.calledWith(`https://ipfs.io/ipfs/${cid}`)).to.be.true
-      expect(stubParseMetadata.calledOnce).to.be.true
-      expect(stubParseMetadata.calledWith('ok' as any)).to.be.true
     })
 
     it('should log an error when _fetchMetadata fails', async () => {
@@ -189,6 +185,59 @@ describe('Modules: IPFS', () => {
       expect(stubPinataGetData.calledOnceWith('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')).to.be.true
       expect(stubFetchMetadata.called).to.be.false
       expect(result).to.deep.equal(expectedMetadata)
+    })
+
+    it('should call onFetchFailed callback when fetch fails and callback is provided', async function () {
+      const cidV0 = 'ipfs://QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM'
+
+      sandbox.stub(PinataHelper, 'getData').resolves(null)
+      sandbox.stub(IPFSModule, '_fetchMetadata').resolves(null)
+      const onFetchFailedStub = sandbox.stub().resolves()
+
+      const result = await IPFSModule.fetchMetadata(cidV0, { onFetchFailed: onFetchFailedStub })
+
+      expect(result).to.be.null
+      expect(onFetchFailedStub.calledOnceWith(cidV0)).to.be.true
+    })
+
+    it('should not call onFetchFailed callback when fetch succeeds', async function () {
+      const cidV0 = 'ipfs://QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM'
+      const expectedMetadata = { name: 'Example' }
+
+      sandbox.stub(PinataHelper, 'getData').resolves(expectedMetadata)
+      const onFetchFailedStub = sandbox.stub().resolves()
+
+      const result = await IPFSModule.fetchMetadata(cidV0, { onFetchFailed: onFetchFailedStub })
+
+      expect(result).to.deep.equal(expectedMetadata)
+      expect(onFetchFailedStub.called).to.be.false
+    })
+
+    it('should handle errors in onFetchFailed callback gracefully', async function () {
+      const cidV0 = 'ipfs://QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM'
+
+      sandbox.stub(PinataHelper, 'getData').resolves(null)
+      sandbox.stub(IPFSModule, '_fetchMetadata').resolves(null)
+      const onFetchFailedStub = sandbox.stub().rejects(new Error('Callback error'))
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+
+      const result = await IPFSModule.fetchMetadata(cidV0, { onFetchFailed: onFetchFailedStub })
+
+      expect(result).to.be.null
+      expect(onFetchFailedStub.calledOnce).to.be.true
+      expect(loggerErrorStub.args[0][0]).to.eq('Error in onFetchFailed callback')
+    })
+
+    it('should not call onFetchFailed callback when callback is not provided', async function () {
+      const cidV0 = 'ipfs://QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM'
+
+      sandbox.stub(PinataHelper, 'getData').resolves(null)
+      sandbox.stub(IPFSModule, '_fetchMetadata').resolves(null)
+
+      // Should not throw when callback is not provided
+      const result = await IPFSModule.fetchMetadata(cidV0)
+
+      expect(result).to.be.null
     })
   })
 

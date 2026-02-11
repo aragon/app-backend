@@ -169,8 +169,6 @@ describe('Governance:GaugeGovernance', () => {
           gaugeAddress: testGaugeAddress,
           pluginAddress: testPluginAddress,
           network: testNetwork,
-          currentEpochVotingPower: '0',
-          totalGaugeVotingPower: '0',
         }),
       ).to.be.true
     })
@@ -208,8 +206,6 @@ describe('Governance:GaugeGovernance', () => {
           gaugeAddress: testGaugeAddress,
           pluginAddress: testPluginAddress,
           network: testNetwork,
-          currentEpochVotingPower: '0',
-          totalGaugeVotingPower: '0',
         }),
       ).to.be.true
     })
@@ -242,8 +238,6 @@ describe('Governance:GaugeGovernance', () => {
       expect(callArgs.gaugeAddress).to.equal(testGaugeAddress)
       expect(callArgs.pluginAddress).to.equal(testPluginAddress)
       expect(callArgs.network).to.equal(testNetwork)
-      expect(callArgs.currentEpochVotingPower).to.equal('0')
-      expect(callArgs.totalGaugeVotingPower).to.equal('0')
     })
 
     it('should throw error when Models.Gauge.create fails', async () => {

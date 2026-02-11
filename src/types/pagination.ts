@@ -49,6 +49,7 @@ export interface IPairParams {
 export interface IProposalExtraParams {
   network?: NetworksEnum
   daoAddress?: HexAddress
+  daoAddresses?: HexAddress[]
   pluginAddress?: HexAddress
   creatorAddress?: HexAddress
   pluginAddresses?: HexAddress[]
@@ -75,7 +76,10 @@ export interface IGaugeEpochMetricParams {
 export interface IAssetExtraParams {
   network?: NetworksEnum
   daoAddress?: HexAddress
+  daoAddresses?: HexAddress[]
   tokenAddress?: HexAddress
+  onlyParent?: boolean
+  includeSpam?: boolean
 }
 
 export interface IDaoExtraParams {
@@ -115,11 +119,13 @@ export interface IMemberExtraParams {
 export interface ITransactionExtraParams {
   network?: NetworksEnum
   daoAddress?: HexAddress
+  daoAddresses?: HexAddress[]
   tokenAddress?: HexAddress
   fromAddress?: HexAddress
   toAddress?: HexAddress
   side?: ITransactionSide
   type?: ITransactionType
+  onlyParent?: boolean
 }
 
 export interface IExtraQueryData {
@@ -161,6 +167,14 @@ export interface IPaginatedResult<T> {
   metadata: IPaginationMetadata
 }
 
+export interface IAssetPaginationMetadata extends IPaginationMetadata {
+  spamCount?: number
+}
+
+export interface IAssetPaginatedResult<T> extends Omit<IPaginatedResult<T>, 'metadata'> {
+  metadata: IAssetPaginationMetadata
+}
+
 export interface IGetPluginsByDaoParams {
   daoAddress: HexAddress
   network: NetworksEnum
@@ -168,4 +182,11 @@ export interface IGetPluginsByDaoParams {
   status?: IPluginStatus | 'all'
   isProcess?: boolean
   isSupported?: boolean
+}
+
+export interface IGetPoliciesByDaoParams {
+  daoAddress: HexAddress
+  daoAddresses?: HexAddress[]
+  network: NetworksEnum
+  onlyParent?: boolean
 }

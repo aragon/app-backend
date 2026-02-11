@@ -21,9 +21,8 @@ describe('AragonIndexer: index', () => {
 
   afterEach(() => {
     sandbox?.restore()
-
     const scheduler = TaskSchedulerState.getInstance()
-    scheduler.stopAllTasks()
+    scheduler.destroy()
   })
 
   describe('start', () => {

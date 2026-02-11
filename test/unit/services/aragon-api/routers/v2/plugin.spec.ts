@@ -860,6 +860,35 @@ describe('RouterV2: Plugin', () => {
     })
   })
 
+  describe('getPluginsByDaoWithDetails', () => {
+    it('should call controller with correct args and return plugins with details', async () => {
+      const daoAddress = '0xe2e445489b0356D3087efF7e79DB7Ff3f16c4fEA'
+      const network = NetworksEnum.polygonMainnet
+      const mockPlugins = [{ address: '0xPlugin1', interfaceType: 'tokenVoting', details: { setting: 'value' } }]
+
+      const controllerStub = sandbox.stub(PluginController, 'getPluginsByDaoWithDetails').resolves(mockPlugins as any)
+
+      const ctx: any = {
+        params: { daoAddress, network },
+        query: {},
+      }
+
+      await PluginRouter.getPluginsByDaoWithDetails(ctx)
+
+      expect(controllerStub.calledOnce).to.be.true
+      expect(
+        controllerStub.calledWith(
+          sandbox.match({
+            daoAddress: getAddress(daoAddress),
+            network,
+          }),
+        ),
+      ).to.be.true
+
+      expect(ctx.body).to.deep.equal(mockPlugins)
+    })
+  })
+
   describe('getLogPluginSetupProcessor', () => {
     it('should call controller with correct args and return log data', async () => {
       const pluginAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'

@@ -918,7 +918,7 @@ describe('Module: blockchainLogCrawler', () => {
       expect(result.logs[0].blockNumber).to.equal(100)
     })
 
-    it('should fails entire responses in block receipts if some fails', async () => {
+    it('should fallback to getLogsWithoutTopics when some block receipts fail', async () => {
       const crawler = new BlockchainLogCrawler({
         ...crawlerConfig,
         events: [
@@ -962,11 +962,26 @@ describe('Module: blockchainLogCrawler', () => {
 
       const axiosStub = sandbox.stub(axios, 'post').resolves(mockResponse)
 
+      // Stub provider for fallback to getLogsWithoutTopics
+      const mockProvider = {
+        getLogs: sandbox.stub().resolves([
+          {
+            topics: ['0xTopic1'],
+            blockNumber: 100,
+            transactionIndex: 1,
+            index: 0,
+          },
+        ]),
+      }
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').resolves(mockProvider as any)
+
       const result = await crawler.getLogsByBlockReceipts(100, 102)
-      expect(crawler['crawlSetting'].shutdown).to.be.true
-      expect(result.logs).to.have.lengthOf(0)
+
+      // Should NOT shutdown - fallback to getLogsWithoutTopics instead
+      expect(crawler['crawlSetting'].shutdown).to.be.false
+      expect(result.logs).to.have.lengthOf(1)
       expect(axiosStub.calledOnce).to.be.true
-      expect(axiosStub.args[0][1]).to.be.an('array').with.lengthOf(3)
+      expect(mockProvider.getLogs.calledOnce).to.be.true
     })
 
     it('should handle HTTP request errors', async () => {
@@ -983,7 +998,7 @@ describe('Module: blockchainLogCrawler', () => {
 
       expect(result.logs).to.be.empty
       expect(logWarn.calledOnce).to.be.true
-      expect(logWarn.firstCall.args[0]).to.equal('Batch request failed, falling back to individual requests')
+      expect(logWarn.firstCall.args[0]).to.equal('getBlockReceipts failed, falling back to individual requests')
       expect(crawler['crawlSetting'].shutdown).to.be.true
       expect(onErrorStub.calledOnceWith(networkError)).to.be.true
     })
@@ -1525,7 +1540,7 @@ describe('Module: blockchainLogCrawler', () => {
     })
 
     expect(updatedConfig).to.exist
-    expect(updatedConfig.lastSync).to.equal(newBlockNumber)
+    expect(updatedConfig.lastSync).to.equal(newBlockNumber + 1)
   })
 
   it('should create a new config if none exists', async () => {
@@ -1560,7 +1575,7 @@ describe('Module: blockchainLogCrawler', () => {
     })
 
     expect(configs).to.have.lengthOf(1)
-    expect(configs[0].lastSync).to.equal(blockNumber)
+    expect(configs[0].lastSync).to.equal(blockNumber + 1)
     expect(configs[0].network).to.equal(NetworksEnum.ethereumMainnet)
     expect(configs[0].service).to.equal(`indexer-${NetworksEnum.ethereumMainnet}`)
   })
@@ -2419,7 +2434,7 @@ describe('Module: blockchainLogCrawler', () => {
           .onSecondCall()
           .resolves(200) // toBlock
 
-        const getLogsByStrategyStub = sandbox.stub(crawler, 'getLogsByStrategy').resolves({
+        sandbox.stub(crawler, 'getLogsByStrategy').resolves({
           logs: [
             { transactionHash: '0x1', blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xTopic1'] },
             { transactionHash: '0x2', blockNumber: 102, transactionIndex: 0, index: 0, topics: ['0xTopic1'] },
@@ -2474,7 +2489,7 @@ describe('Module: blockchainLogCrawler', () => {
           .onSecondCall()
           .resolves(200) // toBlock
 
-        const getLogsByStrategyStub = sandbox.stub(crawler, 'getLogsByStrategy').resolves({
+        sandbox.stub(crawler, 'getLogsByStrategy').resolves({
           logs: [
             { transactionHash: '0x1', blockNumber: 101, transactionIndex: 0, index: 0, topics: ['0xTopic1'] },
           ] as any,

@@ -1,7 +1,6 @@
 import config from '@config'
 import { retry } from '@helpers/fetchRetry'
 import PinataHelper from '@helpers/pinata'
-import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import { type PinataPin } from '@pinata/sdk'
 import { type IMetadata } from '@types'
@@ -23,7 +22,12 @@ const IPFSModule = {
 
   fetchMetadata: async (
     ipfsUrl: string,
-    opts?: { retries?: number; delay?: number; timeout?: number },
+    opts?: {
+      retries?: number
+      delay?: number
+      timeout?: number
+      onFetchFailed?: (metadataUri: string) => Promise<void>
+    },
   ): Promise<IMetadata | null> => {
     const cid = ipfsUrl?.replace('ipfs://', '')
 
@@ -35,12 +39,20 @@ const IPFSModule = {
     let data = await PinataHelper.getData(cid)
 
     if (!data) {
-      // try from any source
       data = await IPFSModule._fetchMetadata(cid, opts)
     }
 
     if (data?.avatar?.path) {
       data.avatar = data.avatar.path
+    }
+
+    // Call onFetchFailed callback if fetch failed and callback is provided
+    if (!data && opts?.onFetchFailed) {
+      try {
+        await opts.onFetchFailed(ipfsUrl)
+      } catch (error) {
+        logger.error('Error in onFetchFailed callback', llo({ ipfsUrl, error }))
+      }
     }
 
     return data
@@ -65,8 +77,7 @@ const IPFSModule = {
               throw new Error(`HTTP error! Status: ${response.status}`)
             }
 
-            const data = await response.json()
-            return Web3Utils.parseDaoMetadata(data)
+            return await response.json()
           } finally {
             clearTimeout(timeoutId)
           }

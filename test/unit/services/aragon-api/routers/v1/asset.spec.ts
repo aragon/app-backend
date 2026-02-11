@@ -125,7 +125,10 @@ describe('RouterV1: Asset', () => {
         pageSize: 10,
       }
       expect(stubCtrl.args[0][0]).to.deep.eq({ ...paginationParams, ...missingParams })
-      expect(stubCtrl.args[0][1]).to.deep.eq({ ...filterParams, ...{ daoAddress: undefined, tokenAddress: undefined } })
+      expect(stubCtrl.args[0][1]).to.deep.eq({
+        ...filterParams,
+        ...{ daoAddress: undefined, tokenAddress: undefined },
+      })
     })
   })
 })
