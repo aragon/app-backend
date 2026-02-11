@@ -1,3 +1,10 @@
+## [0.23.1](https://github.com/aragon/app-backend/compare/v0.23.0...v0.23.1) (2026-02-11)
+
+
+### Bug Fixes
+
+* **config:** add DECODE_ACTION_BATCH_LIMIT to configuration and updat… ([#1138](https://github.com/aragon/app-backend/issues/1138)) ([c66f63f](https://github.com/aragon/app-backend/commit/c66f63fcf38399ff41902acd990916c32cf3df8a))
+
 # [0.23.0](https://github.com/aragon/app-backend/compare/v0.22.0...v0.23.0) (2026-01-23)
 
 
