@@ -642,6 +642,20 @@ describe('Model: Transaction', () => {
       expect(metadata.totalPages).to.eq(2)
       expect(metadata.pageSize).to.eq(1)
     })
+
+    it('should include spam transactions when includeSpam is true', async () => {
+      const { data, metadata } = await Models.Transaction.findWithPagination({
+        extraParams: { daoAddress, network, includeSpam: true },
+        paginationParams: {},
+      })
+
+      expect(metadata.totalRecords).to.eq(3)
+      expect(data).to.have.lengthOf(3)
+
+      const tokenAddresses = data.map((tx: any) => tx.token?.address).filter(Boolean)
+      expect(tokenAddresses).to.include(spamTokenAddress)
+      expect(tokenAddresses).to.include(legitTokenAddress)
+    })
   })
 
   it('Should filterKeys', async () => {
