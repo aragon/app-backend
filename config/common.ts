@@ -532,6 +532,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         BASE_URL: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_API_BASE_URL', 'http://localhost:3000'),
         PORT: utils.configParser(sourceConfig, 'number', 'SERVICES_ARAGON_API_PORT', 3000),
         TIMEOUT: utils.configParser(sourceConfig, 'number', 'SERVICES_ARAGON_API_TIMEOUT', 30), // seconds
+        DECODE_ACTION_BATCH_LIMIT: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_API_DECODE_ACTION_BATCH_LIMIT',
+          100,
+        ),
       },
 
       ARAGON_ADMIN_API: {
