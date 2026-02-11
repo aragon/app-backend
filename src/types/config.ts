@@ -114,6 +114,8 @@ export interface IConfig {
     ALCHEMY_BATCH_REQUEST_MIN_TIME: number
     ALCHEMY_BALANCE_MAX_CONCURRENT: number
     ALCHEMY_BALANCE_MIN_TIME: number
+    ROUTESCAN_MAX_CONCURRENT: number
+    ROUTESCAN_MIN_TIME: number
     CHILIZ_MAX_CONCURRENT: number
     CHILIZ_MIN_TIME: number
   }
@@ -208,6 +210,7 @@ export interface IConfig {
       NAME: string
       PORT: number
       TIMEOUT: number
+      DECODE_ACTION_BATCH_LIMIT: number
     }
     ARAGON_ADMIN_API: {
       BASE_URL: string
