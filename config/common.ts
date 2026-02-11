@@ -434,6 +434,8 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'BOTTLENECK_ALCHEMY_API_KEY_BATCH_REQUEST_MIN_TIME',
         100,
       ),
+      ROUTESCAN_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ROUTESCAN_MAX_CONCURRENT', 1),
+      ROUTESCAN_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ROUTESCAN_MIN_TIME', 2000),
       CHILIZ_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_CHILIZ_MAX_CONCURRENT', 1),
       CHILIZ_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_CHILIZ_MIN_TIME', 5000),
     },

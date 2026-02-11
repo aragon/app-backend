@@ -22,7 +22,7 @@ const RouteScanHelper = {
     try {
       const chainId = ProviderModule.getChainId(network)
       const response = await retryRequest(async () =>
-        BottleneckModule.getEtherScanLimiter(network).schedule(async () =>
+        BottleneckModule.getRouteScanLimiter(network).schedule(async () =>
           RouteScanHelper.axiosInstance(chainId, urlSegments).get('', { params }),
         ),
       )
