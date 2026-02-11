@@ -112,17 +112,21 @@ const MetadataRefetchHelper = {
   },
 
   _applyDaoMetadata: async (address: string, network: NetworksEnum, metadata: any): Promise<boolean> => {
+    if (!metadata) return false
+
     const dao = await Models.Dao.findByAddress(address, network)
     if (!dao) {
       logger.warn('Dao not found for metadata update', llo({ address, network }))
       return false
     }
 
+    const parsedMetadata = Web3Utils.parseDaoMetadata(metadata)
+
     await dao.update({
-      name: metadata.name,
-      description: metadata.description,
-      avatar: Utils.parseAvatar(metadata.avatar),
-      links: metadata.links,
+      name: parsedMetadata.name,
+      description: parsedMetadata.description,
+      avatar: Utils.parseAvatar(parsedMetadata.avatar),
+      links: parsedMetadata.links,
     })
 
     logger.verbose('Applied refetched metadata to Dao', llo({ address, network }))
@@ -138,14 +142,16 @@ const MetadataRefetchHelper = {
       return false
     }
 
+    const parsedMetadata = Web3Utils.parseDaoMetadata(metadata)
+
     await plugin.update({
-      name: metadata.name,
-      description: metadata.description,
-      links: metadata.links,
-      processKey: metadata.processKey,
-      blockedCountries: metadata.blockedCountries || [],
-      termsConditionsUrl: metadata.termsConditionsUrl || null,
-      enableOfacCheck: metadata.enableOfacCheck || null,
+      name: parsedMetadata.name,
+      description: parsedMetadata.description,
+      links: parsedMetadata.links,
+      processKey: parsedMetadata.processKey,
+      blockedCountries: parsedMetadata.blockedCountries || [],
+      termsConditionsUrl: parsedMetadata.termsConditionsUrl || null,
+      enableOfacCheck: parsedMetadata.enableOfacCheck || null,
     })
 
     logger.verbose('Applied refetched metadata to Plugin', llo({ address, network }))

@@ -27,6 +27,7 @@ import { ethers, Interface, Log, type LogDescription } from 'ethers'
 import { SinonSandbox } from 'sinon'
 import { LogPolicy } from '@plugins/logPolicy'
 import { BlockchainLogCrawler } from '@modules/crawlers'
+import { MetadataRefetchProcessor } from '@services/aragon-gateway/metadataRefetch'
 
 // Policy factory addresses per network
 const POLICY_FACTORY_ADDRESSES: Partial<Record<NetworksEnum, string[]>> = {
@@ -279,6 +280,10 @@ export class LibUtils {
           default:
             break
         }
+      }
+
+      if (queue === EnumQueueName.metadataRefetch) {
+        await MetadataRefetchProcessor.processRefetch(job.params)
       }
     })
   }
