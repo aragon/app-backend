@@ -204,7 +204,7 @@ export const RewardGeneratorVe: IService = {
     }
 
     // 6. Print report
-    const report = [
+    const _report = [
       '',
       '========== REWARD DISTRIBUTION REPORT ==========',
       `Plugin:          ${PLUGIN_ADDRESS}`,
@@ -229,8 +229,6 @@ export const RewardGeneratorVe: IService = {
       '===============================================',
       '',
     ]
-
-    console.log(report.join('\n'))
   },
 
   stop: async () => {},
