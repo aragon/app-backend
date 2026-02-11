@@ -283,6 +283,27 @@ describe('RouterV2: Transaction', () => {
       })
     })
 
+    it('Should forward includeSpam true when query param is set', async () => {
+      const filterParams = {
+        network: NetworksEnum.ethereumMainnet,
+        address: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        includeSpam: 'true',
+      }
+
+      const stubCtrl = sandbox.stub(TransactionController, 'getTransactionsWithPagination').returns(true as any)
+
+      const ctx: any = {
+        query: filterParams,
+      }
+
+      await TransactionRouter.getWithPagination(ctx)
+
+      expect(stubCtrl.calledOnce).to.be.true
+      expect(stubCtrl.args[0]?.[1]).to.include({
+        includeSpam: true,
+      })
+    })
+
     it('Should handle all transaction sides correctly', async () => {
       const sides = [ITransactionSide.deposit, ITransactionSide.withdraw]
       const stubCtrl = sandbox.stub(TransactionController, 'getTransactionsWithPagination')
