@@ -195,7 +195,6 @@ const Web3Helper = {
           provider.send('eth_getBalance', [address, 'latest']),
         ),
       )
-
     } catch (error) {
       logger.error('Error getBalance', llo({ address, network, error }))
       return null

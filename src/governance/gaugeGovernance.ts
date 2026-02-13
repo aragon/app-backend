@@ -56,7 +56,8 @@ export class GaugeGovernance extends BaseGovernance {
         $match: {
           pluginAddress,
           network,
-          $or: [{ epochId }, { blockTimestamp: { $lte: voteEnd } }],
+          blockTimestamp: { $lte: voteEnd },
+          resetVoteTransactionHash: null,
         },
       },
       { $sort: { blockNumber: -1, logIndex: -1 } },
